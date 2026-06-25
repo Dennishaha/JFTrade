@@ -1438,20 +1438,6 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
             </div>
 
             <div class="runtime-panel__bar-actions">
-                <div class="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
-                    <button
-                        class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
-                        data-testid="strategy-workspace-tab-design" type="button"
-                        @click="emit('switch-to-design', { mode: 'existing' })">
-                        策略设计
-                    </button>
-                    <button
-                        class="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition"
-                        data-testid="strategy-workspace-tab-runtime" type="button">
-                        策略运行
-                    </button>
-                </div>
-
                 <div class="runtime-panel__metrics">
                     <div class="runtime-panel__metric-chip">{{ activeStrategyCount }} 个活跃实例</div>
                     <div class="runtime-panel__metric-chip">

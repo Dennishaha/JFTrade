@@ -10,6 +10,7 @@ import {
   emptyBrokerOrders,
   emptyBrokerPositions,
   emptyBrokerRuntime,
+  emptyBrokerSettings,
   emptyExecutionOrders,
   emptyMarketDataSubscriptions,
   emptyPortfolioCashBalances,
@@ -36,17 +37,26 @@ import { provideConsoleDataStore } from "../src/composables/useConsoleData"
 import { provideThemeStore } from "../src/composables/useTheme"
 import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences"
 import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout"
-import StrategyPage from "../src/pages/StrategyPage.vue"
+import StrategyDesignPage from "../src/pages/StrategyDesignPage.vue"
+import StrategyRuntimePage from "../src/pages/StrategyRuntimePage.vue"
 
 import {
   MockWebSocket,
+  collapseItemStub,
+  collapseStub,
   createResponse,
   dialogStub,
   flushRequests,
+  passthroughStub,
 } from "./helpers"
 
 let currentStrategySystemStatus: SystemStatusResponse = emptySystemStatus
 let currentConsoleDataStore: ReturnType<typeof provideConsoleDataStore> | null = null
+
+const expansionTitleStub = defineComponent({
+  emits: ["click"],
+  template: "<button type='button' class='v-expansion-panel-title' @click=\"$emit('click')\"><slot /></button>",
+})
 
 const StrategyPageTestRoot = defineComponent({
   setup() {
@@ -70,7 +80,9 @@ export async function mountStrategyPage(path = "/strategy") {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: "/strategy", component: StrategyPage as never },
+      { path: "/strategy", redirect: "/strategy/runtime" },
+      { path: "/strategy/runtime", component: StrategyRuntimePage as never },
+      { path: "/strategy/design", component: StrategyDesignPage as never },
       { path: "/route-leave-target", component: RouteLeaveTargetPage as never },
     ],
   })
@@ -82,6 +94,10 @@ export async function mountStrategyPage(path = "/strategy") {
       plugins: [createPinia(), router],
       stubs: {
         "v-dialog": dialogStub,
+        "v-expansion-panels": collapseStub,
+        "v-expansion-panel": collapseItemStub,
+        "v-expansion-panel-title": expansionTitleStub,
+        "v-expansion-panel-text": passthroughStub,
       },
     },
   })
@@ -108,50 +124,6 @@ export async function settleStrategyWorkspace() {
   await flushRequests()
   await nextTick()
   await nextTick()
-}
-
-function hasDesignWorkspace(
-  wrapper: StrategyPageWrapper,
-) {
-  return (
-    wrapper.find('[data-testid="instantiate-strategy-definition"]').exists()
-    || wrapper.find('[data-testid="toggle-strategy-templates-section"]').exists()
-    || wrapper.find('[data-testid="strategy-templates-section"]').exists()
-  )
-}
-
-async function ensureStrategyDesignWorkspace(
-  wrapper: StrategyPageWrapper,
-) {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    if (hasDesignWorkspace(wrapper)) {
-      return
-    }
-    if (!wrapper.find('[data-testid="strategy-workspace-tab-design"]').exists()) {
-      return
-    }
-    await wrapper.get('[data-testid="strategy-workspace-tab-design"]').trigger("click")
-    await settleStrategyWorkspace()
-  }
-}
-
-export async function openStrategyWorkspaceTab(
-  wrapper: StrategyPageWrapper,
-  tab: "runtime" | "design",
-) {
-  await wrapper
-    .get(`[data-testid="strategy-workspace-tab-${tab}"]`)
-    .trigger("click")
-  await settleStrategyWorkspace()
-  if (tab === "design") {
-    await ensureStrategyDesignWorkspace(wrapper)
-  }
-}
-
-export async function openStrategyDesignWorkspace(
-  wrapper: StrategyPageWrapper,
-) {
-  await openStrategyWorkspaceTab(wrapper, "design")
 }
 
 export async function showStrategyCodeEditor(
@@ -709,7 +681,28 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
     const lifecycleMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/(start|pause|stop)/)
     const refreshDefinitionMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/refresh-definition$/)
     const instanceMatch = url.match(/\/api\/v1\/strategies\/([^/]+)$/)
+    const syncProgressMatch = url.match(/\/api\/v1\/backtests\/sync\/([^/]+)$/)
 
+    if (url.includes("/api/v1/settings/brokers"))
+      return createResponse(emptyBrokerSettings)
+    if (url.includes("/api/v1/backtests/sync") && method === "POST")
+      return createResponse({ taskId: "sync-native-1", message: "sync queued" })
+    if (syncProgressMatch && method === "GET")
+      return createResponse({
+        taskId: decodeURIComponent(syncProgressMatch[1]),
+        status: "completed",
+        symbol: "HK.00700",
+        currentInterval: "5m",
+        totalIntervals: 1,
+        completedIntervals: 1,
+        totalBatches: 1,
+        completedBatches: 1,
+        retries: 0,
+        startedAt: mutationTimestamp,
+        updatedAt: mutationTimestamp,
+      })
+    if (syncProgressMatch && method === "DELETE")
+      return createResponse({ taskId: decodeURIComponent(syncProgressMatch[1]), status: "cancelled" })
     if (url.includes("/api/v1/market-data/subscriptions"))
       return createResponse(emptyMarketDataSubscriptions)
     if (url.includes("/api/v1/market-data/markets")) {

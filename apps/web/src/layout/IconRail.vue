@@ -25,7 +25,8 @@ const { docsHomeUrl } = useDocsLink();
 const items: NavItem[] = [
   { type: "route", to: "/workspace", label: "交易", icon: "fa-solid fa-display" },
   { type: "route", to: "/adk", label: "智能体", icon: "fa-solid fa-robot" },
-  { type: "route", to: "/strategy", label: "策略", icon: "fa-solid fa-wand-magic-sparkles" },
+  { type: "route", to: "/strategy/runtime", label: "策略执行", icon: "fa-solid fa-play" },
+  { type: "route", to: "/strategy/design", label: "策略设计", icon: "fa-solid fa-wand-magic-sparkles" },
   { type: "route", to: "/backtest", label: "回测", icon: "fa-solid fa-flask" },
   { type: "route", to: "/account", label: "我的账户", icon: "fa-solid fa-wallet" },
   { type: "route", to: "/system", label: "系统", icon: "fa-solid fa-microchip" },

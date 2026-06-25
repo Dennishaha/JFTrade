@@ -42,13 +42,6 @@ export type {
 export { getStrategyAuthoringTemplates } from "./strategyVisualBuilderTemplates";
 export type { StrategyAuthoringTemplate } from "./strategyVisualBuilderTemplates";
 export {
-  fromStrategyCanvasGraphData,
-  fromLogicFlowGraphData,
-  toStrategyCanvasGraphData,
-  toLogicFlowGraphData,
-  type StrategyVisualGraphData,
-} from "./strategyVisualBuilderGraphData";
-export {
   buildStrategyVisualControlEdgeProperties,
   buildStrategyVisualDataEdgeProperties,
   isStrategyVisualControlEdge,

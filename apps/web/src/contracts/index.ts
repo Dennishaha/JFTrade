@@ -823,10 +823,73 @@ export interface StrategyVisualEdgeDocument {
 }
 
 export interface StrategyVisualModelDocument {
-  engine: "logic-flow";
+  engine: string;
   version: number;
   nodes: StrategyVisualNodeDocument[];
   edges: StrategyVisualEdgeDocument[];
+}
+
+export type PineV6WorkflowBlockKind =
+  | "series_assign"
+  | "var_state"
+  | "if"
+  | "request_security"
+  | "array_op"
+  | "strategy_entry"
+  | "strategy_exit"
+  | "strategy_order"
+  | "strategy_close"
+  | "plot"
+  | "alertcondition"
+  | "log";
+
+export interface PineV6WorkflowDeclaration {
+  title: string;
+  overlay: boolean;
+  initialCapital?: number | null;
+  currency?: string | null;
+  pyramiding?: number | null;
+  defaultQtyType?: string | null;
+  defaultQtyValue?: number | null;
+  calcOnEveryTick?: boolean | null;
+  processOrdersOnClose?: boolean | null;
+}
+
+export interface PineV6WorkflowInput {
+  id: string;
+  name: string;
+  title: string;
+  type: "int" | "float" | "bool" | "string" | "source" | "time";
+  defaultValue: string;
+}
+
+export interface PineV6WorkflowRuntimeBindingDraft {
+  market: string;
+  code: string;
+  interval: string;
+  executionMode: StrategyExecutionMode;
+  useExtendedHours: boolean;
+  brokerAccountKey?: string;
+  runtimeRisk?: StrategyRuntimeRiskSettings;
+}
+
+export interface PineV6WorkflowBlock {
+  id: string;
+  kind: PineV6WorkflowBlockKind;
+  enabled: boolean;
+  title: string;
+  params: Record<string, unknown>;
+  thenBlocks?: PineV6WorkflowBlock[];
+  elseBlocks?: PineV6WorkflowBlock[];
+}
+
+export interface PineV6WorkflowDocument {
+  engine: "pine-v6-workflow";
+  version: number;
+  declaration: PineV6WorkflowDeclaration;
+  inputs: PineV6WorkflowInput[];
+  blocks: PineV6WorkflowBlock[];
+  runtimeBindingDraft: PineV6WorkflowRuntimeBindingDraft;
 }
 
 export type StrategySourceFormat = "pine-v6";
@@ -960,7 +1023,7 @@ export interface StrategyDefinitionDocument {
   symbol?: string;
   interval?: string;
   script: string;
-  visualModel?: StrategyVisualModelDocument | null;
+  visualModel?: PineV6WorkflowDocument | StrategyVisualModelDocument | null;
   createdAt: string;
   updatedAt: string;
   derivedWarmupBars?: number;

@@ -1,2444 +1,1521 @@
 <script setup lang="ts">
-import type {
-    StrategyDefinitionDocument,
-    StrategySourceFormat,
-    StrategyVisualModelDocument,
-} from "@/contracts";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import StrategyLogicFlowDesigner from "./StrategyLogicFlowDesigner.vue";
-import StrategyStageCodeWorkbenchPanel from "./strategy-stage/StrategyStageCodeWorkbenchPanel.vue";
-import StrategyStageDefinitionsPanel from "./strategy-stage/StrategyStageDefinitionsPanel.vue";
-import StrategyStageOverlayDeck from "./strategy-stage/StrategyStageOverlayDeck.vue";
-import { useStrategyStageDefinitionPersistence } from "./strategy-stage/useStrategyStageDefinitionPersistence";
-import { useStrategyStageVisualSync } from "./strategy-stage/useStrategyStageVisualSync";
-import "./strategy-stage/strategyStageShared.css";
+import type {
+  BacktestSyncRequestPayload,
+  PineV6WorkflowBlock,
+  PineV6WorkflowDocument,
+  PineV6WorkflowInput,
+  StrategyBindingInstrumentDocument,
+  StrategyDefinitionDocument,
+  StrategyExecutionMode,
+  StrategyInstanceItem,
+  StrategyRuntimeRiskMode,
+  StrategyRuntimeRiskSettings,
+} from "@/contracts";
+
+import { KLINE_PERIODS } from "../charting/kline";
+import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import { useConsoleData } from "../composables/useConsoleData";
+import { useKlineSyncTask } from "../composables/useKlineSyncTask";
+import { useMarketProfiles } from "../composables/marketProfiles";
 import {
-    fetchEnvelope,
-    fetchEnvelopeWithInit,
-} from "../composables/apiClient";
-import { useDraggable } from "../composables/useDraggable";
-import { useStrategyIndicatorVariables } from "../composables/useStrategyIndicatorVariables";
-import { useStrategyUndoRedo } from "../composables/useStrategyUndoRedo";
-import { useStrategyVisualNodeInspector } from "../composables/useStrategyVisualNodeInspector";
+  buildStrategyBindingPayload,
+  defaultStrategyRuntimeRiskSettings,
+  formatBrokerAccountSummary,
+  formatStrategyInterval,
+  formatStrategyRuntimeRiskSummary,
+  formatStrategySymbols,
+  normalizeStrategyRuntimeRiskSettings,
+  readStrategyBinding,
+  resolveBrokerAccountOption,
+  resolveBrokerAccountSelectionKey,
+} from "./strategy-runtime/strategyRuntimeInstanceBinding";
+import MonacoCodeEditor from "./MonacoCodeEditor.vue";
+import PineV6WorkflowBlockList from "./PineV6WorkflowBlockList.vue";
+import SplitPane from "./shared/SplitPane.vue";
+import SplitPaneItem from "./shared/SplitPaneItem.vue";
 import {
-    strategyPineEditorCompletions,
-    strategyPineEditorExtraLibs,
-    strategyPineEditorHoverItems,
+  PINE_V6_WORKFLOW_ENGINE,
+  assessPineV6Workflow,
+  buildPineV6WorkflowScript,
+  createDefaultPineV6Workflow,
+  createWorkflowId,
+  normalizePineV6Workflow,
+  type PineV6WorkflowDiagnostic,
+} from "../features/pineV6Workflow";
+import {
+  strategyPineEditorCompletions,
+  strategyPineEditorExtraLibs,
+  strategyPineEditorHoverItems,
 } from "../features/strategyPineEditorIntelliSense";
-import type { MonacoDiagnosticMarker } from "../features/strategyMonacoIntelliSenseTypes";
-import {
-    buildStrategyPineFromVisualModel,
-    cloneStrategyVisualModel,
-    createDefaultStrategyVisualModel,
-    getStrategyAuthoringTemplates,
-    getStrategyBlockKind,
-    type StrategyAuthoringTemplate,
-} from "../features/strategyVisualBuilder";
-import {
-    assessPineBlockSupport,
-    summarizePineBlockSupport,
-} from "../features/strategyVisualBuilderSupport";
 
 const props = withDefaults(defineProps<{
-    entryMode?: "existing" | "new";
-    initialDefinitionsCollapsed?: boolean;
+  entryMode?: "existing" | "new";
+  initialDefinitionsCollapsed?: boolean;
 }>(), {
-    entryMode: "existing",
-    initialDefinitionsCollapsed: true,
+  entryMode: "existing",
+  initialDefinitionsCollapsed: true,
 });
 
 const emit = defineEmits<{
-    "switch-to-runtime": [payload?: { notice?: string; definitionId?: string }];
-    "definitions-count-change": [count: number];
+  "switch-to-runtime": [payload?: { notice?: string; definitionId?: string }];
+  "definitions-count-change": [count: number];
 }>();
 
-const fallbackTemplate: StrategyAuthoringTemplate = {
-    id: "logic-flow-starter",
-    label: "逻辑流起步骨架",
-    description: "给一份可视化起步图，适合从拖拽块开始搭策略。",
-    mode: "visual",
-    defaultId: "dsl-logic-flow-starter",
-    defaultName: "逻辑流起步骨架",
-    defaultVersion: "0.1.0",
-    defaultDescription: "用流程图拖拽块，快速搭一个可保存的 Pine 策略骨架。",
-    defaultSymbol: "00700",
-    defaultInterval: "5m",
-    visualModel: createDefaultStrategyVisualModel(),
-    syncVisualToCode: true,
-    buildScript: (context) =>
-        buildStrategyPineFromVisualModel(createDefaultStrategyVisualModel(), context),
-};
-
-const strategyTemplates = getStrategyAuthoringTemplates();
-const defaultStrategyTemplate = strategyTemplates[0] ?? fallbackTemplate;
-const defaultStrategyTemplateId = defaultStrategyTemplate.id;
-
-function generateStrategyDefinitionId(): string {
-    const cryptoObject = globalThis.crypto;
-    if (typeof cryptoObject?.randomUUID === "function") {
-        return cryptoObject.randomUUID();
-    }
-
-    const bytes = new Uint8Array(16);
-    if (typeof cryptoObject?.getRandomValues === "function") {
-        cryptoObject.getRandomValues(bytes);
-    } else {
-        for (let index = 0; index < bytes.length; index += 1) {
-            bytes[index] = Math.floor(Math.random() * 256);
-        }
-    }
-
-    bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
-    bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
-
-    const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0"));
-    return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10, 16).join("")}`;
-}
-
-const strategyDefinitions = ref<StrategyDefinitionDocument[]>([]);
-const selectedDefinitionId = ref("");
-const selectedStrategyTemplateId = ref(defaultStrategyTemplateId);
-const isLoadingDefinitions = ref(false);
-const definitionError = ref("");
-const definitionNotice = ref("");
-
-const isDefinitionsPanelCollapsed = ref(props.initialDefinitionsCollapsed);
-const isTemplatesSectionCollapsed = ref(true);
-const isBasicInfoSectionCollapsed = ref(true);
-const isCodeEditorSectionCollapsed = ref(true);
-const isBlockInspectorCollapsed = ref(true);
-const strategyDisplayMode = ref<"canvas" | "split" | "code">("canvas");
-
-const definitionForm = ref<StrategyDefinitionDocument>(
-    createDefinitionFromTemplate(defaultStrategyTemplateId),
-);
-const lastCommittedDefinitionSignature = ref("");
-const isTemplatePickerEntry = ref(false);
-
-const definitionsPanelDrag = useDraggable();
-const codePanelDrag = useDraggable();
-const codeWorkbenchRef = ref<InstanceType<typeof StrategyStageCodeWorkbenchPanel> | null>(null);
-const logicFlowDesignerRef = ref<InstanceType<typeof StrategyLogicFlowDesigner> | null>(null);
-const pineDiagnosticMarkers = ref<MonacoDiagnosticMarker[]>([]);
-const pineAnalyzeCollectionOperations = ref<StrategyPineAnalyzeCollectionOperation[]>([]);
-const pineAnalyzeDeclarations = ref<StrategyPineAnalyzeDeclaration[]>([]);
-const pineAnalyzeObjectOperations = ref<StrategyPineAnalyzeObjectOperation[]>([]);
-const pineAnalyzeVisuals = ref<StrategyPineAnalyzeVisual[]>([]);
-const pineFeatureCount = ref(0);
-let pineAnalyzeTimer: ReturnType<typeof setTimeout> | null = null;
-let pineAnalyzeSequence = 0;
-let pineAnalyzeAbortController: AbortController | null = null;
-
-// ── Undo / Redo ──
-const undoRedo = useStrategyUndoRedo({ maxDepth: 80 });
-let skipNextHistorySnapshot = false;
-
-function pushDefinitionHistory(): void {
-    if (skipNextHistorySnapshot) {
-        skipNextHistorySnapshot = false;
-        return;
-    }
-
-    const snapshot = serializeDefinitionSnapshot(definitionForm.value);
-    if (snapshot === "") {
-        return;
-    }
-
-    undoRedo.pushSnapshot(snapshot);
-}
-
-function restoreFromSnapshot(snapshot: string): void {
-    try {
-        const parsed = JSON.parse(snapshot) as StrategyDefinitionDocument;
-        const model = cloneStrategyVisualModel(parsed.visualModel);
-
-        skipNextHistorySnapshot = true;
-        markNextScriptSyncAsInternal();
-
-        definitionForm.value = {
-            ...parsed,
-            visualModel: model,
-        };
-
-        selectedVisualNodeId.value = pickInitialVisualNodeId(
-            model ?? createDefaultStrategyVisualModel(),
-        );
-    } catch {
-        // Ignore corrupt snapshots.
-    }
-}
-
-function handleUndo(): void {
-    const snapshot = undoRedo.undo();
-    if (snapshot === null) {
-        return;
-    }
-
-    restoreFromSnapshot(snapshot);
-    definitionNotice.value = "已撤销至上一步改动。";
-}
-
-function handleRedo(): void {
-    const snapshot = undoRedo.redo();
-    if (snapshot === null) {
-        return;
-    }
-
-    restoreFromSnapshot(snapshot);
-    definitionNotice.value = "已重做至下一步改动。";
-}
-
-function handleDesignKeydown(event: KeyboardEvent): void {
-    const isMod = event.metaKey || event.ctrlKey;
-    if (!isMod) {
-        return;
-    }
-
-    if (event.key === "z" && !event.shiftKey) {
-        event.preventDefault();
-        handleUndo();
-        return;
-    }
-
-    if (event.key === "z" && event.shiftKey) {
-        event.preventDefault();
-        handleRedo();
-        return;
-    }
-
-    // Also support Ctrl+Y (Windows-style redo)
-    if (event.key === "y") {
-        event.preventDefault();
-        handleRedo();
-        return;
-    }
-}
-
-const selectedDefinition = computed(
-    () =>
-        strategyDefinitions.value.find(
-            (item) => item.id === selectedDefinitionId.value,
-        ) ?? null,
-);
-
-const activeStrategyTemplate = computed(
-    () =>
-        strategyTemplates.find(
-            (item) => item.id === selectedStrategyTemplateId.value,
-        ) ?? null,
-);
-
-const {
-    applyVisualModel,
-    attachSourceRangesFromScript,
-    codeContextNodeId,
-    deleteSelectedVisualNode,
-    handleCodeContextOpenInspector,
-    handleCodeCursorOffset,
-    handleScriptWorkbenchBlur,
-    handleVisualModelUpdated,
-    handleVisualNodeSelected,
-    markNextScriptSyncAsInternal,
-    mutateSelectedVisualNode,
-    replaceDefinitionForm,
-    resetVisualSyncStatus,
-    resolvedVisualModel,
-    selectedVisualNode,
-    selectedVisualNodeId,
-    syncScriptToVisualModelNow,
-    updateCommittedDefinitionSignature,
-    visualSyncMessage,
-    visualSyncStatus,
-} = useStrategyStageVisualSync({
-    definitionForm,
-    definitionError,
-    definitionNotice,
-    lastCommittedDefinitionSignature,
-    clearDefinitionMessages,
-    pickInitialVisualNodeId,
-    buildScriptForModel,
-    serializeDefinitionSnapshot,
-    codeWorkbenchRef,
-    logicFlowDesignerRef,
-    showBlockInspector: () => {
-        isBlockInspectorCollapsed.value = false;
-    },
-});
-
-const {
-    selectedVisualKind,
-    selectedVisualBlock,
-    selectedVisualNodeText,
-    selectedVisualNodeMessage,
-    showsCodeInput,
-    selectedVisualNodeCode,
-    showsThresholdInput,
-    selectedVisualNodeThreshold,
-    showsPeriodInput,
-    selectedVisualNodePeriod,
-    showsMacdInputs,
-    showsTechnicalIndicatorMacdInputs,
-    showsMovingAverageTypeInput,
-    showsIndicatorVariableNameInput,
-    indicatorVariableNamePlaceholder,
-    selectedIndicatorVariableName,
-    showsIndicatorPrimaryInputSelect,
-    showsIndicatorFastInputSelect,
-    showsIndicatorSlowInputSelect,
-    indicatorGetterOptions,
-    selectedIndicatorPrimaryInputNodeId,
-    selectedIndicatorFastInputNodeId,
-    selectedIndicatorSlowInputNodeId,
-    selectedStopLossMode,
-    selectedStopLossDirection,
-    selectedStopLossTimeUnit,
-    selectedStopLossWindowPolicy,
-    selectedStopLossTakeProfitPercentage,
-    showsStopLossTakeProfitPercentageInput,
-    selectedMacdFastPeriod,
-    selectedMacdSlowPeriod,
-    selectedMacdSignalPeriod,
-    selectedMovingAverageType,
-    selectedIndicatorTimeframe,
-    showsMultiplierInput,
-    selectedBollingerMultiplier,
-    showsIndicatorSourceInput,
-    showsIndicatorTimeframeInput,
-    selectedIndicatorSource,
-    showsIndicatorAdxSmoothingInput,
-    selectedIndicatorAdxSmoothing,
-    showsIndicatorFactorInput,
-    selectedIndicatorFactor,
-    showsIndicatorSarInputs,
-    selectedIndicatorSarStart,
-    selectedIndicatorSarIncrement,
-    selectedIndicatorSarMaximum,
-    showsIndicatorOffsetInput,
-    selectedIndicatorOffset,
-    showsIndicatorSigmaInput,
-    selectedIndicatorSigma,
-    showsIndicatorPivotBarsInput,
-    selectedIndicatorLeftBars,
-    selectedIndicatorRightBars,
-    showsConditionModeInput,
-    showsSeriesConditionInputs,
-    showsIndicatorTypeInput,
-    showsPatternTypeInput,
-    showsLookbackInput,
-    selectedIndicatorType,
-    selectedIndicatorConditionMode,
-    selectedIndicatorOperator,
-    selectedIndicatorPatternType,
-    selectedIndicatorLookback,
-    selectedSeriesConditionMode,
-    selectedSeriesConditionSource,
-    selectedSeriesConditionOperator,
-    selectedSeriesConditionThreshold,
-    selectedSeriesConditionLength,
-    selectedSeriesConditionEventSource,
-    selectedSeriesConditionEventOperator,
-    selectedSeriesConditionEventThreshold,
-    selectedSeriesConditionValueSource,
-    selectedSeriesConditionOccurrence,
-    showsVisualExpressionInputs,
-    showsAdvancedPineBlockInputs,
-    expressionReferenceOptions,
-    expressionSlotOptions,
-    selectedExpressionSlot,
-    selectedExpressionReference,
-    selectedExpressionField,
-    selectedExpressionOperator,
-    selectedExpressionFunction,
-    selectedExpressionLiteral,
-    selectedExpressionHistoryOffset,
-    selectedAdvancedVariableName,
-    selectedAdvancedMode,
-    selectedAdvancedDefaultValue,
-    selectedAdvancedTimeframe,
-    selectedAdvancedSource,
-    selectedAdvancedSecondarySource,
-    selectedAdvancedTertiarySource,
-    selectedAdvancedNumber,
-    selectedAdvancedExpression,
-    selectedAdvancedOption,
-    selectedAdvancedReference,
-    showsTimeFilterInputs,
-    selectedTimeFilterMode,
-    selectedTimeFilterStartHour,
-    selectedTimeFilterStartMinute,
-    selectedTimeFilterEndHour,
-    selectedTimeFilterEndMinute,
-    selectedTimeFilterDayOfWeek,
-    showsSessionFilterInputs,
-    selectedSessionFilterScope,
-    showsPlaceOrderInputs,
-    selectedPlaceOrderAction,
-    selectedPlaceOrderId,
-    selectedPlaceOrderSide,
-    selectedPlaceOrderType,
-    selectedPlaceOrderEntryPositionPolicy,
-    selectedPlaceOrderQuantityMode,
-    selectedPlaceOrderQuantityValue,
-    selectedPlaceOrderLimitPrice,
-    selectedPlaceOrderStopPrice,
-    selectedPlaceOrderRiskAllowedDirection,
-    showsPlaceOrderEntryPositionPolicyInput,
-    showsPlaceOrderLimitPriceInput,
-    showsPlaceOrderStopPriceInput,
-    showsPlaceOrderQuantityInputs,
-    showsPlaceOrderSideInput,
-    showsPlaceOrderTargetIdInput,
-    showsPlaceOrderRiskDirectionInput,
-} = useStrategyVisualNodeInspector({
-    visualModel: resolvedVisualModel,
-    selectedVisualNode,
-    mutateSelectedVisualNode,
-});
-
-const overlayDeckBindings = {
-    definitionForm,
-    selectedVisualNodeText,
-    selectedVisualNodeMessage,
-    selectedVisualNodeCode,
-    selectedVisualNodePeriod,
-    selectedIndicatorVariableName,
-    selectedIndicatorType,
-    selectedMovingAverageType,
-    selectedIndicatorTimeframe,
-    selectedIndicatorConditionMode,
-    selectedIndicatorOperator,
-    selectedIndicatorPatternType,
-    selectedIndicatorLookback,
-    selectedSeriesConditionMode,
-    selectedSeriesConditionSource,
-    selectedSeriesConditionOperator,
-    selectedSeriesConditionThreshold,
-    selectedSeriesConditionLength,
-    selectedSeriesConditionEventSource,
-    selectedSeriesConditionEventOperator,
-    selectedSeriesConditionEventThreshold,
-    selectedSeriesConditionValueSource,
-    selectedSeriesConditionOccurrence,
-    selectedIndicatorPrimaryInputNodeId,
-    selectedIndicatorFastInputNodeId,
-    selectedIndicatorSlowInputNodeId,
-    selectedStopLossMode,
-    selectedStopLossDirection,
-    selectedStopLossTimeUnit,
-    selectedStopLossWindowPolicy,
-    selectedStopLossTakeProfitPercentage,
-    selectedMacdFastPeriod,
-    selectedMacdSlowPeriod,
-    selectedMacdSignalPeriod,
-    selectedBollingerMultiplier,
-    selectedIndicatorSource,
-    selectedIndicatorAdxSmoothing,
-    selectedIndicatorFactor,
-    selectedIndicatorSarStart,
-    selectedIndicatorSarIncrement,
-    selectedIndicatorSarMaximum,
-    selectedIndicatorOffset,
-    selectedIndicatorSigma,
-    selectedIndicatorLeftBars,
-    selectedIndicatorRightBars,
-    selectedVisualNodeThreshold,
-    selectedPlaceOrderAction,
-    selectedPlaceOrderId,
-    selectedPlaceOrderSide,
-    selectedPlaceOrderType,
-    selectedPlaceOrderEntryPositionPolicy,
-    selectedPlaceOrderQuantityMode,
-    selectedPlaceOrderQuantityValue,
-    selectedPlaceOrderLimitPrice,
-    selectedPlaceOrderStopPrice,
-    selectedPlaceOrderRiskAllowedDirection,
-    selectedExpressionSlot,
-    selectedExpressionReference,
-    selectedExpressionField,
-    selectedExpressionOperator,
-    selectedExpressionFunction,
-    selectedExpressionLiteral,
-    selectedExpressionHistoryOffset,
-    selectedAdvancedVariableName,
-    selectedAdvancedMode,
-    selectedAdvancedDefaultValue,
-    selectedAdvancedTimeframe,
-    selectedAdvancedSource,
-    selectedAdvancedSecondarySource,
-    selectedAdvancedTertiarySource,
-    selectedAdvancedNumber,
-    selectedAdvancedExpression,
-    selectedAdvancedOption,
-    selectedAdvancedReference,
-    selectedTimeFilterMode,
-    selectedTimeFilterStartHour,
-    selectedTimeFilterStartMinute,
-    selectedTimeFilterEndHour,
-    selectedTimeFilterEndMinute,
-    selectedTimeFilterDayOfWeek,
-    selectedSessionFilterScope,
-} as const;
-
-const codeWorkbenchBindings = {
-    definitionForm,
-} as const;
-
 interface StrategyPineAnalyzeDiagnostic {
-    severity: "error" | "warning" | "info";
-    message: string;
-    line: number;
-    column: number;
-    endLine: number;
-    endColumn: number;
-}
-
-interface StrategyPineAnalyzeVisual {
-    line: number;
-    kind: string;
-    call: string;
-    variable?: string;
-    target?: string;
-    title?: string;
-    arguments?: string[];
-    namedArgs?: Record<string, string>;
-    text: string;
-}
-
-interface StrategyPineAnalyzeDeclaration {
-    line: number;
-    kind: string;
-    name?: string;
-    namespace?: string;
-    call?: string;
-    typeArgs?: string;
-    receiver?: {
-        name?: string;
-        type?: string;
-        default?: string;
-    };
-    parameters?: Array<{
-        name?: string;
-        type?: string;
-        default?: string;
-    }>;
-    fields?: Array<{
-        name?: string;
-        type?: string;
-        default?: string;
-    }>;
-    importPath?: string;
-    version?: string;
-    executable: boolean;
-    reason?: string;
-}
-
-interface StrategyPineAnalyzeCollectionOperation {
-    line: number;
-    namespace: string;
-    operation: string;
-    call: string;
-    typeArgs?: string;
-    signature?: string;
-    target?: string;
-    arguments?: string[];
-    mutates: boolean;
-    supported: boolean;
-    executable: boolean;
-    reason?: string;
-}
-
-interface StrategyPineAnalyzeObjectOperation {
-    line: number;
-    kind: string;
-    type?: string;
-    method?: string;
-    call: string;
-    signature?: string;
-    target?: string;
-    arguments?: string[];
-    supported: boolean;
-    executable: boolean;
-    reason?: string;
+  severity: "error" | "warning" | "info";
+  code?: string;
+  message: string;
+  line: number;
+  column: number;
+  endLine: number;
+  endColumn: number;
 }
 
 interface StrategyPineAnalyzeResponse {
-    ok: boolean;
-    collectionOperations?: StrategyPineAnalyzeCollectionOperation[];
-    diagnostics: StrategyPineAnalyzeDiagnostic[];
-    declarations?: StrategyPineAnalyzeDeclaration[];
-    features: string[];
-    objectOperations?: StrategyPineAnalyzeObjectOperation[];
-    visuals?: StrategyPineAnalyzeVisual[];
+  ok: boolean;
+  diagnostics?: StrategyPineAnalyzeDiagnostic[];
+  features?: string[];
 }
 
-function normalizePineDiagnosticMarker(
-    diagnostic: StrategyPineAnalyzeDiagnostic,
-): MonacoDiagnosticMarker {
-    const line = Math.max(1, Number(diagnostic.line) || 1);
-    const column = Math.max(1, Number(diagnostic.column) || 1);
-    return {
-        severity: diagnostic.severity,
-        message: diagnostic.message,
-        line,
-        column,
-        endLine: Math.max(1, Number(diagnostic.endLine) || line),
-        endColumn: Math.max(column + 1, Number(diagnostic.endColumn) || column + 1),
-    };
-}
+const { availableBrokerAccounts, selectedBrokerAccount, loadBrokerSettings } = useConsoleData();
+const {
+  marketOptions,
+  loadMarketProfiles,
+  normalizeInstrumentRefWithMarketApi,
+} = useMarketProfiles();
+const {
+  syncProgress,
+  syncError,
+  startSync,
+  stopSyncPolling,
+} = useKlineSyncTask();
 
-function schedulePineAnalysis(): void {
-    if (pineAnalyzeTimer !== null) {
-        clearTimeout(pineAnalyzeTimer);
-    }
-    pineAnalyzeTimer = setTimeout(() => {
-        pineAnalyzeTimer = null;
-        void analyzeCurrentPineScript();
-    }, 500);
-}
+const strategyDefinitions = ref<StrategyDefinitionDocument[]>([]);
+const strategies = ref<StrategyInstanceItem[]>([]);
+const selectedDefinitionId = ref("");
+const selectedStrategyId = ref("");
+const isLoadingDefinitions = ref(false);
+const isLoadingStrategies = ref(false);
+const isSavingDefinition = ref(false);
+const isAnalyzing = ref(false);
+const isStarting = ref(false);
+const notice = ref("");
+const error = ref("");
+const analyzeResult = ref<StrategyPineAnalyzeResponse | null>(null);
+const selectedBlockId = ref("");
+const runtimeRefreshTimer = ref<ReturnType<typeof setInterval> | null>(null);
 
-async function analyzeCurrentPineScript(): Promise<void> {
-    const script = definitionForm.value.script;
-    const sourceFormat = normalizeSourceFormat(definitionForm.value.sourceFormat);
-    const sequence = ++pineAnalyzeSequence;
-    abortPendingPineAnalysis();
-    if (script.trim() === "" || sourceFormat !== "pine-v6") {
-        pineDiagnosticMarkers.value = [];
-        pineAnalyzeCollectionOperations.value = [];
-        pineAnalyzeDeclarations.value = [];
-        pineAnalyzeObjectOperations.value = [];
-        pineAnalyzeVisuals.value = [];
-        pineFeatureCount.value = 0;
-        return;
-    }
+const workflow = ref<PineV6WorkflowDocument>(createDefaultPineV6Workflow());
+const definitionName = ref(workflow.value.declaration.title);
+const definitionVersion = ref("0.1.0");
+const definitionDescription = ref("Pine v6 原生快捷指令工作台生成的策略。");
+const sourceOverride = ref("");
+const useSourceOverride = ref(false);
+const advancedSourceOpen = ref(false);
+const strategyDisplayMode = ref<"instruction" | "split" | "code">("split");
+const variablesPanelOpen = ref(false);
+const strategySidePanelIds = [
+  "definition",
+  "declaration",
+  "runtime",
+  "risk",
+  "diagnostics",
+  "instances",
+] as const;
+const expandedStrategySidePanels = ref<string[]>([...strategySidePanelIds]);
 
-    const abortController = new AbortController();
-    pineAnalyzeAbortController = abortController;
-    try {
-        const result = await fetchEnvelopeWithInit<StrategyPineAnalyzeResponse>(
-            "/api/v1/strategy-pine/analyze",
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                signal: abortController.signal,
-                body: JSON.stringify({
-                    script,
-                    sourceFormat,
-                    includeAst: false,
-                }),
-            },
-        );
-        if (sequence !== pineAnalyzeSequence || abortController.signal.aborted) {
-            return;
-        }
-        pineDiagnosticMarkers.value = (result.diagnostics ?? []).map(normalizePineDiagnosticMarker);
-        pineAnalyzeCollectionOperations.value = result.collectionOperations ?? [];
-        pineAnalyzeDeclarations.value = result.declarations ?? [];
-        pineAnalyzeObjectOperations.value = result.objectOperations ?? [];
-        pineAnalyzeVisuals.value = result.visuals ?? [];
-        pineFeatureCount.value = (result.features ?? []).length;
-    } catch (error) {
-        if (isAbortError(error)) {
-            return;
-        }
-        if (sequence !== pineAnalyzeSequence) {
-            return;
-        }
-        pineDiagnosticMarkers.value = [];
-        pineAnalyzeCollectionOperations.value = [];
-        pineAnalyzeDeclarations.value = [];
-        pineAnalyzeObjectOperations.value = [];
-        pineAnalyzeVisuals.value = [];
-        pineFeatureCount.value = 0;
-    } finally {
-        if (pineAnalyzeAbortController === abortController) {
-            pineAnalyzeAbortController = null;
-        }
-    }
-}
+const bindingMarket = ref(workflow.value.runtimeBindingDraft.market);
+const bindingCode = ref(workflow.value.runtimeBindingDraft.code);
+const bindingInterval = ref(workflow.value.runtimeBindingDraft.interval);
+const executionMode = ref<StrategyExecutionMode>(workflow.value.runtimeBindingDraft.executionMode);
+const useExtendedHours = ref(workflow.value.runtimeBindingDraft.useExtendedHours);
+const brokerAccountKey = ref("");
+const runtimeRisk = ref<StrategyRuntimeRiskSettings>(defaultStrategyRuntimeRiskSettings());
 
-function abortPendingPineAnalysis(): void {
-    pineAnalyzeAbortController?.abort();
-    pineAnalyzeAbortController = null;
-}
-
-function isAbortError(error: unknown): boolean {
-    return error instanceof DOMException && error.name === "AbortError";
-}
-
-const hasDesignOverlayDeck = computed(
-    () =>
-        !isTemplatesSectionCollapsed.value ||
-        !isBasicInfoSectionCollapsed.value ||
-        (!isBlockInspectorCollapsed.value && selectedVisualNode.value !== null),
+const generatedScript = computed(() => buildPineV6WorkflowScript(workflow.value));
+const activeScript = computed(() => useSourceOverride.value ? sourceOverride.value : generatedScript.value);
+const workflowDiagnostics = computed(() => assessPineV6Workflow(workflow.value));
+const analyzerDiagnostics = computed(() => analyzeResult.value?.diagnostics ?? []);
+const pineDiagnosticMarkers = computed(() =>
+  analyzerDiagnostics.value.map((diagnostic) => ({
+    severity: diagnostic.severity,
+    message: diagnostic.message,
+    line: diagnostic.line,
+    column: diagnostic.column,
+    endLine: diagnostic.endLine,
+    endColumn: diagnostic.endColumn,
+  })),
 );
-
-const showsCanvas = computed(() => strategyDisplayMode.value !== "code");
-
-const showsCodeWorkbench = computed(
-    () => !isCodeEditorSectionCollapsed.value && strategyDisplayMode.value !== "canvas",
+const analyzerErrorCount = computed(() =>
+  analyzerDiagnostics.value.filter((diagnostic) => diagnostic.severity === "error").length,
 );
-
-const logicFlowFitViewPadding = computed(() => ({
-    top: hasDesignOverlayDeck.value ? 320 : 156,
-    right: showsCodeWorkbench.value ? 540 : 36,
-    bottom: showsCanvas.value ? 132 : 36,
-    left: !isDefinitionsPanelCollapsed.value ? 320 : 36,
-}));
-
-const strategyLogicFlowZoomRightOffset = computed(() => "1rem");
-
-const definitionsPanelStyle = computed(() => ({
-    transform: `translate(${definitionsPanelDrag.drag.x}px, ${definitionsPanelDrag.drag.y}px)`,
-    zIndex: definitionsPanelDrag.drag.dragging ? "55" : "25",
-}));
-
-const codePanelStyle = computed(() => ({
-    transform: `translate(${codePanelDrag.drag.x}px, ${codePanelDrag.drag.y}px)`,
-    zIndex:
-        codePanelDrag.drag.dragging
-            ? "56"
-            : strategyDisplayMode.value === "code"
-                ? "22"
-                : "26",
-}));
-
-const pineAnalyzeMetadataCount = computed(
-    () =>
-        pineAnalyzeCollectionOperations.value.length +
-        pineAnalyzeDeclarations.value.length +
-        pineAnalyzeObjectOperations.value.length +
-        pineAnalyzeVisuals.value.length,
+const workflowErrorCount = computed(() =>
+  workflowDiagnostics.value.filter((diagnostic) => diagnostic.severity === "error").length,
 );
-
-const selectedVisualSupport = computed(() =>
-    selectedVisualNode.value === null
-        ? null
-        : assessPineBlockSupport(selectedVisualNode.value),
+const canStart = computed(() =>
+  !isStarting.value
+  && definitionName.value.trim() !== ""
+  && bindingMarket.value.trim() !== ""
+  && bindingCode.value.trim() !== ""
+  && bindingInterval.value.trim() !== ""
+  && workflowErrorCount.value === 0,
 );
-
-const visualSupportSummary = computed(() =>
-    summarizePineBlockSupport(resolvedVisualModel.value),
+const selectedStrategy = computed(() =>
+  strategies.value.find((strategy) => strategy.id === selectedStrategyId.value) ?? null,
 );
-
-const visualSupportSummaryText = computed(() => {
-    const parts: string[] = [];
-    if (visualSupportSummary.value.unsupportedConfigCount > 0) {
-        parts.push(`${visualSupportSummary.value.unsupportedConfigCount} 个不支持配置`);
-    }
-    if (visualSupportSummary.value.warningCount > 0) {
-        parts.push(`${visualSupportSummary.value.warningCount} 个提示`);
-    }
-    return parts.join(" · ");
+const selectedDefinition = computed(() =>
+  strategyDefinitions.value.find((definition) => definition.id === selectedDefinitionId.value) ?? null,
+);
+const normalizedBrokerAccount = computed(() =>
+  resolveBrokerAccountOption(availableBrokerAccounts.value, brokerAccountKey.value),
+);
+const warmupBars = computed(() => selectedDefinition.value?.derivedWarmupBars ?? 120);
+const klineSyncWindow = computed(() => deriveKlineSyncWindow(warmupBars.value, bindingInterval.value));
+const activeWorkflowFeatureSummary = computed(() => {
+  const featureCount = analyzeResult.value?.features?.length ?? 0;
+  const pieces = [
+    `${workflow.value.blocks.length} 个顶层块`,
+    `${countWorkflowBlocks(workflow.value.blocks)} 个总块`,
+    `${featureCount} 个 Pine 分析特征`,
+  ];
+  return pieces.join(" / ");
 });
 
-const hasUnsavedDefinitionChanges = computed(() => {
-    if (isTemplatePickerEntry.value) {
-        return false;
-    }
+function executionModeLabel(mode: StrategyExecutionMode): string {
+  return mode === "notify_only" ? "仅通知" : "实盘执行";
+}
 
-    return (
-        serializeDefinitionSnapshot(definitionForm.value) !==
-        lastCommittedDefinitionSignature.value
-    );
-});
+function riskModeLabel(mode: StrategyRuntimeRiskMode): string {
+  switch (mode) {
+    case "monitor":
+      return "监控";
+    case "enforce":
+      return "强制";
+    default:
+      return "关闭";
+  }
+}
 
-const visualSyncToneClass = computed(() => ({
-    "strategy-stage__toolbar-status--syncing": visualSyncStatus.value === "syncing",
-    "strategy-stage__toolbar-status--synced": visualSyncStatus.value === "synced",
-    "strategy-stage__toolbar-status--error": visualSyncStatus.value === "error",
-}));
+function statusLabel(status: string): string {
+  switch (status) {
+    case "RUNNING":
+      return "运行中";
+    case "PAUSED":
+      return "已暂停";
+    case "STOPPED":
+      return "已停止";
+    default:
+      return status;
+  }
+}
 
-const visualSyncLabel = computed(() => {
-    switch (visualSyncStatus.value) {
-        case "syncing":
-            return "同步中";
-        case "synced":
-            return "已同步";
-        case "error":
-            return "同步提示";
-        default:
-            return "自动同步";
-    }
-});
+function setStrategyDisplayMode(mode: "instruction" | "split" | "code"): void {
+  strategyDisplayMode.value = mode;
+}
 
-const visualNodeMappingQuality = computed(() => {
-    const nodes = resolvedVisualModel.value.nodes;
-    const total = nodes.length;
-    if (total === 0) {
-        return null;
-    }
-
-    let mappableCount = 0;
-    for (const node of nodes) {
-        const sourceRange = node.properties.sourceRange;
-        if (
-            sourceRange !== undefined &&
-            sourceRange !== null &&
-            typeof sourceRange === "object" &&
-            typeof Reflect.get(sourceRange, "start") === "number" &&
-            typeof Reflect.get(sourceRange, "end") === "number"
-        ) {
-            mappableCount += 1;
-        }
-    }
-
-    return { mappableCount, total };
-});
-
-const codeContextNodeLabel = computed(() => {
-    const nodeId = codeContextNodeId.value;
-    if (nodeId === "") {
-        return "";
-    }
-    const node = resolvedVisualModel.value.nodes.find((n) => n.id === nodeId);
-    return node?.text ?? "";
-});
-
-watch(
-    () => strategyDefinitions.value.length,
-    (count) => {
-        emit("definitions-count-change", count);
-    },
-    { immediate: true },
-);
-
-// Push undo snapshots whenever the definition changes meaningfully.
-watch(
-    () => serializeDefinitionSnapshot(definitionForm.value),
-    (nextSnapshot, previousSnapshot) => {
-        if (nextSnapshot === previousSnapshot) {
-            return;
-        }
-
-        if (nextSnapshot === lastCommittedDefinitionSignature.value) {
-            return;
-        }
-
-        pushDefinitionHistory();
-    },
-    { flush: "post" },
-);
-
-watch(
-    () => [definitionForm.value.script, definitionForm.value.sourceFormat] as const,
-    () => {
-        schedulePineAnalysis();
-    },
-    { immediate: true },
-);
+function toggleVariablesPanel(): void {
+  variablesPanelOpen.value = !variablesPanelOpen.value;
+}
 
 onMounted(() => {
-    if (typeof window !== "undefined") {
-        window.addEventListener("keydown", handleDesignKeydown);
-    }
-
-    void loadStrategyDefinitions(selectedDefinitionId.value, {
-        openTemplatePicker: props.entryMode === "new",
-    });
+  void loadMarketProfiles();
+  void loadBrokerSettings().catch(() => undefined);
+  void loadStrategyDefinitions(selectedDefinitionId.value, { applyDefinition: props.entryMode !== "new" });
+  void loadStrategies();
+  runtimeRefreshTimer.value = setInterval(() => {
+    void loadStrategies(selectedStrategyId.value);
+  }, 3000);
 });
 
 onBeforeUnmount(() => {
-    if (typeof window !== "undefined") {
-        window.removeEventListener("keydown", handleDesignKeydown);
-    }
-    if (pineAnalyzeTimer !== null) {
-        clearTimeout(pineAnalyzeTimer);
-        pineAnalyzeTimer = null;
-    }
-    abortPendingPineAnalysis();
+  stopSyncPolling();
+  if (runtimeRefreshTimer.value !== null) {
+    clearInterval(runtimeRefreshTimer.value);
+  }
 });
 
-function startDefinitionsPanelDrag(event: MouseEvent): void {
-    definitionsPanelDrag.startDrag(event);
-}
-
-function startCodePanelDrag(event: MouseEvent): void {
-    codePanelDrag.startDrag(event);
-}
-
-function setStrategyDisplayMode(mode: "canvas" | "split" | "code"): void {
-    strategyDisplayMode.value = mode;
-    if (mode !== "canvas") {
-        isCodeEditorSectionCollapsed.value = false;
+watch(
+  () => availableBrokerAccounts.value,
+  () => {
+    if (brokerAccountKey.value === "" && selectedBrokerAccount.value !== null) {
+      brokerAccountKey.value = selectedBrokerAccount.value.selectionKey;
     }
-}
+  },
+  { immediate: true },
+);
 
-async function handleSwitchToRuntime(
-    payload?: { notice?: string },
-): Promise<void> {
-    if (!(await confirmStrategyDesignExit())) {
-        return;
-    }
-
-    emit("switch-to-runtime", payload);
-}
-
-function getStrategyTemplate(templateId: string): StrategyAuthoringTemplate {
-    return (
-        strategyTemplates.find((item) => item.id === templateId) ??
-        defaultStrategyTemplate
-    );
-}
-
-function openNewDefinitionTemplatePicker(
-    templateId = defaultStrategyTemplateId,
-): void {
-    clearDefinitionMessages();
-    undoRedo.clear();
-    isTemplatePickerEntry.value = true;
-    lastCommittedDefinitionSignature.value = "";
-    selectedDefinitionId.value = "";
-    selectedStrategyTemplateId.value = templateId;
-    replaceDefinitionForm(createDefinitionFromTemplate(templateId), {
-        skipScriptParse: true,
-    });
-    selectedVisualNodeId.value = pickInitialVisualNodeId(resolvedVisualModel.value);
-    isDefinitionsPanelCollapsed.value = true;
-    isTemplatesSectionCollapsed.value = false;
-    isBasicInfoSectionCollapsed.value = true;
-    isBlockInspectorCollapsed.value = true;
-    isCodeEditorSectionCollapsed.value = true;
-    strategyDisplayMode.value = "canvas";
-    resetVisualSyncStatus();
-}
-
-function createDefinitionFromTemplate(
-    templateId: string,
-): StrategyDefinitionDocument {
-    const template = getStrategyTemplate(templateId);
-    const visualModel =
-        cloneStrategyVisualModel(template.visualModel) ??
-        createDefaultStrategyVisualModel();
-
-    return {
-        id: generateStrategyDefinitionId(),
-        name: template.defaultName,
-        version: template.defaultVersion,
-        description: template.defaultDescription,
-        runtime: "pine-go-plan",
-        sourceFormat: "pine-v6",
-        script: template.buildScript({
-            name: template.defaultName,
-            version: template.defaultVersion,
-        }),
-        visualModel,
-        createdAt: "",
-        updatedAt: "",
+watch(
+  [bindingMarket, bindingCode, bindingInterval, executionMode, useExtendedHours, brokerAccountKey, runtimeRisk],
+  () => {
+    workflow.value.runtimeBindingDraft = {
+      market: bindingMarket.value.trim().toUpperCase(),
+      code: bindingCode.value.trim().toUpperCase(),
+      interval: bindingInterval.value.trim() || "5m",
+      executionMode: executionMode.value,
+      useExtendedHours: useExtendedHours.value,
+      brokerAccountKey: brokerAccountKey.value,
+      runtimeRisk: runtimeRisk.value,
     };
-}
+  },
+  { deep: true },
+);
 
-function normalizeSourceFormat(
-    value: StrategySourceFormat | string | null | undefined,
-): StrategySourceFormat {
-    void value;
-    return "pine-v6";
-}
-
-function formatDefinitionMainPath(
-    sourceFormat: StrategySourceFormat | string | null | undefined,
-    runtime: string | null | undefined,
-): string {
-    const normalizedSourceFormat = normalizeSourceFormat(sourceFormat);
-    const normalizedRuntime = runtime || "pine-go-plan";
-    if (normalizedSourceFormat === "pine-v6" && normalizedRuntime === "pine-go-plan") {
-        return "Pine v6 / pine-go-plan";
-    }
-    return `${normalizedSourceFormat} / ${normalizedRuntime}`;
-}
-
-function normalizeDefinition(
-    definition: StrategyDefinitionDocument,
-): StrategyDefinitionDocument {
-    const visualModel = cloneStrategyVisualModel(definition.visualModel);
-    const name = definition.name.trim();
-    const version = definition.version.trim() || "0.1.0";
-    const script =
-        visualModel === null
-            ? definition.script
-            : buildStrategyPineFromVisualModel(visualModel, {
-                name,
-                version,
-            });
-
-    return {
-        ...definition,
-        runtime: "pine-go-plan",
-        sourceFormat: "pine-v6",
-        version,
-        script,
-        visualModel,
-    };
-}
-
-function serializeDefinitionSnapshot(
-    definition: StrategyDefinitionDocument,
-): string {
-    return JSON.stringify({
-        id: definition.id.trim(),
-        name: definition.name.trim(),
-        version: definition.version.trim(),
-        description: definition.description.trim(),
-        runtime: "pine-go-plan",
-        sourceFormat: normalizeSourceFormat(definition.sourceFormat),
-        script: definition.script,
-        visualModel:
-            cloneStrategyVisualModel(definition.visualModel) ??
-            createDefaultStrategyVisualModel(),
-    });
-}
-
-function pickInitialVisualNodeId(model: StrategyVisualModelDocument): string {
-    const preferred = model.nodes.find((node) => {
-        const kind = getStrategyBlockKind(node);
-        return kind !== "onInit" && kind !== "onKLineClosed" && kind !== "getTechnicalIndicator";
-    });
-
-    return preferred?.id ?? model.nodes[0]?.id ?? "";
-}
-
-function formatTimestamp(value: string | undefined | null): string {
-    if ((value ?? "").trim() === "") {
-        return "暂无";
-    }
-    return value!.replace("T", " ").replace(".000Z", "Z");
-}
-
-function clearDefinitionMessages(): void {
-    definitionError.value = "";
-    definitionNotice.value = "";
-}
-
-function dismissDefinitionError(): void {
-    definitionError.value = "";
-}
-
-function dismissDefinitionNotice(): void {
-    definitionNotice.value = "";
-}
-
-function buildScriptForModel(
-    model: StrategyVisualModelDocument | null | undefined,
-): string {
-    return buildStrategyPineFromVisualModel(model, {
-        name: definitionForm.value.name.trim(),
-        version: definitionForm.value.version.trim() || "0.1.0",
-    });
-}
-
-function applyDefinition(definition: StrategyDefinitionDocument | null): void {
-    clearDefinitionMessages();
-    undoRedo.clear();
-    isTemplatePickerEntry.value = false;
-
-    if (definition === null) {
-        selectedDefinitionId.value = "";
-        selectedStrategyTemplateId.value = defaultStrategyTemplateId;
-        replaceDefinitionForm(createDefinitionFromTemplate(defaultStrategyTemplateId), {
-            skipScriptParse: true,
-        });
-        selectedVisualNodeId.value = pickInitialVisualNodeId(resolvedVisualModel.value);
-        updateCommittedDefinitionSignature(definitionForm.value);
-        resetVisualSyncStatus();
-        return;
-    }
-
-    selectedDefinitionId.value = definition.id;
-    selectedStrategyTemplateId.value = "";
-    replaceDefinitionForm(normalizeDefinition(definition), {
-        skipScriptParse: true,
-    });
-    selectedVisualNodeId.value = pickInitialVisualNodeId(resolvedVisualModel.value);
-
-    if (definition.visualModel === null || definition.visualModel === undefined) {
-        syncScriptToVisualModelNow({ updateCommittedSignature: true });
-        return;
-    }
-
-    attachSourceRangesFromScript(definition.script, definitionForm.value.visualModel);
-    updateCommittedDefinitionSignature(definitionForm.value);
-    resetVisualSyncStatus();
-}
-
-function createNewDefinitionDraft(templateId = defaultStrategyTemplateId): void {
-    const template = getStrategyTemplate(templateId);
-
-    clearDefinitionMessages();
-    undoRedo.clear();
-    isTemplatePickerEntry.value = false;
-    lastCommittedDefinitionSignature.value = "";
-    selectedDefinitionId.value = "";
-    selectedStrategyTemplateId.value = template.id;
-    replaceDefinitionForm(createDefinitionFromTemplate(template.id), {
-        skipScriptParse: true,
-    });
-    selectedVisualNodeId.value = pickInitialVisualNodeId(resolvedVisualModel.value);
-    isDefinitionsPanelCollapsed.value = true;
-    isTemplatesSectionCollapsed.value = true;
-    isCodeEditorSectionCollapsed.value = true;
-    strategyDisplayMode.value = "canvas";
-    definitionNotice.value = `已基于「${template.label}」创建新草稿。`;
-    resetVisualSyncStatus();
-}
+watch(generatedScript, (script) => {
+  if (!useSourceOverride.value) {
+    sourceOverride.value = script;
+  }
+}, { immediate: true });
 
 async function loadStrategyDefinitions(
-    preferredDefinitionId = selectedDefinitionId.value,
-    options?: {
-        openTemplatePicker?: boolean;
+  preferredId = selectedDefinitionId.value,
+  options: { applyDefinition?: boolean } = {},
+): Promise<void> {
+  isLoadingDefinitions.value = true;
+  error.value = "";
+  try {
+    const definitions = await fetchEnvelope<StrategyDefinitionDocument[]>("/api/v1/strategy-definitions");
+    strategyDefinitions.value = definitions;
+    emit("definitions-count-change", definitions.length);
+    const next = definitions.find((definition) => definition.id === preferredId) ?? definitions[0] ?? null;
+    if (options.applyDefinition !== false && next !== null) {
+      applyDefinition(next);
+    }
+  } catch (cause) {
+    error.value = `加载策略定义失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+  } finally {
+    isLoadingDefinitions.value = false;
+  }
+}
+
+async function loadStrategies(preferredId = selectedStrategyId.value): Promise<void> {
+  isLoadingStrategies.value = true;
+  try {
+    const items = await fetchEnvelope<StrategyInstanceItem[]>("/api/v1/strategies");
+    strategies.value = items;
+    selectedStrategyId.value = items.some((item) => item.id === preferredId)
+      ? preferredId
+      : items[0]?.id ?? "";
+  } catch {
+    strategies.value = [];
+  } finally {
+    isLoadingStrategies.value = false;
+  }
+}
+
+function applyDefinition(definition: StrategyDefinitionDocument): void {
+  selectedDefinitionId.value = definition.id;
+  definitionName.value = definition.name;
+  definitionVersion.value = definition.version;
+  definitionDescription.value = definition.description;
+  workflow.value = normalizePineV6Workflow(definition.visualModel);
+  sourceOverride.value = definition.script || generatedScript.value;
+  useSourceOverride.value = false;
+  hydrateBindingDraft(workflow.value);
+  notice.value = `已加载 ${definition.name} / v${definition.version}`;
+  analyzeResult.value = null;
+}
+
+function createNewWorkflow(): void {
+  selectedDefinitionId.value = "";
+  workflow.value = createDefaultPineV6Workflow();
+  definitionName.value = workflow.value.declaration.title;
+  definitionVersion.value = "0.1.0";
+  definitionDescription.value = "Pine v6 原生快捷指令工作台生成的策略。";
+  useSourceOverride.value = false;
+  sourceOverride.value = generatedScript.value;
+  hydrateBindingDraft(workflow.value);
+  analyzeResult.value = null;
+  notice.value = "已创建 Pine v6 工作流草稿。";
+}
+
+function hydrateBindingDraft(nextWorkflow: PineV6WorkflowDocument): void {
+  bindingMarket.value = nextWorkflow.runtimeBindingDraft.market || "HK";
+  bindingCode.value = nextWorkflow.runtimeBindingDraft.code || "00700";
+  bindingInterval.value = nextWorkflow.runtimeBindingDraft.interval || "5m";
+  executionMode.value = nextWorkflow.runtimeBindingDraft.executionMode === "notify_only" ? "notify_only" : "live";
+  useExtendedHours.value = nextWorkflow.runtimeBindingDraft.useExtendedHours === true;
+  brokerAccountKey.value = nextWorkflow.runtimeBindingDraft.brokerAccountKey ?? brokerAccountKey.value;
+  runtimeRisk.value = normalizeStrategyRuntimeRiskSettings(nextWorkflow.runtimeBindingDraft.runtimeRisk);
+}
+
+function updateDeclaration<K extends keyof PineV6WorkflowDocument["declaration"]>(
+  key: K,
+  value: PineV6WorkflowDocument["declaration"][K],
+): void {
+  workflow.value.declaration = {
+    ...workflow.value.declaration,
+    [key]: value,
+  };
+  if (key === "title" && definitionName.value.trim() === "") {
+    definitionName.value = String(value);
+  }
+}
+
+function addInput(): void {
+  workflow.value.inputs = [
+    ...workflow.value.inputs,
+    {
+      id: createWorkflowId("input"),
+      name: `input${workflow.value.inputs.length + 1}`,
+      title: "输入参数",
+      type: "int",
+      defaultValue: "1",
     },
-): Promise<void> {
-    isLoadingDefinitions.value = true;
-    clearDefinitionMessages();
-
-    try {
-        const items = await fetchEnvelope<StrategyDefinitionDocument[]>(
-            "/api/v1/strategy-definitions",
-        );
-
-        strategyDefinitions.value = items.map((item) => normalizeDefinition(item));
-
-        if (strategyDefinitions.value.length === 0 || options?.openTemplatePicker === true) {
-            openNewDefinitionTemplatePicker();
-            return;
-        }
-
-        const nextDefinition =
-            strategyDefinitions.value.find((item) => item.id === preferredDefinitionId) ?? strategyDefinitions.value[0] ?? null;
-        applyDefinition(nextDefinition);
-    } catch (error) {
-        strategyDefinitions.value = [];
-        definitionError.value =
-            error instanceof Error
-                ? error.message
-                : "加载策略定义失败。";
-    } finally {
-        isLoadingDefinitions.value = false;
-    }
+  ];
 }
 
-function loadStrategyDefinitionsForPersistence(
-    preferredDefinitionId = selectedDefinitionId.value,
-): Promise<void> {
-    return loadStrategyDefinitions(preferredDefinitionId);
+function updateInput(index: number, patch: Partial<PineV6WorkflowInput>): void {
+  workflow.value.inputs = workflow.value.inputs.map((input, inputIndex) =>
+    inputIndex === index ? { ...input, ...patch } : input,
+  );
 }
 
-function buildStrategyDefinitionSavePayload(): StrategyDefinitionDocument {
-    const definitionId = definitionForm.value.id.trim() || generateStrategyDefinitionId();
-    if (definitionForm.value.id.trim() === "") {
-        definitionForm.value.id = definitionId;
-    }
+function deleteInput(index: number): void {
+  workflow.value.inputs = workflow.value.inputs.filter((_, inputIndex) => inputIndex !== index);
+}
 
-    return {
-        id: definitionId,
-        name: definitionForm.value.name.trim(),
-        version: definitionForm.value.version.trim(),
-        description: definitionForm.value.description.trim(),
-        runtime: "pine-go-plan",
-        sourceFormat: normalizeSourceFormat(definitionForm.value.sourceFormat),
-        script: definitionForm.value.script,
-        visualModel: definitionForm.value.visualModel ?? null,
-        createdAt: definitionForm.value.createdAt,
-        updatedAt: definitionForm.value.updatedAt,
+function updateBlocks(blocks: PineV6WorkflowBlock[]): void {
+  workflow.value.blocks = blocks;
+}
+
+async function analyzeCurrentScript(): Promise<boolean> {
+  isAnalyzing.value = true;
+  error.value = "";
+  try {
+    const result = await fetchEnvelopeWithInit<StrategyPineAnalyzeResponse>(
+      "/api/v1/strategy-pine/analyze",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script: activeScript.value,
+          sourceFormat: "pine-v6",
+          includeAst: false,
+        }),
+      },
+    );
+    analyzeResult.value = result;
+    if (!result.ok || (result.diagnostics ?? []).some((diagnostic) => diagnostic.severity === "error")) {
+      error.value = "Pine v6 分析未通过，请先处理错误诊断。";
+      return false;
+    }
+    notice.value = `Pine v6 分析通过：${result.features?.length ?? 0} 个特征。`;
+    return true;
+  } catch (cause) {
+    analyzeResult.value = {
+      ok: false,
+      diagnostics: [{
+        severity: "error",
+        message: cause instanceof Error ? cause.message : String(cause),
+        line: 1,
+        column: 1,
+        endLine: 1,
+        endColumn: 2,
+      }],
+      features: [],
     };
+    error.value = `Pine v6 分析失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+    return false;
+  } finally {
+    isAnalyzing.value = false;
+  }
 }
 
-const {
-    closeDeleteDefinitionDialog,
-    closeSaveLinkedInstancesDialog,
-    confirmDeleteStrategyDefinition,
-    confirmStrategyDesignExit,
-    deleteStrategyDefinition,
-    deletingDefinitionId,
-    instantiateStrategyDefinition,
-    isDeleteDefinitionDialogOpen,
-    isInstantiatingDefinition,
-    isSaveLinkedInstancesDialogOpen,
-    isSavingDefinition,
-    jumpToRuntimeForDeletingLinkedInstances,
-    pendingDeleteDefinition,
-    pendingSaveLinkedInstancesSummary,
-    saveStrategyDefinition,
-    saveStrategyDefinitionWithLinkedInstanceChoice,
-    summarizeLinkedStrategyForDeleteDialog,
-} = useStrategyStageDefinitionPersistence({
-    definitionForm,
-    selectedDefinitionId,
-    selectedDefinition,
-    strategyDefinitions,
-    hasUnsavedDefinitionChanges,
-    definitionError,
-    definitionNotice,
-    clearDefinitionMessages,
-    buildSavePayload: buildStrategyDefinitionSavePayload,
-    loadStrategyDefinitions: loadStrategyDefinitionsForPersistence,
-    emitSwitchToRuntime: (payload) => emit("switch-to-runtime", payload),
-});
+async function saveDefinition(options: { requireAnalysis?: boolean } = {}): Promise<StrategyDefinitionDocument | null> {
+  if (workflowErrorCount.value > 0) {
+    error.value = "工作流存在错误，不能保存。";
+    return null;
+  }
+  if (options.requireAnalysis === true && !await analyzeCurrentScript()) {
+    return null;
+  }
+  isSavingDefinition.value = true;
+  error.value = "";
+  try {
+    const payload: StrategyDefinitionDocument = {
+      id: selectedDefinitionId.value,
+      name: definitionName.value.trim() || workflow.value.declaration.title || "Pine v6 策略",
+      version: definitionVersion.value.trim() || "0.1.0",
+      description: definitionDescription.value.trim(),
+      runtime: "pine-go-plan",
+      sourceFormat: "pine-v6",
+      script: activeScript.value,
+      visualModel: workflow.value,
+      createdAt: selectedDefinition.value?.createdAt ?? "",
+      updatedAt: selectedDefinition.value?.updatedAt ?? "",
+    };
+    const existing = strategyDefinitions.value.some((definition) => definition.id === selectedDefinitionId.value);
+    const saved = await fetchEnvelopeWithInit<StrategyDefinitionDocument>(
+      existing
+        ? `/api/v1/strategy-definitions/${encodeURIComponent(selectedDefinitionId.value)}`
+        : "/api/v1/strategy-definitions",
+      {
+        method: existing ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+    selectedDefinitionId.value = saved.id;
+    notice.value = `已保存策略定义：${saved.name} / v${saved.version}`;
+    await loadStrategyDefinitions(saved.id);
+    return saved;
+  } catch (cause) {
+    error.value = `保存策略定义失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+    return null;
+  } finally {
+    isSavingDefinition.value = false;
+  }
+}
 
-const {
-    indicatorVariables,
-    addIndicatorVariable,
-    updateIndicatorVariable,
-    deleteIndicatorVariable,
-} = useStrategyIndicatorVariables({
-    visualModel: resolvedVisualModel,
-    selectedVisualNodeId,
-    applyVisualModel,
-});
+async function startUnifiedRuntime(): Promise<void> {
+  if (!canStart.value) {
+    error.value = "启动条件不足，请检查策略、标的、周期和工作流诊断。";
+    return;
+  }
+  isStarting.value = true;
+  error.value = "";
+  notice.value = "";
+  try {
+    const saved = await saveDefinition({ requireAnalysis: true });
+    if (saved === null) {
+      return;
+    }
+    const normalized = await normalizeInstrumentRefWithMarketApi({
+      market: bindingMarket.value,
+      code: bindingCode.value,
+    });
+    const syncPayload: BacktestSyncRequestPayload = {
+      market: normalized.prefix,
+      code: normalized.code,
+      symbol: normalized.instrumentId,
+      intervals: [bindingInterval.value],
+      startDate: klineSyncWindow.value.startDate,
+      endDate: klineSyncWindow.value.endDate,
+      rehabType: "forward",
+      sessionScope: useExtendedHours.value ? "extended" : "regular",
+    };
+    const progress = await startSync(syncPayload);
+    if (progress === null || progress.status !== "completed") {
+      error.value = syncError.value || `启动前数据同步未完成：${progress?.status ?? "unknown"}`;
+      return;
+    }
+    const instance = await createOrUpdateStoppedInstance(saved, {
+      market: normalized.prefix,
+      code: normalized.code,
+    });
+    if (instance.status !== "STOPPED") {
+      error.value = "实例不是 STOPPED，不能启动。";
+      await loadStrategies(instance.id);
+      return;
+    }
+    await fetchEnvelopeWithInit<StrategyInstanceItem>(
+      `/api/v1/strategies/${encodeURIComponent(instance.id)}/start`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+    selectedStrategyId.value = instance.id;
+    await loadStrategies(instance.id);
+    notice.value = `已启动策略实例：${saved.name}`;
+    emit("switch-to-runtime", { notice: notice.value, definitionId: saved.id });
+  } catch (cause) {
+    error.value = `启动失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+  } finally {
+    isStarting.value = false;
+  }
+}
 
+async function createOrUpdateStoppedInstance(
+  definition: StrategyDefinitionDocument,
+  instrument: StrategyBindingInstrumentDocument,
+): Promise<StrategyInstanceItem> {
+  const bindingPayload = buildStrategyBindingPayload({
+    brokerAccountOptions: availableBrokerAccounts.value,
+    instruments: [instrument],
+    interval: bindingInterval.value,
+    executionMode: executionMode.value,
+    brokerAccountKey: brokerAccountKey.value,
+    runtimeRisk: runtimeRisk.value,
+  });
+  const selected = selectedStrategy.value;
+  if (selected !== null && selected.definition.strategyId === definition.id) {
+    if (selected.status !== "STOPPED") {
+      throw new Error("当前选中实例不是 STOPPED，请先停止后再更新绑定。");
+    }
+    return fetchEnvelopeWithInit<StrategyInstanceItem>(
+      `/api/v1/strategies/${encodeURIComponent(selected.id)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bindingPayload),
+      },
+    );
+  }
+  return fetchEnvelopeWithInit<StrategyInstanceItem>(
+    `/api/v1/strategy-definitions/${encodeURIComponent(definition.id)}/instantiate`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bindingPayload),
+    },
+  );
+}
+
+async function changeStrategyStatus(instance: StrategyInstanceItem, action: "start" | "pause" | "stop"): Promise<void> {
+  error.value = "";
+  try {
+    await fetchEnvelopeWithInit<StrategyInstanceItem>(
+      `/api/v1/strategies/${encodeURIComponent(instance.id)}/${action}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+    await loadStrategies(instance.id);
+  } catch (cause) {
+    error.value = `策略${action}失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+  }
+}
+
+function setRuntimeRiskMode(value: string): void {
+  const mode: StrategyRuntimeRiskMode =
+    value === "monitor" || value === "enforce" ? value : "off";
+  runtimeRisk.value = normalizeStrategyRuntimeRiskSettings({
+    ...runtimeRisk.value,
+    mode,
+  });
+}
+
+function updateRuntimeRiskNumber(
+  field: "maxOrderQuantity" | "maxOrderNotional" | "dailyMaxOrders",
+  value: string,
+): void {
+  const numeric = value.trim() === "" ? null : Number(value);
+  runtimeRisk.value = normalizeStrategyRuntimeRiskSettings({
+    ...runtimeRisk.value,
+    [field]: Number.isFinite(numeric) ? numeric : null,
+  });
+}
+
+function deriveKlineSyncWindow(warmup: number, interval: string): { startDate: string; endDate: string } {
+  const today = new Date();
+  const intervalMinutes = intervalToMinutes(interval);
+  const tradingDays = Math.ceil(Math.max(120, warmup) * intervalMinutes / 240) + 8;
+  const start = new Date(today);
+  start.setDate(today.getDate() - Math.max(14, tradingDays * 2));
+  return {
+    startDate: formatDateInput(start),
+    endDate: formatDateInput(today),
+  };
+}
+
+function intervalToMinutes(interval: string): number {
+  switch (interval) {
+    case "1m": return 1;
+    case "5m": return 5;
+    case "15m": return 15;
+    case "30m": return 30;
+    case "1h": return 60;
+    case "1d": return 240;
+    case "1w": return 1200;
+    default: return 5;
+  }
+}
+
+function formatDateInput(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+function countWorkflowBlocks(blocks: PineV6WorkflowBlock[]): number {
+  return blocks.reduce(
+    (total, block) => total + 1 + countWorkflowBlocks(block.thenBlocks ?? []) + countWorkflowBlocks(block.elseBlocks ?? []),
+    0,
+  );
+}
+
+function inputTypeValue(value: string): PineV6WorkflowInput["type"] {
+  return value === "float" || value === "bool" || value === "string" || value === "source" || value === "time"
+    ? value
+    : "int";
+}
+
+function diagnosticClass(diagnostic: Pick<PineV6WorkflowDiagnostic | StrategyPineAnalyzeDiagnostic, "severity">): string {
+  return `strategy-native-diagnostic--${diagnostic.severity}`;
+}
+
+function statusClass(status: string): string {
+  switch (status) {
+    case "RUNNING":
+      return "strategy-native-status--running";
+    case "PAUSED":
+      return "strategy-native-status--paused";
+    default:
+      return "strategy-native-status--stopped";
+  }
+}
 </script>
 
 <template>
-    <div class="strategy-stage">
-        <v-dialog v-model="isSaveLinkedInstancesDialogOpen" max-width="560">
-            <div class="strategy-save-dialog" data-testid="strategy-save-linked-dialog">
-                <div class="strategy-save-dialog__eyebrow">保存策略</div>
-                <div class="strategy-save-dialog__title">检测到关联实例正在使用当前策略</div>
-                <div v-if="pendingSaveLinkedInstancesSummary !== null"
-                    class="strategy-save-dialog__body" data-testid="strategy-save-linked-summary">
-                    当前共有 {{ pendingSaveLinkedInstancesSummary.linkedCount }} 个实例应用了这份策略，
-                    其中 {{ pendingSaveLinkedInstancesSummary.stoppedCount }} 个实例为 STOPPED，保存后可立即刷新到最新版本；
-                    {{ pendingSaveLinkedInstancesSummary.busyCount }} 个运行中或暂停中的实例会保留当前版本，后续停止后再刷新。
-                </div>
-                <div class="strategy-save-dialog__hint">策略版本会由系统在本次保存时自动编号。</div>
-                <div class="strategy-save-dialog__actions">
-                    <button class="strategy-btn strategy-btn--ghost" data-testid="strategy-save-definition-only"
-                        :disabled="isSavingDefinition" type="button"
-                        @click="void saveStrategyDefinitionWithLinkedInstanceChoice('save-only')">
-                        仅保存策略
-                    </button>
-                    <button class="strategy-btn strategy-btn--primary" data-testid="strategy-save-definition-and-apply"
-                        :disabled="isSavingDefinition" type="button"
-                        @click="void saveStrategyDefinitionWithLinkedInstanceChoice('save-and-apply')">
-                        {{ isSavingDefinition ? "保存中…" : "保存并更新关联实例" }}
-                    </button>
-                </div>
-                <button class="strategy-save-dialog__close" type="button" @click="closeSaveLinkedInstancesDialog">
-                    继续编辑
-                </button>
-            </div>
-        </v-dialog>
+  <div class="strategy-native-page" data-testid="strategy-design-stage">
+    <header class="strategy-native-header">
+      <div>
+        <div class="strategy-native-eyebrow">Pine v6 原生</div>
+        <h1>策略快捷指令工作台</h1>
+      </div>
+      <div class="strategy-native-header__actions">
+        <div class="strategy-native-view-switch" aria-label="策略工作区视图">
+          <button
+            class="strategy-native-view-switch__button"
+            :class="{ 'is-active': strategyDisplayMode === 'instruction' }"
+            data-testid="strategy-display-mode-instruction"
+            type="button"
+            @click="setStrategyDisplayMode('instruction')"
+          >
+            指令
+          </button>
+          <button
+            class="strategy-native-view-switch__button"
+            :class="{ 'is-active': strategyDisplayMode === 'split' }"
+            data-testid="strategy-display-mode-split"
+            type="button"
+            @click="setStrategyDisplayMode('split')"
+          >
+            双栏
+          </button>
+          <button
+            class="strategy-native-view-switch__button"
+            :class="{ 'is-active': strategyDisplayMode === 'code' }"
+            data-testid="strategy-display-mode-code"
+            type="button"
+            @click="setStrategyDisplayMode('code')"
+          >
+            代码
+          </button>
+        </div>
+        <button type="button" @click="createNewWorkflow">新建 Pine v6</button>
+        <button type="button" :disabled="isAnalyzing" @click="void analyzeCurrentScript()">
+          {{ isAnalyzing ? "分析中" : "分析" }}
+        </button>
+        <button type="button" :disabled="isSavingDefinition" @click="void saveDefinition()">
+          {{ isSavingDefinition ? "保存中" : "保存" }}
+        </button>
+        <button class="strategy-native-primary" type="button" :disabled="!canStart" @click="void startUnifiedRuntime()">
+          {{ isStarting ? "启动中" : "保存并启动" }}
+        </button>
+      </div>
+    </header>
 
-        <v-dialog v-model="isDeleteDefinitionDialogOpen" max-width="620">
-            <div class="strategy-save-dialog strategy-save-dialog--delete" data-testid="strategy-delete-definition-dialog">
-                <div class="strategy-save-dialog__eyebrow">删除策略</div>
-                <div class="strategy-save-dialog__title">
-                    {{ pendingDeleteDefinition?.linkedStrategies.length ? "当前还有实例引用该策略" : "确认删除当前策略定义" }}
-                </div>
-                <div v-if="pendingDeleteDefinition !== null"
-                    class="strategy-save-dialog__body" data-testid="strategy-delete-definition-summary">
-                    <template v-if="pendingDeleteDefinition.linkedStrategies.length === 0">
-                        策略定义「{{ pendingDeleteDefinition.definition.name }}」会被软删除，并从当前定义列表中移除。
-                        <template v-if="selectedDefinitionId === pendingDeleteDefinition.definition.id && hasUnsavedDefinitionChanges">
-                            当前未保存的编辑也会一并丢弃。
-                        </template>
-                    </template>
-                    <template v-else>
-                        策略定义「{{ pendingDeleteDefinition.definition.name }}」当前仍被
-                        {{ pendingDeleteDefinition.linkedStrategies.length }} 个实例引用，请先删除这些实例，再回来删除该定义。
-                    </template>
-                </div>
-                <div v-if="pendingDeleteDefinition !== null && pendingDeleteDefinition.linkedStrategies.length > 0"
-                    class="strategy-save-dialog__linked-list" data-testid="strategy-delete-linked-instances">
-                    <div v-for="strategy in pendingDeleteDefinition.linkedStrategies" :key="strategy.id"
-                        class="strategy-save-dialog__linked-item"
-                        :data-testid="`strategy-delete-linked-instance-${strategy.id}`">
-                        <div class="strategy-save-dialog__linked-item-id">{{ strategy.id }}</div>
-                        <div class="strategy-save-dialog__linked-item-meta">
-                            {{ summarizeLinkedStrategyForDeleteDialog(strategy) }}
-                        </div>
+    <div v-if="notice" class="strategy-native-banner strategy-native-banner--ok">{{ notice }}</div>
+    <div v-if="error" class="strategy-native-banner strategy-native-banner--error">{{ error }}</div>
+
+    <SplitPane class="strategy-native-shell" :pane-min-size="20">
+      <SplitPaneItem
+        :size="strategyDisplayMode === 'instruction' ? 100 : strategyDisplayMode === 'split' ? 66 : 30"
+        :min-size="strategyDisplayMode === 'instruction' ? 100 : 22"
+        :max-size="strategyDisplayMode === 'instruction' ? 100 : strategyDisplayMode === 'code' ? 48 : 78"
+      >
+        <SplitPane class="strategy-native-instruction" :pane-min-size="18">
+          <SplitPaneItem
+            :size="strategyDisplayMode === 'code' ? 100 : 32"
+            :min-size="strategyDisplayMode === 'code' ? 100 : 22"
+            :max-size="strategyDisplayMode === 'code' ? 100 : 52"
+          >
+            <aside class="strategy-native-side">
+              <v-expansion-panels
+                v-model="expandedStrategySidePanels"
+                multiple
+                class="strategy-native-side-panels"
+                variant="default"
+              >
+                <v-expansion-panel value="definition" class="strategy-native-panel strategy-native-side-panel">
+                  <v-expansion-panel-title>
+                    <div class="strategy-native-panel__title">策略定义</div>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <div class="strategy-native-panel__content">
+                      <select v-model="selectedDefinitionId" :disabled="isLoadingDefinitions" @change="selectedDefinition && applyDefinition(selectedDefinition)">
+                        <option value="">新建草稿</option>
+                        <option v-for="definition in strategyDefinitions" :key="definition.id" :value="definition.id">
+                          {{ definition.name }} / v{{ definition.version }}
+                        </option>
+                      </select>
+                      <label>
+                        <span>名称</span>
+                        <input v-model="definitionName">
+                      </label>
+                      <label>
+                        <span>版本</span>
+                        <input v-model="definitionVersion">
+                      </label>
+                      <label>
+                        <span>说明</span>
+                        <textarea v-model="definitionDescription" rows="3" />
+                      </label>
                     </div>
-                </div>
-                <div class="strategy-save-dialog__hint">
-                    {{ pendingDeleteDefinition?.linkedStrategies.length
-                        ? "删除策略定义不会自动删除运行实例。请先在运行面板删除这些实例，再回到设计页删除定义。"
-                        : "删除后不会自动影响现有实例；只有未被实例引用的定义才允许删除。" }}
-                </div>
-                <div class="strategy-save-dialog__actions">
-                    <button class="strategy-btn strategy-btn--ghost" data-testid="cancel-delete-strategy-definition"
-                        :disabled="deletingDefinitionId !== ''" type="button" @click="closeDeleteDefinitionDialog()">
-                        {{ pendingDeleteDefinition?.linkedStrategies.length ? "我知道了" : "取消" }}
-                    </button>
-                    <button v-if="pendingDeleteDefinition !== null && pendingDeleteDefinition.linkedStrategies.length > 0"
-                        class="strategy-btn" data-testid="jump-to-runtime-for-delete-linked-instances"
-                        :disabled="deletingDefinitionId !== ''" type="button"
-                        @click="jumpToRuntimeForDeletingLinkedInstances">
-                        去运行面板删除实例
-                    </button>
-                    <button v-if="pendingDeleteDefinition !== null && pendingDeleteDefinition.linkedStrategies.length === 0"
-                        class="strategy-btn strategy-btn--danger-confirm" data-testid="confirm-delete-strategy-definition"
-                        :disabled="deletingDefinitionId !== ''" type="button"
-                        @click="void confirmDeleteStrategyDefinition()">
-                        {{ deletingDefinitionId === pendingDeleteDefinition.definition.id ? "删除中…" : "确认删除" }}
-                    </button>
-                </div>
-            </div>
-        </v-dialog>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
 
-        <div class="strategy-stage__toast-stack">
-            <div v-if="definitionError" class="strategy-banner strategy-banner--error">
-                <div class="strategy-banner__message">{{ definitionError }}</div>
-                <button class="strategy-banner__close" data-testid="dismiss-strategy-error-banner" aria-label="关闭错误提示"
-                    type="button" @click="dismissDefinitionError">
-                    &times;
-                </button>
-            </div>
-            <div v-if="definitionNotice" class="strategy-banner strategy-banner--success">
-                <div class="strategy-banner__message">{{ definitionNotice }}</div>
-                <button class="strategy-banner__close" data-testid="dismiss-strategy-notice-banner" aria-label="关闭提示"
-                    type="button" @click="dismissDefinitionNotice">
-                    &times;
-                </button>
-            </div>
-        </div>
-
-        <div class="strategy-stage__toolbar">
-            <div class="strategy-stage__toolbar-card strategy-stage__toolbar-card--primary">
-                <div class="strategy-stage__toolbar-top">
-                    <div class="strategy-stage__toolbar-main">
-                        <div class="strategy-stage__toolbar-title-row">
-                            <div class="strategy-stage__toolbar-title">
-                                {{ definitionForm.name || "未命名 Pine 策略" }}
-                            </div>
-                            <span class="strategy-page__pill">
-                                {{ activeStrategyTemplate?.mode === "visual" ? "图优先" : "代码优先" }}
-                            </span>
-                            <div class="strategy-stage__toolbar-meta">
-                                <span>{{ formatDefinitionMainPath(definitionForm.sourceFormat, definitionForm.runtime) }}</span>
-                                <span>v{{ definitionForm.version || "0.1.0" }}</span>
-                            </div>
-                        </div>
+                <v-expansion-panel value="declaration" class="strategy-native-panel strategy-native-side-panel">
+                  <v-expansion-panel-title>
+                    <div class="strategy-native-panel__title">策略声明 strategy(...)</div>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <div class="strategy-native-panel__content">
+                      <label>
+                        <span>标题</span>
+                        <input :value="workflow.declaration.title" @input="updateDeclaration('title', ($event.target as HTMLInputElement).value)">
+                      </label>
+                      <label class="strategy-native-toggle">
+                        <input :checked="workflow.declaration.overlay" type="checkbox" @change="updateDeclaration('overlay', ($event.target as HTMLInputElement).checked)">
+                        <span>叠加到主图</span>
+                      </label>
+                      <label>
+                        <span>初始资金</span>
+                        <input :value="workflow.declaration.initialCapital ?? ''" type="number" @input="updateDeclaration('initialCapital', Number(($event.target as HTMLInputElement).value) || null)">
+                      </label>
+                      <label>
+                        <span>币种</span>
+                        <input :value="workflow.declaration.currency ?? ''" @input="updateDeclaration('currency', ($event.target as HTMLInputElement).value)">
+                      </label>
+                      <label>
+                        <span>允许加仓次数</span>
+                        <input :value="workflow.declaration.pyramiding ?? 0" type="number" @input="updateDeclaration('pyramiding', Number(($event.target as HTMLInputElement).value) || 0)">
+                      </label>
                     </div>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
 
-                    <div class="strategy-stage__toolbar-controls">
-                        <div class="strategy-stage__mode-switch" aria-label="策略工作区模式">
-                            <button class="strategy-stage__mode-button is-active"
-                                data-testid="strategy-workspace-tab-design" type="button">
-                                设计
-                            </button>
-                            <button class="strategy-stage__mode-button" data-testid="strategy-workspace-tab-runtime"
-                                type="button" @click="void handleSwitchToRuntime()">
-                                运行
-                            </button>
-                        </div>
-
-                        <div class="strategy-stage__display-switch" aria-label="策略显示模式">
-                            <span class="strategy-stage__display-switch-label">显示</span>
-                            <div class="strategy-stage__display-switch-group">
-                                <button class="strategy-stage__display-button"
-                                    :class="{ 'is-active': strategyDisplayMode === 'canvas' }"
-                                    data-testid="strategy-display-mode-canvas" type="button"
-                                    @click="setStrategyDisplayMode('canvas')">
-                                    画布
-                                </button>
-                                <button class="strategy-stage__display-button"
-                                    :class="{ 'is-active': strategyDisplayMode === 'split' }"
-                                    data-testid="strategy-display-mode-split" type="button"
-                                    @click="setStrategyDisplayMode('split')">
-                                    双栏
-                                </button>
-                                <button class="strategy-stage__display-button"
-                                    :class="{ 'is-active': strategyDisplayMode === 'code' }"
-                                    data-testid="strategy-display-mode-code" type="button"
-                                    @click="setStrategyDisplayMode('code')">
-                                    代码
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="strategy-stage__toolbar-actions">
-                            <button class="strategy-btn strategy-btn--ghost" data-testid="undo-strategy-change"
-                                :disabled="!undoRedo.canUndo" type="button" title="撤销 (Ctrl+Z)"
-                                @click="handleUndo">
-                                ↩
-                            </button>
-                            <button class="strategy-btn strategy-btn--ghost" data-testid="redo-strategy-change"
-                                :disabled="!undoRedo.canRedo" type="button" title="重做 (Ctrl+Shift+Z)"
-                                @click="handleRedo">
-                                ↪
-                            </button>
-                            <button class="strategy-btn strategy-btn--primary" data-testid="save-strategy-definition"
-                                :disabled="isSavingDefinition" type="button" @click="saveStrategyDefinition">
-                                {{ isSavingDefinition ? "保存中…" : "保存策略" }}
-                            </button>
-                            <button class="strategy-btn" data-testid="instantiate-strategy-definition"
-                                :disabled="selectedDefinition === null || isInstantiatingDefinition" type="button"
-                                @click="instantiateStrategyDefinition">
-                                {{ isInstantiatingDefinition ? "创建中…" : "创建运行实例" }}
-                            </button>
-                        </div>
+                <v-expansion-panel value="runtime" class="strategy-native-panel strategy-native-side-panel">
+                  <v-expansion-panel-title>
+                    <div class="strategy-native-panel__title">运行向导</div>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <div class="strategy-native-panel__content">
+                      <label>
+                        <span>市场</span>
+                        <select v-model="bindingMarket">
+                          <option v-for="market in marketOptions" :key="market.value" :value="market.value">{{ market.title }}</option>
+                          <option v-if="marketOptions.length === 0" value="HK">HK</option>
+                          <option v-if="marketOptions.length === 0" value="US">US</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>代码</span>
+                        <input v-model="bindingCode" placeholder="00700">
+                      </label>
+                      <label>
+                        <span>K线周期</span>
+                        <select v-model="bindingInterval">
+                          <option v-for="period in KLINE_PERIODS.filter((item) => item.value !== 'tick')" :key="period.value" :value="period.value">
+                            {{ period.label }}
+                          </option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>执行模式</span>
+                        <select v-model="executionMode">
+                          <option value="live">{{ executionModeLabel("live") }}</option>
+                          <option value="notify_only">{{ executionModeLabel("notify_only") }}</option>
+                        </select>
+                      </label>
+                      <label class="strategy-native-toggle">
+                        <input v-model="useExtendedHours" type="checkbox">
+                        <span>包含扩展交易时段</span>
+                      </label>
+                      <label>
+                        <span>交易账号</span>
+                        <select v-model="brokerAccountKey">
+                          <option value="">未绑定账号</option>
+                          <option v-for="account in availableBrokerAccounts" :key="account.selectionKey" :value="account.selectionKey">
+                            {{ account.displayName }} / {{ account.market }}
+                          </option>
+                        </select>
+                      </label>
+                      <div class="strategy-native-meta">
+                        {{ normalizedBrokerAccount ? formatBrokerAccountSummary(normalizedBrokerAccount) : "未绑定账号" }}
+                      </div>
                     </div>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <v-expansion-panel value="risk" class="strategy-native-panel strategy-native-side-panel">
+                  <v-expansion-panel-title>
+                    <div class="strategy-native-panel__title">动态风控</div>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <div class="strategy-native-panel__content">
+                      <label>
+                        <span>模式</span>
+                        <select :value="runtimeRisk.mode" @change="setRuntimeRiskMode(($event.target as HTMLSelectElement).value)">
+                          <option value="off">{{ riskModeLabel("off") }}</option>
+                          <option value="monitor">{{ riskModeLabel("monitor") }}</option>
+                          <option value="enforce">{{ riskModeLabel("enforce") }}</option>
+                        </select>
+                      </label>
+                      <label class="strategy-native-toggle">
+                        <input :checked="runtimeRisk.closeOnly" type="checkbox" @change="runtimeRisk = normalizeStrategyRuntimeRiskSettings({ ...runtimeRisk, closeOnly: ($event.target as HTMLInputElement).checked })">
+                        <span>仅允许平仓</span>
+                      </label>
+                      <label>
+                        <span>最大下单数量</span>
+                        <input :value="runtimeRisk.maxOrderQuantity ?? ''" type="number" @input="updateRuntimeRiskNumber('maxOrderQuantity', ($event.target as HTMLInputElement).value)">
+                      </label>
+                      <label>
+                        <span>最大订单金额</span>
+                        <input :value="runtimeRisk.maxOrderNotional ?? ''" type="number" @input="updateRuntimeRiskNumber('maxOrderNotional', ($event.target as HTMLInputElement).value)">
+                      </label>
+                      <div class="strategy-native-meta">{{ formatStrategyRuntimeRiskSummary(runtimeRisk) }}</div>
+                    </div>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <v-expansion-panel value="diagnostics" class="strategy-native-panel strategy-native-side-panel">
+                  <v-expansion-panel-title>
+                    <div class="strategy-native-panel__title">诊断</div>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <div class="strategy-native-panel__content">
+                      <div v-if="workflowDiagnostics.length === 0 && analyzerDiagnostics.length === 0" class="strategy-native-meta">
+                        暂无诊断。
+                      </div>
+                      <div
+                        v-for="diagnostic in workflowDiagnostics"
+                        :key="`${diagnostic.code}-${diagnostic.blockId ?? ''}`"
+                        class="strategy-native-diagnostic"
+                        :class="diagnosticClass(diagnostic)"
+                      >
+                        <strong>{{ diagnostic.code }}</strong>
+                        <span>{{ diagnostic.message }}</span>
+                      </div>
+                      <div
+                        v-for="diagnostic in analyzerDiagnostics"
+                        :key="`${diagnostic.line}-${diagnostic.column}-${diagnostic.message}`"
+                        class="strategy-native-diagnostic"
+                        :class="diagnosticClass(diagnostic)"
+                      >
+                        <strong>{{ diagnostic.code ?? diagnostic.severity }}</strong>
+                        <span>第 {{ diagnostic.line }} 行：{{ diagnostic.message }}</span>
+                      </div>
+                      <div class="strategy-native-meta">
+                        工作流错误 {{ workflowErrorCount }} 个 / Pine 分析错误 {{ analyzerErrorCount }} 个
+                      </div>
+                    </div>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <v-expansion-panel value="instances" class="strategy-native-panel strategy-native-side-panel">
+                  <v-expansion-panel-title>
+                    <div class="strategy-native-workspace-bar strategy-native-side-panel__titlebar">
+                      <div class="strategy-native-panel__title">策略实例</div>
+                      <button type="button" :disabled="isLoadingStrategies" @click.stop="void loadStrategies()">刷新</button>
+                    </div>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <div class="strategy-native-panel__content">
+                      <div v-if="strategies.length === 0" class="strategy-native-meta">暂无实例。</div>
+                      <button
+                        v-for="strategy in strategies"
+                        :key="strategy.id"
+                        class="strategy-native-instance"
+                        :class="{ 'strategy-native-instance--active': strategy.id === selectedStrategyId }"
+                        type="button"
+                        @click="selectedStrategyId = strategy.id"
+                      >
+                        <div>
+                          <strong>{{ strategy.definition.name }}</strong>
+                          <span :class="['strategy-native-status', statusClass(strategy.status)]">{{ statusLabel(strategy.status) }}</span>
+                        </div>
+                        <div>{{ formatStrategySymbols(strategy) }} / {{ formatStrategyInterval(strategy) }}</div>
+                        <div>{{ formatStrategyRuntimeRiskSummary(readStrategyBinding(strategy).runtimeRisk) }}</div>
+                        <div class="strategy-native-instance__actions">
+                          <button type="button" :disabled="strategy.status !== 'STOPPED'" @click.stop="void changeStrategyStatus(strategy, 'start')">启动</button>
+                          <button type="button" :disabled="strategy.status !== 'RUNNING'" @click.stop="void changeStrategyStatus(strategy, 'pause')">暂停</button>
+                          <button type="button" :disabled="strategy.status === 'STOPPED'" @click.stop="void changeStrategyStatus(strategy, 'stop')">停止</button>
+                        </div>
+                      </button>
+                    </div>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
+            </aside>
+          </SplitPaneItem>
+
+          <SplitPaneItem
+            v-if="strategyDisplayMode !== 'code'"
+            :size="68"
+            :min-size="38"
+            :max-size="78"
+          >
+            <main class="strategy-native-main">
+              <section class="strategy-native-panel strategy-native-panel--workspace">
+                <div class="strategy-native-workspace-bar">
+                  <div>
+                    <div class="strategy-native-panel__title">收盘确认指令</div>
+                    <div class="strategy-native-meta">
+                      收盘确认执行 / 下一根 K 线成交 / {{ activeWorkflowFeatureSummary }}
+                    </div>
+                  </div>
+                  <div class="strategy-native-selected-block">
+                    {{ selectedBlockId || "未选中块" }}
+                  </div>
                 </div>
-
-                <div class="strategy-stage__toolbar-bottom">
-                    <div class="strategy-stage__toolbar-tools">
-                        <button class="strategy-tool-switch" :class="{ 'is-active': !isDefinitionsPanelCollapsed }"
-                            data-testid="toggle-strategy-definitions-floating" type="button"
-                            @click="isDefinitionsPanelCollapsed = !isDefinitionsPanelCollapsed">
-                            策略定义
-                        </button>
-                        <button class="strategy-tool-switch" :class="{ 'is-active': !isTemplatesSectionCollapsed }"
-                            data-testid="toggle-strategy-templates-section" type="button"
-                            @click="isTemplatesSectionCollapsed = !isTemplatesSectionCollapsed">
-                            样板策略
-                        </button>
-                        <button class="strategy-tool-switch" :class="{ 'is-active': !isBasicInfoSectionCollapsed }"
-                            data-testid="toggle-strategy-basic-info-section" type="button"
-                            @click="isBasicInfoSectionCollapsed = !isBasicInfoSectionCollapsed">
-                            基本信息
-                        </button>
-                    </div>
-                    
-                    <div class="strategy-stage__toolbar-status" :class="visualSyncToneClass"
-                        data-testid="strategy-visual-sync-status">
-                        <span class="strategy-stage__toolbar-status-label">{{ visualSyncLabel }}</span>
-                        <span
-                            v-if="visualNodeMappingQuality !== null"
-                            class="strategy-stage__toolbar-status-quality"
-                            data-testid="strategy-visual-mapping-quality"
-                        >
-                            映射 {{ visualNodeMappingQuality.mappableCount }}/{{ visualNodeMappingQuality.total }}
-                        </span>
-                        <span class="strategy-stage__toolbar-status-message">{{ visualSyncMessage }}</span>
-                        <span
-                            v-if="visualSupportSummaryText !== ''"
-                            class="strategy-stage__toolbar-status-support"
-                            data-testid="strategy-visual-support-summary"
-                        >
-                            {{ visualSupportSummaryText }}
-                        </span>
-                    </div>
+                <div class="strategy-native-block-scroll" data-testid="strategy-instruction-scroll">
+                  <PineV6WorkflowBlockList
+                    class="strategy-native-block-list"
+                    :blocks="workflow.blocks"
+                    @select-block="selectedBlockId = $event"
+                    @update:blocks="updateBlocks"
+                  />
                 </div>
+              </section>
+
+              <section
+                class="strategy-native-panel strategy-native-variables"
+                :class="{ 'strategy-native-variables--open': variablesPanelOpen }"
+                data-testid="strategy-variables-panel"
+              >
+                <div
+                  class="strategy-native-workspace-bar strategy-native-variables__bar"
+                  role="button"
+                  tabindex="0"
+                  @click="toggleVariablesPanel"
+                  @keydown.enter.prevent="toggleVariablesPanel"
+                  @keydown.space.prevent="toggleVariablesPanel"
+                >
+                  <div>
+                    <div class="strategy-native-panel__title">输入参数 input.*</div>
+                    <div class="strategy-native-meta">{{ workflow.inputs.length }} 个变量</div>
+                  </div>
+                  <div class="strategy-native-variables__actions">
+                    <button type="button" @click.stop="variablesPanelOpen = true; addInput()">新增输入参数</button>
+                    <span class="strategy-native-variables__chevron">{{ variablesPanelOpen ? "收起" : "展开" }}</span>
+                  </div>
+                </div>
+                <div class="strategy-native-inputs strategy-native-variables__body" data-testid="strategy-variables-body">
+                  <div v-for="(input, index) in workflow.inputs" :key="input.id" class="strategy-native-input-row">
+                    <input :value="input.name" placeholder="变量名" @input="updateInput(index, { name: ($event.target as HTMLInputElement).value })">
+                    <input :value="input.title" placeholder="标题" @input="updateInput(index, { title: ($event.target as HTMLInputElement).value })">
+                    <select :value="input.type" @change="updateInput(index, { type: inputTypeValue(($event.target as HTMLSelectElement).value) })">
+                      <option value="int">整数 int</option>
+                      <option value="float">小数 float</option>
+                      <option value="bool">布尔 bool</option>
+                      <option value="string">文本 string</option>
+                      <option value="source">价格序列 source</option>
+                      <option value="time">时间 time</option>
+                    </select>
+                    <input :value="input.defaultValue" placeholder="默认值" @input="updateInput(index, { defaultValue: ($event.target as HTMLInputElement).value })">
+                    <button type="button" @click="deleteInput(index)">×</button>
+                  </div>
+                </div>
+              </section>
+            </main>
+          </SplitPaneItem>
+        </SplitPane>
+      </SplitPaneItem>
+
+      <SplitPaneItem
+        v-if="strategyDisplayMode !== 'instruction'"
+        :size="strategyDisplayMode === 'split' ? 34 : 70"
+        :min-size="strategyDisplayMode === 'split' ? 22 : 52"
+        :max-size="100"
+      >
+        <aside class="strategy-native-code-pane">
+        <section class="strategy-native-panel strategy-native-code">
+          <div class="strategy-native-workspace-bar">
+            <div>
+              <div class="strategy-native-panel__title">Pine v6 源码</div>
+              <div class="strategy-native-meta">后端 script 字段是运行权威输入</div>
             </div>
-        </div>
+            <label class="strategy-native-toggle">
+              <input v-model="useSourceOverride" data-testid="strategy-source-override-toggle" type="checkbox">
+              <span>源码编辑</span>
+            </label>
+          </div>
+          <MonacoCodeEditor
+            :model-value="useSourceOverride ? sourceOverride : generatedScript"
+            language="pine-v6"
+            height="min(56vh, 34rem)"
+            min-height="24rem"
+            test-id="strategy-script-editor"
+            :read-only="!useSourceOverride"
+            :extra-libs="strategyPineEditorExtraLibs"
+            :completion-items="strategyPineEditorCompletions"
+            :hover-items="strategyPineEditorHoverItems"
+            :diagnostic-markers="pineDiagnosticMarkers"
+            @update:model-value="sourceOverride = $event"
+          />
+          <button type="button" @click="advancedSourceOpen = !advancedSourceOpen">
+            {{ advancedSourceOpen ? "收起说明" : "Pine v6 支持边界" }}
+          </button>
+          <div v-if="advancedSourceOpen" class="strategy-native-meta">
+            当前按闭合 K 线执行；订单按下一根 K 线成交；OCA、部分成交、tick 级重算是明确边界。
+          </div>
+        </section>
 
-        <div v-if="showsCanvas" class="strategy-stage__canvas">
-            <StrategyLogicFlowDesigner ref="logicFlowDesignerRef" :chrome="false" :fit-view-padding="logicFlowFitViewPadding" :height="'100%'"
-                :indicator-variables="indicatorVariables" :min-height="'100%'" :model-value="resolvedVisualModel" :resizable="false"
-                :show-builder-actions="showsCanvas"
-                :show-zoom-slider="showsCanvas"
-                :zoom-right-offset="strategyLogicFlowZoomRightOffset" class="h-full min-h-0"
-                @add-indicator-variable="addIndicatorVariable"
-                @delete-indicator-variable="deleteIndicatorVariable"
-                @select-node="handleVisualNodeSelected"
-                @update-indicator-variable="updateIndicatorVariable"
-                @update:model-value="handleVisualModelUpdated" />
-        </div>
-
-        <div v-if="!isDefinitionsPanelCollapsed" data-testid="strategy-definitions-panel"
-            class="strategy-stage__panel strategy-stage__panel--definitions" :style="definitionsPanelStyle">
-            <StrategyStageDefinitionsPanel :is-loading-definitions="isLoadingDefinitions"
-                :deleting-definition-id="deletingDefinitionId"
-                :selected-definition-id="selectedDefinitionId" :strategy-definitions="strategyDefinitions"
-                @close="isDefinitionsPanelCollapsed = true" @create-new="openNewDefinitionTemplatePicker()"
-                @delete-definition="void deleteStrategyDefinition($event)"
-                @drag-start="startDefinitionsPanelDrag" @select-definition="applyDefinition" />
-        </div>
-
-        <div v-if="hasDesignOverlayDeck" class="strategy-stage__panel strategy-stage__panel--deck" :class="{
-            'strategy-stage__panel--deck-code': strategyDisplayMode === 'code',
-            'strategy-stage__panel--deck-no-definitions': isDefinitionsPanelCollapsed,
-            'strategy-stage__panel--deck-no-code': !showsCodeWorkbench || strategyDisplayMode === 'code',
-        }">
-            <StrategyStageOverlayDeck :active-strategy-template-mode="activeStrategyTemplate?.mode ?? null"
-                :bindings="overlayDeckBindings" :created-at-text="formatTimestamp(definitionForm.createdAt)"
-                :selected-strategy-template-id="selectedStrategyTemplateId"
-                :selected-visual-block-description="selectedVisualBlock?.description ?? '调整图块参数并同步 Pine。'"
-                :selected-visual-block-label="selectedVisualBlock?.label ?? (selectedVisualNode?.text ?? '')"
-                :selected-visual-support="selectedVisualSupport"
-                :selected-visual-kind="selectedVisualKind" :selected-visual-node="selectedVisualNode"
-                :expression-slot-options="expressionSlotOptions"
-                :expression-reference-options="expressionReferenceOptions"
-                :show-basic-info-section="!isBasicInfoSectionCollapsed"
-                :show-block-details-section="selectedVisualNode !== null && !isBlockInspectorCollapsed"
-                :show-templates-section="!isTemplatesSectionCollapsed" :shows-code-input="showsCodeInput"
-                :shows-visual-expression-inputs="showsVisualExpressionInputs"
-                :shows-advanced-pine-block-inputs="showsAdvancedPineBlockInputs"
-                :shows-time-filter-inputs="showsTimeFilterInputs"
-                :shows-session-filter-inputs="showsSessionFilterInputs"
-                :shows-macd-inputs="showsMacdInputs" :shows-technical-indicator-macd-inputs="showsTechnicalIndicatorMacdInputs" :shows-multiplier-input="showsMultiplierInput"
-                :shows-indicator-source-input="showsIndicatorSourceInput"
-                :shows-indicator-timeframe-input="showsIndicatorTimeframeInput"
-                :shows-indicator-adx-smoothing-input="showsIndicatorAdxSmoothingInput"
-                :shows-indicator-factor-input="showsIndicatorFactorInput"
-                :shows-indicator-sar-inputs="showsIndicatorSarInputs"
-                :shows-indicator-offset-input="showsIndicatorOffsetInput"
-                :shows-indicator-sigma-input="showsIndicatorSigmaInput"
-                :shows-indicator-pivot-bars-input="showsIndicatorPivotBarsInput"
-                :shows-moving-average-type-input="showsMovingAverageTypeInput"
-                :shows-indicator-variable-name-input="showsIndicatorVariableNameInput"
-                :indicator-variable-name-placeholder="indicatorVariableNamePlaceholder"
-                :shows-indicator-primary-input-select="showsIndicatorPrimaryInputSelect"
-                :shows-indicator-fast-input-select="showsIndicatorFastInputSelect"
-                :shows-indicator-slow-input-select="showsIndicatorSlowInputSelect"
-                :indicator-getter-options="indicatorGetterOptions"
-                :shows-period-input="showsPeriodInput" :shows-threshold-input="showsThresholdInput"
-                :shows-condition-mode-input="showsConditionModeInput" :shows-indicator-type-input="showsIndicatorTypeInput"
-                :shows-series-condition-inputs="showsSeriesConditionInputs"
-                :shows-pattern-type-input="showsPatternTypeInput" :shows-lookback-input="showsLookbackInput"
-                :shows-place-order-inputs="showsPlaceOrderInputs"
-                :shows-place-order-entry-position-policy-input="showsPlaceOrderEntryPositionPolicyInput"
-                :shows-place-order-limit-price-input="showsPlaceOrderLimitPriceInput"
-                :shows-place-order-stop-price-input="showsPlaceOrderStopPriceInput"
-                :shows-place-order-quantity-inputs="showsPlaceOrderQuantityInputs"
-                :shows-place-order-side-input="showsPlaceOrderSideInput"
-                :shows-place-order-target-id-input="showsPlaceOrderTargetIdInput"
-                :shows-place-order-risk-direction-input="showsPlaceOrderRiskDirectionInput"
-                :shows-stop-loss-take-profit-percentage-input="showsStopLossTakeProfitPercentageInput"
-                :strategy-templates="strategyTemplates" :updated-at-text="formatTimestamp(definitionForm.updatedAt)"
-                @delete-selected-node="deleteSelectedVisualNode" @select-template="createNewDefinitionDraft"
-                @close-block-details="isBlockInspectorCollapsed = true" />
-        </div>
-
-        <div v-if="showsCodeWorkbench" data-testid="strategy-code-editor-section"
-            class="strategy-stage__panel strategy-stage__panel--code"
-            :class="{ 'strategy-stage__panel--code-pure': strategyDisplayMode === 'code' }" :style="codePanelStyle">
-            <StrategyStageCodeWorkbenchPanel ref="codeWorkbenchRef" :bindings="codeWorkbenchBindings"
-                :completion-items="strategyPineEditorCompletions" :extra-libs="strategyPineEditorExtraLibs"
-                :diagnostic-markers="pineDiagnosticMarkers" :hover-items="strategyPineEditorHoverItems"
-                :pine-metadata-count="pineAnalyzeMetadataCount"
-                :strategy-display-mode="strategyDisplayMode" :support-feature-count="pineFeatureCount"
-                @drag-start="startCodePanelDrag" @script-blur="handleScriptWorkbenchBlur"
-                @cursor-offset="handleCodeCursorOffset" />
-        </div>
-
-        <div
-            v-if="showsCodeWorkbench && codeContextNodeLabel !== ''"
-            class="strategy-stage__code-context"
-            data-testid="strategy-code-context-hint"
-        >
-            <button
-                class="strategy-stage__code-context-link"
-                type="button"
-                @click="handleCodeContextOpenInspector"
-            >
-                关联查看「{{ codeContextNodeLabel }}」的图块详情
-            </button>
-        </div>
-
-    </div>
+        </aside>
+      </SplitPaneItem>
+    </SplitPane>
+  </div>
 </template>
 
 <style scoped>
-.strategy-stage {
-    --strategy-stage-code-panel-width: min(36vw, 35rem);
-    --strategy-stage-code-panel-max-width: calc(100dvw - 4em);
-    --strategy-stage-code-panel-max-height: calc(100dvh - 8em);
-    --strategy-stage-floating-top: 9.4rem;
-    --strategy-stage-toast-top: 9.4rem;
-    --strategy-stage-canvas-top-inset: 9.4rem;
-    --strategy-stage-panel-bottom: 4.8rem;
-    --strategy-stage-footer-bottom: 1rem;
-    position: relative;
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
-    background:
-        radial-gradient(circle at top left, color-mix(in srgb, var(--tv-accent) 20%, transparent), transparent 34%),
-        radial-gradient(circle at bottom right, color-mix(in srgb, var(--tv-accent-strong) 14%, transparent), transparent 28%),
-        linear-gradient(180deg,
-            color-mix(in srgb, var(--tv-bg-surface) 72%, var(--tv-bg-app)) 0%,
-            color-mix(in srgb, var(--tv-bg-surface-2) 68%, var(--tv-bg-app)) 100%);
-}
-
-.strategy-page__pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-height: 2.2rem;
-    padding: 0.45rem 0.85rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--tv-bg-surface) 34%, transparent);
-    color: var(--tv-text-muted);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    backdrop-filter: blur(24px) saturate(160%);
-}
-
-.strategy-banner {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.85rem;
-    flex-shrink: 0;
-    padding: 0.85rem 1rem;
-    border-radius: 1.5rem;
-    font-size: 0.92rem;
-    line-height: 1.5;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(24px) saturate(160%);
-}
-
-.strategy-banner__message {
-    flex: 1;
-    min-width: 0;
-}
-
-.strategy-banner__close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    flex: 0 0 auto;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--tv-bg-elevated) 42%, transparent);
-    color: inherit;
-    font-size: 1.1rem;
-    line-height: 1;
-    cursor: pointer;
-    transition:
-        background-color 140ms ease,
-        opacity 140ms ease;
-}
-
-.strategy-banner__close:hover {
-    background: color-mix(in srgb, var(--tv-bg-elevated) 65%, transparent);
-}
-
-.strategy-banner__close:focus-visible {
-    outline: 2px solid color-mix(in srgb, currentColor 72%, white);
-    outline-offset: 2px;
-}
-
-.strategy-banner--error {
-    background: color-mix(in srgb, var(--card-red-surface) 70%, transparent);
-    color: var(--card-red-text);
-}
-
-.strategy-banner--success {
-    background: color-mix(in srgb, var(--tv-accent) 16%, transparent);
-    color: color-mix(in srgb, var(--tv-accent) 74%, var(--tv-text));
-}
-
-.strategy-save-dialog {
-    display: grid;
-    gap: 0.9rem;
-    padding: 1.35rem;
-    border: 1px solid var(--tv-border);
-    border-radius: 1.5rem;
-    background:
-        linear-gradient(
-            180deg,
-            color-mix(in srgb, var(--tv-bg-surface) 98%, transparent),
-            color-mix(in srgb, var(--tv-bg-surface-2) 98%, transparent)
-        );
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
-    color: var(--tv-text);
+.strategy-native-page {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
+  padding: 0.75rem;
+  color: var(--tv-text);
+}
+
+.strategy-native-header,
+.strategy-native-shell,
+.strategy-native-panel,
+.strategy-native-workspace-bar {
+  min-width: 0;
+}
+
+.strategy-native-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.strategy-native-header h1 {
+  margin: 0.1rem 0 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.strategy-native-eyebrow,
+.strategy-native-panel__title {
+  color: var(--tv-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.strategy-native-header__actions,
+.strategy-native-workspace-bar,
+.strategy-native-instance__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.strategy-native-header__actions {
+  justify-content: flex-end;
 }
+
+.strategy-native-view-switch {
+  display: inline-flex;
+  border: 1px solid var(--tv-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 72%, transparent);
+  padding: 0.18rem;
+}
+
+.strategy-native-view-switch__button {
+  min-height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.35rem 0.7rem;
+  color: var(--tv-text-muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.strategy-native-view-switch__button.is-active {
+  background: var(--tv-text);
+  color: var(--tv-bg);
+}
+
+.strategy-native-shell {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 42%, transparent);
+}
+
+.strategy-native-instruction {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.strategy-native-side,
+.strategy-native-main,
+.strategy-native-code-pane {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.strategy-native-main {
+  overflow: hidden;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: stretch;
+}
+
+.strategy-native-side-panels {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+  gap: 0.75rem;
+  width: 100% !important;
+  inline-size: 100% !important;
+  min-width: 0;
+  max-width: none !important;
+}
+
+.strategy-native-side-panels :deep(.v-expansion-panel-title__overlay),
+.strategy-native-side-panels :deep(.v-expansion-panel__overlay) {
+  display: none;
+}
+
+.strategy-native-side-panels :deep(.v-expansion-panel-title) {
+  width: 100% !important;
+  inline-size: 100% !important;
+  max-width: none !important;
+  min-height: 3.25rem;
+  padding: 0.85rem;
+  color: var(--tv-text);
+}
+
+.strategy-native-side-panels :deep(.v-expansion-panel) {
+  flex: 1 1 100% !important;
+  justify-self: stretch;
+  width: 100% !important;
+  inline-size: 100% !important;
+  min-width: 0;
+  max-width: none !important;
+}
+
+.strategy-native-side-panels :deep(.v-expansion-panel-title__icon) {
+  color: var(--tv-text-muted);
+}
+
+.strategy-native-side-panels :deep(.v-expansion-panel-text__wrapper) {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.strategy-native-panel {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid var(--tv-border);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--tv-bg-surface) 96%, transparent);
+  padding: 0.85rem;
+}
+
+.strategy-native-side-panel {
+  display: block;
+  flex-basis: 100% !important;
+  justify-self: stretch;
+  width: 100% !important;
+  inline-size: 100% !important;
+  min-width: 0;
+  max-width: none !important;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  color: var(--tv-text);
+}
+
+.strategy-native-side-panel + .strategy-native-side-panel {
+  margin-top: 0;
+}
+
+.strategy-native-side-panel__titlebar {
+  width: 100%;
+}
+
+.strategy-native-panel__content {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.strategy-native-panel--workspace {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.strategy-native-block-scroll {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  justify-items: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: auto;
+}
+
+.strategy-native-block-list {
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+}
+
+.strategy-native-panel label {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--tv-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.strategy-native-panel input,
+.strategy-native-panel select,
+.strategy-native-panel textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--tv-border);
+  border-radius: 0.45rem;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text);
+  padding: 0.5rem 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  outline: none;
+}
+
+.strategy-native-toggle {
+  display: inline-flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+.strategy-native-toggle input {
+  width: auto;
+}
+
+button {
+  border: 1px solid var(--tv-border);
+  border-radius: 0.45rem;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text);
+  padding: 0.48rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
 
-.strategy-save-dialog--delete {
-    border-color: color-mix(in srgb, var(--card-red-border) 62%, var(--tv-border));
-    background:
-        linear-gradient(
-            180deg,
-            color-mix(in srgb, var(--tv-bg-surface) 94%, var(--card-red-surface)),
-            color-mix(in srgb, var(--tv-bg-surface-2) 96%, var(--card-red-surface))
-        );
+.strategy-native-primary {
+  border-color: color-mix(in srgb, var(--tv-accent) 70%, var(--tv-border));
+  background: var(--tv-accent);
+  color: white;
 }
 
-.strategy-save-dialog__eyebrow {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--tv-accent-strong);
+.strategy-native-banner {
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.9rem;
 }
 
-.strategy-save-dialog__title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--tv-text);
+.strategy-native-banner--ok {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
 }
 
-.strategy-save-dialog__body {
-    line-height: 1.7;
-    color: var(--tv-text-muted);
+.strategy-native-banner--error {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
-.strategy-save-dialog__hint {
-    padding: 0.8rem 0.95rem;
-    border-radius: 1rem;
-    border: 1px solid color-mix(in srgb, var(--tv-border) 72%, transparent);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 48%, transparent);
-    font-size: 0.85rem;
-    color: var(--tv-text-muted);
+.strategy-native-meta,
+.strategy-native-selected-block {
+  color: var(--tv-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
-.strategy-save-dialog--delete .strategy-save-dialog__hint {
-    border-color: color-mix(in srgb, var(--card-red-border) 44%, var(--tv-border));
-    background: color-mix(in srgb, var(--card-red-surface) 66%, transparent);
-    color: color-mix(in srgb, var(--card-red-text) 76%, var(--tv-text));
-}
-
-.strategy-save-dialog__actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.75rem;
+.strategy-native-inputs {
+  display: grid;
+  gap: 0.5rem;
 }
 
-.strategy-save-dialog__linked-list {
-    display: grid;
-    gap: 0.7rem;
+.strategy-native-variables {
+  align-self: end;
+  min-height: 0;
+  max-height: 4.25rem;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
+  transition: max-height 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.strategy-save-dialog__linked-item {
-    display: grid;
-    gap: 0.2rem;
-    padding: 0.8rem 0.95rem;
-    border-radius: 1rem;
-    border: 1px solid color-mix(in srgb, var(--tv-border) 74%, transparent);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 58%, transparent);
+.strategy-native-variables--open {
+  max-height: min(42vh, 24rem);
+  border-color: color-mix(in srgb, var(--tv-accent) 42%, var(--tv-border));
+  box-shadow: 0 -12px 28px rgba(15, 23, 42, 0.08);
 }
+
+.strategy-native-variables__bar {
+  min-height: 2.5rem;
+  cursor: pointer;
+}
+
+.strategy-native-variables__bar:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tv-accent) 72%, transparent);
+  outline-offset: 3px;
+  border-radius: 0.35rem;
+}
+
+.strategy-native-variables__actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.strategy-native-variables__chevron {
+  color: var(--tv-text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.strategy-native-variables__body {
+  min-height: 0;
+  max-height: 0;
+  overflow: auto;
+  opacity: 0;
+  padding-top: 0;
+  pointer-events: none;
+  scrollbar-gutter: stable;
+  transition: max-height 160ms ease, opacity 120ms ease, padding-top 160ms ease;
+}
+
+.strategy-native-variables--open .strategy-native-variables__body {
+  max-height: 18rem;
+  opacity: 1;
+  padding-top: 0.75rem;
+  pointer-events: auto;
+}
+
+.strategy-native-input-row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) minmax(6rem, 1fr) 6rem minmax(6rem, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.strategy-native-code :deep(.monaco-code-editor-shell) {
+  border-radius: 0.5rem;
+  border-color: var(--tv-border);
+}
+
+.strategy-native-diagnostic {
+  display: grid;
+  gap: 0.2rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--tv-border);
+  padding: 0.55rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.strategy-native-diagnostic--error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.strategy-native-diagnostic--warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.strategy-native-diagnostic--info {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.strategy-native-instance {
+  display: grid;
+  width: 100%;
+  gap: 0.4rem;
+  text-align: left;
+}
+
+.strategy-native-instance--active {
+  border-color: var(--tv-accent);
+}
+
+.strategy-native-instance > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.strategy-native-status {
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.7rem;
+}
+
+.strategy-native-status--running {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.strategy-native-status--paused {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.strategy-native-status--stopped {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+@media (max-width: 860px) {
+  .strategy-native-header,
+  .strategy-native-input-row {
+    grid-template-columns: 1fr;
+  }
 
-.strategy-save-dialog__linked-item-id {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: var(--tv-text);
-}
-
-.strategy-save-dialog__linked-item-meta {
-    font-size: 0.82rem;
-    color: var(--tv-text-muted);
-}
-
-.strategy-save-dialog__close {
-    justify-self: flex-start;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--tv-text-muted);
-    cursor: pointer;
-}
-
-.strategy-save-dialog__close:hover,
-.strategy-save-dialog__close:focus-visible {
-    color: var(--tv-text);
-    outline: none;
-}
-
-.strategy-stage__section-title {
-    font-size: 1.05rem;
-    line-height: 1.25;
-    font-weight: 700;
-    color: var(--tv-text);
-}
-
-.strategy-stage__toolbar-title-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.2rem;
-}
-
-.strategy-stage__toolbar-title {
-    font-size: 1.35rem;
-    line-height: 1.2;
-    font-weight: 700;
-    color: var(--tv-text);
-}
-
-.strategy-stage__toolbar-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem;
-    color: var(--tv-text-muted);
-    font-size: 0.78rem;
-    font-weight: 600;
-}
-
-.strategy-stage__toolbar-meta span {
-    display: inline-flex;
-    min-height: 1.65rem;
-    align-items: center;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 32%, transparent);
-    padding: 0.25rem 0.6rem;
-    backdrop-filter: blur(20px) saturate(140%);
-}
-
-.strategy-stage__toast-stack {
-    position: absolute;
-    top: var(--strategy-stage-toast-top);
-    left: 50%;
-    z-index: 45;
-    display: grid;
-    width: min(40rem, calc(100% - 2rem));
-    transform: translateX(-50%);
-    gap: 0.5rem;
-    pointer-events: none;
-}
-
-.strategy-stage__toast-stack>* {
-    pointer-events: auto;
-}
-
-.strategy-stage__toolbar {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    right: 1rem;
-    z-index: 30;
-    display: block;
-    pointer-events: none;
-}
-
-.strategy-stage__toolbar-card {
-    pointer-events: auto;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.7rem;
-    padding: 0.85rem 1rem;
-    border-radius: 1.45rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: color-mix(in srgb, var(--tv-bg-surface) 38%, transparent);
-    box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(28px) saturate(180%);
-}
-
-.strategy-stage__toolbar-top,
-.strategy-stage__toolbar-bottom {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.8rem;
-    width: 100%;
-}
-
-.strategy-stage__toolbar-bottom {
-    padding-top: 0.25rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.strategy-stage__toolbar-controls,
-.strategy-stage__toolbar-tools {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.65rem;
-}
-
-.strategy-stage__toolbar-main {
-    min-width: 0;
-    flex: 1 1 auto;
-}
-
-.strategy-stage__toolbar-status {
-    display: inline-flex;
-    flex: 1 1 20rem;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.55rem;
-    min-height: 2.4rem;
-    padding: 0.45rem 0.7rem;
-    border-radius: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 28%, transparent);
-    color: var(--tv-text-muted);
-}
-
-.strategy-stage__toolbar-status-label {
-    display: inline-flex;
-    align-items: center;
-    min-height: 1.9rem;
-    padding: 0.25rem 0.65rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--tv-bg-surface) 48%, transparent);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.strategy-stage__toolbar-status-message {
-    flex: 1 1 15rem;
-    min-width: 0;
-    font-size: 0.84rem;
-    line-height: 1.5;
-}
-
-.strategy-stage__toolbar-status-quality {
-    flex: 0 0 auto;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    padding: 0.12em 0.48em;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
-    color: color-mix(in srgb, var(--tv-accent) 70%, var(--tv-text));
-    white-space: nowrap;
-}
-
-.strategy-stage__toolbar-status-support {
-    flex: 0 0 auto;
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 0.12em 0.48em;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--card-red-surface) 36%, transparent);
-    color: color-mix(in srgb, var(--card-red-text) 82%, var(--tv-text));
-    white-space: nowrap;
-}
-
-.strategy-stage__toolbar-status--syncing {
-    border-color: color-mix(in srgb, var(--tv-accent) 55%, transparent);
-    color: color-mix(in srgb, var(--tv-accent) 72%, var(--tv-text));
-}
-
-.strategy-stage__toolbar-status--synced {
-    border-color: color-mix(in srgb, var(--tv-accent) 45%, transparent);
-    color: color-mix(in srgb, var(--tv-accent) 70%, var(--tv-text));
-}
-
-.strategy-stage__toolbar-status--error {
-    border-color: color-mix(in srgb, var(--tv-accent-strong) 55%, transparent);
-    color: color-mix(in srgb, var(--tv-accent-strong) 74%, var(--tv-text));
-}
-
-.strategy-stage__toolbar-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-}
-
-.strategy-stage__display-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.25rem 0.35rem 0.25rem 0.7rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 42%, transparent);
-    backdrop-filter: blur(20px) saturate(160%);
-}
-
-.strategy-stage__display-switch-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--tv-text-muted);
-}
-
-.strategy-stage__display-switch-group {
-    display: inline-flex;
-    gap: 0.2rem;
-}
-
-.strategy-stage__display-button {
-    min-height: 2.15rem;
-    padding: 0.4rem 0.85rem;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--tv-text-muted);
-    font-size: 0.84rem;
-    font-weight: 700;
-    transition:
-        background-color 140ms ease,
-        color 140ms ease;
-}
-
-.strategy-stage__display-button.is-active,
-.strategy-stage__display-button:hover {
-    background: var(--card-active-surface);
-    color: var(--card-active-text);
-}
-
-.strategy-stage__mode-switch {
-    display: inline-flex;
-    flex: 0 0 auto;
-    gap: 0.25rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 42%, transparent);
-    padding: 0.25rem;
-    backdrop-filter: blur(20px) saturate(160%);
-}
-
-.strategy-stage__mode-button {
-    min-height: 2.35rem;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--tv-text-muted);
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 700;
-    padding: 0.45rem 0.95rem;
-    transition:
-        background-color 140ms ease,
-        color 140ms ease;
-}
-
-.strategy-stage__mode-button:hover,
-.strategy-stage__mode-button.is-active {
-    background: var(--card-active-surface);
-    color: var(--card-active-text);
-}
-
-.strategy-stage__canvas {
-    position: absolute;
-    inset: 0;
-    padding: 0;
-}
-
-.strategy-stage__panel {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-    border-radius: 1.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: color-mix(in srgb, var(--tv-bg-surface) 55%, transparent);
-    box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(28px) saturate(180%);
-}
-
-.strategy-stage__panel--definitions {
-    top: var(--strategy-stage-floating-top);
-    left: 1rem;
-    bottom: var(--strategy-stage-panel-bottom);
-    width: 17.5rem;
-}
-
-.strategy-stage__panel--deck {
-    top: var(--strategy-stage-floating-top);
-    bottom: var(--strategy-stage-panel-bottom);
-    left: 19.2rem;
-    right: calc(min(36vw, 35rem) + 2rem);
-    gap: 0.75rem;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-    pointer-events: none;
-    z-index: 24;
-}
-
-.strategy-stage__panel--deck-code {
-    right: 1rem;
-}
-
-.strategy-stage__panel--deck-no-definitions {
-    left: 1rem;
-}
-
-.strategy-stage__panel--deck-no-code {
-    right: 1rem;
-}
-
-.strategy-stage__panel--code {
-    top: var(--strategy-stage-floating-top);
-    right: 1rem;
-    width: var(--strategy-stage-code-panel-width);
-    min-width: 24rem;
-    min-height: 20rem;
-    height: min(40rem, var(--strategy-stage-code-panel-max-height), calc(100% - var(--strategy-stage-floating-top) - var(--strategy-stage-panel-bottom)));
-    max-width: min(var(--strategy-stage-code-panel-max-width), calc(100% - 2rem));
-    max-height: min(var(--strategy-stage-code-panel-max-height), calc(100% - var(--strategy-stage-floating-top) - var(--strategy-stage-footer-bottom)));
-    resize: both;
-}
-
-.strategy-stage__panel--code-pure {
-    left: 1rem;
-    right: 1rem;
-    width: auto;
-    height: min(var(--strategy-stage-code-panel-max-height), calc(100% - var(--strategy-stage-floating-top) - var(--strategy-stage-footer-bottom)));
-    max-width: min(calc(100dvw - 2rem), calc(100% - 2rem));
-    max-height: var(--strategy-stage-code-panel-max-height);
-    resize: none;
-}
-
-.strategy-stage__code-context {
-    position: absolute;
-    right: 1rem;
-    bottom: calc(var(--strategy-stage-panel-bottom) - 0.5rem);
-    z-index: 28;
-    max-width: var(--strategy-stage-code-panel-width);
-    pointer-events: auto;
-}
-
-.strategy-stage__code-context-link {
-    display: inline-block;
-    padding: 0.35em 0.85em;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--tv-accent) 32%, transparent);
-    background: color-mix(in srgb, var(--tv-bg-surface) 88%, var(--tv-accent));
-    color: color-mix(in srgb, var(--tv-accent) 78%, var(--tv-text));
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    white-space: nowrap;
-    transition:
-        background-color 140ms ease,
-        border-color 140ms ease;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
-    backdrop-filter: blur(14px);
-}
-
-.strategy-stage__code-context-link:hover {
-    background: color-mix(in srgb, var(--tv-bg-surface) 76%, var(--tv-accent));
-    border-color: color-mix(in srgb, var(--tv-accent) 56%, transparent);
-}
-
-.strategy-stage__panel-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.9rem;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    flex-shrink: 0;
-}
-
-.strategy-stage__drag-handle {
-    cursor: grab;
-    user-select: none;
-}
-
-.strategy-stage__drag-handle:active {
-    cursor: grabbing;
-}
-
-.strategy-stage__panel-body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: 1rem;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable both-edges;
-}
-
-.strategy-stage__panel--deck>.strategy-stage__panel-body {
-    display: flex;
-    flex-direction: row;
+  .strategy-native-header {
     align-items: stretch;
-    gap: 0.75rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 0;
-    pointer-events: none;
-}
-
-.strategy-stage__panel--deck .strategy-stack-card {
-    flex: 0 0 min(25rem, calc(100vw - 4rem));
-    min-width: min(22rem, calc(100vw - 4rem));
-    max-width: 28rem;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    max-height: none;
-    overflow: auto;
-    overscroll-behavior: contain;
-    pointer-events: auto;
-    scrollbar-gutter: stable;
-}
-
-.strategy-stage__panel--deck .strategy-stack-card:only-child {
-    max-height: 100%;
-}
-
-.strategy-stage__panel-body--editor {
-    display: flex;
-    padding: 0.55rem;
-}
-
-.strategy-stack-card,
-.strategy-list-card,
-.strategy-template-card,
-.strategy-meta-card,
-.strategy-empty-state {
-    border-radius: 1.35rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--tv-bg-surface) 58%, transparent);
-    box-shadow: 0 12px 28px rgba(2, 6, 23, 0.2);
-    backdrop-filter: blur(24px) saturate(160%);
-}
-
-.strategy-stack-card {
-    padding: 1rem;
-}
-
-.strategy-stack-card__head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-
-.strategy-list-card,
-.strategy-template-card {
-    width: 100%;
-    padding: 1rem;
-    text-align: left;
-    transition:
-        border-color 140ms ease,
-        background-color 140ms ease,
-        transform 140ms ease;
-}
-
-.strategy-list-card:hover,
-.strategy-template-card:hover {
-    border-color: color-mix(in srgb, var(--tv-accent) 55%, var(--tv-border));
-    transform: translateY(-1px);
-}
-
-.strategy-list-card.is-active,
-.strategy-template-card.is-active {
-    border-color: var(--card-active-border);
-    background: var(--card-active-surface);
-    color: var(--card-active-text);
-}
-
-.strategy-meta-card {
-    padding: 0.9rem 1rem;
-}
-
-.strategy-empty-state {
-    padding: 1rem;
-    color: var(--tv-text-muted);
-    line-height: 1.65;
-}
-
-.strategy-stage input,
-.strategy-stage textarea {
-    border-color: rgba(255, 255, 255, 0.1);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 58%, var(--tv-bg-surface));
-    color: var(--tv-text);
-}
-
-.strategy-stage input::placeholder,
-.strategy-stage textarea::placeholder {
-    color: var(--tv-text-dim);
-}
-
-.strategy-btn,
-.strategy-tool-switch,
-.strategy-icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    min-height: 2.4rem;
-    padding: 0.55rem 1rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 50%, transparent);
-    color: var(--tv-text);
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-        border-color 140ms ease,
-        background-color 140ms ease,
-        color 140ms ease,
-        opacity 140ms ease,
-        transform 140ms ease;
-    backdrop-filter: blur(20px) saturate(160%);
-}
-
-.strategy-btn:hover,
-.strategy-tool-switch:hover,
-.strategy-icon-btn:hover {
-    border-color: color-mix(in srgb, var(--tv-accent) 55%, var(--tv-border));
-    transform: translateY(-1px);
-}
-
-.strategy-btn:disabled,
-.strategy-tool-switch:disabled,
-.strategy-icon-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-    transform: none;
-}
-
-.strategy-btn--primary {
-    background: var(--card-active-surface);
-    border-color: var(--card-active-border);
-    color: var(--card-active-text);
-}
-
-.strategy-btn--danger-confirm {
-    border-color: color-mix(in srgb, var(--card-red-border) 72%, transparent);
-    background: color-mix(in srgb, var(--card-red-surface) 84%, var(--tv-bg-elevated));
-    color: var(--card-red-text);
-}
-
-.strategy-btn--danger-confirm:hover {
-    border-color: color-mix(in srgb, var(--card-red-text) 62%, var(--card-red-border));
-    background: color-mix(in srgb, var(--card-red-surface) 72%, var(--tv-bg-surface));
-    color: color-mix(in srgb, var(--card-red-text) 84%, var(--tv-text));
-}
-
-.strategy-btn--ghost {
-    background: transparent;
-}
-
-.strategy-btn--danger {
-    color: var(--tv-accent);
-}
-
-.strategy-definition-delete-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 2rem;
-    flex: 0 0 auto;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--card-red-border) 72%, transparent);
-    background: color-mix(in srgb, var(--card-red-surface) 54%, transparent);
-    padding: 0.38rem 0.75rem;
-    color: var(--card-red-text);
-    font-size: 0.75rem;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-    transition:
-        border-color 140ms ease,
-        background-color 140ms ease,
-        color 140ms ease,
-        opacity 140ms ease,
-        transform 140ms ease;
-}
-
-.strategy-definition-delete-btn:hover {
-    border-color: color-mix(in srgb, var(--card-red-text) 58%, var(--card-red-border));
-    background: color-mix(in srgb, var(--card-red-surface) 74%, transparent);
-    color: color-mix(in srgb, var(--card-red-text) 84%, var(--tv-text));
-    transform: translateY(-1px);
-}
-
-.strategy-definition-delete-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-    transform: none;
-}
-
-.strategy-tool-switch.is-active {
-    background: var(--card-active-surface);
-    border-color: var(--card-active-border);
-    color: var(--card-active-text);
-}
-
-.strategy-stage__toolbar-card--tools .strategy-tool-switch {
-    min-height: 1.9rem;
-    padding: 0.3rem 0.8rem;
-    font-size: 0.82rem;
-}
-
-.strategy-stage__toolbar-tools .strategy-tool-switch {
-    min-height: 1.95rem;
-    padding: 0.32rem 0.82rem;
-    font-size: 0.82rem;
-}
-
-.strategy-icon-btn {
-    width: 2.5rem;
-    min-width: 2.5rem;
-    padding: 0.45rem;
-    font-size: 0.72rem;
-}
-
-@media (max-width: 1440px) {
-    .strategy-stage {
-        --strategy-stage-code-panel-width: min(38vw, 31rem);
-    }
-
-    .strategy-stage__panel--deck {
-        right: calc(min(38vw, 31rem) + 2rem);
-    }
-
-}
-
-@media (max-width: 1180px) {
-    .strategy-stage {
-        --strategy-stage-code-panel-width: min(42vw, 27rem);
-    }
-
-    .strategy-stage__panel--definitions {
-        width: 15rem;
-    }
-
-    .strategy-stage__panel--deck {
-        left: 17rem;
-        right: calc(min(42vw, 27rem) + 2rem);
-    }
-
-    .strategy-stage__toolbar-top,
-    .strategy-stage__toolbar-bottom {
-        align-items: flex-start;
-    }
-
-    .strategy-stage__toolbar-status {
-        width: 100%;
-    }
-
-    .strategy-stage__panel--deck-code {
-        right: 1rem;
-    }
-
-    .strategy-stage__panel--deck-no-definitions {
-        left: 1rem;
-    }
-
-    .strategy-stage__panel--code {
-        min-width: 21rem;
-    }
-}
-
-@media (max-width: 960px) {
-    .strategy-stage {
-        --strategy-stage-toast-top: 11.6rem;
-        --strategy-stage-canvas-top-inset: 11.6rem;
-    }
-
-    .strategy-stage__panel--definitions,
-    .strategy-stage__panel--deck,
-    .strategy-stage__panel--code,
-    .strategy-stage__panel--code-pure {
-        top: auto;
-        left: 1rem;
-        right: 1rem;
-        bottom: 6rem;
-        width: calc(100% - 2rem);
-        max-width: none;
-        height: auto;
-        max-height: none;
-        resize: none;
-        transform: none !important;
-    }
-
-    .strategy-stage__panel--definitions {
-        height: 15.5rem;
-    }
-
-    .strategy-stage__panel--deck,
-    .strategy-stage__panel--deck-no-definitions {
-        height: 18rem;
-        bottom: 22.5rem;
-    }
-
-    .strategy-stage__panel--code,
-    .strategy-stage__panel--code-pure {
-        height: 19rem;
-    }
+  }
 }
 </style>

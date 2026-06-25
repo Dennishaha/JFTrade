@@ -53,8 +53,18 @@ export function createConsoleRouter(
       },
       {
         path: "/strategy",
-        component: () => import("./pages/StrategyPage.vue"),
+        redirect: "/strategy/runtime",
         meta: { title: "策略" },
+      },
+      {
+        path: "/strategy/runtime",
+        component: () => import("./pages/StrategyRuntimePage.vue"),
+        meta: { title: "策略执行" },
+      },
+      {
+        path: "/strategy/design",
+        component: () => import("./pages/StrategyDesignPage.vue"),
+        meta: { title: "设计策略" },
       },
       {
         path: "/adk",

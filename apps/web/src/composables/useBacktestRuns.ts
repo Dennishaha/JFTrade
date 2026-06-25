@@ -4,6 +4,7 @@ import type { BacktestStartRequestPayload, BacktestSyncRequestPayload } from "@/
 
 import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCandle } from "../components/BacktestChart.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { useKlineSyncTask } from "./useKlineSyncTask";
 
 type BacktestDecimalTransport = string | number;
 
@@ -119,21 +120,6 @@ interface BacktestRunResultTransport {
   runtimeErrorTotal?: number | undefined;
   runtimeErrorsTruncated?: boolean | undefined;
   error?: string | undefined;
-}
-
-interface SyncProgress {
-  taskId: string;
-  status: string;
-  symbol: string;
-  currentInterval: string;
-  totalIntervals: number;
-  completedIntervals: number;
-  totalBatches: number;
-  completedBatches: number;
-  retries: number;
-  error?: string;
-  startedAt: string;
-  updatedAt: string;
 }
 
 interface BacktestRun {
@@ -261,12 +247,15 @@ export function buildBacktestSyncRequestPayload(
 export function useBacktestRuns(options: UseBacktestRunsOptions) {
   const runs = ref<BacktestRun[]>([]);
   const running = ref(false);
-  const syncing = ref(false);
-  const syncTaskId = ref("");
-  const syncProgress = ref<SyncProgress | null>(null);
-  const syncPolling = ref<ReturnType<typeof setInterval> | null>(null);
   const polling = ref<ReturnType<typeof setInterval> | null>(null);
   const error = ref("");
+  const {
+    syncing,
+    syncProgress,
+    syncError,
+    startSync,
+    cancelSync: cancelKlineSync,
+  } = useKlineSyncTask();
 
   const expandedRuns = reactive<Record<string, boolean>>({});
   const detailLoading = reactive<Record<string, boolean>>({});
@@ -482,11 +471,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
 
   async function syncKlines() {
     const formState = options.formState.value;
-    syncing.value = true;
     error.value = "";
-    syncTaskId.value = "";
-    syncProgress.value = null;
-    stopSyncPolling();
 
     try {
       const instrument = await resolveBacktestInstrumentPayload(
@@ -495,71 +480,20 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
       );
       if (instrument == null) {
         error.value = "同步启动失败: 请先输入有效的市场与代码";
-        syncing.value = false;
         return;
       }
       const payload = buildBacktestSyncRequestPayload(formState, instrument);
-      const data = await fetchEnvelopeWithInit<{ taskId: string; message: string }>(
-        "/api/v1/backtests/sync",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      syncTaskId.value = data.taskId;
-      startSyncPolling();
+      await startSync(payload);
+      if (syncError.value !== "") {
+        error.value = syncError.value;
+      }
     } catch (cause) {
-      syncing.value = false;
       error.value = `同步启动失败: ${cause instanceof Error ? cause.message : String(cause)}`;
     }
   }
 
-  function startSyncPolling() {
-    stopSyncPolling();
-    syncPolling.value = setInterval(async () => {
-      try {
-        const progress = await fetchEnvelope<SyncProgress>(
-          `/api/v1/backtests/sync/${syncTaskId.value}`,
-        );
-        syncProgress.value = progress;
-        if (progress.status === "completed" || progress.status === "cancelled") {
-          syncing.value = false;
-          stopSyncPolling();
-          return;
-        }
-        if (progress.status === "failed") {
-          syncing.value = false;
-          stopSyncPolling();
-          error.value = `同步失败: ${progress.error || "未知错误"} (重试 ${progress.retries} 次)`;
-        }
-      } catch {
-        // ignore poll errors
-      }
-    }, 1500);
-  }
-
-  function stopSyncPolling() {
-    if (syncPolling.value) {
-      clearInterval(syncPolling.value);
-      syncPolling.value = null;
-    }
-  }
-
   async function cancelSync() {
-    if (!syncTaskId.value) return;
-
-    try {
-      await fetchEnvelopeWithInit(`/api/v1/backtests/sync/${syncTaskId.value}`, {
-        method: "DELETE",
-      });
-    } catch {
-      // best effort
-    }
-
-    syncing.value = false;
-    stopSyncPolling();
+    await cancelKlineSync();
     if (syncProgress.value) {
       syncProgress.value.status = "cancelled";
     }

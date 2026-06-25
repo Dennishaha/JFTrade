@@ -1,19 +1,26 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
-import StrategyDesignStage from "../components/StrategyDesignStage.vue";
 import StrategyRuntimePanel from "../components/StrategyRuntimePanel.vue";
 import { fetchEnvelope } from "../composables/apiClient";
 
-type StrategyWorkspaceTab = "design" | "runtime";
 type StrategyDesignEntryMode = "existing" | "new";
 
-const strategyWorkspaceTab = ref<StrategyWorkspaceTab>("runtime");
-const strategyDesignEntryMode = ref<StrategyDesignEntryMode>("existing");
-const strategyDesignSessionKey = ref(0);
+const router = useRouter();
+const route = useRoute();
+
 const strategyDefinitionsCount = ref(0);
-const runtimeNotice = ref("");
-const pendingStrategyDefinitionId = ref("");
+
+const runtimeNotice = computed(() => {
+  const value = route.query.notice;
+  return typeof value === "string" ? value : "";
+});
+
+const pendingStrategyDefinitionId = computed(() => {
+  const value = route.query.definitionId;
+  return typeof value === "string" ? value : "";
+});
 
 onMounted(() => {
   void loadStrategyDefinitionsCount();
@@ -28,37 +35,18 @@ async function loadStrategyDefinitionsCount(): Promise<void> {
   }
 }
 
-function handleSwitchToRuntime(payload?: { notice?: string; definitionId?: string }): void {
-  runtimeNotice.value = payload?.notice ?? "";
-  pendingStrategyDefinitionId.value = payload?.definitionId ?? "";
-  strategyWorkspaceTab.value = "runtime";
-}
-
 function handleSwitchToDesign(payload?: { mode?: StrategyDesignEntryMode }): void {
-  runtimeNotice.value = "";
-  pendingStrategyDefinitionId.value = "";
-  strategyDesignEntryMode.value = payload?.mode ?? "existing";
-  strategyDesignSessionKey.value += 1;
-  strategyWorkspaceTab.value = "design";
-}
-
-function handleDefinitionsCountChange(count: number): void {
-  strategyDefinitionsCount.value = count;
+  if (payload?.mode === "new") {
+    void router.push({ path: "/strategy/design", query: { mode: "new" } });
+    return;
+  }
+  void router.push({ path: "/strategy/design" });
 }
 </script>
 
 <template>
-  <div class="strategy-page">
-    <StrategyDesignStage
-      v-if="strategyWorkspaceTab === 'design'"
-      :key="strategyDesignSessionKey"
-      :entry-mode="strategyDesignEntryMode"
-      :initial-definitions-collapsed="true"
-      @definitions-count-change="handleDefinitionsCountChange"
-      @switch-to-runtime="handleSwitchToRuntime"
-    />
-
-    <div v-else class="strategy-page__shell">
+  <div class="strategy-runtime-page">
+    <div class="strategy-runtime-page__shell">
       <div v-if="runtimeNotice" class="strategy-banner strategy-banner--success">
         {{ runtimeNotice }}
       </div>
@@ -73,7 +61,7 @@ function handleDefinitionsCountChange(count: number): void {
 </template>
 
 <style scoped>
-.strategy-page {
+.strategy-runtime-page {
   height: 100%;
   min-height: 0;
   display: flex;
@@ -81,7 +69,7 @@ function handleDefinitionsCountChange(count: number): void {
   overflow: hidden;
 }
 
-.strategy-page__shell {
+.strategy-runtime-page__shell {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -89,8 +77,6 @@ function handleDefinitionsCountChange(count: number): void {
   gap: 0.75rem;
   overflow: hidden;
   padding: 0.75rem;
-  border-radius: 2rem;
-  border: 1px solid var(--tv-border);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--tv-bg-surface) 96%, transparent) 0%,
