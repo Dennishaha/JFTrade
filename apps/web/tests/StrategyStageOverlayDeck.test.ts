@@ -29,7 +29,7 @@ function createBindings() {
     selectedIndicatorVariableName: ref(""),
     selectedIndicatorType: ref("rsi"),
     selectedMovingAverageType: ref("EMA"),
-    selectedIndicatorPeriodUnit: ref("bar"),
+    selectedIndicatorTimeframe: ref(""),
     selectedIndicatorConditionMode: ref("numeric"),
     selectedIndicatorOperator: ref("<"),
     selectedIndicatorPatternType: ref("goldenCross"),
@@ -150,6 +150,7 @@ function mountOverlay(overrides: Record<string, unknown> = {}) {
       indicatorGetterOptions: [],
       showsMultiplierInput: false,
       showsIndicatorSourceInput: false,
+      showsIndicatorTimeframeInput: false,
       showsIndicatorAdxSmoothingInput: false,
       showsIndicatorFactorInput: false,
       showsIndicatorSarInputs: false,
@@ -202,6 +203,7 @@ describe("StrategyStageOverlayDeck", () => {
       showsPeriodInput: true,
       showsIndicatorTypeInput: true,
       showsIndicatorSourceInput: true,
+      showsIndicatorTimeframeInput: true,
       showsIndicatorFactorInput: true,
       selectedVisualSupport: {
         status: "supported",
@@ -211,6 +213,9 @@ describe("StrategyStageOverlayDeck", () => {
     });
 
     expect(wrapper.get('[data-testid="strategy-block-indicator-source-select"]').exists()).toBe(true);
+    const timeframeSelect = wrapper.get('[data-testid="strategy-block-indicator-timeframe-select"]');
+    expect(timeframeSelect.text()).toContain("当前周期");
+    expect(timeframeSelect.text()).toContain("日线");
     expect(wrapper.get('[data-testid="strategy-block-indicator-factor-input"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="strategy-block-period-input"]').exists()).toBe(true);
   });

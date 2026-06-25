@@ -45,7 +45,7 @@ export type MovingAverageIndicatorType =
   | "VWMA"
   | "BOLL";
 
-export type IndicatorPeriodUnit = "bar" | "minute" | "hour" | "day" | "week" | "month";
+export type IndicatorTimeframe = "" | "1" | "5" | "15" | "30" | "45" | "60" | "120" | "240" | "D" | "W" | "M";
 
 export type TechnicalIndicatorInputSlot = "primary" | "fast" | "slow";
 
@@ -63,7 +63,7 @@ export interface GetTechnicalIndicatorBlockProperties {
   variableName?: string;
   source?: "open" | "high" | "low" | "close" | "volume" | "hl2" | "hlc3" | "ohlc4";
   movingAverageType?: MovingAverageIndicatorType;
-  periodUnit?: IndicatorPeriodUnit;
+  timeframe?: IndicatorTimeframe;
   period?: number;
   windowSize?: number;
   fastPeriod?: number;
@@ -111,8 +111,8 @@ export interface MovingAverageIndicatorOption {
   label: string;
 }
 
-export interface IndicatorPeriodUnitOption {
-  value: IndicatorPeriodUnit;
+export interface IndicatorTimeframeOption {
+  value: IndicatorTimeframe;
   label: string;
 }
 
@@ -202,13 +202,19 @@ export const MOVING_AVERAGE_INDICATOR_OPTIONS: MovingAverageIndicatorOption[] = 
   { value: "BOLL", label: "BOLL" },
 ];
 
-export const INDICATOR_PERIOD_UNIT_OPTIONS: IndicatorPeriodUnitOption[] = [
-  { value: "bar", label: "柱" },
-  { value: "minute", label: "分钟" },
-  { value: "hour", label: "小时" },
-  { value: "day", label: "日" },
-  { value: "week", label: "周" },
-  { value: "month", label: "月" },
+export const INDICATOR_TIMEFRAME_OPTIONS: IndicatorTimeframeOption[] = [
+  { value: "", label: "当前周期" },
+  { value: "1", label: "1分钟" },
+  { value: "5", label: "5分钟" },
+  { value: "15", label: "15分钟" },
+  { value: "30", label: "30分钟" },
+  { value: "45", label: "45分钟" },
+  { value: "60", label: "1小时" },
+  { value: "120", label: "2小时" },
+  { value: "240", label: "4小时" },
+  { value: "D", label: "日线" },
+  { value: "W", label: "周线" },
+  { value: "M", label: "月线" },
 ];
 
 const TECHNICAL_INDICATOR_DEFINITION_MAP: Record<
@@ -620,12 +626,29 @@ export function normalizeMovingAverageIndicatorType(
     : "MA";
 }
 
-export function normalizeIndicatorPeriodUnit(
-  value: unknown,
-): IndicatorPeriodUnit {
-  return INDICATOR_PERIOD_UNIT_OPTIONS.some((option) => option.value === value)
-    ? (value as IndicatorPeriodUnit)
-    : "bar";
+export function normalizeIndicatorTimeframe(value: unknown): IndicatorTimeframe {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const normalized = value.trim().toUpperCase();
+  switch (normalized) {
+    case "":
+      return "";
+    case "1":
+    case "5":
+    case "15":
+    case "30":
+    case "45":
+    case "60":
+    case "120":
+    case "240":
+    case "D":
+    case "W":
+    case "M":
+      return normalized as IndicatorTimeframe;
+    default:
+      return "";
+  }
 }
 
 export function normalizeTechnicalIndicatorConditionMode(
@@ -685,9 +708,9 @@ export function normalizeGetTechnicalIndicatorProperties(
   if (variableName !== undefined) {
     normalized.variableName = variableName;
   }
-  const periodUnit = normalizeIndicatorPeriodUnit(properties.periodUnit);
-  if (periodUnit !== "bar") {
-    normalized.periodUnit = periodUnit;
+  const timeframe = normalizeIndicatorTimeframe(properties.timeframe);
+  if (timeframe !== "") {
+    normalized.timeframe = timeframe;
   }
 
   switch (definition.parameterShape) {
@@ -696,7 +719,6 @@ export function normalizeGetTechnicalIndicatorProperties(
         properties.movingAverageType,
       );
       normalized.source = normalizeIndicatorSource(properties.source, definition.defaultSource);
-      normalized.periodUnit = periodUnit;
       normalized.windowSize = normalizeInteger(
         properties.windowSize ?? properties.period,
         definition.defaultWindowSize ?? 20,
@@ -966,9 +988,10 @@ export function patternTypeLabel(patternType: TechnicalIndicatorPatternType): st
 function indicatorInputParameterText(
   properties: GetTechnicalIndicatorBlockProperties,
 ): string {
+  const timeframeSuffix = indicatorTimeframeSuffix(properties.timeframe ?? "");
   switch (properties.indicatorType) {
     case "movingAverage":
-      return `${properties.movingAverageType ?? "MA"} ${properties.windowSize ?? 20}${indicatorPeriodUnitSuffix(properties.periodUnit ?? "bar")}`;
+      return `${properties.movingAverageType ?? "MA"} ${properties.windowSize ?? 20}${timeframeSuffix}`;
     case "macd":
       return `${properties.fastPeriod ?? 12}/${properties.slowPeriod ?? 26}/${properties.signalPeriod ?? 9}`;
     case "kdj":
@@ -1002,26 +1025,12 @@ function defaultPeriodForIndicator(indicatorType: TechnicalIndicatorType): numbe
   return getTechnicalIndicatorDefinition(indicatorType).defaultPeriod ?? 14;
 }
 
-export function indicatorPeriodUnitLabel(unit: IndicatorPeriodUnit): string {
-  switch (unit) {
-    case "minute":
-      return "分钟";
-    case "hour":
-      return "小时";
-    case "day":
-      return "日";
-    case "week":
-      return "周";
-    case "month":
-      return "月";
-    case "bar":
-    default:
-      return "柱";
-  }
+export function indicatorTimeframeLabel(timeframe: IndicatorTimeframe): string {
+  return INDICATOR_TIMEFRAME_OPTIONS.find((option) => option.value === timeframe)?.label ?? timeframe;
 }
 
-function indicatorPeriodUnitSuffix(unit: IndicatorPeriodUnit): string {
-  return unit === "bar" ? "" : indicatorPeriodUnitLabel(unit);
+function indicatorTimeframeSuffix(timeframe: IndicatorTimeframe): string {
+  return timeframe === "" ? "" : indicatorTimeframeLabel(timeframe);
 }
 
 function defaultThresholdForIndicator(

@@ -912,7 +912,7 @@ if rsiValue < 30
             indicatorType: "movingAverage",
             movingAverageType: "EMA",
             windowSize: 5,
-            periodUnit: "day",
+            timeframe: "D",
           },
         },
         {
@@ -961,11 +961,29 @@ if rsiValue < 30
 
     const maNode = parsed.model.nodes.find((node) => node.id === "daily-ma");
     const exitNode = parsed.model.nodes.find((node) => node.id === "exit-node");
-    expect(maNode?.properties.periodUnit).toBe("day");
+    expect(maNode?.properties.timeframe).toBe("D");
     expect(maNode?.properties.movingAverageType).toBe("EMA");
     expect(exitNode?.properties.mode).toBe("stopLoss");
     expect(exitNode?.properties.timeUnit).toBe("bar");
     expect(exitNode?.properties.percentage).toBe(2);
+  });
+
+  it("parses request.security timeframe indicators", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Parse MTF", overlay=true)
+ema15 = request.security(syminfo.tickerid, "15", ta.ema(close, 9))`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+    const emaNode = parsed.model.nodes.find((node) =>
+      node.properties.blockKind === "getTechnicalIndicator"
+      && node.properties.variableName === "ema15",
+    );
+    expect(emaNode?.properties.timeframe).toBe("15");
+    expect(emaNode?.properties.movingAverageType).toBe("EMA");
+    expect(emaNode?.properties.windowSize).toBe(9);
   });
 
   it("generates and parses bracket exit visual risk blocks", () => {

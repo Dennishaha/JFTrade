@@ -39,7 +39,7 @@ import {
   isDivergencePattern,
   nextGetTechnicalIndicatorNodeText,
   nextTechnicalIndicatorConditionNodeText,
-  normalizeIndicatorPeriodUnit,
+  normalizeIndicatorTimeframe,
   normalizeGetTechnicalIndicatorProperties,
   normalizeTechnicalIndicatorConditionProperties,
   type GetTechnicalIndicatorBlockProperties,
@@ -297,6 +297,30 @@ export function useStrategyVisualNodeInspector(
   const showsMovingAverageTypeInput = computed(() =>
     selectedIndicatorTypeValue.value === "movingAverage"
     && isTechnicalIndicatorGetter.value,
+  );
+
+  const showsIndicatorTimeframeInput = computed(() =>
+    isTechnicalIndicatorGetter.value && [
+      "movingAverage",
+      "rsi",
+      "macd",
+      "atr",
+      "cci",
+      "bollinger",
+      "stdev",
+      "variance",
+      "highest",
+      "lowest",
+      "sum",
+      "mfi",
+      "supertrend",
+      "linreg",
+      "obv",
+      "pivotHigh",
+      "pivotLow",
+      "keltner",
+      "alma",
+    ].includes(selectedIndicatorTypeValue.value),
   );
 
   const showsIndicatorVariableNameInput = computed(
@@ -1281,16 +1305,22 @@ export function useStrategyVisualNodeInspector(
     },
   });
 
-  const selectedIndicatorPeriodUnit = computed({
-    get: () => technicalIndicatorGetter.value?.periodUnit ?? "bar",
+  const selectedIndicatorTimeframe = computed({
+    get: () => technicalIndicatorGetter.value?.timeframe ?? "",
     set: (value: string) => {
       if (!isTechnicalIndicatorGetter.value) {
         return;
       }
-      updateTechnicalIndicatorGetter((properties) => ({
-        ...properties,
-        periodUnit: normalizeIndicatorPeriodUnit(value),
-      }));
+      updateTechnicalIndicatorGetter((properties) => {
+        const nextProperties = { ...properties };
+        const timeframe = normalizeIndicatorTimeframe(value);
+        if (timeframe === "") {
+          delete nextProperties.timeframe;
+        } else {
+          nextProperties.timeframe = timeframe;
+        }
+        return nextProperties;
+      });
     },
   });
 
@@ -1987,10 +2017,11 @@ export function useStrategyVisualNodeInspector(
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
     selectedMovingAverageType,
-    selectedIndicatorPeriodUnit,
+    selectedIndicatorTimeframe,
     showsMultiplierInput,
     selectedBollingerMultiplier,
     showsIndicatorSourceInput,
+    showsIndicatorTimeframeInput,
     selectedIndicatorSource,
     showsIndicatorAdxSmoothingInput,
     selectedIndicatorAdxSmoothing,

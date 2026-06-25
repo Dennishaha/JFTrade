@@ -3,10 +3,11 @@ import { computed } from "vue";
 
 import {
   GET_TECHNICAL_INDICATOR_OPTIONS,
-  INDICATOR_PERIOD_UNIT_OPTIONS,
+  INDICATOR_TIMEFRAME_OPTIONS,
   MOVING_AVERAGE_INDICATOR_OPTIONS,
   getTechnicalIndicatorDefinition,
   nextGetTechnicalIndicatorNodeText,
+  normalizeIndicatorTimeframe,
   type GetTechnicalIndicatorBlockProperties,
 } from "../features/strategyVisualBuilderIndicatorBlock";
 import { SERIES_SOURCE_OPTIONS } from "../features/strategyVisualBuilderCatalog";
@@ -52,6 +53,29 @@ const showsMovingAverageTypeInput = computed(
 
 const showsWindowSizeInput = computed(
   () => selectedIndicatorDefinition.value.parameterShape === "windowSize",
+);
+const showsTimeframeInput = computed(() =>
+  [
+    "movingAverage",
+    "rsi",
+    "macd",
+    "atr",
+    "cci",
+    "bollinger",
+    "stdev",
+    "variance",
+    "highest",
+    "lowest",
+    "sum",
+    "mfi",
+    "supertrend",
+    "linreg",
+    "obv",
+    "pivotHigh",
+    "pivotLow",
+    "keltner",
+    "alma",
+  ].includes(selectedVariable.value?.properties.indicatorType ?? ""),
 );
 
 const showsPeriodInput = computed(
@@ -171,13 +195,19 @@ const selectedMovingAverageType = computed({
   },
 });
 
-const selectedPeriodUnit = computed({
-  get: () => selectedVariable.value?.properties.periodUnit ?? "bar",
+const selectedTimeframe = computed({
+  get: () => selectedVariable.value?.properties.timeframe ?? "",
   set: (value: string) => {
-    mutateSelectedVariable((properties) => ({
-      ...properties,
-      periodUnit: value,
-    }));
+    mutateSelectedVariable((properties) => {
+      const nextProperties = { ...properties };
+      const timeframe = normalizeIndicatorTimeframe(value);
+      if (timeframe === "") {
+        delete nextProperties.timeframe;
+      } else {
+        nextProperties.timeframe = timeframe;
+      }
+      return nextProperties;
+    });
   },
 });
 
@@ -510,10 +540,10 @@ function normalizeDecimal(value: string, fallback: number): number {
               <input v-model="selectedWindowSize" data-testid="strategy-variable-window-size-input" min="1" step="1" type="number" />
             </label>
 
-            <label v-if="showsWindowSizeInput" class="strategy-variable-manager__field">
-              <span>时间单位</span>
-              <select v-model="selectedPeriodUnit" data-testid="strategy-variable-period-unit-select">
-                <option v-for="option in INDICATOR_PERIOD_UNIT_OPTIONS" :key="option.value" :value="option.value">
+            <label v-if="showsTimeframeInput" class="strategy-variable-manager__field">
+              <span>固定周期</span>
+              <select v-model="selectedTimeframe" data-testid="strategy-variable-timeframe-select">
+                <option v-for="option in INDICATOR_TIMEFRAME_OPTIONS" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </option>
               </select>

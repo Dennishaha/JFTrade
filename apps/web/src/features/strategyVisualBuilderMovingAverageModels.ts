@@ -48,14 +48,14 @@ export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualMo
           indicatorType: "movingAverage",
           movingAverageType: "MA",
           windowSize: 5,
-          periodUnit: "day",
+          timeframe: "D",
         }),
         properties: {
           blockKind: "getTechnicalIndicator",
           indicatorType: "movingAverage",
           movingAverageType: "MA",
           windowSize: 5,
-          periodUnit: "day",
+          timeframe: "D",
         },
       },
       {
@@ -68,14 +68,14 @@ export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualMo
           indicatorType: "movingAverage",
           movingAverageType: "MA",
           windowSize: 20,
-          periodUnit: "day",
+          timeframe: "D",
         }),
         properties: {
           blockKind: "getTechnicalIndicator",
           indicatorType: "movingAverage",
           movingAverageType: "MA",
           windowSize: 20,
-          periodUnit: "day",
+          timeframe: "D",
         },
       },
       {

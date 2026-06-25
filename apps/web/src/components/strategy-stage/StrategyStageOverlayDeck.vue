@@ -12,7 +12,7 @@ import type {
 import type { VisualExpressionReference } from "../../features/strategyVisualBuilderExpressions";
 import {
   GET_TECHNICAL_INDICATOR_OPTIONS,
-  INDICATOR_PERIOD_UNIT_OPTIONS,
+  INDICATOR_TIMEFRAME_OPTIONS,
   getPatternOptions,
   getTechnicalIndicatorConditionModeOptions,
   MOVING_AVERAGE_INDICATOR_OPTIONS,
@@ -45,7 +45,7 @@ interface StrategyOverlayDeckBindings {
   selectedIndicatorVariableName: Ref<string>;
   selectedIndicatorType: Ref<string>;
   selectedMovingAverageType: Ref<string>;
-  selectedIndicatorPeriodUnit: Ref<string>;
+  selectedIndicatorTimeframe: Ref<string>;
   selectedIndicatorConditionMode: Ref<string>;
   selectedIndicatorOperator: Ref<string>;
   selectedIndicatorPatternType: Ref<string>;
@@ -157,6 +157,7 @@ const props = defineProps<{
   indicatorGetterOptions: StrategyIndicatorGetterOption[];
   showsMultiplierInput: boolean;
   showsIndicatorSourceInput: boolean;
+  showsIndicatorTimeframeInput: boolean;
   showsIndicatorAdxSmoothingInput: boolean;
   showsIndicatorFactorInput: boolean;
   showsIndicatorSarInputs: boolean;
@@ -196,7 +197,7 @@ const selectedVisualNodePeriod = props.bindings.selectedVisualNodePeriod;
 const selectedIndicatorVariableName = props.bindings.selectedIndicatorVariableName;
 const selectedIndicatorType = props.bindings.selectedIndicatorType;
 const selectedMovingAverageType = props.bindings.selectedMovingAverageType;
-const selectedIndicatorPeriodUnit = props.bindings.selectedIndicatorPeriodUnit;
+const selectedIndicatorTimeframe = props.bindings.selectedIndicatorTimeframe;
 const selectedIndicatorConditionMode = props.bindings.selectedIndicatorConditionMode;
 const selectedIndicatorOperator = props.bindings.selectedIndicatorOperator;
 const selectedIndicatorPatternType = props.bindings.selectedIndicatorPatternType;
@@ -296,7 +297,7 @@ const indicatorOptions = computed(() => (
     : TECHNICAL_INDICATOR_OPTIONS
 ));
 const movingAverageOptions = MOVING_AVERAGE_INDICATOR_OPTIONS;
-const indicatorPeriodUnitOptions = INDICATOR_PERIOD_UNIT_OPTIONS;
+const indicatorTimeframeOptions = INDICATOR_TIMEFRAME_OPTIONS;
 const seriesConditionModeOptions = SERIES_CONDITION_MODE_OPTIONS;
 const seriesSourceOptions = SERIES_SOURCE_OPTIONS;
 const indicatorSourceOptions = [
@@ -1004,14 +1005,14 @@ function supportToneClass(status: PineBlockSupportAssessment["status"]): string 
           />
         </label>
 
-        <label v-if="props.selectedVisualKind === 'getTechnicalIndicator' && normalizedSelectedIndicatorType === 'movingAverage'" class="grid gap-2 text-sm text-slate-700">
-          <span class="font-medium">时间单位</span>
+        <label v-if="props.showsIndicatorTimeframeInput" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">固定周期</span>
           <select
-            v-model="selectedIndicatorPeriodUnit"
-            data-testid="strategy-block-indicator-period-unit-select"
+            v-model="selectedIndicatorTimeframe"
+            data-testid="strategy-block-indicator-timeframe-select"
             class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
           >
-            <option v-for="option in indicatorPeriodUnitOptions" :key="option.value" :value="option.value">
+            <option v-for="option in indicatorTimeframeOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>

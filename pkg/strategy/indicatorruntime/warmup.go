@@ -48,7 +48,11 @@ func WarmupBarsFromPlanForSymbolWithOptions(plan strategyir.Requirements, interv
 	if err != nil {
 		return 0, err
 	}
-	return calculateIndicatorWarmupBars(requirements, resolveIntervalMinutes(interval), symbol, options.IncludeExtendedHours), nil
+	intervalMinutes := resolveIntervalMinutes(interval)
+	if err := validateFixedTimeframeRequirements(requirements, intervalMinutes); err != nil {
+		return 0, err
+	}
+	return calculateIndicatorWarmupBars(requirements, intervalMinutes, symbol, options.IncludeExtendedHours), nil
 }
 
 func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMinutes int, symbol string, includeExtendedHours bool) int {
@@ -63,7 +67,7 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 		warmup = max(warmup, period)
 	}
 	for _, config := range requirements.rsiSource {
-		warmup = max(warmup, config.period)
+		warmup = max(warmup, estimateTradingPeriodBars(config.period, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
 	}
 	for _, config := range requirements.macd {
 		warmup = max(warmup, config.slowPeriod+config.signalPeriod)
@@ -75,10 +79,10 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 		warmup = max(warmup, period)
 	}
 	for _, config := range requirements.stdevSource {
-		warmup = max(warmup, config.period)
+		warmup = max(warmup, estimateTradingPeriodBars(config.period, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
 	}
 	for _, config := range requirements.variance {
-		warmup = max(warmup, config.period)
+		warmup = max(warmup, estimateTradingPeriodBars(config.period, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
 	}
 	for _, config := range requirements.windows {
 		switch config.function {
@@ -92,7 +96,7 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 		warmup = max(warmup, 1)
 	}
 	for _, config := range requirements.stoch {
-		warmup = max(warmup, config.period)
+		warmup = max(warmup, estimateTradingPeriodBars(config.period, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
 	}
 	for _, config := range requirements.kdj {
 		warmup = max(warmup, config.period+config.m1+config.m2)
@@ -104,13 +108,13 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 		warmup = max(warmup, period)
 	}
 	for _, config := range requirements.cciSource {
-		warmup = max(warmup, config.period)
+		warmup = max(warmup, estimateTradingPeriodBars(config.period, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
 	}
 	for _, period := range requirements.williamsR {
 		warmup = max(warmup, period)
 	}
 	for _, config := range requirements.mfi {
-		warmup = max(warmup, config.period+1)
+		warmup = max(warmup, estimateTradingPeriodBars(config.period+1, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
 	}
 	for _, config := range requirements.dmi {
 		warmup = max(warmup, config.diLength+config.adxSmoothing+1)
@@ -133,7 +137,17 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 	for _, config := range requirements.kdjDivergence {
 		warmup = max(warmup, config.period+config.m1+config.m2+config.lookback)
 	}
+	for _, config := range requirements.advanced {
+		warmup = max(warmup, estimateTradingPeriodBars(advancedIndicatorLookback(config), config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
+	}
 	return warmup
+}
+
+func advancedIndicatorLookback(config advancedIndicatorConfig) int {
+	if config.kind == "anchored_vwap" {
+		return 1
+	}
+	return max(config.left+config.right+2, config.period+config.offset+2)
 }
 
 func estimateTradingPeriodBars(period int, timeUnit string, intervalMinutes int, symbol string, includeExtendedHours bool) int {

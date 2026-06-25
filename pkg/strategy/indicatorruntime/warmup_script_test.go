@@ -64,6 +64,42 @@ monthly = request.security(syminfo.tickerid, "M", ta.sma(close, 1))`
 	}
 }
 
+func TestRequestSecurityTimeframeRequirementsValidateAgainstStrategyInterval(t *testing.T) {
+	script := `//@version=6
+strategy("MTF Validation", overlay=true)
+fast = request.security(syminfo.tickerid, "15", ta.ema(close, 20))
+if close > fast
+    strategy.entry("Long", strategy.long, qty=1)`
+
+	program, err := strategypine.ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+	if len(plan.Indicators) != 1 || plan.Indicators[0].Key != "ma:EMA:20:15m" {
+		t.Fatalf("PlanRequirements() indicators = %#v, want ma:EMA:20:15m", plan.Indicators)
+	}
+
+	if _, err := WarmupBarsFromPlanForSymbol(plan, types.Interval1m, "US.AAPL"); err != nil {
+		t.Fatalf("WarmupBarsFromPlanForSymbol(1m) error = %v", err)
+	}
+	if _, err := NewIndicatorEngineForPlan(plan, types.Interval1m, "US.AAPL"); err != nil {
+		t.Fatalf("NewIndicatorEngineForPlan(1m) error = %v", err)
+	}
+
+	for _, interval := range []types.Interval{types.Interval1h, types.Interval1d} {
+		if _, err := WarmupBarsFromPlanForSymbol(plan, interval, "US.AAPL"); err == nil || !strings.Contains(err.Error(), "fixed timeframe 15m is lower than strategy interval") {
+			t.Fatalf("WarmupBarsFromPlanForSymbol(%s) error = %v, want lower-timeframe diagnostic", interval, err)
+		}
+		if _, err := NewIndicatorEngineForPlan(plan, interval, "US.AAPL"); err == nil || !strings.Contains(err.Error(), "fixed timeframe 15m is lower than strategy interval") {
+			t.Fatalf("NewIndicatorEngineForPlan(%s) error = %v, want lower-timeframe diagnostic", interval, err)
+		}
+	}
+}
+
 func TestWarmupBarsFromScriptRejectsInvalidScript(t *testing.T) {
 	if _, err := WarmupBarsFromScript("strategy(",
 		types.Interval1m); err == nil {

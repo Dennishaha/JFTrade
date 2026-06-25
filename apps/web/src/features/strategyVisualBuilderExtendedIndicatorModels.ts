@@ -179,7 +179,7 @@ export function createMTFMomentumStrategyVisualModel(): StrategyVisualModelDocum
       { id: "mtf-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
       { id: "mtf-init-log", type: "rect", x: 500, y: 120, text: "输出日志", properties: { blockKind: "log", message: "MTF 动能策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '5m'}" } },
       { id: "mtf-kline-root", type: "circle", x: 180, y: 330, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
-      { id: "mtf-ema", type: "rect", x: 500, y: 290, text: "获取 EMA 20日", properties: { blockKind: "getTechnicalIndicator", indicatorType: "movingAverage", movingAverageType: "EMA", source: "close", windowSize: 20, periodUnit: "day" } },
+      { id: "mtf-ema", type: "rect", x: 500, y: 290, text: "获取 EMA 20日", properties: { blockKind: "getTechnicalIndicator", indicatorType: "movingAverage", movingAverageType: "EMA", source: "close", windowSize: 20, timeframe: "D" } },
       { id: "mtf-macd", type: "rect", x: 500, y: 420, text: "获取 MACD 12/26/9", properties: { blockKind: "getTechnicalIndicator", indicatorType: "macd", fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } },
       { id: "mtf-macd-cross", type: "diamond", x: 820, y: 330, text: "MACD 金叉", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "macd", conditionMode: "pattern", patternType: "goldenCross" } },
       { id: "mtf-buy-order", type: "rect", x: 1130, y: 330, text: "下单 · 买入开多 · 10%", properties: { blockKind: "placeOrder", orderAction: "entry", orderId: "Long", side: "BUY", orderType: "MARKET", quantityMode: "equityPercent", quantityValue: 10 } },

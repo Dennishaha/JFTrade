@@ -1244,7 +1244,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         movingAverageType: "EMA",
         source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
-        periodUnit: "bar",
+        timeframe: "",
       };
     case "ta.rma":
       return {
@@ -1253,7 +1253,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         movingAverageType: "SMMA",
         source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
-        periodUnit: "bar",
+        timeframe: "",
       };
     case "ta.wma":
       return {
@@ -1262,7 +1262,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         movingAverageType: "LWMA",
         source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
-        periodUnit: "bar",
+        timeframe: "",
       };
     case "ta.hma":
       return {
@@ -1271,7 +1271,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         movingAverageType: "HMA",
         source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
-        periodUnit: "bar",
+        timeframe: "",
       };
     case "ta.vwma":
       return {
@@ -1280,7 +1280,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         movingAverageType: "VWMA",
         source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
-        periodUnit: "bar",
+        timeframe: "",
       };
     case "ta.sma":
       return {
@@ -1289,7 +1289,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         movingAverageType: "SMA",
         source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
-        periodUnit: "bar",
+        timeframe: "",
       };
     case "ta.rsi":
       return { blockKind: "getTechnicalIndicator", indicatorType: "rsi", period: readNumber(args[1] ?? args[0], 14) };
@@ -1487,8 +1487,8 @@ function parseRequestSecurityIndicator(args: string[]): Record<string, unknown> 
   if (args.length < 3 || args[0]?.trim() !== "syminfo.tickerid") {
     return null;
   }
-  const periodUnit = periodUnitFromPineTimeframe(readPineLiteral(args[1] ?? ""));
-  if (periodUnit === null) {
+  const timeframe = normalizePineTimeframe(readPineLiteral(args[1] ?? ""));
+  if (timeframe === null) {
     return null;
   }
   const inner = parseIndicatorExpression(args[2] ?? "");
@@ -1497,7 +1497,7 @@ function parseRequestSecurityIndicator(args: string[]): Record<string, unknown> 
   }
   return {
     ...inner,
-    periodUnit,
+    timeframe,
   };
 }
 
@@ -1525,21 +1525,30 @@ function supportsRequestSecurityIndicator(indicatorType: unknown): boolean {
   ].includes(indicatorType);
 }
 
-function periodUnitFromPineTimeframe(value: string): string | null {
+function normalizePineTimeframe(value: string): string | null {
   switch (value.trim().toUpperCase()) {
     case "1":
-      return "minute";
+      return "1";
+    case "5":
+      return "5";
+    case "15":
+      return "15";
+    case "30":
+      return "30";
+    case "45":
+      return "45";
     case "60":
-      return "hour";
+      return "60";
+    case "120":
+      return "120";
+    case "240":
+      return "240";
     case "D":
-    case "1D":
-      return "day";
+      return "D";
     case "W":
-    case "1W":
-      return "week";
+      return "W";
     case "M":
-    case "1M":
-      return "month";
+      return "M";
     default:
       return null;
   }

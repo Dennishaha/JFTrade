@@ -370,11 +370,11 @@ func pineTimeframeUnit(value string) (string, bool) {
 		return strconv.Quote(trimmed + "m"), true
 	case "60":
 		return "hour", true
-	case "D", "1D":
+	case "D":
 		return "day", true
-	case "W", "1W":
+	case "W":
 		return "week", true
-	case "M", "1M":
+	case "M":
 		return "month", true
 	default:
 		return "", false

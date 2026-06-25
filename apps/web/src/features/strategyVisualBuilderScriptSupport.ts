@@ -6,9 +6,10 @@ import type {
   StopLossWindowPolicy,
 } from "./strategyVisualBuilderCatalog";
 import type {
-  IndicatorPeriodUnit,
+  IndicatorTimeframe,
   MovingAverageIndicatorType,
 } from "./strategyVisualBuilderIndicatorBlock";
+import { normalizeIndicatorTimeframe } from "./strategyVisualBuilderIndicatorBlock";
 
 export interface StrategyScriptRuntimeFlags {
   usesMovingAverageRuntime: boolean;
@@ -93,11 +94,31 @@ export function buildScriptRuntimeBlocks(
 export function buildMovingAverageIndicatorKey(
   windowSize: number,
   movingAverageType: MovingAverageIndicatorType = "MA",
-  periodUnit: IndicatorPeriodUnit = "bar",
+  timeframe: IndicatorTimeframe = "",
 ): string {
-  return periodUnit === "bar"
+  const timeUnit = indicatorTimeUnitForTimeframe(timeframe);
+  return timeUnit === ""
     ? `ma:${movingAverageType}:${windowSize}`
-    : `ma:${movingAverageType}:${windowSize}:${periodUnit}`;
+    : `ma:${movingAverageType}:${windowSize}:${timeUnit}`;
+}
+
+function indicatorTimeUnitForTimeframe(timeframe: IndicatorTimeframe): string {
+  switch (normalizeIndicatorTimeframe(timeframe)) {
+    case "":
+      return "";
+    case "1":
+      return "minute";
+    case "60":
+      return "hour";
+    case "D":
+      return "day";
+    case "W":
+      return "week";
+    case "M":
+      return "month";
+    default:
+      return `${timeframe}m`;
+  }
 }
 
 export function buildStopLossIndicatorKey(

@@ -317,7 +317,7 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
         "source",
         "period",
         "windowSize",
-        "periodUnit",
+        "timeframe",
         "movingAverageType",
         "macdPeriods",
         "kdjPeriods",

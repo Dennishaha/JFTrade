@@ -301,10 +301,11 @@ const {
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
     selectedMovingAverageType,
-    selectedIndicatorPeriodUnit,
+    selectedIndicatorTimeframe,
     showsMultiplierInput,
     selectedBollingerMultiplier,
     showsIndicatorSourceInput,
+    showsIndicatorTimeframeInput,
     selectedIndicatorSource,
     showsIndicatorAdxSmoothingInput,
     selectedIndicatorAdxSmoothing,
@@ -405,7 +406,7 @@ const overlayDeckBindings = {
     selectedIndicatorVariableName,
     selectedIndicatorType,
     selectedMovingAverageType,
-    selectedIndicatorPeriodUnit,
+    selectedIndicatorTimeframe,
     selectedIndicatorConditionMode,
     selectedIndicatorOperator,
     selectedIndicatorPatternType,
@@ -1463,6 +1464,7 @@ const {
                 :shows-session-filter-inputs="showsSessionFilterInputs"
                 :shows-macd-inputs="showsMacdInputs" :shows-technical-indicator-macd-inputs="showsTechnicalIndicatorMacdInputs" :shows-multiplier-input="showsMultiplierInput"
                 :shows-indicator-source-input="showsIndicatorSourceInput"
+                :shows-indicator-timeframe-input="showsIndicatorTimeframeInput"
                 :shows-indicator-adx-smoothing-input="showsIndicatorAdxSmoothingInput"
                 :shows-indicator-factor-input="showsIndicatorFactorInput"
                 :shows-indicator-sar-inputs="showsIndicatorSarInputs"

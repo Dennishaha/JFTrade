@@ -27,6 +27,8 @@ func TestParseIndicatorTimeUnitValueSupportsQuotedAndMinuteCountInputs(t *testin
 		{`"60m"`, "hour", true},
 		{`"15m"`, "15m", true},
 		{`"001m"`, "minute", true},
+		{`"15"`, "", false},
+		{`"1D"`, "", false},
 		{`"0m"`, "", false},
 		{`"badm"`, "", false},
 	}
@@ -111,13 +113,13 @@ func TestParseMovingAverageOptionalArgsCoversSourceAndTimeUnitSemantics(t *testi
 
 func TestParsePriceSourceAndBuildMovingAverageKeyWithSource(t *testing.T) {
 	validSources := map[string]string{
-		"OPEN":  "open",
-		"High":  "high",
-		" low ": "low",
-		"close": "close",
-		"hl2":   "hl2",
-		"hlc3":  "hlc3",
-		"ohlc4": "ohlc4",
+		"OPEN":   "open",
+		"High":   "high",
+		" low ":  "low",
+		"close":  "close",
+		"hl2":    "hl2",
+		"hlc3":   "hlc3",
+		"ohlc4":  "ohlc4",
 		"volume": "volume",
 	}
 	for input, want := range validSources {
@@ -131,10 +133,10 @@ func TestParsePriceSourceAndBuildMovingAverageKeyWithSource(t *testing.T) {
 	}
 
 	keyCases := []struct {
-		name   string
-		src    string
-		unit   string
-		want   string
+		name string
+		src  string
+		unit string
+		want string
 	}{
 		{name: "default close omits source", src: "close", unit: "", want: "ma:EMA:14"},
 		{name: "non-close source only", src: "hl2", unit: "", want: "ma:EMA:14:hl2"},

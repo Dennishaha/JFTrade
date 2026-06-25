@@ -388,6 +388,9 @@ func newIndicatorRuntimeFromPlanWithOptions(plan strategyir.Requirements, interv
 	if err != nil {
 		return nil, err
 	}
+	if err := validateFixedTimeframeRequirements(requirements, resolveIntervalMinutes(interval)); err != nil {
+		return nil, err
+	}
 	return newIndicatorRuntimeWithRequirements(requirements, interval, symbol, options), nil
 }
 

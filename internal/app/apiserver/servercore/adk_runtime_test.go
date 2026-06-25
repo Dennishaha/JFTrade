@@ -31,7 +31,7 @@ htfClose = request.security("NASDAQ:AAPL", "1D", close)`
 func TestValidateADKStrategyDraftScriptAcceptsJFTradePine(t *testing.T) {
 	script := `//@version=6
 strategy("Mean Revert", overlay=true)
-htfClose = request.security(syminfo.tickerid, "1D", close)
+htfClose = request.security(syminfo.tickerid, "D", close)
 log.info("ready")`
 
 	if err := validateADKStrategyDraftScript(script); err != nil {

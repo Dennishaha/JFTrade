@@ -874,8 +874,8 @@ function wrapIndicatorTimeframe(
   if (!supportsIndicatorRequestSecurity(properties.indicatorType)) {
     return expression;
   }
-  const timeframe = pineTimeframeForPeriodUnit(properties.periodUnit ?? "bar");
-  return timeframe === null
+  const timeframe = properties.timeframe?.trim();
+  return timeframe == null || timeframe === ""
     ? expression
     : `request.security(syminfo.tickerid, ${toPineStringLiteral(timeframe)}, ${expression})`;
 }
@@ -955,24 +955,6 @@ function pineIndicatorSource(source: string): string {
 
 function pineSeriesSource(source: StrategySeriesSource): string {
   return pineIndicatorSource(source);
-}
-
-function pineTimeframeForPeriodUnit(periodUnit: string): string | null {
-  switch (periodUnit) {
-    case "minute":
-      return "1";
-    case "hour":
-      return "60";
-    case "day":
-      return "D";
-    case "week":
-      return "W";
-    case "month":
-      return "M";
-    case "bar":
-    default:
-      return null;
-  }
 }
 
 function readIndicatorVariableName(
