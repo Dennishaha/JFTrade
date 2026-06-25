@@ -30,8 +30,8 @@ export type VisualExpressionCallFunction =
   | "ta.macd"
   | "ta.supertrend"
   | "ta.atr"
-  | "barssince"
-  | "valuewhen";
+  | "ta.barssince"
+  | "ta.valuewhen";
 
 export type VisualExpression =
   | { kind: "literal"; value: number | boolean | string; valueType?: VisualExpressionValueType }
@@ -82,8 +82,8 @@ const ALLOWED_CALLS = new Set<VisualExpressionCallFunction>([
   "ta.macd",
   "ta.supertrend",
   "ta.atr",
-  "barssince",
-  "valuewhen",
+  "ta.barssince",
+  "ta.valuewhen",
 ]);
 
 export const VISUAL_EXPRESSION_CALL_OPTIONS: Array<{ value: VisualExpressionCallFunction; label: string }> = [
@@ -97,8 +97,8 @@ export const VISUAL_EXPRESSION_CALL_OPTIONS: Array<{ value: VisualExpressionCall
   { value: "ta.crossover", label: "ta.crossover" },
   { value: "ta.crossunder", label: "ta.crossunder" },
   { value: "ta.cross", label: "ta.cross" },
-  { value: "barssince", label: "barssince" },
-  { value: "valuewhen", label: "valuewhen" },
+  { value: "ta.barssince", label: "ta.barssince" },
+  { value: "ta.valuewhen", label: "ta.valuewhen" },
 ];
 
 export function sourceExpression(source: string): VisualExpression {
@@ -296,7 +296,7 @@ function parseCallExpression(expression: string): VisualExpression | null {
   if (call === null) {
     return null;
   }
-  const rawFunctionName = (call[1] ?? "").trim().toLowerCase();
+  const rawFunctionName = normalizeCallFunctionName((call[1] ?? "").trim().toLowerCase());
   if (!ALLOWED_CALLS.has(rawFunctionName as VisualExpressionCallFunction)) {
     return null;
   }
@@ -396,10 +396,22 @@ function normalizeBinaryOperator(value: unknown): Extract<VisualExpression, { ki
 
 function normalizeCallFunction(value: unknown): VisualExpressionCallFunction {
   const rawValue = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (ALLOWED_CALLS.has(rawValue as VisualExpressionCallFunction)) {
-    return rawValue as VisualExpressionCallFunction;
+  const functionName = normalizeCallFunctionName(rawValue);
+  if (ALLOWED_CALLS.has(functionName as VisualExpressionCallFunction)) {
+    return functionName as VisualExpressionCallFunction;
   }
   return "math.max";
+}
+
+function normalizeCallFunctionName(value: string): string {
+  switch (value) {
+    case "barssince":
+      return "ta.barssince";
+    case "valuewhen":
+      return "ta.valuewhen";
+    default:
+      return value;
+  }
 }
 
 function normalizeSource(value: unknown): string {

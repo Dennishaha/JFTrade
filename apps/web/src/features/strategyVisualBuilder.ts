@@ -9,19 +9,17 @@ export type {
   StrategyBlockKind,
 } from "./strategyVisualBuilderCatalog";
 export {
-  buildStrategyVisualModelFromScript,
   buildStrategyVisualModelFromPine,
 } from "./strategyVisualBuilderPineParser";
 export type {
-  StrategyScriptParseFailure,
-  StrategyScriptParseResult,
-  StrategyScriptParseSuccess,
+  StrategyPineParseFailure,
+  StrategyPineParseResult,
+  StrategyPineParseSuccess,
 } from "./strategyVisualBuilderPineParser";
 export {
   buildStrategyPineFromVisualModel,
-  buildStrategyScriptFromVisualModel,
 } from "./strategyVisualBuilderPine";
-export type { StrategyPineContext, StrategyScriptContext } from "./strategyVisualBuilderPine";
+export type { StrategyPineContext } from "./strategyVisualBuilderPine";
 export {
   assessPineBlockSupport,
   summarizePineBlockSupport,

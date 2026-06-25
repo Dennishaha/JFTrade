@@ -111,9 +111,7 @@ export function useStrategyVisualNodeInspector(
     },
   });
 
-  const showsCodeInput = computed(() =>
-    selectedVisualKind.value === "pineSnippet",
-  );
+  const showsCodeInput = computed(() => false);
 
   const selectedVisualNodeCode = computed({
     get: () => {
@@ -124,7 +122,7 @@ export function useStrategyVisualNodeInspector(
       mutateSelectedVisualNode((node) => ({
         ...node,
         text: value.trim() === ""
-          ? "Pine 片段"
+          ? "代码片段"
           : node.text,
         properties: {
           ...node.properties,
@@ -2157,7 +2155,7 @@ function expressionFieldsForKind(
   return [];
 }
 
-function normalizeExpressionFunction(value: string): "math.min" | "math.max" | "math.abs" | "math.round" | "math.floor" | "math.ceil" | "nz" | "ta.crossover" | "ta.crossunder" | "ta.cross" | "barssince" | "valuewhen" {
+function normalizeExpressionFunction(value: string): "math.min" | "math.max" | "math.abs" | "math.round" | "math.floor" | "math.ceil" | "nz" | "ta.crossover" | "ta.crossunder" | "ta.cross" | "ta.barssince" | "ta.valuewhen" {
   switch (value) {
     case "math.min":
     case "math.max":
@@ -2169,9 +2167,13 @@ function normalizeExpressionFunction(value: string): "math.min" | "math.max" | "
     case "ta.crossover":
     case "ta.crossunder":
     case "ta.cross":
-    case "barssince":
-    case "valuewhen":
+    case "ta.barssince":
+    case "ta.valuewhen":
       return value;
+    case "barssince":
+      return "ta.barssince";
+    case "valuewhen":
+      return "ta.valuewhen";
     default:
       return "math.max";
   }

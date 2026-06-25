@@ -14,8 +14,8 @@ import (
 
 // --- function-call parsing ---
 
-// ParseFunctionCall splits a DSL expression like "ma(EMA,14,m)" into its
-// function name and a list of trimmed string arguments.
+// ParseFunctionCall splits a lowered Pine indicator binding such as
+// "ma(EMA,14,minute)" into its function name and trimmed arguments.
 func ParseFunctionCall(value string) (string, []string, bool) {
 	trimmed := strings.TrimSpace(value)
 	openIndex := strings.Index(trimmed, "(")

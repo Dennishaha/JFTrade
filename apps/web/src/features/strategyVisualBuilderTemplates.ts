@@ -25,7 +25,7 @@ import {
 } from "./strategyVisualBuilderModels";
 import {
   buildStrategyPineFromVisualModel,
-  type StrategyScriptContext,
+  type StrategyPineContext,
 } from "./strategyVisualBuilderPine";
 
 export interface StrategyAuthoringTemplate {
@@ -41,7 +41,7 @@ export interface StrategyAuthoringTemplate {
   defaultInterval: string;
   visualModel: StrategyVisualModelDocument;
   syncVisualToCode: boolean;
-  buildScript: (context: StrategyScriptContext) => string;
+  buildScript: (context: StrategyPineContext) => string;
 }
 
 export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {

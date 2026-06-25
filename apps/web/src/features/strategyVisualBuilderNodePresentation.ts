@@ -313,17 +313,6 @@ export function buildStrategyVisualNodeSummary(
         ],
         chips: [],
       };
-    case "pineSnippet":
-      return {
-        eyebrow: "Pine 片段",
-        title: resolveNodeTitle(input.text, "Pine 片段"),
-        tone: "code",
-        variant: variantOverride ?? "card",
-        details: [
-          { label: "片段", value: previewCodeText(properties.code) },
-        ],
-        chips: ["Pine"],
-      };
     case "ifCloseAbove":
       return {
         eyebrow: "价格条件",
@@ -652,19 +641,6 @@ function resolveNodeTitle(
 ): string {
   const normalized = previewText(rawText, 56, "");
   return normalized === "" ? fallback : normalized;
-}
-
-function previewCodeText(value: unknown): string {
-  if (typeof value !== "string") {
-    return "console.log(\"补充自定义逻辑\");";
-  }
-
-  const firstLine = value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .find((line) => line !== "");
-
-  return previewText(firstLine, 60, "console.log(\"补充自定义逻辑\");");
 }
 
 function previewText(value: unknown, maxLength: number, fallback: string): string {

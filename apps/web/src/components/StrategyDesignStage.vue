@@ -28,7 +28,7 @@ import {
 } from "../features/strategyPineEditorIntelliSense";
 import type { MonacoDiagnosticMarker } from "../features/strategyMonacoIntelliSenseTypes";
 import {
-    buildStrategyScriptFromVisualModel,
+    buildStrategyPineFromVisualModel,
     cloneStrategyVisualModel,
     createDefaultStrategyVisualModel,
     getStrategyAuthoringTemplates,
@@ -67,7 +67,7 @@ const fallbackTemplate: StrategyAuthoringTemplate = {
     visualModel: createDefaultStrategyVisualModel(),
     syncVisualToCode: true,
     buildScript: (context) =>
-        buildStrategyScriptFromVisualModel(createDefaultStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createDefaultStrategyVisualModel(), context),
 };
 
 const strategyTemplates = getStrategyAuthoringTemplates();
@@ -248,7 +248,6 @@ const {
     selectedVisualNodeId,
     syncScriptToVisualModelNow,
     updateCommittedDefinitionSignature,
-    visualSyncPineSnippetCount,
     visualSyncMessage,
     visualSyncStatus,
 } = useStrategyStageVisualSync({
@@ -727,9 +726,6 @@ const visualSupportSummaryText = computed(() => {
     if (visualSupportSummary.value.unsupportedConfigCount > 0) {
         parts.push(`${visualSupportSummary.value.unsupportedConfigCount} 个不支持配置`);
     }
-    if (visualSupportSummary.value.snippetOnlyCount > 0) {
-        parts.push(`${visualSupportSummary.value.snippetOnlyCount} 个 Pine 片段`);
-    }
     if (visualSupportSummary.value.warningCount > 0) {
         parts.push(`${visualSupportSummary.value.warningCount} 个提示`);
     }
@@ -750,7 +746,6 @@ const hasUnsavedDefinitionChanges = computed(() => {
 const visualSyncToneClass = computed(() => ({
     "strategy-stage__toolbar-status--syncing": visualSyncStatus.value === "syncing",
     "strategy-stage__toolbar-status--synced": visualSyncStatus.value === "synced",
-    "strategy-stage__toolbar-status--partial": visualSyncStatus.value === "partial",
     "strategy-stage__toolbar-status--error": visualSyncStatus.value === "error",
 }));
 
@@ -760,8 +755,6 @@ const visualSyncLabel = computed(() => {
             return "同步中";
         case "synced":
             return "已同步";
-        case "partial":
-            return "Pine 提示";
         case "error":
             return "同步提示";
         default:
@@ -963,7 +956,7 @@ function normalizeDefinition(
     const script =
         visualModel === null
             ? definition.script
-            : buildStrategyScriptFromVisualModel(visualModel, {
+            : buildStrategyPineFromVisualModel(visualModel, {
                 name,
                 version,
             });
@@ -1027,7 +1020,7 @@ function dismissDefinitionNotice(): void {
 function buildScriptForModel(
     model: StrategyVisualModelDocument | null | undefined,
 ): string {
-    return buildStrategyScriptFromVisualModel(model, {
+    return buildStrategyPineFromVisualModel(model, {
         name: definitionForm.value.name.trim(),
         version: definitionForm.value.version.trim() || "0.1.0",
     });
@@ -1908,11 +1901,6 @@ const {
 .strategy-stage__toolbar-status--synced {
     border-color: color-mix(in srgb, var(--tv-accent) 45%, transparent);
     color: color-mix(in srgb, var(--tv-accent) 70%, var(--tv-text));
-}
-
-.strategy-stage__toolbar-status--partial {
-    border-color: color-mix(in srgb, var(--tv-warn, var(--card-amber-text)) 52%, transparent);
-    color: color-mix(in srgb, var(--tv-warn, var(--card-amber-text)) 78%, var(--tv-text));
 }
 
 .strategy-stage__toolbar-status--error {

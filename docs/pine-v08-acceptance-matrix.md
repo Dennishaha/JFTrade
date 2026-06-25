@@ -21,21 +21,21 @@
 | `golden-donchian-volume-sar` | highest/lowest、volume MA、SAR | `TestGoldenExamplesAnalyzeAndPlan` | `highest:high:20`、`lowest:low:20`、`ma:SMA:10:volume`、`sar:0.02:0.02:0.2` | Donchian、volume MA、SAR backtests | source-aware MA round-trip | `supportMatrix` |
 | `golden-mtf-source-ma` | request.security source/source[n]、MTF EMA | `TestGoldenExamplesAnalyzeAndPlan` | `security_source:15m:close`、`security_source:15m:close:1`、`ma:EMA:3:15m:hlc3` | MTF intraday backtest | timeframe MA round-trip | `supportMatrix` |
 | `golden-orders-exits` | qty_percent、strategy.order、pending、bracket、cancel | `TestGoldenExamplesAnalyzeAndPlan` | no indicator key required | qty_percent、strategy.order、close_all、pending/bracket/cancel backtests | order forms parse test | `orderModes` |
-| `golden-udf-static-for` | expression UDF、static for、history、input.int | `TestGoldenExamplesAnalyzeAndPlan` | `ma:EMA:3` | UDF/static for backtest | Pine snippet fallback for non-visual lines | `unsupportedPatterns` |
+| `golden-udf-static-for` | expression UDF、static for、history、input.int | `TestGoldenExamplesAnalyzeAndPlan` | `ma:EMA:3` | UDF/static for backtest | direct Pine workbench for non-visual-standard lines | `unsupportedPatterns` |
 
 ## Compatibility Matrix
 
 | Compatibility item | Expected behavior | Coverage |
 | --- | --- | --- |
 | close legacy indicator keys | close/default source keeps legacy keys; volume/hlc3/open/high/low use source-aware keys | `TestPlanRequirementsPreservesLegacyCloseKeysAndSourceAwareKeys` |
-| `pineSnippet` fallback | unsupported Pine lines and old codeBlock annotations become `pineSnippet` in Pine reverse parsing | `strategyVisualBuilderPine.test.ts` snippet tests |
-| legacy `codeBlock` visual model | old visual model still reads and renders a deprecation log; custom JS is not emitted | `strategyVisualBuilderPine.test.ts` legacy codeBlock test |
-| legacy unified `technicalIndicator` | known old blocks auto-migrate to `getTechnicalIndicator` + `technicalIndicatorCondition`; unknown old blocks remain read-only | `strategyVisualBuilderMigration.test.ts` fixture matrix |
+| unsupported visual reverse parse | unsupported Pine lines and old flow annotations fail Pine -> visualModel sync with line diagnostics; users continue in the direct Pine workbench | `strategyVisualBuilderPine.test.ts` unsupported-line and old-annotation rejection tests |
+| legacy `codeBlock` visual model | old visual models are rejected instead of read, migrated, or emitted | `strategyVisualBuilderPine.test.ts` legacy codeBlock rejection test |
+| legacy unified `technicalIndicator` | old unified indicator blocks are rejected; only standard Pine visual blocks are accepted | `strategyVisualBuilderPine.test.ts` legacy technicalIndicator rejection test |
 | ADK/spec payload | `supportMatrix`、`compatibilityLayers`、`unsupportedPatterns`、`goldenScripts` survive the tool layer | `TestADKStrategyPineSpecToolReturnsStructuredPayload` |
 
 ## Remaining Gaps Before v1.0
 
 - No full TradingView broker emulator parity: OCA、partial fill、intrabar execution remain unsupported.
-- No arrays/maps/matrices/library/import support.
+- Arrays/maps/matrices and pure object/method subsets are supported where documented in the current Pine spec; full TradingView library/import execution remains unsupported.
 - Frontend remains a visual editing layer for common strategies, not a complete Pine IDE.
-- Internal `codeBlockCount` naming is intentionally retained until v1.0 cleanup to avoid low-value API churn.
+- No `pineSnippet` fallback remains in the visual model; directly authored Pine that cannot be standardized stays in the Pine workbench.

@@ -17,7 +17,7 @@ The score remains an engineering estimate, not TradingView certification.
 - `request.security` tuple assignment supports a white-listed same-symbol/static-timeframe subset such as `[mtfClose, mtfFast] = request.security(syminfo.tickerid, "15", [close, ta.ema(close, 5)])`.
 - MTF tuple assignment supports common multi-return indicators lowered through existing runtime objects: `ta.macd`, `ta.bb`, `ta.supertrend`, and `ta.kc`.
 - Tuple aliases are normalized through the same expression path as ordinary assignments, including member aliases, history/source lowering, ternary, and math namespace replacement.
-- Planner and runtime indicator binding now recognize MTF top-level `macd(...)` and `bollinger(...)` forms produced by tuple lowering.
+- Planner and runtime indicator binding now recognize the internal MTF MACD and Bollinger forms produced by `request.security(..., ta.macd/ta.bb(...))` lowering.
 - `TestPineV16MigrationCorpusGate` raises the migration corpus to at least 130 scripts with at least 40 runnable cases and requires weighted corpus success of at least 92%.
 
 ## Important Boundaries

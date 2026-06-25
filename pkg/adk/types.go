@@ -1,6 +1,9 @@
 package adk
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 const (
 	PermissionModeApproval     = "approval"
@@ -565,6 +568,19 @@ type SessionContextSnapshot struct {
 	DegradedSummary            bool                    `json:"degradedSummary"`
 }
 
+var (
+	nowStringMu   sync.Mutex
+	lastNowString time.Time
+)
+
 func nowString() string {
-	return time.Now().UTC().Format(time.RFC3339Nano)
+	nowStringMu.Lock()
+	defer nowStringMu.Unlock()
+
+	now := time.Now().UTC()
+	if !lastNowString.IsZero() && !now.After(lastNowString) {
+		now = lastNowString.Add(time.Nanosecond)
+	}
+	lastNowString = now
+	return now.Format(time.RFC3339Nano)
 }

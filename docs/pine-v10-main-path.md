@@ -5,7 +5,7 @@ v1.0 confirms JFTrade Pine v6 as the primary strategy path for the executable Pi
 ## Scope
 
 - Strategy definition, preview, backtest, instantiation, runtime lifecycle, and ADK tooling use `sourceFormat=pine-v6` and `runtime=pine-go-plan`.
-- New authoring paths generate Pine v6 script, standard Pine visual blocks, or `pineSnippet` fallbacks.
+- New authoring paths generate Pine v6 script or standard Pine visual blocks. Pine that cannot be represented by standard visual blocks remains editable in the direct Pine workbench instead of being converted into visual snippets.
 - Golden scripts cover MA cross, RSI/CCI/Williams/Bollinger, Donchian, volume MA, SAR, MTF, qty_percent, pending/bracket/cancel, UDF, and static for.
 - Unsupported TradingView features such as arrays, maps, matrices, library/import, dynamic requests, and full broker emulator semantics remain explicit diagnostics or out of scope.
 
@@ -14,8 +14,8 @@ v1.0 confirms JFTrade Pine v6 as the primary strategy path for the executable Pi
 - `codeBlock` and unified `technicalIndicator` are not valid v1.0 visual blocks.
 - Legacy visual models are rejected instead of auto-migrated.
 - Explicit non-Pine source/runtime records are rejected instead of normalized to default Pine.
-- `pineSnippet` remains the supported fallback for legal Pine statements that cannot be represented by standard visual blocks.
-- The reverse parser reports `pineSnippetCount` for fallback snippets.
+- `pineSnippet` is not a supported visual block or reverse-parse fallback.
+- The reverse parser fails Pine -> visualModel synchronization on unsupported executable or visual-only lines and reports line diagnostics.
 
 ## Gate
 

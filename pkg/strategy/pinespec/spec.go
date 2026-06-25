@@ -823,7 +823,7 @@ func indicatorFunctions() []map[string]any {
 		{"name": "ta.wpr", "signature": "ta.wpr(length)", "notes": "lower 到 JFTrade Williams %R 指标。"},
 		{"name": "ta.vwap", "signature": "ta.vwap(source?) / ta.vwap(source, timeframe.change(\"D\"|\"W\"|\"M\"))", "notes": "支持交易日 VWAP，以及闭盘日/周/月锚定重置；无参数默认 hlc3。"},
 		{"name": "ta.mfi", "signature": "ta.mfi(source, length)", "notes": "基于 source 与 volume 的 Money Flow Index。"},
-		{"name": "ta.dmi/ta.adx", "signature": "[plusDI, minusDI, adx] = ta.dmi(diLength, adxSmoothing) / ta.adx(length)", "notes": "支持 DMI 三元组和常见 ta.adx(length) 写法。"},
+		{"name": "ta.dmi", "signature": "[plusDI, minusDI, adx] = ta.dmi(diLength, adxSmoothing)", "notes": "支持 DMI 三元组；adx 请读取第三个 tuple 值或 dmi 对象字段，不提供 JFTrade-only ta.adx(length) 公开入口。"},
 		{"name": "ta.supertrend", "signature": "[line, direction] = ta.supertrend(factor, atrPeriod)", "notes": "支持三元组式绑定中的 line/direction。"},
 		{"name": "ta.sar", "signature": "ta.sar(start, increment, max)", "notes": "Parabolic SAR；生成 sar:start:increment:max requirement，snapshot 提供 value/previous。"},
 		{"name": "ta.linreg", "signature": "ta.linreg(source, length, offset)", "notes": "线性回归值；offset 必须为非负静态整数。"},
@@ -898,7 +898,7 @@ func supportMatrix() []map[string]any {
 		{"capability": "v2.2 structured loops, tuple and pure object subset", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "结构化 AST lowering 消费缩进树；2-8 元 tuple literal/destructure、静态同标的 request.security tuple、动态 for/while/break/continue、纯 UDT constructor 与单表达式 method 已进入 420+ 语料门禁。"},
 		{"capability": "v2.3 collection, pure object and MTF expression expansion", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array copy/slice/reverse/fill/includes/indexof/min/max/avg/sum、matrix fill/copy/reshape/add/remove、命名 constructor/method 参数、多语句纯 method、局部 object 字段重赋值，以及 request.security 纯 collection/object 表达式已进入 850+ 语料门禁。"},
 		{"capability": "v2.4 collection/map, MTF stoch and persistent object expansion", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array.from/concat/join/sort/sort_indices/binary_search/median/mode/range、map.copy/keys/values、order.ascending/descending、MTF ta.stoch、静态 for 条件 break/continue runtime fallback、持久 object 字段重赋值已进入 1250+ 语料门禁。"},
-		{"capability": "v2.5 array stats, string and timeframe helpers", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array abs/binary_search_leftmost/rightmost/percentrank/percentile/stdev/variance/covariance、str.* helper、time_close 与 timeframe.change 已进入 1450+ 语料门禁。"},
+		{"capability": "v2.5 array stats, string and timeframe helpers", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array abs/binary_search_leftmost/rightmost/percentrank/percentile/stdev/variance/covariance、str.length/contains/pos/substring/replace/upper/lower/format/tostring、time_close 与 timeframe.change 已进入 1450+ 语料门禁。"},
 		{"capability": "v2.6 collection iteration, history and object fields", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array for-in、只读 collection history snapshot、inline collection constructor expression、UDT collection fields 与 library/export metadata 诊断已进入 1650+ 语料门禁。"},
 		{"capability": "v2.7 collection/timeframe and MTF helper expansion", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array history aggregate snapshot、map keys/values iteration、matrix rows/columns/get/set、timeframe.in_seconds/timeframe.multiplier/timeframe.isseconds 与 request.security 纯 helper 表达式已进入 1900+ 语料门禁。"},
 		{"capability": "v2.8 object history, method chain and export metadata", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "box[1].field object history read、无副作用 method chain、request.security object method expression 与 export function/type/method kind metadata 已进入 2200+ 语料门禁。"},
@@ -1051,7 +1051,7 @@ func sectionDetails(section string) []string {
 			"v3.0 保持闭盘可执行 Pine v6 子集作为策略定义、预览、回测、实例化、运行和 ADK 工具主路径。",
 			"v3.0 让 collection/map/matrix 扩展、array stats、字符串/timeframe helper、结构化 AST、通用 tuple、动态循环、纯 UDT constructor/method、持久 object 字段更新、object collection fields、collection history aggregate、object history read/method receiver、method chain、MTF stoch、稳定 semantic declaration metadata 和 visual metadata 可分析、可解释、可分层执行；library/import 和完整 TradingView method/type 系统仍只进入 metadata/diagnostics。",
 			"新增 Pine 能力必须同步更新 parser lowering、semantic summary、IR requirements、indicator/runtime lookup、规范输出和至少一层可执行测试。",
-			"前端不是完整 Pine IDE；流程图覆盖常用策略 authoring，无法标准化的 Pine 行保留为 pineSnippet。",
+			"前端不是完整 Pine IDE；流程图覆盖常用策略 authoring，无法标准化的 Pine 行会返回行号诊断，请继续在 Pine 工作台编辑。",
 		}
 	case "unsupported":
 		return []string{

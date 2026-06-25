@@ -51,6 +51,49 @@ else
 	}
 }
 
+func TestCompileRejectsPublicInternalHelperCalls(t *testing.T) {
+	tests := []struct {
+		name string
+		line string
+		want string
+	}{
+		{name: "ma", line: "fast = ma(EMA, 14)", want: "ma() is an internal JFTrade helper"},
+		{name: "security source", line: "daily = security_source(close, day)", want: "security_source() is an internal JFTrade helper"},
+		{name: "bollinger", line: "band = bollinger(20, 2)", want: "bollinger() is an internal JFTrade helper"},
+		{name: "barssince", line: "bars = barssince(close > open)", want: "barssince() is an internal JFTrade helper"},
+		{name: "valuewhen", line: "last = valuewhen(close > open, close, 0)", want: "valuewhen() is an internal JFTrade helper"},
+		{name: "history", line: "prev = history(close, 1)", want: "history() is an internal JFTrade helper"},
+		{name: "ifelse", line: "picked = ifelse(close > open, close, open)", want: "ifelse() is an internal JFTrade helper"},
+		{name: "cross over", line: "x = cross_over(fast, slow)", want: "cross_over() is an internal JFTrade helper"},
+		{name: "cross under", line: "x = cross_under(fast, slow)", want: "cross_under() is an internal JFTrade helper"},
+		{name: "notify", line: "notify(\"hello\")", want: "notify() is an internal JFTrade helper"},
+		{name: "ta adx shortcut", line: "adx = ta.adx(14)", want: "ta.adx() is a JFTrade-only shortcut"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Compile(`//@version=6
+strategy("reject helpers", overlay=true)
+` + tt.line)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("Compile() error = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestCompileAcceptsNativePineIndicatorPublicEntry(t *testing.T) {
+	_, err := Compile(`//@version=6
+strategy("native indicators", overlay=true)
+fast = ta.ema(close, 14)
+band = ta.bb(close, 20, 2)
+daily = request.security(syminfo.tickerid, "D", ta.sma(close, 20))
+if close > fast and close < band.upper and daily > 0
+    strategy.entry("Long", strategy.long, qty=1)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+}
+
 func TestCompileUsesStrategyDefaultQuantityForEntryWithoutQty(t *testing.T) {
 	compilation, err := Compile(`//@version=6
 strategy("Default Qty", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10, pyramiding=2)
@@ -516,6 +559,131 @@ if mtfClose > mtfFast and fast > fast[1]
 	}
 	if !foundEMA || !foundSecurity {
 		t.Fatalf("function calls = %#v", analysis.Semantic.FunctionCalls)
+	}
+}
+
+func TestAnalyzeScriptReportsSupportedTASemanticSignatures(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("TA Semantic", overlay=true)
+hh = ta.highest(high, 20)
+lb = ta.lowestbars(low, 5)
+delta = ta.change(close)
+rank = ta.percentrank(close, 14)
+width = ta.kcw(close, 20, 1.5)
+almaValue = ta.alma(close, 9, 0.85, 6)
+cciValue = ta.cci(hlc3, 20)
+if ta.crossover(close, open) and ta.barssince(close > open) > 2
+    strategy.entry("Long", strategy.long, qty=1)`, AnalysisOptions{IncludeAST: true, IncludeSemantic: true})
+	if !analysis.OK {
+		t.Fatalf("AnalyzeScript() diagnostics = %#v", analysis.Diagnostics)
+	}
+	if analysis.Semantic == nil {
+		t.Fatal("Semantic is nil")
+	}
+	calls := map[string]SemanticFunctionCall{}
+	for _, call := range analysis.Semantic.FunctionCalls {
+		calls[call.Name] = call
+	}
+	for _, name := range []string{
+		"ta.highest",
+		"ta.lowestbars",
+		"ta.change",
+		"ta.percentrank",
+		"ta.kcw",
+		"ta.alma",
+		"ta.cci",
+		"ta.crossover",
+		"ta.barssince",
+	} {
+		call, ok := calls[name]
+		if !ok {
+			t.Fatalf("semantic call %s missing from %#v", name, analysis.Semantic.FunctionCalls)
+		}
+		if !call.Supported || call.Signature == "" {
+			t.Fatalf("semantic call %s = %#v, want supported signature", name, call)
+		}
+	}
+}
+
+func TestAnalyzeScriptReportsSupportedUtilitySemanticSignatures(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("Utility Semantic", overlay=true)
+plain = input(5, "Plain")
+lengthInput = input.int(14, "Length")
+factor = input.float(2.0, "Factor")
+enabled = input.bool(true, "Enabled")
+label = input.string("alpha", "Label")
+src = input.source(close, "Source")
+startTime = input.time(timestamp(2026, 1, 1), "Start")
+tf = input.timeframe("15", "TF")
+lineColor = input.color(color.green, "Line")
+average = math.avg(close, open)
+rounded = math.round_to_mintick(average)
+wide = math.max(close, open)
+narrow = math.min(close, open)
+root = math.sqrt(4)
+distance = math.abs(wide - narrow)
+roundedDistance = math.round(distance)
+ceiling = math.ceil(root)
+score = math.sign(wide - narrow) + math.floor(root) + ceiling + math.pow(2, 3) + math.log(10)
+upper = str.upper(label)
+lower = str.lower(label)
+length = str.length(label)
+asText = str.tostring(length)
+position = str.pos(upper, "A")
+part = str.substring(upper, 0, 2)
+clean = str.replace(part, "A", lower)
+text = str.format("{0}:{1}", clean, length)
+if enabled and str.contains(text, "a") and rounded > 0 and roundedDistance >= 0 and position >= 0 and score > 0
+    strategy.entry("Long", strategy.long, qty=1)`, AnalysisOptions{IncludeAST: true, IncludeSemantic: true})
+	if !analysis.OK {
+		t.Fatalf("AnalyzeScript() diagnostics = %#v", analysis.Diagnostics)
+	}
+	if analysis.Semantic == nil {
+		t.Fatal("Semantic is nil")
+	}
+	calls := map[string]SemanticFunctionCall{}
+	for _, call := range analysis.Semantic.FunctionCalls {
+		calls[call.Name] = call
+	}
+	for _, name := range []string{
+		"input.int",
+		"input.float",
+		"input.bool",
+		"input.string",
+		"input.source",
+		"input.time",
+		"input.timeframe",
+		"input.color",
+		"math.round_to_mintick",
+		"math.avg",
+		"math.sign",
+		"math.max",
+		"math.min",
+		"math.floor",
+		"math.ceil",
+		"math.abs",
+		"math.round",
+		"math.sqrt",
+		"math.pow",
+		"math.log",
+		"str.format",
+		"str.upper",
+		"str.lower",
+		"str.length",
+		"str.tostring",
+		"str.pos",
+		"str.substring",
+		"str.replace",
+		"str.contains",
+	} {
+		call, ok := calls[name]
+		if !ok {
+			t.Fatalf("semantic call %s missing from %#v", name, analysis.Semantic.FunctionCalls)
+		}
+		if !call.Supported || call.Signature == "" {
+			t.Fatalf("semantic call %s = %#v, want supported signature", name, call)
+		}
 	}
 }
 
@@ -2363,9 +2531,9 @@ func TestCompileSupportsExpressionUDFAndStaticForUnroll(t *testing.T) {
 	compilation, err := Compile(`//@version=6
 strategy("UDF For", overlay=true)
 isBull(src) => src > src[1]
-ma(src, len) => ta.ema(src, len)
+smooth(src, len) => ta.ema(src, len)
 len = input.int(3, "Length")
-fast = ma(close, len)
+fast = smooth(close, len)
 sum = 0
 for i = 0 to 3
     sum := sum + close[i]

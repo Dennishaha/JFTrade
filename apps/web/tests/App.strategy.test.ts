@@ -1130,13 +1130,10 @@ describe("Strategy page", () => {
 
     const visualModel = wrapper.findComponent(StrategyLogicFlowDesigner)
       .props("modelValue") as NonNullable<StrategyDefinitionDocument["visualModel"]>;
-    expect(
-      visualModel.nodes.some((node) =>
-        ["getTechnicalIndicator", "placeOrder", "stopLoss"].includes(
-          String(node.properties.blockKind),
-        ),
-      ),
-    ).toBe(true);
+    const blockKinds = visualModel.nodes.map((node) => String(node.properties.blockKind));
+    expect(blockKinds).not.toContain("codeBlock");
+    expect(blockKinds).not.toContain("technicalIndicator");
+    expect(blockKinds).not.toContain("pineSnippet");
 
     wrapper.unmount();
   });

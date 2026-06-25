@@ -69,6 +69,27 @@ func replaceTAMacd(expression string) string {
 	}
 }
 
+func replaceTABollinger(expression string) string {
+	prefix := "ta.bb("
+	for {
+		start := strings.Index(strings.ToLower(expression), prefix)
+		if start < 0 {
+			return expression
+		}
+		open := start + len(prefix) - 1
+		close := matchingParen(expression, open)
+		if close < 0 {
+			return expression
+		}
+		args := splitArguments(expression[open+1 : close])
+		replacement := "bollinger(20, 2)"
+		if len(args) >= 3 {
+			replacement = fmt.Sprintf("bollinger(%s, %s)", strings.TrimSpace(args[1]), strings.TrimSpace(args[2]))
+		}
+		expression = expression[:start] + replacement + expression[close+1:]
+	}
+}
+
 func replaceTAMovingAverageFunction(expression string, name string, averageType string) string {
 	prefix := "ta." + name + "("
 	for {

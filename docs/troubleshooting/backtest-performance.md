@@ -184,7 +184,7 @@ JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
 这轮回测语义修正，本质上是在修两类旧错配：
 
 - 旧版 store 读取侧没有真正把 `useExtendedHours` 下沉到数据版本选择，extended replay 仍可能读到只按 regular 口径准备的 higher-period 数据。
-- 旧版 `ma(..., day/week/month)`、`stopLoss(..., day/week/month)` 本质上只是 `resolveBarCount` 的固定 bar 数换算；例如 US `5m` 上的 `20 day`，旧语义等价于固定 `20 * 390 / 5 = 1560` 根 bar，而不是“20 个真实 trading day”。
+- 旧版 day/week/month moving-average requirement 与保护窗口本质上只是 `resolveBarCount` 的固定 bar 数换算；例如 US `5m` 上的日线 MA20，旧语义等价于固定 `20 * 390 / 5 = 1560` 根 bar，而不是“20 个真实 trading day”。
 
 现在的设计变成了：
 
@@ -202,7 +202,7 @@ JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
 
 ## 已验证过的一类 replay 热点
 
-在 US.TME 2026-03 + 双均线模板 + `ma(..., day)` 的真实 replay 上，已经验证过一类高概率热点：
+在 US.TME 2026-03 + 双均线模板 + 日线 MA 的真实 replay 上，已经验证过一类高概率热点：
 
 - `pkg/strategy/indicatorruntime` 的 trading-window moving-average path
 - 具体表现是每根 bar 反复构造 day/week/month window 的 indices/values/volumes
@@ -214,7 +214,7 @@ JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
 - trading-period label start 改成直接按本地交易日推导，不再让 replay path 依赖字符串 key 往返
 - 在此基础上，trading-window MA 主路径又进一步改成 online aggregation：`SMA/MA/BOLL`、`LWMA`、`VWMA` 现在在倒序扫描 `endTimes` 时直接聚合，不再构造 `selected []int` 或继续物化 values/volumes；`EMA/EXPMA`、`SMMA`、`TMA`、`HMA` 仍保留 materialize fallback 以降低语义风险
 - 在 online aggregation 之上，`current` / `previous` snapshot 又进一步合成了单趟扫描，避免为同一根 bar 的 snapshot 计算重复调用一遍 `TradingPeriodLabelStart`
-- 在单趟 snapshot 扫描之上，runtime 又开始在 `push()` 时增量维护 `day/week/month` 的 trading-period label key，让 fast/slow 两个 `ma(..., day)` 在 snapshot 时直接复用，不再重复调用 `TradingPeriodLabelStart`
+- 在单趟 snapshot 扫描之上，runtime 又开始在 `push()` 时增量维护 `day/week/month` 的 trading-period label key，让 fast/slow 两个日线 MA 在 snapshot 时直接复用，不再重复调用 `TradingPeriodLabelStart`
 - `indicatorRuntime` 的核心 price/session/label 序列现在会按 `seriesLimit` 预分配，减少 replay 期间 append 扩容带来的额外 alloc
 
 如果后续 replay 再次回升，优先回看：

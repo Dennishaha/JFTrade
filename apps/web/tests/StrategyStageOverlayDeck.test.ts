@@ -22,7 +22,7 @@ function createBindings() {
       createdAt: "",
       updatedAt: "",
     }),
-    selectedVisualNodeText: ref("Pine 片段"),
+    selectedVisualNodeText: ref("输出日志"),
     selectedVisualNodeMessage: ref(""),
     selectedVisualNodeCode: ref("plot(close)"),
     selectedVisualNodePeriod: ref("14"),
@@ -92,7 +92,7 @@ function createBindings() {
     selectedAdvancedSecondarySource: ref("open"),
     selectedAdvancedTertiarySource: ref("high"),
     selectedAdvancedNumber: ref("1"),
-    selectedAdvancedExpression: ref("supertrend(3, 10)"),
+    selectedAdvancedExpression: ref("ta.supertrend(3, 10)"),
     selectedAdvancedOption: ref("direction"),
     selectedAdvancedReference: ref(""),
     selectedTimeFilterMode: ref("between"),
@@ -120,18 +120,18 @@ function mountOverlay(overrides: Record<string, unknown> = {}) {
         type: "rect",
         x: 0,
         y: 0,
-        text: "Pine 片段",
-        properties: { blockKind: "pineSnippet" },
+        text: "输出日志",
+        properties: { blockKind: "log", message: "hello" },
       },
-      selectedVisualKind: "pineSnippet",
-      selectedVisualBlockLabel: "Pine 片段",
+      selectedVisualKind: "log",
+      selectedVisualBlockLabel: "输出日志",
       selectedVisualBlockDescription: "",
       selectedVisualSupport: {
-        status: "snippetOnly",
-        label: "片段保留",
-        message: "该片段会原样写回 Pine；是否可运行取决于 Pine 分析结果。",
+        status: "supported",
+        label: "可运行",
+        message: "该图块会生成 Pine v6 日志语句。",
       },
-      showsCodeInput: true,
+      showsCodeInput: false,
       showsVisualExpressionInputs: false,
       showsAdvancedPineBlockInputs: false,
       showsTimeFilterInputs: false,
@@ -180,11 +180,11 @@ function mountOverlay(overrides: Record<string, unknown> = {}) {
 }
 
 describe("StrategyStageOverlayDeck", () => {
-  it("keeps Pine snippet input editable", () => {
+  it("does not expose a Pine snippet editor", () => {
     const wrapper = mountOverlay();
 
-    expect(wrapper.text()).toContain("Pine 片段");
-    expect(wrapper.get("textarea").attributes("readonly")).toBeUndefined();
+    expect(wrapper.text()).not.toContain("Pine 片段");
+    expect(wrapper.text()).not.toContain("代码片段");
   });
 
   it("renders advanced Pine indicator controls when requested by the capability surface", () => {

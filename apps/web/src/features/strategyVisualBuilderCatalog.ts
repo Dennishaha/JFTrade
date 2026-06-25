@@ -19,7 +19,6 @@ import {
 export type StrategyBlockKind =
   | "onInit"
   | "onKLineClosed"
-  | "pineSnippet"
   | "strategyInput"
   | "derivedSeries"
   | "mtfSeries"
@@ -319,7 +318,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
   {
     kind: "seriesCondition",
     label: "序列条件判断",
-    description: "基于价格、成交量或派生序列做比较、rising/falling、barssince/valuewhen 判断。",
+    description: "基于价格、成交量或派生序列做比较、ta.rising/ta.falling、ta.barssince/ta.valuewhen 判断。",
     shape: "diamond",
     text: "Close > 阈值",
     properties: {
@@ -337,20 +336,6 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
     },
     accent: "#7c3aed",
     paletteVisible: true,
-  },
-  {
-    kind: "pineSnippet",
-    label: "Pine 片段",
-    description: "保留当前不能稳定映射成标准图块的 Pine v6 语句；保存时会原样写回 Pine。",
-    shape: "rect",
-    text: "Pine 片段",
-    properties: {
-      blockKind: "pineSnippet",
-      code: "log.info(\"保留 Pine 片段\")",
-      snippetSource: "manualSnippet",
-    },
-    accent: "#475569",
-    paletteVisible: false,
   },
   {
     kind: "strategyInput",
@@ -517,7 +502,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
   {
     kind: "notify",
     label: "发送通知",
-    description: "调用 notify，把策略信号发到控制台通知流。",
+    description: "生成 alert()，把策略信号发到控制台通知流。",
     shape: "rect",
     text: "发送通知",
     properties: {

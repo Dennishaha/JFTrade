@@ -390,7 +390,7 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 
 func parseLogOrAlert(line parsedLine) (strategyir.Statement, bool) {
 	lower := strings.ToLower(line.trimmed)
-	if strings.HasPrefix(lower, "alert(") || strings.HasPrefix(lower, "notify(") {
+	if strings.HasPrefix(lower, "alert(") {
 		return &strategyir.NotifyStmt{Range: strategyir.SourceRange{StartLine: line.number, EndLine: line.number}, Message: firstStringArgument(line.trimmed)}, true
 	}
 	if strings.HasPrefix(lower, "log.info(") || strings.HasPrefix(lower, "log.warning(") || strings.HasPrefix(lower, "log.error(") {

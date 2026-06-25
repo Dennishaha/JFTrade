@@ -215,7 +215,7 @@ var capabilityDefinitions = []capabilityDefinition{
 	unsupportedCapability("order.oca_partial_fill", 2.2, "OCA、partial fill 和完整 broker emulator 暂不支持。"),
 	unsupportedCapability("order.intrabar_tick_recalc", 1.7, "tick 级重算和 intrabar 路径推断暂不支持。"),
 	unsupportedCapability("order.full_tv_broker_emulator", 1.4, "完整 TradingView broker emulator 不属于当前目标。"),
-	partialCapability("tooling.visual_builder_roundtrip", 0.6, "无法映射的新语法保留为 pineSnippet，不扩张为完整 Pine IDE。"),
+		partialCapability("tooling.visual_builder_roundtrip", 0.6, "流程图反解只覆盖可标准化 Pine v6 子集；无法映射的新语法返回行号诊断，请继续在 Pine 工作台编辑。"),
 	supportedWeightedCapability("tooling.migration_corpus_v14", 4),
 	supportedWeightedCapability("tooling.migration_corpus_v15", 6),
 	supportedWeightedCapability("tooling.migration_corpus_v16", 8),

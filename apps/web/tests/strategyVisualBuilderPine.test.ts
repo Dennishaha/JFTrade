@@ -243,7 +243,6 @@ describe("strategyVisualBuilderPine", () => {
     if (!parsed.ok) {
       return;
     }
-    expect(parsed.pineSnippetCount).toBe(0);
     expect(parsed.model.nodes.find((node) => node.properties.blockKind === "timeFilter")?.properties.mode).toBe("between");
     expect(parsed.model.nodes.find((node) => node.properties.blockKind === "sessionFilter")?.properties.scope).toBe("market");
     expect(parsed.model.nodes.find((node) => node.properties.blockKind === "mtfSeries")?.properties.indicatorExpressionAst).toMatchObject({ kind: "call", functionName: "ta.ema" });
@@ -364,7 +363,6 @@ strategy.close_all()`);
     expect(orderNodes[2]?.properties.quantityMode).toBe("equityPercent");
     expect(orderNodes[2]?.properties.quantityValue).toBe(50);
     expect(orderNodes[3]?.properties.pineOrderFunction).toBe("strategy.close_all");
-    expect(parsed.pineSnippetCount).toBe(0);
   });
 
   it("generates and parses expanded Pine order actions", () => {
@@ -455,7 +453,6 @@ strategy.close_all()`);
       return;
     }
 
-    expect(parsed.pineSnippetCount).toBe(0);
     expect(parsed.model.nodes.find((node) => node.id === "net-order")?.properties).toMatchObject({
       orderAction: "order",
       orderId: "Breakout",
@@ -559,23 +556,22 @@ strategy.close_all()`);
 
     const script = buildStrategyPineFromVisualModel(model, { name: "Series Conditions" });
     expect(script).toContain("if volume > 1000000");
-    expect(script).toContain("if rising(close, 3)");
-    expect(script).toContain("if barssince(close > 520) < 5");
-    expect(script).toContain("if valuewhen(close > 520, close, 0) > 500");
+    expect(script).toContain("if ta.rising(close, 3)");
+    expect(script).toContain("if ta.barssince(close > 520) < 5");
+    expect(script).toContain("if ta.valuewhen(close > 520, close, 0) > 500");
 
     const parsed = buildStrategyVisualModelFromPine(`//@version=6
 strategy("Series", overlay=true)
 if volume > 1000000
-    if rising(close, 3)
-        if barssince(close > 520) < 5
-            if valuewhen(close > 520, close, 0) > 500
+    if ta.rising(close, 3)
+        if ta.barssince(close > 520) < 5
+            if ta.valuewhen(close > 520, close, 0) > 500
                 strategy.entry("Long", strategy.long, qty=1)
 `);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       return;
     }
-    expect(parsed.pineSnippetCount).toBe(0);
     const seriesNodes = parsed.model.nodes.filter((node) => node.properties.blockKind === "seriesCondition");
     expect(seriesNodes.map((node) => node.properties.mode)).toEqual([
       "compare",
@@ -583,6 +579,16 @@ if volume > 1000000
       "barssince",
       "valuewhen",
     ]);
+
+    const legacyParsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Legacy Series", overlay=true)
+if rising(close, 3)
+    if barssince(close > 520) < 5
+        if valuewhen(close > 520, close, 0) > 500
+            strategy.entry("Long", strategy.long, qty=1)
+`);
+    expect(legacyParsed.ok).toBe(false);
+    expect(legacyParsed.error).toContain("第 3 行无法同步为流程图：if rising(close, 3)");
   });
 
   it("generates and parses strategy input, derived series, MTF series, and state blocks", () => {
@@ -594,7 +600,7 @@ if volume > 1000000
         { id: "on-kline-root", type: "circle", x: 120, y: 180, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
         { id: "previous-close", type: "rect", x: 360, y: 180, text: "派生 prev_close", properties: { blockKind: "derivedSeries", variableName: "prev_close", mode: "history", source: "close", historyOffset: 1 } },
         { id: "mtf-close", type: "rect", x: 600, y: 180, text: "MTF close", properties: { blockKind: "mtfSeries", variableName: "daily_close", timeframe: "D", expressionType: "history", source: "close", historyOffset: 1 } },
-        { id: "mtf-trend", type: "rect", x: 600, y: 280, text: "MTF trend", properties: { blockKind: "mtfSeries", variableName: "daily_trend", timeframe: "D", expressionType: "indicator", indicatorExpression: "supertrend(3, 10)", mtfField: "direction" } },
+        { id: "mtf-trend", type: "rect", x: 600, y: 280, text: "MTF trend", properties: { blockKind: "mtfSeries", variableName: "daily_trend", timeframe: "D", expressionType: "indicator", indicatorExpression: "ta.supertrend(3, 10)", mtfField: "direction" } },
         { id: "range-stat", type: "rect", x: 720, y: 280, text: "集合统计", properties: { blockKind: "collectionStat", variableName: "range_median", statFunction: "median", sourceA: "close", sourceB: "open", sourceC: "high" } },
         { id: "armed-state", type: "rect", x: 840, y: 180, text: "状态 armed", properties: { blockKind: "stateVariable", variableName: "armed", valueType: "bool", initialValue: false } },
         { id: "armed-update", type: "rect", x: 1080, y: 180, text: "更新 armed", properties: { blockKind: "stateUpdate", variableName: "armed", expression: "close > prev_close" } },
@@ -614,7 +620,7 @@ if volume > 1000000
     expect(script).toContain('length = input.int(20, "Length")');
     expect(script).toContain("prev_close = close[1]");
     expect(script).toContain('daily_close = request.security(syminfo.tickerid, "D", close[1])');
-    expect(script).toContain('daily_trend = request.security(syminfo.tickerid, "D", supertrend(3, 10).direction)');
+    expect(script).toContain('daily_trend = request.security(syminfo.tickerid, "D", ta.supertrend(3, 10).direction)');
     expect(script).toContain("range_median = array.from(close, open, high).median()");
     expect(script).toContain("var armed = false");
     expect(script).toContain("armed := close > prev_close");
@@ -624,7 +630,6 @@ if volume > 1000000
     if (!parsed.ok) {
       return;
     }
-    expect(parsed.pineSnippetCount).toBe(0);
     expect(parsed.model.nodes.some((node) => node.properties.blockKind === "strategyInput")).toBe(true);
     expect(parsed.model.nodes.some((node) => node.properties.blockKind === "derivedSeries")).toBe(true);
     expect(parsed.model.nodes.some((node) => node.properties.blockKind === "mtfSeries")).toBe(true);
@@ -664,44 +669,25 @@ if volume > 1000000
     expect(exitNode?.properties).toMatchObject({ mode: "bracketExit", quantityPercentage: 50 });
   });
 
-  it("keeps unsupported collection and visual Pine as typed snippet nodes", () => {
+  it("rejects unsupported collection and visual Pine when converting to visual blocks", () => {
     const parsed = buildStrategyVisualModelFromPine(`//@version=6
 strategy("Snippet Types", overlay=true)
 values = array.from(close, open)
 plot(close)
 `);
 
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      return;
-    }
-    const snippets = parsed.model.nodes.filter((node) => node.properties.blockKind === "pineSnippet");
-    expect(snippets.map((node) => node.properties.snippetSource)).toEqual([
-      "advancedCollection",
-      "visualOnly",
-    ]);
+    expect(parsed.ok).toBe(false);
+    expect(parsed.error).toContain("第 3 行无法同步为流程图：values = array.from(close, open)");
   });
 
-  it("keeps unsupported Pine lines as Pine snippet nodes", () => {
+  it("rejects unsupported Pine lines instead of creating visual snippets", () => {
     const parsed = buildStrategyVisualModelFromPine(`//@version=6
 strategy("Snippet", overlay=true)
 plot(close)
 `);
 
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      return;
-    }
-
-    const snippet = parsed.model.nodes.find((node) => node.properties?.blockKind === "pineSnippet");
-    expect(snippet?.properties.code).toBe("plot(close)");
-    expect(snippet?.properties.snippetSource).toBe("visualOnly");
-    expect(parsed.model.nodes.some((node) => node.properties?.blockKind === "codeBlock")).toBe(false);
-    expect(parsed.pineSnippetCount).toBe(1);
-
-    const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Snippet" });
-    expect(script).toContain("plot(close)");
-    expect(script).not.toContain("代码块已废弃");
+    expect(parsed.ok).toBe(false);
+    expect(parsed.error).toContain("第 3 行无法同步为流程图：plot(close)");
   });
 
   it("rejects old codeBlock Pine annotations instead of converting them", () => {
@@ -717,7 +703,7 @@ plot(close)
     expect(parsed.error).toContain("旧 codeBlock / technicalIndicator");
   });
 
-  it("omits legacy codeBlock visual models when generating Pine", () => {
+  it("rejects legacy codeBlock visual models when generating Pine", () => {
     const model: StrategyVisualModelDocument = {
       engine: "logic-flow",
       version: 1,
@@ -752,12 +738,11 @@ plot(close)
       ],
     };
 
-    const script = buildStrategyPineFromVisualModel(model, { name: "Legacy Code" });
-    expect(script).not.toContain("@jftradeFlowBlockKind codeBlock");
-    expect(script).not.toContain("console.log('legacy')");
+    expect(() => buildStrategyPineFromVisualModel(model, { name: "Legacy Code" }))
+      .toThrow("旧流程图块 codeBlock 不再支持");
   });
 
-  it("omits legacy unified technicalIndicator visual models when generating Pine", () => {
+  it("rejects legacy unified technicalIndicator visual models when generating Pine", () => {
     const model: StrategyVisualModelDocument = {
       engine: "logic-flow",
       version: 1,
@@ -796,10 +781,8 @@ plot(close)
       ],
     };
 
-    const script = buildStrategyPineFromVisualModel(model, { name: "Legacy Indicator" });
-    expect(script).not.toContain("legacy_rsi = ta.rsi");
-    expect(script).not.toContain("if legacy_rsi < 30");
-    expect(script).not.toMatch(/@jftradeFlowBlockKind technicalIndicator\s*$/m);
+    expect(() => buildStrategyPineFromVisualModel(model, { name: "Legacy Indicator" }))
+      .toThrow("旧流程图块 technicalIndicator 不再支持");
   });
 
   it("does not expose legacy codeBlock or unified technicalIndicator in new palette paths", () => {
@@ -846,7 +829,7 @@ if rsiValue < 30
     }
   });
 
-  it("round-trips all visual templates without runtime guards or unexpected snippets", () => {
+  it("round-trips all visual templates without runtime guards", () => {
     for (const template of getStrategyAuthoringTemplates().filter((item) => item.mode === "visual")) {
       const script = template.buildScript({ name: template.label });
       expect(script, template.id).not.toContain("runtime.error");
@@ -856,8 +839,6 @@ if rsiValue < 30
       if (!parsed.ok) {
         continue;
       }
-      const snippetNodes = parsed.model.nodes.filter((node) => node.properties.blockKind === "pineSnippet");
-      expect(snippetNodes, template.id).toHaveLength(0);
     }
   });
 
@@ -880,9 +861,9 @@ if rsiValue < 30
     const supertrendScript = supertrendTemplate?.buildScript({ name: "Supertrend Template" }) ?? "";
     const bracketScript = bracketTemplate?.buildScript({ name: "Bracket Template" }) ?? "";
 
-    expect(mfiScript).toContain("mfi_getter = mfi(hlc3, 14)");
+    expect(mfiScript).toContain("mfi_getter = ta.mfi(hlc3, 14)");
     expect(mtfScript).toContain('mtf_ema = request.security(syminfo.tickerid, "D", ta.ema(close, 20))');
-    expect(supertrendScript).toContain("supertrend_getter = supertrend(3, 10)");
+    expect(supertrendScript).toContain("supertrend_getter = ta.supertrend(3, 10)");
     expect(supertrendScript).toContain("if supertrend_getter.direction > 0");
     expect(bracketScript).toContain('strategy.exit("Long bracketExit", "Long", stop=close * (1 - 2 / 100), limit=close * (1 + 4 / 100))');
     expect(`${mfiScript}\n${mtfScript}\n${supertrendScript}\n${bracketScript}`).not.toContain("runtime.error");
@@ -1099,7 +1080,7 @@ wr = ta.wpr(14)
     };
 
     const script = buildStrategyPineFromVisualModel(model, { name: "WPR" });
-    expect(script).toContain("williams = williams_r(14)");
+    expect(script).toContain("williams = ta.wpr(14)");
     expect(script).not.toContain("williams = ta.rsi");
   });
 
@@ -1161,8 +1142,9 @@ wr = ta.wpr(14)
     };
 
     const script = buildStrategyPineFromVisualModel(model, { name: "Runtime Indicators" });
-    expect(script).toContain("kdj_node = kdj(9, 3, 3)");
-    expect(script).toContain("boll_node = bollinger(20, 2)");
+    expect(script).toContain("kdj_node_rsv = kdj_node_highest == kdj_node_lowest ? 50");
+    expect(script).toContain("kdj_node_j = 3 * kdj_node_k - 2 * kdj_node_d");
+    expect(script).toContain("boll_node = ta.bb(close, 20, 2)");
     expect(script).not.toContain("kdj_node = ta.rsi");
     expect(script).not.toContain("boll_node = ta.sma");
 
@@ -1171,7 +1153,6 @@ wr = ta.wpr(14)
     if (!parsed.ok) {
       return;
     }
-    expect(parsed.pineSnippetCount).toBe(0);
     expect(parsed.model.nodes.find((node) => node.id === "kdj-node")?.properties).toMatchObject({
       indicatorType: "kdj",
       period: 9,
@@ -1185,13 +1166,20 @@ wr = ta.wpr(14)
     });
   });
 
-  it("parses internal Pine indicator expressions into visual blocks", () => {
+  it("parses native Pine indicator expressions into visual blocks", () => {
     const parsed = buildStrategyVisualModelFromPine(`//@version=6
-strategy("Internal Indicators", overlay=true)
-signal = macd(12, 26, 9)
-flow = kdj(9, 3, 3)
-band = bollinger(20, 2)
-wr = williams_r(14)
+strategy("Native Indicators", overlay=true)
+signal = ta.macd(close, 12, 26, 9)
+flow_highest = ta.highest(high, 9)
+flow_lowest = ta.lowest(low, 9)
+flow_rsv = flow_highest == flow_lowest ? 50 : ((close - flow_lowest) / (flow_highest - flow_lowest)) * 100
+var flow_k = 50.0
+var flow_d = 50.0
+flow_k := ((2) * nz(flow_k[1], 50) + flow_rsv) / 3
+flow_d := ((2) * nz(flow_d[1], 50) + flow_k) / 3
+flow_j = 3 * flow_k - 2 * flow_d
+band = ta.bb(close, 20, 2)
+wr = ta.wpr(14)
 `);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
@@ -1205,7 +1193,6 @@ wr = williams_r(14)
     expect(byVariable.get("flow")?.properties.indicatorType).toBe("kdj");
     expect(byVariable.get("band")?.properties.indicatorType).toBe("bollinger");
     expect(byVariable.get("wr")?.properties.indicatorType).toBe("williamsR");
-    expect(parsed.pineSnippetCount).toBe(0);
   });
 
   it("generates and parses the next Pine-supported indicator batch", () => {
@@ -1315,12 +1302,12 @@ wr = williams_r(14)
 
     const script = buildStrategyPineFromVisualModel(model, { name: "Expanded Indicators" });
 
-    expect(script).toContain("std_dev = stdev(close, 20)");
-    expect(script).toContain("mfi_node = mfi(hlc3, 14)");
-    expect(script).toContain("dmi_node = dmi(14, 14)");
-    expect(script).toContain("trend_node = supertrend(3, 10)");
-    expect(script).toContain("kc_node = kc(close, 20, 1.5, true)");
-    expect(script).toContain("alma_node = alma(close, 20, 0.85, 6)");
+    expect(script).toContain("std_dev = ta.stdev(close, 20)");
+    expect(script).toContain("mfi_node = ta.mfi(hlc3, 14)");
+    expect(script).toContain("dmi_node = ta.dmi(14, 14)");
+    expect(script).toContain("trend_node = ta.supertrend(3, 10)");
+    expect(script).toContain("kc_node = ta.kc(close, 20, 1.5, true)");
+    expect(script).toContain("alma_node = ta.alma(close, 20, 0.85, 6)");
 
     const parsed = buildStrategyVisualModelFromPine(script);
     expect(parsed.ok).toBe(true);
@@ -1328,7 +1315,6 @@ wr = williams_r(14)
       return;
     }
 
-    expect(parsed.pineSnippetCount).toBe(0);
     expect(parsed.model.nodes.find((node) => node.id === "std-dev")?.properties).toMatchObject({
       indicatorType: "stdev",
       source: "close",
@@ -1364,8 +1350,8 @@ wr = williams_r(14)
   it("parses object-field numeric indicator conditions", () => {
     const parsed = buildStrategyVisualModelFromPine(`//@version=6
 strategy("Object Conditions", overlay=true)
-trend = supertrend(3, 10)
-adx = dmi(14, 14)
+trend = ta.supertrend(3, 10)
+adx = ta.dmi(14, 14)
 if trend.direction > 0
     if adx.adx > 25
         strategy.entry("Long", strategy.long, qty=1)
@@ -1392,7 +1378,6 @@ if trend.direction > 0
       operator: ">",
       threshold: 25,
     });
-    expect(parsed.pineSnippetCount).toBe(0);
   });
 
   it("reports Pine block support without persisting support state", () => {
@@ -1420,28 +1405,27 @@ if trend.direction > 0
         timeUnit: "day",
       },
     };
-    const snippet = {
+    const unknown = {
       ...supportedStop,
-      id: "snippet",
-      text: "Pine 片段",
+      id: "unknown",
+      text: "未知图块",
       properties: {
-        blockKind: "pineSnippet",
-        code: "plot(close)",
+        blockKind: "unknownBlock",
       },
     };
     const model: StrategyVisualModelDocument = {
       engine: "logic-flow",
       version: 1,
-      nodes: [supportedStop, unsupportedStop, snippet],
+      nodes: [supportedStop, unsupportedStop, unknown],
       edges: [],
     };
 
     expect(assessPineBlockSupport(supportedStop).status).toBe("supported");
     expect(assessPineBlockSupport(unsupportedStop).status).toBe("unsupportedConfig");
-    expect(assessPineBlockSupport(snippet).status).toBe("snippetOnly");
+    expect(assessPineBlockSupport(unknown).status).toBe("unsupportedConfig");
     expect(summarizePineBlockSupport(model)).toMatchObject({
-      unsupportedConfigCount: 1,
-      snippetOnlyCount: 1,
+      unsupportedConfigCount: 2,
+      warningCount: 0,
     });
     expect(model.nodes.some((node) => "pineSupport" in node.properties)).toBe(false);
   });

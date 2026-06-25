@@ -67,6 +67,9 @@ func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error
 	if ok, nextIndex, err := s.parseUDFDefinition(index); ok || err != nil {
 		return nil, nextIndex, err
 	}
+	if err := rejectPublicDisabledHelperCalls(line.number, line.trimmed); err != nil {
+		return nil, index, err
+	}
 	if lower == "break" || lower == "continue" {
 		if s.runtimeLoopDepth > 0 {
 			if lower == "break" {
@@ -218,12 +221,19 @@ func (s *parseState) parseUDFDefinition(index int) (bool, int, error) {
 		for endIndex < len(s.lines) && s.lines[endIndex].indent > line.indent {
 			endIndex++
 		}
+		for _, bodyLine := range s.lines[nextIndex:endIndex] {
+			if err := rejectPublicDisabledHelperCalls(bodyLine.number, bodyLine.trimmed); err != nil {
+				return true, index, err
+			}
+		}
 		compiledBody, compileErr := compileUDFBody(s.lines[nextIndex:endIndex])
 		if compileErr != nil {
 			return true, index, fmt.Errorf("pine line %d: user-defined function %q: %w", line.number, name, compileErr)
 		}
 		body = compiledBody
 		nextIndex = endIndex
+	} else if err := rejectPublicDisabledHelperCalls(line.number, body); err != nil {
+		return true, index, err
 	}
 	if body == "" || strings.HasPrefix(strings.ToLower(body), "if ") || strings.HasPrefix(strings.ToLower(body), "for ") {
 		return true, index, fmt.Errorf("pine line %d: user-defined function %q must have a single expression body", line.number, name)
@@ -351,7 +361,11 @@ func parseUDFArgs(lineNumber int, raw string) ([]string, error) {
 }
 
 func isReservedUDFName(name string) bool {
-	switch strings.ToLower(strings.TrimSpace(name)) {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	if _, disabled := publicDisabledHelperNames[normalized]; disabled {
+		return true
+	}
+	switch normalized {
 	case "strategy", "ta", "math", "input", "request", "color", "dayofweek", "month", "barstate", "session", "syminfo", "timeframe",
 		"plot", "plotshape", "plotchar", "hline", "bgcolor", "barcolor", "fill", "alert", "alertcondition", "notify", "log",
 		"ifelse", "nz", "timestamp":

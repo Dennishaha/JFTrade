@@ -83,19 +83,6 @@ export function buildStrategyFlowNodeJsDoc(
     );
   }
 
-  if (blockKind === "pineSnippet") {
-    const codeScope = sanitizeFlowTagValue(
-      typeof node.properties.codeScope === "string"
-        ? node.properties.codeScope
-        : "hook",
-    );
-    if (codeScope !== "") {
-      lines.push(
-        `${indent} * @${STRATEGY_FLOW_JSDOC_TAGS.codeScope} ${codeScope}`,
-      );
-    }
-  }
-
   const variableName = sanitizeFlowTagValue(extra.variableName);
   if (variableName !== "") {
     lines.push(
@@ -262,17 +249,6 @@ function buildStrategyFlowNodeAnnotationPayload(
     annotation.nodeText = nodeText;
   }
 
-  if (blockKind === "pineSnippet") {
-    const codeScope = sanitizeFlowTagValue(
-      typeof node.properties.codeScope === "string"
-        ? node.properties.codeScope
-        : "hook",
-    );
-    if (codeScope !== "") {
-      annotation.codeScope = codeScope;
-    }
-  }
-
   const variableName = sanitizeFlowTagValue(extra.variableName);
   if (variableName !== "") {
     annotation.variableName = variableName;
@@ -308,7 +284,6 @@ function isStrategyBlockKind(value: string): value is StrategyBlockKind {
   switch (value) {
     case "onInit":
     case "onKLineClosed":
-    case "pineSnippet":
     case "strategyInput":
     case "derivedSeries":
     case "mtfSeries":

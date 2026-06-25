@@ -427,17 +427,9 @@ const stopLossThresholdLabel = computed(() => {
   }
 });
 
-const codeInputLabel = computed(() =>
-  props.selectedVisualKind === "pineSnippet"
-    ? "Pine 片段"
-    : "代码片段",
-);
+const codeInputLabel = computed(() => "代码片段");
 
-const codeInputPlaceholder = computed(() =>
-  props.selectedVisualKind === "pineSnippet"
-    ? "例如：plot(close)"
-    : "例如：const signal = ctx.kline.close > 520;",
-);
+const codeInputPlaceholder = computed(() => "例如：const signal = close > open;");
 
 const advancedModeOptions = computed(() => {
   switch (props.selectedVisualKind) {
@@ -1604,8 +1596,7 @@ function supportToneClass(status: PineBlockSupportAssessment["status"]): string 
   color: var(--card-red-text);
 }
 
-.strategy-block-support--warning,
-.strategy-block-support--snippetOnly {
+.strategy-block-support--warning {
   border-color: color-mix(in srgb, var(--tv-accent) 42%, var(--tv-border));
 }
 </style>

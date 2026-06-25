@@ -18,8 +18,7 @@ import type { VisualExpressionSchema } from "./strategyVisualBuilderExpressions"
 export type PineBlockSupportStatus =
   | "supported"
   | "warning"
-  | "unsupportedConfig"
-  | "snippetOnly";
+  | "unsupportedConfig";
 
 export interface PineBlockSupportAssessment {
   status: PineBlockSupportStatus;
@@ -53,12 +52,12 @@ export interface VisualExpressionScope {
 }
 
 export interface PineRenderRule {
-  mode: "native" | "generated" | "snippet" | "runtimeGuard";
+  mode: "native" | "generated" | "runtimeGuard";
   description: string;
 }
 
 export interface PineParseRule {
-  mode: "annotation" | "expression" | "statement" | "snippetFallback";
+  mode: "annotation" | "expression" | "statement";
   description: string;
 }
 
@@ -226,7 +225,7 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
     },
     expressionSchema: {
       expressionIds: ["expressionAst"],
-      allowedFunctions: ["math.min", "math.max", "math.abs", "math.round", "math.floor", "math.ceil", "nz", "barssince", "valuewhen"],
+      allowedFunctions: ["math.min", "math.max", "math.abs", "math.round", "math.floor", "math.ceil", "nz", "ta.barssince", "ta.valuewhen"],
       allowedOperators: ["+", "-", "*", "/", ">", "<", ">=", "<=", "==", "!=", "and", "or"],
     },
     pineRenderRule: {
@@ -384,16 +383,16 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
         "valueSource",
         "occurrence",
       ],
-      description: "支持 compare、rising/falling、barssince、valuewhen 的闭盘条件。",
+      description: "支持 compare、ta.rising/ta.falling、ta.barssince、ta.valuewhen 的闭盘条件。",
     },
     expressionSchema: {
       expressionIds: ["sourceExpressionAst", "leftExpressionAst", "rightExpressionAst", "eventExpressionAst", "valueExpressionAst"],
-      allowedFunctions: ["math.min", "math.max", "math.abs", "math.round", "math.floor", "math.ceil", "nz", "ta.crossover", "ta.crossunder", "ta.cross", "barssince", "valuewhen"],
+      allowedFunctions: ["math.min", "math.max", "math.abs", "math.round", "math.floor", "math.ceil", "nz", "ta.crossover", "ta.crossunder", "ta.cross", "ta.barssince", "ta.valuewhen"],
       allowedOperators: [">", "<", ">=", "<=", "==", "!=", "and", "or", "+", "-", "*", "/"],
     },
     pineRenderRule: {
       mode: "generated",
-      description: "生成序列比较、rising、falling、barssince 或 valuewhen 条件。",
+      description: "生成序列比较、ta.rising、ta.falling、ta.barssince 或 ta.valuewhen 条件。",
     },
     pineParseRule: {
       mode: "expression",
@@ -542,28 +541,6 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
     },
     supportRule: assessStopLossSupport,
   },
-  pineSnippet: {
-    kind: "pineSnippet",
-    label: "Pine 片段",
-    defaultSupport: {
-      status: "snippetOnly",
-      label: "片段保留",
-      message: "该片段会原样写回 Pine；是否可运行取决于 Pine 分析结果。",
-    },
-    controlSchema: {
-      controlIds: ["code"],
-      description: "片段图块仅编辑 Pine 代码。",
-    },
-    pineRenderRule: {
-      mode: "snippet",
-      description: "原样写回 Pine。",
-    },
-    pineParseRule: {
-      mode: "snippetFallback",
-      description: "无法稳定映射的 Pine 语句会以 snippetSource 标记保留。",
-    },
-    supportRule: assessPineSnippetSupport,
-  },
 };
 
 export function getVisualBlockCapabilities(): VisualBlockCapability[] {
@@ -586,9 +563,9 @@ export function assessPineBlockSupport(
   const capability = getVisualBlockCapability(kind);
   if (node === null || node === undefined || kind === null || capability === null) {
     return {
-      status: "warning",
+      status: "unsupportedConfig",
       label: "未知图块",
-      message: "该图块类型无法识别，生成 Pine 时会降级为日志或片段。",
+      message: "该图块类型无法识别，生成 Pine 时会失败并提示迁移到 Pine v6 标准图块。",
     };
   }
   return capability.supportRule?.(node) ?? capability.defaultSupport;
@@ -597,12 +574,10 @@ export function assessPineBlockSupport(
 export function summarizePineBlockSupport(model: StrategyVisualModelDocument): {
   unsupportedConfigCount: number;
   warningCount: number;
-  snippetOnlyCount: number;
 } {
   const summary = {
     unsupportedConfigCount: 0,
     warningCount: 0,
-    snippetOnlyCount: 0,
   };
 
   for (const node of model.nodes) {
@@ -611,45 +586,10 @@ export function summarizePineBlockSupport(model: StrategyVisualModelDocument): {
       summary.unsupportedConfigCount += 1;
     } else if (assessment.status === "warning") {
       summary.warningCount += 1;
-    } else if (assessment.status === "snippetOnly") {
-      summary.snippetOnlyCount += 1;
     }
   }
 
   return summary;
-}
-
-function assessPineSnippetSupport(node: StrategyVisualNodeDocument): PineBlockSupportAssessment {
-  const source = node.properties.snippetSource;
-  if (source === "unsupportedPine") {
-    return {
-      status: "snippetOnly",
-      label: "反解片段",
-      message: "该语句暂不能稳定映射为标准图块，已作为 Pine 片段保留。",
-    };
-  }
-  if (source === "visualOnly") {
-    return {
-      status: "warning",
-      label: "视觉语句",
-      message: "该片段可能属于 plot/table/drawing 等视觉 API，运行时通常按 no-op 或 warning 处理。",
-    };
-  }
-  if (source === "advancedCollection") {
-    return {
-      status: "snippetOnly",
-      label: "高级集合片段",
-      message: "该语句涉及 array/map/matrix/loop/object/method，当前保留为 Pine 片段。",
-    };
-  }
-  if (source === "advancedState") {
-    return {
-      status: "snippetOnly",
-      label: "高级状态片段",
-      message: "该状态语句超出标准状态图块范围，已作为 Pine 片段保留。",
-    };
-  }
-  return STRATEGY_BLOCK_CAPABILITY_MAP.pineSnippet.defaultSupport;
 }
 
 function assessTechnicalIndicatorSupport(node: StrategyVisualNodeDocument): PineBlockSupportAssessment {

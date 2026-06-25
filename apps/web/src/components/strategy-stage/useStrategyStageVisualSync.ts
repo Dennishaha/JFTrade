@@ -7,12 +7,12 @@ import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 
 import { reconcileStrategyVisualModelIndicatorBindings } from "../../features/strategyVisualBuilderIndicatorReferences";
 import {
-    buildStrategyVisualModelFromScript,
+    buildStrategyVisualModelFromPine,
     cloneStrategyVisualModel,
     createDefaultStrategyVisualModel,
 } from "../../features/strategyVisualBuilder";
 
-type StrategyVisualSyncStatus = "ready" | "syncing" | "synced" | "partial" | "error";
+type StrategyVisualSyncStatus = "ready" | "syncing" | "synced" | "error";
 
 interface CodeOffsetRange {
     start: number;
@@ -46,7 +46,6 @@ const SCRIPT_TO_VISUAL_SYNC_DELAY = 650;
 export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOptions) {
     const visualSyncStatus = ref<StrategyVisualSyncStatus>("ready");
     const visualSyncMessage = ref("图形与 Pine 会自动异步同步。\n修改 Pine 后会尝试反解回流程图。");
-    const visualSyncPineSnippetCount = ref(0);
     const selectedVisualNodeId = ref("");
     const codeContextNodeId = ref("");
 
@@ -73,18 +72,15 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
     function setVisualSyncState(
         status: StrategyVisualSyncStatus,
         message: string,
-        pineSnippetCount = 0,
     ): void {
         visualSyncStatus.value = status;
         visualSyncMessage.value = message;
-        visualSyncPineSnippetCount.value = pineSnippetCount;
     }
 
     function resetVisualSyncStatus(): void {
         setVisualSyncState(
             "ready",
             "图形与 Pine 会自动同步。修改 Pine 后会尝试反解回流程图。",
-            0,
         );
     }
 
@@ -118,7 +114,7 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
 
     function scheduleScriptToVisualModelSync(delay = SCRIPT_TO_VISUAL_SYNC_DELAY): void {
         clearPendingScriptToVisualSync();
-        setVisualSyncState("syncing", "正在把 Pine 异步转换回流程图…", visualSyncPineSnippetCount.value);
+        setVisualSyncState("syncing", "正在把 Pine 异步转换回流程图…");
 
         scriptToVisualSyncTimer = setTimeout(() => {
             scriptToVisualSyncTimer = null;
@@ -131,18 +127,18 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
 
         const script = options.definitionForm.value.script;
         if (script.trim() === "") {
-            setVisualSyncState("error", "Pine 为空，无法转换回流程图。已保留当前流程图。", 0);
+            setVisualSyncState("error", "Pine 为空，无法转换回流程图。已保留当前流程图。");
             return;
         }
 
-        setVisualSyncState("syncing", "正在把 Pine 异步转换回流程图…", visualSyncPineSnippetCount.value);
+        setVisualSyncState("syncing", "正在把 Pine 异步转换回流程图…");
 
-        const parseResult = buildStrategyVisualModelFromScript(
+        const parseResult = buildStrategyVisualModelFromPine(
             script,
             options.definitionForm.value.visualModel,
         );
         if (!parseResult.ok) {
-            setVisualSyncState("error", `${parseResult.error} 已保留当前流程图。`, 0);
+            setVisualSyncState("error", `${parseResult.error} 无法同步为流程图，请继续在 Pine 工作台编辑。已保留当前流程图。`);
             return;
         }
 
@@ -165,16 +161,7 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
             updateCommittedDefinitionSignature(options.definitionForm.value);
         }
 
-        if (parseResult.pineSnippetCount > 0) {
-            setVisualSyncState(
-                "partial",
-                `Pine 已同步回流程图，其中 ${parseResult.pineSnippetCount} 段保留为 Pine 片段。`,
-                parseResult.pineSnippetCount,
-            );
-            return;
-        }
-
-        setVisualSyncState("synced", "Pine 已同步回流程图。", 0);
+        setVisualSyncState("synced", "Pine 已同步回流程图。");
     }
 
     function attachSourceRangesFromScript(
@@ -185,7 +172,7 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
             return;
         }
 
-        const parseResult = buildStrategyVisualModelFromScript(script);
+        const parseResult = buildStrategyVisualModelFromPine(script);
         if (!parseResult.ok) {
             return;
         }
@@ -242,7 +229,7 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
             },
         );
         selectedVisualNodeId.value = nextSelectedNodeId;
-        setVisualSyncState("synced", "流程图已异步同步到 Pine。", visualSyncPineSnippetCount.value);
+        setVisualSyncState("synced", "流程图已异步同步到 Pine。");
 
         if (applyOptions?.notice) {
             options.definitionNotice.value = applyOptions.notice;
@@ -470,7 +457,6 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
         selectedVisualNodeId,
         syncScriptToVisualModelNow,
         updateCommittedDefinitionSignature,
-        visualSyncPineSnippetCount,
         visualSyncMessage,
         visualSyncStatus,
     };

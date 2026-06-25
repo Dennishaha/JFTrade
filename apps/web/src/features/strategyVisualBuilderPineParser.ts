@@ -20,20 +20,19 @@ import {
   type StrategyFlowNodeJsDoc,
 } from "./strategyVisualBuilderShared";
 
-export interface StrategyScriptParseSuccess {
+export interface StrategyPineParseSuccess {
   ok: true;
   model: StrategyVisualModelDocument;
-  pineSnippetCount: number;
 }
 
-export interface StrategyScriptParseFailure {
+export interface StrategyPineParseFailure {
   ok: false;
   error: string;
 }
 
-export type StrategyScriptParseResult =
-  | StrategyScriptParseSuccess
-  | StrategyScriptParseFailure;
+export type StrategyPineParseResult =
+  | StrategyPineParseSuccess
+  | StrategyPineParseFailure;
 
 interface ParsedPineEntry {
   lineNumber: number;
@@ -55,7 +54,7 @@ interface ParseState {
   existingNodeById: Map<string, StrategyVisualNodeDocument>;
   aliasByName: Map<string, IndicatorAliasBinding>;
   sequence: number;
-  pineSnippetCount: number;
+  error: string | null;
 }
 
 interface IndicatorAliasBinding {
@@ -77,11 +76,11 @@ const ROOT_LAYOUT = {
 export function buildStrategyVisualModelFromPine(
   script: string,
   existingModel?: StrategyVisualModelDocument | null,
-): StrategyScriptParseResult {
+): StrategyPineParseResult {
   if (hasLegacyFlowBlockAnnotation(script)) {
     return {
       ok: false,
-      error: "旧 codeBlock / technicalIndicator 流程图注解不再支持，请用 Pine v6 标准图块或 Pine 片段重建。",
+      error: "旧 codeBlock / technicalIndicator 流程图注解不再支持，请用 Pine v6 标准图块重建。",
     };
   }
   const entries = tokenizePine(script);
@@ -100,7 +99,7 @@ export function buildStrategyVisualModelFromPine(
     ),
     aliasByName: new Map(),
     sequence: 0,
-    pineSnippetCount: 0,
+    error: null,
   };
 
   const root = createSyntheticRoot(state);
@@ -114,6 +113,9 @@ export function buildStrategyVisualModelFromPine(
     }
 
     parseBlock(state, -1, root.id);
+    if (state.error !== null) {
+      return { ok: false, error: state.error };
+    }
   }
 
   if (state.nodes.length === 0) {
@@ -128,7 +130,6 @@ export function buildStrategyVisualModelFromPine(
       nodes: state.nodes,
       edges: state.edges,
     },
-    pineSnippetCount: state.pineSnippetCount,
   };
 }
 
@@ -175,6 +176,9 @@ function parseBlock(
     }
 
     const result = parseStatementNode(entry, state);
+    if (result === null) {
+      return;
+    }
     addNode(state, result.node);
     addControlEdge(
       state,
@@ -203,9 +207,14 @@ function parseBlock(
   }
 }
 
-function parseStatementNode(entry: ParsedPineEntry, state: ParseState): ParsedNodeResult {
+function parseStatementNode(entry: ParsedPineEntry, state: ParseState): ParsedNodeResult | null {
   const annotation = entry.annotation;
   const explicitKind = effectiveExplicitKind(annotation?.blockKind);
+
+  const expandedKDJ = parseExpandedKDJNode(entry, state, explicitKind);
+  if (expandedKDJ !== null) {
+    return expandedKDJ;
+  }
 
   if (isAssignmentLine(entry.trimmed)) {
     return parseLetNode(entry, state, explicitKind);
@@ -252,33 +261,80 @@ function parseStatementNode(entry: ParsedPineEntry, state: ParseState): ParsedNo
     return parsePineExitNode(entry, state, explicitKind);
   }
 
-  state.pineSnippetCount += 1;
-  return {
-    node: createNodeFromParts({
-      state,
-      entry,
-      kind: "pineSnippet",
-      defaultText: annotation?.nodeText ?? "Pine 片段",
-      defaultType: "rect",
-      properties: {
-        blockKind: "pineSnippet",
-        code: entry.trimmed,
-        snippetSource: classifyPineSnippetSource(entry.trimmed),
-      },
-    }),
-    isCondition: false,
-  };
+  return failUnsupportedPineStatement(state, entry);
+}
+
+function parseExpandedKDJNode(
+  entry: ParsedPineEntry,
+  state: ParseState,
+  explicitKind: StrategyBlockKind | undefined,
+): ParsedNodeResult | null {
+  const first = entry.trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)_highest\s*=\s*ta\.highest\(high,\s*(\d+)\)$/);
+  if (first === null) {
+    return null;
+  }
+  const base = first[1]!;
+  const period = Number(first[2]!);
+  const expected = state.entries.slice(state.index, state.index + 8);
+  if (expected.length < 8 || expected.some((candidate) => candidate.indent !== entry.indent)) {
+    return null;
+  }
+  const [highest, lowest, rsv, kVar, dVar, kUpdate, dUpdate, jLine] = expected;
+  if (
+    highest?.trimmed !== `${base}_highest = ta.highest(high, ${period})` ||
+    lowest?.trimmed !== `${base}_lowest = ta.lowest(low, ${period})` ||
+    rsv?.trimmed !== `${base}_rsv = ${base}_highest == ${base}_lowest ? 50 : ((close - ${base}_lowest) / (${base}_highest - ${base}_lowest)) * 100` ||
+    kVar?.trimmed !== `var ${base}_k = 50.0` ||
+    dVar?.trimmed !== `var ${base}_d = 50.0` ||
+    jLine?.trimmed !== `${base}_j = 3 * ${base}_k - 2 * ${base}_d`
+  ) {
+    return null;
+  }
+  const kMatch = kUpdate?.trimmed.match(new RegExp(`^${base}_k\\s*:=\\s*\\(\\((\\d+)\\) \\* nz\\(${base}_k\\[1\\], 50\\) \\+ ${base}_rsv\\) / (\\d+)$`)) ?? null;
+  const dMatch = dUpdate?.trimmed.match(new RegExp(`^${base}_d\\s*:=\\s*\\(\\((\\d+)\\) \\* nz\\(${base}_d\\[1\\], 50\\) \\+ ${base}_k\\) / (\\d+)$`)) ?? null;
+  if (kMatch === null || dMatch === null) {
+    return null;
+  }
+  const m1 = Number(kMatch[2]!);
+  const m2 = Number(dMatch[2]!);
+  if (Number(kMatch[1]!) !== m1 - 1 || Number(dMatch[1]!) !== m2 - 1) {
+    return null;
+  }
+  const variableName = entry.annotation?.variableName ?? base;
+  const node = createNodeFromParts({
+    state,
+    entry,
+    kind: explicitKind ?? "getTechnicalIndicator",
+    defaultText: entry.annotation?.nodeText ?? `KDJ ${period}`,
+    defaultType: "rect",
+    properties: {
+      blockKind: explicitKind ?? "getTechnicalIndicator",
+      indicatorType: "kdj",
+      period,
+      m1,
+      m2,
+      variableName,
+    },
+  });
+  for (const alias of [base, `${base}_k`, `${base}_d`, `${base}_j`]) {
+    state.aliasByName.set(alias, {
+      alias,
+      nodeId: node.id,
+      indicatorType: "kdj",
+    });
+  }
+  state.index += 7;
+  return { node, isCondition: false };
 }
 
 function parseLetNode(
   entry: ParsedPineEntry,
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
-): ParsedNodeResult {
+): ParsedNodeResult | null {
   const match = entry.trimmed.match(/^(var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+)$/);
   if (match === null) {
-    state.pineSnippetCount += 1;
-    return createCodeBlockResult(entry, state);
+    return failUnsupportedPineStatement(state, entry);
   }
 
   const isVarDeclaration = match[1] !== undefined;
@@ -402,8 +458,7 @@ function parseLetNode(
 
   const indicatorProperties = parseIndicatorExpression(expression);
   if (indicatorProperties === null) {
-    state.pineSnippetCount += 1;
-    return createCodeBlockResult(entry, state);
+    return failUnsupportedPineStatement(state, entry);
   }
 
   const node = createNodeFromParts({
@@ -434,7 +489,7 @@ function parseIfNode(
   entry: ParsedPineEntry,
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
-): ParsedNodeResult {
+): ParsedNodeResult | null {
   const condition = entry.trimmed.replace(/^if\s+/, "").replace(/:\s*$/, "").trim();
   const timeFilter = parseTimeFilterCondition(condition);
   if (timeFilter !== null && (explicitKind === undefined || explicitKind === "timeFilter")) {
@@ -531,24 +586,7 @@ function parseIfNode(
     };
   }
 
-  state.pineSnippetCount += 1;
-  return {
-    node: createNodeFromParts({
-      state,
-      entry,
-      kind: snippetFallbackKind(explicitKind),
-      defaultText: entry.annotation?.nodeText ?? "Pine 条件",
-      defaultType: defaultTypeForKind(snippetFallbackKind(explicitKind)),
-      properties: {
-        blockKind: snippetFallbackKind(explicitKind),
-        code: entry.trimmed,
-        ...(snippetFallbackKind(explicitKind) === "pineSnippet"
-          ? { snippetSource: classifyPineSnippetSource(entry.trimmed) }
-          : {}),
-      },
-    }),
-    isCondition: true,
-  };
+  return failUnsupportedPineStatement(state, entry);
 }
 
 function parseSeriesCondition(condition: string): Record<string, unknown> | null {
@@ -569,7 +607,7 @@ function parseSeriesCondition(condition: string): Record<string, unknown> | null
     };
   }
 
-  const trendMatch = condition.match(/^(?:ta\.)?(rising|falling)\((open|high|low|close|volume|hl2|hlc3|ohlc4),\s*(\d+)\)$/i);
+  const trendMatch = condition.match(/^ta\.(rising|falling)\((open|high|low|close|volume|hl2|hlc3|ohlc4),\s*(\d+)\)$/i);
   if (trendMatch !== null) {
     return {
       mode: trendMatch[1]!.toLowerCase(),
@@ -579,7 +617,7 @@ function parseSeriesCondition(condition: string): Record<string, unknown> | null
     };
   }
 
-  const barssinceMatch = condition.match(/^(?:ta\.)?barssince\((open|high|low|close|volume|hl2|hlc3|ohlc4)\s*([<>])\s*(-?\d+(?:\.\d+)?)\)\s*([<>])\s*(\d+)$/i);
+  const barssinceMatch = condition.match(/^ta\.barssince\((open|high|low|close|volume|hl2|hlc3|ohlc4)\s*([<>])\s*(-?\d+(?:\.\d+)?)\)\s*([<>])\s*(\d+)$/i);
   if (barssinceMatch !== null) {
     const operator = barssinceMatch[4] === ">" ? ">" : "<";
     return {
@@ -598,7 +636,7 @@ function parseSeriesCondition(condition: string): Record<string, unknown> | null
     };
   }
 
-  const valuewhenMatch = condition.match(/^(?:ta\.)?valuewhen\((open|high|low|close|volume|hl2|hlc3|ohlc4)\s*([<>])\s*(-?\d+(?:\.\d+)?),\s*(open|high|low|close|volume|hl2|hlc3|ohlc4),\s*(\d+)\)\s*([<>])\s*(-?\d+(?:\.\d+)?)$/i);
+  const valuewhenMatch = condition.match(/^ta\.valuewhen\((open|high|low|close|volume|hl2|hlc3|ohlc4)\s*([<>])\s*(-?\d+(?:\.\d+)?),\s*(open|high|low|close|volume|hl2|hlc3|ohlc4),\s*(\d+)\)\s*([<>])\s*(-?\d+(?:\.\d+)?)$/i);
   if (valuewhenMatch !== null) {
     return {
       mode: "valuewhen",
@@ -629,7 +667,7 @@ function parseStructuredSeriesCondition(condition: string): Record<string, unkno
     return null;
   }
 
-  if (expression.left.kind === "call" && expression.left.functionName === "barssince") {
+  if (expression.left.kind === "call" && expression.left.functionName === "ta.barssince") {
     return {
       mode: "barssince",
       operator: expression.operator === ">" ? ">" : "<",
@@ -638,7 +676,7 @@ function parseStructuredSeriesCondition(condition: string): Record<string, unkno
     };
   }
 
-  if (expression.left.kind === "call" && expression.left.functionName === "valuewhen") {
+  if (expression.left.kind === "call" && expression.left.functionName === "ta.valuewhen") {
     return {
       mode: "valuewhen",
       operator: expression.operator === ">" ? ">" : "<",
@@ -921,7 +959,7 @@ function parseOrderNode(
   entry: ParsedPineEntry,
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
-): ParsedNodeResult {
+): ParsedNodeResult | null {
   const pineOrder = parsePineOrder(entry.trimmed);
   if (pineOrder !== null) {
     return {
@@ -940,34 +978,19 @@ function parseOrderNode(
     };
   }
   if (entry.trimmed.startsWith("strategy.")) {
-    state.pineSnippetCount += 1;
-    return createSnippetFallbackResult(entry, state, explicitKind);
+    return failUnsupportedPineStatement(state, entry);
   }
-  return {
-    node: createNodeFromParts({
-      state,
-      entry,
-      kind: snippetFallbackKind(explicitKind),
-      defaultText: entry.annotation?.nodeText ?? "Pine 片段",
-      defaultType: defaultTypeForKind(snippetFallbackKind(explicitKind)),
-      properties: {
-        blockKind: snippetFallbackKind(explicitKind),
-        code: entry.trimmed,
-      },
-    }),
-    isCondition: false,
-  };
+  return failUnsupportedPineStatement(state, entry);
 }
 
 function parsePineExitNode(
   entry: ParsedPineEntry,
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
-): ParsedNodeResult {
+): ParsedNodeResult | null {
   const properties = parsePineExit(entry.trimmed);
   if (properties === null) {
-    state.pineSnippetCount += 1;
-    return createSnippetFallbackResult(entry, state, explicitKind);
+    return failUnsupportedPineStatement(state, entry);
   }
   return {
     node: createNodeFromParts({
@@ -1128,11 +1151,11 @@ function parseIndicatorCondition(
     };
   }
 
-  const crossMatch = condition.match(/^(?:cross_(over|under)|ta\.cross(over|under))\(([^,]+),\s*([^\)]+)\)$/);
+  const crossMatch = condition.match(/^ta\.cross(over|under)\(([^,]+),\s*([^\)]+)\)$/);
   if (crossMatch !== null) {
-    const direction = crossMatch[1] ?? crossMatch[2];
-    const leftAlias = crossMatch[3]!.trim().split(".")[0]!;
-    const rightAlias = crossMatch[4]!.trim().split(".")[0]!;
+    const direction = crossMatch[1]!;
+    const leftAlias = crossMatch[2]!.trim().split(".")[0]!;
+    const rightAlias = crossMatch[3]!.trim().split(".")[0]!;
     const leftBinding = state.aliasByName.get(leftAlias);
     const rightBinding = state.aliasByName.get(rightAlias);
     if (leftBinding === undefined || rightBinding === undefined) {
@@ -1301,27 +1324,9 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         slowPeriod: readNumber(args[2], 26),
         signalPeriod: readNumber(args[3], 9),
       };
-    case "macd":
-      return {
-        blockKind: "getTechnicalIndicator",
-        indicatorType: "macd",
-        fastPeriod: readNumber(args[0], 12),
-        slowPeriod: readNumber(args[1], 26),
-        signalPeriod: readNumber(args[2], 9),
-      };
-    case "kdj":
-      return {
-        blockKind: "getTechnicalIndicator",
-        indicatorType: "kdj",
-        period: readNumber(args[0], 9),
-        m1: readNumber(args[1], 3),
-        m2: readNumber(args[2], 3),
-      };
     case "ta.atr":
       return { blockKind: "getTechnicalIndicator", indicatorType: "atr", period: readNumber(args[0], 14) };
     case "ta.cci":
-      return { blockKind: "getTechnicalIndicator", indicatorType: "cci", source: readSource(args[0], "hlc3"), period: readNumber(args[1] ?? args[0], 20) };
-    case "cci":
       return { blockKind: "getTechnicalIndicator", indicatorType: "cci", source: readSource(args[0], "hlc3"), period: readNumber(args[1] ?? args[0], 20) };
     case "ta.bb":
       return {
@@ -1330,19 +1335,9 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         period: readNumber(args[1] ?? args[0], 20),
         multiplier: readNumber(args[2], 2),
       };
-    case "bollinger":
-      return {
-        blockKind: "getTechnicalIndicator",
-        indicatorType: "bollinger",
-        period: readNumber(args[0], 20),
-        multiplier: readNumber(args[1], 2),
-      };
     case "ta.wpr":
       return { blockKind: "getTechnicalIndicator", indicatorType: "williamsR", period: readNumber(args[0], 14) };
-    case "williams_r":
-      return { blockKind: "getTechnicalIndicator", indicatorType: "williamsR", period: readNumber(args[0], 14) };
     case "ta.stdev":
-    case "stdev":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "stdev",
@@ -1350,7 +1345,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         period: readNumber(args[1] ?? args[0], 20),
       };
     case "ta.variance":
-    case "variance":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "variance",
@@ -1358,7 +1352,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         period: readNumber(args[1] ?? args[0], 20),
       };
     case "ta.highest":
-    case "highest":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "highest",
@@ -1366,7 +1359,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         period: readNumber(args.length > 1 ? args[1] : args[0], 20),
       };
     case "ta.lowest":
-    case "lowest":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "lowest",
@@ -1374,7 +1366,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         period: readNumber(args.length > 1 ? args[1] : args[0], 20),
       };
     case "ta.sum":
-    case "sum":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "sum",
@@ -1382,14 +1373,12 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         period: readNumber(args[1] ?? args[0], 20),
       };
     case "ta.vwap":
-    case "vwap":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "vwap",
         source: readSource(args[0], "hlc3"),
       };
     case "ta.mfi":
-    case "mfi":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "mfi",
@@ -1397,7 +1386,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         period: readNumber(args[1] ?? args[0], 14),
       };
     case "ta.dmi":
-    case "dmi":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "dmi",
@@ -1405,7 +1393,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         adxSmoothing: readNumber(args[1], 14),
       };
     case "ta.supertrend":
-    case "supertrend":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "supertrend",
@@ -1413,7 +1400,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         period: readNumber(args[1], 10),
       };
     case "ta.sar":
-    case "sar":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "sar",
@@ -1422,7 +1408,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         maximum: readNumber(args[2], 0.2),
       };
     case "ta.linreg":
-    case "linreg":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "linreg",
@@ -1431,14 +1416,12 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         offset: readNonNegativeNumber(args[2], 0),
       };
     case "ta.obv":
-    case "obv":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "obv",
         source: readSource(args[0], "close"),
       };
-    case "ta.pivothigh":
-    case "pivothigh": {
+    case "ta.pivothigh": {
       const hasSource = args.length >= 3;
       return {
         blockKind: "getTechnicalIndicator",
@@ -1448,8 +1431,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         rightBars: readNumber(hasSource ? args[2] : args[1], 2),
       };
     }
-    case "ta.pivotlow":
-    case "pivotlow": {
+    case "ta.pivotlow": {
       const hasSource = args.length >= 3;
       return {
         blockKind: "getTechnicalIndicator",
@@ -1460,7 +1442,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
       };
     }
     case "ta.kc":
-    case "kc":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "keltner",
@@ -1469,7 +1450,6 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         multiplier: readNumber(args[2], 1.5),
       };
     case "ta.alma":
-    case "alma":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "alma",
@@ -1554,53 +1534,12 @@ function normalizePineTimeframe(value: string): string | null {
   }
 }
 
-function createCodeBlockResult(entry: ParsedPineEntry, state: ParseState): ParsedNodeResult {
-  return createSnippetFallbackResult(entry, state);
-}
-
-function createSnippetFallbackResult(
-  entry: ParsedPineEntry,
+function failUnsupportedPineStatement(
   state: ParseState,
-  explicitKind?: StrategyBlockKind,
-): ParsedNodeResult {
-  const kind = snippetFallbackKind(explicitKind);
-  return {
-    node: createNodeFromParts({
-      state,
-      entry,
-      kind,
-      defaultText: entry.annotation?.nodeText ?? "Pine 片段",
-      defaultType: defaultTypeForKind(kind),
-      properties: {
-        blockKind: kind,
-        code: entry.trimmed,
-        ...(kind === "pineSnippet" ? { snippetSource: classifyPineSnippetSource(entry.trimmed) } : {}),
-      },
-    }),
-    isCondition: false,
-  };
-}
-
-function snippetFallbackKind(explicitKind: StrategyBlockKind | undefined): StrategyBlockKind {
-  return explicitKind === undefined
-    ? "pineSnippet"
-    : explicitKind;
-}
-
-function classifyPineSnippetSource(code: string): string {
-  const normalized = code.trim().toLowerCase();
-  if (/^(plot|plotshape|plotchar|hline|fill|bgcolor|barcolor|alertcondition)\s*\(/.test(normalized)
-    || /^(table|line|label|box)\./.test(normalized)) {
-    return "visualOnly";
-  }
-  if (/(?:array\.|map\.|matrix\.|\bfor\b|\bwhile\b|\btype\b|\bmethod\b|\bimport\b|\blibrary\b)/.test(normalized)) {
-    return "advancedCollection";
-  }
-  if (/^(?:varip\s+|var\s+)?[a-z_][a-z0-9_]*\s*:=/.test(normalized)
-    || /\bbarstate\.|\bsession\.|\btimeframe\./.test(normalized)) {
-    return "advancedState";
-  }
-  return "unsupportedPine";
+  entry: ParsedPineEntry,
+): null {
+  state.error = `第 ${entry.lineNumber} 行无法同步为流程图：${entry.trimmed}`;
+  return null;
 }
 
 function hasLegacyFlowBlockAnnotation(script: string): boolean {
@@ -2143,5 +2082,3 @@ function defaultIndicatorText(properties: Record<string, unknown>): string {
 function indicatorTypeForCondition(value: string): string {
   return value === "ma" ? "movingAverage" : value;
 }
-
-export const buildStrategyVisualModelFromScript = buildStrategyVisualModelFromPine;

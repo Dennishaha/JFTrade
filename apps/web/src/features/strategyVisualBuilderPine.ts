@@ -56,8 +56,6 @@ export interface StrategyPineContext {
   version?: string;
 }
 
-export type StrategyScriptContext = StrategyPineContext;
-
 interface IndicatorInputBinding {
   node: StrategyVisualNodeDocument;
   slot: "primary" | "fast" | "slow";
@@ -205,9 +203,12 @@ function renderNode(
   visited.add(node.id);
 
   const kind = getStrategyBlockKind(node);
-  if (node.properties.blockKind === "codeBlock" || node.properties.blockKind === "technicalIndicator") {
-    return [];
+  assertSupportedVisualBlockKind(node, kind);
+
+  if (kind === null) {
+    throw new Error(`不支持的流程图块：${node.properties.blockKind ?? node.id}`);
   }
+
   switch (kind) {
     case "onInit":
     case "onKLineClosed":
@@ -257,22 +258,22 @@ function renderNode(
       return renderLinearStatement(node, state, depth, visited, buildOrderStatement(node));
     case "stopLoss":
       return renderProtectNode(node, state, depth, visited);
-    case "pineSnippet":
-      return renderLinearStatement(
-        node,
-        state,
-        depth,
-        visited,
-        readPineSnippetCode(node.properties.code),
-      );
     default:
-      return renderLinearStatement(
-        node,
-        state,
-        depth,
-        visited,
-        `log.info(${toPineStringLiteral(node.text || "未识别图块")})`,
-      );
+      throw new Error(`不支持的流程图块：${String(kind)}`);
+  }
+}
+
+function assertSupportedVisualBlockKind(
+  node: StrategyVisualNodeDocument,
+  kind: ReturnType<typeof getStrategyBlockKind>,
+): void {
+  const rawKind = String(node.properties.blockKind ?? "");
+  if (
+    rawKind === "codeBlock"
+    || rawKind === "technicalIndicator"
+    || kind === null
+  ) {
+    throw new Error(`旧流程图块 ${rawKind || node.id} 不再支持，请改用 Pine v6 标准图块。`);
   }
 }
 
@@ -508,24 +509,17 @@ function buildSeriesConditionExpression(rawProperties: Record<string, unknown>):
   );
   switch (properties.mode) {
     case "rising":
-      return `rising(${source}, ${properties.length ?? 3})`;
+      return `ta.rising(${source}, ${properties.length ?? 3})`;
     case "falling":
-      return `falling(${source}, ${properties.length ?? 3})`;
+      return `ta.falling(${source}, ${properties.length ?? 3})`;
     case "barssince":
-      return `barssince(${eventExpression}) < ${properties.length ?? 3}`;
+      return `ta.barssince(${eventExpression}) < ${properties.length ?? 3}`;
     case "valuewhen":
-      return `valuewhen(${eventExpression}, ${renderVisualExpressionToPine(properties.valueExpressionAst, pineSeriesSource(properties.valueSource ?? "close"))}, ${properties.occurrence ?? 0}) ${operator} ${threshold}`;
+      return `ta.valuewhen(${eventExpression}, ${renderVisualExpressionToPine(properties.valueExpressionAst, pineSeriesSource(properties.valueSource ?? "close"))}, ${properties.occurrence ?? 0}) ${operator} ${threshold}`;
     case "compare":
     default:
       return `${leftExpression} ${operator} ${threshold}`;
   }
-}
-
-function readPineSnippetCode(value: unknown): string {
-  if (typeof value !== "string" || value.trim() === "") {
-    return `log.info(${toPineStringLiteral("Pine 片段为空")})`;
-  }
-  return value.trimEnd();
 }
 
 function renderLinearStatement(
@@ -619,6 +613,17 @@ function renderIndicatorDeclaration(
   const variableName = readIndicatorVariableName(node, properties);
   state.emittedIndicatorNodeIds.add(node.id);
   state.emittedStatementNodeIds.add(node.id);
+
+  if (properties.indicatorType === "kdj") {
+    const lines = [
+      ...buildStrategyFlowNodeAnnotation(node, depth, { variableName }),
+      ...buildKDJIndicatorStatements(variableName, properties).map((line) => `${indent(depth)}${line}`),
+    ];
+    if (!includeChildren) {
+      return lines;
+    }
+    return lines;
+  }
 
   const lines = [
     ...buildStrategyFlowNodeAnnotation(node, depth, { variableName }),
@@ -744,9 +749,9 @@ function buildTechnicalIndicatorConditionExpression(
       }
       const variableName = readIndicatorVariableName(primary.node, primary.properties);
       if (properties.patternType === "topDivergence" || properties.patternType === "bottomDivergence") {
-        return `${properties.patternType === "topDivergence" ? "divergence_top" : "divergence_bottom"}(${variableName}, ${properties.lookback ?? 5})`;
+        return "false";
       }
-      return `ta.${properties.patternType === "deathCross" ? "crossunder" : "crossover"}(${variableName}.k, ${variableName}.d)`;
+      return `ta.${properties.patternType === "deathCross" ? "crossunder" : "crossover"}(${variableName}_k, ${variableName}_d)`;
     }
     case "rsi": {
       if (primary === undefined || (properties.patternType !== "topDivergence" && properties.patternType !== "bottomDivergence")) {
@@ -775,7 +780,7 @@ function numericConditionTargetExpression(input: IndicatorInputBinding): string 
     case "macd":
       return `${variableName}.histogram`;
     case "kdj":
-      return `${variableName}.j`;
+      return `${variableName}_j`;
     case "dmi":
       return `${variableName}.adx`;
     case "supertrend":
@@ -785,6 +790,38 @@ function numericConditionTargetExpression(input: IndicatorInputBinding): string 
     default:
       return variableName;
   }
+}
+
+function buildKDJIndicatorStatements(
+  variableName: string,
+  properties: GetTechnicalIndicatorBlockProperties,
+): string[] {
+  const period = Math.max(1, Math.round(properties.period ?? 9));
+  const m1 = Math.max(1, Math.round(properties.m1 ?? 3));
+  const m2 = Math.max(1, Math.round(properties.m2 ?? 3));
+  const highName = `${variableName}_highest`;
+  const lowName = `${variableName}_lowest`;
+  const rsvName = `${variableName}_rsv`;
+  const kName = `${variableName}_k`;
+  const dName = `${variableName}_d`;
+  const jName = `${variableName}_j`;
+  return [
+    `${highName} = ta.highest(high, ${period})`,
+    `${lowName} = ta.lowest(low, ${period})`,
+    `${rsvName} = ${highName} == ${lowName} ? 50 : ((close - ${lowName}) / (${highName} - ${lowName})) * 100`,
+    `var ${kName} = 50.0`,
+    `var ${dName} = 50.0`,
+    `${kName} := ((${m1 - 1}) * nz(${kName}[1], 50) + ${rsvName}) / ${m1}`,
+    `${dName} := ((${m2 - 1}) * nz(${dName}[1], 50) + ${kName}) / ${m2}`,
+    `${jName} = 3 * ${kName} - 2 * ${dName}`,
+  ];
+}
+
+function readSyntheticKDJVariableName(value: unknown, field: "k" | "d" | "j"): string {
+  const base = typeof value === "string" && isPineIdentifier(value)
+    ? value
+    : "kdj";
+  return `${base}_${field}`;
 }
 
 function controlOutgoingEdges(
@@ -820,47 +857,47 @@ function buildIndicatorExpression(properties: GetTechnicalIndicatorBlockProperti
     case "macd":
       return wrapTimeframe(`ta.macd(close, ${properties.fastPeriod ?? 12}, ${properties.slowPeriod ?? 26}, ${properties.signalPeriod ?? 9})`);
     case "kdj":
-      return `kdj(${properties.period ?? 9}, ${properties.m1 ?? 3}, ${properties.m2 ?? 3})`;
+      return `${readSyntheticKDJVariableName(properties.variableName, "j")}`;
     case "bollinger":
-      return wrapTimeframe(`bollinger(${properties.period ?? 20}, ${properties.multiplier ?? 2})`);
+      return wrapTimeframe(`ta.bb(close, ${properties.period ?? 20}, ${properties.multiplier ?? 2})`);
     case "atr":
       return wrapTimeframe(`ta.atr(${properties.period ?? 14})`);
     case "cci":
-      return wrapTimeframe(`cci(${pineIndicatorSource(properties.source ?? "hlc3")}, ${properties.period ?? 20})`);
+      return wrapTimeframe(`ta.cci(${pineIndicatorSource(properties.source ?? "hlc3")}, ${properties.period ?? 20})`);
     case "williamsR":
-      return `williams_r(${properties.period ?? 14})`;
+      return `ta.wpr(${properties.period ?? 14})`;
     case "stdev":
-      return wrapTimeframe(`stdev(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20})`);
+      return wrapTimeframe(`ta.stdev(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20})`);
     case "variance":
-      return wrapTimeframe(`variance(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20})`);
+      return wrapTimeframe(`ta.variance(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20})`);
     case "highest":
-      return wrapTimeframe(`highest(${pineIndicatorSource(properties.source ?? "high")}, ${properties.period ?? 20})`);
+      return wrapTimeframe(`ta.highest(${pineIndicatorSource(properties.source ?? "high")}, ${properties.period ?? 20})`);
     case "lowest":
-      return wrapTimeframe(`lowest(${pineIndicatorSource(properties.source ?? "low")}, ${properties.period ?? 20})`);
+      return wrapTimeframe(`ta.lowest(${pineIndicatorSource(properties.source ?? "low")}, ${properties.period ?? 20})`);
     case "sum":
-      return wrapTimeframe(`sum(${pineIndicatorSource(properties.source ?? "volume")}, ${properties.period ?? 20})`);
+      return wrapTimeframe(`ta.sum(${pineIndicatorSource(properties.source ?? "volume")}, ${properties.period ?? 20})`);
     case "vwap":
-      return `vwap(${pineIndicatorSource(properties.source ?? "hlc3")})`;
+      return `ta.vwap(${pineIndicatorSource(properties.source ?? "hlc3")})`;
     case "mfi":
-      return wrapTimeframe(`mfi(${pineIndicatorSource(properties.source ?? "hlc3")}, ${properties.period ?? 14})`);
+      return wrapTimeframe(`ta.mfi(${pineIndicatorSource(properties.source ?? "hlc3")}, ${properties.period ?? 14})`);
     case "dmi":
-      return `dmi(${properties.period ?? 14}, ${properties.adxSmoothing ?? 14})`;
+      return `ta.dmi(${properties.period ?? 14}, ${properties.adxSmoothing ?? 14})`;
     case "supertrend":
-      return wrapTimeframe(`supertrend(${properties.factor ?? 3}, ${properties.period ?? 10})`);
+      return wrapTimeframe(`ta.supertrend(${properties.factor ?? 3}, ${properties.period ?? 10})`);
     case "sar":
-      return `sar(${properties.start ?? 0.02}, ${properties.increment ?? 0.02}, ${properties.maximum ?? 0.2})`;
+      return `ta.sar(${properties.start ?? 0.02}, ${properties.increment ?? 0.02}, ${properties.maximum ?? 0.2})`;
     case "linreg":
-      return wrapTimeframe(`linreg(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 5}, ${properties.offset ?? 0})`);
+      return wrapTimeframe(`ta.linreg(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 5}, ${properties.offset ?? 0})`);
     case "obv":
-      return wrapTimeframe(`obv(${pineIndicatorSource(properties.source ?? "close")})`);
+      return wrapTimeframe("ta.obv");
     case "pivotHigh":
-      return wrapTimeframe(`pivothigh(${pineIndicatorSource(properties.source ?? "high")}, ${properties.leftBars ?? 2}, ${properties.rightBars ?? 2})`);
+      return wrapTimeframe(`ta.pivothigh(${pineIndicatorSource(properties.source ?? "high")}, ${properties.leftBars ?? 2}, ${properties.rightBars ?? 2})`);
     case "pivotLow":
-      return wrapTimeframe(`pivotlow(${pineIndicatorSource(properties.source ?? "low")}, ${properties.leftBars ?? 2}, ${properties.rightBars ?? 2})`);
+      return wrapTimeframe(`ta.pivotlow(${pineIndicatorSource(properties.source ?? "low")}, ${properties.leftBars ?? 2}, ${properties.rightBars ?? 2})`);
     case "keltner":
-      return wrapTimeframe(`kc(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20}, ${properties.multiplier ?? 1.5}, true)`);
+      return wrapTimeframe(`ta.kc(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20}, ${properties.multiplier ?? 1.5}, true)`);
     case "alma":
-      return wrapTimeframe(`alma(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20}, ${properties.offset ?? 0.85}, ${properties.sigma ?? 6})`);
+      return wrapTimeframe(`ta.alma(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20}, ${properties.offset ?? 0.85}, ${properties.sigma ?? 6})`);
     case "rsi":
     default:
       return wrapTimeframe(`ta.rsi(close, ${properties.period ?? 14})`);
@@ -1194,5 +1231,3 @@ function formatPineValue(value: unknown): string {
 function indent(depth: number): string {
   return "  ".repeat(depth);
 }
-
-export const buildStrategyScriptFromVisualModel = buildStrategyPineFromVisualModel;
