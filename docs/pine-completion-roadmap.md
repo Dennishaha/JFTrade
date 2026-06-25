@@ -7,7 +7,7 @@ JFTrade should not claim blanket 100% TradingView Pine v6 parity until the runti
 - **Executable strategy completion**: closed-bar, same-symbol Pine v6 strategies that can compile, plan, backtest, and run in JFTrade.
 - **Full parity boundary**: TradingView-only behavior that remains parseable, diagnosable, or documented as out of scope.
 
-The current `strategy.pine_spec` baseline is `ProductVersion v3.0`. It already goes beyond the older v1.7 95% roadmap: collection/map/matrix subsets, pure object/method subsets, expanded MTF expressions, semantic declarations, and large corpus gates are represented in the public spec. The next work should turn that broad surface into auditable completion criteria.
+The current `strategy.pine_spec` baseline is `ProductVersion v4.0`. It already goes beyond the older v1.7 95% roadmap: collection/map/matrix subsets, pure object/method subsets, expanded MTF expressions, semantic declarations, native public-surface diagnostics, MTF diagnostic matrix/preflight checks, advanced language boundary diagnostics, generated support snapshots, broker emulator boundary decisions, and large corpus gates are represented in the public spec. The next work should keep that broad surface auditable rather than expanding the score by hiding unsupported TradingView-only behavior.
 
 ## Completion Definition
 
@@ -120,13 +120,13 @@ Recommended gates:
 
 - **v3.1 Public Surface Lock**: spec reconciliation, native-only examples, helper-call diagnostics, editor metadata parity.
 - **v3.2 MTF Lock**: centralized timeframe normalization, warmup parity, pure-expression MTF diagnostic matrix.
-- **v3.3 Advanced Language Lock**: collection/object/history semantics, loop limits, corpus expansion.
-- **v3.4 Completion Gate**: reproducible score, generated support docs, benchmark thresholds, no undocumented public behavior.
-- **v4.0 Broker Emulator Decision**: either start a separate TradingView broker-emulator parity track or formally keep it outside JFTrade Pine completion.
+- **v3.3 Advanced Language Lock**: collection/object/history semantics, loop limits, and stable UDF/loop boundary diagnostics.
+- **v3.4 Completion Gate**: reproducible score, generated support snapshot docs, benchmark thresholds, no undocumented public behavior.
+- **v4.0 Broker Emulator Decision**: complete; TradingView broker-emulator parity is formally outside JFTrade executable Pine v6 completion and tracked as a separate trading-runtime boundary.
 
 ## Open Decisions
 
 - Whether the product should ever market "100% Pine v6" or only "100% of JFTrade executable Pine v6 strategy subset".
 - Whether cross-symbol `request.security` requires multi-subscription live architecture or remains permanently unsupported.
 - Whether visual APIs should stay warning-only/no-op or become a separate chart-rendering feature.
-- Whether broker emulator parity belongs in Pine compatibility scoring or a separate trading-runtime score.
+- Broker emulator parity now belongs in a separate trading-runtime score, not the JFTrade executable Pine v6 compatibility score.

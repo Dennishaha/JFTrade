@@ -34,6 +34,7 @@ export default defineConfig({
         items: [
           { text: "HTTP API", link: "/reference/generated/api" },
           { text: "数据类型", link: "/reference/generated/types" },
+          { text: "Pine v6 支持快照", link: "/reference/generated/pine-v6-support" },
         ],
       },
       {

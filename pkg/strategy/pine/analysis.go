@@ -177,12 +177,56 @@ func diagnosticFromError(err error) Diagnostic {
 	}
 	return Diagnostic{
 		Severity:  DiagnosticSeverityError,
-		Code:      "PINE_COMPILE_ERROR",
+		Code:      diagnosticCodeForCompileMessage(message),
 		Message:   message,
 		Line:      line,
 		Column:    1,
 		EndLine:   line,
 		EndColumn: 1,
+	}
+}
+
+func diagnosticCodeForCompileMessage(message string) string {
+	lower := strings.ToLower(strings.TrimSpace(message))
+	switch {
+	case strings.Contains(lower, "recursive user-defined function"):
+		return "PINE_UDF_RECURSIVE_UNSUPPORTED"
+	case strings.Contains(lower, "nested user-defined functions") ||
+		strings.Contains(lower, "user-defined functions are supported only at top level"):
+		return "PINE_UDF_NESTED_UNSUPPORTED"
+	case strings.Contains(lower, "user-defined function") &&
+		(strings.Contains(lower, "expects") ||
+			strings.Contains(lower, "invalid") ||
+			strings.Contains(lower, "duplicate") ||
+			strings.Contains(lower, "conflicts") ||
+			strings.Contains(lower, "requires") ||
+			strings.Contains(lower, "must have")):
+		return "PINE_UDF_SIGNATURE_UNSUPPORTED"
+	case strings.Contains(lower, "nested for loops deeper") ||
+		strings.Contains(lower, "dynamic loop nesting exceeds"):
+		return "PINE_LOOP_NESTING_UNSUPPORTED"
+	case strings.Contains(lower, "for loop step cannot be 0") ||
+		strings.Contains(lower, "for loop step does not reach the end value") ||
+		strings.Contains(lower, "for loop expands to more than") ||
+		strings.Contains(lower, "for loop exceeded") ||
+		strings.Contains(lower, "while loop exceeded") ||
+		strings.Contains(lower, "loop bound must be an integer"):
+		return "PINE_LOOP_LIMIT_UNSUPPORTED"
+	case strings.Contains(lower, "loop variable") && strings.Contains(lower, "read-only"):
+		return "PINE_LOOP_VARIABLE_READONLY"
+	case strings.Contains(lower, "oca_name") || strings.Contains(lower, "oca_type"):
+		return "PINE_ORDER_OCA_UNSUPPORTED"
+	case strings.Contains(lower, "trail with stop/limit") ||
+		strings.Contains(lower, "accepts trail_points or trail_price, not both"):
+		return "PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED"
+	case strings.Contains(lower, "strategy.exit advanced exit semantics"):
+		return "PINE_ORDER_EXIT_ADVANCED_UNSUPPORTED"
+	case strings.Contains(lower, "broker emulator") ||
+		strings.Contains(lower, "partial fill") ||
+		strings.Contains(lower, "intrabar"):
+		return "PINE_BROKER_EMULATOR_OUT_OF_SCOPE"
+	default:
+		return "PINE_COMPILE_ERROR"
 	}
 }
 

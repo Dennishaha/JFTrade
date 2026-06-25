@@ -12,7 +12,7 @@ import (
 
 const (
 	PineVersion              = "v6"
-	ProductVersion           = "v3.0"
+	ProductVersion           = "v4.0"
 	SourceFormat             = strategydefinition.SourceFormatPineV6
 	Runtime                  = strategypineruntime.ID
 	ToolName                 = "strategy.pine_spec"
@@ -42,7 +42,7 @@ var sections = []Section{
 	{ID: "expressions", Title: "表达式", Summary: "支持的 Pine 表达式、OHLCV 序列和函数映射。"},
 	{ID: "indicators", Title: "指标", Summary: "当前 compiler、planner 与 runtime 能识别的 ta.* 指标。"},
 	{ID: "orders", Title: "下单", Summary: "strategy.entry/strategy.close 到 JFTrade 订单 IR 的映射。"},
-	{ID: "support-matrix", Title: "支持矩阵", Summary: "按 parser、semantic、planner、runtime、JFTrade 集成和前端锁定 v3.0 Pine v6 主路径、collection/map/matrix、tuple、动态循环、纯 UDT/method、MTF stoch、array stats、字符串/timeframe helper、object history/method receiver 与稳定 semantic metadata 能力。"},
+	{ID: "support-matrix", Title: "支持矩阵", Summary: "按 parser、semantic、planner、runtime、JFTrade 集成和前端锁定 v4.0 Pine v6 主路径、collection/map/matrix、tuple、动态循环、纯 UDT/method、MTF stoch、array stats、字符串/timeframe helper、object history/method receiver、稳定 semantic metadata、public surface 诊断、MTF preflight、高级语言边界诊断、生成式支持快照与 broker 边界决策。"},
 	{ID: "unsupported", Title: "不支持项", Summary: "已解析但不能在 JFTrade 中执行的 Pine v6 行为。"},
 	{ID: "examples", Title: "示例", Summary: "当前实现下可以成功 parse、lower 并完成 requirements planning 的 Pine v6 脚本。"},
 }
@@ -633,6 +633,7 @@ func BuildToolPayload(section string, includeExamples bool) (map[string]any, err
 		"compatibilityScore":          strategypine.CompatibilityScore().Score,
 		"scoreModelVersion":           strategypine.CompatibilityScore().ScoreModelVersion,
 		"compatibilityDimensions":     strategypine.CompatibilityScore().Dimensions,
+		"brokerBoundary":              brokerBoundary(),
 		"unsupportedPatterns":         unsupportedPatterns(),
 		"goldenScripts":               goldenExamplePayloads(),
 		"skeleton":                    Skeleton(),
@@ -682,7 +683,7 @@ func BuildSpecMarkdown() string {
 	writeMarkdownSection(&builder, "下单", sectionDetails("orders"))
 	writeMarkdownList(&builder, "数量与下单模式", flattenNamedItems(orderModes()))
 	writeMarkdownSection(&builder, "支持矩阵", sectionDetails("support-matrix"))
-	writeMarkdownList(&builder, "v3.0 主路径、collection/map/matrix、tuple、动态循环、纯 UDT/method、MTF stoch、array stats、字符串/timeframe helper、object history method receiver 与稳定 semantic metadata 能力覆盖", flattenMatrixItems(supportMatrix()))
+	writeMarkdownList(&builder, "v4.0 主路径、collection/map/matrix、tuple、动态循环、纯 UDT/method、MTF stoch、array stats、字符串/timeframe helper、object history method receiver、稳定 semantic metadata、public surface 诊断、MTF preflight、高级语言边界诊断、生成式支持快照与 broker 边界决策能力覆盖", flattenMatrixItems(supportMatrix()))
 	writeMarkdownSection(&builder, "不支持项", sectionDetails("unsupported"))
 	writeMarkdownList(&builder, "明确不支持的写法", unsupportedPatterns())
 	builder.WriteString("## 最小骨架\n\n```text\n")
@@ -690,6 +691,139 @@ func BuildSpecMarkdown() string {
 	builder.WriteString("\n```\n")
 
 	return builder.String()
+}
+
+func BuildSupportSnapshotMarkdown() string {
+	assessment := strategypine.CompatibilityScore()
+	var builder strings.Builder
+	builder.WriteString("# JFTrade Pine v6 Support Snapshot\n\n")
+	builder.WriteString("> 自动生成，请勿手改。来源：`pkg/strategy/pinespec` 与 `pkg/strategy/pine` capability registry。\n\n")
+	builder.WriteString("## Baseline\n\n")
+	builder.WriteString("| Field | Value |\n| --- | --- |\n")
+	fmt.Fprintf(&builder, "| Pine version | `%s` |\n", PineVersion)
+	fmt.Fprintf(&builder, "| Product version | `%s` |\n", ProductVersion)
+	fmt.Fprintf(&builder, "| Source format | `%s` |\n", SourceFormat)
+	fmt.Fprintf(&builder, "| Runtime | `%s` |\n", Runtime)
+	fmt.Fprintf(&builder, "| Score model | `%s` |\n", assessment.ScoreModelVersion)
+	fmt.Fprintf(&builder, "| Compatibility score | `%.2f` |\n\n", assessment.Score)
+
+	builder.WriteString("## Score Dimensions\n\n")
+	builder.WriteString("| Dimension | Weight | Score | Supported Weight | Total Weight | Unsupported IDs |\n")
+	builder.WriteString("| --- | ---: | ---: | ---: | ---: | --- |\n")
+	for _, dimension := range assessment.Dimensions {
+		fmt.Fprintf(
+			&builder,
+			"| `%s` | %.2f | %.2f | %.2f | %.2f | %s |\n",
+			escapeMarkdownTableCell(dimension.ID),
+			dimension.Weight,
+			dimension.Score,
+			dimension.SupportedWeight,
+			dimension.TotalWeight,
+			codeList(dimension.UnsupportedIDs),
+		)
+	}
+
+	builder.WriteString("\n## Capability Registry\n\n")
+	builder.WriteString("| ID | Dimension | Status | Weight | Layers | Tests | Notes |\n")
+	builder.WriteString("| --- | --- | --- | ---: | --- | --- | --- |\n")
+	for _, capability := range strategypine.CapabilityRegistry() {
+		fmt.Fprintf(
+			&builder,
+			"| `%s` | `%s` | `%s` | %.2f | %s | %s | %s |\n",
+			escapeMarkdownTableCell(capability.ID),
+			escapeMarkdownTableCell(capability.Dimension),
+			escapeMarkdownTableCell(string(capability.Status)),
+			capability.Weight,
+			escapeMarkdownTableCell(capabilityLayerSummary(capability.Layers)),
+			codeList(capability.TestIDs),
+			escapeMarkdownTableCell(capability.Notes),
+		)
+	}
+
+	builder.WriteString("\n## Support Matrix\n\n")
+	builder.WriteString("| Capability | Parser | Planner | Runtime | JFTrade | Frontend | Notes |\n")
+	builder.WriteString("| --- | --- | --- | --- | --- | --- | --- |\n")
+	for _, item := range supportMatrix() {
+		fmt.Fprintf(
+			&builder,
+			"| %s | %s | %s | %s | %s | %s | %s |\n",
+			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["capability"])),
+			boolMark(jftradeCheckedTypeAssertion[bool](item["parser"])),
+			boolMark(jftradeCheckedTypeAssertion[bool](item["planner"])),
+			boolMark(jftradeCheckedTypeAssertion[bool](item["runtime"])),
+			boolMark(jftradeCheckedTypeAssertion[bool](item["jftrade"])),
+			boolMark(jftradeCheckedTypeAssertion[bool](item["frontend"])),
+			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["notes"])),
+		)
+	}
+
+	builder.WriteString("\n## Broker Boundary\n\n")
+	builder.WriteString("| Area | Status | Score Treatment | Diagnostics | Notes |\n")
+	builder.WriteString("| --- | --- | --- | --- | --- |\n")
+	for _, item := range brokerBoundary() {
+		fmt.Fprintf(
+			&builder,
+			"| %s | `%s` | %s | %s | %s |\n",
+			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["area"])),
+			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["status"])),
+			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["scoreTreatment"])),
+			codeList(jftradeCheckedTypeAssertion[[]string](item["diagnosticCodes"])),
+			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["notes"])),
+		)
+	}
+
+	builder.WriteString("\n## Unsupported Patterns\n\n")
+	for _, pattern := range unsupportedPatterns() {
+		builder.WriteString("- ")
+		builder.WriteString(pattern)
+		builder.WriteString("\n")
+	}
+	return builder.String()
+}
+
+func capabilityLayerSummary(layers strategypine.CapabilityLayers) string {
+	enabled := make([]string, 0, 6)
+	if layers.Parser {
+		enabled = append(enabled, "parser")
+	}
+	if layers.Planner {
+		enabled = append(enabled, "planner")
+	}
+	if layers.Runtime {
+		enabled = append(enabled, "runtime")
+	}
+	if layers.Backtest {
+		enabled = append(enabled, "backtest")
+	}
+	if layers.Frontend {
+		enabled = append(enabled, "frontend")
+	}
+	if layers.Spec {
+		enabled = append(enabled, "spec")
+	}
+	return strings.Join(enabled, ", ")
+}
+
+func codeList(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	escaped := make([]string, 0, len(values))
+	for _, value := range values {
+		escaped = append(escaped, "`"+escapeMarkdownTableCell(value)+"`")
+	}
+	return strings.Join(escaped, "<br>")
+}
+
+func boolMark(value bool) string {
+	if value {
+		return "yes"
+	}
+	return "no"
+}
+
+func escapeMarkdownTableCell(value string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(value, "\n", "<br>"), "|", "\\|")
 }
 
 func BuildExamplesMarkdown() string {
@@ -722,6 +856,46 @@ func BuildExamplesMarkdown() string {
 		builder.WriteString("\n```\n\n")
 	}
 	return builder.String()
+}
+
+func brokerBoundary() []map[string]any {
+	return []map[string]any{
+		{
+			"area":            "Closed-bar order model",
+			"status":          "supported",
+			"scoreTreatment":  "included in executable Pine v6 score",
+			"diagnosticCodes": []string{},
+			"notes":           "strategy.entry/order/close/close_all/exit/cancel 在 K 线收盘执行；stop-limit、bracket、trailing、reversal、allow_entry_in、commission、slippage 和 process_orders_on_close 有专门可执行测试。",
+		},
+		{
+			"area":            "OCA and partial fill",
+			"status":          "out_of_scope",
+			"scoreTreatment":  "excluded from executable Pine v6 score and listed as unsupported order capability",
+			"diagnosticCodes": []string{"PINE_ORDER_OCA_UNSUPPORTED"},
+			"notes":           "oca_name/oca_type、partial fill 和 OCA reduce/cancel 组合属于 TradingView broker-emulator parity track，不计入 JFTrade closed-bar Pine completion。",
+		},
+		{
+			"area":            "Intrabar tick recalculation",
+			"status":          "out_of_scope",
+			"scoreTreatment":  "excluded from executable Pine v6 score and listed as unsupported order capability",
+			"diagnosticCodes": []string{"PINE_BROKER_EMULATOR_OUT_OF_SCOPE"},
+			"notes":           "tick 级重算、intrabar path 推断、bar magnifier 和同一根 K 线内部成交路径不属于当前 runtime；当前策略只在闭盘 hook 执行。",
+		},
+		{
+			"area":            "Advanced strategy.exit broker semantics",
+			"status":          "diagnostic_only",
+			"scoreTreatment":  "supported subset counted; unsupported combinations stay outside score",
+			"diagnosticCodes": []string{"PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED", "PINE_ORDER_EXIT_ADVANCED_UNSUPPORTED"},
+			"notes":           "基础 stop、limit、stop+limit bracket、trail_points/trail_price + trail_offset 可执行；trail 与 bracket 混用、无触发器 exit 和高级 broker emulator 语义返回稳定诊断。",
+		},
+		{
+			"area":            "Full TradingView broker emulator",
+			"status":          "out_of_scope",
+			"scoreTreatment":  "tracked separately as order.full_tv_broker_emulator, not used to inflate Pine language completion",
+			"diagnosticCodes": []string{"PINE_BROKER_EMULATOR_OUT_OF_SCOPE"},
+			"notes":           "完整 TradingView broker emulator、保证金清算、多标的组合撮合和 partial fill parity 需要单独 trading-runtime track；v4.0 正式将其排除在 JFTrade executable Pine v6 completion 之外。",
+		},
+	}
 }
 
 func supportedTopLevelStatements() []string {
@@ -904,6 +1078,11 @@ func supportMatrix() []map[string]any {
 		{"capability": "v2.8 object history, method chain and export metadata", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "box[1].field object history read、无副作用 method chain、request.security object method expression 与 export function/type/method kind metadata 已进入 2200+ 语料门禁。"},
 		{"capability": "v2.9 object history method receiver and MTF diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "box[1].score(...)、method chain named/default args、request.security object history field/method pure expression 与 dynamic symbol/timeframe、nested、side-effect、lookahead/gaps 分码诊断已进入 2500+ 语料门禁。"},
 		{"capability": "v3.0 stable semantic declarations and varip policy", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "SemanticDeclaration 增补 signature/unsupportedReason，type/method/export/import metadata 稳定；varip 在 closed-bar runtime 下按 var 执行并输出 warning，空白/注释解析韧性已进入 2850+ 语料门禁。"},
+		{"capability": "v3.1 native public surface diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "用户输入 ma/security_source/bollinger/history/ifelse/cross_over/cross_under/notify 等 JFTrade 内部 helper 或 ta.adx shortcut 时，AnalyzeScript 返回稳定分码诊断并提示 Pine v6 native 替代写法；Monaco 不暴露这些 internal helper 作为 public completion/hover。"},
+		{"capability": "v3.2 MTF diagnostics and lower-timeframe preflight", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "request.security 固定 timeframe requirements 会在 warmup、indicator engine 和 backtest replay 前与策略原生 interval 比较；低于原生周期或不能整除的 intraday timeframe 返回明确错误，不进入 runtime 执行。AnalyzeScript 对 tuple assignment、tuple width、alias mismatch 和无法 lower 的纯表达式返回稳定分码诊断。"},
+		{"capability": "v3.3 advanced language boundary diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "AnalyzeScript 对递归 UDF、嵌套 UDF、UDF 签名问题、循环嵌套/迭代上限和循环变量只读返回稳定分码诊断；动态 for/while、collection for、break/continue 和 loop runtime 上限继续作为闭盘可执行子集的受控边界。"},
+		{"capability": "v3.4 generated support snapshot", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "npm run generate:reference 生成 docs/reference/generated/pine-v6-support.md，将 ProductVersion、score model、compatibility dimensions、capability registry、support matrix 和 unsupported patterns 固化为可 diff 快照；pinespec 测试会拒绝过期快照。"},
+		{"capability": "v4.0 broker emulator boundary decision", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "完整 TradingView broker emulator、OCA、partial fill、intrabar tick recalculation 和多标的组合撮合正式作为单独 trading-runtime parity track，排除在 JFTrade executable Pine v6 completion score 之外；brokerBoundary payload 与生成快照列出 scoreTreatment 和稳定诊断码。"},
 	}
 }
 
@@ -1048,8 +1227,8 @@ func sectionDetails(section string) []string {
 		}
 	case "support-matrix":
 		return []string{
-			"v3.0 保持闭盘可执行 Pine v6 子集作为策略定义、预览、回测、实例化、运行和 ADK 工具主路径。",
-			"v3.0 让 collection/map/matrix 扩展、array stats、字符串/timeframe helper、结构化 AST、通用 tuple、动态循环、纯 UDT constructor/method、持久 object 字段更新、object collection fields、collection history aggregate、object history read/method receiver、method chain、MTF stoch、稳定 semantic declaration metadata 和 visual metadata 可分析、可解释、可分层执行；library/import 和完整 TradingView method/type 系统仍只进入 metadata/diagnostics。",
+			"v4.0 保持闭盘可执行 Pine v6 子集作为策略定义、预览、回测、实例化、运行和 ADK 工具主路径。",
+			"v4.0 让 collection/map/matrix 扩展、array stats、字符串/timeframe helper、结构化 AST、通用 tuple、动态循环、纯 UDT constructor/method、持久 object 字段更新、object collection fields、collection history aggregate、object history read/method receiver、method chain、MTF stoch、稳定 semantic declaration metadata、visual metadata、native public surface diagnostics、MTF diagnostic matrix、lower-timeframe MTF preflight、高级语言边界诊断、生成式支持快照和 broker emulator 边界决策可分析、可解释、可分层执行；library/import 和完整 TradingView method/type 系统仍只进入 metadata/diagnostics。",
 			"新增 Pine 能力必须同步更新 parser lowering、semantic summary、IR requirements、indicator/runtime lookup、规范输出和至少一层可执行测试。",
 			"前端不是完整 Pine IDE；流程图覆盖常用策略 authoring，无法标准化的 Pine 行会返回行号诊断，请继续在 Pine 工作台编辑。",
 		}

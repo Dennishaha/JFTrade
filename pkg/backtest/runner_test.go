@@ -2120,6 +2120,45 @@ log.info("auto warmup")`,
 	}
 }
 
+func TestRunRejectsLowerTimeframeRequestSecurityBeforeReplay(t *testing.T) {
+	isolateBacktestHome(t)
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-lower-mtf.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval30m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC),
+		EndTime:      time.Date(2026, time.May, 26, 10, 30, 0, 0, time.UTC),
+		StrategyScript: `//@version=6
+strategy("Lower MTF", overlay=true)
+lower = request.security(syminfo.tickerid, "15", ta.sma(close, 3))
+if lower > close
+    strategy.entry("Long", strategy.long)`,
+		InitialBalance: 10000,
+	})
+	if result == nil {
+		t.Fatal("Run() returned nil")
+	}
+	if result.Error == "" ||
+		!strings.Contains(result.Error, "derive strategy warmup") ||
+		!strings.Contains(result.Error, "fixed timeframe 15m is lower than strategy interval 30m") {
+		t.Fatalf("Run() error = %q, want lower-timeframe preflight diagnostic", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want none before runtime", result.RuntimeErrors)
+	}
+}
+
 func BenchmarkRunExecutesIndicatorHeavyDSLBacktest(b *testing.B) {
 	isolateBacktestHome(b)
 	dbPath, startTime, endTime := seedBenchmarkBacktestStore(b)

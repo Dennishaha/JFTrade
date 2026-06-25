@@ -78,6 +78,9 @@ func supportedRequestSecurityTupleAssignmentLine(line string) ([]string, []strin
 }
 
 func unsupportedSyntaxDiagnostic(line parsedLine) (Diagnostic, bool) {
+	if diagnostic, ok := publicDisabledHelperDiagnostic(line); ok {
+		return diagnostic, true
+	}
 	lower := strings.ToLower(strings.TrimSpace(line.trimmed))
 	switch {
 	case strings.Contains(lower, "request.security("):
@@ -139,7 +142,76 @@ func requestSecurityUnsupportedDiagnostic(line parsedLine) (Diagnostic, bool) {
 	if requestSecurityExpressionHasSideEffect(expression) {
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_SIDE_EFFECT", "request.security() expression must be pure; strategy, alert, visual, collection mutation, and reassignment side effects are not supported", line), true
 	}
+	if diagnostic, ok := requestSecurityTupleDiagnostic(line, expression); ok {
+		return diagnostic, true
+	}
+	if requestSecurityExpressionHasUnsupportedTACall(expression) {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED", "request.security() expression is outside JFTrade's executable pure-expression subset", line), true
+	}
 	return Diagnostic{}, false
+}
+
+func requestSecurityTupleDiagnostic(line parsedLine, expression string) (Diagnostic, bool) {
+	trimmed := strings.TrimSpace(expression)
+	if len(trimmed) < 2 || trimmed[0] != '[' || trimmed[len(trimmed)-1] != ']' {
+		return Diagnostic{}, false
+	}
+	values := splitArguments(trimmed[1 : len(trimmed)-1])
+	if len(values) < 2 || len(values) > 8 {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_TUPLE_UNSUPPORTED", "request.security() tuple expressions support 2 to 8 values", line), true
+	}
+	aliases, ok := requestSecurityTupleAliasesFromLine(line.trimmed)
+	if !ok {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_TUPLE_ASSIGNMENT", "request.security() tuple expressions must be assigned with matching tuple aliases", line), true
+	}
+	if len(aliases) != len(values) {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_TUPLE_MISMATCH", fmt.Sprintf("request.security() tuple returns %d values but assignment has %d aliases", len(values), len(aliases)), line), true
+	}
+	return Diagnostic{}, false
+}
+
+func requestSecurityTupleAliasesFromLine(line string) ([]string, bool) {
+	if match := generalTuplePattern.FindStringSubmatch(line); match != nil {
+		rawNames := splitArguments(match[1])
+		aliases := make([]string, 0, len(rawNames))
+		for _, raw := range rawNames {
+			aliases = append(aliases, strings.TrimSpace(raw))
+		}
+		return aliases, true
+	}
+	if match := tupleAssignmentPattern.FindStringSubmatch(line); match != nil {
+		return tupleAssignmentAliases(match), true
+	}
+	return nil, false
+}
+
+func requestSecurityExpressionHasUnsupportedTACall(expression string) bool {
+	lower := strings.ToLower(expression)
+	for search := 0; search < len(lower); {
+		index := strings.Index(lower[search:], "ta.")
+		if index < 0 {
+			return false
+		}
+		index += search
+		open := strings.Index(lower[index:], "(")
+		if open < 0 {
+			return false
+		}
+		open += index
+		name := strings.TrimSpace(lower[index+len("ta.") : open])
+		close := matchingParen(expression, open)
+		if close < 0 {
+			return true
+		}
+		args := splitArguments(expression[open+1 : close])
+		timeUnit := "minute"
+		if replacement, ok := lowerRequestSecurityTACall(name, args, timeUnit); ok && replacement != "" {
+			search = close + 1
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func requestSecurityArgsFromLine(line string) ([]string, bool) {

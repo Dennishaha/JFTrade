@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const CompatibilityScoreModelVersion = "closed-bar-strategy-v3.0"
+const CompatibilityScoreModelVersion = "closed-bar-strategy-v4.0"
 
 type CapabilityStatus string
 
@@ -108,6 +108,8 @@ var capabilityDefinitions = []capabilityDefinition{
 	supportedWeightedCapability("syntax.v30_stable_semantic_declarations", 10),
 	supportedWeightedCapability("syntax.v30_varip_closed_bar_policy", 4),
 	supportedWeightedCapability("syntax.v30_parser_whitespace_comments", 4),
+	supportedWeightedCapability("syntax.v31_public_surface_lock", 6),
+	supportedWeightedCapability("syntax.v33_advanced_language_boundary", 6),
 	supportedCapability("expression.history_ref_1"),
 	supportedCapability("expression.history_ref_n"),
 	supportedCapability("expression.ternary"),
@@ -182,6 +184,8 @@ var capabilityDefinitions = []capabilityDefinition{
 	supportedWeightedCapability("request.security.v27_pure_helper_expression", 10),
 	supportedWeightedCapability("request.security.v28_object_method_expression", 10),
 	supportedWeightedCapability("request.security.v29_object_history_expression", 8),
+	supportedWeightedCapability("request.security.v32_diagnostic_matrix", 6),
+	supportedWeightedCapability("request.security.v32_lower_timeframe_preflight", 6),
 	supportedCapability("expression.barmerge_constants"),
 	warningCapability("visual.noop_calls", "plot/drawing/table 等视觉 API 解析为 warning/no-op，并在 AnalyzeScript 中暴露分类 metadata，包括赋值形式的 drawing/table constructor。"),
 	warningCapability("alert.alertcondition_noop", "alertcondition 解析为 warning/no-op，交易告警使用 order alert metadata。"),
@@ -200,6 +204,7 @@ var capabilityDefinitions = []capabilityDefinition{
 	supportedCapability("order.entry_reversal"),
 	supportedCapability("order.allow_entry_in"),
 	supportedCapability("strategy.entry_close_exit_subset"),
+	supportedWeightedCapability("strategy.v40_broker_boundary_decision", 6),
 	partialCapability("order.short_broker_accounting", 1.8, "Pine runtime 计算反手数量；当前 JFTrade 现货回测执行器仍不模拟保证金裸空。"),
 	partialCapability("syntax.arrays_maps_matrices", 2.2, "array/map/matrix 常用 constructor、读取、变更、copy/slice/fill/aggregate、排序、统计、array.from/concat/join、map.copy/keys/values、array for-in、map keys/values iteration、matrix rows/columns/get/set 与 collection history aggregate snapshot 已可执行并跨 K 线持久化；深层泛型、嵌套 collection 全表面仍未覆盖。"),
 	partialCapability("syntax.methods_types_libraries", 2.0, "type、命名 constructor 参数、多语句纯 method、局部/持久 object 字段重赋值、object collection fields、object history read、纯 method chain 与 export kind metadata 子集可执行/可分析；library/import 和完整 Pine method/type 系统仍只进入 semantic metadata 与诊断。"),
@@ -215,7 +220,7 @@ var capabilityDefinitions = []capabilityDefinition{
 	unsupportedCapability("order.oca_partial_fill", 2.2, "OCA、partial fill 和完整 broker emulator 暂不支持。"),
 	unsupportedCapability("order.intrabar_tick_recalc", 1.7, "tick 级重算和 intrabar 路径推断暂不支持。"),
 	unsupportedCapability("order.full_tv_broker_emulator", 1.4, "完整 TradingView broker emulator 不属于当前目标。"),
-		partialCapability("tooling.visual_builder_roundtrip", 0.6, "流程图反解只覆盖可标准化 Pine v6 子集；无法映射的新语法返回行号诊断，请继续在 Pine 工作台编辑。"),
+	partialCapability("tooling.visual_builder_roundtrip", 0.6, "流程图反解只覆盖可标准化 Pine v6 子集；无法映射的新语法返回行号诊断，请继续在 Pine 工作台编辑。"),
 	supportedWeightedCapability("tooling.migration_corpus_v14", 4),
 	supportedWeightedCapability("tooling.migration_corpus_v15", 6),
 	supportedWeightedCapability("tooling.migration_corpus_v16", 8),
@@ -233,6 +238,10 @@ var capabilityDefinitions = []capabilityDefinition{
 	supportedWeightedCapability("tooling.semantic_analyze_payload", 10),
 	supportedWeightedCapability("tooling.visual_metadata_output", 4),
 	supportedWeightedCapability("tooling.v20_language_foundation", 10),
+	supportedWeightedCapability("tooling.v31_structured_helper_diagnostics", 8),
+	supportedWeightedCapability("tooling.v33_structured_language_diagnostics", 6),
+	supportedWeightedCapability("tooling.v34_generated_support_snapshot", 6),
+	supportedWeightedCapability("tooling.v40_broker_boundary_snapshot", 6),
 }
 
 func supportedCapability(id string) capabilityDefinition {
@@ -383,12 +392,13 @@ func capabilityHasFrontend(id string) bool {
 		"syntax.v27_collection_history_aggregates", "syntax.v27_map_matrix_iteration", "syntax.v28_object_history_read", "syntax.v28_method_chain", "syntax.v28_export_metadata",
 		"syntax.v29_object_history_method_receiver", "syntax.v29_method_chain_named_defaults", "syntax.v29_request_security_diagnostics",
 		"syntax.v30_stable_semantic_declarations", "syntax.v30_varip_closed_bar_policy", "syntax.v30_parser_whitespace_comments",
+		"syntax.v31_public_surface_lock", "syntax.v33_advanced_language_boundary", "tooling.v31_structured_helper_diagnostics", "tooling.v33_structured_language_diagnostics",
 		"syntax.switch_static_lowering", "request.security.mtf_ma_subset",
 		"request.security.mtf_v12_advanced", "request.security.mtf_v13_advanced",
 		"request.security.pure_expression", "request.security.pure_expression_diagnostics",
 		"request.security.v15_common_ta_expression", "request.security.v16_tuple_whitelist",
 		"request.security.v17_semantic_tuple_corpus", "request.security.v21_ast_pure_expression", "request.security.v22_general_tuple",
-		"request.security.v23_pure_collection_object_expression", "request.security.v24_mtf_stoch", "request.security.v27_pure_helper_expression", "request.security.v28_object_method_expression", "request.security.v29_object_history_expression",
+		"request.security.v23_pure_collection_object_expression", "request.security.v24_mtf_stoch", "request.security.v27_pure_helper_expression", "request.security.v28_object_method_expression", "request.security.v29_object_history_expression", "request.security.v32_diagnostic_matrix", "request.security.v32_lower_timeframe_preflight",
 		"visual.noop_calls", "alert.alertcondition_noop",
 		"order.qty_percent", "order.exit_bracket", "order.pending_stop",
 		"order.pending_stop_limit", "order.trailing_exit", "order.allow_entry_in",
@@ -422,6 +432,8 @@ func capabilityTestIDs(id string) []string {
 		return []string{"TestCompileSupportsPendingStopAndCancelOrders", "TestRunPinePendingStopCancelAndBracketExit/stop-limit_activates_before_limit_fill"}
 	case "order.entry_reversal", "order.allow_entry_in":
 		return []string{"TestCompileSupportsAllowEntryInRiskDeclaration", "TestAdjustEntryOrderQuantitySupportsPineReversalAndAllowEntryIn", "TestRunPineEntryReversalAndAllowedEntryDirection"}
+	case "strategy.v40_broker_boundary_decision", "tooling.v40_broker_boundary_snapshot":
+		return []string{"TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics", "TestBuildToolPayloadIncludesBrokerBoundary", "TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "indicator.linreg_obv_pivots", "indicator.keltner_alma":
 		return []string{"TestCompileSupportsV12AdvancedIndicators", "TestAdvancedIndicatorCalculationsUseAuditedVectors"}
 	case "indicator.v13_migration_set":
@@ -482,10 +494,20 @@ func capabilityTestIDs(id string) []string {
 		return []string{"TestCompileSupportsV29ObjectHistoryMethodReceiverAndMTFHistoryExpression", "TestExecuteV29ObjectHistoryMethodReceiverAndNamedChain", "TestPineV29MigrationCorpusGate"}
 	case "syntax.v29_request_security_diagnostics":
 		return []string{"TestAnalyzeScriptReportsV29RequestSecurityDiagnostics", "TestPineV29MigrationCorpusGate"}
+	case "request.security.v32_diagnostic_matrix":
+		return []string{"TestAnalyzeScriptReportsV32RequestSecurityDiagnosticMatrix"}
+	case "request.security.v32_lower_timeframe_preflight":
+		return []string{"TestRequestSecurityTimeframeRequirementsValidateAgainstStrategyInterval", "TestRunRejectsLowerTimeframeRequestSecurityBeforeReplay"}
 	case "syntax.v30_stable_semantic_declarations":
 		return []string{"TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy", "TestPineV30MigrationCorpusGate"}
 	case "syntax.v30_varip_closed_bar_policy", "syntax.v30_parser_whitespace_comments":
 		return []string{"TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy", "TestPineV30MigrationCorpusGate"}
+	case "syntax.v31_public_surface_lock", "tooling.v31_structured_helper_diagnostics":
+		return []string{"TestCompileRejectsPublicInternalHelperCalls", "TestAnalyzeScriptReportsPublicInternalHelperDiagnostics", "TestStrategyPineEditorIntelliSense"}
+	case "syntax.v33_advanced_language_boundary", "tooling.v33_structured_language_diagnostics":
+		return []string{"TestAnalyzeScriptReportsV33AdvancedLanguageBoundaryDiagnostics", "TestValidateScriptReportsUnsupportedUDFAndStaticForCases", "TestExecuteWhileLoopHonorsBreakAndLimit"}
+	case "tooling.v34_generated_support_snapshot":
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent", "TestBuildToolPayloadIncludesSupportMatrix"}
 	case "indicator.v21_bbw_cog_anchored_vwap", "request.security.v21_ast_pure_expression":
 		return []string{"TestCompileSupportsV21BBWAndCOG", "TestAdvancedIndicatorCalculationsUseAuditedVectors", "TestPineV21MigrationCorpusGate"}
 	case "syntax.v22_structured_loop_runtime", "syntax.dynamic_loops_while":

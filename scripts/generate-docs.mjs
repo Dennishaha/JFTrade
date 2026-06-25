@@ -1,14 +1,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import ts from "typescript";
 
 const rootDir = process.cwd();
 const generatedDir = path.join(rootDir, "docs", "reference", "generated");
 const swaggerPath = path.join(rootDir, "docs", "swagger", "swagger.json");
 const contractsPath = path.join(rootDir, "apps", "web", "src", "contracts", "index.ts");
+const execFileAsync = promisify(execFile);
 
 await fs.mkdir(generatedDir, { recursive: true });
-await Promise.all([generateApiDocs(), generateTypeDocs()]);
+await Promise.all([generateApiDocs(), generateTypeDocs(), generatePineSupportDocs()]);
 
 async function generateApiDocs() {
   const swagger = JSON.parse(await fs.readFile(swaggerPath, "utf8"));
@@ -106,6 +109,13 @@ async function generateTypeDocs() {
   }
 
   await fs.writeFile(path.join(generatedDir, "types.md"), `${lines.join("\n").trimEnd()}\n`, "utf8");
+}
+
+async function generatePineSupportDocs() {
+  await execFileAsync("go", ["run", "./cmd/generate-pine-spec-docs", "-out", generatedDir], {
+    cwd: rootDir,
+    maxBuffer: 1024 * 1024 * 10,
+  });
 }
 
 function collectParameters(operation) {

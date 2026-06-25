@@ -81,6 +81,35 @@ strategy("reject helpers", overlay=true)
 	}
 }
 
+func TestAnalyzeScriptReportsPublicInternalHelperDiagnostics(t *testing.T) {
+	tests := []struct {
+		name string
+		line string
+		code string
+		want string
+	}{
+		{name: "internal helper", line: "fast = ma(EMA, 14)", code: "PINE_INTERNAL_HELPER_PUBLIC", want: "use Pine v6 ta.sma/ta.ema"},
+		{name: "ta shortcut", line: "adx = ta.adx(14)", code: "PINE_PUBLIC_TA_SHORTCUT", want: "use Pine v6 ta.dmi"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			analysis := AnalyzeScript(`//@version=6
+strategy("helper diagnostics", overlay=true)
+`+tt.line, AnalysisOptions{IncludeAST: true})
+			if analysis.OK {
+				t.Fatal("AnalyzeScript().OK = true, want false")
+			}
+			if len(analysis.Diagnostics) == 0 {
+				t.Fatal("AnalyzeScript() diagnostics empty")
+			}
+			diagnostic := analysis.Diagnostics[0]
+			if diagnostic.Code != tt.code || diagnostic.Line != 3 || !strings.Contains(diagnostic.Message, tt.want) {
+				t.Fatalf("diagnostic = %#v, want code %s and message containing %q", diagnostic, tt.code, tt.want)
+			}
+		})
+	}
+}
+
 func TestCompileAcceptsNativePineIndicatorPublicEntry(t *testing.T) {
 	_, err := Compile(`//@version=6
 strategy("native indicators", overlay=true)
@@ -1921,6 +1950,39 @@ strategy("request diagnostics")
 	}
 }
 
+func TestAnalyzeScriptReportsV32RequestSecurityDiagnosticMatrix(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		code string
+	}{
+		{name: "tuple expression requires tuple assignment", body: `x = request.security(syminfo.tickerid, "15", [close, open])`, code: "PINE_REQUEST_SECURITY_TUPLE_ASSIGNMENT"},
+		{name: "tuple alias mismatch", body: `[mtfClose, mtfOpen] = request.security(syminfo.tickerid, "15", [close, open, high])`, code: "PINE_REQUEST_SECURITY_TUPLE_MISMATCH"},
+		{name: "tuple width unsupported", body: `[a, b, c, d, e, f, g, h, i] = request.security(syminfo.tickerid, "15", [open, high, low, close, volume, hl2, hlc3, ohlc4, close])`, code: "PINE_REQUEST_SECURITY_TUPLE_UNSUPPORTED"},
+		{name: "unsupported pure expression", body: `x = request.security(syminfo.tickerid, "15", ta.not_supported(close))`, code: "PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED"},
+	}
+	for _, item := range cases {
+		t.Run(item.name, func(t *testing.T) {
+			analysis := AnalyzeScript(`//@version=6
+strategy("v32 request diagnostics")
+`+item.body, AnalysisOptions{IncludeAST: true})
+			if analysis.OK {
+				t.Fatalf("AnalyzeScript().OK = true, want false")
+			}
+			found := false
+			for _, diagnostic := range analysis.Diagnostics {
+				if diagnostic.Code == item.code {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("diagnostics = %#v, missing %s", analysis.Diagnostics, item.code)
+			}
+		})
+	}
+}
+
 func TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy(t *testing.T) {
 	analysis := AnalyzeScript(`//@version=6
 strategy("v30 semantic")
@@ -2328,6 +2390,54 @@ strategy.exit("Exit", "Long", stop=close - 2, trail_points=close * 4 / 100, trai
 	}
 }
 
+func TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics(t *testing.T) {
+	cases := []struct {
+		name   string
+		script string
+		code   string
+		line   int
+	}{
+		{
+			name: "oca argument",
+			script: `//@version=6
+strategy("OCA", overlay=true)
+strategy.entry("Long", strategy.long, qty=1, oca_name="group")`,
+			code: "PINE_ORDER_OCA_UNSUPPORTED",
+			line: 3,
+		},
+		{
+			name: "trail bracket mix",
+			script: `//@version=6
+strategy("Trail Stop", overlay=true)
+strategy.exit("Exit", "Long", stop=close - 2, trail_points=close * 4 / 100, trail_offset=close * 4 / 100)`,
+			code: "PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED",
+			line: 3,
+		},
+		{
+			name: "advanced exit",
+			script: `//@version=6
+strategy("Advanced Exit", overlay=true)
+strategy.exit("Exit", "Long")`,
+			code: "PINE_ORDER_EXIT_ADVANCED_UNSUPPORTED",
+			line: 3,
+		},
+	}
+	for _, item := range cases {
+		t.Run(item.name, func(t *testing.T) {
+			analysis := AnalyzeScript(item.script, AnalysisOptions{IncludeAST: true})
+			if analysis.OK {
+				t.Fatalf("AnalyzeScript().OK = true, want false")
+			}
+			for _, diagnostic := range analysis.Diagnostics {
+				if diagnostic.Code == item.code && diagnostic.Line == item.line {
+					return
+				}
+			}
+			t.Fatalf("diagnostics = %#v, missing %s on line %d", analysis.Diagnostics, item.code, item.line)
+		})
+	}
+}
+
 func TestCompileSupportsFrameworkLanguageFeatures(t *testing.T) {
 	compilation, err := Compile(`//@version=6
 strategy("Framework", overlay=true)
@@ -2502,11 +2612,11 @@ if close > open
 
 func TestCompatibilityScoreAndSupportedFeatureIDsAreRegistryDriven(t *testing.T) {
 	assessment := CompatibilityScore()
-	if assessment.ScoreModelVersion != "closed-bar-strategy-v3.0" {
+	if assessment.ScoreModelVersion != "closed-bar-strategy-v4.0" {
 		t.Fatalf("ScoreModelVersion = %q", assessment.ScoreModelVersion)
 	}
 	if assessment.Score < 98 || assessment.Score > 100 {
-		t.Fatalf("Score = %v, want v3.0 closed-bar score", assessment.Score)
+		t.Fatalf("Score = %v, want v4.0 closed-bar score", assessment.Score)
 	}
 	if len(assessment.Dimensions) != 5 {
 		t.Fatalf("Dimensions = %#v, want 5 dimensions", assessment.Dimensions)
@@ -2515,7 +2625,7 @@ func TestCompatibilityScoreAndSupportedFeatureIDsAreRegistryDriven(t *testing.T)
 	for _, id := range SupportedFeatureIDs() {
 		features[id] = true
 	}
-	for _, id := range []string{"indicator.v13_migration_set", "indicator.v14_window_momentum_set", "indicator.v15_common_ta_set", "indicator.v16_mtf_tuple_bindings", "indicator.v17_source_aware_semantic_requirements", "indicator.v21_bbw_cog_anchored_vwap", "indicator.v24_mtf_stoch", "request.security.pure_expression", "request.security.v15_common_ta_expression", "request.security.v16_tuple_whitelist", "request.security.v17_semantic_tuple_corpus", "request.security.v21_ast_pure_expression", "request.security.v22_general_tuple", "request.security.v23_pure_collection_object_expression", "request.security.v24_mtf_stoch", "request.security.v27_pure_helper_expression", "request.security.v28_object_method_expression", "request.security.v29_object_history_expression", "syntax.v15_loop_control_subset", "syntax.v16_security_tuple_destructure", "syntax.v17_ast_semantic_transition", "syntax.v21_collection_runtime_core", "syntax.v22_structured_loop_runtime", "syntax.v22_pure_udt_method_runtime", "syntax.v23_collection_api_expansion", "syntax.v23_pure_method_body_named_args", "syntax.v24_collection_api_expansion", "syntax.v24_runtime_loop_fallback", "syntax.v24_persistent_object_field_set", "syntax.v25_array_stat_api", "syntax.v26_collection_iteration", "syntax.v26_collection_history_snapshot", "syntax.v26_object_collection_fields", "syntax.v26_library_export_metadata", "syntax.v27_collection_history_aggregates", "syntax.v27_map_matrix_iteration", "syntax.v28_object_history_read", "syntax.v28_method_chain", "syntax.v28_export_metadata", "syntax.v29_object_history_method_receiver", "syntax.v29_method_chain_named_defaults", "syntax.v29_request_security_diagnostics", "syntax.v30_stable_semantic_declarations", "syntax.v30_varip_closed_bar_policy", "syntax.v30_parser_whitespace_comments", "syntax.arrays_maps_matrices", "syntax.methods_types_libraries", "syntax.dynamic_loops_while", "expression.v22_general_tuple", "expression.v23_object_field_set", "expression.v25_string_helpers", "expression.v25_timeframe_change", "expression.v27_timeframe_helpers", "tooling.visual_metadata_output", "tooling.v20_language_foundation", "tooling.migration_corpus_v21", "tooling.migration_corpus_v22", "tooling.migration_corpus_v23", "tooling.migration_corpus_v24", "tooling.migration_corpus_v25", "tooling.migration_corpus_v26", "tooling.migration_corpus_v27", "tooling.migration_corpus_v28", "tooling.migration_corpus_v29", "tooling.migration_corpus_v30", "order.entry_reversal", "order.allow_entry_in"} {
+	for _, id := range []string{"indicator.v13_migration_set", "indicator.v14_window_momentum_set", "indicator.v15_common_ta_set", "indicator.v16_mtf_tuple_bindings", "indicator.v17_source_aware_semantic_requirements", "indicator.v21_bbw_cog_anchored_vwap", "indicator.v24_mtf_stoch", "request.security.pure_expression", "request.security.v15_common_ta_expression", "request.security.v16_tuple_whitelist", "request.security.v17_semantic_tuple_corpus", "request.security.v21_ast_pure_expression", "request.security.v22_general_tuple", "request.security.v23_pure_collection_object_expression", "request.security.v24_mtf_stoch", "request.security.v27_pure_helper_expression", "request.security.v28_object_method_expression", "request.security.v29_object_history_expression", "request.security.v32_diagnostic_matrix", "request.security.v32_lower_timeframe_preflight", "syntax.v15_loop_control_subset", "syntax.v16_security_tuple_destructure", "syntax.v17_ast_semantic_transition", "syntax.v21_collection_runtime_core", "syntax.v22_structured_loop_runtime", "syntax.v22_pure_udt_method_runtime", "syntax.v23_collection_api_expansion", "syntax.v23_pure_method_body_named_args", "syntax.v24_collection_api_expansion", "syntax.v24_runtime_loop_fallback", "syntax.v24_persistent_object_field_set", "syntax.v25_array_stat_api", "syntax.v26_collection_iteration", "syntax.v26_collection_history_snapshot", "syntax.v26_object_collection_fields", "syntax.v26_library_export_metadata", "syntax.v27_collection_history_aggregates", "syntax.v27_map_matrix_iteration", "syntax.v28_object_history_read", "syntax.v28_method_chain", "syntax.v28_export_metadata", "syntax.v29_object_history_method_receiver", "syntax.v29_method_chain_named_defaults", "syntax.v29_request_security_diagnostics", "syntax.v30_stable_semantic_declarations", "syntax.v30_varip_closed_bar_policy", "syntax.v30_parser_whitespace_comments", "syntax.v31_public_surface_lock", "syntax.v33_advanced_language_boundary", "syntax.arrays_maps_matrices", "syntax.methods_types_libraries", "syntax.dynamic_loops_while", "expression.v22_general_tuple", "expression.v23_object_field_set", "expression.v25_string_helpers", "expression.v25_timeframe_change", "expression.v27_timeframe_helpers", "tooling.visual_metadata_output", "tooling.v20_language_foundation", "tooling.v31_structured_helper_diagnostics", "tooling.v33_structured_language_diagnostics", "tooling.v34_generated_support_snapshot", "tooling.v40_broker_boundary_snapshot", "tooling.migration_corpus_v21", "tooling.migration_corpus_v22", "tooling.migration_corpus_v23", "tooling.migration_corpus_v24", "tooling.migration_corpus_v25", "tooling.migration_corpus_v26", "tooling.migration_corpus_v27", "tooling.migration_corpus_v28", "tooling.migration_corpus_v29", "tooling.migration_corpus_v30", "order.entry_reversal", "order.allow_entry_in", "strategy.v40_broker_boundary_decision"} {
 		if !features[id] {
 			t.Fatalf("SupportedFeatureIDs missing %q", id)
 		}
@@ -2635,6 +2745,80 @@ for i = 0 to 3
 			err := ValidateScript(tc.script)
 			if err == nil || !strings.Contains(err.Error(), tc.message) {
 				t.Fatalf("ValidateScript() error = %v, want %q", err, tc.message)
+			}
+		})
+	}
+}
+
+func TestAnalyzeScriptReportsV33AdvancedLanguageBoundaryDiagnostics(t *testing.T) {
+	cases := []struct {
+		name   string
+		script string
+		code   string
+		line   int
+	}{
+		{
+			name: "recursive udf",
+			script: `//@version=6
+strategy("UDF", overlay=true)
+f(x) => f(x)
+y = f(close)`,
+			code: "PINE_UDF_RECURSIVE_UNSUPPORTED",
+			line: 4,
+		},
+		{
+			name: "nested udf",
+			script: `//@version=6
+strategy("UDF", overlay=true)
+outer(x) =>
+    inner(y) => y
+y = outer(close)`,
+			code: "PINE_UDF_NESTED_UNSUPPORTED",
+			line: 3,
+		},
+		{
+			name: "udf signature",
+			script: `//@version=6
+strategy("UDF", overlay=true)
+f(x) => x
+y = f(close, open)`,
+			code: "PINE_UDF_SIGNATURE_UNSUPPORTED",
+			line: 4,
+		},
+		{
+			name: "loop limit",
+			script: `//@version=6
+strategy("Loop", overlay=true)
+for i = 0 to 100
+    log.info("nope")`,
+			code: "PINE_LOOP_LIMIT_UNSUPPORTED",
+			line: 3,
+		},
+		{
+			name: "loop readonly",
+			script: `//@version=6
+strategy("Loop", overlay=true)
+for i = 0 to 3
+    i := 1`,
+			code: "PINE_LOOP_VARIABLE_READONLY",
+			line: 4,
+		},
+	}
+	for _, item := range cases {
+		t.Run(item.name, func(t *testing.T) {
+			analysis := AnalyzeScript(item.script, AnalysisOptions{IncludeAST: true})
+			if analysis.OK {
+				t.Fatalf("AnalyzeScript().OK = true, want false")
+			}
+			found := false
+			for _, diagnostic := range analysis.Diagnostics {
+				if diagnostic.Code == item.code && diagnostic.Line == item.line {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("diagnostics = %#v, missing %s on line %d", analysis.Diagnostics, item.code, item.line)
 			}
 		})
 	}

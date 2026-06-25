@@ -71,7 +71,35 @@ var publicDisabledTAHelperNames = map[string]string{
 	"adx": "ta.dmi(diLength, adxSmoothing).adx",
 }
 
+type publicDisabledHelperCall struct {
+	name        string
+	replacement string
+	taShortcut  bool
+}
+
 func rejectPublicDisabledHelperCalls(lineNumber int, expression string) error {
+	call, ok := findPublicDisabledHelperCall(expression)
+	if !ok {
+		return nil
+	}
+	if call.taShortcut {
+		return fmt.Errorf("pine line %d: ta.%s() is a JFTrade-only shortcut; use Pine v6 %s instead", lineNumber, call.name, call.replacement)
+	}
+	return fmt.Errorf("pine line %d: %s() is an internal JFTrade helper; use Pine v6 %s instead", lineNumber, call.name, call.replacement)
+}
+
+func publicDisabledHelperDiagnostic(line parsedLine) (Diagnostic, bool) {
+	call, ok := findPublicDisabledHelperCall(line.trimmed)
+	if !ok {
+		return Diagnostic{}, false
+	}
+	if call.taShortcut {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_PUBLIC_TA_SHORTCUT", fmt.Sprintf("ta.%s() is a JFTrade-only shortcut; use Pine v6 %s instead", call.name, call.replacement), line), true
+	}
+	return diagnosticForLine(DiagnosticSeverityError, "PINE_INTERNAL_HELPER_PUBLIC", fmt.Sprintf("%s() is an internal JFTrade helper; use Pine v6 %s instead", call.name, call.replacement), line), true
+}
+
+func findPublicDisabledHelperCall(expression string) (publicDisabledHelperCall, bool) {
 	scan := stripStringLiteralsForHelperScan(expression)
 	for index := 0; index < len(scan); {
 		if !isHelperIdentifierStart(scan[index]) {
@@ -101,7 +129,7 @@ func rejectPublicDisabledHelperCalls(lineNumber int, expression string) error {
 			name := strings.ToLower(scan[start:index])
 			if namespace == "ta" {
 				if replacement, disabled := publicDisabledTAHelperNames[name]; disabled {
-					return fmt.Errorf("pine line %d: ta.%s() is a JFTrade-only shortcut; use Pine v6 %s instead", lineNumber, name, replacement)
+					return publicDisabledHelperCall{name: name, replacement: replacement, taShortcut: true}, true
 				}
 			}
 			continue
@@ -109,10 +137,10 @@ func rejectPublicDisabledHelperCalls(lineNumber int, expression string) error {
 
 		name := strings.ToLower(scan[start:index])
 		if replacement, disabled := publicDisabledHelperNames[name]; disabled {
-			return fmt.Errorf("pine line %d: %s() is an internal JFTrade helper; use Pine v6 %s instead", lineNumber, name, replacement)
+			return publicDisabledHelperCall{name: name, replacement: replacement}, true
 		}
 	}
-	return nil
+	return publicDisabledHelperCall{}, false
 }
 
 func isHelperIdentifierStart(char byte) bool {

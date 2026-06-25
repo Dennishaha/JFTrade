@@ -1,6 +1,8 @@
 package pinespec
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -55,8 +57,8 @@ func TestGoldenExamplesAnalyzeAndPlan(t *testing.T) {
 }
 
 func TestBuildToolPayloadSectionsAndExamples(t *testing.T) {
-	if ProductVersion != "v3.0" {
-		t.Fatalf("ProductVersion = %q, want v3.0", ProductVersion)
+	if ProductVersion != "v4.0" {
+		t.Fatalf("ProductVersion = %q, want v4.0", ProductVersion)
 	}
 	payload, err := BuildToolPayload("orders", false)
 	if err != nil {
@@ -109,9 +111,9 @@ func TestBuildToolPayloadIncludesSupportMatrix(t *testing.T) {
 		t.Fatalf("selectedSection = %#v, want support-matrix", got)
 	}
 	if score, ok := payload["compatibilityScore"].(float64); !ok || score < 98 || score > 100 {
-		t.Fatalf("compatibilityScore = %#v, want v3.0 score", payload["compatibilityScore"])
+		t.Fatalf("compatibilityScore = %#v, want v4.0 score", payload["compatibilityScore"])
 	}
-	if payload["scoreModelVersion"] != "closed-bar-strategy-v3.0" {
+	if payload["scoreModelVersion"] != "closed-bar-strategy-v4.0" {
 		t.Fatalf("scoreModelVersion = %#v", payload["scoreModelVersion"])
 	}
 	if capabilities, ok := payload["capabilities"].([]strategypine.Capability); !ok || len(capabilities) == 0 {
@@ -128,6 +130,11 @@ func TestBuildToolPayloadIncludesSupportMatrix(t *testing.T) {
 	foundV28ExpansionSet := false
 	foundV29ExpansionSet := false
 	foundV30ExpansionSet := false
+	foundV31PublicSurfaceSet := false
+	foundV32MTFPreflightSet := false
+	foundV33LanguageBoundarySet := false
+	foundV34SupportSnapshotSet := false
+	foundV40BrokerBoundarySet := false
 	for _, item := range matrix {
 		if item["capability"] == "JFTrade Pine v6 main path" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "sourceFormat=pine-v6") && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "runtime=pine-go-plan") {
 			foundMainPathGate = true
@@ -161,6 +168,21 @@ func TestBuildToolPayloadIncludesSupportMatrix(t *testing.T) {
 		}
 		if item["capability"] == "v3.0 stable semantic declarations and varip policy" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "unsupportedReason") {
 			foundV30ExpansionSet = true
+		}
+		if item["capability"] == "v3.1 native public surface diagnostics" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "AnalyzeScript") && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "Monaco") {
+			foundV31PublicSurfaceSet = true
+		}
+		if item["capability"] == "v3.2 MTF diagnostics and lower-timeframe preflight" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "backtest replay") && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "tuple assignment") {
+			foundV32MTFPreflightSet = true
+		}
+		if item["capability"] == "v3.3 advanced language boundary diagnostics" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "递归 UDF") && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "循环变量只读") {
+			foundV33LanguageBoundarySet = true
+		}
+		if item["capability"] == "v3.4 generated support snapshot" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "pine-v6-support.md") && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "过期快照") {
+			foundV34SupportSnapshotSet = true
+		}
+		if item["capability"] == "v4.0 broker emulator boundary decision" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "trading-runtime parity track") && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "brokerBoundary") {
+			foundV40BrokerBoundarySet = true
 		}
 	}
 	if !foundMainPathGate {
@@ -196,8 +218,60 @@ func TestBuildToolPayloadIncludesSupportMatrix(t *testing.T) {
 	if !foundV30ExpansionSet {
 		t.Fatalf("support matrix missing v3.0 expansion set: %#v", matrix)
 	}
+	if !foundV31PublicSurfaceSet {
+		t.Fatalf("support matrix missing v3.1 public surface set: %#v", matrix)
+	}
+	if !foundV32MTFPreflightSet {
+		t.Fatalf("support matrix missing v3.2 MTF preflight set: %#v", matrix)
+	}
+	if !foundV33LanguageBoundarySet {
+		t.Fatalf("support matrix missing v3.3 language boundary set: %#v", matrix)
+	}
+	if !foundV34SupportSnapshotSet {
+		t.Fatalf("support matrix missing v3.4 support snapshot set: %#v", matrix)
+	}
+	if !foundV40BrokerBoundarySet {
+		t.Fatalf("support matrix missing v4.0 broker boundary set: %#v", matrix)
+	}
 	if _, ok := payload["compatibilityLayers"]; ok {
 		t.Fatalf("compatibilityLayers should not be present in v1.0 payload: %#v", payload["compatibilityLayers"])
+	}
+}
+
+func TestBuildToolPayloadIncludesBrokerBoundary(t *testing.T) {
+	payload, err := BuildToolPayload("support-matrix", false)
+	if err != nil {
+		t.Fatalf("BuildToolPayload support-matrix: %v", err)
+	}
+	boundaries, ok := payload["brokerBoundary"].([]map[string]any)
+	if !ok || len(boundaries) == 0 {
+		t.Fatalf("brokerBoundary = %#v, want non-empty structured boundary", payload["brokerBoundary"])
+	}
+	foundOutOfScope := false
+	foundDiagnostic := false
+	for _, boundary := range boundaries {
+		if boundary["status"] == "out_of_scope" && strings.Contains(jftradeCheckedTypeAssertion[string](boundary["scoreTreatment"]), "excluded") {
+			foundOutOfScope = true
+		}
+		for _, code := range jftradeCheckedTypeAssertion[[]string](boundary["diagnosticCodes"]) {
+			if code == "PINE_ORDER_OCA_UNSUPPORTED" || code == "PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED" {
+				foundDiagnostic = true
+			}
+		}
+	}
+	if !foundOutOfScope || !foundDiagnostic {
+		t.Fatalf("brokerBoundary = %#v, want out-of-scope score treatment and order diagnostics", boundaries)
+	}
+}
+
+func TestGeneratedPineSupportSnapshotIsCurrent(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "docs", "reference", "generated", "pine-v6-support.md")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read generated Pine support snapshot: %v", err)
+	}
+	if got, want := string(raw), BuildSupportSnapshotMarkdown(); got != want {
+		t.Fatalf("%s is stale; run npm run generate:reference", path)
 	}
 }
 
