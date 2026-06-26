@@ -78,6 +78,7 @@ type MonacoModule = typeof import("monaco-editor");
 
 const { theme } = useTheme();
 const containerRef = ref<HTMLDivElement | null>(null);
+const fallbackTextareaRef = ref<HTMLTextAreaElement | null>(null);
 const isFallbackMode = ref(shouldUseFallback());
 
 let monaco: MonacoModule | null = null;
@@ -102,6 +103,21 @@ function offsetToPosition(
 }
 
 function revealOffsetRange(range: MonacoOffsetRange): void {
+  if (isFallbackMode.value) {
+    const textarea = fallbackTextareaRef.value;
+    if (textarea === null) {
+      return;
+    }
+    const start = Math.max(0, Math.min(range.start, textarea.value.length));
+    const end = Math.max(start, Math.min(range.end, textarea.value.length));
+    textarea.focus();
+    textarea.setSelectionRange(start, end);
+    const lineHeight = Number.parseFloat(getComputedStyle(textarea).lineHeight || "16");
+    const preceding = textarea.value.slice(0, start);
+    const lineIndex = preceding.match(/\n/g)?.length ?? 0;
+    textarea.scrollTop = Math.max(0, lineIndex * lineHeight - textarea.clientHeight / 2);
+    return;
+  }
   if (editor === null) {
     return;
   }
@@ -859,6 +875,7 @@ async function initializeMonaco(): Promise<void> {
   >
     <textarea
       v-if="isFallbackMode"
+      ref="fallbackTextareaRef"
       :value="modelValue"
       :data-testid="testId || undefined"
       :placeholder="placeholder"

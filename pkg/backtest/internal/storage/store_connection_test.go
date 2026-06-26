@@ -68,12 +68,9 @@ func TestFutuKLineSharedAccessQueueSerializesConcurrentWriters(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make(chan error, len(writers))
 	for _, writer := range writers {
-		writer := writer
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			bars := make([]types.KLine, 0, 50)
-			for index := 0; index < 50; index++ {
+			for index := range 50 {
 				end := start.Add(time.Duration(writer.offset+index) * time.Minute)
 				bars = append(bars, types.KLine{
 					Symbol:    "US.TME",
@@ -88,7 +85,7 @@ func TestFutuKLineSharedAccessQueueSerializesConcurrentWriters(t *testing.T) {
 				})
 			}
 			errs <- writer.store.InsertKLines(bars, "forward")
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)

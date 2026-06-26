@@ -839,6 +839,15 @@ export type PineV6WorkflowBlockKind =
   | "strategy_exit"
   | "strategy_order"
   | "strategy_close"
+  | "strategy_close_all"
+  | "strategy_cancel"
+  | "strategy_cancel_all"
+  | "strategy_risk_allow_entry_in"
+  | "strategy_risk_max_drawdown"
+  | "strategy_risk_max_intraday_loss"
+  | "strategy_risk_max_intraday_filled_orders"
+  | "strategy_risk_max_position_size"
+  | "strategy_risk_max_cons_loss_days"
   | "plot"
   | "alertcondition"
   | "log";
@@ -859,7 +868,7 @@ export interface PineV6WorkflowInput {
   id: string;
   name: string;
   title: string;
-  type: "int" | "float" | "bool" | "string" | "source" | "time";
+  type: "int" | "float" | "bool" | "string" | "source" | "time" | "timeframe" | "color";
   defaultValue: string;
 }
 

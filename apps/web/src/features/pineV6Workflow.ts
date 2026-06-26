@@ -32,6 +32,15 @@ export const PINE_V6_BLOCK_KINDS: Array<{
   { kind: "strategy_exit", label: "退出订单", description: "提交退出/止盈止损订单" },
   { kind: "strategy_order", label: "通用订单", description: "提交通用策略订单" },
   { kind: "strategy_close", label: "平仓", description: "关闭指定入场 ID" },
+  { kind: "strategy_close_all", label: "全部平仓", description: "关闭当前策略全部仓位" },
+  { kind: "strategy_cancel", label: "撤销订单", description: "撤销指定订单 ID" },
+  { kind: "strategy_cancel_all", label: "撤销全部订单", description: "撤销当前策略全部未成交订单" },
+  { kind: "strategy_risk_allow_entry_in", label: "允许入场方向", description: "限制 strategy.risk.allow_entry_in 入场方向" },
+  { kind: "strategy_risk_max_drawdown", label: "最大回撤", description: "声明 strategy.risk.max_drawdown 风控阈值" },
+  { kind: "strategy_risk_max_intraday_loss", label: "日内最大亏损", description: "声明 strategy.risk.max_intraday_loss 风控阈值" },
+  { kind: "strategy_risk_max_intraday_filled_orders", label: "日内成交上限", description: "声明 strategy.risk.max_intraday_filled_orders 风控阈值" },
+  { kind: "strategy_risk_max_position_size", label: "最大持仓", description: "声明 strategy.risk.max_position_size 持仓上限" },
+  { kind: "strategy_risk_max_cons_loss_days", label: "连续亏损天数", description: "声明 strategy.risk.max_cons_loss_days 风控阈值" },
   { kind: "plot", label: "绘图", description: "绘制序列" },
   { kind: "alertcondition", label: "提醒条件", description: "声明提醒条件" },
   { kind: "log", label: "日志", description: "写入 Pine runtime 日志" },
@@ -254,6 +263,10 @@ function renderInput(input: PineV6WorkflowInput): string {
       return `${name} = input.source(${defaultValue || "close"}, ${title})`;
     case "time":
       return `${name} = input.time(${defaultValue || "timestamp(2026, 1, 1, 0, 0)"}, ${title})`;
+    case "timeframe":
+      return `${name} = input.timeframe(${quoteString(defaultValue || "D")}, ${title})`;
+    case "color":
+      return `${name} = input.color(${defaultValue || "color.blue"}, ${title})`;
     default:
       return `${name} = input.int(${defaultValue || "1"}, ${title})`;
   }
@@ -332,6 +345,43 @@ function renderBlock(block: PineV6WorkflowBlock, indentLevel: number): string[] 
         optionalRawArg("when", params.when),
         optionalRawArg("comment", quoteMaybe(params.comment)),
       ])})`];
+    case "strategy_close_all":
+      return [`${indent}strategy.close_all(${renderCallArgs([
+        optionalRawArg("immediately", params.immediately),
+        optionalRawArg("comment", quoteMaybe(params.comment)),
+        optionalRawArg("alert_message", quoteMaybe(params.alert_message)),
+        optionalRawArg("disable_alert", params.disable_alert),
+      ])})`];
+    case "strategy_cancel":
+      return [`${indent}strategy.cancel(${quoteString(readString(params.id) || "Order")})`];
+    case "strategy_cancel_all":
+      return [`${indent}strategy.cancel_all()`];
+    case "strategy_risk_allow_entry_in":
+      return [`${indent}strategy.risk.allow_entry_in(${normalizeRiskDirection(readString(params.direction))})`];
+    case "strategy_risk_max_drawdown":
+      return [`${indent}strategy.risk.max_drawdown(${renderCallArgs([
+        readExpression(params.value, "10"),
+        readString(params.type) || "strategy.percent_of_equity",
+        optionalRawArg("alert_message", quoteMaybe(params.alert_message)),
+      ])})`];
+    case "strategy_risk_max_intraday_loss":
+      return [`${indent}strategy.risk.max_intraday_loss(${renderCallArgs([
+        readExpression(params.value, "10"),
+        readString(params.type) || "strategy.percent_of_equity",
+        optionalRawArg("alert_message", quoteMaybe(params.alert_message)),
+      ])})`];
+    case "strategy_risk_max_intraday_filled_orders":
+      return [`${indent}strategy.risk.max_intraday_filled_orders(${renderCallArgs([
+        readExpression(params.count, "10"),
+        optionalRawArg("alert_message", quoteMaybe(params.alert_message)),
+      ])})`];
+    case "strategy_risk_max_position_size":
+      return [`${indent}strategy.risk.max_position_size(${readExpression(params.contracts, "1")})`];
+    case "strategy_risk_max_cons_loss_days":
+      return [`${indent}strategy.risk.max_cons_loss_days(${renderCallArgs([
+        readExpression(params.count, "3"),
+        optionalRawArg("alert_message", quoteMaybe(params.alert_message)),
+      ])})`];
     case "plot":
       return [`${indent}plot(${renderCallArgs([
         readExpression(params.series, "close"),
@@ -383,6 +433,24 @@ function defaultParamsForBlock(kind: PineV6WorkflowBlockKind): Record<string, un
       return { id: "Order", direction: "strategy.long", qty: "" };
     case "strategy_close":
       return { id: "Long", when: "" };
+    case "strategy_close_all":
+      return { immediately: "", comment: "", alert_message: "", disable_alert: "" };
+    case "strategy_cancel":
+      return { id: "Order" };
+    case "strategy_cancel_all":
+      return {};
+    case "strategy_risk_allow_entry_in":
+      return { direction: "strategy.direction.all" };
+    case "strategy_risk_max_drawdown":
+      return { value: "10", type: "strategy.percent_of_equity", alert_message: "" };
+    case "strategy_risk_max_intraday_loss":
+      return { value: "10", type: "strategy.percent_of_equity", alert_message: "" };
+    case "strategy_risk_max_intraday_filled_orders":
+      return { count: "10", alert_message: "" };
+    case "strategy_risk_max_position_size":
+      return { contracts: "1" };
+    case "strategy_risk_max_cons_loss_days":
+      return { count: "3", alert_message: "" };
     case "plot":
       return { series: "close", title: "Close", color: "color.blue" };
     case "alertcondition":
@@ -418,7 +486,15 @@ function normalizeInputs(value: unknown, fallback: PineV6WorkflowInput[]): PineV
       id: readString(record.id) || createWorkflowId("input"),
       name: sanitizeIdentifier(readString(record.name), "inputValue"),
       title: readString(record.title) || readString(record.name) || "输入参数",
-      type: type === "float" || type === "bool" || type === "string" || type === "source" || type === "time" ? type : "int",
+      type: type === "float" ||
+        type === "bool" ||
+        type === "string" ||
+        type === "source" ||
+        type === "time" ||
+        type === "timeframe" ||
+        type === "color"
+        ? type
+        : "int",
       defaultValue: readString(record.defaultValue) || "1",
     };
   });
@@ -501,6 +577,14 @@ function quoteString(value: string): string {
 
 function normalizeDirection(value: string, fallback: string): string {
   return value === "strategy.short" || value === "strategy.long" ? value : fallback;
+}
+
+function normalizeRiskDirection(value: string): string {
+  return value === "strategy.direction.long" ||
+    value === "strategy.direction.short" ||
+    value === "strategy.direction.all"
+    ? value
+    : "strategy.direction.all";
 }
 
 function readExpression(value: unknown, fallback: string): string {
