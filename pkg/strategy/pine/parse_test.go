@@ -1927,6 +1927,7 @@ x = request.security(syminfo.tickerid, tf + "", close)`, code: "PINE_REQUEST_SEC
 		{name: "side effect", body: `x = request.security(syminfo.tickerid, "D", alert("no side effects"))`, code: "PINE_REQUEST_SECURITY_SIDE_EFFECT"},
 		{name: "lookahead", body: `x = request.security(syminfo.tickerid, "D", close, lookahead=barmerge.lookahead_on)`, code: "PINE_REQUEST_SECURITY_LOOKAHEAD"},
 		{name: "gaps", body: `x = request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_on)`, code: "PINE_REQUEST_SECURITY_GAPS"},
+		{name: "calc_bars_count", body: `x = request.security(syminfo.tickerid, "D", close, calc_bars_count=100)`, code: "PINE_REQUEST_SECURITY_CALC_BARS_COUNT"},
 	}
 	for _, item := range cases {
 		t.Run(item.name, func(t *testing.T) {
@@ -2329,11 +2330,85 @@ strategy.exit("Long trail", "Long", trail_points=close * 4 / 100, trail_offset=c
 	}
 }
 
+func TestCompileCapturesWhenExpressionsForWorkflowOrders(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("When", overlay=true)
+strategy.entry("Long", strategy.long, qty=1, when=close > open)
+strategy.order("Net short", strategy.short, qty=2, when=close < open)
+strategy.close("Long", when=ta.crossunder(close, open))
+strategy.exit("Exit", "Long", stop=close - 2, when=high > low)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	if len(compilation.Program.Hooks[0].Statements) != 4 {
+		t.Fatalf("statement count = %d", len(compilation.Program.Hooks[0].Statements))
+	}
+	entry := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](compilation.Program.Hooks[0].Statements[0])
+	if entry.WhenExpression != "close > open" {
+		t.Fatalf("entry when = %q, want close > open", entry.WhenExpression)
+	}
+	order := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](compilation.Program.Hooks[0].Statements[1])
+	if order.WhenExpression != "close < open" {
+		t.Fatalf("order when = %q, want close < open", order.WhenExpression)
+	}
+	closeStmt := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](compilation.Program.Hooks[0].Statements[2])
+	if closeStmt.WhenExpression != "cross_under(close, open)" {
+		t.Fatalf("close when = %q, want cross_under(close, open)", closeStmt.WhenExpression)
+	}
+	exit := jftradeCheckedTypeAssertion[*strategyir.ExitStmt](compilation.Program.Hooks[0].Statements[3])
+	if exit.WhenExpression != "high > low" {
+		t.Fatalf("exit when = %q, want high > low", exit.WhenExpression)
+	}
+}
+
+func TestCompileSupportsStrategyExitProfitLossTicks(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Exit points", overlay=true)
+strategy.exit("Points", "Long", profit=50, loss=25, qty_percent=50)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	if len(compilation.Program.Hooks[0].Statements) != 1 {
+		t.Fatalf("statement count = %d", len(compilation.Program.Hooks[0].Statements))
+	}
+	exit := jftradeCheckedTypeAssertion[*strategyir.ExitStmt](compilation.Program.Hooks[0].Statements[0])
+	if exit.ProfitExpression != "50" || exit.LossExpression != "25" {
+		t.Fatalf("exit profit/loss = %#v", exit)
+	}
+	if exit.QuantityMode != "symbol_position_percent" || exit.QuantityExpression != "50" {
+		t.Fatalf("exit quantity = %#v", exit)
+	}
+}
+
+func TestCompileCapturesStrategyExitSpecificMetadata(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Exit metadata", overlay=true)
+strategy.exit("Bracket", "Long", stop=98, limit=105, comment="generic", comment_profit="tp", comment_loss="sl", alert_message="base", alert_profit="ap", alert_loss="al")
+strategy.exit("Trail", "Long", trail_points=10, trail_offset=5, comment="generic trail", comment_trailing="trail comment", alert_message="trail base", alert_trailing="trail alert")`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	if len(compilation.Program.Hooks[0].Statements) != 2 {
+		t.Fatalf("statement count = %d", len(compilation.Program.Hooks[0].Statements))
+	}
+	bracket := jftradeCheckedTypeAssertion[*strategyir.ExitStmt](compilation.Program.Hooks[0].Statements[0])
+	if bracket.Comment != "generic" || bracket.CommentProfit != "tp" || bracket.CommentLoss != "sl" ||
+		bracket.AlertMessage != "base" || bracket.AlertProfit != "ap" || bracket.AlertLoss != "al" {
+		t.Fatalf("bracket metadata = %#v", bracket)
+	}
+	trailing := jftradeCheckedTypeAssertion[*strategyir.ExitStmt](compilation.Program.Hooks[0].Statements[1])
+	if trailing.Comment != "generic trail" || trailing.CommentTrailing != "trail comment" ||
+		trailing.AlertMessage != "trail base" || trailing.AlertTrailing != "trail alert" {
+		t.Fatalf("trailing metadata = %#v", trailing)
+	}
+}
+
 func TestCompileSupportsPendingStopAndCancelOrders(t *testing.T) {
 	compilation, err := Compile(`//@version=6
 strategy("Pending", overlay=true)
 strategy.entry("Breakout", strategy.long, stop=ta.highest(high, 20), qty=1)
 strategy.order("Net short", strategy.short, stop=low - 1, qty=5)
+strategy.close("Long", stop=99, limit=101, qty_percent=50)
 strategy.entry("StopLimit", strategy.long, stop=101, limit=99, qty=2)
 strategy.cancel("Breakout")
 strategy.cancel_all()`)
@@ -2341,7 +2416,7 @@ strategy.cancel_all()`)
 		t.Fatalf("Compile() error = %v", err)
 	}
 	statements := compilation.Program.Hooks[0].Statements
-	if len(statements) != 5 {
+	if len(statements) != 6 {
 		t.Fatalf("statement count = %d", len(statements))
 	}
 	entry, ok := statements[0].(*strategyir.OrderStmt)
@@ -2352,17 +2427,53 @@ strategy.cancel_all()`)
 	if !ok || net.Intent != strategyir.OrderIntentNet || net.ID != "Net short" || net.Action != strategyir.OrderActionSell || net.StopExpression != "low - 1" {
 		t.Fatalf("net statement = %#v", statements[1])
 	}
-	stopLimit, ok := statements[2].(*strategyir.OrderStmt)
+	closeStopLimit, ok := statements[2].(*strategyir.OrderStmt)
+	if !ok || closeStopLimit.Intent != strategyir.OrderIntentClose || closeStopLimit.ID != "Long" || closeStopLimit.StopExpression != "99" || closeStopLimit.LimitExpression != "101" || closeStopLimit.QuantityMode != "symbol_position_percent" || closeStopLimit.QuantityExpression != "50" {
+		t.Fatalf("close stop-limit statement = %#v", statements[2])
+	}
+	stopLimit, ok := statements[3].(*strategyir.OrderStmt)
 	if !ok || stopLimit.StopExpression != "101" || stopLimit.LimitExpression != "99" || stopLimit.OrderType != "LIMIT" {
-		t.Fatalf("stop-limit statement = %#v", statements[2])
+		t.Fatalf("stop-limit statement = %#v", statements[3])
 	}
-	cancel, ok := statements[3].(*strategyir.CancelStmt)
+	cancel, ok := statements[4].(*strategyir.CancelStmt)
 	if !ok || cancel.ID != "Breakout" || cancel.All {
-		t.Fatalf("cancel statement = %#v", statements[3])
+		t.Fatalf("cancel statement = %#v", statements[4])
 	}
-	cancelAll, ok := statements[4].(*strategyir.CancelStmt)
+	cancelAll, ok := statements[5].(*strategyir.CancelStmt)
 	if !ok || !cancelAll.All {
-		t.Fatalf("cancel_all statement = %#v", statements[4])
+		t.Fatalf("cancel_all statement = %#v", statements[5])
+	}
+}
+
+func TestCompileSupportsCloseAllPositionalMetadata(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Close all positional", overlay=true)
+strategy.close_all(true, "flat", "done", false)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	if len(compilation.Program.Hooks[0].Statements) != 1 {
+		t.Fatalf("statement count = %d", len(compilation.Program.Hooks[0].Statements))
+	}
+	order := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](compilation.Program.Hooks[0].Statements[0])
+	if order.Intent != strategyir.OrderIntentFlatten || !order.Immediate || order.Comment != "flat" || order.AlertMessage != "done" || order.DisableAlert {
+		t.Fatalf("close_all positional metadata = %#v", order)
+	}
+}
+
+func TestCompileSupportsClosePositionalQty(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Close positional", overlay=true)
+strategy.close("Long", 2)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	if len(compilation.Program.Hooks[0].Statements) != 1 {
+		t.Fatalf("statement count = %d", len(compilation.Program.Hooks[0].Statements))
+	}
+	order := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](compilation.Program.Hooks[0].Statements[0])
+	if order.Intent != strategyir.OrderIntentClose || order.QuantityMode != "shares" || order.QuantityExpression != "2" {
+		t.Fatalf("close positional qty = %#v", order)
 	}
 }
 
@@ -2403,6 +2514,30 @@ func TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics(t *testing.T) {
 strategy("OCA", overlay=true)
 strategy.entry("Long", strategy.long, qty=1, oca_name="group")`,
 			code: "PINE_ORDER_OCA_UNSUPPORTED",
+			line: 3,
+		},
+		{
+			name: "exit oca argument",
+			script: `//@version=6
+strategy("Exit OCA", overlay=true)
+strategy.exit("Exit", "Long", stop=98, oca_name="group")`,
+			code: "PINE_ORDER_OCA_UNSUPPORTED",
+			line: 3,
+		},
+		{
+			name: "conflicting qty",
+			script: `//@version=6
+strategy("Qty conflict", overlay=true)
+strategy.close("Long", qty=1, qty_percent=50)`,
+			code: "PINE_ORDER_QTY_CONFLICT",
+			line: 3,
+		},
+		{
+			name: "unsupported close all arg",
+			script: `//@version=6
+strategy("Close all unsupported", overlay=true)
+strategy.close_all(foo=1)`,
+			code: "PINE_COMPILE_ERROR",
 			line: 3,
 		},
 		{
@@ -2607,6 +2742,37 @@ if close > open
 	}
 	if got := compilation.Program.Metadata.AllowedEntryDirection; got != "long" {
 		t.Fatalf("AllowedEntryDirection = %q, want long", got)
+	}
+}
+
+func TestCompileSupportsRuntimeRiskDeclarations(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Risk declarations", overlay=true)
+strategy.risk.max_drawdown(10, strategy.percent_of_equity, alert_message="dd")
+strategy.risk.max_intraday_loss(5, strategy.cash, "day")
+strategy.risk.max_intraday_filled_orders(3, alert_message="fills")
+strategy.risk.max_position_size(12)
+strategy.risk.max_cons_loss_days(2, "days")
+if close > open
+    strategy.entry("Long", strategy.long, qty=1)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	metadata := compilation.Program.Metadata
+	if metadata.MaxDrawdownValue != 10 || metadata.MaxDrawdownType != "percent_of_equity" || metadata.MaxDrawdownAlert != "dd" {
+		t.Fatalf("max_drawdown metadata = %#v", metadata)
+	}
+	if metadata.MaxIntradayLossValue != 5 || metadata.MaxIntradayLossType != "cash" || metadata.MaxIntradayLossAlert != "day" {
+		t.Fatalf("max_intraday_loss metadata = %#v", metadata)
+	}
+	if metadata.MaxIntradayFilledOrders != 3 || metadata.MaxIntradayFilledOrdersAlert != "fills" {
+		t.Fatalf("max_intraday_filled_orders metadata = %#v", metadata)
+	}
+	if metadata.MaxPositionSize != 12 {
+		t.Fatalf("MaxPositionSize = %v, want 12", metadata.MaxPositionSize)
+	}
+	if metadata.MaxConsLossDays != 2 || metadata.MaxConsLossDaysAlert != "days" {
+		t.Fatalf("max_cons_loss_days metadata = %#v", metadata)
 	}
 }
 

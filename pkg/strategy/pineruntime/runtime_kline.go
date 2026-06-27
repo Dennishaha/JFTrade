@@ -25,6 +25,7 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 		return
 	}
 	r.barIndex++
+	r.syncRiskState(pineBarTime(&kline))
 
 	resolvedSession := r.resolveKLineSession(kline)
 	if r.engine != nil {

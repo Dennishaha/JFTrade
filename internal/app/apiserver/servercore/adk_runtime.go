@@ -637,7 +637,16 @@ func StrategySaveHintPayload() map[string]any {
 }
 
 func strategyMetadataPayload(program *strategyir.Program) map[string]any {
-	metadata := map[string]any{"name": "", "version": "", "symbol": "", "interval": "", "defaultQtyMode": "fixed", "defaultQtyValue": "1", "pyramiding": 1}
+	metadata := map[string]any{
+		"name":            "",
+		"version":         "",
+		"symbol":          "",
+		"interval":        "",
+		"defaultQtyMode":  "fixed",
+		"defaultQtyValue": "1",
+		"pyramiding":      1,
+		"risk":            map[string]any{},
+	}
 	if program == nil {
 		return metadata
 	}
@@ -657,6 +666,40 @@ func strategyMetadataPayload(program *strategyir.Program) map[string]any {
 	if program.Metadata.Pyramiding <= 0 {
 		metadata["pyramiding"] = 1
 	}
+	risk := map[string]any{}
+	if program.Metadata.AllowedEntryDirection != "" && program.Metadata.AllowedEntryDirection != "all" {
+		risk["allowedEntryDirection"] = strings.TrimSpace(program.Metadata.AllowedEntryDirection)
+	}
+	if program.Metadata.MaxDrawdownValue > 0 {
+		risk["maxDrawdown"] = map[string]any{
+			"value":        program.Metadata.MaxDrawdownValue,
+			"type":         strings.TrimSpace(program.Metadata.MaxDrawdownType),
+			"alertMessage": strings.TrimSpace(program.Metadata.MaxDrawdownAlert),
+		}
+	}
+	if program.Metadata.MaxIntradayLossValue > 0 {
+		risk["maxIntradayLoss"] = map[string]any{
+			"value":        program.Metadata.MaxIntradayLossValue,
+			"type":         strings.TrimSpace(program.Metadata.MaxIntradayLossType),
+			"alertMessage": strings.TrimSpace(program.Metadata.MaxIntradayLossAlert),
+		}
+	}
+	if program.Metadata.MaxIntradayFilledOrders > 0 {
+		risk["maxIntradayFilledOrders"] = map[string]any{
+			"count":        program.Metadata.MaxIntradayFilledOrders,
+			"alertMessage": strings.TrimSpace(program.Metadata.MaxIntradayFilledOrdersAlert),
+		}
+	}
+	if program.Metadata.MaxPositionSize > 0 {
+		risk["maxPositionSize"] = program.Metadata.MaxPositionSize
+	}
+	if program.Metadata.MaxConsLossDays > 0 {
+		risk["maxConsLossDays"] = map[string]any{
+			"count":        program.Metadata.MaxConsLossDays,
+			"alertMessage": strings.TrimSpace(program.Metadata.MaxConsLossDaysAlert),
+		}
+	}
+	metadata["risk"] = risk
 	return metadata
 }
 

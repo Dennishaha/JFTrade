@@ -216,6 +216,8 @@ func diagnosticCodeForCompileMessage(message string) string {
 		return "PINE_LOOP_VARIABLE_READONLY"
 	case strings.Contains(lower, "oca_name") || strings.Contains(lower, "oca_type"):
 		return "PINE_ORDER_OCA_UNSUPPORTED"
+	case strings.Contains(lower, "qty or qty_percent"):
+		return "PINE_ORDER_QTY_CONFLICT"
 	case strings.Contains(lower, "trail with stop/limit") ||
 		strings.Contains(lower, "accepts trail_points or trail_price, not both"):
 		return "PINE_ORDER_EXIT_TRAIL_BRACKET_UNSUPPORTED"

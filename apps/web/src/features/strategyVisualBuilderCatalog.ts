@@ -15,6 +15,7 @@ import {
   type TechnicalIndicatorPatternType,
   type TechnicalIndicatorType,
 } from "./strategyVisualBuilderIndicatorBlock";
+import { RISK_RULE_BLOCK_DEFINITION } from "./strategyVisualBuilderRiskBlock";
 
 export type StrategyBlockKind =
   | "onInit"
@@ -35,6 +36,7 @@ export type StrategyBlockKind =
   | "log"
   | "notify"
   | "placeOrder"
+  | "riskRule"
   | "stopLoss";
 
 export type {
@@ -43,6 +45,22 @@ export type {
   TechnicalIndicatorPatternType,
   TechnicalIndicatorType,
 } from "./strategyVisualBuilderIndicatorBlock";
+export {
+  nextRiskRuleNodeText,
+  normalizeRiskAmountType,
+  normalizeRiskRuleBlockProperties,
+  normalizeRiskRuleDirection,
+  normalizeRiskRuleType,
+  RISK_AMOUNT_TYPE_OPTIONS,
+  RISK_RULE_TYPE_OPTIONS,
+  riskAmountTypeLabel,
+  riskRuleTypeLabel,
+} from "./strategyVisualBuilderRiskBlock";
+export type {
+  RiskAmountType,
+  RiskRuleBlockProperties,
+  RiskRuleType,
+} from "./strategyVisualBuilderRiskBlock";
 
 export type StopLossDirection = "auto" | "long" | "short";
 
@@ -187,6 +205,8 @@ export type StopLossMode = "stopLoss" | "takeProfit" | "trailingStop" | "bracket
 export type StopLossTimeUnit = "bar" | "minute" | "hour" | "day" | "week" | "month";
 
 export type StopLossWindowPolicy = "continuous" | "session";
+export type StopLossTrailingPriceMode = "points" | "price";
+export type StopLossFromEntryMode = "explicit" | "auto";
 
 export interface StopLossBlockProperties {
   blockKind: "stopLoss";
@@ -196,11 +216,26 @@ export interface StopLossBlockProperties {
   timeUnit?: StopLossTimeUnit;
   percentage?: number;
   takeProfitPercentage?: number;
+  profitTicks?: number;
+  lossTicks?: number;
   quantityPercentage?: number;
   windowPolicy?: StopLossWindowPolicy;
   stopPriceExpressionAst?: VisualExpression;
   takeProfitPriceExpressionAst?: VisualExpression;
   trailingPriceExpressionAst?: VisualExpression;
+  trailingOffsetExpressionAst?: VisualExpression;
+  trailingPriceMode?: StopLossTrailingPriceMode;
+  fromEntryMode?: StopLossFromEntryMode;
+  comment?: string;
+  comment_profit?: string;
+  comment_loss?: string;
+  comment_trailing?: string;
+  alert_message?: string;
+  alert_profit?: string;
+  alert_loss?: string;
+  alert_trailing?: string;
+  disable_alert?: boolean;
+  when?: string;
 }
 
 export interface TimeFilterBlockProperties {
@@ -532,6 +567,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
     },
     accent: "#0f766e",
   },
+  RISK_RULE_BLOCK_DEFINITION,
   {
     kind: "stopLoss",
     label: "止损",
@@ -869,8 +905,12 @@ export function normalizeStopLossBlockProperties(
     timeUnit: normalizeStopLossTimeUnit(properties.timeUnit),
     percentage: normalizeStopLossDecimal(properties.percentage, 2),
     takeProfitPercentage: normalizeStopLossDecimal(properties.takeProfitPercentage, 4),
+    ...(properties.profitTicks === undefined ? {} : { profitTicks: normalizeStopLossDecimal(properties.profitTicks, 50) }),
+    ...(properties.lossTicks === undefined ? {} : { lossTicks: normalizeStopLossDecimal(properties.lossTicks, 25) }),
     quantityPercentage: normalizeStopLossDecimal(properties.quantityPercentage, 100),
     windowPolicy: normalizeStopLossWindowPolicy(properties.windowPolicy),
+    trailingPriceMode: normalizeStopLossTrailingPriceMode(properties.trailingPriceMode),
+    fromEntryMode: properties.fromEntryMode === "auto" ? "auto" : "explicit",
     ...(properties.stopPriceExpressionAst === undefined ? {} : {
       stopPriceExpressionAst: normalizeVisualExpression(properties.stopPriceExpressionAst, sourceExpression("close")),
     }),
@@ -880,6 +920,39 @@ export function normalizeStopLossBlockProperties(
     ...(properties.trailingPriceExpressionAst === undefined ? {} : {
       trailingPriceExpressionAst: normalizeVisualExpression(properties.trailingPriceExpressionAst, sourceExpression("close")),
     }),
+    ...(properties.trailingOffsetExpressionAst === undefined ? {} : {
+      trailingOffsetExpressionAst: normalizeVisualExpression(properties.trailingOffsetExpressionAst, sourceExpression("close")),
+    }),
+    ...(typeof properties.comment === "string" && properties.comment.trim() !== ""
+      ? { comment: properties.comment.trim() }
+      : {}),
+    ...(typeof properties.comment_profit === "string" && properties.comment_profit.trim() !== ""
+      ? { comment_profit: properties.comment_profit.trim() }
+      : {}),
+    ...(typeof properties.comment_loss === "string" && properties.comment_loss.trim() !== ""
+      ? { comment_loss: properties.comment_loss.trim() }
+      : {}),
+    ...(typeof properties.comment_trailing === "string" && properties.comment_trailing.trim() !== ""
+      ? { comment_trailing: properties.comment_trailing.trim() }
+      : {}),
+    ...(typeof properties.alert_message === "string" && properties.alert_message.trim() !== ""
+      ? { alert_message: properties.alert_message.trim() }
+      : {}),
+    ...(typeof properties.alert_profit === "string" && properties.alert_profit.trim() !== ""
+      ? { alert_profit: properties.alert_profit.trim() }
+      : {}),
+    ...(typeof properties.alert_loss === "string" && properties.alert_loss.trim() !== ""
+      ? { alert_loss: properties.alert_loss.trim() }
+      : {}),
+    ...(typeof properties.alert_trailing === "string" && properties.alert_trailing.trim() !== ""
+      ? { alert_trailing: properties.alert_trailing.trim() }
+      : {}),
+    ...(typeof properties.disable_alert === "boolean"
+      ? { disable_alert: properties.disable_alert }
+      : {}),
+    ...(typeof properties.when === "string" && properties.when.trim() !== ""
+      ? { when: properties.when.trim() }
+      : {}),
   };
 }
 
@@ -928,6 +1001,10 @@ export function stopLossTimeUnitLabel(unit: StopLossTimeUnit): string {
 
 export function stopLossWindowPolicyLabel(policy: StopLossWindowPolicy): string {
   return policy === "session" ? "交易时段感知" : "连续窗口";
+}
+
+export function normalizeStopLossTrailingPriceMode(value: unknown): StopLossTrailingPriceMode {
+  return value === "price" ? "price" : "points";
 }
 
 export function stopLossRuleLabel(properties: StopLossBlockProperties): string {

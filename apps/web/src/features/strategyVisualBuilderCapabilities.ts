@@ -5,6 +5,7 @@ import type {
 
 import {
   getStrategyBlockKind,
+  normalizeRiskRuleBlockProperties,
   normalizeStopLossBlockProperties,
   type StrategyBlockKind,
 } from "./strategyVisualBuilderCatalog";
@@ -489,8 +490,13 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
         "limitPriceExpressionAst",
         "stopPriceExpressionAst",
         "riskAllowedDirection",
+        "comment",
+        "alert_message",
+        "immediately",
+        "disable_alert",
+        "when",
       ],
-      description: "只暴露当前 closed-bar runtime 可分析的订单动作和价格参数。",
+      description: "覆盖当前 closed-bar runtime 已支持的订单动作、价格参数和基础 metadata；不暴露 OCA，因为后端会将其诊断为不可执行。",
     },
     expressionSchema: {
       expressionIds: ["limitPriceExpressionAst", "stopPriceExpressionAst"],
@@ -506,6 +512,50 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
       description: "支持上述 strategy.* 语句反解。",
     },
   },
+  riskRule: {
+    kind: "riskRule",
+    label: "策略风控",
+    defaultSupport: {
+      status: "supported",
+      label: "风控可运行",
+      message: "生成当前 runtime 支持的 strategy.risk.allow_entry_in 与 strategy.risk.max_* 语句。",
+    },
+    controlSchema: {
+      controlIds: [
+        "riskRuleType",
+        "riskAllowedDirection",
+        "riskValue",
+        "riskAmountType",
+        "riskCount",
+        "riskContracts",
+        "alert_message",
+      ],
+      description: "可配置允许入场方向、金额型风控、数量型风控和对应 alert_message。",
+    },
+    pineRenderRule: {
+      mode: "generated",
+      description: "生成 strategy.risk.allow_entry_in、strategy.risk.max_drawdown、strategy.risk.max_intraday_loss、strategy.risk.max_intraday_filled_orders、strategy.risk.max_position_size 或 strategy.risk.max_cons_loss_days。",
+    },
+    pineParseRule: {
+      mode: "statement",
+      description: "支持上述 strategy.risk.* 语句反解为独立风控图块。",
+    },
+    supportRule(node) {
+      const properties = normalizeRiskRuleBlockProperties(node.properties ?? {});
+      if (properties.riskRuleType === "allowEntryIn") {
+        return {
+          status: "supported",
+          label: "方向风控可运行",
+          message: "生成 strategy.risk.allow_entry_in，限制策略允许开仓的方向。",
+        };
+      }
+      return {
+        status: "supported",
+        label: "阈值风控可运行",
+        message: "生成 strategy.risk.max_* 风控阈值，运行时会在触发后阻止进一步下单。",
+      };
+    },
+  },
   stopLoss: {
     kind: "stopLoss",
     label: "退出/风控",
@@ -519,15 +569,29 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
         "windowPolicy",
         "percentage",
         "takeProfitPercentage",
+        "profitTicks",
+        "lossTicks",
         "quantityPercentage",
         "stopPriceExpressionAst",
         "takeProfitPriceExpressionAst",
         "trailingPriceExpressionAst",
+        "trailingOffsetExpressionAst",
+        "trailingPriceMode",
+        "comment",
+        "comment_profit",
+        "comment_loss",
+        "comment_trailing",
+        "alert_message",
+        "alert_profit",
+        "alert_loss",
+        "alert_trailing",
+        "disable_alert",
+        "when",
       ],
-      description: "当前仅支持连续窗口 + 1 柱的闭盘退出配置。",
+      description: "当前支持连续窗口 + 1 柱的闭盘退出配置、profit/loss tick 退出，以及 strategy.exit 的 when / comment_* / alert_* / disable_alert 元数据。",
     },
     expressionSchema: {
-      expressionIds: ["stopPriceExpressionAst", "takeProfitPriceExpressionAst", "trailingPriceExpressionAst"],
+      expressionIds: ["stopPriceExpressionAst", "takeProfitPriceExpressionAst", "trailingPriceExpressionAst", "trailingOffsetExpressionAst"],
       allowedFunctions: ["math.min", "math.max", "math.abs", "math.round", "math.floor", "math.ceil", "nz"],
       allowedOperators: ["+", "-", "*", "/"],
     },

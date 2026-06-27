@@ -36,6 +36,23 @@ type cachedPositionSnapshot struct {
 	valid   bool
 }
 
+type syntheticPositionBasis struct {
+	Quantity     float64
+	AveragePrice float64
+}
+
+type pineRiskState struct {
+	peakEquity             float64
+	currentDayStart        time.Time
+	currentDayStartEquity  float64
+	currentDayLatestEquity float64
+	dailyFilledOrders      int
+	consecutiveLossDays    int
+	drawdownTriggered      bool
+	intradayLossTriggered  bool
+	consLossDaysTriggered  bool
+}
+
 type indicatorBinding struct {
 	Alias string
 	Kind  string

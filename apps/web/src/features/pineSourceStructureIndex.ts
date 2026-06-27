@@ -279,6 +279,8 @@ export function sourceBlockEditableFields(block: PineSourceBlock): Array<{
         { key: "id", label: "入场 ID" },
         { key: "qty", label: "数量" },
         { key: "qty_percent", label: "仓位百分比" },
+        { key: "limit", label: "限价" },
+        { key: "stop", label: "止损/触发价" },
         { key: "comment", label: "备注" },
         { key: "alert_message", label: "提醒消息" },
         { key: "immediately", label: "立即平仓" },

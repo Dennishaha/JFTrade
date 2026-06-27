@@ -97,7 +97,7 @@ function renderInstructionBlock(block: PineV6WorkflowBlock, indentLevel: number)
     case "strategy_exit":
       return `${indent}strategy.exit(${renderCallArgs([
         quoteString(readString(params.id) || "Exit"),
-        optionalRawArg("from_entry", quoteString(readString(params.from_entry) || "Long")),
+        optionalStringArg("from_entry", params.from_entry),
         ...renderNamedOrderArgs(params, [
           "qty",
           "qty_percent",
@@ -132,7 +132,7 @@ function renderInstructionBlock(block: PineV6WorkflowBlock, indentLevel: number)
     case "strategy_close":
       return `${indent}strategy.close(${renderCallArgs([
         quoteString(readString(params.id) || "Long"),
-        ...renderNamedOrderArgs(params, ["qty", "qty_percent", "comment", "alert_message", "immediately", "disable_alert", "when"]),
+        ...renderNamedOrderArgs(params, ["qty", "qty_percent", "limit", "stop", "comment", "alert_message", "immediately", "disable_alert", "when"]),
         ...readSourceExtraArgs(params),
       ])})`;
     case "strategy_close_all":
@@ -241,6 +241,11 @@ function optionalNumberArg(name: string, value: unknown): string | null {
 function optionalRawArg(name: string, value: unknown): string | null {
   const text = readString(value);
   return text === "" ? null : `${name}=${text}`;
+}
+
+function optionalStringArg(name: string, value: unknown): string | null {
+  const text = readString(value);
+  return text === "" ? null : `${name}=${quoteString(text)}`;
 }
 
 function renderNamedOrderArgs(params: Record<string, unknown>, names: string[]): Array<string | null> {

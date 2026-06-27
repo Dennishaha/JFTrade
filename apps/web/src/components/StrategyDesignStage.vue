@@ -105,7 +105,7 @@ const expandedStrategySidePanels = ref<string[]>([...strategySidePanelIds]);
 const generatedScript = computed(() => buildPineV6WorkflowScript(workflow.value));
 const activeScript = computed(() => sourceOverride.value);
 const sourceStructureNodes = computed(() => buildPineSourceStructureIndex(activeScript.value));
-const workflowDiagnostics = computed(() => assessPineV6Workflow(workflow.value));
+const workflowDiagnostics = computed(() => assessPineV6Workflow(compatibleWorkflowSnapshot()));
 const analyzerDiagnostics = computed(() => analyzeResult.value?.diagnostics ?? []);
 const pineDiagnosticMarkers = computed(() =>
   analyzerDiagnostics.value.map((diagnostic) => ({

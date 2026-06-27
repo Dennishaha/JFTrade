@@ -121,6 +121,8 @@ func requestSecurityUnsupportedDiagnostic(line parsedLine) (Diagnostic, bool) {
 			return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_LOOKAHEAD", "request.security() lookahead_on is not supported by JFTrade; use default lookahead_off", line), true
 		case strings.Contains(lowerMerge, "barmerge.gaps_on"):
 			return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_GAPS", "request.security() gaps_on is not supported by JFTrade; use default gaps_off", line), true
+		case strings.HasPrefix(lowerMerge, "calc_bars_count="):
+			return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_CALC_BARS_COUNT", "request.security() calc_bars_count is not supported by JFTrade", line), true
 		}
 	}
 	if len(args) < 3 {

@@ -21,6 +21,47 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		}
 		s.strategyMetadata.AllowedEntryDirection = direction
 		return nil, true, nil
+	case strings.HasPrefix(lower, "strategy.risk.max_drawdown("):
+		value, amountType, alertMessage, err := parseStrategyRiskAmountArgs(line.number, "strategy.risk.max_drawdown", splitArguments(callArgs(line.trimmed)))
+		if err != nil {
+			return nil, true, err
+		}
+		s.strategyMetadata.MaxDrawdownValue = value
+		s.strategyMetadata.MaxDrawdownType = amountType
+		s.strategyMetadata.MaxDrawdownAlert = alertMessage
+		return nil, true, nil
+	case strings.HasPrefix(lower, "strategy.risk.max_intraday_loss("):
+		value, amountType, alertMessage, err := parseStrategyRiskAmountArgs(line.number, "strategy.risk.max_intraday_loss", splitArguments(callArgs(line.trimmed)))
+		if err != nil {
+			return nil, true, err
+		}
+		s.strategyMetadata.MaxIntradayLossValue = value
+		s.strategyMetadata.MaxIntradayLossType = amountType
+		s.strategyMetadata.MaxIntradayLossAlert = alertMessage
+		return nil, true, nil
+	case strings.HasPrefix(lower, "strategy.risk.max_intraday_filled_orders("):
+		count, alertMessage, err := parseStrategyRiskCountArgs(line.number, "strategy.risk.max_intraday_filled_orders", splitArguments(callArgs(line.trimmed)))
+		if err != nil {
+			return nil, true, err
+		}
+		s.strategyMetadata.MaxIntradayFilledOrders = count
+		s.strategyMetadata.MaxIntradayFilledOrdersAlert = alertMessage
+		return nil, true, nil
+	case strings.HasPrefix(lower, "strategy.risk.max_position_size("):
+		contracts, err := parseStrategyRiskPositionSize(line.number, splitArguments(callArgs(line.trimmed)))
+		if err != nil {
+			return nil, true, err
+		}
+		s.strategyMetadata.MaxPositionSize = contracts
+		return nil, true, nil
+	case strings.HasPrefix(lower, "strategy.risk.max_cons_loss_days("):
+		count, alertMessage, err := parseStrategyRiskCountArgs(line.number, "strategy.risk.max_cons_loss_days", splitArguments(callArgs(line.trimmed)))
+		if err != nil {
+			return nil, true, err
+		}
+		s.strategyMetadata.MaxConsLossDays = count
+		s.strategyMetadata.MaxConsLossDaysAlert = alertMessage
+		return nil, true, nil
 	case strings.HasPrefix(lower, "strategy.entry("):
 		args := splitArguments(callArgs(line.trimmed))
 		if len(args) < 2 {
@@ -29,6 +70,12 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		id := unquote(strings.TrimSpace(args[0]))
 		direction := strings.ToLower(strings.TrimSpace(args[1]))
 		if err := rejectUnsupportedOrderArgs(line.number, "strategy.entry", args[2:]); err != nil {
+			return nil, true, err
+		}
+		if err := rejectUnsupportedNamedArgs(line.number, "strategy.entry", args[2:], "qty", "qty_percent", "limit", "stop", "oca_name", "oca_type", "comment", "alert_message", "disable_alert", "when"); err != nil {
+			return nil, true, err
+		}
+		if err := rejectConflictingQuantityArgs(line.number, "strategy.entry", args[2:]); err != nil {
 			return nil, true, err
 		}
 		comment, alertMessage, disableAlert, err := pineOrderMetadata(line.number, "strategy.entry", args[2:], false)
@@ -69,11 +116,16 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 				return nil, true, err
 			}
 		}
+		whenExpr, err := s.parseWhenExpression(line.number, "strategy.entry", args[2:])
+		if err != nil {
+			return nil, true, err
+		}
 		return &strategyir.OrderStmt{
 			Range:              strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
 			ID:                 id,
 			Action:             action,
 			Intent:             strategyir.OrderIntentEntry,
+			WhenExpression:     whenExpr,
 			QuantityMode:       quantityMode,
 			QuantityExpression: quantityExpr,
 			EntryPolicy:        s.readEntryPolicyForLine(line.number),
@@ -91,6 +143,12 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		}
 		id := unquote(strings.TrimSpace(args[0]))
 		if err := rejectUnsupportedOrderArgs(line.number, "strategy.order", args[2:]); err != nil {
+			return nil, true, err
+		}
+		if err := rejectUnsupportedNamedArgs(line.number, "strategy.order", args[2:], "qty", "qty_percent", "limit", "stop", "oca_name", "oca_type", "comment", "alert_message", "disable_alert", "when"); err != nil {
+			return nil, true, err
+		}
+		if err := rejectConflictingQuantityArgs(line.number, "strategy.order", args[2:]); err != nil {
 			return nil, true, err
 		}
 		comment, alertMessage, disableAlert, err := pineOrderMetadata(line.number, "strategy.order", args[2:], false)
@@ -129,11 +187,16 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 				return nil, true, err
 			}
 		}
+		whenExpr, err := s.parseWhenExpression(line.number, "strategy.order", args[2:])
+		if err != nil {
+			return nil, true, err
+		}
 		return &strategyir.OrderStmt{
 			Range:              strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
 			ID:                 id,
 			Action:             action,
 			Intent:             strategyir.OrderIntentNet,
+			WhenExpression:     whenExpr,
 			QuantityMode:       quantityMode,
 			QuantityExpression: quantityExpr,
 			EntryPolicy:        "allow",
@@ -146,7 +209,10 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		}, true, nil
 	case strings.HasPrefix(lower, "strategy.close_all("):
 		args := splitArguments(callArgs(line.trimmed))
-		comment, alertMessage, disableAlert, immediate, err := pineCloseMetadata(line.number, "strategy.close_all", args)
+		if err := rejectUnsupportedNamedArgs(line.number, "strategy.close_all", args, "immediately", "comment", "alert_message", "disable_alert"); err != nil {
+			return nil, true, err
+		}
+		comment, alertMessage, disableAlert, immediate, err := pineCloseAllMetadata(line.number, args)
 		if err != nil {
 			return nil, true, err
 		}
@@ -167,6 +233,9 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		if len(args) == 0 {
 			return nil, true, fmt.Errorf("pine line %d: strategy.close(id) requires an entry id", line.number)
 		}
+		if err := rejectUnsupportedNamedArgs(line.number, "strategy.close", args[1:], "qty", "qty_percent", "limit", "stop", "comment", "alert_message", "immediately", "disable_alert", "when"); err != nil {
+			return nil, true, err
+		}
 		comment, alertMessage, disableAlert, immediate, err := pineCloseMetadata(line.number, "strategy.close", args[1:])
 		if err != nil {
 			return nil, true, err
@@ -176,8 +245,11 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		if s.shortEntryIDs[id] {
 			action = strategyir.OrderActionCover
 		}
+		if err := rejectConflictingQuantityArgs(line.number, "strategy.close", args[1:]); err != nil {
+			return nil, true, err
+		}
 		quantityMode, quantityExpr := pineCloseQuantity(args[1:], id)
-		orderType, limitExpr, _ := pineOrderPrices(args[1:])
+		orderType, limitExpr, stopExpr := pineOrderPrices(args[1:])
 		quantityExpr = s.normalizeExpression(quantityExpr)
 		if err := s.takeNormalizationErr(line.number); err != nil {
 			return nil, true, err
@@ -194,16 +266,31 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 				return nil, true, err
 			}
 		}
+		stopExpr = s.normalizeExpression(stopExpr)
+		if err := s.takeNormalizationErr(line.number); err != nil {
+			return nil, true, err
+		}
+		if strings.TrimSpace(stopExpr) != "" {
+			if err := validateExpression(line.number, "order stop expression", stopExpr); err != nil {
+				return nil, true, err
+			}
+		}
+		whenExpr, err := s.parseWhenExpression(line.number, "strategy.close", args[1:])
+		if err != nil {
+			return nil, true, err
+		}
 		return &strategyir.OrderStmt{
 			Range:              strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
 			ID:                 id,
 			Action:             action,
 			Intent:             strategyir.OrderIntentClose,
+			WhenExpression:     whenExpr,
 			QuantityMode:       quantityMode,
 			QuantityExpression: quantityExpr,
 			EntryPolicy:        "same_direction",
 			OrderType:          orderType,
 			LimitExpression:    limitExpr,
+			StopExpression:     stopExpr,
 			Comment:            comment,
 			AlertMessage:       alertMessage,
 			DisableAlert:       disableAlert,
@@ -248,6 +335,84 @@ func normalizeStrategyAllowedEntryDirection(value string) (string, bool) {
 	}
 }
 
+func normalizeStrategyRiskAmountType(value string) (string, bool) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.TrimPrefix(normalized, "strategy.")
+	switch normalized {
+	case "percent_of_equity", "cash":
+		return normalized, true
+	default:
+		return "", false
+	}
+}
+
+func parseStrategyRiskAmountArgs(lineNumber int, fn string, args []string) (float64, string, string, error) {
+	if len(args) < 2 {
+		return 0, "", "", fmt.Errorf("pine line %d: %s(value, type[, alert_message]) requires at least two arguments", lineNumber, fn)
+	}
+	value, ok := parsePositiveFloatConstant(args[0])
+	if !ok {
+		return 0, "", "", fmt.Errorf("pine line %d: %s value %q must be a positive constant number", lineNumber, fn, strings.TrimSpace(args[0]))
+	}
+	amountType, ok := normalizeStrategyRiskAmountType(args[1])
+	if !ok {
+		return 0, "", "", fmt.Errorf("pine line %d: %s type %q is not supported", lineNumber, fn, strings.TrimSpace(args[1]))
+	}
+	alertMessage := ""
+	remaining := args[2:]
+	if named, ok := namedArgValue(remaining, "alert_message"); ok {
+		alertMessage = unquote(strings.TrimSpace(named))
+	} else if len(remaining) > 0 && !strings.Contains(remaining[0], "=") {
+		alertMessage = unquote(strings.TrimSpace(remaining[0]))
+		remaining = remaining[1:]
+	}
+	for _, arg := range remaining {
+		key, _, ok := splitNamedArg(arg)
+		if ok && strings.EqualFold(key, "alert_message") {
+			continue
+		}
+		return 0, "", "", fmt.Errorf("pine line %d: %s supports only value, type, and optional alert_message", lineNumber, fn)
+	}
+	return value, amountType, alertMessage, nil
+}
+
+func parseStrategyRiskCountArgs(lineNumber int, fn string, args []string) (int, string, error) {
+	if len(args) == 0 {
+		return 0, "", fmt.Errorf("pine line %d: %s(count[, alert_message]) requires at least one argument", lineNumber, fn)
+	}
+	count, ok := parseNonNegativeIntConstant(args[0])
+	if !ok || count <= 0 {
+		return 0, "", fmt.Errorf("pine line %d: %s count %q must be a positive constant integer", lineNumber, fn, strings.TrimSpace(args[0]))
+	}
+	alertMessage := ""
+	remaining := args[1:]
+	if named, ok := namedArgValue(remaining, "alert_message"); ok {
+		alertMessage = unquote(strings.TrimSpace(named))
+	} else if len(remaining) > 0 && !strings.Contains(remaining[0], "=") {
+		alertMessage = unquote(strings.TrimSpace(remaining[0]))
+		remaining = remaining[1:]
+	}
+	for _, arg := range remaining {
+		key, _, ok := splitNamedArg(arg)
+		if ok && strings.EqualFold(key, "alert_message") {
+			continue
+		}
+		return 0, "", fmt.Errorf("pine line %d: %s supports only count and optional alert_message", lineNumber, fn)
+	}
+	return count, alertMessage, nil
+}
+
+func parseStrategyRiskPositionSize(lineNumber int, args []string) (float64, error) {
+	if len(args) != 1 {
+		return 0, fmt.Errorf("pine line %d: strategy.risk.max_position_size(contracts) requires one argument", lineNumber)
+	}
+	contracts, ok := parsePositiveFloatConstant(args[0])
+	if !ok {
+		return 0, fmt.Errorf("pine line %d: strategy.risk.max_position_size contracts %q must be a positive constant number", lineNumber, strings.TrimSpace(args[0]))
+	}
+	return contracts, nil
+}
+
 func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, error) {
 	args := splitArguments(callArgs(line.trimmed))
 	if len(args) < 1 {
@@ -262,21 +427,26 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 		fromEntry = unquote(strings.TrimSpace(orderArgs[0]))
 		orderArgs = orderArgs[1:]
 	}
+	if err := rejectUnsupportedOrderArgs(line.number, "strategy.exit", orderArgs); err != nil {
+		return nil, err
+	}
 	triggerCount := 0
-	for _, name := range []string{"stop", "limit", "trail_points", "trail_price"} {
+	for _, name := range []string{"stop", "limit", "profit", "loss", "trail_points", "trail_price"} {
 		if _, ok := namedArgValue(orderArgs, name); ok {
 			triggerCount++
 		}
 	}
 	hasStop := hasNamedArg(orderArgs, "stop")
 	hasLimit := hasNamedArg(orderArgs, "limit")
+	hasProfit := hasNamedArg(orderArgs, "profit")
+	hasLoss := hasNamedArg(orderArgs, "loss")
 	hasTrailPoints := hasNamedArg(orderArgs, "trail_points")
 	hasTrailPrice := hasNamedArg(orderArgs, "trail_price")
 	hasTrail := hasTrailPoints || hasTrailPrice
 	if hasTrailPoints && hasTrailPrice {
 		return nil, fmt.Errorf("pine line %d: strategy.exit accepts trail_points or trail_price, not both", line.number)
 	}
-	if hasTrail && (hasStop || hasLimit) {
+	if hasTrail && (hasStop || hasLimit || hasProfit || hasLoss) {
 		return nil, fmt.Errorf("pine line %d: strategy.exit trail with stop/limit is not supported by JFTrade yet", line.number)
 	}
 	if triggerCount == 0 {
@@ -289,6 +459,12 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 	}
 	if strings.TrimSpace(fromEntry) == "" {
 		direction = "auto"
+	}
+	if err := rejectUnsupportedNamedArgs(line.number, "strategy.exit", orderArgs, "from_entry", "qty", "qty_percent", "profit", "limit", "loss", "stop", "trail_price", "trail_points", "trail_offset", "oca_name", "oca_type", "comment", "comment_profit", "comment_loss", "comment_trailing", "alert_message", "alert_profit", "alert_loss", "alert_trailing", "disable_alert", "when"); err != nil {
+		return nil, err
+	}
+	if err := rejectConflictingQuantityArgs(line.number, "strategy.exit", orderArgs); err != nil {
+		return nil, err
 	}
 	quantityMode, quantityExpr := pineExitQuantity(orderArgs)
 	quantityExpr = s.normalizeExpression(quantityExpr)
@@ -318,8 +494,32 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 			return nil, err
 		}
 	}
-	if stopExpr != "" || limitExpr != "" {
-		comment, alertMessage, disableAlert, err := pineOrderMetadata(line.number, "strategy.exit", orderArgs, false)
+	profitExpr := ""
+	if raw, ok := namedArgValue(orderArgs, "profit"); ok {
+		profitExpr = s.normalizeExpression(raw)
+		if err := s.takeNormalizationErr(line.number); err != nil {
+			return nil, err
+		}
+		if err := validateExpression(line.number, "exit profit expression", profitExpr); err != nil {
+			return nil, err
+		}
+	}
+	lossExpr := ""
+	if raw, ok := namedArgValue(orderArgs, "loss"); ok {
+		lossExpr = s.normalizeExpression(raw)
+		if err := s.takeNormalizationErr(line.number); err != nil {
+			return nil, err
+		}
+		if err := validateExpression(line.number, "exit loss expression", lossExpr); err != nil {
+			return nil, err
+		}
+	}
+	if stopExpr != "" || limitExpr != "" || profitExpr != "" || lossExpr != "" {
+		metadata, err := pineExitMetadata(line.number, orderArgs)
+		if err != nil {
+			return nil, err
+		}
+		whenExpr, err := s.parseWhenExpression(line.number, "strategy.exit", orderArgs)
 		if err != nil {
 			return nil, err
 		}
@@ -328,13 +528,22 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 			ID:                 exitID,
 			FromEntry:          fromEntry,
 			Direction:          direction,
+			WhenExpression:     whenExpr,
 			QuantityMode:       quantityMode,
 			QuantityExpression: quantityExpr,
+			ProfitExpression:   profitExpr,
+			LossExpression:     lossExpr,
 			StopExpression:     stopExpr,
 			LimitExpression:    limitExpr,
-			Comment:            comment,
-			AlertMessage:       alertMessage,
-			DisableAlert:       disableAlert,
+			Comment:            metadata.comment,
+			CommentProfit:      metadata.commentProfit,
+			CommentLoss:        metadata.commentLoss,
+			CommentTrailing:    metadata.commentTrailing,
+			AlertMessage:       metadata.alertMessage,
+			AlertProfit:        metadata.alertProfit,
+			AlertLoss:          metadata.alertLoss,
+			AlertTrailing:      metadata.alertTrailing,
+			DisableAlert:       metadata.disableAlert,
 		}, nil
 	}
 	if hasTrail {
@@ -349,7 +558,11 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 		if err := validateExpression(line.number, "exit trail_offset expression", trailOffsetExpr); err != nil {
 			return nil, err
 		}
-		comment, alertMessage, disableAlert, err := pineOrderMetadata(line.number, "strategy.exit", orderArgs, false)
+		metadata, err := pineExitMetadata(line.number, orderArgs)
+		if err != nil {
+			return nil, err
+		}
+		whenExpr, err := s.parseWhenExpression(line.number, "strategy.exit", orderArgs)
 		if err != nil {
 			return nil, err
 		}
@@ -358,12 +571,19 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 			ID:                 exitID,
 			FromEntry:          fromEntry,
 			Direction:          direction,
+			WhenExpression:     whenExpr,
 			QuantityMode:       quantityMode,
 			QuantityExpression: quantityExpr,
 			TrailOffset:        trailOffsetExpr,
-			Comment:            comment,
-			AlertMessage:       alertMessage,
-			DisableAlert:       disableAlert,
+			Comment:            metadata.comment,
+			CommentProfit:      metadata.commentProfit,
+			CommentLoss:        metadata.commentLoss,
+			CommentTrailing:    metadata.commentTrailing,
+			AlertMessage:       metadata.alertMessage,
+			AlertProfit:        metadata.alertProfit,
+			AlertLoss:          metadata.alertLoss,
+			AlertTrailing:      metadata.alertTrailing,
+			DisableAlert:       metadata.disableAlert,
 		}
 		if raw, ok := namedArgValue(orderArgs, "trail_points"); ok {
 			statement.TrailPoints = s.normalizeExpression(raw)
@@ -386,6 +606,21 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 		return statement, nil
 	}
 	return nil, fmt.Errorf("pine line %d: strategy.exit advanced exit semantics are not supported by JFTrade yet", line.number)
+}
+
+func (s *parseState) parseWhenExpression(lineNumber int, functionName string, args []string) (string, error) {
+	raw, ok := namedArgValue(args, "when")
+	if !ok {
+		return "", nil
+	}
+	whenExpr := s.normalizeExpression(raw)
+	if err := s.takeNormalizationErr(lineNumber); err != nil {
+		return "", err
+	}
+	if err := validateExpression(lineNumber, functionName+" when expression", whenExpr); err != nil {
+		return "", err
+	}
+	return whenExpr, nil
 }
 
 func parseLogOrAlert(line parsedLine) (strategyir.Statement, bool) {

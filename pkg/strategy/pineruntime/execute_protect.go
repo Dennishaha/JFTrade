@@ -29,6 +29,10 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 	shouldExitShort := requirement.allowShortExit && position.Direction == "SHORT" && readBool(rawSnapshot, "shortTriggered")
 	availableQuantity := math.Floor(absFloat(firstPositiveFloat(absFloat(position.AvailableQuantity), absFloat(position.Quantity))))
 	quantity := 0.0
+	closePrice := 0.0
+	if scope.currentKline != nil {
+		closePrice = scope.currentKline.Close.Float64()
+	}
 	if shouldExitLong || shouldExitShort {
 		quantityMode := strings.TrimSpace(statement.QuantityMode)
 		if quantityMode == "" {
@@ -41,10 +45,6 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 		mode, ok := indicatorbinding.ParseQuantityMode(quantityMode)
 		if !ok {
 			return false, fmt.Errorf("pine line %d: unsupported exit quantity mode %q", statement.Range.StartLine, statement.QuantityMode)
-		}
-		closePrice := 0.0
-		if scope.currentKline != nil {
-			closePrice = scope.currentKline.Close.Float64()
 		}
 		quantity, err = r.resolveOrderQuantity(&strategyir.OrderStmt{
 			Range:              statement.Range,
@@ -68,6 +68,8 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 		if err := r.submitOrder(types.SideTypeSell, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
+		r.recordSyntheticPositionFill(r.symbol, strategyir.OrderActionSell, quantity, closePrice, position)
+		r.recordFilledOrder(timeFromScope(scope))
 		r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
 		r.resetEntrySubmitCount("LONG")
 		return true, nil
@@ -80,6 +82,8 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 		if err := r.submitOrder(types.SideTypeBuy, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
+		r.recordSyntheticPositionFill(r.symbol, strategyir.OrderActionBuy, quantity, closePrice, position)
+		r.recordFilledOrder(timeFromScope(scope))
 		r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
 		r.resetEntrySubmitCount("SHORT")
 		return true, nil

@@ -284,6 +284,26 @@ describe("Strategy page Pine v6 workflow", () => {
     expect(wrapper.text()).toContain("L14 入场订单")
     expect(wrapper.find('[data-testid="pine-v6-workflow-block-strategy_order"]').exists()).toBe(false)
 
+    await wrapper.get('[data-testid="strategy-script-editor"]').setValue(
+      '//@version=6\nstrategy("Trail UI", overlay=true)\nstrategy.exit("Trail", "Long", trail_price=high[1], trail_offset=close * 2 / 100)\n',
+    )
+    await flushRequests()
+    orderSourceNode = wrapper.get('[data-testid="pine-source-node-order"]')
+    expect(orderSourceNode.text()).toContain("退出订单")
+    await orderSourceNode.get("button").trigger("click")
+    await flushRequests()
+    orderSourceNode = wrapper.get('[data-testid="pine-source-node-order"]')
+    const trailOffsetInput = orderSourceNode
+      .findAll("label")
+      .find((label) => label.text().includes("追踪偏移"))
+      ?.find("input")
+    expect(trailOffsetInput).toBeDefined()
+    await trailOffsetInput!.setValue("close * 3 / 100")
+    await flushRequests()
+    expect(sourceEditor.value).toContain(
+      'strategy.exit("Trail", from_entry="Long", trail_price=high[1], trail_offset=close * 3 / 100)',
+    )
+
     wrapper.unmount()
   })
 
@@ -343,6 +363,28 @@ describe("Strategy page Pine v6 workflow", () => {
     await flushRequests()
     sourceEditor = wrapper.get('[data-testid="strategy-script-editor"]').element as HTMLTextAreaElement
     expect(sourceEditor.value.match(/import TradingView\/ta\/7 as ta7/g)).toHaveLength(1)
+
+    wrapper.unmount()
+  })
+
+  it("surfaces source-structure OCA diagnostics for strategy.exit when source is the authority", async () => {
+    vi.stubGlobal("fetch", buildFetchMock({ definitions: [] }))
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket)
+
+    const { wrapper } = await mountStrategyPage("/strategy/design")
+    await settleStrategyWorkspace()
+
+    await wrapper.get('[data-testid="strategy-source-override-toggle"]').setValue(true)
+    await flushRequests()
+
+    const sourceEditor = wrapper.get('[data-testid="strategy-script-editor"]')
+    await sourceEditor.setValue(
+      '//@version=6\nstrategy("Exit OCA", overlay=true)\nstrategy.exit("Exit", "Long", stop=98, oca_name="group-a")\n',
+    )
+    await flushRequests()
+
+    expect(wrapper.text()).toContain("PINE_ORDER_OCA_UNSUPPORTED")
+    expect(wrapper.text()).toContain("runtime currently rejects OCA order semantics")
 
     wrapper.unmount()
   })

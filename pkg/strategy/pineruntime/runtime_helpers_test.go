@@ -114,6 +114,30 @@ func TestRuntimeHelpersNormalizePoliciesAndEntryGuards(t *testing.T) {
 	if got := normalizeOrderIntent(strategyir.OrderIntent("other")); got != strategyir.OrderIntentEntry {
 		t.Fatalf("normalizeOrderIntent(default) = %q", got)
 	}
+
+	metadataRuntime := &strategyRuntime{}
+	statement := &strategyir.ExitStmt{
+		Comment:         "generic",
+		CommentProfit:   "take",
+		CommentLoss:     "stop",
+		CommentTrailing: "trail",
+		AlertMessage:    "base alert",
+		AlertProfit:     "profit alert",
+		AlertLoss:       "loss alert",
+		AlertTrailing:   "trail alert",
+	}
+	if got := metadataRuntime.resolveExitMetadata(statement, exitTriggerProfit); got.comment != "take" || got.alert != "profit alert" {
+		t.Fatalf("resolveExitMetadata(profit) = %#v", got)
+	}
+	if got := metadataRuntime.resolveExitMetadata(statement, exitTriggerLoss); got.comment != "stop" || got.alert != "loss alert" {
+		t.Fatalf("resolveExitMetadata(loss) = %#v", got)
+	}
+	if got := metadataRuntime.resolveExitMetadata(statement, exitTriggerTrailing); got.comment != "trail" || got.alert != "trail alert" {
+		t.Fatalf("resolveExitMetadata(trailing) = %#v", got)
+	}
+	if got := metadataRuntime.resolveExitMetadata(&strategyir.ExitStmt{Comment: "generic", AlertMessage: "base"}, exitTriggerProfit); got.comment != "generic" || got.alert != "base" {
+		t.Fatalf("resolveExitMetadata(fallback) = %#v", got)
+	}
 }
 
 func TestRuntimeEntryCountStateTransitionsAndCacheHelpers(t *testing.T) {

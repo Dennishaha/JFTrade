@@ -960,6 +960,25 @@ function parseOrderNode(
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
 ): ParsedNodeResult | null {
+  if (explicitKind !== "placeOrder") {
+    const riskRule = parsePineRiskRule(entry.trimmed);
+    if (riskRule !== null) {
+      return {
+        node: createNodeFromParts({
+          state,
+          entry,
+          kind: explicitKind ?? "riskRule",
+          defaultText: entry.annotation?.nodeText ?? "策略风控",
+          defaultType: "rect",
+          properties: {
+            blockKind: explicitKind ?? "riskRule",
+            ...riskRule,
+          },
+        }),
+        isCondition: false,
+      };
+    }
+  }
   const pineOrder = parsePineOrder(entry.trimmed);
   if (pineOrder !== null) {
     return {
@@ -1010,65 +1029,75 @@ function parsePineExitNode(
 
 function parsePineExit(trimmed: string): Record<string, unknown> | null {
   const args = splitArguments(readCallArgs(trimmed));
-  if (args.length < 2) {
+  if (args.length < 1) {
     return null;
   }
-  const fromEntry = readPineLiteral(args[1] ?? "").toLowerCase();
-  const direction = fromEntry.includes("short") ? "short" : "long";
-  const namedArgs = parseNamedArgs(args.slice(2));
+  let orderArgs = args.slice(1);
+  const fromEntryArg = parseNamedArgs(orderArgs).get("from_entry");
+  const firstOrderArg = orderArgs[0] ?? "";
+  const hasPositionalFromEntry = firstOrderArg !== "" && !firstOrderArg.includes("=");
+  const fromEntry = fromEntryArg !== undefined
+    ? readPineLiteral(fromEntryArg)
+    : hasPositionalFromEntry
+      ? readPineLiteral(firstOrderArg)
+      : "";
+  if (fromEntryArg === undefined && hasPositionalFromEntry) {
+    orderArgs = orderArgs.slice(1);
+  }
+  const fromEntryLower = fromEntry.toLowerCase();
+  const direction = fromEntry === "" ? "auto" : fromEntryLower.includes("short") ? "short" : "long";
+  const fromEntryMode = fromEntry === "" ? "auto" : "explicit";
+  const namedArgs = parseNamedArgs(orderArgs);
   const quantityPercentage = readAnyNumber(namedArgs.get("qty_percent"), 100);
+  const metadata = parsePineExitMetadata(namedArgs);
   const stop = namedArgs.get("stop");
   const limit = namedArgs.get("limit");
+  const profit = namedArgs.get("profit");
+  const loss = namedArgs.get("loss");
   const stopExpressionAst = stop === undefined ? null : parsePineExpressionToVisualExpression(stop);
   const limitExpressionAst = limit === undefined ? null : parsePineExpressionToVisualExpression(limit);
-  if (stop !== undefined && limit !== undefined) {
-    const stopPercentage = parsePineExitPricePercent(stop);
-    const takeProfitPercentage = parsePineExitPricePercent(limit);
-    if ((stopPercentage === null && stopExpressionAst === null) || (takeProfitPercentage === null && limitExpressionAst === null)) {
+  if (stop !== undefined || limit !== undefined || profit !== undefined || loss !== undefined) {
+    const mode = stop !== undefined || loss !== undefined
+      ? (limit !== undefined || profit !== undefined ? "bracketExit" : "stopLoss")
+      : "takeProfit";
+    const stopPercentage = stop === undefined ? null : parsePineExitPricePercent(stop);
+    const takeProfitPercentage = limit === undefined ? null : parsePineExitPricePercent(limit);
+    if (
+      (stop !== undefined && stopPercentage === null && stopExpressionAst === null)
+      || (limit !== undefined && takeProfitPercentage === null && limitExpressionAst === null)
+    ) {
       return null;
     }
     const properties = pineExitProperties(
       direction,
-      "bracketExit",
-      stopPercentage ?? 2,
-      takeProfitPercentage ?? 4,
+      mode,
+      stopPercentage ?? readAnyNumber(loss, 2),
+      takeProfitPercentage ?? readAnyNumber(profit, 4),
       quantityPercentage,
     );
     return {
       ...properties,
+      fromEntryMode,
+      ...metadata,
+      ...(profit === undefined ? {} : { profitTicks: readAnyNumber(profit, 50) }),
+      ...(loss === undefined ? {} : { lossTicks: readAnyNumber(loss, 25) }),
       ...(stopExpressionAst === null ? {} : { stopPriceExpressionAst: stopExpressionAst }),
-      ...(limitExpressionAst === null ? {} : { takeProfitPriceExpressionAst: limitExpressionAst }),
-    };
-  }
-  if (stop !== undefined) {
-    const percentage = parsePineExitPricePercent(stop);
-    if (percentage === null && stopExpressionAst === null) {
-      return null;
-    }
-    const properties = pineExitProperties(direction, "stopLoss", percentage ?? 2, undefined, quantityPercentage);
-    return {
-      ...properties,
-      ...(stopExpressionAst === null ? {} : { stopPriceExpressionAst: stopExpressionAst }),
-    };
-  }
-  if (limit !== undefined) {
-    const percentage = parsePineExitPricePercent(limit);
-    if (percentage === null && limitExpressionAst === null) {
-      return null;
-    }
-    const properties = pineExitProperties(direction, "takeProfit", percentage ?? 2, undefined, quantityPercentage);
-    return {
-      ...properties,
       ...(limitExpressionAst === null ? {} : { takeProfitPriceExpressionAst: limitExpressionAst }),
     };
   }
   const trailPoints = namedArgs.get("trail_points");
+  const trailPrice = namedArgs.get("trail_price");
   const trailOffset = namedArgs.get("trail_offset");
-  if (trailPoints !== undefined && trailOffset !== undefined) {
-    const percentage = parsePineExitTrailPercent(trailPoints);
+  const trailValue = trailPoints ?? trailPrice;
+  if (trailValue !== undefined && trailOffset !== undefined) {
+    const percentage = parsePineExitTrailPercent(trailValue);
     const offsetPercentage = parsePineExitTrailPercent(trailOffset);
-    const trailExpressionAst = parsePineExpressionToVisualExpression(trailPoints);
-    if ((percentage === null || offsetPercentage === null || percentage !== offsetPercentage) && trailExpressionAst === null) {
+    const trailExpressionAst = parsePineExpressionToVisualExpression(trailValue);
+    const trailOffsetExpressionAst = parsePineExpressionToVisualExpression(trailOffset);
+    if (
+      (percentage === null && trailExpressionAst === null)
+      || (offsetPercentage === null && trailOffsetExpressionAst === null)
+    ) {
       return null;
     }
     const properties = pineExitProperties(
@@ -1080,14 +1109,33 @@ function parsePineExit(trimmed: string): Record<string, unknown> | null {
     );
     return {
       ...properties,
+      fromEntryMode,
+      ...metadata,
+      trailingPriceMode: trailPrice === undefined ? "points" : "price",
       ...(trailExpressionAst === null ? {} : { trailingPriceExpressionAst: trailExpressionAst }),
+      ...(trailOffsetExpressionAst === null ? {} : { trailingOffsetExpressionAst: trailOffsetExpressionAst }),
     };
   }
   return null;
 }
 
+function parsePineExitMetadata(namedArgs: Map<string, string>): Record<string, unknown> {
+  return {
+    ...(readPineOptionalStringArg(namedArgs.get("comment")) === undefined ? {} : { comment: readPineOptionalStringArg(namedArgs.get("comment")) }),
+    ...(readPineOptionalStringArg(namedArgs.get("comment_profit")) === undefined ? {} : { comment_profit: readPineOptionalStringArg(namedArgs.get("comment_profit")) }),
+    ...(readPineOptionalStringArg(namedArgs.get("comment_loss")) === undefined ? {} : { comment_loss: readPineOptionalStringArg(namedArgs.get("comment_loss")) }),
+    ...(readPineOptionalStringArg(namedArgs.get("comment_trailing")) === undefined ? {} : { comment_trailing: readPineOptionalStringArg(namedArgs.get("comment_trailing")) }),
+    ...(readPineOptionalStringArg(namedArgs.get("alert_message")) === undefined ? {} : { alert_message: readPineOptionalStringArg(namedArgs.get("alert_message")) }),
+    ...(readPineOptionalStringArg(namedArgs.get("alert_profit")) === undefined ? {} : { alert_profit: readPineOptionalStringArg(namedArgs.get("alert_profit")) }),
+    ...(readPineOptionalStringArg(namedArgs.get("alert_loss")) === undefined ? {} : { alert_loss: readPineOptionalStringArg(namedArgs.get("alert_loss")) }),
+    ...(readPineOptionalStringArg(namedArgs.get("alert_trailing")) === undefined ? {} : { alert_trailing: readPineOptionalStringArg(namedArgs.get("alert_trailing")) }),
+    ...(readPineBooleanArg(namedArgs.get("disable_alert")) === undefined ? {} : { disable_alert: readPineBooleanArg(namedArgs.get("disable_alert")) }),
+    ...(readPineRawArg(namedArgs.get("when")) === undefined ? {} : { when: readPineRawArg(namedArgs.get("when")) }),
+  };
+}
+
 function pineExitProperties(
-  direction: "long" | "short",
+  direction: "auto" | "long" | "short",
   mode: "stopLoss" | "takeProfit" | "trailingStop" | "bracketExit",
   percentage: number,
   takeProfitPercentage?: number,
@@ -1749,7 +1797,7 @@ function defaultTypeForKind(kind: StrategyBlockKind): StrategyVisualNodeDocument
 
 function isOrderLine(trimmed: string): boolean {
   return /^strategy\.(entry|order|close|close_all|cancel|cancel_all)\s*\(/.test(trimmed)
-    || /^strategy\.risk\.allow_entry_in\s*\(/.test(trimmed);
+    || /^strategy\.risk\.(allow_entry_in|max_drawdown|max_intraday_loss|max_intraday_filled_orders|max_position_size|max_cons_loss_days)\s*\(/.test(trimmed);
 }
 
 function isAssignmentLine(trimmed: string): boolean {
@@ -1784,6 +1832,9 @@ function parsePineOrder(trimmed: string): Record<string, unknown> | null {
     };
   }
   if (trimmed.startsWith("strategy.close_all")) {
+    const args = splitArguments(readCallArgs(trimmed));
+    const namedArgs = parseNamedArgs(args);
+    const positionalArgs = readPositionalArgs(args);
     return {
       orderAction: "closeAll",
       side: "SELL",
@@ -1794,6 +1845,18 @@ function parsePineOrder(trimmed: string): Record<string, unknown> | null {
       quantityValue: 100,
       limitPrice: 0,
       pineOrderFunction: "strategy.close_all",
+      ...(readPineBooleanArg(namedArgs.get("immediately") ?? positionalArgs[0]) === undefined
+        ? {}
+        : { immediately: readPineBooleanArg(namedArgs.get("immediately") ?? positionalArgs[0]) }),
+      ...(readPineOptionalStringArg(namedArgs.get("comment") ?? positionalArgs[1]) === undefined
+        ? {}
+        : { comment: readPineOptionalStringArg(namedArgs.get("comment") ?? positionalArgs[1]) }),
+      ...(readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[2]) === undefined
+        ? {}
+        : { alert_message: readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[2]) }),
+      ...(readPineBooleanArg(namedArgs.get("disable_alert") ?? positionalArgs[3]) === undefined
+        ? {}
+        : { disable_alert: readPineBooleanArg(namedArgs.get("disable_alert") ?? positionalArgs[3]) }),
     };
   }
   if (trimmed.startsWith("strategy.cancel_all")) {
@@ -1826,10 +1889,14 @@ function parsePineOrder(trimmed: string): Record<string, unknown> | null {
   if (trimmed.startsWith("strategy.close")) {
     const args = splitArguments(readCallArgs(trimmed));
     const id = readPineLiteral(args[0] ?? "");
-    const namedArgs = parseNamedArgs(args.slice(1));
-    const quantity = parsePineQuantity(namedArgs.get("qty"), namedArgs.get("qty_percent"));
+    const orderArgs = args.slice(1);
+    const namedArgs = parseNamedArgs(orderArgs);
+    const positionalArgs = readPositionalArgs(orderArgs);
+    const quantity = parsePineQuantity(namedArgs.get("qty") ?? positionalArgs[0], namedArgs.get("qty_percent"));
     const limit = namedArgs.get("limit");
+    const stop = namedArgs.get("stop");
     const limitPriceExpressionAst = limit === undefined ? null : parsePineExpressionToVisualExpression(limit);
+    const stopPriceExpressionAst = stop === undefined ? null : parsePineExpressionToVisualExpression(stop);
     return {
       orderAction: "close",
       side: id.toLowerCase().includes("short") ? "BUY_COVER" : "SELL",
@@ -1839,7 +1906,14 @@ function parsePineOrder(trimmed: string): Record<string, unknown> | null {
       quantityMode: quantity.mode,
       quantityValue: quantity.value,
       limitPrice: readNumber(limit, 0),
+      stopPrice: readNumber(stop, 0),
       ...(limitPriceExpressionAst === null ? {} : { limitPriceExpressionAst }),
+      ...(stopPriceExpressionAst === null ? {} : { stopPriceExpressionAst }),
+      ...(readPineOptionalStringArg(namedArgs.get("comment")) === undefined ? {} : { comment: readPineOptionalStringArg(namedArgs.get("comment")) }),
+      ...(readPineOptionalStringArg(namedArgs.get("alert_message")) === undefined ? {} : { alert_message: readPineOptionalStringArg(namedArgs.get("alert_message")) }),
+      ...(readPineBooleanArg(namedArgs.get("immediately")) === undefined ? {} : { immediately: readPineBooleanArg(namedArgs.get("immediately")) }),
+      ...(readPineBooleanArg(namedArgs.get("disable_alert")) === undefined ? {} : { disable_alert: readPineBooleanArg(namedArgs.get("disable_alert")) }),
+      ...(readPineRawArg(namedArgs.get("when")) === undefined ? {} : { when: readPineRawArg(namedArgs.get("when")) }),
     };
   }
   const isEntry = trimmed.startsWith("strategy.entry");
@@ -1849,8 +1923,10 @@ function parsePineOrder(trimmed: string): Record<string, unknown> | null {
   }
   const args = splitArguments(readCallArgs(trimmed));
   const direction = String(args[1] ?? "strategy.long").toLowerCase();
-  const namedArgs = parseNamedArgs(args.slice(2));
-  const quantity = parsePineQuantity(namedArgs.get("qty"), namedArgs.get("qty_percent"));
+  const orderArgs = args.slice(2);
+  const namedArgs = parseNamedArgs(orderArgs);
+  const positionalArgs = readPositionalArgs(orderArgs);
+  const quantity = parsePineQuantity(namedArgs.get("qty") ?? positionalArgs[0], namedArgs.get("qty_percent"));
   const limit = namedArgs.get("limit");
   const stop = namedArgs.get("stop");
   const limitPrice = readNumber(limit, 0);
@@ -1869,6 +1945,10 @@ function parsePineOrder(trimmed: string): Record<string, unknown> | null {
     stopPrice,
     ...(limitPriceExpressionAst === null ? {} : { limitPriceExpressionAst }),
     ...(stopPriceExpressionAst === null ? {} : { stopPriceExpressionAst }),
+    ...(readPineOptionalStringArg(namedArgs.get("comment")) === undefined ? {} : { comment: readPineOptionalStringArg(namedArgs.get("comment")) }),
+    ...(readPineOptionalStringArg(namedArgs.get("alert_message")) === undefined ? {} : { alert_message: readPineOptionalStringArg(namedArgs.get("alert_message")) }),
+    ...(readPineBooleanArg(namedArgs.get("disable_alert")) === undefined ? {} : { disable_alert: readPineBooleanArg(namedArgs.get("disable_alert")) }),
+    ...(readPineRawArg(namedArgs.get("when")) === undefined ? {} : { when: readPineRawArg(namedArgs.get("when")) }),
     pineOrderFunction: isOrder ? "strategy.order" : "strategy.entry",
   };
 }
@@ -1882,6 +1962,69 @@ function parsePineRiskAllowEntryDirection(value: string | undefined): "all" | "l
     return "long";
   }
   return "all";
+}
+
+function parsePineRiskRule(trimmed: string): Record<string, unknown> | null {
+  const args = splitArguments(readCallArgs(trimmed));
+  const namedArgs = parseNamedArgs(args);
+  const positionalArgs = readPositionalArgs(args);
+  if (trimmed.startsWith("strategy.risk.allow_entry_in")) {
+    return {
+      riskRuleType: "allowEntryIn",
+      riskAllowedDirection: parsePineRiskAllowEntryDirection(args[0]),
+    };
+  }
+  if (trimmed.startsWith("strategy.risk.max_drawdown")) {
+    return {
+      riskRuleType: "maxDrawdown",
+      riskValue: readAnyNumber(namedArgs.get("value") ?? positionalArgs[0], 10),
+      riskAmountType: parsePineRiskAmountType(namedArgs.get("type") ?? positionalArgs[1]),
+      ...(readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[2]) === undefined
+        ? {}
+        : { alert_message: readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[2]) }),
+    };
+  }
+  if (trimmed.startsWith("strategy.risk.max_intraday_loss")) {
+    return {
+      riskRuleType: "maxIntradayLoss",
+      riskValue: readAnyNumber(namedArgs.get("value") ?? positionalArgs[0], 5),
+      riskAmountType: parsePineRiskAmountType(namedArgs.get("type") ?? positionalArgs[1]),
+      ...(readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[2]) === undefined
+        ? {}
+        : { alert_message: readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[2]) }),
+    };
+  }
+  if (trimmed.startsWith("strategy.risk.max_intraday_filled_orders")) {
+    return {
+      riskRuleType: "maxIntradayFilledOrders",
+      riskCount: readAnyNumber(namedArgs.get("count") ?? positionalArgs[0], 10),
+      ...(readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[1]) === undefined
+        ? {}
+        : { alert_message: readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[1]) }),
+    };
+  }
+  if (trimmed.startsWith("strategy.risk.max_position_size")) {
+    return {
+      riskRuleType: "maxPositionSize",
+      riskContracts: readAnyNumber(namedArgs.get("contracts") ?? positionalArgs[0], 1),
+    };
+  }
+  if (trimmed.startsWith("strategy.risk.max_cons_loss_days")) {
+    return {
+      riskRuleType: "maxConsLossDays",
+      riskCount: readAnyNumber(namedArgs.get("count") ?? positionalArgs[0], 3),
+      ...(readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[1]) === undefined
+        ? {}
+        : { alert_message: readPineOptionalStringArg(namedArgs.get("alert_message") ?? positionalArgs[1]) }),
+    };
+  }
+  return null;
+}
+
+function parsePineRiskAmountType(value: string | undefined): "strategy.percent_of_equity" | "strategy.cash" {
+  return (value ?? "").trim().toLowerCase() === "strategy.cash"
+    ? "strategy.cash"
+    : "strategy.percent_of_equity";
 }
 
 function parsePineQuantity(
@@ -1940,6 +2083,14 @@ function parseNamedArgs(args: string[]): Map<string, string> {
     }
   }
   return result;
+}
+
+function readPositionalArgs(args: string[]): string[] {
+  return args.filter((arg) => !isNamedArg(arg));
+}
+
+function isNamedArg(value: string): boolean {
+  return value.includes("=");
 }
 
 function readCallArgs(value: string): string {
@@ -2055,6 +2206,33 @@ function readPineLiteral(value: string): string {
     return trimmed.slice(1, -1);
   }
   return trimmed;
+}
+
+function readPineBooleanArg(value: string | undefined): boolean | undefined {
+  switch ((value ?? "").trim().toLowerCase()) {
+    case "true":
+      return true;
+    case "false":
+      return false;
+    default:
+      return undefined;
+  }
+}
+
+function readPineOptionalStringArg(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const literal = readPineLiteral(value);
+  return literal === "" ? undefined : literal;
+}
+
+function readPineRawArg(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const normalized = value.trim();
+  return normalized === "" ? undefined : normalized;
 }
 
 function defaultIndicatorText(properties: Record<string, unknown>): string {
