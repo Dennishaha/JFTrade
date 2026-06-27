@@ -49,11 +49,15 @@ func collectStatementHistoryTargets(statements []strategyir.Statement, targets m
 			collectStatementHistoryTargets(typed.Then, targets)
 			collectStatementHistoryTargets(typed.Else, targets)
 		case *strategyir.OrderStmt:
+			collectExpressionHistoryTargets(typed.WhenExpression, targets)
 			collectExpressionHistoryTargets(typed.QuantityExpression, targets)
 			collectExpressionHistoryTargets(typed.LimitExpression, targets)
 			collectExpressionHistoryTargets(typed.StopExpression, targets)
 		case *strategyir.ExitStmt:
+			collectExpressionHistoryTargets(typed.WhenExpression, targets)
 			collectExpressionHistoryTargets(typed.QuantityExpression, targets)
+			collectExpressionHistoryTargets(typed.ProfitExpression, targets)
+			collectExpressionHistoryTargets(typed.LossExpression, targets)
 			collectExpressionHistoryTargets(typed.StopExpression, targets)
 			collectExpressionHistoryTargets(typed.LimitExpression, targets)
 			collectExpressionHistoryTargets(typed.TrailPrice, targets)
@@ -106,9 +110,9 @@ func preparseStatementExpressions(statements []strategyir.Statement, scope *eval
 				return err
 			}
 		case *strategyir.OrderStmt:
-			expressions = []string{typed.QuantityExpression, typed.LimitExpression, typed.StopExpression}
+			expressions = []string{typed.WhenExpression, typed.QuantityExpression, typed.LimitExpression, typed.StopExpression}
 		case *strategyir.ExitStmt:
-			expressions = []string{typed.QuantityExpression, typed.StopExpression, typed.LimitExpression, typed.TrailPrice, typed.TrailPoints, typed.TrailOffset}
+			expressions = []string{typed.WhenExpression, typed.QuantityExpression, typed.ProfitExpression, typed.LossExpression, typed.StopExpression, typed.LimitExpression, typed.TrailPrice, typed.TrailPoints, typed.TrailOffset}
 		case *strategyir.ProtectStmt:
 			expressions = []string{typed.QuantityExpression, typed.TimeValueExpression, typed.PercentageExpression}
 		}

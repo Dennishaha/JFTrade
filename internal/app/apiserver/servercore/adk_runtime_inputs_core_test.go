@@ -411,19 +411,27 @@ func TestADKRuntimeMiscHelpersAndMetadata(t *testing.T) {
 
 	program := &strategyir.Program{
 		Metadata: strategyir.StrategyMetadata{
-			Name:            "Momentum",
-			Version:         "v2",
-			Symbol:          "US.TME",
-			Interval:        "5m",
-			DefaultQtyMode:  "percent_of_equity",
-			DefaultQtyValue: "25",
-			Pyramiding:      3,
+			Name:                    "Momentum",
+			Version:                 "v2",
+			Symbol:                  "US.TME",
+			Interval:                "5m",
+			DefaultQtyMode:          "percent_of_equity",
+			DefaultQtyValue:         "25",
+			Pyramiding:              3,
+			MaxDrawdownValue:        12,
+			MaxDrawdownType:         "percent_of_equity",
+			MaxIntradayFilledOrders: 4,
+			MaxPositionSize:         7,
 		},
 		Hooks: []strategyir.HookBlock{{Kind: strategyir.HookInit}, {Kind: strategyir.HookKLineClose}},
 	}
 	metadata = strategyMetadataPayload(program)
 	if metadata["name"] != "Momentum" || metadata["symbol"] != "US.TME" || metadata["pyramiding"] != 3 {
 		t.Fatalf("strategyMetadataPayload(program) = %#v, want populated metadata", metadata)
+	}
+	risk, ok := metadata["risk"].(map[string]any)
+	if !ok || risk["maxPositionSize"] != 7.0 {
+		t.Fatalf("strategyMetadataPayload(program) risk = %#v, want risk metadata", metadata["risk"])
 	}
 	hooks := BuildCompiledHookKinds(program)
 	if len(hooks) != 2 || hooks[1] != "on_kline_close" {

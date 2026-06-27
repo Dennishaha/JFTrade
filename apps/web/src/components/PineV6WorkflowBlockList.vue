@@ -351,6 +351,10 @@ function describeBlock(block: PineV6WorkflowBlock): string {
                   <input :value="readParam(block, 'qty')" placeholder="可选" @input="updateBlockParam(index, 'qty', ($event.target as HTMLInputElement).value)">
                 </label>
                 <label>
+                  <span>仓位百分比</span>
+                  <input :value="readParam(block, 'qty_percent')" placeholder="可选" @input="updateBlockParam(index, 'qty_percent', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
                   <span>限价</span>
                   <input :value="readParam(block, 'limit')" placeholder="可选" @input="updateBlockParam(index, 'limit', ($event.target as HTMLInputElement).value)">
                 </label>
@@ -361,6 +365,18 @@ function describeBlock(block: PineV6WorkflowBlock): string {
                 <label>
                   <span>触发条件</span>
                   <input :value="readParam(block, 'when')" placeholder="可选" @input="updateBlockParam(index, 'when', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>备注</span>
+                  <input :value="readParam(block, 'comment')" placeholder="可选" @input="updateBlockParam(index, 'comment', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>提醒消息</span>
+                  <input :value="readParam(block, 'alert_message')" placeholder="可选" @input="updateBlockParam(index, 'alert_message', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>禁用提醒</span>
+                  <input :value="readParam(block, 'disable_alert')" placeholder="true/false" @input="updateBlockParam(index, 'disable_alert', ($event.target as HTMLInputElement).value)">
                 </label>
                 <label>
                   <span>OCA 名称</span>
@@ -397,6 +413,66 @@ function describeBlock(block: PineV6WorkflowBlock): string {
                   <span>止损点数</span>
                   <input :value="readParam(block, 'loss')" @input="updateBlockParam(index, 'loss', ($event.target as HTMLInputElement).value)">
                 </label>
+                <label>
+                  <span>追踪价格</span>
+                  <input :value="readParam(block, 'trail_price')" placeholder="可选" @input="updateBlockParam(index, 'trail_price', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>数量</span>
+                  <input :value="readParam(block, 'qty')" placeholder="可选" @input="updateBlockParam(index, 'qty', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>仓位百分比</span>
+                  <input :value="readParam(block, 'qty_percent')" placeholder="可选" @input="updateBlockParam(index, 'qty_percent', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>追踪点数</span>
+                  <input :value="readParam(block, 'trail_points')" placeholder="可选" @input="updateBlockParam(index, 'trail_points', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>追踪偏移</span>
+                  <input :value="readParam(block, 'trail_offset')" placeholder="可选" @input="updateBlockParam(index, 'trail_offset', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>触发条件</span>
+                  <input :value="readParam(block, 'when')" placeholder="可选" @input="updateBlockParam(index, 'when', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>通用备注</span>
+                  <input :value="readParam(block, 'comment')" placeholder="可选" @input="updateBlockParam(index, 'comment', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>止盈备注</span>
+                  <input :value="readParam(block, 'comment_profit')" placeholder="可选" @input="updateBlockParam(index, 'comment_profit', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>止损备注</span>
+                  <input :value="readParam(block, 'comment_loss')" placeholder="可选" @input="updateBlockParam(index, 'comment_loss', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>追踪备注</span>
+                  <input :value="readParam(block, 'comment_trailing')" placeholder="可选" @input="updateBlockParam(index, 'comment_trailing', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>通用提醒</span>
+                  <input :value="readParam(block, 'alert_message')" placeholder="可选" @input="updateBlockParam(index, 'alert_message', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>止盈提醒</span>
+                  <input :value="readParam(block, 'alert_profit')" placeholder="可选" @input="updateBlockParam(index, 'alert_profit', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>止损提醒</span>
+                  <input :value="readParam(block, 'alert_loss')" placeholder="可选" @input="updateBlockParam(index, 'alert_loss', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>追踪提醒</span>
+                  <input :value="readParam(block, 'alert_trailing')" placeholder="可选" @input="updateBlockParam(index, 'alert_trailing', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>禁用提醒</span>
+                  <input :value="readParam(block, 'disable_alert')" placeholder="true/false" @input="updateBlockParam(index, 'disable_alert', ($event.target as HTMLInputElement).value)">
+                </label>
               </template>
 
               <template v-else-if="block.kind === 'strategy_close'">
@@ -405,8 +481,59 @@ function describeBlock(block: PineV6WorkflowBlock): string {
                   <input :value="readParam(block, 'id')" @input="updateBlockParam(index, 'id', ($event.target as HTMLInputElement).value)">
                 </label>
                 <label>
+                  <span>数量</span>
+                  <input :value="readParam(block, 'qty')" placeholder="可选" @input="updateBlockParam(index, 'qty', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>仓位百分比</span>
+                  <input :value="readParam(block, 'qty_percent')" placeholder="可选" @input="updateBlockParam(index, 'qty_percent', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>限价</span>
+                  <input :value="readParam(block, 'limit')" placeholder="可选" @input="updateBlockParam(index, 'limit', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>止损/触发价</span>
+                  <input :value="readParam(block, 'stop')" placeholder="可选" @input="updateBlockParam(index, 'stop', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
                   <span>触发条件</span>
                   <input :value="readParam(block, 'when')" @input="updateBlockParam(index, 'when', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>备注</span>
+                  <input :value="readParam(block, 'comment')" placeholder="可选" @input="updateBlockParam(index, 'comment', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>提醒消息</span>
+                  <input :value="readParam(block, 'alert_message')" placeholder="可选" @input="updateBlockParam(index, 'alert_message', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>立即平仓</span>
+                  <input :value="readParam(block, 'immediately')" placeholder="true/false" @input="updateBlockParam(index, 'immediately', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>禁用提醒</span>
+                  <input :value="readParam(block, 'disable_alert')" placeholder="true/false" @input="updateBlockParam(index, 'disable_alert', ($event.target as HTMLInputElement).value)">
+                </label>
+              </template>
+
+              <template v-else-if="block.kind === 'strategy_close_all'">
+                <label>
+                  <span>立即平仓</span>
+                  <input :value="readParam(block, 'immediately')" placeholder="true/false" @input="updateBlockParam(index, 'immediately', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>备注</span>
+                  <input :value="readParam(block, 'comment')" placeholder="可选" @input="updateBlockParam(index, 'comment', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>提醒消息</span>
+                  <input :value="readParam(block, 'alert_message')" placeholder="可选" @input="updateBlockParam(index, 'alert_message', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label>
+                  <span>禁用提醒</span>
+                  <input :value="readParam(block, 'disable_alert')" placeholder="true/false" @input="updateBlockParam(index, 'disable_alert', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
 
@@ -449,7 +576,13 @@ function describeBlock(block: PineV6WorkflowBlock): string {
             </div>
 
             <div v-if="block.kind === 'strategy_entry' || block.kind === 'strategy_order'" class="pine-block__boundary">
-              下一根 K 线成交；OCA 当前为明确不支持边界，填写 oca_* 会产生诊断。
+              下一根 K 线成交；`qty` 与 `qty_percent` 二选一；`disable_alert` 必须为 true/false；OCA 当前为明确不支持边界，填写 oca_* 会产生诊断。
+            </div>
+            <div v-if="block.kind === 'strategy_exit'" class="pine-block__boundary">
+              `qty` 与 `qty_percent` 二选一；追踪退出使用 `trail_points` 或 `trail_price` 二选一，并且必须同时填写 `trail_offset`，且不能与 stop/limit/profit/loss 混用；`disable_alert` 必须为 true/false。
+            </div>
+            <div v-if="block.kind === 'strategy_close' || block.kind === 'strategy_close_all'" class="pine-block__boundary">
+              `immediately` 与 `disable_alert` 必须为 true/false。
             </div>
             <div v-if="block.kind === 'request_security'" class="pine-block__boundary">
               当前运行时只支持静态周期和纯表达式 request.security。

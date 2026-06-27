@@ -14,6 +14,14 @@ import (
 )
 
 func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt, scope *evaluationScope) error {
+	allowed, err := shouldExecuteWhenExpression(statement.Range.StartLine, statement.WhenExpression, scope)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return nil
+	}
+	r.syncRiskState(timeFromScope(scope))
 	position := r.getPosition(r.symbol, scope.currentKlineTime)
 	availablePositionQty := 0.0
 	if position != nil {
@@ -94,13 +102,27 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 		r.internalLog("place order suppressed during warmup")
 		return nil
 	}
-
-	if r.shouldStorePendingOrder(statement, intent) {
-		r.storePendingOrder(statement, action, intent, quantity, limitPrice, orderPrice)
+	var blocked bool
+	quantity, blocked = r.enforceOrderRiskBoundaries(action, intent, position, quantity)
+	if blocked {
 		return nil
+	} else {
+		if quantity <= 0 {
+			return nil
+		}
+		if r.shouldStorePendingOrder(statement, intent) {
+			r.storePendingOrder(statement, action, intent, quantity, limitPrice, orderPrice)
+			return nil
+		}
 	}
 	quantity, entryAdjustment := r.adjustEntryOrderQuantity(action, intent, position, availablePositionQty, quantity)
 	if quantity <= 0 {
+		return nil
+	}
+	quantity, blocked = r.enforceOrderRiskBoundaries(action, intent, position, quantity)
+	if blocked {
+		return nil
+	} else if quantity <= 0 {
 		return nil
 	}
 
@@ -111,6 +133,12 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 	if err := r.submitOrder(orderSide, normalizeOrderType(statement.OrderType), quantity, limitPrice); err != nil {
 		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
+	executionPrice := orderPrice
+	if normalizeOrderType(statement.OrderType) == types.OrderTypeLimit && limitPrice > 0 {
+		executionPrice = limitPrice
+	}
+	r.recordSyntheticPositionFill(r.symbol, action, quantity, executionPrice, position)
+	r.recordFilledOrder(timeFromScope(scope))
 	r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
 	switch intent {
 	case strategyir.OrderIntentNet:

@@ -12,6 +12,13 @@ import (
 )
 
 func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, scope *evaluationScope) (bool, error) {
+	allowed, err := shouldExecuteWhenExpression(statement.Range.StartLine, statement.WhenExpression, scope)
+	if err != nil {
+		return false, err
+	}
+	if !allowed {
+		return false, nil
+	}
 	position := r.getPosition(r.symbol, scope.currentKlineTime)
 	if position == nil {
 		delete(r.trailingExits, trailingExitKey(statement))
@@ -35,11 +42,7 @@ func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, s
 	if strings.TrimSpace(statement.TrailOffset) != "" {
 		return r.executeTrailingExit(statement, scope, position, availableQuantity, direction)
 	}
-	stopPrice, hasStop, err := evaluateOptionalFloatExpression(statement.StopExpression, scope)
-	if err != nil {
-		return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
-	}
-	limitPrice, hasLimit, err := evaluateOptionalFloatExpression(statement.LimitExpression, scope)
+	stopPrice, hasStop, limitPrice, hasLimit, err := r.resolveExitTriggerPrices(statement, scope, position)
 	if err != nil {
 		return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
@@ -49,6 +52,7 @@ func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, s
 	high, low, closePrice := currentBarPrices(scope)
 	triggered := false
 	triggerPrice := closePrice
+	triggerKind := exitTriggerGeneric
 	if allowLongExit && position.Direction == "LONG" {
 		stopTriggered := hasStop && low <= stopPrice
 		limitTriggered := hasLimit && high >= limitPrice
@@ -59,9 +63,11 @@ func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, s
 		case stopTriggered:
 			triggered = true
 			triggerPrice = stopPrice
+			triggerKind = exitTriggerLoss
 		case limitTriggered:
 			triggered = true
 			triggerPrice = limitPrice
+			triggerKind = exitTriggerProfit
 		}
 	}
 	if allowShortExit && position.Direction == "SHORT" {
@@ -74,9 +80,11 @@ func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, s
 		case stopTriggered:
 			triggered = true
 			triggerPrice = stopPrice
+			triggerKind = exitTriggerLoss
 		case limitTriggered:
 			triggered = true
 			triggerPrice = limitPrice
+			triggerKind = exitTriggerProfit
 		}
 	}
 	if !triggered {
@@ -114,7 +122,14 @@ func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, s
 		if err := r.submitOrder(types.SideTypeSell, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
-		r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
+		executionPrice := closePrice
+		if triggerPrice > 0 {
+			executionPrice = triggerPrice
+		}
+		r.recordSyntheticPositionFill(r.symbol, strategyir.OrderActionSell, quantity, executionPrice, position)
+		r.recordFilledOrder(timeFromScope(scope))
+		metadata := r.resolveExitMetadata(statement, triggerKind)
+		r.emitOrderMetadata(metadata.comment, metadata.alert, statement.DisableAlert)
 		r.resetEntrySubmitCount("LONG")
 		return true, nil
 	}
@@ -122,11 +137,74 @@ func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, s
 		if err := r.submitOrder(types.SideTypeBuy, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
-		r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
+		executionPrice := closePrice
+		if triggerPrice > 0 {
+			executionPrice = triggerPrice
+		}
+		r.recordSyntheticPositionFill(r.symbol, strategyir.OrderActionBuy, quantity, executionPrice, position)
+		r.recordFilledOrder(timeFromScope(scope))
+		metadata := r.resolveExitMetadata(statement, triggerKind)
+		r.emitOrderMetadata(metadata.comment, metadata.alert, statement.DisableAlert)
 		r.resetEntrySubmitCount("SHORT")
 		return true, nil
 	}
 	return false, nil
+}
+
+func (r *strategyRuntime) resolveExitTriggerPrices(
+	statement *strategyir.ExitStmt,
+	scope *evaluationScope,
+	position *positionSnapshot,
+) (float64, bool, float64, bool, error) {
+	stopPrice, hasStop, err := evaluateOptionalFloatExpression(statement.StopExpression, scope)
+	if err != nil {
+		return 0, false, 0, false, err
+	}
+	limitPrice, hasLimit, err := evaluateOptionalFloatExpression(statement.LimitExpression, scope)
+	if err != nil {
+		return 0, false, 0, false, err
+	}
+	tickSize := r.marketTickSize()
+	basePrice := 0.0
+	if position != nil {
+		basePrice = position.AveragePrice
+	}
+	if basePrice <= 0 && scope != nil && scope.currentKline != nil {
+		basePrice = scope.currentKline.Close.Float64()
+	}
+	if !hasLimit && strings.TrimSpace(statement.ProfitExpression) != "" {
+		profitTicks, evalErr := evaluateFloatExpression(statement.ProfitExpression, scope)
+		if evalErr != nil {
+			return 0, false, 0, false, fmt.Errorf("exit profit expression: %w", evalErr)
+		}
+		if profitTicks <= 0 || math.IsNaN(profitTicks) || math.IsInf(profitTicks, 0) {
+			return 0, false, 0, false, fmt.Errorf("exit profit expression must be positive")
+		}
+		switch position.Direction {
+		case "SHORT":
+			limitPrice = basePrice - profitTicks*tickSize
+		default:
+			limitPrice = basePrice + profitTicks*tickSize
+		}
+		hasLimit = true
+	}
+	if !hasStop && strings.TrimSpace(statement.LossExpression) != "" {
+		lossTicks, evalErr := evaluateFloatExpression(statement.LossExpression, scope)
+		if evalErr != nil {
+			return 0, false, 0, false, fmt.Errorf("exit loss expression: %w", evalErr)
+		}
+		if lossTicks <= 0 || math.IsNaN(lossTicks) || math.IsInf(lossTicks, 0) {
+			return 0, false, 0, false, fmt.Errorf("exit loss expression must be positive")
+		}
+		switch position.Direction {
+		case "SHORT":
+			stopPrice = basePrice + lossTicks*tickSize
+		default:
+			stopPrice = basePrice - lossTicks*tickSize
+		}
+		hasStop = true
+	}
+	return stopPrice, hasStop, limitPrice, hasLimit, nil
 }
 
 func (r *strategyRuntime) executeTrailingExit(
@@ -251,10 +329,59 @@ func (r *strategyRuntime) executeTrailingExit(
 	if err := r.submitOrder(side, types.OrderTypeMarket, quantity, 0); err != nil {
 		return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
+	action := strategyir.OrderActionSell
+	if position.Direction == "SHORT" {
+		action = strategyir.OrderActionBuy
+	}
+	r.recordSyntheticPositionFill(r.symbol, action, quantity, triggerPrice, position)
+	r.recordFilledOrder(timeFromScope(scope))
 	delete(r.trailingExits, key)
-	r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
+	metadata := r.resolveExitMetadata(statement, exitTriggerTrailing)
+	r.emitOrderMetadata(metadata.comment, metadata.alert, statement.DisableAlert)
 	r.resetEntrySubmitCount(position.Direction)
 	return true, nil
+}
+
+type exitTriggerType string
+
+const (
+	exitTriggerGeneric  exitTriggerType = "generic"
+	exitTriggerProfit   exitTriggerType = "profit"
+	exitTriggerLoss     exitTriggerType = "loss"
+	exitTriggerTrailing exitTriggerType = "trailing"
+)
+
+type exitMetadata struct {
+	comment string
+	alert   string
+}
+
+func (r *strategyRuntime) resolveExitMetadata(statement *strategyir.ExitStmt, trigger exitTriggerType) exitMetadata {
+	if statement == nil {
+		return exitMetadata{}
+	}
+	switch trigger {
+	case exitTriggerProfit:
+		return exitMetadata{
+			comment: firstNonEmptyString(statement.CommentProfit, statement.Comment),
+			alert:   firstNonEmptyString(statement.AlertProfit, statement.AlertMessage),
+		}
+	case exitTriggerLoss:
+		return exitMetadata{
+			comment: firstNonEmptyString(statement.CommentLoss, statement.Comment),
+			alert:   firstNonEmptyString(statement.AlertLoss, statement.AlertMessage),
+		}
+	case exitTriggerTrailing:
+		return exitMetadata{
+			comment: firstNonEmptyString(statement.CommentTrailing, statement.Comment),
+			alert:   firstNonEmptyString(statement.AlertTrailing, statement.AlertMessage),
+		}
+	default:
+		return exitMetadata{
+			comment: statement.Comment,
+			alert:   statement.AlertMessage,
+		}
+	}
 }
 
 func trailingExitKey(statement *strategyir.ExitStmt) string {
@@ -262,6 +389,15 @@ func trailingExitKey(statement *strategyir.ExitStmt) string {
 		return ""
 	}
 	return strings.TrimSpace(statement.ID) + "\x00" + strings.TrimSpace(statement.FromEntry)
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func (r *strategyRuntime) marketTickSize() float64 {

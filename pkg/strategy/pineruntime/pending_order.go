@@ -125,6 +125,7 @@ func (r *strategyRuntime) triggerPendingOrders(kline *types.KLine, scope *evalua
 			orderType = types.OrderTypeLimit
 			limitPrice = order.limitPrice
 		}
+		priorPosition := r.getPosition(r.symbol, timeFromScope(scope))
 		quantity, adjustment, err := r.resolveTriggeredPendingQuantity(order, scope)
 		if err != nil {
 			return err
@@ -135,6 +136,12 @@ func (r *strategyRuntime) triggerPendingOrders(kline *types.KLine, scope *evalua
 		if err := r.submitOrder(side, orderType, quantity, limitPrice); err != nil {
 			return err
 		}
+		executionPrice := limitPrice
+		if executionPrice <= 0 && scope != nil && scope.currentKline != nil {
+			executionPrice = scope.currentKline.Close.Float64()
+		}
+		r.recordSyntheticPositionFill(r.symbol, order.action, quantity, executionPrice, priorPosition)
+		r.recordFilledOrder(timeFromScope(scope))
 		if order.hasStop && order.hasLimit {
 			order.submitted = true
 			r.pendingOrders[order.id] = order
@@ -154,6 +161,7 @@ func (r *strategyRuntime) triggerPendingOrders(kline *types.KLine, scope *evalua
 }
 
 func (r *strategyRuntime) resolveTriggeredPendingQuantity(order pendingOrder, scope *evaluationScope) (float64, entryOrderAdjustment, error) {
+	r.syncRiskState(timeFromScope(scope))
 	position := r.getPosition(r.symbol, timeFromScope(scope))
 	availablePositionQty := 0.0
 	if position != nil {
@@ -188,7 +196,13 @@ func (r *strategyRuntime) resolveTriggeredPendingQuantity(order pendingOrder, sc
 		return 0, entryOrderAdjustment{}, nil
 	}
 	quantity, adjustment := r.adjustEntryOrderQuantity(order.action, order.intent, position, availablePositionQty, quantity)
-	return quantity, adjustment, nil
+	var blocked bool
+	quantity, blocked = r.enforceOrderRiskBoundaries(order.action, order.intent, position, quantity)
+	if blocked || quantity <= 0 {
+		return 0, entryOrderAdjustment{}, nil
+	} else {
+		return quantity, adjustment, nil
+	}
 }
 
 func timeFromScope(scope *evaluationScope) time.Time {

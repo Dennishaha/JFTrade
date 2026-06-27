@@ -113,17 +113,21 @@ export function parseOrderLine(text: string): PineV6WorkflowBlock | null {
   const fn = match[1] ?? "";
   const args = splitCallArgs(match[2] ?? "");
   if (fn === "entry" || fn === "order") {
+    const positionalQty = args[2] !== undefined && !args[2]!.includes("=") ? args[2]! : "";
     return makeBlock(fn === "entry" ? "strategy_entry" : "strategy_order", {
       id: unquote(args[0] ?? (fn === "entry" ? "Long" : "Order")),
       direction: args[1] ?? "strategy.long",
       ...readNamedArgs(args, ["qty", "qty_percent", "limit", "stop", "oca_name", "oca_type", "comment", "alert_message", "disable_alert", "when"]),
+      ...(positionalQty !== "" && readNamedRaw(args, "qty", "") === "" && readNamedRaw(args, "qty_percent", "") === "" ? { qty: positionalQty } : {}),
       [SOURCE_EXTRA_ARGS_KEY]: collectExtraNamedArgs(args, new Set(["qty", "qty_percent", "limit", "stop", "oca_name", "oca_type", "comment", "alert_message", "disable_alert", "when"]), 2),
     });
   }
   if (fn === "exit") {
+    const positionalFromEntry = args[1] !== undefined && !args[1]!.includes("=") ? unquote(args[1]!) : "";
+    const namedFromEntry = readNamedRaw(args, "from_entry", "");
     return makeBlock("strategy_exit", {
       id: unquote(args[0] ?? "Exit"),
-      from_entry: unquote(readNamedRaw(args, "from_entry", "Long")),
+      from_entry: namedFromEntry !== "" || positionalFromEntry !== "" ? unquote(namedFromEntry || positionalFromEntry) : "",
       ...readNamedArgs(args, [
         "qty",
         "qty_percent",
@@ -168,7 +172,7 @@ export function parseOrderLine(text: string): PineV6WorkflowBlock | null {
         "alert_trailing",
         "disable_alert",
         "when",
-      ]), 1),
+      ]), positionalFromEntry === "" ? 1 : 2),
     });
   }
   if (fn === "close_all") {
@@ -192,10 +196,12 @@ export function parseOrderLine(text: string): PineV6WorkflowBlock | null {
       [SOURCE_EXTRA_ARGS_KEY]: collectExtraNamedArgs(args, new Set(), 0),
     });
   }
+  const positionalCloseQty = args[1] !== undefined && !args[1]!.includes("=") ? args[1]! : "";
   return makeBlock("strategy_close", {
     id: unquote(args[0] ?? "Long"),
-    ...readNamedArgs(args, ["qty", "qty_percent", "comment", "alert_message", "immediately", "disable_alert", "when"]),
-    [SOURCE_EXTRA_ARGS_KEY]: collectExtraNamedArgs(args, new Set(["qty", "qty_percent", "comment", "alert_message", "immediately", "disable_alert", "when"]), 1),
+    ...readNamedArgs(args, ["qty", "qty_percent", "limit", "stop", "comment", "alert_message", "immediately", "disable_alert", "when"]),
+    ...(positionalCloseQty !== "" && readNamedRaw(args, "qty", "") === "" && readNamedRaw(args, "qty_percent", "") === "" ? { qty: positionalCloseQty } : {}),
+    [SOURCE_EXTRA_ARGS_KEY]: collectExtraNamedArgs(args, new Set(["qty", "qty_percent", "limit", "stop", "comment", "alert_message", "immediately", "disable_alert", "when"]), positionalCloseQty === "" ? 1 : 2),
   });
 }
 

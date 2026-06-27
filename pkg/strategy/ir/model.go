@@ -41,19 +41,30 @@ type MethodDefinition struct {
 }
 
 type StrategyMetadata struct {
-	Name                  string
-	Version               string
-	Symbol                string
-	Interval              string
-	DefaultQtyMode        string
-	DefaultQtyValue       string
-	Pyramiding            int
-	InitialCapital        float64
-	CommissionType        string
-	CommissionValue       float64
-	Slippage              int
-	ProcessOnClose        bool
-	AllowedEntryDirection string
+	Name                         string
+	Version                      string
+	Symbol                       string
+	Interval                     string
+	DefaultQtyMode               string
+	DefaultQtyValue              string
+	Pyramiding                   int
+	InitialCapital               float64
+	CommissionType               string
+	CommissionValue              float64
+	Slippage                     int
+	ProcessOnClose               bool
+	AllowedEntryDirection        string
+	MaxDrawdownValue             float64
+	MaxDrawdownType              string
+	MaxDrawdownAlert             string
+	MaxIntradayLossValue         float64
+	MaxIntradayLossType          string
+	MaxIntradayLossAlert         string
+	MaxIntradayFilledOrders      int
+	MaxIntradayFilledOrdersAlert string
+	MaxPositionSize              float64
+	MaxConsLossDays              int
+	MaxConsLossDaysAlert         string
 }
 
 type HookKind string
@@ -249,6 +260,7 @@ type OrderStmt struct {
 	ID                 string
 	Action             OrderAction
 	Intent             OrderIntent
+	WhenExpression     string
 	QuantityMode       string
 	QuantityExpression string
 	EntryPolicy        string
@@ -274,15 +286,24 @@ type ExitStmt struct {
 	ID                 string
 	FromEntry          string
 	Direction          string
+	WhenExpression     string
 	QuantityMode       string
 	QuantityExpression string
+	ProfitExpression   string
+	LossExpression     string
 	StopExpression     string
 	LimitExpression    string
 	TrailPrice         string
 	TrailPoints        string
 	TrailOffset        string
 	Comment            string
+	CommentProfit      string
+	CommentLoss        string
+	CommentTrailing    string
 	AlertMessage       string
+	AlertProfit        string
+	AlertLoss          string
+	AlertTrailing      string
 	DisableAlert       bool
 }
 

@@ -54,6 +54,7 @@ func (r *strategyRuntime) getPosition(symbol string, barTime time.Time) *positio
 		AveragePrice:      averagePrice,
 		Direction:         direction,
 	}
+	r.applySyntheticPositionBasis(symbol, snapshot)
 	r.storeCachedPosition(symbol, barTime, snapshot)
 	return snapshot
 }

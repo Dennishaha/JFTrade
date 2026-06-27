@@ -215,6 +215,15 @@ export function assessPineV6Workflow(workflow: PineV6WorkflowDocument): PineV6Wo
           message: "OCA fields are shown for Pine v6 parity, but this runtime currently rejects OCA order semantics.",
         });
       }
+      if (readString(block.params.qty) !== "" && readString(block.params.qty_percent) !== "") {
+        diagnostics.push({
+          blockId: block.id,
+          severity: "error",
+          code: "PINE_ORDER_QTY_CONFLICT",
+          message: "Use either qty or qty_percent for strategy.entry/order, not both.",
+        });
+      }
+      pushBooleanLiteralDiagnostic(diagnostics, block.id, "PINE_ORDER_DISABLE_ALERT_BOOL", "disable_alert must be true or false.", block.params.disable_alert);
     }
     if (block.kind === "if" && readString(block.params.condition) === "") {
       diagnostics.push({
@@ -222,6 +231,96 @@ export function assessPineV6Workflow(workflow: PineV6WorkflowDocument): PineV6Wo
         severity: "error",
         code: "PINE_WORKFLOW_EMPTY_IF",
         message: "if condition is required.",
+      });
+    }
+    if (block.kind === "strategy_exit") {
+      if (readString(block.params.oca_name) !== "" || readString(block.params.oca_type) !== "") {
+        diagnostics.push({
+          blockId: block.id,
+          severity: "warning",
+          code: "PINE_ORDER_OCA_UNSUPPORTED",
+          message: "OCA fields are shown for Pine v6 parity, but this runtime currently rejects OCA order semantics.",
+        });
+      }
+      const hasStop = readString(block.params.stop) !== "";
+      const hasLimit = readString(block.params.limit) !== "";
+      const hasProfit = readString(block.params.profit) !== "";
+      const hasLoss = readString(block.params.loss) !== "";
+      const hasTrailPrice = readString(block.params.trail_price) !== "";
+      const hasTrailPoints = readString(block.params.trail_points) !== "";
+      const hasTrailOffset = readString(block.params.trail_offset) !== "";
+      if (readString(block.params.qty) !== "" && readString(block.params.qty_percent) !== "") {
+        diagnostics.push({
+          blockId: block.id,
+          severity: "error",
+          code: "PINE_EXIT_QTY_CONFLICT",
+          message: "Use either qty or qty_percent for strategy.exit, not both.",
+        });
+      }
+      if (!hasStop && !hasLimit && !hasProfit && !hasLoss && !hasTrailPoints && !hasTrailPrice) {
+        diagnostics.push({
+          blockId: block.id,
+          severity: "error",
+          code: "PINE_EXIT_TRIGGER_REQUIRED",
+          message: "strategy.exit requires stop, limit, profit, loss, or trail_points in this runtime.",
+        });
+      }
+      if (hasTrailPoints && hasTrailPrice) {
+        diagnostics.push({
+          blockId: block.id,
+          severity: "error",
+          code: "PINE_EXIT_TRAIL_PRICE_CONFLICT",
+          message: "Use either trail_points or trail_price for strategy.exit, not both.",
+        });
+      }
+      if ((hasTrailPoints || hasTrailPrice) && !hasTrailOffset) {
+        diagnostics.push({
+          blockId: block.id,
+          severity: "error",
+          code: "PINE_EXIT_TRAIL_OFFSET_REQUIRED",
+          message: "trail_offset is required when trail_points or trail_price is configured.",
+        });
+      }
+      if ((hasTrailPoints || hasTrailPrice) && (hasStop || hasLimit || hasProfit || hasLoss)) {
+        diagnostics.push({
+          blockId: block.id,
+          severity: "error",
+          code: "PINE_EXIT_TRAIL_CONFLICT",
+          message: "Trailing exits cannot be combined with stop, limit, profit, or loss in this runtime.",
+        });
+      }
+      pushBooleanLiteralDiagnostic(diagnostics, block.id, "PINE_EXIT_DISABLE_ALERT_BOOL", "disable_alert must be true or false.", block.params.disable_alert);
+    }
+    if (block.kind === "strategy_close") {
+      if (readString(block.params.qty) !== "" && readString(block.params.qty_percent) !== "") {
+        diagnostics.push({
+          blockId: block.id,
+          severity: "error",
+          code: "PINE_CLOSE_QTY_CONFLICT",
+          message: "Use either qty or qty_percent for strategy.close, not both.",
+        });
+      }
+      pushBooleanLiteralDiagnostic(diagnostics, block.id, "PINE_CLOSE_IMMEDIATELY_BOOL", "immediately must be true or false.", block.params.immediately);
+      pushBooleanLiteralDiagnostic(diagnostics, block.id, "PINE_CLOSE_DISABLE_ALERT_BOOL", "disable_alert must be true or false.", block.params.disable_alert);
+    }
+    if (block.kind === "strategy_close_all") {
+      pushBooleanLiteralDiagnostic(diagnostics, block.id, "PINE_CLOSE_ALL_IMMEDIATELY_BOOL", "immediately must be true or false.", block.params.immediately);
+      pushBooleanLiteralDiagnostic(diagnostics, block.id, "PINE_CLOSE_ALL_DISABLE_ALERT_BOOL", "disable_alert must be true or false.", block.params.disable_alert);
+    }
+    if (block.kind === "plot") {
+      diagnostics.push({
+        blockId: block.id,
+        severity: "warning",
+        code: "PINE_VISUAL_NOOP",
+        message: "plot is preserved for Pine parity, but the current runtime treats visual-only calls as no-op metadata.",
+      });
+    }
+    if (block.kind === "alertcondition") {
+      diagnostics.push({
+        blockId: block.id,
+        severity: "warning",
+        code: "PINE_ALERTCONDITION_NOOP",
+        message: "alertcondition is preserved for Pine parity, but live alerts should use order alert metadata in this runtime.",
       });
     }
   });
@@ -313,21 +412,36 @@ function renderBlock(block: PineV6WorkflowBlock, indentLevel: number): string[] 
         quoteString(readString(params.id) || "Long"),
         normalizeDirection(readString(params.direction), "strategy.long"),
         optionalRawArg("qty", params.qty),
+        optionalRawArg("qty_percent", params.qty_percent),
         optionalRawArg("limit", params.limit),
         optionalRawArg("stop", params.stop),
         optionalRawArg("comment", quoteMaybe(params.comment)),
+        optionalRawArg("alert_message", quoteMaybe(params.alert_message)),
+        optionalRawArg("disable_alert", params.disable_alert),
         optionalRawArg("when", params.when),
       ])})`];
     case "strategy_exit":
       return [`${indent}strategy.exit(${renderCallArgs([
         quoteString(readString(params.id) || "Exit"),
-        optionalRawArg("from_entry", quoteMaybe(params.from_entry) ?? quoteString("Long")),
+        optionalRawArg("from_entry", quoteMaybe(params.from_entry)),
         optionalRawArg("qty", params.qty),
+        optionalRawArg("qty_percent", params.qty_percent),
         optionalRawArg("limit", params.limit),
         optionalRawArg("stop", params.stop),
         optionalRawArg("profit", params.profit),
         optionalRawArg("loss", params.loss),
+        optionalRawArg("trail_price", params.trail_price),
         optionalRawArg("trail_points", params.trail_points),
+        optionalRawArg("trail_offset", params.trail_offset),
+        optionalRawArg("comment", quoteMaybe(params.comment)),
+        optionalRawArg("comment_profit", quoteMaybe(params.comment_profit)),
+        optionalRawArg("comment_loss", quoteMaybe(params.comment_loss)),
+        optionalRawArg("comment_trailing", quoteMaybe(params.comment_trailing)),
+        optionalRawArg("alert_message", quoteMaybe(params.alert_message)),
+        optionalRawArg("alert_profit", quoteMaybe(params.alert_profit)),
+        optionalRawArg("alert_loss", quoteMaybe(params.alert_loss)),
+        optionalRawArg("alert_trailing", quoteMaybe(params.alert_trailing)),
+        optionalRawArg("disable_alert", params.disable_alert),
         optionalRawArg("when", params.when),
       ])})`];
     case "strategy_order":
@@ -335,15 +449,26 @@ function renderBlock(block: PineV6WorkflowBlock, indentLevel: number): string[] 
         quoteString(readString(params.id) || "Order"),
         normalizeDirection(readString(params.direction), "strategy.long"),
         optionalRawArg("qty", params.qty),
+        optionalRawArg("qty_percent", params.qty_percent),
         optionalRawArg("limit", params.limit),
         optionalRawArg("stop", params.stop),
+        optionalRawArg("comment", quoteMaybe(params.comment)),
+        optionalRawArg("alert_message", quoteMaybe(params.alert_message)),
+        optionalRawArg("disable_alert", params.disable_alert),
         optionalRawArg("when", params.when),
       ])})`];
     case "strategy_close":
       return [`${indent}strategy.close(${renderCallArgs([
         quoteString(readString(params.id) || "Long"),
+        optionalRawArg("qty", params.qty),
+        optionalRawArg("qty_percent", params.qty_percent),
+        optionalRawArg("limit", params.limit),
+        optionalRawArg("stop", params.stop),
         optionalRawArg("when", params.when),
         optionalRawArg("comment", quoteMaybe(params.comment)),
+        optionalRawArg("alert_message", quoteMaybe(params.alert_message)),
+        optionalRawArg("immediately", params.immediately),
+        optionalRawArg("disable_alert", params.disable_alert),
       ])})`];
     case "strategy_close_all":
       return [`${indent}strategy.close_all(${renderCallArgs([
@@ -426,13 +551,35 @@ function defaultParamsForBlock(kind: PineV6WorkflowBlockKind): Record<string, un
     case "array_op":
       return { name: "values", mode: "push", value: "close" };
     case "strategy_entry":
-      return { id: "Long", direction: "strategy.long", qty: "" };
+      return { id: "Long", direction: "strategy.long", qty: "", qty_percent: "", comment: "", alert_message: "", disable_alert: "" };
     case "strategy_exit":
-      return { id: "Exit", from_entry: "Long", stop: "", limit: "" };
+      return {
+        id: "Exit",
+        from_entry: "Long",
+        qty: "",
+        qty_percent: "",
+        stop: "",
+        limit: "",
+        profit: "",
+        loss: "",
+        trail_price: "",
+        trail_points: "",
+        trail_offset: "",
+        comment: "",
+        comment_profit: "",
+        comment_loss: "",
+        comment_trailing: "",
+        alert_message: "",
+        alert_profit: "",
+        alert_loss: "",
+        alert_trailing: "",
+        disable_alert: "",
+        when: "",
+      };
     case "strategy_order":
-      return { id: "Order", direction: "strategy.long", qty: "" };
+      return { id: "Order", direction: "strategy.long", qty: "", qty_percent: "", comment: "", alert_message: "", disable_alert: "" };
     case "strategy_close":
-      return { id: "Long", when: "" };
+      return { id: "Long", qty: "", qty_percent: "", limit: "", stop: "", comment: "", alert_message: "", immediately: "", disable_alert: "", when: "" };
     case "strategy_close_all":
       return { immediately: "", comment: "", alert_message: "", disable_alert: "" };
     case "strategy_cancel":
@@ -458,6 +605,25 @@ function defaultParamsForBlock(kind: PineV6WorkflowBlockKind): Record<string, un
     case "log":
       return { message: "Pine v6 工作流" };
   }
+}
+
+function pushBooleanLiteralDiagnostic(
+  diagnostics: PineV6WorkflowDiagnostic[],
+  blockId: string,
+  code: string,
+  message: string,
+  value: unknown,
+): void {
+  const normalized = readString(value);
+  if (normalized === "" || normalized === "true" || normalized === "false") {
+    return;
+  }
+  diagnostics.push({
+    blockId,
+    severity: "error",
+    code,
+    message,
+  });
 }
 
 function normalizeDeclaration(value: unknown, fallback: PineV6WorkflowDeclaration): PineV6WorkflowDeclaration {

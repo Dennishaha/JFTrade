@@ -72,7 +72,7 @@ import TradingView/ta/7 as ta7
   it("preserves richer strategy order parameters when editing matched blocks", () => {
     const source = `strategy.entry("Long", strategy.long, qty=1, oca_name="main", oca_type=strategy.oca.cancel, comment="enter", alert_message="go", disable_alert=true)
 strategy.exit("Exit", from_entry="Long", qty_percent=50, profit=100, loss=50, trail_points=20, trail_offset=5, comment_profit="tp", comment_loss="sl", alert_trailing="trail")
-strategy.close("Long", qty_percent=25, comment="close", alert_message="done", immediately=true, disable_alert=false)
+strategy.close("Long", qty_percent=25, limit=101.5, stop=99, comment="close", alert_message="done", immediately=true, disable_alert=false)
 `;
     const nodes = buildPineSourceStructureIndex(source);
     const entry = nodes.find((node) => node.raw.includes("strategy.entry"))!;
@@ -101,10 +101,22 @@ strategy.close("Long", qty_percent=25, comment="close", alert_message="done", im
     const nextClose = renderBlockToSource(updateInstructionBlockParam(close, "comment", "flat"));
     expect(nextClose).toContain('strategy.close("Long"');
     expect(nextClose).toContain("qty_percent=25");
+    expect(nextClose).toContain("limit=101.5");
+    expect(nextClose).toContain("stop=99");
     expect(nextClose).toContain('comment="flat"');
     expect(nextClose).toContain('alert_message="done"');
     expect(nextClose).toContain("immediately=true");
     expect(nextClose).toContain("disable_alert=false");
+  });
+
+  it("preserves omitted strategy.exit from_entry when editing matched blocks", () => {
+    const source = `strategy.exit("Auto", stop=98, qty_percent=25)\n`;
+    const [exit] = buildPineSourceStructureIndex(source);
+
+    const nextExit = renderBlockToSource(updateInstructionBlockParam(exit!, "stop", "97"));
+
+    expect(nextExit).toBe('strategy.exit("Auto", qty_percent=25, stop=97)');
+    expect(nextExit).not.toContain("from_entry");
   });
 
   it("preserves extra named Pine call parameters when editing matched blocks", () => {
@@ -220,6 +232,35 @@ plotColor = input.color(color.teal, "Plot Color")
     expect(renderBlockToSource(updateInstructionBlockParam(color, "defaultValue", "color.orange"))).toBe(
       'plotColor = input.color(color.orange, "Plot Color")',
     );
+  });
+
+  it("parses positional strategy entry and close arguments into editable source blocks", () => {
+    const source = `strategy.entry("Long", strategy.long, 5)
+strategy.close("Long", 2)
+`;
+    const nodes = buildPineSourceStructureIndex(source);
+    const entry = nodes.find((node) => node.raw.includes("strategy.entry"))!;
+    const close = nodes.find((node) => node.raw.includes("strategy.close"))!;
+
+    expect(entry).toMatchObject({
+      match: expect.objectContaining({
+        type: "instruction",
+        block: expect.objectContaining({
+          params: expect.objectContaining({ qty: "5" }),
+        }),
+      }),
+    });
+    expect(close).toMatchObject({
+      match: expect.objectContaining({
+        type: "instruction",
+        block: expect.objectContaining({
+          params: expect.objectContaining({
+            qty: "2",
+          }),
+        }),
+      }),
+    });
+    expect(renderBlockToSource(updateInstructionBlockParam(close, "comment", "trim"))).toBe('strategy.close("Long", qty=2, comment="trim")');
   });
 
   it("indexes common raw Pine v6 calls with readable categories while extracting supported order controls", () => {

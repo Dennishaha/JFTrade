@@ -863,6 +863,146 @@ if bar_index == 1
 	})
 }
 
+func TestRunAppliesPineRuntimeRiskLimits(t *testing.T) {
+	t.Run("max_position_size caps additive entries", func(t *testing.T) {
+		isolateBacktestHome(t)
+
+		dbPath := filepath.Join(t.TempDir(), "backtest-pine-risk-max-position.db")
+		store, err := NewFutuKLineStore(dbPath)
+		if err != nil {
+			t.Fatalf("NewFutuKLineStore() error = %v", err)
+		}
+		baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+		klines := []types.KLine{
+			{Open: fixedpoint.NewFromFloat(100), High: fixedpoint.NewFromFloat(100), Low: fixedpoint.NewFromFloat(100), Close: fixedpoint.NewFromFloat(100), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(101), High: fixedpoint.NewFromFloat(101), Low: fixedpoint.NewFromFloat(101), Close: fixedpoint.NewFromFloat(101), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(102), High: fixedpoint.NewFromFloat(102), Low: fixedpoint.NewFromFloat(102), Close: fixedpoint.NewFromFloat(102), Volume: fixedpoint.NewFromFloat(1000)},
+		}
+		for index := range klines {
+			start := baseStart.Add(time.Duration(index) * time.Minute)
+			klines[index].StartTime = types.Time(start)
+			klines[index].EndTime = types.Time(start.Add(time.Minute - time.Millisecond))
+			klines[index].Interval = types.Interval1m
+			klines[index].Symbol = "US.AAPL"
+		}
+		if err := store.InsertKLines(klines, "forward"); err != nil {
+			jftradeErr13 := store.Close()
+			jftradeCheckTestError(t, jftradeErr13)
+			t.Fatalf("InsertKLines() error = %v", err)
+		}
+		if err := store.Close(); err != nil {
+			t.Fatalf("store.Close() error = %v", err)
+		}
+
+		result := Run(context.Background(), RunConfig{
+			DBPath:       dbPath,
+			Symbol:       "US.AAPL",
+			Interval:     string(types.Interval1m),
+			SourceFormat: strategydefinition.SourceFormatPineV6,
+			StartTime:    klines[0].StartTime.Time(),
+			EndTime:      klines[len(klines)-1].EndTime.Time(),
+			StrategyScript: `//@version=6
+strategy("Risk max position", overlay=true, pyramiding=2)
+strategy.risk.max_position_size(5)
+if bar_index == 0
+    strategy.entry("First", strategy.long, qty=4)
+if bar_index == 1
+    strategy.entry("Second", strategy.long, qty=4)`,
+			InitialBalance: 100000,
+		})
+		if result == nil {
+			t.Fatal("expected run result")
+		}
+		if result.Error != "" {
+			t.Fatalf("Run() error = %s", result.Error)
+		}
+		if len(result.RuntimeErrors) != 0 {
+			t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+		}
+		if len(result.Trades) != 2 {
+			t.Fatalf("trades = %#v, want capped second entry", result.Trades)
+		}
+		if result.Trades[0].Side != "BUY" || result.Trades[0].Qty != "4" {
+			t.Fatalf("first trade = %#v, want BUY 4", result.Trades[0])
+		}
+		if result.Trades[1].Side != "BUY" || result.Trades[1].Qty != "1" {
+			t.Fatalf("second trade = %#v, want BUY 1 after max_position_size cap", result.Trades[1])
+		}
+	})
+
+	t.Run("max_intraday_filled_orders blocks later risk increasing orders", func(t *testing.T) {
+		isolateBacktestHome(t)
+
+		dbPath := filepath.Join(t.TempDir(), "backtest-pine-risk-filled-orders.db")
+		store, err := NewFutuKLineStore(dbPath)
+		if err != nil {
+			t.Fatalf("NewFutuKLineStore() error = %v", err)
+		}
+		baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+		klines := []types.KLine{
+			{Open: fixedpoint.NewFromFloat(100), High: fixedpoint.NewFromFloat(100), Low: fixedpoint.NewFromFloat(100), Close: fixedpoint.NewFromFloat(100), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(101), High: fixedpoint.NewFromFloat(101), Low: fixedpoint.NewFromFloat(101), Close: fixedpoint.NewFromFloat(101), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(102), High: fixedpoint.NewFromFloat(102), Low: fixedpoint.NewFromFloat(102), Close: fixedpoint.NewFromFloat(102), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(103), High: fixedpoint.NewFromFloat(103), Low: fixedpoint.NewFromFloat(103), Close: fixedpoint.NewFromFloat(103), Volume: fixedpoint.NewFromFloat(1000)},
+		}
+		for index := range klines {
+			start := baseStart.Add(time.Duration(index) * time.Minute)
+			klines[index].StartTime = types.Time(start)
+			klines[index].EndTime = types.Time(start.Add(time.Minute - time.Millisecond))
+			klines[index].Interval = types.Interval1m
+			klines[index].Symbol = "US.AAPL"
+		}
+		if err := store.InsertKLines(klines, "forward"); err != nil {
+			jftradeErr14 := store.Close()
+			jftradeCheckTestError(t, jftradeErr14)
+			t.Fatalf("InsertKLines() error = %v", err)
+		}
+		if err := store.Close(); err != nil {
+			t.Fatalf("store.Close() error = %v", err)
+		}
+
+		result := Run(context.Background(), RunConfig{
+			DBPath:       dbPath,
+			Symbol:       "US.AAPL",
+			Interval:     string(types.Interval1m),
+			SourceFormat: strategydefinition.SourceFormatPineV6,
+			StartTime:    klines[0].StartTime.Time(),
+			EndTime:      klines[len(klines)-1].EndTime.Time(),
+			StrategyScript: `//@version=6
+strategy("Risk filled orders", overlay=true)
+strategy.risk.max_intraday_filled_orders(2)
+if bar_index == 0
+    strategy.entry("Long", strategy.long, qty=1)
+if bar_index == 1
+    strategy.close("Long")
+if bar_index == 2
+    strategy.entry("BlockedReentry", strategy.long, qty=1)`,
+			InitialBalance: 100000,
+		})
+		if result == nil {
+			t.Fatal("expected run result")
+		}
+		if result.Error != "" {
+			t.Fatalf("Run() error = %s", result.Error)
+		}
+		if len(result.RuntimeErrors) != 0 {
+			t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+		}
+		if len(result.Trades) != 2 {
+			t.Fatalf("trades = %#v, want entry and close only after filled-order risk block", result.Trades)
+		}
+		if result.Trades[0].Side != "BUY" || result.Trades[0].Qty != "1" {
+			t.Fatalf("first trade = %#v, want BUY 1", result.Trades[0])
+		}
+		if result.Trades[1].Side != "SELL" || result.Trades[1].Qty != "1" {
+			t.Fatalf("second trade = %#v, want SELL 1 close", result.Trades[1])
+		}
+		if result.TotalTrades != 2 {
+			t.Fatalf("TotalTrades = %d, want 2 after max_intraday_filled_orders block", result.TotalTrades)
+		}
+	})
+}
+
 func TestRunStrategyExitQtyPercentPartiallyExits(t *testing.T) {
 	isolateBacktestHome(t)
 
@@ -999,6 +1139,29 @@ strategy.entry("Breakout", strategy.long, stop=105, qty=1)
 strategy.cancel("Breakout")`)
 		if len(result.OrderBook) != 0 {
 			t.Fatalf("orders = %#v, want none after cancel", result.OrderBook)
+		}
+	})
+
+	t.Run("close stop triggers pending close", func(t *testing.T) {
+		result := run(t, "close-stop", `//@version=6
+strategy("Close stop", overlay=true)
+if bar_index == 0
+    strategy.entry("Long", strategy.long, qty=3)
+if bar_index == 1
+    strategy.close("Long", stop=99)`)
+		if len(result.OrderBook) != 2 {
+			t.Fatalf("orders = %#v, want entry then triggered close stop", result.OrderBook)
+		}
+		if result.OrderBook[0].Side != "BUY" || result.OrderBook[0].Quantity != "3" {
+			t.Fatalf("entry order = %#v, want BUY 3", result.OrderBook[0])
+		}
+		closeOrder := result.OrderBook[1]
+		if closeOrder.Side != "SELL" || closeOrder.Quantity != "3" || closeOrder.Status != "FILLED" {
+			t.Fatalf("close stop order = %#v, want filled SELL 3", closeOrder)
+		}
+		if len(result.Trades) != 2 || result.Trades[0].Side != "BUY" || result.Trades[0].Qty != "3" ||
+			result.Trades[1].Side != "SELL" || result.Trades[1].Qty != "3" {
+			t.Fatalf("trades = %#v, want round-trip long close", result.Trades)
 		}
 	})
 

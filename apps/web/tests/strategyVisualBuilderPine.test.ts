@@ -21,6 +21,46 @@ import {
   buildStrategyVisualModelFromPine,
 } from "../src/features/strategyVisualBuilderPineParser";
 
+function createLinearVisualModel(
+  nodes: Array<{
+    id: string;
+    text: string;
+    properties: Record<string, unknown>;
+    type?: "rect" | "diamond";
+  }>,
+): StrategyVisualModelDocument {
+  const rootId = "on-kline-root";
+  const visualNodes = [
+    {
+      id: rootId,
+      type: "circle",
+      x: 120,
+      y: 120,
+      text: "K 线收盘",
+      properties: { blockKind: "onKLineClosed" },
+    },
+    ...nodes.map((node, index) => ({
+      id: node.id,
+      type: node.type ?? "rect",
+      x: 360 + index * 240,
+      y: 120,
+      text: node.text,
+      properties: node.properties,
+    })),
+  ];
+  return {
+    engine: "logic-flow",
+    version: 1,
+    nodes: visualNodes,
+    edges: nodes.map((node, index) => ({
+      id: `edge-${index}`,
+      type: "polyline",
+      sourceNodeId: index === 0 ? rootId : nodes[index - 1].id,
+      targetNodeId: node.id,
+    })),
+  };
+}
+
 describe("strategyVisualBuilderPine", () => {
   it("renders and parses safe visual expression AST nodes", () => {
     const expression = {
@@ -365,6 +405,49 @@ strategy.close_all()`);
     expect(orderNodes[3]?.properties.pineOrderFunction).toBe("strategy.close_all");
   });
 
+  it("parses positional order quantity and close metadata supported by the backend", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Order Metadata", overlay=true)
+strategy.entry("Long", strategy.long, 5, comment="breakout", alert_message="go", disable_alert=true, when=close > open)
+strategy.close("Long", 2, stop=low[1], comment="trim", alert_message="scale", immediately=true, disable_alert=false, when=bar_index > 10)
+strategy.close_all(true, "flatten", "done", false)`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const orderNodes = parsed.model.nodes.filter((node) => node.properties?.blockKind === "placeOrder");
+    expect(orderNodes).toHaveLength(3);
+    expect(orderNodes[0]?.properties).toMatchObject({
+      orderAction: "entry",
+      quantityMode: "shares",
+      quantityValue: 5,
+      comment: "breakout",
+      alert_message: "go",
+      disable_alert: true,
+      when: "close > open",
+    });
+    expect(orderNodes[1]?.properties).toMatchObject({
+      orderAction: "close",
+      quantityMode: "shares",
+      quantityValue: 2,
+      comment: "trim",
+      alert_message: "scale",
+      immediately: true,
+      disable_alert: false,
+      when: "bar_index > 10",
+    });
+    expect(orderNodes[1]?.properties.stopPriceExpressionAst).toMatchObject({ kind: "history" });
+    expect(orderNodes[2]?.properties).toMatchObject({
+      orderAction: "closeAll",
+      immediately: true,
+      comment: "flatten",
+      alert_message: "done",
+      disable_alert: false,
+    });
+  });
+
   it("generates and parses expanded Pine order actions", () => {
     const model: StrategyVisualModelDocument = {
       engine: "logic-flow",
@@ -470,6 +553,179 @@ strategy.close_all()`);
       orderId: "Breakout",
     });
     expect(parsed.model.nodes.find((node) => node.id === "close-all")?.properties.orderAction).toBe("closeAll");
+  });
+
+  it("renders close stop metadata and close_all metadata in legacy visual builder", () => {
+    const model: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        {
+          id: "on-kline-root",
+          type: "circle",
+          x: 120,
+          y: 120,
+          text: "K 线收盘",
+          properties: { blockKind: "onKLineClosed" },
+        },
+        {
+          id: "entry-order",
+          type: "rect",
+          x: 360,
+          y: 120,
+          text: "注释入场",
+          properties: {
+            blockKind: "placeOrder",
+            orderAction: "entry",
+            orderId: "Long",
+            side: "BUY",
+            orderType: "MARKET",
+            quantityMode: "shares",
+            quantityValue: 5,
+            comment: "breakout",
+            alert_message: "go",
+            disable_alert: true,
+            when: "close > open",
+          },
+        },
+        {
+          id: "close-order",
+          type: "rect",
+          x: 600,
+          y: 120,
+          text: "带 stop 平仓",
+          properties: {
+            blockKind: "placeOrder",
+            orderAction: "close",
+            orderId: "Long",
+            side: "SELL",
+            quantityMode: "shares",
+            quantityValue: 2,
+            stopPriceExpressionAst: { kind: "history", target: { kind: "source", source: "low" }, offset: 1 },
+            comment: "trim",
+            alert_message: "scale",
+            immediately: true,
+            disable_alert: false,
+            when: "bar_index > 10",
+          },
+        },
+        {
+          id: "close-all",
+          type: "rect",
+          x: 840,
+          y: 120,
+          text: "全部平仓",
+          properties: {
+            blockKind: "placeOrder",
+            orderAction: "closeAll",
+            immediately: true,
+            comment: "flatten",
+            alert_message: "done",
+            disable_alert: false,
+          },
+        },
+      ],
+      edges: [
+        { id: "edge-root-entry", type: "polyline", sourceNodeId: "on-kline-root", targetNodeId: "entry-order" },
+        { id: "edge-entry-close", type: "polyline", sourceNodeId: "entry-order", targetNodeId: "close-order" },
+        { id: "edge-close-closeall", type: "polyline", sourceNodeId: "close-order", targetNodeId: "close-all" },
+      ],
+    };
+
+    const script = buildStrategyPineFromVisualModel(model, { name: "Legacy Order Metadata" });
+
+    expect(script).toContain('strategy.entry("Long", strategy.long, qty=5, comment="breakout", alert_message="go", disable_alert=true, when=close > open)');
+    expect(script).toContain('strategy.close("Long", qty=2, stop=low[1], comment="trim", alert_message="scale", immediately=true, disable_alert=false, when=bar_index > 10)');
+    expect(script).toContain('strategy.close_all(immediately=true, comment="flatten", alert_message="done", disable_alert=false)');
+  });
+
+  it("parses bare strategy.risk max rules into legacy visual risk blocks", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Risk Rules", overlay=true)
+strategy.risk.max_drawdown(10, strategy.percent_of_equity, alert_message="dd")
+strategy.risk.max_intraday_loss(500, strategy.cash, "day")
+strategy.risk.max_intraday_filled_orders(3, alert_message="fills")
+strategy.risk.max_position_size(12)
+strategy.risk.max_cons_loss_days(2, "days")`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const riskNodes = parsed.model.nodes.filter((node) => node.properties?.blockKind === "riskRule");
+    expect(riskNodes).toHaveLength(5);
+    [
+      { riskRuleType: "maxDrawdown", riskValue: 10, riskAmountType: "strategy.percent_of_equity", alert_message: "dd" },
+      { riskRuleType: "maxIntradayLoss", riskValue: 500, riskAmountType: "strategy.cash", alert_message: "day" },
+      { riskRuleType: "maxIntradayFilledOrders", riskCount: 3, alert_message: "fills" },
+      { riskRuleType: "maxPositionSize", riskContracts: 12 },
+      { riskRuleType: "maxConsLossDays", riskCount: 2, alert_message: "days" },
+    ].forEach((expected, index) => expect(riskNodes[index]?.properties).toMatchObject(expected));
+  });
+
+  it("renders legacy visual risk blocks back to strategy.risk statements", () => {
+    const model = createLinearVisualModel([
+      {
+        id: "risk-drawdown",
+        text: "最大回撤",
+        properties: {
+          blockKind: "riskRule",
+          riskRuleType: "maxDrawdown",
+          riskValue: 10,
+          riskAmountType: "strategy.percent_of_equity",
+          alert_message: "dd",
+        },
+      },
+      {
+        id: "risk-loss",
+        text: "日内亏损",
+        properties: {
+          blockKind: "riskRule",
+          riskRuleType: "maxIntradayLoss",
+          riskValue: 500,
+          riskAmountType: "strategy.cash",
+          alert_message: "day",
+        },
+      },
+      {
+        id: "risk-fills",
+        text: "成交上限",
+        properties: {
+          blockKind: "riskRule",
+          riskRuleType: "maxIntradayFilledOrders",
+          riskCount: 3,
+          alert_message: "fills",
+        },
+      },
+      {
+        id: "risk-size",
+        text: "最大持仓",
+        properties: {
+          blockKind: "riskRule",
+          riskRuleType: "maxPositionSize",
+          riskContracts: 12,
+        },
+      },
+      {
+        id: "risk-loss-days",
+        text: "连续亏损天数",
+        properties: {
+          blockKind: "riskRule",
+          riskRuleType: "maxConsLossDays",
+          riskCount: 2,
+          alert_message: "days",
+        },
+      },
+    ]);
+
+    const script = buildStrategyPineFromVisualModel(model, { name: "Legacy Risk Rules" });
+
+    expect(script).toContain('strategy.risk.max_drawdown(10, strategy.percent_of_equity, alert_message="dd")');
+    expect(script).toContain('strategy.risk.max_intraday_loss(500, strategy.cash, alert_message="day")');
+    expect(script).toContain('strategy.risk.max_intraday_filled_orders(3, alert_message="fills")');
+    expect(script).toContain("strategy.risk.max_position_size(12)");
+    expect(script).toContain('strategy.risk.max_cons_loss_days(2, alert_message="days")');
   });
 
   it("generates and parses series condition blocks", () => {
@@ -827,6 +1083,9 @@ if rsiValue < 30
       expect(capability.pineRenderRule.description, capability.kind).not.toBe("");
       expect(capability.pineParseRule.description, capability.kind).not.toBe("");
     }
+    const placeOrder = capabilities.find((capability) => capability.kind === "placeOrder");
+    expect(placeOrder?.controlSchema.controlIds).not.toContain("oca_name");
+    expect(placeOrder?.controlSchema.controlIds).not.toContain("oca_type");
   });
 
   it("round-trips all visual templates without runtime guards", () => {
@@ -947,6 +1206,171 @@ if rsiValue < 30
     expect(exitNode?.properties.mode).toBe("stopLoss");
     expect(exitNode?.properties.timeUnit).toBe("bar");
     expect(exitNode?.properties.percentage).toBe(2);
+  });
+
+  it("parses strategy.exit metadata into legacy stopLoss blocks", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Exit Metadata", overlay=true)
+strategy.exit("Bracket", "Long", stop=98, limit=105, qty_percent=50, comment="generic", comment_profit="tp", comment_loss="sl", alert_message="base", alert_profit="ap", alert_loss="al", disable_alert=true, when=high > low)
+strategy.exit("Trail", "Long", trail_points=10, trail_offset=5, comment="generic trail", comment_trailing="trail comment", alert_message="trail base", alert_trailing="trail alert", disable_alert=false, when=close > open)`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const stopNodes = parsed.model.nodes.filter((node) => node.properties?.blockKind === "stopLoss");
+    expect(stopNodes).toHaveLength(2);
+    [
+      {
+        mode: "bracketExit",
+        quantityPercentage: 50,
+        comment: "generic",
+        comment_profit: "tp",
+        comment_loss: "sl",
+        alert_message: "base",
+        alert_profit: "ap",
+        alert_loss: "al",
+        disable_alert: true,
+        when: "high > low",
+      },
+      {
+        mode: "trailingStop",
+        comment: "generic trail",
+        comment_trailing: "trail comment",
+        alert_message: "trail base",
+        alert_trailing: "trail alert",
+        disable_alert: false,
+        when: "close > open",
+      },
+    ].forEach((expected, index) => expect(stopNodes[index]?.properties).toMatchObject(expected));
+  });
+
+  it("parses strategy.exit with named or omitted from_entry into legacy stopLoss blocks", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Exit from entry variants", overlay=true)
+strategy.exit("Named", from_entry="Short", limit=95)
+strategy.exit("Auto", stop=98, qty_percent=25)`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const stopNodes = parsed.model.nodes.filter((node) => node.properties?.blockKind === "stopLoss");
+    expect(stopNodes).toHaveLength(2);
+    expect(stopNodes[0]?.properties).toMatchObject({
+      direction: "short",
+      mode: "takeProfit",
+      takeProfitPriceExpressionAst: { kind: "literal", value: 95 },
+    });
+    expect(stopNodes[1]?.properties).toMatchObject({
+      direction: "auto",
+      fromEntryMode: "auto",
+      mode: "stopLoss",
+      quantityPercentage: 25,
+      stopPriceExpressionAst: { kind: "literal", value: 98 },
+    });
+
+    const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Exit from entry variants roundtrip" });
+    expect(script).toContain('strategy.exit("Auto stopLoss", stop=98, qty_percent=25)');
+    expect(script).not.toContain('strategy.exit("Long stopLoss", "Long", stop=98');
+    expect(script).not.toContain('strategy.exit("Short stopLoss", "Short", stop=98');
+  });
+
+  it("renders strategy.exit metadata from legacy stopLoss blocks", () => {
+    const baseExit = {
+      blockKind: "stopLoss",
+      direction: "long",
+      timeValue: 1,
+      timeUnit: "bar",
+      percentage: 2,
+      windowPolicy: "continuous",
+    };
+    const model = createLinearVisualModel([
+      {
+        id: "bracket-exit",
+        text: "Bracket",
+        properties: {
+          ...baseExit,
+          mode: "bracketExit",
+          takeProfitPercentage: 4,
+          quantityPercentage: 50,
+          comment: "generic",
+          comment_profit: "tp",
+          comment_loss: "sl",
+          alert_message: "base",
+          alert_profit: "ap",
+          alert_loss: "al",
+          disable_alert: true,
+          when: "high > low",
+        },
+      },
+      {
+        id: "trail-exit",
+        text: "Trail",
+        properties: {
+          ...baseExit,
+          mode: "trailingStop",
+          comment: "generic trail",
+          comment_trailing: "trail comment",
+          alert_message: "trail base",
+          alert_trailing: "trail alert",
+          disable_alert: false,
+          when: "close > open",
+        },
+      },
+    ]);
+
+    const script = buildStrategyPineFromVisualModel(model, { name: "Legacy Exit Metadata" });
+
+    expect(script).toContain('strategy.exit("Long bracketExit", "Long", stop=close * (1 - 2 / 100), limit=close * (1 + 4 / 100), qty_percent=50, comment="generic", comment_profit="tp", comment_loss="sl", alert_message="base", alert_profit="ap", alert_loss="al", disable_alert=true, when=high > low)');
+    expect(script).toContain('strategy.exit("Long trailingStop", "Long", trail_points=close * 2 / 100, trail_offset=close * 2 / 100, comment="generic trail", comment_trailing="trail comment", alert_message="trail base", alert_trailing="trail alert", disable_alert=false, when=close > open)');
+  });
+
+  it("round-trips strategy.exit profit/loss tick semantics through legacy stopLoss blocks", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Exit points", overlay=true)
+strategy.exit("Points", "Long", profit=50, loss=25, qty_percent=50)`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const exitNode = parsed.model.nodes.find((node) => node.properties?.blockKind === "stopLoss");
+    expect(exitNode?.properties).toMatchObject({
+      mode: "bracketExit",
+      profitTicks: 50,
+      lossTicks: 25,
+      quantityPercentage: 50,
+    });
+
+    const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Exit points roundtrip" });
+    expect(script).toContain('strategy.exit("Long bracketExit", "Long", loss=25, profit=50, qty_percent=50)');
+  });
+
+  it("round-trips strategy.exit trail_price semantics through legacy stopLoss blocks", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Trail price", overlay=true)
+strategy.exit("Trail", "Long", trail_price=high[1], trail_offset=close * 2 / 100, comment_trailing="trail")`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const exitNode = parsed.model.nodes.find((node) => node.properties?.blockKind === "stopLoss");
+    expect(exitNode?.properties).toMatchObject({
+      mode: "trailingStop",
+      trailingPriceMode: "price",
+      trailingPriceExpressionAst: { kind: "history" },
+      trailingOffsetExpressionAst: { kind: "binary" },
+      comment_trailing: "trail",
+    });
+
+    const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Trail price roundtrip" });
+    expect(script).toContain('strategy.exit("Long trailingStop", "Long", trail_price=high[1], trail_offset=(close * 2) / 100, comment_trailing="trail")');
   });
 
   it("parses request.security timeframe indicators", () => {

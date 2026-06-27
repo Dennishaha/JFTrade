@@ -9,6 +9,7 @@ import {
   normalizeCollectionStatBlockProperties,
   normalizeDerivedSeriesBlockProperties,
   normalizeMtfSeriesBlockProperties,
+  normalizeRiskRuleBlockProperties,
   normalizeSeriesConditionBlockProperties,
   normalizeSessionFilterBlockProperties,
   normalizeStateUpdateBlockProperties,
@@ -256,6 +257,8 @@ function renderNode(
       return renderCloseConditionNode(node, state, depth, visited, kind);
     case "placeOrder":
       return renderLinearStatement(node, state, depth, visited, buildOrderStatement(node));
+    case "riskRule":
+      return renderLinearStatement(node, state, depth, visited, buildRiskRuleStatement(node));
     case "stopLoss":
       return renderProtectNode(node, state, depth, visited);
     default:
@@ -1010,7 +1013,15 @@ function buildOrderStatement(node: StrategyVisualNodeDocument): string {
   const action = inferPineOrderAction(node.properties.orderAction, side);
   const orderId = normalizePineOrderId(node.properties.orderId);
   if (action === "closeAll") {
-    return "strategy.close_all()";
+    const closeAllArgs = [
+      renderBooleanOrderArg("immediately", node.properties.immediately),
+      renderStringOrderArg("comment", node.properties.comment),
+      renderStringOrderArg("alert_message", node.properties.alert_message),
+      renderBooleanOrderArg("disable_alert", node.properties.disable_alert),
+    ].filter((arg) => arg !== "");
+    return closeAllArgs.length === 0
+      ? "strategy.close_all()"
+      : `strategy.close_all(${closeAllArgs.join(", ")})`;
   }
   if (action === "cancel") {
     return `strategy.cancel(${toPineStringLiteral(orderId ?? "Long")})`;
@@ -1053,14 +1064,79 @@ function buildOrderStatement(node: StrategyVisualNodeDocument): string {
 
   if (action === "close") {
     const closeId = orderId ?? (side === "BUY_COVER" ? "Short" : "Long");
-    return `strategy.close(${toPineStringLiteral(closeId)}, ${quantityOption}${limitOption})`;
+    const closeArgs = [
+      quantityOption,
+      renderOrderExpressionArg("limit", node.properties.limitPriceExpressionAst, limitPrice),
+      renderOrderExpressionArg("stop", node.properties.stopPriceExpressionAst, stopPrice),
+      renderStringOrderArg("comment", node.properties.comment),
+      renderStringOrderArg("alert_message", node.properties.alert_message),
+      renderBooleanOrderArg("immediately", node.properties.immediately),
+      renderBooleanOrderArg("disable_alert", node.properties.disable_alert),
+      renderRawOrderArg("when", node.properties.when),
+    ].filter((arg) => arg !== "");
+    return `strategy.close(${toPineStringLiteral(closeId)}, ${closeArgs.join(", ")})`;
   }
   const direction = side === "SELL_SHORT" || side === "SELL"
     ? "strategy.short"
     : "strategy.long";
   const defaultOrderId = direction === "strategy.short" ? "Short" : "Long";
   const functionName = action === "order" ? "strategy.order" : "strategy.entry";
-  return `${entryPolicyAnnotation}${functionName}(${toPineStringLiteral(orderId ?? defaultOrderId)}, ${direction}, ${quantityOption}${limitOption}${stopOption})`;
+  const orderArgs = [
+    quantityOption,
+    limitOption.slice(2),
+    stopOption.slice(2),
+    renderStringOrderArg("comment", node.properties.comment),
+    renderStringOrderArg("alert_message", node.properties.alert_message),
+    renderBooleanOrderArg("disable_alert", node.properties.disable_alert),
+    renderRawOrderArg("when", node.properties.when),
+  ].filter((arg) => arg !== "");
+  return `${entryPolicyAnnotation}${functionName}(${[
+    toPineStringLiteral(orderId ?? defaultOrderId),
+    direction,
+    ...orderArgs,
+  ].join(", ")})`;
+}
+
+function buildRiskRuleStatement(node: StrategyVisualNodeDocument): string {
+  const properties = normalizeRiskRuleBlockProperties(node.properties ?? {});
+  switch (properties.riskRuleType) {
+    case "allowEntryIn": {
+      const direction = normalizePineRiskAllowEntryDirection(properties.riskAllowedDirection);
+      const pineDirection = direction === "long"
+        ? "strategy.direction.long"
+        : direction === "short"
+          ? "strategy.direction.short"
+          : "strategy.direction.all";
+      return `strategy.risk.allow_entry_in(${pineDirection})`;
+    }
+    case "maxIntradayLoss":
+    case "maxDrawdown": {
+      const functionName = properties.riskRuleType === "maxIntradayLoss"
+        ? "strategy.risk.max_intraday_loss"
+        : "strategy.risk.max_drawdown";
+      const args = [
+        formatNumber(properties.riskValue ?? 10),
+        properties.riskAmountType ?? "strategy.percent_of_equity",
+        renderStringOrderArg("alert_message", properties.alert_message),
+      ].filter((arg) => arg !== "");
+      return `${functionName}(${args.join(", ")})`;
+    }
+    case "maxIntradayFilledOrders":
+    case "maxConsLossDays": {
+      const functionName = properties.riskRuleType === "maxIntradayFilledOrders"
+        ? "strategy.risk.max_intraday_filled_orders"
+        : "strategy.risk.max_cons_loss_days";
+      const args = [
+        formatNumber(properties.riskCount ?? 3),
+        renderStringOrderArg("alert_message", properties.alert_message),
+      ].filter((arg) => arg !== "");
+      return `${functionName}(${args.join(", ")})`;
+    }
+    case "maxPositionSize":
+      return `strategy.risk.max_position_size(${formatNumber(properties.riskContracts ?? 10)})`;
+    default:
+      return "strategy.risk.max_drawdown(10, strategy.percent_of_equity)";
+  }
 }
 
 function inferPineOrderAction(
@@ -1097,6 +1173,47 @@ function buildPineQuantityExpression(
   }
 }
 
+function renderOrderExpressionArg(
+  name: string,
+  expressionAst: unknown,
+  fallbackNumber: number,
+): string {
+  if (fallbackNumber <= 0 && expressionAst === undefined) {
+    return "";
+  }
+  return `${name}=${renderVisualExpressionToPine(expressionAst, formatNumber(fallbackNumber))}`;
+}
+
+function renderStringOrderArg(name: string, value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const normalized = value.replace(/[\r\n]+/g, " ").trim();
+  return normalized === "" ? "" : `${name}=${toPineStringLiteral(normalized)}`;
+}
+
+function renderRawOrderArg(name: string, value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const normalized = value.trim();
+  return normalized === "" ? "" : `${name}=${normalized}`;
+}
+
+function renderBooleanOrderArg(name: string, value: unknown): string {
+  if (typeof value === "boolean") {
+    return `${name}=${value ? "true" : "false"}`;
+  }
+  if (typeof value !== "string") {
+    return "";
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized !== "true" && normalized !== "false") {
+    return "";
+  }
+  return `${name}=${normalized}`;
+}
+
 function renderProtectNode(
   node: StrategyVisualNodeDocument,
   state: RenderState,
@@ -1124,6 +1241,8 @@ function buildProtectStatements(node: StrategyVisualNodeDocument): string[] {
   }
 
   const percentage = formatNumber(properties.percentage ?? 2);
+  const profitTicks = properties.profitTicks === undefined ? null : formatNumber(properties.profitTicks);
+  const lossTicks = properties.lossTicks === undefined ? null : formatNumber(properties.lossTicks);
   const quantityPercentage = properties.quantityPercentage ?? 100;
   const quantityOption = quantityPercentage > 0 && quantityPercentage < 100
     ? `, qty_percent=${formatNumber(quantityPercentage)}`
@@ -1137,52 +1256,84 @@ function buildProtectStatements(node: StrategyVisualNodeDocument): string[] {
   const explicitTrailingPrice = properties.trailingPriceExpressionAst === undefined
     ? null
     : renderVisualExpressionToPine(properties.trailingPriceExpressionAst, "close");
-  const directions = properties.direction === "long"
+  const explicitTrailingOffset = properties.trailingOffsetExpressionAst === undefined
+    ? explicitTrailingPrice
+    : renderVisualExpressionToPine(properties.trailingOffsetExpressionAst, explicitTrailingPrice ?? "close");
+  const directions = properties.fromEntryMode === "auto"
+    ? ["auto"]
+    : properties.direction === "long"
     ? ["long"]
     : properties.direction === "short"
       ? ["short"]
       : ["long", "short"];
   return directions.map((direction) => {
     const entryId = direction === "short" ? "Short" : "Long";
-    const exitId = `${entryId} ${properties.mode ?? "stopLoss"}`;
+    const exitId = direction === "auto" ? `Auto ${properties.mode ?? "stopLoss"}` : `${entryId} ${properties.mode ?? "stopLoss"}`;
+    const fromEntryArg = direction === "auto" ? "" : `, ${toPineStringLiteral(entryId)}`;
+    const metadataArgs = buildProtectMetadataArgs(properties);
     switch (properties.mode) {
       case "takeProfit":
         if (explicitTakeProfitPrice !== null) {
-          return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=${explicitTakeProfitPrice}${quantityOption})`;
+          return `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, limit=${explicitTakeProfitPrice}${quantityOption}${metadataArgs})`;
+        }
+        if (profitTicks !== null) {
+          return `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, profit=${profitTicks}${quantityOption}${metadataArgs})`;
         }
         return direction === "short"
-          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=close * (1 - ${percentage} / 100)${quantityOption})`
-          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=close * (1 + ${percentage} / 100)${quantityOption})`;
+          ? `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, limit=close * (1 - ${percentage} / 100)${quantityOption}${metadataArgs})`
+          : `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, limit=close * (1 + ${percentage} / 100)${quantityOption}${metadataArgs})`;
       case "trailingStop":
         if (explicitTrailingPrice !== null) {
-          return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, trail_points=${explicitTrailingPrice}, trail_offset=${explicitTrailingPrice}${quantityOption})`;
+          const trailingArg = properties.trailingPriceMode === "price" ? "trail_price" : "trail_points";
+          return `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, ${trailingArg}=${explicitTrailingPrice}, trail_offset=${explicitTrailingOffset ?? explicitTrailingPrice}${quantityOption}${metadataArgs})`;
         }
-        return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, trail_points=close * ${percentage} / 100, trail_offset=close * ${percentage} / 100${quantityOption})`;
+        return `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, trail_points=close * ${percentage} / 100, trail_offset=close * ${percentage} / 100${quantityOption}${metadataArgs})`;
       case "bracketExit": {
         const takeProfitPercentage = formatNumber(properties.takeProfitPercentage ?? 4);
-        if (explicitStopPrice !== null || explicitTakeProfitPrice !== null) {
-          const stopExpression = explicitStopPrice ?? (direction === "short"
-            ? `close * (1 + ${percentage} / 100)`
-            : `close * (1 - ${percentage} / 100)`);
-          const limitExpression = explicitTakeProfitPrice ?? (direction === "short"
-            ? `close * (1 - ${takeProfitPercentage} / 100)`
-            : `close * (1 + ${takeProfitPercentage} / 100)`);
-          return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=${stopExpression}, limit=${limitExpression}${quantityOption})`;
+        const bracketArgs = [
+          explicitStopPrice === null ? "" : `stop=${explicitStopPrice}`,
+          explicitTakeProfitPrice === null ? "" : `limit=${explicitTakeProfitPrice}`,
+          lossTicks === null ? "" : `loss=${lossTicks}`,
+          profitTicks === null ? "" : `profit=${profitTicks}`,
+        ].filter((arg) => arg !== "");
+        if (bracketArgs.length > 0) {
+          return `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, ${bracketArgs.join(", ")}${quantityOption}${metadataArgs})`;
         }
         return direction === "short"
-          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 + ${percentage} / 100), limit=close * (1 - ${takeProfitPercentage} / 100)${quantityOption})`
-          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 - ${percentage} / 100), limit=close * (1 + ${takeProfitPercentage} / 100)${quantityOption})`;
+          ? `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, stop=close * (1 + ${percentage} / 100), limit=close * (1 - ${takeProfitPercentage} / 100)${quantityOption}${metadataArgs})`
+          : `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, stop=close * (1 - ${percentage} / 100), limit=close * (1 + ${takeProfitPercentage} / 100)${quantityOption}${metadataArgs})`;
       }
       case "stopLoss":
       default:
         if (explicitStopPrice !== null) {
-          return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=${explicitStopPrice}${quantityOption})`;
+          return `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, stop=${explicitStopPrice}${quantityOption}${metadataArgs})`;
+        }
+        if (lossTicks !== null) {
+          return `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, loss=${lossTicks}${quantityOption}${metadataArgs})`;
         }
         return direction === "short"
-          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 + ${percentage} / 100)${quantityOption})`
-          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 - ${percentage} / 100)${quantityOption})`;
+          ? `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, stop=close * (1 + ${percentage} / 100)${quantityOption}${metadataArgs})`
+          : `strategy.exit(${toPineStringLiteral(exitId)}${fromEntryArg}, stop=close * (1 - ${percentage} / 100)${quantityOption}${metadataArgs})`;
     }
   });
+}
+
+function buildProtectMetadataArgs(
+  properties: ReturnType<typeof normalizeStopLossBlockProperties>,
+): string {
+  const args = [
+    renderStringOrderArg("comment", properties.comment),
+    renderStringOrderArg("comment_profit", properties.comment_profit),
+    renderStringOrderArg("comment_loss", properties.comment_loss),
+    renderStringOrderArg("comment_trailing", properties.comment_trailing),
+    renderStringOrderArg("alert_message", properties.alert_message),
+    renderStringOrderArg("alert_profit", properties.alert_profit),
+    renderStringOrderArg("alert_loss", properties.alert_loss),
+    renderStringOrderArg("alert_trailing", properties.alert_trailing),
+    renderBooleanOrderArg("disable_alert", properties.disable_alert),
+    renderRawOrderArg("when", properties.when),
+  ].filter((arg) => arg !== "");
+  return args.length === 0 ? "" : `, ${args.join(", ")}`;
 }
 
 function sanitizeMetadataValue(value: string, fallback: string): string {
