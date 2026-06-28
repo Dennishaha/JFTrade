@@ -26,7 +26,7 @@ export function formatStrategyRuntime(runtime: unknown): string {
     case PINE_WORKER_RUNTIME:
       return "PineTS worker";
     case LEGACY_GO_PINE_RUNTIME:
-      return "Legacy Go Pine";
+      return "PineTS migration alias";
     default:
       return "未知 / 受限";
   }

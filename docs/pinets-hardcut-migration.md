@@ -393,3 +393,10 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.440 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `wc -l scripts/archive_frontend_assets.go scripts/build-frontend-assets.sh package.json internal/frontendassets/release_test.go pkg/strategy/pineworker/hardcut_audit_test.go` | Pass; largest touched file 276 lines, below 1200 |
 | 2026-06-29 | `git diff --check` | Pass |
+| 2026-06-29 | Replaced frontend legacy runtime label with `PineTS migration alias` | Pass; user-visible runtime labels no longer present `pine-go-plan` as a supported Go runtime |
+| 2026-06-29 | `npm --prefix apps/web test -- strategyRuntimeIdentity.test.ts App.strategy.runtime.test.ts App.strategy.test.ts adkToolVisualizations.test.ts` | Pass, 16 tests |
+| 2026-06-29 | `npm --prefix apps/web run typecheck` | Pass |
+| 2026-06-29 | `rg -n "Legacy Go Pine\|pine-go-plan" apps/web/src apps/web/tests -g '*.ts' -g '*.vue'` | Pass; only `strategyRuntimeIdentity.ts` keeps the legacy migration alias constant |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.586 ns/op, 0 B/op, 0 allocs/op |
