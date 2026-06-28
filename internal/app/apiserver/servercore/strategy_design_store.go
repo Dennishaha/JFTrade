@@ -12,12 +12,13 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 const (
 	defaultStrategyDesignFilename = "strategy-definitions.json"
 	strategyDesignDefinitionTable = "strategy_design_definitions"
-	strategyRuntimePinePlan       = "pine-go-plan"
+	strategyRuntimePinePlan       = pineworker.RuntimeID
 	defaultStrategyVersion        = "0.1.0"
 )
 
