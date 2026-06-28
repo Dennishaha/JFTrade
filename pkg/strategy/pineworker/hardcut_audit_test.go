@@ -13,6 +13,7 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertNoLegacyRuntimeInCurrentSpecDocs(t, root)
 	assertNoLegacyRuntimeInCurrentMaintenanceDocs(t, root)
 	assertNoLegacyRuntimeInFrontendSurfaces(t, root)
+	assertLegacyRuntimeIDOnlyInMigrationShims(t, root)
 	assertLegacyRuntimePackageRemoved(t, root)
 	assertNoUnexpectedPineRuntimeImports(t, root)
 }
@@ -128,6 +129,58 @@ func assertNoLegacyRuntimeInFrontendSurfaces(t *testing.T, root string) {
 	}
 }
 
+func assertLegacyRuntimeIDOnlyInMigrationShims(t *testing.T, root string) {
+	t.Helper()
+	allowed := []string{
+		"apps/web/src/components/strategy-runtime/strategyRuntimeIdentity.ts",
+		"docs/pinets-hardcut-migration.md",
+		"docs/release-pine-v08-closeout.md",
+		"pkg/strategy/pineworker/hardcut_audit_test.go",
+		"pkg/strategy/pineworker/types.go",
+		"pkg/strategy/pineworker/types_test.go",
+	}
+	var offenders []string
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			switch entry.Name() {
+			case ".git", "node_modules", "dist", "release_assets", "var":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		switch filepath.Ext(path) {
+		case ".go", ".md", ".ts", ".vue":
+		default:
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if slices.Contains(allowed, rel) {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(data), "pine-go-plan") {
+			offenders = append(offenders, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk repository: %v", err)
+	}
+	if len(offenders) > 0 {
+		t.Fatalf("legacy runtime ID appears outside migration shims: %s", strings.Join(offenders, ", "))
+	}
+}
+
 func assertLegacyRuntimePackageRemoved(t *testing.T, root string) {
 	t.Helper()
 	rel := "pkg/strategy/pineruntime"
@@ -147,7 +200,7 @@ func assertNoUnexpectedPineRuntimeImports(t *testing.T, root string) {
 		}
 		if entry.IsDir() {
 			switch entry.Name() {
-			case ".git", "node_modules", "dist", "release_assets":
+			case ".git", "node_modules", "dist", "release_assets", "var":
 				return filepath.SkipDir
 			}
 			return nil
