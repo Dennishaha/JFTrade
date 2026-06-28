@@ -51,6 +51,7 @@ PineTS worker must not be the source of truth for final trades, live orders, acc
 ## Release Blockers
 
 - The commercial `pinets` package is not installed in the current workspace; `npm ls pinets --workspaces --depth=1` reports empty.
+- Public `pinets@0.9.26` currently reports `AGPL-3.0-only`; release acceptance requires a recorded commercial license approval and `JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1`.
 - Production worker startup defaults to the native PineTS executor; mock mode requires explicit `JFTRADE_PINEWORKER_MOCK=true` or `--mock true` and is test-only.
 - Release binaries must not ship until a real PineTS worker process smoke passes without mock mode.
 - The real PineTS package/license decision must be recorded before embedding worker assets in release builds.
@@ -409,3 +410,4 @@ Hard-cut means:
 | 2026-06-29 | `git diff --check` | Pass |
 | 2026-06-29 | Updated `.github/workflows/ci.yml` | Pass; CI now builds embedded frontend assets with `npm run build:frontend-assets` and runs `go test -tags release_assets ./internal/frontendassets -run TestFileSystem` |
 | 2026-06-29 | Updated `.github/workflows/ci.yml` | Pass; CI now runs `npm run test:pinets-release-check` so strict, blocked, and unblocked release-check branches stay covered |
+| 2026-06-29 | `npm view pinets version license dist-tags --json` | Blocked for release; public `pinets@0.9.26` reports `AGPL-3.0-only`, so commercial license attestation is required before release |

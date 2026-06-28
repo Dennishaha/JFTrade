@@ -30,6 +30,8 @@ stub bash 'exit 0'
 export PATH="$BIN_DIR:$PATH"
 export JFTRADE_PINETS_RELEASE_RUN_LOG="$RUN_LOG"
 export JFTRADE_PINETS_RELEASE_PINETS_STATUS=1
+export JFTRADE_PINETS_RELEASE_PINETS_LICENSE=AGPL-3.0-only
+unset JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK
 
 if /bin/bash scripts/check-pinets-release.sh >/dev/null 2>"$TEMP_DIR/strict.err"; then
   echo "strict release check passed despite missing pinets" >&2
@@ -66,6 +68,39 @@ fi
 
 : > "$RUN_LOG"
 export JFTRADE_PINETS_RELEASE_PINETS_STATUS=0
+unset JFTRADE_PINETS_RELEASE_PINETS_LICENSE
+unset JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK
+if /bin/bash scripts/check-pinets-release.sh >/dev/null 2>"$TEMP_DIR/license.err"; then
+  echo "release check passed without commercial license attestation" >&2
+  exit 1
+fi
+if ! grep -q "commercial PineTS license attestation is missing" "$TEMP_DIR/license.err"; then
+  echo "release check did not report missing commercial license attestation" >&2
+  cat "$TEMP_DIR/license.err" >&2
+  exit 1
+fi
+if grep -q "build-pineworker-assets" "$RUN_LOG"; then
+  echo "license-blocked release check should skip release asset build" >&2
+  cat "$RUN_LOG" >&2
+  exit 1
+fi
+
+: > "$RUN_LOG"
+export JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1
+export JFTRADE_PINETS_RELEASE_PINETS_LICENSE=AGPL-3.0-only
+if /bin/bash scripts/check-pinets-release.sh >/dev/null 2>"$TEMP_DIR/agpl.err"; then
+  echo "release check passed with AGPL pinets license" >&2
+  exit 1
+fi
+if ! grep -q "pinets package license is AGPL-3.0-only" "$TEMP_DIR/agpl.err"; then
+  echo "release check did not report non-commercial pinets license" >&2
+  cat "$TEMP_DIR/agpl.err" >&2
+  exit 1
+fi
+
+: > "$RUN_LOG"
+export JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1
+export JFTRADE_PINETS_RELEASE_PINETS_LICENSE=Commercial
 /bin/bash scripts/check-pinets-release.sh >/dev/null 2>"$TEMP_DIR/pass.err"
 if ! grep -q "bash scripts/build-pineworker-assets.sh" "$RUN_LOG"; then
   echo "unblocked release check did not build worker assets" >&2

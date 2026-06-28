@@ -18,6 +18,7 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertNoUnexpectedPineRuntimeImports(t, root)
 	assertNoStalePineRuntimePerformanceGate(t, root)
 	assertReleaseFrontendAssetsAreAudited(t, root)
+	assertPinetsReleaseRequiresCommercialLicense(t, root)
 	assertCIExercisesPineTSWorker(t, root)
 }
 
@@ -272,6 +273,36 @@ func assertReleaseFrontendAssetsAreAudited(t *testing.T, root string) {
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("%s does not audit release frontend assets for %q", rel, required)
+		}
+	}
+}
+
+func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
+	t.Helper()
+	requiredByFile := map[string][]string{
+		"scripts/check-pinets-release.sh": {
+			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
+			"pinets package license is",
+		},
+		"scripts/check-pinets-release.test.sh": {
+			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
+			"AGPL-3.0-only",
+		},
+		"docs/troubleshooting/pinets-worker-release.md": {
+			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
+			"AGPL-3.0-only",
+		},
+	}
+	for rel, requiredValues := range requiredByFile {
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("ReadFile(%s): %v", rel, err)
+		}
+		text := string(data)
+		for _, required := range requiredValues {
+			if !strings.Contains(text, required) {
+				t.Fatalf("%s does not gate PineTS release on commercial license evidence %q", rel, required)
+			}
 		}
 	}
 }
