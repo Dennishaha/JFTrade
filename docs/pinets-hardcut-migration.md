@@ -20,7 +20,7 @@
 | 1.1 Runtime ID normalization | Done | Server-side definition/catalog normalization emits `pine-pinets` and migrates old `pine-go-plan`; focused servercore tests pass. |
 | 2. Proto contract | Done | `pkg/strategy/pineworker/proto/pineworker.proto` mirrors the Go contract and compiles through `protoc`. |
 | 3. Worker PoC | In progress | Bun worker core validates requests, adapts custom OHLCV data to the PineTS constructor shape, normalizes plots/logs/order intents, and has Bun tests. Real PineTS dependency wiring remains blocked on commercial license and package-lock policy. |
-| 4. gRPC bridge | Not started | Go client, Bun worker server, health check deadlines, max-message policy, and error mapping remain. |
+| 4. gRPC bridge | In progress | Go worker client abstraction now validates requests, applies timeouts, payload checks, worker error mapping, and performance gates with fake-backed tests. Real gRPC transport and Bun server remain. |
 | 5. Worker manager | Not started | Go starts N embedded workers, assigns ports, checks health, restarts crashes, drains on shutdown, and exposes status. |
 | 6. Backtest integration | Not started | Backtest calls PineTS worker for intents, then Go produces trades, order book, equity curve, drawdown, and metrics. |
 | 7. Live integration | Not started | Bar-close live flow calls worker, applies Go risk, places orders through broker APIs, and records runtime observation. |
@@ -67,6 +67,14 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - `RunScriptResponse`: outputs, order intents, plots, logs, warnings, diagnostics, worker metadata, and optional error.
 - `OrderIntent`: normalized representation of Pine `entry/order/exit/close/close_all/cancel/cancel_all`.
 - `PerformanceGate`: max duration, max per-candle duration, max RSS, max payload, and min candles/sec thresholds.
+
+## Go Client Boundary
+
+`pkg/strategy/pineworker.Client` is transport-neutral so backtest/live integration can depend on a stable Go API before generated gRPC stubs exist.
+
+- `Transport` is the swappable boundary for real gRPC, fake workers, and future in-process tests.
+- `Client.RunScript` validates requests before dispatch, enforces max message bytes, applies context deadlines, maps transport/worker errors, fills missing metadata, and checks performance gates.
+- Production integrations must use the client rather than calling gRPC stubs directly.
 
 ## Coverage Gates
 
@@ -142,3 +150,7 @@ Hard-cut means:
 | 2026-06-29 | `bun test workers/pineworker/src` | Pass, 9 tests cover request validation, adapter normalization, error mapping, mock execution, and PineTS constructor integration |
 | 2026-06-29 | `npx tsc --noEmit -p workers/pineworker/tsconfig.json` | Pass |
 | 2026-06-29 | `wc -l workers/pineworker/package.json workers/pineworker/tsconfig.json workers/pineworker/src/*.ts` | Largest worker file 192 lines, below 1200 |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.5% statement coverage after Go client tests |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~10.71 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `go test ./internal/app/apiserver/servercore -run 'TestNormalizeStrategyRuntimeUsesPineTSAndMigratesLegacy\|TestStrategyRuntimeFromParamsMigratesLegacyRuntime\|TestStrategyCatalogNormalizeStrategyMigratesLegacyRuntime\|TestStrategyCatalogNormalizeStrategyAppliesDefaults\|TestStrategyDefinitionEndpoints'` | Pass |
+| 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
