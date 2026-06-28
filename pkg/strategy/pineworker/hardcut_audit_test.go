@@ -20,6 +20,7 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertReleaseFrontendAssetsAreAudited(t, root)
 	assertReleasePineWorkerAssetsAreAudited(t, root)
 	assertPinetsReleaseRequiresCommercialLicense(t, root)
+	assertBunSEAPackagingIsDocumented(t, root)
 	assertCIExercisesPineTSWorker(t, root)
 }
 
@@ -351,6 +352,39 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 		for _, required := range requiredValues {
 			if !strings.Contains(text, required) {
 				t.Fatalf("%s does not gate PineTS release on commercial license evidence %q", rel, required)
+			}
+		}
+	}
+}
+
+func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
+	t.Helper()
+	requiredByFile := map[string][]string{
+		"docs/pinets-hardcut-migration.md": {
+			"Bun SEA",
+			"bun build --compile",
+			"release_assets",
+			"trading-engine",
+		},
+		"docs/troubleshooting/pinets-worker-release.md": {
+			"Bun SEA",
+			"bun build --compile",
+			"release_assets",
+			"trading-engine",
+		},
+		"scripts/build-pineworker-assets.sh": {
+			"bun build --compile",
+		},
+	}
+	for rel, requiredValues := range requiredByFile {
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("ReadFile(%s): %v", rel, err)
+		}
+		text := string(data)
+		for _, required := range requiredValues {
+			if !strings.Contains(text, required) {
+				t.Fatalf("%s does not document Bun SEA packaging requirement %q", rel, required)
 			}
 		}
 	}

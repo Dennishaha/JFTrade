@@ -1,6 +1,6 @@
 # PineTS Worker 发布与运行清单
 
-本文面向发布、部署和现场排障。当前 Pine 执行路径是 Go 主进程启动 Bun/PineTS gRPC worker pool；Go 仍负责行情、K 线缓存、策略调度、回测撮合、资金曲线、风控、下单和交易所 API。
+本文面向发布、部署和现场排障。当前 Pine 执行路径是 Go 主进程启动 Bun/PineTS gRPC worker pool；Go 仍负责行情、K 线缓存、策略调度、回测撮合、资金曲线、风控、下单和交易所 API。发布打包采用 Bun SEA / Bun single-file executable worker，再由 Go `release_assets` 嵌入到单个 `trading-engine` 二进制。
 
 ## 发布放行条件
 
@@ -10,7 +10,7 @@
 - 发布执行人已确认商业授权并设置 `JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1`；不要用公开 AGPL 包替代商业授权。
 - worker 以真实 PineTS executor 启动，未启用 mock。
 - 真实 worker 进程通过 localhost gRPC smoke，覆盖 `HealthCheck` 和 `RunScript`。
-- `scripts/build-pineworker-assets.sh` 生成目标平台 worker 二进制。
+- `scripts/build-pineworker-assets.sh` 通过 `bun build --compile` 生成目标平台 Bun SEA / 单文件 worker 二进制。
 - `go test -tags release_assets ./internal/pineworkerassets -run Test` 通过，确认 embedded asset 选择逻辑可用。
 - Go、worker、前端 focused test、coverage、performance gate 和 `git diff --check` 通过。
 
@@ -33,6 +33,8 @@ go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 ```
 
 `scripts/build-pineworker-assets.sh` 会先执行商业 `pinets` 包和许可证 attestation 检查。未安装商业包、未设置 `JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1`，或检测到公开 AGPL 包时，脚本会在调用 `bun build` 前失败。
+
+worker 资产构建采用 Bun SEA / Bun single-file executable 路线：每个目标平台生成一个可执行 worker，暂存到 `internal/pineworkerassets/assets/bin`，再通过 `release_assets` 构建嵌入 Go。最终对外发布的仍是单个 `dist/trading-engine` 文件；运行时 Go 会释放匹配平台的 worker 到临时目录、校验 SHA256、启动固定数量的 localhost gRPC 子进程，并在关闭时清理。
 
 API 启动时会先读 `JFTRADE_PINEWORKER_BINARY`。未配置外部二进制时，`release_assets` 构建会按当前平台选择内嵌 worker。若两者都不可用，Pine worker manager 不启动；回测和实盘策略执行会失败返回配置错误，不会回退到旧 Go 执行器。
 
