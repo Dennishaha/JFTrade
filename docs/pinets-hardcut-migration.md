@@ -170,14 +170,10 @@ Hard-cut means:
 
 ## Next Engineering Slices
 
-1. Finish `pkg/strategy/pineworker` contract and tests.
-2. Add worker proto mirroring the Go contract.
-3. Finish Bun gRPC worker server around the worker core.
-4. Add process-level worker smoke tests with real JS gRPC dependencies or a locked dependency policy.
-5. Add embedded platform worker asset selection and process-level smoke tests.
-6. Route backtest replay through `PineWorkerBacktestAdapter` and Go matching.
-7. Update live runtime manager after backtest correctness and performance gates are stable.
-8. Delete Go Pine runtime/parity surfaces and update docs/UI.
+1. Final hard-cut audit: keep `pine-go-plan` only in migration shims and historical docs; reject new current-code or current-doc occurrences.
+2. Acceptance verification: rerun focused Go, worker, frontend, coverage, performance, file-size, and `git diff --check` gates from a clean worktree.
+3. Packaging decision: keep mock-process smoke always green and record that real PineTS process smoke remains gated by the commercial package/license.
+4. Release cleanup: update any final release notes or operator docs that still need to mention PineTS worker setup, then mark Phase 8/10 done only after the audit evidence is complete.
 
 ## Verification Log
 
@@ -337,3 +333,9 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; audit now also requires the former Go Pine runtime package directory to be absent |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.504 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; audit now restricts `pine-go-plan` to migration shims and historical docs while ignoring untracked `var/` runtime cache |
+| 2026-06-29 | `go test ./internal/strategy -run TestDefinitionViewJSONRemainsFlat -v` | Pass; flat JSON fixture now uses `pine-pinets` |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.656 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `wc -l internal/strategy/types_test.go pkg/strategy/pineworker/hardcut_audit_test.go docs/pinets-hardcut-migration.md` | Pass; largest touched file 335 lines, below 1200 |
+| 2026-06-29 | `git diff --check` | Pass |

@@ -12,7 +12,7 @@ func TestDefinitionViewJSONRemainsFlat(t *testing.T) {
 			Name:         "Typed Strategy",
 			Version:      "0.1.0",
 			Description:  "description",
-			Runtime:      "pine-go-plan",
+			Runtime:      "pine-pinets",
 			SourceFormat: "pine-v6",
 			Script:       "strategy(\"typed\")",
 			CreatedAt:    "2026-06-15T00:00:00Z",
