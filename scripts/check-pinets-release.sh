@@ -53,6 +53,7 @@ if [[ "$BLOCKED" -eq 0 ]]; then
   run env JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v
   run bash scripts/build-pineworker-assets.sh
   run go test -tags release_assets ./internal/pineworkerassets -run Test
+  run go build -tags release_assets ./cmd/jftrade-api
 else
   echo "==> Skipping real PineTS process smoke and release asset build until pinets is installed"
 fi
