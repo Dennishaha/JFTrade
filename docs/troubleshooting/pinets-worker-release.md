@@ -32,6 +32,8 @@ bash scripts/build-pineworker-assets.sh
 go build -tags release_assets ./cmd/jftrade-api
 ```
 
+`scripts/build-pineworker-assets.sh` 会先执行商业 `pinets` 包和许可证 attestation 检查。未安装商业包、未设置 `JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1`，或检测到公开 AGPL 包时，脚本会在调用 `bun build` 前失败。
+
 API 启动时会先读 `JFTRADE_PINEWORKER_BINARY`。未配置外部二进制时，`release_assets` 构建会按当前平台选择内嵌 worker。若两者都不可用，Pine worker manager 不启动；回测和实盘策略执行会失败返回配置错误，不会回退到旧 Go 执行器。
 
 ## 环境变量
@@ -102,6 +104,7 @@ bash scripts/check-pinets-release.sh --allow-blocked
 
 ```bash
 npm run test:pinets-release-check
+npm run test:pineworker-asset-build
 ```
 
 在商业 `pinets` 包未安装前，`npm install` 和真实 worker 运行不能代表最终放行。构建产物也不应进入正式发布。

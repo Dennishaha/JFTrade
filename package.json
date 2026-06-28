@@ -26,6 +26,7 @@
     "build:pineworker": "bash scripts/build-pineworker-assets.sh",
     "check:pinets-release": "bash scripts/check-pinets-release.sh",
     "test:pinets-release-check": "bash scripts/check-pinets-release.test.sh",
+    "test:pineworker-asset-build": "bash scripts/build-pineworker-assets.test.sh",
     "test:web": "npm -w @jftrade/web run test",
     "test:web:watch": "npm -w @jftrade/web run test:watch",
     "test:pineworker": "bun test workers/pineworker/src",

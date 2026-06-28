@@ -280,7 +280,18 @@ func assertReleaseFrontendAssetsAreAudited(t *testing.T, root string) {
 func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 	t.Helper()
 	requiredByFile := map[string][]string{
+		"scripts/build-pineworker-assets.sh": {
+			"PineTS worker asset build is blocked",
+			"pinets_check_package_and_license",
+		},
+		"scripts/build-pineworker-assets.test.sh": {
+			"AGPL-3.0-only",
+			"bun build",
+		},
 		"scripts/check-pinets-release.sh": {
+			"pinets_check_package_and_license",
+		},
+		"scripts/lib/pinets-license.sh": {
 			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
 			"pinets package license is",
 		},
@@ -322,6 +333,7 @@ func assertCIExercisesPineTSWorker(t *testing.T, root string) {
 		"npm run build:frontend-assets",
 		"go test -tags release_assets ./internal/frontendassets -run TestFileSystem",
 		"npm run test:pinets-release-check",
+		"npm run test:pineworker-asset-build",
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("%s does not exercise PineTS worker gate %q", rel, required)
