@@ -159,7 +159,9 @@ if [[ ! -x "$RELEASE_OUT" ]]; then
 fi
 
 : > "$RUN_LOG"
-rm -f "$RELEASE_OUT"
+mkdir -p "$(dirname "$RELEASE_OUT")"
+printf '#!/bin/sh\nexit 0\n' > "$RELEASE_OUT"
+chmod +x "$RELEASE_OUT"
 export JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT=1
 if /bin/bash scripts/check-pinets-release.sh >/dev/null 2>"$TEMP_DIR/missing-artifact.err"; then
   echo "release check passed despite missing release artifact" >&2

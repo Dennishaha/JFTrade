@@ -43,6 +43,11 @@ verify_release_artifact() {
   fi
 }
 
+prepare_release_artifact_path() {
+  mkdir -p "$(dirname "$RELEASE_OUT")"
+  rm -f "$RELEASE_OUT"
+}
+
 if ! pinets_check_package_and_license; then
   BLOCKED=1
 fi
@@ -63,6 +68,7 @@ if [[ "$BLOCKED" -eq 0 ]]; then
   run env JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v
   run bash scripts/build-pineworker-assets.sh
   run go test -tags release_assets ./internal/pineworkerassets -run Test
+  prepare_release_artifact_path
   run go build -tags release_assets -o "$RELEASE_OUT" ./cmd/jftrade-api
   verify_release_artifact
 else

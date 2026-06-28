@@ -324,6 +324,7 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 			"git diff --check",
 			"dist/trading-engine",
 			"go build -tags release_assets -o",
+			"prepare_release_artifact_path",
 			"verify_release_artifact",
 			"release artifact is missing or empty",
 		},
