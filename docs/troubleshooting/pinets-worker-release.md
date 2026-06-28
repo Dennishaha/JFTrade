@@ -7,6 +7,7 @@
 发布二进制必须同时满足：
 
 - 商业 `pinets` 包已按许可证策略安装、锁定并记录版本。
+- 发布执行人已确认商业授权并设置 `JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1`；不要用公开 AGPL 包替代商业授权。
 - worker 以真实 PineTS executor 启动，未启用 mock。
 - 真实 worker 进程通过 localhost gRPC smoke，覆盖 `HealthCheck` 和 `RunScript`。
 - `scripts/build-pineworker-assets.sh` 生成目标平台 worker 二进制。
@@ -88,6 +89,8 @@ go build -tags release_assets ./cmd/jftrade-api
 ```bash
 npm run check:pinets-release
 ```
+
+严格模式还会读取 `node_modules/pinets/package.json` 的 `license` 字段。若公开包显示 `AGPL-3.0-only`，即使依赖已安装也仍会阻塞发布，直到商业授权和包来源完成记录。
 
 迁移阶段如果只是要确认除商业 `pinets` 包之外的门禁，可以使用：
 
