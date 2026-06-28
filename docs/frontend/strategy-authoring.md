@@ -30,8 +30,8 @@
 - 系统只持久化 Pine v6 源码和可选 `visualModel`。
 - 新建策略定义的 `id` 现在默认生成 GUID；设计页只展示该 ID，不允许手工修改。策略 `version` 仍由系统在每次有意义保存时自动递增。
 - 图块语义保持不变；`visualModel -> script` 由前端生成 Pine v6，后端只接收 `sourceFormat: "pine-v6"`。
-- 后端不会直接执行文本脚本；Pine 会先解析为策略 IR/规划结果，再由 Go executor 消费。
-- 加载旧定义时会统一归一到 `sourceFormat: "pine-v6"` 和 `runtime: "pine-go-plan"`。
+- 后端不会直接用 Go Pine runtime 执行文本脚本；PineTS worker 负责 Pine 执行并返回信号/订单意图，Go 负责调度、回测撮合、风控和下单。
+- 加载旧定义时会统一归一到 `sourceFormat: "pine-v6"` 和 `runtime: "pine-pinets"`。
 - 如果定义已经保存了 `visualModel`，页面优先保留已保存图结构，直到用户继续改图或改代码。
 
 ## 关键职责分层
@@ -62,7 +62,7 @@
 
 - [../../pkg/strategy/pine](../../pkg/strategy/pine)：Pine v6 前端，负责语法解析、诊断、warning 和 lowering 到策略 IR。
 - [../../pkg/strategy/ir](../../pkg/strategy/ir)：策略 IR 模型和需求规划，提取指标、账户能力、仓位和资金依赖。
-- [../../pkg/strategy/pineruntime](../../pkg/strategy/pineruntime)：Go 策略执行器，直接消费 Pine lowering 后的 IR 语义并执行条件、通知和下单。
+- [../../pkg/strategy/pineworker](../../pkg/strategy/pineworker)：PineTS worker 的 Go 侧契约、gRPC client、worker manager 和性能门禁；Pine 执行结果以 signals / plots / order intents 形式回到 Go。
 - [../../pkg/strategy/indicatorruntime](../../pkg/strategy/indicatorruntime)：指标预计算运行时，为 Pine lowering 后的 executor 提供 MA、RSI、MACD、KDJ、布林带、ATR、CCI、Williams %R 等序列值。
 
 当前和策略 timeUnit 直接相关的运行时约束需要单独记住：
@@ -124,7 +124,7 @@
 
 ## v1.0 主路径与旧路径清理
 
-- Pine 编辑器是策略 authoring 主路径；保存、预览、回测、实例化和运行统一使用 `sourceFormat: "pine-v6"` + `runtime: "pine-go-plan"`。
+- Pine 编辑器是策略 authoring 主路径；保存、预览、回测、实例化和运行统一使用 `sourceFormat: "pine-v6"` + `runtime: "pine-pinets"`。
 - 显式非 Pine source/runtime 不再默认替换为 Pine；后端会返回明确错误。
 - 旧 `codeBlock` / 旧合并式 `technicalIndicator` 不再作为类型定义、读取兼容或迁移路径保留。
 - Pine 反解遇到旧流程图注解或无法标准化的普通 Pine 行会失败，不再生成片段兜底节点。
@@ -177,7 +177,7 @@ npm run typecheck:web
 如果还涉及后端策略定义、解析、规划或执行器，再补：
 
 ```bash
-go test ./internal/api/strategy ./internal/strategy ./internal/app/apiserver/servercore ./pkg/strategy/pineruntime ./pkg/strategy/ir
+go test ./internal/api/strategy ./internal/strategy ./internal/app/apiserver/servercore ./pkg/strategy/pineworker ./pkg/strategy/ir
 ```
 
 如果改动会影响共享 Go 运行时，且希望确认“当前策略设计器里各图块”的成本有没有一起回升，再补：

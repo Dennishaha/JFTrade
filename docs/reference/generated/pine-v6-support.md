@@ -9,7 +9,7 @@
 | Pine version | `v6` |
 | Product version | `v4.0` |
 | Source format | `pine-v6` |
-| Runtime | `pine-go-plan` |
+| Runtime | `pine-pinets` |
 | Score model | `closed-bar-strategy-v4.0` |
 | Compatibility score | `98.30` |
 
@@ -206,7 +206,7 @@
 
 | Capability | Parser | Planner | Runtime | JFTrade | Frontend | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| JFTrade Pine v6 main path | yes | yes | yes | yes | yes | 新建、保存、预览、回测、实例化和启动统一使用 sourceFormat=pine-v6 + runtime=pine-go-plan；旧 source/runtime 与旧 visual model 明确拒绝。 |
+| JFTrade Pine v6 main path | yes | yes | yes | yes | yes | 新建、保存、预览、回测、实例化和启动统一使用 sourceFormat=pine-v6 + runtime=pine-pinets；旧 source/runtime 与旧 visual model 明确拒绝。 |
 | Backtest capital and trading costs | yes | yes | yes | yes | yes | API initialBalance > Pine initial_capital > 系统默认；支持 percent/cash commission 与按最小价格单位计算的 slippage ticks，仅作用于回测。 |
 | Pine metadata and diagnostics | yes | yes | yes | yes | yes | 统一通过 AnalyzeScript、strategy.pine_spec、编辑器提示、结构化 diagnostics、visuals/declarations/collectionOperations/objectOperations metadata 和 semantic summary 暴露。 |
 | Source-aware indicators | yes | yes | yes | yes | yes | MA/RSI/stdev/variance/CCI/rolling/source-aware MTF 使用稳定 key；close 保留 legacy key。 |
