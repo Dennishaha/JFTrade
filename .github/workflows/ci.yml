@@ -25,6 +25,9 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Install CI tools
         run: |
           sudo apt-get update
@@ -60,6 +63,12 @@ jobs:
 
       - name: Frontend typecheck
         run: npm run typecheck:web
+
+      - name: PineTS worker test
+        run: npm run test:pineworker
+
+      - name: PineTS worker typecheck
+        run: npm run typecheck:pineworker
 
       - name: Frontend build
         run: npm run build:web
