@@ -11,6 +11,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 func normalizeStrategyDesignDefinition(input strategyDesignDefinition) (strategyDesignDefinition, error) {
@@ -140,9 +141,9 @@ func strategyDesignDefinitionMeaningfullyChanged(left, right strategyDesignDefin
 }
 
 func normalizeStrategyRuntime(runtime string) (string, error) {
-	normalized := strings.TrimSpace(strings.ToLower(runtime))
-	if normalized == "" || normalized == strategyRuntimePinePlan {
-		return strategyRuntimePinePlan, nil
+	normalized := pineworker.NormalizeRuntime(runtime)
+	if normalized == strategyRuntimePinePlan {
+		return normalized, nil
 	}
 	return "", fmt.Errorf("%w: runtime %q is no longer supported; use %s", errUnsupportedLegacyStrategyDefinition, runtime, strategyRuntimePinePlan)
 }

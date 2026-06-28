@@ -5,6 +5,7 @@ import (
 	"time"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 func strategyPluginIDForDefinition(definition strategyDesignDefinition) string {
@@ -14,7 +15,7 @@ func strategyPluginIDForDefinition(definition strategyDesignDefinition) string {
 
 func strategyRuntimeFromParams(params map[string]any) string {
 	if runtime, ok := params["runtime"].(string); ok {
-		normalized := strings.TrimSpace(strings.ToLower(runtime))
+		normalized := pineworker.NormalizeRuntime(runtime)
 		if normalized != "" {
 			return normalized
 		}
@@ -69,5 +70,5 @@ func buildStrategyInstanceID(definitionID string) string {
 }
 
 func IDPinePlanPlugin() string {
-	return "pine-go-plan"
+	return strategyRuntimePinePlan
 }

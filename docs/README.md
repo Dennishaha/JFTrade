@@ -17,6 +17,7 @@
 - [adk.md](adk.md)：GO-ADK / Agent 控制面、权限模式、内置 tools 和运行时文件。
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口。
 - [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：策略定义、Logic Flow、Pine 编辑与 visual model 同步。
+- [pinets-hardcut-migration.md](pinets-hardcut-migration.md)：PineTS 硬切替换 Go Pine runtime 的执行计划、进度、测试覆盖和性能门禁。
 - [reference/README.md](reference/README.md)：协议细节、OpenD 资料和上游参考。
 
 ### 3. 最后再看历史收口记录

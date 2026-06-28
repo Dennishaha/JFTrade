@@ -6,6 +6,7 @@ import (
 	"time"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 func (s *strategyCatalogStore) normalizePlugin(input managedStrategyPlugin) managedStrategyPlugin {
@@ -67,7 +68,7 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if runtime := jftradeOptionalTypeAssertion[string](input.Params["runtime"]); strings.TrimSpace(runtime) == "" {
 		input.Params["runtime"] = strategyRuntimePinePlan
 	} else {
-		input.Params["runtime"] = strings.TrimSpace(strings.ToLower(runtime))
+		input.Params["runtime"] = pineworker.NormalizeRuntime(runtime)
 	}
 	if sourceFormat := jftradeOptionalTypeAssertion[string](input.Params["sourceFormat"]); strings.TrimSpace(sourceFormat) == "" {
 		input.Params["sourceFormat"] = strategydefinition.SourceFormatPineV6
