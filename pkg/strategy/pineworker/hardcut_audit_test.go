@@ -288,6 +288,8 @@ func assertCIExercisesPineTSWorker(t *testing.T, root string) {
 		"oven-sh/setup-bun",
 		"npm run test:pineworker",
 		"npm run typecheck:pineworker",
+		"npm run build:frontend-assets",
+		"go test -tags release_assets ./internal/frontendassets -run TestFileSystem",
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("%s does not exercise PineTS worker gate %q", rel, required)
