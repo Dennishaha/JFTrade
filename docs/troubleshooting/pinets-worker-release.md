@@ -6,8 +6,8 @@
 
 发布二进制必须同时满足：
 
-- 商业 `pinets` 包已按许可证策略安装、锁定并记录版本。
-- 发布执行人已确认商业授权并设置 `JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1`；不要用公开 AGPL 包替代商业授权。
+- 公开 `pinets` 包已按 npm lockfile 安装、锁定并记录版本；当前 `pinets@0.9.26` npm license 为 `AGPL-3.0-only`。
+- 发布合规材料必须按公开 `pinets` 许可证准备；商业 PineTS 授权计划已取消。
 - worker 以真实 PineTS executor 启动，未启用 mock。
 - 真实 worker 进程通过 localhost gRPC smoke，覆盖 `HealthCheck` 和 `RunScript`。
 - `scripts/build-pineworker-assets.sh` 通过 `bun build --compile` 生成目标平台 Bun SEA / 单文件 worker 二进制。
@@ -15,7 +15,7 @@
 - `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` 后的发布产物必须存在、非空且可执行。
 - Go、worker、前端 focused test、coverage、performance gate 和 `git diff --check` 通过。
 
-当前仓库还未满足最终发布：`npm ls pinets --workspaces --depth=1` 为空，真实非 mock PineTS worker 进程 smoke 还不能作为放行依据。
+当前仓库已锁定公开 `pinets@0.9.26`，但真实非 mock PineTS worker 进程 smoke 还不能作为放行依据。
 
 ## 运行模式
 
@@ -33,7 +33,7 @@ bash scripts/build-pineworker-assets.sh
 go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 ```
 
-`scripts/build-pineworker-assets.sh` 会先执行商业 `pinets` 包和许可证 attestation 检查。未安装商业包、未设置 `JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1`，或检测到公开 AGPL 包时，脚本会在调用 `bun build` 前失败。
+`scripts/build-pineworker-assets.sh` 会先确认 `pinets` 包已安装并输出其 license。未安装 `pinets` 时，脚本会在调用 `bun build` 前失败。
 
 worker 资产构建采用 Bun SEA / Bun single-file executable 路线：每个目标平台生成一个可执行 worker，暂存到 `internal/pineworkerassets/assets/bin`，再通过 `release_assets` 构建嵌入 Go。最终对外发布的仍是单个 `dist/trading-engine` 文件；运行时 Go 会释放匹配平台的 worker 到临时目录、校验 SHA256、启动固定数量的 localhost gRPC 子进程，并在关闭时清理。
 
@@ -97,9 +97,9 @@ npm run check:pinets-release
 
 严格模式默认输出单文件 `dist/trading-engine`。临时验证其他输出路径时可以设置 `JFTRADE_PINETS_RELEASE_OUT`。
 
-严格模式还会读取 `node_modules/pinets/package.json` 的 `license` 字段。若公开包显示 `AGPL-3.0-only`，即使依赖已安装也仍会阻塞发布，直到商业授权和包来源完成记录。
+严格模式还会读取 `node_modules/pinets/package.json` 的 `license` 字段并打印出来，供发布记录和合规检查使用；公开 `AGPL-3.0-only` 包不会再因为缺少商业 attestation 被脚本阻塞。
 
-迁移阶段如果只是要确认除商业 `pinets` 包之外的门禁，可以使用：
+迁移阶段如果 `pinets` 包缺失导致 strict release 被阻塞，可以使用：
 
 ```bash
 bash scripts/check-pinets-release.sh --allow-blocked
@@ -112,7 +112,7 @@ npm run test:pinets-release-check
 npm run test:pineworker-asset-build
 ```
 
-在商业 `pinets` 包未安装前，`npm install` 和真实 worker 运行不能代表最终放行。构建产物也不应进入正式发布。
+在真实非 mock PineTS worker smoke 通过前，构建产物不应进入正式发布。
 
 ## 非 mock smoke
 

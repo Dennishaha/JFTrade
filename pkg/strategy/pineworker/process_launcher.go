@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,6 +28,8 @@ type BinaryWorkerLauncherConfig struct {
 	Mock            bool
 	ExtraArgs       []string
 	Env             []string
+	Stdout          io.Writer
+	Stderr          io.Writer
 	StopTimeout     time.Duration
 }
 
@@ -63,6 +66,8 @@ func (launcher *BinaryWorkerLauncher) Start(ctx context.Context, spec WorkerSpec
 	if len(launcher.config.Env) > 0 {
 		cmd.Env = append(os.Environ(), launcher.config.Env...)
 	}
+	cmd.Stdout = launcher.config.Stdout
+	cmd.Stderr = launcher.config.Stderr
 	if err := cmd.Start(); err != nil {
 		_ = os.Remove(path)
 		return nil, fmt.Errorf("start pine worker process: %w", err)

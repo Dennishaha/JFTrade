@@ -13,14 +13,7 @@
   },
   "dependencies": {
     "@grpc/grpc-js": "1.14.4",
-    "@grpc/proto-loader": "0.8.1"
-  },
-  "peerDependencies": {
+    "@grpc/proto-loader": "0.8.1",
     "pinets": "^0.9.26"
-  },
-  "peerDependenciesMeta": {
-    "pinets": {
-      "optional": true
-    }
   }
 }
