@@ -318,6 +318,9 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 		},
 		"scripts/check-pinets-release.sh": {
 			"pinets_check_package_and_license",
+			"npm run test:web",
+			"npm run typecheck:web",
+			"git diff --check",
 			"dist/trading-engine",
 			"go build -tags release_assets -o",
 		},
@@ -328,6 +331,9 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 		"scripts/check-pinets-release.test.sh": {
 			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
 			"AGPL-3.0-only",
+			"npm run test:web",
+			"npm run typecheck:web",
+			"git diff --check",
 			"JFTRADE_PINETS_RELEASE_OUT",
 			"go build -tags release_assets -o",
 		},

@@ -47,8 +47,11 @@ run go test ./pkg/strategy/pineworker -run Test -cover
 run go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem
 run npm run test:pineworker
 run npm run typecheck:pineworker
+run npm run test:web
+run npm run typecheck:web
 run npm run build:frontend-assets
 run go test -tags release_assets ./internal/frontendassets -run TestFileSystem
+run git diff --check
 
 if [[ "$BLOCKED" -eq 0 ]]; then
   run env JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v

@@ -415,3 +415,4 @@ Hard-cut means:
 | 2026-06-29 | Split `internal/pineworkerassets` dev/release tests | Pass; dev builds still verify missing assets are unavailable while `release_assets` builds verify staged worker binaries return data and SHA256 |
 | 2026-06-29 | Updated `scripts/check-pinets-release.sh` | Pass; strict unblocked release acceptance now builds `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` after worker asset generation and release asset tests |
 | 2026-06-29 | Aligned release output name | Pass; `scripts/check-pinets-release.sh` now defaults to the single-file `dist/trading-engine` release artifact and supports `JFTRADE_PINETS_RELEASE_OUT` for test output isolation |
+| 2026-06-29 | Updated `scripts/check-pinets-release.sh` | Pass; release acceptance now runs web tests, web typecheck, and `git diff --check` in addition to worker, coverage, performance, and release asset gates |
