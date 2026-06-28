@@ -21,7 +21,7 @@
 | 2. Proto contract | Done | `pkg/strategy/pineworker/proto/pineworker.proto` mirrors the Go contract and compiles through `protoc`. |
 | 3. Worker PoC | Done | Bun worker core validates requests, adapts custom OHLCV data to the PineTS constructor shape, normalizes plots/logs/order intents, exposes a gRPC server boundary, and has Bun tests. Real PineTS dependency wiring remains blocked on commercial license and package-lock policy. |
 | 4. gRPC bridge | In progress | Go worker client abstraction, generated Go gRPC transport, and Bun gRPC server boundary are covered by fake/bufconn/Bun tests. Real JS gRPC dependencies, process-level end-to-end tests, and worker packaging remain. |
-| 5. Worker manager | Not started | Go starts N embedded workers, assigns ports, checks health, restarts crashes, drains on shutdown, and exposes status. |
+| 5. Worker manager | In progress | Go `WorkerManager` starts fixed worker specs, assigns ports, dials transports, round-robins healthy workers, restarts failed health checks, drains on shutdown, and exposes snapshots with fake-backed tests. Real Bun binary launcher/embed remains. |
 | 6. Backtest integration | Not started | Backtest calls PineTS worker for intents, then Go produces trades, order book, equity curve, drawdown, and metrics. |
 | 7. Live integration | Not started | Bar-close live flow calls worker, applies Go risk, places orders through broker APIs, and records runtime observation. |
 | 8. Hard removal | Not started | `pkg/strategy/pineruntime`, Go TradingView parity extensions, self-built support matrix docs, and old UI toggles are removed. |
@@ -78,6 +78,15 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - `GRPCTransport` maps between protobuf messages and the local Go contract, with bufconn coverage for `HealthCheck` and `RunScript`.
 - Production integrations must use the client rather than calling gRPC stubs directly.
 
+## Worker Manager Boundary
+
+`pkg/strategy/pineworker.WorkerManager` owns lifecycle and scheduling policy while keeping process launch and transport dialing injectable.
+
+- `WorkerLauncher` is the future seam for extracting embedded Bun worker binaries and starting child processes.
+- `TransportDialer` is the future seam for localhost gRPC clients.
+- Current manager tests cover fixed port allocation, round-robin dispatch, health-check restart, failed restart reporting, startup cleanup, shutdown cleanup, and snapshot state.
+- Real process launch, binary extraction, platform selection, checksum validation, and process-level smoke tests remain in packaging/manager follow-up slices.
+
 ## Coverage Gates
 
 - New Go packages must have focused table tests for normalization, validation, defaulting, error mapping, and performance gate decisions.
@@ -132,7 +141,7 @@ Hard-cut means:
 2. Add worker proto mirroring the Go contract.
 3. Finish Bun gRPC worker server around the worker core.
 4. Add process-level worker smoke tests with real JS gRPC dependencies or a locked dependency policy.
-5. Add Go WorkerManager for child process lifecycle, health, restart, and load balancing.
+5. Add real Bun worker launcher/embed extraction for WorkerManager.
 6. Route backtest through the worker behind the new `pine-pinets` runtime.
 7. Update live runtime manager after backtest correctness and performance gates are stable.
 8. Delete Go Pine runtime/parity surfaces and update docs/UI.
@@ -168,3 +177,7 @@ Hard-cut means:
 | 2026-06-29 | `wc -l workers/pineworker/package.json workers/pineworker/tsconfig.json workers/pineworker/src/*.ts` | Largest worker file 192 lines, below 1200 |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover && go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, 87.6% statement coverage and ~6.29 ns/op; run after codegen because `scripts/gen-pineworker-proto.sh` recreates `pineworkerpb` |
 | 2026-06-29 | `go test ./internal/app/apiserver/servercore -run 'TestNormalizeStrategyRuntimeUsesPineTSAndMigratesLegacy\|TestStrategyRuntimeFromParamsMigratesLegacyRuntime\|TestStrategyCatalogNormalizeStrategyMigratesLegacyRuntime\|TestStrategyCatalogNormalizeStrategyAppliesDefaults\|TestStrategyDefinitionEndpoints'` | Pass |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 88.5% statement coverage after WorkerManager lifecycle tests |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~5.98 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
+| 2026-06-29 | `scripts/gen-pineworker-proto.sh` | Pass; run before Go tests when generated files may be absent or stale |
