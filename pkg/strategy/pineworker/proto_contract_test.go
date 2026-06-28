@@ -38,8 +38,15 @@ func TestPineWorkerProtoCompilesAndExposesContract(t *testing.T) {
 		t.Fatalf("unmarshal descriptor: %v", err)
 	}
 	file := findProtoFile(t, &files, "proto/pineworker.proto")
+	typesFile := findProtoFile(t, &files, "proto/pineworker_types.proto")
 	if file.GetPackage() != "jftrade.strategy.pineworker.v1" {
 		t.Fatalf("package = %q", file.GetPackage())
+	}
+	if !fileImports(file, "proto/pineworker_types.proto") {
+		t.Fatal("pineworker.proto must import pineworker_types.proto")
+	}
+	if !fileImports(typesFile, "proto/pineworker_common.proto") {
+		t.Fatal("pineworker_types.proto must import pineworker_common.proto")
 	}
 	service := findService(t, file, "PineWorker")
 	for _, method := range []string{"HealthCheck", "AnalyzeScript", "RunScript"} {
@@ -47,18 +54,28 @@ func TestPineWorkerProtoCompilesAndExposesContract(t *testing.T) {
 			t.Fatalf("service PineWorker missing method %s", method)
 		}
 	}
-	runRequest := findMessage(t, file, "RunScriptRequest")
+	runRequest := findMessage(t, typesFile, "RunScriptRequest")
 	for _, field := range []string{"job_id", "script_id", "source", "symbol", "timeframe", "mode", "candles", "params"} {
 		if !messageHasField(runRequest, field) {
 			t.Fatalf("RunScriptRequest missing field %s", field)
 		}
 	}
-	intent := findMessage(t, file, "OrderIntent")
+	commonFile := findProtoFile(t, &files, "proto/pineworker_common.proto")
+	intent := findMessage(t, commonFile, "OrderIntent")
 	for _, field := range []string{"kind", "id", "direction", "quantity", "quantity_pct", "limit_price", "stop_price", "has_quantity", "has_limit_price"} {
 		if !messageHasField(intent, field) {
 			t.Fatalf("OrderIntent missing field %s", field)
 		}
 	}
+}
+
+func fileImports(file *descriptorpb.FileDescriptorProto, name string) bool {
+	for _, dependency := range file.GetDependency() {
+		if dependency == name {
+			return true
+		}
+	}
+	return false
 }
 
 func findProtoFile(t *testing.T, files *descriptorpb.FileDescriptorSet, name string) *descriptorpb.FileDescriptorProto {
