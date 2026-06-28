@@ -8,6 +8,7 @@ import type {
 } from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import { buildPineStrategyDefinitionPayload } from "./strategy-runtime/strategyDefinitionPayload";
 import {
   formatStrategyInterval,
   formatStrategyRuntimeRiskSummary,
@@ -444,18 +445,16 @@ async function saveDefinition(options: { requireAnalysis?: boolean } = {}): Prom
   actionFeedback.value = "";
   error.value = "";
   try {
-    const payload: StrategyDefinitionDocument = {
+    const payload = buildPineStrategyDefinitionPayload({
       id: selectedDefinitionId.value,
       name: definitionName.value.trim() || workflow.value.declaration.title || "Pine v6 策略",
       version: definitionVersion.value.trim() || "0.1.0",
       description: definitionDescription.value.trim(),
-      runtime: "pine-go-plan",
-      sourceFormat: "pine-v6",
       script: activeScript.value,
       visualModel: compatibleWorkflowSnapshot(),
       createdAt: selectedDefinition.value?.createdAt ?? "",
       updatedAt: selectedDefinition.value?.updatedAt ?? "",
-    };
+    });
     const existing = strategyDefinitions.value.some((definition) => definition.id === selectedDefinitionId.value);
     const saved = await fetchEnvelopeWithInit<StrategyDefinitionDocument>(
       existing
@@ -1183,12 +1182,10 @@ button:disabled {
   background: color-mix(in srgb, #22c55e 18%, var(--tv-bg-surface));
   color: color-mix(in srgb, #86efac 72%, var(--tv-text));
 }
-
 .strategy-native-status--paused {
   background: color-mix(in srgb, #f59e0b 18%, var(--tv-bg-surface));
   color: color-mix(in srgb, #fbbf24 72%, var(--tv-text));
 }
-
 .strategy-native-status--stopped {
   background: color-mix(in srgb, var(--tv-text-muted) 18%, var(--tv-bg-surface));
   color: var(--tv-text-muted);
@@ -1197,9 +1194,6 @@ button:disabled {
 @media (max-width: 860px) {
   .strategy-native-header {
     grid-template-columns: 1fr;
-  }
-
-  .strategy-native-header {
     align-items: stretch;
   }
 }

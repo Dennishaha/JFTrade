@@ -93,7 +93,7 @@ describe("buildADKToolVisualization", () => {
     const spec = buildADKToolVisualization("strategy.pine_spec", {
       version: "v6",
       sourceFormat: "pine-v6",
-      runtime: "pine-go-plan",
+      runtime: "pine-pinets",
       selectedSection: "support-matrix",
       sections: [{ id: "support-matrix", title: "支持矩阵" }],
       supportedHooks: ["on_kline_close"],
@@ -110,7 +110,7 @@ describe("buildADKToolVisualization", () => {
 
     const validation = buildADKToolVisualization("strategy.validate_pine", {
       ok: true,
-      runtime: "pine-go-plan",
+      runtime: "pine-pinets",
       hooks: ["on_kline_close"],
       metadata: {
         name: "Mean Revert",
@@ -138,7 +138,7 @@ describe("buildADKToolVisualization", () => {
         version: "0.1.2",
         symbol: "US.TME",
         interval: "15m",
-        runtime: "pine-go-plan",
+        runtime: "pine-pinets",
         sourceFormat: "pine-v6",
         updatedAt: "2026-06-10T10:00:00Z",
       },
@@ -152,7 +152,7 @@ describe("buildADKToolVisualization", () => {
       updatedFields: ["executionMode"],
       instance: {
         id: "inst-1",
-        runtime: "pine-go-plan",
+        runtime: "pine-pinets",
         status: "STOPPED",
         definition: { name: "Mean Revert" },
         binding: {

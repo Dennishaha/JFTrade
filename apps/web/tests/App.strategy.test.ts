@@ -29,7 +29,7 @@ describe("Strategy page Pine v6 workflow", () => {
             name: "Native EMA",
             version: "0.1.0",
             description: "pine workflow",
-            runtime: "pine-go-plan",
+            runtime: "pine-pinets",
             sourceFormat: "pine-v6",
             symbol: "00700",
             interval: "5m",
