@@ -22,7 +22,13 @@
 开发态优先使用外部 worker：
 
 ```bash
-export JFTRADE_PINEWORKER_BINARY=/absolute/path/to/worker-darwin-arm64
+npm run dev:api:pineworker
+```
+
+如果需要手动控制 worker 路径，可以先构建当前平台 worker，再设置环境变量：
+
+```bash
+export JFTRADE_PINEWORKER_BINARY="$(npm run --silent build:pineworker:dev | tail -n 1)"
 go run ./cmd/jftrade-api
 ```
 

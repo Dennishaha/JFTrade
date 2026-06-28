@@ -73,7 +73,7 @@ func (s *Server) startPineWorkerManager(ctx context.Context) *pineworker.WorkerM
 		return nil
 	}
 	if !enabled {
-		log.Printf("JFTrade PineTS worker manager not started: %s is not configured", envPineWorkerBinary)
+		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `npm run dev:api:pineworker` or set %s=/absolute/path/to/worker", envPineWorkerBinary, envPineWorkerBinary)
 		return nil
 	}
 
