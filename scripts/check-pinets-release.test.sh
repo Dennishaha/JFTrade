@@ -112,3 +112,8 @@ if ! grep -q "env JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy
   cat "$RUN_LOG" >&2
   exit 1
 fi
+if ! grep -q "go build -tags release_assets ./cmd/jftrade-api" "$RUN_LOG"; then
+  echo "unblocked release check did not build release_assets API binary" >&2
+  cat "$RUN_LOG" >&2
+  exit 1
+fi
