@@ -70,8 +70,11 @@ jobs:
       - name: PineTS worker typecheck
         run: npm run typecheck:pineworker
 
-      - name: Frontend build
-        run: npm run build:web
+      - name: Frontend embedded asset build
+        run: npm run build:frontend-assets
+
+      - name: Frontend release asset test
+        run: go test -tags release_assets ./internal/frontendassets -run TestFileSystem
 
       - name: Architecture dependency check
         run: bash scripts/check-arch-deps.sh
