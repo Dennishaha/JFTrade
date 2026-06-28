@@ -81,6 +81,24 @@ go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$'
 go build -tags release_assets ./cmd/jftrade-api
 ```
 
+也可以直接运行发布验收脚本：
+
+```bash
+npm run check:pinets-release
+```
+
+迁移阶段如果只是要确认除商业 `pinets` 包之外的门禁，可以使用：
+
+```bash
+bash scripts/check-pinets-release.sh --allow-blocked
+```
+
+发布脚本自身的阻塞/放行分支可以用 stub 测试验证：
+
+```bash
+npm run test:pinets-release-check
+```
+
 在商业 `pinets` 包未安装前，`npm install` 和真实 worker 运行不能代表最终放行。构建产物也不应进入正式发布。
 
 ## 非 mock smoke

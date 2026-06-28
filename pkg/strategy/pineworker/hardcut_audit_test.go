@@ -16,6 +16,7 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertLegacyRuntimeIDOnlyInMigrationShims(t, root)
 	assertLegacyRuntimePackageRemoved(t, root)
 	assertNoUnexpectedPineRuntimeImports(t, root)
+	assertNoStalePineRuntimePerformanceGate(t, root)
 }
 
 func pineWorkerRepoRoot(t *testing.T) string {
@@ -228,5 +229,27 @@ func assertNoUnexpectedPineRuntimeImports(t *testing.T, root string) {
 	}
 	if len(offenders) > 0 {
 		t.Fatalf("unexpected Go Pine runtime imports outside hard-cut allowlist: %s", strings.Join(offenders, ", "))
+	}
+}
+
+func assertNoStalePineRuntimePerformanceGate(t *testing.T, root string) {
+	t.Helper()
+	rel := ".github/workflows/backtest-performance-gate.yml"
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", rel, err)
+	}
+	text := string(data)
+	for _, stale := range []string{
+		"pkg/strategy/pineruntime",
+		"BenchmarkPineRuntime",
+		"BenchmarkRunExecutesPineGoldenMatrix",
+	} {
+		if strings.Contains(text, stale) {
+			t.Fatalf("%s still references removed Go Pine performance gate %q", rel, stale)
+		}
+	}
+	if !strings.Contains(text, "BenchmarkCheckPerformanceGate") {
+		t.Fatalf("%s does not run the PineTS worker performance gate", rel)
 	}
 }

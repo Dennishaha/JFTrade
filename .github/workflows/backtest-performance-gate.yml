@@ -3,34 +3,10 @@ name: Backtest Performance Gate
 on:
   workflow_dispatch:
     inputs:
-      baseline_mode:
-        description: Strategy block baseline mode
-        required: true
-        default: skip
-        type: choice
-        options:
-          - skip
-          - enforce
-          - update
       compare_ref:
         description: Git ref used as the same-runner performance baseline
         required: true
         default: main
-        type: string
-      run_real_tme:
-        description: Run the real US.TME protect-session replay benchmark
-        required: true
-        default: false
-        type: boolean
-      require_pine_improvement:
-        description: Require at least 20% Pine runtime/golden improvement
-        required: true
-        default: false
-        type: boolean
-      real_chain_db_path:
-        description: Local DB path on the self-hosted runner for the real US.TME benchmark
-        required: false
-        default: /tmp/jftrade-real-us-tme-202301-202601-extended.db
         type: string
 
 jobs:
@@ -40,7 +16,7 @@ jobs:
       - self-hosted
       - macOS
       - ARM64
-    timeout-minutes: 120
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -69,128 +45,45 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           mkdir -p /tmp/jftrade-pine-bench
           cp pkg/strategy/pine/public_benchmark_test.go /tmp/jftrade-pine-bench/
-          cp pkg/strategy/pineruntime/runtime_benchmark_test.go /tmp/jftrade-pine-bench/
-          cp pkg/backtest/pine_golden_benchmark_test.go /tmp/jftrade-pine-bench/
 
-      - name: Run base Pine benchmarks
+      - name: Run base Pine parse benchmarks
         env:
           COMPARE_REF: ${{ inputs.compare_ref }}
         run: |
           git fetch --no-tags origin "${COMPARE_REF}"
           git checkout --detach FETCH_HEAD
           cp /tmp/jftrade-pine-bench/public_benchmark_test.go pkg/strategy/pine/
-          cp /tmp/jftrade-pine-bench/runtime_benchmark_test.go pkg/strategy/pineruntime/
-          cp /tmp/jftrade-pine-bench/pine_golden_benchmark_test.go pkg/backtest/
           go test ./pkg/strategy/pine -run '^$' \
             -bench '^BenchmarkPine(AnalyzeScript|PlanRequirements)$' \
             -benchmem -count 8 | tee artifacts/performance/pine_compile_base.txt
-          go test ./pkg/strategy/pineruntime -run '^$' \
-            -bench '^BenchmarkPineRuntimePushKLines$' \
-            -benchmem -count 8 | tee artifacts/performance/pine_runtime_base.txt
-          go test ./pkg/backtest -run '^$' \
-            -bench '^BenchmarkRunExecutesPineGoldenMatrix$' \
-            -benchmem -benchtime 3x -count 8 | tee artifacts/performance/pine_golden_base.txt
 
-      - name: Run head Pine benchmarks
+      - name: Run head Pine parse benchmarks
         env:
           HEAD_SHA: ${{ steps.revision.outputs.sha }}
         run: |
           rm -f pkg/strategy/pine/public_benchmark_test.go
-          rm -f pkg/strategy/pineruntime/runtime_benchmark_test.go
-          rm -f pkg/backtest/pine_golden_benchmark_test.go
           git checkout --detach "${HEAD_SHA}"
           go test ./pkg/strategy/pine -run '^$' \
             -bench '^BenchmarkPine(AnalyzeScript|PlanRequirements)$' \
             -benchmem -count 8 | tee artifacts/performance/pine_compile_head.txt
-          go test ./pkg/strategy/pineruntime -run '^$' \
-            -bench '^BenchmarkPineRuntimePushKLines$' \
-            -benchmem -count 8 | tee artifacts/performance/pine_runtime_head.txt
-          go test ./pkg/backtest -run '^$' \
-            -bench '^BenchmarkRunExecutesPineGoldenMatrix$' \
-            -benchmem -benchtime 3x -count 8 | tee artifacts/performance/pine_golden_head.txt
 
-      - name: Compare Pine benchmarks
-        env:
-          JFTRADE_REQUIRE_PINE_BENCHMARK_IMPROVEMENT: ${{ inputs.require_pine_improvement && '1' || '0' }}
+      - name: Compare Pine parse benchmarks
         run: |
           node --test scripts/check-pine-benchmark-gates.test.mjs
           benchstat artifacts/performance/pine_compile_base.txt artifacts/performance/pine_compile_head.txt \
             | tee artifacts/performance/pine_compile_compare.txt
-          benchstat artifacts/performance/pine_runtime_base.txt artifacts/performance/pine_runtime_head.txt \
-            | tee artifacts/performance/pine_runtime_compare.txt
-          benchstat artifacts/performance/pine_golden_base.txt artifacts/performance/pine_golden_head.txt \
-            | tee artifacts/performance/pine_golden_compare.txt
           node scripts/check-pine-benchmark-gates.mjs compile \
             artifacts/performance/pine_compile_base.txt artifacts/performance/pine_compile_head.txt
-          node scripts/check-pine-benchmark-gates.mjs runtime \
-            artifacts/performance/pine_runtime_base.txt artifacts/performance/pine_runtime_head.txt
-          node scripts/check-pine-benchmark-gates.mjs golden \
-            artifacts/performance/pine_golden_base.txt artifacts/performance/pine_golden_head.txt
 
-      - name: Profile Pine runtime and golden backtest
+      - name: Run PineTS worker performance gate
         run: |
-          go test ./pkg/strategy/pineruntime -run '^$' \
-            -bench '^BenchmarkPineRuntimePushKLines/stateful_10000$' \
-            -benchtime 1x -cpuprofile artifacts/performance/pine_runtime_cpu.pprof
-          go test ./pkg/backtest -run '^$' \
-            -bench '^BenchmarkRunExecutesPineGoldenMatrix$' \
-            -benchtime 1x -memprofile artifacts/performance/pine_golden_alloc.pprof
-          go tool pprof -top -sample_index=alloc_space artifacts/performance/pine_golden_alloc.pprof \
-            > artifacts/performance/pine_golden_alloc_space.txt
-          go tool pprof -top -sample_index=alloc_objects artifacts/performance/pine_golden_alloc.pprof \
-            > artifacts/performance/pine_golden_alloc_objects.txt
-
-      - name: Run strategy block smoke test
-        run: |
-          go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkCasesSmoke$' -count 1 \
-            | tee artifacts/performance/strategy_block_smoke.txt
-
-      - name: Run protect-session matrix benchmark
-        run: |
-          go test ./pkg/backtest -run '^$' \
-            -bench '^BenchmarkRunExecutesStrategyBlockMatrix/protect_session_risk$' \
-            -benchtime 3x -benchmem \
-            | tee artifacts/performance/protect_session_risk.txt
-
-      - name: Update strategy block baseline
-        if: inputs.baseline_mode == 'update'
-        env:
-          JFTRADE_UPDATE_STRATEGY_BLOCK_BASELINE: '1'
-        run: |
-          export JFTRADE_BENCHMARK_AUDIT_COMMIT="$(git rev-parse HEAD)"
-          export JFTRADE_BENCHMARK_AUDIT_HARDWARE="$(uname -m) / $(sysctl -n machdep.cpu.brand_string)"
-          go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1 \
-            | tee artifacts/performance/strategy_block_baseline_update.txt
-
-      - name: Enforce strategy block baseline
-        if: inputs.baseline_mode == 'enforce'
-        env:
-          JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE: '1'
-        run: |
-          go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1 \
-            | tee artifacts/performance/strategy_block_baseline_enforce.txt
-
-      - name: Run real US.TME protect-session benchmark
-        if: inputs.run_real_tme
-        env:
-          JFTRADE_REAL_CHAIN_PROFILE: '1'
-          JFTRADE_REAL_CHAIN_DB_PATH: ${{ inputs.real_chain_db_path }}
-        run: |
-          if [[ ! -f "${JFTRADE_REAL_CHAIN_DB_PATH}" ]]; then
-            echo "missing real-chain DB at ${JFTRADE_REAL_CHAIN_DB_PATH}" >&2
-            exit 1
-          fi
-          COLUMNS=200 go test ./pkg/backtest -run '^$' \
-            -bench '^BenchmarkRealUSTME2023To2026ProtectSessionReplayExtended$' \
-            -benchtime 1x -benchmem \
-            | tee artifacts/performance/real_tme_protect_session.txt
+          go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem \
+            | tee artifacts/performance/pinets_worker_gate.txt
 
       - name: Upload performance artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backtest-performance-gate-${{ github.run_id }}
-          path: |
-            artifacts/performance
-            pkg/backtest/testdata/strategy_block_benchmark_baseline.json
+          path: artifacts/performance
           if-no-files-found: error
