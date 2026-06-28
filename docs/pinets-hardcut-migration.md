@@ -22,7 +22,7 @@
 | 3. Worker PoC | Done | Bun worker core validates requests, adapts custom OHLCV data to the PineTS constructor shape, normalizes plots/logs/order intents, exposes a gRPC server boundary, and has Bun tests. Real PineTS dependency wiring remains blocked on commercial license and package-lock policy. |
 | 4. gRPC bridge | In progress | Go worker client abstraction, generated Go gRPC transport, and Bun gRPC server boundary are covered by fake/bufconn/Bun tests. Real JS gRPC dependencies, process-level end-to-end tests, and worker packaging remain. |
 | 5. Worker manager | In progress | Go `WorkerManager` starts fixed worker specs, assigns ports, dials transports, round-robins healthy workers, restarts failed health checks, drains on shutdown, and exposes snapshots. Binary extraction launcher and gRPC dialer are implemented; real embedded worker assets and process-level smoke tests remain. |
-| 6. Backtest integration | Not started | Backtest calls PineTS worker for intents, then Go produces trades, order book, equity curve, drawdown, and metrics. |
+| 6. Backtest integration | In progress | `pkg/backtest` has a Pine worker adapter that runs worker backtests and maps normalized order intents into Go backtest order commands. Runner replay/matching still needs to consume those commands instead of `pkg/strategy/pineruntime`. |
 | 7. Live integration | Not started | Bar-close live flow calls worker, applies Go risk, places orders through broker APIs, and records runtime observation. |
 | 8. Hard removal | Not started | `pkg/strategy/pineruntime`, Go TradingView parity extensions, self-built support matrix docs, and old UI toggles are removed. |
 | 9. Packaging | Not started | `bun build --compile` creates platform workers; Go embeds and releases matching binaries with checksum validation. |
@@ -89,6 +89,15 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - Current manager tests cover fixed port allocation, round-robin dispatch, health-check restart, failed restart reporting, startup cleanup, shutdown cleanup, snapshot state, binary checksum, process cleanup, and dialer creation.
 - Real embedded worker assets, platform selection, dependency lock policy, and process-level smoke tests remain in packaging/manager follow-up slices.
 
+## Backtest Integration Boundary
+
+`pkg/backtest.PineWorkerBacktestAdapter` is the first backtest-facing contract for worker execution.
+
+- It forces `RunScriptRequest.Mode` to `backtest` and maps worker/transport errors into backtest errors.
+- It converts worker `OrderIntent` values into `WorkerOrderCommand` records with Go-side side, order type, quantity, limit/stop, comments, alerts, bar index, and time.
+- Current tests cover entry, exit, cancel-all, default entry quantity, unsupported intents, transport errors, and worker errors.
+- The runner still needs a follow-up slice that feeds replay candles to the worker and submits resulting commands through Go matching instead of invoking `pkg/strategy/pineruntime`.
+
 ## Coverage Gates
 
 - New Go packages must have focused table tests for normalization, validation, defaulting, error mapping, and performance gate decisions.
@@ -144,7 +153,7 @@ Hard-cut means:
 3. Finish Bun gRPC worker server around the worker core.
 4. Add process-level worker smoke tests with real JS gRPC dependencies or a locked dependency policy.
 5. Add embedded platform worker asset selection and process-level smoke tests.
-6. Route backtest through the worker behind the new `pine-pinets` runtime.
+6. Route backtest replay through `PineWorkerBacktestAdapter` and Go matching.
 7. Update live runtime manager after backtest correctness and performance gates are stable.
 8. Delete Go Pine runtime/parity surfaces and update docs/UI.
 
@@ -187,3 +196,6 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.07 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
 | 2026-06-29 | `go test ./internal/app/apiserver/servercore -run 'TestNormalizeStrategyRuntimeUsesPineTSAndMigratesLegacy\|TestStrategyRuntimeFromParamsMigratesLegacyRuntime\|TestStrategyCatalogNormalizeStrategyMigratesLegacyRuntime\|TestStrategyCatalogNormalizeStrategyAppliesDefaults\|TestStrategyDefinitionEndpoints'` | Pass |
+| 2026-06-29 | `go test ./pkg/backtest -run 'TestCommandsFromOrderIntents\|TestCommandFromOrderIntentDefaultsEntryQuantity\|TestCommandFromOrderIntentRejectsUnsupportedIntent\|TestPineWorkerBacktestAdapter'` | Pass; worker order intent to backtest command adapter covered |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~11.92 ns/op, 0 B/op, 0 allocs/op |
