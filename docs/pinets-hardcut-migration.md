@@ -26,7 +26,7 @@
 | 7. Live integration | In progress | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, and records runtime observation/errors. Worker crash restart and real Bun/PineTS smoke remain. |
 | 8. Hard removal | In progress | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. Remaining work is final audit/acceptance cleanup. |
 | 9. Packaging | In progress | `scripts/build-pineworker-assets.sh` builds platform Bun worker binaries into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Gated process smoke compiles and runs the mock Bun worker through real gRPC. Real PineTS dependency lock policy remains. |
-| 10. Acceptance | Not started | Focused Go/web/worker tests pass; performance gates pass on golden scripts; docs reflect `pine-pinets` as the only Pine runtime. |
+| 10. Acceptance | In progress | Focused Go/web/worker tests, worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. Final release acceptance still depends on the real PineTS package/license smoke and release packaging decision. |
 
 ## Runtime Boundary
 
@@ -338,4 +338,15 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.656 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `wc -l internal/strategy/types_test.go pkg/strategy/pineworker/hardcut_audit_test.go docs/pinets-hardcut-migration.md` | Pass; largest touched file 335 lines, below 1200 |
+| 2026-06-29 | `git diff --check` | Pass |
+| 2026-06-29 | `npm run test:pineworker` | Pass, 14 Bun worker tests |
+| 2026-06-29 | `npm run typecheck:pineworker` | Pass |
+| 2026-06-29 | `go test ./internal/pineworkerassets ./internal/app/apiserver/servercore -run 'TestBinaryName\|TestSelectForPlatform\|TestResolvePineWorkerRuntimeConfig\|TestServerStartsConfiguredPineWorkerManagerAndStopsOnClose\|TestServerStartsEmbeddedPineWorkerManager\|TestServerBacktestDoesNotFallbackToGoRuntimeWithoutPineWorker\|TestStrategyRuntime'` | Pass |
+| 2026-06-29 | `JFTRADE_PINEWORKER_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerProcessSmokeWithBunWorker -v` | Pass; Bun compiled mock worker served real gRPC through `WorkerManager` |
+| 2026-06-29 | `go test ./internal/backtest ./pkg/backtest -run 'TestServiceDefaultBacktest\|TestStartQueuesRunAndExecutesWithInjectedRunner\|TestStartScriptQueuesResearchRunWithoutStrategyProvider\|TestResultView\|TestRunWithPineWorker\|TestCollectPineWorkerReplayKLines\|TestPineWorkerReplayPump\|TestPineWorkerCommandExecutor\|TestPineWorkerReplay\|TestBuildPineWorkerBacktestRequest\|TestPineWorkerBacktestAdapter\|TestCommandsFromOrderIntents\|TestCommandFromOrderIntent\|TestRunDirectGoPineBacktestRemoved'` | Pass |
+| 2026-06-29 | `go test ./pkg/strategy/...` | Pass |
+| 2026-06-29 | `npm --prefix apps/web test -- App.strategy.test.ts App.strategy.runtime.test.ts adkToolVisualizations.test.ts` | Pass, 14 tests |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover && go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, 86.1% statement coverage and ~8.149 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `npm --prefix apps/web run typecheck` | Pass after adding a browser timer compatibility declaration for DOM/Node timer overloads |
+| 2026-06-29 | `wc -l docs/pinets-hardcut-migration.md pkg/strategy/pineworker/hardcut_audit_test.go internal/strategy/types_test.go apps/web/src/types/browser-timers.d.ts` | Pass; largest touched file 341 lines, below 1200 |
 | 2026-06-29 | `git diff --check` | Pass |
