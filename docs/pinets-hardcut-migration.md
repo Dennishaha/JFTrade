@@ -433,3 +433,4 @@ Hard-cut means:
 | 2026-06-29 | Updated `scripts/check-pinets-release.sh` | Pass; strict release acceptance now verifies `dist/trading-engine` exists, is non-empty, and is executable after `go build -tags release_assets` |
 | 2026-06-29 | `bash scripts/check-pinets-release.test.sh` | Pass; stub coverage now includes successful artifact creation and failure when the release artifact is missing |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now requires the release artifact sanity gate and operator checklist wording |
+| 2026-06-29 | Hardened release artifact preparation | Pass; strict release acceptance creates the artifact output directory and removes stale `trading-engine` before building so old binaries cannot satisfy the artifact check |
