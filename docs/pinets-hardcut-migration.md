@@ -21,8 +21,8 @@
 | 2. Proto contract | Done | `pkg/strategy/pineworker/proto/pineworker.proto` mirrors the Go contract and compiles through `protoc`. |
 | 3. Worker PoC | Done | Bun worker core validates requests, adapts custom OHLCV data to the PineTS constructor shape, normalizes plots/logs/order intents, exposes a gRPC server boundary, and has Bun tests. Real PineTS dependency wiring remains blocked on commercial license and package-lock policy. |
 | 4. gRPC bridge | In progress | Go worker client abstraction, generated Go gRPC transport, and Bun gRPC server boundary are covered by fake/bufconn/Bun tests. Real JS gRPC dependencies, process-level end-to-end tests, and worker packaging remain. |
-| 5. Worker manager | In progress | Go `WorkerManager` starts fixed worker specs, assigns ports, dials transports, round-robins healthy workers, restarts failed health checks, drains on shutdown, and exposes snapshots. Binary extraction launcher and gRPC dialer are implemented; real embedded worker assets and process-level smoke tests remain. |
-| 6. Backtest integration | In progress | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` now defaults to the Pine worker path when a runner is configured and fails fast instead of falling back to Go runtime. Startup wiring still needs to inject the real worker manager before removing `pkg/strategy/pineruntime`. |
+| 5. Worker manager | In progress | Go `WorkerManager` starts fixed worker specs, assigns ports, dials transports, round-robins healthy workers, restarts failed health checks, drains on shutdown, and exposes snapshots. Binary extraction launcher, gRPC dialer, and API-server lifecycle wiring are implemented; real embedded worker assets and process-level smoke tests remain. |
+| 6. Backtest integration | In progress | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` defaults to the Pine worker path and API startup injects a configured `WorkerManager` from `JFTRADE_PINEWORKER_BINARY`. Missing worker config now fails fast instead of falling back to Go runtime. |
 | 7. Live integration | Not started | Bar-close live flow calls worker, applies Go risk, places orders through broker APIs, and records runtime observation. |
 | 8. Hard removal | Not started | `pkg/strategy/pineruntime`, Go TradingView parity extensions, self-built support matrix docs, and old UI toggles are removed. |
 | 9. Packaging | Not started | `bun build --compile` creates platform workers; Go embeds and releases matching binaries with checksum validation. |
@@ -86,6 +86,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - `TransportDialer` is the future seam for localhost gRPC clients.
 - `BinaryWorkerLauncher` verifies SHA256, writes the selected worker binary to a temp executable, starts it with address/worker/proto/message-limit args, and stops/removes it.
 - `GRPCDialer` creates localhost gRPC transports with send/receive message limits.
+- API startup reads `JFTRADE_PINEWORKER_*` environment settings, starts the worker manager when a worker binary is configured, injects it into backtest service, and stops it during `Server.Close`.
 - Current manager tests cover fixed port allocation, round-robin dispatch, health-check restart, failed restart reporting, startup cleanup, shutdown cleanup, snapshot state, binary checksum, process cleanup, and dialer creation.
 - Real embedded worker assets, platform selection, dependency lock policy, and process-level smoke tests remain in packaging/manager follow-up slices.
 
@@ -100,9 +101,10 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - The replay pump validates replay candle order, feeds each K-line into bbgo matching, then executes that bar's close-generated worker commands so they are eligible for later-bar matching.
 - `RunWithPineWorker` loads the same K-line store and bbgo backtest exchange, collects replay K-lines for worker planning, routes worker intents through Go matching, and uses the existing result collector for trades/equity/metrics without instantiating `pkg/strategy/pineruntime`.
 - `internal/backtest.Service` accepts a `WithPineWorkerRunner` dependency and its default runner now requires that Pine worker dependency instead of calling `bt.Run`.
+- API server startup no longer injects `bt.Run`; it injects a started Pine worker manager only when `JFTRADE_PINEWORKER_BINARY` is configured and otherwise leaves service-level fail-fast behavior in place.
 - Quantity-percent commands currently fail fast until Go-side position sizing is wired, because Go remains authoritative for account/position state.
-- Current tests cover entry, exit, cancel-all, default entry quantity, unsupported intents, transport errors, worker errors, replay request construction, replay K-line collection, params propagation, command grouping, invalid bar indexes, worker timeout propagation, market/limit order submission, cancel/cancel-all, unsupported sizing, submit/cancel error propagation, replay shape validation, missing/extra bars, consume-before-command ordering, an end-to-end `RunWithPineWorker` smoke through Go matching, and service-level fail-fast when no Pine worker runner is configured.
-- Startup still needs a follow-up slice that creates and injects a real worker manager; direct calls to `pkg/backtest.Run` and `pkg/strategy/pineruntime` remain until that wiring lands.
+- Current tests cover entry, exit, cancel-all, default entry quantity, unsupported intents, transport errors, worker errors, replay request construction, replay K-line collection, params propagation, command grouping, invalid bar indexes, worker timeout propagation, market/limit order submission, cancel/cancel-all, unsupported sizing, submit/cancel error propagation, replay shape validation, missing/extra bars, consume-before-command ordering, an end-to-end `RunWithPineWorker` smoke through Go matching, service-level fail-fast when no Pine worker runner is configured, and API startup wiring for configured/absent worker managers.
+- Direct non-service calls to `pkg/backtest.Run` and `pkg/strategy/pineruntime` remain until CLI/live callers are migrated and hard removal lands.
 
 ## Coverage Gates
 
@@ -231,3 +233,10 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~8.05 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
 | 2026-06-29 | `wc -l internal/backtest/service.go internal/backtest/service_result_view.go internal/backtest/service_pineworker_test.go docs/pinets-hardcut-migration.md` | Pass; largest touched file 1146 lines, below 1200 |
+| 2026-06-29 | `go test ./internal/app/apiserver/servercore -run 'TestResolvePineWorkerRuntimeConfig\|TestServerStartsConfiguredPineWorkerManagerAndStopsOnClose\|TestServerBacktestDoesNotFallbackToGoRuntimeWithoutPineWorker\|TestBacktestRouteAcceptsExplicitMarketAndCode\|TestEnqueueBacktestUsesPineInitialCapitalWhenRequestOmitsBalance'` | Pass; API startup wires configured Pine worker managers, stops them on close, and does not fall back to Go runtime when no worker is configured |
+| 2026-06-29 | `go test ./internal/backtest -run 'TestServiceDefaultBacktest\|TestStartQueuesRunAndExecutesWithInjectedRunner\|TestStartScriptQueuesResearchRunWithoutStrategyProvider\|TestResultView'` | Pass |
+| 2026-06-29 | `go test ./pkg/backtest -run 'TestRunWithPineWorker\|TestCollectPineWorkerReplayKLines\|TestPineWorkerReplayPump\|TestPineWorkerCommandExecutor\|TestPineWorkerReplay\|TestBuildPineWorkerBacktestRequest\|TestPineWorkerBacktestAdapter\|TestCommandsFromOrderIntents\|TestCommandFromOrderIntent'` | Pass |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.75 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
+| 2026-06-29 | `wc -l internal/app/apiserver/servercore/server.go internal/app/apiserver/servercore/pineworker_runtime.go internal/app/apiserver/servercore/pineworker_runtime_test.go docs/pinets-hardcut-migration.md` | Pass; largest touched file 702 lines, below 1200 |
