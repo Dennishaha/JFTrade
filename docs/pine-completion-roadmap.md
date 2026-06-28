@@ -1,10 +1,12 @@
 # Pine v6 Completion Roadmap
 
+> Status: superseded for implementation planning by [PineTS Hard-Cut Migration Plan](pinets-hardcut-migration.md). Keep this document as the compatibility boundary reference only; do not use it to justify new Go Pine runtime or TradingView full-parity work.
+
 ## Summary
 
-JFTrade should not claim blanket 100% TradingView Pine v6 parity until the runtime can reproduce TradingView's broker emulator, cross-symbol data model, full library/type system, and visual object APIs. The practical completion target is therefore split into two explicit tracks:
+JFTrade should not claim blanket 100% TradingView Pine v6 parity. The active direction is PineTS worker execution for the JFTrade executable Pine v6 subset, with Go retaining trading, risk, order, and backtest authority. The practical compatibility boundary is therefore split into two explicit tracks:
 
-- **Executable strategy completion**: closed-bar, same-symbol Pine v6 strategies that can compile, plan, backtest, and run in JFTrade.
+- **Executable strategy completion**: closed-bar, same-symbol Pine v6 strategies that can compile, plan, backtest, and run through PineTS workers in JFTrade.
 - **Full parity boundary**: TradingView-only behavior that remains parseable, diagnosable, or documented as out of scope.
 
 The current `strategy.pine_spec` baseline is `ProductVersion v4.0`. It already goes beyond the older v1.7 95% roadmap: collection/map/matrix subsets, pure object/method subsets, expanded MTF expressions, semantic declarations, native public-surface diagnostics, MTF diagnostic matrix/preflight checks, advanced language boundary diagnostics, generated support snapshots, broker emulator boundary decisions, and large corpus gates are represented in the public spec. The next work should keep that broad surface auditable rather than expanding the score by hiding unsupported TradingView-only behavior.
@@ -13,7 +15,7 @@ The current `strategy.pine_spec` baseline is `ProductVersion v4.0`. It already g
 
 JFTrade Pine v6 is considered complete for the executable strategy track when all of the following are true:
 
-1. Every claimed public Pine form has parser, semantic, lowering, planner, runtime, spec, editor hint, and regression-test coverage.
+1. Every claimed public Pine form has parser, semantic, planner, PineTS worker, spec, editor hint, and regression-test coverage.
 2. `strategy.pine_spec` is the single source of truth for supported, warning-only, and unsupported capabilities.
 3. Unsupported Pine v6 behavior fails with stable diagnostic codes and line ranges, not silent fallback.
 4. Visual builder output uses only Pine v6 native public syntax; internal helper keys remain runtime protocols only.
@@ -25,7 +27,7 @@ JFTrade is **not** complete for full TradingView parity until these separate bou
 ## Current Baseline
 
 - Pine public surface: native `ta.*`, `input.*`, `math.*`, `str.*`, `timeframe.*`, `strategy.*`, and static same-symbol `request.security`.
-- Runtime protocol: internal requirement keys such as `ma:*`, `security_source:*`, `bollinger:*`, `anchored_vwap:*`, and collection/object state keys remain private implementation details.
+- Runtime protocol: internal requirement keys such as `ma:*`, `security_source:*`, `bollinger:*`, `anchored_vwap:*`, and collection/object state keys remain private planning/worker protocol details.
 - Visual authoring: standardizable blocks only; complex scripts stay in the Pine workbench.
 - MTF model: one native subscription plus upward aggregation; no lower-timeframe reconstruction and no cross-symbol live subscription in this track.
 - Execution model: closed-bar strategy runtime, not full TradingView intrabar broker emulation.
@@ -34,7 +36,7 @@ JFTrade is **not** complete for full TradingView parity until these separate bou
 
 Goal: make the public support matrix match the implementation exactly.
 
-- Audit `pkg/strategy/pinespec/spec.go` against parser, semantic, lowering, runtime, and frontend completion lists.
+- Audit `pkg/strategy/pinespec/spec.go` against parser, semantic, planner, PineTS worker behavior, and frontend completion lists.
 - Split each capability into `supported`, `warningOnly`, `diagnosticOnly`, or `outOfScope`.
 - Replace prose-only unsupported descriptions with stable diagnostic IDs for dynamic MTF, broker emulator gaps, library/import, visual APIs, and unsupported built-ins.
 - Add a generated markdown snapshot so docs cannot drift from `strategy.pine_spec`.
@@ -110,7 +112,7 @@ Goal: make "completion" reproducible.
 
 Recommended gates:
 
-- Go: `go test ./pkg/strategy/indicatorbinding ./pkg/strategy/ir ./pkg/strategy/pine ./pkg/strategy/pineruntime ./pkg/strategy/indicatorruntime ./pkg/strategy/pinespec`
+- Go: `go test ./pkg/strategy/indicatorbinding ./pkg/strategy/ir ./pkg/strategy/pine ./pkg/strategy/pineworker ./pkg/strategy/indicatorruntime ./pkg/strategy/pinespec`
 - Web: `npm -w @jftrade/web run test -- strategyVisualBuilderPine StrategyStageOverlayDeck strategyAuthoringDocs`
 - Typecheck: `npm -w @jftrade/web run typecheck`
 - Full CI before score bumps: `go test ./...`, `npm run test:web`, `npm run build:web`, `git diff --check`

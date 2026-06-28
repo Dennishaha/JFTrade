@@ -24,7 +24,7 @@
 | 5. Worker manager | In progress | Go `WorkerManager` starts fixed worker specs, assigns ports, dials transports, round-robins healthy workers, restarts failed health checks, drains on shutdown, and exposes snapshots. Binary extraction launcher, gRPC dialer, API-server lifecycle wiring, embedded asset selection, and Bun mock process smoke coverage are implemented. |
 | 6. Backtest integration | In progress | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` defaults to the Pine worker path and API startup injects a configured `WorkerManager` from `JFTRADE_PINEWORKER_BINARY`. Missing worker config now fails fast instead of falling back to Go runtime. |
 | 7. Live integration | In progress | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, and records runtime observation/errors. Worker crash restart and real Bun/PineTS smoke remain. |
-| 8. Hard removal | In progress | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes `pkg/strategy/pineruntime` and fails fast. Remaining work is deleting the old Go runtime package and stale parity docs. |
+| 8. Hard removal | In progress | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes `pkg/strategy/pineruntime` and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary. Remaining work is deleting the old Go runtime package. |
 | 9. Packaging | In progress | `scripts/build-pineworker-assets.sh` builds platform Bun worker binaries into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Gated process smoke compiles and runs the mock Bun worker through real gRPC. Real PineTS dependency lock policy remains. |
 | 10. Acceptance | Not started | Focused Go/web/worker tests pass; performance gates pass on golden scripts; docs reflect `pine-pinets` as the only Pine runtime. |
 
@@ -108,6 +108,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - Direct `pkg/backtest.Run` no longer executes the Go Pine runtime; it fails fast and points callers to `RunWithPineWorker`. Live bar-close execution is routed through Pine worker order intents.
 - Public Pine spec payloads, generated support snapshots, and current frontend authoring docs now advertise `runtime=pine-pinets`; `pine-go-plan` remains only as a migration alias or historical release note.
 - Frontend strategy definition saves, runtime-panel display, and strategy page test fixtures now use shared `pine-pinets` runtime identity helpers. `StrategyRuntimePanel.vue` and `strategyPageTestUtils.ts` have both been split below the 1200-line guardrail.
+- Current maintenance docs no longer recommend the old Go Pine runtime, direct backtest runner, or TradingView full-parity roadmap; historical release notes may still describe their original release line.
 
 ## Live Integration Boundary
 
@@ -324,3 +325,8 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~8.931 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `wc -l pkg/backtest/runner.go pkg/backtest/runner_hardcut_test.go pkg/backtest/pine_costs_test.go pkg/backtest/test_helpers_test.go pkg/strategy/pineworker/hardcut_audit_test.go docs/pinets-hardcut-migration.md` | Pass; largest touched file 321 lines, below 1200 |
+| 2026-06-29 | `rg -n "pkg/strategy/pineruntime\|pine-go-plan\|pkg/backtest\\.Run($\|[^W[:alnum:]_])" docs/architecture.md docs/troubleshooting/backtest-performance.md docs/pine-completion-roadmap.md docs/frontend/strategy-authoring.md` | Pass; current maintenance docs no longer expose legacy Go Pine runtime guidance |
+| 2026-06-29 | `go test ./pkg/backtest` | Pass |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; audit now checks current maintenance docs in addition to public spec and frontend surfaces |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.415 ns/op, 0 B/op, 0 allocs/op |

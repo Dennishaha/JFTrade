@@ -25,7 +25,7 @@ flowchart LR
     Web -->|SSE /api/v1/stream/live| LiveAPI[internal/api/live]
     API --> Services[internal business services]
     LiveAPI --> MarketData[internal/marketdata\ncollector + cache]
-    Services --> ServerCore[internal/app/apiserver/servercore\nassembly + legacy runtime state]
+    Services --> ServerCore[internal/app/apiserver/servercore\nassembly + strategy runtime state]
     ServerCore --> FutuIntegration[internal/integration/futu\nmarketdata runtime]
     FutuIntegration --> Futu[pkg/futu\nFutu Exchange]
     Futu --> OpenD[Futu OpenD\nAPI TCP 11110]
@@ -46,7 +46,7 @@ flowchart LR
 
 - 前端、控制台、策略运行控制和交易链路都先经过 JFTrade API 后端服务。
 - JFTrade 控制台只承诺 `/api/v1/*`；不要把它和 bbgo 原生 `/api/*` 混为一谈。
-- `pkg/futu`、`pkg/strategy/pineruntime`、`pkg/backtest` 仍可复用 bbgo 公共类型和运行时组件。
+- `pkg/futu`、`pkg/strategy/pineworker`、`pkg/backtest` 仍可复用 bbgo 公共类型、PineTS worker 边界和回测组件。
 
 ## 核心职责边界
 
@@ -115,10 +115,10 @@ apps/web
   -> internal/api/strategy
   -> internal/strategy.Service
   -> servercore strategy design/catalog/runtime adapters
-  -> pkg/strategy Pine parser / IR / runtime
+  -> pkg/strategy Pine parser / spec / PineTS worker runtime
 ```
 
-策略定义同时保存 Pine 源码和可选 `visualModel`。前端生成 Pine，后端统一解析、规划并交给 Go runtime 消费。
+策略定义同时保存 Pine 源码和可选 `visualModel`。前端生成 Pine，后端统一解析、规划并交给 PineTS worker 执行；Go 侧保留调度、回测撮合、风控和订单边界。
 
 ### 实时行情链路
 
@@ -174,8 +174,8 @@ Futu OpenD protocol 1003 / bbgo.Notify(...)
 ### bbgo 公共能力复用仍然成立
 
 - `pkg/futu` 实现 bbgo `types.Exchange` 等公开接口。
-- `pkg/strategy/pineruntime` 复用 `bbgo.ExchangeSession`、`bbgo.OrderExecutor` 和行情事件模型。
-- `pkg/backtest` 复用 bbgo backtest engine。
+- PineTS worker 通过 `pkg/strategy/pineworker` 接入策略执行边界；Go 主进程不再维护自研 Pine 执行 runtime。
+- `pkg/backtest` 复用 bbgo backtest engine，并通过 Pine worker 结果进入 Go 撮合、资金曲线和指标统计。
 - 不支持的交易所能力通过 `ErrNotSupported` 明确暴露。
 
 ### sidecar 与 bbgo server 不等价
@@ -189,10 +189,10 @@ Futu OpenD protocol 1003 / bbgo.Notify(...)
 
 ### Futu 适配层是共享依赖
 
-`pkg/futu` 同时服务 sidecar、策略 runtime 和回测。改这里时必须先判断是：
+`pkg/futu` 同时服务 sidecar、PineTS worker 调度前后的行情/交易边界和回测。改这里时必须先判断是：
 
 - 改 sidecar 行情/连接行为
-- 改策略 runtime / 回测依赖的 exchange 行为
+- 改策略执行调度 / 回测依赖的 exchange 行为
 - 还是同时影响多个调用方
 
 ## 后续开发入口

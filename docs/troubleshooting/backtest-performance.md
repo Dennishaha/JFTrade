@@ -5,176 +5,79 @@
 ## 先分两段，不要混着看
 
 - sync：`pkg/backtest/internal/storage` 从 OpenD 拉历史 K 线并落 SQLite。
-- replay：`pkg/backtest.Run` 把 SQLite 里的 K 线回放给 bbgo backtest.Exchange 和 Pine-lowered runtime。
+- replay：`pkg/backtest.RunWithPineWorker` 把 SQLite 里的 K 线回放给 bbgo backtest.Exchange，并把 Pine 源码、参数和 K 线窗口交给 PineTS worker 计算 signals/plots/debug。
 
 如果不先把两段拆开，只看一份混合 benchmark，容易把 OpenD/SQLite 成本和策略运行时成本混在一起。
 
-## 当前推荐的真实链路 profiling 入口
+## 当前推荐的真实链路检查入口
 
-仓库里已经有真实链路 harness：`pkg/backtest/real_chain_profile_test.go`。
+当前硬切方向是 Go 主引擎 + PineTS worker。真实链路排障时先确认三件事：
 
-它的用途是：
+- Go 能从 storage 读取目标区间 K 线。
+- Pine worker 健康检查通过，并能在超时内完成脚本计算。
+- Go 撮合、资金曲线和指标统计没有被 worker 错误短路。
 
-- 用真实 OpenD 拉 US.TME 的 2026-03 K 线
-- 用前端双均线模板的真实 Pine 语义回放
-- 支持一次性全链路 test
-- 支持复用已有 SQLite，只测 replay benchmark
-- 支持单独诊断“0 trades 是无信号，还是 runtime 漏单”以及 `1m` prepare warning 的来源
-
-### 1. 先跑一次全链路
+### 1. 先跑 Go 回测与 worker 单测
 
 ```bash
-JFTRADE_REAL_CHAIN_PROFILE=1 \
-JFTRADE_REAL_CHAIN_DB_PATH=/tmp/jftrade-real-us-tme-202603.db \
-go test ./pkg/backtest -run '^TestRealUSMarch2026DoubleMATemplateProfile$' -v
+go test ./pkg/backtest ./pkg/strategy/pineworker -run Test
 ```
 
-重点看两段日志：
+重点看：
 
-- `real-chain sync profile`：确认 syncRange、rows、completedBatches、retries
-- `real-chain run profile`：确认 replay duration、candles、trades、runtimeErrors
+- worker 是否返回 runtime error。
+- replay 是否产生符合预期的 trades/equity/metrics。
+- `0 trades` 是否来自真实无信号，而不是 worker error 或 warmup 不足。
 
-### 2. 再复用同一个 DB，只测 replay
+### 2. 再单独跑 Pine worker 性能门槛
 
 ```bash
-JFTRADE_REAL_CHAIN_PROFILE=1 \
-JFTRADE_REAL_CHAIN_DB_PATH=/tmp/jftrade-real-us-tme-202603.db \
-go test ./pkg/backtest -run '^$' \
-  -bench '^BenchmarkRealUSMarch2026DoubleMATemplateReplay$' \
-  -benchtime 1x -benchmem \
-  -cpuprofile /tmp/jftrade-real-us-tme-replay.cpu.out \
-  -memprofile /tmp/jftrade-real-us-tme-replay.mem.out
+go test ./pkg/strategy/pineworker \
+  -bench BenchmarkCheckPerformanceGate \
+  -run '^$' -benchmem
 ```
 
-这样 replay benchmark 就不会再把 sync setup 混进去。
+这条 benchmark 是 worker 边界的轻量守卫。它不能替代真实历史数据 replay，但能在日常提交里快速发现协议、health check 或基础执行路径的明显回归。
 
-### 2b. 如果要复测“已保存双均线策略 + 三年 extended-hours”
+### 3. 如需真实历史复测，复用同一份 DB
 
-`pkg/backtest/real_chain_profile_test.go` 还新增了这组场景：
+真实历史复测要避免把下载历史数据和 replay 混成一个数字。建议流程是：
 
-- `TestRealUSTME2023To2026SavedDoubleMAStrategyProfileExtended`
-- `BenchmarkRealUSTME2023To2026SavedDoubleMAStrategyReplayExtended`
+1. 先通过 backtest service 或 storage 同步任务准备 SQLite。
+2. 固定同一份 DB、同一段 symbol/interval/session scope。
+3. 只改变策略、参数或 worker 版本，再比较 replay 结果。
 
-默认配置是：
+如果后续重新加入真实链路 benchmark，测试名应明确区分：
 
-- symbol：`US.TME`
-- interval：`5m`
-- replay range：`2023-01-01` 到 `2026-01-01`
-- `useExtendedHours=true`
-- 策略定义：默认从工作区 `var/jftrade-api/strategy-runtime.db` 读取 `dsl-double-moving-average`
+- sync benchmark：只覆盖 OpenD 查询和 SQLite 落盘。
+- replay benchmark：只覆盖 `RunWithPineWorker`、worker 执行和 Go 撮合。
+- end-to-end smoke：只用于发现集成断裂，不用于判断 replay 性能。
 
-如需覆盖默认定义库或 definition id，可额外传：
-
-- `JFTRADE_REAL_CHAIN_STRATEGY_DB_PATH`
-- `JFTRADE_REAL_CHAIN_STRATEGY_DEFINITION_ID`
-
-对应 replay-only benchmark 命令：
-
-```bash
-JFTRADE_REAL_CHAIN_PROFILE=1 \
-JFTRADE_REAL_CHAIN_DB_PATH=/tmp/jftrade-real-us-tme-202301-202601-extended.db \
-go test ./pkg/backtest -run '^$' \
-  -bench '^BenchmarkRealUSTME2023To2026SavedDoubleMAStrategyReplayExtended$' \
-  -benchtime 1x -benchmem
-```
-
-### 3. 如果要区分“没信号”还是“跑漏了”，再跑 diagnostics
-
-```bash
-JFTRADE_REAL_CHAIN_PROFILE=1 \
-JFTRADE_REAL_CHAIN_DB_PATH=/tmp/jftrade-real-us-tme-202603.db \
-go test ./pkg/backtest -run '^TestRealUSMarch2026DoubleMATemplateDiagnostics$' -v
-```
-
-这条诊断会额外记录：
-
-- `oneMinuteRowsBeforeStart`：确认 `backtest prepare warning` 是不是因为当前真实库压根没有 `1m` 数据
-- `crossoverCount` / `crossunderCount`：确认这段真实数据里 5/20 day 双均线到底有没有信号
-
-## 当前推荐的 synthetic 图块回归守卫
+## 当前推荐的回归守卫
 
 如果改动会影响共享的 replay 执行路径，例如：
 
-- `pkg/backtest.Run`
-- `pkg/strategy/pineruntime`
-- `pkg/strategy/indicatorruntime`
+- `pkg/backtest.RunWithPineWorker`
+- `pkg/strategy/pineworker`
+- worker proto / request / response DTO
 - 前端策略设计器当前支持的指标/价格判断/通知/下单/风控图块
 
-优先再跑一套 synthetic 图块矩阵，避免只盯着单一双均线场景：
+优先跑当前可维护的 focused suite：
 
 ```bash
-go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkCasesSmoke$'
-
-go test ./pkg/backtest -run '^$' \
-  -bench '^BenchmarkRunExecutesStrategyBlockMatrix$' \
-  -benchtime 1x -benchmem
-
-JFTRADE_UPDATE_STRATEGY_BLOCK_BASELINE=1 \
-  go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1
-
-JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
-  go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1
+go test ./pkg/backtest
+go test ./pkg/strategy/pineworker -run Test -cover
+go test ./pkg/strategy/pineworker \
+  -bench BenchmarkCheckPerformanceGate \
+  -run '^$' -benchmem
 ```
 
-其中 baseline 会落盘到 `pkg/backtest/testdata/strategy_block_benchmark_baseline.json`。
-当前 compare 模式按每个 case 取 `testing.Benchmark` 5 次采样，并使用其中的保守上界再用以下阈值判定回归：
-
-- `ns/op` 不超过基线的 `1.40x`
-- `B/op` 不超过基线的 `1.15x`
-- `allocs/op` 不超过基线的 `1.10x`
-
-如果希望把这套门槛挂进一个手动触发的 job，现在可以直接用 [.github/workflows/backtest-performance-gate.yml](.github/workflows/backtest-performance-gate.yml)。
-
-说明：
-
-- 它只提供 `workflow_dispatch`，不会自动在每个 PR 上跑。
-- `runs-on` 固定为 `self-hosted + macOS + ARM64`，因为当前 baseline 来自 Apple Silicon，本地真实 protect 复测还依赖 runner 自己持有的 SQLite DB。
-- `baseline_mode` 支持 `skip` / `enforce` / `update`。
-- `run_real_tme=true` 时会追加跑 `BenchmarkRealUSTME2023To2026ProtectSessionReplayExtended`，并从 `real_chain_db_path` 读取本机 DB。
-- job 会把 smoke、protect matrix、baseline compare/update、真实 TME protect benchmark 输出和 baseline JSON 一起上传成 artifact。
-- 本地验证时不要把 `JFTRADE_UPDATE_STRATEGY_BLOCK_BASELINE=1 ... && JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 ...` 串成一条命令；第二段 compare 会跑在第一段长时间矩阵压测后的热机状态里，容易把瞬时 CPU 偏差也带进结果。手动 workflow 也是按 `baseline_mode` 分开跑的。
-
-这套矩阵在 `pkg/backtest/strategy_block_benchmark_test.go`，当前覆盖：
-
-- `movingAverage`（含 `hour` timeUnit，专门压 time-bound window path）
-- `rsi`
-- `macd`
-- `kdj`
-- `bollinger`
-- `atr`
-- `cci`
-- `williams_r`
-- `ifCloseAbove` / `ifCloseBelow`
-- `log` / `notify`
-- `placeOrder`
-- `stopLoss` / `takeProfit` / `trailingStop`
-
-说明：
-
-- 它故意固定在 synthetic `US.AAPL / 1m / useExtendedHours=true` 连续输入上，避免把 US regular session filter 的时段缺口混进图块 replay 基线。
-- 指标型场景加了短路保护，warmup 阶段不会因为快照尚未就绪把 benchmark 污染成 runtime error。
-- 已删除的 `codeBlock` 不列入矩阵；v1.0+ 会明确拒绝旧 visual model，不再降级或迁移。
-
-当前这套矩阵在 Apple A18 Pro 的基线量级以 `pkg/backtest/testdata/strategy_block_benchmark_baseline.json` 为准，当前一轮参考值约为：
-
-- `moving_average_windowed`：约 `10.36ms/op`、`2.96MB/op`
-- `macd_momentum`：约 `14.44ms/op`、`3.77MB/op`
-- `rsi_reversion`：约 `10.40ms/op`、`3.54MB/op`
-- `bollinger_reversion`：约 `10.90ms/op`、`3.44MB/op`
-- `cci_reversion`：约 `11.50ms/op`、`3.47MB/op`
-- `kdj_reversion`：约 `10.31ms/op`、`4.20MB/op`
-- `williamsr_reversion`：约 `12.21ms/op`、`3.45MB/op`
-- `atr_volatility`：约 `10.72ms/op`、`2.95MB/op`
-- `breakout_notify`：约 `16.79ms/op`、`4.07MB/op`
-- `mean_reversion_price`：约 `8.84ms/op`、`4.12MB/op`
-- `protect_session_risk`：约 `43.77ms/op`、`13.64MB/op`
-
-从这个矩阵看，当前最该盯的共享热点不是普通价格判断块，而是风险保护块：如果后续改动 `protect` / risk snapshot / session-aware window 逻辑，优先比较 `protect_session_risk` 这条基线有没有明显回升。注意这里落盘的是保守 gate 值，不等于日常一轮直跑的典型值；这轮直接跑 `BenchmarkRunExecutesStrategyBlockMatrix/protect_session_risk -benchtime 3x` 时，量级约为 `35.19ms/op`、`13.57MB/op`、`24.9万 allocs/op`，而持久化 gate 当前按保守上界记为约 `43.77ms/op`、`13.64MB/op`。
+历史上的 synthetic 图块矩阵和真实链路 benchmark 已随 Go Pine runtime 硬切清理。重新建立 performance gate 时，应围绕 PineTS worker 的输入规模、worker pool 并发、gRPC 序列化成本和 Go 撮合结果收集来建基线。
 
 ## 结果怎么解释
 
 - 如果 sync 明显慢：先看 OpenD 查询窗口、分页、重试和 SQLite 落盘。
-- 如果 replay 明显慢：优先看 `pkg/strategy/pineruntime`、`pkg/strategy/indicatorruntime`、`pkg/backtest/result_collector.go`。其中 `dslruntime` 是内部包名，不代表 public authoring 仍使用 DSL。
+- 如果 replay 明显慢：优先看 `pkg/strategy/pineworker` 的请求/响应大小、worker pool 并发、PineTS 脚本执行耗时、gRPC 序列化成本和 `pkg/backtest/result_collector.go`。
 - `trades=0` 不等于性能问题；它只说明这段真实数据下模板没有成交，或 warmup/信号本身不满足。
 - `backtest prepare warning: no kline data found for symbol ... 1m before start time` 目前在这条真实链路里只是告警，不会阻止 5m replay 跑完。
 - 现有 US.TME 2026-03 diagnostics 已验证：`oneMinuteRowsBeforeStart=0`，因为这条 harness 只同步了 `5m`；同时 `crossoverCount=0`、`crossunderCount=0`，所以当前 `0 trades` 是真实“无信号”，不是 replay 漏单。
@@ -200,89 +103,25 @@ JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
 
 所以这里面有一部分是语义正确性必须支付的成本，不能简单回滚；另一部分才是实现上的额外损耗，值得继续压。
 
-## 已验证过的一类 replay 热点
+## 历史 Go runtime 热点记录
 
-在 US.TME 2026-03 + 双均线模板 + 日线 MA 的真实 replay 上，已经验证过一类高概率热点：
+硬切 PineTS worker 之前，US.TME 真实 replay 曾验证过一类高概率热点：
 
 - `pkg/strategy/indicatorruntime` 的 trading-window moving-average path
 - 具体表现是每根 bar 反复构造 day/week/month window 的 indices/values/volumes
 - 如果 period key 走字符串格式化，也会放大 `time.Time.Format` 分配
 
-当前实现已经做了两层减压：
+这些记录只用于理解旧性能数据，不再是当前 PineTS worker 的调优入口。当前调优优先看：
 
-- moving-average trading-window 复用 snapshot cache buffer，避免反复新建 indices/values/volumes
-- trading-period label start 改成直接按本地交易日推导，不再让 replay path 依赖字符串 key 往返
-- 在此基础上，trading-window MA 主路径又进一步改成 online aggregation：`SMA/MA/BOLL`、`LWMA`、`VWMA` 现在在倒序扫描 `endTimes` 时直接聚合，不再构造 `selected []int` 或继续物化 values/volumes；`EMA/EXPMA`、`SMMA`、`TMA`、`HMA` 仍保留 materialize fallback 以降低语义风险
-- 在 online aggregation 之上，`current` / `previous` snapshot 又进一步合成了单趟扫描，避免为同一根 bar 的 snapshot 计算重复调用一遍 `TradingPeriodLabelStart`
-- 在单趟 snapshot 扫描之上，runtime 又开始在 `push()` 时增量维护 `day/week/month` 的 trading-period label key，让 fast/slow 两个日线 MA 在 snapshot 时直接复用，不再重复调用 `TradingPeriodLabelStart`
-- `indicatorRuntime` 的核心 price/session/label 序列现在会按 `seriesLimit` 预分配，减少 replay 期间 append 扩容带来的额外 alloc
+- worker 请求 candle 数量、params 数量和 response payload 大小
+- PineTS 脚本执行时间与 worker RSS
+- worker pool 的并发度、排队时间、超时和重启
+- gRPC encode/decode 和 localhost 调用成本
+- Go replay pump、bbgo matching 和 result collector 的剩余成本
 
-如果后续 replay 再次回升，优先回看：
-
-- `pkg/strategy/indicatorruntime/indicator_runtime.go`
-- `pkg/futu/trading_profile.go`
-
-## 真实 TME protect 复测
-
-如果要在已下载的 `US.TME / 2023-01-01 到 2026-01-01 / 5m / extended-hours` 数据上复测 protect session 路径，现在可以直接跑：
-
-```bash
-JFTRADE_REAL_CHAIN_PROFILE=1 \
-JFTRADE_REAL_CHAIN_DB_PATH=/tmp/jftrade-real-us-tme-202301-202601-extended.db \
-go test ./pkg/backtest -run '^$' \
-  -bench '^BenchmarkRealUSTME2023To2026ProtectSessionReplayExtended$' \
-  -benchtime 1x -benchmem
-```
-
-对应场景实现在 `pkg/backtest/real_chain_profile_test.go`，它复用本地 SQLite DB，只测 replay，不重新下载。
-
-当前这条真实 protect 场景在 Apple A18 Pro 上最新一轮 one-shot 复测量级约为：
-
-- 约 `2.60s/op`
-- 约 `743MB/op`
-- 约 `1653万 allocs/op`
-
-这轮复测说明新一刀主要打在 `getPosition` / runtime 内部诊断日志相关分配上：相对前一版约 `1.15GB/op`、`2620万 allocs/op`，内存和分配显著下降，但 `ns/op` 仍会受宿主机状态影响，建议以后以手动 workflow artifact 和同机多次结果一起判断，而不是只看单次 wall-clock。
-
-## 更长范围场景的剩余热点
-
-对“US.TME / 2023-01-01 到 2026-01-01 / 5m / extended-hours / 已保存 `dsl-double-moving-average`”这条真实 replay，当前量级大约是：
-
-- 约 `5.16s/op` 到 `5.23s/op`
-- 约 `323.8MB/op`
-- 约 `793.96万 allocs/op`
-
-这条场景已经加过一刀本地优化：`pkg/backtest.Run` 在单会话 replay 上优先走 direct-stream fast path，绕开 `QueryKLinesCh` 的 goroutine + channel 逐根转发。复用同一份已同步 DB、连续 3 次 replay-only benchmark 复测，量级从优化前约 `5.87s/op` 压到约 `5.16s/op` 到 `5.23s/op`。
-
-优化后剩余热点主要是：
+旧三年 extended-hours 场景的剩余热点仍有参考价值，尤其是：
 
 - `modernc.org/sqlite.(*rows).Next` / `columnText` / `pkg/backtest/internal/storage.scanStoredKLineRow`
 - 上游 `github.com/c9s/bbgo/pkg/backtest.(*Exchange).ConsumeKLine` 的 `klineCache` map churn 与 `EmitKLineClosed`
-- `pkg/strategy/indicatorruntime` 的 `tradingWindowMovingAverageState.push` 与 `calculateTradingWindowMovingAverageSnapshotFromKeys`
 
-这意味着这条三年 extended-hours 场景里，下一轮大收益大概率不再是“小范围本地改一两个 helper”，而是要继续压 SQLite 扫描路径、考虑结果收集的数据表示，或者直接处理上游 bbgo 的 replay/matching 结构。
-
-## 当前这一刀继续优化打掉了什么
-
-这次没有回退任何 session/day 语义，而是只压 store 读路径里的一个实现性回归：session-scope 选表时，原来每个候选表都要分别做两次 exact boundary 查询来确认请求窗口左右端点是否命中；现在合并成了一次 `COUNT(DISTINCT end_time)` 查询。
-
-Apple A18 Pro 本地复测量级：
-
-- `BenchmarkFutuKLineStoreQueryBackwardSessionAwareTwoHour`：约 `1.19ms/op` 降到约 `0.63ms/op`，`325KB/op -> 324KB/op`，`6489 allocs/op -> 6458 allocs/op`
-- `BenchmarkRunExecutesIndicatorHeavyDSLBacktest`：约 `11.02ms/op` 降到约 `10.56ms/op`，`2.99MB/op` 基本持平，`73579 allocs/op -> 73553 allocs/op`。测试名保留历史命名，场景语义已走 Pine lowering 后的运行路径。
-
-这说明当前确实有一部分 slowdown 来自实现上的重复 probe，而不是新语义本身；但 end-to-end 只拿回了几百分之几，也说明更大的账仍在 SQLite scan、bbgo replay 和 trading-period 指标路径上。
-
-## 一次真实复测的量级参考
-
-同一份持久 DB、同一条真实 benchmark，在这次优化前后大致量级如下：
-
-- 优化前：约 `1.02s/op`、`248MB/op`、`5381944 allocs/op`
-- 第一轮优化后：约 `0.80s/op`、`35.5MB/op`、`96741 allocs/op`
-- direct aggregation 继续下压后：约 `0.78s/op`、`14.9MB/op`、`85416 allocs/op`
-- online aggregation 再继续下压后：约 `0.80s/op`、`4.49MB/op`、`83835 allocs/op`
-- current/previous 单趟 snapshot 扫描后：约 `0.39s/op`、`4.49MB/op`、`83847 allocs/op`
-- runtime 增量 label key + series 预分配后：约 `0.24s/op`、`4.46MB/op`、`83777 allocs/op`
-- 已保存双均线策略 + 2023-2026 extended-hours + direct-stream fast path 后：约 `5.16s/op` 到 `5.23s/op`、`323.8MB/op`、`793.96万 allocs/op`
-
-这说明在这条真实链路里，主要瓶颈确实是 replay 的 trading-window 指标路径，不是 sync。
+这意味着 PineTS 硬切后，Go 侧仍值得继续压 SQLite 扫描、bbgo replay/matching 结构和结果收集的数据表示；但 Pine 语言执行本身的热点应回到 worker 侧衡量。

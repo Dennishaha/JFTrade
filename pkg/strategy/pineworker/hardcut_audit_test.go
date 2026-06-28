@@ -11,6 +11,7 @@ import (
 func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	root := pineWorkerRepoRoot(t)
 	assertNoLegacyRuntimeInCurrentSpecDocs(t, root)
+	assertNoLegacyRuntimeInCurrentMaintenanceDocs(t, root)
 	assertNoLegacyRuntimeInFrontendSurfaces(t, root)
 	assertNoUnexpectedPineRuntimeImports(t, root)
 }
@@ -47,6 +48,32 @@ func assertNoLegacyRuntimeInCurrentSpecDocs(t *testing.T, root string) {
 		text := string(data)
 		if strings.Contains(text, "pine-go-plan") || strings.Contains(text, "pkg/strategy/pineruntime") {
 			t.Fatalf("%s still exposes legacy Go Pine runtime", rel)
+		}
+	}
+}
+
+func assertNoLegacyRuntimeInCurrentMaintenanceDocs(t *testing.T, root string) {
+	t.Helper()
+	for _, rel := range []string{
+		"docs/architecture.md",
+		"docs/troubleshooting/backtest-performance.md",
+		"docs/pine-completion-roadmap.md",
+		"docs/frontend/strategy-authoring.md",
+	} {
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("ReadFile(%s): %v", rel, err)
+		}
+		text := string(data)
+		for _, legacy := range []string{
+			"pine-go-plan",
+			"pkg/strategy/pineruntime",
+			"pkg/backtest.Run`",
+			"pkg/backtest.Run ",
+		} {
+			if strings.Contains(text, legacy) {
+				t.Fatalf("%s still references legacy runtime surface %q", rel, legacy)
+			}
 		}
 	}
 }
