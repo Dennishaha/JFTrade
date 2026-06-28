@@ -13,6 +13,7 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertNoLegacyRuntimeInCurrentSpecDocs(t, root)
 	assertNoLegacyRuntimeInCurrentMaintenanceDocs(t, root)
 	assertNoLegacyRuntimeInFrontendSurfaces(t, root)
+	assertLegacyRuntimePackageRemoved(t, root)
 	assertNoUnexpectedPineRuntimeImports(t, root)
 }
 
@@ -127,6 +128,16 @@ func assertNoLegacyRuntimeInFrontendSurfaces(t *testing.T, root string) {
 	}
 }
 
+func assertLegacyRuntimePackageRemoved(t *testing.T, root string) {
+	t.Helper()
+	rel := "pkg/strategy/pineruntime"
+	if _, err := os.Stat(filepath.Join(root, rel)); err == nil {
+		t.Fatalf("legacy Go Pine runtime package still exists: %s", rel)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat %s: %v", rel, err)
+	}
+}
+
 func assertNoUnexpectedPineRuntimeImports(t *testing.T, root string) {
 	t.Helper()
 	var offenders []string
@@ -149,9 +160,6 @@ func assertNoUnexpectedPineRuntimeImports(t *testing.T, root string) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if strings.HasPrefix(rel, "pkg/strategy/pineruntime/") {
-			return nil
-		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
