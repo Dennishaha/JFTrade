@@ -18,6 +18,7 @@
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口。
 - [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：策略定义、Logic Flow、Pine 编辑与 visual model 同步。
 - [pinets-hardcut-migration.md](pinets-hardcut-migration.md)：PineTS 硬切替换 Go Pine runtime 的执行计划、进度、测试覆盖和性能门禁。
+- [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)：PineTS worker 发布、运行配置、embedded asset 和非 mock smoke 放行清单。
 - [reference/README.md](reference/README.md)：协议细节、OpenD 资料和上游参考。
 
 ### 3. 最后再看历史收口记录
@@ -33,6 +34,7 @@
 - 改前端默认接口、系统状态、设置：先看 [architecture.md](architecture.md)、[configuration.md](configuration.md)、[troubleshooting.md](troubleshooting.md)
 - 改 ADK、agent、approval、provider、tools：先看 [adk.md](adk.md)
 - 改实时行情、K 线、SSE、WS：先看 [frontend-kline.md](frontend-kline.md) 和 [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md)
+- 改 PineTS worker、worker pool、embedded asset、发布验收：先看 [pinets-hardcut-migration.md](pinets-hardcut-migration.md) 和 [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)
 - 改 Futu / OpenD 协议和映射：先看 [reference/README.md](reference/README.md)
 
 ## 文档职责边界

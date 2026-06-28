@@ -59,6 +59,7 @@ func assertNoLegacyRuntimeInCurrentMaintenanceDocs(t *testing.T, root string) {
 	for _, rel := range []string{
 		"docs/architecture.md",
 		"docs/troubleshooting/backtest-performance.md",
+		"docs/troubleshooting/pinets-worker-release.md",
 		"docs/pine-completion-roadmap.md",
 		"docs/frontend/strategy-authoring.md",
 	} {
