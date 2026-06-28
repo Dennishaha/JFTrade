@@ -168,6 +168,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "frontend asset archiving failed"
 }
 
+Write-Host "Building embedded PineTS worker assets..." -ForegroundColor Cyan
+npm run build:pineworker
+if ($LASTEXITCODE -ne 0) {
+    throw "PineTS worker asset build failed"
+}
+
 foreach ($target in $targets) {
     Invoke-GoReleaseBuild -Goos $target.GOOS -Goarch $target.GOARCH -Version $version -Commit $commit -BuildTime $buildTime -BuildTarget $buildTarget -ArtifactPrefix $artifactPrefix
 }
