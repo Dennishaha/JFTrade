@@ -18,14 +18,15 @@
 | 0. Plan and guardrails | Done | This document exists; coverage and performance gates are documented; focused verification is recorded below. |
 | 1. Pine worker contract | Done | `pkg/strategy/pineworker` owns `pine-pinets` constants, request/response shapes, order intent schema, worker defaults, validation, and perf gate helpers. |
 | 1.1 Runtime ID normalization | Done | Server-side definition/catalog normalization emits `pine-pinets` and migrates old `pine-go-plan`; focused servercore tests pass. |
-| 2. Worker PoC | Not started | Bun worker can run PineTS on custom OHLCV data and return plots, diagnostics, logs, warnings, and order intents. |
-| 3. gRPC bridge | In progress | Proto contract exists and compiles through `protoc`; Go client, worker server, health check deadlines, max-message policy, and error mapping remain. |
-| 4. Worker manager | Not started | Go starts N embedded workers, assigns ports, checks health, restarts crashes, drains on shutdown, and exposes status. |
-| 5. Backtest integration | Not started | Backtest calls PineTS worker for intents, then Go produces trades, order book, equity curve, drawdown, and metrics. |
-| 6. Live integration | Not started | Bar-close live flow calls worker, applies Go risk, places orders through broker APIs, and records runtime observation. |
-| 7. Hard removal | Not started | `pkg/strategy/pineruntime`, Go TradingView parity extensions, self-built support matrix docs, and old UI toggles are removed. |
-| 8. Packaging | Not started | `bun build --compile` creates platform workers; Go embeds and releases matching binaries with checksum validation. |
-| 9. Acceptance | Not started | Focused Go/web/worker tests pass; performance gates pass on golden scripts; docs reflect `pine-pinets` as the only Pine runtime. |
+| 2. Proto contract | Done | `pkg/strategy/pineworker/proto/pineworker.proto` mirrors the Go contract and compiles through `protoc`. |
+| 3. Worker PoC | In progress | Bun worker core validates requests, adapts custom OHLCV data to the PineTS constructor shape, normalizes plots/logs/order intents, and has Bun tests. Real PineTS dependency wiring remains blocked on commercial license and package-lock policy. |
+| 4. gRPC bridge | Not started | Go client, Bun worker server, health check deadlines, max-message policy, and error mapping remain. |
+| 5. Worker manager | Not started | Go starts N embedded workers, assigns ports, checks health, restarts crashes, drains on shutdown, and exposes status. |
+| 6. Backtest integration | Not started | Backtest calls PineTS worker for intents, then Go produces trades, order book, equity curve, drawdown, and metrics. |
+| 7. Live integration | Not started | Bar-close live flow calls worker, applies Go risk, places orders through broker APIs, and records runtime observation. |
+| 8. Hard removal | Not started | `pkg/strategy/pineruntime`, Go TradingView parity extensions, self-built support matrix docs, and old UI toggles are removed. |
+| 9. Packaging | Not started | `bun build --compile` creates platform workers; Go embeds and releases matching binaries with checksum validation. |
+| 10. Acceptance | Not started | Focused Go/web/worker tests pass; performance gates pass on golden scripts; docs reflect `pine-pinets` as the only Pine runtime. |
 
 ## Runtime Boundary
 
@@ -46,6 +47,15 @@ PineTS worker owns:
 - `strategy.*` call extraction into normalized order intents
 
 PineTS worker must not be the source of truth for final trades, live orders, account state, or risk decisions.
+
+## Worker PoC Boundary
+
+The first Bun worker slice lives under `workers/pineworker` and intentionally avoids adding `pinets` to root lockfiles until the commercial license and package-management policy are finalized.
+
+- `NativePineTSExecutor` dynamically imports `pinets` and constructs `new PineTS(candles)` for custom OHLCV execution.
+- `runScriptWithPineTS` validates requests before dispatch and maps both validation/runtime failures into worker error responses.
+- Adapter normalization currently covers plots, outputs, logs, warnings, diagnostics, metadata, and normalized order intents.
+- `DeterministicPineTSExecutor` exists only for fast contract tests; it must not become a production fallback.
 
 ## Contract Shape
 
@@ -110,7 +120,7 @@ Hard-cut means:
 
 1. Finish `pkg/strategy/pineworker` contract and tests.
 2. Add worker proto mirroring the Go contract.
-3. Build a Bun worker PoC with custom candle input and PineTS output extraction.
+3. Finish Bun gRPC worker server around the worker core.
 4. Add Go client and fake worker tests before touching production runtime.
 5. Route backtest through the worker behind the new `pine-pinets` runtime.
 6. Update live runtime manager after backtest correctness and performance gates are stable.
@@ -129,3 +139,6 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineWorkerProtoCompilesAndExposesContract -count=1` | Pass; `proto/pineworker.proto` compiles and exposes health/analyze/run methods |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.2% statement coverage after proto contract tests |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.02 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `bun test workers/pineworker/src` | Pass, 9 tests cover request validation, adapter normalization, error mapping, mock execution, and PineTS constructor integration |
+| 2026-06-29 | `npx tsc --noEmit -p workers/pineworker/tsconfig.json` | Pass |
+| 2026-06-29 | `wc -l workers/pineworker/package.json workers/pineworker/tsconfig.json workers/pineworker/src/*.ts` | Largest worker file 192 lines, below 1200 |
