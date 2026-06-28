@@ -291,3 +291,7 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/adk -run 'TestBuiltin\|TestSkills\|TestStore'` | Pass; built-in strategy skill resources remain valid after pinespec split/runtime update |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~5.968 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `wc -l pkg/strategy/pinespec/spec.go pkg/strategy/pinespec/golden_examples.go pkg/strategy/pinespec/spec_test.go docs/pinets-hardcut-migration.md docs/frontend/strategy-authoring.md docs/reference/generated/pine-v6-support.md` | Pass; split `spec.go` from 1313 to 984 lines, all touched files below 1200 |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit locks public spec docs away from `pine-go-plan`/`pineruntime` and allows only the temporary direct backtest runner import |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage after hard-cut audit |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.564 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `wc -l pkg/strategy/pineworker/hardcut_audit_test.go pkg/strategy/pineworker/types.go docs/pinets-hardcut-migration.md` | Pass; largest touched file 293 lines, below 1200 |
