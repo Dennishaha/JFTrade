@@ -20,7 +20,7 @@
 | 1.1 Runtime ID normalization | Done | Server-side definition/catalog normalization emits `pine-pinets` and migrates old `pine-go-plan`; focused servercore tests pass. |
 | 2. Proto contract | Done | `pkg/strategy/pineworker/proto/pineworker.proto` mirrors the Go contract and compiles through `protoc`. |
 | 3. Worker PoC | In progress | Bun worker core validates requests, adapts custom OHLCV data to the PineTS constructor shape, normalizes plots/logs/order intents, and has Bun tests. Real PineTS dependency wiring remains blocked on commercial license and package-lock policy. |
-| 4. gRPC bridge | In progress | Go worker client abstraction now validates requests, applies timeouts, payload checks, worker error mapping, and performance gates with fake-backed tests. Real gRPC transport and Bun server remain. |
+| 4. gRPC bridge | In progress | Go worker client abstraction and generated gRPC transport are covered by fake and bufconn tests. Bun gRPC server, max receive/send policy, and end-to-end worker process tests remain. |
 | 5. Worker manager | Not started | Go starts N embedded workers, assigns ports, checks health, restarts crashes, drains on shutdown, and exposes status. |
 | 6. Backtest integration | Not started | Backtest calls PineTS worker for intents, then Go produces trades, order book, equity curve, drawdown, and metrics. |
 | 7. Live integration | Not started | Bar-close live flow calls worker, applies Go risk, places orders through broker APIs, and records runtime observation. |
@@ -74,6 +74,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 
 - `Transport` is the swappable boundary for real gRPC, fake workers, and future in-process tests.
 - `Client.RunScript` validates requests before dispatch, enforces max message bytes, applies context deadlines, maps transport/worker errors, fills missing metadata, and checks performance gates.
+- `GRPCTransport` maps between protobuf messages and the local Go contract, with bufconn coverage for `HealthCheck` and `RunScript`.
 - Production integrations must use the client rather than calling gRPC stubs directly.
 
 ## Coverage Gates
@@ -156,3 +157,7 @@ Hard-cut means:
 | 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
 | 2026-06-29 | Temp `protoc --go_out --go-grpc_out pkg/strategy/pineworker/proto/pineworker.proto` before split | Blocked for commit: generated `pineworker.pb.go` was 1267 lines, above the 1200-line file guardrail |
 | 2026-06-29 | Split proto temp codegen with `pineworker.proto`, `pineworker_types.proto`, and `pineworker_common.proto` | Pass for guardrail; generated files were 78, 197, 639, and 699 lines |
+| 2026-06-29 | `scripts/gen-pineworker-proto.sh` | Pass; generated Go protobuf/gRPC files and enforced 1200-line limit |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 87.6% statement coverage after gRPC transport and mapping tests |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.15 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker/pineworkerpb` | Pass |
