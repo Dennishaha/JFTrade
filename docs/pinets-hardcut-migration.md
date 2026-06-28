@@ -107,7 +107,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - Current tests cover entry, exit, cancel-all, default entry quantity, unsupported intents, transport errors, worker errors, replay request construction, replay K-line collection, params propagation, command grouping, invalid bar indexes, worker timeout propagation, market/limit order submission, cancel/cancel-all, unsupported sizing, submit/cancel error propagation, replay shape validation, missing/extra bars, consume-before-command ordering, an end-to-end `RunWithPineWorker` smoke through Go matching, service-level fail-fast when no Pine worker runner is configured, and API startup wiring for configured/absent worker managers.
 - Direct non-service calls to `pkg/backtest.Run` and `pkg/strategy/pineruntime` remain until CLI/direct backtest callers and hard removal land; live bar-close execution is now routed through Pine worker order intents.
 - Public Pine spec payloads, generated support snapshots, and current frontend authoring docs now advertise `runtime=pine-pinets`; `pine-go-plan` remains only as a migration alias or historical release note.
-- Frontend strategy definition saves now use shared `pine-pinets` runtime constants; runtime-panel display/test fixtures still need a follow-up split because `StrategyRuntimePanel.vue` and `strategyPageTestUtils.ts` are already above the 1200-line guardrail.
+- Frontend strategy definition saves and runtime-panel display now use shared `pine-pinets` runtime identity helpers. `StrategyRuntimePanel.vue` has been split below the 1200-line guardrail; `strategyPageTestUtils.ts` still needs a follow-up fixture split before its legacy defaults can be removed.
 
 ## Live Integration Boundary
 
@@ -301,3 +301,10 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~5.873 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `wc -l apps/web/src/components/StrategyDesignStage.vue apps/web/src/components/strategy-runtime/strategyDefinitionPayload.ts apps/web/src/components/strategy-runtime/strategyRuntimeIdentity.ts apps/web/tests/App.strategy.test.ts apps/web/tests/adkToolVisualizations.test.ts docs/pinets-hardcut-migration.md` | Pass; largest touched file 1200 lines, at guardrail |
+| 2026-06-29 | `npm --prefix apps/web test -- App.strategy.test.ts adkToolVisualizations.test.ts App.strategy.runtime.test.ts` | Pass, 14 tests; runtime panel and strategy save coverage remain green after PineTS identity/helper split |
+| 2026-06-29 | `npm --prefix apps/web run typecheck` | Blocked only by pre-existing `src/composables/useADKPageChatState.ts(1237,5): Type 'number' is not assignable to type 'Timeout'` |
+| 2026-06-29 | `rg -n "pine-go-plan" apps/web/src -g '*.ts' -g '*.vue'` | Pass; only `strategyRuntimeIdentity.ts` keeps the legacy migration alias |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~10.00 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `git diff --check` | Pass |
+| 2026-06-29 | `wc -l apps/web/src/components/StrategyRuntimePanel.vue apps/web/src/components/strategy-runtime/useStrategyRuntimeInstanceEditor.ts apps/web/src/components/strategy-runtime/strategyRuntimePanel.css docs/pinets-hardcut-migration.md` | Pass; largest touched file 1064 lines, below 1200 |
