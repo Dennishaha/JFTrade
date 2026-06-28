@@ -13,12 +13,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 var (
 	newPineWorkerLauncher = defaultNewPineWorkerLauncher
 	newPineWorkerDialer   = defaultNewPineWorkerDialer
+	selectPineWorkerAsset = pineworkerassets.Select
 )
 
 const (
@@ -60,6 +62,8 @@ type pineWorkerRuntimeConfig struct {
 	MaxDurationPerBar time.Duration
 	MinCandlesPerSec  float64
 	MaxPeakRSSBytes   int64
+	embedded          bool
+	binaryData        []byte
 }
 
 func (s *Server) startPineWorkerManager(ctx context.Context) *pineworker.WorkerManager {
@@ -73,10 +77,14 @@ func (s *Server) startPineWorkerManager(ctx context.Context) *pineworker.WorkerM
 		return nil
 	}
 
-	binaryData, err := os.ReadFile(config.BinaryPath)
-	if err != nil {
-		log.Printf("JFTrade PineTS worker manager disabled: read worker binary: %v", err)
-		return nil
+	binaryData := config.binaryData
+	if len(binaryData) == 0 {
+		var err error
+		binaryData, err = os.ReadFile(config.BinaryPath)
+		if err != nil {
+			log.Printf("JFTrade PineTS worker manager disabled: read worker binary: %v", err)
+			return nil
+		}
 	}
 	workerConfig := pineworker.DefaultWorkerConfig(runtime.NumCPU())
 	workerConfig.BacktestWorkers = config.Workers
@@ -113,7 +121,11 @@ func (s *Server) startPineWorkerManager(ctx context.Context) *pineworker.WorkerM
 		return nil
 	}
 	s.pineWorkerManager = manager
-	log.Printf("JFTrade PineTS worker manager started: workers=%d host=%s startPort=%d", config.Workers, config.Host, config.StartPort)
+	source := "external"
+	if config.embedded {
+		source = "embedded"
+	}
+	log.Printf("JFTrade PineTS worker manager started: source=%s workers=%d host=%s startPort=%d", source, config.Workers, config.Host, config.StartPort)
 	return manager
 }
 
@@ -141,8 +153,18 @@ func resolvePineWorkerRuntimeConfig() (pineWorkerRuntimeConfig, bool, error) {
 		return pineWorkerRuntimeConfig{}, false, nil
 	}
 	binaryPath := strings.TrimSpace(os.Getenv(envPineWorkerBinary))
+	var embeddedAsset pineworkerassets.Asset
+	var embedded bool
 	if binaryPath == "" {
-		return pineWorkerRuntimeConfig{}, false, nil
+		var err error
+		embeddedAsset, embedded, err = selectPineWorkerAsset()
+		if err != nil {
+			return pineWorkerRuntimeConfig{}, false, err
+		}
+		if !embedded {
+			return pineWorkerRuntimeConfig{}, false, nil
+		}
+		binaryPath = embeddedAsset.Name
 	}
 	defaultWorkerConfig := pineworker.DefaultWorkerConfig(runtime.NumCPU())
 	workers, err := envPositiveInt(envPineWorkerWorkers, defaultWorkerConfig.BacktestWorkers)
@@ -192,7 +214,7 @@ func resolvePineWorkerRuntimeConfig() (pineWorkerRuntimeConfig, bool, error) {
 	}
 	return pineWorkerRuntimeConfig{
 		BinaryPath:        binaryPath,
-		SHA256:            strings.TrimSpace(os.Getenv(envPineWorkerSHA256)),
+		SHA256:            firstNonEmpty(strings.TrimSpace(os.Getenv(envPineWorkerSHA256)), embeddedAsset.SHA256),
 		Workers:           workers,
 		Host:              host,
 		StartPort:         startPort,
@@ -208,6 +230,8 @@ func resolvePineWorkerRuntimeConfig() (pineWorkerRuntimeConfig, bool, error) {
 		MaxDurationPerBar: maxDurationPerBar,
 		MinCandlesPerSec:  minCandlesPerSec,
 		MaxPeakRSSBytes:   maxPeakRSSBytes,
+		embedded:          embedded,
+		binaryData:        embeddedAsset.Data,
 	}, true, nil
 }
 

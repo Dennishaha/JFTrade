@@ -30,6 +30,8 @@ apps/web/dist/
 packages/*/dist/
 internal/frontendassets/dist.zip
 internal/frontendassets/dist/
+internal/pineworkerassets/assets/bin/*
+!internal/pineworkerassets/assets/bin/.gitkeep
 docs/swagger/docs.go
 docs/swagger/swagger.json
 docs/swagger/swagger.yaml

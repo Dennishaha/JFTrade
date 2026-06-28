@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "bun src/main.ts",
+    "build": "bash ../../scripts/build-pineworker-assets.sh",
     "test": "bun test",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

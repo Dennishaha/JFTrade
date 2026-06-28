@@ -50,6 +50,9 @@ go run ./scripts/archive_frontend_assets.go \
   -src "$ROOT_DIR/apps/web/dist" \
   -dst "$ROOT_DIR/internal/frontendassets/dist.zip"
 
+echo "Building embedded PineTS worker assets / 构建内嵌 PineTS worker 资源..."
+npm run build:pineworker
+
 echo "Starting JFTrade service / 启动 JFTrade 服务..."
 echo "JFTrade GUI / 前端地址: http://${JFTRADE_GUI_BIND}"
 echo "JFTrade API / 后端地址: http://${JFTRADE_API_BIND}"
