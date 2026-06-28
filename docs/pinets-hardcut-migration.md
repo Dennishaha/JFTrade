@@ -408,3 +408,4 @@ Hard-cut means:
 | 2026-06-29 | `wc -l .github/workflows/ci.yml pkg/strategy/pineworker/hardcut_audit_test.go` | Pass; largest touched file 296 lines, below 1200 |
 | 2026-06-29 | `git diff --check` | Pass |
 | 2026-06-29 | Updated `.github/workflows/ci.yml` | Pass; CI now builds embedded frontend assets with `npm run build:frontend-assets` and runs `go test -tags release_assets ./internal/frontendassets -run TestFileSystem` |
+| 2026-06-29 | Updated `.github/workflows/ci.yml` | Pass; CI now runs `npm run test:pinets-release-check` so strict, blocked, and unblocked release-check branches stay covered |
