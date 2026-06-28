@@ -437,3 +437,4 @@ Hard-cut means:
 | 2026-06-29 | Canceled commercial PineTS plan | Pass; `pinets@0.9.26` is now a locked worker dependency, release gates require the package to be installed, and `AGPL-3.0-only` is recorded instead of treated as a commercial-license blocker |
 | 2026-06-29 | Updated Bun worker PineTS import | Pass; PineTS is now a static dependency import so Bun SEA `bun build --compile` includes public `pinets` in the worker executable |
 | 2026-06-29 | `JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v` | Blocked for release; public `pinets` is installed, but the real non-mock smoke still fails with localhost gRPC connection refused and remains the active release blocker |
+| 2026-06-29 | Added PineTS worker debug entrypoint | Pass; `npm run dev:api:pineworker` now builds the current-platform Bun SEA worker into `var/pineworker` and starts the API with `JFTRADE_PINEWORKER_BINARY` configured |

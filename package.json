@@ -24,6 +24,8 @@
     "build:backend": "go build -tags=embed_zoneinfo -o dist/jftrade-dev ./cmd/jftrade-api",
     "build:frontend-assets": "bash scripts/build-frontend-assets.sh",
     "build:pineworker": "bash scripts/build-pineworker-assets.sh",
+    "build:pineworker:dev": "bash scripts/build-pineworker-dev.sh",
+    "dev:api:pineworker": "JFTRADE_PINEWORKER_BINARY=$(bash scripts/build-pineworker-dev.sh | tail -n 1) go run ./cmd/jftrade-api",
     "check:pinets-release": "bash scripts/check-pinets-release.sh",
     "test:pinets-release-check": "bash scripts/check-pinets-release.test.sh",
     "test:pineworker-asset-build": "bash scripts/build-pineworker-assets.test.sh",

@@ -388,6 +388,19 @@ func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
 		"scripts/build-pineworker-assets.sh": {
 			"bun build --compile",
 		},
+		"scripts/build-pineworker-dev.sh": {
+			"bun build --compile",
+			"JFTRADE_PINEWORKER_DEV_OUT_DIR",
+		},
+		"package.json": {
+			"build:pineworker:dev",
+			"dev:api:pineworker",
+		},
+		"internal/app/apiserver/servercore/pineworker_runtime.go": {
+			"npm run dev:api:pineworker",
+			"JFTRADE_PINEWORKER_BINARY",
+			"/absolute/path/to/worker",
+		},
 	}
 	for rel, requiredValues := range requiredByFile {
 		data, err := os.ReadFile(filepath.Join(root, rel))
