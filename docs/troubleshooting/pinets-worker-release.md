@@ -74,6 +74,8 @@ worker 不长期持有全量历史 K 线；K 线主存储仍在 Go 侧。策略�
 npm install
 npm run test:pineworker
 npm run typecheck:pineworker
+npm run build:frontend-assets
+go test -tags release_assets ./internal/frontendassets -run TestFileSystem
 bash scripts/build-pineworker-assets.sh
 go test -tags release_assets ./internal/pineworkerassets -run Test
 go test ./pkg/strategy/pineworker -run Test -cover

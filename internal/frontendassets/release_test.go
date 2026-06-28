@@ -4,6 +4,7 @@ package frontendassets
 
 import (
 	"io/fs"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,5 +43,59 @@ func TestFileSystemEmbedsUnderscorePrefixedAssets(t *testing.T) {
 		if _, err := fs.Stat(frontendFS, assetPath); err != nil {
 			t.Fatalf("embedded filesystem missing %s: %v", assetPath, err)
 		}
+	}
+}
+
+func TestFileSystemDoesNotEmbedRemovedGoPineRuntimeReferences(t *testing.T) {
+	frontendFS, available, err := FileSystem()
+	if err != nil {
+		t.Fatalf("FileSystem: %v", err)
+	}
+	if !available {
+		t.Fatal("expected embedded frontend assets to be available")
+	}
+
+	forbidden := []string{
+		"pkg/strategy/pineruntime",
+		"BenchmarkPineRuntime",
+		"BenchmarkRunExecutesPineGoldenMatrix",
+	}
+	if err := fs.WalkDir(frontendFS, ".", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || !isFrontendTextAsset(path) {
+			return nil
+		}
+		file, err := frontendFS.Open(path)
+		if err != nil {
+			return err
+		}
+		data, readErr := io.ReadAll(file)
+		closeErr := file.Close()
+		if readErr != nil {
+			return readErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		text := string(data)
+		for _, value := range forbidden {
+			if strings.Contains(text, value) {
+				t.Fatalf("embedded frontend asset %s still references removed Go Pine runtime %q", path, value)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("walk embedded frontend assets: %v", err)
+	}
+}
+
+func isFrontendTextAsset(path string) bool {
+	switch filepath.Ext(path) {
+	case ".html", ".js", ".css", ".json", ".txt", ".map":
+		return true
+	default:
+		return false
 	}
 }

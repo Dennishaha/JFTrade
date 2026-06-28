@@ -22,6 +22,7 @@
     "build:web": "npm -w @jftrade/web run build",
     "build:docs": "npm run generate:docs && vitepress build docs",
     "build:backend": "go build -tags=embed_zoneinfo -o dist/jftrade-dev ./cmd/jftrade-api",
+    "build:frontend-assets": "bash scripts/build-frontend-assets.sh",
     "build:pineworker": "bash scripts/build-pineworker-assets.sh",
     "check:pinets-release": "bash scripts/check-pinets-release.sh",
     "test:pinets-release-check": "bash scripts/check-pinets-release.test.sh",

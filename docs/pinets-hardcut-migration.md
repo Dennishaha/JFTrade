@@ -385,3 +385,11 @@ Hard-cut means:
 | 2026-06-29 | Added `TestWorkerManagerRealPineTSProcessSmoke` | Pass; gated by `JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1`, requires installed `pinets`, starts a non-mock Bun/PineTS worker process, and is wired into strict `scripts/check-pinets-release.sh` before release asset build |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run 'TestWorkerManagerRealPineTSProcessSmoke\|TestWorkerManagerProcessSmokeWithBunWorker' -v` | Pass with both process smoke tests skipped by default env gates |
 | 2026-06-29 | `bash scripts/check-pinets-release.sh --allow-blocked` | Pass in blocked mode; missing `pinets` skips the real PineTS process smoke and release asset build |
+| 2026-06-29 | Added `scripts/build-frontend-assets.sh` and wired it into `scripts/check-pinets-release.sh` | Pass; local embedded frontend assets are rebuilt from current web output and no longer contain removed Go Pine runtime package or stale benchmark references |
+| 2026-06-29 | `go test -tags release_assets ./internal/frontendassets -run TestFileSystem -v` | Pass; release frontend asset tests now reject removed Go Pine runtime and stale performance benchmark strings |
+| 2026-06-29 | `npm --prefix apps/web run typecheck` | Pass after rebuilding frontend assets from current source |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now requires release frontend asset auditing |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.440 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `wc -l scripts/archive_frontend_assets.go scripts/build-frontend-assets.sh package.json internal/frontendassets/release_test.go pkg/strategy/pineworker/hardcut_audit_test.go` | Pass; largest touched file 276 lines, below 1200 |
+| 2026-06-29 | `git diff --check` | Pass |

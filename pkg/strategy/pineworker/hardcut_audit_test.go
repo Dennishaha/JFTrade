@@ -17,6 +17,7 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertLegacyRuntimePackageRemoved(t, root)
 	assertNoUnexpectedPineRuntimeImports(t, root)
 	assertNoStalePineRuntimePerformanceGate(t, root)
+	assertReleaseFrontendAssetsAreAudited(t, root)
 }
 
 func pineWorkerRepoRoot(t *testing.T) string {
@@ -251,5 +252,25 @@ func assertNoStalePineRuntimePerformanceGate(t *testing.T, root string) {
 	}
 	if !strings.Contains(text, "BenchmarkCheckPerformanceGate") {
 		t.Fatalf("%s does not run the PineTS worker performance gate", rel)
+	}
+}
+
+func assertReleaseFrontendAssetsAreAudited(t *testing.T, root string) {
+	t.Helper()
+	rel := "internal/frontendassets/release_test.go"
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", rel, err)
+	}
+	text := string(data)
+	for _, required := range []string{
+		"TestFileSystemDoesNotEmbedRemovedGoPineRuntimeReferences",
+		"pkg/strategy/pineruntime",
+		"BenchmarkPineRuntime",
+		"BenchmarkRunExecutesPineGoldenMatrix",
+	} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("%s does not audit release frontend assets for %q", rel, required)
+		}
 	}
 }

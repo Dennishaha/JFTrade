@@ -53,6 +53,16 @@ if ! grep -q "go test ./pkg/strategy/pineworker -run Test -cover" "$RUN_LOG"; th
   cat "$RUN_LOG" >&2
   exit 1
 fi
+if ! grep -q "npm run build:frontend-assets" "$RUN_LOG"; then
+  echo "blocked release check did not rebuild frontend release assets" >&2
+  cat "$RUN_LOG" >&2
+  exit 1
+fi
+if ! grep -q "go test -tags release_assets ./internal/frontendassets -run TestFileSystem" "$RUN_LOG"; then
+  echo "blocked release check did not test embedded frontend assets" >&2
+  cat "$RUN_LOG" >&2
+  exit 1
+fi
 
 : > "$RUN_LOG"
 export JFTRADE_PINETS_RELEASE_PINETS_STATUS=0

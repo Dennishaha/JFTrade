@@ -91,9 +91,8 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		defer func() { jftradeLogError(file.Close()) }()
-
 		if _, err := io.Copy(writer, file); err != nil {
+			jftradeLogError(file.Close())
 			return err
 		}
 		if err := file.Close(); err != nil {
@@ -102,13 +101,6 @@ func run() error {
 		return nil
 	}); err != nil {
 		return fmt.Errorf("archive frontend assets: %w", err)
-	}
-
-	if err := zipWriter.Close(); err != nil {
-		return fmt.Errorf("close archive writer: %w", err)
-	}
-	if err := archiveFile.Close(); err != nil {
-		return fmt.Errorf("close archive file: %w", err)
 	}
 	return nil
 }
