@@ -32,9 +32,15 @@ run() {
   "$@"
 }
 
-mark_blocked() {
-  echo "BLOCKED: $*" >&2
-  BLOCKED=1
+verify_release_artifact() {
+  if [[ ! -s "$RELEASE_OUT" ]]; then
+    echo "release artifact is missing or empty: $RELEASE_OUT" >&2
+    exit 1
+  fi
+  if [[ ! -x "$RELEASE_OUT" ]]; then
+    echo "release artifact is not executable: $RELEASE_OUT" >&2
+    exit 1
+  fi
 }
 
 if ! pinets_check_package_and_license; then
@@ -58,6 +64,7 @@ if [[ "$BLOCKED" -eq 0 ]]; then
   run bash scripts/build-pineworker-assets.sh
   run go test -tags release_assets ./internal/pineworkerassets -run Test
   run go build -tags release_assets -o "$RELEASE_OUT" ./cmd/jftrade-api
+  verify_release_artifact
 else
   echo "==> Skipping real PineTS process smoke and release asset build until pinets is installed"
 fi

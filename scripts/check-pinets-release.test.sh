@@ -24,9 +24,27 @@ stub() {
   chmod +x "$BIN_DIR/$name"
 }
 
-stub go 'exit 0'
 stub npm 'exit 0'
 stub bash 'exit 0'
+
+{
+  printf '#!/bin/sh\n'
+  printf 'echo "go $*" >> "%s"\n' "$RUN_LOG"
+  printf 'if [ "$1" = "build" ]; then\n'
+  printf '  out=""\n'
+  printf '  while [ "$#" -gt 0 ]; do\n'
+  printf '    if [ "$1" = "-o" ]; then shift; out="$1"; fi\n'
+  printf '    shift\n'
+  printf '  done\n'
+  printf '  if [ -n "$out" ] && [ "${JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT:-}" != "1" ]; then\n'
+  printf '    mkdir -p "$(dirname "$out")"\n'
+  printf '    printf "#!/bin/sh\\nexit 0\\n" > "$out"\n'
+  printf '    chmod +x "$out"\n'
+  printf '  fi\n'
+  printf 'fi\n'
+  printf 'exit 0\n'
+} > "$BIN_DIR/go"
+chmod +x "$BIN_DIR/go"
 
 export PATH="$BIN_DIR:$PATH"
 export JFTRADE_PINETS_RELEASE_RUN_LOG="$RUN_LOG"
@@ -132,5 +150,23 @@ fi
 if ! grep -q "go build -tags release_assets -o $RELEASE_OUT ./cmd/jftrade-api" "$RUN_LOG"; then
   echo "unblocked release check did not build release_assets API binary" >&2
   cat "$RUN_LOG" >&2
+  exit 1
+fi
+if [[ ! -x "$RELEASE_OUT" ]]; then
+  echo "unblocked release check did not leave an executable artifact" >&2
+  ls -l "$RELEASE_OUT" >&2 || true
+  exit 1
+fi
+
+: > "$RUN_LOG"
+rm -f "$RELEASE_OUT"
+export JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT=1
+if /bin/bash scripts/check-pinets-release.sh >/dev/null 2>"$TEMP_DIR/missing-artifact.err"; then
+  echo "release check passed despite missing release artifact" >&2
+  exit 1
+fi
+if ! grep -q "release artifact is missing or empty" "$TEMP_DIR/missing-artifact.err"; then
+  echo "release check did not report missing release artifact" >&2
+  cat "$TEMP_DIR/missing-artifact.err" >&2
   exit 1
 fi
