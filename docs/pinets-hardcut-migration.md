@@ -26,7 +26,7 @@
 | 7. Live integration | Done | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, records runtime observation/errors, and does not fall back to Go Pine runtime. |
 | 8. Hard removal | Done | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. |
 | 9. Packaging | Blocked for release | `scripts/build-pineworker-assets.sh` builds platform Bun worker binaries into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Mock process smoke compiles and runs through real gRPC. Release packaging remains blocked on the commercial `pinets` package/license and real PineTS process smoke. |
-| 10. Acceptance | Blocked for release | Focused Go/web/worker tests, worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. `scripts/check-pinets-release.sh` automates the release gates and fails in strict mode while `pinets` is missing. Final release acceptance still depends on the real PineTS package/license smoke and release packaging decision. |
+| 10. Acceptance | Blocked for release | Focused Go/web/worker tests, mock worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. `scripts/check-pinets-release.sh` automates the release gates and runs `TestWorkerManagerRealPineTSProcessSmoke` in strict mode once `pinets` is installed. Final release acceptance still depends on the real PineTS package/license smoke passing and the release packaging decision. |
 
 ## Runtime Boundary
 
@@ -382,3 +382,6 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now rejects stale Go Pine performance workflow references |
 | 2026-06-29 | `wc -l .github/workflows/backtest-performance-gate.yml scripts/check-pinets-release.sh scripts/check-pinets-release.test.sh package.json docs/troubleshooting/pinets-worker-release.md docs/pinets-hardcut-migration.md pkg/strategy/pineworker/hardcut_audit_test.go` | Pass; largest touched file 377 lines, below 1200 |
 | 2026-06-29 | `git diff --check` | Pass |
+| 2026-06-29 | Added `TestWorkerManagerRealPineTSProcessSmoke` | Pass; gated by `JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1`, requires installed `pinets`, starts a non-mock Bun/PineTS worker process, and is wired into strict `scripts/check-pinets-release.sh` before release asset build |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run 'TestWorkerManagerRealPineTSProcessSmoke\|TestWorkerManagerProcessSmokeWithBunWorker' -v` | Pass with both process smoke tests skipped by default env gates |
+| 2026-06-29 | `bash scripts/check-pinets-release.sh --allow-blocked` | Pass in blocked mode; missing `pinets` skips the real PineTS process smoke and release asset build |

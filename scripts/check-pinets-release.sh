@@ -53,10 +53,11 @@ run npm run test:pineworker
 run npm run typecheck:pineworker
 
 if [[ "$BLOCKED" -eq 0 ]]; then
+  run env JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v
   run bash scripts/build-pineworker-assets.sh
   run go test -tags release_assets ./internal/pineworkerassets -run Test
 else
-  echo "==> Skipping release asset build until pinets is installed"
+  echo "==> Skipping real PineTS process smoke and release asset build until pinets is installed"
 fi
 
 if [[ "$BLOCKED" -ne 0 && "$ALLOW_BLOCKED" -ne 1 ]]; then

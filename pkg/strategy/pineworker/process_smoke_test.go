@@ -16,11 +16,42 @@ import (
 )
 
 const processSmokeEnv = "JFTRADE_PINEWORKER_PROCESS_SMOKE"
+const realProcessSmokeEnv = "JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE"
 
 func TestWorkerManagerProcessSmokeWithBunWorker(t *testing.T) {
 	if os.Getenv(processSmokeEnv) != "1" {
 		t.Skip(processSmokeEnv + "=1 is required for process-level Pine worker smoke")
 	}
+	manager := startBunWorkerProcessSmokeManager(t, true, "smoke-mock")
+	response := waitForProcessSmokeRunScript(t, manager)
+	if response.JobID != "job-1" || len(response.Plots) == 0 || response.Metadata.WorkerID != "pineworker-1" {
+		t.Fatalf("unexpected worker response: %#v", response)
+	}
+}
+
+func TestWorkerManagerRealPineTSProcessSmoke(t *testing.T) {
+	if os.Getenv(realProcessSmokeEnv) != "1" {
+		t.Skip(realProcessSmokeEnv + "=1 is required for real PineTS process smoke")
+	}
+	root := repoRoot(t)
+	if !pinetsInstalled(root) {
+		t.Fatalf("pinets package is not installed; real PineTS process smoke cannot run")
+	}
+	manager := startBunWorkerProcessSmokeManager(t, false, "real-pinets-smoke")
+	response := waitForProcessSmokeRunScript(t, manager)
+	if response.JobID != "job-1" || response.Metadata.WorkerID != "pineworker-1" {
+		t.Fatalf("unexpected real PineTS worker response: %#v", response)
+	}
+	if response.Metadata.PineTSVersion != "real-pinets-smoke" {
+		t.Fatalf("real PineTS smoke did not report expected PineTS version metadata: %#v", response.Metadata)
+	}
+	if response.Metadata.PineTSVersion == "smoke-mock" {
+		t.Fatalf("real PineTS smoke used mock runtime metadata: %#v", response.Metadata)
+	}
+}
+
+func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion string) *WorkerManager {
+	t.Helper()
 	if _, err := exec.LookPath("bun"); err != nil {
 		t.Skip("bun is not installed or not on PATH")
 	}
@@ -61,9 +92,9 @@ func TestWorkerManagerProcessSmokeWithBunWorker(t *testing.T) {
 		},
 		TempDir:       tempDir,
 		ProtoPath:     filepath.Join(root, "pkg", "strategy", "pineworker", "proto", "pineworker.proto"),
-		Mock:          true,
+		Mock:          mock,
 		StopTimeout:   time.Second,
-		PineTSVersion: "smoke-mock",
+		PineTSVersion: pineTSVersion,
 	})
 	if err != nil {
 		t.Fatalf("NewBinaryWorkerLauncher: %v", err)
@@ -97,11 +128,7 @@ func TestWorkerManagerProcessSmokeWithBunWorker(t *testing.T) {
 			t.Fatalf("WorkerManager.Stop: %v", err)
 		}
 	})
-
-	response := waitForProcessSmokeRunScript(t, manager)
-	if response.JobID != "job-1" || len(response.Plots) == 0 || response.Metadata.WorkerID != "pineworker-1" {
-		t.Fatalf("unexpected worker response: %#v", response)
-	}
+	return manager
 }
 
 func waitForProcessSmokeRunScript(t *testing.T, manager *WorkerManager) RunScriptResponse {
@@ -128,6 +155,12 @@ func missingWorkerRuntimeDeps(root string) []string {
 		}
 	}
 	return missing
+}
+
+func pinetsInstalled(root string) bool {
+	check := exec.Command("npm", "ls", "pinets", "--workspaces", "--depth=1")
+	check.Dir = root
+	return check.Run() == nil
 }
 
 func bunCompileTarget(goos string, goarch string) (string, string, error) {
