@@ -26,7 +26,7 @@
 | 7. Live integration | Done | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, records runtime observation/errors, and does not fall back to Go Pine runtime. |
 | 8. Hard removal | Done | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. |
 | 9. Packaging | Blocked for release | `scripts/build-pineworker-assets.sh` builds platform Bun worker binaries into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Mock process smoke compiles and runs through real gRPC. Release packaging remains blocked on the commercial `pinets` package/license and real PineTS process smoke. |
-| 10. Acceptance | Blocked for release | Focused Go/web/worker tests, worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. Final release acceptance still depends on the real PineTS package/license smoke and release packaging decision. |
+| 10. Acceptance | Blocked for release | Focused Go/web/worker tests, worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. `scripts/check-pinets-release.sh` automates the release gates and fails in strict mode while `pinets` is missing. Final release acceptance still depends on the real PineTS package/license smoke and release packaging decision. |
 
 ## Runtime Boundary
 
@@ -65,6 +65,7 @@ The first Bun worker slice lives under `workers/pineworker` and intentionally av
 - Adapter normalization currently covers plots, outputs, logs, warnings, diagnostics, metadata, and normalized order intents.
 - `startWorkerGrpcServer` uses `@grpc/grpc-js` and `@grpc/proto-loader`, registers health/analyze/run handlers, and enforces gRPC send/receive message limits.
 - `DeterministicPineTSExecutor` exists only for fast contract tests; it must not become a production fallback.
+- `scripts/check-pinets-release.sh` runs the PineTS release acceptance gates and treats a missing `pinets` workspace dependency as a release blocker.
 
 ## Contract Shape
 
@@ -374,3 +375,10 @@ Hard-cut means:
 | 2026-06-29 | `wc -l docs/troubleshooting/pinets-worker-release.md docs/README.md docs/troubleshooting.md docs/pinets-hardcut-migration.md pkg/strategy/pineworker/hardcut_audit_test.go` | Pass; largest touched file 367 lines, below 1200 |
 | 2026-06-29 | `git diff --check` | Pass |
 | 2026-06-29 | `npm ls pinets --workspaces --depth=1` | Empty; release remains blocked until the commercial `pinets` package/license is installed and locked |
+| 2026-06-29 | Added `scripts/check-pinets-release.sh` and `npm run check:pinets-release` | Pass; strict mode fails while `pinets` is missing, `--allow-blocked` runs current Go/worker gates and skips release asset build |
+| 2026-06-29 | `bash scripts/check-pinets-release.sh --allow-blocked` | Pass in blocked mode; confirms missing `pinets`, runs runtime-config test, hard-cut audit, Pine worker coverage/performance gates, Bun worker tests, and worker typecheck |
+| 2026-06-29 | `bash scripts/check-pinets-release.test.sh` | Pass; release script strict, blocked, and unblocked branches are covered with command stubs |
+| 2026-06-29 | Updated `.github/workflows/backtest-performance-gate.yml` | Pass; removed deleted Go Pine runtime/golden benchmark references and added the PineTS worker performance gate |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now rejects stale Go Pine performance workflow references |
+| 2026-06-29 | `wc -l .github/workflows/backtest-performance-gate.yml scripts/check-pinets-release.sh scripts/check-pinets-release.test.sh package.json docs/troubleshooting/pinets-worker-release.md docs/pinets-hardcut-migration.md pkg/strategy/pineworker/hardcut_audit_test.go` | Pass; largest touched file 377 lines, below 1200 |
+| 2026-06-29 | `git diff --check` | Pass |
