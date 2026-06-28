@@ -79,5 +79,8 @@ jobs:
       - name: PineTS release check script test
         run: npm run test:pinets-release-check
 
+      - name: PineTS worker asset build script test
+        run: npm run test:pineworker-asset-build
+
       - name: Architecture dependency check
         run: bash scripts/check-arch-deps.sh

@@ -4,8 +4,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+source "$ROOT_DIR/scripts/lib/pinets-license.sh"
 
-OUT_DIR="$ROOT_DIR/internal/pineworkerassets/assets/bin"
+OUT_DIR="${JFTRADE_PINEWORKER_ASSET_OUT_DIR:-$ROOT_DIR/internal/pineworkerassets/assets/bin}"
 WORKER_ENTRY="$ROOT_DIR/workers/pineworker/src/main.ts"
 
 TARGETS=(
@@ -19,6 +20,11 @@ TARGETS=(
 
 if ! command -v bun >/dev/null 2>&1; then
   echo "bun is not installed or not on PATH" >&2
+  exit 1
+fi
+
+if ! pinets_check_package_and_license; then
+  echo "PineTS worker asset build is blocked until the commercial pinets package/license is available." >&2
   exit 1
 fi
 
