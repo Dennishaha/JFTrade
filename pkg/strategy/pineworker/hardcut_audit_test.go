@@ -18,6 +18,7 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertNoUnexpectedPineRuntimeImports(t, root)
 	assertNoStalePineRuntimePerformanceGate(t, root)
 	assertReleaseFrontendAssetsAreAudited(t, root)
+	assertReleasePineWorkerAssetsAreAudited(t, root)
 	assertPinetsReleaseRequiresCommercialLicense(t, root)
 	assertCIExercisesPineTSWorker(t, root)
 }
@@ -273,6 +274,33 @@ func assertReleaseFrontendAssetsAreAudited(t *testing.T, root string) {
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("%s does not audit release frontend assets for %q", rel, required)
+		}
+	}
+}
+
+func assertReleasePineWorkerAssetsAreAudited(t *testing.T, root string) {
+	t.Helper()
+	requiredByFile := map[string][]string{
+		"internal/pineworkerassets/assets_dev_test.go": {
+			"TestSelectForPlatformReturnsUnavailableWhenAssetMissing",
+			"!release_assets",
+		},
+		"internal/pineworkerassets/assets_release_test.go": {
+			"TestSelectForPlatformReturnsEmbeddedAssetWhenStaged",
+			"release_assets",
+			"SHA256",
+		},
+	}
+	for rel, requiredValues := range requiredByFile {
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("ReadFile(%s): %v", rel, err)
+		}
+		text := string(data)
+		for _, required := range requiredValues {
+			if !strings.Contains(text, required) {
+				t.Fatalf("%s does not audit Pine worker release assets for %q", rel, required)
+			}
 		}
 	}
 }
