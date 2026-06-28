@@ -76,5 +76,8 @@ jobs:
       - name: Frontend release asset test
         run: go test -tags release_assets ./internal/frontendassets -run TestFileSystem
 
+      - name: PineTS release check script test
+        run: npm run test:pinets-release-check
+
       - name: Architecture dependency check
         run: bash scripts/check-arch-deps.sh
