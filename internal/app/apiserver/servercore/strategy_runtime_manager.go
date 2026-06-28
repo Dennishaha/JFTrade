@@ -17,9 +17,6 @@ import (
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	"github.com/jftrade/jftrade-main/pkg/futu"
-	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
-	"github.com/jftrade/jftrade-main/pkg/strategy/pineruntime"
 )
 
 var (
@@ -41,6 +38,7 @@ type strategyRuntimeMarketEnsurer interface {
 type strategyRuntimeManager struct {
 	server           *Server
 	exchangeProvider func() strategyRuntimeExchange
+	pineWorkerRunner strategyRuntimePineWorker
 
 	mu       sync.RWMutex
 	runtimes map[string]*managedStrategyRuntime
@@ -74,6 +72,7 @@ type strategySymbolRuntime struct {
 	cachedPositions []broker.PositionSnapshot
 	session         *bbgo.ExchangeSession
 	emitter         bbgotypes.StandardStreamEmitter
+	pineWorkerLive  *strategyRuntimePineWorkerLive
 	onClosedKLine   func(time.Time)
 	onError         func(string)
 
@@ -113,39 +112,8 @@ func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 			broker:   activeBroker,
 		}
 	}
+	manager.pineWorkerRunner = server.pineWorkerManager
 	return manager
-}
-
-// strategyRuntimeBrokerBridge adapts a futu.Exchange (for bbgo Exchange interface)
-// with the broker.Broker abstraction (for broker-specific operations).
-// This bridges the gap during the transition from direct futu types to broker types.
-type strategyRuntimeBrokerBridge struct {
-	*futu.Exchange
-	broker broker.Broker
-}
-
-func (b *strategyRuntimeBrokerBridge) QueryBrokerFunds(ctx context.Context, query broker.ReadQuery) (*broker.FundsSnapshot, error) {
-	reader := b.broker.MarketData()
-	if reader == nil {
-		return nil, fmt.Errorf("broker market data not available")
-	}
-	return reader.QueryFunds(ctx, query)
-}
-
-func (b *strategyRuntimeBrokerBridge) QueryBrokerPositions(ctx context.Context, query broker.ReadQuery) ([]broker.PositionSnapshot, error) {
-	reader := b.broker.MarketData()
-	if reader == nil {
-		return nil, fmt.Errorf("broker market data not available")
-	}
-	return reader.QueryPositions(ctx, query)
-}
-
-func (b *strategyRuntimeBrokerBridge) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error) {
-	trading := b.broker.Trading()
-	if trading == nil {
-		return nil, fmt.Errorf("broker trading not available")
-	}
-	return trading.PlaceOrder(ctx, query)
 }
 
 func (m *strategyRuntimeManager) activeInstrumentIDs() []string {
@@ -352,45 +320,22 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 		},
 	}
 
-	strategy := &pineruntime.Strategy{
-		StrategyID:   strings.TrimSpace(instance.Definition.StrategyID),
-		Name:         strings.TrimSpace(instance.Definition.Name),
-		Symbol:       symbol,
-		Interval:     interval,
-		Script:       script,
-		DefinitionID: strategyRuntimeDefinitionID(instance),
-		OnError: func(message string) {
-			jftradeErr3 := m.server.strategyStore.appendStrategyRuntimeEvent(
-				instance.ID,
-				fmt.Sprintf("runtime error %s: %s", symbol, strings.TrimSpace(message)),
-				"runtime_error",
-				fmt.Sprintf("%s: %s", symbol, strings.TrimSpace(message)),
-			)
-			jftradeLogError(jftradeErr3)
-		},
-	}
-	strategy.Subscribe(session)
-	if err := strategy.Run(runtimeCtx, m.newOrderExecutor(instance, runner), session); err != nil {
+	live, err := newStrategyRuntimePineWorkerLive(m.pineWorkerRunner, instance, symbol, interval, script, m.newOrderExecutor(instance, runner))
+	if err != nil {
 		return nil, fmt.Errorf("start strategy runtime for %s: %w", symbol, err)
 	}
-
-	if err := m.seedSymbolRuntime(ctx, exchange, strategy, runner); err != nil {
+	runner.pineWorkerLive = live
+	if err := m.seedSymbolRuntime(ctx, exchange, live, runner); err != nil {
 		return nil, err
 	}
 	return runner, nil
 }
 
-func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange strategyRuntimeExchange, strategy *pineruntime.Strategy, runner *strategySymbolRuntime) error {
-	warmupBars, err := strategyindicatorruntime.WarmupBarsFromScriptForSymbol(strategy.Script, strategy.Interval, runner.symbol)
+func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange strategyRuntimeExchange, live *strategyRuntimePineWorkerLive, runner *strategySymbolRuntime) error {
+	klines, err := live.loadWarmup(ctx, exchange)
 	if err != nil {
-		return fmt.Errorf("analyze strategy warmup for %s: %w", runner.symbol, err)
+		return err
 	}
-	queryLimit := strategyRuntimeMaxInt(warmupBars+2, 2)
-	klines, err := exchange.QueryKLines(ctx, runner.symbol, runner.interval, bbgotypes.KLineQueryOptions{Limit: queryLimit})
-	if err != nil {
-		return fmt.Errorf("load warmup klines for %s: %w", runner.symbol, err)
-	}
-	strategy.WarmupUntil = strategyRuntimeWarmupUntil(klines, runner.interval)
 	for index := range klines {
 		kline := klines[index]
 		if !kline.Closed && index == len(klines)-1 {
@@ -401,6 +346,7 @@ func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange
 		closed.Closed = true
 		runner.setLastClosedPrice(closed.Close.Float64())
 		runner.recordClosedKLineState(closed)
+		live.recordWarmupClosed(closed)
 		runner.emitter.EmitKLineClosed(closed)
 	}
 	return nil
@@ -529,7 +475,19 @@ func (r *strategySymbolRuntime) emitClosedKLine(closed bbgotypes.KLine) {
 	if r.onClosedKLine != nil {
 		r.onClosedKLine(closed.EndTime.Time().UTC())
 	}
+	if r.pineWorkerLive != nil {
+		if err := r.pineWorkerLive.onClosedKLine(r.context(), closed); err != nil {
+			r.handleRuntimeError(err)
+		}
+	}
 	r.emitter.EmitKLineClosed(closed)
+}
+
+func (r *strategySymbolRuntime) context() context.Context {
+	if r != nil && r.ctx != nil {
+		return r.ctx
+	}
+	return context.Background()
 }
 
 func (r *strategySymbolRuntime) handleRuntimeError(err error) {

@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -107,5 +108,90 @@ func TestStrategyRuntimeStartEnsuresMissingMarketMetadata(t *testing.T) {
 	}
 	if _, ok := stub.markets["US.TME"]; !ok {
 		t.Fatalf("expected EnsureMarket to inject US.TME into market map")
+	}
+}
+
+func TestStrategyRuntimeLiveWorkerRequestIncludesModeCandlesAndParams(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	useFakeStrategyRuntimePineWorker(server, worker)
+
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeNotifyOnly,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instanceID)
+	}
+	instanceRecord.Params["threshold"] = "100"
+	instanceRecord.Params["enabled"] = true
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+
+	request, ok := worker.lastRequest()
+	if !ok {
+		t.Fatal("expected live worker request")
+	}
+	if request.Mode != "live" || request.Symbol != "US.AAPL" || request.Timeframe != "1m" {
+		t.Fatalf("unexpected live worker request routing fields: %+v", request)
+	}
+	if len(request.Candles) != 2 {
+		t.Fatalf("expected warmup + current closed candle, got %d candles", len(request.Candles))
+	}
+	if request.Params["threshold"] != "100" || request.Params["enabled"] != "true" {
+		t.Fatalf("unexpected worker params: %+v", request.Params)
+	}
+}
+
+func TestStrategyRuntimeLiveWorkerErrorRecordsRuntimeError(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.err = errors.New("worker crashed")
+	useFakeStrategyRuntimePineWorker(server, worker)
+
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeNotifyOnly,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instanceID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+
+	observation, ok := server.strategyRuntimeManager.runtimeObservation(instanceID)
+	if !ok {
+		t.Fatalf("expected runtime observation for %s", instanceID)
+	}
+	if observation.LastError == nil || !strings.Contains(*observation.LastError, "worker crashed") {
+		t.Fatalf("expected worker error observation, got %+v", observation)
 	}
 }

@@ -403,6 +403,9 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 	// Wire backtest service — RunStore / SyncTaskStore / StrategyProvider
 	// are implemented by the same backing stores already held by Server.
 	pineWorkerRunner := server.startPineWorkerManager(context.Background())
+	if pineWorkerRunner != nil && server.strategyRuntimeManager != nil {
+		server.strategyRuntimeManager.pineWorkerRunner = pineWorkerRunner
+	}
 	backtestOptions := []btsrv.Option{
 		btsrv.WithRunStore(&backtestRunStoreAdapter{store: backtestRunStore}),
 		btsrv.WithSyncTaskStore(&backtestSyncTaskStoreAdapter{store: server.backtestSyncTasks}),

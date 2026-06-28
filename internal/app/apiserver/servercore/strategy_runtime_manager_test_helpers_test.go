@@ -14,6 +14,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 type strategyRuntimeStubExchange struct {
@@ -270,6 +271,70 @@ func instantiateStrategyRuntimeTestInstance(t *testing.T, server *Server, bindin
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
 	return instance.ID
+}
+
+type fakeStrategyRuntimePineWorker struct {
+	mu       sync.Mutex
+	requests []pineworker.RunScriptRequest
+	err      error
+	response func(pineworker.RunScriptRequest) pineworker.RunScriptResponse
+}
+
+func newFakeStrategyRuntimePineWorker() *fakeStrategyRuntimePineWorker {
+	return &fakeStrategyRuntimePineWorker{
+		response: func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+			lastIndex := len(request.Candles) - 1
+			if lastIndex < 0 {
+				return pineworker.RunScriptResponse{JobID: request.JobID}
+			}
+			return pineworker.RunScriptResponse{
+				JobID: request.JobID,
+				OrderIntents: []pineworker.OrderIntent{{
+					Kind:        "entry",
+					ID:          "Long",
+					Direction:   "long",
+					Quantity:    10,
+					HasQuantity: true,
+					BarIndex:    lastIndex,
+					Time:        request.Candles[lastIndex].OpenTime,
+				}},
+			}
+		},
+	}
+}
+
+func (worker *fakeStrategyRuntimePineWorker) RunScript(_ context.Context, request pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
+	worker.mu.Lock()
+	worker.requests = append(worker.requests, request)
+	err := worker.err
+	response := worker.response
+	worker.mu.Unlock()
+	if err != nil {
+		return pineworker.RunScriptResponse{}, err
+	}
+	if response == nil {
+		return pineworker.RunScriptResponse{JobID: request.JobID}, nil
+	}
+	return response(request), nil
+}
+
+func (worker *fakeStrategyRuntimePineWorker) requestCount() int {
+	worker.mu.Lock()
+	defer worker.mu.Unlock()
+	return len(worker.requests)
+}
+
+func (worker *fakeStrategyRuntimePineWorker) lastRequest() (pineworker.RunScriptRequest, bool) {
+	worker.mu.Lock()
+	defer worker.mu.Unlock()
+	if len(worker.requests) == 0 {
+		return pineworker.RunScriptRequest{}, false
+	}
+	return worker.requests[len(worker.requests)-1], true
+}
+
+func useFakeStrategyRuntimePineWorker(server *Server, worker *fakeStrategyRuntimePineWorker) {
+	server.strategyRuntimeManager.pineWorkerRunner = worker
 }
 
 func strategyRuntimeHistoricalKLine(symbol string, interval bbgotypes.Interval, closePrice float64, start time.Time) bbgotypes.KLine {

@@ -21,6 +21,9 @@ func newTestServer(t *testing.T, store *SettingsStore) *Server {
 	if server.auth != nil {
 		server.auth.enabled = false
 	}
+	if server.strategyRuntimeManager != nil {
+		useFakeStrategyRuntimePineWorker(server, newFakeStrategyRuntimePineWorker())
+	}
 	configureTestADKProvider(t, server)
 	t.Cleanup(func() {
 		jftradeErr1 := server.Close()
