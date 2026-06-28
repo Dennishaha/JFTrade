@@ -1,5 +1,7 @@
 # JFTrade Pine v6 v0.8 发布收口说明
 
+> Historical note: this v0.8 closeout predates the PineTS hard cut. Its `pine-go-plan` references describe the old release line only; current development uses `runtime=pine-pinets` and follows [pinets-hardcut-migration.md](pinets-hardcut-migration.md).
+
 ## 当前定位
 
 v0.8 锁定的是 JFTrade 可执行 Pine v6 策略子集，不追 TradingView Pine v6 全量语言或完整 broker emulator。主路径为 `sourceFormat=pine-v6` + `runtime=pine-go-plan`。
