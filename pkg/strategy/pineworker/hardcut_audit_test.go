@@ -318,7 +318,8 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 		},
 		"scripts/check-pinets-release.sh": {
 			"pinets_check_package_and_license",
-			"go build -tags release_assets ./cmd/jftrade-api",
+			"dist/trading-engine",
+			"go build -tags release_assets -o",
 		},
 		"scripts/lib/pinets-license.sh": {
 			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
@@ -327,7 +328,8 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 		"scripts/check-pinets-release.test.sh": {
 			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
 			"AGPL-3.0-only",
-			"go build -tags release_assets ./cmd/jftrade-api",
+			"JFTRADE_PINETS_RELEASE_OUT",
+			"go build -tags release_assets -o",
 		},
 		"docs/troubleshooting/pinets-worker-release.md": {
 			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",

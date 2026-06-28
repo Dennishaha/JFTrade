@@ -29,7 +29,7 @@ go run ./cmd/jftrade-api
 
 ```bash
 bash scripts/build-pineworker-assets.sh
-go build -tags release_assets ./cmd/jftrade-api
+go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 ```
 
 `scripts/build-pineworker-assets.sh` 会先执行商业 `pinets` 包和许可证 attestation 检查。未安装商业包、未设置 `JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1`，或检测到公开 AGPL 包时，脚本会在调用 `bun build` 前失败。
@@ -83,7 +83,7 @@ bash scripts/build-pineworker-assets.sh
 go test -tags release_assets ./internal/pineworkerassets -run Test
 go test ./pkg/strategy/pineworker -run Test -cover
 go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem
-go build -tags release_assets ./cmd/jftrade-api
+go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 ```
 
 也可以直接运行发布验收脚本：
@@ -91,6 +91,8 @@ go build -tags release_assets ./cmd/jftrade-api
 ```bash
 npm run check:pinets-release
 ```
+
+严格模式默认输出单文件 `dist/trading-engine`。临时验证其他输出路径时可以设置 `JFTRADE_PINETS_RELEASE_OUT`。
 
 严格模式还会读取 `node_modules/pinets/package.json` 的 `license` 字段。若公开包显示 `AGPL-3.0-only`，即使依赖已安装也仍会阻塞发布，直到商业授权和包来源完成记录。
 
