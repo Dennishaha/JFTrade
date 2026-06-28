@@ -39,7 +39,7 @@ stub bash 'exit 0'
   printf '  if [ -n "$out" ] && [ "${JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT:-}" != "1" ]; then\n'
   printf '    mkdir -p "$(dirname "$out")"\n'
   printf '    printf "#!/bin/sh\\nexit 0\\n" > "$out"\n'
-  printf '    chmod +x "$out"\n'
+  printf '    if [ "${JFTRADE_PINETS_RELEASE_STUB_NON_EXECUTABLE:-}" != "1" ]; then chmod +x "$out"; fi\n'
   printf '  fi\n'
   printf 'fi\n'
   printf 'exit 0\n'
@@ -170,5 +170,18 @@ fi
 if ! grep -q "release artifact is missing or empty" "$TEMP_DIR/missing-artifact.err"; then
   echo "release check did not report missing release artifact" >&2
   cat "$TEMP_DIR/missing-artifact.err" >&2
+  exit 1
+fi
+
+: > "$RUN_LOG"
+unset JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT
+export JFTRADE_PINETS_RELEASE_STUB_NON_EXECUTABLE=1
+if /bin/bash scripts/check-pinets-release.sh >/dev/null 2>"$TEMP_DIR/non-executable-artifact.err"; then
+  echo "release check passed despite non-executable release artifact" >&2
+  exit 1
+fi
+if ! grep -q "release artifact is not executable" "$TEMP_DIR/non-executable-artifact.err"; then
+  echo "release check did not report non-executable release artifact" >&2
+  cat "$TEMP_DIR/non-executable-artifact.err" >&2
   exit 1
 fi
