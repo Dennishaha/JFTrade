@@ -11,6 +11,7 @@ import (
 func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	root := pineWorkerRepoRoot(t)
 	assertNoLegacyRuntimeInCurrentSpecDocs(t, root)
+	assertNoLegacyRuntimeInFrontendSurfaces(t, root)
 	assertNoUnexpectedPineRuntimeImports(t, root)
 }
 
@@ -47,6 +48,55 @@ func assertNoLegacyRuntimeInCurrentSpecDocs(t *testing.T, root string) {
 		if strings.Contains(text, "pine-go-plan") || strings.Contains(text, "pkg/strategy/pineruntime") {
 			t.Fatalf("%s still exposes legacy Go Pine runtime", rel)
 		}
+	}
+}
+
+func assertNoLegacyRuntimeInFrontendSurfaces(t *testing.T, root string) {
+	t.Helper()
+	allowed := []string{
+		"apps/web/src/components/strategy-runtime/strategyRuntimeIdentity.ts",
+	}
+	var offenders []string
+	for _, dir := range []string{"apps/web/src", "apps/web/tests"} {
+		err := filepath.WalkDir(filepath.Join(root, dir), func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				switch entry.Name() {
+				case "node_modules", "dist":
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			switch filepath.Ext(path) {
+			case ".ts", ".vue":
+			default:
+				return nil
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			rel = filepath.ToSlash(rel)
+			if slices.Contains(allowed, rel) {
+				return nil
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if strings.Contains(string(data), "pine-go-plan") {
+				offenders = append(offenders, rel)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("walk %s: %v", dir, err)
+		}
+	}
+	if len(offenders) > 0 {
+		t.Fatalf("frontend surfaces still expose legacy Go Pine runtime: %s", strings.Join(offenders, ", "))
 	}
 }
 

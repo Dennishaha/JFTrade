@@ -315,3 +315,7 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~8.487 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `git diff --check` | Pass |
 | 2026-06-29 | `wc -l apps/web/tests/strategyPageTestUtils.ts apps/web/tests/strategyPageMockApi.ts apps/web/tests/strategyPageTestState.ts apps/web/tests/strategyPageScriptFixtures.ts apps/web/tests/strategyPageAnalyzeMock.ts docs/pinets-hardcut-migration.md` | Pass; largest touched file 963 lines, below 1200 |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now also rejects `pine-go-plan` in frontend source/tests except the migration alias helper |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage after frontend legacy-runtime audit |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~5.948 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `wc -l pkg/strategy/pineworker/hardcut_audit_test.go docs/pinets-hardcut-migration.md` | Pass; largest touched file 317 lines, below 1200 |
