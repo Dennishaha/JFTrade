@@ -341,7 +341,9 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 			"JFTRADE_PINETS_RELEASE_OUT",
 			"go build -tags release_assets -o",
 			"JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT",
+			"JFTRADE_PINETS_RELEASE_STUB_NON_EXECUTABLE",
 			"release artifact is missing or empty",
+			"release artifact is not executable",
 		},
 		"docs/troubleshooting/pinets-worker-release.md": {
 			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
