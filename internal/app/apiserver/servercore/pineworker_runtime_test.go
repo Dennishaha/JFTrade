@@ -14,6 +14,7 @@ import (
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
@@ -64,12 +65,53 @@ func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 }
 
 func TestResolvePineWorkerRuntimeConfigDisabledWithoutBinary(t *testing.T) {
+	restorePineWorkerAssetSelector(t, pineworkerassets.Asset{}, false, nil)
+
 	config, enabled, err := resolvePineWorkerRuntimeConfig()
 	if err != nil {
 		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
 	}
-	if enabled || config != (pineWorkerRuntimeConfig{}) {
+	if enabled || config.BinaryPath != "" || len(config.binaryData) != 0 {
 		t.Fatalf("config = %#v enabled=%v, want disabled empty config", config, enabled)
+	}
+}
+
+func TestResolvePineWorkerRuntimeConfigUsesEmbeddedAsset(t *testing.T) {
+	restorePineWorkerAssetSelector(t, pineworkerassets.Asset{
+		Name:   "worker-test",
+		Data:   []byte("embedded"),
+		SHA256: "embedded-sha",
+	}, true, nil)
+
+	config, enabled, err := resolvePineWorkerRuntimeConfig()
+	if err != nil {
+		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
+	}
+	if !enabled || !config.embedded {
+		t.Fatalf("enabled=%v embedded=%v, want embedded config", enabled, config.embedded)
+	}
+	if config.BinaryPath != "worker-test" || config.SHA256 != "embedded-sha" || string(config.binaryData) != "embedded" {
+		t.Fatalf("config = %#v, want embedded asset metadata", config)
+	}
+}
+
+func TestResolvePineWorkerRuntimeConfigPrefersExternalBinaryOverEmbeddedAsset(t *testing.T) {
+	restorePineWorkerAssetSelector(t, pineworkerassets.Asset{
+		Name:   "worker-embedded",
+		Data:   []byte("embedded"),
+		SHA256: "embedded-sha",
+	}, true, nil)
+	t.Setenv(envPineWorkerBinary, "/tmp/external-worker")
+
+	config, enabled, err := resolvePineWorkerRuntimeConfig()
+	if err != nil {
+		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
+	}
+	if !enabled || config.embedded {
+		t.Fatalf("enabled=%v embedded=%v, want external config", enabled, config.embedded)
+	}
+	if config.BinaryPath != "/tmp/external-worker" || len(config.binaryData) != 0 {
+		t.Fatalf("config = %#v, want external binary path without embedded data", config)
 	}
 }
 
@@ -114,7 +156,38 @@ func TestServerStartsConfiguredPineWorkerManagerAndStopsOnClose(t *testing.T) {
 	}
 }
 
+func TestServerStartsEmbeddedPineWorkerManager(t *testing.T) {
+	restorePineWorkerAssetSelector(t, pineworkerassets.Asset{
+		Name:   "worker-embedded",
+		Data:   []byte("embedded worker"),
+		SHA256: "embedded-sha",
+	}, true, nil)
+	t.Setenv(envPineWorkerWorkers, "1")
+	t.Setenv(envPineWorkerStartPort, "57001")
+
+	launcher := &fakeServerPineWorkerLauncher{}
+	dialer := newFakeServerPineWorkerDialer()
+	restorePineWorkerFactories(t, launcher, dialer)
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	if server.pineWorkerManager == nil {
+		t.Fatal("pineWorkerManager = nil, want embedded manager")
+	}
+	if launcher.startedCount() != 1 {
+		t.Fatalf("started workers = %d, want 1", launcher.startedCount())
+	}
+	if _, ok := dialer.transport("127.0.0.1:57001"); !ok {
+		t.Fatalf("expected embedded worker transport, got %#v", dialer.addresses())
+	}
+}
+
 func TestServerBacktestDoesNotFallbackToGoRuntimeWithoutPineWorker(t *testing.T) {
+	restorePineWorkerAssetSelector(t, pineworkerassets.Asset{}, false, nil)
+
 	dbPath := filepath.Join(t.TempDir(), "backtest.db")
 	t.Setenv("JFTRADE_BACKTEST_DB", dbPath)
 	seedServerPineWorkerTestKLines(t, dbPath)
@@ -217,6 +290,17 @@ func restorePineWorkerFactories(t *testing.T, launcher pineworker.WorkerLauncher
 	t.Cleanup(func() {
 		newPineWorkerLauncher = previousLauncher
 		newPineWorkerDialer = previousDialer
+	})
+}
+
+func restorePineWorkerAssetSelector(t *testing.T, asset pineworkerassets.Asset, ok bool, err error) {
+	t.Helper()
+	previous := selectPineWorkerAsset
+	selectPineWorkerAsset = func() (pineworkerassets.Asset, bool, error) {
+		return asset, ok, err
+	}
+	t.Cleanup(func() {
+		selectPineWorkerAsset = previous
 	})
 }
 
