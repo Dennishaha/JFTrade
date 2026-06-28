@@ -1,9 +1,8 @@
 // Package indicatorbinding provides shared parsing and normalization
 // helpers for Pine indicator bindings.  These functions were previously
-// duplicated between pkg/strategy/ir (planner) and
-// pkg/strategy/pineruntime (runtime); they are now the single source of
-// truth for indicator configuration parsing - runtime calculation
-// remains in its owning package.
+// duplicated between planner and the former Go Pine runtime; they are now
+// the single source of truth for indicator configuration parsing. Runtime
+// calculation remains in its owning package.
 package indicatorbinding
 
 import (

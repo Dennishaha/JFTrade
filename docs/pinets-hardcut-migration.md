@@ -24,7 +24,7 @@
 | 5. Worker manager | In progress | Go `WorkerManager` starts fixed worker specs, assigns ports, dials transports, round-robins healthy workers, restarts failed health checks, drains on shutdown, and exposes snapshots. Binary extraction launcher, gRPC dialer, API-server lifecycle wiring, embedded asset selection, and Bun mock process smoke coverage are implemented. |
 | 6. Backtest integration | In progress | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` defaults to the Pine worker path and API startup injects a configured `WorkerManager` from `JFTRADE_PINEWORKER_BINARY`. Missing worker config now fails fast instead of falling back to Go runtime. |
 | 7. Live integration | In progress | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, and records runtime observation/errors. Worker crash restart and real Bun/PineTS smoke remain. |
-| 8. Hard removal | In progress | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes `pkg/strategy/pineruntime` and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary. Remaining work is deleting the old Go runtime package. |
+| 8. Hard removal | In progress | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. Remaining work is final audit/acceptance cleanup. |
 | 9. Packaging | In progress | `scripts/build-pineworker-assets.sh` builds platform Bun worker binaries into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Gated process smoke compiles and runs the mock Bun worker through real gRPC. Real PineTS dependency lock policy remains. |
 | 10. Acceptance | Not started | Focused Go/web/worker tests pass; performance gates pass on golden scripts; docs reflect `pine-pinets` as the only Pine runtime. |
 
@@ -100,7 +100,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - The replay planner converts `types.KLine` to worker candles, builds `RunScriptRequest`, copies params, applies default job IDs, validates returned command bar indexes, fills missing command times from the source candle, and groups commands by bar index/open time.
 - The command executor resolves session markets, submits market/limit/stop commands through bbgo `SubmitOrders`, tracks created orders by Pine id/client id, and maps `cancel`/`cancel_all` to bbgo `CancelOrders`.
 - The replay pump validates replay candle order, feeds each K-line into bbgo matching, then executes that bar's close-generated worker commands so they are eligible for later-bar matching.
-- `RunWithPineWorker` loads the same K-line store and bbgo backtest exchange, collects replay K-lines for worker planning, routes worker intents through Go matching, and uses the existing result collector for trades/equity/metrics without instantiating `pkg/strategy/pineruntime`.
+- `RunWithPineWorker` loads the same K-line store and bbgo backtest exchange, collects replay K-lines for worker planning, routes worker intents through Go matching, and uses the existing result collector for trades/equity/metrics without instantiating the former Go Pine runtime.
 - `internal/backtest.Service` accepts a `WithPineWorkerRunner` dependency and its default runner now requires that Pine worker dependency instead of calling `bt.Run`.
 - API server startup no longer injects `bt.Run`; it injects a started Pine worker manager only when `JFTRADE_PINEWORKER_BINARY` is configured and otherwise leaves service-level fail-fast behavior in place.
 - Quantity-percent commands currently fail fast until Go-side position sizing is wired, because Go remains authoritative for account/position state.
@@ -117,7 +117,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - `strategyRuntimePineWorkerLive` builds `ModeLive` requests from warmup + closed candles, copies supported instance params, and sends the script/source/symbol/timeframe to the worker.
 - The live path only executes worker order intents for the just-closed bar, preventing historical replayed intents from submitting duplicate live orders.
 - Worker `entry/order/exit/close` intents are mapped into bbgo submit orders and then passed through the existing notify-only or live order executors, preserving Go risk controls and broker APIs.
-- Worker errors are recorded as runtime errors and persisted in runtime observation; Go does not fall back to `pkg/strategy/pineruntime`.
+- Worker errors are recorded as runtime errors and persisted in runtime observation; Go does not fall back to the former Go Pine runtime.
 - Pine semantics such as default percent sizing, pyramiding, and script-level order decisions now belong to PineTS worker output. Go live execution requires explicit worker-sized quantities and fails fast for quantity-percent intents until live position sizing is implemented in the worker contract.
 
 ## Coverage Gates
@@ -330,3 +330,10 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; audit now checks current maintenance docs in addition to public spec and frontend surfaces |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.415 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `git rm -r pkg/strategy/pineruntime` | Pass; deleted the former Go Pine runtime package and its package-local tests/benchmarks |
+| 2026-06-29 | `rg -n "pkg/strategy/pineruntime\|pineruntime" --glob '*.go' --glob '*.md' --glob '*.ts' --glob '*.vue'` | Pass; only hard-cut audit deny-list strings and historical migration log entries remain |
+| 2026-06-29 | `go test ./pkg/strategy/...` | Pass; strategy packages compile and test without the former Go Pine runtime package |
+| 2026-06-29 | `go test ./pkg/backtest ./pkg/strategy/pineworker -run Test` | Pass |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; audit now also requires the former Go Pine runtime package directory to be absent |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.504 ns/op, 0 B/op, 0 allocs/op |
