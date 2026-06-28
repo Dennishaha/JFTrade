@@ -136,7 +136,7 @@ func TestBuildToolPayloadIncludesSupportMatrix(t *testing.T) {
 	foundV34SupportSnapshotSet := false
 	foundV40BrokerBoundarySet := false
 	for _, item := range matrix {
-		if item["capability"] == "JFTrade Pine v6 main path" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "sourceFormat=pine-v6") && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "runtime=pine-go-plan") {
+		if item["capability"] == "JFTrade Pine v6 main path" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "sourceFormat=pine-v6") && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "runtime=pine-pinets") {
 			foundMainPathGate = true
 		}
 		if item["capability"] == "v2.0 language foundation" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "collection namespace/type argument compatibility") {
