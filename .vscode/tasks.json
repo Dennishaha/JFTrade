@@ -50,6 +50,19 @@
             "problemMatcher": ["$go"]
         },
         {
+            "label": "build:pineworker:dev",
+            "type": "shell",
+            "command": "JFTRADE_PINEWORKER_DEV_ENV_FILE=\"${workspaceFolder}/var/pineworker/vscode.env\" npm run build:pineworker:dev",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "close": false
+            }
+        },
+        {
             "label": "build:all",
             "type": "npm",
             "script": "build",

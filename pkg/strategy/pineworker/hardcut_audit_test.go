@@ -391,10 +391,25 @@ func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
 		"scripts/build-pineworker-dev.sh": {
 			"bun build --compile",
 			"JFTRADE_PINEWORKER_DEV_OUT_DIR",
+			"JFTRADE_PINEWORKER_DEV_ENV_FILE",
+			"JFTRADE_PINEWORKER_BINARY",
 		},
 		"package.json": {
 			"build:pineworker:dev",
 			"dev:api:pineworker",
+		},
+		".vscode/tasks.json": {
+			"build:pineworker:dev",
+			"JFTRADE_PINEWORKER_DEV_ENV_FILE",
+			"var/pineworker/vscode.env",
+		},
+		".vscode/launch.json": {
+			"Debug Backend with PineTS Worker",
+			"preLaunchTask",
+			"build:pineworker:dev",
+			"envFile",
+			"var/pineworker/vscode.env",
+			"JFTRADE_PINEWORKER_WORKERS",
 		},
 		"internal/app/apiserver/servercore/pineworker_runtime.go": {
 			"npm run dev:api:pineworker",
