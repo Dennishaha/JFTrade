@@ -71,6 +71,7 @@ describe("startWorkerGrpcServer", () => {
 
     expect(started.port).toBe(50051);
     expect(fakeServer.protoOptions?.keepCase).toBe(true);
+    expect(fakeServer.protoOptions?.includeDirs).toEqual(["/repo/pkg/strategy/pineworker/proto", "/repo/pkg/strategy/pineworker"]);
     expect(fakeServer.options).toMatchObject({
       "grpc.max_receive_message_length": 1024,
       "grpc.max_send_message_length": 1024,

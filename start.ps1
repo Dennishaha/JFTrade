@@ -113,6 +113,14 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+Write-Host "`n=== Building embedded PineTS worker assets ===" -ForegroundColor Cyan
+npm run build:pineworker
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "PineTS worker asset build failed" -ForegroundColor Red
+    pause
+    exit 1
+}
+
 Write-Host ("`n=== Starting backend service / {0} ===" -f $cnStartBackend) -ForegroundColor Green
 $backendExe = Join-Path $PSScriptRoot "dist\jftrade-api-test.exe"
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backendExe) | Out-Null

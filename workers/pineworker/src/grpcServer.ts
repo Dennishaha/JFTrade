@@ -42,7 +42,7 @@ export async function startWorkerGrpcServer(options: WorkerServerOptions): Promi
     enums: String,
     defaults: true,
     oneofs: true,
-    includeDirs: [dirname(options.protoPath)],
+    includeDirs: includeDirsForProto(options.protoPath),
   });
   const loaded = options.grpc.loadPackageDefinition(packageDefinition);
   const service = pineWorkerServiceDefinition(loaded);
@@ -128,6 +128,11 @@ function asRecord(value: unknown): Record<string, unknown> {
 function dirname(path: string): string {
   const index = path.lastIndexOf("/");
   return index < 0 ? "." : path.slice(0, index);
+}
+
+function includeDirsForProto(path: string): string[] {
+  const protoDir = dirname(path);
+  return [protoDir, dirname(protoDir)];
 }
 
 type UnaryCall = {
