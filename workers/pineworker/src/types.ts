@@ -109,3 +109,11 @@ export type PineTSExecutor = {
   run(request: RunScriptRequest): Promise<PineTSRunResult>;
   version(): string;
 };
+
+export type HealthStatus = {
+  ok: boolean;
+  workerId: string;
+  version: string;
+  pineTSVersion: string;
+  capabilities: string[];
+};
