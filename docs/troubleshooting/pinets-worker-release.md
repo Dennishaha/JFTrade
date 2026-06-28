@@ -107,11 +107,11 @@ npm run test:pinets-release-check
 
 ```bash
 unset JFTRADE_PINEWORKER_MOCK
-export JFTRADE_PINEWORKER_BINARY=/absolute/path/to/worker-linux-x64
-go test ./internal/app/apiserver/servercore -run TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker -v
+JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 \
+  go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v
 ```
 
-随后用实际 worker 发起 `HealthCheck` 和一段小 K 线 `RunScript` 请求。命令行或日志中不应出现 `--mock true`。
+这个测试会编译 Bun worker，以非 mock 模式启动 worker 进程，并通过 `WorkerManager` 发起 localhost gRPC `RunScript`。它要求 `pinets` 已安装；缺少 `pinets` 时测试会失败，表示发布仍被阻塞。命令行或日志中不应出现 `--mock true`。
 
 当前已有的 `JFTRADE_PINEWORKER_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerProcessSmokeWithBunWorker -v` 只证明 Bun worker、进程生命周期和 gRPC 边界可用；它使用 mock executor，不能替代真实 PineTS smoke。
 

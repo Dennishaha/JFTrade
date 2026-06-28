@@ -62,3 +62,8 @@ if ! grep -q "bash scripts/build-pineworker-assets.sh" "$RUN_LOG"; then
   cat "$RUN_LOG" >&2
   exit 1
 fi
+if ! grep -q "env JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v" "$RUN_LOG"; then
+  echo "unblocked release check did not run real PineTS process smoke" >&2
+  cat "$RUN_LOG" >&2
+  exit 1
+fi
