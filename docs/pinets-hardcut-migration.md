@@ -22,7 +22,7 @@
 | 3. Worker PoC | Done | Bun worker core validates requests, adapts custom OHLCV data to the PineTS constructor shape, normalizes plots/logs/order intents, exposes a gRPC server boundary, and has Bun tests. Real PineTS dependency wiring remains blocked on commercial license and package-lock policy. |
 | 4. gRPC bridge | In progress | Go worker client abstraction, generated Go gRPC transport, and Bun gRPC server boundary are covered by fake/bufconn/Bun tests. Real JS gRPC dependencies, process-level end-to-end tests, and worker packaging remain. |
 | 5. Worker manager | In progress | Go `WorkerManager` starts fixed worker specs, assigns ports, dials transports, round-robins healthy workers, restarts failed health checks, drains on shutdown, and exposes snapshots. Binary extraction launcher and gRPC dialer are implemented; real embedded worker assets and process-level smoke tests remain. |
-| 6. Backtest integration | In progress | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, and replay pump that applies planned commands around bbgo K-line consumption. Runner still needs to select this PineTS path instead of invoking `pkg/strategy/pineruntime`. |
+| 6. Backtest integration | In progress | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker` entry point that executes worker order intents through bbgo matching. Default `Run()`/CLI/API selection still needs to move to this PineTS path before removing `pkg/strategy/pineruntime`. |
 | 7. Live integration | Not started | Bar-close live flow calls worker, applies Go risk, places orders through broker APIs, and records runtime observation. |
 | 8. Hard removal | Not started | `pkg/strategy/pineruntime`, Go TradingView parity extensions, self-built support matrix docs, and old UI toggles are removed. |
 | 9. Packaging | Not started | `bun build --compile` creates platform workers; Go embeds and releases matching binaries with checksum validation. |
@@ -91,16 +91,17 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 
 ## Backtest Integration Boundary
 
-`pkg/backtest.PineWorkerBacktestAdapter`, `PineWorkerReplayPlanner`, `PineWorkerCommandExecutor`, and `PineWorkerReplayPump` are the first backtest-facing contracts for worker execution.
+`pkg/backtest.PineWorkerBacktestAdapter`, `PineWorkerReplayPlanner`, `PineWorkerCommandExecutor`, `PineWorkerReplayPump`, and `RunWithPineWorker` are the backtest-facing contracts for worker execution.
 
 - It forces `RunScriptRequest.Mode` to `backtest` and maps worker/transport errors into backtest errors.
 - It converts worker `OrderIntent` values into `WorkerOrderCommand` records with Go-side side, order type, quantity, limit/stop, comments, alerts, bar index, and time.
 - The replay planner converts `types.KLine` to worker candles, builds `RunScriptRequest`, copies params, applies default job IDs, validates returned command bar indexes, fills missing command times from the source candle, and groups commands by bar index/open time.
 - The command executor resolves session markets, submits market/limit/stop commands through bbgo `SubmitOrders`, tracks created orders by Pine id/client id, and maps `cancel`/`cancel_all` to bbgo `CancelOrders`.
 - The replay pump validates replay candle order, feeds each K-line into bbgo matching, then executes that bar's close-generated worker commands so they are eligible for later-bar matching.
+- `RunWithPineWorker` loads the same K-line store and bbgo backtest exchange, collects replay K-lines for worker planning, routes worker intents through Go matching, and uses the existing result collector for trades/equity/metrics without instantiating `pkg/strategy/pineruntime`.
 - Quantity-percent commands currently fail fast until Go-side position sizing is wired, because Go remains authoritative for account/position state.
-- Current tests cover entry, exit, cancel-all, default entry quantity, unsupported intents, transport errors, worker errors, replay request construction, params propagation, command grouping, invalid bar indexes, worker timeout propagation, market/limit order submission, cancel/cancel-all, unsupported sizing, submit/cancel error propagation, replay shape validation, missing/extra bars, and consume-before-command ordering.
-- The runner still needs a follow-up slice that selects the PineTS replay pump instead of invoking `pkg/strategy/pineruntime`.
+- Current tests cover entry, exit, cancel-all, default entry quantity, unsupported intents, transport errors, worker errors, replay request construction, replay K-line collection, params propagation, command grouping, invalid bar indexes, worker timeout propagation, market/limit order submission, cancel/cancel-all, unsupported sizing, submit/cancel error propagation, replay shape validation, missing/extra bars, consume-before-command ordering, and an end-to-end `RunWithPineWorker` smoke through Go matching.
+- The default `Run()` path still needs a follow-up slice that selects `RunWithPineWorker` through a real worker manager instead of invoking `pkg/strategy/pineruntime`.
 
 ## Coverage Gates
 
@@ -218,3 +219,8 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~5.98 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
 | 2026-06-29 | `wc -l pkg/backtest/pineworker_replay_pump.go pkg/backtest/pineworker_replay_pump_test.go pkg/backtest/pineworker_command_executor.go pkg/backtest/pineworker_command_executor_test.go docs/pinets-hardcut-migration.md` | Pass; largest touched file 220 lines, below 1200 |
+| 2026-06-29 | `go test ./pkg/backtest -run 'TestRunWithPineWorker\|TestCollectPineWorkerReplayKLines\|TestPineWorkerReplayPump\|TestPineWorkerCommandExecutor\|TestPineWorkerReplay\|TestBuildPineWorkerBacktestRequest\|TestPineWorkerBacktestAdapter\|TestCommandsFromOrderIntents\|TestCommandFromOrderIntent'` | Pass; `RunWithPineWorker` smoke validates worker intents through Go matching and result collection |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~8.04 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
+| 2026-06-29 | `wc -l pkg/backtest/pineworker_runner.go pkg/backtest/pineworker_runner_test.go pkg/backtest/pineworker_replay_source.go pkg/backtest/pineworker_replay_source_test.go docs/pinets-hardcut-migration.md` | Pass; largest touched file 262 lines, below 1200 |
