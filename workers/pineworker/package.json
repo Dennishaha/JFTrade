@@ -1,0 +1,20 @@
+{
+  "name": "@jftrade/pineworker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "pinets": "^0.9.26"
+  },
+  "peerDependenciesMeta": {
+    "pinets": {
+      "optional": true
+    }
+  }
+}

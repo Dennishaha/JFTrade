@@ -23,12 +23,14 @@
     "build:backend": "go build -tags=embed_zoneinfo -o dist/jftrade-dev ./cmd/jftrade-api",
     "test:web": "npm -w @jftrade/web run test",
     "test:web:watch": "npm -w @jftrade/web run test:watch",
+    "test:pineworker": "bun test workers/pineworker/src",
     "typecheck:web": "npm -w @jftrade/web run typecheck",
+    "typecheck:pineworker": "npx tsc --noEmit -p workers/pineworker/tsconfig.json",
     "generate:openapi": "go generate ./cmd/jftrade-api",
     "generate:reference": "node scripts/generate-docs.mjs",
     "generate:docs": "npm run generate:openapi && npm run generate:reference",
     "stage:docs": "node scripts/stage-docs.mjs",
-    "typecheck": "npm run typecheck:web"
+    "typecheck": "npm run typecheck:web && npm run typecheck:pineworker"
   },
   "dependencies": {
     "vitepress": "1.6.4"
