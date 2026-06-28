@@ -11,6 +11,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
@@ -221,6 +222,14 @@ func TestStrategyRuntimeUsesStrategyDefaultPercentQuantity(t *testing.T) {
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		lastIndex := len(request.Candles) - 1
+		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{{
+			Kind: "entry", ID: "SizedLong", Direction: "long", Quantity: 20, HasQuantity: true, BarIndex: lastIndex, Time: request.Candles[lastIndex].OpenTime,
+		}}}
+	}
+	useFakeStrategyRuntimePineWorker(server, worker)
 
 	definition := strategyDesignDefinition{
 		ID:           "runtime-default-qty-test",
@@ -259,11 +268,11 @@ func TestStrategyRuntimeUsesStrategyDefaultPercentQuantity(t *testing.T) {
 		t.Fatal("expected placed order")
 	}
 	if got := placedOrder.Quantity.Float64(); got != 20 {
-		t.Fatalf("expected default 10%% equity quantity 20, got %v", got)
+		t.Fatalf("expected worker-sized quantity 20, got %v", got)
 	}
 }
 
-func TestStrategyRuntimePyramidingLimitsSameDirectionEntries(t *testing.T) {
+func TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -277,6 +286,15 @@ func TestStrategyRuntimePyramidingLimitsSameDirectionEntries(t *testing.T) {
 		SellableQuantity: 1,
 	}}
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		lastIndex := len(request.Candles) - 1
+		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{
+			{Kind: "entry", ID: "OldLong", Direction: "long", Quantity: 99, HasQuantity: true, BarIndex: lastIndex - 1},
+			{Kind: "entry", ID: "CurrentLong", Direction: "long", Quantity: 1, HasQuantity: true, BarIndex: lastIndex, Time: request.Candles[lastIndex].OpenTime},
+		}}
+	}
+	useFakeStrategyRuntimePineWorker(server, worker)
 
 	definition := strategyDesignDefinition{
 		ID:           "runtime-pyramiding-test",
@@ -311,12 +329,19 @@ func TestStrategyRuntimePyramidingLimitsSameDirectionEntries(t *testing.T) {
 	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 102, strategyRuntimeTestTime(10, 2, 0)))
 
-	if got := stub.placedOrderCount(); got != 1 {
-		t.Fatalf("expected pyramiding=2 to allow one additional long entry and skip the third signal, got %d orders", got)
+	if got := stub.placedOrderCount(); got != 2 {
+		t.Fatalf("expected one worker current-bar order per closed bar, got %d orders", got)
+	}
+	placedOrder, ok := stub.lastPlacedOrder()
+	if !ok {
+		t.Fatal("expected placed order")
+	}
+	if got := placedOrder.Quantity.Float64(); got != 1 {
+		t.Fatalf("expected current-bar worker intent quantity 1, got %v", got)
 	}
 }
 
-func TestStrategyRuntimeDefaultPyramidingSkipsExistingSameDirectionPosition(t *testing.T) {
+func TestStrategyRuntimeSkipsWhenWorkerReturnsNoCurrentBarIntent(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -330,6 +355,14 @@ func TestStrategyRuntimeDefaultPyramidingSkipsExistingSameDirectionPosition(t *t
 		SellableQuantity: 1,
 	}}
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		lastIndex := len(request.Candles) - 1
+		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{{
+			Kind: "entry", ID: "OldLong", Direction: "long", Quantity: 1, HasQuantity: true, BarIndex: lastIndex - 1,
+		}}}
+	}
+	useFakeStrategyRuntimePineWorker(server, worker)
 
 	definition := strategyDesignDefinition{
 		ID:           "runtime-default-pyramiding-test",
@@ -364,7 +397,7 @@ func TestStrategyRuntimeDefaultPyramidingSkipsExistingSameDirectionPosition(t *t
 	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	if got := stub.placedOrderCount(); got != 0 {
-		t.Fatalf("expected default pyramiding to skip existing long position, got %d orders", got)
+		t.Fatalf("expected stale worker intents to be skipped, got %d orders", got)
 	}
 }
 
@@ -376,6 +409,14 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		lastIndex := len(request.Candles) - 1
+		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{{
+			Kind: "close", ID: "Flat", Direction: "long", Quantity: 1, HasQuantity: true, BarIndex: lastIndex, Time: request.Candles[lastIndex].OpenTime,
+		}}}
+	}
+	useFakeStrategyRuntimePineWorker(server, worker)
 
 	definition := strategyDesignDefinition{
 		ID:           "runtime-sell-test",
