@@ -64,6 +64,22 @@ func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 	}
 }
 
+func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) {
+	binaryPath := filepath.Join(t.TempDir(), "worker")
+	t.Setenv(envPineWorkerBinary, binaryPath)
+
+	config, enabled, err := resolvePineWorkerRuntimeConfig()
+	if err != nil {
+		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
+	}
+	if !enabled {
+		t.Fatal("resolvePineWorkerRuntimeConfig enabled = false, want true")
+	}
+	if config.Mock {
+		t.Fatal("Mock = true by default; production worker must require explicit mock opt-in")
+	}
+}
+
 func TestResolvePineWorkerRuntimeConfigDisabledWithoutBinary(t *testing.T) {
 	restorePineWorkerAssetSelector(t, pineworkerassets.Asset{}, false, nil)
 
