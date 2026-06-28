@@ -102,9 +102,6 @@ func assertNoLegacyRuntimeInFrontendSurfaces(t *testing.T, root string) {
 
 func assertNoUnexpectedPineRuntimeImports(t *testing.T, root string) {
 	t.Helper()
-	allowed := []string{
-		"pkg/backtest/runner.go",
-	}
 	var offenders []string
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
@@ -125,7 +122,7 @@ func assertNoUnexpectedPineRuntimeImports(t *testing.T, root string) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if strings.HasPrefix(rel, "pkg/strategy/pineruntime/") || slices.Contains(allowed, rel) {
+		if strings.HasPrefix(rel, "pkg/strategy/pineruntime/") {
 			return nil
 		}
 		data, err := os.ReadFile(path)
