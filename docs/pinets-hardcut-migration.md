@@ -19,14 +19,14 @@
 | 1. Pine worker contract | Done | `pkg/strategy/pineworker` owns `pine-pinets` constants, request/response shapes, order intent schema, worker defaults, validation, and perf gate helpers. |
 | 1.1 Runtime ID normalization | Done | Server-side definition/catalog normalization emits `pine-pinets` and migrates old `pine-go-plan`; focused servercore tests pass. |
 | 2. Proto contract | Done | `pkg/strategy/pineworker/proto/pineworker.proto` mirrors the Go contract and compiles through `protoc`. |
-| 3. Worker PoC | Done | Bun worker core validates requests, adapts custom OHLCV data to the PineTS constructor shape, normalizes plots/logs/order intents, exposes a gRPC server boundary, and has Bun tests. Real PineTS dependency wiring remains blocked on commercial license. |
-| 4. gRPC bridge | In progress | Go worker client abstraction, generated Go gRPC transport, Bun gRPC server boundary, static JS gRPC runtime deps, and mock process smoke are covered. Real PineTS process smoke remains blocked on commercial license. |
-| 5. Worker manager | In progress | Go `WorkerManager` starts fixed worker specs, assigns ports, dials transports, round-robins healthy workers, restarts failed health checks, drains on shutdown, and exposes snapshots. Binary extraction launcher, gRPC dialer, API-server lifecycle wiring, embedded asset selection, and Bun mock process smoke coverage are implemented. |
-| 6. Backtest integration | In progress | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` defaults to the Pine worker path and API startup injects a configured `WorkerManager` from `JFTRADE_PINEWORKER_BINARY`. Missing worker config now fails fast instead of falling back to Go runtime. |
-| 7. Live integration | In progress | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, and records runtime observation/errors. Worker crash restart and real Bun/PineTS smoke remain. |
-| 8. Hard removal | In progress | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. Remaining work is final audit/acceptance cleanup. |
-| 9. Packaging | In progress | `scripts/build-pineworker-assets.sh` builds platform Bun worker binaries into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Gated process smoke compiles and runs the mock Bun worker through real gRPC. Real PineTS dependency lock policy remains. |
-| 10. Acceptance | In progress | Focused Go/web/worker tests, worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. Final release acceptance still depends on the real PineTS package/license smoke and release packaging decision. |
+| 3. Worker PoC | Done | Bun worker core validates requests, adapts custom OHLCV data to the PineTS constructor shape, normalizes plots/logs/order intents, exposes a gRPC server boundary, and has Bun tests. |
+| 4. gRPC bridge | Done | Go worker client abstraction, generated Go gRPC transport, Bun gRPC server boundary, static JS gRPC runtime deps, and mock process smoke are covered. |
+| 5. Worker manager | Done | Go `WorkerManager` starts fixed worker specs, assigns ports, dials transports, round-robins healthy workers, restarts failed health checks, drains on shutdown, and exposes snapshots. Binary extraction launcher, gRPC dialer, API-server lifecycle wiring, embedded asset selection, and Bun mock process smoke coverage are implemented. |
+| 6. Backtest integration | Done | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` defaults to the Pine worker path and API startup injects a configured `WorkerManager` from `JFTRADE_PINEWORKER_BINARY`. Missing worker config now fails fast instead of falling back to Go runtime. |
+| 7. Live integration | Done | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, records runtime observation/errors, and does not fall back to Go Pine runtime. |
+| 8. Hard removal | Done | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. |
+| 9. Packaging | Blocked for release | `scripts/build-pineworker-assets.sh` builds platform Bun worker binaries into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Mock process smoke compiles and runs through real gRPC. Release packaging remains blocked on the commercial `pinets` package/license and real PineTS process smoke. |
+| 10. Acceptance | Blocked for release | Focused Go/web/worker tests, worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. Final release acceptance still depends on the real PineTS package/license smoke and release packaging decision. |
 
 ## Runtime Boundary
 
@@ -47,6 +47,13 @@ PineTS worker owns:
 - `strategy.*` call extraction into normalized order intents
 
 PineTS worker must not be the source of truth for final trades, live orders, account state, or risk decisions.
+
+## Release Blockers
+
+- The commercial `pinets` package is not installed in the current workspace; `npm ls pinets --workspaces --depth=1` reports empty.
+- Production worker startup defaults to the native PineTS executor; mock mode requires explicit `JFTRADE_PINEWORKER_MOCK=true` or `--mock true` and is test-only.
+- Release binaries must not ship until a real PineTS worker process smoke passes without mock mode.
+- The real PineTS package/license decision must be recorded before embedding worker assets in release builds.
 
 ## Worker PoC Boundary
 
@@ -89,7 +96,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - API startup reads `JFTRADE_PINEWORKER_*` environment settings, starts the worker manager when a worker binary is configured, injects it into backtest service, and stops it during `Server.Close`.
 - `internal/pineworkerassets` selects platform-specific embedded worker binaries under `release_assets`; API startup uses external `JFTRADE_PINEWORKER_BINARY` first, then embedded assets.
 - Current manager tests cover fixed port allocation, round-robin dispatch, health-check restart, failed restart reporting, startup cleanup, shutdown cleanup, snapshot state, binary checksum, process cleanup, dialer creation, and a gated Bun mock process smoke path through real gRPC.
-- Real PineTS dependency lock policy and always-on process smoke remain in packaging/manager follow-up slices.
+- Real PineTS dependency lock policy and non-mock process smoke remain release blockers.
 
 ## Backtest Integration Boundary
 
@@ -172,8 +179,8 @@ Hard-cut means:
 
 1. Final hard-cut audit: keep `pine-go-plan` only in migration shims and historical docs; reject new current-code or current-doc occurrences.
 2. Acceptance verification: rerun focused Go, worker, frontend, coverage, performance, file-size, and `git diff --check` gates from a clean worktree.
-3. Packaging decision: keep mock-process smoke always green and record that real PineTS process smoke remains gated by the commercial package/license.
-4. Release cleanup: update any final release notes or operator docs that still need to mention PineTS worker setup, then mark Phase 8/10 done only after the audit evidence is complete.
+3. Packaging decision: install/lock the commercial `pinets` package, disable mock mode, build worker assets, and pass a non-mock process smoke before release.
+4. Release cleanup: update final release notes or operator docs that still need to mention PineTS worker setup after the license/package decision is complete.
 
 ## Verification Log
 
@@ -349,4 +356,11 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover && go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, 86.1% statement coverage and ~8.149 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `npm --prefix apps/web run typecheck` | Pass after adding a browser timer compatibility declaration for DOM/Node timer overloads |
 | 2026-06-29 | `wc -l docs/pinets-hardcut-migration.md pkg/strategy/pineworker/hardcut_audit_test.go internal/strategy/types_test.go apps/web/src/types/browser-timers.d.ts` | Pass; largest touched file 341 lines, below 1200 |
+| 2026-06-29 | `git diff --check` | Pass |
+| 2026-06-29 | `npm ls pinets --workspaces --depth=1` | Empty; release packaging remains blocked until the commercial `pinets` package/license is available |
+| 2026-06-29 | `go test ./internal/app/apiserver/servercore -run TestResolvePineWorkerRuntimeConfig -v` | Pass; production worker config defaults to non-mock mode and mock requires explicit opt-in |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~8.937 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass, 14 Bun worker tests and TypeScript check |
+| 2026-06-29 | `wc -l docs/pinets-hardcut-migration.md internal/app/apiserver/servercore/pineworker_runtime_test.go pkg/strategy/pineworker/hardcut_audit_test.go apps/web/src/types/browser-timers.d.ts` | Pass; largest touched file 409 lines, below 1200 |
 | 2026-06-29 | `git diff --check` | Pass |
