@@ -400,3 +400,10 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.586 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | Updated `.github/workflows/ci.yml` | Pass; CI now installs Bun and runs `npm run test:pineworker` plus `npm run typecheck:pineworker` |
+| 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass, 14 Bun worker tests and TypeScript check |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now requires CI to exercise PineTS worker gates |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~5.864 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `wc -l .github/workflows/ci.yml pkg/strategy/pineworker/hardcut_audit_test.go` | Pass; largest touched file 296 lines, below 1200 |
+| 2026-06-29 | `git diff --check` | Pass |

@@ -18,6 +18,7 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertNoUnexpectedPineRuntimeImports(t, root)
 	assertNoStalePineRuntimePerformanceGate(t, root)
 	assertReleaseFrontendAssetsAreAudited(t, root)
+	assertCIExercisesPineTSWorker(t, root)
 }
 
 func pineWorkerRepoRoot(t *testing.T) string {
@@ -271,6 +272,25 @@ func assertReleaseFrontendAssetsAreAudited(t *testing.T, root string) {
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("%s does not audit release frontend assets for %q", rel, required)
+		}
+	}
+}
+
+func assertCIExercisesPineTSWorker(t *testing.T, root string) {
+	t.Helper()
+	rel := ".github/workflows/ci.yml"
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", rel, err)
+	}
+	text := string(data)
+	for _, required := range []string{
+		"oven-sh/setup-bun",
+		"npm run test:pineworker",
+		"npm run typecheck:pineworker",
+	} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("%s does not exercise PineTS worker gate %q", rel, required)
 		}
 	}
 }
