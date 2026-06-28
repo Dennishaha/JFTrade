@@ -6,7 +6,7 @@
 
 - Runtime target: `sourceFormat=pine-v6` + `runtime=pine-pinets`.
 - Legacy runtime: `pine-go-plan` is migration-only and must not remain a selectable execution path.
-- License assumption: PineTS commercial license is available before the worker is shipped in release binaries.
+- Dependency assumption: public `pinets@0.9.26` is the worker runtime dependency; its current npm license is `AGPL-3.0-only` and must be treated as a release compliance fact, not a commercial-license blocker.
 - Execution authority: PineTS computes Pine outputs and order intents; Go remains authoritative for backtest matching, equity curves, live risk, and order placement.
 - Release shape: Bun SEA / Bun single-file executable workers are built with `bun build --compile`, embedded into one Go `trading-engine` binary, and started as localhost gRPC child processes.
 - File-size guardrail: new or materially rewritten files must stay under 1200 lines.
@@ -25,8 +25,8 @@
 | 6. Backtest integration | Done | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` defaults to the Pine worker path and API startup injects a configured `WorkerManager` from `JFTRADE_PINEWORKER_BINARY`. Missing worker config now fails fast instead of falling back to Go runtime. |
 | 7. Live integration | Done | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, records runtime observation/errors, and does not fall back to Go Pine runtime. |
 | 8. Hard removal | Done | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. |
-| 9. Packaging | Blocked for release | `scripts/build-pineworker-assets.sh` checks commercial PineTS package/license attestation before building platform Bun SEA / single-file executable workers with `bun build --compile` into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Mock process smoke compiles and runs through real gRPC. Release packaging remains blocked on the commercial `pinets` package/license and real PineTS process smoke. |
-| 10. Acceptance | Blocked for release | Focused Go/web/worker tests, mock worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. `scripts/check-pinets-release.sh` automates the release gates and runs `TestWorkerManagerRealPineTSProcessSmoke` in strict mode once `pinets` is installed. Final release acceptance still depends on the real PineTS package/license smoke passing through the Bun SEA packaged worker path. |
+| 9. Packaging | In progress | `pinets@0.9.26` is installed as a worker dependency, `scripts/build-pineworker-assets.sh` checks that `pinets` is visible before building platform Bun SEA / single-file executable workers with `bun build --compile` into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Mock process smoke compiles and runs through real gRPC. Release packaging remains blocked on real non-mock PineTS process smoke. |
+| 10. Acceptance | Blocked for release | Focused Go/web/worker tests, mock worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. `scripts/check-pinets-release.sh` automates the release gates and runs `TestWorkerManagerRealPineTSProcessSmoke` in strict mode once `pinets` is installed. Final release acceptance still depends on the real PineTS smoke passing through the Bun SEA packaged worker path. |
 
 ## Runtime Boundary
 
@@ -50,18 +50,17 @@ PineTS worker must not be the source of truth for final trades, live orders, acc
 
 ## Release Blockers
 
-- The commercial `pinets` package is not installed in the current workspace; `npm ls pinets --workspaces --depth=1` reports empty.
-- Public `pinets@0.9.26` currently reports `AGPL-3.0-only`; release acceptance requires a recorded commercial license approval and `JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1`.
+- `pinets@0.9.26` is installed and locked as a worker dependency; current npm metadata reports `AGPL-3.0-only`.
+- Release compliance must explicitly account for the public `pinets` license because the commercial PineTS plan is canceled.
 - Production worker startup defaults to the native PineTS executor; mock mode requires explicit `JFTRADE_PINEWORKER_MOCK=true` or `--mock true` and is test-only.
 - Release binaries must not ship until a real PineTS worker process smoke passes without mock mode.
-- The real PineTS package/license decision must be recorded before embedding worker assets in release builds.
 - Release and operator acceptance is tracked in [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md).
 
 ## Worker PoC Boundary
 
-The first Bun worker slice lives under `workers/pineworker` and intentionally avoids adding `pinets` to root lockfiles until the commercial license and package-management policy are finalized.
+The Bun worker slice lives under `workers/pineworker` and now depends directly on public `pinets@0.9.26`.
 
-- `NativePineTSExecutor` dynamically imports `pinets` and constructs `new PineTS(candles)` for custom OHLCV execution.
+- `NativePineTSExecutor` statically imports `pinets` so Bun SEA `bun build --compile` embeds the runtime package, then constructs `new PineTS(candles)` for custom OHLCV execution.
 - `runScriptWithPineTS` validates requests before dispatch and maps both validation/runtime failures into worker error responses.
 - Adapter normalization currently covers plots, outputs, logs, warnings, diagnostics, metadata, and normalized order intents.
 - `startWorkerGrpcServer` uses `@grpc/grpc-js` and `@grpc/proto-loader`, registers health/analyze/run handlers, and enforces gRPC send/receive message limits.
@@ -99,7 +98,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - API startup reads `JFTRADE_PINEWORKER_*` environment settings, starts the worker manager when a worker binary is configured, injects it into backtest service, and stops it during `Server.Close`.
 - `internal/pineworkerassets` selects platform-specific embedded worker binaries under `release_assets`; API startup uses external `JFTRADE_PINEWORKER_BINARY` first, then embedded assets.
 - Current manager tests cover fixed port allocation, round-robin dispatch, health-check restart, failed restart reporting, startup cleanup, shutdown cleanup, snapshot state, binary checksum, process cleanup, dialer creation, and a gated Bun mock process smoke path through real gRPC.
-- Real PineTS dependency lock policy and non-mock process smoke remain release blockers.
+- Real non-mock PineTS process smoke remains the release blocker.
 
 ## Bun SEA Packaging Boundary
 
@@ -193,8 +192,8 @@ Hard-cut means:
 
 1. Final hard-cut audit: keep `pine-go-plan` only in migration shims and historical docs; reject new current-code or current-doc occurrences.
 2. Acceptance verification: rerun focused Go, worker, frontend, coverage, performance, file-size, and `git diff --check` gates from a clean worktree.
-3. Packaging decision: install/lock the commercial `pinets` package, disable mock mode, build worker assets, and pass a non-mock process smoke before release.
-4. Release cleanup: after the license/package decision is complete, update final release notes against the operator checklist in [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md).
+3. Packaging verification: build worker assets from locked public `pinets`, keep mock mode disabled, and pass a non-mock process smoke before release.
+4. Release cleanup: after the real PineTS smoke passes, update final release notes against the operator checklist in [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md).
 
 ## Verification Log
 
@@ -371,7 +370,7 @@ Hard-cut means:
 | 2026-06-29 | `npm --prefix apps/web run typecheck` | Pass after adding a browser timer compatibility declaration for DOM/Node timer overloads |
 | 2026-06-29 | `wc -l docs/pinets-hardcut-migration.md pkg/strategy/pineworker/hardcut_audit_test.go internal/strategy/types_test.go apps/web/src/types/browser-timers.d.ts` | Pass; largest touched file 341 lines, below 1200 |
 | 2026-06-29 | `git diff --check` | Pass |
-| 2026-06-29 | `npm ls pinets --workspaces --depth=1` | Empty; release packaging remains blocked until the commercial `pinets` package/license is available |
+| 2026-06-29 | `npm ls pinets --workspaces --depth=1` | Superseded; this earlier empty result blocked release before the commercial PineTS plan was canceled |
 | 2026-06-29 | `go test ./internal/app/apiserver/servercore -run TestResolvePineWorkerRuntimeConfig -v` | Pass; production worker config defaults to non-mock mode and mock requires explicit opt-in |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~8.937 ns/op, 0 B/op, 0 allocs/op |
@@ -386,7 +385,7 @@ Hard-cut means:
 | 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass, 14 Bun worker tests and TypeScript check |
 | 2026-06-29 | `wc -l docs/troubleshooting/pinets-worker-release.md docs/README.md docs/troubleshooting.md docs/pinets-hardcut-migration.md pkg/strategy/pineworker/hardcut_audit_test.go` | Pass; largest touched file 367 lines, below 1200 |
 | 2026-06-29 | `git diff --check` | Pass |
-| 2026-06-29 | `npm ls pinets --workspaces --depth=1` | Empty; release remains blocked until the commercial `pinets` package/license is installed and locked |
+| 2026-06-29 | `npm ls pinets --workspaces --depth=1` | Superseded; this earlier empty result blocked release before public `pinets` was locked |
 | 2026-06-29 | Added `scripts/check-pinets-release.sh` and `npm run check:pinets-release` | Pass; strict mode fails while `pinets` is missing, `--allow-blocked` runs current Go/worker gates and skips release asset build |
 | 2026-06-29 | `bash scripts/check-pinets-release.sh --allow-blocked` | Pass in blocked mode; confirms missing `pinets`, runs runtime-config test, hard-cut audit, Pine worker coverage/performance gates, Bun worker tests, and worker typecheck |
 | 2026-06-29 | `bash scripts/check-pinets-release.test.sh` | Pass; release script strict, blocked, and unblocked branches are covered with command stubs |
@@ -421,8 +420,8 @@ Hard-cut means:
 | 2026-06-29 | `git diff --check` | Pass |
 | 2026-06-29 | Updated `.github/workflows/ci.yml` | Pass; CI now builds embedded frontend assets with `npm run build:frontend-assets` and runs `go test -tags release_assets ./internal/frontendassets -run TestFileSystem` |
 | 2026-06-29 | Updated `.github/workflows/ci.yml` | Pass; CI now runs `npm run test:pinets-release-check` so strict, blocked, and unblocked release-check branches stay covered |
-| 2026-06-29 | `npm view pinets version license dist-tags --json` | Blocked for release; public `pinets@0.9.26` reports `AGPL-3.0-only`, so commercial license attestation is required before release |
-| 2026-06-29 | Added shared `scripts/lib/pinets-license.sh` gate | Pass; release-check and worker asset build scripts now block missing package/license and public AGPL packages before release asset generation |
+| 2026-06-29 | `npm view pinets version license dist-tags --json` | Superseded; public `pinets@0.9.26` reports `AGPL-3.0-only`, now recorded as the selected dependency license rather than a commercial-license blocker |
+| 2026-06-29 | Added shared `scripts/lib/pinets-license.sh` gate | Superseded; release-check and worker asset build scripts now block only missing `pinets` and record the installed package license |
 | 2026-06-29 | Split `internal/pineworkerassets` dev/release tests | Pass; dev builds still verify missing assets are unavailable while `release_assets` builds verify staged worker binaries return data and SHA256 |
 | 2026-06-29 | Updated `scripts/check-pinets-release.sh` | Pass; strict unblocked release acceptance now builds `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` after worker asset generation and release asset tests |
 | 2026-06-29 | Aligned release output name | Pass; `scripts/check-pinets-release.sh` now defaults to the single-file `dist/trading-engine` release artifact and supports `JFTRADE_PINETS_RELEASE_OUT` for test output isolation |
@@ -435,3 +434,6 @@ Hard-cut means:
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now requires the release artifact sanity gate and operator checklist wording |
 | 2026-06-29 | Hardened release artifact preparation | Pass; strict release acceptance creates the artifact output directory and removes stale `trading-engine` before building so old binaries cannot satisfy the artifact check |
 | 2026-06-29 | Extended release artifact check tests | Pass; release-check stub coverage now fails both missing and non-executable `trading-engine` artifacts |
+| 2026-06-29 | Canceled commercial PineTS plan | Pass; `pinets@0.9.26` is now a locked worker dependency, release gates require the package to be installed, and `AGPL-3.0-only` is recorded instead of treated as a commercial-license blocker |
+| 2026-06-29 | Updated Bun worker PineTS import | Pass; PineTS is now a static dependency import so Bun SEA `bun build --compile` includes public `pinets` in the worker executable |
+| 2026-06-29 | `JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v` | Blocked for release; public `pinets` is installed, but the real non-mock smoke still fails with localhost gRPC connection refused and remains the active release blocker |

@@ -1,6 +1,7 @@
 package pineworker
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -84,6 +85,8 @@ func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion st
 		t.Fatalf("read worker binary: %v", err)
 	}
 	sum := sha256.Sum256(binaryData)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
 	launcher, err := NewBinaryWorkerLauncher(BinaryWorkerLauncherConfig{
 		Binary: WorkerBinary{
 			Name:   outputName,
@@ -95,6 +98,8 @@ func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion st
 		Mock:          mock,
 		StopTimeout:   time.Second,
 		PineTSVersion: pineTSVersion,
+		Stdout:        &stdout,
+		Stderr:        &stderr,
 	})
 	if err != nil {
 		t.Fatalf("NewBinaryWorkerLauncher: %v", err)
@@ -119,13 +124,19 @@ func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion st
 	startCtx, cancelStart := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelStart()
 	if err := manager.Start(startCtx); err != nil {
-		t.Fatalf("WorkerManager.Start: %v", err)
+		t.Fatalf("WorkerManager.Start: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
 	}
 	t.Cleanup(func() {
 		stopCtx, cancelStop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelStop()
 		if err := manager.Stop(stopCtx); err != nil {
 			t.Fatalf("WorkerManager.Stop: %v", err)
+		}
+	})
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Logf("pine worker stdout:\n%s", stdout.String())
+			t.Logf("pine worker stderr:\n%s", stderr.String())
 		}
 	})
 	return manager

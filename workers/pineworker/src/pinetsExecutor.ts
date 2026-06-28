@@ -1,3 +1,4 @@
+import { PineTS } from "pinets";
 import type { PineTSExecutor, PineTSRunResult, RunScriptRequest } from "./types";
 
 type PineTSModule = {
@@ -20,8 +21,7 @@ export class NativePineTSExecutor implements PineTSExecutor {
 }
 
 export async function createNativePineTSExecutor(version = "unknown"): Promise<NativePineTSExecutor> {
-  const module = await dynamicImport("pinets") as PineTSModule;
-  return new NativePineTSExecutor(module, version);
+  return new NativePineTSExecutor({ PineTS }, version);
 }
 
 function toPineTSCandle(candle: RunScriptRequest["candles"][number]): Record<string, number> {
@@ -34,8 +34,4 @@ function toPineTSCandle(candle: RunScriptRequest["candles"][number]): Record<str
     close: candle.close,
     volume: candle.volume,
   };
-}
-
-function dynamicImport(specifier: string): Promise<unknown> {
-  return new Function("specifier", "return import(specifier)")(specifier) as Promise<unknown>;
 }

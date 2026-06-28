@@ -173,7 +173,7 @@ func (manager *WorkerManager) startWorkerLocked(ctx context.Context, index int, 
 	if err != nil {
 		return nil, fmt.Errorf("start %s: %w", spec.WorkerID, err)
 	}
-	transport, err := manager.dialer.Dial(ctx, spec.Address)
+	transport, status, err := manager.dialWorkerUntilReady(ctx, spec.Address)
 	if err != nil {
 		_ = process.Stop(ctx)
 		return nil, fmt.Errorf("dial %s: %w", spec.WorkerID, err)
@@ -189,13 +189,53 @@ func (manager *WorkerManager) startWorkerLocked(ctx context.Context, index int, 
 		return nil, err
 	}
 	return &managedWorker{
-		spec:      spec,
-		process:   process,
-		transport: transport,
-		client:    client,
-		healthy:   true,
-		restarts:  restarts,
+		spec:          spec,
+		process:       process,
+		transport:     transport,
+		client:        client,
+		healthy:       true,
+		restarts:      restarts,
+		version:       status.Version,
+		pineTSVersion: status.PineTSVersion,
+		capabilities:  append([]string(nil), status.Capabilities...),
 	}, nil
+}
+
+func (manager *WorkerManager) dialWorkerUntilReady(ctx context.Context, address string) (ManagedTransport, HealthStatus, error) {
+	deadline := time.Now().Add(manager.config.HealthTimeout)
+	var lastErr error
+	for {
+		dialCtx, cancelDial := context.WithTimeout(ctx, manager.config.HealthTimeout)
+		transport, err := manager.dialer.Dial(dialCtx, address)
+		cancelDial()
+		if err == nil {
+			healthCtx, cancelHealth := context.WithTimeout(ctx, manager.config.HealthTimeout)
+			status, healthErr := transport.HealthCheck(healthCtx)
+			cancelHealth()
+			if healthErr == nil && status.OK {
+				return transport, status, nil
+			}
+			_ = transport.Close()
+			if healthErr != nil {
+				lastErr = healthErr
+			} else {
+				lastErr = fmt.Errorf("worker unhealthy: ok=%v", status.OK)
+			}
+		} else {
+			lastErr = err
+		}
+		if time.Now().After(deadline) {
+			if lastErr == nil {
+				lastErr = context.DeadlineExceeded
+			}
+			return nil, HealthStatus{}, lastErr
+		}
+		select {
+		case <-ctx.Done():
+			return nil, HealthStatus{}, ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
 }
 
 func (manager *WorkerManager) restartWorkerLocked(ctx context.Context, index int, worker *managedWorker) (*managedWorker, error) {

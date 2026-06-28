@@ -82,7 +82,7 @@ func TestWorkerManagerCheckHealthRestartsFailedWorker(t *testing.T) {
 		t.Fatalf("failed worker was not stopped: closes=%d stops=%d", failed.closes, launcher.processes[0].stops)
 	}
 	restarted := dialer.latest["127.0.0.1:50051"]
-	if restarted == failed || restarted.healthChecks != 0 {
+	if restarted == failed || restarted.healthChecks != 1 {
 		t.Fatalf("restart did not install a fresh transport")
 	}
 	snapshot := manager.Snapshot()
@@ -114,7 +114,7 @@ func TestWorkerManagerStartCleansUpAfterDialFailure(t *testing.T) {
 	launcher := &fakeWorkerLauncher{}
 	dialer := newFakeManagerDialer()
 	dialer.failAddress = "127.0.0.1:50052"
-	manager := newTestManager(t, ManagerConfig{Workers: 2}, launcher, dialer)
+	manager := newTestManager(t, ManagerConfig{Workers: 2, HealthTimeout: 20 * time.Millisecond}, launcher, dialer)
 
 	err := manager.Start(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "dial pineworker-2") {
@@ -125,6 +125,23 @@ func TestWorkerManagerStartCleansUpAfterDialFailure(t *testing.T) {
 	}
 	if launcher.processes[0].stops != 1 || launcher.processes[1].stops != 1 {
 		t.Fatalf("process stops after failed start = %d/%d, want 1/1", launcher.processes[0].stops, launcher.processes[1].stops)
+	}
+}
+
+func TestWorkerManagerStartRetriesDialUntilWorkerReady(t *testing.T) {
+	launcher := &fakeWorkerLauncher{}
+	dialer := newFakeManagerDialer()
+	dialer.failDialAttempts["127.0.0.1:50051"] = 2
+	manager := newTestManager(t, ManagerConfig{Workers: 1, HealthTimeout: time.Second}, launcher, dialer)
+
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatalf("Start error = %v", err)
+	}
+	if dialer.dialAttempts["127.0.0.1:50051"] != 3 {
+		t.Fatalf("dial attempts = %d, want 3", dialer.dialAttempts["127.0.0.1:50051"])
+	}
+	if snapshot := manager.Snapshot(); len(snapshot) != 1 || !snapshot[0].Healthy || snapshot[0].PineTSVersion != "pinets-test" {
+		t.Fatalf("snapshot after retry start = %#v", snapshot)
 	}
 }
 
@@ -202,21 +219,29 @@ func (process *fakeWorkerProcess) Stop(context.Context) error {
 }
 
 type fakeManagerDialer struct {
-	transports  map[string]*fakeManagedTransport
-	latest      map[string]*fakeManagedTransport
-	failAddress string
+	transports       map[string]*fakeManagedTransport
+	latest           map[string]*fakeManagedTransport
+	failAddress      string
+	failDialAttempts map[string]int
+	dialAttempts     map[string]int
 }
 
 func newFakeManagerDialer() *fakeManagerDialer {
 	return &fakeManagerDialer{
-		transports: map[string]*fakeManagedTransport{},
-		latest:     map[string]*fakeManagedTransport{},
+		transports:       map[string]*fakeManagedTransport{},
+		latest:           map[string]*fakeManagedTransport{},
+		failDialAttempts: map[string]int{},
+		dialAttempts:     map[string]int{},
 	}
 }
 
 func (dialer *fakeManagerDialer) Dial(ctx context.Context, address string) (ManagedTransport, error) {
+	dialer.dialAttempts[address]++
 	if dialer.failAddress == address {
 		return nil, errors.New("dial failed")
+	}
+	if dialer.dialAttempts[address] <= dialer.failDialAttempts[address] {
+		return nil, errors.New("dial not ready")
 	}
 	transport := &fakeManagedTransport{
 		address: address,

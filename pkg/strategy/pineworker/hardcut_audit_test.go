@@ -19,8 +19,9 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertNoStalePineRuntimePerformanceGate(t, root)
 	assertReleaseFrontendAssetsAreAudited(t, root)
 	assertReleasePineWorkerAssetsAreAudited(t, root)
-	assertPinetsReleaseRequiresCommercialLicense(t, root)
+	assertPinetsReleaseRequiresInstalledPackage(t, root)
 	assertBunSEAPackagingIsDocumented(t, root)
+	assertPineTSWorkerUsesStaticImportForBunSEA(t, root)
 	assertCIExercisesPineTSWorker(t, root)
 }
 
@@ -306,14 +307,15 @@ func assertReleasePineWorkerAssetsAreAudited(t *testing.T, root string) {
 	}
 }
 
-func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
+func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 	t.Helper()
 	requiredByFile := map[string][]string{
 		"scripts/build-pineworker-assets.sh": {
-			"PineTS worker asset build is blocked",
+			"PineTS worker asset build is blocked until the pinets package is installed",
 			"pinets_check_package_and_license",
 		},
 		"scripts/build-pineworker-assets.test.sh": {
+			"pinets package license: AGPL-3.0-only",
 			"AGPL-3.0-only",
 			"bun build",
 		},
@@ -329,11 +331,11 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 			"release artifact is missing or empty",
 		},
 		"scripts/lib/pinets-license.sh": {
-			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
-			"pinets package license is",
+			"Checking pinets package",
+			"pinets package license:",
 		},
 		"scripts/check-pinets-release.test.sh": {
-			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
+			"pinets package license: AGPL-3.0-only",
 			"AGPL-3.0-only",
 			"npm run test:web",
 			"npm run typecheck:web",
@@ -346,9 +348,12 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 			"release artifact is not executable",
 		},
 		"docs/troubleshooting/pinets-worker-release.md": {
-			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
+			"商业 PineTS 授权计划已取消",
 			"AGPL-3.0-only",
 			"发布产物必须存在、非空且可执行",
+		},
+		"workers/pineworker/package.json": {
+			"\"pinets\": \"^0.9.26\"",
 		},
 	}
 	for rel, requiredValues := range requiredByFile {
@@ -359,7 +364,7 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 		text := string(data)
 		for _, required := range requiredValues {
 			if !strings.Contains(text, required) {
-				t.Fatalf("%s does not gate PineTS release on commercial license evidence %q", rel, required)
+				t.Fatalf("%s does not gate PineTS release on installed package evidence %q", rel, required)
 			}
 		}
 	}
@@ -395,6 +400,22 @@ func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
 				t.Fatalf("%s does not document Bun SEA packaging requirement %q", rel, required)
 			}
 		}
+	}
+}
+
+func assertPineTSWorkerUsesStaticImportForBunSEA(t *testing.T, root string) {
+	t.Helper()
+	rel := "workers/pineworker/src/pinetsExecutor.ts"
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", rel, err)
+	}
+	text := string(data)
+	if !strings.Contains(text, `import { PineTS } from "pinets"`) {
+		t.Fatalf("%s must statically import pinets for Bun SEA packaging", rel)
+	}
+	if strings.Contains(text, `import("pinets")`) || strings.Contains(text, "dynamicImport") {
+		t.Fatalf("%s must not use dynamic pinets import in Bun SEA packaging", rel)
 	}
 }
 

@@ -32,13 +32,12 @@ export PATH="$BIN_DIR:$PATH"
 export JFTRADE_PINEWORKER_ASSET_OUT_DIR="$ASSET_OUT_DIR"
 
 export JFTRADE_PINETS_RELEASE_PINETS_STATUS=1
-unset JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK
 if /bin/bash scripts/build-pineworker-assets.sh >/dev/null 2>"$TEMP_DIR/missing.err"; then
   echo "worker asset build passed despite missing pinets" >&2
   exit 1
 fi
-if ! grep -q "PineTS worker asset build is blocked" "$TEMP_DIR/missing.err"; then
-  echo "worker asset build did not report blocked package/license" >&2
+if ! grep -q "PineTS worker asset build is blocked until the pinets package is installed" "$TEMP_DIR/missing.err"; then
+  echo "worker asset build did not report missing package blocker" >&2
   cat "$TEMP_DIR/missing.err" >&2
   exit 1
 fi
@@ -46,22 +45,15 @@ fi
 : > "$RUN_LOG"
 export JFTRADE_PINETS_RELEASE_PINETS_STATUS=0
 export JFTRADE_PINETS_RELEASE_PINETS_LICENSE=AGPL-3.0-only
-export JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK=1
-if /bin/bash scripts/build-pineworker-assets.sh >/dev/null 2>"$TEMP_DIR/agpl.err"; then
-  echo "worker asset build passed with AGPL pinets license" >&2
-  exit 1
-fi
-if grep -q "bun build" "$RUN_LOG"; then
-  echo "license-blocked worker asset build should not invoke bun build" >&2
-  cat "$RUN_LOG" >&2
-  exit 1
-fi
-
-: > "$RUN_LOG"
-export JFTRADE_PINETS_RELEASE_PINETS_LICENSE=Commercial
-/bin/bash scripts/build-pineworker-assets.sh >/dev/null 2>"$TEMP_DIR/pass.err"
+/bin/bash scripts/build-pineworker-assets.sh >"$TEMP_DIR/pass.out" 2>"$TEMP_DIR/pass.err"
 if ! grep -q "bun build" "$RUN_LOG"; then
-  echo "commercially approved worker asset build did not invoke bun build" >&2
+  echo "worker asset build with installed pinets did not invoke bun build" >&2
   cat "$RUN_LOG" >&2
+  exit 1
+fi
+if ! grep -q "pinets package license: AGPL-3.0-only" "$TEMP_DIR/pass.out"; then
+  echo "worker asset build did not report pinets package license" >&2
+  cat "$TEMP_DIR/pass.out" >&2
+  cat "$TEMP_DIR/pass.err" >&2
   exit 1
 fi

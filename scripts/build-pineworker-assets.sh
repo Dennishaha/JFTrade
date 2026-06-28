@@ -24,7 +24,7 @@ if ! command -v bun >/dev/null 2>&1; then
 fi
 
 if ! pinets_check_package_and_license; then
-  echo "PineTS worker asset build is blocked until the commercial pinets package/license is available." >&2
+  echo "PineTS worker asset build is blocked until the pinets package is installed." >&2
   exit 1
 fi
 
