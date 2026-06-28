@@ -54,6 +54,7 @@ PineTS worker must not be the source of truth for final trades, live orders, acc
 - Production worker startup defaults to the native PineTS executor; mock mode requires explicit `JFTRADE_PINEWORKER_MOCK=true` or `--mock true` and is test-only.
 - Release binaries must not ship until a real PineTS worker process smoke passes without mock mode.
 - The real PineTS package/license decision must be recorded before embedding worker assets in release builds.
+- Release and operator acceptance is tracked in [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md).
 
 ## Worker PoC Boundary
 
@@ -180,7 +181,7 @@ Hard-cut means:
 1. Final hard-cut audit: keep `pine-go-plan` only in migration shims and historical docs; reject new current-code or current-doc occurrences.
 2. Acceptance verification: rerun focused Go, worker, frontend, coverage, performance, file-size, and `git diff --check` gates from a clean worktree.
 3. Packaging decision: install/lock the commercial `pinets` package, disable mock mode, build worker assets, and pass a non-mock process smoke before release.
-4. Release cleanup: update final release notes or operator docs that still need to mention PineTS worker setup after the license/package decision is complete.
+4. Release cleanup: after the license/package decision is complete, update final release notes against the operator checklist in [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md).
 
 ## Verification Log
 
@@ -364,3 +365,12 @@ Hard-cut means:
 | 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass, 14 Bun worker tests and TypeScript check |
 | 2026-06-29 | `wc -l docs/pinets-hardcut-migration.md internal/app/apiserver/servercore/pineworker_runtime_test.go pkg/strategy/pineworker/hardcut_audit_test.go apps/web/src/types/browser-timers.d.ts` | Pass; largest touched file 409 lines, below 1200 |
 | 2026-06-29 | `git diff --check` | Pass |
+| 2026-06-29 | Added [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md) | Pass; release/operator checklist now documents env vars, embedded asset flow, mock restriction, and non-mock smoke requirement |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now covers the PineTS worker release checklist |
+| 2026-06-29 | `go test ./internal/app/apiserver/servercore -run TestResolvePineWorkerRuntimeConfig -v` | Pass; runtime config still defaults to real PineTS worker mode |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~7.510 ns/op, 0 B/op, 0 allocs/op |
+| 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass, 14 Bun worker tests and TypeScript check |
+| 2026-06-29 | `wc -l docs/troubleshooting/pinets-worker-release.md docs/README.md docs/troubleshooting.md docs/pinets-hardcut-migration.md pkg/strategy/pineworker/hardcut_audit_test.go` | Pass; largest touched file 367 lines, below 1200 |
+| 2026-06-29 | `git diff --check` | Pass |
+| 2026-06-29 | `npm ls pinets --workspaces --depth=1` | Empty; release remains blocked until the commercial `pinets` package/license is installed and locked |
