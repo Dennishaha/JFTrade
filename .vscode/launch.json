@@ -58,6 +58,26 @@
             ]
         },
         {
+            "name": "Debug Backend with PineTS Worker",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/jftrade-api",
+            "args": [],
+            "preLaunchTask": "build:pineworker:dev",
+            "envFile": "${workspaceFolder}/var/pineworker/vscode.env",
+            "env": {
+                "JFTRADE_SETTINGS_PATH": "${workspaceFolder}/var/jftrade-api/settings.json",
+                "JFTRADE_BACKTEST_DB": "${workspaceFolder}/var/jftrade-api/backtest.db",
+                "JFTRADE_PINEWORKER_WORKERS": "1",
+                "DISABLE_MARKETS_CACHE": "1"
+            },
+            "buildFlags": "-tags=embed_zoneinfo",
+            "dlvFlags": [
+                "--check-go-version=false"
+            ]
+        },
+        {
             "name": "Build Web",
             "type": "node-terminal",
             "request": "launch",

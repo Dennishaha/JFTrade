@@ -7,6 +7,7 @@ cd "$ROOT_DIR"
 source "$ROOT_DIR/scripts/lib/pinets-license.sh"
 
 OUT_DIR="${JFTRADE_PINEWORKER_DEV_OUT_DIR:-$ROOT_DIR/var/pineworker}"
+ENV_FILE="${JFTRADE_PINEWORKER_DEV_ENV_FILE:-}"
 WORKER_ENTRY="$ROOT_DIR/workers/pineworker/src/main.ts"
 
 case "$(uname -s):$(uname -m)" in
@@ -54,5 +55,10 @@ mkdir -p "$OUT_DIR"
 OUT_PATH="$OUT_DIR/$OUTPUT_NAME"
 bun build --compile --target="$BUN_TARGET" "$WORKER_ENTRY" --outfile "$OUT_PATH"
 chmod +x "$OUT_PATH"
+
+if [[ -n "$ENV_FILE" ]]; then
+  mkdir -p "$(dirname "$ENV_FILE")"
+  printf 'JFTRADE_PINEWORKER_BINARY=%s\n' "$OUT_PATH" > "$ENV_FILE"
+fi
 
 echo "$OUT_PATH"
