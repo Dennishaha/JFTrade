@@ -62,8 +62,23 @@ if ! grep -q "npm run build:frontend-assets" "$RUN_LOG"; then
   cat "$RUN_LOG" >&2
   exit 1
 fi
+if ! grep -q "npm run test:web" "$RUN_LOG"; then
+  echo "blocked release check did not run frontend test gate" >&2
+  cat "$RUN_LOG" >&2
+  exit 1
+fi
+if ! grep -q "npm run typecheck:web" "$RUN_LOG"; then
+  echo "blocked release check did not run frontend typecheck gate" >&2
+  cat "$RUN_LOG" >&2
+  exit 1
+fi
 if ! grep -q "go test -tags release_assets ./internal/frontendassets -run TestFileSystem" "$RUN_LOG"; then
   echo "blocked release check did not test embedded frontend assets" >&2
+  cat "$RUN_LOG" >&2
+  exit 1
+fi
+if ! grep -q "git diff --check" "$RUN_LOG"; then
+  echo "blocked release check did not run git diff whitespace gate" >&2
   cat "$RUN_LOG" >&2
   exit 1
 fi
