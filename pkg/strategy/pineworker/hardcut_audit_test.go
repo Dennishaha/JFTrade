@@ -324,6 +324,8 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 			"git diff --check",
 			"dist/trading-engine",
 			"go build -tags release_assets -o",
+			"verify_release_artifact",
+			"release artifact is missing or empty",
 		},
 		"scripts/lib/pinets-license.sh": {
 			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
@@ -337,10 +339,13 @@ func assertPinetsReleaseRequiresCommercialLicense(t *testing.T, root string) {
 			"git diff --check",
 			"JFTRADE_PINETS_RELEASE_OUT",
 			"go build -tags release_assets -o",
+			"JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT",
+			"release artifact is missing or empty",
 		},
 		"docs/troubleshooting/pinets-worker-release.md": {
 			"JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK",
 			"AGPL-3.0-only",
+			"发布产物必须存在、非空且可执行",
 		},
 	}
 	for rel, requiredValues := range requiredByFile {

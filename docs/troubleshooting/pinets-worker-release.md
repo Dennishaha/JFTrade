@@ -12,6 +12,7 @@
 - 真实 worker 进程通过 localhost gRPC smoke，覆盖 `HealthCheck` 和 `RunScript`。
 - `scripts/build-pineworker-assets.sh` 通过 `bun build --compile` 生成目标平台 Bun SEA / 单文件 worker 二进制。
 - `go test -tags release_assets ./internal/pineworkerassets -run Test` 通过，确认 embedded asset 选择逻辑可用。
+- `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` 后的发布产物必须存在、非空且可执行。
 - Go、worker、前端 focused test、coverage、performance gate 和 `git diff --check` 通过。
 
 当前仓库还未满足最终发布：`npm ls pinets --workspaces --depth=1` 为空，真实非 mock PineTS worker 进程 smoke 还不能作为放行依据。

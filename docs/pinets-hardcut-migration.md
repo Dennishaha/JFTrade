@@ -430,3 +430,6 @@ Hard-cut means:
 | 2026-06-29 | Documented Bun SEA packaging direction | Pass; plan and release checklist now require Bun `build --compile` single-file workers embedded into the Go `release_assets` `trading-engine` binary |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now requires Bun SEA packaging docs and `bun build --compile` release asset construction |
 | 2026-06-29 | `wc -l docs/pinets-hardcut-migration.md docs/troubleshooting/pinets-worker-release.md pkg/strategy/pineworker/hardcut_audit_test.go && git diff --check` | Pass; largest touched file 414 lines before this log entry, below 1200, and no whitespace errors |
+| 2026-06-29 | Updated `scripts/check-pinets-release.sh` | Pass; strict release acceptance now verifies `dist/trading-engine` exists, is non-empty, and is executable after `go build -tags release_assets` |
+| 2026-06-29 | `bash scripts/check-pinets-release.test.sh` | Pass; stub coverage now includes successful artifact creation and failure when the release artifact is missing |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run TestPineTSHardCutDoesNotExposeGoPineRuntime -v` | Pass; hard-cut audit now requires the release artifact sanity gate and operator checklist wording |
