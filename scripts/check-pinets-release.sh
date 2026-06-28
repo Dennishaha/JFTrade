@@ -22,6 +22,7 @@ source "$ROOT_DIR/scripts/lib/pinets-license.sh"
 
 BLOCKED=0
 RUN_LOG="${JFTRADE_PINETS_RELEASE_RUN_LOG:-}"
+RELEASE_OUT="${JFTRADE_PINETS_RELEASE_OUT:-dist/trading-engine}"
 
 run() {
   echo "==> $*"
@@ -53,7 +54,7 @@ if [[ "$BLOCKED" -eq 0 ]]; then
   run env JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v
   run bash scripts/build-pineworker-assets.sh
   run go test -tags release_assets ./internal/pineworkerassets -run Test
-  run go build -tags release_assets ./cmd/jftrade-api
+  run go build -tags release_assets -o "$RELEASE_OUT" ./cmd/jftrade-api
 else
   echo "==> Skipping real PineTS process smoke and release asset build until pinets is installed"
 fi

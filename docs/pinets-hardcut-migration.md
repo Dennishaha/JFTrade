@@ -413,4 +413,5 @@ Hard-cut means:
 | 2026-06-29 | `npm view pinets version license dist-tags --json` | Blocked for release; public `pinets@0.9.26` reports `AGPL-3.0-only`, so commercial license attestation is required before release |
 | 2026-06-29 | Added shared `scripts/lib/pinets-license.sh` gate | Pass; release-check and worker asset build scripts now block missing package/license and public AGPL packages before release asset generation |
 | 2026-06-29 | Split `internal/pineworkerassets` dev/release tests | Pass; dev builds still verify missing assets are unavailable while `release_assets` builds verify staged worker binaries return data and SHA256 |
-| 2026-06-29 | Updated `scripts/check-pinets-release.sh` | Pass; strict unblocked release acceptance now builds `go build -tags release_assets ./cmd/jftrade-api` after worker asset generation and release asset tests |
+| 2026-06-29 | Updated `scripts/check-pinets-release.sh` | Pass; strict unblocked release acceptance now builds `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` after worker asset generation and release asset tests |
+| 2026-06-29 | Aligned release output name | Pass; `scripts/check-pinets-release.sh` now defaults to the single-file `dist/trading-engine` release artifact and supports `JFTRADE_PINETS_RELEASE_OUT` for test output isolation |

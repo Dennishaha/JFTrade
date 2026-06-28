@@ -10,6 +10,7 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 
 BIN_DIR="$TEMP_DIR/bin"
 RUN_LOG="$TEMP_DIR/run.log"
+RELEASE_OUT="$TEMP_DIR/dist/trading-engine"
 mkdir -p "$BIN_DIR"
 
 stub() {
@@ -29,6 +30,7 @@ stub bash 'exit 0'
 
 export PATH="$BIN_DIR:$PATH"
 export JFTRADE_PINETS_RELEASE_RUN_LOG="$RUN_LOG"
+export JFTRADE_PINETS_RELEASE_OUT="$RELEASE_OUT"
 export JFTRADE_PINETS_RELEASE_PINETS_STATUS=1
 export JFTRADE_PINETS_RELEASE_PINETS_LICENSE=AGPL-3.0-only
 unset JFTRADE_PINETS_COMMERCIAL_LICENSE_ACK
@@ -112,7 +114,7 @@ if ! grep -q "env JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy
   cat "$RUN_LOG" >&2
   exit 1
 fi
-if ! grep -q "go build -tags release_assets ./cmd/jftrade-api" "$RUN_LOG"; then
+if ! grep -q "go build -tags release_assets -o $RELEASE_OUT ./cmd/jftrade-api" "$RUN_LOG"; then
   echo "unblocked release check did not build release_assets API binary" >&2
   cat "$RUN_LOG" >&2
   exit 1
