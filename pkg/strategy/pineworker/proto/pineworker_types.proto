@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package jftrade.strategy.pineworker.v1;
+
+option go_package = "github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpb";
+
+import "proto/pineworker_common.proto";
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool ok = 1;
+  string worker_id = 2;
+  string version = 3;
+  string pinets_version = 4;
+  repeated string capabilities = 5;
+}
+
+message AnalyzeScriptRequest {
+  string job_id = 1;
+  string script_id = 2;
+  string source = 3;
+  map<string, string> params = 4;
+}
+
+message AnalyzeScriptResponse {
+  string job_id = 1;
+  bool ok = 2;
+  repeated Diagnostic diagnostics = 3;
+  repeated string inputs = 4;
+  repeated string plots = 5;
+  map<string, string> strategy_config = 6;
+  WorkerMetadata metadata = 7;
+  string error = 8;
+}
+
+message RunScriptRequest {
+  string job_id = 1;
+  string script_id = 2;
+  string source = 3;
+  string symbol = 4;
+  string timeframe = 5;
+  string mode = 6;
+  repeated Candle candles = 7;
+  map<string, string> params = 8;
+}
+
+message RunScriptResponse {
+  string job_id = 1;
+  repeated SeriesOutput outputs = 2;
+  repeated PlotOutput plots = 3;
+  repeated OrderIntent order_intents = 4;
+  repeated string logs = 5;
+  repeated string warnings = 6;
+  repeated Diagnostic diagnostics = 7;
+  WorkerMetadata metadata = 8;
+  string error = 9;
+}

@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package jftrade.strategy.pineworker.v1;
+
+option go_package = "github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpb";
+
+message Candle {
+  int64 open_time = 1;
+  int64 close_time = 2;
+  double open = 3;
+  double high = 4;
+  double low = 5;
+  double close = 6;
+  double volume = 7;
+}
+
+message Diagnostic {
+  string severity = 1;
+  string code = 2;
+  string message = 3;
+  int32 line = 4;
+  int32 column = 5;
+}
+
+message SeriesOutput {
+  string name = 1;
+  string kind = 2;
+  repeated double values = 3;
+}
+
+message PlotOutput {
+  string name = 1;
+  repeated double values = 2;
+}
+
+message OrderIntent {
+  string kind = 1;
+  string id = 2;
+  string from_entry = 3;
+  string direction = 4;
+  double quantity = 5;
+  double quantity_pct = 6;
+  double limit_price = 7;
+  double stop_price = 8;
+  string comment = 9;
+  string alert_message = 10;
+  bool disable_alert = 11;
+  int32 bar_index = 12;
+  int64 time = 13;
+  bool has_quantity = 14;
+  bool has_quantity_pct = 15;
+  bool has_limit_price = 16;
+  bool has_stop_price = 17;
+}
+
+message WorkerMetadata {
+  string worker_id = 1;
+  string version = 2;
+  string pinets_version = 3;
+  string script_hash = 4;
+  string data_hash = 5;
+  int64 duration_ms = 6;
+  int32 request_bytes = 7;
+  int32 response_bytes = 8;
+  int64 peak_rss_bytes = 9;
+}
