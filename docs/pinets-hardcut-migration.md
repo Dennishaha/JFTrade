@@ -48,12 +48,12 @@ PineTS worker owns:
 
 PineTS worker must not be the source of truth for final trades, live orders, account state, or risk decisions.
 
-## Release Blockers
+## Release Gate Facts
 
 - `pinets@0.9.26` is installed and locked as a worker dependency; current npm metadata reports `AGPL-3.0-only`.
 - Release compliance must explicitly account for the public `pinets` license because the commercial PineTS plan is canceled.
 - Production worker startup defaults to the native PineTS executor; mock mode requires explicit `JFTRADE_PINEWORKER_MOCK=true` or `--mock true` and is test-only.
-- Release binaries must not ship until a real PineTS worker process smoke passes without mock mode.
+- Real PineTS worker process smoke must continue to pass without mock mode before release binaries ship.
 - Release and operator acceptance is tracked in [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md).
 
 ## Worker PoC Boundary
@@ -98,7 +98,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 - API startup reads `JFTRADE_PINEWORKER_*` environment settings, starts the worker manager when a worker binary is configured, injects it into backtest service, and stops it during `Server.Close`.
 - `internal/pineworkerassets` selects platform-specific embedded worker binaries under `release_assets`; API startup uses external `JFTRADE_PINEWORKER_BINARY` first, then embedded assets.
 - Current manager tests cover fixed port allocation, round-robin dispatch, health-check restart, failed restart reporting, startup cleanup, shutdown cleanup, snapshot state, binary checksum, process cleanup, dialer creation, and a gated Bun mock process smoke path through real gRPC.
-- Real non-mock PineTS process smoke remains the release blocker.
+- Real non-mock PineTS process smoke passes in strict release acceptance and remains part of the release gate.
 
 ## Bun SEA Packaging Boundary
 
@@ -421,7 +421,7 @@ Hard-cut means:
 | 2026-06-29 | Updated `.github/workflows/ci.yml` | Pass; CI now builds embedded frontend assets with `npm run build:frontend-assets` and runs `go test -tags release_assets ./internal/frontendassets -run TestFileSystem` |
 | 2026-06-29 | Updated `.github/workflows/ci.yml` | Pass; CI now runs `npm run test:pinets-release-check` so strict, blocked, and unblocked release-check branches stay covered |
 | 2026-06-29 | `npm view pinets version license dist-tags --json` | Superseded; public `pinets@0.9.26` reports `AGPL-3.0-only`, now recorded as the selected dependency license rather than a commercial-license blocker |
-| 2026-06-29 | Added shared `scripts/lib/pinets-license.sh` gate | Superseded; release-check and worker asset build scripts now block only missing `pinets` and record the installed package license |
+| 2026-06-29 | Added shared shell license gate | Superseded; Node release-check and worker build scripts now block only missing `pinets` and record the installed package license |
 | 2026-06-29 | Split `internal/pineworkerassets` dev/release tests | Pass; dev builds still verify missing assets are unavailable while `release_assets` builds verify staged worker binaries return data and SHA256 |
 | 2026-06-29 | Updated `scripts/check-pinets-release.sh` | Pass; strict unblocked release acceptance now builds `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` after worker asset generation and release asset tests |
 | 2026-06-29 | Aligned release output name | Pass; `scripts/check-pinets-release.sh` now defaults to the single-file `dist/trading-engine` release artifact and supports `JFTRADE_PINETS_RELEASE_OUT` for test output isolation |
@@ -444,3 +444,4 @@ Hard-cut means:
 | 2026-06-29 | Added portable Bun launcher for worker tests | Pass; `npm run test:pineworker`, worker package `npm test`, and the real PineTS process smoke pass when Bun is installed in the standard Windows user directory but the current shell PATH has not refreshed. |
 | 2026-06-29 | Migrated release gates off Bash main paths | Pass; `npm run check:pinets-release` now runs through Node on Windows, `npm run build:pineworker` builds all Bun SEA worker targets, `npm run build:frontend-assets` rebuilds embedded web assets, and shell scripts remain as compatibility forwarders. |
 | 2026-06-29 | `npm run check:pinets-release` | Pass; strict release gate completed with public `pinets@0.9.26` / `AGPL-3.0-only`, 76 web test files / 399 web tests, worker tests/typecheck, frontend and Pineworker `release_assets` tests, real PineTS process smoke, `git diff --check`, and `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api`. |
+| 2026-06-29 | Migrated PineTS worker dev path off Bash main entry | Pass; `npm run build:pineworker:dev` now uses Node/Bun discovery, writes optional `JFTRADE_PINEWORKER_DEV_ENV_FILE`, and `npm run dev:api:pineworker` builds the current-platform worker before starting `go run ./cmd/jftrade-api` with `JFTRADE_PINEWORKER_BINARY`. |
