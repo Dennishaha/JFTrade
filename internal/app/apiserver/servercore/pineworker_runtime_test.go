@@ -78,6 +78,12 @@ func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) 
 	if config.Mock {
 		t.Fatal("Mock = true by default; production worker must require explicit mock opt-in")
 	}
+	if !filepath.IsAbs(config.ProtoPath) || !strings.HasSuffix(filepath.ToSlash(config.ProtoPath), defaultPineWorkerProtoPath) {
+		t.Fatalf("ProtoPath = %q, want absolute repo proto path", config.ProtoPath)
+	}
+	if config.WorkDir == "" || !filepath.IsAbs(config.WorkDir) {
+		t.Fatalf("WorkDir = %q, want absolute worker cwd", config.WorkDir)
+	}
 	wantWorkers := runtime.NumCPU()
 	if wantWorkers < 1 {
 		wantWorkers = 1
@@ -87,6 +93,45 @@ func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) 
 	}
 	if config.Workers != wantWorkers {
 		t.Fatalf("Workers = %d, want default CPU worker limit %d", config.Workers, wantWorkers)
+	}
+}
+
+func TestResolvePineWorkerRuntimeConfigKeepsProtoEnvOverride(t *testing.T) {
+	binaryPath := filepath.Join(t.TempDir(), "worker")
+	customProtoPath := filepath.Join(t.TempDir(), "custom-pineworker.proto")
+	t.Setenv(envPineWorkerBinary, binaryPath)
+	t.Setenv(envPineWorkerProto, customProtoPath)
+
+	config, enabled, err := resolvePineWorkerRuntimeConfig(nil)
+	if err != nil {
+		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
+	}
+	if !enabled {
+		t.Fatal("resolvePineWorkerRuntimeConfig enabled = false, want true")
+	}
+	if config.ProtoPath != filepath.Clean(customProtoPath) {
+		t.Fatalf("ProtoPath = %q, want env override %q", config.ProtoPath, customProtoPath)
+	}
+}
+
+func TestFindPineWorkerRepoRootFromNestedWorkerPath(t *testing.T) {
+	root := t.TempDir()
+	protoPath := filepath.Join(root, filepath.FromSlash(defaultPineWorkerProtoPath))
+	if err := os.MkdirAll(filepath.Dir(protoPath), 0o755); err != nil {
+		t.Fatalf("mkdir proto dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module test\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if err := os.WriteFile(protoPath, []byte("syntax = \"proto3\";\n"), 0o644); err != nil {
+		t.Fatalf("write proto: %v", err)
+	}
+	nested := filepath.Join(root, "var", "pineworker")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	if got := findPineWorkerRepoRoot(nested); got != root {
+		t.Fatalf("findPineWorkerRepoRoot() = %q, want %q", got, root)
 	}
 }
 
@@ -513,7 +558,14 @@ func (transport *fakeServerPineWorkerTransport) RunScript(_ context.Context, req
 	transport.mu.Lock()
 	transport.runs++
 	transport.mu.Unlock()
-	return pineworker.RunScriptResponse{JobID: request.JobID}, nil
+	return pineworker.RunScriptResponse{
+		JobID: request.JobID,
+		Metadata: pineworker.WorkerMetadata{
+			Duration:      100 * time.Microsecond,
+			RequestBytes:  100,
+			ResponseBytes: 100,
+		},
+	}, nil
 }
 
 func (transport *fakeServerPineWorkerTransport) HealthCheck(context.Context) (pineworker.HealthStatus, error) {

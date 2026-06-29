@@ -128,6 +128,30 @@ func TestWorkerManagerStartCleansUpAfterDialFailure(t *testing.T) {
 	}
 }
 
+func TestWorkerManagerStartDialFailureIncludesProcessDiagnostics(t *testing.T) {
+	launcher := &fakeWorkerLauncher{diagnostics: "binary=/tmp/worker; cwd=/repo; stderr=proto load failed"}
+	dialer := newFakeManagerDialer()
+	dialer.failAddress = "127.0.0.1:50051"
+	manager := newTestManager(t, ManagerConfig{Workers: 1, HealthTimeout: 20 * time.Millisecond}, launcher, dialer)
+
+	err := manager.Start(context.Background())
+	if err == nil {
+		t.Fatal("Start error = nil, want dial failure")
+	}
+	for _, want := range []string{
+		"dial pineworker-1 at 127.0.0.1:50051",
+		"pine worker process did not become ready",
+		"stderr=proto load failed",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("Start error = %q, want %q", err.Error(), want)
+		}
+	}
+	if launcher.processes[0].stops != 1 {
+		t.Fatalf("failed worker stops = %d, want 1", launcher.processes[0].stops)
+	}
+}
+
 func TestWorkerManagerStartRetriesDialUntilWorkerReady(t *testing.T) {
 	launcher := &fakeWorkerLauncher{}
 	dialer := newFakeManagerDialer()
@@ -196,26 +220,32 @@ type fakeWorkerLauncher struct {
 	started         []WorkerSpec
 	processes       []*fakeWorkerProcess
 	failAfterStarts int
+	diagnostics     string
 }
 
 func (launcher *fakeWorkerLauncher) Start(ctx context.Context, spec WorkerSpec) (WorkerProcess, error) {
 	if launcher.failAfterStarts > 0 && len(launcher.started) >= launcher.failAfterStarts {
 		return nil, errors.New("start failed")
 	}
-	process := &fakeWorkerProcess{spec: spec}
+	process := &fakeWorkerProcess{spec: spec, diagnostics: launcher.diagnostics}
 	launcher.started = append(launcher.started, spec)
 	launcher.processes = append(launcher.processes, process)
 	return process, nil
 }
 
 type fakeWorkerProcess struct {
-	spec  WorkerSpec
-	stops int
+	spec        WorkerSpec
+	stops       int
+	diagnostics string
 }
 
 func (process *fakeWorkerProcess) Stop(context.Context) error {
 	process.stops++
 	return nil
+}
+
+func (process *fakeWorkerProcess) Diagnostics() string {
+	return process.diagnostics
 }
 
 type fakeManagerDialer struct {

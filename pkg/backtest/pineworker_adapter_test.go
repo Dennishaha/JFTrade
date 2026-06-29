@@ -36,6 +36,22 @@ func TestCommandsFromOrderIntents(t *testing.T) {
 	}
 }
 
+func TestCommandFromOrderIntentPreservesShortDirection(t *testing.T) {
+	command, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{
+		Kind:        "entry",
+		ID:          "short",
+		Direction:   "short",
+		Quantity:    2,
+		HasQuantity: true,
+	})
+	if err != nil || !ok {
+		t.Fatalf("CommandFromOrderIntent error = %v ok=%v", err, ok)
+	}
+	if command.Direction != "short" || command.Side != types.SideTypeSell {
+		t.Fatalf("command = %#v, want short sell", command)
+	}
+}
+
 func TestCommandFromOrderIntentDefaultsEntryQuantity(t *testing.T) {
 	command, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{Kind: "entry", Direction: "long"})
 	if err != nil || !ok {

@@ -18,6 +18,7 @@ type WorkerOrderCommand struct {
 	Kind         string
 	ID           string
 	FromEntry    string
+	Direction    string
 	Side         types.SideType
 	OrderType    types.OrderType
 	Quantity     float64
@@ -93,6 +94,7 @@ func CommandFromOrderIntent(intent pineworker.OrderIntent) (WorkerOrderCommand, 
 		Kind:         kind,
 		ID:           intent.ID,
 		FromEntry:    intent.FromEntry,
+		Direction:    strings.TrimSpace(strings.ToLower(intent.Direction)),
 		Side:         side,
 		OrderType:    orderType,
 		Quantity:     intent.Quantity,

@@ -23,9 +23,14 @@ type PineWorkerCommandExecutor struct {
 	Symbol              string
 	OrderExecutor       PineWorkerOrderExecutor
 	MarketResolver      PineWorkerMarketResolver
+	PositionSizer       pineWorkerCommandPositionSizer
 	ClientOrderIDPrefix string
 
 	activeOrders map[string]types.Order
+}
+
+type pineWorkerCommandPositionSizer interface {
+	QuantityForCommand(command WorkerOrderCommand, market types.Market) (fixedpoint.Value, error)
 }
 
 func (executor *PineWorkerCommandExecutor) ExecuteBarCommands(ctx context.Context, commands []WorkerOrderCommand) error {
@@ -81,11 +86,9 @@ func (executor *PineWorkerCommandExecutor) SubmitOrderFromCommand(command Worker
 	if command.Side == "" {
 		return types.SubmitOrder{}, fmt.Errorf("pine worker command %s side is required", command.Kind)
 	}
-	if command.QuantityPct > 0 {
-		return types.SubmitOrder{}, fmt.Errorf("pine worker command %s quantity pct requires position sizing", command.ID)
-	}
-	if command.Quantity <= 0 {
-		return types.SubmitOrder{}, fmt.Errorf("pine worker command %s quantity must be positive", command.ID)
+	quantity, err := executor.orderQuantity(command, market)
+	if err != nil {
+		return types.SubmitOrder{}, err
 	}
 	orderType := command.OrderType
 	if orderType == "" {
@@ -96,8 +99,11 @@ func (executor *PineWorkerCommandExecutor) SubmitOrderFromCommand(command Worker
 		Symbol:        symbol,
 		Side:          command.Side,
 		Type:          orderType,
-		Quantity:      fixedpoint.NewFromFloat(command.Quantity),
+		Quantity:      quantity,
 		Market:        market,
+	}
+	if isPineWorkerShortReplayCommand(command) {
+		order.Tag = pineWorkerShortReplayOrderTag
 	}
 	if command.LimitPrice > 0 {
 		order.Price = fixedpoint.NewFromFloat(command.LimitPrice)
@@ -107,6 +113,65 @@ func (executor *PineWorkerCommandExecutor) SubmitOrderFromCommand(command Worker
 		order.StopPrice = fixedpoint.NewFromFloat(command.StopPrice)
 	}
 	return order, nil
+}
+
+func (executor *PineWorkerCommandExecutor) orderQuantity(command WorkerOrderCommand, market types.Market) (fixedpoint.Value, error) {
+	if command.QuantityPct > 0 {
+		if executor.PositionSizer == nil {
+			return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct requires position sizing", command.ID)
+		}
+		quantity, err := executor.PositionSizer.QuantityForCommand(command, market)
+		if err != nil {
+			return fixedpoint.Zero, err
+		}
+		return requirePositivePineWorkerCommandQuantity(command, quantity)
+	}
+	if command.QuantityPct < 0 {
+		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct must be positive", command.ID)
+	}
+	if command.Quantity > 0 {
+		return requirePositivePineWorkerCommandQuantity(command, fixedpoint.NewFromFloat(command.Quantity))
+	}
+	if isPineWorkerPositionCloseCommand(command) && executor.PositionSizer != nil {
+		command.QuantityPct = 100
+		quantity, err := executor.PositionSizer.QuantityForCommand(command, market)
+		if err != nil {
+			return fixedpoint.Zero, err
+		}
+		return requirePositivePineWorkerCommandQuantity(command, quantity)
+	}
+	return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity must be positive", command.ID)
+}
+
+func requirePositivePineWorkerCommandQuantity(command WorkerOrderCommand, quantity fixedpoint.Value) (fixedpoint.Value, error) {
+	if quantity.Sign() <= 0 {
+		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity must be positive", command.ID)
+	}
+	return quantity, nil
+}
+
+const pineWorkerShortReplayOrderTag = "pine-worker-short-replay"
+
+func isPineWorkerShortReplayCommand(command WorkerOrderCommand) bool {
+	direction := strings.TrimSpace(strings.ToLower(command.Direction))
+	if direction != "short" {
+		return false
+	}
+	switch normalizeWorkerIntentKind(command.Kind) {
+	case "entry", "order", "exit", "close", "close_all":
+		return true
+	default:
+		return false
+	}
+}
+
+func isPineWorkerPositionCloseCommand(command WorkerOrderCommand) bool {
+	switch normalizeWorkerIntentKind(command.Kind) {
+	case "exit", "close", "close_all":
+		return true
+	default:
+		return false
+	}
 }
 
 func (executor *PineWorkerCommandExecutor) cancel(ctx context.Context, id string) error {

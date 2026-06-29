@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createServiceHandlers, startWorkerGrpcServer, type GrpcModule, type GrpcServer } from "./grpcServer";
+import { createServiceHandlers, includeDirsForProto, startWorkerGrpcServer, type GrpcModule, type GrpcServer } from "./grpcServer";
 import { DeterministicPineTSExecutor } from "./mockExecutor";
 
 describe("createServiceHandlers", () => {
@@ -70,6 +70,7 @@ describe("startWorkerGrpcServer", () => {
     });
 
     expect(started.port).toBe(50051);
+    expect(fakeServer.protoPath).toBe("/repo/pkg/strategy/pineworker/proto/pineworker.proto");
     expect(fakeServer.protoOptions?.keepCase).toBe(true);
     expect(fakeServer.protoOptions?.includeDirs).toEqual(["/repo/pkg/strategy/pineworker/proto", "/repo/pkg/strategy/pineworker"]);
     expect(fakeServer.options).toMatchObject({
@@ -80,6 +81,13 @@ describe("startWorkerGrpcServer", () => {
     expect(Object.keys(fakeServer.handlers ?? {})).toEqual(["HealthCheck", "RunScript", "AnalyzeScript"]);
     started.shutdown();
     expect(fakeServer.shutdown).toBe(true);
+  });
+
+  test("normalizes Windows proto paths before computing include dirs", () => {
+    expect(includeDirsForProto(String.raw`C:\repo\pkg\strategy\pineworker\proto\pineworker.proto`)).toEqual([
+      "C:/repo/pkg/strategy/pineworker/proto",
+      "C:/repo/pkg/strategy/pineworker",
+    ]);
   });
 });
 

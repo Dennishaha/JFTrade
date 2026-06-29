@@ -17,7 +17,6 @@ export type GrpcModule = {
 export type GrpcServer = {
   addService(service: unknown, handlers: Record<string, unknown>): void;
   bindAsync(address: string, credentials: unknown, callback: (error: Error | null, port: number) => void): void;
-  start?: () => void;
   forceShutdown?: () => void;
 };
 
@@ -36,13 +35,14 @@ export type StartedWorkerServer = {
 };
 
 export async function startWorkerGrpcServer(options: WorkerServerOptions): Promise<StartedWorkerServer> {
-  const packageDefinition = options.protoLoader.loadSync(options.protoPath, {
+  const protoPath = normalizeProtoPath(options.protoPath);
+  const packageDefinition = options.protoLoader.loadSync(protoPath, {
     keepCase: true,
     longs: Number,
     enums: String,
     defaults: true,
     oneofs: true,
-    includeDirs: includeDirsForProto(options.protoPath),
+    includeDirs: includeDirsForProto(protoPath),
   });
   const loaded = options.grpc.loadPackageDefinition(packageDefinition);
   const service = pineWorkerServiceDefinition(loaded);
@@ -52,7 +52,6 @@ export async function startWorkerGrpcServer(options: WorkerServerOptions): Promi
   });
   server.addService(service, createServiceHandlers(options));
   const port = await bindServer(server, options.address, options.grpc.ServerCredentials.createInsecure());
-  server.start?.();
   return {
     address: options.address,
     port,
@@ -125,14 +124,19 @@ function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
 }
 
-function dirname(path: string): string {
-  const index = path.lastIndexOf("/");
-  return index < 0 ? "." : path.slice(0, index);
+export function normalizeProtoPath(path: string): string {
+  return path.replaceAll("\\", "/");
 }
 
-function includeDirsForProto(path: string): string[] {
+export function dirname(path: string): string {
+  const normalized = normalizeProtoPath(path);
+  const index = normalized.lastIndexOf("/");
+  return index < 0 ? "." : normalized.slice(0, index);
+}
+
+export function includeDirsForProto(path: string): string[] {
   const protoDir = dirname(path);
-  return [protoDir, dirname(protoDir)];
+  return Array.from(new Set([protoDir, dirname(protoDir)]));
 }
 
 type UnaryCall = {

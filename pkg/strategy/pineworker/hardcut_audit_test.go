@@ -434,7 +434,7 @@ func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
 			"var/pineworker/vscode.env",
 		},
 		".vscode/launch.json": {
-			"Debug Backend with PineTS Worker",
+			"Dev Backend with PineTS Worker",
 			"preLaunchTask",
 			"build:pineworker:dev",
 			"envFile",
@@ -520,6 +520,9 @@ func assertCIExercisesPineTSWorker(t *testing.T, root string) {
 		"go test -tags release_assets ./internal/frontendassets -run TestFileSystem",
 		"npm run test:pinets-release-check",
 		"npm run check:pinets-compliance",
+		"npm run test:pinets-shadow-corpus",
+		"JFTRADE_PINETS_SHADOW_REPORT_PATH",
+		"actions/upload-artifact",
 		"npm run test:pineworker-asset-build",
 	} {
 		if !strings.Contains(text, required) {

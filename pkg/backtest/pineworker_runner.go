@@ -139,7 +139,16 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 		result.Error = "session order executor is nil"
 		return result
 	}
-	var executor bbgo2.OrderExecutor = defaultExecutor
+	shortReplayExecutor := newPineWorkerShortReplayExecutor(
+		defaultExecutor,
+		session.Account,
+		jftradeCheckedTypeAssertion[types.StandardStreamEmitter](session.UserDataStream),
+	)
+	session.MarketDataStream.OnKLineClosed(shortReplayExecutor.onKLineClosed)
+	replaySizer := newPineWorkerReplaySizer(cfg.Symbol, quoteCurrency, session.Account)
+	session.MarketDataStream.OnKLineClosed(replaySizer.onKLineClosed)
+	session.UserDataStream.OnOrderUpdate(replaySizer.onOrderUpdate)
+	var executor bbgo2.OrderExecutor = shortReplayExecutor
 	if compilation.Program.Metadata.Slippage > 0 {
 		slippageExecutor := newBacktestSlippageExecutor(executor, session, compilation.Program.Metadata.Slippage)
 		session.MarketDataStream.OnKLineClosed(slippageExecutor.onKLineClosed)
@@ -162,6 +171,7 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 		Symbol:         cfg.Symbol,
 		OrderExecutor:  executor,
 		MarketResolver: session,
+		PositionSizer:  replaySizer,
 	}
 	replayState := newPineWorkerBacktestReplayState(plan, commandExecutor)
 	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {

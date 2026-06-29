@@ -35,9 +35,10 @@ outside this stdio report path.
 Run the real-K-line shadow corpus report with:
 
 ```bash
-go test ./pkg/backtest -run TestPinetsShadowCorpusReport -count=1 -v
+npm run test:pinets-shadow-corpus
 ```
 
+This wraps `go test ./pkg/backtest -run TestPinetsShadowCorpusReport -count=1 -v`.
 The test opens a `FutuKLineStore`, streams OHLCV rows through the backtest store
 path, sends those candles to `scripts/pinets-worker.mjs`, and writes a JSON
 report. By default it creates a deterministic fixture database with benchmark
@@ -58,3 +59,8 @@ summaries, signals, unsupported reasons, runtime duration, and report-only plot
 parity metadata. Pinets runtime failures and parity mismatches are recorded in
 the report but do not fail the test; worker protocol failures, report write
 failures, and non-AGPL license metadata do fail.
+
+CI runs the same command with `JFTRADE_PINETS_SHADOW_REPORT_PATH` set to an
+absolute workspace path ending in `artifacts/pinets-shadow/report.json` and
+uploads the report as an artifact. Use an absolute path locally too when you
+want the report outside Go's package working directory.

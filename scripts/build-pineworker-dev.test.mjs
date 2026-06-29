@@ -38,7 +38,19 @@ try {
   });
   assert(devAPI.status === 0, `dev api pineworker dry run failed: ${devAPI.stderr || devAPI.stdout}`);
   assert(devAPI.stdout.includes("DRY RUN JFTRADE_PINEWORKER_BINARY="), "dev api dry run did not configure worker binary");
+  assert(devAPI.stdout.includes("JFTRADE_PINEWORKER_WORKERS=1"), "dev api dry run did not default to one worker");
   assert(devAPI.stdout.includes("go run ./cmd/jftrade-api"), "dev api dry run did not show Go API command");
+
+  const devAPIWorkersOverride = runDevAPI({
+    JFTRADE_PINEWORKER_DEV_OUT_DIR: outDir,
+    JFTRADE_PINEWORKER_DEV_BUILD_DRY_RUN: "1",
+    JFTRADE_DEV_API_PINEWORKER_DRY_RUN: "1",
+    JFTRADE_PINEWORKER_WORKERS: "2",
+    JFTRADE_PINETS_RELEASE_PINETS_STATUS: "0",
+    JFTRADE_PINETS_RELEASE_PINETS_LICENSE: "AGPL-3.0-only",
+  });
+  assert(devAPIWorkersOverride.status === 0, `dev api pineworker workers override dry run failed: ${devAPIWorkersOverride.stderr || devAPIWorkersOverride.stdout}`);
+  assert(devAPIWorkersOverride.stdout.includes("JFTRADE_PINEWORKER_WORKERS=2"), "dev api dry run did not preserve worker override");
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }

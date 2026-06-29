@@ -1,6 +1,7 @@
 package pineworker
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -18,14 +19,19 @@ func TestBinaryWorkerLauncherMaterializesBinaryWithArgs(t *testing.T) {
 	}
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "args.log")
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + shellQuote(logPath) + "\n"
+	cwdPath := filepath.Join(tempDir, "cwd.log")
+	workDir := t.TempDir()
+	var stderr bytes.Buffer
+	script := "#!/bin/sh\npwd > " + shellQuote(cwdPath) + "\nprintf 'worker stderr tail\\n' >&2\nprintf '%s\\n' \"$@\" > " + shellQuote(logPath) + "\n"
 	launcher := newScriptLauncher(t, script, BinaryWorkerLauncherConfig{
 		TempDir:         tempDir,
+		WorkDir:         workDir,
 		ProtoPath:       "proto/pineworker.proto",
 		MaxMessageBytes: 1234,
 		PineTSVersion:   "pinets-test",
 		Mock:            true,
 		ExtraArgs:       []string{"--extra", "value"},
+		Stderr:          &stderr,
 	})
 
 	process, err := launcher.Start(context.Background(), WorkerSpec{WorkerID: "worker-1", Address: "127.0.0.1:50051", Port: 50051})
@@ -33,8 +39,19 @@ func TestBinaryWorkerLauncherMaterializesBinaryWithArgs(t *testing.T) {
 		t.Fatalf("Start error = %v", err)
 	}
 	waitForFile(t, logPath)
+	diagnostics := process.(*OSWorkerProcess).Diagnostics()
 	if err := process.Stop(context.Background()); err != nil {
 		t.Fatalf("Stop error = %v", err)
+	}
+	rawCWD, err := os.ReadFile(cwdPath)
+	if err != nil {
+		t.Fatalf("read cwd log: %v", err)
+	}
+	if filepath.Clean(strings.TrimSpace(string(rawCWD))) != filepath.Clean(workDir) {
+		t.Fatalf("worker cwd = %q, want %q", strings.TrimSpace(string(rawCWD)), workDir)
+	}
+	if !strings.Contains(diagnostics, "cwd="+workDir) || !strings.Contains(diagnostics, "stderr=worker stderr tail") {
+		t.Fatalf("diagnostics = %q, want cwd and stderr", diagnostics)
 	}
 	raw, err := os.ReadFile(logPath)
 	if err != nil {
