@@ -27,8 +27,8 @@ try {
   });
   assert(pass.status === 0, `worker asset build failed: ${pass.stderr || pass.stdout}`);
   assert(pass.stdout.includes("pinets package license: AGPL-3.0-only"), "pinets package license was not reported");
-  assert((pass.stdout.match(/DRY RUN esbuild/g) ?? []).length === 1, "worker asset build did not produce one platform-independent Node bundle");
-  assert(pass.stdout.includes("--platform=node") && pass.stdout.includes("--format=esm"), "worker asset build did not target Node ESM");
+  assert((pass.stdout.match(/DRY RUN vite build/g) ?? []).length === 1, "worker asset build did not produce one platform-independent Node bundle");
+  assert(pass.stdout.includes("--ssr") && pass.stdout.includes("--format esm") && pass.stdout.includes("--noExternal"), "worker asset build did not target bundled Node ESM");
   assert(!/\bbun\b/i.test(pass.stdout), "worker asset build still references Bun");
   assert(existsSync(join(outDir, ".gitkeep")), ".gitkeep should be preserved");
   assert(!existsSync(join(outDir, "stale-worker")), "stale worker artifact should be deleted");

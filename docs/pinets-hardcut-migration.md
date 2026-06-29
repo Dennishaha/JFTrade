@@ -8,7 +8,7 @@
 - Legacy runtime: `pine-go-plan` is migration-only and must not remain a selectable execution path.
 - Dependency assumption: public `pinets@0.9.26` is the worker runtime dependency; its current npm license is `AGPL-3.0-only` and must be treated as a release compliance fact, not a commercial-license blocker.
 - Execution authority: PineTS computes Pine outputs and order intents; Go remains authoritative for backtest matching, equity curves, live risk, and order placement.
-- Release shape: one platform-independent Node ESM bundle is built with esbuild, embedded into the Go `trading-engine` binary, and started as a localhost gRPC child process through an installed Node runtime.
+- Release shape: one platform-independent Node ESM bundle is built with Vite/Rolldown, embedded into the Go `trading-engine` binary, and started as a localhost gRPC child process through an installed Node runtime.
 - File-size guardrail: new or materially rewritten files must stay under 1200 lines.
 
 ## Progress Tracker
@@ -25,7 +25,7 @@
 | 6. Backtest integration | Done | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` defaults to the Pine worker path and API startup injects a configured `WorkerManager` from `JFTRADE_PINEWORKER_BUNDLE`. Missing worker config now fails fast instead of falling back to Go runtime. |
 | 7. Live integration | Done | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, records runtime observation/errors, and does not fall back to Go Pine runtime. |
 | 8. Hard removal | Done | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. |
-| 9. Packaging | Done | `pinets@0.9.26` is installed as a worker dependency, `npm run build:pineworker` checks that `pinets` is visible before building a platform-independent Node ESM bundle with esbuild into `internal/pineworkerassets/assets/bin`; Go embeds that bundle under `release_assets` and uses the installed Node runtime. Mock and real non-mock PineTS process smoke pass through real gRPC. |
+| 9. Packaging | Done | `pinets@0.9.26` is installed as a worker dependency, `npm run build:pineworker` checks that `pinets` is visible before building a platform-independent Node ESM bundle with Vite/Rolldown into `internal/pineworkerassets/assets/bin`; Go embeds that bundle under `release_assets` and uses the installed Node runtime. Mock and real non-mock PineTS process smoke pass through real gRPC. |
 | 10. Acceptance | Done | `npm run check:pinets-release` passes on Windows with public AGPL `pinets`, focused Go/web/worker tests, web typecheck, worker typecheck, PineTS compliance notice check, frontend asset build, Pineworker asset build, `release_assets` tests, real PineTS process smoke, whitespace gate, and `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api`. |
 
 ## Runtime Boundary
@@ -60,7 +60,7 @@ PineTS worker must not be the source of truth for final trades, live orders, acc
 
 The Node worker slice lives under `workers/pineworker` and now depends directly on public `pinets@0.9.26`.
 
-- `NativePineTSExecutor` statically imports `pinets` so esbuild includes it in the Node ESM bundle, then constructs `new PineTS(candles)` for custom OHLCV execution.
+- `NativePineTSExecutor` statically imports `pinets` so Vite/Rolldown includes it in the Node ESM bundle, then constructs `new PineTS(candles)` for custom OHLCV execution.
 - `runScriptWithPineTS` validates requests before dispatch and maps both validation/runtime failures into worker error responses.
 - Adapter normalization currently covers plots, outputs, logs, warnings, diagnostics, metadata, and normalized order intents.
 - `startWorkerGrpcServer` uses `@grpc/grpc-js` and `@grpc/proto-loader`, registers health/analyze/run handlers, and enforces gRPC send/receive message limits.
@@ -104,7 +104,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 
 The release packaging direction is a Node ESM bundle embedded in the Go release binary. Node is an explicit runtime dependency on the target host.
 
-- `npm run build:pineworker` builds one platform-independent `worker.mjs` with esbuild.
+- `npm run build:pineworker` builds one platform-independent `worker.mjs` with Vite/Rolldown.
 - The generated Node ESM bundle is staged under `internal/pineworkerassets/assets/bin` and embedded only for `release_assets` builds.
 - `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` produces the application artifact with embedded `worker.mjs`; Node remains a separate host runtime dependency.
 - At runtime, Go extracts the embedded bundle to a temporary directory, verifies SHA256, invokes `node worker.mjs`, starts a fixed localhost gRPC worker pool, and removes the temporary bundle on shutdown.

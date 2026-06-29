@@ -2,7 +2,7 @@
   "name": "@jftrade/root",
   "private": true,
   "engines": {
-    "node": ">=24",
+    "node": ">=22",
     "npm": ">=10"
   },
   "packageManager": "npm@10.9.7",
@@ -16,11 +16,11 @@
   },
   "scripts": {
     "dev:web": "npm -w @jftrade/web run dev",
-    "dev:docs": "vitepress dev docs --host 127.0.0.1 --port 3001",
+    "dev:docs": "npm -w @jftrade/web run docs:dev",
     "dev:all": "node scripts/dev-all.mjs",
     "build": "npm run build:web && npm run build:docs && npm run build:backend",
     "build:web": "npm -w @jftrade/web run build",
-    "build:docs": "npm run generate:docs && vitepress build docs",
+    "build:docs": "npm run generate:docs && npm -w @jftrade/web run docs:build",
     "build:backend": "go build -tags=embed_zoneinfo -o dist/jftrade-dev ./cmd/jftrade-api",
     "build:frontend-assets": "node scripts/build-frontend-assets.mjs",
     "build:pineworker": "node scripts/build-pineworker-assets.mjs",
@@ -44,12 +44,5 @@
     "check:pinets-compliance": "node scripts/check-pinets-compliance.mjs",
     "check:pinets-license": "node scripts/check-pinets-license.mjs",
     "typecheck": "npm run typecheck:web && npm run typecheck:pineworker"
-  },
-  "dependencies": {
-    "pinets": "0.9.26",
-    "vitepress": "1.6.4"
-  },
-  "devDependencies": {
-    "typedoc": "0.28.19"
   }
 }
