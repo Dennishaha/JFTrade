@@ -412,6 +412,8 @@ type RunScriptResponse struct {
 	Diagnostics   []*Diagnostic          `protobuf:"bytes,7,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
 	Metadata      *WorkerMetadata        `protobuf:"bytes,8,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	Error         string                 `protobuf:"bytes,9,opt,name=error,proto3" json:"error,omitempty"`
+	Alerts        []*AlertEvent          `protobuf:"bytes,10,rep,name=alerts,proto3" json:"alerts,omitempty"`
+	VisualOutputs []*VisualOutput        `protobuf:"bytes,11,rep,name=visual_outputs,json=visualOutputs,proto3" json:"visual_outputs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -509,6 +511,20 @@ func (x *RunScriptResponse) GetError() string {
 	return ""
 }
 
+func (x *RunScriptResponse) GetAlerts() []*AlertEvent {
+	if x != nil {
+		return x.Alerts
+	}
+	return nil
+}
+
+func (x *RunScriptResponse) GetVisualOutputs() []*VisualOutput {
+	if x != nil {
+		return x.VisualOutputs
+	}
+	return nil
+}
+
 var File_proto_pineworker_types_proto protoreflect.FileDescriptor
 
 const file_proto_pineworker_types_proto_rawDesc = "" +
@@ -552,7 +568,7 @@ const file_proto_pineworker_types_proto_rawDesc = "" +
 	"\x06params\x18\b \x03(\v2<.jftrade.strategy.pineworker.v1.RunScriptRequest.ParamsEntryR\x06params\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe6\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xff\x04\n" +
 	"\x11RunScriptResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12F\n" +
 	"\aoutputs\x18\x02 \x03(\v2,.jftrade.strategy.pineworker.v1.SeriesOutputR\aoutputs\x12@\n" +
@@ -562,7 +578,10 @@ const file_proto_pineworker_types_proto_rawDesc = "" +
 	"\bwarnings\x18\x06 \x03(\tR\bwarnings\x12L\n" +
 	"\vdiagnostics\x18\a \x03(\v2*.jftrade.strategy.pineworker.v1.DiagnosticR\vdiagnostics\x12J\n" +
 	"\bmetadata\x18\b \x01(\v2..jftrade.strategy.pineworker.v1.WorkerMetadataR\bmetadata\x12\x14\n" +
-	"\x05error\x18\t \x01(\tR\x05errorBSZQgithub.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpbb\x06proto3"
+	"\x05error\x18\t \x01(\tR\x05error\x12B\n" +
+	"\x06alerts\x18\n" +
+	" \x03(\v2*.jftrade.strategy.pineworker.v1.AlertEventR\x06alerts\x12S\n" +
+	"\x0evisual_outputs\x18\v \x03(\v2,.jftrade.strategy.pineworker.v1.VisualOutputR\rvisualOutputsBSZQgithub.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpbb\x06proto3"
 
 var (
 	file_proto_pineworker_types_proto_rawDescOnce sync.Once
@@ -593,6 +612,8 @@ var file_proto_pineworker_types_proto_goTypes = []any{
 	(*SeriesOutput)(nil),          // 12: jftrade.strategy.pineworker.v1.SeriesOutput
 	(*PlotOutput)(nil),            // 13: jftrade.strategy.pineworker.v1.PlotOutput
 	(*OrderIntent)(nil),           // 14: jftrade.strategy.pineworker.v1.OrderIntent
+	(*AlertEvent)(nil),            // 15: jftrade.strategy.pineworker.v1.AlertEvent
+	(*VisualOutput)(nil),          // 16: jftrade.strategy.pineworker.v1.VisualOutput
 }
 var file_proto_pineworker_types_proto_depIdxs = []int32{
 	6,  // 0: jftrade.strategy.pineworker.v1.AnalyzeScriptRequest.params:type_name -> jftrade.strategy.pineworker.v1.AnalyzeScriptRequest.ParamsEntry
@@ -606,11 +627,13 @@ var file_proto_pineworker_types_proto_depIdxs = []int32{
 	14, // 8: jftrade.strategy.pineworker.v1.RunScriptResponse.order_intents:type_name -> jftrade.strategy.pineworker.v1.OrderIntent
 	9,  // 9: jftrade.strategy.pineworker.v1.RunScriptResponse.diagnostics:type_name -> jftrade.strategy.pineworker.v1.Diagnostic
 	10, // 10: jftrade.strategy.pineworker.v1.RunScriptResponse.metadata:type_name -> jftrade.strategy.pineworker.v1.WorkerMetadata
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	15, // 11: jftrade.strategy.pineworker.v1.RunScriptResponse.alerts:type_name -> jftrade.strategy.pineworker.v1.AlertEvent
+	16, // 12: jftrade.strategy.pineworker.v1.RunScriptResponse.visual_outputs:type_name -> jftrade.strategy.pineworker.v1.VisualOutput
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_proto_pineworker_types_proto_init() }

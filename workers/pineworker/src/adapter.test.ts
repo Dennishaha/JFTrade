@@ -25,6 +25,20 @@ describe("runScriptWithPineTS", () => {
       time: 1_700_000_060_000,
       hasQuantity: true,
     });
+    expect(response.alerts).toContainEqual(expect.objectContaining({
+      type: "alert",
+      id: "mock-alert",
+      message: "mock alert for job-1",
+      title: "Mock Alert",
+      frequency: "all",
+      barIndex: 1,
+      time: 1_700_000_060_000,
+    }));
+    expect(response.visualOutputs).toContainEqual(expect.objectContaining({
+      kind: "plotshape",
+      name: "mock-signal-shape",
+      payloadJson: expect.stringContaining("\"barIndex\":1"),
+    }));
     expect(response.logs[0]).toContain("job-1");
     expect(response.metadata.workerId).toBe("worker-1");
     expect(response.metadata.pineTSVersion).toBe("mock-pinets-0.0.0");
@@ -68,6 +82,11 @@ describe("buildResponse", () => {
       },
       logs: [1, "ok"],
       warnings: ["careful"],
+      alerts: [
+        { type: "alertcondition", id: "alert-1", message: "crossed", title: "Cross", freq: "all", bar_index: 0, time: 1_700_000_000_000 },
+        "bad",
+      ],
+      drawings: { kind: "label", name: "entry-label", text: "Long" },
       orderIntents: [
         "bad",
         { kind: "exit", id: "x", quantityPct: 50, stopPrice: 9, barIndex: 0 },
@@ -97,6 +116,24 @@ describe("buildResponse", () => {
       time: 1_700_000_000_000,
     });
     expect(response.logs).toEqual(["1", "ok"]);
+    expect(response.alerts).toEqual([
+      expect.objectContaining({
+        type: "alertcondition",
+        id: "alert-1",
+        message: "crossed",
+        title: "Cross",
+        frequency: "all",
+        barIndex: 0,
+        time: 1_700_000_000_000,
+      }),
+    ]);
+    expect(response.visualOutputs).toEqual([
+      expect.objectContaining({
+        kind: "label",
+        name: "entry-label",
+        payloadJson: "{\"kind\":\"label\",\"name\":\"entry-label\",\"text\":\"Long\"}",
+      }),
+    ]);
   });
 
   test("derives order intents from PineTS strategy closed trades", () => {

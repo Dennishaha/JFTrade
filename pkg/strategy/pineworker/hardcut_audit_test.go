@@ -141,6 +141,7 @@ func assertLegacyRuntimeIDOnlyInMigrationShims(t *testing.T, root string) {
 	t.Helper()
 	allowed := []string{
 		"apps/web/src/components/strategy-runtime/strategyRuntimeIdentity.ts",
+		"docs/pinets-contract-audit.md",
 		"docs/pinets-hardcut-migration.md",
 		"docs/release-pine-v08-closeout.md",
 		"pkg/strategy/pineworker/hardcut_audit_test.go",

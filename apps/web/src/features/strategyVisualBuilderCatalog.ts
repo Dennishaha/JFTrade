@@ -489,7 +489,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
   {
     kind: "sessionFilter",
     label: "交易时段过滤",
-    description: "基于 closed-bar runtime 的 session.ismarket / ispremarket / ispostmarket 状态过滤。",
+    description: "基于 PineTS worker 的 session.ismarket / ispremarket / ispostmarket 状态过滤。",
     shape: "diamond",
     text: "交易时段过滤",
     properties: {

@@ -654,7 +654,7 @@ func reservedVariables() []map[string]any {
 		{"name": "strategy.position_avg_price", "description": "当前策略持仓均价；空仓时为 na。"},
 		{"name": "bar_index", "description": "当前策略收到的 K 线序号，从 0 开始。"},
 		{"name": "time/hour/minute/dayofweek/dayofmonth/month/year", "description": "当前 K 线时间派生值；time 为 Unix milliseconds。"},
-		{"name": "barstate.isfirst/isnew/isconfirmed/ishistory/isrealtime/islast", "description": "closed-bar runtime 状态；isnew/isconfirmed/islast 在已知 K 线执行时为 true。"},
+		{"name": "barstate.isfirst/isnew/isconfirmed/ishistory/isrealtime/islast", "description": "PineTS worker K 线状态；isnew/isconfirmed/islast 在已知 K 线执行时为 true。"},
 		{"name": "session.ismarket/ispremarket/ispostmarket", "description": "当前 K 线所属 regular/pre/after session。"},
 		{"name": "dayofweek.* / month.* / color.*", "description": "TradingView 常见常量；dayofweek 与 month lower 为数值，color 常量主要用于兼容默认参数和视觉模板。"},
 		{"name": "syminfo.tickerid/syminfo.prefix", "description": "当前策略标的与前缀信息。"},
@@ -665,14 +665,14 @@ func reservedVariables() []map[string]any {
 func indicatorFunctions() []map[string]any {
 	return []map[string]any{
 		{"name": "input.*", "signature": "input(defval) / input.int/float/bool/string/source/time/timeframe/color(defval, title?)", "notes": "只取默认值；input.source 第一版应使用 open/high/low/close/volume/hl2/hlc3/ohlc4；input.timeframe 可用于受支持的 request.security timeframe。"},
-		{"name": "math.*", "signature": "math.abs/min/max/avg/round/round_to_mintick/floor/ceil/sqrt/pow/log/sign", "notes": "lower 到同名表达式函数；round_to_mintick 按当前市场 tick size 四舍五入，缺省 tick 为 0.01。"},
+		{"name": "math.*", "signature": "math.abs/min/max/avg/round/round_to_mintick/floor/ceil/sqrt/pow/log/sign", "notes": "由 PineTS worker 执行同名 helper；round_to_mintick 按当前市场 tick size 四舍五入，缺省 tick 为 0.01。"},
 		{"name": "timestamp", "signature": "timestamp(year, month, day[, hour, minute])", "notes": "按当前标的交易所时区解释并返回 Unix milliseconds；第一版不支持显式 timezone 参数。"},
 		{"name": "ta.ema", "signature": "ta.ema(source, period)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4；close 保持 legacy key。"},
 		{"name": "ta.sma", "signature": "ta.sma(source, period)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4；volume SMA 不会再误当 close SMA。"},
 		{"name": "ta.rma/ta.wma/ta.hma/ta.vwma", "signature": "ta.<ma>(source, period)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
 		{"name": "ta.rsi", "signature": "ta.rsi(source, period)", "notes": "source-aware RSI；close 保持 legacy key。"},
 		{"name": "ta.macd", "signature": "ta.macd(close, fast, slow, signal)", "notes": "支持三元组赋值，signal/hist 变量会映射到 MACD 字段。"},
-		{"name": "ta.atr", "signature": "ta.atr(period)", "notes": "lower 到 JFTrade ATR 指标。"},
+		{"name": "ta.atr", "signature": "ta.atr(period)", "notes": "由 PineTS worker 执行 ATR 指标。"},
 		{"name": "ta.tr", "signature": "ta.tr / ta.tr(true)", "notes": "返回当前 True Range。"},
 		{"name": "ta.stdev/ta.variance", "signature": "ta.stdev(source, period) / ta.variance(source, period)", "notes": "source-aware rolling variance/standard deviation。"},
 		{"name": "ta.cci", "signature": "ta.cci(source, period)", "notes": "source-aware CCI；默认 source 为 hlc3。"},
@@ -686,10 +686,10 @@ func indicatorFunctions() []map[string]any {
 		{"name": "ta.sum", "signature": "ta.sum(source, length)", "notes": "滚动求和；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
 		{"name": "ta.rising", "signature": "ta.rising(source, length)", "notes": "返回 bool；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
 		{"name": "ta.falling", "signature": "ta.falling(source, length)", "notes": "返回 bool；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
-		{"name": "ta.bb", "signature": "[basis, upper, lower] = ta.bb(close, length, mult)", "notes": "lower 到 JFTrade Bollinger 指标。"},
+		{"name": "ta.bb", "signature": "[basis, upper, lower] = ta.bb(close, length, mult)", "notes": "由 PineTS worker 执行 Bollinger 指标。"},
 		{"name": "ta.bbw", "signature": "ta.bbw(source, length, mult)", "notes": "Bollinger Band Width，支持静态同标的 request.security。"},
 		{"name": "ta.cog", "signature": "ta.cog(source, length)", "notes": "Center of Gravity，支持静态同标的 request.security。"},
-		{"name": "ta.wpr", "signature": "ta.wpr(length)", "notes": "lower 到 JFTrade Williams %R 指标。"},
+		{"name": "ta.wpr", "signature": "ta.wpr(length)", "notes": "由 PineTS worker 执行 Williams %R 指标。"},
 		{"name": "ta.vwap", "signature": "ta.vwap(source?) / ta.vwap(source, timeframe.change(\"D\"|\"W\"|\"M\"))", "notes": "支持交易日 VWAP，以及闭盘日/周/月锚定重置；无参数默认 hlc3。"},
 		{"name": "ta.mfi", "signature": "ta.mfi(source, length)", "notes": "基于 source 与 volume 的 Money Flow Index。"},
 		{"name": "ta.dmi", "signature": "[plusDI, minusDI, adx] = ta.dmi(diLength, adxSmoothing)", "notes": "支持 DMI 三元组；adx 请读取第三个 tuple 值或 dmi 对象字段，不提供 JFTrade-only ta.adx(length) 公开入口。"},
@@ -711,9 +711,9 @@ func indicatorFunctions() []map[string]any {
 		{"name": "ta.swma", "signature": "ta.swma(source)", "notes": "4-bar symmetric weighted moving average。"},
 		{"name": "ta.barssince", "signature": "ta.barssince(condition)", "notes": "首次触发前返回 na，触发 bar 返回 0。"},
 		{"name": "ta.valuewhen", "signature": "ta.valuewhen(condition, sourceExpression, occurrence)", "notes": "occurrence 必须为非负整数；历史不足返回 na。"},
-		{"name": "ta.crossover", "signature": "ta.crossover(left, right)", "notes": "lower 到 cross_over。"},
-		{"name": "ta.crossunder", "signature": "ta.crossunder(left, right)", "notes": "lower 到 cross_under。"},
-		{"name": "ta.cross", "signature": "ta.cross(left, right)", "notes": "lower 到 cross_over(left,right) or cross_under(left,right)。"},
+		{"name": "ta.crossover", "signature": "ta.crossover(left, right)", "notes": "由 PineTS worker 执行上穿判断。"},
+		{"name": "ta.crossunder", "signature": "ta.crossunder(left, right)", "notes": "由 PineTS worker 执行下穿判断。"},
+		{"name": "ta.cross", "signature": "ta.cross(left, right)", "notes": "由 PineTS worker 执行 cross_over(left,right) or cross_under(left,right)。"},
 	}
 }
 
@@ -772,7 +772,7 @@ func supportMatrix() []map[string]any {
 		{"capability": "v2.7 collection/timeframe and MTF helper expansion", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array history aggregate snapshot、map keys/values iteration、matrix rows/columns/get/set、timeframe.in_seconds/timeframe.multiplier/timeframe.isseconds 与 request.security 纯 helper 表达式已进入 1900+ 语料门禁。"},
 		{"capability": "v2.8 object history, method chain and export metadata", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "box[1].field object history read、无副作用 method chain、request.security object method expression 与 export function/type/method kind metadata 已进入 2200+ 语料门禁。"},
 		{"capability": "v2.9 object history method receiver and MTF diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "box[1].score(...)、method chain named/default args、request.security object history field/method pure expression 与 dynamic symbol/timeframe、nested、side-effect、lookahead/gaps 分码诊断已进入 2500+ 语料门禁。"},
-		{"capability": "v3.0 stable semantic declarations and varip policy", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "SemanticDeclaration 增补 signature/unsupportedReason，type/method/export/import metadata 稳定；varip 在 closed-bar runtime 下按 var 执行并输出 warning，空白/注释解析韧性已进入 2850+ 语料门禁。"},
+		{"capability": "v3.0 stable semantic declarations and varip policy", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "SemanticDeclaration 增补 signature/unsupportedReason，type/method/export/import metadata 稳定；varip 在 PineTS worker 下按 var 兼容语义执行并输出 warning，空白/注释解析韧性已进入 2850+ 语料门禁。"},
 		{"capability": "v3.1 native public surface diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "用户输入 ma/security_source/bollinger/history/ifelse/cross_over/cross_under/notify 等 JFTrade 内部 helper 或 ta.adx shortcut 时，AnalyzeScript 返回稳定分码诊断并提示 Pine v6 native 替代写法；Monaco 不暴露这些 internal helper 作为 public completion/hover。"},
 		{"capability": "v3.2 MTF diagnostics and lower-timeframe preflight", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "request.security 固定 timeframe requirements 会在 warmup、indicator engine 和 backtest replay 前与策略原生 interval 比较；低于原生周期或不能整除的 intraday timeframe 返回明确错误，不进入 runtime 执行。AnalyzeScript 对 tuple assignment、tuple width、alias mismatch 和无法 lower 的纯表达式返回稳定分码诊断。"},
 		{"capability": "v3.3 advanced language boundary diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "AnalyzeScript 对递归 UDF、嵌套 UDF、UDF 签名问题、循环嵌套/迭代上限和循环变量只读返回稳定分码诊断；动态 for/while、collection for、break/continue 和 loop runtime 上限继续作为闭盘可执行子集的受控边界。"},
@@ -792,7 +792,7 @@ func unsupportedPatterns() []string {
 		"历史引用支持简单 identifier/member 的 `[n]`，最大 lookback 500；函数调用结果需先赋值再引用历史。",
 		"strategy.exit() 支持基础 stop、limit、stop+limit bracket 与 trail_points|trail_price + trail_offset；trail 与 stop/limit 同用、OCA、partial fill、intrabar broker emulator 等高级语义暂不支持。",
 		"strategy.entry/order 支持 stop-limit 激活后转限价；OCA、strategy.cancel 已成交订单等完整 broker emulator 语义暂不支持。",
-		"plot/hline/bgcolor/barcolor/fill/alertcondition/label.new/line.new/box.new/table.* 等非交易调用会被解析为 warning 并忽略。",
+		"plot/hline/bgcolor/barcolor/fill/alertcondition/label.new/line.new/box.new/table.* 等非交易调用由 PineTS worker 归入 visual output 或 alerts；Go 交易链路不消费这些输出。",
 		"除文档列出的 ta.*、input.*、math.*、strategy.entry、strategy.close、alert/log 外的 built-ins 不应假定可执行。",
 	}
 }
@@ -884,7 +884,7 @@ func sectionDetails(section string) []string {
 			"支持 na 常量、nz(value, fallback?) 和基础三元表达式。",
 			"input()/input.int/float/bool/string/source/time/timeframe/color 会取默认值；不实现 TradingView 设置面板运行时覆盖。",
 			"strategy.equity、bar_index、time/hour/minute/dayofweek/dayofmonth/month/year 可在普通表达式中读取。",
-			"barstate.isfirst/isnew/isconfirmed/ishistory/isrealtime/islast 和 session.ismarket/ispremarket/ispostmarket 会 lower 为 closed-bar runtime 状态。",
+			"barstate.isfirst/isnew/isconfirmed/ishistory/isrealtime/islast 和 session.ismarket/ispremarket/ispostmarket 由 PineTS worker 按 K 线状态执行。",
 			"dayofweek.sunday...saturday、month.january...december、color.*、color.new(...)、color.rgb(...) 支持常见默认值兼容。",
 			"syminfo.tickerid、syminfo.prefix、timeframe.period 和 timeframe.isintraday/isminutes/isdaily/isweekly/ismonthly 可在普通表达式中读取。",
 			"timestamp(year, month, day[, hour, minute]) 按当前标的交易所时区解释并返回 Unix milliseconds；不支持显式 timezone 参数。",
@@ -929,7 +929,7 @@ func sectionDetails(section string) []string {
 		}
 	case "unsupported":
 		return []string{
-			"plot/hline/bgcolor/barcolor/fill/alertcondition/label.new/line.new/box.new/table.* 等非交易调用会返回 warning 并忽略。",
+			"plot/hline/bgcolor/barcolor/fill/alertcondition/label.new/line.new/box.new/table.* 等非交易调用由 PineTS worker 归入 visual output 或 alerts；Go 交易链路不消费这些输出。",
 			"动态 for/while/break/continue 已在闭盘 runtime 执行，但递归/嵌套 UDF、library/import、method 副作用和完整 Pine method/type 系统仍会返回结构化诊断。",
 			"除同标的静态 source/source[n]/MA/受支持高级指标/v1.4 纯表达式、v1.5 common TA pure-expression、v1.6 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式、v2.4 MTF stoch、v2.7 helper 表达式、v2.8 object method 表达式与 v2.9 object history 表达式以外的 request.security、lookahead_on/gaps_on 和 side effect 会返回错误。",
 			"strategy.entry/order 支持基础 stop-limit 和 entry 反手；OCA、partial fill、保证金裸空账户模拟和完整 pending order broker emulator 不支持。",

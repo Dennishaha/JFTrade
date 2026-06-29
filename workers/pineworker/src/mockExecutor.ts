@@ -21,6 +21,21 @@ export class DeterministicPineTSExecutor implements PineTSExecutor {
       warnings: request.source.includes("strategy.")
         ? []
         : ["no strategy namespace calls were observed by mock executor"],
+      alerts: [{
+        type: "alert",
+        id: "mock-alert",
+        message: `mock alert for ${request.jobId}`,
+        title: "Mock Alert",
+        freq: "all",
+        bar_index: lastIndex,
+        time: request.candles[lastIndex]?.openTime ?? 0,
+      }],
+      visualOutputs: [{
+        kind: "plotshape",
+        name: "mock-signal-shape",
+        barIndex: lastIndex,
+        value: lastSignal,
+      }],
       orderIntents: lastSignal === 0
         ? []
         : [{

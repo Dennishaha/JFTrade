@@ -17,6 +17,7 @@
 - [HTTP API](./reference/generated/api.md)：从 Swagger 自动生成的接口参考。
 - [数据类型](./reference/generated/types.md)：从前端契约自动生成的类型参考。
 - [PineTS shadow engine](./pinets-shadow-engine.md)：外部 PineTS 影子引擎的实验模式和边界。
+- [PineTS 契约审计](./pinets-contract-audit.md)：PineTS 切换后的执行契约、迁移兼容和 visual output 边界。
 - [第三方许可证](./legal/third-party-notices.md)：AGPL PineTS / pinets 依赖、源码提供和许可证告知。
 
 如果你是在维护仓库本身，而不是使用控制台，请回到 [README.md](./README.md) 和 [architecture.md](./architecture.md)。

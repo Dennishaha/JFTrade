@@ -92,6 +92,22 @@ type PlotOutput struct {
 	Values []float64
 }
 
+type AlertEvent struct {
+	Type      string
+	ID        string
+	Message   string
+	Title     string
+	Frequency string
+	BarIndex  int
+	Time      int64
+}
+
+type VisualOutput struct {
+	Kind        string
+	Name        string
+	PayloadJSON string
+}
+
 type OrderIntent struct {
 	Kind           string
 	ID             string
@@ -125,15 +141,17 @@ type WorkerMetadata struct {
 }
 
 type RunScriptResponse struct {
-	JobID        string
-	Outputs      []SeriesOutput
-	Plots        []PlotOutput
-	OrderIntents []OrderIntent
-	Logs         []string
-	Warnings     []string
-	Diagnostics  []Diagnostic
-	Error        string
-	Metadata     WorkerMetadata
+	JobID         string
+	Outputs       []SeriesOutput
+	Plots         []PlotOutput
+	OrderIntents  []OrderIntent
+	Alerts        []AlertEvent
+	VisualOutputs []VisualOutput
+	Logs          []string
+	Warnings      []string
+	Diagnostics   []Diagnostic
+	Error         string
+	Metadata      WorkerMetadata
 }
 
 func ValidateRunScriptRequest(request RunScriptRequest, config WorkerConfig) error {

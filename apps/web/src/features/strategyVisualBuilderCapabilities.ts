@@ -76,7 +76,7 @@ export interface VisualBlockCapability {
 const SUPPORTED: PineBlockSupportAssessment = {
   status: "supported",
   label: "可运行",
-  message: "该图块会生成当前 JFTrade Pine v6 runtime 支持的闭盘策略语句。",
+  message: "该图块会生成当前 PineTS worker + Go 订单链路支持的策略语句。",
 };
 
 const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapability> = {
@@ -197,7 +197,7 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
     defaultSupport: {
       status: "supported",
       label: "状态可运行",
-      message: "生成 var 标量状态；closed-bar runtime 下跨 K 线保留。",
+      message: "生成 var 标量状态；PineTS worker 下跨 K 线保留。",
     },
     controlSchema: {
       controlIds: ["variableName", "valueType", "initialValue"],
@@ -270,7 +270,7 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
     defaultSupport: {
       status: "supported",
       label: "时间过滤可运行",
-      message: "生成 hour/minute/dayofweek 的 closed-bar 安全条件。",
+      message: "生成 hour/minute/dayofweek 的 K 线收盘安全条件。",
     },
     controlSchema: {
       controlIds: ["mode", "startHour", "startMinute", "endHour", "endMinute", "dayOfWeek"],
@@ -291,7 +291,7 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
     defaultSupport: {
       status: "supported",
       label: "交易时段可运行",
-      message: "生成 session.ismarket/ispremarket/ispostmarket 的 closed-bar 安全条件。",
+      message: "生成 session.ismarket/ispremarket/ispostmarket 的 K 线收盘安全条件。",
     },
     controlSchema: {
       controlIds: ["scope"],
@@ -474,7 +474,7 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
     defaultSupport: {
       status: "supported",
       label: "订单可运行",
-      message: "生成当前 runtime 支持的 strategy.entry/order/close/cancel/risk 语句。",
+      message: "生成当前 PineTS worker + Go 订单链路支持的 strategy.entry/order/close/cancel/risk 语句。",
     },
     controlSchema: {
       controlIds: [
@@ -496,7 +496,7 @@ const STRATEGY_BLOCK_CAPABILITY_MAP: Record<StrategyBlockKind, VisualBlockCapabi
         "disable_alert",
         "when",
       ],
-      description: "覆盖当前 closed-bar runtime 已支持的订单动作、价格参数和基础 metadata；不暴露 OCA，因为后端会将其诊断为不可执行。",
+      description: "覆盖当前 PineTS worker 已支持的订单动作、价格参数和基础 metadata；不暴露 OCA，因为后端会将其诊断为不可执行。",
     },
     expressionSchema: {
       expressionIds: ["limitPriceExpressionAst", "stopPriceExpressionAst"],

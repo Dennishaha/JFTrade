@@ -44,6 +44,22 @@ export type PlotOutput = {
   values: number[];
 };
 
+export type AlertEvent = {
+  type: string;
+  id: string;
+  message: string;
+  title?: string;
+  frequency?: string;
+  barIndex: number;
+  time: number;
+};
+
+export type VisualOutput = {
+  kind: string;
+  name: string;
+  payloadJson: string;
+};
+
 export type OrderIntent = {
   kind: string;
   id?: string;
@@ -81,6 +97,8 @@ export type RunScriptResponse = {
   outputs: SeriesOutput[];
   plots: PlotOutput[];
   orderIntents: OrderIntent[];
+  alerts: AlertEvent[];
+  visualOutputs: VisualOutput[];
   logs: string[];
   warnings: string[];
   diagnostics: Diagnostic[];
@@ -99,6 +117,9 @@ export type PineTSPlot = {
 
 export type PineTSRunResult = {
   plots?: Record<string, PineTSPlot | number[]>;
+  alerts?: unknown[];
+  visualOutputs?: unknown[];
+  drawings?: unknown;
   logs?: unknown[];
   warnings?: unknown[];
   diagnostics?: Diagnostic[];
