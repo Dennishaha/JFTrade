@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ type fileData struct {
 	Execution   *jfsettings.ExecutionSettings        `json:"execution,omitempty"`
 	Security    *jfsettings.SecuritySettings         `json:"security,omitempty"`
 	ADK         *jfsettings.ADKRuntimeSettings       `json:"adk,omitempty"`
+	PineWorker  *jfsettings.PineWorkerSettings       `json:"pineWorker,omitempty"`
 	Calendars   *jfsettings.ExchangeCalendarSettings `json:"exchangeCalendars,omitempty"`
 }
 
@@ -167,6 +169,15 @@ func (s *Store) ADKSettings() jfsettings.ADKRuntimeSettings {
 	return DefaultADKRuntimeSettings()
 }
 
+func (s *Store) PineWorkerSettings() jfsettings.PineWorkerSettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.PineWorker != nil {
+		return NormalizePineWorkerSettings(*s.data.PineWorker)
+	}
+	return DefaultPineWorkerSettings()
+}
+
 func (s *Store) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -227,6 +238,16 @@ func (s *Store) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings
 
 	s.mu.Lock()
 	s.data.ADK = adkRuntimeSettingsPointer(normalized)
+	err := s.persistLocked()
+	s.mu.Unlock()
+	return normalized, err
+}
+
+func (s *Store) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error) {
+	normalized := NormalizePineWorkerSettings(input)
+
+	s.mu.Lock()
+	s.data.PineWorker = pineWorkerSettingsPointer(normalized)
 	err := s.persistLocked()
 	s.mu.Unlock()
 	return normalized, err
@@ -557,6 +578,26 @@ func adkRuntimeSettingsPointer(value jfsettings.ADKRuntimeSettings) *jfsettings.
 	return new(value)
 }
 
+func DefaultPineWorkerSettings() jfsettings.PineWorkerSettings {
+	cpuCount := runtime.NumCPU()
+	if cpuCount < 1 {
+		cpuCount = 1
+	}
+	return jfsettings.PineWorkerSettings{
+		WorkerLimit: clampInt(cpuCount, 1, 1000),
+	}
+}
+
+func NormalizePineWorkerSettings(input jfsettings.PineWorkerSettings) jfsettings.PineWorkerSettings {
+	return jfsettings.PineWorkerSettings{
+		WorkerLimit: clampInt(input.WorkerLimit, 1, 1000),
+	}
+}
+
+func pineWorkerSettingsPointer(value jfsettings.PineWorkerSettings) *jfsettings.PineWorkerSettings {
+	return new(value)
+}
+
 func DefaultExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return jfsettings.ExchangeCalendarSettings{
 		AutoRefreshEnabled:        true,
@@ -724,6 +765,16 @@ func clampOrDefaultInt(value int, fallback int, min int, max int) int {
 	if value <= 0 {
 		return fallback
 	}
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+func clampInt(value int, min int, max int) int {
 	if value < min {
 		return min
 	}

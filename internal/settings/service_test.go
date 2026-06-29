@@ -18,6 +18,7 @@ type fakeStore struct {
 	execution       jfsettings.ExecutionSettings
 	security        jfsettings.SecuritySettings
 	adk             jfsettings.ADKRuntimeSettings
+	pineWorker      jfsettings.PineWorkerSettings
 	calendars       jfsettings.ExchangeCalendarSettings
 	integration     jfsettings.BrokerIntegration
 	managedAccounts []jfsettings.ManagedBrokerAccount
@@ -34,6 +35,9 @@ func (s *fakeStore) ExecutionSettings() jfsettings.ExecutionSettings {
 }
 func (s *fakeStore) SecuritySettings() jfsettings.SecuritySettings { return s.security }
 func (s *fakeStore) ADKSettings() jfsettings.ADKRuntimeSettings    { return s.adk }
+func (s *fakeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
+	return s.pineWorker
+}
 func (s *fakeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return s.calendars
 }
@@ -69,6 +73,10 @@ func (s *fakeStore) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfs
 }
 func (s *fakeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
 	s.adk = input
+	return input, nil
+}
+func (s *fakeStore) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error) {
+	s.pineWorker = input
 	return input, nil
 }
 func (s *fakeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
@@ -117,6 +125,7 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 	var gotSecurity jfsettings.SecuritySettings
 	var gotCalendars jfsettings.ExchangeCalendarSettings
 	var gotIntegration jfsettings.BrokerIntegration
+	var gotPineWorker jfsettings.PineWorkerSettings
 
 	svc := NewService(store, WithSideEffects(SideEffects{
 		OnExecutionChanged: func(settings jfsettings.ExecutionSettings) {
@@ -130,6 +139,9 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 		},
 		OnIntegrationChanged: func(settings jfsettings.BrokerIntegration) {
 			gotIntegration = settings
+		},
+		OnPineWorkerChanged: func(settings jfsettings.PineWorkerSettings) {
+			gotPineWorker = settings
 		},
 	}))
 
@@ -163,6 +175,14 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 	}
 	if !reflect.DeepEqual(gotIntegration, integration) {
 		t.Fatalf("integration side effect = %#v, want %#v", gotIntegration, integration)
+	}
+
+	pineWorker := jfsettings.PineWorkerSettings{WorkerLimit: 3}
+	if _, err := svc.SavePineWorkerSettings(pineWorker); err != nil {
+		t.Fatalf("SavePineWorkerSettings: %v", err)
+	}
+	if !reflect.DeepEqual(gotPineWorker, pineWorker) {
+		t.Fatalf("pine worker side effect = %#v, want %#v", gotPineWorker, pineWorker)
 	}
 }
 
@@ -217,6 +237,7 @@ func TestServiceDelegatesGettersAndSimpleSavers(t *testing.T) {
 		},
 		security:      jfsettings.SecuritySettings{AdminAuthRequired: true},
 		adk:           jfsettings.ADKRuntimeSettings{RunTimeoutMs: 15000, StreamIdleTimeoutMs: 5000},
+		pineWorker:    jfsettings.PineWorkerSettings{WorkerLimit: 2},
 		calendars:     jfsettings.ExchangeCalendarSettings{AutoRefreshEnabled: true, RefreshIntervalHours: 8},
 		integration:   jfsettings.BrokerIntegration{BrokerID: "futu", Enabled: true},
 		hasAppearance: true,
@@ -237,6 +258,9 @@ func TestServiceDelegatesGettersAndSimpleSavers(t *testing.T) {
 	}
 	if got := svc.GetADKRuntimeSettings(); !reflect.DeepEqual(got, store.adk) {
 		t.Fatalf("GetADKRuntimeSettings() = %#v, want %#v", got, store.adk)
+	}
+	if got := svc.GetPineWorkerSettings(); !reflect.DeepEqual(got, store.pineWorker) {
+		t.Fatalf("GetPineWorkerSettings() = %#v, want %#v", got, store.pineWorker)
 	}
 	if got := svc.GetExchangeCalendarSettings(); !reflect.DeepEqual(got, store.calendars) {
 		t.Fatalf("GetExchangeCalendarSettings() = %#v, want %#v", got, store.calendars)
@@ -273,6 +297,14 @@ func TestServiceDelegatesGettersAndSimpleSavers(t *testing.T) {
 	}
 	if !reflect.DeepEqual(store.adk, updatedADK) {
 		t.Fatalf("stored ADK settings = %#v, want %#v", store.adk, updatedADK)
+	}
+
+	updatedPineWorker := jfsettings.PineWorkerSettings{WorkerLimit: 4}
+	if got, err := svc.SavePineWorkerSettings(updatedPineWorker); err != nil || !reflect.DeepEqual(got, updatedPineWorker) {
+		t.Fatalf("SavePineWorkerSettings() = %#v, %v", got, err)
+	}
+	if !reflect.DeepEqual(store.pineWorker, updatedPineWorker) {
+		t.Fatalf("stored pine worker settings = %#v, want %#v", store.pineWorker, updatedPineWorker)
 	}
 }
 

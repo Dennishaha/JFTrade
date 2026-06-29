@@ -415,6 +415,33 @@ func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
 			"npm run dev:api:pineworker",
 			"JFTRADE_PINEWORKER_BINARY",
 			"/absolute/path/to/worker",
+			"settingsfile.DefaultPineWorkerSettings",
+			"WorkerLimit",
+			"envIntInRange",
+			"1000",
+			"newLazyPineWorkerRunner",
+			"defaultPineWorkerIdleTimeout",
+		},
+		"pkg/jftsettings/types.go": {
+			"PineWorkerSettings",
+			"workerLimit",
+			"workerCount",
+		},
+		"internal/store/settingsfile/store.go": {
+			"DefaultPineWorkerSettings",
+			"runtime.NumCPU",
+			"NormalizePineWorkerSettings",
+			"1000",
+		},
+		"internal/api/settings/routes.go": {
+			"/pine-worker",
+			"handlePineWorkerSettings",
+			"handleSavePineWorkerSettings",
+		},
+		"apps/web/src/components/SettingsPineWorkerSection.vue": {
+			"workerLimit",
+			"MAX_WORKER_LIMIT = 1000",
+			"/api/v1/settings/pine-worker",
 		},
 	}
 	for rel, requiredValues := range requiredByFile {

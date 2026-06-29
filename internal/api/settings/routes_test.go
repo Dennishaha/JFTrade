@@ -23,6 +23,7 @@ type routeStore struct {
 	execution   jfsettings.ExecutionSettings
 	security    jfsettings.SecuritySettings
 	adk         jfsettings.ADKRuntimeSettings
+	pineWorker  jfsettings.PineWorkerSettings
 	calendars   jfsettings.ExchangeCalendarSettings
 	updateErr   error
 	deleteErr   error
@@ -42,6 +43,9 @@ func (s *routeStore) SecuritySettings() jfsettings.SecuritySettings {
 }
 func (s *routeStore) ADKSettings() jfsettings.ADKRuntimeSettings {
 	return s.adk
+}
+func (s *routeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
+	return s.pineWorker
 }
 func (s *routeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return s.calendars
@@ -72,6 +76,10 @@ func (s *routeStore) SaveSecuritySettings(input jfsettings.SecuritySettings) (jf
 }
 func (s *routeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
 	s.adk = input
+	return input, nil
+}
+func (s *routeStore) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error) {
+	s.pineWorker = input
 	return input, nil
 }
 func (s *routeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
@@ -363,6 +371,23 @@ func TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows(t *testing.T) {
 	}
 	if store.adk.RunTimeoutMs != 120000 || store.adk.StreamIdleTimeoutMs != 30000 {
 		t.Fatalf("adk settings = %#v", store.adk)
+	}
+
+	pineWorkerGetRec := httptest.NewRecorder()
+	router.ServeHTTP(pineWorkerGetRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/pine-worker", nil))
+	if pineWorkerGetRec.Code != http.StatusOK || !strings.Contains(pineWorkerGetRec.Body.String(), `"workerLimit":0`) {
+		t.Fatalf("pine worker get = %d %s", pineWorkerGetRec.Code, pineWorkerGetRec.Body.String())
+	}
+
+	pineWorkerPutRec := httptest.NewRecorder()
+	pineWorkerPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/pine-worker", strings.NewReader(`{"workerLimit":4}`))
+	pineWorkerPutReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(pineWorkerPutRec, pineWorkerPutReq)
+	if pineWorkerPutRec.Code != http.StatusOK {
+		t.Fatalf("pine worker put = %d %s", pineWorkerPutRec.Code, pineWorkerPutRec.Body.String())
+	}
+	if store.pineWorker.WorkerLimit != 4 {
+		t.Fatalf("pine worker settings = %#v", store.pineWorker)
 	}
 }
 
