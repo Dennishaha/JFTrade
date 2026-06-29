@@ -79,6 +79,9 @@ jobs:
       - name: PineTS release check script test
         run: npm run test:pinets-release-check
 
+      - name: PineTS compliance notice check
+        run: npm run check:pinets-compliance
+
       - name: PineTS worker asset build script test
         run: npm run test:pineworker-asset-build
 

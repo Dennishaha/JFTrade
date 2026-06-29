@@ -30,6 +30,7 @@ try {
   const blockedLog = readFileSync(runLog, "utf8");
   assert(!blockedLog.includes("npm run build:pineworker"), "blocked release check should skip release asset build");
   assert(blockedLog.includes("go test ./pkg/strategy/pineworker -run Test -cover"), "blocked release check did not run focused Pine worker coverage gate");
+  assert(blockedLog.includes("npm run check:pinets-compliance"), "blocked release check did not run PineTS compliance gate");
   assert(blockedLog.includes("npm run test:web"), "blocked release check did not run frontend test gate");
   assert(blockedLog.includes("npm run typecheck:web"), "blocked release check did not run frontend typecheck gate");
   assert(blockedLog.includes("npm run build:frontend-assets"), "blocked release check did not rebuild frontend release assets");
