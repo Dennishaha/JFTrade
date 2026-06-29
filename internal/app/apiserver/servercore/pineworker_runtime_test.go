@@ -22,7 +22,8 @@ import (
 
 func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 	binaryPath := filepath.Join(t.TempDir(), "worker")
-	t.Setenv(envPineWorkerBinary, binaryPath)
+	t.Setenv(envPineWorkerBundle, binaryPath)
+	t.Setenv(envPineWorkerRuntime, "custom-bun")
 	t.Setenv(envPineWorkerSHA256, "abc123")
 	t.Setenv(envPineWorkerWorkers, "3")
 	t.Setenv(envPineWorkerHost, "localhost")
@@ -47,8 +48,11 @@ func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 	if !enabled {
 		t.Fatal("resolvePineWorkerRuntimeConfig enabled = false, want true")
 	}
-	if config.BinaryPath != binaryPath || config.SHA256 != "abc123" || config.Workers != 3 {
+	if config.BundlePath != binaryPath || config.SHA256 != "abc123" || config.Workers != 3 {
 		t.Fatalf("unexpected identity config: %#v", config)
+	}
+	if config.RuntimePath != "custom-bun" {
+		t.Fatalf("RuntimePath = %q, want custom-bun", config.RuntimePath)
 	}
 	if config.Host != "localhost" || config.StartPort != 55001 || !config.Mock {
 		t.Fatalf("unexpected connection config: %#v", config)
@@ -65,8 +69,8 @@ func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 }
 
 func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) {
-	binaryPath := filepath.Join(t.TempDir(), "worker")
-	t.Setenv(envPineWorkerBinary, binaryPath)
+	binaryPath := filepath.Join(t.TempDir(), "worker.js")
+	t.Setenv(envPineWorkerBundle, binaryPath)
 
 	config, enabled, err := resolvePineWorkerRuntimeConfig(nil)
 	if err != nil {
@@ -77,6 +81,9 @@ func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) 
 	}
 	if config.Mock {
 		t.Fatal("Mock = true by default; production worker must require explicit mock opt-in")
+	}
+	if config.RuntimePath != "bun" {
+		t.Fatalf("RuntimePath = %q, want Bun for JavaScript bundle", config.RuntimePath)
 	}
 	if !filepath.IsAbs(config.ProtoPath) || !strings.HasSuffix(filepath.ToSlash(config.ProtoPath), defaultPineWorkerProtoPath) {
 		t.Fatalf("ProtoPath = %q, want absolute repo proto path", config.ProtoPath)
@@ -96,10 +103,17 @@ func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) 
 	}
 }
 
+func TestResolvePineWorkerRuntimeUsesConfiguredBunBinary(t *testing.T) {
+	t.Setenv("JFTRADE_BUN_BINARY", filepath.Join(t.TempDir(), "bun.exe"))
+	if got := resolvePineWorkerRuntime(); got != os.Getenv("JFTRADE_BUN_BINARY") {
+		t.Fatalf("resolvePineWorkerRuntime bundle = %q, want configured Bun", got)
+	}
+}
+
 func TestResolvePineWorkerRuntimeConfigKeepsProtoEnvOverride(t *testing.T) {
 	binaryPath := filepath.Join(t.TempDir(), "worker")
 	customProtoPath := filepath.Join(t.TempDir(), "custom-pineworker.proto")
-	t.Setenv(envPineWorkerBinary, binaryPath)
+	t.Setenv(envPineWorkerBundle, binaryPath)
 	t.Setenv(envPineWorkerProto, customProtoPath)
 
 	config, enabled, err := resolvePineWorkerRuntimeConfig(nil)
@@ -137,7 +151,7 @@ func TestFindPineWorkerRepoRootFromNestedWorkerPath(t *testing.T) {
 
 func TestResolvePineWorkerRuntimeConfigUsesSettingsWorkerLimit(t *testing.T) {
 	binaryPath := filepath.Join(t.TempDir(), "worker")
-	t.Setenv(envPineWorkerBinary, binaryPath)
+	t.Setenv(envPineWorkerBundle, binaryPath)
 
 	config, enabled, err := resolvePineWorkerRuntimeConfig(func() PineWorkerSettings {
 		return PineWorkerSettings{WorkerLimit: 4}
@@ -152,7 +166,7 @@ func TestResolvePineWorkerRuntimeConfigUsesSettingsWorkerLimit(t *testing.T) {
 
 func TestResolvePineWorkerRuntimeConfigEnvOverridesSettingsWorkerLimit(t *testing.T) {
 	binaryPath := filepath.Join(t.TempDir(), "worker")
-	t.Setenv(envPineWorkerBinary, binaryPath)
+	t.Setenv(envPineWorkerBundle, binaryPath)
 	t.Setenv(envPineWorkerWorkers, "5")
 
 	config, enabled, err := resolvePineWorkerRuntimeConfig(func() PineWorkerSettings {
@@ -173,14 +187,14 @@ func TestResolvePineWorkerRuntimeConfigDisabledWithoutBinary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
 	}
-	if enabled || config.BinaryPath != "" || len(config.binaryData) != 0 {
+	if enabled || config.BundlePath != "" || len(config.bundleData) != 0 {
 		t.Fatalf("config = %#v enabled=%v, want disabled empty config", config, enabled)
 	}
 }
 
 func TestResolvePineWorkerRuntimeConfigUsesEmbeddedAsset(t *testing.T) {
 	restorePineWorkerAssetSelector(t, pineworkerassets.Asset{
-		Name:   "worker-test",
+		Name:   "worker.js",
 		Data:   []byte("embedded"),
 		SHA256: "embedded-sha",
 	}, true, nil)
@@ -192,7 +206,7 @@ func TestResolvePineWorkerRuntimeConfigUsesEmbeddedAsset(t *testing.T) {
 	if !enabled || !config.embedded {
 		t.Fatalf("enabled=%v embedded=%v, want embedded config", enabled, config.embedded)
 	}
-	if config.BinaryPath != "worker-test" || config.SHA256 != "embedded-sha" || string(config.binaryData) != "embedded" {
+	if config.BundlePath != "worker.js" || config.RuntimePath != "bun" || config.SHA256 != "embedded-sha" || string(config.bundleData) != "embedded" {
 		t.Fatalf("config = %#v, want embedded asset metadata", config)
 	}
 }
@@ -203,7 +217,7 @@ func TestResolvePineWorkerRuntimeConfigPrefersExternalBinaryOverEmbeddedAsset(t 
 		Data:   []byte("embedded"),
 		SHA256: "embedded-sha",
 	}, true, nil)
-	t.Setenv(envPineWorkerBinary, "/tmp/external-worker")
+	t.Setenv(envPineWorkerBundle, "/tmp/worker.js")
 
 	config, enabled, err := resolvePineWorkerRuntimeConfig(nil)
 	if err != nil {
@@ -212,13 +226,13 @@ func TestResolvePineWorkerRuntimeConfigPrefersExternalBinaryOverEmbeddedAsset(t 
 	if !enabled || config.embedded {
 		t.Fatalf("enabled=%v embedded=%v, want external config", enabled, config.embedded)
 	}
-	if config.BinaryPath != "/tmp/external-worker" || len(config.binaryData) != 0 {
+	if config.BundlePath != "/tmp/worker.js" || len(config.bundleData) != 0 {
 		t.Fatalf("config = %#v, want external binary path without embedded data", config)
 	}
 }
 
 func TestResolvePineWorkerRuntimeConfigRejectsInvalidNumericEnv(t *testing.T) {
-	t.Setenv(envPineWorkerBinary, "/tmp/worker")
+	t.Setenv(envPineWorkerBundle, "/tmp/worker.js")
 	t.Setenv(envPineWorkerWorkers, "0")
 	_, enabled, err := resolvePineWorkerRuntimeConfig(nil)
 	if err == nil || !strings.Contains(err.Error(), "between 1 and 1000") {
@@ -234,7 +248,7 @@ func TestServerStartsConfiguredPineWorkerManagerAndStopsOnClose(t *testing.T) {
 	if err := os.WriteFile(binaryPath, []byte("fake worker"), 0o755); err != nil {
 		t.Fatalf("write worker: %v", err)
 	}
-	t.Setenv(envPineWorkerBinary, binaryPath)
+	t.Setenv(envPineWorkerBundle, binaryPath)
 	t.Setenv(envPineWorkerWorkers, "2")
 	t.Setenv(envPineWorkerStartPort, "56001")
 
@@ -352,7 +366,7 @@ func TestLazyPineWorkerRunnerStopsIdleWorkers(t *testing.T) {
 	restorePineWorkerFactories(t, launcher, dialer)
 
 	manager, err := newPineWorkerManagerFromConfig(pineWorkerRuntimeConfig{
-		BinaryPath:      binaryPath,
+		BundlePath:      binaryPath,
 		Workers:         1,
 		Host:            "127.0.0.1",
 		StartPort:       58001,

@@ -1,6 +1,6 @@
 # PineTS Worker 发布与运行清单
 
-本文面向发布、部署和现场排障。当前 Pine 执行路径是 Go 主进程启动 Bun/PineTS gRPC worker pool；Go 仍负责行情、K 线缓存、策略调度、回测撮合、资金曲线、风控、下单和交易所 API。发布打包采用 Bun SEA / Bun single-file executable worker，再由 Go `release_assets` 嵌入到单个 `trading-engine` 二进制。
+本文面向发布、部署和现场排障。当前 Pine 执行路径是 Go 主进程启动 Bun/PineTS gRPC worker pool；Go 仍负责行情、K 线缓存、策略调度、回测撮合、资金曲线、风控、下单和交易所 API。发布打包采用非 SEA 的 Bun bundle，再由 Go `release_assets` 嵌入到 `trading-engine` 二进制；目标机器必须安装 Bun。
 
 ## 发布放行条件
 
@@ -10,7 +10,7 @@
 - 发布合规材料必须按公开 `pinets` 许可证准备；商业 PineTS 授权计划已取消。
 - worker 以真实 PineTS executor 启动，未启用 mock。
 - 真实 worker 进程通过 localhost gRPC smoke，覆盖 `HealthCheck` 和 `RunScript`。
-- `npm run build:pineworker` 通过 `bun build --compile` 生成目标平台 Bun SEA / 单文件 worker 二进制。
+- `npm run build:pineworker` 通过 `bun build --target=bun` 生成平台无关的 `worker.js` Bun bundle。
 - `go test -tags release_assets ./internal/pineworkerassets -run Test` 通过，确认 embedded asset 选择逻辑可用。
 - `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` 后的发布产物必须存在、非空且可执行。
 - Go、worker、前端 focused test、coverage、performance gate、PineTS AGPL notice/source-offer check 和 `git diff --check` 通过。
@@ -28,11 +28,11 @@ npm run dev:api:pineworker
 如果需要手动控制 worker 路径，可以先构建当前平台 worker，再设置环境变量：
 
 ```powershell
-$env:JFTRADE_PINEWORKER_BINARY = (npm run --silent build:pineworker:dev | Select-Object -Last 1)
+$env:JFTRADE_PINEWORKER_BUNDLE = (npm run --silent build:pineworker:dev | Select-Object -Last 1)
 go run ./cmd/jftrade-api
 ```
 
-`npm run build:pineworker:dev` 和 `npm run dev:api:pineworker` 都走 Node 入口，不需要 Git Bash 或 WSL。设置 `JFTRADE_PINEWORKER_DEV_ENV_FILE` 时，dev build 会写出 `JFTRADE_PINEWORKER_BINARY=...` 供 VS Code launch 配置读取。
+`npm run build:pineworker:dev` 和 `npm run dev:api:pineworker` 都走 Node 入口，不需要 Git Bash 或 WSL。设置 `JFTRADE_PINEWORKER_DEV_ENV_FILE` 时，dev build 会写出 `JFTRADE_PINEWORKER_BUNDLE=...` 和 `JFTRADE_PINEWORKER_RUNTIME=...` 供 VS Code launch 配置读取。
 
 发布态使用 embedded worker：
 
@@ -47,17 +47,18 @@ go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 
 `npm run test:pineworker` 和 worker package 的 `npm test` 通过 `scripts/run-bun.mjs` 启动 Bun。该入口会依次检查 `JFTRADE_BUN_BINARY`、`PATH`、`~/.bun/bin/bun(.exe)`，以及 Windows 常见 Bun 安装目录；因此 Windows 用户安装 Bun 后即使当前 shell 的 `PATH` 尚未刷新，也可以直接运行测试。
 
-worker 资产构建采用 Bun SEA / Bun single-file executable 路线：每个目标平台生成一个可执行 worker，暂存到 `internal/pineworkerassets/assets/bin`，再通过 `release_assets` 构建嵌入 Go。最终对外发布的仍是单个 `dist/trading-engine` 文件；运行时 Go 会释放匹配平台的 worker 到临时目录、校验 SHA256、启动固定数量的 localhost gRPC 子进程，并在关闭时清理。
+worker 资产构建采用 Bun bundle 路线：只生成一个平台无关的 `worker.js`，暂存到 `internal/pineworkerassets/assets/bin`，再通过 `release_assets` 构建嵌入 Go。运行时 Go 会释放 bundle 到临时目录、校验 SHA256，并通过目标机器上的 Bun 启动固定数量的 localhost gRPC 子进程，关闭时清理临时 bundle。Go 发布文件不再包含 Bun runtime，因此部署时必须把 Bun 放入 `PATH` 或设置 `JFTRADE_PINEWORKER_RUNTIME`。
 
-API 启动时会先读 `JFTRADE_PINEWORKER_BINARY`。未配置外部二进制时，`release_assets` 构建会按当前平台选择内嵌 worker。若两者都不可用，Pine worker manager 不启动；回测和实盘策略执行会失败返回配置错误，不会回退到旧 Go 执行器。
+API 启动时会先读 `JFTRADE_PINEWORKER_BUNDLE`。未配置外部 bundle 时，`release_assets` 构建会选择内嵌 `worker.js`。若两者都不可用，Pine worker manager 不启动；回测和实盘策略执行会失败返回配置错误，不会回退到旧 Go 执行器。
 
 ## 环境变量
 
 | 变量 | 默认值 | 用途 |
 | --- | --- | --- |
 | `JFTRADE_PINEWORKER_DISABLED` | `false` | 显式关闭 worker manager。 |
-| `JFTRADE_PINEWORKER_BINARY` | 空 | 外部 worker 二进制路径；配置后优先于 embedded asset。 |
-| `JFTRADE_PINEWORKER_SHA256` | embedded asset hash 或运行时计算值 | 校验外部 worker 二进制。 |
+| `JFTRADE_PINEWORKER_BUNDLE` | 空 | 外部 `worker.js` bundle 路径；配置后优先于 embedded asset。 |
+| `JFTRADE_PINEWORKER_RUNTIME` | `bun` | Bun 可执行文件路径。 |
+| `JFTRADE_PINEWORKER_SHA256` | embedded asset hash 或运行时计算值 | 校验外部 worker bundle。 |
 | `JFTRADE_PINEWORKER_WORKERS` | `DefaultWorkerConfig(runtime.NumCPU())` | worker 进程数量。 |
 | `JFTRADE_PINEWORKER_HOST` | `127.0.0.1` | worker 监听主机。 |
 | `JFTRADE_PINEWORKER_START_PORT` | `50051` | 第一个 worker 端口，后续 worker 递增。 |
@@ -145,7 +146,7 @@ JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 \
 ## 排障顺序
 
 1. 先看 API 日志是否出现 `JFTrade PineTS worker manager started`。
-2. 若提示未配置 worker，检查 `JFTRADE_PINEWORKER_BINARY` 或是否使用了 `release_assets` 构建。
+2. 若提示未配置 worker，检查 `JFTRADE_PINEWORKER_BUNDLE` 或是否使用了 `release_assets` 构建。
 3. 若提示 checksum 失败，重新计算外部 worker 的 SHA256 或清空 `JFTRADE_PINEWORKER_SHA256` 让启动时按当前二进制计算。
 4. 若 worker 启动但请求失败，先调低 worker 数量并检查端口区间是否被占用。
 5. 若回测失败为超时或性能门禁，检查 K 线数量、gRPC message size、timeout 和 performance gate。

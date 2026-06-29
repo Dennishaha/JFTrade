@@ -28,7 +28,8 @@ var (
 
 const (
 	envPineWorkerDisabled          = "JFTRADE_PINEWORKER_DISABLED"
-	envPineWorkerBinary            = "JFTRADE_PINEWORKER_BINARY"
+	envPineWorkerBundle            = "JFTRADE_PINEWORKER_BUNDLE"
+	envPineWorkerRuntime           = "JFTRADE_PINEWORKER_RUNTIME"
 	envPineWorkerSHA256            = "JFTRADE_PINEWORKER_SHA256"
 	envPineWorkerWorkers           = "JFTRADE_PINEWORKER_WORKERS"
 	envPineWorkerHost              = "JFTRADE_PINEWORKER_HOST"
@@ -52,7 +53,8 @@ const (
 )
 
 type pineWorkerRuntimeConfig struct {
-	BinaryPath        string
+	BundlePath        string
+	RuntimePath       string
 	SHA256            string
 	Workers           int
 	Host              string
@@ -71,7 +73,7 @@ type pineWorkerRuntimeConfig struct {
 	MinCandlesPerSec  float64
 	MaxPeakRSSBytes   int64
 	embedded          bool
-	binaryData        []byte
+	bundleData        []byte
 }
 
 type pineWorkerRunner interface {
@@ -85,7 +87,7 @@ func (s *Server) startPineWorkerManager() pineWorkerRunner {
 		return nil
 	}
 	if !enabled {
-		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `npm run dev:api:pineworker` or set %s=/absolute/path/to/worker", envPineWorkerBinary, envPineWorkerBinary)
+		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `npm run dev:api:pineworker` or set %s=/absolute/path/to/worker.js", envPineWorkerBundle, envPineWorkerBundle)
 		return nil
 	}
 
@@ -100,7 +102,7 @@ func (s *Server) startPineWorkerManager() pineWorkerRunner {
 	if config.embedded {
 		source = "embedded"
 	}
-	log.Printf("JFTrade PineTS worker manager configured: source=%s workers=%d host=%s startPort=%d proto=%s cwd=%s idleTimeout=%s", source, config.Workers, config.Host, config.StartPort, config.ProtoPath, config.WorkDir, defaultPineWorkerIdleTimeout)
+	log.Printf("JFTrade PineTS worker manager configured: source=%s runtime=%s workers=%d host=%s startPort=%d proto=%s cwd=%s idleTimeout=%s", source, config.RuntimePath, config.Workers, config.Host, config.StartPort, config.ProtoPath, config.WorkDir, defaultPineWorkerIdleTimeout)
 	return runner
 }
 
@@ -266,12 +268,12 @@ func (runner *lazyPineWorkerRunner) stopIfIdle() {
 }
 
 func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig) (*pineworker.WorkerManager, error) {
-	binaryData := config.binaryData
-	if len(binaryData) == 0 {
+	bundleData := config.bundleData
+	if len(bundleData) == 0 {
 		var err error
-		binaryData, err = os.ReadFile(config.BinaryPath)
+		bundleData, err = os.ReadFile(config.BundlePath)
 		if err != nil {
-			return nil, fmt.Errorf("read worker binary: %w", err)
+			return nil, fmt.Errorf("read worker bundle: %w", err)
 		}
 	}
 	workerConfig := pineworker.DefaultWorkerConfig(runtime.NumCPU())
@@ -280,7 +282,7 @@ func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig) (*pineworker
 	workerConfig.MaxMessageBytes = config.MaxMessageBytes
 	workerConfig.MaxCandlesPerRequest = config.MaxCandles
 
-	launcher, err := newPineWorkerLauncher(config, binaryData)
+	launcher, err := newPineWorkerLauncher(config, bundleData)
 	if err != nil {
 		return nil, fmt.Errorf("create launcher: %w", err)
 	}
@@ -305,13 +307,14 @@ func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig) (*pineworker
 	return manager, nil
 }
 
-func defaultNewPineWorkerLauncher(config pineWorkerRuntimeConfig, binaryData []byte) (pineworker.WorkerLauncher, error) {
+func defaultNewPineWorkerLauncher(config pineWorkerRuntimeConfig, bundleData []byte) (pineworker.WorkerLauncher, error) {
 	if config.SHA256 == "" {
-		sum := sha256.Sum256(binaryData)
+		sum := sha256.Sum256(bundleData)
 		config.SHA256 = hex.EncodeToString(sum[:])
 	}
-	return pineworker.NewBinaryWorkerLauncher(pineworker.BinaryWorkerLauncherConfig{
-		Binary:          pineworker.WorkerBinary{Name: filepath.Base(config.BinaryPath), Data: binaryData, SHA256: config.SHA256},
+	return pineworker.NewBunWorkerLauncher(pineworker.BunWorkerLauncherConfig{
+		Bundle:          pineworker.WorkerBundle{Name: filepath.Base(config.BundlePath), Data: bundleData, SHA256: config.SHA256},
+		RuntimePath:     config.RuntimePath,
 		TempDir:         config.TempDir,
 		WorkDir:         config.WorkDir,
 		ProtoPath:       config.ProtoPath,
@@ -331,10 +334,10 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 	if envBool(envPineWorkerDisabled, false) {
 		return pineWorkerRuntimeConfig{}, false, nil
 	}
-	binaryPath := strings.TrimSpace(os.Getenv(envPineWorkerBinary))
+	bundlePath := strings.TrimSpace(os.Getenv(envPineWorkerBundle))
 	var embeddedAsset pineworkerassets.Asset
 	var embedded bool
-	if binaryPath == "" {
+	if bundlePath == "" {
 		var err error
 		embeddedAsset, embedded, err = selectPineWorkerAsset()
 		if err != nil {
@@ -343,7 +346,7 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 		if !embedded {
 			return pineWorkerRuntimeConfig{}, false, nil
 		}
-		binaryPath = embeddedAsset.Name
+		bundlePath = embeddedAsset.Name
 	}
 	defaultWorkers := settingsfile.DefaultPineWorkerSettings().WorkerLimit
 	if settingsProvider != nil {
@@ -395,10 +398,12 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 	if host == "" {
 		host = "127.0.0.1"
 	}
-	workDir := resolvePineWorkerWorkDir(binaryPath)
+	workDir := resolvePineWorkerWorkDir(bundlePath)
 	protoPath := resolvePineWorkerProtoPath(workDir)
+	runtimePath := resolvePineWorkerRuntime()
 	return pineWorkerRuntimeConfig{
-		BinaryPath:        binaryPath,
+		BundlePath:        bundlePath,
+		RuntimePath:       runtimePath,
 		SHA256:            firstNonEmpty(strings.TrimSpace(os.Getenv(envPineWorkerSHA256)), embeddedAsset.SHA256),
 		Workers:           workers,
 		Host:              host,
@@ -417,19 +422,29 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 		MinCandlesPerSec:  minCandlesPerSec,
 		MaxPeakRSSBytes:   maxPeakRSSBytes,
 		embedded:          embedded,
-		binaryData:        embeddedAsset.Data,
+		bundleData:        embeddedAsset.Data,
 	}, true, nil
 }
 
-func resolvePineWorkerWorkDir(binaryPath string) string {
+func resolvePineWorkerRuntime() string {
+	if value := strings.TrimSpace(os.Getenv(envPineWorkerRuntime)); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(os.Getenv("JFTRADE_BUN_BINARY")); value != "" {
+		return value
+	}
+	return "bun"
+}
+
+func resolvePineWorkerWorkDir(bundlePath string) string {
 	wd, err := os.Getwd()
 	if err == nil {
 		if root := findPineWorkerRepoRoot(wd); root != "" {
 			return root
 		}
 	}
-	if binaryPath != "" {
-		if root := findPineWorkerRepoRoot(filepath.Dir(resolvePineWorkerRuntimePath(binaryPath, wd))); root != "" {
+	if bundlePath != "" {
+		if root := findPineWorkerRepoRoot(filepath.Dir(resolvePineWorkerRuntimePath(bundlePath, wd))); root != "" {
 			return root
 		}
 	}

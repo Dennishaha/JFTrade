@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func TestBinaryWorkerLauncherMaterializesBinaryWithArgs(t *testing.T) {
+func TestBunWorkerLauncherMaterializesBundleWithArgs(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell script launcher test is unix-specific")
 	}
@@ -23,7 +23,8 @@ func TestBinaryWorkerLauncherMaterializesBinaryWithArgs(t *testing.T) {
 	workDir := t.TempDir()
 	var stderr bytes.Buffer
 	script := "#!/bin/sh\npwd > " + shellQuote(cwdPath) + "\nprintf 'worker stderr tail\\n' >&2\nprintf '%s\\n' \"$@\" > " + shellQuote(logPath) + "\n"
-	launcher := newScriptLauncher(t, script, BinaryWorkerLauncherConfig{
+	launcher := newScriptLauncher(t, script, BunWorkerLauncherConfig{
+		RuntimePath:     "/bin/sh",
 		TempDir:         tempDir,
 		WorkDir:         workDir,
 		ProtoPath:       "proto/pineworker.proto",
@@ -50,8 +51,8 @@ func TestBinaryWorkerLauncherMaterializesBinaryWithArgs(t *testing.T) {
 	if filepath.Clean(strings.TrimSpace(string(rawCWD))) != filepath.Clean(workDir) {
 		t.Fatalf("worker cwd = %q, want %q", strings.TrimSpace(string(rawCWD)), workDir)
 	}
-	if !strings.Contains(diagnostics, "cwd="+workDir) || !strings.Contains(diagnostics, "stderr=worker stderr tail") {
-		t.Fatalf("diagnostics = %q, want cwd and stderr", diagnostics)
+	if !strings.Contains(diagnostics, "cwd="+workDir) || !strings.Contains(diagnostics, "runtime=/bin/sh") || !strings.Contains(diagnostics, "stderr=worker stderr tail") {
+		t.Fatalf("diagnostics = %q, want cwd, runtime, and stderr", diagnostics)
 	}
 	raw, err := os.ReadFile(logPath)
 	if err != nil {
@@ -65,15 +66,15 @@ func TestBinaryWorkerLauncherMaterializesBinaryWithArgs(t *testing.T) {
 	}
 }
 
-func TestBinaryWorkerLauncherRejectsBadChecksum(t *testing.T) {
-	_, err := NewBinaryWorkerLauncher(BinaryWorkerLauncherConfig{
-		Binary: WorkerBinary{Name: "worker", Data: []byte("x"), SHA256: "bad"},
+func TestBunWorkerLauncherRejectsBadChecksum(t *testing.T) {
+	_, err := NewBunWorkerLauncher(BunWorkerLauncherConfig{
+		Bundle: WorkerBundle{Name: "worker.js", Data: []byte("x"), SHA256: "bad"},
 	})
 	if err != nil {
-		t.Fatalf("NewBinaryWorkerLauncher error = %v", err)
+		t.Fatalf("NewBunWorkerLauncher error = %v", err)
 	}
-	launcher, _ := NewBinaryWorkerLauncher(BinaryWorkerLauncherConfig{
-		Binary: WorkerBinary{Name: "worker", Data: []byte("x"), SHA256: "bad"},
+	launcher, _ := NewBunWorkerLauncher(BunWorkerLauncherConfig{
+		Bundle: WorkerBundle{Name: "worker.js", Data: []byte("x"), SHA256: "bad"},
 	})
 	_, err = launcher.Start(context.Background(), WorkerSpec{WorkerID: "worker-1", Address: "127.0.0.1:50051"})
 	if err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
@@ -81,11 +82,11 @@ func TestBinaryWorkerLauncherRejectsBadChecksum(t *testing.T) {
 	}
 }
 
-func TestBinaryWorkerLauncherStopKillsLongRunningProcess(t *testing.T) {
+func TestBunWorkerLauncherStopKillsLongRunningProcess(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell script launcher test is unix-specific")
 	}
-	launcher := newScriptLauncher(t, "#!/bin/sh\nsleep 30\n", BinaryWorkerLauncherConfig{
+	launcher := newScriptLauncher(t, "#!/bin/sh\nsleep 30\n", BunWorkerLauncherConfig{
 		TempDir:     t.TempDir(),
 		StopTimeout: 10 * time.Millisecond,
 	})
@@ -100,29 +101,27 @@ func TestBinaryWorkerLauncherStopKillsLongRunningProcess(t *testing.T) {
 	}
 }
 
-func TestNewBinaryWorkerLauncherRequiresBinary(t *testing.T) {
-	_, err := NewBinaryWorkerLauncher(BinaryWorkerLauncherConfig{})
-	if err == nil || !strings.Contains(err.Error(), "binary data is required") {
-		t.Fatalf("error = %v, want binary data required", err)
+func TestNewBunWorkerLauncherRequiresBundle(t *testing.T) {
+	_, err := NewBunWorkerLauncher(BunWorkerLauncherConfig{})
+	if err == nil || !strings.Contains(err.Error(), "bundle data is required") {
+		t.Fatalf("error = %v, want bundle data required", err)
 	}
 }
 
-func TestBinaryWorkerLauncherRejectsNilReceiver(t *testing.T) {
-	var launcher *BinaryWorkerLauncher
+func TestBunWorkerLauncherRejectsNilReceiver(t *testing.T) {
+	var launcher *BunWorkerLauncher
 	_, err := launcher.Start(context.Background(), WorkerSpec{WorkerID: "worker-1", Address: "127.0.0.1:50051"})
 	if err == nil || !strings.Contains(err.Error(), "launcher is nil") {
 		t.Fatalf("Start error = %v, want launcher nil", err)
 	}
 }
 
-func TestBinaryWorkerLauncherReturnsStartErrorAndRemovesFile(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("permission test is unix-specific")
-	}
+func TestBunWorkerLauncherReturnsStartErrorAndRemovesFile(t *testing.T) {
 	tempDir := t.TempDir()
-	launcher, err := NewBinaryWorkerLauncher(BinaryWorkerLauncherConfig{
-		Binary:  WorkerBinary{Name: "bad.sh", Data: []byte("not a shell script")},
-		TempDir: tempDir,
+	launcher, err := NewBunWorkerLauncher(BunWorkerLauncherConfig{
+		Bundle:      WorkerBundle{Name: "worker.js", Data: []byte("invalid bundle")},
+		RuntimePath: filepath.Join(tempDir, "missing-bun"),
+		TempDir:     tempDir,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -131,20 +130,23 @@ func TestBinaryWorkerLauncherReturnsStartErrorAndRemovesFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("Start error = nil, want error")
 	}
-	if _, statErr := os.Stat(filepath.Join(tempDir, "worker-1-bad.sh")); !os.IsNotExist(statErr) {
-		t.Fatalf("materialized binary was not removed after start failure: %v", statErr)
+	if _, statErr := os.Stat(filepath.Join(tempDir, "worker-1-worker.js")); !os.IsNotExist(statErr) {
+		t.Fatalf("materialized bundle was not removed after start failure: %v", statErr)
 	}
 }
 
-func newScriptLauncher(t *testing.T, script string, config BinaryWorkerLauncherConfig) *BinaryWorkerLauncher {
+func newScriptLauncher(t *testing.T, script string, config BunWorkerLauncherConfig) *BunWorkerLauncher {
 	t.Helper()
 	sum := sha256.Sum256([]byte(script))
-	config.Binary = WorkerBinary{
-		Name:   "worker.sh",
+	config.Bundle = WorkerBundle{
+		Name:   "worker.js",
 		Data:   []byte(script),
 		SHA256: hex.EncodeToString(sum[:]),
 	}
-	launcher, err := NewBinaryWorkerLauncher(config)
+	if config.RuntimePath == "" {
+		config.RuntimePath = "/bin/sh"
+	}
+	launcher, err := NewBunWorkerLauncher(config)
 	if err != nil {
 		t.Fatal(err)
 	}

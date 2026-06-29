@@ -20,8 +20,8 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertReleaseFrontendAssetsAreAudited(t, root)
 	assertReleasePineWorkerAssetsAreAudited(t, root)
 	assertPinetsReleaseRequiresInstalledPackage(t, root)
-	assertBunSEAPackagingIsDocumented(t, root)
-	assertPineTSWorkerUsesStaticImportForBunSEA(t, root)
+	assertBunBundlePackagingIsDocumented(t, root)
+	assertPineTSWorkerUsesStaticImportForBunBundle(t, root)
 	assertCIExercisesPineTSWorker(t, root)
 }
 
@@ -284,11 +284,11 @@ func assertReleasePineWorkerAssetsAreAudited(t *testing.T, root string) {
 	t.Helper()
 	requiredByFile := map[string][]string{
 		"internal/pineworkerassets/assets_dev_test.go": {
-			"TestSelectForPlatformReturnsUnavailableWhenAssetMissing",
+			"TestSelectReturnsUnavailableWhenAssetMissing",
 			"!release_assets",
 		},
 		"internal/pineworkerassets/assets_release_test.go": {
-			"TestSelectForPlatformReturnsEmbeddedAssetWhenStaged",
+			"TestSelectReturnsEmbeddedBundleWhenStaged",
 			"release_assets",
 			"SHA256",
 		},
@@ -391,36 +391,36 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 	}
 }
 
-func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
+func assertBunBundlePackagingIsDocumented(t *testing.T, root string) {
 	t.Helper()
 	requiredByFile := map[string][]string{
 		"docs/pinets-hardcut-migration.md": {
-			"Bun SEA",
-			"bun build --compile",
+			"Bun bundle",
+			"bun build --target=bun",
 			"release_assets",
 			"trading-engine",
 		},
 		"docs/troubleshooting/pinets-worker-release.md": {
-			"Bun SEA",
-			"bun build --compile",
+			"Bun bundle",
+			"bun build --target=bun",
 			"release_assets",
 			"trading-engine",
 		},
 		"scripts/build-pineworker-assets.mjs": {
-			"--compile",
+			"--target=bun",
 		},
 		"scripts/build-pineworker-dev.sh": {
 			"build-pineworker-dev.mjs",
 		},
 		"scripts/build-pineworker-dev.mjs": {
-			"--compile",
+			"--target=bun",
 			"JFTRADE_PINEWORKER_DEV_OUT_DIR",
 			"JFTRADE_PINEWORKER_DEV_ENV_FILE",
 			"checkPinetsPackageAndLicense",
 		},
 		"scripts/dev-api-pineworker.mjs": {
 			"buildDevWorker",
-			"JFTRADE_PINEWORKER_BINARY",
+			"JFTRADE_PINEWORKER_BUNDLE",
 			"cmd/jftrade-api",
 		},
 		"package.json": {
@@ -443,8 +443,9 @@ func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
 		},
 		"internal/app/apiserver/servercore/pineworker_runtime.go": {
 			"npm run dev:api:pineworker",
-			"JFTRADE_PINEWORKER_BINARY",
-			"/absolute/path/to/worker",
+			"JFTRADE_PINEWORKER_BUNDLE",
+			"JFTRADE_PINEWORKER_RUNTIME",
+			"/absolute/path/to/worker.js",
 			"settingsfile.DefaultPineWorkerSettings",
 			"WorkerLimit",
 			"envIntInRange",
@@ -482,13 +483,16 @@ func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
 		text := string(data)
 		for _, required := range requiredValues {
 			if !strings.Contains(text, required) {
-				t.Fatalf("%s does not document Bun SEA packaging requirement %q", rel, required)
+				t.Fatalf("%s does not document Bun bundle packaging requirement %q", rel, required)
 			}
+		}
+		if strings.HasPrefix(rel, "scripts/build-pineworker-") && strings.Contains(text, `"--compile"`) {
+			t.Fatalf("%s must not build a Bun standalone executable", rel)
 		}
 	}
 }
 
-func assertPineTSWorkerUsesStaticImportForBunSEA(t *testing.T, root string) {
+func assertPineTSWorkerUsesStaticImportForBunBundle(t *testing.T, root string) {
 	t.Helper()
 	rel := "workers/pineworker/src/pinetsExecutor.ts"
 	data, err := os.ReadFile(filepath.Join(root, rel))
@@ -497,10 +501,10 @@ func assertPineTSWorkerUsesStaticImportForBunSEA(t *testing.T, root string) {
 	}
 	text := string(data)
 	if !strings.Contains(text, `import { PineTS } from "pinets"`) {
-		t.Fatalf("%s must statically import pinets for Bun SEA packaging", rel)
+		t.Fatalf("%s must statically import pinets for Bun bundle packaging", rel)
 	}
 	if strings.Contains(text, `import("pinets")`) || strings.Contains(text, "dynamicImport") {
-		t.Fatalf("%s must not use dynamic pinets import in Bun SEA packaging", rel)
+		t.Fatalf("%s must not use dynamic pinets import in Bun bundle packaging", rel)
 	}
 }
 
