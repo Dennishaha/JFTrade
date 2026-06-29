@@ -169,9 +169,15 @@ func missingWorkerRuntimeDeps(root string) []string {
 }
 
 func pinetsInstalled(root string) bool {
-	check := exec.Command("npm", "ls", "pinets", "--workspaces", "--depth=1")
-	check.Dir = root
-	return check.Run() == nil
+	for _, rel := range []string{
+		filepath.Join("node_modules", "pinets", "package.json"),
+		filepath.Join("workers", "pineworker", "node_modules", "pinets", "package.json"),
+	} {
+		if _, err := os.Stat(filepath.Join(root, rel)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func bunCompileTarget(goos string, goarch string) (string, string, error) {
