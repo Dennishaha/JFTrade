@@ -39,10 +39,47 @@ afterEach(() => {
   MockWebSocket.instances = [];
 });
 
+function runtimeDependencyMockResponse(url: string): Response | null {
+  if (url.includes("/api/v1/system/runtime-dependencies")) {
+    return createResponse({
+      checkedAt: "2026-06-29T00:00:00Z",
+      allRequiredSatisfied: true,
+      dependencies: [
+        {
+          id: "node",
+          displayName: "Node.js",
+          required: true,
+          status: "ok",
+          minimumVersion: "22.0.0",
+          detectedVersion: "22.1.0",
+          configuredPath: "",
+          effectivePath: "node",
+          resolvedPath: "/usr/local/bin/node",
+          source: "path",
+          homepageUrl: "https://nodejs.org/",
+          message: "Node.js 22.1.0 is available.",
+        },
+      ],
+    });
+  }
+  if (url.includes("/api/v1/settings/pine-worker")) {
+    return createResponse({
+      backtestWorkerLimit: 2,
+      instanceWorkerLimit: 10,
+      nodeBinaryPath: "",
+    });
+  }
+  return null;
+}
+
 describe("Settings page", () => {
   it("renders persisted broker settings and runtime discovery", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
+      const dependencyResponse = runtimeDependencyMockResponse(url);
+      if (dependencyResponse != null) {
+        return dependencyResponse;
+      }
 
       if (url.includes("/api/v1/system/status")) {
         return createResponse(emptySystemStatus);
@@ -321,6 +358,7 @@ describe("Settings page", () => {
     const { wrapper } = await mountApp("/settings");
 
     expect(wrapper.text()).toContain("设置");
+    expect(wrapper.text()).toContain("依赖项管理");
     expect(wrapper.text()).toContain("富途接入");
     expect(wrapper.text()).toContain("交易所日历");
     expect(wrapper.text()).toContain("OpenD 连接状态");
@@ -348,6 +386,10 @@ describe("Settings page", () => {
     let runtimeRequested = false;
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
+      const dependencyResponse = runtimeDependencyMockResponse(url);
+      if (dependencyResponse != null) {
+        return dependencyResponse;
+      }
 
       if (url.includes("/api/v1/system/status")) {
         return createResponse(emptySystemStatus);
@@ -483,6 +525,10 @@ describe("Settings page", () => {
     let runtimeRequested = false;
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
+      const dependencyResponse = runtimeDependencyMockResponse(url);
+      if (dependencyResponse != null) {
+        return dependencyResponse;
+      }
 
       if (url.includes("/api/v1/system/status")) {
         return createResponse(emptySystemStatus);
@@ -625,6 +671,10 @@ describe("Settings page", () => {
     const fetchMock = vi.fn(
       (input: string | URL | Request, init?: RequestInit) => {
         const url = String(input);
+        const dependencyResponse = runtimeDependencyMockResponse(url);
+        if (dependencyResponse != null) {
+          return Promise.resolve(dependencyResponse);
+        }
 
         if (
           url.includes("/api/v1/settings/ui") &&
@@ -808,6 +858,10 @@ describe("Settings page", () => {
     const fetchMock = vi.fn(
       (input: string | URL | Request, init?: RequestInit) => {
         const url = String(input);
+        const dependencyResponse = runtimeDependencyMockResponse(url);
+        if (dependencyResponse != null) {
+          return Promise.resolve(dependencyResponse);
+        }
 
         if (
           url.includes("/api/v1/settings/security") &&

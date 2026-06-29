@@ -470,12 +470,14 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"PineWorkerSettings",
 			"backtestWorkerLimit",
 			"instanceWorkerLimit",
+			"nodeBinaryPath",
 		},
 		"internal/store/settingsfile/store.go": {
 			"DefaultPineWorkerSettings",
 			"NormalizePineWorkerSettings",
 			"BacktestWorkerLimit: 2",
 			"InstanceWorkerLimit: 10",
+			"NodeBinaryPath",
 			"1000",
 		},
 		"internal/api/settings/routes.go": {

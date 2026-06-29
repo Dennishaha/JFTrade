@@ -26,6 +26,7 @@ func TestSystemRoutesReturnEnvelopes(t *testing.T) {
 		{http.MethodPost, "/api/v1/system/exchange-calendars/probe", []string{"accepted", "healthy"}},
 		{http.MethodGet, "/api/v1/system/futu-opend", []string{"status"}},
 		{http.MethodGet, "/api/v1/system/futu-opend/install-guide", []string{"downloadUrl"}},
+		{http.MethodGet, "/api/v1/system/runtime-dependencies", []string{"checkedAt", "allRequiredSatisfied", "dependencies"}},
 		{http.MethodGet, "/api/v1/system/storage/overview", []string{"pendingOutbox"}},
 		{http.MethodGet, "/api/v1/system/real-trade-approvals", []string{"realTradingEnabled", "requiredConfirmationText", "entries"}},
 		{http.MethodGet, "/api/v1/system/real-trade-hard-stops", []string{"blockedOperations", "entries"}},
@@ -139,6 +140,13 @@ func newSystemRouteTestRouter() (*gin.Engine, *bool) {
 		}),
 		sysservice.WithBrokerOrderSnapshot(func() map[string]any {
 			return map[string]any{"running": false}
+		}),
+		sysservice.WithRuntimeDependencies(func(context.Context) map[string]any {
+			return map[string]any{
+				"checkedAt":            "2026-06-29T00:00:00Z",
+				"allRequiredSatisfied": true,
+				"dependencies":         []any{},
+			}
 		}),
 	)
 	router := gin.New()

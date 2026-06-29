@@ -455,7 +455,7 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 	}
 	workDir := resolvePineWorkerWorkDir(bundlePath)
 	protoPath := resolvePineWorkerProtoPath(workDir)
-	runtimePath := resolvePineWorkerRuntime()
+	runtimePath := resolvePineWorkerRuntime(defaultSettings)
 	return pineWorkerRuntimeConfig{
 		BundlePath:        bundlePath,
 		RuntimePath:       runtimePath,
@@ -482,11 +482,14 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 	}, true, nil
 }
 
-func resolvePineWorkerRuntime() string {
-	if value := strings.TrimSpace(os.Getenv(envPineWorkerRuntime)); value != "" {
+func resolvePineWorkerRuntime(settings jftsettings.PineWorkerSettings) string {
+	if value := settingsfile.NormalizeNodeBinaryPath(settings.NodeBinaryPath); value != "" {
 		return value
 	}
-	if value := strings.TrimSpace(os.Getenv("JFTRADE_NODE_BINARY")); value != "" {
+	if value := settingsfile.NormalizeNodeBinaryPath(os.Getenv(envPineWorkerRuntime)); value != "" {
+		return value
+	}
+	if value := settingsfile.NormalizeNodeBinaryPath(os.Getenv("JFTRADE_NODE_BINARY")); value != "" {
 		return value
 	}
 	return "node"

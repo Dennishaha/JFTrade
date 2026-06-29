@@ -110,6 +110,35 @@ export interface ADKRuntimeSettings {
 export interface PineWorkerSettingsResponse {
   backtestWorkerLimit: number;
   instanceWorkerLimit: number;
+  nodeBinaryPath: string;
+}
+
+export type RuntimeDependencyStatus =
+  | "ok"
+  | "missing"
+  | "outdated"
+  | "error"
+  | string;
+
+export interface RuntimeDependencyItem {
+  id: string;
+  displayName: string;
+  required: boolean;
+  status: RuntimeDependencyStatus;
+  minimumVersion: string;
+  detectedVersion: string;
+  configuredPath: string;
+  effectivePath: string;
+  resolvedPath: string;
+  source: string;
+  homepageUrl: string;
+  message: string;
+}
+
+export interface RuntimeDependenciesResponse {
+  checkedAt: string;
+  allRequiredSatisfied: boolean;
+  dependencies: RuntimeDependencyItem[];
 }
 
 export interface ADKAgent {

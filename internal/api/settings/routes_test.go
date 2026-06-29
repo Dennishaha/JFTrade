@@ -380,13 +380,13 @@ func TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows(t *testing.T) {
 	}
 
 	pineWorkerPutRec := httptest.NewRecorder()
-	pineWorkerPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/pine-worker", strings.NewReader(`{"backtestWorkerLimit":4,"instanceWorkerLimit":9}`))
+	pineWorkerPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/pine-worker", strings.NewReader(`{"backtestWorkerLimit":4,"instanceWorkerLimit":9,"nodeBinaryPath":"/opt/node/bin/node"}`))
 	pineWorkerPutReq.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(pineWorkerPutRec, pineWorkerPutReq)
 	if pineWorkerPutRec.Code != http.StatusOK {
 		t.Fatalf("pine worker put = %d %s", pineWorkerPutRec.Code, pineWorkerPutRec.Body.String())
 	}
-	if store.pineWorker.BacktestWorkerLimit != 4 || store.pineWorker.InstanceWorkerLimit != 9 {
+	if store.pineWorker.BacktestWorkerLimit != 4 || store.pineWorker.InstanceWorkerLimit != 9 || store.pineWorker.NodeBinaryPath != "/opt/node/bin/node" {
 		t.Fatalf("pine worker settings = %#v", store.pineWorker)
 	}
 }

@@ -65,10 +65,21 @@ func (s *Server) onboardingState(ctx context.Context) map[string]any {
 	return s.onboardingStateFromSettings(ctx, s.store.Onboarding())
 }
 
-func (s *Server) onboardingStateFromSettings(_ context.Context, onboarding OnboardingSettings) map[string]any {
+func (s *Server) onboardingStateFromSettings(ctx context.Context, onboarding OnboardingSettings) map[string]any {
 	integration := s.store.SavedIntegration()
 	accounts := s.store.ManagedAccounts()
 	reasons := make([]map[string]any, 0, 4)
+	dependencyIssue := false
+
+	dependencies := s.runtimeDependencies(ctx)
+	if satisfied, _ := dependencies["allRequiredSatisfied"].(bool); !satisfied {
+		dependencyIssue = true
+		reasons = append(reasons, map[string]any{
+			"code":     "RUNTIME_DEPENDENCY_UNSATISFIED",
+			"severity": "warning",
+			"message":  "Required runtime dependencies are missing or do not meet the minimum version.",
+		})
+	}
 
 	enabledAccounts := 0
 	for _, account := range accounts {
@@ -86,7 +97,7 @@ func (s *Server) onboardingStateFromSettings(_ context.Context, onboarding Onboa
 
 	return map[string]any{
 		"state":               onboarding,
-		"shouldShowOobe":      !onboarding.Completed && len(reasons) > 0,
+		"shouldShowOobe":      dependencyIssue || (!onboarding.Completed && len(reasons) > 0),
 		"reasons":             reasons,
 		"recommendedBrokerId": "futu",
 		"brokers": []any{map[string]any{

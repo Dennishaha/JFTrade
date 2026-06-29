@@ -27,6 +27,7 @@ type Service struct {
 	futuOpenDHealthFn           func(ctx context.Context) map[string]any
 	futuOpenDInstallGuideFn     func() map[string]any
 	resetFutuRuntimeFn          func()
+	runtimeDependenciesFn       func(ctx context.Context) map[string]any
 }
 
 // NewService 创建一个系统服务。
@@ -124,6 +125,11 @@ func WithFutuOpenDInstallGuide(fn func() map[string]any) Option {
 // WithResetFutuRuntime 设置 Futu 运行时重置回调。
 func WithResetFutuRuntime(fn func()) Option {
 	return func(s *Service) { s.resetFutuRuntimeFn = fn }
+}
+
+// WithRuntimeDependencies 设置运行时依赖检查提供者。
+func WithRuntimeDependencies(fn func(ctx context.Context) map[string]any) Option {
+	return func(s *Service) { s.runtimeDependenciesFn = fn }
 }
 
 // ── 系统状态 ──
@@ -375,6 +381,18 @@ func (s *Service) ResetFutuRuntime() {
 	if s.resetFutuRuntimeFn != nil {
 		s.resetFutuRuntimeFn()
 	}
+}
+
+// RuntimeDependencies 返回运行时依赖检查结果。
+func (s *Service) RuntimeDependencies(ctx context.Context) map[string]any {
+	if s.runtimeDependenciesFn == nil {
+		return map[string]any{
+			"checkedAt":            time.Now().UTC().Format(time.RFC3339Nano),
+			"allRequiredSatisfied": true,
+			"dependencies":         []any{},
+		}
+	}
+	return s.runtimeDependenciesFn(ctx)
 }
 
 // ── Broker 订单更新 Worker ──

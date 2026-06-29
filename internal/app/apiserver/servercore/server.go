@@ -399,6 +399,7 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		system.WithFutuOpenDHealth(func(ctx context.Context) map[string]any { return server.futuOpenDHealth(ctx) }),
 		system.WithFutuOpenDInstallGuide(func() map[string]any { return server.futuOpenDInstallGuide() }),
 		system.WithResetFutuRuntime(func() { server.resetFutuRuntime() }),
+		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any { return server.runtimeDependencies(ctx) }),
 	)
 
 	// Wire backtest service — RunStore / SyncTaskStore / StrategyProvider

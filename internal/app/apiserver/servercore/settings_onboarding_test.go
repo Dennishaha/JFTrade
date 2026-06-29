@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -54,6 +55,10 @@ func TestOnboardingDefaultsAndSave(t *testing.T) {
 }
 
 func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
+	restoreRuntimeDependencyProbe(t,
+		func(path string) (string, error) { return path, nil },
+		func(context.Context, string, ...string) ([]byte, error) { return []byte("v22.0.0"), nil },
+	)
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -131,5 +136,38 @@ func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
 	}
 	if putEnvelope.Data.ShouldShowOobe {
 		t.Fatalf("completed onboarding should not show OOBE: %+v", putEnvelope.Data)
+	}
+}
+
+func TestOnboardingReopensWhenRuntimeDependencyFailsAfterCompletion(t *testing.T) {
+	restoreRuntimeDependencyProbe(t,
+		func(path string) (string, error) { return path, nil },
+		func(context.Context, string, ...string) ([]byte, error) { return []byte("v20.0.0"), nil },
+	)
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	if _, err := store.SaveOnboarding(OnboardingSettings{Completed: true, LastBrokerID: "futu"}); err != nil {
+		t.Fatalf("SaveOnboarding: %v", err)
+	}
+	api := newTestServer(t, store)
+	state := api.onboardingState(t.Context())
+	if state["shouldShowOobe"] != true {
+		t.Fatalf("shouldShowOobe = %#v, want true; state = %#v", state["shouldShowOobe"], state)
+	}
+	reasons, ok := state["reasons"].([]map[string]any)
+	if !ok {
+		t.Fatalf("reasons = %#v, want []map[string]any", state["reasons"])
+	}
+	found := false
+	for _, reason := range reasons {
+		if reason["code"] == "RUNTIME_DEPENDENCY_UNSATISFIED" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("dependency reason missing: %#v", reasons)
 	}
 }

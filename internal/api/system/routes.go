@@ -14,6 +14,7 @@ func RegisterRoutes(api *gin.RouterGroup, svc *sys.Service) {
 	system.GET("/futu-opend", handleFutuOpenDHealth(svc))
 	system.POST("/futu-opend/manual-retry", handleFutuOpenDManualRetry(svc))
 	system.GET("/futu-opend/install-guide", handleFutuOpenDInstallGuide(svc))
+	system.GET("/runtime-dependencies", handleRuntimeDependencies(svc))
 	system.GET("/exchange-calendars/status", handleExchangeCalendarStatus(svc))
 	system.GET("/exchange-calendars/sources", handleExchangeCalendarSources(svc))
 	system.POST("/exchange-calendars/refresh", handleExchangeCalendarRefresh(svc, ""))
@@ -66,6 +67,18 @@ func handleFutuOpenDManualRetry(svc *sys.Service) gin.HandlerFunc {
 func handleFutuOpenDInstallGuide(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.FutuOpenDInstallGuide())
+	}
+}
+
+// handleRuntimeDependencies godoc
+// @Summary 读取运行时依赖检查结果
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/system/runtime-dependencies [get]
+func handleRuntimeDependencies(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, svc.RuntimeDependencies(c.Request.Context()))
 	}
 }
 

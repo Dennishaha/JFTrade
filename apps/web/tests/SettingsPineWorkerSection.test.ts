@@ -16,10 +16,22 @@ describe("SettingsPineWorkerSection", () => {
       const url = String(input);
       expect(url).toContain("/api/v1/settings/pine-worker");
       if (init?.method === "PUT") {
-        expect(JSON.parse(String(init.body))).toEqual({ backtestWorkerLimit: 1000, instanceWorkerLimit: 1 });
-        return createResponse({ backtestWorkerLimit: 1000, instanceWorkerLimit: 1 });
+        expect(JSON.parse(String(init.body))).toEqual({
+          backtestWorkerLimit: 1000,
+          instanceWorkerLimit: 1,
+          nodeBinaryPath: "/opt/node/bin/node",
+        });
+        return createResponse({
+          backtestWorkerLimit: 1000,
+          instanceWorkerLimit: 1,
+          nodeBinaryPath: "/opt/node/bin/node",
+        });
       }
-      return createResponse({ backtestWorkerLimit: 2, instanceWorkerLimit: 10 });
+      return createResponse({
+        backtestWorkerLimit: 2,
+        instanceWorkerLimit: 10,
+        nodeBinaryPath: "/opt/node/bin/node",
+      });
     });
     vi.stubGlobal("fetch", fetchMock);
 

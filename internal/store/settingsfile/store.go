@@ -581,6 +581,7 @@ func DefaultPineWorkerSettings() jfsettings.PineWorkerSettings {
 	return jfsettings.PineWorkerSettings{
 		BacktestWorkerLimit: 2,
 		InstanceWorkerLimit: 10,
+		NodeBinaryPath:      "",
 	}
 }
 
@@ -588,7 +589,21 @@ func NormalizePineWorkerSettings(input jfsettings.PineWorkerSettings) jfsettings
 	return jfsettings.PineWorkerSettings{
 		BacktestWorkerLimit: clampInt(input.BacktestWorkerLimit, 1, 1000),
 		InstanceWorkerLimit: clampInt(input.InstanceWorkerLimit, 1, 1000),
+		NodeBinaryPath:      NormalizeNodeBinaryPath(input.NodeBinaryPath),
 	}
+}
+
+func NormalizeNodeBinaryPath(input string) string {
+	value := strings.TrimSpace(input)
+	for len(value) >= 2 {
+		first := value[0]
+		last := value[len(value)-1]
+		if (first != '"' && first != '\'') || first != last {
+			break
+		}
+		value = strings.TrimSpace(value[1 : len(value)-1])
+	}
+	return value
 }
 
 func pineWorkerSettingsPointer(value jfsettings.PineWorkerSettings) *jfsettings.PineWorkerSettings {

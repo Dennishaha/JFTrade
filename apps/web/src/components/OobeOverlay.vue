@@ -2,7 +2,9 @@
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
+import type { RuntimeDependenciesResponse } from "@/contracts";
 import FutuIntegrationSection from "./FutuIntegrationSection.vue";
+import RuntimeDependenciesSection from "./RuntimeDependenciesSection.vue";
 import SettingsAccountDiscoverySection from "./SettingsAccountDiscoverySection.vue";
 import SettingsManagedAccountsSection from "./SettingsManagedAccountsSection.vue";
 import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
@@ -11,8 +13,12 @@ import { useConsoleData } from "../composables/useConsoleData";
 const console_ = useConsoleData();
 const router = useRouter();
 
-const activeStep = ref<"broker" | "connection" | "account">("broker");
+const activeStep = ref<"dependencies" | "broker" | "connection" | "account">(
+  "dependencies",
+);
 const savingOnboarding = ref(false);
+const runtimeDependenciesSatisfied = ref(false);
+const dependencyWarningSkipped = ref(false);
 const selectedBrokerId = ref(
   console_.onboardingState.value.state.lastBrokerId || "",
 );
@@ -111,6 +117,10 @@ const accountDiscoveryUnavailableMessage = computed(() => {
   return undefined;
 });
 
+const canEnterBrokerStep = computed(
+  () => runtimeDependenciesSatisfied.value || dependencyWarningSkipped.value,
+);
+
 watch(canEnterAccountStep, (canEnter) => {
   if (!canEnter && activeStep.value === "account") {
     activeStep.value = "connection";
@@ -163,7 +173,27 @@ async function selectBroker(brokerId: string): Promise<void> {
   });
 }
 
+function handleRuntimeDependencyStatus(
+  response: RuntimeDependenciesResponse,
+): void {
+  runtimeDependenciesSatisfied.value = response.allRequiredSatisfied;
+  if (response.allRequiredSatisfied) {
+    dependencyWarningSkipped.value = false;
+  }
+}
+
+function goToBrokerStep(): void {
+  if (!runtimeDependenciesSatisfied.value) {
+    dependencyWarningSkipped.value = true;
+  }
+  activeStep.value = "broker";
+}
+
 async function goToConnectionStep(): Promise<void> {
+  if (!canEnterBrokerStep.value) {
+    activeStep.value = "dependencies";
+    return;
+  }
   if (selectedBrokerId.value === "") {
     await selectBroker(
       console_.onboardingState.value.recommendedBrokerId || "futu",
@@ -173,6 +203,10 @@ async function goToConnectionStep(): Promise<void> {
 }
 
 async function goToAccountStep(): Promise<void> {
+  if (!canEnterBrokerStep.value) {
+    activeStep.value = "dependencies";
+    return;
+  }
   if (selectedBrokerId.value === "") {
     await selectBroker(
       console_.onboardingState.value.recommendedBrokerId || "futu",
@@ -192,10 +226,10 @@ async function goToAccountStep(): Promise<void> {
       <header class="oobe-header">
         <div>
           <div class="oobe-eyebrow">JFTrade OOBE</div>
-          <h1>券商接入配置</h1>
+          <h1>运行时依赖与券商接入配置</h1>
           <p>
-            选择券商，保存 OpenD 连接信息，并确认一个可用账户。当前先开放 Futu，
-            界面已经按多券商接入做了预留。
+            先确认策略系统需要的本机依赖，再选择券商、保存 OpenD
+            连接信息，并确认一个可用账户。
           </p>
         </div>
         <div class="oobe-header-actions">
@@ -236,31 +270,56 @@ async function goToAccountStep(): Promise<void> {
       <div class="oobe-steps">
         <button
           type="button"
-          :class="{ active: activeStep === 'broker' }"
-          @click="activeStep = 'broker'"
+          :class="{ active: activeStep === 'dependencies' }"
+          @click="activeStep = 'dependencies'"
         >
           <span>1</span>
+          运行时依赖
+        </button>
+        <button
+          type="button"
+          :class="{ active: activeStep === 'broker' }"
+          :disabled="!canEnterBrokerStep"
+          @click="activeStep = 'broker'"
+        >
+          <span>2</span>
           选择券商
         </button>
         <button
           type="button"
           :class="{ active: activeStep === 'connection' }"
+          :disabled="!canEnterBrokerStep"
           @click="goToConnectionStep"
         >
-          <span>2</span>
+          <span>3</span>
           连接配置
         </button>
         <button
           type="button"
           :class="{ active: activeStep === 'account' }"
+          :disabled="!canEnterBrokerStep"
           @click="goToAccountStep"
         >
-          <span>3</span>
+          <span>4</span>
           确认账户
         </button>
       </div>
 
       <main class="oobe-content">
+        <section v-show="activeStep === 'dependencies'" class="oobe-panel">
+          <RuntimeDependenciesSection
+            mode="oobe"
+            @status-change="handleRuntimeDependencyStatus"
+          />
+          <div class="oobe-footer-actions">
+            <v-btn color="primary" @click="goToBrokerStep">
+              {{
+                runtimeDependenciesSatisfied ? "下一步" : "继续配置券商"
+              }}
+            </v-btn>
+          </div>
+        </section>
+
         <section v-show="activeStep === 'broker'" class="oobe-panel">
           <div class="oobe-section-title">选择券商</div>
           <div class="oobe-broker-grid">
@@ -290,6 +349,9 @@ async function goToAccountStep(): Promise<void> {
             >
           </div>
           <div class="oobe-footer-actions">
+            <v-btn variant="outlined" @click="activeStep = 'dependencies'"
+              >上一步</v-btn
+            >
             <v-btn color="primary" @click="goToConnectionStep">下一步</v-btn>
           </div>
         </section>
@@ -420,7 +482,7 @@ async function goToAccountStep(): Promise<void> {
 
 .oobe-steps {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -440,6 +502,11 @@ async function goToAccountStep(): Promise<void> {
 .oobe-steps button.active {
   border-color: #2563eb;
   color: var(--card-text-1);
+}
+
+.oobe-steps button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .oobe-steps span {

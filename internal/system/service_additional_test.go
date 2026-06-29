@@ -121,4 +121,27 @@ func TestFutuDefaultsExposeEmptyGuideAndSnapshot(t *testing.T) {
 	if got := svc.BrokerOrderUpdatesSnapshot(); len(got) != 0 {
 		t.Fatalf("BrokerOrderUpdatesSnapshot default = %#v, want empty map", got)
 	}
+	dependencies := svc.RuntimeDependencies(context.Background())
+	if dependencies["allRequiredSatisfied"] != true {
+		t.Fatalf("RuntimeDependencies default = %#v, want satisfied", dependencies)
+	}
+}
+
+func TestRuntimeDependenciesDelegates(t *testing.T) {
+	called := false
+	svc := NewService(
+		WithRuntimeDependencies(func(ctx context.Context) map[string]any {
+			called = ctx != nil
+			return map[string]any{
+				"checkedAt":            "2026-06-29T00:00:00Z",
+				"allRequiredSatisfied": false,
+				"dependencies":         []any{map[string]any{"id": "node"}},
+			}
+		}),
+	)
+
+	got := svc.RuntimeDependencies(context.Background())
+	if !called || got["allRequiredSatisfied"] != false {
+		t.Fatalf("RuntimeDependencies delegated = %#v called=%v", got, called)
+	}
 }

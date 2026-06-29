@@ -6,12 +6,13 @@ import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 type PineWorkerSettings = {
   backtestWorkerLimit: number;
   instanceWorkerLimit: number;
+  nodeBinaryPath: string;
 };
 
 const MIN_WORKER_LIMIT = 1;
 const MAX_WORKER_LIMIT = 1000;
 
-const settings = ref<PineWorkerSettings>({ backtestWorkerLimit: 2, instanceWorkerLimit: 10 });
+const settings = ref<PineWorkerSettings>({ backtestWorkerLimit: 2, instanceWorkerLimit: 10, nodeBinaryPath: "" });
 const backtestWorkerLimitInput = ref(2);
 const instanceWorkerLimitInput = ref(10);
 const loading = ref(true);
@@ -50,6 +51,7 @@ async function saveSettings(): Promise<void> {
     const next = {
       backtestWorkerLimit: normalizedBacktestWorkerLimit.value,
       instanceWorkerLimit: normalizedInstanceWorkerLimit.value,
+      nodeBinaryPath: settings.value.nodeBinaryPath,
     };
     settings.value = await fetchEnvelopeWithInit<PineWorkerSettings>("/api/v1/settings/pine-worker", {
       method: "PUT",

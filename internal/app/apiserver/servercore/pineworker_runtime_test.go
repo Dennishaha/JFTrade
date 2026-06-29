@@ -98,8 +98,17 @@ func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) 
 
 func TestResolvePineWorkerRuntimeUsesConfiguredNodeBinary(t *testing.T) {
 	t.Setenv("JFTRADE_NODE_BINARY", filepath.Join(t.TempDir(), "node.exe"))
-	if got := resolvePineWorkerRuntime(); got != os.Getenv("JFTRADE_NODE_BINARY") {
+	if got := resolvePineWorkerRuntime(PineWorkerSettings{}); got != os.Getenv("JFTRADE_NODE_BINARY") {
 		t.Fatalf("resolvePineWorkerRuntime bundle = %q, want configured Node", got)
+	}
+}
+
+func TestResolvePineWorkerRuntimeUsesSettingsBeforeEnv(t *testing.T) {
+	settingsNode := `C:\Program Files\nodejs\node.exe`
+	t.Setenv(envPineWorkerRuntime, "env-node")
+	t.Setenv("JFTRADE_NODE_BINARY", "legacy-node")
+	if got := resolvePineWorkerRuntime(PineWorkerSettings{NodeBinaryPath: `  "` + settingsNode + `"  `}); got != settingsNode {
+		t.Fatalf("resolvePineWorkerRuntime() = %q, want settings node %q", got, settingsNode)
 	}
 }
 

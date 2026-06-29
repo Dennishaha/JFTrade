@@ -81,8 +81,9 @@ type ADKRuntimeSettings struct {
 
 // PineWorkerSettings holds PineTS worker pool user-facing runtime settings.
 type PineWorkerSettings struct {
-	BacktestWorkerLimit int `json:"backtestWorkerLimit"`
-	InstanceWorkerLimit int `json:"instanceWorkerLimit"`
+	BacktestWorkerLimit int    `json:"backtestWorkerLimit"`
+	InstanceWorkerLimit int    `json:"instanceWorkerLimit"`
+	NodeBinaryPath      string `json:"nodeBinaryPath"`
 }
 
 type ExchangeCalendarSessionWindow struct {

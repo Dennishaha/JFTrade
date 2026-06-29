@@ -128,11 +128,12 @@ func TestSavePineWorkerSettingsPersistsNormalizedWorkerLimits(t *testing.T) {
 	saved, err := store.SavePineWorkerSettings(jfsettings.PineWorkerSettings{
 		BacktestWorkerLimit: 2000,
 		InstanceWorkerLimit: 1500,
+		NodeBinaryPath:      `  "C:\Program Files\nodejs\node.exe"  `,
 	})
 	if err != nil {
 		t.Fatalf("SavePineWorkerSettings: %v", err)
 	}
-	if want := (jfsettings.PineWorkerSettings{BacktestWorkerLimit: 1000, InstanceWorkerLimit: 1000}); saved != want {
+	if want := (jfsettings.PineWorkerSettings{BacktestWorkerLimit: 1000, InstanceWorkerLimit: 1000, NodeBinaryPath: `C:\Program Files\nodejs\node.exe`}); saved != want {
 		t.Fatalf("pine worker settings = %#v, want %#v", saved, want)
 	}
 

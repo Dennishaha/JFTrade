@@ -130,8 +130,37 @@ describe("OOBE onboarding", () => {
         if (url.includes("/api/v1/system/status")) {
           return createResponse(emptySystemStatus);
         }
+        if (url.includes("/api/v1/system/runtime-dependencies")) {
+          return createResponse({
+            checkedAt: "2026-06-29T00:00:00Z",
+            allRequiredSatisfied: true,
+            dependencies: [
+              {
+                id: "node",
+                displayName: "Node.js",
+                required: true,
+                status: "ok",
+                minimumVersion: "22.0.0",
+                detectedVersion: "22.1.0",
+                configuredPath: "",
+                effectivePath: "node",
+                resolvedPath: "/usr/local/bin/node",
+                source: "path",
+                homepageUrl: "https://nodejs.org/",
+                message: "Node.js 22.1.0 is available.",
+              },
+            ],
+          });
+        }
         if (url.includes("/api/v1/system/storage/overview")) {
           return createResponse(emptyStorageOverview);
+        }
+        if (url.includes("/api/v1/settings/pine-worker")) {
+          return createResponse({
+            backtestWorkerLimit: 2,
+            instanceWorkerLimit: 10,
+            nodeBinaryPath: "",
+          });
         }
         if (
           url.includes("/api/v1/settings/brokers/futu/integration") &&
@@ -360,10 +389,18 @@ describe("OOBE onboarding", () => {
     await flushRequests();
 
     expect(router.currentRoute.value.path).toBe("/oobe");
-    expect(wrapper.text()).toContain("券商接入配置");
+    expect(wrapper.text()).toContain("运行时依赖与券商接入配置");
+    expect(wrapper.text()).toContain("必需依赖已满足");
     expect(wrapper.text()).toContain("Futu OpenAPI via OpenD");
     expect(openDHealthRequests).toBe(0);
     expect(runtimeRequests).toBe(0);
+
+    const dependencyNextButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().includes("下一步"));
+    expect(dependencyNextButton?.exists()).toBe(true);
+    await dependencyNextButton!.trigger("click");
+    await flushRequests();
 
     const brokerButton = wrapper
       .findAll("button")
@@ -375,7 +412,7 @@ describe("OOBE onboarding", () => {
     const nextButtons = wrapper
       .findAll("button")
       .filter((button) => button.text().includes("下一步"));
-    await nextButtons[0]!.trigger("click");
+    await nextButtons.at(-1)!.trigger("click");
     await flushRequests();
 
     expect(wrapper.text()).toContain("保存并检测 OpenD");

@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import FutuIntegrationSection from "../components/FutuIntegrationSection.vue";
+import RuntimeDependenciesSection from "../components/RuntimeDependenciesSection.vue";
 import SettingsAccountDiscoverySection from "../components/SettingsAccountDiscoverySection.vue";
 import SettingsAppearanceSection from "../components/SettingsAppearanceSection.vue";
 import SettingsExchangeCalendarSection from "../components/SettingsExchangeCalendarSection.vue";
@@ -29,6 +30,11 @@ const {
 } = useConsoleData();
 
 const settingsMenu = [
+  {
+    index: "runtime-dependencies",
+    label: "依赖项管理",
+    description: "检查并配置策略运行需要的本机依赖。",
+  },
   {
     index: "futu-integration",
     label: "富途接入",
@@ -78,7 +84,7 @@ const settingsMenu = [
 
 type MenuIndex = (typeof settingsMenu)[number]["index"];
 
-const DEFAULT_SECTION: MenuIndex = "futu-integration";
+const DEFAULT_SECTION: MenuIndex = "runtime-dependencies";
 
 const activeMenu = computed<MenuIndex>(() => {
   const s = route.params.section as string | undefined;
@@ -166,6 +172,11 @@ const {
       </nav>
 
       <div class="settings-page__content grid gap-6 p-5">
+        <RuntimeDependenciesSection
+          v-if="activeMenu === 'runtime-dependencies'"
+          mode="settings"
+        />
+
         <FutuIntegrationSection
           v-show="activeMenu === 'futu-integration'"
           mode="settings"
