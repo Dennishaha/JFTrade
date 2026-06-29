@@ -82,6 +82,13 @@ func TestADKStrategyPineSpecToolReturnsStructuredPayload(t *testing.T) {
 	if got := payload["runtime"]; got != strategypinespec.Runtime {
 		t.Fatalf("runtime = %#v, want %q", got, strategypinespec.Runtime)
 	}
+	externalEngine, ok := payload["externalEngine"].(map[string]any)
+	if !ok {
+		t.Fatalf("externalEngine = %T, want map[string]any", payload["externalEngine"])
+	}
+	if externalEngine["engine"] != "pinets-shadow" || externalEngine["enabled"] != false {
+		t.Fatalf("externalEngine = %#v, want disabled pinets-shadow metadata", externalEngine)
+	}
 	examples, ok := payload["examples"].([]map[string]any)
 	if !ok {
 		t.Fatalf("examples payload = %T, want []map[string]any", payload["examples"])
@@ -155,6 +162,10 @@ func TestADKStrategyValidateDSLToolReturnsValidationPayload(t *testing.T) {
 	}
 	if got := payload["ok"]; got != true {
 		t.Fatalf("ok = %#v, want true", got)
+	}
+	externalEngine, ok := payload["externalEngine"].(map[string]any)
+	if !ok || externalEngine["mode"] != "off" || externalEngine["enabled"] != false {
+		t.Fatalf("externalEngine = %#v, want default off payload", payload["externalEngine"])
 	}
 	metadata, ok := payload["metadata"].(map[string]any)
 	if !ok || metadata["name"] != "Minimal Draft" {

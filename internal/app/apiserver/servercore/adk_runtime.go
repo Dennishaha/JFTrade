@@ -20,6 +20,7 @@ import (
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineengine"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
@@ -589,12 +590,13 @@ func StrategyPineSpecToolPayload(input map[string]any) (map[string]any, error) {
 func StrategyValidatePineToolPayload(input map[string]any) map[string]any {
 	script := strings.TrimSpace(stringValue(input, "script"))
 	includeRequirements := boolInputValueDefault(input, "includeRequirements", true)
-	payload := map[string]any{"ok": false, "sourceFormat": strategypinespec.SourceFormat, "runtime": strategypinespec.Runtime, "normalizedScript": script, "metadata": strategyMetadataPayload(nil), "hooks": []string{}, "requirements": nil, "warnings": []string{}, "errors": []string{}, "saveHint": nil}
+	payload := map[string]any{"ok": false, "sourceFormat": strategypinespec.SourceFormat, "runtime": strategypinespec.Runtime, "externalEngine": pineengine.PayloadMap(pineengine.DisabledPayload()), "normalizedScript": script, "metadata": strategyMetadataPayload(nil), "hooks": []string{}, "requirements": nil, "warnings": []string{}, "errors": []string{}, "saveHint": nil}
 	if script == "" {
 		payload["errors"] = []string{"script 是必填项"}
 		payload["saveHint"] = StrategySaveHintPayload()
 		return payload
 	}
+	payload["externalEngine"] = pineengine.PayloadMap(pineengine.ShadowPayloadForScript(script))
 	validation, err := ValidateADKStrategyScript("strategy.validate_pine", script)
 	if err != nil {
 		payload["errors"] = []string{err.Error()}

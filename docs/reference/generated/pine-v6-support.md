@@ -10,6 +10,7 @@
 | Product version | `v4.0` |
 | Source format | `pine-v6` |
 | Runtime | `pine-pinets` |
+| External engine | `pinets-shadow` (`off by default`) |
 | Score model | `closed-bar-strategy-v4.0` |
 | Compatibility score | `98.30` |
 
