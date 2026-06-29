@@ -50,18 +50,62 @@ function Resolve-GitValue {
 }
 
 function Install-FrontendDependencies {
-    if (Test-Path (Join-Path $PSScriptRoot "package-lock.json")) {
+    if ($env:JFTRADE_RELEASE_SKIP_NPM_INSTALL -eq "1") {
+        Write-Host "Skipping npm install because JFTRADE_RELEASE_SKIP_NPM_INSTALL=1" -ForegroundColor Yellow
+        return
+    }
+
+    if (Test-FrontendDependencies) {
+        Write-Host "Frontend dependencies already available; skipping npm install." -ForegroundColor Green
+        return
+    }
+
+    $nodeModulesDir = Join-Path $PSScriptRoot "node_modules"
+    $useCleanInstall = $env:JFTRADE_RELEASE_NPM_CI -eq "1" -or -not (Test-Path $nodeModulesDir)
+
+    if ($useCleanInstall -and (Test-Path (Join-Path $PSScriptRoot "package-lock.json"))) {
         npm ci
         if ($LASTEXITCODE -ne 0) {
-            throw "npm ci failed"
+            if (Test-FrontendDependencies) {
+                Write-Host "npm ci failed, but existing workspace dependencies are usable; continuing." -ForegroundColor Yellow
+                return
+            }
+            throw "npm ci failed. On Windows this is often caused by a locked native package in node_modules. Close running Node/Vite/VitePress processes, editors or antivirus scanners that may hold node_modules, then retry. If dependencies are already installed, rerun with JFTRADE_RELEASE_SKIP_NPM_INSTALL=1. To avoid clean deletion on a warm workspace, leave JFTRADE_RELEASE_NPM_CI unset."
         }
         return
     }
 
-    npm install
+    npm install --workspaces --include-workspace-root --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) {
-        throw "npm install failed"
+        if (Test-FrontendDependencies) {
+            Write-Host "npm install failed, but existing workspace dependencies are usable; continuing." -ForegroundColor Yellow
+            return
+        }
+        throw "npm install failed. Close running Node/Vite/VitePress processes, editors or antivirus scanners that may hold node_modules, then retry."
     }
+}
+
+function Test-FrontendDependencies {
+    $checks = @(
+        @{ Package = "apps/web/package.json"; Module = "vite" },
+        @{ Package = "apps/web/package.json"; Module = "vitepress" },
+        @{ Package = "apps/web/package.json"; Module = "typedoc" },
+        @{ Package = "workers/pineworker/package.json"; Module = "vite" },
+        @{ Package = "workers/pineworker/package.json"; Module = "pinets" },
+        @{ Package = "workers/pineworker/package.json"; Module = "@grpc/grpc-js" },
+        @{ Package = "workers/pineworker/package.json"; Module = "@grpc/proto-loader" }
+    )
+    $resolveScript = "const { createRequire } = require('node:module'); createRequire(process.argv[1]).resolve(process.argv[2]);"
+
+    foreach ($check in $checks) {
+        $packagePath = Join-Path $PSScriptRoot $check.Package
+        node -e $resolveScript $packagePath $check.Module 2>$null 1>$null
+        if ($LASTEXITCODE -ne 0) {
+            return $false
+        }
+    }
+
+    return $true
 }
 
 function Invoke-GoReleaseBuild {
