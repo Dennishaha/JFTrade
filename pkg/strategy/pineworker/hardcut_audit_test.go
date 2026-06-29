@@ -318,7 +318,7 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 		"scripts/build-pineworker-assets.test.mjs": {
 			"pinets package license: AGPL-3.0-only",
 			"AGPL-3.0-only",
-			"DRY RUN vite build",
+			"DRY RUN rolldown",
 		},
 		"scripts/check-pinets-release.mjs": {
 			"checkPinetsPackageAndLicense",
@@ -397,21 +397,26 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 	requiredByFile := map[string][]string{
 		"docs/pinets-hardcut-migration.md": {
 			"Node ESM bundle",
-			"Vite/Rolldown",
+			"RollDown",
 			"release_assets",
 			"trading-engine",
 		},
 		"docs/troubleshooting/pinets-worker-release.md": {
 			"Node ESM bundle",
-			"Vite/Rolldown",
+			"RollDown",
 			"release_assets",
 			"trading-engine",
 		},
 		"scripts/build-pineworker-assets.mjs": {
-			"loadViteBuild",
-			`requireFromWorker.resolve("vite")`,
-			`ssr: workerEntry`,
-			`noExternal: true`,
+			"buildPineWorkerBundle",
+			"dryRunPineWorkerBundleCommand",
+			"workerEntry",
+			"outFile",
+		},
+		"scripts/lib/pineworker-rolldown-build.mjs": {
+			"rolldown",
+			`requireFromWorker.resolve("rolldown")`,
+			`platform: "node"`,
 			`codeSplitting: false`,
 			`format: "es"`,
 		},
@@ -419,12 +424,10 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"build-pineworker-dev.mjs",
 		},
 		"scripts/build-pineworker-dev.mjs": {
-			"loadViteBuild",
-			`requireFromWorker.resolve("vite")`,
-			`ssr: workerEntry`,
-			`noExternal: true`,
-			`codeSplitting: false`,
-			`format: "es"`,
+			"buildPineWorkerBundle",
+			"dryRunPineWorkerBundleCommand",
+			"workerEntry",
+			"outPath",
 			"JFTRADE_PINEWORKER_DEV_OUT_DIR",
 			"JFTRADE_PINEWORKER_DEV_ENV_FILE",
 			"checkPinetsPackageAndLicense",
@@ -503,8 +506,8 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 				t.Fatalf("%s does not document Node bundle packaging requirement %q", rel, required)
 			}
 		}
-		if strings.HasPrefix(rel, "scripts/build-pineworker-") && containsAny(text, "Bun", "bun build", "run-bun", "JFTRADE_BUN", `from "esbuild"`) {
-			t.Fatalf("%s must not use Bun or direct esbuild", rel)
+		if strings.HasPrefix(rel, "scripts/build-pineworker-") && containsAny(text, "bun build", "run-bun", "JFTRADE_BUN", `from "esbuild"`, "loadViteBuild", `requireFromWorker.resolve("vite")`, "vite build") {
+			t.Fatalf("%s must not use Bun, direct esbuild, or Vite for PineTS worker bundling", rel)
 		}
 	}
 }

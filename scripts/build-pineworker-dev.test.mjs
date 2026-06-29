@@ -25,7 +25,8 @@ try {
   });
   assert(pass.status === 0, `dev worker build failed: ${pass.stderr || pass.stdout}`);
   assert(pass.stdout.includes("pinets package license: AGPL-3.0-only"), "pinets package license was not reported");
-  assert(pass.stdout.includes("DRY RUN vite build") && pass.stdout.includes("--ssr") && pass.stdout.includes("--noExternal"), "dev worker build did not invoke Vite/Rolldown Node bundle path");
+  assert(pass.stdout.includes("DRY RUN rolldown") && pass.stdout.includes("--platform node") && pass.stdout.includes("--bundle-dependencies"), "dev worker build did not invoke RollDown Node bundle path");
+  assert(!/\bvite\b/i.test(pass.stdout), "dev worker build still references Vite");
   assert(!/\bbun\b/i.test(pass.stdout), "dev worker build still references Bun");
   assert(existsSync(envFile), "dev worker build did not write env file");
   assert(readFileSync(envFile, "utf8").includes("JFTRADE_PINEWORKER_BUNDLE="), "dev env file does not contain worker bundle");

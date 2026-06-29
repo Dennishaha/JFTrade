@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { mkdirSync, readdirSync, rmSync } from "node:fs";
-import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import { buildPineWorkerBundle, dryRunPineWorkerBundleCommand } from "./lib/pineworker-rolldown-build.mjs";
 import { checkPinetsPackageAndLicense } from "./lib/pinets-package.mjs";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,38 +27,7 @@ for (const entry of readdirSync(outDir, { withFileTypes: true })) {
 const outFile = join(outDir, outputName);
 console.log(`Building platform-independent PineTS Node worker -> ${outputName}`);
 if (dryRun) {
-  console.log(`DRY RUN vite build --ssr ${workerEntry} --target node24 --format esm --outFile ${outFile} --noExternal`);
+  console.log(dryRunPineWorkerBundleCommand({ workerEntry, outFile }));
 } else {
-  const viteBuild = await loadViteBuild();
-  await viteBuild({
-    configFile: false,
-    root: rootDir,
-    logLevel: "info",
-    build: {
-      ssr: workerEntry,
-      target: "node24",
-      outDir,
-      emptyOutDir: false,
-      minify: false,
-      rollupOptions: {
-        output: {
-          format: "es",
-          entryFileNames: outputName,
-          codeSplitting: false,
-          banner: 'import { createRequire as __jftradeCreateRequire } from "node:module"; const require = __jftradeCreateRequire(import.meta.url);',
-        },
-      },
-    },
-    ssr: {
-      target: "node",
-      noExternal: true,
-    },
-  });
-}
-
-async function loadViteBuild() {
-  const requireFromWorker = createRequire(join(rootDir, "workers/pineworker/package.json"));
-  const vitePath = requireFromWorker.resolve("vite");
-  const vite = await import(pathToFileURL(vitePath).href);
-  return vite.build;
+  await buildPineWorkerBundle({ rootDir, workerEntry, outFile });
 }

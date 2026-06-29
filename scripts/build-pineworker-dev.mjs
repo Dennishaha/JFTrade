@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { mkdirSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { buildPineWorkerBundle, dryRunPineWorkerBundleCommand } from "./lib/pineworker-rolldown-build.mjs";
 import { checkPinetsPackageAndLicense } from "./lib/pinets-package.mjs";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -21,33 +21,9 @@ export async function buildDevWorker(options = {}) {
   mkdirSync(outDir, { recursive: true });
   console.log("Building PineTS dev worker Node bundle -> worker.mjs");
   if (dryRun) {
-    console.log(`DRY RUN vite build --ssr ${workerEntry} --target node24 --format esm --outFile ${outPath} --noExternal`);
+    console.log(dryRunPineWorkerBundleCommand({ workerEntry, outFile: outPath }));
   } else {
-    const viteBuild = await loadViteBuild();
-    await viteBuild({
-      configFile: false,
-      root: rootDir,
-      logLevel: "info",
-      build: {
-        ssr: workerEntry,
-        target: "node24",
-        outDir,
-        emptyOutDir: false,
-        minify: false,
-        rollupOptions: {
-          output: {
-            format: "es",
-            entryFileNames: "worker.mjs",
-            codeSplitting: false,
-            banner: 'import { createRequire as __jftradeCreateRequire } from "node:module"; const require = __jftradeCreateRequire(import.meta.url);',
-          },
-        },
-      },
-      ssr: {
-        target: "node",
-        noExternal: true,
-      },
-    });
+    await buildPineWorkerBundle({ rootDir, workerEntry, outFile: outPath });
   }
 
   if (envFile) {
@@ -62,13 +38,6 @@ export async function buildDevWorker(options = {}) {
 
 export function nodeRuntimePath() {
   return process.env.JFTRADE_NODE_BINARY?.trim() || process.execPath || "node";
-}
-
-async function loadViteBuild() {
-  const requireFromWorker = createRequire(join(rootDir, "workers/pineworker/package.json"));
-  const vitePath = requireFromWorker.resolve("vite");
-  const vite = await import(pathToFileURL(vitePath).href);
-  return vite.build;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

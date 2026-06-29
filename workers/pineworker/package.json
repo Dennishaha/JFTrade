@@ -14,8 +14,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
+    "rolldown": "^1.1.3",
     "typescript": "^6.0.3",
-    "vite": "^8.1.0",
     "vitest": "^4.1.9"
   },
   "dependencies": {
