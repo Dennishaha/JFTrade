@@ -10,12 +10,12 @@
 - 发布合规材料必须按公开 `pinets` 许可证准备；商业 PineTS 授权计划已取消。
 - worker 以真实 PineTS executor 启动，未启用 mock。
 - 真实 worker 进程通过 localhost gRPC smoke，覆盖 `HealthCheck` 和 `RunScript`。
-- `scripts/build-pineworker-assets.sh` 通过 `bun build --compile` 生成目标平台 Bun SEA / 单文件 worker 二进制。
+- `npm run build:pineworker` 通过 `bun build --compile` 生成目标平台 Bun SEA / 单文件 worker 二进制。
 - `go test -tags release_assets ./internal/pineworkerassets -run Test` 通过，确认 embedded asset 选择逻辑可用。
 - `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` 后的发布产物必须存在、非空且可执行。
 - Go、worker、前端 focused test、coverage、performance gate 和 `git diff --check` 通过。
 
-当前仓库已锁定公开 `pinets@0.9.26`，真实非 mock PineTS worker 进程 smoke 已可作为放行依据；最终发布仍需跑完整 strict release gate 和发布资产构建。
+当前仓库已锁定公开 `pinets@0.9.26`，真实非 mock PineTS worker 进程 smoke 已可作为放行依据；完整 strict release gate 已可通过 `npm run check:pinets-release` 在 Windows 和 CI 风格环境中直接运行。
 
 ## 运行模式
 
@@ -35,11 +35,13 @@ go run ./cmd/jftrade-api
 发布态使用 embedded worker：
 
 ```bash
-bash scripts/build-pineworker-assets.sh
+npm run build:pineworker
 go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 ```
 
-`scripts/build-pineworker-assets.sh` 会先确认 `pinets` 包已安装并输出其 license。未安装 `pinets` 时，脚本会在调用 `bun build` 前失败。
+`npm run build:pineworker` 会先确认 `pinets` 包已安装并输出其 license。未安装 `pinets` 时，脚本会在调用 `bun build` 前失败。`scripts/build-pineworker-assets.sh` 仍保留为兼容入口，但会转发到 Node 版 builder。
+
+`npm run build:frontend-assets` 也使用 Node 入口重建 web dist、复制到 `internal/frontendassets/dist`，并调用 Go zip 工具生成 `dist.zip`；`scripts/build-frontend-assets.sh` 保留为兼容转发器。
 
 `npm run test:pineworker` 和 worker package 的 `npm test` 通过 `scripts/run-bun.mjs` 启动 Bun。该入口会依次检查 `JFTRADE_BUN_BINARY`、`PATH`、`~/.bun/bin/bun(.exe)`，以及 Windows 常见 Bun 安装目录；因此 Windows 用户安装 Bun 后即使当前 shell 的 `PATH` 尚未刷新，也可以直接运行测试。
 
@@ -91,7 +93,7 @@ npm run test:pineworker
 npm run typecheck:pineworker
 npm run build:frontend-assets
 go test -tags release_assets ./internal/frontendassets -run TestFileSystem
-bash scripts/build-pineworker-assets.sh
+npm run build:pineworker
 go test -tags release_assets ./internal/pineworkerassets -run Test
 go test ./pkg/strategy/pineworker -run Test -cover
 go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem
@@ -111,7 +113,7 @@ npm run check:pinets-release
 迁移阶段如果 `pinets` 包缺失导致 strict release 被阻塞，可以使用：
 
 ```bash
-bash scripts/check-pinets-release.sh --allow-blocked
+npm run check:pinets-release -- --allow-blocked
 ```
 
 发布脚本自身的阻塞/放行分支可以用 stub 测试验证：

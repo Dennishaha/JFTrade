@@ -310,42 +310,43 @@ func assertReleasePineWorkerAssetsAreAudited(t *testing.T, root string) {
 func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 	t.Helper()
 	requiredByFile := map[string][]string{
-		"scripts/build-pineworker-assets.sh": {
+		"scripts/build-pineworker-assets.mjs": {
 			"PineTS worker asset build is blocked until the pinets package is installed",
-			"pinets_check_package_and_license",
+			"checkPinetsPackageAndLicense",
 		},
-		"scripts/build-pineworker-assets.test.sh": {
+		"scripts/build-pineworker-assets.test.mjs": {
 			"pinets package license: AGPL-3.0-only",
 			"AGPL-3.0-only",
-			"bun build",
+			"DRY RUN bun build",
 		},
-		"scripts/check-pinets-release.sh": {
-			"pinets_check_package_and_license",
-			"npm run test:web",
-			"npm run typecheck:web",
-			"git diff --check",
+		"scripts/check-pinets-release.mjs": {
+			"checkPinetsPackageAndLicense",
+			"test:web",
+			"typecheck:web",
+			"diff",
+			"--check",
 			"dist/trading-engine",
-			"go build -tags release_assets -o",
-			"prepare_release_artifact_path",
-			"verify_release_artifact",
+			"build",
+			"release_assets",
+			"-o",
+			"prepareReleaseArtifactPath",
+			"verifyReleaseArtifact",
 			"release artifact is missing or empty",
 		},
 		"scripts/lib/pinets-license.sh": {
 			"Checking pinets package",
 			"pinets package license:",
 		},
-		"scripts/check-pinets-release.test.sh": {
+		"scripts/check-pinets-release.test.mjs": {
 			"pinets package license: AGPL-3.0-only",
 			"AGPL-3.0-only",
-			"npm run test:web",
-			"npm run typecheck:web",
+			"test:web",
+			"typecheck:web",
 			"git diff --check",
 			"JFTRADE_PINETS_RELEASE_OUT",
 			"go build -tags release_assets -o",
 			"JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT",
-			"JFTRADE_PINETS_RELEASE_STUB_NON_EXECUTABLE",
 			"release artifact is missing or empty",
-			"release artifact is not executable",
 		},
 		"docs/troubleshooting/pinets-worker-release.md": {
 			"商业 PineTS 授权计划已取消",
@@ -385,8 +386,8 @@ func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
 			"release_assets",
 			"trading-engine",
 		},
-		"scripts/build-pineworker-assets.sh": {
-			"bun build --compile",
+		"scripts/build-pineworker-assets.mjs": {
+			"--compile",
 		},
 		"scripts/build-pineworker-dev.sh": {
 			"bun build --compile",

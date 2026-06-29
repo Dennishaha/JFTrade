@@ -25,8 +25,8 @@
 | 6. Backtest integration | Done | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` defaults to the Pine worker path and API startup injects a configured `WorkerManager` from `JFTRADE_PINEWORKER_BINARY`. Missing worker config now fails fast instead of falling back to Go runtime. |
 | 7. Live integration | Done | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, records runtime observation/errors, and does not fall back to Go Pine runtime. |
 | 8. Hard removal | Done | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. |
-| 9. Packaging | In progress | `pinets@0.9.26` is installed as a worker dependency, `scripts/build-pineworker-assets.sh` checks that `pinets` is visible before building platform Bun SEA / single-file executable workers with `bun build --compile` into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Mock and real non-mock PineTS process smoke pass through real gRPC. Full strict release asset packaging remains the next gate. |
-| 10. Acceptance | Pending release gate | Focused Go/web/worker tests, mock worker process smoke, coverage, performance gate, file-size checks, and web typecheck pass. `scripts/check-pinets-release.sh` automates the release gates and runs `TestWorkerManagerRealPineTSProcessSmoke` in strict mode once `pinets` is installed. Final release acceptance still depends on the strict release asset build and `release_assets` verification completing in the target build environment. |
+| 9. Packaging | Done | `pinets@0.9.26` is installed as a worker dependency, `npm run build:pineworker` checks that `pinets` is visible before building platform Bun SEA / single-file executable workers with `bun build --compile` into `internal/pineworkerassets/assets/bin`; Go selects the matching embedded asset under `release_assets` and falls back to external env config in development. Mock and real non-mock PineTS process smoke pass through real gRPC. |
+| 10. Acceptance | Done | `npm run check:pinets-release` passes on Windows with public AGPL `pinets`, focused Go/web/worker tests, web typecheck, worker typecheck, frontend asset build, Pineworker asset build, `release_assets` tests, real PineTS process smoke, whitespace gate, and `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api`. |
 
 ## Runtime Boundary
 
@@ -65,7 +65,7 @@ The Bun worker slice lives under `workers/pineworker` and now depends directly o
 - Adapter normalization currently covers plots, outputs, logs, warnings, diagnostics, metadata, and normalized order intents.
 - `startWorkerGrpcServer` uses `@grpc/grpc-js` and `@grpc/proto-loader`, registers health/analyze/run handlers, and enforces gRPC send/receive message limits.
 - `DeterministicPineTSExecutor` exists only for fast contract tests; it must not become a production fallback.
-- `scripts/check-pinets-release.sh` runs the PineTS release acceptance gates and treats a missing `pinets` workspace dependency as a release blocker.
+- `npm run check:pinets-release` runs the PineTS release acceptance gates and treats a missing `pinets` workspace dependency as a release blocker.
 
 ## Contract Shape
 
@@ -104,7 +104,7 @@ The Go contract layer starts in `pkg/strategy/pineworker` and later maps 1:1 to 
 
 The release packaging direction is Bun SEA / Bun single-file executable workers plus one embedded Go release binary.
 
-- `scripts/build-pineworker-assets.sh` compiles one worker executable per target platform with `bun build --compile --target=...`.
+- `npm run build:pineworker` compiles one worker executable per target platform with `bun build --compile --target=...`.
 - Generated worker executables are staged under `internal/pineworkerassets/assets/bin` and embedded only for `release_assets` builds.
 - `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` produces the single published `trading-engine` binary.
 - At runtime, Go extracts the matching embedded worker executable to a temporary directory, verifies SHA256, starts a fixed localhost gRPC worker pool, and removes the temp executable on shutdown.
@@ -442,3 +442,5 @@ Hard-cut means:
 | 2026-06-29 | Added configurable PineTS worker limit | Pass; `settings.pineWorker.workerLimit` defaults to CPU count, accepts 1..1000, remains overrideable by `JFTRADE_PINEWORKER_WORKERS`, and the server now lazily starts workers and closes idle pools |
 | 2026-06-29 | Hardened real PineTS process smoke startup | Pass; smoke now detects hoisted `pinets`, finds the standard Windows Bun install when PATH is stale, decouples worker process lifetime from startup context cancellation, keeps the Bun gRPC server alive until SIGINT/SIGTERM, normalizes non-finite plot values before Go payload sizing, and passes `JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -count=1 -v`. |
 | 2026-06-29 | Added portable Bun launcher for worker tests | Pass; `npm run test:pineworker`, worker package `npm test`, and the real PineTS process smoke pass when Bun is installed in the standard Windows user directory but the current shell PATH has not refreshed. |
+| 2026-06-29 | Migrated release gates off Bash main paths | Pass; `npm run check:pinets-release` now runs through Node on Windows, `npm run build:pineworker` builds all Bun SEA worker targets, `npm run build:frontend-assets` rebuilds embedded web assets, and shell scripts remain as compatibility forwarders. |
+| 2026-06-29 | `npm run check:pinets-release` | Pass; strict release gate completed with public `pinets@0.9.26` / `AGPL-3.0-only`, 76 web test files / 399 web tests, worker tests/typecheck, frontend and Pineworker `release_assets` tests, real PineTS process smoke, `git diff --check`, and `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api`. |
