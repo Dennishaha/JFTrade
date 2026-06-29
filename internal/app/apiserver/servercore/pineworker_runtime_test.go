@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -25,7 +24,8 @@ func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 	t.Setenv(envPineWorkerBundle, binaryPath)
 	t.Setenv(envPineWorkerRuntime, "custom-node")
 	t.Setenv(envPineWorkerSHA256, "abc123")
-	t.Setenv(envPineWorkerWorkers, "3")
+	t.Setenv(envPineWorkerBacktestWorkers, "3")
+	t.Setenv(envPineWorkerInstanceWorkers, "7")
 	t.Setenv(envPineWorkerHost, "localhost")
 	t.Setenv(envPineWorkerStartPort, "55001")
 	t.Setenv(envPineWorkerTempDir, t.TempDir())
@@ -48,7 +48,7 @@ func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 	if !enabled {
 		t.Fatal("resolvePineWorkerRuntimeConfig enabled = false, want true")
 	}
-	if config.BundlePath != binaryPath || config.SHA256 != "abc123" || config.Workers != 3 {
+	if config.BundlePath != binaryPath || config.SHA256 != "abc123" || config.BacktestWorkers != 3 || config.InstanceWorkers != 7 {
 		t.Fatalf("unexpected identity config: %#v", config)
 	}
 	if config.RuntimePath != "custom-node" {
@@ -91,15 +91,8 @@ func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) 
 	if config.WorkDir == "" || !filepath.IsAbs(config.WorkDir) {
 		t.Fatalf("WorkDir = %q, want absolute worker cwd", config.WorkDir)
 	}
-	wantWorkers := runtime.NumCPU()
-	if wantWorkers < 1 {
-		wantWorkers = 1
-	}
-	if wantWorkers > 1000 {
-		wantWorkers = 1000
-	}
-	if config.Workers != wantWorkers {
-		t.Fatalf("Workers = %d, want default CPU worker limit %d", config.Workers, wantWorkers)
+	if config.BacktestWorkers != 2 || config.InstanceWorkers != 10 {
+		t.Fatalf("worker defaults = backtest %d instance %d, want 2/10", config.BacktestWorkers, config.InstanceWorkers)
 	}
 }
 
@@ -149,34 +142,35 @@ func TestFindPineWorkerRepoRootFromNestedWorkerPath(t *testing.T) {
 	}
 }
 
-func TestResolvePineWorkerRuntimeConfigUsesSettingsWorkerLimit(t *testing.T) {
+func TestResolvePineWorkerRuntimeConfigUsesSettingsWorkerLimits(t *testing.T) {
 	binaryPath := filepath.Join(t.TempDir(), "worker")
 	t.Setenv(envPineWorkerBundle, binaryPath)
 
 	config, enabled, err := resolvePineWorkerRuntimeConfig(func() PineWorkerSettings {
-		return PineWorkerSettings{WorkerLimit: 4}
+		return PineWorkerSettings{BacktestWorkerLimit: 4, InstanceWorkerLimit: 9}
 	})
 	if err != nil {
 		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
 	}
-	if !enabled || config.Workers != 4 {
-		t.Fatalf("enabled=%v Workers=%d, want settings worker limit 4", enabled, config.Workers)
+	if !enabled || config.BacktestWorkers != 4 || config.InstanceWorkers != 9 {
+		t.Fatalf("enabled=%v backtest=%d instance=%d, want settings worker limits 4/9", enabled, config.BacktestWorkers, config.InstanceWorkers)
 	}
 }
 
-func TestResolvePineWorkerRuntimeConfigEnvOverridesSettingsWorkerLimit(t *testing.T) {
+func TestResolvePineWorkerRuntimeConfigEnvOverridesSettingsWorkerLimits(t *testing.T) {
 	binaryPath := filepath.Join(t.TempDir(), "worker")
 	t.Setenv(envPineWorkerBundle, binaryPath)
-	t.Setenv(envPineWorkerWorkers, "5")
+	t.Setenv(envPineWorkerBacktestWorkers, "5")
+	t.Setenv(envPineWorkerInstanceWorkers, "11")
 
 	config, enabled, err := resolvePineWorkerRuntimeConfig(func() PineWorkerSettings {
-		return PineWorkerSettings{WorkerLimit: 2}
+		return PineWorkerSettings{BacktestWorkerLimit: 2, InstanceWorkerLimit: 3}
 	})
 	if err != nil {
 		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
 	}
-	if !enabled || config.Workers != 5 {
-		t.Fatalf("enabled=%v Workers=%d, want env worker limit 5", enabled, config.Workers)
+	if !enabled || config.BacktestWorkers != 5 || config.InstanceWorkers != 11 {
+		t.Fatalf("enabled=%v backtest=%d instance=%d, want env worker limits 5/11", enabled, config.BacktestWorkers, config.InstanceWorkers)
 	}
 }
 
@@ -233,7 +227,7 @@ func TestResolvePineWorkerRuntimeConfigPrefersExternalBinaryOverEmbeddedAsset(t 
 
 func TestResolvePineWorkerRuntimeConfigRejectsInvalidNumericEnv(t *testing.T) {
 	t.Setenv(envPineWorkerBundle, "/tmp/worker.mjs")
-	t.Setenv(envPineWorkerWorkers, "0")
+	t.Setenv(envPineWorkerBacktestWorkers, "0")
 	_, enabled, err := resolvePineWorkerRuntimeConfig(nil)
 	if err == nil || !strings.Contains(err.Error(), "between 1 and 1000") {
 		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v, want workers range validation", err)
@@ -249,7 +243,8 @@ func TestServerStartsConfiguredPineWorkerManagerAndStopsOnClose(t *testing.T) {
 		t.Fatalf("write worker: %v", err)
 	}
 	t.Setenv(envPineWorkerBundle, binaryPath)
-	t.Setenv(envPineWorkerWorkers, "2")
+	t.Setenv(envPineWorkerBacktestWorkers, "2")
+	t.Setenv(envPineWorkerInstanceWorkers, "3")
 	t.Setenv(envPineWorkerStartPort, "56001")
 
 	launcher := &fakeServerPineWorkerLauncher{}
@@ -261,20 +256,29 @@ func TestServerStartsConfiguredPineWorkerManagerAndStopsOnClose(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if server.pineWorkerRunner == nil {
-		t.Fatal("pineWorkerRunner = nil, want configured runner")
+	if server.backtestPineWorkerRunner == nil || server.instancePineWorkerRunner == nil {
+		t.Fatalf("pine worker runners = backtest %#v instance %#v, want both configured", server.backtestPineWorkerRunner, server.instancePineWorkerRunner)
 	}
 	if launcher.startedCount() != 0 {
 		t.Fatalf("started workers = %d before use, want lazy start", launcher.startedCount())
 	}
-	if _, err := server.pineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("lazy-start")); err != nil {
-		t.Fatalf("RunScript: %v", err)
+	if _, err := server.backtestPineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("lazy-backtest")); err != nil {
+		t.Fatalf("backtest RunScript: %v", err)
 	}
 	if launcher.startedCount() != 2 {
-		t.Fatalf("started workers = %d, want 2", launcher.startedCount())
+		t.Fatalf("started workers after backtest = %d, want 2", launcher.startedCount())
 	}
 	if _, ok := dialer.transport("127.0.0.1:56001"); !ok {
 		t.Fatalf("expected first worker transport, got %#v", dialer.addresses())
+	}
+	if _, err := server.instancePineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("lazy-instance")); err != nil {
+		t.Fatalf("instance RunScript: %v", err)
+	}
+	if launcher.startedCount() != 5 {
+		t.Fatalf("started workers after instance = %d, want 5", launcher.startedCount())
+	}
+	if _, ok := dialer.transport("127.0.0.1:56003"); !ok {
+		t.Fatalf("expected first instance worker transport, got %#v", dialer.addresses())
 	}
 }
 
@@ -284,7 +288,8 @@ func TestServerStartsEmbeddedPineWorkerManager(t *testing.T) {
 		Data:   []byte("embedded worker"),
 		SHA256: "embedded-sha",
 	}, true, nil)
-	t.Setenv(envPineWorkerWorkers, "1")
+	t.Setenv(envPineWorkerBacktestWorkers, "1")
+	t.Setenv(envPineWorkerInstanceWorkers, "1")
 	t.Setenv(envPineWorkerStartPort, "57001")
 
 	launcher := &fakeServerPineWorkerLauncher{}
@@ -296,13 +301,13 @@ func TestServerStartsEmbeddedPineWorkerManager(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if server.pineWorkerRunner == nil {
-		t.Fatal("pineWorkerRunner = nil, want embedded runner")
+	if server.backtestPineWorkerRunner == nil || server.instancePineWorkerRunner == nil {
+		t.Fatalf("pine worker runners = backtest %#v instance %#v, want embedded runners", server.backtestPineWorkerRunner, server.instancePineWorkerRunner)
 	}
 	if launcher.startedCount() != 0 {
 		t.Fatalf("started workers = %d before use, want lazy start", launcher.startedCount())
 	}
-	if _, err := server.pineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("embedded-lazy-start")); err != nil {
+	if _, err := server.backtestPineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("embedded-lazy-start")); err != nil {
 		t.Fatalf("RunScript: %v", err)
 	}
 	if launcher.startedCount() != 1 {
@@ -325,8 +330,8 @@ func TestServerBacktestDoesNotFallbackToGoRuntimeWithoutPineWorker(t *testing.T)
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if server.pineWorkerRunner != nil {
-		t.Fatal("pineWorkerRunner != nil without worker binary")
+	if server.backtestPineWorkerRunner != nil || server.instancePineWorkerRunner != nil {
+		t.Fatalf("pine worker runners = backtest %#v instance %#v without worker binary", server.backtestPineWorkerRunner, server.instancePineWorkerRunner)
 	}
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "pinets-required",
@@ -367,18 +372,19 @@ func TestLazyPineWorkerRunnerStopsIdleWorkers(t *testing.T) {
 
 	manager, err := newPineWorkerManagerFromConfig(pineWorkerRuntimeConfig{
 		BundlePath:      binaryPath,
-		Workers:         1,
+		BacktestWorkers: 1,
+		InstanceWorkers: 1,
 		Host:            "127.0.0.1",
 		StartPort:       58001,
 		RequestTimeout:  time.Second,
 		HealthTimeout:   100 * time.Millisecond,
 		MaxMessageBytes: 1024 * 1024,
 		MaxCandles:      1000,
-	})
+	}, pineWorkerPoolBacktest)
 	if err != nil {
 		t.Fatalf("newPineWorkerManagerFromConfig: %v", err)
 	}
-	runner := newLazyPineWorkerRunner(pineWorkerRuntimeConfig{Workers: 1}, manager, 10*time.Millisecond)
+	runner := newLazyPineWorkerRunner(pineWorkerRuntimeConfig{BacktestWorkers: 1, InstanceWorkers: 1}, manager, 10*time.Millisecond)
 	if _, err := runner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("idle")); err != nil {
 		t.Fatalf("RunScript: %v", err)
 	}

@@ -17,6 +17,18 @@ export interface AdministratorSession {
 
 let csrfToken = "";
 
+export class ApiClientError extends Error {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(message: string, code: string, status: number) {
+    super(message);
+    this.name = "ApiClientError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
 export function setCSRFToken(value: string): void {
   csrfToken = value;
 }
@@ -56,11 +68,10 @@ async function parseEnvelope<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    const message =
-      body != null && !body.ok
-        ? body.error.message
-        : `${response.status} ${response.statusText}`;
-    throw new Error(message);
+    if (body != null && !body.ok) {
+      throw new ApiClientError(body.error.message, body.error.code, response.status);
+    }
+    throw new Error(`${response.status} ${response.statusText}`);
   }
 
   if (body == null) {
@@ -68,7 +79,7 @@ async function parseEnvelope<T>(response: Response): Promise<T> {
   }
 
   if (!body.ok) {
-    throw new Error(body.error.message || "Unknown API error");
+    throw new ApiClientError(body.error.message || "Unknown API error", body.error.code, response.status);
   }
 
   return body.data;

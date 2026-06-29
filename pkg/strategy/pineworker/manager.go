@@ -2,10 +2,28 @@ package pineworker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 )
+
+var ErrCapacityExceeded = errors.New("pine worker capacity exceeded")
+
+type CapacityExceededError struct {
+	Workers int
+}
+
+func (e CapacityExceededError) Error() string {
+	if e.Workers > 0 {
+		return fmt.Sprintf("pine worker capacity exceeded: %d workers are busy", e.Workers)
+	}
+	return ErrCapacityExceeded.Error()
+}
+
+func (e CapacityExceededError) Is(target error) bool {
+	return target == ErrCapacityExceeded
+}
 
 type WorkerSpec struct {
 	WorkerID string
@@ -32,12 +50,14 @@ type TransportDialer interface {
 }
 
 type ManagerConfig struct {
-	Workers       int
-	Host          string
-	StartPort     int
-	HealthTimeout time.Duration
-	WorkerConfig  WorkerConfig
-	Gate          PerformanceGate
+	Workers        int
+	WorkerIDPrefix string
+	Host           string
+	StartPort      int
+	HealthTimeout  time.Duration
+	WorkerConfig   WorkerConfig
+	Gate           PerformanceGate
+	RejectWhenBusy bool
 }
 
 type WorkerSnapshot struct {
@@ -59,6 +79,7 @@ type WorkerManager struct {
 	dialer   TransportDialer
 	workers  []*managedWorker
 	next     int
+	busy     chan struct{}
 }
 
 func NewWorkerManager(config ManagerConfig, launcher WorkerLauncher, dialer TransportDialer) (*WorkerManager, error) {
@@ -70,6 +91,9 @@ func NewWorkerManager(config ManagerConfig, launcher WorkerLauncher, dialer Tran
 	}
 	if config.StartPort <= 0 {
 		config.StartPort = 50051
+	}
+	if config.WorkerIDPrefix == "" {
+		config.WorkerIDPrefix = "pineworker"
 	}
 	if config.HealthTimeout <= 0 {
 		config.HealthTimeout = 5 * time.Second
@@ -83,7 +107,7 @@ func NewWorkerManager(config ManagerConfig, launcher WorkerLauncher, dialer Tran
 	if dialer == nil {
 		return nil, fmt.Errorf("pine worker dialer is required")
 	}
-	return &WorkerManager{config: config, launcher: launcher, dialer: dialer}, nil
+	return &WorkerManager{config: config, launcher: launcher, dialer: dialer, busy: make(chan struct{}, config.Workers)}, nil
 }
 
 func (manager *WorkerManager) Start(ctx context.Context) error {
@@ -110,11 +134,52 @@ func (manager *WorkerManager) Stop(ctx context.Context) error {
 }
 
 func (manager *WorkerManager) RunScript(ctx context.Context, request RunScriptRequest) (RunScriptResponse, error) {
+	if err := manager.ensureStarted(); err != nil {
+		return RunScriptResponse{}, err
+	}
+	if err := manager.acquireRunSlot(ctx); err != nil {
+		return RunScriptResponse{}, err
+	}
+	defer manager.releaseRunSlot()
+
 	worker, err := manager.pickWorker()
 	if err != nil {
 		return RunScriptResponse{}, err
 	}
 	return worker.client.RunScript(ctx, request)
+}
+
+func (manager *WorkerManager) ensureStarted() error {
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	if len(manager.workers) == 0 {
+		return fmt.Errorf("pine worker manager is not started")
+	}
+	return nil
+}
+
+func (manager *WorkerManager) acquireRunSlot(ctx context.Context) error {
+	if manager.config.RejectWhenBusy {
+		select {
+		case manager.busy <- struct{}{}:
+			return nil
+		default:
+			return CapacityExceededError{Workers: cap(manager.busy)}
+		}
+	}
+	select {
+	case manager.busy <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (manager *WorkerManager) releaseRunSlot() {
+	select {
+	case <-manager.busy:
+	default:
+	}
 }
 
 func (manager *WorkerManager) CheckHealth(ctx context.Context) error {
@@ -165,7 +230,7 @@ func (manager *WorkerManager) Snapshot() []WorkerSnapshot {
 
 func (manager *WorkerManager) startWorkerLocked(ctx context.Context, index int, restarts int) (*managedWorker, error) {
 	spec := WorkerSpec{
-		WorkerID: fmt.Sprintf("pineworker-%d", index+1),
+		WorkerID: fmt.Sprintf("%s-%d", manager.config.WorkerIDPrefix, index+1),
 		Port:     manager.config.StartPort + index,
 	}
 	spec.Address = fmt.Sprintf("%s:%d", manager.config.Host, spec.Port)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -29,7 +30,7 @@ func TestGRPCTransportRunScriptAndHealthCheck(t *testing.T) {
 
 	conn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 		return listener.DialContext(ctx)
-	}), grpc.WithInsecure())
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}

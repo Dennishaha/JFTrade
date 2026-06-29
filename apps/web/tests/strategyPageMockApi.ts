@@ -89,6 +89,7 @@ type BuildFetchMockOptions = {
       at: string;
     }>
   >;
+  lifecycleErrorByAction?: Partial<Record<"start" | "pause" | "stop", { message: string; code?: string; status?: number }>>;
 }
 
 export function buildFetchMock(options: BuildFetchMockOptions) {
@@ -133,14 +134,14 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
     }
   }
 
-  function createErrorResponse(message: string, status = 400): Response {
+  function createErrorResponse(message: string, status = 400, code = "BAD_REQUEST"): Response {
     return {
       ok: false,
       status,
       json: async () => ({
         ok: false,
         error: {
-          code: "BAD_REQUEST",
+          code,
           message,
         },
         timestamp: mutationTimestamp,
@@ -881,6 +882,14 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
     if (lifecycleMatch && method === "POST") {
       const instanceId = decodeURIComponent(lifecycleMatch[1])
       const action = lifecycleMatch[2]
+      const lifecycleError = options.lifecycleErrorByAction?.[action as "start" | "pause" | "stop"]
+      if (lifecycleError !== undefined) {
+        return createErrorResponse(
+          lifecycleError.message,
+          lifecycleError.status ?? 400,
+          lifecycleError.code ?? "BAD_REQUEST",
+        )
+      }
       const instance = runtimeState.strategies.find((item) => item.id === instanceId)
       if (instance === undefined) {
         throw new Error(`Unknown strategy instance: ${instanceId}`)

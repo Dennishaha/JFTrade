@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 func TestStrategyRuntimeNotifyOnlyEmitsSignalNotification(t *testing.T) {
@@ -108,6 +111,53 @@ func TestStrategyRuntimeStartEnsuresMissingMarketMetadata(t *testing.T) {
 	}
 	if _, ok := stub.markets["US.TME"]; !ok {
 		t.Fatalf("expected EnsureMarket to inject US.TME into market map")
+	}
+}
+
+func TestStrategyRuntimeStartRejectsWhenInstanceWorkerLimitReached(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	if _, err := store.SavePineWorkerSettings(jfsettings.PineWorkerSettings{BacktestWorkerLimit: 2, InstanceWorkerLimit: 1}); err != nil {
+		t.Fatalf("SavePineWorkerSettings: %v", err)
+	}
+	server := newTestServer(t, store)
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return newStrategyRuntimeStubExchange() }
+	useFakeStrategyRuntimePineWorker(server, newFakeStrategyRuntimePineWorker())
+
+	firstID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeNotifyOnly,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	firstRecord, ok := server.strategyStore.strategy(firstID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", firstID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), firstRecord); err != nil {
+		t.Fatalf("first startStrategy: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(firstID)
+
+	secondID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.MSFT"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeNotifyOnly,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	secondRecord, ok := server.strategyStore.strategy(secondID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", secondID)
+	}
+	err = server.strategyRuntimeManager.startStrategy(context.Background(), secondRecord)
+	if !errors.Is(err, pineworker.ErrCapacityExceeded) {
+		t.Fatalf("second startStrategy error = %v, want ErrCapacityExceeded", err)
+	}
+	var capacityErr pineworker.CapacityExceededError
+	if !errors.As(err, &capacityErr) || capacityErr.Workers != 1 {
+		t.Fatalf("second startStrategy capacity error = %#v, want workers=1", err)
 	}
 }
 

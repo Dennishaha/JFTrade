@@ -11,29 +11,30 @@ afterEach(() => {
 });
 
 describe("SettingsPineWorkerSection", () => {
-  it("loads and saves the PineTS worker limit", async () => {
+  it("loads and saves separate PineTS worker limits", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       expect(url).toContain("/api/v1/settings/pine-worker");
       if (init?.method === "PUT") {
-        expect(JSON.parse(String(init.body))).toEqual({ workerLimit: 1000 });
-        return createResponse({ workerLimit: 1000 });
+        expect(JSON.parse(String(init.body))).toEqual({ backtestWorkerLimit: 1000, instanceWorkerLimit: 1 });
+        return createResponse({ backtestWorkerLimit: 1000, instanceWorkerLimit: 1 });
       }
-      return createResponse({ workerLimit: 8 });
+      return createResponse({ backtestWorkerLimit: 2, instanceWorkerLimit: 10 });
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const wrapper = mount(SettingsPineWorkerSection);
     await flushRequests();
 
-    expect(wrapper.text()).toContain("上限 8");
-    await wrapper.get("[data-testid='pine-worker-limit-input']").setValue("1200");
-    expect(wrapper.text()).toContain("当前将保存为 1000");
-    await wrapper.get("[data-testid='pine-worker-limit-save']").trigger("click");
+    expect(wrapper.text()).toContain("回测 2 / 运行 10");
+    await wrapper.get("[data-testid='pine-worker-backtest-limit-input']").setValue("1200");
+    await wrapper.get("[data-testid='pine-worker-instance-limit-input']").setValue("0");
+    expect(wrapper.text()).toContain("回测 1000，运行实例 1");
+    await wrapper.get("[data-testid='pine-worker-limits-save']").trigger("click");
     await flushRequests();
 
     expect(fetchMock.mock.calls.some((call) => call[1]?.method === "PUT")).toBe(true);
-    expect(wrapper.text()).toContain("上限 1000");
-    expect(wrapper.text()).toContain("PineTS Worker 上限已保存");
+    expect(wrapper.text()).toContain("回测 1000 / 运行 1");
+    expect(wrapper.text()).toContain("PineTS Worker 最大值已保存");
   });
 });

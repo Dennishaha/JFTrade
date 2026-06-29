@@ -108,7 +108,8 @@ export interface ADKRuntimeSettings {
 }
 
 export interface PineWorkerSettingsResponse {
-  workerLimit: number;
+  backtestWorkerLimit: number;
+  instanceWorkerLimit: number;
 }
 
 export interface ADKAgent {

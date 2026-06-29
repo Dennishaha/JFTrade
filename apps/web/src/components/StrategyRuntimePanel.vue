@@ -31,7 +31,7 @@ import type {
     StrategyRuntimeObservation,
 } from "@/contracts";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import { ApiClientError, fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import { useMarketProfiles } from "../composables/marketProfiles";
 import { useConsoleData } from "../composables/useConsoleData";
 import { formatLocalDateTime } from "../utils/dateTime";
@@ -466,6 +466,18 @@ function formatActionLabel(action: StrategyAction): string {
     }
 }
 
+function formatStrategyActionError(action: StrategyAction, error: unknown): string {
+    if (
+        action === "start"
+        && error instanceof ApiClientError
+        && error.code === "BAD_REQUEST"
+        && error.message.includes("运行实例 PineTS Worker 已达到上限")
+    ) {
+        return "运行实例 PineTS Worker 已达到上限。请停止其他运行实例，或打开“设置 > PineTS Worker”调高“运行实例 Worker 最大值”后再启动。";
+    }
+    return error instanceof Error ? error.message : `执行${formatActionLabel(action)}失败。`;
+}
+
 function clearRuntimeDetails(): void {
     strategyLogs.value = [];
     strategyAuditEntries.value = [];
@@ -838,8 +850,7 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
         );
         await loadStrategies(selectedStrategy.value.id);
     } catch (error) {
-        detailsError.value =
-            error instanceof Error ? error.message : `执行${formatActionLabel(action)}失败。`;
+        detailsError.value = formatStrategyActionError(action, error);
     } finally {
         isLoadingDetails.value = false;
     }

@@ -92,7 +92,8 @@ type Server struct {
 	strategySvc              *stratsrv.Service
 	marketdataSvc            *mdsrv.Service
 	tradingSvc               *trdsrv.Service
-	pineWorkerRunner         pineWorkerRunner
+	backtestPineWorkerRunner pineWorkerRunner
+	instancePineWorkerRunner pineWorkerRunner
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
@@ -402,9 +403,11 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 
 	// Wire backtest service — RunStore / SyncTaskStore / StrategyProvider
 	// are implemented by the same backing stores already held by Server.
-	pineWorkerRunner := server.startPineWorkerManager()
-	if pineWorkerRunner != nil && server.strategyRuntimeManager != nil {
-		server.strategyRuntimeManager.pineWorkerRunner = pineWorkerRunner
+	backtestPineWorkerRunner, instancePineWorkerRunner := server.startPineWorkerManagers()
+	server.backtestPineWorkerRunner = backtestPineWorkerRunner
+	server.instancePineWorkerRunner = instancePineWorkerRunner
+	if instancePineWorkerRunner != nil && server.strategyRuntimeManager != nil {
+		server.strategyRuntimeManager.pineWorkerRunner = instancePineWorkerRunner
 	}
 	backtestOptions := []btsrv.Option{
 		btsrv.WithRunStore(&backtestRunStoreAdapter{store: backtestRunStore}),
@@ -413,8 +416,8 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		btsrv.WithDBPathFn(func() string { return deriveBacktestDBPath() }),
 		btsrv.WithNewKLineSyncerFn(futuintegration.NewKLineSyncer),
 	}
-	if pineWorkerRunner != nil {
-		backtestOptions = append(backtestOptions, btsrv.WithPineWorkerRunner(pineWorkerRunner))
+	if backtestPineWorkerRunner != nil {
+		backtestOptions = append(backtestOptions, btsrv.WithPineWorkerRunner(backtestPineWorkerRunner))
 	}
 	server.backtestSvc = btsrv.NewService(backtestOptions...)
 
@@ -658,13 +661,18 @@ func (s *Server) Close() error {
 				errs = append(errs, fmt.Errorf("backtestSvc close: %w", err))
 			}
 		}
-		if s.pineWorkerRunner != nil {
-			if closer, ok := s.pineWorkerRunner.(interface{ Close(context.Context) error }); ok {
+		closePineWorkerRunner := func(name string, runner pineWorkerRunner) {
+			if runner == nil {
+				return
+			}
+			if closer, ok := runner.(interface{ Close(context.Context) error }); ok {
 				if err := closer.Close(context.Background()); err != nil {
-					errs = append(errs, fmt.Errorf("pineWorkerRunner close: %w", err))
+					errs = append(errs, fmt.Errorf("%s close: %w", name, err))
 				}
 			}
 		}
+		closePineWorkerRunner("backtestPineWorkerRunner", s.backtestPineWorkerRunner)
+		closePineWorkerRunner("instancePineWorkerRunner", s.instancePineWorkerRunner)
 		if s.backtestRuns != nil {
 			if err := s.backtestRuns.Close(); err != nil {
 				errs = append(errs, fmt.Errorf("backtestRuns close: %w", err))

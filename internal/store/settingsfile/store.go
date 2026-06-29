@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -579,18 +578,16 @@ func adkRuntimeSettingsPointer(value jfsettings.ADKRuntimeSettings) *jfsettings.
 }
 
 func DefaultPineWorkerSettings() jfsettings.PineWorkerSettings {
-	cpuCount := runtime.NumCPU()
-	if cpuCount < 1 {
-		cpuCount = 1
-	}
 	return jfsettings.PineWorkerSettings{
-		WorkerLimit: clampInt(cpuCount, 1, 1000),
+		BacktestWorkerLimit: 2,
+		InstanceWorkerLimit: 10,
 	}
 }
 
 func NormalizePineWorkerSettings(input jfsettings.PineWorkerSettings) jfsettings.PineWorkerSettings {
 	return jfsettings.PineWorkerSettings{
-		WorkerLimit: clampInt(input.WorkerLimit, 1, 1000),
+		BacktestWorkerLimit: clampInt(input.BacktestWorkerLimit, 1, 1000),
+		InstanceWorkerLimit: clampInt(input.InstanceWorkerLimit, 1, 1000),
 	}
 }
 

@@ -450,7 +450,8 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"build:pineworker:dev",
 			"envFile",
 			"var/pineworker/vscode.env",
-			"JFTRADE_PINEWORKER_WORKERS",
+			"JFTRADE_PINEWORKER_BACKTEST_WORKERS",
+			"JFTRADE_PINEWORKER_INSTANCE_WORKERS",
 		},
 		"internal/app/apiserver/servercore/pineworker_runtime.go": {
 			"npm run dev:api:pineworker",
@@ -458,7 +459,8 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"JFTRADE_PINEWORKER_RUNTIME",
 			"/absolute/path/to/worker.mjs",
 			"settingsfile.DefaultPineWorkerSettings",
-			"WorkerLimit",
+			"BacktestWorkerLimit",
+			"InstanceWorkerLimit",
 			"envIntInRange",
 			"1000",
 			"newLazyPineWorkerRunner",
@@ -466,13 +468,14 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 		},
 		"pkg/jftsettings/types.go": {
 			"PineWorkerSettings",
-			"workerLimit",
-			"workerCount",
+			"backtestWorkerLimit",
+			"instanceWorkerLimit",
 		},
 		"internal/store/settingsfile/store.go": {
 			"DefaultPineWorkerSettings",
-			"runtime.NumCPU",
 			"NormalizePineWorkerSettings",
+			"BacktestWorkerLimit: 2",
+			"InstanceWorkerLimit: 10",
 			"1000",
 		},
 		"internal/api/settings/routes.go": {
@@ -481,7 +484,8 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"handleSavePineWorkerSettings",
 		},
 		"apps/web/src/components/SettingsPineWorkerSection.vue": {
-			"workerLimit",
+			"backtestWorkerLimit",
+			"instanceWorkerLimit",
 			"MAX_WORKER_LIMIT = 1000",
 			"/api/v1/settings/pine-worker",
 		},

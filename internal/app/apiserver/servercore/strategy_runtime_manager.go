@@ -14,9 +14,11 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
+	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 var (
@@ -42,6 +44,7 @@ type strategyRuntimeManager struct {
 
 	mu       sync.RWMutex
 	runtimes map[string]*managedStrategyRuntime
+	starting map[string]struct{}
 }
 
 type managedStrategyRuntime struct {
@@ -100,6 +103,7 @@ func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 	manager := &strategyRuntimeManager{
 		server:   server,
 		runtimes: map[string]*managedStrategyRuntime{},
+		starting: map[string]struct{}{},
 	}
 	manager.exchangeProvider = func() strategyRuntimeExchange {
 		exchange := server.futuExchange()
@@ -112,7 +116,7 @@ func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 			broker:   activeBroker,
 		}
 	}
-	manager.pineWorkerRunner = server.pineWorkerRunner
+	manager.pineWorkerRunner = server.instancePineWorkerRunner
 	return manager
 }
 
@@ -154,6 +158,12 @@ func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance man
 		return fmt.Errorf("strategy instance is already running")
 	}
 	m.mu.Unlock()
+
+	releaseStartReservation, err := m.reserveRuntimeStart(instance.ID)
+	if err != nil {
+		return err
+	}
+	defer releaseStartReservation()
 
 	exchange := m.exchangeProvider()
 	if exchange == nil {
@@ -212,6 +222,33 @@ func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance man
 		m.server.marketdataSvc.WakeCollector()
 	}
 	return nil
+}
+
+func (m *strategyRuntimeManager) reserveRuntimeStart(instanceID string) (func(), error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, exists := m.runtimes[instanceID]; exists {
+		return nil, fmt.Errorf("strategy instance is already running")
+	}
+	if _, exists := m.starting[instanceID]; exists {
+		return nil, fmt.Errorf("strategy instance is already starting")
+	}
+	if m.starting == nil {
+		m.starting = map[string]struct{}{}
+	}
+	limit := settingsfile.DefaultPineWorkerSettings().InstanceWorkerLimit
+	if m.server != nil {
+		limit = settingsfile.NormalizePineWorkerSettings(m.server.pineWorkerSettings()).InstanceWorkerLimit
+	}
+	if len(m.runtimes)+len(m.starting) >= limit {
+		return nil, pineworker.CapacityExceededError{Workers: limit}
+	}
+	m.starting[instanceID] = struct{}{}
+	return func() {
+		m.mu.Lock()
+		delete(m.starting, instanceID)
+		m.mu.Unlock()
+	}, nil
 }
 
 func (m *strategyRuntimeManager) stopStrategy(instanceID string) {
@@ -1143,24 +1180,6 @@ func strategyRuntimeMaxInt(left int, right int) int {
 		return left
 	}
 	return right
-}
-
-func strategyRuntimeWarmupUntil(klines []bbgotypes.KLine, interval bbgotypes.Interval) time.Time {
-	for index := len(klines) - 1; index >= 0; index-- {
-		kline := klines[index]
-		if !kline.Closed {
-			currentStart := kline.StartTime.Time().UTC()
-			if !currentStart.IsZero() {
-				return currentStart
-			}
-			continue
-		}
-		closedStart := kline.StartTime.Time().UTC()
-		if !closedStart.IsZero() {
-			return closedStart.Add(interval.Duration())
-		}
-	}
-	return time.Time{}
 }
 
 func strategyRuntimeOptionalString(value string) *string {

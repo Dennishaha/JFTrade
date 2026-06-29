@@ -114,26 +114,36 @@ func TestSaveAppearanceAndADKSettingsPersistNormalizedValues(t *testing.T) {
 	}
 }
 
-func TestSavePineWorkerSettingsPersistsNormalizedWorkerLimit(t *testing.T) {
+func TestSavePineWorkerSettingsPersistsNormalizedWorkerLimits(t *testing.T) {
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
 	store, err := New(settingsPath)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 
-	saved, err := store.SavePineWorkerSettings(jfsettings.PineWorkerSettings{WorkerLimit: 2000})
+	if got, want := store.PineWorkerSettings(), (jfsettings.PineWorkerSettings{BacktestWorkerLimit: 2, InstanceWorkerLimit: 10}); got != want {
+		t.Fatalf("default pine worker settings = %#v, want %#v", got, want)
+	}
+
+	saved, err := store.SavePineWorkerSettings(jfsettings.PineWorkerSettings{
+		BacktestWorkerLimit: 2000,
+		InstanceWorkerLimit: 1500,
+	})
 	if err != nil {
 		t.Fatalf("SavePineWorkerSettings: %v", err)
 	}
-	if want := (jfsettings.PineWorkerSettings{WorkerLimit: 1000}); saved != want {
+	if want := (jfsettings.PineWorkerSettings{BacktestWorkerLimit: 1000, InstanceWorkerLimit: 1000}); saved != want {
 		t.Fatalf("pine worker settings = %#v, want %#v", saved, want)
 	}
 
-	saved, err = store.SavePineWorkerSettings(jfsettings.PineWorkerSettings{WorkerLimit: -1})
+	saved, err = store.SavePineWorkerSettings(jfsettings.PineWorkerSettings{
+		BacktestWorkerLimit: -1,
+		InstanceWorkerLimit: 0,
+	})
 	if err != nil {
 		t.Fatalf("SavePineWorkerSettings min: %v", err)
 	}
-	if want := (jfsettings.PineWorkerSettings{WorkerLimit: 1}); saved != want {
+	if want := (jfsettings.PineWorkerSettings{BacktestWorkerLimit: 1, InstanceWorkerLimit: 1}); saved != want {
 		t.Fatalf("pine worker min settings = %#v, want %#v", saved, want)
 	}
 
@@ -143,20 +153,6 @@ func TestSavePineWorkerSettingsPersistsNormalizedWorkerLimit(t *testing.T) {
 	}
 	if got := reloaded.PineWorkerSettings(); got != saved {
 		t.Fatalf("reloaded pine worker settings = %#v, want %#v", got, saved)
-	}
-}
-
-func TestPineWorkerSettingsLoadsLegacyWorkerCount(t *testing.T) {
-	settingsPath := filepath.Join(t.TempDir(), "settings.json")
-	if err := os.WriteFile(settingsPath, []byte(`{"pineWorker":{"workerCount":7}}`), 0o644); err != nil {
-		t.Fatalf("write settings: %v", err)
-	}
-	store, err := New(settingsPath)
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-	if got := store.PineWorkerSettings(); got.WorkerLimit != 7 {
-		t.Fatalf("PineWorkerSettings = %#v, want legacy workerCount migrated to workerLimit 7", got)
 	}
 }
 
