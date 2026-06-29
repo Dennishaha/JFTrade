@@ -27,7 +27,9 @@ try {
   });
   assert(pass.status === 0, `worker asset build failed: ${pass.stderr || pass.stdout}`);
   assert(pass.stdout.includes("pinets package license: AGPL-3.0-only"), "pinets package license was not reported");
-  assert((pass.stdout.match(/DRY RUN bun build/g) ?? []).length === 6, "worker asset build did not cover all Bun targets");
+  assert((pass.stdout.match(/DRY RUN bun build/g) ?? []).length === 1, "worker asset build did not produce one platform-independent Bun bundle");
+  assert(pass.stdout.includes("--target=bun"), "worker asset build did not target the Bun runtime");
+  assert(!pass.stdout.includes("--compile"), "worker asset build still uses Bun standalone executable compilation");
   assert(existsSync(join(outDir, ".gitkeep")), ".gitkeep should be preserved");
   assert(!existsSync(join(outDir, "stale-worker")), "stale worker artifact should be deleted");
 } finally {

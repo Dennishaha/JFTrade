@@ -24,23 +24,24 @@ func TestRealPineTSBacktestSmoke(t *testing.T) {
 	isolateBacktestHome(t)
 
 	root := backtestSmokeRepoRoot(t)
-	workerPath := strings.TrimSpace(os.Getenv("JFTRADE_PINEWORKER_BINARY"))
+	workerPath := strings.TrimSpace(os.Getenv("JFTRADE_PINEWORKER_BUNDLE"))
 	if workerPath == "" {
-		t.Fatal("JFTRADE_PINEWORKER_BINARY is required for real PineTS backtest smoke")
+		t.Fatal("JFTRADE_PINEWORKER_BUNDLE is required for real PineTS backtest smoke")
 	}
-	binaryData, err := os.ReadFile(workerPath)
+	bundleData, err := os.ReadFile(workerPath)
 	if err != nil {
 		t.Fatalf("read worker binary: %v", err)
 	}
-	sum := sha256.Sum256(binaryData)
+	sum := sha256.Sum256(bundleData)
 	stdout := pineworker.NewTailBuffer(8192)
 	stderr := pineworker.NewTailBuffer(8192)
-	launcher, err := pineworker.NewBinaryWorkerLauncher(pineworker.BinaryWorkerLauncherConfig{
-		Binary: pineworker.WorkerBinary{
+	launcher, err := pineworker.NewBunWorkerLauncher(pineworker.BunWorkerLauncherConfig{
+		Bundle: pineworker.WorkerBundle{
 			Name:   filepath.Base(workerPath),
-			Data:   binaryData,
+			Data:   bundleData,
 			SHA256: hex.EncodeToString(sum[:]),
 		},
+		RuntimePath:     firstNonEmptyString(strings.TrimSpace(os.Getenv("JFTRADE_PINEWORKER_RUNTIME")), "bun"),
 		WorkDir:         root,
 		ProtoPath:       filepath.Join(root, "pkg", "strategy", "pineworker", "proto", "pineworker.proto"),
 		MaxMessageBytes: 64 * 1024 * 1024,
@@ -50,7 +51,7 @@ func TestRealPineTSBacktestSmoke(t *testing.T) {
 		Stderr:          stderr,
 	})
 	if err != nil {
-		t.Fatalf("NewBinaryWorkerLauncher: %v", err)
+		t.Fatalf("NewBunWorkerLauncher: %v", err)
 	}
 
 	workerConfig := pineworker.DefaultWorkerConfig(1)
@@ -121,6 +122,15 @@ func TestRealPineTSBacktestSmoke(t *testing.T) {
 		t.Fatalf("missing replay result series: candles=%d pnl=%d", len(result.Candles), len(result.PnLCurve))
 	}
 	t.Logf("PineTS backtest smoke passed: trades=%d orders=%d candles=%d finalBalance=%.2f", result.TotalTrades, len(result.OrderBook), len(result.Candles), result.FinalBalance)
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func seedRealPineTSBacktestSmokeKLines(t *testing.T, dbPath string) []types.KLine {

@@ -14,14 +14,15 @@ import (
 	"time"
 )
 
-type WorkerBinary struct {
+type WorkerBundle struct {
 	Name   string
 	Data   []byte
 	SHA256 string
 }
 
-type BinaryWorkerLauncherConfig struct {
-	Binary          WorkerBinary
+type BunWorkerLauncherConfig struct {
+	Bundle          WorkerBundle
+	RuntimePath     string
 	TempDir         string
 	WorkDir         string
 	ProtoPath       string
@@ -35,16 +36,19 @@ type BinaryWorkerLauncherConfig struct {
 	StopTimeout     time.Duration
 }
 
-type BinaryWorkerLauncher struct {
-	config BinaryWorkerLauncherConfig
+type BunWorkerLauncher struct {
+	config BunWorkerLauncherConfig
 }
 
-func NewBinaryWorkerLauncher(config BinaryWorkerLauncherConfig) (*BinaryWorkerLauncher, error) {
-	if len(config.Binary.Data) == 0 {
-		return nil, fmt.Errorf("pine worker binary data is required")
+func NewBunWorkerLauncher(config BunWorkerLauncherConfig) (*BunWorkerLauncher, error) {
+	if len(config.Bundle.Data) == 0 {
+		return nil, fmt.Errorf("pine worker bundle data is required")
 	}
-	if config.Binary.Name == "" {
-		config.Binary.Name = "pineworker"
+	if config.Bundle.Name == "" {
+		config.Bundle.Name = "worker.js"
+	}
+	if strings.TrimSpace(config.RuntimePath) == "" {
+		config.RuntimePath = "bun"
 	}
 	if config.StopTimeout <= 0 {
 		config.StopTimeout = 5 * time.Second
@@ -52,14 +56,14 @@ func NewBinaryWorkerLauncher(config BinaryWorkerLauncherConfig) (*BinaryWorkerLa
 	if config.MaxMessageBytes <= 0 {
 		config.MaxMessageBytes = DefaultWorkerConfig(1).MaxMessageBytes
 	}
-	return &BinaryWorkerLauncher{config: config}, nil
+	return &BunWorkerLauncher{config: config}, nil
 }
 
-func (launcher *BinaryWorkerLauncher) Start(ctx context.Context, spec WorkerSpec) (WorkerProcess, error) {
+func (launcher *BunWorkerLauncher) Start(ctx context.Context, spec WorkerSpec) (WorkerProcess, error) {
 	if launcher == nil {
 		return nil, fmt.Errorf("pine worker launcher is nil")
 	}
-	path, err := launcher.materializeBinary(spec)
+	path, err := launcher.materializeBundle(spec)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +72,9 @@ func (launcher *BinaryWorkerLauncher) Start(ctx context.Context, spec WorkerSpec
 		_ = os.Remove(path)
 		return nil, err
 	}
-	cmd := exec.Command(path, args...)
+	commandPath := strings.TrimSpace(launcher.config.RuntimePath)
+	commandArgs := append([]string{path}, args...)
+	cmd := exec.Command(commandPath, commandArgs...)
 	if strings.TrimSpace(launcher.config.WorkDir) != "" {
 		cmd.Dir = launcher.config.WorkDir
 	}
@@ -84,7 +90,8 @@ func (launcher *BinaryWorkerLauncher) Start(ctx context.Context, spec WorkerSpec
 	return &OSWorkerProcess{
 		cmd:         cmd,
 		path:        path,
-		args:        append([]string(nil), args...),
+		runtimePath: strings.TrimSpace(launcher.config.RuntimePath),
+		args:        append([]string(nil), commandArgs...),
 		workDir:     cmd.Dir,
 		stdout:      launcher.config.Stdout,
 		stderr:      launcher.config.Stderr,
@@ -92,7 +99,7 @@ func (launcher *BinaryWorkerLauncher) Start(ctx context.Context, spec WorkerSpec
 	}, nil
 }
 
-func (launcher *BinaryWorkerLauncher) materializeBinary(spec WorkerSpec) (string, error) {
+func (launcher *BunWorkerLauncher) materializeBundle(spec WorkerSpec) (string, error) {
 	if err := launcher.verifyChecksum(); err != nil {
 		return "", err
 	}
@@ -106,30 +113,27 @@ func (launcher *BinaryWorkerLauncher) materializeBinary(spec WorkerSpec) (string
 	} else if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create pine worker temp dir: %w", err)
 	}
-	path := filepath.Join(dir, fmt.Sprintf("%s-%s", spec.WorkerID, launcher.config.Binary.Name))
-	if err := os.WriteFile(path, launcher.config.Binary.Data, 0o755); err != nil {
-		return "", fmt.Errorf("write pine worker binary: %w", err)
-	}
-	if err := os.Chmod(path, 0o755); err != nil {
-		return "", fmt.Errorf("chmod pine worker binary: %w", err)
+	path := filepath.Join(dir, fmt.Sprintf("%s-%s", spec.WorkerID, launcher.config.Bundle.Name))
+	if err := os.WriteFile(path, launcher.config.Bundle.Data, 0o644); err != nil {
+		return "", fmt.Errorf("write pine worker bundle: %w", err)
 	}
 	return path, nil
 }
 
-func (launcher *BinaryWorkerLauncher) verifyChecksum() error {
-	expected := launcher.config.Binary.SHA256
+func (launcher *BunWorkerLauncher) verifyChecksum() error {
+	expected := launcher.config.Bundle.SHA256
 	if expected == "" {
 		return nil
 	}
-	sum := sha256.Sum256(launcher.config.Binary.Data)
+	sum := sha256.Sum256(launcher.config.Bundle.Data)
 	actual := hex.EncodeToString(sum[:])
 	if actual != expected {
-		return fmt.Errorf("pine worker binary checksum mismatch: %s != %s", actual, expected)
+		return fmt.Errorf("pine worker bundle checksum mismatch: %s != %s", actual, expected)
 	}
 	return nil
 }
 
-func (launcher *BinaryWorkerLauncher) args(spec WorkerSpec) []string {
+func (launcher *BunWorkerLauncher) args(spec WorkerSpec) []string {
 	args := []string{
 		"--address", spec.Address,
 		"--worker-id", spec.WorkerID,
@@ -150,6 +154,7 @@ func (launcher *BinaryWorkerLauncher) args(spec WorkerSpec) []string {
 type OSWorkerProcess struct {
 	cmd         *exec.Cmd
 	path        string
+	runtimePath string
 	args        []string
 	workDir     string
 	stdout      io.Writer
@@ -163,7 +168,10 @@ func (process *OSWorkerProcess) Diagnostics() string {
 	}
 	parts := []string{}
 	if process.path != "" {
-		parts = append(parts, "binary="+process.path)
+		parts = append(parts, "bundle="+process.path)
+	}
+	if process.runtimePath != "" {
+		parts = append(parts, "runtime="+process.runtimePath)
 	}
 	if process.workDir != "" {
 		parts = append(parts, "cwd="+process.workDir)

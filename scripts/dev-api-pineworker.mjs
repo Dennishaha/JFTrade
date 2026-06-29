@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { buildDevWorker } from "./build-pineworker-dev.mjs";
+import { buildDevWorker, bunRuntimePath } from "./build-pineworker-dev.mjs";
 import { spawnChecked } from "./lib/spawn.mjs";
 
 let workerPath = "";
@@ -12,7 +12,7 @@ try {
 
 if (process.env.JFTRADE_DEV_API_PINEWORKER_DRY_RUN === "1") {
   const workers = pineWorkerCount();
-  console.log(`DRY RUN JFTRADE_PINEWORKER_BINARY=${workerPath} JFTRADE_PINEWORKER_WORKERS=${workers} go run ./cmd/jftrade-api`);
+  console.log(`DRY RUN JFTRADE_PINEWORKER_BUNDLE=${workerPath} JFTRADE_PINEWORKER_RUNTIME=${bunRuntimePath()} JFTRADE_PINEWORKER_WORKERS=${workers} go run ./cmd/jftrade-api`);
   process.exit(0);
 }
 
@@ -20,7 +20,8 @@ const workers = pineWorkerCount();
 const status = spawnChecked("go", ["run", "./cmd/jftrade-api"], {
   env: {
     ...process.env,
-    JFTRADE_PINEWORKER_BINARY: workerPath,
+    JFTRADE_PINEWORKER_BUNDLE: workerPath,
+    JFTRADE_PINEWORKER_RUNTIME: bunRuntimePath(),
     JFTRADE_PINEWORKER_WORKERS: workers,
   },
 });

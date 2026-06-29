@@ -5,12 +5,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -61,18 +59,14 @@ func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion st
 	if missing := missingWorkerRuntimeDeps(root); len(missing) > 0 {
 		t.Skip("missing worker runtime dependencies: " + strings.Join(missing, ", "))
 	}
-	target, outputName, err := bunCompileTarget(runtime.GOOS, runtime.GOARCH)
-	if err != nil {
-		t.Skip(err)
-	}
-
 	tempDir := t.TempDir()
+	const outputName = "worker.js"
 	workerPath := filepath.Join(tempDir, outputName)
 	buildCtx, cancelBuild := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancelBuild()
 	build := exec.CommandContext(
 		buildCtx,
-		bunPath, "build", "--compile", "--target="+target,
+		bunPath, "build", "--target=bun",
 		filepath.Join("workers", "pineworker", "src", "main.ts"),
 		"--outfile", workerPath,
 	)
@@ -81,19 +75,20 @@ func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion st
 	if err != nil {
 		t.Fatalf("bun build worker smoke binary: %v\n%s", err, string(buildOutput))
 	}
-	binaryData, err := os.ReadFile(workerPath)
+	bundleData, err := os.ReadFile(workerPath)
 	if err != nil {
 		t.Fatalf("read worker binary: %v", err)
 	}
-	sum := sha256.Sum256(binaryData)
+	sum := sha256.Sum256(bundleData)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	launcher, err := NewBinaryWorkerLauncher(BinaryWorkerLauncherConfig{
-		Binary: WorkerBinary{
+	launcher, err := NewBunWorkerLauncher(BunWorkerLauncherConfig{
+		Bundle: WorkerBundle{
 			Name:   outputName,
-			Data:   binaryData,
+			Data:   bundleData,
 			SHA256: hex.EncodeToString(sum[:]),
 		},
+		RuntimePath:   bunPath,
 		TempDir:       tempDir,
 		ProtoPath:     filepath.Join(root, "pkg", "strategy", "pineworker", "proto", "pineworker.proto"),
 		Mock:          mock,
@@ -103,7 +98,7 @@ func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion st
 		Stderr:        &stderr,
 	})
 	if err != nil {
-		t.Fatalf("NewBinaryWorkerLauncher: %v", err)
+		t.Fatalf("NewBunWorkerLauncher: %v", err)
 	}
 
 	port := freeTCPPort(t)
@@ -204,25 +199,6 @@ func bunExecutable() (string, error) {
 		}
 	}
 	return "", exec.ErrNotFound
-}
-
-func bunCompileTarget(goos string, goarch string) (string, string, error) {
-	switch goos + "/" + goarch {
-	case "darwin/arm64":
-		return "bun-darwin-arm64", "worker-darwin-arm64", nil
-	case "darwin/amd64":
-		return "bun-darwin-x64", "worker-darwin-x64", nil
-	case "linux/amd64":
-		return "bun-linux-x64", "worker-linux-x64", nil
-	case "linux/arm64":
-		return "bun-linux-arm64", "worker-linux-arm64", nil
-	case "windows/amd64":
-		return "bun-windows-x64", "worker-windows-x64.exe", nil
-	case "windows/arm64":
-		return "bun-windows-arm64", "worker-windows-arm64.exe", nil
-	default:
-		return "", "", fmt.Errorf("unsupported Bun compile target: %s/%s", goos, goarch)
-	}
 }
 
 func freeTCPPort(t *testing.T) int {

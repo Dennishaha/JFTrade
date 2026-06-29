@@ -10,14 +10,8 @@ import (
 	"testing"
 )
 
-func TestSelectForPlatformReturnsEmbeddedAssetWhenStaged(t *testing.T) {
-	const goos = "linux"
-	const goarch = "amd64"
-
-	name, err := BinaryName(goos, goarch)
-	if err != nil {
-		t.Fatalf("BinaryName: %v", err)
-	}
+func TestSelectReturnsEmbeddedBundleWhenStaged(t *testing.T) {
+	name := BundleName()
 	assetPath := filepath.ToSlash(filepath.Join(binDir, name))
 	expectedData, err := fs.ReadFile(assetFS(), assetPath)
 	if err != nil {
@@ -27,21 +21,21 @@ func TestSelectForPlatformReturnsEmbeddedAssetWhenStaged(t *testing.T) {
 		t.Skipf("staged %s release asset is empty", name)
 	}
 
-	asset, ok, err := SelectForPlatform(goos, goarch)
+	asset, ok, err := Select()
 	if err != nil {
-		t.Fatalf("SelectForPlatform: %v", err)
+		t.Fatalf("Select: %v", err)
 	}
 	if !ok {
-		t.Fatalf("SelectForPlatform ok = false, want true for staged %s", name)
+		t.Fatalf("Select ok = false, want true for staged %s", name)
 	}
 	if asset.Name != name {
-		t.Fatalf("SelectForPlatform name = %q, want %q", asset.Name, name)
+		t.Fatalf("Select name = %q, want %q", asset.Name, name)
 	}
 	if string(asset.Data) != string(expectedData) {
-		t.Fatalf("SelectForPlatform data mismatch for %s", name)
+		t.Fatalf("Select data mismatch for %s", name)
 	}
 	sum := sha256.Sum256(expectedData)
 	if asset.SHA256 != hex.EncodeToString(sum[:]) {
-		t.Fatalf("SelectForPlatform sha = %q, want %q", asset.SHA256, hex.EncodeToString(sum[:]))
+		t.Fatalf("Select sha = %q, want %q", asset.SHA256, hex.EncodeToString(sum[:]))
 	}
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { buildDevWorker } from "./build-pineworker-dev.mjs";
+import { buildDevWorker, bunRuntimePath } from "./build-pineworker-dev.mjs";
 import { spawnChecked } from "./lib/spawn.mjs";
 
 let workerPath = "";
@@ -14,7 +14,8 @@ const status = spawnChecked("go", ["test", "./pkg/backtest", "-run", "TestRealPi
   env: {
     ...process.env,
     JFTRADE_PINETS_BACKTEST_SMOKE: "1",
-    JFTRADE_PINEWORKER_BINARY: workerPath,
+    JFTRADE_PINEWORKER_BUNDLE: workerPath,
+    JFTRADE_PINEWORKER_RUNTIME: bunRuntimePath(),
     JFTRADE_PINEWORKER_WORKERS: "1",
   },
 });
