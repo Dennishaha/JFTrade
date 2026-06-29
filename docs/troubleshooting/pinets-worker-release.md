@@ -15,7 +15,7 @@
 - `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` 后的发布产物必须存在、非空且可执行。
 - Go、worker、前端 focused test、coverage、performance gate 和 `git diff --check` 通过。
 
-当前仓库已锁定公开 `pinets@0.9.26`，但真实非 mock PineTS worker 进程 smoke 还不能作为放行依据。
+当前仓库已锁定公开 `pinets@0.9.26`，真实非 mock PineTS worker 进程 smoke 已可作为放行依据；最终发布仍需跑完整 strict release gate 和发布资产构建。
 
 ## 运行模式
 
@@ -40,6 +40,8 @@ go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 ```
 
 `scripts/build-pineworker-assets.sh` 会先确认 `pinets` 包已安装并输出其 license。未安装 `pinets` 时，脚本会在调用 `bun build` 前失败。
+
+`npm run test:pineworker` 和 worker package 的 `npm test` 通过 `scripts/run-bun.mjs` 启动 Bun。该入口会依次检查 `JFTRADE_BUN_BINARY`、`PATH`、`~/.bun/bin/bun(.exe)`，以及 Windows 常见 Bun 安装目录；因此 Windows 用户安装 Bun 后即使当前 shell 的 `PATH` 尚未刷新，也可以直接运行测试。
 
 worker 资产构建采用 Bun SEA / Bun single-file executable 路线：每个目标平台生成一个可执行 worker，暂存到 `internal/pineworkerassets/assets/bin`，再通过 `release_assets` 构建嵌入 Go。最终对外发布的仍是单个 `dist/trading-engine` 文件；运行时 Go 会释放匹配平台的 worker 到临时目录、校验 SHA256、启动固定数量的 localhost gRPC 子进程，并在关闭时清理。
 
@@ -67,6 +69,7 @@ API 启动时会先读 `JFTRADE_PINEWORKER_BINARY`。未配置外部二进制时
 | `JFTRADE_PINEWORKER_MIN_CANDLES_PER_SEC` | performance gate 默认值 | 最低处理吞吐。 |
 | `JFTRADE_PINEWORKER_MAX_PEAK_RSS_BYTES` | performance gate 默认值 | worker 峰值 RSS 上限。 |
 | `JFTRADE_PINEWORKER_MOCK` | `false` | 仅测试使用；发布和生产环境不得启用。 |
+| `JFTRADE_BUN_BINARY` | 自动探测 | 仅 npm worker 测试/start 辅助入口使用；指定 Bun 可执行文件路径。 |
 
 `JFTRADE_PINEWORKER_MOCK=true` 会让 worker 使用确定性测试 executor。它只能用于 contract、manager 和 gRPC smoke 测试，不能作为生产降级方案。
 
