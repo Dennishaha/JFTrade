@@ -5,11 +5,12 @@ import { DeterministicPineTSExecutor } from "./mockExecutor";
 import { createNativePineTSExecutor } from "./pinetsExecutor";
 
 declare const Bun: { argv?: string[] } | undefined;
+declare const process: { once?: (event: string, handler: () => void) => unknown } | undefined;
 
 const args = parseArgs((typeof Bun !== "undefined" ? Bun.argv ?? [] : []).slice(2));
 const executor = args.mock ? new DeterministicPineTSExecutor() : await createNativePineTSExecutor(args.pinetsVersion);
 
-await startWorkerGrpcServer({
+const server = await startWorkerGrpcServer({
   workerId: args.workerId,
   executor,
   protoPath: args.protoPath,
@@ -18,6 +19,7 @@ await startWorkerGrpcServer({
   protoLoader,
   maxMessageBytes: args.maxMessageBytes,
 });
+await waitForShutdown(server.shutdown);
 
 function parseArgs(values: string[]) {
   const options = new Map<string, string>();
@@ -36,4 +38,23 @@ function parseArgs(values: string[]) {
     maxMessageBytes: Number(options.get("max-message-bytes") ?? 64 * 1024 * 1024),
     mock: options.get("mock") === "true",
   };
+}
+
+function waitForShutdown(shutdown: () => void): Promise<void> {
+  return new Promise((resolve) => {
+    let stopped = false;
+    const stop = () => {
+      if (stopped) {
+        return;
+      }
+      stopped = true;
+      shutdown();
+      resolve();
+    };
+    if (typeof process === "undefined" || !process.once) {
+      return;
+    }
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+  });
 }
