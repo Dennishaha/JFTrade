@@ -4,13 +4,13 @@ import { startWorkerGrpcServer } from "./grpcServer";
 import { DeterministicPineTSExecutor } from "./mockExecutor";
 import { createNativePineTSExecutor } from "./pinetsExecutor";
 
-declare const Bun: { argv?: string[] } | undefined;
 declare const process: {
+  argv?: string[];
   on?: (event: string, handler: (error: unknown) => void) => unknown;
   once?: (event: string, handler: () => void) => unknown;
 } | undefined;
 
-const args = parseArgs((typeof Bun !== "undefined" ? Bun.argv ?? [] : []).slice(2));
+const args = parseArgs((process?.argv ?? []).slice(2));
 installFatalErrorLogging();
 const executor = args.mock ? new DeterministicPineTSExecutor() : await createNativePineTSExecutor(args.pinetsVersion);
 

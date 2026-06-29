@@ -10,7 +10,7 @@ import (
 
 const (
 	binDir           = "bin"
-	workerBundleName = "worker.js"
+	workerBundleName = "worker.mjs"
 )
 
 type Asset struct {

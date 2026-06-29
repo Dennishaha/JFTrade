@@ -7,7 +7,7 @@
 - Upstream: <https://github.com/LuxAlgo/PineTS>
 - npm: <https://www.npmjs.com/package/pinets>
 - License: `AGPL-3.0-only`
-- Integration: Bun/PineTS worker runtime for `sourceFormat=pine-v6` with
+- Integration: Node/PineTS worker runtime for `sourceFormat=pine-v6` with
   `runtime=pine-pinets`, plus the separate `pinets-shadow` compatibility report
   harness.
 

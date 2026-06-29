@@ -20,7 +20,7 @@ type WorkerBundle struct {
 	SHA256 string
 }
 
-type BunWorkerLauncherConfig struct {
+type NodeWorkerLauncherConfig struct {
 	Bundle          WorkerBundle
 	RuntimePath     string
 	TempDir         string
@@ -36,19 +36,19 @@ type BunWorkerLauncherConfig struct {
 	StopTimeout     time.Duration
 }
 
-type BunWorkerLauncher struct {
-	config BunWorkerLauncherConfig
+type NodeWorkerLauncher struct {
+	config NodeWorkerLauncherConfig
 }
 
-func NewBunWorkerLauncher(config BunWorkerLauncherConfig) (*BunWorkerLauncher, error) {
+func NewNodeWorkerLauncher(config NodeWorkerLauncherConfig) (*NodeWorkerLauncher, error) {
 	if len(config.Bundle.Data) == 0 {
 		return nil, fmt.Errorf("pine worker bundle data is required")
 	}
 	if config.Bundle.Name == "" {
-		config.Bundle.Name = "worker.js"
+		config.Bundle.Name = "worker.mjs"
 	}
 	if strings.TrimSpace(config.RuntimePath) == "" {
-		config.RuntimePath = "bun"
+		config.RuntimePath = "node"
 	}
 	if config.StopTimeout <= 0 {
 		config.StopTimeout = 5 * time.Second
@@ -56,10 +56,10 @@ func NewBunWorkerLauncher(config BunWorkerLauncherConfig) (*BunWorkerLauncher, e
 	if config.MaxMessageBytes <= 0 {
 		config.MaxMessageBytes = DefaultWorkerConfig(1).MaxMessageBytes
 	}
-	return &BunWorkerLauncher{config: config}, nil
+	return &NodeWorkerLauncher{config: config}, nil
 }
 
-func (launcher *BunWorkerLauncher) Start(ctx context.Context, spec WorkerSpec) (WorkerProcess, error) {
+func (launcher *NodeWorkerLauncher) Start(ctx context.Context, spec WorkerSpec) (WorkerProcess, error) {
 	if launcher == nil {
 		return nil, fmt.Errorf("pine worker launcher is nil")
 	}
@@ -99,7 +99,7 @@ func (launcher *BunWorkerLauncher) Start(ctx context.Context, spec WorkerSpec) (
 	}, nil
 }
 
-func (launcher *BunWorkerLauncher) materializeBundle(spec WorkerSpec) (string, error) {
+func (launcher *NodeWorkerLauncher) materializeBundle(spec WorkerSpec) (string, error) {
 	if err := launcher.verifyChecksum(); err != nil {
 		return "", err
 	}
@@ -120,7 +120,7 @@ func (launcher *BunWorkerLauncher) materializeBundle(spec WorkerSpec) (string, e
 	return path, nil
 }
 
-func (launcher *BunWorkerLauncher) verifyChecksum() error {
+func (launcher *NodeWorkerLauncher) verifyChecksum() error {
 	expected := launcher.config.Bundle.SHA256
 	if expected == "" {
 		return nil
@@ -133,7 +133,7 @@ func (launcher *BunWorkerLauncher) verifyChecksum() error {
 	return nil
 }
 
-func (launcher *BunWorkerLauncher) args(spec WorkerSpec) []string {
+func (launcher *NodeWorkerLauncher) args(spec WorkerSpec) []string {
 	args := []string{
 		"--address", spec.Address,
 		"--worker-id", spec.WorkerID,

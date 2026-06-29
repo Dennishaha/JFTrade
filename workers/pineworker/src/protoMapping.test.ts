@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { healthStatusToProto, runScriptRequestFromProto, runScriptResponseToProto } from "./protoMapping";
 
 describe("proto mapping", () => {

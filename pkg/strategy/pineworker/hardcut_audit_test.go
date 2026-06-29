@@ -20,8 +20,8 @@ func TestPineTSHardCutDoesNotExposeGoPineRuntime(t *testing.T) {
 	assertReleaseFrontendAssetsAreAudited(t, root)
 	assertReleasePineWorkerAssetsAreAudited(t, root)
 	assertPinetsReleaseRequiresInstalledPackage(t, root)
-	assertBunBundlePackagingIsDocumented(t, root)
-	assertPineTSWorkerUsesStaticImportForBunBundle(t, root)
+	assertNodeBundlePackagingIsDocumented(t, root)
+	assertPineTSWorkerUsesStaticImportForNodeBundle(t, root)
 	assertCIExercisesPineTSWorker(t, root)
 }
 
@@ -317,7 +317,7 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 		"scripts/build-pineworker-assets.test.mjs": {
 			"pinets package license: AGPL-3.0-only",
 			"AGPL-3.0-only",
-			"DRY RUN bun build",
+			"DRY RUN esbuild",
 		},
 		"scripts/check-pinets-release.mjs": {
 			"checkPinetsPackageAndLicense",
@@ -391,29 +391,33 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 	}
 }
 
-func assertBunBundlePackagingIsDocumented(t *testing.T, root string) {
+func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 	t.Helper()
 	requiredByFile := map[string][]string{
 		"docs/pinets-hardcut-migration.md": {
-			"Bun bundle",
-			"bun build --target=bun",
+			"Node ESM bundle",
+			"esbuild",
 			"release_assets",
 			"trading-engine",
 		},
 		"docs/troubleshooting/pinets-worker-release.md": {
-			"Bun bundle",
-			"bun build --target=bun",
+			"Node ESM bundle",
+			"esbuild",
 			"release_assets",
 			"trading-engine",
 		},
 		"scripts/build-pineworker-assets.mjs": {
-			"--target=bun",
+			`from "esbuild"`,
+			`platform: "node"`,
+			`format: "esm"`,
 		},
 		"scripts/build-pineworker-dev.sh": {
 			"build-pineworker-dev.mjs",
 		},
 		"scripts/build-pineworker-dev.mjs": {
-			"--target=bun",
+			`from "esbuild"`,
+			`platform: "node"`,
+			`format: "esm"`,
 			"JFTRADE_PINEWORKER_DEV_OUT_DIR",
 			"JFTRADE_PINEWORKER_DEV_ENV_FILE",
 			"checkPinetsPackageAndLicense",
@@ -445,7 +449,7 @@ func assertBunBundlePackagingIsDocumented(t *testing.T, root string) {
 			"npm run dev:api:pineworker",
 			"JFTRADE_PINEWORKER_BUNDLE",
 			"JFTRADE_PINEWORKER_RUNTIME",
-			"/absolute/path/to/worker.js",
+			"/absolute/path/to/worker.mjs",
 			"settingsfile.DefaultPineWorkerSettings",
 			"WorkerLimit",
 			"envIntInRange",
@@ -483,16 +487,16 @@ func assertBunBundlePackagingIsDocumented(t *testing.T, root string) {
 		text := string(data)
 		for _, required := range requiredValues {
 			if !strings.Contains(text, required) {
-				t.Fatalf("%s does not document Bun bundle packaging requirement %q", rel, required)
+				t.Fatalf("%s does not document Node bundle packaging requirement %q", rel, required)
 			}
 		}
-		if strings.HasPrefix(rel, "scripts/build-pineworker-") && strings.Contains(text, `"--compile"`) {
-			t.Fatalf("%s must not build a Bun standalone executable", rel)
+		if strings.HasPrefix(rel, "scripts/build-pineworker-") && containsAny(text, "Bun", "bun build", "run-bun", "JFTRADE_BUN") {
+			t.Fatalf("%s must not use Bun", rel)
 		}
 	}
 }
 
-func assertPineTSWorkerUsesStaticImportForBunBundle(t *testing.T, root string) {
+func assertPineTSWorkerUsesStaticImportForNodeBundle(t *testing.T, root string) {
 	t.Helper()
 	rel := "workers/pineworker/src/pinetsExecutor.ts"
 	data, err := os.ReadFile(filepath.Join(root, rel))
@@ -501,10 +505,10 @@ func assertPineTSWorkerUsesStaticImportForBunBundle(t *testing.T, root string) {
 	}
 	text := string(data)
 	if !strings.Contains(text, `import { PineTS } from "pinets"`) {
-		t.Fatalf("%s must statically import pinets for Bun bundle packaging", rel)
+		t.Fatalf("%s must statically import pinets for Node bundle packaging", rel)
 	}
 	if strings.Contains(text, `import("pinets")`) || strings.Contains(text, "dynamicImport") {
-		t.Fatalf("%s must not use dynamic pinets import in Bun bundle packaging", rel)
+		t.Fatalf("%s must not use dynamic pinets import in Node bundle packaging", rel)
 	}
 }
 
@@ -517,7 +521,7 @@ func assertCIExercisesPineTSWorker(t *testing.T, root string) {
 	}
 	text := string(data)
 	for _, required := range []string{
-		"oven-sh/setup-bun",
+		"actions/setup-node",
 		"npm run test:pineworker",
 		"npm run typecheck:pineworker",
 		"npm run build:frontend-assets",
@@ -533,4 +537,16 @@ func assertCIExercisesPineTSWorker(t *testing.T, root string) {
 			t.Fatalf("%s does not exercise PineTS worker gate %q", rel, required)
 		}
 	}
+	if containsAny(text, "Bun", "setup-bun", "run-bun", "JFTRADE_BUN") {
+		t.Fatalf("%s must not install or invoke Bun", rel)
+	}
+}
+
+func containsAny(value string, needles ...string) bool {
+	for _, needle := range needles {
+		if strings.Contains(value, needle) {
+			return true
+		}
+	}
+	return false
 }
