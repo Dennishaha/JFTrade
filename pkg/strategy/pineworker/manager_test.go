@@ -49,7 +49,7 @@ func TestWorkerManagerRunScriptRoundRobinsHealthyWorkers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for index := 0; index < 3; index++ {
+	for index := range 3 {
 		response, err := manager.RunScript(context.Background(), validClientRequest())
 		if err != nil {
 			t.Fatalf("RunScript %d error = %v", index, err)

@@ -3,6 +3,7 @@ package backtest
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -154,8 +155,6 @@ func copyReplayParams(params map[string]string) map[string]string {
 		return nil
 	}
 	copied := make(map[string]string, len(params))
-	for key, value := range params {
-		copied[key] = value
-	}
+	maps.Copy(copied, params)
 	return copied
 }

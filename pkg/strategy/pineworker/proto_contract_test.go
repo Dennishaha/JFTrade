@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -70,12 +71,7 @@ func TestPineWorkerProtoCompilesAndExposesContract(t *testing.T) {
 }
 
 func fileImports(file *descriptorpb.FileDescriptorProto, name string) bool {
-	for _, dependency := range file.GetDependency() {
-		if dependency == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(file.GetDependency(), name)
 }
 
 func findProtoFile(t *testing.T, files *descriptorpb.FileDescriptorSet, name string) *descriptorpb.FileDescriptorProto {

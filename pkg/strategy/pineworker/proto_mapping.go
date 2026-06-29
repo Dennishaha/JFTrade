@@ -1,6 +1,7 @@
 package pineworker
 
 import (
+	"maps"
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb"
@@ -180,8 +181,6 @@ func copyStringMap(values map[string]string) map[string]string {
 		return nil
 	}
 	result := make(map[string]string, len(values))
-	for key, value := range values {
-		result[key] = value
-	}
+	maps.Copy(result, values)
 	return result
 }
