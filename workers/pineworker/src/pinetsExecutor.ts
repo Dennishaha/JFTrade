@@ -2,8 +2,9 @@ import { PineTS } from "pinets";
 import type { PineTSExecutor, PineTSRunResult, RunScriptRequest } from "./types";
 
 type PineTSModule = {
-  PineTS: new (candles: unknown[]) => {
-    run(source: string): Promise<PineTSRunResult>;
+  PineTS: new (candles: unknown[], symbol?: string, timeframe?: string, periods?: number) => {
+    setAlertMode?: (mode: "all" | "realtime") => void;
+    run(source: string, periods?: number): Promise<PineTSRunResult>;
   };
 };
 
@@ -15,8 +16,15 @@ export class NativePineTSExecutor implements PineTSExecutor {
   }
 
   async run(request: RunScriptRequest): Promise<PineTSRunResult> {
-    const pineTS = new this.module.PineTS(request.candles.map(toPineTSCandle));
-    return pineTS.run(request.source);
+    const periods = Math.max(1, request.candles.length);
+    const pineTS = new this.module.PineTS(
+      request.candles.map(toPineTSCandle),
+      request.symbol,
+      request.timeframe,
+      periods,
+    );
+    pineTS.setAlertMode?.("all");
+    return pineTS.run(request.source, periods);
   }
 }
 

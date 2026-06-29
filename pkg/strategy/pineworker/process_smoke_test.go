@@ -53,7 +53,8 @@ func TestWorkerManagerRealPineTSProcessSmoke(t *testing.T) {
 
 func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion string) *WorkerManager {
 	t.Helper()
-	if _, err := exec.LookPath("bun"); err != nil {
+	bunPath, err := bunExecutable()
+	if err != nil {
 		t.Skip("bun is not installed or not on PATH")
 	}
 	root := repoRoot(t)
@@ -71,7 +72,7 @@ func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion st
 	defer cancelBuild()
 	build := exec.CommandContext(
 		buildCtx,
-		"bun", "build", "--compile", "--target="+target,
+		bunPath, "build", "--compile", "--target="+target,
 		filepath.Join("workers", "pineworker", "src", "main.ts"),
 		"--outfile", workerPath,
 	)
@@ -178,6 +179,31 @@ func pinetsInstalled(root string) bool {
 		}
 	}
 	return false
+}
+
+func bunExecutable() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("JFTRADE_BUN_BINARY")); path != "" {
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+	if path, err := exec.LookPath("bun"); err == nil {
+		return path, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	candidates := []string{
+		filepath.Join(home, ".bun", "bin", "bun.exe"),
+		filepath.Join(home, ".bun", "bin", "bun"),
+	}
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+	return "", exec.ErrNotFound
 }
 
 func bunCompileTarget(goos string, goarch string) (string, string, error) {

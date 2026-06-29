@@ -108,7 +108,7 @@ function normalizePlotValues(plot: PineTSPlot | number[]): number[] {
   const source = Array.isArray(plot) ? plot : plot.data ?? [];
   return source.map((point) => {
     const value = typeof point === "number" ? point : point.value;
-    return Number.isFinite(value) ? Number(value) : Number.NaN;
+    return Number.isFinite(value) ? Number(value) : 0;
   });
 }
 
