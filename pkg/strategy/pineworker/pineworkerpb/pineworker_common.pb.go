@@ -301,6 +301,158 @@ func (x *PlotOutput) GetValues() []float64 {
 	return nil
 }
 
+type AlertEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Frequency     string                 `protobuf:"bytes,5,opt,name=frequency,proto3" json:"frequency,omitempty"`
+	BarIndex      int32                  `protobuf:"varint,6,opt,name=bar_index,json=barIndex,proto3" json:"bar_index,omitempty"`
+	Time          int64                  `protobuf:"varint,7,opt,name=time,proto3" json:"time,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AlertEvent) Reset() {
+	*x = AlertEvent{}
+	mi := &file_proto_pineworker_common_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AlertEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AlertEvent) ProtoMessage() {}
+
+func (x *AlertEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_pineworker_common_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AlertEvent.ProtoReflect.Descriptor instead.
+func (*AlertEvent) Descriptor() ([]byte, []int) {
+	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AlertEvent) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *AlertEvent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AlertEvent) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *AlertEvent) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *AlertEvent) GetFrequency() string {
+	if x != nil {
+		return x.Frequency
+	}
+	return ""
+}
+
+func (x *AlertEvent) GetBarIndex() int32 {
+	if x != nil {
+		return x.BarIndex
+	}
+	return 0
+}
+
+func (x *AlertEvent) GetTime() int64 {
+	if x != nil {
+		return x.Time
+	}
+	return 0
+}
+
+type VisualOutput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	PayloadJson   string                 `protobuf:"bytes,3,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VisualOutput) Reset() {
+	*x = VisualOutput{}
+	mi := &file_proto_pineworker_common_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VisualOutput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VisualOutput) ProtoMessage() {}
+
+func (x *VisualOutput) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_pineworker_common_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VisualOutput.ProtoReflect.Descriptor instead.
+func (*VisualOutput) Descriptor() ([]byte, []int) {
+	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *VisualOutput) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *VisualOutput) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *VisualOutput) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
 type OrderIntent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Kind           string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
@@ -326,7 +478,7 @@ type OrderIntent struct {
 
 func (x *OrderIntent) Reset() {
 	*x = OrderIntent{}
-	mi := &file_proto_pineworker_common_proto_msgTypes[4]
+	mi := &file_proto_pineworker_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -338,7 +490,7 @@ func (x *OrderIntent) String() string {
 func (*OrderIntent) ProtoMessage() {}
 
 func (x *OrderIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_pineworker_common_proto_msgTypes[4]
+	mi := &file_proto_pineworker_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -351,7 +503,7 @@ func (x *OrderIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrderIntent.ProtoReflect.Descriptor instead.
 func (*OrderIntent) Descriptor() ([]byte, []int) {
-	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{4}
+	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *OrderIntent) GetKind() string {
@@ -490,7 +642,7 @@ type WorkerMetadata struct {
 
 func (x *WorkerMetadata) Reset() {
 	*x = WorkerMetadata{}
-	mi := &file_proto_pineworker_common_proto_msgTypes[5]
+	mi := &file_proto_pineworker_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -502,7 +654,7 @@ func (x *WorkerMetadata) String() string {
 func (*WorkerMetadata) ProtoMessage() {}
 
 func (x *WorkerMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_pineworker_common_proto_msgTypes[5]
+	mi := &file_proto_pineworker_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -515,7 +667,7 @@ func (x *WorkerMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkerMetadata.ProtoReflect.Descriptor instead.
 func (*WorkerMetadata) Descriptor() ([]byte, []int) {
-	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{5}
+	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WorkerMetadata) GetWorkerId() string {
@@ -609,7 +761,20 @@ const file_proto_pineworker_common_proto_rawDesc = "" +
 	"\n" +
 	"PlotOutput\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06values\x18\x02 \x03(\x01R\x06values\"\x9d\x04\n" +
+	"\x06values\x18\x02 \x03(\x01R\x06values\"\xaf\x01\n" +
+	"\n" +
+	"AlertEvent\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x1c\n" +
+	"\tfrequency\x18\x05 \x01(\tR\tfrequency\x12\x1b\n" +
+	"\tbar_index\x18\x06 \x01(\x05R\bbarIndex\x12\x12\n" +
+	"\x04time\x18\a \x01(\x03R\x04time\"Y\n" +
+	"\fVisualOutput\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
+	"\fpayload_json\x18\x03 \x01(\tR\vpayloadJson\"\x9d\x04\n" +
 	"\vOrderIntent\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1d\n" +
@@ -657,14 +822,16 @@ func file_proto_pineworker_common_proto_rawDescGZIP() []byte {
 	return file_proto_pineworker_common_proto_rawDescData
 }
 
-var file_proto_pineworker_common_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_proto_pineworker_common_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_proto_pineworker_common_proto_goTypes = []any{
 	(*Candle)(nil),         // 0: jftrade.strategy.pineworker.v1.Candle
 	(*Diagnostic)(nil),     // 1: jftrade.strategy.pineworker.v1.Diagnostic
 	(*SeriesOutput)(nil),   // 2: jftrade.strategy.pineworker.v1.SeriesOutput
 	(*PlotOutput)(nil),     // 3: jftrade.strategy.pineworker.v1.PlotOutput
-	(*OrderIntent)(nil),    // 4: jftrade.strategy.pineworker.v1.OrderIntent
-	(*WorkerMetadata)(nil), // 5: jftrade.strategy.pineworker.v1.WorkerMetadata
+	(*AlertEvent)(nil),     // 4: jftrade.strategy.pineworker.v1.AlertEvent
+	(*VisualOutput)(nil),   // 5: jftrade.strategy.pineworker.v1.VisualOutput
+	(*OrderIntent)(nil),    // 6: jftrade.strategy.pineworker.v1.OrderIntent
+	(*WorkerMetadata)(nil), // 7: jftrade.strategy.pineworker.v1.WorkerMetadata
 }
 var file_proto_pineworker_common_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -685,7 +852,7 @@ func file_proto_pineworker_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_pineworker_common_proto_rawDesc), len(file_proto_pineworker_common_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

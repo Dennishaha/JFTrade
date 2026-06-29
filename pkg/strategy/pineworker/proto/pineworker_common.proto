@@ -33,6 +33,22 @@ message PlotOutput {
   repeated double values = 2;
 }
 
+message AlertEvent {
+  string type = 1;
+  string id = 2;
+  string message = 3;
+  string title = 4;
+  string frequency = 5;
+  int32 bar_index = 6;
+  int64 time = 7;
+}
+
+message VisualOutput {
+  string kind = 1;
+  string name = 2;
+  string payload_json = 3;
+}
+
 message OrderIntent {
   string kind = 1;
   string id = 2;

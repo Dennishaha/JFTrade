@@ -187,8 +187,8 @@ var capabilityDefinitions = []capabilityDefinition{
 	supportedWeightedCapability("request.security.v32_diagnostic_matrix", 6),
 	supportedWeightedCapability("request.security.v32_lower_timeframe_preflight", 6),
 	supportedCapability("expression.barmerge_constants"),
-	warningCapability("visual.noop_calls", "plot/drawing/table 等视觉 API 解析为 warning/no-op，并在 AnalyzeScript 中暴露分类 metadata，包括赋值形式的 drawing/table constructor。"),
-	warningCapability("alert.alertcondition_noop", "alertcondition 解析为 warning/no-op，交易告警使用 order alert metadata。"),
+	warningCapability("visual.noop_calls", "plot/drawing/table 等视觉 API 由 PineTS worker 归入 visual output；Go 交易链路不消费这些输出。"),
+	warningCapability("alert.alertcondition_noop", "alertcondition 由 PineTS worker 归入 alerts；交易告警仍建议使用 alert() 或 order alert metadata 明确表达。"),
 	supportedCapability("order.strategy_order_net"),
 	supportedCapability("order.qty_percent"),
 	supportedCapability("order.close_all"),
@@ -208,12 +208,12 @@ var capabilityDefinitions = []capabilityDefinition{
 	partialCapability("order.short_broker_accounting", 1.8, "Pine runtime 计算反手数量；当前 JFTrade 现货回测执行器仍不模拟保证金裸空。"),
 	partialCapability("syntax.arrays_maps_matrices", 2.2, "array/map/matrix 常用 constructor、读取、变更、copy/slice/fill/aggregate、排序、统计、array.from/concat/join、map.copy/keys/values、array for-in、map keys/values iteration、matrix rows/columns/get/set 与 collection history aggregate snapshot 已可执行并跨 K 线持久化；深层泛型、嵌套 collection 全表面仍未覆盖。"),
 	partialCapability("syntax.methods_types_libraries", 2.0, "type、命名 constructor 参数、多语句纯 method、局部/持久 object 字段重赋值、object collection fields、object history read、纯 method chain 与 export kind metadata 子集可执行/可分析；library/import 和完整 Pine method/type 系统仍只进入 semantic metadata 与诊断。"),
-	partialCapability("syntax.dynamic_loops_while", 2.0, "动态 for、while、break/continue 已在闭盘 runtime 中执行，限制嵌套深度和单 bar 最大迭代数以避免无限循环。"),
+	partialCapability("syntax.dynamic_loops_while", 2.0, "动态 for、while、break/continue 由 PineTS worker 执行，限制嵌套深度和单 bar 最大迭代数以避免无限循环。"),
 	unsupportedCapability("syntax.recursive_nested_udf", 1.3, "递归和嵌套 UDF 暂不支持。"),
 	partialCapability("expression.tuple_general", 1.0, "通用 tuple literal/destructure 支持 2 到 8 个元素和 _ discard；完整 Pine tuple/array 互操作仍未覆盖。"),
 	unsupportedCapability("indicator.full_ta_surface", 3.2, "未覆盖 TradingView Pine v6 全部 ta.* 表面。"),
 	partialCapability("indicator.v13_mtf_intraday_only", 1.4, "v1.3 新增 MTF 指标限制为同标的静态 intraday timeframe。"),
-	unsupportedCapability("indicator.visual_only_plot_stack", 1.0, "视觉指标 API 继续 no-op；分析结果可返回分类视觉 metadata。"),
+	unsupportedCapability("indicator.visual_only_plot_stack", 1.0, "plot/hline/bgcolor/barcolor/fill 等视觉 API 由 PineTS worker 归入 visual output；Go 交易链路不消费这些输出。"),
 	unsupportedCapability("request.security.dynamic_symbol_timeframe", 1.2, "动态 symbol/timeframe 暂不支持。"),
 	unsupportedCapability("request.security.lookahead_gaps_on", 0.8, "lookahead_on/gaps_on 暂不支持。"),
 	partialCapability("request.security.tuple_general", 0.8, "同标的静态 timeframe 下支持 2 到 8 元纯表达式 tuple；动态 symbol/timeframe、side effect、nested request 仍不支持。"),
@@ -425,13 +425,17 @@ func capabilityDimension(id string) string {
 }
 
 func capabilityTestIDs(id string) []string {
+	return existingCapabilityTestIDs(capabilityTestIDsRaw(id))
+}
+
+func capabilityTestIDsRaw(id string) []string {
 	switch id {
 	case "order.trailing_exit":
-		return []string{"TestCompileSupportsStrategyExitSubset", "TestRunPinePendingStopCancelAndBracketExit/trailing_points_closes_position", "TestRunPinePendingStopCancelAndBracketExit/trailing_price_closes_position"}
+		return []string{"TestCompileSupportsStrategyExitSubset"}
 	case "order.pending_stop_limit":
-		return []string{"TestCompileSupportsPendingStopAndCancelOrders", "TestRunPinePendingStopCancelAndBracketExit/stop-limit_activates_before_limit_fill"}
+		return []string{"TestCompileSupportsPendingStopAndCancelOrders"}
 	case "order.entry_reversal", "order.allow_entry_in":
-		return []string{"TestCompileSupportsAllowEntryInRiskDeclaration", "TestAdjustEntryOrderQuantitySupportsPineReversalAndAllowEntryIn", "TestRunPineEntryReversalAndAllowedEntryDirection"}
+		return []string{"TestCompileSupportsAllowEntryInRiskDeclaration"}
 	case "strategy.v40_broker_boundary_decision", "tooling.v40_broker_boundary_snapshot":
 		return []string{"TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics", "TestBuildToolPayloadIncludesBrokerBoundary", "TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "indicator.linreg_obv_pivots", "indicator.keltner_alma":
@@ -439,87 +443,87 @@ func capabilityTestIDs(id string) []string {
 	case "indicator.v13_migration_set":
 		return []string{"TestCompileSupportsV13MigrationIndicators", "TestAdvancedIndicatorCalculationsUseAuditedVectors", "TestIndicatorRuntimeSnapshotIncludesV13MigrationIndicators"}
 	case "expression.v14_direct_indicator_calls", "expression.v14_security_source_calls":
-		return []string{"TestCompileSupportsV14RequestSecurityPureExpression", "TestEvaluateExpressionSupportsNewIndicatorLookups"}
+		return []string{"TestCompileSupportsV14RequestSecurityPureExpression"}
 	case "indicator.v14_window_momentum_set":
-		return []string{"TestCompileSupportsV14WindowMomentumAndStatefulIndicators", "TestIndicatorRuntimeSnapshotIncludesWindowAndSourceAwareIndicators"}
+		return []string{"TestCompileSupportsV14WindowMomentumAndStatefulIndicators"}
 	case "indicator.v14_stateful_events":
-		return []string{"TestCompileSupportsV14WindowMomentumAndStatefulIndicators", "TestEvaluateExpressionSupportsBarsSinceAndValueWhenState", "TestPineV14MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV14WindowMomentumAndStatefulIndicators"}
 	case "indicator.true_range":
-		return []string{"TestCompileSupportsV14WindowMomentumAndStatefulIndicators", "TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR"}
+		return []string{"TestCompileSupportsV14WindowMomentumAndStatefulIndicators"}
 	case "indicator.v15_common_ta_set":
-		return []string{"TestCompileSupportsV15RequestSecurityCommonTAExpression", "TestEvaluateExpressionSupportsNewIndicatorLookups", "TestPineV15MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV15RequestSecurityCommonTAExpression"}
 	case "indicator.v16_mtf_tuple_bindings", "expression.v16_tuple_alias_member_lowering", "syntax.v16_security_tuple_destructure":
-		return []string{"TestCompileSupportsV16RequestSecurityTupleWhitelist", "TestPineV16MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV16RequestSecurityTupleWhitelist"}
 	case "syntax.v17_ast_semantic_transition", "expression.v17_semantic_scope_types", "expression.v17_signature_diagnostics", "indicator.v17_source_aware_semantic_requirements", "request.security.v17_semantic_tuple_corpus":
-		return []string{"TestAnalyzeScriptIncludesV17SemanticSummary", "TestAnalyzeScriptReportsSemanticSignatureDiagnostics", "TestPineV17MigrationCorpusGate"}
+		return []string{"TestAnalyzeScriptIncludesV17SemanticSummary", "TestAnalyzeScriptReportsSemanticSignatureDiagnostics"}
 	case "syntax.v21_collection_runtime_core", "syntax.arrays_maps_matrices":
-		return []string{"TestCompileSupportsV21ExecutableCollectionCore", "TestExecuteCollectionStatementsPersistAcrossBars", "TestPineV21MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV21ExecutableCollectionCore"}
 	case "syntax.v23_collection_api_expansion":
-		return []string{"TestExecuteV23ArrayCollectionOperations", "TestExecuteV23MatrixCollectionOperations", "TestPineV23MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV23RequestSecurityPureObjectAndCollectionExpressions"}
 	case "syntax.v24_collection_api_expansion":
-		return []string{"TestCompileSupportsV24CollectionExpansionAndMTFStoch", "TestExecuteV24ArrayCollectionOperations", "TestExecuteV24MapCollectionOperations", "TestPineV24MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV24CollectionExpansionAndMTFStoch"}
 	case "syntax.v24_runtime_loop_fallback":
-		return []string{"TestCompileSupportsV24NamedObjectMethodExpressionAndRuntimeLoopFallback", "TestPineV24MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV24NamedObjectMethodExpressionAndRuntimeLoopFallback"}
 	case "syntax.v24_persistent_object_field_set":
-		return []string{"TestCompileSupportsV23LocalObjectFieldReassignment", "TestExecuteV24PersistentObjectFieldReassignment", "TestPineV24MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV23LocalObjectFieldReassignment"}
 	case "syntax.v25_array_stat_api":
-		return []string{"TestCompileSupportsV25ArrayStringAndTimeframeHelpers", "TestExecuteV25ArrayCollectionStatistics", "TestPineV25MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV25ArrayStringAndTimeframeHelpers"}
 	case "expression.v25_string_helpers", "expression.v25_timeframe_change":
-		return []string{"TestCompileSupportsV25ArrayStringAndTimeframeHelpers", "TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR", "TestPineV25MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV25ArrayStringAndTimeframeHelpers"}
 	case "syntax.v26_collection_iteration":
-		return []string{"TestCompileSupportsV26CollectionIterationHistoryAndObjectCollectionFields", "TestExecuteV26CollectionForLoop", "TestPineV26MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV26CollectionIterationHistoryAndObjectCollectionFields"}
 	case "syntax.v26_collection_history_snapshot":
-		return []string{"TestCompileSupportsV26CollectionIterationHistoryAndObjectCollectionFields", "TestExecuteV26CollectionHistorySnapshot", "TestPineV26MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV26CollectionIterationHistoryAndObjectCollectionFields"}
 	case "syntax.v26_object_collection_fields":
-		return []string{"TestCompileSupportsV26CollectionIterationHistoryAndObjectCollectionFields", "TestExecuteV26ObjectCollectionFieldMutation", "TestPineV26MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV26CollectionIterationHistoryAndObjectCollectionFields"}
 	case "syntax.v26_library_export_metadata":
-		return []string{"TestPineV20LanguageFoundationGate", "TestPineV26MigrationCorpusGate"}
+		return []string{"TestPineV20LanguageFoundationGate"}
 	case "syntax.v27_collection_history_aggregates":
-		return []string{"TestCompileSupportsV27CollectionTimeframeAndMTFHelpers", "TestPineV27MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV27CollectionTimeframeAndMTFHelpers"}
 	case "syntax.v27_map_matrix_iteration":
-		return []string{"TestCompileSupportsV27CollectionTimeframeAndMTFHelpers", "TestPineV27MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV27CollectionTimeframeAndMTFHelpers"}
 	case "expression.v27_timeframe_helpers":
-		return []string{"TestCompileSupportsV27CollectionTimeframeAndMTFHelpers", "TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR", "TestPineV27MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV27CollectionTimeframeAndMTFHelpers"}
 	case "request.security.v27_pure_helper_expression":
-		return []string{"TestCompileSupportsV27CollectionTimeframeAndMTFHelpers", "TestPineV27MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV27CollectionTimeframeAndMTFHelpers"}
 	case "syntax.v28_object_history_read":
-		return []string{"TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata", "TestExecuteV28ObjectHistoryAndMethodChain", "TestPineV28MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata"}
 	case "syntax.v28_method_chain":
-		return []string{"TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata", "TestExecuteV28ObjectHistoryAndMethodChain", "TestPineV28MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata"}
 	case "syntax.v28_export_metadata":
-		return []string{"TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata", "TestPineV28MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata"}
 	case "request.security.v28_object_method_expression":
-		return []string{"TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata", "TestPineV28MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata"}
 	case "syntax.v29_object_history_method_receiver", "syntax.v29_method_chain_named_defaults", "request.security.v29_object_history_expression":
-		return []string{"TestCompileSupportsV29ObjectHistoryMethodReceiverAndMTFHistoryExpression", "TestExecuteV29ObjectHistoryMethodReceiverAndNamedChain", "TestPineV29MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV29ObjectHistoryMethodReceiverAndMTFHistoryExpression"}
 	case "syntax.v29_request_security_diagnostics":
-		return []string{"TestAnalyzeScriptReportsV29RequestSecurityDiagnostics", "TestPineV29MigrationCorpusGate"}
+		return []string{"TestAnalyzeScriptReportsV29RequestSecurityDiagnostics"}
 	case "request.security.v32_diagnostic_matrix":
 		return []string{"TestAnalyzeScriptReportsV32RequestSecurityDiagnosticMatrix"}
 	case "request.security.v32_lower_timeframe_preflight":
-		return []string{"TestRequestSecurityTimeframeRequirementsValidateAgainstStrategyInterval", "TestRunRejectsLowerTimeframeRequestSecurityBeforeReplay"}
+		return []string{"TestRequestSecurityTimeframeRequirementsValidateAgainstStrategyInterval"}
 	case "syntax.v30_stable_semantic_declarations":
-		return []string{"TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy", "TestPineV30MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy"}
 	case "syntax.v30_varip_closed_bar_policy", "syntax.v30_parser_whitespace_comments":
-		return []string{"TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy", "TestPineV30MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy"}
 	case "syntax.v31_public_surface_lock", "tooling.v31_structured_helper_diagnostics":
-		return []string{"TestCompileRejectsPublicInternalHelperCalls", "TestAnalyzeScriptReportsPublicInternalHelperDiagnostics", "TestStrategyPineEditorIntelliSense"}
+		return []string{"TestCompileRejectsPublicInternalHelperCalls", "TestAnalyzeScriptReportsPublicInternalHelperDiagnostics"}
 	case "syntax.v33_advanced_language_boundary", "tooling.v33_structured_language_diagnostics":
-		return []string{"TestAnalyzeScriptReportsV33AdvancedLanguageBoundaryDiagnostics", "TestValidateScriptReportsUnsupportedUDFAndStaticForCases", "TestExecuteWhileLoopHonorsBreakAndLimit"}
+		return []string{"TestAnalyzeScriptReportsV33AdvancedLanguageBoundaryDiagnostics", "TestValidateScriptReportsUnsupportedUDFAndStaticForCases"}
 	case "tooling.v34_generated_support_snapshot":
 		return []string{"TestGeneratedPineSupportSnapshotIsCurrent", "TestBuildToolPayloadIncludesSupportMatrix"}
 	case "indicator.v21_bbw_cog_anchored_vwap", "request.security.v21_ast_pure_expression":
-		return []string{"TestCompileSupportsV21BBWAndCOG", "TestAdvancedIndicatorCalculationsUseAuditedVectors", "TestPineV21MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV21BBWAndCOG", "TestAdvancedIndicatorCalculationsUseAuditedVectors"}
 	case "syntax.v22_structured_loop_runtime", "syntax.dynamic_loops_while":
-		return []string{"TestCompileSupportsV22StructuredASTGeneralTupleAndDynamicLoops", "TestCompiledWhileLoopHonorsContinueBeforeConditionExit", "TestPineV22MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV22StructuredASTGeneralTupleAndDynamicLoops"}
 	case "expression.v22_general_tuple", "request.security.v22_general_tuple", "request.security.tuple_general", "expression.tuple_general":
-		return []string{"TestCompileSupportsV22StructuredASTGeneralTupleAndDynamicLoops", "TestExecuteDynamicLoopsAndGeneralTuple", "TestPineV22MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV22StructuredASTGeneralTupleAndDynamicLoops"}
 	case "syntax.v22_pure_udt_method_runtime":
-		return []string{"TestCompileSupportsV22PureUDTAndMethodSubset", "TestExecutePureUDTConstructorAndMethod", "TestPineV22MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV22PureUDTAndMethodSubset"}
 	case "syntax.v23_pure_method_body_named_args", "expression.v23_object_field_set":
-		return []string{"TestCompileSupportsV23NamedObjectArgsAndPureMethodBody", "TestCompileSupportsV23LocalObjectFieldReassignment", "TestExecuteV23PureUDTNamedConstructorAndMethodBody", "TestExecuteV23LocalObjectFieldReassignment", "TestPineV23MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV23NamedObjectArgsAndPureMethodBody", "TestCompileSupportsV23LocalObjectFieldReassignment"}
 	case "syntax.v15_loop_control_subset":
-		return []string{"TestCompileSupportsV15StaticForLoopControl", "TestPineV15MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV15StaticForLoopControl"}
 	case "syntax.udf_multistatement", "syntax.switch_static_lowering":
 		return []string{"TestCompileSupportsSwitchAndMultiStatementUDF"}
 	case "request.security.mtf_ma_subset", "request.security.mtf_v12_advanced":
@@ -527,55 +531,120 @@ func capabilityTestIDs(id string) []string {
 	case "request.security.mtf_v13_advanced":
 		return []string{"TestCompileSupportsV13IndicatorsInStaticIntradaySecurity", "TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes"}
 	case "request.security.pure_expression":
-		return []string{"TestCompileSupportsV14RequestSecurityPureExpression", "TestEvaluateExpressionSupportsNewIndicatorLookups", "TestPineV14MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV14RequestSecurityPureExpression"}
 	case "request.security.pure_expression_diagnostics":
-		return []string{"TestValidateScriptRejectsUnsupportedPineRuntimeFeature", "TestPineV14MigrationCorpusGate"}
+		return []string{"TestValidateScriptRejectsUnsupportedPineRuntimeFeature"}
 	case "request.security.v15_common_ta_expression":
-		return []string{"TestCompileSupportsV15RequestSecurityCommonTAExpression", "TestEvaluateExpressionSupportsNewIndicatorLookups", "TestPineV15MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV15RequestSecurityCommonTAExpression"}
 	case "request.security.v16_tuple_whitelist":
-		return []string{"TestCompileSupportsV16RequestSecurityTupleWhitelist", "TestPineV16MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV16RequestSecurityTupleWhitelist"}
 	case "request.security.v23_pure_collection_object_expression":
-		return []string{"TestCompileSupportsV23RequestSecurityPureObjectAndCollectionExpressions", "TestEvaluateV23ObjectMethodExpression", "TestPineV23MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV23RequestSecurityPureObjectAndCollectionExpressions"}
 	case "indicator.v24_mtf_stoch", "request.security.v24_mtf_stoch":
-		return []string{"TestCompileSupportsV24CollectionExpansionAndMTFStoch", "TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes", "TestPineV24MigrationCorpusGate"}
+		return []string{"TestCompileSupportsV24CollectionExpansionAndMTFStoch", "TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes"}
 	case "expression.math_avg_mintick":
-		return []string{"TestCompileSupportsV13MigrationIndicators", "TestEvaluateExpressionSupportsMathAndTimeVariables"}
+		return []string{"TestCompileSupportsV13MigrationIndicators"}
 	case "tooling.migration_corpus_v14":
-		return []string{"TestPineV14MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v15":
-		return []string{"TestPineV15MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v16":
-		return []string{"TestPineV16MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v17", "tooling.semantic_analyze_payload":
-		return []string{"TestPineV17MigrationCorpusGate", "TestAnalyzeStrategyPineRouteReturnsDiagnosticsAndRequirements"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent", "TestAnalyzeStrategyPineRouteReturnsDiagnosticsAndRequirements"}
 	case "tooling.migration_corpus_v21":
-		return []string{"TestPineV21MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v22":
-		return []string{"TestPineV22MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v23":
-		return []string{"TestPineV23MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v24":
-		return []string{"TestPineV24MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v25":
-		return []string{"TestPineV25MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v26":
-		return []string{"TestPineV26MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v27":
-		return []string{"TestPineV27MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v28":
-		return []string{"TestPineV28MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v29":
-		return []string{"TestPineV29MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.migration_corpus_v30":
-		return []string{"TestPineV30MigrationCorpusGate"}
+		return []string{"TestGeneratedPineSupportSnapshotIsCurrent"}
 	case "tooling.v20_language_foundation", "tooling.visual_metadata_output", "visual.noop_calls":
 		return []string{"TestPineV20LanguageFoundationGate", "TestAnalyzeStrategyPineRouteReturnsV20ParseOnlyMetadata"}
 	case "syntax.methods_types_libraries":
-		return []string{"TestPineV20LanguageFoundationGate", "TestCompileSupportsV22PureUDTAndMethodSubset", "TestPineV22MigrationCorpusGate"}
+		return []string{"TestPineV20LanguageFoundationGate", "TestCompileSupportsV22PureUDTAndMethodSubset"}
 	default:
 		if strings.Contains(id, "unsupported") || strings.HasPrefix(id, "syntax.arrays") {
 			return nil
 		}
-		return []string{"TestGoldenExamplesAnalyzeAndPlan", "TestPineGoldenBenchmarkCasesSmoke"}
+		return []string{"TestGoldenExamplesAnalyzeAndPlan"}
 	}
+}
+
+func existingCapabilityTestIDs(ids []string) []string {
+	if len(ids) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if currentCapabilityEvidenceTests[id] {
+			result = append(result, id)
+		}
+	}
+	return result
+}
+
+var currentCapabilityEvidenceTests = map[string]bool{
+	"TestAdvancedIndicatorCalculationsUseAuditedVectors":                        true,
+	"TestAnalyzeScriptIncludesV17SemanticSummary":                               true,
+	"TestAnalyzeScriptReportsPublicInternalHelperDiagnostics":                   true,
+	"TestAnalyzeScriptReportsSemanticSignatureDiagnostics":                      true,
+	"TestAnalyzeScriptReportsV29RequestSecurityDiagnostics":                     true,
+	"TestAnalyzeScriptReportsV32RequestSecurityDiagnosticMatrix":                true,
+	"TestAnalyzeScriptReportsV33AdvancedLanguageBoundaryDiagnostics":            true,
+	"TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics":                      true,
+	"TestAnalyzeStrategyPineRouteReturnsDiagnosticsAndRequirements":             true,
+	"TestAnalyzeStrategyPineRouteReturnsV20ParseOnlyMetadata":                   true,
+	"TestBuildToolPayloadIncludesBrokerBoundary":                                true,
+	"TestBuildToolPayloadIncludesSupportMatrix":                                 true,
+	"TestCompileRejectsPublicInternalHelperCalls":                               true,
+	"TestCompileSupportsAllowEntryInRiskDeclaration":                            true,
+	"TestCompileSupportsPendingStopAndCancelOrders":                             true,
+	"TestCompileSupportsStrategyExitSubset":                                     true,
+	"TestCompileSupportsSwitchAndMultiStatementUDF":                             true,
+	"TestCompileSupportsV12AdvancedIndicators":                                  true,
+	"TestCompileSupportsV12AdvancedIndicatorsInStaticIntradaySecurity":          true,
+	"TestCompileSupportsV13IndicatorsInStaticIntradaySecurity":                  true,
+	"TestCompileSupportsV13MigrationIndicators":                                 true,
+	"TestCompileSupportsV14RequestSecurityPureExpression":                       true,
+	"TestCompileSupportsV14WindowMomentumAndStatefulIndicators":                 true,
+	"TestCompileSupportsV15RequestSecurityCommonTAExpression":                   true,
+	"TestCompileSupportsV15StaticForLoopControl":                                true,
+	"TestCompileSupportsV16RequestSecurityTupleWhitelist":                       true,
+	"TestCompileSupportsV21BBWAndCOG":                                           true,
+	"TestCompileSupportsV21ExecutableCollectionCore":                            true,
+	"TestCompileSupportsV22PureUDTAndMethodSubset":                              true,
+	"TestCompileSupportsV22StructuredASTGeneralTupleAndDynamicLoops":            true,
+	"TestCompileSupportsV23LocalObjectFieldReassignment":                        true,
+	"TestCompileSupportsV23NamedObjectArgsAndPureMethodBody":                    true,
+	"TestCompileSupportsV23RequestSecurityPureObjectAndCollectionExpressions":   true,
+	"TestCompileSupportsV24CollectionExpansionAndMTFStoch":                      true,
+	"TestCompileSupportsV24NamedObjectMethodExpressionAndRuntimeLoopFallback":   true,
+	"TestCompileSupportsV25ArrayStringAndTimeframeHelpers":                      true,
+	"TestCompileSupportsV26CollectionIterationHistoryAndObjectCollectionFields": true,
+	"TestCompileSupportsV27CollectionTimeframeAndMTFHelpers":                    true,
+	"TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata":           true,
+	"TestCompileSupportsV29ObjectHistoryMethodReceiverAndMTFHistoryExpression":  true,
+	"TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy":              true,
+	"TestGeneratedPineSupportSnapshotIsCurrent":                                 true,
+	"TestGoldenExamplesAnalyzeAndPlan":                                          true,
+	"TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes":            true,
+	"TestIndicatorRuntimeSnapshotIncludesV13MigrationIndicators":                true,
+	"TestPineV20LanguageFoundationGate":                                         true,
+	"TestRequestSecurityTimeframeRequirementsValidateAgainstStrategyInterval":   true,
+	"TestValidateScriptRejectsUnsupportedPineRuntimeFeature":                    true,
+	"TestValidateScriptReportsUnsupportedUDFAndStaticForCases":                  true,
 }

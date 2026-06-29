@@ -101,6 +101,17 @@ const executableUtilityCompletionLabels = [
   "timeframe.in_seconds",
 ];
 
+const pineTSVisualCompletionLabels = [
+  "plot",
+  "plotshape",
+  "plotchar",
+  "label.new",
+  "line.new",
+  "box.new",
+  "table.new",
+  "alertcondition",
+];
+
 describe("strategyPineEditorIntelliSense", () => {
   it("suggests the executable Pine v6 TA public surface", () => {
     const labels = new Set(strategyPineEditorCompletions.map((completion) => completion.label));
@@ -123,6 +134,16 @@ describe("strategyPineEditorIntelliSense", () => {
     const hoverTargets = new Set(strategyPineEditorHoverItems.map((item) => item.target));
 
     for (const label of executableUtilityCompletionLabels) {
+      expect(labels.has(label), `${label} should be suggested`).toBe(true);
+      expect(hoverTargets.has(label), `${label} should have hover documentation`).toBe(true);
+    }
+  });
+
+  it("suggests and documents PineTS visual and alert outputs without treating them as trading blocks", () => {
+    const labels = new Set(strategyPineEditorCompletions.map((completion) => completion.label));
+    const hoverTargets = new Set(strategyPineEditorHoverItems.map((item) => item.target));
+
+    for (const label of pineTSVisualCompletionLabels) {
       expect(labels.has(label), `${label} should be suggested`).toBe(true);
       expect(hoverTargets.has(label), `${label} should have hover documentation`).toBe(true);
     }

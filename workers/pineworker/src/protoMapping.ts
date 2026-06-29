@@ -7,6 +7,8 @@ import type {
   RunScriptRequest,
   RunScriptResponse,
   SeriesOutput,
+  AlertEvent,
+  VisualOutput,
   WorkerMetadata,
 } from "./types";
 
@@ -49,6 +51,8 @@ export function runScriptResponseToProto(response: RunScriptResponse): Record<st
     outputs: response.outputs.map(seriesOutputToProto),
     plots: response.plots.map(plotToProto),
     order_intents: response.orderIntents.map(orderIntentToProto),
+    alerts: response.alerts.map(alertToProto),
+    visual_outputs: response.visualOutputs.map(visualOutputToProto),
     logs: response.logs,
     warnings: response.warnings,
     diagnostics: response.diagnostics.map(diagnosticToProto),
@@ -95,6 +99,26 @@ function plotToProto(plot: PlotOutput): Record<string, unknown> {
   return {
     name: plot.name,
     values: plot.values,
+  };
+}
+
+function alertToProto(alert: AlertEvent): Record<string, unknown> {
+  return {
+    type: alert.type,
+    id: alert.id,
+    message: alert.message,
+    title: alert.title ?? "",
+    frequency: alert.frequency ?? "",
+    bar_index: alert.barIndex,
+    time: alert.time,
+  };
+}
+
+function visualOutputToProto(output: VisualOutput): Record<string, unknown> {
+  return {
+    kind: output.kind,
+    name: output.name,
+    payload_json: output.payloadJson,
   };
 }
 

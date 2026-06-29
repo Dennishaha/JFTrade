@@ -24,15 +24,17 @@ func responseFromProto(response *pineworkerpb.RunScriptResponse) RunScriptRespon
 		return RunScriptResponse{}
 	}
 	return RunScriptResponse{
-		JobID:        response.GetJobId(),
-		Outputs:      seriesOutputsFromProto(response.GetOutputs()),
-		Plots:        plotsFromProto(response.GetPlots()),
-		OrderIntents: orderIntentsFromProto(response.GetOrderIntents()),
-		Logs:         append([]string(nil), response.GetLogs()...),
-		Warnings:     append([]string(nil), response.GetWarnings()...),
-		Diagnostics:  diagnosticsFromProto(response.GetDiagnostics()),
-		Metadata:     metadataFromProto(response.GetMetadata()),
-		Error:        response.GetError(),
+		JobID:         response.GetJobId(),
+		Outputs:       seriesOutputsFromProto(response.GetOutputs()),
+		Plots:         plotsFromProto(response.GetPlots()),
+		OrderIntents:  orderIntentsFromProto(response.GetOrderIntents()),
+		Alerts:        alertsFromProto(response.GetAlerts()),
+		VisualOutputs: visualOutputsFromProto(response.GetVisualOutputs()),
+		Logs:          append([]string(nil), response.GetLogs()...),
+		Warnings:      append([]string(nil), response.GetWarnings()...),
+		Diagnostics:   diagnosticsFromProto(response.GetDiagnostics()),
+		Metadata:      metadataFromProto(response.GetMetadata()),
+		Error:         response.GetError(),
 	}
 }
 
@@ -83,6 +85,34 @@ func plotsFromProto(plots []*pineworkerpb.PlotOutput) []PlotOutput {
 		result = append(result, PlotOutput{
 			Name:   plot.GetName(),
 			Values: append([]float64(nil), plot.GetValues()...),
+		})
+	}
+	return result
+}
+
+func alertsFromProto(alerts []*pineworkerpb.AlertEvent) []AlertEvent {
+	result := make([]AlertEvent, 0, len(alerts))
+	for _, alert := range alerts {
+		result = append(result, AlertEvent{
+			Type:      alert.GetType(),
+			ID:        alert.GetId(),
+			Message:   alert.GetMessage(),
+			Title:     alert.GetTitle(),
+			Frequency: alert.GetFrequency(),
+			BarIndex:  int(alert.GetBarIndex()),
+			Time:      alert.GetTime(),
+		})
+	}
+	return result
+}
+
+func visualOutputsFromProto(outputs []*pineworkerpb.VisualOutput) []VisualOutput {
+	result := make([]VisualOutput, 0, len(outputs))
+	for _, output := range outputs {
+		result = append(result, VisualOutput{
+			Kind:        output.GetKind(),
+			Name:        output.GetName(),
+			PayloadJSON: output.GetPayloadJson(),
 		})
 	}
 	return result

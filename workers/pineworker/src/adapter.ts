@@ -1,4 +1,5 @@
 import type {
+  AlertEvent,
   OrderIntent,
   PineTSExecutor,
   PineTSPlot,
@@ -6,6 +7,7 @@ import type {
   PlotOutput,
   RunScriptRequest,
   RunScriptResponse,
+  VisualOutput,
   WorkerMetadata,
 } from "./types";
 import { validateRunScriptRequest, type WorkerLimits } from "./validation";
@@ -72,6 +74,8 @@ export function buildResponse(
     })),
     plots: normalizePlots(result.plots),
     orderIntents: normalizeResultOrderIntents(result, request),
+    alerts: normalizeAlerts(result.alerts),
+    visualOutputs: normalizeVisualOutputs(result),
     logs: normalizeStringList(result.logs),
     warnings: normalizeStringList(result.warnings),
     diagnostics: result.diagnostics ?? [],
@@ -89,6 +93,8 @@ function buildErrorResponse(
     outputs: [],
     plots: [],
     orderIntents: [],
+    alerts: [],
+    visualOutputs: [],
     logs: [],
     warnings: [],
     diagnostics: [{ severity: "error", code: "worker.error", message }],
@@ -109,6 +115,49 @@ function normalizePlotValues(plot: PineTSPlot | number[]): number[] {
   return source.map((point) => {
     const value = typeof point === "number" ? point : point.value;
     return Number.isFinite(value) ? Number(value) : 0;
+  });
+}
+
+function normalizeAlerts(items: unknown[] | undefined): AlertEvent[] {
+  return (items ?? []).flatMap((item) => {
+    if (typeof item !== "object" || item === null) {
+      return [];
+    }
+    const raw = item as Record<string, unknown>;
+    const alert: AlertEvent = {
+      type: toStringValue(raw.type, "alert"),
+      id: toStringValue(raw.id, ""),
+      message: toStringValue(raw.message, ""),
+      barIndex: toInteger(raw.bar_index ?? raw.barIndex, 0),
+      time: toInteger(raw.time, 0),
+    };
+    setAlertString(alert, "title", raw.title);
+    setAlertString(alert, "frequency", raw.freq ?? raw.frequency);
+    return [alert];
+  });
+}
+
+function normalizeVisualOutputs(result: PineTSRunResult): VisualOutput[] {
+  const explicit = normalizeVisualOutputItems(result.visualOutputs, "visual");
+  const drawings = normalizeVisualOutputItems(result.drawings, "drawing");
+  return [...explicit, ...drawings];
+}
+
+function normalizeVisualOutputItems(value: unknown, fallbackKind: string): VisualOutput[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  const items = Array.isArray(value) ? value : [value];
+  return items.flatMap((item, index) => {
+    if (typeof item !== "object" || item === null) {
+      return [];
+    }
+    const raw = item as Record<string, unknown>;
+    return [{
+      kind: toStringValue(raw.kind, fallbackKind),
+      name: toStringValue(raw.name ?? raw.id, `${fallbackKind}-${index + 1}`),
+      payloadJson: stableStringify(raw),
+    }];
   });
 }
 
@@ -242,6 +291,13 @@ function setString<T extends keyof OrderIntent>(intent: OrderIntent, key: T, val
   }
 }
 
+function setAlertString<T extends keyof AlertEvent>(alert: AlertEvent, key: T, value: unknown): void {
+  const normalized = optionalString(value);
+  if (normalized !== undefined) {
+    (alert as Record<string, unknown>)[key] = normalized;
+  }
+}
+
 function setNumber<T extends keyof OrderIntent>(intent: OrderIntent, key: T, value: unknown): void {
   const normalized = optionalNumber(value);
   if (normalized !== undefined) {
@@ -255,6 +311,18 @@ function toInteger(value: unknown, fallback: number): number {
 
 function jsonBytes(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(value, (_key, item) => {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      return item;
+    }
+    return Object.keys(item).sort().reduce<Record<string, unknown>>((acc, key) => {
+      acc[key] = (item as Record<string, unknown>)[key];
+      return acc;
+    }, {});
+  }) ?? "";
 }
 
 async function hashText(value: string): Promise<string> {

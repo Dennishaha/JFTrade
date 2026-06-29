@@ -133,7 +133,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.max",
     detail: "math",
-    documentation: "取最大值；math namespace 会 lower 到表达式函数。",
+    documentation: "取最大值；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "044",
@@ -142,7 +142,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.min",
     detail: "math",
-    documentation: "取最小值；math namespace 会 lower 到表达式函数。",
+    documentation: "取最小值；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "045",
@@ -151,7 +151,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.abs",
     detail: "math",
-    documentation: "取绝对值；math namespace 会 lower 到表达式函数。",
+    documentation: "取绝对值；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0451",
@@ -160,7 +160,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.avg",
     detail: "math",
-    documentation: "返回参数平均值；math namespace 会 lower 到表达式函数。",
+    documentation: "返回参数平均值；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0452",
@@ -187,7 +187,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.floor",
     detail: "math",
-    documentation: "向下取整；math namespace 会 lower 到表达式函数。",
+    documentation: "向下取整；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0455",
@@ -196,7 +196,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.ceil",
     detail: "math",
-    documentation: "向上取整；math namespace 会 lower 到表达式函数。",
+    documentation: "向上取整；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0456",
@@ -205,7 +205,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.sqrt",
     detail: "math",
-    documentation: "平方根；math namespace 会 lower 到表达式函数。",
+    documentation: "平方根；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0457",
@@ -214,7 +214,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.pow",
     detail: "math",
-    documentation: "幂运算；math namespace 会 lower 到表达式函数。",
+    documentation: "幂运算；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0458",
@@ -223,7 +223,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.log",
     detail: "math",
-    documentation: "自然对数；math namespace 会 lower 到表达式函数。",
+    documentation: "自然对数；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0459",
@@ -232,7 +232,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "math.sign",
     detail: "math",
-    documentation: "返回 -1、0 或 1；math namespace 会 lower 到表达式函数。",
+    documentation: "返回 -1、0 或 1；由 PineTS worker 执行 math helper。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0460",
@@ -718,7 +718,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "barstate.isconfirmed",
     detail: "bar state",
-    documentation: "closed-bar runtime 中已确认 K 线为 true；可用于兼容 TradingView 模板过滤。",
+    documentation: "PineTS worker 中已确认 K 线为 true；可用于兼容 TradingView 模板过滤。",
     kind: "variable",
     insertTextRule: "snippet",
     sortText: "06581",
@@ -736,7 +736,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "dayofweek.monday",
     detail: "Pine constant",
-    documentation: "TradingView dayofweek 常量；JFTrade lower 为数值 2。",
+    documentation: "TradingView dayofweek 常量；PineTS worker normalizes 为数值 2。",
     kind: "variable",
     insertTextRule: "snippet",
     sortText: "06583",
@@ -745,7 +745,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "month.january",
     detail: "Pine constant",
-    documentation: "TradingView month 常量；JFTrade lower 为数值 1。",
+    documentation: "TradingView month 常量；PineTS worker normalizes 为数值 1。",
     kind: "variable",
     insertTextRule: "snippet",
     sortText: "06584",
@@ -816,8 +816,8 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   },
   {
     label: "switch expression",
-    detail: "static switch lowering",
-    documentation: "switch 会在编译期 lower 为 ifelse/IfStmt。",
+    detail: "static switch",
+    documentation: "switch 作为 PineTS worker 可执行分支表达式使用。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "068015",
@@ -835,7 +835,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "for dynamic",
     detail: "v2.2 dynamic loop",
-    documentation: "v2.2 支持动态 for、break/continue；闭盘 runtime 会限制嵌套深度和单 bar 最大迭代数。",
+    documentation: "v2.2 支持动态 for、break/continue；PineTS worker 会限制嵌套深度和单 bar 最大迭代数。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "068021",
@@ -861,17 +861,80 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   },
   {
     label: "plot",
-    detail: "visual metadata",
-    documentation: "兼容 TradingView 模板；JFTrade 会作为 warning no-op 忽略交易执行，并在 AnalyzeScript 中返回 visual metadata。",
+    detail: "PineTS visual output",
+    documentation: "PineTS worker 会计算 plot 序列并通过 worker response 透出；交易执行仍只消费 strategy.* order intents。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0681",
     insertText: "plot(${1:close})",
   },
   {
+    label: "plotshape",
+    detail: "PineTS visual output",
+    documentation: "PineTS 支持形状标记；JFTrade 将其归入 visual output，不参与 Go 侧下单和风控。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "06811",
+    insertText: "plotshape(${1:condition}, title=\"${2:Signal}\", text=\"${3:S}\")",
+  },
+  {
+    label: "plotchar",
+    detail: "PineTS visual output",
+    documentation: "PineTS 支持字符标记；JFTrade 将其归入 visual output，不参与 Go 侧下单和风控。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "06812",
+    insertText: "plotchar(${1:condition}, title=\"${2:Signal}\", char=\"${3:*}\")",
+  },
+  {
+    label: "label.new",
+    detail: "PineTS drawing output",
+    documentation: "PineTS 支持 drawing 对象；JFTrade worker 会按 visual output 边界透出，流程图块不把绘图对象当作交易动作。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "06813",
+    insertText: "label.new(bar_index, ${1:close}, \"${2:Signal}\")",
+  },
+  {
+    label: "line.new",
+    detail: "PineTS drawing output",
+    documentation: "PineTS 支持 line drawing；JFTrade worker 会按 visual output 边界透出，交易语义仍由 strategy.* 决定。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "06814",
+    insertText: "line.new(bar_index[1], ${1:close[1]}, bar_index, ${2:close})",
+  },
+  {
+    label: "box.new",
+    detail: "PineTS drawing output",
+    documentation: "PineTS 支持 box drawing；JFTrade worker 会按 visual output 边界透出，不进入订单 intent。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "06815",
+    insertText: "box.new(bar_index[1], ${1:high[1]}, bar_index, ${2:low})",
+  },
+  {
+    label: "table.new",
+    detail: "PineTS table output",
+    documentation: "PineTS 支持 table 对象；JFTrade 将 table 归为 visual output，不作为流程图交易图块。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "06816",
+    insertText: "table.new(position.${1|top_right,bottom_right,top_left,bottom_left|}, ${2:2}, ${3:2})",
+  },
+  {
+    label: "hline/fill",
+    detail: "PineTS visual output",
+    documentation: "PineTS 支持 hline/fill 视觉层；JFTrade 将其归为 visual output。",
+    kind: "snippet",
+    insertTextRule: "snippet",
+    sortText: "06817",
+    insertText: ["${1:upper} = hline(${2:70})", "${3:lower} = hline(${4:30})", "fill(${1:upper}, ${3:lower})"].join("\n"),
+  },
+  {
     label: "alertcondition",
-    detail: "alert declaration metadata",
-    documentation: "兼容 TradingView 模板；JFTrade 不触发通知，只作为 warning no-op 忽略，并在 AnalyzeScript 中返回 visual metadata。",
+    detail: "PineTS alert event",
+    documentation: "PineTS worker 会产出 alertcondition 事件；JFTrade 将其通过 alerts 边界透出，交易通知仍建议用 alert() 或订单 alert metadata 明确表达。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0682",
@@ -916,7 +979,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "array.sort/sort_indices",
     detail: "v2.4 deterministic sort",
-    documentation: "支持 number/string/bool/nil；nil 稳定放末尾。order.ascending/order.descending 会 lower 为确定性排序方向。",
+    documentation: "支持 number/string/bool/nil；nil 稳定放末尾。order.ascending/order.descending 表示确定性排序方向。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "068314",
@@ -1024,7 +1087,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "matrix cell",
     detail: "v2.7 matrix read/write",
-    documentation: "v2.7 锁定 matrix rows/columns/get/set 组合，用于闭盘 runtime 中的基础二维状态。",
+    documentation: "v2.7 锁定 matrix rows/columns/get/set 组合，用于 PineTS worker 中的基础二维状态。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "068332",
@@ -1051,7 +1114,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "method block",
     detail: "v2.4 pure method subset",
-    documentation: "多语句纯 method 会在闭盘 runtime 中执行；receiver 字段可读，method 内不执行订单、绘图或 collection 副作用。",
+    documentation: "多语句纯 method 会在 PineTS worker 中执行；receiver 字段可读，method 内不执行订单、绘图或 collection 副作用。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "068351",
@@ -1113,8 +1176,8 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   },
   {
     label: "varip",
-    detail: "v3.0 closed-bar policy",
-    documentation: "v3.0 中 varip 在 JFTrade closed-bar runtime 下按 var 语义执行，并输出兼容性 warning。",
+    detail: "PineTS worker varip compatibility",
+    documentation: "v3.0 中 varip 在 PineTS worker 下按 var 语义执行，并输出兼容性 warning。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "0683535",
@@ -1213,7 +1276,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "timeframe.change",
     detail: "v2.5 timeframe helper",
-    documentation: "v2.5 支持静态 timeframe.change，用于 closed-bar 周期边界判断；同批支持 time_close。",
+    documentation: "v2.5 支持静态 timeframe.change，用于 K 线周期边界判断；同批支持 time_close。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "068355",
@@ -1315,7 +1378,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "strategy.entry qty_percent",
     detail: "order",
-    documentation: "按账户权益百分比开仓；JFTrade lower 为 account_position_percent。",
+    documentation: "按账户权益百分比开仓；PineTS worker normalizes 为 account_position_percent。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "101",
@@ -1324,7 +1387,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "strategy.entry stop",
     detail: "pending order",
-    documentation: "基础 stop pending；突破 stop 价后按 closed-bar 语义触发。",
+    documentation: "基础 stop pending；突破 stop 价后按 PineTS worker + Go 订单链路触发。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "102",
@@ -1508,7 +1571,7 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "ta.rsi",
     signature: "ta.rsi(source, length)",
-    documentation: "Pine v6 RSI；source-aware lowering 与 runtime requirement 已支持。",
+    documentation: "Pine v6 RSI；PineTS worker 支持 source-aware 计算。",
   },
   {
     target: "ta.macd",
@@ -1523,17 +1586,17 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "ta.crossover",
     signature: "ta.crossover(left, right) -> bool",
-    documentation: "Pine v6 交叉检测；在 JFTrade closed-bar runtime 中按上一根与当前 closed bar 判断。",
+    documentation: "Pine v6 交叉检测；在 PineTS worker 中按上一根与当前 closed bar 判断。",
   },
   {
     target: "ta.crossunder",
     signature: "ta.crossunder(left, right) -> bool",
-    documentation: "Pine v6 下穿检测；在 JFTrade closed-bar runtime 中按上一根与当前 closed bar 判断。",
+    documentation: "Pine v6 下穿检测；在 PineTS worker 中按上一根与当前 closed bar 判断。",
   },
   {
     target: "ta.cross",
     signature: "ta.cross(left, right) -> bool",
-    documentation: "Pine v6 任意方向交叉检测；在 JFTrade closed-bar runtime 中执行。",
+    documentation: "Pine v6 任意方向交叉检测；在 PineTS worker 中执行。",
   },
   {
     target: "ta.highest",
@@ -1563,17 +1626,17 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "ta.rma",
     signature: "ta.rma(source, length)",
-    documentation: "Pine v6 RMA；source-aware lowering 与 runtime requirement 已支持。",
+    documentation: "Pine v6 RMA；PineTS worker 支持 source-aware 计算。",
   },
   {
     target: "ta.wma",
     signature: "ta.wma(source, length)",
-    documentation: "Pine v6 WMA；source-aware lowering 与 runtime requirement 已支持。",
+    documentation: "Pine v6 WMA；PineTS worker 支持 source-aware 计算。",
   },
   {
     target: "ta.hma",
     signature: "ta.hma(source, length)",
-    documentation: "Pine v6 HMA；source-aware lowering 与 runtime requirement 已支持。",
+    documentation: "Pine v6 HMA；PineTS worker 支持 source-aware 计算。",
   },
   {
     target: "ta.vwma",
@@ -1633,12 +1696,12 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "ta.stdev",
     signature: "ta.stdev(source, length)",
-    documentation: "滚动标准差；source-aware runtime 已支持。",
+    documentation: "滚动标准差；PineTS worker 支持 source-aware 计算。",
   },
   {
     target: "ta.variance",
     signature: "ta.variance(source, length)",
-    documentation: "滚动方差；source-aware runtime 已支持。",
+    documentation: "滚动方差；PineTS worker 支持 source-aware 计算。",
   },
   {
     target: "ta.cum",
@@ -1678,12 +1741,42 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "alertcondition",
     signature: "alertcondition(condition, title?, message?)",
-    documentation: "Pine v6 视觉/提醒声明；JFTrade 运行交易逻辑时不触发该声明，需要运行时通知请使用 alert()。",
+    documentation: "PineTS worker 会产出 alertcondition 事件；JFTrade 通过 alerts 边界透出，交易执行不消费该声明。",
   },
   {
     target: "plot",
     signature: "plot(series, ...)",
-    documentation: "JFTrade 作为视觉 no-op 兼容，会产生 warning 但不进入交易 IR；AnalyzeScript 会返回 visual metadata。",
+    documentation: "PineTS worker 会计算 plot 序列并透出到 plots；Go 交易链路不消费 plot。",
+  },
+  {
+    target: "plotshape",
+    signature: "plotshape(condition, title?, text?, ...)",
+    documentation: "PineTS worker 支持形状标记；JFTrade 将其归为 visual output，不进入订单 intent。",
+  },
+  {
+    target: "plotchar",
+    signature: "plotchar(condition, title?, char?, ...)",
+    documentation: "PineTS worker 支持字符标记；JFTrade 将其归为 visual output，不进入订单 intent。",
+  },
+  {
+    target: "label.new",
+    signature: "label.new(x, y, text, ...)",
+    documentation: "PineTS worker 支持 label drawing；JFTrade 将 drawing 对象归为 visual output。",
+  },
+  {
+    target: "line.new",
+    signature: "line.new(x1, y1, x2, y2, ...)",
+    documentation: "PineTS worker 支持 line drawing；JFTrade 将 drawing 对象归为 visual output。",
+  },
+  {
+    target: "box.new",
+    signature: "box.new(left, top, right, bottom, ...)",
+    documentation: "PineTS worker 支持 box drawing；JFTrade 将 drawing 对象归为 visual output。",
+  },
+  {
+    target: "table.new",
+    signature: "table.new(position, columns, rows, ...)",
+    documentation: "PineTS worker 支持 table 对象；JFTrade 将 table 归为 visual output。",
   },
   {
     target: "array.new_float",
@@ -1833,7 +1926,7 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "varip",
     signature: "varip name = expression",
-    documentation: "v3.0 closed-bar runtime 将 varip 按 var 语义执行，并通过 warning 标出 intrabar 语义边界。",
+    documentation: "v3.0 PineTS worker 将 varip 按 var 语义执行，并通过 warning 标出 intrabar 语义边界。",
   },
   {
     target: "semantic declarations",
@@ -1863,12 +1956,12 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "ta.bbw",
     signature: "ta.bbw(source, length, mult)",
-    documentation: "JFTrade 支持 Bollinger Band Width 与静态同标的 MTF lowering。",
+    documentation: "PineTS worker 支持 Bollinger Band Width 与静态同标的 MTF 计算。",
   },
   {
     target: "ta.cog",
     signature: "ta.cog(source, length)",
-    documentation: "JFTrade 支持 Center of Gravity 与静态同标的 MTF lowering。",
+    documentation: "PineTS worker 支持 Center of Gravity 与静态同标的 MTF 计算。",
   },
   {
     target: "ta.mfi",
@@ -1923,7 +2016,7 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "ta.cmo",
     signature: "ta.cmo(source, length)",
-    documentation: "Chande Momentum Oscillator；source-aware runtime 已支持。",
+    documentation: "Chande Momentum Oscillator；PineTS worker 支持 source-aware 计算。",
   },
   {
     target: "ta.tsi",
@@ -1998,7 +2091,7 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "barstate.isconfirmed",
     signature: "barstate.isconfirmed",
-    documentation: "closed-bar runtime 中当前已知 K 线执行时为 true；同批支持 isfirst/isnew/ishistory/isrealtime/islast。",
+    documentation: "PineTS worker 中当前已知 K 线执行时为 true；同批支持 isfirst/isnew/ishistory/isrealtime/islast。",
   },
   {
     target: "session.ismarket",
@@ -2008,17 +2101,17 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "dayofweek.monday",
     signature: "dayofweek.monday",
-    documentation: "JFTrade 将 dayofweek.sunday...saturday lower 为 1...7。",
+    documentation: "PineTS worker 将 dayofweek.sunday...saturday 归一为 1...7。",
   },
   {
     target: "month.january",
     signature: "month.january",
-    documentation: "JFTrade 将 month.january...december lower 为 1...12。",
+    documentation: "PineTS worker 将 month.january...december 归一为 1...12。",
   },
   {
     target: "color.rgb",
     signature: "color.rgb(r, g, b)",
-    documentation: "JFTrade lower 为稳定十六进制颜色字符串。",
+    documentation: "PineTS worker normalizes 为稳定十六进制颜色字符串。",
   },
   {
     target: "color.new",
@@ -2053,32 +2146,32 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "input.source",
     signature: "input.source(defval, title?)",
-    documentation: "JFTrade 取默认 OHLCV source；后续 ta.sma(src, n) 会按 source-aware MA lower。",
+    documentation: "PineTS worker 取默认 OHLCV source；后续 ta.sma(src, n) 按 source-aware MA 计算。",
   },
   {
     target: "math.abs",
     signature: "math.abs(number)",
-    documentation: "JFTrade lower 到 abs(number)。",
+    documentation: "PineTS worker normalizes 到 abs(number)。",
   },
   {
     target: "math.min",
     signature: "math.min(a, b, ...)",
-    documentation: "JFTrade lower 到 min(a, b, ...)。",
+    documentation: "PineTS worker normalizes 到 min(a, b, ...)。",
   },
   {
     target: "math.max",
     signature: "math.max(a, b, ...)",
-    documentation: "JFTrade lower 到 max(a, b, ...)。",
+    documentation: "PineTS worker normalizes 到 max(a, b, ...)。",
   },
   {
     target: "math.avg",
     signature: "math.avg(a, b, ...)",
-    documentation: "JFTrade lower 到 avg(a, b, ...)。",
+    documentation: "PineTS worker normalizes 到 avg(a, b, ...)。",
   },
   {
     target: "math.round",
     signature: "math.round(number, precision?)",
-    documentation: "JFTrade lower 到 round(number, precision?)。",
+    documentation: "PineTS worker normalizes 到 round(number, precision?)。",
   },
   {
     target: "math.round_to_mintick",
@@ -2088,32 +2181,32 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "math.floor",
     signature: "math.floor(number)",
-    documentation: "JFTrade lower 到 floor(number)。",
+    documentation: "PineTS worker normalizes 到 floor(number)。",
   },
   {
     target: "math.ceil",
     signature: "math.ceil(number)",
-    documentation: "JFTrade lower 到 ceil(number)。",
+    documentation: "PineTS worker normalizes 到 ceil(number)。",
   },
   {
     target: "math.sqrt",
     signature: "math.sqrt(number)",
-    documentation: "JFTrade lower 到 sqrt(number)。",
+    documentation: "PineTS worker normalizes 到 sqrt(number)。",
   },
   {
     target: "math.pow",
     signature: "math.pow(base, exponent)",
-    documentation: "JFTrade lower 到 pow(base, exponent)。",
+    documentation: "PineTS worker normalizes 到 pow(base, exponent)。",
   },
   {
     target: "math.log",
     signature: "math.log(number)",
-    documentation: "JFTrade lower 到 log(number)。",
+    documentation: "PineTS worker normalizes 到 log(number)。",
   },
   {
     target: "math.sign",
     signature: "math.sign(number)",
-    documentation: "JFTrade lower 到 sign(number)。",
+    documentation: "PineTS worker normalizes 到 sign(number)。",
   },
   {
     target: "bar_index",
@@ -2163,7 +2256,7 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "request.security",
     signature: "request.security(syminfo.tickerid, timeframe, source | source[n] | ta.* | [expr, expr] | pure object/collection expr)",
-    documentation: "JFTrade 支持同标的 1/5/15/30/45/60/120/240/D/W/M，source/source[n]、source-aware 均线、v2.4 ta.stoch、纯表达式、2-8 元 tuple，以及纯 collection/object 表达式；lookahead_on/gaps_on、多标的和副作用表达式会被明确诊断。",
+    documentation: "PineTS worker 支持同标的 1/5/15/30/45/60/120/240/D/W/M，source/source[n]、source-aware 均线、v2.4 ta.stoch、纯表达式、2-8 元 tuple，以及纯 collection/object 表达式；lookahead_on/gaps_on、多标的和副作用表达式会被明确诊断。",
   },
   {
     target: "strategy.exit",

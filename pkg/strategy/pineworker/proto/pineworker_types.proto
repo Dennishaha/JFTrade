@@ -55,4 +55,6 @@ message RunScriptResponse {
   repeated Diagnostic diagnostics = 7;
   WorkerMetadata metadata = 8;
   string error = 9;
+  repeated AlertEvent alerts = 10;
+  repeated VisualOutput visual_outputs = 11;
 }

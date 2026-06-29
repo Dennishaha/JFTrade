@@ -48,6 +48,20 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 			HasLimitPrice:  true,
 			HasStopPrice:   true,
 		}},
+		Alerts: []*pineworkerpb.AlertEvent{{
+			Type:      "alertcondition",
+			Id:        "alert-1",
+			Message:   "crossed",
+			Title:     "Cross",
+			Frequency: "all",
+			BarIndex:  2,
+			Time:      123,
+		}},
+		VisualOutputs: []*pineworkerpb.VisualOutput{{
+			Kind:        "label",
+			Name:        "entry-label",
+			PayloadJson: `{"text":"Long"}`,
+		}},
 		Logs:        []string{"log"},
 		Warnings:    []string{"warn"},
 		Diagnostics: []*pineworkerpb.Diagnostic{{Severity: "warning", Code: "x", Message: "m", Line: 1, Column: 2}},
@@ -71,6 +85,12 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 	intent := response.OrderIntents[0]
 	if intent.ID != "long" || !intent.HasStopPrice || !intent.DisableAlert {
 		t.Fatalf("unexpected mapped order intent: %#v", intent)
+	}
+	if response.Alerts[0].ID != "alert-1" || response.Alerts[0].Frequency != "all" {
+		t.Fatalf("unexpected mapped alerts: %#v", response.Alerts)
+	}
+	if response.VisualOutputs[0].Kind != "label" || response.VisualOutputs[0].PayloadJSON == "" {
+		t.Fatalf("unexpected mapped visual outputs: %#v", response.VisualOutputs)
 	}
 	if response.Diagnostics[0].Line != 1 || response.Metadata.Duration != 7*time.Millisecond {
 		t.Fatalf("unexpected diagnostics/metadata: %#v", response)

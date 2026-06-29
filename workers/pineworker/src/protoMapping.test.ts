@@ -33,6 +33,20 @@ describe("proto mapping", () => {
         barIndex: 0,
         time: 1,
       }],
+      alerts: [{
+        type: "alertcondition",
+        id: "alert-1",
+        message: "crossed",
+        title: "Cross",
+        frequency: "all",
+        barIndex: 0,
+        time: 1,
+      }],
+      visualOutputs: [{
+        kind: "label",
+        name: "entry-label",
+        payloadJson: "{\"text\":\"Long\"}",
+      }],
       logs: ["log"],
       warnings: ["warn"],
       diagnostics: [{ severity: "info", code: "x", message: "ok" }],
@@ -52,6 +66,8 @@ describe("proto mapping", () => {
     expect(response).toMatchObject({
       job_id: "job-1",
       order_intents: [{ id: "long", has_quantity: true }],
+      alerts: [{ id: "alert-1", frequency: "all", bar_index: 0 }],
+      visual_outputs: [{ kind: "label", name: "entry-label", payload_json: "{\"text\":\"Long\"}" }],
       metadata: { worker_id: "worker-1", pinets_version: "mock" },
       error: "",
     });
