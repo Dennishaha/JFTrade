@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node ../../scripts/run-bun.mjs src/main.ts",
-    "build": "bash ../../scripts/build-pineworker-assets.sh",
+    "build": "node ../../scripts/build-pineworker-assets.mjs",
     "test": "node ../../scripts/run-bun.mjs test",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
