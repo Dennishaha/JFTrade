@@ -318,12 +318,6 @@ func (worker *fakeStrategyRuntimePineWorker) RunScript(_ context.Context, reques
 	return response(request), nil
 }
 
-func (worker *fakeStrategyRuntimePineWorker) requestCount() int {
-	worker.mu.Lock()
-	defer worker.mu.Unlock()
-	return len(worker.requests)
-}
-
 func (worker *fakeStrategyRuntimePineWorker) lastRequest() (pineworker.RunScriptRequest, bool) {
 	worker.mu.Lock()
 	defer worker.mu.Unlock()

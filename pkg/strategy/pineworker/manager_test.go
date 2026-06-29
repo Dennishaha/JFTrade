@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -62,6 +63,84 @@ func TestWorkerManagerRunScriptRoundRobinsHealthyWorkers(t *testing.T) {
 	second := dialer.transports["127.0.0.1:50052"]
 	if first.runs != 2 || second.runs != 1 {
 		t.Fatalf("runs = %d/%d, want 2/1", first.runs, second.runs)
+	}
+}
+
+func TestWorkerManagerRunScriptQueuesWhenAllWorkersBusy(t *testing.T) {
+	launcher := &fakeWorkerLauncher{}
+	dialer := newFakeManagerDialer()
+	manager := newTestManager(t, ManagerConfig{Workers: 1}, launcher, dialer)
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	transport := dialer.latest["127.0.0.1:50051"]
+	transport.runStarted = make(chan struct{}, 1)
+	transport.releaseRun = make(chan struct{})
+
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := manager.RunScript(context.Background(), validClientRequest())
+		firstDone <- err
+	}()
+	select {
+	case <-transport.runStarted:
+	case <-time.After(time.Second):
+		t.Fatal("first RunScript did not start")
+	}
+
+	secondDone := make(chan error, 1)
+	go func() {
+		_, err := manager.RunScript(context.Background(), validClientRequest())
+		secondDone <- err
+	}()
+	select {
+	case err := <-secondDone:
+		t.Fatalf("second RunScript finished before capacity was released: %v", err)
+	case <-time.After(30 * time.Millisecond):
+	}
+
+	close(transport.releaseRun)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first RunScript error = %v", err)
+	}
+	if err := <-secondDone; err != nil {
+		t.Fatalf("second RunScript error = %v", err)
+	}
+}
+
+func TestWorkerManagerRunScriptRejectsWhenBusyIfConfigured(t *testing.T) {
+	launcher := &fakeWorkerLauncher{}
+	dialer := newFakeManagerDialer()
+	manager := newTestManager(t, ManagerConfig{Workers: 1, RejectWhenBusy: true}, launcher, dialer)
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	transport := dialer.latest["127.0.0.1:50051"]
+	transport.runStarted = make(chan struct{}, 1)
+	transport.releaseRun = make(chan struct{})
+
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := manager.RunScript(context.Background(), validClientRequest())
+		firstDone <- err
+	}()
+	select {
+	case <-transport.runStarted:
+	case <-time.After(time.Second):
+		t.Fatal("first RunScript did not start")
+	}
+
+	_, err := manager.RunScript(context.Background(), validClientRequest())
+	if !errors.Is(err, ErrCapacityExceeded) {
+		t.Fatalf("RunScript error = %v, want ErrCapacityExceeded", err)
+	}
+	var capacityErr CapacityExceededError
+	if !errors.As(err, &capacityErr) || capacityErr.Workers != 1 {
+		t.Fatalf("RunScript capacity error = %#v, want workers=1", err)
+	}
+	close(transport.releaseRun)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first RunScript error = %v", err)
 	}
 }
 
@@ -300,10 +379,30 @@ type fakeManagedTransport struct {
 	healthChecks int
 	runs         int
 	closes       int
+	mu           sync.Mutex
+	runStarted   chan struct{}
+	releaseRun   chan struct{}
 }
 
 func (transport *fakeManagedTransport) RunScript(ctx context.Context, request RunScriptRequest) (RunScriptResponse, error) {
+	transport.mu.Lock()
 	transport.runs++
+	runStarted := transport.runStarted
+	releaseRun := transport.releaseRun
+	transport.mu.Unlock()
+	if runStarted != nil {
+		select {
+		case runStarted <- struct{}{}:
+		default:
+		}
+	}
+	if releaseRun != nil {
+		select {
+		case <-releaseRun:
+		case <-ctx.Done():
+			return RunScriptResponse{}, ctx.Err()
+		}
+	}
 	return RunScriptResponse{
 		JobID: request.JobID,
 		Metadata: WorkerMetadata{

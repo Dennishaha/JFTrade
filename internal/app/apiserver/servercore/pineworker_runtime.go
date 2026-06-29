@@ -31,7 +31,8 @@ const (
 	envPineWorkerBundle            = "JFTRADE_PINEWORKER_BUNDLE"
 	envPineWorkerRuntime           = "JFTRADE_PINEWORKER_RUNTIME"
 	envPineWorkerSHA256            = "JFTRADE_PINEWORKER_SHA256"
-	envPineWorkerWorkers           = "JFTRADE_PINEWORKER_WORKERS"
+	envPineWorkerBacktestWorkers   = "JFTRADE_PINEWORKER_BACKTEST_WORKERS"
+	envPineWorkerInstanceWorkers   = "JFTRADE_PINEWORKER_INSTANCE_WORKERS"
 	envPineWorkerHost              = "JFTRADE_PINEWORKER_HOST"
 	envPineWorkerStartPort         = "JFTRADE_PINEWORKER_START_PORT"
 	envPineWorkerTempDir           = "JFTRADE_PINEWORKER_TEMP_DIR"
@@ -56,7 +57,8 @@ type pineWorkerRuntimeConfig struct {
 	BundlePath        string
 	RuntimePath       string
 	SHA256            string
-	Workers           int
+	BacktestWorkers   int
+	InstanceWorkers   int
 	Host              string
 	StartPort         int
 	TempDir           string
@@ -80,30 +82,43 @@ type pineWorkerRunner interface {
 	RunScript(context.Context, pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error)
 }
 
-func (s *Server) startPineWorkerManager() pineWorkerRunner {
+type pineWorkerPool string
+
+const (
+	pineWorkerPoolBacktest pineWorkerPool = "backtest"
+	pineWorkerPoolInstance pineWorkerPool = "instance"
+)
+
+func (s *Server) startPineWorkerManagers() (pineWorkerRunner, pineWorkerRunner) {
 	config, enabled, err := resolvePineWorkerRuntimeConfig(s.pineWorkerSettings)
 	if err != nil {
 		log.Printf("JFTrade PineTS worker manager disabled by invalid config: %v", err)
-		return nil
+		return nil, nil
 	}
 	if !enabled {
 		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `npm run dev:api:pineworker` or set %s=/absolute/path/to/worker.mjs", envPineWorkerBundle, envPineWorkerBundle)
-		return nil
+		return nil, nil
 	}
 
-	manager, err := newPineWorkerManagerFromConfig(config)
+	backtestManager, err := newPineWorkerManagerFromConfig(config, pineWorkerPoolBacktest)
 	if err != nil {
-		log.Printf("JFTrade PineTS worker manager disabled: create manager: %v", err)
-		return nil
+		log.Printf("JFTrade PineTS worker manager disabled: create backtest manager: %v", err)
+		return nil, nil
 	}
-	runner := newLazyPineWorkerRunner(config, manager, defaultPineWorkerIdleTimeout)
-	s.pineWorkerRunner = runner
+	instanceManager, err := newPineWorkerManagerFromConfig(config, pineWorkerPoolInstance)
+	if err != nil {
+		_ = backtestManager.Stop(context.Background())
+		log.Printf("JFTrade PineTS worker manager disabled: create instance manager: %v", err)
+		return nil, nil
+	}
+	backtestRunner := newLazyPineWorkerRunner(config, backtestManager, defaultPineWorkerIdleTimeout)
+	instanceRunner := newLazyPineWorkerRunner(config, instanceManager, defaultPineWorkerIdleTimeout)
 	source := "external"
 	if config.embedded {
 		source = "embedded"
 	}
-	log.Printf("JFTrade PineTS worker manager configured: source=%s runtime=%s workers=%d host=%s startPort=%d proto=%s cwd=%s idleTimeout=%s", source, config.RuntimePath, config.Workers, config.Host, config.StartPort, config.ProtoPath, config.WorkDir, defaultPineWorkerIdleTimeout)
-	return runner
+	log.Printf("JFTrade PineTS worker managers configured: source=%s runtime=%s backtestWorkers=%d instanceWorkers=%d host=%s backtestStartPort=%d instanceStartPort=%d proto=%s cwd=%s idleTimeout=%s", source, config.RuntimePath, config.BacktestWorkers, config.InstanceWorkers, config.Host, config.StartPort, pineWorkerPoolStartPort(config, pineWorkerPoolInstance), config.ProtoPath, config.WorkDir, defaultPineWorkerIdleTimeout)
+	return backtestRunner, instanceRunner
 }
 
 func (s *Server) pineWorkerSettings() jftsettings.PineWorkerSettings {
@@ -117,25 +132,31 @@ func (s *Server) applyPineWorkerSettings(_ jftsettings.PineWorkerSettings) {
 	if s == nil {
 		return
 	}
-	previous := s.pineWorkerRunner
-	if previous != nil {
-		if runner, ok := previous.(*lazyPineWorkerRunner); ok {
-			_ = runner.RetireWhenIdle(context.Background())
-		} else if closer, ok := previous.(interface{ Close(context.Context) error }); ok {
-			_ = closer.Close(context.Background())
-		}
-	}
-	s.pineWorkerRunner = nil
-	next := s.startPineWorkerManager()
-	if next == nil {
-		return
-	}
-	s.pineWorkerRunner = next
+	retirePineWorkerRunner(s.backtestPineWorkerRunner)
+	retirePineWorkerRunner(s.instancePineWorkerRunner)
+	s.backtestPineWorkerRunner = nil
+	s.instancePineWorkerRunner = nil
+	backtestRunner, instanceRunner := s.startPineWorkerManagers()
+	s.backtestPineWorkerRunner = backtestRunner
+	s.instancePineWorkerRunner = instanceRunner
 	if s.strategyRuntimeManager != nil {
-		s.strategyRuntimeManager.pineWorkerRunner = next
+		s.strategyRuntimeManager.pineWorkerRunner = instanceRunner
 	}
 	if s.backtestSvc != nil {
-		s.backtestSvc.SetPineWorkerRunner(next)
+		s.backtestSvc.SetPineWorkerRunner(backtestRunner)
+	}
+}
+
+func retirePineWorkerRunner(runner pineWorkerRunner) {
+	if runner == nil {
+		return
+	}
+	if lazy, ok := runner.(*lazyPineWorkerRunner); ok {
+		_ = lazy.RetireWhenIdle(context.Background())
+		return
+	}
+	if closer, ok := runner.(interface{ Close(context.Context) error }); ok {
+		_ = closer.Close(context.Background())
 	}
 }
 
@@ -267,7 +288,7 @@ func (runner *lazyPineWorkerRunner) stopIfIdle() {
 	}
 }
 
-func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig) (*pineworker.WorkerManager, error) {
+func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig, pool pineWorkerPool) (*pineworker.WorkerManager, error) {
 	bundleData := config.bundleData
 	if len(bundleData) == 0 {
 		var err error
@@ -277,7 +298,8 @@ func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig) (*pineworker
 		}
 	}
 	workerConfig := pineworker.DefaultWorkerConfig(runtime.NumCPU())
-	workerConfig.BacktestWorkers = config.Workers
+	workerConfig.BacktestWorkers = config.BacktestWorkers
+	workerConfig.LiveWorkers = config.InstanceWorkers
 	workerConfig.RequestTimeout = config.RequestTimeout
 	workerConfig.MaxMessageBytes = config.MaxMessageBytes
 	workerConfig.MaxCandlesPerRequest = config.MaxCandles
@@ -287,11 +309,13 @@ func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig) (*pineworker
 		return nil, fmt.Errorf("create launcher: %w", err)
 	}
 	manager, err := pineworker.NewWorkerManager(pineworker.ManagerConfig{
-		Workers:       config.Workers,
-		Host:          config.Host,
-		StartPort:     config.StartPort,
-		HealthTimeout: config.HealthTimeout,
-		WorkerConfig:  workerConfig,
+		Workers:        pineWorkerPoolWorkers(config, pool),
+		WorkerIDPrefix: pineWorkerPoolIDPrefix(pool),
+		Host:           config.Host,
+		StartPort:      pineWorkerPoolStartPort(config, pool),
+		HealthTimeout:  config.HealthTimeout,
+		WorkerConfig:   workerConfig,
+		RejectWhenBusy: pool == pineWorkerPoolInstance,
 		Gate: pineworker.PerformanceGate{
 			MaxDuration:       config.MaxDuration,
 			MaxDurationPerBar: config.MaxDurationPerBar,
@@ -305,6 +329,33 @@ func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig) (*pineworker
 		return nil, err
 	}
 	return manager, nil
+}
+
+func pineWorkerPoolWorkers(config pineWorkerRuntimeConfig, pool pineWorkerPool) int {
+	switch pool {
+	case pineWorkerPoolInstance:
+		return config.InstanceWorkers
+	default:
+		return config.BacktestWorkers
+	}
+}
+
+func pineWorkerPoolStartPort(config pineWorkerRuntimeConfig, pool pineWorkerPool) int {
+	switch pool {
+	case pineWorkerPoolInstance:
+		return config.StartPort + config.BacktestWorkers
+	default:
+		return config.StartPort
+	}
+}
+
+func pineWorkerPoolIDPrefix(pool pineWorkerPool) string {
+	switch pool {
+	case pineWorkerPoolInstance:
+		return "pineworker-instance"
+	default:
+		return "pineworker-backtest"
+	}
 }
 
 func defaultNewPineWorkerLauncher(config pineWorkerRuntimeConfig, bundleData []byte) (pineworker.WorkerLauncher, error) {
@@ -348,12 +399,16 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 		}
 		bundlePath = embeddedAsset.Name
 	}
-	defaultWorkers := settingsfile.DefaultPineWorkerSettings().WorkerLimit
+	defaultSettings := settingsfile.DefaultPineWorkerSettings()
 	if settingsProvider != nil {
-		defaultWorkers = settingsfile.NormalizePineWorkerSettings(settingsProvider()).WorkerLimit
+		defaultSettings = settingsfile.NormalizePineWorkerSettings(settingsProvider())
 	}
 	defaultWorkerConfig := pineworker.DefaultWorkerConfig(runtime.NumCPU())
-	workers, err := envIntInRange(envPineWorkerWorkers, defaultWorkers, 1, 1000)
+	backtestWorkers, err := envIntInRange(envPineWorkerBacktestWorkers, defaultSettings.BacktestWorkerLimit, 1, 1000)
+	if err != nil {
+		return pineWorkerRuntimeConfig{}, false, err
+	}
+	instanceWorkers, err := envIntInRange(envPineWorkerInstanceWorkers, defaultSettings.InstanceWorkerLimit, 1, 1000)
 	if err != nil {
 		return pineWorkerRuntimeConfig{}, false, err
 	}
@@ -405,7 +460,8 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 		BundlePath:        bundlePath,
 		RuntimePath:       runtimePath,
 		SHA256:            firstNonEmpty(strings.TrimSpace(os.Getenv(envPineWorkerSHA256)), embeddedAsset.SHA256),
-		Workers:           workers,
+		BacktestWorkers:   backtestWorkers,
+		InstanceWorkers:   instanceWorkers,
 		Host:              host,
 		StartPort:         startPort,
 		TempDir:           strings.TrimSpace(os.Getenv(envPineWorkerTempDir)),

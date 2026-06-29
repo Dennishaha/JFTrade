@@ -170,7 +170,7 @@ func TestOpenAPIDocumentsWritableRequestBodies(t *testing.T) {
 		{path: "/api/v1/market-data/subscriptions/release", method: "post", refSuffix: "marketdata.SubscriptionRequest", properties: []string{"consumerId", "instruments"}, forbidden: []string{"channel", "market", "symbol", "interval"}},
 		{path: "/api/v1/market-data/subscriptions/heartbeat", method: "post", refSuffix: "marketdata.SubscriptionHeartbeatRequest", properties: []string{"consumerId"}},
 		{path: "/api/v1/settings/adk", method: "put", refSuffix: "jftsettings.ADKRuntimeSettings", properties: []string{"runTimeoutMs", "streamIdleTimeoutMs"}},
-		{path: "/api/v1/settings/pine-worker", method: "put", refSuffix: "jftsettings.PineWorkerSettings", properties: []string{"workerLimit"}},
+		{path: "/api/v1/settings/pine-worker", method: "put", refSuffix: "jftsettings.PineWorkerSettings", properties: []string{"backtestWorkerLimit", "instanceWorkerLimit"}},
 		{path: "/api/v1/settings/brokers/{brokerId}/integration", method: "put", refSuffix: "settings.BrokerIntegrationSaveRequest", properties: []string{"enabled", "config"}, forbidden: []string{"brokerId", "createdAt", "updatedAt"}},
 		{path: "/api/v1/settings/broker-accounts", method: "post", refSuffix: "settings.ManagedBrokerAccountWriteRequest", properties: []string{"brokerId", "accountId", "enabled"}, forbidden: []string{"id", "createdAt", "updatedAt"}},
 		{path: "/api/v1/settings/broker-accounts/{accountRecordId}", method: "put", refSuffix: "settings.ManagedBrokerAccountWriteRequest", properties: []string{"brokerId", "accountId", "enabled"}, forbidden: []string{"id", "createdAt", "updatedAt"}},

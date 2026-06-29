@@ -177,7 +177,7 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 		t.Fatalf("integration side effect = %#v, want %#v", gotIntegration, integration)
 	}
 
-	pineWorker := jfsettings.PineWorkerSettings{WorkerLimit: 3}
+	pineWorker := jfsettings.PineWorkerSettings{BacktestWorkerLimit: 3, InstanceWorkerLimit: 8}
 	if _, err := svc.SavePineWorkerSettings(pineWorker); err != nil {
 		t.Fatalf("SavePineWorkerSettings: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestServiceDelegatesGettersAndSimpleSavers(t *testing.T) {
 		},
 		security:      jfsettings.SecuritySettings{AdminAuthRequired: true},
 		adk:           jfsettings.ADKRuntimeSettings{RunTimeoutMs: 15000, StreamIdleTimeoutMs: 5000},
-		pineWorker:    jfsettings.PineWorkerSettings{WorkerLimit: 2},
+		pineWorker:    jfsettings.PineWorkerSettings{BacktestWorkerLimit: 2, InstanceWorkerLimit: 10},
 		calendars:     jfsettings.ExchangeCalendarSettings{AutoRefreshEnabled: true, RefreshIntervalHours: 8},
 		integration:   jfsettings.BrokerIntegration{BrokerID: "futu", Enabled: true},
 		hasAppearance: true,
@@ -299,7 +299,7 @@ func TestServiceDelegatesGettersAndSimpleSavers(t *testing.T) {
 		t.Fatalf("stored ADK settings = %#v, want %#v", store.adk, updatedADK)
 	}
 
-	updatedPineWorker := jfsettings.PineWorkerSettings{WorkerLimit: 4}
+	updatedPineWorker := jfsettings.PineWorkerSettings{BacktestWorkerLimit: 4, InstanceWorkerLimit: 12}
 	if got, err := svc.SavePineWorkerSettings(updatedPineWorker); err != nil || !reflect.DeepEqual(got, updatedPineWorker) {
 		t.Fatalf("SavePineWorkerSettings() = %#v, %v", got, err)
 	}

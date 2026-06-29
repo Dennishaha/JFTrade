@@ -81,23 +81,8 @@ type ADKRuntimeSettings struct {
 
 // PineWorkerSettings holds PineTS worker pool user-facing runtime settings.
 type PineWorkerSettings struct {
-	WorkerLimit int `json:"workerLimit"`
-}
-
-func (s *PineWorkerSettings) UnmarshalJSON(data []byte) error {
-	type alias PineWorkerSettings
-	var raw struct {
-		alias
-		WorkerCount *int `json:"workerCount"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	*s = PineWorkerSettings(raw.alias)
-	if s.WorkerLimit == 0 && raw.WorkerCount != nil {
-		s.WorkerLimit = *raw.WorkerCount
-	}
-	return nil
+	BacktestWorkerLimit int `json:"backtestWorkerLimit"`
+	InstanceWorkerLimit int `json:"instanceWorkerLimit"`
 }
 
 type ExchangeCalendarSessionWindow struct {

@@ -69,7 +69,8 @@
             "env": {
                 "JFTRADE_SETTINGS_PATH": "${workspaceFolder}/var/jftrade-api/settings.json",
                 "JFTRADE_BACKTEST_DB": "${workspaceFolder}/var/jftrade-api/backtest.db",
-                "JFTRADE_PINEWORKER_WORKERS": "1",
+                "JFTRADE_PINEWORKER_BACKTEST_WORKERS": "1",
+                "JFTRADE_PINEWORKER_INSTANCE_WORKERS": "1",
                 "DISABLE_MARKETS_CACHE": "1"
             },
             "buildFlags": "-tags=embed_zoneinfo",

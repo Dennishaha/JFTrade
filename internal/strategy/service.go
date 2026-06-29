@@ -8,9 +8,11 @@ package strategy
 //
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -281,6 +283,9 @@ func (s *Service) StartInstance(ctx context.Context, instanceID string) (Instanc
 		return InstanceView{}, err
 	}
 	if err := s.runtime.Start(ctx, instance); err != nil {
+		if errors.Is(err, pineworker.ErrCapacityExceeded) {
+			return InstanceView{}, BusyError("运行实例 PineTS Worker 已达到上限。请停止其他运行实例，或到设置的 PineTS Worker 中调高“运行实例 Worker 最大值”后再启动。")
+		}
 		return InstanceView{}, err
 	}
 	result, err := s.catalog.TransitionInstance(instanceID, "RUNNING")

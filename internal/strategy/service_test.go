@@ -3,7 +3,10 @@ package strategy
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 type fakeDesignStore struct {
@@ -98,12 +101,13 @@ type fakeRuntimeManager struct {
 	started    ManagedInstance
 	startCount int
 	stopped    string
+	startErr   error
 }
 
 func (m *fakeRuntimeManager) Start(ctx context.Context, instance ManagedInstance) error {
 	m.started = instance
 	m.startCount++
-	return nil
+	return m.startErr
 }
 func (m *fakeRuntimeManager) Stop(instanceID string) { m.stopped = instanceID }
 func (m *fakeRuntimeManager) GetObservation(id string) (RuntimeObservation, bool) {
@@ -192,6 +196,19 @@ func TestServiceStartInstanceRejectsNotStartableBeforeRuntimeStart(t *testing.T)
 	}
 	if runtime.startCount != 0 {
 		t.Fatalf("runtime start count = %d, want 0", runtime.startCount)
+	}
+}
+
+func TestServiceStartInstanceMapsPineWorkerCapacityToBusyError(t *testing.T) {
+	runtime := &fakeRuntimeManager{startErr: pineworker.CapacityExceededError{Workers: 10}}
+	service := NewService(&fakeDesignStore{}, &fakeCatalogStore{}, runtime)
+
+	_, err := service.StartInstance(t.Context(), "instance-a")
+	if !errors.Is(err, ErrBusy) {
+		t.Fatalf("StartInstance() error = %v, want ErrBusy", err)
+	}
+	if !strings.Contains(err.Error(), "运行实例 Worker 最大值") {
+		t.Fatalf("StartInstance() error = %q, want settings guidance", err.Error())
 	}
 }
 
