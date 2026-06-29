@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "bun src/main.ts",
+    "start": "node ../../scripts/run-bun.mjs src/main.ts",
     "build": "bash ../../scripts/build-pineworker-assets.sh",
-    "test": "bun test",
+    "test": "node ../../scripts/run-bun.mjs test",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
