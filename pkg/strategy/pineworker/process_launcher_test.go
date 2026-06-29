@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func TestBunWorkerLauncherMaterializesBundleWithArgs(t *testing.T) {
+func TestNodeWorkerLauncherMaterializesBundleWithArgs(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell script launcher test is unix-specific")
 	}
@@ -23,7 +23,7 @@ func TestBunWorkerLauncherMaterializesBundleWithArgs(t *testing.T) {
 	workDir := t.TempDir()
 	var stderr bytes.Buffer
 	script := "#!/bin/sh\npwd > " + shellQuote(cwdPath) + "\nprintf 'worker stderr tail\\n' >&2\nprintf '%s\\n' \"$@\" > " + shellQuote(logPath) + "\n"
-	launcher := newScriptLauncher(t, script, BunWorkerLauncherConfig{
+	launcher := newScriptLauncher(t, script, NodeWorkerLauncherConfig{
 		RuntimePath:     "/bin/sh",
 		TempDir:         tempDir,
 		WorkDir:         workDir,
@@ -66,15 +66,15 @@ func TestBunWorkerLauncherMaterializesBundleWithArgs(t *testing.T) {
 	}
 }
 
-func TestBunWorkerLauncherRejectsBadChecksum(t *testing.T) {
-	_, err := NewBunWorkerLauncher(BunWorkerLauncherConfig{
-		Bundle: WorkerBundle{Name: "worker.js", Data: []byte("x"), SHA256: "bad"},
+func TestNodeWorkerLauncherRejectsBadChecksum(t *testing.T) {
+	_, err := NewNodeWorkerLauncher(NodeWorkerLauncherConfig{
+		Bundle: WorkerBundle{Name: "worker.mjs", Data: []byte("x"), SHA256: "bad"},
 	})
 	if err != nil {
-		t.Fatalf("NewBunWorkerLauncher error = %v", err)
+		t.Fatalf("NewNodeWorkerLauncher error = %v", err)
 	}
-	launcher, _ := NewBunWorkerLauncher(BunWorkerLauncherConfig{
-		Bundle: WorkerBundle{Name: "worker.js", Data: []byte("x"), SHA256: "bad"},
+	launcher, _ := NewNodeWorkerLauncher(NodeWorkerLauncherConfig{
+		Bundle: WorkerBundle{Name: "worker.mjs", Data: []byte("x"), SHA256: "bad"},
 	})
 	_, err = launcher.Start(context.Background(), WorkerSpec{WorkerID: "worker-1", Address: "127.0.0.1:50051"})
 	if err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
@@ -82,11 +82,11 @@ func TestBunWorkerLauncherRejectsBadChecksum(t *testing.T) {
 	}
 }
 
-func TestBunWorkerLauncherStopKillsLongRunningProcess(t *testing.T) {
+func TestNodeWorkerLauncherStopKillsLongRunningProcess(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell script launcher test is unix-specific")
 	}
-	launcher := newScriptLauncher(t, "#!/bin/sh\nsleep 30\n", BunWorkerLauncherConfig{
+	launcher := newScriptLauncher(t, "#!/bin/sh\nsleep 30\n", NodeWorkerLauncherConfig{
 		TempDir:     t.TempDir(),
 		StopTimeout: 10 * time.Millisecond,
 	})
@@ -101,26 +101,26 @@ func TestBunWorkerLauncherStopKillsLongRunningProcess(t *testing.T) {
 	}
 }
 
-func TestNewBunWorkerLauncherRequiresBundle(t *testing.T) {
-	_, err := NewBunWorkerLauncher(BunWorkerLauncherConfig{})
+func TestNewNodeWorkerLauncherRequiresBundle(t *testing.T) {
+	_, err := NewNodeWorkerLauncher(NodeWorkerLauncherConfig{})
 	if err == nil || !strings.Contains(err.Error(), "bundle data is required") {
 		t.Fatalf("error = %v, want bundle data required", err)
 	}
 }
 
-func TestBunWorkerLauncherRejectsNilReceiver(t *testing.T) {
-	var launcher *BunWorkerLauncher
+func TestNodeWorkerLauncherRejectsNilReceiver(t *testing.T) {
+	var launcher *NodeWorkerLauncher
 	_, err := launcher.Start(context.Background(), WorkerSpec{WorkerID: "worker-1", Address: "127.0.0.1:50051"})
 	if err == nil || !strings.Contains(err.Error(), "launcher is nil") {
 		t.Fatalf("Start error = %v, want launcher nil", err)
 	}
 }
 
-func TestBunWorkerLauncherReturnsStartErrorAndRemovesFile(t *testing.T) {
+func TestNodeWorkerLauncherReturnsStartErrorAndRemovesFile(t *testing.T) {
 	tempDir := t.TempDir()
-	launcher, err := NewBunWorkerLauncher(BunWorkerLauncherConfig{
-		Bundle:      WorkerBundle{Name: "worker.js", Data: []byte("invalid bundle")},
-		RuntimePath: filepath.Join(tempDir, "missing-bun"),
+	launcher, err := NewNodeWorkerLauncher(NodeWorkerLauncherConfig{
+		Bundle:      WorkerBundle{Name: "worker.mjs", Data: []byte("invalid bundle")},
+		RuntimePath: filepath.Join(tempDir, "missing-node"),
 		TempDir:     tempDir,
 	})
 	if err != nil {
@@ -130,23 +130,23 @@ func TestBunWorkerLauncherReturnsStartErrorAndRemovesFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("Start error = nil, want error")
 	}
-	if _, statErr := os.Stat(filepath.Join(tempDir, "worker-1-worker.js")); !os.IsNotExist(statErr) {
+	if _, statErr := os.Stat(filepath.Join(tempDir, "worker-1-worker.mjs")); !os.IsNotExist(statErr) {
 		t.Fatalf("materialized bundle was not removed after start failure: %v", statErr)
 	}
 }
 
-func newScriptLauncher(t *testing.T, script string, config BunWorkerLauncherConfig) *BunWorkerLauncher {
+func newScriptLauncher(t *testing.T, script string, config NodeWorkerLauncherConfig) *NodeWorkerLauncher {
 	t.Helper()
 	sum := sha256.Sum256([]byte(script))
 	config.Bundle = WorkerBundle{
-		Name:   "worker.js",
+		Name:   "worker.mjs",
 		Data:   []byte(script),
 		SHA256: hex.EncodeToString(sum[:]),
 	}
 	if config.RuntimePath == "" {
 		config.RuntimePath = "/bin/sh"
 	}
-	launcher, err := NewBunWorkerLauncher(config)
+	launcher, err := NewNodeWorkerLauncher(config)
 	if err != nil {
 		t.Fatal(err)
 	}

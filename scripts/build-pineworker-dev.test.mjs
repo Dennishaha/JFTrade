@@ -25,11 +25,11 @@ try {
   });
   assert(pass.status === 0, `dev worker build failed: ${pass.stderr || pass.stdout}`);
   assert(pass.stdout.includes("pinets package license: AGPL-3.0-only"), "pinets package license was not reported");
-  assert(pass.stdout.includes("DRY RUN bun build --target=bun"), "dev worker build did not invoke Bun bundle path");
-  assert(!pass.stdout.includes("--compile"), "dev worker build still uses Bun standalone executable compilation");
+  assert(pass.stdout.includes("DRY RUN esbuild") && pass.stdout.includes("--platform=node"), "dev worker build did not invoke Node bundle path");
+  assert(!/\bbun\b/i.test(pass.stdout), "dev worker build still references Bun");
   assert(existsSync(envFile), "dev worker build did not write env file");
   assert(readFileSync(envFile, "utf8").includes("JFTRADE_PINEWORKER_BUNDLE="), "dev env file does not contain worker bundle");
-  assert(readFileSync(envFile, "utf8").includes("JFTRADE_PINEWORKER_RUNTIME="), "dev env file does not contain Bun runtime");
+  assert(readFileSync(envFile, "utf8").includes(`JFTRADE_PINEWORKER_RUNTIME=${process.execPath}`), "dev env file does not contain Node runtime");
 
   const devAPI = runDevAPI({
     JFTRADE_PINEWORKER_DEV_OUT_DIR: outDir,
@@ -40,7 +40,7 @@ try {
   });
   assert(devAPI.status === 0, `dev api pineworker dry run failed: ${devAPI.stderr || devAPI.stdout}`);
   assert(devAPI.stdout.includes("DRY RUN JFTRADE_PINEWORKER_BUNDLE="), "dev api dry run did not configure worker bundle");
-  assert(devAPI.stdout.includes("JFTRADE_PINEWORKER_RUNTIME="), "dev api dry run did not configure Bun runtime");
+  assert(devAPI.stdout.includes(`JFTRADE_PINEWORKER_RUNTIME=${process.execPath}`), "dev api dry run did not configure Node runtime");
   assert(devAPI.stdout.includes("JFTRADE_PINEWORKER_WORKERS=1"), "dev api dry run did not default to one worker");
   assert(devAPI.stdout.includes("go run ./cmd/jftrade-api"), "dev api dry run did not show Go API command");
 

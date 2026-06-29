@@ -35,13 +35,13 @@ func TestRealPineTSBacktestSmoke(t *testing.T) {
 	sum := sha256.Sum256(bundleData)
 	stdout := pineworker.NewTailBuffer(8192)
 	stderr := pineworker.NewTailBuffer(8192)
-	launcher, err := pineworker.NewBunWorkerLauncher(pineworker.BunWorkerLauncherConfig{
+	launcher, err := pineworker.NewNodeWorkerLauncher(pineworker.NodeWorkerLauncherConfig{
 		Bundle: pineworker.WorkerBundle{
 			Name:   filepath.Base(workerPath),
 			Data:   bundleData,
 			SHA256: hex.EncodeToString(sum[:]),
 		},
-		RuntimePath:     firstNonEmptyString(strings.TrimSpace(os.Getenv("JFTRADE_PINEWORKER_RUNTIME")), "bun"),
+		RuntimePath:     firstNonEmptyString(strings.TrimSpace(os.Getenv("JFTRADE_PINEWORKER_RUNTIME")), "node"),
 		WorkDir:         root,
 		ProtoPath:       filepath.Join(root, "pkg", "strategy", "pineworker", "proto", "pineworker.proto"),
 		MaxMessageBytes: 64 * 1024 * 1024,
@@ -51,7 +51,7 @@ func TestRealPineTSBacktestSmoke(t *testing.T) {
 		Stderr:          stderr,
 	})
 	if err != nil {
-		t.Fatalf("NewBunWorkerLauncher: %v", err)
+		t.Fatalf("NewNodeWorkerLauncher: %v", err)
 	}
 
 	workerConfig := pineworker.DefaultWorkerConfig(1)

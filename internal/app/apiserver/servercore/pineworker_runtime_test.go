@@ -23,7 +23,7 @@ import (
 func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 	binaryPath := filepath.Join(t.TempDir(), "worker")
 	t.Setenv(envPineWorkerBundle, binaryPath)
-	t.Setenv(envPineWorkerRuntime, "custom-bun")
+	t.Setenv(envPineWorkerRuntime, "custom-node")
 	t.Setenv(envPineWorkerSHA256, "abc123")
 	t.Setenv(envPineWorkerWorkers, "3")
 	t.Setenv(envPineWorkerHost, "localhost")
@@ -51,8 +51,8 @@ func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 	if config.BundlePath != binaryPath || config.SHA256 != "abc123" || config.Workers != 3 {
 		t.Fatalf("unexpected identity config: %#v", config)
 	}
-	if config.RuntimePath != "custom-bun" {
-		t.Fatalf("RuntimePath = %q, want custom-bun", config.RuntimePath)
+	if config.RuntimePath != "custom-node" {
+		t.Fatalf("RuntimePath = %q, want custom-node", config.RuntimePath)
 	}
 	if config.Host != "localhost" || config.StartPort != 55001 || !config.Mock {
 		t.Fatalf("unexpected connection config: %#v", config)
@@ -69,7 +69,7 @@ func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 }
 
 func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) {
-	binaryPath := filepath.Join(t.TempDir(), "worker.js")
+	binaryPath := filepath.Join(t.TempDir(), "worker.mjs")
 	t.Setenv(envPineWorkerBundle, binaryPath)
 
 	config, enabled, err := resolvePineWorkerRuntimeConfig(nil)
@@ -82,8 +82,8 @@ func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) 
 	if config.Mock {
 		t.Fatal("Mock = true by default; production worker must require explicit mock opt-in")
 	}
-	if config.RuntimePath != "bun" {
-		t.Fatalf("RuntimePath = %q, want Bun for JavaScript bundle", config.RuntimePath)
+	if config.RuntimePath != "node" {
+		t.Fatalf("RuntimePath = %q, want Node for JavaScript bundle", config.RuntimePath)
 	}
 	if !filepath.IsAbs(config.ProtoPath) || !strings.HasSuffix(filepath.ToSlash(config.ProtoPath), defaultPineWorkerProtoPath) {
 		t.Fatalf("ProtoPath = %q, want absolute repo proto path", config.ProtoPath)
@@ -103,10 +103,10 @@ func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) 
 	}
 }
 
-func TestResolvePineWorkerRuntimeUsesConfiguredBunBinary(t *testing.T) {
-	t.Setenv("JFTRADE_BUN_BINARY", filepath.Join(t.TempDir(), "bun.exe"))
-	if got := resolvePineWorkerRuntime(); got != os.Getenv("JFTRADE_BUN_BINARY") {
-		t.Fatalf("resolvePineWorkerRuntime bundle = %q, want configured Bun", got)
+func TestResolvePineWorkerRuntimeUsesConfiguredNodeBinary(t *testing.T) {
+	t.Setenv("JFTRADE_NODE_BINARY", filepath.Join(t.TempDir(), "node.exe"))
+	if got := resolvePineWorkerRuntime(); got != os.Getenv("JFTRADE_NODE_BINARY") {
+		t.Fatalf("resolvePineWorkerRuntime bundle = %q, want configured Node", got)
 	}
 }
 
@@ -194,7 +194,7 @@ func TestResolvePineWorkerRuntimeConfigDisabledWithoutBinary(t *testing.T) {
 
 func TestResolvePineWorkerRuntimeConfigUsesEmbeddedAsset(t *testing.T) {
 	restorePineWorkerAssetSelector(t, pineworkerassets.Asset{
-		Name:   "worker.js",
+		Name:   "worker.mjs",
 		Data:   []byte("embedded"),
 		SHA256: "embedded-sha",
 	}, true, nil)
@@ -206,7 +206,7 @@ func TestResolvePineWorkerRuntimeConfigUsesEmbeddedAsset(t *testing.T) {
 	if !enabled || !config.embedded {
 		t.Fatalf("enabled=%v embedded=%v, want embedded config", enabled, config.embedded)
 	}
-	if config.BundlePath != "worker.js" || config.RuntimePath != "bun" || config.SHA256 != "embedded-sha" || string(config.bundleData) != "embedded" {
+	if config.BundlePath != "worker.mjs" || config.RuntimePath != "node" || config.SHA256 != "embedded-sha" || string(config.bundleData) != "embedded" {
 		t.Fatalf("config = %#v, want embedded asset metadata", config)
 	}
 }
@@ -217,7 +217,7 @@ func TestResolvePineWorkerRuntimeConfigPrefersExternalBinaryOverEmbeddedAsset(t 
 		Data:   []byte("embedded"),
 		SHA256: "embedded-sha",
 	}, true, nil)
-	t.Setenv(envPineWorkerBundle, "/tmp/worker.js")
+	t.Setenv(envPineWorkerBundle, "/tmp/worker.mjs")
 
 	config, enabled, err := resolvePineWorkerRuntimeConfig(nil)
 	if err != nil {
@@ -226,13 +226,13 @@ func TestResolvePineWorkerRuntimeConfigPrefersExternalBinaryOverEmbeddedAsset(t 
 	if !enabled || config.embedded {
 		t.Fatalf("enabled=%v embedded=%v, want external config", enabled, config.embedded)
 	}
-	if config.BundlePath != "/tmp/worker.js" || len(config.bundleData) != 0 {
+	if config.BundlePath != "/tmp/worker.mjs" || len(config.bundleData) != 0 {
 		t.Fatalf("config = %#v, want external binary path without embedded data", config)
 	}
 }
 
 func TestResolvePineWorkerRuntimeConfigRejectsInvalidNumericEnv(t *testing.T) {
-	t.Setenv(envPineWorkerBundle, "/tmp/worker.js")
+	t.Setenv(envPineWorkerBundle, "/tmp/worker.mjs")
 	t.Setenv(envPineWorkerWorkers, "0")
 	_, enabled, err := resolvePineWorkerRuntimeConfig(nil)
 	if err == nil || !strings.Contains(err.Error(), "between 1 and 1000") {

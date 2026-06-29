@@ -2,7 +2,7 @@
 import { mkdirSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runBun } from "./lib/bun.mjs";
+import { build } from "esbuild";
 import { checkPinetsPackageAndLicense } from "./lib/pinets-package.mjs";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -10,7 +10,7 @@ const outDir = resolve(process.env.JFTRADE_PINEWORKER_ASSET_OUT_DIR ?? join(root
 const workerEntry = join(rootDir, "workers/pineworker/src/main.ts");
 const dryRun = process.env.JFTRADE_PINEWORKER_ASSET_BUILD_DRY_RUN === "1";
 
-const outputName = "worker.js";
+const outputName = "worker.mjs";
 
 if (!checkPinetsPackageAndLicense({ rootDir, dryRun })) {
   console.error("PineTS worker asset build is blocked until the pinets package is installed.");
@@ -25,10 +25,18 @@ for (const entry of readdirSync(outDir, { withFileTypes: true })) {
 }
 
 const outFile = join(outDir, outputName);
-console.log(`Building platform-independent PineTS Bun worker -> ${outputName}`);
+console.log(`Building platform-independent PineTS Node worker -> ${outputName}`);
 if (dryRun) {
-  console.log(`DRY RUN bun build --target=bun ${workerEntry} --outfile ${outFile}`);
+  console.log(`DRY RUN esbuild ${workerEntry} --bundle --platform=node --format=esm --target=node24 --outfile=${outFile}`);
 } else {
-  const result = runBun(["build", "--target=bun", workerEntry, "--outfile", outFile]);
-  if (result.status !== 0) process.exit(result.status);
+  await build({
+    entryPoints: [workerEntry],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node24",
+    outfile: outFile,
+    banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' },
+    logLevel: "info",
+  });
 }

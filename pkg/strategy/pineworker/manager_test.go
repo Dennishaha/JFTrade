@@ -129,7 +129,7 @@ func TestWorkerManagerStartCleansUpAfterDialFailure(t *testing.T) {
 }
 
 func TestWorkerManagerStartDialFailureIncludesProcessDiagnostics(t *testing.T) {
-	launcher := &fakeWorkerLauncher{diagnostics: "bundle=/tmp/worker.js; runtime=bun; cwd=/repo; stderr=proto load failed"}
+	launcher := &fakeWorkerLauncher{diagnostics: "bundle=/tmp/worker.mjs; runtime=node; cwd=/repo; stderr=proto load failed"}
 	dialer := newFakeManagerDialer()
 	dialer.failAddress = "127.0.0.1:50051"
 	manager := newTestManager(t, ManagerConfig{Workers: 1, HealthTimeout: 20 * time.Millisecond}, launcher, dialer)

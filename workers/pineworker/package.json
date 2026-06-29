@@ -3,13 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node ../../scripts/run-bun.mjs src/main.ts",
+    "prestart": "node ../../scripts/build-pineworker-dev.mjs",
+    "start": "node ../../var/pineworker/worker.mjs",
     "build": "node ../../scripts/build-pineworker-assets.mjs",
-    "test": "node ../../scripts/run-bun.mjs test",
+    "test": "vitest run src",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "typescript": "^6.0.3"
+    "esbuild": "^0.27.7",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.14.4",

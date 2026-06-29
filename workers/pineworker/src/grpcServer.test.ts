@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { createServiceHandlers, includeDirsForProto, startWorkerGrpcServer, type GrpcModule, type GrpcServer } from "./grpcServer";
 import { DeterministicPineTSExecutor } from "./mockExecutor";
 

@@ -17,11 +17,11 @@ import (
 const processSmokeEnv = "JFTRADE_PINEWORKER_PROCESS_SMOKE"
 const realProcessSmokeEnv = "JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE"
 
-func TestWorkerManagerProcessSmokeWithBunWorker(t *testing.T) {
+func TestWorkerManagerProcessSmokeWithNodeWorker(t *testing.T) {
 	if os.Getenv(processSmokeEnv) != "1" {
 		t.Skip(processSmokeEnv + "=1 is required for process-level Pine worker smoke")
 	}
-	manager := startBunWorkerProcessSmokeManager(t, true, "smoke-mock")
+	manager := startNodeWorkerProcessSmokeManager(t, true, "smoke-mock")
 	response := waitForProcessSmokeRunScript(t, manager)
 	if response.JobID != "job-1" || len(response.Plots) == 0 || response.Metadata.WorkerID != "pineworker-1" {
 		t.Fatalf("unexpected worker response: %#v", response)
@@ -36,7 +36,7 @@ func TestWorkerManagerRealPineTSProcessSmoke(t *testing.T) {
 	if !pinetsInstalled(root) {
 		t.Fatalf("pinets package is not installed; real PineTS process smoke cannot run")
 	}
-	manager := startBunWorkerProcessSmokeManager(t, false, "real-pinets-smoke")
+	manager := startNodeWorkerProcessSmokeManager(t, false, "real-pinets-smoke")
 	response := waitForProcessSmokeRunScript(t, manager)
 	if response.JobID != "job-1" || response.Metadata.WorkerID != "pineworker-1" {
 		t.Fatalf("unexpected real PineTS worker response: %#v", response)
@@ -49,31 +49,30 @@ func TestWorkerManagerRealPineTSProcessSmoke(t *testing.T) {
 	}
 }
 
-func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion string) *WorkerManager {
+func startNodeWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion string) *WorkerManager {
 	t.Helper()
-	bunPath, err := bunExecutable()
+	nodePath, err := nodeExecutable()
 	if err != nil {
-		t.Skip("bun is not installed or not on PATH")
+		t.Skip("node is not installed or not on PATH")
 	}
 	root := repoRoot(t)
 	if missing := missingWorkerRuntimeDeps(root); len(missing) > 0 {
 		t.Skip("missing worker runtime dependencies: " + strings.Join(missing, ", "))
 	}
 	tempDir := t.TempDir()
-	const outputName = "worker.js"
+	const outputName = "worker.mjs"
 	workerPath := filepath.Join(tempDir, outputName)
 	buildCtx, cancelBuild := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancelBuild()
 	build := exec.CommandContext(
 		buildCtx,
-		bunPath, "build", "--target=bun",
-		filepath.Join("workers", "pineworker", "src", "main.ts"),
-		"--outfile", workerPath,
+		nodePath, filepath.Join("scripts", "build-pineworker-dev.mjs"),
 	)
 	build.Dir = root
+	build.Env = append(os.Environ(), "JFTRADE_PINEWORKER_DEV_OUT_DIR="+tempDir)
 	buildOutput, err := build.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bun build worker smoke binary: %v\n%s", err, string(buildOutput))
+		t.Fatalf("esbuild worker smoke bundle: %v\n%s", err, string(buildOutput))
 	}
 	bundleData, err := os.ReadFile(workerPath)
 	if err != nil {
@@ -82,13 +81,13 @@ func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion st
 	sum := sha256.Sum256(bundleData)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	launcher, err := NewBunWorkerLauncher(BunWorkerLauncherConfig{
+	launcher, err := NewNodeWorkerLauncher(NodeWorkerLauncherConfig{
 		Bundle: WorkerBundle{
 			Name:   outputName,
 			Data:   bundleData,
 			SHA256: hex.EncodeToString(sum[:]),
 		},
-		RuntimePath:   bunPath,
+		RuntimePath:   nodePath,
 		TempDir:       tempDir,
 		ProtoPath:     filepath.Join(root, "pkg", "strategy", "pineworker", "proto", "pineworker.proto"),
 		Mock:          mock,
@@ -98,7 +97,7 @@ func startBunWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion st
 		Stderr:        &stderr,
 	})
 	if err != nil {
-		t.Fatalf("NewBunWorkerLauncher: %v", err)
+		t.Fatalf("NewNodeWorkerLauncher: %v", err)
 	}
 
 	port := freeTCPPort(t)
@@ -156,7 +155,7 @@ func waitForProcessSmokeRunScript(t *testing.T, manager *WorkerManager) RunScrip
 
 func missingWorkerRuntimeDeps(root string) []string {
 	missing := []string{}
-	for _, module := range []string{"@grpc/grpc-js", "@grpc/proto-loader"} {
+	for _, module := range []string{"@grpc/grpc-js", "@grpc/proto-loader", "esbuild"} {
 		if _, err := os.Stat(filepath.Join(root, "node_modules", filepath.FromSlash(module))); err != nil {
 			missing = append(missing, module)
 		}
@@ -176,27 +175,14 @@ func pinetsInstalled(root string) bool {
 	return false
 }
 
-func bunExecutable() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("JFTRADE_BUN_BINARY")); path != "" {
+func nodeExecutable() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("JFTRADE_NODE_BINARY")); path != "" {
 		if _, err := os.Stat(path); err == nil {
 			return path, nil
 		}
 	}
-	if path, err := exec.LookPath("bun"); err == nil {
+	if path, err := exec.LookPath("node"); err == nil {
 		return path, nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	candidates := []string{
-		filepath.Join(home, ".bun", "bin", "bun.exe"),
-		filepath.Join(home, ".bun", "bin", "bun"),
-	}
-	for _, path := range candidates {
-		if _, err := os.Stat(path); err == nil {
-			return path, nil
-		}
 	}
 	return "", exec.ErrNotFound
 }

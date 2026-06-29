@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { normalizeMode, validateRunScriptRequest } from "./validation";
 import type { RunScriptRequest } from "./types";
 

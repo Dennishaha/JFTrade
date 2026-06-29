@@ -87,7 +87,7 @@ func (s *Server) startPineWorkerManager() pineWorkerRunner {
 		return nil
 	}
 	if !enabled {
-		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `npm run dev:api:pineworker` or set %s=/absolute/path/to/worker.js", envPineWorkerBundle, envPineWorkerBundle)
+		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `npm run dev:api:pineworker` or set %s=/absolute/path/to/worker.mjs", envPineWorkerBundle, envPineWorkerBundle)
 		return nil
 	}
 
@@ -312,7 +312,7 @@ func defaultNewPineWorkerLauncher(config pineWorkerRuntimeConfig, bundleData []b
 		sum := sha256.Sum256(bundleData)
 		config.SHA256 = hex.EncodeToString(sum[:])
 	}
-	return pineworker.NewBunWorkerLauncher(pineworker.BunWorkerLauncherConfig{
+	return pineworker.NewNodeWorkerLauncher(pineworker.NodeWorkerLauncherConfig{
 		Bundle:          pineworker.WorkerBundle{Name: filepath.Base(config.BundlePath), Data: bundleData, SHA256: config.SHA256},
 		RuntimePath:     config.RuntimePath,
 		TempDir:         config.TempDir,
@@ -430,10 +430,10 @@ func resolvePineWorkerRuntime() string {
 	if value := strings.TrimSpace(os.Getenv(envPineWorkerRuntime)); value != "" {
 		return value
 	}
-	if value := strings.TrimSpace(os.Getenv("JFTRADE_BUN_BINARY")); value != "" {
+	if value := strings.TrimSpace(os.Getenv("JFTRADE_NODE_BINARY")); value != "" {
 		return value
 	}
-	return "bun"
+	return "node"
 }
 
 func resolvePineWorkerWorkDir(bundlePath string) string {

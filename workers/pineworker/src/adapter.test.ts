@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { buildResponse, runScriptWithPineTS } from "./adapter";
 import { DeterministicPineTSExecutor } from "./mockExecutor";
 import type { PineTSExecutor, RunScriptRequest } from "./types";
