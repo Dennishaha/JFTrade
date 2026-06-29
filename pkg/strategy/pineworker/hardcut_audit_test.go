@@ -317,7 +317,7 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 		"scripts/build-pineworker-assets.test.mjs": {
 			"pinets package license: AGPL-3.0-only",
 			"AGPL-3.0-only",
-			"DRY RUN esbuild",
+			"DRY RUN vite build",
 		},
 		"scripts/check-pinets-release.mjs": {
 			"checkPinetsPackageAndLicense",
@@ -396,28 +396,34 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 	requiredByFile := map[string][]string{
 		"docs/pinets-hardcut-migration.md": {
 			"Node ESM bundle",
-			"esbuild",
+			"Vite/Rolldown",
 			"release_assets",
 			"trading-engine",
 		},
 		"docs/troubleshooting/pinets-worker-release.md": {
 			"Node ESM bundle",
-			"esbuild",
+			"Vite/Rolldown",
 			"release_assets",
 			"trading-engine",
 		},
 		"scripts/build-pineworker-assets.mjs": {
-			`from "esbuild"`,
-			`platform: "node"`,
-			`format: "esm"`,
+			"loadViteBuild",
+			`requireFromWorker.resolve("vite")`,
+			`ssr: workerEntry`,
+			`noExternal: true`,
+			`codeSplitting: false`,
+			`format: "es"`,
 		},
 		"scripts/build-pineworker-dev.sh": {
 			"build-pineworker-dev.mjs",
 		},
 		"scripts/build-pineworker-dev.mjs": {
-			`from "esbuild"`,
-			`platform: "node"`,
-			`format: "esm"`,
+			"loadViteBuild",
+			`requireFromWorker.resolve("vite")`,
+			`ssr: workerEntry`,
+			`noExternal: true`,
+			`codeSplitting: false`,
+			`format: "es"`,
 			"JFTRADE_PINEWORKER_DEV_OUT_DIR",
 			"JFTRADE_PINEWORKER_DEV_ENV_FILE",
 			"checkPinetsPackageAndLicense",
@@ -490,8 +496,8 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 				t.Fatalf("%s does not document Node bundle packaging requirement %q", rel, required)
 			}
 		}
-		if strings.HasPrefix(rel, "scripts/build-pineworker-") && containsAny(text, "Bun", "bun build", "run-bun", "JFTRADE_BUN") {
-			t.Fatalf("%s must not use Bun", rel)
+		if strings.HasPrefix(rel, "scripts/build-pineworker-") && containsAny(text, "Bun", "bun build", "run-bun", "JFTRADE_BUN", `from "esbuild"`) {
+			t.Fatalf("%s must not use Bun or direct esbuild", rel)
 		}
 	}
 }

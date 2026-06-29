@@ -1,6 +1,6 @@
 # PineTS Worker 发布与运行清单
 
-本文面向发布、部署和现场排障。当前 Pine 执行路径是 Go 主进程启动 Node/PineTS gRPC worker pool；Go 仍负责行情、K 线缓存、策略调度、回测撮合、资金曲线、风控、下单和交易所 API。发布打包采用 esbuild 生成平台无关的 Node ESM bundle，再由 Go `release_assets` 嵌入到 `trading-engine` 二进制；目标机器必须安装 Node。
+本文面向发布、部署和现场排障。当前 Pine 执行路径是 Go 主进程启动 Node/PineTS gRPC worker pool；Go 仍负责行情、K 线缓存、策略调度、回测撮合、资金曲线、风控、下单和交易所 API。发布打包采用 Vite/Rolldown 生成平台无关的 Node ESM bundle，再由 Go `release_assets` 嵌入到 `trading-engine` 二进制；目标机器必须安装 Node。
 
 ## 发布放行条件
 
@@ -10,7 +10,7 @@
 - 发布合规材料必须按公开 `pinets` 许可证准备；商业 PineTS 授权计划已取消。
 - worker 以真实 PineTS executor 启动，未启用 mock。
 - 真实 worker 进程通过 localhost gRPC smoke，覆盖 `HealthCheck` 和 `RunScript`。
-- `npm run build:pineworker` 通过 esbuild 生成平台无关的 `worker.mjs` Node ESM bundle。
+- `npm run build:pineworker` 通过 Vite/Rolldown 生成平台无关的 `worker.mjs` Node ESM bundle。
 - `go test -tags release_assets ./internal/pineworkerassets -run Test` 通过，确认 embedded asset 选择逻辑可用。
 - `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` 后的发布产物必须存在、非空且可执行。
 - Go、worker、前端 focused test、coverage、performance gate、PineTS AGPL notice/source-offer check 和 `git diff --check` 通过。
@@ -41,7 +41,7 @@ npm run build:pineworker
 go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 ```
 
-`npm run build:pineworker` 会先确认 `pinets` 包已安装并输出其 license。未安装 `pinets` 时，脚本会在调用 esbuild 前失败。`scripts/build-pineworker-assets.sh` 仍保留为兼容入口，但会转发到 Node 版 builder。
+`npm run build:pineworker` 会先确认 `pinets` 包已安装并输出其 license。未安装 `pinets` 时，脚本会在调用 Vite/Rolldown 前失败。`scripts/build-pineworker-assets.sh` 仍保留为兼容入口，但会转发到 Node 版 builder。
 
 `npm run build:frontend-assets` 也使用 Node 入口重建 web dist、复制到 `internal/frontendassets/dist`，并调用 Go zip 工具生成 `dist.zip`；`scripts/build-frontend-assets.sh` 保留为兼容转发器。
 

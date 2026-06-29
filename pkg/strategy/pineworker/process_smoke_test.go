@@ -72,7 +72,7 @@ func startNodeWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion s
 	build.Env = append(os.Environ(), "JFTRADE_PINEWORKER_DEV_OUT_DIR="+tempDir)
 	buildOutput, err := build.CombinedOutput()
 	if err != nil {
-		t.Fatalf("esbuild worker smoke bundle: %v\n%s", err, string(buildOutput))
+		t.Fatalf("vite worker smoke bundle: %v\n%s", err, string(buildOutput))
 	}
 	bundleData, err := os.ReadFile(workerPath)
 	if err != nil {
@@ -155,7 +155,7 @@ func waitForProcessSmokeRunScript(t *testing.T, manager *WorkerManager) RunScrip
 
 func missingWorkerRuntimeDeps(root string) []string {
 	missing := []string{}
-	for _, module := range []string{"@grpc/grpc-js", "@grpc/proto-loader", "esbuild"} {
+	for _, module := range []string{"@grpc/grpc-js", "@grpc/proto-loader", "vite"} {
 		if _, err := os.Stat(filepath.Join(root, "node_modules", filepath.FromSlash(module))); err != nil {
 			missing = append(missing, module)
 		}

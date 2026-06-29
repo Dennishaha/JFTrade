@@ -6,21 +6,14 @@ const npmCommand = process.env.npm_execpath
   ? [process.execPath, [process.env.npm_execpath]]
   : [process.platform === "win32" ? "npm.cmd" : "npm", []];
 
-const vitepressArgs = [
+const docsArgs = [
   ...npmCommand[1],
-  "exec",
-  "--",
-  "vitepress",
-  "dev",
-  "docs",
-  "--host",
-  "127.0.0.1",
-  "--port",
-  "3001",
+  "run",
+  "dev:docs",
 ];
 
 const commands = [
-  [npmCommand[0], vitepressArgs],
+  [npmCommand[0], docsArgs],
   [npmCommand[0], [...npmCommand[1], "run", "dev:web"]],
 ];
 
