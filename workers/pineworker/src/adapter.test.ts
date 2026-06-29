@@ -85,7 +85,7 @@ describe("buildResponse", () => {
     });
 
     expect(response.plots[0]!.values[0]).toBe(1);
-    expect(Number.isNaN(response.plots[0]!.values[1])).toBe(true);
+    expect(response.plots[0]!.values[1]).toBe(0);
     expect(response.orderIntents).toHaveLength(1);
     expect(response.orderIntents[0]).toMatchObject({
       kind: "exit",

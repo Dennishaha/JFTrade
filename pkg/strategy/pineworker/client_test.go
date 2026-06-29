@@ -178,9 +178,11 @@ func relaxedGate() PerformanceGate {
 
 func validClientRequest() RunScriptRequest {
 	return RunScriptRequest{
-		JobID:     "job-1",
-		ScriptID:  "script-1",
-		Source:    `//@version=6 strategy("x")`,
+		JobID:    "job-1",
+		ScriptID: "script-1",
+		Source: `//@version=6
+indicator("worker smoke")
+plot(close, "close")`,
 		Symbol:    "US.AAPL",
 		Timeframe: "1",
 		Mode:      ModeBacktest,

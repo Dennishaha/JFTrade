@@ -62,7 +62,11 @@ func (launcher *BinaryWorkerLauncher) Start(ctx context.Context, spec WorkerSpec
 		return nil, err
 	}
 	args := launcher.args(spec)
-	cmd := exec.CommandContext(ctx, path, args...)
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(path)
+		return nil, err
+	}
+	cmd := exec.Command(path, args...)
 	if len(launcher.config.Env) > 0 {
 		cmd.Env = append(os.Environ(), launcher.config.Env...)
 	}

@@ -5,9 +5,13 @@ import { DeterministicPineTSExecutor } from "./mockExecutor";
 import { createNativePineTSExecutor } from "./pinetsExecutor";
 
 declare const Bun: { argv?: string[] } | undefined;
-declare const process: { once?: (event: string, handler: () => void) => unknown } | undefined;
+declare const process: {
+  on?: (event: string, handler: (error: unknown) => void) => unknown;
+  once?: (event: string, handler: () => void) => unknown;
+} | undefined;
 
 const args = parseArgs((typeof Bun !== "undefined" ? Bun.argv ?? [] : []).slice(2));
+installFatalErrorLogging();
 const executor = args.mock ? new DeterministicPineTSExecutor() : await createNativePineTSExecutor(args.pinetsVersion);
 
 const server = await startWorkerGrpcServer({
@@ -43,11 +47,13 @@ function parseArgs(values: string[]) {
 function waitForShutdown(shutdown: () => void): Promise<void> {
   return new Promise((resolve) => {
     let stopped = false;
+    const keepAlive = setInterval(() => undefined, 60_000);
     const stop = () => {
       if (stopped) {
         return;
       }
       stopped = true;
+      clearInterval(keepAlive);
       shutdown();
       resolve();
     };
@@ -56,5 +62,14 @@ function waitForShutdown(shutdown: () => void): Promise<void> {
     }
     process.once("SIGINT", stop);
     process.once("SIGTERM", stop);
+  });
+}
+
+function installFatalErrorLogging(): void {
+  process?.on?.("uncaughtException", (error) => {
+    console.error("pineworker uncaught exception", error);
+  });
+  process?.on?.("unhandledRejection", (error) => {
+    console.error("pineworker unhandled rejection", error);
   });
 }

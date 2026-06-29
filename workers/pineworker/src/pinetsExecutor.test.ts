@@ -6,12 +6,16 @@ describe("NativePineTSExecutor", () => {
     const calls: unknown[] = [];
     const executor = new NativePineTSExecutor({
       PineTS: class {
-        constructor(candles: unknown[]) {
-          calls.push(candles);
+        constructor(candles: unknown[], symbol?: string, timeframe?: string, periods?: number) {
+          calls.push({ candles, symbol, timeframe, periods });
         }
 
-        async run(source: string) {
-          calls.push(source);
+        setAlertMode(mode: string) {
+          calls.push({ alertMode: mode });
+        }
+
+        async run(source: string, periods?: number) {
+          calls.push({ source, periods });
           return { plots: { close: [11] } };
         }
       },
@@ -26,8 +30,14 @@ describe("NativePineTSExecutor", () => {
     });
 
     expect(executor.version()).toBe("pinets-test");
-    expect(calls[0]).toEqual([{ openTime: 1, closeTime: 1, open: 10, high: 12, low: 9, close: 11, volume: 100 }]);
-    expect(calls[1]).toContain("indicator");
+    expect(calls[0]).toEqual({
+      candles: [{ openTime: 1, closeTime: 1, open: 10, high: 12, low: 9, close: 11, volume: 100 }],
+      symbol: "US.AAPL",
+      timeframe: "1",
+      periods: 1,
+    });
+    expect(calls[1]).toEqual({ alertMode: "all" });
+    expect(calls[2]).toEqual({ source: expect.stringContaining("indicator"), periods: 1 });
     expect(result.plots?.close).toEqual([11]);
   });
 });
