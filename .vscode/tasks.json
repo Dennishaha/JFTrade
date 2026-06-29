@@ -52,7 +52,13 @@
         {
             "label": "build:pineworker:dev",
             "type": "shell",
-            "command": "JFTRADE_PINEWORKER_DEV_ENV_FILE=\"${workspaceFolder}/var/pineworker/vscode.env\" npm run build:pineworker:dev",
+            "command": "npm",
+            "args": ["run", "build:pineworker:dev"],
+            "options": {
+                "env": {
+                    "JFTRADE_PINEWORKER_DEV_ENV_FILE": "${workspaceFolder}/var/pineworker/vscode.env"
+                }
+            },
             "group": "build",
             "problemMatcher": [],
             "presentation": {

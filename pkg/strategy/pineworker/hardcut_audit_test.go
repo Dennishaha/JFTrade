@@ -333,7 +333,8 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 			"verifyReleaseArtifact",
 			"release artifact is missing or empty",
 		},
-		"scripts/lib/pinets-license.sh": {
+		"scripts/lib/pinets-package.mjs": {
+			"checkPinetsPackageAndLicense",
 			"Checking pinets package",
 			"pinets package license:",
 		},
@@ -390,14 +391,23 @@ func assertBunSEAPackagingIsDocumented(t *testing.T, root string) {
 			"--compile",
 		},
 		"scripts/build-pineworker-dev.sh": {
-			"bun build --compile",
+			"build-pineworker-dev.mjs",
+		},
+		"scripts/build-pineworker-dev.mjs": {
+			"--compile",
 			"JFTRADE_PINEWORKER_DEV_OUT_DIR",
 			"JFTRADE_PINEWORKER_DEV_ENV_FILE",
+			"checkPinetsPackageAndLicense",
+		},
+		"scripts/dev-api-pineworker.mjs": {
+			"buildDevWorker",
 			"JFTRADE_PINEWORKER_BINARY",
+			"cmd/jftrade-api",
 		},
 		"package.json": {
 			"build:pineworker:dev",
 			"dev:api:pineworker",
+			"test:pineworker-dev-build",
 		},
 		".vscode/tasks.json": {
 			"build:pineworker:dev",

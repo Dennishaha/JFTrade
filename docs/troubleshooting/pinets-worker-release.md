@@ -27,10 +27,12 @@ npm run dev:api:pineworker
 
 如果需要手动控制 worker 路径，可以先构建当前平台 worker，再设置环境变量：
 
-```bash
-export JFTRADE_PINEWORKER_BINARY="$(npm run --silent build:pineworker:dev | tail -n 1)"
+```powershell
+$env:JFTRADE_PINEWORKER_BINARY = (npm run --silent build:pineworker:dev | Select-Object -Last 1)
 go run ./cmd/jftrade-api
 ```
+
+`npm run build:pineworker:dev` 和 `npm run dev:api:pineworker` 都走 Node 入口，不需要 Git Bash 或 WSL。设置 `JFTRADE_PINEWORKER_DEV_ENV_FILE` 时，dev build 会写出 `JFTRADE_PINEWORKER_BINARY=...` 供 VS Code launch 配置读取。
 
 发布态使用 embedded worker：
 

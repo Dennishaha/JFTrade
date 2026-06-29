@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { checkPinetsPackageAndLicense } from "./lib/pinets-package.mjs";
 import { spawnChecked } from "./lib/spawn.mjs";
 
 let allowBlocked = false;
@@ -19,7 +20,7 @@ const releaseOut = process.env.JFTRADE_PINETS_RELEASE_OUT || "dist/trading-engin
 const dryRun = process.env.JFTRADE_PINETS_RELEASE_DRY_RUN === "1";
 
 let blocked = false;
-if (!checkPinetsPackageAndLicense()) {
+if (!checkPinetsPackageAndLicense({ dryRun, verifyNpmVisible: true })) {
   blocked = true;
 }
 
@@ -71,36 +72,6 @@ function run(command, args, extraEnv = {}) {
   if (status !== 0) {
     process.exit(status);
   }
-}
-
-function checkPinetsPackageAndLicense() {
-  console.log("==> Checking pinets package");
-  const envStatus = process.env.JFTRADE_PINETS_RELEASE_PINETS_STATUS?.trim();
-  let license = process.env.JFTRADE_PINETS_RELEASE_PINETS_LICENSE?.trim() ?? "";
-
-  if (envStatus && envStatus !== "0") {
-    console.error("BLOCKED: pinets package is not installed or not visible to npm workspaces");
-    return false;
-  }
-  if (!envStatus && !dryRun) {
-    if (spawnChecked("npm", ["ls", "pinets", "--workspaces", "--depth=1"]) !== 0) {
-      console.error("BLOCKED: pinets package is not installed or not visible to npm workspaces");
-      return false;
-    }
-  }
-  if (!license) {
-    try {
-      const pkg = JSON.parse(readFileSync("node_modules/pinets/package.json", "utf8"));
-      license = pkg.license || "";
-    } catch {
-      if (!envStatus) {
-        console.error("BLOCKED: pinets package is not installed or not visible to npm workspaces");
-        return false;
-      }
-    }
-  }
-  console.log(`==> pinets package license: ${license || "unknown"}`);
-  return true;
 }
 
 function prepareReleaseArtifactPath() {
