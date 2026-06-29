@@ -16,6 +16,7 @@ type Store interface {
 	ExecutionSettings() jfsettings.ExecutionSettings
 	SecuritySettings() jfsettings.SecuritySettings
 	ADKSettings() jfsettings.ADKRuntimeSettings
+	PineWorkerSettings() jfsettings.PineWorkerSettings
 	ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings
 	Integration() jfsettings.BrokerIntegration
 	SavedIntegration() *jfsettings.BrokerIntegration
@@ -28,6 +29,7 @@ type Store interface {
 	SaveExecutionSettings(jfsettings.ExecutionSettings) (jfsettings.ExecutionSettings, error)
 	SaveSecuritySettings(jfsettings.SecuritySettings) (jfsettings.SecuritySettings, error)
 	SaveADKSettings(jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error)
+	SavePineWorkerSettings(jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error)
 	SaveExchangeCalendarSettings(jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error)
 	SaveIntegration(jfsettings.BrokerIntegration) (jfsettings.BrokerIntegration, error)
 	CreateManagedAccount(jfsettings.ManagedBrokerAccount) (jfsettings.ManagedBrokerAccount, error)
@@ -51,6 +53,8 @@ type SideEffects struct {
 	OnSecurityChanged func(jfsettings.SecuritySettings)
 	// OnExchangeCalendarsChanged 在交易所日历设置变更时调用（→ 刷新 manager 配置）。
 	OnExchangeCalendarsChanged func(jfsettings.ExchangeCalendarSettings)
+	// OnPineWorkerChanged 在 PineTS worker 设置变更时调用。
+	OnPineWorkerChanged func(jfsettings.PineWorkerSettings)
 }
 
 // Service 提供 settings 业务逻辑：读取、持久化、副作用编排。
@@ -208,6 +212,25 @@ func (s *Service) GetADKRuntimeSettings() jfsettings.ADKRuntimeSettings {
 // SaveADKRuntimeSettings 保存 ADK 运行时设置。
 func (s *Service) SaveADKRuntimeSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
 	return s.store.SaveADKSettings(input)
+}
+
+// ── Pine Worker ──
+
+// GetPineWorkerSettings 返回 PineTS worker 设置。
+func (s *Service) GetPineWorkerSettings() jfsettings.PineWorkerSettings {
+	return s.store.PineWorkerSettings()
+}
+
+// SavePineWorkerSettings 保存 PineTS worker 设置并触发副作用。
+func (s *Service) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error) {
+	result, err := s.store.SavePineWorkerSettings(input)
+	if err != nil {
+		return result, err
+	}
+	if s.sideEffects.OnPineWorkerChanged != nil {
+		s.sideEffects.OnPineWorkerChanged(result)
+	}
+	return result, nil
 }
 
 // ── Exchange Calendars ──

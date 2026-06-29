@@ -107,6 +107,10 @@ export interface ADKRuntimeSettings {
   streamIdleTimeoutMs: number;
 }
 
+export interface PineWorkerSettingsResponse {
+  workerLimit: number;
+}
+
 export interface ADKAgent {
   id: string;
   name: string;

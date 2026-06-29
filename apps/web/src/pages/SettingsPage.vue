@@ -7,6 +7,7 @@ import SettingsAccountDiscoverySection from "../components/SettingsAccountDiscov
 import SettingsAppearanceSection from "../components/SettingsAppearanceSection.vue";
 import SettingsExchangeCalendarSection from "../components/SettingsExchangeCalendarSection.vue";
 import SettingsManagedAccountsSection from "../components/SettingsManagedAccountsSection.vue";
+import SettingsPineWorkerSection from "../components/SettingsPineWorkerSection.vue";
 import SettingsSecuritySection from "../components/SettingsSecuritySection.vue";
 import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
 import { readLocalStorage, writeLocalStorage } from "../composables/safeStorage";
@@ -57,6 +58,11 @@ const settingsMenu = [
     index: "security",
     label: "安全",
     description: "配置管理员认证与访问保护。",
+  },
+  {
+    index: "pine-worker",
+    label: "PineTS Worker",
+    description: "配置 Pine Script 计算 Worker 上限。",
   },
   {
     index: "adk",
@@ -190,6 +196,8 @@ const {
         <SettingsExchangeCalendarSection v-show="activeMenu === 'exchange-calendars'" />
 
         <SettingsSecuritySection v-if="activeMenu === 'security'" />
+
+        <SettingsPineWorkerSection v-if="activeMenu === 'pine-worker'" />
 
         <SettingsADKSection v-show="activeMenu === 'adk'" />
 

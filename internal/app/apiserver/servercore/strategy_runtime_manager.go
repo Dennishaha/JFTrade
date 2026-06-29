@@ -112,7 +112,7 @@ func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 			broker:   activeBroker,
 		}
 	}
-	manager.pineWorkerRunner = server.pineWorkerManager
+	manager.pineWorkerRunner = server.pineWorkerRunner
 	return manager
 }
 

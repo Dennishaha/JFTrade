@@ -21,6 +21,7 @@ type (
 	ExecutionSettings        = jftsettings.ExecutionSettings
 	SecuritySettings         = jftsettings.SecuritySettings
 	ADKRuntimeSettings       = jftsettings.ADKRuntimeSettings
+	PineWorkerSettings       = jftsettings.PineWorkerSettings
 	ExchangeCalendarSettings = jftsettings.ExchangeCalendarSettings
 	LaunchDefaults           = jftsettings.LaunchDefaults
 )
@@ -34,6 +35,7 @@ type settingsFile struct {
 	Execution   *ExecutionSettings        `json:"execution,omitempty"`
 	Security    *SecuritySettings         `json:"security,omitempty"`
 	ADK         *ADKRuntimeSettings       `json:"adk,omitempty"`
+	PineWorker  *PineWorkerSettings       `json:"pineWorker,omitempty"`
 	Calendars   *ExchangeCalendarSettings `json:"exchangeCalendars,omitempty"`
 }
 

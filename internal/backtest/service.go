@@ -261,6 +261,7 @@ type Service struct {
 	runBacktestFn func(ctx context.Context, config bt.RunConfig) *bt.RunResult
 
 	// Pine worker runner used by the default hard-cut PineTS backtest path.
+	pineWorkerMu     sync.RWMutex
 	pineWorkerRunner bt.PineWorkerRunner
 
 	// 创建 broker-specific K 线同步适配器。
@@ -314,7 +315,17 @@ func WithRunBacktestFn(fn func(ctx context.Context, config bt.RunConfig) *bt.Run
 
 // WithPineWorkerRunner sets the PineTS worker runner used by default backtests.
 func WithPineWorkerRunner(runner bt.PineWorkerRunner) Option {
-	return func(s *Service) { s.pineWorkerRunner = runner }
+	return func(s *Service) { s.SetPineWorkerRunner(runner) }
+}
+
+// SetPineWorkerRunner updates the PineTS worker runner used by default backtests.
+func (s *Service) SetPineWorkerRunner(runner bt.PineWorkerRunner) {
+	if s == nil {
+		return
+	}
+	s.pineWorkerMu.Lock()
+	s.pineWorkerRunner = runner
+	s.pineWorkerMu.Unlock()
 }
 
 // WithNewKLineSyncerFn sets the broker integration adapter factory.
@@ -699,10 +710,13 @@ func (s *Service) runBacktest(ctx context.Context, config bt.RunConfig) *bt.RunR
 	if s.runBacktestFn != nil {
 		return s.runBacktestFn(ctx, config)
 	}
-	if s.pineWorkerRunner == nil {
+	s.pineWorkerMu.RLock()
+	runner := s.pineWorkerRunner
+	s.pineWorkerMu.RUnlock()
+	if runner == nil {
 		return failureResult(StartRequest{Symbol: config.Symbol, Interval: config.Interval}, "pine worker runner is not configured")
 	}
-	return bt.RunWithPineWorker(ctx, config, s.pineWorkerRunner)
+	return bt.RunWithPineWorker(ctx, config, runner)
 }
 
 // finishRun 将回测结果写入 RunStore。失败时回退到仅内存更新。

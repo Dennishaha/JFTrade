@@ -42,6 +42,9 @@ func TestStoreDefaultsExposePathAndNormalizedDefaults(t *testing.T) {
 	if got := store.ADKSettings(); got != DefaultADKRuntimeSettings() {
 		t.Fatalf("ADKSettings = %#v", got)
 	}
+	if got := store.PineWorkerSettings(); got != DefaultPineWorkerSettings() {
+		t.Fatalf("PineWorkerSettings = %#v", got)
+	}
 	if got := store.ExchangeCalendarSettings(); !reflect.DeepEqual(got, DefaultExchangeCalendarSettings()) {
 		t.Fatalf("ExchangeCalendarSettings = %#v", got)
 	}
@@ -108,6 +111,52 @@ func TestSaveAppearanceAndADKSettingsPersistNormalizedValues(t *testing.T) {
 	}
 	if got := reloaded.ADKSettings(); got != adk {
 		t.Fatalf("reloaded adk = %#v, want %#v", got, adk)
+	}
+}
+
+func TestSavePineWorkerSettingsPersistsNormalizedWorkerLimit(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	store, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	saved, err := store.SavePineWorkerSettings(jfsettings.PineWorkerSettings{WorkerLimit: 2000})
+	if err != nil {
+		t.Fatalf("SavePineWorkerSettings: %v", err)
+	}
+	if want := (jfsettings.PineWorkerSettings{WorkerLimit: 1000}); saved != want {
+		t.Fatalf("pine worker settings = %#v, want %#v", saved, want)
+	}
+
+	saved, err = store.SavePineWorkerSettings(jfsettings.PineWorkerSettings{WorkerLimit: -1})
+	if err != nil {
+		t.Fatalf("SavePineWorkerSettings min: %v", err)
+	}
+	if want := (jfsettings.PineWorkerSettings{WorkerLimit: 1}); saved != want {
+		t.Fatalf("pine worker min settings = %#v, want %#v", saved, want)
+	}
+
+	reloaded, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New reload: %v", err)
+	}
+	if got := reloaded.PineWorkerSettings(); got != saved {
+		t.Fatalf("reloaded pine worker settings = %#v, want %#v", got, saved)
+	}
+}
+
+func TestPineWorkerSettingsLoadsLegacyWorkerCount(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"pineWorker":{"workerCount":7}}`), 0o644); err != nil {
+		t.Fatalf("write settings: %v", err)
+	}
+	store, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if got := store.PineWorkerSettings(); got.WorkerLimit != 7 {
+		t.Fatalf("PineWorkerSettings = %#v, want legacy workerCount migrated to workerLimit 7", got)
 	}
 }
 

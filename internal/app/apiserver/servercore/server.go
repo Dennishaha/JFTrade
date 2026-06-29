@@ -37,7 +37,6 @@ import (
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
-	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 const (
@@ -92,7 +91,7 @@ type Server struct {
 	strategySvc              *stratsrv.Service
 	marketdataSvc            *mdsrv.Service
 	tradingSvc               *trdsrv.Service
-	pineWorkerManager        *pineworker.WorkerManager
+	pineWorkerRunner         pineWorkerRunner
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
@@ -402,7 +401,7 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 
 	// Wire backtest service — RunStore / SyncTaskStore / StrategyProvider
 	// are implemented by the same backing stores already held by Server.
-	pineWorkerRunner := server.startPineWorkerManager(context.Background())
+	pineWorkerRunner := server.startPineWorkerManager()
 	if pineWorkerRunner != nil && server.strategyRuntimeManager != nil {
 		server.strategyRuntimeManager.pineWorkerRunner = pineWorkerRunner
 	}
@@ -502,6 +501,9 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 				if server.exchangeCalendars != nil {
 					server.exchangeCalendars.NotifySettingsChanged()
 				}
+			},
+			OnPineWorkerChanged: func(settings PineWorkerSettings) {
+				server.applyPineWorkerSettings(settings)
 			},
 		}),
 		settings.WithBrokerDescriptor(func() map[string]any { return server.descriptor() }),
@@ -654,9 +656,11 @@ func (s *Server) Close() error {
 				errs = append(errs, fmt.Errorf("backtestSvc close: %w", err))
 			}
 		}
-		if s.pineWorkerManager != nil {
-			if err := s.pineWorkerManager.Stop(context.Background()); err != nil {
-				errs = append(errs, fmt.Errorf("pineWorkerManager close: %w", err))
+		if s.pineWorkerRunner != nil {
+			if closer, ok := s.pineWorkerRunner.(interface{ Close(context.Context) error }); ok {
+				if err := closer.Close(context.Background()); err != nil {
+					errs = append(errs, fmt.Errorf("pineWorkerRunner close: %w", err))
+				}
 			}
 		}
 		if s.backtestRuns != nil {
