@@ -26,6 +26,7 @@ apps/web/vite-dev*.log
 !.vscode/tasks.json
 
 # Build artifacts
+artifacts/
 apps/web/dist/
 packages/*/dist/
 internal/frontendassets/dist.zip

@@ -71,7 +71,7 @@ export function buildResponse(
       values: plot.values,
     })),
     plots: normalizePlots(result.plots),
-    orderIntents: normalizeOrderIntents(result.orderIntents, request),
+    orderIntents: normalizeResultOrderIntents(result, request),
     logs: normalizeStringList(result.logs),
     warnings: normalizeStringList(result.warnings),
     diagnostics: result.diagnostics ?? [],
@@ -141,6 +141,82 @@ function normalizeOrderIntents(items: unknown[] | undefined, request: RunScriptR
     setString(intent, "alertMessage", raw.alertMessage);
     return [intent];
   });
+}
+
+function normalizeResultOrderIntents(result: PineTSRunResult, request: RunScriptRequest): OrderIntent[] {
+  if ((result.orderIntents ?? []).length > 0) {
+    return normalizeOrderIntents(result.orderIntents, request);
+  }
+  return orderIntentsFromStrategyTrades(result.strategy, request);
+}
+
+function orderIntentsFromStrategyTrades(strategy: unknown, request: RunScriptRequest): OrderIntent[] {
+  if (typeof strategy !== "object" || strategy === null) {
+    return [];
+  }
+  const raw = strategy as Record<string, unknown>;
+  const intents: OrderIntent[] = [];
+  for (const trade of arrayOfRecords(raw.closedtrades)) {
+    const entryID = toStringValue(trade.entry_id, "entry");
+    const size = Math.abs(optionalNumber(trade.size) ?? 1);
+    const direction = (optionalNumber(trade.size) ?? 1) < 0 ? "short" : "long";
+    const entryBarIndex = signalBarIndex(trade.entry_bar_index, request);
+    const exitBarIndex = signalBarIndex(trade.exit_bar_index, request);
+    intents.push({
+      kind: "entry",
+      id: entryID,
+      direction,
+      quantity: size,
+      hasQuantity: true,
+      barIndex: entryBarIndex,
+      time: candleTime(request, entryBarIndex),
+    });
+    intents.push({
+      kind: "close",
+      id: optionalString(trade.exit_id) ?? `close_${entryID}`,
+      fromEntry: entryID,
+      direction,
+      quantity: size,
+      hasQuantity: true,
+      barIndex: exitBarIndex,
+      time: candleTime(request, exitBarIndex),
+    });
+  }
+  for (const trade of arrayOfRecords(raw.opentrades)) {
+    const entryID = toStringValue(trade.entry_id, "entry");
+    const size = Math.abs(optionalNumber(trade.size) ?? 1);
+    const direction = (optionalNumber(trade.size) ?? 1) < 0 ? "short" : "long";
+    const entryBarIndex = signalBarIndex(trade.entry_bar_index, request);
+    intents.push({
+      kind: "entry",
+      id: entryID,
+      direction,
+      quantity: size,
+      hasQuantity: true,
+      barIndex: entryBarIndex,
+      time: candleTime(request, entryBarIndex),
+    });
+  }
+  return intents;
+}
+
+function arrayOfRecords(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+    : [];
+}
+
+function signalBarIndex(value: unknown, request: RunScriptRequest): number {
+  const fillBarIndex = toInteger(value, request.candles.length - 1);
+  return clampInteger(fillBarIndex - 1, 0, Math.max(0, request.candles.length - 1));
+}
+
+function candleTime(request: RunScriptRequest, barIndex: number): number {
+  return request.candles[barIndex]?.openTime ?? 0;
+}
+
+function clampInteger(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function normalizeStringList(items: unknown[] | undefined): string[] {

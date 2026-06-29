@@ -81,6 +81,75 @@ strategy("worker smoke")`,
 	}
 }
 
+func TestRunWithPineWorkerExecutesQuantityPctReplay(t *testing.T) {
+	isolateBacktestHome(t)
+
+	dbPath := filepath.Join(t.TempDir(), "pinets-worker-quantity-pct.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.June, 29, 13, 30, 0, 0, time.UTC)
+	klines := []types.KLine{
+		testPineWorkerRunnerKLine(baseStart, 100),
+		testPineWorkerRunnerKLine(baseStart.Add(time.Minute), 100),
+		testPineWorkerRunnerKLine(baseStart.Add(2*time.Minute), 100),
+		testPineWorkerRunnerKLine(baseStart.Add(3*time.Minute), 100),
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		jftradeCheckTestError(t, store.Close())
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	runner := &fakePineWorkerBacktestRunner{
+		response: pineworker.RunScriptResponse{
+			OrderIntents: []pineworker.OrderIntent{
+				{Kind: "entry", ID: "half-equity", Direction: "long", QuantityPct: 50, HasQuantityPct: true, BarIndex: 0},
+				{Kind: "close", ID: "half-position", Direction: "long", QuantityPct: 50, HasQuantityPct: true, BarIndex: 2},
+			},
+			Metadata: pineworker.WorkerMetadata{WorkerID: "worker-1"},
+		},
+	}
+	result := RunWithPineWorker(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[0].StartTime.Time(),
+		EndTime:      klines[len(klines)-1].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("worker qty pct")`,
+		InitialBalance: 10000,
+	}, runner)
+
+	if result == nil {
+		t.Fatal("RunWithPineWorker returned nil")
+	}
+	if result.Error != "" {
+		t.Fatalf("RunWithPineWorker error = %s", result.Error)
+	}
+	if result.TotalTrades != 2 {
+		t.Fatalf("TotalTrades = %d, want 2", result.TotalTrades)
+	}
+	entry, ok := findOrderBookEntry(result.OrderBook, "half-equity")
+	if !ok {
+		t.Fatalf("entry order not found in %#v", result.OrderBook)
+	}
+	if entry.Quantity != "50" || entry.FilledQuantity != "50" {
+		t.Fatalf("entry quantities = %#v, want 50", entry)
+	}
+	closeOrder, ok := findOrderBookEntry(result.OrderBook, "half-position")
+	if !ok {
+		t.Fatalf("close order not found in %#v", result.OrderBook)
+	}
+	if closeOrder.Quantity != "25" || closeOrder.FilledQuantity != "25" {
+		t.Fatalf("close quantities = %#v, want 25", closeOrder)
+	}
+}
+
 func TestRunWithPineWorkerMapsWorkerErrors(t *testing.T) {
 	isolateBacktestHome(t)
 
@@ -113,6 +182,15 @@ strategy("worker error")`,
 	if result == nil || !strings.Contains(result.Error, "compile failed") {
 		t.Fatalf("result error = %#v", result)
 	}
+}
+
+func findOrderBookEntry(entries []OrderBookEntry, clientOrderID string) (OrderBookEntry, bool) {
+	for _, entry := range entries {
+		if entry.ClientOrderID == clientOrderID {
+			return entry, true
+		}
+	}
+	return OrderBookEntry{}, false
 }
 
 func testPineWorkerRunnerKLine(start time.Time, closePrice float64) types.KLine {

@@ -211,7 +211,7 @@ func handleExecutionSettings(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Accept json
 // @Produce json
-// @Param request body jftsettings.ExecutionSettings true "执行设置"
+// @Param request body jfsettings.ExecutionSettings true "执行设置"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 400 {object} httpserver.Envelope
 // @Router /api/v1/settings/execution [put]
@@ -250,7 +250,7 @@ func handleSecuritySettings(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Accept json
 // @Produce json
-// @Param request body jftsettings.SecuritySettings true "安全设置"
+// @Param request body jfsettings.SecuritySettings true "安全设置"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 400 {object} httpserver.Envelope
 // @Router /api/v1/settings/security [put]
@@ -289,7 +289,7 @@ func handleADKRuntimeSettings(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Accept json
 // @Produce json
-// @Param request body jftsettings.ADKRuntimeSettings true "ADK 运行时设置"
+// @Param request body jfsettings.ADKRuntimeSettings true "ADK 运行时设置"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 400 {object} httpserver.Envelope
 // @Router /api/v1/settings/adk [put]
@@ -328,7 +328,7 @@ func handlePineWorkerSettings(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Accept json
 // @Produce json
-// @Param request body jftsettings.PineWorkerSettings true "PineTS worker 设置"
+// @Param request body jfsettings.PineWorkerSettings true "PineTS worker 设置"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 400 {object} httpserver.Envelope
 // @Router /api/v1/settings/pine-worker [put]

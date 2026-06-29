@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,6 +23,7 @@ type WorkerBinary struct {
 type BinaryWorkerLauncherConfig struct {
 	Binary          WorkerBinary
 	TempDir         string
+	WorkDir         string
 	ProtoPath       string
 	MaxMessageBytes int
 	PineTSVersion   string
@@ -67,6 +69,9 @@ func (launcher *BinaryWorkerLauncher) Start(ctx context.Context, spec WorkerSpec
 		return nil, err
 	}
 	cmd := exec.Command(path, args...)
+	if strings.TrimSpace(launcher.config.WorkDir) != "" {
+		cmd.Dir = launcher.config.WorkDir
+	}
 	if len(launcher.config.Env) > 0 {
 		cmd.Env = append(os.Environ(), launcher.config.Env...)
 	}
@@ -79,6 +84,10 @@ func (launcher *BinaryWorkerLauncher) Start(ctx context.Context, spec WorkerSpec
 	return &OSWorkerProcess{
 		cmd:         cmd,
 		path:        path,
+		args:        append([]string(nil), args...),
+		workDir:     cmd.Dir,
+		stdout:      launcher.config.Stdout,
+		stderr:      launcher.config.Stderr,
 		stopTimeout: launcher.config.StopTimeout,
 	}, nil
 }
@@ -141,7 +150,34 @@ func (launcher *BinaryWorkerLauncher) args(spec WorkerSpec) []string {
 type OSWorkerProcess struct {
 	cmd         *exec.Cmd
 	path        string
+	args        []string
+	workDir     string
+	stdout      io.Writer
+	stderr      io.Writer
 	stopTimeout time.Duration
+}
+
+func (process *OSWorkerProcess) Diagnostics() string {
+	if process == nil {
+		return ""
+	}
+	parts := []string{}
+	if process.path != "" {
+		parts = append(parts, "binary="+process.path)
+	}
+	if process.workDir != "" {
+		parts = append(parts, "cwd="+process.workDir)
+	}
+	if len(process.args) > 0 {
+		parts = append(parts, "args="+strings.Join(process.args, " "))
+	}
+	if stdout := writerString(process.stdout); stdout != "" {
+		parts = append(parts, "stdout="+stdout)
+	}
+	if stderr := writerString(process.stderr); stderr != "" {
+		parts = append(parts, "stderr="+stderr)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func (process *OSWorkerProcess) Stop(ctx context.Context) error {
@@ -165,6 +201,22 @@ func (process *OSWorkerProcess) Stop(ctx context.Context) error {
 	err := <-done
 	_ = os.Remove(process.path)
 	return ignoreProcessExit(err)
+}
+
+func writerString(writer io.Writer) string {
+	stringer, ok := writer.(interface{ String() string })
+	if !ok {
+		return ""
+	}
+	return summarizeProcessLog(stringer.String())
+}
+
+func summarizeProcessLog(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) <= 2000 {
+		return value
+	}
+	return value[len(value)-2000:]
 }
 
 func ignoreProcessExit(err error) error {

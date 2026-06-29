@@ -1,4 +1,9 @@
 // Command jftrade-api runs the JFTrade sidecar without the bbgo CLI runtime.
+//
+// @title JFTrade Debug API
+// @version 0.1.0
+// @description Local JFTrade API sidecar for strategy authoring, market data, backtests, settings, and runtime operations.
+// @BasePath /
 package main
 
 import (

@@ -98,6 +98,109 @@ describe("buildResponse", () => {
     });
     expect(response.logs).toEqual(["1", "ok"]);
   });
+
+  test("derives order intents from PineTS strategy closed trades", () => {
+    const response = buildResponse(validRequest(), {
+      strategy: {
+        closedtrades: [{
+          entry_id: "SmokeLong",
+          entry_bar_index: 1,
+          exit_id: "close_SmokeLong",
+          exit_bar_index: 2,
+          size: 2,
+        }],
+      },
+    }, {
+      workerId: "worker-1",
+      version: "0.1.0",
+      pineTSVersion: "test",
+      scriptHash: "script",
+      dataHash: "data",
+      durationMs: 1,
+      requestBytes: 2,
+      responseBytes: 3,
+      peakRSSBytes: 4,
+    });
+
+    expect(response.orderIntents).toEqual([
+      expect.objectContaining({
+        kind: "entry",
+        id: "SmokeLong",
+        direction: "long",
+        quantity: 2,
+        hasQuantity: true,
+        barIndex: 0,
+        time: 1_700_000_000_000,
+      }),
+      expect.objectContaining({
+        kind: "close",
+        id: "close_SmokeLong",
+        fromEntry: "SmokeLong",
+        direction: "long",
+        quantity: 2,
+        hasQuantity: true,
+        barIndex: 1,
+        time: 1_700_000_060_000,
+      }),
+    ]);
+  });
+
+  test("derives order intents from PineTS short strategy trades", () => {
+    const response = buildResponse(validRequest(), {
+      strategy: {
+        closedtrades: [{
+          entry_id: "ES",
+          entry_bar_index: 1,
+          exit_id: "XS",
+          exit_bar_index: 2,
+          size: -2,
+        }],
+        opentrades: [{
+          entry_id: "OpenShort",
+          entry_bar_index: 1,
+          size: -1,
+        }],
+      },
+    }, {
+      workerId: "worker-1",
+      version: "0.1.0",
+      pineTSVersion: "test",
+      scriptHash: "script",
+      dataHash: "data",
+      durationMs: 1,
+      requestBytes: 2,
+      responseBytes: 3,
+      peakRSSBytes: 4,
+    });
+
+    expect(response.orderIntents).toEqual([
+      expect.objectContaining({
+        kind: "entry",
+        id: "ES",
+        direction: "short",
+        quantity: 2,
+        hasQuantity: true,
+        barIndex: 0,
+      }),
+      expect.objectContaining({
+        kind: "close",
+        id: "XS",
+        fromEntry: "ES",
+        direction: "short",
+        quantity: 2,
+        hasQuantity: true,
+        barIndex: 1,
+      }),
+      expect.objectContaining({
+        kind: "entry",
+        id: "OpenShort",
+        direction: "short",
+        quantity: 1,
+        hasQuantity: true,
+        barIndex: 0,
+      }),
+    ]);
+  });
 });
 
 function validRequest(): RunScriptRequest {

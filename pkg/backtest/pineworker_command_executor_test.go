@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
@@ -40,7 +41,7 @@ func TestPineWorkerCommandExecutorSubmitsOrders(t *testing.T) {
 	}
 }
 
-func TestPineWorkerCommandExecutorRejectsUnsupportedSizing(t *testing.T) {
+func TestPineWorkerCommandExecutorRejectsQuantityPctWithoutSizing(t *testing.T) {
 	commandExecutor := validPineWorkerCommandExecutor(&fakeWorkerOrderExecutor{})
 	_, err := commandExecutor.SubmitOrderFromCommand(WorkerOrderCommand{
 		Kind:        "exit",
@@ -52,7 +53,11 @@ func TestPineWorkerCommandExecutorRejectsUnsupportedSizing(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "position sizing") {
 		t.Fatalf("error = %v, want position sizing", err)
 	}
-	_, err = commandExecutor.SubmitOrderFromCommand(WorkerOrderCommand{
+}
+
+func TestPineWorkerCommandExecutorRejectsMissingQuantity(t *testing.T) {
+	commandExecutor := validPineWorkerCommandExecutor(&fakeWorkerOrderExecutor{})
+	_, err := commandExecutor.SubmitOrderFromCommand(WorkerOrderCommand{
 		Kind:      "entry",
 		ID:        "zero",
 		Side:      types.SideTypeBuy,
@@ -60,6 +65,111 @@ func TestPineWorkerCommandExecutorRejectsUnsupportedSizing(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "quantity must be positive") {
 		t.Fatalf("error = %v, want quantity", err)
+	}
+}
+
+func TestPineWorkerCommandExecutorSizesEntryQuantityPctFromEquity(t *testing.T) {
+	account := types.NewAccount()
+	account.UpdateBalances(types.BalanceMap{
+		"USD": {Currency: "USD", Available: fixedpoint.NewFromFloat(1000)},
+	})
+	sizer := newPineWorkerReplaySizer("US.AAPL", "USD", account)
+	sizer.onKLineClosed(testPineWorkerShortReplayKLine(time.Now(), 100))
+
+	commandExecutor := validPineWorkerCommandExecutor(&fakeWorkerOrderExecutor{})
+	commandExecutor.PositionSizer = sizer
+	order, err := commandExecutor.SubmitOrderFromCommand(WorkerOrderCommand{
+		Kind:        "entry",
+		ID:          "half-equity",
+		Direction:   "long",
+		Side:        types.SideTypeBuy,
+		OrderType:   types.OrderTypeMarket,
+		QuantityPct: 50,
+	})
+	if err != nil {
+		t.Fatalf("SubmitOrderFromCommand error = %v", err)
+	}
+	if order.Quantity.Float64() != 5 {
+		t.Fatalf("Quantity = %s, want 5", order.Quantity)
+	}
+}
+
+func TestPineWorkerCommandExecutorSizesCloseQuantityPctFromPosition(t *testing.T) {
+	account := types.NewAccount()
+	sizer := newPineWorkerReplaySizer("US.AAPL", "USD", account)
+	sizer.onOrderUpdate(types.Order{
+		SubmitOrder: types.SubmitOrder{
+			Symbol:   "US.AAPL",
+			Side:     types.SideTypeBuy,
+			Quantity: fixedpoint.NewFromFloat(10),
+		},
+		Status:           types.OrderStatusFilled,
+		ExecutedQuantity: fixedpoint.NewFromFloat(10),
+	})
+
+	commandExecutor := validPineWorkerCommandExecutor(&fakeWorkerOrderExecutor{})
+	commandExecutor.PositionSizer = sizer
+	order, err := commandExecutor.SubmitOrderFromCommand(WorkerOrderCommand{
+		Kind:        "close",
+		ID:          "half-position",
+		Direction:   "long",
+		Side:        types.SideTypeSell,
+		OrderType:   types.OrderTypeMarket,
+		QuantityPct: 50,
+	})
+	if err != nil {
+		t.Fatalf("SubmitOrderFromCommand error = %v", err)
+	}
+	if order.Quantity.Float64() != 5 {
+		t.Fatalf("Quantity = %s, want 5", order.Quantity)
+	}
+}
+
+func TestPineWorkerCommandExecutorDefaultsCloseToFullPosition(t *testing.T) {
+	account := types.NewAccount()
+	sizer := newPineWorkerReplaySizer("US.AAPL", "USD", account)
+	sizer.onOrderUpdate(types.Order{
+		SubmitOrder: types.SubmitOrder{
+			Symbol:   "US.AAPL",
+			Side:     types.SideTypeBuy,
+			Quantity: fixedpoint.NewFromFloat(3),
+		},
+		Status:           types.OrderStatusFilled,
+		ExecutedQuantity: fixedpoint.NewFromFloat(3),
+	})
+
+	commandExecutor := validPineWorkerCommandExecutor(&fakeWorkerOrderExecutor{})
+	commandExecutor.PositionSizer = sizer
+	order, err := commandExecutor.SubmitOrderFromCommand(WorkerOrderCommand{
+		Kind:      "close",
+		ID:        "all-position",
+		Direction: "long",
+		Side:      types.SideTypeSell,
+		OrderType: types.OrderTypeMarket,
+	})
+	if err != nil {
+		t.Fatalf("SubmitOrderFromCommand error = %v", err)
+	}
+	if order.Quantity.Float64() != 3 {
+		t.Fatalf("Quantity = %s, want 3", order.Quantity)
+	}
+}
+
+func TestPineWorkerCommandExecutorTagsShortReplayOrders(t *testing.T) {
+	commandExecutor := validPineWorkerCommandExecutor(&fakeWorkerOrderExecutor{})
+	order, err := commandExecutor.SubmitOrderFromCommand(WorkerOrderCommand{
+		Kind:      "entry",
+		ID:        "short",
+		Direction: "short",
+		Side:      types.SideTypeSell,
+		OrderType: types.OrderTypeMarket,
+		Quantity:  2,
+	})
+	if err != nil {
+		t.Fatalf("SubmitOrderFromCommand error = %v", err)
+	}
+	if order.Tag != pineWorkerShortReplayOrderTag {
+		t.Fatalf("Tag = %q, want %q", order.Tag, pineWorkerShortReplayOrderTag)
 	}
 }
 
@@ -125,7 +235,7 @@ func validPineWorkerCommandExecutor(orderExecutor *fakeWorkerOrderExecutor) *Pin
 	return &PineWorkerCommandExecutor{
 		Symbol:         "US.AAPL",
 		OrderExecutor:  orderExecutor,
-		MarketResolver: fakeWorkerMarketResolver{"US.AAPL": {Symbol: "US.AAPL"}},
+		MarketResolver: fakeWorkerMarketResolver{"US.AAPL": testPineWorkerShortReplayMarket()},
 	}
 }
 

@@ -11,14 +11,21 @@ try {
 }
 
 if (process.env.JFTRADE_DEV_API_PINEWORKER_DRY_RUN === "1") {
-  console.log(`DRY RUN JFTRADE_PINEWORKER_BINARY=${workerPath} go run ./cmd/jftrade-api`);
+  const workers = pineWorkerCount();
+  console.log(`DRY RUN JFTRADE_PINEWORKER_BINARY=${workerPath} JFTRADE_PINEWORKER_WORKERS=${workers} go run ./cmd/jftrade-api`);
   process.exit(0);
 }
 
+const workers = pineWorkerCount();
 const status = spawnChecked("go", ["run", "./cmd/jftrade-api"], {
   env: {
     ...process.env,
     JFTRADE_PINEWORKER_BINARY: workerPath,
+    JFTRADE_PINEWORKER_WORKERS: workers,
   },
 });
 process.exit(status);
+
+function pineWorkerCount() {
+  return process.env.JFTRADE_PINEWORKER_WORKERS?.trim() || "1";
+}

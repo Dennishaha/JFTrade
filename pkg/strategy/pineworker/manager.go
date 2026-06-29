@@ -176,7 +176,7 @@ func (manager *WorkerManager) startWorkerLocked(ctx context.Context, index int, 
 	transport, status, err := manager.dialWorkerUntilReady(ctx, spec.Address)
 	if err != nil {
 		_ = process.Stop(ctx)
-		return nil, fmt.Errorf("dial %s: %w", spec.WorkerID, err)
+		return nil, fmt.Errorf("dial %s at %s: pine worker process did not become ready: %w%s", spec.WorkerID, spec.Address, err, processDiagnostics(process))
 	}
 	options := []ClientOption(nil)
 	if manager.config.Gate != (PerformanceGate{}) {
@@ -199,6 +199,18 @@ func (manager *WorkerManager) startWorkerLocked(ctx context.Context, index int, 
 		pineTSVersion: status.PineTSVersion,
 		capabilities:  append([]string(nil), status.Capabilities...),
 	}, nil
+}
+
+func processDiagnostics(process WorkerProcess) string {
+	diagnostics, ok := process.(interface{ Diagnostics() string })
+	if !ok {
+		return ""
+	}
+	text := diagnostics.Diagnostics()
+	if text == "" {
+		return ""
+	}
+	return "; " + text
 }
 
 func (manager *WorkerManager) dialWorkerUntilReady(ctx context.Context, address string) (ManagedTransport, HealthStatus, error) {

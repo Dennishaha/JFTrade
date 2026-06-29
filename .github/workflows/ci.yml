@@ -82,6 +82,21 @@ jobs:
       - name: PineTS compliance notice check
         run: npm run check:pinets-compliance
 
+      - name: PineTS shadow corpus report
+        env:
+          JFTRADE_PINETS_SHADOW_REPORT_PATH: ${{ github.workspace }}/artifacts/pinets-shadow/report.json
+        run: |
+          mkdir -p artifacts/pinets-shadow
+          npm run test:pinets-shadow-corpus
+
+      - name: Upload PineTS shadow corpus report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinets-shadow-corpus-${{ github.run_id }}
+          path: artifacts/pinets-shadow/report.json
+          if-no-files-found: warn
+
       - name: PineTS worker asset build script test
         run: npm run test:pineworker-asset-build
 

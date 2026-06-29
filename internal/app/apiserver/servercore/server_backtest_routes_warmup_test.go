@@ -14,6 +14,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
 func TestBacktestRouteUsesDerivedStrategyWarmup(t *testing.T) {
@@ -27,6 +28,8 @@ func TestBacktestRouteUsesDerivedStrategyWarmup(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
+	worker := newFakeStrategyRuntimePineWorker()
+	server.backtestSvc.SetPineWorkerRunner(worker)
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-auto-warmup-route",
 		Name:         "Pine Auto Warmup Route",
@@ -80,6 +83,28 @@ strategy.entry("Long", strategy.long, qty=1)`,
 	}
 	if err := klineStore.Close(); err != nil {
 		t.Fatalf("klineStore.Close: %v", err)
+	}
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		barIndex := len(request.Candles) - 1
+		formalStart := klines[20].StartTime.Time().UnixMilli()
+		for index, candle := range request.Candles {
+			if candle.OpenTime >= formalStart {
+				barIndex = index
+				break
+			}
+		}
+		return pineworker.RunScriptResponse{
+			JobID: request.JobID,
+			OrderIntents: []pineworker.OrderIntent{{
+				Kind:        "entry",
+				ID:          "Long",
+				Direction:   "long",
+				Quantity:    1,
+				HasQuantity: true,
+				BarIndex:    barIndex,
+				Time:        request.Candles[barIndex].OpenTime,
+			}},
+		}
 	}
 
 	srv := httptest.NewServer(server)

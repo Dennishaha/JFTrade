@@ -47,6 +47,8 @@ const (
 	envPineWorkerMaxPeakRSSBytes   = "JFTRADE_PINEWORKER_MAX_PEAK_RSS_BYTES"
 
 	defaultPineWorkerIdleTimeout = 60 * time.Second
+	defaultPineWorkerProtoPath   = "pkg/strategy/pineworker/proto/pineworker.proto"
+	pineWorkerLogTailBytes       = 8192
 )
 
 type pineWorkerRuntimeConfig struct {
@@ -56,6 +58,7 @@ type pineWorkerRuntimeConfig struct {
 	Host              string
 	StartPort         int
 	TempDir           string
+	WorkDir           string
 	ProtoPath         string
 	PineTSVersion     string
 	Mock              bool
@@ -97,7 +100,7 @@ func (s *Server) startPineWorkerManager() pineWorkerRunner {
 	if config.embedded {
 		source = "embedded"
 	}
-	log.Printf("JFTrade PineTS worker manager configured: source=%s workers=%d host=%s startPort=%d idleTimeout=%s", source, config.Workers, config.Host, config.StartPort, defaultPineWorkerIdleTimeout)
+	log.Printf("JFTrade PineTS worker manager configured: source=%s workers=%d host=%s startPort=%d proto=%s cwd=%s idleTimeout=%s", source, config.Workers, config.Host, config.StartPort, config.ProtoPath, config.WorkDir, defaultPineWorkerIdleTimeout)
 	return runner
 }
 
@@ -310,10 +313,13 @@ func defaultNewPineWorkerLauncher(config pineWorkerRuntimeConfig, binaryData []b
 	return pineworker.NewBinaryWorkerLauncher(pineworker.BinaryWorkerLauncherConfig{
 		Binary:          pineworker.WorkerBinary{Name: filepath.Base(config.BinaryPath), Data: binaryData, SHA256: config.SHA256},
 		TempDir:         config.TempDir,
+		WorkDir:         config.WorkDir,
 		ProtoPath:       config.ProtoPath,
 		MaxMessageBytes: config.MaxMessageBytes,
 		PineTSVersion:   config.PineTSVersion,
 		Mock:            config.Mock,
+		Stdout:          pineworker.NewTailBuffer(pineWorkerLogTailBytes),
+		Stderr:          pineworker.NewTailBuffer(pineWorkerLogTailBytes),
 	})
 }
 
@@ -389,6 +395,8 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 	if host == "" {
 		host = "127.0.0.1"
 	}
+	workDir := resolvePineWorkerWorkDir(binaryPath)
+	protoPath := resolvePineWorkerProtoPath(workDir)
 	return pineWorkerRuntimeConfig{
 		BinaryPath:        binaryPath,
 		SHA256:            firstNonEmpty(strings.TrimSpace(os.Getenv(envPineWorkerSHA256)), embeddedAsset.SHA256),
@@ -396,7 +404,8 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 		Host:              host,
 		StartPort:         startPort,
 		TempDir:           strings.TrimSpace(os.Getenv(envPineWorkerTempDir)),
-		ProtoPath:         strings.TrimSpace(os.Getenv(envPineWorkerProto)),
+		WorkDir:           workDir,
+		ProtoPath:         protoPath,
 		PineTSVersion:     strings.TrimSpace(os.Getenv(envPineWorkerPineTSVersion)),
 		Mock:              envBool(envPineWorkerMock, false),
 		RequestTimeout:    requestTimeout,
@@ -410,6 +419,65 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 		embedded:          embedded,
 		binaryData:        embeddedAsset.Data,
 	}, true, nil
+}
+
+func resolvePineWorkerWorkDir(binaryPath string) string {
+	wd, err := os.Getwd()
+	if err == nil {
+		if root := findPineWorkerRepoRoot(wd); root != "" {
+			return root
+		}
+	}
+	if binaryPath != "" {
+		if root := findPineWorkerRepoRoot(filepath.Dir(resolvePineWorkerRuntimePath(binaryPath, wd))); root != "" {
+			return root
+		}
+	}
+	if err != nil {
+		return ""
+	}
+	return wd
+}
+
+func findPineWorkerRepoRoot(start string) string {
+	dir := filepath.Clean(start)
+	for {
+		if fileExists(filepath.Join(dir, "go.mod")) && fileExists(filepath.Join(dir, filepath.FromSlash(defaultPineWorkerProtoPath))) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func resolvePineWorkerProtoPath(workDir string) string {
+	value := strings.TrimSpace(os.Getenv(envPineWorkerProto))
+	if value == "" {
+		value = filepath.FromSlash(defaultPineWorkerProtoPath)
+	}
+	return resolvePineWorkerRuntimePath(value, workDir)
+}
+
+func resolvePineWorkerRuntimePath(value string, base string) string {
+	if value == "" || filepath.IsAbs(value) {
+		return filepath.Clean(value)
+	}
+	if base != "" {
+		return filepath.Join(base, value)
+	}
+	absolute, err := filepath.Abs(value)
+	if err != nil {
+		return filepath.Clean(value)
+	}
+	return absolute
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func envIntInRange(key string, defaultValue int, minValue int, maxValue int) (int, error) {

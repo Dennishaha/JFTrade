@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Web",
+            "name": "Dev Web",
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
@@ -17,7 +17,7 @@
             }
         },
         {
-            "name": "Debug Docs",
+            "name": "Dev Docs",
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
@@ -29,7 +29,7 @@
             }
         },
         {
-            "name": "Debug Web with Docs",
+            "name": "Dev Web with Docs",
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
@@ -41,7 +41,7 @@
             }
         },
         {
-            "name": "Debug Backend",
+            "name": "Dev Backend",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -58,7 +58,7 @@
             ]
         },
         {
-            "name": "Debug Backend with PineTS Worker",
+            "name": "Dev Backend with PineTS Worker",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -76,6 +76,13 @@
             "dlvFlags": [
                 "--check-go-version=false"
             ]
+        },
+        {
+            "name": "Dev PineTS Worker API",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "npm run dev:api:pineworker"
         },
         {
             "name": "Build Web",

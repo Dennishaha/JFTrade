@@ -103,6 +103,7 @@ export type PineTSRunResult = {
   warnings?: unknown[];
   diagnostics?: Diagnostic[];
   orderIntents?: unknown[];
+  strategy?: unknown;
 };
 
 export type PineTSExecutor = {
