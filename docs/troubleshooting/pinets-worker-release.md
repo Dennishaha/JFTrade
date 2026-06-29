@@ -13,7 +13,7 @@
 - `npm run build:pineworker` 通过 `bun build --compile` 生成目标平台 Bun SEA / 单文件 worker 二进制。
 - `go test -tags release_assets ./internal/pineworkerassets -run Test` 通过，确认 embedded asset 选择逻辑可用。
 - `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` 后的发布产物必须存在、非空且可执行。
-- Go、worker、前端 focused test、coverage、performance gate 和 `git diff --check` 通过。
+- Go、worker、前端 focused test、coverage、performance gate、PineTS AGPL notice/source-offer check 和 `git diff --check` 通过。
 
 当前仓库已锁定公开 `pinets@0.9.26`，真实非 mock PineTS worker 进程 smoke 已可作为放行依据；完整 strict release gate 已可通过 `npm run check:pinets-release` 在 Windows 和 CI 风格环境中直接运行。
 
@@ -111,6 +111,7 @@ npm run check:pinets-release
 严格模式默认输出单文件 `dist/trading-engine`。临时验证其他输出路径时可以设置 `JFTRADE_PINETS_RELEASE_OUT`。
 
 严格模式还会读取 `node_modules/pinets/package.json` 的 `license` 字段并打印出来，供发布记录和合规检查使用；公开 `AGPL-3.0-only` 包不会再因为缺少商业 attestation 被脚本阻塞。
+严格模式同时运行 `npm run check:pinets-compliance`，确认 `docs/legal/third-party-notices.md` 记录生产 worker 集成、源码提供入口、上游地址、构建命令和 AGPL-3.0-only 许可证事实。
 
 迁移阶段如果 `pinets` 包缺失导致 strict release 被阻塞，可以使用：
 

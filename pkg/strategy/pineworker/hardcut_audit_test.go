@@ -321,6 +321,7 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 		},
 		"scripts/check-pinets-release.mjs": {
 			"checkPinetsPackageAndLicense",
+			"check:pinets-compliance",
 			"test:web",
 			"typecheck:web",
 			"diff",
@@ -341,6 +342,7 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 		"scripts/check-pinets-release.test.mjs": {
 			"pinets package license: AGPL-3.0-only",
 			"AGPL-3.0-only",
+			"check:pinets-compliance",
 			"test:web",
 			"typecheck:web",
 			"git diff --check",
@@ -353,6 +355,23 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 			"商业 PineTS 授权计划已取消",
 			"AGPL-3.0-only",
 			"发布产物必须存在、非空且可执行",
+		},
+		"docs/legal/third-party-notices.md": {
+			"runtime=pine-pinets",
+			"workers/pineworker",
+			"scripts/build-pineworker-assets.mjs",
+			"scripts/check-pinets-release.mjs",
+			"network users",
+			"corresponding source",
+		},
+		"scripts/check-pinets-compliance.mjs": {
+			"AGPL-3.0-only",
+			"runtime=pine-pinets",
+			"workers/pineworker",
+			"shadow-only",
+		},
+		"package.json": {
+			"check:pinets-compliance",
 		},
 		"workers/pineworker/package.json": {
 			"\"pinets\": \"^0.9.26\"",
@@ -500,6 +519,7 @@ func assertCIExercisesPineTSWorker(t *testing.T, root string) {
 		"npm run build:frontend-assets",
 		"go test -tags release_assets ./internal/frontendassets -run TestFileSystem",
 		"npm run test:pinets-release-check",
+		"npm run check:pinets-compliance",
 		"npm run test:pineworker-asset-build",
 	} {
 		if !strings.Contains(text, required) {
