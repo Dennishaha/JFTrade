@@ -129,9 +129,13 @@ async function withTimeout(promise, timeoutMs) {
 
 async function runIndicator(params = {}) {
   const timeframe = String(params.timeframe || "1m");
+  if (Array.isArray(params.candles) && params.candles.length === 0) {
+    throw new Error("pinets worker requires at least one candle when candles is provided");
+  }
   const rawCandles = Array.isArray(params.candles) && params.candles.length ? params.candles : sampleCandles(timeframe);
   const candles = rawCandles.map((item, index) => normalizeCandle(item, index, timeframe));
-  const periods = Math.max(1, Math.min(Number(params.periods || params.warmupBars || candles.length), candles.length));
+  const requestedPeriods = Number(params.periods || 0);
+  const periods = Math.max(1, Math.min(requestedPeriods > 0 ? requestedPeriods : candles.length, candles.length));
   const pineTS = new PineTS(candles, String(params.symbol || "JFTRADE.SAMPLE"), timeframe, periods);
   pineTS.setAlertMode?.("all");
   const context = await withTimeout(

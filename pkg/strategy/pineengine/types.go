@@ -42,7 +42,7 @@ type RunIndicatorRequest struct {
 	Script     string   `json:"script"`
 	Symbol     string   `json:"symbol"`
 	Timeframe  string   `json:"timeframe"`
-	Candles    []Candle `json:"candles,omitempty"`
+	Candles    []Candle `json:"candles"`
 	WarmupBars int      `json:"warmupBars,omitempty"`
 	Mode       string   `json:"mode,omitempty"`
 	TimeoutMS  int      `json:"timeoutMs,omitempty"`

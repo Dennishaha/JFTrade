@@ -239,7 +239,7 @@ func ExternalEnginePayloadFromResult(mode string, result RunIndicatorResponse, e
 		"evaluated": true,
 		"plots":     len(result.Plots),
 		"signals":   len(result.Signals),
-		"authority": "go-pine remains authoritative",
+		"authority": "pine-pinets production runtime remains authoritative",
 	}
 	return payload
 }

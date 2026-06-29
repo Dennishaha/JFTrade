@@ -586,7 +586,7 @@ func externalEngine() map[string]any {
 		"package":           "pinets@0.9.26",
 		"repository":        "https://github.com/LuxAlgo/PineTS",
 		"worker":            "scripts/pinets-worker.mjs",
-		"authority":         "pine-go-plan remains authoritative",
+		"authority":         "pine-pinets production runtime remains authoritative",
 		"scope":             "indicator and signal shadow evaluation only",
 		"compliance":        payload.Compliance,
 		"differenceSummary": payload.DifferenceSummary,
