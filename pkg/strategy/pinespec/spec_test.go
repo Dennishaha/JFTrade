@@ -70,6 +70,13 @@ func TestBuildToolPayloadSectionsAndExamples(t *testing.T) {
 	if got := payload["runtime"]; got != Runtime {
 		t.Fatalf("runtime = %#v, want %q", got, Runtime)
 	}
+	externalEngine, ok := payload["externalEngine"].(map[string]any)
+	if !ok {
+		t.Fatalf("externalEngine = %T, want map[string]any", payload["externalEngine"])
+	}
+	if externalEngine["engine"] != "pinets-shadow" || externalEngine["enabled"] != false || externalEngine["license"] != "AGPL-3.0-only" {
+		t.Fatalf("externalEngine = %#v, want disabled AGPL pinets shadow metadata", externalEngine)
+	}
 	if got := payload["productVersion"]; got != ProductVersion {
 		t.Fatalf("productVersion = %#v, want %q", got, ProductVersion)
 	}

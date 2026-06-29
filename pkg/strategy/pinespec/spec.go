@@ -7,6 +7,7 @@ import (
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineengine"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
@@ -305,6 +306,7 @@ func BuildToolPayload(section string, includeExamples bool) (map[string]any, err
 		"scoreModelVersion":           strategypine.CompatibilityScore().ScoreModelVersion,
 		"compatibilityDimensions":     strategypine.CompatibilityScore().Dimensions,
 		"brokerBoundary":              brokerBoundary(),
+		"externalEngine":              externalEngine(),
 		"unsupportedPatterns":         unsupportedPatterns(),
 		"goldenScripts":               goldenExamplePayloads(),
 		"skeleton":                    Skeleton(),
@@ -331,6 +333,9 @@ func BuildSpecMarkdown() string {
 	builder.WriteString("- `runtime`: `")
 	builder.WriteString(Runtime)
 	builder.WriteString("`\n")
+	builder.WriteString("- `externalEngine`: `")
+	builder.WriteString(pineengine.PinetsShadowEngineID)
+	builder.WriteString("`（默认关闭，仅用于 PineTS 影子验证）\n")
 	builder.WriteString("- `pineVersion`: `")
 	builder.WriteString(PineVersion)
 	builder.WriteString("`\n")
@@ -375,6 +380,7 @@ func BuildSupportSnapshotMarkdown() string {
 	fmt.Fprintf(&builder, "| Product version | `%s` |\n", ProductVersion)
 	fmt.Fprintf(&builder, "| Source format | `%s` |\n", SourceFormat)
 	fmt.Fprintf(&builder, "| Runtime | `%s` |\n", Runtime)
+	fmt.Fprintf(&builder, "| External engine | `%s` (`%s`) |\n", pineengine.PinetsShadowEngineID, "off by default")
 	fmt.Fprintf(&builder, "| Score model | `%s` |\n", assessment.ScoreModelVersion)
 	fmt.Fprintf(&builder, "| Compatibility score | `%.2f` |\n\n", assessment.Score)
 
@@ -566,6 +572,24 @@ func brokerBoundary() []map[string]any {
 			"diagnosticCodes": []string{"PINE_BROKER_EMULATOR_OUT_OF_SCOPE"},
 			"notes":           "完整 TradingView broker emulator、保证金清算、多标的组合撮合和 partial fill parity 需要单独 trading-runtime track；v4.0 正式将其排除在 JFTrade executable Pine v6 completion 之外。",
 		},
+	}
+}
+
+func externalEngine() map[string]any {
+	payload := pineengine.DisabledPayload()
+	return map[string]any{
+		"engine":            payload.Engine,
+		"mode":              payload.Mode,
+		"enabled":           payload.Enabled,
+		"status":            payload.Status,
+		"license":           "AGPL-3.0-only",
+		"package":           "pinets@0.9.26",
+		"repository":        "https://github.com/LuxAlgo/PineTS",
+		"worker":            "scripts/pinets-worker.mjs",
+		"authority":         "pine-go-plan remains authoritative",
+		"scope":             "indicator and signal shadow evaluation only",
+		"compliance":        payload.Compliance,
+		"differenceSummary": payload.DifferenceSummary,
 	}
 }
 

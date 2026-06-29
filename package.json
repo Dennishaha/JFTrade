@@ -38,9 +38,11 @@
     "generate:reference": "node scripts/generate-docs.mjs",
     "generate:docs": "npm run generate:openapi && npm run generate:reference",
     "stage:docs": "node scripts/stage-docs.mjs",
+    "check:pinets-license": "node scripts/check-pinets-license.mjs",
     "typecheck": "npm run typecheck:web && npm run typecheck:pineworker"
   },
   "dependencies": {
+    "pinets": "0.9.26",
     "vitepress": "1.6.4"
   },
   "devDependencies": {

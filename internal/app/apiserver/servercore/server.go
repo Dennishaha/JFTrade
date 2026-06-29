@@ -36,6 +36,7 @@ import (
 	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineengine"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
@@ -431,6 +432,7 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 				"normalizedScript": analysis.NormalizedScript,
 				"diagnostics":      analysis.Diagnostics,
 				"warnings":         analysis.Warnings,
+				"externalEngine":   pineengine.PayloadMap(pineengine.ShadowPayloadForScript(input.Script)),
 				"metadata":         strategyMetadataPayload(analysis.Program),
 				"hooks":            buildCompiledHookKinds(analysis.Program),
 				"requirements":     buildCompiledRequirementsPayload(analysis.Requirements),
