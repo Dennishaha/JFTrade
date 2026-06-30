@@ -17,6 +17,7 @@ const testADKProviderID = "test-provider"
 // SQLite database connections are released even when tests fail.
 func newTestServer(t *testing.T, store *SettingsStore) *Server {
 	t.Helper()
+	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
 	if server.auth != nil {
 		server.auth.enabled = false
@@ -39,6 +40,7 @@ func newTestServer(t *testing.T, store *SettingsStore) *Server {
 // connections are released.
 func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 	t.Helper()
+	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
 	if server.auth != nil {
 		server.auth.enabled = false
@@ -51,6 +53,18 @@ func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+func disableTestExchangeCalendarAutoRefresh(t *testing.T, store *SettingsStore) {
+	t.Helper()
+	if store == nil {
+		return
+	}
+	settings := store.ExchangeCalendarSettings()
+	settings.AutoRefreshEnabled = false
+	if _, err := store.SaveExchangeCalendarSettings(settings); err != nil {
+		t.Fatalf("SaveExchangeCalendarSettings: %v", err)
+	}
 }
 
 func configureTestADKProvider(t *testing.T, server *Server) {

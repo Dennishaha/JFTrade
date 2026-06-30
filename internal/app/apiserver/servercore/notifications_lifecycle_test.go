@@ -15,6 +15,8 @@ func TestServerCloseUnregistersOnlyItsBBGONotificationSink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore(second): %v", err)
 	}
+	disableTestExchangeCalendarAutoRefresh(t, firstStore)
+	disableTestExchangeCalendarAutoRefresh(t, secondStore)
 	first := NewServer(firstStore)
 	second := NewServer(secondStore)
 	t.Cleanup(func() { jftradeErr1 := first.Close(); jftradeCheckTestError(t, jftradeErr1) })

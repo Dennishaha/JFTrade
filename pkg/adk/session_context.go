@@ -390,7 +390,7 @@ func (m *SessionContextManager) syncHandoffState(ctx context.Context, session Se
 	if err != nil {
 		return err
 	}
-	if raw == nil || raw.Session == nil || raw.Session.State() == nil {
+	if raw == nil || raw.Session == nil || raw.Session.State() == nil || isSyntheticADKSession(raw.Session) {
 		return nil
 	}
 	state := raw.Session.State()
@@ -1182,6 +1182,20 @@ func appendADKEventWithStaleRetry(ctx context.Context, locks *adkSessionAppendLo
 	defer lock.Unlock()
 
 	current := session
+	if isSyntheticADKSession(current) {
+		latest, err := service.Get(ctx, &adksession.GetRequest{
+			AppName:   current.AppName(),
+			UserID:    current.UserID(),
+			SessionID: current.ID(),
+		})
+		if err != nil {
+			return err
+		}
+		if latest == nil || latest.Session == nil {
+			return fmt.Errorf("adk session %q is unavailable", current.ID())
+		}
+		current = latest.Session
+	}
 	var lastErr error
 	for range adkSessionAppendMaxAttempts {
 		if err := ctx.Err(); err != nil {
@@ -1212,6 +1226,15 @@ func appendADKEventWithStaleRetry(ctx context.Context, locks *adkSessionAppendLo
 		return lastErr
 	}
 	return fmt.Errorf("failed to append ADK event after %d attempts", adkSessionAppendMaxAttempts)
+}
+
+func isSyntheticADKSession(session adksession.Session) bool {
+	switch session.(type) {
+	case *wrappedSession, *emptySession:
+		return true
+	default:
+		return false
+	}
 }
 
 func isStaleADKSessionError(err error) bool {

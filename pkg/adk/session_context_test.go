@@ -1251,13 +1251,72 @@ func TestAppendADKEventWithStaleRetryRefreshesUnexpectedSessionType(t *testing.T
 	}
 }
 
+func TestAppendADKEventWithStaleRetryRefreshesSyntheticSessionBeforeAppend(t *testing.T) {
+	ctx := context.Background()
+	base := adksession.InMemoryService()
+	created, err := base.Create(ctx, &adksession.CreateRequest{
+		AppName: "app", UserID: "user", SessionID: "session-refresh-synthetic",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	service := &rejectSyntheticAppendSessionService{Service: base}
+	event := adksession.NewEvent("inv-refresh-synthetic")
+	event.Author = "agent"
+	event.Content = genai.NewContentFromText("refreshed", genai.RoleModel)
+	projected := &wrappedSession{base: created.Session, events: &wrappedEvents{}}
+	if err := appendADKEventWithStaleRetry(ctx, newADKSessionAppendLockMap(), service, projected, event); err != nil {
+		t.Fatalf("appendADKEventWithStaleRetry: %v", err)
+	}
+	if service.getCalls != 1 || service.appendCalls != 1 {
+		t.Fatalf("refresh calls get=%d append=%d, want 1 and 1", service.getCalls, service.appendCalls)
+	}
+}
+
+func TestSyncHandoffStateSkipsMissingRawADKSession(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "missing-raw-context-agent", Name: "Missing Raw Context", Instruction: "Test agent",
+		Status: AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Missing raw ADK session")
+	service := &countingAppendSessionService{Service: runtime.rawSessionService}
+	runtime.contextManager.rawService = service
+	if _, err := runtime.Store().SaveSessionContext(ctx, SessionContextState{SessionID: session.ID}); err != nil {
+		t.Fatalf("SaveSessionContext: %v", err)
+	}
+	if err := runtime.contextManager.syncHandoffStateForSession(ctx, session); err != nil {
+		t.Fatalf("syncHandoffStateForSession: %v", err)
+	}
+	if service.appendCalls != 0 {
+		t.Fatalf("AppendEvent calls = %d, want 0 for missing raw ADK session", service.appendCalls)
+	}
+}
+
 type appendErrorSessionService struct {
 	adksession.Service
 	err      error
 	getCalls int
 }
 
+type countingAppendSessionService struct {
+	adksession.Service
+	appendCalls int
+}
+
+func (s *countingAppendSessionService) AppendEvent(ctx context.Context, session adksession.Session, event *adksession.Event) error {
+	s.appendCalls++
+	return s.Service.AppendEvent(ctx, session, event)
+}
+
 type refreshSessionTypeService struct {
+	adksession.Service
+	getCalls    int
+	appendCalls int
+}
+
+type rejectSyntheticAppendSessionService struct {
 	adksession.Service
 	getCalls    int
 	appendCalls int
@@ -1271,6 +1330,19 @@ func (s *refreshSessionTypeService) Get(ctx context.Context, req *adksession.Get
 func (s *refreshSessionTypeService) AppendEvent(ctx context.Context, session adksession.Session, event *adksession.Event) error {
 	s.appendCalls++
 	if s.appendCalls == 1 {
+		return fmt.Errorf("unexpected session type %T", session)
+	}
+	return s.Service.AppendEvent(ctx, session, event)
+}
+
+func (s *rejectSyntheticAppendSessionService) Get(ctx context.Context, req *adksession.GetRequest) (*adksession.GetResponse, error) {
+	s.getCalls++
+	return s.Service.Get(ctx, req)
+}
+
+func (s *rejectSyntheticAppendSessionService) AppendEvent(ctx context.Context, session adksession.Session, event *adksession.Event) error {
+	s.appendCalls++
+	if isSyntheticADKSession(session) {
 		return fmt.Errorf("unexpected session type %T", session)
 	}
 	return s.Service.AppendEvent(ctx, session, event)
