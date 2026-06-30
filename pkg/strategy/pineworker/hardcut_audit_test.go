@@ -486,8 +486,8 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"InstanceWorkerLimit",
 			"envIntInRange",
 			"1000",
-			"newLazyPineWorkerRunner",
-			"defaultPineWorkerIdleTimeout",
+			"newEphemeralPineWorkerRunner",
+			"mode=ephemeral",
 		},
 		"pkg/jftsettings/types.go": {
 			"PineWorkerSettings",

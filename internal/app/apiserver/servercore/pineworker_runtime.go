@@ -6,12 +6,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
@@ -48,9 +49,8 @@ const (
 	envPineWorkerMinCandlesPerSec  = "JFTRADE_PINEWORKER_MIN_CANDLES_PER_SEC"
 	envPineWorkerMaxPeakRSSBytes   = "JFTRADE_PINEWORKER_MAX_PEAK_RSS_BYTES"
 
-	defaultPineWorkerIdleTimeout = 60 * time.Second
-	defaultPineWorkerProtoPath   = "pkg/strategy/pineworker/proto/pineworker.proto"
-	pineWorkerLogTailBytes       = 8192
+	defaultPineWorkerProtoPath = "pkg/strategy/pineworker/proto/pineworker.proto"
+	pineWorkerLogTailBytes     = 8192
 )
 
 type pineWorkerRuntimeConfig struct {
@@ -82,11 +82,11 @@ type pineWorkerRunner interface {
 	RunScript(context.Context, pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error)
 }
 
-type pineWorkerPool string
+type pineWorkerRunnerKind string
 
 const (
-	pineWorkerPoolBacktest pineWorkerPool = "backtest"
-	pineWorkerPoolInstance pineWorkerPool = "instance"
+	pineWorkerRunnerBacktest pineWorkerRunnerKind = "backtest"
+	pineWorkerRunnerInstance pineWorkerRunnerKind = "instance"
 )
 
 func (s *Server) startPineWorkerManagers() (pineWorkerRunner, pineWorkerRunner) {
@@ -100,24 +100,21 @@ func (s *Server) startPineWorkerManagers() (pineWorkerRunner, pineWorkerRunner) 
 		return nil, nil
 	}
 
-	backtestManager, err := newPineWorkerManagerFromConfig(config, pineWorkerPoolBacktest)
+	backtestRunner, err := newEphemeralPineWorkerRunner(config, pineWorkerRunnerBacktest)
 	if err != nil {
-		log.Printf("JFTrade PineTS worker manager disabled: create backtest manager: %v", err)
+		log.Printf("JFTrade PineTS worker manager disabled: create backtest runner: %v", err)
 		return nil, nil
 	}
-	instanceManager, err := newPineWorkerManagerFromConfig(config, pineWorkerPoolInstance)
+	instanceRunner, err := newEphemeralPineWorkerRunner(config, pineWorkerRunnerInstance)
 	if err != nil {
-		_ = backtestManager.Stop(context.Background())
-		log.Printf("JFTrade PineTS worker manager disabled: create instance manager: %v", err)
+		log.Printf("JFTrade PineTS worker manager disabled: create instance runner: %v", err)
 		return nil, nil
 	}
-	backtestRunner := newLazyPineWorkerRunner(config, backtestManager, defaultPineWorkerIdleTimeout)
-	instanceRunner := newLazyPineWorkerRunner(config, instanceManager, defaultPineWorkerIdleTimeout)
 	source := "external"
 	if config.embedded {
 		source = "embedded"
 	}
-	log.Printf("JFTrade PineTS worker managers configured: source=%s runtime=%s backtestWorkers=%d instanceWorkers=%d host=%s backtestStartPort=%d instanceStartPort=%d proto=%s cwd=%s idleTimeout=%s", source, config.RuntimePath, config.BacktestWorkers, config.InstanceWorkers, config.Host, config.StartPort, pineWorkerPoolStartPort(config, pineWorkerPoolInstance), config.ProtoPath, config.WorkDir, defaultPineWorkerIdleTimeout)
+	log.Printf("JFTrade PineTS worker managers configured: source=%s runtime=%s backtestLimit=%d instanceLimit=%d host=%s mode=ephemeral proto=%s cwd=%s", source, config.RuntimePath, config.BacktestWorkers, config.InstanceWorkers, config.Host, config.ProtoPath, config.WorkDir)
 	return backtestRunner, instanceRunner
 }
 
@@ -151,144 +148,22 @@ func retirePineWorkerRunner(runner pineWorkerRunner) {
 	if runner == nil {
 		return
 	}
-	if lazy, ok := runner.(*lazyPineWorkerRunner); ok {
-		_ = lazy.RetireWhenIdle(context.Background())
-		return
-	}
 	if closer, ok := runner.(interface{ Close(context.Context) error }); ok {
 		_ = closer.Close(context.Background())
 	}
 }
 
-type lazyPineWorkerRunner struct {
-	mu          sync.Mutex
-	config      pineWorkerRuntimeConfig
-	manager     *pineworker.WorkerManager
-	idleTimeout time.Duration
-	idleTimer   *time.Timer
-	active      int
-	running     bool
-	closed      bool
+type ephemeralPineWorkerRunner struct {
+	config         pineWorkerRuntimeConfig
+	kind           pineWorkerRunnerKind
+	launcher       pineworker.WorkerLauncher
+	dialer         pineworker.TransportDialer
+	busy           chan struct{}
+	rejectWhenBusy bool
+	nextID         atomic.Uint64
 }
 
-func newLazyPineWorkerRunner(config pineWorkerRuntimeConfig, manager *pineworker.WorkerManager, idleTimeout time.Duration) *lazyPineWorkerRunner {
-	if idleTimeout <= 0 {
-		idleTimeout = defaultPineWorkerIdleTimeout
-	}
-	return &lazyPineWorkerRunner{
-		config:      config,
-		manager:     manager,
-		idleTimeout: idleTimeout,
-	}
-}
-
-func (runner *lazyPineWorkerRunner) RunScript(ctx context.Context, request pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
-	manager, err := runner.acquire(ctx)
-	if err != nil {
-		return pineworker.RunScriptResponse{}, err
-	}
-	defer runner.release()
-	return manager.RunScript(ctx, request)
-}
-
-func (runner *lazyPineWorkerRunner) Close(ctx context.Context) error {
-	return runner.retire(ctx, true)
-}
-
-func (runner *lazyPineWorkerRunner) RetireWhenIdle(ctx context.Context) error {
-	return runner.retire(ctx, false)
-}
-
-func (runner *lazyPineWorkerRunner) retire(ctx context.Context, immediate bool) error {
-	runner.mu.Lock()
-	runner.closed = true
-	if runner.idleTimer != nil {
-		runner.idleTimer.Stop()
-		runner.idleTimer = nil
-	}
-	manager := runner.manager
-	running := runner.running && (immediate || runner.active == 0)
-	if running {
-		runner.running = false
-	}
-	if immediate {
-		runner.active = 0
-	}
-	runner.mu.Unlock()
-	if running {
-		return manager.Stop(ctx)
-	}
-	return nil
-}
-
-func (runner *lazyPineWorkerRunner) IsRunning() bool {
-	runner.mu.Lock()
-	defer runner.mu.Unlock()
-	return runner.running
-}
-
-func (runner *lazyPineWorkerRunner) acquire(ctx context.Context) (*pineworker.WorkerManager, error) {
-	runner.mu.Lock()
-	defer runner.mu.Unlock()
-	if runner.closed {
-		return nil, fmt.Errorf("pine worker runner is closed")
-	}
-	if runner.idleTimer != nil {
-		runner.idleTimer.Stop()
-		runner.idleTimer = nil
-	}
-	if !runner.running {
-		if err := runner.manager.Start(ctx); err != nil {
-			return nil, err
-		}
-		runner.running = true
-	}
-	runner.active++
-	return runner.manager, nil
-}
-
-func (runner *lazyPineWorkerRunner) release() {
-	runner.mu.Lock()
-	if runner.active > 0 {
-		runner.active--
-	}
-	if runner.closed {
-		if runner.active > 0 || !runner.running {
-			runner.mu.Unlock()
-			return
-		}
-		manager := runner.manager
-		runner.running = false
-		runner.mu.Unlock()
-		if err := manager.Stop(context.Background()); err != nil {
-			log.Printf("JFTrade PineTS worker manager retire stop failed: %v", err)
-		}
-		return
-	}
-	if runner.active > 0 || !runner.running {
-		runner.mu.Unlock()
-		return
-	}
-	runner.idleTimer = time.AfterFunc(runner.idleTimeout, runner.stopIfIdle)
-	runner.mu.Unlock()
-}
-
-func (runner *lazyPineWorkerRunner) stopIfIdle() {
-	runner.mu.Lock()
-	if runner.closed || runner.active > 0 || !runner.running {
-		runner.mu.Unlock()
-		return
-	}
-	manager := runner.manager
-	runner.running = false
-	runner.idleTimer = nil
-	runner.mu.Unlock()
-	if err := manager.Stop(context.Background()); err != nil {
-		log.Printf("JFTrade PineTS worker manager idle stop failed: %v", err)
-	}
-}
-
-func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig, pool pineWorkerPool) (*pineworker.WorkerManager, error) {
+func newEphemeralPineWorkerRunner(config pineWorkerRuntimeConfig, kind pineWorkerRunnerKind) (*ephemeralPineWorkerRunner, error) {
 	bundleData := config.bundleData
 	if len(bundleData) == 0 {
 		var err error
@@ -297,25 +172,98 @@ func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig, pool pineWor
 			return nil, fmt.Errorf("read worker bundle: %w", err)
 		}
 	}
-	workerConfig := pineworker.DefaultWorkerConfig(runtime.NumCPU())
-	workerConfig.BacktestWorkers = config.BacktestWorkers
-	workerConfig.LiveWorkers = config.InstanceWorkers
-	workerConfig.RequestTimeout = config.RequestTimeout
-	workerConfig.MaxMessageBytes = config.MaxMessageBytes
-	workerConfig.MaxCandlesPerRequest = config.MaxCandles
-
 	launcher, err := newPineWorkerLauncher(config, bundleData)
 	if err != nil {
 		return nil, fmt.Errorf("create launcher: %w", err)
 	}
-	manager, err := pineworker.NewWorkerManager(pineworker.ManagerConfig{
-		Workers:        pineWorkerPoolWorkers(config, pool),
-		WorkerIDPrefix: pineWorkerPoolIDPrefix(pool),
+	workers := pineWorkerConcurrencyLimit(config, kind)
+	if workers <= 0 {
+		workers = 1
+	}
+	return &ephemeralPineWorkerRunner{
+		config:         config,
+		kind:           kind,
+		launcher:       launcher,
+		dialer:         newPineWorkerDialer(config.MaxMessageBytes),
+		busy:           make(chan struct{}, workers),
+		rejectWhenBusy: kind == pineWorkerRunnerInstance,
+	}, nil
+}
+
+func (runner *ephemeralPineWorkerRunner) RunScript(ctx context.Context, request pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
+	if runner == nil {
+		return pineworker.RunScriptResponse{}, fmt.Errorf("pine worker runner is nil")
+	}
+	if err := runner.acquire(ctx); err != nil {
+		return pineworker.RunScriptResponse{}, err
+	}
+	defer runner.release()
+	manager, err := runner.newManager(ctx)
+	if err != nil {
+		return pineworker.RunScriptResponse{}, err
+	}
+	if err := manager.Start(ctx); err != nil {
+		return pineworker.RunScriptResponse{}, err
+	}
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), runner.stopTimeout())
+		defer cancel()
+		if err := manager.Stop(stopCtx); err != nil {
+			log.Printf("JFTrade PineTS ephemeral worker stop failed: %v", err)
+		}
+	}()
+	return manager.RunScript(ctx, request)
+}
+
+func (runner *ephemeralPineWorkerRunner) Close(context.Context) error {
+	return nil
+}
+
+func (runner *ephemeralPineWorkerRunner) acquire(ctx context.Context) error {
+	if runner.rejectWhenBusy {
+		select {
+		case runner.busy <- struct{}{}:
+			return nil
+		default:
+			return pineworker.CapacityExceededError{Workers: cap(runner.busy)}
+		}
+	}
+	select {
+	case runner.busy <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (runner *ephemeralPineWorkerRunner) release() {
+	select {
+	case <-runner.busy:
+	default:
+	}
+}
+
+func (runner *ephemeralPineWorkerRunner) newManager(ctx context.Context) (*pineworker.WorkerManager, error) {
+	port, err := freePineWorkerPort(ctx, runner.config.Host)
+	if err != nil {
+		return nil, err
+	}
+	config := runner.config
+	config.StartPort = port
+	workerConfig := pineworker.DefaultWorkerConfig(1)
+	workerConfig.LiveWorkers = 1
+	workerConfig.BacktestWorkers = 1
+	workerConfig.RequestTimeout = config.RequestTimeout
+	workerConfig.MaxMessageBytes = config.MaxMessageBytes
+	workerConfig.MaxCandlesPerRequest = config.MaxCandles
+	return pineworker.NewWorkerManager(pineworker.ManagerConfig{
+		Workers:        1,
+		WorkerIDPrefix: fmt.Sprintf("%s-%d", pineWorkerRunnerIDPrefix(runner.kind), runner.nextID.Add(1)),
 		Host:           config.Host,
-		StartPort:      pineWorkerPoolStartPort(config, pool),
+		StartPort:      config.StartPort,
 		HealthTimeout:  config.HealthTimeout,
 		WorkerConfig:   workerConfig,
-		RejectWhenBusy: pool == pineWorkerPoolInstance,
+		RejectWhenBusy: runner.rejectWhenBusy,
 		Gate: pineworker.PerformanceGate{
 			MaxDuration:       config.MaxDuration,
 			MaxDurationPerBar: config.MaxDurationPerBar,
@@ -324,34 +272,45 @@ func newPineWorkerManagerFromConfig(config pineWorkerRuntimeConfig, pool pineWor
 			MaxResponseBytes:  config.MaxMessageBytes,
 			MaxPeakRSSBytes:   config.MaxPeakRSSBytes,
 		},
-	}, launcher, newPineWorkerDialer(config.MaxMessageBytes))
-	if err != nil {
-		return nil, err
-	}
-	return manager, nil
+	}, runner.launcher, runner.dialer)
 }
 
-func pineWorkerPoolWorkers(config pineWorkerRuntimeConfig, pool pineWorkerPool) int {
-	switch pool {
-	case pineWorkerPoolInstance:
+func (runner *ephemeralPineWorkerRunner) stopTimeout() time.Duration {
+	if runner.config.RequestTimeout > 0 {
+		return min(runner.config.RequestTimeout, 10*time.Second)
+	}
+	return 5 * time.Second
+}
+
+func freePineWorkerPort(ctx context.Context, host string) (int, error) {
+	normalizedHost := strings.TrimSpace(host)
+	if normalizedHost == "" {
+		normalizedHost = "127.0.0.1"
+	}
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort(normalizedHost, "0"))
+	if err != nil {
+		return 0, fmt.Errorf("allocate pine worker port: %w", err)
+	}
+	defer listener.Close()
+	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return 0, fmt.Errorf("allocate pine worker port: unexpected address %s", listener.Addr())
+	}
+	return tcpAddr.Port, nil
+}
+
+func pineWorkerConcurrencyLimit(config pineWorkerRuntimeConfig, kind pineWorkerRunnerKind) int {
+	switch kind {
+	case pineWorkerRunnerInstance:
 		return config.InstanceWorkers
 	default:
 		return config.BacktestWorkers
 	}
 }
 
-func pineWorkerPoolStartPort(config pineWorkerRuntimeConfig, pool pineWorkerPool) int {
-	switch pool {
-	case pineWorkerPoolInstance:
-		return config.StartPort + config.BacktestWorkers
-	default:
-		return config.StartPort
-	}
-}
-
-func pineWorkerPoolIDPrefix(pool pineWorkerPool) string {
-	switch pool {
-	case pineWorkerPoolInstance:
+func pineWorkerRunnerIDPrefix(kind pineWorkerRunnerKind) string {
+	switch kind {
+	case pineWorkerRunnerInstance:
 		return "pineworker-instance"
 	default:
 		return "pineworker-backtest"

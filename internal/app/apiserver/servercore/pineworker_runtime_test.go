@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -246,7 +247,7 @@ func TestResolvePineWorkerRuntimeConfigRejectsInvalidNumericEnv(t *testing.T) {
 	}
 }
 
-func TestServerStartsConfiguredPineWorkerManagerAndStopsOnClose(t *testing.T) {
+func TestServerStartsConfiguredEphemeralPineWorkerRunners(t *testing.T) {
 	binaryPath := filepath.Join(t.TempDir(), "worker")
 	if err := os.WriteFile(binaryPath, []byte("fake worker"), 0o755); err != nil {
 		t.Fatalf("write worker: %v", err)
@@ -269,25 +270,34 @@ func TestServerStartsConfiguredPineWorkerManagerAndStopsOnClose(t *testing.T) {
 		t.Fatalf("pine worker runners = backtest %#v instance %#v, want both configured", server.backtestPineWorkerRunner, server.instancePineWorkerRunner)
 	}
 	if launcher.startedCount() != 0 {
-		t.Fatalf("started workers = %d before use, want lazy start", launcher.startedCount())
+		t.Fatalf("started workers = %d before use, want no eager start", launcher.startedCount())
 	}
-	if _, err := server.backtestPineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("lazy-backtest")); err != nil {
+	if _, err := server.backtestPineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("ephemeral-backtest")); err != nil {
 		t.Fatalf("backtest RunScript: %v", err)
 	}
-	if launcher.startedCount() != 2 {
-		t.Fatalf("started workers after backtest = %d, want 2", launcher.startedCount())
+	if launcher.startedCount() != 1 {
+		t.Fatalf("started workers after backtest = %d, want 1", launcher.startedCount())
 	}
-	if _, ok := dialer.transport("127.0.0.1:56001"); !ok {
-		t.Fatalf("expected first worker transport, got %#v", dialer.addresses())
+	if launcher.stoppedCount() != 1 {
+		t.Fatalf("stopped workers after backtest = %d, want 1", launcher.stoppedCount())
 	}
-	if _, err := server.instancePineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("lazy-instance")); err != nil {
+	if _, err := server.instancePineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("ephemeral-instance")); err != nil {
 		t.Fatalf("instance RunScript: %v", err)
 	}
-	if launcher.startedCount() != 5 {
-		t.Fatalf("started workers after instance = %d, want 5", launcher.startedCount())
+	if launcher.startedCount() != 2 {
+		t.Fatalf("started workers after instance = %d, want 2", launcher.startedCount())
 	}
-	if _, ok := dialer.transport("127.0.0.1:56003"); !ok {
-		t.Fatalf("expected first instance worker transport, got %#v", dialer.addresses())
+	if launcher.stoppedCount() != 2 {
+		t.Fatalf("stopped workers after instance = %d, want 2", launcher.stoppedCount())
+	}
+	if _, err := server.instancePineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("ephemeral-instance-2")); err != nil {
+		t.Fatalf("second instance RunScript: %v", err)
+	}
+	if launcher.startedCount() != 3 {
+		t.Fatalf("started workers after second instance = %d, want 3", launcher.startedCount())
+	}
+	if launcher.stoppedCount() != 3 {
+		t.Fatalf("stopped workers after second instance = %d, want 3", launcher.stoppedCount())
 	}
 }
 
@@ -314,16 +324,16 @@ func TestServerStartsEmbeddedPineWorkerManager(t *testing.T) {
 		t.Fatalf("pine worker runners = backtest %#v instance %#v, want embedded runners", server.backtestPineWorkerRunner, server.instancePineWorkerRunner)
 	}
 	if launcher.startedCount() != 0 {
-		t.Fatalf("started workers = %d before use, want lazy start", launcher.startedCount())
+		t.Fatalf("started workers = %d before use, want no eager start", launcher.startedCount())
 	}
-	if _, err := server.backtestPineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("embedded-lazy-start")); err != nil {
+	if _, err := server.backtestPineWorkerRunner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("embedded-ephemeral-start")); err != nil {
 		t.Fatalf("RunScript: %v", err)
 	}
 	if launcher.startedCount() != 1 {
 		t.Fatalf("started workers = %d, want 1", launcher.startedCount())
 	}
-	if _, ok := dialer.transport("127.0.0.1:57001"); !ok {
-		t.Fatalf("expected embedded worker transport, got %#v", dialer.addresses())
+	if launcher.stoppedCount() != 1 {
+		t.Fatalf("stopped workers = %d, want 1", launcher.stoppedCount())
 	}
 }
 
@@ -370,44 +380,93 @@ func TestServerBacktestDoesNotFallbackToGoRuntimeWithoutPineWorker(t *testing.T)
 	}
 }
 
-func TestLazyPineWorkerRunnerStopsIdleWorkers(t *testing.T) {
-	binaryPath := filepath.Join(t.TempDir(), "worker")
-	if err := os.WriteFile(binaryPath, []byte("fake worker"), 0o755); err != nil {
-		t.Fatalf("write worker: %v", err)
-	}
+func TestEphemeralPineWorkerRunnerStartsSingleWorkerPerRunAndStopsImmediately(t *testing.T) {
 	launcher := &fakeServerPineWorkerLauncher{}
 	dialer := newFakeServerPineWorkerDialer()
 	restorePineWorkerFactories(t, launcher, dialer)
 
-	manager, err := newPineWorkerManagerFromConfig(pineWorkerRuntimeConfig{
-		BundlePath:      binaryPath,
-		BacktestWorkers: 1,
-		InstanceWorkers: 1,
+	runner, err := newEphemeralPineWorkerRunner(pineWorkerRuntimeConfig{
+		BundlePath:      "worker",
+		bundleData:      []byte("fake worker"),
+		InstanceWorkers: 10,
 		Host:            "127.0.0.1",
-		StartPort:       58001,
 		RequestTimeout:  time.Second,
 		HealthTimeout:   100 * time.Millisecond,
-		MaxMessageBytes: 1024 * 1024,
-		MaxCandles:      1000,
-	}, pineWorkerPoolBacktest)
+	}, pineWorkerRunnerInstance)
 	if err != nil {
-		t.Fatalf("newPineWorkerManagerFromConfig: %v", err)
+		t.Fatalf("newEphemeralPineWorkerRunner: %v", err)
 	}
-	runner := newLazyPineWorkerRunner(pineWorkerRuntimeConfig{BacktestWorkers: 1, InstanceWorkers: 1}, manager, 10*time.Millisecond)
-	if _, err := runner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("idle")); err != nil {
-		t.Fatalf("RunScript: %v", err)
-	}
-	if launcher.startedCount() != 1 || !runner.IsRunning() {
-		t.Fatalf("runner did not start lazily; started=%d running=%v", launcher.startedCount(), runner.IsRunning())
-	}
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		if !runner.IsRunning() {
-			return
+	for index := 1; index <= 2; index++ {
+		if _, err := runner.RunScript(context.Background(), validServerPineWorkerRunScriptRequest("ephemeral")); err != nil {
+			t.Fatalf("RunScript %d: %v", index, err)
 		}
-		time.Sleep(5 * time.Millisecond)
+		if launcher.startedCount() != index {
+			t.Fatalf("started workers after run %d = %d, want %d", index, launcher.startedCount(), index)
+		}
+		if launcher.stoppedCount() != index {
+			t.Fatalf("stopped workers after run %d = %d, want %d", index, launcher.stoppedCount(), index)
+		}
 	}
-	t.Fatal("runner still running after idle timeout")
+}
+
+func TestEphemeralPineWorkerRunnerConcurrencyModes(t *testing.T) {
+	launcher := &fakeServerPineWorkerLauncher{}
+	dialer := newFakeServerPineWorkerDialer()
+	restorePineWorkerFactories(t, launcher, dialer)
+
+	backtestRunner, err := newEphemeralPineWorkerRunner(pineWorkerRuntimeConfig{
+		BundlePath:      "worker",
+		bundleData:      []byte("fake worker"),
+		BacktestWorkers: 1,
+		Host:            "127.0.0.1",
+		RequestTimeout:  time.Second,
+		HealthTimeout:   100 * time.Millisecond,
+	}, pineWorkerRunnerBacktest)
+	if err != nil {
+		t.Fatalf("new backtest runner: %v", err)
+	}
+	if err := backtestRunner.acquire(context.Background()); err != nil {
+		t.Fatalf("first backtest acquire: %v", err)
+	}
+	acquired := make(chan error, 1)
+	go func() {
+		acquired <- backtestRunner.acquire(context.Background())
+	}()
+	select {
+	case err := <-acquired:
+		t.Fatalf("second backtest acquire returned before release: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	backtestRunner.release()
+	select {
+	case err := <-acquired:
+		if err != nil {
+			t.Fatalf("second backtest acquire after release: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("second backtest acquire did not unblock")
+	}
+	backtestRunner.release()
+
+	instanceRunner, err := newEphemeralPineWorkerRunner(pineWorkerRuntimeConfig{
+		BundlePath:      "worker",
+		bundleData:      []byte("fake worker"),
+		InstanceWorkers: 1,
+		Host:            "127.0.0.1",
+		RequestTimeout:  time.Second,
+		HealthTimeout:   100 * time.Millisecond,
+	}, pineWorkerRunnerInstance)
+	if err != nil {
+		t.Fatalf("new instance runner: %v", err)
+	}
+	if err := instanceRunner.acquire(context.Background()); err != nil {
+		t.Fatalf("first instance acquire: %v", err)
+	}
+	var capacityErr pineworker.CapacityExceededError
+	if err := instanceRunner.acquire(context.Background()); !errors.As(err, &capacityErr) || capacityErr.Workers != 1 {
+		t.Fatalf("second instance acquire error = %v, want capacity workers=1", err)
+	}
+	instanceRunner.release()
 }
 
 func validServerPineWorkerRunScriptRequest(jobID string) pineworker.RunScriptRequest {
@@ -531,12 +590,27 @@ func (launcher *fakeServerPineWorkerLauncher) startedCount() int {
 }
 
 type fakeServerPineWorkerProcess struct {
+	mu    sync.Mutex
 	stops int
 }
 
 func (process *fakeServerPineWorkerProcess) Stop(context.Context) error {
+	process.mu.Lock()
+	defer process.mu.Unlock()
 	process.stops++
 	return nil
+}
+
+func (launcher *fakeServerPineWorkerLauncher) stoppedCount() int {
+	launcher.mu.Lock()
+	defer launcher.mu.Unlock()
+	count := 0
+	for _, process := range launcher.processes {
+		process.mu.Lock()
+		count += process.stops
+		process.mu.Unlock()
+	}
+	return count
 }
 
 type fakeServerPineWorkerDialer struct {
