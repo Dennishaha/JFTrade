@@ -35,6 +35,11 @@ type PineWorkerReplayPlanner struct {
 	Adapter PineWorkerBacktestAdapter
 }
 
+type pineWorkerCompactReplayPlan struct {
+	Commands []WorkerOrderCommand
+	Metadata pineworker.WorkerMetadata
+}
+
 func (planner PineWorkerReplayPlanner) Plan(ctx context.Context, request PineWorkerReplayPlanRequest) (PineWorkerReplayPlan, error) {
 	workerRequest, err := BuildPineWorkerBacktestRequest(request)
 	if err != nil {
@@ -52,6 +57,10 @@ func (planner PineWorkerReplayPlanner) Plan(ctx context.Context, request PineWor
 }
 
 func BuildPineWorkerBacktestRequest(request PineWorkerReplayPlanRequest) (pineworker.RunScriptRequest, error) {
+	return buildPineWorkerBacktestRequest(request, CandlesFromKLines(request.KLines))
+}
+
+func buildPineWorkerBacktestRequest(request PineWorkerReplayPlanRequest, candles []pineworker.Candle) (pineworker.RunScriptRequest, error) {
 	if strings.TrimSpace(request.Source) == "" {
 		return pineworker.RunScriptRequest{}, fmt.Errorf("pine worker replay source is required")
 	}
@@ -61,7 +70,6 @@ func BuildPineWorkerBacktestRequest(request PineWorkerReplayPlanRequest) (pinewo
 	if strings.TrimSpace(request.Timeframe) == "" {
 		return pineworker.RunScriptRequest{}, fmt.Errorf("pine worker replay timeframe is required")
 	}
-	candles := CandlesFromKLines(request.KLines)
 	if len(candles) == 0 {
 		return pineworker.RunScriptRequest{}, fmt.Errorf("pine worker replay candles are required")
 	}
@@ -87,6 +95,41 @@ func CandlesFromKLines(klines []types.KLine) []pineworker.Candle {
 		candles = append(candles, CandleFromKLine(kline))
 	}
 	return candles
+}
+
+func candlesFromReplayKLineBatch(batch *pineWorkerReplayKLineBatch) []pineworker.Candle {
+	candles := make([]pineworker.Candle, batch.Len())
+	index := 0
+	batch.forEach(func(kline types.KLine) bool {
+		candles[index] = CandleFromKLine(kline)
+		index++
+		return true
+	})
+	return candles
+}
+
+func planPineWorkerCompactReplay(
+	ctx context.Context,
+	adapter PineWorkerBacktestAdapter,
+	request PineWorkerReplayPlanRequest,
+	batch *pineWorkerReplayKLineBatch,
+) (pineWorkerCompactReplayPlan, error) {
+	workerRequest, err := buildPineWorkerBacktestRequest(request, candlesFromReplayKLineBatch(batch))
+	if err != nil {
+		return pineWorkerCompactReplayPlan{}, err
+	}
+	commands, metadata, err := adapter.Run(ctx, workerRequest)
+	if err != nil {
+		return pineWorkerCompactReplayPlan{}, err
+	}
+	normalizedCommands, err := normalizeReplayCommands(workerRequest.Candles, commands)
+	if err != nil {
+		return pineWorkerCompactReplayPlan{}, err
+	}
+	return pineWorkerCompactReplayPlan{
+		Commands: normalizedCommands,
+		Metadata: metadata,
+	}, nil
 }
 
 func CandleFromKLine(kline types.KLine) pineworker.Candle {

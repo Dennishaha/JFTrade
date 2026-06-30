@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { healthStatusToProto, runScriptRequestFromProto, runScriptResponseToProto } from "./protoMapping";
+import { preparationOf } from "./preparedRequest";
+import { candleBatchEncodingVersion, healthStatusToProto, runScriptRequestFromProto, runScriptResponseToProto } from "./protoMapping";
 
 describe("proto mapping", () => {
   test("maps snake_case RunScriptRequest into worker request", () => {
@@ -10,14 +11,65 @@ describe("proto mapping", () => {
       symbol: "US.AAPL",
       timeframe: "1",
       mode: "backtest",
-      candles: [{ open_time: 1, close_time: 2, open: 10, high: 12, low: 9, close: 11, volume: 100 }],
+      candles: {
+        encoding_version: candleBatchEncodingVersion,
+        payload: encodeCandles([{ openTime: 1, closeTime: 2, open: 10, high: 12, low: 9, close: 11, volume: 100 }]),
+      },
       params: { threshold: 10 },
+      include_plots: false,
     });
 
     expect(request.jobId).toBe("job-1");
     expect(request.scriptId).toBe("script-1");
     expect(request.candles[0]).toEqual({ openTime: 1, closeTime: 2, open: 10, high: 12, low: 9, close: 11, volume: 100 });
     expect(request.params).toEqual({ threshold: "10" });
+    expect(request.includePlots).toBe(false);
+    expect(preparationOf(request).dataHash).toHaveLength(64);
+  });
+
+  test("rejects legacy and malformed binary candle batches", () => {
+    expect(() => runScriptRequestFromProto({
+      job_id: "job-1",
+      source: `//@version=6\nstrategy("x")`,
+      symbol: "US.AAPL",
+      timeframe: "1",
+      mode: "backtest",
+      candles: {
+        open_time: [1],
+      },
+      params: {},
+    })).toThrow("unsupported candle batch encoding version: 0");
+    expect(() => runScriptRequestFromProto({
+      job_id: "job-1",
+      source: `//@version=6\nstrategy("x")`,
+      symbol: "US.AAPL",
+      timeframe: "1",
+      mode: "backtest",
+      candles: { encoding_version: candleBatchEncodingVersion, payload: Buffer.alloc(55) },
+      params: {},
+    })).toThrow("payload length 55 is not a multiple of 56");
+    expect(() => runScriptRequestFromProto({
+      job_id: "job-1",
+      source: `//@version=6\nstrategy("x")`,
+      symbol: "US.AAPL",
+      timeframe: "1",
+      mode: "backtest",
+      candles: { encoding_version: candleBatchEncodingVersion, payload: Buffer.alloc(200_001 * 56) },
+      params: {},
+    })).toThrow("too many candles: 200001 > 200000");
+  });
+
+  test("decodes the shared binary golden vector", () => {
+    const payload = Buffer.from("feffffffffffffff0300000000000000000000000000f83f0000000000000440000000000000e0bf00000000000000400000000000000000", "hex");
+    const request = runScriptRequestFromProto({
+      job_id: "golden",
+      source: "strategy(\"x\")",
+      symbol: "US.TEST",
+      timeframe: "1",
+      mode: "backtest",
+      candles: { encoding_version: candleBatchEncodingVersion, payload },
+    });
+    expect(request.candles).toEqual([{ openTime: -2, closeTime: 3, open: 1.5, high: 2.5, low: -0.5, close: 2, volume: 0 }]);
   });
 
   test("maps worker response into protobuf-shaped response", () => {
@@ -87,6 +139,7 @@ describe("proto mapping", () => {
       metadata: { worker_id: "worker-1", pinets_version: "mock" },
       error: "",
     });
+    expect(response).not.toHaveProperty("outputs");
   });
 
   test("maps health status", () => {
@@ -105,3 +158,18 @@ describe("proto mapping", () => {
     });
   });
 });
+
+function encodeCandles(candles: Array<{ openTime: number; closeTime: number; open: number; high: number; low: number; close: number; volume: number }>): Buffer {
+  const payload = Buffer.alloc(candles.length * 56);
+  candles.forEach((candle, index) => {
+    const offset = index * 56;
+    payload.writeBigInt64LE(BigInt(candle.openTime), offset);
+    payload.writeBigInt64LE(BigInt(candle.closeTime), offset + 8);
+    payload.writeDoubleLE(candle.open, offset + 16);
+    payload.writeDoubleLE(candle.high, offset + 24);
+    payload.writeDoubleLE(candle.low, offset + 32);
+    payload.writeDoubleLE(candle.close, offset + 40);
+    payload.writeDoubleLE(candle.volume, offset + 48);
+  });
+  return payload;
+}

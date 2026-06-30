@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+const nodeWorkerMaxOldSpaceMiB = 384
+
 type WorkerBundle struct {
 	Name   string
 	Data   []byte
@@ -78,9 +80,7 @@ func (launcher *NodeWorkerLauncher) Start(ctx context.Context, spec WorkerSpec) 
 	if strings.TrimSpace(launcher.config.WorkDir) != "" {
 		cmd.Dir = launcher.config.WorkDir
 	}
-	if len(launcher.config.Env) > 0 {
-		cmd.Env = append(os.Environ(), launcher.config.Env...)
-	}
+	cmd.Env = nodeWorkerEnvironment(launcher.config.Env)
 	cmd.Stdout = launcher.config.Stdout
 	cmd.Stderr = launcher.config.Stderr
 	if err := cmd.Start(); err != nil {
@@ -97,6 +97,35 @@ func (launcher *NodeWorkerLauncher) Start(ctx context.Context, spec WorkerSpec) 
 		stderr:      launcher.config.Stderr,
 		stopTimeout: launcher.config.StopTimeout,
 	}, nil
+}
+
+func nodeWorkerEnvironment(extra []string) []string {
+	input := append(os.Environ(), extra...)
+	environment := make([]string, 0, len(input)+1)
+	nodeOptions := ""
+	for _, entry := range input {
+		key, value, found := strings.Cut(entry, "=")
+		if found && strings.EqualFold(key, "NODE_OPTIONS") {
+			nodeOptions = value
+			continue
+		}
+		environment = append(environment, entry)
+	}
+	fields := strings.Fields(nodeOptions)
+	filtered := fields[:0]
+	for index := 0; index < len(fields); index++ {
+		field := fields[index]
+		if field == "--max-old-space-size" || field == "--max_old_space_size" {
+			index++
+			continue
+		}
+		if strings.HasPrefix(field, "--max-old-space-size=") || strings.HasPrefix(field, "--max_old_space_size=") {
+			continue
+		}
+		filtered = append(filtered, field)
+	}
+	filtered = append(filtered, fmt.Sprintf("--max-old-space-size=%d", nodeWorkerMaxOldSpaceMiB))
+	return append(environment, "NODE_OPTIONS="+strings.Join(filtered, " "))
 }
 
 func (launcher *NodeWorkerLauncher) materializeBundle(spec WorkerSpec) (string, error) {

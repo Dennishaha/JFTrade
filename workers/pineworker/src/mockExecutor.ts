@@ -1,11 +1,11 @@
-import type { PineTSExecutor, PineTSRunResult, RunScriptRequest } from "./types";
+import type { PineTSExecutor, PineTSRunResult, PreparedRunScriptRequest } from "./types";
 
 export class DeterministicPineTSExecutor implements PineTSExecutor {
   version(): string {
     return "mock-pinets-0.0.0";
   }
 
-  async run(request: RunScriptRequest): Promise<PineTSRunResult> {
+  async run(request: PreparedRunScriptRequest): Promise<PineTSRunResult> {
     const closes = request.candles.map((candle) => candle.close);
     const threshold = Number(request.params?.threshold ?? closes[0] ?? 0);
     const signals = closes.map((close) => (close > threshold ? 1 : close < threshold ? -1 : 0));

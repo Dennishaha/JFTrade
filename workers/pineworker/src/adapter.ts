@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   AlertEvent,
   OrderIntent,
@@ -5,12 +6,13 @@ import type {
   PineTSPlot,
   PineTSRunResult,
   PlotOutput,
-  RunScriptRequest,
+  PreparedRunScriptRequest,
   RunScriptResponse,
   StrategyMetrics,
   VisualOutput,
   WorkerMetadata,
 } from "./types";
+import { preparationOf } from "./preparedRequest";
 import { validateRunScriptRequest, type WorkerLimits } from "./validation";
 import { workerVersion } from "./types";
 
@@ -18,15 +20,15 @@ export type RunAdapterOptions = {
   workerId: string;
   executor: PineTSExecutor;
   limits?: WorkerLimits;
-  peakRSSBytes?: () => number;
+  peakRSSBytes: () => number;
 };
 
 export async function runScriptWithPineTS(
-  request: RunScriptRequest,
+  request: PreparedRunScriptRequest,
   options: RunAdapterOptions,
 ): Promise<RunScriptResponse> {
   const started = performance.now();
-  const requestBytes = jsonBytes(request);
+  const preparation = preparationOf(request);
 
   try {
     validateRunScriptRequest(request, options.limits);
@@ -35,12 +37,12 @@ export async function runScriptWithPineTS(
       workerId: options.workerId,
       version: workerVersion,
       pineTSVersion: options.executor.version(),
-      scriptHash: await hashText(request.source),
-      dataHash: await hashText(JSON.stringify(request.candles)),
+      scriptHash: hashText(request.source),
+      dataHash: preparation.dataHash,
       durationMs: elapsedMs(started),
-      requestBytes,
+      requestBytes: preparation.requestBytes,
       responseBytes: 0,
-      peakRSSBytes: options.peakRSSBytes?.() ?? 0,
+      peakRSSBytes: options.peakRSSBytes(),
     });
     response.metadata.responseBytes = jsonBytes(response);
     return response;
@@ -49,12 +51,12 @@ export async function runScriptWithPineTS(
       workerId: options.workerId,
       version: workerVersion,
       pineTSVersion: options.executor.version(),
-      scriptHash: await hashText(request.source ?? ""),
-      dataHash: await hashText(JSON.stringify(request.candles ?? [])),
+      scriptHash: hashText(request.source ?? ""),
+      dataHash: preparation.dataHash,
       durationMs: elapsedMs(started),
-      requestBytes,
+      requestBytes: preparation.requestBytes,
       responseBytes: 0,
-      peakRSSBytes: options.peakRSSBytes?.() ?? 0,
+      peakRSSBytes: options.peakRSSBytes(),
     });
     response.metadata.responseBytes = jsonBytes(response);
     return response;
@@ -62,18 +64,20 @@ export async function runScriptWithPineTS(
 }
 
 export function buildResponse(
-  request: RunScriptRequest,
+  request: PreparedRunScriptRequest,
   result: PineTSRunResult,
   metadata: WorkerMetadata,
 ): RunScriptResponse {
+  const includePlots = request.includePlots !== false;
+  const plots = includePlots ? normalizePlots(result.plots) : [];
   const response: RunScriptResponse = {
     jobId: request.jobId,
-    outputs: normalizePlots(result.plots).map((plot) => ({
+    outputs: includePlots ? plots.map((plot) => ({
       name: plot.name,
       kind: "plot",
       values: plot.values,
-    })),
-    plots: normalizePlots(result.plots),
+    })) : [],
+    plots,
     orderIntents: normalizeResultOrderIntents(result, request),
     alerts: normalizeAlerts(result.alerts),
     visualOutputs: normalizeVisualOutputs(result),
@@ -90,7 +94,7 @@ export function buildResponse(
 }
 
 function buildErrorResponse(
-  request: RunScriptRequest,
+  request: PreparedRunScriptRequest,
   message: string,
   metadata: WorkerMetadata,
 ): RunScriptResponse {
@@ -167,7 +171,7 @@ function normalizeVisualOutputItems(value: unknown, fallbackKind: string): Visua
   });
 }
 
-function normalizeOrderIntents(items: unknown[] | undefined, request: RunScriptRequest): OrderIntent[] {
+function normalizeOrderIntents(items: unknown[] | undefined, request: PreparedRunScriptRequest): OrderIntent[] {
   return (items ?? []).flatMap((item) => {
     if (typeof item !== "object" || item === null) {
       return [];
@@ -198,7 +202,7 @@ function normalizeOrderIntents(items: unknown[] | undefined, request: RunScriptR
   });
 }
 
-function normalizeResultOrderIntents(result: PineTSRunResult, request: RunScriptRequest): OrderIntent[] {
+function normalizeResultOrderIntents(result: PineTSRunResult, request: PreparedRunScriptRequest): OrderIntent[] {
   if ((result.orderIntents ?? []).length > 0) {
     return normalizeOrderIntents(result.orderIntents, request);
   }
@@ -229,7 +233,7 @@ function normalizeStrategyMetrics(strategy: unknown): StrategyMetrics | undefine
   };
 }
 
-function orderIntentsFromStrategyTrades(strategy: unknown, request: RunScriptRequest): OrderIntent[] {
+function orderIntentsFromStrategyTrades(strategy: unknown, request: PreparedRunScriptRequest): OrderIntent[] {
   if (typeof strategy !== "object" || strategy === null) {
     return [];
   }
@@ -285,12 +289,12 @@ function arrayOfRecords(value: unknown): Record<string, unknown>[] {
     : [];
 }
 
-function signalBarIndex(value: unknown, request: RunScriptRequest): number {
+function signalBarIndex(value: unknown, request: PreparedRunScriptRequest): number {
   const fillBarIndex = toInteger(value, request.candles.length - 1);
   return clampInteger(fillBarIndex - 1, 0, Math.max(0, request.candles.length - 1));
 }
 
-function candleTime(request: RunScriptRequest, barIndex: number): number {
+function candleTime(request: PreparedRunScriptRequest, barIndex: number): number {
   return request.candles[barIndex]?.openTime ?? 0;
 }
 
@@ -340,7 +344,65 @@ function toInteger(value: unknown, fallback: number): number {
 }
 
 function jsonBytes(value: unknown): number {
-  return new TextEncoder().encode(JSON.stringify(value)).byteLength;
+  return jsonValueBytes(value);
+}
+
+function jsonStringBytes(value: string): number {
+  return Buffer.byteLength(JSON.stringify(value), "utf8");
+}
+
+function numberJSONBytes(value: number): number {
+  return Number.isFinite(value) ? String(value).length : 4;
+}
+
+function jsonValueBytes(value: unknown): number {
+  if (value === null) {
+    return 4;
+  }
+  switch (typeof value) {
+    case "string":
+      return jsonStringBytes(value);
+    case "number":
+      return numberJSONBytes(value);
+    case "boolean":
+      return value ? 4 : 5;
+    case "undefined":
+    case "function":
+    case "symbol":
+      return 0;
+    case "object":
+      return Array.isArray(value) ? jsonArrayBytes(value) : jsonObjectBytes(value as Record<string, unknown>);
+    default:
+      return 0;
+  }
+}
+
+function jsonArrayBytes(values: unknown[]): number {
+  if (values.length === 0) {
+    return 2;
+  }
+  let bytes = 2 + values.length - 1;
+  for (const value of values) {
+    const valueBytes = jsonValueBytes(value);
+    bytes += valueBytes === 0 && (value === undefined || typeof value === "function" || typeof value === "symbol") ? 4 : valueBytes;
+  }
+  return bytes;
+}
+
+function jsonObjectBytes(value: Record<string, unknown>): number {
+  let bytes = 2;
+  let count = 0;
+  for (const [key, item] of Object.entries(value)) {
+    if (item === undefined || typeof item === "function" || typeof item === "symbol") {
+      continue;
+    }
+    if (count > 0) {
+      bytes += 1;
+    }
+    bytes += jsonStringBytes(key) + 1 + jsonValueBytes(item);
+    count++;
+  }
+  return bytes;
 }
 
 function stableStringify(value: unknown): string {
@@ -355,10 +417,8 @@ function stableStringify(value: unknown): string {
   }) ?? "";
 }
 
-async function hashText(value: string): Promise<string> {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+function hashText(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function elapsedMs(started: number): number {

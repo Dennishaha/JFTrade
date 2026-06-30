@@ -1,6 +1,10 @@
 package pineworker
 
 import (
+	"encoding/binary"
+	"fmt"
+	"math"
+	"runtime"
 	"testing"
 	"time"
 
@@ -13,21 +17,33 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 	if protoRequest.GetJobId() != request.JobID || protoRequest.GetParams()["threshold"] != "10" {
 		t.Fatalf("unexpected proto request: %#v", protoRequest)
 	}
+	if protoRequest.GetIncludePlots() {
+		t.Fatalf("backtest request include_plots = true, want false")
+	}
+	batch := protoRequest.GetCandles()
+	if batch.GetEncodingVersion() != candleBatchEncodingVersion || len(batch.GetPayload()) != candleBatchRecordBytes {
+		t.Fatalf("unexpected candle batch: %#v", protoRequest.GetCandles())
+	}
+	if got := int64(binary.LittleEndian.Uint64(batch.GetPayload())); got != request.Candles[0].OpenTime {
+		t.Fatalf("encoded open time = %d, want %d", got, request.Candles[0].OpenTime)
+	}
+	if got := math.Float64frombits(binary.LittleEndian.Uint64(batch.GetPayload()[40:])); got != request.Candles[0].Close {
+		t.Fatalf("encoded close = %v, want %v", got, request.Candles[0].Close)
+	}
 	protoRequest.Params["threshold"] = "99"
 	if request.Params["threshold"] != "10" {
 		t.Fatal("request params were aliased")
 	}
+	request.Mode = ModeLive
+	if !requestToProto(request).GetIncludePlots() {
+		t.Fatal("live request include_plots = false, want true")
+	}
 
 	response := responseFromProto(&pineworkerpb.RunScriptResponse{
 		JobId: "job-1",
-		Outputs: []*pineworkerpb.SeriesOutput{{
-			Name:   "out",
-			Kind:   "plot",
-			Values: []float64{1, 2},
-		}},
 		Plots: []*pineworkerpb.PlotOutput{{
 			Name:   "plot",
-			Values: []float64{3},
+			Values: []float64{1, 2},
 		}},
 		OrderIntents: []*pineworkerpb.OrderIntent{{
 			Kind:           "entry",
@@ -87,8 +103,11 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 		Error: "worker error",
 	})
 
-	if response.JobID != "job-1" || response.Outputs[0].Values[1] != 2 || response.Plots[0].Values[0] != 3 {
+	if response.JobID != "job-1" || response.Outputs[0].Values[1] != 2 || response.Plots[0].Values[0] != 1 {
 		t.Fatalf("unexpected mapped response: %#v", response)
+	}
+	if response.Outputs[0].Kind != "plot" || response.Outputs[0].Name != response.Plots[0].Name {
+		t.Fatalf("outputs were not rebuilt from plots: %#v", response.Outputs)
 	}
 	intent := response.OrderIntents[0]
 	if intent.ID != "long" || !intent.HasStopPrice || !intent.DisableAlert {
@@ -105,6 +124,34 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 	}
 	if response.Diagnostics[0].Line != 1 || response.Metadata.Duration != 7*time.Millisecond {
 		t.Fatalf("unexpected diagnostics/metadata: %#v", response)
+	}
+}
+
+func TestCandleBatchEncodingGoldenVector(t *testing.T) {
+	batch := candlesToProto([]Candle{{
+		OpenTime: -2, CloseTime: 3, Open: 1.5, High: 2.5, Low: -0.5, Close: 2, Volume: 0,
+	}})
+	want := "feffffffffffffff0300000000000000000000000000f83f0000000000000440000000000000e0bf00000000000000400000000000000000"
+	if got := fmt.Sprintf("%x", batch.GetPayload()); got != want {
+		t.Fatalf("payload = %s, want %s", got, want)
+	}
+}
+
+func BenchmarkRequestToProto200K(b *testing.B) {
+	request := validClientRequest()
+	request.Params = nil
+	request.Candles = make([]Candle, 200_000)
+	for index := range request.Candles {
+		request.Candles[index] = Candle{
+			OpenTime: int64(index + 1), CloseTime: int64(index + 2),
+			Open: 10, High: 12, Low: 9, Close: 11, Volume: 100,
+		}
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		result := requestToProto(request)
+		runtime.KeepAlive(result)
 	}
 }
 

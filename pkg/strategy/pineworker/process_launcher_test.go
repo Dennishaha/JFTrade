@@ -48,7 +48,9 @@ func TestNodeWorkerLauncherMaterializesBundleWithArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read cwd log: %v", err)
 	}
-	if filepath.Clean(strings.TrimSpace(string(rawCWD))) != filepath.Clean(workDir) {
+	gotCWD, gotErr := os.Stat(strings.TrimSpace(string(rawCWD)))
+	wantCWD, wantErr := os.Stat(workDir)
+	if gotErr != nil || wantErr != nil || !os.SameFile(gotCWD, wantCWD) {
 		t.Fatalf("worker cwd = %q, want %q", strings.TrimSpace(string(rawCWD)), workDir)
 	}
 	if !strings.Contains(diagnostics, "cwd="+workDir) || !strings.Contains(diagnostics, "runtime=/bin/sh") || !strings.Contains(diagnostics, "stderr=worker stderr tail") {
@@ -105,6 +107,25 @@ func TestNewNodeWorkerLauncherRequiresBundle(t *testing.T) {
 	_, err := NewNodeWorkerLauncher(NodeWorkerLauncherConfig{})
 	if err == nil || !strings.Contains(err.Error(), "bundle data is required") {
 		t.Fatalf("error = %v, want bundle data required", err)
+	}
+}
+
+func TestNodeWorkerEnvironmentEnforcesOldSpaceLimit(t *testing.T) {
+	t.Setenv("NODE_OPTIONS", "--heapsnapshot-near-heap-limit=1 --max_old_space_size=777")
+	environment := nodeWorkerEnvironment([]string{"NODE_OPTIONS=--trace-warnings --max-old-space-size 999"})
+	got := ""
+	count := 0
+	for _, entry := range environment {
+		if strings.HasPrefix(entry, "NODE_OPTIONS=") {
+			count++
+			got = strings.TrimPrefix(entry, "NODE_OPTIONS=")
+		}
+	}
+	if count != 1 {
+		t.Fatalf("NODE_OPTIONS entries = %d, want 1", count)
+	}
+	if got != "--trace-warnings --max-old-space-size=384" {
+		t.Fatalf("NODE_OPTIONS = %q", got)
 	}
 }
 

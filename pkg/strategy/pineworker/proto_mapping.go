@@ -1,22 +1,30 @@
 package pineworker
 
 import (
+	"encoding/binary"
 	"maps"
+	"math"
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb"
 )
 
+const (
+	candleBatchEncodingVersion = uint32(1)
+	candleBatchRecordBytes     = 56
+)
+
 func requestToProto(request RunScriptRequest) *pineworkerpb.RunScriptRequest {
 	return &pineworkerpb.RunScriptRequest{
-		JobId:     request.JobID,
-		ScriptId:  request.ScriptID,
-		Source:    request.Source,
-		Symbol:    request.Symbol,
-		Timeframe: request.Timeframe,
-		Mode:      request.Mode,
-		Candles:   candlesToProto(request.Candles),
-		Params:    copyStringMap(request.Params),
+		JobId:        request.JobID,
+		ScriptId:     request.ScriptID,
+		Source:       request.Source,
+		Symbol:       request.Symbol,
+		Timeframe:    request.Timeframe,
+		Mode:         request.Mode,
+		Candles:      candlesToProto(request.Candles),
+		Params:       copyStringMap(request.Params),
+		IncludePlots: includePlotsForRequest(request),
 	}
 }
 
@@ -24,10 +32,11 @@ func responseFromProto(response *pineworkerpb.RunScriptResponse) RunScriptRespon
 	if response == nil {
 		return RunScriptResponse{}
 	}
+	plots := plotsFromProto(response.GetPlots())
 	return RunScriptResponse{
 		JobID:           response.GetJobId(),
-		Outputs:         seriesOutputsFromProto(response.GetOutputs()),
-		Plots:           plotsFromProto(response.GetPlots()),
+		Outputs:         seriesOutputsFromPlots(plots),
+		Plots:           plots,
 		OrderIntents:    orderIntentsFromProto(response.GetOrderIntents()),
 		Alerts:          alertsFromProto(response.GetAlerts()),
 		VisualOutputs:   visualOutputsFromProto(response.GetVisualOutputs()),
@@ -53,29 +62,35 @@ func healthFromProto(response *pineworkerpb.HealthCheckResponse) HealthStatus {
 	}
 }
 
-func candlesToProto(candles []Candle) []*pineworkerpb.Candle {
-	result := make([]*pineworkerpb.Candle, 0, len(candles))
-	for _, candle := range candles {
-		result = append(result, &pineworkerpb.Candle{
-			OpenTime:  candle.OpenTime,
-			CloseTime: candle.CloseTime,
-			Open:      candle.Open,
-			High:      candle.High,
-			Low:       candle.Low,
-			Close:     candle.Close,
-			Volume:    candle.Volume,
-		})
-	}
-	return result
+func includePlotsForRequest(request RunScriptRequest) bool {
+	return normalizeMode(request.Mode) != ModeBacktest
 }
 
-func seriesOutputsFromProto(outputs []*pineworkerpb.SeriesOutput) []SeriesOutput {
-	result := make([]SeriesOutput, 0, len(outputs))
-	for _, output := range outputs {
+func candlesToProto(candles []Candle) *pineworkerpb.CandleBatch {
+	payload := make([]byte, len(candles)*candleBatchRecordBytes)
+	for index, candle := range candles {
+		offset := index * candleBatchRecordBytes
+		binary.LittleEndian.PutUint64(payload[offset:], uint64(candle.OpenTime))
+		binary.LittleEndian.PutUint64(payload[offset+8:], uint64(candle.CloseTime))
+		binary.LittleEndian.PutUint64(payload[offset+16:], math.Float64bits(candle.Open))
+		binary.LittleEndian.PutUint64(payload[offset+24:], math.Float64bits(candle.High))
+		binary.LittleEndian.PutUint64(payload[offset+32:], math.Float64bits(candle.Low))
+		binary.LittleEndian.PutUint64(payload[offset+40:], math.Float64bits(candle.Close))
+		binary.LittleEndian.PutUint64(payload[offset+48:], math.Float64bits(candle.Volume))
+	}
+	return &pineworkerpb.CandleBatch{
+		EncodingVersion: candleBatchEncodingVersion,
+		Payload:         payload,
+	}
+}
+
+func seriesOutputsFromPlots(plots []PlotOutput) []SeriesOutput {
+	result := make([]SeriesOutput, 0, len(plots))
+	for _, plot := range plots {
 		result = append(result, SeriesOutput{
-			Name:   output.GetName(),
-			Kind:   output.GetKind(),
-			Values: append([]float64(nil), output.GetValues()...),
+			Name:   plot.Name,
+			Kind:   "plot",
+			Values: plot.Values,
 		})
 	}
 	return result

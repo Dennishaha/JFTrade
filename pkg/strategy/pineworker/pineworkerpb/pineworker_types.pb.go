@@ -309,8 +309,9 @@ type RunScriptRequest struct {
 	Symbol        string                 `protobuf:"bytes,4,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	Timeframe     string                 `protobuf:"bytes,5,opt,name=timeframe,proto3" json:"timeframe,omitempty"`
 	Mode          string                 `protobuf:"bytes,6,opt,name=mode,proto3" json:"mode,omitempty"`
-	Candles       []*Candle              `protobuf:"bytes,7,rep,name=candles,proto3" json:"candles,omitempty"`
+	Candles       *CandleBatch           `protobuf:"bytes,7,opt,name=candles,proto3" json:"candles,omitempty"`
 	Params        map[string]string      `protobuf:"bytes,8,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	IncludePlots  bool                   `protobuf:"varint,9,opt,name=include_plots,json=includePlots,proto3" json:"include_plots,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -387,7 +388,7 @@ func (x *RunScriptRequest) GetMode() string {
 	return ""
 }
 
-func (x *RunScriptRequest) GetCandles() []*Candle {
+func (x *RunScriptRequest) GetCandles() *CandleBatch {
 	if x != nil {
 		return x.Candles
 	}
@@ -401,20 +402,26 @@ func (x *RunScriptRequest) GetParams() map[string]string {
 	return nil
 }
 
+func (x *RunScriptRequest) GetIncludePlots() bool {
+	if x != nil {
+		return x.IncludePlots
+	}
+	return false
+}
+
 type RunScriptResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	JobId           string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
-	Outputs         []*SeriesOutput        `protobuf:"bytes,2,rep,name=outputs,proto3" json:"outputs,omitempty"`
-	Plots           []*PlotOutput          `protobuf:"bytes,3,rep,name=plots,proto3" json:"plots,omitempty"`
-	OrderIntents    []*OrderIntent         `protobuf:"bytes,4,rep,name=order_intents,json=orderIntents,proto3" json:"order_intents,omitempty"`
-	Logs            []string               `protobuf:"bytes,5,rep,name=logs,proto3" json:"logs,omitempty"`
-	Warnings        []string               `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
-	Diagnostics     []*Diagnostic          `protobuf:"bytes,7,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
-	Metadata        *WorkerMetadata        `protobuf:"bytes,8,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	Error           string                 `protobuf:"bytes,9,opt,name=error,proto3" json:"error,omitempty"`
-	Alerts          []*AlertEvent          `protobuf:"bytes,10,rep,name=alerts,proto3" json:"alerts,omitempty"`
-	VisualOutputs   []*VisualOutput        `protobuf:"bytes,11,rep,name=visual_outputs,json=visualOutputs,proto3" json:"visual_outputs,omitempty"`
-	StrategyMetrics *StrategyMetrics       `protobuf:"bytes,12,opt,name=strategy_metrics,json=strategyMetrics,proto3" json:"strategy_metrics,omitempty"`
+	Plots           []*PlotOutput          `protobuf:"bytes,2,rep,name=plots,proto3" json:"plots,omitempty"`
+	OrderIntents    []*OrderIntent         `protobuf:"bytes,3,rep,name=order_intents,json=orderIntents,proto3" json:"order_intents,omitempty"`
+	Logs            []string               `protobuf:"bytes,4,rep,name=logs,proto3" json:"logs,omitempty"`
+	Warnings        []string               `protobuf:"bytes,5,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Diagnostics     []*Diagnostic          `protobuf:"bytes,6,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
+	Metadata        *WorkerMetadata        `protobuf:"bytes,7,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	Error           string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	Alerts          []*AlertEvent          `protobuf:"bytes,9,rep,name=alerts,proto3" json:"alerts,omitempty"`
+	VisualOutputs   []*VisualOutput        `protobuf:"bytes,10,rep,name=visual_outputs,json=visualOutputs,proto3" json:"visual_outputs,omitempty"`
+	StrategyMetrics *StrategyMetrics       `protobuf:"bytes,11,opt,name=strategy_metrics,json=strategyMetrics,proto3" json:"strategy_metrics,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -454,13 +461,6 @@ func (x *RunScriptResponse) GetJobId() string {
 		return x.JobId
 	}
 	return ""
-}
-
-func (x *RunScriptResponse) GetOutputs() []*SeriesOutput {
-	if x != nil {
-		return x.Outputs
-	}
-	return nil
 }
 
 func (x *RunScriptResponse) GetPlots() []*PlotOutput {
@@ -564,33 +564,33 @@ const file_proto_pineworker_types_proto_rawDesc = "" +
 	"\x05error\x18\b \x01(\tR\x05error\x1aA\n" +
 	"\x13StrategyConfigEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfb\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa5\x03\n" +
 	"\x10RunScriptRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1b\n" +
 	"\tscript_id\x18\x02 \x01(\tR\bscriptId\x12\x16\n" +
 	"\x06source\x18\x03 \x01(\tR\x06source\x12\x16\n" +
 	"\x06symbol\x18\x04 \x01(\tR\x06symbol\x12\x1c\n" +
 	"\ttimeframe\x18\x05 \x01(\tR\ttimeframe\x12\x12\n" +
-	"\x04mode\x18\x06 \x01(\tR\x04mode\x12@\n" +
-	"\acandles\x18\a \x03(\v2&.jftrade.strategy.pineworker.v1.CandleR\acandles\x12T\n" +
-	"\x06params\x18\b \x03(\v2<.jftrade.strategy.pineworker.v1.RunScriptRequest.ParamsEntryR\x06params\x1a9\n" +
+	"\x04mode\x18\x06 \x01(\tR\x04mode\x12E\n" +
+	"\acandles\x18\a \x01(\v2+.jftrade.strategy.pineworker.v1.CandleBatchR\acandles\x12T\n" +
+	"\x06params\x18\b \x03(\v2<.jftrade.strategy.pineworker.v1.RunScriptRequest.ParamsEntryR\x06params\x12#\n" +
+	"\rinclude_plots\x18\t \x01(\bR\fincludePlots\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdb\x05\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x93\x05\n" +
 	"\x11RunScriptResponse\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12F\n" +
-	"\aoutputs\x18\x02 \x03(\v2,.jftrade.strategy.pineworker.v1.SeriesOutputR\aoutputs\x12@\n" +
-	"\x05plots\x18\x03 \x03(\v2*.jftrade.strategy.pineworker.v1.PlotOutputR\x05plots\x12P\n" +
-	"\rorder_intents\x18\x04 \x03(\v2+.jftrade.strategy.pineworker.v1.OrderIntentR\forderIntents\x12\x12\n" +
-	"\x04logs\x18\x05 \x03(\tR\x04logs\x12\x1a\n" +
-	"\bwarnings\x18\x06 \x03(\tR\bwarnings\x12L\n" +
-	"\vdiagnostics\x18\a \x03(\v2*.jftrade.strategy.pineworker.v1.DiagnosticR\vdiagnostics\x12J\n" +
-	"\bmetadata\x18\b \x01(\v2..jftrade.strategy.pineworker.v1.WorkerMetadataR\bmetadata\x12\x14\n" +
-	"\x05error\x18\t \x01(\tR\x05error\x12B\n" +
-	"\x06alerts\x18\n" +
-	" \x03(\v2*.jftrade.strategy.pineworker.v1.AlertEventR\x06alerts\x12S\n" +
-	"\x0evisual_outputs\x18\v \x03(\v2,.jftrade.strategy.pineworker.v1.VisualOutputR\rvisualOutputs\x12Z\n" +
-	"\x10strategy_metrics\x18\f \x01(\v2/.jftrade.strategy.pineworker.v1.StrategyMetricsR\x0fstrategyMetricsBSZQgithub.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpbb\x06proto3"
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12@\n" +
+	"\x05plots\x18\x02 \x03(\v2*.jftrade.strategy.pineworker.v1.PlotOutputR\x05plots\x12P\n" +
+	"\rorder_intents\x18\x03 \x03(\v2+.jftrade.strategy.pineworker.v1.OrderIntentR\forderIntents\x12\x12\n" +
+	"\x04logs\x18\x04 \x03(\tR\x04logs\x12\x1a\n" +
+	"\bwarnings\x18\x05 \x03(\tR\bwarnings\x12L\n" +
+	"\vdiagnostics\x18\x06 \x03(\v2*.jftrade.strategy.pineworker.v1.DiagnosticR\vdiagnostics\x12J\n" +
+	"\bmetadata\x18\a \x01(\v2..jftrade.strategy.pineworker.v1.WorkerMetadataR\bmetadata\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12B\n" +
+	"\x06alerts\x18\t \x03(\v2*.jftrade.strategy.pineworker.v1.AlertEventR\x06alerts\x12S\n" +
+	"\x0evisual_outputs\x18\n" +
+	" \x03(\v2,.jftrade.strategy.pineworker.v1.VisualOutputR\rvisualOutputs\x12Z\n" +
+	"\x10strategy_metrics\x18\v \x01(\v2/.jftrade.strategy.pineworker.v1.StrategyMetricsR\x0fstrategyMetricsBSZQgithub.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpbb\x06proto3"
 
 var (
 	file_proto_pineworker_types_proto_rawDescOnce sync.Once
@@ -617,34 +617,32 @@ var file_proto_pineworker_types_proto_goTypes = []any{
 	nil,                           // 8: jftrade.strategy.pineworker.v1.RunScriptRequest.ParamsEntry
 	(*Diagnostic)(nil),            // 9: jftrade.strategy.pineworker.v1.Diagnostic
 	(*WorkerMetadata)(nil),        // 10: jftrade.strategy.pineworker.v1.WorkerMetadata
-	(*Candle)(nil),                // 11: jftrade.strategy.pineworker.v1.Candle
-	(*SeriesOutput)(nil),          // 12: jftrade.strategy.pineworker.v1.SeriesOutput
-	(*PlotOutput)(nil),            // 13: jftrade.strategy.pineworker.v1.PlotOutput
-	(*OrderIntent)(nil),           // 14: jftrade.strategy.pineworker.v1.OrderIntent
-	(*AlertEvent)(nil),            // 15: jftrade.strategy.pineworker.v1.AlertEvent
-	(*VisualOutput)(nil),          // 16: jftrade.strategy.pineworker.v1.VisualOutput
-	(*StrategyMetrics)(nil),       // 17: jftrade.strategy.pineworker.v1.StrategyMetrics
+	(*CandleBatch)(nil),           // 11: jftrade.strategy.pineworker.v1.CandleBatch
+	(*PlotOutput)(nil),            // 12: jftrade.strategy.pineworker.v1.PlotOutput
+	(*OrderIntent)(nil),           // 13: jftrade.strategy.pineworker.v1.OrderIntent
+	(*AlertEvent)(nil),            // 14: jftrade.strategy.pineworker.v1.AlertEvent
+	(*VisualOutput)(nil),          // 15: jftrade.strategy.pineworker.v1.VisualOutput
+	(*StrategyMetrics)(nil),       // 16: jftrade.strategy.pineworker.v1.StrategyMetrics
 }
 var file_proto_pineworker_types_proto_depIdxs = []int32{
 	6,  // 0: jftrade.strategy.pineworker.v1.AnalyzeScriptRequest.params:type_name -> jftrade.strategy.pineworker.v1.AnalyzeScriptRequest.ParamsEntry
 	9,  // 1: jftrade.strategy.pineworker.v1.AnalyzeScriptResponse.diagnostics:type_name -> jftrade.strategy.pineworker.v1.Diagnostic
 	7,  // 2: jftrade.strategy.pineworker.v1.AnalyzeScriptResponse.strategy_config:type_name -> jftrade.strategy.pineworker.v1.AnalyzeScriptResponse.StrategyConfigEntry
 	10, // 3: jftrade.strategy.pineworker.v1.AnalyzeScriptResponse.metadata:type_name -> jftrade.strategy.pineworker.v1.WorkerMetadata
-	11, // 4: jftrade.strategy.pineworker.v1.RunScriptRequest.candles:type_name -> jftrade.strategy.pineworker.v1.Candle
+	11, // 4: jftrade.strategy.pineworker.v1.RunScriptRequest.candles:type_name -> jftrade.strategy.pineworker.v1.CandleBatch
 	8,  // 5: jftrade.strategy.pineworker.v1.RunScriptRequest.params:type_name -> jftrade.strategy.pineworker.v1.RunScriptRequest.ParamsEntry
-	12, // 6: jftrade.strategy.pineworker.v1.RunScriptResponse.outputs:type_name -> jftrade.strategy.pineworker.v1.SeriesOutput
-	13, // 7: jftrade.strategy.pineworker.v1.RunScriptResponse.plots:type_name -> jftrade.strategy.pineworker.v1.PlotOutput
-	14, // 8: jftrade.strategy.pineworker.v1.RunScriptResponse.order_intents:type_name -> jftrade.strategy.pineworker.v1.OrderIntent
-	9,  // 9: jftrade.strategy.pineworker.v1.RunScriptResponse.diagnostics:type_name -> jftrade.strategy.pineworker.v1.Diagnostic
-	10, // 10: jftrade.strategy.pineworker.v1.RunScriptResponse.metadata:type_name -> jftrade.strategy.pineworker.v1.WorkerMetadata
-	15, // 11: jftrade.strategy.pineworker.v1.RunScriptResponse.alerts:type_name -> jftrade.strategy.pineworker.v1.AlertEvent
-	16, // 12: jftrade.strategy.pineworker.v1.RunScriptResponse.visual_outputs:type_name -> jftrade.strategy.pineworker.v1.VisualOutput
-	17, // 13: jftrade.strategy.pineworker.v1.RunScriptResponse.strategy_metrics:type_name -> jftrade.strategy.pineworker.v1.StrategyMetrics
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	12, // 6: jftrade.strategy.pineworker.v1.RunScriptResponse.plots:type_name -> jftrade.strategy.pineworker.v1.PlotOutput
+	13, // 7: jftrade.strategy.pineworker.v1.RunScriptResponse.order_intents:type_name -> jftrade.strategy.pineworker.v1.OrderIntent
+	9,  // 8: jftrade.strategy.pineworker.v1.RunScriptResponse.diagnostics:type_name -> jftrade.strategy.pineworker.v1.Diagnostic
+	10, // 9: jftrade.strategy.pineworker.v1.RunScriptResponse.metadata:type_name -> jftrade.strategy.pineworker.v1.WorkerMetadata
+	14, // 10: jftrade.strategy.pineworker.v1.RunScriptResponse.alerts:type_name -> jftrade.strategy.pineworker.v1.AlertEvent
+	15, // 11: jftrade.strategy.pineworker.v1.RunScriptResponse.visual_outputs:type_name -> jftrade.strategy.pineworker.v1.VisualOutput
+	16, // 12: jftrade.strategy.pineworker.v1.RunScriptResponse.strategy_metrics:type_name -> jftrade.strategy.pineworker.v1.StrategyMetrics
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_proto_pineworker_types_proto_init() }

@@ -7,6 +7,7 @@ describe("createServiceHandlers", () => {
     const handlers = createServiceHandlers({
       workerId: "worker-1",
       executor: new DeterministicPineTSExecutor(),
+      peakRSSBytes: () => 123,
     });
 
     const health = await unary(handlers.HealthCheck, {});
@@ -18,11 +19,15 @@ describe("createServiceHandlers", () => {
       symbol: "US.AAPL",
       timeframe: "1",
       mode: "backtest",
-      candles: [
-        { open_time: 1, open: 10, high: 12, low: 9, close: 10, volume: 100 },
-        { open_time: 2, open: 10, high: 13, low: 9, close: 12, volume: 100 },
-      ],
+      candles: {
+        encoding_version: 1,
+        payload: encodeCandles([
+          { openTime: 1, closeTime: 1, open: 10, high: 12, low: 9, close: 10, volume: 100 },
+          { openTime: 2, closeTime: 2, open: 10, high: 13, low: 9, close: 12, volume: 100 },
+        ]),
+      },
       params: { threshold: "10" },
+      include_plots: true,
     });
 
     expect(response.job_id).toBe("job-1");
@@ -67,6 +72,7 @@ describe("startWorkerGrpcServer", () => {
       grpc,
       protoLoader,
       maxMessageBytes: 1024,
+      peakRSSBytes: () => 123,
     });
 
     expect(started.port).toBe(50051);
@@ -122,4 +128,19 @@ class FakeGrpcServer implements GrpcServer {
   forceShutdown(): void {
     this.shutdown = true;
   }
+}
+
+function encodeCandles(candles: Array<{ openTime: number; closeTime: number; open: number; high: number; low: number; close: number; volume: number }>): Buffer {
+  const payload = Buffer.alloc(candles.length * 56);
+  candles.forEach((candle, index) => {
+    const offset = index * 56;
+    payload.writeBigInt64LE(BigInt(candle.openTime), offset);
+    payload.writeBigInt64LE(BigInt(candle.closeTime), offset + 8);
+    payload.writeDoubleLE(candle.open, offset + 16);
+    payload.writeDoubleLE(candle.high, offset + 24);
+    payload.writeDoubleLE(candle.low, offset + 32);
+    payload.writeDoubleLE(candle.close, offset + 40);
+    payload.writeDoubleLE(candle.volume, offset + 48);
+  });
+  return payload;
 }

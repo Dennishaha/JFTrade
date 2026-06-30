@@ -41,21 +41,21 @@ message RunScriptRequest {
   string symbol = 4;
   string timeframe = 5;
   string mode = 6;
-  repeated Candle candles = 7;
+  CandleBatch candles = 7;
   map<string, string> params = 8;
+  bool include_plots = 9;
 }
 
 message RunScriptResponse {
   string job_id = 1;
-  repeated SeriesOutput outputs = 2;
-  repeated PlotOutput plots = 3;
-  repeated OrderIntent order_intents = 4;
-  repeated string logs = 5;
-  repeated string warnings = 6;
-  repeated Diagnostic diagnostics = 7;
-  WorkerMetadata metadata = 8;
-  string error = 9;
-  repeated AlertEvent alerts = 10;
-  repeated VisualOutput visual_outputs = 11;
-  StrategyMetrics strategy_metrics = 12;
+  repeated PlotOutput plots = 2;
+  repeated OrderIntent order_intents = 3;
+  repeated string logs = 4;
+  repeated string warnings = 5;
+  repeated Diagnostic diagnostics = 6;
+  WorkerMetadata metadata = 7;
+  string error = 8;
+  repeated AlertEvent alerts = 9;
+  repeated VisualOutput visual_outputs = 10;
+  StrategyMetrics strategy_metrics = 11;
 }

@@ -56,16 +56,25 @@ func TestPineWorkerProtoCompilesAndExposesContract(t *testing.T) {
 		}
 	}
 	runRequest := findMessage(t, typesFile, "RunScriptRequest")
-	for _, field := range []string{"job_id", "script_id", "source", "symbol", "timeframe", "mode", "candles", "params"} {
+	for _, field := range []string{"job_id", "script_id", "source", "symbol", "timeframe", "mode", "candles", "params", "include_plots"} {
 		if !messageHasField(runRequest, field) {
 			t.Fatalf("RunScriptRequest missing field %s", field)
 		}
 	}
 	runResponse := findMessage(t, typesFile, "RunScriptResponse")
+	if messageHasField(runResponse, "outputs") {
+		t.Fatal("RunScriptResponse must not expose duplicate outputs field")
+	}
 	if !messageHasField(runResponse, "strategy_metrics") {
 		t.Fatal("RunScriptResponse missing field strategy_metrics")
 	}
 	commonFile := findProtoFile(t, &files, "proto/pineworker_common.proto")
+	candles := findMessage(t, commonFile, "CandleBatch")
+	for _, field := range []string{"encoding_version", "payload"} {
+		if !messageHasField(candles, field) {
+			t.Fatalf("CandleBatch missing field %s", field)
+		}
+	}
 	intent := findMessage(t, commonFile, "OrderIntent")
 	for _, field := range []string{"kind", "id", "direction", "quantity", "quantity_pct", "limit_price", "stop_price", "has_quantity", "has_limit_price"} {
 		if !messageHasField(intent, field) {

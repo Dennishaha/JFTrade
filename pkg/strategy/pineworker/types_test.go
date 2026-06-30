@@ -1,6 +1,7 @@
 package pineworker
 
 import (
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -66,6 +67,7 @@ func TestValidateRunScriptRequest(t *testing.T) {
 		{"bad range", func(r *RunScriptRequest) { r.Candles[0].High = 8 }, "high is below low"},
 		{"open outside range", func(r *RunScriptRequest) { r.Candles[0].Open = 99 }, "open is outside"},
 		{"negative volume", func(r *RunScriptRequest) { r.Candles[0].Volume = -1 }, "volume is negative"},
+		{"non-finite high", func(r *RunScriptRequest) { r.Candles[0].High = math.Inf(1) }, "unsupported value"},
 	}
 
 	for _, tt := range tests {

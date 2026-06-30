@@ -2,7 +2,6 @@ package pineworker
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -60,10 +59,7 @@ func (client *Client) RunScript(ctx context.Context, request RunScriptRequest) (
 	if client == nil {
 		return RunScriptResponse{}, fmt.Errorf("pine worker client is nil")
 	}
-	if err := ValidateRunScriptRequest(request, client.config); err != nil {
-		return RunScriptResponse{}, err
-	}
-	requestBytes, err := jsonSize(request)
+	requestBytes, err := validateAndMeasureRunScriptRequest(request, client.config)
 	if err != nil {
 		return RunScriptResponse{}, err
 	}
@@ -117,14 +113,6 @@ func (client *Client) RunScript(ctx context.Context, request RunScriptRequest) (
 		return response, fmt.Errorf("pine worker performance gate failed: %w", err)
 	}
 	return response, nil
-}
-
-func jsonSize(value any) (int, error) {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return 0, fmt.Errorf("encode pine worker payload: %w", err)
-	}
-	return len(data), nil
 }
 
 func mapTransportError(err error) error {

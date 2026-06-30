@@ -23,8 +23,11 @@ func TestWorkerManagerProcessSmokeWithNodeWorker(t *testing.T) {
 	}
 	manager := startNodeWorkerProcessSmokeManager(t, true, "smoke-mock")
 	response := waitForProcessSmokeRunScript(t, manager)
-	if response.JobID != "job-1" || len(response.Plots) == 0 || response.Metadata.WorkerID != "pineworker-1" {
+	if response.JobID != "job-1" || len(response.OrderIntents) == 0 || response.Metadata.WorkerID != "pineworker-1" {
 		t.Fatalf("unexpected worker response: %#v", response)
+	}
+	if response.Metadata.PeakRSSBytes <= 0 {
+		t.Fatalf("worker peak RSS was not reported: %#v", response.Metadata)
 	}
 }
 

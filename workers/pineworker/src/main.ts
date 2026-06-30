@@ -8,10 +8,12 @@ declare const process: {
   argv?: string[];
   on?: (event: string, handler: (error: unknown) => void) => unknown;
   once?: (event: string, handler: () => void) => unknown;
+  resourceUsage?: () => { maxRSS: number };
 } | undefined;
 
 const args = parseArgs((process?.argv ?? []).slice(2));
 installFatalErrorLogging();
+const peakRSSBytes = createPeakRSSReader();
 const executor = args.mock ? new DeterministicPineTSExecutor() : await createNativePineTSExecutor(args.pinetsVersion);
 
 const server = await startWorkerGrpcServer({
@@ -22,6 +24,7 @@ const server = await startWorkerGrpcServer({
   grpc,
   protoLoader,
   maxMessageBytes: args.maxMessageBytes,
+  peakRSSBytes,
 });
 await waitForShutdown(server.shutdown);
 
@@ -72,4 +75,19 @@ function installFatalErrorLogging(): void {
   process?.on?.("unhandledRejection", (error) => {
     console.error("pineworker unhandled rejection", error);
   });
+}
+
+function createPeakRSSReader(): () => number {
+  if (!process?.resourceUsage) {
+    throw new Error("process.resourceUsage is required for Pine worker RSS accounting");
+  }
+  const read = () => {
+    const maxRSSKiB = process.resourceUsage!().maxRSS;
+    if (!Number.isFinite(maxRSSKiB) || maxRSSKiB <= 0) {
+      throw new Error(`invalid Pine worker max RSS: ${maxRSSKiB}`);
+    }
+    return Math.round(maxRSSKiB * 1024);
+  };
+  read();
+  return read;
 }

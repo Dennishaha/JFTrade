@@ -1,5 +1,5 @@
 import { PineTS } from "pinets";
-import type { PineTSExecutor, PineTSRunResult, RunScriptRequest } from "./types";
+import type { PineTSExecutor, PineTSRunResult, PreparedRunScriptRequest } from "./types";
 
 type PineTSModule = {
   PineTS: new (candles: unknown[], symbol?: string, timeframe?: string, periods?: number) => {
@@ -15,16 +15,17 @@ export class NativePineTSExecutor implements PineTSExecutor {
     return this.pineTSVersion;
   }
 
-  async run(request: RunScriptRequest): Promise<PineTSRunResult> {
+  async run(request: PreparedRunScriptRequest): Promise<PineTSRunResult> {
     const periods = Math.max(1, request.candles.length);
     const pineTS = new this.module.PineTS(
-      request.candles.map(toPineTSCandle),
+      request.candles as Record<string, number>[],
       request.symbol,
       request.timeframe,
       periods,
     );
     pineTS.setAlertMode?.("all");
-    return pineTS.run(normalizePineSourceForPineTS(request.source), periods);
+    const result = await pineTS.run(normalizePineSourceForPineTS(request.source), periods);
+    return compactPineTSResult(result, request.includePlots !== false);
   }
 }
 
@@ -32,16 +33,54 @@ export async function createNativePineTSExecutor(version = "unknown"): Promise<N
   return new NativePineTSExecutor({ PineTS }, version);
 }
 
-function toPineTSCandle(candle: RunScriptRequest["candles"][number]): Record<string, number> {
+function compactPineTSResult(result: PineTSRunResult, includePlots: boolean): PineTSRunResult {
+  const compact: PineTSRunResult = {};
+  if (includePlots && result.plots !== undefined) compact.plots = result.plots;
+  if (result.alerts !== undefined) compact.alerts = result.alerts;
+  if (result.visualOutputs !== undefined) compact.visualOutputs = result.visualOutputs;
+  if (result.drawings !== undefined) compact.drawings = result.drawings;
+  if (result.logs !== undefined) compact.logs = result.logs;
+  if (result.warnings !== undefined) compact.warnings = result.warnings;
+  if (result.diagnostics !== undefined) compact.diagnostics = result.diagnostics;
+  if (result.orderIntents !== undefined) compact.orderIntents = result.orderIntents;
+  if (result.strategy !== undefined) compact.strategy = compactStrategyResult(result.strategy);
+  return compact;
+}
+
+function compactStrategyResult(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+  const source = value as Record<string, unknown>;
   return {
-    openTime: candle.openTime,
-    closeTime: candle.closeTime ?? candle.openTime,
-    open: candle.open,
-    high: candle.high,
-    low: candle.low,
-    close: candle.close,
-    volume: candle.volume,
+    closedtrades: compactTrades(source.closedtrades, true),
+    opentrades: compactTrades(source.opentrades, false),
+    buy_and_hold_pnl: source.buy_and_hold_pnl ?? source.buyAndHoldPnl,
+    buy_and_hold_per_gain: source.buy_and_hold_per_gain ?? source.buyAndHoldPerGain,
+    strategy_outperformance: source.strategy_outperformance ?? source.strategyOutperformance,
   };
+}
+
+function compactTrades(value: unknown, includeExit: boolean): unknown[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (typeof item !== "object" || item === null) {
+      return [];
+    }
+    const source = item as Record<string, unknown>;
+    const trade: Record<string, unknown> = {
+      entry_id: source.entry_id,
+      entry_bar_index: source.entry_bar_index,
+      size: source.size,
+    };
+    if (includeExit) {
+      trade.exit_id = source.exit_id;
+      trade.exit_bar_index = source.exit_bar_index;
+    }
+    return [trade];
+  });
 }
 
 export function normalizePineSourceForPineTS(source: string): string {

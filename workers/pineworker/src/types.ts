@@ -23,6 +23,16 @@ export type RunScriptRequest = {
   mode?: RunMode | string;
   candles: Candle[];
   params?: Record<string, string>;
+  includePlots?: boolean;
+};
+
+export const preparedRunScriptRequest = Symbol("preparedRunScriptRequest");
+
+export type PreparedRunScriptRequest = RunScriptRequest & {
+  readonly [preparedRunScriptRequest]: {
+    readonly requestBytes: number;
+    readonly dataHash: string;
+  };
 };
 
 export type Diagnostic = {
@@ -138,7 +148,7 @@ export type PineTSRunResult = {
 };
 
 export type PineTSExecutor = {
-  run(request: RunScriptRequest): Promise<PineTSRunResult>;
+  run(request: PreparedRunScriptRequest): Promise<PineTSRunResult>;
   version(): string;
 };
 

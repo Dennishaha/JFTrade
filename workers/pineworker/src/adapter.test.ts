@@ -1,9 +1,20 @@
+import { createHash } from "node:crypto";
 import { describe, expect, test } from "vitest";
 import { buildResponse, runScriptWithPineTS } from "./adapter";
 import { DeterministicPineTSExecutor } from "./mockExecutor";
-import type { PineTSExecutor, RunScriptRequest } from "./types";
+import { prepareCandleBatch, prepareRunScriptRequest } from "./preparedRequest";
+import type { PineTSExecutor, PreparedRunScriptRequest, RunScriptRequest } from "./types";
 
 describe("runScriptWithPineTS", () => {
+  test("rejects unprepared requests instead of recomputing metadata", async () => {
+    const raw = { ...validRequest() } as PreparedRunScriptRequest;
+    await expect(runScriptWithPineTS(raw, {
+      workerId: "worker-1",
+      executor: new DeterministicPineTSExecutor(),
+      peakRSSBytes: () => 123,
+    })).rejects.toThrow("prepared Pine worker request is required");
+  });
+
   test("returns normalized plots, logs, metadata, and order intents", async () => {
     const response = await runScriptWithPineTS(validRequest(), {
       workerId: "worker-1",
@@ -42,15 +53,20 @@ describe("runScriptWithPineTS", () => {
     expect(response.logs[0]).toContain("job-1");
     expect(response.metadata.workerId).toBe("worker-1");
     expect(response.metadata.pineTSVersion).toBe("mock-pinets-0.0.0");
-    expect(response.metadata.requestBytes).toBeGreaterThan(0);
-    expect(response.metadata.responseBytes).toBeGreaterThan(0);
+    expect(response.metadata.requestBytes).toBe(Buffer.byteLength(JSON.stringify(validRequest()), "utf8"));
+    expect(response.metadata.dataHash).toBe(createHash("sha256").update(JSON.stringify(validRequest().candles)).digest("hex"));
+    expect(response.metadata.responseBytes).toBe(Buffer.byteLength(JSON.stringify({
+      ...response,
+      metadata: { ...response.metadata, responseBytes: 0 },
+    }), "utf8"));
     expect(response.metadata.peakRSSBytes).toBe(123);
   });
 
   test("maps validation failure to an error response", async () => {
-    const response = await runScriptWithPineTS({ ...validRequest(), jobId: "" }, {
+    const response = await runScriptWithPineTS(validRequest({ jobId: "" }), {
       workerId: "worker-1",
       executor: new DeterministicPineTSExecutor(),
+      peakRSSBytes: () => 123,
     });
 
     expect(response.error).toContain("job id is required");
@@ -60,6 +76,17 @@ describe("runScriptWithPineTS", () => {
     });
   });
 
+  test("preserves non-finite candle validation on prepared requests", async () => {
+    const response = await runScriptWithPineTS(validRequest({
+      candles: [{ openTime: 1, closeTime: 2, open: 1, high: Number.POSITIVE_INFINITY, low: 0, close: 1, volume: 1 }],
+    }), {
+      workerId: "worker-1",
+      executor: new DeterministicPineTSExecutor(),
+      peakRSSBytes: () => 123,
+    });
+    expect(response.error).toContain("high must be finite");
+  });
+
   test("maps executor failure to an error response", async () => {
     const executor: PineTSExecutor = {
       version: () => "failing-pinets",
@@ -67,10 +94,24 @@ describe("runScriptWithPineTS", () => {
         throw new Error("pinets runtime exploded");
       },
     };
-    const response = await runScriptWithPineTS(validRequest(), { workerId: "worker-1", executor });
+    const response = await runScriptWithPineTS(validRequest(), { workerId: "worker-1", executor, peakRSSBytes: () => 123 });
 
     expect(response.error).toBe("pinets runtime exploded");
     expect(response.metadata.pineTSVersion).toBe("failing-pinets");
+  });
+
+  test("omits plots and outputs when the protocol disables plot return", async () => {
+    const response = await runScriptWithPineTS(validRequest({ includePlots: false }), {
+      workerId: "worker-1",
+      executor: new DeterministicPineTSExecutor(),
+      peakRSSBytes: () => 123,
+    });
+
+    expect(response.error).toBeUndefined();
+    expect(response.plots).toEqual([]);
+    expect(response.outputs).toEqual([]);
+    expect(response.orderIntents).toHaveLength(1);
+    expect(response.metadata.requestBytes).toBe(Buffer.byteLength(JSON.stringify(validRequest({ includePlots: false })), "utf8"));
   });
 });
 
@@ -270,8 +311,8 @@ describe("buildResponse", () => {
   });
 });
 
-function validRequest(): RunScriptRequest {
-  return {
+function validRequest(overrides: Partial<RunScriptRequest> = {}): PreparedRunScriptRequest {
+  const request: RunScriptRequest = {
     jobId: "job-1",
     scriptId: "script-1",
     source: `//@version=6\nstrategy("x")\nplot(close, "close")`,
@@ -283,5 +324,8 @@ function validRequest(): RunScriptRequest {
       { openTime: 1_700_000_060_000, open: 10, high: 13, low: 9, close: 12, volume: 110 },
     ],
     params: { threshold: "10" },
+	...overrides,
   };
+	const { candles, ...fields } = request;
+	return prepareRunScriptRequest(fields, prepareCandleBatch(candles));
 }

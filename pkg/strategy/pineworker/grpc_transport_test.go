@@ -2,6 +2,7 @@ package pineworker
 
 import (
 	"context"
+	"encoding/binary"
 	"net"
 	"testing"
 	"time"
@@ -105,7 +106,7 @@ func (testPineWorkerServer) RunScript(ctx context.Context, request *pineworkerpb
 			Direction:   "long",
 			Quantity:    1,
 			BarIndex:    0,
-			Time:        request.GetCandles()[0].GetOpenTime(),
+			Time:        int64(binary.LittleEndian.Uint64(request.GetCandles().GetPayload())),
 			HasQuantity: true,
 		}},
 		Metadata: &pineworkerpb.WorkerMetadata{

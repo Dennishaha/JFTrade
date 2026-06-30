@@ -1,38 +1,35 @@
 import type {
-  Candle,
   Diagnostic,
   HealthStatus,
   OrderIntent,
   PlotOutput,
+  PreparedRunScriptRequest,
   RunScriptRequest,
   RunScriptResponse,
-  SeriesOutput,
   StrategyMetrics,
   AlertEvent,
   VisualOutput,
   WorkerMetadata,
 } from "./types";
+import { PreparedCandleBatchBuilder, prepareRunScriptRequest } from "./preparedRequest";
 
-type ProtoCandle = {
-  open_time?: number;
-  openTime?: number;
-  close_time?: number;
-  closeTime?: number;
-  open?: number;
-  high?: number;
-  low?: number;
-  close?: number;
-  volume?: number;
+type ProtoCandleBatch = {
+  encoding_version?: unknown;
+  encodingVersion?: unknown;
+  payload?: unknown;
 };
 
-export function runScriptRequestFromProto(value: Record<string, unknown>): RunScriptRequest {
-  const candles = arrayValue<ProtoCandle>(field(value, "candles")).map(candleFromProto);
-  const request: RunScriptRequest = {
+export const candleBatchEncodingVersion = 1;
+export const candleBatchRecordBytes = 56;
+const maxCandleBatchRecords = 200_000;
+
+export function runScriptRequestFromProto(value: Record<string, unknown>): PreparedRunScriptRequest {
+  const batch = candleBatchFromProto(asRecord(field(value, "candles")));
+  const request: Omit<RunScriptRequest, "candles"> = {
     jobId: stringField(value, "job_id", "jobId"),
     source: stringField(value, "source"),
     symbol: stringField(value, "symbol"),
     timeframe: stringField(value, "timeframe"),
-    candles,
     params: mapField(value, "params"),
   };
   const scriptId = optionalStringField(value, "script_id", "scriptId");
@@ -43,13 +40,16 @@ export function runScriptRequestFromProto(value: Record<string, unknown>): RunSc
   if (mode !== undefined) {
     request.mode = mode;
   }
-  return request;
+  const includePlots = optionalBooleanField(value, "include_plots", "includePlots");
+  if (includePlots !== undefined) {
+    request.includePlots = includePlots;
+  }
+  return prepareRunScriptRequest(request, batch);
 }
 
 export function runScriptResponseToProto(response: RunScriptResponse): Record<string, unknown> {
   const proto: Record<string, unknown> = {
     job_id: response.jobId,
-    outputs: response.outputs.map(seriesOutputToProto),
     plots: response.plots.map(plotToProto),
     order_intents: response.orderIntents.map(orderIntentToProto),
     alerts: response.alerts.map(alertToProto),
@@ -76,28 +76,38 @@ export function healthStatusToProto(status: HealthStatus): Record<string, unknow
   };
 }
 
-function candleFromProto(value: ProtoCandle): Candle {
-  const candle: Candle = {
-    openTime: numberField(value, "open_time", "openTime"),
-    open: numberField(value, "open"),
-    high: numberField(value, "high"),
-    low: numberField(value, "low"),
-    close: numberField(value, "close"),
-    volume: numberField(value, "volume"),
-  };
-  const closeTime = optionalNumberField(value, "close_time", "closeTime");
-  if (closeTime !== undefined) {
-    candle.closeTime = closeTime;
+function candleBatchFromProto(value: Record<string, unknown>) {
+  const batch = value as ProtoCandleBatch;
+  const version = Number(field(batch as Record<string, unknown>, "encoding_version", "encodingVersion") ?? 0);
+  if (version !== candleBatchEncodingVersion) {
+    throw new Error(`unsupported candle batch encoding version: ${version}`);
   }
-  return candle;
-}
-
-function seriesOutputToProto(output: SeriesOutput): Record<string, unknown> {
-  return {
-    name: output.name,
-    kind: output.kind,
-    values: output.values,
-  };
+  const rawPayload = field(batch as Record<string, unknown>, "payload");
+  if (!(rawPayload instanceof Uint8Array)) {
+    throw new Error("candle batch payload is required");
+  }
+  const payload = Buffer.from(rawPayload.buffer, rawPayload.byteOffset, rawPayload.byteLength);
+  if (payload.byteLength % candleBatchRecordBytes !== 0) {
+    throw new Error(`candle batch payload length ${payload.byteLength} is not a multiple of ${candleBatchRecordBytes}`);
+  }
+  const count = payload.byteLength / candleBatchRecordBytes;
+  if (count > maxCandleBatchRecords) {
+    throw new Error(`too many candles: ${count} > ${maxCandleBatchRecords}`);
+  }
+  const builder = new PreparedCandleBatchBuilder(count);
+  for (let index = 0; index < count; index++) {
+    const offset = index * candleBatchRecordBytes;
+    builder.set(index, {
+      openTime: Number(payload.readBigInt64LE(offset)),
+      closeTime: Number(payload.readBigInt64LE(offset + 8)),
+      open: payload.readDoubleLE(offset + 16),
+      high: payload.readDoubleLE(offset + 24),
+      low: payload.readDoubleLE(offset + 32),
+      close: payload.readDoubleLE(offset + 40),
+      volume: payload.readDoubleLE(offset + 48),
+    });
+  }
+  return builder.finish();
 }
 
 function plotToProto(plot: PlotOutput): Record<string, unknown> {
@@ -197,21 +207,12 @@ function optionalStringField(value: Record<string, unknown>, snake: string, came
   return typeof raw === "string" && raw !== "" ? raw : undefined;
 }
 
-function numberField(value: Record<string, unknown>, snake: string, camel = snake): number {
-  const raw = field(value, snake, camel);
-  return typeof raw === "number" ? raw : Number(raw ?? 0);
-}
-
-function optionalNumberField(value: Record<string, unknown>, snake: string, camel = snake): number | undefined {
+function optionalBooleanField(value: Record<string, unknown>, snake: string, camel = snake): boolean | undefined {
   const raw = field(value, snake, camel);
   if (raw === undefined || raw === null) {
     return undefined;
   }
-  return typeof raw === "number" ? raw : Number(raw);
-}
-
-function arrayValue<T>(value: unknown): T[] {
-  return Array.isArray(value) ? value as T[] : [];
+  return typeof raw === "boolean" ? raw : String(raw).toLowerCase() === "true";
 }
 
 function mapField(value: Record<string, unknown>, key: string): Record<string, string> {
@@ -220,4 +221,8 @@ function mapField(value: Record<string, unknown>, key: string): Record<string, s
     return {};
   }
   return Object.fromEntries(Object.entries(raw).map(([entryKey, entryValue]) => [entryKey, String(entryValue)]));
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }

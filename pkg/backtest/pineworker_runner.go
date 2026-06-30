@@ -120,18 +120,17 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 	btExchange.BindUserData(jftradeCheckedTypeAssertion[types.StandardStreamEmitter](session.UserDataStream))
 	btExchange.MarketDataStream = jftradeCheckedTypeAssertion[types.StandardStreamEmitter](session.MarketDataStream)
 
-	replayKLines, err := CollectPineWorkerReplayKLines(streamer, queryStartTime, cfg.EndTime, btExchange, cfg.Symbol, strategyInterval)
+	replayKLines, err := collectPineWorkerReplayKLineBatch(streamer, queryStartTime, cfg.EndTime, btExchange, cfg.Symbol, strategyInterval)
 	if err != nil {
 		result.Error = err.Error()
 		return result
 	}
-	plan, err := (PineWorkerReplayPlanner{Adapter: PineWorkerBacktestAdapter{Runner: runner}}).Plan(ctx, PineWorkerReplayPlanRequest{
+	plan, err := planPineWorkerCompactReplay(ctx, PineWorkerBacktestAdapter{Runner: runner}, PineWorkerReplayPlanRequest{
 		JobID:     defaultPineWorkerReplayJobID(cfg.Symbol, cfg.Interval),
 		Source:    cfg.StrategyScript,
 		Symbol:    cfg.Symbol,
 		Timeframe: cfg.Interval,
-		KLines:    replayKLines,
-	})
+	}, replayKLines)
 	if err != nil {
 		result.Error = fmt.Sprintf("plan pine worker replay: %v", err)
 		return result
@@ -159,9 +158,9 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 	}
 
 	collector := newResultCollector(cfg.Symbol, strategyInterval, quoteCurrency, warmupUntil, result)
-	if estimatedBars := estimateReplayBarCapacity(warmupUntil, cfg.EndTime, strategyInterval); estimatedBars > 0 {
-		collector.candles = make([]Candle, 0, estimatedBars)
-		collector.pnlCurve = make([]PnLPoint, 0, estimatedBars)
+	if resultCapacity := replayKLines.resultCapacity(warmupUntil); resultCapacity > 0 {
+		collector.candles = make([]Candle, 0, resultCapacity)
+		collector.pnlCurve = make([]PnLPoint, 0, resultCapacity)
 	}
 	feeEngine := newBacktestFeeEngine(session.Account, quoteCurrency, cfg.InstrumentType, cfg.TradingCosts, result, collector.recordTradeFees)
 	session.UserDataStream.OnTradeUpdate(feeEngine.onTradeUpdate)
@@ -177,18 +176,22 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 		MarketResolver: session,
 		PositionSizer:  replaySizer,
 	}
-	replayState := newPineWorkerBacktestReplayState(plan, commandExecutor)
+	replayState := newPineWorkerBacktestReplayState(replayKLines, plan.Commands, commandExecutor)
 	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {
 		session.LastPrices()[kline.Symbol] = kline.Close
 		if err := replayState.onKLineClosed(ctx, kline); err != nil {
 			result.Error = fmt.Sprintf("pine worker replay command: %v", err)
 		}
 	})
-	for _, kline := range replayKLines {
+	replayKLines.forEach(func(kline types.KLine) bool {
 		if result.Error != "" {
-			return result
+			return false
 		}
 		btExchange.ConsumeKLine(kline, strategyInterval)
+		return true
+	})
+	if result.Error != "" {
+		return result
 	}
 	if err := btExchange.CloseMarketData(); err != nil {
 		log.Printf("backtest close market data: %v", err)
@@ -253,27 +256,40 @@ func pineWorkerBacktestConfig(cfg RunConfig, quoteCurrency string, metadata stra
 }
 
 type pineWorkerBacktestReplayState struct {
-	plan            PineWorkerReplayPlan
+	klines          *pineWorkerReplayKLineBatch
+	commands        []WorkerOrderCommand
 	commandExecutor *PineWorkerCommandExecutor
 	nextBarIndex    int
+	nextCommand     int
 }
 
-func newPineWorkerBacktestReplayState(plan PineWorkerReplayPlan, commandExecutor *PineWorkerCommandExecutor) *pineWorkerBacktestReplayState {
-	return &pineWorkerBacktestReplayState{plan: plan, commandExecutor: commandExecutor}
+func newPineWorkerBacktestReplayState(
+	klines *pineWorkerReplayKLineBatch,
+	commands []WorkerOrderCommand,
+	commandExecutor *PineWorkerCommandExecutor,
+) *pineWorkerBacktestReplayState {
+	return &pineWorkerBacktestReplayState{klines: klines, commands: commands, commandExecutor: commandExecutor}
 }
 
 func (state *pineWorkerBacktestReplayState) onKLineClosed(ctx context.Context, kline types.KLine) error {
-	if state.nextBarIndex >= state.plan.CandleCount {
+	if state.nextBarIndex >= state.klines.Len() {
 		return fmt.Errorf("received extra closed kline at index %d", state.nextBarIndex)
 	}
-	expected := state.plan.Request.Candles[state.nextBarIndex]
-	if openTime := kline.StartTime.Time().UnixMilli(); expected.OpenTime > 0 && openTime != expected.OpenTime {
-		return fmt.Errorf("closed kline %d open time %d does not match planned candle %d", state.nextBarIndex, openTime, expected.OpenTime)
+	expected, ok := state.klines.At(state.nextBarIndex)
+	if !ok {
+		return fmt.Errorf("missing planned kline at index %d", state.nextBarIndex)
+	}
+	if openTime, expectedOpenTime := kline.StartTime.Time().UnixMilli(), expected.StartTime.Time().UnixMilli(); expectedOpenTime > 0 && openTime != expectedOpenTime {
+		return fmt.Errorf("closed kline %d open time %d does not match planned candle %d", state.nextBarIndex, openTime, expectedOpenTime)
 	}
 	barIndex := state.nextBarIndex
 	state.nextBarIndex++
-	if commands := state.plan.ByBarIndex[barIndex]; len(commands) > 0 {
-		if err := state.commandExecutor.ExecuteBarCommands(ctx, commands); err != nil {
+	commandStart := state.nextCommand
+	for state.nextCommand < len(state.commands) && state.commands[state.nextCommand].BarIndex == barIndex {
+		state.nextCommand++
+	}
+	if state.nextCommand > commandStart {
+		if err := state.commandExecutor.ExecuteBarCommands(ctx, state.commands[commandStart:state.nextCommand]); err != nil {
 			return fmt.Errorf("execute commands for bar %d: %w", barIndex, err)
 		}
 	}

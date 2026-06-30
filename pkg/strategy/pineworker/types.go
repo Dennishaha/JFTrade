@@ -165,6 +165,11 @@ type RunScriptResponse struct {
 }
 
 func ValidateRunScriptRequest(request RunScriptRequest, config WorkerConfig) error {
+	_, err := validateAndMeasureRunScriptRequest(request, config)
+	return err
+}
+
+func validateRunScriptRequestBasics(request RunScriptRequest, config WorkerConfig) error {
 	if strings.TrimSpace(request.JobID) == "" {
 		return fmt.Errorf("job id is required")
 	}
@@ -185,11 +190,6 @@ func ValidateRunScriptRequest(request RunScriptRequest, config WorkerConfig) err
 	}
 	if config.MaxCandlesPerRequest > 0 && len(request.Candles) > config.MaxCandlesPerRequest {
 		return fmt.Errorf("too many candles: %d > %d", len(request.Candles), config.MaxCandlesPerRequest)
-	}
-	for index, candle := range request.Candles {
-		if err := validateCandle(candle); err != nil {
-			return fmt.Errorf("candle %d: %w", index, err)
-		}
 	}
 	return nil
 }

@@ -65,23 +65,39 @@ export function createServiceHandlers(options: RunAdapterOptions): Record<string
       callback(null, healthStatusToProto(healthStatus(options)));
     },
     RunScript: async (call: UnaryCall, callback: UnaryCallback) => {
-      const request = runScriptRequestFromProto(asRecord(call.request));
-      const response = await runScriptWithPineTS(request, options);
-      callback(null, runScriptResponseToProto(response));
+      try {
+        const request = runScriptRequestFromProto(asRecord(call.request));
+        call.request = undefined;
+        const response = await runScriptWithPineTS(request, options);
+        callback(null, runScriptResponseToProto(response));
+      } catch (error) {
+        call.request = undefined;
+        callback(error instanceof Error ? error : new Error(String(error)));
+      }
     },
     AnalyzeScript: async (call: UnaryCall, callback: UnaryCallback) => {
-      const request = runScriptRequestFromProto({ ...asRecord(call.request), mode: "analyze", candles: [] });
-      const response = await runScriptWithPineTS(request, options);
-      callback(null, {
-        job_id: response.jobId,
-        ok: response.error === undefined,
-        diagnostics: response.diagnostics,
-        inputs: [],
-        plots: response.plots.map((plot) => plot.name),
-        strategy_config: {},
-        metadata: runScriptResponseToProto(response).metadata,
-        error: response.error ?? "",
-      });
+      try {
+        const request = runScriptRequestFromProto({
+          ...asRecord(call.request),
+          mode: "analyze",
+          candles: { encoding_version: 1, payload: Buffer.alloc(0) },
+        });
+        call.request = undefined;
+        const response = await runScriptWithPineTS(request, options);
+        callback(null, {
+          job_id: response.jobId,
+          ok: response.error === undefined,
+          diagnostics: response.diagnostics,
+          inputs: [],
+          plots: response.plots.map((plot) => plot.name),
+          strategy_config: {},
+          metadata: runScriptResponseToProto(response).metadata,
+          error: response.error ?? "",
+        });
+      } catch (error) {
+        call.request = undefined;
+        callback(error instanceof Error ? error : new Error(String(error)));
+      }
     },
   };
 }
@@ -140,7 +156,7 @@ export function includeDirsForProto(path: string): string[] {
 }
 
 type UnaryCall = {
-  request: unknown;
+  request?: unknown;
 };
 
 type UnaryCallback = (error: Error | null, response?: unknown) => void;

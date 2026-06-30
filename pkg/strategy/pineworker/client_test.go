@@ -2,6 +2,7 @@ package pineworker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -67,6 +68,31 @@ func TestClientRunScriptRejectsOversizedRequest(t *testing.T) {
 	}
 	if transport.calls != 0 {
 		t.Fatalf("transport calls = %d, want 0", transport.calls)
+	}
+}
+
+func TestJSONSizeMatchesMarshalForRunScriptRequest(t *testing.T) {
+	request := validClientRequest()
+	request.Source += "\n// <>&"
+	request.Candles = append(request.Candles, Candle{
+		OpenTime:  1_700_000_060_000,
+		CloseTime: 1_700_000_120_000,
+		Open:      11,
+		High:      13,
+		Low:       10,
+		Close:     12,
+		Volume:    120,
+	})
+	data, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	size, err := jsonSize(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size != len(data) {
+		t.Fatalf("jsonSize = %d, want %d", size, len(data))
 	}
 }
 

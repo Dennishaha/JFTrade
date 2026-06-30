@@ -4,14 +4,9 @@ package jftrade.strategy.pineworker.v1;
 
 option go_package = "github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpb";
 
-message Candle {
-  int64 open_time = 1;
-  int64 close_time = 2;
-  double open = 3;
-  double high = 4;
-  double low = 5;
-  double close = 6;
-  double volume = 7;
+message CandleBatch {
+  uint32 encoding_version = 1;
+  bytes payload = 2;
 }
 
 message Diagnostic {
@@ -20,12 +15,6 @@ message Diagnostic {
   string message = 3;
   int32 line = 4;
   int32 column = 5;
-}
-
-message SeriesOutput {
-  string name = 1;
-  string kind = 2;
-  repeated double values = 3;
 }
 
 message PlotOutput {
