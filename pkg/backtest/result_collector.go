@@ -39,16 +39,20 @@ type resultCollector struct {
 	warnedBadClose      bool
 	lastCashTotal       fixedpoint.Value
 	hasLastCashTotal    bool
+	orderFees           map[uint64]appliedTradeFees
+	tradeIndexByOrderID map[uint64]int
 }
 
 func newResultCollector(symbol string, strategyInterval types.Interval, quoteCurrency string, warmupUntil time.Time, result *RunResult) *resultCollector {
 	return &resultCollector{
-		symbol:           symbol,
-		strategyInterval: strategyInterval,
-		quoteCurrency:    quoteCurrency,
-		warmupUntil:      warmupUntil,
-		result:           result,
-		orderBookIndex:   make(map[string]int),
+		symbol:              symbol,
+		strategyInterval:    strategyInterval,
+		quoteCurrency:       quoteCurrency,
+		warmupUntil:         warmupUntil,
+		result:              result,
+		orderBookIndex:      make(map[string]int),
+		orderFees:           make(map[uint64]appliedTradeFees),
+		tradeIndexByOrderID: make(map[uint64]int),
 	}
 }
 
@@ -70,12 +74,18 @@ func (c *resultCollector) onOrderUpdate(order types.Order) {
 		if price.IsZero() {
 			price = order.Price
 		}
+		fees := c.feesForOrder(order.OrderID)
 		c.result.Trades = append(c.result.Trades, TradeEvent{
-			Time:  order.UpdateTime.Time().UTC().Format(time.RFC3339Nano),
-			Side:  string(order.Side),
-			Price: price.String(),
-			Qty:   order.Quantity.String(),
+			Time:        order.UpdateTime.Time().UTC().Format(time.RFC3339Nano),
+			Side:        string(order.Side),
+			Price:       price.String(),
+			Qty:         order.Quantity.String(),
+			BrokerFee:   fees.BrokerFee,
+			MarketFee:   fees.MarketFee,
+			TotalFee:    fees.TotalFee,
+			FeeCurrency: fees.FeeCurrency,
 		})
+		c.tradeIndexByOrderID[order.OrderID] = len(c.result.Trades) - 1
 	}
 	switch order.Side {
 	case types.SideTypeBuy:
@@ -131,7 +141,54 @@ func (c *resultCollector) recordOrderBookEntry(order types.Order) {
 		if !price.IsZero() {
 			state.entry.FilledPrice = price.String()
 		}
+		c.applyOrderFeesToEntry(order.OrderID, &state.entry)
 	}
+}
+
+func (c *resultCollector) recordTradeFees(trade types.Trade, fees appliedTradeFees) {
+	if trade.OrderID == 0 || fees.TotalFee <= 0 {
+		return
+	}
+	existing := c.orderFees[trade.OrderID]
+	existing.BrokerFee += fees.BrokerFee
+	existing.MarketFee += fees.MarketFee
+	existing.TotalFee += fees.TotalFee
+	if existing.FeeCurrency == "" {
+		existing.FeeCurrency = fees.FeeCurrency
+	}
+	c.orderFees[trade.OrderID] = existing
+
+	if index, ok := c.tradeIndexByOrderID[trade.OrderID]; ok && index >= 0 && index < len(c.result.Trades) {
+		c.result.Trades[index].BrokerFee = existing.BrokerFee
+		c.result.Trades[index].MarketFee = existing.MarketFee
+		c.result.Trades[index].TotalFee = existing.TotalFee
+		c.result.Trades[index].FeeCurrency = existing.FeeCurrency
+	}
+	if index, ok := c.orderBookIndex["id:"+fmt.Sprint(trade.OrderID)]; ok && index >= 0 && index < len(c.orderBook) {
+		c.applyOrderFeesToEntry(trade.OrderID, &c.orderBook[index].entry)
+	}
+	c.hasLastCashTotal = false
+}
+
+func (c *resultCollector) feesForOrder(orderID uint64) appliedTradeFees {
+	if orderID == 0 {
+		return appliedTradeFees{}
+	}
+	return c.orderFees[orderID]
+}
+
+func (c *resultCollector) applyOrderFeesToEntry(orderID uint64, entry *OrderBookEntry) {
+	if entry == nil {
+		return
+	}
+	fees := c.feesForOrder(orderID)
+	if fees.TotalFee <= 0 {
+		return
+	}
+	entry.BrokerFee = fees.BrokerFee
+	entry.MarketFee = fees.MarketFee
+	entry.TotalFee = fees.TotalFee
+	entry.FeeCurrency = fees.FeeCurrency
 }
 
 func orderBookEntryKey(order types.Order) string {

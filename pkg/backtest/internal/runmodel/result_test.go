@@ -34,6 +34,21 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 		RuntimeErrorCounts:     map[string]int{"partial fill warning": 2},
 		RuntimeErrorTotal:      2,
 		RuntimeErrorsTruncated: true,
+		TotalBrokerFees:        18,
+		TotalMarketFees:        11.27,
+		TotalFees:              29.27,
+		FeeBreakdown:           []FeeBreakdownEntry{{RuleID: "hk_stamp_duty", Group: "market", Amount: 10, Count: 1}},
+		TradingCosts: TradingCosts{
+			BrokerFees: FeeSchedule{
+				Mode:     "market_preset",
+				PresetID: "futu_hk_hk_stock_2026_06_30",
+				Rules: []FeeRule{{
+					ID:        "futu_hk_hk_commission",
+					Category:  "broker",
+					AppliesTo: []string{"stock", "etf"},
+				}},
+			},
+		},
 	}
 
 	snapshot := original.Snapshot()
@@ -49,6 +64,8 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 	snapshot.Logs[0] = "changed"
 	snapshot.RuntimeErrors[0] = "changed"
 	snapshot.RuntimeErrorCounts["partial fill warning"] = 9
+	snapshot.FeeBreakdown[0].Amount = 0
+	snapshot.TradingCosts.BrokerFees.Rules[0].AppliesTo[0] = "mutated"
 
 	if original.Trades[0].Price != "100" {
 		t.Fatalf("original trade mutated: %#v", original.Trades)
@@ -73,6 +90,15 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 	}
 	if original.RuntimeErrorCounts["partial fill warning"] != 2 {
 		t.Fatalf("original runtime error counts mutated: %#v", original.RuntimeErrorCounts)
+	}
+	if original.FeeBreakdown[0].Amount != 10 {
+		t.Fatalf("original fee breakdown mutated: %#v", original.FeeBreakdown)
+	}
+	if original.TradingCosts.BrokerFees.Rules[0].AppliesTo[0] != "stock" {
+		t.Fatalf("original fee rule appliesTo mutated: %#v", original.TradingCosts.BrokerFees.Rules[0].AppliesTo)
+	}
+	if snapshot.TotalBrokerFees != 18 || snapshot.TotalMarketFees != 11.27 || snapshot.TotalFees != 29.27 {
+		t.Fatalf("snapshot fee totals lost: broker=%f market=%f total=%f", snapshot.TotalBrokerFees, snapshot.TotalMarketFees, snapshot.TotalFees)
 	}
 }
 

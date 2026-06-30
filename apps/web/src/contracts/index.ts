@@ -1814,6 +1814,7 @@ export interface BacktestStartRequestPayload {
   market?: string;
   code?: string;
   symbol?: string;
+  instrumentType?: string;
   interval: string;
   startDate: string;
   endDate: string;
@@ -1822,6 +1823,37 @@ export interface BacktestStartRequestPayload {
   initialBalance: number;
   rehabType?: string;
   useExtendedHours?: boolean;
+  tradingCosts?: BacktestTradingCostsPayload;
+}
+
+export interface BacktestFeeRulePayload {
+  id: string;
+  label?: string;
+  category: "broker" | "exchange" | "clearing" | "regulatory" | "tax";
+  side?: "buy" | "sell" | "both";
+  basis: "notional" | "share" | "order";
+  rate?: number;
+  fixedAmount?: number;
+  minAmount?: number;
+  maxAmount?: number;
+  maxRate?: number;
+  rounding?: string;
+  currency?: string;
+  appliesTo?: string[];
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  sourceUrl?: string;
+}
+
+export interface BacktestFeeSchedulePayload {
+  mode?: "market_preset" | "custom" | "script" | "none";
+  presetId?: string;
+  rules?: BacktestFeeRulePayload[];
+}
+
+export interface BacktestTradingCostsPayload {
+  brokerFees?: BacktestFeeSchedulePayload;
+  marketFees?: BacktestFeeSchedulePayload;
 }
 
 export interface BacktestSyncRequestPayload {

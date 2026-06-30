@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { KLINE_PERIODS } from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
 import PageHeader from "../components/PageHeader.vue";
+import type { BacktestFeeRulePayload } from "../contracts";
 import { fetchEnvelope } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
 import { useMarketProfiles } from "../composables/marketProfiles";
@@ -26,6 +27,24 @@ const BACKTEST_RESULT_STATUS_OPTIONS = [
   { value: "completed", title: "已完成" },
   { value: "failed", title: "失败" },
   { value: "cancelled", title: "已取消" },
+];
+
+const BACKTEST_INSTRUMENT_TYPE_OPTIONS = [
+  { value: "stock", title: "股票" },
+  { value: "etf", title: "ETF" },
+];
+
+const BACKTEST_BROKER_FEE_MODE_OPTIONS = [
+  { value: "market_preset", title: "市场预设" },
+  { value: "script", title: "脚本" },
+  { value: "custom", title: "自定义" },
+  { value: "none", title: "关闭" },
+];
+
+const BACKTEST_MARKET_FEE_MODE_OPTIONS = [
+  { value: "market_preset", title: "市场预设" },
+  { value: "custom", title: "自定义" },
+  { value: "none", title: "关闭" },
 ];
 
 // ── Console data (reuse existing symbol search infrastructure) ──
@@ -65,8 +84,13 @@ interface StoredBacktestFormPreferences {
   startDate: string;
   endDate: string;
   initialBalance: number;
+  instrumentType: string;
   rehabType: string;
   useExtendedHours: boolean;
+  brokerFeeMode: "market_preset" | "custom" | "script" | "none";
+  marketFeeMode: "market_preset" | "custom" | "none";
+  brokerFeeRulesText: string;
+  marketFeeRulesText: string;
 }
 
 function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
@@ -80,8 +104,13 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
     startDate: defaultStartDate,
     endDate: defaultEndDate,
     initialBalance: 1000000,
+    instrumentType: "stock",
     rehabType: "forward",
     useExtendedHours: false,
+    brokerFeeMode: "market_preset",
+    marketFeeMode: "market_preset",
+    brokerFeeRulesText: "",
+    marketFeeRulesText: "",
   };
 
   if (typeof window === "undefined" || window.localStorage == null) {
@@ -98,6 +127,9 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
       KLINE_PERIODS.map((period) => period.value),
     );
     const validRehabTypes = new Set(["forward", "backward", "none"]);
+    const validInstrumentTypes = new Set(["stock", "etf"]);
+    const validBrokerFeeModes = new Set(["market_preset", "custom", "script", "none"]);
+    const validMarketFeeModes = new Set(["market_preset", "custom", "none"]);
     const normalizeDate = (value: unknown, fallback: string) => {
       const normalized = normalizeBacktestDateLabel(typeof value === "string" ? value : "");
       return normalized === "" ? fallback : normalized;
@@ -130,12 +162,35 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
           parsed.initialBalance > 0
           ? parsed.initialBalance
           : defaults.initialBalance,
+      instrumentType:
+        typeof parsed.instrumentType === "string" &&
+          validInstrumentTypes.has(parsed.instrumentType.trim().toLowerCase())
+          ? parsed.instrumentType.trim().toLowerCase()
+          : defaults.instrumentType,
       rehabType:
         typeof parsed.rehabType === "string" &&
           validRehabTypes.has(parsed.rehabType.trim().toLowerCase())
           ? parsed.rehabType.trim().toLowerCase()
           : defaults.rehabType,
       useExtendedHours: parsed.useExtendedHours === true,
+      brokerFeeMode:
+        typeof parsed.brokerFeeMode === "string" &&
+          validBrokerFeeModes.has(parsed.brokerFeeMode.trim().toLowerCase())
+          ? (parsed.brokerFeeMode.trim().toLowerCase() as StoredBacktestFormPreferences["brokerFeeMode"])
+          : defaults.brokerFeeMode,
+      marketFeeMode:
+        typeof parsed.marketFeeMode === "string" &&
+          validMarketFeeModes.has(parsed.marketFeeMode.trim().toLowerCase())
+          ? (parsed.marketFeeMode.trim().toLowerCase() as StoredBacktestFormPreferences["marketFeeMode"])
+          : defaults.marketFeeMode,
+      brokerFeeRulesText:
+        typeof parsed.brokerFeeRulesText === "string"
+          ? parsed.brokerFeeRulesText
+          : defaults.brokerFeeRulesText,
+      marketFeeRulesText:
+        typeof parsed.marketFeeRulesText === "string"
+          ? parsed.marketFeeRulesText
+          : defaults.marketFeeRulesText,
     };
   } catch {
     return defaults;
@@ -165,8 +220,13 @@ const interval = ref(storedBacktestFormPreferences.interval);
 const startDate = ref(storedBacktestFormPreferences.startDate);
 const endDate = ref(storedBacktestFormPreferences.endDate);
 const initialBalance = ref(storedBacktestFormPreferences.initialBalance);
+const instrumentType = ref(storedBacktestFormPreferences.instrumentType);
 const rehabType = ref(storedBacktestFormPreferences.rehabType); // "forward" | "backward" | "none"
 const useExtendedHours = ref(storedBacktestFormPreferences.useExtendedHours);
+const brokerFeeMode = ref(storedBacktestFormPreferences.brokerFeeMode);
+const marketFeeMode = ref(storedBacktestFormPreferences.marketFeeMode);
+const brokerFeeRulesText = ref(storedBacktestFormPreferences.brokerFeeRulesText);
+const marketFeeRulesText = ref(storedBacktestFormPreferences.marketFeeRulesText);
 
 const EXTENDED_HOURS_INTERVALS = new Set([
   "1m",
@@ -277,6 +337,28 @@ const warmupPreviewSymbol = computed(
     selectedDefinition.value?.symbol?.trim() ||
     "",
 );
+
+function parseBacktestFeeRules(raw: string): BacktestFeeRulePayload[] {
+  const trimmed = raw.trim();
+  if (trimmed === "") {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return Array.isArray(parsed) ? (parsed as BacktestFeeRulePayload[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+const brokerFeeRules = computed(() => parseBacktestFeeRules(brokerFeeRulesText.value));
+const marketFeeRules = computed(() => parseBacktestFeeRules(marketFeeRulesText.value));
+
+const costModeSummary = computed(() => {
+  const broker = BACKTEST_BROKER_FEE_MODE_OPTIONS.find((item) => item.value === brokerFeeMode.value)?.title ?? brokerFeeMode.value;
+  const market = BACKTEST_MARKET_FEE_MODE_OPTIONS.find((item) => item.value === marketFeeMode.value)?.title ?? marketFeeMode.value;
+  return `券商 ${broker} / 市场 ${market}`;
+});
 
 function quoteCurrencyFromInstrumentId(instrumentId: string | undefined) {
   const normalized = (instrumentId ?? "").trim().toUpperCase();
@@ -395,12 +477,17 @@ const backtestFormState = computed<BacktestFormState>(() => ({
     codeInput.value.includes(".") || codeInput.value.includes(":")
       ? codeInput.value.trim().toUpperCase()
       : "",
+  instrumentType: instrumentType.value,
   interval: interval.value,
   startDate: startDate.value,
   endDate: endDate.value,
   initialBalance: initialBalance.value,
   rehabType: rehabType.value,
   useExtendedHours: useExtendedHours.value,
+  brokerFeeMode: brokerFeeMode.value,
+  marketFeeMode: marketFeeMode.value,
+  brokerFeeRules: brokerFeeRules.value,
+  marketFeeRules: marketFeeRules.value,
 }));
 
 watch(
@@ -574,8 +661,13 @@ watch(
     startDate,
     endDate,
     initialBalance,
+    instrumentType,
     rehabType,
     useExtendedHours,
+    brokerFeeMode,
+    marketFeeMode,
+    brokerFeeRulesText,
+    marketFeeRulesText,
   ],
   ([
     nextDefinitionId,
@@ -585,8 +677,13 @@ watch(
     nextStartDate,
     nextEndDate,
     nextInitialBalance,
+    nextInstrumentType,
     nextRehabType,
     nextUseExtendedHours,
+    nextBrokerFeeMode,
+    nextMarketFeeMode,
+    nextBrokerFeeRulesText,
+    nextMarketFeeRulesText,
   ]) => {
     if (typeof window === "undefined" || window.localStorage == null) {
       return;
@@ -599,8 +696,13 @@ watch(
       startDate: nextStartDate,
       endDate: nextEndDate,
       initialBalance: nextInitialBalance,
+      instrumentType: nextInstrumentType,
       rehabType: nextRehabType,
       useExtendedHours: nextUseExtendedHours,
+      brokerFeeMode: nextBrokerFeeMode,
+      marketFeeMode: nextMarketFeeMode,
+      brokerFeeRulesText: nextBrokerFeeRulesText,
+      marketFeeRulesText: nextMarketFeeRulesText,
     };
     window.localStorage.setItem(
       BACKTEST_FORM_STORAGE_KEY,
@@ -870,6 +972,17 @@ function formatBacktestQuantity(value: number | undefined, raw?: string) {
   });
 }
 
+function formatBacktestFee(value: number | undefined, currency?: string) {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) {
+    return "--";
+  }
+  const amount = value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
+  return currency && currency.trim() !== "" ? `${amount} ${currency}` : amount;
+}
+
 function resolveQueriedCandleBounds(
   candles: Array<{ time: string }> | undefined,
 ) {
@@ -956,6 +1069,11 @@ watch(
               <div class="text-xs bt-text-muted">
                 {{ displayInstrumentId || "请先输入市场与代码" }}
               </div>
+              <div class="grid gap-0.5">
+                <label class="text-xs font-semibold bt-text-strong">标的类型</label>
+                <v-select v-model="instrumentType" :items="BACKTEST_INSTRUMENT_TYPE_OPTIONS" item-title="title"
+                  item-value="value" density="compact" variant="outlined" />
+              </div>
             </div>
 
             <!-- Period -->
@@ -1022,6 +1140,28 @@ watch(
                 </div>
                 <div class="text-xs bt-text-dim">{{ warmupPreviewNote }}</div>
               </div>
+            </div>
+
+            <!-- Trading costs -->
+            <div class="grid gap-2 rounded-lg border bt-border px-3 py-2">
+              <div class="text-xs font-semibold bt-text-strong">交易费用</div>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="grid gap-0.5">
+                  <label class="text-xs font-semibold bt-text-strong">券商费用</label>
+                  <v-select v-model="brokerFeeMode" :items="BACKTEST_BROKER_FEE_MODE_OPTIONS" item-title="title"
+                    item-value="value" density="compact" variant="outlined" />
+                </div>
+                <div class="grid gap-0.5">
+                  <label class="text-xs font-semibold bt-text-strong">市场费用</label>
+                  <v-select v-model="marketFeeMode" :items="BACKTEST_MARKET_FEE_MODE_OPTIONS" item-title="title"
+                    item-value="value" density="compact" variant="outlined" />
+                </div>
+              </div>
+              <div class="text-xs bt-text-dim">{{ costModeSummary }}</div>
+              <v-textarea v-if="brokerFeeMode === 'custom'" v-model="brokerFeeRulesText" label="券商费用规则 JSON"
+                density="compact" variant="outlined" rows="3" auto-grow hide-details />
+              <v-textarea v-if="marketFeeMode === 'custom'" v-model="marketFeeRulesText" label="市场费用规则 JSON"
+                density="compact" variant="outlined" rows="3" auto-grow hide-details />
             </div>
 
             <!-- Sync section -->
@@ -1183,7 +1323,7 @@ watch(
                   run.result &&
                   isTerminalBacktestStatus(run.status)
                 ">
-                  <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                  <div class="grid grid-cols-2 gap-3 lg:grid-cols-9">
                     <div :class="[statCardClass, 'px-3 py-3']">
                       <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
                         最终资金
@@ -1247,6 +1387,30 @@ watch(
                         {{ formatPercentMetric(run.result.currentDrawdown) }}
                       </div>
                     </div>
+                    <div :class="[statCardClass, 'px-3 py-3']">
+                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                        券商费用
+                      </div>
+                      <div class="mt-1 text-lg font-semibold bt-text">
+                        {{ formatBacktestFee(run.result.totalBrokerFees, resolveRunQuoteCurrency(run)) }}
+                      </div>
+                    </div>
+                    <div :class="[statCardClass, 'px-3 py-3']">
+                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                        市场费用
+                      </div>
+                      <div class="mt-1 text-lg font-semibold bt-text">
+                        {{ formatBacktestFee(run.result.totalMarketFees, resolveRunQuoteCurrency(run)) }}
+                      </div>
+                    </div>
+                    <div :class="[statCardClass, 'px-3 py-3']">
+                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                        总费用
+                      </div>
+                      <div class="mt-1 text-lg font-semibold bt-text">
+                        {{ formatBacktestFee(run.result.totalFees, resolveRunQuoteCurrency(run)) }}
+                      </div>
+                    </div>
                   </div>
                   <div v-if="
                     run.result &&
@@ -1258,6 +1422,10 @@ watch(
                   </div>
                   <div class="mt-2 rounded border bt-border bt-bg-muted px-2 py-1 text-xs bt-text">
                     <div class="mt-1">{{ resolveBacktestPriceBasisNote(run) }}</div>
+                    <div class="mt-1">
+                      费用口径：券商 {{ run.result.tradingCosts?.brokerFees?.mode ?? "market_preset" }} ｜ 市场
+                      {{ run.result.tradingCosts?.marketFees?.mode ?? "market_preset" }}
+                    </div>
                     <div v-if="resolveQueriedCandleBounds(run.result?.candles)" class="mt-1">
                       查询到的周期边界：左边界
                       {{ resolveQueriedCandleBounds(run.result?.candles)?.left }} ｜
@@ -1304,6 +1472,7 @@ watch(
                                 <th class="px-4 py-3 font-medium">数量</th>
                                 <th class="px-4 py-3 font-medium">委托价</th>
                                 <th class="px-4 py-3 font-medium">成交价</th>
+                                <th class="px-4 py-3 font-medium">费用</th>
                                 <th class="px-4 py-3 font-medium">状态</th>
                               </tr>
                             </thead>
@@ -1362,6 +1531,13 @@ watch(
                                       entry.filledPriceText,
                                     )
                                   }}
+                                </td>
+                                <td class="px-4 py-3 align-top bt-text-strong">
+                                  <div>{{ formatBacktestFee(entry.totalFee, entry.feeCurrency) }}</div>
+                                  <div v-if="entry.totalFee" class="mt-1 text-xs bt-text-dim">
+                                    券商 {{ formatBacktestFee(entry.brokerFee, entry.feeCurrency) }} ｜ 市场
+                                    {{ formatBacktestFee(entry.marketFee, entry.feeCurrency) }}
+                                  </div>
                                 </td>
                                 <td class="px-4 py-3 align-top bt-text-strong">
                                   {{ formatBacktestOrderStatus(entry.status) }}

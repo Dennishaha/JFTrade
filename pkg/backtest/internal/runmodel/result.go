@@ -6,28 +6,36 @@ import "sync"
 
 // TradeEvent is a single filled trade for chart rendering.
 type TradeEvent struct {
-	Time  string  `json:"time"`
-	Side  string  `json:"side"`
-	Price string  `json:"price"`
-	Qty   string  `json:"qty"`
-	PnL   float64 `json:"pnl,omitempty"`
+	Time        string  `json:"time"`
+	Side        string  `json:"side"`
+	Price       string  `json:"price"`
+	Qty         string  `json:"qty"`
+	PnL         float64 `json:"pnl,omitempty"`
+	BrokerFee   float64 `json:"brokerFee,omitempty"`
+	MarketFee   float64 `json:"marketFee,omitempty"`
+	TotalFee    float64 `json:"totalFee,omitempty"`
+	FeeCurrency string  `json:"feeCurrency,omitempty"`
 }
 
 // OrderBookEntry captures a single backtest order and its latest fill outcome.
 // A submitted order that later fills is merged into the same row.
 type OrderBookEntry struct {
-	OrderID        string `json:"orderId"`
-	ClientOrderID  string `json:"clientOrderId,omitempty"`
-	Symbol         string `json:"symbol"`
-	Side           string `json:"side"`
-	Quantity       string `json:"quantity"`
-	OrderType      string `json:"orderType,omitempty"`
-	OrderPrice     string `json:"orderPrice,omitempty"`
-	SubmittedAt    string `json:"submittedAt,omitempty"`
-	Status         string `json:"status"`
-	FilledQuantity string `json:"filledQuantity,omitempty"`
-	FilledPrice    string `json:"filledPrice,omitempty"`
-	FilledAt       string `json:"filledAt,omitempty"`
+	OrderID        string  `json:"orderId"`
+	ClientOrderID  string  `json:"clientOrderId,omitempty"`
+	Symbol         string  `json:"symbol"`
+	Side           string  `json:"side"`
+	Quantity       string  `json:"quantity"`
+	OrderType      string  `json:"orderType,omitempty"`
+	OrderPrice     string  `json:"orderPrice,omitempty"`
+	SubmittedAt    string  `json:"submittedAt,omitempty"`
+	Status         string  `json:"status"`
+	FilledQuantity string  `json:"filledQuantity,omitempty"`
+	FilledPrice    string  `json:"filledPrice,omitempty"`
+	FilledAt       string  `json:"filledAt,omitempty"`
+	BrokerFee      float64 `json:"brokerFee,omitempty"`
+	MarketFee      float64 `json:"marketFee,omitempty"`
+	TotalFee       float64 `json:"totalFee,omitempty"`
+	FeeCurrency    string  `json:"feeCurrency,omitempty"`
 }
 
 // PnLPoint is a single point on the equity curve.
@@ -52,26 +60,42 @@ type Candle struct {
 	Volume string `json:"volume"`
 }
 
+// FeeBreakdownEntry is an aggregated fee amount for one configured fee rule.
+type FeeBreakdownEntry struct {
+	RuleID   string  `json:"ruleId"`
+	Label    string  `json:"label"`
+	Group    string  `json:"group"`
+	Category string  `json:"category"`
+	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount"`
+	Count    int     `json:"count"`
+}
+
 // RunResult holds the output of a backtest run.
 type RunResult struct {
-	Symbol          string           `json:"symbol"`
-	Interval        string           `json:"interval"`
-	StartTime       string           `json:"startTime"`
-	EndTime         string           `json:"endTime"`
-	QuoteCurrency   string           `json:"quoteCurrency"`
-	FinalBalance    float64          `json:"finalBalance"`
-	PnL             float64          `json:"pnl"`
-	MaxDrawdown     float64          `json:"maxDrawdown"`
-	CurrentDrawdown float64          `json:"currentDrawdown"`
-	TotalTrades     int              `json:"totalTrades"`
-	WinRate         float64          `json:"winRate"`
-	Trades          []TradeEvent     `json:"trades,omitempty"`
-	OrderBook       []OrderBookEntry `json:"orderBook,omitempty"`
-	PnLCurve        []PnLPoint       `json:"pnlCurve,omitempty"`
-	DrawdownCurve   []DrawdownPoint  `json:"drawdownCurve,omitempty"`
-	Candles         []Candle         `json:"candles,omitempty"`
-	Logs            []string         `json:"logs"`
-	Error           string           `json:"error,omitempty"`
+	Symbol          string              `json:"symbol"`
+	Interval        string              `json:"interval"`
+	StartTime       string              `json:"startTime"`
+	EndTime         string              `json:"endTime"`
+	QuoteCurrency   string              `json:"quoteCurrency"`
+	FinalBalance    float64             `json:"finalBalance"`
+	PnL             float64             `json:"pnl"`
+	TotalBrokerFees float64             `json:"totalBrokerFees,omitempty"`
+	TotalMarketFees float64             `json:"totalMarketFees,omitempty"`
+	TotalFees       float64             `json:"totalFees,omitempty"`
+	FeeBreakdown    []FeeBreakdownEntry `json:"feeBreakdown,omitempty"`
+	TradingCosts    TradingCosts        `json:"tradingCosts"`
+	MaxDrawdown     float64             `json:"maxDrawdown"`
+	CurrentDrawdown float64             `json:"currentDrawdown"`
+	TotalTrades     int                 `json:"totalTrades"`
+	WinRate         float64             `json:"winRate"`
+	Trades          []TradeEvent        `json:"trades,omitempty"`
+	OrderBook       []OrderBookEntry    `json:"orderBook,omitempty"`
+	PnLCurve        []PnLPoint          `json:"pnlCurve,omitempty"`
+	DrawdownCurve   []DrawdownPoint     `json:"drawdownCurve,omitempty"`
+	Candles         []Candle            `json:"candles,omitempty"`
+	Logs            []string            `json:"logs"`
+	Error           string              `json:"error,omitempty"`
 
 	mu                     sync.Mutex
 	RuntimeErrors          []string       `json:"runtimeErrors,omitempty"`
@@ -97,6 +121,11 @@ func (r *RunResult) Snapshot() *RunResult {
 		QuoteCurrency:          r.QuoteCurrency,
 		FinalBalance:           r.FinalBalance,
 		PnL:                    r.PnL,
+		TotalBrokerFees:        r.TotalBrokerFees,
+		TotalMarketFees:        r.TotalMarketFees,
+		TotalFees:              r.TotalFees,
+		FeeBreakdown:           append([]FeeBreakdownEntry(nil), r.FeeBreakdown...),
+		TradingCosts:           cloneTradingCosts(r.TradingCosts),
 		MaxDrawdown:            r.MaxDrawdown,
 		CurrentDrawdown:        r.CurrentDrawdown,
 		TotalTrades:            r.TotalTrades,
@@ -119,6 +148,26 @@ func (r *RunResult) Snapshot() *RunResult {
 			maps.Copy(clone, r.RuntimeErrorCounts)
 			return clone
 		}(),
+	}
+}
+
+func cloneTradingCosts(costs TradingCosts) TradingCosts {
+	return TradingCosts{
+		BrokerFees: cloneFeeSchedule(costs.BrokerFees),
+		MarketFees: cloneFeeSchedule(costs.MarketFees),
+	}
+}
+
+func cloneFeeSchedule(schedule FeeSchedule) FeeSchedule {
+	rules := make([]FeeRule, len(schedule.Rules))
+	copy(rules, schedule.Rules)
+	for index := range rules {
+		rules[index].AppliesTo = append([]string(nil), schedule.Rules[index].AppliesTo...)
+	}
+	return FeeSchedule{
+		Mode:     schedule.Mode,
+		PresetID: schedule.PresetID,
+		Rules:    rules,
 	}
 }
 

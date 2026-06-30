@@ -1,6 +1,12 @@
 import { computed, reactive, ref, type ComputedRef } from "vue";
 
-import type { BacktestStartRequestPayload, BacktestSyncRequestPayload } from "@/contracts";
+import type {
+  BacktestFeeRulePayload,
+  BacktestFeeSchedulePayload,
+  BacktestStartRequestPayload,
+  BacktestSyncRequestPayload,
+  BacktestTradingCostsPayload,
+} from "@/contracts";
 
 import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCandle } from "../components/BacktestChart.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
@@ -12,6 +18,8 @@ interface BacktestTradeView extends BacktestTrade {
   priceText?: string | undefined;
   qtyText?: string | undefined;
 }
+
+type BacktestFeeMode = NonNullable<BacktestFeeSchedulePayload["mode"]>;
 
 interface BacktestCandleView extends BacktestCandle {
   openText?: string | undefined;
@@ -38,6 +46,10 @@ interface BacktestOrderBookEntry {
   filledPrice?: number | undefined;
   filledPriceText?: string | undefined;
   filledAt?: string | undefined;
+  brokerFee?: number | undefined;
+  marketFee?: number | undefined;
+  totalFee?: number | undefined;
+  feeCurrency?: string | undefined;
 }
 
 interface BacktestTradeTransport {
@@ -46,6 +58,10 @@ interface BacktestTradeTransport {
   price: BacktestDecimalTransport;
   qty: BacktestDecimalTransport;
   pnl?: number;
+  brokerFee?: number;
+  marketFee?: number;
+  totalFee?: number;
+  feeCurrency?: string;
 }
 
 interface BacktestCandleTransport {
@@ -70,6 +86,20 @@ interface BacktestOrderBookEntryTransport {
   filledQuantity?: BacktestDecimalTransport | undefined;
   filledPrice?: BacktestDecimalTransport | undefined;
   filledAt?: string | undefined;
+  brokerFee?: number | undefined;
+  marketFee?: number | undefined;
+  totalFee?: number | undefined;
+  feeCurrency?: string | undefined;
+}
+
+interface BacktestFeeBreakdownEntry {
+  ruleId: string;
+  label: string;
+  group: string;
+  category: string;
+  currency: string;
+  amount: number;
+  count: number;
 }
 
 interface BacktestRunResult {
@@ -80,6 +110,11 @@ interface BacktestRunResult {
   quoteCurrency?: string | undefined;
   finalBalance: number;
   pnl: number;
+  totalBrokerFees?: number | undefined;
+  totalMarketFees?: number | undefined;
+  totalFees?: number | undefined;
+  feeBreakdown?: BacktestFeeBreakdownEntry[] | undefined;
+  tradingCosts?: BacktestTradingCostsPayload | undefined;
   maxDrawdown?: number | undefined;
   currentDrawdown?: number | undefined;
   totalTrades: number;
@@ -105,6 +140,11 @@ interface BacktestRunResultTransport {
   quoteCurrency?: string | undefined;
   finalBalance: number;
   pnl: number;
+  totalBrokerFees?: number | undefined;
+  totalMarketFees?: number | undefined;
+  totalFees?: number | undefined;
+  feeBreakdown?: BacktestFeeBreakdownEntry[] | undefined;
+  tradingCosts?: BacktestTradingCostsPayload | undefined;
   maxDrawdown?: number | undefined;
   currentDrawdown?: number | undefined;
   totalTrades: number;
@@ -131,6 +171,7 @@ interface BacktestRun {
     market?: string;
     code?: string;
     symbol: string;
+    instrumentType?: string;
     interval: string;
     startDate?: string;
     endDate?: string;
@@ -140,6 +181,7 @@ interface BacktestRun {
     initialBalance: number;
     rehabType?: string;
     useExtendedHours?: boolean;
+    tradingCosts?: BacktestTradingCostsPayload;
   };
   result?: BacktestRunResult | undefined;
   createdAt: string;
@@ -155,6 +197,7 @@ interface BacktestRunTransport {
     market?: string;
     code?: string;
     symbol: string;
+    instrumentType?: string;
     interval: string;
     startDate?: string;
     endDate?: string;
@@ -164,6 +207,7 @@ interface BacktestRunTransport {
     initialBalance: number;
     rehabType?: string;
     useExtendedHours?: boolean;
+    tradingCosts?: BacktestTradingCostsPayload;
   };
   result?: BacktestRunResultTransport | undefined;
   createdAt: string;
@@ -176,12 +220,17 @@ export interface BacktestFormState {
   market: string;
   code: string;
   instrumentId: string;
+  instrumentType: string;
   interval: string;
   startDate: string;
   endDate: string;
   initialBalance: number;
   rehabType: string;
   useExtendedHours: boolean;
+  brokerFeeMode: "market_preset" | "custom" | "script" | "none";
+  marketFeeMode: "market_preset" | "custom" | "none";
+  brokerFeeRules: BacktestFeeRulePayload[];
+  marketFeeRules: BacktestFeeRulePayload[];
 }
 
 interface UseBacktestRunsOptions {
@@ -219,13 +268,59 @@ export function buildBacktestStartRequestPayload(
     market: instrument.market,
     code: instrument.code,
     symbol: instrument.symbol,
+    instrumentType: normalizeBacktestInstrumentType(formState.instrumentType),
     interval: formState.interval,
     startDate: formState.startDate,
     endDate: formState.endDate,
     initialBalance: formState.initialBalance,
     rehabType: formState.rehabType,
     useExtendedHours: formState.useExtendedHours,
+    tradingCosts: buildBacktestTradingCostsPayload(formState, instrument.market),
   };
+}
+
+function normalizeBacktestInstrumentType(value: string): "stock" | "etf" {
+  return value.trim().toLowerCase() === "etf" ? "etf" : "stock";
+}
+
+function presetIdForMarket(market: string, group: "broker" | "market"): string {
+  const normalized = market.trim().toUpperCase();
+  if (group === "broker") {
+    if (normalized === "HK") return "futu_hk_hk_stock_2026_06_30";
+    if (normalized === "US") return "futu_hk_us_stock_2026_06_30";
+    return "";
+  }
+  if (normalized === "HK") return "hkex_hk_stock_2026_06_30";
+  if (normalized === "US") return "us_stock_market_fees_2026_06_30";
+  if (normalized === "CN" || normalized === "SH" || normalized === "SZ") {
+    return "stock_connect_a_share_market_fees_2026_06_30";
+  }
+  return "";
+}
+
+function buildBacktestTradingCostsPayload(
+  formState: BacktestFormState,
+  market: string,
+): BacktestTradingCostsPayload {
+  return {
+    brokerFees: buildFeeSchedulePayload(formState.brokerFeeMode, presetIdForMarket(market, "broker"), formState.brokerFeeRules),
+    marketFees: buildFeeSchedulePayload(formState.marketFeeMode, presetIdForMarket(market, "market"), formState.marketFeeRules),
+  };
+}
+
+function buildFeeSchedulePayload(
+  mode: BacktestFeeMode,
+  presetId: string,
+  rules: BacktestFeeRulePayload[],
+): BacktestFeeSchedulePayload {
+  const schedule: BacktestFeeSchedulePayload = { mode };
+  if (mode === "market_preset" && presetId !== "") {
+    schedule.presetId = presetId;
+  }
+  if (mode === "custom") {
+    schedule.rules = rules;
+  }
+  return schedule;
 }
 
 export function buildBacktestSyncRequestPayload(
@@ -321,15 +416,20 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   function normalizeTrade(trade: BacktestTradeTransport): BacktestTradeView {
     const price = normalizeDecimalTransport(trade.price);
     const qty = normalizeDecimalTransport(trade.qty);
-    return {
+    const normalized: BacktestTradeView = {
       time: trade.time,
       side: trade.side,
       price: price.value ?? 0,
       qty: qty.value ?? 0,
-      ...(trade.pnl !== undefined ? { pnl: trade.pnl } : {}),
-      priceText: price.text,
-      qtyText: qty.text,
     };
+    if (trade.pnl !== undefined) normalized.pnl = trade.pnl;
+    if (trade.brokerFee !== undefined) normalized.brokerFee = trade.brokerFee;
+    if (trade.marketFee !== undefined) normalized.marketFee = trade.marketFee;
+    if (trade.totalFee !== undefined) normalized.totalFee = trade.totalFee;
+    if (trade.feeCurrency !== undefined) normalized.feeCurrency = trade.feeCurrency;
+    if (price.text !== undefined) normalized.priceText = price.text;
+    if (qty.text !== undefined) normalized.qtyText = qty.text;
+    return normalized;
   }
 
   function normalizeCandle(candle: BacktestCandleTransport): BacktestCandleView {
@@ -375,6 +475,10 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
       filledPrice: filledPrice.value,
       filledPriceText: filledPrice.text,
       filledAt: entry.filledAt,
+      brokerFee: entry.brokerFee,
+      marketFee: entry.marketFee,
+      totalFee: entry.totalFee,
+      feeCurrency: entry.feeCurrency,
     };
   }
 

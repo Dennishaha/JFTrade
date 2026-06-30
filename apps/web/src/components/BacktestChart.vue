@@ -32,6 +32,10 @@ export interface BacktestTrade {
   price: number;
   qty: number;
   pnl?: number;
+  brokerFee?: number;
+  marketFee?: number;
+  totalFee?: number;
+  feeCurrency?: string;
 }
 
 export interface BacktestPnlPoint {

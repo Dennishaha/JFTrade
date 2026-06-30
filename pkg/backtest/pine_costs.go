@@ -18,22 +18,6 @@ func pineCommissionRate(metadata strategyir.StrategyMetadata) fixedpoint.Value {
 	return fixedpoint.NewFromFloat(metadata.CommissionValue / 100)
 }
 
-func bindCashCommission(session *bbgo2.ExchangeSession, quoteCurrency string, metadata strategyir.StrategyMetadata) {
-	if session == nil || session.Account == nil || metadata.CommissionValue <= 0 {
-		return
-	}
-	if metadata.CommissionType != "cash_per_order" && metadata.CommissionType != "cash_per_contract" {
-		return
-	}
-	session.UserDataStream.OnTradeUpdate(func(trade types.Trade) {
-		fee := fixedpoint.NewFromFloat(metadata.CommissionValue)
-		if metadata.CommissionType == "cash_per_contract" {
-			fee = fee.Mul(trade.Quantity)
-		}
-		session.Account.AddBalance(quoteCurrency, fee.Neg())
-	})
-}
-
 type backtestSlippageExecutor struct {
 	delegate bbgo2.OrderExecutor
 	session  *bbgo2.ExchangeSession

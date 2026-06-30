@@ -91,7 +91,10 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 
 	quoteCurrency := resolveBacktestQuoteCurrency(cfg.Symbol, cfg.QuoteCurrency)
 	result.QuoteCurrency = quoteCurrency
+	cfg.TradingCosts = resolveBacktestTradingCosts(cfg, quoteCurrency, compilation.Program.Metadata)
+	result.TradingCosts = cfg.TradingCosts
 	backtestCfg := pineWorkerBacktestConfig(cfg, quoteCurrency, compilation.Program.Metadata)
+	disableBacktestNativeFeeRates(backtestCfg)
 	btExchange, err := bt.NewExchange(sourceExchange.Name(), sourceExchange, replayStore, backtestCfg)
 	if err != nil {
 		result.Error = fmt.Sprintf("create backtest exchange: %v", err)
@@ -160,8 +163,9 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 		collector.candles = make([]Candle, 0, estimatedBars)
 		collector.pnlCurve = make([]PnLPoint, 0, estimatedBars)
 	}
+	feeEngine := newBacktestFeeEngine(session.Account, quoteCurrency, cfg.InstrumentType, cfg.TradingCosts, result, collector.recordTradeFees)
+	session.UserDataStream.OnTradeUpdate(feeEngine.onTradeUpdate)
 	session.UserDataStream.OnOrderUpdate(collector.onOrderUpdate)
-	bindCashCommission(session, quoteCurrency, compilation.Program.Metadata)
 	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {
 		collector.onKLineClosed(ctx, btExchange, kline)
 	})
@@ -193,6 +197,7 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 		return result
 	}
 
+	feeEngine.finalize()
 	totalOrders, filledOrders := collector.finalize(ctx, btExchange, cfg.InitialBalance)
 	log.Printf("pine worker backtest: done totalOrders=%d filledOrders=%d finalBalance=%.2f metadata=%+v", totalOrders, filledOrders, result.FinalBalance, plan.Metadata)
 	return result
@@ -211,8 +216,12 @@ func resolveBacktestQuoteCurrency(symbol string, requested string) string {
 	if requested != "" {
 		return requested
 	}
-	if strings.HasPrefix(strings.ToUpper(symbol), "US.") {
+	upperSymbol := strings.ToUpper(symbol)
+	if strings.HasPrefix(upperSymbol, "US.") {
 		return "USD"
+	}
+	if strings.HasPrefix(upperSymbol, "SH.") || strings.HasPrefix(upperSymbol, "SZ.") || strings.HasPrefix(upperSymbol, "CN.") {
+		return "CNY"
 	}
 	return "HKD"
 }

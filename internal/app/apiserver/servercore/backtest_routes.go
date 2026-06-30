@@ -5,20 +5,22 @@ import (
 )
 
 type backtestStartRequest struct {
-	DefinitionID      string  `json:"definitionId"`
-	DefinitionVersion string  `json:"definitionVersion,omitempty"`
-	Market            string  `json:"market"`
-	Code              string  `json:"code"`
-	Symbol            string  `json:"symbol"`
-	Interval          string  `json:"interval"`
-	StartDate         string  `json:"startDate,omitempty"`
-	EndDate           string  `json:"endDate,omitempty"`
-	StartTime         string  `json:"startTime,omitempty"`
-	EndTime           string  `json:"endTime,omitempty"`
-	MarketTimezone    string  `json:"marketTimezone,omitempty"`
-	InitialBalance    float64 `json:"initialBalance"`
-	RehabType         string  `json:"rehabType"` // "forward" | "backward" | "none"
-	UseExtendedHours  *bool   `json:"useExtendedHours,omitempty"`
+	DefinitionID      string                `json:"definitionId"`
+	DefinitionVersion string                `json:"definitionVersion,omitempty"`
+	Market            string                `json:"market"`
+	Code              string                `json:"code"`
+	Symbol            string                `json:"symbol"`
+	InstrumentType    string                `json:"instrumentType,omitempty"`
+	Interval          string                `json:"interval"`
+	StartDate         string                `json:"startDate,omitempty"`
+	EndDate           string                `json:"endDate,omitempty"`
+	StartTime         string                `json:"startTime,omitempty"`
+	EndTime           string                `json:"endTime,omitempty"`
+	MarketTimezone    string                `json:"marketTimezone,omitempty"`
+	InitialBalance    float64               `json:"initialBalance"`
+	RehabType         string                `json:"rehabType"` // "forward" | "backward" | "none"
+	UseExtendedHours  *bool                 `json:"useExtendedHours,omitempty"`
+	TradingCosts      backtest.TradingCosts `json:"tradingCosts"`
 }
 
 type backtestRunState struct {

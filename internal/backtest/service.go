@@ -34,37 +34,41 @@ import (
 
 // StartRequest 回测启动参数（从 HTTP JSON body 反序列化）。
 type StartRequest struct {
-	DefinitionID      string  `json:"definitionId"`
-	DefinitionVersion string  `json:"definitionVersion,omitempty"`
-	Market            string  `json:"market"`
-	Code              string  `json:"code"`
-	Symbol            string  `json:"symbol"`
-	Interval          string  `json:"interval"`
-	StartDate         string  `json:"startDate,omitempty"`
-	EndDate           string  `json:"endDate,omitempty"`
-	StartTime         string  `json:"startTime,omitempty"`
-	EndTime           string  `json:"endTime,omitempty"`
-	MarketTimezone    string  `json:"marketTimezone,omitempty"`
-	InitialBalance    float64 `json:"initialBalance"`
-	RehabType         string  `json:"rehabType"`
-	UseExtendedHours  *bool   `json:"useExtendedHours,omitempty"`
+	DefinitionID      string          `json:"definitionId"`
+	DefinitionVersion string          `json:"definitionVersion,omitempty"`
+	Market            string          `json:"market"`
+	Code              string          `json:"code"`
+	Symbol            string          `json:"symbol"`
+	InstrumentType    string          `json:"instrumentType,omitempty"`
+	Interval          string          `json:"interval"`
+	StartDate         string          `json:"startDate,omitempty"`
+	EndDate           string          `json:"endDate,omitempty"`
+	StartTime         string          `json:"startTime,omitempty"`
+	EndTime           string          `json:"endTime,omitempty"`
+	MarketTimezone    string          `json:"marketTimezone,omitempty"`
+	InitialBalance    float64         `json:"initialBalance"`
+	RehabType         string          `json:"rehabType"`
+	UseExtendedHours  *bool           `json:"useExtendedHours,omitempty"`
+	TradingCosts      bt.TradingCosts `json:"tradingCosts"`
 }
 
 // ScriptStartRequest starts a transient research backtest from an inline Pine
 // script without requiring or creating a saved strategy definition.
 type ScriptStartRequest struct {
-	Script           string  `json:"script"`
-	Market           string  `json:"market"`
-	Code             string  `json:"code"`
-	Symbol           string  `json:"symbol"`
-	Interval         string  `json:"interval"`
-	StartDate        string  `json:"startDate,omitempty"`
-	EndDate          string  `json:"endDate,omitempty"`
-	StartTime        string  `json:"startTime,omitempty"`
-	EndTime          string  `json:"endTime,omitempty"`
-	InitialBalance   float64 `json:"initialBalance"`
-	RehabType        string  `json:"rehabType"`
-	UseExtendedHours *bool   `json:"useExtendedHours,omitempty"`
+	Script           string          `json:"script"`
+	Market           string          `json:"market"`
+	Code             string          `json:"code"`
+	Symbol           string          `json:"symbol"`
+	InstrumentType   string          `json:"instrumentType,omitempty"`
+	Interval         string          `json:"interval"`
+	StartDate        string          `json:"startDate,omitempty"`
+	EndDate          string          `json:"endDate,omitempty"`
+	StartTime        string          `json:"startTime,omitempty"`
+	EndTime          string          `json:"endTime,omitempty"`
+	InitialBalance   float64         `json:"initialBalance"`
+	RehabType        string          `json:"rehabType"`
+	UseExtendedHours *bool           `json:"useExtendedHours,omitempty"`
+	TradingCosts     bt.TradingCosts `json:"tradingCosts"`
 }
 
 // RunState 是回测运行状态的纯数据结构。
@@ -379,6 +383,7 @@ func (s *Service) StartScript(ctx context.Context, req ScriptStartRequest) (*Run
 		Market:            req.Market,
 		Code:              req.Code,
 		Symbol:            req.Symbol,
+		InstrumentType:    req.InstrumentType,
 		Interval:          req.Interval,
 		StartDate:         req.StartDate,
 		EndDate:           req.EndDate,
@@ -387,6 +392,7 @@ func (s *Service) StartScript(ctx context.Context, req ScriptStartRequest) (*Run
 		InitialBalance:    req.InitialBalance,
 		RehabType:         req.RehabType,
 		UseExtendedHours:  req.UseExtendedHours,
+		TradingCosts:      req.TradingCosts,
 	}, def)
 }
 
@@ -401,6 +407,7 @@ func (s *Service) EnsureScriptData(ctx context.Context, req ScriptStartRequest) 
 		Market: req.Market, Code: req.Code, Symbol: req.Symbol, Interval: req.Interval,
 		StartDate: req.StartDate, EndDate: req.EndDate, StartTime: req.StartTime, EndTime: req.EndTime,
 		InitialBalance: req.InitialBalance, RehabType: req.RehabType, UseExtendedHours: req.UseExtendedHours,
+		InstrumentType: req.InstrumentType, TradingCosts: req.TradingCosts,
 	}, transientStrategyDefinition(script))
 	if err != nil {
 		return nil, err
@@ -537,6 +544,15 @@ func normalizeRehabTypeName(value string) string {
 	}
 }
 
+func normalizeBacktestInstrumentType(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "etf", "fund":
+		return "etf"
+	default:
+		return "stock"
+	}
+}
+
 func backtestReadSessionScope(useExtendedHours *bool) string {
 	if useExtendedHours == nil {
 		return "auto"
@@ -609,6 +625,7 @@ func prepareResolvedBacktest(req StartRequest, def StrategyDef) (preparedBacktes
 	req.Market = instrument.Market
 	req.Code = instrument.Code
 	req.Symbol = instrument.Symbol
+	req.InstrumentType = normalizeBacktestInstrumentType(req.InstrumentType)
 	if strings.TrimSpace(req.Interval) == "" {
 		req.Interval = "1m"
 	}
@@ -682,6 +699,7 @@ func (s *Service) executeBacktest(
 
 	result := s.runBacktest(ctx, bt.RunConfig{
 		DBPath:           s.dbPath(),
+		Market:           req.Market,
 		Symbol:           req.Symbol,
 		Interval:         req.Interval,
 		SourceFormat:     def.SourceFormat,
@@ -691,6 +709,8 @@ func (s *Service) executeBacktest(
 		InitialBalance:   req.InitialBalance,
 		RehabType:        req.RehabType,
 		UseExtendedHours: req.UseExtendedHours,
+		InstrumentType:   req.InstrumentType,
+		TradingCosts:     req.TradingCosts,
 	})
 
 	if result == nil {
@@ -1083,6 +1103,7 @@ func failureResult(req StartRequest, message string) *bt.RunResult {
 		StartTime:    req.StartTime,
 		EndTime:      req.EndTime,
 		FinalBalance: req.InitialBalance,
+		TradingCosts: req.TradingCosts,
 		Error:        message,
 	}
 }

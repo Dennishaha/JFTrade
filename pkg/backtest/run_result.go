@@ -9,3 +9,7 @@ type PnLPoint = internalrunmodel.PnLPoint
 type DrawdownPoint = internalrunmodel.DrawdownPoint
 type Candle = internalrunmodel.Candle
 type RunResult = internalrunmodel.RunResult
+type TradingCosts = internalrunmodel.TradingCosts
+type FeeSchedule = internalrunmodel.FeeSchedule
+type FeeRule = internalrunmodel.FeeRule
+type FeeBreakdownEntry = internalrunmodel.FeeBreakdownEntry

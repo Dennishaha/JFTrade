@@ -192,6 +192,7 @@ func resultViewRunPayload(run *RunState) map[string]any {
 		"market":            run.Request.Market,
 		"code":              run.Request.Code,
 		"symbol":            run.Request.Symbol,
+		"instrumentType":    run.Request.InstrumentType,
 		"interval":          run.Request.Interval,
 		"startDate":         run.Request.StartDate,
 		"endDate":           run.Request.EndDate,
@@ -201,6 +202,7 @@ func resultViewRunPayload(run *RunState) map[string]any {
 		"initialBalance":    run.Request.InitialBalance,
 		"rehabType":         run.Request.RehabType,
 		"useExtendedHours":  run.Request.UseExtendedHours,
+		"tradingCosts":      run.Request.TradingCosts,
 		"createdAt":         run.CreatedAt,
 		"updatedAt":         run.UpdatedAt,
 	}
@@ -215,6 +217,10 @@ func resultViewSummaryPayload(run *RunState) map[string]any {
 	summary["quoteCurrency"] = result.QuoteCurrency
 	summary["finalBalance"] = result.FinalBalance
 	summary["pnl"] = result.PnL
+	summary["totalBrokerFees"] = result.TotalBrokerFees
+	summary["totalMarketFees"] = result.TotalMarketFees
+	summary["totalFees"] = result.TotalFees
+	summary["feeBreakdown"] = result.FeeBreakdown
 	if run.Request.InitialBalance > 0 {
 		summary["totalReturn"] = result.PnL / run.Request.InitialBalance
 	}
