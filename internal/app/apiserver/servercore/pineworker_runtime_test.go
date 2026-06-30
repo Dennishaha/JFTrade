@@ -633,23 +633,6 @@ func (dialer *fakeServerPineWorkerDialer) Dial(ctx context.Context, address stri
 	return transport, nil
 }
 
-func (dialer *fakeServerPineWorkerDialer) transport(address string) (*fakeServerPineWorkerTransport, bool) {
-	dialer.mu.Lock()
-	defer dialer.mu.Unlock()
-	transport, ok := dialer.transports[address]
-	return transport, ok
-}
-
-func (dialer *fakeServerPineWorkerDialer) addresses() []string {
-	dialer.mu.Lock()
-	defer dialer.mu.Unlock()
-	addresses := make([]string, 0, len(dialer.transports))
-	for address := range dialer.transports {
-		addresses = append(addresses, address)
-	}
-	return addresses
-}
-
 type fakeServerPineWorkerTransport struct {
 	mu      sync.Mutex
 	address string

@@ -291,7 +291,9 @@ func freePineWorkerPort(ctx context.Context, host string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("allocate pine worker port: %w", err)
 	}
-	defer listener.Close()
+	defer func() {
+		_ = listener.Close()
+	}()
 	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
 	if !ok {
 		return 0, fmt.Errorf("allocate pine worker port: unexpected address %s", listener.Addr())
