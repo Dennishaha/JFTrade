@@ -109,9 +109,7 @@ func startNodeWorkerProcessSmokeManager(t *testing.T, mock bool, pineTSVersion s
 		Host:      "127.0.0.1",
 		StartPort: port,
 		WorkerConfig: WorkerConfig{
-			RequestTimeout:       5 * time.Second,
-			MaxMessageBytes:      4 * 1024 * 1024,
-			MaxCandlesPerRequest: 1000,
+			RequestTimeout: 5 * time.Second,
 		},
 		Gate: relaxedGate(),
 	}

@@ -48,15 +48,33 @@ describe("proto mapping", () => {
       candles: { encoding_version: candleBatchEncodingVersion, payload: Buffer.alloc(55) },
       params: {},
     })).toThrow("payload length 55 is not a multiple of 56");
-    expect(() => runScriptRequestFromProto({
+  });
+
+  test("accepts binary candle batches above the old 200k cap", () => {
+    const count = 214_946;
+    const payload = Buffer.alloc(count * 56);
+    for (let index = 0; index < count; index++) {
+      const offset = index * 56;
+      payload.writeBigInt64LE(BigInt(index + 1), offset);
+      payload.writeBigInt64LE(BigInt(index + 2), offset + 8);
+      payload.writeDoubleLE(10, offset + 16);
+      payload.writeDoubleLE(12, offset + 24);
+      payload.writeDoubleLE(9, offset + 32);
+      payload.writeDoubleLE(11, offset + 40);
+      payload.writeDoubleLE(100, offset + 48);
+    }
+    const request = runScriptRequestFromProto({
       job_id: "job-1",
       source: `//@version=6\nstrategy("x")`,
       symbol: "US.AAPL",
       timeframe: "1",
       mode: "backtest",
-      candles: { encoding_version: candleBatchEncodingVersion, payload: Buffer.alloc(200_001 * 56) },
+      candles: { encoding_version: candleBatchEncodingVersion, payload },
       params: {},
-    })).toThrow("too many candles: 200001 > 200000");
+    });
+
+    expect(request.candles).toHaveLength(count);
+    expect(request.candles.at(-1)).toMatchObject({ openTime: count, closeTime: count + 1 });
   });
 
   test("decodes the shared binary golden vector", () => {

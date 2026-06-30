@@ -1,13 +1,13 @@
 import type { Candle, RunMode, RunScriptRequest } from "./types";
 
 export type WorkerLimits = {
-  maxCandles: number;
+  maxCandles?: number;
   maxSourceBytes: number;
   maxParamCount: number;
 };
 
 export const defaultWorkerLimits: WorkerLimits = {
-  maxCandles: 200_000,
+  maxCandles: 0,
   maxSourceBytes: 1_000_000,
   maxParamCount: 256,
 };
@@ -39,8 +39,9 @@ export function validateRunScriptRequest(
   if (request.candles.length === 0 && mode !== "analyze") {
     throw new Error("candles are required");
   }
-  if (request.candles.length > limits.maxCandles) {
-    throw new Error(`too many candles: ${request.candles.length} > ${limits.maxCandles}`);
+  const maxCandles = limits.maxCandles ?? 0;
+  if (maxCandles > 0 && request.candles.length > maxCandles) {
+    throw new Error(`too many candles: ${request.candles.length} > ${maxCandles}`);
   }
   request.candles.forEach(validateCandle);
   return mode;

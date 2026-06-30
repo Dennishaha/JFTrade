@@ -35,8 +35,8 @@ func DefaultWorkerConfig(cpuCount int) WorkerConfig {
 		OptimizationWorkers:  cpuCount,
 		RequestTimeout:       30 * time.Second,
 		HealthCheckInterval:  5 * time.Second,
-		MaxMessageBytes:      64 * 1024 * 1024,
-		MaxCandlesPerRequest: 200_000,
+		MaxMessageBytes:      0,
+		MaxCandlesPerRequest: 0,
 	}
 }
 

@@ -12,6 +12,20 @@ describe("validateRunScriptRequest", () => {
     expect(validateRunScriptRequest(request)).toBe("analyze");
   });
 
+  test("does not cap candle count by default", () => {
+    const request = validRequest();
+    request.candles = Array.from({ length: 200_001 }, (_, index) => ({
+      openTime: index + 1,
+      closeTime: index + 2,
+      open: 10,
+      high: 12,
+      low: 9,
+      close: 11,
+      volume: 100,
+    }));
+    expect(validateRunScriptRequest(request)).toBe("backtest");
+  });
+
   test("rejects malformed requests before dispatch", () => {
     const cases: Array<[string, (request: RunScriptRequest) => void, string]> = [
       ["job", (request) => { request.jobId = ""; }, "job id is required"],

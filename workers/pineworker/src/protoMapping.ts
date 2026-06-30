@@ -21,7 +21,6 @@ type ProtoCandleBatch = {
 
 export const candleBatchEncodingVersion = 1;
 export const candleBatchRecordBytes = 56;
-const maxCandleBatchRecords = 200_000;
 
 export function runScriptRequestFromProto(value: Record<string, unknown>): PreparedRunScriptRequest {
   const batch = candleBatchFromProto(asRecord(field(value, "candles")));
@@ -91,9 +90,6 @@ function candleBatchFromProto(value: Record<string, unknown>) {
     throw new Error(`candle batch payload length ${payload.byteLength} is not a multiple of ${candleBatchRecordBytes}`);
   }
   const count = payload.byteLength / candleBatchRecordBytes;
-  if (count > maxCandleBatchRecords) {
-    throw new Error(`too many candles: ${count} > ${maxCandleBatchRecords}`);
-  }
   const builder = new PreparedCandleBatchBuilder(count);
   for (let index = 0; index < count; index++) {
     const offset = index * candleBatchRecordBytes;

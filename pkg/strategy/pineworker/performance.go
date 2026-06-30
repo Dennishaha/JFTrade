@@ -23,14 +23,7 @@ type PerformanceSample struct {
 }
 
 func DefaultPerformanceGate() PerformanceGate {
-	return PerformanceGate{
-		MaxDuration:       30 * time.Second,
-		MaxDurationPerBar: 500 * time.Microsecond,
-		MinCandlesPerSec:  2_000,
-		MaxRequestBytes:   64 * 1024 * 1024,
-		MaxResponseBytes:  16 * 1024 * 1024,
-		MaxPeakRSSBytes:   512 * 1024 * 1024,
-	}
+	return PerformanceGate{}
 }
 
 func CheckPerformanceGate(sample PerformanceSample, gate PerformanceGate) error {

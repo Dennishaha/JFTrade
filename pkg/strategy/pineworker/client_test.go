@@ -53,24 +53,6 @@ func TestClientRunScriptRejectsInvalidRequestBeforeTransport(t *testing.T) {
 	}
 }
 
-func TestClientRunScriptRejectsOversizedRequest(t *testing.T) {
-	transport := &countingTransport{}
-	config := DefaultWorkerConfig(4)
-	config.MaxMessageBytes = 10
-	client, err := NewClient(transport, config, WithPerformanceGate(relaxedGate()))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = runExpectError(t, client, validClientRequest())
-	if !strings.Contains(err.Error(), "request bytes") {
-		t.Fatalf("error = %v, want request bytes", err)
-	}
-	if transport.calls != 0 {
-		t.Fatalf("transport calls = %d, want 0", transport.calls)
-	}
-}
-
 func TestJSONSizeMatchesMarshalForRunScriptRequest(t *testing.T) {
 	request := validClientRequest()
 	request.Source += "\n// <>&"
@@ -158,6 +140,24 @@ func TestClientRunScriptRejectsPerformanceGateFailure(t *testing.T) {
 	}
 }
 
+func TestClientRunScriptDoesNotApplyPerformanceGateByDefault(t *testing.T) {
+	client := newTestClient(t, fakeTransport{run: func(ctx context.Context, request RunScriptRequest) (RunScriptResponse, error) {
+		return RunScriptResponse{
+			JobID: request.JobID,
+			Metadata: WorkerMetadata{
+				Duration:      time.Hour,
+				RequestBytes:  1 << 30,
+				ResponseBytes: 1 << 30,
+				PeakRSSBytes:  1 << 40,
+			},
+		}, nil
+	}})
+
+	if _, err := client.RunScript(context.Background(), validClientRequest()); err != nil {
+		t.Fatalf("RunScript error = %v", err)
+	}
+}
+
 func TestNewClientRequiresTransport(t *testing.T) {
 	_, err := NewClient(nil, DefaultWorkerConfig(1))
 	if err == nil || !strings.Contains(err.Error(), "transport is required") {
@@ -184,7 +184,7 @@ func (transport *countingTransport) RunScript(ctx context.Context, request RunSc
 
 func newTestClient(t *testing.T, transport Transport, options ...ClientOption) *Client {
 	t.Helper()
-	client, err := NewClient(transport, DefaultWorkerConfig(4), append([]ClientOption{WithPerformanceGate(relaxedGate())}, options...)...)
+	client, err := NewClient(transport, DefaultWorkerConfig(4), options...)
 	if err != nil {
 		t.Fatal(err)
 	}

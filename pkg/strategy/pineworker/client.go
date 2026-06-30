@@ -28,7 +28,6 @@ func NewClient(transport Transport, config WorkerConfig, options ...ClientOption
 	client := &Client{
 		transport: transport,
 		config:    config,
-		gate:      DefaultPerformanceGate(),
 		now:       time.Now,
 	}
 	if client.config.RequestTimeout <= 0 {
@@ -63,10 +62,6 @@ func (client *Client) RunScript(ctx context.Context, request RunScriptRequest) (
 	if err != nil {
 		return RunScriptResponse{}, err
 	}
-	if client.config.MaxMessageBytes > 0 && requestBytes > client.config.MaxMessageBytes {
-		return RunScriptResponse{}, fmt.Errorf("pine worker request bytes %d exceeds max message bytes %d", requestBytes, client.config.MaxMessageBytes)
-	}
-
 	callCtx, cancel := context.WithTimeout(ctx, client.config.RequestTimeout)
 	defer cancel()
 
@@ -100,17 +95,16 @@ func (client *Client) RunScript(ctx context.Context, request RunScriptRequest) (
 	if response.Metadata.ResponseBytes <= 0 {
 		response.Metadata.ResponseBytes = responseBytes
 	}
-	if client.config.MaxMessageBytes > 0 && responseBytes > client.config.MaxMessageBytes {
-		return response, fmt.Errorf("pine worker response bytes %d exceeds max message bytes %d", responseBytes, client.config.MaxMessageBytes)
-	}
-	if err := CheckPerformanceGate(PerformanceSample{
-		Candles:       max(1, len(request.Candles)),
-		Duration:      duration,
-		RequestBytes:  response.Metadata.RequestBytes,
-		ResponseBytes: response.Metadata.ResponseBytes,
-		PeakRSSBytes:  response.Metadata.PeakRSSBytes,
-	}, client.gate); err != nil {
-		return response, fmt.Errorf("pine worker performance gate failed: %w", err)
+	if client.gate != (PerformanceGate{}) {
+		if err := CheckPerformanceGate(PerformanceSample{
+			Candles:       max(1, len(request.Candles)),
+			Duration:      duration,
+			RequestBytes:  response.Metadata.RequestBytes,
+			ResponseBytes: response.Metadata.ResponseBytes,
+			PeakRSSBytes:  response.Metadata.PeakRSSBytes,
+		}, client.gate); err != nil {
+			return response, fmt.Errorf("pine worker performance gate failed: %w", err)
+		}
 	}
 	return response, nil
 }

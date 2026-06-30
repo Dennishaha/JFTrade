@@ -8,6 +8,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const grpcUnlimitedMessageBytes = 1<<31 - 1
+
 type GRPCDialerConfig struct {
 	MaxMessageBytes int
 	DialOptions     []grpc.DialOption
@@ -19,7 +21,7 @@ type GRPCDialer struct {
 
 func NewGRPCDialer(config GRPCDialerConfig) *GRPCDialer {
 	if config.MaxMessageBytes <= 0 {
-		config.MaxMessageBytes = DefaultWorkerConfig(1).MaxMessageBytes
+		config.MaxMessageBytes = grpcUnlimitedMessageBytes
 	}
 	return &GRPCDialer{config: config}
 }

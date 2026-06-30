@@ -14,8 +14,6 @@ import (
 	"time"
 )
 
-const nodeWorkerMaxOldSpaceMiB = 384
-
 type WorkerBundle struct {
 	Name   string
 	Data   []byte
@@ -54,9 +52,6 @@ func NewNodeWorkerLauncher(config NodeWorkerLauncherConfig) (*NodeWorkerLauncher
 	}
 	if config.StopTimeout <= 0 {
 		config.StopTimeout = 5 * time.Second
-	}
-	if config.MaxMessageBytes <= 0 {
-		config.MaxMessageBytes = DefaultWorkerConfig(1).MaxMessageBytes
 	}
 	return &NodeWorkerLauncher{config: config}, nil
 }
@@ -101,31 +96,22 @@ func (launcher *NodeWorkerLauncher) Start(ctx context.Context, spec WorkerSpec) 
 
 func nodeWorkerEnvironment(extra []string) []string {
 	input := append(os.Environ(), extra...)
-	environment := make([]string, 0, len(input)+1)
+	environment := make([]string, 0, len(input))
 	nodeOptions := ""
+	hasNodeOptions := false
 	for _, entry := range input {
 		key, value, found := strings.Cut(entry, "=")
 		if found && strings.EqualFold(key, "NODE_OPTIONS") {
+			hasNodeOptions = true
 			nodeOptions = value
 			continue
 		}
 		environment = append(environment, entry)
 	}
-	fields := strings.Fields(nodeOptions)
-	filtered := fields[:0]
-	for index := 0; index < len(fields); index++ {
-		field := fields[index]
-		if field == "--max-old-space-size" || field == "--max_old_space_size" {
-			index++
-			continue
-		}
-		if strings.HasPrefix(field, "--max-old-space-size=") || strings.HasPrefix(field, "--max_old_space_size=") {
-			continue
-		}
-		filtered = append(filtered, field)
+	if hasNodeOptions {
+		environment = append(environment, "NODE_OPTIONS="+nodeOptions)
 	}
-	filtered = append(filtered, fmt.Sprintf("--max-old-space-size=%d", nodeWorkerMaxOldSpaceMiB))
-	return append(environment, "NODE_OPTIONS="+strings.Join(filtered, " "))
+	return environment
 }
 
 func (launcher *NodeWorkerLauncher) materializeBundle(spec WorkerSpec) (string, error) {
@@ -166,7 +152,9 @@ func (launcher *NodeWorkerLauncher) args(spec WorkerSpec) []string {
 	args := []string{
 		"--address", spec.Address,
 		"--worker-id", spec.WorkerID,
-		"--max-message-bytes", strconv.Itoa(launcher.config.MaxMessageBytes),
+	}
+	if launcher.config.MaxMessageBytes > 0 {
+		args = append(args, "--max-message-bytes", strconv.Itoa(launcher.config.MaxMessageBytes))
 	}
 	if launcher.config.ProtoPath != "" {
 		args = append(args, "--proto", launcher.config.ProtoPath)

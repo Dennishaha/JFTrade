@@ -42,7 +42,7 @@ function parseArgs(values: string[]) {
     workerId: options.get("worker-id") ?? "pineworker-1",
     protoPath: options.get("proto") ?? "pkg/strategy/pineworker/proto/pineworker.proto",
     pinetsVersion: options.get("pinets-version") ?? "unknown",
-    maxMessageBytes: Number(options.get("max-message-bytes") ?? 64 * 1024 * 1024),
+    maxMessageBytes: Number(options.get("max-message-bytes") ?? -1),
     mock: options.get("mock") === "true",
   };
 }

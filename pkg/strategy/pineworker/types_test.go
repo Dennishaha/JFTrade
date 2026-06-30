@@ -27,8 +27,14 @@ func TestDefaultWorkerConfigScalesByCPU(t *testing.T) {
 	if eight.LiveWorkers != 4 || eight.BacktestWorkers != 4 || eight.OptimizationWorkers != 8 {
 		t.Fatalf("DefaultWorkerConfig(8) = %#v", eight)
 	}
-	if eight.RequestTimeout <= 0 || eight.HealthCheckInterval <= 0 || eight.MaxMessageBytes <= 0 {
+	if eight.RequestTimeout <= 0 || eight.HealthCheckInterval <= 0 {
 		t.Fatalf("default config missing positive operational limits: %#v", eight)
+	}
+	if eight.MaxMessageBytes != 0 {
+		t.Fatalf("default MaxMessageBytes = %d, want unlimited", eight.MaxMessageBytes)
+	}
+	if eight.MaxCandlesPerRequest != 0 {
+		t.Fatalf("default MaxCandlesPerRequest = %d, want unlimited", eight.MaxCandlesPerRequest)
 	}
 }
 

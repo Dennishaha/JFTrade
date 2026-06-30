@@ -110,7 +110,7 @@ func TestNewNodeWorkerLauncherRequiresBundle(t *testing.T) {
 	}
 }
 
-func TestNodeWorkerEnvironmentEnforcesOldSpaceLimit(t *testing.T) {
+func TestNodeWorkerEnvironmentPreservesNodeOptionsWithoutOldSpaceOverride(t *testing.T) {
 	t.Setenv("NODE_OPTIONS", "--heapsnapshot-near-heap-limit=1 --max_old_space_size=777")
 	environment := nodeWorkerEnvironment([]string{"NODE_OPTIONS=--trace-warnings --max-old-space-size 999"})
 	got := ""
@@ -124,7 +124,7 @@ func TestNodeWorkerEnvironmentEnforcesOldSpaceLimit(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("NODE_OPTIONS entries = %d, want 1", count)
 	}
-	if got != "--trace-warnings --max-old-space-size=384" {
+	if got != "--trace-warnings --max-old-space-size 999" {
 		t.Fatalf("NODE_OPTIONS = %q", got)
 	}
 }

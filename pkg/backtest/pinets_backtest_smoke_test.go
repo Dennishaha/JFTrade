@@ -41,14 +41,13 @@ func TestRealPineTSBacktestSmoke(t *testing.T) {
 			Data:   bundleData,
 			SHA256: hex.EncodeToString(sum[:]),
 		},
-		RuntimePath:     firstNonEmptyString(strings.TrimSpace(os.Getenv("JFTRADE_PINEWORKER_RUNTIME")), "node"),
-		WorkDir:         root,
-		ProtoPath:       filepath.Join(root, "pkg", "strategy", "pineworker", "proto", "pineworker.proto"),
-		MaxMessageBytes: 64 * 1024 * 1024,
-		StopTimeout:     2 * time.Second,
-		PineTSVersion:   "backtest-smoke",
-		Stdout:          stdout,
-		Stderr:          stderr,
+		RuntimePath:   firstNonEmptyString(strings.TrimSpace(os.Getenv("JFTRADE_PINEWORKER_RUNTIME")), "node"),
+		WorkDir:       root,
+		ProtoPath:     filepath.Join(root, "pkg", "strategy", "pineworker", "proto", "pineworker.proto"),
+		StopTimeout:   2 * time.Second,
+		PineTSVersion: "backtest-smoke",
+		Stdout:        stdout,
+		Stderr:        stderr,
 	})
 	if err != nil {
 		t.Fatalf("NewNodeWorkerLauncher: %v", err)
@@ -62,13 +61,6 @@ func TestRealPineTSBacktestSmoke(t *testing.T) {
 		StartPort:     backtestSmokeFreeTCPPort(t),
 		HealthTimeout: 10 * time.Second,
 		WorkerConfig:  workerConfig,
-		Gate: pineworker.PerformanceGate{
-			MaxDuration:       15 * time.Second,
-			MaxDurationPerBar: 50 * time.Millisecond,
-			MaxRequestBytes:   64 * 1024 * 1024,
-			MaxResponseBytes:  64 * 1024 * 1024,
-			MaxPeakRSSBytes:   1024 * 1024 * 1024,
-		},
 	}, launcher, pineworker.NewGRPCDialer(pineworker.GRPCDialerConfig{MaxMessageBytes: workerConfig.MaxMessageBytes}))
 	if err != nil {
 		t.Fatalf("NewWorkerManager: %v", err)
