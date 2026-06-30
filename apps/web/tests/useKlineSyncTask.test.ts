@@ -1,6 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { getLiveEventBus, resetLiveEventBusForTests } from "../src/composables/liveEventBus";
 import { useKlineSyncTask } from "../src/composables/useKlineSyncTask";
+
+afterEach(() => {
+  resetLiveEventBusForTests();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 describe("useKlineSyncTask", () => {
   it("tracks a completed sync task", async () => {
@@ -28,8 +35,6 @@ describe("useKlineSyncTask", () => {
     await expect(promise).resolves.toMatchObject({ status: "completed" });
     expect(task.syncing.value).toBe(false);
     expect(task.syncProgress.value?.completedIntervals).toBe(1);
-
-    vi.useRealTimers();
   });
 
   it("records failed sync errors", async () => {
@@ -53,8 +58,25 @@ describe("useKlineSyncTask", () => {
     await vi.runOnlyPendingTimersAsync();
     await expect(promise).resolves.toMatchObject({ status: "failed" });
     expect(task.syncError.value).toContain("OpenD unavailable");
+  });
 
-    vi.useRealTimers();
+  it("updates progress from the unified live event bus", () => {
+    const task = useKlineSyncTask();
+    task.syncTaskId.value = "sync-live";
+    task.syncing.value = true;
+
+    getLiveEventBus().publish({
+      eventId: "sync-live-v2",
+      type: "backtest.kline-sync.progress",
+      source: "backtest",
+      entityId: "sync-live",
+      version: 2,
+      serverTime: "2026-06-30T00:00:02Z",
+      payload: { ...progress("completed"), taskId: "sync-live" },
+    });
+
+    expect(task.syncProgress.value?.status).toBe("completed");
+    expect(task.syncing.value).toBe(false);
   });
 });
 

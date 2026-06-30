@@ -22,6 +22,8 @@ import {
 } from "@/contracts";
 
 import App from "../src/App.vue";
+import type { LiveEventEnvelope, LiveEventSource } from "../src/composables/liveEventBus";
+import { queryClient } from "../src/composables/serverState";
 import { resetSharedLiveSocketHubForTests } from "../src/composables/sharedLiveSocket";
 import { createConsoleRouter } from "../src/router";
 
@@ -357,6 +359,26 @@ export function createResponse<T>(data: T): Response {
   } as Response;
 }
 
+export function createLiveEnvelope<TPayload extends { type: string; at?: string }>(
+  payload: TPayload,
+  options: {
+    source: LiveEventSource;
+    entityId: string;
+    eventId?: string;
+    serverTime?: string;
+  },
+): LiveEventEnvelope<TPayload> {
+  const serverTime = options.serverTime ?? payload.at ?? "2026-05-16T00:00:00.000Z";
+  return {
+    eventId: options.eventId ?? `${payload.type}|${options.entityId}|${serverTime}`,
+    type: payload.type,
+    source: options.source,
+    entityId: options.entityId,
+    serverTime,
+    payload,
+  };
+}
+
 export async function flushRequests(): Promise<void> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     await Promise.resolve();
@@ -366,6 +388,7 @@ export async function flushRequests(): Promise<void> {
 }
 
 export async function mountApp(path = "/system") {
+  queryClient.clear();
   resetSharedLiveSocketHubForTests();
   MockWebSocket.instances = [];
   vi.stubGlobal(

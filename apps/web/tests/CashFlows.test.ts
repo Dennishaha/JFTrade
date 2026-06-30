@@ -32,6 +32,7 @@ import { formatLocalDateTime } from "@/utils/dateTime";
 
 import {
   MockWebSocket,
+  createLiveEnvelope,
   createResponse,
   flushRequests,
   mountApp,
@@ -253,11 +254,15 @@ describe("Console Stream", () => {
 
     const initialFetchCount = fetchMock.mock.calls.length;
 
-    consoleStream?.emitMessage({
+    const payload = {
       type: "console.refresh",
       at: "2026-05-17T00:02:00.000Z",
       checkedAt: "2026-05-17T00:02:00.000Z",
-    });
+    };
+    consoleStream?.emitMessage(createLiveEnvelope(payload, {
+      source: "system",
+      entityId: "console",
+    }));
 
     await flushRequests();
 

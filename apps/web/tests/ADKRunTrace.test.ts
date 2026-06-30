@@ -107,6 +107,32 @@ describe("ADKRunTrace", () => {
     expect(wrapper.text()).toContain("orders.latest");
   });
 
+  it("renders large expanded tool traces through a bounded window", async () => {
+    const toolCalls = Array.from({ length: 130 }, (_, index) =>
+      buildToolCall(`tool-${index + 1}`, `bulk.tool.${index + 1}`),
+    );
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun(toolCalls),
+        busy: false,
+        summaryExpanded: true,
+        expandedToolCallIds: [],
+      },
+    });
+
+    expect(wrapper.findAll(".adk-run-trace-list-item")).toHaveLength(80);
+    expect(wrapper.text()).toContain("1-80 / 130");
+    expect(wrapper.text()).toContain("bulk.tool.80");
+    expect(wrapper.text()).not.toContain("bulk.tool.81");
+
+    await wrapper.get(".adk-run-trace-window button:last-child").trigger("click");
+
+    expect(wrapper.findAll(".adk-run-trace-list-item")).toHaveLength(50);
+    expect(wrapper.text()).toContain("81-130 / 130");
+    expect(wrapper.text()).toContain("bulk.tool.81");
+    expect(wrapper.text()).not.toContain("bulk.tool.80");
+  });
+
   it("renders known tool output as an inline visualization and keeps raw JSON", () => {
     const wrapper = mount(ADKRunTrace, {
       props: {

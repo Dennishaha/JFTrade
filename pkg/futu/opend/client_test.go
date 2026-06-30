@@ -13,6 +13,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
 // startFakeOpenD serves a single TCP connection that echoes back a response
@@ -70,6 +71,33 @@ func startFakeOpenD(t *testing.T) (addr string, stop func()) {
 		jftradeErr1 := ln.Close()
 		jftradeCheckTestError(t, jftradeErr1)
 		<-done
+	}
+}
+
+func TestCallFailureRecordsRequestCorrelation(t *testing.T) {
+	recorder := observability.NewRecorder(5, time.Second)
+	ctx := observability.WithRecorder(
+		observability.WithFields(context.Background(), observability.Fields{RequestID: "request-opend-1"}),
+		recorder,
+	)
+	client := New(Config{})
+	err := client.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
+		ClientVer: new(int32(101)),
+		ClientID:  new("observability-test"),
+	}}, &initpb.Response{})
+	if !errors.Is(err, ErrClosed) {
+		t.Fatalf("Call error = %v, want ErrClosed", err)
+	}
+
+	snapshot := recorder.Snapshot()
+	if len(snapshot.RecentErrors) != 1 ||
+		snapshot.RecentErrors[0].RequestID != "request-opend-1" ||
+		snapshot.RecentErrors[0].Source != "opend" ||
+		snapshot.RecentErrors[0].Importance != observability.ImportanceHigh.String() {
+		t.Fatalf("OpenD errors = %#v", snapshot.RecentErrors)
+	}
+	if snapshot.OpenD.FailedCalls != 1 || snapshot.OpenD.LastRequestID != "request-opend-1" || snapshot.OpenD.LastOperation != "proto_1001" {
+		t.Fatalf("OpenD health = %#v", snapshot.OpenD)
 	}
 }
 

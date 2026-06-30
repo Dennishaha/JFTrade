@@ -6,8 +6,10 @@ import type {
   StrategyDefinitionDocument,
   StrategyInstanceItem,
 } from "@/contracts";
+import type { components } from "@/generated/openapi";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import { apiGet, apiPost, apiPutPath, fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import { queryClient, queryKeys } from "../composables/serverState";
 import { buildPineStrategyDefinitionPayload } from "./strategy-runtime/strategyDefinitionPayload";
 import {
   formatStrategyInterval,
@@ -68,6 +70,15 @@ interface StrategyPineAnalyzeResponse {
   ok: boolean;
   diagnostics?: StrategyPineAnalyzeDiagnostic[];
   features?: string[];
+}
+
+type StrategyDefinitionRequest = components["schemas"]["strategy.StrategyDesignDefinition"];
+const strategyDefinitionsQueryKey = queryKeys.strategyDefinitions();
+
+function fetchStrategyDefinitions(): Promise<StrategyDefinitionDocument[]> {
+  return apiGet<StrategyDefinitionDocument[], "/api/v1/strategy-definitions">(
+    "/api/v1/strategy-definitions",
+  );
 }
 
 const strategyDefinitions = ref<StrategyDefinitionDocument[]>([]);
@@ -312,7 +323,10 @@ async function loadStrategyDefinitions(
   isLoadingDefinitions.value = true;
   error.value = "";
   try {
-    const definitions = await fetchEnvelope<StrategyDefinitionDocument[]>("/api/v1/strategy-definitions");
+    const definitions = await queryClient.ensureQueryData({
+      queryKey: strategyDefinitionsQueryKey,
+      queryFn: fetchStrategyDefinitions,
+    });
     strategyDefinitions.value = definitions;
     emit("definitions-count-change", definitions.length);
     const next = definitions.find((definition) => definition.id === preferredId) ?? definitions[0] ?? null;
@@ -454,19 +468,27 @@ async function saveDefinition(options: { requireAnalysis?: boolean } = {}): Prom
       visualModel: compatibleWorkflowSnapshot(),
       createdAt: selectedDefinition.value?.createdAt ?? "",
       updatedAt: selectedDefinition.value?.updatedAt ?? "",
-    });
+    }) as StrategyDefinitionRequest;
     const existing = strategyDefinitions.value.some((definition) => definition.id === selectedDefinitionId.value);
-    const saved = await fetchEnvelopeWithInit<StrategyDefinitionDocument>(
-      existing
-        ? `/api/v1/strategy-definitions/${encodeURIComponent(selectedDefinitionId.value)}`
-        : "/api/v1/strategy-definitions",
-      {
-        method: existing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+    const saved = existing
+      ? await apiPutPath<StrategyDefinitionDocument, "/api/v1/strategy-definitions/{definitionId}">(
+        "/api/v1/strategy-definitions/{definitionId}",
+        `/api/v1/strategy-definitions/${encodeURIComponent(selectedDefinitionId.value)}`,
+        payload,
+      )
+      : await apiPost<StrategyDefinitionDocument, "/api/v1/strategy-definitions">(
+        "/api/v1/strategy-definitions",
+        payload,
+      );
+    selectedDefinitionId.value = saved.id;
+    queryClient.setQueryData<StrategyDefinitionDocument[]>(
+      strategyDefinitionsQueryKey,
+      (current) => {
+        const next = current?.filter((definition) => definition.id !== saved.id) ?? [];
+        return [...next, saved];
       },
     );
-    selectedDefinitionId.value = saved.id;
+    await queryClient.invalidateQueries({ queryKey: strategyDefinitionsQueryKey, refetchType: "none" });
     await loadStrategyDefinitions(saved.id);
     showActionFeedback("save");
     return saved;

@@ -1,50 +1,62 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { useMutation, useQuery } from "@tanstack/vue-query";
+import { computed, ref, watch } from "vue";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import type { components } from "@/generated/openapi";
 
-type PineWorkerSettings = {
-  backtestWorkerLimit: number;
-  instanceWorkerLimit: number;
-  nodeBinaryPath: string;
-};
+import { apiGet, apiPut } from "../composables/apiClient";
+import { queryClient, queryKeys } from "../composables/serverState";
+
+type PineWorkerSettings = Required<components["schemas"]["jftsettings.PineWorkerSettings"]>;
 
 const MIN_WORKER_LIMIT = 1;
 const MAX_WORKER_LIMIT = 1000;
 
-const settings = ref<PineWorkerSettings>({ backtestWorkerLimit: 2, instanceWorkerLimit: 10, nodeBinaryPath: "" });
+const defaultSettings: PineWorkerSettings = { backtestWorkerLimit: 2, instanceWorkerLimit: 10, nodeBinaryPath: "" };
 const backtestWorkerLimitInput = ref(2);
 const instanceWorkerLimitInput = ref(10);
-const loading = ref(true);
-const saving = ref(false);
 const errorMessage = ref("");
 const noticeMessage = ref("");
 
+const settingsQueryKey = queryKeys.settings("pine-worker");
+const settingsQuery = useQuery({
+  queryKey: settingsQueryKey,
+  queryFn: () => apiGet<PineWorkerSettings, "/api/v1/settings/pine-worker">("/api/v1/settings/pine-worker"),
+}, queryClient);
+const saveSettingsMutation = useMutation({
+  mutationFn: (next: PineWorkerSettings) =>
+    apiPut<PineWorkerSettings, "/api/v1/settings/pine-worker">(
+      "/api/v1/settings/pine-worker",
+      next,
+    ),
+  onSuccess: async (saved) => {
+    queryClient.setQueryData(settingsQueryKey, saved);
+    await queryClient.invalidateQueries({ queryKey: settingsQueryKey, refetchType: "none" });
+  },
+}, queryClient);
+
+const settings = computed(() => settingsQuery.data.value ?? defaultSettings);
+const loading = computed(() => settingsQuery.isLoading.value);
+const saving = computed(() => saveSettingsMutation.isPending.value);
 const normalizedBacktestWorkerLimit = computed(() => clampWorkerLimit(backtestWorkerLimitInput.value));
 const normalizedInstanceWorkerLimit = computed(() => clampWorkerLimit(instanceWorkerLimitInput.value));
+const queryErrorMessage = computed(() =>
+  settingsQuery.error.value instanceof Error ? settingsQuery.error.value.message : "",
+);
+const visibleErrorMessage = computed(() => errorMessage.value || queryErrorMessage.value);
 
-onMounted(() => {
-  void loadSettings();
-});
-
-async function loadSettings(): Promise<void> {
-  loading.value = true;
-  errorMessage.value = "";
-  noticeMessage.value = "";
-  try {
-    settings.value = await fetchEnvelope<PineWorkerSettings>("/api/v1/settings/pine-worker");
-    backtestWorkerLimitInput.value = clampWorkerLimit(settings.value.backtestWorkerLimit);
-    instanceWorkerLimitInput.value = clampWorkerLimit(settings.value.instanceWorkerLimit);
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "读取 PineTS Worker 设置失败";
-  } finally {
-    loading.value = false;
-  }
-}
+watch(
+  () => settingsQuery.data.value,
+  (next) => {
+    if (next == null || saving.value) return;
+    backtestWorkerLimitInput.value = clampWorkerLimit(next.backtestWorkerLimit);
+    instanceWorkerLimitInput.value = clampWorkerLimit(next.instanceWorkerLimit);
+  },
+  { immediate: true },
+);
 
 async function saveSettings(): Promise<void> {
   if (saving.value) return;
-  saving.value = true;
   errorMessage.value = "";
   noticeMessage.value = "";
   try {
@@ -53,18 +65,12 @@ async function saveSettings(): Promise<void> {
       instanceWorkerLimit: normalizedInstanceWorkerLimit.value,
       nodeBinaryPath: settings.value.nodeBinaryPath,
     };
-    settings.value = await fetchEnvelopeWithInit<PineWorkerSettings>("/api/v1/settings/pine-worker", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next),
-    });
+    await saveSettingsMutation.mutateAsync(next);
     backtestWorkerLimitInput.value = clampWorkerLimit(settings.value.backtestWorkerLimit);
     instanceWorkerLimitInput.value = clampWorkerLimit(settings.value.instanceWorkerLimit);
     noticeMessage.value = "PineTS Worker 最大值已保存。空闲 Worker 会关闭，后续任务按新的最大值启动。";
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "保存 PineTS Worker 设置失败";
-  } finally {
-    saving.value = false;
   }
 }
 
@@ -148,8 +154,8 @@ function clampWorkerLimit(value: number): number {
     <p v-if="noticeMessage" class="mt-3 text-xs font-medium text-emerald-700">
       {{ noticeMessage }}
     </p>
-    <p v-if="errorMessage" class="mt-3 text-xs font-medium text-rose-600">
-      {{ errorMessage }}
+    <p v-if="visibleErrorMessage" class="mt-3 text-xs font-medium text-rose-600">
+      {{ visibleErrorMessage }}
     </p>
   </section>
 </template>

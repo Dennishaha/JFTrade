@@ -12,6 +12,7 @@ import {
 } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import OrderBookDepthTable from "../domain/market-data/OrderBookDepthTable.vue";
 
 const {
   currentMarketDataSnapshot: marketDataSnapshot,
@@ -86,18 +87,6 @@ const depthLevels = computed<DepthLevel[]>(() => {
   return levels;
 });
 
-const maxBidSize = computed(() => {
-  const levels = depthLevels.value;
-  if (levels.length === 0) return 1;
-  return Math.max(...levels.map((l) => l.bidSize), 1);
-});
-
-const maxAskSize = computed(() => {
-  const levels = depthLevels.value;
-  if (levels.length === 0) return 1;
-  return Math.max(...levels.map((l) => l.askSize), 1);
-});
-
 const snapshot = computed(() => {
   const s = marketDataSnapshot.value;
   if (!s || !s.snapshot) return null;
@@ -167,11 +156,6 @@ function fmtSize(v: number | null): string {
   if (v >= 1_000_000) return (v / 1_000_000).toFixed(2) + "M";
   if (v >= 1_000) return (v / 1_000).toFixed(1) + "K";
   return v.toFixed(0);
-}
-
-function barWidth(max: number, v: number): string {
-  if (max <= 0) return "0%";
-  return ((v / max) * 100).toFixed(1) + "%";
 }
 
 // --- API calls ---
@@ -405,59 +389,12 @@ watch(
         </div>
       </div>
 
-      <!-- Depth levels -->
-      <div v-if="depthLevels.length > 0" class="tv-ob-depth-table-wrap">
-        <div class="tv-ob-depth-table">
-          <div class="tv-ob-depth-col tv-ob-depth-bid-size-col" data-testid="depth-bid-size-col">
-            <div v-for="(row, idx) in depthLevels" :key="'b' + idx" class="tv-ob-depth-row tv-ob-depth-row-bid">
-              <span class="tv-ob-depth-size">{{ fmtSize(row.bidSize) }}</span>
-              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxBidSize, row.bidSize) }"></div>
-            </div>
-          </div>
-          <div class="tv-ob-depth-col tv-ob-depth-bid-price-col" data-testid="depth-bid-price-col">
-            <div v-for="(row, idx) in depthLevels" :key="'bp' + idx"
-              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-bid-price">
-              {{ fmtPrice(row.bidPrice) }}
-            </div>
-          </div>
-          <div class="tv-ob-depth-col tv-ob-depth-ask-price-col" data-testid="depth-ask-price-col">
-            <div v-for="(row, idx) in depthLevels" :key="'ap' + idx"
-              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-ask-price">
-              {{ fmtPrice(row.askPrice) }}
-            </div>
-          </div>
-          <div class="tv-ob-depth-col tv-ob-depth-ask-size-col" data-testid="depth-ask-size-col">
-            <div v-for="(row, idx) in depthLevels" :key="'a' + idx" class="tv-ob-depth-row tv-ob-depth-row-ask">
-              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxAskSize, row.askSize) }"></div>
-              <span class="tv-ob-depth-size">{{ fmtSize(row.askSize) }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Loading / empty / error placeholder -->
-      <div v-else class="tv-ob-depth-placeholder">
-        <template v-if="isLoadingDepth && !depthError">
-          <div class="tv-ob-depth-placeholder-icon">
-            <span class="fa-solid fa-spinner fa-spin"></span>
-          </div>
-          <div class="tv-ob-depth-placeholder-text">Loading order book…</div>
-        </template>
-        <template v-else-if="depthError">
-          <div class="tv-ob-depth-placeholder-icon">
-            <span class="fa-solid fa-triangle-exclamation"></span>
-          </div>
-          <div class="tv-ob-depth-placeholder-text">数据获取失败</div>
-          <div class="tv-ob-depth-placeholder-hint">{{ depthError }}</div>
-        </template>
-        <template v-else>
-          <div class="tv-ob-depth-placeholder-icon">
-            <span class="fa-solid fa-chart-bar"></span>
-          </div>
-          <div class="tv-ob-depth-placeholder-text">暂无深度数据</div>
-          <div class="tv-ob-depth-placeholder-hint">Connect market data and choose a valid instrument.</div>
-        </template>
-      </div>
+      <OrderBookDepthTable
+        :levels="depthLevels"
+        :loading="isLoadingDepth"
+        :error="depthError"
+        :disabled="currentInstrumentId === ''"
+      />
 
     </div>
   </section>
@@ -592,114 +529,4 @@ watch(
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Depth table ---------- */
-.tv-ob-depth-table-wrap {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable both-edges;
-}
-
-.tv-ob-depth-table {
-  display: grid;
-  grid-template-columns: 1fr auto auto 1fr;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.tv-ob-depth-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.tv-ob-depth-row {
-  display: flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 6px;
-  position: relative;
-}
-
-.tv-ob-depth-row-bid {
-  justify-content: flex-end;
-  color: var(--tv-up);
-}
-
-.tv-ob-depth-row-bid .tv-ob-depth-bar {
-  position: absolute;
-  right: 0;
-  top: 2px;
-  bottom: 2px;
-  background: color-mix(in srgb, var(--tv-up) 12%, transparent);
-  border-radius: 0 2px 2px 0;
-}
-
-.tv-ob-depth-row-ask {
-  justify-content: flex-start;
-  color: var(--tv-down);
-}
-
-.tv-ob-depth-row-ask .tv-ob-depth-bar {
-  position: absolute;
-  left: 0;
-  top: 2px;
-  bottom: 2px;
-  background: color-mix(in srgb, var(--tv-down) 10%, transparent);
-  border-radius: 2px 0 0 2px;
-}
-
-.tv-ob-depth-price {
-  justify-content: center;
-  color: var(--tv-text);
-  font-weight: 600;
-  padding: 0 10px;
-  min-width: 64px;
-  background: var(--tv-bg-surface-2);
-}
-
-.tv-ob-depth-bid-price {
-  justify-content: flex-end;
-  border-left: 1px solid var(--tv-border);
-  border-right: 1px solid var(--tv-border);
-}
-
-.tv-ob-depth-ask-price {
-  justify-content: flex-start;
-  border-right: 1px solid var(--tv-border);
-}
-
-.tv-ob-depth-size {
-  position: relative;
-  z-index: 1;
-}
-
-/* ---------- Placeholder ---------- */
-.tv-ob-depth-placeholder {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 24px;
-  color: var(--tv-text-dim);
-}
-
-.tv-ob-depth-placeholder-icon {
-  font-size: 28px;
-  opacity: 0.4;
-}
-
-.tv-ob-depth-placeholder-text {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.tv-ob-depth-placeholder-hint {
-  font-size: 11px;
-  max-width: 180px;
-  text-align: center;
-  line-height: 1.4;
-}
 </style>

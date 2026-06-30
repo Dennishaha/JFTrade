@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import mermaid from "mermaid";
 import {
   computed,
   nextTick,
@@ -18,6 +17,8 @@ import ADKSessionSidebar from "./ADKSessionSidebar.vue";
 import ADKWorkflowPlanPanel from "./ADKWorkflowPlanPanel.vue";
 import { useADKMarkdownRenderer } from "../../composables/useADKMarkdownRenderer";
 import { useADKPageController } from "../../composables/useADKPageController";
+
+type MermaidApi = typeof import("mermaid")["default"];
 
 const props = withDefaults(
   defineProps<{
@@ -38,8 +39,13 @@ const childHeaderRef = ref<HTMLElement | null>(null);
 const showChildStickyBar = ref(false);
 const mobileSessionPanelOpen = ref(false);
 const isNarrowViewport = ref(false);
+const timelineRenderOffset = ref(0);
 let mermaidRenderFrame: number | null = null;
+let mermaidModule: MermaidApi | null = null;
+let mermaidModulePromise: Promise<MermaidApi> | null = null;
 let narrowViewportMediaQuery: MediaQueryList | null = null;
+
+const TIMELINE_RENDER_WINDOW = 240;
 
 const {
   activeRunId,
@@ -126,7 +132,7 @@ const {
 } = useADKPageController(router, threadRef);
 
 const mermaidRenderSignature = computed(() =>
-  visibleTimelineEntries.value
+  renderTimelineEntries.value
     .filter((entry) => String(entry.text ?? "").includes("```mermaid"))
     .map((entry) =>
       [entry.id, entry.runId ?? "", entry.status ?? "", entry.text ?? ""].join(
@@ -135,6 +141,25 @@ const mermaidRenderSignature = computed(() =>
     )
     .join("\u0001"),
 );
+const timelineWindowEnd = computed(() =>
+  Math.max(
+    0,
+    Math.min(
+      visibleTimelineEntries.value.length,
+      visibleTimelineEntries.value.length - timelineRenderOffset.value,
+    ),
+  ),
+);
+const timelineWindowStart = computed(() =>
+  Math.max(0, timelineWindowEnd.value - TIMELINE_RENDER_WINDOW),
+);
+const renderTimelineEntries = computed(() =>
+  visibleTimelineEntries.value.slice(
+    timelineWindowStart.value,
+    timelineWindowEnd.value,
+  ),
+);
+const timelineAtLatest = computed(() => timelineRenderOffset.value === 0);
 
 const emptyStateProviderHint = computed(() =>
   providers.value.length === 0
@@ -162,10 +187,9 @@ const mobileAgentLabel = computed(() => {
 });
 
 onMounted(() => {
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: "strict",
-  });
+  if (mermaidRenderSignature.value !== "") {
+    scheduleMermaidRender();
+  }
   if (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function"
@@ -211,6 +235,7 @@ watch(
 watch(
   () => visibleTimelineEntries.value.length,
   () => {
+    clampTimelineRenderOffset();
     void nextTick(updateChildStickyBar);
   },
   { flush: "post" },
@@ -219,16 +244,32 @@ watch(
 watch(
   childViewContext,
   () => {
+    timelineRenderOffset.value = 0;
     void nextTick(updateChildStickyBar);
   },
   { flush: "post" },
 );
 
 watch(selectedSessionId, () => {
+  timelineRenderOffset.value = 0;
   if (effectiveLayout.value === "mobile" && selectedSessionId.value !== "") {
     mobileSessionPanelOpen.value = false;
   }
 });
+
+async function loadMermaid(): Promise<MermaidApi> {
+  if (mermaidModule) return mermaidModule;
+  mermaidModulePromise ??= import("mermaid").then((module) => {
+    const nextMermaid = module.default;
+    nextMermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+    });
+    mermaidModule = nextMermaid;
+    return nextMermaid;
+  });
+  return mermaidModulePromise;
+}
 
 function scheduleMermaidRender(): void {
   if (typeof window === "undefined" || mermaidRenderFrame !== null) return;
@@ -243,6 +284,7 @@ async function renderMermaidDiagrams(): Promise<void> {
     threadRef.value?.querySelectorAll<HTMLElement>(".mermaid");
   if (!mermaidBlocks || mermaidBlocks.length === 0) return;
   try {
+    const mermaid = await loadMermaid();
     await mermaid.run({ nodes: mermaidBlocks, suppressErrors: true });
   } catch (error) {
     console.warn("Failed to render mermaid diagrams", error);
@@ -266,6 +308,31 @@ function updateChildStickyBar(): void {
   }
   showChildStickyBar.value =
     host.scrollTop > header.offsetTop + header.offsetHeight - 8;
+}
+
+function clampTimelineRenderOffset(): void {
+  const maxOffset = Math.max(0, visibleTimelineEntries.value.length - TIMELINE_RENDER_WINDOW);
+  if (timelineRenderOffset.value > maxOffset) {
+    timelineRenderOffset.value = maxOffset;
+  }
+}
+
+function showOlderTimelineWindow(): void {
+  timelineRenderOffset.value = Math.min(
+    Math.max(0, visibleTimelineEntries.value.length - TIMELINE_RENDER_WINDOW),
+    timelineRenderOffset.value + TIMELINE_RENDER_WINDOW,
+  );
+}
+
+function showNewerTimelineWindow(): void {
+  timelineRenderOffset.value = Math.max(
+    0,
+    timelineRenderOffset.value - TIMELINE_RENDER_WINDOW,
+  );
+}
+
+function showLatestTimelineWindow(): void {
+  timelineRenderOffset.value = 0;
 }
 
 function leaveChildView(): void {
@@ -418,7 +485,11 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
           :active-run-id="activeRunId"
           :active-run-status="activeRunStatus"
           :has-blocking-run="hasBlockingRun"
-          :timeline-entries="visibleTimelineEntries"
+          :timeline-entries="renderTimelineEntries"
+          :timeline-total="visibleTimelineEntries.length"
+          :timeline-window-start="timelineWindowStart"
+          :timeline-window-end="timelineWindowEnd"
+          :timeline-at-latest="timelineAtLatest"
           :sending-chat="sendingChat"
           :activity-indicator="activityIndicator"
           :error-message="errorMessage"
@@ -433,6 +504,9 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
           :render-markdown="renderMarkdown"
           :resolve-approval-group="resolveApprovalGroup"
           :resolve-approval="resolveApproval"
+          @show-older-timeline="showOlderTimelineWindow"
+          @show-newer-timeline="showNewerTimelineWindow"
+          @show-latest-timeline="showLatestTimelineWindow"
           @update:chat-draft="chatDraft = $event"
         />
       </div>

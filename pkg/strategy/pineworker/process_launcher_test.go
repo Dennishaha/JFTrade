@@ -19,10 +19,11 @@ func TestNodeWorkerLauncherMaterializesBundleWithArgs(t *testing.T) {
 	}
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "args.log")
+	logTempPath := logPath + ".tmp"
 	cwdPath := filepath.Join(tempDir, "cwd.log")
 	workDir := t.TempDir()
 	var stderr bytes.Buffer
-	script := "#!/bin/sh\npwd > " + shellQuote(cwdPath) + "\nprintf 'worker stderr tail\\n' >&2\nprintf '%s\\n' \"$@\" > " + shellQuote(logPath) + "\n"
+	script := "#!/bin/sh\npwd > " + shellQuote(cwdPath) + "\nprintf 'worker stderr tail\\n' >&2\nprintf '%s\\n' \"$@\" > " + shellQuote(logTempPath) + "\nmv " + shellQuote(logTempPath) + " " + shellQuote(logPath) + "\n"
 	launcher := newScriptLauncher(t, script, NodeWorkerLauncherConfig{
 		RuntimePath:     "/bin/sh",
 		TempDir:         tempDir,

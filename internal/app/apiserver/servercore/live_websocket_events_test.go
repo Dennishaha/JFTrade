@@ -31,13 +31,14 @@ func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
 	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
 	event := readLiveWebSocketEvent(t, conn)
-	if event["type"] != "heartbeat" || event["at"] == "" {
+	payload := liveWebSocketPayload(t, event, "heartbeat")
+	if event["source"] != "system" || payload["at"] == "" {
 		t.Fatalf("unexpected event: %+v", event)
 	}
-	if got := int64(jftradeCheckedTypeAssertion[float64](event["intervalMs"])); got != int64(15*time.Second/time.Millisecond) {
+	if got := int64(jftradeCheckedTypeAssertion[float64](payload["intervalMs"])); got != int64(15*time.Second/time.Millisecond) {
 		t.Fatalf("intervalMs = %d", got)
 	}
-	if stale := jftradeCheckedTypeAssertion[bool](event["stale"]); stale {
+	if stale := jftradeCheckedTypeAssertion[bool](payload["stale"]); stale {
 		t.Fatalf("unexpected stale heartbeat: %+v", event)
 	}
 }
@@ -71,14 +72,15 @@ func TestLiveWebSocketSendsSystemNotification(t *testing.T) {
 	}
 
 	event := readLiveWebSocketEvent(t, conn)
-	if event["type"] != "system.notification" {
+	payload := liveWebSocketPayload(t, event, "system.notification")
+	if event["source"] != "notification" {
 		t.Fatalf("unexpected event type: %+v", event)
 	}
-	if event["title"] != "OpenD 已就绪" {
-		t.Fatalf("title = %#v", event["title"])
+	if payload["title"] != "OpenD 已就绪" {
+		t.Fatalf("title = %#v", payload["title"])
 	}
-	if event["message"] != "已就绪：OpenD ready for requests" {
-		t.Fatalf("message = %#v", event["message"])
+	if payload["message"] != "已就绪：OpenD ready for requests" {
+		t.Fatalf("message = %#v", payload["message"])
 	}
 }
 
@@ -102,14 +104,15 @@ func TestLiveWebSocketSendsBBGONotification(t *testing.T) {
 	}
 
 	event := readLiveWebSocketEvent(t, conn)
-	if event["type"] != "system.notification" {
+	payload := liveWebSocketPayload(t, event, "system.notification")
+	if event["source"] != "notification" {
 		t.Fatalf("unexpected event type: %+v", event)
 	}
-	if event["title"] != "BBGO 通知" {
-		t.Fatalf("title = %#v", event["title"])
+	if payload["title"] != "BBGO 通知" {
+		t.Fatalf("title = %#v", payload["title"])
 	}
-	if event["message"] != "strategy demo-grid started" {
-		t.Fatalf("message = %#v", event["message"])
+	if payload["message"] != "strategy demo-grid started" {
+		t.Fatalf("message = %#v", payload["message"])
 	}
 }
 
@@ -146,7 +149,8 @@ func TestLiveWebSocketHeartbeatReportsStaleMarketData(t *testing.T) {
 	if heartbeat["type"] != "heartbeat" {
 		t.Fatalf("unexpected first event: %+v", heartbeat)
 	}
-	if stale := jftradeCheckedTypeAssertion[bool](heartbeat["stale"]); !stale {
+	payload := liveWebSocketPayload(t, heartbeat, "heartbeat")
+	if stale := jftradeCheckedTypeAssertion[bool](payload["stale"]); !stale {
 		t.Fatalf("expected stale heartbeat, got %+v", heartbeat)
 	}
 }
@@ -191,17 +195,21 @@ func TestLiveWebSocketInitialMarketTickRefreshesObservedAt(t *testing.T) {
 
 	_ = readLiveWebSocketEvent(t, conn)
 	event := readLiveWebSocketEvent(t, conn)
-	if event["type"] != "market-data.tick" {
+	payload := liveWebSocketPayload(t, event, "market-data.tick")
+	if event["source"] != "market-data" {
 		t.Fatalf("unexpected event type: %+v", event)
 	}
-	snapshot, ok := event["snapshot"].(map[string]any)
+	snapshot, ok := payload["snapshot"].(map[string]any)
 	if !ok {
-		t.Fatalf("snapshot = %#v", event["snapshot"])
+		t.Fatalf("snapshot = %#v", payload["snapshot"])
 	}
-	if snapshot["observedAt"] != event["at"] {
-		t.Fatalf("snapshot.observedAt = %#v, event.at = %#v", snapshot["observedAt"], event["at"])
+	if snapshot["observedAt"] != payload["at"] {
+		t.Fatalf("snapshot.observedAt = %#v, payload.at = %#v", snapshot["observedAt"], payload["at"])
 	}
-	parsedObservedAt := httpserver.ParseQueryTime(jftradeCheckedTypeAssertion[string](event["at"]), time.Time{})
+	if payload["source"] != "bbgo:futu" {
+		t.Fatalf("tick payload source = %#v", payload["source"])
+	}
+	parsedObservedAt := httpserver.ParseQueryTime(jftradeCheckedTypeAssertion[string](payload["at"]), time.Time{})
 	if parsedObservedAt.Before(observedAt) {
 		t.Fatalf("event at = %s, want >= %s", parsedObservedAt, observedAt)
 	}
@@ -230,10 +238,11 @@ func TestLiveWebSocketSendsConsoleRefresh(t *testing.T) {
 
 	_ = readLiveWebSocketEvent(t, conn)
 	event := readLiveWebSocketEvent(t, conn)
-	if event["type"] != "console.refresh" {
+	payload := liveWebSocketPayload(t, event, "console.refresh")
+	if event["source"] != "system" {
 		t.Fatalf("unexpected console refresh event: %+v", event)
 	}
-	if event["checkedAt"] == "" {
+	if payload["checkedAt"] == "" {
 		t.Fatalf("missing checkedAt: %+v", event)
 	}
 }
@@ -260,6 +269,21 @@ func readLiveWebSocketEvent(t *testing.T, conn *websocket.Conn) map[string]any {
 		t.Fatalf("ReadJSON: %v", err)
 	}
 	return event
+}
+
+func liveWebSocketPayload(t testing.TB, event map[string]any, eventType string) map[string]any {
+	t.Helper()
+	if event["type"] != eventType {
+		t.Fatalf("event type = %#v, want %s: %+v", event["type"], eventType, event)
+	}
+	if event["eventId"] == "" || event["entityId"] == "" || event["serverTime"] == "" {
+		t.Fatalf("incomplete live envelope: %+v", event)
+	}
+	payload := jftradeCheckedTypeAssertion[map[string]any](event["payload"])
+	if payload["type"] != eventType {
+		t.Fatalf("payload type = %#v, want %s: %+v", payload["type"], eventType, payload)
+	}
+	return payload
 }
 
 func mustDecimal(value string) decimal.Decimal {

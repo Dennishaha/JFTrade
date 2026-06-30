@@ -23,6 +23,7 @@ import (
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/market"
+	"github.com/jftrade/jftrade-main/pkg/observability"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
@@ -600,16 +601,22 @@ func (s *Service) startResolvedBacktest(ctx context.Context, req StartRequest, d
 	if s.runs == nil {
 		return nil, fmt.Errorf("run store not configured")
 	}
-	runCtx, cancel, err := s.beginTask()
+	runCtx, cancel, err := s.beginTask(ctx)
 	if err != nil {
 		return nil, err
 	}
+	runCtx = observability.WithFields(runCtx, observability.Fields{
+		RunID:        runID,
+		InstrumentID: req.Symbol,
+		Source:       "backtest",
+	})
 	if err := s.runs.Add(run); err != nil {
 		s.finishTask(cancel)
 		return nil, fmt.Errorf("persist backtest run: %w", err)
 	}
 
 	s.runs.SetCancel(runID, cancel)
+	observability.InfoWithImportance(runCtx, observability.ImportanceNormal, "backtest run queued", "status", run.Status)
 
 	// 异步执行回测
 	go s.executeBacktest(runCtx, runID, req, def, startTime, endTime, cancel)
@@ -685,7 +692,8 @@ func (s *Service) executeBacktest(
 	defer s.runs.SetCancel(runID, nil)
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			log.Printf("backtest run %s panicked: %v\n%s", runID, recovered, string(debug.Stack()))
+			panicErr := fmt.Errorf("backtest panic: %v", recovered)
+			observability.ErrorWithImportance(ctx, observability.ImportanceCritical, "backtest run panicked", panicErr, "stack", string(debug.Stack()))
 			s.finishRun(runID, "failed", failureResult(req, fmt.Sprintf("backtest panic: %v", recovered)))
 		}
 	}()
@@ -694,8 +702,9 @@ func (s *Service) executeBacktest(
 		run.Status = "running"
 		run.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	}); err != nil {
-		log.Printf("backtest run store update(%s running) failed: %v", runID, err)
+		observability.ErrorWithImportance(ctx, observability.ImportanceCritical, "backtest run store update failed", err, "status", "running")
 	}
+	observability.InfoWithImportance(ctx, observability.ImportanceNormal, "backtest run started", "status", "running")
 
 	result := s.runBacktest(ctx, bt.RunConfig{
 		DBPath:           s.dbPath(),
@@ -724,6 +733,11 @@ func (s *Service) executeBacktest(
 		status = "failed"
 	}
 	s.finishRun(runID, status, result)
+	if status == "failed" {
+		observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "backtest run failed", errors.New(result.Error), "status", status)
+	} else {
+		observability.InfoWithImportance(ctx, observability.ImportanceNormal, "backtest run finished", "status", status)
+	}
 }
 
 func (s *Service) runBacktest(ctx context.Context, config bt.RunConfig) *bt.RunResult {
@@ -879,13 +893,19 @@ func (s *Service) Sync(ctx context.Context, req SyncRequest) (*SyncStarted, erro
 		return nil, fmt.Errorf("sync task store not configured")
 	}
 
-	syncCtx, syncCancel, err := s.beginTask()
+	syncCtx, syncCancel, err := s.beginTask(ctx)
 	if err != nil {
 		jftradeErr1 := syncer.Close()
 		jftradeLogError(jftradeErr1)
 		return nil, err
 	}
+	syncCtx = observability.WithFields(syncCtx, observability.Fields{
+		TaskID:       taskID,
+		InstrumentID: req.Symbol,
+		Source:       "backtest",
+	})
 	s.syncTasks.Add(taskID, progress, syncCancel)
+	observability.InfoWithImportance(syncCtx, observability.ImportanceNormal, "backtest sync task started", "interval_count", len(intervals))
 
 	go func() {
 		defer s.finishTask(syncCancel)
@@ -911,12 +931,12 @@ func (s *Service) Sync(ctx context.Context, req SyncRequest) (*SyncStarted, erro
 			}
 			snapshot = progress.Snapshot()
 			if snapshot != nil && snapshot.Status != "cancelled" {
-				log.Printf("backtest sync failed %s: %v", req.Symbol, syncErr)
+				observability.ErrorWithImportance(syncCtx, observability.ImportanceHigh, "backtest sync task failed", syncErr, "status", snapshot.Status)
 			}
 		}
 		snapshot = progress.Snapshot()
 		if snapshot != nil {
-			log.Printf("backtest sync %s: status=%s retries=%d", req.Symbol, snapshot.Status, snapshot.Retries)
+			observability.InfoWithImportance(syncCtx, observability.ImportanceNormal, "backtest sync task finished", "status", snapshot.Status, "retries", snapshot.Retries)
 		}
 	}()
 
@@ -974,13 +994,13 @@ func (s *Service) dbPath() string {
 	return ""
 }
 
-func (s *Service) beginTask() (context.Context, context.CancelFunc, error) {
+func (s *Service) beginTask(parent context.Context) (context.Context, context.CancelFunc, error) {
 	s.lifecycleMu.Lock()
 	defer s.lifecycleMu.Unlock()
 	if s.closed {
 		return nil, nil, ErrServiceClosed
 	}
-	ctx, cancel := context.WithCancel(s.lifecycleCtx)
+	ctx, cancel := context.WithCancel(observability.Detach(s.lifecycleCtx, parent))
 	s.lifecycleTasks.Add(1)
 	return ctx, cancel, nil
 }

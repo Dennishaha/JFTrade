@@ -14,6 +14,8 @@ import { useMarketProfiles } from "../../composables/marketProfiles";
 import { resolveMarketSnapshotDisplay } from "../../composables/marketSessionDisplay";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import MarketStatusBadge from "../domain/market-data/MarketStatusBadge.vue";
+import DenseMetricStrip from "../domain/shared/DenseMetricStrip.vue";
 
 const {
   currentMarketDataSnapshot: marketDataSnapshot,
@@ -364,11 +366,7 @@ function formatPercent(value: number | null | undefined): string {
       <span class="tv-panel-title">行情</span>
       <span style="font-weight: 600">{{ instrumentTitle }}</span>
       <div style="flex: 1"></div>
-      <span
-        style="font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--tv-border); white-space: nowrap"
-        :style="snapshot ? 'color: var(--tv-accent); background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface-2))' : 'color: var(--tv-text-dim)'">
-        {{ snapshot ? "实时" : "无数据" }}
-      </span>
+      <MarketStatusBadge :state="snapshot ? 'live' : 'empty'" />
     </div>
     <div class="tv-panel-body">
       <div v-if="snapshot" style="display: flex; flex-direction: column; gap: 12px; min-height: 100%">
@@ -496,17 +494,7 @@ function formatPercent(value: number | null | undefined): string {
             <div style="font-size: 11px; color: var(--tv-text-dim); text-transform: uppercase; letter-spacing: 0.08em">
               {{ section.title }}
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px">
-              <div v-for="row in section.rows" :key="`${section.title}-${row.label}`">
-                <div style="font-size: 11px; color: var(--tv-text-dim)">
-                  {{ row.label }}
-                </div>
-                <div
-                  style="margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--tv-text); white-space: nowrap; text-overflow: ellipsis; overflow: hidden">
-                  {{ row.value }}
-                </div>
-              </div>
-            </div>
+            <DenseMetricStrip :items="section.rows" />
           </div>
         </div>
 
@@ -514,17 +502,7 @@ function formatPercent(value: number | null | undefined): string {
           <div style="font-size: 11px; color: var(--tv-text-dim); text-transform: uppercase; letter-spacing: 0.08em">
             Security
           </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px">
-            <div v-for="row in securitySummaryRows" :key="row.label">
-              <div style="font-size: 11px; color: var(--tv-text-dim)">
-                {{ row.label }}
-              </div>
-              <div
-                style="margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--tv-text); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
-                {{ row.value }}
-              </div>
-            </div>
-          </div>
+          <DenseMetricStrip :items="securitySummaryRows" />
         </div>
 
         <div v-if="!supportsExtendedHoursMarket" style="margin-top: auto; font-size: 11px; color: var(--tv-text-dim); line-height: 1.5">

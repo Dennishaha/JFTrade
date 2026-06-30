@@ -9,6 +9,8 @@ import type {
     StrategyRuntimeObservation,
 } from "@/contracts";
 
+import RuntimeHealthBadge from "../domain/runtime/RuntimeHealthBadge.vue";
+
 type StrategyAction = "start" | "pause" | "stop";
 
 const props = defineProps<{
@@ -259,9 +261,11 @@ function handleRuntimeRiskCloseOnlyChange(event: Event): void {
                 <div class="mt-3 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-3">
                     <div>
                         <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">运行状态</div>
-                        <div class="mt-1 font-medium text-slate-900">
-                            {{ formatStrategyStatus(selectedStrategyRuntimeObservation.actualStatus) }}
-                        </div>
+                        <RuntimeHealthBadge
+                            class="mt-1"
+                            :status="selectedStrategyRuntimeObservation.actualStatus"
+                            :label="formatStrategyStatus(selectedStrategyRuntimeObservation.actualStatus)"
+                        />
                     </div>
                     <div>
                         <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">活跃标的</div>

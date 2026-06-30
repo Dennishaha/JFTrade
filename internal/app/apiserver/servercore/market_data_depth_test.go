@@ -288,11 +288,15 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 	if event["type"] != "market.depth" {
 		t.Fatalf("unexpected websocket event: %+v", event)
 	}
-	request := jftradeCheckedTypeAssertion[map[string]any](event["request"])
-	if request == nil || request["instrumentId"] != "US.TME" {
-		t.Fatalf("unexpected request payload: %+v", event["request"])
+	if event["source"] != "market-data" {
+		t.Fatalf("unexpected websocket source: %+v", event)
 	}
-	depth := jftradeCheckedTypeAssertion[map[string]any](event["depth"])
+	payload := liveWebSocketPayload(t, event, "market.depth")
+	request := jftradeCheckedTypeAssertion[map[string]any](payload["request"])
+	if request == nil || request["instrumentId"] != "US.TME" {
+		t.Fatalf("unexpected request payload: %+v", payload["request"])
+	}
+	depth := jftradeCheckedTypeAssertion[map[string]any](payload["depth"])
 	if depth == nil {
 		t.Fatalf("missing depth payload: %+v", event)
 	}

@@ -31,8 +31,9 @@ import type {
     StrategyRuntimeObservation,
 } from "@/contracts";
 
-import { ApiClientError, fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import { ApiClientError, apiGet, fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import { useMarketProfiles } from "../composables/marketProfiles";
+import { queryClient, queryKeys } from "../composables/serverState";
 import { useConsoleData } from "../composables/useConsoleData";
 import { formatLocalDateTime } from "../utils/dateTime";
 import {
@@ -384,28 +385,6 @@ function displayStrategyStatus(strategy: StrategyInstanceItem): StrategyInstance
     return strategy.runtimeObservation?.actualStatus ?? strategy.status;
 }
 
-function strategyStatusBadgeClass(strategy: StrategyInstanceItem): string {
-    switch (displayStrategyStatus(strategy)) {
-        case "RUNNING":
-            return "strategy-status-badge strategy-status-badge--running";
-        case "PAUSED":
-            return "strategy-status-badge strategy-status-badge--paused";
-        default:
-            return "strategy-status-badge strategy-status-badge--stopped";
-    }
-}
-
-function strategyStatusCardClass(strategy: StrategyInstanceItem): string {
-    switch (displayStrategyStatus(strategy)) {
-        case "RUNNING":
-            return "strategy-list-card--running";
-        case "PAUSED":
-            return "strategy-list-card--paused";
-        default:
-            return "strategy-list-card--stopped";
-    }
-}
-
 function formatStrategyDefinitionSyncSummary(
     sync: StrategyDefinitionSyncStatus | null | undefined,
 ): string {
@@ -539,7 +518,12 @@ async function loadStrategyDefinitions(): Promise<void> {
     definitionsError.value = "";
 
     try {
-        strategyDefinitions.value = await fetchEnvelope<StrategyDefinitionDocument[]>("/api/v1/strategy-definitions");
+        strategyDefinitions.value = await queryClient.ensureQueryData({
+            queryKey: queryKeys.strategyDefinitions(),
+            queryFn: () => apiGet<StrategyDefinitionDocument[], "/api/v1/strategy-definitions">(
+                "/api/v1/strategy-definitions",
+            ),
+        });
     } catch (error) {
         strategyDefinitions.value = [];
         definitionsError.value =
@@ -942,9 +926,6 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                     :list-error="listError"
                     :strategies="strategies"
                     :selected-strategy-id="selectedStrategyId"
-                    :display-strategy-status="displayStrategyStatus"
-                    :strategy-status-badge-class="strategyStatusBadgeClass"
-                    :strategy-status-card-class="strategyStatusCardClass"
                     :format-strategy-status="formatStrategyStatus"
                     :format-strategy-definition-sync-summary="formatStrategyDefinitionSyncSummary"
                     :format-strategy-symbols="formatStrategySymbols"

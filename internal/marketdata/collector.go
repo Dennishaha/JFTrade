@@ -3,11 +3,12 @@ package marketdata
 import (
 	"context"
 	"errors"
-	"log"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
 const (
@@ -406,7 +407,7 @@ func (c *Collector) commitQuoteFailure(generation uint64, err error) {
 	c.state.QuoteFailures++
 	c.state.QuoteRetryAt = c.now().UTC().Add(delay)
 	c.state.QuoteLastError = err.Error()
-	log.Printf("marketdata fallback query failed; retrying in %s: %v", delay, err)
+	observability.ErrorWithImportance(observability.WithFields(c.ctx, observability.Fields{Source: "market-data"}), observability.ImportanceHigh, "marketdata fallback query failed", err, "retry_in_ms", delay.Milliseconds())
 }
 
 func (c *Collector) commitStreamFailure(generation uint64, err error) {
@@ -429,7 +430,7 @@ func (c *Collector) commitStreamFailure(generation uint64, err error) {
 	c.state.StreamRetryAt = c.now().UTC().Add(delay)
 	c.state.StreamLastError = err.Error()
 	c.mu.Unlock()
-	log.Printf("marketdata push stream connect failed; retrying in %s: %v", delay, err)
+	observability.ErrorWithImportance(observability.WithFields(c.ctx, observability.Fields{Source: "market-data"}), observability.ImportanceHigh, "marketdata push stream connect failed", err, "retry_in_ms", delay.Milliseconds())
 }
 
 func (c *Collector) activeInstruments() []string {

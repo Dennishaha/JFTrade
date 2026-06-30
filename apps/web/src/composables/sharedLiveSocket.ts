@@ -2,6 +2,12 @@ import { ref, watch, type Ref } from "vue";
 
 import { buildRuntimeLiveSocketUrl } from "../runtimeConfig";
 import {
+  getLiveEventBus,
+  parseLiveEventEnvelope,
+  resetLiveEventBusForTests,
+  type LiveEventEnvelope,
+} from "./liveEventBus";
+import {
   normalizeMarketDataTickLiveEvent,
   type MarketDataTickLiveEvent,
   type MarketSecurityDetailsQueryResult,
@@ -91,8 +97,24 @@ export interface LiveSocketSubscriptionSnapshot {
   consoleRefresh: boolean;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function normalizeInstrumentId(value: string): string {
   return value.trim().toUpperCase();
+}
+
+function liveStreamPayloadFromEnvelope(
+  envelope: LiveEventEnvelope,
+): LiveStreamEvent | null {
+  if (!isRecord(envelope.payload) || envelope.payload.type !== envelope.type) {
+    return null;
+  }
+  return (
+    normalizeMarketDataTickLiveEvent(envelope.payload) ??
+    (envelope.payload as LiveStreamEvent)
+  );
 }
 
 function normalizeTarget<T extends { market: string; symbol: string; instrumentId: string }>(
@@ -162,17 +184,24 @@ class SharedLiveSocketHub {
         return;
       }
       try {
-        const rawPayload = JSON.parse(event.data) as unknown;
-        const payload =
-          normalizeMarketDataTickLiveEvent(rawPayload) ??
-          (rawPayload as LiveStreamEvent);
+        const envelope = parseLiveEventEnvelope(JSON.parse(event.data) as unknown);
+        if (envelope == null) {
+          this.connectionState.value = "error";
+          return;
+        }
+        const payload = liveStreamPayloadFromEnvelope(envelope);
+        if (payload == null) {
+          this.connectionState.value = "error";
+          return;
+        }
         this.events.value = [
           ...this.events.value.slice(-(MAX_BUFFERED_EVENTS - 1)),
           payload,
         ];
         if (payload.type === "heartbeat") {
-          this.lastHeartbeat.value = payload.at;
+          this.lastHeartbeat.value = payload.at || envelope.serverTime;
         }
+        getLiveEventBus().publish(envelope);
         for (const listener of this.eventListeners) {
           listener(payload);
         }
@@ -416,6 +445,7 @@ export function getSharedLiveSocketHub(): SharedLiveSocketHub {
 
 export function resetSharedLiveSocketHubForTests(): void {
   sharedLiveSocketHub?.reset();
+  resetLiveEventBusForTests();
 }
 
 export type SharedLiveSocketHubStore = {

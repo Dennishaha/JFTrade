@@ -16,6 +16,9 @@ func TestStatusIncludesInjectedObservabilitySummaries(t *testing.T) {
 		WithExchangeCalendarStatus(func() map[string]any {
 			return map[string]any{"healthy": true, "sources": 4}
 		}),
+		WithRequestObservability(func() any {
+			return map[string]any{"recentErrors": []any{"failure"}, "slowThresholdMs": 750}
+		}),
 	)
 
 	status := svc.Status()
@@ -34,6 +37,10 @@ func TestStatusIncludesInjectedObservabilitySummaries(t *testing.T) {
 	calendars, ok := observability["exchangeCalendars"].(map[string]any)
 	if !ok || calendars["healthy"] != true || calendars["sources"] != 4 {
 		t.Fatalf("exchangeCalendars = %#v", observability["exchangeCalendars"])
+	}
+	requests, ok := observability["requests"].(map[string]any)
+	if !ok || requests["slowThresholdMs"] != 750 {
+		t.Fatalf("requests = %#v", observability["requests"])
 	}
 }
 

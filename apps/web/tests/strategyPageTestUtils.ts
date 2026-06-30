@@ -4,6 +4,7 @@ import { defineComponent, h, nextTick } from "vue"
 import { createMemoryHistory, createRouter, RouterView } from "vue-router"
 
 import { provideConsoleDataStore } from "../src/composables/useConsoleData"
+import { queryClient } from "../src/composables/serverState"
 import { provideThemeStore } from "../src/composables/useTheme"
 import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences"
 import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout"
@@ -49,6 +50,7 @@ const RouteLeaveTargetPage = defineComponent({
 })
 
 export async function mountStrategyPage(path = "/strategy") {
+  queryClient.clear()
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -82,6 +84,7 @@ export async function mountStrategyPage(path = "/strategy") {
 export type StrategyPageWrapper = Awaited<ReturnType<typeof mountStrategyPage>>["wrapper"]
 
 export function resetStrategyPageTestState() {
+  queryClient.clear()
   MockWebSocket.instances = []
   resetStrategyPageSharedState()
 }

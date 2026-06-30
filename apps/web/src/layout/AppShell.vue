@@ -9,8 +9,11 @@ import {
 import { provideConsoleDataStore } from "../composables/useConsoleData";
 import { useDocsLink } from "../composables/useDocsLink";
 import {
-  type SystemNotificationLiveStreamEvent,
-} from "../composables/useLiveStream";
+  createMarketDataLiveReducer,
+  createNotificationLiveReducer,
+  formatLiveEventTypeLabel,
+} from "../composables/liveEventReducers";
+import { getLiveEventBus } from "../composables/liveEventBus";
 import { provideNotificationsStore } from "../composables/useNotifications";
 import { provideLiveStreamStore } from "../composables/useSharedLiveStream";
 import { provideThemeStore } from "../composables/useTheme";
@@ -167,67 +170,37 @@ palette.register({
   },
 });
 
-// Wire live stream events into the shared console store and notify only on
-// non-market-data control events to avoid spamming the UI during live quotes.
-let lastSeenLiveEventKey = "";
 let lastSeenFutuOpenDIssueFingerprint = "";
-let pendingMarketTickEvent: Parameters<typeof console_.applyMarketDataTickEvent>[0] | null =
-  null;
-let marketTickFlushTimer: ReturnType<typeof setTimeout> | null = null;
-
-function isSystemNotificationEvent(
-  event: unknown,
-): event is SystemNotificationLiveStreamEvent {
-  return (
-    event != null &&
-    typeof event === "object" &&
-    "type" in event &&
-    (event as { type?: unknown }).type === "system.notification" &&
-    "id" in event &&
-    "level" in event &&
-    "title" in event
-  );
-}
-
-function formatLiveEventTypeLabel(type: string): string {
-  if (type === "heartbeat") return "心跳";
-  if (type === "market-data.tick") return "行情推送";
-  if (type === "system.notification") return "系统通知";
-  if (type === "console.refresh") return "控制台刷新";
-  if (type === "market.security-details") return "证券详情";
-  if (type === "market.depth") return "盘口";
-  return type;
-}
-
-function shouldReloadSystemStateForNotification(
-  event: SystemNotificationLiveStreamEvent,
-): boolean {
-  const source = event.source?.trim().toLowerCase() ?? "";
-  const category = event.category?.trim().toLowerCase() ?? "";
-  return source === "execution-orders" || category.startsWith("broker.order.");
-}
-
-function flushPendingMarketTickEvent(): void {
-  if (pendingMarketTickEvent != null) {
-    console_.applyMarketDataTickEvent(pendingMarketTickEvent);
-    pendingMarketTickEvent = null;
-  }
-
-  if (marketTickFlushTimer != null) {
-    clearTimeout(marketTickFlushTimer);
-    marketTickFlushTimer = null;
-  }
-}
-
-function scheduleMarketTickFlush(): void {
-  if (marketTickFlushTimer != null) {
+const marketDataLiveReducer = createMarketDataLiveReducer({
+  applyMarketDataTickEvent: console_.applyMarketDataTickEvent,
+});
+const notificationLiveReducer = createNotificationLiveReducer({
+  notifications,
+  loadSystemState: console_.loadSystemState,
+});
+const stopLiveEventReducers = getLiveEventBus().subscribe((event) => {
+  if (marketDataLiveReducer.handle(event)) {
     return;
   }
-
-  marketTickFlushTimer = setTimeout(() => {
-    flushPendingMarketTickEvent();
-  }, Math.floor(1000 / 30));
-}
+  if (notificationLiveReducer.handle(event)) {
+    return;
+  }
+  if (
+    event.type === "heartbeat" ||
+    event.type === "console.refresh" ||
+    event.type === "market.security-details" ||
+    event.type === "market.depth"
+  ) {
+    return;
+  }
+  notifications.push({
+    level: "info",
+    title: `实时通道：${formatLiveEventTypeLabel(event.type)}`,
+    source: "live-stream",
+    at: event.serverTime,
+    category: `live.${event.type}`,
+  });
+});
 
 function syncCompactAppShell(
   event: MediaQueryListEvent | MediaQueryList,
@@ -308,71 +281,6 @@ async function initializeConsoleShell(): Promise<void> {
   await console_.initialize();
 }
 
-const stop = watch(
-  () => live.events.value.at(-1),
-  (ev) => {
-    if (ev == null) {
-      return;
-    }
-
-    const eventKey =
-      ev.type === "market-data.tick" && "instrument" in ev && "snapshot" in ev
-        ? `${ev.type}|${ev.instrument.instrumentId}|${ev.at}|${ev.snapshot.price}`
-        : isSystemNotificationEvent(ev)
-          ? `${ev.type}|${ev.id}`
-        : `${ev.type}|${ev.at}`;
-    if (eventKey === lastSeenLiveEventKey) {
-      return;
-    }
-    lastSeenLiveEventKey = eventKey;
-
-    if (ev.type === "market-data.tick") {
-      pendingMarketTickEvent = ev;
-      scheduleMarketTickFlush();
-      return;
-    }
-
-    if (
-      ev.type === "console.refresh" ||
-      ev.type === "market.security-details" ||
-      ev.type === "market.depth"
-    ) {
-      return;
-    }
-
-    if (isSystemNotificationEvent(ev)) {
-      notifications.push({
-        level: ev.level,
-        title: ev.title,
-        source: ev.source ?? ev.brokerId ?? "live-stream",
-        at: ev.at,
-        ...(ev.category ? { category: ev.category } : {}),
-        ...(ev.message ? { message: ev.message } : {}),
-      });
-
-      if (shouldReloadSystemStateForNotification(ev)) {
-        void console_.loadSystemState({
-          background: true,
-          bypassCooldown: true,
-        });
-      }
-      return;
-    }
-
-    console_.applyMarketDataTickEvent(ev);
-
-    if (ev.type !== "heartbeat" && ev.type !== "market-data.tick") {
-      notifications.push({
-        level: "info",
-        title: `实时通道：${formatLiveEventTypeLabel(ev.type)}`,
-        source: "live-stream",
-        at: ev.at,
-        category: `live.${ev.type}`,
-      });
-    }
-  },
-);
-
 const stopFutuOpenDMessages = watch(
   () => {
     const diagnosis = console_.futuOpenDHealth.value.diagnosis;
@@ -450,7 +358,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  flushPendingMarketTickEvent();
+  marketDataLiveReducer.dispose();
+  stopLiveEventReducers();
   stopRightDockResize();
   if (typeof document !== "undefined") {
     document.removeEventListener("visibilitychange", reconnectLiveStreamIfNeeded);
@@ -471,7 +380,6 @@ onUnmounted(() => {
   compactAppShellMediaQuery = null;
   live.disconnect();
   console_.dispose();
-  stop();
   stopFutuOpenDMessages();
   stopOobeRedirect();
 });

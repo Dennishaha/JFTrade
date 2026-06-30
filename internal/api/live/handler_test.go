@@ -3,7 +3,6 @@ package live
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -31,7 +30,7 @@ func (b *fakeBackend) ConnectionLimit() int { return b.limit }
 
 func (b *fakeBackend) Heartbeat(interval time.Duration, stats ClientStats, _ []string) map[string]any {
 	return map[string]any{
-		"type": "heartbeat", "intervalMs": interval.Milliseconds(),
+		"type": "heartbeat", "at": time.Now().UTC().Format(time.RFC3339Nano), "intervalMs": interval.Milliseconds(),
 		"liveClients": map[string]any{"connected": stats.Connected, "limit": stats.Limit, "atLimit": stats.AtLimit},
 	}
 }
@@ -119,7 +118,7 @@ func TestHandlerHeartbeatSubscribeNormalizationAndPayloads(t *testing.T) {
 	}
 
 	first := readEvent(t, conn)
-	if first["type"] != "heartbeat" {
+	if first["type"] != "heartbeat" || first["source"] != "system" {
 		t.Fatalf("first event = %#v, want heartbeat", first)
 	}
 
@@ -130,14 +129,16 @@ func TestHandlerHeartbeatSubscribeNormalizationAndPayloads(t *testing.T) {
 		event := readEvent(t, conn)
 		switch event["type"] {
 		case "market.security-details":
+			payload := liveEnvelopePayload(t, event, "market.security-details")
 			seenSecurity = true
-			request := jftradeCheckedTypeAssertion[map[string]any](event["request"])
+			request := jftradeCheckedTypeAssertion[map[string]any](payload["request"])
 			if request["instrumentId"] != "HK.00700" {
 				t.Fatalf("security request = %#v", request)
 			}
 		case "market.depth":
+			payload := liveEnvelopePayload(t, event, "market.depth")
 			seenDepth = true
-			request := jftradeCheckedTypeAssertion[map[string]any](event["request"])
+			request := jftradeCheckedTypeAssertion[map[string]any](payload["request"])
 			if request["instrumentId"] != "US.TME" || request["num"] != float64(50) {
 				t.Fatalf("depth request = %#v", request)
 			}
@@ -155,7 +156,7 @@ func TestHandlerHeartbeatSubscribeNormalizationAndPayloads(t *testing.T) {
 	}
 	depthSubscriber(" us.tme ")
 	depthPush := readEvent(t, conn)
-	if depthPush["type"] != "market.depth" {
+	if depthPush["type"] != "market.depth" || depthPush["source"] != "market-data" {
 		t.Fatalf("depth push event = %#v", depthPush)
 	}
 
@@ -200,7 +201,8 @@ func TestHandlerNotificationSequenceZeroReplay(t *testing.T) {
 	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 	_ = readEvent(t, conn)
 	event := readEvent(t, conn)
-	if event["type"] != "system.notification" || event["id"] != "system-notification-1" {
+	payload := liveEnvelopePayload(t, event, "system.notification")
+	if event["source"] != "notification" || payload["id"] != "system-notification-1" {
 		t.Fatalf("notification event = %#v", event)
 	}
 }
@@ -265,7 +267,7 @@ func TestDispatcherDeduplicatesTickObservedAt(t *testing.T) {
 		ticks: []TickEvent{{
 			InstrumentID: "US.AAPL",
 			ObservedAt:   "2026-06-14T00:00:00Z",
-			Payload:      map[string]any{"type": "market-data.tick", "at": "2026-06-14T00:00:00Z"},
+			Payload:      map[string]any{"type": "market-data.tick", "at": "2026-06-14T00:00:00Z", "source": "bbgo:futu"},
 		}},
 	}
 	handler := NewHandler(backend, Options{})
@@ -286,6 +288,13 @@ func TestDispatcherDeduplicatesTickObservedAt(t *testing.T) {
 	if got := writer.countType("market-data.tick"); got != 1 {
 		t.Fatalf("tick count = %d, want 1", got)
 	}
+	payload := liveEnvelopePayload(t, writer.events[0], "market-data.tick")
+	if payload["at"] != "2026-06-14T00:00:00Z" {
+		t.Fatalf("tick payload = %#v", payload)
+	}
+	if writer.events[0]["source"] != "market-data" || payload["source"] != "bbgo:futu" {
+		t.Fatalf("source fields were not preserved: envelope=%#v payload=%#v", writer.events[0], payload)
+	}
 }
 
 type recordingWriter struct {
@@ -293,9 +302,13 @@ type recordingWriter struct {
 }
 
 func (w *recordingWriter) WriteEvent(value any) error {
-	event, ok := value.(map[string]any)
-	if !ok {
-		return errors.New("event is not a map")
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	var event map[string]any
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return err
 	}
 	w.events = append(w.events, event)
 	return nil
@@ -309,6 +322,21 @@ func (w *recordingWriter) countType(eventType string) int {
 		}
 	}
 	return count
+}
+
+func liveEnvelopePayload(t testing.TB, event map[string]any, eventType string) map[string]any {
+	t.Helper()
+	if event["type"] != eventType {
+		t.Fatalf("event type = %#v, want %s: %#v", event["type"], eventType, event)
+	}
+	if event["eventId"] == "" || event["entityId"] == "" || event["serverTime"] == "" {
+		t.Fatalf("incomplete live envelope: %#v", event)
+	}
+	payload := jftradeCheckedTypeAssertion[map[string]any](event["payload"])
+	if payload["type"] != eventType {
+		t.Fatalf("payload type = %#v, want %s: %#v", payload["type"], eventType, payload)
+	}
+	return payload
 }
 
 func dial(t *testing.T, baseURL string) *websocket.Conn {

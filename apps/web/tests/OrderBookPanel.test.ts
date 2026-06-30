@@ -9,7 +9,7 @@ import {
   resetSharedLiveSocketHubForTests,
 } from "../src/composables/sharedLiveSocket";
 import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
-import { MockWebSocket } from "./helpers";
+import { createLiveEnvelope, MockWebSocket } from "./helpers";
 
 const marketDataSnapshot = ref<any>(null);
 const marketSecurityDetails = ref<any>(null);
@@ -44,6 +44,17 @@ function mountOrderBookPanel() {
     },
   });
   return mount(Host);
+}
+
+function createDepthEnvelope<TPayload extends {
+  type: "market.depth";
+  at: string;
+  request: { instrumentId: string; num: number };
+}>(payload: TPayload) {
+  return createLiveEnvelope(payload, {
+    source: "market-data",
+    entityId: `${payload.request.instrumentId}|${payload.request.num}`,
+  });
 }
 
 describe("OrderBookPanel", () => {
@@ -131,7 +142,7 @@ describe("OrderBookPanel", () => {
     expect(MockWebSocket.instances).toHaveLength(1);
     expect(MockWebSocket.instances[0]?.url).toBe("ws://127.0.0.1:3000/api/v1/ws/live");
 
-    MockWebSocket.instances[0]?.emitMessage({
+    MockWebSocket.instances[0]?.emitMessage(createDepthEnvelope({
       type: "market.depth",
       at: "2026-06-02T00:00:00Z",
       request: {
@@ -151,7 +162,7 @@ describe("OrderBookPanel", () => {
         resolvedAt: "2026-06-02T00:00:00Z",
         fromCache: false,
       },
-    });
+    }));
     await nextTick();
 
     expect(wrapper.text()).toContain("18.52");
@@ -217,7 +228,7 @@ describe("OrderBookPanel", () => {
     await Promise.resolve();
     await nextTick();
 
-    MockWebSocket.instances[0]?.emitMessage({
+    MockWebSocket.instances[0]?.emitMessage(createDepthEnvelope({
       type: "market.depth",
       at: "2026-06-02T00:00:00Z",
       request: {
@@ -237,7 +248,7 @@ describe("OrderBookPanel", () => {
         resolvedAt: "2026-06-02T00:00:00Z",
         fromCache: false,
       },
-    });
+    }));
     await nextTick();
 
     expect(wrapper.text()).toContain("18.52");
@@ -260,7 +271,7 @@ describe("OrderBookPanel", () => {
       num: 10,
     });
 
-    oldStream?.emitMessage({
+    oldStream?.emitMessage(createDepthEnvelope({
       type: "market.depth",
       at: "2026-06-02T00:00:01Z",
       request: {
@@ -280,7 +291,7 @@ describe("OrderBookPanel", () => {
         resolvedAt: "2026-06-02T00:00:01Z",
         fromCache: false,
       },
-    });
+    }));
     await nextTick();
 
     expect(wrapper.text()).not.toContain("18.60");
@@ -297,7 +308,7 @@ describe("OrderBookPanel", () => {
     await Promise.resolve();
     await nextTick();
 
-    MockWebSocket.instances[0]?.emitMessage({
+    MockWebSocket.instances[0]?.emitMessage(createDepthEnvelope({
       type: "market.depth",
       at: "2026-06-02T00:00:00Z",
       request: {
@@ -317,7 +328,7 @@ describe("OrderBookPanel", () => {
         resolvedAt: "2026-06-02T00:00:00Z",
         fromCache: false,
       },
-    });
+    }));
     await nextTick();
 
     expect(wrapper.text()).toContain("18.52");

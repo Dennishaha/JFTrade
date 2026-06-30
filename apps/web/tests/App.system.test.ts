@@ -28,6 +28,7 @@ import { formatLocalDateTime } from "@/utils/dateTime";
 
 import {
   MockWebSocket,
+  createLiveEnvelope,
   createResponse,
   flushRequests,
   mountApp,
@@ -74,6 +75,44 @@ const systemStatus: SystemStatusResponse = {
   },
   strategyRuntime: {
     activeStrategies: 2,
+  },
+  observability: {
+    requests: {
+      slowThresholdMs: 750,
+      minimumImportance: "low",
+      recentErrors: [
+        {
+          at: "2026-05-16T00:31:00.000Z",
+          level: "error",
+          importance: "high",
+          message: "backtest sync task failed",
+          error: "OpenD history unavailable",
+          requestId: "request-sync-1",
+          taskId: "sync-1",
+          instrumentId: "US.AAPL",
+          source: "backtest",
+        },
+      ],
+      recentSlowRequests: [
+        {
+          at: "2026-05-16T00:32:00.000Z",
+          level: "info",
+          importance: "low",
+          message: "api request",
+          method: "GET",
+          path: "/api/v1/backtests",
+          requestId: "request-slow-1",
+          latencyMs: 900,
+          source: "api",
+        },
+      ],
+      openD: {
+        totalCalls: 5,
+        failedCalls: 1,
+        lastOperation: "proto_3006",
+        lastRequestId: "request-sync-1",
+      },
+    },
   },
 };
 
@@ -267,14 +306,27 @@ describe("System page", () => {
 
     expect(liveStream?.url).toContain("/api/v1/ws/live");
 
-    liveStream?.emitMessage({
+    const heartbeat = {
       type: "heartbeat",
       at: "2026-05-16T00:30:00.000Z",
-    });
+    };
+    liveStream?.emitMessage(createLiveEnvelope(heartbeat, {
+      source: "system",
+      entityId: "live-websocket",
+      eventId: "heartbeat|2026-05-16T00:30:00.000Z",
+    }));
     await flushRequests();
 
     expect(wrapper.text()).toContain("JFTRADE");
     expect(wrapper.text()).toContain("系统运行状态");
+    expect(wrapper.text()).toContain("链路观测");
+    expect(wrapper.text()).toContain("记录阈值 低重要性");
+    expect(wrapper.text()).toContain("高重要性");
+    expect(wrapper.text()).toContain("backtest sync task failed");
+    expect(wrapper.text()).toContain("request request-sync-1");
+    expect(wrapper.text()).toContain("sync-1");
+    expect(wrapper.text()).toContain("proto_3006");
+    expect(wrapper.text()).toContain("900ms");
     expect(wrapper.text()).toContain("工作进程券商订阅健康");
     expect(wrapper.text()).toContain("工作进程退避热点");
     expect(wrapper.text()).toContain("分层退避治理");
@@ -439,7 +491,7 @@ describe("System page", () => {
       "click",
     );
 
-    liveStream?.emitMessage({
+    const notification = {
     type: "system.notification",
     id: "system-notification-1",
     at: "2026-05-16T00:31:00.000Z",
@@ -449,7 +501,12 @@ describe("System page", () => {
     source: "futu-opend",
     brokerId: "futu",
     category: "broker.connection",
-    });
+    };
+    liveStream?.emitMessage(createLiveEnvelope(notification, {
+      source: "notification",
+      entityId: "system-notification-1",
+      eventId: "system-notification-1",
+    }));
     await flushRequests();
 
     expect(wrapper.text()).toContain("OpenD 连接状态变化");

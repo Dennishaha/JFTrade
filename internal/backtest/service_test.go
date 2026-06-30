@@ -12,6 +12,7 @@ import (
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/observability"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -34,12 +35,14 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 
 	done := make(chan struct{})
 	var gotConfig bt.RunConfig
+	var gotFields observability.Fields
 	svc := NewService(
 		WithRunStore(runs),
 		WithStrategyProvider(provider),
 		WithDBPathFn(func() string { return "/tmp/backtest.db" }),
 		WithRunBacktestFn(func(ctx context.Context, config bt.RunConfig) *bt.RunResult {
 			gotConfig = config
+			gotFields = observability.FieldsFromContext(ctx)
 			close(done)
 			return &bt.RunResult{
 				Symbol:       config.Symbol,
@@ -51,7 +54,8 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 		}),
 	)
 
-	started, err := svc.Start(context.Background(), StartRequest{
+	requestContext := observability.WithFields(context.Background(), observability.Fields{RequestID: "request-backtest-1"})
+	started, err := svc.Start(requestContext, StartRequest{
 		DefinitionID: "def-1",
 		Market:       "US",
 		Code:         "AAPL",
@@ -111,6 +115,9 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 	}
 	if gotConfig.InitialBalance != 25000 {
 		t.Fatalf("config initial balance = %v, want 25000", gotConfig.InitialBalance)
+	}
+	if gotFields.RequestID != "request-backtest-1" || gotFields.RunID != started.ID || gotFields.InstrumentID != "US.AAPL" || gotFields.Source != "backtest" {
+		t.Fatalf("backtest observability fields = %#v", gotFields)
 	}
 }
 
@@ -734,7 +741,8 @@ func TestSyncConvertsParamsAndClosesAdapter(t *testing.T) {
 		}),
 	)
 
-	started, err := svc.Sync(context.Background(), SyncRequest{
+	requestContext := observability.WithFields(context.Background(), observability.Fields{RequestID: "request-sync-1"})
+	started, err := svc.Sync(requestContext, SyncRequest{
 		Market:       "US",
 		Code:         "AAPL",
 		Intervals:    []string{"1d", "1w"},
@@ -763,6 +771,7 @@ func TestSyncConvertsParamsAndClosesAdapter(t *testing.T) {
 	syncer.mu.Lock()
 	params := syncer.params
 	closed := syncer.closed
+	fields := syncer.fields
 	syncer.mu.Unlock()
 	if params.Symbol != "US.AAPL" {
 		t.Fatalf("params symbol = %q, want US.AAPL", params.Symbol)
@@ -778,6 +787,9 @@ func TestSyncConvertsParamsAndClosesAdapter(t *testing.T) {
 	}
 	if !closed {
 		t.Fatal("sync adapter was not closed")
+	}
+	if fields.RequestID != "request-sync-1" || fields.TaskID != started.TaskID || fields.InstrumentID != "US.AAPL" || fields.Source != "backtest" {
+		t.Fatalf("sync observability fields = %#v", fields)
 	}
 	if !tasks.isFinished(started.TaskID) {
 		t.Fatal("sync task was not marked finished")
@@ -1340,11 +1352,13 @@ type fakeKLineSyncer struct {
 	done          chan struct{}
 	started       chan struct{}
 	waitForCancel bool
+	fields        observability.Fields
 }
 
 func (s *fakeKLineSyncer) Sync(ctx context.Context, params KLineSyncParams, progress *bt.SyncProgress) error {
 	s.mu.Lock()
 	s.params = params
+	s.fields = observability.FieldsFromContext(ctx)
 	err := s.err
 	done := s.done
 	started := s.started

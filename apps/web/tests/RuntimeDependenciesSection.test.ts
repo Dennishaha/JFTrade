@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import RuntimeDependenciesSection from "../src/components/RuntimeDependenciesSection.vue";
+import { queryClient } from "../src/composables/serverState";
 import { createResponse, flushRequests } from "./helpers";
 
+beforeEach(() => {
+  queryClient.clear();
+});
+
 afterEach(() => {
+  queryClient.clear();
   vi.unstubAllGlobals();
 });
 

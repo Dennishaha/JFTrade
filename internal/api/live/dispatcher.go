@@ -16,6 +16,15 @@ type eventWriter interface {
 	WriteEvent(any) error
 }
 
+type liveEventEnvelope struct {
+	EventID    string `json:"eventId"`
+	Type       string `json:"type"`
+	Source     string `json:"source"`
+	EntityID   string `json:"entityId"`
+	ServerTime string `json:"serverTime"`
+	Payload    any    `json:"payload"`
+}
+
 type webSocketWriter struct {
 	conn *websocket.Conn
 }
@@ -121,11 +130,19 @@ func (d *dispatcher) run() error {
 }
 
 func (d *dispatcher) writeHeartbeat() error {
-	return d.writer.WriteEvent(d.handler.backend.Heartbeat(
+	payload := d.handler.backend.Heartbeat(
 		d.handler.options.HeartbeatInterval,
 		d.handler.Stats(),
 		d.handler.ActiveInstrumentIDs(),
-	))
+	)
+	return d.writeEnvelope(
+		mapString(payload, "type", "heartbeat"),
+		"system",
+		"live-websocket",
+		mapString(payload, "at", ""),
+		"",
+		payload,
+	)
 }
 
 func (d *dispatcher) writeLiveData() error {
@@ -145,7 +162,16 @@ func (d *dispatcher) writeLiveData() error {
 		if tick.InstrumentID == "" || d.lastSentByInstrument[tick.InstrumentID] == tick.ObservedAt {
 			continue
 		}
-		if err := d.writer.WriteEvent(tick.Payload); err != nil {
+		eventType := mapString(tick.Payload, "type", "market-data.tick")
+		serverTime := mapString(tick.Payload, "at", tick.ObservedAt)
+		if err := d.writeEnvelope(
+			eventType,
+			"market-data",
+			tick.InstrumentID,
+			serverTime,
+			eventType+"|"+tick.InstrumentID+"|"+serverTime,
+			tick.Payload,
+		); err != nil {
 			return err
 		}
 		d.lastSentByInstrument[tick.InstrumentID] = tick.ObservedAt
@@ -156,7 +182,16 @@ func (d *dispatcher) writeLiveData() error {
 
 func (d *dispatcher) writeNotifications() error {
 	for _, event := range d.handler.backend.NotificationsAfter(d.lastSentNotificationSeq) {
-		if err := d.writer.WriteEvent(notificationEventMap(event)); err != nil {
+		payload := notificationEventMap(event)
+		eventID := mapString(payload, "id", fmt.Sprintf("system-notification-%d", event.Sequence))
+		if err := d.writeEnvelope(
+			"system.notification",
+			"notification",
+			eventID,
+			mapString(payload, "at", event.At),
+			eventID,
+			payload,
+		); err != nil {
 			return err
 		}
 		d.lastSentNotificationSeq = event.Sequence
@@ -179,9 +214,10 @@ func (d *dispatcher) writeConsoleRefresh() error {
 		return nil
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	return d.writer.WriteEvent(map[string]any{
+	payload := map[string]any{
 		"type": "console.refresh", "at": now, "checkedAt": now,
-	})
+	}
+	return d.writeEnvelope("console.refresh", "system", "console", now, "", payload)
 }
 
 func (d *dispatcher) writeSecurityDetailsEvents(force bool) error {
@@ -199,7 +235,14 @@ func (d *dispatcher) writeSecurityDetailsEvents(force bool) error {
 		event := cloneEventMap(response)
 		event["type"] = "market.security-details"
 		event["at"] = resolvedAt
-		if err := d.writer.WriteEvent(event); err != nil {
+		if err := d.writeEnvelope(
+			"market.security-details",
+			"market-data",
+			subscription.InstrumentID,
+			resolvedAt,
+			"",
+			event,
+		); err != nil {
 			return err
 		}
 		d.lastSecurityResolvedAt[subscription.InstrumentID] = resolvedAt
@@ -224,7 +267,14 @@ func (d *dispatcher) writeDepthEvents(force bool) error {
 		event := cloneEventMap(response)
 		event["type"] = "market.depth"
 		event["at"] = resolvedAt
-		if err := d.writer.WriteEvent(event); err != nil {
+		if err := d.writeEnvelope(
+			"market.depth",
+			"market-data",
+			key,
+			resolvedAt,
+			"",
+			event,
+		); err != nil {
 			return err
 		}
 		d.lastDepthResolvedAt[key] = resolvedAt
@@ -249,6 +299,33 @@ func notificationEventMap(event livecore.Event) map[string]any {
 	return payload
 }
 
+func (d *dispatcher) writeEnvelope(
+	eventType string,
+	source string,
+	entityID string,
+	serverTime string,
+	eventID string,
+	payload any,
+) error {
+	if serverTime == "" {
+		serverTime = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	if entityID == "" {
+		entityID = eventType
+	}
+	if eventID == "" {
+		eventID = eventType + "|" + entityID + "|" + serverTime
+	}
+	return d.writer.WriteEvent(liveEventEnvelope{
+		EventID:    eventID,
+		Type:       eventType,
+		Source:     source,
+		EntityID:   entityID,
+		ServerTime: serverTime,
+		Payload:    payload,
+	})
+}
+
 func cloneEventMap(value map[string]any) map[string]any {
 	result := make(map[string]any, len(value)+2)
 	maps.Copy(result, value)
@@ -259,4 +336,12 @@ func eventResolvedAt(value map[string]any) string {
 	meta := jftradeOptionalTypeAssertion[map[string]any](value["meta"])
 	resolvedAt := jftradeOptionalTypeAssertion[string](meta["resolvedAt"])
 	return resolvedAt
+}
+
+func mapString(value map[string]any, key string, fallback string) string {
+	text := jftradeOptionalTypeAssertion[string](value[key])
+	if text == "" {
+		return fallback
+	}
+	return text
 }

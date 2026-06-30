@@ -28,6 +28,7 @@ type Service struct {
 	futuOpenDInstallGuideFn     func() map[string]any
 	resetFutuRuntimeFn          func()
 	runtimeDependenciesFn       func(ctx context.Context) map[string]any
+	requestObservabilityFn      func() any
 }
 
 // NewService 创建一个系统服务。
@@ -132,6 +133,11 @@ func WithRuntimeDependencies(fn func(ctx context.Context) map[string]any) Option
 	return func(s *Service) { s.runtimeDependenciesFn = fn }
 }
 
+// WithRequestObservability sets the bounded request and dependency summary provider.
+func WithRequestObservability(fn func() any) Option {
+	return func(s *Service) { s.requestObservabilityFn = fn }
+}
+
 // ── 系统状态 ──
 
 // Status 返回系统整体状态摘要。
@@ -164,6 +170,10 @@ func (s *Service) Status() map[string]any {
 	exchangeCalendars := map[string]any(nil)
 	if s.exchangeCalendarStatusFn != nil {
 		exchangeCalendars = s.exchangeCalendarStatusFn()
+	}
+	requestObservability := any(nil)
+	if s.requestObservabilityFn != nil {
+		requestObservability = s.requestObservabilityFn()
 	}
 	status := map[string]any{
 		"name":                      "JFTrade",
@@ -205,6 +215,7 @@ func (s *Service) Status() map[string]any {
 			"exchangeCalendars": exchangeCalendars,
 			"broker":            broker,
 			"strategyRuntime":   strategyRuntime,
+			"requests":          requestObservability,
 		},
 		"message": "JFTrade API adapter is running.",
 	}

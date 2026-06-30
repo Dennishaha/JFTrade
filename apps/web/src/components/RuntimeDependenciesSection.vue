@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { useMutation, useQuery } from "@tanstack/vue-query";
+import { computed, onMounted, ref, watch } from "vue";
 
 import type {
-  PineWorkerSettingsResponse,
   RuntimeDependenciesResponse,
   RuntimeDependencyItem,
 } from "@/contracts";
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import type { components } from "@/generated/openapi";
+
+import { apiGet, apiPut, fetchEnvelope } from "../composables/apiClient";
+import { queryClient, queryKeys } from "../composables/serverState";
 import SectionHeader from "./SectionHeader.vue";
+
+type PineWorkerSettings = Required<components["schemas"]["jftsettings.PineWorkerSettings"]>;
 
 const props = withDefaults(
   defineProps<{
@@ -22,7 +27,7 @@ const emit = defineEmits<{
   "status-change": [RuntimeDependenciesResponse];
 }>();
 
-const defaultPineWorkerSettings: PineWorkerSettingsResponse = {
+const defaultPineWorkerSettings: PineWorkerSettings = {
   backtestWorkerLimit: 2,
   instanceWorkerLimit: 10,
   nodeBinaryPath: "",
@@ -33,15 +38,35 @@ const runtimeDependencies = ref<RuntimeDependenciesResponse>({
   allRequiredSatisfied: false,
   dependencies: [],
 });
-const pineWorkerSettings = ref<PineWorkerSettingsResponse>({
-  ...defaultPineWorkerSettings,
-});
 const nodeBinaryPathInput = ref("");
-const loading = ref(true);
+const panelLoading = ref(true);
 const refreshing = ref(false);
-const saving = ref(false);
 const errorMessage = ref("");
 const noticeMessage = ref("");
+
+const pineWorkerSettingsQueryKey = queryKeys.settings("pine-worker");
+const pineWorkerSettingsQuery = useQuery({
+  queryKey: pineWorkerSettingsQueryKey,
+  queryFn: () => apiGet<PineWorkerSettings, "/api/v1/settings/pine-worker">(
+    "/api/v1/settings/pine-worker",
+  ),
+  enabled: false,
+}, queryClient);
+const savePineWorkerSettingsMutation = useMutation({
+  mutationFn: (next: PineWorkerSettings) =>
+    apiPut<PineWorkerSettings, "/api/v1/settings/pine-worker">(
+      "/api/v1/settings/pine-worker",
+      next,
+    ),
+  onSuccess: async (saved) => {
+    queryClient.setQueryData(pineWorkerSettingsQueryKey, saved);
+    await queryClient.invalidateQueries({ queryKey: pineWorkerSettingsQueryKey, refetchType: "none" });
+  },
+}, queryClient);
+
+const pineWorkerSettings = computed(() => pineWorkerSettingsQuery.data.value ?? defaultPineWorkerSettings);
+const loading = computed(() => panelLoading.value || pineWorkerSettingsQuery.isLoading.value);
+const saving = computed(() => savePineWorkerSettingsMutation.isPending.value);
 
 const headerDescription = computed(() =>
   props.mode === "oobe"
@@ -78,25 +103,36 @@ onMounted(() => {
   void loadRuntimeDependencyPanel();
 });
 
+watch(
+  () => pineWorkerSettingsQuery.data.value?.nodeBinaryPath,
+  (next) => {
+    if (next == null || saving.value) return;
+    nodeBinaryPathInput.value = next;
+  },
+  { immediate: true },
+);
+
 async function loadRuntimeDependencyPanel(): Promise<void> {
-  loading.value = true;
+  panelLoading.value = true;
   errorMessage.value = "";
   noticeMessage.value = "";
   try {
-    await Promise.all([loadPineWorkerSettings(), refreshDependencies()]);
+    await Promise.all([
+      queryClient.ensureQueryData({
+        queryKey: pineWorkerSettingsQueryKey,
+        queryFn: () => apiGet<PineWorkerSettings, "/api/v1/settings/pine-worker">(
+          "/api/v1/settings/pine-worker",
+        ),
+      }),
+      refreshDependencies(),
+    ]);
+    nodeBinaryPathInput.value = pineWorkerSettings.value.nodeBinaryPath ?? "";
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : "读取运行时依赖失败";
   } finally {
-    loading.value = false;
+    panelLoading.value = false;
   }
-}
-
-async function loadPineWorkerSettings(): Promise<void> {
-  pineWorkerSettings.value = await fetchEnvelope<PineWorkerSettingsResponse>(
-    "/api/v1/settings/pine-worker",
-  );
-  nodeBinaryPathInput.value = pineWorkerSettings.value.nodeBinaryPath ?? "";
 }
 
 async function refreshDependencies(): Promise<void> {
@@ -118,30 +154,20 @@ async function refreshDependencies(): Promise<void> {
 
 async function saveNodeBinaryPath(): Promise<void> {
   if (saving.value) return;
-  saving.value = true;
   errorMessage.value = "";
   noticeMessage.value = "";
   try {
-    const next: PineWorkerSettingsResponse = {
+    const next: PineWorkerSettings = {
       ...pineWorkerSettings.value,
       nodeBinaryPath: nodeBinaryPathInput.value.trim(),
     };
-    pineWorkerSettings.value = await fetchEnvelopeWithInit<PineWorkerSettingsResponse>(
-      "/api/v1/settings/pine-worker",
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      },
-    );
-    nodeBinaryPathInput.value = pineWorkerSettings.value.nodeBinaryPath ?? "";
+    const saved = await savePineWorkerSettingsMutation.mutateAsync(next);
+    nodeBinaryPathInput.value = saved.nodeBinaryPath ?? "";
     noticeMessage.value = "Node.js 路径已保存。";
     await refreshDependencies();
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : "保存 Node.js 路径失败";
-  } finally {
-    saving.value = false;
   }
 }
 

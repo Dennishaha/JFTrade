@@ -583,6 +583,47 @@ export interface BrokerDescriptor {
   notes: string[];
 }
 
+export type ObservabilityImportance = "low" | "normal" | "high" | "critical";
+
+export interface ObservabilityEvent {
+  at: string;
+  level: string;
+  importance: ObservabilityImportance;
+  message: string;
+  error?: string;
+  method?: string;
+  path?: string;
+  operation?: string;
+  status?: number;
+  latencyMs?: number;
+  requestId?: string;
+  sessionId?: string;
+  runId?: string;
+  taskId?: string;
+  brokerId?: string;
+  accountId?: string;
+  instrumentId?: string;
+  providerId?: string;
+  source?: string;
+}
+
+export interface RequestObservabilitySummary {
+  recentErrors: ObservabilityEvent[];
+  recentSlowRequests: ObservabilityEvent[];
+  slowThresholdMs: number;
+  minimumImportance: ObservabilityImportance;
+  openD: {
+    totalCalls: number;
+    failedCalls: number;
+    lastCallAt?: string;
+    lastSuccessAt?: string;
+    lastErrorAt?: string;
+    lastError?: string;
+    lastOperation?: string;
+    lastRequestId?: string;
+  };
+}
+
 export interface SystemStatusResponse {
   name: string;
   apiPort: number;
@@ -628,6 +669,9 @@ export interface SystemStatusResponse {
     activeStrategies: number;
     supportsBacktestParity: boolean;
     activeInstances?: StrategyRuntimeActiveInstanceSummary[];
+  };
+  observability: {
+    requests: RequestObservabilitySummary;
   };
   message: string;
 }
@@ -2465,6 +2509,18 @@ export const emptySystemStatus: SystemStatusResponse = {
     activeStrategies: 0,
     supportsBacktestParity: true,
     activeInstances: [],
+  },
+  observability: {
+    requests: {
+      recentErrors: [],
+      recentSlowRequests: [],
+      slowThresholdMs: 750,
+      minimumImportance: "low",
+      openD: {
+        totalCalls: 0,
+        failedCalls: 0,
+      },
+    },
   },
   message: "Waiting for API connection.",
 };

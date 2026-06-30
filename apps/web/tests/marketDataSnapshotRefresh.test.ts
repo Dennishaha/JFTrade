@@ -8,7 +8,7 @@ import {
   resetSharedLiveSocketHubForTests,
 } from "../src/composables/sharedLiveSocket";
 import { createMarketDataSnapshotRefresher } from "../src/composables/marketDataSnapshotRefresh";
-import { MockWebSocket } from "./helpers";
+import { createLiveEnvelope, MockWebSocket } from "./helpers";
 
 function createSecurityDetails(market: string, symbol: string, name: string) {
   const instrumentId = `${market}.${symbol}`;
@@ -66,13 +66,15 @@ describe("createMarketDataSnapshotRefresher", () => {
       "ws://127.0.0.1:3000/api/v1/ws/live",
     );
 
-    MockWebSocket.instances[0]?.emitMessage(
-      {
-        ...createSecurityDetails("HK", "00700", "Tencent Holdings"),
-        type: "market.security-details",
-        at: "2026-06-02T00:00:00Z",
-      },
-    );
+    const payload = {
+      ...createSecurityDetails("HK", "00700", "Tencent Holdings"),
+      type: "market.security-details",
+      at: "2026-06-02T00:00:00Z",
+    };
+    MockWebSocket.instances[0]?.emitMessage(createLiveEnvelope(payload, {
+      source: "market-data",
+      entityId: "HK.00700",
+    }));
 
     expect(marketSecurityDetails.value.security.name).toBe("Tencent Holdings");
 

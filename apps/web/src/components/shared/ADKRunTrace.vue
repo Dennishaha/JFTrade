@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 
 import type { ADKRun } from "@/contracts";
 
@@ -15,6 +15,8 @@ import {
   toolCallErrorSummary,
 } from "../../composables/adkChatPresentation";
 import ADKToolVisualization from "./ADKToolVisualization.vue";
+
+const TOOL_CALL_RENDER_WINDOW = 80;
 
 const props = withDefaults(
   defineProps<{
@@ -42,6 +44,7 @@ const emit = defineEmits<{
 const toolCalls = computed(() => props.run?.toolCalls ?? []);
 const hasToolCalls = computed(() => toolCalls.value.length > 0);
 const hasMultipleToolCalls = computed(() => toolCalls.value.length > 1);
+const toolCallPage = ref(1);
 const failedToolCall = computed(() => firstFailedToolCall(props.run));
 const hasActiveToolCalls = computed(() =>
   toolCalls.value.some((toolCall) => !isTerminalToolStatus(toolCall.status)),
@@ -74,6 +77,29 @@ const summaryStatus = computed(() => {
   return "COMPLETED";
 });
 const summaryTitle = computed(() => `调用了 ${toolCalls.value.length} 个工具`);
+const toolCallPageCount = computed(() =>
+  Math.max(1, Math.ceil(toolCalls.value.length / TOOL_CALL_RENDER_WINDOW)),
+);
+const visibleToolCallStart = computed(() =>
+  Math.min(
+    Math.max(0, (toolCallPage.value - 1) * TOOL_CALL_RENDER_WINDOW),
+    Math.max(0, toolCalls.value.length - 1),
+  ),
+);
+const visibleToolCallEnd = computed(() =>
+  Math.min(toolCalls.value.length, visibleToolCallStart.value + TOOL_CALL_RENDER_WINDOW),
+);
+const visibleToolCalls = computed(() =>
+  toolCalls.value.slice(visibleToolCallStart.value, visibleToolCallEnd.value),
+);
+const hasToolCallWindow = computed(
+  () => toolCalls.value.length > TOOL_CALL_RENDER_WINDOW,
+);
+const toolCallWindowLabel = computed(() =>
+  hasToolCallWindow.value
+    ? `${visibleToolCallStart.value + 1}-${visibleToolCallEnd.value} / ${toolCalls.value.length}`
+    : "",
+);
 const summaryHint = computed(() => {
   if (failedToolCall.value) {
     const errorSummary = toolCallErrorSummary(failedToolCall.value);
@@ -111,6 +137,9 @@ const toolVisualizationCache = new Map<
 watch(
   toolCalls,
   (calls) => {
+    if (toolCallPage.value > toolCallPageCount.value) {
+      toolCallPage.value = toolCallPageCount.value;
+    }
     const retainedIds = new Set(calls.map((toolCall) => toolCall.id));
     for (const key of toolVisualizationCache.keys()) {
       if (!retainedIds.has(key)) {
@@ -182,6 +211,14 @@ function toggleTool(toolCallId: string): void {
     ids.add(toolCallId);
   }
   emit("update:expandedToolCallIds", Array.from(ids));
+}
+
+function showPreviousToolCalls(): void {
+  toolCallPage.value = Math.max(1, toolCallPage.value - 1);
+}
+
+function showNextToolCalls(): void {
+  toolCallPage.value = Math.min(toolCallPageCount.value, toolCallPage.value + 1);
 }
 
 function collapsedToolHint(
@@ -273,9 +310,26 @@ function truncate(value: string, maxLength: number): string {
     </button>
 
     <div v-if="showExpandedToolCalls" class="adk-run-trace-tools">
+      <div v-if="hasToolCallWindow" class="adk-run-trace-window">
+        <button
+          type="button"
+          :disabled="toolCallPage <= 1"
+          @click="showPreviousToolCalls"
+        >
+          上一组
+        </button>
+        <span>{{ toolCallWindowLabel }}</span>
+        <button
+          type="button"
+          :disabled="toolCallPage >= toolCallPageCount"
+          @click="showNextToolCalls"
+        >
+          下一组
+        </button>
+      </div>
       <div class="adk-run-trace-list">
         <div
-          v-for="(toolCall, index) in toolCalls"
+          v-for="(toolCall, index) in visibleToolCalls"
           :key="toolCall.id"
           class="adk-run-trace-list-item"
         >
@@ -286,7 +340,7 @@ function truncate(value: string, maxLength: number): string {
           >
             <span class="adk-run-trace-card__main">
               <span class="adk-run-trace-card__title">
-                <span class="adk-run-trace-card__index">#{{ index + 1 }}</span>
+                <span class="adk-run-trace-card__index">#{{ visibleToolCallStart + index + 1 }}</span>
                 {{ toolCall.toolName }}
               </span>
               <span class="adk-run-trace-card__meta">
@@ -303,8 +357,8 @@ function truncate(value: string, maxLength: number): string {
                 <span v-if="durationLabel(toolCall.durationMs)">{{
                   durationLabel(toolCall.durationMs)
                 }}</span>
-                <span v-if="collapsedToolHint(toolCall, index)">{{
-                  collapsedToolHint(toolCall, index)
+                <span v-if="collapsedToolHint(toolCall, visibleToolCallStart + index)">{{
+                  collapsedToolHint(toolCall, visibleToolCallStart + index)
                 }}</span>
               </span>
             </span>

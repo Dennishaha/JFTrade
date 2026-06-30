@@ -1,8 +1,10 @@
-import { ref } from "vue";
+import { onScopeDispose, ref } from "vue";
 
 import type { BacktestSyncRequestPayload } from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { createBacktestLiveReducer } from "./liveEventReducers";
+import { getLiveEventBus } from "./liveEventBus";
 
 export interface KlineSyncProgress {
   taskId: string;
@@ -25,6 +27,16 @@ export function useKlineSyncTask() {
   const syncProgress = ref<KlineSyncProgress | null>(null);
   const syncError = ref("");
   const syncPolling = ref<ReturnType<typeof setInterval> | null>(null);
+  const liveReducer = createBacktestLiveReducer({
+    activeTaskId: () => syncTaskId.value,
+    applyProgress,
+  });
+  const stopLiveEvents = getLiveEventBus().subscribe(liveReducer.handle);
+
+  onScopeDispose(() => {
+    stopLiveEvents();
+    stopSyncPolling();
+  }, true);
 
   async function startSync(payload: BacktestSyncRequestPayload): Promise<KlineSyncProgress | null> {
     syncing.value = true;
@@ -92,16 +104,7 @@ export function useKlineSyncTask() {
       const progress = await fetchEnvelope<KlineSyncProgress>(
         `/api/v1/backtests/sync/${encodeURIComponent(taskId)}`,
       );
-      syncProgress.value = progress;
-      if (progress.status === "completed" || progress.status === "cancelled") {
-        syncing.value = false;
-        stopSyncPolling();
-      }
-      if (progress.status === "failed") {
-        syncing.value = false;
-        stopSyncPolling();
-        syncError.value = `同步失败: ${progress.error || "未知错误"} (重试 ${progress.retries} 次)`;
-      }
+      applyProgress(progress);
       return progress;
     } catch {
       return null;
@@ -128,6 +131,19 @@ export function useKlineSyncTask() {
     if (syncPolling.value !== null) {
       clearInterval(syncPolling.value);
       syncPolling.value = null;
+    }
+  }
+
+  function applyProgress(progress: KlineSyncProgress): void {
+    syncProgress.value = progress;
+    if (progress.status === "completed" || progress.status === "cancelled") {
+      syncing.value = false;
+      stopSyncPolling();
+    }
+    if (progress.status === "failed") {
+      syncing.value = false;
+      stopSyncPolling();
+      syncError.value = `同步失败: ${progress.error || "未知错误"} (重试 ${progress.retries} 次)`;
     }
   }
 

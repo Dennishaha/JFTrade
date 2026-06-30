@@ -3,7 +3,8 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import StrategyRuntimePanel from "../components/StrategyRuntimePanel.vue";
-import { fetchEnvelope } from "../composables/apiClient";
+import { apiGet } from "../composables/apiClient";
+import { queryClient, queryKeys } from "../composables/serverState";
 
 type StrategyDesignEntryMode = "existing" | "new";
 
@@ -28,7 +29,12 @@ onMounted(() => {
 
 async function loadStrategyDefinitionsCount(): Promise<void> {
   try {
-    const items = await fetchEnvelope<Array<{ id: string }>>("/api/v1/strategy-definitions");
+    const items = await queryClient.ensureQueryData({
+      queryKey: queryKeys.strategyDefinitions(),
+      queryFn: () => apiGet<Array<{ id: string }>, "/api/v1/strategy-definitions">(
+        "/api/v1/strategy-definitions",
+      ),
+    });
     strategyDefinitionsCount.value = items.length;
   } catch {
     strategyDefinitionsCount.value = 0;

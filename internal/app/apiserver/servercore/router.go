@@ -22,7 +22,7 @@ import (
 func (s *Server) buildRouter() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(requestObservabilityMiddleware())
+	router.Use(requestObservabilityMiddleware(s.observability))
 	router.Use(gin.Recovery())
 	router.Use(s.corsMiddleware())
 	router.Use(s.authMiddleware())

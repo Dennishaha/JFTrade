@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -89,6 +90,12 @@ func TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight(t *testing.T) {
 	router.ServeHTTP(allowedResp, allowedReq)
 	if allowedResp.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
 		t.Fatalf("allow origin header = %q", allowedResp.Header().Get("Access-Control-Allow-Origin"))
+	}
+	if got := allowedResp.Header().Get("Access-Control-Expose-Headers"); !strings.Contains(got, "X-Request-ID") {
+		t.Fatalf("expose headers = %q, want X-Request-ID", got)
+	}
+	if got := allowedResp.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "X-Request-ID") {
+		t.Fatalf("allow headers = %q, want X-Request-ID", got)
 	}
 
 	deniedReq := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/settings/ui", nil)

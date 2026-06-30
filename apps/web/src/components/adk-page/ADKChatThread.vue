@@ -24,6 +24,10 @@ const props = withDefaults(
     emptyStateTitle: string;
     emptyStateHint: string;
     emptyStateProviderHint?: string;
+    timelineTotal?: number;
+    timelineWindowStart?: number;
+    timelineWindowEnd?: number;
+    timelineAtLatest?: boolean;
     approvalTool: (approval: ADKApproval) => ADKToolDescriptor | undefined;
     clearErrorMessage: () => void;
     preview: (value: unknown) => string;
@@ -43,11 +47,18 @@ const props = withDefaults(
     activeRunStatus: "",
     hasBlockingRun: false,
     emptyStateProviderHint: "",
+    timelineTotal: 0,
+    timelineWindowStart: 0,
+    timelineWindowEnd: 0,
+    timelineAtLatest: true,
   },
 );
 
-defineEmits<{
+const emit = defineEmits<{
   "update:chatDraft": [value: string];
+  "showOlderTimeline": [];
+  "showNewerTimeline": [];
+  "showLatestTimeline": [];
 }>();
 
 const threadClass = computed(() => ({
@@ -60,6 +71,19 @@ const emptyClass = computed(() => ({
   "adk-empty": true,
   "adk-empty--mobile": props.layout === "mobile",
 }));
+const hasTimelineWindow = computed(
+  () => props.timelineTotal > props.timelineEntries.length,
+);
+const timelineWindowLabel = computed(() => {
+  if (!hasTimelineWindow.value || props.timelineEntries.length === 0) return "";
+  return `${props.timelineWindowStart + 1}-${props.timelineWindowEnd} / ${props.timelineTotal}`;
+});
+const canShowOlderTimeline = computed(
+  () => hasTimelineWindow.value && props.timelineWindowStart > 0,
+);
+const canShowNewerTimeline = computed(
+  () => hasTimelineWindow.value && props.timelineWindowEnd < props.timelineTotal,
+);
 
 const markdownCache = new Map<
   string,
@@ -120,7 +144,9 @@ function entryToolProgress(entry: ADKTimelineEntryState): string {
 function entryToolBusy(entry: ADKTimelineEntryState): boolean {
   return (
     isEntryActiveRun(entry) ||
-    (props.sendingChat && props.timelineEntries[props.timelineEntries.length - 1] === entry)
+    (props.timelineAtLatest &&
+      props.sendingChat &&
+      props.timelineEntries[props.timelineEntries.length - 1] === entry)
   );
 }
 
@@ -168,6 +194,18 @@ function renderedMarkdown(entry: ADKTimelineEntryState): string {
   markdownCache.set(key, { renderMarkdown: props.renderMarkdown, text, html });
   return html;
 }
+
+function showOlderTimeline(): void {
+  emit("showOlderTimeline");
+}
+
+function showNewerTimeline(): void {
+  emit("showNewerTimeline");
+}
+
+function showLatestTimeline(): void {
+  emit("showLatestTimeline");
+}
 </script>
 
 <template>
@@ -190,6 +228,35 @@ function renderedMarkdown(entry: ADKTimelineEntryState): string {
           {{ hint }}
         </v-chip>
       </div>
+    </div>
+
+    <div
+      v-if="hasTimelineWindow"
+      class="adk-timeline-window"
+      aria-label="时间线窗口"
+    >
+      <button
+        type="button"
+        :disabled="!canShowOlderTimeline"
+        @click="showOlderTimeline"
+      >
+        更早
+      </button>
+      <span>{{ timelineWindowLabel }}</span>
+      <button
+        type="button"
+        :disabled="!canShowNewerTimeline"
+        @click="showNewerTimeline"
+      >
+        更新
+      </button>
+      <button
+        v-if="!timelineAtLatest"
+        type="button"
+        @click="showLatestTimeline"
+      >
+        最新
+      </button>
     </div>
 
     <template v-for="entry in timelineEntries" :key="entry.id">
@@ -307,6 +374,15 @@ function renderedMarkdown(entry: ADKTimelineEntryState): string {
         <v-icon size="13">fa-solid fa-circle-check</v-icon>
         <span>子智能体已结束，主智能体继续处理中</span>
       </div>
+    </div>
+
+    <div
+      v-if="hasTimelineWindow && !timelineAtLatest"
+      class="adk-timeline-window adk-timeline-window--bottom"
+      aria-label="时间线窗口底部导航"
+    >
+      <button type="button" @click="showLatestTimeline">最新</button>
+      <span>{{ timelineWindowLabel }}</span>
     </div>
   </div>
 </template>

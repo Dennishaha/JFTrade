@@ -5,9 +5,10 @@ import { KLINE_PERIODS } from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
 import PageHeader from "../components/PageHeader.vue";
 import type { BacktestFeeRulePayload } from "../contracts";
-import { fetchEnvelope } from "../composables/apiClient";
+import { apiGet, fetchEnvelope } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
 import { useMarketProfiles } from "../composables/marketProfiles";
+import { queryClient, queryKeys } from "../composables/serverState";
 import {
   useBacktestRuns,
   type BacktestFormState,
@@ -19,6 +20,9 @@ import dayjs from "dayjs";
 
 const BACKTEST_FORM_STORAGE_KEY = "jftrade.backtest.form.v1";
 const BACKTEST_RESULTS_PAGE_SIZE = 5;
+const BACKTEST_ORDER_BOOK_RENDER_WINDOW = 200;
+const BACKTEST_RUNTIME_ERROR_RENDER_WINDOW = 120;
+const BACKTEST_LOG_RENDER_WINDOW = 120;
 
 const BACKTEST_RESULT_STATUS_OPTIONS = [
   { value: "all", title: "全部状态" },
@@ -645,6 +649,46 @@ const resultsPageSummary = computed(() => {
   return `第 ${visibleStart}-${visibleEnd} 条，共 ${filteredRuns.value.length} 条`;
 });
 
+function isRunPanelExpanded(runId: string): boolean {
+  return expandedPanels.value.includes(runId);
+}
+
+type BacktestRunView = (typeof sortedRuns.value)[number];
+
+function visibleBacktestOrderBook(run: BacktestRunView) {
+  return (run.result?.orderBook ?? []).slice(0, BACKTEST_ORDER_BOOK_RENDER_WINDOW);
+}
+
+function hiddenBacktestOrderBookCount(run: BacktestRunView): number {
+  return Math.max(
+    0,
+    (run.result?.orderBook?.length ?? 0) - BACKTEST_ORDER_BOOK_RENDER_WINDOW,
+  );
+}
+
+function visibleBacktestRuntimeErrors(run: BacktestRunView): string[] {
+  return (run.result?.runtimeErrors ?? []).slice(
+    0,
+    BACKTEST_RUNTIME_ERROR_RENDER_WINDOW,
+  );
+}
+
+function hiddenBacktestRuntimeErrorCount(run: BacktestRunView): number {
+  return Math.max(
+    0,
+    (run.result?.runtimeErrors?.length ?? 0) -
+      BACKTEST_RUNTIME_ERROR_RENDER_WINDOW,
+  );
+}
+
+function visibleBacktestLogs(run: BacktestRunView): string[] {
+  return (run.result?.logs ?? []).slice(0, BACKTEST_LOG_RENDER_WINDOW);
+}
+
+function hiddenBacktestLogCount(run: BacktestRunView): number {
+  return Math.max(0, (run.result?.logs?.length ?? 0) - BACKTEST_LOG_RENDER_WINDOW);
+}
+
 function resetResultsFilters() {
   resultsSearchQuery.value = "";
   resultsStatusFilter.value = "all";
@@ -770,9 +814,12 @@ onMounted(async () => {
 
 async function loadDefinitions() {
   try {
-    const items = await fetchEnvelope<StrategyDefinition[]>(
-      "/api/v1/strategy-definitions",
-    );
+    const items = await queryClient.ensureQueryData({
+      queryKey: queryKeys.strategyDefinitions(),
+      queryFn: () => apiGet<StrategyDefinition[], "/api/v1/strategy-definitions">(
+        "/api/v1/strategy-definitions",
+      ),
+    });
     definitions.value = items;
     if (items.length > 0 && !selectedDefinitionId.value) {
       selectedDefinitionId.value = items[0]!.id;
@@ -805,9 +852,16 @@ async function loadWarmupPreview() {
       "useExtendedHours",
       String(extendedHoursSupported.value && useExtendedHours.value),
     );
-    const detail = await fetchEnvelope<StrategyDefinition>(
-      `/api/v1/strategy-definitions/${encodeURIComponent(definitionId)}?${params.toString()}`,
-    );
+    const detail = await queryClient.ensureQueryData({
+      queryKey: queryKeys.strategyDefinition(definitionId, {
+        interval: requestedInterval,
+        symbol: requestedSymbol,
+        useExtendedHours: extendedHoursSupported.value && useExtendedHours.value,
+      }),
+      queryFn: () => fetchEnvelope<StrategyDefinition>(
+        `/api/v1/strategy-definitions/${encodeURIComponent(definitionId)}?${params.toString()}`,
+      ),
+    });
     if (requestId !== warmupPreviewRequestId) {
       return;
     }
@@ -1443,6 +1497,7 @@ watch(
 
                   <!-- Backtest chart -->
                   <div v-if="
+                    isRunPanelExpanded(run.id) &&
                     run.status === 'completed' && run.result?.pnlCurve?.length
                   " class="mt-2">
                     <BacktestChart :candles="run.result.candles ?? []" :trades="run.result.trades ?? []"
@@ -1477,7 +1532,7 @@ watch(
                               </tr>
                             </thead>
                             <tbody class="divide-y bt-divide-soft bt-bg-surface">
-                              <tr v-for="entry in run.result.orderBook"
+                              <tr v-for="entry in visibleBacktestOrderBook(run)"
                                 :key="`${entry.orderId}-${entry.filledAt ?? entry.submittedAt ?? ''}`">
                                 <td class="px-4 py-3 align-top bt-text-strong">
                                   <div>
@@ -1546,6 +1601,10 @@ watch(
                             </tbody>
                           </table>
                         </div>
+                        <div v-if="hiddenBacktestOrderBookCount(run) > 0"
+                          class="border-t bt-border px-4 py-2 text-xs bt-text-muted">
+                          另有 {{ hiddenBacktestOrderBookCount(run) }} 笔订单。
+                        </div>
                       </div>
                     </details>
                   </div>
@@ -1560,12 +1619,15 @@ watch(
                       ⚡ {{ runtimeErrorSummary(run.result) }}
                     </summary>
                     <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
-                      <div v-for="(err, i) in run.result.runtimeErrors" :key="i"
+                      <div v-for="(err, i) in visibleBacktestRuntimeErrors(run)" :key="i"
                         class="rounded border border-red-100 bt-bg-surface px-2 py-1 text-xs text-red-800 font-mono leading-relaxed">
                         <span v-if="runtimeErrorRepeatCount(run.result, err) > 1" class="font-semibold">
                           x{{ runtimeErrorRepeatCount(run.result, err) }}
                         </span>
                         {{ err }}
+                      </div>
+                      <div v-if="hiddenBacktestRuntimeErrorCount(run) > 0" class="text-xs text-red-700">
+                        另有 {{ hiddenBacktestRuntimeErrorCount(run) }} 条错误。
                       </div>
                     </div>
                   </details>
@@ -1575,8 +1637,11 @@ watch(
                 <div v-if="run.result?.logs && run.result.logs.length > 0" class="mt-3">
                   <div
                     class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-1">
-                    <div v-for="(log, i) in run.result.logs" :key="i">
+                    <div v-for="(log, i) in visibleBacktestLogs(run)" :key="i">
                       ⚠ {{ log }}
+                    </div>
+                    <div v-if="hiddenBacktestLogCount(run) > 0">
+                      另有 {{ hiddenBacktestLogCount(run) }} 条日志。
                     </div>
                   </div>
                 </div>

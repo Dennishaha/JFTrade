@@ -89,16 +89,20 @@ func TestMarketSecurityDetailsWebSocketSendsInitialPayload(t *testing.T) {
 	if event["type"] != "market.security-details" {
 		t.Fatalf("unexpected websocket event: %+v", event)
 	}
-	request, ok := event["request"].(map[string]any)
+	if event["source"] != "market-data" {
+		t.Fatalf("unexpected websocket source: %+v", event)
+	}
+	payload := liveWebSocketPayload(t, event, "market.security-details")
+	request, ok := payload["request"].(map[string]any)
 	if !ok {
-		t.Fatalf("request payload type = %T", event["request"])
+		t.Fatalf("request payload type = %T", payload["request"])
 	}
 	if got := request["instrumentId"]; got != "HK.00700" {
 		t.Fatalf("instrumentId = %v", got)
 	}
-	security, ok := event["security"].(map[string]any)
+	security, ok := payload["security"].(map[string]any)
 	if !ok {
-		t.Fatalf("security payload type = %T", event["security"])
+		t.Fatalf("security payload type = %T", payload["security"])
 	}
 	if got := security["name"]; got != "Tencent Holdings" {
 		t.Fatalf("security name = %v", got)

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
 func runTimeoutForRun(run Run) time.Duration {
@@ -205,13 +207,15 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
 		Usage: &RunUsage{},
 	}
-	if err := r.store.SaveRun(ctx, run); err != nil {
+	runContext := adkRunObservabilityContext(ctx, run)
+	if err := r.store.SaveRun(runContext, run); err != nil {
 		return Run{}, nil, nil, err
 	}
-	r.audit(ctx, "run.started", run.ID, "Agent run started.", map[string]any{
+	r.audit(runContext, "run.started", run.ID, "Agent run started.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "providerId": run.ProviderID, "status": run.Status, "maxDurationMs": run.MaxDurationMs,
 	})
-	runCtx, cancel := context.WithTimeout(ctx, timeout)
+	observability.InfoWithImportance(runContext, observability.ImportanceNormal, "adk run started", "agent_id", run.AgentID, "status", run.Status)
+	runCtx, cancel := context.WithTimeout(runContext, timeout)
 	r.activeMu.Lock()
 	r.activeRuns[run.ID] = cancel
 	r.activeMu.Unlock()
@@ -222,6 +226,15 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 		r.activeMu.Unlock()
 	}
 	return run, runCtx, finish, nil
+}
+
+func adkRunObservabilityContext(ctx context.Context, run Run) context.Context {
+	return observability.WithFields(ctx, observability.Fields{
+		SessionID:  run.SessionID,
+		RunID:      run.ID,
+		ProviderID: run.ProviderID,
+		Source:     "adk",
+	})
 }
 
 func (r *Runtime) runModelSnapshot(ctx context.Context, agent Agent) (string, string) {

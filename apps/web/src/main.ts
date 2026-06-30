@@ -1,4 +1,5 @@
 import "@fortawesome/fontawesome-free/css/all.min.css";
+import { VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia } from "pinia";
 import "splitpanes/dist/splitpanes.css";
 import { createApp, type Plugin } from "vue";
@@ -9,6 +10,7 @@ import "vuetify/styles";
 
 import App from "./App.vue";
 import { fontAwesomeIcons } from "./fontAwesomeIcons";
+import { queryClient } from "./composables/serverState";
 import { createConsoleRouter } from "./router";
 import "./styles/adk-tokens.css";
 import "./style.css";
@@ -41,6 +43,7 @@ const vuetify = createVuetify({
 const app = createApp(App);
 
 app.use(createPinia() as unknown as Plugin);
+app.use(VueQueryPlugin, { queryClient });
 app.use(createConsoleRouter() as unknown as Plugin);
 app.use(vuetify as unknown as Plugin);
 app.mount("#app");

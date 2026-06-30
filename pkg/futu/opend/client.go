@@ -15,6 +15,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/jftrade/jftrade-main/pkg/observability"
+
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	keepalivepb "github.com/jftrade/jftrade-main/pkg/futu/pb/keepalive"
@@ -258,13 +260,19 @@ func (c *Client) SubscribeNotify(fn func(*notifypb.Response)) {
 
 // Call issues a request and waits for the response on the same serialNo.
 func (c *Client) Call(ctx context.Context, protoID uint32, req proto.Message, resp proto.Message) error {
+	startedAt := time.Now()
+	operation := fmt.Sprintf("proto_%d", protoID)
 	f, err := c.callFrame(ctx, protoID, req)
 	if err != nil {
+		observability.RecordOpenDCall(ctx, operation, time.Since(startedAt), err)
 		return err
 	}
 	if err := proto.Unmarshal(f.Body, resp); err != nil {
-		return fmt.Errorf("opend: unmarshal response: %w", err)
+		wrapped := fmt.Errorf("opend: unmarshal response: %w", err)
+		observability.RecordOpenDCall(ctx, operation, time.Since(startedAt), wrapped)
+		return wrapped
 	}
+	observability.RecordOpenDCall(ctx, operation, time.Since(startedAt), nil)
 	return nil
 }
 

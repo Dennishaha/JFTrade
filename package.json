@@ -41,6 +41,7 @@
     "generate:openapi": "go generate ./cmd/jftrade-api",
     "generate:reference": "node scripts/generate-docs.mjs",
     "generate:docs": "npm run generate:openapi && npm run generate:reference",
+    "generate:api-types": "node scripts/generate-api-types.mjs",
     "stage:docs": "node scripts/stage-docs.mjs",
     "check:pinets-compliance": "node scripts/check-pinets-compliance.mjs",
     "check:pinets-license": "node scripts/check-pinets-license.mjs",

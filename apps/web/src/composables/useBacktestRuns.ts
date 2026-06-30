@@ -1,4 +1,5 @@
-import { computed, reactive, ref, type ComputedRef } from "vue";
+import { useQuery } from "@tanstack/vue-query";
+import { computed, markRaw, reactive, ref, type ComputedRef } from "vue";
 
 import type {
   BacktestFeeRulePayload,
@@ -9,7 +10,8 @@ import type {
 } from "@/contracts";
 
 import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCandle } from "../components/BacktestChart.vue";
-import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { apiGet, fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { queryClient, queryKeys } from "./serverState";
 import { useKlineSyncTask } from "./useKlineSyncTask";
 
 type BacktestDecimalTransport = string | number;
@@ -340,7 +342,6 @@ export function buildBacktestSyncRequestPayload(
 }
 
 export function useBacktestRuns(options: UseBacktestRunsOptions) {
-  const runs = ref<BacktestRun[]>([]);
   const running = ref(false);
   const polling = ref<ReturnType<typeof setInterval> | null>(null);
   const error = ref("");
@@ -355,6 +356,14 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   const expandedRuns = reactive<Record<string, boolean>>({});
   const detailLoading = reactive<Record<string, boolean>>({});
   const detailErrors = reactive<Record<string, string>>({});
+  const backtestRunsQueryKey = queryKeys.backtestRuns();
+  const runsQuery = useQuery({
+    queryKey: backtestRunsQueryKey,
+    queryFn: fetchBacktestRuns,
+    enabled: false,
+  }, queryClient);
+
+  const runs = computed(() => runsQuery.data.value ?? []);
 
   const filteredRuns = computed(() =>
     [...runs.value].sort(
@@ -378,10 +387,9 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
       const detail = await fetchEnvelope<BacktestRunTransport>(
         `/api/v1/backtests/${encodeURIComponent(runId)}`,
       );
-      runs.value = mergeRunsById([
-        ...runs.value.filter((run) => run.id !== runId),
-        normalizeRun(detail),
-      ]);
+      const normalized = normalizeRun(detail);
+      queryClient.setQueryData(queryKeys.backtestRun(runId), normalized);
+      patchBacktestRuns([normalized]);
     } catch (cause) {
       detailErrors[runId] = `加载回测详情失败: ${cause instanceof Error ? cause.message : String(cause)}`;
     } finally {
@@ -483,11 +491,22 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   }
 
   function normalizeRunResult(result: BacktestRunResultTransport): BacktestRunResult {
+    const trades = result.trades?.map(normalizeTrade);
+    const orderBook = result.orderBook?.map(normalizeOrderBookEntry);
+    const candles = result.candles?.map(normalizeCandle);
     return {
       ...result,
-      trades: result.trades?.map(normalizeTrade),
-      orderBook: result.orderBook?.map(normalizeOrderBookEntry),
-      candles: result.candles?.map(normalizeCandle),
+      trades: trades ? markRaw(trades) : undefined,
+      orderBook: orderBook ? markRaw(orderBook) : undefined,
+      candles: candles ? markRaw(candles) : undefined,
+      pnlCurve: result.pnlCurve ? markRaw(result.pnlCurve) : undefined,
+      drawdownCurve: result.drawdownCurve
+        ? markRaw(result.drawdownCurve)
+        : undefined,
+      runtimeErrors: result.runtimeErrors
+        ? markRaw(result.runtimeErrors)
+        : undefined,
+      logs: result.logs ? markRaw(result.logs) : undefined,
     };
   }
 
@@ -534,15 +553,46 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     return Array.from(merged.values());
   }
 
+  function patchBacktestRuns(nextRuns: BacktestRun[]): void {
+    queryClient.setQueryData<BacktestRun[]>(
+      backtestRunsQueryKey,
+      (current) => mergeRunsById([...(current ?? []), ...nextRuns]),
+    );
+  }
+
+  function patchBacktestRunStatus(runId: string, status: string): void {
+    queryClient.setQueryData<BacktestRun[]>(
+      backtestRunsQueryKey,
+      (current) =>
+        (current ?? []).map((run) =>
+          run.id === runId ? { ...run, status } : run,
+        ),
+    );
+    queryClient.setQueryData<BacktestRun | undefined>(
+      queryKeys.backtestRun(runId),
+      (current) => current == null ? current : { ...current, status },
+    );
+  }
+
+  async function fetchBacktestRuns(): Promise<BacktestRun[]> {
+    const data = await apiGet<{ runs: BacktestRunTransport[] }, "/api/v1/backtests">(
+      "/api/v1/backtests",
+    );
+    return (data.runs ?? []).map(normalizeRun);
+  }
+
+  async function refreshRuns(): Promise<void> {
+    const data = await fetchBacktestRuns();
+    patchBacktestRuns(data);
+  }
+
   async function loadRuns() {
     try {
-      const data = await fetchEnvelope<{ runs: BacktestRunTransport[] }>(
-        "/api/v1/backtests",
-      );
-      runs.value = mergeRunsById([
-        ...runs.value,
-        ...((data.runs ?? []).map(normalizeRun)),
-      ]);
+      const data = await queryClient.ensureQueryData({
+        queryKey: backtestRunsQueryKey,
+        queryFn: fetchBacktestRuns,
+      });
+      patchBacktestRuns(data);
     } catch {
       // backtests may not be available yet
     }
@@ -570,7 +620,10 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     }
 
     delete expandedRuns[normalizedRunID];
-    runs.value = runs.value.filter((run) => run.id !== normalizedRunID);
+    queryClient.setQueryData<BacktestRun[]>(
+      backtestRunsQueryKey,
+      (current) => (current ?? []).filter((run) => run.id !== normalizedRunID),
+    );
   }
 
   async function syncKlines() {
@@ -628,7 +681,8 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
         },
       );
       startPolling(data.id);
-      await loadRuns();
+      await queryClient.invalidateQueries({ queryKey: backtestRunsQueryKey });
+      await refreshRuns();
     } catch (cause) {
       error.value = `启动回测失败: ${cause instanceof Error ? cause.message : String(cause)}`;
     } finally {
@@ -645,9 +699,11 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
           `/api/v1/backtests/${runId}/status`,
         );
         consecutiveFailures = 0;
+        patchBacktestRunStatus(runId, data.status);
         if (isTerminalBacktestStatus(data.status)) {
           stopPolling();
-          await loadRuns();
+          await queryClient.invalidateQueries({ queryKey: backtestRunsQueryKey });
+          await refreshRuns();
         }
       } catch (cause) {
         consecutiveFailures += 1;

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
 var ErrCapacityExceeded = errors.New("pine worker capacity exceeded")
@@ -134,19 +136,34 @@ func (manager *WorkerManager) Stop(ctx context.Context) error {
 }
 
 func (manager *WorkerManager) RunScript(ctx context.Context, request RunScriptRequest) (RunScriptResponse, error) {
+	ctx = observability.WithFields(ctx, observability.Fields{
+		TaskID:       request.JobID,
+		InstrumentID: request.Symbol,
+		Source:       "pinets",
+	})
+	startedAt := time.Now()
 	if err := manager.ensureStarted(); err != nil {
+		observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "pine worker request rejected", err, "mode", request.Mode)
 		return RunScriptResponse{}, err
 	}
 	if err := manager.acquireRunSlot(ctx); err != nil {
+		observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "pine worker capacity unavailable", err, "mode", request.Mode)
 		return RunScriptResponse{}, err
 	}
 	defer manager.releaseRunSlot()
 
 	worker, err := manager.pickWorker()
 	if err != nil {
+		observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "pine worker selection failed", err, "mode", request.Mode)
 		return RunScriptResponse{}, err
 	}
-	return worker.client.RunScript(ctx, request)
+	response, err := worker.client.RunScript(ctx, request)
+	if err != nil {
+		observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "pine worker request failed", err, "mode", request.Mode, "latency_ms", time.Since(startedAt).Milliseconds())
+		return RunScriptResponse{}, err
+	}
+	observability.InfoWithImportance(ctx, observability.ImportanceLow, "pine worker request completed", "mode", request.Mode, "latency_ms", time.Since(startedAt).Milliseconds())
+	return response, nil
 }
 
 func (manager *WorkerManager) ensureStarted() error {

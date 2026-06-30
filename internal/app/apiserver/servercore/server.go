@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +36,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
+	"github.com/jftrade/jftrade-main/pkg/observability"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineengine"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
@@ -47,6 +49,7 @@ const (
 	defaultMaxWebSocketClients       = 20
 	strategyListLogsTailSize         = 20
 	exchangeCalendarOperationTimeout = 75 * time.Second
+	observabilityMinImportanceEnv    = "JFTRADE_OBSERVABILITY_MIN_IMPORTANCE"
 )
 
 type envelope = httpserver.Envelope
@@ -94,6 +97,7 @@ type Server struct {
 	tradingSvc               *trdsrv.Service
 	backtestPineWorkerRunner pineWorkerRunner
 	instancePineWorkerRunner pineWorkerRunner
+	observability            *observability.Recorder
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
@@ -229,6 +233,8 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 			now:            time.Now,
 		}
 	}
+	minimumImportance := observability.NormalizeMinimumImportance(os.Getenv(observabilityMinImportanceEnv))
+	observability.SetMinimumImportance(minimumImportance)
 	server := &Server{
 		store:                store,
 		strategyStore:        strategyStore,
@@ -243,6 +249,11 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		frontend:             frontend,
 		auth:                 auth,
 		unavailableDatabases: unavailableDatabases,
+		observability: observability.NewRecorderWithConfig(observability.RecorderConfig{
+			EventLimit:        20,
+			SlowThreshold:     750 * time.Millisecond,
+			MinimumImportance: minimumImportance,
+		}),
 	}
 	server.dataMigration = dataMigration
 	server.liveWebSocket = apilive.NewHandler(liveWebSocketBackend{server: server}, apilive.Options{
@@ -400,6 +411,7 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		system.WithFutuOpenDInstallGuide(func() map[string]any { return server.futuOpenDInstallGuide() }),
 		system.WithResetFutuRuntime(func() { server.resetFutuRuntime() }),
 		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any { return server.runtimeDependencies(ctx) }),
+		system.WithRequestObservability(func() any { return server.observability.Snapshot() }),
 	)
 
 	// Wire backtest service — RunStore / SyncTaskStore / StrategyProvider

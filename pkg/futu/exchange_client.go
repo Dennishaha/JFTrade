@@ -15,6 +15,7 @@ import (
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
 // --- Client lifecycle management (connect / reconnect / keepalive / invalidate) ---
@@ -26,6 +27,7 @@ func (e *Exchange) callProto(ctx context.Context, protoID uint32, req proto.Mess
 }
 
 func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error) error {
+	ctx = observability.WithFields(ctx, observability.Fields{BrokerID: "futu", Source: "opend"})
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
@@ -35,10 +37,12 @@ func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error)
 	for range 2 {
 		client, err := e.ensureClient(ctx)
 		if err != nil {
+			observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "opend client unavailable", err)
 			return err
 		}
 		if err := fn(client); err != nil {
 			if !isRecoverableOpenDErr(err) {
+				observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "opend query failed", err)
 				return err
 			}
 			lastErr = err

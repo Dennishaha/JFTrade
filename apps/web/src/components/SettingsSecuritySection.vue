@@ -1,52 +1,51 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { useMutation, useQuery } from "@tanstack/vue-query";
+import { computed, ref } from "vue";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import type { components } from "@/generated/openapi";
 
-type SecuritySettings = {
-  adminAuthRequired: boolean;
-};
+import { apiGet, apiPut } from "../composables/apiClient";
+import { queryClient, queryKeys } from "../composables/serverState";
 
-const settings = ref<SecuritySettings>({ adminAuthRequired: false });
-const loading = ref(true);
-const saving = ref(false);
+type SecuritySettings = Required<components["schemas"]["jftsettings.SecuritySettings"]>;
+
+const defaultSettings: SecuritySettings = { adminAuthRequired: false };
 const errorMessage = ref("");
 
-onMounted(() => {
-  void loadSettings();
-});
+const settingsQueryKey = queryKeys.settings("security");
+const settingsQuery = useQuery({
+  queryKey: settingsQueryKey,
+  queryFn: () => apiGet<SecuritySettings, "/api/v1/settings/security">("/api/v1/settings/security"),
+}, queryClient);
+const saveSettingsMutation = useMutation({
+  mutationFn: (next: SecuritySettings) =>
+    apiPut<SecuritySettings, "/api/v1/settings/security">(
+      "/api/v1/settings/security",
+      next,
+    ),
+  onSuccess: async (saved) => {
+    queryClient.setQueryData(settingsQueryKey, saved);
+    await queryClient.invalidateQueries({ queryKey: settingsQueryKey, refetchType: "none" });
+  },
+}, queryClient);
 
-async function loadSettings(): Promise<void> {
-  loading.value = true;
-  errorMessage.value = "";
-  try {
-    settings.value = await fetchEnvelope<SecuritySettings>("/api/v1/settings/security");
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "读取安全设置失败";
-  } finally {
-    loading.value = false;
-  }
-}
+const settings = computed(() => settingsQuery.data.value ?? defaultSettings);
+const loading = computed(() => settingsQuery.isLoading.value);
+const saving = computed(() => saveSettingsMutation.isPending.value);
+const queryErrorMessage = computed(() =>
+  settingsQuery.error.value instanceof Error ? settingsQuery.error.value.message : "",
+);
+const visibleErrorMessage = computed(() => errorMessage.value || queryErrorMessage.value);
 
 async function updateAdminAuthRequired(event: Event): Promise<void> {
   const target = event.target as HTMLInputElement | null;
   if (target == null || saving.value) return;
   const next = { adminAuthRequired: target.checked };
-  const previous = settings.value;
-  settings.value = next;
-  saving.value = true;
   errorMessage.value = "";
   try {
-    settings.value = await fetchEnvelopeWithInit<SecuritySettings>("/api/v1/settings/security", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next),
-    });
+    await saveSettingsMutation.mutateAsync(next);
   } catch (error) {
-    settings.value = previous;
     errorMessage.value = error instanceof Error ? error.message : "保存安全设置失败";
-  } finally {
-    saving.value = false;
   }
 }
 </script>
@@ -82,8 +81,8 @@ async function updateAdminAuthRequired(event: Event): Promise<void> {
       />
     </label>
 
-    <p v-if="errorMessage" class="mt-3 text-xs font-medium text-rose-600">
-      {{ errorMessage }}
+    <p v-if="visibleErrorMessage" class="mt-3 text-xs font-medium text-rose-600">
+      {{ visibleErrorMessage }}
     </p>
   </section>
 </template>

@@ -8,6 +8,8 @@ import (
 	adkmodel "google.golang.org/adk/model"
 	adksession "google.golang.org/adk/session"
 	"google.golang.org/genai"
+
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
 func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(ChatDelta) error, emitRun bool) (ChatResponse, error) {
@@ -105,10 +107,12 @@ func (r *Runtime) completeChatRun(
 	replyResult openAIChatResult,
 	adkErr error,
 ) (ChatResponse, error) {
+	ctx = adkRunObservabilityContext(ctx, run)
 	if len(approvals) > 0 {
 		return r.finishPendingApprovalRun(ctx, session, run, approvals)
 	}
 	if adkErr != nil {
+		observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "adk run failed", adkErr, "status", RunStatusFailed)
 		run = markFailedChatRun(ctx, run, adkErr)
 		if err := r.persistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
@@ -123,6 +127,7 @@ func (r *Runtime) completeChatRun(
 		if err := r.persistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
 		}
+		observability.InfoWithImportance(ctx, observability.ImportanceNormal, "adk run finished", "status", run.Status, "tool_calls", len(run.ToolCalls))
 	}
 	var err error
 	run, err = r.attachFinalAssistantMessage(ctx, session, run, replyResult)
@@ -133,6 +138,7 @@ func (r *Runtime) completeChatRun(
 }
 
 func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session, run Run, approvals []Approval) (ChatResponse, error) {
+	ctx = adkRunObservabilityContext(ctx, run)
 	run.PendingApprovals = pendingApprovalsOnly(approvals)
 	run.Status = RunStatusPending
 	run.ResumeState = "waiting_approval"
@@ -143,6 +149,7 @@ func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session,
 	r.audit(ctx, "run.awaiting_approval", run.ID, "Agent run is waiting for approval.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "pendingApprovals": len(run.PendingApprovals),
 	})
+	observability.InfoWithImportance(ctx, observability.ImportanceNormal, "adk run awaiting approval", "status", run.Status, "pending_approvals", len(run.PendingApprovals))
 	reply := "我已经准备好执行需要授权的操作，请先在 ADK 审批队列里确认或拒绝。"
 	return r.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: reply}), nil
 }

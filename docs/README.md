@@ -10,6 +10,7 @@
 
 - [architecture.md](architecture.md)：当前系统架构、单一 API 入口、请求链路和职责边界。
 - [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层约束、依赖方向和常见禁区。
+- [architecture/high-roi-tech-stack-refactor-plan.md](architecture/high-roi-tech-stack-refactor-plan.md)：高收益技术栈重构计划，拆分 API 契约、状态层、实时事件、性能、领域组件和观测能力。
 
 ### 2. 再按问题类型进入专题
 
@@ -20,6 +21,7 @@
 - [pinets-hardcut-migration.md](pinets-hardcut-migration.md)：PineTS 硬切替换 Go Pine runtime 的执行计划、进度、测试覆盖和性能门禁。
 - [pinets-contract-audit.md](pinets-contract-audit.md)：PineTS 切换后的 Go/API/worker/前端契约矩阵和 visual output 边界。
 - [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)：PineTS worker 发布、运行配置、embedded asset 和非 mock smoke 放行清单。
+- [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)：从 SystemPage 的错误、慢请求和 OpenD 摘要进入结构化日志及 ADK/回测运行记录。
 - [reference/README.md](reference/README.md)：协议细节、OpenD 资料和上游参考。
 
 ### 3. 最后再看历史收口记录
@@ -37,6 +39,7 @@
 - 改实时行情、K 线、SSE、WS：先看 [frontend-kline.md](frontend-kline.md) 和 [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md)
 - 改 PineTS worker、worker pool、embedded asset、发布验收：先看 [pinets-contract-audit.md](pinets-contract-audit.md)、[pinets-hardcut-migration.md](pinets-hardcut-migration.md) 和 [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)
 - 改 Futu / OpenD 协议和映射：先看 [reference/README.md](reference/README.md)
+- 查 HTTP、OpenD、ADK、回测或 PineTS 跨链路问题：先看 [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)
 
 ## 文档职责边界
 

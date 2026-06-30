@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
 func TestWorkerManagerStartStopAndSnapshot(t *testing.T) {
@@ -63,6 +65,9 @@ func TestWorkerManagerRunScriptRoundRobinsHealthyWorkers(t *testing.T) {
 	second := dialer.transports["127.0.0.1:50052"]
 	if first.runs != 2 || second.runs != 1 {
 		t.Fatalf("runs = %d/%d, want 2/1", first.runs, second.runs)
+	}
+	if first.lastFields.TaskID != "job-1" || first.lastFields.Source != "pinets" {
+		t.Fatalf("pine worker observability fields = %#v", first.lastFields)
 	}
 }
 
@@ -382,11 +387,13 @@ type fakeManagedTransport struct {
 	mu           sync.Mutex
 	runStarted   chan struct{}
 	releaseRun   chan struct{}
+	lastFields   observability.Fields
 }
 
 func (transport *fakeManagedTransport) RunScript(ctx context.Context, request RunScriptRequest) (RunScriptResponse, error) {
 	transport.mu.Lock()
 	transport.runs++
+	transport.lastFields = observability.FieldsFromContext(ctx)
 	runStarted := transport.runStarted
 	releaseRun := transport.releaseRun
 	transport.mu.Unlock()
