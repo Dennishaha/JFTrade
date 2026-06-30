@@ -49,6 +49,15 @@ message VisualOutput {
   string payload_json = 3;
 }
 
+message StrategyMetrics {
+  double buy_and_hold_pnl = 1;
+  double buy_and_hold_per_gain = 2;
+  double strategy_outperformance = 3;
+  bool has_buy_and_hold_pnl = 4;
+  bool has_buy_and_hold_per_gain = 5;
+  bool has_strategy_outperformance = 6;
+}
+
 message OrderIntent {
   string kind = 1;
   string id = 2;

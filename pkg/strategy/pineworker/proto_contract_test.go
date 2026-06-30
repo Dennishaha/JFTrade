@@ -61,11 +61,21 @@ func TestPineWorkerProtoCompilesAndExposesContract(t *testing.T) {
 			t.Fatalf("RunScriptRequest missing field %s", field)
 		}
 	}
+	runResponse := findMessage(t, typesFile, "RunScriptResponse")
+	if !messageHasField(runResponse, "strategy_metrics") {
+		t.Fatal("RunScriptResponse missing field strategy_metrics")
+	}
 	commonFile := findProtoFile(t, &files, "proto/pineworker_common.proto")
 	intent := findMessage(t, commonFile, "OrderIntent")
 	for _, field := range []string{"kind", "id", "direction", "quantity", "quantity_pct", "limit_price", "stop_price", "has_quantity", "has_limit_price"} {
 		if !messageHasField(intent, field) {
 			t.Fatalf("OrderIntent missing field %s", field)
+		}
+	}
+	metrics := findMessage(t, commonFile, "StrategyMetrics")
+	for _, field := range []string{"buy_and_hold_pnl", "buy_and_hold_per_gain", "strategy_outperformance", "has_buy_and_hold_pnl"} {
+		if !messageHasField(metrics, field) {
+			t.Fatalf("StrategyMetrics missing field %s", field)
 		}
 	}
 }

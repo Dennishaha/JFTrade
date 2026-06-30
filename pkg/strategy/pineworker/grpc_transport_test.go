@@ -62,6 +62,9 @@ func TestGRPCTransportRunScriptAndHealthCheck(t *testing.T) {
 	if response.Metadata.Duration != 15*time.Millisecond || response.Metadata.WorkerID != "worker-1" {
 		t.Fatalf("unexpected metadata: %#v", response.Metadata)
 	}
+	if response.StrategyMetrics == nil || !response.StrategyMetrics.HasStrategyOutperformance || response.StrategyMetrics.StrategyOutperformance != -2.5 {
+		t.Fatalf("unexpected strategy metrics: %#v", response.StrategyMetrics)
+	}
 }
 
 func TestGRPCTransportRequiresClient(t *testing.T) {
@@ -112,6 +115,10 @@ func (testPineWorkerServer) RunScript(ctx context.Context, request *pineworkerpb
 			DurationMs:    15,
 			RequestBytes:  100,
 			ResponseBytes: 100,
+		},
+		StrategyMetrics: &pineworkerpb.StrategyMetrics{
+			StrategyOutperformance:    -2.5,
+			HasStrategyOutperformance: true,
 		},
 	}, nil
 }

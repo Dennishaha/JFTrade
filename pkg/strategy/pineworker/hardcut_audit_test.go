@@ -1,6 +1,7 @@
 package pineworker
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -374,9 +375,6 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 		"package.json": {
 			"check:pinets-compliance",
 		},
-		"workers/pineworker/package.json": {
-			"\"pinets\": \"^0.9.26\"",
-		},
 	}
 	for rel, requiredValues := range requiredByFile {
 		data, err := os.ReadFile(filepath.Join(root, rel))
@@ -389,6 +387,28 @@ func assertPinetsReleaseRequiresInstalledPackage(t *testing.T, root string) {
 				t.Fatalf("%s does not gate PineTS release on installed package evidence %q", rel, required)
 			}
 		}
+	}
+	assertPinetsDependencyIsExact(t, root)
+}
+
+func assertPinetsDependencyIsExact(t *testing.T, root string) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, "workers/pineworker/package.json"))
+	if err != nil {
+		t.Fatalf("ReadFile(workers/pineworker/package.json): %v", err)
+	}
+	var pkg struct {
+		Dependencies map[string]string `json:"dependencies"`
+	}
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		t.Fatalf("parse workers/pineworker/package.json: %v", err)
+	}
+	version := strings.TrimSpace(pkg.Dependencies["pinets"])
+	if version == "" {
+		t.Fatal("workers/pineworker/package.json does not declare pinets dependency")
+	}
+	if strings.ContainsAny(version, "^~*<>|") {
+		t.Fatalf("pinets dependency must be an exact semver for CI/compliance stability, got %q", version)
 	}
 }
 

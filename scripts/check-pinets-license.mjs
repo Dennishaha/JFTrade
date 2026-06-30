@@ -9,9 +9,6 @@ const pkg = JSON.parse(readFileSync(join(dirname(dirname(entry)), "package.json"
 if (pkg.name !== "pinets") {
   throw new Error(`expected pinets package, got ${pkg.name}`);
 }
-if (pkg.version !== "0.9.26") {
-  throw new Error(`pinets version = ${pkg.version}, want 0.9.26`);
-}
 if (pkg.license !== "AGPL-3.0-only") {
   throw new Error(`pinets license = ${pkg.license}, want AGPL-3.0-only`);
 }

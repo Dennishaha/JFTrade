@@ -10,6 +10,7 @@ const notice = readFileSync("docs/legal/third-party-notices.md", "utf8");
 
 const requiredNoticeText = [
   "PineTS / pinets",
+  `Version: \`${pinetsPackage.version}\``,
   "AGPL-3.0-only",
   "https://github.com/LuxAlgo/PineTS",
   "runtime=pine-pinets",
@@ -25,9 +26,6 @@ const requiredNoticeText = [
 
 if (pinetsPackage.name !== "pinets") {
   throw new Error(`expected pinets package, got ${pinetsPackage.name}`);
-}
-if (pinetsPackage.version !== "0.9.26") {
-  throw new Error(`pinets version = ${pinetsPackage.version}, want 0.9.26`);
 }
 if (pinetsPackage.license !== "AGPL-3.0-only") {
   throw new Error(`pinets license = ${pinetsPackage.license}, want AGPL-3.0-only`);

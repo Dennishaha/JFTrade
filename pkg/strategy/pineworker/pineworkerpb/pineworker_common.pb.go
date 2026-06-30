@@ -453,6 +453,90 @@ func (x *VisualOutput) GetPayloadJson() string {
 	return ""
 }
 
+type StrategyMetrics struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	BuyAndHoldPnl             float64                `protobuf:"fixed64,1,opt,name=buy_and_hold_pnl,json=buyAndHoldPnl,proto3" json:"buy_and_hold_pnl,omitempty"`
+	BuyAndHoldPerGain         float64                `protobuf:"fixed64,2,opt,name=buy_and_hold_per_gain,json=buyAndHoldPerGain,proto3" json:"buy_and_hold_per_gain,omitempty"`
+	StrategyOutperformance    float64                `protobuf:"fixed64,3,opt,name=strategy_outperformance,json=strategyOutperformance,proto3" json:"strategy_outperformance,omitempty"`
+	HasBuyAndHoldPnl          bool                   `protobuf:"varint,4,opt,name=has_buy_and_hold_pnl,json=hasBuyAndHoldPnl,proto3" json:"has_buy_and_hold_pnl,omitempty"`
+	HasBuyAndHoldPerGain      bool                   `protobuf:"varint,5,opt,name=has_buy_and_hold_per_gain,json=hasBuyAndHoldPerGain,proto3" json:"has_buy_and_hold_per_gain,omitempty"`
+	HasStrategyOutperformance bool                   `protobuf:"varint,6,opt,name=has_strategy_outperformance,json=hasStrategyOutperformance,proto3" json:"has_strategy_outperformance,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *StrategyMetrics) Reset() {
+	*x = StrategyMetrics{}
+	mi := &file_proto_pineworker_common_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StrategyMetrics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StrategyMetrics) ProtoMessage() {}
+
+func (x *StrategyMetrics) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_pineworker_common_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StrategyMetrics.ProtoReflect.Descriptor instead.
+func (*StrategyMetrics) Descriptor() ([]byte, []int) {
+	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *StrategyMetrics) GetBuyAndHoldPnl() float64 {
+	if x != nil {
+		return x.BuyAndHoldPnl
+	}
+	return 0
+}
+
+func (x *StrategyMetrics) GetBuyAndHoldPerGain() float64 {
+	if x != nil {
+		return x.BuyAndHoldPerGain
+	}
+	return 0
+}
+
+func (x *StrategyMetrics) GetStrategyOutperformance() float64 {
+	if x != nil {
+		return x.StrategyOutperformance
+	}
+	return 0
+}
+
+func (x *StrategyMetrics) GetHasBuyAndHoldPnl() bool {
+	if x != nil {
+		return x.HasBuyAndHoldPnl
+	}
+	return false
+}
+
+func (x *StrategyMetrics) GetHasBuyAndHoldPerGain() bool {
+	if x != nil {
+		return x.HasBuyAndHoldPerGain
+	}
+	return false
+}
+
+func (x *StrategyMetrics) GetHasStrategyOutperformance() bool {
+	if x != nil {
+		return x.HasStrategyOutperformance
+	}
+	return false
+}
+
 type OrderIntent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Kind           string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
@@ -478,7 +562,7 @@ type OrderIntent struct {
 
 func (x *OrderIntent) Reset() {
 	*x = OrderIntent{}
-	mi := &file_proto_pineworker_common_proto_msgTypes[6]
+	mi := &file_proto_pineworker_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +574,7 @@ func (x *OrderIntent) String() string {
 func (*OrderIntent) ProtoMessage() {}
 
 func (x *OrderIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_pineworker_common_proto_msgTypes[6]
+	mi := &file_proto_pineworker_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +587,7 @@ func (x *OrderIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrderIntent.ProtoReflect.Descriptor instead.
 func (*OrderIntent) Descriptor() ([]byte, []int) {
-	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{6}
+	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *OrderIntent) GetKind() string {
@@ -642,7 +726,7 @@ type WorkerMetadata struct {
 
 func (x *WorkerMetadata) Reset() {
 	*x = WorkerMetadata{}
-	mi := &file_proto_pineworker_common_proto_msgTypes[7]
+	mi := &file_proto_pineworker_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -654,7 +738,7 @@ func (x *WorkerMetadata) String() string {
 func (*WorkerMetadata) ProtoMessage() {}
 
 func (x *WorkerMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_pineworker_common_proto_msgTypes[7]
+	mi := &file_proto_pineworker_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -667,7 +751,7 @@ func (x *WorkerMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkerMetadata.ProtoReflect.Descriptor instead.
 func (*WorkerMetadata) Descriptor() ([]byte, []int) {
-	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{7}
+	return file_proto_pineworker_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *WorkerMetadata) GetWorkerId() string {
@@ -774,7 +858,14 @@ const file_proto_pineworker_common_proto_rawDesc = "" +
 	"\fVisualOutput\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
-	"\fpayload_json\x18\x03 \x01(\tR\vpayloadJson\"\x9d\x04\n" +
+	"\fpayload_json\x18\x03 \x01(\tR\vpayloadJson\"\xce\x02\n" +
+	"\x0fStrategyMetrics\x12'\n" +
+	"\x10buy_and_hold_pnl\x18\x01 \x01(\x01R\rbuyAndHoldPnl\x120\n" +
+	"\x15buy_and_hold_per_gain\x18\x02 \x01(\x01R\x11buyAndHoldPerGain\x127\n" +
+	"\x17strategy_outperformance\x18\x03 \x01(\x01R\x16strategyOutperformance\x12.\n" +
+	"\x14has_buy_and_hold_pnl\x18\x04 \x01(\bR\x10hasBuyAndHoldPnl\x127\n" +
+	"\x19has_buy_and_hold_per_gain\x18\x05 \x01(\bR\x14hasBuyAndHoldPerGain\x12>\n" +
+	"\x1bhas_strategy_outperformance\x18\x06 \x01(\bR\x19hasStrategyOutperformance\"\x9d\x04\n" +
 	"\vOrderIntent\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1d\n" +
@@ -822,16 +913,17 @@ func file_proto_pineworker_common_proto_rawDescGZIP() []byte {
 	return file_proto_pineworker_common_proto_rawDescData
 }
 
-var file_proto_pineworker_common_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_proto_pineworker_common_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_proto_pineworker_common_proto_goTypes = []any{
-	(*Candle)(nil),         // 0: jftrade.strategy.pineworker.v1.Candle
-	(*Diagnostic)(nil),     // 1: jftrade.strategy.pineworker.v1.Diagnostic
-	(*SeriesOutput)(nil),   // 2: jftrade.strategy.pineworker.v1.SeriesOutput
-	(*PlotOutput)(nil),     // 3: jftrade.strategy.pineworker.v1.PlotOutput
-	(*AlertEvent)(nil),     // 4: jftrade.strategy.pineworker.v1.AlertEvent
-	(*VisualOutput)(nil),   // 5: jftrade.strategy.pineworker.v1.VisualOutput
-	(*OrderIntent)(nil),    // 6: jftrade.strategy.pineworker.v1.OrderIntent
-	(*WorkerMetadata)(nil), // 7: jftrade.strategy.pineworker.v1.WorkerMetadata
+	(*Candle)(nil),          // 0: jftrade.strategy.pineworker.v1.Candle
+	(*Diagnostic)(nil),      // 1: jftrade.strategy.pineworker.v1.Diagnostic
+	(*SeriesOutput)(nil),    // 2: jftrade.strategy.pineworker.v1.SeriesOutput
+	(*PlotOutput)(nil),      // 3: jftrade.strategy.pineworker.v1.PlotOutput
+	(*AlertEvent)(nil),      // 4: jftrade.strategy.pineworker.v1.AlertEvent
+	(*VisualOutput)(nil),    // 5: jftrade.strategy.pineworker.v1.VisualOutput
+	(*StrategyMetrics)(nil), // 6: jftrade.strategy.pineworker.v1.StrategyMetrics
+	(*OrderIntent)(nil),     // 7: jftrade.strategy.pineworker.v1.OrderIntent
+	(*WorkerMetadata)(nil),  // 8: jftrade.strategy.pineworker.v1.WorkerMetadata
 }
 var file_proto_pineworker_common_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -852,7 +944,7 @@ func file_proto_pineworker_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_pineworker_common_proto_rawDesc), len(file_proto_pineworker_common_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

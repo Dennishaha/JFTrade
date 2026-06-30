@@ -25,17 +25,18 @@ func responseFromProto(response *pineworkerpb.RunScriptResponse) RunScriptRespon
 		return RunScriptResponse{}
 	}
 	return RunScriptResponse{
-		JobID:         response.GetJobId(),
-		Outputs:       seriesOutputsFromProto(response.GetOutputs()),
-		Plots:         plotsFromProto(response.GetPlots()),
-		OrderIntents:  orderIntentsFromProto(response.GetOrderIntents()),
-		Alerts:        alertsFromProto(response.GetAlerts()),
-		VisualOutputs: visualOutputsFromProto(response.GetVisualOutputs()),
-		Logs:          append([]string(nil), response.GetLogs()...),
-		Warnings:      append([]string(nil), response.GetWarnings()...),
-		Diagnostics:   diagnosticsFromProto(response.GetDiagnostics()),
-		Metadata:      metadataFromProto(response.GetMetadata()),
-		Error:         response.GetError(),
+		JobID:           response.GetJobId(),
+		Outputs:         seriesOutputsFromProto(response.GetOutputs()),
+		Plots:           plotsFromProto(response.GetPlots()),
+		OrderIntents:    orderIntentsFromProto(response.GetOrderIntents()),
+		Alerts:          alertsFromProto(response.GetAlerts()),
+		VisualOutputs:   visualOutputsFromProto(response.GetVisualOutputs()),
+		Logs:            append([]string(nil), response.GetLogs()...),
+		Warnings:        append([]string(nil), response.GetWarnings()...),
+		Diagnostics:     diagnosticsFromProto(response.GetDiagnostics()),
+		Metadata:        metadataFromProto(response.GetMetadata()),
+		Error:           response.GetError(),
+		StrategyMetrics: strategyMetricsFromProto(response.GetStrategyMetrics()),
 	}
 }
 
@@ -117,6 +118,20 @@ func visualOutputsFromProto(outputs []*pineworkerpb.VisualOutput) []VisualOutput
 		})
 	}
 	return result
+}
+
+func strategyMetricsFromProto(metrics *pineworkerpb.StrategyMetrics) *StrategyMetrics {
+	if metrics == nil {
+		return nil
+	}
+	return &StrategyMetrics{
+		BuyAndHoldPnL:             metrics.GetBuyAndHoldPnl(),
+		BuyAndHoldPerGain:         metrics.GetBuyAndHoldPerGain(),
+		StrategyOutperformance:    metrics.GetStrategyOutperformance(),
+		HasBuyAndHoldPnL:          metrics.GetHasBuyAndHoldPnl(),
+		HasBuyAndHoldPerGain:      metrics.GetHasBuyAndHoldPerGain(),
+		HasStrategyOutperformance: metrics.GetHasStrategyOutperformance(),
+	}
 }
 
 func diagnosticsFromProto(diagnostics []*pineworkerpb.Diagnostic) []Diagnostic {

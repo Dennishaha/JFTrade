@@ -57,4 +57,5 @@ message RunScriptResponse {
   string error = 9;
   repeated AlertEvent alerts = 10;
   repeated VisualOutput visual_outputs = 11;
+  StrategyMetrics strategy_metrics = 12;
 }

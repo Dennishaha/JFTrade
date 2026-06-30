@@ -7,6 +7,7 @@ import type {
   RunScriptRequest,
   RunScriptResponse,
   SeriesOutput,
+  StrategyMetrics,
   AlertEvent,
   VisualOutput,
   WorkerMetadata,
@@ -46,7 +47,7 @@ export function runScriptRequestFromProto(value: Record<string, unknown>): RunSc
 }
 
 export function runScriptResponseToProto(response: RunScriptResponse): Record<string, unknown> {
-  return {
+  const proto: Record<string, unknown> = {
     job_id: response.jobId,
     outputs: response.outputs.map(seriesOutputToProto),
     plots: response.plots.map(plotToProto),
@@ -59,6 +60,10 @@ export function runScriptResponseToProto(response: RunScriptResponse): Record<st
     metadata: metadataToProto(response.metadata),
     error: response.error ?? "",
   };
+  if (response.strategyMetrics !== undefined) {
+    proto.strategy_metrics = strategyMetricsToProto(response.strategyMetrics);
+  }
+  return proto;
 }
 
 export function healthStatusToProto(status: HealthStatus): Record<string, unknown> {
@@ -119,6 +124,17 @@ function visualOutputToProto(output: VisualOutput): Record<string, unknown> {
     kind: output.kind,
     name: output.name,
     payload_json: output.payloadJson,
+  };
+}
+
+function strategyMetricsToProto(metrics: StrategyMetrics): Record<string, unknown> {
+  return {
+    buy_and_hold_pnl: metrics.buyAndHoldPnl,
+    buy_and_hold_per_gain: metrics.buyAndHoldPerGain,
+    strategy_outperformance: metrics.strategyOutperformance,
+    has_buy_and_hold_pnl: metrics.hasBuyAndHoldPnl,
+    has_buy_and_hold_per_gain: metrics.hasBuyAndHoldPerGain,
+    has_strategy_outperformance: metrics.hasStrategyOutperformance,
   };
 }
 

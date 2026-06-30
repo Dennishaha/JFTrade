@@ -92,6 +92,15 @@ export type WorkerMetadata = {
   peakRSSBytes: number;
 };
 
+export type StrategyMetrics = {
+  buyAndHoldPnl: number;
+  buyAndHoldPerGain: number;
+  strategyOutperformance: number;
+  hasBuyAndHoldPnl: boolean;
+  hasBuyAndHoldPerGain: boolean;
+  hasStrategyOutperformance: boolean;
+};
+
 export type RunScriptResponse = {
   jobId: string;
   outputs: SeriesOutput[];
@@ -104,6 +113,7 @@ export type RunScriptResponse = {
   diagnostics: Diagnostic[];
   metadata: WorkerMetadata;
   error?: string;
+  strategyMetrics?: StrategyMetrics;
 };
 
 export type PineTSPlotDataPoint = {

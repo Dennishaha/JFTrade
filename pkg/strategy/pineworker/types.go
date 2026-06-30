@@ -140,18 +140,28 @@ type WorkerMetadata struct {
 	PeakRSSBytes  int64
 }
 
+type StrategyMetrics struct {
+	BuyAndHoldPnL             float64
+	BuyAndHoldPerGain         float64
+	StrategyOutperformance    float64
+	HasBuyAndHoldPnL          bool
+	HasBuyAndHoldPerGain      bool
+	HasStrategyOutperformance bool
+}
+
 type RunScriptResponse struct {
-	JobID         string
-	Outputs       []SeriesOutput
-	Plots         []PlotOutput
-	OrderIntents  []OrderIntent
-	Alerts        []AlertEvent
-	VisualOutputs []VisualOutput
-	Logs          []string
-	Warnings      []string
-	Diagnostics   []Diagnostic
-	Error         string
-	Metadata      WorkerMetadata
+	JobID           string
+	Outputs         []SeriesOutput
+	Plots           []PlotOutput
+	OrderIntents    []OrderIntent
+	Alerts          []AlertEvent
+	VisualOutputs   []VisualOutput
+	Logs            []string
+	Warnings        []string
+	Diagnostics     []Diagnostic
+	Error           string
+	Metadata        WorkerMetadata
+	StrategyMetrics *StrategyMetrics
 }
 
 func ValidateRunScriptRequest(request RunScriptRequest, config WorkerConfig) error {

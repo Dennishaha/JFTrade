@@ -62,6 +62,14 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 			Name:        "entry-label",
 			PayloadJson: `{"text":"Long"}`,
 		}},
+		StrategyMetrics: &pineworkerpb.StrategyMetrics{
+			BuyAndHoldPnl:             0,
+			BuyAndHoldPerGain:         12.5,
+			StrategyOutperformance:    -3.25,
+			HasBuyAndHoldPnl:          true,
+			HasBuyAndHoldPerGain:      true,
+			HasStrategyOutperformance: true,
+		},
 		Logs:        []string{"log"},
 		Warnings:    []string{"warn"},
 		Diagnostics: []*pineworkerpb.Diagnostic{{Severity: "warning", Code: "x", Message: "m", Line: 1, Column: 2}},
@@ -91,6 +99,9 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 	}
 	if response.VisualOutputs[0].Kind != "label" || response.VisualOutputs[0].PayloadJSON == "" {
 		t.Fatalf("unexpected mapped visual outputs: %#v", response.VisualOutputs)
+	}
+	if response.StrategyMetrics == nil || !response.StrategyMetrics.HasBuyAndHoldPnL || response.StrategyMetrics.BuyAndHoldPerGain != 12.5 {
+		t.Fatalf("unexpected mapped strategy metrics: %#v", response.StrategyMetrics)
 	}
 	if response.Diagnostics[0].Line != 1 || response.Metadata.Duration != 7*time.Millisecond {
 		t.Fatalf("unexpected diagnostics/metadata: %#v", response)

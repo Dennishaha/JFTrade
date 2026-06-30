@@ -583,11 +583,12 @@ func externalEngine() map[string]any {
 		"enabled":           payload.Enabled,
 		"status":            payload.Status,
 		"license":           "AGPL-3.0-only",
-		"package":           "pinets@0.9.26",
+		"package":           "pinets@0.9.27",
 		"repository":        "https://github.com/LuxAlgo/PineTS",
 		"worker":            "scripts/pinets-worker.mjs",
 		"authority":         "pine-pinets production runtime remains authoritative",
 		"scope":             "indicator and signal shadow evaluation only",
+		"strategyMetrics":   []string{"buy_and_hold_pnl", "buy_and_hold_per_gain", "strategy_outperformance"},
 		"compliance":        payload.Compliance,
 		"differenceSummary": payload.DifferenceSummary,
 	}

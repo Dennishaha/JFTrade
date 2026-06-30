@@ -238,6 +238,36 @@ describe("buildResponse", () => {
       }),
     ]);
   });
+
+  test("normalizes PineTS strategy metrics from v0.9.27 state", () => {
+    const response = buildResponse(validRequest(), {
+      strategy: {
+        buy_and_hold_pnl: 0,
+        buy_and_hold_per_gain: 12.5,
+        strategy_outperformance: -3.25,
+        _first_entry_price: 10,
+      },
+    }, {
+      workerId: "worker-1",
+      version: "0.1.0",
+      pineTSVersion: "test",
+      scriptHash: "script",
+      dataHash: "data",
+      durationMs: 1,
+      requestBytes: 2,
+      responseBytes: 3,
+      peakRSSBytes: 4,
+    });
+
+    expect(response.strategyMetrics).toEqual({
+      buyAndHoldPnl: 0,
+      buyAndHoldPerGain: 12.5,
+      strategyOutperformance: -3.25,
+      hasBuyAndHoldPnl: true,
+      hasBuyAndHoldPerGain: true,
+      hasStrategyOutperformance: true,
+    });
+  });
 });
 
 function validRequest(): RunScriptRequest {

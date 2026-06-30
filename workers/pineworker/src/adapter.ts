@@ -7,6 +7,7 @@ import type {
   PlotOutput,
   RunScriptRequest,
   RunScriptResponse,
+  StrategyMetrics,
   VisualOutput,
   WorkerMetadata,
 } from "./types";
@@ -65,7 +66,7 @@ export function buildResponse(
   result: PineTSRunResult,
   metadata: WorkerMetadata,
 ): RunScriptResponse {
-  return {
+  const response: RunScriptResponse = {
     jobId: request.jobId,
     outputs: normalizePlots(result.plots).map((plot) => ({
       name: plot.name,
@@ -81,6 +82,11 @@ export function buildResponse(
     diagnostics: result.diagnostics ?? [],
     metadata,
   };
+  const strategyMetrics = normalizeStrategyMetrics(result.strategy);
+  if (strategyMetrics !== undefined) {
+    response.strategyMetrics = strategyMetrics;
+  }
+  return response;
 }
 
 function buildErrorResponse(
@@ -197,6 +203,30 @@ function normalizeResultOrderIntents(result: PineTSRunResult, request: RunScript
     return normalizeOrderIntents(result.orderIntents, request);
   }
   return orderIntentsFromStrategyTrades(result.strategy, request);
+}
+
+function normalizeStrategyMetrics(strategy: unknown): StrategyMetrics | undefined {
+  if (typeof strategy !== "object" || strategy === null) {
+    return undefined;
+  }
+  const raw = strategy as Record<string, unknown>;
+  const buyAndHoldPnl = optionalNumber(raw.buy_and_hold_pnl ?? raw.buyAndHoldPnl);
+  const buyAndHoldPerGain = optionalNumber(raw.buy_and_hold_per_gain ?? raw.buyAndHoldPerGain);
+  const strategyOutperformance = optionalNumber(raw.strategy_outperformance ?? raw.strategyOutperformance);
+  const hasBuyAndHoldPnl = buyAndHoldPnl !== undefined;
+  const hasBuyAndHoldPerGain = buyAndHoldPerGain !== undefined;
+  const hasStrategyOutperformance = strategyOutperformance !== undefined;
+  if (!hasBuyAndHoldPnl && !hasBuyAndHoldPerGain && !hasStrategyOutperformance) {
+    return undefined;
+  }
+  return {
+    buyAndHoldPnl: buyAndHoldPnl ?? 0,
+    buyAndHoldPerGain: buyAndHoldPerGain ?? 0,
+    strategyOutperformance: strategyOutperformance ?? 0,
+    hasBuyAndHoldPnl,
+    hasBuyAndHoldPerGain,
+    hasStrategyOutperformance,
+  };
 }
 
 function orderIntentsFromStrategyTrades(strategy: unknown, request: RunScriptRequest): OrderIntent[] {
