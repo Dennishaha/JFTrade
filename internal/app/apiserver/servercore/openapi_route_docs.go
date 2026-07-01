@@ -92,6 +92,26 @@ func documentAssistantChatApprovalSkillRoutes() {}
 // @Router /api/v1/adk/optimization-tasks/{taskId}/cancel [post]
 func documentAssistantOptimizationRoutes() {}
 
+// documentAssistantWorkflowRoutes godoc
+// @Summary ADK workflow definition, trigger, and trigger log routes
+// @Tags adk
+// @Produce json
+// @Success 200 {object} envelope
+// @Router /api/v1/adk/workflows [get]
+// @Router /api/v1/adk/workflows [post]
+// @Router /api/v1/adk/workflows/{workflowId} [get]
+// @Router /api/v1/adk/workflows/{workflowId} [put]
+// @Router /api/v1/adk/workflows/{workflowId} [delete]
+// @Router /api/v1/adk/workflows/{workflowId}/run [post]
+// @Router /api/v1/adk/workflows/{workflowId}/triggers [get]
+// @Router /api/v1/adk/workflows/{workflowId}/triggers [post]
+// @Router /api/v1/adk/workflows/{workflowId}/triggers/{triggerId} [put]
+// @Router /api/v1/adk/workflows/{workflowId}/triggers/{triggerId} [delete]
+// @Router /api/v1/adk/workflow-triggers/{triggerId}/run [post]
+// @Router /api/v1/adk/workflow-trigger-logs [get]
+// @Router /api/v1/adk/workflow-webhooks/{triggerId} [post]
+func documentAssistantWorkflowRoutes() {}
+
 // documentBacktestSyncTaskRoutes godoc
 // @Summary Backtest historical data sync task routes
 // @Tags backtest

@@ -46,5 +46,8 @@
     "check:pinets-compliance": "node scripts/check-pinets-compliance.mjs",
     "check:pinets-license": "node scripts/check-pinets-license.mjs",
     "typecheck": "npm run typecheck:web && npm run typecheck:pineworker"
+  },
+  "devDependencies": {
+    "vue": "3.5.39"
   }
 }

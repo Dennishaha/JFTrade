@@ -67,9 +67,14 @@ export function createConsoleRouter(
         meta: { title: "设计策略" },
       },
       {
-        path: "/adk",
+        path: "/adk/agents",
         component: () => import("./pages/ADKPage.vue"),
-        meta: { title: "Agents" },
+        meta: { title: "智能体" },
+      },
+      {
+        path: "/adk/workflows",
+        component: () => import("./pages/ADKPage.vue"),
+        meta: { title: "工作流" },
       },
       {
         path: "/backtest",

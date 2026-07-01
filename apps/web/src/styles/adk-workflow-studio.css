@@ -1,0 +1,915 @@
+.adk-workflow-studio {
+  --adk-workflow-status-success-fg: var(--adk-success-fg);
+  --adk-workflow-status-success-bg: var(--adk-success-bg);
+  --adk-workflow-status-info-fg: var(--adk-info-fg);
+  --adk-workflow-status-info-bg: var(--adk-info-bg);
+  --adk-workflow-status-warning-fg: var(--adk-warning-fg);
+  --adk-workflow-status-warning-bg: var(--adk-warning-bg);
+  --adk-workflow-status-error-fg: var(--adk-error-fg);
+  --adk-workflow-status-error-bg: var(--adk-error-bg);
+  --adk-workflow-status-muted-fg: var(--adk-muted-fg);
+  --adk-workflow-status-muted-bg: var(--adk-muted-bg);
+  --adk-workflow-canvas-bg:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(11, 18, 32, 0.96));
+  --adk-workflow-minimap-bg: rgba(15, 23, 42, 0.94);
+  --adk-workflow-minimap-border: rgba(148, 163, 184, 0.26);
+  --adk-workflow-minimap-node: rgba(103, 232, 249, 0.48);
+  --adk-workflow-minimap-node-stroke: rgba(103, 232, 249, 0.8);
+  --adk-workflow-minimap-mask: rgba(2, 6, 23, 0.46);
+  --adk-workflow-control-bg: rgba(15, 23, 42, 0.92);
+  --adk-workflow-control-fg: #e2e8f0;
+  --adk-workflow-control-border: rgba(148, 163, 184, 0.22);
+}
+
+[data-theme="light"] .adk-workflow-studio {
+  --adk-workflow-canvas-bg:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
+  --adk-workflow-minimap-bg: rgba(255, 255, 255, 0.96);
+  --adk-workflow-minimap-border: rgba(100, 116, 139, 0.28);
+  --adk-workflow-minimap-node: rgba(8, 145, 178, 0.42);
+  --adk-workflow-minimap-node-stroke: rgba(14, 116, 144, 0.72);
+  --adk-workflow-minimap-mask: rgba(226, 232, 240, 0.62);
+  --adk-workflow-control-bg: rgba(255, 255, 255, 0.94);
+  --adk-workflow-control-fg: #0f172a;
+  --adk-workflow-control-border: rgba(100, 116, 139, 0.24);
+}
+
+.adk-workflow-studio .vue-flow__minimap {
+  overflow: hidden;
+  border: 1px solid var(--adk-workflow-minimap-border);
+  border-radius: 8px;
+  background: var(--adk-workflow-minimap-bg);
+  box-shadow: 0 18px 46px rgba(2, 6, 23, 0.28);
+}
+
+.adk-workflow-studio .vue-flow__minimap svg {
+  background: var(--adk-workflow-minimap-bg);
+}
+
+.adk-workflow-studio .vue-flow__minimap-mask {
+  fill: var(--adk-workflow-minimap-mask) !important;
+}
+
+.adk-workflow-studio .vue-flow__minimap-node {
+  fill: var(--adk-workflow-minimap-node) !important;
+  stroke: var(--adk-workflow-minimap-node-stroke) !important;
+}
+
+.adk-workflow-studio .vue-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--adk-workflow-control-border);
+  border-radius: 8px;
+  background: var(--adk-workflow-control-bg);
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.24);
+}
+
+.adk-workflow-studio .vue-flow__controls-button {
+  border-bottom-color: var(--adk-workflow-control-border);
+  background: var(--adk-workflow-control-bg);
+  color: var(--adk-workflow-control-fg);
+}
+
+.adk-workflow-studio .vue-flow__controls-button:hover {
+  background: color-mix(in srgb, var(--adk-accent-fg) 12%, var(--adk-workflow-control-bg));
+}
+
+.adk-workflow-studio .vue-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.adk-workflow-notices {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.adk-workflow-notice {
+  display: flex;
+  min-height: 32px;
+  max-height: 40px;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 8px 6px 10px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.adk-workflow-notice > span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-workflow-notice.is-success {
+  border-color: var(--adk-success-border);
+  background: var(--adk-success-bg);
+  color: var(--adk-success-fg);
+}
+
+.adk-workflow-notice.is-warning {
+  border-color: var(--adk-warning-border);
+  background: var(--adk-warning-bg);
+  color: var(--adk-warning-fg);
+}
+
+.adk-workflow-notice .adk-workflow-link {
+  flex: 0 0 auto;
+  color: inherit;
+  font-weight: 700;
+}
+
+.adk-workflow-notice__close {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.78;
+}
+
+.adk-workflow-notice__close:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 1;
+}
+
+/* Studio layout migrated from ADKWorkflowStudio.vue. */
+.adk-workflow-studio {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--tv-bg-app);
+  color: var(--tv-text);
+}
+
+.adk-workflow-studio__split {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.adk-workflow-studio__split .splitpanes__pane {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.adk-workflow-studio__workarea {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.adk-workflow-studio__workarea.is-inspector-hidden .adk-workflow-studio__workbench> .splitpanes__splitter {
+  display: none;
+}
+
+.adk-workflow-studio__workarea.is-inspector-hidden .adk-workflow-studio__workbench> .splitpanes__pane:first-of-type {
+  width: 100% !important;
+  max-width: 100% !important;
+  flex: 0 0 100% !important;
+}
+
+.adk-workflow-studio__workarea.is-inspector-hidden .adk-workflow-studio__workbench> .splitpanes__pane:last-of-type {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  flex: 0 0 0 !important;
+}
+
+.adk-workflow-studio__workarea.is-inspector-hidden .adk-workflow-inspector {
+  display: none;
+}
+
+.adk-workflow-studio__workarea:not(.is-inspector-hidden) .adk-workflow-inspector-show {
+  display: none;
+}
+
+.adk-workflow-studio__workbench {
+  width: 100%;
+}
+
+.adk-workflow-studio__sidebar,
+.adk-workflow-inspector {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  border-color: var(--tv-border);
+  background: color-mix(in srgb, var(--tv-bg-surface) 92%, transparent);
+}
+
+.adk-workflow-studio__sidebar {
+  border-right: 1px solid var(--tv-border);
+}
+
+.adk-workflow-inspector {
+  container-type: inline-size;
+  border-left: 1px solid var(--tv-border);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.adk-workflow-studio__brand,
+.adk-workflow-studio__topbar,
+.adk-workflow-inspector__head,
+.adk-inspector-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.adk-workflow-studio__brand {
+  padding: 18px 16px 12px;
+}
+
+.adk-workflow-studio__eyebrow {
+  color: var(--tv-accent);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.adk-workflow-studio__brand h2,
+.adk-workflow-title-block h1,
+.adk-inspector-section h3 {
+  margin: 0;
+}
+
+.adk-workflow-studio__brand h2 {
+  font-size: 20px;
+}
+
+.adk-workflow-template-list,
+.adk-workflow-studio__filters,
+.adk-inspector-section {
+  display: grid;
+  gap: 10px;
+}
+
+.adk-workflow-template-list {
+  padding: 0 12px 12px;
+}
+
+.adk-workflow-template,
+.adk-workflow-resource {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 42%, transparent);
+  color: inherit;
+  padding: 10px;
+  text-align: left;
+}
+
+.adk-workflow-template:hover,
+.adk-workflow-resource:hover,
+.adk-workflow-resource.is-active {
+  border-color: color-mix(in srgb, var(--tv-accent) 52%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-accent) 10%, var(--tv-bg-surface));
+}
+
+.adk-workflow-template span,
+.adk-workflow-resource__main {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 3px;
+}
+
+.adk-workflow-template strong,
+.adk-workflow-resource strong,
+.adk-log-item strong {
+  overflow: hidden;
+  color: var(--tv-text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-workflow-template small,
+.adk-workflow-resource small,
+.adk-log-item small,
+.adk-workflow-title-block span,
+.adk-workflow-muted {
+  color: var(--tv-text-muted);
+  font-size: 12px;
+}
+
+.adk-workflow-studio__filters {
+  padding: 0 12px 12px;
+}
+
+.adk-workflow-resource-list {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  align-content: start;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 0 10px 12px;
+}
+
+.adk-workflow-resource__icon,
+.adk-flow-node__icon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
+  color: var(--tv-accent);
+}
+
+.adk-workflow-empty {
+  padding: 18px;
+  color: var(--tv-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.adk-workflow-studio__pager {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  border-top: 1px solid var(--tv-border);
+  padding: 10px 12px;
+  color: var(--tv-text-muted);
+  font-size: 12px;
+}
+
+.adk-workflow-studio__main {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.adk-workflow-studio__topbar {
+  position: relative;
+  z-index: 4;
+  flex: 0 0 auto;
+  min-height: 56px;
+  overflow: visible;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-bg-surface) 88%, transparent);
+  padding: 10px 12px;
+}
+
+.adk-workflow-title-block {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.adk-workflow-title-block h1 {
+  overflow: hidden;
+  max-width: 36vw;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-workflow-actions,
+.adk-inspector-actions,
+.adk-variable-palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.adk-workflow-actions {
+  min-width: 0;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.adk-workflow-action-group {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0;
+}
+
+.adk-workflow-action-group .tv-toolbar-action__surface {
+  border-radius: 0;
+}
+
+.adk-workflow-action-group> :first-child:not(:last-child) .tv-toolbar-action__surface {
+  border-radius: 5px 0 0 5px;
+}
+
+.adk-workflow-action-group> :last-child:not(:first-child) .tv-toolbar-action__surface {
+  border-radius: 0 5px 5px 0;
+}
+
+.adk-workflow-action-group> :only-child .tv-toolbar-action__surface {
+  border-radius: 5px;
+}
+
+.adk-workflow-canvas-shell {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: var(--adk-workflow-canvas-bg);
+}
+
+.adk-debug-panel {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 10px;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-bg-surface) 92%, transparent);
+  padding: 10px 12px;
+}
+
+.adk-workflow-flow {
+  width: 100%;
+  height: 100%;
+}
+
+.adk-flow-node {
+  display: grid;
+  width: 212px;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--tv-border-strong);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 88%, black 6%);
+  color: var(--tv-text);
+  padding: 10px;
+  text-align: left;
+  box-shadow: 0 16px 42px rgba(2, 6, 23, 0.28);
+}
+
+.adk-flow-node.is-selected {
+  border-color: var(--tv-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tv-accent) 45%, transparent), 0 18px 48px rgba(2, 6, 23, 0.36);
+}
+
+.adk-flow-node.is-run-succeeded {
+  border-color: color-mix(in srgb, var(--adk-workflow-status-success-fg) 68%, var(--tv-border));
+}
+
+.adk-flow-node.is-run-running,
+.adk-flow-node.is-run-queued {
+  border-color: color-mix(in srgb, var(--adk-workflow-status-info-fg) 68%, var(--tv-border));
+}
+
+.adk-flow-node.is-run-failed,
+.adk-flow-node.is-run-cancelled {
+  border-color: color-mix(in srgb, var(--adk-workflow-status-error-fg) 68%, var(--tv-border));
+}
+
+.adk-flow-node.is-run-pending-approval {
+  border-color: color-mix(in srgb, var(--adk-workflow-status-warning-fg) 68%, var(--tv-border));
+}
+
+.adk-flow-node span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.adk-flow-node strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-flow-node small,
+.adk-flow-node em {
+  overflow: hidden;
+  color: var(--tv-text-muted);
+  font-size: 11px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-flow-node.is-trigger .adk-flow-node__icon {
+  background: color-mix(in srgb, var(--tv-warn) 15%, transparent);
+  color: var(--tv-warn);
+}
+
+.adk-flow-node.is-agent .adk-flow-node__icon {
+  background: color-mix(in srgb, #8b5cf6 16%, transparent);
+  color: #c4b5fd;
+}
+
+.adk-flow-node.is-monitor .adk-flow-node__icon {
+  background: var(--adk-workflow-status-success-bg);
+  color: var(--adk-workflow-status-success-fg);
+}
+
+.adk-workflow-inspector__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-width: 0;
+  border-bottom: 1px solid var(--tv-border);
+  background: color-mix(in srgb, var(--tv-bg-surface) 95%, black 5%);
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.adk-workflow-inspector__hide {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tv-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+.adk-workflow-inspector__hide:hover {
+  background: color-mix(in srgb, var(--tv-text) 8%, transparent);
+  color: var(--tv-text);
+}
+
+.adk-workflow-inspector__hide:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tv-accent) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.adk-inspector-section {
+  min-width: 0;
+  padding: 14px 16px;
+}
+
+.adk-inspector-section+.adk-inspector-section {
+  border-top: 1px solid var(--tv-border);
+}
+
+.adk-inspector-section.is-inner {
+  padding: 4px 0 0;
+}
+
+.adk-inspector-section h3 {
+  color: var(--tv-text);
+  font-size: 13px;
+}
+
+.adk-inspector-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+}
+
+.adk-workflow-input-list,
+.adk-log-list {
+  display: grid;
+  gap: 8px;
+}
+
+.adk-workflow-stat-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.adk-workflow-stat {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 34%, transparent);
+  padding: 9px 10px;
+}
+
+.adk-workflow-stat strong {
+  color: var(--tv-text);
+  font-size: 15px;
+}
+
+.adk-workflow-stat span {
+  color: var(--tv-text-muted);
+  font-size: 11px;
+}
+
+.adk-monitor-filters {
+  display: grid;
+  gap: 8px;
+}
+
+.adk-monitor-layout {
+  display: grid;
+  min-height: 0;
+  gap: 10px;
+}
+
+.adk-workflow-input-item {
+  min-width: 120px;
+}
+
+.adk-workflow-input-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.adk-workflow-inspector .v-input,
+.adk-workflow-inspector .v-field,
+.adk-workflow-inspector .v-field__field,
+.adk-workflow-inspector .v-field__input,
+.adk-workflow-inspector .v-select__selection,
+.adk-workflow-inspector .v-selection-control,
+.adk-workflow-inspector .v-btn {
+  min-width: 0;
+}
+
+.adk-workflow-inspector .v-field__input,
+.adk-workflow-inspector .v-select__selection-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@container (max-width: 360px) {
+  .adk-workflow-input-row {
+    grid-template-columns: minmax(0, 1fr) 30px;
+  }
+
+  .adk-workflow-input-row> .v-input {
+    grid-column: 1 / -1;
+  }
+}
+
+.adk-workflow-preserved,
+.adk-workflow-model-meta {
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  color: var(--tv-text-muted);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.adk-log-item {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 34%, transparent);
+  color: inherit;
+  padding: 10px;
+  text-align: left;
+}
+
+.adk-log-item.is-active,
+.adk-log-item:hover {
+  border-color: color-mix(in srgb, var(--tv-accent) 52%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-accent) 9%, var(--tv-bg-surface));
+}
+
+.adk-log-item p {
+  margin: 0;
+  color: var(--adk-workflow-status-error-fg);
+  font-size: 12px;
+}
+
+.adk-run-detail,
+.adk-node-run-preview,
+.adk-trigger-health,
+.adk-result-panel {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 30%, transparent);
+  padding: 10px;
+}
+
+.adk-run-detail__head,
+.adk-run-kv,
+.adk-node-trace__item {
+  min-width: 0;
+}
+
+.adk-run-detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.adk-run-kv {
+  display: grid;
+  gap: 6px 8px;
+  grid-template-columns: max-content minmax(0, 1fr);
+  font-size: 12px;
+}
+
+.adk-run-kv span,
+.adk-trigger-health small,
+.adk-node-trace__item small,
+.adk-node-run-preview small {
+  color: var(--tv-text-muted);
+}
+
+.adk-run-kv strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-node-trace {
+  display: grid;
+  gap: 7px;
+}
+
+.adk-node-trace__item {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  padding: 8px;
+  text-align: left;
+}
+
+.adk-node-trace__item.is-active,
+.adk-node-trace__item:hover {
+  border-color: color-mix(in srgb, var(--tv-accent) 48%, var(--tv-border));
+}
+
+.adk-result-panel p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.adk-result-panel pre,
+.adk-node-run-preview pre,
+.adk-trigger-health pre {
+  max-height: 220px;
+  min-width: 0;
+  overflow: auto;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tv-bg-app) 86%, black 10%);
+  color: var(--tv-text);
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 8px;
+}
+
+.adk-workflow-pill {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 96px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.adk-workflow-pill.is-success {
+  background: var(--adk-workflow-status-success-bg);
+  color: var(--adk-workflow-status-success-fg);
+}
+
+.adk-workflow-pill.is-info {
+  background: var(--adk-workflow-status-info-bg);
+  color: var(--adk-workflow-status-info-fg);
+}
+
+.adk-workflow-pill.is-warning {
+  background: var(--adk-workflow-status-warning-bg);
+  color: var(--adk-workflow-status-warning-fg);
+}
+
+.adk-workflow-pill.is-error {
+  background: var(--adk-workflow-status-error-bg);
+  color: var(--adk-workflow-status-error-fg);
+}
+
+.adk-workflow-pill.is-muted {
+  background: var(--adk-workflow-status-muted-bg);
+  color: var(--adk-workflow-status-muted-fg);
+}
+
+.adk-workflow-link {
+  color: var(--tv-accent);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.adk-workflow-link:hover {
+  text-decoration: underline;
+}
+
+.adk-workflow-secret {
+  overflow-x: auto;
+  border-radius: 6px;
+  background: rgb(15 23 42);
+  color: white;
+  padding: 12px;
+}
+
+@media (max-width: 1200px) {
+  .adk-workflow-inspector {
+    box-shadow: -12px 0 36px rgba(2, 6, 23, 0.2);
+  }
+}
+
+@media (max-width: 760px) {
+  .adk-workflow-studio {
+    overflow-y: auto;
+  }
+
+  .adk-workflow-studio__split.tv-splitpanes {
+    display: block;
+    height: auto;
+    min-height: 100%;
+  }
+
+  .adk-workflow-studio__split> .splitpanes__pane {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0;
+  }
+
+  .adk-workflow-studio__split> .splitpanes__splitter {
+    display: none;
+  }
+
+  .adk-workflow-studio__sidebar {
+    display: none;
+  }
+
+  .adk-workflow-inspector {
+    height: auto;
+    border-top: 1px solid var(--tv-border);
+    border-left: 0;
+  }
+
+  .adk-workflow-studio__main {
+    min-height: 620px;
+  }
+
+  .adk-workflow-studio__topbar,
+  .adk-workflow-title-block {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adk-workflow-actions {
+    justify-content: flex-start;
+  }
+
+  .adk-workflow-title-block h1 {
+    max-width: 100%;
+  }
+
+  .adk-workflow-input-row,
+  .adk-inspector-grid {
+    grid-template-columns: 1fr;
+  }
+}

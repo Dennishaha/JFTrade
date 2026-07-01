@@ -122,7 +122,7 @@ func (r *Runtime) planWorkflowWithADK(
 		_ = event
 	}
 	steps, warnings, err := compileWorkflowPlanDraft(*draft, mode, message, objective, options)
-	return steps, append(draft.Warnings, warnings...), err
+	return steps, warnings, err
 }
 
 func googleADKWorkflowPlannerName(agentID string) string {
@@ -375,8 +375,8 @@ func compileWorkflowPlanDraft(draft workflowPlanDraft, mode string, message stri
 	if len(steps) == 0 {
 		return nil, draft.Warnings, fmt.Errorf("planner produced no valid steps")
 	}
-	if err := validateWorkflowPlannerOrders(steps); err != nil {
-		return nil, draft.Warnings, err
+	if normalizeWorkflowPlannerDuplicateOrders(steps) {
+		draft.Warnings = append(draft.Warnings, "planner step orders were duplicated and normalized")
 	}
 	sortWorkflowDraftSteps(steps)
 	assignWorkflowPlannerDependencyIDs(steps)
@@ -395,18 +395,22 @@ func compileWorkflowPlanDraft(draft workflowPlanDraft, mode string, message stri
 	return steps, draft.Warnings, nil
 }
 
-func validateWorkflowPlannerOrders(steps []workflowStep) error {
+func normalizeWorkflowPlannerDuplicateOrders(steps []workflowStep) bool {
 	seen := make(map[int]struct{}, len(steps))
 	for _, step := range steps {
 		if step.Order <= 0 {
 			continue
 		}
 		if _, exists := seen[step.Order]; exists {
-			return fmt.Errorf("planner step order %d is duplicated", step.Order)
+			sortWorkflowDraftSteps(steps)
+			for index := range steps {
+				steps[index].Order = index + 1
+			}
+			return true
 		}
 		seen[step.Order] = struct{}{}
 	}
-	return nil
+	return false
 }
 
 func sortWorkflowDraftSteps(steps []workflowStep) {

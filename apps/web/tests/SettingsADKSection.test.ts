@@ -149,10 +149,11 @@ describe("SettingsADKSection", () => {
 
     expect(wrapper.text()).toContain("观察");
     expect(wrapper.text()).toContain("工具");
-    expect(wrapper.text()).toContain("工作流");
+    expect(wrapper.text()).toContain("任务与记忆");
     expect(wrapper.text()).toContain("运行与审计");
     expect(wrapper.text()).toContain("智能体任务");
     expect(wrapper.text()).toContain("智能体记忆");
+    expect(wrapper.text()).not.toContain("新建工作流");
     expect(wrapper.text()).toContain("Follow-up review");
     expect(wrapper.text()).toContain("preferred_market");
     expect(wrapper.text()).not.toContain("创建任务");
@@ -558,12 +559,15 @@ describe("SettingsADKSection", () => {
     expect(toolsPanel.text()).toContain("trading.submit_order");
     expect(toolsPanel.text()).not.toContain("system.status");
   });
+
 });
 
 function createADKSettingsRouter(path: string) {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: "/settings/:section?", component: { template: "<div />" } }],
+    routes: [
+      { path: "/settings/:section?", component: { template: "<div />" } },
+    ],
   });
   void router.push(path);
   return router;

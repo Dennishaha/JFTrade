@@ -772,6 +772,32 @@ func TestCompileWorkflowPlanDraftOrdersAndMapsTaskDAG(t *testing.T) {
 	}
 }
 
+func TestCompileWorkflowPlanDraftNormalizesDuplicateOrders(t *testing.T) {
+	steps, warnings, err := compileWorkflowPlanDraft(workflowPlanDraft{
+		Finished: true,
+		Steps: []workflowPlanDraftStep{
+			{Order: 1, Title: "步骤一", Message: "一"},
+			{Order: 1, Title: "步骤二", Message: "二"},
+			{Order: 3, Title: "步骤三", Message: "三"},
+		},
+	}, WorkModeTask, "目标", "目标", RunOptions{})
+	if err != nil {
+		t.Fatalf("compile duplicate order draft: %v", err)
+	}
+	if len(warnings) != 1 || warnings[0] != "planner step orders were duplicated and normalized" {
+		t.Fatalf("warnings = %+v, want duplicate order normalization warning", warnings)
+	}
+	if got := []int{steps[0].Order, steps[1].Order, steps[2].Order}; got[0] != 1 || got[1] != 2 || got[2] != 3 {
+		t.Fatalf("orders = %+v, want normalized 1,2,3", got)
+	}
+	if got := []string{steps[0].Title, steps[1].Title, steps[2].Title}; strings.Join(got, ",") != "步骤一,步骤二,步骤三" {
+		t.Fatalf("titles = %+v, want stable order", got)
+	}
+	if steps[1].DependsOn[0] != steps[0].DependencyID || steps[2].DependsOn[0] != steps[1].DependencyID {
+		t.Fatalf("dependsOn = %+v / %+v, want normalized sequential dependencies", steps[1].DependsOn, steps[2].DependsOn)
+	}
+}
+
 func TestCompileWorkflowPlanDraftRejectsInvalidDAG(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -792,11 +818,6 @@ func TestCompileWorkflowPlanDraftRejectsInvalidDAG(t *testing.T) {
 			name:  "duplicate title dependency alias",
 			mode:  WorkModeTask,
 			steps: []workflowPlanDraftStep{{Order: 1, Title: "重复", Message: "一"}, {Order: 2, Title: "重复", Message: "二"}},
-		},
-		{
-			name:  "duplicate order",
-			mode:  WorkModeTask,
-			steps: []workflowPlanDraftStep{{Order: 1, Title: "步骤一", Message: "一"}, {Order: 1, Title: "步骤二", Message: "二"}},
 		},
 	}
 	for _, tc := range cases {

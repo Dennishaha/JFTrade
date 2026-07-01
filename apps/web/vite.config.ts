@@ -101,8 +101,24 @@ export default defineConfig({
     alias: {
       "@": new URL("./src", import.meta.url).pathname,
     },
+    dedupe: [
+      "@vue/reactivity",
+      "@vue/runtime-core",
+      "@vue/runtime-dom",
+      "@vue/server-renderer",
+      "@vue/shared",
+      "vue",
+    ],
   },
   plugins: [vue(), tailwindcss(), vueDevTools(devToolsOptions)],
+  optimizeDeps: {
+    include: [
+      "@vue-flow/background",
+      "@vue-flow/controls",
+      "@vue-flow/core",
+      "@vue-flow/minimap",
+    ],
+  },
   build: {
     chunkSizeWarningLimit: 4096,
   },

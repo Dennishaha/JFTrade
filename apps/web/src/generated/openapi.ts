@@ -920,6 +920,152 @@ export interface paths {
       };
     };
   };
+  "/api/v1/adk/workflow-trigger-logs": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/adk/workflow-triggers/{triggerId}/run": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/adk/workflow-webhooks/{triggerId}": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/adk/workflows": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/adk/workflows/{workflowId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+    put: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+    delete: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/adk/workflows/{workflowId}/run": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/adk/workflows/{workflowId}/triggers": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}": {
+    put: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+    delete: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/auth/login": {
     post: {
       requestBody: {

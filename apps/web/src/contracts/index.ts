@@ -403,6 +403,156 @@ export interface ADKWorkflowStepState {
   plannerWarnings?: string[];
 }
 
+export type ADKWorkflowStatus = "ENABLED" | "DISABLED" | string;
+export type ADKWorkflowTriggerType =
+  | "manual"
+  | "schedule"
+  | "webhook"
+  | "event"
+  | "market_threshold"
+  | string;
+export type ADKWorkflowTriggerStatus = "ENABLED" | "DISABLED" | "ERROR" | string;
+export type ADKWorkflowTriggerLogStatus =
+  | "QUEUED"
+  | "RUNNING"
+  | "SUCCEEDED"
+  | "PENDING_APPROVAL"
+  | "FAILED"
+  | "CANCELLED"
+  | "SKIPPED"
+  | string;
+
+export interface ADKWorkflowCanvasPoint {
+  x: number;
+  y: number;
+}
+
+export interface ADKWorkflowCanvasNode {
+  id: string;
+  type: string;
+  position: ADKWorkflowCanvasPoint;
+  data?: Record<string, unknown>;
+}
+
+export interface ADKWorkflowCanvasEdge {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
+  type?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface ADKWorkflowCanvasGraph {
+  version?: string;
+  nodes?: ADKWorkflowCanvasNode[];
+  edges?: ADKWorkflowCanvasEdge[];
+  viewport?: Record<string, unknown>;
+}
+
+export interface ADKWorkflowDefinition {
+  id: string;
+  name: string;
+  description?: string;
+  status: ADKWorkflowStatus;
+  agentId: string;
+  workMode: ADKWorkMode | string;
+  providerId?: string;
+  model?: string;
+  permissionMode?: ADKPermissionMode | string;
+  promptTemplate: string;
+  objectiveTemplate?: string;
+  defaultInputs?: Record<string, unknown>;
+  canvasGraph?: ADKWorkflowCanvasGraph;
+  tags?: string[];
+  builtinTemplate?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface ADKWorkflowDefinitionWriteRequest {
+  id?: string;
+  name: string;
+  description?: string;
+  status?: ADKWorkflowStatus;
+  agentId: string;
+  workMode?: ADKWorkMode | string;
+  providerId?: string;
+  model?: string;
+  permissionMode?: ADKPermissionMode | string;
+  promptTemplate: string;
+  objectiveTemplate?: string;
+  defaultInputs?: Record<string, unknown>;
+  canvasGraph?: ADKWorkflowCanvasGraph;
+  tags?: string[];
+}
+
+export interface ADKWorkflowTrigger {
+  id: string;
+  workflowId: string;
+  type: ADKWorkflowTriggerType;
+  title: string;
+  status: ADKWorkflowTriggerStatus;
+  config?: Record<string, unknown>;
+  hasSecret?: boolean;
+  nextRunAt?: string;
+  lastRunAt?: string;
+  lastRunId?: string;
+  lastError?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface ADKWorkflowTriggerWriteRequest {
+  id?: string;
+  type: ADKWorkflowTriggerType;
+  title?: string;
+  status?: ADKWorkflowTriggerStatus;
+  config?: Record<string, unknown>;
+  resetSecret?: boolean;
+}
+
+export interface ADKWorkflowTriggerLog {
+  id: string;
+  workflowId: string;
+  triggerId?: string;
+  triggerType: ADKWorkflowTriggerType;
+  status: ADKWorkflowTriggerLogStatus;
+  runId?: string;
+  sessionId?: string;
+  inputs?: Record<string, unknown>;
+  matchedEvent?: Record<string, unknown>;
+  result?: ADKWorkflowResult;
+  nodeRuns?: ADKWorkflowNodeRun[];
+  error?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ADKWorkflowResult {
+  format?: string;
+  markdown?: string;
+  json?: Record<string, unknown>;
+  rawResponse?: ADKChatResponse;
+}
+
+export interface ADKWorkflowNodeRun {
+  nodeId: string;
+  nodeType: string;
+  title?: string;
+  status: ADKWorkflowTriggerLogStatus;
+  startedAt?: string;
+  finishedAt?: string;
+  inputs?: Record<string, unknown>;
+  outputs?: Record<string, unknown>;
+  error?: string;
+}
+
 export interface ADKChatResponse {
   reply: string;
   reasoningContent?: string;
@@ -411,6 +561,18 @@ export interface ADKChatResponse {
   pendingApprovals: ADKApproval[];
   timeline: ADKTimelineEntry[];
   context?: ADKSessionContextSnapshot;
+}
+
+export interface ADKWorkflowTriggerSaveResult {
+  trigger: ADKWorkflowTrigger;
+  secret?: string;
+}
+
+export interface ADKWorkflowInvocationResult {
+  workflow: ADKWorkflowDefinition;
+  trigger?: ADKWorkflowTrigger;
+  log: ADKWorkflowTriggerLog;
+  response?: ADKChatResponse;
 }
 
 export interface ADKApprovalResolution {

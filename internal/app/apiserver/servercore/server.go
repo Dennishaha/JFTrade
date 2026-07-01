@@ -327,6 +327,9 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 			return server.store.ADKSettings().StreamIdleTimeoutMs
 		}),
 		asst.WithOptimizationRuns(assistantOptimizationRuns{server: server}),
+		asst.WithWorkflowMarketSnapshot(func(ctx context.Context, instrumentID string) (map[string]any, error) {
+			return server.workflowMarketSnapshot(ctx, instrumentID)
+		}),
 	)
 	server.strategyRuntimeManager = newStrategyRuntimeManager(server)
 	server.marketdataRuntime = futuintegration.NewMarketDataRuntime(futuintegration.MarketDataRuntimeOptions{
@@ -495,7 +498,13 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 			}
 			return server.strategyRuntimeManager.activeInstrumentIDs()
 		}),
+		mdsrv.DemandSourceFunc(func() []string {
+			return server.workflowWatchedInstruments()
+		}),
 	)
+	if server.assistantSvc != nil {
+		server.assistantSvc.StartWorkflowScheduler(context.Background())
+	}
 
 	// Wire trading service to broker capabilities and the application-owned execution store.
 	server.tradingSvc = server.newTradingService()

@@ -19,6 +19,7 @@ func TestRequestObservabilityInjectsStableContextAndRecordsSummary(t *testing.T)
 	router.Use(requestObservabilityMiddleware(recorder))
 	router.GET("/failed", func(c *gin.Context) {
 		fields = observability.FieldsFromContext(c.Request.Context())
+		time.Sleep(time.Millisecond)
 		c.Status(http.StatusServiceUnavailable)
 	})
 

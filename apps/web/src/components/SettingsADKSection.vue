@@ -247,11 +247,11 @@ function memoryScopeHint(scope: string): string {
       {{ successMessage }}
     </v-alert>
 
-    <v-tabs v-model="activeTab" class="tv-page-tabs">
-      <v-tab value="providers">模型服务</v-tab>
-      <v-tab value="agents">智能体</v-tab>
-      <v-tab value="tools">工具</v-tab>
-      <v-tab value="skills">技能</v-tab>
+      <v-tabs v-model="activeTab" class="tv-page-tabs">
+        <v-tab value="providers">模型服务</v-tab>
+        <v-tab value="agents">智能体</v-tab>
+        <v-tab value="tools">工具</v-tab>
+        <v-tab value="skills">技能</v-tab>
 
       <!-- 观察放最后 -->
       <v-tab value="observation">观察</v-tab>
@@ -332,7 +332,7 @@ function memoryScopeHint(scope: string): string {
       <v-window-item value="observation">
         <section class="grid gap-4">
           <v-tabs v-model="observationTab" class="tv-page-tabs">
-            <v-tab value="workflow">工作流</v-tab>
+            <v-tab value="workflow">任务与记忆</v-tab>
             <v-tab value="runs">运行与审计</v-tab>
           </v-tabs>
           <v-window v-model="observationTab" class="adk-settings-window">

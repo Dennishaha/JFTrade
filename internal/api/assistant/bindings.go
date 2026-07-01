@@ -38,6 +38,19 @@ type approvalURI struct {
 	ApprovalID string `uri:"approvalId" binding:"required"`
 }
 
+type workflowURI struct {
+	WorkflowID string `uri:"workflowId" binding:"required"`
+}
+
+type workflowTriggerURI struct {
+	WorkflowID string `uri:"workflowId" binding:"required"`
+	TriggerID  string `uri:"triggerId" binding:"required"`
+}
+
+type triggerURI struct {
+	TriggerID string `uri:"triggerId" binding:"required"`
+}
+
 type adkPageQuery struct {
 	Limit  httpserver.OptionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
 	Offset httpserver.OptionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
@@ -86,4 +99,18 @@ type adkMemoryQuery struct {
 	Scope   string `form:"scope"`
 	AgentID string `form:"agentId"`
 	Key     string `form:"key"`
+}
+
+type adkWorkflowsQuery struct {
+	Limit  httpserver.OptionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
+	Offset httpserver.OptionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
+	Status string                      `form:"status"`
+}
+
+type adkWorkflowTriggerLogsQuery struct {
+	Limit      httpserver.OptionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
+	Offset     httpserver.OptionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
+	WorkflowID string                      `form:"workflowId"`
+	TriggerID  string                      `form:"triggerId"`
+	Status     string                      `form:"status"`
 }

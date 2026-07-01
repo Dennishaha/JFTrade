@@ -24,7 +24,7 @@ const { docsHomeUrl } = useDocsLink();
 
 const items: NavItem[] = [
   { type: "route", to: "/workspace", label: "交易", icon: "fa-solid fa-display" },
-  { type: "route", to: "/adk", label: "智能体", icon: "fa-solid fa-robot" },
+  { type: "route", to: "/adk/agents", label: "智能体", icon: "fa-solid fa-robot" },
   { type: "route", to: "/strategy/runtime", label: "策略执行", icon: "fa-solid fa-play" },
   { type: "route", to: "/strategy/design", label: "策略设计", icon: "fa-solid fa-wand-magic-sparkles" },
   { type: "route", to: "/backtest", label: "回测", icon: "fa-solid fa-flask" },
@@ -39,6 +39,11 @@ const router = useRouter();
 
 const activeTo = computed(() => route.path);
 
+function isRouteActive(to: string): boolean {
+  if (to === "/adk/agents") return activeTo.value.startsWith("/adk/");
+  return activeTo.value === to;
+}
+
 function go(to: string): void {
   void router.push(to);
 }
@@ -52,7 +57,7 @@ function go(to: string): void {
         <v-icon class="tv-iconrail-glyph tv-iconrail-glyph--external">{{ item.icon }}</v-icon>
         <span>{{ item.label }}</span>
       </a>
-      <button v-else type="button" class="tv-iconrail-btn" :class="{ 'is-active': activeTo === item.to }"
+      <button v-else type="button" class="tv-iconrail-btn" :class="{ 'is-active': isRouteActive(item.to) }"
         :title="item.label" @click="go(item.to)">
         <v-icon class="tv-iconrail-glyph">{{ item.icon }}</v-icon>
         <span>{{ item.label }}</span>

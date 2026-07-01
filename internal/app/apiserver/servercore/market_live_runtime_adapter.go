@@ -8,6 +8,7 @@ import (
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
 const (
@@ -29,7 +30,21 @@ func (s *Server) ensureLiveMarketStream(context.Context, []string) {
 }
 
 func (s *Server) handlePushMarketdataTick(tick mdsrv.Tick) {
-	if s == nil || s.strategyRuntimeManager == nil || tick.Kind != mdsrv.TickKindTrade {
+	if s == nil || tick.Kind != mdsrv.TickKindTrade {
+		return
+	}
+	if s.marketdataSvc != nil {
+		payload := s.marketdataSvc.LiveTick(&tick, "")
+		s.emitWorkflowEvent(jfadk.WorkflowEvent{
+			ID:       "market-data.tick|" + tick.InstrumentID + "|" + tick.ObservedAt,
+			Type:     "market-data.tick",
+			Source:   "market-data",
+			EntityID: tick.InstrumentID,
+			At:       tick.ObservedAt,
+			Payload:  payload,
+		})
+	}
+	if s.strategyRuntimeManager == nil {
 		return
 	}
 	price, err := fixedpoint.NewFromString(tick.Price.String())

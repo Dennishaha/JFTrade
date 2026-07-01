@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -11,6 +12,7 @@ import (
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
 	"github.com/jftrade/jftrade-main/internal/live"
+	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
 
@@ -122,7 +124,28 @@ func (s *Server) handleFutuSystemNotify(response *notifypb.Response) {
 }
 
 func (s *Server) recordLiveNotification(note liveNotification) *liveNotificationEvent {
-	return s.liveNotifications.Publish(note)
+	event := s.liveNotifications.Publish(note)
+	if event != nil {
+		s.emitWorkflowEvent(jfadk.WorkflowEvent{
+			ID:       fmt.Sprintf("system-notification-%d", event.Sequence),
+			Type:     "system.notification",
+			Source:   "notification",
+			EntityID: fmt.Sprintf("system-notification-%d", event.Sequence),
+			At:       event.At,
+			Payload: map[string]any{
+				"type":     "system.notification",
+				"id":       fmt.Sprintf("system-notification-%d", event.Sequence),
+				"at":       event.At,
+				"level":    event.Level,
+				"title":    event.Title,
+				"message":  event.Message,
+				"source":   event.Source,
+				"brokerId": event.BrokerID,
+				"category": event.Category,
+			},
+		})
+	}
+	return event
 }
 
 func (s *Server) liveNotificationsAfter(sequence uint64) []liveNotificationEvent {

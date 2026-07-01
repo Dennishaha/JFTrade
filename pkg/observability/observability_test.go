@@ -130,8 +130,7 @@ func TestRecorderBoundsErrorsSlowRequestsAndOpenDHealth(t *testing.T) {
 
 func TestDetachPreservesCorrelationWithoutParentCancellation(t *testing.T) {
 	parent, cancel := context.WithCancel(WithFields(context.Background(), Fields{RequestID: "request-1", Source: "api"}))
-	base, baseCancel := context.WithCancel(context.Background())
-	defer baseCancel()
+	base := t.Context()
 	detached := Detach(base, parent)
 	cancel()
 

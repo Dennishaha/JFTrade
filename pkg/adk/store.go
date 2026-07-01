@@ -41,6 +41,9 @@ const (
 	tableSessionContextLive = "adk_session_context_state"
 	tableSessionNotices     = "adk_session_notices"
 	tableSessionComposer    = "adk_session_composer_state"
+	tableWorkflows          = "adk_workflows"
+	tableWorkflowTriggers   = "adk_workflow_triggers"
+	tableWorkflowTriggerLog = "adk_workflow_trigger_logs"
 )
 
 type Store struct {
@@ -137,7 +140,7 @@ func (s *Store) initializeOrValidateSchema() error {
 		`CREATE INDEX idx_adk_session_context_state_updated ON ` + tableSessionContextLive + ` (updated_at DESC)`,
 		`CREATE INDEX idx_adk_session_notices_session ON ` + tableSessionNotices + ` (session_id, created_at ASC)`,
 	}
-	return sqliteschema.InitializeOrValidate(
+	if err := sqliteschema.InitializeOrValidate(
 		context.Background(), s.db, s.dbPath, "adk", 1, statements,
 		func(ctx context.Context, db *sqlx.DB) error {
 			for _, schema := range []struct {
@@ -157,7 +160,10 @@ func (s *Store) initializeOrValidateSchema() error {
 			}
 			return nil
 		},
-	)
+	); err != nil {
+		return err
+	}
+	return s.ensureWorkflowSchema(context.Background())
 }
 
 func (s *Store) ListProviders(ctx context.Context) ([]Provider, error) {

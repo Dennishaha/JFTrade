@@ -102,7 +102,7 @@ function correlationLabels(event: ObservabilityEvent): string[] {
 
 function observabilityEventTarget(event: ObservabilityEvent): string | null {
   if (event.source === "adk" || event.sessionId || event.runId?.startsWith("run-")) {
-    return "/adk";
+    return "/adk/agents";
   }
   if (event.source === "backtest" || event.runId?.startsWith("bt-") || event.taskId?.startsWith("sync-")) {
     return "/backtest";
@@ -111,7 +111,7 @@ function observabilityEventTarget(event: ObservabilityEvent): string | null {
 }
 
 function observabilityEventTargetLabel(event: ObservabilityEvent): string {
-  return observabilityEventTarget(event) === "/adk" ? "ADK 运行" : "回测任务";
+  return observabilityEventTarget(event) === "/adk/agents" ? "ADK 运行" : "回测任务";
 }
 
 function formatObservabilityImportance(importance: ObservabilityEvent["importance"]): string {

@@ -34,6 +34,9 @@ type Service struct {
 	runtimeSettings   func() any
 	streamIdleTimeout func() int
 	optimizationRuns  OptimizationRuns
+	marketSnapshot    WorkflowMarketSnapshot
+	workflowInterval  time.Duration
+	workflowScheduler *WorkflowScheduler
 }
 
 // OptimizationRun is the assistant-facing projection of a backtest run.
@@ -70,6 +73,21 @@ func WithStreamIdleTimeout(timeout func() int) Option {
 func WithOptimizationRuns(runs OptimizationRuns) Option {
 	return func(service *Service) {
 		service.optimizationRuns = runs
+	}
+}
+
+// WithWorkflowMarketSnapshot connects workflow market-threshold triggers to
+// the application-owned market data service.
+func WithWorkflowMarketSnapshot(fn WorkflowMarketSnapshot) Option {
+	return func(service *Service) {
+		service.marketSnapshot = fn
+	}
+}
+
+// WithWorkflowSchedulerInterval overrides the production polling interval.
+func WithWorkflowSchedulerInterval(interval time.Duration) Option {
+	return func(service *Service) {
+		service.workflowInterval = interval
 	}
 }
 
@@ -1128,6 +1146,10 @@ func (s *Service) optimizationTaskResponse(ctx context.Context, task jfadk.Optim
 
 // Close 关闭 ADK 运行时，释放资源。
 func (s *Service) Close() error {
+	if s.workflowScheduler != nil {
+		s.workflowScheduler.Stop()
+		s.workflowScheduler = nil
+	}
 	if s.runtime != nil {
 		return s.runtime.Close()
 	}
