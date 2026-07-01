@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 )
 
 func (s *Store) ensureWorkflowSchema(ctx context.Context) error {
@@ -300,15 +299,4 @@ func (s *Store) ListActiveWorkflowTriggerLogs(ctx context.Context, triggerID str
 		logs[index] = NormalizeWorkflowTriggerLog(logs[index])
 	}
 	return logs, nil
-}
-
-func saveWorkflowTriggerWithExecutor(ctx context.Context, executor sqlx.ExtContext, trigger WorkflowTrigger) error {
-	payload, err := json.Marshal(NormalizeWorkflowTrigger(trigger))
-	if err != nil {
-		return err
-	}
-	_, err = executor.ExecContext(ctx, `INSERT INTO `+tableWorkflowTriggers+` (id, workflow_id, trigger_type, status, next_run_at, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET workflow_id = excluded.workflow_id, trigger_type = excluded.trigger_type, status = excluded.status, next_run_at = excluded.next_run_at, payload_json = excluded.payload_json, updated_at = excluded.updated_at`,
-		trigger.ID, trigger.WorkflowID, trigger.Type, trigger.Status, trigger.NextRunAt, string(payload), trigger.CreatedAt, trigger.UpdatedAt,
-	)
-	return err
 }
