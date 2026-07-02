@@ -245,23 +245,331 @@ describe("ADKPage workflow view", () => {
     expect(JSON.parse(String(init?.body))).toEqual({ inputs: { symbol: "US.MSFT" } });
   });
 
+  it("edits graph inputs, trigger drafts, prompt variables and persisted pane sizes", async () => {
+    stubWorkflowFetch();
+    const wrapper = mount(ADKWorkflowStudio, {
+      props: {
+        agents: [buildAgent()],
+        providers: [buildProvider()],
+        formatDateTime: (value: string) => value,
+        viewMode: "workflows",
+      },
+      global: { stubs: workflowVuetifyStubs() },
+    });
+    await flushRequests();
+    await flushRequests();
+    const setup = setupStateOf(wrapper);
+    const workflowForm = readSetupValue(setup.workflowForm) as {
+      inputRows: unknown[];
+      promptTemplate: string;
+    };
+
+    const originalInputs = workflowForm.inputRows.length;
+    (setup.addInputRow as () => void)();
+    expect(workflowForm.inputRows).toHaveLength(originalInputs + 1);
+    (setup.removeInputRow as (index: number) => void)(originalInputs);
+    expect(workflowForm.inputRows).toHaveLength(originalInputs);
+
+    (setup.openDebugPanel as () => void)();
+    const debugRows = readSetupValue(setup.debugInputRows) as unknown[];
+    (setup.addDebugInputRow as () => void)();
+    expect(debugRows).toHaveLength(originalInputs + 1);
+    (setup.removeDebugInputRow as (index: number) => void)(originalInputs);
+    expect(debugRows).toHaveLength(originalInputs);
+
+    (setup.insertPromptVariable as (value: string) => void)("{{symbol}}");
+    (setup.insertPromptVariable as (value: string) => void)("{{date}}");
+    expect(workflowForm.promptTemplate).toContain("{{symbol}}\n{{date}}");
+
+    (setup.addTriggerNode as (type: string) => void)("webhook");
+    expect(readSetupValue(setup.selectedNodeId)).toMatch(/^trigger:draft-/);
+    expect(readSetupValue(setup.draftTriggerPending)).toBe(true);
+    (setup.selectNode as (id: string) => void)("trigger:unknown");
+    expect(readSetupValue(setup.draftTriggerNodeId)).toBe("trigger:unknown");
+    await (setup.removeSelectedTrigger as () => Promise<void>)();
+    expect(readSetupValue(setup.selectedNodeId)).toBe("start");
+
+    (setup.onNodeClick as (event: { node: { id: string } }) => void)({ node: { id: "monitor" } });
+    expect(readSetupValue(setup.selectedNodeId)).toBe("monitor");
+    (setup.onConnect as (connection: { source: string; target: string }) => void)({
+      source: "start",
+      target: "monitor",
+    });
+
+    const beforeSizes = JSON.parse(JSON.stringify(readSetupValue(setup.studioPaneSizes)));
+    (setup.handleStudioOuterPaneResized as (payload: unknown) => void)({ panes: [{ size: 20 }, { size: 80 }] });
+    (setup.handleStudioWorkbenchPaneResized as (payload: unknown) => void)({ panes: [{ size: 60 }, { size: 40 }] });
+    expect(readSetupValue(setup.studioPaneSizes)).not.toEqual(beforeSizes);
+    const normalizedSizes = JSON.parse(JSON.stringify(readSetupValue(setup.studioPaneSizes)));
+    (setup.handleStudioOuterPaneResized as (payload: unknown) => void)({ panes: [{ size: 100 }] });
+    expect(readSetupValue(setup.studioPaneSizes)).toEqual(normalizedSizes);
+
+    expect((setup.agentName as (id: string) => string)("agent-1")).toBe("Agent");
+    expect((setup.agentName as (id: string) => string)("missing")).toBe("missing");
+    expect((setup.providerName as (id: string) => string)("")).toBe("默认模型");
+    expect((setup.providerName as (id: string) => string)("provider-1")).toBe("OpenAI");
+    expect((setup.providerName as (id: string) => string)("missing")).toBe("missing");
+
+    const sidebar = wrapper.getComponent({ name: "ADKWorkflowStudioSidebar" });
+    sidebar.vm.$emit("update:showTemplatePicker", true);
+    sidebar.vm.$emit("update:search", "review");
+    sidebar.vm.$emit("update:statusFilter", "ENABLED");
+    const noticeStack = wrapper.getComponent({ name: "ADKWorkflowNoticeStack" });
+    noticeStack.vm.$emit("dismiss-error");
+    noticeStack.vm.$emit("dismiss-success");
+    const canvas = wrapper.getComponent({ name: "ADKWorkflowCanvas" });
+    canvas.vm.$emit("update:nodes", readSetupValue(setup.flowNodes));
+    canvas.vm.$emit("update:edges", readSetupValue(setup.flowEdges));
+    const inspector = wrapper.getComponent({ name: "ADKWorkflowStudioInspector" });
+    inspector.vm.$emit("update:logKeywordFilter", "risk");
+    inspector.vm.$emit("update:logFromFilter", "2026-07-01");
+    inspector.vm.$emit("update:logToFilter", "2026-07-02");
+    await wrapper.vm.$nextTick();
+
+  });
+
+  it("saves, duplicates, runs and deletes workflow resources through the Studio", async () => {
+    const clipboardWrite = vi.fn(async () => {});
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      clipboard: { writeText: clipboardWrite },
+    });
+    const fetchMock = stubWorkflowFetch({ logs: [buildResultLog()] });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    const wrapper = mount(ADKWorkflowStudio, {
+      props: {
+        agents: [buildAgent()],
+        providers: [buildProvider()],
+        formatDateTime: (value: string) => value,
+        viewMode: "workflows",
+      },
+      global: { stubs: workflowVuetifyStubs() },
+    });
+    await flushRequests();
+    await flushRequests();
+    const setup = setupStateOf(wrapper);
+
+    (setup.selectNode as (id: string) => void)("trigger:trigger-1");
+    await (setup.saveStudio as () => Promise<void>)();
+    expect(readSetupValue(setup.successMessage)).toBe("工作流已保存");
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).endsWith("/api/v1/adk/workflows/workflow-1") && init?.method === "PUT",
+    )).toBe(true);
+
+    await (setup.duplicateWorkflow as (asTemplate?: boolean) => Promise<void>)(false);
+    expect(readSetupValue(setup.successMessage)).toBe("工作流已复制");
+    await (setup.duplicateWorkflow as (asTemplate?: boolean) => Promise<void>)(true);
+    expect(readSetupValue(setup.successMessage)).toBe("已保存为模板副本");
+
+    (setup.selectNode as (id: string) => void)("trigger:trigger-1");
+    await (setup.saveCurrentTrigger as () => Promise<void>)();
+    expect(readSetupValue(setup.secretDialogOpen)).toBe(true);
+    expect(readSetupValue(setup.webhookSecret)).toBe("webhook-secret");
+    await (setup.runSelectedTrigger as () => Promise<void>)();
+    expect(readSetupValue(setup.successMessage)).toBe("触发器已启动：run-trigger");
+    expect(readSetupValue(setup.lastRunHref)).toBe("/adk/agents?sessionId=session-trigger&runId=run-trigger");
+
+    (setup.selectLog as (id: string) => void)("log-result");
+    await (setup.copyResultMarkdown as () => Promise<void>)();
+    expect(clipboardWrite).toHaveBeenCalledWith("# Workflow result");
+    expect(readSetupValue(setup.successMessage)).toBe("结果已复制");
+    expect((setup.runLink as (log: ReturnType<typeof buildResultLog>) => string)(buildResultLog()))
+      .toBe("/adk/agents?sessionId=session-result&runId=run-result");
+
+    await (setup.removeSelectedTrigger as () => Promise<void>)();
+    expect(window.confirm).toHaveBeenCalled();
+    await (setup.removeSelectedWorkflow as () => Promise<void>)();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).endsWith("/api/v1/adk/workflows/workflow-copy") && init?.method === "DELETE",
+    )).toBe(true);
+
+  });
+
+  it("guards unsaved and disabled workflow or trigger execution", async () => {
+    stubWorkflowFetch();
+    const wrapper = mount(ADKWorkflowStudio, {
+      props: {
+        agents: [buildAgent()],
+        providers: [buildProvider()],
+        formatDateTime: (value: string) => value,
+        viewMode: "workflows",
+      },
+      global: { stubs: workflowVuetifyStubs() },
+    });
+    await flushRequests();
+    const setup = setupStateOf(wrapper);
+    const workflowForm = readSetupValue(setup.workflowForm) as { id: string; status: string };
+    const triggerForm = readSetupValue(setup.triggerForm) as { id: string; status: string };
+
+    workflowForm.id = "";
+    await (setup.runWorkflowNow as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("请先保存工作流后运行");
+    workflowForm.id = "workflow-1";
+    workflowForm.status = "DISABLED";
+    await (setup.runWorkflowNow as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("请先启用工作流后运行");
+
+    triggerForm.id = "";
+    await (setup.runSelectedTrigger as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("请先保存触发器");
+    triggerForm.id = "trigger-1";
+    triggerForm.status = "DISABLED";
+    await (setup.runSelectedTrigger as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("请先启用触发器后运行");
+
+  });
+
+  it("resets paged filters, starts templates and ignores duplicate or cancelled actions", async () => {
+    stubWorkflowFetch();
+    vi.stubGlobal("confirm", vi.fn(() => false));
+    const wrapper = mount(ADKWorkflowStudio, {
+      props: {
+        agents: [buildAgent()],
+        providers: [buildProvider()],
+        formatDateTime: (value: string) => value,
+        viewMode: "workflow-logs",
+      },
+      global: { stubs: workflowVuetifyStubs() },
+    });
+    await flushRequests();
+    await flushRequests();
+    const setup = setupStateOf(wrapper);
+
+    expect(readSetupValue(setup.selectedNodeId)).toBe("monitor");
+    writeSetupValue(setup, "workflowStatusFilter", "DISABLED");
+    writeSetupValue(setup, "logStatusFilter", "FAILED");
+    writeSetupValue(setup, "logTriggerFilter", "trigger-1");
+    await flushRequests();
+    expect((readSetupValue(setup.workflowPage) as { offset: number }).offset).toBe(0);
+    expect((readSetupValue(setup.logPage) as { offset: number }).offset).toBe(0);
+
+    await wrapper.setProps({ viewMode: "workflows" });
+    const templates = readSetupValue(setup.templates) as Array<{ value: string }>;
+    (setup.startDraftWorkflow as (template: string) => void)(templates.find((item) => item.value === "blank")!.value);
+    expect(readSetupValue(setup.selectedNodeId)).toBe("start");
+    expect(readSetupValue(setup.draftTriggerPending)).toBe(false);
+    (setup.startDraftWorkflow as (template: string) => void)(templates.find((item) => item.value === "schedule")!.value);
+    expect(readSetupValue(setup.selectedNodeId)).toBe("trigger:draft");
+    expect(readSetupValue(setup.draftTriggerPending)).toBe(true);
+
+    const workflowForm = readSetupValue(setup.workflowForm) as { id: string; name: string; status: string };
+    const triggerForm = readSetupValue(setup.triggerForm) as { id: string; title: string; status: string };
+    workflowForm.id = "";
+    await (setup.saveCurrentTrigger as (id?: string) => Promise<void>)("");
+    expect(readSetupValue(setup.errorMessage)).toBe("请先保存工作流");
+    await (setup.duplicateWorkflow as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("请先保存工作流");
+
+    workflowForm.id = "workflow-1";
+    workflowForm.name = "Daily Review";
+    workflowForm.status = "ENABLED";
+    writeSetupValue(setup, "runningWorkflow", true);
+    await (setup.runWorkflowNow as () => Promise<void>)();
+    writeSetupValue(setup, "runningWorkflow", false);
+    triggerForm.id = "trigger-1";
+    triggerForm.title = "Market open";
+    triggerForm.status = "ENABLED";
+    writeSetupValue(setup, "runningTrigger", true);
+    await (setup.runSelectedTrigger as () => Promise<void>)();
+    writeSetupValue(setup, "runningTrigger", false);
+
+    await (setup.removeSelectedWorkflow as () => Promise<void>)();
+    await (setup.removeSelectedTrigger as () => Promise<void>)();
+    expect(window.confirm).toHaveBeenCalledTimes(2);
+
+    (setup.selectWorkflow as (workflow: ReturnType<typeof buildWorkflow>) => void)(buildWorkflow());
+    (setup.openWorkflowLogs as () => void)();
+    expect(readSetupValue(setup.selectedNodeId)).toBe("monitor");
+    (setup.handleStudioWorkbenchPaneResized as (payload: unknown) => void)({ panes: [{ size: 100 }] });
+
+    writeSetupValue(setup, "selectedLogId", "");
+    await (setup.copyResultMarkdown as () => Promise<void>)();
+  });
+
+  it("keeps Studio state recoverable across save, run and delete API failures", async () => {
+    const baseFetch = stubWorkflowFetch();
+    let failedOperation = "save";
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = input instanceof Request ? input.method : (init?.method ?? "GET");
+      const shouldFail =
+        (failedOperation === "save" && url.endsWith("/adk/workflows/workflow-1") && method === "PUT")
+        || (failedOperation === "duplicate" && url.endsWith("/adk/workflows") && method === "POST")
+        || (failedOperation === "workflow-run" && url.endsWith("/workflows/workflow-1/run"))
+        || (failedOperation === "trigger-run" && url.endsWith("/workflow-triggers/trigger-1/run"))
+        || (failedOperation === "workflow-delete" && url.endsWith("/adk/workflows/workflow-1") && method === "DELETE")
+        || (failedOperation === "trigger-delete" && url.includes("/triggers/trigger-1") && method === "DELETE");
+      if (shouldFail) return workflowErrorResponse(`${failedOperation} failed`);
+      return baseFetch(input, init);
+    }));
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    const wrapper = mount(ADKWorkflowStudio, {
+      props: {
+        agents: [buildAgent()],
+        providers: [buildProvider()],
+        formatDateTime: (value: string) => value,
+        viewMode: "workflows",
+      },
+      global: { stubs: workflowVuetifyStubs() },
+    });
+    await flushRequests();
+    await flushRequests();
+    const setup = setupStateOf(wrapper);
+    const workflowForm = readSetupValue(setup.workflowForm) as { id: string; status: string };
+
+    writeSetupValue(setup, "selectedWorkflowId", "missing");
+    await wrapper.vm.$nextTick();
+    (setup.selectWorkflow as (workflow: ReturnType<typeof buildWorkflow>) => void)(buildWorkflow());
+    await flushRequests();
+    (setup.selectNode as (id: string) => void)("trigger:trigger-1");
+    expect((readSetupValue(setup.triggerForm) as { id: string }).id).toBe("trigger-1");
+
+    await (setup.saveStudio as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("save failed");
+    failedOperation = "duplicate";
+    await (setup.duplicateWorkflow as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("duplicate failed");
+    failedOperation = "workflow-run";
+    await (setup.runWorkflowNow as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("workflow-run failed");
+    failedOperation = "trigger-run";
+    await (setup.runSelectedTrigger as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("trigger-run failed");
+
+    workflowForm.id = "";
+    await (setup.removeSelectedWorkflow as () => Promise<void>)();
+    workflowForm.id = "workflow-1";
+    failedOperation = "workflow-delete";
+    await (setup.removeSelectedWorkflow as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("workflow-delete failed");
+    failedOperation = "trigger-delete";
+    await (setup.removeSelectedTrigger as () => Promise<void>)();
+    expect(readSetupValue(setup.errorMessage)).toBe("trigger-delete failed");
+
+  });
 });
 
 function readSetupValue(value: unknown): unknown {
-  if (value != null && typeof value === "object" && "value" in value) {
-    return (value as { value: unknown }).value;
-  }
-  return value;
+  return value != null && typeof value === "object" && "value" in value ? (value as { value: unknown }).value : value;
 }
 
-function setupStateOf(wrapper: { vm: { $: { setupState: Record<string, unknown> } } }): Record<string, unknown> {
-  return wrapper.vm.$.setupState;
+function setupStateOf(wrapper: { vm: { $: { setupState: Record<string, unknown> } } }): Record<string, unknown> { return wrapper.vm.$.setupState; }
+
+function writeSetupValue(setup: Record<string, unknown>, key: string, value: unknown): void {
+  const current = setup[key];
+  if (current != null && typeof current === "object" && "value" in current) {
+    (current as { value: unknown }).value = value;
+  } else {
+    setup[key] = value;
+  }
 }
 
 function stubWorkflowFetch(options: { logs?: unknown[] } = {}) {
   const logs = options.logs ?? [];
-  const fetchMock = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
+  let copyIndex = 0;
+  const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
+    const method = input instanceof Request ? input.method : (init?.method ?? "GET");
     if (url.includes("/api/v1/adk/agents")) {
       return createResponse({ agents: [buildAgent()] });
     }
@@ -292,6 +600,23 @@ function stubWorkflowFetch(options: { logs?: unknown[] } = {}) {
         },
       });
     }
+    if (url.endsWith("/api/v1/adk/workflow-triggers/trigger-1/run")) {
+      return createResponse({
+        workflow: buildWorkflow(),
+        log: {
+          ...buildResultLog(),
+          id: "log-trigger",
+          sessionId: "session-trigger",
+          runId: "run-trigger",
+        },
+      });
+    }
+    if (url.match(/\/api\/v1\/adk\/workflows\/[^/]+\/triggers\/[^/]+$/) && method === "DELETE") {
+      return createResponse({ deleted: true, trigger: buildTrigger() });
+    }
+    if (url.match(/\/api\/v1\/adk\/workflows\/[^/]+\/triggers(?:\/[^/]+)?$/) && (method === "POST" || method === "PUT")) {
+      return createResponse({ trigger: buildTrigger(), secret: "webhook-secret" });
+    }
     if (url.includes("/api/v1/adk/workflows/workflow-1/triggers")) {
       return createResponse({ triggers: [buildTrigger()] });
     }
@@ -299,6 +624,20 @@ function stubWorkflowFetch(options: { logs?: unknown[] } = {}) {
       return createResponse({
         logs,
         page: { limit: 20, offset: 0, total: logs.length, returned: logs.length, hasMore: false },
+      });
+    }
+    if (url.match(/\/api\/v1\/adk\/workflows\/[^/?]+$/) && method === "DELETE") {
+      return createResponse({ deleted: true, workflow: buildWorkflow() });
+    }
+    if (url.endsWith("/api/v1/adk/workflows/workflow-1") && method === "PUT") {
+      return createResponse(buildWorkflow());
+    }
+    if (url.endsWith("/api/v1/adk/workflows") && method === "POST") {
+      copyIndex += 1;
+      return createResponse({
+        ...buildWorkflow(),
+        id: "workflow-copy",
+        name: copyIndex === 1 ? "Daily Review 副本" : "Daily Review 模板",
       });
     }
     if (url.includes("/api/v1/adk/workflows")) {
@@ -430,4 +769,31 @@ function buildTrigger() {
     createdAt: "2026-07-01T00:00:00Z",
     updatedAt: "2026-07-01T00:00:00Z",
   };
+}
+
+function buildResultLog() {
+  return {
+    id: "log-result",
+    workflowId: "workflow-1",
+    triggerId: "trigger-1",
+    triggerType: "manual",
+    status: "SUCCEEDED",
+    sessionId: "session-result",
+    runId: "run-result",
+    result: { markdown: "# Workflow result" },
+    createdAt: "2026-07-01T00:00:00Z",
+    updatedAt: "2026-07-01T00:00:00Z",
+  };
+}
+
+function workflowErrorResponse(message: string): Response {
+  return {
+    ok: false,
+    status: 500,
+    json: async () => ({
+      ok: false,
+      error: { code: "INTERNAL", message },
+      timestamp: "2026-07-01T00:00:00Z",
+    }),
+  } as Response;
 }

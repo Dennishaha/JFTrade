@@ -456,8 +456,10 @@ type routeTestProvider struct {
 	candlesLimit         int
 	candlesFromTime      string
 	candlesToTime        string
+	candlesErr           error
 	depthCalled          bool
 	depthNum             int
+	depthErr             error
 	markets              []srv.MarketProfile
 	marketsErr           error
 	securityDetails      srv.SecurityDetails
@@ -499,13 +501,13 @@ func (p *routeTestProvider) GetHistoricalCandles(_ context.Context, market, symb
 	p.candlesLimit = limit
 	p.candlesFromTime = fromTime
 	p.candlesToTime = toTime
-	return srv.CandlesResponse{"candles": []any{}}, nil
+	return srv.CandlesResponse{"candles": []any{}}, p.candlesErr
 }
 
 func (p *routeTestProvider) GetDepth(_ context.Context, _ string, _ string, num int) (srv.DepthResponse, error) {
 	p.depthCalled = true
 	p.depthNum = num
-	return nil, nil
+	return nil, p.depthErr
 }
 
 func (p *routeTestProvider) NormalizeInstrument(_ context.Context, input map[string]any) (map[string]any, error) {

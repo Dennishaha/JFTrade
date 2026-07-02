@@ -13,6 +13,7 @@ import StrategyRuntimePage from "../src/pages/StrategyRuntimePage.vue"
 
 import {
   MockWebSocket,
+  buttonStub,
   collapseItemStub,
   collapseStub,
   dialogStub,
@@ -67,6 +68,7 @@ export async function mountStrategyPage(path = "/strategy") {
     global: {
       plugins: [createPinia(), router],
       stubs: {
+        "v-button": buttonStub,
         "v-dialog": dialogStub,
         "v-expansion-panels": collapseStub,
         "v-expansion-panel": collapseItemStub,

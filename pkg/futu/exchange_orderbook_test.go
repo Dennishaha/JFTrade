@@ -131,6 +131,28 @@ func TestSubscriptionRegistryOrderBookEnsure(t *testing.T) {
 	}
 }
 
+func TestSubscriptionRegistryQuoteAndKLineFamiliesAreIndependent(t *testing.T) {
+	r := subscriptionRegistry{}
+	key := "US.AAPL"
+	klineKey := "US.AAPL|1m"
+
+	if r.hasBasicQot(key) || r.hasBasicQotPush(key) || r.hasKLine(klineKey) {
+		t.Fatal("fresh lazily-initialized registry reported existing quote/kline subscriptions")
+	}
+	r.markBasicQot(key)
+	if !r.hasBasicQot(key) || r.hasBasicQotPush(key) || r.hasKLine(klineKey) {
+		t.Fatalf("basic quote mark leaked into other families: %#v", r)
+	}
+	r.markBasicQotPush(key)
+	if !r.hasBasicQotPush(key) || r.hasKLine(klineKey) {
+		t.Fatalf("basic quote push mark leaked into kline family: %#v", r)
+	}
+	r.markKLine(klineKey)
+	if !r.hasKLine(klineKey) {
+		t.Fatalf("kline mark was not recorded: %#v", r)
+	}
+}
+
 func TestGroupOrderBookRequestsForPushSplitsHKAndNonHK(t *testing.T) {
 	requests := []orderBookRequest{
 		{

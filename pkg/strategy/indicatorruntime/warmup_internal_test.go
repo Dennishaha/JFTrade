@@ -1,6 +1,9 @@
 package indicatorruntime
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCalculateIndicatorWarmupBarsCoversSourceAwareWindowsAndDivergences(t *testing.T) {
 	requirements := indicatorRequirements{
@@ -39,5 +42,97 @@ func TestEstimateTradingPeriodBarsHandlesFallbackAndInvalidInputs(t *testing.T) 
 	}
 	if got := estimateTradingPeriodBars(2, "week", 5, "CRYPTO.BTC", false); got != 780 {
 		t.Fatalf("estimateTradingPeriodBars(unknown symbol week) = %d, want 780", got)
+	}
+}
+
+func TestAdvancedIndicatorLookbackReflectsWarmupSemantics(t *testing.T) {
+	if got := advancedIndicatorLookback(advancedIndicatorConfig{kind: "anchored_vwap", period: 200}); got != 1 {
+		t.Fatalf("anchored_vwap lookback = %d, want 1 because it resets by anchor period", got)
+	}
+	if got := advancedIndicatorLookback(advancedIndicatorConfig{kind: "pivothigh", left: 4, right: 3}); got != 9 {
+		t.Fatalf("pivot lookback = %d, want left + right + confirmation bars", got)
+	}
+	if got := advancedIndicatorLookback(advancedIndicatorConfig{kind: "linreg", period: 20, offset: 2}); got != 24 {
+		t.Fatalf("period/offset lookback = %d, want period + offset + confirmation bars", got)
+	}
+}
+
+func TestValidateFixedTimeframeRequirementsCoversAllConfigFamilies(t *testing.T) {
+	valid := indicatorRequirements{
+		ma:             []movingAverageConfig{{period: 5, timeUnit: "15m"}},
+		securitySource: []securitySourceConfig{{source: "close", timeUnit: "hour"}},
+		rsiSource:      []sourcePeriodConfig{{source: "close", period: 14, timeUnit: "day"}},
+		stdevSource:    []sourcePeriodConfig{{source: "close", period: 14, timeUnit: "week"}},
+		variance:       []sourcePeriodConfig{{source: "close", period: 14, timeUnit: "month"}},
+		stoch:          []sourcePeriodConfig{{source: "close", period: 14, timeUnit: "15m"}},
+		cciSource:      []sourcePeriodConfig{{source: "hlc3", period: 20, timeUnit: "hour"}},
+		mfi:            []sourcePeriodConfig{{source: "hlc3", period: 14, timeUnit: "day"}},
+		advanced:       []advancedIndicatorConfig{{kind: "linreg", period: 20, timeUnit: "week"}},
+	}
+	if err := validateFixedTimeframeRequirements(valid, 5); err != nil {
+		t.Fatalf("validateFixedTimeframeRequirements(valid) error = %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		requirement indicatorRequirements
+		wantDetail  string
+	}{
+		{
+			name:        "lower than strategy interval",
+			requirement: indicatorRequirements{ma: []movingAverageConfig{{period: 5, timeUnit: "minute"}}},
+			wantDetail:  "fixed timeframe 1m is lower than strategy interval 5m",
+		},
+		{
+			name:        "not aligned with strategy interval",
+			requirement: indicatorRequirements{advanced: []advancedIndicatorConfig{{kind: "linreg", timeUnit: "7m"}}},
+			wantDetail:  "fixed timeframe 7m is not aligned with strategy interval 5m",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateFixedTimeframeRequirements(tt.requirement, 5)
+			if err == nil {
+				t.Fatal("validateFixedTimeframeRequirements() error = nil, want validation error")
+			}
+			if !strings.Contains(err.Error(), tt.wantDetail) {
+				t.Fatalf("validation error = %v, want detail %q", err, tt.wantDetail)
+			}
+		})
+	}
+	if minutes, ok := comparableTimeUnitMinutes("quarter"); ok || minutes != 0 {
+		t.Fatalf("comparableTimeUnitMinutes(quarter) = %d/%v, want 0/false", minutes, ok)
+	}
+}
+
+func TestFormatFixedTimeframeLabels(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		want  string
+	}{
+		{"minute", "1m"},
+		{"hour", "60m"},
+		{"day", "D"},
+		{"week", "W"},
+		{"month", "M"},
+		{"7m", "7m"},
+	} {
+		if got := formatIndicatorTimeUnit(tc.input); got != tc.want {
+			t.Fatalf("formatIndicatorTimeUnit(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+	for _, tc := range []struct {
+		input int
+		want  string
+	}{
+		{0, "1m"},
+		{5, "5m"},
+		{tradingSessionMinutesPerDay, "D"},
+		{tradingSessionMinutesPerWeek, "W"},
+		{tradingSessionMinutesPerMonth, "M"},
+	} {
+		if got := formatIntervalMinutes(tc.input); got != tc.want {
+			t.Fatalf("formatIntervalMinutes(%d) = %q, want %q", tc.input, got, tc.want)
+		}
 	}
 }

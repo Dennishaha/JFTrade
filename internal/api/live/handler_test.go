@@ -19,11 +19,15 @@ type fakeBackend struct {
 	mu              sync.Mutex
 	limit           int
 	ticks           []TickEvent
+	ticksErr        error
 	notifications   []livecore.Event
 	lastTickIDs     []string
 	depthNum        int32
 	depthSubscriber func(string)
 	unsubscribed    bool
+	securityErr     error
+	depthErr        error
+	nilUnsubscribe  bool
 }
 
 func (b *fakeBackend) ConnectionLimit() int { return b.limit }
@@ -40,7 +44,7 @@ func (b *fakeBackend) MarketTicks(_ context.Context, instrumentIDs []string, _ s
 	b.lastTickIDs = append([]string(nil), instrumentIDs...)
 	ticks := append([]TickEvent(nil), b.ticks...)
 	b.mu.Unlock()
-	return ticks, nil
+	return ticks, b.ticksErr
 }
 
 func (b *fakeBackend) NotificationsAfter(sequence uint64) []livecore.Event {
@@ -58,6 +62,9 @@ func (b *fakeBackend) NotificationsAfter(sequence uint64) []livecore.Event {
 func (b *fakeBackend) EnsureNotificationBridge(context.Context) {}
 
 func (b *fakeBackend) SecurityDetails(_ context.Context, market, symbol string) (map[string]any, error) {
+	if b.securityErr != nil {
+		return nil, b.securityErr
+	}
 	return map[string]any{
 		"request":  map[string]any{"market": market, "symbol": symbol, "instrumentId": market + "." + symbol},
 		"security": map[string]any{"name": "Tencent Holdings"},
@@ -72,6 +79,9 @@ func (b *fakeBackend) SubscribeDepth(_ context.Context, _ string, num int32) {
 }
 
 func (b *fakeBackend) Depth(_ context.Context, market, symbol string, num int32) (map[string]any, error) {
+	if b.depthErr != nil {
+		return nil, b.depthErr
+	}
 	return map[string]any{
 		"request": map[string]any{"market": market, "symbol": symbol, "instrumentId": market + "." + symbol, "num": num},
 		"depth":   map[string]any{"bids": []any{map[string]any{"price": "100"}}},
@@ -82,6 +92,10 @@ func (b *fakeBackend) Depth(_ context.Context, market, symbol string, num int32)
 func (b *fakeBackend) SubscribeDepthUpdates(fn func(string)) func() {
 	b.mu.Lock()
 	b.depthSubscriber = fn
+	if b.nilUnsubscribe {
+		b.mu.Unlock()
+		return nil
+	}
 	b.mu.Unlock()
 	return func() {
 		b.mu.Lock()

@@ -10,6 +10,7 @@ import {
   buildBrokerAccountSelectionKey,
   resolveActiveBrokerId,
   resolveBrokerAccountOptions,
+  resolveBrokerQuery,
   resolveSelectedBrokerAccountOption,
 } from "../src/composables/consoleDataBrokerAccountSelection";
 
@@ -214,5 +215,221 @@ describe("consoleDataBrokerAccountSelection", () => {
         defaultTradingEnvironment: "SIMULATE",
       }),
     ).toBe(selectionOptions[1]);
+  });
+
+  it("encodes account keys and falls back through configured broker priorities", () => {
+    const encodedKey = buildBrokerAccountSelectionKey({
+      brokerId: "ib/gateway",
+      tradingEnvironment: "REAL",
+      accountId: "U 123",
+      market: "US",
+    });
+    expect(encodedKey).toBe("ib%2Fgateway|REAL|U%20123|US");
+    expect(
+      resolveActiveBrokerId({
+        selectedBrokerAccountKey: encodedKey,
+        settings: emptyBrokerSettings,
+        status: emptySystemStatus,
+      }),
+    ).toBe("ib/gateway");
+
+    expect(
+      resolveActiveBrokerId({
+        selectedBrokerAccountKey: "",
+        settings: {
+          ...emptyBrokerSettings,
+          accounts: [
+            {
+              id: "disabled",
+              brokerId: "disabled-broker",
+              accountId: "1",
+              displayName: "Disabled",
+              tradingEnvironment: "SIMULATE",
+              market: "HK",
+              securityFirm: null,
+              enabled: false,
+              createdAt: "",
+              updatedAt: "",
+            },
+            {
+              id: "enabled",
+              brokerId: "managed-broker",
+              accountId: "2",
+              displayName: "Enabled",
+              tradingEnvironment: "REAL",
+              market: "US",
+              securityFirm: null,
+              enabled: true,
+              createdAt: "",
+              updatedAt: "",
+            },
+          ],
+        },
+        status: emptySystemStatus,
+      }),
+    ).toBe("managed-broker");
+  });
+
+  it("skips disabled managed accounts and ignores runtime accounts from another broker", () => {
+    const options = resolveBrokerAccountOptions({
+      activeBrokerId: "ib",
+      settings: {
+        ...emptyBrokerSettings,
+        accounts: [
+          {
+            id: "disabled",
+            brokerId: "ib",
+            accountId: "U1",
+            displayName: "Disabled",
+            tradingEnvironment: "REAL",
+            market: "US",
+            securityFirm: null,
+            enabled: false,
+            createdAt: "",
+            updatedAt: "",
+          },
+        ],
+      },
+      runtime: {
+        ...emptyBrokerRuntime,
+        descriptor: { ...emptyBrokerRuntime.descriptor, id: "futu" },
+        accounts: [
+          {
+            accountId: "SIM-1",
+            tradingEnvironment: "SIMULATE",
+            accountType: "CASH",
+            accountRole: null,
+            securityFirm: null,
+            marketAuthorities: [],
+            simulatedAccountType: "STOCK",
+          },
+        ],
+      },
+      fallbackMarket: "US",
+    });
+
+    expect(options).toEqual([]);
+  });
+
+  it("uses the fallback market for runtime accounts without authorities", () => {
+    const options = resolveBrokerAccountOptions({
+      activeBrokerId: "futu",
+      settings: emptyBrokerSettings,
+      runtime: {
+        ...emptyBrokerRuntime,
+        descriptor: { ...emptyBrokerRuntime.descriptor, id: "futu" },
+        accounts: [
+          {
+            accountId: "SIM-NO-MARKET",
+            tradingEnvironment: "SIMULATE",
+            accountType: "CASH",
+            accountRole: null,
+            securityFirm: null,
+            marketAuthorities: [],
+            simulatedAccountType: "STOCK",
+          },
+        ],
+      },
+      fallbackMarket: "HK",
+    });
+
+    expect(options[0]).toMatchObject({
+      source: "runtime",
+      accountId: "SIM-NO-MARKET",
+      market: "HK",
+    });
+  });
+
+  it("selects the environment match, active broker fallback, then first account", () => {
+    const options = [
+      {
+        selectionKey: "ib-real",
+        source: "managed" as const,
+        brokerId: "ib",
+        accountId: "U1",
+        displayName: "IB real",
+        tradingEnvironment: "REAL",
+        market: "US",
+        securityFirm: null,
+      },
+      {
+        selectionKey: "futu-sim",
+        source: "managed" as const,
+        brokerId: "futu",
+        accountId: "SIM1",
+        displayName: "Futu sim",
+        tradingEnvironment: "SIMULATE",
+        market: "HK",
+        securityFirm: null,
+      },
+    ];
+
+    expect(
+      resolveSelectedBrokerAccountOption({
+        selectionOptions: options,
+        selectedBrokerAccountKey: "missing",
+        activeBrokerId: "futu",
+        defaultTradingEnvironment: "SIMULATE",
+      }),
+    ).toBe(options[1]);
+    expect(
+      resolveSelectedBrokerAccountOption({
+        selectionOptions: options,
+        selectedBrokerAccountKey: null,
+        activeBrokerId: "missing",
+        defaultTradingEnvironment: "REAL",
+      }),
+    ).toBe(options[0]);
+    expect(
+      resolveSelectedBrokerAccountOption({
+        selectionOptions: [],
+        selectedBrokerAccountKey: null,
+        activeBrokerId: "futu",
+        defaultTradingEnvironment: "SIMULATE",
+      }),
+    ).toBeNull();
+  });
+
+  it("builds broker queries from an exact runtime selection or runtime defaults", () => {
+    const runtime = {
+      ...emptyBrokerRuntime,
+      descriptor: {
+        ...emptyBrokerRuntime.descriptor,
+        id: "futu",
+        capabilities: [{ market: "US", supportsQuote: true, supportsTrade: true }],
+      },
+      accounts: [
+        {
+          accountId: "SIM-1",
+          tradingEnvironment: "SIMULATE",
+          accountType: "CASH",
+          accountRole: null,
+          securityFirm: null,
+          marketAuthorities: ["HK"],
+          simulatedAccountType: "STOCK",
+        },
+      ],
+    };
+    const selection = {
+      selectionKey: "futu-real",
+      source: "managed" as const,
+      brokerId: "futu",
+      accountId: "REAL-2",
+      displayName: "Real",
+      tradingEnvironment: "REAL",
+      market: "US",
+      securityFirm: null,
+    };
+
+    expect(
+      resolveBrokerQuery({ selection, runtime, status: emptySystemStatus }).toString(),
+    ).toBe("tradingEnvironment=REAL&accountId=REAL-2&market=US");
+    expect(
+      resolveBrokerQuery({
+        selection: { ...selection, brokerId: "ib" },
+        runtime,
+        status: { ...emptySystemStatus, defaultTradingEnvironment: "SIMULATE" },
+      }).toString(),
+    ).toBe("tradingEnvironment=SIMULATE&accountId=SIM-1&market=HK");
   });
 });

@@ -489,7 +489,7 @@ function buildTimeline(title: string, output: UnknownRecord, arrayKeys: string[]
   const items = findArray(output, arrayKeys);
   const events = items.filter(isRecord).slice(0, 20).map((item) => {
     const event: ADKTimelineVisualization["events"][number] = {
-      label: formatValue(pick(item, ["kind", "type", "status", "event", "action", "orderId", "id"])),
+      label: formatValue(pick(item, ["kind", "type", "event", "action", "status", "orderId", "id"])),
     };
     const time = optionalValue(pick(item, ["at", "time", "createdAt", "updatedAt", "timestamp"]));
     const detail = optionalValue(pick(item, ["message", "detail", "reason", "description", "symbol"]));

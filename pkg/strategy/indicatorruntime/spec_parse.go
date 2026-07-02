@@ -814,10 +814,14 @@ func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 					source:      source,
 				}, true
 			}
+			timeUnit, timeUnitOK := parseIndicatorTimeUnit(parts[2])
+			if !timeUnitOK {
+				return movingAverageConfig{}, false
+			}
 			return movingAverageConfig{
 				averageType: "MA",
 				period:      period,
-				timeUnit:    normalizeIndicatorTimeUnit(parts[2]),
+				timeUnit:    timeUnit,
 			}, true
 		}
 		period, ok := parsePositiveInt(parts[2])
@@ -842,10 +846,14 @@ func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 				source:      source,
 			}, true
 		}
+		timeUnit, timeUnitOK := parseIndicatorTimeUnit(parts[3])
+		if !timeUnitOK {
+			return movingAverageConfig{}, false
+		}
 		return movingAverageConfig{
 			averageType: normalizeMovingAverageType(parts[1]),
 			period:      period,
-			timeUnit:    normalizeIndicatorTimeUnit(parts[3]),
+			timeUnit:    timeUnit,
 		}, true
 	}
 	if len(parts) != 5 {
@@ -859,10 +867,14 @@ func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 	if !sourceOK {
 		return movingAverageConfig{}, false
 	}
+	timeUnit, timeUnitOK := parseIndicatorTimeUnit(parts[3])
+	if !timeUnitOK {
+		return movingAverageConfig{}, false
+	}
 	return movingAverageConfig{
 		averageType: normalizeMovingAverageType(parts[1]),
 		period:      period,
-		timeUnit:    normalizeIndicatorTimeUnit(parts[3]),
+		timeUnit:    timeUnit,
 		source:      source,
 	}, true
 }
@@ -889,11 +901,15 @@ func parseStopLossConfig(parts []string) (stopLossConfig, bool) {
 		if err != nil || percentage <= 0 {
 			return stopLossConfig{}, false
 		}
+		timeUnit, timeUnitOK := parseStopLossTimeUnit(parts[3])
+		if !timeUnitOK {
+			return stopLossConfig{}, false
+		}
 		return stopLossConfig{
 			mode:         "stopLoss",
 			direction:    normalizeStopLossDirection(parts[1]),
 			timeValue:    timeValue,
-			timeUnit:     normalizeIndicatorTimeUnit(parts[3]),
+			timeUnit:     timeUnit,
 			percentage:   percentage,
 			windowPolicy: "continuous",
 		}, true
@@ -917,16 +933,45 @@ func parseStopLossConfig(parts []string) (stopLossConfig, bool) {
 		if !ok {
 			return stopLossConfig{}, false
 		}
+		timeUnit, timeUnitOK := parseStopLossTimeUnit(parts[4])
+		if !timeUnitOK {
+			return stopLossConfig{}, false
+		}
 		return stopLossConfig{
 			mode:         mode,
 			direction:    normalizeStopLossDirection(parts[2]),
 			timeValue:    timeValue,
-			timeUnit:     normalizeIndicatorTimeUnit(parts[4]),
+			timeUnit:     timeUnit,
 			percentage:   percentage,
 			windowPolicy: windowPolicy,
 		}, true
 	default:
 		return stopLossConfig{}, false
+	}
+}
+
+func parseStopLossTimeUnit(value string) (string, bool) {
+	normalized := normalizeIndicatorTimeUnit(value)
+	if normalized != "" {
+		if _, ok := indicatorTimeUnitMinutes(normalized); ok {
+			return normalized, true
+		}
+		switch normalized {
+		case "day", "week", "month":
+			return normalized, true
+		default:
+			return "", false
+		}
+	}
+	trimmed := strings.TrimSpace(value)
+	if unquoted, err := strconv.Unquote(trimmed); err == nil {
+		trimmed = unquoted
+	}
+	switch strings.ToLower(strings.TrimSpace(trimmed)) {
+	case "", "bar", "bars":
+		return "", true
+	default:
+		return "", false
 	}
 }
 

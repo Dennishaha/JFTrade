@@ -204,6 +204,116 @@ func TestAdministratorCookieSessionRejectsUntrustedOrigin(t *testing.T) {
 	}
 }
 
+func TestAdministratorSessionStatusAndLogoutLifecycle(t *testing.T) {
+	server, srv := newAuthenticatedSecurityServer(t)
+	jar, jftradeErr1 := cookiejar.New(nil)
+	jftradeCheckTestError(t, jftradeErr1)
+	client := &http.Client{Jar: jar}
+	csrf := loginAdministrator(t, client, srv.URL, server.auth.key)
+
+	statusReq, jftradeErr2 := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/auth/session", nil)
+	jftradeCheckTestError(t, jftradeErr2)
+	statusReq.Header.Set("Origin", srv.URL)
+	statusResp, err := client.Do(statusReq)
+	if err != nil {
+		t.Fatalf("session status: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, statusResp.Body.Close()) }()
+	if statusResp.StatusCode != http.StatusOK {
+		t.Fatalf("session status = %d, want 200", statusResp.StatusCode)
+	}
+	var statusBody struct {
+		Data struct {
+			Authenticated bool   `json:"authenticated"`
+			CSRFToken     string `json:"csrfToken"`
+			ExpiresAt     string `json:"expiresAt"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(statusResp.Body).Decode(&statusBody); err != nil {
+		t.Fatalf("decode session status: %v", err)
+	}
+	if !statusBody.Data.Authenticated || statusBody.Data.CSRFToken != csrf || statusBody.Data.ExpiresAt == "" {
+		t.Fatalf("session status body = %+v", statusBody.Data)
+	}
+
+	logoutReq, jftradeErr3 := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/auth/logout", nil)
+	jftradeCheckTestError(t, jftradeErr3)
+	logoutReq.Header.Set("Origin", srv.URL)
+	logoutReq.Header.Set("X-CSRF-Token", csrf)
+	logoutResp, err := client.Do(logoutReq)
+	if err != nil {
+		t.Fatalf("logout: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, logoutResp.Body.Close()) }()
+	if logoutResp.StatusCode != http.StatusOK {
+		t.Fatalf("logout status = %d, want 200", logoutResp.StatusCode)
+	}
+	server.auth.mu.Lock()
+	sessionCount := len(server.auth.sessions)
+	server.auth.mu.Unlock()
+	if sessionCount != 0 {
+		t.Fatalf("sessions after logout = %d, want 0", sessionCount)
+	}
+
+	afterLogoutReq, jftradeErr4 := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	jftradeCheckTestError(t, jftradeErr4)
+	afterLogoutResp, err := client.Do(afterLogoutReq)
+	if err != nil {
+		t.Fatalf("GET after logout: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, afterLogoutResp.Body.Close()) }()
+	if afterLogoutResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("after logout status = %d, want 401", afterLogoutResp.StatusCode)
+	}
+}
+
+func TestAdministratorLoginRateLimitAndOriginChecks(t *testing.T) {
+	server, srv := newAuthenticatedSecurityServer(t)
+	server.auth.now = func() time.Time {
+		return time.Date(2026, time.July, 1, 9, 30, 0, 0, time.UTC)
+	}
+	disallowed, jftradeErr1 := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/auth/login", bytes.NewReader([]byte(`{"key":"`+server.auth.key+`"}`)))
+	jftradeCheckTestError(t, jftradeErr1)
+	disallowed.Header.Set("Content-Type", "application/json")
+	disallowed.Header.Set("Origin", "https://evil.example.com")
+	disallowedResp, err := http.DefaultClient.Do(disallowed)
+	if err != nil {
+		t.Fatalf("disallowed origin login: %v", err)
+	}
+	jftradeCheckTestError(t, disallowedResp.Body.Close())
+	if disallowedResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("disallowed origin status = %d, want 403", disallowedResp.StatusCode)
+	}
+
+	for attempt := range maxLoginFailures {
+		req, jftradeErr2 := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/auth/login", bytes.NewReader([]byte(`{"key":"wrong-key"}`)))
+		jftradeCheckTestError(t, jftradeErr2)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", srv.URL)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("failed login %d: %v", attempt, err)
+		}
+		jftradeCheckTestError(t, resp.Body.Close())
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("failed login %d status = %d, want 401", attempt, resp.StatusCode)
+		}
+	}
+
+	limitedReq, jftradeErr3 := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/auth/login", bytes.NewReader([]byte(`{"key":"`+server.auth.key+`"}`)))
+	jftradeCheckTestError(t, jftradeErr3)
+	limitedReq.Header.Set("Content-Type", "application/json")
+	limitedReq.Header.Set("Origin", srv.URL)
+	limitedResp, err := http.DefaultClient.Do(limitedReq)
+	if err != nil {
+		t.Fatalf("rate limited login: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, limitedResp.Body.Close()) }()
+	if limitedResp.StatusCode != http.StatusTooManyRequests || limitedResp.Header.Get("Retry-After") == "" {
+		t.Fatalf("limited login status=%d retryAfter=%q", limitedResp.StatusCode, limitedResp.Header.Get("Retry-After"))
+	}
+}
+
 func TestUnavailableAdministratorAuthFailsClosed(t *testing.T) {
 	server, srv := newAuthenticatedSecurityServer(t)
 	server.auth.unavailable = true

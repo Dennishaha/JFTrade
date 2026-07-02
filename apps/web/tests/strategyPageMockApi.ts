@@ -488,6 +488,7 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
     const applyLinkedInstancesMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)\/apply-linked-instances$/)
     const definitionMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)$/)
     const lifecycleMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/(start|pause|stop)/)
+    const runtimeRiskMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/runtime-risk$/)
     const refreshDefinitionMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/refresh-definition$/)
     const instanceMatch = url.match(/\/api\/v1\/strategies\/([^/]+)$/)
     const syncProgressMatch = url.match(/\/api\/v1\/backtests\/sync\/([^/]+)$/)
@@ -834,6 +835,28 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
           kind: "binding.updated",
           detail: `${binding.symbols.join(", ") || "未绑定"} / ${binding.interval}`,
           at: "2026-05-23T00:00:00.000Z",
+        },
+      ]
+      return createResponse(serializeStrategy(instance))
+    }
+    if (runtimeRiskMatch && method === "PUT") {
+      const instanceId = decodeURIComponent(runtimeRiskMatch[1])
+      const instance = runtimeState.strategies.find((item) => item.id === instanceId)
+      if (instance === undefined) {
+        throw new Error(`Unknown strategy instance: ${instanceId}`)
+      }
+      const runtimeRisk = await readJsonBody(init, request)
+      instance.params = {
+        ...instance.params,
+        runtimeRisk,
+      }
+      runtimeState.auditById[instanceId] = [
+        ...(runtimeState.auditById[instanceId] ?? []),
+        {
+          instanceId,
+          kind: "runtime_risk.updated",
+          detail: String(runtimeRisk.mode ?? "off"),
+          at: mutationTimestamp,
         },
       ]
       return createResponse(serializeStrategy(instance))

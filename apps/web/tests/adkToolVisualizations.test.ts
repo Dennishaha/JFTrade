@@ -225,10 +225,244 @@ describe("buildADKToolVisualization", () => {
     });
   });
 
+  it("renders fills, fees, cash flows, runs, and optimization candidates with domain columns", () => {
+    const cases = [
+      [
+        "broker.fills",
+        { fills: [{ symbol: "US.AAPL", side: "SELL", quantity: 3, price: 210.5, amount: 631.5 }] },
+        "经纪商成交",
+        ["symbol", "side", "quantity", "price", "amount"],
+      ],
+      [
+        "broker.fees",
+        { fees: [{ orderIdEx: "order-1", feeType: "commission", amount: 1.25, currency: "USD" }] },
+        "订单费用",
+        ["orderIdEx", "feeType", "amount", "currency"],
+      ],
+      [
+        "broker.cash_flows",
+        { flows: [{ clearingDate: "2026-06-08", direction: "current_day", amount: -200, currency: "HKD" }] },
+        "资金流水",
+        ["clearingDate", "direction", "amount", "currency"],
+      ],
+      [
+        "backtest.runs",
+        { runs: [{ id: "bt-1", status: "COMPLETED", symbol: "US.AAPL", totalReturn: 0.08 }] },
+        "回测运行",
+        ["id", "status", "symbol", "totalReturn"],
+      ],
+      [
+        "strategy.optimize",
+        { candidates: [{ definitionId: "def-1", runId: "bt-2", status: "FAILED", maxDrawdown: 0.2 }] },
+        "优化候选",
+        ["definitionId", "runId", "status", "maxDrawdown"],
+      ],
+    ] as const;
+
+    for (const [toolName, output, title, columns] of cases) {
+      const visualization = buildADKToolVisualization(toolName, output);
+      expect(visualization?.kind).toBe("table");
+      if (visualization?.kind !== "table") continue;
+      expect(visualization.title).toBe(title);
+      expect(visualization.columns.map((column) => column.key)).toEqual(columns);
+    }
+  });
+
+  it("falls back to safe columns and caps oversized broker responses", () => {
+    const orders = Array.from({ length: 23 }, (_, index) => ({
+      custom_id: `custom-${index}`,
+      routeName: "SMART",
+      metadata: { state: "active" },
+    }));
+
+    const visualization = buildADKToolVisualization("broker.orders", {
+      nested: { data: orders },
+    });
+
+    expect(visualization?.kind).toBe("table");
+    if (visualization?.kind !== "table") return;
+    expect(visualization.subtitle).toBe("20 / 23 行");
+    expect(visualization.columns).toEqual([
+      { key: "custom_id", label: "Custom Id" },
+      { key: "routeName", label: "Route Name" },
+      { key: "metadata", label: "Metadata" },
+    ]);
+    expect(visualization.rows[0]?.metadata).toBe("活跃");
+  });
+
+  it("renders each backtest window without losing pagination context", () => {
+    const common = {
+      run: { id: "bt-window", symbol: "US.TSLA" },
+      window: { resolution: "1m", nextCursor: "cursor-2" },
+    };
+    const cases = [
+      [
+        { view: "chart", ...common, series: { trades: [{ time: "10:00", side: "BUY", price: 200, qty: 2 }] } },
+        "回测交易窗口",
+        "买入",
+      ],
+      [
+        { view: "orders", ...common, series: { orderBook: [{ orderId: "o-1", side: "SELL", status: "REJECTED" }] } },
+        "回测订单窗口",
+        "卖出",
+      ],
+      [
+        { view: "logs", ...common, series: { logs: ["strategy started", { status: "running" }] } },
+        "回测日志窗口",
+        "strategy started",
+      ],
+      [
+        { view: "errors", ...common, series: { runtimeErrors: ["division by zero"] } },
+        "回测错误窗口",
+        "division by zero",
+      ],
+    ] as const;
+
+    for (const [output, title, expectedValue] of cases) {
+      const visualization = buildADKToolVisualization("backtest.result_view", output);
+      expect(visualization?.kind).toBe("table");
+      if (visualization?.kind !== "table") continue;
+      expect(visualization.title).toBe(title);
+      expect(visualization.subtitle).toContain("US.TSLA · 1m ·");
+      expect(JSON.stringify(visualization.rows)).toContain(expectedValue);
+    }
+  });
+
+  it("falls back to a summary when the requested backtest window is empty", () => {
+    const visualization = buildADKToolVisualization("backtest.result_view", {
+      view: "orders",
+      run: {
+        id: "bt-empty",
+        status: "FAILED",
+        startTime: "2026-01-01T00:00:00Z",
+        endTime: "2026-01-01T01:00:00Z",
+      },
+      summary: { error: "data unavailable", latestLog: "market feed closed" },
+      series: { orderBook: [] },
+    });
+
+    expect(visualization?.kind).toBe("summary");
+    if (visualization?.kind !== "summary") return;
+    expect(visualization.subtitle).toBe("orders");
+    expect(visualization.cards[0]).toMatchObject({ value: "失败", tone: "danger" });
+    expect(visualization.rows?.map((item) => item.label)).toEqual([
+      "运行 ID",
+      "开始",
+      "结束",
+      "错误",
+      "最新日志",
+    ]);
+  });
+
+  it("normalizes alternate depth shapes and protects bars from invalid quantities", () => {
+    const visualization = buildADKToolVisualization("market.depth", {
+      instrumentId: "US.NVDA",
+      bidRows: [
+        { p: 120.1, size: "1,000" },
+        { price: 120, volume: "bad" },
+        null,
+      ],
+      askRows: [[120.2, 10], [120.3]],
+    });
+
+    expect(visualization?.kind).toBe("depth");
+    if (visualization?.kind !== "depth") return;
+    expect(visualization.subtitle).toBe("US.NVDA");
+    expect(visualization.bids).toEqual([
+      { price: "120.1", quantity: "1,000", percent: 100 },
+      { price: "120", quantity: "bad", percent: 0 },
+    ]);
+    expect(visualization.asks[0]?.percent).toBe(4);
+  });
+
+  it("maps risk event severity and limits long timelines", () => {
+    const events = Array.from({ length: 22 }, (_, index) => ({
+      event: index === 0 ? "limit warning" : `event-${index}`,
+      timestamp: `2026-06-08T10:${String(index).padStart(2, "0")}:00Z`,
+      description: index === 0 ? "position limited" : undefined,
+      status: index === 0 ? "blocked" : "success",
+    }));
+    const visualization = buildADKToolVisualization("risk.events", {
+      envelope: { riskEvents: events },
+    });
+
+    expect(visualization?.kind).toBe("timeline");
+    if (visualization?.kind !== "timeline") return;
+    expect(visualization.subtitle).toBe("20 / 22 条事件");
+    expect(visualization.events[0]).toMatchObject({
+      label: "limit warning",
+      detail: "position limited",
+      tone: "warning",
+    });
+  });
+
+  it("shows invalid Pine validation details and untranslated extension fields", () => {
+    const validation = buildADKToolVisualization("strategy.validate_pine", {
+      ok: false,
+      errors: ["strategy.entry is missing"],
+      metadata: { name: "Broken" },
+    });
+    expect(validation?.kind).toBe("summary");
+    if (validation?.kind !== "summary") return;
+    expect(validation.subtitle).toBe("请先修正脚本后再保存");
+    expect(validation.cards[0]).toMatchObject({ value: "无效", tone: "danger" });
+    expect(validation.rows?.find((item) => item.label === "首个错误")?.value).toBe(
+      "strategy.entry is missing",
+    );
+
+    const updated = buildADKToolVisualization("strategy.update_instance_mode", {
+      updatedFields: ["executionMode", "riskProfile", 42],
+      instance: { id: "instance-1", binding: { executionMode: "live", symbols: [] } },
+    });
+    expect(updated?.kind).toBe("summary");
+    if (updated?.kind !== "summary") return;
+    expect(updated.rows?.find((item) => item.label === "已修改字段")?.value).toBe(
+      "执行模式、riskProfile、",
+    );
+  });
+
+  it("translates Pine specification sections and save operations", () => {
+    const sectionNames = [
+      ["overview", "概览"],
+      ["syntax", "语法"],
+      ["expressions", "表达式"],
+      ["indicators", "指标"],
+      ["orders", "下单"],
+      ["protect", "保护"],
+      ["unsupported", "不支持项"],
+      ["examples", "示例"],
+      ["custom", "custom"],
+    ];
+    for (const [section, label] of sectionNames) {
+      const visualization = buildADKToolVisualization("strategy.pine_spec", {
+        selectedSection: section,
+      });
+      expect(visualization?.subtitle).toBe(`章节：${label}`);
+    }
+
+    const created = buildADKToolVisualization("strategy.save_definition", {
+      operation: "created",
+      name: "Momentum",
+    });
+    expect(created?.kind).toBe("summary");
+    if (created?.kind !== "summary") return;
+    expect(created.cards[0]?.value).toBe("已创建");
+
+    const imported = buildADKToolVisualization("strategy.save_definition", {
+      operation: "imported",
+      definition: { name: "Imported" },
+    });
+    expect(imported?.subtitle).toBe("本次操作：imported");
+  });
+
   it("returns null for unknown tools and malformed known outputs", () => {
     expect(buildADKToolVisualization("unknown.tool", { ok: true })).toBeNull();
+    expect(buildADKToolVisualization("portfolio.summary", null)).toBeNull();
     expect(buildADKToolVisualization("broker.orders", { orders: "not an array" })).toBeNull();
+    expect(buildADKToolVisualization("broker.orders", { orders: [null, 1] })).toBeNull();
     expect(buildADKToolVisualization("portfolio.summary", {})).toBeNull();
     expect(buildADKToolVisualization("market.depth", { bids: [{ price: 1 }], asks: [] })).toBeNull();
+    expect(buildADKToolVisualization("risk.events", { events: [null] })).toBeNull();
+    expect(buildADKToolVisualization("backtest.result_view", {})).toBeNull();
   });
 });

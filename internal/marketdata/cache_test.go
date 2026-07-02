@@ -251,43 +251,84 @@ func tickAt(instrumentID, price string, volume float64, observedAt time.Time) Ti
 }
 
 type dataProviderStub struct {
+	markets       []MarketProfile
+	marketsErr    error
+	details       SecurityDetails
+	detailsErr    error
 	snapshot      *Tick
+	snapshotErr   error
 	ticker        *Tick
 	tickerErr     error
+	candles       CandlesResponse
+	candlesErr    error
+	depth         DepthResponse
+	depthErr      error
+	normalized    map[string]any
+	normalizedErr error
+	health        HealthStatus
+	healthErr     error
+
+	detailsMarket string
+	detailsSymbol string
+	snapshotID    string
+	tickerID      string
+	candlesMarket string
+	candlesSymbol string
+	candlesPeriod string
+	candlesLimit  int
+	candlesFrom   string
+	candlesTo     string
+	depthMarket   string
+	depthSymbol   string
+	depthNum      int
+
 	snapshotCalls int
 	tickerCalls   int
 }
 
 func (p *dataProviderStub) GetMarkets(context.Context) ([]MarketProfile, error) {
-	return nil, nil
+	return p.markets, p.marketsErr
 }
 
-func (p *dataProviderStub) GetSecurityDetails(context.Context, string, string) (SecurityDetails, error) {
-	return nil, nil
+func (p *dataProviderStub) GetSecurityDetails(_ context.Context, market, symbol string) (SecurityDetails, error) {
+	p.detailsMarket = market
+	p.detailsSymbol = symbol
+	return p.details, p.detailsErr
 }
 
-func (p *dataProviderStub) QuerySnapshot(context.Context, string) (*Tick, error) {
+func (p *dataProviderStub) QuerySnapshot(_ context.Context, instrumentID string) (*Tick, error) {
 	p.snapshotCalls++
-	return cloneTick(p.snapshot), nil
+	p.snapshotID = instrumentID
+	return cloneTick(p.snapshot), p.snapshotErr
 }
 
-func (p *dataProviderStub) QueryTicker(context.Context, string) (*Tick, error) {
+func (p *dataProviderStub) QueryTicker(_ context.Context, instrumentID string) (*Tick, error) {
 	p.tickerCalls++
+	p.tickerID = instrumentID
 	return cloneTick(p.ticker), p.tickerErr
 }
 
-func (p *dataProviderStub) GetHistoricalCandles(context.Context, string, string, string, int, string, string) (CandlesResponse, error) {
-	return nil, nil
+func (p *dataProviderStub) GetHistoricalCandles(_ context.Context, market, symbol, period string, limit int, fromTime, toTime string) (CandlesResponse, error) {
+	p.candlesMarket = market
+	p.candlesSymbol = symbol
+	p.candlesPeriod = period
+	p.candlesLimit = limit
+	p.candlesFrom = fromTime
+	p.candlesTo = toTime
+	return p.candles, p.candlesErr
 }
 
-func (p *dataProviderStub) GetDepth(context.Context, string, string, int) (DepthResponse, error) {
-	return nil, nil
+func (p *dataProviderStub) GetDepth(_ context.Context, market, symbol string, num int) (DepthResponse, error) {
+	p.depthMarket = market
+	p.depthSymbol = symbol
+	p.depthNum = num
+	return p.depth, p.depthErr
 }
 
-func (p *dataProviderStub) NormalizeInstrument(context.Context, map[string]any) (map[string]any, error) {
-	return nil, nil
+func (p *dataProviderStub) NormalizeInstrument(_ context.Context, input map[string]any) (map[string]any, error) {
+	return p.normalized, p.normalizedErr
 }
 
 func (p *dataProviderStub) Health(context.Context) (HealthStatus, error) {
-	return HealthStatus{}, nil
+	return p.health, p.healthErr
 }

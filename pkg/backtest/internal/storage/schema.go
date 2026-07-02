@@ -88,7 +88,7 @@ func intervalStorageValue(interval types.Interval) int64 {
 	case types.Interval1mo:
 		return 2592000
 	default:
-		if duration := interval.Duration(); duration > 0 {
+		if duration, ok := safeIntervalDuration(interval); ok {
 			return int64(duration / time.Second)
 		}
 		return 0
@@ -243,15 +243,15 @@ func quoteIdentifier(identifier string) string {
 }
 
 func aggregationBaseIntervals(interval types.Interval) []types.Interval {
-	targetDuration := interval.Duration()
-	if targetDuration <= time.Minute || targetDuration%time.Minute != 0 {
+	targetDuration, ok := safeIntervalDuration(interval)
+	if !ok || targetDuration <= time.Minute || targetDuration%time.Minute != 0 {
 		return nil
 	}
 
 	candidates := make([]types.Interval, 0)
 	for candidate := range types.SupportedIntervals {
-		candidateDuration := candidate.Duration()
-		if candidateDuration < time.Minute || candidateDuration >= targetDuration {
+		candidateDuration, ok := safeIntervalDuration(candidate)
+		if !ok || candidateDuration < time.Minute || candidateDuration >= targetDuration {
 			continue
 		}
 		if targetDuration%candidateDuration != 0 {
@@ -261,7 +261,9 @@ func aggregationBaseIntervals(interval types.Interval) []types.Interval {
 	}
 
 	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].Duration() > candidates[j].Duration()
+		left, _ := safeIntervalDuration(candidates[i])
+		right, _ := safeIntervalDuration(candidates[j])
+		return left > right
 	})
 	return candidates
 }
@@ -271,24 +273,43 @@ func canAggregateFromLowerInterval(interval types.Interval) bool {
 }
 
 func alignTimeToIntervalStart(at time.Time, interval types.Interval) time.Time {
-	duration := interval.Duration()
-	if duration <= 0 {
+	duration, ok := safeIntervalDuration(interval)
+	if !ok {
 		return at.UTC()
 	}
 	return at.UTC().Truncate(duration)
 }
 
 func firstClosedKLineEndAtOrAfter(at time.Time, interval types.Interval) time.Time {
-	return alignTimeToIntervalStart(at, interval).Add(interval.Duration()).Add(-time.Millisecond)
+	duration, ok := safeIntervalDuration(interval)
+	if !ok {
+		return at.UTC()
+	}
+	return alignTimeToIntervalStart(at, interval).Add(duration).Add(-time.Millisecond)
 }
 
 func latestClosedKLineEndAtOrBefore(at time.Time, interval types.Interval) time.Time {
+	duration, ok := safeIntervalDuration(interval)
+	if !ok {
+		return at.UTC()
+	}
 	bucketStart := alignTimeToIntervalStart(at, interval)
-	bucketEnd := bucketStart.Add(interval.Duration()).Add(-time.Millisecond)
+	bucketEnd := bucketStart.Add(duration).Add(-time.Millisecond)
 	if !at.Before(bucketEnd) {
 		return bucketEnd
 	}
 	return bucketStart.Add(-time.Millisecond)
+}
+
+func safeIntervalDuration(interval types.Interval) (duration time.Duration, ok bool) {
+	defer func() {
+		if recover() != nil {
+			duration = 0
+			ok = false
+		}
+	}()
+	duration = interval.Duration()
+	return duration, duration > 0
 }
 
 func expectedKLineSchemaColumns() []string {

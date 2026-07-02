@@ -374,7 +374,7 @@ func resultViewIntervalDuration(value string) (time.Duration, error) {
 	if value == "" {
 		return 0, requestErrorf("resolution is required")
 	}
-	if duration := bbgotypes.Interval(value).Duration(); duration > 0 {
+	if duration, ok := safeResultViewIntervalDuration(value); ok {
 		return duration, nil
 	}
 	unit := value[len(value)-1]
@@ -401,6 +401,17 @@ func resultViewIntervalDuration(value string) (time.Duration, error) {
 	default:
 		return 0, requestErrorf("unsupported interval or resolution: %s", value)
 	}
+}
+
+func safeResultViewIntervalDuration(value string) (duration time.Duration, ok bool) {
+	defer func() {
+		if recover() != nil {
+			duration = 0
+			ok = false
+		}
+	}()
+	duration = bbgotypes.Interval(value).Duration()
+	return duration, duration > 0
 }
 
 func chooseResultViewAutoResolution(nativeDuration time.Duration, count int, limit int) time.Duration {
@@ -453,6 +464,8 @@ func aggregateResultViewCandles(candles []bt.Candle, resolution time.Duration) [
 			if current != nil {
 				if volumeOK {
 					current.Volume = strconv.FormatFloat(volumeSum, 'f', -1, 64)
+				} else {
+					current.Volume = ""
 				}
 				out = append(out, *current)
 			}
@@ -475,6 +488,8 @@ func aggregateResultViewCandles(candles []bt.Candle, resolution time.Duration) [
 	if current != nil {
 		if volumeOK {
 			current.Volume = strconv.FormatFloat(volumeSum, 'f', -1, 64)
+		} else {
+			current.Volume = ""
 		}
 		out = append(out, *current)
 	}

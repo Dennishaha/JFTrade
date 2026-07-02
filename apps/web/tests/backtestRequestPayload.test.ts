@@ -52,4 +52,46 @@ describe("backtest request payloads", () => {
     expect(payload).not.toHaveProperty("since");
     expect(payload).not.toHaveProperty("until");
   });
+
+  it("builds custom, disabled, and regional fee schedules", () => {
+    const customRule = {
+      id: "custom-fee",
+      label: "Custom fee",
+      group: "broker" as const,
+      category: "commission" as const,
+      currency: "HKD",
+      model: "rate" as const,
+      rate: 0.001,
+    };
+    const custom = buildBacktestStartRequestPayload({
+      ...formState,
+      instrumentType: " ETF ",
+      brokerFeeMode: "custom",
+      marketFeeMode: "none",
+      brokerFeeRules: [customRule],
+    }, { market: "HK", code: "00700", symbol: "HK.00700" });
+    expect(custom.instrumentType).toBe("etf");
+    expect(custom.tradingCosts?.brokerFees).toEqual({ mode: "custom", rules: [customRule] });
+    expect(custom.tradingCosts?.marketFees).toEqual({ mode: "none" });
+
+    const connect = buildBacktestStartRequestPayload(formState, {
+      market: "SH",
+      code: "600000",
+      symbol: "SH.600000",
+    });
+    expect(connect.tradingCosts?.brokerFees).toEqual({ mode: "market_preset" });
+    expect(connect.tradingCosts?.marketFees?.presetId).toBe("stock_connect_a_share_market_fees_2026_06_30");
+
+    const unknown = buildBacktestStartRequestPayload({
+      ...formState,
+      brokerFeeMode: "script",
+      marketFeeMode: "market_preset",
+    }, { market: "CRYPTO", code: "BTC", symbol: "CRYPTO.BTC" });
+    expect(unknown.tradingCosts?.brokerFees).toEqual({ mode: "script" });
+    expect(unknown.tradingCosts?.marketFees).toEqual({ mode: "market_preset" });
+  });
+
+  it("uses regular session scope when extended hours are disabled", () => {
+    expect(buildBacktestSyncRequestPayload({ ...formState, useExtendedHours: false }, instrument).sessionScope).toBe("regular");
+  });
 });

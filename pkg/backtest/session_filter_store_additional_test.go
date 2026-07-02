@@ -263,6 +263,42 @@ func TestSessionFilteredStoreUsesCustomExtendedHoursRangeQueries(t *testing.T) {
 	}
 }
 
+func TestSessionFilteredStoreCustomBackwardQueriesTrimLatestWindow(t *testing.T) {
+	start := time.Date(2026, time.June, 15, 13, 30, 0, 0, time.UTC)
+	daily1 := testBacktestKLine("US.AAPL", types.Interval1d, start, 24*time.Hour, 10)
+	daily2 := testBacktestKLine("US.AAPL", types.Interval1d, start.Add(24*time.Hour), 24*time.Hour, 11)
+	daily3 := testBacktestKLine("US.AAPL", types.Interval1d, start.Add(48*time.Hour), 24*time.Hour, 12)
+	intraday1 := testBacktestKLine("US.AAPL", types.Interval2h, start, 2*time.Hour, 20)
+	intraday2 := testBacktestKLine("US.AAPL", types.Interval2h, start.Add(2*time.Hour), 2*time.Hour, 21)
+	intraday3 := testBacktestKLine("US.AAPL", types.Interval2h, start.Add(4*time.Hour), 2*time.Hour, 22)
+
+	base := &stubRangeBacktestStore{
+		stubBacktestStore: &stubBacktestStore{},
+		tradingRows:       []types.KLine{daily1, daily2, daily3},
+		sessionRows:       []types.KLine{intraday1, intraday2, intraday3},
+	}
+	store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: true}
+
+	dailyRows, err := store.QueryKLinesBackward(nil, "US.AAPL", types.Interval1d, daily3.EndTime.Time().Add(time.Millisecond), 2)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward(daily): %v", err)
+	}
+	if len(dailyRows) != 2 || !dailyRows[0].StartTime.Time().Equal(daily2.StartTime.Time()) || !dailyRows[1].StartTime.Time().Equal(daily3.StartTime.Time()) {
+		t.Fatalf("daily backward rows = %#v", dailyRows)
+	}
+
+	intradayRows, err := store.QueryKLinesBackward(nil, "US.AAPL", types.Interval2h, intraday3.EndTime.Time().Add(time.Millisecond), 2)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward(2h): %v", err)
+	}
+	if len(intradayRows) != 2 || !intradayRows[0].StartTime.Time().Equal(intraday2.StartTime.Time()) || !intradayRows[1].StartTime.Time().Equal(intraday3.StartTime.Time()) {
+		t.Fatalf("intraday backward rows = %#v", intradayRows)
+	}
+	if base.tradingRangeCalls == 0 || base.sessionRangeCalls == 0 {
+		t.Fatalf("range calls = trading %d session %d", base.tradingRangeCalls, base.sessionRangeCalls)
+	}
+}
+
 func TestSessionFilteredStoreQueryKLinesChIncludesCustomExtendedHoursRows(t *testing.T) {
 	start := time.Date(2026, time.June, 12, 13, 30, 0, 0, time.UTC)
 	us1m := testBacktestKLine("US.AAPL", types.Interval1m, start, time.Minute, 10)
@@ -467,6 +503,69 @@ func TestSessionFilteredStoreHelperFunctions(t *testing.T) {
 			if got := filteredPageSize(tc.limit); got != tc.want {
 				t.Fatalf("filteredPageSize(%d) = %d, want %d", tc.limit, got, tc.want)
 			}
+		}
+	})
+
+	t.Run("trading period helpers cover day week month and unsupported intervals", func(t *testing.T) {
+		day := time.Date(2026, time.January, 31, 0, 0, 0, 0, time.UTC)
+		week := time.Date(2026, time.June, 15, 0, 0, 0, 0, time.UTC)
+		cases := []struct {
+			interval types.Interval
+			label    time.Time
+			unit     string
+			end      time.Time
+			next     time.Time
+		}{
+			{types.Interval1d, day, "day", day.AddDate(0, 0, 1).Add(-time.Millisecond), day.AddDate(0, 0, 1)},
+			{types.Interval1w, week, "week", week.AddDate(0, 0, 7).Add(-time.Millisecond), week.AddDate(0, 0, 7)},
+			{types.Interval1mo, day, "month", day.AddDate(0, 1, 0).Add(-time.Millisecond), day.AddDate(0, 1, 0)},
+		}
+		for _, tc := range cases {
+			if !isCustomTradingPeriodInterval(tc.interval) {
+				t.Fatalf("%s should be custom trading period", tc.interval)
+			}
+			if got := tradingPeriodUnit(tc.interval); got != tc.unit {
+				t.Fatalf("tradingPeriodUnit(%s) = %q, want %q", tc.interval, got, tc.unit)
+			}
+			if got := tradingPeriodLabelEnd(tc.label, tc.interval); !got.Equal(tc.end) {
+				t.Fatalf("tradingPeriodLabelEnd(%s) = %s, want %s", tc.interval, got, tc.end)
+			}
+			if got := shiftTradingPeriodLabel(tc.label, tc.interval, 1); !got.Equal(tc.next) {
+				t.Fatalf("shiftTradingPeriodLabel(%s) = %s, want %s", tc.interval, got, tc.next)
+			}
+		}
+		if isCustomTradingPeriodInterval(types.Interval4h) || tradingPeriodUnit(types.Interval4h) != "" {
+			t.Fatalf("4h should not be a trading-period aggregation interval")
+		}
+		if got := tradingPeriodLabelEnd(week, types.Interval4h); !got.Equal(week) {
+			t.Fatalf("unsupported tradingPeriodLabelEnd = %s", got)
+		}
+		if got := shiftTradingPeriodLabel(week, types.Interval4h, 2); !got.Equal(week) {
+			t.Fatalf("unsupported shiftTradingPeriodLabel = %s", got)
+		}
+	})
+
+	t.Run("store-level schema wrappers expose stable values", func(t *testing.T) {
+		if RehabTypeName(1) != "forward" || RehabTypeName(2) != "backward" || RehabTypeName(99) != "none" {
+			t.Fatalf("unexpected RehabTypeName values")
+		}
+		if got := NormalizeKLineSessionScopeName(" extended "); got != KLineSessionScopeExtended {
+			t.Fatalf("NormalizeKLineSessionScopeName = %q", got)
+		}
+		if got := intervalStorageValue(types.Interval5m); got != 300 {
+			t.Fatalf("intervalStorageValue(5m) = %d", got)
+		}
+		if interval, err := intervalFromStorageValue(300); err != nil || interval != types.Interval5m {
+			t.Fatalf("intervalFromStorageValue(300) = %s err=%v", interval, err)
+		}
+		if _, err := intervalFromStorageValue(2); err == nil {
+			t.Fatalf("intervalFromStorageValue(2) succeeded, want error")
+		}
+		if len(expectedKLineSchemaColumns()) == 0 {
+			t.Fatalf("expected schema columns empty")
+		}
+		if table := KLineTableNameForSessionScope("US:AAPL", types.Interval1m, "forward", KLineSessionScopeRegular); table == "" || table == KLineTableName("US:AAPL", types.Interval1m, "forward") {
+			t.Fatalf("session-scoped table name = %q", table)
 		}
 	})
 }

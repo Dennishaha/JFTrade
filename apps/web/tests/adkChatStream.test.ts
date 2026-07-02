@@ -112,4 +112,217 @@ describe("streamADKChat", () => {
       resumeADKChatStream({ runId: "run-missing" }, vi.fn()),
     ).resolves.toBeNull();
   });
+
+  it("does not reconnect without a persisted stream or run cursor", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(resumeADKChatStream({ streamId: " ", runId: " " }, vi.fn())).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reconnects by encoded run id with a rounded cursor and abort signal", async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn(async () => new Response(finalFrame("resumed")));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await resumeADKChatStream(
+      { runId: "run/with space", after: 3.9, signal: controller.signal },
+      vi.fn(),
+    );
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "/api/v1/adk/runs/run%2Fwith%20space/stream?after=3",
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "GET",
+      credentials: "include",
+      signal: controller.signal,
+    });
+    expect(result?.reply).toBe("resumed");
+  });
+
+  it("surfaces POST and reconnect HTTP failures with stable fallback messages", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(new Response("provider unavailable", { status: 503 }))
+        .mockResolvedValueOnce(new Response("", { status: 502 })),
+    );
+
+    await expect(streamADKChat({ message: "hello" }, vi.fn())).rejects.toThrow(
+      "provider unavailable",
+    );
+    await expect(
+      resumeADKChatStream({ streamId: "stream-1" }, vi.fn()),
+    ).rejects.toThrow("Agents stream reconnect failed");
+  });
+
+  it("rejects responses without a readable stream body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        body: null,
+        headers: new Headers(),
+      } as Response)),
+    );
+
+    await expect(streamADKChat({ message: "hello" }, vi.fn())).rejects.toThrow(
+      "流式响应不可用",
+    );
+  });
+
+  it("consumes a final event left in the trailing buffer", async () => {
+    const onEvent = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(finalFrame("tail", false))));
+
+    const result = await streamADKChat({ message: "hello" }, onEvent);
+
+    expect(result.reply).toBe("tail");
+    expect(onEvent).toHaveBeenCalledOnce();
+  });
+
+  it("turns streamed error events into rejected chat operations", async () => {
+    const onEvent = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response('data: {"type":"error","message":"tool gateway closed"}\n\n'),
+      ),
+    );
+
+    await expect(streamADKChat({ message: "hello" }, onEvent)).rejects.toThrow(
+      "tool gateway closed",
+    );
+    expect(onEvent).toHaveBeenCalledWith({
+      type: "error",
+      message: "tool gateway closed",
+    });
+  });
+
+  it("rejects an error event delivered as the unterminated trailing frame", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response('data: {"type":"error","message":"trailing failure"}'),
+      ),
+    );
+
+    await expect(streamADKChat({ message: "hello" }, vi.fn())).rejects.toThrow(
+      "trailing failure",
+    );
+  });
+
+  it("recovers a terminal run when the final SSE event was lost", async () => {
+    const terminalRun = {
+      id: "run-terminal",
+      sessionId: "session-terminal",
+      agentId: "agent-1",
+      status: "FAILED",
+      message: "approval interrupted",
+      toolCalls: [
+        {
+          id: "tool-pending",
+          runId: "run-terminal",
+          toolName: "strategy.save_definition",
+          permission: "write_strategy",
+          status: "PENDING_APPROVAL",
+          input: { name: "Momentum" },
+          requiresUser: true,
+          createdAt: "2026-06-08T00:00:00Z",
+          updatedAt: "2026-06-08T00:00:01Z",
+        },
+      ],
+      pendingApprovals: [],
+      createdAt: "2026-06-08T00:00:00Z",
+      updatedAt: "2026-06-08T00:00:01Z",
+    };
+    const body = [
+      `data: ${JSON.stringify({ type: "session", session: buildSession("Recovered title") })}`,
+      `data: ${JSON.stringify({ type: "run", run: terminalRun })}`,
+      "",
+      "",
+    ].join("\n\n");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(body)));
+
+    const result = await streamADKChat({ message: "hello" }, vi.fn());
+
+    expect(result.reply).toBe("Recovered title");
+    expect(result.run.status).toBe("FAILED");
+    expect(result.pendingApprovals).toEqual([
+      expect.objectContaining({
+        id: "tool-pending",
+        runId: "run-terminal",
+        toolName: "strategy.save_definition",
+        status: "PENDING",
+        reason: "write_strategy",
+        input: { name: "Momentum" },
+      }),
+    ]);
+  });
+
+  it("distinguishes an interrupted stream from one with no valid frames", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(
+          new Response('data: {"type":"session","session":{"id":"session-1","agentId":"agent-1","title":"Started","createdAt":"2026-06-08T00:00:00Z","updatedAt":"2026-06-08T00:00:00Z"}}\n\n'),
+        )
+        .mockResolvedValueOnce(new Response("event: ping\n\n")),
+    );
+
+    await expect(streamADKChat({ message: "first" }, vi.fn())).rejects.toThrow(
+      "流式连接中断，未收到最终结果。",
+    );
+    await expect(streamADKChat({ message: "second" }, vi.fn())).rejects.toThrow(
+      "流式连接未返回有效数据。",
+    );
+  });
+
+  it("skips malformed SSE frames and still accepts a later final response", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const body = `data: not-json\n\n${finalFrame("after malformed")}`;
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(body)));
+
+    const result = await streamADKChat({ message: "hello" }, vi.fn());
+
+    expect(result.reply).toBe("after malformed");
+    expect(warn).toHaveBeenCalledWith(
+      "[ADK SSE] Failed to parse frame, skipping:",
+      "not-json",
+    );
+  });
 });
+
+function finalFrame(reply: string, terminated = true): string {
+  const response = {
+    reply,
+    session: buildSession("Test"),
+    run: {
+      id: "run-1",
+      sessionId: "session-1",
+      agentId: "agent-1",
+      status: "COMPLETED",
+      message: reply,
+      toolCalls: [],
+      pendingApprovals: [],
+      createdAt: "2026-06-08T00:00:00Z",
+      updatedAt: "2026-06-08T00:00:01Z",
+    },
+    pendingApprovals: [],
+    timeline: [],
+  };
+  return `data: ${JSON.stringify({ type: "final", response })}${terminated ? "\n\n" : ""}`;
+}
+
+function buildSession(title: string) {
+  return {
+    id: "session-1",
+    agentId: "agent-1",
+    title,
+    createdAt: "2026-06-08T00:00:00Z",
+    updatedAt: "2026-06-08T00:00:00Z",
+  };
+}

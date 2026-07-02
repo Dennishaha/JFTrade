@@ -473,7 +473,9 @@ export async function mountApp(path = "/system") {
         "v-progress-circular": passthroughStub,
         "v-expansion-panels": collapseStub,
         "v-expansion-panel": collapseItemStub,
+        "v-expansion-panel-title": passthroughStub,
         "v-autocomplete": autocompleteStub,
+        "v-combobox": autocompleteStub,
         "v-text-field": inputStub,
         "v-textarea": textareaStub,
         "v-switch": switchStub,
@@ -493,6 +495,7 @@ export async function mountApp(path = "/system") {
         "v-window": windowStub,
         "v-window-item": windowItemStub,
         "v-icon": iconStub,
+        "v-pagination": passthroughStub,
       },
     },
   });

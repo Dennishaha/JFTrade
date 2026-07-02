@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -279,6 +280,57 @@ func TestFutuRuntimeAndHealthStayNeutralWithoutSavedEnabledIntegration(t *testin
 	}
 	if healthEnvelope.Data.Diagnosis.Code != "NONE" || healthEnvelope.Data.Runtime.LastError != nil {
 		t.Fatalf("expected disabled integration to stay neutral, got %+v", healthEnvelope.Data)
+	}
+}
+
+func TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	_, err = store.SaveIntegration(BrokerIntegration{
+		Enabled: true,
+		Config: normalizeFutuConfig(FutuIntegrationConfig{
+			Host:                    "127.0.0.1",
+			APIPort:                 1,
+			WebSocketPort:           2,
+			WebSocketKey:            "diagnostic-key",
+			MaxWebSocketConnections: 3,
+			TradeMarket:             "HK",
+		}),
+	})
+	if err != nil {
+		t.Fatalf("SaveIntegration: %v", err)
+	}
+	api := newTestServer(t, store)
+
+	guide := api.futuOpenDInstallGuide()
+	settings := guide["settings"].(map[string]any)
+	if settings["apiPort"] != 1 || settings["websocketKeyRequired"] != true || settings["marketDataTransport"] != liveQuoteTransportMode {
+		t.Fatalf("install guide settings = %#v", settings)
+	}
+
+	runtime := api.brokerRuntime(context.Background())
+	session := runtime["session"].(map[string]any)
+	connection := session["connection"].(map[string]any)
+	if session["connectivity"] != "disconnected" || session["accountsDiscovered"] != 0 || connection["apiPort"] != 1 {
+		t.Fatalf("runtime session = %#v", session)
+	}
+	if session["globalState"] != nil {
+		t.Fatalf("unreachable runtime globalState = %#v", session["globalState"])
+	}
+
+	health := api.futuOpenDHealth(context.Background())
+	diagnosis := health["diagnosis"].(map[string]any)
+	healthRuntime := health["runtime"].(map[string]any)
+	if health["status"] != "offline" || healthRuntime["connectivity"] != "disconnected" {
+		t.Fatalf("health = %#v", health)
+	}
+	if diagnosis["code"] != "OPEND_API_CONNECTIVITY" || diagnosis["manualRetryRequired"] != true || diagnosis["restartOpenDRecommended"] != true {
+		t.Fatalf("diagnosis = %#v", diagnosis)
+	}
+	if healthRuntime["websocketKeyConfigured"] != true || healthRuntime["marketDataTransport"] != liveQuoteTransportMode {
+		t.Fatalf("health runtime = %#v", healthRuntime)
 	}
 }
 

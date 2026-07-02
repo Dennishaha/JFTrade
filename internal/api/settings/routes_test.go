@@ -27,6 +27,8 @@ type routeStore struct {
 	calendars   jfsettings.ExchangeCalendarSettings
 	updateErr   error
 	deleteErr   error
+	saveErr     error
+	createErr   error
 	integration jfsettings.BrokerIntegration
 	created     jfsettings.ManagedBrokerAccount
 }
@@ -59,40 +61,67 @@ func (s *routeStore) InterfaceSettings(defaults jfsettings.LaunchDefaults) jfset
 	return jfsettings.InterfaceSettings{APIBind: defaults.APIBind, GUIBind: defaults.GUIBind}
 }
 func (s *routeStore) SaveAppearance(input jfsettings.UIAppearanceSettings) (jfsettings.UIAppearanceSettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.UIAppearanceSettings{}, s.saveErr
+	}
 	s.appearance = input
 	return input, nil
 }
 func (s *routeStore) SaveOnboarding(input jfsettings.OnboardingSettings) (jfsettings.OnboardingSettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.OnboardingSettings{}, s.saveErr
+	}
 	s.onboarding = input
 	return input, nil
 }
 func (s *routeStore) SaveExecutionSettings(input jfsettings.ExecutionSettings) (jfsettings.ExecutionSettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.ExecutionSettings{}, s.saveErr
+	}
 	s.execution = input
 	return input, nil
 }
 func (s *routeStore) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfsettings.SecuritySettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.SecuritySettings{}, s.saveErr
+	}
 	s.security = input
 	return input, nil
 }
 func (s *routeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.ADKRuntimeSettings{}, s.saveErr
+	}
 	s.adk = input
 	return input, nil
 }
 func (s *routeStore) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.PineWorkerSettings{}, s.saveErr
+	}
 	s.pineWorker = input
 	return input, nil
 }
 func (s *routeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.ExchangeCalendarSettings{}, s.saveErr
+	}
 	s.calendars = input
 	return input, nil
 }
 func (s *routeStore) SaveIntegration(input jfsettings.BrokerIntegration) (jfsettings.BrokerIntegration, error) {
+	if s.saveErr != nil {
+		return jfsettings.BrokerIntegration{}, s.saveErr
+	}
 	s.integration = input
 	return input, nil
 }
 func (s *routeStore) CreateManagedAccount(input jfsettings.ManagedBrokerAccount) (jfsettings.ManagedBrokerAccount, error) {
 	if strings.TrimSpace(input.AccountID) == "" {
 		return jfsettings.ManagedBrokerAccount{}, srvsettings.BadRequestError("accountId is required")
+	}
+	if s.createErr != nil {
+		return jfsettings.ManagedBrokerAccount{}, s.createErr
 	}
 	s.created = input
 	return input, nil

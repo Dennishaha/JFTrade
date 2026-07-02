@@ -26,7 +26,7 @@ var dmiCallPattern = regexp.MustCompile(`\bdmi\s*\(\s*([0-9]+)\s*,\s*([0-9]+)\s*
 var supertrendCallPattern = regexp.MustCompile(`\bsupertrend\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+)(?:\s*,\s*('[^']+'|"[^"]+"|[A-Za-z0-9_]+))?\s*\)`)
 var sarCallPattern = regexp.MustCompile(`\bsar\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*\)`)
 var maCallPattern = regexp.MustCompile(`\bma\s*\(([^()]*)\)`)
-var securitySourceCallPattern = regexp.MustCompile(`\bsecurity_source\s*\(\s*([^,]+?)\s*,\s*([^,\)]+?)(?:\s*,\s*([0-9]+)\s*)?\)`)
+var securitySourceCallPattern = regexp.MustCompile(`\bsecurity_source\s*\(\s*([^,]+?)\s*,\s*([^,\)]+?)(?:\s*,\s*(-?[0-9]+)\s*)?\)`)
 var windowCallPattern = regexp.MustCompile(`\b(highest|lowest|highestbars|lowestbars|change|mom|roc|range|mode|rising|falling|sum)\s*\(\s*([^,]+?)\s*,\s*([0-9]+)\s*\)`)
 
 func parseIndicatorBinding(statement *LetStmt) (plannedBinding, bool, error) {

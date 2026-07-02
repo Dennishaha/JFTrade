@@ -22,7 +22,9 @@ type routeLifecycleDesignStore struct {
 	found      bool
 	err        error
 	saveInput  srv.Definition
+	saveErr    error
 	deleteID   string
+	deleteErr  error
 }
 
 func (s *routeLifecycleDesignStore) ListDefinitions() []srv.Definition { return s.list }
@@ -31,6 +33,9 @@ func (s *routeLifecycleDesignStore) GetDefinition(string) (srv.Definition, bool,
 }
 func (s *routeLifecycleDesignStore) SaveDefinition(input srv.Definition) (srv.Definition, error) {
 	s.saveInput = input
+	if s.saveErr != nil {
+		return srv.Definition{}, s.saveErr
+	}
 	if input.ID == "" {
 		input.ID = "generated-id"
 	}
@@ -38,7 +43,7 @@ func (s *routeLifecycleDesignStore) SaveDefinition(input srv.Definition) (srv.De
 }
 func (s *routeLifecycleDesignStore) DeleteDefinition(id string) (srv.Definition, error) {
 	s.deleteID = id
-	return s.definition, nil
+	return s.definition, s.deleteErr
 }
 
 type routeLifecycleCatalogStore struct {
@@ -63,6 +68,7 @@ type routeLifecycleCatalogStore struct {
 	transitionInstanceID    string
 	transitionStatus        string
 	transitionResult        srv.InstanceView
+	transitionErr           error
 	refreshInstanceID       string
 	refreshInstanceResult   srv.InstanceView
 	refreshInstanceErr      error
@@ -121,7 +127,7 @@ func (s *routeLifecycleCatalogStore) TransitionInstance(id string, status string
 	s.transitionStatus = status
 	result := s.transitionResult
 	result.Status = status
-	return result, nil
+	return result, s.transitionErr
 }
 func (s *routeLifecycleCatalogStore) RefreshDefinition(string, srv.Definition) (srv.InstanceView, error) {
 	return srv.InstanceView{}, nil

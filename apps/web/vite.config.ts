@@ -123,6 +123,62 @@ export default defineConfig({
     chunkSizeWarningLimit: 4096,
   },
   test: {
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,vue}"],
+      thresholds: {
+        statements: 85,
+        lines: 85,
+        "src/components/BacktestChart.vue": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/components/MonacoCodeEditor.vue": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/components/StrategyRuntimePanel.vue": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/components/adk-page/ADKWorkflowStudio.vue": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/composables/adkSettingsApi.ts": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/composables/adkChatStream.ts": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/composables/consoleDataBrokerSettings.ts": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/composables/consoleDataMarketSubscriptions.ts": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/composables/settingsManagedAccounts.ts": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/composables/useADKPageChatState.ts": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/composables/useBacktestRuns.ts": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/pages/BacktestPage.vue": {
+          statements: 95,
+          lines: 95,
+        },
+      },
+    },
     environmentOptions: {
       jsdom: {
         url: "http://localhost:5173/",

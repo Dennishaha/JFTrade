@@ -71,6 +71,37 @@ func TestPineWorkerShortReplayExecutorFillsShortEntryAndCover(t *testing.T) {
 	}
 }
 
+func TestPineWorkerShortReplayExecutorCancelOrdersFiltersSyntheticOrders(t *testing.T) {
+	delegate := &fakeWorkerOrderExecutor{}
+	executor := newPineWorkerShortReplayExecutor(delegate, types.NewAccount(), nil)
+
+	err := executor.CancelOrders(
+		context.Background(),
+		types.Order{SubmitOrder: types.SubmitOrder{ClientOrderID: "synthetic", Tag: pineWorkerShortReplayOrderTag}},
+		types.Order{SubmitOrder: types.SubmitOrder{ClientOrderID: "real"}},
+	)
+	if err != nil {
+		t.Fatalf("CancelOrders error = %v", err)
+	}
+	if len(delegate.cancelled) != 1 || delegate.cancelled[0].ClientOrderID != "real" {
+		t.Fatalf("delegate cancelled = %#v, want only real order", delegate.cancelled)
+	}
+
+	delegate.cancelled = nil
+	if err := executor.CancelOrders(context.Background(), types.Order{SubmitOrder: types.SubmitOrder{ClientOrderID: "synthetic", Tag: pineWorkerShortReplayOrderTag}}); err != nil {
+		t.Fatalf("CancelOrders synthetic only error = %v", err)
+	}
+	if len(delegate.cancelled) != 0 {
+		t.Fatalf("synthetic cancel leaked to delegate: %#v", delegate.cancelled)
+	}
+
+	missingDelegate := newPineWorkerShortReplayExecutor(nil, types.NewAccount(), nil)
+	err = missingDelegate.CancelOrders(context.Background(), types.Order{SubmitOrder: types.SubmitOrder{ClientOrderID: "real"}})
+	if err == nil {
+		t.Fatal("CancelOrders missing delegate error = nil, want error")
+	}
+}
+
 func testPineWorkerShortReplayMarket() types.Market {
 	return types.Market{
 		Exchange:      types.ExchangeBacktest,

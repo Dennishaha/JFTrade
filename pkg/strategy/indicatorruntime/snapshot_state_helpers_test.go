@@ -211,6 +211,52 @@ func TestRollingATRBollingerCCIAndRSIHelpersFollowBusinessFallbacks(t *testing.T
 	}
 }
 
+func TestRollingStateConstructorsSkipInvalidRequirementEntries(t *testing.T) {
+	requirements := indicatorRequirements{
+		atr:       []int{0, 3},
+		stdev:     []int{0, 4},
+		cci:       []int{0, 5},
+		williamsR: []int{0, 6},
+		bollinger: []bollingerConfig{
+			{period: 0, multiplier: 2},
+			{period: 7, multiplier: 2},
+		},
+		kdj: []kdjConfig{
+			{period: 0, m1: 3, m2: 3},
+			{period: 8, m1: 3, m2: 3},
+		},
+		kdjDivergence: []kdjDivergenceConfig{
+			{period: 9, m1: 3, m2: 3, direction: "top", lookback: 2},
+			{period: 10, m1: 0, m2: 3, direction: "bottom", lookback: 2},
+			{period: 11, m1: 3, m2: 0, direction: "bottom", lookback: 2},
+		},
+	}
+
+	if states := newRollingATRStates(requirements); len(states) != 1 || states[3] == nil {
+		t.Fatalf("newRollingATRStates() = %#v, want only period 3", states)
+	}
+	if states := newRollingStdDevStates(requirements); len(states) != 1 || states[4] == nil {
+		t.Fatalf("newRollingStdDevStates() = %#v, want only period 4", states)
+	}
+	if states := newRollingCCIStates(requirements); len(states) != 1 || states[5] == nil {
+		t.Fatalf("newRollingCCIStates() = %#v, want only period 5", states)
+	}
+	if states := newRollingWilliamsRStates(requirements); len(states) != 1 || states[6] == nil {
+		t.Fatalf("newRollingWilliamsRStates() = %#v, want only period 6", states)
+	}
+	bollingerStates := newRollingBollingerStates(requirements)
+	if len(bollingerStates) != 1 || bollingerStates[bollingerConfig{period: 7, multiplier: 2}] == nil {
+		t.Fatalf("newRollingBollingerStates() = %#v, want only valid period 7", bollingerStates)
+	}
+	kdjStates := newRollingKDJStates(requirements, 16)
+	if len(kdjStates) != 2 || kdjStates[kdjConfig{period: 8, m1: 3, m2: 3}] == nil || kdjStates[kdjConfig{period: 9, m1: 3, m2: 3}] == nil {
+		t.Fatalf("newRollingKDJStates() = %#v, want valid direct and divergence configs", kdjStates)
+	}
+	if states := newRollingKDJStates(indicatorRequirements{kdj: []kdjConfig{{period: 0, m1: 0, m2: 0}}}, 16); states != nil {
+		t.Fatalf("newRollingKDJStates(invalid only) = %#v, want nil", states)
+	}
+}
+
 func TestMovingAverageAndSnapshotAccessorsExposeExpectedFields(t *testing.T) {
 	requirements := indicatorRequirements{
 		ma: []movingAverageConfig{

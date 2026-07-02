@@ -161,8 +161,8 @@ func RunAPIOnly(ctx context.Context, deps Dependencies) error {
 
 func onceShutdown(servers []*http.Server, handler Handler) func(context.Context) error {
 	var shutdownOnce sync.Once
+	var shutdownErr error
 	return func(shutdownCtx context.Context) error {
-		var shutdownErr error
 		shutdownOnce.Do(func() {
 			for _, server := range servers {
 				if err := server.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) && shutdownErr == nil {
