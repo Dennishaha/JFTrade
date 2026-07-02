@@ -133,6 +133,33 @@ describe("ADKRunTrace", () => {
     expect(wrapper.text()).not.toContain("bulk.tool.80");
   });
 
+  it("toggles individual tool details and pages backward through long traces", async () => {
+    const toolCalls = Array.from({ length: 130 }, (_, index) =>
+      buildToolCall(`tool-${index + 1}`, `bulk.tool.${index + 1}`),
+    );
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun(toolCalls),
+        busy: false,
+        summaryExpanded: true,
+        expandedToolCallIds: [],
+        "onUpdate:expandedToolCallIds": (value: string[]) => {
+          void wrapper.setProps({ expandedToolCallIds: value });
+        },
+      },
+    });
+
+    await wrapper.get(".adk-run-trace-card--tool").trigger("click");
+    expect(wrapper.props("expandedToolCallIds")).toEqual(["tool-1"]);
+    expect(wrapper.text()).toContain('"query": "bulk.tool.1"');
+
+    await wrapper.get(".adk-run-trace-window button:last-child").trigger("click");
+    expect(wrapper.text()).toContain("81-130 / 130");
+
+    await wrapper.get(".adk-run-trace-window button:first-child").trigger("click");
+    expect(wrapper.text()).toContain("1-80 / 130");
+  });
+
   it("renders known tool output as an inline visualization and keeps raw JSON", () => {
     const wrapper = mount(ADKRunTrace, {
       props: {
@@ -198,6 +225,35 @@ describe("ADKRunTrace", () => {
     expect(wrapper.text()).toContain("调用了 2 个工具");
     expect(wrapper.text()).toContain("strategy.save_draft: disk full");
     expect(wrapper.text()).not.toContain('"query": "strategy.save_draft"');
+  });
+
+  it("truncates long collapsed tool errors before expansion", () => {
+    const longError =
+      "tool execution timed out while waiting for upstream confirmation and emitted a very long diagnostic message that should stay collapsed in the run summary card";
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun(
+          [
+            buildToolCall("tool-1", "portfolio.summary"),
+            buildToolCall(
+              "tool-2",
+              "strategy.save_draft",
+              "FAILED",
+              undefined,
+              longError,
+            ),
+          ],
+          "FAILED",
+          longError,
+        ),
+        busy: false,
+        summaryExpanded: false,
+        expandedToolCallIds: [],
+      },
+    });
+
+    expect(wrapper.text()).toContain("...");
+    expect(wrapper.text()).not.toContain(longError);
   });
 
   it("shows a collapsed single-tool error summary before expansion", () => {
@@ -271,6 +327,35 @@ describe("ADKRunTrace", () => {
     expect(workflowCard.find(".adk-status-pill.is-success").exists()).toBe(
       false,
     );
+  });
+
+  it("collapses expanded tools, formats second durations, and falls back for circular payloads", async () => {
+    const circular: Record<string, unknown> = { step: "circular" };
+    circular.self = circular;
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun([
+          {
+            ...buildToolCall("tool-1", "unknown.tool", "SUCCEEDED", circular),
+            input: circular,
+            durationMs: 1_500,
+          },
+        ]),
+        busy: false,
+        summaryExpanded: true,
+        expandedToolCallIds: ["tool-1"],
+        "onUpdate:expandedToolCallIds": (value: string[]) => {
+          void wrapper.setProps({ expandedToolCallIds: value });
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain("1.5 s");
+    expect(wrapper.text()).toContain("[object Object]");
+
+    await wrapper.get(".adk-run-trace-card--tool").trigger("click");
+    expect(wrapper.props("expandedToolCallIds")).toEqual([]);
+    expect(wrapper.find(".adk-run-trace-detail").exists()).toBe(false);
   });
 });
 

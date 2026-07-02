@@ -125,6 +125,144 @@ describe("SettingsExchangeCalendarSection", () => {
     await flushRequests();
     expect(wrapper.text()).toContain("US：更新 1 个源，失败 0 个源");
   });
+
+  it("switches sources from market cards, renders pending and disabled source health, and disables local-source actions", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/settings/exchange-calendars")) {
+        return createResponse({ exchangeCalendars: buildSettings() });
+      }
+
+      if (url.includes("/api/v1/system/exchange-calendars/status")) {
+        return createResponse({
+          ...buildStatus(),
+          markets: [
+            {
+              market: "US",
+              effectiveSource: "manual_override",
+              effectiveMode: "manual_override",
+              effectiveReason: "manual_override",
+              fallbackChain: ["manual_override", "staged_remote", "builtin_rules"],
+              checkedAt: "2026-06-24T10:00:00Z",
+            },
+            {
+              market: "HK",
+              effectiveSource: "builtin_rules",
+              effectiveMode: "builtin_fallback",
+              effectiveReason: "no fresh source covers HK",
+              fallbackChain: ["manual_override", "disabled_feed", "builtin_rules"],
+              checkedAt: "2026-06-24T10:00:00Z",
+            },
+          ],
+          sources: [
+            {
+              id: "manual_override",
+              kind: "manual_override",
+              authority: "workspace",
+              markets: ["US"],
+              enabled: true,
+            },
+            {
+              id: "staged_remote",
+              kind: "official_api",
+              authority: "Remote",
+              markets: ["US"],
+              enabled: true,
+            },
+            {
+              id: "disabled_feed",
+              kind: "official_ical",
+              authority: "Archive",
+              markets: ["HK"],
+              enabled: false,
+            },
+            {
+              id: "builtin_rules",
+              kind: "builtin_rules",
+              authority: "builtin",
+              markets: ["US", "HK"],
+              enabled: true,
+              healthState: "healthy",
+            },
+          ],
+          snapshots: [],
+        });
+      }
+
+      return createResponse({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(SettingsExchangeCalendarSection);
+    await flushRequests();
+
+    expect(wrapper.get("[data-testid='calendar-source-nav-staged_remote']").text()).toContain("待检测");
+    expect(wrapper.get("[data-testid='calendar-source-nav-disabled_feed']").text()).toContain("未启用");
+    expect(wrapper.text()).toContain("该源暂无外部日历缓存。");
+
+    await wrapper.get("[data-testid='calendar-market-US'] button").trigger("click");
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("manual_override 是本地规则源，不需要在线探测或刷新。");
+    expect(wrapper.get("[data-testid='calendar-probe']").attributes("disabled")).toBeDefined();
+    expect(wrapper.get("[data-testid='calendar-refresh']").attributes("disabled")).toBeDefined();
+  });
+
+  it("restores settings and falls back to default messages for non-Error failures", async () => {
+    let statusCalls = 0;
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/settings/exchange-calendars") && init?.method === "PUT") {
+        throw "save rejected";
+      }
+
+      if (url.includes("/api/v1/settings/exchange-calendars")) {
+        return createResponse({ exchangeCalendars: buildSettings() });
+      }
+
+      if (url.includes("/api/v1/system/exchange-calendars/probe")) {
+        throw "probe rejected";
+      }
+
+      if (url.includes("/api/v1/system/exchange-calendars/refresh")) {
+        throw "refresh rejected";
+      }
+
+      if (url.includes("/api/v1/system/exchange-calendars/status")) {
+        statusCalls += 1;
+        if (statusCalls === 1) {
+          return createResponse(buildStatus());
+        }
+        throw "reload rejected";
+      }
+
+      return createResponse({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(SettingsExchangeCalendarSection);
+    await flushRequests();
+
+    const toggle = wrapper.get("[data-testid='calendar-error-notifications-toggle']");
+    await toggle.setValue(false);
+    await flushRequests();
+    expect(wrapper.text()).toContain("保存交易所日历设置失败");
+    expect((toggle.element as HTMLInputElement).checked).toBe(true);
+
+    await wrapper.get("[data-testid='calendar-reload-status']").trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("刷新交易所日历状态失败");
+
+    await wrapper.get("[data-testid='calendar-probe']").trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("执行交易所日历探测失败");
+
+    await wrapper.get("[data-testid='calendar-refresh']").trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("刷新交易所日历失败");
+  });
 });
 
 function buildSettings() {

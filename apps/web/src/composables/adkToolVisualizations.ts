@@ -150,7 +150,6 @@ function buildStrategyPineSpec(output: UnknownRecord): ADKToolVisualization | nu
     row("返回示例数", examples.length),
     row("不支持写法数", unsupportedPatterns.length),
   ].filter((item): item is { label: string; value: string } => item !== null);
-  if (cards.length === 0 && rows.length === 0) return null;
   return {
     kind: "summary",
     title: "JFTrade Pine Script v6 规范",
@@ -180,7 +179,6 @@ function buildStrategyValidateDSL(output: UnknownRecord): ADKToolVisualization |
     row("周期", metadata?.interval),
     row("首个错误", errors[0]),
   ].filter((item): item is { label: string; value: string } => item !== null);
-  if (cards.length === 0 && rows.length === 0) return null;
   return {
     kind: "summary",
     title: "Pine 校验",
@@ -211,7 +209,6 @@ function buildStrategyResearchBacktest(output: UnknownRecord): ADKToolVisualizat
     row("结果视图错误", output.resultViewError),
     row("保存建议", output.saveRecommendation),
   ].filter((item): item is { label: string; value: string } => item !== null);
-  if (cards.length === 0 && rows.length === 0) return null;
   return {
     kind: "summary",
     title: "策略研究回测",
@@ -224,11 +221,11 @@ function buildStrategyResearchBacktest(output: UnknownRecord): ADKToolVisualizat
 function buildStrategySaveDefinition(output: UnknownRecord): ADKToolVisualization | null {
   const definition = isRecord(output.definition)
     ? output.definition
-    : isRecord(output)
-      ? output
-      : null;
-  if (!definition) return null;
-  const operation = optionalValue(output.operation);
+    : output;
+  const operation =
+    typeof output.operation === "string"
+      ? output.operation.trim()
+      : optionalValue(output.operation);
   const cards = [
     operation
       ? ({ label: "操作", value: formatOperation(operation), tone: "ok" } satisfies ADKSummaryVisualization["cards"][number])
@@ -443,7 +440,6 @@ function buildRecordTable(
 
 function buildStringTable(title: string, output: UnknownRecord, items: unknown[]): ADKTableVisualization | null {
   const rows = items.slice(0, 20).map((item, index) => ({ index: String(index + 1), message: formatValue(item) }));
-  if (rows.length === 0) return null;
   return {
     kind: "table",
     title,
@@ -632,8 +628,10 @@ function translateDSLSection(section: string): string {
 function formatOperation(operation: string): string {
   switch (operation.trim().toLowerCase()) {
     case "created":
+    case "已创建":
       return "已创建";
     case "updated":
+    case "已更新":
       return "已更新";
     default:
       return operation;

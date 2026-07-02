@@ -13,8 +13,17 @@ import {
   renderDefaultSourceBlock,
   replaceSourceRange,
   replaceSourceBlockKind,
+  readSourceBlockField,
+  sourceBlockEditableFields,
+  isPineV6WorkflowBlockKind,
   updateInstructionBlockParam,
 } from "../src/features/pineSourceStructureIndex";
+import {
+  classifyIndexedRawCall,
+  classifyIndexedRawDeclaration,
+  classifyIndexedRawDefinition,
+  classifyIndexedRawObject,
+} from "../src/features/pineSourceStructureRules";
 
 describe("pineSourceStructureIndex", () => {
   it("classifies Pine source into visual structure nodes and raw anchors", () => {
@@ -686,6 +695,127 @@ import TradingView/ta/7 as ta7
     }
   });
 
+  it("renders raw fallbacks, array operations, unsupported blocks, and input defaults", () => {
+    expect(
+      renderBlockToSource({
+        raw: "custom.raw()",
+        depth: 0,
+        match: { type: "raw" },
+      } as any),
+    ).toBe("custom.raw()");
+
+    expect(
+      renderBlockToSource({
+        raw: "",
+        depth: 1,
+        match: {
+          type: "instruction",
+          block: {
+            kind: "array_op",
+            params: { mode: "push", name: "values", value: "open" },
+          },
+        },
+      } as any),
+    ).toBe("    array.push(values, open)");
+    expect(
+      renderBlockToSource({
+        raw: "",
+        depth: 1,
+        match: {
+          type: "instruction",
+          block: {
+            kind: "array_op",
+            params: { mode: "median", name: "values", output: "mid" },
+          },
+        },
+      } as any),
+    ).toBe("    mid = array.median(values)");
+    expect(
+      renderBlockToSource({
+        raw: "",
+        depth: 1,
+        match: {
+          type: "instruction",
+          block: {
+            kind: "array_op",
+            params: { mode: "new_float", name: "scratch" },
+          },
+        },
+      } as any),
+    ).toBe("    var scratch = array.new_float()");
+    expect(
+      renderBlockToSource({
+        raw: "",
+        depth: 1,
+        match: {
+          type: "instruction",
+          block: {
+            kind: "custom_block",
+            params: {},
+          },
+        },
+      } as any),
+    ).toBe("    custom_block");
+
+    const inputs = [
+      {
+        name: "flag",
+        title: "Flag",
+        type: "bool",
+        expected: '    flag = input.bool(false, "Flag")',
+      },
+      {
+        name: "seriesInput",
+        title: "Series",
+        type: "source",
+        expected: '    seriesInput = input.source(close, "Series")',
+      },
+      {
+        name: "startTime",
+        title: "Start",
+        type: "time",
+        expected:
+          '    startTime = input.time(timestamp(2026, 1, 1, 0, 0), "Start")',
+      },
+      {
+        name: "tf",
+        title: "Timeframe",
+        type: "timeframe",
+        expected: '    tf = input.timeframe("D", "Timeframe")',
+      },
+      {
+        name: "theme",
+        title: "Theme",
+        type: "color",
+        expected: '    theme = input.color(color.blue, "Theme")',
+      },
+      {
+        name: "count",
+        title: "Count",
+        type: "int",
+        expected: '    count = input.int(1, "Count")',
+      },
+    ] as const;
+
+    for (const input of inputs) {
+      expect(
+        renderBlockToSource({
+          raw: "",
+          depth: 1,
+          match: {
+            type: "input",
+            input: {
+              name: input.name,
+              title: input.title,
+              type: input.type,
+              defaultValue: undefined,
+            },
+          },
+        } as any),
+      ).toBe(input.expected);
+    }
+  });
+
   it("inserts new blocks into the selected scope or bar-closed main flow", () => {
     const source = `//@version=6
 strategy("Insert", overlay=true)
@@ -745,5 +875,198 @@ import TradingView/ta/7 as ta7
     const replaced = replaceSourceBlockKind(source, order.id, "strategy_order").source;
     expect(replaced).toContain('strategy.order("Order", strategy.long)');
     expect(replaced).not.toContain('strategy.entry("Long", strategy.long)');
+  });
+
+  it("classifies raw Pine definitions, calls, objects, and declarations beyond the workflow subset", () => {
+    expect(classifyIndexedRawDefinition('library("Core")')).toMatchObject({
+      kind: "library",
+      label: "库声明",
+      detail: "Core",
+    });
+    expect(classifyIndexedRawDefinition("indicator(\"Trend\")")).toMatchObject({
+      kind: "declaration",
+      label: "指标声明",
+      detail: "Trend",
+    });
+    expect(classifyIndexedRawDefinition("type TradeState = int")).toMatchObject({
+      kind: "type",
+      label: "类型定义 TradeState",
+    });
+    expect(classifyIndexedRawDefinition("export method crossUp(series float src) => src > src[1]")).toMatchObject({
+      kind: "method",
+      label: "导出方法 crossUp",
+    });
+
+    expect(classifyIndexedRawCall("strategy.close_all()")).toMatchObject({ kind: "order", label: "全部平仓" });
+    expect(classifyIndexedRawCall("strategy.cancel_all()")).toMatchObject({ kind: "order", label: "撤销订单" });
+    expect(classifyIndexedRawCall("strategy.risk.max_drawdown(10, strategy.cash)")).toMatchObject({ kind: "order", label: "风控声明" });
+    expect(classifyIndexedRawCall('request.security_lower_tf(syminfo.tickerid, "1", close)')).toMatchObject({ kind: "request", label: "低周期请求" });
+    expect(classifyIndexedRawCall('request.currency_rate("USD", "HKD")')).toMatchObject({ kind: "request", label: "汇率请求" });
+    expect(classifyIndexedRawCall('request.dividends("AAPL")')).toMatchObject({ kind: "request", label: "分红请求" });
+    expect(classifyIndexedRawCall('request.splits("AAPL")')).toMatchObject({ kind: "request", label: "拆股请求" });
+    expect(classifyIndexedRawCall('request.earnings("AAPL")')).toMatchObject({ kind: "request", label: "财报请求" });
+    expect(classifyIndexedRawCall("matrix.new<float>()")).toMatchObject({ kind: "collection", label: "矩阵操作" });
+    expect(classifyIndexedRawCall("plotshape(close > open)")).toMatchObject({ kind: "visual", label: "形状绘图" });
+    expect(classifyIndexedRawCall("plotchar(close > open)")).toMatchObject({ kind: "visual", label: "字符绘图" });
+    expect(classifyIndexedRawCall("hline(10)")).toMatchObject({ kind: "visual", label: "水平线" });
+    expect(classifyIndexedRawCall("fill(plot1, plot2)")).toMatchObject({ kind: "visual", label: "填充区域" });
+    expect(classifyIndexedRawCall("bgcolor(color.red)")).toMatchObject({ kind: "visual", label: "背景着色" });
+    expect(classifyIndexedRawCall("barcolor(color.green)")).toMatchObject({ kind: "visual", label: "K 线着色" });
+    expect(classifyIndexedRawCall('label.new(bar_index, close, "hi")')).toMatchObject({ kind: "visual", label: "标签绘制" });
+    expect(classifyIndexedRawCall("line.new(bar_index, close, bar_index + 1, close)")).toMatchObject({ kind: "visual", label: "线段绘制" });
+    expect(classifyIndexedRawCall("box.new(bar_index, high, bar_index + 1, low)")).toMatchObject({ kind: "visual", label: "矩形绘制" });
+    expect(classifyIndexedRawCall("table.new(position.top_right, 1, 1)")).toMatchObject({ kind: "visual", label: "表格绘制" });
+
+    expect(classifyIndexedRawObject("state.value := close")).toMatchObject({ kind: "object", label: "对象字段更新 state.value" });
+    expect(classifyIndexedRawObject("TradeState.new()")).toMatchObject({ kind: "object", label: "对象构造 TradeState" });
+    expect(classifyIndexedRawObject("portfolio[1].value")).toMatchObject({ kind: "object", label: "对象历史读取 portfolio" });
+    expect(classifyIndexedRawObject("portfolio.sync(close)")).toMatchObject({ kind: "object", label: "对象方法 portfolio" });
+    expect(classifyIndexedRawObject("portfolio.value")).toMatchObject({ kind: "object", label: "对象字段读取 portfolio" });
+
+    expect(classifyIndexedRawDeclaration("[fast, slow] = ta.macd(close, 12, 26, 9)")).toMatchObject({
+      kind: "declaration",
+      label: "Tuple 解构",
+    });
+    expect(classifyIndexedRawDeclaration("cache.value := close")).toMatchObject({
+      kind: "assignment",
+      label: "重赋值 cache.value",
+    });
+    expect(classifyIndexedRawDeclaration("var float score = 1")).toMatchObject({
+      kind: "declaration",
+      label: "类型状态变量 score",
+    });
+    expect(classifyIndexedRawDeclaration('const string title = "Alpha"')).toMatchObject({
+      kind: "declaration",
+      label: "常量声明 title",
+    });
+    expect(classifyIndexedRawDeclaration("MyType value")).toMatchObject({
+      kind: "declaration",
+      label: "字段声明 value",
+    });
+  });
+
+  it("exposes editable fields and source values for every workflow-facing source block type", () => {
+    const blocks = buildPineSourceStructureIndex(`//@version=6
+strategy("Editor", overlay=true)
+length = input.int(20, "Length")
+signal = close > open
+var armed = false
+if close > open
+request_security_value = request.security(syminfo.tickerid, "D", close)
+strategy.entry("Long", strategy.long)
+strategy.exit("Exit", from_entry="Long", stop=99)
+strategy.close("Long", qty_percent=50)
+strategy.close_all()
+strategy.cancel("Long")
+strategy.cancel_all()
+strategy.risk.allow_entry_in(strategy.direction.short)
+strategy.risk.max_drawdown(10, strategy.cash, alert_message="dd")
+strategy.risk.max_intraday_filled_orders(4, alert_message="fills")
+strategy.risk.max_position_size(2)
+plot(close, "Close")
+alertcondition(close > open, "Bull", "go")
+log.info("hello")
+var values = array.new_float()`);
+
+    const strategy = blocks.find((block) => block.kind === "strategy")!;
+    const input = blocks.find((block) => block.kind === "input")!;
+    const condition = blocks.find((block) => block.kind === "condition")!;
+    const request = blocks.find((block) => block.kind === "request")!;
+    const entry = blocks.find((block) => block.raw.startsWith("strategy.entry"))!;
+    const exit = blocks.find((block) => block.raw.startsWith("strategy.exit"))!;
+    const close = blocks.find((block) => block.raw.startsWith("strategy.close("))!;
+    const closeAll = blocks.find((block) => block.raw.startsWith("strategy.close_all"))!;
+    const cancel = blocks.find((block) => block.raw.startsWith("strategy.cancel("))!;
+    const cancelAll = blocks.find((block) => block.raw.startsWith("strategy.cancel_all"))!;
+    const riskDirection = blocks.find((block) => block.raw.startsWith("strategy.risk.allow_entry_in"))!;
+    const riskDrawdown = blocks.find((block) => block.raw.startsWith("strategy.risk.max_drawdown"))!;
+    const riskCount = blocks.find((block) => block.raw.startsWith("strategy.risk.max_intraday_filled_orders"))!;
+    const riskPosition = blocks.find((block) => block.raw.startsWith("strategy.risk.max_position_size"))!;
+    const plot = blocks.find((block) => block.kind === "visual")!;
+    const alert = blocks.find((block) => block.raw.startsWith("alertcondition("))!;
+    const log = blocks.find((block) => block.kind === "log")!;
+    const collection = blocks.find((block) => block.raw.startsWith("var values = array.new_float"))!;
+
+    expect(sourceBlockEditableFields(strategy).map((field) => field.key)).toEqual(["title", "initialCapital", "pyramiding", "defaultQtyValue"]);
+    expect(sourceBlockEditableFields(input).map((field) => field.key)).toEqual(["name", "type", "title", "defaultValue"]);
+    expect(sourceBlockEditableFields(condition)).toEqual([{ key: "condition", label: "条件" }]);
+    expect(sourceBlockEditableFields(request).map((field) => field.key)).toEqual(["name", "symbol", "timeframe", "expression"]);
+    expect(sourceBlockEditableFields(entry).map((field) => field.key)).toContain("oca_name");
+    expect(sourceBlockEditableFields(exit).map((field) => field.key)).toContain("trail_offset");
+    expect(sourceBlockEditableFields(close).map((field) => field.key)).toContain("immediately");
+    expect(sourceBlockEditableFields(closeAll).map((field) => field.key)).toEqual(["immediately", "comment", "alert_message", "disable_alert"]);
+    expect(sourceBlockEditableFields(cancel)).toEqual([{ key: "id", label: "订单 ID" }]);
+    expect(sourceBlockEditableFields(cancelAll)).toEqual([]);
+    expect(sourceBlockEditableFields(riskDirection)[0]).toMatchObject({ key: "direction", kind: "select" });
+    expect(sourceBlockEditableFields(riskDrawdown).map((field) => field.key)).toEqual(["value", "type", "alert_message"]);
+    expect(sourceBlockEditableFields(riskCount).map((field) => field.key)).toEqual(["count", "alert_message"]);
+    expect(sourceBlockEditableFields(riskPosition)).toEqual([{ key: "contracts", label: "合约数量" }]);
+    expect(sourceBlockEditableFields(plot).map((field) => field.key)).toEqual(["series", "title", "color"]);
+    expect(sourceBlockEditableFields(alert).map((field) => field.key)).toEqual(["condition", "title", "message"]);
+    expect(sourceBlockEditableFields(log)).toEqual([{ key: "message", label: "消息" }]);
+    expect(sourceBlockEditableFields(collection).map((field) => field.key)).toEqual(["name", "mode", "value", "output"]);
+
+    expect(readSourceBlockField(strategy, "title")).toBe("Editor");
+    expect(readSourceBlockField(input, "defaultValue")).toBe("20");
+    expect(readSourceBlockField(entry, "id")).toBe("Long");
+    expect(readSourceBlockField(log, "message")).toBe("hello");
+    expect(readSourceBlockField({ ...strategy, match: { type: "raw" } }, "title")).toBe("");
+
+    expect(updateInstructionBlockParam({ ...strategy, match: { type: "raw" } }, "unused", "x")).toEqual({
+      ...strategy,
+      match: { type: "raw" },
+    });
+    expect(isPineV6WorkflowBlockKind("strategy_exit")).toBe(true);
+    expect(isPineV6WorkflowBlockKind("legacy")).toBe(false);
+  });
+
+  it("builds workflow snapshots through barClosed wrappers and empty else branches", () => {
+    const source = `//@version=6
+strategy("Wrapped", overlay=false)
+// wrapper
+barClosed = barstate.isconfirmed
+if barClosed
+    if close > open
+        strategy.entry("Long", strategy.long)
+    else
+log.info("wrapped")
+`;
+
+    const blocks = parseSourceToBlocks(source);
+    const flatBlocks = buildPineSourceStructureIndex(source);
+    expect(blocks.map((block) => block.kind)).toContain("comment");
+    expect(blocks.find((block) => block.kind === "comment")?.detail).toBe("wrapper");
+    expect(flatBlocks.find((block) => block.kind === "condition" && block.detail === "close > open")?.children.some((child) => child.kind === "branch")).toBe(true);
+
+    const snapshot = buildWorkflowSnapshotFromSource(source);
+    expect(snapshot.declaration.overlay).toBe(false);
+    expect(snapshot.blocks).toHaveLength(2);
+    expect(snapshot.blocks.map((block) => block.kind)).toEqual(["if", "log"]);
+    expect(snapshot.blocks[0]).toMatchObject({
+      kind: "if",
+      thenBlocks: [expect.objectContaining({ kind: "strategy_entry" })],
+      elseBlocks: [],
+    });
+  });
+
+  it("coerces editable declaration values to backend-safe primitive types", () => {
+    const strategy = buildPineSourceStructureIndex(`strategy("Types", overlay=true)\n`)[0]!;
+
+    const invalidCapital = updateInstructionBlockParam(strategy, "initialCapital", "bad");
+    const overlayFalse = updateInstructionBlockParam(strategy, "overlay", "false");
+    const overlayTrue = updateInstructionBlockParam(strategy, "overlay", "true");
+
+    expect(invalidCapital.match).toMatchObject({
+      type: "strategy",
+      declaration: expect.objectContaining({ initialCapital: null }),
+    });
+    expect(overlayFalse.match).toMatchObject({
+      type: "strategy",
+      declaration: expect.objectContaining({ overlay: false }),
+    });
+    expect(overlayTrue.match).toMatchObject({
+      type: "strategy",
+      declaration: expect.objectContaining({ overlay: true }),
+    });
   });
 });

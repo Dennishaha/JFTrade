@@ -99,11 +99,7 @@ export function buildStrategyPineFromVisualModel(
   );
 
   for (const root of [...initRoots, ...klineRoots]) {
-    const hookLines = renderHook(root, state);
-    if (hookLines.length === 0) {
-      continue;
-    }
-    lines.push("", ...hookLines);
+    lines.push("", ...renderHook(root, state));
   }
 
   if (initRoots.length === 0 && klineRoots.length === 0) {
@@ -153,11 +149,6 @@ function renderHook(
   root: StrategyVisualNodeDocument,
   state: RenderState,
 ): string[] {
-  const kind = getStrategyBlockKind(root);
-  if (kind !== "onInit" && kind !== "onKLineClosed") {
-    return [];
-  }
-
   state.emittedIndicatorNodeIds.clear();
   state.emittedStatementNodeIds.clear();
 
@@ -205,10 +196,6 @@ function renderNode(
 
   const kind = getStrategyBlockKind(node);
   assertSupportedVisualBlockKind(node, kind);
-
-  if (kind === null) {
-    throw new Error(`不支持的流程图块：${node.properties.blockKind ?? node.id}`);
-  }
 
   switch (kind) {
     case "onInit":
@@ -549,7 +536,7 @@ function renderGetTechnicalIndicatorNode(
   depth: number,
   visited: Set<string>,
 ): string[] {
-  const lines = renderIndicatorDeclaration(node, state, depth, true);
+  const lines = renderIndicatorDeclaration(node, state, depth);
   return [
     ...lines,
     ...renderControlChildren(node.id, state, depth, visited),
@@ -564,7 +551,7 @@ function renderTechnicalIndicatorConditionNode(
 ): string[] {
   const properties = normalizeTechnicalIndicatorConditionProperties(node.properties ?? {});
   const inputs = incomingIndicatorInputs(node.id, state, properties);
-  const setupLines = inputs.flatMap((input) => renderIndicatorDeclaration(input.node, state, depth, true));
+  const setupLines = inputs.flatMap((input) => renderIndicatorDeclaration(input.node, state, depth));
   const expression = buildTechnicalIndicatorConditionExpression(properties, inputs) ?? "false";
   const trueBody = renderControlChildren(node.id, state, depth + 1, new Set(visited), "true");
   const falseBody = renderControlChildren(node.id, state, depth + 1, new Set(visited), "false");
@@ -606,7 +593,6 @@ function renderIndicatorDeclaration(
   node: StrategyVisualNodeDocument,
   state: RenderState,
   depth: number,
-  includeChildren: boolean,
 ): string[] {
   if (state.emittedIndicatorNodeIds.has(node.id)) {
     return [];
@@ -618,26 +604,16 @@ function renderIndicatorDeclaration(
   state.emittedStatementNodeIds.add(node.id);
 
   if (properties.indicatorType === "kdj") {
-    const lines = [
+    return [
       ...buildStrategyFlowNodeAnnotation(node, depth, { variableName }),
       ...buildKDJIndicatorStatements(variableName, properties).map((line) => `${indent(depth)}${line}`),
     ];
-    if (!includeChildren) {
-      return lines;
-    }
-    return lines;
   }
 
-  const lines = [
+  return [
     ...buildStrategyFlowNodeAnnotation(node, depth, { variableName }),
     `${indent(depth)}${variableName} = ${buildIndicatorExpression(properties)}`,
   ];
-
-  if (!includeChildren) {
-    return lines;
-  }
-
-  return lines;
 }
 
 function incomingIndicatorInputs(
@@ -1041,10 +1017,7 @@ function buildOrderStatement(node: StrategyVisualNodeDocument): string {
 
   const quantityMode = normalizeQuantityModeForSide(node.properties.quantityMode, side);
   const quantityValue = normalizeDecimal(node.properties.quantityValue, 100);
-  const quantityArgumentName = quantityMode === "equityPercent"
-    ? "qty_percent"
-    : "qty";
-  const quantityOption = quantityArgumentName === "qty_percent"
+  const quantityOption = quantityMode === "equityPercent"
     ? `qty_percent=${formatNumber(quantityValue)}`
     : `qty=${buildPineQuantityExpression(quantityMode, quantityValue)}`;
   const orderType = normalizeOrderType(node.properties.orderType);
@@ -1158,15 +1131,13 @@ function normalizePineOrderId(value: unknown): string | null {
 }
 
 function buildPineQuantityExpression(
-  quantityMode: ReturnType<typeof normalizeQuantityModeForSide>,
+  quantityMode: Exclude<ReturnType<typeof normalizeQuantityModeForSide>, "equityPercent">,
   quantityValue: number,
 ): string {
   const value = formatNumber(quantityValue);
   switch (quantityMode) {
     case "amount":
       return `(${value} / close)`;
-    case "equityPercent":
-      return `((strategy.equity * ${value} / 100) / close)`;
     case "shares":
     default:
       return value;

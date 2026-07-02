@@ -165,6 +165,12 @@ describe("useBacktestRuns", () => {
             marketFee: 2,
             totalFee: 3,
             feeCurrency: "USD",
+          }, {
+            orderId: "order-2",
+            symbol: "US.AAPL",
+            side: "SELL",
+            quantity: 5,
+            status: "NEW",
           }],
           candles: [{
             time: "2026-06-02T00:00:00Z",
@@ -200,6 +206,12 @@ describe("useBacktestRuns", () => {
       filledPrice: undefined,
       filledPriceText: "not-a-number",
     });
+    expect(result?.orderBook?.[1]).toMatchObject({
+      quantity: 5,
+      orderPrice: undefined,
+      filledQuantity: undefined,
+      filledPrice: undefined,
+    });
     expect(result?.candles?.[0]).toMatchObject({
       open: 0,
       openText: undefined,
@@ -226,6 +238,36 @@ describe("useBacktestRuns", () => {
 
     apiGet.mockRejectedValueOnce(new Error("backend starting"));
     await expect(state.loadRuns()).resolves.toBeUndefined();
+  });
+
+  it("prefers richer duplicate runs when timestamps do not decide the merge", async () => {
+    const minimalResult = {
+      symbol: "US.AAPL",
+      interval: "5m",
+      startTime: "2026-06-01T00:00:00Z",
+      endTime: "2026-06-30T00:00:00Z",
+      finalBalance: 100001,
+      pnl: 1,
+      totalTrades: 1,
+      winRate: 1,
+    };
+    apiGet.mockResolvedValue({
+      runs: [
+        makeRun("prefer-result", { status: "running", updatedAt: "invalid-date" }),
+        makeRun("prefer-result", { status: "running", updatedAt: "invalid-date", result: minimalResult }),
+        makeRun("keep-result", { status: "running", updatedAt: "invalid-date", result: minimalResult }),
+        makeRun("keep-result", { status: "running", updatedAt: "invalid-date" }),
+        makeRun("prefer-completed", { status: "running", updatedAt: "2026-07-01T00:00:00Z" }),
+        makeRun("prefer-completed", { status: "completed", updatedAt: "2026-07-01T00:00:00Z" }),
+      ],
+    });
+    const { state } = mountBacktestRuns();
+
+    await state.loadRuns();
+
+    expect(state.runs.value.find((run) => run.id === "prefer-result")?.result).toBeDefined();
+    expect(state.runs.value.find((run) => run.id === "keep-result")?.result).toBeDefined();
+    expect(state.runs.value.find((run) => run.id === "prefer-completed")?.status).toBe("completed");
   });
 
   it("loads missing details once and reports detail failures", async () => {
@@ -309,12 +351,16 @@ describe("useBacktestRuns", () => {
     await valid.state.cancelSync();
   });
 
-  it("starts a backtest and applies a terminal polling update", async () => {
+  it("starts a backtest, patches polled status, and preserves unrelated runs", async () => {
     vi.useFakeTimers();
     vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue(undefined);
     fetchEnvelopeWithInit.mockResolvedValue({ id: "run-new", status: "queued" });
-    apiGet.mockResolvedValue({ runs: [makeRun("run-new", { status: "completed" })] });
-    fetchEnvelope.mockResolvedValue({ id: "run-new", status: "completed" });
+    apiGet
+      .mockResolvedValueOnce({ runs: [makeRun("run-new", { status: "queued" }), makeRun("other")] })
+      .mockResolvedValueOnce({ runs: [makeRun("run-new", { status: "completed" }), makeRun("other")] });
+    fetchEnvelope
+      .mockResolvedValueOnce({ id: "run-new", status: "running" })
+      .mockResolvedValueOnce({ id: "run-new", status: "completed" });
     const { state } = mountBacktestRuns();
 
     const start = state.startBacktest();
@@ -323,7 +369,7 @@ describe("useBacktestRuns", () => {
     expect(fetchEnvelopeWithInit).toHaveBeenCalledWith("/api/v1/backtests", expect.objectContaining({ method: "POST" }));
     expect(state.running.value).toBe(false);
 
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(4000);
     for (let index = 0; index < 5; index += 1) await Promise.resolve();
     await vi.advanceTimersByTimeAsync(0);
     await nextTick();
@@ -331,6 +377,7 @@ describe("useBacktestRuns", () => {
     expect(apiGet).toHaveBeenCalledTimes(2);
     const cachedRuns = queryClient.getQueryData<Array<{ id: string; status: string }>>(queryKeys.backtestRuns());
     expect(cachedRuns?.find((run) => run.id === "run-new")?.status).toBe("completed");
+    expect(cachedRuns?.find((run) => run.id === "other")?.status).toBe("completed");
   });
 
   it("handles missing definitions, invalid instruments, start errors, and polling exhaustion", async () => {

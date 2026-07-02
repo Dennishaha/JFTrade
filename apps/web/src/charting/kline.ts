@@ -300,9 +300,6 @@ function truncateSnapshotTimeToPeriod(
   period: string,
 ): string | null {
   const date = new Date(timestampMs);
-  if (!Number.isFinite(date.getTime())) {
-    return null;
-  }
 
   switch (period) {
     case "1m":

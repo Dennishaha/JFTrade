@@ -10,6 +10,7 @@ import {
   emptyBrokerRuntime,
   emptyBrokerSettings,
   emptyExecutionOrders,
+  emptyMarketDataSubscriptions,
   emptyPortfolioCashBalances,
   emptyPortfolioCashReconciliation,
   emptyPortfolioPositions,
@@ -28,6 +29,7 @@ import {
 
 import {
   MockWebSocket,
+  createLiveEnvelope,
   createResponse,
   flushRequests,
   mountApp,
@@ -43,6 +45,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
   MockWebSocket.instances = [];
 });
+
+function findLiveEventStream(): MockWebSocket | undefined {
+  return MockWebSocket.instances.find((instance) =>
+    instance.url.includes("/api/v1/ws/live"),
+  );
+}
 
 describe("TopBar trading environment switch", () => {
   it("filters account list in picker by environment and auto-selects the first available account", async () => {
@@ -151,7 +159,26 @@ describe("TopBar trading environment switch", () => {
       if (url.includes("/api/v1/brokers/futu/funds"))
         return createResponse(emptyBrokerFunds);
       if (url.includes("/api/v1/brokers/futu/positions"))
-        return createResponse(emptyBrokerPositions);
+        return createResponse({
+          ...emptyBrokerPositions,
+          positions: [
+            {
+              accountId: "SIM-001",
+              tradingEnvironment: "SIMULATE",
+              market: "HK",
+              symbol: "HK.00700",
+              symbolName: "Tencent",
+              quantity: 100,
+              sellableQuantity: 100,
+              lastPrice: 320,
+              costPrice: 300,
+              averageCostPrice: 300,
+              marketValue: 32000,
+              unrealizedPnl: 2000,
+              realizedPnl: 0,
+            },
+          ],
+        });
       if (url.includes("/api/v1/brokers/futu/orders"))
         return createResponse(emptyBrokerOrders);
       if (url.includes("/api/v1/brokers/futu/cash-flows"))
@@ -188,6 +215,26 @@ describe("TopBar trading environment switch", () => {
           ],
         });
       }
+      if (url.includes("/api/v1/market-data/subscriptions")) {
+        return createResponse({
+          ...emptyMarketDataSubscriptions,
+          entries: [
+            {
+              key: "SNAPSHOT:HK.00700",
+              channel: "SNAPSHOT",
+              market: "HK",
+              symbol: "00700",
+              instrumentId: "HK.00700",
+              interval: null,
+              depthLevel: null,
+              consumers: ["web:test-shell-only"],
+              refCount: 1,
+              createdAt: "2026-05-17T00:00:00.000Z",
+              updatedAt: "2026-05-17T00:01:00.000Z",
+            },
+          ],
+        });
+      }
       if (url.includes("/api/v1/market-data/instruments/normalize")) {
         const body = JSON.parse(String(init?.body ?? "{}")) as {
           market?: string;
@@ -217,6 +264,46 @@ describe("TopBar trading environment switch", () => {
 
     const { wrapper } = await mountApp("/test-shell-only");
     await waitForShellData();
+    const liveStream = findLiveEventStream();
+
+    expect(
+      wrapper.get('[data-testid="topbar-instrument-market"]').findAll("option"),
+    ).toHaveLength(1);
+
+    liveStream?.emitMessage(
+      createLiveEnvelope(
+        {
+          type: "system.notification",
+          id: "topbar-notification-1",
+          at: "2026-07-03T00:00:00.000Z",
+          level: "warn",
+          title: "OpenD 连接状态变化",
+          message: "行情未登录",
+          source: "futu-opend",
+          brokerId: "futu",
+          category: "broker.connection",
+        },
+        {
+          source: "notification",
+          entityId: "topbar-notification-1",
+          eventId: "topbar-notification-1",
+        },
+      ),
+    );
+    await flushRequests();
+    expect(
+      Number(wrapper.find('button[title="通知"] .tv-badge').text()),
+    ).toBeGreaterThan(0);
+
+    const commandPaletteButton = wrapper.findAll("button").find((button) =>
+      button.attributes("title")?.includes("命令面板"),
+    );
+    expect(commandPaletteButton).toBeDefined();
+    await commandPaletteButton!.trigger("click");
+    await flushRequests();
+    expect(
+      wrapper.find('input[placeholder="键入命令或搜索路由…"]').exists(),
+    ).toBe(true);
 
     const pickerOpenButton = wrapper.get(
       '[data-testid="topbar-broker-account-picker-open"]',
@@ -233,6 +320,16 @@ describe("TopBar trading environment switch", () => {
     expect(initialItemTexts.some((text) => text.includes("REAL-001"))).toBe(
       false,
     );
+
+    const favoriteButton = wrapper.get(
+      '[data-testid="topbar-broker-account-item-favorite"]',
+    );
+    expect(favoriteButton.text()).toBe("☆");
+    await favoriteButton.trigger("click");
+    await flushRequests();
+    expect(
+      wrapper.find('[data-testid="topbar-broker-account-item-favorite"]').text(),
+    ).toBe("★");
 
     const pickerCloseButton = wrapper.get(
       '[data-testid="topbar-broker-account-picker-close"]',
@@ -268,6 +365,30 @@ describe("TopBar trading environment switch", () => {
     );
     expect(realOnlyItemTexts.some((text) => text.includes("SIM-001"))).toBe(
       false,
+    );
+
+    await wrapper
+      .findAll('[data-testid="topbar-broker-account-item"] button')
+      [0]!.trigger("click");
+    await flushRequests();
+    expect(pickerOpenButton.text()).toContain("REAL-001");
+
+    const themeToggle = wrapper.findAll("button").find((button) =>
+      button.attributes("title")?.startsWith("主题："),
+    );
+    expect(themeToggle).toBeDefined();
+    const themeBefore = themeToggle!.text();
+    await themeToggle!.trigger("click");
+    await flushRequests();
+    expect(themeToggle!.text()).not.toBe(themeBefore);
+
+    await wrapper.get('button[title="通知"]').trigger("click");
+    expect(
+      wrapper.get('[data-testid="rightdock-tab-notifications"]').classes(),
+    ).toContain("is-active");
+    await wrapper.get('button[title="AI 助手"]').trigger("click");
+    expect(wrapper.get('[data-testid="rightdock-tab-ai"]').classes()).toContain(
+      "is-active",
     );
 
     const statusRequestsAfterSwitch = fetchMock.mock.calls.filter(

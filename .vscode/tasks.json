@@ -29,11 +29,62 @@
             }
         },
         {
+            "label": "go:lint",
+            "type": "shell",
+            "command": "${env:HOME}/go/bin/golangci-lint",
+            "args": [
+                "run",
+                "--timeout=5m"
+            ],
+            "group": "test",
+            "problemMatcher": [
+                "$go"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "close": false
+            }
+        },
+        {
             "label": "build:web",
             "type": "npm",
             "script": "build:web",
             "group": "build",
             "problemMatcher": []
+        },
+        {
+            "label": "test:web",
+            "type": "npm",
+            "script": "test:web",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "typecheck:web",
+            "type": "npm",
+            "script": "typecheck:web",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "ci:web-local",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "generate:docs",
+                "go:lint",
+                "test:web",
+                "typecheck:web"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "close": false
+            }
         },
         {
             "label": "build:docs",

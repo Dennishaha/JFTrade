@@ -34,16 +34,67 @@ vi.mock("../src/composables/useConsoleData", () => ({
 
 import OrderBookPanel from "../src/components/workspace/OrderBookPanel.vue";
 
-function mountOrderBookPanel() {
+type SetupState = Record<string, unknown>;
+
+function mountOrderBookPanel(options: {
+  market?: string;
+  symbol?: string;
+  period?: string;
+} = {}) {
   const Host = defineComponent({
     setup() {
       const store = provideWorkspaceTradingPreferencesStore();
-      store.update({ market: "US", symbol: "TME", period: "1m" });
+      store.update({
+        market: options.market ?? "US",
+        symbol: options.symbol ?? "TME",
+        period: options.period ?? "1m",
+      });
       workspacePrefs = store.prefs;
       return () => h(OrderBookPanel);
     },
   });
   return mount(Host);
+}
+
+function panelSetup(wrapper: ReturnType<typeof mountOrderBookPanel>): SetupState {
+  return wrapper.findComponent(OrderBookPanel).vm.$.setupState as SetupState;
+}
+
+function readSetupValue<T>(
+  wrapper: ReturnType<typeof mountOrderBookPanel>,
+  key: string,
+): T {
+  const value = panelSetup(wrapper)[key];
+  if (value !== null && typeof value === "object" && "value" in value) {
+    return (value as { value: T }).value;
+  }
+  return value as T;
+}
+
+function callSetup<T>(
+  wrapper: ReturnType<typeof mountOrderBookPanel>,
+  key: string,
+  ...args: unknown[]
+): T {
+  return (panelSetup(wrapper)[key] as (...values: unknown[]) => T)(...args);
+}
+
+async function flushOrderBook(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await nextTick();
+  await Promise.resolve();
+  await nextTick();
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
 }
 
 function createDepthEnvelope<TPayload extends {
@@ -350,5 +401,486 @@ describe("OrderBookPanel", () => {
     expect(wrapper.text()).toContain("18.52");
 
     wrapper.unmount();
+  });
+
+  it("uses broker defaults, computes ratio cards, and keeps helper formatting aligned with market data", async () => {
+    fetchEnvelopeMock.mockResolvedValueOnce({
+      descriptor: {
+        capabilities: [
+          {
+            readFeatures: {
+              orderBook: {
+                defaultNum: 20,
+                numPresets: [5, 10, 20, 50],
+              },
+            },
+          },
+        ],
+      },
+    });
+    marketSecurityDetails.value = {
+      security: {
+        instrumentId: "US.TME",
+        bidPrice: 18.41,
+        askPrice: 18.59,
+        bidVolume: 600,
+        askVolume: 400,
+        currentPrice: 18.55,
+        lastClosePrice: 18,
+      },
+    };
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+      "/api/v1/market-data/depth/US/TME?num=20",
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(wrapper.text()).toContain("Bid 60.00%");
+    expect(wrapper.text()).toContain("Ask 40.00%");
+    expect(readSetupValue<number | null>(wrapper, "lastPrice")).toBe(18.55);
+    expect(readSetupValue<number | null>(wrapper, "changeFromClose")).toBeCloseTo(0.55);
+    expect(readSetupValue<number | null>(wrapper, "changePercent")).toBeCloseTo(
+      3.055555,
+      5,
+    );
+    expect(readSetupValue<string | null>(wrapper, "bidRatioPercent")).toBe("60.00");
+    expect(readSetupValue<string | null>(wrapper, "askRatioPercent")).toBe("40.00");
+    expect(callSetup<string>(wrapper, "fmtPrice", null)).toBe("--");
+    expect(callSetup<string>(wrapper, "fmtPrice", 0.45678)).toBe("0.4568");
+    expect(callSetup<string>(wrapper, "fmtPrice", 8.7654)).toBe("8.765");
+    expect(callSetup<string>(wrapper, "fmtPrice", 18.54)).toBe("18.54");
+    expect(callSetup<string>(wrapper, "fmtSize", null)).toBe("--");
+    expect(callSetup<string>(wrapper, "fmtSize", 900)).toBe("900");
+    expect(callSetup<string>(wrapper, "fmtSize", 1_500)).toBe("1.5K");
+    expect(callSetup<string>(wrapper, "fmtSize", 1_500_000)).toBe("1.50M");
+    expect(callSetup<string>(wrapper, "fmtSize", 1_500_000_000)).toBe("1.50B");
+    expect(callSetup<string>(wrapper, "sideClass", null)).toBe("");
+    expect(callSetup<string>(wrapper, "sideClass", 1)).toBe("tv-up");
+    expect(callSetup<string>(wrapper, "sideClass", -1)).toBe("tv-down");
+
+    wrapper.unmount();
+  });
+
+  it("disables depth when there is no valid instrument and avoids issuing broker depth requests", async () => {
+    const hub = getSharedLiveSocketHub();
+    const wrapper = mountOrderBookPanel({
+      market: "",
+      symbol: "",
+    });
+
+    await flushOrderBook();
+
+    expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("盘口不可用");
+    expect(hub.snapshotSubscriptions().depth).toEqual([]);
+    expect(callSetup<string | null>(wrapper, "buildDepthUrl")).toBeNull();
+    expect(callSetup<boolean>(wrapper, "isDepthDataStale")).toBe(true);
+
+    wrapper.unmount();
+  });
+
+  it("falls back to the default preset when broker capability discovery fails", async () => {
+    fetchEnvelopeMock.mockRejectedValueOnce(new Error("runtime unavailable"));
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+      "/api/v1/market-data/depth/US/TME?num=10",
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(
+      wrapper
+        .findAll("button")
+        .find((button) => button.text() === "10")
+        ?.classes(),
+    ).toContain("is-active");
+
+    wrapper.unmount();
+  });
+
+  it("shows an empty depth state when the broker responds without ladder levels", async () => {
+    fetchEnvelopeWithInitMock.mockResolvedValueOnce({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 10,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [],
+        asks: [],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:00Z",
+        fromCache: false,
+      },
+    });
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(wrapper.find("[data-state='empty']").text()).toContain("暂无深度数据");
+    expect(readSetupValue<unknown[]>(wrapper, "depthLevels")).toHaveLength(0);
+
+    wrapper.unmount();
+  });
+
+  it("ignores non-depth live payloads and payloads for other depth presets", async () => {
+    fetchEnvelopeWithInitMock.mockResolvedValueOnce({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 10,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [],
+        asks: [],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:00Z",
+        fromCache: false,
+      },
+    });
+
+    const hub = getSharedLiveSocketHub();
+    const wrapper = mountOrderBookPanel();
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+
+    await flushOrderBook();
+
+    MockWebSocket.instances[0]?.emitMessage(
+      createLiveEnvelope(
+        {
+          type: "system.notification",
+          id: "notice-1",
+          at: "2026-06-02T00:01:00Z",
+          level: "info",
+          title: "ignore",
+        },
+        {
+          source: "system",
+          entityId: "notice-1",
+        },
+      ),
+    );
+    MockWebSocket.instances[0]?.emitMessage(createDepthEnvelope({
+      type: "market.depth",
+      at: "2026-06-02T00:01:00Z",
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 5,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.4, volume: 900, orderCount: 1 }],
+        asks: [{ price: 18.6, volume: 800, orderCount: 1 }],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:01:00Z",
+        fromCache: false,
+      },
+    }));
+    await nextTick();
+
+    expect(wrapper.text()).toContain("暂无深度数据");
+    expect(wrapper.text()).not.toContain("18.60");
+    expect(wrapper.text()).not.toContain("900");
+
+    wrapper.unmount();
+  });
+
+  it("surfaces explicit and fallback errors from broker depth requests", async () => {
+    fetchEnvelopeWithInitMock.mockRejectedValueOnce(new Error("网络断开"));
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(wrapper.find("[data-state='error']").text()).toContain("网络断开");
+
+    fetchEnvelopeWithInitMock.mockRejectedValueOnce({});
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "20")
+      ?.trigger("click");
+    await flushOrderBook();
+
+    expect(wrapper.find("[data-state='error']").text()).toContain(
+      "获取盘口深度失败",
+    );
+
+    wrapper.unmount();
+  });
+
+  it("drops stale request responses when a newer depth refresh is already in flight", async () => {
+    const firstRequest = deferred<unknown>();
+    const secondRequest = deferred<unknown>();
+    fetchEnvelopeWithInitMock.mockImplementationOnce(
+      () => firstRequest.promise,
+    );
+    fetchEnvelopeWithInitMock.mockImplementationOnce(
+      () => secondRequest.promise,
+    );
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "20")
+      ?.trigger("click");
+    await nextTick();
+
+    const firstSignal = fetchEnvelopeWithInitMock.mock.calls[0]?.[1]
+      ?.signal as AbortSignal | undefined;
+    expect(firstSignal?.aborted).toBe(true);
+
+    firstRequest.resolve({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 10,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.48, volume: 220, orderCount: 3 }],
+        asks: [{ price: 18.52, volume: 180, orderCount: 2 }],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:00Z",
+        fromCache: false,
+      },
+    });
+    secondRequest.resolve({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 20,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.4, volume: 900, orderCount: 3 }],
+        asks: [{ price: 18.6, volume: 800, orderCount: 2 }],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:01Z",
+        fromCache: false,
+      },
+    });
+    await flushOrderBook();
+
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledTimes(2);
+    expect(wrapper.get("[data-testid='depth-ask-price-col']").text()).toContain(
+      "18.60",
+    );
+    expect(
+      wrapper.get("[data-testid='depth-ask-price-col']").text(),
+    ).not.toContain("18.52");
+    expect(wrapper.get("[data-testid='depth-bid-size-col']").text()).toContain("900");
+
+    wrapper.unmount();
+  });
+
+  it("ignores responses for a different instrument and recovers when the page becomes visible or online again", async () => {
+    fetchEnvelopeWithInitMock.mockResolvedValueOnce({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 10,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.48, volume: 220, orderCount: 3 }],
+        asks: [{ price: 18.52, volume: 180, orderCount: 2 }],
+      },
+      meta: {
+        instrumentId: "US.OTHER",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:00Z",
+        fromCache: false,
+      },
+    });
+
+    const hub = getSharedLiveSocketHub();
+    const waitForConnectionSpy = vi
+      .spyOn(hub, "waitForConnection")
+      .mockResolvedValue(false);
+    const originalVisibilityState = document.visibilityState;
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(wrapper.find("[data-state='empty']").text()).toContain("暂无深度数据");
+
+    fetchEnvelopeWithInitMock.mockResolvedValue({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 20,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.4, volume: 900, orderCount: 3 }],
+        asks: [{ price: 18.6, volume: 800, orderCount: 2 }],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:01Z",
+        fromCache: false,
+      },
+    });
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "20")
+      ?.trigger("click");
+    await flushOrderBook();
+
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledTimes(2);
+
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushOrderBook();
+
+    expect(waitForConnectionSpy).toHaveBeenCalledWith(3_000);
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledTimes(3);
+
+    window.dispatchEvent(new Event("online"));
+    await flushOrderBook();
+
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledTimes(4);
+    expect(wrapper.text()).toContain("18.60");
+
+    wrapper.unmount();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: originalVisibilityState,
+    });
+  });
+
+  it("clears loading state when depth is requested without a valid instrument", async () => {
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    workspacePrefs!.value = {
+      ...workspacePrefs!.value,
+      market: "",
+      symbol: "",
+      period: "1m",
+    };
+    await nextTick();
+
+    await callSetup<Promise<void>>(wrapper, "fetchDepth");
+
+    expect(readSetupValue(wrapper, "depthData")).toBeNull();
+    expect(readSetupValue(wrapper, "depthError")).toBe("");
+    expect(readSetupValue(wrapper, "isLoadingDepth")).toBe(false);
+
+    wrapper.unmount();
+  });
+
+  it("does not surface errors from depth requests that were already aborted by a newer request", async () => {
+    const firstRequest = deferred<unknown>();
+    const secondRequest = deferred<unknown>();
+    fetchEnvelopeWithInitMock.mockImplementationOnce(
+      () => firstRequest.promise,
+    );
+    fetchEnvelopeWithInitMock.mockImplementationOnce(
+      () => secondRequest.promise,
+    );
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "20")
+      ?.trigger("click");
+    await nextTick();
+
+    firstRequest.reject(new Error("aborted"));
+    secondRequest.resolve({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 20,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.4, volume: 900, orderCount: 3 }],
+        asks: [{ price: 18.6, volume: 800, orderCount: 2 }],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:02Z",
+        fromCache: false,
+      },
+    });
+    await flushOrderBook();
+
+    expect(wrapper.find("[data-state='error']").exists()).toBe(false);
+    expect(wrapper.get("[data-testid='depth-ask-price-col']").text()).toContain(
+      "18.60",
+    );
+
+    wrapper.unmount();
+  });
+
+  it("skips visibility recovery when the socket reconnects and depth data is still fresh", async () => {
+    const hub = getSharedLiveSocketHub();
+    const waitForConnectionSpy = vi
+      .spyOn(hub, "waitForConnection")
+      .mockResolvedValue(true);
+    const originalVisibilityState = document.visibilityState;
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushOrderBook();
+
+    expect(waitForConnectionSpy).toHaveBeenCalledWith(3_000);
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledTimes(1);
+
+    wrapper.unmount();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: originalVisibilityState,
+    });
   });
 });

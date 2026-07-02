@@ -2,7 +2,7 @@
 
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { nextTick } from "vue";
+import { defineComponent, nextTick } from "vue";
 
 import type { ADKTimelineEntry } from "@/contracts";
 
@@ -14,6 +14,8 @@ function mountThread(
   options: {
     renderMarkdown?: (content: string) => string;
     activityIndicator?: "idle" | "typing" | "child_finished";
+    props?: Partial<InstanceType<typeof ADKChatThread>["$props"]>;
+    stubs?: Record<string, unknown>;
   } = {},
 ) {
   return mount(ADKChatThread, {
@@ -32,6 +34,7 @@ function mountThread(
       renderMarkdown: options.renderMarkdown ?? ((content: string) => content),
       resolveApprovalGroup: () => {},
       resolveApproval: () => {},
+      ...options.props,
     },
     global: {
       stubs: {
@@ -40,6 +43,8 @@ function mountThread(
         "v-chip": { template: "<button><slot /></button>" },
         "v-icon": { template: "<span><slot /></span>" },
         "v-progress-circular": { template: "<span />" },
+        "v-progress-linear": { template: "<div class='v-progress-linear-stub' />" },
+        ...options.stubs,
       },
     },
   });
@@ -130,5 +135,290 @@ describe("ADKChatThread", () => {
     await nextTick();
 
     expect(renderMarkdown).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows provider hints, suggestion chips, and timeline window actions", async () => {
+    const wrapper = mountThread(
+      [
+        {
+          id: "entry-assistant-window",
+          sessionId: "session-1",
+          kind: "assistant_message",
+          createdAt: "2026-06-17T00:00:00Z",
+          sequence: 4,
+          text: "最新回复",
+        },
+      ],
+      {
+        props: {
+          suggestions: ["复盘组合", "检查风险限额"],
+          emptyStateProviderHint: "先配置模型服务再开始对话",
+          timelineTotal: 10,
+          timelineWindowStart: 2,
+          timelineWindowEnd: 4,
+          timelineAtLatest: false,
+        },
+      },
+    );
+
+    expect(wrapper.text()).toContain("3-4 / 10");
+
+    const windowButtons = wrapper.findAll(".adk-timeline-window button");
+    await windowButtons[0]!.trigger("click");
+    await windowButtons[1]!.trigger("click");
+    await windowButtons[2]!.trigger("click");
+    expect(wrapper.emitted("showOlderTimeline")).toHaveLength(1);
+    expect(wrapper.emitted("showNewerTimeline")).toHaveLength(1);
+    expect(wrapper.emitted("showLatestTimeline")).toHaveLength(1);
+
+    const emptyWrapper = mountThread([], {
+      props: {
+        suggestions: ["先看持仓"],
+        emptyStateProviderHint: "先配置模型服务再开始对话",
+      },
+    });
+    expect(emptyWrapper.text()).toContain("先配置模型服务再开始对话");
+    expect(emptyWrapper.text()).toContain("先看持仓");
+    await emptyWrapper.get("button").trigger("click");
+    expect(emptyWrapper.emitted("update:chatDraft")?.at(-1)).toEqual([
+      "先看持仓",
+    ]);
+  });
+
+  it("renders context notices and toggles assistant reasoning details", async () => {
+    const wrapper = mountThread([
+      {
+        id: "entry-notice-stream",
+        sessionId: "session-1",
+        kind: "context_notice",
+        createdAt: "2026-06-17T00:00:00Z",
+        sequence: 1,
+        status: "streaming",
+        text: "上下文刷新中",
+      },
+      {
+        id: "entry-notice-error",
+        sessionId: "session-1",
+        kind: "context_notice",
+        createdAt: "2026-06-17T00:00:01Z",
+        sequence: 2,
+        status: "error",
+        text: "上下文刷新失败",
+      },
+      {
+        id: "entry-notice-ok",
+        sessionId: "session-1",
+        kind: "context_notice",
+        createdAt: "2026-06-17T00:00:02Z",
+        sequence: 3,
+        status: "completed",
+        text: "上下文已同步",
+      },
+      {
+        id: "entry-reasoning",
+        sessionId: "session-1",
+        kind: "assistant_reasoning",
+        createdAt: "2026-06-17T00:00:03Z",
+        sequence: 4,
+        text: "这里是深度思考内容",
+      },
+    ]);
+
+    expect(wrapper.find(".v-progress-linear-stub").exists()).toBe(true);
+    expect(wrapper.find(".adk-context-notice.is-streaming").exists()).toBe(true);
+    expect(wrapper.find(".adk-context-notice.is-error").exists()).toBe(true);
+    expect(wrapper.text()).toContain("fa-solid fa-circle-exclamation");
+    expect(wrapper.text()).toContain("fa-solid fa-check");
+    expect(wrapper.text()).toContain("查看深度思考");
+    expect(wrapper.text()).not.toContain("这里是深度思考内容");
+
+    await wrapper.get(".adk-reasoning-toggle").trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).toContain("隐藏深度思考");
+    expect(wrapper.text()).toContain("这里是深度思考内容");
+  });
+
+  it("passes active tool-group state through to the run trace and reacts to trace events", async () => {
+    const runTraceStub = defineComponent({
+      props: [
+        "run",
+        "toolProgress",
+        "busy",
+        "summaryExpanded",
+        "expandedToolCallIds",
+      ],
+      emits: ["update:summaryExpanded", "update:expandedToolCallIds"],
+      template: `
+        <div class="trace-stub">
+          <span class="trace-run-status">{{ run.status }}</span>
+          <span class="trace-tool-status">{{ run.toolCalls?.[0]?.status }}</span>
+          <span class="trace-progress">{{ toolProgress }}</span>
+          <span class="trace-busy">{{ busy ? 'busy' : 'idle' }}</span>
+          <button type="button" class="emit-summary" @click="$emit('update:summaryExpanded', true)">summary</button>
+          <button type="button" class="emit-tools" @click="$emit('update:expandedToolCallIds', ['tool-1'])">tools</button>
+        </div>
+      `,
+    });
+    const wrapper = mountThread(
+      [
+        {
+          id: "entry-tool-group",
+          sessionId: "session-1",
+          runId: "run-1",
+          kind: "tool_group",
+          createdAt: "2026-06-17T00:00:00Z",
+          sequence: 1,
+          status: "streaming",
+          toolCalls: [
+            {
+              id: "tool-1",
+              runId: "run-1",
+              toolName: "portfolio.summary",
+              permission: "read",
+              status: "PENDING",
+              input: { query: "portfolio.summary" },
+              requiresUser: false,
+              createdAt: "2026-06-17T00:00:00Z",
+              updatedAt: "2026-06-17T00:00:00Z",
+            },
+          ],
+        },
+      ],
+      {
+        props: {
+          activeRunId: "run-1",
+          activeRunStatus: "RUNNING",
+          hasBlockingRun: true,
+          sendingChat: true,
+          timelineAtLatest: true,
+        },
+        stubs: {
+          ADKRunTrace: runTraceStub,
+        },
+      },
+    );
+
+    const trace = wrapper.findComponent(runTraceStub);
+    expect(trace.text()).toContain("RUNNING");
+    expect(trace.text()).toContain("工具执行中...");
+    expect(trace.text()).toContain("busy");
+    expect(trace.text()).toContain("RUNNING");
+
+    await trace.get(".emit-summary").trigger("click");
+    await nextTick();
+    expect(trace.props("summaryExpanded")).toBe(true);
+
+    await trace.get(".emit-tools").trigger("click");
+    await nextTick();
+    expect(trace.props("expandedToolCallIds")).toEqual(["tool-1"]);
+  });
+
+  it("derives waiting progress labels for pending tool groups", () => {
+    const runTraceStub = defineComponent({
+      props: ["toolProgress", "run"],
+      template:
+        "<div class='trace-stub'>{{ toolProgress }} / {{ run.toolCalls?.[0]?.status }}</div>",
+    });
+
+    const pendingApproval = mountThread(
+      [
+        {
+          id: "entry-tool-approval",
+          sessionId: "session-1",
+          runId: "run-approval",
+          kind: "tool_group",
+          createdAt: "2026-06-17T00:00:00Z",
+          sequence: 1,
+          status: "idle",
+          toolCalls: [
+            {
+              id: "tool-approval",
+              runId: "run-approval",
+              toolName: "trade.submit",
+              permission: "write",
+              status: "PENDING_APPROVAL",
+              input: {},
+              requiresUser: true,
+              createdAt: "2026-06-17T00:00:00Z",
+              updatedAt: "2026-06-17T00:00:00Z",
+            },
+          ],
+        },
+      ],
+      {
+        props: {
+          activeRunId: "run-approval",
+          activeRunStatus: "PENDING_APPROVAL",
+          hasBlockingRun: true,
+        },
+        stubs: {
+          ADKRunTrace: runTraceStub,
+        },
+      },
+    );
+    expect(pendingApproval.text()).toContain("等待审批...");
+    expect(pendingApproval.text()).toContain("PENDING_APPROVAL");
+
+    const pendingExecution = mountThread(
+      [
+        {
+          id: "entry-tool-pending",
+          sessionId: "session-1",
+          runId: "run-pending",
+          kind: "tool_group",
+          createdAt: "2026-06-17T00:00:00Z",
+          sequence: 1,
+          status: "streaming",
+          toolCalls: [
+            {
+              id: "tool-pending",
+              runId: "run-pending",
+              toolName: "trade.plan",
+              permission: "read",
+              status: "PENDING",
+              input: {},
+              requiresUser: false,
+              createdAt: "2026-06-17T00:00:00Z",
+              updatedAt: "2026-06-17T00:00:00Z",
+            },
+          ],
+        },
+        {
+          id: "entry-tool-streaming",
+          sessionId: "session-1",
+          runId: "run-streaming",
+          kind: "tool_group",
+          createdAt: "2026-06-17T00:00:01Z",
+          sequence: 2,
+          status: "streaming",
+          toolCalls: [
+            {
+              id: "tool-streaming",
+              runId: "run-streaming",
+              toolName: "market.scan",
+              permission: "read",
+              status: "RUNNING",
+              input: {},
+              requiresUser: false,
+              createdAt: "2026-06-17T00:00:01Z",
+              updatedAt: "2026-06-17T00:00:01Z",
+            },
+          ],
+        },
+      ],
+      {
+        props: {
+          activeRunId: "run-pending",
+          activeRunStatus: "PENDING",
+          hasBlockingRun: true,
+        },
+        stubs: {
+          ADKRunTrace: runTraceStub,
+        },
+      },
+    );
+    expect(pendingExecution.text()).toContain("等待执行...");
+    expect(pendingExecution.text()).toContain("工具执行中...");
   });
 });

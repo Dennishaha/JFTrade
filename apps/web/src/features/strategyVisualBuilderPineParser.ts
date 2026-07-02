@@ -118,10 +118,6 @@ export function buildStrategyVisualModelFromPine(
     }
   }
 
-  if (state.nodes.length === 0) {
-    return { ok: false, error: "Pine 策略至少需要一个可映射语句。" };
-  }
-
   return {
     ok: true,
     model: {
@@ -260,7 +256,6 @@ function parseStatementNode(entry: ParsedPineEntry, state: ParseState): ParsedNo
   if (entry.trimmed.startsWith("strategy.exit")) {
     return parsePineExitNode(entry, state, explicitKind);
   }
-
   return failUnsupportedPineStatement(state, entry);
 }
 
@@ -996,9 +991,6 @@ function parseOrderNode(
       isCondition: false,
     };
   }
-  if (entry.trimmed.startsWith("strategy.")) {
-    return failUnsupportedPineStatement(state, entry);
-  }
   return failUnsupportedPineStatement(state, entry);
 }
 
@@ -1628,14 +1620,8 @@ function createNodeFromParts(options: {
 
 function nextLayoutNode(
   state: ParseState,
-  kind: StrategyBlockKind,
+  _kind: StrategyBlockKind,
 ): Pick<StrategyVisualNodeDocument, "x" | "y"> {
-  if (kind === "onInit") {
-    return ROOT_LAYOUT.onInit;
-  }
-  if (kind === "onKLineClosed") {
-    return ROOT_LAYOUT.onKLineClosed;
-  }
   const index = state.sequence++;
   return {
     x: 440 + (index % 4) * 240,
@@ -1780,9 +1766,6 @@ function isMetadataLine(trimmed: string): boolean {
 
 function defaultTypeForKind(kind: StrategyBlockKind): StrategyVisualNodeDocument["type"] {
   switch (kind) {
-    case "onInit":
-    case "onKLineClosed":
-      return "circle";
     case "technicalIndicatorCondition":
     case "seriesCondition":
     case "timeFilter":
@@ -1809,11 +1792,8 @@ function isElseLine(trimmed: string): boolean {
 }
 
 function readMessageCallOrLiteral(trimmed: string, kind: "log" | "notify"): string {
-  if (trimmed.includes("(")) {
-    const args = splitArguments(readCallArgs(trimmed));
-    return readPineLiteral(args[0] ?? "");
-  }
-  return readPineLiteral(kind === "log" ? trimmed.slice(4).trim() : trimmed.slice(7).trim());
+  const args = splitArguments(readCallArgs(trimmed));
+  return readPineLiteral(args[0] ?? "");
 }
 
 function parsePineOrder(trimmed: string): Record<string, unknown> | null {
@@ -2174,22 +2154,6 @@ function readSource(
 	}
 }
 
-function isSeriesSourceLiteral(value: string | undefined): boolean {
-  switch ((value ?? "").trim().toLowerCase()) {
-    case "open":
-    case "high":
-    case "low":
-    case "close":
-    case "volume":
-    case "hl2":
-    case "hlc3":
-    case "ohlc4":
-      return true;
-    default:
-      return false;
-  }
-}
-
 function readPineLiteral(value: string): string {
   const trimmed = value.trim();
   if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
@@ -2242,8 +2206,6 @@ function defaultIndicatorText(properties: Record<string, unknown>): string {
       return `获取 ${properties.movingAverageType ?? "MA"} ${properties.windowSize ?? 20}`;
     case "macd":
       return `获取 MACD ${properties.fastPeriod ?? 12}/${properties.slowPeriod ?? 26}/${properties.signalPeriod ?? 9}`;
-    case "kdj":
-      return `获取 KDJ ${properties.period ?? 9}`;
     case "bollinger":
       return `获取 Bollinger ${properties.period ?? 20}`;
     case "atr":

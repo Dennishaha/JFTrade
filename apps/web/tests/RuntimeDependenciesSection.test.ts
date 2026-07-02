@@ -101,4 +101,85 @@ describe("RuntimeDependenciesSection", () => {
     expect(wrapper.text()).toContain("Node.js 路径已保存");
     expect(dependencyChecks).toBe(2);
   });
+
+  it("renders warning/error dependency labels and reports failed Node path saves", async () => {
+    const fetchMock = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        const method = String(init?.method ?? "GET").toUpperCase();
+
+        if (url.includes("/api/v1/settings/pine-worker") && method === "PUT") {
+          throw new Error("save denied");
+        }
+
+        if (url.includes("/api/v1/settings/pine-worker")) {
+          return createResponse({
+            backtestWorkerLimit: 2,
+            instanceWorkerLimit: 10,
+            nodeBinaryPath: "",
+          });
+        }
+
+        if (url.includes("/api/v1/system/runtime-dependencies")) {
+          return createResponse({
+            checkedAt: "2026-06-29T00:00:00Z",
+            allRequiredSatisfied: false,
+            dependencies: [
+              {
+                id: "node",
+                displayName: "Node.js",
+                required: true,
+                status: "outdated",
+                minimumVersion: "22.0.0",
+                detectedVersion: "20.1.0",
+                configuredPath: "",
+                effectivePath: "/usr/local/bin/node",
+                resolvedPath: "/usr/local/bin/node",
+                source: "env:NODE_HOME",
+                homepageUrl: "https://nodejs.org/",
+                message: "Node.js version is too old.",
+              },
+              {
+                id: "helper",
+                displayName: "Worker Helper",
+                required: false,
+                status: "error",
+                minimumVersion: "",
+                detectedVersion: "",
+                configuredPath: "",
+                effectivePath: "",
+                resolvedPath: "",
+                source: "",
+                homepageUrl: "https://example.com/helper",
+                message: "Probe failed.",
+              },
+            ],
+          });
+        }
+
+        throw new Error(`Unexpected request: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(RuntimeDependenciesSection, {
+      props: { mode: "settings" },
+    });
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("版本过低");
+    expect(wrapper.text()).toContain("异常");
+    expect(wrapper.text()).toContain("环境变量 NODE_HOME");
+    expect(wrapper.text()).toContain("自动检测");
+
+    await wrapper
+      .get("[data-testid='runtime-dependency-node-path-input']")
+      .setValue("/custom/node");
+    await wrapper
+      .get("[data-testid='runtime-dependency-node-path-save']")
+      .trigger("click");
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("save denied");
+  });
 });

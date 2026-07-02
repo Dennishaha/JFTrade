@@ -16,6 +16,7 @@ import type {
 import { compactADKSessionContext, fetchADKSessionContext } from "../src/composables/adkSessionContextApi";
 import { streamADKChat } from "../src/composables/adkChatStream";
 import { fetchEnvelopeWithInit } from "../src/composables/apiClient";
+import { PROVISIONAL_SESSION_KEY } from "../src/composables/adkChatRuntime";
 import { loadSessionChatHistory } from "../src/composables/adkPageRunHistory";
 import { saveADKSessionComposerState } from "../src/composables/adkPageSessionApi";
 import { useADKPageChatState } from "../src/composables/useADKPageChatState";
@@ -300,6 +301,97 @@ describe("useADKPageChatState boundaries", () => {
     harness.unmount();
   });
 
+  it("awaits an in-flight composer flush instead of saving the same revision twice", async () => {
+    let resolveSave: (() => void) | null = null;
+    vi.mocked(saveADKSessionComposerState).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const harness = mountHarness();
+    harness.state.chatDraft.value = "flush once";
+    await nextTick();
+
+    const firstFlush = harness.state.flushComposerState();
+    const secondFlush = harness.state.flushComposerState();
+    await flushAsync();
+
+    expect(saveADKSessionComposerState).toHaveBeenCalledTimes(1);
+
+    resolveSave?.();
+    await firstFlush;
+    await secondFlush;
+
+    expect(saveADKSessionComposerState).toHaveBeenCalledTimes(1);
+    harness.unmount();
+  });
+
+  it("rebinds queued provisional messages after the first response creates a real session", async () => {
+    let resolveFirstSend: ((response: ADKChatResponse) => void) | null = null;
+    vi.mocked(streamADKChat)
+      .mockImplementationOnce(
+        async () =>
+          new Promise<ADKChatResponse>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockImplementationOnce(async (payload) =>
+        ({
+          ...buildResponse(
+            buildRun({
+              id: "run-queued",
+              sessionId: payload.sessionId ?? "session-queued",
+              message: "queued follow-up sent",
+            }),
+            buildContext({ sessionId: payload.sessionId ?? "session-queued" }),
+          ),
+          session: {
+            ...buildSession(),
+            id: payload.sessionId ?? "session-queued",
+          },
+        }),
+      );
+    const harness = mountHarness({ selectedSessionId: "" });
+    harness.state.chatDraft.value = "create session";
+
+    const firstSend = harness.state.sendChat();
+    await flushAsync();
+    expect(harness.state.sendingChat.value).toBe(true);
+
+    harness.state.chatDraft.value = "follow up after create";
+    await harness.state.sendChat();
+
+    expect(harness.state.queuedMessages.value).toHaveLength(1);
+    expect(vi.mocked(streamADKChat)).toHaveBeenCalledTimes(1);
+
+    resolveFirstSend?.({
+      ...buildResponse(
+        buildRun({
+          id: "run-create",
+          sessionId: "session-queued",
+          message: "session created",
+        }),
+        buildContext({ sessionId: "session-queued" }),
+      ),
+      session: {
+        ...buildSession(),
+        id: "session-queued",
+      },
+    });
+    await firstSend;
+    await flushAsync();
+
+    expect(harness.selectedSessionId.value).toBe("session-queued");
+    expect(vi.mocked(streamADKChat)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(streamADKChat).mock.calls[1]?.[0]).toMatchObject({
+      sessionId: "session-queued",
+      message: "follow up after create",
+    });
+    expect(harness.state.queuedMessages.value).toEqual([]);
+    harness.unmount();
+  });
+
   it("executes exact context slash commands without sending them to the model", async () => {
     const harness = mountHarness();
     harness.state.chatDraft.value = "  /CONTEXT  ";
@@ -339,6 +431,20 @@ describe("useADKPageChatState boundaries", () => {
     expect(harness.state.chatDraft.value).toBe("");
     expect(harness.state.timelineEntries.value).toEqual([]);
     expect(fetchADKSessionContext).toHaveBeenCalledWith("session-1");
+    harness.unmount();
+  });
+
+  it("clears provisional composer state without scheduling a save", async () => {
+    vi.useFakeTimers();
+    const harness = mountHarness({ selectedSessionId: "" });
+    harness.state.chatDraft.value = "draft before session exists";
+    await nextTick();
+
+    harness.state.resetComposerState("");
+    await vi.runAllTimersAsync();
+
+    expect(harness.state.chatDraft.value).toBe("");
+    expect(saveADKSessionComposerState).not.toHaveBeenCalled();
     harness.unmount();
   });
 
@@ -393,6 +499,22 @@ describe("useADKPageChatState boundaries", () => {
       { method: "POST" },
     );
     expect(harness.errorMessage.value).toBe("取消运行失败");
+    harness.unmount();
+  });
+
+  it("skips stale timeline reloads when a cancellation result belongs to another session", async () => {
+    vi.mocked(fetchEnvelopeWithInit).mockResolvedValueOnce(
+      buildRun({
+        id: "run-stale",
+        sessionId: "session-2",
+        status: "CANCELLED",
+      }),
+    );
+    const harness = mountHarness();
+
+    await harness.state.cancelActiveRun("run-stale");
+
+    expect(loadSessionChatHistory).not.toHaveBeenCalled();
     harness.unmount();
   });
 
@@ -495,6 +617,40 @@ describe("useADKPageChatState boundaries", () => {
     harness.unmount();
   });
 
+  it("does not schedule a context refresh for empty session ids in run events", async () => {
+    vi.mocked(streamADKChat).mockImplementationOnce(async (_payload, onEvent) => {
+      await onEvent({
+        type: "run",
+        run: buildRun({
+          id: "run-empty-session",
+          sessionId: "",
+          status: "RUNNING",
+        }),
+      });
+      return {
+        ...buildResponse(
+          buildRun({
+            id: "run-empty-session",
+            sessionId: "",
+            status: "COMPLETED",
+          }),
+          undefined,
+        ),
+        session: {
+          ...buildSession(),
+          id: "",
+        },
+      };
+    });
+    const harness = mountHarness({ selectedSessionId: "" });
+    harness.state.chatDraft.value = "start without a persisted session";
+
+    await harness.state.sendChat();
+
+    expect(fetchADKSessionContext).not.toHaveBeenCalled();
+    harness.unmount();
+  });
+
   it("supports empty approval batches and lifecycle calls without an active goal", async () => {
     const harness = mountHarness();
 
@@ -590,6 +746,65 @@ describe("useADKPageChatState boundaries", () => {
     expect(harness.state.goalPaused.value).toBe(true);
     expect(harness.state.sendingChat.value).toBe(false);
     expect(harness.errorMessage.value).toBe("");
+    harness.unmount();
+  });
+
+  it("keeps provisional queue keys unchanged when a response returns the reserved provisional session id", async () => {
+    let resolveFirstSend: ((response: ADKChatResponse) => void) | null = null;
+    vi.mocked(streamADKChat)
+      .mockImplementationOnce(
+        async () =>
+          new Promise<ADKChatResponse>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockImplementationOnce(async (payload) => ({
+        ...buildResponse(
+          buildRun({
+            id: "run-provisional-followup",
+            sessionId: payload.sessionId ?? PROVISIONAL_SESSION_KEY,
+            message: "queued follow-up sent",
+          }),
+          buildContext({ sessionId: payload.sessionId ?? PROVISIONAL_SESSION_KEY }),
+        ),
+        session: {
+          ...buildSession(),
+          id: payload.sessionId ?? PROVISIONAL_SESSION_KEY,
+        },
+      }));
+    const harness = mountHarness({ selectedSessionId: "" });
+    harness.state.chatDraft.value = "create placeholder session";
+
+    const firstSend = harness.state.sendChat();
+    await flushAsync();
+
+    harness.state.chatDraft.value = "follow-up on placeholder session";
+    await harness.state.sendChat();
+    expect(harness.state.queuedMessages.value).toHaveLength(1);
+
+    resolveFirstSend?.({
+      ...buildResponse(
+        buildRun({
+          id: "run-provisional-root",
+          sessionId: PROVISIONAL_SESSION_KEY,
+          message: "placeholder accepted",
+        }),
+        buildContext({ sessionId: PROVISIONAL_SESSION_KEY }),
+      ),
+      session: {
+        ...buildSession(),
+        id: PROVISIONAL_SESSION_KEY,
+      },
+    });
+    await firstSend;
+    await flushAsync();
+
+    expect(harness.selectedSessionId.value).toBe(PROVISIONAL_SESSION_KEY);
+    expect(vi.mocked(streamADKChat)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(streamADKChat).mock.calls[1]?.[0]).toMatchObject({
+      sessionId: PROVISIONAL_SESSION_KEY,
+      message: "follow-up on placeholder session",
+    });
     harness.unmount();
   });
 });

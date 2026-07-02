@@ -6,6 +6,8 @@ import { defineComponent, h, nextTick } from "vue";
 
 import {
   provideWorkspaceLayoutStore,
+  useWorkspaceTradingPrefs,
+  useWorkspaceViewState,
   type WorkspaceLayoutStore,
 } from "../src/composables/useWorkspaceLayout";
 
@@ -118,5 +120,53 @@ describe("useWorkspaceLayout", () => {
     expect(store.prefs.value.paneSizes.rightColumn).toEqual([45, 55]);
 
     wrapper.unmount();
+  });
+
+  it("resets both view and trading preferences back to defaults", async () => {
+    const { store, wrapper } = mountLayoutStore();
+
+    store.update({
+      market: "US",
+      symbol: "AAPL",
+      period: "5m",
+      rightDockOpen: true,
+      paneSizes: {
+        main: [65, 35],
+      },
+    });
+    await nextTick();
+
+    store.reset();
+    await nextTick();
+
+    expect(store.prefs.value.market).toBe("HK");
+    expect(store.prefs.value.symbol).toBe("00700");
+    expect(store.prefs.value.period).toBe("1m");
+    expect(store.prefs.value.rightDockOpen).toBe(false);
+    expect(store.prefs.value.paneSizes.main).toEqual([72, 28]);
+
+    wrapper.unmount();
+  });
+
+  it("throws clear errors when view or trading stores are missing", () => {
+    const MissingViewHost = defineComponent({
+      setup() {
+        useWorkspaceViewState();
+        return () => h("div");
+      },
+    });
+    const MissingTradingHost = defineComponent({
+      setup() {
+        useWorkspaceTradingPrefs();
+        return () => h("div");
+      },
+    });
+
+    expect(() => mount(MissingViewHost)).toThrow(
+      "Workspace view state store not provided.",
+    );
+    expect(() => mount(MissingTradingHost)).toThrow(
+      "Workspace trading preferences store not provided.",
+    );
   });
 });

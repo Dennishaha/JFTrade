@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
 
 import KlineChart from "../src/components/KlineChart.vue";
+import { lightweightChartsKlineFactory } from "../src/charting/lightweightChartsKline";
 import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences";
 import { provideThemeStore } from "../src/composables/useTheme";
 
@@ -214,6 +215,72 @@ afterEach(() => {
 });
 
 describe("KlineChart", () => {
+  it("formats chart prices consistently and proxies fit-content behavior on the direct adapter", () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    const host = document.createElement("div");
+    const adapter = lightweightChartsKlineFactory.create(host, {
+      palette: {
+        bg: "#000000",
+        text: "#ffffff",
+        grid: "#111111",
+        border: "#222222",
+        up: "#22c55e",
+        down: "#ef4444",
+        volumeUp: "#16a34a",
+        volumeDown: "#dc2626",
+        indicatorA: "#2563eb",
+        indicatorB: "#f97316",
+        indicatorC: "#8b5cf6",
+        macdPositive: "#22c55e",
+        macdNegative: "#ef4444",
+      },
+      indicators: ["ma5"],
+    });
+
+    const options = chartMocks.createChart.mock.calls.at(-1)?.[1] as {
+      localization?: {
+        priceFormatter?: (price: number) => string;
+        timeFormatter?: (time: number | string | { year: number; month: number; day: number }) => string;
+      };
+      timeScale?: {
+        tickMarkFormatter?: (time: number | string | { year: number; month: number; day: number }, type: number) => string;
+      };
+    };
+    expect(options.localization?.priceFormatter?.(23.649999999999999)).toBe("23.65");
+    expect(options.localization?.timeFormatter?.(1_718_000_000)).toContain("2024");
+    expect(options.localization?.timeFormatter?.("2026-05-17T01:31:00.000Z")).toContain("2026");
+    expect(options.localization?.timeFormatter?.("not-a-time")).toBe("");
+    expect(options.timeScale?.tickMarkFormatter?.({ year: 2026, month: 5, day: 17 }, 0)).toContain("2026");
+    expect(options.timeScale?.tickMarkFormatter?.("2026-05-17T01:31:00.000Z", 1)).toMatch(/\d{2}\/\d{2}/);
+    expect(options.timeScale?.tickMarkFormatter?.("2026-05-17T01:31:00.000Z", 2)).toMatch(/\d{2}\/\d{2}/);
+    expect(options.timeScale?.tickMarkFormatter?.("2026-05-17T01:31:00.000Z", 3)).toMatch(/\d{2}:\d{2}/);
+    expect(options.timeScale?.tickMarkFormatter?.("not-a-time", 3)).toBe("");
+
+    const loadMore = vi.fn();
+    adapter.setLoadMoreHandler(loadMore);
+    chartMocks.triggerVisibleLogicalRange(null);
+    expect(loadMore).not.toHaveBeenCalled();
+
+    adapter.fitContent();
+    expect(chartMocks.fitContent).toHaveBeenCalledOnce();
+
+    adapter.remove();
+    const chart = chartMocks.createChart.mock.results.at(-1)?.value;
+    expect(chart?.remove).toHaveBeenCalledOnce();
+  });
+
   it("renders intraday candles at the bucket-end display time", async () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -445,6 +512,76 @@ describe("KlineChart", () => {
         open: 320.7,
         high: 321.2,
         low: 320.4,
+        close: 321.2,
+      },
+    ]);
+  });
+
+  it("drops invalid candles before they reach the chart adapter", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    const candles = ref([
+      {
+        at: "invalid-time",
+        open: 320,
+        high: 321,
+        low: 319,
+        close: 320.5,
+        volume: 1000,
+      },
+      {
+        at: "2026-05-17T01:31:00.000Z",
+        open: Number.NaN,
+        high: 321.1,
+        low: 320.6,
+        close: 321,
+        volume: 21000,
+      },
+      {
+        at: "2026-05-17T01:32:00.000Z",
+        open: 321,
+        high: 321.5,
+        low: 320.9,
+        close: 321.2,
+        volume: 22000,
+      },
+    ]);
+
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles };
+      },
+      template: '<KlineChart :candles="candles" :min-height="320" />',
+    });
+
+    mount(Host);
+    await nextTick();
+    await nextTick();
+
+    expect(chartMocks.candlestickSetData).toHaveBeenLastCalledWith([
+      {
+        time: 1778981520,
+        open: 321,
+        high: 321.5,
+        low: 320.9,
         close: 321.2,
       },
     ]);
@@ -784,5 +921,286 @@ describe("KlineChart", () => {
       from: -118,
       to: 10,
     });
+  });
+
+  it("restores persisted indicators and persists subsequent indicator changes", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+    window.localStorage.setItem(
+      "chart-indicators",
+      JSON.stringify(["ma5", "invalid"]),
+    );
+
+    const candles = ref([
+      {
+        at: "2026-05-17T01:30:00.000Z",
+        open: 320,
+        high: 320.8,
+        low: 319.9,
+        close: 320.5,
+        volume: 18000,
+      },
+      {
+        at: "2026-05-17T01:31:00.000Z",
+        open: 320.7,
+        high: 321.1,
+        low: 320.6,
+        close: 321,
+        volume: 21000,
+      },
+    ]);
+
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles };
+      },
+      template:
+        '<KlineChart :candles="candles" :min-height="320" show-indicator-selector indicator-storage-key="chart-indicators" />',
+    });
+
+    const wrapper = mount(Host, { attachTo: document.body });
+    await nextTick();
+    await nextTick();
+
+    expect(chartMocks.overlayLineSetDataByTitle.MA5).toHaveBeenCalled();
+
+    await wrapper.get("button.kline-chart-trigger").trigger("click");
+    const ema5Input = document.body.querySelector(
+      "input[value='ema5']",
+    ) as HTMLInputElement | null;
+    expect(ema5Input).not.toBeNull();
+    ema5Input?.dispatchEvent(new Event("change", { bubbles: true }));
+    await nextTick();
+
+    expect(window.localStorage.getItem("chart-indicators")).toBe(
+      JSON.stringify(["ma5", "ema5"]),
+    );
+  });
+
+  it("restores ATR, CCI, and Williams %R panes from persisted indicators and disposes the chart on unmount", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+    window.localStorage.setItem(
+      "indicator-panes",
+      JSON.stringify(["atr", "cci", "williamsr"]),
+    );
+
+    const candles = ref([
+      {
+        at: "2026-05-17T01:30:00.000Z",
+        open: 320,
+        high: 320.8,
+        low: 319.9,
+        close: 320.5,
+        volume: 18000,
+      },
+      {
+        at: "2026-05-17T01:31:00.000Z",
+        open: 320.7,
+        high: 321.1,
+        low: 320.6,
+        close: 321,
+        volume: 21000,
+      },
+    ]);
+
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles };
+      },
+      template:
+        '<KlineChart :candles="candles" :min-height="320" show-indicator-selector indicator-storage-key="indicator-panes" />',
+    });
+
+    const wrapper = mount(Host, { attachTo: document.body });
+    await nextTick();
+    await nextTick();
+
+    expect(chartMocks.macdDiffSetData).toHaveBeenCalled();
+    expect(chartMocks.macdDeaSetData).toHaveBeenCalled();
+    expect(chartMocks.kdjKSetData).toHaveBeenCalled();
+
+    const chart = chartMocks.createChart.mock.results.at(-1)?.value;
+    expect(chart?.panes()).toHaveLength(4);
+
+    wrapper.unmount();
+    expect(chart?.remove).toHaveBeenCalledOnce();
+  });
+
+  it("shows initialization errors when ResizeObserver is missing or chart creation fails", async () => {
+    vi.stubGlobal("ResizeObserver", undefined as unknown as typeof ResizeObserver);
+
+    const candles = ref([
+      {
+        at: "2026-05-17T01:30:00.000Z",
+        open: 320,
+        high: 320.8,
+        low: 319.9,
+        close: 320.5,
+        volume: 18000,
+      },
+    ]);
+
+    const MissingResizeHost = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles };
+      },
+      template: '<KlineChart :candles="candles" :min-height="320" />',
+    });
+
+    const missingResizeWrapper = mount(MissingResizeHost);
+    await nextTick();
+    await nextTick();
+    expect(missingResizeWrapper.text()).toContain(
+      "K-line chart requires browser ResizeObserver support.",
+    );
+
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+    chartMocks.createChart.mockImplementationOnce(() => {
+      throw new Error("chart unavailable");
+    });
+
+    const FailingChartHost = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles };
+      },
+      template: '<KlineChart :candles="candles" :min-height="320" />',
+    });
+
+    const failingWrapper = mount(FailingChartHost);
+    await nextTick();
+    await nextTick();
+    expect(failingWrapper.text()).toContain("chart unavailable");
+  });
+
+  it("closes the indicator panel via Escape and debounces load-more events", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    const candles = ref([
+      {
+        at: "2026-05-17T01:30:00.000Z",
+        open: 320,
+        high: 320.8,
+        low: 319.9,
+        close: 320.5,
+        volume: 18000,
+      },
+      {
+        at: "2026-05-17T01:31:00.000Z",
+        open: 320.7,
+        high: 321.1,
+        low: 320.6,
+        close: 321,
+        volume: 21000,
+      },
+    ]);
+
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles };
+      },
+      template:
+        '<KlineChart :candles="candles" :min-height="320" show-indicator-selector @load-more="$emit(\'load-more\')" />',
+    });
+
+    const wrapper = mount(Host, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          teleport: true,
+        },
+      },
+    });
+    await nextTick();
+    await nextTick();
+
+    await wrapper.get("button.kline-chart-trigger").trigger("click");
+    expect(wrapper.find(".kline-chart-panel").exists()).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await nextTick();
+    expect(wrapper.find(".kline-chart-panel").exists()).toBe(false);
+
+    chartMocks.barsInLogicalRange.mockReturnValue({ barsBefore: 0 });
+    chartMocks.triggerVisibleLogicalRange({ from: 0, to: 2 });
+    chartMocks.triggerVisibleLogicalRange({ from: -1, to: 2 });
+    expect(wrapper.emitted("load-more")).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    chartMocks.triggerVisibleLogicalRange({ from: -2, to: 2 });
+    expect(wrapper.emitted("load-more")).toHaveLength(2);
   });
 });

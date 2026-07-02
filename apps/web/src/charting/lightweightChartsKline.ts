@@ -25,6 +25,7 @@ import {
   type KlineCandle,
   type KlineChartAdapter,
   type KlineChartFactory,
+  type KlineIndicatorDefinition,
   type KlineIndicatorKey,
   type KlineChartPalette,
 } from "./kline";
@@ -58,6 +59,11 @@ export const INDICATOR_PANE_HEIGHT = 120;
 
 /** Canonical creation order for indicator panes. */
 const INDICATOR_ORDER: readonly KlineIndicatorKey[] = ["volume", "macd", "kdj", "atr", "cci", "williamsr"];
+type OverlayIndicatorDefinition = KlineIndicatorDefinition & {
+  kind: "overlay";
+  family: "ma" | "ema";
+  period: number;
+};
 
 function toTimestamp(at: string): UTCTimestamp {
   return Math.floor(new Date(at).getTime() / 1000) as UTCTimestamp;
@@ -176,11 +182,15 @@ function getOverlaySeriesColor(period: number): string {
   return color ?? OVERLAY_SERIES_COLORS[0];
 }
 
+function getOverlayIndicatorDefinition(
+  indicator: KlineIndicatorKey,
+): OverlayIndicatorDefinition {
+  // Overlay callers only pass normalized moving-average indicators.
+  return getKlineIndicatorDefinition(indicator)! as OverlayIndicatorDefinition;
+}
+
 function buildOverlaySeriesOptions(indicator: KlineIndicatorKey) {
-  const definition = getKlineIndicatorDefinition(indicator);
-  if (definition == null || definition.kind !== "overlay" || definition.period == null) {
-    throw new Error(`不支持的叠加指标：${indicator}`);
-  }
+  const definition = getOverlayIndicatorDefinition(indicator);
 
   const lineWidth: LineWidth = definition.family === "ma" ? 2 : 1;
 
@@ -200,10 +210,7 @@ function buildOverlaySeriesData(
   candles: readonly KlineCandle[],
   indicator: KlineIndicatorKey,
 ): Array<{ time: UTCTimestamp; value: number }> {
-  const definition = getKlineIndicatorDefinition(indicator);
-  if (definition == null || definition.period == null) {
-    return [];
-  }
+  const definition = getOverlayIndicatorDefinition(indicator);
 
   const closes = candles.map((candle) => candle.close);
   const values =

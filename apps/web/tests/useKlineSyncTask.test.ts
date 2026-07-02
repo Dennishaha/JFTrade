@@ -78,6 +78,75 @@ describe("useKlineSyncTask", () => {
     expect(task.syncProgress.value?.status).toBe("completed");
     expect(task.syncing.value).toBe(false);
   });
+
+  it("surfaces sync start failures before polling begins", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new Error("gateway down")));
+
+    const task = useKlineSyncTask();
+    await expect(
+      task.startSync({
+        market: "US",
+        code: "AAPL",
+        symbol: "US.AAPL",
+        intervals: ["1m"],
+        startDate: "2026-06-01",
+        endDate: "2026-06-25",
+        rehabType: "forward",
+        sessionScope: "regular",
+      }),
+    ).resolves.toBeNull();
+
+    expect(task.syncing.value).toBe(false);
+    expect(task.syncTaskId.value).toBe("");
+    expect(task.syncError.value).toContain("gateway down");
+  });
+
+  it("polls refresh progress for active tasks and stops cleanly on cancel", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(envelope(progress("running")))
+      .mockResolvedValueOnce(envelope({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const task = useKlineSyncTask();
+    task.syncTaskId.value = "sync-poll";
+    task.startSyncPolling();
+
+    await vi.advanceTimersByTimeAsync(1500);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/backtests/sync/sync-poll",
+      expect.objectContaining({
+        credentials: "include",
+      }),
+    );
+    expect(task.syncProgress.value?.status).toBe("running");
+
+    await task.cancelSync();
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/backtests/sync/sync-poll",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+    expect(task.syncing.value).toBe(false);
+
+    fetchMock.mockClear();
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null for empty or failing progress refreshes and tolerates delete failures", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    const task = useKlineSyncTask();
+    await expect(task.refreshSyncProgress()).resolves.toBeNull();
+
+    task.syncTaskId.value = "sync-offline";
+    expect(await task.refreshSyncProgress()).toBeNull();
+
+    await expect(task.cancelSync()).resolves.toBeUndefined();
+    expect(task.syncing.value).toBe(false);
+  });
 });
 
 function envelope(data: unknown): Response {

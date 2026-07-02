@@ -60,6 +60,14 @@ func (s *routeErrorRunStore) Delete(runID string) (*srvbacktest.RunState, bool, 
 	return s.routeRunStore.Delete(runID)
 }
 
+type routeDeleteMissRunStore struct {
+	*routeRunStore
+}
+
+func (s *routeDeleteMissRunStore) Delete(runID string) (*srvbacktest.RunState, bool, error) {
+	return nil, false, nil
+}
+
 func TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound(t *testing.T) {
 	progress := bt.NewSyncProgress("task-1", "HK.00700", time.Date(2026, time.June, 22, 9, 0, 0, 0, time.UTC))
 	progress.SetRunning(1, time.Date(2026, time.June, 22, 9, 0, 1, 0, time.UTC))
@@ -90,8 +98,12 @@ func TestStatusResultAndDeleteRoutesCoverTerminalAndStoreFailures(t *testing.T) 
 	runs := newRouteRunStore()
 	running := &srvbacktest.RunState{ID: "run-running", Status: "running"}
 	completed := &srvbacktest.RunState{ID: "run-complete", Status: "completed"}
+	failed := &srvbacktest.RunState{ID: "run-failed", Status: "failed"}
+	cancelled := &srvbacktest.RunState{ID: "run-cancelled", Status: "cancelled"}
 	jftradeCheckTestError(t, runs.Add(running))
 	jftradeCheckTestError(t, runs.Add(completed))
+	jftradeCheckTestError(t, runs.Add(failed))
+	jftradeCheckTestError(t, runs.Add(cancelled))
 
 	router := newBacktestRouter(srvbacktest.NewService(srvbacktest.WithRunStore(runs)))
 
@@ -111,6 +123,14 @@ func TestStatusResultAndDeleteRoutesCoverTerminalAndStoreFailures(t *testing.T) 
 	deleteCompleteRec := performJSONRequest(router, http.MethodDelete, "/api/v1/backtests/run-complete", "")
 	if deleteCompleteRec.Code != http.StatusOK {
 		t.Fatalf("delete completed status=%d body=%s", deleteCompleteRec.Code, deleteCompleteRec.Body.String())
+	}
+	deleteFailedRec := performJSONRequest(router, http.MethodDelete, "/api/v1/backtests/run-failed", "")
+	if deleteFailedRec.Code != http.StatusOK {
+		t.Fatalf("delete failed status=%d body=%s", deleteFailedRec.Code, deleteFailedRec.Body.String())
+	}
+	deleteCancelledRec := performJSONRequest(router, http.MethodDelete, "/api/v1/backtests/run-cancelled", "")
+	if deleteCancelledRec.Code != http.StatusOK {
+		t.Fatalf("delete cancelled status=%d body=%s", deleteCancelledRec.Code, deleteCancelledRec.Body.String())
 	}
 
 	missingStatusRec := performJSONRequest(router, http.MethodGet, "/api/v1/backtests/missing/status", "")
@@ -135,4 +155,14 @@ func TestResultAndDeleteRoutesMapRunStoreErrorsToInternalServerError(t *testing.
 
 	deleteRec := performJSONRequest(router, http.MethodDelete, "/api/v1/backtests/run-1", "")
 	assertRouteError(t, deleteRec, http.StatusInternalServerError, "BACKTEST_RUN_STORE_FAILED")
+}
+
+func TestDeleteRouteReturnsNotFoundWhenTerminalRunDisappearsBeforeDelete(t *testing.T) {
+	store := &routeDeleteMissRunStore{routeRunStore: newRouteRunStore()}
+	jftradeCheckTestError(t, store.Add(&srvbacktest.RunState{ID: "run-race", Status: "completed"}))
+
+	router := newBacktestRouter(srvbacktest.NewService(srvbacktest.WithRunStore(store)))
+
+	deleteRec := performJSONRequest(router, http.MethodDelete, "/api/v1/backtests/run-race", "")
+	assertRouteError(t, deleteRec, http.StatusNotFound, "NOT_FOUND")
 }

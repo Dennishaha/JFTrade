@@ -75,6 +75,40 @@ describe("buildADKToolVisualization", () => {
     });
   });
 
+  it("maps string kill-switch states through dedicated and fallback tones", () => {
+    const engaged = buildADKToolVisualization("risk.state", {
+      killSwitch: "engaged",
+      realTradingEnabled: "off",
+    });
+    expect(engaged?.kind).toBe("summary");
+    if (engaged?.kind !== "summary") return;
+    expect(engaged.cards.find((card) => card.label === "熔断开关")).toMatchObject({
+      value: "engaged",
+      tone: "danger",
+    });
+
+    const off = buildADKToolVisualization("risk.state", {
+      killSwitch: "off",
+      realTradingEnabled: "disabled",
+    });
+    expect(off?.kind).toBe("summary");
+    if (off?.kind !== "summary") return;
+    expect(off.cards.find((card) => card.label === "熔断开关")).toMatchObject({
+      value: "off",
+      tone: "ok",
+    });
+
+    const blocked = buildADKToolVisualization("risk.state", {
+      killSwitch: "blocked by supervisor",
+      realTradingEnabled: "pending",
+    });
+    expect(blocked?.kind).toBe("summary");
+    if (blocked?.kind !== "summary") return;
+    expect(blocked.cards.find((card) => card.label === "熔断开关")).toMatchObject({
+      tone: "warning",
+    });
+  });
+
   it("builds execution timelines from event arrays", () => {
     const visualization = buildADKToolVisualization("execution.order_events", {
       events: [
@@ -147,6 +181,42 @@ describe("buildADKToolVisualization", () => {
     if (save?.kind !== "summary") return;
     expect(save.title).toBe("策略定义已保存");
     expect(save.cards.find((card) => card.label === "操作")?.value).toBe("已更新");
+
+    const created = buildADKToolVisualization("strategy.save_definition", {
+      operation: "created",
+      definition: {
+        id: "def-2",
+        name: "Breakout",
+        version: "0.0.1",
+        symbol: "US.AAPL",
+        interval: "5m",
+        runtime: "pine-pinets",
+        sourceFormat: "pine-v6",
+        updatedAt: "2026-06-10T11:00:00Z",
+      },
+    });
+    expect(created?.kind).toBe("summary");
+    if (created?.kind !== "summary") return;
+    expect(created.cards.find((card) => card.label === "操作")?.value).toBe("已创建");
+
+    const passthroughOperation = buildADKToolVisualization("strategy.save_definition", {
+      operation: "archived",
+      definition: {
+        id: "def-3",
+        name: "Archive Me",
+        version: "0.0.2",
+        symbol: "US.MSFT",
+        interval: "15m",
+        runtime: "pine-pinets",
+        sourceFormat: "pine-v6",
+        updatedAt: "2026-06-10T12:00:00Z",
+      },
+    });
+    expect(passthroughOperation?.kind).toBe("summary");
+    if (passthroughOperation?.kind !== "summary") return;
+    expect(
+      passthroughOperation.cards.find((card) => card.label === "操作")?.value,
+    ).toBe("archived");
 
     const updateMode = buildADKToolVisualization("strategy.update_instance_mode", {
       updatedFields: ["executionMode"],
@@ -461,8 +531,48 @@ describe("buildADKToolVisualization", () => {
     expect(buildADKToolVisualization("broker.orders", { orders: "not an array" })).toBeNull();
     expect(buildADKToolVisualization("broker.orders", { orders: [null, 1] })).toBeNull();
     expect(buildADKToolVisualization("portfolio.summary", {})).toBeNull();
+    expect(buildADKToolVisualization("strategy.update_instance_mode", {})).toBeNull();
+    expect(buildADKToolVisualization("strategy.update_instance_mode", { instance: {} })).toBeNull();
+    expect(buildADKToolVisualization("risk.state", {})).toBeNull();
     expect(buildADKToolVisualization("market.depth", { bids: [{ price: 1 }], asks: [] })).toBeNull();
     expect(buildADKToolVisualization("risk.events", { events: [null] })).toBeNull();
     expect(buildADKToolVisualization("backtest.result_view", {})).toBeNull();
+  });
+
+  it("falls back to raw backtest record columns and formats array or object values safely", () => {
+    const chart = buildADKToolVisualization("backtest.result_view", {
+      view: "chart",
+      run: { id: "bt-raw" },
+      series: {
+        candles: [{ foo_bar: "x", routeName: "SMART" }],
+      },
+    });
+    expect(chart?.kind).toBe("table");
+    if (chart?.kind !== "table") return;
+    expect(chart.columns).toEqual([
+      { key: "foo_bar", label: "Foo Bar" },
+      { key: "routeName", label: "Route Name" },
+    ]);
+
+    expect(
+      buildADKToolVisualization("backtest.result_view", {
+        view: "chart",
+        run: { id: "bt-empty" },
+        series: { candles: [null, 1] },
+      }),
+    ).toBeNull();
+
+    const summary = buildADKToolVisualization("portfolio.summary", {
+      accounts: ["a", "b"],
+      environment: { region: "APAC" },
+      status: { ok: true },
+      checkedAt: 10n,
+    });
+    expect(summary?.kind).toBe("summary");
+    if (summary?.kind !== "summary") return;
+    expect(summary.cards.find((card) => card.label === "账户数")?.value).toBe("2");
+    expect(summary.cards.find((card) => card.label === "经纪通道")?.value).toBe('{"ok":true}');
+    expect(summary.rows?.find((row) => row.label === "交易环境")?.value).toBe('{"region":"APAC"}');
+    expect(summary.rows?.find((row) => row.label === "检查时间")?.value).toBe("10");
   });
 });

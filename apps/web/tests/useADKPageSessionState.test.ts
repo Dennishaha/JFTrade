@@ -11,10 +11,14 @@ import { flushRequests } from "./helpers";
 
 const {
   createADKPageSessionMock,
+  deleteADKPageSessionMock,
   fetchADKPageSessionDataMock,
+  renameADKPageSessionMock,
 } = vi.hoisted(() => ({
   createADKPageSessionMock: vi.fn(),
+  deleteADKPageSessionMock: vi.fn(),
   fetchADKPageSessionDataMock: vi.fn(),
+  renameADKPageSessionMock: vi.fn(),
 }));
 
 vi.mock("../src/composables/adkPageSessionApi", async () => {
@@ -24,7 +28,9 @@ vi.mock("../src/composables/adkPageSessionApi", async () => {
   return {
     ...actual,
     createADKPageSession: createADKPageSessionMock,
+    deleteADKPageSession: deleteADKPageSessionMock,
     fetchADKPageSessionData: fetchADKPageSessionDataMock,
+    renameADKPageSession: renameADKPageSessionMock,
   };
 });
 
@@ -32,7 +38,9 @@ import { useADKPageSessionState } from "../src/composables/useADKPageSessionStat
 
 beforeEach(() => {
   createADKPageSessionMock.mockReset();
+  deleteADKPageSessionMock.mockReset();
   fetchADKPageSessionDataMock.mockReset();
+  renameADKPageSessionMock.mockReset();
   fetchADKPageSessionDataMock.mockResolvedValue(buildPageData([buildSession()]));
 });
 
@@ -44,7 +52,7 @@ describe("useADKPageSessionState", () => {
       agentId: "agent-1",
     });
     createADKPageSessionMock.mockResolvedValue(created);
-    const state = await mountSessionState();
+    const { state } = await mountSessionState();
     state.sessionSearch.value = "不匹配";
     state.sessionAgentFilter.value = "agent-other";
 
@@ -66,7 +74,7 @@ describe("useADKPageSessionState", () => {
       title: "并发创建",
     });
     const staleRefresh = deferred<ReturnType<typeof buildPageData>>();
-    const state = await mountSessionState();
+    const { state } = await mountSessionState();
     fetchADKPageSessionDataMock.mockImplementationOnce(
       () => staleRefresh.promise,
     );
@@ -100,7 +108,7 @@ describe("useADKPageSessionState", () => {
       title: "新响应已包含",
     });
     const staleRefresh = deferred<ReturnType<typeof buildPageData>>();
-    const state = await mountSessionState();
+    const { state } = await mountSessionState();
     fetchADKPageSessionDataMock.mockImplementationOnce(
       () => staleRefresh.promise,
     );
@@ -124,7 +132,7 @@ describe("useADKPageSessionState", () => {
 
   it("restores filters and leaves the list unchanged when create fails", async () => {
     createADKPageSessionMock.mockRejectedValue(new Error("create failed"));
-    const state = await mountSessionState();
+    const { state } = await mountSessionState();
     const before = [...state.sessions.value];
     state.sessionSearch.value = "保留搜索";
     state.sessionAgentFilter.value = "agent-other";
@@ -140,7 +148,7 @@ describe("useADKPageSessionState", () => {
   it("prevents duplicate create requests while one is pending", async () => {
     const create = deferred<ADKSession>();
     createADKPageSessionMock.mockImplementation(() => create.promise);
-    const state = await mountSessionState();
+    const { state } = await mountSessionState();
 
     const first = state.createNewSession(vi.fn());
     const second = state.createNewSession(vi.fn());
@@ -160,7 +168,7 @@ describe("useADKPageSessionState", () => {
       ]),
     );
 
-    const state = await mountSessionState();
+    const { state } = await mountSessionState();
 
     expect(state.providerOptions.value).toHaveLength(2);
     expect(state.providerOptions.value[0]).toMatchObject({
@@ -178,12 +186,226 @@ describe("useADKPageSessionState", () => {
       state.providerOptions.value.filter((option) => option.model === "gpt-4o"),
     ).toHaveLength(1);
   });
+
+  it("deletes the selected session and resets the thread state", async () => {
+    deleteADKPageSessionMock.mockResolvedValue(undefined);
+    const { state } = await mountSessionState();
+    state.selectedSessionId.value = "session-existing";
+
+    const reset = vi.fn();
+    await expect(state.deleteSession("session-existing", reset)).resolves.toBe(true);
+
+    expect(state.sessions.value).toEqual([]);
+    expect(state.selectedSessionId.value).toBe("");
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces delete failures and keeps the current selection", async () => {
+    deleteADKPageSessionMock.mockRejectedValue(new Error("delete failed"));
+    const { state } = await mountSessionState();
+    state.selectedSessionId.value = "session-existing";
+
+    await expect(state.deleteSession("session-existing", vi.fn())).resolves.toBe(
+      false,
+    );
+
+    expect(state.selectedSessionId.value).toBe("session-existing");
+    expect(state.sessions.value).toHaveLength(1);
+    expect(state.errorMessage.value).toBe("delete failed");
+  });
+
+  it("renames sessions only when the prompt returns a new title", async () => {
+    const originalPrompt = window.prompt;
+    const { state } = await mountSessionState();
+    const session = state.sessions.value[0]!;
+
+    window.prompt = vi.fn()
+      .mockReturnValueOnce("   ")
+      .mockReturnValueOnce(session.title)
+      .mockReturnValueOnce("改名后的会话");
+    renameADKPageSessionMock.mockResolvedValue({
+      ...session,
+      title: "改名后的会话",
+    });
+
+    await state.renameSession(session);
+    await state.renameSession(session);
+    expect(renameADKPageSessionMock).not.toHaveBeenCalled();
+
+    await state.renameSession(session);
+    expect(renameADKPageSessionMock).toHaveBeenCalledWith(
+      session.id,
+      "改名后的会话",
+    );
+    expect(state.sessions.value[0]?.title).toBe("改名后的会话");
+
+    renameADKPageSessionMock.mockRejectedValueOnce(new Error("rename failed"));
+    window.prompt = vi.fn().mockReturnValueOnce("再次改名");
+    await state.renameSession(state.sessions.value[0]!);
+    expect(state.errorMessage.value).toBe("rename failed");
+
+    window.prompt = originalPrompt;
+  });
+
+  it("syncs provider selection, filter helpers, and utility labels from live state", async () => {
+    fetchADKPageSessionDataMock.mockResolvedValueOnce({
+      agents: [
+        {
+          id: "agent-1",
+          name: "Agent One",
+          instruction: "",
+          providerId: "provider-default",
+          model: "gpt-4o",
+          tools: [],
+          skills: [],
+          permissionMode: "approval",
+          memoryEnabled: true,
+          recentUserWindow: 6,
+          workMode: "chat",
+          loopMaxIterations: 5,
+          status: "ENABLED",
+          createdAt: "2026-06-18T00:00:00Z",
+          updatedAt: "2026-06-18T00:00:00Z",
+        },
+        {
+          id: "agent-2",
+          name: "Agent Two",
+          instruction: "",
+          providerId: "provider-other",
+          model: "claude-sonnet",
+          tools: [],
+          skills: [],
+          permissionMode: "all",
+          memoryEnabled: true,
+          recentUserWindow: 6,
+          workMode: "task",
+          loopMaxIterations: 5,
+          status: "ENABLED",
+          createdAt: "2026-06-18T00:00:00Z",
+          updatedAt: "2026-06-18T00:00:00Z",
+        },
+      ],
+      providers: [
+        buildProvider({
+          id: "provider-other",
+          displayName: "Claude",
+          model: "claude-sonnet",
+          default: false,
+        }),
+        buildProvider({
+          id: "provider-default",
+          displayName: "OpenAI",
+          model: "gpt-4o",
+          default: true,
+        }),
+      ],
+      sessions: [
+        buildSession({
+          title: "新会话",
+        }),
+        buildSession({
+          id: "session-blank",
+          title: "Blank Session",
+          agentId: "agent-2",
+          createdAt: "2026-06-19T00:00:00Z",
+          updatedAt: "2026-06-19T00:00:00Z",
+        }),
+        buildSession({
+          id: "session-fallback-title",
+          title: "   ",
+          agentId: "agent-2",
+          createdAt: "2026-06-20T00:00:00Z",
+          updatedAt: "2026-06-20T00:00:00Z",
+        }),
+      ],
+      approvals: [
+        {
+          id: "approval-pending",
+          runId: "run-1",
+          agentId: "agent-1",
+          toolName: "tool.approve",
+          status: "PENDING",
+          reason: "needs confirmation",
+          createdAt: "2026-06-18T00:00:00Z",
+          updatedAt: "2026-06-18T00:00:00Z",
+        },
+        {
+          id: "approval-approved",
+          runId: "run-2",
+          agentId: "agent-1",
+          toolName: "tool.ignore",
+          status: "APPROVED",
+          reason: "done",
+          createdAt: "2026-06-18T00:00:00Z",
+          updatedAt: "2026-06-18T00:00:00Z",
+        },
+      ],
+      tools: [
+        {
+          name: "tool.approve",
+          displayName: "Approve Tool",
+          description: "requires approval",
+          category: "control",
+          permission: "approval",
+          allowedModes: ["approval"],
+          requiresApprovalIn: ["approval"],
+        },
+      ],
+    });
+
+    const { state } = await mountSessionState();
+    state.sessionSearch.value = "blank";
+    state.sessionAgentFilter.value = "agent-2";
+
+    expect(state.pendingApprovals.value.map((approval) => approval.id)).toEqual([
+      "approval-pending",
+    ]);
+    expect(state.approvalTool(state.pendingApprovals.value[0]!)).toMatchObject({
+      name: "tool.approve",
+    });
+    expect(state.visibleSessions.value.map((session) => session.id)).toEqual([
+      "session-blank",
+    ]);
+    expect(state.selectedProvider.value?.id).toBe("provider-default");
+
+    await state.handleProviderChange("provider-other");
+    expect(state.selectedProviderId.value).toBe("provider-other");
+    expect(state.selectedProvider.value?.id).toBe("provider-other");
+
+    state.selectedProviderId.value = "missing-provider";
+    state.syncSelectedProviderFromAgent();
+    expect(state.selectedProviderId.value).toBe("provider-default");
+
+    state.selectedAgentId.value = "agent-2";
+    state.handleAgentChange();
+    expect(state.selectedProviderId.value).toBe("provider-other");
+    expect(state.agentName("agent-2")).toBe("Agent Two");
+    expect(state.agentName("missing-agent")).toBe("missing-agent");
+    expect(state.sessionTitle(state.sessions.value[0]!)).not.toBe("新会话");
+    expect(state.sessionTitle(state.sessions.value[2]!)).not.toBe("   ");
+  });
+
+  it("opens provider settings and preserves invalid session-selection agent ids", async () => {
+    const { state, router } = await mountSessionState();
+
+    state.openProviderSettings();
+    await router.isReady();
+    await nextTick();
+    expect(router.currentRoute.value.path).toBe("/settings/adk");
+    expect(state.selectedAgentId.value).toBe("agent-1");
+
+    await state.finishSessionSelection("missing-agent");
+    expect(state.selectedAgentId.value).toBe("agent-1");
+  });
 });
 
 async function mountSessionState() {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: "/", component: { template: "<div />" } }],
+    routes: [
+      { path: "/", component: { template: "<div />" } },
+      { path: "/settings/adk", component: { template: "<div />" } },
+    ],
   });
   let state!: ReturnType<typeof useADKPageSessionState>;
   mount(
@@ -195,7 +417,7 @@ async function mountSessionState() {
     }),
   );
   await flushRequests();
-  return state;
+  return { state, router };
 }
 
 function buildPageData(sessions: ADKSession[], providers: ADKProvider[] = []) {
