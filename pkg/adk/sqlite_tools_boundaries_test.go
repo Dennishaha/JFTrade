@@ -32,8 +32,8 @@ func (sqliteDialectBoundaryModel) TableName() string {
 func TestSQLiteDialectorMigratesAndPersistsWithGORM(t *testing.T) {
 	db := openTestSQLiteGORM(t)
 
-	if db.Dialector.Name() != "sqlite" {
-		t.Fatalf("dialector name = %q, want sqlite", db.Dialector.Name())
+	if db.Name() != "sqlite" {
+		t.Fatalf("dialector name = %q, want sqlite", db.Name())
 	}
 	if db.Migrator() == nil {
 		t.Fatal("migrator is nil")

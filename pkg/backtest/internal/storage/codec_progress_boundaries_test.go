@@ -116,7 +116,11 @@ func TestStoredKLineScanningClassifiesMissingMalformedAndValidRows(t *testing.T)
 	if err != nil {
 		t.Fatalf("query short rows: %v", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			t.Fatalf("close short rows: %v", err)
+		}
+	}()
 	if _, err := scanKLinesWithCapacity(rows, "US.AAPL", types.Interval1m, 1); err == nil {
 		t.Fatal("scanKLinesWithCapacity(short row) error = nil")
 	}

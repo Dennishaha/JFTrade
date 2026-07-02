@@ -386,8 +386,4 @@ type assertError string
 
 func (e assertError) Error() string { return string(e) }
 
-//go:fix inline
 func servercoreInt32(value int32) *int32 { return new(value) }
-
-//go:fix inline
-func servercoreBool(value bool) *bool { return new(value) }

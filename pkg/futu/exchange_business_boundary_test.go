@@ -1,6 +1,7 @@
 package futu
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -256,7 +257,7 @@ func TestExchangeLocalMarketAndOrderBookHandlerBoundaries(t *testing.T) {
 
 	ex.EnsureMarket(" us.aapl ")
 	ex.EnsureMarket("US.AAPL")
-	markets, err := ex.QueryMarkets(nil)
+	markets, err := ex.QueryMarkets(context.TODO())
 	if err != nil {
 		t.Fatalf("QueryMarkets: %v", err)
 	}
@@ -502,7 +503,6 @@ func TestMergeStaticInfoIntoSecurityDetailsFillsMissingFieldsWithoutClobberingSn
 	}
 }
 
-//go:fix inline
 func futuTestPtr[T any](value T) *T {
 	return new(value)
 }

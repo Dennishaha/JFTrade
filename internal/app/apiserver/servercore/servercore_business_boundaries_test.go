@@ -151,8 +151,3 @@ func directoryExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
 }
-
-//go:fix inline
-func servercoreBoundaryPtr[T any](value T) *T {
-	return new(value)
-}
