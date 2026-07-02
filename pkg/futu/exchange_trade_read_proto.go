@@ -98,7 +98,7 @@ func brokerFundsSnapshotFromProto(account resolvedTradeAccount, funds *trdcommon
 
 func brokerPositionSnapshotFromProto(account resolvedTradeAccount, position *trdcommonpb.Position) BrokerPositionSnapshot {
 	market := runtimeMarketAuthority(position.GetTrdMarket())
-	if market == "" {
+	if market == "" || market == "UNKNOWN" {
 		market = marketFromSymbol(position.GetCode(), account.Market)
 	}
 

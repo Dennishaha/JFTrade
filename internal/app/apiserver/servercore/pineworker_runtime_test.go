@@ -235,6 +235,54 @@ func TestResolvePineWorkerRuntimeConfigPrefersExternalBinaryOverEmbeddedAsset(t 
 	}
 }
 
+func TestApplyPineWorkerSettingsRetiresExistingRunnersWhenDisabled(t *testing.T) {
+	restorePineWorkerAssetSelector(t, pineworkerassets.Asset{}, false, nil)
+	t.Setenv(envPineWorkerDisabled, "true")
+
+	backtestRunner := &closeTrackingPineWorkerRunner{}
+	instanceRunner := &closeTrackingPineWorkerRunner{}
+	server := &Server{
+		backtestPineWorkerRunner: backtestRunner,
+		instancePineWorkerRunner: instanceRunner,
+	}
+
+	server.applyPineWorkerSettings(PineWorkerSettings{})
+	if backtestRunner.closed != 1 || instanceRunner.closed != 1 {
+		t.Fatalf("closed counts = backtest %d instance %d, want 1/1", backtestRunner.closed, instanceRunner.closed)
+	}
+	if server.backtestPineWorkerRunner != nil || server.instancePineWorkerRunner != nil {
+		t.Fatalf("runners after disabled apply = %#v/%#v, want nil", server.backtestPineWorkerRunner, server.instancePineWorkerRunner)
+	}
+
+	retirePineWorkerRunner(nil)
+	retirePineWorkerRunner(closeTrackingPineWorkerRunnerNoClose{})
+}
+
+func TestDefaultPineWorkerFactoriesConstructRuntimeDependencies(t *testing.T) {
+	launcher, err := defaultNewPineWorkerLauncher(pineWorkerRuntimeConfig{
+		BundlePath:        filepath.Join(t.TempDir(), "worker.mjs"),
+		RuntimePath:       "node",
+		TempDir:           t.TempDir(),
+		WorkDir:           t.TempDir(),
+		ProtoPath:         filepath.Join(t.TempDir(), "pineworker.proto"),
+		MaxMessageBytes:   1024,
+		PineTSVersion:     "1.0.0",
+		RequestTimeout:    time.Second,
+		HealthTimeout:     time.Second,
+		MaxDuration:       time.Second,
+		MaxDurationPerBar: time.Millisecond,
+	}, []byte("console.log('worker')"))
+	if err != nil {
+		t.Fatalf("defaultNewPineWorkerLauncher() error = %v", err)
+	}
+	if launcher == nil {
+		t.Fatal("defaultNewPineWorkerLauncher() = nil")
+	}
+	if dialer := defaultNewPineWorkerDialer(1024); dialer == nil {
+		t.Fatal("defaultNewPineWorkerDialer() = nil")
+	}
+}
+
 func TestResolvePineWorkerRuntimeConfigRejectsInvalidNumericEnv(t *testing.T) {
 	t.Setenv(envPineWorkerBundle, "/tmp/worker.mjs")
 	t.Setenv(envPineWorkerBacktestWorkers, "0")
@@ -569,6 +617,25 @@ type fakeServerPineWorkerLauncher struct {
 	mu        sync.Mutex
 	started   []pineworker.WorkerSpec
 	processes []*fakeServerPineWorkerProcess
+}
+
+type closeTrackingPineWorkerRunner struct {
+	closed int
+}
+
+func (runner *closeTrackingPineWorkerRunner) RunScript(context.Context, pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
+	return pineworker.RunScriptResponse{}, nil
+}
+
+func (runner *closeTrackingPineWorkerRunner) Close(context.Context) error {
+	runner.closed++
+	return nil
+}
+
+type closeTrackingPineWorkerRunnerNoClose struct{}
+
+func (closeTrackingPineWorkerRunnerNoClose) RunScript(context.Context, pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
+	return pineworker.RunScriptResponse{}, nil
 }
 
 func (launcher *fakeServerPineWorkerLauncher) Start(ctx context.Context, spec pineworker.WorkerSpec) (pineworker.WorkerProcess, error) {

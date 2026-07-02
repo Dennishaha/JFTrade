@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -30,6 +31,22 @@ func TestExternalModeFromEnvAndDisabledShadowPayload(t *testing.T) {
 	payload := ShadowPayloadForScript("plot(close)")
 	if payload.Enabled || payload.Status != "disabled" || payload.DifferenceSummary["evaluated"] != false {
 		t.Fatalf("disabled shadow payload = %#v", payload)
+	}
+}
+
+func TestShadowPayloadReportsWorkerStartupFailure(t *testing.T) {
+	t.Setenv("JFTRADE_PINETS_MODE", "shadow")
+	t.Setenv("JFTRADE_PINETS_WORKER_PATH", filepath.Join(t.TempDir(), "missing-worker.mjs"))
+
+	payload := ShadowPayloadForScript("plot(close)")
+	if !payload.Enabled || payload.OK || payload.Status != "shadow_error" {
+		t.Fatalf("shadow startup failure payload = %#v", payload)
+	}
+	if payload.Repository != "https://github.com/LuxAlgo/PineTS" {
+		t.Fatalf("Repository = %q", payload.Repository)
+	}
+	if len(payload.Diagnostics) != 1 || !strings.Contains(payload.Diagnostics[0].Message, "pinets worker script unavailable") {
+		t.Fatalf("Diagnostics = %#v", payload.Diagnostics)
 	}
 }
 

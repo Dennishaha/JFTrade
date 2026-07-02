@@ -142,3 +142,87 @@ func TestDetachPreservesCorrelationWithoutParentCancellation(t *testing.T) {
 		t.Fatalf("detached fields = %#v", fields)
 	}
 }
+
+func TestObservabilityBoundaryDefaultsAndGlobalOpenDLogging(t *testing.T) {
+	var output bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	recorder := NewRecorderWithConfig(RecorderConfig{})
+	snapshot := recorder.Snapshot()
+	if snapshot.SlowThresholdMS != defaultSlowThreshold.Milliseconds() || snapshot.MinimumImportance != ImportanceLow.String() {
+		t.Fatalf("default recorder snapshot = %#v", snapshot)
+	}
+	if !recorder.Accepts(ImportanceNormal) {
+		t.Fatal("default recorder should accept normal importance")
+	}
+	if !(*Recorder)(nil).Accepts(ImportanceCritical) {
+		t.Fatal("nil recorder should accept all importance levels")
+	}
+
+	var nilCtx context.Context
+	ctx := WithRecorder(nilCtx, recorder)
+	ctx = WithFields(ctx, Fields{RequestID: " request-boundary ", Source: " api "})
+	Error(ctx, strings.Repeat("x ", 400), errors.New(strings.Repeat("boom ", 200)))
+	snapshot = recorder.Snapshot()
+	if len(snapshot.RecentErrors) != 1 {
+		t.Fatalf("recent errors = %#v", snapshot.RecentErrors)
+	}
+	if len(snapshot.RecentErrors[0].Message) > maxSummaryTextBytes+3 || !strings.HasSuffix(snapshot.RecentErrors[0].Message, "...") {
+		t.Fatalf("long message was not sanitized: %q", snapshot.RecentErrors[0].Message)
+	}
+
+	RecordOpenDCall(context.Background(), "global-qot", time.Millisecond, errors.New("global failure"))
+	if !strings.Contains(output.String(), `"source":"opend"`) || !strings.Contains(output.String(), "global-qot") {
+		t.Fatalf("global OpenD log missing source/operation: %s", output.String())
+	}
+
+	if NormalizeImportance("unknown").String() != ImportanceNormal.String() {
+		t.Fatal("unknown importance should normalize to normal")
+	}
+	if NormalizeMinimumImportance("unknown").String() != ImportanceLow.String() {
+		t.Fatal("unknown minimum importance should normalize to low")
+	}
+	if Importance("fatal").String() != ImportanceCritical.String() {
+		t.Fatal("fatal importance alias should stringify as critical")
+	}
+	if Importance("weird").String() != ImportanceNormal.String() {
+		t.Fatal("unknown direct importance should stringify as normal")
+	}
+	if got := importanceByRank(99); got != ImportanceLow {
+		t.Fatalf("importanceByRank(99) = %s, want low", got)
+	}
+}
+
+func TestObservabilityNilContextAndOpenDSuccessBoundaries(t *testing.T) {
+	var nilCtx context.Context
+	if fields := FieldsFromContext(nilCtx); fields != (Fields{}) {
+		t.Fatalf("nil context fields = %#v", fields)
+	}
+	if recorder := RecorderFromContext(nilCtx); recorder != nil {
+		t.Fatalf("nil context recorder = %#v", recorder)
+	}
+
+	base := context.Background()
+	detached := Detach(base, context.Background())
+	if detached != base {
+		t.Fatal("Detach without parent observability state should return base context")
+	}
+
+	recorder := NewRecorder(3, time.Second)
+	ctx := WithRecorder(WithFields(context.Background(), Fields{RequestID: "request-success"}), recorder)
+	recorder.RecordOpenDCall(ctx, "proto_3007", time.Millisecond, nil)
+	snapshot := recorder.Snapshot()
+	if snapshot.OpenD.TotalCalls != 1 || snapshot.OpenD.FailedCalls != 0 || snapshot.OpenD.LastSuccessAt == "" {
+		t.Fatalf("OpenD success health = %#v", snapshot.OpenD)
+	}
+	if snapshot.OpenD.LastOperation != "proto_3007" || snapshot.OpenD.LastRequestID != "request-success" {
+		t.Fatalf("OpenD success correlation = %#v", snapshot.OpenD)
+	}
+
+	var nilRecorder *Recorder
+	nilRecorder.RecordHTTPRequest(context.Background(), "GET", "/ignored", 500, time.Second)
+	nilRecorder.RecordOpenDCall(context.Background(), "ignored", time.Second, nil)
+	nilRecorder.recordError(Event{Message: "ignored"})
+}

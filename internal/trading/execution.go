@@ -271,7 +271,7 @@ func (s *Service) normalizeExecutionOrder(payload ExecutionPlaceRequest) (Execut
 				AccountID: strings.TrimSpace(payload.AccountID), Market: instrument.Market,
 			},
 			Symbol: instrument.Symbol, Side: side, OrderType: orderType, Quantity: payload.Quantity,
-			Price: payload.Price, TimeInForce: executionStringPointer(timeInForce),
+			Price: payload.Price, StopPrice: payload.StopPrice, TimeInForce: executionStringPointer(timeInForce),
 			ClientOrderID: strings.TrimSpace(payload.ClientOrderID), Remark: executionStringPointer(remark),
 			Session: executionStringPointer(session), FillOutsideRTH: fillOutsideRTH,
 		},

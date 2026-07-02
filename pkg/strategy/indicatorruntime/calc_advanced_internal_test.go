@@ -224,6 +224,79 @@ func TestAdvancedIndicatorSnapshotDispatchesAdvancedBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("scalar indicators return consumable strategy values", func(t *testing.T) {
+		tests := []advancedIndicatorConfig{
+			{key: "rsi:close:2", kind: "rsi", source: "close", period: 2},
+			{key: "atr:15m:3", kind: "atr", source: "close", timeUnit: "15m", period: 3},
+			{key: "bbw:close:3", kind: "bbw", source: "close", period: 3, multiplier: 2},
+			{key: "cog:close:3", kind: "cog", source: "close", period: 3},
+			{key: "linreg:close:3", kind: "linreg", source: "close", period: 3, offset: 1},
+			{key: "alma:close:3", kind: "alma", source: "close", period: 3, multiplier: 0.85, parameter: 6},
+			{key: "cmo:close:3", kind: "cmo", source: "close", period: 3},
+			{key: "tsi:close:1:1", kind: "tsi", source: "close", period: 1, right: 1},
+			{key: "correlation:close:high:3", kind: "correlation", source: "close", source2: "high", period: 3},
+			{key: "dev:close:3", kind: "dev", source: "close", period: 3},
+			{key: "median:close:3", kind: "median", source: "close", period: 3},
+			{key: "percentile_linear:close:3:50", kind: "percentile_linear_interpolation", source: "close", period: 3, multiplier: 50},
+			{key: "percentile_nearest:close:3:50", kind: "percentile_nearest_rank", source: "close", period: 3, multiplier: 50},
+			{key: "percentrank:close:3", kind: "percentrank", source: "close", period: 3},
+			{key: "swma:close", kind: "swma", source: "close"},
+		}
+		for _, config := range tests {
+			t.Run(config.kind, func(t *testing.T) {
+				snapshot, ok := runtime.advancedIndicatorSnapshot(config, cache).(interface {
+					ScalarValue() (float64, bool)
+				})
+				if !ok {
+					t.Fatalf("%s snapshot type = %T", config.kind, runtime.advancedIndicatorSnapshot(config, cache))
+				}
+				if value, valueOK := snapshot.ScalarValue(); !valueOK || math.IsNaN(value) {
+					t.Fatalf("%s scalar = %v, %v", config.kind, value, valueOK)
+				}
+			})
+		}
+	})
+
+	t.Run("structured indicators return full snapshots", func(t *testing.T) {
+		tests := []advancedIndicatorConfig{
+			{key: "macd:close:2:3:1", kind: "macd", source: "close", period: 2, right: 3, offset: 1},
+			{key: "bollinger:close:3:2", kind: "bollinger", source: "close", period: 3, multiplier: 2},
+			{key: "supertrend:15m:2:2", kind: "supertrend", source: "close", timeUnit: "15m", period: 2, multiplier: 2},
+			{key: "kc:close:3:1.5", kind: "kc", source: "close", period: 3, multiplier: 1.5, useTR: false},
+		}
+		for _, config := range tests {
+			t.Run(config.kind, func(t *testing.T) {
+				snapshot, ok := runtime.advancedIndicatorSnapshot(config, cache).(map[string]any)
+				if !ok || len(snapshot) == 0 {
+					t.Fatalf("%s snapshot = %#v", config.kind, runtime.advancedIndicatorSnapshot(config, cache))
+				}
+			})
+		}
+	})
+
+	t.Run("pivot snapshots only surface confirmed swing points", func(t *testing.T) {
+		pivotRuntime := &indicatorRuntime{
+			intervalMinutes: 15,
+			closes:          []float64{10, 15, 11},
+			volumes:         []float64{100, 100, 100},
+		}
+		highConfig := advancedIndicatorConfig{key: "pivothigh:close:1:1", kind: "pivothigh", source: "close", left: 1, right: 1}
+		highSnapshot, ok := pivotRuntime.advancedIndicatorSnapshot(highConfig, cache).(interface {
+			ScalarValue() (float64, bool)
+		})
+		if !ok {
+			t.Fatalf("pivothigh snapshot type = %T", pivotRuntime.advancedIndicatorSnapshot(highConfig, cache))
+		}
+		if value, valueOK := highSnapshot.ScalarValue(); !valueOK || value != 15 {
+			t.Fatalf("pivothigh scalar = %v, %v, want 15 true", value, valueOK)
+		}
+
+		lowConfig := advancedIndicatorConfig{key: "pivotlow:close:1:1", kind: "pivotlow", source: "close", left: 1, right: 1}
+		if snapshot := pivotRuntime.advancedIndicatorSnapshot(lowConfig, cache); snapshot != nil {
+			t.Fatalf("unconfirmed pivotlow snapshot = %T, want nil", snapshot)
+		}
+	})
+
 	t.Run("invalid timeframe returns nil", func(t *testing.T) {
 		config := advancedIndicatorConfig{key: "obv:close:5m", kind: "obv", source: "close", timeUnit: "5m"}
 		if snapshot := runtime.advancedIndicatorSnapshot(config, cache); snapshot != nil {

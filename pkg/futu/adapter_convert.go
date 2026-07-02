@@ -240,6 +240,9 @@ func bbgoSubmitOrderFromBrokerPlaceOrder(q broker.PlaceOrderQuery) bbgotypes.Sub
 	if q.Price != nil {
 		submit.Price = fixedpoint.NewFromFloat(*q.Price)
 	}
+	if q.StopPrice != nil {
+		submit.StopPrice = fixedpoint.NewFromFloat(*q.StopPrice)
+	}
 	if q.TimeInForce != nil {
 		submit.TimeInForce = bbgotypes.TimeInForce(*q.TimeInForce)
 	}

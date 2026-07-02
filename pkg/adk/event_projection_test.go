@@ -10,6 +10,7 @@ import (
 
 	adkmodel "google.golang.org/adk/model"
 	adksession "google.golang.org/adk/session"
+	adktool "google.golang.org/adk/tool"
 	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
 	"google.golang.org/genai"
 )
@@ -95,6 +96,96 @@ func TestSessionProjectionRestoresMessagesFromADKEvents(t *testing.T) {
 	}
 	if messages[1].Role != "assistant" || messages[1].Content != "这是答案。" || messages[1].ReasoningContent != "先分析上下文。" {
 		t.Fatalf("assistant message = %+v", messages[1])
+	}
+}
+
+func TestProjectedToolResponsesRecoverApprovalFailureAndSuccessState(t *testing.T) {
+	timestamp := "2026-07-02T00:00:00Z"
+	state := &projectedRunState{
+		runID:         "run-tools",
+		toolCalls:     map[string]*ToolCall{},
+		toolCallOrder: []string{},
+	}
+	state.reply.WriteString("准备调用工具")
+	state.reasoning.WriteString("先检查账户")
+
+	projectedToolResponse(state, &genai.FunctionResponse{
+		ID:   "call-approval",
+		Name: "account.place_order",
+		Response: map[string]any{
+			"error": "execution blocked: " + adktool.ErrConfirmationRequired.Error(),
+		},
+	}, timestamp)
+	approvalCall := state.toolCalls["call-approval"]
+	if approvalCall == nil || approvalCall.Status != "PENDING_APPROVAL" || !approvalCall.RequiresUser || approvalCall.CompletedAt != nil {
+		t.Fatalf("approval tool call = %#v", approvalCall)
+	}
+	if state.preToolContent != "准备调用工具" || state.preToolReasoning != "先检查账户" {
+		t.Fatalf("pre-tool content/reasoning = %q/%q", state.preToolContent, state.preToolReasoning)
+	}
+
+	projectedToolResponse(state, &genai.FunctionResponse{
+		ID:   "call-failed",
+		Name: "market.candles",
+		Response: map[string]any{
+			"error": "symbol is required",
+		},
+	}, timestamp)
+	failedCall := state.toolCalls["call-failed"]
+	if failedCall == nil || failedCall.Status != "FAILED" || failedCall.Error == nil || *failedCall.Error != "symbol is required" || failedCall.CompletedAt == nil {
+		t.Fatalf("failed tool call = %#v", failedCall)
+	}
+
+	projectedToolResponse(state, &genai.FunctionResponse{
+		ID:   "call-ok",
+		Name: "market.snapshot",
+		Response: map[string]any{
+			"symbol": "US.AAPL",
+			"price":  200,
+		},
+	}, timestamp)
+	successCall := state.toolCalls["call-ok"]
+	if successCall == nil || successCall.Status != "SUCCEEDED" || successCall.Output == nil || successCall.CompletedAt == nil {
+		t.Fatalf("success tool call = %#v", successCall)
+	}
+
+	if projectedToolResponse(nil, &genai.FunctionResponse{ID: "nil"}, timestamp); len(state.toolCalls) != 3 {
+		t.Fatalf("nil state should not mutate calls: %#v", state.toolCalls)
+	}
+	if projectedToolProgress("") != "🔧 执行工具 unknown..." || projectionRunID(nil) != "" {
+		t.Fatalf("progress/run fallback failed")
+	}
+}
+
+func TestTranscriptProjectionFallsBackToStableIDsAndSkipsEmptyContent(t *testing.T) {
+	if _, ok := transcriptEntryFromADKEvent(nil); ok {
+		t.Fatal("nil event produced transcript entry")
+	}
+	if _, ok := transcriptEntryFromADKEvent(&adksession.Event{ID: "empty"}); ok {
+		t.Fatal("empty event produced transcript entry")
+	}
+
+	at := time.Unix(200, 0).UTC()
+	userEvent := newUserEvent("run-fallback", "用户输入", at)
+	userEvent.ID = ""
+	userEvent.InvocationID = ""
+	entry, ok := transcriptEntryFromADKEvent(userEvent)
+	if !ok {
+		t.Fatal("expected user transcript entry")
+	}
+	if entry.ID != "event-message-"+at.Format(time.RFC3339Nano) || entry.Role != "user" || entry.Content != "用户输入" {
+		t.Fatalf("fallback transcript entry = %#v", entry)
+	}
+
+	assistantEvent := newAssistantEvent("run-assistant", []*genai.Part{
+		{Text: "隐藏推理", Thought: true},
+		{Text: "可见回答"},
+		nil,
+	}, at)
+	assistantEvent.ID = "event-assistant"
+	assistantEntry, ok := transcriptEntryFromADKEvent(assistantEvent)
+	if !ok || assistantEntry.ID != "event-assistant" || assistantEntry.RunID != "run-assistant" || assistantEntry.Content != "可见回答" || assistantEntry.ReasoningContent != "隐藏推理" {
+		t.Fatalf("assistant transcript entry = %#v ok=%v", assistantEntry, ok)
 	}
 }
 

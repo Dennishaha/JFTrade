@@ -110,6 +110,9 @@ func (s *parseState) lowerSwitchStatement(lineNumber int, arms []switchArm) (str
 		if err := s.takeNormalizationErr(arm.line.number); err != nil {
 			return nil, err
 		}
+		if err := validateExpression(arm.line.number, "switch condition", condition); err != nil {
+			return nil, err
+		}
 		fallback = []strategyir.Statement{&strategyir.IfStmt{
 			Range:     strategyir.SourceRange{StartLine: lineNumber, EndLine: arm.line.number},
 			Condition: condition,

@@ -1,0 +1,146 @@
+package trading
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/jftrade/jftrade-main/pkg/broker"
+)
+
+func TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable(t *testing.T) {
+	service := NewService(WithActiveBroker(func() broker.Broker {
+		return &stubBroker{id: "futu"}
+	}))
+	query := broker.ReadQuery{BrokerID: "futu", AccountID: "acc-1", TradingEnvironment: "REAL", Market: "US"}
+
+	cases := []struct {
+		name string
+		call func() (map[string]any, error)
+		key  string
+	}{
+		{"funds", func() (map[string]any, error) { return service.Funds(t.Context(), query) }, "summary"},
+		{"positions", func() (map[string]any, error) { return service.Positions(t.Context(), query) }, "positions"},
+		{"orders", func() (map[string]any, error) { return service.Orders(t.Context(), OrdersQuery{ReadQuery: query}) }, "orders"},
+		{"fills", func() (map[string]any, error) { return service.Fills(t.Context(), FillsQuery{ReadQuery: query}) }, "fills"},
+		{"cash flows", func() (map[string]any, error) {
+			return service.CashFlows(t.Context(), broker.CashFlowQuery{ReadQuery: query})
+		}, "cashFlows"},
+		{"fees", func() (map[string]any, error) {
+			return service.OrderFees(t.Context(), broker.OrderFeeQuery{ReadQuery: query})
+		}, "fees"},
+		{"margin ratios", func() (map[string]any, error) {
+			return service.MarginRatios(t.Context(), broker.MarginRatioQuery{ReadQuery: query})
+		}, "marginRatios"},
+		{"max quantity", func() (map[string]any, error) {
+			return service.MaxTradeQuantity(t.Context(), broker.MaxTradeQuantityQuery{ReadQuery: query})
+		}, "maxTradeQuantity"},
+		{"quote", func() (map[string]any, error) { return service.Quote(t.Context(), broker.QuoteQuery{ReadQuery: query}) }, "quotes"},
+		{"klines", func() (map[string]any, error) {
+			return service.KLines(t.Context(), broker.KLineQuery{ReadQuery: query})
+		}, "klines"},
+		{"securities", func() (map[string]any, error) {
+			return service.Securities(t.Context(), broker.SecuritySnapshotQuery{ReadQuery: query})
+		}, "securities"},
+		{"portfolio cash", func() (map[string]any, error) { return service.PortfolioCashBalances(t.Context(), query) }, "balances"},
+		{"portfolio positions", func() (map[string]any, error) { return service.PortfolioPositions(t.Context(), query) }, "positions"},
+		{"portfolio reconciliation", func() (map[string]any, error) { return service.PortfolioReconciliation(t.Context(), query) }, "positions"},
+		{"portfolio cash reconciliation", func() (map[string]any, error) { return service.PortfolioCashReconciliation(t.Context(), query) }, "balances"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := tc.call()
+			if err != nil {
+				t.Fatalf("call: %v", err)
+			}
+			if _, ok := resp[tc.key]; !ok {
+				t.Fatalf("response missing %q: %#v", tc.key, resp)
+			}
+		})
+	}
+}
+
+func TestServiceBrokerReadOperationsClassifyUpstreamFailures(t *testing.T) {
+	upstream := errors.New("exchange unavailable")
+	reader := &stubMarketDataReader{
+		queryMaxTradeQuantity: func(context.Context, broker.MaxTradeQuantityQuery) (*broker.MaxTradeQuantitySnapshot, error) {
+			return nil, upstream
+		},
+		queryKLines: func(context.Context, broker.KLineQuery) (*broker.KLineSnapshot, error) {
+			return nil, upstream
+		},
+		querySecuritySnapshot: func(context.Context, broker.SecuritySnapshotQuery) (*broker.SecuritySnapshotResult, error) {
+			return nil, upstream
+		},
+		queryFunds: func(context.Context, broker.ReadQuery) (*broker.FundsSnapshot, error) {
+			return nil, upstream
+		},
+		queryPositions: func(context.Context, broker.ReadQuery) ([]broker.PositionSnapshot, error) {
+			return nil, upstream
+		},
+	}
+	service := NewService(WithActiveBroker(func() broker.Broker {
+		return &stubBroker{id: "futu", data: reader}
+	}))
+	query := broker.ReadQuery{BrokerID: "futu", AccountID: "acc-1", TradingEnvironment: "REAL", Market: "US"}
+
+	cases := []struct {
+		name string
+		call func() (map[string]any, error)
+	}{
+		{"max quantity", func() (map[string]any, error) {
+			return service.MaxTradeQuantity(t.Context(), broker.MaxTradeQuantityQuery{ReadQuery: query})
+		}},
+		{"klines", func() (map[string]any, error) {
+			return service.KLines(t.Context(), broker.KLineQuery{ReadQuery: query})
+		}},
+		{"securities", func() (map[string]any, error) {
+			return service.Securities(t.Context(), broker.SecuritySnapshotQuery{ReadQuery: query})
+		}},
+		{"portfolio cash", func() (map[string]any, error) { return service.PortfolioCashBalances(t.Context(), query) }},
+		{"portfolio positions", func() (map[string]any, error) { return service.PortfolioPositions(t.Context(), query) }},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := tc.call()
+			if err != nil {
+				t.Fatalf("call: %v", err)
+			}
+			if resp["connectivity"] == "connected" {
+				t.Fatalf("response should not report connected: %#v", resp)
+			}
+		})
+	}
+}
+
+func TestServiceBrokerWriteOperationsPropagateUpstreamFailures(t *testing.T) {
+	upstream := errors.New("broker write failed")
+	writer := &stubTradingService{
+		placeOrder: func(context.Context, broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error) {
+			return nil, upstream
+		},
+		cancelOrders: func(context.Context, broker.ReadQuery, ...broker.CancelOrder) error {
+			return upstream
+		},
+	}
+	activeBroker := &unlockStubBroker{
+		stubBroker: &stubBroker{id: "futu", trading: writer},
+		unlockTrade: func(context.Context, broker.UnlockTradeRequest) error {
+			return upstream
+		},
+	}
+	service := NewService(WithActiveBroker(func() broker.Broker { return activeBroker }))
+	query := broker.ReadQuery{BrokerID: "futu", AccountID: "acc-1", TradingEnvironment: "REAL", Market: "US"}
+
+	if _, err := service.PlaceBrokerOrder(t.Context(), broker.PlaceOrderQuery{ReadQuery: query}); !errors.Is(err, upstream) {
+		t.Fatalf("PlaceBrokerOrder error = %v, want upstream", err)
+	}
+	if _, err := service.CancelBrokerOrders(t.Context(), query, []broker.CancelOrder{{BrokerOrderID: "order-1"}}); !errors.Is(err, upstream) {
+		t.Fatalf("CancelBrokerOrders error = %v, want upstream", err)
+	}
+	if _, err := service.UnlockTrade(t.Context(), broker.UnlockTradeRequest{ReadQuery: query, Unlock: true}); !errors.Is(err, upstream) {
+		t.Fatalf("UnlockTrade error = %v, want upstream", err)
+	}
+}

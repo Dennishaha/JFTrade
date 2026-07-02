@@ -3,9 +3,11 @@ package futu
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
 
+	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
 )
@@ -209,6 +211,50 @@ func TestGroupOrderBookRequestsForPushSingleHKBatchNeedsDetail(t *testing.T) {
 	}
 	if len(batches[0].requests) != 1 || batches[0].requests[0].canonical != "HK.00700" {
 		t.Fatalf("unexpected HK batch: %#v", batches[0].requests)
+	}
+}
+
+func TestEnsureOrderBookPushSubscriptionsSplitsDetailsAndDeduplicates(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	hkSecurity, hkCanonical, err := futuSecurityFromSymbol("HK.00700")
+	if err != nil {
+		t.Fatalf("futuSecurityFromSymbol HK: %v", err)
+	}
+	usSecurity, usCanonical, err := futuSecurityFromSymbol("US.AAPL")
+	if err != nil {
+		t.Fatalf("futuSecurityFromSymbol US: %v", err)
+	}
+	requests := []orderBookRequest{
+		{canonical: hkCanonical, security: hkSecurity},
+		{canonical: usCanonical, security: usSecurity},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := ex.withClient(ctx, func(client *opend.Client) error {
+		return ex.ensureOrderBookPushSubscriptions(ctx, client, requests)
+	}); err != nil {
+		t.Fatalf("ensureOrderBookPushSubscriptions: %v", err)
+	}
+
+	if server.pushSubCallCount() != 2 {
+		t.Fatalf("push subscription calls = %d, want split HK/US batches", server.pushSubCallCount())
+	}
+	if !ex.subscriptions.hasOrderBook(hkCanonical) || !ex.subscriptions.hasOrderBookPush(hkCanonical) ||
+		!ex.subscriptions.hasOrderBook(usCanonical) || !ex.subscriptions.hasOrderBookPush(usCanonical) {
+		t.Fatalf("subscription registry did not mark order-book push state: %#v", ex.subscriptions)
+	}
+
+	if err := ex.withClient(ctx, func(client *opend.Client) error {
+		return ex.ensureOrderBookPushSubscriptions(ctx, client, requests)
+	}); err != nil {
+		t.Fatalf("second ensureOrderBookPushSubscriptions: %v", err)
+	}
+	if got := server.pushSubCallCount(); got != 2 {
+		t.Fatalf("deduplicated push subscription call count = %d, want 2", got)
 	}
 }
 

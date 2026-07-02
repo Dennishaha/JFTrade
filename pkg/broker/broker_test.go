@@ -40,6 +40,27 @@ func TestRegistryRegisterAndLookup(t *testing.T) {
 	}
 }
 
+func TestRegistryReplaceUpdatesActiveBroker(t *testing.T) {
+	r := broker.NewRegistry()
+	original := &mockBroker{id: "replaceable"}
+	replacement := &mockBroker{id: "replaceable"}
+	r.Register(original)
+
+	r.Replace(replacement)
+	if got := r.Lookup("replaceable"); got != replacement {
+		t.Fatalf("Lookup after Replace = %#v, want replacement broker", got)
+	}
+	if got := r.ActiveBroker(); got != replacement {
+		t.Fatalf("ActiveBroker after Replace = %#v, want replacement broker", got)
+	}
+
+	newBroker := &mockBroker{id: "new-broker"}
+	r.Replace(newBroker)
+	if got := r.Lookup("new-broker"); got != newBroker {
+		t.Fatalf("Lookup new broker after Replace = %#v", got)
+	}
+}
+
 func TestRegistryDuplicatePanics(t *testing.T) {
 	r := broker.NewRegistry()
 	r.Register(&mockBroker{id: "dup"})
@@ -66,6 +87,49 @@ func TestConvertFutuReadQuery(t *testing.T) {
 	}
 	if q.Market != "HK" {
 		t.Fatalf("Market = %q, want HK", q.Market)
+	}
+}
+
+func TestPointerHelpersReturnStableIndependentValues(t *testing.T) {
+	float64Ptr := broker.Float64Ptr
+	stringPtr := broker.StringPtr
+	boolPtr := broker.BoolPtr
+	uint64Ptr := broker.Uint64Ptr
+
+	floatPtr := float64Ptr(12.5)
+	secondFloatPtr := float64Ptr(12.5)
+	if floatPtr == nil || *floatPtr != 12.5 {
+		t.Fatalf("Float64Ptr = %#v, want independent 12.5", floatPtr)
+	}
+	if floatPtr == secondFloatPtr {
+		t.Fatal("Float64Ptr should return a fresh pointer")
+	}
+
+	stringValuePtr := stringPtr("HK.00700")
+	secondStringValuePtr := stringPtr("HK.00700")
+	if stringValuePtr == nil || *stringValuePtr != "HK.00700" {
+		t.Fatalf("StringPtr = %#v, want independent HK.00700", stringValuePtr)
+	}
+	if stringValuePtr == secondStringValuePtr {
+		t.Fatal("StringPtr should return a fresh pointer")
+	}
+
+	boolValuePtr := boolPtr(true)
+	secondBoolValuePtr := boolPtr(true)
+	if boolValuePtr == nil || *boolValuePtr != true {
+		t.Fatalf("BoolPtr = %#v, want independent true", boolValuePtr)
+	}
+	if boolValuePtr == secondBoolValuePtr {
+		t.Fatal("BoolPtr should return a fresh pointer")
+	}
+
+	uintPtr := uint64Ptr(42)
+	secondUintPtr := uint64Ptr(42)
+	if uintPtr == nil || *uintPtr != 42 {
+		t.Fatalf("Uint64Ptr = %#v, want independent 42", uintPtr)
+	}
+	if uintPtr == secondUintPtr {
+		t.Fatal("Uint64Ptr should return a fresh pointer")
 	}
 }
 

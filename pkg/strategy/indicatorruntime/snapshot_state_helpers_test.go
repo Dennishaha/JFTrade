@@ -359,3 +359,187 @@ func TestMovingAverageAndSnapshotAccessorsExposeExpectedFields(t *testing.T) {
 		t.Fatalf("indicatorKDJSnapshot.FieldValue(previousJ) = (%#v, %v)", value, ok)
 	}
 }
+
+func TestTradingWindowMovingAverageSelectionBusinessBoundaries(t *testing.T) {
+	values := []float64{10, 12, 14, 20, 22}
+	volumes := []float64{100, 120, 140, 200, 220}
+	labelKeys := []int64{20260612, 20260612, 20260615, 20260615, 20260616}
+
+	current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(
+		values, volumes, labelKeys, movingAverageConfig{averageType: "SMA", period: 2},
+	)
+	if !handled || !currentOK || !previousOK || math.Abs(current-18.6666666667) > 1e-9 || math.Abs(previous-14) > 1e-9 {
+		t.Fatalf("SMA trading-window snapshot = current %v/%v previous %v/%v handled=%v", current, currentOK, previous, previousOK, handled)
+	}
+
+	current, previous, currentOK, previousOK, handled = calculateTradingWindowMovingAverageSnapshotFromKeys(
+		values, volumes, labelKeys, movingAverageConfig{averageType: "VWMA", period: 2},
+	)
+	if !handled || !currentOK || !previousOK || current <= previous {
+		t.Fatalf("VWMA trading-window snapshot = current %v/%v previous %v/%v handled=%v", current, currentOK, previous, previousOK, handled)
+	}
+
+	current, previous, currentOK, previousOK, handled = calculateTradingWindowMovingAverageSnapshotFromKeys(
+		values, volumes, labelKeys, movingAverageConfig{averageType: "EMA", period: 2},
+	)
+	if !handled || !currentOK || !previousOK || current <= previous {
+		t.Fatalf("EMA trading-window snapshot = current %v/%v previous %v/%v handled=%v", current, currentOK, previous, previousOK, handled)
+	}
+
+	for _, averageType := range []string{"SMMA", "HMA"} {
+		t.Run(averageType, func(t *testing.T) {
+			current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(
+				[]float64{30, 40}, []float64{1, 1}, []int64{20260615, 20260616}, movingAverageConfig{averageType: averageType, period: 2},
+			)
+			if !handled || !currentOK || !previousOK || current == 0 || previous == 0 {
+				t.Fatalf("%s trading-window snapshot = current %v/%v previous %v/%v handled=%v", averageType, current, currentOK, previous, previousOK, handled)
+			}
+		})
+	}
+	t.Run("TMA", func(t *testing.T) {
+		current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(
+			[]float64{30, 40}, []float64{1, 1}, []int64{20260615, 20260616}, movingAverageConfig{averageType: "TMA", period: 1},
+		)
+		if !handled || !currentOK || !previousOK || current != 40 || previous != 30 {
+			t.Fatalf("TMA trading-window snapshot = current %v/%v previous %v/%v handled=%v", current, currentOK, previous, previousOK, handled)
+		}
+	})
+	if _, _, _, _, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(values, volumes, labelKeys, movingAverageConfig{averageType: "UNKNOWN", period: 2}); !handled {
+		t.Fatal("unknown average type should fall back to SMA-compatible trading-window aggregation")
+	}
+	if current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(values[:2], volumes[:2], labelKeys, movingAverageConfig{averageType: "SMA", period: 2}); !handled || currentOK || previousOK || current != 0 || previous != 0 {
+		t.Fatalf("mismatched label keys snapshot = current %v/%v previous %v/%v handled=%v", current, currentOK, previous, previousOK, handled)
+	}
+	if current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys([]float64{10, 12}, []float64{100}, []int64{invalidTradingPeriodLabelKey, invalidTradingPeriodLabelKey}, movingAverageConfig{averageType: "VWMA", period: 2}); !handled || currentOK || previousOK || current != 0 || previous != 0 {
+		t.Fatalf("invalid labels snapshot = current %v/%v previous %v/%v handled=%v", current, currentOK, previous, previousOK, handled)
+	}
+
+	summary := summarizeTradingWindowSelectionFromKeys(labelKeys, 2, len(labelKeys))
+	if !summary.valid || summary.startKey != 20260615 || summary.startIndex != 2 || summary.endIndex != 4 || summary.count != 3 {
+		t.Fatalf("selection summary = %+v", summary)
+	}
+	if summary := summarizeTradingWindowSelectionFromKeys(labelKeys, 0, len(labelKeys)); summary.valid {
+		t.Fatalf("zero-period selection summary = %+v", summary)
+	}
+	if value, ok := calculateSingleValueFromTradingWindowSelection(values, labelKeys, tradingWindowSelectionSummary{valid: true, count: 2}); ok || value != 0 {
+		t.Fatalf("single-value selection with two labels = %v/%v, want zero false", value, ok)
+	}
+}
+
+func TestAdvancedIndicatorFormulaAndDivergenceBoundaries(t *testing.T) {
+	values := []float64{10, 12, 14, 16, 18}
+	if value, ok := calculateBollingerBandWidth(values, 5, 2); !ok || math.Abs(value-(4*math.Sqrt(8)/14)) > 1e-9 {
+		t.Fatalf("calculateBollingerBandWidth() = %v/%v", value, ok)
+	}
+	if value, ok := calculateBollingerBandWidth([]float64{-1, 0, 1}, 3, 2); ok || value != 0 {
+		t.Fatalf("zero-basis Bollinger width = %v/%v, want zero false", value, ok)
+	}
+	if value, ok := calculateBollingerBandWidth(values, 0, 2); ok || value != 0 {
+		t.Fatalf("invalid Bollinger period = %v/%v, want zero false", value, ok)
+	}
+
+	if value, ok := calculateCenterOfGravity([]float64{1, 2, 3, 4}, 3); !ok || math.Abs(value+(16.0/9.0)) > 1e-9 {
+		t.Fatalf("calculateCenterOfGravity() = %v/%v", value, ok)
+	}
+	if value, ok := calculateCenterOfGravity([]float64{-1, 0, 1}, 3); ok || value != 0 {
+		t.Fatalf("zero-denominator COG = %v/%v, want zero false", value, ok)
+	}
+
+	if value, ok := calculateCMO([]float64{10, 12, 11, 15}, 3); !ok || math.Abs(value-(500.0/7.0)) > 1e-9 {
+		t.Fatalf("calculateCMO() = %v/%v", value, ok)
+	}
+	if value, ok := calculateCMO([]float64{10, 10, 10, 10}, 3); !ok || value != 0 {
+		t.Fatalf("flat CMO = %v/%v, want zero true", value, ok)
+	}
+	if value, ok := calculateCMO([]float64{10, 12}, 3); ok || value != 0 {
+		t.Fatalf("insufficient CMO = %v/%v, want zero false", value, ok)
+	}
+
+	if value, ok := calculateTSI([]float64{10, 11, 12, 13}, 1, 1); !ok || value != 100 {
+		t.Fatalf("rising TSI = %v/%v, want 100 true", value, ok)
+	}
+	if value, ok := calculateTSI([]float64{10, 10, 10}, 1, 1); !ok || value != 0 {
+		t.Fatalf("flat TSI = %v/%v, want zero true", value, ok)
+	}
+	if value, ok := calculateTSI([]float64{10}, 1, 1); ok || value != 0 {
+		t.Fatalf("insufficient TSI = %v/%v, want zero false", value, ok)
+	}
+
+	if value, ok := calculateCorrelation([]float64{1, 2, 3}, []float64{2, 4, 6}, 3); !ok || math.Abs(value-1) > 1e-9 {
+		t.Fatalf("positive correlation = %v/%v", value, ok)
+	}
+	if value, ok := calculateCorrelation([]float64{1, 2, 3}, []float64{6, 4, 2}, 3); !ok || math.Abs(value+1) > 1e-9 {
+		t.Fatalf("negative correlation = %v/%v", value, ok)
+	}
+	if value, ok := calculateCorrelation([]float64{1, 1, 1}, []float64{2, 3, 4}, 3); ok || value != 0 {
+		t.Fatalf("constant correlation = %v/%v, want zero false", value, ok)
+	}
+
+	if value, ok := calculateMeanDeviation([]float64{1, 2, 4}, 3); !ok || math.Abs(value-(10.0/9.0)) > 1e-9 {
+		t.Fatalf("calculateMeanDeviation() = %v/%v", value, ok)
+	}
+	if value, ok := calculateMedian([]float64{5, 1, 3}, 3); !ok || value != 3 {
+		t.Fatalf("odd median = %v/%v", value, ok)
+	}
+	if value, ok := calculateMedian([]float64{5, 1, 3, 7}, 4); !ok || value != 4 {
+		t.Fatalf("even median = %v/%v", value, ok)
+	}
+	if value, ok := calculatePercentileLinear([]float64{1, 3, 5, 7}, 4, 25); !ok || math.Abs(value-2.5) > 1e-9 {
+		t.Fatalf("linear percentile = %v/%v", value, ok)
+	}
+	if value, ok := calculatePercentileLinear([]float64{7}, 1, 75); !ok || value != 7 {
+		t.Fatalf("single-value linear percentile = %v/%v", value, ok)
+	}
+	if value, ok := calculatePercentileLinear([]float64{1, 2, 3}, 3, 101); ok || value != 0 {
+		t.Fatalf("invalid linear percentile = %v/%v, want zero false", value, ok)
+	}
+	if value, ok := calculatePercentileNearest([]float64{1, 3, 5, 7}, 4, 75); !ok || value != 5 {
+		t.Fatalf("nearest percentile = %v/%v", value, ok)
+	}
+	if value, ok := calculatePercentileNearest([]float64{1, 2, 3}, 3, -1); ok || value != 0 {
+		t.Fatalf("invalid nearest percentile = %v/%v, want zero false", value, ok)
+	}
+	if value, ok := calculatePercentRank([]float64{1, 2, 4, 3}, 4); !ok || math.Abs(value-(200.0/3.0)) > 1e-9 {
+		t.Fatalf("percent rank = %v/%v", value, ok)
+	}
+	if value, ok := calculatePercentRank([]float64{9}, 1); !ok || value != 0 {
+		t.Fatalf("single-value percent rank = %v/%v", value, ok)
+	}
+	if value, ok := calculateSWMA([]float64{1, 2, 4, 8}); !ok || math.Abs(value-(21.0/6.0)) > 1e-9 {
+		t.Fatalf("SWMA = %v/%v", value, ok)
+	}
+	if value, ok := calculateSWMA([]float64{1, 2, 3}); ok || value != 0 {
+		t.Fatalf("insufficient SWMA = %v/%v, want zero false", value, ok)
+	}
+
+	current, previous, currentOK, previousOK := calculateOBVSnapshot([]float64{10, 12, 11, 11, 13}, []float64{100, 20, 5, 99, 7})
+	if !currentOK || !previousOK || current != 22 || previous != 15 {
+		t.Fatalf("OBV snapshot = current %v/%v previous %v/%v", current, currentOK, previous, previousOK)
+	}
+	if current, previous, currentOK, previousOK := calculateOBVSnapshot(nil, nil); currentOK || previousOK || current != 0 || previous != 0 {
+		t.Fatalf("empty OBV snapshot = current %v/%v previous %v/%v", current, currentOK, previous, previousOK)
+	}
+
+	topState := &rollingMACDState{
+		fast:              &rollingEMATailState{tail: []float64{1, 4, 3}},
+		slow:              &rollingEMATailState{tail: []float64{0, 0, 0}},
+		divergenceWindows: map[int]*rollingDivergenceWindowState{},
+	}
+	if !topState.detectDivergence([]float64{10, 11, 13}, "top", 2) {
+		t.Fatal("MACD top divergence fallback = false, want true")
+	}
+	bottomState := &rollingMACDState{
+		fast:              &rollingEMATailState{tail: []float64{1, 0, 2}},
+		slow:              &rollingEMATailState{tail: []float64{0, 0, 0}},
+		divergenceWindows: map[int]*rollingDivergenceWindowState{},
+	}
+	if !bottomState.detectDivergence([]float64{10, 9, 8}, "bottom", 2) {
+		t.Fatal("MACD bottom divergence fallback = false, want true")
+	}
+	if topState.detectDivergence([]float64{10, 11, 13}, "sideways", 2) {
+		t.Fatal("MACD divergence with unknown direction = true, want false")
+	}
+	if (&rollingMACDState{}).detectDivergence([]float64{10, 11, 13}, "top", 2) {
+		t.Fatal("MACD divergence without EMA tails = true, want false")
+	}
+}

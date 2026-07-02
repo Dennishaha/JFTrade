@@ -3,6 +3,7 @@ package adk
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -112,6 +113,202 @@ func TestPendingApprovalsOnlyClaimsConfirmationCallsOwnedByExecution(t *testing.
 	}
 	if len(all) != 1 {
 		t.Fatalf("stored approvals = %d, want 1", len(all))
+	}
+}
+
+func TestGoogleRunnerHelperStateBoundaries(t *testing.T) {
+	status, message := classifyToolExecutionError(nil)
+	if status != "SUCCEEDED" || message != "" {
+		t.Fatalf("nil tool error = %q/%q", status, message)
+	}
+	status, message = classifyToolExecutionError(context.DeadlineExceeded)
+	if status != "TIMED_OUT" || !strings.Contains(message, "tool execution timed out") {
+		t.Fatalf("deadline tool error = %q/%q", status, message)
+	}
+	status, message = classifyToolExecutionError(context.Canceled)
+	if status != "CANCELLED" || !strings.Contains(message, "tool execution cancelled") {
+		t.Fatalf("cancelled tool error = %q/%q", status, message)
+	}
+	if got := prefixedToolError("tool execution timed out: provider exceeded budget", "tool execution timed out"); got != "tool execution timed out: provider exceeded budget" {
+		t.Fatalf("prefixed timeout = %q", got)
+	}
+	if got := prefixedToolError("  ", "tool execution failed"); got != "tool execution failed" {
+		t.Fatalf("empty prefixed error = %q", got)
+	}
+
+	explicitErr := "broker denied order"
+	for _, tc := range []struct {
+		call *ToolCall
+		want string
+	}{
+		{call: nil, want: ""},
+		{call: &ToolCall{Status: "FAILED", Error: &explicitErr}, want: explicitErr},
+		{call: &ToolCall{Status: "TIMED_OUT"}, want: "tool execution timed out"},
+		{call: &ToolCall{Status: "CANCELLED"}, want: "tool execution cancelled"},
+		{call: &ToolCall{Status: "FAILED"}, want: "tool execution failed"},
+	} {
+		if got := toolCallFailureMessage(tc.call); got != tc.want {
+			t.Fatalf("toolCallFailureMessage(%#v) = %q, want %q", tc.call, got, tc.want)
+		}
+	}
+	if got := firstToolCallFailure(&Run{ToolCalls: []ToolCall{{Status: "SUCCEEDED"}, {Status: "TIMED_OUT"}}}); got != "tool execution timed out" {
+		t.Fatalf("firstToolCallFailure = %q", got)
+	}
+	if got := firstToolCallFailure(nil); got != "" {
+		t.Fatalf("nil firstToolCallFailure = %q", got)
+	}
+
+	execution := &googleADKExecution{runID: "root-run"}
+	if execution.runHasTextLocked("") {
+		t.Fatal("empty execution unexpectedly has text")
+	}
+	execution.reply.WriteString(" root reply ")
+	if !execution.runHasTextLocked("") || !execution.runHasTextLocked("root-run") {
+		t.Fatal("root run text was not detected")
+	}
+	execution.replyByRunID = map[string]*strings.Builder{"child-run": {}}
+	execution.replyByRunID["child-run"].WriteString(" child reply ")
+	if !execution.runHasTextLocked("child-run") {
+		t.Fatal("child reply text was not detected")
+	}
+	execution.reasoningByRunID = map[string]*strings.Builder{"reasoning-run": {}}
+	execution.reasoningByRunID["reasoning-run"].WriteString(" child reasoning ")
+	if !execution.runHasTextLocked("reasoning-run") {
+		t.Fatal("child reasoning text was not detected")
+	}
+	if execution.runHasTextLocked("missing-run") {
+		t.Fatal("missing run unexpectedly has text")
+	}
+
+	statusExecution := &googleADKExecution{
+		runID: "status-run",
+		calls: []ToolCall{{RunID: "status-run", Status: "SUCCEEDED"}},
+	}
+	if got := statusExecution.derivedRunStatusForRunLocked("status-run"); got != RunStatusRunning {
+		t.Fatalf("completed tool without post-tool text status = %q", got)
+	}
+	statusExecution.markToolResponseSeenLocked("status-run")
+	statusExecution.markPostToolTextForRun("status-run")
+	if got := statusExecution.derivedRunStatusForRunLocked("status-run"); got != RunStatusCompleted {
+		t.Fatalf("completed tool with post-tool text status = %q", got)
+	}
+	statusExecution.calls = []ToolCall{{RunID: "status-run", Status: "CANCELLED"}}
+	if got := statusExecution.derivedRunStatusForRunLocked("status-run"); got != RunStatusCancelled {
+		t.Fatalf("cancelled tool status = %q", got)
+	}
+	statusExecution.calls = []ToolCall{{RunID: "status-run", Status: "PENDING_APPROVAL"}}
+	if got := statusExecution.persistedRunStatusForRunLocked("status-run"); got != RunStatusPending {
+		t.Fatalf("persisted pending status = %q", got)
+	}
+	statusExecution.calls = []ToolCall{{RunID: "status-run", Status: "SUCCEEDED"}}
+	if got := statusExecution.persistedRunStatusForRunLocked("status-run"); got != RunStatusRunning {
+		t.Fatalf("persisted nonterminal status = %q", got)
+	}
+
+	finalExecution := &googleADKExecution{runID: "final-run", calls: []ToolCall{{RunID: "final-run", Status: "RUNNING"}}}
+	if finalExecution.runNeedsFinalSynthesis("final-run") {
+		t.Fatal("running tool should not need final synthesis")
+	}
+	finalExecution.calls[0].Status = "SUCCEEDED"
+	if !finalExecution.runNeedsFinalSynthesis("final-run") {
+		t.Fatal("finished tool without post-tool text should need final synthesis")
+	}
+	finalExecution.markToolResponseSeenForRun("final-run")
+	finalExecution.markPostToolTextForRun("final-run")
+	if finalExecution.runNeedsFinalSynthesis("final-run") {
+		t.Fatal("post-tool text should satisfy final synthesis")
+	}
+
+	if got := googleADKAgentName("user"); got != "jftrade_user_agent" {
+		t.Fatalf("googleADKAgentName(user) = %q", got)
+	}
+	if got := googleADKAgentName("Research-Agent"); got != "research_agent" {
+		t.Fatalf("googleADKAgentName(custom) = %q", got)
+	}
+	if got := googleADKAgentName(" "); got != "jftrade_agent" {
+		t.Fatalf("googleADKAgentName(empty) = %q", got)
+	}
+}
+
+func TestGoogleRunnerHelperRecoveryBoundaries(t *testing.T) {
+	execution := &googleADKExecution{
+		runID:            "root-run",
+		runIDByAgentName: map[string]string{"child_agent": "child-run"},
+	}
+	if got := execution.agentNameForRunID("missing-run"); got != "" {
+		t.Fatalf("agentNameForRunID missing = %q", got)
+	}
+	if !execution.hasApprovalForConfirmation("") {
+		t.Fatal("empty confirmation id should be treated as already processed")
+	}
+	execution.markConfirmationProcessed("")
+	if execution.processedConfirmationIDs != nil {
+		t.Fatalf("empty confirmation id should not initialize processed map: %#v", execution.processedConfirmationIDs)
+	}
+
+	call := execution.ensureCallForRun("call-1", ToolDescriptor{Permission: "read"}, nil, "")
+	call.ToolName = ""
+	call.Permission = ""
+	again := execution.ensureCallForRun("call-1", ToolDescriptor{Name: "market.snapshot", Permission: "read"}, nil, "child-run")
+	if again.ToolName != "market.snapshot" || again.Permission != "read" || again.RunID != "root-run" {
+		t.Fatalf("existing call after descriptor hydration = %+v", again)
+	}
+	execution.consumeFunctionResponse(nil)
+	execution.consumeFunctionResponse(&genai.FunctionResponse{
+		ID: "call-1",
+		Response: map[string]any{
+			"success": false,
+			"error":   "broker rejected order",
+		},
+	})
+	if execution.calls[0].Status != "FAILED" || execution.calls[0].Error == nil || !strings.Contains(*execution.calls[0].Error, "broker rejected order") {
+		t.Fatalf("failed function response call = %+v", execution.calls[0])
+	}
+
+	if err := execution.appendVisibleTextForRun("child-run", "", ""); err != nil {
+		t.Fatalf("append empty text: %v", err)
+	}
+	if got := execution.builderForRun(nil, "orphan"); got == nil || got.String() != "" {
+		t.Fatalf("nil builder store returned %#v", got)
+	}
+	execution.markToolResponseSeenForRun("")
+	execution.markPostToolTextForRun("")
+	if !execution.runHasPostToolText("") {
+		t.Fatal("root post-tool text should be visible through empty run id")
+	}
+	if execution.runNeedsFinalSynthesis("") {
+		t.Fatal("root run with post-tool text should not need synthesis")
+	}
+
+	execution.calls = append(execution.calls, ToolCall{ID: "blank-run", Status: "RUNNING"})
+	ids := execution.snapshotRunIDsLocked()
+	for _, id := range ids {
+		if id == "" {
+			t.Fatalf("snapshotRunIDsLocked contained blank id: %#v", ids)
+		}
+	}
+	if snapshot := execution.runSnapshotLocked("", false); snapshot.ID != "root-run" {
+		t.Fatalf("empty run snapshot = %+v", snapshot)
+	}
+	execution.calls = []ToolCall{{RunID: "root-run", Status: "MYSTERY"}}
+	if got := execution.derivedRunStatusForRunLocked("root-run"); got != RunStatusRunning {
+		t.Fatalf("unknown tool status derived run status = %q", got)
+	}
+
+	if got := googleADKWorkflowRootName(" "); got != "workflow_root" {
+		t.Fatalf("googleADKWorkflowRootName(empty) = %q", got)
+	}
+	if got := workflowChildInstruction("", "inspect fills"); got != "JFTRADE_WORKFLOW_TASK: inspect fills" {
+		t.Fatalf("workflowChildInstruction(empty base) = %q", got)
+	}
+	if got := workflowChildInstruction("base instruction", " "); got != "base instruction" {
+		t.Fatalf("workflowChildInstruction(empty task) = %q", got)
+	}
+	if got := workflowChildInstructionTask(workflowStep{}); got != "" {
+		t.Fatalf("workflowChildInstructionTask(empty) = %q", got)
+	}
+	if got := googleADKAppName(" "); got != "jftrade-default" {
+		t.Fatalf("googleADKAppName(empty) = %q", got)
 	}
 }
 

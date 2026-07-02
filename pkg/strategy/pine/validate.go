@@ -114,6 +114,9 @@ func requestSecurityUnsupportedDiagnostic(line parsedLine) (Diagnostic, bool) {
 	if !ok {
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_UNSUPPORTED", "request.security() call could not be parsed", line), true
 	}
+	if len(args) < 3 {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_UNSUPPORTED", "request.security() requires symbol, timeframe, and expression arguments", line), true
+	}
 	for _, mergeArg := range args[3:] {
 		lowerMerge := strings.ToLower(strings.TrimSpace(mergeArg))
 		switch {
@@ -124,9 +127,6 @@ func requestSecurityUnsupportedDiagnostic(line parsedLine) (Diagnostic, bool) {
 		case strings.HasPrefix(lowerMerge, "calc_bars_count="):
 			return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_CALC_BARS_COUNT", "request.security() calc_bars_count is not supported by JFTrade", line), true
 		}
-	}
-	if len(args) < 3 {
-		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_UNSUPPORTED", "request.security() requires symbol, timeframe, and expression arguments", line), true
 	}
 	if strings.TrimSpace(args[0]) != "syminfo.tickerid" {
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL", "request.security() currently supports only syminfo.tickerid; dynamic or external symbols are not supported", line), true

@@ -72,6 +72,62 @@ func TestResolveBacktestQuoteCurrencySupportsCNSymbols(t *testing.T) {
 	}
 }
 
+func TestResolveFeeScheduleClonesAndNormalizesCustomRules(t *testing.T) {
+	requested := FeeSchedule{
+		Mode:     " custom ",
+		PresetID: "custom-fees",
+		Rules: []FeeRule{
+			{},
+			{
+				ID:        " broker-share ",
+				Label:     " ",
+				Category:  "unknown",
+				Side:      "SELL",
+				Basis:     "quantity",
+				Currency:  " usd ",
+				Rounding:  "CEIL_CENT",
+				AppliesTo: []string{"fund", "ETF", "stock"},
+			},
+		},
+	}
+	resolved := resolveFeeSchedule(feeGroupBroker, requested, FeeSchedule{Mode: tradingCostModeNone}, FeeSchedule{})
+	if resolved.Mode != tradingCostModeCustom || resolved.PresetID != "custom-fees" {
+		t.Fatalf("resolved custom schedule = %#v", resolved)
+	}
+	if len(resolved.Rules) != 1 {
+		t.Fatalf("normalized rules = %#v, want only valid id rule", resolved.Rules)
+	}
+	rule := resolved.Rules[0]
+	if rule.ID != "broker-share" || rule.Label != "broker-share" || rule.Category != feeCategoryBroker || rule.Side != feeSideSell || rule.Basis != feeBasisShare || rule.Currency != "USD" || rule.Rounding != "ceil_cent" {
+		t.Fatalf("normalized custom rule = %#v", rule)
+	}
+	if len(rule.AppliesTo) != 2 || rule.AppliesTo[0] != instrumentTypeETF || rule.AppliesTo[1] != instrumentTypeStock {
+		t.Fatalf("appliesTo = %#v, want ETF/stock dedupe", rule.AppliesTo)
+	}
+	requested.Rules[1].AppliesTo[0] = "mutated"
+	if resolved.Rules[0].AppliesTo[0] != instrumentTypeETF {
+		t.Fatalf("resolved custom rules share AppliesTo backing array: %#v", resolved.Rules[0].AppliesTo)
+	}
+
+	marketResolved := resolveFeeSchedule(feeGroupMarket, FeeSchedule{
+		Rules: []FeeRule{{ID: "market-defaults", Category: "bad", Side: "bad", Basis: "bad"}},
+	}, FeeSchedule{}, FeeSchedule{})
+	if marketResolved.Mode != tradingCostModeCustom || len(marketResolved.Rules) != 1 {
+		t.Fatalf("implicit custom market schedule = %#v", marketResolved)
+	}
+	if marketResolved.Rules[0].Category != feeCategoryExchange || marketResolved.Rules[0].Side != feeSideBoth || marketResolved.Rules[0].Basis != feeBasisNotional {
+		t.Fatalf("market defaulted rule = %#v", marketResolved.Rules[0])
+	}
+
+	scriptWithoutBrokerRule := resolveFeeSchedule(feeGroupMarket, FeeSchedule{Mode: tradingCostModeScript}, FeeSchedule{}, FeeSchedule{Rules: []FeeRule{{ID: "script"}}})
+	if scriptWithoutBrokerRule.Mode != tradingCostModeNone || len(scriptWithoutBrokerRule.Rules) != 0 {
+		t.Fatalf("script market schedule = %#v, want none", scriptWithoutBrokerRule)
+	}
+	if cloned := cloneFeeRules(nil); cloned != nil {
+		t.Fatalf("cloneFeeRules(nil) = %#v, want nil", cloned)
+	}
+}
+
 func TestBacktestFeeEngineSeparatesBrokerMarketAndAppliesHKRounding(t *testing.T) {
 	account := types.NewAccount()
 	account.SetBalance("HKD", types.Balance{Currency: "HKD", Available: fixedpoint.NewFromFloat(100000)})

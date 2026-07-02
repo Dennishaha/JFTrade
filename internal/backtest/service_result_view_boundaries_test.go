@@ -196,3 +196,165 @@ func TestResultViewCandlesFiltersInvalidTimesAndAggregatesVolumeBoundaries(t *te
 		t.Fatalf("second aggregate = %#v", candles[1])
 	}
 }
+
+func TestResultViewRejectsBadRequestsAndPreservesEmptyRunShape(t *testing.T) {
+	svcWithoutStore := NewService()
+	if _, err := svcWithoutStore.ResultView(ResultViewRequest{}); err == nil || !strings.Contains(err.Error(), "runId is required") {
+		t.Fatalf("missing runId err=%v", err)
+	}
+	if _, err := svcWithoutStore.ResultView(ResultViewRequest{RunID: "missing"}); err == nil || !strings.Contains(err.Error(), "run store not configured") {
+		t.Fatalf("nil store err=%v", err)
+	}
+
+	runs := newMemoryRunStore()
+	emptyRun := &RunState{
+		ID:      "empty-result",
+		Status:  "completed",
+		Request: StartRequest{Symbol: "US.AAPL", Interval: "1m", InitialBalance: 1000},
+	}
+	if err := runs.Add(emptyRun); err != nil {
+		t.Fatalf("runs.Add empty: %v", err)
+	}
+	runWithSeries := &RunState{
+		ID:      "series-result",
+		Status:  "completed",
+		Request: StartRequest{Symbol: "US.AAPL", Interval: "1m", InitialBalance: 1000},
+		Result: &bt.RunResult{
+			Candles: []bt.Candle{
+				{Time: "2024-01-02T00:00:00Z", Open: "10", High: "11", Low: "9", Close: "10.5", Volume: "100"},
+				{Time: "2024-01-02T00:01:00Z", Open: "10.5", High: "12", Low: "10", Close: "11.5", Volume: "120"},
+			},
+			Trades:        []bt.TradeEvent{{Time: "2024-01-02T00:01:00Z", Side: "BUY", Qty: "1", Price: "11"}},
+			PnLCurve:      []bt.PnLPoint{{Time: "2024-01-02T00:00:00Z", Equity: 1000}},
+			DrawdownCurve: []bt.DrawdownPoint{{Time: "2024-01-02T00:00:00Z", Drawdown: 0}},
+		},
+	}
+	if err := runs.Add(runWithSeries); err != nil {
+		t.Fatalf("runs.Add series: %v", err)
+	}
+	svc := NewService(WithRunStore(runs))
+
+	if _, err := svc.ResultView(ResultViewRequest{RunID: "missing"}); err == nil || !strings.Contains(err.Error(), "backtest run not found") {
+		t.Fatalf("missing run err=%v", err)
+	}
+	if _, err := svc.ResultView(ResultViewRequest{RunID: emptyRun.ID, View: "positions"}); err == nil || !strings.Contains(err.Error(), "view must be") {
+		t.Fatalf("bad view err=%v", err)
+	}
+	if _, err := svc.ResultView(ResultViewRequest{RunID: emptyRun.ID, StartTime: "bad-time"}); err == nil || !strings.Contains(err.Error(), "invalid startTime") {
+		t.Fatalf("bad startTime err=%v", err)
+	}
+	if _, err := svc.ResultView(ResultViewRequest{RunID: emptyRun.ID, StartTime: "2024-01-03T00:00:00Z", EndTime: "2024-01-02T00:00:00Z"}); err == nil || !strings.Contains(err.Error(), "endTime must be") {
+		t.Fatalf("inverted time window err=%v", err)
+	}
+
+	emptyPayload, err := svc.ResultView(ResultViewRequest{RunID: emptyRun.ID, View: "chart"})
+	if err != nil {
+		t.Fatalf("empty run view: %v", err)
+	}
+	if series := jftradeCheckedTypeAssertion[map[string]any](emptyPayload["series"]); len(series) != 0 {
+		t.Fatalf("empty result series = %#v, want empty map", series)
+	}
+
+	payload, err := svc.ResultView(ResultViewRequest{
+		RunID:      runWithSeries.ID,
+		View:       "chart",
+		Include:    []string{" trades ", "", "drawdownCurve"},
+		Limit:      1,
+		Cursor:     "5",
+		Resolution: "auto",
+	})
+	if err != nil {
+		t.Fatalf("include/cursor chart view: %v", err)
+	}
+	series := jftradeCheckedTypeAssertion[map[string]any](payload["series"])
+	if _, ok := series["candles"]; ok {
+		t.Fatalf("candles included despite explicit include set: %#v", series)
+	}
+	trades := jftradeCheckedTypeAssertion[[]bt.TradeEvent](series["trades"])
+	if len(trades) != 0 {
+		t.Fatalf("trades beyond cursor = %#v, want empty", trades)
+	}
+	drawdowns := jftradeCheckedTypeAssertion[[]bt.DrawdownPoint](series["drawdownCurve"])
+	if len(drawdowns) != 0 {
+		t.Fatalf("drawdowns beyond cursor = %#v, want empty", drawdowns)
+	}
+	window := jftradeCheckedTypeAssertion[map[string]any](payload["window"])
+	if window["truncated"] != false || window["nextCursor"] != "" {
+		t.Fatalf("window beyond cursor = %#v", window)
+	}
+}
+
+func TestResultViewSummaryPayloadIncludesRunMetadataAndLatestDiagnostics(t *testing.T) {
+	runs := newMemoryRunStore()
+	run := &RunState{
+		ID:     "summary-run",
+		Status: "completed",
+		Request: StartRequest{
+			DefinitionID:      "def-1",
+			DefinitionVersion: "v2",
+			Market:            "US",
+			Code:              "AAPL",
+			Symbol:            "US.AAPL",
+			InstrumentType:    "stock",
+			Interval:          "1m",
+			StartDate:         "2024-01-02",
+			EndDate:           "2024-01-03",
+			StartTime:         "2024-01-02T00:00:00Z",
+			EndTime:           "2024-01-03T00:00:00Z",
+			MarketTimezone:    "America/New_York",
+			InitialBalance:    1000,
+			RehabType:         "forward",
+			UseExtendedHours:  new(true),
+		},
+		Result: &bt.RunResult{
+			QuoteCurrency:     "USD",
+			FinalBalance:      1125,
+			PnL:               125,
+			TotalBrokerFees:   1.2,
+			TotalMarketFees:   0.8,
+			TotalFees:         2,
+			FeeBreakdown:      []bt.FeeBreakdownEntry{{Category: "broker", Amount: 1.2}},
+			MaxDrawdown:       0.03,
+			CurrentDrawdown:   0.01,
+			TotalTrades:       2,
+			WinRate:           0.5,
+			Candles:           []bt.Candle{{Time: "2024-01-02T00:00:00Z"}},
+			Trades:            []bt.TradeEvent{{Time: "2024-01-02T00:01:00Z"}},
+			OrderBook:         []bt.OrderBookEntry{{SubmittedAt: "2024-01-02T00:01:00Z"}},
+			PnLCurve:          []bt.PnLPoint{{Time: "2024-01-02T00:01:00Z"}},
+			DrawdownCurve:     []bt.DrawdownPoint{{Time: "2024-01-02T00:01:00Z"}},
+			Logs:              []string{"started", "finished"},
+			RuntimeErrors:     []string{"late fill"},
+			RuntimeErrorTotal: 1,
+		},
+		CreatedAt: "2024-01-02T00:00:00Z",
+		UpdatedAt: "2024-01-03T00:00:00Z",
+	}
+	if err := runs.Add(run); err != nil {
+		t.Fatalf("runs.Add: %v", err)
+	}
+
+	payload, err := NewService(WithRunStore(runs)).ResultView(ResultViewRequest{RunID: run.ID})
+	if err != nil {
+		t.Fatalf("ResultView summary: %v", err)
+	}
+	if payload["view"] != "summary" {
+		t.Fatalf("default view = %q, want summary", payload["view"])
+	}
+	runPayload := jftradeCheckedTypeAssertion[map[string]any](payload["run"])
+	useExtendedHours, ok := runPayload["useExtendedHours"].(*bool)
+	if runPayload["definitionId"] != "def-1" || !ok || useExtendedHours == nil || !*useExtendedHours || runPayload["createdAt"] != run.CreatedAt {
+		t.Fatalf("run payload = %#v", runPayload)
+	}
+	summary := jftradeCheckedTypeAssertion[map[string]any](payload["summary"])
+	if summary["totalReturn"] != 0.125 || summary["candlesCount"] != 1 || summary["latestLog"] != "finished" || summary["latestRuntimeError"] != "late fill" {
+		t.Fatalf("summary payload = %#v", summary)
+	}
+
+	if got := resultViewRunPayload(nil); len(got) != 0 {
+		t.Fatalf("nil run payload = %#v, want empty", got)
+	}
+	if got := resultViewSummaryPayload(&RunState{}); len(got) != 0 {
+		t.Fatalf("nil result summary = %#v, want empty", got)
+	}
+}

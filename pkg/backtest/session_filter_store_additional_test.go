@@ -23,9 +23,11 @@ type stubBacktestStore struct {
 
 	forwardBatches [][]types.KLine
 	forwardCalls   int
+	forwardErr     error
 
 	backwardBatches [][]types.KLine
 	backwardCalls   int
+	backwardErr     error
 
 	queryChRows []types.KLine
 	queryChErr  error
@@ -48,6 +50,9 @@ func (s *stubBacktestStore) QueryKLine(types.Exchange, string, types.Interval, s
 
 func (s *stubBacktestStore) QueryKLinesForward(types.Exchange, string, types.Interval, time.Time, int) ([]types.KLine, error) {
 	s.forwardCalls++
+	if s.forwardErr != nil {
+		return nil, s.forwardErr
+	}
 	if len(s.forwardBatches) == 0 {
 		return nil, nil
 	}
@@ -58,6 +63,9 @@ func (s *stubBacktestStore) QueryKLinesForward(types.Exchange, string, types.Int
 
 func (s *stubBacktestStore) QueryKLinesBackward(types.Exchange, string, types.Interval, time.Time, int) ([]types.KLine, error) {
 	s.backwardCalls++
+	if s.backwardErr != nil {
+		return nil, s.backwardErr
+	}
 	if len(s.backwardBatches) == 0 {
 		return nil, nil
 	}
@@ -86,6 +94,8 @@ type stubRangeBacktestStore struct {
 	sessionRangeCalls int
 	tradingRows       []types.KLine
 	sessionRows       []types.KLine
+	tradingErr        error
+	sessionErr        error
 }
 
 type stubStreamerRangeBacktestStore struct {
@@ -97,11 +107,17 @@ type stubStreamerRangeBacktestStore struct {
 
 func (s *stubRangeBacktestStore) QueryTradingPeriodKLinesInRange(string, types.Interval, time.Time, time.Time, bool) ([]types.KLine, error) {
 	s.tradingRangeCalls++
+	if s.tradingErr != nil {
+		return nil, s.tradingErr
+	}
 	return append([]types.KLine(nil), s.tradingRows...), nil
 }
 
 func (s *stubRangeBacktestStore) QuerySessionAwareIntradayKLinesInRange(string, types.Interval, time.Time, time.Time, bool) ([]types.KLine, error) {
 	s.sessionRangeCalls++
+	if s.sessionErr != nil {
+		return nil, s.sessionErr
+	}
 	return append([]types.KLine(nil), s.sessionRows...), nil
 }
 
@@ -195,6 +211,34 @@ func TestSessionFilteredStoreQueryHelpersFilterUSRegularHours(t *testing.T) {
 		}
 		if base.backwardCalls != 1 {
 			t.Fatalf("backwardCalls = %d, want 1", base.backwardCalls)
+		}
+	})
+
+	t.Run("query kline returns nil when filtered pages have no regular rows", func(t *testing.T) {
+		base := &stubBacktestStore{forwardBatches: [][]types.KLine{{pre, after}}}
+		store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: false}
+		kline, err := store.QueryKLine(nil, "US.AAPL", types.Interval1m, "ASC", 1)
+		if err != nil {
+			t.Fatalf("QueryKLine(no regular rows) error = %v", err)
+		}
+		if kline != nil {
+			t.Fatalf("QueryKLine(no regular rows) = %#v, want nil", kline)
+		}
+	})
+
+	t.Run("forward and backward pagination propagate base errors", func(t *testing.T) {
+		expectedForwardErr := errors.New("forward failed")
+		forwardBase := &stubBacktestStore{forwardErr: expectedForwardErr}
+		store := &sessionFilteredBacktestStore{base: forwardBase, includeExtendedHours: false}
+		if _, err := store.QueryKLinesForward(nil, "US.AAPL", types.Interval1m, pre.StartTime.Time(), 1); !errors.Is(err, expectedForwardErr) {
+			t.Fatalf("QueryKLinesForward() error = %v, want %v", err, expectedForwardErr)
+		}
+
+		expectedBackwardErr := errors.New("backward failed")
+		backwardBase := &stubBacktestStore{backwardErr: expectedBackwardErr}
+		store = &sessionFilteredBacktestStore{base: backwardBase, includeExtendedHours: false}
+		if _, err := store.QueryKLinesBackward(nil, "US.AAPL", types.Interval1m, after.EndTime.Time(), 1); !errors.Is(err, expectedBackwardErr) {
+			t.Fatalf("QueryKLinesBackward() error = %v, want %v", err, expectedBackwardErr)
 		}
 	})
 }
@@ -340,6 +384,159 @@ func TestSessionFilteredStoreQueryKLinesChIncludesCustomExtendedHoursRows(t *tes
 	}
 }
 
+func TestSessionFilteredStoreQueryKLinesChFiltersRegularHoursWithoutExtendedHours(t *testing.T) {
+	start := time.Date(2026, time.June, 12, 0, 0, 0, 0, time.UTC)
+	pre := testBacktestKLine("US.AAPL", types.Interval1m, start.Add(12*time.Hour), time.Minute, 1)
+	regular := testBacktestKLine("US.AAPL", types.Interval1m, start.Add(13*time.Hour+30*time.Minute), time.Minute, 2)
+	hk := testBacktestKLine("HK.00700", types.Interval1m, start.Add(2*time.Hour), time.Minute, 3)
+	base := &stubBacktestStore{queryChRows: []types.KLine{pre, regular, hk}}
+	store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: false}
+
+	ch, errCh := store.QueryKLinesCh(start, start.Add(24*time.Hour), nil, []string{"US.AAPL", "HK.00700"}, []types.Interval{types.Interval1m})
+	rows, err := collectKLinesFromStoreChannels(ch, errCh)
+	if err != nil {
+		t.Fatalf("QueryKLinesCh() error = %v", err)
+	}
+	if len(rows) != 2 || !rows[0].StartTime.Time().Equal(regular.StartTime.Time()) || rows[1].Symbol != "HK.00700" {
+		t.Fatalf("filtered rows = %#v", rows)
+	}
+
+	expectedErr := errors.New("filtered channel failed")
+	base = &stubBacktestStore{queryChRows: []types.KLine{regular}, queryChErr: expectedErr}
+	store = &sessionFilteredBacktestStore{base: base, includeExtendedHours: false}
+	ch, errCh = store.QueryKLinesCh(start, start.Add(24*time.Hour), nil, []string{"US.AAPL"}, []types.Interval{types.Interval1m})
+	if _, err := collectKLinesFromStoreChannels(ch, errCh); !errors.Is(err, expectedErr) {
+		t.Fatalf("QueryKLinesCh(error) = %v, want %v", err, expectedErr)
+	}
+}
+
+func TestSessionFilteredStoreQueryKLinesChPropagatesBaseAndCustomErrors(t *testing.T) {
+	start := time.Date(2026, time.June, 12, 13, 30, 0, 0, time.UTC)
+
+	t.Run("base channel error before custom aggregation", func(t *testing.T) {
+		expectedErr := errors.New("base channel failed")
+		base := &stubRangeBacktestStore{
+			stubBacktestStore: &stubBacktestStore{queryChErr: expectedErr},
+			tradingRows:       []types.KLine{testBacktestKLine("US.AAPL", types.Interval1d, start, 24*time.Hour, 1)},
+		}
+		store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: true}
+		ch, errCh := store.QueryKLinesCh(start, start.Add(24*time.Hour), nil, []string{"US.AAPL"}, []types.Interval{types.Interval1d})
+		if _, err := collectKLinesFromStoreChannels(ch, errCh); !errors.Is(err, expectedErr) {
+			t.Fatalf("QueryKLinesCh(base error) = %v, want %v", err, expectedErr)
+		}
+		if base.tradingRangeCalls != 0 {
+			t.Fatalf("tradingRangeCalls = %d, want 0 after base channel failure", base.tradingRangeCalls)
+		}
+	})
+
+	t.Run("custom trading-period range error reaches err channel", func(t *testing.T) {
+		expectedErr := errors.New("daily aggregation failed")
+		base := &stubRangeBacktestStore{
+			stubBacktestStore: &stubBacktestStore{},
+			tradingErr:        expectedErr,
+		}
+		store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: true}
+		ch, errCh := store.QueryKLinesCh(start, start.Add(24*time.Hour), nil, []string{"US.AAPL"}, []types.Interval{types.Interval1d})
+		if _, err := collectKLinesFromStoreChannels(ch, errCh); !errors.Is(err, expectedErr) {
+			t.Fatalf("QueryKLinesCh(trading range error) = %v, want %v", err, expectedErr)
+		}
+	})
+
+	t.Run("custom session-aware range error reaches err channel", func(t *testing.T) {
+		expectedErr := errors.New("session aggregation failed")
+		base := &stubRangeBacktestStore{
+			stubBacktestStore: &stubBacktestStore{},
+			sessionErr:        expectedErr,
+		}
+		store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: true}
+		ch, errCh := store.QueryKLinesCh(start, start.Add(24*time.Hour), nil, []string{"US.AAPL"}, []types.Interval{types.Interval2h})
+		if _, err := collectKLinesFromStoreChannels(ch, errCh); !errors.Is(err, expectedErr) {
+			t.Fatalf("QueryKLinesCh(session range error) = %v, want %v", err, expectedErr)
+		}
+	})
+}
+
+func TestSessionFilteredStoreCustomRangeFallbackAndCursorBoundaries(t *testing.T) {
+	start := time.Date(2026, time.June, 12, 13, 30, 0, 0, time.UTC)
+	daily := testBacktestKLine("US.AAPL", types.Interval1d, start, 24*time.Hour, 10)
+	intraday := testBacktestKLine("US.AAPL", types.Interval2h, start, 2*time.Hour, 20)
+
+	t.Run("custom range falls back to base forward query when range querier is unavailable", func(t *testing.T) {
+		base := &stubBacktestStore{forwardBatches: [][]types.KLine{{daily}, {intraday}}}
+		store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: true}
+
+		dailyRows, err := store.QueryKLinesForward(nil, "US.AAPL", types.Interval1d, start, 1)
+		if err != nil {
+			t.Fatalf("QueryKLinesForward(daily fallback) error = %v", err)
+		}
+		if len(dailyRows) != 1 || dailyRows[0].Interval != types.Interval1d {
+			t.Fatalf("daily fallback rows = %#v", dailyRows)
+		}
+
+		intradayRows, err := store.QueryKLinesForward(nil, "US.AAPL", types.Interval2h, start, 1)
+		if err != nil {
+			t.Fatalf("QueryKLinesForward(intraday fallback) error = %v", err)
+		}
+		if len(intradayRows) != 1 || intradayRows[0].Interval != types.Interval2h {
+			t.Fatalf("intraday fallback rows = %#v", intradayRows)
+		}
+		if base.forwardCalls != 2 {
+			t.Fatalf("forwardCalls = %d, want 2 fallback queries", base.forwardCalls)
+		}
+	})
+
+	t.Run("custom session forward skips stale and duplicate rows before advancing", func(t *testing.T) {
+		stale := testBacktestKLine("US.AAPL", types.Interval2h, start.Add(-4*time.Hour), 2*time.Hour, 18)
+		duplicate := testBacktestKLine("US.AAPL", types.Interval2h, start, 2*time.Hour, 21)
+		base := &stubRangeBacktestStore{
+			stubBacktestStore: &stubBacktestStore{},
+			sessionRows:       []types.KLine{stale, intraday, duplicate},
+		}
+		store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: true}
+
+		rows, err := store.queryCustomSessionAwareIntradayForward("US.AAPL", types.Interval2h, start, 3)
+		if err != nil {
+			t.Fatalf("queryCustomSessionAwareIntradayForward() error = %v", err)
+		}
+		if len(rows) != 1 || !rows[0].StartTime.Time().Equal(intraday.StartTime.Time()) {
+			t.Fatalf("forward rows = %#v, want one non-stale non-duplicate row", rows)
+		}
+		if base.sessionRangeCalls != 2 {
+			t.Fatalf("sessionRangeCalls = %d, want second query to detect no progress", base.sessionRangeCalls)
+		}
+	})
+
+	t.Run("custom session backward skips future and duplicate rows before stopping", func(t *testing.T) {
+		future := testBacktestKLine("US.AAPL", types.Interval2h, start.Add(4*time.Hour), 2*time.Hour, 22)
+		base := &stubRangeBacktestStore{
+			stubBacktestStore: &stubBacktestStore{},
+			sessionRows:       []types.KLine{intraday, future},
+		}
+		store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: true}
+
+		rows, err := store.queryCustomSessionAwareIntradayBackward("US.AAPL", types.Interval2h, intraday.EndTime.Time().Add(time.Millisecond), 3)
+		if err != nil {
+			t.Fatalf("queryCustomSessionAwareIntradayBackward() error = %v", err)
+		}
+		if len(rows) != 1 || !rows[0].StartTime.Time().Equal(intraday.StartTime.Time()) {
+			t.Fatalf("backward rows = %#v, want one non-future non-duplicate row", rows)
+		}
+		if base.sessionRangeCalls != 2 {
+			t.Fatalf("sessionRangeCalls = %d, want second query to detect no progress", base.sessionRangeCalls)
+		}
+	})
+
+	t.Run("helpers report no custom handling for non-US extended-hours requests", func(t *testing.T) {
+		store := &sessionFilteredBacktestStore{base: &stubBacktestStore{}, includeExtendedHours: false}
+		if store.needsCustomHandling([]string{"HK.00700"}, []types.Interval{types.Interval1m}) {
+			t.Fatal("needsCustomHandling(HK 1m) = true, want false")
+		}
+		if needsExtendedHoursFilter([]string{"HK.00700"}, []types.Interval{types.Interval1m}) {
+			t.Fatal("needsExtendedHoursFilter(HK 1m) = true, want false")
+		}
+	})
+}
+
 func TestSessionFilteredStoreStreamKLinesUsesStreamerAndCustomExtendedHoursRows(t *testing.T) {
 	start := time.Date(2026, time.June, 12, 13, 30, 0, 0, time.UTC)
 	pre := testBacktestKLine("US.AAPL", types.Interval1m, start.Add(-90*time.Minute), time.Minute, 1)
@@ -408,6 +605,21 @@ func TestSessionFilteredStoreStreamKLinesUsesStreamerAndCustomExtendedHoursRows(
 		}
 		if !rows[3].StartTime.Time().Equal(hk.StartTime.Time()) || rows[3].Symbol != "HK.00700" {
 			t.Fatalf("rows[3] = %#v, want HK base row", rows[3])
+		}
+	})
+
+	t.Run("custom range error aborts stream", func(t *testing.T) {
+		expectedErr := errors.New("stream custom range failed")
+		base := &stubStreamerRangeBacktestStore{
+			stubRangeBacktestStore: &stubRangeBacktestStore{
+				stubBacktestStore: &stubBacktestStore{},
+				sessionErr:        expectedErr,
+			},
+			streamRows: []types.KLine{regular},
+		}
+		store := &sessionFilteredBacktestStore{base: base, includeExtendedHours: true}
+		if err := store.StreamKLines(start, start.Add(24*time.Hour), nil, []string{"US.AAPL"}, []types.Interval{types.Interval2h}, func(types.KLine) {}); !errors.Is(err, expectedErr) {
+			t.Fatalf("StreamKLines(custom range error) = %v, want %v", err, expectedErr)
 		}
 	})
 }

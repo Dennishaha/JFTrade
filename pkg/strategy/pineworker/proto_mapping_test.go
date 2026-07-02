@@ -159,6 +159,9 @@ func TestProtoMappingHandlesNilResponses(t *testing.T) {
 	if response := responseFromProto(nil); response.JobID != "" {
 		t.Fatalf("nil response mapped to %#v", response)
 	}
+	if response := responseFromProto(&pineworkerpb.RunScriptResponse{JobId: "job-1"}); response.StrategyMetrics != nil {
+		t.Fatalf("response without strategy metrics mapped to %#v", response.StrategyMetrics)
+	}
 	if health := healthFromProto(nil); health.OK {
 		t.Fatalf("nil health mapped to %#v", health)
 	}
@@ -179,5 +182,20 @@ func TestHealthFromProtoCopiesCapabilities(t *testing.T) {
 	protoHealth.Capabilities[0] = "mutated"
 	if !health.OK || health.Capabilities[0] != "run" {
 		t.Fatalf("unexpected health: %#v", health)
+	}
+}
+
+func TestRequestToProtoDoesNotAliasNilOrMutableParams(t *testing.T) {
+	request := validClientRequest()
+	request.Params = nil
+	if params := requestToProto(request).GetParams(); params != nil {
+		t.Fatalf("nil params mapped to %#v", params)
+	}
+
+	request.Params = map[string]string{"risk": "low"}
+	protoRequest := requestToProto(request)
+	protoRequest.Params["risk"] = "high"
+	if request.Params["risk"] != "low" {
+		t.Fatalf("request params were aliased after proto mutation: %#v", request.Params)
 	}
 }

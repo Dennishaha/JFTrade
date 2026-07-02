@@ -109,6 +109,21 @@ func TestSkillRegistryArchiveRejectsUnsafeOrAmbiguousBundles(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "parse skill archive") {
 		t.Fatalf("bad archive err = %v", err)
 	}
+
+	_, err = runtime.Skills().installArchive(ctx, "https://example.com/huge.zip", zipArchive(t, map[string]string{
+		"huge/SKILL.md": "---\nname: huge\n---\nHuge.",
+		"huge/blob.bin": strings.Repeat("x", maxSkillArchiveSize+1),
+	}))
+	if err == nil || !strings.Contains(err.Error(), "after extraction") {
+		t.Fatalf("huge archive err = %v", err)
+	}
+
+	_, err = runtime.Skills().installArchive(ctx, "https://example.com/huge-skill.zip", zipArchive(t, map[string]string{
+		"huge-skill/SKILL.md": "---\nname: huge-skill\n---\n" + strings.Repeat("x", maxSkillFileSize+1),
+	}))
+	if err == nil || !strings.Contains(err.Error(), "skill file exceeds") {
+		t.Fatalf("huge skill document archive err = %v", err)
+	}
 }
 
 func TestSkillRegistryInstallURLAndDirectoryBoundaries(t *testing.T) {
@@ -117,19 +132,37 @@ func TestSkillRegistryInstallURLAndDirectoryBoundaries(t *testing.T) {
 		t.Fatalf("nil registry InstallURL err = %v", err)
 	}
 	runtime := newTestRuntime(t)
+	if _, err := runtime.Skills().InstallURL(ctx, "http://%zz"); err == nil || !strings.Contains(err.Error(), "valid http/https") {
+		t.Fatalf("malformed URL err = %v", err)
+	}
 	if _, err := runtime.Skills().InstallURL(ctx, "file:///tmp/SKILL.md"); err == nil || !strings.Contains(err.Error(), "valid http/https") {
 		t.Fatalf("invalid URL err = %v", err)
 	}
 
 	originalValidator := skillInstallHostValidator
-	skillInstallHostValidator = func(context.Context, string) error { return nil }
+	skillInstallHostValidator = func(_ context.Context, host string) error {
+		if host == "blocked.example" {
+			return errors.New("blocked initial host")
+		}
+		return nil
+	}
 	t.Cleanup(func() { skillInstallHostValidator = originalValidator })
+	if _, err := runtime.Skills().InstallURL(ctx, "https://blocked.example/SKILL.md"); err == nil || !strings.Contains(err.Error(), "blocked initial host") {
+		t.Fatalf("blocked host err = %v", err)
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/loop" {
+			http.Redirect(w, r, "/loop", http.StatusFound)
+			return
+		}
 		http.Error(w, "missing", http.StatusNotFound)
 	}))
 	t.Cleanup(server.Close)
 	if _, err := runtime.Skills().InstallURL(ctx, server.URL+"/missing/SKILL.md"); err == nil || !strings.Contains(err.Error(), "returned 404") {
 		t.Fatalf("404 InstallURL err = %v", err)
+	}
+	if _, err := runtime.Skills().InstallURL(ctx, server.URL+"/loop"); err == nil || !strings.Contains(err.Error(), "too many redirects") {
+		t.Fatalf("redirect loop err = %v", err)
 	}
 
 	root := t.TempDir()
@@ -163,6 +196,113 @@ func TestSkillRegistryInstallURLAndDirectoryBoundaries(t *testing.T) {
 	}
 	if _, _, err := registry.installSkillDocument("", []byte("bad")); err == nil || !strings.Contains(err.Error(), "skill name is required") {
 		t.Fatalf("blank installSkillDocument err = %v", err)
+	}
+}
+
+func TestSkillRegistryInstallURLPlainDocumentAndRedirectSafety(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	originalValidator := skillInstallHostValidator
+	skillInstallHostValidator = func(_ context.Context, host string) error {
+		if host == "blocked.example" {
+			return errors.New("blocked host")
+		}
+		return nil
+	}
+	t.Cleanup(func() { skillInstallHostValidator = originalValidator })
+
+	plainDoc := []byte(`---
+name: plain-skill
+description: Plain Skill
+allowed-tools: [http.fetch]
+---
+Use the plain downloaded skill.`)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/plain.md":
+			w.Header().Set("Content-Type", "text/markdown")
+			_, err := w.Write(plainDoc)
+			jftradeCheckTestError(t, err)
+		case "/redirect":
+			http.Redirect(w, r, "http://blocked.example/skill.md", http.StatusFound)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	skill, err := runtime.Skills().InstallURL(ctx, server.URL+"/plain.md")
+	if err != nil {
+		t.Fatalf("InstallURL plain markdown: %v", err)
+	}
+	if skill.ID != "plain-skill" || skill.Source != server.URL+"/plain.md" || len(skill.Tools) != 1 || skill.Tools[0] != "http.fetch" {
+		t.Fatalf("plain installed skill = %+v", skill)
+	}
+	raw, err := os.ReadFile(filepath.Join(runtime.Store().SkillsPath(), "plain-skill", "SKILL.md"))
+	if err != nil || !strings.Contains(string(raw), "source: "+server.URL+"/plain.md") {
+		t.Fatalf("plain installed document = %q err=%v", string(raw), err)
+	}
+	if _, err := runtime.Skills().InstallURL(ctx, server.URL+"/plain.md"); err == nil || !strings.Contains(err.Error(), "already installed") {
+		t.Fatalf("duplicate plain InstallURL err = %v", err)
+	}
+	if _, err := runtime.Skills().InstallURL(ctx, server.URL+"/redirect"); err == nil || !strings.Contains(err.Error(), "redirect to unsafe host") {
+		t.Fatalf("redirect InstallURL err = %v", err)
+	}
+}
+
+func TestSkillRegistryInstallURLSupportsArchivesAndUninstallProtections(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	originalValidator := skillInstallHostValidator
+	skillInstallHostValidator = func(context.Context, string) error { return nil }
+	t.Cleanup(func() { skillInstallHostValidator = originalValidator })
+
+	archive := zipArchive(t, map[string]string{
+		"archive-skill/SKILL.md":                "---\nname: archive-skill\ndescription: Archive Skill\nallowed-tools: [http.fetch]\n---\nUse the bundled archive instructions.",
+		"archive-skill/references/checklist.md": "archive checklist",
+	})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/archive.zip":
+			w.Header().Set("Content-Type", "application/zip")
+			_, jftradeErr1 := w.Write(archive)
+			jftradeCheckTestError(t, jftradeErr1)
+		case "/too-large.md":
+			w.Header().Set("Content-Type", "text/markdown")
+			_, jftradeErr2 := w.Write(bytes.Repeat([]byte("x"), maxSkillFileSize+1))
+			jftradeCheckTestError(t, jftradeErr2)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	skill, err := runtime.Skills().InstallURL(ctx, server.URL+"/archive.zip")
+	if err != nil {
+		t.Fatalf("InstallURL archive: %v", err)
+	}
+	if skill.ID != "archive-skill" || skill.Source != server.URL+"/archive.zip" {
+		t.Fatalf("archive skill = %+v", skill)
+	}
+	raw, err := os.ReadFile(filepath.Join(runtime.Store().SkillsPath(), "archive-skill", "references", "checklist.md"))
+	if err != nil || string(raw) != "archive checklist" {
+		t.Fatalf("archive resource = %q err=%v", string(raw), err)
+	}
+
+	if _, err := runtime.Skills().InstallURL(ctx, server.URL+"/too-large.md"); err == nil || !strings.Contains(err.Error(), "skill file exceeds") {
+		t.Fatalf("InstallURL too-large err = %v", err)
+	}
+	if err := runtime.Skills().Uninstall(ctx, "missing-skill"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Uninstall missing err = %v", err)
+	}
+	if err := runtime.Skills().Uninstall(ctx, "jftrade-market"); err == nil || !strings.Contains(err.Error(), "builtin skills cannot be uninstalled") {
+		t.Fatalf("Uninstall builtin err = %v", err)
+	}
+	if err := runtime.Skills().Uninstall(ctx, "archive-skill"); err != nil {
+		t.Fatalf("Uninstall archive skill: %v", err)
+	}
+	if _, ok, err := runtime.Skills().Get(ctx, "archive-skill"); err != nil || ok {
+		t.Fatalf("archive skill after uninstall ok=%v err=%v", ok, err)
 	}
 }
 

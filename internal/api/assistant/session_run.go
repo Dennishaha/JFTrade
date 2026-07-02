@@ -50,8 +50,10 @@ func (h *Handler) handleADKCreateSession(c *gin.Context) {
 		AgentID string `json:"agentId"`
 		Title   string `json:"title"`
 	}
-	jftradeErr1 := c.ShouldBindJSON(&payload)
-	jftradeLogError(jftradeErr1)
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid session payload")
+		return
+	}
 	session, err := h.service.CreateSession(c.Request.Context(), asstsvc.CreateSessionRequest{
 		AgentID: payload.AgentID,
 		Title:   payload.Title,
@@ -118,8 +120,10 @@ func (h *Handler) handleADKCompactSessionContext(c *gin.Context) {
 		Mode   string `json:"mode"`
 		Reason string `json:"reason"`
 	}
-	jftradeErr2 := c.ShouldBindJSON(&payload)
-	jftradeLogError(jftradeErr2)
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid context compaction payload")
+		return
+	}
 	snapshot, err := h.service.CompactSessionContext(
 		c.Request.Context(),
 		uri.SessionID,

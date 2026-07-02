@@ -57,6 +57,82 @@ func TestParseIndicatorRequirementKeysStrictRejectsEveryKeyFamilyBoundary(t *tes
 	}
 }
 
+func TestParseIndicatorRequirementKeysNonStrictIgnoresMalformedKeys(t *testing.T) {
+	requirements, err := parseIndicatorRequirementKeys([]string{
+		"",
+		"not-enough",
+		"anchored_vwap:quarter:close",
+		"cog:spread:10",
+		"bbw:close:20:-2",
+		"tsi:close:0:25",
+		"correlation:close:spread:10",
+		"percentile_linear_interpolation:close:bad:80",
+		"swma:spread",
+		"linreg:close:20:-1",
+		"obv:close:quarter",
+		"pivothigh:high:0:3",
+		"kc:close:20:bad:true",
+		"alma:close:9:0.85:0",
+		"ma:EMA:9:quarter",
+		"security_source:day",
+		"security_source:bar:close",
+		"security_source:day:spread",
+		"security_source:day:close:-1",
+		"rsi:close:9:bar",
+		"rsi:spread:14",
+		"stdev:hlc3:0",
+		"variance:close:5:extra",
+		"variance:spread:8",
+		"cum:close:extra",
+		"cum:spread",
+		"macd:12:26:9:extra",
+		"macd:12:x:9",
+		"macd:close:12:26:9:bar",
+		"bollinger:20:2:extra",
+		"bollinger:20:0",
+		"bollinger:close:20:2:bar",
+		"kdj:9:3",
+		"kdj:9:3:x",
+		"atr:14:day:extra",
+		"atr:0",
+		"atr:14:bar",
+		"cci:bad:20",
+		"vwap:close:extra",
+		"vwap:spread",
+		"highest:close",
+		"highest:spread:10",
+		"stoch:close",
+		"stoch:volume:14",
+		"mfi:close:14:extra",
+		"mfi:hlc3:0",
+		"dmi:14",
+		"dmi:14:0",
+		"supertrend:3:10:day:extra",
+		"supertrend:0:10",
+		"supertrend:3:10:bar",
+		"sar:0.02:0.02",
+		"sar:0.02:0:0.2",
+		"williamsr:14:extra",
+		"williamsr:0",
+		"sl:long:2:quarter:4",
+		"risk:stopLoss:auto:2:quarter:4:session",
+		"divergence:rsi",
+		"divergence",
+		"divergence:rsi:14:side:5",
+		"divergence:rsi:0:top:5",
+		"divergence:macd:12:bad:9:top:5",
+		"divergence:kdj:9:bad:3:bottom:4",
+		"divergence:ema:20:top:4",
+		"unknown:thing",
+	}, false)
+	if err != nil {
+		t.Fatalf("parseIndicatorRequirementKeys(non-strict) err = %v", err)
+	}
+	if got := totalIndicatorRequirementCount(requirements); got != 0 {
+		t.Fatalf("non-strict malformed requirements count = %d, requirements=%#v", got, requirements)
+	}
+}
+
 func TestMovingAverageAndRiskKeyParsingBoundaries(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -121,6 +197,16 @@ func TestMovingAverageAndRiskKeyParsingBoundaries(t *testing.T) {
 			t.Fatalf("parseStopLossConfig(%#v) = %#v/true, want invalid", parts, got)
 		}
 	}
+}
+
+func totalIndicatorRequirementCount(requirements indicatorRequirements) int {
+	return len(requirements.ma) + len(requirements.securitySource) + len(requirements.rsi) + len(requirements.rsiSource) +
+		len(requirements.macd) + len(requirements.bollinger) + len(requirements.kdj) + len(requirements.atr) +
+		len(requirements.stdev) + len(requirements.stdevSource) + len(requirements.variance) + len(requirements.windows) +
+		len(requirements.cum) + len(requirements.stoch) + len(requirements.cci) + len(requirements.cciSource) +
+		len(requirements.williamsR) + len(requirements.vwap) + len(requirements.mfi) + len(requirements.dmi) +
+		len(requirements.supertrend) + len(requirements.sar) + len(requirements.stopLoss) + len(requirements.rsiDivergence) +
+		len(requirements.macdDivergence) + len(requirements.kdjDivergence) + len(requirements.advanced)
 }
 
 func TestIndicatorTimeUnitAndSourceNormalizationBoundaries(t *testing.T) {

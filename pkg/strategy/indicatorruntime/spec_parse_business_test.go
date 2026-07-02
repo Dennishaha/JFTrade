@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
 func TestParseIndicatorRequirementKeysCoversSourceAwareAdvancedAndRiskKeys(t *testing.T) {
@@ -132,6 +134,7 @@ func TestParseIndicatorRequirementKeysCoversSourceAwareAdvancedAndRiskKeys(t *te
 
 func TestParseIndicatorRequirementsIgnoresInvalidKeysInScriptMode(t *testing.T) {
 	requirements := parseIndicatorRequirements(`
+		const empty = ctx.indicators["   "];
 		const ok = ctx.indicators["mfi:hlc3:14"];
 		const ignored = ctx.indicators["stoch:volume:14"];
 		const malformed = ctx.indicators["not-a-valid-key"];
@@ -144,6 +147,86 @@ func TestParseIndicatorRequirementsIgnoresInvalidKeysInScriptMode(t *testing.T) 
 	}
 	if len(requirements.advanced) != 1 || requirements.advanced[0].key != "atr:14:day" {
 		t.Fatalf("script mode advanced requirements = %#v", requirements.advanced)
+	}
+}
+
+func TestParseIndicatorRequirementKeysCoversLegacyCloseBasedFamilies(t *testing.T) {
+	requirements, err := parseIndicatorRequirementKeys([]string{
+		"  ",
+		"rsi:14",
+		"rsi:close:9",
+		"stdev:20",
+		"stdev:close:11",
+		"macd:12:26:9",
+		"bollinger:20:2",
+		"kdj:9:3:3",
+		"atr:14",
+		"cci:20",
+		"cci:hlc3:21",
+		"highest:close:5",
+		"stoch:close:14",
+		"supertrend:3:10",
+		"williamsr:14",
+	}, true)
+	if err != nil {
+		t.Fatalf("parseIndicatorRequirementKeys(legacy) error = %v", err)
+	}
+
+	for _, period := range []int{9, 14} {
+		if !slices.Contains(requirements.rsi, period) {
+			t.Fatalf("missing rsi period %d in %#v", period, requirements.rsi)
+		}
+	}
+	for _, period := range []int{11, 20} {
+		if !slices.Contains(requirements.stdev, period) {
+			t.Fatalf("missing stdev period %d in %#v", period, requirements.stdev)
+		}
+	}
+	if !slices.Contains(requirements.macd, (macdConfig{fastPeriod: 12, slowPeriod: 26, signalPeriod: 9})) {
+		t.Fatalf("legacy macd requirements = %#v", requirements.macd)
+	}
+	if !slices.Contains(requirements.bollinger, (bollingerConfig{period: 20, multiplier: 2})) {
+		t.Fatalf("legacy bollinger requirements = %#v", requirements.bollinger)
+	}
+	if !slices.Contains(requirements.kdj, (kdjConfig{period: 9, m1: 3, m2: 3})) {
+		t.Fatalf("kdj requirements = %#v", requirements.kdj)
+	}
+	for _, period := range []int{14} {
+		if !slices.Contains(requirements.atr, period) {
+			t.Fatalf("missing atr period %d in %#v", period, requirements.atr)
+		}
+	}
+	for _, period := range []int{20, 21} {
+		if !slices.Contains(requirements.cci, period) {
+			t.Fatalf("missing cci period %d in %#v", period, requirements.cci)
+		}
+	}
+	if !slices.Contains(requirements.windows, (windowConfig{function: "highest", source: "close", period: 5})) {
+		t.Fatalf("window requirements = %#v", requirements.windows)
+	}
+	assertHasSourcePeriodConfig(t, "stoch", requirements.stoch, sourcePeriodConfig{source: "close", period: 14})
+	if !slices.Contains(requirements.supertrend, (supertrendConfig{factor: 3, atrPeriod: 10})) {
+		t.Fatalf("supertrend requirements = %#v", requirements.supertrend)
+	}
+	if !slices.Contains(requirements.williamsR, 14) {
+		t.Fatalf("williamsr requirements = %#v", requirements.williamsR)
+	}
+}
+
+func TestIndicatorRequirementsFromPlanTrimsBlankKeysAndStaysStrict(t *testing.T) {
+	requirements, err := indicatorRequirementsFromPlan(strategyir.Requirements{Indicators: []strategyir.IndicatorRequirement{
+		{Key: "  "},
+		{Key: " rsi:7 "},
+	}})
+	if err != nil {
+		t.Fatalf("indicatorRequirementsFromPlan() error = %v", err)
+	}
+	if !slices.Contains(requirements.rsi, 7) {
+		t.Fatalf("requirements from plan = %#v", requirements)
+	}
+
+	if _, err := indicatorRequirementsFromPlan(strategyir.Requirements{Indicators: []strategyir.IndicatorRequirement{{Key: "bad-key"}}}); err == nil {
+		t.Fatal("indicatorRequirementsFromPlan(invalid) error = nil, want strict validation")
 	}
 }
 

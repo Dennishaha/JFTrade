@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 )
 
@@ -137,4 +138,73 @@ func TestQueryDailyKLinesInRangeAggregatesUSExtendedHoursFromHourlyBars(t *testi
 		t.Fatalf("extended daily len = %d, want 1", len(aggregated))
 	}
 	assertAggregatedBar(t, aggregated[0], types.Interval1d, "US.AAPL", dayStart, dayStart.Add(24*time.Hour).Add(-time.Millisecond), 200, 206, 199, 205, 46)
+}
+
+func TestAggregationMissingCoverageMessagesAndDailyFallbacks(t *testing.T) {
+	store := newTestKLineStore(t)
+
+	dayStart := time.Date(2026, time.June, 15, 0, 0, 0, 0, time.UTC)
+	dayEnd := dayStart.Add(24 * time.Hour).Add(-time.Millisecond)
+	if got, err := store.QueryDailyKLinesInRange("US.AAPL", dayEnd.Add(time.Millisecond), dayStart, false); err != nil || got != nil {
+		t.Fatalf("empty daily range = %+v err=%v, want nil nil", got, err)
+	}
+	if _, err := store.QueryDailyKLinesInRange("US.AAPL", dayStart, dayEnd, false); err == nil || !strings.Contains(err.Error(), "download 12h data covering the full range") {
+		t.Fatalf("regular daily missing coverage err = %v", err)
+	}
+	if _, err := store.QueryDailyKLinesInRange("US.AAPL", dayStart, dayEnd, true); err == nil || !strings.Contains(err.Error(), "extended-hours daily aggregation") || !strings.Contains(err.Error(), "download 1h data") {
+		t.Fatalf("extended daily missing coverage err = %v", err)
+	}
+	if _, err := store.QueryTradingPeriodKLinesInRange("US.AAPL", types.Interval1w, dayStart, dayStart.AddDate(0, 0, 7).Add(-time.Millisecond), true); err == nil || !strings.Contains(err.Error(), "extended-hours trading-period aggregation") {
+		t.Fatalf("extended trading-period missing coverage err = %v", err)
+	}
+	if _, err := store.QuerySessionAwareIntradayKLinesInRange("US.AAPL", types.Interval2h, dayStart.Add(13*time.Hour+30*time.Minute), dayStart.Add(15*time.Hour+30*time.Minute), true); err == nil || !strings.Contains(err.Error(), "extended-hours intraday aggregation") {
+		t.Fatalf("extended intraday missing coverage err = %v", err)
+	}
+	if got, err := store.QueryTradingPeriodKLinesInRange("US.AAPL", types.Interval2h, dayStart, dayEnd, false); err != nil || got != nil {
+		t.Fatalf("non trading-period aggregate = %+v err=%v, want nil nil", got, err)
+	}
+	if got, err := store.QuerySessionAwareIntradayKLinesInRange("UNKNOWN", types.Interval2h, dayStart, dayEnd, false); err != nil || got != nil {
+		t.Fatalf("unknown symbol session-aware aggregate = %+v err=%v, want nil nil", got, err)
+	}
+
+	storedDaily := testKLine("US.AAPL", types.Interval1d, dayStart, 24*time.Hour, 300, 305, 299, 304, 120)
+	if err := store.InsertKLine(storedDaily, "forward"); err != nil {
+		t.Fatalf("InsertKLine stored daily: %v", err)
+	}
+	fallback, err := store.QueryDailyKLinesInRange("US.AAPL", dayStart, dayEnd, true)
+	if err != nil {
+		t.Fatalf("QueryDailyKLinesInRange stored daily fallback: %v", err)
+	}
+	if len(fallback) != 1 {
+		t.Fatalf("stored daily fallback len = %d, want 1", len(fallback))
+	}
+	assertAggregatedBar(t, fallback[0], types.Interval1d, "US.AAPL", dayStart, dayEnd, 300, 305, 299, 304, 120)
+}
+
+func TestAggregationPureHelpersSkipUnsupportedOrUnlabelledRows(t *testing.T) {
+	dayStart := time.Date(2026, time.June, 15, 0, 0, 0, 0, time.UTC)
+	if got := aggregateTradingPeriodKLinesFromBase("US.AAPL", types.Interval4h, []types.KLine{
+		testKLine("US.AAPL", types.Interval1d, dayStart, 24*time.Hour, 100, 101, 99, 100.5, 10),
+	}, dayStart, dayStart.Add(24*time.Hour), false); got != nil {
+		t.Fatalf("unsupported trading-period aggregation = %#v, want nil", got)
+	}
+
+	baseWithZeroStart := types.KLine{
+		EndTime:  types.Time(dayStart.Add(15*time.Hour + 30*time.Minute)),
+		Interval: types.Interval1h,
+		Symbol:   "US.AAPL",
+		Open:     fixedpoint.NewFromFloat(100),
+		High:     fixedpoint.NewFromFloat(101),
+		Low:      fixedpoint.NewFromFloat(99),
+		Close:    fixedpoint.NewFromFloat(100.5),
+		Volume:   fixedpoint.NewFromFloat(10),
+		Closed:   true,
+	}
+	aggregated := aggregateDailyKLinesFromBase("US.AAPL", []types.KLine{baseWithZeroStart}, dayStart, dayStart.Add(24*time.Hour).Add(-time.Millisecond), false)
+	if len(aggregated) != 1 {
+		t.Fatalf("daily aggregation from zero-start row len = %d, want 1", len(aggregated))
+	}
+	if got := dailyAggregationObservedAt(baseWithZeroStart); !got.Equal(baseWithZeroStart.EndTime.Time()) {
+		t.Fatalf("dailyAggregationObservedAt zero start = %s, want end time", got)
+	}
 }

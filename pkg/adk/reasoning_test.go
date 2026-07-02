@@ -60,3 +60,41 @@ func TestExtractVisibleAndReasoningTextPreservesChunkSpacing(t *testing.T) {
 		t.Fatalf("reasoning = %q, want leading-space reasoning chunk", reasoning)
 	}
 }
+
+func TestAssistantContentSplitterFlushesPartialAndCaseInsensitiveTags(t *testing.T) {
+	t.Parallel()
+
+	var splitter legacyAssistantContentSplitter
+	reply, reasoning := splitter.Push("<THINK")
+	if reply != "" || reasoning != "" {
+		t.Fatalf("partial opening push = (%q, %q), want empty", reply, reasoning)
+	}
+	reply, reasoning = splitter.Flush()
+	if reply != "<THINK" || reasoning != "" {
+		t.Fatalf("partial opening flush = (%q, %q), want literal reply", reply, reasoning)
+	}
+
+	splitter = legacyAssistantContentSplitter{}
+	if reply, reasoning = splitter.Push("<REASONING>"); reply != "" || reasoning != "" {
+		t.Fatalf("case-insensitive opening tag push = (%q, %q)", reply, reasoning)
+	}
+	if reply, reasoning = splitter.Push("hidden"); reply != "" || reasoning != "hidden" {
+		t.Fatalf("reasoning mode push = (%q, %q)", reply, reasoning)
+	}
+	if reply, reasoning = splitter.Push("</REASONING>shown"); reply != "shown" || reasoning != "" {
+		t.Fatalf("case-insensitive closing tag push = (%q, %q)", reply, reasoning)
+	}
+
+	splitter = legacyAssistantContentSplitter{mode: reasoningModeReasoning}
+	if reply, reasoning = splitter.Push("<not-a-reasoning-tag"); reply != "" || reasoning != "<not-a-reasoning-tag" {
+		t.Fatalf("invalid tag in reasoning mode = (%q, %q)", reply, reasoning)
+	}
+
+	splitter = legacyAssistantContentSplitter{}
+	if reply, reasoning = splitter.Push("<reasoning>"); reply != "" || reasoning != "" {
+		t.Fatalf("opening reasoning tag push = (%q, %q)", reply, reasoning)
+	}
+	if reply, reasoning = splitter.Flush(); reply != "" || reasoning != "" {
+		t.Fatalf("flush after consumed opening tag = (%q, %q)", reply, reasoning)
+	}
+}

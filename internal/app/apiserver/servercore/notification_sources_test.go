@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
@@ -67,6 +69,70 @@ func TestLiveNotificationFromBBGONotifyHandlesErrorsStringersAndForwardedNotes(t
 		!shouldForwardNotificationToBBGO(liveNotification{Level: "success", Category: "broker.connection"}) ||
 		shouldForwardNotificationToBBGO(liveNotification{Level: "info", Category: "broker.quota"}) {
 		t.Fatal("shouldForwardNotificationToBBGO did not match broker alert policy")
+	}
+}
+
+func TestBBGONotificationBridgeStartStopStringAndUpload(t *testing.T) {
+	forwarded := forwardedBBGONotification{note: liveNotification{Title: "OpenD", Message: "connected"}}
+	if got := forwarded.String(); got != "OpenD - connected" {
+		t.Fatalf("forwarded String() = %q", got)
+	}
+
+	source := bbgoNotificationSource{}
+	stop, err := source.Start(nil)
+	if err != nil || stop != nil {
+		t.Fatalf("Start nil sink = %v/%v, want nil nil", stop, err)
+	}
+
+	notifications := make(chan liveNotification, 4)
+	stop, err = source.Start(func(note liveNotification) *liveNotificationEvent {
+		notifications <- note
+		return &liveNotificationEvent{Sequence: 1, At: note.At, Level: note.Level, Title: note.Title, Message: note.Message, Source: note.Source, Category: note.Category}
+	})
+	if err != nil || stop == nil {
+		t.Fatalf("Start sink = %v/%v", stop, err)
+	}
+	dispatchBBGONotification(liveNotification{Title: "bridge", Message: "online"})
+	select {
+	case note := <-notifications:
+		if note.Title != "bridge" || note.Message != "online" {
+			t.Fatalf("dispatched note = %+v", note)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for bridge notification")
+	}
+
+	liveSocketBBGONotifier{}.Upload(nil)
+	liveSocketBBGONotifier{}.Upload(&bbgotypes.UploadFile{Caption: "report ready", FileType: bbgotypes.FileTypeDocument})
+	select {
+	case note := <-notifications:
+		if note.Category != "bbgo.upload" || note.Message != "report ready" {
+			t.Fatalf("upload note = %+v", note)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for upload notification")
+	}
+	liveSocketBBGONotifier{}.Upload(&bbgotypes.UploadFile{FileType: bbgotypes.FileTypeText})
+	select {
+	case note := <-notifications:
+		if note.Category != "bbgo.upload" || note.Message != "text" {
+			t.Fatalf("upload fallback note = %+v", note)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for upload fallback notification")
+	}
+
+	if err := stop(); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	if err := stop(); err != nil {
+		t.Fatalf("second stop: %v", err)
+	}
+	dispatchBBGONotification(liveNotification{Title: "after stop"})
+	select {
+	case note := <-notifications:
+		t.Fatalf("received notification after stop: %+v", note)
+	case <-time.After(20 * time.Millisecond):
 	}
 }
 

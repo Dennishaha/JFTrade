@@ -13,4 +13,30 @@ func TestServiceReadQueryAppliesDefaultMarket(t *testing.T) {
 	if query.Market != "US" {
 		t.Fatalf("ReadQuery market = %q, want US", query.Market)
 	}
+
+	defaultQuery := NewService().ReadQuery("futu", "SIMULATE", "account-2", "")
+	if defaultQuery.Market != "HK" {
+		t.Fatalf("default ReadQuery market = %q, want HK", defaultQuery.Market)
+	}
+}
+
+func TestServiceOrderUpdateDefaultsAreNoops(t *testing.T) {
+	service := NewService(WithOrderUpdates(nil))
+
+	service.SyncOrderUpdates(t.Context(), true, true)
+	if snapshot := service.OrderUpdatesSnapshot(); len(snapshot) != 0 {
+		t.Fatalf("OrderUpdatesSnapshot = %#v, want empty", snapshot)
+	}
+	if err := service.StopOrderUpdates(); err != nil {
+		t.Fatalf("StopOrderUpdates: %v", err)
+	}
+
+	var nilService *Service
+	nilService.SyncOrderUpdates(t.Context(), false, false)
+	if snapshot := nilService.OrderUpdatesSnapshot(); len(snapshot) != 0 {
+		t.Fatalf("nil OrderUpdatesSnapshot = %#v, want empty", snapshot)
+	}
+	if err := nilService.StopOrderUpdates(); err != nil {
+		t.Fatalf("nil StopOrderUpdates: %v", err)
+	}
 }

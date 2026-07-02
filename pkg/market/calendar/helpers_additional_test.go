@@ -132,3 +132,61 @@ func TestBuiltinUSChristmasEveEarlyCloseAndTemplateCopies(t *testing.T) {
 		t.Fatalf("extended sessions leaked mutation: got %d want %d", templatesAgain["US"].ExtendedSessions[0].StartMinute, originalExtendedStart)
 	}
 }
+
+func TestBuiltinResolverCalendarBoundaryFallbacks(t *testing.T) {
+	var nilResolver *BuiltinResolver
+	if template, ok := nilResolver.Template("US"); ok || template.MarketCode != "" {
+		t.Fatalf("nil resolver template = %#v/%v, want miss", template, ok)
+	}
+	if schedule, ok := nilResolver.Schedule("US", time.Now()); ok || schedule.MarketCode != "" {
+		t.Fatalf("nil resolver schedule = %#v/%v, want miss", schedule, ok)
+	}
+
+	resolver := NewBuiltinResolver()
+	if schedule, ok := resolver.Schedule("US", time.Time{}); ok || schedule.MarketCode != "" {
+		t.Fatalf("zero-day schedule = %#v/%v, want miss", schedule, ok)
+	}
+	if schedule, ok := (&BuiltinResolver{templates: map[string]MarketTemplate{"XX": {MarketCode: "XX", Timezone: "UTC"}}}).Schedule("XX", time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)); ok || schedule.MarketCode != "" {
+		t.Fatalf("unknown builtin market schedule = %#v/%v, want miss", schedule, ok)
+	}
+
+	loc := LoadLocation(MarketTemplate{MarketCode: "US", Timezone: "America/New_York"})
+	observedNewYear := time.Date(2027, time.December, 31, 12, 0, 0, 0, loc)
+	schedule, ok := resolver.Schedule("US", observedNewYear)
+	if !ok || schedule.Status != TradingDayClosed || schedule.Reason != "new_years_day_observed" || !schedule.Observed {
+		t.Fatalf("observed New Year schedule = %#v/%v", schedule, ok)
+	}
+
+	independenceEarlyClose := time.Date(2026, time.July, 2, 12, 0, 0, 0, loc)
+	schedule, ok = resolver.Schedule("US", independenceEarlyClose)
+	if !ok || schedule.Status != TradingDayEarlyClose || schedule.Reason != "independence_day_early_close" {
+		t.Fatalf("Independence Day early close schedule = %#v/%v", schedule, ok)
+	}
+}
+
+func TestCalendarSessionNormalizationAndLocationFallbacks(t *testing.T) {
+	if loc := LoadLocation(MarketTemplate{Timezone: "Bad/Zone"}); loc != time.UTC {
+		t.Fatalf("bad timezone location = %s, want UTC", loc)
+	}
+
+	sessions := NormalizeSessions([]SessionWindow{
+		{Kind: SessionAfter, StartMinute: 16 * 60, EndMinute: 20 * 60},
+		{Kind: SessionRegular, StartMinute: 9*60 + 30, EndMinute: 9*60 + 30},
+		{Kind: SessionPre, StartMinute: 8 * 60, EndMinute: 9*60 + 30},
+		{Kind: SessionRegular, StartMinute: 9*60 + 30, EndMinute: 16 * 60},
+		{Kind: SessionOvernight, StartMinute: 16 * 60, EndMinute: 19 * 60},
+	})
+	wantKinds := []SessionKind{SessionPre, SessionRegular, SessionOvernight, SessionAfter}
+	if len(sessions) != len(wantKinds) {
+		t.Fatalf("normalized sessions = %#v", sessions)
+	}
+	for index, want := range wantKinds {
+		if sessions[index].Kind != want {
+			t.Fatalf("session %d kind = %s, want %s in %#v", index, sessions[index].Kind, want, sessions)
+		}
+	}
+
+	if window, ok := SessionWindowByKind(TradingDaySchedule{Sessions: sessions}, SessionClosed); ok || window.Kind != "" {
+		t.Fatalf("missing session window = %#v/%v, want miss", window, ok)
+	}
+}

@@ -140,6 +140,18 @@ func TestWorkflowTaskToolsetNameAndTaskSorting(t *testing.T) {
 }
 
 func TestWorkflowTaskGoalStateHelpers(t *testing.T) {
+	var nilDecision *workflowGoalDecision
+	nilDecision.reset()
+	nilDecision.beginDecision()
+	nilDecision.setComplete("ignored")
+	nilDecision.setContinue("ignored")
+	if nilDecision.decisionPhase() {
+		t.Fatal("nil workflowGoalDecision should never be in decision phase")
+	}
+	if snapshot := nilDecision.snapshot(); snapshot.status != "" || snapshot.summary != "" || snapshot.reason != "" {
+		t.Fatalf("nil workflowGoalDecision snapshot = status:%q summary:%q reason:%q, want empty", snapshot.status, snapshot.summary, snapshot.reason)
+	}
+
 	decision := &workflowGoalDecision{}
 	decision.beginDecision()
 	if !decision.decisionPhase() {
@@ -156,6 +168,104 @@ func TestWorkflowTaskGoalStateHelpers(t *testing.T) {
 	decision.reset()
 	if decision.decisionPhase() {
 		t.Fatal("decisionPhase = true after reset")
+	}
+}
+
+func TestWorkflowTaskDescriptorSchemasAndPromptsStayStable(t *testing.T) {
+	descriptors := workflowTaskToolDescriptors()
+	names := map[string]bool{}
+	for _, descriptor := range descriptors {
+		names[descriptor.Name] = true
+		if descriptor.Permission != "workflow_internal" || descriptor.RiskLevel != "low" || len(descriptor.AllowedModes) != 3 {
+			t.Fatalf("workflow descriptor = %+v, want low-risk internal all-mode tool", descriptor)
+		}
+	}
+	for _, name := range []string{
+		workflowTasksListTool, workflowTaskAddTool, workflowTaskClaimTool, workflowTaskCompleteTool,
+		workflowTaskBlockTool, workflowTaskDelegateTool, workflowModelsListTool,
+		workflowGoalCompleteTool, workflowGoalContinueTool,
+	} {
+		if !names[name] {
+			t.Fatalf("workflowTaskToolDescriptors missing %s", name)
+		}
+	}
+	if modes := allPermissionModes(); strings.Join(modes, ",") != "approval,less_approval,all" {
+		t.Fatalf("allPermissionModes = %#v", modes)
+	}
+
+	addProps := workflowTaskAddSchema()["properties"].(map[string]any)
+	for _, field := range []string{"title", "dependsOn", "agentRole", "modeHint", "childProviderId", "childModel"} {
+		if _, ok := addProps[field]; !ok {
+			t.Fatalf("workflowTaskAddSchema missing %s", field)
+		}
+	}
+	claimProps := workflowTaskClaimSchema()["properties"].(map[string]any)
+	if _, ok := claimProps["executor"]; !ok {
+		t.Fatalf("workflowTaskClaimSchema missing executor")
+	}
+	if workflowTaskCompleteSchema()["additionalProperties"] != false ||
+		workflowTaskBlockSchema()["additionalProperties"] != false ||
+		workflowTaskDelegateSchema()["additionalProperties"] != false ||
+		workflowModelsListSchema()["additionalProperties"] != false ||
+		workflowGoalCompleteSchema()["additionalProperties"] != false ||
+		workflowGoalContinueSchema()["additionalProperties"] != false {
+		t.Fatal("workflow task schemas must reject additional properties")
+	}
+
+	parent := Run{ID: "run-helper", Objective: "完成交易计划", UserMessage: "请规划并执行"}
+	if got := taskOrchestratorInstruction("base rules"); !strings.Contains(got, "JFTRADE_TASK_ORCHESTRATOR") || !strings.Contains(got, "base rules") {
+		t.Fatalf("taskOrchestratorInstruction = %q", got)
+	}
+	if got := goalOrchestratorInstruction("goal rules"); !strings.Contains(got, "JFTRADE_GOAL_ORCHESTRATOR") || !strings.Contains(got, "goal rules") {
+		t.Fatalf("goalOrchestratorInstruction = %q", got)
+	}
+	if got := taskOrchestratorUserMessage(parent); !strings.Contains(got, parent.Objective) || !strings.Contains(got, parent.UserMessage) {
+		t.Fatalf("taskOrchestratorUserMessage = %q", got)
+	}
+	if got := goalOrchestratorUserMessage(parent); !strings.Contains(got, parent.Objective) || !strings.Contains(got, parent.UserMessage) {
+		t.Fatalf("goalOrchestratorUserMessage = %q", got)
+	}
+	if got := goalDecisionPrompt(parent, "已经完成当前步骤", true); !strings.Contains(got, "必须调用") || !strings.Contains(got, "已经完成当前步骤") {
+		t.Fatalf("goalDecisionPrompt retry = %q", got)
+	}
+	if got := goalOrchestratorContinueNudge(parent, ""); !strings.Contains(got, "目标尚未完成") || !strings.Contains(got, parent.Objective) {
+		t.Fatalf("goalOrchestratorContinueNudge default = %q", got)
+	}
+
+	task := Task{
+		ID: "task-summary", Title: "验证策略", Status: "DONE", Order: 3, DependsOn: []string{"task-a"},
+		Executor: workflowTaskExecutorChild, RunID: "child-run", AgentRole: "验证 Agent", PlanSource: workflowPlanSourceRuntime,
+		ResultSummary: "验证通过", ChildProviderID: "provider", ChildModel: "model",
+	}
+	summary := taskToolTaskSummary(task)
+	if summary["id"] != task.ID || summary["dependsOn"] == nil || summary["childProviderId"] != "provider" || summary["childModel"] != "model" {
+		t.Fatalf("taskToolTaskSummary = %#v", summary)
+	}
+	if summaries := taskToolTaskSummaries([]Task{task}); len(summaries) != 1 || summaries[0]["id"] != task.ID {
+		t.Fatalf("taskToolTaskSummaries = %#v", summaries)
+	}
+}
+
+func TestWorkflowGoalFinalReplyDetectionBoundaries(t *testing.T) {
+	if goalTurnHasFinalReply(nil, "run", "visible") {
+		t.Fatal("nil execution should not have final reply")
+	}
+	execution := testWorkflowExecution("run-final", "")
+	if !goalTurnHasFinalReply(execution, "run-final", "visible reply") {
+		t.Fatal("run with visible reply and no tools should have final reply")
+	}
+	if goalTurnHasFinalReply(execution, "run-final", " ") {
+		t.Fatal("blank visible reply should not count as final")
+	}
+	execution.calls = []ToolCall{{RunID: "run-final", ToolName: workflowTaskCompleteTool, Status: "SUCCEEDED"}}
+	if goalTurnHasFinalReply(execution, "run-final", "visible before tool") {
+		t.Fatal("post-tool text is required once workflow tools ran")
+	}
+	execution.postToolTextByRunID = map[string]bool{"run-final": true}
+	execution.toolResponseSeqByRunID = map[string]int{"run-final": 1}
+	execution.postToolTextSeqByRunID = map[string]int{"run-final": 1}
+	if !goalTurnHasFinalReply(execution, "run-final", "visible after tool") {
+		t.Fatal("post-tool visible text should count as final reply")
 	}
 }
 

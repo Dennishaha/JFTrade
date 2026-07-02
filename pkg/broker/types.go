@@ -279,6 +279,7 @@ type PlaceOrderQuery struct {
 	Side           string   `json:"side"`
 	OrderType      string   `json:"orderType"`
 	Price          *float64 `json:"price,omitempty"`
+	StopPrice      *float64 `json:"stopPrice,omitempty"`
 	Quantity       float64  `json:"quantity"`
 	TimeInForce    *string  `json:"timeInForce,omitempty"`
 	ClientOrderID  string   `json:"clientOrderId,omitempty"`

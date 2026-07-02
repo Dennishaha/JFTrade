@@ -141,7 +141,7 @@ func (m *strategyRuntimeManager) activeInstrumentIDs() []string {
 
 func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance managedStrategyInstance) error {
 	interval := bbgotypes.Interval(strings.TrimSpace(instance.Binding.Interval))
-	if interval.Duration() <= 0 {
+	if duration, ok := strategyRuntimeIntervalDuration(interval); !ok || duration <= 0 {
 		return fmt.Errorf("strategy interval %q is invalid", instance.Binding.Interval)
 	}
 	if len(instance.Binding.Symbols) == 0 {
@@ -988,6 +988,17 @@ func strategyRuntimeFormatNumber(value float64) string {
 		return "0"
 	}
 	return text
+}
+
+func strategyRuntimeIntervalDuration(interval bbgotypes.Interval) (duration time.Duration, ok bool) {
+	defer func() {
+		if recover() != nil {
+			duration = 0
+			ok = false
+		}
+	}()
+	duration = interval.Duration()
+	return duration, duration > 0
 }
 
 func strategyRuntimeBucketWindow(tradeTime time.Time, interval bbgotypes.Interval) (time.Time, time.Time) {

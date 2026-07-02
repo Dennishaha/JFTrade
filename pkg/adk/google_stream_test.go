@@ -355,6 +355,187 @@ func TestOpenAICompatibleADKModelGenerateContentStopsAfterYieldFalse(t *testing.
 	}
 }
 
+func TestOpenAICompatibleADKModelGenerateContentProviderErrorBoundaries(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		content    string
+		body       string
+		stream     bool
+		wantError  string
+	}{
+		{
+			name:       "non-stream http error body",
+			statusCode: http.StatusTooManyRequests,
+			content:    "application/json",
+			body:       `{"error":"rate limited"}`,
+			wantError:  "provider returned 429",
+		},
+		{
+			name:       "non-stream malformed json",
+			statusCode: http.StatusOK,
+			content:    "application/json",
+			body:       `{bad-json`,
+			wantError:  "decode OpenAI-compatible ADK response",
+		},
+		{
+			name:       "non-stream provider error payload",
+			statusCode: http.StatusOK,
+			content:    "application/json",
+			body:       `{"error":{"message":"model unavailable"}}`,
+			wantError:  "provider returned: model unavailable",
+		},
+		{
+			name:       "non-stream missing choices",
+			statusCode: http.StatusOK,
+			content:    "application/json",
+			body:       `{"choices":[]}`,
+			wantError:  "provider returned no choices",
+		},
+		{
+			name:       "stream http error status text",
+			statusCode: http.StatusBadGateway,
+			content:    "text/event-stream",
+			body:       "",
+			stream:     true,
+			wantError:  "provider returned 502",
+		},
+		{
+			name:       "stream malformed event",
+			statusCode: http.StatusOK,
+			content:    "text/event-stream",
+			body:       "data: {bad-json\n\n",
+			stream:     true,
+			wantError:  "decode OpenAI-compatible ADK stream chunk",
+		},
+		{
+			name:       "stream provider error event",
+			statusCode: http.StatusOK,
+			content:    "text/event-stream",
+			body:       "data: {\"error\":{\"message\":\"quota exceeded\"}}\n\n",
+			stream:     true,
+			wantError:  "provider returned: quota exceeded",
+		},
+		{
+			name:       "stream empty reply",
+			statusCode: http.StatusOK,
+			content:    "text/event-stream",
+			body:       "data: [DONE]\n\n",
+			stream:     true,
+			wantError:  "provider returned an empty reply",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", tt.content)
+				w.WriteHeader(tt.statusCode)
+				_, err := w.Write([]byte(tt.body))
+				jftradeCheckTestError(t, err)
+			}))
+			defer mockServer.Close()
+
+			model := newOpenAICompatibleADKModel(Provider{
+				BaseURL: strings.TrimSuffix(mockServer.URL, "/"),
+				Model:   "gpt-test",
+			}, "test-key", "gpt-test")
+			req := &adkmodel.LLMRequest{
+				Model:    "gpt-test",
+				Contents: []*genai.Content{genai.NewContentFromText("hello", genai.RoleUser)},
+			}
+
+			var gotErr error
+			for response, err := range model.GenerateContent(context.Background(), req, tt.stream) {
+				if response != nil {
+					t.Fatalf("unexpected response before error: %#v", response)
+				}
+				gotErr = err
+			}
+			if gotErr == nil || !strings.Contains(gotErr.Error(), tt.wantError) {
+				t.Fatalf("GenerateContent error = %v, want detail %q", gotErr, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestOpenAICompatibleADKModelGenerateContentStreamConsumesMessageChunksAndJSONFallback(t *testing.T) {
+	t.Run("message chunk", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/event-stream")
+			writeOpenAIStreamEvent(t, w, map[string]any{
+				"choices": []any{map[string]any{
+					"message": map[string]any{
+						"content": "需要查询",
+						"tool_calls": []any{map[string]any{
+							"index": 0,
+							"id":    "call-risk",
+							"type":  "function",
+							"function": map[string]any{
+								"name":      "risk-state",
+								"arguments": `{"symbol":"US.AAPL"}`,
+							},
+						}},
+					},
+				}},
+			})
+			_, err := w.Write([]byte("data: [DONE]\n\n"))
+			jftradeCheckTestError(t, err)
+		}))
+		defer mockServer.Close()
+
+		model := newOpenAICompatibleADKModel(Provider{BaseURL: mockServer.URL, Model: "gpt-test"}, "test-key", "gpt-test")
+		var final *adkmodel.LLMResponse
+		partials := 0
+		for response, err := range model.GenerateContent(context.Background(), &adkmodel.LLMRequest{
+			Model:    "gpt-test",
+			Contents: []*genai.Content{genai.NewContentFromText("risk", genai.RoleUser)},
+		}, true) {
+			if err != nil {
+				t.Fatalf("GenerateContent(stream=true): %v", err)
+			}
+			if response.Partial {
+				partials++
+				continue
+			}
+			final = response
+		}
+		if partials != 1 || final == nil || len(final.Content.Parts) != 2 {
+			t.Fatalf("partials=%d final=%#v, want one partial and final text+tool", partials, final)
+		}
+		if call := final.Content.Parts[1].FunctionCall; call == nil || call.Name != "risk.state" || call.Args["symbol"] != "US.AAPL" {
+			t.Fatalf("final function call = %#v", final.Content.Parts[1].FunctionCall)
+		}
+	})
+
+	t.Run("stream request with json fallback", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			jftradeCheckTestError(t, json.NewEncoder(w).Encode(map[string]any{
+				"choices": []any{map[string]any{
+					"message": map[string]any{"role": "assistant", "content": "fallback response"},
+				}},
+			}))
+		}))
+		defer mockServer.Close()
+
+		model := newOpenAICompatibleADKModel(Provider{BaseURL: mockServer.URL, Model: "gpt-test"}, "test-key", "gpt-test")
+		var responses []*adkmodel.LLMResponse
+		for response, err := range model.GenerateContent(context.Background(), &adkmodel.LLMRequest{
+			Model:    "gpt-test",
+			Contents: []*genai.Content{genai.NewContentFromText("hello", genai.RoleUser)},
+		}, true) {
+			if err != nil {
+				t.Fatalf("GenerateContent(stream=true): %v", err)
+			}
+			responses = append(responses, response)
+		}
+		if len(responses) != 1 || responses[0].Partial || responses[0].Content.Parts[0].Text != "fallback response" {
+			t.Fatalf("fallback responses = %#v", responses)
+		}
+	})
+}
+
 func TestOpenAIMessageToADKResponseRejectsMalformedToolArguments(t *testing.T) {
 	var call openAIToolCall
 	call.ID = "call-orders"

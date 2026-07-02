@@ -48,4 +48,35 @@ func TestUSTradingDayAndEarlyCloseRules(t *testing.T) {
 	if RegularSessionEndMinute(regular) != RegularEndMinute {
 		t.Fatalf("RegularSessionEndMinute regular = %d, want %d", RegularSessionEndMinute(regular), RegularEndMinute)
 	}
+	if AfterSessionEndMinute(regular) != AfterEndMinute {
+		t.Fatalf("AfterSessionEndMinute regular = %d, want %d", AfterSessionEndMinute(regular), AfterEndMinute)
+	}
+}
+
+func TestUSTradingCalendarEdgeBoundaries(t *testing.T) {
+	loc := Location()
+
+	if IsTradingDay(time.Time{}) || IsEarlyCloseDay(time.Time{}) {
+		t.Fatal("zero time should not be a trading day or early close")
+	}
+	if got := dayStart(time.Time{}); !got.IsZero() {
+		t.Fatalf("dayStart zero = %s, want zero", got)
+	}
+
+	christmasEveWeekend := time.Date(2022, time.December, 24, 12, 0, 0, 0, loc)
+	if isChristmasEveEarlyClose(christmasEveWeekend) {
+		t.Fatal("Saturday Christmas Eve should not be an early close session")
+	}
+	christmasEveBeforeObservedHoliday := time.Date(2021, time.December, 24, 12, 0, 0, 0, loc)
+	if isChristmasEveEarlyClose(christmasEveBeforeObservedHoliday) {
+		t.Fatal("Christmas Eve should not be early close when Christmas is already observed that day")
+	}
+	christmasEveTrading := time.Date(2026, time.December, 24, 12, 0, 0, 0, loc)
+	if !isChristmasEveEarlyClose(christmasEveTrading) || !IsEarlyCloseDay(christmasEveTrading) {
+		t.Fatal("weekday Christmas Eve before an unobserved Christmas should be early close")
+	}
+
+	if got := observedFixedHoliday(2027, time.July, 4); got.Weekday() != time.Monday || got.Day() != 5 {
+		t.Fatalf("Sunday fixed holiday observed = %s, want Monday July 5", got)
+	}
 }

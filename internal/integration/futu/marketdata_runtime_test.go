@@ -68,6 +68,60 @@ func TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive(t *testing.T) {
 	}
 }
 
+func TestMarketDataRuntimeDoesNotPublishExchangeWhenConfigChangesDuringCreate(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var enabled atomic.Bool
+	enabled.Store(true)
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
+		ConfigSource: func() MarketDataConfig {
+			if !enabled.Load() {
+				return MarketDataConfig{}
+			}
+			return MarketDataConfig{Enabled: true, Host: "127.0.0.1", APIPort: 11110}
+		},
+		NewExchange: func(MarketDataConfig) *pkgfutu.Exchange {
+			close(started)
+			<-release
+			return pkgfutu.NewExchange("127.0.0.1:1")
+		},
+	})
+
+	result := make(chan *pkgfutu.Exchange, 1)
+	go func() { result <- runtime.Ensure() }()
+	<-started
+	enabled.Store(false)
+	close(release)
+	if exchange := <-result; exchange != nil {
+		t.Fatalf("Ensure() = %#v after config was disabled, want nil", exchange)
+	}
+	if exchange := runtime.Exchange(); exchange != nil {
+		t.Fatalf("Exchange() = %#v after disabled config, want nil", exchange)
+	}
+	jftradeCheckTestError(t, runtime.Close())
+}
+
+func TestMarketDataRuntimeNilAndClosedLifecycleBoundaries(t *testing.T) {
+	var nilRuntime *MarketDataRuntime
+	nilRuntime.Reset()
+	if err := nilRuntime.Close(); err != nil {
+		t.Fatalf("nil Close() = %v", err)
+	}
+	if exchange := nilRuntime.Ensure(); exchange != nil {
+		t.Fatalf("nil Ensure() = %#v", exchange)
+	}
+
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{})
+	if exchange := runtime.Ensure(); exchange != nil {
+		t.Fatalf("Ensure() without config source = %#v", exchange)
+	}
+	jftradeCheckTestError(t, runtime.Close())
+	runtime.Reset()
+	if err := runtime.Close(); err != nil {
+		t.Fatalf("closed Close() = %v", err)
+	}
+}
+
 func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 	at := time.Date(2026, time.June, 14, 1, 2, 3, 0, time.UTC)
 	tick := tickFromTrade(bbgotypes.Trade{
@@ -82,6 +136,46 @@ func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 	if tick.InstrumentID != "HK.00700" || tick.Kind != marketdata.TickKindTrade ||
 		tick.Source != "bbgo:futu:stream" || !tick.Price.Equal(decimal.RequireFromString("321.5")) {
 		t.Fatalf("tick = %#v", tick)
+	}
+}
+
+func TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks(t *testing.T) {
+	at := time.Date(2026, time.June, 14, 1, 2, 3, 0, time.UTC)
+	if got := tickFromTicker("HK.00700", nil, at); got != nil {
+		t.Fatalf("tickFromTicker(nil) = %#v", got)
+	}
+	if got := tickFromTicker("HK.00700", &bbgotypes.Ticker{}, at); got != nil {
+		t.Fatalf("tickFromTicker(zero price) = %#v", got)
+	}
+	if got := tickFromTicker("bad-symbol", &bbgotypes.Ticker{Last: fixedpointValue(t, "1")}, at); got != nil {
+		t.Fatalf("tickFromTicker(invalid symbol) = %#v", got)
+	}
+
+	tick := tickFromTicker("US.MSFT", &bbgotypes.Ticker{
+		Buy:    fixedpointValue(t, "401.10"),
+		Sell:   fixedpointValue(t, "401.20"),
+		Open:   fixedpointValue(t, "399.00"),
+		High:   fixedpointValue(t, "402.00"),
+		Low:    fixedpointValue(t, "398.50"),
+		Volume: fixedpointValue(t, "900"),
+	}, at)
+	if tick == nil {
+		t.Fatal("tickFromTicker should use bid/ask as fallback when last is missing")
+	}
+	if !tick.Price.Equal(decimal.RequireFromString("401.10")) ||
+		!tick.Bid.Equal(decimal.RequireFromString("401.10")) ||
+		!tick.Ask.Equal(decimal.RequireFromString("401.20")) {
+		t.Fatalf("fallback price/bid/ask = %s/%s/%s", tick.Price, tick.Bid, tick.Ask)
+	}
+	if tick.OpenPrice == nil || tick.HighPrice == nil || tick.LowPrice == nil {
+		t.Fatalf("quote range fields were not preserved: %#v", tick)
+	}
+
+	if got := tickFromTrade(bbgotypes.Trade{Symbol: "US.MSFT", Price: fixedpointValue(t, "0")}, at); got != nil {
+		t.Fatalf("tickFromTrade(zero price) = %#v", got)
+	}
+	if got := tickFromTrade(bbgotypes.Trade{Symbol: "bad", Price: fixedpointValue(t, "1")}, at); got != nil {
+		t.Fatalf("tickFromTrade(invalid symbol) = %#v", got)
 	}
 }
 

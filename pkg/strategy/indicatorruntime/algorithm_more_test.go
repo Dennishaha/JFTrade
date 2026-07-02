@@ -116,3 +116,41 @@ func TestSupertrendHelpersCaptureTrendDirectionAndInvalidInput(t *testing.T) {
 		t.Fatalf("calculateSupertrendSnapshot(invalid) = %#v, want nil", snapshot)
 	}
 }
+
+func TestSARSeriesCapturesBullishAndBearishReversals(t *testing.T) {
+	config := sarConfig{start: 0.02, increment: 0.02, maximum: 0.2}
+
+	bullishHighs := []float64{20, 19, 18, 17, 21}
+	bullishLows := []float64{19, 18, 17, 16, 20}
+	bullishCloses := []float64{19.5, 18.5, 17.5, 16.5, 20.5}
+	bullish := calculateSARSeries(bullishHighs, bullishLows, bullishCloses, config)
+	if len(bullish) != len(bullishHighs)-1 {
+		t.Fatalf("bullish SAR len = %d, want %d", len(bullish), len(bullishHighs)-1)
+	}
+	if latest := bullish[len(bullish)-1]; latest >= bullishCloses[len(bullishCloses)-1] {
+		t.Fatalf("bullish reversal SAR = %v, want below latest close %v", latest, bullishCloses[len(bullishCloses)-1])
+	}
+
+	bearishHighs := []float64{10, 11, 12, 13, 9}
+	bearishLows := []float64{9, 10, 11, 12, 8}
+	bearishCloses := []float64{9.5, 10.5, 11.5, 12.5, 8.5}
+	bearish := calculateSARSeries(bearishHighs, bearishLows, bearishCloses, config)
+	if len(bearish) != len(bearishHighs)-1 {
+		t.Fatalf("bearish SAR len = %d, want %d", len(bearish), len(bearishHighs)-1)
+	}
+	if latest := bearish[len(bearish)-1]; latest <= bearishCloses[len(bearishCloses)-1] {
+		t.Fatalf("bearish reversal SAR = %v, want above latest close %v", latest, bearishCloses[len(bearishCloses)-1])
+	}
+
+	flatStart := calculateSARSeries([]float64{11, 11, 12}, []float64{9, 9, 10}, []float64{10, 10, 11}, config)
+	if len(flatStart) != 2 {
+		t.Fatalf("flat-start SAR len = %d, want 2", len(flatStart))
+	}
+	current, previous, currentOK, previousOK := calculateSARSnapshotValues(bullishHighs, bullishLows, bullishCloses, config)
+	if !currentOK || !previousOK || current != bullish[len(bullish)-1] || previous != bullish[len(bullish)-2] {
+		t.Fatalf("SAR snapshot = current %v/%v previous %v/%v", current, currentOK, previous, previousOK)
+	}
+	if series := calculateSARSeries(bullishHighs[:2], bullishLows, bullishCloses, config); series != nil {
+		t.Fatalf("mismatched SAR series = %v, want nil", series)
+	}
+}

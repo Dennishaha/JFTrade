@@ -134,6 +134,25 @@ func TestStoreAggregatesFiveMinuteBarsFromOneMinuteCoverage(t *testing.T) {
 		t.Fatalf("streamed aggregated len = %d, want 1", len(streamed))
 	}
 	assertAggregatedBar(t, streamed[0], types.Interval5m, "HK.00700", since, until, 100, 105, 99, 105, 60)
+
+	ch, errCh := store.QueryKLinesCh(since, until, nil, []string{"HK.00700"}, []types.Interval{types.Interval1m, types.Interval5m})
+	channelRows := consumeKLineChannel(t, ch, errCh)
+	if len(channelRows) != 6 {
+		t.Fatalf("multi-interval channel rows len = %d, want 6: %#v", len(channelRows), channelRows)
+	}
+	lastMinute := channelRows[len(channelRows)-2]
+	aggregatedFiveMinute := channelRows[len(channelRows)-1]
+	if lastMinute.Interval != types.Interval1m || aggregatedFiveMinute.Interval != types.Interval5m {
+		t.Fatalf("expected 1m row before tied 5m aggregate, got %#v", channelRows[len(channelRows)-2:])
+	}
+	if !lastMinute.EndTime.Time().Equal(aggregatedFiveMinute.EndTime.Time()) {
+		t.Fatalf("expected tied end times for interval sort, got %s and %s", lastMinute.EndTime.Time(), aggregatedFiveMinute.EndTime.Time())
+	}
+
+	emptyCh, emptyErrCh := store.QueryKLinesCh(since, until, nil, nil, []types.Interval{types.Interval1m})
+	if emptyRows := consumeKLineChannel(t, emptyCh, emptyErrCh); len(emptyRows) != 0 {
+		t.Fatalf("empty symbol channel rows = %#v", emptyRows)
+	}
 }
 
 func TestStoreAggregatesDailyAndWeeklyBarsFromLowerIntervals(t *testing.T) {

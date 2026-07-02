@@ -269,6 +269,7 @@ func (s *parseState) normalizeObjectConstructorArguments(lineNumber int, args []
 			}
 			target = index
 		} else {
+			value = raw
 			for target < len(values) && values[target] != "" {
 				target++
 			}
@@ -326,6 +327,7 @@ func (s *parseState) normalizeObjectMethodArguments(lineNumber int, args []strin
 			}
 			target = index
 		} else {
+			value = raw
 			for target < len(values) && values[target] != "" {
 				target++
 			}

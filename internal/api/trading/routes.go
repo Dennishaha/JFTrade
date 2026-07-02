@@ -91,6 +91,7 @@ type placeOrderRequest struct {
 	Side           string   `json:"side"`
 	OrderType      string   `json:"orderType"`
 	Price          *float64 `json:"price,omitempty"`
+	StopPrice      *float64 `json:"stopPrice,omitempty"`
 	Quantity       float64  `json:"quantity"`
 	TimeInForce    *string  `json:"timeInForce,omitempty"`
 	ClientOrderID  string   `json:"clientOrderId,omitempty"`
@@ -240,7 +241,7 @@ func handleWrite(svc *srv.Service) gin.HandlerFunc {
 			}
 			result, err := svc.PlaceBrokerOrder(c.Request.Context(), broker.PlaceOrderQuery{
 				ReadQuery: query, Symbol: body.Symbol, Side: body.Side, OrderType: body.OrderType,
-				Price: body.Price, Quantity: body.Quantity, TimeInForce: body.TimeInForce,
+				Price: body.Price, StopPrice: body.StopPrice, Quantity: body.Quantity, TimeInForce: body.TimeInForce,
 				ClientOrderID: body.ClientOrderID, Remark: body.Remark, Session: body.Session,
 				FillOutsideRTH: body.FillOutsideRTH,
 			})

@@ -190,3 +190,58 @@ func TestAggregationBaseRangesRespectUSExtendedHours(t *testing.T) {
 		t.Fatalf("HK extended daily range = %s %s, want regular range", hkSince, hkUntil)
 	}
 }
+
+func TestPureAggregationHelpersHandleEmptyUnknownAndOutOfRangeInputs(t *testing.T) {
+	dayStart := time.Date(2026, time.June, 15, 0, 0, 0, 0, time.UTC)
+	dayEnd := dayStart.Add(24 * time.Hour).Add(-time.Millisecond)
+	baseDaily := []types.KLine{
+		testKLine("US.AAPL", types.Interval1d, dayStart, 24*time.Hour, 100, 102, 99, 101, 10),
+	}
+
+	if got := aggregateDailyKLinesFromBase("US.AAPL", nil, dayStart, dayEnd, false); got != nil {
+		t.Fatalf("empty daily aggregation = %#v, want nil", got)
+	}
+	if got := aggregateDailyKLinesFromBase("UNKNOWN", baseDaily, dayStart, dayEnd, false); len(got) != 0 {
+		t.Fatalf("unknown-symbol daily aggregation = %#v, want empty", got)
+	}
+	if got := aggregateDailyKLinesFromBase("US.AAPL", baseDaily, dayStart.AddDate(0, 0, 1), dayStart.AddDate(0, 0, 1), false); len(got) != 0 {
+		t.Fatalf("out-of-range daily aggregation = %#v, want empty", got)
+	}
+
+	if got := aggregateTradingPeriodKLinesFromBase("US.AAPL", types.Interval1w, nil, dayStart, dayEnd, false); got != nil {
+		t.Fatalf("empty trading-period aggregation = %#v, want nil", got)
+	}
+	if got := aggregateTradingPeriodKLinesFromBase("US.AAPL", types.Interval4h, baseDaily, dayStart, dayEnd, false); got != nil {
+		t.Fatalf("unsupported trading-period aggregation = %#v, want nil", got)
+	}
+	if got := aggregateTradingPeriodKLinesFromBase("UNKNOWN", types.Interval1w, baseDaily, dayStart, dayEnd, false); len(got) != 0 {
+		t.Fatalf("unknown-symbol trading-period aggregation = %#v, want empty", got)
+	}
+	if got := aggregateTradingPeriodKLinesFromBase("US.AAPL", types.Interval1w, baseDaily, dayStart.AddDate(0, 0, 7), dayStart.AddDate(0, 0, 8), false); len(got) != 0 {
+		t.Fatalf("out-of-range trading-period aggregation = %#v, want empty", got)
+	}
+
+	if got := aggregateSessionAwareIntradayKLinesFromBase("US.AAPL", types.Interval2h, nil, dayStart, dayEnd, false); got != nil {
+		t.Fatalf("empty session-aware aggregation = %#v, want nil", got)
+	}
+	if got := aggregateSessionAwareIntradayKLinesFromBase("UNKNOWN", types.Interval2h, []types.KLine{
+		testKLine("UNKNOWN", types.Interval1h, dayStart.Add(13*time.Hour+30*time.Minute), time.Hour, 1, 2, 1, 2, 1),
+	}, dayStart, dayEnd, false); len(got) != 0 {
+		t.Fatalf("unknown-symbol session-aware aggregation = %#v, want empty", got)
+	}
+}
+
+func TestSessionAwareIntradayAggregationMergesBarsInsideMarketBucket(t *testing.T) {
+	since := time.Date(2026, time.June, 15, 13, 30, 0, 0, time.UTC)
+	until := time.Date(2026, time.June, 15, 15, 29, 59, int(999*time.Millisecond), time.UTC)
+	baseRows := []types.KLine{
+		testKLine("US.AAPL", types.Interval1h, since, time.Hour, 100, 102, 99, 101, 10),
+		testKLine("US.AAPL", types.Interval1h, since.Add(time.Hour), time.Hour, 101, 104, 98, 103, 15),
+	}
+
+	aggregated := aggregateSessionAwareIntradayKLinesFromBase("US.AAPL", types.Interval2h, baseRows, since, until, false)
+	if len(aggregated) != 1 {
+		t.Fatalf("session-aware aggregation len = %d, want 1: %#v", len(aggregated), aggregated)
+	}
+	assertAggregatedBar(t, aggregated[0], types.Interval2h, "US.AAPL", since, until, 100, 104, 98, 103, 25)
+}

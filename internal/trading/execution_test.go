@@ -1,6 +1,8 @@
 package trading
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -57,6 +59,31 @@ func TestNormalizeExecutionOrderSupportsExtendedUSLimitSessions(t *testing.T) {
 	}
 	if command.Query.FillOutsideRTH == nil || !*command.Query.FillOutsideRTH {
 		t.Fatalf("fillOutsideRTH = %#v, want true", command.Query.FillOutsideRTH)
+	}
+}
+
+func TestNormalizeExecutionOrderSupportsStopAndMarketOrders(t *testing.T) {
+	service := NewService()
+	stopPrice := 97.5
+
+	stopCommand, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
+		Market: "US", Symbol: "AAPL", Side: "SELL", OrderType: "STOP", Quantity: 4, StopPrice: &stopPrice,
+	})
+	if err != nil {
+		t.Fatalf("normalize stop order: %v", err)
+	}
+	if stopCommand.OrderType != "STOP" || stopCommand.Query.StopPrice == nil || *stopCommand.Query.StopPrice != stopPrice {
+		t.Fatalf("stop command = %#v", stopCommand)
+	}
+
+	marketCommand, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
+		Market: "HK", Symbol: "00700", Side: "BUY", OrderType: "MARKET", Quantity: 100,
+	})
+	if err != nil {
+		t.Fatalf("normalize market order: %v", err)
+	}
+	if marketCommand.OrderType != "MARKET" || marketCommand.Query.Market != "HK" || marketCommand.Query.Session != nil {
+		t.Fatalf("market command = %#v", marketCommand)
 	}
 }
 
@@ -127,5 +154,156 @@ func TestNormalizeExecutionOrderRejectsBusinessRuleViolations(t *testing.T) {
 				t.Fatalf("error = %v, want substring %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands(t *testing.T) {
+	ctx := context.Background()
+	price := 101.25
+	var listedFilter ExecutionOrderFilter
+	var placedCommand ExecutionOrderCommand
+	var canceledID string
+	var eventsID string
+
+	service := NewService(
+		WithDefaultTradingEnvironment(func() string { return "real" }),
+		WithListOrders(func(_ context.Context, filter ExecutionOrderFilter) (ExecutionOrders, error) {
+			listedFilter = filter
+			return ExecutionOrders{Orders: []ExecutionOrder{{
+				InternalOrderID: "local-1",
+				BrokerID:        filter.BrokerID,
+				Status:          "SUBMITTED",
+				UpdatedAt:       "2026-07-02T01:02:03Z",
+				CreatedAt:       "2026-07-02T01:02:03Z",
+			}}}, nil
+		}),
+		WithPlaceOrder(func(_ context.Context, command ExecutionOrderCommand) (ExecutionOrder, error) {
+			placedCommand = command
+			return ExecutionOrder{
+				InternalOrderID: "local-2",
+				BrokerID:        command.BrokerID,
+				BrokerOrderID:   new("broker-2"),
+				Status:          "SUBMITTED",
+			}, nil
+		}),
+		WithCancelOrder(func(_ context.Context, id string) (ExecutionOrder, error) {
+			canceledID = id
+			return ExecutionOrder{
+				InternalOrderID: id,
+				BrokerID:        "futu",
+				BrokerOrderIDEx: new("broker-ex-3"),
+				Status:          "CANCELING",
+			}, nil
+		}),
+		WithGetOrderEvents(func(_ context.Context, id string) (ExecutionOrderEvents, error) {
+			eventsID = id
+			return ExecutionOrderEvents{
+				InternalOrderID: id,
+				Events: []ExecutionOrderEvent{{
+					ID:              "evt-1",
+					InternalOrderID: id,
+					EventType:       "order_submitted",
+					NextStatus:      "SUBMITTED",
+				}},
+			}, nil
+		}),
+	)
+
+	filter := service.ExecutionFilter(" futu ", "", " acc-1 ", " us ")
+	orders, err := service.ListExecutionOrders(ctx, filter, true)
+	if err != nil {
+		t.Fatalf("ListExecutionOrders: %v", err)
+	}
+	if len(orders.Orders) != 1 || listedFilter.TradingEnvironment != "REAL" || listedFilter.AccountID != "acc-1" || listedFilter.Market != "US" {
+		t.Fatalf("listed orders/filter = %#v / %#v", orders, listedFilter)
+	}
+
+	snapshot, err := service.ExecutionOrdersSnapshot(ctx)
+	if err != nil {
+		t.Fatalf("ExecutionOrdersSnapshot: %v", err)
+	}
+	if len(snapshot.Orders) != 1 || listedFilter != (ExecutionOrderFilter{}) {
+		t.Fatalf("snapshot/filter = %#v / %#v", snapshot, listedFilter)
+	}
+
+	preview, err := service.PreviewExecutionOrder(ExecutionPlaceRequest{
+		Market: "US", Symbol: "AAPL", Side: "BUY", Quantity: 3, Price: &price,
+	})
+	if err != nil {
+		t.Fatalf("PreviewExecutionOrder: %v", err)
+	}
+	if !preview.PreviewValid || preview.BrokerID != "futu" || preview.Symbol != "US.AAPL" || preview.Price == nil || *preview.Price != price {
+		t.Fatalf("preview = %#v", preview)
+	}
+
+	created, err := service.CreateExecutionOrder(ctx, ExecutionPlaceRequest{
+		Market: "US", Symbol: "AAPL", Side: "BUY", Quantity: 3, Price: &price, ClientOrderID: "client-123",
+	})
+	if err != nil {
+		t.Fatalf("CreateExecutionOrder: %v", err)
+	}
+	if !created.Accepted || created.Operation != "PLACE" || created.InternalOrderID == nil || *created.InternalOrderID != "local-2" {
+		t.Fatalf("created response = %#v", created)
+	}
+	if placedCommand.Symbol != "US.AAPL" || placedCommand.Query.ClientOrderID != "client-123" || placedCommand.Query.Remark == nil || *placedCommand.Query.Remark != "client-123" {
+		t.Fatalf("placed command = %#v", placedCommand)
+	}
+
+	canceled, err := service.CancelExecutionOrder(ctx, " local-2 ")
+	if err != nil {
+		t.Fatalf("CancelExecutionOrder: %v", err)
+	}
+	if canceled.Operation != "CANCEL" || canceled.BrokerOrderIDEx == nil || *canceled.BrokerOrderIDEx != "broker-ex-3" || canceledID != "local-2" {
+		t.Fatalf("cancel response/id = %#v / %q", canceled, canceledID)
+	}
+
+	events, err := service.ExecutionOrderEvents(ctx, " local-2 ")
+	if err != nil {
+		t.Fatalf("ExecutionOrderEvents: %v", err)
+	}
+	if eventsID != "local-2" || len(events.Events) != 1 || events.Events[0].EventType != "order_submitted" {
+		t.Fatalf("events/id = %#v / %q", events, eventsID)
+	}
+}
+
+func TestExecutionOrderServiceFacadeReturnsBusinessErrors(t *testing.T) {
+	ctx := context.Background()
+	price := 9.75
+	upstream := errors.New("broker rejected order")
+	service := NewService(
+		WithListOrders(func(context.Context, ExecutionOrderFilter) (ExecutionOrders, error) {
+			return ExecutionOrders{}, upstream
+		}),
+		WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
+			return ExecutionOrder{}, upstream
+		}),
+		WithCancelOrder(func(context.Context, string) (ExecutionOrder, error) {
+			return ExecutionOrder{}, upstream
+		}),
+		WithGetOrderEvents(func(context.Context, string) (ExecutionOrderEvents, error) {
+			return ExecutionOrderEvents{}, upstream
+		}),
+	)
+
+	if _, err := service.ListExecutionOrders(ctx, ExecutionOrderFilter{}, false); !errors.Is(err, upstream) {
+		t.Fatalf("ListExecutionOrders error = %v, want upstream", err)
+	}
+	if _, err := service.CreateExecutionOrder(ctx, ExecutionPlaceRequest{
+		Market: "US", Symbol: "AAPL", Side: "BUY", Quantity: 1, Price: &price,
+	}); !errors.Is(err, upstream) {
+		t.Fatalf("CreateExecutionOrder error = %v, want upstream", err)
+	}
+	if _, err := service.CancelExecutionOrder(ctx, "local-1"); !errors.Is(err, upstream) {
+		t.Fatalf("CancelExecutionOrder error = %v, want upstream", err)
+	}
+	if _, err := service.ExecutionOrderEvents(ctx, "local-1"); !errors.Is(err, upstream) {
+		t.Fatalf("ExecutionOrderEvents error = %v, want upstream", err)
+	}
+
+	if _, err := service.PreviewExecutionOrder(ExecutionPlaceRequest{Market: "US", Symbol: "AAPL", Side: "HOLD", Quantity: 1}); !IsRequestError(err) {
+		t.Fatalf("PreviewExecutionOrder error = %v, want RequestError", err)
+	}
+	if IsRequestError(upstream) {
+		t.Fatalf("plain upstream error classified as RequestError")
 	}
 }

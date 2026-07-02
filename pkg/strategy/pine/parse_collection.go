@@ -493,9 +493,9 @@ func (s *parseState) lowerCollectionReadCalls(expression string) (string, error)
 				args = args[1:]
 			}
 		} else {
-			dot := strings.Index(call, ".")
+			dot := strings.LastIndex(call, ".")
 			target = strings.TrimSpace(call[:dot])
-			namespace = s.collectionNamespaces[strings.ToLower(target)]
+			namespace = s.collectionNamespaceForTargetExpression(target)
 			operation = strings.ToLower(strings.TrimSpace(call[dot+1:]))
 			if !readableCollectionOperations[operation] {
 				return result, fmt.Errorf("collection operation %s is not valid in an expression", call)
@@ -569,7 +569,7 @@ func nextCollectionReadCall(expression string, namespaces map[string]string) (in
 		}
 		open := match[1] - 1
 		close := matchingParen(expression, open)
-		if close < 0 || open <= bestOpen {
+		if close < 0 || open < bestOpen {
 			continue
 		}
 		bestStart = match[0]
