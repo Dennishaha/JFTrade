@@ -3,6 +3,8 @@ package settings_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -617,5 +619,79 @@ func TestDataMigrationRoutesUseInjectedCallbacks(t *testing.T) {
 	payload, ok := rebuildPayload.(map[string]any)
 	if !ok || payload["databaseId"] != "adk" {
 		t.Fatalf("rebuild payload = %#v", rebuildPayload)
+	}
+}
+
+func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	var overviewRequest srvsettings.DataManagementOverviewRequest
+	var previewRequest srvsettings.DataCleanupPreviewRequest
+	service := srvsettings.NewService(&routeStore{}, srvsettings.WithDataManagement(
+		func(_ context.Context, request srvsettings.DataManagementOverviewRequest) (any, error) {
+			overviewRequest = request
+			if request.DatabaseID == "missing" {
+				return nil, errors.New("unknown database id")
+			}
+			return map[string]any{"databases": []any{}, "totals": map[string]any{"totalBytes": 42}, "summaryOnly": request.SummaryOnly, "databaseId": request.DatabaseID}, nil
+		},
+		func(_ context.Context, request srvsettings.DataCleanupPreviewRequest) (any, error) {
+			previewRequest = request
+			return map[string]any{"previewId": "preview-1", "candidateCount": 2}, nil
+		},
+		func(_ context.Context, request srvsettings.DataCleanupExecuteRequest) (any, error) {
+			switch request.PreviewID {
+			case "missing":
+				return nil, srvsettings.ErrCleanupPreviewNotFound
+			case "stale":
+				return nil, srvsettings.ErrCleanupPreviewStale
+			default:
+				return nil, fmt.Errorf("%w: active run", srvsettings.ErrDatabaseMaintenanceConflict)
+			}
+		},
+		func(context.Context, string, srvsettings.DatabaseCompactRequest) (any, error) {
+			return map[string]any{"compacted": true}, nil
+		},
+		func(context.Context, srvsettings.DatabaseRebuildRequest) (any, error) {
+			return map[string]any{"scheduled": true}, nil
+		},
+	))
+	router := gin.New()
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+
+	overview := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/data-management/databases", "")
+	if overview.Code != http.StatusOK || !strings.Contains(overview.Body.String(), `"totalBytes":42`) {
+		t.Fatalf("overview = %d %s", overview.Code, overview.Body.String())
+	}
+	incrementalOverview := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/data-management/databases?summaryOnly=true&databaseId=strategy", "")
+	if incrementalOverview.Code != http.StatusOK || !overviewRequest.SummaryOnly || overviewRequest.DatabaseID != "strategy" {
+		t.Fatalf("incremental overview = %d %s request=%+v", incrementalOverview.Code, incrementalOverview.Body.String(), overviewRequest)
+	}
+	rejectedOverview := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/data-management/databases?databaseId=missing", "")
+	if rejectedOverview.Code != http.StatusBadRequest {
+		t.Fatalf("rejected overview = %d %s", rejectedOverview.Code, rejectedOverview.Body.String())
+	}
+	preview := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/preview", `{"kind":"backtest-history","databaseId":"backtest-runs","olderThanDays":30,"keepLatest":20}`)
+	if preview.Code != http.StatusOK || previewRequest.KeepLatest != 20 {
+		t.Fatalf("preview = %d %s request=%+v", preview.Code, preview.Body.String(), previewRequest)
+	}
+	execute := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/execute", `{"previewId":"preview-1","confirmation":"CLEANUP backtest-runs 2"}`)
+	if execute.Code != http.StatusConflict || !strings.Contains(execute.Body.String(), `DATABASE_MAINTENANCE_CONFLICT`) {
+		t.Fatalf("execute = %d %s", execute.Code, execute.Body.String())
+	}
+	compact := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/adk/compact", `{"confirmation":"COMPACT adk"}`)
+	if compact.Code != http.StatusOK || !strings.Contains(compact.Body.String(), `"compacted":true`) {
+		t.Fatalf("compact = %d %s", compact.Code, compact.Body.String())
+	}
+	malformedPreview := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/preview", `{"kind":`)
+	if malformedPreview.Code != http.StatusBadRequest || !strings.Contains(malformedPreview.Body.String(), `BAD_REQUEST`) {
+		t.Fatalf("malformed preview = %d %s", malformedPreview.Code, malformedPreview.Body.String())
+	}
+	missing := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/execute", `{"previewId":"missing"}`)
+	if missing.Code != http.StatusNotFound || !strings.Contains(missing.Body.String(), `CLEANUP_PREVIEW_NOT_FOUND`) {
+		t.Fatalf("missing = %d %s", missing.Code, missing.Body.String())
+	}
+	stale := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/execute", `{"previewId":"stale"}`)
+	if stale.Code != http.StatusConflict || !strings.Contains(stale.Body.String(), `CLEANUP_PREVIEW_STALE`) {
+		t.Fatalf("stale = %d %s", stale.Code, stale.Body.String())
 	}
 }

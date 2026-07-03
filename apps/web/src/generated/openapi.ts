@@ -103,6 +103,25 @@ export interface components {
     operation?: string;
     orderStatus?: string;
   };
+    "servercore.databaseCompactRequest": {
+    confirmation?: string;
+  };
+    "servercore.databaseRebuildRequest": {
+    confirmation?: string;
+    databaseId?: string;
+    databaseIds?: Array<string>;
+    mode?: string;
+  };
+    "servercore.dataCleanupExecuteRequest": {
+    confirmation?: string;
+    previewId?: string;
+  };
+    "servercore.dataCleanupPreviewRequest": {
+    databaseId?: string;
+    keepLatest?: number;
+    kind?: string;
+    olderThanDays?: number;
+  };
     "servercore.envelope": {
     data?: unknown;
     error?: components["schemas"]["httpserver.APIError"];
@@ -2277,6 +2296,97 @@ export interface paths {
           description: "Bad Request";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/data-management/cleanup/execute": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["servercore.dataCleanupExecuteRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/data-management/cleanup/preview": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["servercore.dataCleanupPreviewRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/data-management/databases": {
+    get: {
+      parameters: {
+        query: {
+        summaryOnly?: boolean;
+        databaseId?: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/data-management/databases/{databaseId}/compact": {
+    post: {
+      parameters: {
+        path: {
+        databaseId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["servercore.databaseCompactRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/data-management/databases/rebuild": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["servercore.databaseRebuildRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
           };
         };
       };

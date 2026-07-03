@@ -510,6 +510,7 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 	server.tradingSvc = server.newTradingService()
 
 	// Wire settings service — delegates to SettingsStore with side-effect orchestration.
+	server.configureDataManagement()
 	server.settingsSvc = settings.NewService(persistenceOnlySettingsStore(store),
 		settings.WithSideEffects(settings.SideEffects{
 			OnIntegrationChanged: func(integration BrokerIntegration) {
@@ -537,32 +538,38 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		settings.WithBrokerSettings(func() map[string]any { return server.brokerSettings() }),
 		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return server.onboardingState(ctx) }),
 		settings.WithDefaultTradingEnvironment(server.defaultTradingEnvironment()),
-		settings.WithDataMigration(
-			func(ctx context.Context) (any, error) {
-				statuses, err := server.dataMigration.Statuses(ctx)
-				if err != nil {
-					return nil, err
-				}
-				return map[string]any{"databases": statuses}, nil
+		settings.WithDataManagement(
+			func(ctx context.Context, request settings.DataManagementOverviewRequest) (any, error) {
+				return server.dataMigration.Overview(ctx, datamigration.OverviewRequest{
+					SummaryOnly: request.SummaryOnly,
+					DatabaseID:  request.DatabaseID,
+				})
 			},
-			func(ctx context.Context, raw any) (any, error) {
-				payload, ok := raw.(map[string]any)
-				if !ok {
-					return nil, fmt.Errorf("invalid database rebuild payload")
+			func(ctx context.Context, request settings.DataCleanupPreviewRequest) (any, error) {
+				result, err := server.dataMigration.PreviewCleanup(ctx, datamigration.CleanupPreviewRequest{
+					Kind: request.Kind, DatabaseID: request.DatabaseID,
+					OlderThanDays: request.OlderThanDays, KeepLatest: request.KeepLatest,
+				})
+				return result, translateDataManagementError(err)
+			},
+			func(ctx context.Context, request settings.DataCleanupExecuteRequest) (any, error) {
+				result, err := server.dataMigration.ExecuteCleanup(ctx, datamigration.CleanupExecuteRequest{
+					PreviewID: request.PreviewID, Confirmation: request.Confirmation,
+				})
+				return result, translateDataManagementError(err)
+			},
+			func(ctx context.Context, databaseID string, request settings.DatabaseCompactRequest) (any, error) {
+				result, err := server.dataMigration.Compact(ctx, databaseID, datamigration.CompactRequest{Confirmation: request.Confirmation})
+				return result, translateDataManagementError(err)
+			},
+			func(ctx context.Context, request settings.DatabaseRebuildRequest) (any, error) {
+				ids := append([]string{}, request.DatabaseIDs...)
+				if strings.TrimSpace(request.DatabaseID) != "" {
+					ids = append(ids, request.DatabaseID)
 				}
-				request := datamigration.RebuildRequest{
-					Mode:         strings.TrimSpace(fmt.Sprint(payload["mode"])),
-					Confirmation: strings.TrimSpace(fmt.Sprint(payload["confirmation"])),
-				}
-				if values, ok := payload["databaseIds"].([]any); ok {
-					for _, value := range values {
-						request.DatabaseIDs = append(request.DatabaseIDs, strings.TrimSpace(fmt.Sprint(value)))
-					}
-				}
-				if value, ok := payload["databaseId"].(string); ok && strings.TrimSpace(value) != "" {
-					request.DatabaseIDs = append(request.DatabaseIDs, strings.TrimSpace(value))
-				}
-				return server.dataMigration.ScheduleRebuild(ctx, request)
+				return server.dataMigration.ScheduleRebuild(ctx, datamigration.RebuildRequest{
+					DatabaseIDs: ids, Mode: request.Mode, Confirmation: request.Confirmation,
+				})
 			},
 		),
 	)

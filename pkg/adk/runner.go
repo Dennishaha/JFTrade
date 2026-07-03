@@ -113,6 +113,26 @@ func (r *Runtime) Store() *Store {
 	return r.store
 }
 
+func (r *Runtime) HasDatabaseActivity(ctx context.Context) (bool, error) {
+	if r == nil || r.store == nil {
+		return false, nil
+	}
+	r.activeMu.Lock()
+	active := len(r.activeRuns) > 0
+	r.activeMu.Unlock()
+	if active {
+		return true, nil
+	}
+	return r.store.HasDatabaseActivity(ctx)
+}
+
+func (r *Runtime) CompactSessionDatabase(ctx context.Context) error {
+	if r == nil {
+		return fmt.Errorf("adk runtime is unavailable")
+	}
+	return CompactSQLiteSessionService(ctx, r.rawSessionService)
+}
+
 func (r *Runtime) SessionContext(ctx context.Context, sessionID string) (SessionContextSnapshot, error) {
 	if r == nil || r.store == nil || r.contextManager == nil {
 		return SessionContextSnapshot{}, fmt.Errorf("adk runtime is unavailable")

@@ -78,6 +78,18 @@ func (s *SQLiteSessionService) Close() error {
 	return s.db.Close()
 }
 
+func CompactSQLiteSessionService(ctx context.Context, service adksession.Service) error {
+	wrapper, ok := service.(*SQLiteSessionService)
+	if !ok || wrapper == nil || wrapper.db == nil {
+		return fmt.Errorf("ADK session database is unavailable")
+	}
+	if _, err := wrapper.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+		return err
+	}
+	_, err := wrapper.db.ExecContext(ctx, `VACUUM`)
+	return err
+}
+
 func ValidateSQLiteSessionService(service adksession.Service) error {
 	if wrapper, ok := service.(*SQLiteSessionService); ok && wrapper != nil {
 		ready, err := sqliteSessionSchemaReady(wrapper.db)

@@ -1,6 +1,13 @@
 //nolint:unused // These annotation-only stubs are consumed by swag during go generate.
 package servercore
 
+import "github.com/jftrade/jftrade-main/internal/settings"
+
+type dataCleanupPreviewRequest = settings.DataCleanupPreviewRequest
+type dataCleanupExecuteRequest = settings.DataCleanupExecuteRequest
+type databaseCompactRequest = settings.DatabaseCompactRequest
+type databaseRebuildRequest = settings.DatabaseRebuildRequest
+
 // documentDataMigrationRoutes godoc
 // @Summary Database compatibility status and rebuild scheduling
 // @Tags settings
@@ -9,6 +16,57 @@ package servercore
 // @Router /api/v1/settings/data-migration/databases [get]
 // @Router /api/v1/settings/data-migration/databases/rebuild [post]
 func documentDataMigrationRoutes() {}
+
+// documentDataManagementOverview godoc
+// @Summary Database storage usage and cleanup opportunities
+// @Tags settings
+// @Produce json
+// @Param summaryOnly query bool false "Return only database status without SQLite storage or cleanup statistics"
+// @Param databaseId query string false "Return one database overview for incremental loading"
+// @Success 200 {object} envelope
+// @Router /api/v1/settings/data-management/databases [get]
+func documentDataManagementOverview() {}
+
+// documentDataCleanupPreview godoc
+// @Summary Preview an exact database cleanup candidate set
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body dataCleanupPreviewRequest true "Cleanup preview request"
+// @Success 200 {object} envelope
+// @Router /api/v1/settings/data-management/cleanup/preview [post]
+func documentDataCleanupPreview() {}
+
+// documentDataCleanupExecute godoc
+// @Summary Execute a previously previewed database cleanup
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body dataCleanupExecuteRequest true "Cleanup execution request"
+// @Success 200 {object} envelope
+// @Router /api/v1/settings/data-management/cleanup/execute [post]
+func documentDataCleanupExecute() {}
+
+// documentDatabaseCompact godoc
+// @Summary Checkpoint and compact one database
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param databaseId path string true "Database ID"
+// @Param request body databaseCompactRequest true "Compaction confirmation"
+// @Success 200 {object} envelope
+// @Router /api/v1/settings/data-management/databases/{databaseId}/compact [post]
+func documentDatabaseCompact() {}
+
+// documentDatabaseRebuild godoc
+// @Summary Schedule a database rebuild on next startup
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body databaseRebuildRequest true "Database rebuild request"
+// @Success 200 {object} envelope
+// @Router /api/v1/settings/data-management/databases/rebuild [post]
+func documentDatabaseRebuild() {}
 
 // documentAssistantCatalogRoutes godoc
 // @Summary ADK catalog and provider management routes

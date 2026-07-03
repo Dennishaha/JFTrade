@@ -82,3 +82,21 @@ func (s *FutuKLineStore) SetWriteSessionScope(scope string) {
 func (s *FutuKLineStore) DB() *sqlx.DB {
 	return s.db
 }
+
+func (s *FutuKLineStore) CompactDatabase(ctx context.Context) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("backtest database is unavailable")
+	}
+	if err := s.accessQueue.enqueueWrite(func() error {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if _, err := s.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+			return err
+		}
+		_, err := s.db.ExecContext(ctx, `VACUUM`)
+		return err
+	}); err != nil {
+		return fmt.Errorf("compact backtest database: %w", err)
+	}
+	return nil
+}

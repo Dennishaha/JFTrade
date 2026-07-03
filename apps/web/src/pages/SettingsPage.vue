@@ -17,7 +17,7 @@ import { useConsoleData } from "../composables/useConsoleData";
 const route = useRoute();
 const router = useRouter();
 const SettingsADKSection = defineAsyncComponent(() => import("../components/SettingsADKSection.vue"));
-const SettingsDataMigrationSection = defineAsyncComponent(() => import("../components/SettingsDataMigrationSection.vue"));
+const SettingsDataManagementSection = defineAsyncComponent(() => import("../components/SettingsDataMigrationSection.vue"));
 
 const SETTINGS_LAST_KEY = "jft.settings.section";
 
@@ -76,9 +76,9 @@ const settingsMenu = [
     description: "配置 AI 模型 Provider、Agent 定义与 Skill 安装。",
   },
   {
-    index: "data-migration",
-    label: "数据库重建",
-    description: "检测数据库兼容性并安排安全重建。",
+    index: "data-management",
+    label: "数据管理",
+    description: "统计数据库占用，清理历史数据并管理数据库重建。",
   },
 ] as const;
 
@@ -88,6 +88,7 @@ const DEFAULT_SECTION: MenuIndex = "runtime-dependencies";
 
 const activeMenu = computed<MenuIndex>(() => {
   const s = route.params.section as string | undefined;
+  if (s === "data-migration") return "data-management";
   if (s && settingsMenu.some((e) => e.index === s)) {
     return s as MenuIndex;
   }
@@ -95,8 +96,14 @@ const activeMenu = computed<MenuIndex>(() => {
 });
 
 onMounted(() => {
+  if (route.params.section === "data-migration") {
+    writeLocalStorage(SETTINGS_LAST_KEY, "data-management");
+    void router.replace("/settings/data-management");
+    return;
+  }
   if (!route.params.section) {
-    const stored = readLocalStorage(SETTINGS_LAST_KEY);
+    const storedValue = readLocalStorage(SETTINGS_LAST_KEY);
+    const stored = storedValue === "data-migration" ? "data-management" : storedValue;
     const last = settingsMenu.some((entry) => entry.index === stored)
       ? stored as MenuIndex
       : DEFAULT_SECTION;
@@ -212,7 +219,7 @@ const {
 
         <SettingsADKSection v-show="activeMenu === 'adk'" />
 
-        <SettingsDataMigrationSection v-if="activeMenu === 'data-migration'" />
+        <SettingsDataManagementSection v-if="activeMenu === 'data-management'" />
       </div>
     </section>
   </div>

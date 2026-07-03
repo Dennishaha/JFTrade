@@ -69,10 +69,11 @@ type Manager struct {
 	settingsPath string
 	descriptors  []Descriptor
 	unavailable  map[string]error
+	maintenance  maintenanceState
 }
 
 func NewManager(settingsPath string, backtestDBPath string) *Manager {
-	return &Manager{
+	manager := &Manager{
 		settingsPath: strings.TrimSpace(settingsPath),
 		unavailable:  make(map[string]error),
 		descriptors: []Descriptor{
@@ -84,6 +85,8 @@ func NewManager(settingsPath string, backtestDBPath string) *Manager {
 			{ID: DatabaseADKSession, Name: "ADK 会话", Path: apiruntime.DeriveADKSessionDBPath(settingsPath), Description: "GO-ADK 原始会话事件和状态。", Features: []string{"对话上下文", "工具事件"}, Version: SchemaVersion},
 		},
 	}
+	manager.initializeMaintenance()
+	return manager
 }
 
 func (m *Manager) SetUnavailable(id string, err error) {
