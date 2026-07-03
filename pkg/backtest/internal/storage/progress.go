@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
 // SyncProgress tracks the progress of a K-line sync operation for frontend polling.

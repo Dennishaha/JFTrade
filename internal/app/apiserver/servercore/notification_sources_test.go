@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"

@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/c9s/bbgo/pkg/fixedpoint"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 )
 
 func TestParseStoredFixedRoundTripsFixedpointString(t *testing.T) {

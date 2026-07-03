@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/c9s/bbgo/pkg/fixedpoint"
-	"github.com/c9s/bbgo/pkg/service"
-	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/service"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
 type stubBacktestStore struct {

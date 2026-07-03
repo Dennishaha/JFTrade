@@ -23,6 +23,7 @@ read -r covered total percentage < <(
     $1 ~ /\/internal\/buildinfo\// { next }
     $1 ~ /\/internal\/frontendassets\// { next }
     $1 ~ /\/internal\/pineworkerassets\// { next }
+    $1 ~ /\/pkg\/bbgo\// { next }
     $1 ~ /\/pkg\/futu\/pb\// { next }
     $1 ~ /\/pkg\/strategy\/pineworker\/pineworkerpb\// { next }
     {

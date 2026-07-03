@@ -1,7 +1,7 @@
 package backtest
 
 import (
-	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	internalstorage "github.com/jftrade/jftrade-main/pkg/backtest/internal/storage"
 )

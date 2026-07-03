@@ -84,19 +84,19 @@ func TestNormalizeWorkflowAndSessionResponsesPreserveBusinessContracts(t *testin
 	}
 
 	workflow := NormalizeWorkflowDefinition(WorkflowDefinition{
-		ID:              " workflow-1 ",
-		Name:            " Risk Review ",
-		Description:     " check exposure ",
-		Status:          "",
-		AgentID:         " agent-1 ",
-		WorkMode:        "task",
-		ProviderID:      " provider-1 ",
-		Model:           " model-1 ",
-		PermissionMode:  "all",
-		PromptTemplate:  " {{.symbol}} ",
-		DefaultInputs:   map[string]any{" symbol ": "US.AAPL", "": "ignored"},
-		Tags:            []string{" risk ", "risk", "daily"},
-		CanvasGraph:     &WorkflowCanvasGraph{Version: " 1 ", Nodes: []WorkflowCanvasNode{{ID: " n1 ", Type: " prompt ", Data: map[string]any{" title ": "Review"}}}, Edges: []WorkflowCanvasEdge{{ID: " e1 ", Source: " n1 ", Target: " n2 ", Type: " default ", Data: map[string]any{" label ": "next"}}}},
+		ID:                " workflow-1 ",
+		Name:              " Risk Review ",
+		Description:       " check exposure ",
+		Status:            "",
+		AgentID:           " agent-1 ",
+		WorkMode:          "task",
+		ProviderID:        " provider-1 ",
+		Model:             " model-1 ",
+		PermissionMode:    "all",
+		PromptTemplate:    " {{.symbol}} ",
+		DefaultInputs:     map[string]any{" symbol ": "US.AAPL", "": "ignored"},
+		Tags:              []string{" risk ", "risk", "daily"},
+		CanvasGraph:       &WorkflowCanvasGraph{Version: " 1 ", Nodes: []WorkflowCanvasNode{{ID: " n1 ", Type: " prompt ", Data: map[string]any{" title ": "Review"}}}, Edges: []WorkflowCanvasEdge{{ID: " e1 ", Source: " n1 ", Target: " n2 ", Type: " default ", Data: map[string]any{" label ": "next"}}}},
 		ObjectiveTemplate: " objective ",
 	})
 	if workflow.ID != "workflow-1" || workflow.Status != WorkflowStatusEnabled || workflow.AgentID != "agent-1" {

@@ -108,13 +108,13 @@ func TestBrokerReadProtoSnapshotsNormalizePositionMarginAndQuantityDetails(t *te
 			Market: futuTestPtr(int32(qotcommonpb.QotMarket_QotMarket_US_Security)),
 			Code:   futuTestPtr("aapl"),
 		},
-		IsLongPermit:   futuTestPtr(true),
-		IsShortPermit:  futuTestPtr(false),
+		IsLongPermit:    futuTestPtr(true),
+		IsShortPermit:   futuTestPtr(false),
 		ShortPoolRemain: futuTestPtr(1000.0),
-		ShortFeeRate:   futuTestPtr(0.023),
-		AlertLongRatio: futuTestPtr(0.5),
-		ImLongRatio:    futuTestPtr(0.3),
-		MmShortRatio:   futuTestPtr(0.4),
+		ShortFeeRate:    futuTestPtr(0.023),
+		AlertLongRatio:  futuTestPtr(0.5),
+		ImLongRatio:     futuTestPtr(0.3),
+		MmShortRatio:    futuTestPtr(0.4),
 	})
 	if margin.AccountID != account.AccountID || margin.Market != "US" || margin.Symbol != "US.AAPL" {
 		t.Fatalf("margin identity = %#v", margin)

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/c9s/bbgo/pkg/fixedpoint"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"

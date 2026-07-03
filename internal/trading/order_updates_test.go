@@ -347,13 +347,13 @@ func TestOrderUpdatesWorkerInactiveSourcePreservesDiagnosticState(t *testing.T) 
 func TestOrderUpdatesWorkerSyncCoversSubscriptionAndHistoryFallbackPaths(t *testing.T) {
 	now := time.Date(2026, 7, 3, 11, 0, 0, 0, time.UTC)
 	source := &fakeOrderUpdateSource{
-		accounts: []Account{{ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"}}},
+		accounts:     []Account{{ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"}}},
 		subscribeErr: errors.New("dial timeout"),
 		current:      []Order{{BrokerOrderID: "current-1"}},
 		history:      []Order{{BrokerOrderID: "history-1"}},
 	}
 	worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{
-		Now: func() time.Time { return now },
+		Now:             func() time.Time { return now },
 		HistoryLookback: func() int { return 0 },
 	})
 
@@ -376,8 +376,8 @@ func TestOrderUpdatesWorkerMarksCurrentAndHistoryFailures(t *testing.T) {
 
 	t.Run("current order sync failure marks subscription inactive", func(t *testing.T) {
 		source := &fakeOrderUpdateSource{
-			accounts:    []Account{{ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"}}},
-			currentErr:  errors.New("current unavailable"),
+			accounts:   []Account{{ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"}}},
+			currentErr: errors.New("current unavailable"),
 		}
 		worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{
 			Now: func() time.Time { return now },

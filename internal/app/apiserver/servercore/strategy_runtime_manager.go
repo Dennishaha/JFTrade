@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/c9s/bbgo/pkg/bbgo"
-	"github.com/c9s/bbgo/pkg/fixedpoint"
-	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"

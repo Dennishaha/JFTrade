@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/c9s/bbgo/pkg/fixedpoint"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 )
 
 // --- Price-step normalization for order placement ---

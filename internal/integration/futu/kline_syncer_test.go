@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	backtestservice "github.com/jftrade/jftrade-main/internal/backtest"
 	backteststore "github.com/jftrade/jftrade-main/pkg/backtest"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )

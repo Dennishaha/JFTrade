@@ -3,8 +3,8 @@
 package frontendassets
 
 import (
-	"io/fs"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"

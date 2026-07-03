@@ -5,7 +5,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
 // InsertKLine inserts a single K-line into the store. Duplicates (same

@@ -1,7 +1,7 @@
 package futu
 
 import (
-	"github.com/c9s/bbgo/pkg/fixedpoint"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/shopspring/decimal"
 )
 

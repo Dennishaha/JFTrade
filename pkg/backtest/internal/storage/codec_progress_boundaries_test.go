@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jmoiron/sqlx"
 )
 

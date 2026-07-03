@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/c9s/bbgo/pkg/fixedpoint"
-	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
 type orderBookEntryState struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )

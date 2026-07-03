@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
 // KLineTable is the SQLite table-name prefix for Futu historical K-lines.

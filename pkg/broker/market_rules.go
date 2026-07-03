@@ -3,8 +3,8 @@ package broker
 import (
 	"strings"
 
-	"github.com/c9s/bbgo/pkg/fixedpoint"
-	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
 // ApplyMarketRule returns a copy of market enriched with broker-provided

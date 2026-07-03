@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	bbgo2 "github.com/c9s/bbgo/pkg/bbgo"
-	"github.com/c9s/bbgo/pkg/fixedpoint"
-	"github.com/c9s/bbgo/pkg/types"
+	bbgo2 "github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )

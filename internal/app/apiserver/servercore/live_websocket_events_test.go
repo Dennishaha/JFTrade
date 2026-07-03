@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/gorilla/websocket"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"

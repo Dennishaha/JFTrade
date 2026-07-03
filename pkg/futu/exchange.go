@@ -15,9 +15,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/c9s/bbgo/pkg/exchange"
-	"github.com/c9s/bbgo/pkg/fixedpoint"
-	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/exchange"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"

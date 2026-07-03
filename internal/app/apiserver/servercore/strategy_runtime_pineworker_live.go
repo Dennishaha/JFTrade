@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/c9s/bbgo/pkg/bbgo"
-	"github.com/c9s/bbgo/pkg/fixedpoint"
-	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"

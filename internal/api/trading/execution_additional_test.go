@@ -44,7 +44,8 @@ func (executionRouteSubscription) Stop() error { return nil }
 
 type executionRouteExecutionUpdates struct{}
 
-func (*executionRouteExecutionUpdates) ApplyOrder(context.Context, string, srv.Order, srv.OrderWriteMetadata) {}
+func (*executionRouteExecutionUpdates) ApplyOrder(context.Context, string, srv.Order, srv.OrderWriteMetadata) {
+}
 
 func (*executionRouteExecutionUpdates) ApplyFill(context.Context, string, srv.Fill) {}
 

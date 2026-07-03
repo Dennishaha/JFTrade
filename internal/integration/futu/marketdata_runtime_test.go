@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/c9s/bbgo/pkg/fixedpoint"
-	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
