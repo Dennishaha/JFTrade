@@ -225,14 +225,13 @@ func TestManagerPropagatesUnreadableMarkerAndDatabaseStatErrors(t *testing.T) {
 		t.Fatal("ScheduleRebuild(unreadable marker) error = nil")
 	}
 
-	root := t.TempDir()
-	loopPath := filepath.Join(root, "loop.db")
-	if err := os.Symlink(loopPath, loopPath); err != nil {
-		t.Fatalf("create symlink loop: %v", err)
-	}
-	status := inspectDatabase(t.Context(), Descriptor{ID: "loop", Path: loopPath, Version: SchemaVersion})
+	// A NUL byte is rejected by os.Stat on every supported platform. Using an
+	// invalid path keeps this boundary deterministic without requiring the
+	// symbolic-link privilege that is disabled on a default Windows install.
+	invalidPath := filepath.Join(t.TempDir(), "invalid\x00.db")
+	status := inspectDatabase(t.Context(), Descriptor{ID: "invalid", Path: invalidPath, Version: SchemaVersion})
 	if status.Status != "unavailable" || status.Error == "" {
-		t.Fatalf("symlink-loop status = %#v", status)
+		t.Fatalf("invalid-path status = %#v", status)
 	}
 }
 

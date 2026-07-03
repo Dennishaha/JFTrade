@@ -109,7 +109,7 @@ func TestManagerRefreshKeepsValidSnapshotWhenPersistenceFails(t *testing.T) {
 		t.Fatalf("in-memory schedule after persistence failure = %#v, %v", schedule, ok)
 	}
 	status := manager.sourceStatus("ephemeral-source")
-	if !strings.Contains(status.LastError, "not a directory") {
+	if !strings.Contains(status.LastError, "create exchange calendar snapshot directory") {
 		t.Fatalf("source persistence error = %q", status.LastError)
 	}
 }

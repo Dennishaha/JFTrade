@@ -735,6 +735,12 @@ var (
 	lastNowString time.Time
 )
 
+// sortableTimestampLayout retains nanosecond precision instead of trimming
+// trailing zeroes like time.RFC3339Nano. Values in timestamp columns are
+// ordered as text by SQLite, so a fixed-width fraction is required for their
+// lexical and chronological order to match.
+const sortableTimestampLayout = "2006-01-02T15:04:05.000000000Z07:00"
+
 func nowString() string {
 	nowStringMu.Lock()
 	defer nowStringMu.Unlock()
@@ -744,5 +750,5 @@ func nowString() string {
 		now = lastNowString.Add(time.Nanosecond)
 	}
 	lastNowString = now
-	return now.Format(time.RFC3339Nano)
+	return now.Format(sortableTimestampLayout)
 }

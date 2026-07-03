@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -8,8 +9,11 @@ import (
 func TestStrategyPluginCompatibilityDetectsHostBuildDrift(t *testing.T) {
 	host := currentPluginBuildTuple()
 	compatible := buildPluginCompatibility(&strategyPluginArtifact{Path: "plugin.so", Build: host})
-	if !compatible.Supported || compatible.RequiresRebuild || compatible.Artifact == nil {
+	if compatible.Supported != (runtime.GOOS != "windows") || compatible.RequiresRebuild || compatible.Artifact == nil {
 		t.Fatalf("compatible artifact = %#v", compatible)
+	}
+	if runtime.GOOS == "windows" && (compatible.Reason == nil || !strings.Contains(*compatible.Reason, "unsupported")) {
+		t.Fatalf("windows compatibility reason = %#v", compatible.Reason)
 	}
 
 	stale := host

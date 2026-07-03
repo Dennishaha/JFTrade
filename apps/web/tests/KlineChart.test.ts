@@ -263,8 +263,12 @@ describe("KlineChart", () => {
     expect(options.localization?.timeFormatter?.("2026-05-17T01:31:00.000Z")).toContain("2026");
     expect(options.localization?.timeFormatter?.("not-a-time")).toBe("");
     expect(options.timeScale?.tickMarkFormatter?.({ year: 2026, month: 5, day: 17 }, 0)).toContain("2026");
-    expect(options.timeScale?.tickMarkFormatter?.("2026-05-17T01:31:00.000Z", 1)).toMatch(/\d{2}\/\d{2}/);
-    expect(options.timeScale?.tickMarkFormatter?.("2026-05-17T01:31:00.000Z", 2)).toMatch(/\d{2}\/\d{2}/);
+    const monthTick = options.timeScale?.tickMarkFormatter?.("2026-05-17T01:31:00.000Z", 1) ?? "";
+    expect(monthTick).toContain("26");
+    expect(monthTick).toMatch(/0?5/);
+    const dayTick = options.timeScale?.tickMarkFormatter?.("2026-05-17T01:31:00.000Z", 2) ?? "";
+    expect(dayTick).toMatch(/0?5/);
+    expect(dayTick).toContain("17");
     expect(options.timeScale?.tickMarkFormatter?.("2026-05-17T01:31:00.000Z", 3)).toMatch(/\d{2}:\d{2}/);
     expect(options.timeScale?.tickMarkFormatter?.("not-a-time", 3)).toBe("");
 

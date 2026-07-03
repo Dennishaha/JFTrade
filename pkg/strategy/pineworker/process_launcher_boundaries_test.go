@@ -1,12 +1,15 @@
 package pineworker
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -142,9 +145,28 @@ func startInterruptIgnoringProcess(t *testing.T, stopTimeout time.Duration) *OSW
 	if err := os.WriteFile(path, []byte("worker"), 0o600); err != nil {
 		t.Fatalf("write process bundle: %v", err)
 	}
-	cmd := exec.Command("/bin/sh", "-c", `trap '' INT; exec sleep 10`)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestPineworkerInterruptIgnoringHelperProcess$")
+	cmd.Env = append(os.Environ(), "JFTRADE_INTERRUPT_IGNORING_HELPER=1")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatalf("create helper stdout pipe: %v", err)
+	}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start interrupt-ignoring process: %v", err)
 	}
+	if ready, err := bufio.NewReader(stdout).ReadString('\n'); err != nil || strings.TrimSpace(ready) != "ready" {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		t.Fatalf("wait for interrupt-ignoring process: ready=%q err=%v", ready, err)
+	}
 	return &OSWorkerProcess{cmd: cmd, path: path, stopTimeout: stopTimeout}
+}
+
+func TestPineworkerInterruptIgnoringHelperProcess(t *testing.T) {
+	if os.Getenv("JFTRADE_INTERRUPT_IGNORING_HELPER") != "1" {
+		return
+	}
+	signal.Ignore(os.Interrupt)
+	_, _ = fmt.Fprintln(os.Stdout, "ready")
+	select {}
 }

@@ -24,14 +24,11 @@ func TestInitializeOrValidateRejectsUnavailableAndInvalidDatabasePaths(t *testin
 	}
 
 	root := t.TempDir()
-	loopPath := filepath.Join(root, "loop.db")
-	if err := os.Symlink(loopPath, loopPath); err != nil {
-		t.Fatalf("create symlink loop: %v", err)
-	}
+	invalidPath := filepath.Join(root, "invalid\x00.db")
 	db := openTestDB(t, filepath.Join(root, "unused.db"))
 	defer closeTestDB(t, db)
-	if err := InitializeOrValidate(t.Context(), db, loopPath, "test", 1, nil, nil); err == nil {
-		t.Fatal("InitializeOrValidate(symlink loop) error = nil")
+	if err := InitializeOrValidate(t.Context(), db, invalidPath, "test", 1, nil, nil); err == nil {
+		t.Fatal("InitializeOrValidate(invalid path) error = nil")
 	}
 
 	closedPath := filepath.Join(root, "closed.db")
