@@ -34,10 +34,12 @@ func RegisterExecutionRoutes(api *gin.RouterGroup, service *srv.Service) {
 
 func handleExecutionOrders(service *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var query executionOrdersQuery
-		if err := c.ShouldBindQuery(&query); err != nil {
-			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid execution query")
-			return
+		query := executionOrdersQuery{
+			Scope:              c.Query("scope"),
+			BrokerID:           c.Query("brokerId"),
+			TradingEnvironment: c.Query("tradingEnvironment"),
+			AccountID:          c.Query("accountId"),
+			Market:             c.Query("market"),
 		}
 		activeOnly := strings.EqualFold(strings.TrimSpace(query.Scope), "ACTIVE")
 		filter := service.ExecutionFilter(

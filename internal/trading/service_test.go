@@ -2,6 +2,7 @@ package trading
 
 import (
 	"testing"
+	"time"
 )
 
 func TestServiceReadQueryAppliesDefaultMarket(t *testing.T) {
@@ -38,5 +39,36 @@ func TestServiceOrderUpdateDefaultsAreNoops(t *testing.T) {
 	}
 	if err := nilService.StopOrderUpdates(); err != nil {
 		t.Fatalf("nil StopOrderUpdates: %v", err)
+	}
+}
+
+func TestServiceOrderUpdatesDelegateToWorkerWhenPresent(t *testing.T) {
+	now := time.Date(2026, 7, 3, 10, 0, 0, 0, time.UTC)
+	source := &fakeOrderUpdateSource{accounts: []Account{{
+		ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"},
+	}}}
+	execution := &fakeExecutionOrderUpdates{}
+	worker := NewOrderUpdatesWorker(source, execution, OrderUpdatesConfig{
+		Now: func() time.Time { return now },
+	})
+	service := NewService(WithOrderUpdates(worker))
+
+	service.SyncOrderUpdates(t.Context(), true, false)
+	if source.currentCalls != 1 || source.historyCalls != 1 {
+		t.Fatalf("worker sync current/history = %d/%d, want 1/1", source.currentCalls, source.historyCalls)
+	}
+
+	snapshot := service.OrderUpdatesSnapshot()
+	subscriptions := jftradeCheckedTypeAssertion[[]any](snapshot["subscriptions"])
+	if len(subscriptions) == 0 {
+		t.Fatalf("snapshot subscriptions = %#v", snapshot)
+	}
+
+	if err := service.StopOrderUpdates(); err != nil {
+		t.Fatalf("StopOrderUpdates: %v", err)
+	}
+	runtime := jftradeCheckedTypeAssertion[map[string]any](service.OrderUpdatesSnapshot()["runtime"])
+	if runtime["lastStoppedAt"] == nil {
+		t.Fatalf("runtime after stop = %#v", runtime)
 	}
 }

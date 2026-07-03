@@ -14,6 +14,9 @@ type fakeOrderUpdateSource struct {
 	current        []Order
 	history        []Order
 	discoverErr    error
+	currentErr     error
+	historyErr     error
+	subscribeErr   error
 	currentCalls   int
 	historyCalls   int
 	subscribeCalls int
@@ -30,14 +33,14 @@ func (f *fakeOrderUpdateSource) CurrentOrders(context.Context, OrderQuery) ([]Or
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.currentCalls++
-	return cloneOrders(f.current), nil
+	return cloneOrders(f.current), f.currentErr
 }
 
 func (f *fakeOrderUpdateSource) HistoryOrders(context.Context, OrderQuery, time.Time, time.Time) ([]Order, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.historyCalls++
-	return cloneOrders(f.history), nil
+	return cloneOrders(f.history), f.historyErr
 }
 
 func (f *fakeOrderUpdateSource) Subscribe(_ context.Context, _ []Account, _ []OrderQuery, handler OrderUpdateHandler) (OrderUpdateSubscription, error) {
@@ -47,7 +50,7 @@ func (f *fakeOrderUpdateSource) Subscribe(_ context.Context, _ []Account, _ []Or
 	f.handler = handler
 	f.subscription = &fakeOrderUpdateSubscription{}
 	f.subscriptions = append(f.subscriptions, f.subscription)
-	return f.subscription, nil
+	return f.subscription, f.subscribeErr
 }
 
 type fakeOrderUpdateSubscription struct {
@@ -339,6 +342,112 @@ func TestOrderUpdatesWorkerInactiveSourcePreservesDiagnosticState(t *testing.T) 
 		*jftradeCheckedTypeAssertion[*string](jftradeCheckedTypeAssertion[map[string]any](brokers[0])["connectivity"]) != "inactive" {
 		t.Fatalf("brokers = %#v", brokers)
 	}
+}
+
+func TestOrderUpdatesWorkerSyncCoversSubscriptionAndHistoryFallbackPaths(t *testing.T) {
+	now := time.Date(2026, 7, 3, 11, 0, 0, 0, time.UTC)
+	source := &fakeOrderUpdateSource{
+		accounts: []Account{{ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"}}},
+		subscribeErr: errors.New("dial timeout"),
+		current:      []Order{{BrokerOrderID: "current-1"}},
+		history:      []Order{{BrokerOrderID: "history-1"}},
+	}
+	worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{
+		Now: func() time.Time { return now },
+		HistoryLookback: func() int { return 0 },
+	})
+
+	worker.Sync(context.Background(), true, false)
+	snapshot := worker.SnapshotResponse()
+	invalidations := jftradeCheckedTypeAssertion[[]any](snapshot["recentInvalidations"])
+	if len(invalidations) == 0 {
+		t.Fatalf("recentInvalidations = %#v", snapshot)
+	}
+	if latest := jftradeCheckedTypeAssertion[map[string]any](invalidations[len(invalidations)-1]); latest["kind"] == nil {
+		t.Fatalf("latest invalidation = %#v", latest)
+	}
+	if source.currentCalls != 1 || source.historyCalls != 1 || source.subscribeCalls != 1 {
+		t.Fatalf("calls current/history/subscribe = %d/%d/%d", source.currentCalls, source.historyCalls, source.subscribeCalls)
+	}
+}
+
+func TestOrderUpdatesWorkerMarksCurrentAndHistoryFailures(t *testing.T) {
+	now := time.Date(2026, 7, 3, 11, 30, 0, 0, time.UTC)
+
+	t.Run("current order sync failure marks subscription inactive", func(t *testing.T) {
+		source := &fakeOrderUpdateSource{
+			accounts:    []Account{{ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"}}},
+			currentErr:  errors.New("current unavailable"),
+		}
+		worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{
+			Now: func() time.Time { return now },
+		})
+
+		worker.Sync(context.Background(), true, false)
+		subscriptions := jftradeCheckedTypeAssertion[[]any](worker.SnapshotResponse()["subscriptions"])
+		state := jftradeCheckedTypeAssertion[map[string]any](subscriptions[0])
+		if state["status"] != "inactive" || state["lastAction"] != "sync-orders" {
+			t.Fatalf("state = %#v", state)
+		}
+	})
+
+	t.Run("history sync failure marks subscription inactive", func(t *testing.T) {
+		source := &fakeOrderUpdateSource{
+			accounts:   []Account{{ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"}}},
+			historyErr: errors.New("history unavailable"),
+			current:    []Order{{BrokerOrderID: "current-1"}},
+		}
+		worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{
+			Now: func() time.Time { return now.Add(time.Second) },
+		})
+
+		worker.Sync(context.Background(), true, false)
+		subscriptions := jftradeCheckedTypeAssertion[[]any](worker.SnapshotResponse()["subscriptions"])
+		state := jftradeCheckedTypeAssertion[map[string]any](subscriptions[0])
+		if state["status"] != "inactive" || state["lastAction"] != "sync-history-orders" {
+			t.Fatalf("state = %#v", state)
+		}
+	})
+}
+
+func TestOrderUpdatesWorkerHelperBoundariesCoverNilAndReplacementPaths(t *testing.T) {
+	var nilWorker *OrderUpdatesWorker
+	nilWorker.HandleOrderUpdate(Order{})
+	nilWorker.HandleFillUpdate(Fill{})
+
+	worker := NewOrderUpdatesWorker(&fakeOrderUpdateSource{}, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{
+		Now: func() time.Time { return time.Date(2026, 7, 3, 12, 0, 0, 0, time.UTC) },
+	})
+	key := OrderUpdateSubscriptionKey(OrderQuery{
+		BrokerID: "futu", TradingEnvironment: "SIMULATE", AccountID: "1001", Market: "HK",
+	})
+	orderIDExValue := "order-ex-1"
+	orderIDEx := &orderIDExValue
+	worker.upsertActiveOrder(key, Order{BrokerOrderID: "order-1", BrokerOrderIDEx: orderIDEx, Status: "SUBMITTED"})
+	worker.upsertActiveOrder(key, Order{BrokerOrderID: "order-1", BrokerOrderIDEx: orderIDEx, Status: "FILLED_PART"})
+
+	cached, ok := worker.cachedActiveOrders(key)
+	if !ok || len(cached) != 1 || cached[0].Status != "FILLED_PART" {
+		t.Fatalf("cached = %#v ok=%v", cached, ok)
+	}
+
+	worker.removeActiveOrder(key, "", orderIDEx)
+	cached, ok = worker.cachedActiveOrders(key)
+	if !ok || len(cached) != 0 {
+		t.Fatalf("cached after remove = %#v ok=%v", cached, ok)
+	}
+
+	queries := BuildOrderUpdateQueries(nil, " hk ")
+	if len(queries) != 1 || queries[0].Market != "HK" || queries[0].TradingEnvironment != "SIMULATE" {
+		t.Fatalf("fallback queries = %#v", queries)
+	}
+	if sameOrder(Order{BrokerOrderID: "order-1"}, "", nil) {
+		t.Fatal("sameOrder unexpectedly matched blank identifiers")
+	}
+	if got := cloneString(nil); got != nil {
+		t.Fatalf("cloneString(nil) = %#v", got)
+	}
+	jftradeLogError("not an error", nil)
 }
 
 func jftradeCheckedTypeAssertion[T any](value any) T {

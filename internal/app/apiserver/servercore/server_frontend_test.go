@@ -3,6 +3,7 @@ package servercore
 import (
 	"context"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jftrade/jftrade-main/internal/frontendassets"
 )
 
 func TestServerServesFrontendAssetsAndSPAFallback(t *testing.T) {
@@ -103,6 +106,106 @@ func TestFrontendServerServesRuntimeConfigScript(t *testing.T) {
 	}
 	if !strings.Contains(string(body), "http://127.0.0.1:6699") {
 		t.Fatalf("runtime config body = %q", string(body))
+	}
+}
+
+func TestFrontendServerBoundaryHelpers(t *testing.T) {
+	expectedFS, available, err := frontendassets.FileSystem()
+	if err != nil {
+		t.Fatalf("frontendassets.FileSystem(): %v", err)
+	}
+	loaded := loadFrontendFS()
+	if !available {
+		if loaded != nil {
+			t.Fatalf("loadFrontendFS() = %#v, want nil when embedded assets are unavailable", loaded)
+		}
+	} else {
+		if loaded == nil {
+			t.Fatal("loadFrontendFS() returned nil despite embedded assets being available")
+		}
+		if _, err := fs.Stat(expectedFS, "."); err != nil {
+			t.Fatalf("expected embedded frontend fs stat: %v", err)
+		}
+	}
+
+	frontendDir := t.TempDir()
+	assetsDir := filepath.Join(frontendDir, "assets")
+	if err := os.MkdirAll(assetsDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll assets: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(frontendDir, "index.html"), []byte("<html>fallback</html>"), 0o644); err != nil {
+		t.Fatalf("WriteFile index.html: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(frontendDir, "app.js"), []byte("console.log('app');"), 0o644); err != nil {
+		t.Fatalf("WriteFile app.js: %v", err)
+	}
+
+	server := newFrontendServer(os.DirFS(frontendDir))
+	if server == nil {
+		t.Fatal("newFrontendServer() returned nil")
+	}
+	if server.hasFile("assets") {
+		t.Fatal("hasFile() should reject directories")
+	}
+	if server.hasFile("missing.txt") {
+		t.Fatal("hasFile() should reject missing assets")
+	}
+
+	if normalizeFrontendPath("  /alpha/../beta  ") != "/beta" {
+		t.Fatalf("normalizeFrontendPath() did not clean parent traversal")
+	}
+
+	recorder := httptest.NewRecorder()
+	if server.serveRequest(recorder, httptest.NewRequest(http.MethodPost, "/strategy", nil)) {
+		t.Fatal("serveRequest() accepted unsupported POST")
+	}
+	if recorder.Code != http.StatusOK || recorder.Body.Len() != 0 {
+		t.Fatalf("unsupported method recorder mutated unexpectedly: %d %q", recorder.Code, recorder.Body.String())
+	}
+
+	recorder = httptest.NewRecorder()
+	server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/missing.json", nil))
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("ServeHTTP missing asset status = %d, want 404", recorder.Code)
+	}
+
+	recorder = httptest.NewRecorder()
+	server.serveFile(recorder, httptest.NewRequest(http.MethodGet, "/missing.js", nil), "/missing.js")
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("serveFile missing asset status = %d, want 404", recorder.Code)
+	}
+}
+
+func TestShouldServeFrontendIndexRequestBoundaries(t *testing.T) {
+	cases := []struct {
+		name   string
+		url    string
+		path   string
+		accept string
+		want   bool
+	}{
+		{name: "root always allowed", url: "/", path: "/", accept: "", want: true},
+		{name: "spa html route", url: "/strategy/live", path: "/strategy/live", accept: "text/html", want: true},
+		{name: "spa wildcard route", url: "/strategy/live", path: "/strategy/live", accept: "*/*", want: true},
+		{name: "blank path rejected", url: "/", path: "", accept: "text/html", want: false},
+		{name: "api route rejected", url: "/api/v1/status", path: "/api/v1/status", accept: "text/html", want: false},
+		{name: "swagger route rejected", url: "/swagger/index.html", path: "/swagger/index.html", accept: "text/html", want: false},
+		{name: "assets directory rejected", url: "/assets", path: "/assets", accept: "text/html", want: false},
+		{name: "assets file rejected", url: "/assets/app.js", path: "/assets/app.js", accept: "text/html", want: false},
+		{name: "file extension rejected", url: "/favicon.ico", path: "/favicon.ico", accept: "text/html", want: false},
+		{name: "json accept rejected", url: "/strategy/live", path: "/strategy/live", accept: "application/json", want: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.url, nil)
+			if tc.accept != "" {
+				req.Header.Set("Accept", tc.accept)
+			}
+			if got := shouldServeFrontendIndex(req, tc.path); got != tc.want {
+				t.Fatalf("shouldServeFrontendIndex(%q, %q) = %v, want %v", tc.path, tc.accept, got, tc.want)
+			}
+		})
 	}
 }
 

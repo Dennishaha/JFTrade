@@ -6,12 +6,47 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	srv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
+
+type executionRouteOrderUpdateSource struct {
+	accounts     []srv.Account
+	currentCalls int
+	historyCalls int
+}
+
+func (s *executionRouteOrderUpdateSource) DiscoverAccounts(context.Context) ([]srv.Account, error) {
+	return append([]srv.Account(nil), s.accounts...), nil
+}
+
+func (s *executionRouteOrderUpdateSource) CurrentOrders(context.Context, srv.OrderQuery) ([]srv.Order, error) {
+	s.currentCalls++
+	return nil, nil
+}
+
+func (s *executionRouteOrderUpdateSource) HistoryOrders(context.Context, srv.OrderQuery, time.Time, time.Time) ([]srv.Order, error) {
+	s.historyCalls++
+	return nil, nil
+}
+
+func (s *executionRouteOrderUpdateSource) Subscribe(context.Context, []srv.Account, []srv.OrderQuery, srv.OrderUpdateHandler) (srv.OrderUpdateSubscription, error) {
+	return executionRouteSubscription{}, nil
+}
+
+type executionRouteSubscription struct{}
+
+func (executionRouteSubscription) Stop() error { return nil }
+
+type executionRouteExecutionUpdates struct{}
+
+func (*executionRouteExecutionUpdates) ApplyOrder(context.Context, string, srv.Order, srv.OrderWriteMetadata) {}
+
+func (*executionRouteExecutionUpdates) ApplyFill(context.Context, string, srv.Fill) {}
 
 func TestExecutionRoutesValidatePayloadsAndMapHandlerErrors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -101,6 +136,100 @@ func TestExecutionRoutesValidatePayloadsAndMapHandlerErrors(t *testing.T) {
 		router.ServeHTTP(eventsRec, eventsReq)
 		if eventsRec.Code != http.StatusInternalServerError {
 			t.Fatalf("events status=%d body=%s", eventsRec.Code, eventsRec.Body.String())
+		}
+	})
+
+	t.Run("cancel success writes ok envelope", func(t *testing.T) {
+		router := gin.New()
+		service := srv.NewService(
+			srv.WithCancelOrder(func(context.Context, string) (srv.ExecutionOrder, error) {
+				return srv.ExecutionOrder{InternalOrderID: "internal-1", Status: "CANCELING"}, nil
+			}),
+		)
+		RegisterExecutionRoutes(router.Group("/api/v1"), service)
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execution/orders/internal-1/cancel", nil)
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestExecutionOrdersRouteSwitchesBetweenActiveAndHistorySync(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	now := time.Date(2026, 7, 3, 10, 0, 0, 0, time.UTC)
+	source := &executionRouteOrderUpdateSource{
+		accounts: []srv.Account{{
+			ID: "acc-1", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"},
+		}},
+	}
+	worker := srv.NewOrderUpdatesWorker(source, &executionRouteExecutionUpdates{}, srv.OrderUpdatesConfig{
+		Now: func() time.Time { return now },
+	})
+	service := srv.NewService(
+		srv.WithOrderUpdates(worker),
+		srv.WithListOrders(func(context.Context, srv.ExecutionOrderFilter) (srv.ExecutionOrders, error) {
+			return srv.ExecutionOrders{}, nil
+		}),
+	)
+
+	router := gin.New()
+	RegisterExecutionRoutes(router.Group("/api/v1"), service)
+
+	activeRec := httptest.NewRecorder()
+	activeReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/execution/orders?scope=active", nil)
+	router.ServeHTTP(activeRec, activeReq)
+	if activeRec.Code != http.StatusOK {
+		t.Fatalf("active scope status=%d body=%s", activeRec.Code, activeRec.Body.String())
+	}
+	if source.currentCalls != 1 || source.historyCalls != 0 {
+		t.Fatalf("active scope current/history = %d/%d, want 1/0", source.currentCalls, source.historyCalls)
+	}
+
+	now = now.Add(2 * time.Second)
+	allRec := httptest.NewRecorder()
+	allReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/execution/orders", nil)
+	router.ServeHTTP(allRec, allReq)
+	if allRec.Code != http.StatusOK {
+		t.Fatalf("default scope status=%d body=%s", allRec.Code, allRec.Body.String())
+	}
+	if source.currentCalls != 2 || source.historyCalls != 1 {
+		t.Fatalf("default scope current/history = %d/%d, want 2/1", source.currentCalls, source.historyCalls)
+	}
+}
+
+func TestExecutionHandlersRejectMissingInternalOrderIDAndTrimWhitespace(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("events and cancel reject missing uri values", func(t *testing.T) {
+		handlers := []gin.HandlerFunc{
+			handleExecutionEvents(srv.NewService()),
+			handleExecutionCancel(srv.NewService()),
+		}
+		for _, handler := range handlers {
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/execution/orders//events", nil)
+
+			handler(ctx)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+			}
+		}
+	})
+
+	t.Run("bind helper trims whitespace", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		ctx.Params = gin.Params{{Key: "internalOrderId", Value: " internal-1 "}}
+		ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/execution/orders/internal-1/events", nil)
+
+		id, ok := bindInternalOrderID(ctx)
+		if !ok || id != "internal-1" {
+			t.Fatalf("bindInternalOrderID id=%q ok=%v", id, ok)
 		}
 	})
 }

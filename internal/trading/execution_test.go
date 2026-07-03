@@ -307,3 +307,67 @@ func TestExecutionOrderServiceFacadeReturnsBusinessErrors(t *testing.T) {
 		t.Fatalf("plain upstream error classified as RequestError")
 	}
 }
+
+func TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall(t *testing.T) {
+	price := 9.75
+	service := NewService(WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
+		t.Fatal("placeOrder should not be called for invalid payloads")
+		return ExecutionOrder{}, nil
+	}))
+
+	_, err := service.CreateExecutionOrder(context.Background(), ExecutionPlaceRequest{
+		Market: "US", Symbol: "AAPL", Side: "BUY", Quantity: 0, Price: &price,
+	})
+	if !IsRequestError(err) || !strings.Contains(err.Error(), "quantity must be greater than 0") {
+		t.Fatalf("CreateExecutionOrder error = %v", err)
+	}
+}
+
+func TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions(t *testing.T) {
+	service := NewService()
+
+	command, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
+		Env:       "real",
+		Market:    "US",
+		Symbol:    "AAPL",
+		Side:      "BUY",
+		OrderType: "MARKET",
+		Session:   "OVERNIGHT",
+		Quantity:  2,
+	})
+	if err != nil {
+		t.Fatalf("normalizeExecutionOrder: %v", err)
+	}
+	if command.Query.TradingEnvironment != "REAL" || command.Query.Session == nil || *command.Query.Session != "OVERNIGHT" {
+		t.Fatalf("query = %#v", command.Query)
+	}
+	if command.Query.FillOutsideRTH != nil {
+		t.Fatalf("FillOutsideRTH = %#v, want nil for non-limit order", command.Query.FillOutsideRTH)
+	}
+}
+
+func TestExecutionNormalizationHelpersRejectUnsupportedInputs(t *testing.T) {
+	if _, err := normalizeExecutionOrderType("iceberg"); !IsRequestError(err) {
+		t.Fatalf("normalizeExecutionOrderType error = %v, want RequestError", err)
+	}
+	if _, _, err := normalizeExecutionSession("US", "LIMIT", "pre-open"); !IsRequestError(err) {
+		t.Fatalf("normalizeExecutionSession error = %v, want RequestError", err)
+	}
+}
+
+func TestNormalizeExecutionOrderRejectsInvalidInstrumentAndUnsupportedOrderType(t *testing.T) {
+	service := NewService()
+	price := 10.0
+
+	if _, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
+		Market: "US", Side: "BUY", Quantity: 1, Price: &price,
+	}); !IsRequestError(err) || !strings.Contains(err.Error(), "symbol or code is required") {
+		t.Fatalf("invalid instrument error = %v", err)
+	}
+
+	if _, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
+		Market: "US", Symbol: "AAPL", Side: "BUY", OrderType: "ICEBERG", Quantity: 1, Price: &price,
+	}); !IsRequestError(err) || !strings.Contains(err.Error(), "unsupported orderType") {
+		t.Fatalf("unsupported orderType error = %v", err)
+	}
+}
