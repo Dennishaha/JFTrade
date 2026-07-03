@@ -22,6 +22,7 @@ const BACKTEST_FORM_STORAGE_KEY = "jftrade.backtest.form.v1";
 const BACKTEST_RESULTS_PAGE_SIZE = 5;
 const BACKTEST_ORDER_BOOK_RENDER_WINDOW = 200;
 const BACKTEST_RUNTIME_ERROR_RENDER_WINDOW = 120;
+const BACKTEST_WARNING_RENDER_WINDOW = 120;
 const BACKTEST_LOG_RENDER_WINDOW = 120;
 
 const BACKTEST_RESULT_STATUS_OPTIONS = [
@@ -681,6 +682,17 @@ function hiddenBacktestRuntimeErrorCount(run: BacktestRunView): number {
   );
 }
 
+function visibleBacktestWarnings(run: BacktestRunView): string[] {
+  return (run.result?.warnings ?? []).slice(0, BACKTEST_WARNING_RENDER_WINDOW);
+}
+
+function hiddenBacktestWarningCount(run: BacktestRunView): number {
+  return Math.max(
+    0,
+    (run.result?.warnings?.length ?? 0) - BACKTEST_WARNING_RENDER_WINDOW,
+  );
+}
+
 function visibleBacktestLogs(run: BacktestRunView): string[] {
   return (run.result?.logs ?? []).slice(0, BACKTEST_LOG_RENDER_WINDOW);
 }
@@ -937,6 +949,29 @@ function runtimeErrorSummary(result: {
     return `运行时错误 ${total} 次，仅显示 ${shown} 条样本`;
   }
   return `运行时错误 (${total})`;
+}
+
+function warningTotal(result: {
+  warnings?: string[] | undefined;
+  warningTotal?: number | undefined;
+}) {
+  return result.warningTotal ?? result.warnings?.length ?? 0;
+}
+
+function warningSummary(result: {
+  warnings?: string[] | undefined;
+  warningTotal?: number | undefined;
+  warningsTruncated?: boolean | undefined;
+  ignoredOrders?: number | undefined;
+}) {
+  const shown = result.warnings?.length ?? 0;
+  const total = warningTotal(result);
+  const ignoredOrders = result.ignoredOrders ?? 0;
+  const prefix = ignoredOrders > 0 ? `回测警告 ${total} 条，忽略订单 ${ignoredOrders} 笔` : `回测警告 (${total})`;
+  if (result.warningsTruncated || total > shown) {
+    return `${prefix}，仅显示 ${shown} 条样本`;
+  }
+  return prefix;
 }
 
 function pnlPrefix(val: number) {
@@ -1628,6 +1663,23 @@ watch(
                       </div>
                       <div v-if="hiddenBacktestRuntimeErrorCount(run) > 0" class="text-xs text-red-700">
                         另有 {{ hiddenBacktestRuntimeErrorCount(run) }} 条错误。
+                      </div>
+                    </div>
+                  </details>
+                </div>
+
+                <div v-if="run.result?.warnings && run.result.warnings.length > 0" class="mt-3">
+                  <details class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                    <summary class="cursor-pointer text-xs font-semibold text-amber-700 select-none">
+                      ⚠ {{ warningSummary(run.result) }}
+                    </summary>
+                    <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                      <div v-for="(warning, i) in visibleBacktestWarnings(run)" :key="i"
+                        class="rounded border border-amber-100 bt-bg-surface px-2 py-1 text-xs text-amber-800 font-mono leading-relaxed">
+                        {{ warning }}
+                      </div>
+                      <div v-if="hiddenBacktestWarningCount(run) > 0" class="text-xs text-amber-700">
+                        另有 {{ hiddenBacktestWarningCount(run) }} 条警告。
                       </div>
                     </div>
                   </details>

@@ -73,29 +73,33 @@ type FeeBreakdownEntry struct {
 
 // RunResult holds the output of a backtest run.
 type RunResult struct {
-	Symbol          string              `json:"symbol"`
-	Interval        string              `json:"interval"`
-	StartTime       string              `json:"startTime"`
-	EndTime         string              `json:"endTime"`
-	QuoteCurrency   string              `json:"quoteCurrency"`
-	FinalBalance    float64             `json:"finalBalance"`
-	PnL             float64             `json:"pnl"`
-	TotalBrokerFees float64             `json:"totalBrokerFees,omitempty"`
-	TotalMarketFees float64             `json:"totalMarketFees,omitempty"`
-	TotalFees       float64             `json:"totalFees,omitempty"`
-	FeeBreakdown    []FeeBreakdownEntry `json:"feeBreakdown,omitempty"`
-	TradingCosts    TradingCosts        `json:"tradingCosts"`
-	MaxDrawdown     float64             `json:"maxDrawdown"`
-	CurrentDrawdown float64             `json:"currentDrawdown"`
-	TotalTrades     int                 `json:"totalTrades"`
-	WinRate         float64             `json:"winRate"`
-	Trades          []TradeEvent        `json:"trades,omitempty"`
-	OrderBook       []OrderBookEntry    `json:"orderBook,omitempty"`
-	PnLCurve        []PnLPoint          `json:"pnlCurve,omitempty"`
-	DrawdownCurve   []DrawdownPoint     `json:"drawdownCurve,omitempty"`
-	Candles         []Candle            `json:"candles,omitempty"`
-	Logs            []string            `json:"logs"`
-	Error           string              `json:"error,omitempty"`
+	Symbol            string              `json:"symbol"`
+	Interval          string              `json:"interval"`
+	StartTime         string              `json:"startTime"`
+	EndTime           string              `json:"endTime"`
+	QuoteCurrency     string              `json:"quoteCurrency"`
+	FinalBalance      float64             `json:"finalBalance"`
+	PnL               float64             `json:"pnl"`
+	TotalBrokerFees   float64             `json:"totalBrokerFees,omitempty"`
+	TotalMarketFees   float64             `json:"totalMarketFees,omitempty"`
+	TotalFees         float64             `json:"totalFees,omitempty"`
+	FeeBreakdown      []FeeBreakdownEntry `json:"feeBreakdown,omitempty"`
+	TradingCosts      TradingCosts        `json:"tradingCosts"`
+	MaxDrawdown       float64             `json:"maxDrawdown"`
+	CurrentDrawdown   float64             `json:"currentDrawdown"`
+	TotalTrades       int                 `json:"totalTrades"`
+	WinRate           float64             `json:"winRate"`
+	Trades            []TradeEvent        `json:"trades,omitempty"`
+	OrderBook         []OrderBookEntry    `json:"orderBook,omitempty"`
+	PnLCurve          []PnLPoint          `json:"pnlCurve,omitempty"`
+	DrawdownCurve     []DrawdownPoint     `json:"drawdownCurve,omitempty"`
+	Candles           []Candle            `json:"candles,omitempty"`
+	Logs              []string            `json:"logs"`
+	Warnings          []string            `json:"warnings,omitempty"`
+	WarningTotal      int                 `json:"warningTotal,omitempty"`
+	WarningsTruncated bool                `json:"warningsTruncated,omitempty"`
+	IgnoredOrders     int                 `json:"ignoredOrders,omitempty"`
+	Error             string              `json:"error,omitempty"`
 
 	mu                     sync.Mutex
 	RuntimeErrors          []string       `json:"runtimeErrors,omitempty"`
@@ -136,6 +140,10 @@ func (r *RunResult) Snapshot() *RunResult {
 		DrawdownCurve:          append([]DrawdownPoint(nil), r.DrawdownCurve...),
 		Candles:                append([]Candle(nil), r.Candles...),
 		Logs:                   append([]string(nil), r.Logs...),
+		Warnings:               append([]string(nil), r.Warnings...),
+		WarningTotal:           r.WarningTotal,
+		WarningsTruncated:      r.WarningsTruncated,
+		IgnoredOrders:          r.IgnoredOrders,
 		Error:                  r.Error,
 		RuntimeErrors:          append([]string(nil), r.RuntimeErrors...),
 		RuntimeErrorTotal:      r.RuntimeErrorTotal,
@@ -195,4 +203,27 @@ func (r *RunResult) AddRuntimeError(msg string) {
 	}
 	r.runtimeErrorSeen[msg] = struct{}{}
 	r.RuntimeErrors = append(r.RuntimeErrors, msg)
+}
+
+func (r *RunResult) AddWarning(msg string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.addWarningLocked(msg)
+}
+
+func (r *RunResult) AddIgnoredOrderWarning(msg string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.IgnoredOrders++
+	r.addWarningLocked(msg)
+}
+
+func (r *RunResult) addWarningLocked(msg string) {
+	r.WarningTotal++
+	const maxWarningSamples = 100
+	if len(r.Warnings) >= maxWarningSamples {
+		r.WarningsTruncated = true
+		return
+	}
+	r.Warnings = append(r.Warnings, msg)
 }

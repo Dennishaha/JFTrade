@@ -150,6 +150,64 @@ strategy("worker qty pct")`,
 	}
 }
 
+func TestRunWithPineWorkerWarnsAndIgnoresInitialCloseSignal(t *testing.T) {
+	isolateBacktestHome(t)
+
+	dbPath := filepath.Join(t.TempDir(), "pinets-worker-initial-close.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.June, 29, 13, 30, 0, 0, time.UTC)
+	klines := []types.KLine{
+		testPineWorkerRunnerKLine(baseStart, 100),
+		testPineWorkerRunnerKLine(baseStart.Add(time.Minute), 101),
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		jftradeCheckTestError(t, store.Close())
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	runner := &fakePineWorkerBacktestRunner{
+		response: pineworker.RunScriptResponse{
+			OrderIntents: []pineworker.OrderIntent{
+				{Kind: "close", ID: "initial-sell", Direction: "long", Quantity: 1, HasQuantity: true, BarIndex: 0},
+			},
+			Metadata: pineworker.WorkerMetadata{WorkerID: "worker-1"},
+		},
+	}
+	result := RunWithPineWorker(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[0].StartTime.Time(),
+		EndTime:      klines[len(klines)-1].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("worker initial close")`,
+		InitialBalance: 10000,
+	}, runner)
+
+	if result == nil {
+		t.Fatal("RunWithPineWorker returned nil")
+	}
+	if result.Error != "" {
+		t.Fatalf("RunWithPineWorker error = %s", result.Error)
+	}
+	if result.IgnoredOrders != 1 || result.WarningTotal != 1 || len(result.Warnings) != 1 {
+		t.Fatalf("warnings ignored=%d total=%d list=%#v", result.IgnoredOrders, result.WarningTotal, result.Warnings)
+	}
+	if !strings.Contains(result.Warnings[0], "ignored close command") {
+		t.Fatalf("warning = %q", result.Warnings[0])
+	}
+	if len(result.OrderBook) != 0 {
+		t.Fatalf("OrderBook = %#v, want no submitted orders", result.OrderBook)
+	}
+}
+
 func TestRunWithPineWorkerMapsWorkerErrors(t *testing.T) {
 	isolateBacktestHome(t)
 

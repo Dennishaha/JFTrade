@@ -29,6 +29,9 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 		DrawdownCurve:          []DrawdownPoint{{Time: "2026-06-23T13:32:00Z", Drawdown: 0.02}},
 		Candles:                []Candle{{Time: "2026-06-23T13:31:00Z", Close: "100.5"}},
 		Logs:                   []string{"warmup complete"},
+		Warnings:               []string{"ignored close"},
+		WarningTotal:           1,
+		IgnoredOrders:          1,
 		Error:                  "transient warning",
 		RuntimeErrors:          []string{"partial fill warning"},
 		RuntimeErrorCounts:     map[string]int{"partial fill warning": 2},
@@ -62,6 +65,7 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 	snapshot.DrawdownCurve[0].Drawdown = 0.9
 	snapshot.Candles[0].Close = "1"
 	snapshot.Logs[0] = "changed"
+	snapshot.Warnings[0] = "changed"
 	snapshot.RuntimeErrors[0] = "changed"
 	snapshot.RuntimeErrorCounts["partial fill warning"] = 9
 	snapshot.FeeBreakdown[0].Amount = 0
@@ -85,6 +89,9 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 	if original.Logs[0] != "warmup complete" {
 		t.Fatalf("original logs mutated: %#v", original.Logs)
 	}
+	if original.Warnings[0] != "ignored close" {
+		t.Fatalf("original warnings mutated: %#v", original.Warnings)
+	}
 	if original.RuntimeErrors[0] != "partial fill warning" {
 		t.Fatalf("original runtime errors mutated: %#v", original.RuntimeErrors)
 	}
@@ -99,6 +106,9 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 	}
 	if snapshot.TotalBrokerFees != 18 || snapshot.TotalMarketFees != 11.27 || snapshot.TotalFees != 29.27 {
 		t.Fatalf("snapshot fee totals lost: broker=%f market=%f total=%f", snapshot.TotalBrokerFees, snapshot.TotalMarketFees, snapshot.TotalFees)
+	}
+	if snapshot.WarningTotal != 1 || snapshot.IgnoredOrders != 1 {
+		t.Fatalf("snapshot warning counters lost: warningTotal=%d ignoredOrders=%d", snapshot.WarningTotal, snapshot.IgnoredOrders)
 	}
 }
 
@@ -144,5 +154,31 @@ func TestAddRuntimeErrorReusesExistingSamplesAndCapsUniqueList(t *testing.T) {
 	}
 	if !result.RuntimeErrorsTruncated {
 		t.Fatal("expected RuntimeErrorsTruncated after unique sample cap")
+	}
+}
+
+func TestRunResultWarningsTrackIgnoredOrdersAndCapSamples(t *testing.T) {
+	result := &RunResult{}
+
+	result.AddWarning("general warning")
+	result.AddIgnoredOrderWarning("ignored order")
+	for index := range 100 {
+		result.AddWarning(fmt.Sprintf("warning-%03d", index))
+	}
+
+	if result.WarningTotal != 102 {
+		t.Fatalf("WarningTotal = %d, want 102", result.WarningTotal)
+	}
+	if result.IgnoredOrders != 1 {
+		t.Fatalf("IgnoredOrders = %d, want 1", result.IgnoredOrders)
+	}
+	if len(result.Warnings) != 100 {
+		t.Fatalf("Warnings len = %d, want 100", len(result.Warnings))
+	}
+	if result.Warnings[0] != "general warning" || result.Warnings[1] != "ignored order" {
+		t.Fatalf("Warnings prefix = %#v", result.Warnings[:2])
+	}
+	if !result.WarningsTruncated {
+		t.Fatal("expected WarningsTruncated after sample cap")
 	}
 }

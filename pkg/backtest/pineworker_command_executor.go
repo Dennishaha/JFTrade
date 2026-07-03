@@ -24,6 +24,7 @@ type PineWorkerCommandExecutor struct {
 	OrderExecutor       PineWorkerOrderExecutor
 	MarketResolver      PineWorkerMarketResolver
 	PositionSizer       pineWorkerCommandPositionSizer
+	WarningSink         pineWorkerIgnoredOrderWarner
 	ClientOrderIDPrefix string
 
 	activeOrders map[string]types.Order
@@ -31,6 +32,22 @@ type PineWorkerCommandExecutor struct {
 
 type pineWorkerCommandPositionSizer interface {
 	QuantityForCommand(command WorkerOrderCommand, market types.Market) (fixedpoint.Value, error)
+}
+
+type pineWorkerCommandPositionReader interface {
+	NetPosition() fixedpoint.Value
+}
+
+type pineWorkerIgnoredOrderWarner interface {
+	AddIgnoredOrderWarning(string)
+}
+
+type pineWorkerIgnoredOrderError struct {
+	reason string
+}
+
+func (err pineWorkerIgnoredOrderError) Error() string {
+	return err.reason
 }
 
 func (executor *PineWorkerCommandExecutor) ExecuteBarCommands(ctx context.Context, commands []WorkerOrderCommand) error {
@@ -56,8 +73,20 @@ func (executor *PineWorkerCommandExecutor) Execute(ctx context.Context, command 
 }
 
 func (executor *PineWorkerCommandExecutor) submit(ctx context.Context, command WorkerOrderCommand) error {
+	resolved, skip, err := executor.resolvePositionCloseCommand(command)
+	if err != nil {
+		return err
+	}
+	if skip {
+		return nil
+	}
+	command = resolved
 	order, err := executor.SubmitOrderFromCommand(command)
 	if err != nil {
+		if ignored, ok := err.(pineWorkerIgnoredOrderError); ok {
+			executor.warnIgnoredOrder(command, ignored.reason)
+			return nil
+		}
 		return err
 	}
 	createdOrders, err := executor.OrderExecutor.SubmitOrders(ctx, order)
@@ -66,6 +95,78 @@ func (executor *PineWorkerCommandExecutor) submit(ctx context.Context, command W
 	}
 	executor.trackCreatedOrders(command, createdOrders)
 	return nil
+}
+
+func (executor *PineWorkerCommandExecutor) resolvePositionCloseCommand(command WorkerOrderCommand) (WorkerOrderCommand, bool, error) {
+	if !isPineWorkerPositionCloseCommand(command) {
+		return command, false, nil
+	}
+	reader, ok := executor.PositionSizer.(pineWorkerCommandPositionReader)
+	if !ok {
+		return command, false, nil
+	}
+	netPosition := reader.NetPosition()
+	direction := strings.TrimSpace(strings.ToLower(command.Direction))
+	switch direction {
+	case "", "flat", "auto":
+		switch netPosition.Sign() {
+		case 1:
+			command.Direction = "long"
+			command.Side = types.SideTypeSell
+			return command, false, nil
+		case -1:
+			command.Direction = "short"
+			command.Side = types.SideTypeBuy
+			return command, false, nil
+		default:
+			executor.warnIgnoredOrder(command, "no open position is available")
+			return command, true, nil
+		}
+	case "long", "sell":
+		if netPosition.Sign() <= 0 {
+			executor.warnIgnoredOrder(command, "no long position is open")
+			return command, true, nil
+		}
+		command.Direction = "long"
+		command.Side = types.SideTypeSell
+		return command, false, nil
+	case "short", "buy", "cover":
+		if netPosition.Sign() >= 0 {
+			executor.warnIgnoredOrder(command, "no short position is open")
+			return command, true, nil
+		}
+		command.Direction = "short"
+		command.Side = types.SideTypeBuy
+		return command, false, nil
+	default:
+		return command, false, nil
+	}
+}
+
+func (executor *PineWorkerCommandExecutor) warnIgnoredOrder(command WorkerOrderCommand, reason string) {
+	warner, ok := executor.WarningSink.(pineWorkerIgnoredOrderWarner)
+	if !ok || warner == nil {
+		return
+	}
+	id := strings.TrimSpace(command.ID)
+	if id == "" {
+		id = strings.TrimSpace(command.FromEntry)
+	}
+	if id == "" {
+		id = "<anonymous>"
+	}
+	symbol := strings.TrimSpace(executor.Symbol)
+	if symbol == "" {
+		symbol = "<unknown>"
+	}
+	warner.AddIgnoredOrderWarning(fmt.Sprintf(
+		"bar %d: ignored %s command %q for %s because %s",
+		command.BarIndex,
+		normalizeWorkerIntentKind(command.Kind),
+		id,
+		symbol,
+		reason,
+	))
 }
 
 func (executor *PineWorkerCommandExecutor) SubmitOrderFromCommand(command WorkerOrderCommand) (types.SubmitOrder, error) {
@@ -124,13 +225,13 @@ func (executor *PineWorkerCommandExecutor) orderQuantity(command WorkerOrderComm
 		if err != nil {
 			return fixedpoint.Zero, err
 		}
-		return requirePositivePineWorkerCommandQuantity(command, quantity)
+		return requireTradablePineWorkerCommandQuantity(command, market, quantity)
 	}
 	if command.QuantityPct < 0 {
 		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct must be positive", command.ID)
 	}
 	if command.Quantity > 0 {
-		return requirePositivePineWorkerCommandQuantity(command, fixedpoint.NewFromFloat(command.Quantity))
+		return requireTradablePineWorkerCommandQuantity(command, market, fixedpoint.NewFromFloat(command.Quantity))
 	}
 	if isPineWorkerPositionCloseCommand(command) && executor.PositionSizer != nil {
 		command.QuantityPct = 100
@@ -138,16 +239,38 @@ func (executor *PineWorkerCommandExecutor) orderQuantity(command WorkerOrderComm
 		if err != nil {
 			return fixedpoint.Zero, err
 		}
-		return requirePositivePineWorkerCommandQuantity(command, quantity)
+		return requireTradablePineWorkerCommandQuantity(command, market, quantity)
 	}
 	return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity must be positive", command.ID)
 }
 
-func requirePositivePineWorkerCommandQuantity(command WorkerOrderCommand, quantity fixedpoint.Value) (fixedpoint.Value, error) {
+func requireTradablePineWorkerCommandQuantity(command WorkerOrderCommand, market types.Market, quantity fixedpoint.Value) (fixedpoint.Value, error) {
 	if quantity.Sign() <= 0 {
 		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity must be positive", command.ID)
 	}
-	return quantity, nil
+	normalized := normalizePineWorkerOrderQuantity(market, quantity)
+	if normalized.Sign() <= 0 {
+		return fixedpoint.Zero, pineWorkerIgnoredOrderError{reason: "quantity is below the market quantity step"}
+	}
+	if market.MinQuantity.Sign() > 0 && normalized.Compare(market.MinQuantity) < 0 {
+		return fixedpoint.Zero, pineWorkerIgnoredOrderError{
+			reason: fmt.Sprintf("quantity %s is less than market min quantity %s", normalized.String(), market.MinQuantity.String()),
+		}
+	}
+	return normalized, nil
+}
+
+func normalizePineWorkerOrderQuantity(market types.Market, quantity fixedpoint.Value) fixedpoint.Value {
+	if quantity.Sign() <= 0 {
+		return fixedpoint.Zero
+	}
+	if !market.StepSize.IsZero() {
+		return market.TruncateQuantity(quantity)
+	}
+	if market.VolumePrecision > 0 {
+		return market.RoundDownQuantityByPrecision(quantity)
+	}
+	return quantity
 }
 
 const pineWorkerShortReplayOrderTag = "pine-worker-short-replay"

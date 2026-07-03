@@ -128,6 +128,11 @@ func (s *Service) ResultView(req ResultViewRequest) (map[string]any, error) {
 		series["logs"] = items
 		returned["logs"] = len(items)
 		applyResultViewNextCursor(window, next)
+	case "warnings":
+		items, next := sliceResultViewItems(result.Warnings, offset, limit)
+		series["warnings"] = items
+		returned["warnings"] = len(items)
+		applyResultViewNextCursor(window, next)
 	case "errors":
 		items, next := sliceResultViewItems(result.RuntimeErrors, offset, limit)
 		series["runtimeErrors"] = items
@@ -234,11 +239,18 @@ func resultViewSummaryPayload(run *RunState) map[string]any {
 	summary["pnlCurveCount"] = len(result.PnLCurve)
 	summary["drawdownCurveCount"] = len(result.DrawdownCurve)
 	summary["logsCount"] = len(result.Logs)
+	summary["warningCount"] = len(result.Warnings)
+	summary["warningTotal"] = result.WarningTotal
+	summary["warningsTruncated"] = result.WarningsTruncated
+	summary["ignoredOrders"] = result.IgnoredOrders
 	summary["runtimeErrorCount"] = len(result.RuntimeErrors)
 	summary["runtimeErrorTotal"] = result.RuntimeErrorTotal
 	summary["error"] = result.Error
 	if len(result.Logs) > 0 {
 		summary["latestLog"] = result.Logs[len(result.Logs)-1]
+	}
+	if len(result.Warnings) > 0 {
+		summary["latestWarning"] = result.Warnings[len(result.Warnings)-1]
 	}
 	if len(result.RuntimeErrors) > 0 {
 		summary["latestRuntimeError"] = result.RuntimeErrors[len(result.RuntimeErrors)-1]

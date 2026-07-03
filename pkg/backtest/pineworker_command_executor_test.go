@@ -173,6 +173,97 @@ func TestPineWorkerCommandExecutorTagsShortReplayOrders(t *testing.T) {
 	}
 }
 
+func TestPineWorkerCommandExecutorIgnoresCloseWithoutPosition(t *testing.T) {
+	account := types.NewAccount()
+	sizer := newPineWorkerReplaySizer("US.AAPL", "USD", account)
+	orderExecutor := &fakeWorkerOrderExecutor{}
+	warnings := &recordingIgnoredOrderWarnings{}
+	commandExecutor := validPineWorkerCommandExecutor(orderExecutor)
+	commandExecutor.PositionSizer = sizer
+	commandExecutor.WarningSink = warnings
+
+	err := commandExecutor.Execute(context.Background(), WorkerOrderCommand{
+		Kind:      "close",
+		ID:        "initial-sell",
+		Direction: "long",
+		Side:      types.SideTypeSell,
+		Quantity:  1,
+		BarIndex:  40,
+	})
+	if err != nil {
+		t.Fatalf("Execute close without position error = %v", err)
+	}
+	if len(orderExecutor.submitted) != 0 {
+		t.Fatalf("submitted = %#v, want none", orderExecutor.submitted)
+	}
+	if warnings.ignored != 1 || len(warnings.messages) != 1 || !strings.Contains(warnings.messages[0], "bar 40: ignored close command") {
+		t.Fatalf("warnings = %#v ignored=%d", warnings.messages, warnings.ignored)
+	}
+}
+
+func TestPineWorkerCommandExecutorIgnoresQuantityBelowMarketStep(t *testing.T) {
+	orderExecutor := &fakeWorkerOrderExecutor{}
+	warnings := &recordingIgnoredOrderWarnings{}
+	commandExecutor := &PineWorkerCommandExecutor{
+		Symbol:         "HK.00700",
+		OrderExecutor:  orderExecutor,
+		MarketResolver: fakeWorkerMarketResolver{"HK.00700": testPineWorkerHKMarket()},
+		WarningSink:    warnings,
+	}
+
+	err := commandExecutor.Execute(context.Background(), WorkerOrderCommand{
+		Kind:      "entry",
+		ID:        "fractional-hk",
+		Direction: "long",
+		Side:      types.SideTypeBuy,
+		Quantity:  0.5,
+		BarIndex:  152,
+	})
+	if err != nil {
+		t.Fatalf("Execute fractional HK order error = %v", err)
+	}
+	if len(orderExecutor.submitted) != 0 {
+		t.Fatalf("submitted = %#v, want none", orderExecutor.submitted)
+	}
+	if warnings.ignored != 1 || len(warnings.messages) != 1 || !strings.Contains(warnings.messages[0], "quantity is below the market quantity step") {
+		t.Fatalf("warnings = %#v ignored=%d", warnings.messages, warnings.ignored)
+	}
+}
+
+func TestPineWorkerCommandExecutorAutoCloseCoversShortPosition(t *testing.T) {
+	account := types.NewAccount()
+	sizer := newPineWorkerReplaySizer("US.AAPL", "USD", account)
+	sizer.onOrderUpdate(types.Order{
+		SubmitOrder: types.SubmitOrder{
+			Symbol:   "US.AAPL",
+			Side:     types.SideTypeSell,
+			Quantity: fixedpoint.NewFromFloat(3),
+		},
+		Status:           types.OrderStatusFilled,
+		ExecutedQuantity: fixedpoint.NewFromFloat(3),
+	})
+
+	orderExecutor := &fakeWorkerOrderExecutor{}
+	commandExecutor := validPineWorkerCommandExecutor(orderExecutor)
+	commandExecutor.PositionSizer = sizer
+
+	err := commandExecutor.Execute(context.Background(), WorkerOrderCommand{
+		Kind:     "close",
+		ID:       "auto-close",
+		Quantity: 1,
+	})
+	if err != nil {
+		t.Fatalf("Execute auto close error = %v", err)
+	}
+	if len(orderExecutor.submitted) != 1 {
+		t.Fatalf("submitted len = %d, want 1", len(orderExecutor.submitted))
+	}
+	order := orderExecutor.submitted[0]
+	if order.Side != types.SideTypeBuy || order.Tag != pineWorkerShortReplayOrderTag {
+		t.Fatalf("auto close order = %#v, want synthetic short cover", order)
+	}
+}
+
 func TestPineWorkerCommandExecutorCancelsTrackedOrders(t *testing.T) {
 	orderExecutor := &fakeWorkerOrderExecutor{}
 	commandExecutor := validPineWorkerCommandExecutor(orderExecutor)
@@ -387,6 +478,22 @@ func (resolver fakeWorkerMarketResolver) Market(symbol string) (types.Market, bo
 	return market, ok
 }
 
+func testPineWorkerHKMarket() types.Market {
+	return types.Market{
+		Exchange:        types.ExchangeName("futu"),
+		Symbol:          "HK.00700",
+		LocalSymbol:     "HK.00700",
+		PricePrecision:  3,
+		VolumePrecision: 0,
+		QuotePrecision:  3,
+		BaseCurrency:    "HK.00700",
+		QuoteCurrency:   "HKD",
+		MinQuantity:     fixedpoint.One,
+		StepSize:        fixedpoint.One,
+		TickSize:        fixedpoint.NewFromFloat(0.001),
+	}
+}
+
 type fixedPineWorkerCommandSizer struct {
 	quantity fixedpoint.Value
 	err      error
@@ -397,4 +504,14 @@ func (sizer fixedPineWorkerCommandSizer) QuantityForCommand(WorkerOrderCommand, 
 		return fixedpoint.Zero, sizer.err
 	}
 	return sizer.quantity, nil
+}
+
+type recordingIgnoredOrderWarnings struct {
+	messages []string
+	ignored  int
+}
+
+func (warnings *recordingIgnoredOrderWarnings) AddIgnoredOrderWarning(message string) {
+	warnings.ignored++
+	warnings.messages = append(warnings.messages, message)
 }

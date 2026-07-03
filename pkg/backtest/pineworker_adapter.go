@@ -82,7 +82,8 @@ func CommandFromOrderIntent(intent pineworker.OrderIntent) (WorkerOrderCommand, 
 			Time:     intent.Time,
 		}, true, nil
 	}
-	side, err := sideForWorkerIntent(kind, intent.Direction)
+	direction := canonicalWorkerIntentDirection(kind, intent.Direction)
+	side, err := sideForWorkerIntent(kind, direction)
 	if err != nil {
 		return WorkerOrderCommand{}, false, err
 	}
@@ -94,7 +95,7 @@ func CommandFromOrderIntent(intent pineworker.OrderIntent) (WorkerOrderCommand, 
 		Kind:         kind,
 		ID:           intent.ID,
 		FromEntry:    intent.FromEntry,
-		Direction:    strings.TrimSpace(strings.ToLower(intent.Direction)),
+		Direction:    direction,
 		Side:         side,
 		OrderType:    orderType,
 		Quantity:     intent.Quantity,
@@ -111,6 +112,27 @@ func CommandFromOrderIntent(intent pineworker.OrderIntent) (WorkerOrderCommand, 
 		command.Quantity = 1
 	}
 	return command, true, nil
+}
+
+func canonicalWorkerIntentDirection(kind string, direction string) string {
+	normalizedDirection := strings.TrimSpace(strings.ToLower(direction))
+	switch kind {
+	case "entry", "order":
+		switch normalizedDirection {
+		case "buy":
+			return "long"
+		case "sell":
+			return "short"
+		}
+	case "exit", "close", "close_all":
+		switch normalizedDirection {
+		case "buy", "cover":
+			return "short"
+		case "sell":
+			return "long"
+		}
+	}
+	return normalizedDirection
 }
 
 func normalizeWorkerIntentKind(kind string) string {

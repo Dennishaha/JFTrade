@@ -175,6 +175,7 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 		OrderExecutor:  executor,
 		MarketResolver: session,
 		PositionSizer:  replaySizer,
+		WarningSink:    result,
 	}
 	replayState := newPineWorkerBacktestReplayState(replayKLines, plan.Commands, commandExecutor)
 	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {

@@ -65,6 +65,15 @@ func (sizer *pineWorkerReplaySizer) onOrderUpdate(order types.Order) {
 	}
 }
 
+func (sizer *pineWorkerReplaySizer) NetPosition() fixedpoint.Value {
+	if sizer == nil {
+		return fixedpoint.Zero
+	}
+	sizer.mu.RLock()
+	defer sizer.mu.RUnlock()
+	return sizer.netPosition
+}
+
 func (sizer *pineWorkerReplaySizer) QuantityForCommand(command WorkerOrderCommand, market types.Market) (fixedpoint.Value, error) {
 	if sizer == nil {
 		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct requires position sizing", command.ID)

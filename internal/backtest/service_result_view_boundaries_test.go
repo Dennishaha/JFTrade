@@ -324,6 +324,9 @@ func TestResultViewSummaryPayloadIncludesRunMetadataAndLatestDiagnostics(t *test
 			PnLCurve:          []bt.PnLPoint{{Time: "2024-01-02T00:01:00Z"}},
 			DrawdownCurve:     []bt.DrawdownPoint{{Time: "2024-01-02T00:01:00Z"}},
 			Logs:              []string{"started", "finished"},
+			Warnings:          []string{"ignored close"},
+			WarningTotal:      1,
+			IgnoredOrders:     1,
 			RuntimeErrors:     []string{"late fill"},
 			RuntimeErrorTotal: 1,
 		},
@@ -347,8 +350,11 @@ func TestResultViewSummaryPayloadIncludesRunMetadataAndLatestDiagnostics(t *test
 		t.Fatalf("run payload = %#v", runPayload)
 	}
 	summary := jftradeCheckedTypeAssertion[map[string]any](payload["summary"])
-	if summary["totalReturn"] != 0.125 || summary["candlesCount"] != 1 || summary["latestLog"] != "finished" || summary["latestRuntimeError"] != "late fill" {
+	if summary["totalReturn"] != 0.125 || summary["candlesCount"] != 1 || summary["latestLog"] != "finished" || summary["latestWarning"] != "ignored close" || summary["latestRuntimeError"] != "late fill" {
 		t.Fatalf("summary payload = %#v", summary)
+	}
+	if summary["warningTotal"] != 1 || summary["ignoredOrders"] != 1 {
+		t.Fatalf("warning summary payload = %#v", summary)
 	}
 
 	if got := resultViewRunPayload(nil); len(got) != 0 {

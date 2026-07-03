@@ -52,6 +52,36 @@ func TestCommandFromOrderIntentPreservesShortDirection(t *testing.T) {
 	}
 }
 
+func TestCommandFromOrderIntentCanonicalizesSellEntryAsShort(t *testing.T) {
+	command, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{
+		Kind:        "entry",
+		ID:          "sell-entry",
+		Direction:   "sell",
+		Quantity:    1,
+		HasQuantity: true,
+	})
+	if err != nil || !ok {
+		t.Fatalf("CommandFromOrderIntent error = %v ok=%v", err, ok)
+	}
+	if command.Direction != "short" || command.Side != types.SideTypeSell {
+		t.Fatalf("command = %#v, want canonical short sell", command)
+	}
+
+	closeCommand, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{
+		Kind:        "close",
+		ID:          "cover",
+		Direction:   "cover",
+		Quantity:    1,
+		HasQuantity: true,
+	})
+	if err != nil || !ok {
+		t.Fatalf("CommandFromOrderIntent close error = %v ok=%v", err, ok)
+	}
+	if closeCommand.Direction != "short" || closeCommand.Side != types.SideTypeBuy {
+		t.Fatalf("close command = %#v, want canonical short cover", closeCommand)
+	}
+}
+
 func TestCommandFromOrderIntentDefaultsEntryQuantity(t *testing.T) {
 	command, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{Kind: "entry", Direction: "long"})
 	if err != nil || !ok {

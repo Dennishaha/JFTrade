@@ -127,6 +127,10 @@ interface BacktestRunResult {
   drawdownCurve?: BacktestDrawdownPoint[] | undefined;
   candles?: BacktestCandleView[] | undefined;
   logs?: string[] | undefined;
+  warnings?: string[] | undefined;
+  warningTotal?: number | undefined;
+  warningsTruncated?: boolean | undefined;
+  ignoredOrders?: number | undefined;
   runtimeErrors?: string[] | undefined;
   runtimeErrorCounts?: Record<string, number> | undefined;
   runtimeErrorTotal?: number | undefined;
@@ -157,6 +161,10 @@ interface BacktestRunResultTransport {
   drawdownCurve?: BacktestDrawdownPoint[] | undefined;
   candles?: BacktestCandleTransport[] | undefined;
   logs?: string[] | undefined;
+  warnings?: string[] | undefined;
+  warningTotal?: number | undefined;
+  warningsTruncated?: boolean | undefined;
+  ignoredOrders?: number | undefined;
   runtimeErrors?: string[] | undefined;
   runtimeErrorCounts?: Record<string, number> | undefined;
   runtimeErrorTotal?: number | undefined;
@@ -506,6 +514,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
       runtimeErrors: result.runtimeErrors
         ? markRaw(result.runtimeErrors)
         : undefined,
+      warnings: result.warnings ? markRaw(result.warnings) : undefined,
       logs: result.logs ? markRaw(result.logs) : undefined,
     };
   }
