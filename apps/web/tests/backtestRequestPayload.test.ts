@@ -43,6 +43,7 @@ describe("backtest request payloads", () => {
     expect(payload.tradingCosts?.brokerFees?.presetId).toBe("futu_hk_us_stock_2026_06_30");
     expect(payload.tradingCosts?.marketFees?.mode).toBe("market_preset");
     expect(payload.tradingCosts?.marketFees?.presetId).toBe("us_stock_market_fees_2026_06_30");
+    expect(payload.executionModel).toBe("conservative-bar-v1");
   });
 
   it("uses the same date labels for K-line synchronization", () => {

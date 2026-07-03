@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 profile="$(mktemp "${TMPDIR:-/tmp}/jftrade-go-coverage.XXXXXX")"
-threshold="${GO_COVERAGE_THRESHOLD:-85}"
+threshold="${GO_COVERAGE_THRESHOLD:-90}"
 
 cleanup() {
   rm -f "$profile"

@@ -102,6 +102,7 @@ type RunResult struct {
 	WarningTotal      int                 `json:"warningTotal,omitempty"`
 	WarningsTruncated bool                `json:"warningsTruncated,omitempty"`
 	IgnoredOrders     int                 `json:"ignoredOrders,omitempty"`
+	ExecutionModel    string              `json:"executionModel,omitempty"`
 	Error             string              `json:"error,omitempty"`
 
 	mu                     sync.Mutex
@@ -150,6 +151,7 @@ func (r *RunResult) Snapshot() *RunResult {
 		WarningTotal:           r.WarningTotal,
 		WarningsTruncated:      r.WarningsTruncated,
 		IgnoredOrders:          r.IgnoredOrders,
+		ExecutionModel:         r.ExecutionModel,
 		Error:                  r.Error,
 		RuntimeErrors:          append([]string(nil), r.RuntimeErrors...),
 		RuntimeErrorTotal:      r.RuntimeErrorTotal,

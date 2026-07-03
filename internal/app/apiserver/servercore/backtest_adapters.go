@@ -28,6 +28,7 @@ func toSrvRunState(r *backtestRunState) *btsrv.RunState {
 			Market:            r.Request.Market,
 			Code:              r.Request.Code,
 			Symbol:            r.Request.Symbol,
+			InstrumentType:    r.Request.InstrumentType,
 			Interval:          r.Request.Interval,
 			StartDate:         r.Request.StartDate,
 			EndDate:           r.Request.EndDate,
@@ -37,6 +38,8 @@ func toSrvRunState(r *backtestRunState) *btsrv.RunState {
 			InitialBalance:    r.Request.InitialBalance,
 			RehabType:         r.Request.RehabType,
 			UseExtendedHours:  r.Request.UseExtendedHours,
+			TradingCosts:      r.Request.TradingCosts,
+			ExecutionModel:    r.Request.ExecutionModel,
 		},
 		Result:    r.Result, // 相同类型 *bt.RunResult
 		CreatedAt: r.CreatedAt,
@@ -57,6 +60,7 @@ func toBacktestRunState(r *btsrv.RunState) *backtestRunState {
 			Market:            r.Request.Market,
 			Code:              r.Request.Code,
 			Symbol:            r.Request.Symbol,
+			InstrumentType:    r.Request.InstrumentType,
 			Interval:          r.Request.Interval,
 			StartDate:         r.Request.StartDate,
 			EndDate:           r.Request.EndDate,
@@ -66,6 +70,8 @@ func toBacktestRunState(r *btsrv.RunState) *backtestRunState {
 			InitialBalance:    r.Request.InitialBalance,
 			RehabType:         r.Request.RehabType,
 			UseExtendedHours:  r.Request.UseExtendedHours,
+			TradingCosts:      r.Request.TradingCosts,
+			ExecutionModel:    r.Request.ExecutionModel,
 		},
 		Result:    r.Result, // 相同类型 *bt.RunResult
 		CreatedAt: r.CreatedAt,

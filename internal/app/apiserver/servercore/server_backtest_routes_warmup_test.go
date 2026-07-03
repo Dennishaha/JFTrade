@@ -52,8 +52,8 @@ strategy.entry("Long", strategy.long, qty=1)`,
 		t.Fatalf("NewFutuKLineStore: %v", err)
 	}
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
-	klines := make([]bbgotypes.KLine, 0, 23)
-	for index := range 23 {
+	klines := make([]bbgotypes.KLine, 0, 25)
+	for index := range 25 {
 		startAt := baseStart.Add(time.Duration(index) * time.Minute)
 		openPrice := 100.0
 		closePrice := 100.0
@@ -115,7 +115,7 @@ strategy.entry("Long", strategy.long, qty=1)`,
 		"symbol":         "US.AAPL",
 		"interval":       "1m",
 		"startTime":      klines[20].StartTime.Time().Format(time.RFC3339),
-		"endTime":        klines[22].EndTime.Time().Format(time.RFC3339),
+		"endTime":        klines[24].EndTime.Time().Format(time.RFC3339),
 		"initialBalance": 10000,
 		"rehabType":      "forward",
 	})
@@ -176,6 +176,17 @@ strategy.entry("Long", strategy.long, qty=1)`,
 		t.Fatalf("backtest result error = %q", runEnvelope.Data.Result.Error)
 	}
 	if runEnvelope.Data.Result.TotalTrades == 0 {
+		if request, ok := worker.lastRequest(); ok {
+			formalStart := klines[20].StartTime.Time().UnixMilli()
+			formalIndex := -1
+			for index, candle := range request.Candles {
+				if candle.OpenTime >= formalStart {
+					formalIndex = index
+					break
+				}
+			}
+			t.Fatalf("TotalTrades = %d, want > 0 (worker candles=%d formalIndex=%d)", runEnvelope.Data.Result.TotalTrades, len(request.Candles), formalIndex)
+		}
 		t.Fatalf("TotalTrades = %d, want > 0", runEnvelope.Data.Result.TotalTrades)
 	}
 	if len(runEnvelope.Data.Result.DrawdownCurve) != len(runEnvelope.Data.Result.PnLCurve) {

@@ -49,8 +49,8 @@ jobs:
       - name: Build
         run: go build ./...
 
-      - name: Test
-        run: go test ./... -count=1 -timeout 300s
+      - name: Go coverage gate
+        run: npm run test:coverage:go
 
       - name: Build binaries
         run: go build ./cmd/jftrade-api/

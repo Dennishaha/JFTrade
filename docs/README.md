@@ -11,6 +11,7 @@
 - [architecture.md](architecture.md)：当前系统架构、单一 API 入口、请求链路和职责边界。
 - [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层约束、依赖方向和常见禁区。
 - [architecture/high-roi-tech-stack-refactor-plan.md](architecture/high-roi-tech-stack-refactor-plan.md)：高收益技术栈重构计划，拆分 API 契约、状态层、实时事件、性能、领域组件和观测能力。
+- [architecture/high-value-optimization-implementation-plan.md](architecture/high-value-optimization-implementation-plan.md)：高价值优化实施路线，覆盖回测执行模型、券商适配、行情 provider 和开源工程化。
 
 ### 2. 再按问题类型进入专题
 
@@ -38,6 +39,7 @@
 - 改 ADK、agent、approval、provider、tools：先看 [adk.md](adk.md)
 - 改实时行情、K 线、SSE、WS：先看 [frontend-kline.md](frontend-kline.md) 和 [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md)
 - 改 PineTS worker、worker pool、embedded asset、发布验收：先看 [pinets-contract-audit.md](pinets-contract-audit.md)、[pinets-hardcut-migration.md](pinets-hardcut-migration.md) 和 [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)
+- 改回测撮合、订单成交语义或 executionModel：先看 [architecture/high-value-optimization-implementation-plan.md](architecture/high-value-optimization-implementation-plan.md)
 - 改 Futu / OpenD 协议和映射：先看 [reference/README.md](reference/README.md)
 - 查 HTTP、OpenD、ADK、回测或 PineTS 跨链路问题：先看 [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)
 

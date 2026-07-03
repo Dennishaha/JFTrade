@@ -41,6 +41,7 @@ type resultCollector struct {
 	hasLastCashTotal    bool
 	orderFees           map[uint64]appliedTradeFees
 	tradeIndexByOrderID map[uint64]int
+	orderExecuted       map[string]fixedpoint.Value
 }
 
 func newResultCollector(symbol string, strategyInterval types.Interval, quoteCurrency string, warmupUntil time.Time, result *RunResult) *resultCollector {
@@ -53,22 +54,28 @@ func newResultCollector(symbol string, strategyInterval types.Interval, quoteCur
 		orderBookIndex:      make(map[string]int),
 		orderFees:           make(map[uint64]appliedTradeFees),
 		tradeIndexByOrderID: make(map[uint64]int),
+		orderExecuted:       make(map[string]fixedpoint.Value),
 	}
 }
 
 func (c *resultCollector) onOrderUpdate(order types.Order) {
 	c.recordOrderBookEntry(order)
 	c.totalOrders++
-	if order.Status != types.OrderStatusFilled {
+	if order.Status != types.OrderStatusFilled && order.Status != types.OrderStatusPartiallyFilled {
 		log.Printf("backtest: ORDER id=%d status=%s %s %s", order.OrderID, order.Status, order.Symbol, order.Side)
 		return
 	}
 
+	fillQuantity := c.incrementalFillQuantity(order)
+	if fillQuantity.Sign() <= 0 {
+		log.Printf("backtest: ORDER id=%d status=%s has no incremental fill", order.OrderID, order.Status)
+		return
+	}
 	c.totalFilledOrders++
 	if order.AveragePrice.Compare(fixedpoint.Zero) > 0 && order.Side == types.SideTypeSell {
 		c.winningFilledOrders++
 	}
-	log.Printf("backtest: FILLED id=%d %s %s qty=%s price=%s", order.OrderID, order.Symbol, order.Side, order.Quantity.String(), order.AveragePrice.String())
+	log.Printf("backtest: FILLED id=%d %s %s qty=%s price=%s", order.OrderID, order.Symbol, order.Side, fillQuantity.String(), order.AveragePrice.String())
 	if !order.UpdateTime.Time().Before(c.warmupUntil) {
 		price := order.AveragePrice
 		if price.IsZero() {
@@ -79,7 +86,7 @@ func (c *resultCollector) onOrderUpdate(order types.Order) {
 			Time:        order.UpdateTime.Time().UTC().Format(time.RFC3339Nano),
 			Side:        string(order.Side),
 			Price:       price.String(),
-			Qty:         order.Quantity.String(),
+			Qty:         fillQuantity.String(),
 			BrokerFee:   fees.BrokerFee,
 			MarketFee:   fees.MarketFee,
 			TotalFee:    fees.TotalFee,
@@ -89,11 +96,29 @@ func (c *resultCollector) onOrderUpdate(order types.Order) {
 	}
 	switch order.Side {
 	case types.SideTypeBuy:
-		c.netPosition = c.netPosition.Add(order.Quantity)
+		c.netPosition = c.netPosition.Add(fillQuantity)
 	case types.SideTypeSell:
-		c.netPosition = c.netPosition.Sub(order.Quantity)
+		c.netPosition = c.netPosition.Sub(fillQuantity)
 	}
 	c.hasLastCashTotal = false
+}
+
+func (c *resultCollector) incrementalFillQuantity(order types.Order) fixedpoint.Value {
+	key := orderBookEntryKey(order)
+	executed := order.ExecutedQuantity
+	if executed.IsZero() && order.Status == types.OrderStatusFilled {
+		executed = order.Quantity
+	}
+	if executed.Sign() <= 0 {
+		return fixedpoint.Zero
+	}
+	previous := c.orderExecuted[key]
+	fillQuantity := executed.Sub(previous)
+	if fillQuantity.Sign() <= 0 {
+		return fixedpoint.Zero
+	}
+	c.orderExecuted[key] = executed
+	return fillQuantity
 }
 
 func (c *resultCollector) recordOrderBookEntry(order types.Order) {
@@ -128,12 +153,18 @@ func (c *resultCollector) recordOrderBookEntry(order types.Order) {
 		state.entry.SubmittedAt = eventTime.Format(time.RFC3339Nano)
 	}
 
-	if order.Status == types.OrderStatusFilled {
+	if order.Status == types.OrderStatusFilled || order.Status == types.OrderStatusPartiallyFilled {
 		if !eventTime.IsZero() && (state.filledTime.IsZero() || state.filledTime.Before(eventTime)) {
 			state.filledTime = eventTime
 			state.entry.FilledAt = eventTime.Format(time.RFC3339Nano)
 		}
-		state.entry.FilledQuantity = order.Quantity.String()
+		filledQuantity := order.ExecutedQuantity
+		if filledQuantity.IsZero() && order.Status == types.OrderStatusFilled {
+			filledQuantity = order.Quantity
+		}
+		if filledQuantity.Sign() > 0 {
+			state.entry.FilledQuantity = filledQuantity.String()
+		}
 		price := order.AveragePrice
 		if price.IsZero() {
 			price = order.Price

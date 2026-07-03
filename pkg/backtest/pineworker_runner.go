@@ -24,6 +24,13 @@ import (
 
 func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunner) *RunResult {
 	result := newRunResult(cfg)
+	executionModel, err := NormalizeExecutionModelName(cfg.ExecutionModel)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	cfg.ExecutionModel = executionModel
+	result.ExecutionModel = executionModel
 	if runner == nil {
 		result.Error = "pine worker runner is required"
 		return result
@@ -137,26 +144,14 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 		return result
 	}
 
-	defaultExecutor := sessionDefaultOrderExecutor(session)
-	if defaultExecutor == nil {
-		result.Error = "session order executor is nil"
-		return result
-	}
-	shortReplayExecutor := newPineWorkerShortReplayExecutor(
-		defaultExecutor,
-		session.Account,
-		jftradeCheckedTypeAssertion[types.StandardStreamEmitter](session.UserDataStream),
-	)
-	session.MarketDataStream.OnKLineClosed(shortReplayExecutor.onKLineClosed)
 	replaySizer := newPineWorkerReplaySizer(cfg.Symbol, quoteCurrency, session.Account)
-	session.MarketDataStream.OnKLineClosed(replaySizer.onKLineClosed)
 	session.UserDataStream.OnOrderUpdate(replaySizer.onOrderUpdate)
-	var executor bbgo2.OrderExecutor = shortReplayExecutor
-	if compilation.Program.Metadata.Slippage > 0 {
-		slippageExecutor := newBacktestSlippageExecutor(executor, session, compilation.Program.Metadata.Slippage)
-		session.MarketDataStream.OnKLineClosed(slippageExecutor.onKLineClosed)
-		executor = slippageExecutor
-	}
+	executor := newPineWorkerBacktestOrderExecutor(
+		session,
+		replaySizer,
+		result,
+		compilation.Program.Metadata,
+	)
 
 	collector := newResultCollector(cfg.Symbol, strategyInterval, quoteCurrency, warmupUntil, result)
 	if resultCapacity := replayKLines.resultCapacity(warmupUntil); resultCapacity > 0 {
@@ -166,9 +161,6 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 	feeEngine := newBacktestFeeEngine(session.Account, quoteCurrency, cfg.InstrumentType, cfg.TradingCosts, result, collector.recordTradeFees)
 	session.UserDataStream.OnTradeUpdate(feeEngine.onTradeUpdate)
 	session.UserDataStream.OnOrderUpdate(collector.onOrderUpdate)
-	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {
-		collector.onKLineClosed(ctx, btExchange, kline)
-	})
 
 	btExchange.Src = &bt.ExchangeDataSource{Exchange: btExchange, Session: session}
 	commandExecutor := &PineWorkerCommandExecutor{
@@ -185,6 +177,9 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 		if err := replayState.onKLineClosed(ctx, kline); err != nil {
 			result.Error = fmt.Sprintf("pine worker replay command: %v", err)
 		}
+	})
+	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {
+		collector.onKLineClosed(ctx, btExchange, kline)
 	})
 	replayKLines.forEach(func(kline types.KLine) bool {
 		if result.Error != "" {
@@ -247,12 +242,34 @@ func isHKBacktestSymbol(symbol string) bool {
 }
 
 func newRunResult(cfg RunConfig) *RunResult {
+	executionModel, _ := NormalizeExecutionModelName(cfg.ExecutionModel)
 	return &RunResult{
-		Symbol:    cfg.Symbol,
-		Interval:  cfg.Interval,
-		StartTime: cfg.StartTime.UTC().Format(time.RFC3339Nano),
-		EndTime:   cfg.EndTime.UTC().Format(time.RFC3339Nano),
+		Symbol:         cfg.Symbol,
+		Interval:       cfg.Interval,
+		StartTime:      cfg.StartTime.UTC().Format(time.RFC3339Nano),
+		EndTime:        cfg.EndTime.UTC().Format(time.RFC3339Nano),
+		ExecutionModel: executionModel,
 	}
+}
+
+func newPineWorkerBacktestOrderExecutor(
+	session *bbgo2.ExchangeSession,
+	replaySizer *pineWorkerReplaySizer,
+	result *RunResult,
+	metadata strategyir.StrategyMetadata,
+) bbgo2.OrderExecutor {
+	executor := newConservativeBarExecutor(
+		session.Account,
+		jftradeCheckedTypeAssertion[types.StandardStreamEmitter](session.UserDataStream),
+		conservativeBarExecutorOptions{
+			ProcessOrdersOnClose: metadata.ProcessOnClose,
+			SlippageTicks:        metadata.Slippage,
+			WarningSink:          result,
+		},
+	)
+	session.MarketDataStream.OnKLineClosed(executor.onKLineClosed)
+	session.MarketDataStream.OnKLineClosed(replaySizer.onKLineClosed)
+	return executor
 }
 
 func resolveBacktestQuoteCurrency(symbol string, requested string) string {

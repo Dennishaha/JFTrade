@@ -145,6 +145,77 @@ func TestResultCollectorBuildsTradesAndFinalStats(t *testing.T) {
 	}
 }
 
+func TestResultCollectorTracksPartialFillIncrementally(t *testing.T) {
+	warmupUntil := time.Date(2026, time.May, 25, 9, 0, 0, 0, time.UTC)
+	result := &RunResult{}
+	collector := newResultCollector("BTCUSDT", types.Interval("1m"), "USDT", warmupUntil, result)
+
+	order := types.Order{
+		SubmitOrder: types.SubmitOrder{
+			Symbol:   "BTCUSDT",
+			Side:     types.SideTypeBuy,
+			Quantity: fixedpoint.NewFromFloat(5),
+			Price:    fixedpoint.NewFromFloat(99),
+		},
+		OrderID:          77,
+		Status:           types.OrderStatusPartiallyFilled,
+		ExecutedQuantity: fixedpoint.NewFromFloat(2),
+		UpdateTime:       types.Time(warmupUntil.Add(time.Minute)),
+	}
+	collector.onOrderUpdate(order)
+	collector.onOrderUpdate(order)
+
+	order.Status = types.OrderStatusFilled
+	order.ExecutedQuantity = fixedpoint.NewFromFloat(5)
+	order.AveragePrice = fixedpoint.NewFromFloat(100)
+	order.UpdateTime = types.Time(warmupUntil.Add(2 * time.Minute))
+	collector.onOrderUpdate(order)
+
+	zeroExecuted := order
+	zeroExecuted.OrderID = 78
+	zeroExecuted.ExecutedQuantity = fixedpoint.Zero
+	zeroExecuted.Quantity = fixedpoint.Zero
+	zeroExecuted.Status = types.OrderStatusPartiallyFilled
+	collector.onOrderUpdate(zeroExecuted)
+
+	if collector.totalFilledOrders != 2 {
+		t.Fatalf("totalFilledOrders = %d, want 2 incremental fills", collector.totalFilledOrders)
+	}
+	if collector.netPosition.String() != "5" {
+		t.Fatalf("netPosition = %s, want 5", collector.netPosition)
+	}
+	if len(result.Trades) != 2 {
+		t.Fatalf("trades len = %d, want 2", len(result.Trades))
+	}
+	if result.Trades[0].Qty != "2" || result.Trades[0].Price != "99" {
+		t.Fatalf("first partial trade = %#v, want qty 2 price fallback 99", result.Trades[0])
+	}
+	if result.Trades[1].Qty != "3" || result.Trades[1].Price != "100" {
+		t.Fatalf("final incremental trade = %#v, want qty 3 price 100", result.Trades[1])
+	}
+	if len(collector.orderBook) != 2 {
+		t.Fatalf("order book len = %d, want 2", len(collector.orderBook))
+	}
+	entry := collector.orderBook[0].entry
+	if entry.FilledQuantity != "5" || entry.FilledPrice != "100" {
+		t.Fatalf("filled order book entry = %#v, want cumulative qty 5 price 100", entry)
+	}
+}
+
+func TestResultCollectorFeeBoundaryBranches(t *testing.T) {
+	result := &RunResult{}
+	collector := newResultCollector("BTCUSDT", types.Interval("1m"), "USDT", time.Time{}, result)
+	collector.recordTradeFees(types.Trade{}, appliedTradeFees{TotalFee: 1, FeeCurrency: "USDT"})
+	collector.recordTradeFees(types.Trade{OrderID: 1}, appliedTradeFees{})
+	if len(collector.orderFees) != 0 {
+		t.Fatalf("orderFees = %#v, want empty", collector.orderFees)
+	}
+	if fees := collector.feesForOrder(0); fees.TotalFee != 0 {
+		t.Fatalf("feesForOrder(0) = %#v, want zero", fees)
+	}
+	collector.applyOrderFeesToEntry(1, nil)
+}
+
 func TestResultCollectorTracksDrawdownMetrics(t *testing.T) {
 	result := &RunResult{}
 	collector := newResultCollector("BTCUSDT", types.Interval("1m"), "USDT", time.Time{}, result)

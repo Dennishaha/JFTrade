@@ -21,6 +21,7 @@ type backtestStartRequest struct {
 	RehabType         string                `json:"rehabType"` // "forward" | "backward" | "none"
 	UseExtendedHours  *bool                 `json:"useExtendedHours,omitempty"`
 	TradingCosts      backtest.TradingCosts `json:"tradingCosts"`
+	ExecutionModel    string                `json:"executionModel,omitempty"`
 }
 
 type backtestRunState struct {

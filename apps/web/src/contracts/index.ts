@@ -2030,6 +2030,7 @@ export interface BacktestStartRequestPayload {
   rehabType?: string;
   useExtendedHours?: boolean;
   tradingCosts?: BacktestTradingCostsPayload;
+  executionModel?: "conservative-bar-v1";
 }
 
 export interface BacktestFeeRulePayload {

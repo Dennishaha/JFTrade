@@ -116,6 +116,9 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 	if gotConfig.InitialBalance != 25000 {
 		t.Fatalf("config initial balance = %v, want 25000", gotConfig.InitialBalance)
 	}
+	if gotConfig.ExecutionModel != bt.ExecutionModelConservativeBarV1 || started.Request.ExecutionModel != bt.ExecutionModelConservativeBarV1 {
+		t.Fatalf("execution model config/request = %q/%q, want %q", gotConfig.ExecutionModel, started.Request.ExecutionModel, bt.ExecutionModelConservativeBarV1)
+	}
 	if gotFields.RequestID != "request-backtest-1" || gotFields.RunID != started.ID || gotFields.InstrumentID != "US.AAPL" || gotFields.Source != "backtest" {
 		t.Fatalf("backtest observability fields = %#v", gotFields)
 	}
@@ -546,6 +549,13 @@ func TestStartValidationErrors(t *testing.T) {
 			runs:      newMemoryRunStore(),
 			provider:  validProvider,
 			wantError: "endTime must be after startTime",
+		},
+		{
+			name:      "unsupported execution model",
+			req:       StartRequest{DefinitionID: "def-1", Market: "US", Code: "AAPL", StartTime: validReq.StartTime, EndTime: validReq.EndTime, ExecutionModel: "optimistic"},
+			runs:      newMemoryRunStore(),
+			provider:  validProvider,
+			wantError: "unsupported backtest executionModel",
 		},
 		{
 			name:      "missing run store",

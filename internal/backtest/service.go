@@ -51,6 +51,7 @@ type StartRequest struct {
 	RehabType         string          `json:"rehabType"`
 	UseExtendedHours  *bool           `json:"useExtendedHours,omitempty"`
 	TradingCosts      bt.TradingCosts `json:"tradingCosts"`
+	ExecutionModel    string          `json:"executionModel,omitempty"`
 }
 
 // ScriptStartRequest starts a transient research backtest from an inline Pine
@@ -70,6 +71,7 @@ type ScriptStartRequest struct {
 	RehabType        string          `json:"rehabType"`
 	UseExtendedHours *bool           `json:"useExtendedHours,omitempty"`
 	TradingCosts     bt.TradingCosts `json:"tradingCosts"`
+	ExecutionModel   string          `json:"executionModel,omitempty"`
 }
 
 // RunState 是回测运行状态的纯数据结构。
@@ -394,6 +396,7 @@ func (s *Service) StartScript(ctx context.Context, req ScriptStartRequest) (*Run
 		RehabType:         req.RehabType,
 		UseExtendedHours:  req.UseExtendedHours,
 		TradingCosts:      req.TradingCosts,
+		ExecutionModel:    req.ExecutionModel,
 	}, def)
 }
 
@@ -408,7 +411,7 @@ func (s *Service) EnsureScriptData(ctx context.Context, req ScriptStartRequest) 
 		Market: req.Market, Code: req.Code, Symbol: req.Symbol, Interval: req.Interval,
 		StartDate: req.StartDate, EndDate: req.EndDate, StartTime: req.StartTime, EndTime: req.EndTime,
 		InitialBalance: req.InitialBalance, RehabType: req.RehabType, UseExtendedHours: req.UseExtendedHours,
-		InstrumentType: req.InstrumentType, TradingCosts: req.TradingCosts,
+		InstrumentType: req.InstrumentType, TradingCosts: req.TradingCosts, ExecutionModel: req.ExecutionModel,
 	}, transientStrategyDefinition(script))
 	if err != nil {
 		return nil, err
@@ -633,6 +636,11 @@ func prepareResolvedBacktest(req StartRequest, def StrategyDef) (preparedBacktes
 	req.Code = instrument.Code
 	req.Symbol = instrument.Symbol
 	req.InstrumentType = normalizeBacktestInstrumentType(req.InstrumentType)
+	executionModel, err := bt.NormalizeExecutionModelName(req.ExecutionModel)
+	if err != nil {
+		return preparedBacktest{}, requestErrorf("%v", err)
+	}
+	req.ExecutionModel = executionModel
 	if strings.TrimSpace(req.Interval) == "" {
 		req.Interval = "1m"
 	}
@@ -720,6 +728,7 @@ func (s *Service) executeBacktest(
 		UseExtendedHours: req.UseExtendedHours,
 		InstrumentType:   req.InstrumentType,
 		TradingCosts:     req.TradingCosts,
+		ExecutionModel:   req.ExecutionModel,
 	})
 
 	if result == nil {
@@ -1118,13 +1127,14 @@ func parseRFC3339Time(value string) (time.Time, error) {
 // failureResult 构造回测失败结果。
 func failureResult(req StartRequest, message string) *bt.RunResult {
 	return &bt.RunResult{
-		Symbol:       req.Symbol,
-		Interval:     req.Interval,
-		StartTime:    req.StartTime,
-		EndTime:      req.EndTime,
-		FinalBalance: req.InitialBalance,
-		TradingCosts: req.TradingCosts,
-		Error:        message,
+		Symbol:         req.Symbol,
+		Interval:       req.Interval,
+		StartTime:      req.StartTime,
+		EndTime:        req.EndTime,
+		FinalBalance:   req.InitialBalance,
+		TradingCosts:   req.TradingCosts,
+		ExecutionModel: req.ExecutionModel,
+		Error:          message,
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	bbgo2 "github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/types"
 
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
@@ -24,15 +23,6 @@ func Run(_ context.Context, cfg RunConfig) *RunResult {
 	result := newRunResult(cfg)
 	result.Error = "direct Go Pine backtest runner has been removed; configure a PineTS worker and use RunWithPineWorker"
 	return result
-}
-
-// sessionDefaultOrderExecutor isolates bbgo's deprecated field. bbgo still
-// initializes its backtest session with this executor and exposes no replacement
-// session accessor in v1.64.2.
-//
-//nolint:staticcheck // Required until bbgo exposes the initialized executor through its replacement API.
-func sessionDefaultOrderExecutor(session *bbgo2.ExchangeSession) *bbgo2.ExchangeOrderExecutor {
-	return session.OrderExecutor
 }
 
 func isMissingPrepareKLineError(err error) bool {

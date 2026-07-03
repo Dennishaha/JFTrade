@@ -131,6 +131,7 @@ interface BacktestRunResult {
   warningTotal?: number | undefined;
   warningsTruncated?: boolean | undefined;
   ignoredOrders?: number | undefined;
+  executionModel?: "conservative-bar-v1" | undefined;
   runtimeErrors?: string[] | undefined;
   runtimeErrorCounts?: Record<string, number> | undefined;
   runtimeErrorTotal?: number | undefined;
@@ -165,6 +166,7 @@ interface BacktestRunResultTransport {
   warningTotal?: number | undefined;
   warningsTruncated?: boolean | undefined;
   ignoredOrders?: number | undefined;
+  executionModel?: "conservative-bar-v1" | undefined;
   runtimeErrors?: string[] | undefined;
   runtimeErrorCounts?: Record<string, number> | undefined;
   runtimeErrorTotal?: number | undefined;
@@ -192,6 +194,7 @@ interface BacktestRun {
     rehabType?: string;
     useExtendedHours?: boolean;
     tradingCosts?: BacktestTradingCostsPayload;
+    executionModel?: "conservative-bar-v1";
   };
   result?: BacktestRunResult | undefined;
   createdAt: string;
@@ -218,6 +221,7 @@ interface BacktestRunTransport {
     rehabType?: string;
     useExtendedHours?: boolean;
     tradingCosts?: BacktestTradingCostsPayload;
+    executionModel?: "conservative-bar-v1";
   };
   result?: BacktestRunResultTransport | undefined;
   createdAt: string;
@@ -286,6 +290,7 @@ export function buildBacktestStartRequestPayload(
     rehabType: formState.rehabType,
     useExtendedHours: formState.useExtendedHours,
     tradingCosts: buildBacktestTradingCostsPayload(formState, instrument.market),
+    executionModel: "conservative-bar-v1",
   };
 }
 

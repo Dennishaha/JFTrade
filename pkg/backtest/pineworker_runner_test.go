@@ -29,6 +29,7 @@ func TestRunWithPineWorkerExecutesReplayThroughGoMatching(t *testing.T) {
 		testPineWorkerRunnerKLine(baseStart.Add(time.Minute), 101),
 		testPineWorkerRunnerKLine(baseStart.Add(2*time.Minute), 110),
 		testPineWorkerRunnerKLine(baseStart.Add(3*time.Minute), 111),
+		testPineWorkerRunnerKLine(baseStart.Add(4*time.Minute), 112),
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
 		jftradeCheckTestError(t, store.Close())
@@ -65,6 +66,9 @@ strategy("worker smoke")`,
 	if result.Error != "" {
 		t.Fatalf("RunWithPineWorker error = %s", result.Error)
 	}
+	if result.ExecutionModel != ExecutionModelConservativeBarV1 {
+		t.Fatalf("ExecutionModel = %s, want default %s", result.ExecutionModel, ExecutionModelConservativeBarV1)
+	}
 	if runner.request.Mode != pineworker.ModeBacktest || len(runner.request.Candles) != len(klines) {
 		t.Fatalf("worker request = %#v", runner.request)
 	}
@@ -96,6 +100,7 @@ func TestRunWithPineWorkerExecutesQuantityPctReplay(t *testing.T) {
 		testPineWorkerRunnerKLine(baseStart.Add(time.Minute), 100),
 		testPineWorkerRunnerKLine(baseStart.Add(2*time.Minute), 100),
 		testPineWorkerRunnerKLine(baseStart.Add(3*time.Minute), 100),
+		testPineWorkerRunnerKLine(baseStart.Add(4*time.Minute), 100),
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
 		jftradeCheckTestError(t, store.Close())

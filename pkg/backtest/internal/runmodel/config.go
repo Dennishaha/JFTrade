@@ -19,6 +19,7 @@ type RunConfig struct {
 	UseExtendedHours *bool        `json:"useExtendedHours,omitempty"`
 	InstrumentType   string       `json:"instrumentType,omitempty"`
 	TradingCosts     TradingCosts `json:"tradingCosts"`
+	ExecutionModel   string       `json:"executionModel,omitempty"`
 }
 
 // TradingCosts describes broker-side and market-side costs for a backtest run.
