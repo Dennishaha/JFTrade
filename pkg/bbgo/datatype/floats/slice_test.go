@@ -7,9 +7,11 @@ import (
 	"gonum.org/v1/gonum/stat/distuv"
 )
 
+const randomSampleSize = 10_000
+
 func TestNewRandomNormal(t *testing.T) {
-	a := NewRandomNormal(5, 1, 1000)
-	assert.Equal(t, 1000, len(a))
+	a := NewRandomNormal(5, 1, randomSampleSize)
+	assert.Equal(t, randomSampleSize, len(a))
 	mean := a.Mean()
 	assert.InDelta(t, 5, mean, 0.2)
 	std := distuv.Normal{
@@ -20,8 +22,8 @@ func TestNewRandomNormal(t *testing.T) {
 }
 
 func TestNewRandomPoisson(t *testing.T) {
-	a := NewRandomPoisson(5, 1000)
-	assert.Equal(t, 1000, len(a))
+	a := NewRandomPoisson(5, randomSampleSize)
+	assert.Equal(t, randomSampleSize, len(a))
 	mean := a.Mean()
 	assert.InDelta(t, 5, mean, 0.2)
 	std := distuv.Poisson{
@@ -31,8 +33,8 @@ func TestNewRandomPoisson(t *testing.T) {
 }
 
 func TestNewRandomUniform(t *testing.T) {
-	a := NewRandomUniform(1, 10, 1000)
-	assert.Equal(t, 1000, len(a))
+	a := NewRandomUniform(1, 10, randomSampleSize)
+	assert.Equal(t, randomSampleSize, len(a))
 	mean := a.Mean()
 	assert.InDelta(t, 5.5, mean, 0.2)
 	std := distuv.Uniform{

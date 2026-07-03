@@ -47,15 +47,74 @@ resolve_commit() {
   printf '%s' 'unknown'
 }
 
+test_frontend_dependencies() {
+  local resolve_script='const { createRequire } = require("node:module"); createRequire(process.argv[1]).resolve(process.argv[2]);'
+  local checks=(
+    "apps/web/package.json vite"
+    "apps/web/package.json vitepress"
+    "apps/web/package.json typedoc"
+    "workers/pineworker/package.json vite"
+    "workers/pineworker/package.json pinets"
+    "workers/pineworker/package.json @grpc/grpc-js"
+    "workers/pineworker/package.json @grpc/proto-loader"
+  )
+
+  local check package_path module_name
+  for check in "${checks[@]}"; do
+    read -r package_path module_name <<<"$check"
+    if ! node -e "$resolve_script" "$ROOT_DIR/$package_path" "$module_name" >/dev/null 2>&1; then
+      return 1
+    fi
+  done
+
+  if ! npm ls vite --workspaces --include-workspace-root --depth=3 >/dev/null 2>&1; then
+    return 1
+  fi
+
+  return 0
+}
+
 install_frontend_dependencies() {
-  if [[ -f "$ROOT_DIR/package-lock.json" ]]; then
-    npm ci
+  if [[ "${JFTRADE_RELEASE_SKIP_NPM_INSTALL:-}" == "1" ]]; then
+    echo "Skipping npm install because JFTRADE_RELEASE_SKIP_NPM_INSTALL=1"
     return
   fi
-  npm install
+
+  if test_frontend_dependencies; then
+    echo "Frontend dependencies already available; skipping npm install."
+    return
+  fi
+
+  local use_clean_install=0
+  if [[ "${JFTRADE_RELEASE_NPM_CI:-}" == "1" || ! -d "$ROOT_DIR/node_modules" ]]; then
+    use_clean_install=1
+  fi
+
+  if [[ "$use_clean_install" == "1" && -f "$ROOT_DIR/package-lock.json" ]]; then
+    if npm ci; then
+      return
+    fi
+    if test_frontend_dependencies; then
+      echo "npm ci failed, but existing workspace dependencies are usable; continuing." >&2
+      return
+    fi
+    echo "npm ci failed. Close running Node/Vite/VitePress processes, then retry. If dependencies are already installed, rerun with JFTRADE_RELEASE_SKIP_NPM_INSTALL=1." >&2
+    exit 1
+  fi
+
+  if npm install --workspaces --include-workspace-root --no-audit --no-fund; then
+    return
+  fi
+  if test_frontend_dependencies; then
+    echo "npm install failed, but existing workspace dependencies are usable; continuing." >&2
+    return
+  fi
+  echo "npm install failed. Close running Node/Vite/VitePress processes, then retry." >&2
+  exit 1
 }
 
 require_command go
+require_command node
 require_command npm
 
 VERSION="$(resolve_version)"
