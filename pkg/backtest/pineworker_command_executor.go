@@ -20,12 +20,13 @@ type PineWorkerMarketResolver interface {
 }
 
 type PineWorkerCommandExecutor struct {
-	Symbol              string
-	OrderExecutor       PineWorkerOrderExecutor
-	MarketResolver      PineWorkerMarketResolver
-	PositionSizer       pineWorkerCommandPositionSizer
-	WarningSink         pineWorkerIgnoredOrderWarner
-	ClientOrderIDPrefix string
+	Symbol                         string
+	OrderExecutor                  PineWorkerOrderExecutor
+	MarketResolver                 PineWorkerMarketResolver
+	PositionSizer                  pineWorkerCommandPositionSizer
+	WarningSink                    pineWorkerIgnoredOrderWarner
+	ClientOrderIDPrefix            string
+	RejectOrdersWithoutMarketRules bool
 
 	activeOrders map[string]types.Order
 }
@@ -40,6 +41,10 @@ type pineWorkerCommandPositionReader interface {
 
 type pineWorkerIgnoredOrderWarner interface {
 	AddIgnoredOrderWarning(string)
+}
+
+type pineWorkerIgnoredOrderGroupWarner interface {
+	AddIgnoredOrderWarningGroup(string, string)
 }
 
 type pineWorkerIgnoredOrderError struct {
@@ -144,8 +149,7 @@ func (executor *PineWorkerCommandExecutor) resolvePositionCloseCommand(command W
 }
 
 func (executor *PineWorkerCommandExecutor) warnIgnoredOrder(command WorkerOrderCommand, reason string) {
-	warner, ok := executor.WarningSink.(pineWorkerIgnoredOrderWarner)
-	if !ok || warner == nil {
+	if executor.WarningSink == nil {
 		return
 	}
 	id := strings.TrimSpace(command.ID)
@@ -159,14 +163,20 @@ func (executor *PineWorkerCommandExecutor) warnIgnoredOrder(command WorkerOrderC
 	if symbol == "" {
 		symbol = "<unknown>"
 	}
-	warner.AddIgnoredOrderWarning(fmt.Sprintf(
+	kind := normalizeWorkerIntentKind(command.Kind)
+	message := fmt.Sprintf(
 		"bar %d: ignored %s command %q for %s because %s",
 		command.BarIndex,
-		normalizeWorkerIntentKind(command.Kind),
+		kind,
 		id,
 		symbol,
 		reason,
-	))
+	)
+	if grouped, ok := executor.WarningSink.(pineWorkerIgnoredOrderGroupWarner); ok {
+		grouped.AddIgnoredOrderWarningGroup(strings.Join([]string{symbol, kind, id, reason}, "|"), message)
+		return
+	}
+	executor.WarningSink.AddIgnoredOrderWarning(message)
 }
 
 func (executor *PineWorkerCommandExecutor) SubmitOrderFromCommand(command WorkerOrderCommand) (types.SubmitOrder, error) {
@@ -183,6 +193,9 @@ func (executor *PineWorkerCommandExecutor) SubmitOrderFromCommand(command Worker
 	market, ok := executor.MarketResolver.Market(symbol)
 	if !ok {
 		return types.SubmitOrder{}, fmt.Errorf("market %s is not loaded in this session", symbol)
+	}
+	if executor.RejectOrdersWithoutMarketRules {
+		return types.SubmitOrder{}, pineWorkerIgnoredOrderError{reason: "market quantity rules are unavailable"}
 	}
 	if command.Side == "" {
 		return types.SubmitOrder{}, fmt.Errorf("pine worker command %s side is required", command.Kind)

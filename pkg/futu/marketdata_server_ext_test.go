@@ -17,6 +17,17 @@ func (s *quoteOpenDServer) setStaticInfos(infos []*qotcommonpb.SecurityStaticInf
 	s.tradeMu.Lock()
 	defer s.tradeMu.Unlock()
 	s.staticInfos = append([]*qotcommonpb.SecurityStaticInfo(nil), infos...)
+	s.staticInfoError = nil
+}
+
+func (s *quoteOpenDServer) setStaticInfoError(retType int32, errCode int32, retMsg string) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.staticInfoError = &qotgetstaticinfopb.Response{
+		RetType: new(retType),
+		ErrCode: new(errCode),
+		RetMsg:  new(retMsg),
+	}
 }
 
 func (s *quoteOpenDServer) setBasicQuotes(quotes []*qotcommonpb.BasicQot) {
@@ -47,6 +58,11 @@ func (s *quoteOpenDServer) staticInfoResponse(body []byte) *qotgetstaticinfopb.R
 		return &qotgetstaticinfopb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
+	if s.staticInfoError != nil {
+		response := jftradeCheckedTypeAssertion[*qotgetstaticinfopb.Response](proto.Clone(s.staticInfoError))
+		s.tradeMu.Unlock()
+		return response
+	}
 	infos := append([]*qotcommonpb.SecurityStaticInfo(nil), s.staticInfos...)
 	s.tradeMu.Unlock()
 	return &qotgetstaticinfopb.Response{

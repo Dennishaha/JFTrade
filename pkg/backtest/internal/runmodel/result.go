@@ -1,8 +1,11 @@
 package runmodel
 
-import "maps"
-
-import "sync"
+import (
+	"fmt"
+	"maps"
+	"strings"
+	"sync"
+)
 
 // TradeEvent is a single filled trade for chart rendering.
 type TradeEvent struct {
@@ -107,6 +110,9 @@ type RunResult struct {
 	RuntimeErrorTotal      int            `json:"runtimeErrorTotal,omitempty"`
 	RuntimeErrorsTruncated bool           `json:"runtimeErrorsTruncated,omitempty"`
 	runtimeErrorSeen       map[string]struct{}
+	warningGroupCounts     map[string]int
+	warningGroupIndexes    map[string]int
+	warningGroupMessages   map[string]string
 }
 
 func (r *RunResult) Snapshot() *RunResult {
@@ -218,6 +224,41 @@ func (r *RunResult) AddIgnoredOrderWarning(msg string) {
 	r.addWarningLocked(msg)
 }
 
+func (r *RunResult) AddIgnoredOrderWarningGroup(key string, msg string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.IgnoredOrders++
+	key = strings.TrimSpace(key)
+	if key == "" {
+		r.addWarningLocked(msg)
+		return
+	}
+	if r.warningGroupCounts == nil {
+		r.warningGroupCounts = map[string]int{}
+		r.warningGroupIndexes = map[string]int{}
+		r.warningGroupMessages = map[string]string{}
+	}
+	if count := r.warningGroupCounts[key]; count > 0 {
+		count++
+		r.warningGroupCounts[key] = count
+		if index, ok := r.warningGroupIndexes[key]; ok && index >= 0 && index < len(r.Warnings) {
+			r.Warnings[index] = groupedWarningMessage(r.warningGroupMessages[key], count)
+		}
+		return
+	}
+	r.warningGroupCounts[key] = 1
+	r.warningGroupMessages[key] = msg
+	r.WarningTotal++
+	const maxWarningSamples = 100
+	if len(r.Warnings) >= maxWarningSamples {
+		r.WarningsTruncated = true
+		r.warningGroupIndexes[key] = -1
+		return
+	}
+	r.warningGroupIndexes[key] = len(r.Warnings)
+	r.Warnings = append(r.Warnings, msg)
+}
+
 func (r *RunResult) addWarningLocked(msg string) {
 	r.WarningTotal++
 	const maxWarningSamples = 100
@@ -226,4 +267,11 @@ func (r *RunResult) addWarningLocked(msg string) {
 		return
 	}
 	r.Warnings = append(r.Warnings, msg)
+}
+
+func groupedWarningMessage(msg string, count int) string {
+	if count <= 1 {
+		return msg
+	}
+	return fmt.Sprintf("%s (occurred %d times; first occurrence shown)", msg, count)
 }

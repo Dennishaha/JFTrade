@@ -230,6 +230,100 @@ func TestPineWorkerCommandExecutorIgnoresQuantityBelowMarketStep(t *testing.T) {
 	}
 }
 
+func TestPineWorkerCommandExecutorIgnoresHKOddLotBelowBoardLot(t *testing.T) {
+	orderExecutor := &fakeWorkerOrderExecutor{}
+	warnings := &recordingIgnoredOrderWarnings{}
+	commandExecutor := &PineWorkerCommandExecutor{
+		Symbol:         "HK.00700",
+		OrderExecutor:  orderExecutor,
+		MarketResolver: fakeWorkerMarketResolver{"HK.00700": testPineWorkerHKMarket()},
+		WarningSink:    warnings,
+	}
+
+	err := commandExecutor.Execute(context.Background(), WorkerOrderCommand{
+		Kind:      "entry",
+		ID:        "odd-lot-hk",
+		Direction: "long",
+		Side:      types.SideTypeBuy,
+		Quantity:  50,
+		BarIndex:  152,
+	})
+	if err != nil {
+		t.Fatalf("Execute odd-lot HK order error = %v", err)
+	}
+	if len(orderExecutor.submitted) != 0 {
+		t.Fatalf("submitted = %#v, want none", orderExecutor.submitted)
+	}
+	if warnings.ignored != 1 || len(warnings.messages) != 1 || !strings.Contains(warnings.messages[0], "quantity is below the market quantity step") {
+		t.Fatalf("warnings = %#v ignored=%d", warnings.messages, warnings.ignored)
+	}
+}
+
+func TestPineWorkerCommandExecutorIgnoresOrdersWhenMarketRulesUnavailable(t *testing.T) {
+	orderExecutor := &fakeWorkerOrderExecutor{}
+	warnings := &recordingIgnoredOrderWarnings{}
+	commandExecutor := &PineWorkerCommandExecutor{
+		Symbol:                         "HK.00700",
+		OrderExecutor:                  orderExecutor,
+		MarketResolver:                 fakeWorkerMarketResolver{"HK.00700": testPineWorkerHKInferredMarket()},
+		WarningSink:                    warnings,
+		RejectOrdersWithoutMarketRules: true,
+	}
+
+	err := commandExecutor.Execute(context.Background(), WorkerOrderCommand{
+		Kind:      "entry",
+		ID:        "unresolved-lot-hk",
+		Direction: "long",
+		Side:      types.SideTypeBuy,
+		Quantity:  1,
+		BarIndex:  152,
+	})
+	if err != nil {
+		t.Fatalf("Execute unresolved HK market order error = %v", err)
+	}
+	if len(orderExecutor.submitted) != 0 {
+		t.Fatalf("submitted = %#v, want none", orderExecutor.submitted)
+	}
+	if warnings.ignored != 1 || len(warnings.messages) != 1 || !strings.Contains(warnings.messages[0], "market quantity rules are unavailable") {
+		t.Fatalf("warnings = %#v ignored=%d", warnings.messages, warnings.ignored)
+	}
+}
+
+func TestPineWorkerCommandExecutorGroupsRepeatedIgnoredOrderWarnings(t *testing.T) {
+	orderExecutor := &fakeWorkerOrderExecutor{}
+	result := &RunResult{}
+	commandExecutor := &PineWorkerCommandExecutor{
+		Symbol:                         "HK.00700",
+		OrderExecutor:                  orderExecutor,
+		MarketResolver:                 fakeWorkerMarketResolver{"HK.00700": testPineWorkerHKInferredMarket()},
+		WarningSink:                    result,
+		RejectOrdersWithoutMarketRules: true,
+	}
+
+	for bar := range 2 {
+		err := commandExecutor.Execute(context.Background(), WorkerOrderCommand{
+			Kind:      "entry",
+			ID:        "unresolved-lot-hk",
+			Direction: "long",
+			Side:      types.SideTypeBuy,
+			Quantity:  1,
+			BarIndex:  bar,
+		})
+		if err != nil {
+			t.Fatalf("Execute unresolved HK market order %d error = %v", bar, err)
+		}
+	}
+	if len(orderExecutor.submitted) != 0 {
+		t.Fatalf("submitted = %#v, want none", orderExecutor.submitted)
+	}
+	if result.IgnoredOrders != 2 || result.WarningTotal != 1 || len(result.Warnings) != 1 {
+		t.Fatalf("warnings ignored=%d total=%d list=%#v", result.IgnoredOrders, result.WarningTotal, result.Warnings)
+	}
+	if !strings.Contains(result.Warnings[0], "market quantity rules are unavailable") || !strings.Contains(result.Warnings[0], "occurred 2 times; first occurrence shown") {
+		t.Fatalf("grouped warning = %q", result.Warnings[0])
+	}
+}
+
 func TestPineWorkerCommandExecutorAutoCloseCoversShortPosition(t *testing.T) {
 	account := types.NewAccount()
 	sizer := newPineWorkerReplaySizer("US.AAPL", "USD", account)
@@ -479,6 +573,23 @@ func (resolver fakeWorkerMarketResolver) Market(symbol string) (types.Market, bo
 }
 
 func testPineWorkerHKMarket() types.Market {
+	boardLot := fixedpoint.NewFromFloat(100)
+	return types.Market{
+		Exchange:        types.ExchangeName("futu"),
+		Symbol:          "HK.00700",
+		LocalSymbol:     "HK.00700",
+		PricePrecision:  3,
+		VolumePrecision: 0,
+		QuotePrecision:  3,
+		BaseCurrency:    "HK.00700",
+		QuoteCurrency:   "HKD",
+		MinQuantity:     boardLot,
+		StepSize:        boardLot,
+		TickSize:        fixedpoint.NewFromFloat(0.001),
+	}
+}
+
+func testPineWorkerHKInferredMarket() types.Market {
 	return types.Market{
 		Exchange:        types.ExchangeName("futu"),
 		Symbol:          "HK.00700",

@@ -1,6 +1,7 @@
 package futu
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
 	trdgetmarginratiopb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmarginratio"
@@ -111,6 +113,72 @@ func TestBrokerAdapterDiscoverAccountsAndTradingBridge(t *testing.T) {
 	}
 	if got := server.modifyOrderCallCount(); got != 1 {
 		t.Fatalf("expected one Trd_ModifyOrder call, got %d", got)
+	}
+}
+
+func TestBrokerAdapterQueryMarketRulesUsesSecurityInfoLotSize(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	lotSize := int32(100)
+	server.setStaticInfos([]*qotcommonpb.SecurityStaticInfo{{
+		Basic: testHK00700StaticBasic(lotSize),
+	}})
+	defer server.stop()
+
+	provider, ok := newTestBrokerAdapter(t, server).(broker.MarketRuleProvider)
+	if !ok {
+		t.Fatal("futu adapter should implement broker.MarketRuleProvider")
+	}
+	rules, err := provider.QueryMarketRules(t.Context(), broker.MarketRuleQuery{
+		ReadQuery: broker.ReadQuery{Market: "HK"},
+		Symbols:   []string{"HK.00700"},
+	})
+	if err != nil {
+		t.Fatalf("QueryMarketRules: %v", err)
+	}
+	if len(rules.Warnings) != 0 {
+		t.Fatalf("warnings = %#v, want none", rules.Warnings)
+	}
+	if len(rules.Rules) != 1 {
+		t.Fatalf("rules = %#v, want one rule", rules.Rules)
+	}
+	rule := rules.Rules[0]
+	if rule.Symbol != "HK.00700" || rule.LotSize == nil || *rule.LotSize != 100 {
+		t.Fatalf("rule = %#v, want HK.00700 lotSize 100", rule)
+	}
+}
+
+func TestBrokerAdapterQueryMarketRulesFallsBackToSecuritySnapshotLotSize(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setStaticInfoError(-1, 0, "未知的协议ID")
+	server.setSecuritySnapshots([]*qotgetsecuritysnapshotpb.Snapshot{testTencentSecuritySnapshot()})
+	defer server.stop()
+
+	provider, ok := newTestBrokerAdapter(t, server).(broker.MarketRuleProvider)
+	if !ok {
+		t.Fatal("futu adapter should implement broker.MarketRuleProvider")
+	}
+	rules, err := provider.QueryMarketRules(t.Context(), broker.MarketRuleQuery{
+		ReadQuery: broker.ReadQuery{Market: "HK"},
+		Symbols:   []string{"HK.00700"},
+	})
+	if err != nil {
+		t.Fatalf("QueryMarketRules: %v", err)
+	}
+	if len(rules.Warnings) != 1 || !strings.Contains(rules.Warnings[0], "QuerySecuritySnapshot fallback") || !strings.Contains(rules.Warnings[0], "未知的协议ID") {
+		t.Fatalf("warnings = %#v, want fallback warning with primary failure", rules.Warnings)
+	}
+	if len(rules.Rules) != 1 {
+		t.Fatalf("rules = %#v, want one rule", rules.Rules)
+	}
+	rule := rules.Rules[0]
+	if rule.Symbol != "HK.00700" || rule.LotSize == nil || *rule.LotSize != 100 {
+		t.Fatalf("rule = %#v, want HK.00700 snapshot lotSize 100", rule)
+	}
+	if got := server.staticInfoCalls.Load(); got != 1 {
+		t.Fatalf("static info calls = %d, want 1", got)
+	}
+	if got := server.securitySnapshotCalls.Load(); got != 1 {
+		t.Fatalf("security snapshot calls = %d, want 1", got)
 	}
 }
 

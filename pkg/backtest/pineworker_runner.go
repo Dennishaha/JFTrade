@@ -15,6 +15,7 @@ import (
 	"github.com/c9s/bbgo/pkg/types"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
@@ -85,8 +86,8 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 		return result
 	}
 
-	sourceExchange := futu.NewExchange("127.0.0.1:11110")
-	sourceExchange.EnsureMarket(cfg.Symbol)
+	sourceExchange := newBacktestFutuSourceExchange()
+	rejectOrdersWithoutMarketRules := ensureBacktestSourceMarket(ctx, result, sourceExchange, cfg.Symbol)
 	removeFutuMarketCache()
 
 	quoteCurrency := resolveBacktestQuoteCurrency(cfg.Symbol, cfg.QuoteCurrency)
@@ -171,11 +172,12 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 
 	btExchange.Src = &bt.ExchangeDataSource{Exchange: btExchange, Session: session}
 	commandExecutor := &PineWorkerCommandExecutor{
-		Symbol:         cfg.Symbol,
-		OrderExecutor:  executor,
-		MarketResolver: session,
-		PositionSizer:  replaySizer,
-		WarningSink:    result,
+		Symbol:                         cfg.Symbol,
+		OrderExecutor:                  executor,
+		MarketResolver:                 session,
+		PositionSizer:                  replaySizer,
+		WarningSink:                    result,
+		RejectOrdersWithoutMarketRules: rejectOrdersWithoutMarketRules,
 	}
 	replayState := newPineWorkerBacktestReplayState(replayKLines, plan.Commands, commandExecutor)
 	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {
@@ -205,6 +207,43 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 	totalOrders, filledOrders := collector.finalize(ctx, btExchange, cfg.InitialBalance)
 	log.Printf("pine worker backtest: done totalOrders=%d filledOrders=%d finalBalance=%.2f metadata=%+v", totalOrders, filledOrders, result.FinalBalance, plan.Metadata)
 	return result
+}
+
+func newBacktestFutuSourceExchange() *futu.Exchange {
+	addr := strings.TrimSpace(os.Getenv(futu.EnvOpenDAddr))
+	if addr == "" {
+		addr = futu.DefaultOpenDAddr
+	}
+	webSocketKey := strings.TrimSpace(os.Getenv(futu.EnvOpenDWebSocketKey))
+	if webSocketKey == "" {
+		webSocketKey = strings.TrimSpace(os.Getenv("JFTRADE_FUTU_WEBSOCKET_KEY"))
+	}
+	return futu.NewExchangeWithConfig(opend.Config{Addr: addr, WebSocketKey: webSocketKey})
+}
+
+type backtestSourceMarketEnsurer interface {
+	EnsureMarket(symbol string)
+	EnsureMarketWithDiagnostics(ctx context.Context, symbol string) (types.Market, []string, error)
+}
+
+func ensureBacktestSourceMarket(ctx context.Context, result *RunResult, exchange backtestSourceMarketEnsurer, symbol string) bool {
+	marketRuleCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+	_, warnings, err := exchange.EnsureMarketWithDiagnostics(marketRuleCtx, symbol)
+	for _, warning := range warnings {
+		result.AddWarning(fmt.Sprintf("market rule warning for %s: %s", symbol, warning))
+	}
+	if err != nil && isHKBacktestSymbol(symbol) {
+		exchange.EnsureMarket(symbol)
+		result.AddWarning(fmt.Sprintf("lot size unavailable for %s; orders will be ignored until market quantity rules are available: %v", symbol, err))
+		return true
+	}
+	return false
+}
+
+func isHKBacktestSymbol(symbol string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(symbol))
+	return strings.HasPrefix(upper, "HK.") || strings.HasPrefix(upper, "HK:")
 }
 
 func newRunResult(cfg RunConfig) *RunResult {

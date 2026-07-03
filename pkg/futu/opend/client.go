@@ -33,10 +33,11 @@ const (
 	ProtoGetBasicQot         uint32 = 3004
 	ProtoQotUpdateBasicQot   uint32 = 3005
 	ProtoGetKL               uint32 = 3006
-	ProtoGetStaticInfo       uint32 = 3007
+	ProtoQotUpdateKL         uint32 = 3007
 	ProtoGetOrderBook        uint32 = 3012
 	ProtoQotUpdateOrderBook  uint32 = 3013
 	ProtoRequestHistoryKL    uint32 = 3103
+	ProtoGetStaticInfo       uint32 = 3202
 	ProtoGetSecuritySnapshot uint32 = 3203
 
 	ProtoTrdGetAccList              uint32 = 2001

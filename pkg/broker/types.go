@@ -395,6 +395,26 @@ type SecurityInfoItem struct {
 	IsDelisted   *bool   `json:"isDelisted,omitempty"`
 }
 
+// --- Market Rules ---
+
+type MarketRuleQuery struct {
+	ReadQuery
+	Symbols []string `json:"symbols"`
+}
+
+type MarketRuleSnapshot struct {
+	AccountID string           `json:"accountId"`
+	Rules     []MarketRuleItem `json:"rules"`
+	Warnings  []string         `json:"warnings,omitempty"`
+}
+
+type MarketRuleItem struct {
+	Symbol      string   `json:"symbol"`
+	LotSize     *int32   `json:"lotSize,omitempty"`
+	MinQuantity *float64 `json:"minQuantity,omitempty"`
+	StepSize    *float64 `json:"stepSize,omitempty"`
+}
+
 // --- Security Snapshot ---
 
 type SecuritySnapshotQuery struct {

@@ -83,6 +83,10 @@ func (a *futuAdapter) MarketData() broker.MarketDataReader {
 	return &futuMarketDataReader{exchange: a.exchange}
 }
 
+func (a *futuAdapter) QueryMarketRules(ctx context.Context, query broker.MarketRuleQuery) (*broker.MarketRuleSnapshot, error) {
+	return (&futuMarketDataReader{exchange: a.exchange}).QueryMarketRules(ctx, query)
+}
+
 // --- Trading Service ---
 
 type futuTradingService struct {

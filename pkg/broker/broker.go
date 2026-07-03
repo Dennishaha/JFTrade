@@ -59,6 +59,12 @@ type MarketDataReader interface {
 	QueryOrderBook(ctx context.Context, query OrderBookQuery) (*OrderBookSnapshot, error)
 }
 
+// MarketRuleProvider is an optional capability for brokers that can return
+// symbol-level trading rules such as board lot size.
+type MarketRuleProvider interface {
+	QueryMarketRules(ctx context.Context, query MarketRuleQuery) (*MarketRuleSnapshot, error)
+}
+
 // TradingService provides write-side broker operations: place and cancel orders.
 type TradingService interface {
 	PlaceOrder(ctx context.Context, query PlaceOrderQuery) (*PlaceOrderResult, error)

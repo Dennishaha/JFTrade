@@ -44,6 +44,13 @@ func (e *Exchange) cancelOrders(ctx context.Context, orders ...types.Order) erro
 }
 
 func (e *Exchange) PlaceBrokerOrder(ctx context.Context, query BrokerPlaceOrderQuery, submitOrder types.SubmitOrder) (*BrokerPlaceOrderResult, error) {
+	if market, err := e.EnsureMarketWithContext(ctx, submitOrder.Symbol); err == nil {
+		submitOrder.Market = market
+		if err := validateSubmitOrderQuantityAgainstMarket(submitOrder, market); err != nil {
+			return nil, err
+		}
+	}
+
 	var result BrokerPlaceOrderResult
 	if err := e.withClient(ctx, func(client *opend.Client) error {
 		market := query.Market
@@ -80,6 +87,22 @@ func (e *Exchange) PlaceBrokerOrder(ctx context.Context, query BrokerPlaceOrderQ
 		return nil, err
 	}
 	return &result, nil
+}
+
+func validateSubmitOrderQuantityAgainstMarket(order types.SubmitOrder, market types.Market) error {
+	if order.Quantity.Sign() <= 0 {
+		return fmt.Errorf("futu exchange: order quantity must be positive")
+	}
+	if market.MinQuantity.Sign() > 0 && order.Quantity.Compare(market.MinQuantity) < 0 {
+		return fmt.Errorf("futu exchange: order quantity %s is less than market min quantity %s for %s", order.Quantity.String(), market.MinQuantity.String(), order.Symbol)
+	}
+	if !market.StepSize.IsZero() {
+		normalized := market.TruncateQuantity(order.Quantity)
+		if normalized.Compare(order.Quantity) != 0 {
+			return fmt.Errorf("futu exchange: order quantity %s does not match market quantity step %s for %s", order.Quantity.String(), market.StepSize.String(), order.Symbol)
+		}
+	}
+	return nil
 }
 
 func (e *Exchange) CancelBrokerOrders(ctx context.Context, query BrokerReadQuery, orders ...types.Order) error {

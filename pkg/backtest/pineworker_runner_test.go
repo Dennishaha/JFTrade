@@ -10,6 +10,7 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 
+	"github.com/jftrade/jftrade-main/pkg/futu"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -208,6 +209,93 @@ strategy("worker initial close")`,
 	}
 }
 
+func TestRunWithPineWorkerWarnsWhenHKLotSizeUnavailable(t *testing.T) {
+	isolateBacktestHome(t)
+	t.Setenv(futu.EnvOpenDAddr, "127.0.0.1:1")
+
+	dbPath := filepath.Join(t.TempDir(), "pinets-worker-hk-lot-unavailable.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.June, 29, 1, 30, 0, 0, time.UTC)
+	klines := []types.KLine{
+		testPineWorkerRunnerKLine(baseStart, 100),
+		testPineWorkerRunnerKLine(baseStart.Add(time.Minute), 101),
+	}
+	for index := range klines {
+		klines[index].Symbol = "HK.00700"
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		jftradeCheckTestError(t, store.Close())
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := RunWithPineWorker(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "HK.00700",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[0].StartTime.Time(),
+		EndTime:      klines[len(klines)-1].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("worker hk lot fallback")`,
+		InitialBalance: 10000,
+	}, &fakePineWorkerBacktestRunner{
+		response: pineworker.RunScriptResponse{
+			OrderIntents: []pineworker.OrderIntent{
+				{Kind: "entry", ID: "odd-lot-hk", Direction: "long", Quantity: 1, HasQuantity: true, BarIndex: 0},
+			},
+			Metadata: pineworker.WorkerMetadata{WorkerID: "worker-1"},
+		},
+	})
+
+	if result == nil {
+		t.Fatal("RunWithPineWorker returned nil")
+	}
+	if result.Error != "" {
+		t.Fatalf("RunWithPineWorker error = %s", result.Error)
+	}
+	if result.IgnoredOrders != 1 {
+		t.Fatalf("IgnoredOrders = %d, want 1", result.IgnoredOrders)
+	}
+	if result.WarningTotal != 2 || len(result.Warnings) != 2 || !strings.Contains(result.Warnings[0], "lot size unavailable for HK.00700") {
+		t.Fatalf("warnings total=%d list=%#v", result.WarningTotal, result.Warnings)
+	}
+	if !strings.Contains(result.Warnings[1], "market quantity rules are unavailable") {
+		t.Fatalf("ignored order warning = %q", result.Warnings[1])
+	}
+	if len(result.OrderBook) != 0 {
+		t.Fatalf("OrderBook = %#v, want no submitted HK orders without lot size", result.OrderBook)
+	}
+}
+
+func TestEnsureBacktestSourceMarketReportsFallbackWarningWithoutRejectingOrders(t *testing.T) {
+	result := &RunResult{}
+	exchange := &fakeBacktestSourceMarketEnsurer{
+		market: types.Market{
+			Symbol:      "HK.00700",
+			MinQuantity: fixedpoint.NewFromInt(100),
+			StepSize:    fixedpoint.NewFromInt(100),
+		},
+		warnings: []string{"futu market rules loaded from QuerySecuritySnapshot fallback"},
+	}
+
+	rejectOrders := ensureBacktestSourceMarket(t.Context(), result, exchange, "HK.00700")
+	if rejectOrders {
+		t.Fatal("fallback rules are available, orders should not be rejected")
+	}
+	if exchange.ensureCalls != 0 {
+		t.Fatalf("EnsureMarket calls = %d, want 0", exchange.ensureCalls)
+	}
+	if result.WarningTotal != 1 || len(result.Warnings) != 1 || !strings.Contains(result.Warnings[0], "QuerySecuritySnapshot fallback") {
+		t.Fatalf("warnings total=%d list=%#v", result.WarningTotal, result.Warnings)
+	}
+}
+
 func TestRunWithPineWorkerMapsWorkerErrors(t *testing.T) {
 	isolateBacktestHome(t)
 
@@ -264,4 +352,19 @@ func testPineWorkerRunnerKLine(start time.Time, closePrice float64) types.KLine 
 		Close:     price,
 		Volume:    fixedpoint.NewFromFloat(1000),
 	}
+}
+
+type fakeBacktestSourceMarketEnsurer struct {
+	market      types.Market
+	warnings    []string
+	err         error
+	ensureCalls int
+}
+
+func (f *fakeBacktestSourceMarketEnsurer) EnsureMarket(string) {
+	f.ensureCalls++
+}
+
+func (f *fakeBacktestSourceMarketEnsurer) EnsureMarketWithDiagnostics(context.Context, string) (types.Market, []string, error) {
+	return f.market, f.warnings, f.err
 }

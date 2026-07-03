@@ -182,3 +182,29 @@ func TestRunResultWarningsTrackIgnoredOrdersAndCapSamples(t *testing.T) {
 		t.Fatal("expected WarningsTruncated after sample cap")
 	}
 }
+
+func TestRunResultGroupsRepeatedIgnoredOrderWarnings(t *testing.T) {
+	result := &RunResult{}
+
+	result.AddWarning("general warning")
+	result.AddIgnoredOrderWarningGroup("HK.00700|entry|long|market rules unavailable", "bar 1: ignored entry command")
+	result.AddIgnoredOrderWarningGroup("HK.00700|entry|long|market rules unavailable", "bar 2: ignored entry command")
+	result.AddIgnoredOrderWarningGroup("HK.00700|entry|long|market rules unavailable", "bar 3: ignored entry command")
+	result.AddIgnoredOrderWarningGroup("HK.00700|entry|short|market rules unavailable", "bar 4: ignored entry command")
+
+	if result.IgnoredOrders != 4 {
+		t.Fatalf("IgnoredOrders = %d, want 4", result.IgnoredOrders)
+	}
+	if result.WarningTotal != 3 {
+		t.Fatalf("WarningTotal = %d, want 3", result.WarningTotal)
+	}
+	if len(result.Warnings) != 3 {
+		t.Fatalf("Warnings len = %d, want 3: %#v", len(result.Warnings), result.Warnings)
+	}
+	if result.Warnings[1] != "bar 1: ignored entry command (occurred 3 times; first occurrence shown)" {
+		t.Fatalf("grouped warning = %q", result.Warnings[1])
+	}
+	if result.Warnings[2] != "bar 4: ignored entry command" {
+		t.Fatalf("second group warning = %q", result.Warnings[2])
+	}
+}

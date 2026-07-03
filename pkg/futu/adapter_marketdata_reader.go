@@ -161,6 +161,78 @@ func (r *futuMarketDataReader) QuerySecurityInfo(ctx context.Context, query brok
 	return result, nil
 }
 
+func (r *futuMarketDataReader) QueryMarketRules(ctx context.Context, query broker.MarketRuleQuery) (*broker.MarketRuleSnapshot, error) {
+	if len(query.Symbols) == 0 {
+		return nil, fmt.Errorf("futu: QueryMarketRules requires at least one symbol")
+	}
+	info, err := r.QuerySecurityInfo(ctx, broker.SecurityInfoQuery(query))
+	if err == nil {
+		if snapshot := marketRulesFromSecurityInfo(info); len(snapshot.Rules) > 0 {
+			return snapshot, nil
+		}
+	}
+	fallbackReason := "QuerySecurityInfo returned no usable market rules"
+	if err != nil {
+		fallbackReason = fmt.Sprintf("QuerySecurityInfo failed: %v", err)
+	}
+
+	snapshot, fallbackErr := r.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery(query))
+	if fallbackErr != nil {
+		if err != nil {
+			return nil, fmt.Errorf("%w; fallback QuerySecuritySnapshot failed: %v", err, fallbackErr)
+		}
+		return nil, fallbackErr
+	}
+	rules := marketRulesFromSecuritySnapshot(snapshot)
+	if len(rules.Rules) == 0 {
+		if err != nil {
+			return nil, fmt.Errorf("%w; fallback QuerySecuritySnapshot returned no market rules", err)
+		}
+		return nil, fmt.Errorf("futu: QueryMarketRules returned no market rules")
+	}
+	rules.Warnings = append(rules.Warnings, fmt.Sprintf(
+		"futu market rules loaded from QuerySecuritySnapshot fallback because %s",
+		fallbackReason,
+	))
+	return rules, nil
+}
+
+func marketRulesFromSecurityInfo(info *broker.SecurityInfoSnapshot) *broker.MarketRuleSnapshot {
+	snapshot := &broker.MarketRuleSnapshot{}
+	if info == nil {
+		return snapshot
+	}
+	snapshot.AccountID = info.AccountID
+	for _, security := range info.Securities {
+		if strings.TrimSpace(security.Symbol) == "" || security.LotSize == nil || *security.LotSize <= 0 {
+			continue
+		}
+		snapshot.Rules = append(snapshot.Rules, broker.MarketRuleItem{
+			Symbol:  security.Symbol,
+			LotSize: cloneInt32Ptr(security.LotSize),
+		})
+	}
+	return snapshot
+}
+
+func marketRulesFromSecuritySnapshot(result *broker.SecuritySnapshotResult) *broker.MarketRuleSnapshot {
+	snapshot := &broker.MarketRuleSnapshot{}
+	if result == nil {
+		return snapshot
+	}
+	snapshot.AccountID = result.AccountID
+	for _, security := range result.Snapshots {
+		if strings.TrimSpace(security.Symbol) == "" || security.LotSize == nil || *security.LotSize <= 0 {
+			continue
+		}
+		snapshot.Rules = append(snapshot.Rules, broker.MarketRuleItem{
+			Symbol:  security.Symbol,
+			LotSize: cloneInt32Ptr(security.LotSize),
+		})
+	}
+	return snapshot
+}
+
 func (r *futuMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query broker.SecuritySnapshotQuery) (*broker.SecuritySnapshotResult, error) {
 	if len(query.Symbols) == 0 {
 		return nil, fmt.Errorf("futu: QuerySecuritySnapshot requires at least one symbol")

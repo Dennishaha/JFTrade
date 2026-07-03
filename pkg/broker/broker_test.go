@@ -4,6 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/c9s/bbgo/pkg/fixedpoint"
+	"github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -130,6 +133,43 @@ func TestPointerHelpersReturnStableIndependentValues(t *testing.T) {
 	}
 	if uintPtr == secondUintPtr {
 		t.Fatal("Uint64Ptr should return a fresh pointer")
+	}
+}
+
+func TestApplyMarketRuleUsesLotSizeAsQuantityConstraints(t *testing.T) {
+	lotSize := int32(100)
+	market := types.Market{
+		Symbol:      "HK.00700",
+		MinQuantity: fixedpoint.One,
+		StepSize:    fixedpoint.One,
+	}
+
+	enriched := broker.ApplyMarketRule(market, broker.MarketRuleItem{
+		Symbol:  "HK.00700",
+		LotSize: &lotSize,
+	})
+
+	if enriched.MinQuantity.Float64() != 100 || enriched.StepSize.Float64() != 100 {
+		t.Fatalf("quantity constraints = min %s step %s, want 100/100", enriched.MinQuantity, enriched.StepSize)
+	}
+}
+
+func TestApplyMarketRuleIgnoresMissingAndInvalidLotSize(t *testing.T) {
+	market := types.Market{
+		Symbol:      "HK.00700",
+		MinQuantity: fixedpoint.NewFromFloat(5),
+		StepSize:    fixedpoint.NewFromFloat(5),
+	}
+	for _, lotSize := range []*int32{nil, new(int32)} {
+		enriched := broker.ApplyMarketRule(market, broker.MarketRuleItem{Symbol: "HK.00700", LotSize: lotSize})
+		if enriched.MinQuantity.Float64() != 5 || enriched.StepSize.Float64() != 5 {
+			t.Fatalf("quantity constraints changed for lotSize %#v: min %s step %s", lotSize, enriched.MinQuantity, enriched.StepSize)
+		}
+	}
+	negative := int32(-100)
+	enriched := broker.ApplyMarketRule(market, broker.MarketRuleItem{Symbol: "HK.00700", LotSize: &negative})
+	if enriched.MinQuantity.Float64() != 5 || enriched.StepSize.Float64() != 5 {
+		t.Fatalf("quantity constraints changed for negative lotSize: min %s step %s", enriched.MinQuantity, enriched.StepSize)
 	}
 }
 

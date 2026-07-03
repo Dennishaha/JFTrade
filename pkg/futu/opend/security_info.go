@@ -11,7 +11,7 @@ import (
 
 // GetStaticInfo retrieves security static-info (name, trading hours, sector,
 // warrant/option/future extension data) for the supplied securities
-// (Qot_GetStaticInfo, 3007).
+// (Qot_GetStaticInfo, 3202).
 func (c *Client) GetStaticInfo(ctx context.Context, securities []*qotcommonpb.Security) ([]*qotcommonpb.SecurityStaticInfo, error) {
 	request := &qotgetstaticinfopb.Request{C2S: &qotgetstaticinfopb.C2S{
 		SecurityList: securities,

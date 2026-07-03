@@ -27,6 +27,7 @@ import (
 	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
 	qotgetorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetorderbook"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
+	qotgetstaticinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetstaticinfo"
 	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 	qotupdatebasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdatebasicqot"
@@ -88,6 +89,69 @@ func TestQueryMarketsReturnsBootstrapMarket(t *testing.T) {
 	}
 }
 
+func TestEnsureMarketWithContextAppliesBrokerLotSize(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	lotSize := int32(100)
+	server.setStaticInfos([]*qotcommonpb.SecurityStaticInfo{{
+		Basic: testHK00700StaticBasic(lotSize),
+	}})
+	defer server.stop()
+
+	ex := NewExchange(server.addr)
+	market, err := ex.EnsureMarketWithContext(t.Context(), "HK.00700")
+	if err != nil {
+		t.Fatalf("EnsureMarketWithContext: %v", err)
+	}
+	if market.MinQuantity.Float64() != 100 || market.StepSize.Float64() != 100 {
+		t.Fatalf("market quantity constraints = min %s step %s, want 100/100", market.MinQuantity, market.StepSize)
+	}
+
+	markets, err := ex.QueryMarkets(t.Context())
+	if err != nil {
+		t.Fatalf("QueryMarkets: %v", err)
+	}
+	stored := markets["HK.00700"]
+	if stored.MinQuantity.Float64() != 100 || stored.StepSize.Float64() != 100 {
+		t.Fatalf("stored market quantity constraints = min %s step %s, want 100/100", stored.MinQuantity, stored.StepSize)
+	}
+}
+
+func TestEnsureMarketWithContextFallsBackToSecuritySnapshotLotSize(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setStaticInfoError(-1, 0, "未知的协议ID")
+	server.setSecuritySnapshots([]*qotgetsecuritysnapshotpb.Snapshot{testTencentSecuritySnapshot()})
+	defer server.stop()
+
+	ex := NewExchange(server.addr)
+	market, warnings, err := ex.EnsureMarketWithDiagnostics(t.Context(), "HK.00700")
+	if err != nil {
+		t.Fatalf("EnsureMarketWithDiagnostics: %v", err)
+	}
+	if market.MinQuantity.Float64() != 100 || market.StepSize.Float64() != 100 {
+		t.Fatalf("market quantity constraints = min %s step %s, want 100/100", market.MinQuantity, market.StepSize)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "QuerySecuritySnapshot fallback") {
+		t.Fatalf("warnings = %#v, want snapshot fallback warning", warnings)
+	}
+	if got := server.staticInfoCalls.Load(); got != 1 {
+		t.Fatalf("static info calls = %d, want 1", got)
+	}
+	if got := server.securitySnapshotCalls.Load(); got != 1 {
+		t.Fatalf("security snapshot calls = %d, want 1", got)
+	}
+}
+
+func TestEnsureMarketWithContextReturnsInferredMarketWhenStaticInfoUnavailable(t *testing.T) {
+	ex := NewExchange("127.0.0.1:1")
+	market, err := ex.EnsureMarketWithContext(t.Context(), "HK.00700")
+	if err == nil {
+		t.Fatal("EnsureMarketWithContext error = nil, want OpenD connection error")
+	}
+	if market.Symbol != "HK.00700" || market.StepSize.Float64() != 1 || market.MinQuantity.Float64() != 1 {
+		t.Fatalf("fallback market = %#v", market)
+	}
+}
+
 func TestInferMarketUsesMarketProfiles(t *testing.T) {
 	cases := []struct {
 		symbol          string
@@ -142,6 +206,22 @@ func TestFutuSecurityFromSymbolUsesMarketParser(t *testing.T) {
 
 	if _, _, err := futuSecurityFromSymbol("CN.600519"); err == nil || !strings.Contains(err.Error(), "requires an exchange-qualified symbol") {
 		t.Fatalf("CN.600519 error = %v", err)
+	}
+}
+
+func testHK00700StaticBasic(lotSize int32) *qotcommonpb.SecurityStaticBasic {
+	market := int32(qotcommonpb.QotMarket_QotMarket_HK_Security)
+	secType := int32(qotcommonpb.SecurityType_SecurityType_Eqty)
+	return &qotcommonpb.SecurityStaticBasic{
+		Security: &qotcommonpb.Security{
+			Market: &market,
+			Code:   new("00700"),
+		},
+		Id:       new(int64(700)),
+		LotSize:  &lotSize,
+		SecType:  &secType,
+		Name:     new("Tencent"),
+		ListTime: new("2004-06-16"),
 	}
 }
 
@@ -1392,6 +1472,7 @@ type quoteOpenDServer struct {
 	currentKLines         []*qotcommonpb.KLine
 	basicQuotes           []*qotcommonpb.BasicQot
 	staticInfos           []*qotcommonpb.SecurityStaticInfo
+	staticInfoError       *qotgetstaticinfopb.Response
 	securitySnapshots     []*qotgetsecuritysnapshotpb.Snapshot
 	orderBookSnapshot     *qotgetorderbookpb.S2C
 	notifyMu              sync.Mutex

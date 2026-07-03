@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"maps"
 	"os"
 	"slices"
@@ -18,6 +19,7 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -299,6 +301,40 @@ func (e *Exchange) EnsureMarket(symbol string) {
 		return
 	}
 	e.customMarkets[sym] = inferMarket(sym)
+}
+
+// EnsureMarketWithContext makes a symbol market available and enriches quantity
+// constraints with broker market rules when OpenD can provide them.
+func (e *Exchange) EnsureMarketWithContext(ctx context.Context, symbol string) (types.Market, error) {
+	market, warnings, err := e.EnsureMarketWithDiagnostics(ctx, symbol)
+	for _, warning := range warnings {
+		log.Printf("futu market rule warning: %s", warning)
+	}
+	return market, err
+}
+
+// EnsureMarketWithDiagnostics enriches a market and returns non-fatal warnings
+// when a broker adapter had to use a fallback rule source.
+func (e *Exchange) EnsureMarketWithDiagnostics(ctx context.Context, symbol string) (types.Market, []string, error) {
+	market := inferMarket(symbol)
+	rules, err := NewBrokerAdapter(e).(broker.MarketRuleProvider).QueryMarketRules(ctx, broker.MarketRuleQuery{
+		ReadQuery: broker.ReadQuery{BrokerID: string(Name), Market: marketFromSymbol(market.Symbol, "")},
+		Symbols:   []string{market.Symbol},
+	})
+	var warnings []string
+	if err == nil && rules != nil {
+		market = broker.ApplyMarketRules(market, rules.Rules)
+		warnings = append(warnings, rules.Warnings...)
+	}
+
+	e.mu.Lock()
+	if e.customMarkets == nil {
+		e.customMarkets = make(types.MarketMap)
+	}
+	e.customMarkets[market.Symbol] = market
+	e.mu.Unlock()
+
+	return market, warnings, err
 }
 
 // inferMarket builds a reasonable types.Market from a "MARKET.CODE" symbol.
