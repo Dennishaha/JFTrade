@@ -64,18 +64,19 @@ describe("console business formatting", () => {
     expect(formatting.resolveRealTradeHardStopScopeTagType(symbol)).toBe("danger");
     expect(formatting.formatRealTradeHardStopScope({ ...account, hardStopScope: "SYMBOL" })).toContain("标的");
 
-    expect(formatting.formatRealTradeKillSwitchSource("ENV")).toBe("环境变量");
-    expect(formatting.formatRealTradeKillSwitchSource("CONTROL_PLANE")).toBe("控制面");
+    expect(formatting.formatRealTradeKillSwitchSource("RUNTIME")).toBe("运行时");
     expect(formatting.formatRealTradeKillSwitchSource(null)).toBe("未启用");
-    expect(formatting.formatRealTradeRiskSource("ENV")).toBe("环境变量");
-    expect(formatting.formatRealTradeRiskSource("CONTROL_PLANE")).toBe("控制面");
-    expect(formatting.formatRealTradeRiskSource("MERGED")).toBe("合并配置");
-    expect(formatting.formatRealTradeRiskSource(null)).toBe("未启用");
 
-    for (const [event, tag] of [["released", "success"], ["activated", "warning"], ["rejected", "danger"]] as const) {
+    for (const [event, tag] of [
+      ["released", "success"],
+      ["activated", "warning"],
+      ["rejected", "danger"],
+    ] as const) {
       expect(formatting.resolveRealTradeKillSwitchEventTagType(event)).toBe(tag);
       expect(formatting.resolveRealTradeRiskEventTagType(event)).toBe(tag);
     }
+    expect(formatting.resolveRealTradeRiskEventTagType("updated")).toBe("warning");
+    expect(formatting.resolveRealTradeRiskEventTagType("disabled")).toBe("success");
     expect(formatting.resolveWorkerBrokerSubscriptionTagType("active")).toBe("success");
     expect(formatting.resolveWorkerBrokerSubscriptionTagType("retrying")).toBe("warning");
     expect(formatting.resolveWorkerBrokerSubscriptionTagType("inactive")).toBe("info");

@@ -1,9 +1,11 @@
 <script setup lang="ts">
+type HeaderStatTone = "good" | "warn" | "danger";
+
 interface HeaderStat {
   label: string;
   value: string | number;
   hint?: string;
-  tone?: string;
+  tone?: HeaderStatTone;
 }
 
 defineProps<{
@@ -12,19 +14,6 @@ defineProps<{
   description: string;
   stats?: HeaderStat[];
 }>();
-
-function resolveValueClass(tone: string | undefined): string {
-  switch (tone) {
-    case "good":
-      return "text-[var(--tv-accent)]";
-    case "warn":
-      return "text-[var(--tv-warn)]";
-    case "danger":
-      return "text-[var(--tv-accent)]";
-    default:
-      return "text-[var(--tv-text)]";
-  }
-}
 </script>
 
 <template>
@@ -55,11 +44,13 @@ function resolveValueClass(tone: string | undefined): string {
           v-for="stat in stats"
           :key="stat.label"
           class="page-header-stat"
+          :class="stat.tone ? `page-header-stat--${stat.tone}` : undefined"
+          :data-tone="stat.tone"
         >
           <div class="text-[11px] uppercase tracking-[0.28em] text-[var(--tv-text-dim)]">
             {{ stat.label }}
           </div>
-          <div class="mt-2 text-xl font-semibold" :class="resolveValueClass(stat.tone)">
+          <div class="page-header-stat__value mt-2 text-xl font-semibold">
             {{ stat.value }}
           </div>
           <div v-if="stat.hint" class="mt-2 text-xs leading-5 text-[var(--tv-text-dim)]">

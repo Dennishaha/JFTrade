@@ -128,6 +128,11 @@ export interface components {
     ok?: boolean;
     timestamp?: string;
   };
+    "servercore.executionOrderDetailsResponse": {
+    checkedAt?: string;
+    order?: components["schemas"]["trading.ExecutionOrder"];
+    recentEvents?: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
+  };
     "servercore.executionOrderEventsResponse": {
     events?: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
     internalOrderId?: string;
@@ -258,6 +263,7 @@ export interface components {
     lastErrorSource?: string;
     market?: string;
     orderType?: string;
+    rawBrokerStatus?: string;
     remark?: string;
     requestedPrice?: number;
     requestedQuantity?: number;
@@ -1719,6 +1725,31 @@ export interface paths {
       };
     };
   };
+  "/api/v1/execution/orders/{internalOrderId}": {
+    get: {
+      parameters: {
+        path: {
+        internalOrderId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["servercore.executionOrderDetailsResponse"];
+  };
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/execution/orders/{internalOrderId}/cancel": {
     post: {
       parameters: {
@@ -1880,6 +1911,24 @@ export interface paths {
           description: "OK";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/provider": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -3280,6 +3329,28 @@ export interface paths {
         };
       };
     };
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/system/real-trade-hard-stops/{hardStopId}/release": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
   };
   "/api/v1/system/real-trade-kill-switch": {
     get: {
@@ -3305,6 +3376,30 @@ export interface paths {
       };
     };
   };
+  "/api/v1/system/real-trade-kill-switch/activate": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/system/real-trade-kill-switch/release": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/system/real-trade-risk-events": {
     get: {
       responses: {
@@ -3319,6 +3414,26 @@ export interface paths {
   };
   "/api/v1/system/real-trade-risk-limits": {
     get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+    put: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+    delete: {
       responses: {
         "200": {
           description: "OK";

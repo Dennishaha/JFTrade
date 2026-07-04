@@ -794,8 +794,7 @@ export interface SystemStatusResponse {
   realTradingEnabled: boolean;
   realTradingKillSwitch: {
     active: boolean;
-    envConfiguredActive: boolean;
-    controlPlaneActive: boolean;
+    runtimeActive: boolean;
     blockedOperations: string[];
     allowsCancel: boolean;
   };
@@ -803,12 +802,9 @@ export interface SystemStatusResponse {
     enabled: boolean;
     maxOrderQuantity: number | null;
     maxOrderNotional: number | null;
-    envConfiguredMaxOrderQuantity: number | null;
-    envConfiguredMaxOrderNotional: number | null;
-    controlPlaneActive: boolean;
-    controlPlaneMaxOrderQuantity: number | null;
-    controlPlaneMaxOrderNotional: number | null;
-    riskConfigSource: "ENV" | "CONTROL_PLANE" | "MERGED" | null;
+    runtimeConfiguredMaxOrderQuantity: number | null;
+    runtimeConfiguredMaxOrderNotional: number | null;
+    runtimeRiskConfigured: boolean;
   };
   realTradeAccess?: {
     approverAllowlistEnabled: boolean;
@@ -1542,19 +1538,16 @@ export interface RealTradeApprovalsResponse {
 export interface RealTradeRiskEventsResponse {
   realTradingEnabled: boolean;
   riskEnabled: boolean;
-  riskConfigSource: "ENV" | "CONTROL_PLANE" | "MERGED" | null;
-  envConfiguredMaxOrderQuantity: number | null;
-  envConfiguredMaxOrderNotional: number | null;
-  controlPlaneActive: boolean;
-  controlPlaneMaxOrderQuantity: number | null;
-  controlPlaneMaxOrderNotional: number | null;
+  runtimeRiskConfigured: boolean;
+  runtimeConfiguredMaxOrderQuantity: number | null;
+  runtimeConfiguredMaxOrderNotional: number | null;
   effectiveMaxOrderQuantity: number | null;
   effectiveMaxOrderNotional: number | null;
   maxOrderQuantity: number | null;
   maxOrderNotional: number | null;
   entries: Array<{
     id: string;
-    eventType: "activated" | "released" | "rejected";
+    eventType: "activated" | "released" | "rejected" | "updated" | "disabled";
     action: string;
     brokerId: string;
     operation: string | null;
@@ -1565,16 +1558,12 @@ export interface RealTradeRiskEventsResponse {
     orderId: string | null;
     quantity: number | null;
     price: number | null;
-    riskConfigSource: "ENV" | "CONTROL_PLANE" | "MERGED" | null;
     operatorId: string | null;
     reason: string | null;
     errorCode: string | null;
+    realTradingEnabled?: boolean | null;
     configuredMaxOrderQuantity: number | null;
     configuredMaxOrderNotional: number | null;
-    envConfiguredMaxOrderQuantity: number | null;
-    envConfiguredMaxOrderNotional: number | null;
-    controlPlaneMaxOrderQuantity: number | null;
-    controlPlaneMaxOrderNotional: number | null;
     activatedAt: string | null;
     createdAt: string;
   }>;
@@ -1583,17 +1572,15 @@ export interface RealTradeRiskEventsResponse {
 export interface RealTradeRiskStateResponse {
   realTradingEnabled: boolean;
   riskEnabled: boolean;
-  riskConfigSource: "ENV" | "CONTROL_PLANE" | "MERGED" | null;
-  envConfiguredMaxOrderQuantity: number | null;
-  envConfiguredMaxOrderNotional: number | null;
-  controlPlaneActive: boolean;
-  controlPlaneMaxOrderQuantity: number | null;
-  controlPlaneMaxOrderNotional: number | null;
+  runtimeRiskConfigured: boolean;
+  runtimeConfiguredMaxOrderQuantity: number | null;
+  runtimeConfiguredMaxOrderNotional: number | null;
   effectiveMaxOrderQuantity: number | null;
   effectiveMaxOrderNotional: number | null;
   entry: {
     id: string;
     tradingEnvironment: string;
+    realTradingEnabled: boolean;
     maxOrderQuantity: number | null;
     maxOrderNotional: number | null;
     operatorId: string;
@@ -1606,8 +1593,7 @@ export interface RealTradeRiskStateResponse {
 export interface RealTradeKillSwitchEventsResponse {
   realTradingEnabled: boolean;
   killSwitchActive: boolean;
-  envConfiguredActive: boolean;
-  controlPlaneActive: boolean;
+  runtimeActive: boolean;
   blockedOperations: string[];
   allowsCancel: boolean;
   entries: Array<{
@@ -1623,7 +1609,7 @@ export interface RealTradeKillSwitchEventsResponse {
     orderId: string | null;
     quantity: number | null;
     price: number | null;
-    killSwitchSource: "ENV" | "CONTROL_PLANE" | null;
+    killSwitchSource: "RUNTIME" | null;
     operatorId: string | null;
     reason: string | null;
     errorCode: string | null;
@@ -1634,10 +1620,9 @@ export interface RealTradeKillSwitchEventsResponse {
 
 export interface RealTradeKillSwitchStateResponse {
   realTradingEnabled: boolean;
-  envConfiguredActive: boolean;
-  controlPlaneActive: boolean;
+  runtimeActive: boolean;
   killSwitchActive: boolean;
-  killSwitchSource: "ENV" | "CONTROL_PLANE" | null;
+  killSwitchSource: "RUNTIME" | null;
   blockedOperations: string[];
   allowsCancel: boolean;
   entry: {
@@ -2723,8 +2708,7 @@ export const emptySystemStatus: SystemStatusResponse = {
   realTradingEnabled: false,
   realTradingKillSwitch: {
     active: false,
-    envConfiguredActive: false,
-    controlPlaneActive: false,
+    runtimeActive: false,
     blockedOperations: ["PLACE", "MODIFY"],
     allowsCancel: true,
   },
@@ -2732,12 +2716,9 @@ export const emptySystemStatus: SystemStatusResponse = {
     enabled: false,
     maxOrderQuantity: null,
     maxOrderNotional: null,
-    envConfiguredMaxOrderQuantity: null,
-    envConfiguredMaxOrderNotional: null,
-    controlPlaneActive: false,
-    controlPlaneMaxOrderQuantity: null,
-    controlPlaneMaxOrderNotional: null,
-    riskConfigSource: null,
+    runtimeConfiguredMaxOrderQuantity: null,
+    runtimeConfiguredMaxOrderNotional: null,
+    runtimeRiskConfigured: false,
   },
   realTradeAccess: {
     approverAllowlistEnabled: false,
@@ -2914,12 +2895,9 @@ export const emptyRealTradeApprovals: RealTradeApprovalsResponse = {
 export const emptyRealTradeRiskEvents: RealTradeRiskEventsResponse = {
   realTradingEnabled: false,
   riskEnabled: false,
-  riskConfigSource: null,
-  envConfiguredMaxOrderQuantity: null,
-  envConfiguredMaxOrderNotional: null,
-  controlPlaneActive: false,
-  controlPlaneMaxOrderQuantity: null,
-  controlPlaneMaxOrderNotional: null,
+  runtimeRiskConfigured: false,
+  runtimeConfiguredMaxOrderQuantity: null,
+  runtimeConfiguredMaxOrderNotional: null,
   effectiveMaxOrderQuantity: null,
   effectiveMaxOrderNotional: null,
   maxOrderQuantity: null,
@@ -2930,12 +2908,9 @@ export const emptyRealTradeRiskEvents: RealTradeRiskEventsResponse = {
 export const emptyRealTradeRiskState: RealTradeRiskStateResponse = {
   realTradingEnabled: false,
   riskEnabled: false,
-  riskConfigSource: null,
-  envConfiguredMaxOrderQuantity: null,
-  envConfiguredMaxOrderNotional: null,
-  controlPlaneActive: false,
-  controlPlaneMaxOrderQuantity: null,
-  controlPlaneMaxOrderNotional: null,
+  runtimeRiskConfigured: false,
+  runtimeConfiguredMaxOrderQuantity: null,
+  runtimeConfiguredMaxOrderNotional: null,
   effectiveMaxOrderQuantity: null,
   effectiveMaxOrderNotional: null,
   entry: null,
@@ -2945,8 +2920,7 @@ export const emptyRealTradeKillSwitchEvents: RealTradeKillSwitchEventsResponse =
   {
     realTradingEnabled: false,
     killSwitchActive: false,
-    envConfiguredActive: false,
-    controlPlaneActive: false,
+    runtimeActive: false,
     blockedOperations: ["PLACE", "MODIFY"],
     allowsCancel: true,
     entries: [],
@@ -2954,8 +2928,7 @@ export const emptyRealTradeKillSwitchEvents: RealTradeKillSwitchEventsResponse =
 
 export const emptyRealTradeKillSwitchState: RealTradeKillSwitchStateResponse = {
   realTradingEnabled: false,
-  envConfiguredActive: false,
-  controlPlaneActive: false,
+  runtimeActive: false,
   killSwitchActive: false,
   killSwitchSource: null,
   blockedOperations: ["PLACE", "MODIFY"],

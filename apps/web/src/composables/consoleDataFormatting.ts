@@ -192,6 +192,8 @@ const REAL_TRADE_EVENT_TYPE_LABELS: Record<string, string> = {
   ACTIVATED: "已激活",
   RELEASED: "已解除",
   REJECTED: "已拒绝",
+  UPDATED: "已更新",
+  DISABLED: "已关闭",
 };
 
 const MARKET_DATA_CHANNEL_LABELS: Record<string, string> = {
@@ -511,10 +513,8 @@ export function formatRealTradeKillSwitchSource(
   source: RealTradeKillSwitchStateResponse["killSwitchSource"],
 ): string {
   switch (source) {
-    case "ENV":
-      return "环境变量";
-    case "CONTROL_PLANE":
-      return "控制面";
+    case "RUNTIME":
+      return "运行时";
     default:
       return "未启用";
   }
@@ -522,7 +522,7 @@ export function formatRealTradeKillSwitchSource(
 
 export function resolveRealTradeKillSwitchEventTagType(
   eventType: RealTradeKillSwitchEventsResponse["entries"][number]["eventType"],
-): "success" | "warning" | "danger" {
+): "success" | "warning" | "danger" | "info" {
   switch (eventType) {
     case "released":
       return "success";
@@ -530,34 +530,25 @@ export function resolveRealTradeKillSwitchEventTagType(
       return "warning";
     case "rejected":
       return "danger";
-  }
-}
-
-export function formatRealTradeRiskSource(
-  source: RealTradeRiskStateResponse["riskConfigSource"],
-): string {
-  switch (source) {
-    case "ENV":
-      return "环境变量";
-    case "CONTROL_PLANE":
-      return "控制面";
-    case "MERGED":
-      return "合并配置";
     default:
-      return "未启用";
+      return "info";
   }
 }
 
 export function resolveRealTradeRiskEventTagType(
   eventType: RealTradeRiskEventsResponse["entries"][number]["eventType"],
-): "success" | "warning" | "danger" {
+): "success" | "warning" | "danger" | "info" {
   switch (eventType) {
     case "released":
+    case "disabled":
       return "success";
     case "activated":
+    case "updated":
       return "warning";
     case "rejected":
       return "danger";
+    default:
+      return "info";
   }
 }
 

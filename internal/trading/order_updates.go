@@ -779,14 +779,16 @@ func cloneString(value *string) *string {
 	if value == nil {
 		return nil
 	}
-	return new(*value)
+	copyValue := *value
+	return &copyValue
 }
 
 func cloneFloat(value *float64) *float64 {
 	if value == nil {
 		return nil
 	}
-	return new(*value)
+	copyValue := *value
+	return &copyValue
 }
 
 func stringPointer(value string) *string {

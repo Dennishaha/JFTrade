@@ -1,6 +1,7 @@
 package system
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -36,6 +37,8 @@ func RegisterRoutes(api *gin.RouterGroup, svc *sys.Service) {
 	system.POST("/real-trade-kill-switch/release", handleReleaseRealTradeKillSwitch(svc))
 	system.GET("/real-trade-kill-switch-events", handleRealTradeKillSwitchEvents(svc))
 	system.GET("/real-trade-risk-limits", handleRealTradeRiskLimits(svc))
+	system.PUT("/real-trade-risk-limits", handleUpdateRealTradeRiskLimits(svc))
+	system.DELETE("/real-trade-risk-limits", handleDisableRealTradeRiskLimits(svc))
 	system.GET("/real-trade-risk-events", handleRealTradeRiskEvents(svc))
 	system.GET("/worker/broker-order-updates", handleBrokerOrderUpdatesWorker(svc))
 }
@@ -285,10 +288,62 @@ func handleRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+func handleUpdateRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var command sys.RealTradeRuntimeRiskCommand
+		if err := c.ShouldBindJSON(&command); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid real-trade runtime risk payload")
+			return
+		}
+		if err := validateRealTradeRuntimeRiskCommand(command); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			return
+		}
+		result, err := svc.UpdateRealTradeRuntimeRisk(c.Request.Context(), command)
+		if err != nil {
+			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+func handleDisableRealTradeRiskLimits(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var command sys.RealTradeRuntimeRiskCommand
+		if c.Request.Body != nil {
+			_ = c.ShouldBindJSON(&command)
+		}
+		result, err := svc.DisableRealTradeRuntimeRisk(c.Request.Context(), command)
+		if err != nil {
+			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
 func handleRealTradeRiskEvents(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeRiskEvents())
 	}
+}
+
+func validateRealTradeRuntimeRiskCommand(command sys.RealTradeRuntimeRiskCommand) error {
+	if command.MaxOrderQuantity != nil && *command.MaxOrderQuantity <= 0 {
+		return errors.New("maxOrderQuantity must be positive when provided")
+	}
+	if command.MaxOrderNotional != nil && *command.MaxOrderNotional <= 0 {
+		return errors.New("maxOrderNotional must be positive when provided")
+	}
+	if command.RealTradingEnabled {
+		hasQuantityLimit := command.MaxOrderQuantity != nil && *command.MaxOrderQuantity > 0
+		hasNotionalLimit := command.MaxOrderNotional != nil && *command.MaxOrderNotional > 0
+		if !hasQuantityLimit && !hasNotionalLimit {
+			return errors.New("at least one positive runtime risk limit is required before enabling real trading")
+		}
+	}
+	return nil
 }
 
 func handleBrokerOrderUpdatesWorker(svc *sys.Service) gin.HandlerFunc {

@@ -434,6 +434,25 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 			}
 			return server.preTradeRiskGateway.Snapshot()
 		}),
+		system.WithRealTradeRuntimeRiskControls(
+			func(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+				return server.realTradeControlPlane.UpdateRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
+					TradingEnvironment: command.TradingEnvironment,
+					RealTradingEnabled: command.RealTradingEnabled,
+					MaxOrderQuantity:   command.MaxOrderQuantity,
+					MaxOrderNotional:   command.MaxOrderNotional,
+					OperatorID:         command.OperatorID,
+					Reason:             command.Reason,
+				})
+			},
+			func(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+				return server.realTradeControlPlane.DisableRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
+					TradingEnvironment: command.TradingEnvironment,
+					OperatorID:         command.OperatorID,
+					Reason:             command.Reason,
+				})
+			},
+		),
 		system.WithRealTradeKillSwitchControls(
 			func(ctx context.Context, command system.RealTradeKillSwitchCommand) (map[string]any, error) {
 				return server.realTradeControlPlane.ActivateKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{

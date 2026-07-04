@@ -300,7 +300,7 @@ const accountHeaderStats = computed(() => [
   {
     label: "在途订单",
     value: pendingOrders.value.length,
-    tone: pendingOrders.value.length > 0 ? "warn" : "good",
+    tone: pendingOrders.value.length > 0 ? ("warn" as const) : ("good" as const),
   },
 ]);
 

@@ -5,8 +5,6 @@ import type {
   ObservabilityEvent,
   RealTradeApprovalsResponse,
   RealTradeHardStopsResponse,
-  RealTradeKillSwitchEventsResponse,
-  RealTradeRiskEventsResponse,
   StrategyInstanceItem,
   StrategyRuntimeRiskMode,
   StrategyRuntimeRiskSettings,
@@ -20,20 +18,13 @@ import {
   formatGenericStatusLabel,
   formatMarketDataChannelLabel,
   formatMarketLabel,
-  formatRealTradeEventTypeLabel,
-  formatRealTradeHardStopScope,
-  formatRealTradeKillSwitchSource,
   formatRealTradeOperationLabel,
-  formatRealTradeRiskSource,
   formatTradingEnvironment,
   formatWorkerBrokerActionLabel,
   formatWorkerBrokerBackoffSourceLabel,
   formatWorkerBrokerSubscriptionStatusLabel,
   formatWorkerBrokerErrorContext,
   resolveRealTradeApprovalDecisionTagType,
-  resolveRealTradeHardStopScopeTagType,
-  resolveRealTradeKillSwitchEventTagType,
-  resolveRealTradeRiskEventTagType,
   resolveWorkerBrokerSubscriptionTagType,
 } from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
@@ -46,11 +37,8 @@ const {
   loadError,
   loadSystemState,
   realTradeApprovals,
-  realTradeHardStopEvents,
   realTradeHardStops,
-  realTradeKillSwitchEvents,
   realTradeKillSwitchState,
-  realTradeRiskEvents,
   realTradeRiskState,
   storageOverview,
   systemStatus,
@@ -68,24 +56,9 @@ onMounted(() => {
 const strategyInstances = ref<StrategyInstanceItem[]>([]);
 const strategyRuntimeRiskError = ref("");
 const updatingStrategyRuntimeRiskIds = ref<string[]>([]);
-const realTradeControlError = ref("");
-const updatingRealTradeControlAction = ref("");
-const hardStopForm = ref({
-  brokerId: "futu",
-  tradingEnvironment: "REAL",
-  accountId: "",
-  market: "",
-  symbol: "",
-  hardStopScope: "ACCOUNT",
-  operatorId: "local",
-  reason: "",
-});
 
 type RealTradeApprovalEntry = RealTradeApprovalsResponse["entries"][number];
 type RealTradeHardStopEntry = RealTradeHardStopsResponse["entries"][number];
-type RealTradeKillSwitchEventEntry =
-  RealTradeKillSwitchEventsResponse["entries"][number];
-type RealTradeRiskEventEntry = RealTradeRiskEventsResponse["entries"][number];
 
 function arrayOrEmpty<T>(items: T[] | null | undefined): T[] {
   return Array.isArray(items) ? items : [];
@@ -104,14 +77,6 @@ const realTradeHardStopEntries = computed<RealTradeHardStopEntry[]>(() =>
 const realTradeKillSwitchBlockedOperations = computed<string[]>(() =>
   arrayOrEmpty(realTradeKillSwitchState.value.blockedOperations),
 );
-const realTradeKillSwitchEventEntries =
-  computed<RealTradeKillSwitchEventEntry[]>(() =>
-    arrayOrEmpty(realTradeKillSwitchEvents.value.entries),
-  );
-const realTradeRiskEventEntries = computed<RealTradeRiskEventEntry[]>(() =>
-  arrayOrEmpty(realTradeRiskEvents.value.entries),
-);
-
 const workerBackoffHotspots = computed(() =>
   workerBrokerOrderUpdates.value.brokers
     .flatMap((broker) =>
@@ -250,80 +215,6 @@ async function updateStrategyRuntimeRiskMode(
   }
 }
 
-async function runRealTradeControlAction(
-  action: string,
-  path: string,
-  body: Record<string, unknown>,
-): Promise<void> {
-  realTradeControlError.value = "";
-  updatingRealTradeControlAction.value = action;
-  try {
-    await fetchEnvelopeWithInit(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    await loadSystemState({ bypassCooldown: true });
-  } catch (error) {
-    realTradeControlError.value =
-      error instanceof Error ? error.message : "更新实盘控制面失败。";
-  } finally {
-    updatingRealTradeControlAction.value = "";
-  }
-}
-
-function activateKillSwitch(): Promise<void> {
-  return runRealTradeControlAction(
-    "kill-switch.activate",
-    "/api/v1/system/real-trade-kill-switch/activate",
-    {
-      tradingEnvironment: "REAL",
-      operatorId: "local",
-      reason: "manual activation from SystemPage",
-    },
-  );
-}
-
-function releaseKillSwitch(): Promise<void> {
-  return runRealTradeControlAction(
-    "kill-switch.release",
-    "/api/v1/system/real-trade-kill-switch/release",
-    {
-      tradingEnvironment: "REAL",
-      operatorId: "local",
-      reason: "manual release from SystemPage",
-    },
-  );
-}
-
-function activateHardStop(): Promise<void> {
-  const payload = {
-    ...hardStopForm.value,
-    market: hardStopForm.value.market.trim().toUpperCase(),
-    symbol: hardStopForm.value.symbol.trim().toUpperCase(),
-  };
-  return runRealTradeControlAction(
-    "hard-stop.activate",
-    "/api/v1/system/real-trade-hard-stops",
-    payload,
-  );
-}
-
-function releaseHardStop(id: string): Promise<void> {
-  return runRealTradeControlAction(
-    `hard-stop.release.${id}`,
-    `/api/v1/system/real-trade-hard-stops/${encodeURIComponent(id)}/release`,
-    {
-      operatorId: "local",
-      reason: "manual release from SystemPage",
-    },
-  );
-}
-
-function isRealTradeControlUpdating(action: string): boolean {
-  return updatingRealTradeControlAction.value === action;
-}
-
 function formatStrategyRuntimeStatus(status: string): string {
   switch (status) {
     case "RUNNING":
@@ -448,16 +339,16 @@ function formatRuntimeResourceKind(kind: string): string {
                     </v-chip>
                   </div>
                   <div class="mt-2 text-xs text-slate-500">
-                    {{ systemStatus.realTradingEnabled ? 'JFTRADE_ALLOW_REAL_TRADING=true' : '未显式开启 JFTRADE_ALLOW_REAL_TRADING 前请使用模拟环境。' }}
+                    {{ systemStatus.realTradingEnabled ? '运行时配置允许实盘下单。' : '运行时配置尚未允许实盘下单。' }}
                   </div>
                   <div class="mt-1 text-xs text-slate-500">
                     {{ systemStatus.realTradingRisk.enabled
-                      ? `实盘风控：数量<=${systemStatus.realTradingRisk.maxOrderQuantity ?? '暂无'} / 金额<=${systemStatus.realTradingRisk.maxOrderNotional ?? '暂无'}，来源 ${formatRealTradeRiskSource(systemStatus.realTradingRisk.riskConfigSource)}`
+                      ? `单笔限额：数量<=${systemStatus.realTradingRisk.maxOrderQuantity ?? '暂无'} / 金额<=${systemStatus.realTradingRisk.maxOrderNotional ?? '暂无'}。`
                       : '未配置有效实盘风控限额。' }}
                   </div>
                   <div class="mt-1 text-xs" :class="systemStatus.realTradingKillSwitch.active ? 'text-amber-700' : 'text-slate-500'">
                     {{ realTradeKillSwitchState.killSwitchActive
-                      ? `实盘熔断开关已激活，来源 ${formatRealTradeKillSwitchSource(realTradeKillSwitchState.killSwitchSource)}：阻断 ${realTradeKillSwitchBlockedOperations.map(formatRealTradeOperationLabel).join(' / ')}；撤单${realTradeKillSwitchState.allowsCancel ? '允许' : '阻断'}。`
+                      ? `实盘熔断开关已激活：阻断 ${realTradeKillSwitchBlockedOperations.map(formatRealTradeOperationLabel).join(' / ')}；撤单${realTradeKillSwitchState.allowsCancel ? '允许' : '阻断'}。`
                       : '实盘熔断开关未激活；下单与改单仍受审批和风控门禁约束。' }}
                   </div>
                   <div class="mt-1 text-xs" :class="realTradeHardStopEntries.length ? 'text-amber-700' : 'text-slate-500'">
@@ -465,6 +356,15 @@ function formatRuntimeResourceKind(kind: string): string {
                       ? `实盘硬停止已激活：${realTradeHardStopEntries.length} 个范围；允许撤单用于退出。`
                       : '无活跃实盘硬停止。' }}
                   </div>
+                  <v-btn
+                    to="/risk"
+                    class="mt-2 px-0"
+                    color="teal"
+                    size="small"
+                    variant="text"
+                  >
+                    进入风控页管理
+                  </v-btn>
                 </div>
                 <div class="rounded-3xl border border-slate-200 bg-white px-4 py-4">
                   <div class="text-xs uppercase tracking-[0.2em] text-slate-500">券商市场</div>
@@ -979,189 +879,49 @@ function formatRuntimeResourceKind(kind: string): string {
           </v-card>
         </section>
 
-        <section class="grid gap-5 lg:grid-cols-3">
+        <section>
           <v-card flat class="card-shell border-0">
-            <div class="flex items-center justify-between gap-3 px-4 pt-4">
-              <div class="text-xl font-semibold text-slate-900">实盘熔断开关</div>
-              <v-chip :color="realTradeKillSwitchState.killSwitchActive ? 'error' : undefined" variant="outlined" size="small">
-                {{ realTradeKillSwitchState.killSwitchActive ? '熔断开启' : '熔断关闭' }}
-              </v-chip>
+            <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
+              <div>
+                <div class="text-xl font-semibold text-slate-900">实盘风控摘要</div>
+                <div class="mt-1 text-sm text-slate-500">
+                  实盘总闸、单笔限额、熔断和硬停止在风控页统一管理。
+                </div>
+              </div>
+              <v-btn color="teal" size="small" to="/risk" variant="outlined">
+                进入风控页
+              </v-btn>
             </div>
             <v-card-text>
-              <div class="rounded-2xl bg-slate-50 px-3 py-3">
-                <div class="flex items-center justify-between gap-3">
-                  <div class="font-medium text-slate-900">
-                    {{ formatRealTradeKillSwitchSource(realTradeKillSwitchState.killSwitchSource) }}
+              <div class="grid gap-3 md:grid-cols-4">
+                <div class="rounded-lg border border-slate-200 bg-white px-4 py-4">
+                  <div class="text-xs font-medium text-slate-500">实盘总闸</div>
+                  <div class="mt-2 text-xl font-semibold text-slate-900">
+                    {{ realTradeRiskState.realTradingEnabled ? '已开放' : '未开放' }}
                   </div>
-                  <v-chip :color="realTradeKillSwitchState.killSwitchActive ? 'error' : undefined" variant="outlined" size="small">
-                    {{ formatGenericStatusLabel(realTradeKillSwitchState.killSwitchActive ? 'ACTIVE' : 'CLEAR') }}
-                  </v-chip>
                 </div>
-                <div class="mt-1 text-xs text-slate-500">
-                  环境变量 {{ formatGenericStatusLabel(realTradeKillSwitchState.envConfiguredActive ? 'ON' : 'OFF') }} / 控制面 {{ formatGenericStatusLabel(realTradeKillSwitchState.controlPlaneActive ? 'ON' : 'OFF') }}
-                </div>
-              </div>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <v-btn
-                  color="error"
-                  size="small"
-                  variant="outlined"
-                  :loading="isRealTradeControlUpdating('kill-switch.activate')"
-                  @click="activateKillSwitch"
-                >
-                  激活控制面熔断
-                </v-btn>
-                <v-btn
-                  size="small"
-                  variant="outlined"
-                  :loading="isRealTradeControlUpdating('kill-switch.release')"
-                  @click="releaseKillSwitch"
-                >
-                  解除控制面熔断
-                </v-btn>
-              </div>
-              <div v-if="realTradeKillSwitchEventEntries.length" class="mt-3 grid gap-2">
-                <div
-                  v-for="item in realTradeKillSwitchEventEntries.slice(0, 3)"
-                  :key="item.id"
-                  class="rounded-2xl bg-slate-50 px-3 py-3"
-                >
-                  <div class="flex items-center justify-between gap-3">
-                    <div class="font-medium text-slate-900">{{ formatRealTradeEventTypeLabel(item.eventType) }} / {{ item.brokerId }}</div>
-                    <v-chip :color="resolveRealTradeKillSwitchEventTagType(item.eventType) === 'danger' ? 'error' : resolveRealTradeKillSwitchEventTagType(item.eventType)" variant="outlined" size="small">
-                      {{ formatRealTradeEventTypeLabel(item.eventType) }}
-                    </v-chip>
+                <div class="rounded-lg border border-slate-200 bg-white px-4 py-4">
+                  <div class="text-xs font-medium text-slate-500">单笔限额</div>
+                  <div class="mt-2 text-sm font-semibold text-slate-900">
+                    数量 {{ realTradeRiskState.effectiveMaxOrderQuantity ?? '未设置' }}
                   </div>
-                  <div class="mt-1 text-xs text-slate-500">{{ item.createdAt }}</div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <v-card flat class="card-shell border-0">
-            <div class="flex items-center justify-between gap-3 px-4 pt-4">
-              <div class="text-xl font-semibold text-slate-900">实盘风控</div>
-              <v-chip :color="realTradeRiskState.riskEnabled ? 'warning' : undefined" variant="outlined" size="small">
-                {{ realTradeRiskState.riskEnabled ? '限额开启' : '限额关闭' }}
-              </v-chip>
-            </div>
-            <v-card-text>
-              <div class="rounded-2xl bg-slate-50 px-3 py-3">
-                <div class="font-medium text-slate-900">{{ formatRealTradeRiskSource(realTradeRiskState.riskConfigSource) }}</div>
-                <div class="mt-1 text-xs text-slate-500">
-                  有效数量 {{ realTradeRiskState.effectiveMaxOrderQuantity ?? '暂无' }} / 有效金额 {{ realTradeRiskState.effectiveMaxOrderNotional ?? '暂无' }}
-                </div>
-              </div>
-              <div v-if="realTradeRiskEventEntries.length" class="mt-3 grid gap-2">
-                <div
-                  v-for="item in realTradeRiskEventEntries.slice(0, 3)"
-                  :key="item.id"
-                  class="rounded-2xl bg-slate-50 px-3 py-3"
-                >
-                  <div class="flex items-center justify-between gap-3">
-                    <div class="font-medium text-slate-900">{{ formatRealTradeEventTypeLabel(item.eventType) }} / {{ item.brokerId }}</div>
-                    <v-chip :color="resolveRealTradeRiskEventTagType(item.eventType) === 'danger' ? 'error' : resolveRealTradeRiskEventTagType(item.eventType)" variant="outlined" size="small">
-                      {{ formatRealTradeEventTypeLabel(item.eventType) }}
-                    </v-chip>
+                  <div class="mt-1 text-sm font-semibold text-slate-900">
+                    金额 {{ realTradeRiskState.effectiveMaxOrderNotional ?? '未设置' }}
                   </div>
-                  <div class="mt-1 text-xs text-slate-500">{{ item.reason ?? '暂无' }}</div>
                 </div>
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <v-card flat class="card-shell border-0">
-            <div class="flex items-center justify-between gap-3 px-4 pt-4">
-              <div class="text-xl font-semibold text-slate-900">实盘硬停止</div>
-              <v-chip :color="realTradeHardStopEntries.length ? 'error' : undefined" variant="outlined" size="small">
-                {{ formatGenericStatusLabel(realTradeHardStopEntries.length ? 'ACTIVE' : 'CLEAR') }}
-              </v-chip>
-            </div>
-            <v-card-text>
-              <v-alert
-                v-if="realTradeControlError"
-                type="warning"
-                variant="tonal"
-                density="compact"
-                class="mb-3"
-              >
-                {{ realTradeControlError }}
-              </v-alert>
-              <div class="mb-3 grid gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm">
-                <div class="grid gap-2 sm:grid-cols-2">
-                  <input
-                    v-model="hardStopForm.accountId"
-                    class="rounded-xl border border-slate-300 px-3 py-2 outline-none"
-                    placeholder="账户 ID，空为全部"
-                    aria-label="硬停止账户 ID"
-                  />
-                  <select
-                    v-model="hardStopForm.hardStopScope"
-                    class="rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none"
-                    aria-label="硬停止范围"
-                  >
-                    <option value="ACCOUNT">账户</option>
-                    <option value="MARKET">市场</option>
-                    <option value="SYMBOL">标的</option>
-                  </select>
-                  <input
-                    v-model="hardStopForm.market"
-                    class="rounded-xl border border-slate-300 px-3 py-2 uppercase outline-none"
-                    placeholder="市场，如 US"
-                    aria-label="硬停止市场"
-                  />
-                  <input
-                    v-model="hardStopForm.symbol"
-                    class="rounded-xl border border-slate-300 px-3 py-2 uppercase outline-none"
-                    placeholder="标的，如 AAPL"
-                    aria-label="硬停止标的"
-                  />
-                </div>
-                <input
-                  v-model="hardStopForm.reason"
-                  class="rounded-xl border border-slate-300 px-3 py-2 outline-none"
-                  placeholder="原因"
-                  aria-label="硬停止原因"
-                />
-                <div>
-                  <v-btn
-                    color="error"
-                    size="small"
-                    variant="outlined"
-                    :loading="isRealTradeControlUpdating('hard-stop.activate')"
-                    @click="activateHardStop"
-                  >
-                    创建硬停止
-                  </v-btn>
-                </div>
-              </div>
-              <div v-if="realTradeHardStopEntries.length" class="grid gap-2">
-                <div
-                  v-for="item in realTradeHardStopEntries.slice(0, 3)"
-                  :key="item.id"
-                  class="rounded-2xl bg-slate-50 px-3 py-3"
-                >
-                  <div class="flex items-center justify-between gap-3">
-                    <div class="font-medium text-slate-900">{{ item.brokerId }} / {{ item.accountId }}</div>
-                    <v-chip :color="resolveRealTradeHardStopScopeTagType(item) === 'danger' ? 'error' : resolveRealTradeHardStopScopeTagType(item)" variant="outlined" size="small">
-                      {{ formatRealTradeHardStopScope(item) }}
-                    </v-chip>
+                <div class="rounded-lg border border-slate-200 bg-white px-4 py-4">
+                  <div class="text-xs font-medium text-slate-500">紧急熔断</div>
+                  <div class="mt-2 text-xl font-semibold" :class="realTradeKillSwitchState.killSwitchActive ? 'text-rose-700' : 'text-slate-900'">
+                    {{ realTradeKillSwitchState.killSwitchActive ? '正在阻断' : '未阻断' }}
                   </div>
-                  <div class="mt-1 text-xs text-slate-500">{{ formatTradingEnvironment(item.tradingEnvironment) }} / 操作员 {{ item.operatorId }}</div>
-                  <div class="mt-1 text-xs text-slate-700">{{ item.reason }}</div>
-                  <div class="mt-2">
-                    <v-btn
-                      size="small"
-                      variant="outlined"
-                      :loading="isRealTradeControlUpdating(`hard-stop.release.${item.id}`)"
-                      @click="releaseHardStop(item.id)"
-                    >
-                      解除硬停止
-                    </v-btn>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white px-4 py-4">
+                  <div class="text-xs font-medium text-slate-500">硬停止</div>
+                  <div class="mt-2 text-xl font-semibold" :class="realTradeHardStopEntries.length ? 'text-rose-700' : 'text-slate-900'">
+                    {{ realTradeHardStopEntries.length }}
                   </div>
                 </div>
               </div>
-              <div v-else class="text-sm text-slate-500">暂无活跃实盘硬停止。</div>
             </v-card-text>
           </v-card>
         </section>

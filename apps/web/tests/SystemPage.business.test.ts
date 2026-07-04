@@ -163,8 +163,8 @@ function createSystemStore() {
       ...emptyRealTradeKillSwitchState,
       realTradingEnabled: true,
       killSwitchActive: true,
-      killSwitchSource: "ENV",
-      envConfiguredActive: true,
+      killSwitchSource: "RUNTIME",
+      runtimeActive: true,
       blockedOperations: ["PLACE", "MODIFY"],
       allowsCancel: true,
     } as any),
@@ -172,7 +172,9 @@ function createSystemStore() {
       ...emptyRealTradeRiskEvents,
       realTradingEnabled: true,
       riskEnabled: true,
-      riskConfigSource: "ENV",
+      runtimeRiskConfigured: true,
+      runtimeConfiguredMaxOrderQuantity: 100,
+      runtimeConfiguredMaxOrderNotional: 50000,
       effectiveMaxOrderQuantity: 100,
       effectiveMaxOrderNotional: 50000,
       entries: [
@@ -188,12 +190,21 @@ function createSystemStore() {
       ...emptyRealTradeRiskState,
       realTradingEnabled: true,
       riskEnabled: true,
-      riskConfigSource: "ENV",
+      runtimeRiskConfigured: true,
+      runtimeConfiguredMaxOrderQuantity: 100,
+      runtimeConfiguredMaxOrderNotional: 50000,
       effectiveMaxOrderQuantity: 100,
       effectiveMaxOrderNotional: 50000,
       entry: {
-        effectiveMaxOrderQuantity: 100,
-        effectiveMaxOrderNotional: 50000,
+        id: "runtime-risk-config",
+        tradingEnvironment: "REAL",
+        realTradingEnabled: true,
+        maxOrderQuantity: 100,
+        maxOrderNotional: 50000,
+        operatorId: "ops-a",
+        reason: "session open",
+        activatedAt: "2026-07-01T00:00:00.000Z",
+        updatedAt: "2026-07-01T00:00:00.000Z",
       },
     } as any),
     storageOverview: ref({
@@ -229,10 +240,13 @@ function createSystemStore() {
         enabled: true,
         maxOrderQuantity: 100,
         maxOrderNotional: 50000,
-        riskConfigSource: "ENV",
+        runtimeConfiguredMaxOrderQuantity: 100,
+        runtimeConfiguredMaxOrderNotional: 50000,
+        runtimeRiskConfigured: true,
       },
       realTradingKillSwitch: {
         active: true,
+        runtimeActive: true,
       },
       persistence: {
         ...emptySystemStatus.persistence,
@@ -530,60 +544,13 @@ beforeEach(() => {
 
   let updateAttempt = 0;
   testState.fetchEnvelopeMock = vi.fn(async (path: string) => {
-    if (path === "/api/v1/strategies") {
-      return baseInstances;
-    }
-    throw new Error(`Unexpected fetchEnvelope path: ${path}`);
-  });
+      if (path === "/api/v1/strategies") {
+        return baseInstances;
+      }
+      throw new Error(`Unexpected fetchEnvelope path: ${path}`);
+    });
   testState.fetchEnvelopeWithInitMock = vi.fn(
     async (path: string, init: RequestInit) => {
-      if (path === "/api/v1/system/real-trade-kill-switch/activate") {
-        testState.store!.realTradeKillSwitchState.value = {
-          ...testState.store!.realTradeKillSwitchState.value,
-          killSwitchActive: true,
-          controlPlaneActive: true,
-          killSwitchSource: "CONTROL_PLANE",
-        };
-        return testState.store!.realTradeKillSwitchState.value;
-      }
-      if (path === "/api/v1/system/real-trade-kill-switch/release") {
-        testState.store!.realTradeKillSwitchState.value = {
-          ...testState.store!.realTradeKillSwitchState.value,
-          killSwitchActive: false,
-          controlPlaneActive: false,
-          killSwitchSource: null,
-        };
-        return testState.store!.realTradeKillSwitchState.value;
-      }
-      if (path === "/api/v1/system/real-trade-hard-stops") {
-        const payload = JSON.parse(String(init.body));
-        testState.store!.realTradeHardStops.value = {
-          ...testState.store!.realTradeHardStops.value,
-          entries: [
-            ...testState.store!.realTradeHardStops.value.entries,
-            {
-              id: "hard-stop-created",
-              brokerId: payload.brokerId,
-              accountId: payload.accountId,
-              tradingEnvironment: payload.tradingEnvironment,
-              market: payload.market,
-              symbol: payload.symbol,
-              operatorId: "local",
-              reason: payload.reason,
-            },
-          ],
-        };
-        return testState.store!.realTradeHardStops.value;
-      }
-      if (path === "/api/v1/system/real-trade-hard-stops/hard-stop-1/release") {
-        testState.store!.realTradeHardStops.value = {
-          ...testState.store!.realTradeHardStops.value,
-          entries: testState.store!.realTradeHardStops.value.entries.filter(
-            (entry: any) => entry.id !== "hard-stop-1",
-          ),
-        };
-        return testState.store!.realTradeHardStops.value;
-      }
       if (!path.endsWith("/runtime-risk")) {
         throw new Error(`Unexpected fetchEnvelopeWithInit path: ${path}`);
       }
@@ -646,8 +613,8 @@ describe("SystemPage business flows", () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain("无活跃实盘硬停止。");
-    expect(wrapper.text()).toContain("实盘熔断开关已激活");
+    expect(wrapper.text()).toContain("实盘风控摘要");
+    expect(wrapper.text()).toContain("进入风控页");
   });
 
   it("renders rich system summaries and updates strategy runtime risk modes", async () => {
@@ -664,8 +631,8 @@ describe("SystemPage business flows", () => {
     expect(wrapper.text()).toContain("实盘审批");
     expect(wrapper.text()).toContain("approval workflow is not implemented");
     expect(wrapper.text()).toContain("ops-a");
-    expect(wrapper.text()).toContain("manual freeze");
-    expect(wrapper.text()).toContain("quantity over limit");
+    expect(wrapper.text()).toContain("实盘风控摘要");
+    expect(wrapper.text()).toContain("进入风控页");
     expect(wrapper.text()).toContain("US.AAPL");
     expect(wrapper.text()).toContain("Runtime Paused");
     expect(wrapper.text()).toContain("暂无");
@@ -674,60 +641,8 @@ describe("SystemPage business flows", () => {
     expect(wrapper.text()).toContain("/tmp/execution-orders.db");
     expect(wrapper.text()).toContain("adk-session-db");
     expect(wrapper.text()).toContain("assistant/runtime");
-
-    await wrapper
-      .findAll("button")
-      .find((button) => button.text() === "激活控制面熔断")!
-      .trigger("click");
-    await flushPromises();
-    expect(testState.fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
-      "/api/v1/system/real-trade-kill-switch/activate",
-      expect.objectContaining({ method: "POST" }),
-    );
-
-    await wrapper
-      .findAll("button")
-      .find((button) => button.text() === "解除控制面熔断")!
-      .trigger("click");
-    await flushPromises();
-    expect(testState.fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
-      "/api/v1/system/real-trade-kill-switch/release",
-      expect.objectContaining({ method: "POST" }),
-    );
-
-    await wrapper.get('input[aria-label="硬停止账户 ID"]').setValue("ACC-NEW");
-    await wrapper.get('select[aria-label="硬停止范围"]').setValue("SYMBOL");
-    await wrapper.get('input[aria-label="硬停止市场"]').setValue("us");
-    await wrapper.get('input[aria-label="硬停止标的"]').setValue("msft");
-    await wrapper.get('input[aria-label="硬停止原因"]').setValue("manual test");
-    await wrapper
-      .findAll("button")
-      .find((button) => button.text() === "创建硬停止")!
-      .trigger("click");
-    await flushPromises();
-    const hardStopCreateCall = testState.fetchEnvelopeWithInitMock.mock.calls.find(
-      ([path]: [string]) => path === "/api/v1/system/real-trade-hard-stops",
-    );
-    expect(hardStopCreateCall).toBeTruthy();
-    expect(JSON.parse(String((hardStopCreateCall![1] as RequestInit).body))).toEqual(
-      expect.objectContaining({
-        accountId: "ACC-NEW",
-        hardStopScope: "SYMBOL",
-        market: "US",
-        symbol: "MSFT",
-        reason: "manual test",
-      }),
-    );
-
-    await wrapper
-      .findAll("button")
-      .find((button) => button.text() === "解除硬停止")!
-      .trigger("click");
-    await flushPromises();
-    expect(testState.fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
-      "/api/v1/system/real-trade-hard-stops/hard-stop-1/release",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(wrapper.text()).toContain("实盘风控摘要");
+    expect(wrapper.text()).toContain("进入风控页");
 
     const refreshButtons = wrapper.findAll("button").filter((candidate) =>
       candidate.text() === "刷新",

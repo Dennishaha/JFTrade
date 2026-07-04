@@ -36,7 +36,7 @@ func TestSystemRoutesReturnEnvelopes(t *testing.T) {
 		{http.MethodGet, "/api/v1/system/real-trade-hard-stop-events", []string{"blockedOperations", "entries"}},
 		{http.MethodGet, "/api/v1/system/real-trade-kill-switch", []string{"killSwitchActive", "blockedOperations", "entry"}},
 		{http.MethodGet, "/api/v1/system/real-trade-kill-switch-events", []string{"killSwitchActive", "entries"}},
-		{http.MethodGet, "/api/v1/system/real-trade-risk-limits", []string{"riskEnabled", "effectiveMaxOrderQuantity", "entry"}},
+		{http.MethodGet, "/api/v1/system/real-trade-risk-limits", []string{"riskEnabled", "runtimeConfiguredMaxOrderQuantity", "entry"}},
 		{http.MethodGet, "/api/v1/system/real-trade-risk-events", []string{"riskEnabled", "maxOrderQuantity", "entries"}},
 		{http.MethodGet, "/api/v1/system/worker/broker-order-updates", []string{"running"}},
 	}
@@ -118,8 +118,10 @@ func TestExchangeCalendarProbeRouteCallsProbe(t *testing.T) {
 func TestRealTradeControlRoutesDelegateStateChanges(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	killSwitchActive := false
+	realTradingEnabled := false
 	hardStopActive := false
 	hardStopID := "hs-1"
+	maxQty := 0.0
 	svc := sysservice.NewService(
 		sysservice.WithRealTradeRiskState(func() map[string]any {
 			entries := []map[string]any{}
@@ -132,13 +134,30 @@ func TestRealTradeControlRoutesDelegateStateChanges(t *testing.T) {
 				})
 			}
 			return map[string]any{
-				"realTradingEnabled":           true,
-				"killSwitchActive":             killSwitchActive,
-				"killSwitchControlPlaneActive": killSwitchActive,
-				"killSwitchSource":             "CONTROL_PLANE",
-				"hardStopEntries":              entries,
+				"realTradingEnabled":                realTradingEnabled,
+				"killSwitchActive":                  killSwitchActive,
+				"runtimeKillSwitchActive":           killSwitchActive,
+				"killSwitchSource":                  "RUNTIME",
+				"riskEnabled":                       realTradingEnabled,
+				"runtimeRiskConfigured":             realTradingEnabled,
+				"runtimeConfiguredMaxOrderQuantity": &maxQty,
+				"effectiveMaxOrderQuantity":         &maxQty,
+				"hardStopEntries":                   entries,
 			}
 		}),
+		sysservice.WithRealTradeRuntimeRiskControls(
+			func(_ context.Context, command sysservice.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+				realTradingEnabled = command.RealTradingEnabled
+				if command.MaxOrderQuantity != nil {
+					maxQty = *command.MaxOrderQuantity
+				}
+				return map[string]any{"realTradingEnabled": realTradingEnabled, "runtimeConfiguredMaxOrderQuantity": maxQty}, nil
+			},
+			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+				realTradingEnabled = false
+				return map[string]any{"realTradingEnabled": false}, nil
+			},
+		),
 		sysservice.WithRealTradeKillSwitchControls(
 			func(context.Context, sysservice.RealTradeKillSwitchCommand) (map[string]any, error) {
 				killSwitchActive = true
@@ -165,7 +184,18 @@ func TestRealTradeControlRoutesDelegateStateChanges(t *testing.T) {
 	router := gin.New()
 	RegisterRoutes(router.Group("/api/v1"), svc)
 
-	resp := performSystemRouteJSONRequest(router, http.MethodPost, "/api/v1/system/real-trade-kill-switch/activate", `{"operatorId":"tester","reason":"incident"}`)
+	resp := performSystemRouteJSONRequest(router, http.MethodPut, "/api/v1/system/real-trade-risk-limits", `{"realTradingEnabled":true,"maxOrderQuantity":10,"operatorId":"tester","reason":"session open"}`)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("update runtime risk status = %d body=%s", resp.Code, resp.Body.String())
+	}
+	if data := decodeSystemRouteData(t, resp); data["realTradingEnabled"] != true {
+		t.Fatalf("update runtime risk data = %#v", data)
+	}
+	if data := decodeSystemRouteData(t, performSystemRouteRequest(router, http.MethodGet, "/api/v1/system/real-trade-risk-limits")); data["realTradingEnabled"] != true {
+		t.Fatalf("GET runtime risk data = %#v", data)
+	}
+
+	resp = performSystemRouteJSONRequest(router, http.MethodPost, "/api/v1/system/real-trade-kill-switch/activate", `{"operatorId":"tester","reason":"incident"}`)
 	if resp.Code != http.StatusOK {
 		t.Fatalf("activate kill switch status = %d body=%s", resp.Code, resp.Body.String())
 	}
@@ -199,6 +229,14 @@ func TestRealTradeControlRoutesDelegateStateChanges(t *testing.T) {
 	if data := decodeSystemRouteData(t, performSystemRouteRequest(router, http.MethodGet, "/api/v1/system/real-trade-kill-switch")); data["killSwitchActive"] != false {
 		t.Fatalf("GET released kill switch data = %#v", data)
 	}
+
+	resp = performSystemRouteJSONRequest(router, http.MethodDelete, "/api/v1/system/real-trade-risk-limits", `{"operatorId":"tester","reason":"close"}`)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("disable runtime risk status = %d body=%s", resp.Code, resp.Body.String())
+	}
+	if data := decodeSystemRouteData(t, resp); data["realTradingEnabled"] != false {
+		t.Fatalf("disable runtime risk data = %#v", data)
+	}
 }
 
 func TestRealTradeControlRoutesMapValidationAndControlFailures(t *testing.T) {
@@ -220,6 +258,14 @@ func TestRealTradeControlRoutesMapValidationAndControlFailures(t *testing.T) {
 				return nil, gatewayErr
 			},
 		),
+		sysservice.WithRealTradeRuntimeRiskControls(
+			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+				return nil, gatewayErr
+			},
+			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+				return nil, gatewayErr
+			},
+		),
 	)
 	router := gin.New()
 	RegisterRoutes(router.Group("/api/v1"), svc)
@@ -227,22 +273,33 @@ func TestRealTradeControlRoutesMapValidationAndControlFailures(t *testing.T) {
 	for _, path := range []string{
 		"/api/v1/system/real-trade-kill-switch/activate",
 		"/api/v1/system/real-trade-hard-stops",
+		"/api/v1/system/real-trade-risk-limits",
 	} {
-		response := performSystemRouteJSONRequest(router, http.MethodPost, path, `{`)
+		method := http.MethodPost
+		if strings.HasSuffix(path, "risk-limits") {
+			method = http.MethodPut
+		}
+		response := performSystemRouteJSONRequest(router, method, path, `{`)
 		if response.Code != http.StatusBadRequest {
 			t.Fatalf("%s bad JSON status = %d body=%s", path, response.Code, response.Body.String())
 		}
 	}
+	if response := performSystemRouteJSONRequest(router, http.MethodPut, "/api/v1/system/real-trade-risk-limits", `{"realTradingEnabled":true}`); response.Code != http.StatusBadRequest {
+		t.Fatalf("runtime risk missing limits status = %d body=%s", response.Code, response.Body.String())
+	}
 	for _, test := range []struct {
-		path string
-		body string
+		method string
+		path   string
+		body   string
 	}{
-		{path: "/api/v1/system/real-trade-kill-switch/activate", body: `{}`},
-		{path: "/api/v1/system/real-trade-kill-switch/release", body: `{}`},
-		{path: "/api/v1/system/real-trade-hard-stops", body: `{}`},
-		{path: "/api/v1/system/real-trade-hard-stops/hs-1/release", body: `{}`},
+		{method: http.MethodPost, path: "/api/v1/system/real-trade-kill-switch/activate", body: `{}`},
+		{method: http.MethodPost, path: "/api/v1/system/real-trade-kill-switch/release", body: `{}`},
+		{method: http.MethodPost, path: "/api/v1/system/real-trade-hard-stops", body: `{}`},
+		{method: http.MethodPost, path: "/api/v1/system/real-trade-hard-stops/hs-1/release", body: `{}`},
+		{method: http.MethodPut, path: "/api/v1/system/real-trade-risk-limits", body: `{"realTradingEnabled":true,"maxOrderQuantity":1}`},
+		{method: http.MethodDelete, path: "/api/v1/system/real-trade-risk-limits", body: `{}`},
 	} {
-		response := performSystemRouteJSONRequest(router, http.MethodPost, test.path, test.body)
+		response := performSystemRouteJSONRequest(router, test.method, test.path, test.body)
 		if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "REAL_TRADE_CONTROL_FAILED") {
 			t.Fatalf("%s control error = %d body=%s", test.path, response.Code, response.Body.String())
 		}

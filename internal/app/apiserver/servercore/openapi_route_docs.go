@@ -461,6 +461,8 @@ func documentExecutionEventsRoute() {}
 // @Router /api/v1/system/real-trade-kill-switch/release [post]
 // @Router /api/v1/system/real-trade-kill-switch-events [get]
 // @Router /api/v1/system/real-trade-risk-limits [get]
+// @Router /api/v1/system/real-trade-risk-limits [put]
+// @Router /api/v1/system/real-trade-risk-limits [delete]
 // @Router /api/v1/system/real-trade-risk-events [get]
 // @Router /api/v1/system/worker/broker-order-updates [get]
 func documentSystemOperationalRoutes() {}

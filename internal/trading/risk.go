@@ -3,8 +3,6 @@ package trading
 import (
 	"context"
 	"errors"
-	"os"
-	"strconv"
 	"strings"
 )
 
@@ -54,18 +52,15 @@ func IsRiskRejected(err error) bool {
 }
 
 type PreTradeRiskConfig struct {
-	RealTradingEnabled            bool
-	EnvConfiguredKillSwitch       bool
-	ControlPlaneKillSwitch        bool
-	ControlPlaneError             string
-	EnvConfiguredMaxOrderQty      *float64
-	EnvConfiguredMaxOrderNotional *float64
-	EnvConfiguredApprovalNotional *float64
-	ControlPlaneMaxOrderQty       *float64
-	ControlPlaneMaxOrderNotional  *float64
-	ControlPlaneHardStops         []RealTradeHardStopEntry
-	KillSwitchEntry               *RealTradeKillSwitchEntry
-	ControlPlaneEvents            []RealTradeControlEvent
+	RealTradingEnabled      bool
+	RuntimeKillSwitch       bool
+	RuntimeError            string
+	RuntimeMaxOrderQty      *float64
+	RuntimeMaxOrderNotional *float64
+	RuntimeHardStops        []RealTradeHardStopEntry
+	RuntimeRiskEntry        *RealTradeRuntimeRiskEntry
+	KillSwitchEntry         *RealTradeKillSwitchEntry
+	RuntimeEvents           []RealTradeControlEvent
 }
 
 type StaticPreTradeRiskGateway struct {
@@ -76,25 +71,13 @@ func NewStaticPreTradeRiskGateway(config func() PreTradeRiskConfig) *StaticPreTr
 	return &StaticPreTradeRiskGateway{config: config}
 }
 
-func NewEnvPreTradeRiskGateway() *StaticPreTradeRiskGateway {
-	return NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
-		return PreTradeRiskConfig{
-			RealTradingEnabled:            truthyEnv("JFTRADE_ALLOW_REAL_TRADING"),
-			EnvConfiguredKillSwitch:       truthyEnv("JFTRADE_REAL_TRADE_KILL_SWITCH"),
-			EnvConfiguredMaxOrderQty:      positiveFloatEnv("JFTRADE_REAL_TRADE_MAX_ORDER_QUANTITY"),
-			EnvConfiguredMaxOrderNotional: positiveFloatEnv("JFTRADE_REAL_TRADE_MAX_ORDER_NOTIONAL"),
-			EnvConfiguredApprovalNotional: positiveFloatEnv("JFTRADE_REAL_TRADE_APPROVAL_NOTIONAL"),
-		}
-	})
-}
-
 func (g *StaticPreTradeRiskGateway) EvaluatePlaceOrder(_ context.Context, command ExecutionOrderCommand) PreTradeRiskDecision {
 	snapshot := g.Snapshot()
 	if !strings.EqualFold(strings.TrimSpace(command.Query.TradingEnvironment), "REAL") {
 		return PreTradeRiskDecision{Decision: RiskDecisionAllow, Snapshot: snapshot}
 	}
 	if enabled, _ := snapshot["realTradingEnabled"].(bool); !enabled {
-		return riskRejected("REAL_TRADING_DISABLED", "real trading is disabled; set JFTRADE_ALLOW_REAL_TRADING=true before placing REAL orders", snapshot)
+		return riskRejected("REAL_TRADING_DISABLED", "real trading is disabled; enable runtime real-trade risk config before placing REAL orders", snapshot)
 	}
 	if active, _ := snapshot["killSwitchActive"].(bool); active {
 		return riskRejected("REAL_TRADE_KILL_SWITCH_ACTIVE", "real-trade kill switch is active; PLACE orders are blocked", snapshot)
@@ -115,14 +98,6 @@ func (g *StaticPreTradeRiskGateway) EvaluatePlaceOrder(_ context.Context, comman
 			return riskRejected("MAX_ORDER_NOTIONAL_EXCEEDED", "order notional exceeds the configured real-trade limit", snapshot)
 		}
 	}
-	if threshold, ok := snapshot["approvalRequiredNotional"].(*float64); ok && threshold != nil {
-		if riskPrice == nil {
-			return riskRequiresApproval("REAL_TRADE_APPROVAL_REQUIRED", "real-trade order matches the approval threshold, but the approval workflow is not implemented yet; order is blocked before broker submission because its notional cannot be determined", snapshot)
-		}
-		if command.Query.Quantity*(*riskPrice) > *threshold {
-			return riskRequiresApproval("REAL_TRADE_APPROVAL_REQUIRED", "real-trade order notional matches the approval threshold, but the approval workflow is not implemented yet; order is blocked before broker submission", snapshot)
-		}
-	}
 	return PreTradeRiskDecision{Decision: RiskDecisionAllow, Snapshot: snapshot}
 }
 
@@ -131,52 +106,46 @@ func (g *StaticPreTradeRiskGateway) Snapshot() map[string]any {
 	if g != nil && g.config != nil {
 		config = g.config()
 	}
-	killSwitchActive := config.EnvConfiguredKillSwitch || config.ControlPlaneKillSwitch
-	maxQty := minPositiveFloat(config.EnvConfiguredMaxOrderQty, config.ControlPlaneMaxOrderQty)
-	maxNotional := minPositiveFloat(config.EnvConfiguredMaxOrderNotional, config.ControlPlaneMaxOrderNotional)
-	riskConfigSource := riskConfigSource(config)
-	riskControlPlaneActive := config.ControlPlaneMaxOrderQty != nil || config.ControlPlaneMaxOrderNotional != nil
-	hardStops := append([]RealTradeHardStopEntry{}, config.ControlPlaneHardStops...)
-	events := append([]RealTradeControlEvent{}, config.ControlPlaneEvents...)
+	killSwitchActive := config.RuntimeKillSwitch
+	maxQty := positiveFloat(config.RuntimeMaxOrderQty)
+	maxNotional := positiveFloat(config.RuntimeMaxOrderNotional)
+	hardStops := append([]RealTradeHardStopEntry{}, config.RuntimeHardStops...)
+	events := append([]RealTradeControlEvent{}, config.RuntimeEvents...)
 	return map[string]any{
-		"realTradingEnabled":            config.RealTradingEnabled,
-		"killSwitchActive":              killSwitchActive,
-		"killSwitchSource":              killSwitchSource(config),
-		"envConfiguredActive":           config.EnvConfiguredKillSwitch,
-		"controlPlaneActive":            config.ControlPlaneKillSwitch,
-		"killSwitchControlPlaneActive":  config.ControlPlaneKillSwitch,
-		"controlPlaneAvailable":         strings.TrimSpace(config.ControlPlaneError) == "",
-		"controlPlaneError":             nullableString(config.ControlPlaneError),
-		"killSwitchEntry":               cloneKillSwitchEntry(config.KillSwitchEntry),
-		"killSwitchEvents":              filterRealTradeControlEvents(events, "KILL_SWITCH_"),
-		"blockedOperations":             []string{"PLACE", "MODIFY"},
-		"allowsCancel":                  true,
-		"hardStopsActive":               len(hardStops) > 0,
-		"hardStopEntries":               hardStops,
-		"hardStopEvents":                filterRealTradeControlEvents(events, "HARD_STOP_"),
-		"riskEnabled":                   maxQty != nil || maxNotional != nil,
-		"riskConfigSource":              riskConfigSource,
-		"envConfiguredMaxOrderQuantity": config.EnvConfiguredMaxOrderQty,
-		"envConfiguredMaxOrderNotional": config.EnvConfiguredMaxOrderNotional,
-		"approvalRequiredNotional":      config.EnvConfiguredApprovalNotional,
-		"riskControlPlaneActive":        riskControlPlaneActive,
-		"controlPlaneMaxOrderQuantity":  config.ControlPlaneMaxOrderQty,
-		"controlPlaneMaxOrderNotional":  config.ControlPlaneMaxOrderNotional,
-		"effectiveMaxOrderQuantity":     maxQty,
-		"effectiveMaxOrderNotional":     maxNotional,
+		"realTradingEnabled":                config.RealTradingEnabled,
+		"killSwitchActive":                  killSwitchActive,
+		"killSwitchSource":                  runtimeSwitchSource(config),
+		"runtimeKillSwitchActive":           config.RuntimeKillSwitch,
+		"controlPlaneAvailable":             strings.TrimSpace(config.RuntimeError) == "",
+		"controlPlaneError":                 nullableString(config.RuntimeError),
+		"killSwitchEntry":                   cloneKillSwitchEntry(config.KillSwitchEntry),
+		"killSwitchEvents":                  filterRealTradeControlEvents(events, "KILL_SWITCH_"),
+		"blockedOperations":                 []string{"PLACE", "MODIFY"},
+		"allowsCancel":                      true,
+		"hardStopsActive":                   len(hardStops) > 0,
+		"hardStopEntries":                   hardStops,
+		"hardStopEvents":                    filterRealTradeControlEvents(events, "HARD_STOP_"),
+		"riskEnabled":                       maxQty != nil || maxNotional != nil,
+		"runtimeRiskConfigured":             config.RuntimeRiskEntry != nil,
+		"runtimeConfiguredMaxOrderQuantity": maxQty,
+		"runtimeConfiguredMaxOrderNotional": maxNotional,
+		"effectiveMaxOrderQuantity":         maxQty,
+		"effectiveMaxOrderNotional":         maxNotional,
+		"riskEntry":                         cloneRuntimeRiskEntry(config.RuntimeRiskEntry),
+		"riskEvents":                        filterRealTradeRiskEvents(events),
 	}
 }
 
 func configFromSnapshot(snapshot map[string]any) PreTradeRiskConfig {
 	config := PreTradeRiskConfig{}
 	if entries, ok := snapshot["hardStopEntries"].([]RealTradeHardStopEntry); ok {
-		config.ControlPlaneHardStops = entries
+		config.RuntimeHardStops = entries
 	}
 	return config
 }
 
 func matchHardStop(config PreTradeRiskConfig, command ExecutionOrderCommand) *RealTradeHardStopEntry {
-	for _, entry := range config.ControlPlaneHardStops {
+	for _, entry := range config.RuntimeHardStops {
 		if !hardStopMatches(entry, command) {
 			continue
 		}
@@ -234,6 +203,17 @@ func filterRealTradeControlEvents(events []RealTradeControlEvent, actionPrefix s
 	return filtered
 }
 
+func filterRealTradeRiskEvents(events []RealTradeControlEvent) []RealTradeControlEvent {
+	filtered := make([]RealTradeControlEvent, 0, len(events))
+	for _, event := range events {
+		action := strings.ToUpper(event.Action)
+		if strings.HasPrefix(action, "RISK_CONFIG_") || strings.HasPrefix(action, "RISK_LIMIT_") {
+			filtered = append(filtered, event)
+		}
+	}
+	return filtered
+}
+
 func commandRiskPrice(command ExecutionOrderCommand) *float64 {
 	if command.Query.Price != nil {
 		return command.Query.Price
@@ -250,71 +230,17 @@ func riskRejected(code, message string, snapshot map[string]any) PreTradeRiskDec
 	}
 }
 
-func riskRequiresApproval(code, message string, snapshot map[string]any) PreTradeRiskDecision {
-	return PreTradeRiskDecision{
-		Decision:      RiskDecisionRequireApproval,
-		ReasonCode:    code,
-		ReasonMessage: message,
-		Snapshot:      snapshot,
-	}
-}
-
-func truthyEnv(name string) bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv(name))) {
-	case "1", "true", "yes", "y", "on", "enabled", "enable":
-		return true
-	default:
-		return false
-	}
-}
-
-func positiveFloatEnv(name string) *float64 {
-	raw := strings.TrimSpace(os.Getenv(name))
-	if raw == "" {
+func positiveFloat(value *float64) *float64 {
+	if value == nil || *value <= 0 {
 		return nil
 	}
-	value, err := strconv.ParseFloat(raw, 64)
-	if err != nil || value <= 0 {
-		return nil
-	}
-	return &value
+	copyValue := *value
+	return &copyValue
 }
 
-func minPositiveFloat(values ...*float64) *float64 {
-	var selected *float64
-	for _, value := range values {
-		if value == nil || *value <= 0 {
-			continue
-		}
-		if selected == nil || *value < *selected {
-			selected = value
-		}
+func runtimeSwitchSource(config PreTradeRiskConfig) any {
+	if config.RuntimeKillSwitch {
+		return "RUNTIME"
 	}
-	return selected
-}
-
-func riskConfigSource(config PreTradeRiskConfig) any {
-	hasEnv := config.EnvConfiguredMaxOrderQty != nil || config.EnvConfiguredMaxOrderNotional != nil
-	hasControlPlane := config.ControlPlaneMaxOrderQty != nil || config.ControlPlaneMaxOrderNotional != nil
-	switch {
-	case hasEnv && hasControlPlane:
-		return "MERGED"
-	case hasEnv:
-		return "ENV"
-	case hasControlPlane:
-		return "CONTROL_PLANE"
-	default:
-		return nil
-	}
-}
-
-func killSwitchSource(config PreTradeRiskConfig) any {
-	switch {
-	case config.EnvConfiguredKillSwitch:
-		return "ENV"
-	case config.ControlPlaneKillSwitch:
-		return "CONTROL_PLANE"
-	default:
-		return nil
-	}
+	return nil
 }

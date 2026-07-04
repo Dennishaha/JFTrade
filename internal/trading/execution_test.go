@@ -354,20 +354,21 @@ func TestCreateExecutionOrderRunsPreTradeRiskBeforeBrokerCall(t *testing.T) {
 	}
 }
 
-func TestCreateExecutionOrderRequiresApprovalBeforeBrokerCall(t *testing.T) {
+func TestCreateExecutionOrderAllowsRuntimeEnabledRealTradeBeforeBrokerCall(t *testing.T) {
 	price := 100.0
-	approvalNotional := 50.0
+	maxNotional := 500.0
+	placed := false
 	service := NewService(
 		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
-			return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredApprovalNotional: &approvalNotional}
+			return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderNotional: &maxNotional}
 		})),
-		WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
-			t.Fatal("placeOrder should not be called while real-trade approval is required")
-			return ExecutionOrder{}, nil
+		WithPlaceOrder(func(_ context.Context, command ExecutionOrderCommand) (ExecutionOrder, error) {
+			placed = true
+			return ExecutionOrder{InternalOrderID: "local-risk-real", BrokerID: command.BrokerID, Status: "SUBMITTED"}, nil
 		}),
 	)
 
-	_, err := service.CreateExecutionOrder(context.Background(), ExecutionPlaceRequest{
+	response, err := service.CreateExecutionOrder(context.Background(), ExecutionPlaceRequest{
 		TradingEnvironment: "REAL",
 		Market:             "US",
 		Symbol:             "AAPL",
@@ -375,12 +376,11 @@ func TestCreateExecutionOrderRequiresApprovalBeforeBrokerCall(t *testing.T) {
 		Quantity:           1,
 		Price:              &price,
 	})
-	var rejected RiskRejectedError
-	if !errors.As(err, &rejected) || rejected.Decision.Decision != RiskDecisionRequireApproval || !rejected.Decision.RequiresApproval() {
-		t.Fatalf("CreateExecutionOrder error = %#v, want approval-required risk decision", err)
+	if err != nil {
+		t.Fatalf("CreateExecutionOrder: %v", err)
 	}
-	if rejected.Decision.ReasonCode != "REAL_TRADE_APPROVAL_REQUIRED" {
-		t.Fatalf("approval reason = %#v", rejected.Decision)
+	if !placed || !response.Accepted || response.InternalOrderID == nil || *response.InternalOrderID != "local-risk-real" {
+		t.Fatalf("response=%#v placed=%v", response, placed)
 	}
 }
 
@@ -424,21 +424,21 @@ func TestPreTradeRiskRejectsKillSwitchAndLimits(t *testing.T) {
 	}}
 
 	killSwitch := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
-		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredKillSwitch: true}
+		return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeKillSwitch: true}
 	})
 	if decision := killSwitch.EvaluatePlaceOrder(context.Background(), command); decision.Allows() || decision.ReasonCode != "REAL_TRADE_KILL_SWITCH_ACTIVE" {
 		t.Fatalf("kill switch decision = %#v", decision)
 	}
 
 	quantityLimit := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
-		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredMaxOrderQty: &maxQty}
+		return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderQty: &maxQty}
 	})
 	if decision := quantityLimit.EvaluatePlaceOrder(context.Background(), command); decision.Allows() || decision.ReasonCode != "MAX_ORDER_QUANTITY_EXCEEDED" {
 		t.Fatalf("quantity decision = %#v", decision)
 	}
 
 	notionalLimit := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
-		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredMaxOrderNotional: &maxNotional}
+		return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderNotional: &maxNotional}
 	})
 	if decision := notionalLimit.EvaluatePlaceOrder(context.Background(), command); decision.Allows() || decision.ReasonCode != "MAX_ORDER_NOTIONAL_EXCEEDED" {
 		t.Fatalf("notional decision = %#v", decision)
@@ -451,13 +451,6 @@ func TestPreTradeRiskRejectsKillSwitchAndLimits(t *testing.T) {
 		t.Fatalf("stop notional decision = %#v", decision)
 	}
 
-	approvalNotional := 40.0
-	approvalLimit := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
-		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredApprovalNotional: &approvalNotional}
-	})
-	if decision := approvalLimit.EvaluatePlaceOrder(context.Background(), command); !decision.RequiresApproval() || decision.ReasonCode != "REAL_TRADE_APPROVAL_REQUIRED" {
-		t.Fatalf("approval decision = %#v", decision)
-	}
 }
 
 func TestPreTradeRiskSnapshotUsesNonNilEmptySlices(t *testing.T) {
@@ -481,54 +474,51 @@ func TestPreTradeRiskSnapshotUsesNonNilEmptySlices(t *testing.T) {
 
 func TestPreTradeRiskDoesNotLetUnknownNotionalBypassRealTradeControls(t *testing.T) {
 	maxNotional := 1000.0
-	approvalNotional := 500.0
 	command := ExecutionOrderCommand{Query: broker.PlaceOrderQuery{
 		ReadQuery: broker.ReadQuery{TradingEnvironment: "REAL"},
 		Quantity:  2,
 	}}
 
 	limitGateway := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
-		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredMaxOrderNotional: &maxNotional}
+		return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderNotional: &maxNotional}
 	})
 	if decision := limitGateway.EvaluatePlaceOrder(t.Context(), command); decision.ReasonCode != "RISK_PRICE_UNAVAILABLE" || decision.Allows() {
 		t.Fatalf("notional-limit decision = %#v", decision)
 	}
-
-	approvalGateway := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
-		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredApprovalNotional: &approvalNotional}
-	})
-	if decision := approvalGateway.EvaluatePlaceOrder(t.Context(), command); !decision.RequiresApproval() {
-		t.Fatalf("approval decision = %#v", decision)
-	}
 }
 
-func TestEnvPreTradeRiskGatewayReadsOperationalControls(t *testing.T) {
+func TestRealTradeEnvVariablesDoNotConfigurePreTradeRisk(t *testing.T) {
 	t.Setenv("JFTRADE_ALLOW_REAL_TRADING", "true")
 	t.Setenv("JFTRADE_REAL_TRADE_KILL_SWITCH", "on")
 	t.Setenv("JFTRADE_REAL_TRADE_MAX_ORDER_QUANTITY", "12.5")
 	t.Setenv("JFTRADE_REAL_TRADE_MAX_ORDER_NOTIONAL", "2500")
 	t.Setenv("JFTRADE_REAL_TRADE_APPROVAL_NOTIONAL", "1000")
 
-	snapshot := NewEnvPreTradeRiskGateway().Snapshot()
-	if snapshot["realTradingEnabled"] != true || snapshot["killSwitchActive"] != true {
-		t.Fatalf("snapshot gates = %#v", snapshot)
+	plane, err := NewRealTradeControlPlane("")
+	if err != nil {
+		t.Fatalf("NewRealTradeControlPlane: %v", err)
 	}
-	if snapshot["riskConfigSource"] != "ENV" {
-		t.Fatalf("riskConfigSource = %#v, want ENV", snapshot["riskConfigSource"])
+	snapshot := plane.Snapshot()
+	if snapshot["realTradingEnabled"] != false || snapshot["killSwitchActive"] != false {
+		t.Fatalf("env should not configure runtime gates: %#v", snapshot)
 	}
-	if got := snapshot["effectiveMaxOrderQuantity"].(*float64); got == nil || *got != 12.5 {
-		t.Fatalf("effectiveMaxOrderQuantity = %#v", snapshot["effectiveMaxOrderQuantity"])
+	if limitValue(snapshot["effectiveMaxOrderQuantity"]) != nil || limitValue(snapshot["effectiveMaxOrderNotional"]) != nil {
+		t.Fatalf("env should not configure runtime limits: %#v", snapshot)
 	}
-	if got := snapshot["effectiveMaxOrderNotional"].(*float64); got == nil || *got != 2500 {
-		t.Fatalf("effectiveMaxOrderNotional = %#v", snapshot["effectiveMaxOrderNotional"])
-	}
-	if got := snapshot["approvalRequiredNotional"].(*float64); got == nil || *got != 1000 {
-		t.Fatalf("approvalRequiredNotional = %#v", snapshot["approvalRequiredNotional"])
+	if _, ok := snapshot["riskConfigSource"]; ok {
+		t.Fatalf("snapshot should not expose env/control-plane risk source: %#v", snapshot)
 	}
 }
 
+func limitValue(value any) *float64 {
+	limit, ok := value.(*float64)
+	if !ok {
+		return nil
+	}
+	return limit
+}
+
 func TestRealTradeControlPlanePersistsKillSwitchAndHardStop(t *testing.T) {
-	t.Setenv("JFTRADE_ALLOW_REAL_TRADING", "true")
 	path := filepath.Join(t.TempDir(), "real-trade-control.json")
 	plane, err := NewRealTradeControlPlane(path)
 	if err != nil {
@@ -542,7 +532,7 @@ func TestRealTradeControlPlanePersistsKillSwitchAndHardStop(t *testing.T) {
 		t.Fatalf("ActivateKillSwitch: %v", err)
 	}
 	snapshot := plane.Snapshot()
-	if snapshot["killSwitchActive"] != true || snapshot["killSwitchSource"] != "CONTROL_PLANE" {
+	if snapshot["killSwitchActive"] != true || snapshot["killSwitchSource"] != "RUNTIME" {
 		t.Fatalf("kill switch snapshot = %#v", snapshot)
 	}
 
@@ -558,6 +548,15 @@ func TestRealTradeControlPlanePersistsKillSwitchAndHardStop(t *testing.T) {
 	}
 	if reloaded.Snapshot()["killSwitchActive"] != false {
 		t.Fatalf("released snapshot = %#v", reloaded.Snapshot())
+	}
+	maxQty := 10.0
+	if _, err := reloaded.UpdateRuntimeRiskConfig(context.Background(), RealTradeRuntimeRiskCommand{
+		RealTradingEnabled: true,
+		MaxOrderQuantity:   &maxQty,
+		OperatorID:         "tester",
+		Reason:             "enable real trading",
+	}); err != nil {
+		t.Fatalf("UpdateRuntimeRiskConfig: %v", err)
 	}
 
 	if _, err := reloaded.ActivateHardStop(context.Background(), RealTradeHardStopCommand{
@@ -594,8 +593,69 @@ func TestRealTradeControlPlanePersistsKillSwitchAndHardStop(t *testing.T) {
 	}
 }
 
+func TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "real-trade-control.json")
+	plane, err := NewRealTradeControlPlane(path)
+	if err != nil {
+		t.Fatalf("NewRealTradeControlPlane: %v", err)
+	}
+
+	if _, err := plane.UpdateRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{RealTradingEnabled: true}); err == nil {
+		t.Fatal("UpdateRuntimeRiskConfig enabled without limits should fail")
+	}
+	invalidLimit := -1.0
+	if _, err := plane.UpdateRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{MaxOrderQuantity: &invalidLimit}); err == nil {
+		t.Fatal("UpdateRuntimeRiskConfig with non-positive quantity should fail")
+	}
+
+	maxQty := 25.0
+	maxNotional := 5000.0
+	snapshot, err := plane.UpdateRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{
+		TradingEnvironment: "real",
+		RealTradingEnabled: true,
+		MaxOrderQuantity:   &maxQty,
+		MaxOrderNotional:   &maxNotional,
+		OperatorID:         "tester",
+		Reason:             "session open",
+	})
+	if err != nil {
+		t.Fatalf("UpdateRuntimeRiskConfig: %v", err)
+	}
+	if snapshot["realTradingEnabled"] != true || snapshot["runtimeRiskConfigured"] != true {
+		t.Fatalf("runtime risk snapshot = %#v", snapshot)
+	}
+	entry, ok := snapshot["riskEntry"].(*RealTradeRuntimeRiskEntry)
+	if !ok || entry == nil || entry.OperatorID != "tester" || entry.TradingEnvironment != "REAL" {
+		t.Fatalf("runtime risk entry = %#v", snapshot["riskEntry"])
+	}
+	events := snapshot["riskEvents"].([]RealTradeControlEvent)
+	if len(events) != 1 || events[0].Action != "RISK_CONFIG_UPDATED" || events[0].RealTradingEnabled == nil || !*events[0].RealTradingEnabled {
+		t.Fatalf("risk update events = %#v", events)
+	}
+
+	disabled, err := plane.DisableRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{OperatorID: "tester", Reason: "session closed"})
+	if err != nil {
+		t.Fatalf("DisableRuntimeRiskConfig: %v", err)
+	}
+	disabledEntry, _ := disabled["riskEntry"].(*RealTradeRuntimeRiskEntry)
+	if disabled["realTradingEnabled"] != false || disabled["runtimeRiskConfigured"] != false || disabledEntry != nil {
+		t.Fatalf("disabled runtime risk snapshot = %#v", disabled)
+	}
+	events = disabled["riskEvents"].([]RealTradeControlEvent)
+	if len(events) < 2 || events[0].Action != "RISK_CONFIG_DISABLED" || events[0].RealTradingEnabled == nil || *events[0].RealTradingEnabled {
+		t.Fatalf("risk disable events = %#v", events)
+	}
+
+	reloaded, err := NewRealTradeControlPlane(path)
+	if err != nil {
+		t.Fatalf("reload control plane: %v", err)
+	}
+	if got := reloaded.Snapshot(); got["runtimeRiskConfigured"] != false || len(got["riskEvents"].([]RealTradeControlEvent)) != len(events) {
+		t.Fatalf("reloaded disabled runtime risk snapshot = %#v", got)
+	}
+}
+
 func TestRealTradeControlPlaneRollsBackFailedPersistence(t *testing.T) {
-	t.Setenv("JFTRADE_ALLOW_REAL_TRADING", "true")
 	plane, err := NewRealTradeControlPlane("")
 	if err != nil {
 		t.Fatalf("NewRealTradeControlPlane: %v", err)
@@ -637,10 +697,30 @@ func TestRealTradeControlPlaneRollsBackFailedPersistence(t *testing.T) {
 	if got := plane.Snapshot()["hardStopEntries"].([]RealTradeHardStopEntry); len(got) != 1 || got[0].ID != entries[0].ID {
 		t.Fatalf("failed hard-stop release changed active entries: %#v", got)
 	}
+
+	maxQty := 10.0
+	plane.path = ""
+	if _, err := plane.UpdateRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{RealTradingEnabled: true, MaxOrderQuantity: &maxQty}); err != nil {
+		t.Fatalf("UpdateRuntimeRiskConfig: %v", err)
+	}
+	beforeRuntimeRisk := plane.Snapshot()
+	updatedMaxQty := 5.0
+	plane.path = filepath.Join(parentFile, "real-trade-control.json")
+	if _, err := plane.UpdateRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{RealTradingEnabled: true, MaxOrderQuantity: &updatedMaxQty}); err == nil {
+		t.Fatal("UpdateRuntimeRiskConfig should fail when state cannot be persisted")
+	}
+	if got := plane.Snapshot(); *got["effectiveMaxOrderQuantity"].(*float64) != *beforeRuntimeRisk["effectiveMaxOrderQuantity"].(*float64) {
+		t.Fatalf("failed runtime-risk update changed active limit: before=%#v after=%#v", beforeRuntimeRisk, got)
+	}
+	if _, err := plane.DisableRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{}); err == nil {
+		t.Fatal("DisableRuntimeRiskConfig should fail when state cannot be persisted")
+	}
+	if got := plane.Snapshot(); got["runtimeRiskConfigured"] != true {
+		t.Fatalf("failed runtime-risk disable removed active config: %#v", got)
+	}
 }
 
 func TestRealTradeControlPlaneFailsClosedWhenPersistedStateCannotLoad(t *testing.T) {
-	t.Setenv("JFTRADE_ALLOW_REAL_TRADING", "true")
 	path := filepath.Join(t.TempDir(), "real-trade-control.json")
 	if err := os.WriteFile(path, []byte("{"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)

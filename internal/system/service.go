@@ -35,6 +35,8 @@ type Service struct {
 	runtimeDependenciesFn       func(ctx context.Context) map[string]any
 	requestObservabilityFn      func() any
 	realTradeRiskStateFn        func() map[string]any
+	updateRiskConfigFn          func(context.Context, RealTradeRuntimeRiskCommand) (map[string]any, error)
+	disableRiskConfigFn         func(context.Context, RealTradeRuntimeRiskCommand) (map[string]any, error)
 	activateKillSwitchFn        func(context.Context, RealTradeKillSwitchCommand) (map[string]any, error)
 	releaseKillSwitchFn         func(context.Context, RealTradeKillSwitchCommand) (map[string]any, error)
 	activateHardStopFn          func(context.Context, RealTradeHardStopCommand) (map[string]any, error)
@@ -158,6 +160,16 @@ func WithRealTradeRiskState(fn func() map[string]any) Option {
 	return func(s *Service) { s.realTradeRiskStateFn = fn }
 }
 
+func WithRealTradeRuntimeRiskControls(
+	update func(context.Context, RealTradeRuntimeRiskCommand) (map[string]any, error),
+	disable func(context.Context, RealTradeRuntimeRiskCommand) (map[string]any, error),
+) Option {
+	return func(s *Service) {
+		s.updateRiskConfigFn = update
+		s.disableRiskConfigFn = disable
+	}
+}
+
 func WithRealTradeKillSwitchControls(
 	activate func(context.Context, RealTradeKillSwitchCommand) (map[string]any, error),
 	release func(context.Context, RealTradeKillSwitchCommand) (map[string]any, error),
@@ -193,6 +205,15 @@ type RealTradeHardStopCommand struct {
 	HardStopScope      string `json:"hardStopScope"`
 	OperatorID         string `json:"operatorId"`
 	Reason             string `json:"reason"`
+}
+
+type RealTradeRuntimeRiskCommand struct {
+	TradingEnvironment string   `json:"tradingEnvironment"`
+	RealTradingEnabled bool     `json:"realTradingEnabled"`
+	MaxOrderQuantity   *float64 `json:"maxOrderQuantity"`
+	MaxOrderNotional   *float64 `json:"maxOrderNotional"`
+	OperatorID         string   `json:"operatorId"`
+	Reason             string   `json:"reason"`
 }
 
 // ── 系统状态 ──
@@ -244,14 +265,13 @@ func (s *Service) Status() map[string]any {
 		"defaultTradingEnvironment": defaultTradingEnvironment,
 		"realTradingEnabled":        boolValue(realTrade, "realTradingEnabled"),
 		"realTradingKillSwitch": map[string]any{
-			"active": boolValue(realTrade, "killSwitchActive"), "envConfiguredActive": boolValue(realTrade, "envConfiguredActive"), "controlPlaneActive": boolValue(realTrade, "killSwitchControlPlaneActive"),
+			"active": boolValue(realTrade, "killSwitchActive"), "runtimeActive": boolValue(realTrade, "runtimeKillSwitchActive"),
 			"blockedOperations": []string{"PLACE", "MODIFY"}, "allowsCancel": true,
 		},
 		"realTradingRisk": map[string]any{
 			"enabled": boolValue(realTrade, "riskEnabled"), "maxOrderQuantity": realTrade["effectiveMaxOrderQuantity"], "maxOrderNotional": realTrade["effectiveMaxOrderNotional"],
-			"envConfiguredMaxOrderQuantity": realTrade["envConfiguredMaxOrderQuantity"], "envConfiguredMaxOrderNotional": realTrade["envConfiguredMaxOrderNotional"],
-			"controlPlaneActive": boolValue(realTrade, "riskControlPlaneActive"), "controlPlaneMaxOrderQuantity": realTrade["controlPlaneMaxOrderQuantity"], "controlPlaneMaxOrderNotional": realTrade["controlPlaneMaxOrderNotional"],
-			"riskConfigSource": realTrade["riskConfigSource"],
+			"runtimeConfiguredMaxOrderQuantity": realTrade["runtimeConfiguredMaxOrderQuantity"], "runtimeConfiguredMaxOrderNotional": realTrade["runtimeConfiguredMaxOrderNotional"],
+			"runtimeRiskConfigured": boolValue(realTrade, "runtimeRiskConfigured"),
 		},
 		"realTradeAccess": map[string]any{
 			"approverAllowlistEnabled": false, "approverCount": 0,
@@ -342,32 +362,19 @@ func (s *Service) StorageOverview() map[string]any {
 // RealTradeApprovals 返回实盘审批状态。
 func (s *Service) RealTradeApprovals() map[string]any {
 	realTrade := s.realTradeRiskState()
-	approvalThreshold := realTrade["approvalRequiredNotional"]
-	approvalThresholdConfigured := approvalThreshold != nil
-	if threshold, ok := approvalThreshold.(*float64); ok {
-		approvalThresholdConfigured = threshold != nil
-	}
-	workflowStatus := "not_configured"
-	workflowMessage := "real-trade approval workflow is not configured; no approval entries are recorded."
-	approvalMode := "none"
-	if approvalThresholdConfigured {
-		workflowStatus = "not_implemented"
-		workflowMessage = "large-order real-trade approval threshold is configured, but approval creation/approval consumption is not implemented yet; matching orders are blocked before broker submission."
-		approvalMode = "blocking_threshold_without_workflow"
-	}
 	return map[string]any{
 		"realTradingEnabled":        boolValue(realTrade, "realTradingEnabled"),
 		"requiredConfirmationText":  "ENABLE_REAL_TRADING",
 		"maxApprovalAgeMs":          5 * 60 * 1000,
 		"approvalWorkflowAvailable": false,
-		"approvalWorkflowStatus":    workflowStatus,
-		"approvalWorkflowMessage":   workflowMessage,
+		"approvalWorkflowStatus":    "not_configured",
+		"approvalWorkflowMessage":   "real-trade approval workflow is not configured; runtime risk limits are enforced before broker submission.",
 		"approvalPolicy": map[string]any{
 			"approverAllowlistEnabled":  false,
 			"approverCount":             0,
-			"largeOrderNotional":        approvalThreshold,
+			"largeOrderNotional":        nil,
 			"approvalWorkflowAvailable": false,
-			"approvalMode":              approvalMode,
+			"approvalMode":              "none",
 		},
 		"entries": []any{},
 	}
@@ -398,14 +405,13 @@ func (s *Service) RealTradeHardStopEvents() map[string]any {
 func (s *Service) RealTradeKillSwitch() map[string]any {
 	realTrade := s.realTradeRiskState()
 	return map[string]any{
-		"realTradingEnabled":  boolValue(realTrade, "realTradingEnabled"),
-		"killSwitchActive":    boolValue(realTrade, "killSwitchActive"),
-		"killSwitchSource":    realTrade["killSwitchSource"],
-		"envConfiguredActive": boolValue(realTrade, "envConfiguredActive"),
-		"controlPlaneActive":  boolValue(realTrade, "killSwitchControlPlaneActive"),
-		"blockedOperations":   []string{"PLACE", "MODIFY"},
-		"allowsCancel":        true,
-		"entry":               realTrade["killSwitchEntry"],
+		"realTradingEnabled": boolValue(realTrade, "realTradingEnabled"),
+		"killSwitchActive":   boolValue(realTrade, "killSwitchActive"),
+		"killSwitchSource":   realTrade["killSwitchSource"],
+		"runtimeActive":      boolValue(realTrade, "runtimeKillSwitchActive"),
+		"blockedOperations":  []string{"PLACE", "MODIFY"},
+		"allowsCancel":       true,
+		"entry":              realTrade["killSwitchEntry"],
 	}
 }
 
@@ -413,13 +419,12 @@ func (s *Service) RealTradeKillSwitch() map[string]any {
 func (s *Service) RealTradeKillSwitchEvents() map[string]any {
 	realTrade := s.realTradeRiskState()
 	return map[string]any{
-		"realTradingEnabled":  boolValue(realTrade, "realTradingEnabled"),
-		"killSwitchActive":    boolValue(realTrade, "killSwitchActive"),
-		"envConfiguredActive": boolValue(realTrade, "envConfiguredActive"),
-		"controlPlaneActive":  boolValue(realTrade, "killSwitchControlPlaneActive"),
-		"blockedOperations":   []string{"PLACE", "MODIFY"},
-		"allowsCancel":        true,
-		"entries":             anySliceValue(realTrade, "killSwitchEvents"),
+		"realTradingEnabled": boolValue(realTrade, "realTradingEnabled"),
+		"killSwitchActive":   boolValue(realTrade, "killSwitchActive"),
+		"runtimeActive":      boolValue(realTrade, "runtimeKillSwitchActive"),
+		"blockedOperations":  []string{"PLACE", "MODIFY"},
+		"allowsCancel":       true,
+		"entries":            anySliceValue(realTrade, "killSwitchEvents"),
 	}
 }
 
@@ -427,18 +432,29 @@ func (s *Service) RealTradeKillSwitchEvents() map[string]any {
 func (s *Service) RealTradeRiskLimits() map[string]any {
 	realTrade := s.realTradeRiskState()
 	return map[string]any{
-		"realTradingEnabled":            boolValue(realTrade, "realTradingEnabled"),
-		"riskEnabled":                   boolValue(realTrade, "riskEnabled"),
-		"riskConfigSource":              realTrade["riskConfigSource"],
-		"envConfiguredMaxOrderQuantity": realTrade["envConfiguredMaxOrderQuantity"],
-		"envConfiguredMaxOrderNotional": realTrade["envConfiguredMaxOrderNotional"],
-		"controlPlaneActive":            boolValue(realTrade, "riskControlPlaneActive"),
-		"controlPlaneMaxOrderQuantity":  realTrade["controlPlaneMaxOrderQuantity"],
-		"controlPlaneMaxOrderNotional":  realTrade["controlPlaneMaxOrderNotional"],
-		"effectiveMaxOrderQuantity":     realTrade["effectiveMaxOrderQuantity"],
-		"effectiveMaxOrderNotional":     realTrade["effectiveMaxOrderNotional"],
-		"entry":                         nil,
+		"realTradingEnabled":                boolValue(realTrade, "realTradingEnabled"),
+		"riskEnabled":                       boolValue(realTrade, "riskEnabled"),
+		"runtimeRiskConfigured":             boolValue(realTrade, "runtimeRiskConfigured"),
+		"runtimeConfiguredMaxOrderQuantity": realTrade["runtimeConfiguredMaxOrderQuantity"],
+		"runtimeConfiguredMaxOrderNotional": realTrade["runtimeConfiguredMaxOrderNotional"],
+		"effectiveMaxOrderQuantity":         realTrade["effectiveMaxOrderQuantity"],
+		"effectiveMaxOrderNotional":         realTrade["effectiveMaxOrderNotional"],
+		"entry":                             realTrade["riskEntry"],
 	}
+}
+
+func (s *Service) UpdateRealTradeRuntimeRisk(ctx context.Context, command RealTradeRuntimeRiskCommand) (map[string]any, error) {
+	if s.updateRiskConfigFn == nil {
+		return nil, errRealTradeControlUnavailable
+	}
+	return s.updateRiskConfigFn(ctx, command)
+}
+
+func (s *Service) DisableRealTradeRuntimeRisk(ctx context.Context, command RealTradeRuntimeRiskCommand) (map[string]any, error) {
+	if s.disableRiskConfigFn == nil {
+		return nil, errRealTradeControlUnavailable
+	}
+	return s.disableRiskConfigFn(ctx, command)
 }
 
 func (s *Service) ActivateRealTradeKillSwitch(ctx context.Context, command RealTradeKillSwitchCommand) (map[string]any, error) {
@@ -473,41 +489,34 @@ func (s *Service) ReleaseRealTradeHardStop(ctx context.Context, id string, comma
 func (s *Service) RealTradeRiskEvents() map[string]any {
 	realTrade := s.realTradeRiskState()
 	return map[string]any{
-		"realTradingEnabled":            boolValue(realTrade, "realTradingEnabled"),
-		"riskEnabled":                   boolValue(realTrade, "riskEnabled"),
-		"riskConfigSource":              realTrade["riskConfigSource"],
-		"envConfiguredMaxOrderQuantity": realTrade["envConfiguredMaxOrderQuantity"],
-		"envConfiguredMaxOrderNotional": realTrade["envConfiguredMaxOrderNotional"],
-		"controlPlaneActive":            boolValue(realTrade, "riskControlPlaneActive"),
-		"controlPlaneMaxOrderQuantity":  realTrade["controlPlaneMaxOrderQuantity"],
-		"controlPlaneMaxOrderNotional":  realTrade["controlPlaneMaxOrderNotional"],
-		"effectiveMaxOrderQuantity":     realTrade["effectiveMaxOrderQuantity"],
-		"effectiveMaxOrderNotional":     realTrade["effectiveMaxOrderNotional"],
-		"maxOrderQuantity":              realTrade["effectiveMaxOrderQuantity"],
-		"maxOrderNotional":              realTrade["effectiveMaxOrderNotional"],
-		"entries":                       []any{},
+		"realTradingEnabled":                boolValue(realTrade, "realTradingEnabled"),
+		"riskEnabled":                       boolValue(realTrade, "riskEnabled"),
+		"runtimeRiskConfigured":             boolValue(realTrade, "runtimeRiskConfigured"),
+		"runtimeConfiguredMaxOrderQuantity": realTrade["runtimeConfiguredMaxOrderQuantity"],
+		"runtimeConfiguredMaxOrderNotional": realTrade["runtimeConfiguredMaxOrderNotional"],
+		"effectiveMaxOrderQuantity":         realTrade["effectiveMaxOrderQuantity"],
+		"effectiveMaxOrderNotional":         realTrade["effectiveMaxOrderNotional"],
+		"maxOrderQuantity":                  realTrade["effectiveMaxOrderQuantity"],
+		"maxOrderNotional":                  realTrade["effectiveMaxOrderNotional"],
+		"entries":                           anySliceValue(realTrade, "riskEvents"),
 	}
 }
 
 func (s *Service) realTradeRiskState() map[string]any {
 	if s.realTradeRiskStateFn == nil {
 		return map[string]any{
-			"realTradingEnabled":            false,
-			"killSwitchActive":              false,
-			"killSwitchSource":              nil,
-			"envConfiguredActive":           false,
-			"controlPlaneActive":            false,
-			"killSwitchControlPlaneActive":  false,
-			"riskEnabled":                   false,
-			"riskConfigSource":              nil,
-			"envConfiguredMaxOrderQuantity": nil,
-			"envConfiguredMaxOrderNotional": nil,
-			"approvalRequiredNotional":      nil,
-			"riskControlPlaneActive":        false,
-			"controlPlaneMaxOrderQuantity":  nil,
-			"controlPlaneMaxOrderNotional":  nil,
-			"effectiveMaxOrderQuantity":     nil,
-			"effectiveMaxOrderNotional":     nil,
+			"realTradingEnabled":                false,
+			"killSwitchActive":                  false,
+			"killSwitchSource":                  nil,
+			"runtimeKillSwitchActive":           false,
+			"riskEnabled":                       false,
+			"runtimeRiskConfigured":             false,
+			"runtimeConfiguredMaxOrderQuantity": nil,
+			"runtimeConfiguredMaxOrderNotional": nil,
+			"effectiveMaxOrderQuantity":         nil,
+			"effectiveMaxOrderNotional":         nil,
+			"riskEntry":                         nil,
+			"riskEvents":                        []any{},
 		}
 	}
 	state := s.realTradeRiskStateFn()
@@ -531,10 +540,22 @@ func anySliceValue(values map[string]any, key string) any {
 	if !ok || value == nil {
 		return []any{}
 	}
-	if reflected := reflect.ValueOf(value); reflected.Kind() == reflect.Slice && reflected.IsNil() {
+	switch value.(type) {
+	case []any, []string:
+		return value
+	}
+	reflected := reflect.ValueOf(value)
+	if reflected.Kind() != reflect.Slice {
+		return value
+	}
+	if reflected.IsNil() {
 		return []any{}
 	}
-	return value
+	items := make([]any, reflected.Len())
+	for index := 0; index < reflected.Len(); index++ {
+		items[index] = reflected.Index(index).Interface()
+	}
+	return items
 }
 
 // ── Futu/OpenD ──

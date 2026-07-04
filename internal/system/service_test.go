@@ -120,7 +120,7 @@ func TestRealTradeDefaultsMatchFrontendContract(t *testing.T) {
 	}
 
 	killSwitch := svc.RealTradeKillSwitch()
-	assertSystemMapKeys(t, killSwitch, "realTradingEnabled", "killSwitchActive", "killSwitchSource", "envConfiguredActive", "controlPlaneActive", "blockedOperations", "allowsCancel", "entry")
+	assertSystemMapKeys(t, killSwitch, "realTradingEnabled", "killSwitchActive", "killSwitchSource", "runtimeActive", "blockedOperations", "allowsCancel", "entry")
 	assertSystemMapMissingKeys(t, killSwitch, "active")
 	if killSwitch["killSwitchActive"] != false || killSwitch["allowsCancel"] != true {
 		t.Fatalf("killSwitch = %#v", killSwitch)
@@ -130,14 +130,14 @@ func TestRealTradeDefaultsMatchFrontendContract(t *testing.T) {
 	}
 
 	riskLimits := svc.RealTradeRiskLimits()
-	assertSystemMapKeys(t, riskLimits, "realTradingEnabled", "riskEnabled", "riskConfigSource", "envConfiguredMaxOrderQuantity", "envConfiguredMaxOrderNotional", "controlPlaneActive", "controlPlaneMaxOrderQuantity", "controlPlaneMaxOrderNotional", "effectiveMaxOrderQuantity", "effectiveMaxOrderNotional", "entry")
+	assertSystemMapKeys(t, riskLimits, "realTradingEnabled", "riskEnabled", "runtimeRiskConfigured", "runtimeConfiguredMaxOrderQuantity", "runtimeConfiguredMaxOrderNotional", "effectiveMaxOrderQuantity", "effectiveMaxOrderNotional", "entry")
 	assertSystemMapMissingKeys(t, riskLimits, "enabled")
 	if riskLimits["riskEnabled"] != false || riskLimits["entry"] != nil {
 		t.Fatalf("riskLimits = %#v", riskLimits)
 	}
 
 	riskEvents := svc.RealTradeRiskEvents()
-	assertSystemMapKeys(t, riskEvents, "realTradingEnabled", "riskEnabled", "riskConfigSource", "envConfiguredMaxOrderQuantity", "envConfiguredMaxOrderNotional", "controlPlaneActive", "controlPlaneMaxOrderQuantity", "controlPlaneMaxOrderNotional", "effectiveMaxOrderQuantity", "effectiveMaxOrderNotional", "maxOrderQuantity", "maxOrderNotional", "entries")
+	assertSystemMapKeys(t, riskEvents, "realTradingEnabled", "riskEnabled", "runtimeRiskConfigured", "runtimeConfiguredMaxOrderQuantity", "runtimeConfiguredMaxOrderNotional", "effectiveMaxOrderQuantity", "effectiveMaxOrderNotional", "maxOrderQuantity", "maxOrderNotional", "entries")
 	assertSystemMapMissingKeys(t, riskEvents, "events")
 	if riskEvents["riskEnabled"] != false {
 		t.Fatalf("riskEvents riskEnabled = %v, want false", riskEvents["riskEnabled"])
@@ -148,25 +148,19 @@ func TestRealTradeDefaultsMatchFrontendContract(t *testing.T) {
 func TestRealTradeStateUsesInjectedRiskGatewaySnapshot(t *testing.T) {
 	maxQty := 12.5
 	maxNotional := 2500.0
-	approvalRequired := 1500.0
 	svc := NewService(WithRealTradeRiskState(func() map[string]any {
 		return map[string]any{
-			"realTradingEnabled":            true,
-			"killSwitchActive":              true,
-			"killSwitchSource":              "ENV",
-			"envConfiguredActive":           true,
-			"controlPlaneActive":            false,
-			"killSwitchControlPlaneActive":  false,
-			"riskEnabled":                   true,
-			"riskConfigSource":              "ENV",
-			"envConfiguredMaxOrderQuantity": &maxQty,
-			"envConfiguredMaxOrderNotional": &maxNotional,
-			"riskControlPlaneActive":        false,
-			"controlPlaneMaxOrderQuantity":  nil,
-			"controlPlaneMaxOrderNotional":  nil,
-			"effectiveMaxOrderQuantity":     &maxQty,
-			"effectiveMaxOrderNotional":     &maxNotional,
-			"approvalRequiredNotional":      &approvalRequired,
+			"realTradingEnabled":                true,
+			"killSwitchActive":                  true,
+			"killSwitchSource":                  "RUNTIME",
+			"runtimeKillSwitchActive":           true,
+			"riskEnabled":                       true,
+			"runtimeRiskConfigured":             true,
+			"runtimeConfiguredMaxOrderQuantity": &maxQty,
+			"runtimeConfiguredMaxOrderNotional": &maxNotional,
+			"effectiveMaxOrderQuantity":         &maxQty,
+			"effectiveMaxOrderNotional":         &maxNotional,
+			"riskEvents":                        []any{map[string]any{"id": "risk-event-1"}},
 		}
 	}))
 
@@ -175,16 +169,16 @@ func TestRealTradeStateUsesInjectedRiskGatewaySnapshot(t *testing.T) {
 		t.Fatalf("status realTradingEnabled = %v, want true", status["realTradingEnabled"])
 	}
 	killSwitch := status["realTradingKillSwitch"].(map[string]any)
-	if killSwitch["active"] != true || killSwitch["envConfiguredActive"] != true || killSwitch["allowsCancel"] != true {
+	if killSwitch["active"] != true || killSwitch["runtimeActive"] != true || killSwitch["allowsCancel"] != true {
 		t.Fatalf("status killSwitch = %#v", killSwitch)
 	}
 	risk := status["realTradingRisk"].(map[string]any)
-	if risk["enabled"] != true || risk["riskConfigSource"] != "ENV" || risk["maxOrderQuantity"] != &maxQty || risk["maxOrderNotional"] != &maxNotional {
+	if risk["enabled"] != true || risk["runtimeRiskConfigured"] != true || risk["maxOrderQuantity"] != &maxQty || risk["maxOrderNotional"] != &maxNotional {
 		t.Fatalf("status risk = %#v", risk)
 	}
 
 	state := svc.RealTradeKillSwitch()
-	if state["realTradingEnabled"] != true || state["killSwitchActive"] != true || state["killSwitchSource"] != "ENV" {
+	if state["realTradingEnabled"] != true || state["killSwitchActive"] != true || state["killSwitchSource"] != "RUNTIME" {
 		t.Fatalf("kill switch state = %#v", state)
 	}
 	limits := svc.RealTradeRiskLimits()
@@ -195,12 +189,15 @@ func TestRealTradeStateUsesInjectedRiskGatewaySnapshot(t *testing.T) {
 	if events["maxOrderQuantity"] != &maxQty || events["maxOrderNotional"] != &maxNotional {
 		t.Fatalf("risk events = %#v", events)
 	}
+	if entries := events["entries"].([]any); len(entries) != 1 {
+		t.Fatalf("risk event entries = %#v", events)
+	}
 	approvals := svc.RealTradeApprovals()
-	if approvals["approvalWorkflowAvailable"] != false || approvals["approvalWorkflowStatus"] != "not_implemented" {
+	if approvals["approvalWorkflowAvailable"] != false || approvals["approvalWorkflowStatus"] != "not_configured" {
 		t.Fatalf("approval workflow = %#v", approvals)
 	}
 	policy := approvals["approvalPolicy"].(map[string]any)
-	if policy["largeOrderNotional"] != &approvalRequired || policy["approvalMode"] != "blocking_threshold_without_workflow" || policy["approvalWorkflowAvailable"] != false {
+	if policy["largeOrderNotional"] != nil || policy["approvalMode"] != "none" || policy["approvalWorkflowAvailable"] != false {
 		t.Fatalf("approval policy = %#v", policy)
 	}
 }
@@ -226,6 +223,14 @@ func TestRealTradeControlDelegatesAndUnavailableBoundaries(t *testing.T) {
 	ctx := t.Context()
 	empty := NewService()
 	for name, run := range map[string]func() error{
+		"update runtime risk": func() error {
+			_, err := empty.UpdateRealTradeRuntimeRisk(ctx, RealTradeRuntimeRiskCommand{})
+			return err
+		},
+		"disable runtime risk": func() error {
+			_, err := empty.DisableRealTradeRuntimeRisk(ctx, RealTradeRuntimeRiskCommand{})
+			return err
+		},
 		"activate kill switch": func() error {
 			_, err := empty.ActivateRealTradeKillSwitch(ctx, RealTradeKillSwitchCommand{})
 			return err
@@ -247,6 +252,16 @@ func TestRealTradeControlDelegatesAndUnavailableBoundaries(t *testing.T) {
 
 	calls := map[string]bool{}
 	svc := NewService(
+		WithRealTradeRuntimeRiskControls(
+			func(_ context.Context, command RealTradeRuntimeRiskCommand) (map[string]any, error) {
+				calls["update-risk"] = command.OperatorID == "operator" && command.RealTradingEnabled
+				return map[string]any{"realTradingEnabled": true}, nil
+			},
+			func(_ context.Context, command RealTradeRuntimeRiskCommand) (map[string]any, error) {
+				calls["disable-risk"] = command.Reason == "off"
+				return map[string]any{"realTradingEnabled": false}, nil
+			},
+		),
 		WithRealTradeKillSwitchControls(
 			func(_ context.Context, command RealTradeKillSwitchCommand) (map[string]any, error) {
 				calls["activate-kill"] = command.OperatorID == "operator"
@@ -268,6 +283,12 @@ func TestRealTradeControlDelegatesAndUnavailableBoundaries(t *testing.T) {
 			},
 		),
 	)
+	if result, err := svc.UpdateRealTradeRuntimeRisk(ctx, RealTradeRuntimeRiskCommand{RealTradingEnabled: true, OperatorID: "operator"}); err != nil || result["realTradingEnabled"] != true {
+		t.Fatalf("UpdateRealTradeRuntimeRisk = %#v, %v", result, err)
+	}
+	if result, err := svc.DisableRealTradeRuntimeRisk(ctx, RealTradeRuntimeRiskCommand{Reason: "off"}); err != nil || result["realTradingEnabled"] != false {
+		t.Fatalf("DisableRealTradeRuntimeRisk = %#v, %v", result, err)
+	}
 	if result, err := svc.ActivateRealTradeKillSwitch(ctx, RealTradeKillSwitchCommand{OperatorID: "operator"}); err != nil || result["active"] != true {
 		t.Fatalf("ActivateRealTradeKillSwitch = %#v, %v", result, err)
 	}
