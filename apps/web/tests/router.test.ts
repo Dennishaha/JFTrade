@@ -9,6 +9,7 @@ describe("console router", () => {
 
     expect(router.resolve("/adk/agents").matched).toHaveLength(1);
     expect(router.resolve("/adk/workflows").matched).toHaveLength(1);
+    expect(router.resolve("/risk").matched).toHaveLength(1);
     expect(router.resolve("/adk").matched).toHaveLength(0);
     expect(router.resolve("/adk?view=chat").matched).toHaveLength(0);
     expect(router.resolve("/adk?view=workflows").matched).toHaveLength(0);

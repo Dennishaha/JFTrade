@@ -130,6 +130,60 @@ describe("OrderEntryPanel", () => {
     expect(orderLink.attributes("href")).toContain("orderId=io-1");
   });
 
+  it("requires typed confirmation before submitting REAL orders", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: { accepted: true, internalOrderId: "io-real" },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { wrapper, store } = mountOrderEntryPanel({
+      snapshotPrice: 321.234,
+      priceSpread: 0.01,
+    });
+    store.systemStatus.value = {
+      ...store.systemStatus.value,
+      defaultTradingEnvironment: "REAL",
+      realTradingEnabled: true,
+    };
+    store.realTradeRiskState.value = {
+      ...store.realTradeRiskState.value,
+      realTradingEnabled: true,
+      riskEnabled: true,
+      effectiveMaxOrderQuantity: 100,
+      effectiveMaxOrderNotional: 50000,
+    };
+
+    await nextTick();
+    await findSubmitButton(wrapper).trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).toContain("确认实盘下单");
+    expect(
+      fetchMock.mock.calls.some(([request]) =>
+        String(request).includes("/api/v1/execution/orders"),
+      ),
+    ).toBe(false);
+
+    await wrapper
+      .get(".tv-real-confirmation__input")
+      .setValue("ENABLE_REAL_TRADING");
+    await wrapper.get('[data-testid="real-trade-confirm-submit"]').trigger("click");
+    await nextTick();
+    await nextTick();
+
+    const orderCall = fetchMock.mock.calls.find((entry) =>
+      String(entry[0]).includes("/api/v1/execution/orders"),
+    );
+    expect(orderCall).toBeTruthy();
+    const payload = JSON.parse(String((orderCall?.[1] as RequestInit).body));
+    expect(payload.tradingEnvironment).toBe("REAL");
+    expect(wrapper.text()).toContain("io-real");
+  });
+
   it("renders broker order status and broker extended id in the receipt card", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

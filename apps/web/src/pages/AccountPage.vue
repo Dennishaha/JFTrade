@@ -5,7 +5,6 @@ import type { ExecutionOrdersResponse } from "@/contracts";
 
 import PageHeader from "../components/PageHeader.vue";
 import SectionHeader from "../components/SectionHeader.vue";
-import TradingScopeBar from "../components/TradingScopeBar.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import {
   formatAccountTypeLabel,
@@ -717,7 +716,6 @@ if (requestedExecutionOrderId !== "") {
       description="账户页聚合基础资料、资金余额、持仓和订单流水。连接诊断与 OpenD 参数维护已经收敛到设置页。"
       :stats="accountHeaderStats"
     />
-    <TradingScopeBar />
 
     <v-tabs v-model="activeTab" bg-color="transparent" class="tv-page-tabs">
       <v-tab value="account">账户信息</v-tab>

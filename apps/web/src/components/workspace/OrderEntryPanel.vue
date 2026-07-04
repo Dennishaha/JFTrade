@@ -16,6 +16,7 @@ import { formatMarketSessionLabel } from "../../composables/marketSessionDisplay
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import RealTradeConfirmationDialog from "./RealTradeConfirmationDialog.vue";
 
 const {
   brokerMaxTradeQuantity,
@@ -23,6 +24,8 @@ const {
   loadBrokerMaxTradeQuantity,
   currentMarketDataSnapshot: marketDataSnapshot,
   currentMarketSecurityDetails: marketSecurityDetails,
+  realTradeApprovals,
+  realTradeRiskState,
   resolveBrokerReadFeatureQueryRequirements,
   selectedBrokerAccount,
   supportsBrokerReadFeature,
@@ -51,6 +54,29 @@ interface OrderFeedback {
   checkedAt: string | null;
 }
 
+interface ExecutionOrderPayload {
+  brokerId: string;
+  tradingEnvironment: string;
+  accountId: string;
+  market: string;
+  code: string;
+  symbol: string;
+  side: Side;
+  orderType: OrderType;
+  timeInForce: TIF;
+  session?: OrderSession;
+  quantity: number;
+  price?: number;
+  stopPrice?: number;
+  env: string;
+}
+
+interface PendingRealTradeSubmission {
+  payload: ExecutionOrderPayload;
+  feedbackTitle: string;
+  orderSummary: string;
+}
+
 const side = ref<Side>("BUY");
 const orderType = ref<OrderType>("LIMIT");
 const tif = ref<TIF>("DAY");
@@ -62,6 +88,9 @@ const hasEditedPrice = ref(false);
 const submitting = ref(false);
 const lastOrderFeedback = ref<OrderFeedback | null>(null);
 const isRefreshingOrderFeedback = ref(false);
+const realTradeConfirmationOpen = ref(false);
+const realTradeConfirmationText = ref("");
+const pendingRealTradeSubmission = ref<PendingRealTradeSubmission | null>(null);
 let maxTradeQuantityTimer: ReturnType<typeof setTimeout> | null = null;
 let orderFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 let orderFeedbackPollCount = 0;
@@ -73,6 +102,16 @@ const isRealMode = computed(
   () =>
     (selectedBrokerAccount.value?.tradingEnvironment ??
       systemStatus.value.defaultTradingEnvironment) === "REAL",
+);
+const requiredRealTradeConfirmationText = computed(
+  () =>
+    realTradeApprovals.value.requiredConfirmationText?.trim() ||
+    "ENABLE_REAL_TRADING",
+);
+const realTradeConfirmationMatches = computed(
+  () =>
+    realTradeConfirmationText.value.trim() ===
+    requiredRealTradeConfirmationText.value,
 );
 const isStop = computed(
   () => orderType.value === "STOP" || orderType.value === "STOP_LIMIT",
@@ -392,6 +431,24 @@ function resolveOrderRequestTitle(): string {
   return `${formatOrderSideLabel(side.value)} ${quantity.value} ${instrumentLabel}`;
 }
 
+function resolvePendingOrderSummary(payload: ExecutionOrderPayload): string {
+  const parts = [
+    `${formatOrderSideLabel(payload.side)} ${payload.quantity} ${payload.symbol}`,
+    formatOrderTypeLabel(payload.orderType),
+    formatTimeInForceLabel(payload.timeInForce),
+  ];
+  if (payload.price != null) {
+    parts.push(`限价 ${payload.price}`);
+  }
+  if (payload.stopPrice != null) {
+    parts.push(`止损价 ${payload.stopPrice}`);
+  }
+  if (payload.session != null) {
+    parts.push(formatOrderSession(payload.session));
+  }
+  return parts.join(" / ");
+}
+
 function resolveOrderFailureReason(error: unknown): string {
   if (error instanceof Error && error.message.trim() !== "") {
     return error.message.trim();
@@ -534,10 +591,7 @@ async function loadMaxTradeQuantity(): Promise<void> {
   await loadBrokerMaxTradeQuantity(request);
 }
 
-async function submit(): Promise<void> {
-  if (submitting.value) return;
-  stopOrderFeedbackPolling();
-  lastOrderFeedback.value = null;
+function validateAndBuildExecutionPayload(): ExecutionOrderPayload | null {
   const instrument = activeInstrument.value;
   if (instrument == null) {
     notifications.push({
@@ -546,7 +600,7 @@ async function submit(): Promise<void> {
       message: "请先选择有效的市场与代码。",
       source: "order-entry",
     });
-    return;
+    return null;
   }
   if (!quantity.value || quantity.value <= 0) {
     notifications.push({
@@ -554,7 +608,7 @@ async function submit(): Promise<void> {
       title: "数量无效",
       source: "order-entry",
     });
-    return;
+    return null;
   }
   if (isLimit.value && !price.value) {
     notifications.push({
@@ -562,7 +616,7 @@ async function submit(): Promise<void> {
       title: "价格必须大于 0",
       source: "order-entry",
     });
-    return;
+    return null;
   }
   if (isLimit.value) {
     alignPriceInput();
@@ -572,7 +626,7 @@ async function submit(): Promise<void> {
         title: "价格必须大于 0",
         source: "order-entry",
       });
-      return;
+      return null;
     }
   }
   if (isStop.value) {
@@ -583,30 +637,84 @@ async function submit(): Promise<void> {
         title: "止损价必须大于 0",
         source: "order-entry",
       });
-      return;
+      return null;
     }
   }
 
+  const payload: ExecutionOrderPayload = {
+    brokerId: activeBrokerId.value,
+    tradingEnvironment: activeTradingEnvironment.value,
+    accountId: activeAccountId.value,
+    market: instrument.market,
+    code: instrument.code,
+    symbol: instrument.instrumentId,
+    side: side.value,
+    orderType: orderType.value,
+    timeInForce: tif.value,
+    quantity: quantity.value,
+    env: activeTradingEnvironment.value,
+  };
+  if (supportsOrderSessionSelection.value) {
+    payload.session = orderSession.value;
+  }
+  if (isLimit.value) {
+    payload.price = price.value;
+  }
+  if (isStop.value) {
+    payload.stopPrice = stopPrice.value;
+  }
+  return payload;
+}
+
+async function submit(): Promise<void> {
+  if (submitting.value) return;
+  stopOrderFeedbackPolling();
+  lastOrderFeedback.value = null;
+  const payload = validateAndBuildExecutionPayload();
+  if (payload == null) {
+    return;
+  }
+  const feedbackTitle = resolveOrderRequestTitle();
+  if (payload.tradingEnvironment.trim().toUpperCase() === "REAL") {
+    pendingRealTradeSubmission.value = {
+      payload,
+      feedbackTitle,
+      orderSummary: resolvePendingOrderSummary(payload),
+    };
+    realTradeConfirmationText.value = "";
+    realTradeConfirmationOpen.value = true;
+    return;
+  }
+  await executeOrderSubmission(payload, feedbackTitle);
+}
+
+function cancelRealTradeConfirmation(): void {
+  realTradeConfirmationOpen.value = false;
+  realTradeConfirmationText.value = "";
+  pendingRealTradeSubmission.value = null;
+}
+
+async function confirmRealTradeSubmission(): Promise<void> {
+  if (!realTradeConfirmationMatches.value || submitting.value) {
+    return;
+  }
+  const pending = pendingRealTradeSubmission.value;
+  if (pending == null) {
+    cancelRealTradeConfirmation();
+    return;
+  }
+  realTradeConfirmationOpen.value = false;
+  realTradeConfirmationText.value = "";
+  pendingRealTradeSubmission.value = null;
+  await executeOrderSubmission(pending.payload, pending.feedbackTitle);
+}
+
+async function executeOrderSubmission(
+  payload: ExecutionOrderPayload,
+  feedbackTitle: string,
+): Promise<void> {
   submitting.value = true;
   try {
-    const payload = {
-      brokerId: activeBrokerId.value,
-      tradingEnvironment: activeTradingEnvironment.value,
-      accountId: activeAccountId.value,
-      market: instrument.market,
-      code: instrument.code,
-      symbol: instrument.instrumentId,
-      side: side.value,
-      orderType: orderType.value,
-      timeInForce: tif.value,
-      session: supportsOrderSessionSelection.value ? orderSession.value : undefined,
-      quantity: quantity.value,
-      price: isLimit.value ? price.value : undefined,
-      stopPrice: isStop.value ? stopPrice.value : undefined,
-      env: activeTradingEnvironment.value,
-    };
-
-    const feedbackTitle = resolveOrderRequestTitle();
     let feedbackLevel: OrderFeedbackLevel = "success";
     let feedbackMessage = `下单成功：已提交订单（${formatOrderTypeLabel(orderType.value)}，${formatTimeInForceLabel(tif.value)}${supportsOrderSessionSelection.value ? `，${formatOrderSession(orderSession.value)}` : ""}）`;
     try {
@@ -939,6 +1047,21 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
+
+      <RealTradeConfirmationDialog
+        v-model="realTradeConfirmationOpen"
+        v-model:confirmation-text="realTradeConfirmationText"
+        :account-id="activeAccountId"
+        :confirmation-matches="realTradeConfirmationMatches"
+        :max-order-notional="realTradeRiskState.effectiveMaxOrderNotional"
+        :max-order-quantity="realTradeRiskState.effectiveMaxOrderQuantity"
+        :order-summary="pendingRealTradeSubmission?.orderSummary"
+        :real-trading-enabled="systemStatus.realTradingEnabled"
+        :required-confirmation-text="requiredRealTradeConfirmationText"
+        :submitting="submitting"
+        @cancel="cancelRealTradeConfirmation"
+        @confirm="confirmRealTradeSubmission"
+      />
     </div>
   </section>
 </template>
@@ -1031,4 +1154,5 @@ onUnmounted(() => {
   color: var(--tv-text-muted);
   font-size: 11px;
 }
+
 </style>

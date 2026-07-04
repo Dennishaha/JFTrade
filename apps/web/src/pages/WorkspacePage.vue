@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { SplitpanesResizedPayload } from "splitpanes";
 
-import TradingScopeBar from "../components/TradingScopeBar.vue";
 import LightweightChart from "../components/workspace/LightweightChart.vue";
 import OrderBookPanel from "../components/workspace/OrderBookPanel.vue";
 import OrderEntryPanel from "../components/workspace/OrderEntryPanel.vue";
@@ -39,7 +38,6 @@ function handlePaneResized(
 
 <template>
   <div class="tv-workspace tv-workspace--scoped">
-    <TradingScopeBar />
     <div class="tv-workspace__body">
       <SplitPane :pane-min-size="10" @resized="handlePaneResized('main', $event)">
         <SplitPaneItem :size="prefs.paneSizes.main[0]">

@@ -22,6 +22,7 @@ import {
   ref,
   watch,
 } from "vue";
+import { resolveBacktestChartPaneHeights } from "./backtestChartPaneHeights";
 import { useTheme } from "../composables/useTheme";
 import { formatLocalDateTime } from "../utils/dateTime";
 
@@ -66,10 +67,12 @@ const props = withDefaults(
     initialBalance: number;
     currencyUnit?: string;
     minHeight?: number;
+    fitContainer?: boolean;
     emptyText?: string;
   }>(),
   {
     minHeight: 560,
+    fitContainer: false,
     emptyText: "暂无回测数据",
   },
 );
@@ -126,6 +129,15 @@ const hasPnl = computed(() => props.pnlCurve.length > 0);
 const hasDrawdown = computed(() => props.drawdownCurve.length > 0);
 const hasData = computed(() => hasCandles.value || hasPnl.value || hasDrawdown.value);
 const displayCurrencyUnit = computed(() => props.currencyUnit?.trim().toUpperCase() || "HKD");
+const chartRootClasses = computed(() => [
+  "backtest-chart rounded-lg border border-slate-200 bg-white",
+  props.fitContainer ? "backtest-chart--fit" : "backtest-chart--fixed",
+]);
+const chartBodyStyle = computed(() =>
+  props.fitContainer
+    ? { minHeight: "0" }
+    : { minHeight: `${props.minHeight}px`, height: `${props.minHeight}px` },
+);
 
 function formatCurrencyValue(value: number) {
   return `${displayCurrencyUnit.value} ${value.toLocaleString(undefined, {
@@ -420,6 +432,18 @@ function measureHost(el: HTMLElement): { width: number; height: number } {
   };
 }
 
+function applyPaneHeights(totalHeight: number) {
+  if (!chart) {
+    return;
+  }
+
+  const panes = chart.panes();
+  const heights = resolveBacktestChartPaneHeights(totalHeight);
+  panes.slice(0, heights.length).forEach((pane, index) => {
+    pane.setHeight(heights[index]!);
+  });
+}
+
 function buildChart() {
   const el = host.value;
   if (!el) return;
@@ -558,6 +582,7 @@ function buildChart() {
     );
 
     chart.timeScale().subscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
+    applyPaneHeights(size.height);
     rebuildAllData();
   } catch (e) {
     chartError.value = `图表初始化失败: ${e instanceof Error ? e.message : String(e)}`;
@@ -589,6 +614,7 @@ function handleResize() {
     if (!el || !chart) return;
     const { width, height } = measureHost(el);
     chart.resize(width, height);
+    applyPaneHeights(height);
   });
 }
 
@@ -650,11 +676,11 @@ watch(palette, () => applyPalette());
 </script>
 
 <template>
-  <div class="backtest-chart rounded-lg border border-slate-200 bg-white">
+  <div :class="chartRootClasses">
     <!-- Legend -->
     <div
       v-if="hasData"
-      class="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-100 px-4 py-2 text-xs"
+      class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-100 px-4 py-2 text-xs"
     >
       <div class="flex items-center gap-1.5">
         <span class="font-semibold text-slate-600">K线</span>
@@ -678,28 +704,69 @@ watch(palette, () => applyPalette());
       <span class="text-slate-400">基准 {{ formatCurrencyValue(initialBalance) }}</span>
     </div>
 
-    <!-- Error -->
-    <div
-      v-if="chartError"
-      class="flex items-center justify-center text-sm text-red-600"
-      :style="{ minHeight: `${minHeight}px` }"
-    >
-      {{ chartError }}
-    </div>
-
-    <!-- Empty -->
-    <div
-      v-else-if="!hasData"
-      class="flex items-center justify-center text-sm text-slate-400"
-      :style="{ minHeight: `${minHeight}px` }"
-    >
-      {{ emptyText }}
-    </div>
-
     <!-- Chart -->
-    <div
-      ref="host"
-      :style="{ minHeight: `${minHeight}px`, height: `${minHeight}px` }"
-    />
+    <div class="backtest-chart__body" :style="chartBodyStyle">
+      <div
+        v-if="chartError"
+        class="backtest-chart__state flex items-center justify-center text-sm text-red-600"
+      >
+        {{ chartError }}
+      </div>
+
+      <div
+        v-else-if="!hasData"
+        class="backtest-chart__state flex items-center justify-center text-sm text-slate-400"
+      >
+        {{ emptyText }}
+      </div>
+
+      <div ref="host" class="backtest-chart__host" />
+    </div>
   </div>
 </template>
+
+<style scoped>
+.backtest-chart {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.backtest-chart--fixed {
+  flex-direction: column;
+}
+
+.backtest-chart--fit {
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.backtest-chart__host,
+.backtest-chart__state {
+  min-width: 0;
+}
+
+.backtest-chart__body {
+  position: relative;
+  min-width: 0;
+  background: inherit;
+  overflow: hidden;
+}
+
+.backtest-chart__host {
+  height: 100%;
+}
+
+.backtest-chart__state {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: inherit;
+}
+
+.backtest-chart--fit .backtest-chart__host,
+.backtest-chart--fit .backtest-chart__body {
+  flex: 1 1 auto;
+}
+</style>

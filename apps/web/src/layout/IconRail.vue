@@ -29,6 +29,7 @@ const items: NavItem[] = [
   { type: "route", to: "/strategy/design", label: "策略设计", icon: "fa-solid fa-wand-magic-sparkles" },
   { type: "route", to: "/backtest", label: "回测", icon: "fa-solid fa-flask" },
   { type: "route", to: "/account", label: "我的账户", icon: "fa-solid fa-wallet" },
+  { type: "route", to: "/risk", label: "风控", icon: "fa-solid fa-shield-halved" },
   { type: "route", to: "/system", label: "系统", icon: "fa-solid fa-microchip" },
   { type: "route", to: "/settings", label: "设置", icon: "fa-solid fa-gear" },
   { type: "external", href: docsHomeUrl, label: "文档", icon: "fa-solid fa-file-lines" },

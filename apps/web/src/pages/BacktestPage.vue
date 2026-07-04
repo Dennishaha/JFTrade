@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import type { SplitpanesResizedPayload } from "splitpanes";
 import { computed, onMounted, ref, watch } from "vue";
 
 import { KLINE_PERIODS } from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
-import PageHeader from "../components/PageHeader.vue";
-import TradingScopeBar from "../components/TradingScopeBar.vue";
+import SplitPane from "../components/shared/SplitPane.vue";
+import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import type { BacktestFeeRulePayload } from "../contracts";
 import { apiGet, fetchEnvelope } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
@@ -69,7 +70,7 @@ const {
 const controlPanelClass = "rounded-lg border bt-border bt-bg-surface";
 const emptyStateClass =
   "rounded-lg border bt-border bt-bg-surface bt-text-muted";
-const statCardClass = "rounded-2xl bt-bg-muted";
+const statCardClass = "rounded-lg bt-bg-muted";
 const cardBorderClass = "rounded-lg border bt-border";
 
 // ── Backtest run DTOs ──
@@ -366,28 +367,6 @@ const costModeSummary = computed(() => {
   return `券商 ${broker} / 市场 ${market}`;
 });
 
-type BacktestPlanStepState = "ready" | "active" | "blocked" | "pending";
-
-const selectedStrategySummary = computed(() => {
-  if (selectedDefinition.value == null) {
-    return "未选择策略";
-  }
-  return `${selectedDefinition.value.name} ${formatStrategyVersion(selectedDefinition.value.version)}`;
-});
-
-function backtestPlanStepClass(state: BacktestPlanStepState) {
-  switch (state) {
-    case "ready":
-      return "border-teal-300 bg-teal-50 text-teal-800";
-    case "active":
-      return "border-sky-300 bg-sky-50 text-sky-800";
-    case "blocked":
-      return "border-amber-300 bg-amber-50 text-amber-800";
-    default:
-      return "bt-border bt-bg-muted bt-text-muted";
-  }
-}
-
 function quoteCurrencyFromInstrumentId(instrumentId: string | undefined) {
   const normalized = (instrumentId ?? "").trim().toUpperCase();
   const market = normalized.split(".")[0] ?? "";
@@ -446,33 +425,6 @@ function resolveBacktestPriceBasisNote(run: {
   }
   return `价格口径：图表显示的是${rehabLabel}${intervalLabel}已闭合历史 K 线；不要直接和实时盘后/夜盘快照比较，后者通常是不复权的最新成交。`;
 }
-
-function resolveBacktestParityNotes(run: {
-  request: {
-    executionModel?: string | undefined;
-    interval: string;
-    useExtendedHours?: boolean | undefined;
-  };
-}) {
-  const executionModel = run.request.executionModel?.trim() || "conservative-bar-v1";
-  const sessionMode = run.request.useExtendedHours ? "包含扩展时段数据" : "仅使用常规时段数据";
-  return [
-    "信号一致性：回测和策略运行共用 Pine worker 语义生成信号。",
-    `订单意图一致性：回测复用订单意图模型；实盘仍会受券商能力、账户权限、风控和审批影响。`,
-    `执行一致性：本结果使用 ${executionModel}，按 ${run.request.interval} 已闭合 bar 保守撮合，不能等同真实订单簿或券商成交。`,
-    `数据口径：${sessionMode}；实盘下单 session 需要单独确认。`,
-  ];
-}
-
-const currentBacktestParityNotes = computed(() => {
-  const sessionMode = useExtendedHours.value ? "包含扩展时段数据" : "仅使用常规时段数据";
-  return [
-    "信号一致性：回测和策略运行共用 Pine worker 语义生成信号。",
-    "订单意图一致性：回测会记录策略订单意图；实盘仍会被券商能力、账户权限、风控和审批拦截。",
-    `执行一致性：本次提交将使用 conservative-bar-v1，按 ${interval.value} 已闭合 bar 保守撮合，不代表真实订单簿成交。`,
-    `数据口径：${sessionMode}；实盘下单 session 需要在交易作用域和下单路径中单独确认。`,
-  ];
-});
 
 function resolveStrategyName(definitionId: string | undefined) {
   if (!definitionId) {
@@ -591,76 +543,13 @@ const {
   },
 });
 
-const backtestPlanSteps = computed(() => {
-  const hasStrategy = selectedDefinition.value != null;
-  const hasInstrument = displayInstrumentId.value.trim() !== "";
-  const dataState: BacktestPlanStepState = syncing.value
-    ? "active"
-    : syncProgress.value?.status === "cancelled"
-      ? "blocked"
-      : hasStrategy && hasInstrument
-        ? "ready"
-        : "pending";
-  const runState: BacktestPlanStepState = running.value
-    ? "active"
-    : hasStrategy
-      ? "ready"
-      : "blocked";
-  return [
-    {
-      key: "strategy",
-      label: "策略",
-      value: selectedStrategySummary.value,
-      state: hasStrategy ? "ready" : "blocked",
-    },
-    {
-      key: "instrument",
-      label: "标的与时段",
-      value: hasInstrument
-        ? `${displayInstrumentId.value} · ${periodLabel.value} · ${extendedHoursSupported.value && useExtendedHours.value ? "含扩展时段" : "常规时段"}`
-        : "等待市场与代码",
-      state: hasInstrument ? "ready" : "blocked",
-    },
-    {
-      key: "cost",
-      label: "成本模型",
-      value: costModeSummary.value,
-      state: "ready",
-    },
-    {
-      key: "sync",
-      label: "历史数据",
-      value: syncing.value
-        ? "同步中"
-        : syncProgress.value?.status === "cancelled"
-          ? "同步已取消"
-          : "同步后运行",
-      state: dataState,
-    },
-    {
-      key: "run",
-      label: "运行回测",
-      value: running.value ? "启动中" : hasStrategy ? "可提交" : "等待策略",
-      state: runState,
-    },
-  ] satisfies Array<{
-    key: string;
-    label: string;
-    value: string;
-    state: BacktestPlanStepState;
-  }>;
-});
+type BacktestReportTab = "chart" | "orders" | "properties";
 
-const expandedPanels = ref<string[]>([]);
-
-watch(expandedPanels, (nextPanels, previousPanels) => {
-  const previous = new Set(previousPanels ?? []);
-  for (const runID of nextPanels) {
-    if (!previous.has(runID)) {
-      void toggleRun(runID);
-    }
-  }
-});
+const activeReportTab = ref<BacktestReportTab>("chart");
+const selectedRunId = ref("");
+const showNewBacktestForm = ref(false);
+const newBacktestFormTouched = ref(false);
+const backtestPaneSizes = ref<[number, number]>([30, 70]);
 
 const resultStrategyOptions = computed(() => {
   const options = [{ value: "all", title: "全部策略" }];
@@ -760,11 +649,48 @@ const resultsPageSummary = computed(() => {
   return `第 ${visibleStart}-${visibleEnd} 条，共 ${filteredRuns.value.length} 条`;
 });
 
-function isRunPanelExpanded(runId: string): boolean {
-  return expandedPanels.value.includes(runId);
+type BacktestRunView = (typeof sortedRuns.value)[number];
+
+const focusedRun = computed<BacktestRunView | undefined>(() => {
+  if (filteredRuns.value.length === 0) {
+    return undefined;
+  }
+  const selected = filteredRuns.value.find((run) => run.id === selectedRunId.value);
+  return selected ?? filteredRuns.value[0];
+});
+
+const focusedRunResultReady = computed(() => {
+  const run = focusedRun.value;
+  return run?.result != null && isTerminalBacktestStatus(run.status);
+});
+
+const focusedRunHasChartData = computed(() => {
+  const run = focusedRun.value;
+  return run?.status === "completed" && (run.result?.pnlCurve?.length ?? 0) > 0;
+});
+
+function selectFocusedRun(runId: string) {
+  selectedRunId.value = runId;
+  activeReportTab.value = "chart";
 }
 
-type BacktestRunView = (typeof sortedRuns.value)[number];
+function toggleNewBacktestForm() {
+  newBacktestFormTouched.value = true;
+  showNewBacktestForm.value = !showNewBacktestForm.value;
+}
+
+function handleBacktestPaneResized(payload: SplitpanesResizedPayload): void {
+  const sizes = payload.panes?.map((pane) => pane.size);
+  if (
+    sizes == null ||
+    sizes.length !== 2 ||
+    !sizes.every((size) => Number.isFinite(size) && size > 0 && size <= 100)
+  ) {
+    return;
+  }
+
+  backtestPaneSizes.value = [sizes[0]!, sizes[1]!];
+}
 
 function visibleBacktestOrderBook(run: BacktestRunView) {
   return (run.result?.orderBook ?? []).slice(0, BACKTEST_ORDER_BOOK_RENDER_WINDOW);
@@ -895,26 +821,40 @@ watch([resultsSearchQuery, resultsStatusFilter, resultsStrategyFilter], () => {
   resultsPage.value = 1;
 });
 
-const headerStats = computed(() => [
-  {
-    label: "策略数",
-    value: definitions.value.length,
+watch(
+  filteredRuns,
+  (nextRuns) => {
+    if (nextRuns.length === 0) {
+      selectedRunId.value = "";
+      return;
+    }
+    if (!nextRuns.some((run) => run.id === selectedRunId.value)) {
+      selectedRunId.value = nextRuns[0]?.id ?? "";
+    }
   },
-  {
-    label: "回测记录",
-    value: runs.value.length,
+  { immediate: true },
+);
+
+watch(
+  sortedRuns,
+  (nextRuns) => {
+    if (newBacktestFormTouched.value) {
+      return;
+    }
+    showNewBacktestForm.value = nextRuns.length === 0;
   },
-  {
-    label: "运行中",
-    value: runs.value.filter((r) => r.status === "running").length,
-    tone: "info" as const,
+  { immediate: true },
+);
+
+watch(
+  () => focusedRun.value?.id,
+  (runId) => {
+    if (runId) {
+      void toggleRun(runId);
+    }
   },
-  {
-    label: "已完成",
-    value: runs.value.filter((r) => r.status === "completed").length,
-    tone: "good" as const,
-  },
-]);
+  { immediate: true },
+);
 
 // ── Loaders ──
 function ensureSelectedMarketProfile() {
@@ -1227,19 +1167,7 @@ watch(
 </script>
 
 <template>
-  <div class="backtest-page grid gap-4">
-    <PageHeader eyebrow="模拟回测" title="回测" description="选择策略定义、标的和时段，同步历史K线后运行回测。" :stats="headerStats" />
-    <TradingScopeBar />
-
-    <div class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-800">
-      <div class="font-semibold">回测/实盘一致性边界</div>
-      <ul class="mt-2 grid gap-1 pl-4 list-disc">
-        <li v-for="note in currentBacktestParityNotes" :key="note">
-          {{ note }}
-        </li>
-      </ul>
-    </div>
-
+  <div class="backtest-page grid">
     <!-- Error banner -->
     <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
       {{ error }}
@@ -1248,54 +1176,43 @@ watch(
       </button>
     </div>
 
-    <!-- Main layout -->
-    <div class="grid grid-cols-12 gap-3">
-      <!-- Left: control panel -->
-      <div class="col-span-4 lg:col-span-3">
-        <div :class="[controlPanelClass, 'sticky top-4 p-3']">
-          <div class="space-y-2.5">
-            <div class="grid gap-2 rounded-lg border bt-border bt-bg-muted p-2">
-              <div class="flex items-center justify-between gap-2">
-                <div class="text-xs font-semibold bt-text-strong">提交步骤</div>
-                <div class="text-[11px] bt-text-muted">准备参数 → 同步数据 → 运行</div>
+    <SplitPane class="backtest-page__split" :pane-min-size="18" @resized="handleBacktestPaneResized">
+      <SplitPaneItem :size="backtestPaneSizes[0]" :min-size="22" :max-size="55">
+        <aside class="backtest-page__pane">
+          <div :class="[controlPanelClass, 'flex min-h-0 flex-1 flex-col overflow-hidden']">
+            <div class="flex items-center justify-between gap-3 border-b bt-border px-3 py-3">
+              <div class="min-w-0">
+                <div class="text-sm font-semibold bt-text-strong">历史回测</div>
+                <div class="text-xs bt-text-muted">{{ resultsPageSummary || "回测结果由服务端提供。" }}</div>
               </div>
-              <div class="grid gap-1.5">
-                <div v-for="(step, index) in backtestPlanSteps" :key="step.key"
-                  class="rounded-lg border px-2 py-1.5 text-xs" :class="backtestPlanStepClass(step.state)">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="font-semibold">{{ index + 1 }}. {{ step.label }}</span>
-                    <span class="shrink-0 uppercase tracking-[0.12em]">
-                      {{
-                        step.state === "active"
-                          ? "进行中"
-                          : step.state === "ready"
-                            ? "就绪"
-                            : step.state === "blocked"
-                              ? "待处理"
-                              : "待准备"
-                      }}
-                    </span>
+              <v-btn class="bt-accent-action" size="small" variant="tonal" @click="toggleNewBacktestForm">
+                <v-icon size="13" class="mr-1">fa-solid fa-plus</v-icon>
+                新建回测
+              </v-btn>
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-auto p-3">
+              <div v-if="showNewBacktestForm" class="space-y-4 rounded-lg border bt-border bt-bg-muted p-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <div class="text-sm font-semibold bt-text-strong">新建回测</div>
+                    <div class="text-xs bt-text-muted">配置策略、标的、数据和成本后运行。</div>
                   </div>
-                  <div class="mt-0.5 truncate opacity-90">{{ step.value }}</div>
+                  <v-btn icon="fa-solid fa-chevron-up" size="x-small" variant="text" title="收起新建回测"
+                    @click="toggleNewBacktestForm" />
+                </div>
+            <section class="grid gap-2">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-sm font-semibold bt-text-strong">策略与标的</div>
+                <div class="truncate text-xs bt-text-muted">
+                  {{ displayInstrumentId || "等待标的" }}
                 </div>
               </div>
-            </div>
-
-            <div class="flex items-center gap-2 pt-1">
-              <div class="h-px flex-1 bt-bg-muted"></div>
-              <div class="text-[11px] font-semibold uppercase tracking-[0.16em] bt-text-muted">1 策略与标的</div>
-              <div class="h-px flex-1 bt-bg-muted"></div>
-            </div>
-
-            <!-- Strategy -->
-            <div class="grid gap-0.5">
-              <label class="text-xs font-semibold bt-text-strong">策略定义</label>
-              <v-select v-model="selectedDefinitionId" :items="definitions" item-title="name" item-value="id"
-                density="compact" variant="outlined" placeholder="选择策略" />
-            </div>
-
-            <!-- Instrument -->
-            <div class="grid gap-2">
+              <div class="grid gap-0.5">
+                <label class="text-xs font-semibold bt-text-strong">策略定义</label>
+                <v-select v-model="selectedDefinitionId" :items="definitions" item-title="name" item-value="id"
+                  density="compact" variant="outlined" placeholder="选择策略" />
+              </div>
               <div class="grid grid-cols-2 gap-2">
                 <div class="grid gap-0.5">
                   <label class="text-xs font-semibold bt-text-strong">市场</label>
@@ -1308,78 +1225,44 @@ watch(
                     density="compact" variant="outlined" placeholder="00700" clearable />
                 </div>
               </div>
-              <div class="text-xs bt-text-muted">
-                {{ displayInstrumentId || "请先输入市场与代码" }}
-              </div>
               <div class="grid gap-0.5">
                 <label class="text-xs font-semibold bt-text-strong">标的类型</label>
                 <v-select v-model="instrumentType" :items="BACKTEST_INSTRUMENT_TYPE_OPTIONS" item-title="title"
                   item-value="value" density="compact" variant="outlined" />
               </div>
-            </div>
+            </section>
 
-            <div class="flex items-center gap-2 pt-1">
-              <div class="h-px flex-1 bt-bg-muted"></div>
-              <div class="text-[11px] font-semibold uppercase tracking-[0.16em] bt-text-muted">2 数据口径</div>
-              <div class="h-px flex-1 bt-bg-muted"></div>
-            </div>
-
-            <!-- Period -->
-            <div class="grid gap-0.5">
-              <label class="text-xs font-semibold bt-text-strong">K线周期</label>
-              <v-select v-model="interval" :items="KLINE_PERIODS" item-title="label" item-value="value"
-                density="compact" variant="outlined" />
-              <div class="text-xs bt-text-dim">
-                默认 5m，可按本次回测需要单独调整。
+            <section class="grid gap-2 border-t bt-border pt-3">
+              <div class="text-sm font-semibold bt-text-strong">数据范围</div>
+              <div class="grid gap-0.5">
+                <label class="text-xs font-semibold bt-text-strong">K线周期</label>
+                <v-select v-model="interval" :items="KLINE_PERIODS" item-title="label" item-value="value"
+                  density="compact" variant="outlined" />
               </div>
-            </div>
-
-            <!-- Rehab type -->
-            <div class="grid gap-0.5">
-              <label class="text-xs font-semibold bt-text-strong">复权方式</label>
-              <v-select v-model="rehabType" :items="[
-                { value: 'forward', title: '前复权' },
-                { value: 'backward', title: '后复权' },
-                { value: 'none', title: '不复权' },
-              ]" item-title="title" item-value="value" density="compact" variant="outlined" />
-              <div class="text-xs bt-text-dim">
-                前复权适合回测，后复权适合分析。
-              </div>
-            </div>
-
-            <div v-if="extendedHoursSupported" class="grid gap-1">
-              <div class="flex items-start gap-3 rounded-lg border bt-border px-3 py-2">
-                <v-switch v-model="useExtendedHours" color="teal" density="compact" hide-details class="self-center" />
-                <div class="min-w-0 flex-1">
-                  <div class="text-xs font-semibold bt-text-strong">
-                    扩展交易时段
-                  </div>
-                  <div class="text-xs bt-text-dim">
-                    {{ extendedHoursHint }}
-                  </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="grid gap-0.5">
+                  <label class="text-xs font-semibold bt-text-strong">起始日期</label>
+                  <v-text-field v-model="startDate" type="date" density="compact" variant="outlined" />
+                </div>
+                <div class="grid gap-0.5">
+                  <label class="text-xs font-semibold bt-text-strong">结束日期</label>
+                  <v-text-field v-model="endDate" type="date" density="compact" variant="outlined" />
                 </div>
               </div>
-            </div>
-
-            <!-- Date range -->
-            <div class="grid grid-cols-2 gap-2">
               <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">起始日期</label>
-                <v-text-field v-model="startDate" type="date" density="compact" variant="outlined" />
+                <label class="text-xs font-semibold bt-text-strong">复权方式</label>
+                <v-select v-model="rehabType" :items="[
+                  { value: 'forward', title: '前复权' },
+                  { value: 'backward', title: '后复权' },
+                  { value: 'none', title: '不复权' },
+                ]" item-title="title" item-value="value" density="compact" variant="outlined" />
               </div>
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">结束日期</label>
-                <v-text-field v-model="endDate" type="date" density="compact" variant="outlined" />
-              </div>
-            </div>
-
-            <!-- Initial balance & derived warmup -->
-            <div class="grid grid-cols-2 gap-2">
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">初始资金</label>
-                <v-text-field v-model.number="initialBalance" type="number" :min="1000" density="compact"
-                  variant="outlined" />
-                <div class="text-xs bt-text-dim">{{ quoteCurrency }}</div>
+              <div v-if="extendedHoursSupported" class="flex items-start gap-3 rounded-lg border bt-border px-3 py-2">
+                <v-switch v-model="useExtendedHours" color="teal" density="compact" hide-details class="self-center" />
+                <div class="min-w-0 flex-1">
+                  <div class="text-xs font-semibold bt-text-strong">扩展交易时段</div>
+                  <div class="text-xs bt-text-dim">{{ extendedHoursHint }}</div>
+                </div>
               </div>
               <div class="grid gap-0.5">
                 <label class="text-xs font-semibold bt-text-strong">预热K线</label>
@@ -1388,17 +1271,19 @@ watch(
                 </div>
                 <div class="text-xs bt-text-dim">{{ warmupPreviewNote }}</div>
               </div>
-            </div>
+            </section>
 
-            <div class="flex items-center gap-2 pt-1">
-              <div class="h-px flex-1 bt-bg-muted"></div>
-              <div class="text-[11px] font-semibold uppercase tracking-[0.16em] bt-text-muted">3 成本模型</div>
-              <div class="h-px flex-1 bt-bg-muted"></div>
-            </div>
-
-            <!-- Trading costs -->
-            <div class="grid gap-2 rounded-lg border bt-border px-3 py-2">
-              <div class="text-xs font-semibold bt-text-strong">交易费用</div>
+            <section class="grid gap-2 border-t bt-border pt-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-sm font-semibold bt-text-strong">资金与成本</div>
+                <div class="text-xs bt-text-muted">{{ costModeSummary }}</div>
+              </div>
+              <div class="grid gap-0.5">
+                <label class="text-xs font-semibold bt-text-strong">初始资金</label>
+                <v-text-field v-model.number="initialBalance" type="number" :min="1000" density="compact"
+                  variant="outlined" />
+                <div class="text-xs bt-text-dim">{{ quoteCurrency }}</div>
+              </div>
               <div class="grid grid-cols-2 gap-2">
                 <div class="grid gap-0.5">
                   <label class="text-xs font-semibold bt-text-strong">券商费用</label>
@@ -1411,18 +1296,14 @@ watch(
                     item-value="value" density="compact" variant="outlined" />
                 </div>
               </div>
-              <div class="text-xs bt-text-dim">{{ costModeSummary }}</div>
               <v-textarea v-if="brokerFeeMode === 'custom'" v-model="brokerFeeRulesText" label="券商费用规则 JSON"
                 density="compact" variant="outlined" rows="3" auto-grow hide-details />
               <v-textarea v-if="marketFeeMode === 'custom'" v-model="marketFeeRulesText" label="市场费用规则 JSON"
                 density="compact" variant="outlined" rows="3" auto-grow hide-details />
-            </div>
+            </section>
 
-            <div class="flex items-center gap-2 pt-1">
-              <div class="h-px flex-1 bt-bg-muted"></div>
-              <div class="text-[11px] font-semibold uppercase tracking-[0.16em] bt-text-muted">4 同步与运行</div>
-              <div class="h-px flex-1 bt-bg-muted"></div>
-            </div>
+            <section class="grid gap-2 border-t bt-border pt-3">
+              <div class="text-sm font-semibold bt-text-strong">运行</div>
 
             <!-- Sync section -->
             <div v-if="syncing && !syncProgress"
@@ -1463,439 +1344,446 @@ watch(
             </div>
             <!-- Sync button -->
             <button v-else
-              class="w-full rounded-xl border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 shadow-sm transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
+              class="flex w-full items-center justify-center gap-2 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 shadow-sm transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
               :disabled="running" type="button" @click="syncKlines">
-              ⬇ 同步历史K线
+              <v-icon size="13">fa-solid fa-cloud-arrow-down</v-icon>
+              同步K线
             </button>
 
             <!-- Run button -->
             <button
-              class="w-full rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              class="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed"
               :class="{ 'bt-disabled-bg': running || !selectedDefinitionId }"
               :disabled="running || !selectedDefinitionId" type="button" @click="startBacktest">
               <v-progress-circular v-if="running" indeterminate :size="16" :width="2" color="white" />
-              {{ running ? "启动中..." : "▶ 开始回测" }}
+              <v-icon v-else size="13">fa-solid fa-play</v-icon>
+              {{ running ? "启动中..." : "开始回测" }}
             </button>
 
-            <div class="rounded-lg border border-teal-100 bg-teal-50 px-2 py-1.5 text-xs text-teal-800">
-              ⚡ 先同步K线，再开始回测。
-            </div>
+            </section>
+              </div>
+
+              <section class="mt-3 grid gap-3">
+                <div class="grid gap-2">
+                  <v-text-field v-model="resultsSearchQuery" density="compact" variant="outlined" hide-details clearable
+                    placeholder="搜索策略、标的、回测 ID" />
+                  <div class="grid grid-cols-2 gap-2">
+                    <v-select v-model="resultsStatusFilter" :items="BACKTEST_RESULT_STATUS_OPTIONS" item-title="title"
+                      item-value="value" density="compact" variant="outlined" hide-details />
+                    <v-select v-model="resultsStrategyFilter" :items="resultStrategyOptions" item-title="title"
+                      item-value="value" density="compact" variant="outlined" hide-details />
+                  </div>
+                  <div class="flex justify-end">
+                    <v-btn variant="text" density="comfortable" :disabled="!hasResultsFilters" @click="resetResultsFilters">
+                      清空筛选
+                    </v-btn>
+                  </div>
+                </div>
+
+                <div v-if="filteredRuns.length === 0" :class="[emptyStateClass, 'p-6 text-center text-sm']">
+                  {{ emptyResultsMessage }}
+                </div>
+                <div v-else class="grid gap-2">
+                  <div v-for="run in pagedRuns" :key="run.id"
+                    class="bt-history-run cursor-pointer rounded-lg border px-3 py-3 transition"
+                    :class="focusedRun && focusedRun.id === run.id
+                      ? 'bt-history-run--selected'
+                      : 'bt-history-run--idle bt-border bt-bg-surface'"
+                    role="button" tabindex="0" @click="selectFocusedRun(run.id)"
+                    @keydown.enter.prevent="selectFocusedRun(run.id)"
+                    @keydown.space.prevent="selectFocusedRun(run.id)">
+                    <div class="flex items-start gap-3">
+                      <v-chip :color="statusChip(run.status).color" size="small" variant="outlined" class="shrink-0">
+                        {{ statusChip(run.status).label }}
+                      </v-chip>
+                      <div class="min-w-0 flex-1">
+                        <div class="truncate text-sm font-semibold bt-text-strong">
+                          {{ resolveStrategyName(run.request.definitionId) }} · {{ run.request.symbol }}
+                        </div>
+                        <div class="mt-1 flex flex-wrap items-center gap-2 text-xs bt-text-muted">
+                          <span>{{ run.id }}</span>
+                          <span>{{ run.request.interval }}</span>
+                          <span>{{ formatBacktestRunDate(run.request.startDate) }} → {{ formatBacktestRunDate(run.request.endDate) }}</span>
+                          <span>{{ resolveRunSessionMode(run) }}</span>
+                          <span>{{ formatBacktestRehabType(run.request.rehabType) }}</span>
+                          <span>{{ run.request.initialBalance.toLocaleString() }} {{ resolveRunQuoteCurrency(run) }}</span>
+                          <span v-if="run.request.definitionVersion">{{ formatStrategyVersion(run.request.definitionVersion) }}</span>
+                        </div>
+                        <div v-if="run.status === 'running' || run.status === 'queued'" class="mt-2 flex items-center gap-3">
+                          <v-progress-linear :color="run.status === 'running' ? 'teal' : 'warning'" indeterminate rounded
+                            :height="6" class="flex-1" />
+                          <span class="text-xs whitespace-nowrap shrink-0" :class="run.status === 'running'
+                            ? 'text-teal-600'
+                            : 'text-amber-600'">
+                            {{ run.status === "running" ? "回测运行中…" : "排队等待中…" }}
+                          </span>
+                        </div>
+                      </div>
+                      <v-btn v-if="isTerminalBacktestStatus(run.status)" icon="fa-solid fa-trash"
+                        size="small" variant="text" color="error" title="删除回测结果"
+                        @click.stop="deleteRun(run.id)" />
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="resultsPageCount > 1" class="flex justify-center pt-2">
+                  <v-pagination v-model="resultsPage" :length="resultsPageCount" :total-visible="5" density="comfortable" />
+                </div>
+              </section>
           </div>
         </div>
-      </div>
+        </aside>
+      </SplitPaneItem>
 
-      <!-- Right: results list -->
-      <div class="col-span-8 lg:col-span-9">
-        <div class="grid gap-4">
-          <!-- Results cards -->
-          <div v-if="sortedRuns.length === 0" :class="[emptyStateClass, 'p-8 text-center text-sm']">
+      <SplitPaneItem :size="backtestPaneSizes[1]" :min-size="45">
+        <main class="backtest-page__pane">
+          <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div v-if="!focusedRun" :class="[emptyStateClass, 'p-8 text-center text-sm']">
             {{ emptyResultsMessage }}
           </div>
 
-          <div v-else class="grid gap-3 rounded-lg border bt-border bt-bg-surface px-3 py-3">
-            <div class="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_180px_220px_auto]">
-              <v-text-field v-model="resultsSearchQuery" density="compact" variant="outlined" hide-details clearable
-                placeholder="搜索策略、标的、回测 ID" />
-              <v-select v-model="resultsStatusFilter" :items="BACKTEST_RESULT_STATUS_OPTIONS" item-title="title"
-                item-value="value" density="compact" variant="outlined" hide-details />
-              <v-select v-model="resultsStrategyFilter" :items="resultStrategyOptions" item-title="title"
-                item-value="value" density="compact" variant="outlined" hide-details />
-              <div class="flex items-center justify-end">
-                <v-btn variant="text" density="comfortable" :disabled="!hasResultsFilters" @click="resetResultsFilters">
-                  清空筛选
-                </v-btn>
-              </div>
-            </div>
-            <div class="flex flex-wrap items-center justify-between gap-3 text-xs bt-text-muted">
-              <span>{{ resultsPageSummary }}</span>
-              <span>回测结果由服务端提供。</span>
-            </div>
-          </div>
-
-          <div v-if="sortedRuns.length > 0 && filteredRuns.length === 0"
-            :class="[emptyStateClass, 'p-8 text-center text-sm']">
-            {{ emptyResultsMessage }}
-          </div>
-
-          <v-expansion-panels v-model="expandedPanels" multiple variant="default" class="grid gap-3">
-            <v-expansion-panel v-for="run in pagedRuns" :key="run.id" :value="run.id" :class="cardBorderClass">
-              <v-expansion-panel-title class="pa-4">
-                <template #default>
-                  <div class="flex items-center gap-3 w-full min-w-0">
-                    <v-chip :color="statusChip(run.status).color" size="small" variant="outlined" class="shrink-0">
-                      {{ statusChip(run.status).label }}
-                    </v-chip>
-                    <div class="min-w-0 flex-1">
-                      <div class="text-base bt-text-strong truncate">
-                        {{ resolveStrategyName(run.request.definitionId) }} ·
-                        {{ run.request.symbol }} ·
-                        {{ formatBacktestRunDate(run.request.startDate) }} →
-                        {{ formatBacktestRunDate(run.request.endDate) }} ·
-                        {{ resolveRunSessionMode(run) }}
-                      </div>
-                      <div class="text-xs bt-text-muted mt-0.5">
-                        {{ run.id }} · {{ run.request.interval }} ·
-                        {{ formatBacktestRehabType(run.request.rehabType) }} ·
-                        {{ run.request.initialBalance.toLocaleString() }}
-                        {{ resolveRunQuoteCurrency(run)
-                        }}<template v-if="run.request.definitionVersion">
-                          ·
-                          {{
-                            formatStrategyVersion(run.request.definitionVersion)
-                          }}</template>
-                      </div>
-                      <!-- Running / Queued progress -->
-                      <div v-if="run.status === 'running' || run.status === 'queued'"
-                        class="mt-2 flex items-center gap-3">
-                        <v-progress-linear v-if="run.status === 'running'" color="teal" indeterminate rounded
-                          :height="6" class="flex-1" />
-                        <v-progress-linear v-else color="warning" indeterminate rounded :height="6" class="flex-1" />
-                        <span class="text-xs whitespace-nowrap shrink-0" :class="run.status === 'running'
-                          ? 'text-teal-600'
-                          : 'text-amber-600'
-                          ">
-                          {{ run.status === "running" ? "回测运行中…" : "排队等待中…" }}
-                        </span>
-                      </div>
+          <template v-else>
+            <section v-if="focusedRun" :class="[controlPanelClass, 'flex min-h-0 flex-1 flex-col overflow-hidden']">
+              <div class="grid shrink-0 gap-3 border-b bt-border px-4 py-3">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="text-xs uppercase tracking-[0.16em] bt-text-muted">回测报告</div>
+                    <div class="mt-1 text-lg font-semibold bt-text-strong">
+                      {{ resolveStrategyName(focusedRun.request.definitionId) }} · {{ focusedRun.request.symbol }}
                     </div>
-                    <v-btn v-if="isTerminalBacktestStatus(run.status)" icon="fa-solid fa-trash"
-                      size="small" variant="text" color="error" title="删除回测结果" @click.stop="deleteRun(run.id)" />
+                    <div class="mt-1 flex flex-wrap items-center gap-2 text-xs bt-text-muted">
+                      <span>{{ focusedRun.id }}</span>
+                      <span>{{ focusedRun.request.interval }}</span>
+                      <span>{{ formatBacktestRunDate(focusedRun.request.startDate) }} → {{ formatBacktestRunDate(focusedRun.request.endDate) }}</span>
+                      <span>{{ resolveRunSessionMode(focusedRun) }}</span>
+                      <span>{{ formatBacktestRehabType(focusedRun.request.rehabType) }}</span>
+                    </div>
                   </div>
-                </template>
-              </v-expansion-panel-title>
-
-              <v-expansion-panel-text>
-                <div v-if="resolveBacktestStrategyVersionNotice(run)"
-                  class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  {{ resolveBacktestStrategyVersionNotice(run) }}
+                  <div class="flex items-center gap-2">
+                    <v-chip :color="statusChip(focusedRun.status).color" size="small" variant="outlined">
+                      {{ statusChip(focusedRun.status).label }}
+                    </v-chip>
+                    <v-btn v-if="isTerminalBacktestStatus(focusedRun.status)" icon="fa-solid fa-trash"
+                      size="small" variant="text" color="error" title="删除回测结果"
+                      @click="deleteRun(focusedRun.id)" />
+                  </div>
                 </div>
-
-                <div v-if="detailLoading[run.id]"
-                  class="mb-3 rounded-lg border bt-border bt-bg-muted px-3 py-2 text-xs bt-text-muted">
+                <div v-if="focusedRun.status === 'running' || focusedRun.status === 'queued'"
+                  class="flex items-center gap-3">
+                  <v-progress-linear :color="focusedRun.status === 'running' ? 'teal' : 'warning'" indeterminate rounded
+                    :height="6" class="flex-1" />
+                  <span class="text-xs whitespace-nowrap shrink-0" :class="focusedRun.status === 'running'
+                    ? 'text-teal-600'
+                    : 'text-amber-600'">
+                    {{ focusedRun.status === "running" ? "回测运行中…" : "排队等待中…" }}
+                  </span>
+                </div>
+                <div v-if="resolveBacktestStrategyVersionNotice(focusedRun)"
+                  class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  {{ resolveBacktestStrategyVersionNotice(focusedRun) }}
+                </div>
+                <div v-if="detailLoading[focusedRun.id]"
+                  class="rounded-lg border bt-border bt-bg-muted px-3 py-2 text-xs bt-text-muted">
                   正在加载完整回测详情…
                 </div>
-                <div v-if="detailErrors[run.id]"
-                  class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {{ detailErrors[run.id] }}
+                <div v-if="detailErrors[focusedRun.id]"
+                  class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {{ detailErrors[focusedRun.id] }}
                 </div>
+              </div>
 
-                <div v-if="
-                  run.result &&
-                  isTerminalBacktestStatus(run.status)
-                ">
-                  <div class="grid grid-cols-2 gap-3 lg:grid-cols-9">
-                    <div :class="[statCardClass, 'px-3 py-3']">
-                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                        最终资金
-                      </div>
-                      <div class="mt-1 text-lg font-semibold bt-text">
-                        {{
-                          run.result.finalBalance.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                          })
-                        }}
-                      </div>
-                      <div class="text-xs bt-text-muted">
-                        {{ resolveRunQuoteCurrency(run) }}
-                      </div>
+              <div class="grid shrink-0 gap-3 border-b bt-border px-4 py-4">
+                <div v-if="focusedRunResultReady && focusedRun.result" class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-9">
+                  <div :class="[statCardClass, 'px-3 py-3']">
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">最终资金</div>
+                    <div class="mt-1 text-lg font-semibold bt-text">
+                      {{ focusedRun.result.finalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
                     </div>
-                    <div :class="[statCardClass, 'px-3 py-3']">
-                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                        收益
-                      </div>
-                      <div class="mt-1 text-lg font-semibold" :class="pnlColor(run.result.pnl)">
-                        {{ pnlPrefix(run.result.pnl)
-                        }}{{
-                          run.result.pnl.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                          })
-                        }}
-                      </div>
-                      <div class="text-xs bt-text-muted">
-                        {{ resolveRunQuoteCurrency(run) }}
-                      </div>
+                    <div class="text-xs bt-text-muted">{{ resolveRunQuoteCurrency(focusedRun) }}</div>
+                  </div>
+                  <div :class="[statCardClass, 'px-3 py-3']">
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">收益</div>
+                    <div class="mt-1 text-lg font-semibold" :class="pnlColor(focusedRun.result.pnl)">
+                      {{ pnlPrefix(focusedRun.result.pnl) }}{{ focusedRun.result.pnl.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
                     </div>
-                    <div :class="[statCardClass, 'px-3 py-3']">
-                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                        交易次数
-                      </div>
-                      <div class="mt-1 text-lg font-semibold bt-text">
-                        {{ run.result.totalTrades }}
-                      </div>
-                    </div>
-                    <div :class="[statCardClass, 'px-3 py-3']">
-                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                        胜率
-                      </div>
-                      <div class="mt-1 text-lg font-semibold bt-text">
-                        {{ (run.result.winRate * 100).toFixed(1) }}%
-                      </div>
-                    </div>
-                    <div :class="[statCardClass, 'px-3 py-3']">
-                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                        最大回撤
-                      </div>
-                      <div class="mt-1 text-lg font-semibold" :class="drawdownColor(run.result.maxDrawdown)">
-                        {{ formatPercentMetric(run.result.maxDrawdown) }}
-                      </div>
-                    </div>
-                    <div :class="[statCardClass, 'px-3 py-3']">
-                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                        当前回撤
-                      </div>
-                      <div class="mt-1 text-lg font-semibold" :class="drawdownColor(run.result.currentDrawdown)">
-                        {{ formatPercentMetric(run.result.currentDrawdown) }}
-                      </div>
-                    </div>
-                    <div :class="[statCardClass, 'px-3 py-3']">
-                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                        券商费用
-                      </div>
-                      <div class="mt-1 text-lg font-semibold bt-text">
-                        {{ formatBacktestFee(run.result.totalBrokerFees, resolveRunQuoteCurrency(run)) }}
-                      </div>
-                    </div>
-                    <div :class="[statCardClass, 'px-3 py-3']">
-                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                        市场费用
-                      </div>
-                      <div class="mt-1 text-lg font-semibold bt-text">
-                        {{ formatBacktestFee(run.result.totalMarketFees, resolveRunQuoteCurrency(run)) }}
-                      </div>
-                    </div>
-                    <div :class="[statCardClass, 'px-3 py-3']">
-                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                        总费用
-                      </div>
-                      <div class="mt-1 text-lg font-semibold bt-text">
-                        {{ formatBacktestFee(run.result.totalFees, resolveRunQuoteCurrency(run)) }}
-                      </div>
+                    <div class="text-xs bt-text-muted">{{ resolveRunQuoteCurrency(focusedRun) }}</div>
+                  </div>
+                  <div :class="[statCardClass, 'px-3 py-3']">
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">交易次数</div>
+                    <div class="mt-1 text-lg font-semibold bt-text">{{ focusedRun.result.totalTrades }}</div>
+                  </div>
+                  <div :class="[statCardClass, 'px-3 py-3']">
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">胜率</div>
+                    <div class="mt-1 text-lg font-semibold bt-text">
+                      {{ (focusedRun.result.winRate * 100).toFixed(1) }}%
                     </div>
                   </div>
-                  <div v-if="
-                    run.result &&
-                    run.result.totalTrades === 0 &&
-                    !run.result.error
-                  " class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                    未产生任何交易。可能原因：策略未调用
-                    placeOrder()，或订阅的K线周期未同步。
-                  </div>
-                  <div class="mt-2 rounded border bt-border bt-bg-muted px-2 py-1 text-xs bt-text">
-                    <div class="mt-1">{{ resolveBacktestPriceBasisNote(run) }}</div>
-                    <div class="mt-1">
-                      费用口径：券商 {{ run.result.tradingCosts?.brokerFees?.mode ?? "market_preset" }} ｜ 市场
-                      {{ run.result.tradingCosts?.marketFees?.mode ?? "market_preset" }}
-                    </div>
-                    <div class="mt-2 border-t bt-border pt-2">
-                      <div class="font-semibold">回测/实盘一致性</div>
-                      <ul class="mt-1 list-disc space-y-1 pl-4">
-                        <li v-for="note in resolveBacktestParityNotes(run)" :key="note">
-                          {{ note }}
-                        </li>
-                      </ul>
-                    </div>
-                    <div v-if="resolveQueriedCandleBounds(run.result?.candles)" class="mt-1">
-                      查询到的周期边界：左边界
-                      {{ resolveQueriedCandleBounds(run.result?.candles)?.left }} ｜
-                      右边界
-                      {{
-                        resolveQueriedCandleBounds(run.result?.candles)?.right
-                      }}
-                      ｜ 共
-                      {{
-                        resolveQueriedCandleBounds(run.result?.candles)?.count
-                      }}
-                      根
+                  <div :class="[statCardClass, 'px-3 py-3']">
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">最大回撤</div>
+                    <div class="mt-1 text-lg font-semibold" :class="drawdownColor(focusedRun.result.maxDrawdown)">
+                      {{ formatPercentMetric(focusedRun.result.maxDrawdown) }}
                     </div>
                   </div>
+                  <div :class="[statCardClass, 'px-3 py-3']">
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">当前回撤</div>
+                    <div class="mt-1 text-lg font-semibold" :class="drawdownColor(focusedRun.result.currentDrawdown)">
+                      {{ formatPercentMetric(focusedRun.result.currentDrawdown) }}
+                    </div>
+                  </div>
+                  <div :class="[statCardClass, 'px-3 py-3']">
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">券商费用</div>
+                    <div class="mt-1 text-lg font-semibold bt-text">
+                      {{ formatBacktestFee(focusedRun.result.totalBrokerFees, resolveRunQuoteCurrency(focusedRun)) }}
+                    </div>
+                  </div>
+                  <div :class="[statCardClass, 'px-3 py-3']">
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">市场费用</div>
+                    <div class="mt-1 text-lg font-semibold bt-text">
+                      {{ formatBacktestFee(focusedRun.result.totalMarketFees, resolveRunQuoteCurrency(focusedRun)) }}
+                    </div>
+                  </div>
+                  <div :class="[statCardClass, 'px-3 py-3']">
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">总费用</div>
+                    <div class="mt-1 text-lg font-semibold bt-text">
+                      {{ formatBacktestFee(focusedRun.result.totalFees, resolveRunQuoteCurrency(focusedRun)) }}
+                    </div>
+                  </div>
+                </div>
+                <div v-else :class="[emptyStateClass, 'p-6 text-center text-sm']">
+                  当前回测尚未生成完整报告。
+                </div>
+                <div v-if="focusedRun.result && focusedRun.result.totalTrades === 0 && !focusedRun.result.error"
+                  class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  未产生任何交易。可能原因：策略未调用 placeOrder()，或订阅的K线周期未同步。
+                </div>
+              </div>
 
-                  <!-- Backtest chart -->
-                  <div v-if="
-                    isRunPanelExpanded(run.id) &&
-                    run.status === 'completed' && run.result?.pnlCurve?.length
-                  " class="mt-2">
-                    <BacktestChart :candles="run.result.candles ?? []" :trades="run.result.trades ?? []"
-                      :pnl-curve="run.result.pnlCurve" :drawdown-curve="run.result.drawdownCurve ?? []"
-                      :initial-balance="run.request.initialBalance" :min-height="560"
-                      :currency-unit="resolveRunQuoteCurrency(run)" empty-text="暂无权益曲线数据" />
-                  </div>
+              <v-tabs v-model="activeReportTab" bg-color="transparent" density="compact" class="bt-report-tabs shrink-0">
+                <v-tab value="chart">
+                  <v-icon size="13" class="mr-1">fa-solid fa-chart-line</v-icon>
+                  图表
+                </v-tab>
+                <v-tab value="orders">
+                  <v-icon size="13" class="mr-1">fa-solid fa-list-check</v-icon>
+                  订单
+                </v-tab>
+                <v-tab value="properties">
+                  <v-icon size="13" class="mr-1">fa-solid fa-sliders</v-icon>
+                  属性
+                </v-tab>
+              </v-tabs>
 
-                  <div v-if="run.result?.orderBook?.length" :class="[cardBorderClass, 'mt-3 overflow-hidden']">
-                    <details>
-                      <summary
-                        class="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold bt-text marker:content-none">
-                        <span>订单簿</span>
+              <v-window v-model="activeReportTab" class="bt-report-window min-h-0 flex-1 overflow-hidden">
+                <v-window-item value="chart" class="bt-report-window-item bt-report-window-item--chart">
+                  <div class="bt-report-chart-tab flex h-full min-h-0 flex-col p-4">
+                    <div v-if="focusedRunResultReady && focusedRun.result" class="min-h-0 flex-1">
+                      <BacktestChart v-if="focusedRunHasChartData" :candles="focusedRun.result.candles ?? []"
+                        :trades="focusedRun.result.trades ?? []" :pnl-curve="focusedRun.result.pnlCurve ?? []"
+                        :drawdown-curve="focusedRun.result.drawdownCurve ?? []"
+                        :initial-balance="focusedRun.request.initialBalance" :min-height="560"
+                        :currency-unit="resolveRunQuoteCurrency(focusedRun)" fit-container
+                        empty-text="暂无权益曲线数据" />
+                      <div v-else :class="[emptyStateClass, 'flex h-full min-h-[220px] items-center justify-center p-8 text-center text-sm']">
+                        暂无权益曲线数据。
+                      </div>
+                    </div>
+                    <div v-else :class="[emptyStateClass, 'flex h-full min-h-[220px] items-center justify-center p-8 text-center text-sm']">
+                      当前回测尚未生成完整报告。
+                    </div>
+                  </div>
+                </v-window-item>
+
+                <v-window-item value="orders" class="bt-report-window-item">
+                  <div class="h-full min-h-0 overflow-auto p-4">
+                    <div v-if="focusedRun.result?.orderBook?.length" :class="[cardBorderClass, 'overflow-hidden']">
+                      <div class="flex items-center justify-between border-b bt-border px-4 py-3 text-sm font-semibold bt-text">
+                        <span>订单</span>
                         <span class="text-xs font-medium bt-text-muted">
-                          {{ run.result.orderBook.length }} 笔 · 默认收起
+                          {{ focusedRun.result.orderBook.length }} 笔
                         </span>
+                      </div>
+                      <div class="max-h-[520px] overflow-auto">
+                        <table class="min-w-full divide-y bt-divide text-sm">
+                          <thead class="sticky top-0 bt-bg-muted text-left text-xs uppercase tracking-[0.14em] bt-text-muted">
+                            <tr>
+                              <th class="px-4 py-3 font-medium">下单</th>
+                              <th class="px-4 py-3 font-medium">成交</th>
+                              <th class="px-4 py-3 font-medium">方向</th>
+                              <th class="px-4 py-3 font-medium">数量</th>
+                              <th class="px-4 py-3 font-medium">委托价</th>
+                              <th class="px-4 py-3 font-medium">成交价</th>
+                              <th class="px-4 py-3 font-medium">费用</th>
+                              <th class="px-4 py-3 font-medium">状态</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y bt-divide-soft bt-bg-surface">
+                            <tr v-for="(entry, index) in visibleBacktestOrderBook(focusedRun)"
+                              :key="`${entry.orderId || index}-${entry.filledAt ?? entry.submittedAt ?? ''}`">
+                              <td class="px-4 py-3 align-top bt-text-strong">
+                                <div>{{ formatBacktestTimestamp(entry.submittedAt) }}</div>
+                                <div class="mt-1 text-xs bt-text-dim">
+                                  #{{ entry.orderId }}<span v-if="entry.clientOrderId"> · {{ entry.clientOrderId }}</span>
+                                </div>
+                              </td>
+                              <td class="px-4 py-3 align-top bt-text-strong">{{ formatBacktestTimestamp(entry.filledAt) }}</td>
+                              <td class="px-4 py-3 align-top bt-text-strong">{{ formatBacktestOrderSide(entry.side) }}</td>
+                              <td class="px-4 py-3 align-top bt-text-strong">
+                                <div>{{ formatBacktestQuantity(entry.quantity, entry.quantityText) }}</div>
+                                <div v-if="entry.filledQuantity !== undefined" class="mt-1 text-xs bt-text-dim">
+                                  成交 {{ formatBacktestQuantity(entry.filledQuantity, entry.filledQuantityText) }}
+                                </div>
+                              </td>
+                              <td class="px-4 py-3 align-top bt-text-strong">
+                                {{ formatBacktestOrderPrice(entry.orderPrice, entry.orderType, entry.orderPriceText) }}
+                              </td>
+                              <td class="px-4 py-3 align-top bt-text-strong">
+                                {{ formatBacktestOrderPrice(entry.filledPrice, undefined, entry.filledPriceText) }}
+                              </td>
+                              <td class="px-4 py-3 align-top bt-text-strong">
+                                <div>{{ formatBacktestFee(entry.totalFee, entry.feeCurrency) }}</div>
+                                <div v-if="entry.totalFee" class="mt-1 text-xs bt-text-dim">
+                                  券商 {{ formatBacktestFee(entry.brokerFee, entry.feeCurrency) }} ｜ 市场
+                                  {{ formatBacktestFee(entry.marketFee, entry.feeCurrency) }}
+                                </div>
+                              </td>
+                              <td class="px-4 py-3 align-top bt-text-strong">{{ formatBacktestOrderStatus(entry.status) }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div v-if="hiddenBacktestOrderBookCount(focusedRun) > 0"
+                        class="border-t bt-border px-4 py-2 text-xs bt-text-muted">
+                        另有 {{ hiddenBacktestOrderBookCount(focusedRun) }} 笔订单。
+                      </div>
+                    </div>
+                    <div v-else :class="[emptyStateClass, 'p-8 text-center text-sm']">
+                      暂无订单记录。
+                    </div>
+                  </div>
+                </v-window-item>
+
+                <v-window-item value="properties" class="bt-report-window-item">
+                  <div class="grid h-full min-h-0 gap-3 overflow-auto p-4">
+                    <div v-if="focusedRun.result" class="rounded-lg border bt-border bt-bg-muted px-3 py-2 text-xs bt-text">
+                      <div>{{ resolveBacktestPriceBasisNote(focusedRun) }}</div>
+                      <div class="mt-1">
+                        费用口径：券商 {{ focusedRun.result.tradingCosts?.brokerFees?.mode ?? "market_preset" }} ｜ 市场
+                        {{ focusedRun.result.tradingCosts?.marketFees?.mode ?? "market_preset" }}
+                      </div>
+                      <div v-if="resolveQueriedCandleBounds(focusedRun.result?.candles)" class="mt-1">
+                        查询到的周期边界：左边界
+                        {{ resolveQueriedCandleBounds(focusedRun.result?.candles)?.left }} ｜
+                        右边界 {{ resolveQueriedCandleBounds(focusedRun.result?.candles)?.right }} ｜
+                        共 {{ resolveQueriedCandleBounds(focusedRun.result?.candles)?.count }} 根
+                      </div>
+                    </div>
+
+                    <details v-if="focusedRun.result?.runtimeErrors && focusedRun.result.runtimeErrors.length > 0"
+                      class="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                      <summary class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-red-700 select-none">
+                        <v-icon size="13">fa-solid fa-circle-exclamation</v-icon>
+                        {{ runtimeErrorSummary(focusedRun.result) }}
                       </summary>
-                      <div class="border-t bt-border">
-                        <div class="max-h-96 overflow-auto">
-                          <table class="min-w-full divide-y bt-divide text-sm">
-                            <thead
-                              class="sticky top-0 bt-bg-muted text-left text-xs uppercase tracking-[0.14em] bt-text-muted">
-                              <tr>
-                                <th class="px-4 py-3 font-medium">下单</th>
-                                <th class="px-4 py-3 font-medium">成交</th>
-                                <th class="px-4 py-3 font-medium">方向</th>
-                                <th class="px-4 py-3 font-medium">数量</th>
-                                <th class="px-4 py-3 font-medium">委托价</th>
-                                <th class="px-4 py-3 font-medium">成交价</th>
-                                <th class="px-4 py-3 font-medium">费用</th>
-                                <th class="px-4 py-3 font-medium">状态</th>
-                              </tr>
-                            </thead>
-                            <tbody class="divide-y bt-divide-soft bt-bg-surface">
-                              <tr v-for="entry in visibleBacktestOrderBook(run)"
-                                :key="`${entry.orderId}-${entry.filledAt ?? entry.submittedAt ?? ''}`">
-                                <td class="px-4 py-3 align-top bt-text-strong">
-                                  <div>
-                                    {{ formatBacktestTimestamp(entry.submittedAt) }}
-                                  </div>
-                                  <div class="mt-1 text-xs bt-text-dim">
-                                    #{{ entry.orderId
-                                    }}<span v-if="entry.clientOrderId">
-                                      · {{ entry.clientOrderId }}</span>
-                                  </div>
-                                </td>
-                                <td class="px-4 py-3 align-top bt-text-strong">
-                                  {{ formatBacktestTimestamp(entry.filledAt) }}
-                                </td>
-                                <td class="px-4 py-3 align-top bt-text-strong">
-                                  {{ formatBacktestOrderSide(entry.side) }}
-                                </td>
-                                <td class="px-4 py-3 align-top bt-text-strong">
-                                  <div>
-                                    {{
-                                      formatBacktestQuantity(
-                                        entry.quantity,
-                                        entry.quantityText,
-                                      )
-                                    }}
-                                  </div>
-                                  <div v-if="entry.filledQuantity !== undefined" class="mt-1 text-xs bt-text-dim">
-                                    成交
-                                    {{
-                                      formatBacktestQuantity(
-                                        entry.filledQuantity,
-                                        entry.filledQuantityText,
-                                      )
-                                    }}
-                                  </div>
-                                </td>
-                                <td class="px-4 py-3 align-top bt-text-strong">
-                                  {{
-                                    formatBacktestOrderPrice(
-                                      entry.orderPrice,
-                                      entry.orderType,
-                                      entry.orderPriceText,
-                                    )
-                                  }}
-                                </td>
-                                <td class="px-4 py-3 align-top bt-text-strong">
-                                  {{
-                                    formatBacktestOrderPrice(
-                                      entry.filledPrice,
-                                      undefined,
-                                      entry.filledPriceText,
-                                    )
-                                  }}
-                                </td>
-                                <td class="px-4 py-3 align-top bt-text-strong">
-                                  <div>{{ formatBacktestFee(entry.totalFee, entry.feeCurrency) }}</div>
-                                  <div v-if="entry.totalFee" class="mt-1 text-xs bt-text-dim">
-                                    券商 {{ formatBacktestFee(entry.brokerFee, entry.feeCurrency) }} ｜ 市场
-                                    {{ formatBacktestFee(entry.marketFee, entry.feeCurrency) }}
-                                  </div>
-                                </td>
-                                <td class="px-4 py-3 align-top bt-text-strong">
-                                  {{ formatBacktestOrderStatus(entry.status) }}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                      <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                        <div v-for="(err, i) in visibleBacktestRuntimeErrors(focusedRun)" :key="i"
+                          class="rounded border border-red-100 bt-bg-surface px-2 py-1 text-xs text-red-800 font-mono leading-relaxed">
+                          <span v-if="runtimeErrorRepeatCount(focusedRun.result, err) > 1" class="font-semibold">
+                            x{{ runtimeErrorRepeatCount(focusedRun.result, err) }}
+                          </span>
+                          {{ err }}
                         </div>
-                        <div v-if="hiddenBacktestOrderBookCount(run) > 0"
-                          class="border-t bt-border px-4 py-2 text-xs bt-text-muted">
-                          另有 {{ hiddenBacktestOrderBookCount(run) }} 笔订单。
+                        <div v-if="hiddenBacktestRuntimeErrorCount(focusedRun) > 0" class="text-xs text-red-700">
+                          另有 {{ hiddenBacktestRuntimeErrorCount(focusedRun) }} 条错误。
                         </div>
                       </div>
                     </details>
-                  </div>
-                </div>
 
-                <!-- Runtime errors (e.g. insufficient balance, order rejections) -->
-                <div v-if="
-                  run.result?.runtimeErrors && run.result.runtimeErrors.length > 0
-                " class="mt-3">
-                  <details class="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                    <summary class="cursor-pointer text-xs font-semibold text-red-700 select-none">
-                      ⚡ {{ runtimeErrorSummary(run.result) }}
-                    </summary>
-                    <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
-                      <div v-for="(err, i) in visibleBacktestRuntimeErrors(run)" :key="i"
-                        class="rounded border border-red-100 bt-bg-surface px-2 py-1 text-xs text-red-800 font-mono leading-relaxed">
-                        <span v-if="runtimeErrorRepeatCount(run.result, err) > 1" class="font-semibold">
-                          x{{ runtimeErrorRepeatCount(run.result, err) }}
-                        </span>
-                        {{ err }}
+                    <details v-if="focusedRun.result?.warnings && focusedRun.result.warnings.length > 0"
+                      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                      <summary class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-amber-700 select-none">
+                        <v-icon size="13">fa-solid fa-triangle-exclamation</v-icon>
+                        {{ warningSummary(focusedRun.result) }}
+                      </summary>
+                      <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                        <div v-for="(warning, i) in visibleBacktestWarnings(focusedRun)" :key="i"
+                          class="rounded border border-amber-100 bt-bg-surface px-2 py-1 text-xs text-amber-800 font-mono leading-relaxed">
+                          {{ warning }}
+                        </div>
+                        <div v-if="hiddenBacktestWarningCount(focusedRun) > 0" class="text-xs text-amber-700">
+                          另有 {{ hiddenBacktestWarningCount(focusedRun) }} 条警告。
+                        </div>
                       </div>
-                      <div v-if="hiddenBacktestRuntimeErrorCount(run) > 0" class="text-xs text-red-700">
-                        另有 {{ hiddenBacktestRuntimeErrorCount(run) }} 条错误。
+                    </details>
+
+                    <div v-if="focusedRun.result?.logs && focusedRun.result.logs.length > 0"
+                      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-1">
+                      <div v-for="(log, i) in visibleBacktestLogs(focusedRun)" :key="i" class="flex gap-2">
+                        <v-icon size="12" class="mt-0.5">fa-solid fa-circle-info</v-icon>
+                        <span>{{ log }}</span>
+                      </div>
+                      <div v-if="hiddenBacktestLogCount(focusedRun) > 0">
+                        另有 {{ hiddenBacktestLogCount(focusedRun) }} 条日志。
                       </div>
                     </div>
-                  </details>
-                </div>
 
-                <div v-if="run.result?.warnings && run.result.warnings.length > 0" class="mt-3">
-                  <details class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                    <summary class="cursor-pointer text-xs font-semibold text-amber-700 select-none">
-                      ⚠ {{ warningSummary(run.result) }}
-                    </summary>
-                    <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
-                      <div v-for="(warning, i) in visibleBacktestWarnings(run)" :key="i"
-                        class="rounded border border-amber-100 bt-bg-surface px-2 py-1 text-xs text-amber-800 font-mono leading-relaxed">
-                        {{ warning }}
-                      </div>
-                      <div v-if="hiddenBacktestWarningCount(run) > 0" class="text-xs text-amber-700">
-                        另有 {{ hiddenBacktestWarningCount(run) }} 条警告。
-                      </div>
+                    <div v-if="focusedRun.result?.error"
+                      class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 whitespace-pre-wrap">
+                      {{ focusedRun.result.error }}
                     </div>
-                  </details>
-                </div>
 
-                <!-- Diagnostic logs (always visible when present) -->
-                <div v-if="run.result?.logs && run.result.logs.length > 0" class="mt-3">
-                  <div
-                    class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-1">
-                    <div v-for="(log, i) in visibleBacktestLogs(run)" :key="i">
-                      ⚠ {{ log }}
-                    </div>
-                    <div v-if="hiddenBacktestLogCount(run) > 0">
-                      另有 {{ hiddenBacktestLogCount(run) }} 条日志。
+                    <div v-if="!focusedRun.result" :class="[emptyStateClass, 'p-8 text-center text-sm']">
+                      暂无属性。
                     </div>
                   </div>
-                </div>
-                <div v-if="run.result?.error" class="mt-3">
-                  <div
-                    class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 whitespace-pre-wrap">
-                    {{ run.result.error }}
-                  </div>
-                </div>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
+                </v-window-item>
+              </v-window>
+            </section>
 
-          <div v-if="resultsPageCount > 1" class="flex justify-center pt-2">
-            <v-pagination v-model="resultsPage" :length="resultsPageCount" :total-visible="6" density="comfortable" />
-          </div>
+          </template>
         </div>
-      </div>
-    </div>
+        </main>
+      </SplitPaneItem>
+    </SplitPane>
   </div>
 </template>
 
 <style scoped>
+.backtest-page__split {
+  min-height: 300px;
+}
+
+.backtest-page__pane {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bt-report-window,
+.bt-report-window-item,
+.bt-report-chart-tab {
+  min-height: 0;
+}
+
+.bt-report-window :deep(.v-window__container),
+.bt-report-window :deep(.v-window-item),
+.bt-report-window :deep(.v-window-item--active) {
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 960px) {
+  .backtest-page__split {
+    height: auto;
+    min-height: 0;
+  }
+
+  .backtest-page__pane {
+    min-height: 360px;
+  }
+}
+
 .backtest-page :deep(.v-field) {
   border-radius: 10px;
   background: color-mix(in srgb, var(--tv-bg-elevated) 88%, transparent);
@@ -1921,23 +1809,6 @@ watch(
   color: var(--tv-text-dim);
 }
 
-.backtest-page :deep(.v-expansion-panel) {
-  background: var(--tv-bg-surface);
-  border-color: var(--tv-border);
-}
-
-.backtest-page :deep(.v-expansion-panel--active > .v-expansion-panel-title) {
-  border-bottom: 1px solid var(--tv-border);
-}
-
-.backtest-page :deep(.v-expansion-panel-title) {
-  color: var(--tv-text);
-}
-
-.backtest-page :deep(.v-expansion-panel-text) {
-  color: var(--tv-text);
-}
-
 .backtest-page :deep(.v-chip) {
   border-color: var(--tv-border);
 }
@@ -1951,6 +1822,28 @@ watch(
 .backtest-page :deep(.v-pagination .v-btn.v-btn--active) {
   color: var(--tv-accent);
   border-color: var(--tv-accent);
+}
+
+.backtest-page :deep(.bt-accent-action.v-btn) {
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 34%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
+  color: var(--tv-accent);
+}
+
+.backtest-page :deep(.bt-accent-action.v-btn:hover) {
+  background: color-mix(in srgb, var(--tv-accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--tv-accent) 54%, var(--tv-border));
+}
+
+.backtest-page .bt-history-run--selected {
+  border-color: color-mix(in srgb, var(--tv-accent) 54%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-accent) 12%, var(--tv-bg-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tv-accent) 18%, transparent);
+}
+
+.backtest-page .bt-history-run--idle:hover {
+  border-color: color-mix(in srgb, var(--tv-accent) 42%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-accent) 6%, var(--tv-bg-surface));
 }
 
 .backtest-page .bt-bg-surface {

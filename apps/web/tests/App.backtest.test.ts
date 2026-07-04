@@ -55,6 +55,10 @@ describe("Backtest page", () => {
       window.localStorage.getItem(backtestFormStorageKey) ?? "{}",
     ) as { selectedMarket?: string };
     expect(stored.selectedMarket).toBe("HK");
+    const page = wrapper.getComponent(BacktestPage);
+    const setup = page.vm.$.setupState as Record<string, unknown>;
+    expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(true);
+    expect(wrapper.text()).toContain("策略与标的");
 
     wrapper.unmount();
   });
@@ -124,19 +128,53 @@ describe("Backtest page", () => {
     const call = <T>(name: string, ...args: unknown[]) =>
       (setup[name] as (...values: unknown[]) => T)(...args);
 
-    expect(wrapper.text()).toContain("提交步骤");
-    expect(wrapper.text()).toContain("回测/实盘一致性边界");
-    expect(wrapper.text()).toContain("conservative-bar-v1");
-    expect(wrapper.text()).toContain("1. 策略");
-    expect(wrapper.text()).toContain("同步后运行");
-    expect(readSetupValue<Array<{ label: string; state: string }>>(setup.backtestPlanSteps)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ label: "策略", state: "ready" }),
-        expect.objectContaining({ label: "历史数据", state: "ready" }),
-        expect.objectContaining({ label: "运行回测", state: "ready" }),
-      ]),
+    expect(wrapper.text()).toContain("历史回测");
+    expect(wrapper.text()).toContain("新建回测");
+    expect(wrapper.text()).toContain("回测报告");
+    expect(wrapper.text()).toContain("图表");
+    expect(wrapper.text()).toContain("订单");
+    expect(wrapper.text()).toContain("属性");
+    expect(wrapper.text()).toContain("最终资金");
+    expect(wrapper.text()).not.toContain("绩效摘要");
+    expect(wrapper.text()).not.toContain("订单列表");
+    expect(wrapper.text()).not.toContain("属性与日志");
+    expect(wrapper.text()).not.toContain("历史记录");
+    expect(wrapper.text()).not.toContain("提交步骤");
+    expect(wrapper.text()).not.toContain("回测/实盘一致性边界");
+    expect(wrapper.text()).not.toContain("回测/实盘一致性");
+    expect(page.get(".bt-report-window").classes()).toEqual(
+      expect.arrayContaining(["min-h-0", "flex-1", "overflow-hidden"]),
     );
-    expect(call("backtestPlanStepClass", "blocked")).toContain("amber");
+    expect(page.get(".bt-report-chart-tab").classes()).toEqual(
+      expect.arrayContaining(["h-full", "min-h-0", "flex-col"]),
+    );
+    expect(page.get(".bt-report-window-item--chart").classes()).toContain("bt-report-window-item");
+    expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(false);
+    expect(readSetupValue<string>(setup.activeReportTab)).toBe("chart");
+    expect(readSetupValue<[number, number]>(setup.backtestPaneSizes)).toEqual([30, 70]);
+    call("handleBacktestPaneResized", { panes: [{ size: 34 }, { size: 66 }] });
+    expect(readSetupValue<[number, number]>(setup.backtestPaneSizes)).toEqual([34, 66]);
+    call("handleBacktestPaneResized", { panes: [{ size: -1 }, { size: 101 }] });
+    expect(readSetupValue<[number, number]>(setup.backtestPaneSizes)).toEqual([34, 66]);
+    expect(window.localStorage.getItem("jftrade.backtest.layout.v1")).toBeNull();
+
+    writeSetupValue(setup, "activeReportTab", "orders");
+    await nextTick();
+    expect(wrapper.text()).toContain("最终资金");
+    expect(wrapper.text()).toContain("101,250.50");
+    writeSetupValue(setup, "activeReportTab", "properties");
+    await nextTick();
+    expect(wrapper.text()).toContain("最终资金");
+
+    call("toggleNewBacktestForm");
+    await nextTick();
+    expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(true);
+    expect(wrapper.text()).toContain("策略与标的");
+    expect(wrapper.text()).toContain("数据范围");
+    expect(wrapper.text()).toContain("资金与成本");
+    expect(wrapper.text()).toContain("运行");
+    expect(wrapper.text()).toContain("同步K线");
+    expect(wrapper.text()).toContain("开始回测");
 
     expect(call("formatBacktestRehabType", "none")).toBe("不复权");
     expect(call("formatBacktestRehabType", "backward")).toBe("后复权");
@@ -149,17 +187,6 @@ describe("Backtest page", () => {
     expect(call("resolveBacktestPriceBasisNote", {
       request: { rehabType: "forward", interval: "1d" },
     })).toContain("前复权1d");
-    expect(call("resolveBacktestParityNotes", richRun)).toEqual(expect.arrayContaining([
-      expect.stringContaining("信号一致性"),
-      expect.stringContaining("订单意图一致性"),
-      expect.stringContaining("conservative-bar-v1"),
-      expect.stringContaining("包含扩展时段数据"),
-    ]));
-    expect(readSetupValue<string[]>(setup.currentBacktestParityNotes)).toEqual(expect.arrayContaining([
-      expect.stringContaining("信号一致性"),
-      expect.stringContaining("订单意图一致性"),
-      expect.stringContaining("conservative-bar-v1"),
-    ]));
     expect(call("resolveStrategyName", "strategy-1")).toBe("EMA Reversal");
     expect(call("resolveStrategyName", "missing")).toBe("missing");
     expect(call("resolveStrategyName", undefined)).toBe("未命名策略");
@@ -317,10 +344,15 @@ describe("Backtest page", () => {
     expect(call("hiddenBacktestRuntimeErrorCount", richRun)).toBe(5);
     expect(call("visibleBacktestLogs", richRun)).toHaveLength(120);
     expect(call("hiddenBacktestLogCount", richRun)).toBe(85);
-    expect(call("isRunPanelExpanded", richRun.id)).toBe(false);
-    writeSetupValue(setup, "expandedPanels", [richRun.id]);
+    call("resetResultsFilters");
     await nextTick();
-    expect(call("isRunPanelExpanded", richRun.id)).toBe(true);
+    expect(readSetupValue(setup.focusedRun)).toMatchObject({ id: richRun.id });
+    expect(readSetupValue<string>(setup.activeReportTab)).toBe("properties");
+    expect(readSetupValue<string>(setup.selectedRunId)).toBe(richRun.id);
+    call("selectFocusedRun", "run-002");
+    await nextTick();
+    expect(readSetupValue(setup.focusedRun)).toMatchObject({ id: "run-002" });
+    expect(readSetupValue<string>(setup.activeReportTab)).toBe("chart");
     expect(call("resolveQueriedCandleBounds", undefined)).toBeNull();
     expect(call("resolveQueriedCandleBounds", [{ time: "invalid" }])).toBeNull();
     expect(call("resolveQueriedCandleBounds", richRun.result.candles)).toMatchObject({ count: 2 });
@@ -328,15 +360,21 @@ describe("Backtest page", () => {
     writeSetupValue(setup, "resultsSearchQuery", "US.AAPL");
     await nextTick();
     expect(readSetupValue<unknown[]>(setup.filteredRuns)).toHaveLength(1);
+    expect(readSetupValue(setup.focusedRun)).toMatchObject({ id: richRun.id });
     expect(readSetupValue<string>(setup.resultsPageSummary)).toContain("筛选后");
+    call("toggleNewBacktestForm");
+    await nextTick();
+    expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(false);
     writeSetupValue(setup, "resultsStatusFilter", "failed");
     await nextTick();
     expect(readSetupValue<unknown[]>(setup.filteredRuns)).toHaveLength(0);
     expect(readSetupValue<string>(setup.emptyResultsMessage)).toContain("没有匹配");
+    expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(false);
     call("resetResultsFilters");
     await nextTick();
     expect(readSetupValue<string>(setup.resultsSearchQuery)).toBe("");
     expect(readSetupValue<number>(setup.resultsPage)).toBe(1);
+    expect(readSetupValue(setup.focusedRun)).toMatchObject({ id: richRun.id });
     writeSetupValue(setup, "resultsStrategyFilter", "missing-strategy");
     writeSetupValue(setup, "resultsPage", 99);
     await nextTick();
@@ -424,6 +462,20 @@ function installBacktestPageFetch(options: { runs: unknown[]; definitions?: unkn
       }
       if (url.includes("/api/v1/strategy-definitions")) {
         return createResponse(options.definitions ?? []);
+      }
+      const backtestDetailMatch = url.match(/\/api\/v1\/backtests\/([^/?#]+)/);
+      if (backtestDetailMatch) {
+        const runId = decodeURIComponent(backtestDetailMatch[1] ?? "");
+        return createResponse(
+          options.runs.find((run) => {
+            return (
+              typeof run === "object" &&
+              run !== null &&
+              "id" in run &&
+              (run as { id?: unknown }).id === runId
+            );
+          }) ?? options.runs[0] ?? {},
+        );
       }
       if (url.includes("/api/v1/backtests")) {
         return createResponse({ runs: options.runs });

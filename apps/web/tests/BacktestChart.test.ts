@@ -20,6 +20,9 @@ const chartMocks = vi.hoisted(() => {
   const applyOptions = vi.fn();
   const resize = vi.fn();
   const remove = vi.fn();
+  const panes = Array.from({ length: 4 }, () => ({
+    setHeight: vi.fn(),
+  }));
   const setVisibleLogicalRange = vi.fn();
   const getVisibleLogicalRange = vi.fn(() => ({ from: 12, to: 132 }));
   let visibleRangeHandler:
@@ -44,6 +47,7 @@ const chartMocks = vi.hoisted(() => {
     }),
     applyOptions,
     remove,
+    panes: vi.fn(() => panes),
     resize,
     timeScale: vi.fn(() => ({
       getVisibleLogicalRange,
@@ -66,6 +70,7 @@ const chartMocks = vi.hoisted(() => {
     getChartOptions: () => chartOptions,
     getVisibleLogicalRange,
     markerApi,
+    panes,
     remove,
     resize,
     series,
@@ -176,6 +181,7 @@ afterEach(() => {
   chartMocks.getVisibleLogicalRange.mockClear();
   chartMocks.markerApi.detach.mockClear();
   chartMocks.markerApi.setMarkers.mockClear();
+  chartMocks.chart.panes.mockClear();
   chartMocks.remove.mockReset();
   chartMocks.resize.mockClear();
   chartMocks.setVisibleLogicalRange.mockClear();
@@ -184,11 +190,15 @@ afterEach(() => {
     series.applyOptions.mockClear();
     series.setData.mockClear();
   });
+  chartMocks.panes.forEach((pane) => {
+    pane.setHeight.mockClear();
+  });
   disconnectResizeObserver.mockClear();
 });
 
 function mountChart(options: {
   candles?: BacktestCandle[];
+  fitContainer?: boolean;
   trades?: BacktestTrade[];
   pnlCurve?: BacktestPnlPoint[];
   drawdownCurve?: BacktestDrawdownPoint[];
@@ -200,6 +210,7 @@ function mountChart(options: {
     pnlCurve: ref(options.pnlCurve ?? pnlCurve),
     drawdownCurve: ref(options.drawdownCurve ?? drawdownCurve),
     currency: ref(options.currency ?? "hkd"),
+    fitContainer: ref(options.fitContainer ?? false),
   };
   let themeStore: ThemeStore | null = null;
   const Host = defineComponent({
@@ -217,6 +228,7 @@ function mountChart(options: {
         :initial-balance="100000"
         :currency-unit="currency"
         :min-height="480"
+        :fit-container="fitContainer"
         empty-text="没有可绘制的结果"
       />
     `,
@@ -236,6 +248,18 @@ describe("BacktestChart", () => {
       expect.any(HTMLElement),
       expect.objectContaining({ width: 720, height: 480 }),
     );
+    expect(chartMocks.panes.map((pane) => pane.setHeight.mock.calls.at(-1)?.[0])).toEqual([
+      251,
+      57,
+      105,
+      67,
+    ]);
+    expect(
+      chartMocks.panes.reduce(
+        (sum, pane) => sum + (pane.setHeight.mock.calls.at(-1)?.[0] as number),
+        0,
+      ),
+    ).toBe(480);
     expect(chartMocks.series[0]!.setData).toHaveBeenLastCalledWith([
       { time: 1780277400, open: 100, high: 103, low: 99, close: 102 },
       { time: 1780277460, open: 102, high: 103, low: 97, close: 98 },
@@ -284,6 +308,55 @@ describe("BacktestChart", () => {
     });
 
     wrapper.unmount();
+  });
+
+  it("keeps fixed and container-fit layouts bounded while distributing available pane height", async () => {
+    const fixed = mountChart();
+    await nextTick();
+
+    const fixedRoot = fixed.wrapper.get(".backtest-chart");
+    const fixedBody = fixed.wrapper.get(".backtest-chart__body");
+    expect(fixedRoot.classes()).toContain("backtest-chart--fixed");
+    expect(fixedRoot.classes()).not.toContain("backtest-chart--fit");
+    expect(fixedBody.attributes("style")).toContain("height: 480px");
+    expect(fixedBody.attributes("style")).toContain("min-height: 480px");
+    fixed.wrapper.unmount();
+
+    chartMocks.createChart.mockClear();
+    chartMocks.chart.addSeries.mockClear();
+    chartMocks.panes.forEach((pane) => pane.setHeight.mockClear());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 720,
+      height: 260,
+      top: 0,
+      right: 720,
+      bottom: 260,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    const fit = mountChart({ fitContainer: true });
+    await nextTick();
+
+    const fitRoot = fit.wrapper.get(".backtest-chart");
+    const fitBody = fit.wrapper.get(".backtest-chart__body");
+    expect(fitRoot.classes()).toContain("backtest-chart--fit");
+    expect(fitBody.attributes("style")).toContain("min-height: 0");
+    expect(fitBody.attributes("style") ?? "").not.toContain("height: 480px");
+    expect(chartMocks.createChart).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ width: 720, height: 260 }),
+    );
+    expect(chartMocks.panes.map((pane) => pane.setHeight.mock.calls.at(-1)?.[0])).toEqual([
+      137,
+      33,
+      55,
+      35,
+    ]);
+
+    fit.wrapper.unmount();
   });
 
   it("reacts to result, quote-currency and theme changes without recreating the chart", async () => {

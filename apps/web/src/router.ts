@@ -40,6 +40,11 @@ export function createConsoleRouter(
         meta: { title: "账户" },
       },
       {
+        path: "/risk",
+        component: () => import("./pages/RiskPage.vue"),
+        meta: { title: "风控" },
+      },
+      {
         path: "/broker",
         redirect: "/account",
       },
