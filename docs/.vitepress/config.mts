@@ -41,6 +41,7 @@ export default defineConfig({
         text: "维护参考",
         items: [
           { text: "架构", link: "/architecture" },
+          { text: "PineTS 发布清单", link: "/troubleshooting/pinets-worker-release" },
           { text: "ADK", link: "/adk" },
           { text: "Reference", link: "/reference/" },
         ],

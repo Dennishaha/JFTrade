@@ -20,4 +20,4 @@
 - [PineTS 契约审计](./pinets-contract-audit.md)：PineTS 切换后的执行契约、迁移兼容和 visual output 边界。
 - [第三方许可证](./legal/third-party-notices.md)：AGPL PineTS / pinets 依赖、源码提供和许可证告知。
 
-如果你是在维护仓库本身，而不是使用控制台，请回到 [README.md](./README.md) 和 [architecture.md](./architecture.md)。
+如果你是在维护仓库本身，而不是使用控制台，请回到 [README.md](./README.md) 和 [architecture.md](./architecture.md)；当前版本快照也维护在 [README.md](./README.md)。

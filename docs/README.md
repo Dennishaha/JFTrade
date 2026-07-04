@@ -2,7 +2,37 @@
 
 这份 README 面向仓库维护者、协作者和后续 AI。它不重复介绍项目本身，只负责把你引到正确的事实来源。
 
-如果只看一篇，请先看 [architecture.md](architecture.md)。
+如果只看一篇，请先看本文和 [architecture.md](architecture.md)。
+
+## 当前版本快照
+
+更新时间：2026-07-04。当前代码基线为 `704a02e`，提交说明是 `Support Pine live percent sizing and cancel commands`。
+
+JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。它以 `cmd/jftrade-api` 这一条 API sidecar 入口为核心，前端控制台、文档站、Futu/OpenD 接入、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
+
+当前主线事实：
+
+- 后端入口：`cmd/jftrade-api`，只支持 API sidecar 模式。
+- 前端入口：`apps/web`，Vue 3 + Vite；文档站使用 VitePress。
+- 开发端口：API `127.0.0.1:3000`，Web `127.0.0.1:5173`，Docs `127.0.0.1:3001`。
+- 发布端口：GUI `127.0.0.1:6688`，API gateway `127.0.0.1:6699`。
+- Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
+- PineTS worker：Node ESM `worker.mjs`，Go 通过 localhost gRPC 管理 worker pool。
+- 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Go 负责撮合、成交、资金曲线、风控、账户刷新和券商下单。
+- 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.27`，当前 npm license 为 `AGPL-3.0-only`。
+
+当前发布和验收入口：
+
+```bash
+go test ./...
+npm run test:web
+npm run typecheck:web
+npm run test:pineworker
+npm run typecheck:pineworker
+npm run check:pinets-release
+```
+
+发布脚本没有写死语义化版本号，会按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 的顺序解析版本。正式发布建议显式设置 `JFTRADE_VERSION` 或先打 git tag。
 
 ## 推荐阅读顺序
 
@@ -31,6 +61,7 @@
 
 - [review-boundaries-2026-06.md](review-boundaries-2026-06.md)
 - [release-closeout-2026-06.md](release-closeout-2026-06.md)
+- [release-pine-v08-closeout.md](release-pine-v08-closeout.md)
 
 ## 快速路由
 
@@ -46,7 +77,7 @@
 ## 文档职责边界
 
 - 根仓库 `README.md`：仓库级入口，回答“项目现在怎么跑”
-- 本文档：维护者导航，回答“遇到这个问题先看哪篇”
+- 本文档：维护者导航和当前版本快照，回答“现在是什么状态、遇到这个问题先看哪篇”
 - [index.md](index.md)：VitePress 用户文档首页，面向控制台使用者
 
 不要把实现细节、长篇回归记录或协议原文继续堆回入口文档；它们应留在专题页或 reference 层。

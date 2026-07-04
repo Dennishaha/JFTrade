@@ -118,6 +118,7 @@ npm run generate:docs
 
 ## 接下来读什么
 
+- 想确认当前版本状态、发布形态和验收基线：读 [docs/README.md](docs/README.md)
 - 想快速使用控制台：读 [docs/quick-start.md](docs/quick-start.md)
 - 想改启动、端口、配置或管理密钥：读 [docs/configuration.md](docs/configuration.md)
 - 启动失败、OpenD 连不上、实时行情异常：读 [docs/troubleshooting.md](docs/troubleshooting.md)
