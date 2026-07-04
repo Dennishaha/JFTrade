@@ -216,10 +216,11 @@ func (e *strategyRuntimeStubExchange) PlaceBrokerOrder(_ context.Context, query 
 	}
 	e.nextOrderID++
 	submitOrder := bbgotypes.SubmitOrder{
-		Symbol:   query.Symbol,
-		Side:     bbgotypes.SideType(query.Side),
-		Type:     bbgotypes.OrderType(query.OrderType),
-		Quantity: fixedpoint.NewFromFloat(query.Quantity),
+		ClientOrderID: query.ClientOrderID,
+		Symbol:        query.Symbol,
+		Side:          bbgotypes.SideType(query.Side),
+		Type:          bbgotypes.OrderType(query.OrderType),
+		Quantity:      fixedpoint.NewFromFloat(query.Quantity),
 	}
 	if query.Price != nil {
 		submitOrder.Price = fixedpoint.NewFromFloat(*query.Price)
@@ -239,6 +240,10 @@ func (e *strategyRuntimeStubExchange) PlaceBrokerOrder(_ context.Context, query 
 		BrokerOrderID:      fmt.Sprintf("%d", e.nextOrderID),
 		Status:             "SUBMITTED",
 	}, nil
+}
+
+func (e *strategyRuntimeStubExchange) CancelBrokerOrder(ctx context.Context, _ broker.ReadQuery, order broker.CancelOrder) error {
+	return e.CancelOrders(ctx, bbgotypes.Order{OrderID: order.OrderID, SubmitOrder: bbgotypes.SubmitOrder{Symbol: order.Symbol}})
 }
 
 func (e *strategyRuntimeStubExchange) placedOrderCount() int {

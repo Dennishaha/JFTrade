@@ -142,7 +142,11 @@ func (s *Server) cancelExecutionOrder(ctx context.Context, internalOrderID strin
 		return trdsrv.ExecutionOrder{}, fmt.Errorf("execution order is missing symbol")
 	}
 
-	err = s.activeBroker().Trading().CancelOrders(ctx, broker.ReadQuery{
+	exchange := s.brokerExecutionExchange()
+	if exchange == nil {
+		return trdsrv.ExecutionOrder{}, fmt.Errorf("broker execution exchange is unavailable")
+	}
+	err = exchange.CancelBrokerOrder(ctx, broker.ReadQuery{
 		BrokerID:           "futu",
 		TradingEnvironment: order.TradingEnvironment,
 		AccountID:          order.AccountID,

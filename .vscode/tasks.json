@@ -29,6 +29,21 @@
             }
         },
         {
+            "label": "go:vet",
+            "type": "shell",
+            "command": "go vet ./...",
+            "group": "build",
+            "problemMatcher": [
+                "$go"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "close": false
+            }
+        },
+        {
             "label": "go:lint",
             "type": "shell",
             "command": "${env:HOME}/go/bin/golangci-lint",

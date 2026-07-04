@@ -230,6 +230,9 @@ func (executor *PineWorkerCommandExecutor) SubmitOrderFromCommand(command Worker
 }
 
 func (executor *PineWorkerCommandExecutor) orderQuantity(command WorkerOrderCommand, market types.Market) (fixedpoint.Value, error) {
+	if command.Quantity > 0 {
+		return requireTradablePineWorkerCommandQuantity(command, market, fixedpoint.NewFromFloat(command.Quantity))
+	}
 	if command.QuantityPct > 0 {
 		if executor.PositionSizer == nil {
 			return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct requires position sizing", command.ID)
@@ -242,9 +245,6 @@ func (executor *PineWorkerCommandExecutor) orderQuantity(command WorkerOrderComm
 	}
 	if command.QuantityPct < 0 {
 		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct must be positive", command.ID)
-	}
-	if command.Quantity > 0 {
-		return requireTradablePineWorkerCommandQuantity(command, market, fixedpoint.NewFromFloat(command.Quantity))
 	}
 	if isPineWorkerPositionCloseCommand(command) && executor.PositionSizer != nil {
 		command.QuantityPct = 100

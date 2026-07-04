@@ -151,7 +151,7 @@ describe("StrategyRuntimePanel business workflows", () => {
     wrapper.unmount();
   });
 
-  it("blocks live startup when the selected strategy contains unsupported live semantics", async () => {
+  it("allows live startup when the selected strategy uses broker-executed Pine semantics", async () => {
     const definition: StrategyDefinitionDocument = {
       ...buildDefinition(),
       script: [
@@ -169,20 +169,18 @@ describe("StrategyRuntimePanel business workflows", () => {
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
 
     const { wrapper } = await mountStrategyPage("/strategy/runtime");
-    await waitForSelector(wrapper, '[data-testid="strategy-live-limitations"]');
+    await waitForSelector(wrapper, '[data-testid="strategy-start"]');
 
-    expect(wrapper.get('[data-testid="strategy-live-limitations"]').text()).toContain("QuantityPct");
-    expect(wrapper.get('[data-testid="strategy-live-limitations"]').text()).toContain("strategy.cancel");
-    expect(wrapper.get('[data-testid="strategy-runtime-start-hint"]').text()).toContain("live 暂不支持语义");
-    expect(wrapper.get('[data-testid="strategy-start"]').attributes("disabled")).toBeDefined();
-    expect(readSetupArray<string>(wrapper.getComponent(StrategyRuntimePanel).vm.$.setupState.selectedStrategyLiveLimitations)).toHaveLength(2);
+    expect(wrapper.find('[data-testid="strategy-live-limitations"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="strategy-runtime-start-hint"]').text()).not.toContain("live 暂不支持语义");
+    expect(wrapper.get('[data-testid="strategy-start"]').attributes("disabled")).toBeUndefined();
 
     const setup = wrapper.getComponent(StrategyRuntimePanel).vm.$.setupState as Record<string, unknown>;
     await (setup.changeStrategyStatus as (action: "start") => Promise<void>)("start");
-    expect(readSetupText(setup.detailsError)).toContain("启动前检查未通过");
+    expect(readSetupText(setup.detailsError)).not.toContain("启动前检查未通过");
     expect(fetchSpy.mock.calls.some(([input, init]) =>
       String(input).includes("/strategies/instance-1/start") && requestMethod(input, init) === "POST",
-    )).toBe(false);
+    )).toBe(true);
 
     wrapper.unmount();
   });

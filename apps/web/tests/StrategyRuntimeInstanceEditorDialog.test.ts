@@ -169,8 +169,8 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
 
     const warning = wrapper.get('[data-testid="strategy-live-compatibility-warning"]');
     expect(warning.text()).toContain("确认执行前检查");
-    expect(warning.text()).toContain("QuantityPct");
-    expect(warning.text()).toContain("cancel/cancel_all");
+    expect(warning.text()).not.toContain("QuantityPct");
+    expect(warning.text()).not.toContain("cancel/cancel_all");
     expect(warning.text()).toContain("kill switch");
   });
 });

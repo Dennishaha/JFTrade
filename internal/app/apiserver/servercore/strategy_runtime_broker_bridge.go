@@ -37,3 +37,11 @@ func (b *strategyRuntimeBrokerBridge) PlaceBrokerOrder(ctx context.Context, quer
 	}
 	return trading.PlaceOrder(ctx, query)
 }
+
+func (b *strategyRuntimeBrokerBridge) CancelBrokerOrder(ctx context.Context, query broker.ReadQuery, order broker.CancelOrder) error {
+	trading := b.broker.Trading()
+	if trading == nil {
+		return fmt.Errorf("broker trading not available")
+	}
+	return trading.CancelOrders(ctx, query, order)
+}

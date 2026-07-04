@@ -4,33 +4,58 @@ import (
 	"context"
 	"errors"
 	"math"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
-func TestStrategyRuntimeAdapterRejectsUnsupportedLiveSemantics(t *testing.T) {
-	adapter := &strategyRuntimeManagerAdapter{}
-	err := adapter.Start(t.Context(), stratsrv.ManagedInstance{
-		Binding: stratsrv.InstanceBinding{ExecutionMode: strategyExecutionModeLive},
-		Params: map[string]any{
-			"script": `//@version=6
-strategy("Live", default_qty_type=strategy.percent_of_equity)
-strategy.entry("Long", strategy.long)`,
-		},
-	})
-	if !errors.Is(err, stratsrv.ErrBadRequest) || !strings.Contains(err.Error(), "percent_of_equity") {
-		t.Fatalf("Start error = %v, want live semantic bad request", err)
+func TestStrategyRuntimeAdapterAllowsBrokerExecutedLiveSemantics(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
 	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	definition := strategyDesignDefinition{
+		ID:           "runtime-live-semantics-test",
+		Name:         "Runtime Live Semantics Test",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script: `//@version=6
+strategy("Live", default_qty_type=strategy.percent_of_equity)
+strategy.entry("Long", strategy.long, qty_percent=10)
+strategy.cancel_all()`,
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instance.ID)
+	}
+	adapter := &strategyRuntimeManagerAdapter{mgr: server.strategyRuntimeManager}
+	if err := adapter.Start(t.Context(), instanceRecord); err != nil {
+		t.Fatalf("Start error = %v, want supported live semantics", err)
+	}
+	defer adapter.Stop(instance.ID)
 }
 
 func TestStrategyRuntimeManagerUsesExplicitDependenciesInsteadOfServerOwnership(t *testing.T) {

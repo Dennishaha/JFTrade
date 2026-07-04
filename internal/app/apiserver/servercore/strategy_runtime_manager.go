@@ -32,6 +32,7 @@ type strategyRuntimeExchange interface {
 	QueryBrokerFunds(ctx context.Context, query broker.ReadQuery) (*broker.FundsSnapshot, error)
 	QueryBrokerPositions(ctx context.Context, query broker.ReadQuery) ([]broker.PositionSnapshot, error)
 	PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error)
+	CancelBrokerOrder(ctx context.Context, query broker.ReadQuery, order broker.CancelOrder) error
 }
 
 type strategyRuntimeMarketEnsurer interface {
@@ -57,6 +58,7 @@ type strategyRuntimeManagerDeps struct {
 	reconcileRuntimeFailure func(instanceID string, detail string) error
 	recordNotification      func(strategyRuntimeNotification)
 	placeExecutionOrder     func(context.Context, trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error)
+	cancelExecutionOrder    func(context.Context, string) (trdsrv.ExecutionOrder, error)
 	countRuntimeAudit       func(context.Context, runtimeactivity.AuditQuery) (int, error)
 	upsertObservation       func(context.Context, runtimeactivity.ObservationSnapshot) error
 }
@@ -119,6 +121,9 @@ type strategyLiveOrderExecutor struct {
 	manager  *strategyRuntimeManager
 	instance managedStrategyInstance
 	runner   *strategySymbolRuntime
+
+	mu                      sync.Mutex
+	trackedInternalOrderIDs map[string]string
 }
 
 func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
@@ -194,6 +199,19 @@ func newStrategyRuntimeManagerDeps(server *Server) strategyRuntimeManagerDeps {
 			}
 			return server.tradingSvc.PlaceExecutionOrder(ctx, command)
 		},
+		cancelExecutionOrder: func(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
+			if server.tradingSvc == nil {
+				return trdsrv.ExecutionOrder{}, fmt.Errorf("trading service is unavailable")
+			}
+			response, err := server.tradingSvc.CancelExecutionOrder(ctx, internalOrderID)
+			if err != nil {
+				return trdsrv.ExecutionOrder{}, err
+			}
+			if response.InternalOrderID == nil {
+				return trdsrv.ExecutionOrder{}, fmt.Errorf("cancel execution order response missing internal order id")
+			}
+			return trdsrv.ExecutionOrder{InternalOrderID: *response.InternalOrderID}, nil
+		},
 		countRuntimeAudit: func(ctx context.Context, query runtimeactivity.AuditQuery) (int, error) {
 			if server.strategyRuntimeStore == nil {
 				return 0, nil
@@ -264,6 +282,13 @@ func (m *strategyRuntimeManager) placeExecutionOrder(ctx context.Context, comman
 		return trdsrv.ExecutionOrder{}, fmt.Errorf("strategy runtime order placement is unavailable")
 	}
 	return m.deps.placeExecutionOrder(ctx, command)
+}
+
+func (m *strategyRuntimeManager) cancelExecutionOrder(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
+	if m == nil || m.deps.cancelExecutionOrder == nil {
+		return trdsrv.ExecutionOrder{}, fmt.Errorf("strategy runtime order cancellation is unavailable")
+	}
+	return m.deps.cancelExecutionOrder(ctx, internalOrderID)
 }
 
 func (m *strategyRuntimeManager) activeInstrumentIDs() []string {
@@ -498,7 +523,16 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 		},
 	}
 
-	live, err := newStrategyRuntimePineWorkerLive(m.pineWorkerRunner, instance, symbol, interval, script, m.newOrderExecutor(instance, runner))
+	recordIgnoredOrder := func(message string) {
+		jftradeErr := m.appendRuntimeEvent(
+			instance.ID,
+			fmt.Sprintf("live order ignored %s", symbol),
+			"order_ignored",
+			message,
+		)
+		jftradeLogError(jftradeErr)
+	}
+	live, err := newStrategyRuntimePineWorkerLive(m.pineWorkerRunner, instance, symbol, interval, script, m.newOrderExecutor(instance, runner), runner, recordIgnoredOrder)
 	if err != nil {
 		return nil, fmt.Errorf("start strategy runtime for %s: %w", symbol, err)
 	}
@@ -738,6 +772,7 @@ func (r *strategySymbolRuntime) setLastClosedPrice(price float64) {
 }
 
 func (e *strategyNotifyOnlyOrderExecutor) SubmitOrders(_ context.Context, orders ...bbgotypes.SubmitOrder) (bbgotypes.OrderSlice, error) {
+	createdOrders := make(bbgotypes.OrderSlice, 0, len(orders))
 	for _, order := range orders {
 		e.manager.recordSignal(e.instance.ID, time.Now().UTC())
 		message := e.describeOrderSignal(order)
@@ -757,8 +792,9 @@ func (e *strategyNotifyOnlyOrderExecutor) SubmitOrders(_ context.Context, orders
 			message,
 		)
 		jftradeLogError(jftradeErr4)
+		createdOrders = append(createdOrders, bbgotypes.Order{SubmitOrder: order})
 	}
-	return nil, nil
+	return createdOrders, nil
 }
 
 func (e *strategyNotifyOnlyOrderExecutor) CancelOrders(context.Context, ...bbgotypes.Order) error {
@@ -839,13 +875,71 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 			fmt.Sprintf("internalOrderId=%s", placed.InternalOrderID),
 		)
 		jftradeLogError(jftradeErr6)
+		e.trackOrder(order.ClientOrderID, placed.InternalOrderID)
 		placedOrders = append(placedOrders, bbgotypes.Order{SubmitOrder: order})
 	}
 	return placedOrders, nil
 }
 
-func (e *strategyLiveOrderExecutor) CancelOrders(context.Context, ...bbgotypes.Order) error {
+func (e *strategyLiveOrderExecutor) CancelOrders(ctx context.Context, orders ...bbgotypes.Order) error {
+	for _, order := range orders {
+		clientOrderID := strings.TrimSpace(order.ClientOrderID)
+		if clientOrderID == "" {
+			continue
+		}
+		internalOrderID, ok := e.trackedInternalOrderID(clientOrderID)
+		if !ok {
+			continue
+		}
+		cancelled, err := e.manager.cancelExecutionOrder(ctx, internalOrderID)
+		if err != nil {
+			e.manager.recordError(e.instance.ID, err.Error(), time.Now().UTC())
+			jftradeErr := e.manager.appendRuntimeEvent(
+				e.instance.ID,
+				fmt.Sprintf("live order cancel failed %s", clientOrderID),
+				"order_cancel_failed",
+				err.Error(),
+			)
+			jftradeLogError(jftradeErr)
+			return err
+		}
+		e.untrackOrder(clientOrderID)
+		jftradeErr := e.manager.appendRuntimeEvent(
+			e.instance.ID,
+			fmt.Sprintf("live order cancel requested %s", clientOrderID),
+			"order_cancel_requested",
+			fmt.Sprintf("internalOrderId=%s", cancelled.InternalOrderID),
+		)
+		jftradeLogError(jftradeErr)
+	}
 	return nil
+}
+
+func (e *strategyLiveOrderExecutor) trackOrder(clientOrderID string, internalOrderID string) {
+	clientOrderID = strings.TrimSpace(clientOrderID)
+	internalOrderID = strings.TrimSpace(internalOrderID)
+	if clientOrderID == "" || internalOrderID == "" {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.trackedInternalOrderIDs == nil {
+		e.trackedInternalOrderIDs = map[string]string{}
+	}
+	e.trackedInternalOrderIDs[clientOrderID] = internalOrderID
+}
+
+func (e *strategyLiveOrderExecutor) trackedInternalOrderID(clientOrderID string) (string, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	internalOrderID, ok := e.trackedInternalOrderIDs[strings.TrimSpace(clientOrderID)]
+	return internalOrderID, ok
+}
+
+func (e *strategyLiveOrderExecutor) untrackOrder(clientOrderID string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	delete(e.trackedInternalOrderIDs, strings.TrimSpace(clientOrderID))
 }
 
 func (m *strategyRuntimeManager) runtimeObservation(instanceID string) (strategyRuntimeObservation, bool) {

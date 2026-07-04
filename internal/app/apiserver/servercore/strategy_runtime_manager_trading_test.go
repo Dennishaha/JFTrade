@@ -9,6 +9,8 @@ import (
 	"time"
 
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
@@ -246,7 +248,7 @@ func TestStrategyRuntimeRiskEvaluatesOrderLimits(t *testing.T) {
 	}
 }
 
-func TestStrategyRuntimeUsesStrategyDefaultPercentQuantity(t *testing.T) {
+func TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -258,7 +260,7 @@ func TestStrategyRuntimeUsesStrategyDefaultPercentQuantity(t *testing.T) {
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
 		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{{
-			Kind: "entry", ID: "SizedLong", Direction: "long", Quantity: 20, HasQuantity: true, BarIndex: lastIndex, Time: request.Candles[lastIndex].OpenTime,
+			Kind: "entry", ID: "SizedLong", Direction: "long", QuantityPct: 50, HasQuantityPct: true, BarIndex: lastIndex, Time: request.Candles[lastIndex].OpenTime,
 		}}}
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
@@ -299,9 +301,367 @@ func TestStrategyRuntimeUsesStrategyDefaultPercentQuantity(t *testing.T) {
 	if !ok {
 		t.Fatal("expected placed order")
 	}
-	if got := placedOrder.Quantity.Float64(); got != 20 {
-		t.Fatalf("expected worker-sized quantity 20, got %v", got)
+	if got := placedOrder.Quantity.Float64(); got != 100 {
+		t.Fatalf("expected equity-sized quantity 100, got %v", got)
 	}
+}
+
+func TestStrategyRuntimeLiveUsesExplicitQuantityBeforeQuantityPct(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		lastIndex := len(request.Candles) - 1
+		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{{
+			Kind: "entry", ID: "ExplicitLong", Direction: "long", Quantity: 20, HasQuantity: true, QuantityPct: 50, HasQuantityPct: true, BarIndex: lastIndex, Time: request.Candles[lastIndex].OpenTime,
+		}}}
+	}
+	useFakeStrategyRuntimePineWorker(server, worker)
+
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instanceID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 500, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 501, strategyRuntimeTestTime(10, 1, 0)))
+
+	placedOrder, ok := stub.lastPlacedOrder()
+	if !ok {
+		t.Fatal("expected placed order")
+	}
+	if got := placedOrder.Quantity.Float64(); got != 20 {
+		t.Fatalf("expected explicit quantity 20, got %v", got)
+	}
+}
+
+func TestStrategyRuntimeLiveSizesCloseQuantityPctFromPosition(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		lastIndex := len(request.Candles) - 1
+		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{{
+			Kind: "close", ID: "HalfFlat", Direction: "long", QuantityPct: 50, HasQuantityPct: true, BarIndex: lastIndex, Time: request.Candles[lastIndex].OpenTime,
+		}}}
+	}
+	useFakeStrategyRuntimePineWorker(server, worker)
+
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instanceID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+
+	stub.positions = []broker.PositionSnapshot{{Market: "US", Symbol: "AAPL", Quantity: 20, SellableQuantity: 20}}
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+
+	placedOrder, ok := stub.lastPlacedOrder()
+	if !ok {
+		t.Fatal("expected placed order")
+	}
+	if placedOrder.Side != "SELL" || placedOrder.Quantity.Float64() != 10 {
+		t.Fatalf("expected SELL 10 close order, got %+v", placedOrder)
+	}
+}
+
+func TestStrategyRuntimeLiveDefaultsCloseToFullPosition(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		lastIndex := len(request.Candles) - 1
+		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{{
+			Kind: "close", ID: "FullFlat", Direction: "long", BarIndex: lastIndex, Time: request.Candles[lastIndex].OpenTime,
+		}}}
+	}
+	useFakeStrategyRuntimePineWorker(server, worker)
+
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instanceID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+
+	stub.positions = []broker.PositionSnapshot{{Market: "US", Symbol: "AAPL", Quantity: 7, SellableQuantity: 7}}
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+
+	placedOrder, ok := stub.lastPlacedOrder()
+	if !ok {
+		t.Fatal("expected placed order")
+	}
+	if placedOrder.Side != "SELL" || placedOrder.Quantity.Float64() != 7 {
+		t.Fatalf("expected SELL 7 close order, got %+v", placedOrder)
+	}
+}
+
+func TestStrategyRuntimeLiveIgnoredOrderRecordsRuntimeEvidence(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	market := stub.markets["US.AAPL"]
+	market.MinQuantity = fixedpoint.NewFromFloat(100)
+	market.StepSize = fixedpoint.NewFromFloat(100)
+	stub.markets["US.AAPL"] = market
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		lastIndex := len(request.Candles) - 1
+		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{{
+			Kind: "entry", ID: "TinyLong", Direction: "long", QuantityPct: 1, HasQuantityPct: true, BarIndex: lastIndex, Time: request.Candles[lastIndex].OpenTime,
+		}}}
+	}
+	useFakeStrategyRuntimePineWorker(server, worker)
+
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instanceID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 1000, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 1001, strategyRuntimeTestTime(10, 1, 0)))
+
+	if got := stub.placedOrderCount(); got != 0 {
+		t.Fatalf("expected tiny order to be ignored, got %d broker orders", got)
+	}
+	audit, ok := server.strategyStore.strategyAudit(instanceID)
+	if !ok {
+		t.Fatalf("strategyAudit(%s) not found", instanceID)
+	}
+	foundIgnored := false
+	for _, entry := range audit.Entries {
+		if entry.Kind == "order_ignored" && strings.Contains(entry.Detail, "below") {
+			foundIgnored = true
+			break
+		}
+	}
+	if !foundIgnored {
+		t.Fatalf("expected order_ignored audit entry, got %+v", audit.Entries)
+	}
+}
+
+func TestStrategyRuntimeLiveCancelsTrackedOrderFromWorkerCommand(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	worker := newFakeStrategyRuntimePineWorker()
+	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
+		lastIndex := len(request.Candles) - 1
+		openTime := request.Candles[lastIndex].OpenTime
+		return pineworker.RunScriptResponse{JobID: request.JobID, OrderIntents: []pineworker.OrderIntent{
+			{Kind: "entry", ID: "Breakout", Direction: "long", Quantity: 1, HasQuantity: true, LimitPrice: 105, HasLimitPrice: true, BarIndex: lastIndex, Time: openTime},
+			{Kind: "cancel", ID: "Breakout", BarIndex: lastIndex, Time: openTime},
+		}}
+	}
+	useFakeStrategyRuntimePineWorker(server, worker)
+
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instanceID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instanceID)
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+
+	orders := server.executionOrders.listOrders().Orders
+	if len(orders) != 1 {
+		t.Fatalf("expected one tracked execution order, got %+v", orders)
+	}
+	if orders[0].Status != "CANCEL_REQUESTED" {
+		t.Fatalf("order status = %q, want CANCEL_REQUESTED", orders[0].Status)
+	}
+	audit, ok := server.strategyStore.strategyAudit(instanceID)
+	if !ok {
+		t.Fatalf("strategyAudit(%s) not found", instanceID)
+	}
+	foundCancel := false
+	for _, entry := range audit.Entries {
+		if entry.Kind == "order_cancel_requested" && strings.Contains(entry.Detail, orders[0].InternalOrderID) {
+			foundCancel = true
+			break
+		}
+	}
+	if !foundCancel {
+		t.Fatalf("expected order_cancel_requested audit entry, got %+v", audit.Entries)
+	}
+}
+
+func TestStrategyRuntimeLiveCancelAllCancelsOnlyTrackedOrders(t *testing.T) {
+	cancelled := []string{}
+	manager := &strategyRuntimeManager{
+		runtimes: map[string]*managedStrategyRuntime{},
+		deps: strategyRuntimeManagerDeps{
+			cancelExecutionOrder: func(_ context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
+				cancelled = append(cancelled, internalOrderID)
+				return trdsrv.ExecutionOrder{InternalOrderID: internalOrderID}, nil
+			},
+			appendRuntimeEvent: func(string, string, string, string) error { return nil },
+		},
+	}
+	executor := &strategyLiveOrderExecutor{
+		manager:  manager,
+		instance: managedStrategyInstance{ID: "instance-a"},
+	}
+	executor.trackOrder("owned-1", "internal-1")
+	executor.trackOrder("owned-2", "internal-2")
+
+	err := executor.CancelOrders(context.Background(),
+		bbgoOrderForCancel("owned-1"),
+		bbgoOrderForCancel("untracked"),
+		bbgoOrderForCancel("owned-2"),
+	)
+	if err != nil {
+		t.Fatalf("CancelOrders: %v", err)
+	}
+	if strings.Join(cancelled, ",") != "internal-1,internal-2" {
+		t.Fatalf("cancelled = %#v, want only tracked orders", cancelled)
+	}
+	if _, ok := executor.trackedInternalOrderID("owned-1"); ok {
+		t.Fatal("owned-1 remained tracked after successful cancel")
+	}
+	if _, ok := executor.trackedInternalOrderID("owned-2"); ok {
+		t.Fatal("owned-2 remained tracked after successful cancel")
+	}
+}
+
+func TestStrategyRuntimeLiveCancelFailureKeepsTrackedOrder(t *testing.T) {
+	cancelErr := errors.New("cancel failed")
+	manager := &strategyRuntimeManager{
+		runtimes: map[string]*managedStrategyRuntime{},
+		deps: strategyRuntimeManagerDeps{
+			cancelExecutionOrder: func(context.Context, string) (trdsrv.ExecutionOrder, error) {
+				return trdsrv.ExecutionOrder{}, cancelErr
+			},
+			appendRuntimeEvent: func(string, string, string, string) error { return nil },
+		},
+	}
+	executor := &strategyLiveOrderExecutor{
+		manager:  manager,
+		instance: managedStrategyInstance{ID: "instance-a"},
+	}
+	executor.trackOrder("owned", "internal-1")
+
+	if err := executor.CancelOrders(context.Background(), bbgoOrderForCancel("owned")); !errors.Is(err, cancelErr) {
+		t.Fatalf("CancelOrders error = %v, want %v", err, cancelErr)
+	}
+	if got, ok := executor.trackedInternalOrderID("owned"); !ok || got != "internal-1" {
+		t.Fatalf("tracked order after failed cancel = %q/%v, want preserved", got, ok)
+	}
+}
+
+func TestStrategyRuntimeLiveCancelMissingOrderIsNoop(t *testing.T) {
+	cancelled := false
+	manager := &strategyRuntimeManager{
+		runtimes: map[string]*managedStrategyRuntime{},
+		deps: strategyRuntimeManagerDeps{
+			cancelExecutionOrder: func(context.Context, string) (trdsrv.ExecutionOrder, error) {
+				cancelled = true
+				return trdsrv.ExecutionOrder{}, nil
+			},
+			appendRuntimeEvent: func(string, string, string, string) error { return nil },
+		},
+	}
+	executor := &strategyLiveOrderExecutor{
+		manager:  manager,
+		instance: managedStrategyInstance{ID: "instance-a"},
+	}
+	if err := executor.CancelOrders(context.Background(), bbgoOrderForCancel("missing")); err != nil {
+		t.Fatalf("CancelOrders missing: %v", err)
+	}
+	if cancelled {
+		t.Fatal("missing cancel reached execution gateway")
+	}
+}
+
+func bbgoOrderForCancel(clientOrderID string) bbgotypes.Order {
+	return bbgotypes.Order{SubmitOrder: bbgotypes.SubmitOrder{ClientOrderID: clientOrderID}}
 }
 
 func TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent(t *testing.T) {

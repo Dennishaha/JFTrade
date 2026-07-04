@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
-	"github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -228,17 +227,6 @@ type strategyRuntimeManagerAdapter struct {
 }
 
 func (a *strategyRuntimeManagerAdapter) Start(ctx context.Context, instance stratsrv.ManagedInstance) error {
-	if strings.EqualFold(strings.TrimSpace(instance.Binding.ExecutionMode), strategyExecutionModeLive) {
-		script, _ := instance.Params["script"].(string)
-		limitations := runtimecontrol.LiveExecutionLimitations(script)
-		if len(limitations) > 0 {
-			messages := make([]string, 0, len(limitations))
-			for _, limitation := range limitations {
-				messages = append(messages, limitation.Message)
-			}
-			return stratsrv.BadRequestError("strategy live execution validation failed: " + strings.Join(messages, "; "))
-		}
-	}
 	if err := a.mgr.startStrategy(ctx, instance); err != nil {
 		status, _ := strategyRuntimeStartError(err)
 		if status == 400 {

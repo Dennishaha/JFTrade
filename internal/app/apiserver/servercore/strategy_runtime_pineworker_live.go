@@ -3,6 +3,7 @@ package servercore
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -21,12 +22,13 @@ type strategyRuntimePineWorker interface {
 }
 
 type strategyRuntimePineWorkerLive struct {
-	runner   strategyRuntimePineWorker
-	instance managedStrategyInstance
-	symbol   string
-	interval bbgotypes.Interval
-	source   string
-	executor bbgo.OrderExecutor
+	runner          strategyRuntimePineWorker
+	instance        managedStrategyInstance
+	symbol          string
+	interval        bbgotypes.Interval
+	source          string
+	sizer           *strategyRuntimeLiveSizer
+	commandExecutor *bt.PineWorkerCommandExecutor
 
 	mu      sync.Mutex
 	candles []pineworker.Candle
@@ -39,6 +41,8 @@ func newStrategyRuntimePineWorkerLive(
 	interval bbgotypes.Interval,
 	source string,
 	executor bbgo.OrderExecutor,
+	symbolRuntime *strategySymbolRuntime,
+	recordWarning func(string),
 ) (*strategyRuntimePineWorkerLive, error) {
 	if runner == nil {
 		return nil, fmt.Errorf("pine worker manager is required for live strategy runtime")
@@ -49,14 +53,27 @@ func newStrategyRuntimePineWorkerLive(
 	if executor == nil {
 		return nil, fmt.Errorf("pine worker live order executor is required")
 	}
-	return &strategyRuntimePineWorkerLive{
+	if symbolRuntime == nil {
+		return nil, fmt.Errorf("pine worker live symbol runtime is required")
+	}
+	liveSizer := &strategyRuntimeLiveSizer{runner: symbolRuntime}
+	live := &strategyRuntimePineWorkerLive{
 		runner:   runner,
 		instance: instance,
 		symbol:   symbol,
 		interval: interval,
 		source:   source,
-		executor: executor,
-	}, nil
+		sizer:    liveSizer,
+	}
+	live.commandExecutor = &bt.PineWorkerCommandExecutor{
+		Symbol:              symbol,
+		OrderExecutor:       executor,
+		MarketResolver:      strategyRuntimeLiveMarketResolver{market: symbolRuntime.market},
+		PositionSizer:       liveSizer,
+		WarningSink:         strategyRuntimeLiveWarningSink{record: recordWarning},
+		ClientOrderIDPrefix: fmt.Sprintf("strategy-live-%s", instance.ID),
+	}
+	return live, nil
 }
 
 func (live *strategyRuntimePineWorkerLive) loadWarmup(ctx context.Context, exchange strategyRuntimeExchange) ([]bbgotypes.KLine, error) {
@@ -76,12 +93,14 @@ func (live *strategyRuntimePineWorkerLive) recordWarmupClosed(closed bbgotypes.K
 	live.mu.Lock()
 	defer live.mu.Unlock()
 	live.candles = append(live.candles, strategyRuntimePineWorkerCandle(closed))
+	live.sizer.onKLineClosed(closed)
 }
 
 func (live *strategyRuntimePineWorkerLive) onClosedKLine(ctx context.Context, closed bbgotypes.KLine) error {
 	live.mu.Lock()
 	defer live.mu.Unlock()
 	live.candles = append(live.candles, strategyRuntimePineWorkerCandle(closed))
+	live.sizer.onKLineClosed(closed)
 	request := live.requestLocked()
 	response, err := live.runner.RunScript(ctx, request)
 	if err != nil {
@@ -91,12 +110,7 @@ func (live *strategyRuntimePineWorkerLive) onClosedKLine(ctx context.Context, cl
 	if err != nil {
 		return fmt.Errorf("map live pine worker intents for %s: %w", live.symbol, err)
 	}
-	for _, command := range commands {
-		if err := live.executeCommand(ctx, command); err != nil {
-			return err
-		}
-	}
-	return nil
+	return live.commandExecutor.ExecuteBarCommands(ctx, commands)
 }
 
 func (live *strategyRuntimePineWorkerLive) requestLocked() pineworker.RunScriptRequest {
@@ -112,51 +126,145 @@ func (live *strategyRuntimePineWorkerLive) requestLocked() pineworker.RunScriptR
 	}
 }
 
-func (live *strategyRuntimePineWorkerLive) executeCommand(ctx context.Context, command bt.WorkerOrderCommand) error {
-	switch strings.TrimSpace(strings.ToLower(command.Kind)) {
-	case "entry", "order", "exit", "close", "close_all":
-		order, err := live.submitOrderFromCommand(command)
-		if err != nil {
-			return err
-		}
-		_, err = live.executor.SubmitOrders(ctx, order)
-		return err
-	case "cancel", "cancel_all":
-		return nil
+type strategyRuntimeLiveMarketResolver struct {
+	market bbgotypes.Market
+}
+
+func (resolver strategyRuntimeLiveMarketResolver) Market(symbol string) (bbgotypes.Market, bool) {
+	if strings.EqualFold(strings.TrimSpace(symbol), strings.TrimSpace(resolver.market.Symbol)) {
+		return resolver.market, true
+	}
+	return bbgotypes.Market{}, false
+}
+
+type strategyRuntimeLiveSizer struct {
+	runner *strategySymbolRuntime
+
+	mu        sync.RWMutex
+	lastPrice fixedpoint.Value
+}
+
+func (sizer *strategyRuntimeLiveSizer) onKLineClosed(kline bbgotypes.KLine) {
+	if sizer == nil {
+		return
+	}
+	if sizer.runner != nil && !strings.EqualFold(strings.TrimSpace(kline.Symbol), strings.TrimSpace(sizer.runner.symbol)) {
+		return
+	}
+	sizer.mu.Lock()
+	sizer.lastPrice = kline.Close
+	sizer.mu.Unlock()
+}
+
+func (sizer *strategyRuntimeLiveSizer) QuantityForCommand(command bt.WorkerOrderCommand, market bbgotypes.Market) (fixedpoint.Value, error) {
+	if sizer == nil || sizer.runner == nil {
+		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct requires live position sizing", command.ID)
+	}
+	if math.IsNaN(command.QuantityPct) || math.IsInf(command.QuantityPct, 0) || command.QuantityPct <= 0 {
+		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct must be positive", command.ID)
+	}
+	percent := fixedpoint.NewFromFloat(command.QuantityPct / 100)
+	switch normalizeStrategyRuntimeWorkerIntentKind(command.Kind) {
+	case "entry", "order":
+		return sizer.entryQuantity(command, market, percent)
+	case "exit", "close", "close_all":
+		return sizer.closeQuantity(command, percent)
 	default:
-		return fmt.Errorf("unsupported live pine worker command kind: %s", command.Kind)
+		return fixedpoint.Zero, fmt.Errorf("pine worker command %s does not support quantity pct", command.ID)
 	}
 }
 
-func (live *strategyRuntimePineWorkerLive) submitOrderFromCommand(command bt.WorkerOrderCommand) (bbgotypes.SubmitOrder, error) {
-	if command.Side == "" {
-		return bbgotypes.SubmitOrder{}, fmt.Errorf("pine worker command %s side is required", command.Kind)
+func (sizer *strategyRuntimeLiveSizer) NetPosition() fixedpoint.Value {
+	if sizer == nil || sizer.runner == nil {
+		return fixedpoint.Zero
 	}
-	if command.QuantityPct > 0 {
-		return bbgotypes.SubmitOrder{}, fmt.Errorf("pine worker command %s quantity pct requires worker-side sizing for live runtime", command.ID)
+	quantity := 0.0
+	for _, position := range sizer.runner.cachedPositions {
+		if strategyRuntimePositionMatchesSymbol(position, sizer.runner.symbol) {
+			quantity += position.Quantity
+		}
 	}
-	if command.Quantity <= 0 {
-		return bbgotypes.SubmitOrder{}, fmt.Errorf("pine worker command %s quantity must be positive", command.ID)
+	return fixedpoint.NewFromFloat(quantity)
+}
+
+func (sizer *strategyRuntimeLiveSizer) entryQuantity(command bt.WorkerOrderCommand, market bbgotypes.Market, percent fixedpoint.Value) (fixedpoint.Value, error) {
+	price := sizer.priceForCommand(command, market)
+	if price.Sign() <= 0 {
+		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct requires a positive price", command.ID)
 	}
-	orderType := command.OrderType
-	if orderType == "" {
-		orderType = bbgotypes.OrderTypeMarket
+	equity, err := sizer.equity(market)
+	if err != nil {
+		return fixedpoint.Zero, err
 	}
-	order := bbgotypes.SubmitOrder{
-		ClientOrderID: command.ID,
-		Symbol:        live.symbol,
-		Side:          command.Side,
-		Type:          orderType,
-		Quantity:      fixedpoint.NewFromFloat(command.Quantity),
+	if equity.Sign() <= 0 {
+		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct requires positive equity", command.ID)
 	}
+	return equity.Mul(percent).Div(price), nil
+}
+
+func (sizer *strategyRuntimeLiveSizer) closeQuantity(command bt.WorkerOrderCommand, percent fixedpoint.Value) (fixedpoint.Value, error) {
+	position := sizer.NetPosition().Abs()
+	if position.Sign() <= 0 {
+		return fixedpoint.Zero, fmt.Errorf("pine worker command %s quantity pct requires an open position", command.ID)
+	}
+	quantity := position.Mul(percent)
+	if quantity.Compare(position) > 0 {
+		quantity = position
+	}
+	return quantity, nil
+}
+
+func (sizer *strategyRuntimeLiveSizer) equity(market bbgotypes.Market) (fixedpoint.Value, error) {
+	account := sizer.runner.session.Account
+	if account == nil {
+		return fixedpoint.Zero, fmt.Errorf("pine worker quantity pct account is required")
+	}
+	if account.TotalAccountValue.Sign() > 0 {
+		return account.TotalAccountValue, nil
+	}
+	quoteCurrency := strings.TrimSpace(market.QuoteCurrency)
+	if quoteCurrency == "" {
+		return fixedpoint.Zero, fmt.Errorf("pine worker quantity pct quote currency is required")
+	}
+	balance, _ := account.Balance(quoteCurrency)
+	return balance.Total(), nil
+}
+
+func (sizer *strategyRuntimeLiveSizer) priceForCommand(command bt.WorkerOrderCommand, market bbgotypes.Market) fixedpoint.Value {
 	if command.LimitPrice > 0 {
-		order.Price = fixedpoint.NewFromFloat(command.LimitPrice)
-		order.TimeInForce = bbgotypes.TimeInForceGTC
+		return fixedpoint.NewFromFloat(command.LimitPrice)
 	}
 	if command.StopPrice > 0 {
-		order.StopPrice = fixedpoint.NewFromFloat(command.StopPrice)
+		return fixedpoint.NewFromFloat(command.StopPrice)
 	}
-	return order, nil
+	sizer.mu.RLock()
+	price := sizer.lastPrice
+	sizer.mu.RUnlock()
+	if price.Sign() <= 0 {
+		price = fixedpoint.NewFromFloat(sizer.runner.currentPrice())
+	}
+	if !market.TickSize.IsZero() && price.Sign() > 0 {
+		return market.TruncatePrice(price)
+	}
+	return price
+}
+
+type strategyRuntimeLiveWarningSink struct {
+	record func(string)
+}
+
+func (sink strategyRuntimeLiveWarningSink) AddIgnoredOrderWarning(message string) {
+	if sink.record != nil && strings.TrimSpace(message) != "" {
+		sink.record(message)
+	}
+}
+
+func (sink strategyRuntimeLiveWarningSink) AddIgnoredOrderWarningGroup(_ string, message string) {
+	sink.AddIgnoredOrderWarning(message)
+}
+
+func normalizeStrategyRuntimeWorkerIntentKind(kind string) string {
+	return strings.ToLower(strings.TrimSpace(kind))
 }
 
 func strategyRuntimePineWorkerCandle(kline bbgotypes.KLine) pineworker.Candle {
