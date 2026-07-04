@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +14,37 @@ import (
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
+
+func TestStrategyRuntimeOrderUsesSharedPreTradeRiskGateway(t *testing.T) {
+	brokerCalled := false
+	server := &Server{}
+	server.tradingSvc = trdsrv.NewService(
+		trdsrv.WithPreTradeRiskGateway(trdsrv.NewStaticPreTradeRiskGateway(func() trdsrv.PreTradeRiskConfig {
+			return trdsrv.PreTradeRiskConfig{}
+		})),
+		trdsrv.WithPlaceOrder(func(context.Context, trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
+			brokerCalled = true
+			return trdsrv.ExecutionOrder{}, nil
+		}),
+	)
+	deps := newStrategyRuntimeManagerDeps(server)
+	price := 100.0
+	_, err := deps.placeExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{
+		Symbol: "US.AAPL",
+		Query: broker.PlaceOrderQuery{
+			ReadQuery: broker.ReadQuery{TradingEnvironment: "REAL", Market: "US"},
+			Quantity:  1,
+			Price:     &price,
+		},
+	})
+	var rejected trdsrv.RiskRejectedError
+	if !errors.As(err, &rejected) || rejected.Decision.ReasonCode != "REAL_TRADING_DISABLED" {
+		t.Fatalf("strategy order error = %v, want shared pre-trade rejection", err)
+	}
+	if brokerCalled {
+		t.Fatal("strategy order bypassed shared pre-trade risk gateway")
+	}
+}
 
 func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
@@ -194,8 +226,8 @@ func TestStrategyRuntimeRiskEvaluatesOrderLimits(t *testing.T) {
 					Price:    test.price,
 				},
 			})
-			if decision.reason != test.want {
-				t.Fatalf("reason = %q, want %q", decision.reason, test.want)
+			if decision.Reason != test.want {
+				t.Fatalf("reason = %q, want %q", decision.Reason, test.want)
 			}
 		})
 	}
@@ -209,8 +241,8 @@ func TestStrategyRuntimeRiskEvaluatesOrderLimits(t *testing.T) {
 			Quantity: 6,
 		},
 	})
-	if quantityDecision.reason != "max_order_quantity" {
-		t.Fatalf("quantity decision reason = %q, want max_order_quantity", quantityDecision.reason)
+	if quantityDecision.Reason != "max_order_quantity" {
+		t.Fatalf("quantity decision reason = %q, want max_order_quantity", quantityDecision.Reason)
 	}
 }
 
@@ -584,7 +616,9 @@ func TestTodaySubmittedOrderCountKeepsInstanceScopeWithinOrderMarketDay(t *testi
 		t.Fatalf("NewStrategyRuntimeStore: %v", err)
 	}
 	t.Cleanup(func() { jftradeCheckTestError(t, runtimeStore.Close()) })
-	manager := &strategyRuntimeManager{server: &Server{strategyRuntimeStore: runtimeStore}}
+	manager := &strategyRuntimeManager{deps: strategyRuntimeManagerDeps{
+		countRuntimeAudit: runtimeStore.CountAudit,
+	}}
 	instanceID := "multi-market-instance"
 	for _, at := range []time.Time{
 		time.Date(2025, time.December, 31, 6, 0, 0, 0, time.UTC),

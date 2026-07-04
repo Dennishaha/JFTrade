@@ -20,6 +20,7 @@ type fakeOrderUpdateSource struct {
 	currentCalls   int
 	historyCalls   int
 	subscribeCalls int
+	historyQueries []OrderQuery
 	handler        OrderUpdateHandler
 	subscription   *fakeOrderUpdateSubscription
 	subscriptions  []*fakeOrderUpdateSubscription
@@ -36,10 +37,11 @@ func (f *fakeOrderUpdateSource) CurrentOrders(context.Context, OrderQuery) ([]Or
 	return cloneOrders(f.current), f.currentErr
 }
 
-func (f *fakeOrderUpdateSource) HistoryOrders(context.Context, OrderQuery, time.Time, time.Time) ([]Order, error) {
+func (f *fakeOrderUpdateSource) HistoryOrders(_ context.Context, query OrderQuery, _ time.Time, _ time.Time) ([]Order, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.historyCalls++
+	f.historyQueries = append(f.historyQueries, query)
 	return cloneOrders(f.history), f.historyErr
 }
 
@@ -159,7 +161,7 @@ func TestOrderUpdatesWorkerCacheTTLTerminalRemovalAndDefensiveCopy(t *testing.T)
 	*source.current[0].Price = 999
 	execution.orders = nil
 	now = now.Add(30 * time.Second)
-	worker.Sync(context.Background(), true, true)
+	worker.Sync(context.Background(), false, true)
 	if source.currentCalls != 1 {
 		t.Fatalf("current calls with live cache = %d, want 1", source.currentCalls)
 	}
@@ -168,7 +170,8 @@ func TestOrderUpdatesWorkerCacheTTLTerminalRemovalAndDefensiveCopy(t *testing.T)
 	}
 	*execution.orders[0].order.Price = 777
 	execution.orders = nil
-	worker.Sync(context.Background(), true, true)
+	now = now.Add(2 * time.Second)
+	worker.Sync(context.Background(), false, true)
 	if got := *execution.orders[0].order.Price; got != 100 {
 		t.Fatalf("cached price after consumer mutation = %v, want 100", got)
 	}
@@ -178,13 +181,14 @@ func TestOrderUpdatesWorkerCacheTTLTerminalRemovalAndDefensiveCopy(t *testing.T)
 		BrokerOrderID: "1", Status: "CANCELLED_ALL",
 	})
 	execution.orders = nil
-	worker.Sync(context.Background(), true, true)
+	now = now.Add(2 * time.Second)
+	worker.Sync(context.Background(), false, true)
 	if len(execution.orders) != 0 {
 		t.Fatalf("terminal order remained in cache: %#v", execution.orders)
 	}
 
 	now = now.Add(61 * time.Second)
-	worker.Sync(context.Background(), true, true)
+	worker.Sync(context.Background(), false, true)
 	if source.currentCalls != 2 {
 		t.Fatalf("current calls after TTL = %d, want 2", source.currentCalls)
 	}
@@ -201,7 +205,8 @@ func TestOrderUpdatesWorkerCurrentHistoryCacheAndPushMetadata(t *testing.T) {
 	worker := NewOrderUpdatesWorker(source, execution, OrderUpdatesConfig{Now: func() time.Time { return now }})
 
 	worker.Sync(context.Background(), true, false)
-	worker.Sync(context.Background(), true, true)
+	now = now.Add(2 * time.Second)
+	worker.Sync(context.Background(), false, true)
 	worker.HandleOrderUpdate(Order{BrokerOrderID: "push", AccountID: "1001", TradingEnvironment: "SIMULATE", Market: "HK"})
 	worker.HandleFillUpdate(Fill{BrokerFillID: "fill", AccountID: "1001", TradingEnvironment: "SIMULATE", Market: "HK"})
 
@@ -221,6 +226,56 @@ func TestOrderUpdatesWorkerCurrentHistoryCacheAndPushMetadata(t *testing.T) {
 	}
 	if len(execution.fills) != 1 || execution.fills[0].BrokerFillID != "fill" {
 		t.Fatalf("fills = %#v", execution.fills)
+	}
+}
+
+func TestOrderUpdatesWorkerForcedActiveSyncBypassesCache(t *testing.T) {
+	now := time.Date(2026, 7, 4, 10, 0, 0, 0, time.UTC)
+	source := &fakeOrderUpdateSource{
+		accounts: []Account{{ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"}}},
+		current:  []Order{{AccountID: "1001", TradingEnvironment: "SIMULATE", Market: "HK", BrokerOrderID: "1", Status: "SUBMITTED"}},
+	}
+	worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{
+		Now: func() time.Time { return now }, CacheTTL: time.Minute,
+	})
+	worker.Sync(context.Background(), true, true)
+	source.current[0].Status = "FILLED_ALL"
+	worker.Sync(context.Background(), true, true)
+	if source.currentCalls != 2 {
+		t.Fatalf("forced active sync current calls = %d, want 2", source.currentCalls)
+	}
+}
+
+func TestOrderUpdatesWorkerSyncExecutionOrderHistoryUsesOrderScope(t *testing.T) {
+	now := time.Date(2026, 7, 4, 10, 0, 0, 0, time.UTC)
+	source := &fakeOrderUpdateSource{
+		history: []Order{{
+			AccountID: "ACC-1", TradingEnvironment: "SIMULATE", Market: "US",
+			BrokerOrderID: "broker-1", Status: "FILLED_ALL",
+		}},
+	}
+	execution := &fakeExecutionOrderUpdates{}
+	worker := NewOrderUpdatesWorker(source, execution, OrderUpdatesConfig{Now: func() time.Time { return now }})
+
+	worker.SyncExecutionOrderHistory(context.Background(), ExecutionOrder{
+		BrokerID: "futu", TradingEnvironment: "SIMULATE", AccountID: "ACC-1", Market: "US",
+		BrokerOrderID: new("broker-1"),
+	})
+
+	if source.historyCalls != 1 {
+		t.Fatalf("history calls = %d, want 1", source.historyCalls)
+	}
+	if len(source.historyQueries) != 1 {
+		t.Fatalf("history queries = %#v", source.historyQueries)
+	}
+	if got := source.historyQueries[0]; got.BrokerID != "futu" || got.TradingEnvironment != "SIMULATE" || got.AccountID != "ACC-1" || got.Market != "US" {
+		t.Fatalf("history query = %#v", got)
+	}
+	if len(execution.orders) != 1 || execution.orders[0].order.Status != "FILLED_ALL" {
+		t.Fatalf("applied history orders = %#v", execution.orders)
+	}
+	if got := execution.orders[0].metadata; got.SourceDetail != "broker.history" || got.UpdatedEventType != "BROKER_HISTORY_UPDATED" {
+		t.Fatalf("history metadata = %#v", got)
 	}
 }
 

@@ -17,6 +17,9 @@ type executionOrderEventResponse = trdsrv.ExecutionOrderEvent
 type executionOrdersResponse = trdsrv.ExecutionOrders
 type executionOrderListFilter = trdsrv.ExecutionOrderFilter
 type executionOrderEventsResponse = trdsrv.ExecutionOrderEvents
+
+//nolint:unused // Referenced by Swagger annotations during go generate.
+type executionOrderDetailsResponse = trdsrv.ExecutionOrderDetails
 type executionPlacedOrderRecord = trdsrv.ExecutionPlacedOrderRecord
 
 type executionOrderStore struct {

@@ -2,45 +2,10 @@ package settings
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
-
-var (
-	ErrDatabaseMaintenanceConflict = errors.New("database maintenance conflict")
-	ErrCleanupPreviewNotFound      = errors.New("cleanup preview not found or expired")
-	ErrCleanupPreviewStale         = errors.New("cleanup preview is stale")
-)
-
-type DataCleanupPreviewRequest struct {
-	Kind          string `json:"kind"`
-	DatabaseID    string `json:"databaseId"`
-	OlderThanDays int    `json:"olderThanDays,omitempty"`
-	KeepLatest    int    `json:"keepLatest,omitempty"`
-}
-
-type DataCleanupExecuteRequest struct {
-	PreviewID    string `json:"previewId"`
-	Confirmation string `json:"confirmation"`
-}
-
-type DatabaseCompactRequest struct {
-	Confirmation string `json:"confirmation"`
-}
-
-type DatabaseRebuildRequest struct {
-	DatabaseIDs  []string `json:"databaseIds"`
-	DatabaseID   string   `json:"databaseId"`
-	Mode         string   `json:"mode"`
-	Confirmation string   `json:"confirmation"`
-}
-
-type DataManagementOverviewRequest struct {
-	SummaryOnly bool   `json:"summaryOnly"`
-	DatabaseID  string `json:"databaseId"`
-}
 
 // Store 是 settings 持久化层接口，由应用装配层注入具体实现。
 type Store interface {
@@ -97,16 +62,10 @@ type Service struct {
 	sideEffects SideEffects
 
 	// 来自 Server 的委托（不在 Store 中的聚合信息）
-	brokerDescriptor       func() map[string]any
-	brokerSettingsFn       func() map[string]any
-	onboardingStateFn      func(ctx context.Context) map[string]any
-	defaultTradingEnv      string
-	dataMigrationStatusFn  func(context.Context, DataManagementOverviewRequest) (any, error)
-	dataMigrationRebuildFn func(context.Context, any) (any, error)
-	dataCleanupPreviewFn   func(context.Context, DataCleanupPreviewRequest) (any, error)
-	dataCleanupExecuteFn   func(context.Context, DataCleanupExecuteRequest) (any, error)
-	databaseCompactFn      func(context.Context, string, DatabaseCompactRequest) (any, error)
-	databaseRebuildFn      func(context.Context, DatabaseRebuildRequest) (any, error)
+	brokerDescriptor  func() map[string]any
+	brokerSettingsFn  func() map[string]any
+	onboardingStateFn func(ctx context.Context) map[string]any
+	defaultTradingEnv string
 }
 
 // NewService 创建 settings 服务。
@@ -144,85 +103,6 @@ func WithOnboardingState(fn func(ctx context.Context) map[string]any) Option {
 // WithDefaultTradingEnvironment 设置默认交易环境。
 func WithDefaultTradingEnvironment(env string) Option {
 	return func(s *Service) { s.defaultTradingEnv = env }
-}
-
-func WithDataMigration(
-	status func(context.Context) (any, error),
-	rebuild func(context.Context, any) (any, error),
-) Option {
-	return func(s *Service) {
-		s.dataMigrationStatusFn = func(ctx context.Context, _ DataManagementOverviewRequest) (any, error) {
-			return status(ctx)
-		}
-		s.dataMigrationRebuildFn = rebuild
-	}
-}
-
-func WithDataManagement(
-	overview func(context.Context, DataManagementOverviewRequest) (any, error),
-	preview func(context.Context, DataCleanupPreviewRequest) (any, error),
-	execute func(context.Context, DataCleanupExecuteRequest) (any, error),
-	compact func(context.Context, string, DatabaseCompactRequest) (any, error),
-	rebuild func(context.Context, DatabaseRebuildRequest) (any, error),
-) Option {
-	return func(s *Service) {
-		s.dataMigrationStatusFn = overview
-		s.dataCleanupPreviewFn = preview
-		s.dataCleanupExecuteFn = execute
-		s.databaseCompactFn = compact
-		s.databaseRebuildFn = rebuild
-	}
-}
-
-func (s *Service) DataMigrationStatus(ctx context.Context) (any, error) {
-	return s.DataManagementStatus(ctx, DataManagementOverviewRequest{})
-}
-
-func (s *Service) DataManagementStatus(ctx context.Context, request DataManagementOverviewRequest) (any, error) {
-	if s.dataMigrationStatusFn == nil {
-		return map[string]any{"databases": []any{}}, nil
-	}
-	return s.dataMigrationStatusFn(ctx, request)
-}
-
-func (s *Service) ScheduleDatabaseRebuild(ctx context.Context, request any) (any, error) {
-	if s.dataMigrationRebuildFn == nil {
-		return nil, errors.New("database rebuild is unavailable")
-	}
-	return s.dataMigrationRebuildFn(ctx, request)
-}
-
-func (s *Service) PreviewDataCleanup(ctx context.Context, request DataCleanupPreviewRequest) (any, error) {
-	if s.dataCleanupPreviewFn == nil {
-		return nil, errors.New("database cleanup preview is unavailable")
-	}
-	return s.dataCleanupPreviewFn(ctx, request)
-}
-
-func (s *Service) ExecuteDataCleanup(ctx context.Context, request DataCleanupExecuteRequest) (any, error) {
-	if s.dataCleanupExecuteFn == nil {
-		return nil, errors.New("database cleanup is unavailable")
-	}
-	return s.dataCleanupExecuteFn(ctx, request)
-}
-
-func (s *Service) CompactDatabase(ctx context.Context, databaseID string, request DatabaseCompactRequest) (any, error) {
-	if s.databaseCompactFn == nil {
-		return nil, errors.New("database compaction is unavailable")
-	}
-	return s.databaseCompactFn(ctx, databaseID, request)
-}
-
-func (s *Service) RebuildDatabase(ctx context.Context, request DatabaseRebuildRequest) (any, error) {
-	if s.databaseRebuildFn != nil {
-		return s.databaseRebuildFn(ctx, request)
-	}
-	return s.ScheduleDatabaseRebuild(ctx, map[string]any{
-		"databaseIds":  request.DatabaseIDs,
-		"databaseId":   request.DatabaseID,
-		"mode":         request.Mode,
-		"confirmation": request.Confirmation,
-	})
 }
 
 // ── UI Appearance ──

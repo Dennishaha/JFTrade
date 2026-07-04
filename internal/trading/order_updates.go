@@ -218,7 +218,7 @@ func (w *OrderUpdatesWorker) Sync(ctx context.Context, force bool, activeOnly bo
 
 	for _, query := range queries {
 		key := OrderUpdateSubscriptionKey(query)
-		if activeOnly {
+		if activeOnly && !force {
 			if cached, ok := w.cachedActiveOrders(key); ok {
 				w.applyOrders(ctx, query.BrokerID, cached, OrderWriteMetadata{
 					DiscoveredEventType: "BROKER_CACHE_DISCOVERED",
@@ -265,6 +265,41 @@ func (w *OrderUpdatesWorker) Sync(ctx context.Context, force bool, activeOnly bo
 			SourceDetail:        "broker.history",
 		})
 	}
+}
+
+func (w *OrderUpdatesWorker) SyncExecutionOrderHistory(ctx context.Context, order ExecutionOrder) {
+	if w == nil || w.source == nil || w.execution == nil {
+		return
+	}
+	if !executionOrderHasBrokerReference(order) {
+		return
+	}
+	query := OrderQuery{
+		BrokerID:           strings.TrimSpace(firstNonEmpty(order.BrokerID, w.config.BrokerID)),
+		TradingEnvironment: strings.TrimSpace(order.TradingEnvironment),
+		AccountID:          strings.TrimSpace(order.AccountID),
+		Market:             strings.ToUpper(strings.TrimSpace(order.Market)),
+	}
+	if query.BrokerID == "" || query.TradingEnvironment == "" || query.AccountID == "" || query.Market == "" {
+		return
+	}
+	end := w.now()
+	lookbackDays := w.config.HistoryLookback()
+	if lookbackDays <= 0 {
+		lookbackDays = 3
+	}
+	history, err := w.source.HistoryOrders(ctx, query, end.Add(-time.Duration(lookbackDays)*24*time.Hour), end)
+	if err != nil {
+		w.markSubscriptions([]OrderQuery{query}, "inactive", "sync-history-orders", err)
+		return
+	}
+	w.markSubscriptions([]OrderQuery{query}, "active", "sync-history-orders", nil)
+	w.applyOrders(ctx, query.BrokerID, history, OrderWriteMetadata{
+		DiscoveredEventType: "BROKER_HISTORY_DISCOVERED",
+		UpdatedEventType:    "BROKER_HISTORY_UPDATED",
+		Source:              "broker",
+		SourceDetail:        "broker.history",
+	})
 }
 
 func (w *OrderUpdatesWorker) HandleOrderUpdate(order Order) {
@@ -438,12 +473,7 @@ func OrderUpdateSubscriptionKey(query OrderQuery) string {
 }
 
 func IsTerminalOrderStatus(status string) bool {
-	switch strings.ToUpper(strings.TrimSpace(status)) {
-	case "FILLED_ALL", "CANCELLED_ALL", "CANCELLED_PART", "FAILED", "DELETED", "EXPIRED":
-		return true
-	default:
-		return false
-	}
+	return IsCanonicalTerminalOrderStatus(CanonicalBrokerOrderStatus(status))
 }
 
 func (w *OrderUpdatesWorker) shouldSync(force bool) bool {

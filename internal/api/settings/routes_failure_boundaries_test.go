@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apisettings "github.com/jftrade/jftrade-main/internal/api/settings"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	srvsettings "github.com/jftrade/jftrade-main/internal/settings"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
@@ -101,12 +102,14 @@ func TestOnboardingCanBeResetWithoutLosingLastBroker(t *testing.T) {
 
 func TestDataMigrationStatusMapsCallbackFailure(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	service := srvsettings.NewService(&routeStore{}, srvsettings.WithDataMigration(
-		func(context.Context) (any, error) { return nil, errors.New("runtime unavailable") },
-		nil,
-	))
+	service := srvsettings.NewService(&routeStore{})
+	dataManagementSvc := dmsrv.NewService(routeDataManagementBackend{
+		overview: func(context.Context, dmsrv.OverviewRequest) (any, error) {
+			return nil, errors.New("runtime unavailable")
+		},
+	})
 	router := gin.New()
-	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service, dataManagementSvc)
 
 	response := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/data-migration/databases", "")
 	if response.Code != http.StatusInternalServerError || !strings.Contains(response.Body.String(), `"code":"DATABASE_STATUS_FAILED"`) {

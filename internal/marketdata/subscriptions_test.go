@@ -202,6 +202,10 @@ type stubProvider struct {
 	health HealthStatus
 }
 
+func (p stubProvider) Descriptor(context.Context) (ProviderDescriptor, error) {
+	return ProviderDescriptor{ProviderID: "stub-provider", DisplayName: "Stub Provider", Source: "stub"}, nil
+}
+
 func (p stubProvider) GetMarkets(context.Context) ([]MarketProfile, error) {
 	return nil, nil
 }

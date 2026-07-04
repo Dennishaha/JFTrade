@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 
 import KlineChart from "../KlineChart.vue";
+import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import {
   KLINE_PERIODS,
   formatKlinePeriodLabel,
@@ -10,11 +11,17 @@ import {
   type KlineCandle,
 } from "../../charting/kline";
 import { formatMarketSessionLabel } from "../../composables/marketSessionDisplay";
+import { useMarketDataProviderStatus } from "../../composables/marketDataProviderStatus";
 import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 
 const { prefs, update } = useWorkspaceTradingPrefs();
+const {
+  loadMarketDataProviderStatus,
+  providerCapabilitySummary,
+  providerDisplayName,
+} = useMarketDataProviderStatus();
 const {
   currentMarketDataCandles: marketDataCandles,
   currentMarketDataSnapshot: marketDataSnapshot,
@@ -37,6 +44,7 @@ const {
 } = useConsoleData();
 
 const chartConsumerId = createStableWebConsumerId("workspace-chart");
+const liveHub = getSharedLiveSocketHub();
 let heldChartSubscription: {
   market: string;
   symbol: string;
@@ -97,6 +105,24 @@ const chartSessionTitle = computed(() => {
     ? "美股扩展时段数据：历史K线请求盘前/盘后，实时快照含盘前/盘后/夜盘字段"
     : "常规交易时段数据";
 });
+const chartObservedAt = computed(() => {
+  const snapshot = marketDataSnapshot.value?.snapshot;
+  if (snapshot?.observedAt || snapshot?.at) return snapshot.observedAt ?? snapshot.at;
+  const candle = marketDataCandles.value?.candles.at(-1);
+  return candle?.displayAt ?? candle?.at ?? marketDataCandles.value?.meta.resolvedAt ?? null;
+});
+const chartConnectionState = computed(() =>
+  liveHub.connectionState?.value ?? (isLiveStreamConnected.value ? "connected" : "disconnected"),
+);
+const chartTransportMode = computed(() =>
+  liveHub.lastHeartbeatEvent?.value?.transport?.mode ?? null,
+);
+const chartSource = computed(() =>
+  marketDataSnapshot.value?.meta.source ?? marketDataCandles.value?.meta.source ?? null,
+);
+const chartFromCache = computed(() =>
+  marketDataSnapshot.value?.meta.fromCache ?? marketDataCandles.value?.meta.fromCache ?? false,
+);
 
 function resolveChartSubscriptionTarget() {
   return chartTarget.value;
@@ -155,7 +181,6 @@ function handleChartVisibilityChange(): void {
 
   // Wait for the WebSocket reconnect (triggered by AppShell) before deciding
   // the recovery path, so we don't trigger a full reload while reconnecting.
-  const liveHub = getSharedLiveSocketHub();
   void liveHub.waitForConnection(3_000).then((connected) => {
     // Smart recovery: if SSE is connected and data is fresh, only send heartbeat
     if (
@@ -258,6 +283,7 @@ function setPeriod(p: string): void {
 }
 
 onMounted(() => {
+  void loadMarketDataProviderStatus();
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", handleChartVisibilityChange);
   }
@@ -319,12 +345,20 @@ watch(
         </button>
       </div>
       <div style="flex: 1"></div>
-      <span v-if="chartSessionBadge" :title="chartSessionTitle" style="border: 1px solid var(--tv-border); border-radius: 999px; padding: 3px 8px; color: var(--tv-text); background: var(--card-teal-surface); font-size: 11px; white-space: nowrap">
-        {{ chartSessionBadge }}
-      </span>
-      <span v-if="isLoadingMarketDataQuery" style="color: var(--tv-text-dim); font-size: 11px">加载中...</span>
-      <span v-else-if="marketDataQueryError" style="color: var(--tv-accent); font-size: 11px" :title="marketDataQueryError">{{ marketDataQueryError }}</span>
-      <span v-else style="color: var(--tv-text-dim); font-size: 11px">{{ marketDataCandles?.totalReturned ?? 0 }} 根 · {{ formatKlinePeriodLabel(prefs.period) }} · 上限 {{ marketDataQueryLimit }}</span>
+      <MarketFeedStatus
+        :connection-state="chartConnectionState"
+        :observed-at="chartObservedAt"
+        :transport-mode="chartTransportMode"
+        :session="chartSessionBadge"
+        :context-title="chartSessionTitle"
+        :source="chartSource"
+        :provider-name="providerDisplayName"
+        :provider-capabilities="providerCapabilitySummary"
+        :from-cache="chartFromCache"
+        :loading="isLoadingMarketDataQuery"
+        :error="marketDataQueryError"
+      />
+      <span style="color: var(--tv-text-dim); font-size: 11px">{{ marketDataCandles?.totalReturned ?? 0 }} 根 · {{ formatKlinePeriodLabel(prefs.period) }} · 上限 {{ marketDataQueryLimit }}</span>
       <button class="tv-icon-btn" title="刷新" @click="() => reload()">↻</button>
     </div>
     <div class="tv-panel-body is-flush">

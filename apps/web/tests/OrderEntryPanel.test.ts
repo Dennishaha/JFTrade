@@ -114,6 +114,155 @@ describe("OrderEntryPanel", () => {
     expect(payload.market).toBe("HK");
     expect(payload.code).toBe("00700");
     expect(payload.symbol).toBe("HK.00700");
+    await vi.waitFor(() => expect(wrapper.text()).toContain("内部单号"));
+    expect(wrapper.text()).toContain("内部单号");
+    expect(wrapper.text()).toContain("io-1");
+    expect(wrapper.text()).toContain("券商单号");
+    expect(wrapper.text()).toContain("bo-1");
+    expect(wrapper.text()).toContain("当前状态");
+    expect(wrapper.text()).toContain("待券商回报");
+    expect(wrapper.text()).toContain("撤单");
+    expect(wrapper.text()).toContain("可在账户页提交");
+    const orderLink = wrapper.get(".tv-order-feedback-actions a");
+    expect(orderLink.text()).toBe("查看账户订单");
+    expect(orderLink.attributes("href")).toContain("/account?");
+    expect(orderLink.attributes("href")).toContain("tab=history");
+    expect(orderLink.attributes("href")).toContain("orderId=io-1");
+  });
+
+  it("renders broker order status and broker extended id in the receipt card", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          accepted: true,
+          internalOrderId: "io-2",
+          brokerOrderId: "bo-2",
+          brokerOrderIdEx: "bo-ex-2",
+          orderStatus: "FILLED",
+          checkedAt: "2026-07-03T00:00:00Z",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { wrapper } = mountOrderEntryPanel({
+      snapshotPrice: 321.234,
+      priceSpread: 0.01,
+    });
+
+    await nextTick();
+    await findSubmitButton(wrapper).trigger("click");
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.text()).toContain("bo-ex-2");
+    expect(wrapper.text()).toContain("已成交");
+    expect(wrapper.text()).toContain("不可提交");
+  });
+
+  it("refreshes the receipt through the canonical order details endpoint until terminal", async () => {
+    vi.useFakeTimers();
+    let detailCalls = 0;
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/execution/orders") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            data: {
+              accepted: true,
+              internalOrderId: "io-loop",
+              brokerOrderId: "bo-loop",
+              orderStatus: "BROKER_ACCEPTED",
+              checkedAt: "2026-07-04T00:00:00Z",
+            },
+          }),
+        };
+      }
+      if (url.endsWith("/api/v1/execution/orders/io-loop")) {
+        detailCalls += 1;
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            data: {
+              order: {
+                internalOrderId: "io-loop",
+                brokerId: "futu",
+                brokerOrderId: "bo-loop",
+                brokerOrderIdEx: "bo-loop-ex",
+                source: "system",
+                sourceDetail: "command.place",
+                tradingEnvironment: "SIMULATE",
+                accountId: "SIM-1",
+                market: "HK",
+                symbol: "HK.00700",
+                side: "BUY",
+                orderType: "LIMIT",
+                status: "FILLED",
+                rawBrokerStatus: "FILLED_ALL",
+                requestedQuantity: 100,
+                requestedPrice: 321.23,
+                filledQuantity: 100,
+                filledAveragePrice: 321.2,
+                remark: null,
+                lastError: null,
+                lastErrorCode: null,
+                lastErrorSource: null,
+                submittedAt: "2026-07-04T00:00:00Z",
+                updatedAt: "2026-07-04T00:00:02Z",
+                createdAt: "2026-07-04T00:00:00Z",
+              },
+              recentEvents: [
+                {
+                  id: "evt-2",
+                  internalOrderId: "io-loop",
+                  eventType: "BROKER_PUSH_ORDER",
+                  previousStatus: "BROKER_ACCEPTED",
+                  nextStatus: "FILLED",
+                  payloadJson: "{}",
+                  createdAt: "2026-07-04T00:00:02Z",
+                },
+              ],
+              checkedAt: "2026-07-04T00:00:02Z",
+            },
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ ok: true, data: emptyBrokerMaxTradeQuantity }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { wrapper } = mountOrderEntryPanel({
+      snapshotPrice: 321.234,
+      priceSpread: 0.01,
+    });
+    await nextTick();
+    await findSubmitButton(wrapper).trigger("click");
+    await vi.advanceTimersByTimeAsync(0);
+    await nextTick();
+
+    expect(wrapper.text()).toContain("券商已接受");
+    expect(wrapper.text()).toContain("已接受");
+    await vi.advanceTimersByTimeAsync(2_100);
+    await nextTick();
+
+    expect(detailCalls).toBe(1);
+    expect(wrapper.text()).toContain("bo-loop-ex");
+    expect(wrapper.text()).toContain("已成交");
+    expect(wrapper.text()).toContain("FILLED_ALL");
+    expect(wrapper.text()).toContain("最近事件：券商推送更新订单");
+    expect(wrapper.text()).toContain("不可提交");
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(detailCalls).toBe(1);
+    wrapper.unmount();
   });
 
   it("treats missing accepted as a failed order response", async () => {

@@ -228,6 +228,17 @@ func TestDepthRouteDefaultsInvalidNum(t *testing.T) {
 func TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{
+		descriptor: srv.ProviderDescriptor{
+			ProviderID:       "futu-opend",
+			DisplayName:      "Futu OpenD",
+			Source:           "bbgo:futu",
+			SupportedMarkets: []string{"US", "HK"},
+			Capabilities: srv.ProviderCapabilities{
+				Snapshots:         true,
+				HistoricalCandles: true,
+				OrderBookDepth:    true,
+			},
+		},
 		markets: []srv.MarketProfile{{"market": "US"}},
 		securityDetails: srv.SecurityDetails{
 			"instrument": map[string]any{"market": "US", "symbol": "AAPL"},
@@ -252,6 +263,14 @@ func TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize(t *te
 	service := srv.NewService(provider)
 	router := gin.New()
 	RegisterRoutes(router.Group("/api/v1"), service)
+
+	providerRec := httptest.NewRecorder()
+	router.ServeHTTP(providerRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/provider", nil))
+	if providerRec.Code != http.StatusOK ||
+		!strings.Contains(providerRec.Body.String(), `"providerId":"futu-opend"`) ||
+		!strings.Contains(providerRec.Body.String(), `"orderBookDepth":true`) {
+		t.Fatalf("provider = %d %s", providerRec.Code, providerRec.Body.String())
+	}
 
 	marketsRec := httptest.NewRecorder()
 	router.ServeHTTP(marketsRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/markets", nil))
@@ -312,14 +331,21 @@ func TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize(t *te
 func TestReadRoutesMapProviderAndRequestFailures(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{
-		marketsErr:   errors.New("markets unavailable"),
-		securityErr:  errors.New("security unavailable"),
-		snapshotErr:  errors.New("snapshot unavailable"),
-		normalizeErr: errors.New("instrument invalid"),
+		descriptorErr: errors.New("provider unavailable"),
+		marketsErr:    errors.New("markets unavailable"),
+		securityErr:   errors.New("security unavailable"),
+		snapshotErr:   errors.New("snapshot unavailable"),
+		normalizeErr:  errors.New("instrument invalid"),
 	}
 	service := srv.NewService(provider)
 	router := gin.New()
 	RegisterRoutes(router.Group("/api/v1"), service)
+
+	providerRec := httptest.NewRecorder()
+	router.ServeHTTP(providerRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/provider", nil))
+	if providerRec.Code != http.StatusBadGateway {
+		t.Fatalf("provider status = %d body=%s", providerRec.Code, providerRec.Body.String())
+	}
 
 	marketsRec := httptest.NewRecorder()
 	router.ServeHTTP(marketsRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/markets", nil))
@@ -449,6 +475,8 @@ func routeEntriesByKey(t *testing.T, snapshot map[string]any) map[string]map[str
 }
 
 type routeTestProvider struct {
+	descriptor           srv.ProviderDescriptor
+	descriptorErr        error
 	candlesCalled        bool
 	candlesMarket        string
 	candlesSymbol        string
@@ -472,6 +500,15 @@ type routeTestProvider struct {
 	normalizedInstrument map[string]any
 	normalizeErr         error
 	normalizeRequest     map[string]any
+}
+
+func (p *routeTestProvider) Descriptor(context.Context) (srv.ProviderDescriptor, error) {
+	if p.descriptor.ProviderID == "" {
+		p.descriptor.ProviderID = "route-test"
+		p.descriptor.DisplayName = "Route Test"
+		p.descriptor.Source = "test"
+	}
+	return p.descriptor, p.descriptorErr
 }
 
 func (p *routeTestProvider) GetMarkets(context.Context) ([]srv.MarketProfile, error) {

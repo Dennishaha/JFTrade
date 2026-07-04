@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apisettings "github.com/jftrade/jftrade-main/internal/api/settings"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	srvsettings "github.com/jftrade/jftrade-main/internal/settings"
 )
 
@@ -72,14 +73,14 @@ func TestManagedAccountUpdateUsesPathIDAndSurfacesServerErrors(t *testing.T) {
 func TestDataMigrationRebuildRejectsMalformedAndRejectedRequests(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 
-	service := srvsettings.NewService(&routeStore{}, srvsettings.WithDataMigration(
-		nil,
-		func(context.Context, any) (any, error) {
+	service := srvsettings.NewService(&routeStore{})
+	dataManagementSvc := dmsrv.NewService(routeDataManagementBackend{
+		rebuild: func(context.Context, dmsrv.RebuildRequest) (any, error) {
 			return nil, errors.New("confirmation mismatch")
 		},
-	))
+	})
 	router := gin.New()
-	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service, dataManagementSvc)
 
 	t.Run("malformed json returns bad request", func(t *testing.T) {
 		recorder := httptest.NewRecorder()

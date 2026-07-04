@@ -1,12 +1,12 @@
 //nolint:unused // These annotation-only stubs are consumed by swag during go generate.
 package servercore
 
-import "github.com/jftrade/jftrade-main/internal/settings"
+import "github.com/jftrade/jftrade-main/internal/datamanagement"
 
-type dataCleanupPreviewRequest = settings.DataCleanupPreviewRequest
-type dataCleanupExecuteRequest = settings.DataCleanupExecuteRequest
-type databaseCompactRequest = settings.DatabaseCompactRequest
-type databaseRebuildRequest = settings.DatabaseRebuildRequest
+type dataCleanupPreviewRequest = datamanagement.CleanupPreviewRequest
+type dataCleanupExecuteRequest = datamanagement.CleanupExecuteRequest
+type databaseCompactRequest = datamanagement.CompactRequest
+type databaseRebuildRequest = datamanagement.RebuildRequest
 
 // documentDataMigrationRoutes godoc
 // @Summary Database compatibility status and rebuild scheduling
@@ -401,6 +401,16 @@ func documentBrokerSecuritiesRoute() {}
 // @Router /api/v1/execution/orders [get]
 func documentExecutionOrdersRoute() {}
 
+// documentExecutionOrderDetailsRoute godoc
+// @Summary 读取单笔执行订单及最近事件
+// @Tags execution
+// @Produce json
+// @Param internalOrderId path string true "内部订单 ID"
+// @Success 200 {object} envelope{data=executionOrderDetailsResponse}
+// @Failure 404 {object} envelope
+// @Router /api/v1/execution/orders/{internalOrderId} [get]
+func documentExecutionOrderDetailsRoute() {}
+
 // documentExecutionPlaceRoute godoc
 // @Summary 提交执行订单
 // @Tags execution
@@ -443,8 +453,12 @@ func documentExecutionEventsRoute() {}
 // @Router /api/v1/system/storage/overview [get]
 // @Router /api/v1/system/real-trade-approvals [get]
 // @Router /api/v1/system/real-trade-hard-stops [get]
+// @Router /api/v1/system/real-trade-hard-stops [post]
+// @Router /api/v1/system/real-trade-hard-stops/{hardStopId}/release [post]
 // @Router /api/v1/system/real-trade-hard-stop-events [get]
 // @Router /api/v1/system/real-trade-kill-switch [get]
+// @Router /api/v1/system/real-trade-kill-switch/activate [post]
+// @Router /api/v1/system/real-trade-kill-switch/release [post]
 // @Router /api/v1/system/real-trade-kill-switch-events [get]
 // @Router /api/v1/system/real-trade-risk-limits [get]
 // @Router /api/v1/system/real-trade-risk-events [get]

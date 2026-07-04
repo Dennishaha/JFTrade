@@ -109,8 +109,11 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	if order.Symbol == nil || *order.Symbol != "HK.00700" {
 		t.Fatalf("symbol = %#v, want HK.00700", order.Symbol)
 	}
-	if got := order.Status; got != "SUBMITTED" {
-		t.Fatalf("status = %q, want SUBMITTED", got)
+	if got := order.Status; got != "BROKER_ACCEPTED" {
+		t.Fatalf("status = %q, want BROKER_ACCEPTED", got)
+	}
+	if order.RawBrokerStatus == nil || *order.RawBrokerStatus != "SUBMITTED" {
+		t.Fatalf("rawBrokerStatus = %#v, want SUBMITTED", order.RawBrokerStatus)
 	}
 	if got := opendServer.placeOrderCallCount(); got != 1 {
 		t.Fatalf("expected one place order call, got %d", got)

@@ -137,7 +137,7 @@ func TestExecutionOrderStorePlacedOrderDefaultsBrokerAndRepairsSparseSummary(t *
 	if merged.SubmittedAt == nil || *merged.SubmittedAt == "" || merged.UpdatedAt == "" || merged.CreatedAt == "" {
 		t.Fatalf("merged order timestamps = %#v", merged)
 	}
-	if merged.Source != "system" || merged.SourceDetail != "command.place" || merged.Status != "SUBMITTED" {
+	if merged.Source != "system" || merged.SourceDetail != "command.place" || merged.Status != "BROKER_ACCEPTED" {
 		t.Fatalf("merged order source/status = %#v", merged)
 	}
 	events := store.orderEvents("exec-legacy")

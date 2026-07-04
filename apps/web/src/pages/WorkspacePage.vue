@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SplitpanesResizedPayload } from "splitpanes";
 
+import TradingScopeBar from "../components/TradingScopeBar.vue";
 import LightweightChart from "../components/workspace/LightweightChart.vue";
 import OrderBookPanel from "../components/workspace/OrderBookPanel.vue";
 import OrderEntryPanel from "../components/workspace/OrderEntryPanel.vue";
@@ -37,40 +38,40 @@ function handlePaneResized(
 </script>
 
 <template>
-  <div class="tv-workspace">
-    <!-- Left-right split: left (chart + positions|order) | right (watchlist + orderbook) -->
-    <SplitPane :pane-min-size="10" @resized="handlePaneResized('main', $event)">
-      <!-- Left column: chart on top, positions | order on bottom -->
-      <SplitPaneItem :size="prefs.paneSizes.main[0]">
-        <SplitPane horizontal :pane-min-size="10" @resized="handlePaneResized('leftColumn', $event)">
-          <SplitPaneItem :size="prefs.paneSizes.leftColumn[0]">
-            <LightweightChart />
-          </SplitPaneItem>
-          <SplitPaneItem :size="prefs.paneSizes.leftColumn[1]" :min-size="15">
-            <!-- Positions | Order side by side -->
-            <SplitPane :pane-min-size="10" @resized="handlePaneResized('bottom', $event)">
-              <SplitPaneItem :size="prefs.paneSizes.bottom[0]" :min-size="15">
-                <PositionsPanel />
-              </SplitPaneItem>
-              <SplitPaneItem :size="prefs.paneSizes.bottom[1]" :min-size="18">
-                <OrderEntryPanel />
-              </SplitPaneItem>
-            </SplitPane>
-          </SplitPaneItem>
-        </SplitPane>
-      </SplitPaneItem>
+  <div class="tv-workspace tv-workspace--scoped">
+    <TradingScopeBar />
+    <div class="tv-workspace__body">
+      <SplitPane :pane-min-size="10" @resized="handlePaneResized('main', $event)">
+        <SplitPaneItem :size="prefs.paneSizes.main[0]">
+          <SplitPane horizontal :pane-min-size="10" @resized="handlePaneResized('leftColumn', $event)">
+            <SplitPaneItem :size="prefs.paneSizes.leftColumn[0]">
+              <LightweightChart />
+            </SplitPaneItem>
+            <SplitPaneItem :size="prefs.paneSizes.leftColumn[1]" :min-size="15">
+              <SplitPane :pane-min-size="10" @resized="handlePaneResized('bottom', $event)">
+                <SplitPaneItem :size="prefs.paneSizes.bottom[0]" :min-size="15">
+                  <PositionsPanel />
+                </SplitPaneItem>
+                <SplitPaneItem :size="prefs.paneSizes.bottom[1]" :min-size="18">
+                  <OrderEntryPanel />
+                </SplitPaneItem>
+              </SplitPane>
+            </SplitPaneItem>
+          </SplitPane>
+        </SplitPaneItem>
 
-      <!-- Right column: watchlist on top, orderbook below -->
-      <SplitPaneItem :size="prefs.paneSizes.main[1]" :min-size="15">
-        <SplitPane horizontal :pane-min-size="10" @resized="handlePaneResized('rightColumn', $event)">
-          <SplitPaneItem :size="prefs.paneSizes.rightColumn[0]" :min-size="12">
-            <WatchlistPanel />
-          </SplitPaneItem>
-          <SplitPaneItem :size="prefs.paneSizes.rightColumn[1]" :min-size="15">
-            <OrderBookPanel />
-          </SplitPaneItem>
-        </SplitPane>
-      </SplitPaneItem>
-    </SplitPane>
+        <!-- Right column: watchlist on top, orderbook below -->
+        <SplitPaneItem :size="prefs.paneSizes.main[1]" :min-size="15">
+          <SplitPane horizontal :pane-min-size="10" @resized="handlePaneResized('rightColumn', $event)">
+            <SplitPaneItem :size="prefs.paneSizes.rightColumn[0]" :min-size="12">
+              <WatchlistPanel />
+            </SplitPaneItem>
+            <SplitPaneItem :size="prefs.paneSizes.rightColumn[1]" :min-size="15">
+              <OrderBookPanel />
+            </SplitPaneItem>
+          </SplitPane>
+        </SplitPaneItem>
+      </SplitPane>
+    </div>
   </div>
 </template>

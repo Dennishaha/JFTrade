@@ -74,7 +74,7 @@ func (s *Service) Runtime(ctx context.Context, brokerID string) (map[string]any,
 	if s.brokerRuntime == nil {
 		return map[string]any{}, nil
 	}
-	return s.brokerRuntime(ctx), nil
+	return s.brokerRuntime.Runtime(ctx), nil
 }
 
 func (s *Service) Funds(ctx context.Context, query broker.ReadQuery) (map[string]any, error) {
@@ -541,8 +541,8 @@ func (s *Service) marketDataReader(brokerID string) (broker.MarketDataReader, er
 func (s *Service) resolveBroker(brokerID string, required bool) (broker.Broker, error) {
 	brokerID = strings.TrimSpace(brokerID)
 	var active broker.Broker
-	if s.activeBroker != nil {
-		active = s.activeBroker()
+	if s.brokerRuntime != nil {
+		active = s.brokerRuntime.ActiveBroker()
 	}
 	if active != nil {
 		if brokerID != "" && active.ID() != brokerID {

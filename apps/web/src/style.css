@@ -625,6 +625,19 @@ body {
   overflow: hidden;
 }
 
+.tv-workspace--scoped {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.tv-workspace__body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
 /* ---------- Splitpanes theme overrides ---------- */
 .tv-splitpanes {
   height: 100%;

@@ -5,6 +5,7 @@ import type { ExecutionOrdersResponse } from "@/contracts";
 
 import PageHeader from "../components/PageHeader.vue";
 import SectionHeader from "../components/SectionHeader.vue";
+import TradingScopeBar from "../components/TradingScopeBar.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import {
   formatAccountTypeLabel,
@@ -56,7 +57,8 @@ const {
 } = useConsoleData();
 const notifications = useNotifications();
 
-const activeTab = ref("account");
+const requestedExecutionOrderId = initialExecutionOrderIdFromLocation();
+const activeTab = ref(initialAccountTabFromLocation(requestedExecutionOrderId));
 const cancellingOrderIds = ref<Set<string>>(new Set());
 const historicalOrdersDisplayLimit = ref(50);
 const hasLoadedHistoricalOrders = ref(false);
@@ -73,6 +75,24 @@ interface ExecutionOrderCommandResult {
   brokerErrorCode?: string | null;
   message: string;
   checkedAt: string;
+}
+
+function initialExecutionOrderIdFromLocation(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  return new URLSearchParams(window.location.search).get("orderId")?.trim() ?? "";
+}
+
+function initialAccountTabFromLocation(orderId: string): string {
+  if (typeof window === "undefined") {
+    return "account";
+  }
+  const requestedTab = new URLSearchParams(window.location.search).get("tab")?.trim();
+  if (requestedTab === "pending" || requestedTab === "history" || requestedTab === "account") {
+    return requestedTab;
+  }
+  return orderId === "" ? "account" : "history";
 }
 
 const selectedRuntimeAccount = computed(() => {
@@ -628,13 +648,13 @@ async function cancelOrder(order: AccountExecutionOrder): Promise<void> {
 }
 
 function resolveOrderChipColor(status: string): string {
-  if (isFinalExecutionOrderStatus(status)) {
-    return status === "FILLED" ? "success" : "info";
-  }
-
   const normalized = status.toUpperCase();
   if (normalized.includes("REJECT") || normalized.includes("FAIL")) {
     return "error";
+  }
+
+  if (isFinalExecutionOrderStatus(status)) {
+    return normalized === "FILLED" ? "success" : normalized === "EXPIRED" ? "warning" : "info";
   }
 
   if (normalized.includes("CANCEL")) {
@@ -662,8 +682,13 @@ watch(
     const selectedStillVisible = visibleOrders.some(
       (order) => order.internalOrderId === selectedExecutionOrderId.value,
     );
+    const requestedStillVisible =
+      requestedExecutionOrderId !== "" &&
+      visibleOrders.some((order) => order.internalOrderId === requestedExecutionOrderId);
     const nextOrderId =
-      selectedStillVisible ? selectedExecutionOrderId.value : visibleOrders[0]?.internalOrderId;
+      requestedStillVisible
+        ? requestedExecutionOrderId
+        : selectedStillVisible ? selectedExecutionOrderId.value : visibleOrders[0]?.internalOrderId;
 
     if (
       nextOrderId == null ||
@@ -677,6 +702,11 @@ watch(
   },
   { immediate: true },
 );
+
+if (requestedExecutionOrderId !== "") {
+  ensureHistoricalOrdersLoaded();
+  void loadExecutionOrderDetails(requestedExecutionOrderId);
+}
 </script>
 
 <template>
@@ -687,6 +717,7 @@ watch(
       description="账户页聚合基础资料、资金余额、持仓和订单流水。连接诊断与 OpenD 参数维护已经收敛到设置页。"
       :stats="accountHeaderStats"
     />
+    <TradingScopeBar />
 
     <v-tabs v-model="activeTab" bg-color="transparent" class="tv-page-tabs">
       <v-tab value="account">账户信息</v-tab>
@@ -1173,6 +1204,9 @@ watch(
                 <div class="text-xl font-semibold text-slate-900">订单事件与费用</div>
                 <div class="mt-1 text-sm text-slate-500">
                   {{ selectedExecutionOrder?.internalOrderId ?? '请选择一笔订单' }}
+                </div>
+                <div v-if="selectedExecutionOrder?.rawBrokerStatus" class="mt-1 text-xs text-slate-500">
+                  券商原始状态：{{ selectedExecutionOrder.rawBrokerStatus }}
                 </div>
               </div>
               <v-chip variant="outlined" size="small">{{ executionOrderEvents.events.length }} 条事件</v-chip>

@@ -61,6 +61,7 @@ type ExecutionOrder struct {
 	Side               *string  `json:"side"`
 	OrderType          *string  `json:"orderType"`
 	Status             string   `json:"status"`
+	RawBrokerStatus    *string  `json:"rawBrokerStatus"`
 	RequestedQuantity  *float64 `json:"requestedQuantity"`
 	RequestedPrice     *float64 `json:"requestedPrice"`
 	FilledQuantity     *float64 `json:"filledQuantity"`
@@ -91,6 +92,12 @@ type ExecutionOrders struct {
 type ExecutionOrderEvents struct {
 	InternalOrderID string                `json:"internalOrderId"`
 	Events          []ExecutionOrderEvent `json:"events"`
+}
+
+type ExecutionOrderDetails struct {
+	Order        ExecutionOrder        `json:"order"`
+	RecentEvents []ExecutionOrderEvent `json:"recentEvents"`
+	CheckedAt    string                `json:"checkedAt"`
 }
 
 type ExecutionPlacedOrderRecord struct {
@@ -162,15 +169,77 @@ func (s *Service) ExecutionFilter(brokerID, environment, accountID, marketCode s
 
 func (s *Service) ListExecutionOrders(ctx context.Context, filter ExecutionOrderFilter, activeOnly bool) (ExecutionOrders, error) {
 	s.SyncOrderUpdates(ctx, false, activeOnly)
-	return s.listOrders(ctx, filter)
+	return s.orderStore.ListOrders(ctx, filter)
 }
 
 func (s *Service) ExecutionOrdersSnapshot(ctx context.Context) (ExecutionOrders, error) {
-	return s.listOrders(ctx, ExecutionOrderFilter{})
+	return s.orderStore.ListOrders(ctx, ExecutionOrderFilter{})
 }
 
 func (s *Service) ExecutionOrderEvents(ctx context.Context, id string) (ExecutionOrderEvents, error) {
-	return s.getOrderEvents(ctx, strings.TrimSpace(id))
+	return s.orderStore.OrderEvents(ctx, strings.TrimSpace(id))
+}
+
+func (s *Service) ExecutionOrderDetails(ctx context.Context, id string) (ExecutionOrderDetails, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return ExecutionOrderDetails{}, requestErrorf("internalOrderId is required")
+	}
+	// A receipt refresh must bypass the active-order cache so a just-filled or
+	// just-cancelled order does not remain stale for the cache TTL.
+	s.SyncOrderUpdates(ctx, true, true)
+	orders, err := s.orderStore.ListOrders(ctx, ExecutionOrderFilter{})
+	if err != nil {
+		return ExecutionOrderDetails{}, err
+	}
+	var order *ExecutionOrder
+	for index := range orders.Orders {
+		if orders.Orders[index].InternalOrderID == id {
+			order = &orders.Orders[index]
+			break
+		}
+	}
+	if order == nil {
+		return ExecutionOrderDetails{}, ErrExecutionOrderNotFound
+	}
+	if !IsCanonicalTerminalOrderStatus(order.Status) && executionOrderHasBrokerReference(*order) {
+		s.SyncExecutionOrderHistory(ctx, *order)
+		orders, err = s.orderStore.ListOrders(ctx, ExecutionOrderFilter{})
+		if err != nil {
+			return ExecutionOrderDetails{}, err
+		}
+		for index := range orders.Orders {
+			if orders.Orders[index].InternalOrderID == id {
+				order = &orders.Orders[index]
+				break
+			}
+		}
+	}
+	events, err := s.orderStore.OrderEvents(ctx, id)
+	if err != nil {
+		return ExecutionOrderDetails{}, err
+	}
+	recentEvents := events.Events
+	if len(recentEvents) > 10 {
+		recentEvents = recentEvents[len(recentEvents)-10:]
+	}
+	return ExecutionOrderDetails{
+		Order:        *order,
+		RecentEvents: append([]ExecutionOrderEvent(nil), recentEvents...),
+		CheckedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+	}, nil
+}
+
+func executionOrderHasBrokerReference(order ExecutionOrder) bool {
+	return strings.TrimSpace(executionStringValue(order.BrokerOrderID)) != "" ||
+		strings.TrimSpace(executionStringValue(order.BrokerOrderIDEx)) != ""
+}
+
+func executionStringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func (s *Service) PreviewExecutionOrder(req ExecutionPlaceRequest) (ExecutionPreview, error) {
@@ -191,15 +260,31 @@ func (s *Service) CreateExecutionOrder(ctx context.Context, req ExecutionPlaceRe
 	if err != nil {
 		return ExecutionCommandResponse{}, err
 	}
-	order, err := s.placeOrder(ctx, command)
+	order, err := s.PlaceExecutionOrder(ctx, command)
 	if err != nil {
 		return ExecutionCommandResponse{}, err
 	}
 	return executionCommandResponse("PLACE", "order submitted to broker", order), nil
 }
 
+// PlaceExecutionOrder is the shared command boundary for manual and strategy
+// orders. Every broker submission must pass through the pre-trade gateway.
+func (s *Service) PlaceExecutionOrder(ctx context.Context, command ExecutionOrderCommand) (ExecutionOrder, error) {
+	if s.preTradeRisk != nil {
+		decision := s.preTradeRisk.EvaluatePlaceOrder(ctx, command)
+		if !decision.Allows() {
+			return ExecutionOrder{}, RiskRejectedError{Decision: decision}
+		}
+	}
+	order, err := s.orderGateway.PlaceOrder(ctx, command)
+	if err != nil {
+		return ExecutionOrder{}, err
+	}
+	return order, nil
+}
+
 func (s *Service) CancelExecutionOrder(ctx context.Context, id string) (ExecutionCommandResponse, error) {
-	order, err := s.cancelOrder(ctx, strings.TrimSpace(id))
+	order, err := s.orderGateway.CancelOrder(ctx, strings.TrimSpace(id))
 	if err != nil {
 		return ExecutionCommandResponse{}, err
 	}

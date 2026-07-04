@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
+	"github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
@@ -38,13 +39,36 @@ type strategyRuntimeMarketEnsurer interface {
 }
 
 type strategyRuntimeManager struct {
-	server           *Server
 	exchangeProvider func() strategyRuntimeExchange
 	pineWorkerRunner strategyRuntimePineWorker
+	deps             strategyRuntimeManagerDeps
 
 	mu       sync.RWMutex
 	runtimes map[string]*managedStrategyRuntime
 	starting map[string]struct{}
+}
+
+type strategyRuntimeManagerDeps struct {
+	pineWorkerLimit         func() int
+	wakeMarketDataCollector func()
+	currentInstance         func(instanceID string) (managedStrategyInstance, bool)
+	appendRuntimeEvent      func(instanceID string, logMessage string, kind string, detail string) error
+	transitionInstance      func(instanceID string, nextStatus string, kind string, detail string) error
+	reconcileRuntimeFailure func(instanceID string, detail string) error
+	recordNotification      func(strategyRuntimeNotification)
+	placeExecutionOrder     func(context.Context, trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error)
+	countRuntimeAudit       func(context.Context, runtimeactivity.AuditQuery) (int, error)
+	upsertObservation       func(context.Context, runtimeactivity.ObservationSnapshot) error
+}
+
+type strategyRuntimeNotification struct {
+	At       string
+	Level    string
+	Title    string
+	Message  string
+	Source   string
+	BrokerID string
+	Category string
 }
 
 type managedStrategyRuntime struct {
@@ -87,23 +111,21 @@ type strategySymbolRuntime struct {
 
 type strategyNotifyOnlyOrderExecutor struct {
 	manager  *strategyRuntimeManager
-	server   *Server
 	instance managedStrategyInstance
 	runner   *strategySymbolRuntime
 }
 
 type strategyLiveOrderExecutor struct {
 	manager  *strategyRuntimeManager
-	server   *Server
 	instance managedStrategyInstance
 	runner   *strategySymbolRuntime
 }
 
 func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 	manager := &strategyRuntimeManager{
-		server:   server,
 		runtimes: map[string]*managedStrategyRuntime{},
 		starting: map[string]struct{}{},
+		deps:     newStrategyRuntimeManagerDeps(server),
 	}
 	manager.exchangeProvider = func() strategyRuntimeExchange {
 		exchange := server.futuExchange()
@@ -118,6 +140,130 @@ func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 	}
 	manager.pineWorkerRunner = server.instancePineWorkerRunner
 	return manager
+}
+
+func newStrategyRuntimeManagerDeps(server *Server) strategyRuntimeManagerDeps {
+	return strategyRuntimeManagerDeps{
+		pineWorkerLimit: func() int {
+			return settingsfile.NormalizePineWorkerSettings(server.pineWorkerSettings()).InstanceWorkerLimit
+		},
+		wakeMarketDataCollector: func() {
+			if server.marketdataSvc != nil {
+				server.marketdataSvc.WakeCollector()
+			}
+		},
+		currentInstance: func(instanceID string) (managedStrategyInstance, bool) {
+			if server.strategyStore == nil {
+				return managedStrategyInstance{}, false
+			}
+			return server.strategyStore.strategy(instanceID)
+		},
+		appendRuntimeEvent: func(instanceID string, logMessage string, kind string, detail string) error {
+			if server.strategyStore == nil {
+				return nil
+			}
+			return server.strategyStore.appendStrategyRuntimeEvent(instanceID, logMessage, kind, detail)
+		},
+		transitionInstance: func(instanceID string, nextStatus string, kind string, detail string) error {
+			if server.strategyStore == nil {
+				return nil
+			}
+			_, err := server.strategyStore.transitionStrategy(instanceID, nextStatus, kind, detail)
+			return err
+		},
+		reconcileRuntimeFailure: func(instanceID string, detail string) error {
+			if server.strategyStore == nil {
+				return nil
+			}
+			return server.strategyStore.reconcileStrategyRuntimeFailure(instanceID, detail)
+		},
+		recordNotification: func(note strategyRuntimeNotification) {
+			server.recordLiveNotification(liveNotification{
+				At:       note.At,
+				Level:    note.Level,
+				Title:    note.Title,
+				Message:  note.Message,
+				Source:   note.Source,
+				BrokerID: note.BrokerID,
+				Category: note.Category,
+			})
+		},
+		placeExecutionOrder: func(ctx context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
+			if server.tradingSvc == nil {
+				return trdsrv.ExecutionOrder{}, fmt.Errorf("trading service is unavailable")
+			}
+			return server.tradingSvc.PlaceExecutionOrder(ctx, command)
+		},
+		countRuntimeAudit: func(ctx context.Context, query runtimeactivity.AuditQuery) (int, error) {
+			if server.strategyRuntimeStore == nil {
+				return 0, nil
+			}
+			return server.strategyRuntimeStore.CountAudit(ctx, query)
+		},
+		upsertObservation: func(ctx context.Context, snapshot runtimeactivity.ObservationSnapshot) error {
+			if server.strategyRuntimeStore == nil {
+				return nil
+			}
+			return server.strategyRuntimeStore.UpsertObservation(ctx, snapshot)
+		},
+	}
+}
+
+func (m *strategyRuntimeManager) pineWorkerLimit() int {
+	limit := settingsfile.DefaultPineWorkerSettings().InstanceWorkerLimit
+	if m != nil && m.deps.pineWorkerLimit != nil {
+		if configured := m.deps.pineWorkerLimit(); configured > 0 {
+			limit = configured
+		}
+	}
+	return limit
+}
+
+func (m *strategyRuntimeManager) wakeMarketDataCollector() {
+	if m != nil && m.deps.wakeMarketDataCollector != nil {
+		m.deps.wakeMarketDataCollector()
+	}
+}
+
+func (m *strategyRuntimeManager) currentInstance(instanceID string) (managedStrategyInstance, bool) {
+	if m == nil || m.deps.currentInstance == nil {
+		return managedStrategyInstance{}, false
+	}
+	return m.deps.currentInstance(instanceID)
+}
+
+func (m *strategyRuntimeManager) appendRuntimeEvent(instanceID string, logMessage string, kind string, detail string) error {
+	if m == nil || m.deps.appendRuntimeEvent == nil {
+		return nil
+	}
+	return m.deps.appendRuntimeEvent(instanceID, logMessage, kind, detail)
+}
+
+func (m *strategyRuntimeManager) transitionInstance(instanceID string, nextStatus string, kind string, detail string) error {
+	if m == nil || m.deps.transitionInstance == nil {
+		return nil
+	}
+	return m.deps.transitionInstance(instanceID, nextStatus, kind, detail)
+}
+
+func (m *strategyRuntimeManager) reconcileRuntimeFailure(instanceID string, detail string) error {
+	if m == nil || m.deps.reconcileRuntimeFailure == nil {
+		return nil
+	}
+	return m.deps.reconcileRuntimeFailure(instanceID, detail)
+}
+
+func (m *strategyRuntimeManager) recordNotification(note strategyRuntimeNotification) {
+	if m != nil && m.deps.recordNotification != nil {
+		m.deps.recordNotification(note)
+	}
+}
+
+func (m *strategyRuntimeManager) placeExecutionOrder(ctx context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
+	if m == nil || m.deps.placeExecutionOrder == nil {
+		return trdsrv.ExecutionOrder{}, fmt.Errorf("strategy runtime order placement is unavailable")
+	}
+	return m.deps.placeExecutionOrder(ctx, command)
 }
 
 func (m *strategyRuntimeManager) activeInstrumentIDs() []string {
@@ -218,9 +364,7 @@ func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance man
 	for _, runner := range managed.symbols {
 		go runner.syncClosedKLinesLoop()
 	}
-	if m.server.marketdataSvc != nil {
-		m.server.marketdataSvc.WakeCollector()
-	}
+	m.wakeMarketDataCollector()
 	return nil
 }
 
@@ -236,10 +380,7 @@ func (m *strategyRuntimeManager) reserveRuntimeStart(instanceID string) (func(),
 	if m.starting == nil {
 		m.starting = map[string]struct{}{}
 	}
-	limit := settingsfile.DefaultPineWorkerSettings().InstanceWorkerLimit
-	if m.server != nil {
-		limit = settingsfile.NormalizePineWorkerSettings(m.server.pineWorkerSettings()).InstanceWorkerLimit
-	}
+	limit := m.pineWorkerLimit()
 	if len(m.runtimes)+len(m.starting) >= limit {
 		return nil, pineworker.CapacityExceededError{Workers: limit}
 	}
@@ -264,8 +405,8 @@ func (m *strategyRuntimeManager) stopStrategy(instanceID string) {
 	if exists && runtime.cancel != nil {
 		runtime.cancel()
 	}
-	if exists && m.server.marketdataSvc != nil {
-		m.server.marketdataSvc.WakeCollector()
+	if exists {
+		m.wakeMarketDataCollector()
 	}
 }
 
@@ -347,7 +488,7 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 				return
 			}
 			m.recordError(instance.ID, message, time.Now().UTC())
-			jftradeErr2 := m.server.strategyStore.appendStrategyRuntimeEvent(
+			jftradeErr2 := m.appendRuntimeEvent(
 				instance.ID,
 				fmt.Sprintf("runtime error %s: %s", symbol, message),
 				"runtime_error",
@@ -391,9 +532,9 @@ func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange
 
 func (m *strategyRuntimeManager) newOrderExecutor(instance managedStrategyInstance, runner *strategySymbolRuntime) bbgo.OrderExecutor {
 	if instance.Binding.ExecutionMode == strategyExecutionModeNotifyOnly {
-		return &strategyNotifyOnlyOrderExecutor{manager: m, server: m.server, instance: instance, runner: runner}
+		return &strategyNotifyOnlyOrderExecutor{manager: m, instance: instance, runner: runner}
 	}
-	return &strategyLiveOrderExecutor{manager: m, server: m.server, instance: instance, runner: runner}
+	return &strategyLiveOrderExecutor{manager: m, instance: instance, runner: runner}
 }
 
 func (r *strategySymbolRuntime) syncClosedKLinesLoop() {
@@ -600,7 +741,7 @@ func (e *strategyNotifyOnlyOrderExecutor) SubmitOrders(_ context.Context, orders
 	for _, order := range orders {
 		e.manager.recordSignal(e.instance.ID, time.Now().UTC())
 		message := e.describeOrderSignal(order)
-		e.server.recordLiveNotification(liveNotification{
+		e.manager.recordNotification(strategyRuntimeNotification{
 			At:       time.Now().UTC().Format(time.RFC3339Nano),
 			Level:    "info",
 			Title:    "策略下单信号",
@@ -609,7 +750,7 @@ func (e *strategyNotifyOnlyOrderExecutor) SubmitOrders(_ context.Context, orders
 			BrokerID: strategyRuntimeBrokerID(e.instance.Binding),
 			Category: "strategy.order.signal",
 		})
-		jftradeErr4 := e.server.strategyStore.appendStrategyRuntimeEvent(
+		jftradeErr4 := e.manager.appendRuntimeEvent(
 			e.instance.ID,
 			fmt.Sprintf("notify-only signal %s %s %s", order.Symbol, strings.ToUpper(string(order.Side)), strategyRuntimeFormatNumber(order.Quantity.Float64())),
 			"signal_notified",
@@ -674,14 +815,14 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 		}
 		decision := e.evaluateRuntimeRisk(command)
 		e.recordRuntimeRiskDecision(decision, command)
-		if decision.rejected {
-			return placedOrders, fmt.Errorf("runtime risk rejected order: %s", decision.reason)
+		if decision.Rejected {
+			return placedOrders, fmt.Errorf("runtime risk rejected order: %s", decision.Reason)
 		}
 
-		placed, err := e.server.placeExecutionOrder(ctx, command)
+		placed, err := e.manager.placeExecutionOrder(ctx, command)
 		if err != nil {
 			e.manager.recordError(e.instance.ID, err.Error(), time.Now().UTC())
-			jftradeErr5 := e.server.strategyStore.appendStrategyRuntimeEvent(
+			jftradeErr5 := e.manager.appendRuntimeEvent(
 				e.instance.ID,
 				fmt.Sprintf("live order failed %s %s %s", order.Symbol, strings.ToUpper(string(order.Side)), strategyRuntimeFormatNumber(order.Quantity.Float64())),
 				"order_submit_failed",
@@ -691,7 +832,7 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 			return placedOrders, err
 		}
 		e.manager.recordOrder(e.instance.ID, time.Now().UTC())
-		jftradeErr6 := e.server.strategyStore.appendStrategyRuntimeEvent(
+		jftradeErr6 := e.manager.appendRuntimeEvent(
 			e.instance.ID,
 			fmt.Sprintf("live order submitted %s %s %s", order.Symbol, strings.ToUpper(string(order.Side)), strategyRuntimeFormatNumber(order.Quantity.Float64())),
 			"order_submitted",
@@ -803,9 +944,9 @@ func (m *strategyRuntimeManager) handleRuntimePanic(instanceID string, symbol st
 	detail := fmt.Sprintf("strategy runtime panic on %s: %v", symbol, recovered)
 	m.recordError(instanceID, detail, time.Now().UTC())
 	m.stopStrategy(instanceID)
-	jftradeErr1 := m.server.strategyStore.reconcileStrategyRuntimeFailure(instanceID, detail)
+	jftradeErr1 := m.reconcileRuntimeFailure(instanceID, detail)
 	jftradeLogError(jftradeErr1)
-	m.server.recordLiveNotification(liveNotification{
+	m.recordNotification(strategyRuntimeNotification{
 		At:       time.Now().UTC().Format(time.RFC3339Nano),
 		Level:    "error",
 		Title:    "策略运行异常退出",
@@ -813,9 +954,7 @@ func (m *strategyRuntimeManager) handleRuntimePanic(instanceID string, symbol st
 		Source:   "strategy.runtime",
 		Category: "strategy.runtime.exit",
 	})
-	if m.server.marketdataSvc != nil {
-		m.server.marketdataSvc.WakeCollector()
-	}
+	m.wakeMarketDataCollector()
 }
 
 func (runtime *managedStrategyRuntime) observation() strategyRuntimeObservation {
@@ -823,10 +962,10 @@ func (runtime *managedStrategyRuntime) observation() strategyRuntimeObservation 
 	return strategyRuntimeObservationFromSnapshot(snapshot, strategyStatusRunning)
 }
 
-func (runtime *managedStrategyRuntime) snapshot(actualStatus string) strategyRuntimeObservationSnapshot {
+func (runtime *managedStrategyRuntime) snapshot(actualStatus string) runtimeactivity.ObservationSnapshot {
 	runtime.mu.RLock()
 	defer runtime.mu.RUnlock()
-	return strategyRuntimeObservationSnapshot{
+	return runtimeactivity.ObservationSnapshot{
 		InstanceID:        runtime.instanceID,
 		ActualStatus:      strings.TrimSpace(actualStatus),
 		ActiveSymbols:     strategyRuntimeSortedSymbols(runtime.symbols),
@@ -876,47 +1015,31 @@ func (runtime *managedStrategyRuntime) recordError(message string, at time.Time)
 	runtime.updatedAt = strategyRuntimeMaxTime(runtime.updatedAt, at)
 }
 
-func (m *strategyRuntimeManager) persistObservationSnapshot(snapshot strategyRuntimeObservationSnapshot) {
-	if m == nil || m.server == nil || m.server.strategyRuntimeStore == nil {
+func (m *strategyRuntimeManager) persistObservationSnapshot(snapshot runtimeactivity.ObservationSnapshot) {
+	if m == nil || m.deps.upsertObservation == nil {
 		return
 	}
-	if err := m.server.strategyRuntimeStore.UpsertObservation(context.Background(), snapshot); err != nil {
+	if err := m.deps.upsertObservation(context.Background(), snapshot); err != nil {
 		log.Printf("JFTrade persist strategy runtime observation degraded: %v", err)
 	}
 }
 
-func strategyRuntimeObservationFromSnapshot(snapshot strategyRuntimeObservationSnapshot, actualStatus string) strategyRuntimeObservation {
-	status := strings.TrimSpace(actualStatus)
-	if status == "" {
-		status = strings.TrimSpace(snapshot.ActualStatus)
-	}
-	if status == "" {
-		status = strategyStatusStopped
-	}
+func strategyRuntimeObservationFromSnapshot(snapshot runtimeactivity.ObservationSnapshot, actualStatus string) strategyRuntimeObservation {
+	observation := runtimecontrol.ObservationFromSnapshot(snapshot, actualStatus, strategyStatusStopped)
 	return strategyRuntimeObservation{
-		ActualStatus:      status,
-		ActiveSymbols:     append([]string(nil), snapshot.ActiveSymbols...),
-		LastClosedKLineAt: strategyRuntimeTimePointerToString(snapshot.LastClosedKLineAt),
-		LastSignalAt:      strategyRuntimeTimePointerToString(snapshot.LastSignalAt),
-		LastOrderAt:       strategyRuntimeTimePointerToString(snapshot.LastOrderAt),
-		LastErrorAt:       strategyRuntimeTimePointerToString(snapshot.LastErrorAt),
-		LastError:         strategyRuntimeOptionalString(snapshot.LastError),
-		UpdatedAt:         strategyRuntimeTimePointerToString(snapshot.UpdatedAt),
+		ActualStatus:      observation.ActualStatus,
+		ActiveSymbols:     observation.ActiveSymbols,
+		LastClosedKLineAt: observation.LastClosedKLineAt,
+		LastSignalAt:      observation.LastSignalAt,
+		LastOrderAt:       observation.LastOrderAt,
+		LastErrorAt:       observation.LastErrorAt,
+		LastError:         observation.LastError,
+		UpdatedAt:         observation.UpdatedAt,
 	}
 }
 
 func strategyRuntimeOptionalTime(value time.Time) *time.Time {
-	if value.IsZero() {
-		return nil
-	}
-	return new(value.UTC())
-}
-
-func strategyRuntimeTimePointerToString(value *time.Time) *string {
-	if value == nil || value.IsZero() {
-		return nil
-	}
-	return new(value.UTC().Format(time.RFC3339Nano))
+	return runtimecontrol.OptionalTime(value)
 }
 
 func strategyRuntimeBrokerReadQuery(binding strategyInstanceBinding) broker.ReadQuery {
@@ -982,12 +1105,7 @@ func strategyRuntimeFormatPrice(value float64) string {
 }
 
 func strategyRuntimeFormatNumber(value float64) string {
-	text := strconv.FormatFloat(value, 'f', 4, 64)
-	text = strings.TrimRight(strings.TrimRight(text, "0"), ".")
-	if text == "" || text == "-0" {
-		return "0"
-	}
-	return text
+	return runtimecontrol.FormatNumber(value)
 }
 
 func strategyRuntimeIntervalDuration(interval bbgotypes.Interval) (duration time.Duration, ok bool) {
@@ -1054,36 +1172,28 @@ func cloneStrategyRuntimePositions(positions []broker.PositionSnapshot) []broker
 	return append([]broker.PositionSnapshot(nil), positions...)
 }
 
+func strategyRuntimePositionToControl(position broker.PositionSnapshot) runtimecontrol.Position {
+	return runtimecontrol.Position{
+		Market:           position.Market,
+		Symbol:           position.Symbol,
+		Quantity:         position.Quantity,
+		SellableQuantity: position.SellableQuantity,
+	}
+}
+
+func strategyRuntimePositionsToControl(positions []broker.PositionSnapshot) []runtimecontrol.Position {
+	if len(positions) == 0 {
+		return nil
+	}
+	result := make([]runtimecontrol.Position, 0, len(positions))
+	for _, position := range positions {
+		result = append(result, strategyRuntimePositionToControl(position))
+	}
+	return result
+}
+
 func strategyRuntimePositionMatchesSymbol(position broker.PositionSnapshot, symbol string) bool {
-	strategySymbol := strings.TrimSpace(strings.ToUpper(symbol))
-	if strategySymbol == "" {
-		return false
-	}
-	positionSymbol := strings.TrimSpace(strings.ToUpper(position.Symbol))
-	if positionSymbol == "" {
-		return false
-	}
-	if strings.EqualFold(positionSymbol, strategySymbol) {
-		return true
-	}
-	market := strings.TrimSpace(strings.ToUpper(position.Market))
-	if market != "" && !strings.Contains(positionSymbol, ".") && !strings.Contains(positionSymbol, ":") {
-		if strings.EqualFold(market+"."+positionSymbol, strategySymbol) {
-			return true
-		}
-		if strings.EqualFold(market+":"+positionSymbol, strategySymbol) {
-			return true
-		}
-	}
-	if market == "" {
-		if parts := strings.SplitN(strategySymbol, ".", 2); len(parts) == 2 && strings.EqualFold(parts[1], positionSymbol) {
-			return true
-		}
-		if parts := strings.SplitN(strategySymbol, ":", 2); len(parts) == 2 && strings.EqualFold(parts[1], positionSymbol) {
-			return true
-		}
-	}
-	return false
+	return runtimecontrol.PositionMatchesSymbol(strategyRuntimePositionToControl(position), symbol)
 }
 
 func buildStrategyRuntimeAccount(funds *broker.FundsSnapshot, positions []broker.PositionSnapshot, market bbgotypes.Market, symbol string) *bbgotypes.Account {
@@ -1193,14 +1303,6 @@ func strategyRuntimeMaxInt(left int, right int) int {
 	return right
 }
 
-func strategyRuntimeOptionalString(value string) *string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	return &value
-}
-
 func strategyRuntimeSortedSymbols(symbols map[string]*strategySymbolRuntime) []string {
 	result := make([]string, 0, len(symbols))
 	for symbol := range symbols {
@@ -1211,10 +1313,7 @@ func strategyRuntimeSortedSymbols(symbols map[string]*strategySymbolRuntime) []s
 }
 
 func strategyRuntimeMaxTime(left time.Time, right time.Time) time.Time {
-	if right.After(left) {
-		return right
-	}
-	return left
+	return runtimecontrol.MaxTime(left, right)
 }
 
 func jftradeLogError(values ...any) {

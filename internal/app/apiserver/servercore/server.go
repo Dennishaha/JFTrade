@@ -21,6 +21,7 @@ import (
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	"github.com/jftrade/jftrade-main/internal/live"
@@ -89,12 +90,15 @@ type Server struct {
 	previousCalendarResolver marketcalendar.Resolver
 	sysSvc                   *system.Service
 	settingsSvc              *settings.Service
+	dataManagementSvc        *dmsrv.Service
 	dataMigration            *datamigration.Manager
 	unavailableDatabases     map[string]error
 	backtestSvc              *btsrv.Service
 	strategySvc              *stratsrv.Service
 	marketdataSvc            *mdsrv.Service
 	tradingSvc               *trdsrv.Service
+	preTradeRiskGateway      trdsrv.PreTradeRiskGateway
+	realTradeControlPlane    *trdsrv.RealTradeControlPlane
 	backtestPineWorkerRunner pineWorkerRunner
 	instancePineWorkerRunner pineWorkerRunner
 	observability            *observability.Recorder
@@ -360,6 +364,12 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 	if err := server.liveNotifications.Start(bbgoNotificationSource{}); err != nil {
 		log.Printf("JFTrade BBGO notification source unavailable: %v", err)
 	}
+	realTradeControlPlane, controlErr := trdsrv.NewRealTradeControlPlane(deriveRealTradeControlPath(settingsPath))
+	if controlErr != nil {
+		recordUnavailable("real-trade-control", controlErr)
+	}
+	server.realTradeControlPlane = realTradeControlPlane
+	server.preTradeRiskGateway = realTradeControlPlane
 
 	// Wire system service — delegates to Server methods via closures.
 	server.sysSvc = system.NewService(
@@ -370,6 +380,9 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		system.WithStrategyRuntimeSummary(func() map[string]any { return server.strategyRuntimeSummary() }),
 		system.WithLiveStats(func() map[string]any { return server.liveStatsSummary() }),
 		system.WithMarketdataRuntimeSummary(func() map[string]any { return server.marketdataRuntimeSummary() }),
+		system.WithRuntimeResources(func() map[string]any {
+			return apiruntime.RuntimeResourceSummary(settingsPath, backtestDBPath)
+		}),
 		system.WithBrokerOrderSnapshot(func() map[string]any {
 			if server.tradingSvc == nil {
 				return map[string]any{}
@@ -415,6 +428,48 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		system.WithResetFutuRuntime(func() { server.resetFutuRuntime() }),
 		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any { return server.runtimeDependencies(ctx) }),
 		system.WithRequestObservability(func() any { return server.observability.Snapshot() }),
+		system.WithRealTradeRiskState(func() map[string]any {
+			if server.preTradeRiskGateway == nil {
+				return nil
+			}
+			return server.preTradeRiskGateway.Snapshot()
+		}),
+		system.WithRealTradeKillSwitchControls(
+			func(ctx context.Context, command system.RealTradeKillSwitchCommand) (map[string]any, error) {
+				return server.realTradeControlPlane.ActivateKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
+					TradingEnvironment: command.TradingEnvironment,
+					OperatorID:         command.OperatorID,
+					Reason:             command.Reason,
+				})
+			},
+			func(ctx context.Context, command system.RealTradeKillSwitchCommand) (map[string]any, error) {
+				return server.realTradeControlPlane.ReleaseKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
+					TradingEnvironment: command.TradingEnvironment,
+					OperatorID:         command.OperatorID,
+					Reason:             command.Reason,
+				})
+			},
+		),
+		system.WithRealTradeHardStopControls(
+			func(ctx context.Context, command system.RealTradeHardStopCommand) (map[string]any, error) {
+				return server.realTradeControlPlane.ActivateHardStop(ctx, trdsrv.RealTradeHardStopCommand{
+					BrokerID:           command.BrokerID,
+					TradingEnvironment: command.TradingEnvironment,
+					AccountID:          command.AccountID,
+					Market:             command.Market,
+					Symbol:             command.Symbol,
+					HardStopScope:      command.HardStopScope,
+					OperatorID:         command.OperatorID,
+					Reason:             command.Reason,
+				})
+			},
+			func(ctx context.Context, id string, command system.RealTradeHardStopCommand) (map[string]any, error) {
+				return server.realTradeControlPlane.ReleaseHardStop(ctx, id, trdsrv.RealTradeHardStopCommand{
+					OperatorID: command.OperatorID,
+					Reason:     command.Reason,
+				})
+			},
+		),
 	)
 
 	// Wire backtest service — RunStore / SyncTaskStore / StrategyProvider
@@ -511,6 +566,7 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 
 	// Wire settings service — delegates to SettingsStore with side-effect orchestration.
 	server.configureDataManagement()
+	server.dataManagementSvc = server.newDataManagementService()
 	server.settingsSvc = settings.NewService(persistenceOnlySettingsStore(store),
 		settings.WithSideEffects(settings.SideEffects{
 			OnIntegrationChanged: func(integration BrokerIntegration) {
@@ -538,40 +594,6 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		settings.WithBrokerSettings(func() map[string]any { return server.brokerSettings() }),
 		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return server.onboardingState(ctx) }),
 		settings.WithDefaultTradingEnvironment(server.defaultTradingEnvironment()),
-		settings.WithDataManagement(
-			func(ctx context.Context, request settings.DataManagementOverviewRequest) (any, error) {
-				return server.dataMigration.Overview(ctx, datamigration.OverviewRequest{
-					SummaryOnly: request.SummaryOnly,
-					DatabaseID:  request.DatabaseID,
-				})
-			},
-			func(ctx context.Context, request settings.DataCleanupPreviewRequest) (any, error) {
-				result, err := server.dataMigration.PreviewCleanup(ctx, datamigration.CleanupPreviewRequest{
-					Kind: request.Kind, DatabaseID: request.DatabaseID,
-					OlderThanDays: request.OlderThanDays, KeepLatest: request.KeepLatest,
-				})
-				return result, translateDataManagementError(err)
-			},
-			func(ctx context.Context, request settings.DataCleanupExecuteRequest) (any, error) {
-				result, err := server.dataMigration.ExecuteCleanup(ctx, datamigration.CleanupExecuteRequest{
-					PreviewID: request.PreviewID, Confirmation: request.Confirmation,
-				})
-				return result, translateDataManagementError(err)
-			},
-			func(ctx context.Context, databaseID string, request settings.DatabaseCompactRequest) (any, error) {
-				result, err := server.dataMigration.Compact(ctx, databaseID, datamigration.CompactRequest{Confirmation: request.Confirmation})
-				return result, translateDataManagementError(err)
-			},
-			func(ctx context.Context, request settings.DatabaseRebuildRequest) (any, error) {
-				ids := append([]string{}, request.DatabaseIDs...)
-				if strings.TrimSpace(request.DatabaseID) != "" {
-					ids = append(ids, request.DatabaseID)
-				}
-				return server.dataMigration.ScheduleRebuild(ctx, datamigration.RebuildRequest{
-					DatabaseIDs: ids, Mode: request.Mode, Confirmation: request.Confirmation,
-				})
-			},
-		),
 	)
 
 	server.router = server.buildRouter()

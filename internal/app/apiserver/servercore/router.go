@@ -109,7 +109,7 @@ func liveHandlerOrNotFound(handler *apilive.Handler) http.Handler {
 }
 
 func (s *Server) registerSettingsRoutes(api *gin.RouterGroup) {
-	apiset.RegisterRoutes(api, s.settingsSvc)
+	apiset.RegisterRoutes(api, s.settingsSvc, s.dataManagementSvc)
 }
 
 func (s *Server) registerSystemRoutes(api *gin.RouterGroup) {

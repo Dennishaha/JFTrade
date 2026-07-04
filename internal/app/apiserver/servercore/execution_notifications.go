@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 )
 
@@ -35,7 +36,7 @@ func (s *Server) emitExecutionNotification(note liveNotification) {
 func executionNotificationForStatus(order executionOrderSummaryResponse, event *executionOrderEventResponse) (liveNotification, bool) {
 	status := strings.ToUpper(strings.TrimSpace(order.Status))
 	switch status {
-	case "SUBMITTED":
+	case trdsrv.OrderStatusSubmitted, trdsrv.OrderStatusBrokerAccepted:
 		if event.EventType != "BROKER_SYNC_DISCOVERED" && event.EventType != "BROKER_PUSH_DISCOVERED" {
 			return liveNotification{}, false
 		}
@@ -44,19 +45,19 @@ func executionNotificationForStatus(order executionOrderSummaryResponse, event *
 		note.Title = "Futu 订单已提交"
 		note.Message = executionOrderNotificationMessage(order)
 		return note, true
-	case "CANCELLED_ALL", "CANCELLED_PART":
+	case trdsrv.OrderStatusCancelled:
 		note := baseExecutionNotification(order, "broker.order.cancel")
 		note.Level = "success"
 		note.Title = "Futu 撤单成功"
 		note.Message = executionOrderNotificationMessage(order)
 		return note, true
-	case "FILLED_ALL":
+	case trdsrv.OrderStatusFilled:
 		note := baseExecutionNotification(order, "broker.order.fill")
 		note.Level = "success"
 		note.Title = "Futu 成交成功"
 		note.Message = executionOrderNotificationMessage(order)
 		return note, true
-	case "FILLED_PART":
+	case trdsrv.OrderStatusPartiallyFilled:
 		note := baseExecutionNotification(order, "broker.order.fill")
 		note.Level = "info"
 		note.Title = "Futu 订单部分成交"

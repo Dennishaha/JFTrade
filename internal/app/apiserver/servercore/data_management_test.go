@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
-	"github.com/jftrade/jftrade-main/internal/settings"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
@@ -59,12 +59,12 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 	if _, err := server.designStore.db.Exec(`INSERT INTO strategy_design_definitions (id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at) VALUES ('cleanup-strategy', 'Cleanup', '0.1.0', '', 'pinets', 'pine-v6', 'US.AAPL', '1d', '//@version=6', '{}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z')`); err != nil {
 		t.Fatal(err)
 	}
-	previewValue, err := server.settingsSvc.PreviewDataCleanup(t.Context(), settings.DataCleanupPreviewRequest{Kind: datamigration.CleanupSoftDeleted, DatabaseID: datamigration.DatabaseStrategy})
+	previewValue, err := server.dataManagementSvc.PreviewCleanup(t.Context(), dmsrv.CleanupPreviewRequest{Kind: datamigration.CleanupSoftDeleted, DatabaseID: datamigration.DatabaseStrategy})
 	if err != nil {
 		t.Fatal(err)
 	}
 	preview := previewValue.(datamigration.CleanupPreview)
-	resultValue, err := server.settingsSvc.ExecuteDataCleanup(t.Context(), settings.DataCleanupExecuteRequest{PreviewID: preview.PreviewID, Confirmation: preview.ConfirmationText})
+	resultValue, err := server.dataManagementSvc.ExecuteCleanup(t.Context(), dmsrv.CleanupExecuteRequest{PreviewID: preview.PreviewID, Confirmation: preview.ConfirmationText})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,12 +79,12 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 	if err := server.adkRuntime.Store().DeleteAgent(t.Context(), agent.ID); err != nil {
 		t.Fatal(err)
 	}
-	previewValue, err = server.settingsSvc.PreviewDataCleanup(t.Context(), settings.DataCleanupPreviewRequest{Kind: datamigration.CleanupSoftDeleted, DatabaseID: datamigration.DatabaseADK})
+	previewValue, err = server.dataManagementSvc.PreviewCleanup(t.Context(), dmsrv.CleanupPreviewRequest{Kind: datamigration.CleanupSoftDeleted, DatabaseID: datamigration.DatabaseADK})
 	if err != nil {
 		t.Fatal(err)
 	}
 	preview = previewValue.(datamigration.CleanupPreview)
-	if _, err := server.settingsSvc.ExecuteDataCleanup(t.Context(), settings.DataCleanupExecuteRequest{PreviewID: preview.PreviewID, Confirmation: preview.ConfirmationText}); err != nil {
+	if _, err := server.dataManagementSvc.ExecuteCleanup(t.Context(), dmsrv.CleanupExecuteRequest{PreviewID: preview.PreviewID, Confirmation: preview.ConfirmationText}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -94,7 +94,7 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	previewValue, err = server.settingsSvc.PreviewDataCleanup(t.Context(), settings.DataCleanupPreviewRequest{Kind: datamigration.CleanupBacktestHistory, DatabaseID: datamigration.DatabaseBacktestRuns, OlderThanDays: 1, KeepLatest: 1})
+	previewValue, err = server.dataManagementSvc.PreviewCleanup(t.Context(), dmsrv.CleanupPreviewRequest{Kind: datamigration.CleanupBacktestHistory, DatabaseID: datamigration.DatabaseBacktestRuns, OlderThanDays: 1, KeepLatest: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,12 +102,12 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 	if preview.CandidateCount != 1 {
 		t.Fatalf("backtest preview = %+v", preview)
 	}
-	if _, err := server.settingsSvc.ExecuteDataCleanup(t.Context(), settings.DataCleanupExecuteRequest{PreviewID: preview.PreviewID, Confirmation: preview.ConfirmationText}); err != nil {
+	if _, err := server.dataManagementSvc.ExecuteCleanup(t.Context(), dmsrv.CleanupExecuteRequest{PreviewID: preview.PreviewID, Confirmation: preview.ConfirmationText}); err != nil {
 		t.Fatal(err)
 	}
 
 	for _, databaseID := range []string{datamigration.DatabaseBacktest, datamigration.DatabaseExecution, datamigration.DatabaseADKSession} {
-		if _, err := server.settingsSvc.CompactDatabase(t.Context(), databaseID, settings.DatabaseCompactRequest{Confirmation: "COMPACT " + databaseID}); err != nil {
+		if _, err := server.dataManagementSvc.Compact(t.Context(), databaseID, dmsrv.CompactRequest{Confirmation: "COMPACT " + databaseID}); err != nil {
 			t.Fatalf("compact %s: %v", databaseID, err)
 		}
 	}
@@ -116,9 +116,9 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 func TestTranslateDataManagementErrors(t *testing.T) {
 	tests := []struct{ input, target error }{
 		{nil, nil},
-		{datamigration.ErrMaintenanceConflict, settings.ErrDatabaseMaintenanceConflict},
-		{datamigration.ErrPreviewNotFound, settings.ErrCleanupPreviewNotFound},
-		{datamigration.ErrPreviewStale, settings.ErrCleanupPreviewStale},
+		{datamigration.ErrMaintenanceConflict, dmsrv.ErrDatabaseMaintenanceConflict},
+		{datamigration.ErrPreviewNotFound, dmsrv.ErrCleanupPreviewNotFound},
+		{datamigration.ErrPreviewStale, dmsrv.ErrCleanupPreviewStale},
 		{context.Canceled, context.Canceled},
 	}
 	for _, test := range tests {

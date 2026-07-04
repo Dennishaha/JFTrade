@@ -143,6 +143,36 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
       ["dailyMaxOrders", "11"],
     ]);
   });
+
+  it("surfaces live-execution compatibility warnings before creating an instance", () => {
+    const wrapper = mount(StrategyRuntimeInstanceEditorDialog, {
+      props: buildProps({
+        mode: "create",
+        executionMode: "live",
+        createDefinition: {
+          id: "percent-cancel",
+          name: "Percent Cancel",
+          version: "1.0.0",
+          script: `
+            strategy("Percent Cancel", default_qty_type=strategy.percent_of_equity)
+            strategy.entry("L", strategy.long, qty_percent=10)
+            strategy.cancel_all()
+          `,
+        },
+      }),
+      global: {
+        stubs: {
+          "v-dialog": dialogStub,
+        },
+      },
+    });
+
+    const warning = wrapper.get('[data-testid="strategy-live-compatibility-warning"]');
+    expect(warning.text()).toContain("确认执行前检查");
+    expect(warning.text()).toContain("QuantityPct");
+    expect(warning.text()).toContain("cancel/cancel_all");
+    expect(warning.text()).toContain("kill switch");
+  });
 });
 
 function buildProps(overrides: Record<string, unknown> = {}) {

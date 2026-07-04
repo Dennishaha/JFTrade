@@ -165,6 +165,7 @@ function mountAccountPage() {
           props: ["title", "description"],
           template: "<header>{{ title }}{{ description }}</header>",
         },
+        TradingScopeBar: true,
         "v-card": passthroughStub,
         "v-card-text": passthroughStub,
         "v-chip": passthroughStub,
@@ -228,9 +229,21 @@ afterEach(() => {
   for (const wrapper of wrappers.splice(0)) {
     wrapper.unmount();
   }
+  window.history.pushState({}, "", "/");
 });
 
 describe("AccountPage business flows", () => {
+  it("opens an order detail from the account orderId query", async () => {
+    window.history.pushState({}, "", "/account?tab=history&orderId=order-query");
+
+    const { setup } = mountAccountPage();
+    await nextTick();
+
+    expect(readSetupValue<string>(setup.activeTab)).toBe("history");
+    expect(mocks.loadHistoricalExecutionOrders).toHaveBeenCalled();
+    expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("order-query");
+  });
+
   it("falls back to runtime-scoped projected data and dedupes visible orders", async () => {
     const pendingReal = makeExecutionOrder();
     const duplicatePendingReal = makeExecutionOrder({
@@ -350,7 +363,7 @@ describe("AccountPage business flows", () => {
     expect(call<string>("formatExecutionStatusTransition", "", "SUBMITTED")).toContain(
       "首次发现",
     );
-    expect(call<string>("resolveOrderChipColor", "REJECTED")).toBe("info");
+    expect(call<string>("resolveOrderChipColor", "REJECTED")).toBe("error");
     expect(call<string>("resolveOrderChipColor", "FAILED_TO_ROUTE")).toBe("error");
     expect(call<string>("formatMoney", 220, "USD")).toContain("USD");
     expect(wrapper.text()).toContain("当前券商未为该交易环境声明资金流水能力。");

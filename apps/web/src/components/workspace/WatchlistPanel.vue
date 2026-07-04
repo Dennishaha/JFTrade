@@ -10,11 +10,13 @@ import { formatDateTime } from "../../composables/consoleDataFormatting";
 import type { MarketSecurityDetails } from "../../composables/marketDataRealtime";
 import { fetchEnvelope } from "../../composables/apiClient";
 import { resolveBrokerQuery } from "../../composables/consoleDataBrokerAccountSelection";
+import { useMarketDataProviderStatus } from "../../composables/marketDataProviderStatus";
 import { useMarketProfiles } from "../../composables/marketProfiles";
 import { resolveMarketSnapshotDisplay } from "../../composables/marketSessionDisplay";
+import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
-import MarketStatusBadge from "../domain/market-data/MarketStatusBadge.vue";
+import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import DenseMetricStrip from "../domain/shared/DenseMetricStrip.vue";
 
 const {
@@ -28,6 +30,14 @@ const {
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
 const { supportsExtendedHoursForMarket } = useMarketProfiles();
+const {
+  loadMarketDataProviderStatus,
+  providerCapabilitySummary,
+  providerDisplayName,
+} = useMarketDataProviderStatus();
+const liveHub = getSharedLiveSocketHub();
+
+void loadMarketDataProviderStatus();
 
 const snapshot = computed(() => marketDataSnapshot.value?.snapshot ?? null);
 const security = computed(() => marketSecurityDetails.value?.security ?? null);
@@ -45,6 +55,11 @@ const supportsExtendedHoursMarket = computed(() => supportsExtendedHoursForMarke
 const displayModel = computed(() =>
   resolveMarketSnapshotDisplay(snapshot.value, supportsExtendedHoursMarket.value),
 );
+const quoteObservedAt = computed(() =>
+  snapshot.value?.observedAt ?? snapshot.value?.at ?? marketDataSnapshot.value?.meta.resolvedAt ?? null,
+);
+const quoteConnectionState = computed(() => liveHub.connectionState?.value ?? "idle");
+const quoteTransportMode = computed(() => liveHub.lastHeartbeatEvent?.value?.transport?.mode ?? null);
 const mainPriceLabel = computed(() => displayModel.value.mainPriceLabel);
 const mainDisplayPrice = computed(() => displayModel.value.mainDisplayPrice);
 const mainChangePercent = computed(() => displayModel.value.mainChangePercent);
@@ -366,7 +381,16 @@ function formatPercent(value: number | null | undefined): string {
       <span class="tv-panel-title">行情</span>
       <span style="font-weight: 600">{{ instrumentTitle }}</span>
       <div style="flex: 1"></div>
-      <MarketStatusBadge :state="snapshot ? 'live' : 'empty'" />
+      <MarketFeedStatus
+        :connection-state="quoteConnectionState"
+        :observed-at="quoteObservedAt"
+        :transport-mode="quoteTransportMode"
+        :session="snapshot?.session ?? null"
+        :source="marketDataSnapshot?.meta.source ?? null"
+        :provider-name="providerDisplayName"
+        :provider-capabilities="providerCapabilitySummary"
+        :from-cache="marketDataSnapshot?.meta.fromCache ?? false"
+      />
     </div>
     <div class="tv-panel-body">
       <div v-if="snapshot" style="display: flex; flex-direction: column; gap: 12px; min-height: 100%">

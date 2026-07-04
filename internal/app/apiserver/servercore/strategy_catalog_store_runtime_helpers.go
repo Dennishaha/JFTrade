@@ -1,74 +1,39 @@
 package servercore
 
 import (
-	"strings"
 	"time"
 
-	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
-	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
+	instanceview "github.com/jftrade/jftrade-main/internal/strategy/instanceview"
 )
 
 func strategyPluginIDForDefinition(definition strategyDesignDefinition) string {
-	_ = definition
-	return IDPinePlanPlugin()
+	return instanceview.PluginIDForDefinition(definition)
 }
 
 func strategyRuntimeFromParams(params map[string]any) string {
-	if runtime, ok := params["runtime"].(string); ok {
-		normalized := pineworker.NormalizeRuntime(runtime)
-		if normalized != "" {
-			return normalized
-		}
-	}
-	return strategyRuntimePinePlan
+	return instanceview.RuntimeFromParams(params)
 }
 
 func strategySourceFormatFromParams(params map[string]any) string {
-	if sourceFormat, ok := params["sourceFormat"].(string); ok {
-		return strategydefinition.NormalizeSourceFormat(sourceFormat)
-	}
-	return strategydefinition.SourceFormatPineV6
+	return instanceview.SourceFormatFromParams(params)
 }
 
 func strategyInstanceStartable(instance managedStrategyInstance) bool {
-	sourceFormat := strategySourceFormatFromParams(instance.Params)
-	runtime := strategyRuntimeFromParams(instance.Params)
-	return sourceFormat == strategydefinition.SourceFormatPineV6 && runtime == strategyRuntimePinePlan
+	return instanceview.Startable(instance)
 }
 
 func strategyToListItem(strategy managedStrategyInstance) strategyListItem {
-	strategy = normalizeManagedStrategyInstance(strategy)
-	return strategyListItem{
-		ID:           strategy.ID,
-		PluginID:     strategy.PluginID,
-		Definition:   strategy.Definition,
-		Runtime:      strategyRuntimeFromParams(strategy.Params),
-		SourceFormat: strategySourceFormatFromParams(strategy.Params),
-		Startable:    strategyInstanceStartable(strategy),
-		Binding:      strategy.Binding,
-		Params:       copyMap(strategy.Params),
-		Status:       strategy.Status,
-		CreatedAt:    strategy.CreatedAt,
-		Logs:         []string{},
-	}
+	return instanceview.ToInstanceView(strategy)
 }
 
 func normalizeManagedStrategyInstance(input managedStrategyInstance) managedStrategyInstance {
-	if input.Params == nil {
-		input.Params = map[string]any{}
-	}
-	applyStrategyBindingParams(&input)
-	return input
+	return instanceview.NormalizeManagedInstance(input)
 }
 
 func buildStrategyInstanceID(definitionID string) string {
-	definitionID = strings.TrimSpace(definitionID)
-	if definitionID == "" {
-		definitionID = IDPinePlanPlugin()
-	}
-	return definitionID + "-" + time.Now().UTC().Format("20060102150405.000000000")
+	return instanceview.BuildInstanceID(definitionID, time.Now().UTC())
 }
 
 func IDPinePlanPlugin() string {
-	return strategyRuntimePinePlan
+	return instanceview.DefaultPluginID
 }

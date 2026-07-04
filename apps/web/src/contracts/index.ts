@@ -832,10 +832,30 @@ export interface SystemStatusResponse {
     supportsBacktestParity: boolean;
     activeInstances?: StrategyRuntimeActiveInstanceSummary[];
   };
+  runtimeResources?: RuntimeResourcesSummary;
   observability: {
     requests: RequestObservabilitySummary;
   };
   message: string;
+}
+
+export interface RuntimeResourceDescriptor {
+  id: string;
+  owner: string;
+  kind: string;
+  path: string;
+  initializedBy: string;
+  schemaOwner: string;
+  closeOwner: string;
+  healthProvider: string;
+  environmentOverride?: string;
+  critical: boolean;
+}
+
+export interface RuntimeResourcesSummary {
+  checkedAt: string;
+  count: number;
+  items: RuntimeResourceDescriptor[];
 }
 
 export interface StorageOverviewResponse {
@@ -1488,9 +1508,15 @@ export interface RealTradeApprovalsResponse {
   realTradingEnabled: boolean;
   requiredConfirmationText: string;
   maxApprovalAgeMs: number;
+  approvalWorkflowAvailable?: boolean;
+  approvalWorkflowStatus?: "not_configured" | "not_implemented" | "available" | string;
+  approvalWorkflowMessage?: string | null;
   approvalPolicy?: {
     approverAllowlistEnabled: boolean;
     approverCount: number;
+    largeOrderNotional?: number | null;
+    approvalWorkflowAvailable?: boolean;
+    approvalMode?: string;
   };
   entries: Array<{
     id: string;
@@ -2140,6 +2166,7 @@ export interface ExecutionOrderSummaryResponse {
   side: string | null;
   orderType: string | null;
   status: string;
+  rawBrokerStatus?: string | null;
   requestedQuantity: number | null;
   requestedPrice: number | null;
   filledQuantity: number | null;
@@ -2189,6 +2216,12 @@ export interface ExecutionOrdersResponse {
 export interface ExecutionOrderEventsResponse {
   internalOrderId: string;
   events: ExecutionOrderEventResponse[];
+}
+
+export interface ExecutionOrderDetailsResponse {
+  order: ExecutionOrderSummaryResponse;
+  recentEvents: ExecutionOrderEventResponse[];
+  checkedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -2505,6 +2538,67 @@ export interface BrokerOrderBookCapability {
   supportsRealTimePush: boolean;
 }
 
+export interface MarketDataProviderCapabilities {
+  snapshots: boolean;
+  streamingQuotes: boolean;
+  streamingDepth: boolean;
+  historicalCandles: boolean;
+  tickCandles: boolean;
+  orderBookDepth: boolean;
+  instrumentSearch: boolean;
+  extendedHours: boolean;
+  candleIntervals: string[];
+  orderBookLevels: number[];
+  sessions: string[];
+}
+
+export interface MarketDataProviderConstraints {
+  requiresOpenD: boolean;
+  requiresMarketDataRight: boolean;
+  usesSubscriptionQuota: boolean;
+}
+
+export interface MarketDataProviderDescriptor {
+  providerId: string;
+  displayName: string;
+  brokerId?: string;
+  source: string;
+  defaultMarket: string;
+  supportedMarkets: string[];
+  transports: string[];
+  capabilities: MarketDataProviderCapabilities;
+  constraints: MarketDataProviderConstraints;
+  notes?: string[];
+}
+
+export interface MarketDataProviderHealth {
+  connected: boolean;
+  streamMode: string;
+  activeCount: number;
+}
+
+export interface MarketDataRuntimeState {
+  Connected: boolean;
+  Generation: number;
+  ActiveCount: number;
+  LastRefreshAt: string;
+  QuoteRetryAt: string;
+  QuoteFailures: number;
+  QuoteLastError: string;
+  StreamRetryAt: string;
+  StreamFailures: number;
+  StreamLastError: string;
+  Closed: boolean;
+}
+
+export interface MarketDataProviderStatusResponse {
+  descriptor: MarketDataProviderDescriptor;
+  health: MarketDataProviderHealth;
+  runtime: MarketDataRuntimeState;
+  subscriptions: MarketDataSubscriptionsResponse;
+  checkedAt: string;
+}
+
 export interface MarketDataSubscriptionEntryDto {
   key: string;
   channel: string;
@@ -2673,6 +2767,11 @@ export const emptySystemStatus: SystemStatusResponse = {
     supportsBacktestParity: true,
     activeInstances: [],
   },
+  runtimeResources: {
+    checkedAt: new Date(0).toISOString(),
+    count: 0,
+    items: [],
+  },
   observability: {
     requests: {
       recentErrors: [],
@@ -2800,9 +2899,14 @@ export const emptyRealTradeApprovals: RealTradeApprovalsResponse = {
   realTradingEnabled: false,
   requiredConfirmationText: "ENABLE_REAL_TRADING",
   maxApprovalAgeMs: 5 * 60 * 1000,
+  approvalWorkflowAvailable: false,
+  approvalWorkflowStatus: "not_configured",
+  approvalWorkflowMessage: null,
   approvalPolicy: {
     approverAllowlistEnabled: false,
     approverCount: 0,
+    approvalWorkflowAvailable: false,
+    approvalMode: "none",
   },
   entries: [],
 };

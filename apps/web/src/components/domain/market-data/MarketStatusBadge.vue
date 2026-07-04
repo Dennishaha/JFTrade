@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-type MarketStatusState = "live" | "loading" | "empty" | "error" | "disabled";
+type MarketStatusState = "live" | "stale" | "loading" | "empty" | "error" | "disabled";
 
 const props = withDefaults(defineProps<{
   state: MarketStatusState;
@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<{
 
 const defaultLabels: Record<MarketStatusState, string> = {
   live: "实时",
+  stale: "陈旧",
   loading: "加载中",
   empty: "无数据",
   error: "异常",
@@ -61,6 +62,11 @@ const displayLabel = computed(() => props.label || defaultLabels[props.state]);
 }
 
 .market-status-badge--loading {
+  color: var(--card-amber-text);
+  background: var(--card-amber-surface);
+}
+
+.market-status-badge--stale {
   color: var(--card-amber-text);
   background: var(--card-amber-surface);
 }

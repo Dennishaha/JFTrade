@@ -51,8 +51,8 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 	if !ok {
 		t.Fatal("expected placed order to remain in execution store")
 	}
-	if got := filledOrder.Status; got != "FILLED_ALL" {
-		t.Fatalf("filled order status = %q, want FILLED_ALL", got)
+	if got := filledOrder.Status; got != "FILLED" {
+		t.Fatalf("filled order status = %q, want FILLED", got)
 	}
 	events := server.executionOrders.orderEvents(placed.InternalOrderID)
 	if len(events.Events) != 2 {
@@ -109,8 +109,8 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 	if !ok {
 		t.Fatal("expected cancelled order to remain in execution store")
 	}
-	if got := cancelledOrder.Status; got != "CANCELLED_ALL" {
-		t.Fatalf("cancelled order status = %q, want CANCELLED_ALL", got)
+	if got := cancelledOrder.Status; got != "CANCELLED" {
+		t.Fatalf("cancelled order status = %q, want CANCELLED", got)
 	}
 	cancelNotificationFound := false
 	for _, note := range server.liveNotificationsAfter(0) {

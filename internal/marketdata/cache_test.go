@@ -251,6 +251,8 @@ func tickAt(instrumentID, price string, volume float64, observedAt time.Time) Ti
 }
 
 type dataProviderStub struct {
+	descriptor    ProviderDescriptor
+	descriptorErr error
 	markets       []MarketProfile
 	marketsErr    error
 	details       SecurityDetails
@@ -284,6 +286,15 @@ type dataProviderStub struct {
 
 	snapshotCalls int
 	tickerCalls   int
+}
+
+func (p *dataProviderStub) Descriptor(context.Context) (ProviderDescriptor, error) {
+	if p.descriptor.ProviderID == "" {
+		p.descriptor.ProviderID = "stub-provider"
+		p.descriptor.DisplayName = "Stub Provider"
+		p.descriptor.Source = "stub"
+	}
+	return p.descriptor, p.descriptorErr
 }
 
 func (p *dataProviderStub) GetMarkets(context.Context) ([]MarketProfile, error) {

@@ -23,6 +23,9 @@ import (
 
 // Provider 行情能力接口——零 protobuf、零 HTTP 框架、零券商依赖。
 type Provider interface {
+	// ── 能力描述 ──
+	Descriptor(ctx context.Context) (ProviderDescriptor, error)
+
 	// ── 快照查询 ──
 	GetMarkets(ctx context.Context) ([]MarketProfile, error)
 	GetSecurityDetails(ctx context.Context, market, symbol string) (SecurityDetails, error)
@@ -84,6 +87,53 @@ type HealthStatus struct {
 	ActiveCount int    `json:"activeCount"`
 }
 
+// ProviderDescriptor describes the active market-data provider without leaking
+// broker SDK or protocol implementation details into transport/UI layers.
+type ProviderDescriptor struct {
+	ProviderID       string               `json:"providerId"`
+	DisplayName      string               `json:"displayName"`
+	BrokerID         string               `json:"brokerId,omitempty"`
+	Source           string               `json:"source"`
+	DefaultMarket    string               `json:"defaultMarket"`
+	SupportedMarkets []string             `json:"supportedMarkets"`
+	Transports       []string             `json:"transports"`
+	Capabilities     ProviderCapabilities `json:"capabilities"`
+	Constraints      ProviderConstraints  `json:"constraints"`
+	Notes            []string             `json:"notes,omitempty"`
+}
+
+// ProviderCapabilities records the data-plane features a provider can supply.
+type ProviderCapabilities struct {
+	Snapshots         bool     `json:"snapshots"`
+	StreamingQuotes   bool     `json:"streamingQuotes"`
+	StreamingDepth    bool     `json:"streamingDepth"`
+	HistoricalCandles bool     `json:"historicalCandles"`
+	TickCandles       bool     `json:"tickCandles"`
+	OrderBookDepth    bool     `json:"orderBookDepth"`
+	InstrumentSearch  bool     `json:"instrumentSearch"`
+	ExtendedHours     bool     `json:"extendedHours"`
+	CandleIntervals   []string `json:"candleIntervals"`
+	OrderBookLevels   []int    `json:"orderBookLevels"`
+	Sessions          []string `json:"sessions"`
+}
+
+// ProviderConstraints records operational limits and setup prerequisites.
+type ProviderConstraints struct {
+	RequiresOpenD           bool `json:"requiresOpenD"`
+	RequiresMarketDataRight bool `json:"requiresMarketDataRight"`
+	UsesSubscriptionQuota   bool `json:"usesSubscriptionQuota"`
+}
+
+// ProviderStatusResponse combines static provider capability metadata with
+// current runtime health and active demand information.
+type ProviderStatusResponse struct {
+	Descriptor    ProviderDescriptor    `json:"descriptor"`
+	Health        HealthStatus          `json:"health"`
+	Runtime       RuntimeState          `json:"runtime"`
+	Subscriptions SubscriptionsSnapshot `json:"subscriptions"`
+	CheckedAt     string                `json:"checkedAt"`
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Service 门面
 // ──────────────────────────────────────────────────────────────────────────────
@@ -103,6 +153,25 @@ func NewService(provider Provider) *Service {
 		cache:         NewCache(),
 		subscriptions: newSubscriptionRegistry(),
 	}
+}
+
+// ProviderStatus returns active provider metadata plus runtime state.
+func (s *Service) ProviderStatus(ctx context.Context) (ProviderStatusResponse, error) {
+	descriptor, err := s.provider.Descriptor(ctx)
+	if err != nil {
+		return ProviderStatusResponse{}, err
+	}
+	health, err := s.Health(ctx)
+	if err != nil {
+		return ProviderStatusResponse{}, err
+	}
+	return ProviderStatusResponse{
+		Descriptor:    descriptor,
+		Health:        health,
+		Runtime:       s.RuntimeState(),
+		Subscriptions: s.subscriptions.snapshot(),
+		CheckedAt:     time.Now().UTC().Format(time.RFC3339Nano),
+	}, nil
 }
 
 // StartCollector starts the active-demand marketdata runtime.

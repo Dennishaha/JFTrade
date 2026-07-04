@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import StrategyRuntimePanel from "../components/StrategyRuntimePanel.vue";
+import TradingScopeBar from "../components/TradingScopeBar.vue";
 import { apiGet } from "../composables/apiClient";
 import { queryClient, queryKeys } from "../composables/serverState";
 
@@ -56,6 +57,8 @@ function handleSwitchToDesign(payload?: { mode?: StrategyDesignEntryMode }): voi
       <div v-if="runtimeNotice" class="strategy-banner strategy-banner--success">
         {{ runtimeNotice }}
       </div>
+
+      <TradingScopeBar />
 
       <StrategyRuntimePanel
         :definitions-count="strategyDefinitionsCount"

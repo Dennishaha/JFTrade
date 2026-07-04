@@ -1,6 +1,9 @@
 package system
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
@@ -25,8 +28,12 @@ func RegisterRoutes(api *gin.RouterGroup, svc *sys.Service) {
 	system.GET("/storage/overview", handleStorageOverview(svc))
 	system.GET("/real-trade-approvals", handleRealTradeApprovals(svc))
 	system.GET("/real-trade-hard-stops", handleRealTradeHardStops(svc))
+	system.POST("/real-trade-hard-stops", handleActivateRealTradeHardStop(svc))
+	system.POST("/real-trade-hard-stops/:hardStopId/release", handleReleaseRealTradeHardStop(svc))
 	system.GET("/real-trade-hard-stop-events", handleRealTradeHardStopEvents(svc))
 	system.GET("/real-trade-kill-switch", handleRealTradeKillSwitch(svc))
+	system.POST("/real-trade-kill-switch/activate", handleActivateRealTradeKillSwitch(svc))
+	system.POST("/real-trade-kill-switch/release", handleReleaseRealTradeKillSwitch(svc))
 	system.GET("/real-trade-kill-switch-events", handleRealTradeKillSwitchEvents(svc))
 	system.GET("/real-trade-risk-limits", handleRealTradeRiskLimits(svc))
 	system.GET("/real-trade-risk-events", handleRealTradeRiskEvents(svc))
@@ -187,6 +194,42 @@ func handleRealTradeHardStops(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+func handleActivateRealTradeHardStop(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var command sys.RealTradeHardStopCommand
+		if err := c.ShouldBindJSON(&command); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid real-trade hard stop payload")
+			return
+		}
+		result, err := svc.ActivateRealTradeHardStop(c.Request.Context(), command)
+		if err != nil {
+			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+func handleReleaseRealTradeHardStop(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		hardStopID := strings.TrimSpace(c.Param("hardStopId"))
+		if hardStopID == "" {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "hard stop id is required")
+			return
+		}
+		var command sys.RealTradeHardStopCommand
+		if c.Request.Body != nil {
+			_ = c.ShouldBindJSON(&command)
+		}
+		result, err := svc.ReleaseRealTradeHardStop(c.Request.Context(), hardStopID, command)
+		if err != nil {
+			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
 func handleRealTradeHardStopEvents(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeHardStopEvents())
@@ -196,6 +239,37 @@ func handleRealTradeHardStopEvents(svc *sys.Service) gin.HandlerFunc {
 func handleRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RealTradeKillSwitch())
+	}
+}
+
+func handleActivateRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var command sys.RealTradeKillSwitchCommand
+		if err := c.ShouldBindJSON(&command); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid real-trade kill switch payload")
+			return
+		}
+		result, err := svc.ActivateRealTradeKillSwitch(c.Request.Context(), command)
+		if err != nil {
+			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+func handleReleaseRealTradeKillSwitch(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var command sys.RealTradeKillSwitchCommand
+		if c.Request.Body != nil {
+			_ = c.ShouldBindJSON(&command)
+		}
+		result, err := svc.ReleaseRealTradeKillSwitch(c.Request.Context(), command)
+		if err != nil {
+			httpserver.WriteError(c, http.StatusConflict, "REAL_TRADE_CONTROL_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
 	}
 }
 

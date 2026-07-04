@@ -143,7 +143,7 @@ func initializeDescriptor(t *testing.T, descriptor Descriptor) {
 	if err != nil {
 		t.Fatalf("open %s: %v", descriptor.ID, err)
 	}
-	if err := sqliteschema.InitializeOrValidate(t.Context(), db, descriptor.Path, descriptor.ID, SchemaVersion, nil, nil); err != nil {
+	if err := sqliteschema.InitializeOrValidate(t.Context(), db, descriptor.Path, descriptor.ID, descriptor.Version, nil, nil); err != nil {
 		t.Fatalf("initialize %s: %v", descriptor.ID, err)
 	}
 	if err := db.Close(); err != nil {

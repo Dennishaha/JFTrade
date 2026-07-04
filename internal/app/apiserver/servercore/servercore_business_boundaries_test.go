@@ -94,6 +94,9 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 	ctx := context.Background()
 	expectedErr := errors.New("details failed")
 	provider := &marketdataProvider{
+		descriptor: func(context.Context) (mdsrv.ProviderDescriptor, error) {
+			return mdsrv.ProviderDescriptor{ProviderID: "futu-opend", DisplayName: "Futu OpenD", Source: "bbgo:futu"}, nil
+		},
 		getMarkets: func(context.Context) ([]mdsrv.MarketProfile, error) {
 			return []mdsrv.MarketProfile{{"code": "US"}}, nil
 		},
@@ -122,6 +125,9 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 
 	if markets, err := provider.GetMarkets(ctx); err != nil || len(markets) != 1 || markets[0]["code"] != "US" {
 		t.Fatalf("GetMarkets() = %#v err=%v", markets, err)
+	}
+	if descriptor, err := provider.Descriptor(ctx); err != nil || descriptor.ProviderID != "futu-opend" {
+		t.Fatalf("Descriptor() = %+v err=%v", descriptor, err)
 	}
 	normalized, err := provider.NormalizeInstrument(ctx, map[string]any{"instrumentId": "us.aapl"})
 	if err != nil || normalized["instrumentId"] != "US.AAPL" {

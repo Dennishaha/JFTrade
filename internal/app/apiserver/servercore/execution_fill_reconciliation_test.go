@@ -11,6 +11,7 @@ func TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot(t *testing.T) {
 	fillPrice := 191.25
 	fillIDEx := "fill-before-order-ex"
 	orderIDEx := "order-before-sync-ex"
+	rawFillStatus := "FILLED_ALL"
 
 	filled, fillEvent, changed := store.recordBrokerOrderFill("futu", broker.OrderFillSnapshot{
 		AccountID:          "SIM-OUT-OF-ORDER",
@@ -25,11 +26,12 @@ func TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot(t *testing.T) {
 		FilledQuantity:     2,
 		FillPrice:          &fillPrice,
 		FilledAt:           "2026-07-02T01:30:00Z",
+		Status:             &rawFillStatus,
 	})
 	if !changed || fillEvent == nil {
 		t.Fatalf("fill discovery changed=%v event=%#v", changed, fillEvent)
 	}
-	if filled.Status != "FILLED_PART" || filled.Source != "broker" || filled.SourceDetail != "broker.fill" {
+	if filled.Status != "FILLED" || filled.RawBrokerStatus == nil || *filled.RawBrokerStatus != "FILLED_ALL" || filled.Source != "broker" || filled.SourceDetail != "broker.fill" {
 		t.Fatalf("fill-discovered order = %#v", filled)
 	}
 	if filled.FilledQuantity == nil || *filled.FilledQuantity != 2 || filled.FilledAveragePrice == nil || *filled.FilledAveragePrice != fillPrice {
@@ -67,7 +69,7 @@ func TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot(t *testing.T) {
 	if synced.InternalOrderID != filled.InternalOrderID {
 		t.Fatalf("late snapshot created %q, want merge into %q", synced.InternalOrderID, filled.InternalOrderID)
 	}
-	if synced.Status != "FILLED_ALL" || synced.OrderType == nil || *synced.OrderType != "LIMIT" {
+	if synced.Status != "FILLED" || synced.OrderType == nil || *synced.OrderType != "LIMIT" {
 		t.Fatalf("reconciled order state = %#v", synced)
 	}
 	if synced.RequestedQuantity == nil || *synced.RequestedQuantity != 2 || synced.RequestedPrice == nil || *synced.RequestedPrice != requestedPrice {
@@ -76,7 +78,7 @@ func TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot(t *testing.T) {
 	if synced.Remark == nil || *synced.Remark != remark || synced.SubmittedAt == nil || *synced.SubmittedAt != "2026-07-02T01:29:58Z" {
 		t.Fatalf("reconciled metadata = %#v", synced)
 	}
-	if syncEvent.EventType != "BROKER_SYNC_UPDATED" || syncEvent.PreviousStatus == nil || *syncEvent.PreviousStatus != "FILLED_PART" || syncEvent.NextStatus != "FILLED_ALL" {
+	if syncEvent.EventType != "BROKER_SYNC_UPDATED" || syncEvent.PreviousStatus == nil || *syncEvent.PreviousStatus != "FILLED" || syncEvent.NextStatus != "FILLED" {
 		t.Fatalf("sync event = %#v", syncEvent)
 	}
 
@@ -87,5 +89,46 @@ func TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot(t *testing.T) {
 	events := store.orderEvents(filled.InternalOrderID)
 	if len(events.Events) != 2 {
 		t.Fatalf("reconciled events = %#v", events.Events)
+	}
+}
+
+func TestExecutionOrderStoreRejectsStaleBrokerSnapshotRegression(t *testing.T) {
+	store := newExecutionOrderStore()
+	price := 100.0
+	filledQuantity := 10.0
+	filledAverage := 99.5
+	order := store.recordPlacedOrder(executionPlacedOrderRecord{
+		BrokerID: "futu", BrokerOrderID: "stale-1", TradingEnvironment: "SIMULATE",
+		AccountID: "SIM-1", Market: "US", Symbol: "US.AAPL", Side: "BUY",
+		OrderType: "LIMIT", Status: "SUBMITTED", RequestedQuantity: 10,
+		RequestedPrice: &price, SubmittedAt: "2026-07-05T01:00:00Z", EventType: "COMMAND_PLACE_ACCEPTED",
+	})
+	filled, _, changed := store.upsertBrokerOrderWithSource("futu", broker.OrderSnapshot{
+		AccountID: "SIM-1", TradingEnvironment: "SIMULATE", Market: "US",
+		BrokerOrderID: "stale-1", Symbol: "US.AAPL", Side: "BUY", OrderType: "LIMIT",
+		Status: "FILLED_ALL", Quantity: 10, FilledQuantity: &filledQuantity,
+		Price: &price, FilledAveragePrice: &filledAverage,
+		SubmittedAt: "2026-07-05T01:00:00Z", UpdatedAt: "2026-07-05T01:05:00Z",
+	}, "BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
+	if !changed || filled.Status != "FILLED" || filled.RawBrokerStatus == nil || *filled.RawBrokerStatus != "FILLED_ALL" {
+		t.Fatalf("filled update = %#v changed=%v", filled, changed)
+	}
+
+	zeroFilled := 0.0
+	_, staleEvent, changed := store.upsertBrokerOrderWithSource("futu", broker.OrderSnapshot{
+		AccountID: "SIM-1", TradingEnvironment: "SIMULATE", Market: "US",
+		BrokerOrderID: "stale-1", Symbol: "US.AAPL", Side: "BUY", OrderType: "LIMIT",
+		Status: "SUBMITTED", Quantity: 10, FilledQuantity: &zeroFilled,
+		Price: &price, SubmittedAt: "2026-07-05T01:00:00Z", UpdatedAt: "2026-07-05T01:01:00Z",
+	}, "BROKER_SYNC_DISCOVERED", "BROKER_SYNC_UPDATED", "broker", "broker.current")
+	if changed || staleEvent != nil {
+		t.Fatalf("stale snapshot changed=%v event=%#v", changed, staleEvent)
+	}
+	persisted, ok := store.order(order.InternalOrderID)
+	if !ok || persisted.Status != "FILLED" || persisted.FilledQuantity == nil || *persisted.FilledQuantity != 10 || persisted.UpdatedAt != "2026-07-05T01:05:00Z" {
+		t.Fatalf("persisted order regressed: %#v", persisted)
+	}
+	if persisted.RawBrokerStatus == nil || *persisted.RawBrokerStatus != "FILLED_ALL" {
+		t.Fatalf("raw broker status regressed: %#v", persisted.RawBrokerStatus)
 	}
 }

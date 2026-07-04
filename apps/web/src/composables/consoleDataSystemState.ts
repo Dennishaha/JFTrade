@@ -25,6 +25,12 @@ import {
   emptyFutuOpenDHealth,
   emptyFutuOpenDInstallGuide,
   emptyOnboardingState,
+  emptyRealTradeApprovals,
+  emptyRealTradeHardStopEvents,
+  emptyRealTradeHardStops,
+  emptyRealTradeKillSwitchEvents,
+  emptyRealTradeKillSwitchState,
+  emptyRealTradeRiskEvents,
 } from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
@@ -61,6 +67,95 @@ export interface MarketInstrumentReferenceResponse {
   query: string;
   totalReturned: number;
   entries: MarketInstrumentReference[];
+}
+
+function arrayOrEmpty<T>(items: T[] | null | undefined): T[] {
+  return Array.isArray(items) ? items : [];
+}
+
+function arrayOrDefault<T>(items: T[] | null | undefined, fallback: T[]): T[] {
+  return Array.isArray(items) ? items : [...fallback];
+}
+
+function normalizeRealTradeApprovals(
+  response: RealTradeApprovalsResponse | null | undefined,
+): RealTradeApprovalsResponse {
+  const snapshot = response ?? emptyRealTradeApprovals;
+  return {
+    ...emptyRealTradeApprovals,
+    ...snapshot,
+    entries: arrayOrEmpty(snapshot.entries),
+  };
+}
+
+function normalizeRealTradeHardStops(
+  response: RealTradeHardStopsResponse | null | undefined,
+): RealTradeHardStopsResponse {
+  const snapshot = response ?? emptyRealTradeHardStops;
+  return {
+    ...emptyRealTradeHardStops,
+    ...snapshot,
+    blockedOperations: arrayOrDefault(
+      snapshot.blockedOperations,
+      emptyRealTradeHardStops.blockedOperations,
+    ),
+    entries: arrayOrEmpty(snapshot.entries),
+  };
+}
+
+function normalizeRealTradeHardStopEvents(
+  response: RealTradeHardStopEventsResponse | null | undefined,
+): RealTradeHardStopEventsResponse {
+  const snapshot = response ?? emptyRealTradeHardStopEvents;
+  return {
+    ...emptyRealTradeHardStopEvents,
+    ...snapshot,
+    blockedOperations: arrayOrDefault(
+      snapshot.blockedOperations,
+      emptyRealTradeHardStopEvents.blockedOperations,
+    ),
+    entries: arrayOrEmpty(snapshot.entries),
+  };
+}
+
+function normalizeRealTradeKillSwitchState(
+  response: RealTradeKillSwitchStateResponse | null | undefined,
+): RealTradeKillSwitchStateResponse {
+  const snapshot = response ?? emptyRealTradeKillSwitchState;
+  return {
+    ...emptyRealTradeKillSwitchState,
+    ...snapshot,
+    blockedOperations: arrayOrDefault(
+      snapshot.blockedOperations,
+      emptyRealTradeKillSwitchState.blockedOperations,
+    ),
+  };
+}
+
+function normalizeRealTradeKillSwitchEvents(
+  response: RealTradeKillSwitchEventsResponse | null | undefined,
+): RealTradeKillSwitchEventsResponse {
+  const snapshot = response ?? emptyRealTradeKillSwitchEvents;
+  return {
+    ...emptyRealTradeKillSwitchEvents,
+    ...snapshot,
+    blockedOperations: arrayOrDefault(
+      snapshot.blockedOperations,
+      emptyRealTradeKillSwitchEvents.blockedOperations,
+    ),
+    entries: arrayOrEmpty(snapshot.entries),
+  };
+}
+
+function normalizeRealTradeRiskEvents(
+  response: RealTradeRiskEventsResponse | null | undefined,
+): RealTradeRiskEventsResponse {
+  const snapshot = response ?? emptyRealTradeRiskEvents;
+  return {
+    ...emptyRealTradeRiskEvents,
+    ...snapshot,
+    entries: arrayOrEmpty(snapshot.entries),
+  };
 }
 
 interface CreateConsoleDataSystemStateControllerOptions {
@@ -256,13 +351,19 @@ export function createConsoleDataSystemStateController(
       options.onboardingState.value = onboarding;
       options.pluginCatalog.value = plugins;
       options.futuOpenDInstallGuide.value = opendInstallGuide;
-      options.realTradeApprovals.value = realTradeApprovalSummary;
-      options.realTradeHardStops.value = realTradeHardStopSummary;
-      options.realTradeHardStopEvents.value = realTradeHardStopEventSummary;
-      options.realTradeKillSwitchState.value = realTradeKillSwitchStateSummary;
-      options.realTradeKillSwitchEvents.value = realTradeKillSwitchSummary;
+      options.realTradeApprovals.value =
+        normalizeRealTradeApprovals(realTradeApprovalSummary);
+      options.realTradeHardStops.value =
+        normalizeRealTradeHardStops(realTradeHardStopSummary);
+      options.realTradeHardStopEvents.value =
+        normalizeRealTradeHardStopEvents(realTradeHardStopEventSummary);
+      options.realTradeKillSwitchState.value =
+        normalizeRealTradeKillSwitchState(realTradeKillSwitchStateSummary);
+      options.realTradeKillSwitchEvents.value =
+        normalizeRealTradeKillSwitchEvents(realTradeKillSwitchSummary);
       options.realTradeRiskState.value = realTradeRiskStateSummary;
-      options.realTradeRiskEvents.value = realTradeRiskSummary;
+      options.realTradeRiskEvents.value =
+        normalizeRealTradeRiskEvents(realTradeRiskSummary);
       options.workerBrokerOrderUpdates.value = workerBrokerUpdates;
       options.futuOpenDHealth.value = opendHealth;
       options.brokerRuntime.value = broker;

@@ -62,6 +62,7 @@ func cloneExecutionOrderSummary(in executionOrderSummaryResponse) executionOrder
 		Side:               cloneStringPointer(in.Side),
 		OrderType:          cloneStringPointer(in.OrderType),
 		Status:             in.Status,
+		RawBrokerStatus:    cloneStringPointer(in.RawBrokerStatus),
 		RequestedQuantity:  cloneFloat64Pointer(in.RequestedQuantity),
 		RequestedPrice:     cloneFloat64Pointer(in.RequestedPrice),
 		FilledQuantity:     cloneFloat64Pointer(in.FilledQuantity),

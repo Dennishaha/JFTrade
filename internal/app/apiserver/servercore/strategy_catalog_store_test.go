@@ -519,7 +519,6 @@ func TestStrategyAdaptersClassifyDefinitionCatalogAndRuntimeContracts(t *testing
 	}
 
 	runtimeAdapter := &strategyRuntimeManagerAdapter{mgr: &strategyRuntimeManager{
-		server:   &Server{},
 		runtimes: map[string]*managedStrategyRuntime{},
 		starting: map[string]struct{}{},
 	}}

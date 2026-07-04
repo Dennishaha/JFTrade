@@ -4,16 +4,61 @@ import (
 	"context"
 	"errors"
 	"math"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
+
+func TestStrategyRuntimeAdapterRejectsUnsupportedLiveSemantics(t *testing.T) {
+	adapter := &strategyRuntimeManagerAdapter{}
+	err := adapter.Start(t.Context(), stratsrv.ManagedInstance{
+		Binding: stratsrv.InstanceBinding{ExecutionMode: strategyExecutionModeLive},
+		Params: map[string]any{
+			"script": `//@version=6
+strategy("Live", default_qty_type=strategy.percent_of_equity)
+strategy.entry("Long", strategy.long)`,
+		},
+	})
+	if !errors.Is(err, stratsrv.ErrBadRequest) || !strings.Contains(err.Error(), "percent_of_equity") {
+		t.Fatalf("Start error = %v, want live semantic bad request", err)
+	}
+}
+
+func TestStrategyRuntimeManagerUsesExplicitDependenciesInsteadOfServerOwnership(t *testing.T) {
+	managerType := reflect.TypeFor[strategyRuntimeManager]()
+	if _, exists := managerType.FieldByName("server"); exists {
+		t.Fatalf("strategyRuntimeManager must not regain direct Server ownership")
+	}
+	if _, exists := reflect.TypeFor[strategyNotifyOnlyOrderExecutor]().FieldByName("server"); exists {
+		t.Fatalf("notify-only order executor must not regain direct Server ownership")
+	}
+	if _, exists := reflect.TypeFor[strategyLiveOrderExecutor]().FieldByName("server"); exists {
+		t.Fatalf("live order executor must not regain direct Server ownership")
+	}
+
+	depsType := reflect.TypeFor[strategyRuntimeManagerDeps]()
+	transition, ok := depsType.FieldByName("transitionInstance")
+	if !ok || transition.Type.NumOut() != 1 || !transition.Type.Out(0).Implements(reflect.TypeFor[error]()) {
+		t.Fatalf("transitionInstance should expose only error, got %v", transition.Type)
+	}
+	countAudit, ok := depsType.FieldByName("countRuntimeAudit")
+	if !ok || countAudit.Type.In(1) != reflect.TypeFor[runtimeactivity.AuditQuery]() {
+		t.Fatalf("countRuntimeAudit should use runtimeactivity.AuditQuery, got %v", countAudit.Type)
+	}
+	upsertObservation, ok := depsType.FieldByName("upsertObservation")
+	if !ok || upsertObservation.Type.In(1) != reflect.TypeFor[runtimeactivity.ObservationSnapshot]() {
+		t.Fatalf("upsertObservation should use runtimeactivity.ObservationSnapshot, got %v", upsertObservation.Type)
+	}
+}
 
 func TestStrategyRuntimeManagerStartValidationAndReservationBoundaries(t *testing.T) {
 	manager := &strategyRuntimeManager{

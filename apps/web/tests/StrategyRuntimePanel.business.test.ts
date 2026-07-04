@@ -151,6 +151,42 @@ describe("StrategyRuntimePanel business workflows", () => {
     wrapper.unmount();
   });
 
+  it("blocks live startup when the selected strategy contains unsupported live semantics", async () => {
+    const definition: StrategyDefinitionDocument = {
+      ...buildDefinition(),
+      script: [
+        '//@version=6',
+        'strategy("Percent Cancel", default_qty_type=strategy.percent_of_equity)',
+        'strategy.entry("Long", strategy.long, qty_percent=50)',
+        'strategy.cancel_all()',
+      ].join("\n"),
+    };
+    const fetchSpy = vi.fn(buildFetchMock({
+      definitions: [definition],
+      strategies: [buildStrategy("STOPPED")],
+    }));
+    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { wrapper } = await mountStrategyPage("/strategy/runtime");
+    await waitForSelector(wrapper, '[data-testid="strategy-live-limitations"]');
+
+    expect(wrapper.get('[data-testid="strategy-live-limitations"]').text()).toContain("QuantityPct");
+    expect(wrapper.get('[data-testid="strategy-live-limitations"]').text()).toContain("strategy.cancel");
+    expect(wrapper.get('[data-testid="strategy-runtime-start-hint"]').text()).toContain("live 暂不支持语义");
+    expect(wrapper.get('[data-testid="strategy-start"]').attributes("disabled")).toBeDefined();
+    expect(readSetupArray<string>(wrapper.getComponent(StrategyRuntimePanel).vm.$.setupState.selectedStrategyLiveLimitations)).toHaveLength(2);
+
+    const setup = wrapper.getComponent(StrategyRuntimePanel).vm.$.setupState as Record<string, unknown>;
+    await (setup.changeStrategyStatus as (action: "start") => Promise<void>)("start");
+    expect(readSetupText(setup.detailsError)).toContain("启动前检查未通过");
+    expect(fetchSpy.mock.calls.some(([input, init]) =>
+      String(input).includes("/strategies/instance-1/start") && requestMethod(input, init) === "POST",
+    )).toBe(false);
+
+    wrapper.unmount();
+  });
+
   it("shows runtime observations, stale-definition boundaries and applies the latest stopped version", async () => {
     const definition = buildDefinition("0.2.0");
     const strategy = {

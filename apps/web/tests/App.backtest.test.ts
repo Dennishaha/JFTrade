@@ -124,6 +124,20 @@ describe("Backtest page", () => {
     const call = <T>(name: string, ...args: unknown[]) =>
       (setup[name] as (...values: unknown[]) => T)(...args);
 
+    expect(wrapper.text()).toContain("提交步骤");
+    expect(wrapper.text()).toContain("回测/实盘一致性边界");
+    expect(wrapper.text()).toContain("conservative-bar-v1");
+    expect(wrapper.text()).toContain("1. 策略");
+    expect(wrapper.text()).toContain("同步后运行");
+    expect(readSetupValue<Array<{ label: string; state: string }>>(setup.backtestPlanSteps)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "策略", state: "ready" }),
+        expect.objectContaining({ label: "历史数据", state: "ready" }),
+        expect.objectContaining({ label: "运行回测", state: "ready" }),
+      ]),
+    );
+    expect(call("backtestPlanStepClass", "blocked")).toContain("amber");
+
     expect(call("formatBacktestRehabType", "none")).toBe("不复权");
     expect(call("formatBacktestRehabType", "backward")).toBe("后复权");
     expect(call("formatBacktestRehabType", "forward")).toBe("前复权");
@@ -135,6 +149,17 @@ describe("Backtest page", () => {
     expect(call("resolveBacktestPriceBasisNote", {
       request: { rehabType: "forward", interval: "1d" },
     })).toContain("前复权1d");
+    expect(call("resolveBacktestParityNotes", richRun)).toEqual(expect.arrayContaining([
+      expect.stringContaining("信号一致性"),
+      expect.stringContaining("订单意图一致性"),
+      expect.stringContaining("conservative-bar-v1"),
+      expect.stringContaining("包含扩展时段数据"),
+    ]));
+    expect(readSetupValue<string[]>(setup.currentBacktestParityNotes)).toEqual(expect.arrayContaining([
+      expect.stringContaining("信号一致性"),
+      expect.stringContaining("订单意图一致性"),
+      expect.stringContaining("conservative-bar-v1"),
+    ]));
     expect(call("resolveStrategyName", "strategy-1")).toBe("EMA Reversal");
     expect(call("resolveStrategyName", "missing")).toBe("missing");
     expect(call("resolveStrategyName", undefined)).toBe("未命名策略");

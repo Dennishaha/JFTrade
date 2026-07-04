@@ -21,14 +21,6 @@ func normalizeInstrumentInput(marketInput string, symbol string, code string) (n
 	return normalizedInstrumentFromMarket(instrument), nil
 }
 
-func parseQualifiedInstrumentSymbol(symbol string) (normalizedInstrument, error) {
-	instrument, err := market.ParseQualifiedInstrumentSymbol(symbol)
-	if err != nil {
-		return normalizedInstrument{}, err
-	}
-	return normalizedInstrumentFromMarket(instrument), nil
-}
-
 func normalizedInstrumentFromMarket(instrument market.Instrument) normalizedInstrument {
 	return normalizedInstrument{
 		Market: instrument.Market,

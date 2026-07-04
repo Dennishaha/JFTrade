@@ -25,6 +25,7 @@ const props = defineProps<{
     selectedStrategySourceFormatLabel: string;
     selectedStrategyStartHint: string;
     selectedStrategyCompiledSummary: string;
+    selectedStrategyLiveLimitations: string[];
     isRefreshingStrategyContent: boolean;
     isUpdatingStrategyRuntimeRisk: boolean;
     canStartSelectedStrategy: boolean;
@@ -248,6 +249,18 @@ function handleRuntimeRiskCloseOnlyChange(event: Event): void {
                     <div v-if="selectedStrategyCompiledSummary" class="mt-2 text-xs text-slate-500">
                         {{ selectedStrategyCompiledSummary }}
                     </div>
+                    <div
+                        v-if="selectedStrategyLiveLimitations.length > 0"
+                        class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
+                        data-testid="strategy-live-limitations"
+                    >
+                        <div class="font-semibold">启动前限制</div>
+                        <ul class="mt-1 list-disc space-y-1 pl-4">
+                            <li v-for="warning in selectedStrategyLiveLimitations" :key="warning">
+                                {{ warning }}
+                            </li>
+                        </ul>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -313,6 +326,7 @@ function handleRuntimeRiskCloseOnlyChange(event: Event): void {
                     class="strategy-runtime-start-button rounded-full border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
                     data-testid="strategy-start"
                     :disabled="!canStartSelectedStrategy"
+                    :title="selectedStrategyLiveLimitations.length > 0 ? '当前实例包含 live 暂不支持语义' : ''"
                     type="button"
                     @click="emit('change-status', 'start')"
                 >

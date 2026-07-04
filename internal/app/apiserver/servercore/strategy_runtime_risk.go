@@ -6,47 +6,47 @@ import (
 	"strings"
 	"time"
 
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
+	"github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
-type strategyRuntimeRiskDecision struct {
-	matched       bool
-	rejected      bool
-	pauseOnReject bool
-	reason        string
-	detail        string
-}
+type strategyRuntimeRiskDecision = runtimecontrol.RiskDecision
 
 func (e *strategyLiveOrderExecutor) evaluateRuntimeRisk(command trdsrv.ExecutionOrderCommand) strategyRuntimeRiskDecision {
 	settings := e.currentRuntimeRiskSettings()
-	if settings.Mode == "off" {
-		return strategyRuntimeRiskDecision{}
+	context := runtimecontrol.RiskContext{}
+	if e != nil && e.manager != nil {
+		context.TodaySubmittedOrderCount = e.manager.todaySubmittedOrderCount(e.instance.ID, command.Symbol, time.Now().UTC())
 	}
-
-	reason := e.runtimeRiskRejectReason(settings, command)
-	if reason == "" {
-		return strategyRuntimeRiskDecision{}
+	if e != nil && e.runner != nil {
+		context.CurrentPrice = e.runner.currentPrice()
+		context.SellableQuantity = e.runner.sellableQuantity(command.Symbol)
 	}
-
-	detail := fmt.Sprintf(
-		"rule=%s symbol=%s side=%s qty=%s mode=%s closeOnly=%t maxQty=%s maxNotional=%s dailyMaxOrders=%s",
-		reason,
-		command.Symbol,
-		command.Side,
-		strategyRuntimeFormatNumber(command.Query.Quantity),
-		settings.Mode,
-		settings.CloseOnly,
-		strategyRuntimeOptionalFloatLabel(settings.MaxOrderQuantity),
-		strategyRuntimeOptionalFloatLabel(settings.MaxOrderNotional),
-		strategyRuntimeOptionalIntLabel(settings.DailyMaxOrders),
+	return runtimecontrol.EvaluateRisk(
+		strategyRuntimeRiskSettingsToControl(settings),
+		strategyRuntimeOrderIntentFromCommand(command),
+		context,
 	)
-	return strategyRuntimeRiskDecision{
-		matched:       true,
-		rejected:      settings.Mode == "enforce",
-		pauseOnReject: settings.PauseOnReject,
-		reason:        reason,
-		detail:        detail,
+}
+
+func strategyRuntimeOrderIntentFromCommand(command trdsrv.ExecutionOrderCommand) runtimecontrol.OrderIntent {
+	return runtimecontrol.OrderIntent{
+		Symbol:   command.Symbol,
+		Side:     command.Side,
+		Quantity: command.Query.Quantity,
+		Price:    command.Query.Price,
+	}
+}
+
+func strategyRuntimeRiskSettingsToControl(input strategyRuntimeRiskSettings) runtimecontrol.RiskSettings {
+	return runtimecontrol.RiskSettings{
+		Mode:             input.Mode,
+		CloseOnly:        input.CloseOnly,
+		MaxOrderQuantity: input.MaxOrderQuantity,
+		MaxOrderNotional: input.MaxOrderNotional,
+		DailyMaxOrders:   input.DailyMaxOrders,
+		PauseOnReject:    input.PauseOnReject,
 	}
 }
 
@@ -54,66 +54,32 @@ func (e *strategyLiveOrderExecutor) currentRuntimeRiskSettings() strategyRuntime
 	if e == nil {
 		return normalizeStrategyRuntimeRiskSettings(strategyRuntimeRiskSettings{})
 	}
-	if e != nil && e.server != nil && e.server.strategyStore != nil {
-		if instance, ok := e.server.strategyStore.strategy(e.instance.ID); ok {
+	if e.manager != nil {
+		if instance, ok := e.manager.currentInstance(e.instance.ID); ok {
 			return normalizeStrategyRuntimeRiskSettings(instance.Binding.RuntimeRisk)
 		}
 	}
 	return normalizeStrategyRuntimeRiskSettings(e.instance.Binding.RuntimeRisk)
 }
 
-func (e *strategyLiveOrderExecutor) runtimeRiskRejectReason(settings strategyRuntimeRiskSettings, command trdsrv.ExecutionOrderCommand) string {
-	side := strings.ToUpper(strings.TrimSpace(command.Side))
-	if settings.CloseOnly {
-		if side != "SELL" {
-			return "close_only"
-		}
-		if sellable := e.runner.sellableQuantity(command.Symbol); command.Query.Quantity > sellable+0.0000001 {
-			return "close_only_insufficient_position"
-		}
-	}
-	if settings.MaxOrderQuantity != nil && command.Query.Quantity > *settings.MaxOrderQuantity {
-		return "max_order_quantity"
-	}
-	if settings.MaxOrderNotional != nil {
-		price := 0.0
-		if command.Query.Price != nil {
-			price = *command.Query.Price
-		}
-		if price <= 0 && e.runner != nil {
-			price = e.runner.currentPrice()
-		}
-		if price <= 0 {
-			return "max_order_notional_missing_price"
-		}
-		if command.Query.Quantity*price > *settings.MaxOrderNotional {
-			return "max_order_notional"
-		}
-	}
-	if settings.DailyMaxOrders != nil && e.manager.todaySubmittedOrderCount(e.instance.ID, command.Symbol, time.Now().UTC()) >= *settings.DailyMaxOrders {
-		return "daily_max_orders"
-	}
-	return ""
-}
-
 func (e *strategyLiveOrderExecutor) recordRuntimeRiskDecision(decision strategyRuntimeRiskDecision, command trdsrv.ExecutionOrderCommand) {
-	if !decision.matched {
+	if !decision.Matched || e == nil || e.manager == nil {
 		return
 	}
-	if decision.rejected {
-		message := fmt.Sprintf("runtime risk rejected %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.reason)
+	if decision.Rejected {
+		message := fmt.Sprintf("runtime risk rejected %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.Reason)
 		e.manager.recordError(e.instance.ID, message, time.Now().UTC())
-		jftradeErr2 := e.server.strategyStore.appendStrategyRuntimeEvent(e.instance.ID, message, "risk_rejected", decision.detail)
+		jftradeErr2 := e.manager.appendRuntimeEvent(e.instance.ID, message, "risk_rejected", decision.Detail)
 		jftradeLogError(jftradeErr2)
-		if decision.pauseOnReject {
+		if decision.PauseOnReject {
 			e.manager.stopStrategy(e.instance.ID)
-			_, jftradeErr3 := e.server.strategyStore.transitionStrategy(e.instance.ID, strategyStatusPaused, "paused", "runtime risk rejected order with pauseOnReject")
+			jftradeErr3 := e.manager.transitionInstance(e.instance.ID, strategyStatusPaused, "paused", "runtime risk rejected order with pauseOnReject")
 			jftradeLogError(jftradeErr3)
 		}
 		return
 	}
-	message := fmt.Sprintf("runtime risk monitor matched %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.reason)
-	jftradeErr1 := e.server.strategyStore.appendStrategyRuntimeEvent(e.instance.ID, message, "risk_monitor", decision.detail)
+	message := fmt.Sprintf("runtime risk monitor matched %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.Reason)
+	jftradeErr1 := e.manager.appendRuntimeEvent(e.instance.ID, message, "risk_monitor", decision.Detail)
 	jftradeLogError(jftradeErr1)
 }
 
@@ -121,24 +87,18 @@ func (r *strategySymbolRuntime) sellableQuantity(symbol string) float64 {
 	if r == nil {
 		return 0
 	}
-	positions := cloneStrategyRuntimePositions(r.cachedPositions)
-	total := 0.0
-	for _, position := range positions {
-		if strategyRuntimePositionMatchesSymbol(position, symbol) {
-			total += position.SellableQuantity
-		}
-	}
-	return total
+	return runtimecontrol.SellableQuantity(strategyRuntimePositionsToControl(cloneStrategyRuntimePositions(r.cachedPositions)), symbol)
 }
 
 func (m *strategyRuntimeManager) todaySubmittedOrderCount(instanceID string, symbol string, now time.Time) int {
-	if m == nil || m.server == nil || m.server.strategyRuntimeStore == nil {
+	if m == nil || m.deps.countRuntimeAudit == nil {
 		return 0
 	}
-	count, err := m.server.strategyRuntimeStore.CountAudit(context.Background(), strategyRuntimeAuditQuery{
+	fromAt := marketDayStartUTC(symbol, now)
+	count, err := m.deps.countRuntimeAudit(context.Background(), runtimeactivity.AuditQuery{
 		InstanceID: strings.TrimSpace(instanceID),
 		Kind:       "order_submitted",
-		FromAt:     new(marketDayStartUTC(symbol, now)),
+		FromAt:     &fromAt,
 	})
 	if err != nil {
 		return 0
@@ -147,27 +107,5 @@ func (m *strategyRuntimeManager) todaySubmittedOrderCount(instanceID string, sym
 }
 
 func marketDayStartUTC(symbol string, now time.Time) time.Time {
-	if start, ok := market.TradingDayBoundaryStart(symbol, now, true); ok {
-		return start
-	}
-	location := time.UTC
-	if profile, ok := market.ProfileForSymbol(symbol); ok && profile.Location != nil {
-		location = profile.Location
-	}
-	local := now.In(location)
-	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location).UTC()
-}
-
-func strategyRuntimeOptionalFloatLabel(value *float64) string {
-	if value == nil {
-		return "none"
-	}
-	return strategyRuntimeFormatNumber(*value)
-}
-
-func strategyRuntimeOptionalIntLabel(value *int) string {
-	if value == nil {
-		return "none"
-	}
-	return fmt.Sprintf("%d", *value)
+	return runtimecontrol.MarketDayStartUTC(symbol, now)
 }

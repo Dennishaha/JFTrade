@@ -1,10 +1,13 @@
 package system
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -28,9 +31,11 @@ func TestSystemRoutesReturnEnvelopes(t *testing.T) {
 		{http.MethodGet, "/api/v1/system/futu-opend/install-guide", []string{"downloadUrl"}},
 		{http.MethodGet, "/api/v1/system/runtime-dependencies", []string{"checkedAt", "allRequiredSatisfied", "dependencies"}},
 		{http.MethodGet, "/api/v1/system/storage/overview", []string{"pendingOutbox"}},
-		{http.MethodGet, "/api/v1/system/real-trade-approvals", []string{"realTradingEnabled", "requiredConfirmationText", "entries"}},
+		{http.MethodGet, "/api/v1/system/real-trade-approvals", []string{"realTradingEnabled", "requiredConfirmationText", "approvalWorkflowStatus", "approvalPolicy", "entries"}},
 		{http.MethodGet, "/api/v1/system/real-trade-hard-stops", []string{"blockedOperations", "entries"}},
+		{http.MethodGet, "/api/v1/system/real-trade-hard-stop-events", []string{"blockedOperations", "entries"}},
 		{http.MethodGet, "/api/v1/system/real-trade-kill-switch", []string{"killSwitchActive", "blockedOperations", "entry"}},
+		{http.MethodGet, "/api/v1/system/real-trade-kill-switch-events", []string{"killSwitchActive", "entries"}},
 		{http.MethodGet, "/api/v1/system/real-trade-risk-limits", []string{"riskEnabled", "effectiveMaxOrderQuantity", "entry"}},
 		{http.MethodGet, "/api/v1/system/real-trade-risk-events", []string{"riskEnabled", "maxOrderQuantity", "entries"}},
 		{http.MethodGet, "/api/v1/system/worker/broker-order-updates", []string{"running"}},
@@ -110,6 +115,140 @@ func TestExchangeCalendarProbeRouteCallsProbe(t *testing.T) {
 	}
 }
 
+func TestRealTradeControlRoutesDelegateStateChanges(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	killSwitchActive := false
+	hardStopActive := false
+	hardStopID := "hs-1"
+	svc := sysservice.NewService(
+		sysservice.WithRealTradeRiskState(func() map[string]any {
+			entries := []map[string]any{}
+			if hardStopActive {
+				entries = append(entries, map[string]any{
+					"id":                 hardStopID,
+					"brokerId":           "futu",
+					"tradingEnvironment": "REAL",
+					"accountId":          "ACC-1",
+				})
+			}
+			return map[string]any{
+				"realTradingEnabled":           true,
+				"killSwitchActive":             killSwitchActive,
+				"killSwitchControlPlaneActive": killSwitchActive,
+				"killSwitchSource":             "CONTROL_PLANE",
+				"hardStopEntries":              entries,
+			}
+		}),
+		sysservice.WithRealTradeKillSwitchControls(
+			func(context.Context, sysservice.RealTradeKillSwitchCommand) (map[string]any, error) {
+				killSwitchActive = true
+				return map[string]any{"killSwitchActive": true}, nil
+			},
+			func(context.Context, sysservice.RealTradeKillSwitchCommand) (map[string]any, error) {
+				killSwitchActive = false
+				return map[string]any{"killSwitchActive": false}, nil
+			},
+		),
+		sysservice.WithRealTradeHardStopControls(
+			func(context.Context, sysservice.RealTradeHardStopCommand) (map[string]any, error) {
+				hardStopActive = true
+				return map[string]any{"entries": []any{map[string]any{"id": hardStopID}}}, nil
+			},
+			func(_ context.Context, id string, _ sysservice.RealTradeHardStopCommand) (map[string]any, error) {
+				if id == hardStopID {
+					hardStopActive = false
+				}
+				return map[string]any{"entries": []any{}}, nil
+			},
+		),
+	)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), svc)
+
+	resp := performSystemRouteJSONRequest(router, http.MethodPost, "/api/v1/system/real-trade-kill-switch/activate", `{"operatorId":"tester","reason":"incident"}`)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("activate kill switch status = %d body=%s", resp.Code, resp.Body.String())
+	}
+	if data := decodeSystemRouteData(t, resp); data["killSwitchActive"] != true {
+		t.Fatalf("activate kill switch data = %#v", data)
+	}
+	if data := decodeSystemRouteData(t, performSystemRouteRequest(router, http.MethodGet, "/api/v1/system/real-trade-kill-switch")); data["killSwitchActive"] != true {
+		t.Fatalf("GET kill switch data = %#v", data)
+	}
+
+	resp = performSystemRouteJSONRequest(router, http.MethodPost, "/api/v1/system/real-trade-hard-stops", `{"accountId":"ACC-1","market":"US","symbol":"AAPL"}`)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("activate hard stop status = %d body=%s", resp.Code, resp.Body.String())
+	}
+	if data := decodeSystemRouteData(t, performSystemRouteRequest(router, http.MethodGet, "/api/v1/system/real-trade-hard-stops")); len(data["entries"].([]any)) != 1 {
+		t.Fatalf("GET hard stops data = %#v", data)
+	}
+
+	resp = performSystemRouteJSONRequest(router, http.MethodPost, "/api/v1/system/real-trade-hard-stops/hs-1/release", `{"operatorId":"tester"}`)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("release hard stop status = %d body=%s", resp.Code, resp.Body.String())
+	}
+	if data := decodeSystemRouteData(t, performSystemRouteRequest(router, http.MethodGet, "/api/v1/system/real-trade-hard-stops")); len(data["entries"].([]any)) != 0 {
+		t.Fatalf("GET released hard stops data = %#v", data)
+	}
+
+	resp = performSystemRouteJSONRequest(router, http.MethodPost, "/api/v1/system/real-trade-kill-switch/release", `{"operatorId":"tester"}`)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("release kill switch status = %d body=%s", resp.Code, resp.Body.String())
+	}
+	if data := decodeSystemRouteData(t, performSystemRouteRequest(router, http.MethodGet, "/api/v1/system/real-trade-kill-switch")); data["killSwitchActive"] != false {
+		t.Fatalf("GET released kill switch data = %#v", data)
+	}
+}
+
+func TestRealTradeControlRoutesMapValidationAndControlFailures(t *testing.T) {
+	gatewayErr := errors.New("control persistence unavailable")
+	svc := sysservice.NewService(
+		sysservice.WithRealTradeKillSwitchControls(
+			func(context.Context, sysservice.RealTradeKillSwitchCommand) (map[string]any, error) {
+				return nil, gatewayErr
+			},
+			func(context.Context, sysservice.RealTradeKillSwitchCommand) (map[string]any, error) {
+				return nil, gatewayErr
+			},
+		),
+		sysservice.WithRealTradeHardStopControls(
+			func(context.Context, sysservice.RealTradeHardStopCommand) (map[string]any, error) {
+				return nil, gatewayErr
+			},
+			func(context.Context, string, sysservice.RealTradeHardStopCommand) (map[string]any, error) {
+				return nil, gatewayErr
+			},
+		),
+	)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), svc)
+
+	for _, path := range []string{
+		"/api/v1/system/real-trade-kill-switch/activate",
+		"/api/v1/system/real-trade-hard-stops",
+	} {
+		response := performSystemRouteJSONRequest(router, http.MethodPost, path, `{`)
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("%s bad JSON status = %d body=%s", path, response.Code, response.Body.String())
+		}
+	}
+	for _, test := range []struct {
+		path string
+		body string
+	}{
+		{path: "/api/v1/system/real-trade-kill-switch/activate", body: `{}`},
+		{path: "/api/v1/system/real-trade-kill-switch/release", body: `{}`},
+		{path: "/api/v1/system/real-trade-hard-stops", body: `{}`},
+		{path: "/api/v1/system/real-trade-hard-stops/hs-1/release", body: `{}`},
+	} {
+		response := performSystemRouteJSONRequest(router, http.MethodPost, test.path, test.body)
+		if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "REAL_TRADE_CONTROL_FAILED") {
+			t.Fatalf("%s control error = %d body=%s", test.path, response.Code, response.Body.String())
+		}
+	}
+}
+
 func newSystemRouteTestRouter() (*gin.Engine, *bool) {
 	gin.SetMode(gin.ReleaseMode)
 	resetCalled := false
@@ -157,6 +296,14 @@ func newSystemRouteTestRouter() (*gin.Engine, *bool) {
 
 func performSystemRouteRequest(router http.Handler, method string, path string) *httptest.ResponseRecorder {
 	req := httptest.NewRequestWithContext(context.Background(), method, path, nil)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+	return resp
+}
+
+func performSystemRouteJSONRequest(router http.Handler, method string, path string, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequestWithContext(context.Background(), method, path, bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 	return resp

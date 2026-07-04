@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 )
 
 func TestExecutionOrderDatabasePathResolution(t *testing.T) {
@@ -23,6 +24,47 @@ func TestExecutionOrderDatabasePathResolution(t *testing.T) {
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
 	if got := deriveExecutionOrderDBPath(settingsPath); got != filepath.Join(filepath.Dir(settingsPath), defaultExecutionOrderDBFilename) {
 		t.Fatalf("derived execution db path = %q", got)
+	}
+}
+
+func TestExecutionOrderPersistenceMigratesV1StatusWithoutDataLoss(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "execution-v1.db")
+	persistence, err := newExecutionOrderSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("initialize v2 store: %v", err)
+	}
+	if err := persistence.Close(); err != nil {
+		t.Fatalf("close v2 seed: %v", err)
+	}
+
+	db, err := sqliteconn.OpenX(dbPath)
+	if err != nil {
+		t.Fatalf("open v2 seed: %v", err)
+	}
+	if _, err := db.Exec(`ALTER TABLE execution_orders DROP COLUMN raw_broker_status`); err != nil {
+		t.Fatalf("downgrade execution schema: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE ` + sqliteschema.MetadataTable + ` SET version = 1 WHERE component_id = 'execution-orders'`); err != nil {
+		t.Fatalf("downgrade schema metadata: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO execution_orders (internal_order_id, status, updated_at, created_at) VALUES ('exec-v1', 'FILLED_PART', '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')`); err != nil {
+		t.Fatalf("insert v1 order: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close v1 seed: %v", err)
+	}
+
+	store, err := newExecutionOrderStoreWithDB(dbPath)
+	if err != nil {
+		t.Fatalf("migrate v1 store: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
+	order, ok := store.order("exec-v1")
+	if !ok || order.Status != "PARTIALLY_FILLED" {
+		t.Fatalf("migrated order = %#v", order)
+	}
+	if order.RawBrokerStatus == nil || *order.RawBrokerStatus != "FILLED_PART" {
+		t.Fatalf("migrated raw broker status = %#v", order.RawBrokerStatus)
 	}
 }
 

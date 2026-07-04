@@ -9,14 +9,19 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	srv "github.com/jftrade/jftrade-main/internal/settings"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 // RegisterRoutes 注册所有 /api/v1/settings 路由。
-func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
+func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, dataManagementServices ...*dmsrv.Service) {
 	settings := api.Group("/settings")
+	dataManagementSvc := dmsrv.NewService(nil)
+	if len(dataManagementServices) > 0 && dataManagementServices[0] != nil {
+		dataManagementSvc = dataManagementServices[0]
+	}
 
 	// UI Appearance
 	settings.GET("/ui", handleUIAppearance(svc))
@@ -42,13 +47,13 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	settings.GET("/pine-worker", handlePineWorkerSettings(svc))
 	settings.PUT("/pine-worker", handleSavePineWorkerSettings(svc))
 
-	settings.GET("/data-migration/databases", handleDataMigrationDatabases(svc, false))
-	settings.POST("/data-migration/databases/rebuild", handleDataMigrationRebuild(svc))
-	settings.GET("/data-management/databases", handleDataMigrationDatabases(svc, true))
-	settings.POST("/data-management/cleanup/preview", handleDataCleanupPreview(svc))
-	settings.POST("/data-management/cleanup/execute", handleDataCleanupExecute(svc))
-	settings.POST("/data-management/databases/:databaseId/compact", handleDatabaseCompact(svc))
-	settings.POST("/data-management/databases/rebuild", handleDataMigrationRebuild(svc))
+	settings.GET("/data-migration/databases", handleDataMigrationDatabases(dataManagementSvc, false))
+	settings.POST("/data-migration/databases/rebuild", handleDataMigrationRebuild(dataManagementSvc))
+	settings.GET("/data-management/databases", handleDataMigrationDatabases(dataManagementSvc, true))
+	settings.POST("/data-management/cleanup/preview", handleDataCleanupPreview(dataManagementSvc))
+	settings.POST("/data-management/cleanup/execute", handleDataCleanupExecute(dataManagementSvc))
+	settings.POST("/data-management/databases/:databaseId/compact", handleDatabaseCompact(dataManagementSvc))
+	settings.POST("/data-management/databases/rebuild", handleDataMigrationRebuild(dataManagementSvc))
 
 	// Exchange Calendars
 	settings.GET("/exchange-calendars", handleExchangeCalendarSettings(svc))
@@ -64,14 +69,14 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	settings.DELETE("/broker-accounts/:accountRecordId", handleDeleteManagedBrokerAccount(svc))
 }
 
-func handleDataMigrationDatabases(svc *srv.Service, allowIncrementalQuery bool) gin.HandlerFunc {
+func handleDataMigrationDatabases(svc *dmsrv.Service, allowIncrementalQuery bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		request := srv.DataManagementOverviewRequest{}
+		request := dmsrv.OverviewRequest{}
 		if allowIncrementalQuery {
 			request.SummaryOnly = strings.EqualFold(c.Query("summaryOnly"), "true")
 			request.DatabaseID = strings.TrimSpace(c.Query("databaseId"))
 		}
-		result, err := svc.DataManagementStatus(c.Request.Context(), request)
+		result, err := svc.Overview(c.Request.Context(), request)
 		if err != nil {
 			if request.DatabaseID != "" {
 				httpserver.WriteError(c, 400, "DATABASE_STATUS_REJECTED", err.Error())
@@ -84,14 +89,14 @@ func handleDataMigrationDatabases(svc *srv.Service, allowIncrementalQuery bool) 
 	}
 }
 
-func handleDataMigrationRebuild(svc *srv.Service) gin.HandlerFunc {
+func handleDataMigrationRebuild(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input srv.DatabaseRebuildRequest
+		var input dmsrv.RebuildRequest
 		if err := c.ShouldBindJSON(&input); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid database rebuild payload")
 			return
 		}
-		result, err := svc.RebuildDatabase(c.Request.Context(), input)
+		result, err := svc.Rebuild(c.Request.Context(), input)
 		if err != nil {
 			httpserver.WriteError(c, 400, "DATABASE_REBUILD_REJECTED", err.Error())
 			return
@@ -100,14 +105,14 @@ func handleDataMigrationRebuild(svc *srv.Service) gin.HandlerFunc {
 	}
 }
 
-func handleDataCleanupPreview(svc *srv.Service) gin.HandlerFunc {
+func handleDataCleanupPreview(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input srv.DataCleanupPreviewRequest
+		var input dmsrv.CleanupPreviewRequest
 		if err := c.ShouldBindJSON(&input); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid cleanup preview payload")
 			return
 		}
-		result, err := svc.PreviewDataCleanup(c.Request.Context(), input)
+		result, err := svc.PreviewCleanup(c.Request.Context(), input)
 		if err != nil {
 			httpserver.WriteError(c, 400, "DATABASE_CLEANUP_PREVIEW_REJECTED", err.Error())
 			return
@@ -116,14 +121,14 @@ func handleDataCleanupPreview(svc *srv.Service) gin.HandlerFunc {
 	}
 }
 
-func handleDataCleanupExecute(svc *srv.Service) gin.HandlerFunc {
+func handleDataCleanupExecute(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input srv.DataCleanupExecuteRequest
+		var input dmsrv.CleanupExecuteRequest
 		if err := c.ShouldBindJSON(&input); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid cleanup payload")
 			return
 		}
-		result, err := svc.ExecuteDataCleanup(c.Request.Context(), input)
+		result, err := svc.ExecuteCleanup(c.Request.Context(), input)
 		if err != nil {
 			writeDataManagementError(c, err, "DATABASE_CLEANUP_FAILED")
 			return
@@ -132,14 +137,14 @@ func handleDataCleanupExecute(svc *srv.Service) gin.HandlerFunc {
 	}
 }
 
-func handleDatabaseCompact(svc *srv.Service) gin.HandlerFunc {
+func handleDatabaseCompact(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input srv.DatabaseCompactRequest
+		var input dmsrv.CompactRequest
 		if err := c.ShouldBindJSON(&input); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid database compact payload")
 			return
 		}
-		result, err := svc.CompactDatabase(c.Request.Context(), c.Param("databaseId"), input)
+		result, err := svc.Compact(c.Request.Context(), c.Param("databaseId"), input)
 		if err != nil {
 			writeDataManagementError(c, err, "DATABASE_COMPACT_FAILED")
 			return
@@ -150,11 +155,11 @@ func handleDatabaseCompact(svc *srv.Service) gin.HandlerFunc {
 
 func writeDataManagementError(c *gin.Context, err error, fallbackCode string) {
 	switch {
-	case errors.Is(err, srv.ErrDatabaseMaintenanceConflict):
+	case errors.Is(err, dmsrv.ErrDatabaseMaintenanceConflict):
 		httpserver.WriteError(c, 409, "DATABASE_MAINTENANCE_CONFLICT", err.Error())
-	case errors.Is(err, srv.ErrCleanupPreviewNotFound):
+	case errors.Is(err, dmsrv.ErrCleanupPreviewNotFound):
 		httpserver.WriteError(c, 404, "CLEANUP_PREVIEW_NOT_FOUND", err.Error())
-	case errors.Is(err, srv.ErrCleanupPreviewStale):
+	case errors.Is(err, dmsrv.ErrCleanupPreviewStale):
 		httpserver.WriteError(c, 409, "CLEANUP_PREVIEW_STALE", err.Error())
 	default:
 		httpserver.WriteError(c, 400, fallbackCode, err.Error())

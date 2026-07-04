@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -15,6 +16,9 @@ func TestStatusDefaultsAndInjectedSummaries(t *testing.T) {
 		}),
 		WithStrategyRuntimeSummary(func() map[string]any {
 			return map[string]any{"status": "idle", "activeStrategies": 0}
+		}),
+		WithRuntimeResources(func() map[string]any {
+			return map[string]any{"checkedAt": "2026-07-04T00:00:00Z", "count": 1, "items": []any{map[string]any{"id": "settings-file", "owner": "settings"}}}
 		}),
 	)
 
@@ -48,6 +52,14 @@ func TestStatusDefaultsAndInjectedSummaries(t *testing.T) {
 	if !ok || runtime["status"] != "idle" || runtime["activeStrategies"] != 0 {
 		t.Fatalf("strategyRuntime = %#v", status["strategyRuntime"])
 	}
+	resources, ok := status["runtimeResources"].(map[string]any)
+	if !ok || resources["count"] != 1 {
+		t.Fatalf("runtimeResources = %#v", status["runtimeResources"])
+	}
+	items, ok := resources["items"].([]any)
+	if !ok || len(items) != 1 || items[0].(map[string]any)["owner"] != "settings" {
+		t.Fatalf("runtimeResources items = %#v", resources["items"])
+	}
 }
 
 func TestStatusUsesDynamicPortAndTradingEnvironmentProviders(t *testing.T) {
@@ -78,7 +90,7 @@ func TestRealTradeDefaultsMatchFrontendContract(t *testing.T) {
 	svc := NewService()
 
 	approvals := svc.RealTradeApprovals()
-	assertSystemMapKeys(t, approvals, "realTradingEnabled", "requiredConfirmationText", "maxApprovalAgeMs", "approvalPolicy", "entries")
+	assertSystemMapKeys(t, approvals, "realTradingEnabled", "requiredConfirmationText", "maxApprovalAgeMs", "approvalWorkflowAvailable", "approvalWorkflowStatus", "approvalWorkflowMessage", "approvalPolicy", "entries")
 	assertSystemMapMissingKeys(t, approvals, "enabled", "approvals", "pendingCount")
 	if approvals["realTradingEnabled"] != false {
 		t.Fatalf("approvals realTradingEnabled = %v, want false", approvals["realTradingEnabled"])
@@ -89,6 +101,12 @@ func TestRealTradeDefaultsMatchFrontendContract(t *testing.T) {
 	if approvals["maxApprovalAgeMs"] != 5*60*1000 {
 		t.Fatalf("maxApprovalAgeMs = %v", approvals["maxApprovalAgeMs"])
 	}
+	if approvals["approvalWorkflowAvailable"] != false || approvals["approvalWorkflowStatus"] != "not_configured" {
+		t.Fatalf("approval workflow = %#v", approvals)
+	}
+	if message, ok := approvals["approvalWorkflowMessage"].(string); !ok || message == "" {
+		t.Fatalf("approvalWorkflowMessage = %#v, want non-empty string", approvals["approvalWorkflowMessage"])
+	}
 	assertSystemEmptyAnySlice(t, approvals, "entries")
 	policy, ok := approvals["approvalPolicy"].(map[string]any)
 	if !ok {
@@ -96,6 +114,9 @@ func TestRealTradeDefaultsMatchFrontendContract(t *testing.T) {
 	}
 	if policy["approverAllowlistEnabled"] != false || policy["approverCount"] != 0 {
 		t.Fatalf("approvalPolicy = %#v", policy)
+	}
+	if policy["approvalWorkflowAvailable"] != false || policy["approvalMode"] != "none" || policy["largeOrderNotional"] != nil {
+		t.Fatalf("approvalPolicy workflow fields = %#v", policy)
 	}
 
 	killSwitch := svc.RealTradeKillSwitch()
@@ -122,6 +143,160 @@ func TestRealTradeDefaultsMatchFrontendContract(t *testing.T) {
 		t.Fatalf("riskEvents riskEnabled = %v, want false", riskEvents["riskEnabled"])
 	}
 	assertSystemEmptyAnySlice(t, riskEvents, "entries")
+}
+
+func TestRealTradeStateUsesInjectedRiskGatewaySnapshot(t *testing.T) {
+	maxQty := 12.5
+	maxNotional := 2500.0
+	approvalRequired := 1500.0
+	svc := NewService(WithRealTradeRiskState(func() map[string]any {
+		return map[string]any{
+			"realTradingEnabled":            true,
+			"killSwitchActive":              true,
+			"killSwitchSource":              "ENV",
+			"envConfiguredActive":           true,
+			"controlPlaneActive":            false,
+			"killSwitchControlPlaneActive":  false,
+			"riskEnabled":                   true,
+			"riskConfigSource":              "ENV",
+			"envConfiguredMaxOrderQuantity": &maxQty,
+			"envConfiguredMaxOrderNotional": &maxNotional,
+			"riskControlPlaneActive":        false,
+			"controlPlaneMaxOrderQuantity":  nil,
+			"controlPlaneMaxOrderNotional":  nil,
+			"effectiveMaxOrderQuantity":     &maxQty,
+			"effectiveMaxOrderNotional":     &maxNotional,
+			"approvalRequiredNotional":      &approvalRequired,
+		}
+	}))
+
+	status := svc.Status()
+	if status["realTradingEnabled"] != true {
+		t.Fatalf("status realTradingEnabled = %v, want true", status["realTradingEnabled"])
+	}
+	killSwitch := status["realTradingKillSwitch"].(map[string]any)
+	if killSwitch["active"] != true || killSwitch["envConfiguredActive"] != true || killSwitch["allowsCancel"] != true {
+		t.Fatalf("status killSwitch = %#v", killSwitch)
+	}
+	risk := status["realTradingRisk"].(map[string]any)
+	if risk["enabled"] != true || risk["riskConfigSource"] != "ENV" || risk["maxOrderQuantity"] != &maxQty || risk["maxOrderNotional"] != &maxNotional {
+		t.Fatalf("status risk = %#v", risk)
+	}
+
+	state := svc.RealTradeKillSwitch()
+	if state["realTradingEnabled"] != true || state["killSwitchActive"] != true || state["killSwitchSource"] != "ENV" {
+		t.Fatalf("kill switch state = %#v", state)
+	}
+	limits := svc.RealTradeRiskLimits()
+	if limits["riskEnabled"] != true || limits["effectiveMaxOrderQuantity"] != &maxQty || limits["effectiveMaxOrderNotional"] != &maxNotional {
+		t.Fatalf("risk limits = %#v", limits)
+	}
+	events := svc.RealTradeRiskEvents()
+	if events["maxOrderQuantity"] != &maxQty || events["maxOrderNotional"] != &maxNotional {
+		t.Fatalf("risk events = %#v", events)
+	}
+	approvals := svc.RealTradeApprovals()
+	if approvals["approvalWorkflowAvailable"] != false || approvals["approvalWorkflowStatus"] != "not_implemented" {
+		t.Fatalf("approval workflow = %#v", approvals)
+	}
+	policy := approvals["approvalPolicy"].(map[string]any)
+	if policy["largeOrderNotional"] != &approvalRequired || policy["approvalMode"] != "blocking_threshold_without_workflow" || policy["approvalWorkflowAvailable"] != false {
+		t.Fatalf("approval policy = %#v", policy)
+	}
+}
+
+func TestRealTradeStateNormalizesTypedNilSlices(t *testing.T) {
+	var hardStops []map[string]any
+	var hardStopEvents []map[string]any
+	var killSwitchEvents []map[string]any
+	svc := NewService(WithRealTradeRiskState(func() map[string]any {
+		return map[string]any{
+			"hardStopEntries":  hardStops,
+			"hardStopEvents":   hardStopEvents,
+			"killSwitchEvents": killSwitchEvents,
+		}
+	}))
+
+	assertSystemEmptyAnySlice(t, svc.RealTradeHardStops(), "entries")
+	assertSystemEmptyAnySlice(t, svc.RealTradeHardStopEvents(), "entries")
+	assertSystemEmptyAnySlice(t, svc.RealTradeKillSwitchEvents(), "entries")
+}
+
+func TestRealTradeControlDelegatesAndUnavailableBoundaries(t *testing.T) {
+	ctx := t.Context()
+	empty := NewService()
+	for name, run := range map[string]func() error{
+		"activate kill switch": func() error {
+			_, err := empty.ActivateRealTradeKillSwitch(ctx, RealTradeKillSwitchCommand{})
+			return err
+		},
+		"release kill switch": func() error {
+			_, err := empty.ReleaseRealTradeKillSwitch(ctx, RealTradeKillSwitchCommand{})
+			return err
+		},
+		"activate hard stop": func() error { _, err := empty.ActivateRealTradeHardStop(ctx, RealTradeHardStopCommand{}); return err },
+		"release hard stop": func() error {
+			_, err := empty.ReleaseRealTradeHardStop(ctx, "hs-1", RealTradeHardStopCommand{})
+			return err
+		},
+	} {
+		if err := run(); !errors.Is(err, errRealTradeControlUnavailable) {
+			t.Fatalf("%s error = %v", name, err)
+		}
+	}
+
+	calls := map[string]bool{}
+	svc := NewService(
+		WithRealTradeKillSwitchControls(
+			func(_ context.Context, command RealTradeKillSwitchCommand) (map[string]any, error) {
+				calls["activate-kill"] = command.OperatorID == "operator"
+				return map[string]any{"active": true}, nil
+			},
+			func(_ context.Context, command RealTradeKillSwitchCommand) (map[string]any, error) {
+				calls["release-kill"] = command.Reason == "resolved"
+				return map[string]any{"active": false}, nil
+			},
+		),
+		WithRealTradeHardStopControls(
+			func(_ context.Context, command RealTradeHardStopCommand) (map[string]any, error) {
+				calls["activate-stop"] = command.AccountID == "ACC-1"
+				return map[string]any{"id": "hs-1"}, nil
+			},
+			func(_ context.Context, id string, command RealTradeHardStopCommand) (map[string]any, error) {
+				calls["release-stop"] = id == "hs-1" && command.OperatorID == "operator"
+				return map[string]any{"released": true}, nil
+			},
+		),
+	)
+	if result, err := svc.ActivateRealTradeKillSwitch(ctx, RealTradeKillSwitchCommand{OperatorID: "operator"}); err != nil || result["active"] != true {
+		t.Fatalf("ActivateRealTradeKillSwitch = %#v, %v", result, err)
+	}
+	if result, err := svc.ReleaseRealTradeKillSwitch(ctx, RealTradeKillSwitchCommand{Reason: "resolved"}); err != nil || result["active"] != false {
+		t.Fatalf("ReleaseRealTradeKillSwitch = %#v, %v", result, err)
+	}
+	if result, err := svc.ActivateRealTradeHardStop(ctx, RealTradeHardStopCommand{AccountID: "ACC-1"}); err != nil || result["id"] != "hs-1" {
+		t.Fatalf("ActivateRealTradeHardStop = %#v, %v", result, err)
+	}
+	if result, err := svc.ReleaseRealTradeHardStop(ctx, "hs-1", RealTradeHardStopCommand{OperatorID: "operator"}); err != nil || result["released"] != true {
+		t.Fatalf("ReleaseRealTradeHardStop = %#v, %v", result, err)
+	}
+	for name, called := range calls {
+		if !called {
+			t.Fatalf("%s delegate did not receive its command", name)
+		}
+	}
+
+	nilState := NewService(WithRealTradeRiskState(func() map[string]any { return nil }))
+	if nilState.RealTradeApprovals()["realTradingEnabled"] != false {
+		t.Fatal("nil risk state should remain disabled")
+	}
+	if boolValue(map[string]any{"enabled": "true"}, "enabled") || boolValue(map[string]any{}, "missing") {
+		t.Fatal("boolValue accepted missing or non-boolean values")
+	}
+	entries := []string{"event"}
+	if got := anySliceValue(map[string]any{"entries": entries}, "entries"); len(got.([]string)) != 1 {
+		t.Fatalf("anySliceValue = %#v", got)
+	}
 }
 
 func TestFutuHealthAndResetDelegates(t *testing.T) {

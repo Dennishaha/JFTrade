@@ -20,6 +20,7 @@ type subscriptionRequest struct {
 // WebSocket /ws/live 由应用装配层单独注册。
 func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	market := api.Group("/market-data")
+	market.GET("/provider", handleProvider(svc))
 	market.GET("/markets", handleMarkets(svc))
 	market.GET("/instruments", handleInstrumentSearch(svc))
 	market.POST("/instruments/normalize", handleNormalizeInstrument(svc))
@@ -32,6 +33,24 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	market.GET("/snapshots/:market/:symbol", handleSnapshot(svc))
 	market.GET("/candles/:market/:symbol", handleCandles(svc))
 	market.GET("/depth/:market/:symbol", handleDepth(svc))
+}
+
+// handleProvider godoc
+// @Summary 查询行情 Provider 能力与运行状态
+// @Tags market-data
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Failure 502 {object} httpserver.Envelope
+// @Router /api/v1/market-data/provider [get]
+func handleProvider(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status, err := svc.ProviderStatus(c.Request.Context())
+		if err != nil {
+			httpserver.WriteError(c, 502, "MARKET_DATA_PROVIDER_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, status)
+	}
 }
 
 // handleMarkets 返回可用市场列表。

@@ -111,6 +111,14 @@ const selectedStrategyDefinitionSync = computed<StrategyDefinitionSyncStatus | n
     () => selectedStrategy.value?.definitionSync ?? null,
 );
 
+const selectedStrategyDefinitionDocument = computed<StrategyDefinitionDocument | null>(() => {
+    if (selectedStrategy.value === null) {
+        return null;
+    }
+    const definitionId = selectedStrategy.value.definition.strategyId;
+    return strategyDefinitions.value.find((definition) => definition.id === definitionId) ?? null;
+});
+
 const selectedStrategyRuntimeObservation = computed<StrategyRuntimeObservation | null>(
     () => selectedStrategy.value?.runtimeObservation ?? null,
 );
@@ -222,6 +230,9 @@ const selectedStrategySourceFormatLabel = computed(() => {
 
 const selectedStrategyStartHint = computed(() => {
     if (selectedStrategy.value === null) return "请选择策略实例。";
+    if (selectedStrategyLiveLimitations.value.length > 0) {
+        return "当前实例包含 live 暂不支持语义，启动前需要修正策略或切换为仅通知。";
+    }
     if (selectedStrategyBinding.value?.executionMode === "notify_only") {
         return "当前实例为仅通知模式：触发信号只发送准备下单通知，不自动下单。";
     }
@@ -246,6 +257,13 @@ const selectedStrategyCompiledSummary = computed(() => {
     if (parts.length === 0) return "已完成 Pine v6 主路径编译规划。";
     return `已完成 Pine v6 主路径编译规划，包含 ${parts.join(" / ")}。`;
 });
+
+const selectedStrategyLiveLimitations = computed(() =>
+    resolveLiveUnsupportedSemantics(
+        selectedStrategy.value,
+        selectedStrategyDefinitionDocument.value,
+    ),
+);
 
 const canRefreshSelectedStrategyDefinition = computed(
     () =>
@@ -275,6 +293,7 @@ const canStartSelectedStrategy = computed(
         selectedStrategy.value !== null
         && !isLoadingDetails.value
         && selectedStrategy.value.startable
+        && selectedStrategyLiveLimitations.value.length === 0
         && selectedStrategy.value.status !== "RUNNING",
 );
 
@@ -430,6 +449,58 @@ function asRecord(value: unknown): Record<string, unknown> | null {
         return null;
     }
     return value as Record<string, unknown>;
+}
+
+function resolveLiveUnsupportedSemantics(
+    strategy: StrategyInstanceItem | null,
+    definition: StrategyDefinitionDocument | null,
+): string[] {
+    if (strategy === null) {
+        return [];
+    }
+
+    const text = collectStrategySemanticText(strategy, definition);
+    if (text === "") {
+        return [];
+    }
+
+    const warnings: string[] = [];
+    if (
+        /\b(?:qty_percent|quantity_pct|quantityPct|QuantityPct|has_quantity_pct)\b/i.test(text)
+        || /default_qty_type\s*=\s*strategy\.percent_of_equity/i.test(text)
+    ) {
+        warnings.push("检测到 QuantityPct / qty_percent / percent_of_equity；live 运行当前不支持按权益比例换算下单，请改为固定数量或仅通知。");
+    }
+    if (/\bstrategy\.cancel(?:_all)?\s*\(/i.test(text)) {
+        warnings.push("检测到 strategy.cancel / cancel_all；live 运行当前不保证按回测语义撤单，请移除撤单语义或先使用仅通知。");
+    }
+    return warnings;
+}
+
+function collectStrategySemanticText(
+    strategy: StrategyInstanceItem,
+    definition: StrategyDefinitionDocument | null,
+): string {
+    const chunks: string[] = [];
+    const append = (value: unknown) => {
+        if (typeof value === "string" && value.trim() !== "") {
+            chunks.push(value);
+        }
+    };
+
+    append(definition?.script);
+    append(strategy.params.script);
+    append(strategy.params.source);
+    append(strategy.params.sourceCode);
+    append(strategy.params.pineScript);
+    append(strategy.params.compiledSource);
+
+    try {
+        chunks.push(JSON.stringify(strategy.params));
+    } catch {
+        // Ignore non-serializable params; explicit script/source fields above are enough.
+    }
+    return chunks.join("\n");
 }
 
 function formatActionLabel(action: StrategyAction): string {
@@ -820,6 +891,10 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
         detailsError.value = "请先选择策略实例。";
         return;
     }
+    if (action === "start" && selectedStrategyLiveLimitations.value.length > 0) {
+        detailsError.value = `启动前检查未通过：${selectedStrategyLiveLimitations.value.join("；")}`;
+        return;
+    }
 
     isLoadingDetails.value = true;
 
@@ -1017,6 +1092,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         :selected-strategy-source-format-label="selectedStrategySourceFormatLabel"
                         :selected-strategy-start-hint="selectedStrategyStartHint"
                         :selected-strategy-compiled-summary="selectedStrategyCompiledSummary"
+                        :selected-strategy-live-limitations="selectedStrategyLiveLimitations"
                         :is-refreshing-strategy-content="isRefreshingStrategyContent"
                         :is-updating-strategy-runtime-risk="isUpdatingStrategyRuntimeRisk"
                         :can-start-selected-strategy="canStartSelectedStrategy"

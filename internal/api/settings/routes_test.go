@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apisettings "github.com/jftrade/jftrade-main/internal/api/settings"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	srvsettings "github.com/jftrade/jftrade-main/internal/settings"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
@@ -33,6 +34,49 @@ type routeStore struct {
 	createErr   error
 	integration jfsettings.BrokerIntegration
 	created     jfsettings.ManagedBrokerAccount
+}
+
+type routeDataManagementBackend struct {
+	overview func(context.Context, dmsrv.OverviewRequest) (any, error)
+	preview  func(context.Context, dmsrv.CleanupPreviewRequest) (any, error)
+	execute  func(context.Context, dmsrv.CleanupExecuteRequest) (any, error)
+	compact  func(context.Context, string, dmsrv.CompactRequest) (any, error)
+	rebuild  func(context.Context, dmsrv.RebuildRequest) (any, error)
+}
+
+func (b routeDataManagementBackend) Overview(ctx context.Context, request dmsrv.OverviewRequest) (any, error) {
+	if b.overview == nil {
+		return map[string]any{"databases": []any{}}, nil
+	}
+	return b.overview(ctx, request)
+}
+
+func (b routeDataManagementBackend) PreviewCleanup(ctx context.Context, request dmsrv.CleanupPreviewRequest) (any, error) {
+	if b.preview == nil {
+		return nil, errors.New("preview unavailable")
+	}
+	return b.preview(ctx, request)
+}
+
+func (b routeDataManagementBackend) ExecuteCleanup(ctx context.Context, request dmsrv.CleanupExecuteRequest) (any, error) {
+	if b.execute == nil {
+		return nil, errors.New("execute unavailable")
+	}
+	return b.execute(ctx, request)
+}
+
+func (b routeDataManagementBackend) Compact(ctx context.Context, databaseID string, request dmsrv.CompactRequest) (any, error) {
+	if b.compact == nil {
+		return nil, errors.New("compact unavailable")
+	}
+	return b.compact(ctx, databaseID, request)
+}
+
+func (b routeDataManagementBackend) Rebuild(ctx context.Context, request dmsrv.RebuildRequest) (any, error) {
+	if b.rebuild == nil {
+		return nil, errors.New("rebuild unavailable")
+	}
+	return b.rebuild(ctx, request)
 }
 
 func (s *routeStore) Appearance() jfsettings.UIAppearanceSettings {
@@ -590,18 +634,19 @@ func TestExchangeCalendarSettingsRouteUsesInjectedService(t *testing.T) {
 func TestDataMigrationRoutesUseInjectedCallbacks(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	store := &routeStore{}
-	var rebuildPayload any
-	service := srvsettings.NewService(store, srvsettings.WithDataMigration(
-		func(context.Context) (any, error) {
+	var rebuildPayload dmsrv.RebuildRequest
+	dataManagementSvc := dmsrv.NewService(routeDataManagementBackend{
+		overview: func(context.Context, dmsrv.OverviewRequest) (any, error) {
 			return map[string]any{"databases": []map[string]any{{"id": "adk", "status": "incompatible"}}}, nil
 		},
-		func(_ context.Context, payload any) (any, error) {
+		rebuild: func(_ context.Context, payload dmsrv.RebuildRequest) (any, error) {
 			rebuildPayload = payload
 			return map[string]any{"scheduled": true, "restartRequired": true}, nil
 		},
-	))
+	})
+	service := srvsettings.NewService(store)
 	router := gin.New()
-	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service, dataManagementSvc)
 
 	statusRecorder := httptest.NewRecorder()
 	router.ServeHTTP(statusRecorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/data-migration/databases", nil))
@@ -616,47 +661,47 @@ func TestDataMigrationRoutesUseInjectedCallbacks(t *testing.T) {
 	if rebuildRecorder.Code != http.StatusOK || !strings.Contains(rebuildRecorder.Body.String(), `"restartRequired":true`) {
 		t.Fatalf("rebuild response = %d %s", rebuildRecorder.Code, rebuildRecorder.Body.String())
 	}
-	payload, ok := rebuildPayload.(map[string]any)
-	if !ok || payload["databaseId"] != "adk" {
+	if rebuildPayload.DatabaseID != "adk" {
 		t.Fatalf("rebuild payload = %#v", rebuildPayload)
 	}
 }
 
 func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
-	var overviewRequest srvsettings.DataManagementOverviewRequest
-	var previewRequest srvsettings.DataCleanupPreviewRequest
-	service := srvsettings.NewService(&routeStore{}, srvsettings.WithDataManagement(
-		func(_ context.Context, request srvsettings.DataManagementOverviewRequest) (any, error) {
+	var overviewRequest dmsrv.OverviewRequest
+	var previewRequest dmsrv.CleanupPreviewRequest
+	dataManagementSvc := dmsrv.NewService(routeDataManagementBackend{
+		overview: func(_ context.Context, request dmsrv.OverviewRequest) (any, error) {
 			overviewRequest = request
 			if request.DatabaseID == "missing" {
 				return nil, errors.New("unknown database id")
 			}
 			return map[string]any{"databases": []any{}, "totals": map[string]any{"totalBytes": 42}, "summaryOnly": request.SummaryOnly, "databaseId": request.DatabaseID}, nil
 		},
-		func(_ context.Context, request srvsettings.DataCleanupPreviewRequest) (any, error) {
+		preview: func(_ context.Context, request dmsrv.CleanupPreviewRequest) (any, error) {
 			previewRequest = request
 			return map[string]any{"previewId": "preview-1", "candidateCount": 2}, nil
 		},
-		func(_ context.Context, request srvsettings.DataCleanupExecuteRequest) (any, error) {
+		execute: func(_ context.Context, request dmsrv.CleanupExecuteRequest) (any, error) {
 			switch request.PreviewID {
 			case "missing":
-				return nil, srvsettings.ErrCleanupPreviewNotFound
+				return nil, dmsrv.ErrCleanupPreviewNotFound
 			case "stale":
-				return nil, srvsettings.ErrCleanupPreviewStale
+				return nil, dmsrv.ErrCleanupPreviewStale
 			default:
-				return nil, fmt.Errorf("%w: active run", srvsettings.ErrDatabaseMaintenanceConflict)
+				return nil, fmt.Errorf("%w: active run", dmsrv.ErrDatabaseMaintenanceConflict)
 			}
 		},
-		func(context.Context, string, srvsettings.DatabaseCompactRequest) (any, error) {
+		compact: func(context.Context, string, dmsrv.CompactRequest) (any, error) {
 			return map[string]any{"compacted": true}, nil
 		},
-		func(context.Context, srvsettings.DatabaseRebuildRequest) (any, error) {
+		rebuild: func(context.Context, dmsrv.RebuildRequest) (any, error) {
 			return map[string]any{"scheduled": true}, nil
 		},
-	))
+	})
+	service := srvsettings.NewService(&routeStore{})
 	router := gin.New()
-	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service, dataManagementSvc)
 
 	overview := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/data-management/databases", "")
 	if overview.Code != http.StatusOK || !strings.Contains(overview.Body.String(), `"totalBytes":42`) {

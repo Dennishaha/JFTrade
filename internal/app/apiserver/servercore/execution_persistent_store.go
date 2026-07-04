@@ -3,6 +3,7 @@ package servercore
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -41,6 +43,7 @@ type executionOrderSummaryRow struct {
 	Side               sql.NullString  `db:"side"`
 	OrderType          sql.NullString  `db:"order_type"`
 	Status             string          `db:"status"`
+	RawBrokerStatus    sql.NullString  `db:"raw_broker_status"`
 	RequestedQuantity  sql.NullFloat64 `db:"requested_quantity"`
 	RequestedPrice     sql.NullFloat64 `db:"requested_price"`
 	FilledQuantity     sql.NullFloat64 `db:"filled_quantity"`
@@ -112,18 +115,89 @@ func newExecutionOrderSQLiteStore(dbPath string) (*executionOrderSQLiteStore, er
 			return nil, fmt.Errorf("create execution order db directory: %w", err)
 		}
 	}
+	newDatabase := true
+	if info, statErr := os.Stat(trimmedPath); statErr == nil {
+		newDatabase = info.Size() == 0
+	} else if !errors.Is(statErr, os.ErrNotExist) {
+		return nil, fmt.Errorf("inspect execution order sqlite store: %w", statErr)
+	}
 
 	db, err := sqliteconn.OpenX(trimmedPath)
 	if err != nil {
 		return nil, fmt.Errorf("open execution order sqlite store: %w", err)
 	}
 	store := &executionOrderSQLiteStore{db: db, path: trimmedPath}
+	if !newDatabase {
+		if err := store.migrateSchemaV1ToV2(); err != nil {
+			jftradeErr1 := db.Close()
+			jftradeLogError(jftradeErr1)
+			return nil, fmt.Errorf("migrate execution order sqlite store: %w", err)
+		}
+	}
 	if err := store.initializeOrValidateSchema(); err != nil {
 		jftradeErr1 := db.Close()
 		jftradeLogError(jftradeErr1)
 		return nil, fmt.Errorf("migrate execution order sqlite store: %w", err)
 	}
 	return store, nil
+}
+
+func (s *executionOrderSQLiteStore) migrateSchemaV1ToV2() error {
+	var metadataTable string
+	err := s.db.QueryRowxContext(context.Background(),
+		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
+		sqliteschema.MetadataTable,
+	).Scan(&metadataTable)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	var version int
+	err = s.db.QueryRowxContext(context.Background(),
+		`SELECT version FROM `+sqliteschema.MetadataTable+` WHERE component_id = ? LIMIT 1`,
+		"execution-orders",
+	).Scan(&version)
+	if errors.Is(err, sql.ErrNoRows) || version != 1 {
+		return err
+	}
+	if err != nil {
+		return err
+	}
+
+	tx, err := s.db.BeginTxx(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	rollback := true
+	defer func() {
+		if rollback {
+			_ = tx.Rollback()
+		}
+	}()
+	if _, err := tx.ExecContext(context.Background(),
+		`ALTER TABLE `+executionOrderTable+` ADD COLUMN raw_broker_status TEXT`,
+	); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(context.Background(),
+		`UPDATE `+executionOrderTable+` SET raw_broker_status = status WHERE TRIM(status) <> ''`,
+	); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(context.Background(),
+		`UPDATE `+sqliteschema.MetadataTable+` SET version = 2 WHERE component_id = ?`,
+		"execution-orders",
+	); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	rollback = false
+	return nil
 }
 
 func (s *executionOrderSQLiteStore) Close() error {
@@ -160,7 +234,8 @@ func (s *executionOrderSQLiteStore) initializeOrValidateSchema() error {
 			`  last_error_source    TEXT,`,
 			`  submitted_at         TEXT,`,
 			`  updated_at           TEXT NOT NULL DEFAULT '',`,
-			`  created_at           TEXT NOT NULL DEFAULT ''`,
+			`  created_at           TEXT NOT NULL DEFAULT '',`,
+			`  raw_broker_status    TEXT`,
 			`)`,
 		}, " "),
 		strings.Join([]string{
@@ -196,7 +271,7 @@ func (s *executionOrderSQLiteStore) initializeOrValidateSchema() error {
 		s.db,
 		s.path,
 		"execution-orders",
-		1,
+		2,
 		statements,
 		func(ctx context.Context, _ *sqlx.DB) error {
 			if err := s.ensureExistingSchemaCanBeOpened(); err != nil {
@@ -284,6 +359,7 @@ func expectedExecutionOrderColumns() []string {
 		"requested_price:REAL:0", "filled_quantity:REAL:0", "filled_average_price:REAL:0", "remark:TEXT:0",
 		"last_error:TEXT:0", "last_error_code:TEXT:0", "last_error_source:TEXT:0", "submitted_at:TEXT:0",
 		"updated_at:TEXT:0", "created_at:TEXT:0",
+		"raw_broker_status:TEXT:0",
 	}
 }
 
@@ -353,7 +429,7 @@ func (s *executionOrderStore) loadFromDB() error {
 func (s *executionOrderSQLiteStore) loadOrders() ([]executionOrderSummaryResponse, error) {
 	rows := []executionOrderSummaryRow{}
 	if err := s.db.Select(&rows,
-		`SELECT internal_order_id, broker_id, broker_order_id, broker_order_id_ex, source, source_detail, trading_environment, account_id, market, symbol, side, order_type, status, requested_quantity, requested_price, filled_quantity, filled_average_price, remark, last_error, last_error_code, last_error_source, submitted_at, updated_at, created_at FROM `+
+		`SELECT internal_order_id, broker_id, broker_order_id, broker_order_id_ex, source, source_detail, trading_environment, account_id, market, symbol, side, order_type, status, raw_broker_status, requested_quantity, requested_price, filled_quantity, filled_average_price, remark, last_error, last_error_code, last_error_source, submitted_at, updated_at, created_at FROM `+
 			executionOrderTable); err != nil {
 		return nil, err
 	}
@@ -401,9 +477,9 @@ func (s *executionOrderSQLiteStore) loadSequences() (map[string]uint64, error) {
 func (s *executionOrderSQLiteStore) persistOrder(order executionOrderSummaryResponse) error {
 	row := executionOrderSummaryToRow(order)
 	_, err := s.db.NamedExec(
-		`INSERT INTO `+executionOrderTable+` (internal_order_id, broker_id, broker_order_id, broker_order_id_ex, source, source_detail, trading_environment, account_id, market, symbol, side, order_type, status, requested_quantity, requested_price, filled_quantity, filled_average_price, remark, last_error, last_error_code, last_error_source, submitted_at, updated_at, created_at) `+
-			`VALUES (:internal_order_id, :broker_id, :broker_order_id, :broker_order_id_ex, :source, :source_detail, :trading_environment, :account_id, :market, :symbol, :side, :order_type, :status, :requested_quantity, :requested_price, :filled_quantity, :filled_average_price, :remark, :last_error, :last_error_code, :last_error_source, :submitted_at, :updated_at, :created_at) `+
-			`ON CONFLICT(internal_order_id) DO UPDATE SET broker_id = excluded.broker_id, broker_order_id = excluded.broker_order_id, broker_order_id_ex = excluded.broker_order_id_ex, source = excluded.source, source_detail = excluded.source_detail, trading_environment = excluded.trading_environment, account_id = excluded.account_id, market = excluded.market, symbol = excluded.symbol, side = excluded.side, order_type = excluded.order_type, status = excluded.status, requested_quantity = excluded.requested_quantity, requested_price = excluded.requested_price, filled_quantity = excluded.filled_quantity, filled_average_price = excluded.filled_average_price, remark = excluded.remark, last_error = excluded.last_error, last_error_code = excluded.last_error_code, last_error_source = excluded.last_error_source, submitted_at = excluded.submitted_at, updated_at = excluded.updated_at, created_at = excluded.created_at`,
+		`INSERT INTO `+executionOrderTable+` (internal_order_id, broker_id, broker_order_id, broker_order_id_ex, source, source_detail, trading_environment, account_id, market, symbol, side, order_type, status, raw_broker_status, requested_quantity, requested_price, filled_quantity, filled_average_price, remark, last_error, last_error_code, last_error_source, submitted_at, updated_at, created_at) `+
+			`VALUES (:internal_order_id, :broker_id, :broker_order_id, :broker_order_id_ex, :source, :source_detail, :trading_environment, :account_id, :market, :symbol, :side, :order_type, :status, :raw_broker_status, :requested_quantity, :requested_price, :filled_quantity, :filled_average_price, :remark, :last_error, :last_error_code, :last_error_source, :submitted_at, :updated_at, :created_at) `+
+			`ON CONFLICT(internal_order_id) DO UPDATE SET broker_id = excluded.broker_id, broker_order_id = excluded.broker_order_id, broker_order_id_ex = excluded.broker_order_id_ex, source = excluded.source, source_detail = excluded.source_detail, trading_environment = excluded.trading_environment, account_id = excluded.account_id, market = excluded.market, symbol = excluded.symbol, side = excluded.side, order_type = excluded.order_type, status = excluded.status, raw_broker_status = excluded.raw_broker_status, requested_quantity = excluded.requested_quantity, requested_price = excluded.requested_price, filled_quantity = excluded.filled_quantity, filled_average_price = excluded.filled_average_price, remark = excluded.remark, last_error = excluded.last_error, last_error_code = excluded.last_error_code, last_error_source = excluded.last_error_source, submitted_at = excluded.submitted_at, updated_at = excluded.updated_at, created_at = excluded.created_at`,
 		row,
 	)
 	return err
@@ -463,7 +539,8 @@ func executionOrderSummaryFromRow(row executionOrderSummaryRow) executionOrderSu
 		Symbol:             nullStringPointer(row.Symbol),
 		Side:               nullStringPointer(row.Side),
 		OrderType:          nullStringPointer(row.OrderType),
-		Status:             row.Status,
+		Status:             trdsrv.CanonicalStoredOrderStatus(row.Status),
+		RawBrokerStatus:    nullStringPointer(row.RawBrokerStatus),
 		RequestedQuantity:  nullFloat64Pointer(row.RequestedQuantity),
 		RequestedPrice:     nullFloat64Pointer(row.RequestedPrice),
 		FilledQuantity:     nullFloat64Pointer(row.FilledQuantity),
@@ -493,6 +570,7 @@ func executionOrderSummaryToRow(order executionOrderSummaryResponse) executionOr
 		Side:               stringPointerNull(order.Side),
 		OrderType:          stringPointerNull(order.OrderType),
 		Status:             order.Status,
+		RawBrokerStatus:    stringPointerNull(order.RawBrokerStatus),
 		RequestedQuantity:  float64PointerNull(order.RequestedQuantity),
 		RequestedPrice:     float64PointerNull(order.RequestedPrice),
 		FilledQuantity:     float64PointerNull(order.FilledQuantity),
@@ -512,11 +590,26 @@ func executionOrderEventFromRow(row executionOrderEventRow) executionOrderEventR
 		ID:              row.ID,
 		InternalOrderID: row.InternalOrderID,
 		EventType:       row.EventType,
-		PreviousStatus:  nullStringPointer(row.PreviousStatus),
-		NextStatus:      row.NextStatus,
+		PreviousStatus:  canonicalPersistedEventStatusPointer(row.EventType, nullStringPointer(row.PreviousStatus)),
+		NextStatus:      canonicalPersistedEventStatus(row.EventType, row.NextStatus),
 		PayloadJSON:     row.PayloadJSON,
 		CreatedAt:       row.CreatedAt,
 	}
+}
+
+func canonicalPersistedEventStatus(eventType, status string) string {
+	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(eventType)), "BROKER_") {
+		return trdsrv.CanonicalBrokerOrderStatus(status)
+	}
+	return trdsrv.CanonicalStoredOrderStatus(status)
+}
+
+func canonicalPersistedEventStatusPointer(eventType string, status *string) *string {
+	if status == nil {
+		return nil
+	}
+	canonical := canonicalPersistedEventStatus(eventType, *status)
+	return &canonical
 }
 
 func executionOrderEventToRow(event executionOrderEventResponse) executionOrderEventRow {

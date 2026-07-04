@@ -104,6 +104,16 @@ function createSystemStore() {
     realTradeApprovals: ref({
       ...emptyRealTradeApprovals,
       realTradingEnabled: true,
+      approvalWorkflowAvailable: false,
+      approvalWorkflowStatus: "not_implemented",
+      approvalWorkflowMessage:
+        "large-order approval threshold is configured but approval workflow is not implemented yet.",
+      approvalPolicy: {
+        ...emptyRealTradeApprovals.approvalPolicy,
+        largeOrderNotional: 1000,
+        approvalWorkflowAvailable: false,
+        approvalMode: "blocking_threshold_without_workflow",
+      },
       entries: [
         {
           id: "approval-1",
@@ -263,6 +273,36 @@ function createSystemStore() {
             lastErrorAt: "2026-07-01T00:03:00.000Z",
             lastError: "stopped by operator",
             updatedAt: "2026-07-01T00:03:00.000Z",
+          },
+        ],
+      },
+      runtimeResources: {
+        checkedAt: "2026-07-04T00:00:00.000Z",
+        count: 2,
+        items: [
+          {
+            id: "execution-orders-db",
+            owner: "trading",
+            kind: "sqlite",
+            path: "/tmp/execution-orders.db",
+            initializedBy: "trading module",
+            schemaOwner: "execution order store",
+            closeOwner: "trading module",
+            healthProvider: "data-migration/execution",
+            environmentOverride: "JFTRADE_EXECUTION_ORDER_DB",
+            critical: true,
+          },
+          {
+            id: "adk-session-db",
+            owner: "assistant/runtime",
+            kind: "sqlite",
+            path: "/tmp/adk-session.db",
+            initializedBy: "assistant runtime",
+            schemaOwner: "adk session store",
+            closeOwner: "assistant runtime",
+            healthProvider: "system.runtime-dependencies/adk",
+            environmentOverride: "JFTRADE_ADK_SESSION_DB",
+            critical: false,
           },
         ],
       },
@@ -497,6 +537,53 @@ beforeEach(() => {
   });
   testState.fetchEnvelopeWithInitMock = vi.fn(
     async (path: string, init: RequestInit) => {
+      if (path === "/api/v1/system/real-trade-kill-switch/activate") {
+        testState.store!.realTradeKillSwitchState.value = {
+          ...testState.store!.realTradeKillSwitchState.value,
+          killSwitchActive: true,
+          controlPlaneActive: true,
+          killSwitchSource: "CONTROL_PLANE",
+        };
+        return testState.store!.realTradeKillSwitchState.value;
+      }
+      if (path === "/api/v1/system/real-trade-kill-switch/release") {
+        testState.store!.realTradeKillSwitchState.value = {
+          ...testState.store!.realTradeKillSwitchState.value,
+          killSwitchActive: false,
+          controlPlaneActive: false,
+          killSwitchSource: null,
+        };
+        return testState.store!.realTradeKillSwitchState.value;
+      }
+      if (path === "/api/v1/system/real-trade-hard-stops") {
+        const payload = JSON.parse(String(init.body));
+        testState.store!.realTradeHardStops.value = {
+          ...testState.store!.realTradeHardStops.value,
+          entries: [
+            ...testState.store!.realTradeHardStops.value.entries,
+            {
+              id: "hard-stop-created",
+              brokerId: payload.brokerId,
+              accountId: payload.accountId,
+              tradingEnvironment: payload.tradingEnvironment,
+              market: payload.market,
+              symbol: payload.symbol,
+              operatorId: "local",
+              reason: payload.reason,
+            },
+          ],
+        };
+        return testState.store!.realTradeHardStops.value;
+      }
+      if (path === "/api/v1/system/real-trade-hard-stops/hard-stop-1/release") {
+        testState.store!.realTradeHardStops.value = {
+          ...testState.store!.realTradeHardStops.value,
+          entries: testState.store!.realTradeHardStops.value.entries.filter(
+            (entry: any) => entry.id !== "hard-stop-1",
+          ),
+        };
+        return testState.store!.realTradeHardStops.value;
+      }
       if (!path.endsWith("/runtime-risk")) {
         throw new Error(`Unexpected fetchEnvelopeWithInit path: ${path}`);
       }
@@ -531,6 +618,38 @@ afterEach(() => {
 });
 
 describe("SystemPage business flows", () => {
+  it("treats nullable real-trade arrays as empty lists while rendering", async () => {
+    testState.store!.realTradeApprovals.value = {
+      ...testState.store!.realTradeApprovals.value,
+      entries: null,
+    };
+    testState.store!.realTradeHardStops.value = {
+      ...testState.store!.realTradeHardStops.value,
+      blockedOperations: null,
+      entries: null,
+    };
+    testState.store!.realTradeKillSwitchEvents.value = {
+      ...testState.store!.realTradeKillSwitchEvents.value,
+      blockedOperations: null,
+      entries: null,
+    };
+    testState.store!.realTradeKillSwitchState.value = {
+      ...testState.store!.realTradeKillSwitchState.value,
+      blockedOperations: null,
+    };
+    testState.store!.realTradeRiskEvents.value = {
+      ...testState.store!.realTradeRiskEvents.value,
+      entries: null,
+    };
+
+    const wrapper = mountSystemPage();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("无活跃实盘硬停止。");
+    expect(wrapper.text()).toContain("实盘熔断开关已激活");
+  });
+
   it("renders rich system summaries and updates strategy runtime risk modes", async () => {
     const wrapper = mountSystemPage();
 
@@ -543,12 +662,72 @@ describe("SystemPage business flows", () => {
     expect(wrapper.text()).toContain("urgent");
     expect(wrapper.text()).toContain("proto_3006");
     expect(wrapper.text()).toContain("实盘审批");
+    expect(wrapper.text()).toContain("approval workflow is not implemented");
     expect(wrapper.text()).toContain("ops-a");
     expect(wrapper.text()).toContain("manual freeze");
     expect(wrapper.text()).toContain("quantity over limit");
     expect(wrapper.text()).toContain("US.AAPL");
     expect(wrapper.text()).toContain("Runtime Paused");
     expect(wrapper.text()).toContain("暂无");
+    expect(wrapper.text()).toContain("execution-orders-db");
+    expect(wrapper.text()).toContain("trading");
+    expect(wrapper.text()).toContain("/tmp/execution-orders.db");
+    expect(wrapper.text()).toContain("adk-session-db");
+    expect(wrapper.text()).toContain("assistant/runtime");
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "激活控制面熔断")!
+      .trigger("click");
+    await flushPromises();
+    expect(testState.fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+      "/api/v1/system/real-trade-kill-switch/activate",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "解除控制面熔断")!
+      .trigger("click");
+    await flushPromises();
+    expect(testState.fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+      "/api/v1/system/real-trade-kill-switch/release",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    await wrapper.get('input[aria-label="硬停止账户 ID"]').setValue("ACC-NEW");
+    await wrapper.get('select[aria-label="硬停止范围"]').setValue("SYMBOL");
+    await wrapper.get('input[aria-label="硬停止市场"]').setValue("us");
+    await wrapper.get('input[aria-label="硬停止标的"]').setValue("msft");
+    await wrapper.get('input[aria-label="硬停止原因"]').setValue("manual test");
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "创建硬停止")!
+      .trigger("click");
+    await flushPromises();
+    const hardStopCreateCall = testState.fetchEnvelopeWithInitMock.mock.calls.find(
+      ([path]: [string]) => path === "/api/v1/system/real-trade-hard-stops",
+    );
+    expect(hardStopCreateCall).toBeTruthy();
+    expect(JSON.parse(String((hardStopCreateCall![1] as RequestInit).body))).toEqual(
+      expect.objectContaining({
+        accountId: "ACC-NEW",
+        hardStopScope: "SYMBOL",
+        market: "US",
+        symbol: "MSFT",
+        reason: "manual test",
+      }),
+    );
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "解除硬停止")!
+      .trigger("click");
+    await flushPromises();
+    expect(testState.fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+      "/api/v1/system/real-trade-hard-stops/hard-stop-1/release",
+      expect.objectContaining({ method: "POST" }),
+    );
 
     const refreshButtons = wrapper.findAll("button").filter((candidate) =>
       candidate.text() === "刷新",

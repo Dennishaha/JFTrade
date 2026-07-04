@@ -6,12 +6,14 @@ import type {
 } from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
+import { useMarketDataProviderStatus } from "../../composables/marketDataProviderStatus";
 import {
   getSharedLiveSocketHub,
   type MarketDepthLiveStreamEvent,
 } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import OrderBookDepthTable from "../domain/market-data/OrderBookDepthTable.vue";
 
 const {
@@ -19,6 +21,11 @@ const {
   currentMarketSecurityDetails: marketSecurityDetails,
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
+const {
+  loadMarketDataProviderStatus,
+  providerCapabilitySummary,
+  providerDisplayName,
+} = useMarketDataProviderStatus();
 
 // --- Depth presets ---
 const DEPTH_PRESETS = [5, 10, 20, 50] as const;
@@ -105,6 +112,15 @@ const askPrice = computed(() => security.value?.askPrice ?? snapshot.value?.ask 
 const bidVolume = computed(() => security.value?.bidVolume ?? null);
 const askVolume = computed(() => security.value?.askVolume ?? null);
 const lastPrice = computed(() => security.value?.currentPrice ?? snapshot.value?.price ?? null);
+const depthObservedAt = computed(() => depthData.value?.meta.resolvedAt ?? null);
+const snapshotObservedAt = computed(() =>
+  marketDataSnapshot.value?.snapshot?.observedAt ??
+  marketDataSnapshot.value?.snapshot?.at ??
+  marketDataSnapshot.value?.meta?.resolvedAt ??
+  null,
+);
+const depthConnectionState = computed(() => liveHub.connectionState?.value ?? "idle");
+const depthTransportMode = computed(() => liveHub.lastHeartbeatEvent?.value?.transport?.mode ?? null);
 
 const changeFromClose = computed(() => {
   const lp = lastPrice.value;
@@ -311,6 +327,7 @@ function setDepthNum(num: number): void {
 
 // --- Lifecycle ---
 onMounted(() => {
+  void loadMarketDataProviderStatus();
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", handleDepthVisibilityChange);
   }
@@ -350,6 +367,21 @@ watch(
       <span class="tv-panel-title">盘口</span>
       <span style="color: var(--tv-text); font-weight: 600">{{ prefs.market }}:{{ prefs.symbol }}</span>
       <div style="flex: 1"></div>
+      <MarketFeedStatus
+        :connection-state="depthConnectionState"
+        :observed-at="depthObservedAt"
+        :comparison-observed-at="snapshotObservedAt"
+        comparison-label="快照"
+        empty-label="暂无深度数据"
+        :transport-mode="depthTransportMode"
+        :session="snapshot?.session ?? null"
+        :source="depthData?.meta.source ?? null"
+        :provider-name="providerDisplayName"
+        :provider-capabilities="providerCapabilitySummary"
+        :from-cache="depthData?.meta.fromCache ?? false"
+        :loading="isLoadingDepth"
+        :error="depthError"
+      />
     </div>
 
     <div class="tv-panel-body is-flush">

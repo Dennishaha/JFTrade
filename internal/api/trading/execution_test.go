@@ -24,6 +24,8 @@ func TestExecutionCommandErrorMapsRequestAndBrokerFailures(t *testing.T) {
 		code   string
 	}{
 		{name: "request", err: srv.RequestError{}, status: http.StatusBadRequest, code: "BAD_REQUEST"},
+		{name: "risk rejected", err: srv.RiskRejectedError{Decision: srv.PreTradeRiskDecision{ReasonCode: "REAL_TRADING_DISABLED"}}, status: http.StatusConflict, code: "PRE_TRADE_RISK_REJECTED"},
+		{name: "approval required", err: srv.RiskRejectedError{Decision: srv.PreTradeRiskDecision{Decision: srv.RiskDecisionRequireApproval}}, status: http.StatusConflict, code: "PRE_TRADE_APPROVAL_REQUIRED"},
 		{name: "account not found", err: broker.NewBrokerError("futu", broker.ErrCodeAccountNotFound, "missing"), status: http.StatusBadRequest, code: "BAD_REQUEST"},
 		{name: "timeout", err: broker.NewBrokerError("futu", broker.ErrCodeTimeout, "slow"), status: http.StatusGatewayTimeout, code: "BROKER_TIMEOUT"},
 		{name: "rate limited", err: broker.NewBrokerError("futu", broker.ErrCodeRateLimited, "limit"), status: http.StatusTooManyRequests, code: "BROKER_RATE_LIMITED"},
@@ -39,6 +41,38 @@ func TestExecutionCommandErrorMapsRequestAndBrokerFailures(t *testing.T) {
 				t.Fatalf("executionCommandError(%v) = (%d, %q), want (%d, %q)", tc.err, status, code, tc.status, tc.code)
 			}
 		})
+	}
+}
+
+func TestHandleExecutionPlaceReturnsRiskRejectionEnvelope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	service := srv.NewService(
+		srv.WithPreTradeRiskGateway(srv.NewStaticPreTradeRiskGateway(func() srv.PreTradeRiskConfig {
+			return srv.PreTradeRiskConfig{}
+		})),
+		srv.WithPlaceOrder(func(context.Context, srv.ExecutionOrderCommand) (srv.ExecutionOrder, error) {
+			t.Fatal("placeOrder should not be called for risk-rejected REAL orders")
+			return srv.ExecutionOrder{}, nil
+		}),
+	)
+	router := gin.New()
+	RegisterExecutionRoutes(router.Group("/api/v1"), service)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execution/orders", strings.NewReader(`{"tradingEnvironment":"REAL","market":"US","symbol":"AAPL","side":"BUY","orderType":"LIMIT","quantity":1,"price":100}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var envelope httpserver.Envelope
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("unmarshal envelope: %v", err)
+	}
+	if envelope.Error == nil || envelope.Error.Code != "PRE_TRADE_RISK_REJECTED" {
+		t.Fatalf("error envelope = %#v", envelope.Error)
 	}
 }
 
@@ -171,5 +205,36 @@ func TestExecutionPlacePreviewAndEventsRoutes(t *testing.T) {
 	router.ServeHTTP(eventsRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/execution/orders/internal-1/events", nil))
 	if eventsRec.Code != http.StatusOK {
 		t.Fatalf("events status=%d body=%s", eventsRec.Code, eventsRec.Body.String())
+	}
+}
+
+func TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := srv.NewService(
+		srv.WithListOrders(func(context.Context, srv.ExecutionOrderFilter) (srv.ExecutionOrders, error) {
+			return srv.ExecutionOrders{Orders: []srv.ExecutionOrder{{
+				InternalOrderID: "internal-1", Status: srv.OrderStatusPartiallyFilled,
+				RawBrokerStatus: new("FILLED_PART"),
+			}}}, nil
+		}),
+		srv.WithGetOrderEvents(func(context.Context, string) (srv.ExecutionOrderEvents, error) {
+			return srv.ExecutionOrderEvents{InternalOrderID: "internal-1", Events: []srv.ExecutionOrderEvent{{
+				ID: "evt-1", InternalOrderID: "internal-1", EventType: "BROKER_PUSH_ORDER",
+			}}}, nil
+		}),
+	)
+	router := gin.New()
+	RegisterExecutionRoutes(router.Group("/api/v1"), service)
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/execution/orders/internal-1", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"status":"PARTIALLY_FILLED"`) || !strings.Contains(rec.Body.String(), `"rawBrokerStatus":"FILLED_PART"`) {
+		t.Fatalf("details status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	missing := httptest.NewRecorder()
+	router.ServeHTTP(missing, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/execution/orders/missing", nil))
+	if missing.Code != http.StatusNotFound || !strings.Contains(missing.Body.String(), `"code":"ORDER_NOT_FOUND"`) {
+		t.Fatalf("missing status=%d body=%s", missing.Code, missing.Body.String())
 	}
 }

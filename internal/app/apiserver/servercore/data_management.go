@@ -9,7 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
-	"github.com/jftrade/jftrade-main/internal/settings"
+	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
@@ -20,14 +20,82 @@ func translateDataManagementError(err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, datamigration.ErrMaintenanceConflict):
-		return fmt.Errorf("%w: %v", settings.ErrDatabaseMaintenanceConflict, err)
+		return fmt.Errorf("%w: %v", dmsrv.ErrDatabaseMaintenanceConflict, err)
 	case errors.Is(err, datamigration.ErrPreviewNotFound):
-		return fmt.Errorf("%w: %v", settings.ErrCleanupPreviewNotFound, err)
+		return fmt.Errorf("%w: %v", dmsrv.ErrCleanupPreviewNotFound, err)
 	case errors.Is(err, datamigration.ErrPreviewStale):
-		return fmt.Errorf("%w: %v", settings.ErrCleanupPreviewStale, err)
+		return fmt.Errorf("%w: %v", dmsrv.ErrCleanupPreviewStale, err)
 	default:
 		return err
 	}
+}
+
+type dataManagementBackend struct {
+	manager *datamigration.Manager
+}
+
+func (s *Server) newDataManagementService() *dmsrv.Service {
+	if s == nil || s.dataMigration == nil {
+		return dmsrv.NewService(nil)
+	}
+	return dmsrv.NewService(dataManagementBackend{manager: s.dataMigration})
+}
+
+func (b dataManagementBackend) Overview(ctx context.Context, request dmsrv.OverviewRequest) (any, error) {
+	if b.manager == nil {
+		return map[string]any{"databases": []any{}}, nil
+	}
+	return b.manager.Overview(ctx, datamigration.OverviewRequest{
+		SummaryOnly: request.SummaryOnly,
+		DatabaseID:  request.DatabaseID,
+	})
+}
+
+func (b dataManagementBackend) PreviewCleanup(ctx context.Context, request dmsrv.CleanupPreviewRequest) (any, error) {
+	if b.manager == nil {
+		return nil, fmt.Errorf("database cleanup preview is unavailable")
+	}
+	result, err := b.manager.PreviewCleanup(ctx, datamigration.CleanupPreviewRequest{
+		Kind:          request.Kind,
+		DatabaseID:    request.DatabaseID,
+		OlderThanDays: request.OlderThanDays,
+		KeepLatest:    request.KeepLatest,
+	})
+	return result, translateDataManagementError(err)
+}
+
+func (b dataManagementBackend) ExecuteCleanup(ctx context.Context, request dmsrv.CleanupExecuteRequest) (any, error) {
+	if b.manager == nil {
+		return nil, fmt.Errorf("database cleanup is unavailable")
+	}
+	result, err := b.manager.ExecuteCleanup(ctx, datamigration.CleanupExecuteRequest{
+		PreviewID:    request.PreviewID,
+		Confirmation: request.Confirmation,
+	})
+	return result, translateDataManagementError(err)
+}
+
+func (b dataManagementBackend) Compact(ctx context.Context, databaseID string, request dmsrv.CompactRequest) (any, error) {
+	if b.manager == nil {
+		return nil, fmt.Errorf("database compaction is unavailable")
+	}
+	result, err := b.manager.Compact(ctx, databaseID, datamigration.CompactRequest{Confirmation: request.Confirmation})
+	return result, translateDataManagementError(err)
+}
+
+func (b dataManagementBackend) Rebuild(ctx context.Context, request dmsrv.RebuildRequest) (any, error) {
+	if b.manager == nil {
+		return nil, fmt.Errorf("database rebuild is unavailable")
+	}
+	ids := append([]string{}, request.DatabaseIDs...)
+	if strings.TrimSpace(request.DatabaseID) != "" {
+		ids = append(ids, request.DatabaseID)
+	}
+	return b.manager.ScheduleRebuild(ctx, datamigration.RebuildRequest{
+		DatabaseIDs:  ids,
+		Mode:         request.Mode,
+		Confirmation: request.Confirmation,
+	})
 }
 
 func (s *Server) configureDataManagement() {

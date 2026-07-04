@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -100,6 +101,11 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 	s.nextOrderSeq++
 	s.persistSequenceLocked("orders", s.nextOrderSeq)
 	internalOrderID := fmt.Sprintf("exec-%06d", s.nextOrderSeq)
+	rawBrokerStatus := strings.TrimSpace(input.Status)
+	status := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
+	if rawBrokerStatus == "" {
+		status = trdsrv.OrderStatusSubmitted
+	}
 	summary := executionOrderSummaryResponse{
 		InternalOrderID:    internalOrderID,
 		BrokerID:           strings.TrimSpace(input.BrokerID),
@@ -113,7 +119,8 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 		Symbol:             stringPointerOrNil(input.Symbol),
 		Side:               stringPointerOrNil(input.Side),
 		OrderType:          stringPointerOrNil(input.OrderType),
-		Status:             strings.TrimSpace(input.Status),
+		Status:             status,
+		RawBrokerStatus:    stringPointerOrNil(rawBrokerStatus),
 		RequestedQuantity:  new(input.RequestedQuantity),
 		RequestedPrice:     cloneFloat64Pointer(input.RequestedPrice),
 		FilledQuantity:     new(0.0),
@@ -125,9 +132,6 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 		SubmittedAt:        stringPointerOrNil(submittedAt),
 		UpdatedAt:          now,
 		CreatedAt:          now,
-	}
-	if summary.Status == "" {
-		summary.Status = "SUBMITTED"
 	}
 	if summary.BrokerID == "" {
 		summary.BrokerID = "futu"
@@ -185,8 +189,14 @@ func (s *executionOrderStore) mergePlacedOrderLocked(internalOrderID string, inp
 	if summary.SubmittedAt == nil && submittedAt != "" {
 		summary.SubmittedAt = stringPointerOrNil(submittedAt)
 	}
-	if summary.Status == "" {
-		summary.Status = firstNonEmptyString(input.Status, "SUBMITTED")
+	if rawBrokerStatus := strings.TrimSpace(input.Status); rawBrokerStatus != "" {
+		incomingStatus := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
+		if reconciled, accepted := trdsrv.ReconcileCanonicalOrderStatus(summary.Status, incomingStatus); accepted {
+			summary.Status = reconciled
+			summary.RawBrokerStatus = stringPointerOrNil(rawBrokerStatus)
+		}
+	} else if summary.Status == "" || summary.Status == trdsrv.OrderStatusUnknown {
+		summary.Status = trdsrv.OrderStatusSubmitted
 	}
 	if summary.UpdatedAt == "" {
 		summary.UpdatedAt = createdAt
@@ -218,7 +228,9 @@ func (s *executionOrderStore) markCancelRequested(internalOrderID string, payloa
 		return executionOrderSummaryResponse{}, false
 	}
 	previousStatus := summary.Status
-	summary.Status = "CANCEL_REQUESTED"
+	if reconciled, accepted := trdsrv.ReconcileCanonicalOrderStatus(summary.Status, trdsrv.OrderStatusCancelRequested); accepted {
+		summary.Status = reconciled
+	}
 	summary.UpdatedAt = now
 	s.orders[internalOrderID] = summary
 	s.persistOrderLocked(summary)
@@ -240,6 +252,7 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 		if filledQuantity == nil {
 			filledQuantity = new(0.0)
 		}
+		rawBrokerStatus := strings.TrimSpace(snapshot.Status)
 		summary := executionOrderSummaryResponse{
 			InternalOrderID:    internalOrderID,
 			BrokerID:           strings.TrimSpace(brokerID),
@@ -253,7 +266,8 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 			Symbol:             stringPointerOrNil(snapshot.Symbol),
 			Side:               stringPointerOrNil(snapshot.Side),
 			OrderType:          stringPointerOrNil(snapshot.OrderType),
-			Status:             firstNonEmptyString(snapshot.Status, "SUBMITTED"),
+			Status:             trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus),
+			RawBrokerStatus:    stringPointerOrNil(rawBrokerStatus),
 			RequestedQuantity:  new(snapshot.Quantity),
 			RequestedPrice:     cloneFloat64Pointer(snapshot.Price),
 			FilledQuantity:     filledQuantity,
@@ -279,9 +293,18 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 	summary := s.orders[internalOrderID]
 	changed := false
 	previousStatus := summary.Status
-	if value := strings.TrimSpace(snapshot.Status); value != "" && value != summary.Status {
-		summary.Status = value
-		changed = true
+	if rawBrokerStatus := strings.TrimSpace(snapshot.Status); rawBrokerStatus != "" {
+		incomingStatus := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
+		if reconciled, accepted := trdsrv.ReconcileCanonicalOrderStatus(summary.Status, incomingStatus); accepted {
+			if summary.Status != reconciled {
+				summary.Status = reconciled
+				changed = true
+			}
+			if stringPointersDiffer(summary.RawBrokerStatus, &rawBrokerStatus) {
+				summary.RawBrokerStatus = stringPointerOrNil(rawBrokerStatus)
+				changed = true
+			}
+		}
 	}
 	if value := strings.TrimSpace(snapshot.Market); value != "" && value != summary.Market {
 		summary.Market = value
@@ -332,11 +355,11 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 		summary.RequestedPrice = cloneFloat64Pointer(snapshot.Price)
 		changed = true
 	}
-	if snapshot.FilledQuantity != nil && float64PointersDiffer(summary.FilledQuantity, snapshot.FilledQuantity) {
+	if snapshot.FilledQuantity != nil && *snapshot.FilledQuantity >= optionalFloat64(summary.FilledQuantity) && float64PointersDiffer(summary.FilledQuantity, snapshot.FilledQuantity) {
 		summary.FilledQuantity = cloneFloat64Pointer(snapshot.FilledQuantity)
 		changed = true
 	}
-	if snapshot.FilledAveragePrice != nil && float64PointersDiffer(summary.FilledAveragePrice, snapshot.FilledAveragePrice) {
+	if snapshot.FilledAveragePrice != nil && optionalFloat64(snapshot.FilledQuantity) >= optionalFloat64(summary.FilledQuantity) && float64PointersDiffer(summary.FilledAveragePrice, snapshot.FilledAveragePrice) {
 		summary.FilledAveragePrice = cloneFloat64Pointer(snapshot.FilledAveragePrice)
 		changed = true
 	}
@@ -344,7 +367,7 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 		summary.SubmittedAt = stringPointerOrNil(value)
 		changed = true
 	}
-	if value := strings.TrimSpace(snapshot.UpdatedAt); value != "" && value != summary.UpdatedAt {
+	if value := strings.TrimSpace(snapshot.UpdatedAt); executionTimestampAdvances(summary.UpdatedAt, value) {
 		summary.UpdatedAt = value
 		changed = true
 	}
@@ -373,6 +396,23 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 	return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event)), true
 }
 
+func executionTimestampAdvances(current, incoming string) bool {
+	current = strings.TrimSpace(current)
+	incoming = strings.TrimSpace(incoming)
+	if incoming == "" || incoming == current {
+		return false
+	}
+	if current == "" {
+		return true
+	}
+	currentTime, currentErr := time.Parse(time.RFC3339Nano, current)
+	incomingTime, incomingErr := time.Parse(time.RFC3339Nano, incoming)
+	if currentErr != nil || incomingErr != nil {
+		return true
+	}
+	return incomingTime.After(currentTime)
+}
+
 func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker.OrderFillSnapshot) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
@@ -392,9 +432,10 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 		s.nextOrderSeq++
 		s.persistSequenceLocked("orders", s.nextOrderSeq)
 		internalOrderID = fmt.Sprintf("exec-%06d", s.nextOrderSeq)
-		status := firstNonEmpty(derefString(fill.Status), "FILLED_PART")
-		if status == "" {
-			status = "FILLED_PART"
+		rawBrokerStatus := strings.TrimSpace(derefString(fill.Status))
+		status := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
+		if status == trdsrv.OrderStatusUnknown {
+			status = trdsrv.OrderStatusPartiallyFilled
 		}
 		summary := executionOrderSummaryResponse{
 			InternalOrderID:    internalOrderID,
@@ -410,6 +451,7 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 			Side:               stringPointerOrNil(fill.Side),
 			OrderType:          nil,
 			Status:             status,
+			RawBrokerStatus:    stringPointerOrNil(rawBrokerStatus),
 			RequestedQuantity:  nil,
 			RequestedPrice:     nil,
 			FilledQuantity:     new(fill.FilledQuantity),
@@ -441,13 +483,13 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 	if fill.FillPrice != nil && newFilled > 0 {
 		filledAverage = ((previousAverage * previousFilled) + (*fill.FillPrice * fill.FilledQuantity)) / newFilled
 	}
-	var status string
-	if fillStatus := strings.TrimSpace(derefString(fill.Status)); fillStatus != "" {
-		status = fillStatus
-	} else if summary.RequestedQuantity != nil && newFilled >= *summary.RequestedQuantity && *summary.RequestedQuantity > 0 {
-		status = "FILLED_ALL"
-	} else {
-		status = "FILLED_PART"
+	rawBrokerStatus := strings.TrimSpace(derefString(fill.Status))
+	status := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
+	if status == trdsrv.OrderStatusUnknown {
+		status = trdsrv.OrderStatusPartiallyFilled
+		if summary.RequestedQuantity != nil && newFilled >= *summary.RequestedQuantity && *summary.RequestedQuantity > 0 {
+			status = trdsrv.OrderStatusFilled
+		}
 	}
 	summary.FilledQuantity = new(newFilled)
 	if fill.FillPrice != nil {
@@ -474,7 +516,12 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 	summary.LastError = nil
 	summary.LastErrorCode = nil
 	summary.LastErrorSource = nil
-	summary.Status = status
+	if reconciled, accepted := trdsrv.ReconcileCanonicalOrderStatus(summary.Status, status); accepted {
+		summary.Status = reconciled
+		if rawBrokerStatus != "" {
+			summary.RawBrokerStatus = stringPointerOrNil(rawBrokerStatus)
+		}
+	}
 	summary.UpdatedAt = firstNonEmptyString(fill.FilledAt, now)
 	if summary.SubmittedAt == nil {
 		summary.SubmittedAt = stringPointerOrNil(firstNonEmptyString(fill.FilledAt, now))

@@ -45,7 +45,7 @@ func TestContractSystemStatus(t *testing.T) {
 	}
 
 	// 验证关键字段存在
-	requiredFields := []string{"name", "apiPort", "defaultBroker", "build", "persistence"}
+	requiredFields := []string{"name", "apiPort", "defaultBroker", "build", "persistence", "runtimeResources"}
 	for _, field := range requiredFields {
 		if _, ok := env.Data[field]; !ok {
 			t.Errorf("missing field: %s", field)
@@ -59,6 +59,28 @@ func TestContractSystemStatus(t *testing.T) {
 		}
 	} else {
 		t.Error("build is not a map")
+	}
+	runtimeResources, ok := env.Data["runtimeResources"].(map[string]any)
+	if !ok {
+		t.Fatalf("runtimeResources is not a map: %#v", env.Data["runtimeResources"])
+	}
+	items, ok := runtimeResources["items"].([]any)
+	if !ok || len(items) == 0 {
+		t.Fatalf("runtimeResources.items = %#v", runtimeResources["items"])
+	}
+	foundExecution := false
+	for _, item := range items {
+		resource, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if resource["id"] == "execution-orders-db" && resource["owner"] == "trading" {
+			foundExecution = true
+			break
+		}
+	}
+	if !foundExecution {
+		t.Fatalf("execution-orders-db trading resource missing: %#v", items)
 	}
 }
 

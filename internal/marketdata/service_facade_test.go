@@ -213,3 +213,53 @@ func TestServiceHealthAndSerializationNilBoundaries(t *testing.T) {
 		t.Fatalf("LatestTicksJSON nil sample = %#v", latest)
 	}
 }
+
+func TestServiceProviderStatusCombinesDescriptorHealthAndDemand(t *testing.T) {
+	ctx := context.Background()
+	service := NewService(&dataProviderStub{
+		descriptor: ProviderDescriptor{
+			ProviderID:    "futu-opend",
+			DisplayName:   "Futu OpenD",
+			Source:        "bbgo:futu",
+			DefaultMarket: "HK",
+			Capabilities: ProviderCapabilities{
+				Snapshots:         true,
+				HistoricalCandles: true,
+				OrderBookDepth:    true,
+			},
+			Constraints: ProviderConstraints{
+				RequiresOpenD:           true,
+				RequiresMarketDataRight: true,
+				UsesSubscriptionQuota:   true,
+			},
+		},
+		health: HealthStatus{Connected: false},
+	})
+
+	_, err := service.AcquireSubscription(ctx, "chart", []InstrumentRef{{Market: "US", Symbol: "AAPL"}})
+	if err != nil {
+		t.Fatalf("AcquireSubscription: %v", err)
+	}
+	status, err := service.ProviderStatus(ctx)
+	if err != nil {
+		t.Fatalf("ProviderStatus: %v", err)
+	}
+	if status.Descriptor.ProviderID != "futu-opend" || !status.Descriptor.Capabilities.OrderBookDepth {
+		t.Fatalf("descriptor = %+v", status.Descriptor)
+	}
+	if status.Health.ActiveCount != 1 || status.Health.StreamMode != "snapshot-poll-fallback" {
+		t.Fatalf("health = %+v", status.Health)
+	}
+	if status.Subscriptions["totalActiveSubscriptions"] != 1 {
+		t.Fatalf("subscriptions = %#v", status.Subscriptions)
+	}
+	if status.CheckedAt == "" {
+		t.Fatalf("CheckedAt should be populated")
+	}
+
+	expectedErr := errors.New("descriptor unavailable")
+	_, err = NewService(&dataProviderStub{descriptorErr: expectedErr}).ProviderStatus(ctx)
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("ProviderStatus descriptor err = %v", err)
+	}
+}

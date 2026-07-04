@@ -19,6 +19,9 @@ func TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope(t *testing.T
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
+	if err := server.unavailableDatabases["execution-orders"]; err != nil {
+		t.Fatalf("execution-orders database unavailable: %v", err)
+	}
 	server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "1001",
@@ -329,8 +332,8 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	if order.BrokerOrderID == nil || *order.BrokerOrderID != "3001" {
 		t.Fatalf("brokerOrderId = %#v, want 3001", order.BrokerOrderID)
 	}
-	if got := order.Status; got != "SUBMITTED" {
-		t.Fatalf("status = %q, want SUBMITTED", got)
+	if got := order.Status; got != "BROKER_ACCEPTED" {
+		t.Fatalf("status = %q, want BROKER_ACCEPTED", got)
 	}
 	if order.Source != "broker" || order.SourceDetail != "broker.current" {
 		t.Fatalf("current source = %s/%s, want broker/broker.current", order.Source, order.SourceDetail)
@@ -461,7 +464,7 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 	if !changed || updateEvent == nil || updateEvent.EventType != "BROKER_SYNC_UPDATED" {
 		t.Fatalf("updated sync summary=%+v event=%+v changed=%v", updated, updateEvent, changed)
 	}
-	if updateEvent.PreviousStatus == nil || *updateEvent.PreviousStatus != "SUBMITTED" || updateEvent.NextStatus != "FILLED_PART" {
+	if updateEvent.PreviousStatus == nil || *updateEvent.PreviousStatus != "BROKER_ACCEPTED" || updateEvent.NextStatus != "PARTIALLY_FILLED" {
 		t.Fatalf("update event status = %+v", updateEvent)
 	}
 	if updated.LastError == nil || *updated.LastError != lastError || updated.LastErrorSource == nil || *updated.LastErrorSource != "broker.sync" {
@@ -527,7 +530,7 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 		FilledAt:           "2026-05-20T01:40:00Z",
 		Status:             &finalStatus,
 	})
-	if !changed || finalEvent == nil || completed.Status != "FILLED_ALL" {
+	if !changed || finalEvent == nil || completed.Status != "FILLED" {
 		t.Fatalf("final fill summary=%+v event=%+v changed=%v", completed, finalEvent, changed)
 	}
 	if completed.FilledQuantity == nil || *completed.FilledQuantity != 100 {

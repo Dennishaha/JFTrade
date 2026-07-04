@@ -43,6 +43,12 @@ describe("SharedLiveSocketHub", () => {
           {
             type: "heartbeat",
             at,
+            transport: {
+              mode: "push-stream",
+              activeInstruments: 1,
+              freshInstruments: 1,
+              staleInstruments: 0,
+            },
           },
           {
             source: "system",
@@ -60,6 +66,8 @@ describe("SharedLiveSocketHub", () => {
       at: "2026-07-03T00:05:00.000Z",
     });
     expect(hub.lastHeartbeat.value).toBe("2026-07-03T00:24:00.000Z");
+    expect(hub.lastHeartbeatEvent.value?.transport?.mode).toBe("push-stream");
+    expect(hub.lastHeartbeatEvent.value?.transport?.freshInstruments).toBe(1);
 
     removeListener();
     MockWebSocket.instances[0]?.emitMessage(

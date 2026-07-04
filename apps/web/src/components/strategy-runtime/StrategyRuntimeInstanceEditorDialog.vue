@@ -126,6 +126,25 @@ const notifyOnlyNotice = computed(() =>
         ? "仅通知模式只发送准备下单提示，不自动下单。"
         : "仅通知模式会发送准备下单提示，不自动下单。实例卡片会同步显示“仅通知”。",
 );
+const liveExecutionCompatibilityWarnings = computed(() => {
+    if (props.executionMode !== "live") {
+        return [];
+    }
+    const warnings = [
+        "确认执行会把 Pine 信号转成真实订单意图；下单前仍受全局风控、kill switch、券商能力和账户权限拦截。",
+    ];
+    const script = isCreate.value ? props.createDefinition?.script ?? "" : "";
+    if (/\bqty_percent\s*=|\bdefault_qty_type\s*=\s*strategy\.percent_of_equity|\bstrategy\.percent_of_equity\b/i.test(script)) {
+        warnings.push("检测到百分比仓位或权益比例语义；live 运行不会保证按回测 QuantityPct 口径成交。");
+    }
+    if (/\bstrategy\.cancel(?:_all)?\s*\(/i.test(script)) {
+        warnings.push("检测到 cancel/cancel_all；live 运行可能无法按回测语义完整撤单，请在账户页确认订单事件。");
+    }
+    if (!isCreate.value) {
+        warnings.push("编辑现有实例时请确认策略源码没有 QuantityPct、cancel/cancel_all 等 live 限制语义。");
+    }
+    return warnings;
+});
 const isSelectedCurrentBrokerAccount = computed(() =>
     props.selectedBrokerAccountKey !== ""
     && props.selectedBrokerAccountKey === props.currentBrokerAccountSelectionKey,
@@ -438,6 +457,18 @@ function handleBrokerQueryInput(event: Event): void {
                     </label>
                     <div v-if="executionMode === 'notify_only'" class="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                         {{ notifyOnlyNotice }}
+                    </div>
+                    <div
+                        v-else-if="liveExecutionCompatibilityWarnings.length"
+                        class="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700"
+                        data-testid="strategy-live-compatibility-warning"
+                    >
+                        <div class="font-semibold">确认执行前检查</div>
+                        <ul class="mt-2 list-disc space-y-1 pl-5">
+                            <li v-for="warning in liveExecutionCompatibilityWarnings" :key="warning">
+                                {{ warning }}
+                            </li>
+                        </ul>
                     </div>
                     <section class="rounded-3xl border border-slate-200 bg-white px-4 py-4" data-testid="strategy-runtime-risk-editor">
                         <div class="flex flex-wrap items-center justify-between gap-3">

@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 
-import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import type { ExecutionOrderDetailsResponse, ExecutionOrderEventResponse } from "../../contracts";
+import { fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
 import {
+  formatExecutionEventTypeLabel,
+  formatExecutionOrderStatusLabel,
   formatOrderSideLabel,
   formatOrderTypeLabel,
   formatTimeInForceLabel,
+  isFinalExecutionOrderStatus,
 } from "../../composables/consoleDataFormatting";
 import { useMarketProfiles } from "../../composables/marketProfiles";
 import { formatMarketSessionLabel } from "../../composables/marketSessionDisplay";
@@ -38,6 +42,13 @@ interface OrderFeedback {
   level: OrderFeedbackLevel;
   title: string;
   message: string;
+  internalOrderId: string | null;
+  brokerOrderId: string | null;
+  brokerOrderIdEx: string | null;
+  orderStatus: string | null;
+  rawBrokerStatus: string | null;
+  latestEvent: ExecutionOrderEventResponse | null;
+  checkedAt: string | null;
 }
 
 const side = ref<Side>("BUY");
@@ -50,7 +61,13 @@ const stopPrice = ref<number>(0);
 const hasEditedPrice = ref(false);
 const submitting = ref(false);
 const lastOrderFeedback = ref<OrderFeedback | null>(null);
+const isRefreshingOrderFeedback = ref(false);
 let maxTradeQuantityTimer: ReturnType<typeof setTimeout> | null = null;
+let orderFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+let orderFeedbackPollCount = 0;
+
+const orderFeedbackPollIntervalMs = 2_000;
+const orderFeedbackMaxPolls = 60;
 
 const isRealMode = computed(
   () =>
@@ -382,6 +399,123 @@ function resolveOrderFailureReason(error: unknown): string {
   return "下单请求失败，请稍后重试。";
 }
 
+function normalizeOptionalText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return trimmed === "" ? null : trimmed;
+}
+
+function orderFeedbackAccountHref(feedback: OrderFeedback): string {
+  if (feedback.internalOrderId == null) {
+    return "/account";
+  }
+  const params = new URLSearchParams();
+  params.set("tab", "history");
+  params.set("orderId", feedback.internalOrderId);
+  return `/account?${params.toString()}`;
+}
+
+function canCancelFeedbackOrder(feedback: OrderFeedback): boolean {
+  if (feedback.level !== "success" || feedback.internalOrderId == null) {
+    return false;
+  }
+  const status = feedback.orderStatus?.trim();
+  if (status == null || status === "") {
+    return true;
+  }
+  return !isFinalExecutionOrderStatus(status);
+}
+
+function formatFeedbackOrderStatus(feedback: OrderFeedback): string {
+  if (feedback.orderStatus == null) {
+    return feedback.level === "success" ? "待券商回报" : "未接受";
+  }
+  return formatExecutionOrderStatusLabel(feedback.orderStatus);
+}
+
+function formatBrokerAcceptance(feedback: OrderFeedback): string {
+  const status = feedback.orderStatus?.trim().toUpperCase() ?? "";
+  if (["BROKER_ACCEPTED", "PARTIALLY_FILLED", "FILLED", "CANCEL_REQUESTED", "CANCELLED"].includes(status)) {
+    return "已接受";
+  }
+  if (status === "REJECTED" || status === "EXPIRED") {
+    return "未接受";
+  }
+  return "待确认";
+}
+
+function formatFeedbackCheckedAt(value: string | null): string {
+  if (value == null || value.trim() === "") {
+    return "";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleTimeString("zh-CN", { hour12: false });
+}
+
+function stopOrderFeedbackPolling(): void {
+  if (orderFeedbackTimer != null) {
+    clearTimeout(orderFeedbackTimer);
+    orderFeedbackTimer = null;
+  }
+}
+
+function scheduleOrderFeedbackRefresh(internalOrderId: string): void {
+  stopOrderFeedbackPolling();
+  if (orderFeedbackPollCount >= orderFeedbackMaxPolls) {
+    return;
+  }
+  orderFeedbackTimer = setTimeout(() => {
+    void refreshOrderFeedback(internalOrderId);
+  }, orderFeedbackPollIntervalMs);
+}
+
+async function refreshOrderFeedback(internalOrderId: string, manual = false): Promise<void> {
+  if (internalOrderId === "" || isRefreshingOrderFeedback.value) {
+    return;
+  }
+  isRefreshingOrderFeedback.value = true;
+  orderFeedbackPollCount += 1;
+  try {
+    const details = await fetchEnvelope<ExecutionOrderDetailsResponse>(
+      `/api/v1/execution/orders/${encodeURIComponent(internalOrderId)}`,
+    );
+    const feedback = lastOrderFeedback.value;
+    if (feedback == null || feedback.internalOrderId !== internalOrderId) {
+      return;
+    }
+    feedback.brokerOrderId = normalizeOptionalText(details.order.brokerOrderId);
+    feedback.brokerOrderIdEx = normalizeOptionalText(details.order.brokerOrderIdEx);
+    feedback.orderStatus = normalizeOptionalText(details.order.status);
+    feedback.rawBrokerStatus = normalizeOptionalText(details.order.rawBrokerStatus);
+    feedback.latestEvent = details.recentEvents.at(-1) ?? null;
+    feedback.checkedAt = normalizeOptionalText(details.checkedAt);
+    if (isFinalExecutionOrderStatus(feedback.orderStatus)) {
+      stopOrderFeedbackPolling();
+    } else {
+      scheduleOrderFeedbackRefresh(internalOrderId);
+    }
+  } catch (error) {
+    if (manual) {
+      notifications.push({
+        level: "warn",
+        title: "订单状态刷新失败",
+        message: resolveOrderFailureReason(error),
+        source: "order-entry",
+      });
+    }
+    scheduleOrderFeedbackRefresh(internalOrderId);
+  } finally {
+    isRefreshingOrderFeedback.value = false;
+  }
+}
+
+function startOrderFeedbackPolling(internalOrderId: string): void {
+  orderFeedbackPollCount = 0;
+  scheduleOrderFeedbackRefresh(internalOrderId);
+}
+
 async function loadMaxTradeQuantity(): Promise<void> {
   const instrument = activeInstrument.value;
   if (instrument == null) {
@@ -402,6 +536,7 @@ async function loadMaxTradeQuantity(): Promise<void> {
 
 async function submit(): Promise<void> {
   if (submitting.value) return;
+  stopOrderFeedbackPolling();
   lastOrderFeedback.value = null;
   const instrument = activeInstrument.value;
   if (instrument == null) {
@@ -479,8 +614,11 @@ async function submit(): Promise<void> {
         accepted?: boolean;
         internalOrderId?: string | null;
         brokerOrderId?: string | null;
+        brokerOrderIdEx?: string | null;
+        orderStatus?: string | null;
         brokerErrorCode?: string | null;
         message?: string | null;
+        checkedAt?: string | null;
       }>("/api/v1/execution/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -491,8 +629,8 @@ async function submit(): Promise<void> {
         feedbackLevel = "error";
         feedbackMessage = `下单失败：${reason}`;
       }
-      const brokerOrderId = body.brokerOrderId?.trim();
-      const internalOrderId = body.internalOrderId?.trim();
+      const brokerOrderId = normalizeOptionalText(body.brokerOrderId);
+      const internalOrderId = normalizeOptionalText(body.internalOrderId);
       if (feedbackLevel === "success") {
         if (brokerOrderId) {
           feedbackMessage = `下单成功：已提交订单，券商单号 ${brokerOrderId}`;
@@ -500,16 +638,38 @@ async function submit(): Promise<void> {
           feedbackMessage = `下单成功：已提交订单，内部单号 ${internalOrderId}`;
         }
       }
+      lastOrderFeedback.value = {
+        level: feedbackLevel,
+        title: feedbackTitle,
+        message: feedbackMessage,
+        internalOrderId,
+        brokerOrderId,
+        brokerOrderIdEx: normalizeOptionalText(body.brokerOrderIdEx),
+        orderStatus: normalizeOptionalText(body.orderStatus),
+        rawBrokerStatus: null,
+        latestEvent: null,
+        checkedAt: normalizeOptionalText(body.checkedAt),
+      };
+      if (feedbackLevel === "success" && internalOrderId != null && !isFinalExecutionOrderStatus(body.orderStatus)) {
+        startOrderFeedbackPolling(internalOrderId);
+      }
     } catch (error) {
       feedbackLevel = "error";
       feedbackMessage = `下单失败：${resolveOrderFailureReason(error)}`;
+      lastOrderFeedback.value = {
+        level: feedbackLevel,
+        title: feedbackTitle,
+        message: feedbackMessage,
+        internalOrderId: null,
+        brokerOrderId: null,
+        brokerOrderIdEx: null,
+        orderStatus: null,
+        rawBrokerStatus: null,
+        latestEvent: null,
+        checkedAt: null,
+      };
     }
 
-    lastOrderFeedback.value = {
-      level: feedbackLevel,
-      title: feedbackTitle,
-      message: feedbackMessage,
-    };
     notifications.push({
       level: feedbackLevel,
       title: feedbackTitle,
@@ -566,6 +726,13 @@ watch(
   },
   { immediate: true },
 );
+
+onUnmounted(() => {
+  stopOrderFeedbackPolling();
+  if (maxTradeQuantityTimer != null) {
+    clearTimeout(maxTradeQuantityTimer);
+  }
+});
 </script>
 
 <template>
@@ -726,6 +893,51 @@ watch(
       >
         <div class="tv-order-feedback-title">{{ lastOrderFeedback.title }}</div>
         <div class="tv-order-feedback-message">{{ lastOrderFeedback.message }}</div>
+        <div
+          v-if="lastOrderFeedback.internalOrderId || lastOrderFeedback.brokerOrderId || lastOrderFeedback.brokerOrderIdEx"
+          class="tv-order-receipt-grid"
+        >
+          <div v-if="lastOrderFeedback.internalOrderId">
+            <span>内部单号</span>
+            <strong>{{ lastOrderFeedback.internalOrderId }}</strong>
+          </div>
+          <div v-if="lastOrderFeedback.brokerOrderId || lastOrderFeedback.brokerOrderIdEx">
+            <span>券商单号</span>
+            <strong>{{ lastOrderFeedback.brokerOrderIdEx ?? lastOrderFeedback.brokerOrderId }}</strong>
+          </div>
+          <div>
+            <span>当前状态</span>
+            <strong>{{ formatFeedbackOrderStatus(lastOrderFeedback) }}</strong>
+          </div>
+          <div>
+            <span>券商接受</span>
+            <strong>{{ formatBrokerAcceptance(lastOrderFeedback) }}</strong>
+          </div>
+          <div>
+            <span>撤单</span>
+            <strong>{{ canCancelFeedbackOrder(lastOrderFeedback) ? "可在账户页提交" : "不可提交" }}</strong>
+          </div>
+          <div v-if="lastOrderFeedback.rawBrokerStatus">
+            <span>券商原始状态</span>
+            <strong>{{ lastOrderFeedback.rawBrokerStatus }}</strong>
+          </div>
+        </div>
+        <div v-if="lastOrderFeedback.latestEvent" class="tv-order-feedback-event">
+          最近事件：{{ formatExecutionEventTypeLabel(lastOrderFeedback.latestEvent.eventType) }}
+        </div>
+        <div v-if="lastOrderFeedback.internalOrderId" class="tv-order-feedback-actions">
+          <a :href="orderFeedbackAccountHref(lastOrderFeedback)">查看账户订单</a>
+          <span v-if="lastOrderFeedback.checkedAt">更新于 {{ formatFeedbackCheckedAt(lastOrderFeedback.checkedAt) }}</span>
+          <button
+            type="button"
+            class="tv-icon-btn"
+            title="刷新订单状态"
+            :disabled="isRefreshingOrderFeedback"
+            @click="refreshOrderFeedback(lastOrderFeedback.internalOrderId, true)"
+          >
+            <span class="fa-solid fa-arrows-rotate" aria-hidden="true"></span>
+          </button>
+        </div>
       </div>
     </div>
   </section>
@@ -759,5 +971,64 @@ watch(
   margin-top: 3px;
   color: var(--tv-text-muted);
   overflow-wrap: anywhere;
+}
+
+.tv-order-receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tv-order-receipt-grid div {
+  min-width: 0;
+  border: 1px solid var(--tv-border);
+  border-radius: 5px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.tv-order-receipt-grid span {
+  display: block;
+  color: var(--tv-text-muted);
+  font-size: 10px;
+}
+
+.tv-order-receipt-grid strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--tv-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.tv-order-feedback-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tv-order-feedback-actions a {
+  color: var(--tv-accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tv-order-feedback-actions a:hover {
+  text-decoration: underline;
+}
+
+.tv-order-feedback-actions > span {
+  margin-left: auto;
+  color: var(--tv-text-dim);
+  font-size: 10px;
+}
+
+.tv-order-feedback-event {
+  margin-top: 7px;
+  color: var(--tv-text-muted);
+  font-size: 11px;
 }
 </style>

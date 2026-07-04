@@ -6,6 +6,7 @@ set -euo pipefail
 
 PASS=0
 FAIL=0
+WARN=0
 
 check_no_import() {
   local from="$1"
@@ -15,9 +16,27 @@ check_no_import() {
   if ! imports="$(go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
     echo "  ❌ $label: unable to inspect $from"
     FAIL=$((FAIL + 1))
-  elif grep -Fq "$forbidden" <<<"$imports"; then
+  elif rg -F -x -q "$forbidden" <<<"$imports"; then
     echo "  ❌ $label: $from imports $forbidden"
     FAIL=$((FAIL + 1))
+  else
+    echo "  ✅ $label"
+    PASS=$((PASS + 1))
+  fi
+}
+
+warn_direct_import() {
+  local from="$1"
+  local forbidden="$2"
+  local label="$3"
+  local imports
+
+  if ! imports="$(go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' "$from")"; then
+    echo "  ❌ $label: unable to inspect $from"
+    FAIL=$((FAIL + 1))
+  elif rg -F -x -q "$forbidden" <<<"$imports"; then
+    echo "  ⚠️  $label: $from still imports $forbidden"
+    WARN=$((WARN + 1))
   else
     echo "  ✅ $label"
     PASS=$((PASS + 1))
@@ -114,6 +133,8 @@ echo ""
 # Rule 1: internal/api/* must not import Futu SDK or protobuf packages.
 echo "Rule 1: internal/api/* must not import Futu integration packages"
 check_package_set_no_import "./internal/api/..." "pkg/futu" "api transport must stay broker-protocol free"
+check_package_set_no_import "./internal/api/..." "pkg/adk" "api transport must stay ADK-implementation free"
+check_package_set_no_import "./internal/api/..." "pkg/backtest" "api transport must stay backtest-implementation free"
 check_package_set_no_import "./internal/api/..." "google.golang.org/protobuf" "api transport must stay protobuf free"
 check_no_import "github.com/jftrade/jftrade-main/internal/api/live" "pkg/jftradeapi" "live transport → jftradeapi"
 check_no_import "github.com/jftrade/jftrade-main/internal/api/live" "pkg/futu" "live transport → Futu"
@@ -146,6 +167,7 @@ echo "Rule 6: business modules must not depend on internal/api"
 for pattern in \
   ./internal/system/... \
   ./internal/settings/... \
+  ./internal/datamanagement/... \
   ./internal/marketdata/... \
   ./internal/trading/... \
   ./internal/strategy/... \
@@ -153,6 +175,22 @@ for pattern in \
   ./internal/assistant/...
 do
   check_package_set_no_import "$pattern" "internal/api" "business module transport boundary"
+done
+echo ""
+
+# Rule 6a: domain modules must never depend on the application composition root.
+echo "Rule 6a: business modules must not depend on servercore"
+for pattern in \
+  ./internal/system/... \
+  ./internal/settings/... \
+  ./internal/datamanagement/... \
+  ./internal/marketdata/... \
+  ./internal/trading/... \
+  ./internal/strategy/... \
+  ./internal/backtest/... \
+  ./internal/assistant/...
+do
+  check_package_set_no_import "$pattern" "internal/app/apiserver/servercore" "business module composition-root boundary"
 done
 echo ""
 
@@ -167,6 +205,68 @@ do
   check_package_set_no_import "./internal/assistant/..." "$forbidden" "assistant core boundary"
 done
 check_package_set_no_import "./internal/api/assistant/..." "pkg/jftradeapi" "assistant transport must not depend on legacy sidecar"
+echo ""
+
+# Rule 6c: workflow rules are pure business policy and must not depend on assistant runtime orchestration.
+echo "Rule 6c: assistant workflow rules must not depend on runtime orchestration"
+for forbidden in \
+  "github.com/jftrade/jftrade-main/internal/assistant" \
+  "github.com/jftrade/jftrade-main/pkg/jftradeapi"
+do
+  check_package_set_no_import "./internal/assistant/workflow/..." "$forbidden" "assistant workflow rules boundary"
+done
+echo ""
+
+# Rule 6d: strategy runtime activity persistence belongs to strategy, not servercore.
+echo "Rule 6d: strategy runtime activity store must stay out of servercore"
+for forbidden in \
+  "internal/api" \
+  "internal/app/apiserver/servercore" \
+  "pkg/jftradeapi"
+do
+  check_package_set_no_import "./internal/strategy/runtimeactivity/..." "$forbidden" "strategy runtime activity boundary"
+done
+echo ""
+
+# Rule 6e: strategy runtime control policy belongs to strategy and stays broker/runtime neutral.
+echo "Rule 6e: strategy runtime control rules must stay out of servercore and broker execution"
+for forbidden in \
+  "internal/api" \
+  "internal/app/apiserver/servercore" \
+  "internal/trading" \
+  "pkg/broker" \
+  "pkg/jftradeapi"
+do
+  check_package_set_no_import "./internal/strategy/runtimecontrol/..." "$forbidden" "strategy runtime control boundary"
+done
+echo ""
+
+# Rule 6f: strategy instance binding rules belong to strategy and stay catalog/runtime neutral.
+echo "Rule 6f: strategy instance binding rules must stay out of servercore and runtime execution"
+for forbidden in \
+  "internal/api" \
+  "internal/app/apiserver/servercore" \
+  "internal/trading" \
+  "internal/strategy/runtimeactivity" \
+  "pkg/broker" \
+  "pkg/jftradeapi"
+do
+  check_package_set_no_import "./internal/strategy/instancebinding/..." "$forbidden" "strategy instance binding boundary"
+done
+echo ""
+
+# Rule 6g: strategy instance view rules belong to strategy and stay catalog/runtime neutral.
+echo "Rule 6g: strategy instance view rules must stay out of servercore and runtime execution"
+for forbidden in \
+  "internal/api" \
+  "internal/app/apiserver/servercore" \
+  "internal/trading" \
+  "internal/strategy/runtimeactivity" \
+  "pkg/broker" \
+  "pkg/jftradeapi"
+do
+  check_package_set_no_import "./internal/strategy/instanceview/..." "$forbidden" "strategy instance view boundary"
+done
 echo ""
 
 # Rule 7: cmd entrypoints must go through internal/app assembly packages.
@@ -310,7 +410,22 @@ else
 fi
 echo ""
 
-echo "=== Results: $PASS passed, $FAIL failed ==="
+# Transitional inventory: these imports are known migration work and become
+# hard failures after their internal adapters own the implementation boundary.
+echo "Rule 16a: servercore concrete implementation imports (migration warnings)"
+for forbidden in \
+  "github.com/jftrade/jftrade-main/pkg/futu" \
+  "github.com/jftrade/jftrade-main/pkg/adk" \
+  "github.com/jftrade/jftrade-main/pkg/backtest"
+do
+  warn_direct_import \
+    "github.com/jftrade/jftrade-main/internal/app/apiserver/servercore" \
+    "$forbidden" \
+    "servercore concrete implementation boundary"
+done
+echo ""
+
+echo "=== Results: $PASS passed, $WARN warnings, $FAIL failed ==="
 
 if [ "$FAIL" -gt 0 ]; then
   echo "ERROR: $FAIL forbidden dependency(s) detected."

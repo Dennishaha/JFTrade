@@ -3,8 +3,14 @@ package trading
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 func TestNormalizeExecutionOrderDefaultsUSLimitOrder(t *testing.T) {
@@ -323,6 +329,343 @@ func TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall(t *testing.T)
 	}
 }
 
+func TestCreateExecutionOrderRunsPreTradeRiskBeforeBrokerCall(t *testing.T) {
+	price := 9.75
+	service := NewService(
+		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+			return PreTradeRiskConfig{}
+		})),
+		WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
+			t.Fatal("placeOrder should not be called when REAL trading is disabled")
+			return ExecutionOrder{}, nil
+		}),
+	)
+
+	_, err := service.CreateExecutionOrder(context.Background(), ExecutionPlaceRequest{
+		TradingEnvironment: "REAL",
+		Market:             "US",
+		Symbol:             "AAPL",
+		Side:               "BUY",
+		Quantity:           1,
+		Price:              &price,
+	})
+	if !IsRiskRejected(err) || !strings.Contains(err.Error(), "real trading is disabled") {
+		t.Fatalf("CreateExecutionOrder error = %v, want real-trading risk rejection", err)
+	}
+}
+
+func TestCreateExecutionOrderRequiresApprovalBeforeBrokerCall(t *testing.T) {
+	price := 100.0
+	approvalNotional := 50.0
+	service := NewService(
+		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+			return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredApprovalNotional: &approvalNotional}
+		})),
+		WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
+			t.Fatal("placeOrder should not be called while real-trade approval is required")
+			return ExecutionOrder{}, nil
+		}),
+	)
+
+	_, err := service.CreateExecutionOrder(context.Background(), ExecutionPlaceRequest{
+		TradingEnvironment: "REAL",
+		Market:             "US",
+		Symbol:             "AAPL",
+		Side:               "BUY",
+		Quantity:           1,
+		Price:              &price,
+	})
+	var rejected RiskRejectedError
+	if !errors.As(err, &rejected) || rejected.Decision.Decision != RiskDecisionRequireApproval || !rejected.Decision.RequiresApproval() {
+		t.Fatalf("CreateExecutionOrder error = %#v, want approval-required risk decision", err)
+	}
+	if rejected.Decision.ReasonCode != "REAL_TRADE_APPROVAL_REQUIRED" {
+		t.Fatalf("approval reason = %#v", rejected.Decision)
+	}
+}
+
+func TestCreateExecutionOrderAllowsSimulateWhenRealTradingIsDisabled(t *testing.T) {
+	price := 9.75
+	placed := false
+	service := NewService(
+		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+			return PreTradeRiskConfig{}
+		})),
+		WithPlaceOrder(func(_ context.Context, command ExecutionOrderCommand) (ExecutionOrder, error) {
+			placed = true
+			return ExecutionOrder{InternalOrderID: "local-risk-sim", BrokerID: command.BrokerID, Status: "SUBMITTED"}, nil
+		}),
+	)
+
+	response, err := service.CreateExecutionOrder(context.Background(), ExecutionPlaceRequest{
+		TradingEnvironment: "SIMULATE",
+		Market:             "US",
+		Symbol:             "AAPL",
+		Side:               "BUY",
+		Quantity:           1,
+		Price:              &price,
+	})
+	if err != nil {
+		t.Fatalf("CreateExecutionOrder: %v", err)
+	}
+	if !placed || !response.Accepted || response.InternalOrderID == nil || *response.InternalOrderID != "local-risk-sim" {
+		t.Fatalf("response=%#v placed=%v", response, placed)
+	}
+}
+
+func TestPreTradeRiskRejectsKillSwitchAndLimits(t *testing.T) {
+	price := 10.0
+	maxQty := 5.0
+	maxNotional := 40.0
+	command := ExecutionOrderCommand{Query: broker.PlaceOrderQuery{
+		ReadQuery: broker.ReadQuery{TradingEnvironment: "REAL"},
+		Quantity:  6,
+		Price:     &price,
+	}}
+
+	killSwitch := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredKillSwitch: true}
+	})
+	if decision := killSwitch.EvaluatePlaceOrder(context.Background(), command); decision.Allows() || decision.ReasonCode != "REAL_TRADE_KILL_SWITCH_ACTIVE" {
+		t.Fatalf("kill switch decision = %#v", decision)
+	}
+
+	quantityLimit := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredMaxOrderQty: &maxQty}
+	})
+	if decision := quantityLimit.EvaluatePlaceOrder(context.Background(), command); decision.Allows() || decision.ReasonCode != "MAX_ORDER_QUANTITY_EXCEEDED" {
+		t.Fatalf("quantity decision = %#v", decision)
+	}
+
+	notionalLimit := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredMaxOrderNotional: &maxNotional}
+	})
+	if decision := notionalLimit.EvaluatePlaceOrder(context.Background(), command); decision.Allows() || decision.ReasonCode != "MAX_ORDER_NOTIONAL_EXCEEDED" {
+		t.Fatalf("notional decision = %#v", decision)
+	}
+
+	stopCommand := command
+	stopCommand.Query.Price = nil
+	stopCommand.Query.StopPrice = &price
+	if decision := notionalLimit.EvaluatePlaceOrder(context.Background(), stopCommand); decision.Allows() || decision.ReasonCode != "MAX_ORDER_NOTIONAL_EXCEEDED" {
+		t.Fatalf("stop notional decision = %#v", decision)
+	}
+
+	approvalNotional := 40.0
+	approvalLimit := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredApprovalNotional: &approvalNotional}
+	})
+	if decision := approvalLimit.EvaluatePlaceOrder(context.Background(), command); !decision.RequiresApproval() || decision.ReasonCode != "REAL_TRADE_APPROVAL_REQUIRED" {
+		t.Fatalf("approval decision = %#v", decision)
+	}
+}
+
+func TestPreTradeRiskSnapshotUsesNonNilEmptySlices(t *testing.T) {
+	snapshot := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{}
+	}).Snapshot()
+
+	hardStops, ok := snapshot["hardStopEntries"].([]RealTradeHardStopEntry)
+	if !ok || hardStops == nil || len(hardStops) != 0 {
+		t.Fatalf("hardStopEntries = %#v, want non-nil empty slice", snapshot["hardStopEntries"])
+	}
+	hardStopEvents, ok := snapshot["hardStopEvents"].([]RealTradeControlEvent)
+	if !ok || hardStopEvents == nil || len(hardStopEvents) != 0 {
+		t.Fatalf("hardStopEvents = %#v, want non-nil empty slice", snapshot["hardStopEvents"])
+	}
+	killSwitchEvents, ok := snapshot["killSwitchEvents"].([]RealTradeControlEvent)
+	if !ok || killSwitchEvents == nil || len(killSwitchEvents) != 0 {
+		t.Fatalf("killSwitchEvents = %#v, want non-nil empty slice", snapshot["killSwitchEvents"])
+	}
+}
+
+func TestPreTradeRiskDoesNotLetUnknownNotionalBypassRealTradeControls(t *testing.T) {
+	maxNotional := 1000.0
+	approvalNotional := 500.0
+	command := ExecutionOrderCommand{Query: broker.PlaceOrderQuery{
+		ReadQuery: broker.ReadQuery{TradingEnvironment: "REAL"},
+		Quantity:  2,
+	}}
+
+	limitGateway := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredMaxOrderNotional: &maxNotional}
+	})
+	if decision := limitGateway.EvaluatePlaceOrder(t.Context(), command); decision.ReasonCode != "RISK_PRICE_UNAVAILABLE" || decision.Allows() {
+		t.Fatalf("notional-limit decision = %#v", decision)
+	}
+
+	approvalGateway := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, EnvConfiguredApprovalNotional: &approvalNotional}
+	})
+	if decision := approvalGateway.EvaluatePlaceOrder(t.Context(), command); !decision.RequiresApproval() {
+		t.Fatalf("approval decision = %#v", decision)
+	}
+}
+
+func TestEnvPreTradeRiskGatewayReadsOperationalControls(t *testing.T) {
+	t.Setenv("JFTRADE_ALLOW_REAL_TRADING", "true")
+	t.Setenv("JFTRADE_REAL_TRADE_KILL_SWITCH", "on")
+	t.Setenv("JFTRADE_REAL_TRADE_MAX_ORDER_QUANTITY", "12.5")
+	t.Setenv("JFTRADE_REAL_TRADE_MAX_ORDER_NOTIONAL", "2500")
+	t.Setenv("JFTRADE_REAL_TRADE_APPROVAL_NOTIONAL", "1000")
+
+	snapshot := NewEnvPreTradeRiskGateway().Snapshot()
+	if snapshot["realTradingEnabled"] != true || snapshot["killSwitchActive"] != true {
+		t.Fatalf("snapshot gates = %#v", snapshot)
+	}
+	if snapshot["riskConfigSource"] != "ENV" {
+		t.Fatalf("riskConfigSource = %#v, want ENV", snapshot["riskConfigSource"])
+	}
+	if got := snapshot["effectiveMaxOrderQuantity"].(*float64); got == nil || *got != 12.5 {
+		t.Fatalf("effectiveMaxOrderQuantity = %#v", snapshot["effectiveMaxOrderQuantity"])
+	}
+	if got := snapshot["effectiveMaxOrderNotional"].(*float64); got == nil || *got != 2500 {
+		t.Fatalf("effectiveMaxOrderNotional = %#v", snapshot["effectiveMaxOrderNotional"])
+	}
+	if got := snapshot["approvalRequiredNotional"].(*float64); got == nil || *got != 1000 {
+		t.Fatalf("approvalRequiredNotional = %#v", snapshot["approvalRequiredNotional"])
+	}
+}
+
+func TestRealTradeControlPlanePersistsKillSwitchAndHardStop(t *testing.T) {
+	t.Setenv("JFTRADE_ALLOW_REAL_TRADING", "true")
+	path := filepath.Join(t.TempDir(), "real-trade-control.json")
+	plane, err := NewRealTradeControlPlane(path)
+	if err != nil {
+		t.Fatalf("NewRealTradeControlPlane: %v", err)
+	}
+
+	if _, err := plane.ActivateKillSwitch(context.Background(), RealTradeKillSwitchCommand{
+		OperatorID: "tester",
+		Reason:     "incident",
+	}); err != nil {
+		t.Fatalf("ActivateKillSwitch: %v", err)
+	}
+	snapshot := plane.Snapshot()
+	if snapshot["killSwitchActive"] != true || snapshot["killSwitchSource"] != "CONTROL_PLANE" {
+		t.Fatalf("kill switch snapshot = %#v", snapshot)
+	}
+
+	reloaded, err := NewRealTradeControlPlane(path)
+	if err != nil {
+		t.Fatalf("reload control plane: %v", err)
+	}
+	if reloaded.Snapshot()["killSwitchActive"] != true {
+		t.Fatalf("reloaded snapshot = %#v", reloaded.Snapshot())
+	}
+	if _, err := reloaded.ReleaseKillSwitch(context.Background(), RealTradeKillSwitchCommand{OperatorID: "tester"}); err != nil {
+		t.Fatalf("ReleaseKillSwitch: %v", err)
+	}
+	if reloaded.Snapshot()["killSwitchActive"] != false {
+		t.Fatalf("released snapshot = %#v", reloaded.Snapshot())
+	}
+
+	if _, err := reloaded.ActivateHardStop(context.Background(), RealTradeHardStopCommand{
+		BrokerID:           "futu",
+		TradingEnvironment: "REAL",
+		AccountID:          "ACC-1",
+		Market:             "US",
+		Symbol:             "AAPL",
+		OperatorID:         "tester",
+		Reason:             "symbol halt",
+	}); err != nil {
+		t.Fatalf("ActivateHardStop: %v", err)
+	}
+	price := 10.0
+	decision := reloaded.EvaluatePlaceOrder(context.Background(), ExecutionOrderCommand{
+		BrokerID: "futu",
+		Symbol:   "AAPL",
+		Query: broker.PlaceOrderQuery{
+			ReadQuery: broker.ReadQuery{
+				TradingEnvironment: "REAL",
+				AccountID:          "ACC-1",
+				Market:             "US",
+			},
+			Quantity: 1,
+			Price:    &price,
+		},
+	})
+	if decision.Allows() || decision.ReasonCode != "REAL_TRADE_HARD_STOP_ACTIVE" {
+		t.Fatalf("hard stop decision = %#v", decision)
+	}
+	events := reloaded.Snapshot()["hardStopEvents"].([]RealTradeControlEvent)
+	if len(events) == 0 || events[0].EventType != "rejected" {
+		t.Fatalf("hard stop events = %#v", events)
+	}
+}
+
+func TestRealTradeControlPlaneRollsBackFailedPersistence(t *testing.T) {
+	t.Setenv("JFTRADE_ALLOW_REAL_TRADING", "true")
+	plane, err := NewRealTradeControlPlane("")
+	if err != nil {
+		t.Fatalf("NewRealTradeControlPlane: %v", err)
+	}
+	if _, err := plane.ActivateKillSwitch(t.Context(), RealTradeKillSwitchCommand{Reason: "incident"}); err != nil {
+		t.Fatalf("ActivateKillSwitch: %v", err)
+	}
+	before := plane.Snapshot()
+
+	parentFile := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(parentFile, []byte("blocked"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	plane.path = filepath.Join(parentFile, "real-trade-control.json")
+	if _, err := plane.ReleaseKillSwitch(t.Context(), RealTradeKillSwitchCommand{}); err == nil {
+		t.Fatal("ReleaseKillSwitch should fail when state cannot be persisted")
+	}
+	after := plane.Snapshot()
+	if after["killSwitchActive"] != true {
+		t.Fatalf("failed release opened kill switch: %#v", after)
+	}
+	if len(after["killSwitchEvents"].([]RealTradeControlEvent)) != len(before["killSwitchEvents"].([]RealTradeControlEvent)) {
+		t.Fatalf("failed release changed audit events: before=%#v after=%#v", before, after)
+	}
+
+	plane.path = ""
+	if _, err := plane.ReleaseKillSwitch(t.Context(), RealTradeKillSwitchCommand{}); err != nil {
+		t.Fatalf("ReleaseKillSwitch after restoring persistence: %v", err)
+	}
+	result, err := plane.ActivateHardStop(t.Context(), RealTradeHardStopCommand{AccountID: "ACC-1"})
+	if err != nil {
+		t.Fatalf("ActivateHardStop: %v", err)
+	}
+	entries := result["hardStopEntries"].([]RealTradeHardStopEntry)
+	plane.path = filepath.Join(parentFile, "real-trade-control.json")
+	if _, err := plane.ReleaseHardStop(t.Context(), entries[0].ID, RealTradeHardStopCommand{}); err == nil {
+		t.Fatal("ReleaseHardStop should fail when state cannot be persisted")
+	}
+	if got := plane.Snapshot()["hardStopEntries"].([]RealTradeHardStopEntry); len(got) != 1 || got[0].ID != entries[0].ID {
+		t.Fatalf("failed hard-stop release changed active entries: %#v", got)
+	}
+}
+
+func TestRealTradeControlPlaneFailsClosedWhenPersistedStateCannotLoad(t *testing.T) {
+	t.Setenv("JFTRADE_ALLOW_REAL_TRADING", "true")
+	path := filepath.Join(t.TempDir(), "real-trade-control.json")
+	if err := os.WriteFile(path, []byte("{"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	plane, err := NewRealTradeControlPlane(path)
+	if err == nil || plane == nil {
+		t.Fatalf("NewRealTradeControlPlane = (%#v, %v), want usable fail-closed plane and error", plane, err)
+	}
+	price := 10.0
+	decision := plane.EvaluatePlaceOrder(t.Context(), ExecutionOrderCommand{Query: broker.PlaceOrderQuery{
+		ReadQuery: broker.ReadQuery{TradingEnvironment: "REAL"},
+		Quantity:  1,
+		Price:     &price,
+	}})
+	if decision.ReasonCode != "REAL_TRADE_KILL_SWITCH_ACTIVE" || decision.Allows() {
+		t.Fatalf("fail-closed decision = %#v", decision)
+	}
+	if snapshot := plane.Snapshot(); snapshot["controlPlaneAvailable"] != false || snapshot["controlPlaneError"] == nil {
+		t.Fatalf("fail-closed snapshot = %#v", snapshot)
+	}
+	if _, err := plane.ReleaseKillSwitch(t.Context(), RealTradeKillSwitchCommand{}); err == nil {
+		t.Fatal("unavailable control plane should reject mutations")
+	}
+}
+
 func TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions(t *testing.T) {
 	service := NewService()
 
@@ -371,3 +714,111 @@ func TestNormalizeExecutionOrderRejectsInvalidInstrumentAndUnsupportedOrderType(
 		t.Fatalf("unsupported orderType error = %v", err)
 	}
 }
+
+func TestExecutionOrderDetailsReturnsOrderAndBoundedRecentEvents(t *testing.T) {
+	events := make([]ExecutionOrderEvent, 12)
+	for index := range events {
+		events[index] = ExecutionOrderEvent{ID: fmt.Sprintf("evt-%02d", index+1), InternalOrderID: "exec-1"}
+	}
+	service := NewService(
+		WithListOrders(func(context.Context, ExecutionOrderFilter) (ExecutionOrders, error) {
+			return ExecutionOrders{Orders: []ExecutionOrder{{InternalOrderID: "exec-1", Status: OrderStatusBrokerAccepted}}}, nil
+		}),
+		WithGetOrderEvents(func(context.Context, string) (ExecutionOrderEvents, error) {
+			return ExecutionOrderEvents{InternalOrderID: "exec-1", Events: events}, nil
+		}),
+	)
+	details, err := service.ExecutionOrderDetails(t.Context(), " exec-1 ")
+	if err != nil {
+		t.Fatalf("ExecutionOrderDetails: %v", err)
+	}
+	if details.Order.InternalOrderID != "exec-1" || details.Order.Status != OrderStatusBrokerAccepted {
+		t.Fatalf("details order = %#v", details.Order)
+	}
+	if len(details.RecentEvents) != 10 || details.RecentEvents[0].ID != "evt-03" || details.RecentEvents[9].ID != "evt-12" {
+		t.Fatalf("recent events = %#v", details.RecentEvents)
+	}
+	if details.CheckedAt == "" {
+		t.Fatal("checkedAt is empty")
+	}
+
+	_, err = service.ExecutionOrderDetails(t.Context(), "missing")
+	if !errors.Is(err, ErrExecutionOrderNotFound) {
+		t.Fatalf("missing order error = %v", err)
+	}
+}
+
+func TestExecutionOrderDetailsRefreshesTargetHistoryBeforeReturning(t *testing.T) {
+	store := &executionDetailsRefreshStore{
+		order: ExecutionOrder{
+			InternalOrderID:    "exec-refresh",
+			BrokerID:           "futu",
+			BrokerOrderID:      new("broker-refresh"),
+			TradingEnvironment: "SIMULATE",
+			AccountID:          "ACC-1",
+			Market:             "US",
+			Status:             OrderStatusBrokerAccepted,
+		},
+	}
+	source := &fakeOrderUpdateSource{
+		history: []Order{{
+			AccountID:          "ACC-1",
+			TradingEnvironment: "SIMULATE",
+			Market:             "US",
+			BrokerOrderID:      "broker-refresh",
+			Status:             "FILLED_ALL",
+			UpdatedAt:          "2026-07-04T01:02:03Z",
+		}},
+	}
+	worker := NewOrderUpdatesWorker(source, store, OrderUpdatesConfig{
+		Now: func() time.Time { return time.Date(2026, 7, 4, 1, 2, 3, 0, time.UTC) },
+	})
+	service := NewService(WithOrderStore(store), WithOrderUpdates(worker))
+
+	details, err := service.ExecutionOrderDetails(t.Context(), "exec-refresh")
+	if err != nil {
+		t.Fatalf("ExecutionOrderDetails: %v", err)
+	}
+	if source.historyCalls != 1 {
+		t.Fatalf("history calls = %d, want 1", source.historyCalls)
+	}
+	if len(source.historyQueries) != 1 {
+		t.Fatalf("history queries = %#v", source.historyQueries)
+	}
+	if got := source.historyQueries[0]; got.BrokerID != "futu" || got.TradingEnvironment != "SIMULATE" || got.AccountID != "ACC-1" || got.Market != "US" {
+		t.Fatalf("history query = %#v", got)
+	}
+	if details.Order.Status != OrderStatusFilled || details.Order.RawBrokerStatus == nil || *details.Order.RawBrokerStatus != "FILLED_ALL" {
+		t.Fatalf("details order = %#v", details.Order)
+	}
+}
+
+type executionDetailsRefreshStore struct {
+	order  ExecutionOrder
+	events []ExecutionOrderEvent
+}
+
+func (s *executionDetailsRefreshStore) ListOrders(context.Context, ExecutionOrderFilter) (ExecutionOrders, error) {
+	return ExecutionOrders{Orders: []ExecutionOrder{s.order}}, nil
+}
+
+func (s *executionDetailsRefreshStore) OrderEvents(context.Context, string) (ExecutionOrderEvents, error) {
+	return ExecutionOrderEvents{InternalOrderID: s.order.InternalOrderID, Events: append([]ExecutionOrderEvent(nil), s.events...)}, nil
+}
+
+func (s *executionDetailsRefreshStore) ApplyOrder(_ context.Context, _ string, order Order, _ OrderWriteMetadata) {
+	if s.order.BrokerOrderID == nil || strings.TrimSpace(*s.order.BrokerOrderID) != strings.TrimSpace(order.BrokerOrderID) {
+		return
+	}
+	rawStatus := strings.TrimSpace(order.Status)
+	incomingStatus := CanonicalBrokerOrderStatus(rawStatus)
+	if reconciled, accepted := ReconcileCanonicalOrderStatus(s.order.Status, incomingStatus); accepted {
+		s.order.Status = reconciled
+		s.order.RawBrokerStatus = executionStringPointer(rawStatus)
+	}
+	if strings.TrimSpace(order.UpdatedAt) != "" {
+		s.order.UpdatedAt = order.UpdatedAt
+	}
+}
+
+func (s *executionDetailsRefreshStore) ApplyFill(context.Context, string, Fill) {}

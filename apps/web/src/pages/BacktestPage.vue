@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { KLINE_PERIODS } from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
 import PageHeader from "../components/PageHeader.vue";
+import TradingScopeBar from "../components/TradingScopeBar.vue";
 import type { BacktestFeeRulePayload } from "../contracts";
 import { apiGet, fetchEnvelope } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
@@ -365,6 +366,28 @@ const costModeSummary = computed(() => {
   return `券商 ${broker} / 市场 ${market}`;
 });
 
+type BacktestPlanStepState = "ready" | "active" | "blocked" | "pending";
+
+const selectedStrategySummary = computed(() => {
+  if (selectedDefinition.value == null) {
+    return "未选择策略";
+  }
+  return `${selectedDefinition.value.name} ${formatStrategyVersion(selectedDefinition.value.version)}`;
+});
+
+function backtestPlanStepClass(state: BacktestPlanStepState) {
+  switch (state) {
+    case "ready":
+      return "border-teal-300 bg-teal-50 text-teal-800";
+    case "active":
+      return "border-sky-300 bg-sky-50 text-sky-800";
+    case "blocked":
+      return "border-amber-300 bg-amber-50 text-amber-800";
+    default:
+      return "bt-border bt-bg-muted bt-text-muted";
+  }
+}
+
 function quoteCurrencyFromInstrumentId(instrumentId: string | undefined) {
   const normalized = (instrumentId ?? "").trim().toUpperCase();
   const market = normalized.split(".")[0] ?? "";
@@ -423,6 +446,33 @@ function resolveBacktestPriceBasisNote(run: {
   }
   return `价格口径：图表显示的是${rehabLabel}${intervalLabel}已闭合历史 K 线；不要直接和实时盘后/夜盘快照比较，后者通常是不复权的最新成交。`;
 }
+
+function resolveBacktestParityNotes(run: {
+  request: {
+    executionModel?: string | undefined;
+    interval: string;
+    useExtendedHours?: boolean | undefined;
+  };
+}) {
+  const executionModel = run.request.executionModel?.trim() || "conservative-bar-v1";
+  const sessionMode = run.request.useExtendedHours ? "包含扩展时段数据" : "仅使用常规时段数据";
+  return [
+    "信号一致性：回测和策略运行共用 Pine worker 语义生成信号。",
+    `订单意图一致性：回测复用订单意图模型；实盘仍会受券商能力、账户权限、风控和审批影响。`,
+    `执行一致性：本结果使用 ${executionModel}，按 ${run.request.interval} 已闭合 bar 保守撮合，不能等同真实订单簿或券商成交。`,
+    `数据口径：${sessionMode}；实盘下单 session 需要单独确认。`,
+  ];
+}
+
+const currentBacktestParityNotes = computed(() => {
+  const sessionMode = useExtendedHours.value ? "包含扩展时段数据" : "仅使用常规时段数据";
+  return [
+    "信号一致性：回测和策略运行共用 Pine worker 语义生成信号。",
+    "订单意图一致性：回测会记录策略订单意图；实盘仍会被券商能力、账户权限、风控和审批拦截。",
+    `执行一致性：本次提交将使用 conservative-bar-v1，按 ${interval.value} 已闭合 bar 保守撮合，不代表真实订单簿成交。`,
+    `数据口径：${sessionMode}；实盘下单 session 需要在交易作用域和下单路径中单独确认。`,
+  ];
+});
 
 function resolveStrategyName(definitionId: string | undefined) {
   if (!definitionId) {
@@ -539,6 +589,66 @@ const {
       instrumentId: normalized.instrumentId,
     };
   },
+});
+
+const backtestPlanSteps = computed(() => {
+  const hasStrategy = selectedDefinition.value != null;
+  const hasInstrument = displayInstrumentId.value.trim() !== "";
+  const dataState: BacktestPlanStepState = syncing.value
+    ? "active"
+    : syncProgress.value?.status === "cancelled"
+      ? "blocked"
+      : hasStrategy && hasInstrument
+        ? "ready"
+        : "pending";
+  const runState: BacktestPlanStepState = running.value
+    ? "active"
+    : hasStrategy
+      ? "ready"
+      : "blocked";
+  return [
+    {
+      key: "strategy",
+      label: "策略",
+      value: selectedStrategySummary.value,
+      state: hasStrategy ? "ready" : "blocked",
+    },
+    {
+      key: "instrument",
+      label: "标的与时段",
+      value: hasInstrument
+        ? `${displayInstrumentId.value} · ${periodLabel.value} · ${extendedHoursSupported.value && useExtendedHours.value ? "含扩展时段" : "常规时段"}`
+        : "等待市场与代码",
+      state: hasInstrument ? "ready" : "blocked",
+    },
+    {
+      key: "cost",
+      label: "成本模型",
+      value: costModeSummary.value,
+      state: "ready",
+    },
+    {
+      key: "sync",
+      label: "历史数据",
+      value: syncing.value
+        ? "同步中"
+        : syncProgress.value?.status === "cancelled"
+          ? "同步已取消"
+          : "同步后运行",
+      state: dataState,
+    },
+    {
+      key: "run",
+      label: "运行回测",
+      value: running.value ? "启动中" : hasStrategy ? "可提交" : "等待策略",
+      state: runState,
+    },
+  ] satisfies Array<{
+    key: string;
+    label: string;
+    value: string;
+    state: BacktestPlanStepState;
+  }>;
 });
 
 const expandedPanels = ref<string[]>([]);
@@ -1119,6 +1229,16 @@ watch(
 <template>
   <div class="backtest-page grid gap-4">
     <PageHeader eyebrow="模拟回测" title="回测" description="选择策略定义、标的和时段，同步历史K线后运行回测。" :stats="headerStats" />
+    <TradingScopeBar />
+
+    <div class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-800">
+      <div class="font-semibold">回测/实盘一致性边界</div>
+      <ul class="mt-2 grid gap-1 pl-4 list-disc">
+        <li v-for="note in currentBacktestParityNotes" :key="note">
+          {{ note }}
+        </li>
+      </ul>
+    </div>
 
     <!-- Error banner -->
     <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -1134,6 +1254,39 @@ watch(
       <div class="col-span-4 lg:col-span-3">
         <div :class="[controlPanelClass, 'sticky top-4 p-3']">
           <div class="space-y-2.5">
+            <div class="grid gap-2 rounded-lg border bt-border bt-bg-muted p-2">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-xs font-semibold bt-text-strong">提交步骤</div>
+                <div class="text-[11px] bt-text-muted">准备参数 → 同步数据 → 运行</div>
+              </div>
+              <div class="grid gap-1.5">
+                <div v-for="(step, index) in backtestPlanSteps" :key="step.key"
+                  class="rounded-lg border px-2 py-1.5 text-xs" :class="backtestPlanStepClass(step.state)">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-semibold">{{ index + 1 }}. {{ step.label }}</span>
+                    <span class="shrink-0 uppercase tracking-[0.12em]">
+                      {{
+                        step.state === "active"
+                          ? "进行中"
+                          : step.state === "ready"
+                            ? "就绪"
+                            : step.state === "blocked"
+                              ? "待处理"
+                              : "待准备"
+                      }}
+                    </span>
+                  </div>
+                  <div class="mt-0.5 truncate opacity-90">{{ step.value }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <div class="h-px flex-1 bt-bg-muted"></div>
+              <div class="text-[11px] font-semibold uppercase tracking-[0.16em] bt-text-muted">1 策略与标的</div>
+              <div class="h-px flex-1 bt-bg-muted"></div>
+            </div>
+
             <!-- Strategy -->
             <div class="grid gap-0.5">
               <label class="text-xs font-semibold bt-text-strong">策略定义</label>
@@ -1163,6 +1316,12 @@ watch(
                 <v-select v-model="instrumentType" :items="BACKTEST_INSTRUMENT_TYPE_OPTIONS" item-title="title"
                   item-value="value" density="compact" variant="outlined" />
               </div>
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <div class="h-px flex-1 bt-bg-muted"></div>
+              <div class="text-[11px] font-semibold uppercase tracking-[0.16em] bt-text-muted">2 数据口径</div>
+              <div class="h-px flex-1 bt-bg-muted"></div>
             </div>
 
             <!-- Period -->
@@ -1231,6 +1390,12 @@ watch(
               </div>
             </div>
 
+            <div class="flex items-center gap-2 pt-1">
+              <div class="h-px flex-1 bt-bg-muted"></div>
+              <div class="text-[11px] font-semibold uppercase tracking-[0.16em] bt-text-muted">3 成本模型</div>
+              <div class="h-px flex-1 bt-bg-muted"></div>
+            </div>
+
             <!-- Trading costs -->
             <div class="grid gap-2 rounded-lg border bt-border px-3 py-2">
               <div class="text-xs font-semibold bt-text-strong">交易费用</div>
@@ -1251,6 +1416,12 @@ watch(
                 density="compact" variant="outlined" rows="3" auto-grow hide-details />
               <v-textarea v-if="marketFeeMode === 'custom'" v-model="marketFeeRulesText" label="市场费用规则 JSON"
                 density="compact" variant="outlined" rows="3" auto-grow hide-details />
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <div class="h-px flex-1 bt-bg-muted"></div>
+              <div class="text-[11px] font-semibold uppercase tracking-[0.16em] bt-text-muted">4 同步与运行</div>
+              <div class="h-px flex-1 bt-bg-muted"></div>
             </div>
 
             <!-- Sync section -->
@@ -1514,6 +1685,14 @@ watch(
                     <div class="mt-1">
                       费用口径：券商 {{ run.result.tradingCosts?.brokerFees?.mode ?? "market_preset" }} ｜ 市场
                       {{ run.result.tradingCosts?.marketFees?.mode ?? "market_preset" }}
+                    </div>
+                    <div class="mt-2 border-t bt-border pt-2">
+                      <div class="font-semibold">回测/实盘一致性</div>
+                      <ul class="mt-1 list-disc space-y-1 pl-4">
+                        <li v-for="note in resolveBacktestParityNotes(run)" :key="note">
+                          {{ note }}
+                        </li>
+                      </ul>
                     </div>
                     <div v-if="resolveQueriedCandleBounds(run.result?.candles)" class="mt-1">
                       查询到的周期边界：左边界

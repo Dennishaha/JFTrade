@@ -29,29 +29,65 @@ func (s *Server) newTradingService() *trdsrv.Service {
 		},
 	)
 	return trdsrv.NewService(
-		trdsrv.WithActiveBroker(s.activeBroker),
+		trdsrv.WithBrokerRuntimeProvider(&serverTradingBrokerRuntimeProvider{server: s}),
 		trdsrv.WithDefaultMarket(func() string {
 			return s.store.Integration().Config.TradeMarket
 		}),
 		trdsrv.WithDefaultTradingEnvironment(s.defaultTradingEnvironment),
-		trdsrv.WithBrokerRuntime(s.brokerRuntime),
 		trdsrv.WithOrderUpdates(orderUpdates),
-		trdsrv.WithListOrders(s.listExecutionOrders),
-		trdsrv.WithPlaceOrder(s.placeExecutionOrder),
-		trdsrv.WithCancelOrder(s.cancelExecutionOrder),
-		trdsrv.WithGetOrderEvents(s.getExecutionOrderEvents),
+		trdsrv.WithPreTradeRiskGateway(s.preTradeRiskGateway),
+		trdsrv.WithOrderStore(&serverTradingOrderStore{store: s.executionOrders}),
+		trdsrv.WithOrderGateway(&serverTradingOrderGateway{server: s}),
 	)
 }
+
+type serverTradingBrokerRuntimeProvider struct {
+	server *Server
+}
+
+func (p *serverTradingBrokerRuntimeProvider) ActiveBroker() broker.Broker {
+	return p.server.activeBroker()
+}
+
+func (p *serverTradingBrokerRuntimeProvider) Runtime(ctx context.Context) map[string]any {
+	return p.server.brokerRuntime(ctx)
+}
+
+type serverTradingOrderStore struct {
+	store *executionOrderStore
+}
+
+func (p *serverTradingOrderStore) ListOrders(_ context.Context, filter trdsrv.ExecutionOrderFilter) (trdsrv.ExecutionOrders, error) {
+	return p.store.listOrdersFiltered(filter), nil
+}
+
+func (p *serverTradingOrderStore) OrderEvents(_ context.Context, internalOrderID string) (trdsrv.ExecutionOrderEvents, error) {
+	return p.store.orderEvents(strings.TrimSpace(internalOrderID)), nil
+}
+
+type serverTradingOrderGateway struct {
+	server *Server
+}
+
+func (p *serverTradingOrderGateway) PlaceOrder(ctx context.Context, request trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
+	return p.server.placeExecutionOrder(ctx, request)
+}
+
+func (p *serverTradingOrderGateway) CancelOrder(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrder, error) {
+	return p.server.cancelExecutionOrder(ctx, internalOrderID)
+}
+
+var (
+	_ trdsrv.BrokerRuntimeProvider = (*serverTradingBrokerRuntimeProvider)(nil)
+	_ trdsrv.OrderStore            = (*serverTradingOrderStore)(nil)
+	_ trdsrv.OrderGateway          = (*serverTradingOrderGateway)(nil)
+)
 
 func (s *Server) defaultTradingEnvironment() string {
 	if s == nil || s.store == nil {
 		return "SIMULATE"
 	}
 	return s.store.ExecutionSettings().DefaultTradingEnvironment
-}
-
-func (s *Server) listExecutionOrders(ctx context.Context, filter trdsrv.ExecutionOrderFilter) (trdsrv.ExecutionOrders, error) {
-	return s.executionOrders.listOrdersFiltered(filter), nil
 }
 
 func (s *Server) placeExecutionOrder(ctx context.Context, request trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
@@ -66,6 +102,7 @@ func (s *Server) placeExecutionOrder(ctx context.Context, request trdsrv.Executi
 		"accountId": placed.AccountID, "market": placed.Market, "symbol": request.Symbol,
 		"side": request.Side, "orderType": request.OrderType,
 		"requestedQuantity": request.Query.Quantity, "requestedPrice": request.Query.Price,
+		"rawBrokerStatus": placed.Status,
 	}
 	if request.Session != "" {
 		payloadData["session"] = request.Session
@@ -89,6 +126,9 @@ func (s *Server) cancelExecutionOrder(ctx context.Context, internalOrderID strin
 	order, ok := s.executionOrders.order(internalOrderID)
 	if !ok {
 		return trdsrv.ExecutionOrder{}, fmt.Errorf("execution order not found")
+	}
+	if trdsrv.IsCanonicalTerminalOrderStatus(order.Status) {
+		return trdsrv.ExecutionOrder{}, fmt.Errorf("execution order is already terminal (%s)", order.Status)
 	}
 	if order.BrokerOrderID == nil || strings.TrimSpace(*order.BrokerOrderID) == "" {
 		return trdsrv.ExecutionOrder{}, fmt.Errorf("execution order is missing broker order id")
@@ -122,9 +162,4 @@ func (s *Server) cancelExecutionOrder(ctx context.Context, internalOrderID strin
 		"symbol":          order.Symbol,
 	})
 	return updatedOrder, nil
-}
-
-// getExecutionOrderEvents 获取订单事件。
-func (s *Server) getExecutionOrderEvents(ctx context.Context, internalOrderID string) (trdsrv.ExecutionOrderEvents, error) {
-	return s.executionOrders.orderEvents(strings.TrimSpace(internalOrderID)), nil
 }

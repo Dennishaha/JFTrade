@@ -28,8 +28,28 @@ func RegisterExecutionRoutes(api *gin.RouterGroup, service *srv.Service) {
 	api.GET("/execution/orders", handleExecutionOrders(service))
 	api.POST("/execution/orders", handleExecutionPlace(service))
 	api.POST("/execution/orders/preview", handleExecutionPreview(service))
+	api.GET("/execution/orders/:internalOrderId", handleExecutionOrderDetails(service))
 	api.GET("/execution/orders/:internalOrderId/events", handleExecutionEvents(service))
 	api.POST("/execution/orders/:internalOrderId/cancel", handleExecutionCancel(service))
+}
+
+func handleExecutionOrderDetails(service *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, ok := bindInternalOrderID(c)
+		if !ok {
+			return
+		}
+		result, err := service.ExecutionOrderDetails(c.Request.Context(), id)
+		if errors.Is(err, srv.ErrExecutionOrderNotFound) {
+			httpserver.WriteError(c, http.StatusNotFound, "ORDER_NOT_FOUND", err.Error())
+			return
+		}
+		if err != nil {
+			httpserver.WriteError(c, http.StatusInternalServerError, "GET_ORDER_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
 }
 
 func handleExecutionOrders(service *srv.Service) gin.HandlerFunc {
@@ -130,6 +150,13 @@ func bindInternalOrderID(c *gin.Context) (string, bool) {
 func executionCommandError(err error) (int, string) {
 	if srv.IsRequestError(err) {
 		return http.StatusBadRequest, "BAD_REQUEST"
+	}
+	var riskErr srv.RiskRejectedError
+	if errors.As(err, &riskErr) && riskErr.Decision.RequiresApproval() {
+		return http.StatusConflict, "PRE_TRADE_APPROVAL_REQUIRED"
+	}
+	if srv.IsRiskRejected(err) {
+		return http.StatusConflict, "PRE_TRADE_RISK_REJECTED"
 	}
 	if brokerErr, ok := errors.AsType[*broker.BrokerError](err); ok {
 		switch strings.TrimSpace(brokerErr.Code) {

@@ -46,6 +46,28 @@ export type ConsoleRefreshLiveStreamEvent = {
   checkedAt?: string;
 };
 
+export type LiveHeartbeatEvent = {
+  type: "heartbeat";
+  at: string;
+  stale?: boolean;
+  staleReasons?: string[];
+  transport?: {
+    mode?: "idle" | "push-stream" | "snapshot-poll-fallback" | string;
+    activeInstruments?: number;
+    freshInstruments?: number;
+    staleInstruments?: number;
+    sampleFreshnessMs?: number;
+    latestObservedAt?: string | null;
+  };
+  liveStream?: {
+    connected?: boolean;
+    backoffActive?: boolean;
+    retryAfter?: string | null;
+    failureCount?: number;
+    lastError?: string | null;
+  };
+};
+
 export type MarketSecurityDetailsLiveStreamEvent =
   MarketSecurityDetailsQueryResult & {
     type: "market.security-details";
@@ -71,6 +93,7 @@ export type MarketDepthLiveStreamEvent = {
 };
 
 export type LiveStreamEvent =
+  | LiveHeartbeatEvent
   | SystemNotificationLiveStreamEvent
   | MarketDataTickLiveEvent
   | ConsoleRefreshLiveStreamEvent
@@ -131,6 +154,7 @@ function normalizeTarget<T extends { market: string; symbol: string; instrumentI
 class SharedLiveSocketHub {
   readonly connectionState = ref<LiveSocketConnectionState>("idle");
   readonly lastHeartbeat = ref<string | null>(null);
+  readonly lastHeartbeatEvent = ref<LiveHeartbeatEvent | null>(null);
   readonly events = ref<LiveStreamEvent[]>([]);
 
   private socket: WebSocket | null = null;
@@ -200,6 +224,7 @@ class SharedLiveSocketHub {
         ];
         if (payload.type === "heartbeat") {
           this.lastHeartbeat.value = payload.at || envelope.serverTime;
+          this.lastHeartbeatEvent.value = payload as LiveHeartbeatEvent;
         }
         getLiveEventBus().publish(envelope);
         for (const listener of this.eventListeners) {
@@ -246,6 +271,7 @@ class SharedLiveSocketHub {
     this.disconnect();
     this.connectionState.value = "idle";
     this.lastHeartbeat.value = null;
+    this.lastHeartbeatEvent.value = null;
     this.events.value = [];
     this.lastSentSubscriptionPayload = "";
     this.eventListeners.clear();

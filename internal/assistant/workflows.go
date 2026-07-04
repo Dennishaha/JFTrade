@@ -6,26 +6,21 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log"
 	"maps"
-	"math"
-	"strconv"
 	"strings"
 	"sync"
 	"text/template"
 	"time"
 
-	"github.com/robfig/cron/v3"
-
+	workflowrules "github.com/jftrade/jftrade-main/internal/assistant/workflow"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
 const (
 	defaultWorkflowSchedulerInterval = 30 * time.Second
 	defaultWorkflowScheduleBatchSize = 20
-	defaultMarketThresholdCooldown   = 900
 )
 
 type WorkflowMarketSnapshot func(ctx context.Context, instrumentID string) (map[string]any, error)
@@ -170,12 +165,12 @@ func (s *Service) SaveWorkflow(ctx context.Context, workflowID string, payload j
 	}
 	workflow.Name = strings.TrimSpace(payload.Name)
 	workflow.Description = strings.TrimSpace(payload.Description)
-	workflow.Status = normalizeWorkflowStatus(payload.Status, workflow.Status)
+	workflow.Status = workflowrules.NormalizeWorkflowStatus(payload.Status, workflow.Status)
 	workflow.AgentID = strings.TrimSpace(payload.AgentID)
-	workflow.WorkMode = normalizeWorkflowWorkMode(payload.WorkMode, workflow.WorkMode)
+	workflow.WorkMode = workflowrules.NormalizeWorkflowWorkMode(payload.WorkMode, workflow.WorkMode)
 	workflow.ProviderID = strings.TrimSpace(payload.ProviderID)
 	workflow.Model = strings.TrimSpace(payload.Model)
-	workflow.PermissionMode = normalizeWorkflowPermissionMode(payload.PermissionMode, workflow.PermissionMode)
+	workflow.PermissionMode = workflowrules.NormalizeWorkflowPermissionMode(payload.PermissionMode, workflow.PermissionMode)
 	workflow.PromptTemplate = strings.TrimSpace(payload.PromptTemplate)
 	workflow.ObjectiveTemplate = strings.TrimSpace(payload.ObjectiveTemplate)
 	workflow.DefaultInputs = cloneMap(payload.DefaultInputs)
@@ -247,9 +242,9 @@ func (s *Service) SaveWorkflowTrigger(ctx context.Context, workflowID string, tr
 		trigger.ID = strings.TrimSpace(payload.ID)
 	}
 	trigger.WorkflowID = workflow.ID
-	trigger.Type = normalizeTriggerType(payload.Type, trigger.Type)
+	trigger.Type = workflowrules.NormalizeTriggerType(payload.Type, trigger.Type)
 	trigger.Title = strings.TrimSpace(payload.Title)
-	trigger.Status = normalizeTriggerStatus(payload.Status, trigger.Status)
+	trigger.Status = workflowrules.NormalizeTriggerStatus(payload.Status, trigger.Status)
 	trigger.Config = cloneMap(payload.Config)
 	secret := ""
 	if trigger.Type == jfadk.WorkflowTriggerTypeWebhook && (isCreate || payload.ResetSecret || trigger.SecretHash == "") {
@@ -261,12 +256,12 @@ func (s *Service) SaveWorkflowTrigger(ctx context.Context, workflowID string, tr
 		trigger.HasSecret = true
 	}
 	if trigger.Title == "" {
-		trigger.Title = defaultTriggerTitle(trigger.Type)
+		trigger.Title = workflowrules.DefaultTriggerTitle(trigger.Type)
 	}
 	if err := s.prepareWorkflowTriggerSchedule(&trigger, time.Now().UTC()); err != nil {
 		return WorkflowTriggerSaveResult{}, err
 	}
-	if err := validateWorkflowTrigger(trigger); err != nil {
+	if err := workflowrules.ValidateTrigger(trigger); err != nil {
 		return WorkflowTriggerSaveResult{}, err
 	}
 	trigger, err = store.SaveWorkflowTrigger(ctx, trigger)
@@ -373,7 +368,7 @@ func (s *Service) WatchedWorkflowInstruments(ctx context.Context) []string {
 	seen := map[string]struct{}{}
 	out := []string{}
 	for _, trigger := range triggers {
-		for _, instrumentID := range configStringSlice(trigger.Config, "instrumentIds") {
+		for _, instrumentID := range workflowrules.ConfigStringSlice(trigger.Config, "instrumentIds") {
 			instrumentID = strings.ToUpper(strings.TrimSpace(instrumentID))
 			if instrumentID == "" {
 				continue
@@ -397,7 +392,7 @@ func (s *Service) HandleWorkflowEvent(ctx context.Context, event jfadk.WorkflowE
 		triggers, err := store.ListEnabledWorkflowTriggersByType(ctx, jfadk.WorkflowTriggerTypeMarketThreshold)
 		if err == nil {
 			for _, trigger := range triggers {
-				matches, changed := evaluateMarketThresholdTrigger(trigger, []map[string]any{eventAsMap(event)}, time.Now().UTC())
+				matches, changed := workflowrules.EvaluateMarketThresholdTrigger(trigger, []map[string]any{eventAsMap(event)}, time.Now().UTC())
 				if changed {
 					updated, saveErr := store.SaveWorkflowTrigger(ctx, trigger)
 					if saveErr == nil {
@@ -419,10 +414,10 @@ func (s *Service) HandleWorkflowEvent(ctx context.Context, event jfadk.WorkflowE
 		return
 	}
 	for _, trigger := range triggers {
-		if !workflowEventMatches(trigger.Config, event) {
+		if !workflowrules.EventMatches(trigger.Config, event) {
 			continue
 		}
-		if !eventTriggerCooldownAllows(&trigger, time.Now().UTC()) {
+		if !workflowrules.EventCooldownAllows(&trigger, time.Now().UTC()) {
 			_, _ = store.SaveWorkflowTrigger(ctx, trigger)
 			continue
 		}
@@ -480,13 +475,13 @@ func (scheduler *WorkflowScheduler) tick(ctx context.Context) {
 			workflow, wfErr := service.GetWorkflow(ctx, trigger.WorkflowID)
 			if wfErr != nil || workflow.Status != jfadk.WorkflowStatusEnabled {
 				trigger.LastError = errorString(wfErr)
-				trigger.NextRunAt = nextRunAtString(trigger.Config, now)
+				trigger.NextRunAt = workflowrules.NextRunAtString(trigger.Config, now)
 				_, _ = store.SaveWorkflowTrigger(ctx, trigger)
 				continue
 			}
 			trigger.LastError = ""
 			trigger.LastRunAt = now.Format(time.RFC3339Nano)
-			trigger.NextRunAt = nextRunAtString(trigger.Config, now)
+			trigger.NextRunAt = workflowrules.NextRunAtString(trigger.Config, now)
 			updated, saveErr := store.SaveWorkflowTrigger(ctx, trigger)
 			if saveErr == nil {
 				trigger = updated
@@ -509,7 +504,7 @@ func (scheduler *WorkflowScheduler) pollMarketThresholds(ctx context.Context, no
 	}
 	for _, trigger := range triggers {
 		events := make([]map[string]any, 0)
-		for _, instrumentID := range configStringSlice(trigger.Config, "instrumentIds") {
+		for _, instrumentID := range workflowrules.ConfigStringSlice(trigger.Config, "instrumentIds") {
 			snapshot, err := service.marketSnapshot(ctx, instrumentID)
 			if err != nil {
 				trigger.LastError = err.Error()
@@ -524,7 +519,7 @@ func (scheduler *WorkflowScheduler) pollMarketThresholds(ctx context.Context, no
 				"payload":    snapshot,
 			})
 		}
-		matches, changed := evaluateMarketThresholdTrigger(trigger, events, now)
+		matches, changed := workflowrules.EvaluateMarketThresholdTrigger(trigger, events, now)
 		if changed || trigger.LastError != "" {
 			updated, saveErr := store.SaveWorkflowTrigger(ctx, trigger)
 			if saveErr == nil {
@@ -742,7 +737,7 @@ func workflowNodeRuns(
 		triggerTitle = strings.TrimSpace(trigger.Title)
 	}
 	if triggerTitle == "" {
-		triggerTitle = defaultTriggerTitle(defaultString(triggerType, jfadk.WorkflowTriggerTypeManual))
+		triggerTitle = workflowrules.DefaultTriggerTitle(defaultString(triggerType, jfadk.WorkflowTriggerTypeManual))
 	}
 
 	triggerStatus := jfadk.WorkflowTriggerLogStatusSucceeded
@@ -887,7 +882,7 @@ func (s *Service) prepareWorkflowTriggerSchedule(trigger *jfadk.WorkflowTrigger,
 		}
 		return nil
 	}
-	next, err := nextWorkflowScheduleRun(trigger.Config, now)
+	next, err := workflowrules.NextScheduleRun(trigger.Config, now)
 	if err != nil {
 		return err
 	}
@@ -1002,35 +997,11 @@ func workflowLogStatusFromRun(run jfadk.Run) string {
 }
 
 func nextWorkflowScheduleRun(config map[string]any, from time.Time) (time.Time, error) {
-	cronExpression := strings.TrimSpace(configString(config, "cron"))
-	if cronExpression == "" {
-		return time.Time{}, fmt.Errorf("schedule cron is required")
-	}
-	if len(strings.Fields(cronExpression)) != 5 {
-		return time.Time{}, fmt.Errorf("schedule cron must contain 5 fields")
-	}
-	timezone := configString(config, "timezone")
-	if strings.TrimSpace(timezone) == "" {
-		timezone = "Asia/Shanghai"
-	}
-	location, err := time.LoadLocation(timezone)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("invalid schedule timezone: %w", err)
-	}
-	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	schedule, err := parser.Parse(cronExpression)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return schedule.Next(from.In(location)).UTC(), nil
+	return workflowrules.NextScheduleRun(config, from)
 }
 
 func nextRunAtString(config map[string]any, from time.Time) string {
-	next, err := nextWorkflowScheduleRun(config, from)
-	if err != nil {
-		return ""
-	}
-	return next.Format(time.RFC3339Nano)
+	return workflowrules.NextRunAtString(config, from)
 }
 
 func renderWorkflowTemplate(raw string, inputs map[string]any) (string, error) {
@@ -1060,231 +1031,51 @@ func workflowInputs(workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTr
 }
 
 func evaluateMarketThresholdTrigger(trigger jfadk.WorkflowTrigger, events []map[string]any, now time.Time) ([]map[string]any, bool) {
-	instruments := map[string]struct{}{}
-	for _, instrumentID := range configStringSlice(trigger.Config, "instrumentIds") {
-		instruments[strings.ToUpper(strings.TrimSpace(instrumentID))] = struct{}{}
-	}
-	if len(instruments) == 0 {
-		return nil, false
-	}
-	path := configString(trigger.Config, "snapshotPath")
-	if strings.TrimSpace(path) == "" {
-		path = "snapshot.price"
-	}
-	threshold, ok := configFloat(trigger.Config, "value")
-	if !ok {
-		return nil, false
-	}
-	edge := strings.ToLower(strings.TrimSpace(configString(trigger.Config, "edge")))
-	if edge == "" {
-		edge = "cross_up"
-	}
-	operator := strings.TrimSpace(configString(trigger.Config, "operator"))
-	cooldownSec := configInt(trigger.Config, "cooldownSec", defaultMarketThresholdCooldown)
-	state := ensureConfigState(trigger.Config)
-	lastValues := ensureStateMap(state, "lastValues")
-	lastTriggeredAt := ensureStateMap(state, "lastTriggeredAt")
-	matches := []map[string]any{}
-	changed := false
-	for _, event := range events {
-		instrumentID := eventInstrumentID(event)
-		if instrumentID == "" {
-			continue
-		}
-		if _, ok := instruments[instrumentID]; !ok {
-			continue
-		}
-		current, ok := numericAtPath(event, path)
-		if !ok {
-			if payload, payloadOK := event["payload"].(map[string]any); payloadOK {
-				current, ok = numericAtPath(payload, path)
-			}
-		}
-		if !ok {
-			continue
-		}
-		previous, hadPrevious := anyFloat(lastValues[instrumentID])
-		fired := thresholdFired(edge, operator, previous, hadPrevious, current, threshold)
-		lastValues[instrumentID] = current
-		changed = true
-		if !fired || !cooldownAllows(lastTriggeredAt[instrumentID], now, cooldownSec) {
-			continue
-		}
-		lastTriggeredAt[instrumentID] = now.Format(time.RFC3339Nano)
-		matched := cloneMap(event)
-		matched["threshold"] = map[string]any{
-			"instrumentId": instrumentID,
-			"path":         path,
-			"edge":         edge,
-			"operator":     operator,
-			"value":        threshold,
-			"previous":     previous,
-			"current":      current,
-		}
-		matches = append(matches, matched)
-		changed = true
-	}
-	return matches, changed
+	return workflowrules.EvaluateMarketThresholdTrigger(trigger, events, now)
 }
 
 func workflowEventMatches(config map[string]any, event jfadk.WorkflowEvent) bool {
-	if expected := strings.TrimSpace(configString(config, "source")); expected != "" && expected != event.Source {
-		return false
-	}
-	if expected := strings.TrimSpace(configString(config, "eventType")); expected != "" && expected != event.Type {
-		return false
-	}
-	if expected := strings.TrimSpace(configString(config, "entityId")); expected != "" && expected != event.EntityID {
-		return false
-	}
-	if expected := strings.TrimSpace(configString(config, "category")); expected != "" && expected != mapString(event.Payload, "category") {
-		return false
-	}
-	if expected := strings.TrimSpace(configString(config, "level")); expected != "" && expected != mapString(event.Payload, "level") {
-		return false
-	}
-	return true
+	return workflowrules.EventMatches(config, event)
 }
 
 func eventTriggerCooldownAllows(trigger *jfadk.WorkflowTrigger, now time.Time) bool {
-	if trigger == nil {
-		return false
-	}
-	cooldownSec := configInt(trigger.Config, "cooldownSec", 0)
-	state := ensureConfigState(trigger.Config)
-	last := state["lastTriggeredAt"]
-	if !cooldownAllows(last, now, cooldownSec) {
-		return false
-	}
-	state["lastTriggeredAt"] = now.Format(time.RFC3339Nano)
-	return true
+	return workflowrules.EventCooldownAllows(trigger, now)
 }
 
 func thresholdFired(edge string, operator string, previous float64, hadPrevious bool, current float64, threshold float64) bool {
-	switch edge {
-	case "cross_down":
-		return hadPrevious && previous >= threshold && current < threshold
-	case "above":
-		return compareThreshold(defaultString(operator, ">"), current, threshold)
-	case "below":
-		return compareThreshold(defaultString(operator, "<"), current, threshold)
-	default:
-		return hadPrevious && previous <= threshold && current > threshold
-	}
+	return workflowrules.ThresholdFired(edge, operator, previous, hadPrevious, current, threshold)
 }
 
 func compareThreshold(operator string, current float64, threshold float64) bool {
-	switch strings.TrimSpace(operator) {
-	case ">=":
-		return current >= threshold
-	case "<":
-		return current < threshold
-	case "<=":
-		return current <= threshold
-	default:
-		return current > threshold
-	}
+	return workflowrules.CompareThreshold(operator, current, threshold)
 }
 
 func validateWorkflowTrigger(trigger jfadk.WorkflowTrigger) error {
-	if strings.TrimSpace(trigger.WorkflowID) == "" {
-		return fmt.Errorf("workflowId is required")
-	}
-	switch trigger.Type {
-	case jfadk.WorkflowTriggerTypeSchedule:
-		_, err := nextWorkflowScheduleRun(trigger.Config, time.Now().UTC())
-		return err
-	case jfadk.WorkflowTriggerTypeManual, jfadk.WorkflowTriggerTypeWebhook, jfadk.WorkflowTriggerTypeEvent:
-		return nil
-	case jfadk.WorkflowTriggerTypeMarketThreshold:
-		if len(configStringSlice(trigger.Config, "instrumentIds")) == 0 {
-			return fmt.Errorf("market threshold trigger requires instrumentIds")
-		}
-		if _, ok := configFloat(trigger.Config, "value"); !ok {
-			return fmt.Errorf("market threshold trigger requires numeric value")
-		}
-		return nil
-	default:
-		return fmt.Errorf("unsupported workflow trigger type %q", trigger.Type)
-	}
+	return workflowrules.ValidateTrigger(trigger)
 }
 
 func normalizeWorkflowStatus(input string, fallback string) string {
-	status := strings.ToUpper(strings.TrimSpace(input))
-	if status == "" {
-		status = strings.ToUpper(strings.TrimSpace(fallback))
-	}
-	if status == jfadk.WorkflowStatusDisabled {
-		return jfadk.WorkflowStatusDisabled
-	}
-	return jfadk.WorkflowStatusEnabled
+	return workflowrules.NormalizeWorkflowStatus(input, fallback)
 }
 
 func normalizeTriggerStatus(input string, fallback string) string {
-	status := strings.ToUpper(strings.TrimSpace(input))
-	if status == "" {
-		status = strings.ToUpper(strings.TrimSpace(fallback))
-	}
-	switch status {
-	case jfadk.WorkflowTriggerStatusDisabled, jfadk.WorkflowTriggerStatusError:
-		return status
-	default:
-		return jfadk.WorkflowTriggerStatusEnabled
-	}
+	return workflowrules.NormalizeTriggerStatus(input, fallback)
 }
 
 func normalizeWorkflowWorkMode(input string, fallback string) string {
-	mode := strings.ToLower(strings.TrimSpace(input))
-	if mode == "" {
-		mode = strings.ToLower(strings.TrimSpace(fallback))
-	}
-	switch mode {
-	case jfadk.WorkModeChat, jfadk.WorkModeLoop:
-		return mode
-	default:
-		return jfadk.WorkModeTask
-	}
+	return workflowrules.NormalizeWorkflowWorkMode(input, fallback)
 }
 
 func normalizeWorkflowPermissionMode(input string, fallback string) string {
-	mode := strings.ToLower(strings.TrimSpace(input))
-	if mode == "" {
-		mode = strings.ToLower(strings.TrimSpace(fallback))
-	}
-	switch mode {
-	case "", jfadk.PermissionModeApproval, jfadk.PermissionModeLessApproval, jfadk.PermissionModeAll:
-		return mode
-	default:
-		return jfadk.PermissionModeApproval
-	}
+	return workflowrules.NormalizeWorkflowPermissionMode(input, fallback)
 }
 
 func normalizeTriggerType(input string, fallback string) string {
-	value := strings.ToLower(strings.TrimSpace(input))
-	if value == "" {
-		value = strings.ToLower(strings.TrimSpace(fallback))
-	}
-	switch value {
-	case jfadk.WorkflowTriggerTypeSchedule, jfadk.WorkflowTriggerTypeWebhook, jfadk.WorkflowTriggerTypeEvent, jfadk.WorkflowTriggerTypeMarketThreshold:
-		return value
-	default:
-		return jfadk.WorkflowTriggerTypeManual
-	}
+	return workflowrules.NormalizeTriggerType(input, fallback)
 }
 
 func defaultTriggerTitle(triggerType string) string {
-	switch triggerType {
-	case jfadk.WorkflowTriggerTypeSchedule:
-		return "定时触发"
-	case jfadk.WorkflowTriggerTypeWebhook:
-		return "Webhook"
-	case jfadk.WorkflowTriggerTypeEvent:
-		return "事件触发"
-	case jfadk.WorkflowTriggerTypeMarketThreshold:
-		return "行情阈值"
-	default:
-		return "手动触发"
-	}
+	return workflowrules.DefaultTriggerTitle(triggerType)
 }
 
 func normalizedWorkflowPage(limit int, offset int) (int, int) {
@@ -1378,144 +1169,31 @@ func normalizeStringList(values []string) []string {
 }
 
 func configString(config map[string]any, key string) string {
-	if value, ok := config[key]; ok {
-		switch typed := value.(type) {
-		case string:
-			return typed
-		case fmt.Stringer:
-			return typed.String()
-		}
-	}
-	return ""
+	return workflowrules.ConfigString(config, key)
 }
 
 func configStringSlice(config map[string]any, key string) []string {
-	value, ok := config[key]
-	if !ok {
-		return nil
-	}
-	switch typed := value.(type) {
-	case []string:
-		return normalizeStringList(typed)
-	case []any:
-		out := make([]string, 0, len(typed))
-		for _, item := range typed {
-			out = append(out, strings.TrimSpace(fmt.Sprint(item)))
-		}
-		return normalizeStringList(out)
-	case string:
-		parts := strings.Split(typed, ",")
-		return normalizeStringList(parts)
-	default:
-		return nil
-	}
-}
-
-func configFloat(config map[string]any, key string) (float64, bool) {
-	return anyFloat(config[key])
-}
-
-func configInt(config map[string]any, key string, fallback int) int {
-	value, ok := anyFloat(config[key])
-	if !ok {
-		return fallback
-	}
-	return int(math.Round(value))
+	return workflowrules.ConfigStringSlice(config, key)
 }
 
 func anyFloat(value any) (float64, bool) {
-	switch typed := value.(type) {
-	case float64:
-		return typed, true
-	case float32:
-		return float64(typed), true
-	case int:
-		return float64(typed), true
-	case int64:
-		return float64(typed), true
-	case int32:
-		return float64(typed), true
-	case json.Number:
-		parsed, err := typed.Float64()
-		return parsed, err == nil
-	case string:
-		parsed, err := strconv.ParseFloat(strings.TrimSpace(typed), 64)
-		return parsed, err == nil
-	default:
-		return 0, false
-	}
+	return workflowrules.AnyFloat(value)
 }
 
 func numericAtPath(root map[string]any, path string) (float64, bool) {
-	value := any(root)
-	for part := range strings.SplitSeq(path, ".") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		current, ok := value.(map[string]any)
-		if !ok {
-			return 0, false
-		}
-		value = current[part]
-	}
-	return anyFloat(value)
+	return workflowrules.NumericAtPath(root, path)
 }
 
 func eventInstrumentID(event map[string]any) string {
-	for _, key := range []string{"entityId", "instrumentId"} {
-		if value := strings.ToUpper(strings.TrimSpace(fmt.Sprint(event[key]))); value != "" && value != "<NIL>" {
-			return value
-		}
-	}
-	if instrument, ok := event["instrument"].(map[string]any); ok {
-		if value := strings.ToUpper(strings.TrimSpace(fmt.Sprint(instrument["instrumentId"]))); value != "" && value != "<NIL>" {
-			return value
-		}
-	}
-	if payload, ok := event["payload"].(map[string]any); ok {
-		return eventInstrumentID(payload)
-	}
-	return ""
+	return workflowrules.EventInstrumentID(event)
 }
 
 func ensureConfigState(config map[string]any) map[string]any {
-	if config == nil {
-		return map[string]any{}
-	}
-	if state, ok := config["state"].(map[string]any); ok {
-		return state
-	}
-	state := map[string]any{}
-	config["state"] = state
-	return state
-}
-
-func ensureStateMap(state map[string]any, key string) map[string]any {
-	if current, ok := state[key].(map[string]any); ok {
-		return current
-	}
-	out := map[string]any{}
-	state[key] = out
-	return out
+	return workflowrules.EnsureConfigState(config)
 }
 
 func cooldownAllows(value any, now time.Time, cooldownSec int) bool {
-	if cooldownSec <= 0 {
-		return true
-	}
-	text := strings.TrimSpace(fmt.Sprint(value))
-	if text == "" || text == "<nil>" {
-		return true
-	}
-	previous, err := time.Parse(time.RFC3339Nano, text)
-	if err != nil {
-		previous, err = time.Parse(time.RFC3339, text)
-	}
-	if err != nil {
-		return true
-	}
-	return now.Sub(previous.UTC()) >= time.Duration(cooldownSec)*time.Second
+	return workflowrules.CooldownAllows(value, now, cooldownSec)
 }
 
 func eventAsMap(event jfadk.WorkflowEvent) map[string]any {
@@ -1538,10 +1216,7 @@ func eventAsMap(event jfadk.WorkflowEvent) map[string]any {
 }
 
 func mapString(input map[string]any, key string) string {
-	if input == nil {
-		return ""
-	}
-	return strings.TrimSpace(fmt.Sprint(input[key]))
+	return workflowrules.MapString(input, key)
 }
 
 func errorString(err error) string {

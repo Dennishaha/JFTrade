@@ -13,6 +13,45 @@ import (
 // 尚未迁出的外部行情能力。
 func newMarketdataProvider(s *Server) mdsrv.Provider {
 	return &marketdataProvider{
+		descriptor: func(ctx context.Context) (mdsrv.ProviderDescriptor, error) {
+			dtos := marketProfileDTOs()
+			supportedMarkets := make([]string, 0, len(dtos))
+			for _, profile := range dtos {
+				supportedMarkets = append(supportedMarkets, strings.ToUpper(strings.TrimSpace(profile.Code)))
+			}
+			return mdsrv.ProviderDescriptor{
+				ProviderID:       "futu-opend",
+				DisplayName:      "Futu OpenD",
+				BrokerID:         "futu",
+				Source:           "bbgo:futu",
+				DefaultMarket:    "HK",
+				SupportedMarkets: supportedMarkets,
+				Transports:       []string{"opend-tcp", "push-stream", "snapshot-poll-fallback"},
+				Capabilities: mdsrv.ProviderCapabilities{
+					Snapshots:         true,
+					StreamingQuotes:   true,
+					StreamingDepth:    true,
+					HistoricalCandles: true,
+					TickCandles:       true,
+					OrderBookDepth:    true,
+					InstrumentSearch:  true,
+					ExtendedHours:     true,
+					CandleIntervals:   []string{"tick", "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"},
+					OrderBookLevels:   []int{1, 5, 10, 25, 50},
+					Sessions:          []string{"RTH", "ETH", "ALL", "OVERNIGHT"},
+				},
+				Constraints: mdsrv.ProviderConstraints{
+					RequiresOpenD:           true,
+					RequiresMarketDataRight: true,
+					UsesSubscriptionQuota:   true,
+				},
+				Notes: []string{
+					"Futu-first provider; data entitlement and subscription quota are enforced by Futu OpenD.",
+					"Historical candles and real-time pushes can diverge during extended sessions; UI surfaces observed timestamps and transport mode.",
+				},
+			}, nil
+		},
+
 		getMarkets: func(ctx context.Context) ([]mdsrv.MarketProfile, error) {
 			dtos := marketProfileDTOs()
 			profiles := make([]mdsrv.MarketProfile, 0, len(dtos))
@@ -123,6 +162,7 @@ func newMarketdataProvider(s *Server) mdsrv.Provider {
 
 // marketdataProvider 闭包式 Provider 实现——每个方法通过闭包委托到 Server。
 type marketdataProvider struct {
+	descriptor           func(context.Context) (mdsrv.ProviderDescriptor, error)
 	getMarkets           func(context.Context) ([]mdsrv.MarketProfile, error)
 	normalizeInstrument  func(context.Context, map[string]any) (map[string]any, error)
 	getSecurityDetails   func(context.Context, string, string) (mdsrv.SecurityDetails, error)
@@ -135,6 +175,10 @@ type marketdataProvider struct {
 
 // compile-time interface check
 var _ mdsrv.Provider = (*marketdataProvider)(nil)
+
+func (p *marketdataProvider) Descriptor(ctx context.Context) (mdsrv.ProviderDescriptor, error) {
+	return p.descriptor(ctx)
+}
 
 func (p *marketdataProvider) GetMarkets(ctx context.Context) ([]mdsrv.MarketProfile, error) {
 	return p.getMarkets(ctx)
