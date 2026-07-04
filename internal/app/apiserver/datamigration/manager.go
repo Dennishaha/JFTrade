@@ -2,7 +2,6 @@ package datamigration
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,8 +12,8 @@ import (
 	"time"
 
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
-	_ "modernc.org/sqlite"
 )
 
 const (
@@ -235,7 +234,7 @@ func inspectDatabase(ctx context.Context, descriptor Descriptor) (status Databas
 		status.Error = "database path is not a regular file"
 		return status
 	}
-	db, err := sql.Open("sqlite", "file:"+descriptor.Path+"?mode=ro")
+	db, err := sqliteconn.OpenReadOnly(descriptor.Path)
 	if err != nil {
 		status.Status = "unavailable"
 		status.Error = err.Error()

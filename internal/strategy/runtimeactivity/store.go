@@ -14,7 +14,6 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
-	"github.com/jmoiron/sqlx"
 )
 
 const (
@@ -38,7 +37,7 @@ const (
 
 type Store struct {
 	mu   sync.RWMutex
-	db   *sqlx.DB
+	db   *sqliteconn.DB
 	path string
 }
 
@@ -131,7 +130,7 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func (s *Store) DB() *sqlx.DB {
+func (s *Store) DB() *sqliteconn.DB {
 	if s == nil {
 		return nil
 	}
@@ -176,7 +175,7 @@ func DatabaseStatements() []string {
 	}
 }
 
-func ValidateDatabase(ctx context.Context, db *sqlx.DB) error {
+func ValidateDatabase(ctx context.Context, db sqliteschema.Database) error {
 	for _, schema := range []struct {
 		table   string
 		columns []string
@@ -201,7 +200,7 @@ func ValidateDatabase(ctx context.Context, db *sqlx.DB) error {
 	return nil
 }
 
-func InitializeDatabase(db *sqlx.DB, path string) error {
+func InitializeDatabase(db sqliteschema.Database, path string) error {
 	return sqliteschema.InitializeOrValidate(
 		context.Background(),
 		db,

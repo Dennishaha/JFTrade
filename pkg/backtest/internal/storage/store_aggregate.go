@@ -12,39 +12,15 @@ import (
 )
 
 func (s *FutuKLineStore) QueryTradingPeriodKLinesInRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
-	var rows []types.KLine
-	err := s.accessQueue.enqueueRead(func() error {
-		s.mu.RLock()
-		defer s.mu.RUnlock()
-		var queryErr error
-		rows, queryErr = s.queryTradingPeriodKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
-		return queryErr
-	})
-	return rows, err
+	return s.queryTradingPeriodKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
 }
 
 func (s *FutuKLineStore) QuerySessionAwareIntradayKLinesInRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
-	var rows []types.KLine
-	err := s.accessQueue.enqueueRead(func() error {
-		s.mu.RLock()
-		defer s.mu.RUnlock()
-		var queryErr error
-		rows, queryErr = s.querySessionAwareIntradayKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
-		return queryErr
-	})
-	return rows, err
+	return s.querySessionAwareIntradayKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
 }
 
 func (s *FutuKLineStore) QueryDailyKLinesInRange(symbol string, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
-	var rows []types.KLine
-	err := s.accessQueue.enqueueRead(func() error {
-		s.mu.RLock()
-		defer s.mu.RUnlock()
-		var queryErr error
-		rows, queryErr = s.queryDailyKLinesInRangeLocked(symbol, since, until, includeExtendedHours)
-		return queryErr
-	})
-	return rows, err
+	return s.queryDailyKLinesInRangeLocked(symbol, since, until, includeExtendedHours)
 }
 
 func (s *FutuKLineStore) queryAggregatedKLinesInRange(symbol string, interval, baseInterval types.Interval, since, until time.Time) ([]types.KLine, error) {
@@ -61,7 +37,7 @@ func (s *FutuKLineStore) queryAggregatedKLinesInRange(symbol string, interval, b
 		return nil, nil
 	}
 	baseSince := alignTimeToIntervalStart(since, interval)
-	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabType, baseSince, until)
+	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabTypeName(), baseSince, until)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +52,7 @@ func (s *FutuKLineStore) queryDailyKLinesInRangeLocked(symbol string, since, unt
 	}
 
 	if !includeExtendedHours {
-		stored, err := s.queryStoredKLinesInRange(symbol, types.Interval1d, s.rehabType, dailySince, dailyUntil)
+		stored, err := s.queryStoredKLinesInRange(symbol, types.Interval1d, s.rehabTypeName(), dailySince, dailyUntil)
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +64,7 @@ func (s *FutuKLineStore) queryDailyKLinesInRangeLocked(symbol string, since, unt
 	baseInterval, err := s.resolveDailyAggregationBaseInterval(symbol, dailySince, dailyUntil, includeExtendedHours)
 	if err != nil {
 		if includeExtendedHours {
-			stored, storedErr := s.queryStoredKLinesInRange(symbol, types.Interval1d, s.rehabType, dailySince, dailyUntil)
+			stored, storedErr := s.queryStoredKLinesInRange(symbol, types.Interval1d, s.rehabTypeName(), dailySince, dailyUntil)
 			if storedErr != nil {
 				return nil, storedErr
 			}
@@ -146,7 +122,7 @@ func (s *FutuKLineStore) resolveSessionAwareIntradayAggregationBaseInterval(symb
 
 	baseSince, baseUntil := sessionAwareIntradayAggregationBaseRange(symbol, interval, since, until, includeExtendedHours)
 	for _, baseInterval := range candidates {
-		baseMissing, err := s.findMissingRangesInTable(symbol, baseInterval, s.rehabType, baseSince, baseUntil)
+		baseMissing, err := s.findMissingRangesInTable(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 		if err != nil {
 			return "", err
 		}
@@ -164,7 +140,7 @@ func (s *FutuKLineStore) resolveSessionAwareIntradayAggregationBaseInterval(symb
 
 func (s *FutuKLineStore) queryAggregatedSessionAwareIntradayKLinesInRangeLocked(symbol string, interval, baseInterval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	baseSince, baseUntil := sessionAwareIntradayAggregationBaseRange(symbol, interval, since, until, includeExtendedHours)
-	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabType, baseSince, baseUntil)
+	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +164,7 @@ func (s *FutuKLineStore) resolveTradingPeriodAggregationBaseInterval(symbol stri
 
 	baseSince, baseUntil := tradingPeriodAggregationBaseRange(symbol, interval, since, until, includeExtendedHours)
 	for _, baseInterval := range candidates {
-		baseMissing, err := s.findMissingRangesInTable(symbol, baseInterval, s.rehabType, baseSince, baseUntil)
+		baseMissing, err := s.findMissingRangesInTable(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 		if err != nil {
 			return "", err
 		}
@@ -206,7 +182,7 @@ func (s *FutuKLineStore) resolveTradingPeriodAggregationBaseInterval(symbol stri
 
 func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesInRangeLocked(symbol string, interval, baseInterval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	baseSince, baseUntil := tradingPeriodAggregationBaseRange(symbol, interval, since, until, includeExtendedHours)
-	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabType, baseSince, baseUntil)
+	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +197,7 @@ func (s *FutuKLineStore) resolveDailyAggregationBaseInterval(symbol string, sinc
 
 	baseSince, baseUntil := dailyAggregationBaseRange(symbol, since, until, includeExtendedHours)
 	for _, baseInterval := range candidates {
-		baseMissing, err := s.findMissingRangesInTable(symbol, baseInterval, s.rehabType, baseSince, baseUntil)
+		baseMissing, err := s.findMissingRangesInTable(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 		if err != nil {
 			return "", err
 		}
@@ -239,7 +215,7 @@ func (s *FutuKLineStore) resolveDailyAggregationBaseInterval(symbol string, sinc
 
 func (s *FutuKLineStore) queryAggregatedDailyKLinesInRangeLocked(symbol string, baseInterval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
 	baseSince, baseUntil := dailyAggregationBaseRange(symbol, since, until, includeExtendedHours)
-	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabType, baseSince, baseUntil)
+	baseRows, err := s.queryStoredKLinesInRange(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 	if err != nil {
 		return nil, err
 	}

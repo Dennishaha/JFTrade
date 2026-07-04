@@ -22,7 +22,7 @@ func (s *Store) PurgeDeletedConfigs(ctx context.Context, ids DeletedConfigIDs) (
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	tx, err := s.db.BeginTxx(ctx, nil)
+	tx, err := s.db.BeginWrite(ctx, nil)
 	if err != nil {
 		return 0, err
 	}

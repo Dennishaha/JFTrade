@@ -14,8 +14,6 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
-	"github.com/jmoiron/sqlx"
-
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 )
 
@@ -29,7 +27,7 @@ type backtestRunStore struct {
 	mu      sync.RWMutex
 	runs    map[string]*backtestRunState
 	cancels map[string]context.CancelFunc
-	db      *sqlx.DB
+	db      *sqliteconn.DB
 	dbPath  string
 }
 
@@ -153,7 +151,7 @@ func (s *backtestRunStore) initializeOrValidateSchema() error {
 	}
 	return sqliteschema.InitializeOrValidate(
 		context.Background(), s.db, s.dbPath, "backtest-runs", 1, statements,
-		func(ctx context.Context, db *sqlx.DB) error {
+		func(ctx context.Context, db sqliteschema.Database) error {
 			return sqliteschema.ValidateTable(ctx, db, backtestRunTable, []string{
 				"id:TEXT:1", "status:TEXT:0", "request_json:TEXT:0", "result_json:TEXT:0",
 				"created_at:TEXT:0", "updated_at:TEXT:0",

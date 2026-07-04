@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
@@ -265,7 +265,7 @@ func mustDatabaseStatuses(manager *datamigration.Manager) []datamigration.Databa
 	return statuses
 }
 
-func compactSQLX(ctx context.Context, db *sqlx.DB) error {
+func compactSQLX(ctx context.Context, db *sqliteconn.DB) error {
 	if db == nil {
 		return fmt.Errorf("database is unavailable")
 	}
@@ -282,7 +282,7 @@ func (s *strategyDesignStore) purgeDeletedDefinitions(ctx context.Context, ids [
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	tx, err := s.db.BeginTxx(ctx, nil)
+	tx, err := s.db.BeginWrite(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -314,7 +314,7 @@ func (s *backtestRunStore) purgeTerminalRuns(ctx context.Context, ids []string) 
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	tx, err := s.db.BeginTxx(ctx, nil)
+	tx, err := s.db.BeginWrite(ctx, nil)
 	if err != nil {
 		return 0, err
 	}

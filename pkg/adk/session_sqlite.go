@@ -9,7 +9,6 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
-	"github.com/jmoiron/sqlx"
 	adksession "google.golang.org/adk/session"
 	adksessiondb "google.golang.org/adk/session/database"
 	"gorm.io/gorm"
@@ -18,18 +17,17 @@ import (
 
 type SQLiteSessionService struct {
 	adksession.Service
-	db *sql.DB
+	db *sqliteconn.DB
 }
 
 func NewSQLiteSessionService(path string) (*SQLiteSessionService, error) {
-	dsn := sqliteconn.DSN(path)
 	db, err := sqliteconn.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	if err := sqliteschema.InitializeOrValidate(
 		context.Background(),
-		sqlx.NewDb(db, sqliteDriverName),
+		db,
 		path,
 		"adk-session",
 		1,
@@ -39,7 +37,7 @@ func NewSQLiteSessionService(path string) (*SQLiteSessionService, error) {
 			"CREATE TABLE app_states (app_name TEXT PRIMARY KEY, state TEXT, update_time TIMESTAMP)",
 			"CREATE TABLE user_states (app_name TEXT, user_id TEXT, state TEXT, update_time TIMESTAMP, PRIMARY KEY (app_name,user_id))",
 		},
-		func(ctx context.Context, db *sqlx.DB) error {
+		func(ctx context.Context, db sqliteschema.Database) error {
 			for _, schema := range []struct {
 				table   string
 				columns []string
@@ -59,9 +57,7 @@ func NewSQLiteSessionService(path string) (*SQLiteSessionService, error) {
 		return nil, err
 	}
 	service, err := adksessiondb.NewSessionService(sqliteDialector{
-		DriverName: sqliteDriverName,
-		DSN:        dsn,
-		Conn:       db,
+		Conn: newSQLiteGormPool(db),
 	}, &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		jftradeErr1 := db.Close()
@@ -110,7 +106,7 @@ func CloseSessionService(service adksession.Service) error {
 	return nil
 }
 
-func sqliteSessionSchemaReady(db *sql.DB) (bool, error) {
+func sqliteSessionSchemaReady(db sqliteRowQuerier) (bool, error) {
 	if db == nil {
 		return false, fmt.Errorf("sqlite session database is unavailable")
 	}
@@ -127,7 +123,7 @@ func sqliteSessionSchemaReady(db *sql.DB) (bool, error) {
 	return true, nil
 }
 
-func sqliteTableExists(db *sql.DB, tableName string) (bool, error) {
+func sqliteTableExists(db sqliteRowQuerier, tableName string) (bool, error) {
 	var name string
 	err := db.QueryRowContext(context.Background(),
 		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
@@ -140,4 +136,8 @@ func sqliteTableExists(db *sql.DB, tableName string) (bool, error) {
 		return false, err
 	}
 	return strings.TrimSpace(name) != "", nil
+}
+
+type sqliteRowQuerier interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }

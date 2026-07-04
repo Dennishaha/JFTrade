@@ -19,7 +19,7 @@ func TestInitializeOrValidateStrictSchemaForAllDatabases(t *testing.T) {
 			path := filepath.Join(t.TempDir(), component+".db")
 			db := openTestDB(t, path)
 			statements := []string{`CREATE TABLE records (id TEXT PRIMARY KEY, value TEXT NOT NULL)`}
-			validate := func(ctx context.Context, db *sqlx.DB) error {
+			validate := func(ctx context.Context, db Database) error {
 				return ValidateTable(ctx, db, "records", []string{"id:TEXT:1", "value:TEXT:0"})
 			}
 			if err := InitializeOrValidate(ctx, db, path, component, 1, statements, validate); err != nil {

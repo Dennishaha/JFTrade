@@ -6,24 +6,22 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
-	"github.com/jmoiron/sqlx"
 )
 
 // FutuKLineStore implements service.BackTestable for Futu data stored in
 // SQLite. It uses a compact backtest-only local_klines table keyed by
 // symbol+interval+rehab_type (table-level) and end_time (row-level).
 type FutuKLineStore struct {
-	mu                sync.RWMutex
-	db                *sqlx.DB
+	db                *sqliteconn.DB
 	dbPath            string
-	rehabType         string // "forward" | "backward" | "none" — filters all queries
-	readSessionScope  string
-	writeSessionScope string
+	rehabType         atomic.Value // string: "forward" | "backward" | "none"
+	readSessionScope  atomic.Value // string
+	writeSessionScope atomic.Value // string
 	tableExistsCache  sync.Map
-	accessQueue       *klineAccessQueue
 }
 
 // NewFutuKLineStore opens or creates a SQLite database at the given path and
@@ -33,18 +31,14 @@ func NewFutuKLineStore(dbPath string) (*FutuKLineStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite backtest store: %w", err)
 	}
-	queue := klineAccessQueueForPath(dbPath)
 	store := &FutuKLineStore{
-		db:                db,
-		dbPath:            dbPath,
-		rehabType:         normalizeRehabTypeName("forward"),
-		readSessionScope:  klineReadSessionScopeAuto,
-		writeSessionScope: klineSessionScopeLegacy,
-		accessQueue:       queue,
+		db:     db,
+		dbPath: dbPath,
 	}
-	if err := queue.enqueueWrite(func() error {
-		return sqliteschema.InitializeOrValidate(context.Background(), db, dbPath, "backtest", 1, nil, nil)
-	}); err != nil {
+	store.rehabType.Store(normalizeRehabTypeName("forward"))
+	store.readSessionScope.Store(klineReadSessionScopeAuto)
+	store.writeSessionScope.Store(klineSessionScopeLegacy)
+	if err := sqliteschema.InitializeOrValidate(context.Background(), db, dbPath, "backtest", 1, nil, nil); err != nil {
 		jftradeErr1 := db.Close()
 		jftradeLogError(jftradeErr1)
 		return nil, fmt.Errorf("validate sqlite backtest store: %w", err)
@@ -61,25 +55,19 @@ func (s *FutuKLineStore) Close() error {
 // queries.  Must be called before a backtest run.  Valid values:
 // "forward" (前复权), "backward" (后复权), "none" (不复权).
 func (s *FutuKLineStore) SetRehabType(rehabType string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.rehabType = normalizeRehabTypeName(rehabType)
+	s.rehabType.Store(normalizeRehabTypeName(rehabType))
 }
 
 func (s *FutuKLineStore) SetReadSessionScope(scope string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.readSessionScope = normalizeReadSessionScopeName(scope)
+	s.readSessionScope.Store(normalizeReadSessionScopeName(scope))
 }
 
 func (s *FutuKLineStore) SetWriteSessionScope(scope string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.writeSessionScope = normalizeKLineSessionScopeName(scope)
+	s.writeSessionScope.Store(normalizeKLineSessionScopeName(scope))
 }
 
-// DB returns the underlying sqlx.DB for advanced queries.
-func (s *FutuKLineStore) DB() *sqlx.DB {
+// DB returns the managed SQLite database for advanced queries.
+func (s *FutuKLineStore) DB() *sqliteconn.DB {
 	return s.db
 }
 
@@ -87,16 +75,23 @@ func (s *FutuKLineStore) CompactDatabase(ctx context.Context) error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("backtest database is unavailable")
 	}
-	if err := s.accessQueue.enqueueWrite(func() error {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if _, err := s.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
-			return err
-		}
-		_, err := s.db.ExecContext(ctx, `VACUUM`)
-		return err
-	}); err != nil {
+	if _, err := s.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+		return fmt.Errorf("compact backtest database: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, `VACUUM`); err != nil {
 		return fmt.Errorf("compact backtest database: %w", err)
 	}
 	return nil
+}
+
+func (s *FutuKLineStore) rehabTypeName() string {
+	return s.rehabType.Load().(string)
+}
+
+func (s *FutuKLineStore) readSessionScopeName() string {
+	return s.readSessionScope.Load().(string)
+}
+
+func (s *FutuKLineStore) writeSessionScopeName() string {
+	return s.writeSessionScope.Load().(string)
 }

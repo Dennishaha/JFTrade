@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 )
 
 const (
@@ -209,7 +209,7 @@ func inspectStorage(ctx context.Context, status DatabaseStatus) StorageStats {
 	if status.Status != "ready" {
 		return stats
 	}
-	db, err := sql.Open("sqlite", "file:"+status.Path+"?mode=ro")
+	db, err := sqliteconn.OpenReadOnly(status.Path)
 	if err != nil {
 		stats.Error = err.Error()
 		return stats
@@ -226,7 +226,7 @@ func inspectStorage(ctx context.Context, status DatabaseStatus) StorageStats {
 }
 
 func inspectCleanable(ctx context.Context, status DatabaseStatus) []CleanableItem {
-	db, err := sql.Open("sqlite", "file:"+status.Path+"?mode=ro")
+	db, err := sqliteconn.OpenReadOnly(status.Path)
 	if err != nil {
 		return nil
 	}
@@ -248,7 +248,7 @@ func inspectCleanable(ctx context.Context, status DatabaseStatus) []CleanableIte
 	}
 }
 
-func queryCleanable(ctx context.Context, db *sql.DB, kind, label, query string) []CleanableItem {
+func queryCleanable(ctx context.Context, db sqliteReader, kind, label, query string) []CleanableItem {
 	var count int
 	var bytes int64
 	if err := db.QueryRowContext(ctx, query).Scan(&count, &bytes); err != nil {
@@ -324,7 +324,7 @@ func (m *Manager) PreviewCleanup(ctx context.Context, request CleanupPreviewRequ
 }
 
 func cleanupCandidates(ctx context.Context, descriptor Descriptor, request CleanupPreviewRequest, now time.Time) ([]CleanupCandidate, error) {
-	db, err := sql.Open("sqlite", "file:"+descriptor.Path+"?mode=ro")
+	db, err := sqliteconn.OpenReadOnly(descriptor.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +370,7 @@ func cleanupCandidates(ctx context.Context, descriptor Descriptor, request Clean
 	return candidates, nil
 }
 
-func queryCandidates(ctx context.Context, db *sql.DB, query, category string) ([]CleanupCandidate, error) {
+func queryCandidates(ctx context.Context, db sqliteReader, query, category string) ([]CleanupCandidate, error) {
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -386,6 +386,11 @@ func queryCandidates(ctx context.Context, db *sql.DB, query, category string) ([
 		items = append(items, CleanupCandidate{ID: id, Category: category, EstimatedBytes: bytes})
 	}
 	return items, rows.Err()
+}
+
+type sqliteReader interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 func summarizeCandidates(candidates []CleanupCandidate) ([]CleanableItem, int64) {

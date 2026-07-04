@@ -48,7 +48,7 @@ const (
 
 type Store struct {
 	mu         sync.RWMutex
-	db         *sqlx.DB
+	db         *sqliteconn.DB
 	dbPath     string
 	secrets    secretStore
 	skillsPath string
@@ -142,7 +142,7 @@ func (s *Store) initializeOrValidateSchema() error {
 	}
 	if err := sqliteschema.InitializeOrValidate(
 		context.Background(), s.db, s.dbPath, "adk", 1, statements,
-		func(ctx context.Context, db *sqlx.DB) error {
+		func(ctx context.Context, db sqliteschema.Database) error {
 			for _, schema := range []struct {
 				table   string
 				columns []string
@@ -760,7 +760,7 @@ func (s *Store) SaveRunAndDenyPendingApprovals(ctx context.Context, run Run) err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	tx, err := s.db.BeginTxx(ctx, nil)
+	tx, err := s.db.BeginWrite(ctx, nil)
 	if err != nil {
 		return err
 	}

@@ -89,10 +89,7 @@ func (s *FutuKLineStore) Verify(
 func (s *FutuKLineStore) findMissingRanges(
 	symbol string, interval types.Interval, startTime, endTime time.Time,
 ) ([]string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	directMissing, err := s.findMissingRangesInTable(symbol, interval, s.rehabType, startTime, endTime)
+	directMissing, err := s.findMissingRangesInTable(symbol, interval, s.rehabTypeName(), startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +109,7 @@ func (s *FutuKLineStore) findMissingRanges(
 	}
 	var preferredMissing []string
 	for index, baseInterval := range aggregationBaseIntervals(interval) {
-		baseMissing, err := s.findMissingRangesInTable(symbol, baseInterval, s.rehabType, baseSince, baseUntil)
+		baseMissing, err := s.findMissingRangesInTable(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 		if err != nil {
 			return nil, err
 		}
@@ -256,14 +253,12 @@ type klineReadSource struct {
 }
 
 func (s *FutuKLineStore) EnsureCoverage(symbol string, interval types.Interval, since, until time.Time) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 	_, err := s.resolveReadSource(symbol, interval, since, until)
 	return err
 }
 
 func (s *FutuKLineStore) resolveReadSource(symbol string, interval types.Interval, since, until time.Time) (klineReadSource, error) {
-	directMissing, err := s.findMissingRangesInTable(symbol, interval, s.rehabType, since, until)
+	directMissing, err := s.findMissingRangesInTable(symbol, interval, s.rehabTypeName(), since, until)
 	if err != nil {
 		return klineReadSource{}, err
 	}
@@ -280,7 +275,7 @@ func (s *FutuKLineStore) resolveReadSource(symbol string, interval types.Interva
 			baseSince, baseUntil = sessionAwareIntradayAggregationBaseRange(symbol, interval, since, until, false)
 		}
 		for _, baseInterval := range candidates {
-			baseMissing, baseErr := s.findMissingRangesInTable(symbol, baseInterval, s.rehabType, baseSince, baseUntil)
+			baseMissing, baseErr := s.findMissingRangesInTable(symbol, baseInterval, s.rehabTypeName(), baseSince, baseUntil)
 			if baseErr != nil {
 				return klineReadSource{}, baseErr
 			}
@@ -316,8 +311,6 @@ func (s *FutuKLineStore) isBatchCovered(
 	cursor, batchEnd time.Time,
 	rehabType string,
 ) (bool, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 	tableName := s.writeTableName(symbol, interval, rehabType)
 	exists, err := s.klineTableExists(tableName)
 	if err != nil {

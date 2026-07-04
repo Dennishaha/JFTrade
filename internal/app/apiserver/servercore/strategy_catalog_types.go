@@ -4,8 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/jmoiron/sqlx"
-
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 )
 
@@ -94,7 +93,7 @@ type strategyCatalogFile struct {
 type strategyCatalogStore struct {
 	path         string
 	dbPath       string
-	db           *sqlx.DB
+	db           *sqliteconn.DB
 	targetDir    string
 	runtimeStore *strategyRuntimeStore
 	mu           sync.RWMutex

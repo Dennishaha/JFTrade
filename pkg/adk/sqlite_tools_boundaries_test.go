@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -436,15 +437,15 @@ func TestToolRegistryAliasesModesAndNumericInputs(t *testing.T) {
 
 func openTestSQLiteGORM(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(OpenSQLiteDialector(filepath.Join(t.TempDir(), "adk-gorm.db")), &gorm.Config{})
+	managed, err := sqliteconn.Open(filepath.Join(t.TempDir(), "adk-gorm.db"))
+	if err != nil {
+		t.Fatalf("sqliteconn.Open: %v", err)
+	}
+	t.Cleanup(func() { jftradeCheckTestError(t, managed.Close()) })
+	db, err := gorm.Open(sqliteDialector{Conn: newSQLiteGormPool(managed)}, &gorm.Config{})
 	if err != nil {
 		t.Fatalf("gorm.Open: %v", err)
 	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("db.DB: %v", err)
-	}
-	t.Cleanup(func() { jftradeCheckTestError(t, sqlDB.Close()) })
 	return db
 }
 

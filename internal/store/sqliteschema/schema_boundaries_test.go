@@ -2,14 +2,30 @@ package sqliteschema
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jmoiron/sqlx"
 )
+
+type unsupportedSchemaDB struct{}
+
+func (unsupportedSchemaDB) ExecContext(context.Context, string, ...any) (sql.Result, error) {
+	return nil, nil
+}
+
+func (unsupportedSchemaDB) QueryRowxContext(context.Context, string, ...any) *sqlx.Row {
+	return nil
+}
+
+func (unsupportedSchemaDB) QueryxContext(context.Context, string, ...any) (*sqlx.Rows, error) {
+	return nil, nil
+}
 
 func TestIncompatibleErrorIncludesRecoveryContext(t *testing.T) {
 	err := (&IncompatibleError{Component: "strategy", Path: "/data/strategy.db", Reason: "version drift"}).Error()
@@ -48,7 +64,7 @@ func TestInitializeOrValidateHandlesBlankStatementsAndValidationErrors(t *testin
 	err := InitializeOrValidate(t.Context(), db, path, "test", 1, []string{
 		" \t\n ",
 		`CREATE TABLE records (id TEXT PRIMARY KEY)`,
-	}, func(_ context.Context, _ *sqlx.DB) error {
+	}, func(_ context.Context, _ Database) error {
 		return incompatible
 	})
 	if !errors.Is(err, incompatible) {
@@ -63,6 +79,36 @@ func TestInitializeOrValidateHandlesBlankStatementsAndValidationErrors(t *testin
 	}, nil)
 	if err == nil || !strings.Contains(err.Error(), "initialize test schema metadata") {
 		t.Fatalf("InitializeOrValidate(metadata conflict) error = %v", err)
+	}
+}
+
+func TestInitializeOrValidateUsesManagedSQLiteControllerTransaction(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "managed.db")
+	db, err := sqliteconn.Open(path)
+	if err != nil {
+		t.Fatalf("open managed sqlite: %v", err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("close managed sqlite: %v", err)
+		}
+	}()
+
+	err = InitializeOrValidate(t.Context(), db, path, "test", 1, []string{
+		`CREATE TABLE records (id TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+	}, func(ctx context.Context, db Database) error {
+		return ValidateTable(ctx, db, "records", []string{"id:TEXT:1", "value:TEXT:0"})
+	})
+	if err != nil {
+		t.Fatalf("InitializeOrValidate(managed sqlite) error = %v", err)
+	}
+}
+
+func TestInitializeOrValidateRejectsDatabaseWithoutManagedWriteTransaction(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "unsupported.db")
+	err := InitializeOrValidate(t.Context(), unsupportedSchemaDB{}, path, "test", 1, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "does not support managed write transactions") {
+		t.Fatalf("InitializeOrValidate(unsupported db) error = %v", err)
 	}
 }
 

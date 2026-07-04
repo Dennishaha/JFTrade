@@ -13,7 +13,6 @@ import (
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	"github.com/jmoiron/sqlx"
 )
 
 const (
@@ -25,7 +24,7 @@ const (
 )
 
 type executionOrderSQLiteStore struct {
-	db   *sqlx.DB
+	db   *sqliteconn.DB
 	path string
 }
 
@@ -167,7 +166,7 @@ func (s *executionOrderSQLiteStore) migrateSchemaV1ToV2() error {
 		return err
 	}
 
-	tx, err := s.db.BeginTxx(context.Background(), nil)
+	tx, err := s.db.BeginWrite(context.Background(), nil)
 	if err != nil {
 		return err
 	}
@@ -273,7 +272,7 @@ func (s *executionOrderSQLiteStore) initializeOrValidateSchema() error {
 		"execution-orders",
 		2,
 		statements,
-		func(ctx context.Context, _ *sqlx.DB) error {
+		func(ctx context.Context, _ sqliteschema.Database) error {
 			if err := s.ensureExistingSchemaCanBeOpened(); err != nil {
 				return err
 			}

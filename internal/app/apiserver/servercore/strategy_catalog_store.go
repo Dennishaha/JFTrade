@@ -349,7 +349,7 @@ func (s *strategyCatalogStore) persistLocked() error {
 	if strings.TrimSpace(s.data.TargetDir) == "" {
 		s.data.TargetDir = s.targetDir
 	}
-	tx, err := s.db.Beginx()
+	tx, err := s.db.BeginWrite(context.Background(), nil)
 	if err != nil {
 		return err
 	}

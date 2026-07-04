@@ -26,6 +26,10 @@ type Runtime struct {
 	workflowChildMu    sync.Mutex
 	approvalMu         sync.Mutex
 	approvalRuns       map[string]struct{}
+	approvalWG         sync.WaitGroup
+	closing            bool
+	backgroundCtx      context.Context
+	backgroundCancel   context.CancelFunc
 	compactionMu       sync.Mutex
 	compactionSessions map[string]struct{}
 	runSem             chan struct{} // Concurrency limiter for active runs
@@ -42,6 +46,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	if sessionService == nil {
 		sessionService = adksession.InMemoryService()
 	}
+	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
 	skillsPath := ""
 	if store != nil {
 		skillsPath = store.SkillsPath()
@@ -49,7 +54,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	r := &Runtime{
 		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, openai: newOpenAIClient(),
 		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{},
-		runSem: make(chan struct{}, MaxConcurrentRuns),
+		backgroundCtx: backgroundCtx, backgroundCancel: backgroundCancel, runSem: make(chan struct{}, MaxConcurrentRuns),
 	}
 	if store != nil {
 		store.SetSessionService(sessionService)
@@ -252,6 +257,13 @@ func (r *Runtime) Close() error {
 		delete(r.activeRuns, id)
 	}
 	r.activeMu.Unlock()
+	r.approvalMu.Lock()
+	r.closing = true
+	if r.backgroundCancel != nil {
+		r.backgroundCancel()
+	}
+	r.approvalMu.Unlock()
+	r.approvalWG.Wait()
 	sessionErr := r.CloseSessionServices()
 	return errors.Join(sessionErr, r.store.Close())
 }

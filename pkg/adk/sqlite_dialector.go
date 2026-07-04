@@ -2,7 +2,7 @@ package adk
 
 import (
 	"context"
-	"database/sql"
+	"fmt"
 	"maps"
 	"strconv"
 
@@ -14,16 +14,8 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-const sqliteDriverName = "sqlite"
-
 type sqliteDialector struct {
-	DriverName string
-	DSN        string
-	Conn       gorm.ConnPool
-}
-
-func OpenSQLiteDialector(dsn string) gorm.Dialector {
-	return &sqliteDialector{DSN: dsn, DriverName: sqliteDriverName}
+	Conn gorm.ConnPool
 }
 
 func (dialector sqliteDialector) Name() string {
@@ -31,19 +23,10 @@ func (dialector sqliteDialector) Name() string {
 }
 
 func (dialector sqliteDialector) Initialize(db *gorm.DB) error {
-	driverName := dialector.DriverName
-	if driverName == "" {
-		driverName = sqliteDriverName
+	if dialector.Conn == nil {
+		return fmt.Errorf("managed SQLite connection is required")
 	}
-	if dialector.Conn != nil {
-		db.ConnPool = dialector.Conn
-	} else {
-		conn, err := sql.Open(driverName, dialector.DSN)
-		if err != nil {
-			return err
-		}
-		db.ConnPool = conn
-	}
+	db.ConnPool = dialector.Conn
 
 	var version string
 	if err := db.ConnPool.QueryRowContext(context.Background(), "select sqlite_version()").Scan(&version); err != nil {

@@ -9,8 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -32,7 +31,7 @@ type strategyDesignDefinition = stratsrv.Definition
 type strategyDesignStore struct {
 	path   string
 	dbPath string
-	db     *sqlx.DB
+	db     *sqliteconn.DB
 	mu     sync.RWMutex
 }
 

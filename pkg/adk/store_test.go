@@ -44,7 +44,7 @@ func newTestRuntime(t *testing.T) *Runtime {
 	return runtime
 }
 
-func TestNewStoreUsesSingleSQLiteConnection(t *testing.T) {
+func TestNewStoreUsesSeparatedConcurrentReadAndSingleWritePools(t *testing.T) {
 	dir := t.TempDir()
 	store, err := NewStore(filepath.Join(dir, "adk.db"), filepath.Join(dir, "secrets", "adk.json"), filepath.Join(dir, "skills"))
 	if err != nil {
@@ -52,8 +52,11 @@ func TestNewStoreUsesSingleSQLiteConnection(t *testing.T) {
 	}
 	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
 
-	if got := store.db.Stats().MaxOpenConnections; got != 1 {
-		t.Fatalf("MaxOpenConnections = %d, want 1", got)
+	if got := store.db.Stats().MaxOpenConnections; got != 8 {
+		t.Fatalf("read MaxOpenConnections = %d, want 8", got)
+	}
+	if got := store.db.WriteStats().MaxOpenConnections; got != 1 {
+		t.Fatalf("write MaxOpenConnections = %d, want 1", got)
 	}
 }
 

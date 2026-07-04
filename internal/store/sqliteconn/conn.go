@@ -1,19 +1,18 @@
 package sqliteconn
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
 
-	// Register the modernc SQLite driver for database/sql.
+	// Register the modernc SQLite driver used by the separated read/write pools.
 	_ "modernc.org/sqlite"
 )
 
 const DriverName = "sqlite"
 
-const defaultMaxOpenConns = 1
+const defaultMaxOpenConns = 8
 
 type Options struct {
 	MaxOpenConns int
@@ -21,6 +20,8 @@ type Options struct {
 }
 
 type Option func(*Options)
+
+var openSQLX = sqlx.Open
 
 func WithMaxOpenConns(value int) Option {
 	return func(options *Options) {
@@ -34,30 +35,51 @@ func WithMaxIdleConns(value int) Option {
 	}
 }
 
-func Open(path string, opts ...Option) (*sql.DB, error) {
-	trimmedPath := strings.TrimSpace(path)
-	if trimmedPath == "" {
-		return nil, fmt.Errorf("sqlite database path is required")
-	}
-	db, err := sql.Open(DriverName, DSN(trimmedPath))
-	if err != nil {
-		return nil, err
-	}
-	configure(db, resolveOptions(opts...))
-	return db, nil
+func Open(path string, opts ...Option) (*DB, error) {
+	return openDatabase(path, false, opts...)
 }
 
-func OpenX(path string, opts ...Option) (*sqlx.DB, error) {
+func OpenX(path string, opts ...Option) (*DB, error) {
+	return openDatabase(path, false, opts...)
+}
+
+func OpenReadOnly(path string, opts ...Option) (*DB, error) {
+	return openDatabase(path, true, opts...)
+}
+
+func openDatabase(path string, readOnly bool, opts ...Option) (*DB, error) {
 	trimmedPath := strings.TrimSpace(path)
 	if trimmedPath == "" {
 		return nil, fmt.Errorf("sqlite database path is required")
 	}
-	db, err := sqlx.Open(DriverName, DSN(trimmedPath))
+	writerDSN := DSN(trimmedPath)
+	readerDSN := ReadDSN(trimmedPath)
+	if readOnly {
+		writerDSN = ReadOnlyDSN(trimmedPath)
+		readerDSN = writerDSN
+	}
+
+	writer, err := openSQLX(DriverName, writerDSN)
 	if err != nil {
 		return nil, err
 	}
-	configure(db.DB, resolveOptions(opts...))
-	return db, nil
+	writer.SetMaxOpenConns(1)
+	writer.SetMaxIdleConns(1)
+
+	reader, err := openSQLX(DriverName, readerDSN)
+	if err != nil {
+		_ = writer.Close()
+		return nil, err
+	}
+	options := resolveOptions(opts...)
+	reader.SetMaxOpenConns(options.MaxOpenConns)
+	reader.SetMaxIdleConns(options.MaxIdleConns)
+
+	return &DB{
+		reader:      reader,
+		writer:      writer,
+		coordinator: coordinatorForPath(trimmedPath),
+	}, nil
 }
 
 func DSN(path string) string {
@@ -68,6 +90,30 @@ func DSN(path string) string {
 	return strings.TrimSpace(path) +
 		separator +
 		"_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)"
+}
+
+func ReadDSN(path string) string {
+	separator := "?"
+	if strings.Contains(path, "?") {
+		separator = "&"
+	}
+	return strings.TrimSpace(path) + separator + "_pragma=query_only(1)&_pragma=busy_timeout(10000)"
+}
+
+func ReadOnlyDSN(path string) string {
+	trimmedPath := strings.TrimSpace(path)
+	if !strings.HasPrefix(strings.ToLower(trimmedPath), "file:") {
+		trimmedPath = "file:" + trimmedPath
+	}
+	separator := "?"
+	if strings.Contains(trimmedPath, "?") {
+		separator = "&"
+	}
+	if !strings.Contains(strings.ToLower(trimmedPath), "mode=") {
+		trimmedPath += separator + "mode=ro"
+		separator = "&"
+	}
+	return trimmedPath + separator + "_pragma=busy_timeout(10000)"
 }
 
 func resolveOptions(opts ...Option) Options {
@@ -84,12 +130,4 @@ func resolveOptions(opts ...Option) Options {
 		options.MaxIdleConns = options.MaxOpenConns
 	}
 	return options
-}
-
-func configure(db *sql.DB, options Options) {
-	if db == nil {
-		return
-	}
-	db.SetMaxOpenConns(options.MaxOpenConns)
-	db.SetMaxIdleConns(options.MaxIdleConns)
 }

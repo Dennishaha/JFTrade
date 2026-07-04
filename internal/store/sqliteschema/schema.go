@@ -9,10 +9,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jmoiron/sqlx"
 )
 
 const MetadataTable = "jftrade_schema_meta"
+
+type Database interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowxContext(context.Context, string, ...any) *sqlx.Row
+	QueryxContext(context.Context, string, ...any) (*sqlx.Rows, error)
+}
+
+type writeTransaction interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	Commit() error
+	Rollback() error
+}
 
 type IncompatibleError struct {
 	Component string
@@ -31,12 +44,12 @@ func IsIncompatible(err error) bool {
 
 func InitializeOrValidate(
 	ctx context.Context,
-	db *sqlx.DB,
+	db Database,
 	path string,
 	component string,
 	version int,
 	statements []string,
-	validate func(context.Context, *sqlx.DB) error,
+	validate func(context.Context, Database) error,
 ) error {
 	if db == nil {
 		return fmt.Errorf("%s database is unavailable", component)
@@ -46,7 +59,7 @@ func InitializeOrValidate(
 		return err
 	}
 	if newDatabase {
-		tx, err := db.BeginTxx(ctx, nil)
+		tx, err := beginWriteTransaction(ctx, db)
 		if err != nil {
 			return err
 		}
@@ -94,7 +107,7 @@ func InitializeOrValidate(
 	return nil
 }
 
-func ValidateMetadata(ctx context.Context, db *sqlx.DB, path string, component string, version int) error {
+func ValidateMetadata(ctx context.Context, db Database, path string, component string, version int) error {
 	var table string
 	err := db.QueryRowxContext(ctx,
 		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
@@ -141,16 +154,12 @@ func databaseIsNew(path string) (bool, error) {
 	return info.Size() == 0, nil
 }
 
-func ValidateTable(ctx context.Context, db *sqlx.DB, table string, expected []string) (resultErr error) {
+func ValidateTable(ctx context.Context, db Database, table string, expected []string) (resultErr error) {
 	rows, err := db.QueryxContext(ctx, `PRAGMA table_info(`+table+`)`)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if closeErr := rows.Close(); closeErr != nil && resultErr == nil {
-			resultErr = closeErr
-		}
-	}()
+	defer closeRows(rows, &resultErr)
 	actual := make([]string, 0, len(expected))
 	for rows.Next() {
 		var cid, notNull, primaryKey int
@@ -173,4 +182,25 @@ func ValidateTable(ctx context.Context, db *sqlx.DB, table string, expected []st
 		}
 	}
 	return nil
+}
+
+type rowCloser interface {
+	Close() error
+}
+
+func closeRows(rows rowCloser, resultErr *error) {
+	if closeErr := rows.Close(); closeErr != nil && *resultErr == nil {
+		*resultErr = closeErr
+	}
+}
+
+func beginWriteTransaction(ctx context.Context, db Database) (writeTransaction, error) {
+	switch typed := db.(type) {
+	case *sqliteconn.DB:
+		return typed.BeginWrite(ctx, nil)
+	case *sqlx.DB:
+		return typed.BeginTxx(ctx, nil)
+	default:
+		return nil, fmt.Errorf("sqlite database does not support managed write transactions")
+	}
 }

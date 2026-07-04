@@ -1,13 +1,15 @@
 package sqliteconn
 
 import (
-	"database/sql"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/jmoiron/sqlx"
 )
 
-func TestOpenXConfiguresBusyTimeoutAndSingleConnectionByDefault(t *testing.T) {
+func TestOpenXConfiguresBusyTimeoutAndConcurrentReadsByDefault(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "store.db")
 	db, err := OpenX(path)
 	if err != nil {
@@ -19,8 +21,11 @@ func TestOpenXConfiguresBusyTimeoutAndSingleConnectionByDefault(t *testing.T) {
 		}
 	})
 
-	if got := db.Stats().MaxOpenConnections; got != 1 {
-		t.Fatalf("MaxOpenConnections = %d, want 1", got)
+	if got := db.Stats().MaxOpenConnections; got != defaultMaxOpenConns {
+		t.Fatalf("MaxOpenConnections = %d, want %d", got, defaultMaxOpenConns)
+	}
+	if got := db.WriteStats().MaxOpenConnections; got != 1 {
+		t.Fatalf("write MaxOpenConnections = %d, want 1", got)
 	}
 
 	var timeout int
@@ -57,6 +62,17 @@ func TestDSNAppendsPragmasToExistingQuery(t *testing.T) {
 	for _, want := range []string{"_pragma=journal_mode(WAL)", "_pragma=synchronous(NORMAL)", "_pragma=busy_timeout(10000)"} {
 		if !strings.Contains(dsn, want) {
 			t.Fatalf("DSN missing %q: %q", want, dsn)
+		}
+	}
+}
+
+func TestReadDSNEnforcesQueryOnlyConnections(t *testing.T) {
+	for _, path := range []string{"store.db", "file:store.db?cache=shared"} {
+		dsn := ReadDSN(path)
+		for _, want := range []string{"_pragma=query_only(1)", "_pragma=busy_timeout(10000)"} {
+			if !strings.Contains(dsn, want) {
+				t.Fatalf("ReadDSN(%q) missing %q: %q", path, want, dsn)
+			}
 		}
 	}
 }
@@ -108,15 +124,44 @@ func TestOpenFunctionsRejectBlankPath(t *testing.T) {
 	}
 }
 
+func TestOpenFunctionsPropagateDriverOpenErrors(t *testing.T) {
+	wantErr := errors.New("open failed")
+	originalOpenSQLX := openSQLX
+	t.Cleanup(func() {
+		openSQLX = originalOpenSQLX
+	})
+
+	openSQLX = func(string, string) (*sqlx.DB, error) { return nil, wantErr }
+	if db, err := Open("store.db"); db != nil || !errors.Is(err, wantErr) {
+		t.Fatalf("Open(driver error) = (%#v, %v), want nil, %v", db, err, wantErr)
+	}
+
+	if db, err := OpenX("store.db"); db != nil || !errors.Is(err, wantErr) {
+		t.Fatalf("OpenX(driver error) = (%#v, %v), want nil, %v", db, err, wantErr)
+	}
+
+	callCount := 0
+	openSQLX = func(driverName, dsn string) (*sqlx.DB, error) {
+		callCount++
+		if callCount == 2 {
+			return nil, wantErr
+		}
+		return originalOpenSQLX(driverName, dsn)
+	}
+	if db, err := OpenX(filepath.Join(t.TempDir(), "reader-failure.db")); db != nil || !errors.Is(err, wantErr) {
+		t.Fatalf("OpenX(reader error) = (%#v, %v), want nil, %v", db, err, wantErr)
+	}
+}
+
 func TestResolveOptionsNormalizesConnectionPoolBoundaries(t *testing.T) {
 	tests := []struct {
 		name string
 		opts []Option
 		want Options
 	}{
-		{name: "defaults", want: Options{MaxOpenConns: 1, MaxIdleConns: 1}},
-		{name: "nil option", opts: []Option{nil}, want: Options{MaxOpenConns: 1, MaxIdleConns: 1}},
-		{name: "nonpositive open", opts: []Option{WithMaxOpenConns(0), WithMaxIdleConns(4)}, want: Options{MaxOpenConns: 1, MaxIdleConns: 1}},
+		{name: "defaults", want: Options{MaxOpenConns: 8, MaxIdleConns: 8}},
+		{name: "nil option", opts: []Option{nil}, want: Options{MaxOpenConns: 8, MaxIdleConns: 8}},
+		{name: "nonpositive open", opts: []Option{WithMaxOpenConns(0), WithMaxIdleConns(4)}, want: Options{MaxOpenConns: 8, MaxIdleConns: 4}},
 		{name: "nonpositive idle", opts: []Option{WithMaxOpenConns(8), WithMaxIdleConns(0)}, want: Options{MaxOpenConns: 8, MaxIdleConns: 8}},
 		{name: "idle exceeds open", opts: []Option{WithMaxOpenConns(4), WithMaxIdleConns(8)}, want: Options{MaxOpenConns: 4, MaxIdleConns: 4}},
 		{name: "explicit pool", opts: []Option{WithMaxOpenConns(8), WithMaxIdleConns(3)}, want: Options{MaxOpenConns: 8, MaxIdleConns: 3}},
@@ -131,6 +176,19 @@ func TestResolveOptionsNormalizesConnectionPoolBoundaries(t *testing.T) {
 	}
 }
 
-func TestConfigureAcceptsNilDatabase(t *testing.T) {
-	configure((*sql.DB)(nil), Options{MaxOpenConns: 4, MaxIdleConns: 2})
+func TestReadOnlyDSNAddsModeWithoutWritePragmas(t *testing.T) {
+	dsn := ReadOnlyDSN("store.db")
+	for _, want := range []string{"file:store.db?mode=ro", "_pragma=busy_timeout(10000)"} {
+		if !strings.Contains(dsn, want) {
+			t.Fatalf("ReadOnlyDSN missing %q: %q", want, dsn)
+		}
+	}
+	if strings.Contains(dsn, "journal_mode") || strings.Contains(dsn, "synchronous") {
+		t.Fatalf("ReadOnlyDSN contains write pragma: %q", dsn)
+	}
+
+	existing := ReadOnlyDSN("file:store.db?mode=ro")
+	if strings.Count(existing, "mode=ro") != 1 || !strings.Contains(existing, "&_pragma=") {
+		t.Fatalf("ReadOnlyDSN(existing mode) = %q", existing)
+	}
 }

@@ -94,7 +94,7 @@ func (s *Store) SaveHandoffSegment(ctx context.Context, segment HandoffSegment) 
 }
 
 func (s *Store) ReplaceActiveHandoffSegments(ctx context.Context, sessionID string, next HandoffSegment, superseded []HandoffSegment) (HandoffSegment, error) {
-	tx, err := s.db.BeginTxx(ctx, nil)
+	tx, err := s.db.BeginWrite(ctx, nil)
 	if err != nil {
 		return HandoffSegment{}, err
 	}

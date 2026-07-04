@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -26,25 +27,7 @@ func TestNewFutuKLineStoreAllowsConcurrentReadConnections(t *testing.T) {
 	}
 }
 
-func TestFutuKLineStoresWithSamePathShareAccessQueue(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "backtest.db")
-	first, err := NewFutuKLineStore(dbPath)
-	if err != nil {
-		t.Fatalf("NewFutuKLineStore first: %v", err)
-	}
-	t.Cleanup(func() { jftradeCheckTestError(t, first.Close()) })
-	second, err := NewFutuKLineStore(dbPath)
-	if err != nil {
-		t.Fatalf("NewFutuKLineStore second: %v", err)
-	}
-	t.Cleanup(func() { jftradeCheckTestError(t, second.Close()) })
-
-	if first.accessQueue == nil || first.accessQueue != second.accessQueue {
-		t.Fatal("stores for the same sqlite path do not share one access queue")
-	}
-}
-
-func TestFutuKLineSharedAccessQueueSerializesConcurrentWriters(t *testing.T) {
+func TestFutuKLineUnifiedControllerSerializesConcurrentWriters(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "backtest.db")
 	first, err := NewFutuKLineStore(dbPath)
 	if err != nil {
@@ -110,78 +93,122 @@ func TestFutuKLineSharedAccessQueueSerializesConcurrentWriters(t *testing.T) {
 	}
 }
 
-func TestKLineAccessQueueAllowsConsecutiveReadsBeforeWrites(t *testing.T) {
-	queue := newKLineAccessQueue()
-	readRelease := make(chan struct{})
-	writeRelease := make(chan struct{})
-	readOneStarted := make(chan struct{})
-	readTwoStarted := make(chan struct{})
-	writeStarted := make(chan struct{})
-	readAfterWriteStarted := make(chan struct{})
-	errs := make(chan error, 4)
+func TestFutuKLineReadersRunInParallelWithLaterWALWrite(t *testing.T) {
+	store, err := NewFutuKLineStore(filepath.Join(t.TempDir(), "backtest.db"))
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore: %v", err)
+	}
+	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
 
-	waitForStart := func(name string, ch <-chan struct{}) {
-		t.Helper()
+	start := time.Date(2026, 1, 2, 9, 30, 0, 0, time.UTC)
+	initial := testConnectionKLine(start)
+	if err := store.InsertKLine(initial, "forward"); err != nil {
+		t.Fatalf("InsertKLine(initial): %v", err)
+	}
+
+	releaseReaders := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseReaders) }) }
+	defer release()
+	readerStarted := make(chan struct{}, 2)
+	readerErrors := make(chan error, 2)
+	for range 2 {
+		go func() {
+			signalled := false
+			readerErrors <- store.StreamKLines(start.Add(-time.Minute), start.Add(time.Minute), nil, []string{"US.TME"}, []types.Interval{types.Interval1m}, func(types.KLine) {
+				if !signalled {
+					signalled = true
+					readerStarted <- struct{}{}
+					<-releaseReaders
+				}
+			})
+		}()
+	}
+	for index := range 2 {
 		select {
-		case <-ch:
+		case <-readerStarted:
 		case <-time.After(time.Second):
-			t.Fatalf("%s did not start", name)
-		}
-	}
-	assertNotStarted := func(name string, ch <-chan struct{}) {
-		t.Helper()
-		select {
-		case <-ch:
-			t.Fatalf("%s started too early", name)
-		case <-time.After(50 * time.Millisecond):
+			t.Fatalf("parallel reader %d did not start", index+1)
 		}
 	}
 
+	writeDone := make(chan error, 1)
 	go func() {
-		errs <- queue.enqueueRead(func() error {
-			close(readOneStarted)
-			<-readRelease
-			return nil
-		})
+		writeDone <- store.InsertKLine(testConnectionKLine(start.Add(time.Minute)), "forward")
 	}()
-	waitForStart("first read", readOneStarted)
-
-	go func() {
-		errs <- queue.enqueueRead(func() error {
-			close(readTwoStarted)
-			<-readRelease
-			return nil
-		})
-	}()
-	waitForStart("second read", readTwoStarted)
-
-	go func() {
-		errs <- queue.enqueueWrite(func() error {
-			close(writeStarted)
-			<-writeRelease
-			return nil
-		})
-	}()
-	assertNotStarted("write", writeStarted)
-
-	go func() {
-		errs <- queue.enqueueRead(func() error {
-			close(readAfterWriteStarted)
-			return nil
-		})
-	}()
-	assertNotStarted("read after write", readAfterWriteStarted)
-
-	close(readRelease)
-	waitForStart("write", writeStarted)
-	assertNotStarted("read after write", readAfterWriteStarted)
-
-	close(writeRelease)
-	waitForStart("read after write", readAfterWriteStarted)
-
-	for index := 0; index < cap(errs); index++ {
-		if err := <-errs; err != nil {
-			t.Fatalf("queued operation %d: %v", index, err)
+	select {
+	case err := <-writeDone:
+		if err != nil {
+			t.Fatalf("InsertKLine with active readers: %v", err)
 		}
+	case <-time.After(time.Second):
+		t.Fatal("WAL write was blocked by active readers")
+	}
+
+	release()
+	for range 2 {
+		if err := <-readerErrors; err != nil {
+			t.Fatalf("StreamKLines: %v", err)
+		}
+	}
+}
+
+func TestFutuKLineReadWaitsForPreviouslyQueuedWrite(t *testing.T) {
+	store, err := NewFutuKLineStore(filepath.Join(t.TempDir(), "backtest.db"))
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore: %v", err)
+	}
+	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
+	end := time.Date(2026, 1, 3, 9, 31, 0, 0, time.UTC)
+	if err := store.InsertKLine(testConnectionKLine(end), "forward"); err != nil {
+		t.Fatalf("InsertKLine: %v", err)
+	}
+
+	tx, err := store.DB().BeginWrite(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BeginWrite: %v", err)
+	}
+	table := store.writeTableName("US.TME", types.Interval1m, "forward")
+	if _, err := tx.ExecContext(context.Background(), `UPDATE `+quoteIdentifier(table)+` SET close = '9'`); err != nil {
+		_ = tx.Rollback()
+		t.Fatalf("update: %v", err)
+	}
+
+	readDone := make(chan struct {
+		kline *types.KLine
+		err   error
+	}, 1)
+	go func() {
+		kline, queryErr := store.QueryKLine(nil, "US.TME", types.Interval1m, "DESC", 1)
+		readDone <- struct {
+			kline *types.KLine
+			err   error
+		}{kline: kline, err: queryErr}
+	}()
+	select {
+	case <-readDone:
+		t.Fatal("read passed a previously queued write")
+	case <-time.After(30 * time.Millisecond):
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	result := <-readDone
+	if result.err != nil || result.kline == nil || result.kline.Close.String() != "9" {
+		t.Fatalf("read after write = (%#v, %v)", result.kline, result.err)
+	}
+}
+
+func testConnectionKLine(end time.Time) types.KLine {
+	return types.KLine{
+		Symbol:    "US.TME",
+		Interval:  types.Interval1m,
+		StartTime: types.Time(end.Add(-time.Minute)),
+		EndTime:   types.Time(end),
+		Open:      fixedpoint.NewFromFloat(1),
+		High:      fixedpoint.NewFromFloat(2),
+		Low:       fixedpoint.NewFromFloat(1),
+		Close:     fixedpoint.NewFromFloat(2),
+		Volume:    fixedpoint.NewFromFloat(100),
 	}
 }

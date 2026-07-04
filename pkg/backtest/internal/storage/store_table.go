@@ -85,7 +85,7 @@ func (s *FutuKLineStore) klineTableExists(tableName string) (bool, error) {
 }
 
 func (s *FutuKLineStore) writeTableName(symbol string, interval types.Interval, rehabType string) string {
-	return klineTableNameForSessionScope(symbol, interval, rehabType, s.writeSessionScope)
+	return klineTableNameForSessionScope(symbol, interval, rehabType, s.writeSessionScopeName())
 }
 
 func (s *FutuKLineStore) readTableNames(symbol string, interval types.Interval, rehabType string) ([3]string, int) {
@@ -94,7 +94,7 @@ func (s *FutuKLineStore) readTableNames(symbol string, interval types.Interval, 
 		tableNames[index] = klineTableNameForSessionScope(symbol, interval, rehabType, scope)
 	}
 
-	switch normalizeReadSessionScopeName(s.readSessionScope) {
+	switch normalizeReadSessionScopeName(s.readSessionScopeName()) {
 	case klineSessionScopeRegular:
 		add(0, klineSessionScopeRegular)
 		add(1, klineSessionScopeLegacy)

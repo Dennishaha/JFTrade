@@ -141,19 +141,32 @@ func (r *Runtime) enqueueResolvedApprovalContinuation(runID string) {
 		return
 	}
 	r.approvalMu.Lock()
+	if r.closing {
+		r.approvalMu.Unlock()
+		return
+	}
 	if _, ok := r.approvalRuns[runID]; ok {
 		r.approvalMu.Unlock()
 		return
 	}
 	r.approvalRuns[runID] = struct{}{}
+	r.approvalWG.Add(1)
+	ctx := r.backgroundCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	r.approvalMu.Unlock()
 	go func() {
+		defer r.approvalWG.Done()
 		defer func() {
 			r.approvalMu.Lock()
 			delete(r.approvalRuns, runID)
 			r.approvalMu.Unlock()
 		}()
-		if err := r.continueResolvedApprovalRun(context.Background(), runID); err != nil {
+		if err := r.continueResolvedApprovalRun(ctx, runID); err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			r.markApprovalContinuationFailed(context.Background(), runID, err)
 		}
 	}()
