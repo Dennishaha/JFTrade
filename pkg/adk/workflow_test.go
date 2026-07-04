@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
 
@@ -124,6 +125,12 @@ func TestWorkflowTaskToolsExposeModelSelection(t *testing.T) {
 	if !names[workflowModelsListTool] {
 		t.Fatalf("workflow task tools = %+v, want %s", names, workflowModelsListTool)
 	}
+	modelToolDeclaration := workflowToolDeclaration(t, tools, workflowModelsListTool)
+	modelToolSchema := schemaMap(t, modelToolDeclaration.ParametersJsonSchema)
+	modelToolProperties, ok := modelToolSchema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("workflow.models.list declaration properties missing: %+v", modelToolSchema)
+	}
 	for name, schema := range map[string]map[string]any{
 		workflowTaskAddTool:      workflowTaskAddSchema(),
 		workflowTaskDelegateTool: workflowTaskDelegateSchema(),
@@ -146,7 +153,47 @@ func TestWorkflowTaskToolsExposeModelSelection(t *testing.T) {
 		if _, ok := modelProperties[field]; !ok {
 			t.Fatalf("workflow.models.list schema missing %s in %+v", field, modelProperties)
 		}
+		if _, ok := modelToolProperties[field]; !ok {
+			t.Fatalf("workflow.models.list declaration missing %s in %+v", field, modelToolProperties)
+		}
 	}
+}
+
+type workflowDeclaredTool interface {
+	Declaration() *genai.FunctionDeclaration
+}
+
+func workflowToolDeclaration(t *testing.T, tools []adktool.Tool, name string) *genai.FunctionDeclaration {
+	t.Helper()
+	for _, item := range tools {
+		if item.Name() != name {
+			continue
+		}
+		declared, ok := item.(workflowDeclaredTool)
+		if !ok {
+			t.Fatalf("%s does not expose a declaration", name)
+		}
+		declaration := declared.Declaration()
+		if declaration == nil {
+			t.Fatalf("%s declaration is nil", name)
+		}
+		return declaration
+	}
+	t.Fatalf("%s not found", name)
+	return nil
+}
+
+func schemaMap(t *testing.T, schema any) map[string]any {
+	t.Helper()
+	raw, err := json.Marshal(schema)
+	if err != nil {
+		t.Fatalf("marshal schema: %v", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal schema: %v", err)
+	}
+	return out
 }
 
 func TestGoalWorkflowToolsAreIsolatedByPhase(t *testing.T) {

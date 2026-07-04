@@ -9,6 +9,7 @@ import (
 	"time"
 
 	adkmodel "google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/platform"
 	adksession "google.golang.org/adk/v2/session"
 	adktool "google.golang.org/adk/v2/tool"
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
@@ -493,11 +494,14 @@ func appendADKEvent(t *testing.T, runtime *Runtime, agentID string, sessionID st
 	}
 }
 
+func newProjectionEventContext(eventID string, ts time.Time) context.Context {
+	ctx := platform.WithUUIDProvider(context.Background(), func() string { return eventID })
+	return platform.WithTimeProvider(ctx, func() time.Time { return ts })
+}
+
 func newUserEvent(runID string, text string, ts time.Time) *adksession.Event {
-	event := adksession.NewEvent(context.Background(), runID)
-	event.ID = "user-" + runID + "-" + ts.UTC().Format(time.RFC3339Nano)
+	event := adksession.NewEvent(newProjectionEventContext("user-"+runID+"-"+ts.UTC().Format(time.RFC3339Nano), ts), runID)
 	event.Author = "user"
-	event.Timestamp = ts
 	event.LLMResponse = adkmodel.LLMResponse{
 		Content: genai.NewContentFromText(text, genai.RoleUser),
 	}
@@ -505,10 +509,8 @@ func newUserEvent(runID string, text string, ts time.Time) *adksession.Event {
 }
 
 func newAssistantEvent(runID string, parts []*genai.Part, ts time.Time) *adksession.Event {
-	event := adksession.NewEvent(context.Background(), runID)
-	event.ID = "assistant-" + runID + "-" + ts.UTC().Format(time.RFC3339Nano)
+	event := adksession.NewEvent(newProjectionEventContext("assistant-"+runID+"-"+ts.UTC().Format(time.RFC3339Nano), ts), runID)
 	event.Author = googleADKAgentName("agent")
-	event.Timestamp = ts
 	event.LLMResponse = adkmodel.LLMResponse{
 		Content:      genai.NewContentFromParts(parts, genai.RoleModel),
 		TurnComplete: true,
@@ -517,10 +519,8 @@ func newAssistantEvent(runID string, parts []*genai.Part, ts time.Time) *adksess
 }
 
 func newToolCallEvent(runID string, callID string, name string, ts time.Time) *adksession.Event {
-	event := adksession.NewEvent(context.Background(), runID)
-	event.ID = "tool-call-" + callID
+	event := adksession.NewEvent(newProjectionEventContext("tool-call-"+callID, ts), runID)
 	event.Author = googleADKAgentName("agent")
-	event.Timestamp = ts
 	event.LLMResponse = adkmodel.LLMResponse{
 		Content: genai.NewContentFromParts([]*genai.Part{{
 			FunctionCall: &genai.FunctionCall{ID: callID, Name: name, Args: map[string]any{"input": name}},
@@ -530,10 +530,8 @@ func newToolCallEvent(runID string, callID string, name string, ts time.Time) *a
 }
 
 func newToolResponseEvent(runID string, callID string, name string, response map[string]any, ts time.Time) *adksession.Event {
-	event := adksession.NewEvent(context.Background(), runID)
-	event.ID = "tool-response-" + callID
+	event := adksession.NewEvent(newProjectionEventContext("tool-response-"+callID, ts), runID)
 	event.Author = googleADKAgentName("agent")
-	event.Timestamp = ts
 	event.LLMResponse = adkmodel.LLMResponse{
 		Content: genai.NewContentFromParts([]*genai.Part{{
 			FunctionResponse: &genai.FunctionResponse{ID: callID, Name: name, Response: response},

@@ -1,0 +1,72 @@
+package adk
+
+import (
+	"iter"
+	"testing"
+
+	adkagent "google.golang.org/adk/v2/agent"
+	adksession "google.golang.org/adk/v2/session"
+	adkworkflow "google.golang.org/adk/v2/workflow"
+)
+
+type workflowCompilerTestNode struct {
+	adkworkflow.BaseNode
+}
+
+func newWorkflowCompilerTestNode(name string) *workflowCompilerTestNode {
+	return &workflowCompilerTestNode{BaseNode: adkworkflow.NewBaseNode(name, "", adkworkflow.NodeConfig{})}
+}
+
+func (n *workflowCompilerTestNode) Run(adkagent.Context, any) iter.Seq2[*adksession.Event, error] {
+	return func(yield func(*adksession.Event, error) bool) {}
+}
+
+func TestWorkflowCompilerBuildsJoinForFanIn(t *testing.T) {
+	nodes := []adkworkflow.Node{
+		newWorkflowCompilerTestNode("fetch"),
+		newWorkflowCompilerTestNode("risk"),
+		newWorkflowCompilerTestNode("report"),
+	}
+	steps := []workflowStep{
+		{DependencyID: "fetch"},
+		{DependencyID: "risk"},
+		{DependencyID: "report", DependsOn: []string{"fetch", "risk"}},
+	}
+	edges := newWorkflowCompiler().CompileEdges(steps, nodes)
+	if len(edges) != 5 {
+		t.Fatalf("edges = %d, want 5: %+v", len(edges), edges)
+	}
+	joinName := "report_join"
+	assertWorkflowEdge(t, edges, adkworkflow.Start.Name(), "fetch")
+	assertWorkflowEdge(t, edges, adkworkflow.Start.Name(), "risk")
+	assertWorkflowEdge(t, edges, "fetch", joinName)
+	assertWorkflowEdge(t, edges, "risk", joinName)
+	assertWorkflowEdge(t, edges, joinName, "report")
+}
+
+func TestWorkflowCompilerIgnoresDuplicateMissingAndBlankDependencies(t *testing.T) {
+	nodes := []adkworkflow.Node{
+		newWorkflowCompilerTestNode("fetch"),
+		newWorkflowCompilerTestNode("report"),
+	}
+	steps := []workflowStep{
+		{DependencyID: "fetch"},
+		{DependencyID: "report", DependsOn: []string{"fetch", "fetch", "missing", " "}},
+	}
+	edges := newWorkflowCompiler().CompileEdges(steps, nodes)
+	if len(edges) != 2 {
+		t.Fatalf("edges = %d, want 2: %+v", len(edges), edges)
+	}
+	assertWorkflowEdge(t, edges, adkworkflow.Start.Name(), "fetch")
+	assertWorkflowEdge(t, edges, "fetch", "report")
+}
+
+func assertWorkflowEdge(t *testing.T, edges []adkworkflow.Edge, from, to string) {
+	t.Helper()
+	for _, edge := range edges {
+		if edge.From != nil && edge.To != nil && edge.From.Name() == from && edge.To.Name() == to {
+			return
+		}
+	}
+	t.Fatalf("edge %s -> %s not found in %+v", from, to, edges)
+}

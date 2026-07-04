@@ -12,6 +12,7 @@ import (
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/agent/workflowagent"
 	adkmodel "google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/plugin"
 	adkrunner "google.golang.org/adk/v2/runner"
 	adksession "google.golang.org/adk/v2/session"
 	adktool "google.golang.org/adk/v2/tool"
@@ -581,62 +582,7 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 }
 
 func compileGoogleADKWorkflowEdges(steps []workflowStep, nodes []adkworkflow.Node) []adkworkflow.Edge {
-	edges := make([]adkworkflow.Edge, 0, len(nodes)*2)
-	nodeByStepID := make(map[string]adkworkflow.Node, len(nodes))
-	for index, node := range nodes {
-		if index >= len(steps) {
-			break
-		}
-		if stepID := strings.TrimSpace(steps[index].DependencyID); stepID != "" {
-			nodeByStepID[stepID] = node
-		}
-	}
-	for index, node := range nodes {
-		if index >= len(steps) {
-			break
-		}
-		dependencies := compileGoogleADKWorkflowDependencies(steps[index], nodeByStepID)
-		switch len(dependencies) {
-		case 0:
-			edges = append(edges, adkworkflow.Edge{From: adkworkflow.Start, To: node})
-		case 1:
-			edges = append(edges, adkworkflow.Edge{From: dependencies[0], To: node})
-		default:
-			join := adkworkflow.NewJoinNode(fmt.Sprintf("%s_join", node.Name()))
-			for _, dep := range dependencies {
-				edges = append(edges, adkworkflow.Edge{From: dep, To: join})
-			}
-			edges = append(edges, adkworkflow.Edge{From: join, To: node})
-		}
-	}
-	if len(edges) == 0 && len(nodes) > 0 {
-		edges = append(edges, adkworkflow.Edge{From: adkworkflow.Start, To: nodes[0]})
-	}
-	return edges
-}
-
-func compileGoogleADKWorkflowDependencies(step workflowStep, nodeByStepID map[string]adkworkflow.Node) []adkworkflow.Node {
-	if len(step.DependsOn) == 0 {
-		return nil
-	}
-	dependencies := make([]adkworkflow.Node, 0, len(step.DependsOn))
-	seen := make(map[string]struct{}, len(step.DependsOn))
-	for _, dependencyID := range step.DependsOn {
-		dependencyID = strings.TrimSpace(dependencyID)
-		if dependencyID == "" {
-			continue
-		}
-		if _, ok := seen[dependencyID]; ok {
-			continue
-		}
-		node, ok := nodeByStepID[dependencyID]
-		if !ok || node == nil {
-			continue
-		}
-		seen[dependencyID] = struct{}{}
-		dependencies = append(dependencies, node)
-	}
-	return dependencies
+	return newWorkflowCompiler().CompileEdges(steps, nodes)
 }
 
 func (r *Runtime) runGoogleADKWorkflowChildFinalSynthesis(
@@ -780,13 +726,7 @@ func (r *Runtime) newGoogleADKLLMAgent(
 			}
 			return instruction + "\n\n" + suffix, nil
 		},
-		Model: llm,
-		BeforeToolCallbacks: []llmagent.BeforeToolCallback{
-			execution.beforeToolCallback,
-		},
-		AfterToolCallbacks: []llmagent.AfterToolCallback{
-			execution.afterToolCallback,
-		},
+		Model:           llm,
 		Toolsets:        toolsets,
 		IncludeContents: llmagent.IncludeContentsDefault,
 	})
@@ -815,8 +755,17 @@ func (r *Runtime) attachGoogleADKRunner(
 			return nil, fmt.Errorf("create GO-ADK session: %w", createErr)
 		}
 	}
+	executionPlugin, err := execution.plugin()
+	if err != nil {
+		return nil, err
+	}
 	adkRunner, err := adkrunner.New(adkrunner.Config{
-		AppName: execution.appName, Agent: adkAgent, SessionService: service,
+		AppName:        execution.appName,
+		Agent:          adkAgent,
+		SessionService: service,
+		PluginConfig: adkrunner.PluginConfig{
+			Plugins: []*plugin.Plugin{executionPlugin},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create GO-ADK runner: %w", err)
@@ -829,22 +778,6 @@ func (r *Runtime) attachGoogleADKRunner(
 	return execution, nil
 }
 
-func (e *googleADKExecution) beforeToolCallback(ctx adkagent.Context, tool adktool.Tool, args map[string]any) (map[string]any, error) {
-	if e.shouldInterruptForUserGoalPause(e.runIDForAgentName(ctx.AgentName())) {
-		return nil, errUserGoalPauseRequested
-	}
-	descriptor, ok := e.descriptorForTool(tool)
-	if !ok {
-		return nil, nil
-	}
-	call := e.ensureCallForAgent(ctx.FunctionCallID(), descriptor, args, ctx.AgentName())
-	e.emitToolProgress(call.ID, tool.Name())
-	if !ToolAllowedInMode(descriptor, e.agent.PermissionMode) {
-		return nil, fmt.Errorf("tool is not allowed in permission mode %s", e.agent.PermissionMode)
-	}
-	return nil, nil
-}
-
 func (e *googleADKExecution) shouldInterruptForUserGoalPause(runID string) bool {
 	runID = strings.TrimSpace(runID)
 	if runID == "" || runID != e.runID || e.loadRun == nil {
@@ -855,40 +788,6 @@ func (e *googleADKExecution) shouldInterruptForUserGoalPause(runID string) bool 
 		return false
 	}
 	return userPauseRequestedGoalParent(run) || userPausedGoalParent(run)
-}
-
-func (e *googleADKExecution) afterToolCallback(
-	ctx adkagent.Context,
-	tool adktool.Tool,
-	args map[string]any,
-	result map[string]any,
-	err error,
-) (map[string]any, error) {
-	descriptor, ok := e.descriptorForTool(tool)
-	if !ok {
-		return nil, nil
-	}
-	call := e.ensureCallForAgent(ctx.FunctionCallID(), descriptor, args, ctx.AgentName())
-	switch {
-	case err == nil:
-		if structuredErr, ok := structuredToolError(result); ok {
-			e.finishCall(call.ID, nil, errors.New(structuredErr))
-			// Return the result with the error so the ADK includes it in the
-			// function response content.  This lets the LLM see the failure and
-			// decide whether to retry, use a different tool or report to the user.
-			return result, nil
-		}
-		e.finishCall(call.ID, result, nil)
-		return result, nil
-	case errors.Is(err, adktool.ErrConfirmationRequired):
-		// ADK will emit a tool confirmation function response that transitions the
-		// tracked call into PENDING_APPROVAL; keep the call open until then.
-	case errors.Is(err, adktool.ErrConfirmationRejected):
-		e.finishCall(call.ID, nil, err)
-	default:
-		e.finishCall(call.ID, result, err)
-	}
-	return nil, nil
 }
 
 func (e *googleADKExecution) descriptorForTool(tool adktool.Tool) (ToolDescriptor, bool) {

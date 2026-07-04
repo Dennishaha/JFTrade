@@ -10,6 +10,7 @@ import (
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	adktool "google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/genai"
 )
 
@@ -688,11 +689,9 @@ func (r *Runtime) newGoogleADKTaskExecution(
 			}
 			return instruction + "\n\n" + suffix, nil
 		},
-		Model:               llm,
-		BeforeToolCallbacks: []llmagent.BeforeToolCallback{execution.beforeToolCallback},
-		AfterToolCallbacks:  []llmagent.AfterToolCallback{execution.afterToolCallback},
-		Toolsets:            []adktool.Toolset{taskToolset},
-		IncludeContents:     llmagent.IncludeContentsDefault,
+		Model:           llm,
+		Toolsets:        []adktool.Toolset{taskToolset},
+		IncludeContents: llmagent.IncludeContentsDefault,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create GO-ADK task orchestrator agent: %w", err)
@@ -709,6 +708,10 @@ func (t *workflowTaskToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool, e
 			&workflowPlannerTool{name: workflowGoalContinueTool, description: "Declare that the current objective is not complete yet and continue orchestration.", schema: workflowGoalContinueSchema(), run: t.goalContinue},
 		}, nil
 	}
+	modelsListTool, err := t.modelsListTool()
+	if err != nil {
+		return nil, err
+	}
 	tools := []adktool.Tool{
 		&workflowPlannerTool{name: workflowTasksListTool, description: "List current workflow TODO DAG, ready tasks, completed results and blocked state.", schema: emptyObjectSchema(), run: t.list},
 		&workflowPlannerTool{name: workflowTaskAddTool, description: "Add a runtime TODO to the current ADK task workflow.", schema: workflowTaskAddSchema(), run: t.add},
@@ -716,9 +719,23 @@ func (t *workflowTaskToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool, e
 		&workflowPlannerTool{name: workflowTaskCompleteTool, description: "Mark a claimed or ready TODO as DONE with a result summary.", schema: workflowTaskCompleteSchema(), run: t.complete},
 		&workflowPlannerTool{name: workflowTaskBlockTool, description: "Mark a TODO as BLOCKED with a blocking reason.", schema: workflowTaskBlockSchema(), run: t.block},
 		&workflowPlannerTool{name: workflowTaskDelegateTool, description: "Delegate a ready TODO to an ADK child agent. This creates a JFTrade child run only when called.", schema: workflowTaskDelegateSchema(), run: t.delegate},
-		&workflowPlannerTool{name: workflowModelsListTool, description: "List callable ADK models that can be selected for delegated child agents.", schema: workflowModelsListSchema(), run: t.modelsList},
+		modelsListTool,
 	}
 	return tools, nil
+}
+
+func (t *workflowTaskToolset) modelsListTool() (adktool.Tool, error) {
+	schema, err := googleADKJSONSchemaFromMap(workflowModelsListSchema())
+	if err != nil {
+		return nil, err
+	}
+	return functiontool.New[map[string]any, map[string]any](functiontool.Config{
+		Name:        workflowModelsListTool,
+		Description: "List callable ADK models that can be selected for delegated child agents.",
+		InputSchema: schema,
+	}, func(_ adkagent.Context, args map[string]any) (map[string]any, error) {
+		return t.modelsList(args)
+	})
 }
 
 func (t *workflowTaskToolset) modelsList(args map[string]any) (map[string]any, error) {
