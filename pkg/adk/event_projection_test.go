@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	adkmodel "google.golang.org/adk/model"
-	adksession "google.golang.org/adk/session"
-	adktool "google.golang.org/adk/tool"
-	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
+	adkmodel "google.golang.org/adk/v2/model"
+	adksession "google.golang.org/adk/v2/session"
+	adktool "google.golang.org/adk/v2/tool"
+	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
 	"google.golang.org/genai"
 )
 
@@ -494,7 +494,7 @@ func appendADKEvent(t *testing.T, runtime *Runtime, agentID string, sessionID st
 }
 
 func newUserEvent(runID string, text string, ts time.Time) *adksession.Event {
-	event := adksession.NewEvent(runID)
+	event := adksession.NewEvent(context.Background(), runID)
 	event.ID = "user-" + runID + "-" + ts.UTC().Format(time.RFC3339Nano)
 	event.Author = "user"
 	event.Timestamp = ts
@@ -505,7 +505,7 @@ func newUserEvent(runID string, text string, ts time.Time) *adksession.Event {
 }
 
 func newAssistantEvent(runID string, parts []*genai.Part, ts time.Time) *adksession.Event {
-	event := adksession.NewEvent(runID)
+	event := adksession.NewEvent(context.Background(), runID)
 	event.ID = "assistant-" + runID + "-" + ts.UTC().Format(time.RFC3339Nano)
 	event.Author = googleADKAgentName("agent")
 	event.Timestamp = ts
@@ -517,7 +517,7 @@ func newAssistantEvent(runID string, parts []*genai.Part, ts time.Time) *adksess
 }
 
 func newToolCallEvent(runID string, callID string, name string, ts time.Time) *adksession.Event {
-	event := adksession.NewEvent(runID)
+	event := adksession.NewEvent(context.Background(), runID)
 	event.ID = "tool-call-" + callID
 	event.Author = googleADKAgentName("agent")
 	event.Timestamp = ts
@@ -530,7 +530,7 @@ func newToolCallEvent(runID string, callID string, name string, ts time.Time) *a
 }
 
 func newToolResponseEvent(runID string, callID string, name string, response map[string]any, ts time.Time) *adksession.Event {
-	event := adksession.NewEvent(runID)
+	event := adksession.NewEvent(context.Background(), runID)
 	event.ID = "tool-response-" + callID
 	event.Author = googleADKAgentName("agent")
 	event.Timestamp = ts

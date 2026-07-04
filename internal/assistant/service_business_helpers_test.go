@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	adkmodel "google.golang.org/adk/model"
-	adksession "google.golang.org/adk/session"
+	adkmodel "google.golang.org/adk/v2/model"
+	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
@@ -428,7 +428,7 @@ func appendAssistantSessionEvent(t *testing.T, sessionService adksession.Service
 }
 
 func newUserSessionEvent(runID string, text string, ts time.Time) *adksession.Event {
-	event := adksession.NewEvent(runID)
+	event := adksession.NewEvent(context.Background(), runID)
 	event.ID = "user-" + runID + "-" + ts.UTC().Format(time.RFC3339Nano)
 	event.Author = "user"
 	event.Timestamp = ts
@@ -446,7 +446,7 @@ func newAssistantSessionEvent(runID string, eventID string, reply string, reason
 	if reply != "" {
 		parts = append(parts, &genai.Part{Text: reply})
 	}
-	event := adksession.NewEvent(runID)
+	event := adksession.NewEvent(context.Background(), runID)
 	event.ID = eventID
 	event.Author = "assistant"
 	event.Timestamp = ts

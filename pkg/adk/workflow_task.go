@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	adkagent "google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	adktool "google.golang.org/adk/tool"
+	adkagent "google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
 

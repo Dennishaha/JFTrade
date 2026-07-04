@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	adksession "google.golang.org/adk/session"
+	adksession "google.golang.org/adk/v2/session"
 )
 
 func sameStringSet(left []string, right []string) bool {

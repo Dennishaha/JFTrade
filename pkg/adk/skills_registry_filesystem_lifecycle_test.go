@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
+	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
 )
 
 func TestSkillRegistryListSortsBySourceAndDefaultsFilesystemMetadata(t *testing.T) {

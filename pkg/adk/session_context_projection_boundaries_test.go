@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
-	adksession "google.golang.org/adk/session"
-	"google.golang.org/adk/tool/toolconfirmation"
+	adksession "google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
 
 func TestSessionContextProjectionBucketsAndTrimsProtectedToolOutput(t *testing.T) {
 	largeResponse := strings.Repeat("tool-output ", MaxToolOutputBytes)
-	toolEvent := adksession.NewEvent("ctx-tool-large")
+	toolEvent := adksession.NewEvent(context.Background(), "ctx-tool-large")
 	toolEvent.Content = genai.NewContentFromParts([]*genai.Part{{
 		FunctionResponse: &genai.FunctionResponse{
 			ID:   "call-large",
@@ -179,7 +179,7 @@ func TestSessionContextManagerAndWrappedEventsBoundaryHelpers(t *testing.T) {
 
 func TestSessionContextApprovalResolutionAndEventIndexBoundaries(t *testing.T) {
 	approval := newContextApprovalEvent("ctx-approval")
-	response := adksession.NewEvent("ctx-approval-response")
+	response := adksession.NewEvent(context.Background(), "ctx-approval-response")
 	response.Content = genai.NewContentFromParts([]*genai.Part{
 		nil,
 		{FunctionResponse: &genai.FunctionResponse{ID: "ctx-approval-call", Name: toolconfirmation.FunctionCallName, Response: map[string]any{"approved": true}}},

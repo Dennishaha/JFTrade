@@ -14,11 +14,11 @@ import (
 	"sort"
 	"strings"
 
-	"google.golang.org/adk/model"
+	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
 
-const GoogleADKModule = "google.golang.org/adk"
+const GoogleADKModule = "google.golang.org/adk/v2"
 
 type openAICompatibleADKModel struct {
 	provider Provider

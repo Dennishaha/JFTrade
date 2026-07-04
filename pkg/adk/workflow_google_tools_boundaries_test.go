@@ -10,19 +10,20 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
-	adkagent "google.golang.org/adk/agent"
-	adkmemory "google.golang.org/adk/memory"
-	adkmodel "google.golang.org/adk/model"
-	adksession "google.golang.org/adk/session"
-	adktool "google.golang.org/adk/tool"
-	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
-	"google.golang.org/adk/tool/toolconfirmation"
+	adkagent "google.golang.org/adk/v2/agent"
+	adkmemory "google.golang.org/adk/v2/memory"
+	adkmodel "google.golang.org/adk/v2/model"
+	adksession "google.golang.org/adk/v2/session"
+	adktool "google.golang.org/adk/v2/tool"
+	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
 
 func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T) {
-	ctx := googleADKToolTestContext{Context: context.Background()}
+	ctx := newGoogleADKToolTestContext()
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
 		Name:         "test.read",
@@ -441,7 +442,12 @@ func googleToolByName(t *testing.T, tools []adktool.Tool, name string) *googleAD
 }
 
 type googleADKToolTestContext struct {
-	context.Context
+	*adkagent.StrictContextMock
+}
+
+func newGoogleADKToolTestContext() googleADKToolTestContext {
+	mock := adkagent.NewStrictContextMock(context.Background())
+	return googleADKToolTestContext{StrictContextMock: &mock}
 }
 
 func (c googleADKToolTestContext) Agent() adkagent.Agent { return nil }
@@ -454,11 +460,15 @@ func (c googleADKToolTestContext) Session() adksession.Session {
 }
 func (c googleADKToolTestContext) InvocationID() string           { return "invocation-test" }
 func (c googleADKToolTestContext) Branch() string                 { return "" }
+func (c googleADKToolTestContext) IsolationScope() string         { return "" }
 func (c googleADKToolTestContext) UserContent() *genai.Content    { return nil }
 func (c googleADKToolTestContext) RunConfig() *adkagent.RunConfig { return nil }
 func (c googleADKToolTestContext) EndInvocation()                 {}
 func (c googleADKToolTestContext) Ended() bool                    { return false }
-func (c googleADKToolTestContext) AgentName() string              { return "agent-test" }
+func (c googleADKToolTestContext) ResumedInput(string) (any, bool) {
+	return nil, false
+}
+func (c googleADKToolTestContext) AgentName() string { return "agent-test" }
 func (c googleADKToolTestContext) ReadonlyState() adksession.ReadonlyState {
 	return nil
 }
@@ -478,9 +488,42 @@ func (c googleADKToolTestContext) ToolConfirmation() *toolconfirmation.ToolConfi
 }
 func (c googleADKToolTestContext) RequestConfirmation(string, any) error { return nil }
 func (c googleADKToolTestContext) WithContext(ctx context.Context) adkagent.InvocationContext {
-	c.Context = ctx
+	mock := adkagent.NewStrictContextMock(ctx)
+	c.StrictContextMock = &mock
 	return c
 }
+func (c googleADKToolTestContext) WithICDelta(*adkagent.InvocationContextDelta) adkagent.InvocationContext {
+	return c
+}
+func (c googleADKToolTestContext) WithDelta(*adkagent.CommonContextDelta) adkagent.Context {
+	return c
+}
+func (c googleADKToolTestContext) Path() string  { return "" }
+func (c googleADKToolTestContext) RunID() string { return "" }
+func (c googleADKToolTestContext) WithBranch(string) adkagent.Context {
+	return c
+}
+func (c googleADKToolTestContext) SubScheduler() adkagent.DynamicSubScheduler {
+	return nil
+}
+func (c googleADKToolTestContext) InvocationContext() adkagent.InvocationContext {
+	return c
+}
+func (c googleADKToolTestContext) SetInvocationContext(adkagent.InvocationContext) {}
+func (c googleADKToolTestContext) WithAgentContext(ctx context.Context) adkagent.Context {
+	mock := adkagent.NewStrictContextMock(ctx)
+	c.StrictContextMock = &mock
+	return c
+}
+func (c googleADKToolTestContext) WithAgentTimeout(timeout time.Duration) (adkagent.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(c.Ctx, timeout)
+	return c.WithAgentContext(ctx), cancel
+}
+func (c googleADKToolTestContext) WithAgentCancel() (adkagent.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(c.Ctx)
+	return c.WithAgentContext(ctx), cancel
+}
+func (c googleADKToolTestContext) OutputForAncestors() []string { return nil }
 
 type googleADKFakeSkillSource struct {
 	frontmatters   []*adkskill.Frontmatter

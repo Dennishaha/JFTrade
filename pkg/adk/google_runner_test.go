@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	adksession "google.golang.org/adk/session"
-	"google.golang.org/adk/tool/toolconfirmation"
+	adksession "google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
 
@@ -59,7 +59,7 @@ func TestPendingApprovalsOnlyClaimsConfirmationCallsOwnedByExecution(t *testing.
 	}
 	appendConfirmation := func(invocationID, confirmationID, functionCallID string) {
 		t.Helper()
-		event := adksession.NewEvent(invocationID)
+		event := adksession.NewEvent(context.Background(), invocationID)
 		event.Author = "agent"
 		event.Content = genai.NewContentFromParts([]*genai.Part{{FunctionCall: &genai.FunctionCall{
 			ID: confirmationID, Name: toolconfirmation.FunctionCallName,

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
+	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
 
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )

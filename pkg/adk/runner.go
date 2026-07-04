@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	adksession "google.golang.org/adk/session"
+	adksession "google.golang.org/adk/v2/session"
 )
 
 type Runtime struct {

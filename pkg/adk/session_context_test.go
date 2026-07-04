@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	adksession "google.golang.org/adk/session"
-	"google.golang.org/adk/tool/toolconfirmation"
+	adksession "google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
 
@@ -45,7 +45,7 @@ func TestSessionContextCompactionShrinksSessionView(t *testing.T) {
 		if index%2 == 1 {
 			role = genai.Role(genai.RoleModel)
 		}
-		event := adksession.NewEvent(fmt.Sprintf("inv-%d", index))
+		event := adksession.NewEvent(context.Background(), fmt.Sprintf("inv-%d", index))
 		event.Content = genai.NewContentFromText(fmt.Sprintf("message %d", index), role)
 		if err := runtime.rawSessionService.AppendEvent(ctx, created.Session, event); err != nil {
 			t.Fatalf("AppendEvent(%d): %v", index, err)
@@ -155,7 +155,7 @@ func TestSessionContextUsesSessionProviderOverrideWindow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create raw session: %v", err)
 	}
-	event := adksession.NewEvent("context-provider-override-user")
+	event := adksession.NewEvent(context.Background(), "context-provider-override-user")
 	event.Content = genai.NewContentFromText("hello with override provider", genai.RoleUser)
 	if err := runtime.rawSessionService.AppendEvent(ctx, created.Session, event); err != nil {
 		t.Fatalf("AppendEvent: %v", err)
@@ -310,7 +310,7 @@ func TestCompactSessionContextWritesContextNotice(t *testing.T) {
 		if index%2 == 1 {
 			role = genai.Role(genai.RoleModel)
 		}
-		event := adksession.NewEvent(fmt.Sprintf("notice-%d", index))
+		event := adksession.NewEvent(context.Background(), fmt.Sprintf("notice-%d", index))
 		event.Content = genai.NewContentFromText(fmt.Sprintf("message %d", index), role)
 		if err := runtime.rawSessionService.AppendEvent(ctx, created.Session, event); err != nil {
 			t.Fatalf("AppendEvent(%d): %v", index, err)
@@ -378,7 +378,7 @@ func TestMaybeAutoCompactSessionEmitsContextNoticeDeltas(t *testing.T) {
 		if index%2 == 1 {
 			role = genai.Role(genai.RoleModel)
 		}
-		event := adksession.NewEvent(fmt.Sprintf("auto-notice-%d", index))
+		event := adksession.NewEvent(context.Background(), fmt.Sprintf("auto-notice-%d", index))
 		event.Content = genai.NewContentFromText(strings.Repeat(fmt.Sprintf("message %d ", index), 50), role)
 		if err := runtime.rawSessionService.AppendEvent(ctx, created.Session, event); err != nil {
 			t.Fatalf("AppendEvent(%d): %v", index, err)
@@ -889,13 +889,13 @@ func TestAppendADKEventWithStaleRetryRefreshesSession(t *testing.T) {
 		t.Fatalf("Get: %v", err)
 	}
 
-	first := adksession.NewEvent("inv-first")
+	first := adksession.NewEvent(context.Background(), "inv-first")
 	first.Author = "agent"
 	first.Content = genai.NewContentFromText("first", genai.RoleModel)
 	if err := service.AppendEvent(ctx, fresh.Session, first); err != nil {
 		t.Fatalf("AppendEvent(first): %v", err)
 	}
-	second := adksession.NewEvent("inv-second")
+	second := adksession.NewEvent(context.Background(), "inv-second")
 	second.Author = "agent"
 	second.Content = genai.NewContentFromText("second", genai.RoleModel)
 	locks := newADKSessionAppendLockMap()
@@ -944,14 +944,14 @@ func TestCompactedSessionViewTracksEventsAppendedDuringInvocation(t *testing.T) 
 		t.Fatalf("Get wrapped session: %v", err)
 	}
 	before := response.Session.Events().Len()
-	call := adksession.NewEvent("inv-live")
+	call := adksession.NewEvent(context.Background(), "inv-live")
 	call.Content = genai.NewContentFromParts([]*genai.Part{{FunctionCall: &genai.FunctionCall{
 		ID: "call-live", Name: "test.tool", Args: map[string]any{"value": 1},
 	}}}, genai.RoleModel)
 	if err := runtime.sessionService.AppendEvent(ctx, response.Session, call); err != nil {
 		t.Fatalf("Append call: %v", err)
 	}
-	result := adksession.NewEvent("inv-live")
+	result := adksession.NewEvent(context.Background(), "inv-live")
 	result.Content = genai.NewContentFromParts([]*genai.Part{{FunctionResponse: &genai.FunctionResponse{
 		ID: "call-live", Name: "test.tool", Response: map[string]any{"ok": true},
 	}}}, genai.RoleUser)
@@ -1069,7 +1069,7 @@ func appendContextEvents(t *testing.T, service adksession.Service, session adkse
 		if index%2 == 1 {
 			role = genai.Role(genai.RoleModel)
 		}
-		event := adksession.NewEvent(fmt.Sprintf("ctx-%d", index))
+		event := adksession.NewEvent(context.Background(), fmt.Sprintf("ctx-%d", index))
 		event.Content = genai.NewContentFromText(fmt.Sprintf("message %d", index), role)
 		if err := appendADKEventWithStaleRetry(context.Background(), newADKSessionAppendLockMap(), service, session, event); err != nil {
 			t.Fatalf("Append context event %d: %v", index, err)
@@ -1092,7 +1092,7 @@ func appendLargeContextEvents(t *testing.T, service adksession.Service, session 
 }
 
 func newContextTextEvent(id string, text string, role genai.Role) *adksession.Event {
-	event := adksession.NewEvent(id)
+	event := adksession.NewEvent(context.Background(), id)
 	event.Content = genai.NewContentFromText(text, role)
 	return event
 }
@@ -1102,7 +1102,7 @@ func newContextApprovalEvent(id string) *adksession.Event {
 }
 
 func newContextApprovalEventForOriginal(id string, originalCallID string) *adksession.Event {
-	event := adksession.NewEvent(id)
+	event := adksession.NewEvent(context.Background(), id)
 	args := map[string]any{}
 	if originalCallID != "" {
 		args["originalFunctionCall"] = &genai.FunctionCall{
@@ -1120,7 +1120,7 @@ func newContextApprovalEventForOriginal(id string, originalCallID string) *adkse
 }
 
 func newContextFunctionCallEvent(id string, functionCallID string) *adksession.Event {
-	event := adksession.NewEvent(id)
+	event := adksession.NewEvent(context.Background(), id)
 	event.Content = genai.NewContentFromParts([]*genai.Part{{
 		FunctionCall: &genai.FunctionCall{
 			ID: functionCallID, Name: "strategy.research_backtest", Args: map[string]any{"symbol": "TME"},
@@ -1130,7 +1130,7 @@ func newContextFunctionCallEvent(id string, functionCallID string) *adksession.E
 }
 
 func newContextFunctionResponseEvent(id string, functionCallID string, name string) *adksession.Event {
-	event := adksession.NewEvent(id)
+	event := adksession.NewEvent(context.Background(), id)
 	event.Content = genai.NewContentFromParts([]*genai.Part{{
 		FunctionResponse: &genai.FunctionResponse{
 			ID: functionCallID, Name: name, Response: map[string]any{"error": "confirmation required"},
@@ -1140,7 +1140,7 @@ func newContextFunctionResponseEvent(id string, functionCallID string, name stri
 }
 
 func newContextApprovalResponseEvent(approvalEventID string) *adksession.Event {
-	event := adksession.NewEvent(approvalEventID + "-response")
+	event := adksession.NewEvent(context.Background(), approvalEventID + "-response")
 	event.Content = genai.NewContentFromParts([]*genai.Part{{
 		FunctionResponse: &genai.FunctionResponse{
 			ID:       approvalEventID + "-call",
@@ -1174,7 +1174,7 @@ func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing
 	errs := make(chan error, eventCount)
 	for index := range eventCount {
 		wg.Go(func() {
-			event := adksession.NewEvent(fmt.Sprintf("inv-concurrent-%02d", index))
+			event := adksession.NewEvent(context.Background(), fmt.Sprintf("inv-concurrent-%02d", index))
 			event.Author = "agent"
 			event.Content = genai.NewContentFromText(fmt.Sprintf("event-%02d", index), genai.RoleModel)
 			if err := appendADKEventWithStaleRetry(ctx, locks, service, created.Session, event); err != nil {
@@ -1213,7 +1213,7 @@ func TestAppendADKEventWithStaleRetryReturnsNonStaleError(t *testing.T) {
 	}
 	appendErr := errors.New("disk full")
 	service := &appendErrorSessionService{Service: base, err: appendErr}
-	event := adksession.NewEvent("inv-non-stale")
+	event := adksession.NewEvent(context.Background(), "inv-non-stale")
 	event.Author = "agent"
 	event.Content = genai.NewContentFromText("non-stale", genai.RoleModel)
 
@@ -1240,7 +1240,7 @@ func TestAppendADKEventWithStaleRetryRefreshesUnexpectedSessionType(t *testing.T
 		t.Fatalf("Create: %v", err)
 	}
 	service := &refreshSessionTypeService{Service: base}
-	event := adksession.NewEvent("inv-refresh-type")
+	event := adksession.NewEvent(context.Background(), "inv-refresh-type")
 	event.Author = "agent"
 	event.Content = genai.NewContentFromText("refreshed", genai.RoleModel)
 	if err := appendADKEventWithStaleRetry(ctx, newADKSessionAppendLockMap(), service, created.Session, event); err != nil {
@@ -1261,7 +1261,7 @@ func TestAppendADKEventWithStaleRetryRefreshesSyntheticSessionBeforeAppend(t *te
 		t.Fatalf("Create: %v", err)
 	}
 	service := &rejectSyntheticAppendSessionService{Service: base}
-	event := adksession.NewEvent("inv-refresh-synthetic")
+	event := adksession.NewEvent(context.Background(), "inv-refresh-synthetic")
 	event.Author = "agent"
 	event.Content = genai.NewContentFromText("refreshed", genai.RoleModel)
 	projected := &wrappedSession{base: created.Session, events: &wrappedEvents{}}
@@ -1397,14 +1397,14 @@ func TestSessionContextProjectionTrimsOversizedToolResponses(t *testing.T) {
 		t.Fatalf("Create raw session: %v", err)
 	}
 
-	userEvent := adksession.NewEvent("inv-user")
+	userEvent := adksession.NewEvent(context.Background(), "inv-user")
 	userEvent.Content = genai.NewContentFromText("制作一个 tme 的策略", genai.RoleUser)
 	if err := runtime.rawSessionService.AppendEvent(ctx, created.Session, userEvent); err != nil {
 		t.Fatalf("Append user event: %v", err)
 	}
 
 	oversizedPayload := strings.Repeat("x", MaxToolOutputBytes*2)
-	toolEvent := adksession.NewEvent("inv-tool")
+	toolEvent := adksession.NewEvent(context.Background(), "inv-tool")
 	toolEvent.Content = genai.NewContentFromParts([]*genai.Part{{
 		FunctionResponse: &genai.FunctionResponse{
 			ID:   "call-oversized",
@@ -1490,7 +1490,7 @@ func TestSessionContextProjectionKeepsSmallToolResponsesUntouched(t *testing.T) 
 		t.Fatalf("Create raw session: %v", err)
 	}
 
-	toolEvent := adksession.NewEvent("inv-tool-small")
+	toolEvent := adksession.NewEvent(context.Background(), "inv-tool-small")
 	toolEvent.Content = genai.NewContentFromParts([]*genai.Part{{
 		FunctionResponse: &genai.FunctionResponse{
 			ID:   "call-small",

@@ -8,14 +8,15 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	adkagent "google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/agent/workflowagents/loopagent"
-	adkmodel "google.golang.org/adk/model"
-	adkrunner "google.golang.org/adk/runner"
-	adksession "google.golang.org/adk/session"
-	adktool "google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/toolconfirmation"
+	adkagent "google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/agent/workflowagent"
+	adkmodel "google.golang.org/adk/v2/model"
+	adkrunner "google.golang.org/adk/v2/runner"
+	adksession "google.golang.org/adk/v2/session"
+	adktool "google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
+	adkworkflow "google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
 	"gorm.io/gorm"
 )
@@ -538,7 +539,7 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 			return r.persistRunActivitySnapshot(context.Background(), snapshot)
 		},
 	}
-	subAgents := make([]adkagent.Agent, 0, len(childRuns))
+	childNodes := make([]adkworkflow.Node, 0, len(childRuns))
 	for index, child := range childRuns {
 		if index >= len(steps) {
 			break
@@ -558,21 +559,84 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 		if err != nil {
 			return nil, err
 		}
-		subAgents = append(subAgents, childAgent)
+		childNode, err := adkworkflow.NewAgentNode(childAgent, adkworkflow.NodeConfig{})
+		if err != nil {
+			return nil, fmt.Errorf("create GO-ADK workflow node: %w", err)
+		}
+		childNodes = append(childNodes, childNode)
 	}
-	if len(subAgents) == 0 {
+	if len(childNodes) == 0 {
 		return nil, fmt.Errorf("workflow requires at least one sub-agent")
 	}
-	root, err := loopagent.New(loopagent.Config{
-		AgentConfig: adkagent.Config{
-			Name: rootName, Description: definition.Name + " loop workflow", SubAgents: subAgents,
-		},
-		MaxIterations: uint(normalizeLoopMaxIterations(options.LoopMaxIterations)),
+	edges := compileGoogleADKWorkflowEdges(steps, childNodes)
+	root, err := workflowagent.New(workflowagent.Config{
+		Name:        rootName,
+		Description: definition.Name + " task workflow",
+		Edges:       edges,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create GO-ADK workflow agent: %w", err)
 	}
 	return r.attachGoogleADKRunner(ctx, execution, productSession, root)
+}
+
+func compileGoogleADKWorkflowEdges(steps []workflowStep, nodes []adkworkflow.Node) []adkworkflow.Edge {
+	edges := make([]adkworkflow.Edge, 0, len(nodes)*2)
+	nodeByStepID := make(map[string]adkworkflow.Node, len(nodes))
+	for index, node := range nodes {
+		if index >= len(steps) {
+			break
+		}
+		if stepID := strings.TrimSpace(steps[index].DependencyID); stepID != "" {
+			nodeByStepID[stepID] = node
+		}
+	}
+	for index, node := range nodes {
+		if index >= len(steps) {
+			break
+		}
+		dependencies := compileGoogleADKWorkflowDependencies(steps[index], nodeByStepID)
+		switch len(dependencies) {
+		case 0:
+			edges = append(edges, adkworkflow.Edge{From: adkworkflow.Start, To: node})
+		case 1:
+			edges = append(edges, adkworkflow.Edge{From: dependencies[0], To: node})
+		default:
+			join := adkworkflow.NewJoinNode(fmt.Sprintf("%s_join", node.Name()))
+			for _, dep := range dependencies {
+				edges = append(edges, adkworkflow.Edge{From: dep, To: join})
+			}
+			edges = append(edges, adkworkflow.Edge{From: join, To: node})
+		}
+	}
+	if len(edges) == 0 && len(nodes) > 0 {
+		edges = append(edges, adkworkflow.Edge{From: adkworkflow.Start, To: nodes[0]})
+	}
+	return edges
+}
+
+func compileGoogleADKWorkflowDependencies(step workflowStep, nodeByStepID map[string]adkworkflow.Node) []adkworkflow.Node {
+	if len(step.DependsOn) == 0 {
+		return nil
+	}
+	dependencies := make([]adkworkflow.Node, 0, len(step.DependsOn))
+	seen := make(map[string]struct{}, len(step.DependsOn))
+	for _, dependencyID := range step.DependsOn {
+		dependencyID = strings.TrimSpace(dependencyID)
+		if dependencyID == "" {
+			continue
+		}
+		if _, ok := seen[dependencyID]; ok {
+			continue
+		}
+		node, ok := nodeByStepID[dependencyID]
+		if !ok || node == nil {
+			continue
+		}
+		seen[dependencyID] = struct{}{}
+		dependencies = append(dependencies, node)
+	}
+	return dependencies
 }
 
 func (r *Runtime) runGoogleADKWorkflowChildFinalSynthesis(
@@ -765,7 +829,7 @@ func (r *Runtime) attachGoogleADKRunner(
 	return execution, nil
 }
 
-func (e *googleADKExecution) beforeToolCallback(ctx adkagent.ToolContext, tool adktool.Tool, args map[string]any) (map[string]any, error) {
+func (e *googleADKExecution) beforeToolCallback(ctx adkagent.Context, tool adktool.Tool, args map[string]any) (map[string]any, error) {
 	if e.shouldInterruptForUserGoalPause(e.runIDForAgentName(ctx.AgentName())) {
 		return nil, errUserGoalPauseRequested
 	}
@@ -794,7 +858,7 @@ func (e *googleADKExecution) shouldInterruptForUserGoalPause(runID string) bool 
 }
 
 func (e *googleADKExecution) afterToolCallback(
-	ctx adkagent.ToolContext,
+	ctx adkagent.Context,
 	tool adktool.Tool,
 	args map[string]any,
 	result map[string]any,

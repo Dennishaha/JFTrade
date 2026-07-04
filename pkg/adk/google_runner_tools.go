@@ -7,11 +7,11 @@ import (
 	"io"
 	"strings"
 
-	adkagent "google.golang.org/adk/agent"
-	adkmodel "google.golang.org/adk/model"
-	adktool "google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/skilltoolset"
-	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
+	adkagent "google.golang.org/adk/v2/agent"
+	adkmodel "google.golang.org/adk/v2/model"
+	adktool "google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/skilltoolset"
+	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
 	"google.golang.org/genai"
 )
 
@@ -244,7 +244,7 @@ func (t *googleADKTool) Declaration() *genai.FunctionDeclaration {
 	}
 }
 
-func (t *googleADKTool) ProcessRequest(_ adkagent.ToolContext, req *adkmodel.LLMRequest) error {
+func (t *googleADKTool) ProcessRequest(_ adkagent.Context, req *adkmodel.LLMRequest) error {
 	if req.Tools == nil {
 		req.Tools = make(map[string]any)
 	}
@@ -272,7 +272,7 @@ func (t *googleADKTool) ProcessRequest(_ adkagent.ToolContext, req *adkmodel.LLM
 	return nil
 }
 
-func (t *googleADKTool) Run(ctx adkagent.ToolContext, args any) (map[string]any, error) {
+func (t *googleADKTool) Run(ctx adkagent.Context, args any) (map[string]any, error) {
 	input, ok := args.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("tool %s received invalid input %T", t.Name(), args)

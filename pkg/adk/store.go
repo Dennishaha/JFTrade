@@ -18,7 +18,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
-	adksession "google.golang.org/adk/session"
+	adksession "google.golang.org/adk/v2/session"
 
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )

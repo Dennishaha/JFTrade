@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	adksession "google.golang.org/adk/session"
-	"google.golang.org/adk/tool/toolconfirmation"
+	adksession "google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
 
@@ -399,7 +399,7 @@ func (m *SessionContextManager) syncHandoffState(ctx context.Context, session Se
 		stateTextValue(state, adkSessionHandoffCountKey) == fmt.Sprint(len(segments)) {
 		return nil
 	}
-	event := adksession.NewEvent("jftrade-handoff-state")
+	event := adksession.NewEvent(ctx, "jftrade-handoff-state")
 	event.Author = "jftrade"
 	event.Actions.SkipSummarization = true
 	event.Actions.StateDelta = map[string]any{

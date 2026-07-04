@@ -17,16 +17,17 @@ import (
 )
 
 const (
-	DatabaseBacktest       = "backtest"
-	DatabaseBacktestRuns   = "backtest-runs"
-	DatabaseStrategy       = "strategy"
-	DatabaseExecution      = "execution-orders"
-	DatabaseADK            = "adk"
-	DatabaseADKSession     = "adk-session"
-	RebuildMarkerFilename  = "database-rebuild.json"
-	SchemaVersion          = 1
-	ExecutionSchemaVersion = 2
-	BatchConfirmationText  = "REBUILD INCOMPATIBLE DATABASES"
+	DatabaseBacktest        = "backtest"
+	DatabaseBacktestRuns    = "backtest-runs"
+	DatabaseStrategy        = "strategy"
+	DatabaseExecution       = "execution-orders"
+	DatabaseADK             = "adk"
+	DatabaseADKSession      = "adk-session"
+	RebuildMarkerFilename   = "database-rebuild.json"
+	SchemaVersion           = 1
+	ExecutionSchemaVersion  = 2
+	ADKSessionSchemaVersion = 2
+	BatchConfirmationText   = "REBUILD INCOMPATIBLE DATABASES"
 )
 
 type Descriptor struct {
@@ -82,7 +83,7 @@ func NewManager(settingsPath string, backtestDBPath string) *Manager {
 			{ID: DatabaseStrategy, Name: "策略数据", Path: apiruntime.DeriveStrategyRuntimeDBPath(settingsPath), Description: "策略定义、插件目录、运行日志、审计和观察状态。", Features: []string{"策略定义", "策略插件", "策略运行"}, Version: SchemaVersion},
 			{ID: DatabaseExecution, Name: "执行订单", Path: apiruntime.DeriveExecutionOrderDBPath(settingsPath), Description: "执行订单、状态事件、成交去重和序列。", Features: []string{"订单执行", "成交同步"}, Version: ExecutionSchemaVersion},
 			{ID: DatabaseADK, Name: "ADK 数据", Path: apiruntime.DeriveADKDBPath(settingsPath), Description: "模型、智能体、技能、会话运行、任务、审批和记忆。", Features: []string{"智能体配置", "ADK 工作流"}, Version: SchemaVersion},
-			{ID: DatabaseADKSession, Name: "ADK 会话", Path: apiruntime.DeriveADKSessionDBPath(settingsPath), Description: "GO-ADK 原始会话事件和状态。", Features: []string{"对话上下文", "工具事件"}, Version: SchemaVersion},
+			{ID: DatabaseADKSession, Name: "ADK 会话", Path: apiruntime.DeriveADKSessionDBPath(settingsPath), Description: "ADK Go v2 原始会话事件和状态，可重建。", Features: []string{"对话上下文", "工具事件"}, Version: ADKSessionSchemaVersion},
 		},
 	}
 	manager.initializeMaintenance()

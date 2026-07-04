@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	adkmodel "google.golang.org/adk/model"
-	adksession "google.golang.org/adk/session"
+	adkmodel "google.golang.org/adk/v2/model"
+	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 )
 
@@ -565,17 +565,17 @@ func writeOpenAIStreamEvent(t *testing.T, w http.ResponseWriter, value any) {
 func TestGoogleADKExecutionConsumeEventSkipsDuplicateFinalTextAfterPartial(t *testing.T) {
 	execution := &googleADKExecution{}
 
-	partialA := adksession.NewEvent("partial-a")
+	partialA := adksession.NewEvent(context.Background(), "partial-a")
 	partialA.LLMResponse = adkmodel.LLMResponse{
 		Content: genai.NewContentFromText("你", genai.RoleModel),
 		Partial: true,
 	}
-	partialB := adksession.NewEvent("partial-b")
+	partialB := adksession.NewEvent(context.Background(), "partial-b")
 	partialB.LLMResponse = adkmodel.LLMResponse{
 		Content: genai.NewContentFromText("好", genai.RoleModel),
 		Partial: true,
 	}
-	final := adksession.NewEvent("final")
+	final := adksession.NewEvent(context.Background(), "final")
 	final.LLMResponse = adkmodel.LLMResponse{
 		Content: genai.NewContentFromText("你好", genai.RoleModel),
 	}

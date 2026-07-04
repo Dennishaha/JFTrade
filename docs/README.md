@@ -46,7 +46,7 @@ npm run check:pinets-release
 ### 2. 再按问题类型进入专题
 
 - [troubleshooting.md](troubleshooting.md)：启动、端口、实时连接、OpenD、回测性能的排障入口。
-- [adk.md](adk.md)：GO-ADK / Agent 控制面、权限模式、内置 tools 和运行时文件。
+- [adk.md](adk.md)：ADK Go v2 / Agent 控制面、权限模式、内置 tools 和运行时文件。
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口。
 - [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：策略定义、Logic Flow、Pine 编辑与 visual model 同步。
 - [pinets-hardcut-migration.md](pinets-hardcut-migration.md)：PineTS 硬切替换 Go Pine runtime 的执行计划、进度、测试覆盖和性能门禁。

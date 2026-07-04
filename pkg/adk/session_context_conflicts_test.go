@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	adksession "google.golang.org/adk/session"
+	adksession "google.golang.org/adk/v2/session"
 )
 
 func TestSessionContextAndCompactionRejectMissingResourcesAndConflicts(t *testing.T) {

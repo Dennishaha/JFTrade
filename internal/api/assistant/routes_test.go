@@ -15,8 +15,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	adkmodel "google.golang.org/adk/model"
-	adksession "google.golang.org/adk/session"
+	adkmodel "google.golang.org/adk/v2/model"
+	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 	_ "modernc.org/sqlite"
 
@@ -161,7 +161,7 @@ func TestSessionTimelineFailureKeepsLegacyErrorCode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create ADK session: %v", err)
 	}
-	event := adksession.NewEvent("run-timeline-fail")
+	event := adksession.NewEvent(context.Background(), "run-timeline-fail")
 	event.ID = "event-timeline-fail"
 	event.Author = "user"
 	event.Timestamp = time.Now().UTC()

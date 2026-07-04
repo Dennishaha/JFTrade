@@ -7,12 +7,12 @@ import (
 	"sort"
 	"strings"
 
-	adkagent "google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	adkmodel "google.golang.org/adk/model"
-	adkrunner "google.golang.org/adk/runner"
-	adksession "google.golang.org/adk/session"
-	adktool "google.golang.org/adk/tool"
+	adkagent "google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	adkmodel "google.golang.org/adk/v2/model"
+	adkrunner "google.golang.org/adk/v2/runner"
+	adksession "google.golang.org/adk/v2/session"
+	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 	"gorm.io/gorm"
 )
@@ -263,7 +263,7 @@ func (t *workflowPlannerTool) Declaration() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{Name: t.Name(), Description: t.Description(), ParametersJsonSchema: sanitizeSchemaForOpenAI(t.schema)}
 }
 
-func (t *workflowPlannerTool) ProcessRequest(_ adkagent.ToolContext, req *adkmodel.LLMRequest) error {
+func (t *workflowPlannerTool) ProcessRequest(_ adkagent.Context, req *adkmodel.LLMRequest) error {
 	if req.Tools == nil {
 		req.Tools = make(map[string]any)
 	}
@@ -289,7 +289,7 @@ func (t *workflowPlannerTool) ProcessRequest(_ adkagent.ToolContext, req *adkmod
 	return nil
 }
 
-func (t *workflowPlannerTool) Run(_ adkagent.ToolContext, args any) (map[string]any, error) {
+func (t *workflowPlannerTool) Run(_ adkagent.Context, args any) (map[string]any, error) {
 	input, ok := args.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("tool %s received invalid input %T", t.Name(), args)

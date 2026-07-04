@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	adkmodel "google.golang.org/adk/model"
-	adksession "google.golang.org/adk/session"
+	adkmodel "google.golang.org/adk/v2/model"
+	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 
 	"github.com/jftrade/jftrade-main/pkg/observability"
@@ -389,7 +389,7 @@ func (r *Runtime) appendAssistantMessageEvent(
 		}
 		response = &adksession.GetResponse{Session: created.Session}
 	}
-	event := adksession.NewEvent(run.ID)
+	event := adksession.NewEvent(ctx, run.ID)
 	event.Author = googleADKAgentName(defaultString(run.AgentID, session.AgentID))
 	event.LLMResponse = adkmodel.LLMResponse{
 		Content:      genai.NewContentFromParts(partsFromReplyAndReasoning(replyResult.Reply, replyResult.ReasoningContent), genai.RoleModel),
