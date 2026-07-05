@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
-	"google.golang.org/adk/v2/agent/workflowagent"
 	adkmodel "google.golang.org/adk/v2/model"
 	"google.golang.org/adk/v2/plugin"
 	adkrunner "google.golang.org/adk/v2/runner"
@@ -560,7 +559,7 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 		if err != nil {
 			return nil, err
 		}
-		childNode, err := adkworkflow.NewAgentNode(childAgent, adkworkflow.NodeConfig{})
+		childNode, err := newGoogleADKWorkflowAgentNode(childAgent)
 		if err != nil {
 			return nil, fmt.Errorf("create GO-ADK workflow node: %w", err)
 		}
@@ -569,11 +568,15 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 	if len(childNodes) == 0 {
 		return nil, fmt.Errorf("workflow requires at least one sub-agent")
 	}
-	edges := compileGoogleADKWorkflowEdges(steps, childNodes)
-	root, err := workflowagent.New(workflowagent.Config{
-		Name:        rootName,
-		Description: definition.Name + " task workflow",
-		Edges:       edges,
+	edges, err := compileGoogleADKWorkflowEdges(steps, childNodes)
+	if err != nil {
+		return nil, err
+	}
+	root, err := newGoogleADKWorkflowAgent(googleADKWorkflowAgentConfig{
+		Name:           rootName,
+		Description:    definition.Name + " task workflow",
+		Edges:          edges,
+		MaxConcurrency: MaxConcurrentRuns,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create GO-ADK workflow agent: %w", err)
@@ -581,7 +584,7 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 	return r.attachGoogleADKRunner(ctx, execution, productSession, root)
 }
 
-func compileGoogleADKWorkflowEdges(steps []workflowStep, nodes []adkworkflow.Node) []adkworkflow.Edge {
+func compileGoogleADKWorkflowEdges(steps []workflowStep, nodes []adkworkflow.Node) ([]adkworkflow.Edge, error) {
 	return newWorkflowCompiler().CompileEdges(steps, nodes)
 }
 
@@ -659,7 +662,11 @@ func (r *Runtime) runGoogleADKFinalSynthesis(
 		return fmt.Errorf("create GO-ADK final synthesis agent: %w", err)
 	}
 	synthesisRunner, err := adkrunner.New(adkrunner.Config{
-		AppName: execution.appName, Agent: synthesisAgent, SessionService: execution.sessionService,
+		AppName:         execution.appName,
+		Agent:           synthesisAgent,
+		SessionService:  execution.sessionService,
+		ArtifactService: r.artifactService,
+		MemoryService:   r.memoryService,
 	})
 	if err != nil {
 		return fmt.Errorf("create GO-ADK final synthesis runner: %w", err)
@@ -760,9 +767,11 @@ func (r *Runtime) attachGoogleADKRunner(
 		return nil, err
 	}
 	adkRunner, err := adkrunner.New(adkrunner.Config{
-		AppName:        execution.appName,
-		Agent:          adkAgent,
-		SessionService: service,
+		AppName:         execution.appName,
+		Agent:           adkAgent,
+		SessionService:  service,
+		ArtifactService: r.artifactService,
+		MemoryService:   r.memoryService,
 		PluginConfig: adkrunner.PluginConfig{
 			Plugins: []*plugin.Plugin{executionPlugin},
 		},
@@ -1688,12 +1697,4 @@ func workflowChildInstructionTask(step workflowStep) string {
 func workflowFinalSynthesisInstruction(base string, task string) string {
 	instruction := workflowChildInstruction(base, task)
 	return instruction + "\n\n工具调用已经完成。现在必须基于已有工具结果输出最终回复。不要再调用工具，不要请求审批，不要只说明准备继续。"
-}
-
-func googleADKAppName(id string) string {
-	normalized := normalizeID(id)
-	if normalized == "" {
-		return "jftrade-default"
-	}
-	return "jftrade-" + normalized
 }

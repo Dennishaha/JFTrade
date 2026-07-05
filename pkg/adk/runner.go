@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	adkartifact "google.golang.org/adk/v2/artifact"
+	adkmemory "google.golang.org/adk/v2/memory"
 	adksession "google.golang.org/adk/v2/session"
 )
 
@@ -16,6 +18,8 @@ type Runtime struct {
 	skills             *SkillRegistry
 	sessionService     adksession.Service
 	rawSessionService  adksession.Service
+	artifactService    adkartifact.Service
+	memoryService      adkmemory.Service
 	contextManager     *SessionContextManager
 	openai             openAIClient
 	limitsProvider     RuntimeLimitsProvider
@@ -52,7 +56,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 		skillsPath = store.SkillsPath()
 	}
 	r := &Runtime{
-		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, openai: newOpenAIClient(),
+		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, artifactService: newGoogleADKArtifactService(), memoryService: newGoogleADKMemoryService(store), openai: newOpenAIClient(),
 		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{},
 		backgroundCtx: backgroundCtx, backgroundCancel: backgroundCancel, runSem: make(chan struct{}, MaxConcurrentRuns),
 	}

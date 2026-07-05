@@ -8,8 +8,12 @@ import (
 	"strings"
 
 	adkagent "google.golang.org/adk/v2/agent"
+	adkartifact "google.golang.org/adk/v2/artifact"
 	adkmodel "google.golang.org/adk/v2/model"
 	adktool "google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/loadartifactstool"
+	"google.golang.org/adk/v2/tool/loadmemorytool"
+	"google.golang.org/adk/v2/tool/preloadmemorytool"
 	"google.golang.org/adk/v2/tool/skilltoolset"
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
 	"google.golang.org/genai"
@@ -25,9 +29,19 @@ type googleADKProductToolset struct {
 	tools []adktool.Tool
 }
 
+type googleADKStaticToolset struct {
+	name  string
+	tools []adktool.Tool
+}
+
+type googleADKArtifactToolset struct {
+	name    string
+	service adkartifact.Service
+}
+
 func (r *Runtime) googleADKToolsets(ctx context.Context, definition Agent) ([]adktool.Toolset, error) {
 	baseToolset := r.googleADKProductToolset(definition)
-	toolsets := make([]adktool.Toolset, 0, 2)
+	toolsets := make([]adktool.Toolset, 0, 4)
 	if baseToolset != nil {
 		filtered := adktool.FilterToolset(baseToolset, func(_ adkagent.ReadonlyContext, tool adktool.Tool) bool {
 			if descriptor, ok := descriptorFromADKTool(tool); ok {
@@ -42,6 +56,12 @@ func (r *Runtime) googleADKToolsets(ctx context.Context, definition Agent) ([]ad
 			}
 			return ToolRequiresApproval(registered.Descriptor, definition.PermissionMode)
 		}))
+	}
+	if definition.MemoryEnabled && r.memoryService != nil {
+		toolsets = append(toolsets, googleADKStaticToolset{name: "jftrade-adk-memory-tools", tools: []adktool.Tool{preloadmemorytool.New(), loadmemorytool.New()}})
+	}
+	if r.artifactService != nil {
+		toolsets = append(toolsets, googleADKArtifactToolset{name: "jftrade-adk-artifact-tools", service: r.artifactService})
 	}
 	source, err := r.skills.Source(ctx, definition.Skills)
 	if err != nil {
@@ -212,6 +232,30 @@ func (t *googleADKProductToolset) Tools(_ adkagent.ReadonlyContext) ([]adktool.T
 	tools := make([]adktool.Tool, 0, len(t.tools))
 	tools = append(tools, t.tools...)
 	return tools, nil
+}
+
+func (t googleADKStaticToolset) Name() string { return t.name }
+
+func (t googleADKStaticToolset) Tools(_ adkagent.ReadonlyContext) ([]adktool.Tool, error) {
+	return append([]adktool.Tool(nil), t.tools...), nil
+}
+
+func (t googleADKArtifactToolset) Name() string { return t.name }
+
+func (t googleADKArtifactToolset) Tools(ctx adkagent.ReadonlyContext) ([]adktool.Tool, error) {
+	if t.service == nil || ctx == nil || strings.TrimSpace(ctx.AppName()) == "" || strings.TrimSpace(ctx.UserID()) == "" || strings.TrimSpace(ctx.SessionID()) == "" {
+		return nil, nil
+	}
+	response, err := t.service.List(ctx, &adkartifact.ListRequest{
+		AppName: ctx.AppName(), UserID: ctx.UserID(), SessionID: ctx.SessionID(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(response.FileNames) == 0 {
+		return nil, nil
+	}
+	return []adktool.Tool{loadartifactstool.New()}, nil
 }
 
 func descriptorFromADKTool(tool adktool.Tool) (ToolDescriptor, bool) {

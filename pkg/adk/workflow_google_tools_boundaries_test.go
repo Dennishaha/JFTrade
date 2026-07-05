@@ -13,6 +13,7 @@ import (
 	"time"
 
 	adkagent "google.golang.org/adk/v2/agent"
+	adkartifact "google.golang.org/adk/v2/artifact"
 	adkmemory "google.golang.org/adk/v2/memory"
 	adkmodel "google.golang.org/adk/v2/model"
 	adksession "google.golang.org/adk/v2/session"
@@ -279,9 +280,83 @@ func TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions(t *testing.T)
 		Skills:         []string{"resource-skill"},
 		PermissionMode: PermissionModeApproval,
 	})
-	if err != nil || len(toolsets) != 2 {
-		t.Fatalf("googleADKToolsets len=%d err=%v", len(toolsets), err)
+	if err != nil {
+		t.Fatalf("googleADKToolsets: %v", err)
 	}
+	if !toolsetsContainTool(t, toolsets, "test.read") {
+		t.Fatalf("filtered toolsets did not include test.read")
+	}
+	if toolsetsContainTool(t, toolsets, "load_artifacts", newGoogleADKToolTestContext()) {
+		t.Fatalf("empty artifact toolset should not expose load_artifacts")
+	}
+}
+
+func TestGoogleADKToolsetsIncludeADKMemoryToolsWhenEnabled(t *testing.T) {
+	ctx := context.Background()
+	runtime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), NewToolRegistry())
+	toolsets, err := runtime.googleADKToolsets(ctx, Agent{ID: "memory-agent", MemoryEnabled: true})
+	if err != nil {
+		t.Fatalf("googleADKToolsets memory enabled: %v", err)
+	}
+	if !toolsetsContainTool(t, toolsets, "preload_memory") {
+		t.Fatalf("memory-enabled toolsets did not include preload_memory")
+	}
+	if !toolsetsContainTool(t, toolsets, "load_memory") {
+		t.Fatalf("memory-enabled toolsets did not include load_memory")
+	}
+
+	toolsets, err = runtime.googleADKToolsets(ctx, Agent{ID: "memory-agent", MemoryEnabled: false})
+	if err != nil {
+		t.Fatalf("googleADKToolsets memory disabled: %v", err)
+	}
+	if toolsetsContainTool(t, toolsets, "preload_memory") {
+		t.Fatalf("memory-disabled toolsets included preload_memory")
+	}
+	if toolsetsContainTool(t, toolsets, "load_memory") {
+		t.Fatalf("memory-disabled toolsets included load_memory")
+	}
+}
+
+func TestGoogleADKToolsetsIncludeADKArtifactTools(t *testing.T) {
+	ctx := context.Background()
+	runtime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), NewToolRegistry())
+	toolsets, err := runtime.googleADKToolsets(ctx, Agent{ID: "artifact-agent"})
+	if err != nil {
+		t.Fatalf("googleADKToolsets artifact: %v", err)
+	}
+	requestContext := newGoogleADKToolTestContext()
+	if toolsetsContainTool(t, toolsets, "load_artifacts", requestContext) {
+		t.Fatalf("artifact-empty toolsets included load_artifacts")
+	}
+	if _, err := runtime.artifactService.Save(ctx, &adkartifact.SaveRequest{
+		AppName: requestContext.AppName(), UserID: requestContext.UserID(), SessionID: requestContext.SessionID(), FileName: "report.txt",
+		Part: genai.NewPartFromText("report"),
+	}); err != nil {
+		t.Fatalf("Save artifact: %v", err)
+	}
+	if !toolsetsContainTool(t, toolsets, "load_artifacts", requestContext) {
+		t.Fatalf("toolsets did not include load_artifacts")
+	}
+}
+
+func toolsetsContainTool(t *testing.T, toolsets []adktool.Toolset, name string, contexts ...adkagent.ReadonlyContext) bool {
+	t.Helper()
+	var ctx adkagent.ReadonlyContext
+	if len(contexts) > 0 {
+		ctx = contexts[0]
+	}
+	for _, toolset := range toolsets {
+		tools, err := toolset.Tools(ctx)
+		if err != nil {
+			t.Fatalf("Tools(%s): %v", toolset.Name(), err)
+		}
+		for _, tool := range tools {
+			if tool.Name() == name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func TestWorkflowStoreTriggerDeletionAndLogLookupBoundaries(t *testing.T) {

@@ -13,7 +13,7 @@ func newWorkflowCompiler() workflowCompiler {
 	return workflowCompiler{}
 }
 
-func (workflowCompiler) CompileEdges(steps []workflowStep, nodes []adkworkflow.Node) []adkworkflow.Edge {
+func (workflowCompiler) CompileEdges(steps []workflowStep, nodes []adkworkflow.Node) ([]adkworkflow.Edge, error) {
 	edges := make([]adkworkflow.Edge, 0, len(nodes)*2)
 	nodeByStepID := make(map[string]adkworkflow.Node, len(nodes))
 	for index, node := range nodes {
@@ -28,7 +28,10 @@ func (workflowCompiler) CompileEdges(steps []workflowStep, nodes []adkworkflow.N
 		if index >= len(steps) {
 			break
 		}
-		dependencies := compileGoogleADKWorkflowDependencies(steps[index], nodeByStepID)
+		dependencies, err := compileGoogleADKWorkflowDependencies(steps[index], nodeByStepID)
+		if err != nil {
+			return nil, err
+		}
 		switch len(dependencies) {
 		case 0:
 			edges = append(edges, adkworkflow.Edge{From: adkworkflow.Start, To: node})
@@ -45,12 +48,12 @@ func (workflowCompiler) CompileEdges(steps []workflowStep, nodes []adkworkflow.N
 	if len(edges) == 0 && len(nodes) > 0 {
 		edges = append(edges, adkworkflow.Edge{From: adkworkflow.Start, To: nodes[0]})
 	}
-	return edges
+	return edges, nil
 }
 
-func compileGoogleADKWorkflowDependencies(step workflowStep, nodeByStepID map[string]adkworkflow.Node) []adkworkflow.Node {
+func compileGoogleADKWorkflowDependencies(step workflowStep, nodeByStepID map[string]adkworkflow.Node) ([]adkworkflow.Node, error) {
 	if len(step.DependsOn) == 0 {
-		return nil
+		return nil, nil
 	}
 	dependencies := make([]adkworkflow.Node, 0, len(step.DependsOn))
 	seen := make(map[string]struct{}, len(step.DependsOn))
@@ -64,10 +67,10 @@ func compileGoogleADKWorkflowDependencies(step workflowStep, nodeByStepID map[st
 		}
 		node, ok := nodeByStepID[dependencyID]
 		if !ok || node == nil {
-			continue
+			return nil, fmt.Errorf("compile GO-ADK workflow dependencies for step %q: unknown dependency %q", step.DependencyID, dependencyID)
 		}
 		seen[dependencyID] = struct{}{}
 		dependencies = append(dependencies, node)
 	}
-	return dependencies
+	return dependencies, nil
 }
