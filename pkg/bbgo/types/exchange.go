@@ -115,7 +115,7 @@ type ExchangeBasic = Exchange
 
 // ExchangeOrderQueryService provides an interface for querying the order status via order ID or client order ID
 //
-//go:generate mockgen -destination=mocks/mock_exchange_order_query.go -package=mocks . ExchangeOrderQueryService
+//go:generate mockgen -destination=mocks/mock_order_query.go -package=mocks . ExchangeOrderQueryService
 type ExchangeOrderQueryService interface {
 	QueryOrder(ctx context.Context, q OrderQuery) (*Order, error)
 	QueryOrderTrades(ctx context.Context, q OrderQuery) ([]Trade, error)
@@ -139,7 +139,7 @@ type ExchangeDefaultFeeRates interface {
 	DefaultFeeRates() ExchangeFee
 }
 
-//go:generate mockgen -destination=mocks/mock_exchange_trade_history.go -package=mocks . ExchangeTradeHistoryService
+//go:generate mockgen -destination=mocks/mock_trade_history.go -package=mocks . ExchangeTradeHistoryService
 type ExchangeTradeHistoryService interface {
 	QueryTrades(ctx context.Context, symbol string, options *TradeQueryOptions) ([]Trade, error)
 	QueryClosedOrders(
@@ -178,7 +178,7 @@ type WithdrawHistoryService interface {
 	QueryWithdrawHistory(ctx context.Context, asset string, since, until time.Time) (allWithdraws []Withdraw, err error)
 }
 
-//go:generate mockgen -destination=mocks/mock_exchange_transfer_history.go -package=mocks . ExchangeTransferHistoryService
+//go:generate mockgen -destination=mocks/mock_transfer_history.go -package=mocks . ExchangeTransferHistoryService
 
 type ExchangeTransferHistoryService interface {
 	DepositHistoryService

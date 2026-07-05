@@ -27,7 +27,21 @@ func (s *Service) ResultView(req ResultViewRequest) (map[string]any, error) {
 	if !ok {
 		return nil, requestErrorf("backtest run not found: %s", runID)
 	}
+	normalized, err := normalizeResultView(req)
+	if err != nil {
+		return nil, err
+	}
+	payload, window, series, returned := newResultViewPayload(req, run, normalized)
+	if run.Result == nil || normalized.view == "summary" {
+		return payload, nil
+	}
+	if err := populateResultView(run, req, normalized, window, series, returned); err != nil {
+		return nil, err
+	}
+	return payload, nil
+}
 
+func normalizeResultView(req ResultViewRequest) (normalizedResultView, error) {
 	view := strings.ToLower(strings.TrimSpace(req.View))
 	if view == "" {
 		view = "summary"
@@ -35,111 +49,135 @@ func (s *Service) ResultView(req ResultViewRequest) (map[string]any, error) {
 	switch view {
 	case "summary", "chart", "orders", "logs", "errors":
 	default:
-		return nil, requestErrorf("view must be one of summary, chart, orders, logs, errors")
+		return normalizedResultView{}, requestErrorf("view must be one of summary, chart, orders, logs, errors")
 	}
-
 	limit := normalizeResultViewLimit(req.Limit)
 	offset, err := parseResultViewCursor(req.Cursor)
 	if err != nil {
-		return nil, err
+		return normalizedResultView{}, err
 	}
 	startTime, err := parseOptionalResultViewTime(req.StartTime, "startTime")
 	if err != nil {
-		return nil, err
+		return normalizedResultView{}, err
 	}
 	endTime, err := parseOptionalResultViewTime(req.EndTime, "endTime")
 	if err != nil {
-		return nil, err
+		return normalizedResultView{}, err
 	}
 	if startTime != nil && endTime != nil && endTime.Before(*startTime) {
-		return nil, requestErrorf("endTime must be after or equal to startTime")
+		return normalizedResultView{}, requestErrorf("endTime must be after or equal to startTime")
 	}
+	return normalizedResultView{
+		view:      view,
+		limit:     limit,
+		offset:    offset,
+		startTime: startTime,
+		endTime:   endTime,
+	}, nil
+}
 
-	result := run.Result
+func newResultViewPayload(
+	req ResultViewRequest,
+	run *RunState,
+	normalized normalizedResultView,
+) (map[string]any, map[string]any, map[string]any, map[string]int) {
+	window := map[string]any{
+		"startTime":      req.StartTime,
+		"endTime":        req.EndTime,
+		"nativeInterval": run.Request.Interval,
+		"limit":          normalized.limit,
+		"cursor":         req.Cursor,
+		"offset":         normalized.offset,
+		"returned":       map[string]int{},
+		"truncated":      false,
+		"nextCursor":     "",
+	}
+	series := map[string]any{}
 	payload := map[string]any{
-		"view":    view,
+		"view":    normalized.view,
 		"run":     resultViewRunPayload(run),
 		"summary": resultViewSummaryPayload(run),
-		"window": map[string]any{
-			"startTime":      req.StartTime,
-			"endTime":        req.EndTime,
-			"nativeInterval": run.Request.Interval,
-			"limit":          limit,
-			"cursor":         req.Cursor,
-			"offset":         offset,
-			"returned":       map[string]int{},
-			"truncated":      false,
-			"nextCursor":     "",
-		},
-		"series": map[string]any{},
+		"window":  window,
+		"series":  series,
 	}
-	if result == nil {
-		return payload, nil
-	}
+	return payload, window, series, jftradeCheckedTypeAssertion[map[string]int](window["returned"])
+}
 
-	window := jftradeCheckedTypeAssertion[map[string]any](payload["window"])
-	series := jftradeCheckedTypeAssertion[map[string]any](payload["series"])
-	returned := jftradeCheckedTypeAssertion[map[string]int](window["returned"])
-
-	switch view {
-	case "summary":
-		return payload, nil
+func populateResultView(
+	run *RunState,
+	req ResultViewRequest,
+	normalized normalizedResultView,
+	window map[string]any,
+	series map[string]any,
+	returned map[string]int,
+) error {
+	switch normalized.view {
 	case "chart":
-		include := resultViewIncludeSet(req.Include, []string{"candles", "trades", "pnlCurve", "drawdownCurve"})
-		resolution, candles, err := resultViewCandles(result.Candles, run.Request.Interval, req.Resolution, startTime, endTime, limit)
-		if err != nil {
-			return nil, err
-		}
-		window["resolution"] = resolution
-		if include["candles"] {
-			items, next := sliceResultViewItems(candles, offset, limit)
-			series["candles"] = items
-			returned["candles"] = len(items)
-			applyResultViewNextCursor(window, next)
-		}
-		if include["trades"] {
-			filtered := filterResultViewTimedItems(result.Trades, startTime, endTime, func(item bt.TradeEvent) string { return item.Time })
-			items, next := sliceResultViewItems(filtered, offset, limit)
-			series["trades"] = items
-			returned["trades"] = len(items)
-			applyResultViewNextCursor(window, next)
-		}
-		if include["pnlCurve"] {
-			filtered := filterResultViewTimedItems(result.PnLCurve, startTime, endTime, func(item bt.PnLPoint) string { return item.Time })
-			items, next := sliceResultViewItems(filtered, offset, limit)
-			series["pnlCurve"] = items
-			returned["pnlCurve"] = len(items)
-			applyResultViewNextCursor(window, next)
-		}
-		if include["drawdownCurve"] {
-			filtered := filterResultViewTimedItems(result.DrawdownCurve, startTime, endTime, func(item bt.DrawdownPoint) string { return item.Time })
-			items, next := sliceResultViewItems(filtered, offset, limit)
-			series["drawdownCurve"] = items
-			returned["drawdownCurve"] = len(items)
-			applyResultViewNextCursor(window, next)
-		}
+		return populateResultViewChart(run, req, normalized, window, series, returned)
 	case "orders":
-		items, next := sliceResultViewItems(filterResultViewOrders(result.OrderBook, startTime, endTime), offset, limit)
-		series["orderBook"] = items
-		returned["orderBook"] = len(items)
-		applyResultViewNextCursor(window, next)
+		populateResultViewSlice(series, returned, window, "orderBook", filterResultViewOrders(run.Result.OrderBook, normalized.startTime, normalized.endTime), normalized.offset, normalized.limit)
 	case "logs":
-		items, next := sliceResultViewItems(result.Logs, offset, limit)
-		series["logs"] = items
-		returned["logs"] = len(items)
-		applyResultViewNextCursor(window, next)
+		populateResultViewSlice(series, returned, window, "logs", run.Result.Logs, normalized.offset, normalized.limit)
 	case "warnings":
-		items, next := sliceResultViewItems(result.Warnings, offset, limit)
-		series["warnings"] = items
-		returned["warnings"] = len(items)
-		applyResultViewNextCursor(window, next)
+		populateResultViewSlice(series, returned, window, "warnings", run.Result.Warnings, normalized.offset, normalized.limit)
 	case "errors":
-		items, next := sliceResultViewItems(result.RuntimeErrors, offset, limit)
-		series["runtimeErrors"] = items
-		returned["runtimeErrors"] = len(items)
-		applyResultViewNextCursor(window, next)
+		populateResultViewSlice(series, returned, window, "runtimeErrors", run.Result.RuntimeErrors, normalized.offset, normalized.limit)
 	}
-	return payload, nil
+	return nil
+}
+
+func populateResultViewChart(
+	run *RunState,
+	req ResultViewRequest,
+	normalized normalizedResultView,
+	window map[string]any,
+	series map[string]any,
+	returned map[string]int,
+) error {
+	include := resultViewIncludeSet(req.Include, []string{"candles", "trades", "pnlCurve", "drawdownCurve"})
+	resolution, candles, err := resultViewCandles(
+		run.Result.Candles,
+		run.Request.Interval,
+		req.Resolution,
+		normalized.startTime,
+		normalized.endTime,
+		normalized.limit,
+	)
+	if err != nil {
+		return err
+	}
+	window["resolution"] = resolution
+	if include["candles"] {
+		populateResultViewSlice(series, returned, window, "candles", candles, normalized.offset, normalized.limit)
+	}
+	if include["trades"] {
+		filtered := filterResultViewTimedItems(run.Result.Trades, normalized.startTime, normalized.endTime, func(item bt.TradeEvent) string { return item.Time })
+		populateResultViewSlice(series, returned, window, "trades", filtered, normalized.offset, normalized.limit)
+	}
+	if include["pnlCurve"] {
+		filtered := filterResultViewTimedItems(run.Result.PnLCurve, normalized.startTime, normalized.endTime, func(item bt.PnLPoint) string { return item.Time })
+		populateResultViewSlice(series, returned, window, "pnlCurve", filtered, normalized.offset, normalized.limit)
+	}
+	if include["drawdownCurve"] {
+		filtered := filterResultViewTimedItems(run.Result.DrawdownCurve, normalized.startTime, normalized.endTime, func(item bt.DrawdownPoint) string { return item.Time })
+		populateResultViewSlice(series, returned, window, "drawdownCurve", filtered, normalized.offset, normalized.limit)
+	}
+	return nil
+}
+
+func populateResultViewSlice[T any](
+	series map[string]any,
+	returned map[string]int,
+	window map[string]any,
+	key string,
+	items []T,
+	offset int,
+	limit int,
+) {
+	windowed, next := sliceResultViewItems(items, offset, limit)
+	series[key] = windowed
+	returned[key] = len(windowed)
+	applyResultViewNextCursor(window, next)
 }
 
 func normalizeResultViewLimit(limit int) int {
