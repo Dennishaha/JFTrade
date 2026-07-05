@@ -5,8 +5,11 @@ import (
 	"fmt"
 
 	adkagent "google.golang.org/adk/v2/agent"
+	adkmodel "google.golang.org/adk/v2/model"
 	"google.golang.org/adk/v2/plugin"
+	adksession "google.golang.org/adk/v2/session"
 	adktool "google.golang.org/adk/v2/tool"
+	"google.golang.org/genai"
 )
 
 func (e *googleADKExecution) plugin() (*plugin.Plugin, error) {
@@ -14,10 +17,53 @@ func (e *googleADKExecution) plugin() (*plugin.Plugin, error) {
 		return nil, fmt.Errorf("GO-ADK execution is unavailable")
 	}
 	return plugin.New(plugin.Config{
-		Name:               "jftrade_execution_projection",
-		BeforeToolCallback: e.beforeToolCallback,
-		AfterToolCallback:  e.afterToolCallback,
+		Name:                 "jftrade_execution_projection",
+		BeforeRunCallback:    e.beforeRunCallback,
+		AfterRunCallback:     e.afterRunCallback,
+		OnEventCallback:      e.onEventCallback,
+		AfterModelCallback:   e.afterModelCallback,
+		OnModelErrorCallback: e.onModelErrorCallback,
+		BeforeToolCallback:   e.beforeToolCallback,
+		AfterToolCallback:    e.afterToolCallback,
+		OnToolErrorCallback:  e.onToolErrorCallback,
 	})
+}
+
+func (e *googleADKExecution) beforeRunCallback(_ adkagent.InvocationContext) (*genai.Content, error) {
+	return nil, nil
+}
+
+func (e *googleADKExecution) afterRunCallback(_ adkagent.InvocationContext) {
+	_ = e
+}
+
+func (e *googleADKExecution) onEventCallback(_ adkagent.InvocationContext, event *adksession.Event) (*adksession.Event, error) {
+	return event, nil
+}
+
+func (e *googleADKExecution) afterModelCallback(
+	_ adkagent.Context,
+	_ *adkmodel.LLMResponse,
+	_ error,
+) (*adkmodel.LLMResponse, error) {
+	return nil, nil
+}
+
+func (e *googleADKExecution) onModelErrorCallback(
+	_ adkagent.Context,
+	_ *adkmodel.LLMRequest,
+	_ error,
+) (*adkmodel.LLMResponse, error) {
+	return nil, nil
+}
+
+func (e *googleADKExecution) onToolErrorCallback(
+	_ adkagent.Context,
+	_ adktool.Tool,
+	_ map[string]any,
+	_ error,
+) (map[string]any, error) {
+	return nil, nil
 }
 
 func (e *googleADKExecution) beforeToolCallback(ctx adkagent.Context, tool adktool.Tool, args map[string]any) (map[string]any, error) {
