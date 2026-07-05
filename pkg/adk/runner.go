@@ -55,8 +55,13 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	if store != nil {
 		skillsPath = store.SkillsPath()
 	}
+	artifactService, err := newGoogleADKArtifactService(deriveGoogleADKArtifactPathFromSessionService(sessionService))
+	if err != nil {
+		jftradeLogError(err)
+		artifactService = adkartifact.InMemoryService()
+	}
 	r := &Runtime{
-		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, artifactService: newGoogleADKArtifactService(), memoryService: newGoogleADKMemoryService(store), openai: newOpenAIClient(),
+		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, artifactService: artifactService, memoryService: newGoogleADKMemoryService(store), openai: newOpenAIClient(),
 		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{},
 		backgroundCtx: backgroundCtx, backgroundCancel: backgroundCancel, runSem: make(chan struct{}, MaxConcurrentRuns),
 	}
@@ -280,7 +285,7 @@ func (r *Runtime) CloseSessionServices() error {
 	if r.rawSessionService != nil && r.rawSessionService != r.sessionService {
 		sessionErr = errors.Join(sessionErr, CloseSessionService(r.rawSessionService))
 	}
-	return sessionErr
+	return errors.Join(sessionErr, CloseArtifactService(r.artifactService))
 }
 
 func (r *Runtime) Tools() *ToolRegistry {
