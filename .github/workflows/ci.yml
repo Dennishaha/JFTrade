@@ -30,6 +30,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ripgrep
 
+      - name: Install revive
+        run: |
+          go install github.com/mgechev/revive@v1.15.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - name: Install frontend dependencies
         run: npm install
 
@@ -42,6 +47,68 @@ jobs:
         with:
           version: v2.12.0
           args: --timeout=5m
+
+      - name: Go production file length gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          list_file="$(mktemp)"
+          trap 'rm -f "$list_file"' EXIT
+          find cmd internal pkg -type f -name '*.go' ! -name '*_test.go' -print0 >"$list_file" 2>/dev/null
+
+          files=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.pb.go|*/pb/*)
+                continue
+                ;;
+            esac
+
+            first_line="$(sed -n '1p' "$file")"
+            if [[ "$first_line" =~ ^//[[:space:]]Code[[:space:]]generated.*DO[[:space:]]NOT[[:space:]]EDIT\.?$ ]]; then
+              continue
+            fi
+
+            files+=("$file")
+          done <"$list_file"
+
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            echo "No production Go files matched revive gate."
+            exit 0
+          fi
+
+          revive -config .revive-file-length-prod.toml -set_exit_status "${files[@]}"
+
+      - name: Go test file length gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          list_file="$(mktemp)"
+          trap 'rm -f "$list_file"' EXIT
+          find cmd internal pkg -type f -name '*_test.go' -print0 >"$list_file" 2>/dev/null
+
+          files=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.pb.go|*/pb/*)
+                continue
+                ;;
+            esac
+
+            first_line="$(sed -n '1p' "$file")"
+            if [[ "$first_line" =~ ^//[[:space:]]Code[[:space:]]generated.*DO[[:space:]]NOT[[:space:]]EDIT\.?$ ]]; then
+              continue
+            fi
+
+            files+=("$file")
+          done <"$list_file"
+
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            echo "No test Go files matched revive gate."
+            exit 0
+          fi
+
+          revive -config .revive-file-length-test.toml -set_exit_status "${files[@]}"
 
       - name: Vet
         run: go vet ./...
