@@ -291,6 +291,9 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 	}
 
 	summary := s.orders[internalOrderID]
+	if brokerOrderSnapshotStale(summary, snapshot) {
+		return executionOrderSummaryResponse{}, nil, false
+	}
 	changed := false
 	previousStatus := summary.Status
 	if rawBrokerStatus := strings.TrimSpace(snapshot.Status); rawBrokerStatus != "" {
@@ -367,9 +370,11 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 		summary.SubmittedAt = stringPointerOrNil(value)
 		changed = true
 	}
-	if value := strings.TrimSpace(snapshot.UpdatedAt); executionTimestampAdvances(summary.UpdatedAt, value) {
-		summary.UpdatedAt = value
-		changed = true
+	if value := strings.TrimSpace(snapshot.UpdatedAt); value != "" {
+		if executionTimestampAdvances(summary.UpdatedAt, value) || (changed && summary.UpdatedAt != value) {
+			summary.UpdatedAt = value
+			changed = true
+		}
 	}
 	if !changed {
 		return executionOrderSummaryResponse{}, nil, false
@@ -411,6 +416,29 @@ func executionTimestampAdvances(current, incoming string) bool {
 		return true
 	}
 	return incomingTime.After(currentTime)
+}
+
+func brokerOrderSnapshotStale(current executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+	currentTimeText := strings.TrimSpace(current.UpdatedAt)
+	incomingTimeText := strings.TrimSpace(snapshot.UpdatedAt)
+	if currentTimeText == "" || incomingTimeText == "" || currentTimeText == incomingTimeText {
+		return false
+	}
+	currentTime, currentErr := time.Parse(time.RFC3339Nano, currentTimeText)
+	incomingTime, incomingErr := time.Parse(time.RFC3339Nano, incomingTimeText)
+	if currentErr != nil || incomingErr != nil || !incomingTime.Before(currentTime) {
+		return false
+	}
+	if snapshot.FilledQuantity != nil && *snapshot.FilledQuantity > optionalFloat64(current.FilledQuantity) {
+		return false
+	}
+	if rawStatus := strings.TrimSpace(snapshot.Status); rawStatus != "" {
+		incomingStatus := trdsrv.CanonicalBrokerOrderStatus(rawStatus)
+		if reconciled, accepted := trdsrv.ReconcileCanonicalOrderStatus(current.Status, incomingStatus); accepted && reconciled != current.Status {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker.OrderFillSnapshot) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
