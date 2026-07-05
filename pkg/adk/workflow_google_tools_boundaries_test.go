@@ -61,10 +61,13 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 	})
 
 	runtime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), registry)
-	toolset := runtime.googleADKProductToolset(Agent{
+	toolset, err := runtime.googleADKProductToolset(Agent{
 		Tools:          []string{"test.read", "test.scalar", "test.error", "test.structured", "test.legacy", "test.confirm"},
 		PermissionMode: PermissionModeAll,
 	})
+	if err != nil {
+		t.Fatalf("googleADKProductToolset: %v", err)
+	}
 	product, ok := toolset.(*googleADKProductToolset)
 	if !ok || product == nil || product.Name() != "jftrade-tools" {
 		t.Fatalf("product toolset = %#v", toolset)
@@ -117,7 +120,7 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 	if err != nil || output["result"] != "ok" {
 		t.Fatalf("scalar Run output=%#v err=%v", output, err)
 	}
-	if _, err := readTool.Run(ctx, []string{"bad"}); err == nil || !strings.Contains(err.Error(), "invalid input") {
+	if _, err := readTool.Run(ctx, []string{"bad"}); err == nil || !strings.Contains(err.Error(), "unexpected args type") {
 		t.Fatalf("invalid Run err = %v", err)
 	}
 	output, err = googleToolByName(t, tools, "test.error").Run(ctx, map[string]any{})
@@ -134,6 +137,104 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 	}
 	if output, err = googleToolByName(t, tools, "test.confirm").Run(ctx, map[string]any{}); !errors.Is(err, adktool.ErrConfirmationRequired) || output != nil {
 		t.Fatalf("confirmation Run output=%#v err=%v", output, err)
+	}
+}
+
+func TestGoogleADKProductToolsetFunctionToolBoundaries(t *testing.T) {
+	ctx := newGoogleADKToolTestContext()
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{
+		Name: "test.strict", Description: "Strict schema", Permission: "read_internal", AllowedModes: allPermissionModes(),
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"limit": map[string]any{"type": "integer", "minimum": 1},
+			},
+			"required":             []string{"limit"},
+			"additionalProperties": false,
+		},
+	}, func(_ context.Context, input map[string]any) (any, error) {
+		return map[string]any{"limit": input["limit"]}, nil
+	})
+	runtime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), registry)
+
+	toolset, err := runtime.googleADKProductToolset(Agent{Tools: []string{"test.strict"}, PermissionMode: PermissionModeApproval})
+	if err != nil {
+		t.Fatalf("googleADKProductToolset: %v", err)
+	}
+	tools, err := toolset.Tools(ctx)
+	if err != nil || len(tools) != 1 {
+		t.Fatalf("Tools len=%d err=%v", len(tools), err)
+	}
+	strict := googleToolByName(t, tools, "test.strict")
+	if descriptor, ok := descriptorFromADKTool(strict); !ok || descriptor.Name != "test.strict" {
+		t.Fatalf("descriptorFromADKTool(strict) = %+v ok=%v", descriptor, ok)
+	}
+	output, err := strict.Run(ctx, map[string]any{"limit": "2", "extra": true})
+	if err != nil || output["limit"] != "2" {
+		t.Fatalf("strict Run output=%#v err=%v, want tolerant product args", output, err)
+	}
+
+	wrapped := adktool.WithConfirmation(toolset, false, func(string, any) bool { return false })
+	wrappedTools, err := wrapped.Tools(ctx)
+	if err != nil || len(wrappedTools) != 1 {
+		t.Fatalf("wrapped Tools len=%d err=%v", len(wrappedTools), err)
+	}
+	execution := &googleADKExecution{descriptors: toolDescriptorIndex([]ToolDescriptor{{Name: "test.strict", Permission: "read_internal"}})}
+	if descriptor, ok := execution.descriptorForTool(wrappedTools[0]); !ok || descriptor.Name != "test.strict" {
+		t.Fatalf("descriptorForTool(wrapped) = %+v ok=%v", descriptor, ok)
+	}
+
+	defaultSchemaTool, err := newGoogleADKTool(ToolDescriptor{Name: "test.default", Description: "Default schema"}, RegisteredTool{
+		Handler: func(_ context.Context, input map[string]any) (any, error) {
+			return input, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("newGoogleADKTool default schema: %v", err)
+	}
+	output, err = defaultSchemaTool.Run(ctx, map[string]any{"arbitrary": true})
+	if err != nil || output["arbitrary"] != true {
+		t.Fatalf("default schema product Run output=%#v err=%v", output, err)
+	}
+
+	var nilTool *googleADKTool
+	if nilTool.Name() != "" || nilTool.Description() != "" || nilTool.IsLongRunning() || nilTool.Declaration() != nil {
+		t.Fatalf("nil googleADKTool metadata name=%q description=%q long=%v declaration=%#v", nilTool.Name(), nilTool.Description(), nilTool.IsLongRunning(), nilTool.Declaration())
+	}
+	if _, err := nilTool.Run(ctx, map[string]any{}); err == nil || !strings.Contains(err.Error(), "not runnable") {
+		t.Fatalf("nil googleADKTool Run err = %v", err)
+	}
+	uninitialized := &googleADKTool{descriptor: ToolDescriptor{Name: "test.uninitialized", Description: "Uninitialized"}}
+	if uninitialized.Name() != "test.uninitialized" || uninitialized.Description() != "Uninitialized" || uninitialized.Declaration() == nil {
+		t.Fatalf("uninitialized googleADKTool metadata name=%q description=%q declaration=%#v", uninitialized.Name(), uninitialized.Description(), uninitialized.Declaration())
+	}
+	if _, err := uninitialized.Run(ctx, map[string]any{}); err == nil || !strings.Contains(err.Error(), "not runnable") {
+		t.Fatalf("uninitialized googleADKTool Run err = %v", err)
+	}
+}
+
+func TestGoogleADKProductToolsetRejectsInvalidFunctionSchema(t *testing.T) {
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{
+		Name: "test.invalid_schema", Description: "Invalid schema", Permission: "read_internal", AllowedModes: allPermissionModes(),
+		InputSchema: map[string]any{
+			"type": make(chan int),
+		},
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"ok": true}, nil
+	})
+	runtime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), registry)
+	if _, err := runtime.googleADKProductToolset(Agent{Tools: []string{"test.invalid_schema"}, PermissionMode: PermissionModeAll}); err == nil || !strings.Contains(err.Error(), "convert GO-ADK product tool schema") {
+		t.Fatalf("googleADKProductToolset invalid schema err = %v", err)
+	}
+}
+
+func TestGoogleADKProductToolsetEmptySelectionReturnsNil(t *testing.T) {
+	runtime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), NewToolRegistry())
+	toolset, err := runtime.googleADKProductToolset(Agent{Tools: []string{"missing.tool"}, PermissionMode: PermissionModeAll})
+	if err != nil || toolset != nil {
+		t.Fatalf("googleADKProductToolset missing = %#v err=%v, want nil nil", toolset, err)
 	}
 }
 

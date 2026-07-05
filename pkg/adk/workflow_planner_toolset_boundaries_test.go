@@ -4,9 +4,19 @@ import (
 	"strings"
 	"testing"
 
+	adkagent "google.golang.org/adk/v2/agent"
 	adkmodel "google.golang.org/adk/v2/model"
+	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
+
+type workflowToolRequestProcessor interface {
+	ProcessRequest(adkagent.Context, *adkmodel.LLMRequest) error
+}
+
+type workflowToolRunner interface {
+	Run(adkagent.Context, any) (map[string]any, error)
+}
 
 func TestWorkflowPlannerToolsetDraftLifecycleAndRequestInjection(t *testing.T) {
 	if tools, err := (&workflowPlannerToolset{}).Tools(nil); err != nil || tools != nil {
@@ -22,19 +32,18 @@ func TestWorkflowPlannerToolsetDraftLifecycleAndRequestInjection(t *testing.T) {
 		t.Fatalf("planner tools len = %d, want reset/add/finish", len(tools))
 	}
 
-	addTool, ok := tools[1].(*workflowPlannerTool)
-	if !ok {
-		t.Fatalf("add tool type = %T", tools[1])
-	}
+	ctx := newGoogleADKToolTestContext()
+	addTool := tools[1]
 	if addTool.Name() != workflowPlanAddStepTool || addTool.Description() == "" || addTool.IsLongRunning() {
 		t.Fatalf("add tool metadata = %s %q long=%v", addTool.Name(), addTool.Description(), addTool.IsLongRunning())
 	}
-	if declaration := addTool.Declaration(); declaration == nil || declaration.Name != workflowPlanAddStepTool || declaration.ParametersJsonSchema == nil {
+	if declaration := workflowPlannerToolDeclaration(t, addTool); declaration == nil || declaration.Name != workflowPlanAddStepTool || declaration.ParametersJsonSchema == nil {
 		t.Fatalf("add tool declaration = %#v", declaration)
 	}
 
 	req := &adkmodel.LLMRequest{}
-	if err := addTool.ProcessRequest(nil, req); err != nil {
+	addProcessor := workflowPlannerToolRequestProcessor(t, addTool)
+	if err := addProcessor.ProcessRequest(ctx, req); err != nil {
 		t.Fatalf("ProcessRequest: %v", err)
 	}
 	if req.Tools[workflowPlanAddStepTool] != addTool {
@@ -43,28 +52,31 @@ func TestWorkflowPlannerToolsetDraftLifecycleAndRequestInjection(t *testing.T) {
 	if req.Config == nil || len(req.Config.Tools) != 1 || len(req.Config.Tools[0].FunctionDeclarations) != 1 {
 		t.Fatalf("request config after process = %#v", req.Config)
 	}
-	if err := addTool.ProcessRequest(nil, req); err == nil || !strings.Contains(err.Error(), "duplicate tool") {
+	if err := addProcessor.ProcessRequest(ctx, req); err == nil || !strings.Contains(err.Error(), "duplicate tool") {
 		t.Fatalf("duplicate ProcessRequest err = %v", err)
 	}
 
-	finishTool := tools[2].(*workflowPlannerTool)
+	finishTool := tools[2]
+	finishProcessor := workflowPlannerToolRequestProcessor(t, finishTool)
 	req = &adkmodel.LLMRequest{Config: &genai.GenerateContentConfig{Tools: []*genai.Tool{{FunctionDeclarations: []*genai.FunctionDeclaration{}}}}}
-	if err := finishTool.ProcessRequest(nil, req); err != nil {
+	if err := finishProcessor.ProcessRequest(ctx, req); err != nil {
 		t.Fatalf("finish ProcessRequest existing function tool: %v", err)
 	}
 	if len(req.Config.Tools) != 1 || len(req.Config.Tools[0].FunctionDeclarations) != 1 {
 		t.Fatalf("finish request config = %#v", req.Config.Tools)
 	}
-	if _, err := finishTool.Run(nil, "bad-input"); err == nil || !strings.Contains(err.Error(), "invalid input") {
+	finishRunner := workflowPlannerToolRunner(t, finishTool)
+	if _, err := finishRunner.Run(ctx, "bad-input"); err == nil || !strings.Contains(err.Error(), "unexpected args type") {
 		t.Fatalf("invalid Run input err = %v", err)
 	}
 
-	if _, err := addTool.Run(nil, map[string]any{
-		"order":           "2",
+	addRunner := workflowPlannerToolRunner(t, addTool)
+	if _, err := addRunner.Run(ctx, map[string]any{
+		"order":           2,
 		"title":           " 收集约束 ",
 		"message":         " 读取持仓和行情 ",
 		"description":     " 用真实账户状态规划 ",
-		"modeHint":        " task ",
+		"modeHint":        "task",
 		"dependsOn":       []any{" 1 ", "", "收集约束"},
 		"agentRole":       " researcher ",
 		"childProviderId": " provider-a ",
@@ -76,8 +88,9 @@ func TestWorkflowPlannerToolsetDraftLifecycleAndRequestInjection(t *testing.T) {
 		t.Fatalf("draft after add = %+v", draft)
 	}
 
-	resetTool := tools[0].(*workflowPlannerTool)
-	resetResult, err := resetTool.Run(nil, map[string]any{})
+	resetTool := tools[0]
+	resetRunner := workflowPlannerToolRunner(t, resetTool)
+	resetResult, err := resetRunner.Run(ctx, map[string]any{})
 	if err != nil {
 		t.Fatalf("reset after add: %v", err)
 	}
@@ -85,7 +98,7 @@ func TestWorkflowPlannerToolsetDraftLifecycleAndRequestInjection(t *testing.T) {
 		t.Fatalf("reset after unfinished add result=%#v draft=%+v", resetResult, draft)
 	}
 
-	finishResult, err := finishTool.Run(nil, map[string]any{
+	finishResult, err := finishRunner.Run(ctx, map[string]any{
 		"mode":      "loop",
 		"objective": "更新为循环检查",
 		"warnings":  []any{" 需要人工确认 ", ""},
@@ -93,19 +106,61 @@ func TestWorkflowPlannerToolsetDraftLifecycleAndRequestInjection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("finish planner draft: %v", err)
 	}
-	if finishResult["steps"] != 1 || !draft.Finished || draft.Mode != WorkModeLoop || draft.Objective != "更新为循环检查" {
+	if workflowPlannerNumberArg(finishResult, "steps") != 1 || !draft.Finished || draft.Mode != WorkModeLoop || draft.Objective != "更新为循环检查" {
 		t.Fatalf("finish result=%#v draft=%+v", finishResult, draft)
 	}
 	if len(draft.Warnings) != 2 || draft.Warnings[1] != "需要人工确认" {
 		t.Fatalf("warnings after finish = %#v", draft.Warnings)
 	}
 
-	resetResult, err = resetTool.Run(nil, map[string]any{})
+	resetResult, err = resetRunner.Run(ctx, map[string]any{})
 	if err != nil {
 		t.Fatalf("reset after finish: %v", err)
 	}
 	if ignored, _ := resetResult["ignored"].(bool); ignored || len(draft.Steps) != 0 || draft.Mode != WorkModeLoop || draft.Objective != "更新为循环检查" {
 		t.Fatalf("reset after finish result=%#v draft=%+v", resetResult, draft)
+	}
+}
+
+func workflowPlannerToolRequestProcessor(t *testing.T, tool adktool.Tool) workflowToolRequestProcessor {
+	t.Helper()
+	processor, ok := tool.(workflowToolRequestProcessor)
+	if !ok {
+		t.Fatalf("%s does not implement ProcessRequest", tool.Name())
+	}
+	return processor
+}
+
+func workflowPlannerToolRunner(t *testing.T, tool adktool.Tool) workflowToolRunner {
+	t.Helper()
+	runner, ok := tool.(workflowToolRunner)
+	if !ok {
+		t.Fatalf("%s does not implement Run", tool.Name())
+	}
+	return runner
+}
+
+func workflowPlannerToolDeclaration(t *testing.T, tool adktool.Tool) *genai.FunctionDeclaration {
+	t.Helper()
+	declared, ok := tool.(workflowDeclaredTool)
+	if !ok {
+		t.Fatalf("%s does not expose a declaration", tool.Name())
+	}
+	return declared.Declaration()
+}
+
+func workflowPlannerNumberArg(args map[string]any, key string) int {
+	switch value := args[key].(type) {
+	case int:
+		return value
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	case float32:
+		return int(value)
+	default:
+		return 0
 	}
 }
 

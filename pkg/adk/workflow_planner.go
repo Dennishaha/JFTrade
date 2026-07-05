@@ -9,10 +9,10 @@ import (
 
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
-	adkmodel "google.golang.org/adk/v2/model"
 	adkrunner "google.golang.org/adk/v2/runner"
 	adksession "google.golang.org/adk/v2/session"
 	adktool "google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/genai"
 	"gorm.io/gorm"
 )
@@ -48,7 +48,7 @@ type workflowPlannerToolset struct {
 	draft *workflowPlanDraft
 }
 
-type workflowPlannerTool struct {
+type workflowMapToolSpec struct {
 	name        string
 	description string
 	schema      map[string]any
@@ -165,8 +165,8 @@ func (t *workflowPlannerToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool
 	if t == nil || t.draft == nil {
 		return nil, nil
 	}
-	return []adktool.Tool{
-		&workflowPlannerTool{
+	return newWorkflowMapFunctionTools(
+		workflowMapToolSpec{
 			name:        workflowPlanResetTool,
 			description: "Reset the in-memory workflow plan draft.",
 			schema:      map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false},
@@ -181,7 +181,7 @@ func (t *workflowPlannerToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool
 				return map[string]any{"success": true}, nil
 			},
 		},
-		&workflowPlannerTool{
+		workflowMapToolSpec{
 			name:        workflowPlanAddStepTool,
 			description: "Add one task step to the workflow plan draft. This does not execute the step.",
 			schema: map[string]any{
@@ -222,7 +222,7 @@ func (t *workflowPlannerToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool
 				return map[string]any{"success": true, "count": len(t.draft.Steps)}, nil
 			},
 		},
-		&workflowPlannerTool{
+		workflowMapToolSpec{
 			name:        workflowPlanFinishTool,
 			description: "Mark the workflow plan draft as complete.",
 			schema: map[string]any{
@@ -252,49 +252,36 @@ func (t *workflowPlannerToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool
 				return map[string]any{"success": true, "steps": len(t.draft.Steps)}, nil
 			},
 		},
-	}, nil
+	)
 }
 
-func (t *workflowPlannerTool) Name() string        { return t.name }
-func (t *workflowPlannerTool) Description() string { return t.description }
-func (t *workflowPlannerTool) IsLongRunning() bool { return false }
-
-func (t *workflowPlannerTool) Declaration() *genai.FunctionDeclaration {
-	return &genai.FunctionDeclaration{Name: t.Name(), Description: t.Description(), ParametersJsonSchema: sanitizeSchemaForOpenAI(t.schema)}
-}
-
-func (t *workflowPlannerTool) ProcessRequest(_ adkagent.Context, req *adkmodel.LLMRequest) error {
-	if req.Tools == nil {
-		req.Tools = make(map[string]any)
-	}
-	if _, exists := req.Tools[t.Name()]; exists {
-		return fmt.Errorf("duplicate tool: %q", t.Name())
-	}
-	req.Tools[t.Name()] = t
-	if req.Config == nil {
-		req.Config = &genai.GenerateContentConfig{}
-	}
-	var functionTools *genai.Tool
-	for _, item := range req.Config.Tools {
-		if item != nil && item.FunctionDeclarations != nil {
-			functionTools = item
-			break
+func newWorkflowMapFunctionTools(specs ...workflowMapToolSpec) ([]adktool.Tool, error) {
+	tools := make([]adktool.Tool, 0, len(specs))
+	for _, spec := range specs {
+		created, err := newWorkflowMapFunctionTool(spec)
+		if err != nil {
+			return nil, err
 		}
+		tools = append(tools, created)
 	}
-	if functionTools == nil {
-		req.Config.Tools = append(req.Config.Tools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{t.Declaration()}})
-	} else {
-		functionTools.FunctionDeclarations = append(functionTools.FunctionDeclarations, t.Declaration())
-	}
-	return nil
+	return tools, nil
 }
 
-func (t *workflowPlannerTool) Run(_ adkagent.Context, args any) (map[string]any, error) {
-	input, ok := args.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("tool %s received invalid input %T", t.Name(), args)
+func newWorkflowMapFunctionTool(spec workflowMapToolSpec) (adktool.Tool, error) {
+	schema, err := googleADKJSONSchemaFromMap(sanitizeSchemaForOpenAI(spec.schema))
+	if err != nil {
+		return nil, fmt.Errorf("convert workflow tool schema %q: %w", spec.name, err)
 	}
-	return t.run(input)
+	return functiontool.New[map[string]any, map[string]any](functiontool.Config{
+		Name:        spec.name,
+		Description: spec.description,
+		InputSchema: schema,
+	}, func(_ adkagent.Context, args map[string]any) (map[string]any, error) {
+		if spec.run == nil {
+			return nil, fmt.Errorf("workflow tool %s is unavailable", spec.name)
+		}
+		return spec.run(args)
+	})
 }
 
 func plannerStringArg(args map[string]any, key string) string {
