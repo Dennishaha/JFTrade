@@ -13,6 +13,7 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 	adktool "google.golang.org/adk/v2/tool"
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
 
@@ -155,6 +156,104 @@ func TestProjectedToolResponsesRecoverApprovalFailureAndSuccessState(t *testing.
 	}
 	if projectedToolProgress("") != "🔧 执行工具 unknown..." || projectionRunID(nil) != "" {
 		t.Fatalf("progress/run fallback failed")
+	}
+}
+
+func TestSessionProjectionBoundaryBranches(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+
+	entries, err := runtime.Store().TranscriptEntries(ctx, " ")
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("blank TranscriptEntries = %#v err=%v, want empty nil", entries, err)
+	}
+	if projection, ok, err := (*Store)(nil).SessionProjection(ctx, "session"); err != nil || ok || projection.SessionID != "" {
+		t.Fatalf("nil store SessionProjection = %#v ok=%v err=%v", projection, ok, err)
+	}
+
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "agent-projection-boundary", Name: "Projection Boundary", Status: AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "projection boundary")
+
+	noSessionRuntime := newRuntimeWithRegistry(t, runtime.Store(), NewToolRegistry())
+	noSessionRuntime.Store().SetSessionService(nil)
+	projection, ok, err := noSessionRuntime.Store().SessionProjection(ctx, session.ID)
+	if err != nil || ok || projection.SessionID != session.ID {
+		t.Fatalf("no service projection = %#v ok=%v err=%v", projection, ok, err)
+	}
+
+	getErrorStore := runtime.Store()
+	getErrorStore.SetSessionService(getErrorADKSessionService{err: errors.New("get failed")})
+	projection, ok, err = getErrorStore.SessionProjection(ctx, session.ID)
+	if err != nil || ok || projection.SessionID != session.ID {
+		t.Fatalf("get error projection = %#v ok=%v err=%v", projection, ok, err)
+	}
+
+	partialUser := newUserEvent("partial-user", "partial user", time.Unix(1, 0))
+	partialUser.Partial = true
+	blankProjection := sessionProjectionFromADKEvents([]*adksession.Event{
+		nil,
+		partialUser,
+		{ID: "empty-content"},
+	})
+	if len(blankProjection.Messages) != 0 {
+		t.Fatalf("blank projection messages = %#v, want none", blankProjection.Messages)
+	}
+
+	leftNilSorted := sessionProjectionFromADKEvents([]*adksession.Event{
+		newAssistantEvent("run-sort", []*genai.Part{{Text: "sorted"}}, time.Unix(2, 0)),
+		nil,
+	})
+	if len(leftNilSorted.Messages) != 1 || leftNilSorted.Messages[0].Content != "sorted" {
+		t.Fatalf("left nil sorted projection = %#v", leftNilSorted.Messages)
+	}
+
+	sameTimeA := newAssistantEvent("run-a", []*genai.Part{{Text: "A"}}, time.Unix(3, 0))
+	sameTimeA.ID = "b"
+	sameTimeB := newAssistantEvent("run-b", []*genai.Part{{Text: "B"}}, time.Unix(3, 0))
+	sameTimeB.ID = "a"
+	sameTimeProjection := sessionProjectionFromADKEvents([]*adksession.Event{sameTimeA, sameTimeB})
+	if len(sameTimeProjection.Messages) != 2 || sameTimeProjection.Messages[0].ID != "a" {
+		t.Fatalf("same-time projection order = %#v", sameTimeProjection.Messages)
+	}
+}
+
+func TestSessionProjectionToolBoundaryBranches(t *testing.T) {
+	timestamp := "2026-07-02T00:00:00Z"
+	if call := ensureProjectedToolCall(nil, &genai.FunctionCall{ID: "call"}, timestamp); call != nil {
+		t.Fatalf("nil state call = %#v, want nil", call)
+	}
+	state := &projectedRunState{
+		runID:         "run-tool-boundary",
+		toolCalls:     map[string]*ToolCall{},
+		toolCallOrder: []string{},
+	}
+	if call := ensureProjectedToolCall(state, nil, timestamp); call != nil {
+		t.Fatalf("nil function call = %#v, want nil", call)
+	}
+	first := ensureProjectedToolCall(state, &genai.FunctionCall{Name: "market.snapshot"}, timestamp)
+	if first == nil || first.IdempotencyKey != "market.snapshot:"+timestamp {
+		t.Fatalf("fallback tool call = %#v", first)
+	}
+	again := ensureProjectedToolCall(state, &genai.FunctionCall{Name: "market.snapshot"}, timestamp)
+	if again != first || len(state.toolCallOrder) != 1 {
+		t.Fatalf("reused fallback call = %#v order=%#v", again, state.toolCallOrder)
+	}
+	projectedToolResponse(state, nil, timestamp)
+	state.toolCalls["missing-order"] = nil
+	confirmationEvent := adksession.NewEvent(context.Background(), "run-confirmation")
+	confirmationEvent.ID = "confirmation-only"
+	confirmationEvent.Timestamp = time.Unix(4, 0)
+	confirmationEvent.Content = genai.NewContentFromParts([]*genai.Part{
+		{FunctionCall: &genai.FunctionCall{Name: toolconfirmation.FunctionCallName, ID: "confirmation-call"}},
+		{FunctionResponse: &genai.FunctionResponse{Name: toolconfirmation.FunctionCallName, ID: "confirmation-call"}},
+	}, genai.RoleModel)
+	projection := sessionProjectionFromADKEvents([]*adksession.Event{
+		confirmationEvent,
+	})
+	if len(projection.ToolCalls) != 0 || len(projection.Messages) != 0 {
+		t.Fatalf("confirmation-only projection = %#v", projection)
 	}
 }
 

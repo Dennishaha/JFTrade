@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	adksession "google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
 
@@ -88,6 +90,124 @@ func TestGoogleADKExecutionToolCallReuseAndCompletionBoundaries(t *testing.T) {
 	}
 }
 
+func TestGoogleADKExecutionRunAndEventErrorBoundaries(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	execution := &googleADKExecution{
+		runID: "run-cancel",
+		runBlocking: func(ctx context.Context, _ *genai.Content) error {
+			<-ctx.Done()
+			return nil
+		},
+	}
+	if err := execution.run(ctx, genai.NewContentFromText("cancel", genai.RoleUser)); !errors.Is(err, context.Canceled) {
+		t.Fatalf("run canceled err = %v, want context.Canceled", err)
+	}
+
+	execution = &googleADKExecution{runID: "run-event", sawPartialText: true}
+	if err := execution.consumeEvent(nil); err != nil {
+		t.Fatalf("consume nil event: %v", err)
+	}
+	emptyFinal := adksession.NewEvent(context.Background(), "inv-empty")
+	if err := execution.consumeEvent(emptyFinal); err != nil {
+		t.Fatalf("consume empty final event: %v", err)
+	}
+	if execution.sawPartialText {
+		t.Fatal("empty final event should reset sawPartialText")
+	}
+
+	var deltaCalls int
+	execution = &googleADKExecution{
+		runID: "run-delta",
+		onDelta: func(ChatDelta) error {
+			deltaCalls++
+			return errors.New("delta failed")
+		},
+	}
+	textEvent := adksession.NewEvent(context.Background(), "inv-text")
+	textEvent.Author = "agent"
+	textEvent.Content = genai.NewContentFromText("visible reply", genai.RoleModel)
+	if err := execution.consumeEvent(textEvent); err == nil || !strings.Contains(err.Error(), "delta failed") {
+		t.Fatalf("consume text event err = %v, want delta failed", err)
+	}
+	if deltaCalls != 1 {
+		t.Fatalf("delta calls = %d, want 1", deltaCalls)
+	}
+
+	execution = &googleADKExecution{runID: "run-partial", sawPartialText: true}
+	finalText := adksession.NewEvent(context.Background(), "inv-final-text")
+	finalText.Content = genai.NewContentFromText("duplicate final", genai.RoleModel)
+	if err := execution.consumeEvent(finalText); err != nil {
+		t.Fatalf("consume final after partial: %v", err)
+	}
+	if got := execution.result().Reply; got != "" {
+		t.Fatalf("final text after partial reply = %q, want suppressed", got)
+	}
+}
+
+func TestGoogleADKExecutionPauseAndBufferedErrorBoundaries(t *testing.T) {
+	pausedAt := nowString()
+	for _, tc := range []struct {
+		name string
+		exec *googleADKExecution
+		want bool
+	}{
+		{name: "blank run", exec: &googleADKExecution{runID: "run"}, want: false},
+		{name: "different run", exec: &googleADKExecution{runID: "run", loadRun: func(context.Context, string) (Run, bool, error) {
+			return Run{}, false, nil
+		}}, want: false},
+		{name: "load error", exec: &googleADKExecution{runID: "run", loadRun: func(context.Context, string) (Run, bool, error) {
+			return Run{}, false, errors.New("load failed")
+		}}, want: false},
+		{name: "not found", exec: &googleADKExecution{runID: "run", loadRun: func(context.Context, string) (Run, bool, error) {
+			return Run{}, false, nil
+		}}, want: false},
+		{name: "pause requested", exec: &googleADKExecution{runID: "run", loadRun: func(context.Context, string) (Run, bool, error) {
+			return Run{ID: "run", WorkMode: WorkModeLoop, PauseRequestedAt: &pausedAt}, true, nil
+		}}, want: true},
+		{name: "user paused", exec: &googleADKExecution{runID: "run", loadRun: func(context.Context, string) (Run, bool, error) {
+			return Run{ID: "run", WorkMode: WorkModeLoop, Status: RunStatusPaused, PausedReason: "user"}, true, nil
+		}}, want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runID := "run"
+			switch tc.name {
+			case "blank run":
+				runID = " "
+			case "different run":
+				runID = "other"
+			}
+			if got := tc.exec.shouldInterruptForUserGoalPause(runID); got != tc.want {
+				t.Fatalf("shouldInterruptForUserGoalPause = %v, want %v", got, tc.want)
+			}
+		})
+	}
+
+	execution := &googleADKExecution{
+		runID: "root-run",
+		onDelta: func(ChatDelta) error {
+			return errors.New("flush failed")
+		},
+	}
+	execution.ensureTextMaps()
+	execution.builderForRun(execution.bufferedReplyByRunID, "root-run").WriteString(" root buffered ")
+	if err := execution.flushBufferedTextIfReady(); err == nil || !strings.Contains(err.Error(), "flush failed") {
+		t.Fatalf("flushBufferedTextIfReady err = %v, want flush failed", err)
+	}
+
+	execution = &googleADKExecution{
+		runID: "root-run",
+		onDelta: func(ChatDelta) error {
+			return errors.New("direct flush failed")
+		},
+	}
+	execution.ensureTextMaps()
+	execution.builderForRun(execution.bufferedReplyByRunID, "root-run").WriteString(" direct buffered ")
+	if err := execution.flushBufferedTextForRunIfReady("root-run"); err == nil || !strings.Contains(err.Error(), "direct flush failed") {
+		t.Fatalf("flushBufferedTextForRunIfReady err = %v, want direct flush failed", err)
+	}
+}
+
 func TestGoogleADKFinalReplySynthesisBoundaries(t *testing.T) {
 	ctx := t.Context()
 	runtime := newTestRuntime(t)
@@ -125,6 +245,125 @@ func TestGoogleADKFinalReplySynthesisBoundaries(t *testing.T) {
 	}
 }
 
+func TestGoogleADKExecutionApprovalResolutionAndPendingBoundaries(t *testing.T) {
+	parts := approvalResolutionParts([]Approval{
+		{ConfirmationCallID: "", Status: ApprovalStatusApproved},
+		{ConfirmationCallID: "confirmation-ok", Status: ApprovalStatusDenied},
+	})
+	if len(parts) != 1 || parts[0].FunctionResponse == nil || parts[0].FunctionResponse.ID != "confirmation-ok" {
+		t.Fatalf("approvalResolutionParts = %#v, want only the valid confirmation", parts)
+	}
+	if confirmed, _ := parts[0].FunctionResponse.Response["confirmed"].(bool); confirmed {
+		t.Fatalf("denied approval response confirmed = %v, want false", confirmed)
+	}
+
+	ctx := context.Background()
+	getErr := errors.New("session get failed")
+	_, err := (&googleADKExecution{
+		sessionService: getErrorADKSessionService{err: getErr},
+		appName:        "app",
+		sessionID:      "missing-session",
+	}).pendingApprovals(ctx, newTestRuntime(t).Store())
+	if !errors.Is(err, getErr) {
+		t.Fatalf("pendingApprovals get err = %v, want %v", err, getErr)
+	}
+
+	service := adksession.InMemoryService()
+	created, err := service.Create(ctx, &adksession.CreateRequest{
+		AppName: "app", UserID: googleADKUserID, SessionID: "approval-errors",
+	})
+	if err != nil {
+		t.Fatalf("Create session: %v", err)
+	}
+	appendConfirmationEvent := func(invocationID string, call *genai.FunctionCall) {
+		t.Helper()
+		event := adksession.NewEvent(ctx, invocationID)
+		event.Author = "agent"
+		event.Content = genai.NewContentFromParts([]*genai.Part{{FunctionCall: call}}, genai.RoleModel)
+		if err := service.AppendEvent(ctx, created.Session, event); err != nil {
+			t.Fatalf("AppendEvent(%s): %v", invocationID, err)
+		}
+	}
+	appendConfirmationEvent("bad-original", &genai.FunctionCall{
+		ID: "confirmation-bad-original", Name: toolconfirmation.FunctionCallName,
+		Args: map[string]any{"originalFunctionCall": "not a function call"},
+	})
+	_, err = (&googleADKExecution{
+		sessionService: service,
+		appName:        "app",
+		sessionID:      "approval-errors",
+	}).pendingApprovals(ctx, newTestRuntime(t).Store())
+	if err == nil || !strings.Contains(err.Error(), `argument "originalFunctionCall" has invalid type`) {
+		t.Fatalf("pendingApprovals original-call err = %v, want invalid originalFunctionCall type", err)
+	}
+
+	validService := adksession.InMemoryService()
+	validSession, err := validService.Create(ctx, &adksession.CreateRequest{
+		AppName: "app", UserID: googleADKUserID, SessionID: "approval-save-error",
+	})
+	if err != nil {
+		t.Fatalf("Create valid session: %v", err)
+	}
+	original := &genai.FunctionCall{ID: "tool-call-save-error", Name: "strategy.research_backtest", Args: map[string]any{"symbol": "TME"}}
+	event := adksession.NewEvent(ctx, "save-error")
+	event.Content = genai.NewContentFromParts([]*genai.Part{{FunctionCall: &genai.FunctionCall{
+		ID: "confirmation-save-error", Name: toolconfirmation.FunctionCallName,
+		Args: map[string]any{
+			"originalFunctionCall": original,
+			"toolConfirmation":     toolconfirmation.ToolConfirmation{Hint: "approve"},
+		},
+	}}}, genai.RoleModel)
+	if err := validService.AppendEvent(ctx, validSession.Session, event); err != nil {
+		t.Fatalf("AppendEvent(save-error): %v", err)
+	}
+	runtime := newTestRuntime(t)
+	if _, err := runtime.Store().db.ExecContext(ctx, `DROP TABLE `+tableApprovals); err != nil {
+		t.Fatalf("drop approvals table: %v", err)
+	}
+	execution := &googleADKExecution{
+		sessionService: validService,
+		appName:        "app",
+		sessionID:      "approval-save-error",
+		agent:          Agent{ID: "agent-save-error"},
+		runID:          "run-save-error",
+	}
+	execution.ensureCall(original.ID, ToolDescriptor{Name: original.Name}, original.Args)
+	_, err = execution.pendingApprovals(ctx, runtime.Store())
+	if err == nil || !strings.Contains(err.Error(), tableApprovals) {
+		t.Fatalf("pendingApprovals save err = %v, want approvals table error", err)
+	}
+}
+
+func TestGoogleADKExecutionRehydrateBoundaries(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "agent-rehydrate-boundary", Name: "Rehydrate Boundary", Status: AgentStatusEnabled,
+	})
+
+	_, err := runtime.rehydrateGoogleADKExecution(ctx, Run{
+		ID: "run-missing-session", AgentID: agent.ID, ProviderID: testProviderID, Model: "test-model", SessionID: "missing-session",
+	})
+	if err == nil || !strings.Contains(err.Error(), "session not found") {
+		t.Fatalf("rehydrate missing session err = %v, want session not found", err)
+	}
+
+	session := mustCreateSession(t, runtime, agent.ID, "rehydrate empty approvals")
+	execution, err := runtime.rehydrateGoogleADKExecution(ctx, Run{
+		ID: "run-empty-approvals", AgentID: agent.ID, ProviderID: testProviderID, Model: "test-model", SessionID: session.ID,
+		PendingApprovals: []Approval{
+			{ConfirmationCallID: "", FunctionCallID: "tool-call"},
+			{ConfirmationCallID: "confirmation", FunctionCallID: ""},
+		},
+	})
+	if err != nil {
+		t.Fatalf("rehydrate empty approvals err = %v", err)
+	}
+	if execution != nil {
+		t.Fatalf("rehydrate empty approvals execution = %#v, want nil", execution)
+	}
+}
+
 type boundaryGoogleTool struct {
 	name string
 }
@@ -132,3 +371,12 @@ type boundaryGoogleTool struct {
 func (tool boundaryGoogleTool) Name() string        { return tool.name }
 func (tool boundaryGoogleTool) Description() string { return "boundary test tool" }
 func (tool boundaryGoogleTool) IsLongRunning() bool { return false }
+
+type getErrorADKSessionService struct {
+	adksession.Service
+	err error
+}
+
+func (service getErrorADKSessionService) Get(context.Context, *adksession.GetRequest) (*adksession.GetResponse, error) {
+	return nil, service.err
+}

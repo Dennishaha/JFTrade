@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -201,5 +202,95 @@ func TestSessionContextApprovalResolutionAndEventIndexBoundaries(t *testing.T) {
 	}
 	if protected := protectedTailStart(events); protected != len(events) {
 		t.Fatalf("resolved approval should not protect tail, got %d", protected)
+	}
+}
+
+func TestSessionContextAdditionalPureHelperBoundaries(t *testing.T) {
+	nilPart := adksession.NewEvent(context.Background(), "ctx-nil-part")
+	nilPart.Content = genai.NewContentFromParts([]*genai.Part{nil}, genai.RoleModel)
+	userByAuthor := adksession.NewEvent(context.Background(), "ctx-user-author")
+	userByAuthor.Author = " USER "
+	userByAuthor.Content = genai.NewContentFromText("author user", genai.RoleModel)
+	plainCall := adksession.NewEvent(context.Background(), "ctx-plain-call")
+	plainCall.Content = genai.NewContentFromParts([]*genai.Part{{FunctionCall: &genai.FunctionCall{
+		ID: "plain-call", Name: "tools.search", Args: map[string]any{"query": "risk"},
+	}}}, genai.RoleModel)
+	response := newContextFunctionResponseEvent("ctx-response", "plain-call", "tools.search")
+	events := []*adksession.Event{nilPart, userByAuthor, plainCall, response}
+
+	projected := projectVisibleSessionEvents(events, true, -10, -5, -2)
+	if len(projected.events) != len(events) {
+		t.Fatalf("projected events = %d, want protected full tail", len(projected.events))
+	}
+	if got := retainedRecentUserCount(events, 1, 0); got != 0 {
+		t.Fatalf("retainedRecentUserCount adjusted protected start = %d, want empty protected window", got)
+	}
+	if got := retainedRecentUserCount(events, 1, 3); got != 1 {
+		t.Fatalf("retainedRecentUserCount visible user = %d, want 1", got)
+	}
+	emptyContent := adksession.NewEvent(context.Background(), "ctx-empty-content")
+	emptyContent.Content = &genai.Content{Parts: []*genai.Part{nil}}
+	if got := functionCallEventIndex([]*adksession.Event{nil, emptyContent}, "missing", 99); got != -1 {
+		t.Fatalf("missing functionCallEventIndex = %d, want -1", got)
+	}
+	if got := summarizeEvent(nil, 20); len(got) != 0 {
+		t.Fatalf("nil summarizeEvent = %#v", got)
+	}
+	if got := summarizeEvent(&adksession.Event{}, 20); len(got) != 0 {
+		t.Fatalf("empty summarizeEvent = %#v", got)
+	}
+	summary := strings.Join(summarizeEvent(plainCall, 120), "\n")
+	if !strings.Contains(summary, "Tool call tools.search") {
+		t.Fatalf("plain call summary = %q", summary)
+	}
+
+	if estimateToolDeclarationTokens(Agent{}, nil) != 0 {
+		t.Fatal("nil registry should have no tool declaration tokens")
+	}
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{Name: "ctx.custom", Description: "custom context tool", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"ok": true}, nil
+	})
+	if estimateToolDeclarationTokens(Agent{Tools: []string{"ctx.custom"}}, registry) == 0 {
+		t.Fatal("registered tool declaration should add token estimate")
+	}
+	if got := estimateEventTokens(emptyContent); got != 0 {
+		t.Fatalf("nil part event tokens = %d, want 0", got)
+	}
+	if got := eventSlice(nil); got != nil {
+		t.Fatalf("nil eventSlice = %#v", got)
+	}
+
+	if isStaleADKSessionError(nil) || isRefreshableADKSessionError(nil) {
+		t.Fatal("nil errors should not be refreshable")
+	}
+	if !isStaleADKSessionError(errors.New("Stale Session Error: old update")) {
+		t.Fatal("stale ADK session error was not detected")
+	}
+	if !isRefreshableADKSessionError(errors.New("unexpected session type *adk.wrappedSession")) {
+		t.Fatal("unexpected session type should be refreshable")
+	}
+	if serviceAppendLocks(nil).len() != 0 || runtimeAppendLocks(nil).len() != 0 {
+		t.Fatal("fresh append lock maps should start empty")
+	}
+	session := &emptySession{id: "s", appName: "a", userID: "u", state: &emptyState{values: map[string]any{}}, events: &wrappedEvents{}}
+	var nilMap *adkSessionAppendLockMap
+	_, release := nilMap.acquire(session)
+	release()
+	if nilMap.len() != 0 {
+		t.Fatal("nil append lock map len should stay zero")
+	}
+
+	state := &emptyState{values: map[string]any{"a": 1, "b": 2}}
+	seen := 0
+	for range state.All() {
+		seen++
+		break
+	}
+	if seen != 1 {
+		t.Fatalf("emptyState early stop seen = %d, want 1", seen)
+	}
+	if maxInt(3, 9) != 9 {
+		t.Fatal("maxInt should return second value when larger")
 	}
 }

@@ -684,3 +684,119 @@ func TestRunADKTaskWorkflowUsesNudgeAndHandlesExecutionInitFailure(t *testing.T)
 		}
 	})
 }
+
+func TestWorkflowGoalAndTaskAdditionalBoundaryBranches(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	executor := &WorkflowExecutor{runtime: runtime}
+	now := nowString()
+
+	t.Run("already paused goal prunes interrupted workflow tools", func(t *testing.T) {
+		session := mustCreateSession(t, runtime, "agent-paused-prune", "paused prune")
+		pausedAt := nowString()
+		errText := errUserGoalPauseRequested.Error()
+		parent := mustSaveRun(t, runtime, Run{
+			ID: "run-paused-prune", SessionID: session.ID, AgentID: session.AgentID,
+			Status: RunStatusPaused, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusPaused,
+			PauseRequestedAt: &pausedAt, PausedAt: &pausedAt, PausedReason: "user", Message: "paused",
+			ToolCalls: []ToolCall{
+				{ID: "keep", ToolName: "tools.search", Status: "PENDING"},
+				{ID: "drop-pending", ToolName: workflowTaskAddTool, Status: "PENDING"},
+				{ID: "drop-failed", ToolName: workflowTaskCompleteTool, Status: "FAILED", Error: &errText},
+			},
+			CreatedAt: now, UpdatedAt: now,
+		})
+
+		updated, response, paused := executor.pauseADKGoalWorkflowIfRequested(ctx, workflowRequest{Session: session, Mode: WorkModeLoop}, parent, 2, "visible")
+		if !paused || response.Run.ID != parent.ID {
+			t.Fatalf("pause result = %+v paused=%v, want paused response", response, paused)
+		}
+		if len(updated.ToolCalls) != 1 || updated.ToolCalls[0].ID != "keep" {
+			t.Fatalf("pruned tool calls = %+v, want only non-workflow call", updated.ToolCalls)
+		}
+		stored, ok, err := runtime.Store().Run(ctx, parent.ID)
+		if err != nil || !ok || len(stored.ToolCalls) != 1 {
+			t.Fatalf("stored pruned run = %+v ok=%v err=%v", stored, ok, err)
+		}
+	})
+
+	t.Run("goal complete falls back to task summary", func(t *testing.T) {
+		session := mustCreateSession(t, runtime, "agent-goal-complete-fallback", "goal complete fallback")
+		parent := mustSaveRun(t, runtime, Run{
+			ID: "run-goal-complete-fallback", SessionID: session.ID, AgentID: session.AgentID,
+			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+			Objective: "ship goal", CreatedAt: now, UpdatedAt: now,
+		})
+		task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+			ID: "task-goal-complete-fallback", Title: "Finish", Status: "DONE", AgentID: parent.AgentID,
+			RunID: parent.ID, Order: 1, WorkflowMode: parent.WorkMode, ResultSummary: "目标任务已完成",
+		})
+		if err != nil {
+			t.Fatalf("SaveTask: %v", err)
+		}
+		parent.WorkflowPlan = workflowPlanFromTasks([]Task{task}, nil)
+		mustSaveRun(t, runtime, parent)
+		decision := &workflowGoalDecision{}
+		decision.setComplete("")
+
+		updated, response, done, prompt := executor.finishADKGoalWorkflowTurn(ctx, workflowRequest{Session: session, Mode: WorkModeLoop}, parent, nil, testWorkflowExecution(parent.ID, ""), decision, nil, 4, false)
+		if !done || prompt != "" || updated.Status != RunStatusCompleted {
+			t.Fatalf("goal complete fallback updated=%+v done=%v prompt=%q", updated, done, prompt)
+		}
+		if !strings.Contains(response.Reply, "目标任务已完成") {
+			t.Fatalf("fallback reply = %q, want task summary", response.Reply)
+		}
+	})
+
+	t.Run("goal continue pauses when user pause is pending", func(t *testing.T) {
+		session := mustCreateSession(t, runtime, "agent-goal-continue-pause", "goal continue pause")
+		pausedAt := nowString()
+		parent := mustSaveRun(t, runtime, Run{
+			ID: "run-goal-continue-pause", SessionID: session.ID, AgentID: session.AgentID,
+			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+			PauseRequestedAt: &pausedAt, CreatedAt: now, UpdatedAt: now,
+		})
+		task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+			ID: "task-goal-continue-pause", Title: "Continue", Status: "DONE", AgentID: parent.AgentID,
+			RunID: parent.ID, Order: 1, WorkflowMode: parent.WorkMode,
+		})
+		if err != nil {
+			t.Fatalf("SaveTask: %v", err)
+		}
+		parent.WorkflowPlan = workflowPlanFromTasks([]Task{task}, nil)
+		mustSaveRun(t, runtime, parent)
+		decision := &workflowGoalDecision{}
+		decision.setContinue("")
+
+		updated, response, done, prompt := executor.finishADKGoalWorkflowTurn(ctx, workflowRequest{Session: session, Mode: WorkModeLoop}, parent, nil, testWorkflowExecution(parent.ID, ""), decision, nil, 3, false)
+		if !done || prompt != "" || updated.Status != RunStatusPaused || updated.ResumeState != "user_paused" {
+			t.Fatalf("goal continue pause updated=%+v done=%v prompt=%q", updated, done, prompt)
+		}
+		if response.Reply != "目标已暂停。" {
+			t.Fatalf("pause reply = %q, want default pause reply", response.Reply)
+		}
+	})
+
+	t.Run("prepare and task finish surface workflow task lookup errors", func(t *testing.T) {
+		brokenRuntime := newTestRuntime(t)
+		brokenExecutor := &WorkflowExecutor{runtime: brokenRuntime}
+		session := mustCreateSession(t, brokenRuntime, "agent-workflow-task-error", "workflow task error")
+		parent := mustSaveRun(t, brokenRuntime, Run{
+			ID: "run-workflow-task-error", SessionID: session.ID, AgentID: session.AgentID,
+			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+			WorkflowPlan: []WorkflowStepState{{TaskID: "task-missing-table", Title: "Missing table"}},
+			CreatedAt:    now, UpdatedAt: now,
+		})
+		if _, err := brokenRuntime.Store().db.ExecContext(ctx, `DROP TABLE `+tableTasks); err != nil {
+			t.Fatalf("drop tasks: %v", err)
+		}
+		updated, reply, done, _ := brokenExecutor.prepareGoalWorkflowTurn(ctx, workflowRequest{Session: session, Mode: WorkModeLoop}, parent, nil, testWorkflowExecution(parent.ID, ""), nil, 1)
+		if !done || updated.Status != RunStatusFailed || reply.Reply == "" {
+			t.Fatalf("prepare error updated=%+v reply=%+v done=%v", updated, reply, done)
+		}
+		updated, response, done := brokenExecutor.finishADKTaskWorkflowAttempt(ctx, workflowRequest{Session: session, Mode: WorkModeTask}, parent, nil, testWorkflowExecution(parent.ID, ""), nil, false)
+		if !done || updated.Status != RunStatusFailed || response.Reply == "" {
+			t.Fatalf("task finish error updated=%+v response=%+v done=%v", updated, response, done)
+		}
+	})
+}

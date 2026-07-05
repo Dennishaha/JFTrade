@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -178,6 +179,13 @@ func TestGoogleADKArtifactServiceBoundaries(t *testing.T) {
 	if service, err := newGoogleADKArtifactService(" "); err != nil || service == nil {
 		t.Fatalf("blank artifact path service = %#v/%v", service, err)
 	}
+	blocker := filepath.Join(t.TempDir(), "artifact-parent-file")
+	if err := os.WriteFile(blocker, []byte("file"), 0o600); err != nil {
+		t.Fatalf("write artifact blocker: %v", err)
+	}
+	if _, err := newGoogleADKArtifactService(filepath.Join(blocker, "adk-artifact.db")); err == nil {
+		t.Fatal("newGoogleADKArtifactService under regular file err = nil")
+	}
 	if _, err := newGoogleADKArtifactService(filepath.Join(t.TempDir(), "missing", "adk-artifact.db")); err == nil {
 		t.Fatal("newGoogleADKArtifactService with missing parent err = nil")
 	}
@@ -213,6 +221,12 @@ func TestGoogleADKArtifactServiceBoundaries(t *testing.T) {
 		AppName: "app", UserID: "user", SessionID: "session", FileName: "nil.txt", Part: genai.NewPartFromText("nil"),
 	}); err == nil || !strings.Contains(err.Error(), "database is unavailable") {
 		t.Fatalf("nil Save err = %v, want unavailable error", err)
+	}
+	if _, err := typed.Save(context.Background(), &adkartifact.SaveRequest{
+		AppName: "app", UserID: "user", SessionID: "session", FileName: "bad-metadata.txt",
+		Part: &genai.Part{Text: "bad metadata", PartMetadata: map[string]any{"bad": func() {}}},
+	}); err == nil || !strings.Contains(err.Error(), "marshal ADK artifact part") {
+		t.Fatalf("bad part metadata Save err = %v, want marshal error", err)
 	}
 	if _, err := typed.Load(context.Background(), &adkartifact.LoadRequest{}); err == nil || !strings.Contains(err.Error(), "request validation failed") {
 		t.Fatalf("invalid Load err = %v, want validation error", err)
@@ -271,6 +285,23 @@ func TestGoogleADKArtifactServiceBoundaries(t *testing.T) {
 	}); err == nil || !strings.Contains(err.Error(), "database is unavailable") {
 		t.Fatalf("nil Versions err = %v, want unavailable error", err)
 	}
+	if _, err := typed.Versions(context.Background(), &adkartifact.VersionsRequest{
+		AppName: "app", UserID: "user", SessionID: "session", FileName: "missing-versions.txt",
+	}); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("missing Versions err = %v, want fs.ErrNotExist", err)
+	}
+	if _, err := typed.db.ExecContext(context.Background(), `INSERT INTO artifacts
+		(app_name, user_id, session_id, file_name, version, part_json, mime_type, custom_metadata_json, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"app", "user", "session", "bad-version.txt", "bad", `{"text":"ok"}`, "text/plain", "null", "now", "now",
+	); err != nil {
+		t.Fatalf("insert bad version artifact: %v", err)
+	}
+	if _, err := typed.Versions(context.Background(), &adkartifact.VersionsRequest{
+		AppName: "app", UserID: "user", SessionID: "session", FileName: "bad-version.txt",
+	}); err == nil {
+		t.Fatal("bad version Versions err = nil, want scan error")
+	}
 	if _, err := typed.GetArtifactVersion(context.Background(), &adkartifact.GetArtifactVersionRequest{}); err == nil || !strings.Contains(err.Error(), "request validation failed") {
 		t.Fatalf("invalid GetArtifactVersion err = %v, want validation error", err)
 	}
@@ -311,6 +342,9 @@ func TestGoogleADKArtifactServiceBoundaries(t *testing.T) {
 		AppName: "app", UserID: "user", SessionID: "session", FileName: "closed.txt",
 	}); err == nil {
 		t.Fatal("GetArtifactVersion on closed artifact service err = nil")
+	}
+	if _, err := typed.loadRecord(context.Background(), "app", "user", "session", "closed.txt", 1); err == nil {
+		t.Fatal("loadRecord explicit version on closed artifact service err = nil")
 	}
 }
 

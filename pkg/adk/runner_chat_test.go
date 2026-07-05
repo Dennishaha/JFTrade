@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 )
 
@@ -703,6 +704,115 @@ func TestAgentWithoutProviderDynamicallyUsesDefaultProvider(t *testing.T) {
 	}
 }
 
+func TestRunnerChatProjectionPersistenceAndAssistantBoundaries(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "agent-chat-boundary", Name: "Chat Boundary", Status: AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "chat boundary")
+	now := nowString()
+	run := mustSaveRun(t, runtime, Run{
+		ID: "run-chat-boundary", SessionID: session.ID, AgentID: agent.ID,
+		Status: RunStatusRunning, WorkMode: WorkModeChat, CreatedAt: now, StartedAt: now, UpdatedAt: now,
+		Usage: &RunUsage{},
+	})
+
+	pendingResponse, err := runtime.finishPendingApprovalRun(ctx, session, run, []Approval{
+		{ID: "approval-pending", RunID: run.ID, Status: ApprovalStatusPending, ConfirmationCallID: "confirm"},
+		{ID: "approval-approved", RunID: run.ID, Status: ApprovalStatusApproved, ConfirmationCallID: "approved"},
+	})
+	if err != nil {
+		t.Fatalf("finishPendingApprovalRun: %v", err)
+	}
+	if pendingResponse.Run.Status != RunStatusPending || len(pendingResponse.PendingApprovals) != 1 {
+		t.Fatalf("pending approval response = %+v", pendingResponse)
+	}
+
+	if snapshot, err := (*Runtime)(nil).persistRunActivitySnapshot(ctx, Run{ID: " ", Status: RunStatusRunning}); err != nil || snapshot.Status != RunStatusRunning {
+		t.Fatalf("nil persistRunActivitySnapshot = %+v err=%v", snapshot, err)
+	}
+	completedAt := nowString()
+	cancelledAt := nowString()
+	snapshot := Run{
+		ID: run.ID, SessionID: session.ID, AgentID: agent.ID, ProviderID: testProviderID,
+		Status: RunStatusFailed, Message: "failed", FailureReason: "reason", ErrorCode: "ERR", Degraded: true,
+		PreToolContent: "pre", PreToolReasoning: "think", ToolSummaries: []string{"summary"},
+		ToolCalls:        []ToolCall{{ID: "call-failed", ToolName: "tool", Status: "FAILED", Error: new("bad")}},
+		PendingApprovals: []Approval{{ID: "approval-still-pending", Status: ApprovalStatusPending}},
+		ResumeState:      "resume", FinalMessageID: "message-final", Usage: &RunUsage{ModelCalls: 2}, StartedAt: now,
+		CompletedAt: &completedAt, CancelledAt: &cancelledAt, OptimizationTaskID: "opt",
+	}
+	merged, err := runtime.persistRunActivitySnapshot(ctx, snapshot)
+	if err != nil {
+		t.Fatalf("persistRunActivitySnapshot merge: %v", err)
+	}
+	if merged.Status != RunStatusFailed || merged.PreToolContent != "pre" || merged.Usage.ModelCalls != 2 || merged.CompletedAt == nil || merged.CancelledAt == nil {
+		t.Fatalf("merged activity snapshot = %+v", merged)
+	}
+	authoritative := runtime.authoritativeRunSnapshot(ctx, Run{ID: run.ID, Status: RunStatusRunning})
+	if authoritative.Status != RunStatusFailed {
+		t.Fatalf("authoritative snapshot = %+v, want stored failed", authoritative)
+	}
+	if fallback := (&Runtime{}).authoritativeRunSnapshot(ctx, Run{ID: "missing", Status: RunStatusRunning}); fallback.Status != RunStatusRunning {
+		t.Fatalf("fallback authoritative snapshot = %+v", fallback)
+	}
+	mergeRunActivitySnapshot(nil, snapshot)
+
+	message, err := runtime.appendAssistantMessageEvent(ctx, session, run, openAIChatResult{Reply: "reply", ReasoningContent: "reasoning"})
+	if err != nil {
+		t.Fatalf("appendAssistantMessageEvent: %v", err)
+	}
+	if message.SessionID != session.ID || message.RunID != run.ID || message.Content != "reply" || message.ReasoningContent != "reasoning" {
+		t.Fatalf("assistant message = %+v", message)
+	}
+	shortcut, err := runtime.ensureAssistantMessage(ctx, session, run, openAIChatResult{Reply: "reply", ReasoningContent: "reasoning"})
+	if err != nil || shortcut.ID != message.ID {
+		t.Fatalf("ensureAssistantMessage projection shortcut = %+v err=%v", shortcut, err)
+	}
+	if _, err := (*Runtime)(nil).appendAssistantMessageEvent(ctx, session, run, openAIChatResult{Reply: "x"}); err == nil || !strings.Contains(err.Error(), "session service") {
+		t.Fatalf("nil appendAssistantMessageEvent err = %v", err)
+	}
+	createErrRuntime := &Runtime{rawSessionService: createErrorSessionService{err: errors.New("create failed")}}
+	if _, err := createErrRuntime.appendAssistantMessageEvent(ctx, session, run, openAIChatResult{Reply: "x"}); err == nil || !strings.Contains(err.Error(), "create failed") {
+		t.Fatalf("create error appendAssistantMessageEvent err = %v", err)
+	}
+
+	projected := SessionProjection{
+		FinalMessageID:   "projected-final",
+		PreToolContent:   "projected pre",
+		PreToolReasoning: "projected reasoning",
+		PendingApprovals: []Approval{{ID: "projected-approval", Status: ApprovalStatusPending}},
+		ToolCalls: []ToolCall{
+			{ID: "projected-call", ToolName: "strategy.optimize", Status: "SUCCEEDED", Output: map[string]any{"taskId": "projected-opt"}},
+			{ID: "projected-denied", ToolName: "trade", Status: "DENIED"},
+		},
+	}
+	applied := applySessionProjectionToRun(Run{Usage: &RunUsage{}, ToolCalls: []ToolCall{{ID: "current", Status: "RUNNING"}}}, projected)
+	if applied.FinalMessageID != "projected-final" || applied.PreToolContent != "projected pre" || applied.OptimizationTaskID != "projected-opt" || applied.Usage.ToolCallsTotal != 2 || len(applied.PendingApprovals) != 1 {
+		t.Fatalf("applied projection = %+v", applied)
+	}
+	if shouldPreferProjectedToolCalls([]ToolCall{{Status: "SUCCEEDED"}}, []ToolCall{{Status: "RUNNING"}}) {
+		t.Fatal("running projected calls should not beat terminal current calls")
+	}
+	if !shouldPreferProjectedToolCalls([]ToolCall{{Status: "RUNNING"}}, []ToolCall{{Status: "PENDING_APPROVAL"}}) {
+		t.Fatal("pending projected calls should beat running current calls")
+	}
+	if terminalToolCallCount([]ToolCall{{Status: "TIMED_OUT"}, {Status: "RUNNING"}}) != 1 {
+		t.Fatal("terminalToolCallCount did not count timed out calls")
+	}
+	if pendingApprovalToolCallCount([]ToolCall{{Status: "PENDING_APPROVAL"}, {Status: "RUNNING"}}) != 1 {
+		t.Fatal("pendingApprovalToolCallCount did not count pending approvals")
+	}
+	if terminalAuditMessage(RunStatusFailed) != "Agent run finished with a terminal status." {
+		t.Fatal("terminalAuditMessage failed status mismatch")
+	}
+	fields := terminalAuditFields(Run{ID: "run", AgentID: "agent", Status: RunStatusFailed, ErrorCode: "ERR", FailureReason: "because"})
+	if fields["errorCode"] != "ERR" || fields["failureReason"] != "because" {
+		t.Fatalf("terminalAuditFields = %#v", fields)
+	}
+}
+
 func TestProjectedChatResponseDoesNotExposeResolvedApprovals(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -1010,4 +1120,17 @@ func TestCancelRunOnTerminalStateIsNoop(t *testing.T) {
 			t.Fatalf("unexpected run.cancelled audit for terminal run: %+v", event)
 		}
 	}
+}
+
+type createErrorSessionService struct {
+	adksession.Service
+	err error
+}
+
+func (service createErrorSessionService) Get(context.Context, *adksession.GetRequest) (*adksession.GetResponse, error) {
+	return nil, errors.New("get failed")
+}
+
+func (service createErrorSessionService) Create(context.Context, *adksession.CreateRequest) (*adksession.CreateResponse, error) {
+	return nil, service.err
 }

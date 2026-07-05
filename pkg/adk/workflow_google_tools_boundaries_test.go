@@ -349,6 +349,9 @@ func TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions(t *testing.T)
 	if _, err := typed.LoadFrontmatter(ctx, "trade-skill"); !errors.Is(err, adkskill.ErrSkillNotFound) {
 		t.Fatalf("denied LoadFrontmatter err = %v", err)
 	}
+	if frontmatter, err := typed.LoadFrontmatter(ctx, "allowed-skill"); err != nil || frontmatter.Name != "allowed-skill" {
+		t.Fatalf("allowed LoadFrontmatter = %#v err=%v", frontmatter, err)
+	}
 	if _, err := typed.LoadInstructions(ctx, "trade-skill"); !errors.Is(err, adkskill.ErrSkillNotFound) {
 		t.Fatalf("denied LoadInstructions err = %v", err)
 	}
@@ -361,12 +364,28 @@ func TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions(t *testing.T)
 	if skillAllowedForAgent(nil, map[string]struct{}{}, registry, PermissionModeApproval) {
 		t.Fatal("nil frontmatter should never be allowed")
 	}
+	if skillAllowedForAgent(&adkskill.Frontmatter{Name: "nil-registry", AllowedTools: []string{"test.read"}}, map[string]struct{}{"test.read": {}}, nil, PermissionModeApproval) {
+		t.Fatal("nil registry should reject tool-restricted skills")
+	}
+	if skillAllowedForAgent(&adkskill.Frontmatter{Name: "missing-canonical", AllowedTools: []string{"missing.tool"}}, map[string]struct{}{}, registry, PermissionModeApproval) {
+		t.Fatal("unknown allowed tool should reject skill")
+	}
+	if skillAllowedForAgent(&adkskill.Frontmatter{Name: "allowed-map-missing", AllowedTools: []string{"test.read"}}, map[string]struct{}{}, registry, PermissionModeApproval) {
+		t.Fatal("agent allowed-tools map should gate skills")
+	}
 	if filtered, err := runtime.filteredSkillSourceForAgent(ctx, nil, Agent{}); err != nil || filtered != nil {
 		t.Fatalf("nil source filtered=%#v err=%v", filtered, err)
 	}
 	source.frontmatterErr = errors.New("frontmatter unavailable")
 	if _, err := runtime.filteredSkillSourceForAgent(ctx, source, Agent{}); err == nil || !strings.Contains(err.Error(), "frontmatter unavailable") {
 		t.Fatalf("frontmatter error = %v", err)
+	}
+	filteredErr := &agentFilteredSkillSource{
+		base:    &googleADKFakeSkillSource{frontmatterErr: errors.New("filtered list failed")},
+		allowed: map[string]struct{}{"allowed-skill": {}},
+	}
+	if _, err := filteredErr.ListFrontmatters(ctx); err == nil || !strings.Contains(err.Error(), "filtered list failed") {
+		t.Fatalf("agentFilteredSkillSource ListFrontmatters err = %v", err)
 	}
 
 	skillDir := filepath.Join(runtime.Store().SkillsPath(), "resource-skill")
@@ -389,6 +408,51 @@ func TestGoogleADKSkillFilteringAndToolsetsRespectAgentPermissions(t *testing.T)
 	}
 	if toolsetsContainTool(t, toolsets, "load_artifacts", newGoogleADKToolTestContext()) {
 		t.Fatalf("empty artifact toolset should not expose load_artifacts")
+	}
+}
+
+func TestGoogleADKToolsetsBoundaryErrorsAndStaticToolsets(t *testing.T) {
+	ctx := context.Background()
+	static := googleADKStaticToolset{name: "static-tools", tools: []adktool.Tool{preloadmemorytoolForBoundary{}}}
+	if static.Name() != "static-tools" {
+		t.Fatalf("static Name = %q", static.Name())
+	}
+	staticTools, err := static.Tools(newGoogleADKToolTestContext())
+	if err != nil || len(staticTools) != 1 || staticTools[0].Name() != "boundary.preload" {
+		t.Fatalf("static Tools = %#v err=%v", staticTools, err)
+	}
+
+	artifactSet := googleADKArtifactToolset{name: "artifact-tools"}
+	if artifactSet.Name() != "artifact-tools" {
+		t.Fatalf("artifact Name = %q", artifactSet.Name())
+	}
+	if tools, err := artifactSet.Tools(newGoogleADKToolTestContext()); err != nil || tools != nil {
+		t.Fatalf("nil artifact service Tools = %#v err=%v, want nil nil", tools, err)
+	}
+	listErr := errors.New("artifact list failed")
+	artifactSet.service = listErrorArtifactService{err: listErr}
+	if _, err := artifactSet.Tools(newGoogleADKToolTestContext()); !errors.Is(err, listErr) {
+		t.Fatalf("artifact List err = %v, want %v", err, listErr)
+	}
+
+	invalidRegistry := NewToolRegistry()
+	invalidRegistry.Register(ToolDescriptor{
+		Name:         "test.invalid_toolset_schema",
+		Description:  "Invalid schema for aggregate toolset",
+		Permission:   "read_internal",
+		AllowedModes: allPermissionModes(),
+		InputSchema:  map[string]any{"type": make(chan int)},
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"ok": true}, nil
+	})
+	invalidRuntime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), invalidRegistry)
+	if _, err := invalidRuntime.googleADKToolsets(ctx, Agent{Tools: []string{"test.invalid_toolset_schema"}, PermissionMode: PermissionModeAll}); err == nil || !strings.Contains(err.Error(), "convert GO-ADK product tool schema") {
+		t.Fatalf("googleADKToolsets invalid schema err = %v", err)
+	}
+
+	missingSkillRuntime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), NewToolRegistry())
+	if _, err := missingSkillRuntime.googleADKToolsets(ctx, Agent{Skills: []string{"missing-skill"}}); err == nil || !strings.Contains(err.Error(), "skill not found") {
+		t.Fatalf("googleADKToolsets missing skill err = %v", err)
 	}
 }
 
@@ -706,6 +770,21 @@ type googleADKFakeSkillSource struct {
 	frontmatterErr error
 	instructions   map[string]string
 	resources      map[string]map[string]string
+}
+
+type preloadmemorytoolForBoundary struct{}
+
+func (preloadmemorytoolForBoundary) Name() string        { return "boundary.preload" }
+func (preloadmemorytoolForBoundary) Description() string { return "boundary preload" }
+func (preloadmemorytoolForBoundary) IsLongRunning() bool { return false }
+
+type listErrorArtifactService struct {
+	adkartifact.Service
+	err error
+}
+
+func (service listErrorArtifactService) List(context.Context, *adkartifact.ListRequest) (*adkartifact.ListResponse, error) {
+	return nil, service.err
 }
 
 func (s *googleADKFakeSkillSource) ListFrontmatters(context.Context) ([]*adkskill.Frontmatter, error) {

@@ -312,6 +312,95 @@ func TestGoogleADKWorkflowRunNodeOmitsOriginalInputOnResume(t *testing.T) {
 	}
 }
 
+func TestGoogleADKWorkflowGenericAgentNodeCoversFreshResumeAndPause(t *testing.T) {
+	ctx := context.Background()
+	service := adksession.InMemoryService()
+	created, err := service.Create(ctx, &adksession.CreateRequest{
+		AppName: "app", UserID: "user", SessionID: "session",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	testCtx := &googleADKWorkflowAgentTestContext{
+		StrictContextMock: adkagent.NewStrictContextMock(ctx),
+		session:           created.Session,
+		invocationID:      "invocation",
+		path:              "root",
+		runID:             "run",
+	}
+	var seenFresh *genai.Content
+	agent, err := adkagent.New(adkagent.Config{
+		Name: "generic",
+		Run: func(ctx adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
+			seenFresh = ctx.UserContent()
+			return func(yield func(*adksession.Event, error) bool) {
+				yield(adksession.NewEvent(ctx, ctx.InvocationID()), nil)
+			}
+		},
+	})
+	if err != nil {
+		t.Fatalf("agent.New generic: %v", err)
+	}
+	var emitted int
+	if _, err := googleADKWorkflowRunGenericAgent(agent, testCtx, map[string]any{"task": "fresh"}, false, func(event *adksession.Event) error {
+		if event != nil {
+			emitted++
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("fresh generic agent: %v", err)
+	}
+	if emitted != 1 || seenFresh == nil || seenFresh.Parts[0].Text != `{"task":"fresh"}` {
+		t.Fatalf("fresh emitted=%d userContent=%#v", emitted, seenFresh)
+	}
+
+	var seenResume *genai.Content
+	resumeAgent, err := adkagent.New(adkagent.Config{
+		Name: "resume_generic",
+		Run: func(ctx adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
+			seenResume = ctx.UserContent()
+			return func(yield func(*adksession.Event, error) bool) {}
+		},
+	})
+	if err != nil {
+		t.Fatalf("agent.New resume: %v", err)
+	}
+	if _, err := googleADKWorkflowRunGenericAgent(resumeAgent, testCtx, "ignored on resume", true, func(*adksession.Event) error {
+		return nil
+	}); err != nil {
+		t.Fatalf("resume generic agent: %v", err)
+	}
+	if seenResume != nil {
+		t.Fatalf("resume userContent = %#v, want nil", seenResume)
+	}
+
+	pausingAgent, err := adkagent.New(adkagent.Config{
+		Name: "pause_generic",
+		Run: func(ctx adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
+			return func(yield func(*adksession.Event, error) bool) {
+				event := adksession.NewEvent(ctx, ctx.InvocationID())
+				event.LongRunningToolIDs = []string{"approval-call"}
+				yield(event, nil)
+			}
+		},
+	})
+	if err != nil {
+		t.Fatalf("agent.New pausing: %v", err)
+	}
+	if _, err := googleADKWorkflowRunGenericAgent(pausingAgent, testCtx, "pause", false, func(*adksession.Event) error {
+		return nil
+	}); !errors.Is(err, adkworkflow.ErrNodeInterrupted) {
+		t.Fatalf("pausing generic err = %v, want ErrNodeInterrupted", err)
+	}
+
+	if node, err := newGoogleADKWorkflowAgentNode(nil); err == nil || node != nil {
+		t.Fatalf("nil workflow node = %#v/%v, want error", node, err)
+	}
+	if got := (*googleADKWorkflowNodeError)(nil).Error(); got != "" {
+		t.Fatalf("nil node error text = %q, want empty", got)
+	}
+}
+
 func mustGoogleADKWorkflow(t *testing.T, edges []adkworkflow.Edge) *adkworkflow.Workflow {
 	t.Helper()
 	workflow, err := adkworkflow.New("root", edges)
@@ -339,6 +428,8 @@ type googleADKWorkflowAgentTestContext struct {
 	invocationID string
 	userContent  *genai.Content
 	ended        bool
+	path         string
+	runID        string
 }
 
 func (c *googleADKWorkflowAgentTestContext) Agent() adkagent.Agent {
@@ -373,6 +464,18 @@ func (c *googleADKWorkflowAgentTestContext) Ended() bool {
 	return c.ended
 }
 
+func (c *googleADKWorkflowAgentTestContext) Path() string {
+	return c.path
+}
+
+func (c *googleADKWorkflowAgentTestContext) RunID() string {
+	return c.runID
+}
+
+func (c *googleADKWorkflowAgentTestContext) OutputForAncestors() []string {
+	return nil
+}
+
 func (c *googleADKWorkflowAgentTestContext) WithContext(ctx context.Context) adkagent.InvocationContext {
 	clone := *c
 	clone.Ctx = ctx
@@ -402,7 +505,13 @@ func (c *googleADKWorkflowAgentTestContext) WithDelta(d *adkagent.CommonContextD
 		return &clone
 	}
 	if d.InvocationContextDelta != nil {
-		return clone.WithICDelta(d.InvocationContextDelta).(adkagent.Context)
+		clone = *clone.WithICDelta(d.InvocationContextDelta).(*googleADKWorkflowAgentTestContext)
+	}
+	if d.Path != nil {
+		clone.path = *d.Path
+	}
+	if d.RunID != nil {
+		clone.runID = *d.RunID
 	}
 	return &clone
 }

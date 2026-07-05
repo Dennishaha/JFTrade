@@ -4,12 +4,16 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
+
+	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 func TestSkillRegistryListSortsBySourceAndDefaultsFilesystemMetadata(t *testing.T) {
@@ -112,6 +116,84 @@ func TestSkillRegistryFilesystemFailureBoundaries(t *testing.T) {
 	}
 	if _, err := registry.skillFromFrontmatter(&adkskill.Frontmatter{Name: "missing"}); err == nil {
 		t.Fatal("skillFromFrontmatter should surface missing installed document")
+	}
+}
+
+func TestSkillRegistryAdditionalBoundaryBranches(t *testing.T) {
+	ctx := context.Background()
+	var nilRegistry *SkillRegistry
+	if _, err := nilRegistry.List(ctx); err == nil || !strings.Contains(err.Error(), "unavailable") {
+		t.Fatalf("nil List err = %v, want unavailable", err)
+	}
+	if _, ok, err := nilRegistry.Get(ctx, "skill"); err == nil || ok {
+		t.Fatalf("nil Get ok=%v err=%v, want unavailable", ok, err)
+	}
+	if source, err := nilRegistry.Source(ctx, []string{"skill"}); err != nil || source != nil {
+		t.Fatalf("nil Source source=%#v err=%v, want nil nil", source, err)
+	}
+	if _, err := (&SkillRegistry{}).Source(ctx, []string{"skill"}); err == nil || !strings.Contains(err.Error(), "unavailable") {
+		t.Fatalf("empty registry Source err = %v, want unavailable", err)
+	}
+
+	base := &googleADKFakeSkillSource{
+		frontmatters: []*adkskill.Frontmatter{{Name: "allowed"}, {Name: "denied"}},
+		instructions: map[string]string{"allowed": "allowed instructions"},
+		resources:    map[string]map[string]string{"allowed": {"guide.md": "guide"}},
+	}
+	filtered := &filteredSkillSource{base: base, allowed: map[string]struct{}{"allowed": {}}}
+	frontmatters, err := filtered.ListFrontmatters(ctx)
+	if err != nil || len(frontmatters) != 1 || frontmatters[0].Name != "allowed" {
+		t.Fatalf("filtered ListFrontmatters = %#v err=%v", frontmatters, err)
+	}
+	if _, err := filtered.ListResources(ctx, "denied", ""); !errors.Is(err, adkskill.ErrSkillNotFound) {
+		t.Fatalf("filtered denied ListResources err = %v", err)
+	}
+	reader, err := filtered.LoadResource(ctx, "allowed", "guide.md")
+	if err != nil {
+		t.Fatalf("filtered allowed LoadResource: %v", err)
+	}
+	raw, err := io.ReadAll(reader)
+	jftradeCheckTestError(t, reader.Close())
+	if err != nil || string(raw) != "guide" {
+		t.Fatalf("filtered resource = %q err=%v", string(raw), err)
+	}
+	filteredErr := &filteredSkillSource{
+		base:    &googleADKFakeSkillSource{frontmatterErr: errors.New("frontmatter list failed")},
+		allowed: map[string]struct{}{"allowed": {}},
+	}
+	if _, err := filteredErr.ListFrontmatters(ctx); err == nil || !strings.Contains(err.Error(), "frontmatter list failed") {
+		t.Fatalf("filtered ListFrontmatters error = %v", err)
+	}
+	set := sliceToSet([]string{"", "alpha", "alpha", "beta"})
+	if _, ok := set[""]; ok || len(set) != 2 {
+		t.Fatalf("sliceToSet = %#v, want alpha/beta only", set)
+	}
+
+	root := t.TempDir()
+	registry := &SkillRegistry{skillsPath: root}
+	dirSkill := filepath.Join(root, "dir-skill")
+	if err := os.MkdirAll(filepath.Join(dirSkill, "SKILL.md"), 0o755); err != nil {
+		t.Fatalf("MkdirAll dir SKILL.md: %v", err)
+	}
+	if _, err := registry.skillFromFrontmatter(&adkskill.Frontmatter{Name: "dir-skill"}); err == nil {
+		t.Fatal("skillFromFrontmatter directory read err = nil, want error")
+	}
+
+	legacyDir := filepath.Join(root, strategypinespec.LegacyBuiltinSkillName)
+	if err := os.MkdirAll(filepath.Join(legacyDir, "SKILL.md"), 0o755); err != nil {
+		t.Fatalf("MkdirAll legacy SKILL.md: %v", err)
+	}
+	if err := registry.removeLegacyBuiltinSkill(strategypinespec.LegacyBuiltinSkillName); err == nil {
+		t.Fatal("removeLegacyBuiltinSkill directory read err = nil, want error")
+	}
+
+	originalBuiltinSpecs := builtinSkillSpecs
+	builtinSkillSpecs = []builtinSkillSpec{{Name: "broken-builtin", BuildBundle: func() (map[string]string, error) {
+		return nil, errors.New("build bundle failed")
+	}}}
+	t.Cleanup(func() { builtinSkillSpecs = originalBuiltinSpecs })
+	if err := (&SkillRegistry{skillsPath: t.TempDir()}).ensureBuiltins(); err == nil || !strings.Contains(err.Error(), "build bundle failed") {
+		t.Fatalf("ensureBuiltins build error = %v", err)
 	}
 }
 
