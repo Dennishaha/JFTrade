@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	adkagent "google.golang.org/adk/v2/agent"
+	adkrunner "google.golang.org/adk/v2/runner"
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
 	adkworkflow "google.golang.org/adk/v2/workflow"
@@ -178,6 +179,83 @@ func TestGoogleADKWorkflowAgentDoesNotFreshRunUnmatchedFunctionResponse(t *testi
 	}
 }
 
+func TestNewGoogleADKWorkflowAgentUsesNativeWorkflowAgentWithoutConcurrencyCap(t *testing.T) {
+	asker := adkworkflow.NewEmittingFunctionNode("asker", func(ctx adkagent.Context, _ any, emit func(*adksession.Event) error) (any, error) {
+		if reply, ok := ctx.ResumedInput("ask-native"); ok {
+			return reply, nil
+		}
+		if err := emit(adkworkflow.NewRequestInputEvent(ctx, adksession.RequestInput{
+			InterruptID: "ask-native",
+			Message:     "approve?",
+		})); err != nil {
+			return nil, err
+		}
+		return nil, adkworkflow.ErrNodeInterrupted
+	}, adkworkflow.NodeConfig{RerunOnResume: &googleADKWorkflowRerunOnResume})
+	handler := adkworkflow.NewFunctionNode("handler", func(_ adkagent.Context, input any) (any, error) {
+		return map[string]any{"handled": input}, nil
+	}, adkworkflow.NodeConfig{})
+	root, err := newGoogleADKWorkflowAgent(googleADKWorkflowAgentConfig{
+		Name:        "native_workflow",
+		Description: "native workflow",
+		Edges: []adkworkflow.Edge{
+			{From: adkworkflow.Start, To: asker},
+			{From: asker, To: handler},
+		},
+	})
+	if err != nil {
+		t.Fatalf("newGoogleADKWorkflowAgent: %v", err)
+	}
+	ctx := context.Background()
+	service := adksession.InMemoryService()
+	if _, err := service.Create(ctx, &adksession.CreateRequest{AppName: "app", UserID: "user", SessionID: "session"}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	runner, err := adkrunner.New(adkrunner.Config{
+		AppName:        "app",
+		Agent:          root,
+		SessionService: service,
+	})
+	if err != nil {
+		t.Fatalf("runner.New: %v", err)
+	}
+	var requestID string
+	for event, err := range runner.Run(ctx, "user", "session", genai.NewContentFromText("start", genai.RoleUser), adkagent.RunConfig{}) {
+		if err != nil {
+			t.Fatalf("fresh workflow run: %v", err)
+		}
+		if event == nil {
+			continue
+		}
+		if event.RequestedInput != nil {
+			requestID = event.RequestedInput.InterruptID
+		}
+	}
+	if requestID != "ask-native" {
+		t.Fatalf("requestID = %q, want ask-native", requestID)
+	}
+	var sawHandled bool
+	for event, err := range runner.Run(ctx, "user", "session", genai.NewContentFromParts([]*genai.Part{{
+		FunctionResponse: &genai.FunctionResponse{
+			ID:       "ask-native",
+			Name:     adkworkflow.WorkflowInputFunctionCallName,
+			Response: map[string]any{"response": "approved"},
+		},
+	}}, genai.RoleUser), adkagent.RunConfig{}) {
+		if err != nil {
+			t.Fatalf("resume workflow run: %v", err)
+		}
+		if event != nil && event.Output != nil {
+			if output, ok := event.Output.(map[string]any); ok && output["handled"] == "approved" {
+				sawHandled = true
+			}
+		}
+	}
+	if !sawHandled {
+		t.Fatal("native workflowagent resume did not deliver output to handler")
+	}
+}
+
 func TestGoogleADKWorkflowRunNodeOmitsOriginalInputOnResume(t *testing.T) {
 	ctx := context.Background()
 	service := adksession.InMemoryService()
@@ -260,10 +338,19 @@ type googleADKWorkflowAgentTestContext struct {
 	session      adksession.Session
 	invocationID string
 	userContent  *genai.Content
+	ended        bool
 }
 
 func (c *googleADKWorkflowAgentTestContext) Agent() adkagent.Agent {
 	return c.agent
+}
+
+func (c *googleADKWorkflowAgentTestContext) Artifacts() adkagent.Artifacts {
+	return nil
+}
+
+func (c *googleADKWorkflowAgentTestContext) Memory() adkagent.Memory {
+	return nil
 }
 
 func (c *googleADKWorkflowAgentTestContext) Session() adksession.Session {
@@ -276,6 +363,14 @@ func (c *googleADKWorkflowAgentTestContext) InvocationID() string {
 
 func (c *googleADKWorkflowAgentTestContext) UserContent() *genai.Content {
 	return c.userContent
+}
+
+func (c *googleADKWorkflowAgentTestContext) EndInvocation() {
+	c.ended = true
+}
+
+func (c *googleADKWorkflowAgentTestContext) Ended() bool {
+	return c.ended
 }
 
 func (c *googleADKWorkflowAgentTestContext) WithContext(ctx context.Context) adkagent.InvocationContext {

@@ -26,7 +26,7 @@ const (
 	RebuildMarkerFilename   = "database-rebuild.json"
 	SchemaVersion           = 1
 	ExecutionSchemaVersion  = 2
-	ADKSessionSchemaVersion = 2
+	ADKSessionSchemaVersion = 3
 	BatchConfirmationText   = "REBUILD INCOMPATIBLE DATABASES"
 )
 

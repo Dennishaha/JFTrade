@@ -2,6 +2,8 @@ package servercore
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -41,6 +43,10 @@ func TestADKRoutesSerializeEmptySlicesAsArrays(t *testing.T) {
 		t.Fatalf("GET run: %v", err)
 	}
 	defer func() { jftradeCheckTestError(t, runResp.Body.Close()) }()
+	if runResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(runResp.Body)
+		t.Fatalf("GET run status = %d body = %s", runResp.StatusCode, string(body))
+	}
 	var runEnvelope map[string]any
 	if err := json.NewDecoder(runResp.Body).Decode(&runEnvelope); err != nil {
 		t.Fatalf("decode run envelope: %v", err)
@@ -58,6 +64,10 @@ func TestADKRoutesSerializeEmptySlicesAsArrays(t *testing.T) {
 		t.Fatalf("GET session: %v", err)
 	}
 	defer func() { jftradeCheckTestError(t, sessionResp.Body.Close()) }()
+	if sessionResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(sessionResp.Body)
+		t.Fatalf("GET session status = %d body = %s", sessionResp.StatusCode, string(body))
+	}
 	var sessionEnvelope map[string]any
 	if err := json.NewDecoder(sessionResp.Body).Decode(&sessionEnvelope); err != nil {
 		t.Fatalf("decode session envelope: %v", err)
@@ -98,6 +108,10 @@ func TestADKRoutesSerializeEmptySlicesAsArrays(t *testing.T) {
 		t.Fatalf("POST approval deny: %v", err)
 	}
 	defer func() { jftradeCheckTestError(t, approvalResp.Body.Close()) }()
+	if approvalResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(approvalResp.Body)
+		t.Fatalf("POST approval deny status = %d body = %s", approvalResp.StatusCode, string(body))
+	}
 	var approvalEnvelope map[string]any
 	if err := json.NewDecoder(approvalResp.Body).Decode(&approvalEnvelope); err != nil {
 		t.Fatalf("decode approval envelope: %v", err)

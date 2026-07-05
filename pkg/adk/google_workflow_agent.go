@@ -5,6 +5,7 @@ import (
 	"iter"
 
 	adkagent "google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/workflowagent"
 	adksession "google.golang.org/adk/v2/session"
 	adkworkflow "google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
@@ -28,6 +29,13 @@ type googleADKWorkflowAgent struct {
 }
 
 func newGoogleADKWorkflowAgent(cfg googleADKWorkflowAgentConfig) (adkagent.Agent, error) {
+	if cfg.MaxConcurrency <= 0 {
+		return workflowagent.New(workflowagent.Config{
+			Name:        cfg.Name,
+			Description: cfg.Description,
+			Edges:       cfg.Edges,
+		})
+	}
 	options := []adkworkflow.Option{}
 	if cfg.MaxConcurrency > 0 {
 		options = append(options, adkworkflow.WithMaxConcurrency(cfg.MaxConcurrency))
