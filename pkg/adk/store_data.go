@@ -448,10 +448,21 @@ func (s *Store) UpdateTask(ctx context.Context, id string, req TaskPatchRequest)
 	if !ok {
 		return Task{}, os.ErrNotExist
 	}
+	if err := applyTaskPatch(&task, id, req); err != nil {
+		return Task{}, err
+	}
+	task.UpdatedAt = nowString()
+	return s.saveTask(ctx, task)
+}
+
+func applyTaskPatch(task *Task, id string, req TaskPatchRequest) error {
+	if task == nil {
+		return nil
+	}
 	if req.Title != nil {
 		title := strings.TrimSpace(*req.Title)
 		if title == "" {
-			return Task{}, fmt.Errorf("task title is required")
+			return fmt.Errorf("task title is required")
 		}
 		task.Title = title
 	}
@@ -461,7 +472,7 @@ func (s *Store) UpdateTask(ctx context.Context, id string, req TaskPatchRequest)
 	if req.Status != nil {
 		status, err := normalizeTaskStatus(*req.Status)
 		if err != nil {
-			return Task{}, err
+			return err
 		}
 		task.Status = status
 	}
@@ -474,10 +485,15 @@ func (s *Store) UpdateTask(ctx context.Context, id string, req TaskPatchRequest)
 	if req.DependsOn != nil {
 		dependsOn, err := normalizeTaskDependsOn(id, req.DependsOn)
 		if err != nil {
-			return Task{}, err
+			return err
 		}
 		task.DependsOn = dependsOn
 	}
+	applyTaskMetadataPatch(task, req)
+	return nil
+}
+
+func applyTaskMetadataPatch(task *Task, req TaskPatchRequest) {
 	if req.Order != nil {
 		task.Order = *req.Order
 	}
@@ -517,8 +533,6 @@ func (s *Store) UpdateTask(ctx context.Context, id string, req TaskPatchRequest)
 	if req.PlannerWarnings != nil {
 		task.PlannerWarnings = normalizeStringSlice(req.PlannerWarnings)
 	}
-	task.UpdatedAt = nowString()
-	return s.saveTask(ctx, task)
 }
 
 func (s *Store) saveTask(ctx context.Context, task Task) (Task, error) {

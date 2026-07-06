@@ -122,6 +122,13 @@ type openAIMessageNormalizer struct {
 	droppedTools         int
 }
 
+type openAIStreamAccumulator struct {
+	splitter         legacyAssistantContentSplitter
+	replyBuilder     strings.Builder
+	reasoningBuilder strings.Builder
+	dataLines        []string
+}
+
 // estimateMessageBytes returns an approximate byte size of a message when
 // serialized to JSON, accounting for Content, ReasoningContent, Reasoning,
 // and ToolCalls arguments.
@@ -573,80 +580,90 @@ func (c openAIClient) chatStream(
 func (c openAIClient) readStreamingResponse(body io.Reader, onDelta func(ChatDelta) error) (openAIChatResult, error) {
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 64<<10), 2<<20)
-
-	var splitter legacyAssistantContentSplitter
-	var replyBuilder strings.Builder
-	var reasoningBuilder strings.Builder
-	var dataLines []string
-
-	flushEvent := func() error {
-		if len(dataLines) == 0 {
-			return nil
-		}
-		payload := strings.Join(dataLines, "\n")
-		dataLines = dataLines[:0]
-		if strings.TrimSpace(payload) == "" {
-			return nil
-		}
-		if strings.TrimSpace(payload) == "[DONE]" {
-			return io.EOF
-		}
-		var parsed openAIChatStreamResponse
-		if err := json.Unmarshal([]byte(payload), &parsed); err != nil {
-			return fmt.Errorf("decode OpenAI-compatible stream chunk: %w", err)
-		}
-		if parsed.Error != nil && parsed.Error.Message != "" {
-			return fmt.Errorf("provider returned: %s", parsed.Error.Message)
-		}
-		for _, choice := range parsed.Choices {
-			if err := appendStreamChoice(&splitter, &replyBuilder, &reasoningBuilder, choice.Delta.Content, choice.Delta.ReasoningContent, choice.Delta.Reasoning, onDelta); err != nil {
-				return err
-			}
-			if choice.Message.Content != "" || choice.Message.ReasoningContent != "" || choice.Message.Reasoning != "" {
-				if err := appendStreamChoice(&splitter, &replyBuilder, &reasoningBuilder, choice.Message.Content, choice.Message.ReasoningContent, choice.Message.Reasoning, onDelta); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	}
-
+	stream := &openAIStreamAccumulator{}
 	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			err := flushEvent()
+		if err := stream.consumeLine(scanner.Text(), onDelta); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			if err != nil {
-				return openAIChatResult{}, err
-			}
-			continue
-		}
-		if after, ok := strings.CutPrefix(line, "data:"); ok {
-			dataLines = append(dataLines, strings.TrimSpace(after))
+			return openAIChatResult{}, err
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		return openAIChatResult{}, err
 	}
-	if err := flushEvent(); err != nil && !errors.Is(err, io.EOF) {
+	if err := stream.flushEvent(onDelta); err != nil && !errors.Is(err, io.EOF) {
 		return openAIChatResult{}, err
 	}
-	replyTail, reasoningTail := splitter.Flush()
-	if replyTail != "" || reasoningTail != "" {
-		replyBuilder.WriteString(replyTail)
-		reasoningBuilder.WriteString(reasoningTail)
-		if onDelta != nil {
-			if err := onDelta(ChatDelta{Reply: replyTail, ReasoningContent: reasoningTail}); err != nil {
-				return openAIChatResult{}, err
+	if err := stream.flushTail(onDelta); err != nil {
+		return openAIChatResult{}, err
+	}
+	return stream.result()
+}
+
+func (s *openAIStreamAccumulator) consumeLine(line string, onDelta func(ChatDelta) error) error {
+	if line == "" {
+		return s.flushEvent(onDelta)
+	}
+	if after, ok := strings.CutPrefix(line, "data:"); ok {
+		s.dataLines = append(s.dataLines, strings.TrimSpace(after))
+	}
+	return nil
+}
+
+func (s *openAIStreamAccumulator) flushEvent(onDelta func(ChatDelta) error) error {
+	if len(s.dataLines) == 0 {
+		return nil
+	}
+	payload := strings.Join(s.dataLines, "\n")
+	s.dataLines = s.dataLines[:0]
+	if strings.TrimSpace(payload) == "" {
+		return nil
+	}
+	if strings.TrimSpace(payload) == "[DONE]" {
+		return io.EOF
+	}
+	var parsed openAIChatStreamResponse
+	if err := json.Unmarshal([]byte(payload), &parsed); err != nil {
+		return fmt.Errorf("decode OpenAI-compatible stream chunk: %w", err)
+	}
+	if parsed.Error != nil && parsed.Error.Message != "" {
+		return fmt.Errorf("provider returned: %s", parsed.Error.Message)
+	}
+	for _, choice := range parsed.Choices {
+		if err := s.appendChoice(choice.Delta.Content, choice.Delta.ReasoningContent, choice.Delta.Reasoning, onDelta); err != nil {
+			return err
+		}
+		if choice.Message.Content != "" || choice.Message.ReasoningContent != "" || choice.Message.Reasoning != "" {
+			if err := s.appendChoice(choice.Message.Content, choice.Message.ReasoningContent, choice.Message.Reasoning, onDelta); err != nil {
+				return err
 			}
 		}
 	}
+	return nil
+}
 
+func (s *openAIStreamAccumulator) appendChoice(content string, reasoningContent string, reasoning string, onDelta func(ChatDelta) error) error {
+	return appendStreamChoice(&s.splitter, &s.replyBuilder, &s.reasoningBuilder, content, reasoningContent, reasoning, onDelta)
+}
+
+func (s *openAIStreamAccumulator) flushTail(onDelta func(ChatDelta) error) error {
+	replyTail, reasoningTail := s.splitter.Flush()
+	if replyTail == "" && reasoningTail == "" {
+		return nil
+	}
+	s.replyBuilder.WriteString(replyTail)
+	s.reasoningBuilder.WriteString(reasoningTail)
+	if onDelta != nil {
+		return onDelta(ChatDelta{Reply: replyTail, ReasoningContent: reasoningTail})
+	}
+	return nil
+}
+
+func (s *openAIStreamAccumulator) result() (openAIChatResult, error) {
 	result := openAIChatResult{
-		Reply:            strings.TrimSpace(replyBuilder.String()),
-		ReasoningContent: strings.TrimSpace(reasoningBuilder.String()),
+		Reply:            strings.TrimSpace(s.replyBuilder.String()),
+		ReasoningContent: strings.TrimSpace(s.reasoningBuilder.String()),
 	}
 	if result.Reply == "" {
 		return openAIChatResult{}, fmt.Errorf("provider returned an empty reply")
