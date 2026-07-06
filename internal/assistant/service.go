@@ -414,82 +414,111 @@ func (s *Service) GetMetrics(ctx context.Context) (any, error) {
 	if s.runtime == nil || s.runtime.Store() == nil {
 		return nil, fmt.Errorf("adk runtime is unavailable")
 	}
+	runs, agentProvider, approvals, err := s.loadMetricsInputs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	runMetrics, toolMetrics, usageMetrics := aggregateRunMetrics(runs, agentProvider)
+	approvalMetrics := aggregateApprovalMetrics(approvals, time.Now().UTC())
+	return buildMetricsPayload(runs, approvals, runMetrics, toolMetrics, approvalMetrics, usageMetrics), nil
+}
+
+type runMetricsSummary struct {
+	statuses   map[string]int
+	byAgent    map[string]int
+	byProvider map[string]int
+	failed     int
+	timedOut   int
+	cancelled  int
+	resumed    int
+	orphaned   int
+}
+
+type toolMetricsSummary struct {
+	total             int
+	successful        int
+	averageDurationMs int64
+	byName            map[string]int
+	byStatus          map[string]int
+}
+
+type usageMetricsSummary struct {
+	samples        int
+	tokensInTotal  any
+	tokensOutTotal any
+	tokensInAvg    any
+	tokensOutAvg   any
+}
+
+type approvalMetricsSummary struct {
+	pending           int
+	approved          int
+	denied            int
+	recoverable       int
+	pendingWaitAvg    int64
+	pendingWaitMax    int64
+	resolutionWaitAvg int64
+	resolutionWaitMax int64
+	resolutionCount   int64
+}
+
+func (s *Service) loadMetricsInputs(ctx context.Context) ([]jfadk.Run, map[string]string, []jfadk.Approval, error) {
 	store := s.runtime.Store()
 	runs, err := store.ListRuns(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	agents, err := store.ListAllAgents(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	approvals, err := store.ListApprovals(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
+	return runs, metricsAgentProviders(agents), approvals, nil
+}
 
-	// Build agent→provider lookup
+func metricsAgentProviders(agents []jfadk.Agent) map[string]string {
 	agentProvider := make(map[string]string, len(agents))
-	for _, a := range agents {
-		agentProvider[a.ID] = strings.TrimSpace(a.ProviderID)
+	for _, agent := range agents {
+		agentProvider[agent.ID] = strings.TrimSpace(agent.ProviderID)
 	}
+	return agentProvider
+}
 
-	// Aggregate run statistics
-	statuses := map[string]int{}
-	byAgent := map[string]int{}
-	byProvider := map[string]int{}
-	toolCalls := 0
-	successfulTools := 0
-	toolsByName := map[string]int{}
-	toolsByStatus := map[string]int{}
+func aggregateRunMetrics(runs []jfadk.Run, agentProvider map[string]string) (runMetricsSummary, toolMetricsSummary, usageMetricsSummary) {
+	runMetrics := runMetricsSummary{
+		statuses:   map[string]int{},
+		byAgent:    map[string]int{},
+		byProvider: map[string]int{},
+	}
+	toolMetrics := toolMetricsSummary{
+		byName:   map[string]int{},
+		byStatus: map[string]int{},
+	}
 	var totalDuration int64
 	var durationCount int64
-	failedRuns := 0
-	timedOutRuns := 0
-	cancelledRuns := 0
-	resumedRuns := 0
-	orphanedRuns := 0
 	var tokensInTotal int
 	var tokensOutTotal int
 	tokenSamples := 0
 
 	for _, run := range runs {
-		statuses[run.Status]++
-		byAgent[run.AgentID]++
-		providerID := strings.TrimSpace(run.ProviderID)
-		if providerID == "" {
-			providerID = agentProvider[run.AgentID]
-		}
-		if providerID == "" {
-			providerID = "unbound"
-		}
-		byProvider[providerID]++
-
-		switch run.Status {
-		case jfadk.RunStatusFailed:
-			failedRuns++
-		case jfadk.RunStatusTimedOut:
-			timedOutRuns++
-		case jfadk.RunStatusCancelled:
-			cancelledRuns++
-		}
-		if strings.TrimSpace(run.ResumeState) == "adk_confirmation_resolved" {
-			resumedRuns++
-		}
-		if strings.TrimSpace(run.ErrorCode) == "RUN_ORPHANED" {
-			orphanedRuns++
-		}
+		runMetrics.statuses[run.Status]++
+		runMetrics.byAgent[run.AgentID]++
+		runMetrics.byProvider[metricsProviderID(run, agentProvider)]++
+		accumulateRunLifecycle(&runMetrics, run)
 		if run.Usage != nil && (run.Usage.TokensIn > 0 || run.Usage.TokensOut > 0) {
 			tokensInTotal += run.Usage.TokensIn
 			tokensOutTotal += run.Usage.TokensOut
 			tokenSamples++
 		}
 		for _, call := range run.ToolCalls {
-			toolCalls++
-			toolsByName[call.ToolName]++
-			toolsByStatus[call.Status]++
+			toolMetrics.total++
+			toolMetrics.byName[call.ToolName]++
+			toolMetrics.byStatus[call.Status]++
 			if call.Status == "SUCCEEDED" {
-				successfulTools++
+				toolMetrics.successful++
 			}
 			if call.DurationMs > 0 {
 				totalDuration += call.DurationMs
@@ -497,99 +526,148 @@ func (s *Service) GetMetrics(ctx context.Context) (any, error) {
 			}
 		}
 	}
+	if durationCount > 0 {
+		toolMetrics.averageDurationMs = totalDuration / durationCount
+	}
+	return runMetrics, toolMetrics, finalizeUsageMetrics(tokensInTotal, tokensOutTotal, tokenSamples)
+}
 
-	// Aggregate approval statistics
-	pendingApprovals := 0
-	approvedApprovals := 0
-	deniedApprovals := 0
-	recoverablePending := 0
+func metricsProviderID(run jfadk.Run, agentProvider map[string]string) string {
+	providerID := strings.TrimSpace(run.ProviderID)
+	if providerID == "" {
+		providerID = agentProvider[run.AgentID]
+	}
+	if providerID == "" {
+		return "unbound"
+	}
+	return providerID
+}
+
+func accumulateRunLifecycle(metrics *runMetricsSummary, run jfadk.Run) {
+	switch run.Status {
+	case jfadk.RunStatusFailed:
+		metrics.failed++
+	case jfadk.RunStatusTimedOut:
+		metrics.timedOut++
+	case jfadk.RunStatusCancelled:
+		metrics.cancelled++
+	}
+	if strings.TrimSpace(run.ResumeState) == "adk_confirmation_resolved" {
+		metrics.resumed++
+	}
+	if strings.TrimSpace(run.ErrorCode) == "RUN_ORPHANED" {
+		metrics.orphaned++
+	}
+}
+
+func finalizeUsageMetrics(tokensInTotal int, tokensOutTotal int, tokenSamples int) usageMetricsSummary {
+	usage := usageMetricsSummary{samples: tokenSamples}
+	if tokenSamples == 0 {
+		return usage
+	}
+	usage.tokensInTotal = tokensInTotal
+	usage.tokensOutTotal = tokensOutTotal
+	usage.tokensInAvg = tokensInTotal / tokenSamples
+	usage.tokensOutAvg = tokensOutTotal / tokenSamples
+	return usage
+}
+
+func aggregateApprovalMetrics(approvals []jfadk.Approval, now time.Time) approvalMetricsSummary {
+	var metrics approvalMetricsSummary
 	var pendingWaitTotal int64
-	var pendingWaitMax int64
 	var resolvedWaitTotal int64
-	var resolvedWaitMax int64
-	var resolvedWaitCount int64
-	now := time.Now().UTC()
 
 	for _, approval := range approvals {
 		waitMs := approvalWaitDurationMs(approval, now)
 		switch approval.Status {
 		case jfadk.ApprovalStatusPending:
-			pendingApprovals++
+			metrics.pending++
 			pendingWaitTotal += waitMs
-			if waitMs > pendingWaitMax {
-				pendingWaitMax = waitMs
+			if waitMs > metrics.pendingWaitMax {
+				metrics.pendingWaitMax = waitMs
 			}
 			if strings.TrimSpace(approval.FunctionCallID) != "" && strings.TrimSpace(approval.ConfirmationCallID) != "" {
-				recoverablePending++
+				metrics.recoverable++
 			}
 		case jfadk.ApprovalStatusApproved:
-			approvedApprovals++
+			metrics.approved++
 			resolvedWaitTotal += waitMs
-			resolvedWaitCount++
-			if waitMs > resolvedWaitMax {
-				resolvedWaitMax = waitMs
+			metrics.resolutionCount++
+			if waitMs > metrics.resolutionWaitMax {
+				metrics.resolutionWaitMax = waitMs
 			}
 		case jfadk.ApprovalStatusDenied:
-			deniedApprovals++
+			metrics.denied++
 			resolvedWaitTotal += waitMs
-			resolvedWaitCount++
-			if waitMs > resolvedWaitMax {
-				resolvedWaitMax = waitMs
+			metrics.resolutionCount++
+			if waitMs > metrics.resolutionWaitMax {
+				metrics.resolutionWaitMax = waitMs
 			}
 		}
 	}
+	if metrics.pending > 0 {
+		metrics.pendingWaitAvg = pendingWaitTotal / int64(metrics.pending)
+	}
+	if metrics.resolutionCount > 0 {
+		metrics.resolutionWaitAvg = resolvedWaitTotal / metrics.resolutionCount
+	}
+	return metrics
+}
 
-	averageToolDuration := int64(0)
-	if durationCount > 0 {
-		averageToolDuration = totalDuration / durationCount
-	}
-	var pendingWaitAvg int64
-	if pendingApprovals > 0 {
-		pendingWaitAvg = pendingWaitTotal / int64(pendingApprovals)
-	}
-	var resolvedWaitAvg int64
-	if resolvedWaitCount > 0 {
-		resolvedWaitAvg = resolvedWaitTotal / resolvedWaitCount
-	}
-
-	var tokensInAverage any
-	var tokensOutAverage any
-	var tokensInTotalValue any
-	var tokensOutTotalValue any
-	if tokenSamples > 0 {
-		tokensInTotalValue = tokensInTotal
-		tokensOutTotalValue = tokensOutTotal
-		tokensInAverage = tokensInTotal / tokenSamples
-		tokensOutAverage = tokensOutTotal / tokenSamples
-	}
-
+func buildMetricsPayload(
+	runs []jfadk.Run,
+	approvals []jfadk.Approval,
+	runMetrics runMetricsSummary,
+	toolMetrics toolMetricsSummary,
+	approvalMetrics approvalMetricsSummary,
+	usageMetrics usageMetricsSummary,
+) map[string]any {
 	return map[string]any{
 		"runs": map[string]any{
-			"total": len(runs), "byStatus": statuses, "byAgent": byAgent, "byProvider": byProvider,
+			"total":      len(runs),
+			"byStatus":   runMetrics.statuses,
+			"byAgent":    runMetrics.byAgent,
+			"byProvider": runMetrics.byProvider,
 			"lifecycle": map[string]any{
-				"failed": failedRuns, "timedOut": timedOutRuns, "cancelled": cancelledRuns,
-				"resumed": resumedRuns, "orphaned": orphanedRuns,
+				"failed":    runMetrics.failed,
+				"timedOut":  runMetrics.timedOut,
+				"cancelled": runMetrics.cancelled,
+				"resumed":   runMetrics.resumed,
+				"orphaned":  runMetrics.orphaned,
 			},
 		},
 		"tools": map[string]any{
-			"total": toolCalls, "successful": successfulTools, "averageDurationMs": averageToolDuration,
-			"byName": toolsByName, "byStatus": toolsByStatus,
+			"total":             toolMetrics.total,
+			"successful":        toolMetrics.successful,
+			"averageDurationMs": toolMetrics.averageDurationMs,
+			"byName":            toolMetrics.byName,
+			"byStatus":          toolMetrics.byStatus,
 		},
 		"approvals": map[string]any{
-			"pending": pendingApprovals, "total": len(approvals),
-			"approved": approvedApprovals, "denied": deniedApprovals, "recoverablePending": recoverablePending,
-			"pendingWaitMs":    map[string]any{"average": pendingWaitAvg, "max": pendingWaitMax},
-			"resolutionWaitMs": map[string]any{"average": resolvedWaitAvg, "max": resolvedWaitMax, "count": resolvedWaitCount},
+			"pending":            approvalMetrics.pending,
+			"total":              len(approvals),
+			"approved":           approvalMetrics.approved,
+			"denied":             approvalMetrics.denied,
+			"recoverablePending": approvalMetrics.recoverable,
+			"pendingWaitMs": map[string]any{
+				"average": approvalMetrics.pendingWaitAvg,
+				"max":     approvalMetrics.pendingWaitMax,
+			},
+			"resolutionWaitMs": map[string]any{
+				"average": approvalMetrics.resolutionWaitAvg,
+				"max":     approvalMetrics.resolutionWaitMax,
+				"count":   approvalMetrics.resolutionCount,
+			},
 		},
 		"usage": map[string]any{
-			"samples":          tokenSamples,
-			"tokensInTotal":    tokensInTotalValue,
-			"tokensOutTotal":   tokensOutTotalValue,
-			"tokensInAverage":  tokensInAverage,
-			"tokensOutAverage": tokensOutAverage,
+			"samples":          usageMetrics.samples,
+			"tokensInTotal":    usageMetrics.tokensInTotal,
+			"tokensOutTotal":   usageMetrics.tokensOutTotal,
+			"tokensInAverage":  usageMetrics.tokensInAvg,
+			"tokensOutAverage": usageMetrics.tokensOutAvg,
 		},
 		"checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
-	}, nil
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

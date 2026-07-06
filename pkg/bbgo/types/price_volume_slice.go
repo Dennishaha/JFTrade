@@ -230,32 +230,45 @@ func ParsePriceVolumeKvSliceJSON(b []byte) (PriceVolumeSlice, error) {
 //
 // if parse failed, then it will try to parse the JSON array of objects, function ParsePriceVolumeKvSliceJSON will be called.
 func ParsePriceVolumeSliceJSON(b []byte) (slice PriceVolumeSlice, err error) {
-	var as [][]fixedpoint.Value
-
-	err = json.Unmarshal(b, &as)
+	as, err := parsePriceVolumePairsJSON(b)
 	if err != nil {
-		// fallback unmarshalling: if the prefix looks like an object array
-		if bytes.HasPrefix(b, []byte(`[{`)) {
-			return ParsePriceVolumeKvSliceJSON(b)
-		}
+		return fallbackPriceVolumeSliceJSON(b, err)
+	}
+	return priceVolumeSliceFromPairs(as), nil
+}
 
+func parsePriceVolumePairsJSON(b []byte) ([][]fixedpoint.Value, error) {
+	var pairs [][]fixedpoint.Value
+	if err := json.Unmarshal(b, &pairs); err != nil {
 		return nil, err
 	}
+	return pairs, nil
+}
 
-	for _, a := range as {
-		var pv PriceVolume
-		pv.Price = a[0]
-		pv.Volume = a[1]
+func fallbackPriceVolumeSliceJSON(b []byte, originalErr error) (PriceVolumeSlice, error) {
+	// fallback unmarshalling: if the prefix looks like an object array
+	if isJSONObjectArrayPrefix(b) {
+		return ParsePriceVolumeKvSliceJSON(b)
+	}
+	return nil, originalErr
+}
 
+func isJSONObjectArrayPrefix(b []byte) bool {
+	trimmed := bytes.TrimSpace(b)
+	return len(trimmed) >= 2 && trimmed[0] == 91 && trimmed[1] == 123
+}
+
+func priceVolumeSliceFromPairs(pairs [][]fixedpoint.Value) PriceVolumeSlice {
+	slice := make(PriceVolumeSlice, 0, len(pairs))
+	for _, pair := range pairs {
+		pv := PriceVolume{Price: pair[0], Volume: pair[1]}
 		// kucoin returns price in 0, we should skip
 		if pv.Price.Eq(fixedpoint.Zero) {
 			continue
 		}
-
 		slice = append(slice, pv)
 	}
-
-	return slice, nil
+	return slice
 }
 
 // AverageDepthPriceByQuote calculates the average price by the required quote depth
