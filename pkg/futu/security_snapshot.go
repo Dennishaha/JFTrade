@@ -317,13 +317,24 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 	if snapshot == nil || snapshot.GetBasic() == nil {
 		return nil
 	}
-	basic := snapshot.GetBasic()
+	details := baseSecurityDetailsFromSnapshot(snapshot.GetBasic(), canonical)
+	applyEquitySnapshotDetails(details, snapshot.GetEquityExData())
+	applyWarrantSnapshotDetails(details, snapshot.GetWarrantExData())
+	applyOptionSnapshotDetails(details, snapshot.GetOptionExData())
+	applyIndexSnapshotDetails(details, snapshot.GetIndexExData())
+	applyPlateSnapshotDetails(details, snapshot.GetPlateExData())
+	applyFutureSnapshotDetails(details, snapshot.GetFutureExData())
+	applyTrustSnapshotDetails(details, snapshot.GetTrustExData())
+	return details
+}
+
+func baseSecurityDetailsFromSnapshot(basic *qotgetsecuritysnapshotpb.SnapshotBasicData, canonical string) *SecurityDetails {
 	ref := securityRefFromProto(basic.GetSecurity())
 	if ref == nil {
 		ref = securityRefFromCanonical(canonical)
 	}
 	quoteTime := futuQuoteTime(basic.GetUpdateTimestamp(), basic.GetUpdateTime(), canonical).Format(time.RFC3339Nano)
-	details := &SecurityDetails{
+	return &SecurityDetails{
 		InstrumentID:        ref.InstrumentID,
 		Market:              ref.Market,
 		Symbol:              ref.Symbol,
@@ -365,116 +376,143 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 		AfterMarket:         extendedMarketQuoteFromProto(basic.GetAfterMarket(), quoteTime),
 		Overnight:           extendedMarketQuoteFromProto(basic.GetOvernight(), quoteTime),
 	}
-	if equity := snapshot.GetEquityExData(); equity != nil {
-		details.Equity = &EquitySecurityDetails{
-			IssuedShares:         equity.GetIssuedShares(),
-			IssuedMarketValue:    decimalFromFloat64(equity.GetIssuedMarketVal()),
-			NetAsset:             decimalFromFloat64(equity.GetNetAsset()),
-			NetProfit:            decimalFromFloat64(equity.GetNetProfit()),
-			EarningsPerShare:     decimalFromFloat64(equity.GetEarningsPershare()),
-			OutstandingShares:    equity.GetOutstandingShares(),
-			OutstandingMarketVal: decimalFromFloat64(equity.GetOutstandingMarketVal()),
-			NetAssetPerShare:     decimalFromFloat64(equity.GetNetAssetPershare()),
-			EarningsYieldRate:    decimalFromFloat64(equity.GetEyRate()),
-			PERate:               decimalFromFloat64(equity.GetPeRate()),
-			PBRate:               decimalFromFloat64(equity.GetPbRate()),
-			PETTMRate:            decimalFromFloat64(equity.GetPeTTMRate()),
-			DividendTTM:          decimalPtrFromFloat64(equity.DividendTTM),
-			DividendRatioTTM:     decimalPtrFromFloat64(equity.DividendRatioTTM),
-			DividendLFY:          decimalPtrFromFloat64(equity.DividendLFY),
-			DividendLFYRatio:     decimalPtrFromFloat64(equity.DividendLFYRatio),
-		}
+}
+
+func applyEquitySnapshotDetails(details *SecurityDetails, equity *qotgetsecuritysnapshotpb.EquitySnapshotExData) {
+	if equity == nil {
+		return
 	}
-	if warrant := snapshot.GetWarrantExData(); warrant != nil {
-		details.Warrant = &WarrantSecurityDetails{
-			ConversionRate:     decimalFromFloat64(warrant.GetConversionRate()),
-			WarrantType:        enumName(warrant.GetWarrantType(), qotcommonpb.WarrantType_name),
-			StrikePrice:        decimalFromFloat64(warrant.GetStrikePrice()),
-			MaturityTime:       warrant.GetMaturityTime(),
-			EndTradeTime:       warrant.GetEndTradeTime(),
-			Owner:              securityRefFromProto(warrant.GetOwner()),
-			RecoveryPrice:      decimalFromFloat64(warrant.GetRecoveryPrice()),
-			StreetVolume:       warrant.GetStreetVolumn(),
-			IssueVolume:        warrant.GetIssueVolumn(),
-			StreetRate:         decimalFromFloat64(warrant.GetStreetRate()),
-			Delta:              decimalFromFloat64(warrant.GetDelta()),
-			ImpliedVolatility:  decimalFromFloat64(warrant.GetImpliedVolatility()),
-			Premium:            decimalFromFloat64(warrant.GetPremium()),
-			MaturityTimestamp:  cloneFloat64(warrant.MaturityTimestamp),
-			EndTradeTimestamp:  cloneFloat64(warrant.EndTradeTimestamp),
-			Leverage:           decimalPtrFromFloat64(warrant.Leverage),
-			InOutPriceRatio:    decimalPtrFromFloat64(warrant.Ipop),
-			BreakEvenPoint:     decimalPtrFromFloat64(warrant.BreakEvenPoint),
-			ConversionPrice:    decimalPtrFromFloat64(warrant.ConversionPrice),
-			PriceRecoveryRatio: decimalPtrFromFloat64(warrant.PriceRecoveryRatio),
-			Score:              decimalPtrFromFloat64(warrant.Score),
-			UpperStrikePrice:   decimalPtrFromFloat64(warrant.UpperStrikePrice),
-			LowerStrikePrice:   decimalPtrFromFloat64(warrant.LowerStrikePrice),
-			InLinePriceStatus:  enumName(warrant.GetInLinePriceStatus(), qotcommonpb.PriceType_name),
-			IssuerCode:         cloneStringPtr(warrant.IssuerCode),
-		}
+	details.Equity = &EquitySecurityDetails{
+		IssuedShares:         equity.GetIssuedShares(),
+		IssuedMarketValue:    decimalFromFloat64(equity.GetIssuedMarketVal()),
+		NetAsset:             decimalFromFloat64(equity.GetNetAsset()),
+		NetProfit:            decimalFromFloat64(equity.GetNetProfit()),
+		EarningsPerShare:     decimalFromFloat64(equity.GetEarningsPershare()),
+		OutstandingShares:    equity.GetOutstandingShares(),
+		OutstandingMarketVal: decimalFromFloat64(equity.GetOutstandingMarketVal()),
+		NetAssetPerShare:     decimalFromFloat64(equity.GetNetAssetPershare()),
+		EarningsYieldRate:    decimalFromFloat64(equity.GetEyRate()),
+		PERate:               decimalFromFloat64(equity.GetPeRate()),
+		PBRate:               decimalFromFloat64(equity.GetPbRate()),
+		PETTMRate:            decimalFromFloat64(equity.GetPeTTMRate()),
+		DividendTTM:          decimalPtrFromFloat64(equity.DividendTTM),
+		DividendRatioTTM:     decimalPtrFromFloat64(equity.DividendRatioTTM),
+		DividendLFY:          decimalPtrFromFloat64(equity.DividendLFY),
+		DividendLFYRatio:     decimalPtrFromFloat64(equity.DividendLFYRatio),
 	}
-	if option := snapshot.GetOptionExData(); option != nil {
-		details.Option = &OptionSecurityDetails{
-			OptionType:           enumName(option.GetType(), qotcommonpb.OptionType_name),
-			Owner:                securityRefFromProto(option.GetOwner()),
-			StrikeTime:           option.GetStrikeTime(),
-			StrikePrice:          decimalFromFloat64(option.GetStrikePrice()),
-			ContractSize:         option.GetContractSize(),
-			ContractSizeFloat:    decimalPtrFromFloat64(option.ContractSizeFloat),
-			OpenInterest:         option.GetOpenInterest(),
-			ImpliedVolatility:    decimalFromFloat64(option.GetImpliedVolatility()),
-			Premium:              decimalFromFloat64(option.GetPremium()),
-			Delta:                decimalFromFloat64(option.GetDelta()),
-			Gamma:                decimalFromFloat64(option.GetGamma()),
-			Vega:                 decimalFromFloat64(option.GetVega()),
-			Theta:                decimalFromFloat64(option.GetTheta()),
-			Rho:                  decimalFromFloat64(option.GetRho()),
-			StrikeTimestamp:      cloneFloat64(option.StrikeTimestamp),
-			IndexOptionType:      enumName(option.GetIndexOptionType(), qotcommonpb.IndexOptionType_name),
-			NetOpenInterest:      cloneInt32Ptr(option.NetOpenInterest),
-			ExpiryDateDistance:   cloneInt32Ptr(option.ExpiryDateDistance),
-			ContractNominalValue: decimalPtrFromFloat64(option.ContractNominalValue),
-			OwnerLotMultiplier:   decimalPtrFromFloat64(option.OwnerLotMultiplier),
-			OptionAreaType:       enumName(option.GetOptionAreaType(), qotcommonpb.OptionAreaType_name),
-			ContractMultiplier:   decimalPtrFromFloat64(option.ContractMultiplier),
-		}
+}
+
+func applyWarrantSnapshotDetails(details *SecurityDetails, warrant *qotgetsecuritysnapshotpb.WarrantSnapshotExData) {
+	if warrant == nil {
+		return
 	}
-	if index := snapshot.GetIndexExData(); index != nil {
-		details.Index = &IndexSecurityDetails{
-			RaiseCount: index.GetRaiseCount(),
-			FallCount:  index.GetFallCount(),
-			EqualCount: index.GetEqualCount(),
-		}
+	details.Warrant = &WarrantSecurityDetails{
+		ConversionRate:     decimalFromFloat64(warrant.GetConversionRate()),
+		WarrantType:        enumName(warrant.GetWarrantType(), qotcommonpb.WarrantType_name),
+		StrikePrice:        decimalFromFloat64(warrant.GetStrikePrice()),
+		MaturityTime:       warrant.GetMaturityTime(),
+		EndTradeTime:       warrant.GetEndTradeTime(),
+		Owner:              securityRefFromProto(warrant.GetOwner()),
+		RecoveryPrice:      decimalFromFloat64(warrant.GetRecoveryPrice()),
+		StreetVolume:       warrant.GetStreetVolumn(),
+		IssueVolume:        warrant.GetIssueVolumn(),
+		StreetRate:         decimalFromFloat64(warrant.GetStreetRate()),
+		Delta:              decimalFromFloat64(warrant.GetDelta()),
+		ImpliedVolatility:  decimalFromFloat64(warrant.GetImpliedVolatility()),
+		Premium:            decimalFromFloat64(warrant.GetPremium()),
+		MaturityTimestamp:  cloneFloat64(warrant.MaturityTimestamp),
+		EndTradeTimestamp:  cloneFloat64(warrant.EndTradeTimestamp),
+		Leverage:           decimalPtrFromFloat64(warrant.Leverage),
+		InOutPriceRatio:    decimalPtrFromFloat64(warrant.Ipop),
+		BreakEvenPoint:     decimalPtrFromFloat64(warrant.BreakEvenPoint),
+		ConversionPrice:    decimalPtrFromFloat64(warrant.ConversionPrice),
+		PriceRecoveryRatio: decimalPtrFromFloat64(warrant.PriceRecoveryRatio),
+		Score:              decimalPtrFromFloat64(warrant.Score),
+		UpperStrikePrice:   decimalPtrFromFloat64(warrant.UpperStrikePrice),
+		LowerStrikePrice:   decimalPtrFromFloat64(warrant.LowerStrikePrice),
+		InLinePriceStatus:  enumName(warrant.GetInLinePriceStatus(), qotcommonpb.PriceType_name),
+		IssuerCode:         cloneStringPtr(warrant.IssuerCode),
 	}
-	if plate := snapshot.GetPlateExData(); plate != nil {
-		details.Plate = &PlateSecurityDetails{
-			RaiseCount: plate.GetRaiseCount(),
-			FallCount:  plate.GetFallCount(),
-			EqualCount: plate.GetEqualCount(),
-		}
+}
+
+func applyOptionSnapshotDetails(details *SecurityDetails, option *qotgetsecuritysnapshotpb.OptionSnapshotExData) {
+	if option == nil {
+		return
 	}
-	if future := snapshot.GetFutureExData(); future != nil {
-		details.Future = &FutureSecurityDetails{
-			LastSettlePrice:    decimalFromFloat64(future.GetLastSettlePrice()),
-			Position:           future.GetPosition(),
-			PositionChange:     future.GetPositionChange(),
-			LastTradeTime:      future.GetLastTradeTime(),
-			LastTradeTimestamp: cloneFloat64(future.LastTradeTimestamp),
-			IsMainContract:     future.GetIsMainContract(),
-		}
+	details.Option = &OptionSecurityDetails{
+		OptionType:           enumName(option.GetType(), qotcommonpb.OptionType_name),
+		Owner:                securityRefFromProto(option.GetOwner()),
+		StrikeTime:           option.GetStrikeTime(),
+		StrikePrice:          decimalFromFloat64(option.GetStrikePrice()),
+		ContractSize:         option.GetContractSize(),
+		ContractSizeFloat:    decimalPtrFromFloat64(option.ContractSizeFloat),
+		OpenInterest:         option.GetOpenInterest(),
+		ImpliedVolatility:    decimalFromFloat64(option.GetImpliedVolatility()),
+		Premium:              decimalFromFloat64(option.GetPremium()),
+		Delta:                decimalFromFloat64(option.GetDelta()),
+		Gamma:                decimalFromFloat64(option.GetGamma()),
+		Vega:                 decimalFromFloat64(option.GetVega()),
+		Theta:                decimalFromFloat64(option.GetTheta()),
+		Rho:                  decimalFromFloat64(option.GetRho()),
+		StrikeTimestamp:      cloneFloat64(option.StrikeTimestamp),
+		IndexOptionType:      enumName(option.GetIndexOptionType(), qotcommonpb.IndexOptionType_name),
+		NetOpenInterest:      cloneInt32Ptr(option.NetOpenInterest),
+		ExpiryDateDistance:   cloneInt32Ptr(option.ExpiryDateDistance),
+		ContractNominalValue: decimalPtrFromFloat64(option.ContractNominalValue),
+		OwnerLotMultiplier:   decimalPtrFromFloat64(option.OwnerLotMultiplier),
+		OptionAreaType:       enumName(option.GetOptionAreaType(), qotcommonpb.OptionAreaType_name),
+		ContractMultiplier:   decimalPtrFromFloat64(option.ContractMultiplier),
 	}
-	if trust := snapshot.GetTrustExData(); trust != nil {
-		details.Trust = &TrustSecurityDetails{
-			DividendYield:   decimalFromFloat64(trust.GetDividendYield()),
-			AUM:             decimalFromFloat64(trust.GetAum()),
-			OutstandingUnit: trust.GetOutstandingUnits(),
-			NetAssetValue:   decimalFromFloat64(trust.GetNetAssetValue()),
-			Premium:         decimalFromFloat64(trust.GetPremium()),
-			AssetClass:      enumName(trust.GetAssetClass(), qotcommonpb.AssetClass_name),
-		}
+}
+
+func applyIndexSnapshotDetails(details *SecurityDetails, index *qotgetsecuritysnapshotpb.IndexSnapshotExData) {
+	if index == nil {
+		return
 	}
-	return details
+	details.Index = &IndexSecurityDetails{
+		RaiseCount: index.GetRaiseCount(),
+		FallCount:  index.GetFallCount(),
+		EqualCount: index.GetEqualCount(),
+	}
+}
+
+func applyPlateSnapshotDetails(details *SecurityDetails, plate *qotgetsecuritysnapshotpb.PlateSnapshotExData) {
+	if plate == nil {
+		return
+	}
+	details.Plate = &PlateSecurityDetails{
+		RaiseCount: plate.GetRaiseCount(),
+		FallCount:  plate.GetFallCount(),
+		EqualCount: plate.GetEqualCount(),
+	}
+}
+
+func applyFutureSnapshotDetails(details *SecurityDetails, future *qotgetsecuritysnapshotpb.FutureSnapshotExData) {
+	if future == nil {
+		return
+	}
+	details.Future = &FutureSecurityDetails{
+		LastSettlePrice:    decimalFromFloat64(future.GetLastSettlePrice()),
+		Position:           future.GetPosition(),
+		PositionChange:     future.GetPositionChange(),
+		LastTradeTime:      future.GetLastTradeTime(),
+		LastTradeTimestamp: cloneFloat64(future.LastTradeTimestamp),
+		IsMainContract:     future.GetIsMainContract(),
+	}
+}
+
+func applyTrustSnapshotDetails(details *SecurityDetails, trust *qotgetsecuritysnapshotpb.TrustSnapshotExData) {
+	if trust == nil {
+		return
+	}
+	details.Trust = &TrustSecurityDetails{
+		DividendYield:   decimalFromFloat64(trust.GetDividendYield()),
+		AUM:             decimalFromFloat64(trust.GetAum()),
+		OutstandingUnit: trust.GetOutstandingUnits(),
+		NetAssetValue:   decimalFromFloat64(trust.GetNetAssetValue()),
+		Premium:         decimalFromFloat64(trust.GetPremium()),
+		AssetClass:      enumName(trust.GetAssetClass(), qotcommonpb.AssetClass_name),
+	}
 }
 
 func mergeStaticInfoIntoSecurityDetails(details *SecurityDetails, info *qotcommonpb.SecurityStaticInfo) {
