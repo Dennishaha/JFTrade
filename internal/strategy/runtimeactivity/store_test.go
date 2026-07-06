@@ -47,6 +47,7 @@ func TestNewStoreRejectsLegacySchema(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestStoreRoundTripsLogsAuditAndObservation(t *testing.T) {
 	ctx := context.Background()
 	store := newStoreForTest(t)

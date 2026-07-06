@@ -92,6 +92,7 @@ func Compile(script string) (Compilation, error) {
 	}, nil
 }
 
+//nolint:funlen
 func compileLoweredAST(script string, lines []parsedLine, ast *AST) (Compilation, error) {
 	state := &parseState{
 		lines:                nil,

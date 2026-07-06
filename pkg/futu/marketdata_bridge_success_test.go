@@ -78,6 +78,7 @@ func TestExchangeSecuritySnapshotMergesStaticInfo(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setStaticInfos([]*qotcommonpb.SecurityStaticInfo{testTencentStaticInfo()})

@@ -235,6 +235,7 @@ func TestServiceStartInstanceRefreshesLiveMarketStreamAfterSuccess(t *testing.T)
 	}
 }
 
+//nolint:funlen
 func TestServiceDelegatesCatalogRuntimeAndLifecycleEntryPoints(t *testing.T) {
 	catalog := &fakeCatalogStore{
 		pluginCatalog: PluginCatalog{

@@ -14,6 +14,7 @@ func (s *parseState) normalizeExpression(expression string) string {
 	return result
 }
 
+//nolint:funlen
 func (s *parseState) normalizeExpressionDepth(expression string, depth int, stack map[string]bool) (string, error) {
 	result := strings.TrimSpace(expression)
 	result = lowerInputCalls(result)

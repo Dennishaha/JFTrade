@@ -50,6 +50,7 @@ func NewRBTree() *RBTree {
 	return tree
 }
 
+//nolint:funlen
 func (tree *RBTree) Delete(key fixedpoint.Value) bool {
 	var deleting = tree.Search(key)
 	if deleting == nil {

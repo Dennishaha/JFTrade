@@ -152,6 +152,7 @@ func TestPosition_ExchangeFeeRate_Long(t *testing.T) {
 	assert.Equal(t, expectedProfit, netProfit)
 }
 
+//nolint:funlen
 func TestPosition(t *testing.T) {
 	feeRate := 0.05 * 0.01
 	feeRateValue := fixedpoint.NewFromFloat(feeRate)

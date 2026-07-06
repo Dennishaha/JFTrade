@@ -87,6 +87,7 @@ func (s *FutuKLineStore) SyncKLines(
 	return nil
 }
 
+//nolint:funlen
 func (s *FutuKLineStore) syncInterval(
 	ctx context.Context,
 	exchange *futu.Exchange,

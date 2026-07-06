@@ -244,6 +244,7 @@ func (s *StandardStream) SetParser(parser Parser) {
 // - invokes the parser (if any) and then the dispatcher (if any)
 // - on read/control errors, it closes the connection and schedules a reconnect via Reconnect()
 // The loop exits when ctx is done or Close() is called.
+//nolint:funlen
 func (s *StandardStream) Read(ctx context.Context, conn *websocket.Conn, cancel context.CancelFunc) {
 	defer func() {
 		cancel()

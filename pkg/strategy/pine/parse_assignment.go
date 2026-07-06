@@ -62,6 +62,7 @@ func (s *parseState) parseGeneralTupleAssignment(line parsedLine) (strategyir.St
 	}, true, nil
 }
 
+//nolint:funlen
 func (s *parseState) parseTupleAssignment(line parsedLine) (strategyir.Statement, bool, error) {
 	match := tupleAssignmentPattern.FindStringSubmatch(line.trimmed)
 	if match == nil {

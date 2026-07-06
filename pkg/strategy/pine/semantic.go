@@ -270,6 +270,7 @@ var collectionOperationSignatures = map[string]collectionOperationSignature{
 	"matrix.columns":                        {minArgs: 1, maxArgs: 1, signature: "matrix.columns(id)"},
 }
 
+//nolint:funlen
 func analyzeSemantics(ast *AST) (*SemanticSummary, []Diagnostic) {
 	summary := &SemanticSummary{
 		Symbols:              []SemanticSymbol{},

@@ -7,6 +7,7 @@ import (
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
+//nolint:funlen
 func TestStrategyRiskArgumentParsersCoverBusinessBoundaries(t *testing.T) {
 	directionCases := []struct {
 		raw  string

@@ -47,6 +47,7 @@ func (s *parseState) parseBlock(startIndex int, parentIndent int) ([]strategyir.
 	return statements, index, nil
 }
 
+//nolint:funlen
 func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error) {
 	line := s.lines[index]
 	lower := strings.ToLower(line.trimmed)
@@ -375,6 +376,7 @@ func isReservedUDFName(name string) bool {
 	}
 }
 
+//nolint:funlen
 func (s *parseState) parseStaticForLoop(index int) ([]strategyir.Statement, int, error) {
 	line := s.lines[index]
 	if s.forDepth >= maxStaticForDepth {

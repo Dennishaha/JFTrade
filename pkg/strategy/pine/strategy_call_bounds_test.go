@@ -7,6 +7,7 @@ import (
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
+//nolint:funlen
 func TestParseStrategyCallCoversOrderLifecycleBusinessBoundaries(t *testing.T) {
 	state := newStrategyCallBoundaryState()
 

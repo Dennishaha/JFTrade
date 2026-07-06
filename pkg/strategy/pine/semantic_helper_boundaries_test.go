@@ -124,6 +124,7 @@ func TestSemanticHelpersReportMalformedScriptBoundaries(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestSemanticHelpersCoverObjectAndVisualFallbacks(t *testing.T) {
 	if isCollectionGenericOpen("request<security>", len("request")) {
 		t.Fatal("non-collection generic opener accepted")

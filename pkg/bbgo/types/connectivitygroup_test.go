@@ -34,6 +34,7 @@ func TestConnectivityGroupAuthC(t *testing.T) {
 	assert.True(t, waitSigChan(allAuthedC, timeout))
 }
 
+//nolint:funlen
 func TestConnectivityGroup(t *testing.T) {
 	ctx := context.Background()
 	_ = ctx

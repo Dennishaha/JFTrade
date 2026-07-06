@@ -7,6 +7,7 @@ import (
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
+//nolint:funlen
 func TestAnalyzeScriptIncludesV20CollectionAndDeclarationSemantics(t *testing.T) {
 	analysis := AnalyzeScript(`//@version=6
 strategy("v2 Foundation", overlay=true)

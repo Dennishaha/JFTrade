@@ -270,6 +270,7 @@ func (s *quoteOpenDServer) acceptLoop() {
 	}
 }
 
+//nolint:funlen
 func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 	defer func() { jftradePanicOnError(conn.Close()) }()
 	for {
@@ -449,6 +450,7 @@ func (s *quoteOpenDServer) writeNotifyAfterInit(conn net.Conn) error {
 	return err
 }
 
+//nolint:funlen
 func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 	request := &historypb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {

@@ -51,6 +51,7 @@ var readableCollectionOperations = map[string]bool{
 	"keys": true, "values": true,
 }
 
+//nolint:funlen
 func (s *parseState) parseCollectionStatement(line parsedLine) (strategyir.Statement, bool, error) {
 	if match := typedAssignmentPattern.FindStringSubmatch(line.trimmed); match != nil {
 		namespace, annotationTypeArgs := collectionTypeAnnotationInfo(match[2])
@@ -153,6 +154,7 @@ func (s *parseState) normalizeCollectionArguments(lineNumber int, arguments []st
 	return normalized, nil
 }
 
+//nolint:funlen
 func (s *parseState) lowerCollectionHistoryReadCalls(expression string) (string, error) {
 	result := expression
 	for {
@@ -510,6 +512,7 @@ func (s *parseState) lowerCollectionReadCalls(expression string) (string, error)
 	}
 }
 
+//nolint:funlen
 func nextCollectionReadCall(expression string, namespaces map[string]string) (int, string, []string, int, bool) {
 	bestStart := -1
 	bestCall := ""

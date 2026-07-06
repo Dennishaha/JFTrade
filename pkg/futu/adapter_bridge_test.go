@@ -15,6 +15,7 @@ import (
 	trdgetmarginratiopb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmarginratio"
 )
 
+//nolint:funlen
 func TestBrokerAdapterDiscoverAccountsAndTradingBridge(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{
@@ -182,6 +183,7 @@ func TestBrokerAdapterQueryMarketRulesFallsBackToSecuritySnapshotLotSize(t *test
 	}
 }
 
+//nolint:funlen
 func TestBrokerAdapterMarketDataReaderTradingSnapshots(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{testSimulateHKCashAccount()})
@@ -454,6 +456,7 @@ func TestBrokerAdapterMarketDataReaderTradingSnapshots(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestBrokerAdapterMarketDataReaderAccountAnalytics(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{testRealHKMarginAccount()})
@@ -595,6 +598,7 @@ func TestBrokerAdapterMarketDataReaderAccountAnalytics(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestBrokerAdapterQuoteKLinesSubscriptionsAndValidation(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	defer server.stop()

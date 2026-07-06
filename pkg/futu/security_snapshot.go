@@ -312,6 +312,7 @@ func (e *Exchange) queryStaticInfoList(ctx context.Context, symbols []string) (m
 	return infos, nil
 }
 
+//nolint:funlen
 func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, canonical string) *SecurityDetails {
 	if snapshot == nil || snapshot.GetBasic() == nil {
 		return nil

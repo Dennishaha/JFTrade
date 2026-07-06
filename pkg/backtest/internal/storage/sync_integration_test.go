@@ -77,6 +77,7 @@ func TestSyncKLinesImmediateCancellation(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 	prevPause := syncBatchPause
 	prevBatchSize := syncBatchSize
@@ -168,6 +169,7 @@ func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 	prevPause := syncBatchPause
 	syncBatchPause = 0

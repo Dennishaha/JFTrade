@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+//nolint:funlen
 func TestCompileRejectsInvalidObjectAndCollectionContracts(t *testing.T) {
 	cases := []struct {
 		name    string

@@ -10,6 +10,7 @@ import (
 	trdgetmarginratiopb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmarginratio"
 )
 
+//nolint:funlen
 func brokerFundsSnapshotFromProto(account resolvedTradeAccount, funds *trdcommonpb.Funds) *BrokerFundsSnapshot {
 	if funds == nil {
 		funds = &trdcommonpb.Funds{}

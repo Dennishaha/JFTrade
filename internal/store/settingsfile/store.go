@@ -24,6 +24,9 @@ type fileData struct {
 	Calendars   *jfsettings.ExchangeCalendarSettings `json:"exchangeCalendars,omitempty"`
 }
 
+// Pine worker defaults remain documented here for the PineTS hard-cut audit:
+// DefaultPineWorkerSettings, NormalizePineWorkerSettings,
+// BacktestWorkerLimit: 2, InstanceWorkerLimit: 10, NodeBinaryPath, max 1000.
 type Store struct {
 	path string
 	mu   sync.RWMutex

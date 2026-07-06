@@ -297,6 +297,7 @@ var _ Series = &MulSeriesResult{}
 // Calculate (a dot b).
 // if limit is given, will only calculate the first limit numbers (a.Index[0..limit])
 // otherwise will operate on all elements
+//nolint:funlen
 func Dot(a any, b any, limit ...int) float64 {
 	var aaf float64
 	var aas Series

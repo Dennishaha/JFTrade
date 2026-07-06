@@ -157,6 +157,7 @@ func TestSavePineWorkerSettingsPersistsNormalizedWorkerLimits(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestSaveExchangeCalendarSettingsNormalizesPoliciesAndOverrides(t *testing.T) {
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
 	store, err := New(settingsPath)
@@ -292,6 +293,7 @@ func TestExchangeCalendarErrorNotificationSettingPreservesExplicitFalse(t *testi
 	}
 }
 
+//nolint:funlen
 func TestManagedAccountLifecyclePreservesScopeAndHandlesMissingIDs(t *testing.T) {
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
 	store, err := New(settingsPath)

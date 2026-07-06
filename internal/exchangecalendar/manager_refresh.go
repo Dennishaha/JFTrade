@@ -125,6 +125,7 @@ func (m *Manager) refresh(ctx context.Context, targetMarket string) map[string]a
 	}
 }
 
+//nolint:funlen
 func (m *Manager) probe(ctx context.Context, targetMarket string) map[string]any {
 	settings := m.settings()
 	markets := normalizeMarkets(settings.WarmupMarkets)

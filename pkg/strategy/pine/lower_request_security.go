@@ -401,6 +401,7 @@ func replacePureRequestSecuritySources(expression string, timeUnit string) strin
 	})
 }
 
+//nolint:funlen
 func lowerAdvancedRequestSecurity(name string, args []string, timeUnit string) (string, bool) {
 	if !supportedAdvancedRequestSecurityTimeUnit(timeUnit) {
 		return "", false

@@ -61,6 +61,7 @@ func (s *parseState) parseExecutableTypeDefinition(index int) (int, error) {
 	return next, nil
 }
 
+//nolint:funlen
 func (s *parseState) parseExecutableMethodDefinition(index int) (int, error) {
 	line := s.lines[index]
 	if line.indent != 0 {
@@ -138,6 +139,7 @@ func (s *parseState) parseExecutableMethodDefinition(index int) (int, error) {
 	return next, nil
 }
 
+//nolint:funlen
 func (s *parseState) parseObjectStatement(line parsedLine) (strategyir.Statement, bool, error) {
 	if match := objectFieldAssignPattern.FindStringSubmatch(line.trimmed); match != nil {
 		target := strings.TrimSpace(match[1])

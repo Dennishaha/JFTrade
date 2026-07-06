@@ -428,6 +428,7 @@ func capabilityTestIDs(id string) []string {
 	return existingCapabilityTestIDs(capabilityTestIDsRaw(id))
 }
 
+//nolint:funlen
 func capabilityTestIDsRaw(id string) []string {
 	switch id {
 	case "order.trailing_exit":

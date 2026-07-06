@@ -115,6 +115,7 @@ func TestManagerFallsBackToBuiltinWhenOfficialRefreshFails(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestManagerStatusIncludesSnapshotSummariesAndSampleSchedules(t *testing.T) {
 	registry := NewSourceRegistry()
 	registry.Register(stubSource{

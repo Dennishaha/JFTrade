@@ -351,6 +351,7 @@ func TestExecutionSettingsRouteUsesInjectedService(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	store := &routeStore{
@@ -466,6 +467,7 @@ func TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestExecutionExchangeCalendarAndBrokerRoutesCoverReadAndValidation(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 

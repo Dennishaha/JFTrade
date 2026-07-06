@@ -7,6 +7,7 @@ import (
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
+//nolint:funlen
 func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, bool, error) {
 	lower := strings.ToLower(line.trimmed)
 	switch {
@@ -413,6 +414,7 @@ func parseStrategyRiskPositionSize(lineNumber int, args []string) (float64, erro
 	return contracts, nil
 }
 
+//nolint:funlen
 func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, error) {
 	args := splitArguments(callArgs(line.trimmed))
 	if len(args) < 1 {

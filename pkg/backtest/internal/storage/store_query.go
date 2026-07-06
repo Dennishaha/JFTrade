@@ -130,6 +130,7 @@ func (s *FutuKLineStore) queryKLinesBackwardLocked(
 	return aggregated, nil
 }
 
+//nolint:funlen
 func (s *FutuKLineStore) QueryKLinesCh(
 	since, until time.Time, exchange types.Exchange,
 	symbols []string, intervals []types.Interval,

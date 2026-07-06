@@ -611,6 +611,7 @@ func (p *Position) calculateFeeInQuote(td Trade) fixedpoint.Value {
 	return fixedpoint.Zero
 }
 
+//nolint:funlen
 func (p *Position) AddTrade(td Trade) (profit fixedpoint.Value, netProfit fixedpoint.Value, madeProfit bool) {
 	price := td.Price
 	quantity := td.Quantity

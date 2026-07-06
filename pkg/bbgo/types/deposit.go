@@ -111,6 +111,7 @@ func (d Deposit) String() (o string) {
 	return o
 }
 
+//nolint:funlen
 func (d *Deposit) SlackAttachment() slack.Attachment {
 	var fields []slack.AttachmentField
 

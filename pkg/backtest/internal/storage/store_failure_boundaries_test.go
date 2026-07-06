@@ -64,6 +64,7 @@ func TestStoreAPIsPropagateClosedDatabaseFailures(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestClosedDatabaseFailuresPropagateThroughStorageHelpers(t *testing.T) {
 	store, err := NewFutuKLineStore(filepath.Join(t.TempDir(), "closed-helpers.db"))
 	if err != nil {
