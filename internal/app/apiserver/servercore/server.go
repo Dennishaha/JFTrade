@@ -177,446 +177,633 @@ func (s *Server) ApplySecuritySettings(settings SecuritySettings) {
 	}
 }
 
+type serverBootstrap struct {
+	settingsPath         string
+	backtestDBPath       string
+	dataMigration        *datamigration.Manager
+	unavailableDatabases map[string]error
+}
+
+type serverPersistentState struct {
+	strategyStore       *strategyCatalogStore
+	runtimeStore        *strategyRuntimeStore
+	designStore         *strategyDesignStore
+	backtestRunStore    *backtestRunStore
+	executionOrderStore *executionOrderStore
+	auth                *adminAuth
+}
+
 func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer) *Server {
-	settingsPath := store.Path()
-	backtestDBPath := deriveBacktestDBPath()
-	dataMigration := datamigration.NewManager(settingsPath, backtestDBPath)
-	unavailableDatabases := make(map[string]error)
-	recordUnavailable := func(id string, err error) {
-		if err == nil {
-			return
-		}
-		unavailableDatabases[id] = err
-		dataMigration.SetUnavailable(id, err)
-		log.Printf("JFTrade %s database unavailable: %v", id, err)
+	bootstrap := newServerBootstrap(store)
+	state := bootstrap.loadPersistentState(store)
+	server := newBootstrapServer(store, frontend, bootstrap, state)
+	server.initializeBootstrapState(store, bootstrap, state)
+	server.router = server.buildRouter()
+	return server
+}
+
+func newServerBootstrap(store SidecarSettingsStore) serverBootstrap {
+	bootstrap := serverBootstrap{
+		settingsPath:         store.Path(),
+		backtestDBPath:       deriveBacktestDBPath(),
+		unavailableDatabases: make(map[string]error),
 	}
-	if err := ensureRuntimeLayout(settingsPath, backtestDBPath); err != nil {
+	bootstrap.dataMigration = datamigration.NewManager(bootstrap.settingsPath, bootstrap.backtestDBPath)
+	if err := ensureRuntimeLayout(bootstrap.settingsPath, bootstrap.backtestDBPath); err != nil {
 		log.Printf("JFTrade runtime layout unavailable: %v", err)
 	}
-	if backtestStore, err := bt.NewFutuKLineStore(backtestDBPath); err != nil {
-		recordUnavailable(datamigration.DatabaseBacktest, err)
-	} else if err := backtestStore.Close(); err != nil {
+	bootstrap.probeBacktestDatabase()
+	return bootstrap
+}
+
+func (b *serverBootstrap) recordUnavailable(id string, err error) {
+	if err == nil {
+		return
+	}
+	b.unavailableDatabases[id] = err
+	b.dataMigration.SetUnavailable(id, err)
+	log.Printf("JFTrade %s database unavailable: %v", id, err)
+}
+
+func (b *serverBootstrap) probeBacktestDatabase() {
+	backtestStore, err := bt.NewFutuKLineStore(b.backtestDBPath)
+	if err != nil {
+		b.recordUnavailable(datamigration.DatabaseBacktest, err)
+		return
+	}
+	if err := backtestStore.Close(); err != nil {
 		log.Printf("JFTrade backtest database close failed: %v", err)
 	}
-	strategyStore, err := NewStrategyCatalogStore(deriveStrategyCatalogPath(settingsPath), deriveStrategyPluginTargetDir(settingsPath))
+}
+
+func (b serverBootstrap) loadPersistentState(store SidecarSettingsStore) serverPersistentState {
+	state := serverPersistentState{
+		strategyStore:       b.loadStrategyStore(),
+		designStore:         b.loadDesignStore(),
+		backtestRunStore:    b.loadBacktestRunStore(),
+		executionOrderStore: b.loadExecutionOrderStore(store.ExecutionSettings()),
+		auth:                b.loadAdminAuth(),
+	}
+	if state.strategyStore != nil {
+		state.runtimeStore = state.strategyStore.runtimeStore
+	} else {
+		state.strategyStore = b.newFallbackStrategyStore()
+	}
+	return state
+}
+
+func (b *serverBootstrap) loadStrategyStore() *strategyCatalogStore {
+	store, err := NewStrategyCatalogStore(deriveStrategyCatalogPath(b.settingsPath), deriveStrategyPluginTargetDir(b.settingsPath))
 	if err != nil {
-		recordUnavailable(datamigration.DatabaseStrategy, err)
+		b.recordUnavailable(datamigration.DatabaseStrategy, err)
 	}
-	var runtimeStore *strategyRuntimeStore
-	if strategyStore != nil {
-		runtimeStore = strategyStore.runtimeStore
+	return store
+}
+
+func (b serverBootstrap) newFallbackStrategyStore() *strategyCatalogStore {
+	path := deriveStrategyCatalogPath(b.settingsPath)
+	return &strategyCatalogStore{
+		path:      path,
+		dbPath:    deriveStrategyCatalogDBPath(path),
+		targetDir: deriveStrategyPluginTargetDir(b.settingsPath),
+		data:      strategyCatalogFile{TargetDir: deriveStrategyPluginTargetDir(b.settingsPath)},
 	}
-	if strategyStore == nil {
-		strategyStore = &strategyCatalogStore{path: deriveStrategyCatalogPath(settingsPath), dbPath: deriveStrategyCatalogDBPath(deriveStrategyCatalogPath(settingsPath)), targetDir: deriveStrategyPluginTargetDir(settingsPath), data: strategyCatalogFile{TargetDir: deriveStrategyPluginTargetDir(settingsPath)}}
-	}
-	designStore, err := NewStrategyDesignStore(deriveStrategyDesignPath(settingsPath))
+}
+
+func (b *serverBootstrap) loadDesignStore() *strategyDesignStore {
+	path := deriveStrategyDesignPath(b.settingsPath)
+	store, err := NewStrategyDesignStore(path)
 	if err != nil {
-		recordUnavailable(datamigration.DatabaseStrategy, err)
-		designStore = &strategyDesignStore{path: deriveStrategyDesignPath(settingsPath), dbPath: deriveStrategyDesignDBPath(deriveStrategyDesignPath(settingsPath))}
+		b.recordUnavailable(datamigration.DatabaseStrategy, err)
+		return &strategyDesignStore{path: path, dbPath: deriveStrategyDesignDBPath(path)}
 	}
-	backtestRunStore, err := newBacktestRunStoreWithDB(deriveBacktestRunDBPath(settingsPath))
+	return store
+}
+
+func (b *serverBootstrap) loadBacktestRunStore() *backtestRunStore {
+	store, err := newBacktestRunStoreWithDB(deriveBacktestRunDBPath(b.settingsPath))
 	if err != nil {
-		recordUnavailable(datamigration.DatabaseBacktestRuns, err)
-		backtestRunStore = newBacktestRunStore()
+		b.recordUnavailable(datamigration.DatabaseBacktestRuns, err)
+		return newBacktestRunStore()
 	}
-	executionOrderStore, err := newExecutionOrderStoreWithDB(deriveExecutionOrderDBPath(settingsPath))
+	return store
+}
+
+func (b *serverBootstrap) loadExecutionOrderStore(settings ExecutionSettings) *executionOrderStore {
+	store, err := newExecutionOrderStoreWithDB(deriveExecutionOrderDBPath(b.settingsPath))
 	if err != nil {
-		recordUnavailable(datamigration.DatabaseExecution, err)
-		executionOrderStore = newExecutionOrderStore()
+		b.recordUnavailable(datamigration.DatabaseExecution, err)
+		store = newExecutionOrderStore()
 	}
-	executionOrderStore.configureSeenFillRetention(store.ExecutionSettings().SeenFillRetentionDays)
-	auth, authErr := newAdminAuth(settingsPath)
-	if authErr != nil {
-		log.Printf("JFTrade administrator authentication unavailable: %v", authErr)
-		auth = &adminAuth{
-			enabled:        true,
-			unavailable:    true,
-			allowedOrigins: map[string]struct{}{},
-			sessions:       map[string]adminSession{},
-			attempts:       map[string]loginAttempt{},
-			now:            time.Now,
-		}
+	store.configureSeenFillRetention(settings.SeenFillRetentionDays)
+	return store
+}
+
+func (b serverBootstrap) loadAdminAuth() *adminAuth {
+	auth, err := newAdminAuth(b.settingsPath)
+	if err == nil {
+		return auth
 	}
+	log.Printf("JFTrade administrator authentication unavailable: %v", err)
+	return &adminAuth{
+		enabled:        true,
+		unavailable:    true,
+		allowedOrigins: map[string]struct{}{},
+		sessions:       map[string]adminSession{},
+		attempts:       map[string]loginAttempt{},
+		now:            time.Now,
+	}
+}
+
+func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bootstrap serverBootstrap, state serverPersistentState) *Server {
 	minimumImportance := observability.NormalizeMinimumImportance(os.Getenv(observabilityMinImportanceEnv))
 	observability.SetMinimumImportance(minimumImportance)
 	server := &Server{
 		store:                store,
-		strategyStore:        strategyStore,
-		strategyRuntimeStore: runtimeStore,
-		designStore:          designStore,
-		backtestRuns:         backtestRunStore,
+		strategyStore:        state.strategyStore,
+		strategyRuntimeStore: state.runtimeStore,
+		designStore:          state.designStore,
+		backtestRuns:         state.backtestRunStore,
 		backtestSyncTasks:    newBacktestSyncTaskStore(),
-		executionOrders:      executionOrderStore,
+		executionOrders:      state.executionOrderStore,
 		liveNotifications:    live.NewReplayPublisher(),
 		brokers:              broker.NewRegistry(),
 		apiPort:              portFromBind(defaultDevelopmentAPIBind, 3000),
 		frontend:             frontend,
-		auth:                 auth,
-		unavailableDatabases: unavailableDatabases,
+		auth:                 state.auth,
+		dataMigration:        bootstrap.dataMigration,
+		unavailableDatabases: bootstrap.unavailableDatabases,
 		observability: observability.NewRecorderWithConfig(observability.RecorderConfig{
 			EventLimit:        20,
 			SlowThreshold:     750 * time.Millisecond,
 			MinimumImportance: minimumImportance,
 		}),
 	}
-	server.dataMigration = dataMigration
 	server.liveWebSocket = apilive.NewHandler(liveWebSocketBackend{server: server}, apilive.Options{
 		DataInterval:            liveTickDispatchInterval,
 		SecurityDetailsInterval: marketSecurityDetailsStreamInterval,
 		DepthRefreshInterval:    marketDepthStreamRefreshInterval,
 	})
-	if server.auth != nil {
-		server.auth.configureOrigins(
-			apiBaseURLForBind(defaultDevelopmentAPIBind),
-			apiBaseURLForBind(defaultReleaseAPIBind),
-			"http://"+defaultReleaseGUIBind,
-			"http://127.0.0.1:5173",
-			"http://127.0.0.1:5174",
-			"http://localhost:5173",
-			"http://localhost:5174",
-		)
-		log.Printf("JFTrade administrator key file: %s", server.auth.keyPath)
-	}
-	server.applySecuritySettings(store.SecuritySettings())
-	server.exchangeCalendars = exchangecalendar.NewManager(
+	return server
+}
+
+func (s *Server) initializeBootstrapState(store SidecarSettingsStore, bootstrap serverBootstrap, state serverPersistentState) {
+	s.initializeSecurityAndCalendars(store, bootstrap.settingsPath)
+	s.initializeADKRuntime(bootstrap)
+	s.initializeAssistantService()
+	s.strategyRuntimeManager = newStrategyRuntimeManager(s)
+	s.initializeMarketdataRuntime()
+	s.reconcileStrategyRuntimeStates()
+	s.startLiveNotifications()
+	s.initializeRealTradeControl(bootstrap)
+	s.initializeSystemService(bootstrap)
+	s.initializeBacktestService(state)
+	s.initializeStrategyService(state)
+	s.initializeMarketdataService()
+	s.startAssistantWorkflowScheduler()
+	s.initializeRuntimeServices(store)
+}
+
+func (s *Server) initializeSecurityAndCalendars(store SidecarSettingsStore, settingsPath string) {
+	s.configureAuthOrigins()
+	s.applySecuritySettings(store.SecuritySettings())
+	s.exchangeCalendars = exchangecalendar.NewManager(
 		exchangecalendarstore.New(apiruntime.DeriveExchangeCalendarDir(settingsPath)),
 		func() ExchangeCalendarSettings {
 			return persistenceOnlySettingsStore(store).ExchangeCalendarSettings()
 		},
 		exchangecalendar.WithAlertSink(func(alert exchangecalendar.SourceAlert) {
-			server.recordExchangeCalendarAlert(alert)
+			s.recordExchangeCalendarAlert(alert)
 		}),
 	)
-	server.previousCalendarResolver = marketpkg.SwapCalendarResolver(server.exchangeCalendars)
-	server.exchangeCalendars.Start()
-	if adkStore, err := jfadk.NewStore(
-		apiruntime.DeriveADKDBPath(settingsPath),
-		apiruntime.DeriveADKSecretsPath(settingsPath),
-		apiruntime.DeriveADKSkillsDir(settingsPath),
-	); err != nil {
-		recordUnavailable(datamigration.DatabaseADK, err)
-	} else if err := adkStore.Close(); err != nil {
+	s.previousCalendarResolver = marketpkg.SwapCalendarResolver(s.exchangeCalendars)
+	s.exchangeCalendars.Start()
+}
+
+func (s *Server) configureAuthOrigins() {
+	if s == nil || s.auth == nil {
+		return
+	}
+	s.auth.configureOrigins(
+		apiBaseURLForBind(defaultDevelopmentAPIBind),
+		apiBaseURLForBind(defaultReleaseAPIBind),
+		"http://"+defaultReleaseGUIBind,
+		"http://127.0.0.1:5173",
+		"http://127.0.0.1:5174",
+		"http://localhost:5173",
+		"http://localhost:5174",
+	)
+	log.Printf("JFTrade administrator key file: %s", s.auth.keyPath)
+}
+
+func (s *Server) initializeADKRuntime(bootstrap serverBootstrap) {
+	bootstrap.probeADKDatabase()
+	bootstrap.probeADKSessionDatabase()
+	if bootstrap.unavailableDatabases[datamigration.DatabaseADK] == nil &&
+		bootstrap.unavailableDatabases[datamigration.DatabaseADKSession] == nil {
+		s.adkRuntime = newADKRuntime(s, bootstrap.settingsPath)
+	}
+	s.refreshUnavailableDatabaseStatuses()
+}
+
+func (b *serverBootstrap) probeADKDatabase() {
+	adkStore, err := jfadk.NewStore(
+		apiruntime.DeriveADKDBPath(b.settingsPath),
+		apiruntime.DeriveADKSecretsPath(b.settingsPath),
+		apiruntime.DeriveADKSkillsDir(b.settingsPath),
+	)
+	if err != nil {
+		b.recordUnavailable(datamigration.DatabaseADK, err)
+		return
+	}
+	if err := adkStore.Close(); err != nil {
 		log.Printf("JFTrade ADK database close failed: %v", err)
 	}
-	if sessionService, err := jfadk.NewSQLiteSessionService(apiruntime.DeriveADKSessionDBPath(settingsPath)); err != nil {
-		recordUnavailable(datamigration.DatabaseADKSession, err)
-	} else if err := jfadk.CloseSessionService(sessionService); err != nil {
+}
+
+func (b *serverBootstrap) probeADKSessionDatabase() {
+	sessionService, err := jfadk.NewSQLiteSessionService(apiruntime.DeriveADKSessionDBPath(b.settingsPath))
+	if err != nil {
+		b.recordUnavailable(datamigration.DatabaseADKSession, err)
+		return
+	}
+	if err := jfadk.CloseSessionService(sessionService); err != nil {
 		log.Printf("JFTrade ADK session database close failed: %v", err)
 	}
-	if unavailableDatabases[datamigration.DatabaseADK] == nil &&
-		unavailableDatabases[datamigration.DatabaseADKSession] == nil {
-		server.adkRuntime = newADKRuntime(server, settingsPath)
+}
+
+func (s *Server) refreshUnavailableDatabaseStatuses() {
+	statuses, err := s.dataMigration.Statuses(context.Background())
+	if err != nil {
+		log.Printf("JFTrade database status inspection failed: %v", err)
+		return
 	}
-	if statuses, statusErr := server.dataMigration.Statuses(context.Background()); statusErr != nil {
-		log.Printf("JFTrade database status inspection failed: %v", statusErr)
-	} else {
-		for _, status := range statuses {
-			if status.Status == "ready" {
-				continue
-			}
-			reason := status.Error
-			if strings.TrimSpace(reason) == "" {
-				reason = "database was not initialized"
-			}
-			err := fmt.Errorf("%s", reason)
-			server.unavailableDatabases[status.ID] = err
+	for _, status := range statuses {
+		if status.Status == "ready" {
+			continue
 		}
+		reason := status.Error
+		if strings.TrimSpace(reason) == "" {
+			reason = "database was not initialized"
+		}
+		s.unavailableDatabases[status.ID] = fmt.Errorf("%s", reason)
 	}
-	server.assistantSvc = asst.NewService(
-		server.adkRuntime,
-		asst.WithRuntimeSettings(func() any {
-			return server.store.ADKSettings()
-		}),
-		asst.WithStreamIdleTimeout(func() int {
-			return server.store.ADKSettings().StreamIdleTimeoutMs
-		}),
-		asst.WithOptimizationRuns(assistantOptimizationRuns{server: server}),
+}
+
+func (s *Server) initializeAssistantService() {
+	s.assistantSvc = asst.NewService(
+		s.adkRuntime,
+		asst.WithRuntimeSettings(func() any { return s.store.ADKSettings() }),
+		asst.WithStreamIdleTimeout(func() int { return s.store.ADKSettings().StreamIdleTimeoutMs }),
+		asst.WithOptimizationRuns(assistantOptimizationRuns{server: s}),
 		asst.WithWorkflowMarketSnapshot(func(ctx context.Context, instrumentID string) (map[string]any, error) {
-			return server.workflowMarketSnapshot(ctx, instrumentID)
+			return s.workflowMarketSnapshot(ctx, instrumentID)
 		}),
 	)
-	server.strategyRuntimeManager = newStrategyRuntimeManager(server)
-	server.marketdataRuntime = futuintegration.NewMarketDataRuntime(futuintegration.MarketDataRuntimeOptions{
+}
+
+func (s *Server) initializeMarketdataRuntime() {
+	s.marketdataRuntime = futuintegration.NewMarketDataRuntime(futuintegration.MarketDataRuntimeOptions{
 		ConfigSource: func() futuintegration.MarketDataConfig {
-			integration := server.store.SavedIntegration()
+			integration := s.store.SavedIntegration()
 			if integration == nil {
 				return futuintegration.MarketDataConfig{}
 			}
 			return futuintegration.MarketDataConfig{
-				Enabled: integration.Enabled, Host: integration.Config.Host,
-				APIPort: integration.Config.APIPort, WebSocketKey: integration.Config.WebSocketKey,
+				Enabled:      integration.Enabled,
+				Host:         integration.Config.Host,
+				APIPort:      integration.Config.APIPort,
+				WebSocketKey: integration.Config.WebSocketKey,
 			}
 		},
 		OnExchange: func(exchange *futu.Exchange) {
-			exchange.OnSystemNotify(server.handleFutuSystemNotify)
-			if server.brokers != nil {
-				server.brokers.Replace(futu.NewBrokerAdapter(exchange))
+			exchange.OnSystemNotify(s.handleFutuSystemNotify)
+			if s.brokers != nil {
+				s.brokers.Replace(futu.NewBrokerAdapter(exchange))
 			}
 		},
 	})
-	if _, unavailable := unavailableDatabases[datamigration.DatabaseStrategy]; unavailable {
-		// The settings and migration endpoints remain available while strategy data is incompatible.
-	} else if reconciled, err := server.strategyStore.reconcileRuntimeStatesOnStartup(); err != nil {
+}
+
+func (s *Server) reconcileStrategyRuntimeStates() {
+	if _, unavailable := s.unavailableDatabases[datamigration.DatabaseStrategy]; unavailable {
+		return
+	}
+	reconciled, err := s.strategyStore.reconcileRuntimeStatesOnStartup()
+	if err != nil {
 		log.Printf("JFTrade strategy runtime state reconciliation failed: %v", err)
-	} else if reconciled > 0 {
+		return
+	}
+	if reconciled > 0 {
 		log.Printf("JFTrade reconciled %d stale strategy runtime state(s) to STOPPED during startup", reconciled)
 	}
-	if err := server.liveNotifications.Start(bbgoNotificationSource{}); err != nil {
+}
+
+func (s *Server) startLiveNotifications() {
+	if err := s.liveNotifications.Start(bbgoNotificationSource{}); err != nil {
 		log.Printf("JFTrade BBGO notification source unavailable: %v", err)
 	}
-	realTradeControlPlane, controlErr := trdsrv.NewRealTradeControlPlane(deriveRealTradeControlPath(settingsPath))
-	if controlErr != nil {
-		recordUnavailable("real-trade-control", controlErr)
-	}
-	server.realTradeControlPlane = realTradeControlPlane
-	server.preTradeRiskGateway = realTradeControlPlane
+}
 
-	// Wire system service — delegates to Server methods via closures.
-	server.sysSvc = system.NewService(
-		system.WithAPIPortFunc(func() int { return server.apiPort }),
+func (s *Server) initializeRealTradeControl(bootstrap serverBootstrap) {
+	controlPlane, err := trdsrv.NewRealTradeControlPlane(deriveRealTradeControlPath(bootstrap.settingsPath))
+	if err != nil {
+		bootstrap.recordUnavailable("real-trade-control", err)
+	}
+	s.realTradeControlPlane = controlPlane
+	s.preTradeRiskGateway = controlPlane
+}
+
+func (s *Server) initializeSystemService(bootstrap serverBootstrap) {
+	opts := append(s.systemCoreOptions(bootstrap.settingsPath, bootstrap.backtestDBPath), s.systemCalendarOptions()...)
+	opts = append(opts, s.systemRuntimeOptions()...)
+	opts = append(opts, s.systemRiskOptions()...)
+	s.sysSvc = system.NewService(opts...)
+}
+
+func (s *Server) systemCoreOptions(settingsPath string, backtestDBPath string) []system.Option {
+	return []system.Option{
+		system.WithAPIPortFunc(func() int { return s.apiPort }),
 		system.WithSettingsPath(settingsPath),
-		system.WithDefaultTradingEnvironmentFunc(func() string { return server.defaultTradingEnvironment() }),
-		system.WithBrokerDescriptor(func() map[string]any { return server.descriptor() }),
-		system.WithStrategyRuntimeSummary(func() map[string]any { return server.strategyRuntimeSummary() }),
-		system.WithLiveStats(func() map[string]any { return server.liveStatsSummary() }),
-		system.WithMarketdataRuntimeSummary(func() map[string]any { return server.marketdataRuntimeSummary() }),
+		system.WithDefaultTradingEnvironmentFunc(func() string { return s.defaultTradingEnvironment() }),
+		system.WithBrokerDescriptor(func() map[string]any { return s.descriptor() }),
+		system.WithStrategyRuntimeSummary(func() map[string]any { return s.strategyRuntimeSummary() }),
+		system.WithLiveStats(func() map[string]any { return s.liveStatsSummary() }),
+		system.WithMarketdataRuntimeSummary(func() map[string]any { return s.marketdataRuntimeSummary() }),
 		system.WithRuntimeResources(func() map[string]any {
 			return apiruntime.RuntimeResourceSummary(settingsPath, backtestDBPath)
 		}),
 		system.WithBrokerOrderSnapshot(func() map[string]any {
-			if server.tradingSvc == nil {
+			if s.tradingSvc == nil {
 				return map[string]any{}
 			}
-			return server.tradingSvc.OrderUpdatesSnapshot()
+			return s.tradingSvc.OrderUpdatesSnapshot()
 		}),
+	}
+}
+
+func (s *Server) systemCalendarOptions() []system.Option {
+	return []system.Option{
 		system.WithExchangeCalendarStatus(func() map[string]any {
-			if server.exchangeCalendars == nil {
+			if s.exchangeCalendars == nil {
 				return map[string]any{}
 			}
-			return server.exchangeCalendars.Status()
+			return s.exchangeCalendars.Status()
 		}),
 		system.WithExchangeCalendarSources(func() []map[string]any {
-			if server.exchangeCalendars == nil {
+			if s.exchangeCalendars == nil {
 				return nil
 			}
-			return server.exchangeCalendars.Sources()
+			return s.exchangeCalendars.Sources()
 		}),
 		system.WithRefreshExchangeCalendars(func(ctx context.Context, market string) map[string]any {
-			if server.exchangeCalendars == nil {
-				return map[string]any{"accepted": false}
-			}
-			operationCtx, cancel := exchangeCalendarOperationContext(ctx)
-			defer cancel()
-			if strings.TrimSpace(market) == "" {
-				return server.exchangeCalendars.RefreshAll(operationCtx)
-			}
-			return server.exchangeCalendars.RefreshMarket(operationCtx, market)
+			return s.handleExchangeCalendarOperation(ctx, market, true)
 		}),
 		system.WithProbeExchangeCalendars(func(ctx context.Context, market string) map[string]any {
-			if server.exchangeCalendars == nil {
-				return map[string]any{"accepted": false}
-			}
-			operationCtx, cancel := exchangeCalendarOperationContext(ctx)
-			defer cancel()
-			if strings.TrimSpace(market) == "" {
-				return server.exchangeCalendars.ProbeAll(operationCtx)
-			}
-			return server.exchangeCalendars.ProbeMarket(operationCtx, market)
+			return s.handleExchangeCalendarOperation(ctx, market, false)
 		}),
-		system.WithFutuOpenDHealth(func(ctx context.Context) map[string]any { return server.futuOpenDHealth(ctx) }),
-		system.WithFutuOpenDInstallGuide(func() map[string]any { return server.futuOpenDInstallGuide() }),
-		system.WithResetFutuRuntime(func() { server.resetFutuRuntime() }),
-		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any { return server.runtimeDependencies(ctx) }),
-		system.WithRequestObservability(func() any { return server.observability.Snapshot() }),
+	}
+}
+
+func (s *Server) handleExchangeCalendarOperation(ctx context.Context, market string, refresh bool) map[string]any {
+	if s.exchangeCalendars == nil {
+		return map[string]any{"accepted": false}
+	}
+	operationCtx, cancel := exchangeCalendarOperationContext(ctx)
+	defer cancel()
+	if strings.TrimSpace(market) == "" {
+		if refresh {
+			return s.exchangeCalendars.RefreshAll(operationCtx)
+		}
+		return s.exchangeCalendars.ProbeAll(operationCtx)
+	}
+	if refresh {
+		return s.exchangeCalendars.RefreshMarket(operationCtx, market)
+	}
+	return s.exchangeCalendars.ProbeMarket(operationCtx, market)
+}
+
+func (s *Server) systemRuntimeOptions() []system.Option {
+	return []system.Option{
+		system.WithFutuOpenDHealth(func(ctx context.Context) map[string]any { return s.futuOpenDHealth(ctx) }),
+		system.WithFutuOpenDInstallGuide(func() map[string]any { return s.futuOpenDInstallGuide() }),
+		system.WithResetFutuRuntime(func() { s.resetFutuRuntime() }),
+		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any { return s.runtimeDependencies(ctx) }),
+		system.WithRequestObservability(func() any { return s.observability.Snapshot() }),
 		system.WithRealTradeRiskState(func() map[string]any {
-			if server.preTradeRiskGateway == nil {
+			if s.preTradeRiskGateway == nil {
 				return nil
 			}
-			return server.preTradeRiskGateway.Snapshot()
+			return s.preTradeRiskGateway.Snapshot()
 		}),
-		system.WithRealTradeRuntimeRiskControls(
-			func(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (map[string]any, error) {
-				return server.realTradeControlPlane.UpdateRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
-					TradingEnvironment: command.TradingEnvironment,
-					RealTradingEnabled: command.RealTradingEnabled,
-					MaxOrderQuantity:   command.MaxOrderQuantity,
-					MaxOrderNotional:   command.MaxOrderNotional,
-					OperatorID:         command.OperatorID,
-					Reason:             command.Reason,
-				})
-			},
-			func(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (map[string]any, error) {
-				return server.realTradeControlPlane.DisableRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
-					TradingEnvironment: command.TradingEnvironment,
-					OperatorID:         command.OperatorID,
-					Reason:             command.Reason,
-				})
-			},
-		),
-		system.WithRealTradeKillSwitchControls(
-			func(ctx context.Context, command system.RealTradeKillSwitchCommand) (map[string]any, error) {
-				return server.realTradeControlPlane.ActivateKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
-					TradingEnvironment: command.TradingEnvironment,
-					OperatorID:         command.OperatorID,
-					Reason:             command.Reason,
-				})
-			},
-			func(ctx context.Context, command system.RealTradeKillSwitchCommand) (map[string]any, error) {
-				return server.realTradeControlPlane.ReleaseKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
-					TradingEnvironment: command.TradingEnvironment,
-					OperatorID:         command.OperatorID,
-					Reason:             command.Reason,
-				})
-			},
-		),
-		system.WithRealTradeHardStopControls(
-			func(ctx context.Context, command system.RealTradeHardStopCommand) (map[string]any, error) {
-				return server.realTradeControlPlane.ActivateHardStop(ctx, trdsrv.RealTradeHardStopCommand{
-					BrokerID:           command.BrokerID,
-					TradingEnvironment: command.TradingEnvironment,
-					AccountID:          command.AccountID,
-					Market:             command.Market,
-					Symbol:             command.Symbol,
-					HardStopScope:      command.HardStopScope,
-					OperatorID:         command.OperatorID,
-					Reason:             command.Reason,
-				})
-			},
-			func(ctx context.Context, id string, command system.RealTradeHardStopCommand) (map[string]any, error) {
-				return server.realTradeControlPlane.ReleaseHardStop(ctx, id, trdsrv.RealTradeHardStopCommand{
-					OperatorID: command.OperatorID,
-					Reason:     command.Reason,
-				})
-			},
-		),
-	)
-
-	// Wire backtest service — RunStore / SyncTaskStore / StrategyProvider
-	// are implemented by the same backing stores already held by Server.
-	backtestPineWorkerRunner, instancePineWorkerRunner := server.startPineWorkerManagers()
-	server.backtestPineWorkerRunner = backtestPineWorkerRunner
-	server.instancePineWorkerRunner = instancePineWorkerRunner
-	if instancePineWorkerRunner != nil && server.strategyRuntimeManager != nil {
-		server.strategyRuntimeManager.pineWorkerRunner = instancePineWorkerRunner
 	}
-	backtestOptions := []btsrv.Option{
-		btsrv.WithRunStore(&backtestRunStoreAdapter{store: backtestRunStore}),
-		btsrv.WithSyncTaskStore(&backtestSyncTaskStoreAdapter{store: server.backtestSyncTasks}),
-		btsrv.WithStrategyProvider(&strategyProviderAdapter{store: designStore}),
+}
+
+func (s *Server) systemRiskOptions() []system.Option {
+	return []system.Option{
+		system.WithRealTradeRuntimeRiskControls(s.updateRuntimeRiskConfig, s.disableRuntimeRiskConfig),
+		system.WithRealTradeKillSwitchControls(s.activateKillSwitch, s.releaseKillSwitch),
+		system.WithRealTradeHardStopControls(s.activateHardStop, s.releaseHardStop),
+	}
+}
+
+func (s *Server) updateRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+	return s.realTradeControlPlane.UpdateRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
+		TradingEnvironment: command.TradingEnvironment,
+		RealTradingEnabled: command.RealTradingEnabled,
+		MaxOrderQuantity:   command.MaxOrderQuantity,
+		MaxOrderNotional:   command.MaxOrderNotional,
+		OperatorID:         command.OperatorID,
+		Reason:             command.Reason,
+	})
+}
+
+func (s *Server) disableRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+	return s.realTradeControlPlane.DisableRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
+		TradingEnvironment: command.TradingEnvironment,
+		OperatorID:         command.OperatorID,
+		Reason:             command.Reason,
+	})
+}
+
+func (s *Server) activateKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (map[string]any, error) {
+	return s.realTradeControlPlane.ActivateKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
+		TradingEnvironment: command.TradingEnvironment,
+		OperatorID:         command.OperatorID,
+		Reason:             command.Reason,
+	})
+}
+
+func (s *Server) releaseKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (map[string]any, error) {
+	return s.realTradeControlPlane.ReleaseKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
+		TradingEnvironment: command.TradingEnvironment,
+		OperatorID:         command.OperatorID,
+		Reason:             command.Reason,
+	})
+}
+
+func (s *Server) activateHardStop(ctx context.Context, command system.RealTradeHardStopCommand) (map[string]any, error) {
+	return s.realTradeControlPlane.ActivateHardStop(ctx, trdsrv.RealTradeHardStopCommand{
+		BrokerID:           command.BrokerID,
+		TradingEnvironment: command.TradingEnvironment,
+		AccountID:          command.AccountID,
+		Market:             command.Market,
+		Symbol:             command.Symbol,
+		HardStopScope:      command.HardStopScope,
+		OperatorID:         command.OperatorID,
+		Reason:             command.Reason,
+	})
+}
+
+func (s *Server) releaseHardStop(ctx context.Context, id string, command system.RealTradeHardStopCommand) (map[string]any, error) {
+	return s.realTradeControlPlane.ReleaseHardStop(ctx, id, trdsrv.RealTradeHardStopCommand{
+		OperatorID: command.OperatorID,
+		Reason:     command.Reason,
+	})
+}
+
+func (s *Server) initializeBacktestService(state serverPersistentState) {
+	backtestRunner, instanceRunner := s.startPineWorkerManagers()
+	s.backtestPineWorkerRunner = backtestRunner
+	s.instancePineWorkerRunner = instanceRunner
+	if instanceRunner != nil && s.strategyRuntimeManager != nil {
+		s.strategyRuntimeManager.pineWorkerRunner = instanceRunner
+	}
+	s.backtestSvc = btsrv.NewService(s.backtestServiceOptions(state, backtestRunner)...)
+}
+
+func (s *Server) backtestServiceOptions(state serverPersistentState, runner pineWorkerRunner) []btsrv.Option {
+	opts := []btsrv.Option{
+		btsrv.WithRunStore(&backtestRunStoreAdapter{store: state.backtestRunStore}),
+		btsrv.WithSyncTaskStore(&backtestSyncTaskStoreAdapter{store: s.backtestSyncTasks}),
+		btsrv.WithStrategyProvider(&strategyProviderAdapter{store: state.designStore}),
 		btsrv.WithDBPathFn(func() string { return deriveBacktestDBPath() }),
 		btsrv.WithNewKLineSyncerFn(futuintegration.NewKLineSyncer),
 	}
-	if backtestPineWorkerRunner != nil {
-		backtestOptions = append(backtestOptions, btsrv.WithPineWorkerRunner(backtestPineWorkerRunner))
+	if runner != nil {
+		opts = append(opts, btsrv.WithPineWorkerRunner(runner))
 	}
-	server.backtestSvc = btsrv.NewService(backtestOptions...)
+	return opts
+}
 
-	// Wire strategy service
-	server.strategySvc = stratsrv.NewService(
-		&strategyDesignStoreAdapter{store: designStore},
-		&strategyCatalogStoreAdapter{store: strategyStore, designStore: designStore, runtimeMgr: server.strategyRuntimeManager},
-		&strategyRuntimeManagerAdapter{mgr: server.strategyRuntimeManager},
-		stratsrv.WithPineAnalyzer(func(input stratsrv.PineAnalyzeInput) (stratsrv.PineAnalysisResult, error) {
-			analysis := strategypine.AnalyzeScript(input.Script, strategypine.AnalysisOptions{IncludeAST: input.IncludeAST})
-			response := map[string]any{
-				"ok":               analysis.OK,
-				"sourceFormat":     strategypinespec.SourceFormat,
-				"runtime":          strategypinespec.Runtime,
-				"normalizedScript": analysis.NormalizedScript,
-				"diagnostics":      analysis.Diagnostics,
-				"warnings":         analysis.Warnings,
-				"externalEngine":   pineengine.PayloadMap(pineengine.ShadowPayloadForScript(input.Script)),
-				"metadata":         strategyMetadataPayload(analysis.Program),
-				"hooks":            buildCompiledHookKinds(analysis.Program),
-				"requirements":     buildCompiledRequirementsPayload(analysis.Requirements),
-				"features":         analysis.Features,
-			}
-			if len(analysis.Visuals) > 0 {
-				response["visuals"] = analysis.Visuals
-			}
-			if len(analysis.Declarations) > 0 {
-				response["declarations"] = analysis.Declarations
-			}
-			if len(analysis.CollectionOperations) > 0 {
-				response["collectionOperations"] = analysis.CollectionOperations
-			}
-			if len(analysis.ObjectOperations) > 0 {
-				response["objectOperations"] = analysis.ObjectOperations
-			}
-			if input.IncludeAST {
-				response["ast"] = analysis.AST
-				response["semantic"] = analysis.Semantic
-			}
-			return response, nil
-		}),
+func (s *Server) initializeStrategyService(state serverPersistentState) {
+	s.strategySvc = stratsrv.NewService(
+		&strategyDesignStoreAdapter{store: state.designStore},
+		&strategyCatalogStoreAdapter{store: state.strategyStore, designStore: state.designStore, runtimeMgr: s.strategyRuntimeManager},
+		&strategyRuntimeManagerAdapter{mgr: s.strategyRuntimeManager},
+		stratsrv.WithPineAnalyzer(s.analyzePineScript),
 		stratsrv.WithLiveMarketStreamRefresher(func(ctx context.Context) {
-			server.ensureLiveMarketStream(ctx, server.activeLiveStreamInstrumentIDs(nil))
+			s.ensureLiveMarketStream(ctx, s.activeLiveStreamInstrumentIDs(nil))
 		}),
 	)
+}
 
-	// Wire marketdata service — delegates to Server methods via closure-based Provider.
-	server.marketdataSvc = mdsrv.NewService(newMarketdataProvider(server))
-	server.marketdataSvc.StartCollector(
-		server.marketdataRuntime,
-		server.marketdataRuntime,
-		server.handlePushMarketdataTick,
-		mdsrv.DemandSourceFunc(func() []string {
-			if server.liveWebSocket == nil {
-				return nil
-			}
-			return server.liveWebSocket.ActiveInstrumentIDs()
-		}),
-		mdsrv.DemandSourceFunc(func() []string {
-			if server.strategyRuntimeManager == nil {
-				return nil
-			}
-			return server.strategyRuntimeManager.activeInstrumentIDs()
-		}),
-		mdsrv.DemandSourceFunc(func() []string {
-			return server.workflowWatchedInstruments()
-		}),
-	)
-	if server.assistantSvc != nil {
-		server.assistantSvc.StartWorkflowScheduler(context.Background())
+func (s *Server) analyzePineScript(input stratsrv.PineAnalyzeInput) (stratsrv.PineAnalysisResult, error) {
+	analysis := strategypine.AnalyzeScript(input.Script, strategypine.AnalysisOptions{IncludeAST: input.IncludeAST})
+	response := map[string]any{
+		"ok":               analysis.OK,
+		"sourceFormat":     strategypinespec.SourceFormat,
+		"runtime":          strategypinespec.Runtime,
+		"normalizedScript": analysis.NormalizedScript,
+		"diagnostics":      analysis.Diagnostics,
+		"warnings":         analysis.Warnings,
+		"externalEngine":   pineengine.PayloadMap(pineengine.ShadowPayloadForScript(input.Script)),
+		"metadata":         strategyMetadataPayload(analysis.Program),
+		"hooks":            buildCompiledHookKinds(analysis.Program),
+		"requirements":     buildCompiledRequirementsPayload(analysis.Requirements),
+		"features":         analysis.Features,
 	}
+	if len(analysis.Visuals) > 0 {
+		response["visuals"] = analysis.Visuals
+	}
+	if len(analysis.Declarations) > 0 {
+		response["declarations"] = analysis.Declarations
+	}
+	if len(analysis.CollectionOperations) > 0 {
+		response["collectionOperations"] = analysis.CollectionOperations
+	}
+	if len(analysis.ObjectOperations) > 0 {
+		response["objectOperations"] = analysis.ObjectOperations
+	}
+	if input.IncludeAST {
+		response["ast"] = analysis.AST
+		response["semantic"] = analysis.Semantic
+	}
+	return response, nil
+}
 
-	// Wire trading service to broker capabilities and the application-owned execution store.
-	server.tradingSvc = server.newTradingService()
-
-	// Wire settings service — delegates to SettingsStore with side-effect orchestration.
-	server.configureDataManagement()
-	server.dataManagementSvc = server.newDataManagementService()
-	server.settingsSvc = settings.NewService(persistenceOnlySettingsStore(store),
-		settings.WithSideEffects(settings.SideEffects{
-			OnIntegrationChanged: func(integration BrokerIntegration) {
-				apiruntime.ApplyIntegrationEnv(integration)
-				server.resetFutuRuntime()
-			},
-			OnExecutionChanged: func(exec ExecutionSettings) {
-				if server.executionOrders != nil {
-					server.executionOrders.configureSeenFillRetention(exec.SeenFillRetentionDays)
-				}
-			},
-			OnSecurityChanged: func(sec SecuritySettings) {
-				server.applySecuritySettings(sec)
-			},
-			OnExchangeCalendarsChanged: func(settings ExchangeCalendarSettings) {
-				if server.exchangeCalendars != nil {
-					server.exchangeCalendars.NotifySettingsChanged()
-				}
-			},
-			OnPineWorkerChanged: func(settings PineWorkerSettings) {
-				server.applyPineWorkerSettings(settings)
-			},
-		}),
-		settings.WithBrokerDescriptor(func() map[string]any { return server.descriptor() }),
-		settings.WithBrokerSettings(func() map[string]any { return server.brokerSettings() }),
-		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return server.onboardingState(ctx) }),
-		settings.WithDefaultTradingEnvironment(server.defaultTradingEnvironment()),
+func (s *Server) initializeMarketdataService() {
+	s.marketdataSvc = mdsrv.NewService(newMarketdataProvider(s))
+	s.marketdataSvc.StartCollector(
+		s.marketdataRuntime,
+		s.marketdataRuntime,
+		s.handlePushMarketdataTick,
+		mdsrv.DemandSourceFunc(s.liveWebSocketDemand),
+		mdsrv.DemandSourceFunc(s.strategyRuntimeDemand),
+		mdsrv.DemandSourceFunc(func() []string { return s.workflowWatchedInstruments() }),
 	)
+}
 
-	server.router = server.buildRouter()
-	return server
+func (s *Server) liveWebSocketDemand() []string {
+	if s.liveWebSocket == nil {
+		return nil
+	}
+	return s.liveWebSocket.ActiveInstrumentIDs()
+}
+
+func (s *Server) strategyRuntimeDemand() []string {
+	if s.strategyRuntimeManager == nil {
+		return nil
+	}
+	return s.strategyRuntimeManager.activeInstrumentIDs()
+}
+
+func (s *Server) startAssistantWorkflowScheduler() {
+	if s.assistantSvc != nil {
+		s.assistantSvc.StartWorkflowScheduler(context.Background())
+	}
+}
+
+func (s *Server) initializeRuntimeServices(store SidecarSettingsStore) {
+	s.tradingSvc = s.newTradingService()
+	s.configureDataManagement()
+	s.dataManagementSvc = s.newDataManagementService()
+	s.settingsSvc = settings.NewService(persistenceOnlySettingsStore(store), s.settingsServiceOptions()...)
+}
+
+func (s *Server) settingsServiceOptions() []settings.Option {
+	return []settings.Option{
+		settings.WithSideEffects(s.settingsSideEffects()),
+		settings.WithBrokerDescriptor(func() map[string]any { return s.descriptor() }),
+		settings.WithBrokerSettings(func() map[string]any { return s.brokerSettings() }),
+		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return s.onboardingState(ctx) }),
+		settings.WithDefaultTradingEnvironment(s.defaultTradingEnvironment()),
+	}
+}
+
+func (s *Server) settingsSideEffects() settings.SideEffects {
+	return settings.SideEffects{
+		OnIntegrationChanged: func(integration BrokerIntegration) {
+			apiruntime.ApplyIntegrationEnv(integration)
+			s.resetFutuRuntime()
+		},
+		OnExecutionChanged: func(exec ExecutionSettings) {
+			if s.executionOrders != nil {
+				s.executionOrders.configureSeenFillRetention(exec.SeenFillRetentionDays)
+			}
+		},
+		OnSecurityChanged: func(sec SecuritySettings) {
+			s.applySecuritySettings(sec)
+		},
+		OnExchangeCalendarsChanged: func(settings ExchangeCalendarSettings) {
+			if s.exchangeCalendars != nil {
+				s.exchangeCalendars.NotifySettingsChanged()
+			}
+		},
+		OnPineWorkerChanged: func(settings PineWorkerSettings) {
+			s.applyPineWorkerSettings(settings)
+		},
+	}
 }
 
 func persistenceOnlySettingsStore(store SidecarSettingsStore) SidecarSettingsStore {
@@ -705,85 +892,153 @@ func (s *Server) Close() error {
 		return nil
 	}
 	s.closeOnce.Do(func() {
-		var errs []error
-		if s.tradingSvc != nil {
-			if err := s.tradingSvc.StopOrderUpdates(); err != nil {
-				errs = append(errs, fmt.Errorf("trading order updates close: %w", err))
-			}
-		}
-		if s.liveWebSocket != nil {
-			if err := s.liveWebSocket.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("liveWebSocket close: %w", err))
-			}
-		}
-		if s.marketdataSvc != nil {
-			if err := s.marketdataSvc.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("marketdata close: %w", err))
-			}
-		}
-		if s.liveNotifications != nil {
-			if err := s.liveNotifications.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("liveNotifications close: %w", err))
-			}
-		}
-		if s.backtestSvc != nil {
-			if err := s.backtestSvc.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("backtestSvc close: %w", err))
-			}
-		}
-		closePineWorkerRunner := func(name string, runner pineWorkerRunner) {
-			if runner == nil {
-				return
-			}
-			if closer, ok := runner.(interface{ Close(context.Context) error }); ok {
-				if err := closer.Close(context.Background()); err != nil {
-					errs = append(errs, fmt.Errorf("%s close: %w", name, err))
-				}
-			}
-		}
-		closePineWorkerRunner("backtestPineWorkerRunner", s.backtestPineWorkerRunner)
-		closePineWorkerRunner("instancePineWorkerRunner", s.instancePineWorkerRunner)
-		if s.backtestRuns != nil {
-			if err := s.backtestRuns.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("backtestRuns close: %w", err))
-			}
-		}
-		if s.executionOrders != nil {
-			if err := s.executionOrders.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("executionOrders close: %w", err))
-			}
-		}
-		if s.strategyStore != nil {
-			if err := s.strategyStore.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("strategyStore close: %w", err))
-			}
-		}
-		if s.designStore != nil {
-			if err := s.designStore.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("designStore close: %w", err))
-			}
-		}
-		if s.assistantSvc != nil {
-			if err := s.assistantSvc.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("assistantSvc close: %w", err))
-			}
-		}
-		if s.marketdataRuntime != nil {
-			if err := s.marketdataRuntime.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("futu marketdata runtime close: %w", err))
-			}
-		}
-		if s.exchangeCalendars != nil {
-			if err := s.exchangeCalendars.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("exchange calendar manager close: %w", err))
-			}
-		}
-		if s.previousCalendarResolver != nil {
-			marketpkg.SetCalendarResolver(s.previousCalendarResolver)
-		} else {
-			marketpkg.ResetCalendarResolver()
-		}
-		s.closeErr = errors.Join(errs...)
+		s.closeErr = s.collectCloseError()
 	})
 	return s.closeErr
+}
+
+func (s *Server) collectCloseError() error {
+	var errs []error
+	s.closeCoreServices(&errs)
+	s.closePersistentStores(&errs)
+	s.closeRuntimeManagers(&errs)
+	s.restoreCalendarResolver()
+	return errors.Join(errs...)
+}
+
+func (s *Server) closeCoreServices(errs *[]error) {
+	s.appendCloseError(errs, "trading order updates close", s.stopTradingOrderUpdates)
+	s.appendCloseError(errs, "liveWebSocket close", s.closeLiveWebSocket)
+	s.appendCloseError(errs, "marketdata close", s.closeMarketdataService)
+	s.appendCloseError(errs, "liveNotifications close", s.closeLiveNotifications)
+	s.appendCloseError(errs, "backtestSvc close", s.closeBacktestService)
+	s.closePineWorkerRunner(errs, "backtestPineWorkerRunner", s.backtestPineWorkerRunner)
+	s.closePineWorkerRunner(errs, "instancePineWorkerRunner", s.instancePineWorkerRunner)
+}
+
+func (s *Server) closePersistentStores(errs *[]error) {
+	s.appendCloseError(errs, "backtestRuns close", s.closeBacktestRuns)
+	s.appendCloseError(errs, "executionOrders close", s.closeExecutionOrders)
+	s.appendCloseError(errs, "strategyStore close", s.closeStrategyStore)
+	s.appendCloseError(errs, "designStore close", s.closeDesignStore)
+}
+
+func (s *Server) closeRuntimeManagers(errs *[]error) {
+	s.appendCloseError(errs, "assistantSvc close", s.closeAssistantService)
+	s.appendCloseError(errs, "futu marketdata runtime close", s.closeMarketdataRuntime)
+	s.appendCloseError(errs, "exchange calendar manager close", s.closeExchangeCalendars)
+}
+
+func (s *Server) appendCloseError(errs *[]error, name string, closeFn func() error) {
+	if closeFn == nil {
+		return
+	}
+	if err := closeFn(); err != nil {
+		*errs = append(*errs, fmt.Errorf("%s: %w", name, err))
+	}
+}
+
+func (s *Server) closePineWorkerRunner(errs *[]error, name string, runner pineWorkerRunner) {
+	if runner == nil {
+		return
+	}
+	closer, ok := runner.(interface{ Close(context.Context) error })
+	if !ok {
+		return
+	}
+	if err := closer.Close(context.Background()); err != nil {
+		*errs = append(*errs, fmt.Errorf("%s close: %w", name, err))
+	}
+}
+
+func (s *Server) stopTradingOrderUpdates() error {
+	if s.tradingSvc == nil {
+		return nil
+	}
+	return s.tradingSvc.StopOrderUpdates()
+}
+
+func (s *Server) closeLiveWebSocket() error {
+	if s.liveWebSocket == nil {
+		return nil
+	}
+	return s.liveWebSocket.Close()
+}
+
+func (s *Server) closeMarketdataService() error {
+	if s.marketdataSvc == nil {
+		return nil
+	}
+	return s.marketdataSvc.Close()
+}
+
+func (s *Server) closeLiveNotifications() error {
+	if s.liveNotifications == nil {
+		return nil
+	}
+	return s.liveNotifications.Close()
+}
+
+func (s *Server) closeBacktestService() error {
+	if s.backtestSvc == nil {
+		return nil
+	}
+	return s.backtestSvc.Close()
+}
+
+func (s *Server) closeBacktestRuns() error {
+	if s.backtestRuns == nil {
+		return nil
+	}
+	return s.backtestRuns.Close()
+}
+
+func (s *Server) closeExecutionOrders() error {
+	if s.executionOrders == nil {
+		return nil
+	}
+	return s.executionOrders.Close()
+}
+
+func (s *Server) closeStrategyStore() error {
+	if s.strategyStore == nil {
+		return nil
+	}
+	return s.strategyStore.Close()
+}
+
+func (s *Server) closeDesignStore() error {
+	if s.designStore == nil {
+		return nil
+	}
+	return s.designStore.Close()
+}
+
+func (s *Server) closeAssistantService() error {
+	if s.assistantSvc == nil {
+		return nil
+	}
+	return s.assistantSvc.Close()
+}
+
+func (s *Server) closeMarketdataRuntime() error {
+	if s.marketdataRuntime == nil {
+		return nil
+	}
+	return s.marketdataRuntime.Close()
+}
+
+func (s *Server) closeExchangeCalendars() error {
+	if s.exchangeCalendars == nil {
+		return nil
+	}
+	return s.exchangeCalendars.Close()
+}
+
+func (s *Server) restoreCalendarResolver() {
+	if s.previousCalendarResolver != nil {
+		marketpkg.SetCalendarResolver(s.previousCalendarResolver)
+		return
+	}
+	marketpkg.ResetCalendarResolver()
 }

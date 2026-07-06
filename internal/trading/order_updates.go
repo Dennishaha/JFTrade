@@ -160,6 +160,24 @@ type OrderUpdatesWorker struct {
 	subscriptionEpoch    uint64
 }
 
+type orderUpdateSubscribeOp int
+
+const (
+	subscribeNoop orderUpdateSubscribeOp = iota
+	subscribeFresh
+	subscribeRefresh
+)
+
+type orderUpdateSubscriptionAttempt struct {
+	op           orderUpdateSubscribeOp
+	epoch        uint64
+	existing     OrderUpdateSubscription
+	refresher    orderUpdateSubscriptionRefresher
+	subscription OrderUpdateSubscription
+	old          OrderUpdateSubscription
+	installed    bool
+}
+
 func NewOrderUpdatesWorker(source OrderUpdateSource, execution ExecutionOrderUpdates, config OrderUpdatesConfig) *OrderUpdatesWorker {
 	if config.BrokerID == "" {
 		config.BrokerID = "futu"
@@ -362,96 +380,118 @@ func (w *OrderUpdatesWorker) Stop() error {
 
 func (w *OrderUpdatesWorker) ensureSubscribed(ctx context.Context, accounts []Account, queries []OrderQuery) error {
 	key := orderUpdatePushSubscriptionKey(accounts, queries)
-	type subscribeOp int
-	const (
-		subscribeFresh subscribeOp = iota
-		subscribeRefresh
-	)
+	attempt, err := w.beginSubscriptionAttempt(ctx, key)
+	if err != nil || attempt.op == subscribeNoop {
+		return err
+	}
+	err = w.performSubscriptionAttempt(ctx, &attempt, accounts, queries)
+	return w.finishSubscriptionAttempt(attempt, key, queries, err)
+}
 
-	var (
-		op           subscribeOp
-		epoch        uint64
-		existing     OrderUpdateSubscription
-		refresher    orderUpdateSubscriptionRefresher
-		subscription OrderUpdateSubscription
-		old          OrderUpdateSubscription
-		installed    bool
-	)
-
+func (w *OrderUpdatesWorker) beginSubscriptionAttempt(ctx context.Context, key string) (orderUpdateSubscriptionAttempt, error) {
 	for {
-		w.mu.Lock()
-		existing = w.pushSubscription
-		if existing != nil {
-			if r, ok := existing.(orderUpdateSubscriptionRefresher); ok {
-				refresher = r
-				op = subscribeRefresh
-			} else if w.pushSubscriptionKey == key {
-				w.mu.Unlock()
-				return nil
-			} else {
-				op = subscribeFresh
-			}
-		} else {
-			op = subscribeFresh
+		attempt, ready, waiting := w.tryBeginSubscriptionAttempt(key)
+		if !waiting {
+			return attempt, nil
 		}
-		if !w.subscriptionPending {
-			w.subscriptionPending = true
-			w.subscriptionReady = make(chan struct{})
-			epoch = w.subscriptionEpoch
-			w.mu.Unlock()
-			break
-		}
-		ready := w.subscriptionReady
-		w.mu.Unlock()
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return orderUpdateSubscriptionAttempt{}, ctx.Err()
 		case <-ready:
 		}
 	}
+}
 
+func (w *OrderUpdatesWorker) tryBeginSubscriptionAttempt(key string) (orderUpdateSubscriptionAttempt, chan struct{}, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	attempt := w.subscriptionAttemptLocked(key)
+	if attempt.op == subscribeNoop {
+		return attempt, nil, false
+	}
+	if !w.subscriptionPending {
+		w.subscriptionPending = true
+		w.subscriptionReady = make(chan struct{})
+		attempt.epoch = w.subscriptionEpoch
+		return attempt, nil, false
+	}
+	return orderUpdateSubscriptionAttempt{}, w.subscriptionReady, true
+}
+
+func (w *OrderUpdatesWorker) subscriptionAttemptLocked(key string) orderUpdateSubscriptionAttempt {
+	attempt := orderUpdateSubscriptionAttempt{existing: w.pushSubscription}
+	switch {
+	case attempt.existing == nil:
+		attempt.op = subscribeFresh
+	case w.pushSubscriptionKey == key:
+		if refresher, ok := attempt.existing.(orderUpdateSubscriptionRefresher); ok {
+			attempt.op = subscribeRefresh
+			attempt.refresher = refresher
+		} else {
+			attempt.op = subscribeNoop
+		}
+	default:
+		if refresher, ok := attempt.existing.(orderUpdateSubscriptionRefresher); ok {
+			attempt.op = subscribeRefresh
+			attempt.refresher = refresher
+		} else {
+			attempt.op = subscribeFresh
+		}
+	}
+	return attempt
+}
+
+func (w *OrderUpdatesWorker) performSubscriptionAttempt(ctx context.Context, attempt *orderUpdateSubscriptionAttempt, accounts []Account, queries []OrderQuery) error {
 	clonedAccounts := cloneAccounts(accounts)
 	clonedQueries := append([]OrderQuery(nil), queries...)
-	var err error
-	if op == subscribeRefresh {
-		err = refresher.Refresh(ctx, clonedAccounts, clonedQueries)
-	} else {
-		subscription, err = w.source.Subscribe(ctx, clonedAccounts, clonedQueries, w)
+	if attempt.op == subscribeRefresh {
+		return attempt.refresher.Refresh(ctx, clonedAccounts, clonedQueries)
 	}
+	subscription, err := w.source.Subscribe(ctx, clonedAccounts, clonedQueries, w)
+	attempt.subscription = subscription
+	return err
+}
 
+func (w *OrderUpdatesWorker) finishSubscriptionAttempt(attempt orderUpdateSubscriptionAttempt, key string, queries []OrderQuery, err error) error {
+	w.completeSubscriptionAttempt(&attempt, key, err)
+	w.stopSubscriptionSilently(attempt.old)
+	w.stopSubscriptionSilently(attempt.subscription)
+	if err != nil {
+		return err
+	}
+	if attempt.installed {
+		w.markSubscriptions(queries, "active", "subscribe-push", nil)
+	}
+	return nil
+}
+
+func (w *OrderUpdatesWorker) completeSubscriptionAttempt(attempt *orderUpdateSubscriptionAttempt, key string, err error) {
 	w.mu.Lock()
-	if err == nil && w.subscriptionEpoch == epoch {
-		switch op {
+	defer w.mu.Unlock()
+
+	if err == nil && w.subscriptionEpoch == attempt.epoch {
+		switch attempt.op {
 		case subscribeRefresh:
-			if w.pushSubscription == existing {
+			if w.pushSubscription == attempt.existing {
 				w.pushSubscriptionKey = key
-				installed = true
+				attempt.installed = true
 			}
 		case subscribeFresh:
-			old = w.pushSubscription
-			w.pushSubscription = subscription
+			attempt.old = w.pushSubscription
+			w.pushSubscription = attempt.subscription
 			w.pushSubscriptionKey = key
-			subscription = nil
-			installed = true
+			attempt.subscription = nil
+			attempt.installed = true
 		}
 	}
 	w.subscriptionPending = false
 	close(w.subscriptionReady)
 	w.subscriptionReady = nil
-	w.mu.Unlock()
-	if old != nil {
-		jftradeErr1 := old.Stop()
-		jftradeLogError(jftradeErr1)
-	}
+}
+
+func (w *OrderUpdatesWorker) stopSubscriptionSilently(subscription OrderUpdateSubscription) {
 	if subscription != nil {
-		jftradeErr2 := subscription.Stop()
-		jftradeLogError(jftradeErr2)
+		jftradeLogError(subscription.Stop())
 	}
-	if err != nil {
-		return err
-	}
-	if installed {
-		w.markSubscriptions(queries, "active", "subscribe-push", nil)
-	}
-	return nil
 }
