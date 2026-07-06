@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 )
 
@@ -125,7 +126,6 @@ func (m *Manager) refresh(ctx context.Context, targetMarket string) map[string]a
 	}
 }
 
-//nolint:funlen
 func (m *Manager) probe(ctx context.Context, targetMarket string) map[string]any {
 	settings := m.settings()
 	markets := normalizeMarkets(settings.WarmupMarkets)
@@ -136,73 +136,8 @@ func (m *Manager) probe(ctx context.Context, targetMarket string) map[string]any
 		markets = []string{"US", "HK", "CN"}
 	}
 
-	results := make([]map[string]any, 0)
-	healthy := 0
-	failures := 0
 	checkedAt := m.currentTime().Format(time.RFC3339Nano)
-	visitedSources := map[string]struct{}{}
-	for _, market := range markets {
-		policy := policyForMarket(settings, market)
-		template, ok := m.builtin.Template(market)
-		if !ok {
-			continue
-		}
-		loc := marketcalendar.LoadLocation(template)
-		now := m.currentTime().In(loc)
-		from := time.Date(now.Year(), time.January, 1, 0, 0, 0, 0, loc)
-		to := time.Date(now.Year()+1, time.December, 31, 23, 59, 59, 0, loc)
-		for _, source := range m.registry.OrderedSources(market, policy) {
-			if source == nil {
-				continue
-			}
-			key := source.ID() + "|" + market
-			if _, ok := visitedSources[key]; ok {
-				continue
-			}
-			visitedSources[key] = struct{}{}
-
-			snapshot, err := source.Fetch(ctx, market, from, to)
-			if err != nil {
-				failures++
-				m.recordProbeFailure(source.ID(), market, err, "fetch_failed")
-				results = append(results, map[string]any{
-					"sourceId": source.ID(),
-					"market":   market,
-					"status":   "unhealthy",
-					"error":    err.Error(),
-				})
-				continue
-			}
-
-			if len(snapshot.Schedules) == 0 {
-				err := fmt.Errorf("no schedules parsed")
-				failures++
-				m.recordProbeFailure(source.ID(), market, err, "structure_changed")
-				results = append(results, map[string]any{
-					"sourceId":        source.ID(),
-					"market":          market,
-					"status":          "unhealthy",
-					"error":           err.Error(),
-					"fetchedAt":       snapshot.FetchedAt,
-					"validUntil":      snapshot.ValidUntil,
-					"schedulesParsed": 0,
-				})
-				continue
-			}
-
-			healthy++
-			m.recordProbeSuccess(source.ID(), market, len(snapshot.Schedules))
-			results = append(results, map[string]any{
-				"sourceId":        source.ID(),
-				"market":          market,
-				"status":          "healthy",
-				"fetchedAt":       snapshot.FetchedAt,
-				"validUntil":      snapshot.ValidUntil,
-				"schedulesParsed": len(snapshot.Schedules),
-				"checksum":        snapshot.Checksum,
-			})
-		}
-	}
+	results, healthy, failures := m.probeMarkets(ctx, settings, markets)
 
 	return map[string]any{
 		"accepted":   true,
@@ -213,6 +148,116 @@ func (m *Manager) probe(ctx context.Context, targetMarket string) map[string]any
 		"results":    results,
 		"probeScope": normalizeMarkets(markets),
 	}
+}
+
+func (m *Manager) probeMarkets(
+	ctx context.Context,
+	settings jfsettings.ExchangeCalendarSettings,
+	markets []string,
+) ([]map[string]any, int, int) {
+	results := make([]map[string]any, 0)
+	healthy := 0
+	failures := 0
+	visitedSources := map[string]struct{}{}
+	for _, market := range markets {
+		probeResults, probeHealthy, probeFailures := m.probeMarketSources(ctx, settings, market, visitedSources)
+		results = append(results, probeResults...)
+		healthy += probeHealthy
+		failures += probeFailures
+	}
+	return results, healthy, failures
+}
+
+func (m *Manager) probeMarketSources(
+	ctx context.Context,
+	settings jfsettings.ExchangeCalendarSettings,
+	market string,
+	visitedSources map[string]struct{},
+) ([]map[string]any, int, int) {
+	policy := policyForMarket(settings, market)
+	template, ok := m.builtin.Template(market)
+	if !ok {
+		return nil, 0, 0
+	}
+	from, to := calendarFetchWindow(m.currentTime(), template)
+	results := make([]map[string]any, 0)
+	healthy := 0
+	failures := 0
+	for _, source := range m.registry.OrderedSources(market, policy) {
+		if source == nil || seenCalendarSource(source.ID(), market, visitedSources) {
+			continue
+		}
+		result, ok, failed := m.probeSource(ctx, source, market, from, to)
+		if result != nil {
+			results = append(results, result)
+		}
+		if ok {
+			healthy++
+		}
+		if failed {
+			failures++
+		}
+	}
+	return results, healthy, failures
+}
+
+func calendarFetchWindow(now time.Time, template marketcalendar.MarketTemplate) (time.Time, time.Time) {
+	loc := marketcalendar.LoadLocation(template)
+	current := now.In(loc)
+	from := time.Date(current.Year(), time.January, 1, 0, 0, 0, 0, loc)
+	to := time.Date(current.Year()+1, time.December, 31, 23, 59, 59, 0, loc)
+	return from, to
+}
+
+func seenCalendarSource(sourceID string, market string, visitedSources map[string]struct{}) bool {
+	key := sourceID + "|" + market
+	if _, ok := visitedSources[key]; ok {
+		return true
+	}
+	visitedSources[key] = struct{}{}
+	return false
+}
+
+func (m *Manager) probeSource(
+	ctx context.Context,
+	source Source,
+	market string,
+	from time.Time,
+	to time.Time,
+) (map[string]any, bool, bool) {
+	snapshot, err := source.Fetch(ctx, market, from, to)
+	if err != nil {
+		m.recordProbeFailure(source.ID(), market, err, "fetch_failed")
+		return map[string]any{
+			"sourceId": source.ID(),
+			"market":   market,
+			"status":   "unhealthy",
+			"error":    err.Error(),
+		}, false, true
+	}
+	if len(snapshot.Schedules) == 0 {
+		err = fmt.Errorf("no schedules parsed")
+		m.recordProbeFailure(source.ID(), market, err, "structure_changed")
+		return map[string]any{
+			"sourceId":        source.ID(),
+			"market":          market,
+			"status":          "unhealthy",
+			"error":           err.Error(),
+			"fetchedAt":       snapshot.FetchedAt,
+			"validUntil":      snapshot.ValidUntil,
+			"schedulesParsed": 0,
+		}, false, true
+	}
+	m.recordProbeSuccess(source.ID(), market, len(snapshot.Schedules))
+	return map[string]any{
+		"sourceId":        source.ID(),
+		"market":          market,
+		"status":          "healthy",
+		"fetchedAt":       snapshot.FetchedAt,
+		"validUntil":      snapshot.ValidUntil,
+		"schedulesParsed": len(snapshot.Schedules),
+		"checksum":        snapshot.Checksum,
+	}, true, false
 }
 
 func refreshMarketsForTarget(market string) []string {

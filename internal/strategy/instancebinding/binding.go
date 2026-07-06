@@ -75,84 +75,119 @@ func NormalizeBinding(input strategy.InstanceBinding, params map[string]any) str
 	if params == nil {
 		params = map[string]any{}
 	}
+	hydrateBindingTargets(&input, params)
+	input.Symbols, input.Instruments = normalizeBindingTargets(input)
+	applyBindingDefaults(&input, params)
+
+	return input
+}
+
+func hydrateBindingTargets(input *strategy.InstanceBinding, params map[string]any) {
 	if len(input.Instruments) == 0 {
 		input.Instruments = readBindingInstruments(params["instruments"])
 	}
+	if len(input.Symbols) > 0 {
+		return
+	}
+	input.Symbols = readStringSlice(params["symbols"])
 	if len(input.Symbols) == 0 {
-		input.Symbols = readStringSlice(params["symbols"])
-		if len(input.Symbols) == 0 {
-			if symbol, ok := params["symbol"].(string); ok && strings.TrimSpace(symbol) != "" {
-				input.Symbols = []string{symbol}
-			}
+		if symbol, ok := params["symbol"].(string); ok && strings.TrimSpace(symbol) != "" {
+			input.Symbols = []string{symbol}
 		}
 	}
+}
 
+func normalizeBindingTargets(input strategy.InstanceBinding) ([]string, []strategy.BindingInstrument) {
 	seenSymbols := map[string]struct{}{}
-	normalizedSymbols := make([]string, 0, len(input.Symbols))
-	normalizedInstruments := make([]strategy.BindingInstrument, 0, len(input.Instruments))
+	normalizedSymbols, normalizedInstruments := normalizeBindingInstruments(input.Instruments, seenSymbols)
+	if len(normalizedSymbols) > 0 {
+		return normalizedSymbols, normalizedInstruments
+	}
+	return normalizeBindingSymbols(input.Symbols, seenSymbols)
+}
 
-	if len(input.Instruments) > 0 {
-		for _, instrument := range input.Instruments {
-			normalizedInstrument, symbol, ok := NormalizeBindingInstrument(instrument)
-			if !ok {
-				continue
-			}
-			if _, exists := seenSymbols[symbol]; exists {
-				continue
-			}
-			seenSymbols[symbol] = struct{}{}
-			normalizedSymbols = append(normalizedSymbols, symbol)
-			normalizedInstruments = append(normalizedInstruments, normalizedInstrument)
+func normalizeBindingInstruments(
+	instruments []strategy.BindingInstrument,
+	seenSymbols map[string]struct{},
+) ([]string, []strategy.BindingInstrument) {
+	normalizedSymbols := make([]string, 0, len(instruments))
+	normalizedInstruments := make([]strategy.BindingInstrument, 0, len(instruments))
+	for _, instrument := range instruments {
+		normalizedInstrument, symbol, ok := NormalizeBindingInstrument(instrument)
+		if !ok || seenBindingSymbol(symbol, seenSymbols) {
+			continue
+		}
+		normalizedSymbols = append(normalizedSymbols, symbol)
+		normalizedInstruments = append(normalizedInstruments, normalizedInstrument)
+	}
+	return normalizedSymbols, normalizedInstruments
+}
+
+func normalizeBindingSymbols(symbols []string, seenSymbols map[string]struct{}) ([]string, []strategy.BindingInstrument) {
+	normalizedSymbols := make([]string, 0, len(symbols))
+	normalizedInstruments := make([]strategy.BindingInstrument, 0, len(symbols))
+	for _, symbol := range symbols {
+		normalized := NormalizeInstrumentID(symbol)
+		if normalized == "" || seenBindingSymbol(normalized, seenSymbols) {
+			continue
+		}
+		normalizedSymbols = append(normalizedSymbols, normalized)
+		if instrument, ok := BindingInstrumentFromSymbol(normalized); ok {
+			normalizedInstruments = append(normalizedInstruments, instrument)
 		}
 	}
+	return normalizedSymbols, normalizedInstruments
+}
 
-	if len(normalizedSymbols) == 0 {
-		for _, symbol := range input.Symbols {
-			normalized := NormalizeInstrumentID(symbol)
-			if normalized == "" {
-				continue
-			}
-			if _, exists := seenSymbols[normalized]; exists {
-				continue
-			}
-			seenSymbols[normalized] = struct{}{}
-			normalizedSymbols = append(normalizedSymbols, normalized)
-			if instrument, ok := BindingInstrumentFromSymbol(normalized); ok {
-				normalizedInstruments = append(normalizedInstruments, instrument)
-			}
+func seenBindingSymbol(symbol string, seenSymbols map[string]struct{}) bool {
+	if _, exists := seenSymbols[symbol]; exists {
+		return true
+	}
+	seenSymbols[symbol] = struct{}{}
+	return false
+}
+
+func applyBindingDefaults(input *strategy.InstanceBinding, params map[string]any) {
+	input.Interval = bindingInterval(input.Interval, params["interval"])
+	input.BrokerAccount = bindingBrokerAccount(input.BrokerAccount, params["brokerAccount"])
+	input.ExecutionMode = bindingExecutionMode(input.ExecutionMode, params["executionMode"])
+	input.RuntimeRisk = bindingRuntimeRisk(input.RuntimeRisk, params["runtimeRisk"])
+}
+
+func bindingInterval(interval string, value any) string {
+	normalized := strings.TrimSpace(interval)
+	if normalized == "" {
+		if paramInterval, ok := value.(string); ok {
+			normalized = strings.TrimSpace(paramInterval)
 		}
 	}
+	if normalized == "" {
+		return "5m"
+	}
+	return normalized
+}
 
-	input.Symbols = normalizedSymbols
-	input.Instruments = normalizedInstruments
+func bindingBrokerAccount(current *strategy.BrokerAccountBinding, value any) *strategy.BrokerAccountBinding {
+	if current == nil {
+		current = BrokerAccountFromAny(value)
+	}
+	return NormalizeBrokerAccount(current)
+}
 
-	input.Interval = strings.TrimSpace(input.Interval)
-	if input.Interval == "" {
-		if interval, ok := params["interval"].(string); ok {
-			input.Interval = strings.TrimSpace(interval)
+func bindingExecutionMode(current string, value any) string {
+	if strings.TrimSpace(current) == "" {
+		if executionMode, ok := value.(string); ok {
+			current = executionMode
 		}
 	}
-	if input.Interval == "" {
-		input.Interval = "5m"
-	}
+	return NormalizeExecutionMode(current)
+}
 
-	if input.BrokerAccount == nil {
-		input.BrokerAccount = BrokerAccountFromAny(params["brokerAccount"])
+func bindingRuntimeRisk(current strategy.RuntimeRiskSettings, value any) strategy.RuntimeRiskSettings {
+	if strings.TrimSpace(current.Mode) == "" {
+		current = RiskSettingsFromAny(value)
 	}
-	input.BrokerAccount = NormalizeBrokerAccount(input.BrokerAccount)
-
-	if strings.TrimSpace(input.ExecutionMode) == "" {
-		if executionMode, ok := params["executionMode"].(string); ok {
-			input.ExecutionMode = executionMode
-		}
-	}
-	input.ExecutionMode = NormalizeExecutionMode(input.ExecutionMode)
-	if strings.TrimSpace(input.RuntimeRisk.Mode) == "" {
-		input.RuntimeRisk = RiskSettingsFromAny(params["runtimeRisk"])
-	}
-	input.RuntimeRisk = NormalizeRiskSettings(input.RuntimeRisk)
-
-	return input
+	return NormalizeRiskSettings(current)
 }
 
 func ApplyParams(input *strategy.ManagedInstance) {

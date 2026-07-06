@@ -297,94 +297,78 @@ var _ Series = &MulSeriesResult{}
 // Calculate (a dot b).
 // if limit is given, will only calculate the first limit numbers (a.Index[0..limit])
 // otherwise will operate on all elements
-//nolint:funlen
 func Dot(a any, b any, limit ...int) float64 {
-	var aaf float64
-	var aas Series
-	var bbf float64
-	var bbs Series
-	var isaf, isbf bool
+	left := dotOperandFromAny(a)
+	right := dotOperandFromAny(b)
+	length := dotLength(left, right, limit)
+	return dotProduct(left, right, length)
+}
 
-	switch tp := a.(type) {
+type dotOperand struct {
+	scalar   float64
+	series   Series
+	isScalar bool
+}
+
+func dotOperandFromAny(value any) dotOperand {
+	switch tp := value.(type) {
 	case float64:
-		aaf = tp
-		isaf = true
+		return dotOperand{scalar: tp, isScalar: true}
 	case int32:
-		aaf = float64(tp)
-		isaf = true
+		return dotOperand{scalar: float64(tp), isScalar: true}
 	case int64:
-		aaf = float64(tp)
-		isaf = true
+		return dotOperand{scalar: float64(tp), isScalar: true}
 	case float32:
-		aaf = float64(tp)
-		isaf = true
+		return dotOperand{scalar: float64(tp), isScalar: true}
 	case int:
-		aaf = float64(tp)
-		isaf = true
+		return dotOperand{scalar: float64(tp), isScalar: true}
 	case Series:
-		aas = tp
-		isaf = false
+		return dotOperand{series: tp}
 	default:
 		panic("input should be either *Series or numbers")
 	}
-	switch tp := b.(type) {
-	case float64:
-		bbf = tp
-		isbf = true
-	case int32:
-		bbf = float64(tp)
-		isbf = true
-	case int64:
-		bbf = float64(tp)
-		isbf = true
-	case float32:
-		bbf = float64(tp)
-		isbf = true
-	case int:
-		bbf = float64(tp)
-		isbf = true
-	case Series:
-		bbs = tp
-		isbf = false
-	default:
-		panic("input should be either *Series or numbers")
+}
 
-	}
-	l := 1
+func dotLength(left dotOperand, right dotOperand, limit []int) int {
 	if len(limit) > 0 {
-		l = limit[0]
-	} else if isaf && isbf {
-		l = 1
-	} else {
-		if !isaf {
-			l = aas.Length()
-		}
-		if !isbf {
-			if l > bbs.Length() {
-				l = bbs.Length()
-			}
-		}
+		return limit[0]
 	}
-	if isaf && isbf {
-		return aaf * bbf * float64(l)
-	} else if isaf && !isbf {
-		sum := 0.
-		for i := 0; i < l; i++ {
-			sum += aaf * bbs.Last(i)
-		}
-		return sum
-	} else if !isaf && isbf {
-		sum := 0.
-		for i := 0; i < l; i++ {
-			sum += aas.Last(i) * bbf
-		}
-		return sum
-	} else {
-		sum := 0.
-		for i := 0; i < l; i++ {
-			sum += aas.Last(i) * bbs.Index(i)
-		}
-		return sum
+	if left.isScalar && right.isScalar {
+		return 1
+	}
+	length := dotSeriesLength(left)
+	if otherLength := dotSeriesLength(right); otherLength != 0 && (length == 0 || otherLength < length) {
+		return otherLength
+	}
+	return length
+}
+
+func dotSeriesLength(operand dotOperand) int {
+	if operand.isScalar || operand.series == nil {
+		return 0
+	}
+	return operand.series.Length()
+}
+
+func dotProduct(left dotOperand, right dotOperand, length int) float64 {
+	if left.isScalar && right.isScalar {
+		return left.scalar * right.scalar * float64(length)
+	}
+	sum := 0.
+	for i := 0; i < length; i++ {
+		sum += dotAt(left, right, i)
+	}
+	return sum
+}
+
+func dotAt(left dotOperand, right dotOperand, index int) float64 {
+	switch {
+	case left.isScalar:
+		return left.scalar * right.series.Last(index)
+	case right.isScalar:
+		return left.series.Last(index) * right.scalar
+	default:
+		return left.series.Last(index) * right.series.Index(index)
 	}
 }
 

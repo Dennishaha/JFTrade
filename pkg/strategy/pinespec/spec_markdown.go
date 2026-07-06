@@ -100,22 +100,34 @@ func BuildSupportSnapshotMarkdown() string {
 	var builder strings.Builder
 	builder.WriteString("# JFTrade Pine v6 Support Snapshot\n\n")
 	builder.WriteString("> 自动生成，请勿手改。来源：`pkg/strategy/pinespec` 与 `pkg/strategy/pine` capability registry。\n\n")
+	writeSupportSnapshotBaseline(&builder, assessment)
+	writeSupportSnapshotDimensions(&builder, assessment)
+	writeSupportSnapshotCapabilities(&builder)
+	writeSupportSnapshotMatrix(&builder)
+	writeSupportSnapshotBrokerBoundary(&builder)
+	writeSupportSnapshotUnsupportedPatterns(&builder)
+	return builder.String()
+}
+
+func writeSupportSnapshotBaseline(builder *strings.Builder, assessment strategypine.CompatibilityAssessment) {
 	builder.WriteString("## Baseline\n\n")
 	builder.WriteString("| Field | Value |\n| --- | --- |\n")
-	fmt.Fprintf(&builder, "| Pine version | `%s` |\n", PineVersion)
-	fmt.Fprintf(&builder, "| Product version | `%s` |\n", ProductVersion)
-	fmt.Fprintf(&builder, "| Source format | `%s` |\n", SourceFormat)
-	fmt.Fprintf(&builder, "| Runtime | `%s` |\n", Runtime)
-	fmt.Fprintf(&builder, "| External engine | `%s` (`%s`) |\n", pineengine.PinetsShadowEngineID, "off by default")
-	fmt.Fprintf(&builder, "| Score model | `%s` |\n", assessment.ScoreModelVersion)
-	fmt.Fprintf(&builder, "| Compatibility score | `%.2f` |\n\n", assessment.Score)
+	fmt.Fprintf(builder, "| Pine version | `%s` |\n", PineVersion)
+	fmt.Fprintf(builder, "| Product version | `%s` |\n", ProductVersion)
+	fmt.Fprintf(builder, "| Source format | `%s` |\n", SourceFormat)
+	fmt.Fprintf(builder, "| Runtime | `%s` |\n", Runtime)
+	fmt.Fprintf(builder, "| External engine | `%s` (`%s`) |\n", pineengine.PinetsShadowEngineID, "off by default")
+	fmt.Fprintf(builder, "| Score model | `%s` |\n", assessment.ScoreModelVersion)
+	fmt.Fprintf(builder, "| Compatibility score | `%.2f` |\n\n", assessment.Score)
+}
 
+func writeSupportSnapshotDimensions(builder *strings.Builder, assessment strategypine.CompatibilityAssessment) {
 	builder.WriteString("## Score Dimensions\n\n")
 	builder.WriteString("| Dimension | Weight | Score | Supported Weight | Total Weight | Unsupported IDs |\n")
 	builder.WriteString("| --- | ---: | ---: | ---: | ---: | --- |\n")
 	for _, dimension := range assessment.Dimensions {
 		fmt.Fprintf(
-			&builder,
+			builder,
 			"| `%s` | %.2f | %.2f | %.2f | %.2f | %s |\n",
 			escapeMarkdownTableCell(dimension.ID),
 			dimension.Weight,
@@ -125,13 +137,15 @@ func BuildSupportSnapshotMarkdown() string {
 			codeList(dimension.UnsupportedIDs),
 		)
 	}
+}
 
+func writeSupportSnapshotCapabilities(builder *strings.Builder) {
 	builder.WriteString("\n## Capability Registry\n\n")
 	builder.WriteString("| ID | Dimension | Status | Weight | Layers | Tests | Notes |\n")
 	builder.WriteString("| --- | --- | --- | ---: | --- | --- | --- |\n")
 	for _, capability := range strategypine.CapabilityRegistry() {
 		fmt.Fprintf(
-			&builder,
+			builder,
 			"| `%s` | `%s` | `%s` | %.2f | %s | %s | %s |\n",
 			escapeMarkdownTableCell(capability.ID),
 			escapeMarkdownTableCell(capability.Dimension),
@@ -142,13 +156,15 @@ func BuildSupportSnapshotMarkdown() string {
 			escapeMarkdownTableCell(capability.Notes),
 		)
 	}
+}
 
+func writeSupportSnapshotMatrix(builder *strings.Builder) {
 	builder.WriteString("\n## Support Matrix\n\n")
 	builder.WriteString("| Capability | Parser | Planner | Runtime | JFTrade | Frontend | Notes |\n")
 	builder.WriteString("| --- | --- | --- | --- | --- | --- | --- |\n")
 	for _, item := range supportMatrix() {
 		fmt.Fprintf(
-			&builder,
+			builder,
 			"| %s | %s | %s | %s | %s | %s | %s |\n",
 			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["capability"])),
 			boolMark(jftradeCheckedTypeAssertion[bool](item["parser"])),
@@ -159,13 +175,15 @@ func BuildSupportSnapshotMarkdown() string {
 			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["notes"])),
 		)
 	}
+}
 
+func writeSupportSnapshotBrokerBoundary(builder *strings.Builder) {
 	builder.WriteString("\n## Broker Boundary\n\n")
 	builder.WriteString("| Area | Status | Score Treatment | Diagnostics | Notes |\n")
 	builder.WriteString("| --- | --- | --- | --- | --- |\n")
 	for _, item := range brokerBoundary() {
 		fmt.Fprintf(
-			&builder,
+			builder,
 			"| %s | `%s` | %s | %s | %s |\n",
 			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["area"])),
 			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["status"])),
@@ -174,14 +192,15 @@ func BuildSupportSnapshotMarkdown() string {
 			escapeMarkdownTableCell(jftradeCheckedTypeAssertion[string](item["notes"])),
 		)
 	}
+}
 
+func writeSupportSnapshotUnsupportedPatterns(builder *strings.Builder) {
 	builder.WriteString("\n## Unsupported Patterns\n\n")
 	for _, pattern := range unsupportedPatterns() {
 		builder.WriteString("- ")
 		builder.WriteString(pattern)
 		builder.WriteString("\n")
 	}
-	return builder.String()
 }
 
 func capabilityLayerSummary(layers strategypine.CapabilityLayers) string {

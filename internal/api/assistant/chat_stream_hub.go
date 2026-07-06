@@ -218,85 +218,162 @@ func (h *Handler) cleanupADKChatStreams() {
 }
 
 func (h *Handler) executeADKChatStream(record *adkChatStreamRecord, payload jfadk.ChatRequest) {
-	ctx := context.Background()
-	sessionSent := false
-	contextSent := false
-	timelineState := &adkTimelineStreamState{}
-	publish := func(event adkChatStreamEvent) {
-		h.streams.publish(record, event)
-	}
-
-	if session, err := h.service.PreviewSession(ctx, payload); err == nil && strings.TrimSpace(session.ID) != "" {
-		publish(adkChatStreamEvent{Type: "session", Session: &session})
-		sessionSent = true
-		timelineState.observeSession(session)
-	}
-
-	result, err := h.service.ChatStream(ctx, payload, func(delta jfadk.ChatDelta) error {
-		if delta.Timeline != nil {
-			timeline := jfadk.NormalizeTimelineEntry(*delta.Timeline)
-			timelineState.observeTimeline(timeline)
-			publish(adkChatStreamEvent{Type: "timeline", Timeline: &timeline})
-			if delta.Run == nil && delta.Context == nil && delta.Reply == "" && delta.ReasoningContent == "" {
-				return nil
-			}
-		}
-		if delta.Run != nil {
-			delta.Run = new(jfadk.NormalizeRun(*delta.Run))
-			timelineState.observeRun(delta.Run)
-			publish(adkChatStreamEvent{Type: "run", Run: delta.Run})
-			if timeline := timelineState.toolGroupSnapshot(); timeline != nil {
-				publish(adkChatStreamEvent{Type: "timeline", Timeline: timeline})
-			}
-			return nil
-		}
-		if delta.Context != nil {
-			contextSent = true
-			publish(adkChatStreamEvent{Type: "context", Context: delta.Context})
-		}
-		if !sessionSent {
-			session, sessionErr := h.service.PreviewSession(ctx, payload)
-			if sessionErr == nil && strings.TrimSpace(session.ID) != "" {
-				publish(adkChatStreamEvent{Type: "session", Session: &session})
-				sessionSent = true
-				timelineState.observeSession(session)
-				if !contextSent {
-					if snapshot, snapshotErr := h.service.GetSessionContext(ctx, session.ID); snapshotErr == nil {
-						publish(adkChatStreamEvent{Type: "context", Context: &snapshot})
-						contextSent = true
-					}
-				}
-			}
-		}
-		if reasoningTimeline := timelineState.appendReasoning(delta.Run, delta.ReasoningContent); reasoningTimeline != nil {
-			publish(adkChatStreamEvent{Type: "timeline", Timeline: reasoningTimeline})
-		}
-		if messageTimeline := timelineState.appendMessage(delta.Run, delta.Reply); messageTimeline != nil {
-			publish(adkChatStreamEvent{Type: "timeline", Timeline: messageTimeline})
-		}
-		return nil
-	})
+	execution := newADKChatStreamExecution(h, record, payload)
+	execution.previewSession()
+	result, err := h.service.ChatStream(execution.ctx, payload, execution.handleDelta)
 	if err != nil {
-		if finalResponse, finalErr := h.service.RecoverTerminalChatResponse(ctx, record.currentRunID()); finalErr == nil && finalResponse != nil {
-			publish(adkChatStreamEvent{Type: "final", Response: finalResponse})
-			return
-		}
-		publish(adkChatStreamEvent{Type: "error", Message: err.Error()})
+		execution.publishTerminalError(err)
 		return
 	}
+	execution.publishFinal(result)
+}
 
-	response := result
-	if !sessionSent {
-		publish(adkChatStreamEvent{Type: "session", Session: &response.Session})
+type adkChatStreamExecution struct {
+	handler       *Handler
+	record        *adkChatStreamRecord
+	payload       jfadk.ChatRequest
+	ctx           context.Context
+	sessionSent   bool
+	contextSent   bool
+	timelineState *adkTimelineStreamState
+}
+
+func newADKChatStreamExecution(h *Handler, record *adkChatStreamRecord, payload jfadk.ChatRequest) *adkChatStreamExecution {
+	return &adkChatStreamExecution{
+		handler:       h,
+		record:        record,
+		payload:       payload,
+		ctx:           context.Background(),
+		timelineState: &adkTimelineStreamState{},
 	}
-	if !contextSent && response.Context != nil {
-		publish(adkChatStreamEvent{Type: "context", Context: response.Context})
+}
+
+func (e *adkChatStreamExecution) publish(event adkChatStreamEvent) {
+	e.handler.streams.publish(e.record, event)
+}
+
+func (e *adkChatStreamExecution) previewSession() {
+	session, ok := e.fetchPreviewSession()
+	if !ok {
+		return
 	}
+	e.publishSession(session)
+}
+
+func (e *adkChatStreamExecution) fetchPreviewSession() (jfadk.Session, bool) {
+	session, err := e.handler.service.PreviewSession(e.ctx, e.payload)
+	if err != nil || strings.TrimSpace(session.ID) == "" {
+		return jfadk.Session{}, false
+	}
+	return session, true
+}
+
+func (e *adkChatStreamExecution) publishSession(session jfadk.Session) {
+	e.publish(adkChatStreamEvent{Type: "session", Session: &session})
+	e.sessionSent = true
+	e.timelineState.observeSession(session)
+}
+
+func (e *adkChatStreamExecution) handleDelta(delta jfadk.ChatDelta) error {
+	if e.publishTimelineDelta(delta) {
+		return nil
+	}
+	if e.publishRunDelta(&delta) {
+		return nil
+	}
+	e.publishContextDelta(delta.Context)
+	e.ensureSessionAndContext()
+	e.publishNarrativeDeltas(delta)
+	return nil
+}
+
+func (e *adkChatStreamExecution) publishTimelineDelta(delta jfadk.ChatDelta) bool {
+	if delta.Timeline == nil {
+		return false
+	}
+	timeline := jfadk.NormalizeTimelineEntry(*delta.Timeline)
+	e.timelineState.observeTimeline(timeline)
+	e.publish(adkChatStreamEvent{Type: "timeline", Timeline: &timeline})
+	return delta.Run == nil && delta.Context == nil && delta.Reply == "" && delta.ReasoningContent == ""
+}
+
+func (e *adkChatStreamExecution) publishRunDelta(delta *jfadk.ChatDelta) bool {
+	if delta.Run == nil {
+		return false
+	}
+	normalizedRun := jfadk.NormalizeRun(*delta.Run)
+	delta.Run = &normalizedRun
+	e.timelineState.observeRun(delta.Run)
+	e.publish(adkChatStreamEvent{Type: "run", Run: delta.Run})
+	if timeline := e.timelineState.toolGroupSnapshot(); timeline != nil {
+		e.publish(adkChatStreamEvent{Type: "timeline", Timeline: timeline})
+	}
+	return true
+}
+
+func (e *adkChatStreamExecution) publishContextDelta(snapshot *jfadk.SessionContextSnapshot) {
+	if snapshot == nil {
+		return
+	}
+	e.publish(adkChatStreamEvent{Type: "context", Context: snapshot})
+	e.contextSent = true
+}
+
+func (e *adkChatStreamExecution) ensureSessionAndContext() {
+	if e.sessionSent {
+		return
+	}
+	session, ok := e.fetchPreviewSession()
+	if !ok {
+		return
+	}
+	e.publishSession(session)
+	if e.contextSent {
+		return
+	}
+	snapshot, err := e.handler.service.GetSessionContext(e.ctx, session.ID)
+	if err != nil {
+		return
+	}
+	e.publish(adkChatStreamEvent{Type: "context", Context: &snapshot})
+	e.contextSent = true
+}
+
+func (e *adkChatStreamExecution) publishNarrativeDeltas(delta jfadk.ChatDelta) {
+	if reasoningTimeline := e.timelineState.appendReasoning(delta.Run, delta.ReasoningContent); reasoningTimeline != nil {
+		e.publish(adkChatStreamEvent{Type: "timeline", Timeline: reasoningTimeline})
+	}
+	if messageTimeline := e.timelineState.appendMessage(delta.Run, delta.Reply); messageTimeline != nil {
+		e.publish(adkChatStreamEvent{Type: "timeline", Timeline: messageTimeline})
+	}
+}
+
+func (e *adkChatStreamExecution) publishTerminalError(err error) {
+	finalResponse, finalErr := e.handler.service.RecoverTerminalChatResponse(e.ctx, e.record.currentRunID())
+	if finalErr == nil && finalResponse != nil {
+		e.publish(adkChatStreamEvent{Type: "final", Response: finalResponse})
+		return
+	}
+	e.publish(adkChatStreamEvent{Type: "error", Message: err.Error()})
+}
+
+func (e *adkChatStreamExecution) publishFinal(response jfadk.ChatResponse) {
+	if !e.sessionSent {
+		e.publish(adkChatStreamEvent{Type: "session", Session: &response.Session})
+	}
+	if !e.contextSent && response.Context != nil {
+		e.publish(adkChatStreamEvent{Type: "context", Context: response.Context})
+	}
+	finalResponse := trimFinalChatResponse(response)
+	e.publish(adkChatStreamEvent{Type: "final", Response: &finalResponse})
+}
+
+func trimFinalChatResponse(response jfadk.ChatResponse) jfadk.ChatResponse {
 	trimmedRun := response.Run
 	for i := range trimmedRun.ToolCalls {
 		trimmedRun.ToolCalls[i].Output = nil
 	}
-	publish(adkChatStreamEvent{Type: "final", Response: new(jfadk.NormalizeChatResponse(jfadk.ChatResponse{
+	return jfadk.NormalizeChatResponse(jfadk.ChatResponse{
 		Reply:            response.Reply,
 		ReasoningContent: response.ReasoningContent,
 		Session:          response.Session,
@@ -304,7 +381,7 @@ func (h *Handler) executeADKChatStream(record *adkChatStreamRecord, payload jfad
 		PendingApprovals: response.PendingApprovals,
 		Timeline:         response.Timeline,
 		Context:          response.Context,
-	}))})
+	})
 }
 
 func (h *Handler) streamADKChatRecord(c *gin.Context, writer httpserver.SSEWriter, record *adkChatStreamRecord, after int64, replay bool) {

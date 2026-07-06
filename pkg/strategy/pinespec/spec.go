@@ -513,88 +513,120 @@ func sectionSummary(section string) string {
 func sectionDetails(section string) []string {
 	switch section {
 	case "overview":
-		return []string{
-			"JFTrade Pine Script v6 前端会把支持的 Pine 策略语句交给 PineTS worker runtime 执行。",
-			"已保存草稿、回测结果和正在运行的策略实例必须视为不同工作状态，不能混为一谈。",
-			"当前目标是可执行、同标的、closed-bar 策略迁移兼容；不宣称完整 TradingView Pine v6 或 broker emulator 兼容。",
-		}
+		return overviewSectionDetails()
 	case "syntax":
-		return []string{
-			"脚本必须包含 //@version=6 和 strategy(...)。",
-			"空行与普通 // 注释会被忽略；// @jftradeFlow* 注释用于前端流程图双向同步。",
-			"if/else 使用 Pine 风格缩进块；顶层可执行语句统一按 K 线收盘逻辑 lower。",
-			"支持 var 持久变量、:= 重赋值、基础三元表达式、多 bar 历史引用、表达式/受控多语句 UDF 和静态 for 编译期展开。",
-			"UDF 支持 name(arg) => expression、单表达式缩进体，以及包含局部赋值、if/else 和最终返回表达式的受控多语句函数。",
-			"静态 for 支持 for i = start to end [by step]，边界必须是整数常量或 input.int 默认值，按 Pine inclusive to 语义展开。",
-			"JFTrade 会把顶层可执行语句作为 K 线收盘逻辑执行。",
-		}
+		return syntaxSectionDetails()
 	case "expressions":
-		return []string{
-			"支持 close/open/high/low/volume/hl2/hlc3/ohlc4、算术、比较和布尔表达式。",
-			"close[1]/open[1]/high[1]/low[1]/volume[1] 会 lower 为上一根 K 线值。",
-			"条件表达式要求严格 bool；数值不能直接作为 if 条件。",
-			"支持 na 常量、nz(value, fallback?) 和基础三元表达式。",
-			"input()/input.int/float/bool/string/source/time/timeframe/color 会取默认值；不实现 TradingView 设置面板运行时覆盖。",
-			"strategy.equity、bar_index、time/hour/minute/dayofweek/dayofmonth/month/year 可在普通表达式中读取。",
-			"barstate.isfirst/isnew/isconfirmed/ishistory/isrealtime/islast 和 session.ismarket/ispremarket/ispostmarket 由 PineTS worker 按 K 线状态执行。",
-			"dayofweek.sunday...saturday、month.january...december、color.*、color.new(...)、color.rgb(...) 支持常见默认值兼容。",
-			"syminfo.tickerid、syminfo.prefix、timeframe.period 和 timeframe.isintraday/isminutes/isdaily/isweekly/ismonthly 可在普通表达式中读取。",
-			"timestamp(year, month, day[, hour, minute]) 按当前标的交易所时区解释并返回 Unix milliseconds；不支持显式 timezone 参数。",
-			"ta.crossover/ta.crossunder/ta.cross 会映射到 JFTrade cross_over/cross_under。",
-			"math.abs/min/max/avg/round/round_to_mintick/floor/ceil/sqrt/pow/log/sign 会映射到 JFTrade 表达式函数。",
-			"未知 built-ins 可能无法 lower，应先调用 strategy.validate_pine。",
-		}
+		return expressionsSectionDetails()
 	case "indicators":
-		return []string{
-			"指标绑定通过 <alias> = ta.<function>(...) 声明。",
-			"compiler 当前识别常用 MA、RSI/MACD/ATR、rolling/window、Bollinger、DMI/Supertrend/SAR，v1.2 的 linreg/OBV/pivot/Keltner/ALMA，v1.3 的 CMO/TSI/correlation/dev/median/percentile/percentrank/SWMA，v1.4 的窗口/动量、状态事件和 TR，v1.5 的 MTF common TA，v1.6 的 MTF tuple 白名单，以及 v2.1 的 BBW/COG/锚定 VWAP。",
-			"request.security 支持同标的 timeframe：\"1\"/\"5\"/\"15\"/\"30\"/\"45\"/\"60\"/\"120\"/\"240\"、\"D\"/\"1D\"、\"W\"/\"1W\"、\"M\"/\"1M\"。",
-			"request.security(syminfo.tickerid, timeframe, source) 支持 OHLCV/hl2/hlc3/ohlc4 和 source[n]；支持 source-aware MTF 均线、静态 intraday 受支持高级指标、v1.4 纯表达式 source/history/MA/math/bool/nz 组合、v1.5 RSI/MACD/ATR/Bollinger/Supertrend common TA 组合、v1.6 source/TA/纯表达式 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式，以及 v2.4 MTF stoch。",
-			"ta.macd 支持 [macdLine, signalLine, histLine] 三元组赋值。",
-			"source-aware 指标第一版 source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。",
-			"历史引用支持 close[2]、hlc3[3]、emaFast[5]、bands.upper[2] 等简单 identifier/member；超过 500 bar 会返回诊断。",
-		}
+		return indicatorsSectionDetails()
 	case "orders":
-		return []string{
-			"strategy.entry(id, strategy.long, qty=n) 映射为买入开多。",
-			"strategy.entry(id, strategy.short, qty=n) 映射为卖出开空。",
-			"strategy.entry 未显式传 qty 时，会继承 strategy(...) 的 default_qty_type/default_qty_value；默认等价 strategy.fixed + 1。",
-			"strategy.entry/order 支持 qty_percent；entry/order 中表示账户权益百分比，close/exit 中表示当前 symbol 持仓百分比。",
-			"strategy.entry 反向开仓会按 Pine 语义自动反手；strategy.risk.allow_entry_in 可限制方向，被禁止方向在已有反向仓位时只平仓不反手。",
-			"pyramiding 默认按 1 处理；显式 pyramiding>1 时允许有限同向追加。",
-			"strategy.order 提交净额买入或卖出，不套用 strategy.entry 的 pyramiding gate。",
-			"strategy.close_all() 只 flatten 当前策略 symbol。",
-			"固定金额可写 qty=amount/close，账户权益百分比可写 qty=(strategy.equity*pct/100)/close。",
-			"strategy.entry/order(..., stop=price) 映射为基础 stop pending；limit=price 映射为基础 limit pending。",
-			"strategy.close(id, qty=n, limit=price) 根据已知 entry id 映射为平多或平空，支持部分平仓与限价。",
-			"strategy.exit(id, from_entry, stop=..., limit=..., qty/qty_percent=...) 映射为 closed-bar bracket；同 bar 两侧触发时采用保守 stop-first。",
-			"strategy.cancel(id)/cancel_all() 取消当前策略 symbol 尚未触发的 pending orders。",
-			"strategy() 支持 initial_capital、commission_type/value、slippage 与 process_orders_on_close；API initialBalance 优先于脚本资金。",
-			"strategy.close/close_all 支持 immediately=true；comment、alert_message、disable_alert 会进入日志/通知元数据。",
-		}
+		return ordersSectionDetails()
 	case "support-matrix":
-		return []string{
-			"v4.0 保持闭盘可执行 Pine v6 子集作为策略定义、预览、回测、实例化、运行和 ADK 工具主路径。",
-			"v4.0 让 collection/map/matrix 扩展、array stats、字符串/timeframe helper、结构化 AST、通用 tuple、动态循环、纯 UDT constructor/method、持久 object 字段更新、object collection fields、collection history aggregate、object history read/method receiver、method chain、MTF stoch、稳定 semantic declaration metadata、visual metadata、native public surface diagnostics、MTF diagnostic matrix、lower-timeframe MTF preflight、高级语言边界诊断、生成式支持快照和 broker emulator 边界决策可分析、可解释、可分层执行；library/import 和完整 TradingView method/type 系统仍只进入 metadata/diagnostics。",
-			"新增 Pine 能力必须同步更新 parser lowering、semantic summary、IR requirements、indicator/runtime lookup、规范输出和至少一层可执行测试。",
-			"前端不是完整 Pine IDE；流程图覆盖常用策略 authoring，无法标准化的 Pine 行会返回行号诊断，请继续在 Pine 工作台编辑。",
-		}
+		return supportMatrixSectionDetails()
 	case "unsupported":
-		return []string{
-			"plot/hline/bgcolor/barcolor/fill/alertcondition/label.new/line.new/box.new/table.* 等非交易调用由 PineTS worker 归入 visual output 或 alerts；Go 交易链路不消费这些输出。",
-			"动态 for/while/break/continue 已在闭盘 runtime 执行，但递归/嵌套 UDF、library/import、method 副作用和完整 Pine method/type 系统仍会返回结构化诊断。",
-			"除同标的静态 source/source[n]/MA/受支持高级指标/v1.4 纯表达式、v1.5 common TA pure-expression、v1.6 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式、v2.4 MTF stoch、v2.7 helper 表达式、v2.8 object method 表达式与 v2.9 object history 表达式以外的 request.security、lookahead_on/gaps_on 和 side effect 会返回错误。",
-			"strategy.entry/order 支持基础 stop-limit 和 entry 反手；OCA、partial fill、保证金裸空账户模拟和完整 pending order broker emulator 不支持。",
-			"strategy.exit 的 OCA、partial fill、trail 与 bracket 混用、intrabar broker emulator 等高级语义会给出明确诊断。",
-			"完整 TradingView broker emulator 行为不属于当前 JFTrade runtime。",
-		}
+		return unsupportedSectionDetails()
 	case "examples":
-		return []string{
-			"这些示例脚本与内置 skill 资源和 strategy.pine_spec 输出共用同一份规范源。",
-			"这些示例旨在保证当前实现下可以成功 parse、lower 并完成 requirements planning。",
-		}
+		return examplesSectionDetails()
 	default:
 		return nil
+	}
+}
+
+func overviewSectionDetails() []string {
+	return []string{
+		"JFTrade Pine Script v6 前端会把支持的 Pine 策略语句交给 PineTS worker runtime 执行。",
+		"已保存草稿、回测结果和正在运行的策略实例必须视为不同工作状态，不能混为一谈。",
+		"当前目标是可执行、同标的、closed-bar 策略迁移兼容；不宣称完整 TradingView Pine v6 或 broker emulator 兼容。",
+	}
+}
+
+func syntaxSectionDetails() []string {
+	return []string{
+		"脚本必须包含 //@version=6 和 strategy(...)。",
+		"空行与普通 // 注释会被忽略；// @jftradeFlow* 注释用于前端流程图双向同步。",
+		"if/else 使用 Pine 风格缩进块；顶层可执行语句统一按 K 线收盘逻辑 lower。",
+		"支持 var 持久变量、:= 重赋值、基础三元表达式、多 bar 历史引用、表达式/受控多语句 UDF 和静态 for 编译期展开。",
+		"UDF 支持 name(arg) => expression、单表达式缩进体，以及包含局部赋值、if/else 和最终返回表达式的受控多语句函数。",
+		"静态 for 支持 for i = start to end [by step]，边界必须是整数常量或 input.int 默认值，按 Pine inclusive to 语义展开。",
+		"JFTrade 会把顶层可执行语句作为 K 线收盘逻辑执行。",
+	}
+}
+
+func expressionsSectionDetails() []string {
+	return []string{
+		"支持 close/open/high/low/volume/hl2/hlc3/ohlc4、算术、比较和布尔表达式。",
+		"close[1]/open[1]/high[1]/low[1]/volume[1] 会 lower 为上一根 K 线值。",
+		"条件表达式要求严格 bool；数值不能直接作为 if 条件。",
+		"支持 na 常量、nz(value, fallback?) 和基础三元表达式。",
+		"input()/input.int/float/bool/string/source/time/timeframe/color 会取默认值；不实现 TradingView 设置面板运行时覆盖。",
+		"strategy.equity、bar_index、time/hour/minute/dayofweek/dayofmonth/month/year 可在普通表达式中读取。",
+		"barstate.isfirst/isnew/isconfirmed/ishistory/isrealtime/islast 和 session.ismarket/ispremarket/ispostmarket 由 PineTS worker 按 K 线状态执行。",
+		"dayofweek.sunday...saturday、month.january...december、color.*、color.new(...)、color.rgb(...) 支持常见默认值兼容。",
+		"syminfo.tickerid、syminfo.prefix、timeframe.period 和 timeframe.isintraday/isminutes/isdaily/isweekly/ismonthly 可在普通表达式中读取。",
+		"timestamp(year, month, day[, hour, minute]) 按当前标的交易所时区解释并返回 Unix milliseconds；不支持显式 timezone 参数。",
+		"ta.crossover/ta.crossunder/ta.cross 会映射到 JFTrade cross_over/cross_under。",
+		"math.abs/min/max/avg/round/round_to_mintick/floor/ceil/sqrt/pow/log/sign 会映射到 JFTrade 表达式函数。",
+		"未知 built-ins 可能无法 lower，应先调用 strategy.validate_pine。",
+	}
+}
+
+func indicatorsSectionDetails() []string {
+	return []string{
+		"指标绑定通过 <alias> = ta.<function>(...) 声明。",
+		"compiler 当前识别常用 MA、RSI/MACD/ATR、rolling/window、Bollinger、DMI/Supertrend/SAR，v1.2 的 linreg/OBV/pivot/Keltner/ALMA，v1.3 的 CMO/TSI/correlation/dev/median/percentile/percentrank/SWMA，v1.4 的窗口/动量、状态事件和 TR，v1.5 的 MTF common TA，v1.6 的 MTF tuple 白名单，以及 v2.1 的 BBW/COG/锚定 VWAP。",
+		"request.security 支持同标的 timeframe：\"1\"/\"5\"/\"15\"/\"30\"/\"45\"/\"60\"/\"120\"/\"240\"、\"D\"/\"1D\"、\"W\"/\"1W\"、\"M\"/\"1M\"。",
+		"request.security(syminfo.tickerid, timeframe, source) 支持 OHLCV/hl2/hlc3/ohlc4 和 source[n]；支持 source-aware MTF 均线、静态 intraday 受支持高级指标、v1.4 纯表达式 source/history/MA/math/bool/nz 组合、v1.5 RSI/MACD/ATR/Bollinger/Supertrend common TA 组合、v1.6 source/TA/纯表达式 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式，以及 v2.4 MTF stoch。",
+		"ta.macd 支持 [macdLine, signalLine, histLine] 三元组赋值。",
+		"source-aware 指标第一版 source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。",
+		"历史引用支持 close[2]、hlc3[3]、emaFast[5]、bands.upper[2] 等简单 identifier/member；超过 500 bar 会返回诊断。",
+	}
+}
+
+func ordersSectionDetails() []string {
+	return []string{
+		"strategy.entry(id, strategy.long, qty=n) 映射为买入开多。",
+		"strategy.entry(id, strategy.short, qty=n) 映射为卖出开空。",
+		"strategy.entry 未显式传 qty 时，会继承 strategy(...) 的 default_qty_type/default_qty_value；默认等价 strategy.fixed + 1。",
+		"strategy.entry/order 支持 qty_percent；entry/order 中表示账户权益百分比，close/exit 中表示当前 symbol 持仓百分比。",
+		"strategy.entry 反向开仓会按 Pine 语义自动反手；strategy.risk.allow_entry_in 可限制方向，被禁止方向在已有反向仓位时只平仓不反手。",
+		"pyramiding 默认按 1 处理；显式 pyramiding>1 时允许有限同向追加。",
+		"strategy.order 提交净额买入或卖出，不套用 strategy.entry 的 pyramiding gate。",
+		"strategy.close_all() 只 flatten 当前策略 symbol。",
+		"固定金额可写 qty=amount/close，账户权益百分比可写 qty=(strategy.equity*pct/100)/close。",
+		"strategy.entry/order(..., stop=price) 映射为基础 stop pending；limit=price 映射为基础 limit pending。",
+		"strategy.close(id, qty=n, limit=price) 根据已知 entry id 映射为平多或平空，支持部分平仓与限价。",
+		"strategy.exit(id, from_entry, stop=..., limit=..., qty/qty_percent=...) 映射为 closed-bar bracket；同 bar 两侧触发时采用保守 stop-first。",
+		"strategy.cancel(id)/cancel_all() 取消当前策略 symbol 尚未触发的 pending orders。",
+		"strategy() 支持 initial_capital、commission_type/value、slippage 与 process_orders_on_close；API initialBalance 优先于脚本资金。",
+		"strategy.close/close_all 支持 immediately=true；comment、alert_message、disable_alert 会进入日志/通知元数据。",
+	}
+}
+
+func supportMatrixSectionDetails() []string {
+	return []string{
+		"v4.0 保持闭盘可执行 Pine v6 子集作为策略定义、预览、回测、实例化、运行和 ADK 工具主路径。",
+		"v4.0 让 collection/map/matrix 扩展、array stats、字符串/timeframe helper、结构化 AST、通用 tuple、动态循环、纯 UDT constructor/method、持久 object 字段更新、object collection fields、collection history aggregate、object history read/method receiver、method chain、MTF stoch、稳定 semantic declaration metadata、visual metadata、native public surface diagnostics、MTF diagnostic matrix、lower-timeframe MTF preflight、高级语言边界诊断、生成式支持快照和 broker emulator 边界决策可分析、可解释、可分层执行；library/import 和完整 TradingView method/type 系统仍只进入 metadata/diagnostics。",
+		"新增 Pine 能力必须同步更新 parser lowering、semantic summary、IR requirements、indicator/runtime lookup、规范输出和至少一层可执行测试。",
+		"前端不是完整 Pine IDE；流程图覆盖常用策略 authoring，无法标准化的 Pine 行会返回行号诊断，请继续在 Pine 工作台编辑。",
+	}
+}
+
+func unsupportedSectionDetails() []string {
+	return []string{
+		"plot/hline/bgcolor/barcolor/fill/alertcondition/label.new/line.new/box.new/table.* 等非交易调用由 PineTS worker 归入 visual output 或 alerts；Go 交易链路不消费这些输出。",
+		"动态 for/while/break/continue 已在闭盘 runtime 执行，但递归/嵌套 UDF、library/import、method 副作用和完整 Pine method/type 系统仍会返回结构化诊断。",
+		"除同标的静态 source/source[n]/MA/受支持高级指标/v1.4 纯表达式、v1.5 common TA pure-expression、v1.6 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式、v2.4 MTF stoch、v2.7 helper 表达式、v2.8 object method 表达式与 v2.9 object history 表达式以外的 request.security、lookahead_on/gaps_on 和 side effect 会返回错误。",
+		"strategy.entry/order 支持基础 stop-limit 和 entry 反手；OCA、partial fill、保证金裸空账户模拟和完整 pending order broker emulator 不支持。",
+		"strategy.exit 的 OCA、partial fill、trail 与 bracket 混用、intrabar broker emulator 等高级语义会给出明确诊断。",
+		"完整 TradingView broker emulator 行为不属于当前 JFTrade runtime。",
+	}
+}
+
+func examplesSectionDetails() []string {
+	return []string{
+		"这些示例脚本与内置 skill 资源和 strategy.pine_spec 输出共用同一份规范源。",
+		"这些示例旨在保证当前实现下可以成功 parse、lower 并完成 requirements planning。",
 	}
 }
 

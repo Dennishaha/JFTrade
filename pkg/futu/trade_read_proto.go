@@ -10,13 +10,18 @@ import (
 	trdgetmarginratiopb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmarginratio"
 )
 
-//nolint:funlen
 func brokerFundsSnapshotFromProto(account resolvedTradeAccount, funds *trdcommonpb.Funds) *BrokerFundsSnapshot {
 	if funds == nil {
 		funds = &trdcommonpb.Funds{}
 	}
+	snapshot := newBrokerFundsSnapshot(account, funds)
+	snapshot.CurrencyBalances = brokerCurrencyBalanceSnapshots(account, funds.GetCashInfoList())
+	snapshot.MarketAssets = brokerMarketAssetSnapshots(account, funds.GetMarketInfoList())
+	return snapshot
+}
 
-	snapshot := &BrokerFundsSnapshot{
+func newBrokerFundsSnapshot(account resolvedTradeAccount, funds *trdcommonpb.Funds) *BrokerFundsSnapshot {
+	return &BrokerFundsSnapshot{
 		AccountID:               account.AccountID,
 		TradingEnvironment:      account.TradingEnvironment,
 		Market:                  account.Market,
@@ -57,9 +62,14 @@ func brokerFundsSnapshotFromProto(account resolvedTradeAccount, funds *trdcommon
 		UsedLimit:      cloneFloat64Ptr(funds.UsedLimit),
 		RemainingLimit: cloneFloat64Ptr(funds.RemainingLimit),
 	}
+}
 
-	snapshot.CurrencyBalances = make([]BrokerCurrencyBalanceSnapshot, 0, len(funds.GetCashInfoList()))
-	for _, cashInfo := range funds.GetCashInfoList() {
+func brokerCurrencyBalanceSnapshots(
+	account resolvedTradeAccount,
+	cashInfoList []*trdcommonpb.AccCashInfo,
+) []BrokerCurrencyBalanceSnapshot {
+	balances := make([]BrokerCurrencyBalanceSnapshot, 0, len(cashInfoList))
+	for _, cashInfo := range cashInfoList {
 		if cashInfo == nil {
 			continue
 		}
@@ -67,7 +77,7 @@ func brokerFundsSnapshotFromProto(account resolvedTradeAccount, funds *trdcommon
 		if currency == nil {
 			continue
 		}
-		snapshot.CurrencyBalances = append(snapshot.CurrencyBalances, BrokerCurrencyBalanceSnapshot{
+		balances = append(balances, BrokerCurrencyBalanceSnapshot{
 			AccountID:               account.AccountID,
 			TradingEnvironment:      account.TradingEnvironment,
 			Currency:                *currency,
@@ -76,9 +86,15 @@ func brokerFundsSnapshotFromProto(account resolvedTradeAccount, funds *trdcommon
 			NetCashPower:            cloneFloat64Ptr(cashInfo.NetCashPower),
 		})
 	}
+	return balances
+}
 
-	snapshot.MarketAssets = make([]BrokerMarketAssetSnapshot, 0, len(funds.GetMarketInfoList()))
-	for _, marketInfo := range funds.GetMarketInfoList() {
+func brokerMarketAssetSnapshots(
+	account resolvedTradeAccount,
+	marketInfoList []*trdcommonpb.AccMarketInfo,
+) []BrokerMarketAssetSnapshot {
+	marketAssets := make([]BrokerMarketAssetSnapshot, 0, len(marketInfoList))
+	for _, marketInfo := range marketInfoList {
 		if marketInfo == nil {
 			continue
 		}
@@ -86,15 +102,14 @@ func brokerFundsSnapshotFromProto(account resolvedTradeAccount, funds *trdcommon
 		if market == "" {
 			continue
 		}
-		snapshot.MarketAssets = append(snapshot.MarketAssets, BrokerMarketAssetSnapshot{
+		marketAssets = append(marketAssets, BrokerMarketAssetSnapshot{
 			AccountID:          account.AccountID,
 			TradingEnvironment: account.TradingEnvironment,
 			Market:             market,
 			Assets:             cloneFloat64Ptr(marketInfo.Assets),
 		})
 	}
-
-	return snapshot
+	return marketAssets
 }
 
 func brokerPositionSnapshotFromProto(account resolvedTradeAccount, position *trdcommonpb.Position) BrokerPositionSnapshot {
