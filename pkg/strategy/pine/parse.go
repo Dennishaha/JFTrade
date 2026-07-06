@@ -92,8 +92,33 @@ func Compile(script string) (Compilation, error) {
 	}, nil
 }
 
-//nolint:funlen
 func compileLoweredAST(script string, lines []parsedLine, ast *AST) (Compilation, error) {
+	state := newParseState(script, lines, ast)
+	if len(state.lines) == 0 {
+		return Compilation{}, fmt.Errorf("pine script is required")
+	}
+	program := &strategyir.Program{SourceFormat: SourceFormatPineV6}
+	headerState, err := state.scanCompilationHeaders(program)
+	if err != nil {
+		return Compilation{}, err
+	}
+	if err := validateCompilationHeaders(headerState); err != nil {
+		return Compilation{}, err
+	}
+	statements, _, err := state.parseBlock(headerState.executableStart, -1)
+	if err != nil {
+		return Compilation{}, err
+	}
+	return buildCompilationResult(program, state, statements), nil
+}
+
+type compilationHeaderState struct {
+	versionSeen     bool
+	strategySeen    bool
+	executableStart int
+}
+
+func newParseState(script string, lines []parsedLine, ast *AST) *parseState {
 	state := &parseState{
 		lines:                nil,
 		longEntryIDs:         map[string]bool{},
@@ -112,58 +137,70 @@ func compileLoweredAST(script string, lines []parsedLine, ast *AST) (Compilation
 		regexpCache:          map[string]*regexp.Regexp{},
 	}
 	state.lines = parsedLinesFromStructuredAST(ast, lines)
-	if len(state.lines) == 0 {
-		return Compilation{}, fmt.Errorf("pine script is required")
-	}
+	return state
+}
 
-	program := &strategyir.Program{SourceFormat: SourceFormatPineV6}
-	versionSeen := false
-	strategySeen := false
-	executableStart := 0
-
-	for index, line := range state.lines {
+func (s *parseState) scanCompilationHeaders(program *strategyir.Program) (compilationHeaderState, error) {
+	state := compilationHeaderState{}
+	for index, line := range s.lines {
 		if line.indent > 0 {
-			executableStart = index
-			break
+			state.executableStart = index
+			return state, nil
 		}
-		lower := strings.ToLower(line.trimmed)
-		switch {
-		case strings.HasPrefix(lower, "//@version"):
-			if !strings.Contains(strings.ReplaceAll(lower, " ", ""), "//@version=6") {
-				return Compilation{}, fmt.Errorf("pine line %d: JFTrade requires //@version=6", line.number)
-			}
-			versionSeen = true
-			executableStart = index + 1
-		case strings.HasPrefix(lower, "strategy("):
-			metadata, warnings := parseStrategyDeclaration(line.trimmed)
-			state.warnings = append(state.warnings, warnings...)
-			program.Metadata = metadata
-			state.strategyMetadata = metadata
-			strategySeen = true
-			executableStart = index + 1
-		case strings.HasPrefix(lower, "indicator("), strings.HasPrefix(lower, "study("), strings.HasPrefix(lower, "library("):
-			return Compilation{}, fmt.Errorf("pine line %d: JFTrade can execute strategy(...) scripts only", line.number)
-		case isVisualOnlyCall(lower):
-			state.warnings = append(state.warnings, fmt.Sprintf("pine line %d: visual-only call %q is ignored by JFTrade", line.number, callName(line.trimmed)))
-			executableStart = index + 1
-		default:
-			executableStart = index
-			goto metadataDone
+		handled, err := s.applyCompilationHeaderLine(program, line, index, &state)
+		if err != nil {
+			return state, err
 		}
+		if handled {
+			continue
+		}
+		state.executableStart = index
+		return state, nil
 	}
+	state.executableStart = len(s.lines)
+	return state, nil
+}
 
-metadataDone:
-	if !versionSeen {
-		return Compilation{}, fmt.Errorf("pine script requires //@version=6")
+func (s *parseState) applyCompilationHeaderLine(program *strategyir.Program, line parsedLine, index int, state *compilationHeaderState) (bool, error) {
+	lower := strings.ToLower(line.trimmed)
+	switch {
+	case strings.HasPrefix(lower, "//@version"):
+		if !strings.Contains(strings.ReplaceAll(lower, " ", ""), "//@version=6") {
+			return false, fmt.Errorf("pine line %d: JFTrade requires //@version=6", line.number)
+		}
+		state.versionSeen = true
+		state.executableStart = index + 1
+		return true, nil
+	case strings.HasPrefix(lower, "strategy("):
+		metadata, warnings := parseStrategyDeclaration(line.trimmed)
+		s.warnings = append(s.warnings, warnings...)
+		program.Metadata = metadata
+		s.strategyMetadata = metadata
+		state.strategySeen = true
+		state.executableStart = index + 1
+		return true, nil
+	case strings.HasPrefix(lower, "indicator("), strings.HasPrefix(lower, "study("), strings.HasPrefix(lower, "library("):
+		return false, fmt.Errorf("pine line %d: JFTrade can execute strategy(...) scripts only", line.number)
+	case isVisualOnlyCall(lower):
+		s.warnings = append(s.warnings, fmt.Sprintf("pine line %d: visual-only call %q is ignored by JFTrade", line.number, callName(line.trimmed)))
+		state.executableStart = index + 1
+		return true, nil
+	default:
+		return false, nil
 	}
-	if !strategySeen {
-		return Compilation{}, fmt.Errorf("pine script requires strategy(...) declaration")
-	}
+}
 
-	statements, _, err := state.parseBlock(executableStart, -1)
-	if err != nil {
-		return Compilation{}, err
+func validateCompilationHeaders(state compilationHeaderState) error {
+	if !state.versionSeen {
+		return fmt.Errorf("pine script requires //@version=6")
 	}
+	if !state.strategySeen {
+		return fmt.Errorf("pine script requires strategy(...) declaration")
+	}
+	return nil
+}
+
+func buildCompilationResult(program *strategyir.Program, state *parseState, statements []strategyir.Statement) Compilation {
 	if len(statements) == 0 {
 		statements = []strategyir.Statement{&strategyir.LogStmt{
 			Range:   strategyir.SourceRange{StartLine: 1, EndLine: 1},
@@ -178,7 +215,7 @@ metadataDone:
 		Range:      strategyir.SourceRange{StartLine: statements[0].SourceRange().StartLine, EndLine: statements[len(statements)-1].SourceRange().EndLine},
 		Statements: statements,
 	}}
-	return Compilation{Program: program, Warnings: state.warnings}, nil
+	return Compilation{Program: program, Warnings: state.warnings}
 }
 
 func parsedLinesFromStructuredAST(ast *AST, fallback []parsedLine) []parsedLine {

@@ -51,72 +51,109 @@ var readableCollectionOperations = map[string]bool{
 	"keys": true, "values": true,
 }
 
-//nolint:funlen
 func (s *parseState) parseCollectionStatement(line parsedLine) (strategyir.Statement, bool, error) {
-	if match := typedAssignmentPattern.FindStringSubmatch(line.trimmed); match != nil {
-		namespace, annotationTypeArgs := collectionTypeAnnotationInfo(match[2])
-		name := strings.TrimSpace(match[3])
-		operator := strings.TrimSpace(match[4])
-		expression := strings.TrimSpace(match[5])
-		call, args, ok := parseFunctionCallText(expression)
-		if !ok {
-			return nil, true, fmt.Errorf("pine line %d: typed collection declarations require an executable collection constructor", line.number)
-		}
-		callNamespace, operation, callTypeArgs, ok := parseExecutableCollectionCall(call)
-		if !ok || !strings.HasPrefix(operation, "new") {
-			return nil, true, fmt.Errorf("pine line %d: typed collection declarations require an executable collection constructor", line.number)
-		}
-		if namespace != callNamespace {
-			return nil, true, fmt.Errorf("pine line %d: %s declaration cannot be initialized with %s", line.number, namespace, call)
-		}
-		typeArgs := annotationTypeArgs
-		if typeArgs == "" {
-			typeArgs = callTypeArgs
-		}
-		normalizedArgs, err := s.normalizeCollectionArguments(line.number, args)
-		if err != nil {
-			return nil, true, err
-		}
-		s.collectionNamespaces[strings.ToLower(name)] = namespace
-		return collectionStatement(line, namespace, operation, "", name, typeArgs, normalizedArgs, assignmentMode(strings.TrimSpace(match[1]), operator)), true, nil
+	if statement, handled, err := s.parseTypedCollectionStatement(line); handled || err != nil {
+		return statement, handled, err
 	}
-
-	if match := assignmentPattern.FindStringSubmatch(line.trimmed); match != nil {
-		name := strings.TrimSpace(match[2])
-		expression := strings.TrimSpace(match[4])
-		call, args, ok := parseFunctionCallText(expression)
-		if !ok {
-			return nil, false, nil
-		}
-		namespace, operation, typeArgs, ok := s.resolveExecutableCollectionCall(call)
-		if !ok {
-			return nil, false, nil
-		}
-		mode := assignmentMode(strings.TrimSpace(match[1]), strings.TrimSpace(match[3]))
-		if collectionConstructorOperation(namespace, operation) {
-			normalizedArgs, err := s.normalizeCollectionArguments(line.number, args)
-			if err != nil {
-				return nil, true, err
-			}
-			s.collectionNamespaces[strings.ToLower(name)] = namespace
-			return collectionStatement(line, namespace, operation, "", name, typeArgs, normalizedArgs, mode), true, nil
-		}
-		target, normalizedArgs, err := s.collectionTargetAndArguments(namespace, functionCallNameText(expression), args)
-		if err != nil {
-			return nil, true, fmt.Errorf("pine line %d: %w", line.number, err)
-		}
-		normalizedArgs, err = s.normalizeCollectionArguments(line.number, normalizedArgs)
-		if err != nil {
-			return nil, true, err
-		}
-		if resultNamespace := collectionResultNamespace(namespace, operation); resultNamespace != "" {
-			s.collectionNamespaces[strings.ToLower(name)] = resultNamespace
-		} else {
-			delete(s.collectionNamespaces, strings.ToLower(name))
-		}
-		return collectionStatement(line, namespace, operation, target, name, typeArgs, normalizedArgs, mode), true, nil
+	if statement, handled, err := s.parseAssignedCollectionStatement(line); handled || err != nil {
+		return statement, handled, err
 	}
+	return s.parseStandaloneCollectionStatement(line)
+}
 
+func (s *parseState) normalizeCollectionArguments(lineNumber int, arguments []string) ([]string, error) {
+	normalized := make([]string, 0, len(arguments))
+	for _, argument := range arguments {
+		expression := s.normalizeExpression(argument)
+		if err := s.takeNormalizationErr(lineNumber); err != nil {
+			return nil, err
+		}
+		if err := validateExpression(lineNumber, "collection argument", expression); err != nil {
+			return nil, err
+		}
+		normalized = append(normalized, expression)
+	}
+	return normalized, nil
+}
+
+func (s *parseState) parseTypedCollectionStatement(line parsedLine) (strategyir.Statement, bool, error) {
+	match := typedAssignmentPattern.FindStringSubmatch(line.trimmed)
+	if match == nil {
+		return nil, false, nil
+	}
+	namespace, annotationTypeArgs := collectionTypeAnnotationInfo(match[2])
+	name := strings.TrimSpace(match[3])
+	operator := strings.TrimSpace(match[4])
+	expression := strings.TrimSpace(match[5])
+	call, args, ok := parseFunctionCallText(expression)
+	if !ok {
+		return nil, true, fmt.Errorf("pine line %d: typed collection declarations require an executable collection constructor", line.number)
+	}
+	callNamespace, operation, callTypeArgs, ok := parseExecutableCollectionCall(call)
+	if !ok || !strings.HasPrefix(operation, "new") {
+		return nil, true, fmt.Errorf("pine line %d: typed collection declarations require an executable collection constructor", line.number)
+	}
+	if namespace != callNamespace {
+		return nil, true, fmt.Errorf("pine line %d: %s declaration cannot be initialized with %s", line.number, namespace, call)
+	}
+	typeArgs := annotationTypeArgs
+	if typeArgs == "" {
+		typeArgs = callTypeArgs
+	}
+	normalizedArgs, err := s.normalizeCollectionArguments(line.number, args)
+	if err != nil {
+		return nil, true, err
+	}
+	s.collectionNamespaces[strings.ToLower(name)] = namespace
+	mode := assignmentMode(strings.TrimSpace(match[1]), operator)
+	return collectionStatement(line, namespace, operation, "", name, typeArgs, normalizedArgs, mode), true, nil
+}
+
+func (s *parseState) parseAssignedCollectionStatement(line parsedLine) (strategyir.Statement, bool, error) {
+	match := assignmentPattern.FindStringSubmatch(line.trimmed)
+	if match == nil {
+		return nil, false, nil
+	}
+	name := strings.TrimSpace(match[2])
+	expression := strings.TrimSpace(match[4])
+	call, args, ok := parseFunctionCallText(expression)
+	if !ok {
+		return nil, false, nil
+	}
+	namespace, operation, typeArgs, ok := s.resolveExecutableCollectionCall(call)
+	if !ok {
+		return nil, false, nil
+	}
+	mode := assignmentMode(strings.TrimSpace(match[1]), strings.TrimSpace(match[3]))
+	if collectionConstructorOperation(namespace, operation) {
+		return s.parseCollectionConstructorAssignment(line, name, namespace, operation, typeArgs, args, mode)
+	}
+	return s.parseCollectionOperationAssignment(line, name, expression, namespace, operation, typeArgs, args, mode)
+}
+
+func (s *parseState) parseCollectionConstructorAssignment(line parsedLine, name string, namespace string, operation string, typeArgs string, args []string, mode strategyir.AssignmentMode) (strategyir.Statement, bool, error) {
+	normalizedArgs, err := s.normalizeCollectionArguments(line.number, args)
+	if err != nil {
+		return nil, true, err
+	}
+	s.collectionNamespaces[strings.ToLower(name)] = namespace
+	return collectionStatement(line, namespace, operation, "", name, typeArgs, normalizedArgs, mode), true, nil
+}
+
+func (s *parseState) parseCollectionOperationAssignment(line parsedLine, name string, expression string, namespace string, operation string, typeArgs string, args []string, mode strategyir.AssignmentMode) (strategyir.Statement, bool, error) {
+	target, normalizedArgs, err := s.collectionTargetAndArguments(namespace, functionCallNameText(expression), args)
+	if err != nil {
+		return nil, true, fmt.Errorf("pine line %d: %w", line.number, err)
+	}
+	normalizedArgs, err = s.normalizeCollectionArguments(line.number, normalizedArgs)
+	if err != nil {
+		return nil, true, err
+	}
+	s.updateCollectionResultNamespace(name, namespace, operation)
+	return collectionStatement(line, namespace, operation, target, name, typeArgs, normalizedArgs, mode), true, nil
+}
+
+func (s *parseState) parseStandaloneCollectionStatement(line parsedLine) (strategyir.Statement, bool, error) {
 	call, args, ok := parseFunctionCallText(line.trimmed)
 	if !ok {
 		return nil, false, nil
@@ -139,19 +176,13 @@ func (s *parseState) parseCollectionStatement(line parsedLine) (strategyir.State
 	return collectionStatement(line, namespace, operation, target, "", typeArgs, normalizedArgs, strategyir.AssignmentModeLet), true, nil
 }
 
-func (s *parseState) normalizeCollectionArguments(lineNumber int, arguments []string) ([]string, error) {
-	normalized := make([]string, 0, len(arguments))
-	for _, argument := range arguments {
-		expression := s.normalizeExpression(argument)
-		if err := s.takeNormalizationErr(lineNumber); err != nil {
-			return nil, err
-		}
-		if err := validateExpression(lineNumber, "collection argument", expression); err != nil {
-			return nil, err
-		}
-		normalized = append(normalized, expression)
+func (s *parseState) updateCollectionResultNamespace(name string, namespace string, operation string) {
+	key := strings.ToLower(name)
+	if resultNamespace := collectionResultNamespace(namespace, operation); resultNamespace != "" {
+		s.collectionNamespaces[key] = resultNamespace
+		return
 	}
-	return normalized, nil
+	delete(s.collectionNamespaces, key)
 }
 
 //nolint:funlen

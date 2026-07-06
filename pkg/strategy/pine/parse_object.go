@@ -139,41 +139,60 @@ func (s *parseState) parseExecutableMethodDefinition(index int) (int, error) {
 	return next, nil
 }
 
-//nolint:funlen
 func (s *parseState) parseObjectStatement(line parsedLine) (strategyir.Statement, bool, error) {
-	if match := objectFieldAssignPattern.FindStringSubmatch(line.trimmed); match != nil {
-		target := strings.TrimSpace(match[1])
-		fieldName := strings.TrimSpace(match[2])
-		operator := strings.TrimSpace(match[3])
-		if operator != ":=" {
-			return nil, true, fmt.Errorf("pine line %d: object field updates must use :=", line.number)
-		}
-		typeName := s.objectTypes[strings.ToLower(target)]
-		if typeName == "" {
-			return nil, false, nil
-		}
-		definition := s.udtTypes[strings.ToLower(typeName)]
-		field, ok := objectFieldDefinition(definition, fieldName)
-		if !ok {
-			return nil, true, fmt.Errorf("pine line %d: type %s has no field %s", line.number, typeName, fieldName)
-		}
-		expression := s.normalizeExpression(strings.TrimSpace(match[4]))
-		if err := s.takeNormalizationErr(line.number); err != nil {
-			return nil, true, err
-		}
-		if err := validateExpression(line.number, "object field assignment", expression); err != nil {
-			return nil, true, err
-		}
-		return &strategyir.ObjectStmt{
-			Range:     strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Operation: "field_set",
-			TypeName:  definition.Name,
-			Method:    field.Name,
-			Target:    target,
-			Arguments: []string{expression},
-		}, true, nil
+	if statement, handled, err := s.parseObjectFieldAssignment(line); handled || err != nil {
+		return statement, handled, err
 	}
+	return s.parseAssignedObjectStatement(line)
+}
 
+func objectFieldDefinition(definition strategyir.TypeDefinition, name string) (strategyir.ObjectField, bool) {
+	for _, field := range definition.Fields {
+		if strings.EqualFold(field.Name, name) {
+			return field, true
+		}
+	}
+	return strategyir.ObjectField{}, false
+}
+
+func (s *parseState) parseObjectFieldAssignment(line parsedLine) (strategyir.Statement, bool, error) {
+	match := objectFieldAssignPattern.FindStringSubmatch(line.trimmed)
+	if match == nil {
+		return nil, false, nil
+	}
+	target := strings.TrimSpace(match[1])
+	fieldName := strings.TrimSpace(match[2])
+	operator := strings.TrimSpace(match[3])
+	if operator != ":=" {
+		return nil, true, fmt.Errorf("pine line %d: object field updates must use :=", line.number)
+	}
+	typeName := s.objectTypes[strings.ToLower(target)]
+	if typeName == "" {
+		return nil, false, nil
+	}
+	definition := s.udtTypes[strings.ToLower(typeName)]
+	field, ok := objectFieldDefinition(definition, fieldName)
+	if !ok {
+		return nil, true, fmt.Errorf("pine line %d: type %s has no field %s", line.number, typeName, fieldName)
+	}
+	expression := s.normalizeExpression(strings.TrimSpace(match[4]))
+	if err := s.takeNormalizationErr(line.number); err != nil {
+		return nil, true, err
+	}
+	if err := validateExpression(line.number, "object field assignment", expression); err != nil {
+		return nil, true, err
+	}
+	return &strategyir.ObjectStmt{
+		Range:     strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
+		Operation: "field_set",
+		TypeName:  definition.Name,
+		Method:    field.Name,
+		Target:    target,
+		Arguments: []string{expression},
+	}, true, nil
+}
+
+func (s *parseState) parseAssignedObjectStatement(line parsedLine) (strategyir.Statement, bool, error) {
 	match := assignmentPattern.FindStringSubmatch(line.trimmed)
 	if match == nil {
 		return nil, false, nil
@@ -191,29 +210,33 @@ func (s *parseState) parseObjectStatement(line parsedLine) (strategyir.Statement
 	member := strings.TrimSpace(call[dot+1:])
 	mode := assignmentMode(strings.TrimSpace(match[1]), strings.TrimSpace(match[3]))
 	if definition, ok := s.udtTypes[strings.ToLower(receiver)]; ok && strings.EqualFold(member, "new") {
-		normalized, err := s.normalizeObjectConstructorArguments(line.number, args, definition.Fields)
-		if err != nil {
-			return nil, true, err
-		}
-		if len(normalized) > len(definition.Fields) {
-			return nil, true, fmt.Errorf("pine line %d: %s.new expects at most %d arguments", line.number, definition.Name, len(definition.Fields))
-		}
-		s.objectTypes[strings.ToLower(name)] = definition.Name
-		s.objectPersistent[strings.ToLower(name)] = mode == strategyir.AssignmentModeVar
-		for _, field := range definition.Fields {
-			if namespace := collectionNamespaceFromType(field.Type); namespace != "" {
-				s.collectionNamespaces[strings.ToLower(name+"."+field.Name)] = namespace
-			}
-		}
-		return &strategyir.ObjectStmt{
-			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Operation:  "constructor",
-			TypeName:   definition.Name,
-			ResultName: name,
-			Arguments:  normalized,
-			Mode:       mode,
-		}, true, nil
+		return s.parseObjectConstructorAssignment(line, name, definition, args, mode)
 	}
+	return s.parseObjectMethodAssignment(line, name, receiver, member, args, mode)
+}
+
+func (s *parseState) parseObjectConstructorAssignment(line parsedLine, name string, definition strategyir.TypeDefinition, args []string, mode strategyir.AssignmentMode) (strategyir.Statement, bool, error) {
+	normalized, err := s.normalizeObjectConstructorArguments(line.number, args, definition.Fields)
+	if err != nil {
+		return nil, true, err
+	}
+	if len(normalized) > len(definition.Fields) {
+		return nil, true, fmt.Errorf("pine line %d: %s.new expects at most %d arguments", line.number, definition.Name, len(definition.Fields))
+	}
+	s.objectTypes[strings.ToLower(name)] = definition.Name
+	s.objectPersistent[strings.ToLower(name)] = mode == strategyir.AssignmentModeVar
+	s.registerObjectCollectionFields(name, definition.Fields)
+	return &strategyir.ObjectStmt{
+		Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
+		Operation:  "constructor",
+		TypeName:   definition.Name,
+		ResultName: name,
+		Arguments:  normalized,
+		Mode:       mode,
+	}, true, nil
+}
+
+func (s *parseState) parseObjectMethodAssignment(line parsedLine, name string, receiver string, member string, args []string, mode strategyir.AssignmentMode) (strategyir.Statement, bool, error) {
 	objectType := s.objectTypes[strings.ToLower(receiver)]
 	if objectType == "" {
 		return nil, false, nil
@@ -242,13 +265,12 @@ func (s *parseState) parseObjectStatement(line parsedLine) (strategyir.Statement
 	}, true, nil
 }
 
-func objectFieldDefinition(definition strategyir.TypeDefinition, name string) (strategyir.ObjectField, bool) {
-	for _, field := range definition.Fields {
-		if strings.EqualFold(field.Name, name) {
-			return field, true
+func (s *parseState) registerObjectCollectionFields(name string, fields []strategyir.ObjectField) {
+	for _, field := range fields {
+		if namespace := collectionNamespaceFromType(field.Type); namespace != "" {
+			s.collectionNamespaces[strings.ToLower(name+"."+field.Name)] = namespace
 		}
 	}
-	return strategyir.ObjectField{}, false
 }
 
 func (s *parseState) normalizeObjectConstructorArguments(lineNumber int, args []string, fields []strategyir.ObjectField) ([]string, error) {

@@ -14,13 +14,25 @@ func (s *parseState) normalizeExpression(expression string) string {
 	return result
 }
 
-//nolint:funlen
 func (s *parseState) normalizeExpressionDepth(expression string, depth int, stack map[string]bool) (string, error) {
 	result := strings.TrimSpace(expression)
-	result = lowerInputCalls(result)
+	result, err := s.preprocessNormalizedExpression(result, depth, stack)
+	if err != nil {
+		return result, err
+	}
+	result = applyExpressionNamespaceRewrites(result)
+	result = applyExpressionFunctionRewrites(result)
+	result = s.applyExpressionAliasRewrites(result)
+	return finalizeNormalizedExpression(result), nil
+}
+
+func (s *parseState) preprocessNormalizedExpression(expression string, depth int, stack map[string]bool) (string, error) {
+	result := lowerInputCalls(expression)
 	result = s.resolveValueAliases(result)
 	result = s.resolveSourceAliases(result)
-	result, err := s.lowerObjectMethodCalls(result)
+
+	var err error
+	result, err = s.lowerObjectMethodCalls(result)
 	if err != nil {
 		return result, err
 	}
@@ -39,29 +51,60 @@ func (s *parseState) normalizeExpressionDepth(expression string, depth int, stac
 	if err != nil {
 		return result, err
 	}
-	result = replaceSupportedRequestSecurity(result)
-	result = strings.ReplaceAll(result, "strategy.position_avg_price", "position_avg_price")
-	result = strings.ReplaceAll(result, "strategy.position_size", "position_size")
-	result = strings.ReplaceAll(result, "strategy.equity", "equity")
-	result = strings.ReplaceAll(result, "syminfo.tickerid", "syminfo_tickerid")
-	result = strings.ReplaceAll(result, "syminfo.prefix", "syminfo_prefix")
-	result = strings.ReplaceAll(result, "timeframe.period", "timeframe_period")
-	result = strings.ReplaceAll(result, "timeframe.multiplier", "timeframe_multiplier")
-	result = strings.ReplaceAll(result, "timeframe.isintraday", "timeframe_isintraday")
-	result = strings.ReplaceAll(result, "timeframe.isminutes", "timeframe_isminutes")
-	result = strings.ReplaceAll(result, "timeframe.isseconds", "timeframe_isseconds")
-	result = strings.ReplaceAll(result, "timeframe.isdaily", "timeframe_isdaily")
-	result = strings.ReplaceAll(result, "timeframe.isweekly", "timeframe_isweekly")
-	result = strings.ReplaceAll(result, "timeframe.ismonthly", "timeframe_ismonthly")
+	return replaceSupportedRequestSecurity(result), nil
+}
+
+func applyExpressionNamespaceRewrites(expression string) string {
+	result := expression
+	for _, replacement := range []struct{ old, new string }{
+		{"strategy.position_avg_price", "position_avg_price"},
+		{"strategy.position_size", "position_size"},
+		{"strategy.equity", "equity"},
+		{"syminfo.tickerid", "syminfo_tickerid"},
+		{"syminfo.prefix", "syminfo_prefix"},
+		{"timeframe.period", "timeframe_period"},
+		{"timeframe.multiplier", "timeframe_multiplier"},
+		{"timeframe.isintraday", "timeframe_isintraday"},
+		{"timeframe.isminutes", "timeframe_isminutes"},
+		{"timeframe.isseconds", "timeframe_isseconds"},
+		{"timeframe.isdaily", "timeframe_isdaily"},
+		{"timeframe.isweekly", "timeframe_isweekly"},
+		{"timeframe.ismonthly", "timeframe_ismonthly"},
+	} {
+		result = strings.ReplaceAll(result, replacement.old, replacement.new)
+	}
 	result = replaceStringNamespace(result)
 	result = replacePineNamespaceConstants(result)
 	result = replaceColorFunctions(result)
-	result = replaceTAMovingAverageFunction(result, "ema", "EMA")
-	result = replaceTAMovingAverageFunction(result, "sma", "SMA")
-	result = replaceTAMovingAverageFunction(result, "rma", "SMMA")
-	result = replaceTAMovingAverageFunction(result, "wma", "LWMA")
-	result = replaceTAMovingAverageFunction(result, "hma", "HMA")
-	result = replaceTAMovingAverageFunction(result, "vwma", "VWMA")
+	return result
+}
+
+func applyExpressionFunctionRewrites(expression string) string {
+	result := applyMovingAverageRewrites(expression)
+	result = applyCoreIndicatorRewrites(result)
+	result = applyWindowIndicatorRewrites(result)
+	result = applyStateIndicatorRewrites(result)
+	result = applyCrossRewrites(result)
+	return replaceMathNamespace(result)
+}
+
+func applyMovingAverageRewrites(expression string) string {
+	result := expression
+	for _, item := range []struct{ name, kind string }{
+		{"ema", "EMA"},
+		{"sma", "SMA"},
+		{"rma", "SMMA"},
+		{"wma", "LWMA"},
+		{"hma", "HMA"},
+		{"vwma", "VWMA"},
+	} {
+		result = replaceTAMovingAverageFunction(result, item.name, item.kind)
+	}
+	return result
+}
+
+func applyCoreIndicatorRewrites(expression string) string {
+	result := expression
 	result = replaceTASourceLengthFunction(result, "rsi", "rsi", "close", "14")
 	result = replaceTAMacd(result)
 	result = replaceTABollinger(result)
@@ -69,18 +112,6 @@ func (s *parseState) normalizeExpressionDepth(expression string, depth int, stac
 	result = replaceTASourceLengthFunction(result, "stdev", "stdev", "close", "20")
 	result = replaceTASourceLengthFunction(result, "variance", "variance", "close", "20")
 	result = replaceTASourceLengthFunction(result, "cci", "cci", "hlc3", "20")
-	result = replaceTAWindowFunction(result, "highest")
-	result = replaceTAWindowFunction(result, "lowest")
-	result = replaceTAWindowFunction(result, "change")
-	result = replaceTAWindowFunction(result, "mom")
-	result = replaceTAWindowFunction(result, "roc")
-	result = replaceTAWindowFunction(result, "range")
-	result = replaceTAWindowFunction(result, "mode")
-	result = replaceTAWindowFunction(result, "rising")
-	result = replaceTAWindowFunction(result, "falling")
-	result = replaceTAWindowFunction(result, "sum")
-	result = replaceTAExtremaBarsFunction(result, "highestbars")
-	result = replaceTAExtremaBarsFunction(result, "lowestbars")
 	result = replaceTASourceRequiredFunction(result, "cum", "cum")
 	result = replaceTAFunction(result, "wpr", "williams_r(${period})")
 	result = replaceTAAnchoredVWAP(result)
@@ -91,40 +122,54 @@ func (s *parseState) normalizeExpressionDepth(expression string, depth int, stac
 	result = replaceTAFunction(result, "dmi", "dmi(${left}, ${right})")
 	result = replaceTAFunction(result, "supertrend", "supertrend(${left}, ${right})")
 	result = replaceTAFunction(result, "sar", "sar(${left}, ${right}, ${third})")
-	result = replaceTAStateFunction(result, "linreg")
-	result = replaceTAStateFunction(result, "obv")
-	result = replaceTAStateFunction(result, "pivothigh")
-	result = replaceTAStateFunction(result, "pivotlow")
-	result = replaceTAStateFunction(result, "kc")
-	result = replaceTAStateFunction(result, "kcw")
-	result = replaceTAStateFunction(result, "alma")
-	result = replaceTAStateFunction(result, "bbw")
-	result = replaceTAStateFunction(result, "cog")
-	result = replaceTAStateFunction(result, "cmo")
-	result = replaceTAStateFunction(result, "tsi")
-	result = replaceTAStateFunction(result, "correlation")
-	result = replaceTAStateFunction(result, "dev")
-	result = replaceTAStateFunction(result, "median")
-	result = replaceTAStateFunction(result, "percentile_linear_interpolation")
-	result = replaceTAStateFunction(result, "percentile_nearest_rank")
-	result = replaceTAStateFunction(result, "percentrank")
-	result = replaceTAStateFunction(result, "swma")
 	result = taOBVPattern.ReplaceAllString(result, "obv(close)")
-	result = replaceTATr(result)
-	result = replaceTAStateFunction(result, "barssince")
-	result = replaceTAStateFunction(result, "valuewhen")
+	return replaceTATr(result)
+}
+
+func applyWindowIndicatorRewrites(expression string) string {
+	result := expression
+	for _, name := range []string{"highest", "lowest", "change", "mom", "roc", "range", "mode", "rising", "falling", "sum"} {
+		result = replaceTAWindowFunction(result, name)
+	}
+	for _, name := range []string{"highestbars", "lowestbars"} {
+		result = replaceTAExtremaBarsFunction(result, name)
+	}
+	return result
+}
+
+func applyStateIndicatorRewrites(expression string) string {
+	result := expression
+	for _, name := range []string{
+		"linreg", "obv", "pivothigh", "pivotlow", "kc", "kcw", "alma", "bbw", "cog", "cmo",
+		"tsi", "correlation", "dev", "median", "percentile_linear_interpolation",
+		"percentile_nearest_rank", "percentrank", "swma", "barssince", "valuewhen",
+	} {
+		result = replaceTAStateFunction(result, name)
+	}
+	return result
+}
+
+func applyCrossRewrites(expression string) string {
+	result := expression
 	result = replaceTAFunction(result, "crossover", "cross_over(${left}, ${right})")
 	result = replaceTAFunction(result, "crossunder", "cross_under(${left}, ${right})")
-	result = replaceTAFunction(result, "cross", "(cross_over(${left}, ${right}) || cross_under(${left}, ${right}))")
-	result = replaceMathNamespace(result)
+	return replaceTAFunction(result, "cross", "(cross_over(${left}, ${right}) || cross_under(${left}, ${right}))")
+}
+
+func (s *parseState) applyExpressionAliasRewrites(expression string) string {
+	result := expression
 	for alias, target := range s.expressionAliases {
 		result = s.cachedRegexp("word:"+alias, `\b`+regexp.QuoteMeta(alias)+`\b`).ReplaceAllString(result, target)
 	}
-	result = normalizeHistoryReferences(result)
+	return result
+}
+
+func finalizeNormalizedExpression(expression string) string {
+	result := normalizeHistoryReferences(expression)
 	result = normalizeTernaryExpression(result)
 	result = strings.ReplaceAll(result, " and ", " && ")
 	result = strings.ReplaceAll(result, " or ", " || ")
-	return stripWrappingParens(strings.TrimSpace(result)), nil
+	return stripWrappingParens(strings.TrimSpace(result))
 }
 
 func (s *parseState) expandUDFCalls(expression string, depth int, stack map[string]bool) (string, error) {

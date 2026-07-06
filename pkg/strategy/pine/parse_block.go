@@ -284,24 +284,13 @@ func (s *parseState) parseStaticForLoop(index int) ([]strategyir.Statement, int,
 	if !ok {
 		return nil, index, fmt.Errorf("pine line %d: for loop must use 'for i = start to end [by step]'", line.number)
 	}
-	loopVar := strings.TrimSpace(match[1])
-	start, err := s.parseStaticIntExpression(line.number, match[2], "for start")
+	spec, err := s.parseStaticForLoopSpec(line.number, match)
 	if err != nil {
-		return s.parseRuntimeForLoop(index, match)
-	}
-	end, err := s.parseStaticIntExpression(line.number, match[3], "for end")
-	if err != nil {
-		return s.parseRuntimeForLoop(index, match)
-	}
-	step, err := s.parseStaticForLoopStep(line.number, match[4])
-	if err != nil {
-		return s.parseRuntimeForLoop(index, match)
-	}
-	values, err := expandStaticForLoopValues(line.number, start, end, step)
-	if err != nil {
+		if errors.Is(err, errStaticForRuntimeFallback) {
+			return s.parseRuntimeForLoop(index, match)
+		}
 		return nil, index, err
 	}
-	spec := staticForLoopSpec{variable: loopVar, values: values}
 	return s.expandStaticForLoop(index, line, match, spec)
 }
 

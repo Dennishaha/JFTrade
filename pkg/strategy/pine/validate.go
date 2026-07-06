@@ -307,85 +307,100 @@ func validateExpression(lineNumber int, label string, expression string) error {
 }
 
 func parseStrategyDeclaration(line string) (strategyir.StrategyMetadata, []string) {
-	metadata := strategyir.StrategyMetadata{
+	metadata := defaultStrategyMetadata()
+	warnings := []string{}
+	args := splitArguments(callArgs(line))
+	applyStrategyDeclarationTitle(&metadata, args)
+	for _, arg := range args {
+		key, value, ok := splitNamedArg(arg)
+		if !ok {
+			continue
+		}
+		applyStrategyNamedArg(&metadata, &warnings, key, value)
+	}
+	return metadata, warnings
+}
+
+func defaultStrategyMetadata() strategyir.StrategyMetadata {
+	return strategyir.StrategyMetadata{
 		Name:                  "Pine Strategy",
 		DefaultQtyMode:        "fixed",
 		DefaultQtyValue:       "1",
 		Pyramiding:            1,
 		AllowedEntryDirection: "all",
 	}
-	warnings := []string{}
-	args := splitArguments(callArgs(line))
-	if len(args) > 0 {
-		if key, value, ok := splitNamedArg(args[0]); ok {
-			if strings.EqualFold(key, "title") {
-				if title := unquote(strings.TrimSpace(value)); title != "" {
-					metadata.Name = title
-				}
-			}
-		} else if title := unquote(strings.TrimSpace(args[0])); title != "" {
-			metadata.Name = title
+}
+
+func applyStrategyDeclarationTitle(metadata *strategyir.StrategyMetadata, args []string) {
+	if len(args) == 0 {
+		return
+	}
+	if key, value, ok := splitNamedArg(args[0]); ok {
+		if strings.EqualFold(key, "title") {
+			assignStrategyTitle(metadata, value)
+		}
+		return
+	}
+	assignStrategyTitle(metadata, args[0])
+}
+
+func assignStrategyTitle(metadata *strategyir.StrategyMetadata, raw string) {
+	if title := unquote(strings.TrimSpace(raw)); title != "" {
+		metadata.Name = title
+	}
+}
+
+func applyStrategyNamedArg(metadata *strategyir.StrategyMetadata, warnings *[]string, key string, value string) {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "title":
+		assignStrategyTitle(metadata, value)
+	case "default_qty_type":
+		if mode, ok := normalizeStrategyDefaultQtyMode(value); ok {
+			metadata.DefaultQtyMode = mode
+		} else {
+			*warnings = append(*warnings, fmt.Sprintf("pine strategy default_qty_type %q is not supported by JFTrade; using strategy.fixed", strings.TrimSpace(value)))
+		}
+	case "default_qty_value":
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			metadata.DefaultQtyValue = trimmed
+		}
+	case "pyramiding":
+		if parsed, ok := parseStrategyPyramiding(value); ok {
+			metadata.Pyramiding = parsed
+		} else {
+			*warnings = append(*warnings, fmt.Sprintf("pine strategy pyramiding %q is not a supported constant integer; using 1", strings.TrimSpace(value)))
+		}
+	case "initial_capital":
+		if parsed, ok := parsePositiveFloatConstant(value); ok {
+			metadata.InitialCapital = parsed
+		} else {
+			*warnings = append(*warnings, fmt.Sprintf("pine strategy initial_capital %q must be a positive constant number", strings.TrimSpace(value)))
+		}
+	case "commission_type":
+		if parsed, ok := normalizeStrategyCommissionType(value); ok {
+			metadata.CommissionType = parsed
+		} else {
+			*warnings = append(*warnings, fmt.Sprintf("pine strategy commission_type %q is not supported by JFTrade", strings.TrimSpace(value)))
+		}
+	case "commission_value":
+		if parsed, ok := parseNonNegativeFloatConstant(value); ok {
+			metadata.CommissionValue = parsed
+		} else {
+			*warnings = append(*warnings, fmt.Sprintf("pine strategy commission_value %q must be a non-negative constant number", strings.TrimSpace(value)))
+		}
+	case "slippage":
+		if parsed, ok := parseNonNegativeIntConstant(value); ok {
+			metadata.Slippage = parsed
+		} else {
+			*warnings = append(*warnings, fmt.Sprintf("pine strategy slippage %q must be a non-negative constant integer", strings.TrimSpace(value)))
+		}
+	case "process_orders_on_close":
+		if parsed, ok := parseBoolConstant(value); ok {
+			metadata.ProcessOnClose = parsed
+		} else {
+			*warnings = append(*warnings, fmt.Sprintf("pine strategy process_orders_on_close %q must be true or false", strings.TrimSpace(value)))
 		}
 	}
-	for _, arg := range args {
-		key, value, ok := splitNamedArg(arg)
-		if !ok {
-			continue
-		}
-		switch strings.ToLower(strings.TrimSpace(key)) {
-		case "title":
-			if title := unquote(strings.TrimSpace(value)); title != "" {
-				metadata.Name = title
-			}
-		case "default_qty_type":
-			if mode, ok := normalizeStrategyDefaultQtyMode(value); ok {
-				metadata.DefaultQtyMode = mode
-			} else {
-				warnings = append(warnings, fmt.Sprintf("pine strategy default_qty_type %q is not supported by JFTrade; using strategy.fixed", strings.TrimSpace(value)))
-			}
-		case "default_qty_value":
-			if trimmed := strings.TrimSpace(value); trimmed != "" {
-				metadata.DefaultQtyValue = trimmed
-			}
-		case "pyramiding":
-			if parsed, ok := parseStrategyPyramiding(value); ok {
-				metadata.Pyramiding = parsed
-			} else {
-				warnings = append(warnings, fmt.Sprintf("pine strategy pyramiding %q is not a supported constant integer; using 1", strings.TrimSpace(value)))
-			}
-		case "initial_capital":
-			if parsed, ok := parsePositiveFloatConstant(value); ok {
-				metadata.InitialCapital = parsed
-			} else {
-				warnings = append(warnings, fmt.Sprintf("pine strategy initial_capital %q must be a positive constant number", strings.TrimSpace(value)))
-			}
-		case "commission_type":
-			if parsed, ok := normalizeStrategyCommissionType(value); ok {
-				metadata.CommissionType = parsed
-			} else {
-				warnings = append(warnings, fmt.Sprintf("pine strategy commission_type %q is not supported by JFTrade", strings.TrimSpace(value)))
-			}
-		case "commission_value":
-			if parsed, ok := parseNonNegativeFloatConstant(value); ok {
-				metadata.CommissionValue = parsed
-			} else {
-				warnings = append(warnings, fmt.Sprintf("pine strategy commission_value %q must be a non-negative constant number", strings.TrimSpace(value)))
-			}
-		case "slippage":
-			if parsed, ok := parseNonNegativeIntConstant(value); ok {
-				metadata.Slippage = parsed
-			} else {
-				warnings = append(warnings, fmt.Sprintf("pine strategy slippage %q must be a non-negative constant integer", strings.TrimSpace(value)))
-			}
-		case "process_orders_on_close":
-			if parsed, ok := parseBoolConstant(value); ok {
-				metadata.ProcessOnClose = parsed
-			} else {
-				warnings = append(warnings, fmt.Sprintf("pine strategy process_orders_on_close %q must be true or false", strings.TrimSpace(value)))
-			}
-		}
-	}
-	return metadata, warnings
 }
 
 func parsePositiveFloatConstant(value string) (float64, bool) {

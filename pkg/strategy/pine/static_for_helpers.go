@@ -14,6 +14,8 @@ type staticForLoopSpec struct {
 	values   []int
 }
 
+var errStaticForRuntimeFallback = errors.New("static for loop requires runtime fallback")
+
 func parseStaticForLoopHeader(loopHeader string) ([]string, bool) {
 	match := forLoopPattern.FindStringSubmatch(loopHeader)
 	return match, match != nil
@@ -23,15 +25,15 @@ func (s *parseState) parseStaticForLoopSpec(lineNumber int, match []string) (sta
 	loopVar := strings.TrimSpace(match[1])
 	start, err := s.parseStaticIntExpression(lineNumber, match[2], "for start")
 	if err != nil {
-		return staticForLoopSpec{}, err
+		return staticForLoopSpec{}, errStaticForRuntimeFallback
 	}
 	end, err := s.parseStaticIntExpression(lineNumber, match[3], "for end")
 	if err != nil {
-		return staticForLoopSpec{}, err
+		return staticForLoopSpec{}, errStaticForRuntimeFallback
 	}
 	step, err := s.parseStaticForLoopStep(lineNumber, match[4])
 	if err != nil {
-		return staticForLoopSpec{}, err
+		return staticForLoopSpec{}, errStaticForRuntimeFallback
 	}
 	values, err := expandStaticForLoopValues(lineNumber, start, end, step)
 	if err != nil {
