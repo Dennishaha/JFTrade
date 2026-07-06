@@ -442,36 +442,80 @@ type workflowInvocationStore interface {
 }
 
 func (s *Service) invokeWorkflowWithStore(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, triggerType string, inputs map[string]any, matchedEvent map[string]any) (WorkflowInvocationResult, error) {
+	if err := validateWorkflowInvocation(workflow, trigger); err != nil {
+		return WorkflowInvocationResult{}, err
+	}
+	if result, handled, err := invokeWorkflowActiveTriggerGuard(ctx, store, workflow, trigger, inputs, matchedEvent); handled || err != nil {
+		return result, err
+	}
+	log, started, err := startWorkflowInvocationLog(ctx, store, workflow, trigger, triggerType, inputs, matchedEvent)
+	if err != nil {
+		return WorkflowInvocationResult{}, err
+	}
+	message, objective, err := renderWorkflowInvocationMessage(workflow, trigger, inputs, matchedEvent)
+	if err != nil {
+		return s.failWorkflowInvocation(ctx, store, workflow, trigger, inputs, matchedEvent, log, started, message, objective, "", err, false)
+	}
+	session, err := s.CreateSession(ctx, CreateSessionRequest{
+		AgentID: workflow.AgentID,
+		Title:   workflowSessionTitle(workflow.Name, time.Now()),
+	})
+	if err != nil {
+		return s.failWorkflowInvocation(ctx, store, workflow, trigger, inputs, matchedEvent, log, started, message, objective, "", err, false)
+	}
+	normalized, err := s.runWorkflowChat(ctx, workflow, session.ID, message, objective)
+	if err != nil {
+		return s.failWorkflowInvocation(ctx, store, workflow, trigger, inputs, matchedEvent, log, started, message, objective, session.ID, err, true)
+	}
+	log = applyWorkflowResponse(log, workflow, trigger, inputs, matchedEvent, message, objective, normalized, started, time.Now().UTC())
+	log, err = store.SaveWorkflowTriggerLog(ctx, log)
+	if err != nil {
+		return WorkflowInvocationResult{}, err
+	}
+	s.updateTriggerAfterRun(ctx, trigger, normalized.Run.ID, log.Error)
+	return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTriggerPtr(trigger), Log: log, Response: &normalized}, nil
+}
+
+func validateWorkflowInvocation(workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger) error {
 	if workflow.Status != jfadk.WorkflowStatusEnabled {
-		return WorkflowInvocationResult{}, fmt.Errorf("workflow is disabled")
+		return fmt.Errorf("workflow is disabled")
 	}
-	if trigger != nil {
-		if trigger.Status != jfadk.WorkflowTriggerStatusEnabled {
-			return WorkflowInvocationResult{}, fmt.Errorf("workflow trigger is disabled")
-		}
-		active, err := workflowTriggerHasActiveRun(ctx, store, trigger.ID)
-		if err != nil {
-			return WorkflowInvocationResult{}, err
-		}
-		if active {
-			finishedAt := time.Now().UTC().Format(time.RFC3339Nano)
-			log, saveErr := store.SaveWorkflowTriggerLog(ctx, jfadk.WorkflowTriggerLog{
-				WorkflowID:   workflow.ID,
-				TriggerID:    trigger.ID,
-				TriggerType:  trigger.Type,
-				Status:       jfadk.WorkflowTriggerLogStatusSkipped,
-				Inputs:       cloneMap(inputs),
-				MatchedEvent: cloneMap(matchedEvent),
-				Error:        "previous trigger run is still active",
-				FinishedAt:   finishedAt,
-				NodeRuns:     workflowNodeRuns(workflow, trigger, trigger.Type, inputs, matchedEvent, "", "", nil, jfadk.WorkflowTriggerLogStatusSkipped, "previous trigger run is still active", finishedAt, finishedAt),
-			})
-			if saveErr != nil {
-				return WorkflowInvocationResult{}, saveErr
-			}
-			return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTrigger(*trigger), Log: log}, nil
-		}
+	if trigger != nil && trigger.Status != jfadk.WorkflowTriggerStatusEnabled {
+		return fmt.Errorf("workflow trigger is disabled")
 	}
+	return nil
+}
+
+func invokeWorkflowActiveTriggerGuard(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any) (WorkflowInvocationResult, bool, error) {
+	if trigger == nil {
+		return WorkflowInvocationResult{}, false, nil
+	}
+	active, err := workflowTriggerHasActiveRun(ctx, store, trigger.ID)
+	if err != nil {
+		return WorkflowInvocationResult{}, false, err
+	}
+	if !active {
+		return WorkflowInvocationResult{}, false, nil
+	}
+	finishedAt := time.Now().UTC().Format(time.RFC3339Nano)
+	log, err := store.SaveWorkflowTriggerLog(ctx, jfadk.WorkflowTriggerLog{
+		WorkflowID:   workflow.ID,
+		TriggerID:    trigger.ID,
+		TriggerType:  trigger.Type,
+		Status:       jfadk.WorkflowTriggerLogStatusSkipped,
+		Inputs:       cloneMap(inputs),
+		MatchedEvent: cloneMap(matchedEvent),
+		Error:        "previous trigger run is still active",
+		FinishedAt:   finishedAt,
+		NodeRuns:     workflowNodeRuns(workflow, trigger, trigger.Type, inputs, matchedEvent, "", "", nil, jfadk.WorkflowTriggerLogStatusSkipped, "previous trigger run is still active", finishedAt, finishedAt),
+	})
+	if err != nil {
+		return WorkflowInvocationResult{}, false, err
+	}
+	return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTrigger(*trigger), Log: log}, true, nil
+}
+
+func startWorkflowInvocationLog(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, triggerType string, inputs map[string]any, matchedEvent map[string]any) (jfadk.WorkflowTriggerLog, string, error) {
 	log, err := store.SaveWorkflowTriggerLog(ctx, jfadk.WorkflowTriggerLog{
 		WorkflowID:   workflow.ID,
 		TriggerID:    triggerID(trigger),
@@ -481,7 +525,7 @@ func (s *Service) invokeWorkflowWithStore(ctx context.Context, store workflowInv
 		MatchedEvent: cloneMap(matchedEvent),
 	})
 	if err != nil {
-		return WorkflowInvocationResult{}, err
+		return jfadk.WorkflowTriggerLog{}, "", err
 	}
 	started := time.Now().UTC().Format(time.RFC3339Nano)
 	log.Status = jfadk.WorkflowTriggerLogStatusRunning
@@ -489,8 +533,12 @@ func (s *Service) invokeWorkflowWithStore(ctx context.Context, store workflowInv
 	log.NodeRuns = workflowNodeRuns(workflow, trigger, log.TriggerType, inputs, matchedEvent, "", "", nil, log.Status, "", started, "")
 	log, err = store.SaveWorkflowTriggerLog(ctx, log)
 	if err != nil {
-		return WorkflowInvocationResult{}, err
+		return jfadk.WorkflowTriggerLog{}, "", err
 	}
+	return log, started, nil
+}
+
+func renderWorkflowInvocationMessage(workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any) (string, string, error) {
 	mergedInputs := workflowInputs(workflow, trigger, inputs, matchedEvent)
 	message, err := renderWorkflowTemplate(workflow.PromptTemplate, mergedInputs)
 	if err == nil && strings.TrimSpace(message) == "" {
@@ -500,50 +548,48 @@ func (s *Service) invokeWorkflowWithStore(ctx context.Context, store workflowInv
 	if err == nil && strings.TrimSpace(workflow.ObjectiveTemplate) != "" {
 		objective, err = renderWorkflowTemplate(workflow.ObjectiveTemplate, mergedInputs)
 	}
-	if err != nil {
-		log.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		log.NodeRuns = workflowNodeRuns(workflow, trigger, log.TriggerType, inputs, matchedEvent, message, objective, nil, jfadk.WorkflowTriggerLogStatusFailed, err.Error(), started, log.FinishedAt)
-		log.Result = workflowResultFromError(err)
-		log = finishWorkflowLog(ctx, store, log, jfadk.WorkflowTriggerLogStatusFailed, err.Error())
-		return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTriggerPtr(trigger), Log: log}, err
-	}
-	session, err := s.CreateSession(ctx, CreateSessionRequest{
-		AgentID: workflow.AgentID,
-		Title:   workflowSessionTitle(workflow.Name, time.Now()),
-	})
-	if err != nil {
-		log.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		log.NodeRuns = workflowNodeRuns(workflow, trigger, log.TriggerType, inputs, matchedEvent, message, objective, nil, jfadk.WorkflowTriggerLogStatusFailed, err.Error(), started, log.FinishedAt)
-		log.Result = workflowResultFromError(err)
-		log = finishWorkflowLog(ctx, store, log, jfadk.WorkflowTriggerLogStatusFailed, err.Error())
-		return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTriggerPtr(trigger), Log: log}, err
-	}
-	req := jfadk.ChatRequest{
+	return message, objective, err
+}
+
+func (s *Service) runWorkflowChat(ctx context.Context, workflow jfadk.WorkflowDefinition, sessionID string, message string, objective string) (jfadk.ChatResponse, error) {
+	response, err := s.Chat(ctx, jfadk.ChatRequest{
 		AgentID:                workflow.AgentID,
-		SessionID:              session.ID,
+		SessionID:              sessionID,
 		Message:                message,
 		ProviderID:             workflow.ProviderID,
 		Model:                  workflow.Model,
 		WorkModeOverride:       workflow.WorkMode,
 		PermissionModeOverride: workflow.PermissionMode,
 		Objective:              objective,
-	}
-	response, err := s.Chat(ctx, req)
+	})
 	if err != nil {
-		log.SessionID = session.ID
-		log.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		log.NodeRuns = workflowNodeRuns(workflow, trigger, log.TriggerType, inputs, matchedEvent, message, objective, nil, jfadk.WorkflowTriggerLogStatusFailed, err.Error(), started, log.FinishedAt)
-		log.Result = workflowResultFromError(err)
-		log = finishWorkflowLog(ctx, store, log, jfadk.WorkflowTriggerLogStatusFailed, err.Error())
-		s.updateTriggerAfterRun(ctx, trigger, "", err.Error())
-		return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTriggerPtr(trigger), Log: log}, err
+		return jfadk.ChatResponse{}, err
 	}
-	normalized := jfadk.NormalizeChatResponse(response)
-	log = applyWorkflowResponse(log, workflow, trigger, inputs, matchedEvent, message, objective, normalized, started, time.Now().UTC())
-	log, err = store.SaveWorkflowTriggerLog(ctx, log)
-	if err != nil {
-		return WorkflowInvocationResult{}, err
+	return jfadk.NormalizeChatResponse(response), nil
+}
+
+func (s *Service) failWorkflowInvocation(
+	ctx context.Context,
+	store workflowInvocationStore,
+	workflow jfadk.WorkflowDefinition,
+	trigger *jfadk.WorkflowTrigger,
+	inputs map[string]any,
+	matchedEvent map[string]any,
+	log jfadk.WorkflowTriggerLog,
+	started string,
+	message string,
+	objective string,
+	sessionID string,
+	cause error,
+	updateTrigger bool,
+) (WorkflowInvocationResult, error) {
+	log.SessionID = strings.TrimSpace(sessionID)
+	log.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	log.NodeRuns = workflowNodeRuns(workflow, trigger, log.TriggerType, inputs, matchedEvent, message, objective, nil, jfadk.WorkflowTriggerLogStatusFailed, cause.Error(), started, log.FinishedAt)
+	log.Result = workflowResultFromError(cause)
+	log = finishWorkflowLog(ctx, store, log, jfadk.WorkflowTriggerLogStatusFailed, cause.Error())
+	if updateTrigger {
+		s.updateTriggerAfterRun(ctx, trigger, "", cause.Error())
 	}
-	s.updateTriggerAfterRun(ctx, trigger, normalized.Run.ID, log.Error)
-	return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTriggerPtr(trigger), Log: log, Response: &normalized}, nil
+	return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTriggerPtr(trigger), Log: log}, cause
 }

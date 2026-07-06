@@ -611,141 +611,134 @@ func (p *Position) calculateFeeInQuote(td Trade) fixedpoint.Value {
 	return fixedpoint.Zero
 }
 
-//nolint:funlen
-func (p *Position) AddTrade(td Trade) (profit fixedpoint.Value, netProfit fixedpoint.Value, madeProfit bool) {
-	price := td.Price
-	quantity := td.Quantity
-	quoteQuantity := td.QuoteQuantity
-	fee := td.Fee
+type positionTradeAmounts struct {
+	price         fixedpoint.Value
+	quantity      fixedpoint.Value
+	quoteQuantity fixedpoint.Value
+	feeInQuote    fixedpoint.Value
+}
 
-	if quantity.IsZero() {
+func (p *Position) AddTrade(td Trade) (profit fixedpoint.Value, netProfit fixedpoint.Value, madeProfit bool) {
+	amounts, ok := p.positionTradeAmounts(td)
+	if !ok {
 		return fixedpoint.Zero, fixedpoint.Zero, false
 	}
-
-	// calculated fee in quote (some exchange accounts may enable platform currency fee discount, like BNB)
-	// convert platform fee token into USD values
-	var feeInQuote = fixedpoint.Zero
-
-	switch td.FeeCurrency {
-
-	case p.BaseCurrency:
-		// USD-M futures use the quote currency as the fee currency.
-		if !td.IsFutures {
-			quantity = quantity.Sub(fee)
-		}
-
-	case p.QuoteCurrency:
-		if !td.IsFutures {
-			quoteQuantity = quoteQuantity.Sub(fee)
-		}
-
-	default:
-		if !td.Fee.IsZero() {
-			feeInQuote = p.calculateFeeInQuote(td)
-		}
-	}
-
 	p.Lock()
 	defer p.Unlock()
-
 	defer p.updateMetrics(&td.Price)
-
 	// update changedAt field before we unlock in the defer func
 	defer func() {
 		p.ChangedAt = td.Time.Time()
 	}()
 
 	p.addTradeFee(td)
-
-	// Base > 0 means we're in long position
-	// Base < 0 means we're in short position
 	switch td.Side {
-
 	case SideTypeBuy:
-		// was short position, now trade buy should cover the position
-		if p.Base.Sign() < 0 {
-			// convert short position to long position
-			if p.Base.Add(quantity).Sign() > 0 {
-				profit = p.AverageCost.Sub(price).Mul(p.Base.Neg())
-				netProfit = p.AverageCost.Sub(price).Mul(p.Base.Neg()).Sub(feeInQuote)
-				p.Base = p.Base.Add(quantity)
-				p.Quote = p.Quote.Sub(quoteQuantity)
-				p.AverageCost = price
-				p.AccumulatedProfit = p.AccumulatedProfit.Add(profit)
-				p.OpenedAt = td.Time.Time()
-				return profit, netProfit, true
-			} else {
-				// after adding quantity it's still short position
-				p.Base = p.Base.Add(quantity)
-				p.Quote = p.Quote.Sub(quoteQuantity)
-				profit = p.AverageCost.Sub(price).Mul(quantity)
-				netProfit = p.AverageCost.Sub(price).Mul(quantity).Sub(feeInQuote)
-				p.AccumulatedProfit = p.AccumulatedProfit.Add(profit)
-				return profit, netProfit, true
-			}
-		}
-
-		// before adding the quantity, it's already a dust position
-		// then we should set the openedAt time
-		if p.IsDust(td.Price) {
-			p.OpenedAt = td.Time.Time()
-		}
-
-		// here the case is: base == 0 or base > 0
-		divisor := p.Base.Add(quantity)
-
-		p.AverageCost = p.AverageCost.Mul(p.Base).
-			Add(quoteQuantity).
-			Add(feeInQuote).
-			Div(divisor)
-
-		p.Base = p.Base.Add(quantity)
-		p.Quote = p.Quote.Sub(quoteQuantity)
-		return fixedpoint.Zero, fixedpoint.Zero, false
-
+		return p.addBuyTrade(td, amounts)
 	case SideTypeSell:
-		// was long position, the sell trade should reduce the base amount
-		if p.Base.Sign() > 0 {
-			// convert long position to short position
-			if p.Base.Compare(quantity) < 0 {
-				profit = price.Sub(p.AverageCost).Mul(p.Base)
-				netProfit = price.Sub(p.AverageCost).Mul(p.Base).Sub(feeInQuote)
-				p.Base = p.Base.Sub(quantity)
-				p.Quote = p.Quote.Add(quoteQuantity)
-				p.AverageCost = price
-				p.AccumulatedProfit = p.AccumulatedProfit.Add(profit)
-				p.OpenedAt = td.Time.Time()
-				return profit, netProfit, true
-			} else {
-				p.Base = p.Base.Sub(quantity)
-				p.Quote = p.Quote.Add(quoteQuantity)
-				profit = price.Sub(p.AverageCost).Mul(quantity)
-				netProfit = price.Sub(p.AverageCost).Mul(quantity).Sub(feeInQuote)
-				p.AccumulatedProfit = p.AccumulatedProfit.Add(profit)
-				return profit, netProfit, true
-			}
-		}
-
-		// before subtracting the quantity, it's already a dust position
-		// then we should set the openedAt time
-		if p.IsDust(td.Price) {
-			p.OpenedAt = td.Time.Time()
-		}
-
-		// handling short position, since Base here is negative we need to reverse the sign
-		divisor := quantity.Sub(p.Base)
-
-		p.AverageCost = p.AverageCost.Mul(p.Base.Neg()).
-			Add(quoteQuantity).
-			Sub(feeInQuote).
-			Div(divisor)
-		p.Base = p.Base.Sub(quantity)
-		p.Quote = p.Quote.Add(quoteQuantity)
-
-		return fixedpoint.Zero, fixedpoint.Zero, false
+		return p.addSellTrade(td, amounts)
 	}
 
 	return fixedpoint.Zero, fixedpoint.Zero, false
+}
+
+func (p *Position) positionTradeAmounts(td Trade) (positionTradeAmounts, bool) {
+	amounts := positionTradeAmounts{
+		price:         td.Price,
+		quantity:      td.Quantity,
+		quoteQuantity: td.QuoteQuantity,
+	}
+	if amounts.quantity.IsZero() {
+		return positionTradeAmounts{}, false
+	}
+	switch td.FeeCurrency {
+	case p.BaseCurrency:
+		// USD-M futures use the quote currency as the fee currency.
+		if !td.IsFutures {
+			amounts.quantity = amounts.quantity.Sub(td.Fee)
+		}
+	case p.QuoteCurrency:
+		if !td.IsFutures {
+			amounts.quoteQuantity = amounts.quoteQuantity.Sub(td.Fee)
+		}
+	default:
+		if !td.Fee.IsZero() {
+			amounts.feeInQuote = p.calculateFeeInQuote(td)
+		}
+	}
+	return amounts, true
+}
+
+func (p *Position) addBuyTrade(td Trade, amounts positionTradeAmounts) (fixedpoint.Value, fixedpoint.Value, bool) {
+	if p.Base.Sign() < 0 {
+		return p.coverShortPosition(td, amounts)
+	}
+	if p.IsDust(td.Price) {
+		p.OpenedAt = td.Time.Time()
+	}
+	divisor := p.Base.Add(amounts.quantity)
+	p.AverageCost = p.AverageCost.Mul(p.Base).
+		Add(amounts.quoteQuantity).
+		Add(amounts.feeInQuote).
+		Div(divisor)
+	p.Base = p.Base.Add(amounts.quantity)
+	p.Quote = p.Quote.Sub(amounts.quoteQuantity)
+	return fixedpoint.Zero, fixedpoint.Zero, false
+}
+
+func (p *Position) coverShortPosition(td Trade, amounts positionTradeAmounts) (fixedpoint.Value, fixedpoint.Value, bool) {
+	if p.Base.Add(amounts.quantity).Sign() > 0 {
+		profit := p.AverageCost.Sub(amounts.price).Mul(p.Base.Neg())
+		netProfit := profit.Sub(amounts.feeInQuote)
+		p.Base = p.Base.Add(amounts.quantity)
+		p.Quote = p.Quote.Sub(amounts.quoteQuantity)
+		p.AverageCost = amounts.price
+		p.AccumulatedProfit = p.AccumulatedProfit.Add(profit)
+		p.OpenedAt = td.Time.Time()
+		return profit, netProfit, true
+	}
+	p.Base = p.Base.Add(amounts.quantity)
+	p.Quote = p.Quote.Sub(amounts.quoteQuantity)
+	profit := p.AverageCost.Sub(amounts.price).Mul(amounts.quantity)
+	netProfit := profit.Sub(amounts.feeInQuote)
+	p.AccumulatedProfit = p.AccumulatedProfit.Add(profit)
+	return profit, netProfit, true
+}
+
+func (p *Position) addSellTrade(td Trade, amounts positionTradeAmounts) (fixedpoint.Value, fixedpoint.Value, bool) {
+	if p.Base.Sign() > 0 {
+		return p.reduceLongPosition(td, amounts)
+	}
+	if p.IsDust(td.Price) {
+		p.OpenedAt = td.Time.Time()
+	}
+	divisor := amounts.quantity.Sub(p.Base)
+	p.AverageCost = p.AverageCost.Mul(p.Base.Neg()).
+		Add(amounts.quoteQuantity).
+		Sub(amounts.feeInQuote).
+		Div(divisor)
+	p.Base = p.Base.Sub(amounts.quantity)
+	p.Quote = p.Quote.Add(amounts.quoteQuantity)
+	return fixedpoint.Zero, fixedpoint.Zero, false
+}
+
+func (p *Position) reduceLongPosition(td Trade, amounts positionTradeAmounts) (fixedpoint.Value, fixedpoint.Value, bool) {
+	if p.Base.Compare(amounts.quantity) < 0 {
+		profit := amounts.price.Sub(p.AverageCost).Mul(p.Base)
+		netProfit := profit.Sub(amounts.feeInQuote)
+		p.Base = p.Base.Sub(amounts.quantity)
+		p.Quote = p.Quote.Add(amounts.quoteQuantity)
+		p.AverageCost = amounts.price
+		p.AccumulatedProfit = p.AccumulatedProfit.Add(profit)
+		p.OpenedAt = td.Time.Time()
+		return profit, netProfit, true
+	}
+	p.Base = p.Base.Sub(amounts.quantity)
+	p.Quote = p.Quote.Add(amounts.quoteQuantity)
+	profit := amounts.price.Sub(p.AverageCost).Mul(amounts.quantity)
+	netProfit := profit.Sub(amounts.feeInQuote)
+	p.AccumulatedProfit = p.AccumulatedProfit.Add(profit)
+	return profit, netProfit, true
 }
 
 func (p *Position) UpdateMetrics(price *fixedpoint.Value) {

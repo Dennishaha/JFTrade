@@ -50,7 +50,6 @@ func NewRBTree() *RBTree {
 	return tree
 }
 
-//nolint:funlen
 func (tree *RBTree) Delete(key fixedpoint.Value) bool {
 	var deleting = tree.Search(key)
 	if deleting == nil {
@@ -62,93 +61,65 @@ func (tree *RBTree) Delete(key fixedpoint.Value) bool {
 
 	// x the child of the deleted node
 	var x *RBNode
-
-	// the deleting node has only one child, it's easy,
-	// we just connect the child to the parent of the deleting node
+	var parent *RBNode
+	var wasBlack bool
 	if deleting.left.isNil() || deleting.right.isNil() {
-		wasBlack := deleting.color == Black
-
-		// deleting.left or deleting.right could be neel
-		if deleting.left.isNil() {
-			x = deleting.right
-
-			tree.clear(deleting.left)
-			deleting.left = nil
-		} else {
-			x = deleting.left
-
-			if deleting.right.isNil() {
-				tree.clear(deleting.right)
-				deleting.right = nil
-			}
-		}
-
-		p := deleting.parent
-
-		tree.transplant(deleting, x)
-		tree.clear(deleting)
-
+		x, parent, wasBlack = tree.removeDeletedNode(deleting)
 		if wasBlack {
-			// if x is NIL, temporarily set its parent for fixup navigation
-			if x.isNil() {
-				x.parent = p
-			}
-			if err := tree.deleteFixup(x); err != nil {
-				logrus.Errorf("delete fixup x = %+v error: %v", x, err)
-				tree.printSubTreeGraph(p)
-			}
-			// reset NIL parent to sentinel to avoid pollution
-			if x.isNil() {
-				x.parent = tree.nilNode
-			}
+			tree.fixDeletedNode(x, parent, parent)
 		}
-
 	} else {
 		// if both children are not NIL (neel), we need to find the successor from the right subtree.
 		// and copy the successor to the memory location of the deleting node.
 		// since it's a successor, it always has no child connected to it.
 		// here the right child is not nil, so it won't be nil.
 		successor := tree.SuccessorOf(deleting)
-		wasBlack := successor.color == Black
 		deleting.key = successor.key
 		deleting.value = successor.value
-
-		if successor.left.isNil() {
-			x = successor.right
-			tree.clear(successor.left)
-			successor.left = nil
-		} else {
-			x = successor.left
-
-			if successor.right.isNil() {
-				tree.clear(successor.right)
-				successor.right = nil
-			}
-		}
-
-		// capture parent before transplant; needed if x is NIL
-		p := successor.parent
-		// replace successor with its child (possibly NIL)
-		tree.transplant(successor, x)
-		tree.clear(successor)
-
+		x, parent, wasBlack = tree.removeDeletedNode(successor)
 		if wasBlack {
-			if x.isNil() {
-				x.parent = p
-			}
-			if err := tree.deleteFixup(x); err != nil {
-				logrus.Errorf("delete fixup x = %+v error: %v", x, err)
-				tree.printSubTreeGraph(deleting)
-			}
-			if x.isNil() {
-				x.parent = tree.nilNode
-			}
+			tree.fixDeletedNode(x, parent, deleting)
 		}
 	}
 
 	tree.size--
 
 	return true
+}
+
+func (tree *RBTree) removeDeletedNode(deleting *RBNode) (x *RBNode, parent *RBNode, wasBlack bool) {
+	wasBlack = deleting.color == Black
+	if deleting.left.isNil() {
+		x = deleting.right
+		tree.clear(deleting.left)
+		deleting.left = nil
+	} else {
+		x = deleting.left
+		if deleting.right.isNil() {
+			tree.clear(deleting.right)
+			deleting.right = nil
+		}
+	}
+	parent = deleting.parent
+	tree.transplant(deleting, x)
+	tree.clear(deleting)
+	return x, parent, wasBlack
+}
+
+func (tree *RBTree) fixDeletedNode(x *RBNode, parent *RBNode, debugNode *RBNode) {
+	if x == nil {
+		return
+	}
+	if x.isNil() {
+		x.parent = parent
+	}
+	if err := tree.deleteFixup(x); err != nil {
+		logrus.Errorf("delete fixup x = %+v error: %v", x, err)
+		tree.printSubTreeGraph(debugNode)
+	}
+	if x.isNil() {
+		x.parent = tree.nilNode
+	}
 }
 
 // transplant replaces sub-tree rooted at u with subtree rooted at v.
