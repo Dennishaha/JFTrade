@@ -37,7 +37,7 @@ function selectStrategy(): void {
     @click="selectStrategy"
   >
     <div class="flex items-center justify-between gap-3">
-      <div class="min-w-0 break-words text-base font-semibold">{{ model.name }}</div>
+      <div class="min-w-0 break-words text-base font-semibold text-slate-900 dark:text-slate-100">{{ model.name }}</div>
       <div class="flex flex-wrap items-center justify-end gap-2">
         <div
           v-if="model.definitionStale"

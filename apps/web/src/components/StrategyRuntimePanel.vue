@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import type { SplitpanesResizedPayload } from "splitpanes";
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import StrategyRuntimeActivityPanel from "./strategy-runtime/StrategyRuntimeActivityPanel.vue";
+import RuntimeWorkbenchAlert from "./strategy-runtime/RuntimeWorkbenchAlert.vue";
+import StrategyRuntimeEmptyWorkbench from "./strategy-runtime/StrategyRuntimeEmptyWorkbench.vue";
 import StrategyRuntimeInstanceEditorDialog from "./strategy-runtime/StrategyRuntimeInstanceEditorDialog.vue";
 import StrategyRuntimeInstanceListPanel from "./strategy-runtime/StrategyRuntimeInstanceListPanel.vue";
-import StrategyRuntimeOverviewSection from "./strategy-runtime/StrategyRuntimeOverviewSection.vue";
+import StrategyRuntimePanelHeader from "./strategy-runtime/StrategyRuntimePanelHeader.vue";
 import StrategyRuntimeSelectedStrategyPanel from "./strategy-runtime/StrategyRuntimeSelectedStrategyPanel.vue";
+import StrategyRuntimeWorkbenchShell from "./strategy-runtime/StrategyRuntimeWorkbenchShell.vue";
 import "./strategy-runtime/strategyRuntimePanel.css";
 import {
     buildStrategyBindingPayload,
@@ -94,6 +97,7 @@ const detailsError = ref("");
 const instanceMutationNotice = ref("");
 const instanceMutationError = ref("");
 const isCreateMenuOpen = ref(false);
+const runtimePaneSizes = ref<[number, number]>([30, 70]);
 let strategyRuntimeRefreshTimer: number | null = null;
 
 const selectedStrategy = computed(
@@ -127,6 +131,14 @@ const brokerAccountOptions = computed(() => availableBrokerAccounts.value);
 
 const activeStrategyCount = computed(
     () => strategies.value.filter((item) => item.runtimeObservation?.actualStatus === "RUNNING").length,
+);
+
+const runtimeRealTradingLabel = computed(() =>
+    systemStatus.value.realTradingEnabled ? "已开启" : "已关闭",
+);
+
+const runtimeKillSwitchLabel = computed(() =>
+    systemStatus.value.realTradingKillSwitch.active ? "已启用" : "未启用",
 );
 
 const isRefreshingStrategyContent = computed(
@@ -326,6 +338,70 @@ const canDeleteSelectedStrategy = computed(
         && !isDeletingStrategy.value,
 );
 
+const instanceEditorDialogProps = computed(() => ({
+    mode: activeInstanceEditorMode.value,
+    title: instanceEditorTitle.value,
+    hint: instanceEditorHint.value,
+    isLoadingDefinitions: isLoadingDefinitions.value,
+    definitionsError: definitionsError.value,
+    strategyDefinitions: strategyDefinitions.value,
+    createDefinitionId: createDefinitionId.value,
+    createDefinition: createDefinition.value,
+    selectedStrategy: selectedStrategy.value,
+    symbolTags: activeSymbolTags.value,
+    symbolMarket: activeSymbolDraftMarket.value,
+    symbolDraft: activeSymbolDraft.value,
+    symbolValidationMessage: activeSymbolValidationMessage.value,
+    marketOptions: strategyInstrumentMarketOptions.value,
+    intervalValue: activeIntervalValue.value,
+    executionMode: activeExecutionMode.value,
+    runtimeRisk: activeRuntimeRisk.value,
+    selectedBrokerAccountOption: activeSelectedBrokerAccountOption.value,
+    selectedBrokerAccountKey: activeSelectedBrokerAccountKey.value,
+    currentBrokerAccountSelectionKey: effectiveCurrentBrokerAccountSelectionKey.value,
+    isBrokerAccountPickerOpen: activeIsBrokerAccountPickerOpen.value,
+    brokerAccountQuery: activeBrokerAccountQuery.value,
+    filteredBrokerAccountOptions: activeFilteredBrokerAccountOptions.value,
+    previewDefinitionLabel: instanceEditorPreviewDefinitionLabel.value,
+    symbolsSummary: activeInstanceEditorSymbolsSummary.value,
+    brokerAccountSummary: activeInstanceEditorBrokerAccountSummary.value,
+    canCreateStrategyInstance: canCreateStrategyInstance.value,
+    canUpdateSelectedStrategyBinding: canUpdateSelectedStrategyBinding.value,
+    canDeleteSelectedStrategy: canDeleteSelectedStrategy.value,
+    isCreatingStrategyInstance: isCreatingStrategyInstance.value,
+    isUpdatingStrategyBinding: isUpdatingStrategyBinding.value,
+    isDeletingStrategy: isDeletingStrategy.value,
+}));
+
+const instanceEditorDialogListeners = {
+    "refresh-definitions": () => {
+        void loadStrategyDefinitions();
+    },
+    "switch-to-design": openCreateDefinition,
+    "update:create-definition-id": (value: string) => {
+        createDefinitionId.value = value;
+    },
+    "remove-symbol": removeActiveSymbol,
+    "update:symbol-market": updateActiveSymbolDraftMarket,
+    "update:symbol-draft": updateActiveSymbolDraft,
+    "commit-symbol-draft": commitActiveSymbolDraft,
+    "symbol-draft-keydown": handleActiveSymbolDraftKeydown,
+    "symbol-draft-paste": handleActiveSymbolDraftPaste,
+    "update:interval": updateActiveIntervalValue,
+    "update:execution-mode": updateActiveExecutionMode,
+    "update:runtime-risk-mode": updateActiveRuntimeRiskMode,
+    "update:runtime-risk-close-only": updateActiveRuntimeRiskCloseOnly,
+    "update:runtime-risk-pause-on-reject": updateActiveRuntimeRiskPauseOnReject,
+    "update:runtime-risk-number": updateActiveRuntimeRiskNumber,
+    "toggle-broker-picker": toggleActiveBrokerAccountPicker,
+    "update:broker-query": updateActiveBrokerAccountQuery,
+    "clear-broker-selection": clearActiveBrokerAccountSelection,
+    "select-broker-selection": selectActiveBrokerAccount,
+    "submit-create": createStrategyInstance,
+    "submit-update": updateSelectedStrategyBinding,
+    "submit-delete": deleteSelectedStrategy,
+};
+
 onMounted(() => {
     if (typeof document !== "undefined") {
         document.addEventListener("visibilitychange", handleStrategyRuntimeVisibilityChange);
@@ -475,6 +551,14 @@ function clearInstanceMutationMessages(): void {
     instanceMutationError.value = "";
 }
 
+function closeInstanceMutationNotice(): void {
+    instanceMutationNotice.value = "";
+}
+
+function closeInstanceMutationError(): void {
+    instanceMutationError.value = "";
+}
+
 function clearStrategyRuntimeRefreshTimer(): void {
     if (strategyRuntimeRefreshTimer != null) {
         window.clearTimeout(strategyRuntimeRefreshTimer);
@@ -519,6 +603,19 @@ function handleStrategyRuntimeVisibilityChange(): void {
         return;
     }
     void refreshStrategyRuntimeContent();
+}
+
+function handleRuntimePaneResized(payload: SplitpanesResizedPayload): void {
+    const sizes = payload.panes?.map((pane) => pane.size);
+    if (
+        sizes == null
+        || sizes.length !== 2
+        || !sizes.every((size) => Number.isFinite(size) && size > 0 && size <= 100)
+    ) {
+        return;
+    }
+
+    runtimePaneSizes.value = [sizes[0]!, sizes[1]!];
 }
 
 async function loadStrategyDefinitions(): Promise<void> {
@@ -888,176 +985,120 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
 
 <template>
     <div class="runtime-panel">
-        <!-- 头部 -->
-        <div class="runtime-panel__bar">
-            <div class="runtime-panel__intro">
-                <div class="runtime-panel__eyebrow">策略运行时</div>
-                <div class="runtime-panel__title-row">
-                    <div class="runtime-panel__title">策略运行</div>
-                </div>
-            </div>
+        <StrategyRuntimePanelHeader
+            :active-strategy-count="activeStrategyCount"
+            :definitions-count="props.definitionsCount ?? 0"
+            :default-trading-environment="systemStatus.defaultTradingEnvironment"
+            :runtime-real-trading-label="runtimeRealTradingLabel"
+            :is-kill-switch-active="systemStatus.realTradingKillSwitch.active"
+            :runtime-kill-switch-label="runtimeKillSwitchLabel"
+            :runtime-risk-summary="formatStrategyRuntimeRiskSummary(selectedStrategyBinding?.runtimeRisk)"
+        />
 
-            <div class="runtime-panel__bar-actions">
-                <div class="runtime-panel__metrics">
-                    <div class="runtime-panel__metric-chip">{{ activeStrategyCount }} 个活跃实例</div>
-                    <div class="runtime-panel__metric-chip">
-                        {{ props.definitionsCount ?? 0 }} 个策略定义
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 内容区 -->
-        <div class="runtime-panel__scroll">
-            <div v-if="instanceMutationNotice"
-                class="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {{ instanceMutationNotice }}
-            </div>
-            <div v-if="instanceMutationError"
-                class="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {{ instanceMutationError }}
-            </div>
-
-            <StrategyRuntimeOverviewSection
-                :active-strategy-count="activeStrategyCount"
-                :selected-strategy="selectedStrategy"
-                :selected-strategy-runtime-label="selectedStrategyRuntimeLabel"
-                :system-status="systemStatus"
-                :format-strategy-runtime-risk-summary="formatStrategyRuntimeRiskSummary"
-            />
-
-            <div class="grid gap-4" :class="selectedStrategy === null ? 'grid-cols-1' : 'xl:grid-cols-[minmax(22rem,26rem)_minmax(0,1fr)]'">
-                <StrategyRuntimeInstanceListPanel
-                    :is-create-menu-open="isCreateMenuOpen"
-                    :is-loading-strategies="isLoadingStrategies"
-                    :list-error="listError"
-                    :strategies="strategies"
-                    :selected-strategy-id="selectedStrategyId"
-                    :format-strategy-status="formatStrategyStatus"
-                    :format-strategy-definition-sync-summary="formatStrategyDefinitionSyncSummary"
-                    :format-strategy-symbols="formatStrategySymbols"
-                    :format-strategy-interval="formatStrategyInterval"
-                    :format-broker-account-summary="formatBrokerAccountSummary"
-                    :read-strategy-binding="readStrategyBinding"
-                    :is-current-broker-account-binding="isCurrentBrokerAccountBinding"
-                    :format-timestamp="formatTimestamp"
-                    :format-timestamp-tooltip="formatTimestampTooltip"
-                    :format-strategy-runtime="formatStrategyRuntime"
-                    :format-source-format="formatSourceFormat"
-                    :format-strategy-eligibility="formatStrategyEligibility"
-                    :format-strategy-execution-mode="formatStrategyExecutionMode"
-                    @toggle-create-menu="toggleCreateMenu"
-                    @open-create-definition="openCreateDefinition"
-                    @open-create-instance="openCreateInstanceForm"
-                    @refresh-strategies="refreshStrategyRuntimeContent"
-                    @select-strategy="selectStrategy($event)"
+        <StrategyRuntimeWorkbenchShell
+            :runtime-pane-sizes="runtimePaneSizes"
+            @resized="handleRuntimePaneResized"
+        >
+            <template #messages>
+                <RuntimeWorkbenchAlert
+                    v-if="instanceMutationNotice"
+                    close-label="关闭提示"
+                    close-test-id="strategy-instance-mutation-notice-close"
+                    tone="success"
+                    @close="closeInstanceMutationNotice"
                 >
-                    <StrategyRuntimeInstanceEditorDialog
-                        v-model:open="instanceEditorOpen"
-                        :mode="activeInstanceEditorMode"
-                        :title="instanceEditorTitle"
-                        :hint="instanceEditorHint"
-                        :is-loading-definitions="isLoadingDefinitions"
-                        :definitions-error="definitionsError"
-                        :strategy-definitions="strategyDefinitions"
-                        :create-definition-id="createDefinitionId"
-                        :create-definition="createDefinition"
-                        :selected-strategy="selectedStrategy"
-                        :symbol-tags="activeSymbolTags"
-                        :symbol-market="activeSymbolDraftMarket"
-                        :symbol-draft="activeSymbolDraft"
-                        :symbol-validation-message="activeSymbolValidationMessage"
-                        :market-options="strategyInstrumentMarketOptions"
-                        :interval-value="activeIntervalValue"
-                        :execution-mode="activeExecutionMode"
-                        :runtime-risk="activeRuntimeRisk"
-                        :selected-broker-account-option="activeSelectedBrokerAccountOption"
-                        :selected-broker-account-key="activeSelectedBrokerAccountKey"
-                        :current-broker-account-selection-key="effectiveCurrentBrokerAccountSelectionKey"
-                        :is-broker-account-picker-open="activeIsBrokerAccountPickerOpen"
-                        :broker-account-query="activeBrokerAccountQuery"
-                        :filtered-broker-account-options="activeFilteredBrokerAccountOptions"
-                        :preview-definition-label="instanceEditorPreviewDefinitionLabel"
-                        :symbols-summary="activeInstanceEditorSymbolsSummary"
-                        :broker-account-summary="activeInstanceEditorBrokerAccountSummary"
-                        :can-create-strategy-instance="canCreateStrategyInstance"
-                        :can-update-selected-strategy-binding="canUpdateSelectedStrategyBinding"
-                        :can-delete-selected-strategy="canDeleteSelectedStrategy"
-                        :is-creating-strategy-instance="isCreatingStrategyInstance"
-                        :is-updating-strategy-binding="isUpdatingStrategyBinding"
-                        :is-deleting-strategy="isDeletingStrategy"
-                        @refresh-definitions="void loadStrategyDefinitions()"
-                        @switch-to-design="openCreateDefinition"
-                        @update:create-definition-id="createDefinitionId = $event"
-                        @remove-symbol="removeActiveSymbol"
-                        @update:symbol-market="updateActiveSymbolDraftMarket"
-                        @update:symbol-draft="updateActiveSymbolDraft"
-                        @commit-symbol-draft="commitActiveSymbolDraft"
-                        @symbol-draft-keydown="handleActiveSymbolDraftKeydown"
-                        @symbol-draft-paste="handleActiveSymbolDraftPaste"
-                        @update:interval="updateActiveIntervalValue"
-                        @update:execution-mode="updateActiveExecutionMode"
-                        @update:runtime-risk-mode="updateActiveRuntimeRiskMode"
-                        @update:runtime-risk-close-only="updateActiveRuntimeRiskCloseOnly"
-                        @update:runtime-risk-pause-on-reject="updateActiveRuntimeRiskPauseOnReject"
-                        @update:runtime-risk-number="updateActiveRuntimeRiskNumber"
-                        @toggle-broker-picker="toggleActiveBrokerAccountPicker"
-                        @update:broker-query="updateActiveBrokerAccountQuery"
-                        @clear-broker-selection="clearActiveBrokerAccountSelection"
-                        @select-broker-selection="selectActiveBrokerAccount"
-                        @submit-create="createStrategyInstance"
-                        @submit-update="updateSelectedStrategyBinding"
-                        @submit-delete="deleteSelectedStrategy"
-                    />
-                </StrategyRuntimeInstanceListPanel>
+                    {{ instanceMutationNotice }}
+                </RuntimeWorkbenchAlert>
+                <RuntimeWorkbenchAlert
+                    v-if="instanceMutationError"
+                    close-label="关闭错误"
+                    close-test-id="strategy-instance-mutation-error-close"
+                    tone="error"
+                    @close="closeInstanceMutationError"
+                >
+                    {{ instanceMutationError }}
+                </RuntimeWorkbenchAlert>
+            </template>
 
-                <div v-if="selectedStrategy !== null" class="min-w-0 grid gap-4">
-                    <StrategyRuntimeSelectedStrategyPanel
-                        :selected-strategy="selectedStrategy"
-                        :selected-strategy-binding="selectedStrategyBinding"
-                        :selected-strategy-definition-sync="selectedStrategyDefinitionSync"
-                        :selected-strategy-runtime-observation="selectedStrategyRuntimeObservation"
-                        :is-refreshing-strategy-definition="isRefreshingStrategyDefinition"
-                        :can-refresh-selected-strategy-definition="canRefreshSelectedStrategyDefinition"
-                        :selected-strategy-definition-refresh-hint="selectedStrategyDefinitionRefreshHint"
-                        :selected-strategy-runtime-label="selectedStrategyRuntimeLabel"
-                        :selected-strategy-source-format-label="selectedStrategySourceFormatLabel"
-                        :selected-strategy-start-hint="selectedStrategyStartHint"
-                        :selected-strategy-compiled-summary="selectedStrategyCompiledSummary"
-                        :is-refreshing-strategy-content="isRefreshingStrategyContent"
-                        :is-updating-strategy-runtime-risk="isUpdatingStrategyRuntimeRisk"
-                        :can-start-selected-strategy="canStartSelectedStrategy"
-                        :can-pause-selected-strategy="canPauseSelectedStrategy"
-                        :can-stop-selected-strategy="canStopSelectedStrategy"
-                        :details-error="detailsError"
-                        :format-strategy-definition-sync-summary="formatStrategyDefinitionSyncSummary"
-                        :format-strategy-symbols="formatStrategySymbols"
-                        :format-strategy-interval="formatStrategyInterval"
-                        :format-strategy-execution-mode="formatStrategyExecutionMode"
-                        :format-strategy-runtime-risk-summary="formatStrategyRuntimeRiskSummary"
-                        :format-broker-account-summary="formatBrokerAccountSummary"
-                        :is-current-broker-account-binding="isCurrentBrokerAccountBinding"
-                        :format-strategy-eligibility="formatStrategyEligibility"
-                        :format-strategy-status="formatStrategyStatus"
-                        :format-runtime-observation-symbols="formatRuntimeObservationSymbols"
-                        :format-timestamp="formatTimestamp"
-                        :format-timestamp-tooltip="formatTimestampTooltip"
-                        @open-edit="openEditInstanceForm"
-                        @refresh-content="refreshStrategyRuntimeContent"
-                        @refresh-definition="refreshSelectedStrategyDefinition"
-                        @update-runtime-risk="updateSelectedStrategyRuntimeRisk"
-                        @change-status="changeStrategyStatus"
-                    />
+            <template #list>
+                        <StrategyRuntimeInstanceListPanel
+                            :is-create-menu-open="isCreateMenuOpen"
+                            :is-loading-strategies="isLoadingStrategies"
+                            :list-error="listError"
+                            :strategies="strategies"
+                            :selected-strategy-id="selectedStrategyId"
+                            :format-strategy-status="formatStrategyStatus"
+                            :format-strategy-definition-sync-summary="formatStrategyDefinitionSyncSummary"
+                            :format-strategy-symbols="formatStrategySymbols"
+                            :format-strategy-interval="formatStrategyInterval"
+                            :format-broker-account-summary="formatBrokerAccountSummary"
+                            :read-strategy-binding="readStrategyBinding"
+                            :is-current-broker-account-binding="isCurrentBrokerAccountBinding"
+                            :format-timestamp="formatTimestamp"
+                            :format-timestamp-tooltip="formatTimestampTooltip"
+                            :format-strategy-runtime="formatStrategyRuntime"
+                            :format-source-format="formatSourceFormat"
+                            :format-strategy-eligibility="formatStrategyEligibility"
+                            :format-strategy-execution-mode="formatStrategyExecutionMode"
+                            @toggle-create-menu="toggleCreateMenu"
+                            @open-create-definition="openCreateDefinition"
+                            @open-create-instance="openCreateInstanceForm"
+                            @refresh-strategies="refreshStrategyRuntimeContent"
+                            @select-strategy="selectStrategy($event)"
+                        >
+                            <StrategyRuntimeInstanceEditorDialog
+                                v-model:open="instanceEditorOpen"
+                                v-bind="instanceEditorDialogProps"
+                                v-on="instanceEditorDialogListeners"
+                            />
+                        </StrategyRuntimeInstanceListPanel>
+            </template>
 
-                    <StrategyRuntimeActivityPanel
-                        :key="selectedStrategy?.id ?? 'strategy-runtime-activity-empty'"
-                        :is-loading-details="isLoadingDetails"
-                        :strategy-logs="strategyLogs"
-                        :strategy-audit-entries="strategyAuditEntries"
-                        :selected-strategy-params-json="selectedStrategyParamsJson"
-                    />
-                </div>
-            </div>
-        </div>
+            <template #detail>
+                        <StrategyRuntimeEmptyWorkbench v-if="selectedStrategy === null" />
+                        <StrategyRuntimeSelectedStrategyPanel
+                            v-else
+                            :key="selectedStrategy.id"
+                            :selected-strategy="selectedStrategy"
+                            :selected-strategy-binding="selectedStrategyBinding"
+                            :selected-strategy-definition-sync="selectedStrategyDefinitionSync"
+                            :selected-strategy-runtime-observation="selectedStrategyRuntimeObservation"
+                            :is-loading-details="isLoadingDetails"
+                            :strategy-logs="strategyLogs"
+                            :strategy-audit-entries="strategyAuditEntries"
+                            :selected-strategy-params-json="selectedStrategyParamsJson"
+                            :is-refreshing-strategy-definition="isRefreshingStrategyDefinition"
+                            :can-refresh-selected-strategy-definition="canRefreshSelectedStrategyDefinition"
+                            :selected-strategy-definition-refresh-hint="selectedStrategyDefinitionRefreshHint"
+                            :selected-strategy-runtime-label="selectedStrategyRuntimeLabel"
+                            :selected-strategy-source-format-label="selectedStrategySourceFormatLabel"
+                            :selected-strategy-start-hint="selectedStrategyStartHint"
+                            :selected-strategy-compiled-summary="selectedStrategyCompiledSummary"
+                            :is-refreshing-strategy-content="isRefreshingStrategyContent"
+                            :is-updating-strategy-runtime-risk="isUpdatingStrategyRuntimeRisk"
+                            :can-start-selected-strategy="canStartSelectedStrategy"
+                            :can-pause-selected-strategy="canPauseSelectedStrategy"
+                            :can-stop-selected-strategy="canStopSelectedStrategy"
+                            :details-error="detailsError"
+                            :format-strategy-definition-sync-summary="formatStrategyDefinitionSyncSummary"
+                            :format-strategy-symbols="formatStrategySymbols"
+                            :format-strategy-interval="formatStrategyInterval"
+                            :format-strategy-execution-mode="formatStrategyExecutionMode"
+                            :format-strategy-runtime-risk-summary="formatStrategyRuntimeRiskSummary"
+                            :format-broker-account-summary="formatBrokerAccountSummary"
+                            :is-current-broker-account-binding="isCurrentBrokerAccountBinding"
+                            :format-strategy-eligibility="formatStrategyEligibility"
+                            :format-strategy-status="formatStrategyStatus"
+                            :format-runtime-observation-symbols="formatRuntimeObservationSymbols"
+                            :format-timestamp="formatTimestamp"
+                            :format-timestamp-tooltip="formatTimestampTooltip"
+                            @open-edit="openEditInstanceForm"
+                            @refresh-content="refreshStrategyRuntimeContent"
+                            @refresh-definition="refreshSelectedStrategyDefinition"
+                            @update-runtime-risk="updateSelectedStrategyRuntimeRisk"
+                            @change-status="changeStrategyStatus"
+                        />
+            </template>
+        </StrategyRuntimeWorkbenchShell>
     </div>
 </template>

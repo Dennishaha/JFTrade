@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type {
     StrategyBrokerAccountBinding,
     StrategyDefinitionSyncStatus,
@@ -8,6 +8,7 @@ import type {
     StrategyInstanceItem,
 } from "@/contracts";
 
+import RuntimeWorkbenchAlert from "./RuntimeWorkbenchAlert.vue";
 import StrategyInstanceCard from "../domain/strategy/StrategyInstanceCard.vue";
 import type { StrategyInstanceCardModel } from "../domain/strategy/strategyInstanceCard";
 
@@ -31,6 +32,20 @@ const props = defineProps<{
     formatStrategyEligibility: (strategy: StrategyInstanceItem) => string;
     formatStrategyExecutionMode: (mode: StrategyExecutionMode | string | null | undefined) => string;
 }>();
+
+type StrategyInstanceStatusFilter = "all" | "running" | "paused" | "stopped" | "other";
+
+const instanceSearchQuery = ref("");
+const instanceStatusFilter = ref<StrategyInstanceStatusFilter>("all");
+const dismissedListError = ref("");
+
+const instanceStatusFilterOptions: Array<{ value: StrategyInstanceStatusFilter; label: string }> = [
+    { value: "all", label: "全部状态" },
+    { value: "running", label: "运行中" },
+    { value: "paused", label: "已暂停" },
+    { value: "stopped", label: "已停止" },
+    { value: "other", label: "其他" },
+];
 
 const strategyCardModels = computed<StrategyInstanceCardModel[]>(() => props.strategies.map((strategy) => {
     const binding = props.readStrategyBinding(strategy);
@@ -58,6 +73,39 @@ const strategyCardModels = computed<StrategyInstanceCardModel[]>(() => props.str
     };
 }));
 
+const filteredStrategyCardModels = computed(() => {
+    const query = normalizeSearchText(instanceSearchQuery.value);
+    return strategyCardModels.value.filter((model) => {
+        if (!matchesStatusFilter(model.status, instanceStatusFilter.value)) {
+            return false;
+        }
+        if (query === "") {
+            return true;
+        }
+        return [
+            model.id,
+            model.name,
+            model.statusLabel,
+            model.symbols,
+            model.interval,
+            model.brokerAccountSummary,
+            model.runtimeLabel,
+            model.sourceFormatLabel,
+            model.eligibilityLabel,
+            model.executionModeLabel,
+        ].some((value) => normalizeSearchText(value).includes(query));
+    });
+});
+
+const hasInstanceFilters = computed(
+    () => instanceSearchQuery.value.trim() !== "" || instanceStatusFilter.value !== "all",
+);
+
+const visibleListError = computed(() => {
+    const message = props.listError.trim();
+    return message !== "" && dismissedListError.value !== props.listError;
+});
+
 const emit = defineEmits<{
     "toggle-create-menu": [];
     "open-create-definition": [];
@@ -65,16 +113,63 @@ const emit = defineEmits<{
     "refresh-strategies": [];
     "select-strategy": [strategyId: string];
 }>();
+
+function normalizeSearchText(value: unknown): string {
+    return String(value ?? "").trim().toLowerCase();
+}
+
+function matchesStatusFilter(status: string, filter: StrategyInstanceStatusFilter): boolean {
+    if (filter === "all") {
+        return true;
+    }
+    const normalizedStatus = status.trim().toUpperCase();
+    if (filter === "running") {
+        return normalizedStatus === "RUNNING";
+    }
+    if (filter === "paused") {
+        return normalizedStatus === "PAUSED";
+    }
+    if (filter === "stopped") {
+        return normalizedStatus === "STOPPED";
+    }
+    return normalizedStatus !== "RUNNING" && normalizedStatus !== "PAUSED" && normalizedStatus !== "STOPPED";
+}
+
+function resetInstanceFilters(): void {
+    instanceSearchQuery.value = "";
+    instanceStatusFilter.value = "all";
+}
+
+function closeListError(): void {
+    dismissedListError.value = props.listError;
+}
+
+watch(
+    () => props.listError,
+    (message) => {
+        if (message.trim() === "") {
+            dismissedListError.value = "";
+        }
+    },
+);
 </script>
 
 <template>
-    <div class="min-w-0 rounded-[28px] border border-slate-200 bg-white p-4">
-        <div class="mb-4 flex items-center justify-between gap-3">
-            <div class="text-xl font-semibold text-slate-900">策略实例</div>
+    <div class="runtime-workbench-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="runtime-workbench-panel__header flex items-center justify-between gap-3 border-b px-3 py-3">
+            <div class="min-w-0">
+                <div class="text-sm font-semibold runtime-workbench-text-strong">策略实例</div>
+                <div class="text-xs runtime-workbench-text-muted">
+                    {{ strategies.length }} 个实例
+                    <span v-if="filteredStrategyCardModels.length !== strategies.length">
+                        · {{ filteredStrategyCardModels.length }} 个匹配
+                    </span>
+                </div>
+            </div>
             <div class="flex flex-wrap items-center gap-2">
                 <div class="relative">
                     <button
-                        class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                        class="runtime-workbench-button runtime-workbench-button--primary"
                         data-testid="strategy-create-menu-toggle"
                         type="button"
                         :aria-expanded="isCreateMenuOpen ? 'true' : 'false'"
@@ -85,10 +180,10 @@ const emit = defineEmits<{
                     <div
                         v-if="isCreateMenuOpen"
                         data-testid="strategy-create-menu"
-                        class="absolute right-0 z-10 mt-2 grid min-w-[12rem] gap-1 rounded-3xl border border-slate-200 bg-white p-2 shadow-lg"
+                        class="runtime-workbench-menu absolute right-0 z-10 mt-2 grid min-w-[12rem] gap-1 rounded-lg border p-2 shadow-lg"
                     >
                         <button
-                            class="rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                            class="runtime-workbench-menu__item"
                             data-testid="strategy-new-definition"
                             type="button"
                             @click="emit('open-create-definition')"
@@ -96,7 +191,7 @@ const emit = defineEmits<{
                             新增策略
                         </button>
                         <button
-                            class="rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                            class="runtime-workbench-menu__item"
                             data-testid="strategy-new-instance"
                             type="button"
                             @click="emit('open-create-instance')"
@@ -106,7 +201,7 @@ const emit = defineEmits<{
                     </div>
                 </div>
                 <button
-                    class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                    class="runtime-workbench-button"
                     type="button"
                     @click="emit('refresh-strategies')"
                 >
@@ -117,30 +212,78 @@ const emit = defineEmits<{
 
         <slot />
 
-        <div v-if="listError" class="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-            {{ listError }}
+        <div class="grid gap-2 border-b px-3 py-3">
+            <input
+                v-model="instanceSearchQuery"
+                class="runtime-workbench-input"
+                data-testid="strategy-instance-search"
+                placeholder="搜索策略、实例 ID、标的或券商"
+                type="search"
+            >
+            <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                <select
+                    v-model="instanceStatusFilter"
+                    class="runtime-workbench-input"
+                    data-testid="strategy-instance-status-filter"
+                >
+                    <option
+                        v-for="option in instanceStatusFilterOptions"
+                        :key="option.value"
+                        :value="option.value"
+                    >
+                        {{ option.label }}
+                    </option>
+                </select>
+                <button
+                    class="runtime-workbench-button"
+                    :disabled="!hasInstanceFilters"
+                    type="button"
+                    @click="resetInstanceFilters"
+                >
+                    清空
+                </button>
+            </div>
         </div>
-        <div
-            v-else-if="isLoadingStrategies && strategies.length === 0"
-            class="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500"
-            data-state="loading"
-            aria-live="polite"
-        >
-            正在加载策略实例…
-        </div>
-        <div
-            v-else-if="strategies.length === 0"
-            class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500"
-        >
-            暂无策略实例。先从设计区保存定义并创建运行实例。
-        </div>
-        <div v-else class="grid gap-3">
-            <StrategyInstanceCard
-                v-for="model in strategyCardModels"
-                :key="model.id"
-                :model="model"
-                @select="emit('select-strategy', $event)"
-            />
+
+        <div class="min-h-0 flex-1 overflow-auto p-3">
+            <RuntimeWorkbenchAlert
+                v-if="visibleListError"
+                close-label="关闭错误"
+                close-test-id="strategy-list-error-close"
+                role="alert"
+                tone="error"
+                @close="closeListError"
+            >
+                {{ listError }}
+            </RuntimeWorkbenchAlert>
+            <div
+                v-else-if="isLoadingStrategies && strategies.length === 0"
+                class="runtime-workbench-empty p-5 text-sm"
+                data-state="loading"
+                aria-live="polite"
+            >
+                正在加载策略实例…
+            </div>
+            <div
+                v-else-if="strategies.length === 0"
+                class="runtime-workbench-empty runtime-workbench-empty--dashed p-5 text-sm"
+            >
+                暂无策略实例。先从设计区保存定义并创建运行实例。
+            </div>
+            <div
+                v-else-if="filteredStrategyCardModels.length === 0"
+                class="runtime-workbench-empty p-5 text-sm"
+            >
+                没有匹配当前搜索或筛选条件的实例。
+            </div>
+            <div v-else class="grid gap-2">
+                <StrategyInstanceCard
+                    v-for="model in filteredStrategyCardModels"
+                    :key="model.id"
+                    :model="model"
+                    @select="emit('select-strategy', $event)"
+                />
+            </div>
         </div>
     </div>
 </template>

@@ -23,6 +23,123 @@ afterEach(() => {
 });
 
 describe("StrategyRuntimePanel business workflows", () => {
+  it("renders the split workbench, filters instances and switches selected detail tabs", async () => {
+    const strategies = [
+      {
+        ...buildStrategy("RUNNING"),
+        id: "alpha-live",
+        definition: { strategyId: "alpha", name: "Alpha Live", version: "1.0.0" },
+        binding: {
+          ...buildStrategy("RUNNING").binding,
+          symbols: ["HK.00700"],
+          brokerAccount: {
+            brokerId: "futu",
+            accountId: "SIM-123",
+            tradingEnvironment: "SIMULATE",
+            market: "HK",
+          },
+        },
+        params: {
+          ...buildStrategy("RUNNING").params,
+          symbols: ["HK.00700"],
+          symbol: "HK.00700",
+        },
+        runtimeObservation: {
+          actualStatus: "RUNNING" as const,
+          activeSymbols: ["HK.00700"],
+          lastClosedKlineAt: "2026-06-01T02:00:00.000Z",
+          lastSignalAt: "",
+          lastOrderAt: "",
+          lastErrorAt: "",
+          lastError: "",
+          updatedAt: "2026-06-01T02:01:00.000Z",
+        },
+      },
+      {
+        ...buildStrategy("PAUSED"),
+        id: "beta-paused",
+        definition: { strategyId: "beta", name: "Beta Pause", version: "1.0.0" },
+        binding: {
+          ...buildStrategy("PAUSED").binding,
+          symbols: ["US.AAPL"],
+        },
+        params: {
+          ...buildStrategy("PAUSED").params,
+          symbols: ["US.AAPL"],
+          symbol: "US.AAPL",
+        },
+      },
+      {
+        ...buildStrategy("STOPPED"),
+        id: "gamma-stopped",
+        definition: { strategyId: "gamma", name: "Gamma Stop", version: "1.0.0" },
+        binding: {
+          ...buildStrategy("STOPPED").binding,
+          symbols: ["HK.09988"],
+        },
+        params: {
+          ...buildStrategy("STOPPED").params,
+          symbols: ["HK.09988"],
+          symbol: "HK.09988",
+        },
+      },
+    ];
+    vi.stubGlobal("fetch", buildFetchMock({
+      definitions: [buildDefinition()],
+      strategies,
+      logsById: {
+        "beta-paused": ["2026-06-01T03:00:00.000Z paused strategy beta"],
+      },
+      auditById: {
+        "beta-paused": [
+          { instanceId: "beta-paused", kind: "paused", detail: "manual pause", at: "2026-06-01T03:00:00.000Z" },
+        ],
+      },
+    }));
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { wrapper } = await mountStrategyPage("/strategy/runtime");
+    await waitForSelector(wrapper, '[data-testid="strategy-runtime-tab-runtime"]');
+
+    expect(wrapper.text()).toContain("运行操作台");
+    expect(wrapper.text()).toContain("活跃实例");
+    expect(wrapper.text()).toContain("Alpha Live");
+
+    await wrapper.get('[data-testid="strategy-instance-search"]').setValue("US.AAPL");
+    await settleStrategyWorkspace();
+    expect(wrapper.find('[data-testid="strategy-alpha-live"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="strategy-beta-paused"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="strategy-gamma-stopped"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="strategy-instance-search"]').setValue("");
+    await wrapper.get('[data-testid="strategy-instance-status-filter"]').setValue("stopped");
+    await settleStrategyWorkspace();
+    expect(wrapper.find('[data-testid="strategy-alpha-live"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="strategy-beta-paused"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="strategy-gamma-stopped"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="strategy-instance-search"]').setValue("not-found");
+    await settleStrategyWorkspace();
+    expect(wrapper.text()).toContain("没有匹配当前搜索或筛选条件的实例");
+
+    await wrapper.get('[data-testid="strategy-instance-search"]').setValue("");
+    await wrapper.get('[data-testid="strategy-instance-status-filter"]').setValue("all");
+    await wrapper.get('[data-testid="strategy-beta-paused"]').trigger("click");
+    await settleStrategyWorkspace();
+    expect(wrapper.text()).toContain("Beta Pause");
+
+    await wrapper.get('[data-testid="strategy-runtime-tab-binding"]').trigger("click");
+    expect(wrapper.get('[data-testid="strategy-runtime-tab-binding"]').classes()).toContain("is-active");
+    expect(wrapper.get('[data-testid="strategy-current-binding-summary"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="strategy-runtime-tab-activity"]').trigger("click");
+    expect(wrapper.get('[data-testid="strategy-runtime-tab-activity"]').classes()).toContain("is-active");
+    expect(wrapper.get('[data-testid="strategy-activity-tab-logs"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("paused strategy beta");
+
+    wrapper.unmount();
+  });
+
   it("creates, edits, risk-controls and deletes a stopped strategy instance", async () => {
     const fetchMock = buildFetchMock({ definitions: [buildDefinition()] });
     const fetchSpy = vi.fn(fetchMock);
@@ -220,12 +337,18 @@ describe("StrategyRuntimePanel business workflows", () => {
     expect(wrapper.text()).toContain("broker rejected order");
     expect(wrapper.get('[data-testid="strategy-definition-sync-badge"]').text()).toContain("待刷新 v0.1.0 -> v0.2.0");
 
+    await wrapper.get('[data-testid="strategy-runtime-last-error-close"]').trigger("click");
+    expect(wrapper.text()).not.toContain("broker rejected order");
+
     await wrapper.get('[data-testid="strategy-refresh-definition"]').trigger("click");
     await settleStrategyWorkspace();
 
     expect(wrapper.text()).toContain("已刷新实例策略到最新版本：Mean Revert / v0.2.0");
     expect(wrapper.get('[data-testid="strategy-definition-sync-badge"]').text()).toContain("已同步至 v0.2.0");
     expect(findFetchCall(fetchSpy, "/strategies/instance-1/refresh-definition", "POST")).toBeTruthy();
+
+    await wrapper.get('[data-testid="strategy-instance-mutation-notice-close"]').trigger("click");
+    expect(wrapper.text()).not.toContain("已刷新实例策略到最新版本：Mean Revert / v0.2.0");
 
     wrapper.unmount();
   });
@@ -288,6 +411,8 @@ describe("StrategyRuntimePanel business workflows", () => {
     await refreshDefinitionsButton!.trigger("click");
     await settleStrategyWorkspace();
     expect(failedLists.wrapper.text()).toContain("策略实例服务暂不可用");
+    await failedLists.wrapper.get('[data-testid="strategy-list-error-close"]').trigger("click");
+    expect(failedLists.wrapper.text()).not.toContain("策略实例服务暂不可用");
     failedLists.wrapper.unmount();
     resetStrategyPageTestState();
 
@@ -305,6 +430,8 @@ describe("StrategyRuntimePanel business workflows", () => {
     await settleStrategyWorkspace();
     expect(failedDetails.wrapper.text()).toContain("运行日志读取失败");
     expect(failedDetails.wrapper.text()).not.toContain("stale log");
+    await failedDetails.wrapper.get('[data-testid="strategy-runtime-details-error-close"]').trigger("click");
+    expect(failedDetails.wrapper.text()).not.toContain("运行日志读取失败");
     failedDetails.wrapper.unmount();
   });
 
