@@ -75,34 +75,81 @@ func workflowNodeRuns(
 	startedAt string,
 	finishedAt string,
 ) []jfadk.WorkflowNodeRun {
+	context := newWorkflowNodeRunContext(workflow, trigger, triggerType, message, objective, response, status, errorMessage)
+	return []jfadk.WorkflowNodeRun{
+		context.triggerNode(inputs, matchedEvent, startedAt, finishedAt),
+		context.startNode(inputs, startedAt, finishedAt),
+		context.agentNode(startedAt, finishedAt),
+		context.monitorNode(startedAt, finishedAt),
+	}
+}
+
+type workflowNodeRunContext struct {
+	workflow       jfadk.WorkflowDefinition
+	triggerNodeID  string
+	triggerTitle   string
+	triggerStatus  string
+	startStatus    string
+	agentStatus    string
+	monitorStatus  string
+	startOutputs   map[string]any
+	agentInputs    map[string]any
+	agentOutputs   map[string]any
+	monitorOutputs map[string]any
+	errorMessage   string
+}
+
+func newWorkflowNodeRunContext(
+	workflow jfadk.WorkflowDefinition,
+	trigger *jfadk.WorkflowTrigger,
+	triggerType string,
+	message string,
+	objective string,
+	response *jfadk.ChatResponse,
+	status string,
+	errorMessage string,
+) workflowNodeRunContext {
 	status = defaultString(strings.ToUpper(strings.TrimSpace(status)), jfadk.WorkflowTriggerLogStatusRunning)
 	errorMessage = strings.TrimSpace(errorMessage)
-	triggerNodeID := "trigger:manual"
-	triggerTitle := "Manual"
+	context := workflowNodeRunContext{
+		workflow:      workflow,
+		triggerNodeID: "trigger:manual",
+		triggerTitle:  "Manual",
+		errorMessage:  errorMessage,
+	}
 	if trigger != nil {
-		triggerNodeID = "trigger:" + strings.TrimSpace(trigger.ID)
-		triggerTitle = strings.TrimSpace(trigger.Title)
+		context.triggerNodeID = "trigger:" + strings.TrimSpace(trigger.ID)
+		context.triggerTitle = strings.TrimSpace(trigger.Title)
 	}
-	if triggerTitle == "" {
-		triggerTitle = workflowrules.DefaultTriggerTitle(defaultString(triggerType, jfadk.WorkflowTriggerTypeManual))
+	if context.triggerTitle == "" {
+		context.triggerTitle = workflowrules.DefaultTriggerTitle(defaultString(triggerType, jfadk.WorkflowTriggerTypeManual))
 	}
+	context.applyStatuses(status, message)
+	context.startOutputs = workflowStartOutputs(message, objective)
+	context.agentInputs = workflowAgentInputs(workflow, message)
+	context.agentOutputs, context.monitorOutputs = workflowResponseOutputs(response, errorMessage)
+	return context
+}
 
-	triggerStatus := jfadk.WorkflowTriggerLogStatusSucceeded
-	startStatus := jfadk.WorkflowTriggerLogStatusSucceeded
-	agentStatus := status
-	monitorStatus := status
+func (c *workflowNodeRunContext) applyStatuses(status string, message string) {
+	c.triggerStatus = jfadk.WorkflowTriggerLogStatusSucceeded
+	c.startStatus = jfadk.WorkflowTriggerLogStatusSucceeded
+	c.agentStatus = status
+	c.monitorStatus = status
 	if status == jfadk.WorkflowTriggerLogStatusSkipped {
-		triggerStatus = status
-		startStatus = status
-		agentStatus = status
-		monitorStatus = status
+		c.triggerStatus = status
+		c.startStatus = status
+		c.agentStatus = status
+		c.monitorStatus = status
 	}
-	if strings.TrimSpace(message) == "" && errorMessage != "" {
-		startStatus = jfadk.WorkflowTriggerLogStatusFailed
-		agentStatus = jfadk.WorkflowTriggerLogStatusSkipped
-		monitorStatus = jfadk.WorkflowTriggerLogStatusSkipped
+	if strings.TrimSpace(message) == "" && c.errorMessage != "" {
+		c.startStatus = jfadk.WorkflowTriggerLogStatusFailed
+		c.agentStatus = jfadk.WorkflowTriggerLogStatusSkipped
+		c.monitorStatus = jfadk.WorkflowTriggerLogStatusSkipped
 	}
+}
 
+func workflowStartOutputs(message string, objective string) map[string]any {
 	startOutputs := map[string]any{}
 	if strings.TrimSpace(message) != "" {
 		startOutputs["message"] = message
@@ -110,7 +157,10 @@ func workflowNodeRuns(
 	if strings.TrimSpace(objective) != "" {
 		startOutputs["objective"] = objective
 	}
+	return startOutputs
+}
 
+func workflowAgentInputs(workflow jfadk.WorkflowDefinition, message string) map[string]any {
 	agentInputs := map[string]any{}
 	if strings.TrimSpace(message) != "" {
 		agentInputs["message"] = message
@@ -121,7 +171,10 @@ func workflowNodeRuns(
 	if strings.TrimSpace(workflow.WorkMode) != "" {
 		agentInputs["workMode"] = workflow.WorkMode
 	}
+	return agentInputs
+}
 
+func workflowResponseOutputs(response *jfadk.ChatResponse, errorMessage string) (map[string]any, map[string]any) {
 	agentOutputs := map[string]any{}
 	monitorOutputs := map[string]any{}
 	if response != nil {
@@ -135,51 +188,61 @@ func workflowNodeRuns(
 	if errorMessage != "" {
 		monitorOutputs["error"] = errorMessage
 	}
+	return agentOutputs, monitorOutputs
+}
 
-	return []jfadk.WorkflowNodeRun{
-		{
-			NodeID:     triggerNodeID,
-			NodeType:   "trigger",
-			Title:      triggerTitle,
-			Status:     triggerStatus,
-			StartedAt:  startedAt,
-			FinishedAt: defaultString(finishedAt, startedAt),
-			Inputs:     cloneMap(inputs),
-			Outputs:    cloneMap(matchedEvent),
-			Error:      errorForNode(triggerStatus, errorMessage),
-		},
-		{
-			NodeID:     "start",
-			NodeType:   "start",
-			Title:      "Start",
-			Status:     startStatus,
-			StartedAt:  startedAt,
-			FinishedAt: defaultString(finishedAt, startedAt),
-			Inputs:     cloneMap(inputs),
-			Outputs:    startOutputs,
-			Error:      errorForNode(startStatus, errorMessage),
-		},
-		{
-			NodeID:     "agent",
-			NodeType:   "agent",
-			Title:      workflow.Name,
-			Status:     agentStatus,
-			StartedAt:  startedAt,
-			FinishedAt: finishedAt,
-			Inputs:     agentInputs,
-			Outputs:    agentOutputs,
-			Error:      errorForNode(agentStatus, errorMessage),
-		},
-		{
-			NodeID:     "monitor",
-			NodeType:   "monitor",
-			Title:      "Monitor",
-			Status:     monitorStatus,
-			StartedAt:  startedAt,
-			FinishedAt: finishedAt,
-			Outputs:    monitorOutputs,
-			Error:      errorForNode(monitorStatus, errorMessage),
-		},
+func (c workflowNodeRunContext) triggerNode(inputs map[string]any, matchedEvent map[string]any, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+	return jfadk.WorkflowNodeRun{
+		NodeID:     c.triggerNodeID,
+		NodeType:   "trigger",
+		Title:      c.triggerTitle,
+		Status:     c.triggerStatus,
+		StartedAt:  startedAt,
+		FinishedAt: defaultString(finishedAt, startedAt),
+		Inputs:     cloneMap(inputs),
+		Outputs:    cloneMap(matchedEvent),
+		Error:      errorForNode(c.triggerStatus, c.errorMessage),
+	}
+}
+
+func (c workflowNodeRunContext) startNode(inputs map[string]any, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+	return jfadk.WorkflowNodeRun{
+		NodeID:     "start",
+		NodeType:   "start",
+		Title:      "Start",
+		Status:     c.startStatus,
+		StartedAt:  startedAt,
+		FinishedAt: defaultString(finishedAt, startedAt),
+		Inputs:     cloneMap(inputs),
+		Outputs:    c.startOutputs,
+		Error:      errorForNode(c.startStatus, c.errorMessage),
+	}
+}
+
+func (c workflowNodeRunContext) agentNode(startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+	return jfadk.WorkflowNodeRun{
+		NodeID:     "agent",
+		NodeType:   "agent",
+		Title:      c.workflow.Name,
+		Status:     c.agentStatus,
+		StartedAt:  startedAt,
+		FinishedAt: finishedAt,
+		Inputs:     c.agentInputs,
+		Outputs:    c.agentOutputs,
+		Error:      errorForNode(c.agentStatus, c.errorMessage),
+	}
+}
+
+func (c workflowNodeRunContext) monitorNode(startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+	return jfadk.WorkflowNodeRun{
+		NodeID:     "monitor",
+		NodeType:   "monitor",
+		Title:      "Monitor",
+		Status:     c.monitorStatus,
+		StartedAt:  startedAt,
+		FinishedAt: finishedAt,
+		Outputs:    c.monitorOutputs,
+		Error:      errorForNode(c.monitorStatus, c.errorMessage),
 	}
 }
 

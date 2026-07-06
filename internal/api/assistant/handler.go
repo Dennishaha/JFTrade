@@ -19,70 +19,110 @@ type Handler struct {
 func RegisterRoutes(api *gin.RouterGroup, service *assistantservice.Service) {
 	handler := &Handler{service: service, streams: newADKChatStreamHub()}
 	adk := api.Group("/adk", handler.requireAvailable())
-	adk.GET("", handler.handleADKSnapshot)
-	adk.GET("/tools", handler.handleADKTools)
-	adk.GET("/agent-templates", handler.handleADKAgentTemplates)
-	adk.GET("/audit", handler.handleADKAudit)
-	adk.GET("/metrics", handler.handleADKMetrics)
-	adk.GET("/workflows", handler.handleADKWorkflows)
-	adk.POST("/workflows", handler.handleADKSaveWorkflow)
-	adk.GET("/workflows/:workflowId", handler.handleADKWorkflow)
-	adk.PUT("/workflows/:workflowId", handler.handleADKSaveWorkflow)
-	adk.DELETE("/workflows/:workflowId", handler.handleADKDeleteWorkflow)
-	adk.POST("/workflows/:workflowId/run", handler.handleADKRunWorkflow)
-	adk.GET("/workflows/:workflowId/triggers", handler.handleADKWorkflowTriggers)
-	adk.POST("/workflows/:workflowId/triggers", handler.handleADKSaveWorkflowTrigger)
-	adk.PUT("/workflows/:workflowId/triggers/:triggerId", handler.handleADKSaveWorkflowTrigger)
-	adk.DELETE("/workflows/:workflowId/triggers/:triggerId", handler.handleADKDeleteWorkflowTrigger)
-	adk.POST("/workflow-triggers/:triggerId/run", handler.handleADKRunWorkflowTrigger)
-	adk.GET("/workflow-trigger-logs", handler.handleADKWorkflowTriggerLogs)
-	adk.POST("/workflow-webhooks/:triggerId", handler.handleADKWorkflowWebhook)
-	adk.GET("/tasks", handler.handleADKTasks)
-	adk.POST("/tasks", handler.handleADKSaveTask)
-	adk.GET("/tasks/:taskId", handler.handleADKTask)
-	adk.PUT("/tasks/:taskId", handler.handleADKSaveTask)
-	adk.DELETE("/tasks/:taskId", handler.handleADKDeleteTask)
-	adk.GET("/memory", handler.handleADKMemory)
-	adk.POST("/memory", handler.handleADKSaveMemory)
-	adk.DELETE("/memory/:memoryId", handler.handleADKDeleteMemory)
-	adk.GET("/optimization-tasks", handler.handleADKOptimizationTasks)
-	adk.GET("/optimization-tasks/:taskId", handler.handleADKOptimizationTask)
-	adk.POST("/optimization-tasks/:taskId/cancel", handler.handleADKOptimizationTaskCancel)
-	adk.GET("/providers", handler.handleADKProviders)
-	adk.POST("/providers", handler.handleADKSaveProvider)
-	adk.PUT("/providers/:providerId", handler.handleADKSaveProvider)
-	adk.DELETE("/providers/:providerId", handler.handleADKDeleteProvider)
-	adk.POST("/providers/:providerId/default", handler.handleADKSetDefaultProvider)
-	adk.POST("/providers/:providerId/test", handler.handleADKTestProvider)
-	adk.GET("/agents", handler.handleADKAgents)
-	adk.POST("/agents", handler.handleADKSaveAgent)
-	adk.PUT("/agents/:agentId", handler.handleADKSaveAgent)
-	adk.DELETE("/agents/:agentId", handler.handleADKDeleteAgent)
-	adk.GET("/sessions", handler.handleADKSessions)
-	adk.POST("/sessions", handler.handleADKCreateSession)
-	adk.GET("/sessions/:sessionId", handler.handleADKSession)
-	adk.GET("/sessions/:sessionId/context", handler.handleADKSessionContext)
-	adk.POST("/sessions/:sessionId/context/compact", handler.handleADKCompactSessionContext)
-	adk.PATCH("/sessions/:sessionId/composer-state", handler.handleADKUpdateSessionComposerState)
-	adk.PUT("/sessions/:sessionId", handler.handleADKRenameSession)
-	adk.DELETE("/sessions/:sessionId", handler.handleADKDeleteSession)
-	adk.POST("/chat", handler.handleADKChat)
-	adk.POST("/chat/stream", handler.handleADKChatStream)
-	adk.GET("/streams/:streamId", handler.handleADKChatStreamReconnect)
-	adk.GET("/runs", handler.handleADKRuns)
-	adk.GET("/runs/:runId/stream", handler.handleADKRunStreamReconnect)
-	adk.GET("/runs/:runId", handler.handleADKRun)
-	adk.PATCH("/runs/:runId/objective", handler.handleADKUpdateRunObjective)
-	adk.POST("/runs/:runId/pause", handler.handleADKPauseRun)
-	adk.POST("/runs/:runId/resume", handler.handleADKResumeRun)
-	adk.POST("/runs/:runId/cancel", handler.handleADKCancelRun)
-	adk.GET("/approvals", handler.handleADKApprovals)
-	adk.POST("/approvals/:approvalId/approve", func(c *gin.Context) { handler.handleADKApproval(c, true) })
-	adk.POST("/approvals/:approvalId/deny", func(c *gin.Context) { handler.handleADKApproval(c, false) })
-	adk.GET("/skills", handler.handleADKSkills)
-	adk.POST("/skills", handler.handleADKInstallSkill)
-	adk.PUT("/skills/:skillId", handler.handleADKSkillUpdateRemoved)
-	adk.DELETE("/skills/:skillId", handler.handleADKDeleteSkill)
+	handler.registerCatalogRoutes(adk)
+	handler.registerWorkflowRoutes(adk)
+	handler.registerTaskAndMemoryRoutes(adk)
+	handler.registerOptimizationRoutes(adk)
+	handler.registerProviderRoutes(adk)
+	handler.registerAgentRoutes(adk)
+	handler.registerSessionRoutes(adk)
+	handler.registerChatAndRunRoutes(adk)
+	handler.registerApprovalRoutes(adk)
+	handler.registerSkillRoutes(adk)
+}
+
+func (h *Handler) registerCatalogRoutes(adk *gin.RouterGroup) {
+	adk.GET("", h.handleADKSnapshot)
+	adk.GET("/tools", h.handleADKTools)
+	adk.GET("/agent-templates", h.handleADKAgentTemplates)
+	adk.GET("/audit", h.handleADKAudit)
+	adk.GET("/metrics", h.handleADKMetrics)
+}
+
+func (h *Handler) registerWorkflowRoutes(adk *gin.RouterGroup) {
+	adk.GET("/workflows", h.handleADKWorkflows)
+	adk.POST("/workflows", h.handleADKSaveWorkflow)
+	adk.GET("/workflows/:workflowId", h.handleADKWorkflow)
+	adk.PUT("/workflows/:workflowId", h.handleADKSaveWorkflow)
+	adk.DELETE("/workflows/:workflowId", h.handleADKDeleteWorkflow)
+	adk.POST("/workflows/:workflowId/run", h.handleADKRunWorkflow)
+	adk.GET("/workflows/:workflowId/triggers", h.handleADKWorkflowTriggers)
+	adk.POST("/workflows/:workflowId/triggers", h.handleADKSaveWorkflowTrigger)
+	adk.PUT("/workflows/:workflowId/triggers/:triggerId", h.handleADKSaveWorkflowTrigger)
+	adk.DELETE("/workflows/:workflowId/triggers/:triggerId", h.handleADKDeleteWorkflowTrigger)
+	adk.POST("/workflow-triggers/:triggerId/run", h.handleADKRunWorkflowTrigger)
+	adk.GET("/workflow-trigger-logs", h.handleADKWorkflowTriggerLogs)
+	adk.POST("/workflow-webhooks/:triggerId", h.handleADKWorkflowWebhook)
+}
+
+func (h *Handler) registerTaskAndMemoryRoutes(adk *gin.RouterGroup) {
+	adk.GET("/tasks", h.handleADKTasks)
+	adk.POST("/tasks", h.handleADKSaveTask)
+	adk.GET("/tasks/:taskId", h.handleADKTask)
+	adk.PUT("/tasks/:taskId", h.handleADKSaveTask)
+	adk.DELETE("/tasks/:taskId", h.handleADKDeleteTask)
+	adk.GET("/memory", h.handleADKMemory)
+	adk.POST("/memory", h.handleADKSaveMemory)
+	adk.DELETE("/memory/:memoryId", h.handleADKDeleteMemory)
+}
+
+func (h *Handler) registerOptimizationRoutes(adk *gin.RouterGroup) {
+	adk.GET("/optimization-tasks", h.handleADKOptimizationTasks)
+	adk.GET("/optimization-tasks/:taskId", h.handleADKOptimizationTask)
+	adk.POST("/optimization-tasks/:taskId/cancel", h.handleADKOptimizationTaskCancel)
+}
+
+func (h *Handler) registerProviderRoutes(adk *gin.RouterGroup) {
+	adk.GET("/providers", h.handleADKProviders)
+	adk.POST("/providers", h.handleADKSaveProvider)
+	adk.PUT("/providers/:providerId", h.handleADKSaveProvider)
+	adk.DELETE("/providers/:providerId", h.handleADKDeleteProvider)
+	adk.POST("/providers/:providerId/default", h.handleADKSetDefaultProvider)
+	adk.POST("/providers/:providerId/test", h.handleADKTestProvider)
+}
+
+func (h *Handler) registerAgentRoutes(adk *gin.RouterGroup) {
+	adk.GET("/agents", h.handleADKAgents)
+	adk.POST("/agents", h.handleADKSaveAgent)
+	adk.PUT("/agents/:agentId", h.handleADKSaveAgent)
+	adk.DELETE("/agents/:agentId", h.handleADKDeleteAgent)
+}
+
+func (h *Handler) registerSessionRoutes(adk *gin.RouterGroup) {
+	adk.GET("/sessions", h.handleADKSessions)
+	adk.POST("/sessions", h.handleADKCreateSession)
+	adk.GET("/sessions/:sessionId", h.handleADKSession)
+	adk.GET("/sessions/:sessionId/context", h.handleADKSessionContext)
+	adk.POST("/sessions/:sessionId/context/compact", h.handleADKCompactSessionContext)
+	adk.PATCH("/sessions/:sessionId/composer-state", h.handleADKUpdateSessionComposerState)
+	adk.PUT("/sessions/:sessionId", h.handleADKRenameSession)
+	adk.DELETE("/sessions/:sessionId", h.handleADKDeleteSession)
+}
+
+func (h *Handler) registerChatAndRunRoutes(adk *gin.RouterGroup) {
+	adk.POST("/chat", h.handleADKChat)
+	adk.POST("/chat/stream", h.handleADKChatStream)
+	adk.GET("/streams/:streamId", h.handleADKChatStreamReconnect)
+	adk.GET("/runs", h.handleADKRuns)
+	adk.GET("/runs/:runId/stream", h.handleADKRunStreamReconnect)
+	adk.GET("/runs/:runId", h.handleADKRun)
+	adk.PATCH("/runs/:runId/objective", h.handleADKUpdateRunObjective)
+	adk.POST("/runs/:runId/pause", h.handleADKPauseRun)
+	adk.POST("/runs/:runId/resume", h.handleADKResumeRun)
+	adk.POST("/runs/:runId/cancel", h.handleADKCancelRun)
+}
+
+func (h *Handler) registerApprovalRoutes(adk *gin.RouterGroup) {
+	adk.GET("/approvals", h.handleADKApprovals)
+	adk.POST("/approvals/:approvalId/approve", func(c *gin.Context) { h.handleADKApproval(c, true) })
+	adk.POST("/approvals/:approvalId/deny", func(c *gin.Context) { h.handleADKApproval(c, false) })
+}
+
+func (h *Handler) registerSkillRoutes(adk *gin.RouterGroup) {
+	adk.GET("/skills", h.handleADKSkills)
+	adk.POST("/skills", h.handleADKInstallSkill)
+	adk.PUT("/skills/:skillId", h.handleADKSkillUpdateRemoved)
+	adk.DELETE("/skills/:skillId", h.handleADKDeleteSkill)
 }
 
 func (h *Handler) requireAvailable() gin.HandlerFunc {

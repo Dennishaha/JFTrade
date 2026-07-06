@@ -52,56 +52,13 @@ func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorCon
 		return r.advancedATRSnapshot(config, cache)
 	case "bollinger":
 		return calculateBollingerSnapshot(values, bollingerConfig{period: config.period, multiplier: config.multiplier})
-	case "bbw":
-		value, ok := calculateBollingerBandWidth(values, config.period, config.multiplier)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "cog":
-		value, ok := calculateCenterOfGravity(values, config.period)
-		return cache.getScalarSnapshot(config.key, value, ok)
+	case "bbw", "cog", "linreg", "pivothigh", "pivotlow", "alma", "cmo", "tsi", "dev", "median",
+		"percentile_linear_interpolation", "percentile_nearest_rank", "percentrank", "swma":
+		return advancedScalarIndicatorSnapshot(config, values, cache)
 	case "supertrend":
-		highs, lows, closes, ok := r.fixedTimeframeOHLC(config.timeUnit)
-		if !ok {
-			return nil
-		}
-		return calculateSupertrendSnapshot(highs, lows, closes, supertrendConfig{factor: config.multiplier, atrPeriod: config.period})
-	case "linreg":
-		value, ok := calculateLinearRegression(values, config.period, config.offset)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "pivothigh":
-		value, ok := calculatePivot(values, config.left, config.right, true)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "pivotlow":
-		value, ok := calculatePivot(values, config.left, config.right, false)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "alma":
-		value, ok := calculateALMA(values, config.period, config.multiplier, config.parameter)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "cmo":
-		value, ok := calculateCMO(values, config.period)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "tsi":
-		value, ok := calculateTSI(values, config.period, config.right)
-		return cache.getScalarSnapshot(config.key, value, ok)
+		return r.advancedSupertrendSnapshot(config)
 	case "correlation":
 		return r.advancedCorrelationSnapshot(config, values, cache)
-	case "dev":
-		value, ok := calculateMeanDeviation(values, config.period)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "median":
-		value, ok := calculateMedian(values, config.period)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "percentile_linear_interpolation":
-		value, ok := calculatePercentileLinear(values, config.period, config.multiplier)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "percentile_nearest_rank":
-		value, ok := calculatePercentileNearest(values, config.period, config.multiplier)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "percentrank":
-		value, ok := calculatePercentRank(values, config.period)
-		return cache.getScalarSnapshot(config.key, value, ok)
-	case "swma":
-		value, ok := calculateSWMA(values)
-		return cache.getScalarSnapshot(config.key, value, ok)
 	case "obv":
 		return r.advancedOBVSnapshot(config, values, cache)
 	case "kc", "kcw":
@@ -109,6 +66,54 @@ func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorCon
 	default:
 		return nil
 	}
+}
+
+func advancedScalarIndicatorSnapshot(config advancedIndicatorConfig, values []float64, cache *snapshotSeriesCache) any {
+	value, ok := advancedScalarIndicatorValue(config, values)
+	return cache.getScalarSnapshot(config.key, value, ok)
+}
+
+func advancedScalarIndicatorValue(config advancedIndicatorConfig, values []float64) (float64, bool) {
+	switch config.kind {
+	case "bbw":
+		return calculateBollingerBandWidth(values, config.period, config.multiplier)
+	case "cog":
+		return calculateCenterOfGravity(values, config.period)
+	case "linreg":
+		return calculateLinearRegression(values, config.period, config.offset)
+	case "pivothigh":
+		return calculatePivot(values, config.left, config.right, true)
+	case "pivotlow":
+		return calculatePivot(values, config.left, config.right, false)
+	case "alma":
+		return calculateALMA(values, config.period, config.multiplier, config.parameter)
+	case "cmo":
+		return calculateCMO(values, config.period)
+	case "tsi":
+		return calculateTSI(values, config.period, config.right)
+	case "dev":
+		return calculateMeanDeviation(values, config.period)
+	case "median":
+		return calculateMedian(values, config.period)
+	case "percentile_linear_interpolation":
+		return calculatePercentileLinear(values, config.period, config.multiplier)
+	case "percentile_nearest_rank":
+		return calculatePercentileNearest(values, config.period, config.multiplier)
+	case "percentrank":
+		return calculatePercentRank(values, config.period)
+	case "swma":
+		return calculateSWMA(values)
+	default:
+		return 0, false
+	}
+}
+
+func (r *indicatorRuntime) advancedSupertrendSnapshot(config advancedIndicatorConfig) any {
+	highs, lows, closes, ok := r.fixedTimeframeOHLC(config.timeUnit)
+	if !ok {
+		return nil
+	}
+	return calculateSupertrendSnapshot(highs, lows, closes, supertrendConfig{factor: config.multiplier, atrPeriod: config.period})
 }
 
 func (r *indicatorRuntime) anchoredVWAPSnapshot(config advancedIndicatorConfig, cache *snapshotSeriesCache) (any, bool) {

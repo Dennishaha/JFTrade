@@ -290,7 +290,38 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 	onDelta func(ChatDelta) error,
 ) (*googleADKExecution, error) {
 	rootName := googleADKWorkflowRootName(parent.ID)
-	execution := &googleADKExecution{
+	execution := r.newGoogleADKWorkflowExecutionState(definition, productSession, parent, rootName, onDelta)
+	childNodes, err := r.newGoogleADKWorkflowChildNodes(ctx, definition, parent.ID, childRuns, steps, execution)
+	if err != nil {
+		return nil, err
+	}
+	if len(childNodes) == 0 {
+		return nil, fmt.Errorf("workflow requires at least one sub-agent")
+	}
+	edges, err := compileGoogleADKWorkflowEdges(steps, childNodes)
+	if err != nil {
+		return nil, err
+	}
+	root, err := newGoogleADKWorkflowAgent(googleADKWorkflowAgentConfig{
+		Name:           rootName,
+		Description:    definition.Name + " task workflow",
+		Edges:          edges,
+		MaxConcurrency: MaxConcurrentRuns,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create GO-ADK workflow agent: %w", err)
+	}
+	return r.attachGoogleADKRunner(ctx, execution, productSession, root)
+}
+
+func (r *Runtime) newGoogleADKWorkflowExecutionState(
+	definition Agent,
+	productSession Session,
+	parent Run,
+	rootName string,
+	onDelta func(ChatDelta) error,
+) *googleADKExecution {
+	return &googleADKExecution{
 		sessionID: productSession.ID,
 		appName:   googleADKAppName(definition.ID),
 		agent:     definition,
@@ -313,59 +344,76 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 		toolResponseSeqByRunID:   map[string]int{},
 		postToolTextSeqByRunID:   map[string]int{},
 		onDelta:                  onDelta,
-		loadRun: func(ctx context.Context, runID string) (Run, bool, error) {
-			if r.store == nil {
-				return Run{}, false, nil
-			}
-			return r.store.Run(ctx, runID)
-		},
-		persistRunSnapshot: func(snapshot Run) (Run, error) {
-			return r.persistRunActivitySnapshot(context.Background(), snapshot)
-		},
+		loadRun:                  r.googleADKExecutionRunLoader(),
+		persistRunSnapshot:       r.googleADKExecutionSnapshotPersister(),
 	}
+}
+
+func (r *Runtime) googleADKExecutionRunLoader() func(context.Context, string) (Run, bool, error) {
+	return func(ctx context.Context, runID string) (Run, bool, error) {
+		if r.store == nil {
+			return Run{}, false, nil
+		}
+		return r.store.Run(ctx, runID)
+	}
+}
+
+func (r *Runtime) googleADKExecutionSnapshotPersister() func(Run) (Run, error) {
+	return func(snapshot Run) (Run, error) {
+		return r.persistRunActivitySnapshot(context.Background(), snapshot)
+	}
+}
+
+func (r *Runtime) newGoogleADKWorkflowChildNodes(
+	ctx context.Context,
+	definition Agent,
+	parentID string,
+	childRuns []Run,
+	steps []workflowStep,
+	execution *googleADKExecution,
+) ([]adkworkflow.Node, error) {
 	childNodes := make([]adkworkflow.Node, 0, len(childRuns))
 	for index, child := range childRuns {
 		if index >= len(steps) {
 			break
 		}
-		name := googleADKWorkflowChildName(parent.ID, index)
-		execution.runIDByAgentName[name] = child.ID
-		execution.runSnapshotBaseByID[child.ID] = child
-		childDefinition := definition
-		childDefinition = workflowChildAgentForStep(childDefinition, steps[index])
-		childDefinition.WorkMode = WorkModeChat
-		childDefinition.Instruction = workflowChildInstruction(definition.Instruction, workflowChildInstructionTask(steps[index]))
-		childLLM, err := r.googleADKModelForAgent(ctx, childDefinition)
+		childNode, err := r.newGoogleADKWorkflowChildNode(ctx, definition, parentID, child, steps[index], index, execution)
 		if err != nil {
 			return nil, err
-		}
-		childAgent, err := r.newGoogleADKLLMAgent(ctx, name, steps[index].Title, childDefinition, childLLM, execution)
-		if err != nil {
-			return nil, err
-		}
-		childNode, err := newGoogleADKWorkflowAgentNode(childAgent)
-		if err != nil {
-			return nil, fmt.Errorf("create GO-ADK workflow node: %w", err)
 		}
 		childNodes = append(childNodes, childNode)
 	}
-	if len(childNodes) == 0 {
-		return nil, fmt.Errorf("workflow requires at least one sub-agent")
-	}
-	edges, err := compileGoogleADKWorkflowEdges(steps, childNodes)
+	return childNodes, nil
+}
+
+func (r *Runtime) newGoogleADKWorkflowChildNode(
+	ctx context.Context,
+	definition Agent,
+	parentID string,
+	child Run,
+	step workflowStep,
+	index int,
+	execution *googleADKExecution,
+) (adkworkflow.Node, error) {
+	name := googleADKWorkflowChildName(parentID, index)
+	execution.runIDByAgentName[name] = child.ID
+	execution.runSnapshotBaseByID[child.ID] = child
+	childDefinition := workflowChildAgentForStep(definition, step)
+	childDefinition.WorkMode = WorkModeChat
+	childDefinition.Instruction = workflowChildInstruction(definition.Instruction, workflowChildInstructionTask(step))
+	childLLM, err := r.googleADKModelForAgent(ctx, childDefinition)
 	if err != nil {
 		return nil, err
 	}
-	root, err := newGoogleADKWorkflowAgent(googleADKWorkflowAgentConfig{
-		Name:           rootName,
-		Description:    definition.Name + " task workflow",
-		Edges:          edges,
-		MaxConcurrency: MaxConcurrentRuns,
-	})
+	childAgent, err := r.newGoogleADKLLMAgent(ctx, name, step.Title, childDefinition, childLLM, execution)
 	if err != nil {
-		return nil, fmt.Errorf("create GO-ADK workflow agent: %w", err)
+		return nil, err
 	}
-	return r.attachGoogleADKRunner(ctx, execution, productSession, root)
+	childNode, err := newGoogleADKWorkflowAgentNode(childAgent)
+	if err != nil {
+		return nil, fmt.Errorf("create GO-ADK workflow node: %w", err)
+	}
+	return childNode, nil
 }
 
 func compileGoogleADKWorkflowEdges(steps []workflowStep, nodes []adkworkflow.Node) ([]adkworkflow.Edge, error) {

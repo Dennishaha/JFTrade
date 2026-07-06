@@ -191,27 +191,8 @@ func (s *sessionFilteredBacktestStore) QueryKLinesCh(
 		defer close(errCh)
 
 		if !s.includeExtendedHours {
-			for baseCh != nil || baseErrCh != nil {
-				select {
-				case kline, ok := <-baseCh:
-					if !ok {
-						baseCh = nil
-						continue
-					}
-					if shouldFilterExtendedHours(kline.Symbol, kline.Interval) && !keepRegularSessionKLine(kline) {
-						continue
-					}
-					ch <- kline
-				case err, ok := <-baseErrCh:
-					if !ok {
-						baseErrCh = nil
-						continue
-					}
-					if err != nil {
-						errCh <- err
-						return
-					}
-				}
+			if err := pipeRegularSessionKLines(baseCh, baseErrCh, ch); err != nil {
+				errCh <- err
 			}
 			return
 		}
@@ -222,58 +203,13 @@ func (s *sessionFilteredBacktestStore) QueryKLinesCh(
 			return
 		}
 
-		rows := make([]types.KLine, 0, len(baseRows))
-		for _, kline := range baseRows {
-			if s.shouldUseCustomTradingPeriodAggregation(kline.Symbol, kline.Interval) {
-				continue
-			}
-			if s.shouldUseCustomSessionAwareIntradayAggregation(kline.Symbol, kline.Interval) {
-				continue
-			}
-			if !s.includeExtendedHours && shouldFilterExtendedHours(kline.Symbol, kline.Interval) && !keepRegularSessionKLine(kline) {
-				continue
-			}
-			rows = append(rows, kline)
+		rows, err := s.extendedHoursRows(baseRows, symbols, intervals, since, until)
+		if err != nil {
+			errCh <- err
+			return
 		}
 
-		if s.includeExtendedHours {
-			for _, symbol := range symbols {
-				for _, interval := range intervals {
-					if !s.shouldUseCustomTradingPeriodAggregation(symbol, interval) {
-						if !s.shouldUseCustomSessionAwareIntradayAggregation(symbol, interval) {
-							continue
-						}
-						periodRows, periodErr := s.queryCustomSessionAwareIntradayRange(symbol, interval, since, until)
-						if periodErr != nil {
-							errCh <- periodErr
-							return
-						}
-						rows = append(rows, periodRows...)
-						continue
-					}
-					periodRows, periodErr := s.queryCustomTradingPeriodRange(symbol, interval, since, until)
-					if periodErr != nil {
-						errCh <- periodErr
-						return
-					}
-					rows = append(rows, periodRows...)
-				}
-			}
-		}
-
-		sort.Slice(rows, func(i, j int) bool {
-			leftEnd := rows[i].EndTime.Time()
-			rightEnd := rows[j].EndTime.Time()
-			if !leftEnd.Equal(rightEnd) {
-				return leftEnd.Before(rightEnd)
-			}
-			leftInterval := rows[i].Interval.Duration()
-			rightInterval := rows[j].Interval.Duration()
-			if leftInterval != rightInterval {
-				return leftInterval < rightInterval
-			}
-			return rows[i].Symbol < rows[j].Symbol
-		})
+		sortKLinesForEmission(rows)
 		for _, kline := range rows {
 			ch <- kline
 		}
@@ -297,21 +233,7 @@ func (s *sessionFilteredBacktestStore) StreamKLines(
 	}
 
 	if !s.includeExtendedHours {
-		if streamer, ok := s.base.(klineRangeStreamer); ok {
-			return streamer.StreamKLines(since, until, exchange, symbols, intervals, func(kline types.KLine) {
-				if shouldFilterExtendedHours(kline.Symbol, kline.Interval) && !keepRegularSessionKLine(kline) {
-					return
-				}
-				emit(kline)
-			})
-		}
-		baseCh, baseErrCh := s.base.QueryKLinesCh(since, until, exchange, symbols, intervals)
-		return emitKLinesFromStoreChannels(baseCh, baseErrCh, func(kline types.KLine) {
-			if shouldFilterExtendedHours(kline.Symbol, kline.Interval) && !keepRegularSessionKLine(kline) {
-				return
-			}
-			emit(kline)
-		})
+		return s.streamRegularSessionKLines(since, until, exchange, symbols, intervals, emit)
 	}
 
 	baseRows, err := collectBaseKLinesForStream(s.base, since, until, exchange, symbols, intervals)
@@ -319,6 +241,84 @@ func (s *sessionFilteredBacktestStore) StreamKLines(
 		return err
 	}
 
+	rows, err := s.extendedHoursRows(baseRows, symbols, intervals, since, until)
+	if err != nil {
+		return err
+	}
+	sortKLinesForEmission(rows)
+	for _, kline := range rows {
+		emit(kline)
+	}
+	return nil
+}
+
+func pipeRegularSessionKLines(baseCh chan types.KLine, baseErrCh chan error, out chan<- types.KLine) error {
+	for baseCh != nil || baseErrCh != nil {
+		select {
+		case kline, ok := <-baseCh:
+			if !ok {
+				baseCh = nil
+				continue
+			}
+			if shouldFilterExtendedHours(kline.Symbol, kline.Interval) && !keepRegularSessionKLine(kline) {
+				continue
+			}
+			out <- kline
+		case err, ok := <-baseErrCh:
+			if !ok {
+				baseErrCh = nil
+				continue
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *sessionFilteredBacktestStore) streamRegularSessionKLines(
+	since time.Time,
+	until time.Time,
+	exchange types.Exchange,
+	symbols []string,
+	intervals []types.Interval,
+	emit func(types.KLine),
+) error {
+	filteredEmit := func(kline types.KLine) {
+		if shouldFilterExtendedHours(kline.Symbol, kline.Interval) && !keepRegularSessionKLine(kline) {
+			return
+		}
+		emit(kline)
+	}
+	if streamer, ok := s.base.(klineRangeStreamer); ok {
+		return streamer.StreamKLines(since, until, exchange, symbols, intervals, filteredEmit)
+	}
+	baseCh, baseErrCh := s.base.QueryKLinesCh(since, until, exchange, symbols, intervals)
+	return emitKLinesFromStoreChannels(baseCh, baseErrCh, filteredEmit)
+}
+
+func (s *sessionFilteredBacktestStore) extendedHoursRows(
+	baseRows []types.KLine,
+	symbols []string,
+	intervals []types.Interval,
+	since time.Time,
+	until time.Time,
+) ([]types.KLine, error) {
+	rows := s.baseRowsWithoutCustomAggregates(baseRows)
+	for _, symbol := range symbols {
+		for _, interval := range intervals {
+			periodRows, err := s.customAggregateRows(symbol, interval, since, until)
+			if err != nil {
+				return nil, err
+			}
+			rows = append(rows, periodRows...)
+		}
+	}
+	return rows, nil
+}
+
+func (s *sessionFilteredBacktestStore) baseRowsWithoutCustomAggregates(baseRows []types.KLine) []types.KLine {
 	rows := make([]types.KLine, 0, len(baseRows))
 	for _, kline := range baseRows {
 		if s.shouldUseCustomTradingPeriodAggregation(kline.Symbol, kline.Interval) {
@@ -327,33 +327,27 @@ func (s *sessionFilteredBacktestStore) StreamKLines(
 		if s.shouldUseCustomSessionAwareIntradayAggregation(kline.Symbol, kline.Interval) {
 			continue
 		}
-		if !s.includeExtendedHours && shouldFilterExtendedHours(kline.Symbol, kline.Interval) && !keepRegularSessionKLine(kline) {
-			continue
-		}
 		rows = append(rows, kline)
 	}
+	return rows
+}
 
-	for _, symbol := range symbols {
-		for _, interval := range intervals {
-			if !s.shouldUseCustomTradingPeriodAggregation(symbol, interval) {
-				if !s.shouldUseCustomSessionAwareIntradayAggregation(symbol, interval) {
-					continue
-				}
-				periodRows, periodErr := s.queryCustomSessionAwareIntradayRange(symbol, interval, since, until)
-				if periodErr != nil {
-					return periodErr
-				}
-				rows = append(rows, periodRows...)
-				continue
-			}
-			periodRows, periodErr := s.queryCustomTradingPeriodRange(symbol, interval, since, until)
-			if periodErr != nil {
-				return periodErr
-			}
-			rows = append(rows, periodRows...)
-		}
+func (s *sessionFilteredBacktestStore) customAggregateRows(
+	symbol string,
+	interval types.Interval,
+	since time.Time,
+	until time.Time,
+) ([]types.KLine, error) {
+	if s.shouldUseCustomTradingPeriodAggregation(symbol, interval) {
+		return s.queryCustomTradingPeriodRange(symbol, interval, since, until)
 	}
+	if s.shouldUseCustomSessionAwareIntradayAggregation(symbol, interval) {
+		return s.queryCustomSessionAwareIntradayRange(symbol, interval, since, until)
+	}
+	return nil, nil
+}
 
+func sortKLinesForEmission(rows []types.KLine) {
 	sort.Slice(rows, func(i, j int) bool {
 		leftEnd := rows[i].EndTime.Time()
 		rightEnd := rows[j].EndTime.Time()
@@ -367,10 +361,6 @@ func (s *sessionFilteredBacktestStore) StreamKLines(
 		}
 		return rows[i].Symbol < rows[j].Symbol
 	})
-	for _, kline := range rows {
-		emit(kline)
-	}
-	return nil
 }
 
 func filteredKLineChannelBufferSize(symbols []string, intervals []types.Interval) int {

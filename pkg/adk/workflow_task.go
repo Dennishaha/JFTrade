@@ -35,6 +35,12 @@ type workflowGoalDecision struct {
 	reason  string
 }
 
+type workflowGoalDecisionSnapshot struct {
+	status  string
+	summary string
+	reason  string
+}
+
 func (d *workflowGoalDecision) reset() {
 	if d == nil {
 		return
@@ -90,13 +96,13 @@ func (d *workflowGoalDecision) setContinue(reason string) {
 	d.reason = strings.TrimSpace(reason)
 }
 
-func (d *workflowGoalDecision) snapshot() workflowGoalDecision {
+func (d *workflowGoalDecision) snapshot() workflowGoalDecisionSnapshot {
 	if d == nil {
-		return workflowGoalDecision{}
+		return workflowGoalDecisionSnapshot{}
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return workflowGoalDecision{status: d.status, summary: d.summary, reason: d.reason}
+	return workflowGoalDecisionSnapshot{status: d.status, summary: d.summary, reason: d.reason}
 }
 
 func (e *WorkflowExecutor) runADKTaskWorkflow(ctx context.Context, req workflowRequest, parent Run, tasks []Task) (ChatResponse, error) {
@@ -277,103 +283,186 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 		return parent, e.workflowResponse(ctx, req.Session, parent, replyResult), true, ""
 	}
 	visibleReply := strings.TrimSpace(replyResult.Reply)
-	snapshot := decision.snapshot()
-	if snapshot.status == "" {
-		var response ChatResponse
-		var paused bool
-		parent, response, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, visibleReply)
-		if paused {
-			replyResult.Reply = defaultString(visibleReply, replyResult.Reply)
-			return parent, response, true, ""
-		}
-		latest := parent
-		if refreshed, ok, err := e.runtime.store.Run(ctx, parent.ID); err == nil && ok {
-			latest = refreshed
-			parent = refreshed
-		}
-		if !goalTurnHasFinalReply(execution, parent.ID, visibleReply) {
-			return parent, ChatResponse{}, false, goalFinalReplyPrompt(parent)
-		}
-		decision.beginDecision()
-		decisionErr := execution.run(ctx, genai.NewContentFromText(goalDecisionPrompt(latest, visibleReply, decisionRetry), genai.RoleUser))
-		parent, replyResult, done, prompt = e.prepareGoalWorkflowTurn(ctx, req, parent, known, execution, decisionErr, iteration)
-		if done {
-			return parent, e.workflowResponse(ctx, req.Session, parent, replyResult), true, ""
-		}
-		snapshot = decision.snapshot()
-		if snapshot.status == "" {
-			reply := strings.TrimSpace(replyResult.Reply)
-			if reply == "" {
-				reply = visibleReply
-			}
-			parent, response, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
-			if paused {
-				replyResult.Reply = defaultString(reply, replyResult.Reply)
-				return parent, response, true, ""
-			}
-		}
-		if snapshot.status == "" && !decisionRetry {
-			return e.finishADKGoalWorkflowTurn(ctx, req, parent, known, execution, decision, nil, iteration, true)
-		}
-		if snapshot.status == "" {
-			decision.setContinue("目标裁决未按要求调用工具，安全地继续目标。")
-			snapshot = decision.snapshot()
-		}
+	parent, replyResult, snapshot, done, response, prompt := e.resolveGoalWorkflowDecision(
+		ctx, req, parent, known, execution, decision, replyResult, visibleReply, prompt, iteration, decisionRetry,
+	)
+	if done {
+		return parent, response, true, prompt
 	}
 	switch snapshot.status {
 	case "complete":
-		reply := strings.TrimSpace(snapshot.summary)
-		if reply == "" {
-			reply = visibleReply
-		}
-		if reply == "" {
-			tasks, jftradeErr10 := e.workflowTasks(ctx, parent, known)
-			jftradeLogError(jftradeErr10)
-			reply = workflowSummary(parent, workflowTaskResultSummaries(tasks))
-		}
-		replyResult.Reply = reply
-		var response ChatResponse
-		var paused bool
-		parent, response, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
-		if paused {
-			return parent, response, true, ""
-		}
-		parent.Status = RunStatusCompleted
-		parent.WorkflowStatus = workflowStatusComplete
-		parent.Message = "goal completed"
-		parent.Iteration = iteration
-		parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
-		parent.CompletedAt = new(nowString())
-		finalizeRunUsage(&parent)
-		if saved, err := e.runtime.attachFinalAssistantMessage(ctx, req.Session, parent, replyResult); err == nil {
-			parent = saved
-		} else {
-			jftradeErr6 := e.runtime.store.SaveRun(ctx, parent)
-			jftradeLogError(jftradeErr6)
-		}
-		return parent, e.workflowResponse(ctx, req.Session, parent, replyResult), true, ""
+		return e.finishCompleteGoalWorkflow(ctx, req, parent, known, replyResult, snapshot, visibleReply, iteration)
 	case "continue":
-		parent.Status = RunStatusRunning
-		parent.WorkflowStatus = workflowStatusRunning
-		parent.Message = defaultString(snapshot.reason, "goal continues")
-		parent.Iteration = iteration
-		reply := visibleReply
-		if reply == "" {
-			reply = defaultString(snapshot.reason, "目标已暂停。")
-		}
-		var response ChatResponse
-		var paused bool
-		parent, response, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
-		if paused {
-			replyResult.Reply = reply
-			return parent, response, true, ""
-		}
-		parent, jftradeErr24 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
-		jftradeLogError(jftradeErr24)
-		return parent, ChatResponse{}, false, goalOrchestratorContinueNudge(parent, snapshot.reason)
+		return e.finishContinueGoalWorkflow(ctx, req, parent, replyResult, snapshot, visibleReply, iteration)
 	default:
 		return parent, ChatResponse{}, false, prompt
 	}
+}
+
+func (e *WorkflowExecutor) resolveGoalWorkflowDecision(
+	ctx context.Context,
+	req workflowRequest,
+	parent Run,
+	known []Task,
+	execution *googleADKExecution,
+	decision *workflowGoalDecision,
+	replyResult openAIChatResult,
+	visibleReply string,
+	prompt string,
+	iteration int,
+	decisionRetry bool,
+) (Run, openAIChatResult, workflowGoalDecisionSnapshot, bool, ChatResponse, string) {
+	snapshot := decision.snapshot()
+	if snapshot.status != "" {
+		return parent, replyResult, snapshot, false, ChatResponse{}, prompt
+	}
+	parent, response, paused := e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, visibleReply)
+	if paused {
+		replyResult.Reply = defaultString(visibleReply, replyResult.Reply)
+		return parent, replyResult, snapshot, true, response, ""
+	}
+	latest := parent
+	if refreshed, ok, err := e.runtime.store.Run(ctx, parent.ID); err == nil && ok {
+		latest = refreshed
+		parent = refreshed
+	}
+	if !goalTurnHasFinalReply(execution, parent.ID, visibleReply) {
+		return parent, replyResult, snapshot, false, ChatResponse{}, goalFinalReplyPrompt(parent)
+	}
+	return e.runGoalWorkflowDecision(ctx, req, parent, known, execution, decision, latest, visibleReply, iteration, decisionRetry)
+}
+
+func (e *WorkflowExecutor) runGoalWorkflowDecision(
+	ctx context.Context,
+	req workflowRequest,
+	parent Run,
+	known []Task,
+	execution *googleADKExecution,
+	decision *workflowGoalDecision,
+	latest Run,
+	visibleReply string,
+	iteration int,
+	decisionRetry bool,
+) (Run, openAIChatResult, workflowGoalDecisionSnapshot, bool, ChatResponse, string) {
+	decision.beginDecision()
+	decisionErr := execution.run(ctx, genai.NewContentFromText(goalDecisionPrompt(latest, visibleReply, decisionRetry), genai.RoleUser))
+	parent, replyResult, done, prompt := e.prepareGoalWorkflowTurn(ctx, req, parent, known, execution, decisionErr, iteration)
+	if done {
+		return parent, replyResult, decision.snapshot(), true, e.workflowResponse(ctx, req.Session, parent, replyResult), ""
+	}
+	snapshot := decision.snapshot()
+	parent, replyResult, done, response := e.pauseAfterMissingGoalDecision(ctx, req, parent, replyResult, visibleReply, snapshot, iteration)
+	if done {
+		return parent, replyResult, snapshot, true, response, ""
+	}
+	if snapshot.status == "" && !decisionRetry {
+		parent, response, done, prompt = e.finishADKGoalWorkflowTurn(ctx, req, parent, known, execution, decision, nil, iteration, true)
+		return parent, replyResult, snapshot, done, response, prompt
+	}
+	if snapshot.status == "" {
+		decision.setContinue("目标裁决未按要求调用工具，安全地继续目标。")
+		snapshot = decision.snapshot()
+	}
+	return parent, replyResult, snapshot, false, ChatResponse{}, prompt
+}
+
+func (e *WorkflowExecutor) pauseAfterMissingGoalDecision(
+	ctx context.Context,
+	req workflowRequest,
+	parent Run,
+	replyResult openAIChatResult,
+	visibleReply string,
+	snapshot workflowGoalDecisionSnapshot,
+	iteration int,
+) (Run, openAIChatResult, bool, ChatResponse) {
+	if snapshot.status != "" {
+		return parent, replyResult, false, ChatResponse{}
+	}
+	reply := strings.TrimSpace(replyResult.Reply)
+	if reply == "" {
+		reply = visibleReply
+	}
+	parent, response, paused := e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
+	if paused {
+		replyResult.Reply = defaultString(reply, replyResult.Reply)
+		return parent, replyResult, true, response
+	}
+	return parent, replyResult, false, ChatResponse{}
+}
+
+func (e *WorkflowExecutor) finishCompleteGoalWorkflow(
+	ctx context.Context,
+	req workflowRequest,
+	parent Run,
+	known []Task,
+	replyResult openAIChatResult,
+	snapshot workflowGoalDecisionSnapshot,
+	visibleReply string,
+	iteration int,
+) (Run, ChatResponse, bool, string) {
+	reply := e.completeGoalReply(ctx, parent, known, snapshot, visibleReply)
+	replyResult.Reply = reply
+	parent, response, paused := e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
+	if paused {
+		return parent, response, true, ""
+	}
+	parent.Status = RunStatusCompleted
+	parent.WorkflowStatus = workflowStatusComplete
+	parent.Message = "goal completed"
+	parent.Iteration = iteration
+	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
+	parent.CompletedAt = new(nowString())
+	finalizeRunUsage(&parent)
+	if saved, err := e.runtime.attachFinalAssistantMessage(ctx, req.Session, parent, replyResult); err == nil {
+		parent = saved
+	} else {
+		jftradeErr6 := e.runtime.store.SaveRun(ctx, parent)
+		jftradeLogError(jftradeErr6)
+	}
+	return parent, e.workflowResponse(ctx, req.Session, parent, replyResult), true, ""
+}
+
+func (e *WorkflowExecutor) completeGoalReply(
+	ctx context.Context,
+	parent Run,
+	known []Task,
+	snapshot workflowGoalDecisionSnapshot,
+	visibleReply string,
+) string {
+	reply := strings.TrimSpace(snapshot.summary)
+	if reply != "" {
+		return reply
+	}
+	if visibleReply != "" {
+		return visibleReply
+	}
+	tasks, jftradeErr10 := e.workflowTasks(ctx, parent, known)
+	jftradeLogError(jftradeErr10)
+	return workflowSummary(parent, workflowTaskResultSummaries(tasks))
+}
+
+func (e *WorkflowExecutor) finishContinueGoalWorkflow(
+	ctx context.Context,
+	req workflowRequest,
+	parent Run,
+	replyResult openAIChatResult,
+	snapshot workflowGoalDecisionSnapshot,
+	visibleReply string,
+	iteration int,
+) (Run, ChatResponse, bool, string) {
+	parent.Status = RunStatusRunning
+	parent.WorkflowStatus = workflowStatusRunning
+	parent.Message = defaultString(snapshot.reason, "goal continues")
+	parent.Iteration = iteration
+	reply := defaultString(visibleReply, defaultString(snapshot.reason, "目标已暂停。"))
+	parent, response, paused := e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
+	if paused {
+		replyResult.Reply = reply
+		return parent, response, true, ""
+	}
+	parent, jftradeErr24 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	jftradeLogError(jftradeErr24)
+	return parent, ChatResponse{}, false, goalOrchestratorContinueNudge(parent, snapshot.reason)
 }
 
 func (e *WorkflowExecutor) prepareGoalWorkflowTurn(

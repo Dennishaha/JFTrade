@@ -82,61 +82,96 @@ func (m *openAICompatibleADKModel) generateStream(
 		return err
 	}
 	defer func() { jftradeLogError(resp.Body.Close()) }()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-		if readErr != nil {
-			return readErr
-		}
-		errDetail := strings.TrimSpace(string(body))
-		if errDetail == "" {
-			errDetail = resp.Status
-		}
-		return fmt.Errorf("provider returned %d: %s", resp.StatusCode, errDetail)
+	if err := providerResponseError(resp); err != nil {
+		return err
 	}
 	if !strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
-		response, err := m.decodeChatResponse(resp.Body)
-		if err != nil {
-			return err
-		}
-		yield(response, nil)
+		return m.generateStreamFallbackResponse(resp.Body, yield)
+	}
+	return m.consumeChatEventStream(resp.Body, yield)
+}
+
+func providerResponseError(resp *http.Response) error {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
 	}
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if readErr != nil {
+		return readErr
+	}
+	errDetail := strings.TrimSpace(string(body))
+	if errDetail == "" {
+		errDetail = resp.Status
+	}
+	return fmt.Errorf("provider returned %d: %s", resp.StatusCode, errDetail)
+}
 
-	scanner := bufio.NewScanner(resp.Body)
+func (m *openAICompatibleADKModel) generateStreamFallbackResponse(
+	body io.Reader,
+	yield func(*model.LLMResponse, error) bool,
+) error {
+	response, err := m.decodeChatResponse(body)
+	if err != nil {
+		return err
+	}
+	yield(response, nil)
+	return nil
+}
+
+func (m *openAICompatibleADKModel) consumeChatEventStream(
+	body io.Reader,
+	yield func(*model.LLMResponse, error) bool,
+) error {
+	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 64<<10), 2<<20)
 	var dataLines []string
 	state := openAIStreamAggregationState{}
 
 	flushEvent := func() error {
-		if len(dataLines) == 0 {
-			return nil
-		}
-		payload := strings.Join(dataLines, "\n")
+		err := consumeOpenAIEventData(dataLines, &state, yield)
 		dataLines = dataLines[:0]
-		if strings.TrimSpace(payload) == "" {
-			return nil
-		}
-		if strings.TrimSpace(payload) == "[DONE]" {
-			return io.EOF
-		}
-		var parsed openAIChatStreamResponse
-		if err := json.Unmarshal([]byte(payload), &parsed); err != nil {
-			return fmt.Errorf("decode OpenAI-compatible ADK stream chunk: %w", err)
-		}
-		if parsed.Error != nil && parsed.Error.Message != "" {
-			return fmt.Errorf("provider returned: %s", parsed.Error.Message)
-		}
-		for _, choice := range parsed.Choices {
-			if err := state.consume(choice.Delta, yield); err != nil {
-				return err
-			}
-			if err := state.consumeMessage(choice.Message, yield); err != nil {
-				return err
-			}
-		}
+		return err
+	}
+	if err := scanOpenAIEventStream(scanner, &dataLines, flushEvent); err != nil {
+		return err
+	}
+	return yieldFinalOpenAIStreamResponse(&state, yield)
+}
+
+func consumeOpenAIEventData(
+	dataLines []string,
+	state *openAIStreamAggregationState,
+	yield func(*model.LLMResponse, error) bool,
+) error {
+	if len(dataLines) == 0 {
 		return nil
 	}
+	payload := strings.Join(dataLines, "\n")
+	if strings.TrimSpace(payload) == "" {
+		return nil
+	}
+	if strings.TrimSpace(payload) == "[DONE]" {
+		return io.EOF
+	}
+	var parsed openAIChatStreamResponse
+	if err := json.Unmarshal([]byte(payload), &parsed); err != nil {
+		return fmt.Errorf("decode OpenAI-compatible ADK stream chunk: %w", err)
+	}
+	if parsed.Error != nil && parsed.Error.Message != "" {
+		return fmt.Errorf("provider returned: %s", parsed.Error.Message)
+	}
+	for _, choice := range parsed.Choices {
+		if err := state.consume(choice.Delta, yield); err != nil {
+			return err
+		}
+		if err := state.consumeMessage(choice.Message, yield); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
+func scanOpenAIEventStream(scanner *bufio.Scanner, dataLines *[]string, flushEvent func() error) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -150,7 +185,7 @@ func (m *openAICompatibleADKModel) generateStream(
 			continue
 		}
 		if after, ok := strings.CutPrefix(line, "data:"); ok {
-			dataLines = append(dataLines, strings.TrimSpace(after))
+			*dataLines = append(*dataLines, strings.TrimSpace(after))
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -159,6 +194,10 @@ func (m *openAICompatibleADKModel) generateStream(
 	if err := flushEvent(); err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
+	return nil
+}
+
+func yieldFinalOpenAIStreamResponse(state *openAIStreamAggregationState, yield func(*model.LLMResponse, error) bool) error {
 	final, err := state.finalResponse()
 	if err != nil {
 		return err

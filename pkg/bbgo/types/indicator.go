@@ -355,7 +355,7 @@ func dotProduct(left dotOperand, right dotOperand, length int) float64 {
 		return left.scalar * right.scalar * float64(length)
 	}
 	sum := 0.
-	for i := 0; i < length; i++ {
+	for i := range length {
 		sum += dotAt(left, right, i)
 	}
 	return sum

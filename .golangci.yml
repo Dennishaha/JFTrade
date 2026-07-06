@@ -10,6 +10,10 @@ linters:
     - revive
   exclusions:
     generated: strict
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
   settings:
     funlen:
       lines: 80
