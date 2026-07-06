@@ -111,70 +111,8 @@ func (d Deposit) String() (o string) {
 	return o
 }
 
-//nolint:funlen
 func (d *Deposit) SlackAttachment() slack.Attachment {
-	var fields []slack.AttachmentField
-
-	if len(d.TransactionID) > 0 {
-		fields = append(fields, slack.AttachmentField{
-			Title: "TransactionID",
-			Value: d.TransactionID,
-			Short: false,
-		})
-	}
-
-	if len(d.Status) > 0 {
-		fields = append(fields, slack.AttachmentField{
-			Title: "Status",
-			Value: string(d.Status) + " " + d.Status.Emoji(),
-			Short: true,
-		})
-	}
-
-	if len(d.Confirmation) > 0 {
-		text := d.Confirmation
-		if d.UnlockConfirm > 0 {
-			text = fmt.Sprintf("%s (unlock %d)", d.Confirmation, d.UnlockConfirm)
-		}
-		fields = append(fields, slack.AttachmentField{
-			Title: "Confirmation",
-			Value: text,
-			Short: true,
-		})
-	}
-
-	if len(d.Exchange) > 0 {
-		fields = append(fields, slack.AttachmentField{
-			Title: "Exchange",
-			Value: d.Exchange.String(),
-			Short: true,
-		})
-	}
-
-	if len(d.Network) > 0 {
-		fields = append(fields, slack.AttachmentField{
-			Title: "Network",
-			Value: d.Network,
-			Short: true,
-		})
-	}
-
-	// This is actually a hack to display the deposited account in the slack message
-	hostname := getHostname()
-	if hostname != "" && hostname != "localhost" {
-		fields = append(fields, slack.AttachmentField{
-			Title: "Hostname",
-			Value: hostname,
-			Short: true,
-		})
-	}
-
-	fields = append(fields, slack.AttachmentField{
-		Title: "Amount",
-		Value: d.Amount.String() + " " + d.Asset,
-		Short: true,
-	})
-
+	fields := depositSlackFields(d)
 	return slack.Attachment{
 		Color:       depositStatusSlackColor(d.Status),
 		Fallback:    "",
@@ -201,6 +139,61 @@ func (d *Deposit) SlackAttachment() slack.Attachment {
 		FooterIcon: ExchangeFooterIcon(d.Exchange),
 		Ts:         "",
 	}
+}
+
+func depositSlackFields(d *Deposit) []slack.AttachmentField {
+	fields := make([]slack.AttachmentField, 0, 6)
+	appendDepositSlackField(&fields, len(d.TransactionID) > 0, slack.AttachmentField{
+		Title: "TransactionID",
+		Value: d.TransactionID,
+		Short: false,
+	})
+	appendDepositSlackField(&fields, len(d.Status) > 0, slack.AttachmentField{
+		Title: "Status",
+		Value: string(d.Status) + " " + d.Status.Emoji(),
+		Short: true,
+	})
+	appendDepositSlackField(&fields, len(d.Confirmation) > 0, slack.AttachmentField{
+		Title: "Confirmation",
+		Value: depositConfirmationText(d),
+		Short: true,
+	})
+	appendDepositSlackField(&fields, len(d.Exchange) > 0, slack.AttachmentField{
+		Title: "Exchange",
+		Value: d.Exchange.String(),
+		Short: true,
+	})
+	appendDepositSlackField(&fields, len(d.Network) > 0, slack.AttachmentField{
+		Title: "Network",
+		Value: d.Network,
+		Short: true,
+	})
+	if hostname := getHostname(); hostname != "" && hostname != "localhost" {
+		fields = append(fields, slack.AttachmentField{
+			Title: "Hostname",
+			Value: hostname,
+			Short: true,
+		})
+	}
+	fields = append(fields, slack.AttachmentField{
+		Title: "Amount",
+		Value: d.Amount.String() + " " + d.Asset,
+		Short: true,
+	})
+	return fields
+}
+
+func appendDepositSlackField(fields *[]slack.AttachmentField, ok bool, field slack.AttachmentField) {
+	if ok {
+		*fields = append(*fields, field)
+	}
+}
+
+func depositConfirmationText(d *Deposit) string {
+	if d.UnlockConfirm > 0 {
+		return fmt.Sprintf("%s (unlock %d)", d.Confirmation, d.UnlockConfirm)
+	}
+	return d.Confirmation
 }
 
 func getExplorerURL(network string, txID string) string {

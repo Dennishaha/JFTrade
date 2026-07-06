@@ -244,7 +244,6 @@ func (s *StandardStream) SetParser(parser Parser) {
 // - invokes the parser (if any) and then the dispatcher (if any)
 // - on read/control errors, it closes the connection and schedules a reconnect via Reconnect()
 // The loop exits when ctx is done or Close() is called.
-//nolint:funlen
 func (s *StandardStream) Read(ctx context.Context, conn *websocket.Conn, cancel context.CancelFunc) {
 	defer func() {
 		cancel()
@@ -259,81 +258,65 @@ func (s *StandardStream) Read(ctx context.Context, conn *websocket.Conn, cancel 
 
 	for {
 		select {
-
 		case <-ctx.Done():
 			return
-
 		case <-s.CloseC:
 			return
-
 		default:
-			if err := conn.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				log.WithError(err).Errorf("unable to set read deadline: %v", err)
-			}
-
-			mt, message, err := conn.ReadMessage()
+			mt, message, err := s.readStreamMessage(conn)
 			if err != nil {
-				// if it's a network timeout error, we should re-connect
-				switch err2 := err.(type) {
-
-				// if it's a websocket related error
-				case *websocket.CloseError:
-					if err2.Code != websocket.CloseNormalClosure {
-						log.WithError(err2).Warnf("websocket error abnormal close: %+v", err2)
-					}
-
-					_ = conn.Close()
-					// for close error, we should re-connect
-					// emit reconnect to start a new connection
-					s.Reconnect()
-					return
-
-				case net.Error:
-					log.WithError(err2).Warn("websocket read network error")
-					_ = conn.Close()
-					s.Reconnect()
-					return
-
-				default:
-					log.WithError(err2).Warn("unexpected websocket error")
-					_ = conn.Close()
-					s.Reconnect()
-					return
-				}
+				s.handleReadError(conn, err)
+				return
 			}
-
-			// skip non-text messages
-			if mt != websocket.TextMessage {
-				continue
-			}
-
-			if debugRawMessage {
-				log.Info(string(message))
-			}
-
-			if !hasParser {
-				s.EmitRawMessage(message)
-				continue
-			}
-
-			var e any
-			e, err = s.parser(message)
-			if err != nil {
-				log.WithError(err).Errorf("unable to parse the websocket message. err: %v, message: %s", err, message)
-				// emit raw message even if occurs error, because we want anything can be detected
-				s.EmitRawMessage(message)
-				continue
-			}
-
-			// skip pong event to avoid the message like spam
-			if _, ok := e.(*WebsocketPongEvent); !ok {
-				s.EmitRawMessage(message)
-			}
-
-			if hasDispatcher {
-				s.dispatcher(e)
-			}
+			s.handleReadMessage(mt, message, debugRawMessage, hasParser, hasDispatcher)
 		}
+	}
+}
+
+func (s *StandardStream) readStreamMessage(conn *websocket.Conn) (int, []byte, error) {
+	if err := conn.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
+		log.WithError(err).Errorf("unable to set read deadline: %v", err)
+	}
+	return conn.ReadMessage()
+}
+
+func (s *StandardStream) handleReadError(conn *websocket.Conn, err error) {
+	switch err2 := err.(type) {
+	case *websocket.CloseError:
+		if err2.Code != websocket.CloseNormalClosure {
+			log.WithError(err2).Warnf("websocket error abnormal close: %+v", err2)
+		}
+	case net.Error:
+		log.WithError(err2).Warn("websocket read network error")
+	default:
+		log.WithError(err2).Warn("unexpected websocket error")
+	}
+	_ = conn.Close()
+	s.Reconnect()
+}
+
+func (s *StandardStream) handleReadMessage(mt int, message []byte, debugRawMessage bool, hasParser bool, hasDispatcher bool) {
+	if mt != websocket.TextMessage {
+		return
+	}
+	if debugRawMessage {
+		log.Info(string(message))
+	}
+	if !hasParser {
+		s.EmitRawMessage(message)
+		return
+	}
+	e, err := s.parser(message)
+	if err != nil {
+		log.WithError(err).Errorf("unable to parse the websocket message. err: %v, message: %s", err, message)
+		s.EmitRawMessage(message)
+		return
+	}
+	if _, ok := e.(*WebsocketPongEvent); !ok {
+		s.EmitRawMessage(message)
+	}
+	if hasDispatcher {
+		s.dispatcher(e)
 	}
 }
 

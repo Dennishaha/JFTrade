@@ -383,95 +383,115 @@ func Parse(input string) (num int64, numDecimalPoints int, err error) {
 
 func NewFromString(input string) (Value, error) {
 	length := len(input)
-
 	if length == 0 {
 		return 0, nil
 	}
-
 	isPercentage := input[length-1] == '%'
 	if isPercentage {
 		input = input[0 : length-1]
 	}
-	dotIndex := -1
-	hasDecimal := false
-	decimalCount := 0
-	// if is decimal, we don't need this
-	hasScientificNotion := false
-	hasIChar := false
-	scIndex := -1
+	parts := classifyNumericString(input)
+	switch {
+	case parts.hasDecimal:
+		return newDecimalStringValue(input, parts.dotIndex, parts.decimalCount, isPercentage)
+	case parts.hasScientificNotion:
+		return newScientificStringValue(input, parts.scIndex)
+	case parts.hasIChar:
+		return newInfinityStringValue(input)
+	default:
+		return newIntegerStringValue(input, isPercentage)
+	}
+}
+
+type numericStringParts struct {
+	dotIndex            int
+	decimalCount        int
+	scIndex             int
+	hasDecimal          bool
+	hasScientificNotion bool
+	hasIChar            bool
+}
+
+func classifyNumericString(input string) numericStringParts {
+	parts := numericStringParts{dotIndex: -1, scIndex: -1}
 	for i, c := range input {
-		if hasDecimal {
+		if parts.hasDecimal {
 			if c <= '9' && c >= '0' {
-				decimalCount++
+				parts.decimalCount++
 			} else {
 				break
 			}
-
 		} else if c == '.' {
-			dotIndex = i
-			hasDecimal = true
+			parts.dotIndex = i
+			parts.hasDecimal = true
 		}
 		if c == 'e' || c == 'E' {
-			hasScientificNotion = true
-			scIndex = i
+			parts.hasScientificNotion = true
+			parts.scIndex = i
 			break
 		}
 		if c == 'i' || c == 'I' {
-			hasIChar = true
+			parts.hasIChar = true
 			break
 		}
 	}
-	if hasDecimal {
-		after := input[dotIndex+1:]
-		if decimalCount >= 8 {
-			after = after[0:8] + "." + after[8:]
-		} else {
-			after = after[0:decimalCount] + strings.Repeat("0", 8-decimalCount) + after[decimalCount:]
-		}
-		input = input[0:dotIndex] + after
-		v, err := strconv.ParseFloat(input, 64)
-		if err != nil {
-			return 0, err
-		}
+	return parts
+}
 
-		if isPercentage {
-			v = v * 0.01
-		}
-
-		return Value(int64(math.Trunc(v))), nil
-
-	} else if hasScientificNotion {
-		exp, err := strconv.ParseInt(input[scIndex+1:], 10, 32)
-		if err != nil {
-			return 0, err
-		}
-		v, err := strconv.ParseFloat(input[0:scIndex+1]+strconv.FormatInt(exp+8, 10), 64)
-		if err != nil {
-			return 0, err
-		}
-		return Value(int64(math.Trunc(v))), nil
-	} else if hasIChar {
-		if floatV, err := strconv.ParseFloat(input, 64); nil != err {
-			return 0, err
-		} else if math.IsInf(floatV, 1) {
-			return PosInf, nil
-		} else if math.IsInf(floatV, -1) {
-			return NegInf, nil
-		} else {
-			return 0, fmt.Errorf("fixedpoint.Value parse error, invalid input string %s", input)
-		}
+func newDecimalStringValue(input string, dotIndex int, decimalCount int, isPercentage bool) (Value, error) {
+	after := input[dotIndex+1:]
+	if decimalCount >= 8 {
+		after = after[0:8] + "." + after[8:]
 	} else {
-		v, err := strconv.ParseInt(input, 10, 64)
-		if err != nil {
-			return 0, err
-		}
-		if isPercentage {
-			v = v * DefaultPow / 100
-		} else {
-			v = v * DefaultPow
-		}
-		return Value(v), nil
+		after = after[0:decimalCount] + strings.Repeat("0", 8-decimalCount) + after[decimalCount:]
 	}
+	v, err := strconv.ParseFloat(input[0:dotIndex]+after, 64)
+	if err != nil {
+		return 0, err
+	}
+	if isPercentage {
+		v = v * 0.01
+	}
+	return Value(int64(math.Trunc(v))), nil
+}
+
+func newScientificStringValue(input string, scIndex int) (Value, error) {
+	exp, err := strconv.ParseInt(input[scIndex+1:], 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	v, err := strconv.ParseFloat(input[0:scIndex+1]+strconv.FormatInt(exp+8, 10), 64)
+	if err != nil {
+		return 0, err
+	}
+	return Value(int64(math.Trunc(v))), nil
+}
+
+func newInfinityStringValue(input string) (Value, error) {
+	floatV, err := strconv.ParseFloat(input, 64)
+	if err != nil {
+		return 0, err
+	}
+	if math.IsInf(floatV, 1) {
+		return PosInf, nil
+	}
+	if math.IsInf(floatV, -1) {
+		return NegInf, nil
+	}
+	return 0, fmt.Errorf("fixedpoint.Value parse error, invalid input string %s", input)
+}
+
+func newIntegerStringValue(input string, isPercentage bool) (Value, error) {
+	v, err := strconv.ParseInt(input, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if isPercentage {
+		v = v * DefaultPow / 100
+	} else {
+		v = v * DefaultPow
+	}
+	return Value(v), nil
 }
 
 func MustNewFromString(input string) Value {
