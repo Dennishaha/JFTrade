@@ -256,13 +256,41 @@ func (e *WorkflowExecutor) runGoogleADKWorkflow(ctx context.Context, req workflo
 	return e.runPlannedGoogleADKWorkflow(ctx, req, parent, steps, tasks)
 }
 
+type workflowExecutionResult struct {
+	execution *googleADKExecution
+	approvals []Approval
+}
+
 func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req workflowRequest, parent Run, steps []workflowStep, tasks []Task) (ChatResponse, error) {
 	childRuns, finishes, err := e.startWorkflowChildRuns(ctx, req, parent, steps, tasks)
 	defer finishWorkflowChildren(finishes)
 	if err != nil {
-		parent = e.failParent(ctx, parent, err)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+		return e.failedWorkflowResponse(ctx, req, parent, err), nil
 	}
+	parent, err = e.prepareWorkflowParent(ctx, req, parent, childRuns)
+	if err != nil {
+		return ChatResponse{}, err
+	}
+	executionResult, parent, err := e.runWorkflowExecution(ctx, req, parent, childRuns, steps)
+	if err != nil {
+		return e.failedWorkflowResponse(ctx, req, parent, err), nil
+	}
+	if err := e.ensureWorkflowChildrenFinalReplies(ctx, req, executionResult.execution, childRuns, steps, executionResult.approvals); err != nil {
+		return e.failedWorkflowResponse(ctx, req, parent, err), nil
+	}
+	responses, err := e.completeWorkflowChildrenFromADK(ctx, req, executionResult.execution, childRuns, executionResult.approvals)
+	if err != nil {
+		return e.failedWorkflowResponse(ctx, req, parent, err), nil
+	}
+	return e.finalizePlannedWorkflow(ctx, req, parent, tasks, responses, executionResult.approvals), nil
+}
+
+func (e *WorkflowExecutor) failedWorkflowResponse(ctx context.Context, req workflowRequest, parent Run, cause error) ChatResponse {
+	parent = e.failParent(ctx, parent, cause)
+	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason})
+}
+
+func (e *WorkflowExecutor) prepareWorkflowParent(ctx context.Context, req workflowRequest, parent Run, childRuns []Run) (Run, error) {
 	parent.ChildRunIDs = childRunIDs(childRuns)
 	for index, child := range childRuns {
 		if index < len(parent.WorkflowPlan) {
@@ -270,93 +298,60 @@ func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req 
 		}
 	}
 	if err := e.runtime.store.SaveRun(ctx, parent); err != nil {
-		parent = e.failParent(ctx, parent, err)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+		return parent, err
 	}
 	if err := emitWorkflowRunSnapshot(ctx, e.runtime, req, parent); err != nil {
-		return ChatResponse{}, err
+		return parent, err
 	}
 	if err := e.runtime.maybeAutoCompactSessionDuringWorkflow(ctx, req.Session, req.Agent, req.Message, req.OnDelta); err != nil {
-		parent = e.failParent(ctx, parent, err)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+		return parent, err
 	}
+	return parent, nil
+}
+
+func (e *WorkflowExecutor) runWorkflowExecution(ctx context.Context, req workflowRequest, parent Run, childRuns []Run, steps []workflowStep) (workflowExecutionResult, Run, error) {
 	execution, err := e.runtime.newGoogleADKWorkflowExecution(ctx, req.Agent, req.Session, parent, childRuns, steps, parent.WorkMode, req.RunOptions, req.OnDelta)
 	if err != nil {
-		parent = e.failParent(ctx, parent, err)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+		return workflowExecutionResult{}, parent, err
 	}
+	approvals, err := e.executeWorkflowRun(ctx, req.Message, parent, childRuns, execution)
+	if err != nil {
+		return workflowExecutionResult{}, parent, err
+	}
+	return workflowExecutionResult{execution: execution, approvals: approvals}, parent, nil
+}
+
+func (e *WorkflowExecutor) executeWorkflowRun(ctx context.Context, message string, parent Run, childRuns []Run, execution *googleADKExecution) ([]Approval, error) {
 	e.runtime.workflowChildMu.Lock()
-	adkErr := execution.run(ctx, genai.NewContentFromText(req.Message, genai.RoleUser))
+	adkErr := execution.run(ctx, genai.NewContentFromText(message, genai.RoleUser))
 	var approvals []Approval
 	if adkErr == nil {
-		approvals, err = execution.pendingApprovals(ctx, e.runtime.store)
-		if err != nil {
-			adkErr = err
-		}
+		approvals, adkErr = execution.pendingApprovals(ctx, e.runtime.store)
 	}
 	e.runtime.workflowChildMu.Unlock()
 	if adkErr != nil {
-		parent = e.failParent(ctx, parent, adkErr)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+		return nil, adkErr
 	}
 	if len(approvals) > 0 {
-		execution.detachDeltaSink()
-		e.runtime.adkMu.Lock()
-		e.runtime.adkRuns[parent.ID] = execution
-		for _, child := range childRuns {
-			e.runtime.adkRuns[child.ID] = execution
-		}
-		e.runtime.adkMu.Unlock()
+		e.registerWorkflowExecution(parent, childRuns, execution)
 	}
-	if err := e.ensureWorkflowChildrenFinalReplies(ctx, req, execution, childRuns, steps, approvals); err != nil {
-		parent = e.failParent(ctx, parent, err)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+	return approvals, nil
+}
+
+func (e *WorkflowExecutor) registerWorkflowExecution(parent Run, childRuns []Run, execution *googleADKExecution) {
+	execution.detachDeltaSink()
+	e.runtime.adkMu.Lock()
+	defer e.runtime.adkMu.Unlock()
+	e.runtime.adkRuns[parent.ID] = execution
+	for _, child := range childRuns {
+		e.runtime.adkRuns[child.ID] = execution
 	}
-	responses, err := e.completeWorkflowChildrenFromADK(ctx, req, execution, childRuns, approvals)
-	if err != nil {
-		parent = e.failParent(ctx, parent, err)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
-	}
-	replies := make([]string, 0, len(responses))
-	var blockingChild *Run
-	for index, response := range responses {
-		child := response.Run
-		parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
-		parent = updateWorkflowPlanForChildAt(parent, child, index)
-		if index < len(tasks) {
-			status := "DONE"
-			if child.Status != RunStatusCompleted {
-				status = "BLOCKED"
-			}
-			_, jftradeErr12 := e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: &status, RunID: &child.ID})
-			jftradeLogError(jftradeErr12)
-		}
-		if strings.TrimSpace(response.Reply) != "" {
-			replies = append(replies, response.Reply)
-		}
-		if isWorkflowBlockingStatus(child.Status) && blockingChild == nil {
-			blockingChild = &child
-		}
-	}
+}
+
+func (e *WorkflowExecutor) finalizePlannedWorkflow(ctx context.Context, req workflowRequest, parent Run, tasks []Task, responses []ChatResponse, approvals []Approval) ChatResponse {
+	replies, blockingChild, parent := e.applyWorkflowChildResponses(ctx, parent, tasks, responses, approvals)
 	if blockingChild != nil {
-		if parent.WorkMode == WorkModeLoop && parent.Iteration == 0 {
-			parent.Iteration = 1
-		}
-		parent.Status = blockingChild.Status
-		parent.Message = blockingChild.Message
-		parent.WorkflowStatus = workflowStatusPaused
-		parent.PendingApprovals = pendingApprovalsOnly(approvals)
-		if parent.Status != RunStatusPending {
-			parent.WorkflowStatus = workflowStatusFailed
-			parent.FailureReason = blockingChild.FailureReason
-			parent.ErrorCode = blockingChild.ErrorCode
-			parent.Degraded = true
-			parent.CompletedAt = new(nowString())
-			finalizeRunUsage(&parent)
-		}
-		jftradeErr2 := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr2)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: workflowPendingReply(parent)}), nil
+		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: workflowPendingReply(parent)})
 	}
 	parent.Status = RunStatusCompleted
 	parent.Message = "workflow completed"
@@ -369,7 +364,62 @@ func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req 
 	finalizeRunUsage(&parent)
 	jftradeErr1 := e.runtime.store.SaveRun(ctx, parent)
 	jftradeLogError(jftradeErr1)
-	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: workflowSummary(parent, replies)}), nil
+	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: workflowSummary(parent, replies)})
+}
+
+func (e *WorkflowExecutor) applyWorkflowChildResponses(ctx context.Context, parent Run, tasks []Task, responses []ChatResponse, approvals []Approval) ([]string, *Run, Run) {
+	replies := make([]string, 0, len(responses))
+	var blockingChild *Run
+	for index, response := range responses {
+		child := response.Run
+		parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
+		parent = updateWorkflowPlanForChildAt(parent, child, index)
+		e.updateWorkflowTaskResult(ctx, tasks, index, child)
+		if strings.TrimSpace(response.Reply) != "" {
+			replies = append(replies, response.Reply)
+		}
+		if isWorkflowBlockingStatus(child.Status) && blockingChild == nil {
+			childCopy := child
+			blockingChild = &childCopy
+		}
+	}
+	if blockingChild != nil {
+		parent = finalizeBlockedWorkflowParent(parent, *blockingChild, approvals)
+		jftradeErr2 := e.runtime.store.SaveRun(ctx, parent)
+		jftradeLogError(jftradeErr2)
+	}
+	return replies, blockingChild, parent
+}
+
+func (e *WorkflowExecutor) updateWorkflowTaskResult(ctx context.Context, tasks []Task, index int, child Run) {
+	if index >= len(tasks) {
+		return
+	}
+	status := "DONE"
+	if child.Status != RunStatusCompleted {
+		status = "BLOCKED"
+	}
+	_, jftradeErr := e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: &status, RunID: &child.ID})
+	jftradeLogError(jftradeErr)
+}
+
+func finalizeBlockedWorkflowParent(parent Run, child Run, approvals []Approval) Run {
+	if parent.WorkMode == WorkModeLoop && parent.Iteration == 0 {
+		parent.Iteration = 1
+	}
+	parent.Status = child.Status
+	parent.Message = child.Message
+	parent.WorkflowStatus = workflowStatusPaused
+	parent.PendingApprovals = pendingApprovalsOnly(approvals)
+	if parent.Status != RunStatusPending {
+		parent.WorkflowStatus = workflowStatusFailed
+		parent.FailureReason = child.FailureReason
+		parent.ErrorCode = child.ErrorCode
+		parent.Degraded = true
+		parent.CompletedAt = new(nowString())
+		finalizeRunUsage(&parent)
+	}
+	return parent
 }
 
 func (e *WorkflowExecutor) failParent(ctx context.Context, parent Run, cause error) Run {
