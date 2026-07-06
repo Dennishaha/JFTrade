@@ -114,6 +114,14 @@ type pendingOpenAIToolCall struct {
 	call         openAIToolCall
 }
 
+type openAIMessageNormalizer struct {
+	out                  []openAIChatMessage
+	pending              map[string]pendingOpenAIToolCall
+	activeToolCallIDs    map[string]struct{}
+	activeAssistantIndex int
+	droppedTools         int
+}
+
 // estimateMessageBytes returns an approximate byte size of a message when
 // serialized to JSON, accounting for Content, ReasoningContent, Reasoning,
 // and ToolCalls arguments.
@@ -146,90 +154,129 @@ func normalizeMessagesForProvider(messages []openAIChatMessage) []openAIChatMess
 	if len(messages) == 0 {
 		return messages
 	}
-	out := make([]openAIChatMessage, 0, len(messages))
-	pending := map[string]pendingOpenAIToolCall{}
-	activeToolCallIDs := map[string]struct{}{}
-	activeAssistantIndex := -1
-	droppedTools := 0
+	return newOpenAIMessageNormalizer(len(messages)).normalize(messages)
+}
 
-	resetActive := func() {
-		activeAssistantIndex = -1
-		activeToolCallIDs = map[string]struct{}{}
+func newOpenAIMessageNormalizer(size int) *openAIMessageNormalizer {
+	return &openAIMessageNormalizer{
+		out:                  make([]openAIChatMessage, 0, size),
+		pending:              map[string]pendingOpenAIToolCall{},
+		activeToolCallIDs:    map[string]struct{}{},
+		activeAssistantIndex: -1,
 	}
+}
 
+func (n *openAIMessageNormalizer) normalize(messages []openAIChatMessage) []openAIChatMessage {
 	for _, message := range messages {
-		role := strings.TrimSpace(message.Role)
-		if role == "" {
-			role = message.Role
-		}
-		message.Role = role
-		switch role {
-		case "assistant":
-			out = append(out, message)
-			resetActive()
-			if len(message.ToolCalls) > 0 {
-				activeAssistantIndex = len(out) - 1
-				for _, call := range message.ToolCalls {
-					id := strings.TrimSpace(call.ID)
-					if id == "" {
-						continue
-					}
-					pending[id] = pendingOpenAIToolCall{messageIndex: activeAssistantIndex, call: call}
-					activeToolCallIDs[id] = struct{}{}
-				}
-			}
-		case "tool":
-			id := strings.TrimSpace(message.ToolCallID)
-			if id == "" {
-				droppedTools++
-				resetActive()
-				continue
-			}
-			if activeAssistantIndex >= 0 {
-				if _, ok := activeToolCallIDs[id]; ok {
-					out = append(out, message)
-					delete(pending, id)
-					delete(activeToolCallIDs, id)
-					continue
-				}
-			}
-			pair, ok := pending[id]
-			if !ok {
-				droppedTools++
-				resetActive()
-				continue
-			}
-			removeToolCallFromMessage(&out[pair.messageIndex], id)
-			out = append(out, openAIChatMessage{
-				Role:      "assistant",
-				ToolCalls: []openAIToolCall{pair.call},
-			})
-			out = append(out, message)
-			delete(pending, id)
-			activeAssistantIndex = len(out) - 2
-			activeToolCallIDs = map[string]struct{}{id: {}}
-		default:
-			out = append(out, message)
-			resetActive()
+		n.consumeMessage(message)
+	}
+	for id, pair := range n.pending {
+		if pair.messageIndex >= 0 && pair.messageIndex < len(n.out) {
+			removeToolCallFromMessage(&n.out[pair.messageIndex], id)
 		}
 	}
-
-	for id, pair := range pending {
-		if pair.messageIndex >= 0 && pair.messageIndex < len(out) {
-			removeToolCallFromMessage(&out[pair.messageIndex], id)
+	normalized := make([]openAIChatMessage, 0, len(n.out))
+	for _, message := range n.out {
+		if !shouldDropEmptyAssistantToolCallMessage(message) {
+			normalized = append(normalized, message)
 		}
 	}
-	normalized := make([]openAIChatMessage, 0, len(out))
-	for _, message := range out {
-		if shouldDropEmptyAssistantToolCallMessage(message) {
-			continue
-		}
-		normalized = append(normalized, message)
-	}
-	if droppedTools > 0 {
-		log.Printf("[adk] dropped %d orphan OpenAI tool message(s) before provider request", droppedTools)
+	if n.droppedTools > 0 {
+		log.Printf("[adk] dropped %d orphan OpenAI tool message(s) before provider request", n.droppedTools)
 	}
 	return normalized
+}
+
+func (n *openAIMessageNormalizer) consumeMessage(message openAIChatMessage) {
+	message.Role = normalizeProviderMessageRole(message.Role)
+	switch message.Role {
+	case "assistant":
+		n.appendAssistantMessage(message)
+	case "tool":
+		n.appendToolMessage(message)
+	default:
+		n.out = append(n.out, message)
+		n.resetActive()
+	}
+}
+
+func normalizeProviderMessageRole(role string) string {
+	trimmed := strings.TrimSpace(role)
+	if trimmed == "" {
+		return role
+	}
+	return trimmed
+}
+
+func (n *openAIMessageNormalizer) appendAssistantMessage(message openAIChatMessage) {
+	n.out = append(n.out, message)
+	n.resetActive()
+	if len(message.ToolCalls) == 0 {
+		return
+	}
+	n.activeAssistantIndex = len(n.out) - 1
+	for _, call := range message.ToolCalls {
+		id := strings.TrimSpace(call.ID)
+		if id == "" {
+			continue
+		}
+		n.pending[id] = pendingOpenAIToolCall{messageIndex: n.activeAssistantIndex, call: call}
+		n.activeToolCallIDs[id] = struct{}{}
+	}
+}
+
+func (n *openAIMessageNormalizer) appendToolMessage(message openAIChatMessage) {
+	id := strings.TrimSpace(message.ToolCallID)
+	if id == "" {
+		n.dropToolMessage()
+		return
+	}
+	if n.appendActiveToolResponse(id, message) {
+		return
+	}
+	if !n.rebuildPendingToolPair(id, message) {
+		n.dropToolMessage()
+	}
+}
+
+func (n *openAIMessageNormalizer) appendActiveToolResponse(id string, message openAIChatMessage) bool {
+	if n.activeAssistantIndex < 0 {
+		return false
+	}
+	if _, ok := n.activeToolCallIDs[id]; !ok {
+		return false
+	}
+	n.out = append(n.out, message)
+	delete(n.pending, id)
+	delete(n.activeToolCallIDs, id)
+	return true
+}
+
+func (n *openAIMessageNormalizer) rebuildPendingToolPair(id string, message openAIChatMessage) bool {
+	pair, ok := n.pending[id]
+	if !ok {
+		return false
+	}
+	removeToolCallFromMessage(&n.out[pair.messageIndex], id)
+	n.out = append(n.out, openAIChatMessage{
+		Role:      "assistant",
+		ToolCalls: []openAIToolCall{pair.call},
+	})
+	n.out = append(n.out, message)
+	delete(n.pending, id)
+	n.activeAssistantIndex = len(n.out) - 2
+	n.activeToolCallIDs = map[string]struct{}{id: {}}
+	return true
+}
+
+func (n *openAIMessageNormalizer) dropToolMessage() {
+	n.droppedTools++
+	n.resetActive()
+}
+
+func (n *openAIMessageNormalizer) resetActive() {
+	n.activeAssistantIndex = -1
+	n.activeToolCallIDs = map[string]struct{}{}
 }
 
 func removeToolCallFromMessage(message *openAIChatMessage, id string) {

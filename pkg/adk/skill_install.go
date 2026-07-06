@@ -32,65 +32,88 @@ func (r *SkillRegistry) installArchive(ctx context.Context, sourceURL string, bo
 	if err != nil {
 		return Skill{}, fmt.Errorf("parse skill archive: %w", err)
 	}
+	if err := extractSkillArchive(reader, tempDir); err != nil {
+		return Skill{}, err
+	}
+	return r.installExtractedArchiveSkill(ctx, sourceURL, tempDir)
+}
+
+func extractSkillArchive(reader *zip.Reader, tempDir string) error {
 	var extractedBytes uint64
 	for _, file := range reader.File {
-		name := path.Clean(strings.TrimSpace(file.Name))
-		if name == "." {
-			continue
-		}
-		if strings.HasPrefix(name, "../") || strings.HasPrefix(name, "/") {
-			return Skill{}, fmt.Errorf("skill archive contains unsafe path %q", file.Name)
-		}
-		targetPath := filepath.Join(tempDir, filepath.FromSlash(name))
-		if file.FileInfo().IsDir() {
-			if err := os.MkdirAll(targetPath, 0o755); err != nil {
-				return Skill{}, err
-			}
-			continue
-		}
-		extractedBytes += file.UncompressedSize64
-		if extractedBytes > maxSkillArchiveSize {
-			return Skill{}, fmt.Errorf("skill archive exceeds %d bytes after extraction", maxSkillArchiveSize)
-		}
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-			return Skill{}, err
-		}
-		in, err := file.Open()
-		if err != nil {
-			return Skill{}, err
-		}
-		out, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-		if err != nil {
-			jftradeErr1 := in.Close()
-			jftradeLogError(jftradeErr1)
-			return Skill{}, err
-		}
-		_, copyErr := io.Copy(out, io.LimitReader(in, int64(maxSkillArchiveSize)+1))
-		closeErr := out.Close()
-		jftradeErr2 := in.Close()
-		jftradeLogError(jftradeErr2)
-		if copyErr != nil {
-			return Skill{}, copyErr
-		}
-		if closeErr != nil {
-			return Skill{}, closeErr
+		if err := extractSkillArchiveFile(file, tempDir, &extractedBytes); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	skillDoc, err := locateSkillDocument(tempDir)
+func extractSkillArchiveFile(file *zip.File, tempDir string, extractedBytes *uint64) error {
+	name := path.Clean(strings.TrimSpace(file.Name))
+	if name == "." {
+		return nil
+	}
+	if strings.HasPrefix(name, "../") || strings.HasPrefix(name, "/") {
+		return fmt.Errorf("skill archive contains unsafe path %q", file.Name)
+	}
+	targetPath := filepath.Join(tempDir, filepath.FromSlash(name))
+	if file.FileInfo().IsDir() {
+		return os.MkdirAll(targetPath, 0o755)
+	}
+	*extractedBytes += file.UncompressedSize64
+	if *extractedBytes > maxSkillArchiveSize {
+		return fmt.Errorf("skill archive exceeds %d bytes after extraction", maxSkillArchiveSize)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		return err
+	}
+	return copySkillArchiveFile(file, targetPath)
+}
+
+func copySkillArchiveFile(file *zip.File, targetPath string) error {
+	in, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer func() { jftradeLogError(in.Close()) }()
+	out, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(out, io.LimitReader(in, int64(maxSkillArchiveSize)+1))
+	closeErr := out.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	return closeErr
+}
+
+func (r *SkillRegistry) installExtractedArchiveSkill(ctx context.Context, sourceURL string, tempDir string) (Skill, error) {
+	fm, skillDoc, err := rewriteArchiveSkillDocument(tempDir, sourceURL)
 	if err != nil {
 		return Skill{}, err
+	}
+	if _, _, err := r.installSkillDirectory(fm.Name, filepath.Dir(skillDoc)); err != nil {
+		return Skill{}, err
+	}
+	return r.loadInstalledArchiveSkill(ctx, fm.Name)
+}
+
+func rewriteArchiveSkillDocument(tempDir string, sourceURL string) (*adkskill.Frontmatter, string, error) {
+	skillDoc, err := locateSkillDocument(tempDir)
+	if err != nil {
+		return nil, "", err
 	}
 	raw, err := os.ReadFile(skillDoc)
 	if err != nil {
-		return Skill{}, err
+		return nil, "", err
 	}
 	if len(raw) > maxSkillFileSize {
-		return Skill{}, fmt.Errorf("skill file exceeds %d bytes", maxSkillFileSize)
+		return nil, "", fmt.Errorf("skill file exceeds %d bytes", maxSkillFileSize)
 	}
 	fm, instructions, err := adkskill.ParseBytes(raw)
 	if err != nil {
-		return Skill{}, err
+		return nil, "", err
 	}
 	if fm.Metadata == nil {
 		fm.Metadata = map[string]string{}
@@ -98,20 +121,21 @@ func (r *SkillRegistry) installArchive(ctx context.Context, sourceURL string, bo
 	fm.Metadata["source"] = sourceURL
 	rebuilt, err := adkskill.Build(fm, instructions)
 	if err != nil {
-		return Skill{}, err
+		return nil, "", err
 	}
 	if err := os.WriteFile(skillDoc, rebuilt, 0o644); err != nil {
-		return Skill{}, err
+		return nil, "", err
 	}
-	if _, _, err := r.installSkillDirectory(fm.Name, filepath.Dir(skillDoc)); err != nil {
-		return Skill{}, err
-	}
-	skill, ok, err := r.Get(ctx, fm.Name)
+	return fm, skillDoc, nil
+}
+
+func (r *SkillRegistry) loadInstalledArchiveSkill(ctx context.Context, name string) (Skill, error) {
+	skill, ok, err := r.Get(ctx, name)
 	if err != nil {
 		return Skill{}, err
 	}
 	if !ok {
-		return Skill{}, fmt.Errorf("installed skill not found: %s", fm.Name)
+		return Skill{}, fmt.Errorf("installed skill not found: %s", name)
 	}
 	return skill, nil
 }
