@@ -118,6 +118,21 @@ type PineVisualMetadata struct {
 	Text      string            `json:"text"`
 }
 
+type semanticAnalyzerState struct {
+	summary              *SemanticSummary
+	diagnostics          []Diagnostic
+	activeTypeIndex      int
+	activeTypeIndent     int
+	activeTypeFields     map[string]bool
+	activeTypeRegistered bool
+	typeDeclarations     map[string]SemanticDeclaration
+	methodDeclarations   map[string][]SemanticDeclaration
+	methodSignatures     map[string]bool
+	objectTypes          map[string]string
+	collectionNamespaces map[string]string
+	importAliases        map[string]bool
+}
+
 type semanticSignature struct {
 	minArgs    int
 	maxArgs    int
@@ -272,169 +287,225 @@ var collectionOperationSignatures = map[string]collectionOperationSignature{
 
 //nolint:funlen
 func analyzeSemantics(ast *AST) (*SemanticSummary, []Diagnostic) {
-	summary := &SemanticSummary{
-		Symbols:              []SemanticSymbol{},
-		TupleBindings:        []SemanticTupleBinding{},
-		FunctionCalls:        []SemanticFunctionCall{},
-		Declarations:         []SemanticDeclaration{},
-		CollectionOperations: []SemanticCollectionOperation{},
-		ObjectOperations:     []SemanticObjectOperation{},
-		Visuals:              []PineVisualMetadata{},
-	}
+	state := newSemanticAnalyzerState()
 	if ast == nil {
-		return summary, nil
+		return state.summary, nil
 	}
-	diagnostics := make([]Diagnostic, 0)
-	activeTypeIndex := -1
-	activeTypeIndent := 0
-	activeTypeFields := map[string]bool(nil)
-	activeTypeRegistered := false
-	typeDeclarations := map[string]SemanticDeclaration{}
-	methodDeclarations := map[string][]SemanticDeclaration{}
-	methodSignatures := map[string]bool{}
-	objectTypes := map[string]string{}
-	collectionNamespaces := map[string]string{}
-	importAliases := map[string]bool{}
 	for _, line := range ast.Lines {
-		if activeTypeIndex >= 0 && line.Indent <= activeTypeIndent {
-			activeTypeIndex = -1
-			activeTypeFields = nil
-			activeTypeRegistered = false
-		}
-		collectionOperations := semanticCollectionOperations(line, collectionNamespaces)
-		objectOperations := semanticObjectOperations(line, typeDeclarations, methodDeclarations, objectTypes)
-		switch line.Kind {
-		case NodeKindAssignment:
-			valueKind := inferSemanticValueKind(line.Expression)
-			if operation, ok := assignedObjectConstructor(objectOperations, line.Name); ok {
-				valueKind = SemanticValueObject
-				objectTypes[strings.ToLower(line.Name)] = operation.Type
-			}
-			summary.Symbols = append(summary.Symbols, SemanticSymbol{
-				Name:       line.Name,
-				Line:       line.Line,
-				Scope:      semanticScope(line.Indent),
-				ValueKind:  valueKind,
-				Assignment: string(line.Mode),
-			})
-		case NodeKindTupleAssignment:
-			names := tupleNamesFromASTLine(line)
-			duplicates := duplicateNames(names)
-			if len(duplicates) > 0 {
-				diagnostics = append(diagnostics, semanticDiagnostic(line, "PINE_SEMANTIC_TUPLE", fmt.Sprintf("tuple assignment repeats %s", strings.Join(duplicates, ", "))))
-			}
-			returnCount, supported := semanticTupleReturnCount(line.Expression)
-			summary.TupleBindings = append(summary.TupleBindings, SemanticTupleBinding{
-				Line:        line.Line,
-				Names:       names,
-				Expression:  line.Expression,
-				ReturnCount: returnCount,
-				Supported:   supported,
-			})
-			for _, name := range names {
-				summary.Symbols = append(summary.Symbols, SemanticSymbol{
-					Name:       name,
-					Line:       line.Line,
-					Scope:      semanticScope(line.Indent),
-					ValueKind:  inferTupleElementKind(line.Expression),
-					Assignment: string(line.Mode),
-				})
-			}
-		case NodeKindDeclaration:
-			declaration := semanticDeclaration(line)
-			summary.Declarations = append(summary.Declarations, declaration)
-			diagnostics = append(diagnostics, semanticDeclarationDiagnostics(line, declaration)...)
-			diagnostics = append(diagnostics, semanticImportAliasDiagnostics(line, declaration, importAliases)...)
-			if declaration.Kind == "type" {
-				typeKey := strings.ToLower(strings.TrimSpace(declaration.Name))
-				_, duplicate := typeDeclarations[typeKey]
-				if typeKey != "" && duplicate {
-					diagnostics = append(diagnostics, semanticDiagnostic(line, "PINE_SEMANTIC_DECLARATION", fmt.Sprintf("type %s is already declared", declaration.Name)))
-				}
-				activeTypeRegistered = typeKey != "" && !duplicate
-				if activeTypeRegistered {
-					typeDeclarations[typeKey] = declaration
-				}
-				activeTypeIndex = len(summary.Declarations) - 1
-				activeTypeIndent = line.Indent
-				activeTypeFields = map[string]bool{}
-			}
-			if declaration.Kind == "method" {
-				registryDiagnostics, register := semanticMethodRegistryDiagnostics(line, declaration, typeDeclarations, methodSignatures)
-				diagnostics = append(diagnostics, registryDiagnostics...)
-				if register {
-					key := semanticMethodKey(declaration.Receiver.Type, declaration.Name)
-					methodDeclarations[key] = append(methodDeclarations[key], declaration)
-					methodSignatures[semanticMethodSignatureKey(declaration)] = true
-				}
-			}
-		case NodeKindCollection:
-			if line.Name != "" {
-				summary.Symbols = append(summary.Symbols, SemanticSymbol{
-					Name:       line.Name,
-					Line:       line.Line,
-					Scope:      semanticScope(line.Indent),
-					ValueKind:  inferCollectionValueKind(line.Text),
-					Assignment: string(line.Mode),
-				})
-			}
-			if declaration, ok := semanticCollectionDeclaration(line); ok {
-				summary.Declarations = append(summary.Declarations, declaration)
-				diagnostics = append(diagnostics, semanticCollectionDeclarationDiagnostics(line, declaration, collectionOperations)...)
-				if declaration.Namespace != "" && line.Name != "" {
-					collectionNamespaces[strings.ToLower(line.Name)] = declaration.Namespace
-				}
-			}
-			if operation, ok := assignedCollectionConstructor(collectionOperations, line.Name); ok {
-				collectionNamespaces[strings.ToLower(line.Name)] = operation.Namespace
-			}
-		case NodeKindVisual:
-			summary.Visuals = append(summary.Visuals, semanticVisualMetadata(line)...)
-		case NodeKindUnsupported:
-			if activeTypeIndex >= 0 && line.Indent > activeTypeIndent {
-				if field, ok := semanticTypeField(line.Text); ok {
-					fieldName := strings.ToLower(field.Name)
-					if activeTypeFields[fieldName] {
-						diagnostics = append(diagnostics, semanticDiagnostic(line, "PINE_SEMANTIC_DECLARATION", fmt.Sprintf("type %s repeats field %s", summary.Declarations[activeTypeIndex].Name, field.Name)))
-					}
-					activeTypeFields[fieldName] = true
-					summary.Declarations[activeTypeIndex].Fields = append(summary.Declarations[activeTypeIndex].Fields, field)
-					summary.Declarations[activeTypeIndex].Signature = objectConstructorSignature(summary.Declarations[activeTypeIndex])
-					if activeTypeRegistered {
-						typeDeclarations[strings.ToLower(summary.Declarations[activeTypeIndex].Name)] = summary.Declarations[activeTypeIndex]
-					}
-				}
-			}
-		}
-		if len(collectionOperations) > 0 {
-			summary.CollectionOperations = append(summary.CollectionOperations, collectionOperations...)
-			diagnostics = append(diagnostics, collectionOperationDiagnostics(line, collectionOperations)...)
-			if collectionOperationsContainNonExecutable(collectionOperations) && line.Kind != NodeKindCollection {
-				diagnostics = append(diagnostics, semanticDiagnostic(line, "PINE_COLLECTION_UNSUPPORTED", "Pine collection namespaces array/matrix/map are not executable in this JFTrade Pine v6 version"))
-			}
-		}
-		if line.Kind != NodeKindVisual {
-			summary.Visuals = append(summary.Visuals, semanticVisualMetadata(line)...)
-		}
-		summary.ObjectOperations = append(summary.ObjectOperations, objectOperations...)
-		diagnostics = append(diagnostics, objectOperationDiagnostics(line, objectOperations, typeDeclarations, methodDeclarations)...)
-		for _, call := range semanticFunctionCalls(line.Text) {
-			if signature, ok := semanticFunctionSignatures[call.name]; ok {
-				summary.FunctionCalls = append(summary.FunctionCalls, SemanticFunctionCall{
-					Line:       line.Line,
-					Name:       call.name,
-					ArgCount:   call.argCount,
-					Signature:  signature.signature,
-					ReturnKind: signature.returnKind,
-					Supported:  true,
-				})
-				if call.argCount < signature.minArgs || call.argCount > signature.maxArgs {
-					diagnostics = append(diagnostics, semanticDiagnostic(line, "PINE_SEMANTIC_SIGNATURE", fmt.Sprintf("%s expects %s", call.name, signature.signature)))
-				}
-			}
+		state.processLine(line)
+	}
+	return state.summary, state.diagnostics
+}
+
+func newSemanticAnalyzerState() *semanticAnalyzerState {
+	return &semanticAnalyzerState{
+		summary: &SemanticSummary{
+			Symbols:              []SemanticSymbol{},
+			TupleBindings:        []SemanticTupleBinding{},
+			FunctionCalls:        []SemanticFunctionCall{},
+			Declarations:         []SemanticDeclaration{},
+			CollectionOperations: []SemanticCollectionOperation{},
+			ObjectOperations:     []SemanticObjectOperation{},
+			Visuals:              []PineVisualMetadata{},
+		},
+		activeTypeIndex:      -1,
+		typeDeclarations:     map[string]SemanticDeclaration{},
+		methodDeclarations:   map[string][]SemanticDeclaration{},
+		methodSignatures:     map[string]bool{},
+		objectTypes:          map[string]string{},
+		collectionNamespaces: map[string]string{},
+		importAliases:        map[string]bool{},
+	}
+}
+
+func (s *semanticAnalyzerState) processLine(line ASTLine) {
+	s.resetActiveTypeIfNeeded(line)
+	collectionOperations := semanticCollectionOperations(line, s.collectionNamespaces)
+	objectOperations := semanticObjectOperations(line, s.typeDeclarations, s.methodDeclarations, s.objectTypes)
+	s.handleLineKind(line, collectionOperations, objectOperations)
+	s.appendLineOperations(line, collectionOperations, objectOperations)
+	s.appendFunctionCalls(line)
+}
+
+func (s *semanticAnalyzerState) resetActiveTypeIfNeeded(line ASTLine) {
+	if s.activeTypeIndex >= 0 && line.Indent <= s.activeTypeIndent {
+		s.activeTypeIndex = -1
+		s.activeTypeFields = nil
+		s.activeTypeRegistered = false
+	}
+}
+
+func (s *semanticAnalyzerState) handleLineKind(line ASTLine, collectionOperations []SemanticCollectionOperation, objectOperations []SemanticObjectOperation) {
+	switch line.Kind {
+	case NodeKindAssignment:
+		s.handleAssignment(line, objectOperations)
+	case NodeKindTupleAssignment:
+		s.handleTupleAssignment(line)
+	case NodeKindDeclaration:
+		s.handleDeclaration(line)
+	case NodeKindCollection:
+		s.handleCollection(line, collectionOperations)
+	case NodeKindVisual:
+		s.summary.Visuals = append(s.summary.Visuals, semanticVisualMetadata(line)...)
+	case NodeKindUnsupported:
+		s.handleUnsupported(line)
+	}
+}
+
+func (s *semanticAnalyzerState) handleAssignment(line ASTLine, objectOperations []SemanticObjectOperation) {
+	valueKind := inferSemanticValueKind(line.Expression)
+	if operation, ok := assignedObjectConstructor(objectOperations, line.Name); ok {
+		valueKind = SemanticValueObject
+		s.objectTypes[strings.ToLower(line.Name)] = operation.Type
+	}
+	s.summary.Symbols = append(s.summary.Symbols, SemanticSymbol{
+		Name:       line.Name,
+		Line:       line.Line,
+		Scope:      semanticScope(line.Indent),
+		ValueKind:  valueKind,
+		Assignment: string(line.Mode),
+	})
+}
+
+func (s *semanticAnalyzerState) handleTupleAssignment(line ASTLine) {
+	names := tupleNamesFromASTLine(line)
+	duplicates := duplicateNames(names)
+	if len(duplicates) > 0 {
+		s.diagnostics = append(s.diagnostics, semanticDiagnostic(line, "PINE_SEMANTIC_TUPLE", fmt.Sprintf("tuple assignment repeats %s", strings.Join(duplicates, ", "))))
+	}
+	returnCount, supported := semanticTupleReturnCount(line.Expression)
+	s.summary.TupleBindings = append(s.summary.TupleBindings, SemanticTupleBinding{
+		Line:        line.Line,
+		Names:       names,
+		Expression:  line.Expression,
+		ReturnCount: returnCount,
+		Supported:   supported,
+	})
+	for _, name := range names {
+		s.summary.Symbols = append(s.summary.Symbols, SemanticSymbol{
+			Name:       name,
+			Line:       line.Line,
+			Scope:      semanticScope(line.Indent),
+			ValueKind:  inferTupleElementKind(line.Expression),
+			Assignment: string(line.Mode),
+		})
+	}
+}
+
+func (s *semanticAnalyzerState) handleDeclaration(line ASTLine) {
+	declaration := semanticDeclaration(line)
+	s.summary.Declarations = append(s.summary.Declarations, declaration)
+	s.diagnostics = append(s.diagnostics, semanticDeclarationDiagnostics(line, declaration)...)
+	s.diagnostics = append(s.diagnostics, semanticImportAliasDiagnostics(line, declaration, s.importAliases)...)
+	switch declaration.Kind {
+	case "type":
+		s.registerTypeDeclaration(line, declaration)
+	case "method":
+		s.registerMethodDeclaration(line, declaration)
+	}
+}
+
+func (s *semanticAnalyzerState) registerTypeDeclaration(line ASTLine, declaration SemanticDeclaration) {
+	typeKey := strings.ToLower(strings.TrimSpace(declaration.Name))
+	_, duplicate := s.typeDeclarations[typeKey]
+	if typeKey != "" && duplicate {
+		s.diagnostics = append(s.diagnostics, semanticDiagnostic(line, "PINE_SEMANTIC_DECLARATION", fmt.Sprintf("type %s is already declared", declaration.Name)))
+	}
+	s.activeTypeRegistered = typeKey != "" && !duplicate
+	if s.activeTypeRegistered {
+		s.typeDeclarations[typeKey] = declaration
+	}
+	s.activeTypeIndex = len(s.summary.Declarations) - 1
+	s.activeTypeIndent = line.Indent
+	s.activeTypeFields = map[string]bool{}
+}
+
+func (s *semanticAnalyzerState) registerMethodDeclaration(line ASTLine, declaration SemanticDeclaration) {
+	registryDiagnostics, register := semanticMethodRegistryDiagnostics(line, declaration, s.typeDeclarations, s.methodSignatures)
+	s.diagnostics = append(s.diagnostics, registryDiagnostics...)
+	if !register {
+		return
+	}
+	key := semanticMethodKey(declaration.Receiver.Type, declaration.Name)
+	s.methodDeclarations[key] = append(s.methodDeclarations[key], declaration)
+	s.methodSignatures[semanticMethodSignatureKey(declaration)] = true
+}
+
+func (s *semanticAnalyzerState) handleCollection(line ASTLine, collectionOperations []SemanticCollectionOperation) {
+	if line.Name != "" {
+		s.summary.Symbols = append(s.summary.Symbols, SemanticSymbol{
+			Name:       line.Name,
+			Line:       line.Line,
+			Scope:      semanticScope(line.Indent),
+			ValueKind:  inferCollectionValueKind(line.Text),
+			Assignment: string(line.Mode),
+		})
+	}
+	if declaration, ok := semanticCollectionDeclaration(line); ok {
+		s.summary.Declarations = append(s.summary.Declarations, declaration)
+		s.diagnostics = append(s.diagnostics, semanticCollectionDeclarationDiagnostics(line, declaration, collectionOperations)...)
+		if declaration.Namespace != "" && line.Name != "" {
+			s.collectionNamespaces[strings.ToLower(line.Name)] = declaration.Namespace
 		}
 	}
-	return summary, diagnostics
+	if operation, ok := assignedCollectionConstructor(collectionOperations, line.Name); ok {
+		s.collectionNamespaces[strings.ToLower(line.Name)] = operation.Namespace
+	}
+}
+
+func (s *semanticAnalyzerState) handleUnsupported(line ASTLine) {
+	if s.activeTypeIndex < 0 || line.Indent <= s.activeTypeIndent {
+		return
+	}
+	field, ok := semanticTypeField(line.Text)
+	if !ok {
+		return
+	}
+	fieldName := strings.ToLower(field.Name)
+	if s.activeTypeFields[fieldName] {
+		s.diagnostics = append(s.diagnostics, semanticDiagnostic(line, "PINE_SEMANTIC_DECLARATION", fmt.Sprintf("type %s repeats field %s", s.summary.Declarations[s.activeTypeIndex].Name, field.Name)))
+	}
+	s.activeTypeFields[fieldName] = true
+	s.summary.Declarations[s.activeTypeIndex].Fields = append(s.summary.Declarations[s.activeTypeIndex].Fields, field)
+	s.summary.Declarations[s.activeTypeIndex].Signature = objectConstructorSignature(s.summary.Declarations[s.activeTypeIndex])
+	if s.activeTypeRegistered {
+		s.typeDeclarations[strings.ToLower(s.summary.Declarations[s.activeTypeIndex].Name)] = s.summary.Declarations[s.activeTypeIndex]
+	}
+}
+
+func (s *semanticAnalyzerState) appendLineOperations(line ASTLine, collectionOperations []SemanticCollectionOperation, objectOperations []SemanticObjectOperation) {
+	if len(collectionOperations) > 0 {
+		s.summary.CollectionOperations = append(s.summary.CollectionOperations, collectionOperations...)
+		s.diagnostics = append(s.diagnostics, collectionOperationDiagnostics(line, collectionOperations)...)
+		if collectionOperationsContainNonExecutable(collectionOperations) && line.Kind != NodeKindCollection {
+			s.diagnostics = append(s.diagnostics, semanticDiagnostic(line, "PINE_COLLECTION_UNSUPPORTED", "Pine collection namespaces array/matrix/map are not executable in this JFTrade Pine v6 version"))
+		}
+	}
+	if line.Kind != NodeKindVisual {
+		s.summary.Visuals = append(s.summary.Visuals, semanticVisualMetadata(line)...)
+	}
+	s.summary.ObjectOperations = append(s.summary.ObjectOperations, objectOperations...)
+	s.diagnostics = append(s.diagnostics, objectOperationDiagnostics(line, objectOperations, s.typeDeclarations, s.methodDeclarations)...)
+}
+
+func (s *semanticAnalyzerState) appendFunctionCalls(line ASTLine) {
+	for _, call := range semanticFunctionCalls(line.Text) {
+		signature, ok := semanticFunctionSignatures[call.name]
+		if !ok {
+			continue
+		}
+		s.summary.FunctionCalls = append(s.summary.FunctionCalls, SemanticFunctionCall{
+			Line:       line.Line,
+			Name:       call.name,
+			ArgCount:   call.argCount,
+			Signature:  signature.signature,
+			ReturnKind: signature.returnKind,
+			Supported:  true,
+		})
+		if call.argCount < signature.minArgs || call.argCount > signature.maxArgs {
+			s.diagnostics = append(s.diagnostics, semanticDiagnostic(line, "PINE_SEMANTIC_SIGNATURE", fmt.Sprintf("%s expects %s", call.name, signature.signature)))
+		}
+	}
 }
 
 func collectionOperationsContainNonExecutable(operations []SemanticCollectionOperation) bool {

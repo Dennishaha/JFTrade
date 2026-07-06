@@ -221,42 +221,15 @@ type RealTradeRuntimeRiskCommand struct {
 // Status 返回系统整体状态摘要。
 func (s *Service) Status() map[string]any {
 	now := time.Now().UTC()
-	apiPort := s.apiPort
-	if s.apiPortFn != nil {
-		apiPort = s.apiPortFn()
-	}
-	defaultTradingEnvironment := s.defaultTradingEnvironment
-	if s.defaultTradingEnvironmentFn != nil {
-		defaultTradingEnvironment = s.defaultTradingEnvironmentFn()
-	}
-	broker := map[string]any(nil)
-	if s.brokerDescriptor != nil {
-		broker = s.brokerDescriptor()
-	}
-	strategyRuntime := map[string]any(nil)
-	if s.strategyRuntimeSummary != nil {
-		strategyRuntime = s.strategyRuntimeSummary()
-	}
-	live := map[string]any(nil)
-	if s.liveStats != nil {
-		live = s.liveStats()
-	}
-	marketdata := map[string]any(nil)
-	if s.marketdataRuntimeSummary != nil {
-		marketdata = s.marketdataRuntimeSummary()
-	}
-	runtimeResources := map[string]any{"checkedAt": now.Format(time.RFC3339Nano), "count": 0, "items": []any{}}
-	if s.runtimeResourcesFn != nil {
-		runtimeResources = s.runtimeResourcesFn()
-	}
-	exchangeCalendars := map[string]any(nil)
-	if s.exchangeCalendarStatusFn != nil {
-		exchangeCalendars = s.exchangeCalendarStatusFn()
-	}
-	requestObservability := any(nil)
-	if s.requestObservabilityFn != nil {
-		requestObservability = s.requestObservabilityFn()
-	}
+	apiPort := s.currentAPIPort()
+	defaultTradingEnvironment := s.currentDefaultTradingEnvironment()
+	broker := s.optionalBrokerDescriptor()
+	strategyRuntime := s.optionalStrategyRuntimeSummary()
+	live := s.optionalLiveStats()
+	marketdata := s.optionalMarketdataRuntimeSummary()
+	runtimeResources := s.currentRuntimeResources(now)
+	exchangeCalendars := s.optionalExchangeCalendarStatus()
+	requestObservability := s.optionalRequestObservability()
 	realTrade := s.realTradeRiskState()
 	status := map[string]any{
 		"name":                      "JFTrade",
@@ -303,14 +276,82 @@ func (s *Service) Status() map[string]any {
 		"message":          "JFTrade API adapter is running.",
 	}
 
+	attachOptionalSystemStatus(status, broker, strategyRuntime)
+	return status
+}
+
+func (s *Service) currentAPIPort() int {
+	apiPort := s.apiPort
+	if s.apiPortFn != nil {
+		apiPort = s.apiPortFn()
+	}
+	return apiPort
+}
+
+func (s *Service) currentDefaultTradingEnvironment() string {
+	environment := s.defaultTradingEnvironment
+	if s.defaultTradingEnvironmentFn != nil {
+		environment = s.defaultTradingEnvironmentFn()
+	}
+	return environment
+}
+
+func (s *Service) optionalBrokerDescriptor() map[string]any {
+	if s.brokerDescriptor == nil {
+		return nil
+	}
+	return s.brokerDescriptor()
+}
+
+func (s *Service) optionalStrategyRuntimeSummary() map[string]any {
+	if s.strategyRuntimeSummary == nil {
+		return nil
+	}
+	return s.strategyRuntimeSummary()
+}
+
+func (s *Service) optionalLiveStats() map[string]any {
+	if s.liveStats == nil {
+		return nil
+	}
+	return s.liveStats()
+}
+
+func (s *Service) optionalMarketdataRuntimeSummary() map[string]any {
+	if s.marketdataRuntimeSummary == nil {
+		return nil
+	}
+	return s.marketdataRuntimeSummary()
+}
+
+func (s *Service) currentRuntimeResources(now time.Time) map[string]any {
+	if s.runtimeResourcesFn == nil {
+		return map[string]any{"checkedAt": now.Format(time.RFC3339Nano), "count": 0, "items": []any{}}
+	}
+	return s.runtimeResourcesFn()
+}
+
+func (s *Service) optionalExchangeCalendarStatus() map[string]any {
+	if s.exchangeCalendarStatusFn == nil {
+		return nil
+	}
+	return s.exchangeCalendarStatusFn()
+}
+
+func (s *Service) optionalRequestObservability() any {
+	if s.requestObservabilityFn == nil {
+		return nil
+	}
+	return s.requestObservabilityFn()
+}
+
+func attachOptionalSystemStatus(status map[string]any, broker map[string]any, strategyRuntime map[string]any) {
 	if broker != nil {
 		status["broker"] = broker
 	}
 	if strategyRuntime != nil {
 		status["strategyRuntime"] = strategyRuntime
 	}
-
-	return status
 }
 
 // ExchangeCalendarStatus 返回交易所日历状态。
