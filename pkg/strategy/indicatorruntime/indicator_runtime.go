@@ -412,194 +412,29 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 	if r == nil {
 		return nil
 	}
-	cache := r.snapshotCache
-	if cache == nil {
-		cache = newSnapshotSeriesCache()
-		r.snapshotCache = cache
-	}
-	cache.reset()
-	result := r.snapshotResult
-	if result == nil {
-		result = make(map[string]any, r.snapshotKeys.resultCapacity)
-		r.snapshotResult = result
-	} else {
-		clearMap(result)
-	}
-	for _, config := range r.requirements.ma {
-		snapshot := r.movingAverageSnapshot(config, cache)
-		if snapshot == nil {
-			continue
-		}
-		result[r.snapshotKeys.ma[config]] = snapshot
-		if legacyKey, ok := r.snapshotKeys.maLegacy[config]; ok {
-			result[legacyKey] = snapshot
-		}
-	}
-	for _, config := range r.requirements.securitySource {
-		key := r.snapshotKeys.securitySource[config]
-		current, previous, currentOK, previousOK := r.securitySourceSnapshotValues(config, cache)
-		snapshot := cache.getSeriesSnapshot(key, current, previous, currentOK, previousOK)
-		if snapshot != nil {
-			result[key] = snapshot
-		}
-	}
-	for _, period := range r.requirements.rsi {
-		key := r.snapshotKeys.rsi[period]
-		current, currentOK := r.rsiSnapshotValue(period, cache)
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, config := range r.requirements.rsiSource {
-		key := r.snapshotKeys.rsiSource[config]
-		current, currentOK := calculateRSIValueFromSeries(calculateRSISeries(r.seriesForSource(config.source), config.period))
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, config := range r.requirements.macd {
-		if state, ok := r.macdStates[config]; ok {
-			currentDiff, currentSignal, previousDiff, previousSignal, currentOK, previousOK := state.snapshotValues()
-			result[r.snapshotKeys.macd[config]] = cache.getMACDSnapshotValues(config, currentDiff, currentSignal, previousDiff, previousSignal, currentOK, previousOK)
-			continue
-		}
-		series := cache.getMACDSeries(r.closes, config)
-		result[r.snapshotKeys.macd[config]] = cache.getMACDSnapshot(config, series)
-	}
-	for _, config := range r.requirements.bollinger {
-		result[r.snapshotKeys.bollinger[config]] = r.bollingerSnapshot(config)
-	}
-	for _, config := range r.requirements.kdj {
-		if state, ok := r.kdjStates[config]; ok {
-			currentK, currentD, currentJ, previousK, previousD, previousJ, currentOK, previousOK := state.snapshotValues()
-			result[r.snapshotKeys.kdj[config]] = cache.getKDJSnapshotValues(config, currentK, currentD, currentJ, previousK, previousD, previousJ, currentOK, previousOK)
-			continue
-		}
-		result[r.snapshotKeys.kdj[config]] = cache.getKDJSnapshot(config, cache.getKDJSeries(r.highs, r.lows, r.closes, config))
-	}
-	for _, period := range r.requirements.atr {
-		key := r.snapshotKeys.atr[period]
-		current, currentOK := r.atrSnapshotValue(period)
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, period := range r.requirements.stdev {
-		key := r.snapshotKeys.stdev[period]
-		current, currentOK := r.stdDevSnapshotValue(period)
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, config := range r.requirements.stdevSource {
-		key := r.snapshotKeys.stdevSource[config]
-		current, currentOK := calculateStdDevValue(r.seriesForSource(config.source), config.period)
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, config := range r.requirements.variance {
-		key := r.snapshotKeys.variance[config]
-		current, currentOK := calculateVarianceValue(r.seriesForSource(config.source), config.period)
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, config := range r.requirements.windows {
-		key := r.snapshotKeys.windows[config]
-		state := r.windowStates[config]
-		if config.function == "rising" || config.function == "falling" {
-			if state != nil && state.hasCurrent {
-				result[key] = state.boolCurrent
-			}
-			continue
-		}
-		if state != nil {
-			result[key] = cache.getWindowSnapshot(config, state.current, state.previous, state.hasCurrent, state.hasPrevious)
-		}
-	}
-	for _, config := range r.requirements.cum {
-		key := r.snapshotKeys.cum[config]
-		if state := r.cumStates[config]; state != nil {
-			result[key] = cache.getSeriesSnapshot(key, state.current, state.previous, state.hasCurrent, state.hasPrevious)
-		}
-	}
-	for _, config := range r.requirements.stoch {
-		key := r.snapshotKeys.stoch[config]
-		if snapshot := r.stochSnapshot(config, cache); snapshot != nil {
-			result[key] = snapshot
-		}
-	}
-	for _, period := range r.requirements.cci {
-		key := r.snapshotKeys.cci[period]
-		current, currentOK := r.cciSnapshotValue(period)
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, config := range r.requirements.cciSource {
-		key := r.snapshotKeys.cciSource[config]
-		current, currentOK := calculateCCIFromValues(r.seriesForSource(config.source), config.period)
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, period := range r.requirements.williamsR {
-		key := r.snapshotKeys.williamsR[period]
-		current, currentOK := r.williamsRSnapshotValue(period)
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, config := range r.requirements.vwap {
-		key := r.snapshotKeys.vwap[config]
-		current, currentOK := r.vwapStates[config].value()
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, config := range r.requirements.mfi {
-		key := r.snapshotKeys.mfi[config]
-		current, currentOK := calculateMFIValue(r.seriesForSource(config.source), r.volumes, config.period)
-		result[key] = cache.getScalarSnapshot(key, current, currentOK)
-	}
-	for _, config := range r.requirements.dmi {
-		if snapshot := calculateDMISnapshot(r.highs, r.lows, r.closes, config); snapshot != nil {
-			result[r.snapshotKeys.dmi[config]] = snapshot
-		}
-	}
-	for _, config := range r.requirements.supertrend {
-		if snapshot := calculateSupertrendSnapshot(r.highs, r.lows, r.closes, config); snapshot != nil {
-			result[r.snapshotKeys.supertrend[config]] = snapshot
-		}
-	}
-	for _, config := range r.requirements.sar {
-		key := r.snapshotKeys.sar[config]
-		current, previous, currentOK, previousOK := calculateSARSnapshotValues(r.highs, r.lows, r.closes, config)
-		result[key] = cache.getSeriesSnapshot(key, current, previous, currentOK, previousOK)
-	}
-	for _, config := range r.requirements.advanced {
-		key := r.snapshotKeys.advanced[config]
-		if config.kind == "obv" && config.timeUnit == "" {
-			if state := r.obvStates[config]; state != nil {
-				result[key] = cache.getSeriesSnapshot(key, state.current, state.previous, state.hasCurrent, state.hasPrevious)
-			}
-			continue
-		}
-		if snapshot := r.advancedIndicatorSnapshot(config, cache); snapshot != nil {
-			result[key] = snapshot
-		}
-	}
-	for _, config := range r.requirements.stopLoss {
-		snapshot := buildStopLossSnapshotForSymbolWithOptionsAndCache(r.closes, r.endTimes, r.sessions, config, r.intervalMinutes, r.symbol, r.includeExtendedHours, cache)
-		if snapshot == nil {
-			continue
-		}
-		result[r.snapshotKeys.stopLoss[config]] = snapshot
-	}
-	for _, config := range r.requirements.rsiDivergence {
-		if state, ok := r.rsiStates[config.period]; ok {
-			result[r.snapshotKeys.rsiDivergence[config]] = state.detectDivergence(r.closes, config.direction, config.lookback)
-			continue
-		}
-		result[r.snapshotKeys.rsiDivergence[config]] = detectRSIDivergence(r.closes, r.rsiSeries(config.period), config.direction, config.lookback)
-	}
-	for _, config := range r.requirements.macdDivergence {
-		baseConfig := macdConfig{fastPeriod: config.fastPeriod, slowPeriod: config.slowPeriod, signalPeriod: config.signalPeriod}
-		if state, ok := r.macdStates[baseConfig]; ok {
-			result[r.snapshotKeys.macdDivergence[config]] = state.detectDivergence(r.closes, config.direction, config.lookback)
-			continue
-		}
-		result[r.snapshotKeys.macdDivergence[config]] = detectMACDDivergence(r.closes, cache.getMACDSeries(r.closes, baseConfig).diff, config.direction, config.lookback)
-	}
-	for _, config := range r.requirements.kdjDivergence {
-		baseConfig := kdjConfig{period: config.period, m1: config.m1, m2: config.m2}
-		if state, ok := r.kdjStates[baseConfig]; ok {
-			result[r.snapshotKeys.kdjDivergence[config]] = state.detectDivergence(r.closes, config.direction, config.lookback)
-			continue
-		}
-		result[r.snapshotKeys.kdjDivergence[config]] = detectKDJDivergence(r.closes, cache.getKDJSeries(r.highs, r.lows, r.closes, kdjConfig{period: config.period, m1: config.m1, m2: config.m2}).j, config.direction, config.lookback)
-	}
+	cache, result := r.prepareSnapshotState()
+	r.appendMovingAverageSnapshots(result, cache)
+	r.appendSecuritySourceSnapshots(result, cache)
+	r.appendRSISnapshots(result, cache)
+	r.appendMACDSnapshots(result, cache)
+	r.appendBollingerSnapshots(result)
+	r.appendKDJSnapshots(result, cache)
+	r.appendATRSnapshots(result, cache)
+	r.appendStdDevSnapshots(result, cache)
+	r.appendVarianceSnapshots(result, cache)
+	r.appendWindowSnapshots(result, cache)
+	r.appendCumSnapshots(result, cache)
+	r.appendStochSnapshots(result, cache)
+	r.appendCCISnapshots(result, cache)
+	r.appendWilliamsRSnapshots(result, cache)
+	r.appendVWAPSnapshots(result, cache)
+	r.appendMFISnapshots(result, cache)
+	r.appendDMISnapshots(result)
+	r.appendSupertrendSnapshots(result)
+	r.appendSARSnapshots(result, cache)
+	r.appendAdvancedSnapshots(result, cache)
+	r.appendStopLossSnapshots(result, cache)
+	r.appendDivergenceSnapshots(result, cache)
 	if len(result) == 0 {
 		return nil
 	}
