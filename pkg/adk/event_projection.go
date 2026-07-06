@@ -129,6 +129,15 @@ func (s *Store) latestRunBySession(ctx context.Context, sessionID string) (Run, 
 }
 
 func sessionProjectionFromADKEvents(events []*adksession.Event) SessionProjection {
+	sortProjectedEvents(events)
+	entries, runStates, runOrder := projectSessionEvents(events)
+	projection := buildSessionProjection(entries, runStates, runOrder)
+	projection.Messages = filterProjectedEntries(entries, &projection)
+	applyProjectionLatestAssistant(&projection)
+	return projection
+}
+
+func sortProjectedEvents(events []*adksession.Event) {
 	sort.SliceStable(events, func(i, j int) bool {
 		left := events[i]
 		right := events[j]
@@ -145,75 +154,101 @@ func sessionProjectionFromADKEvents(events []*adksession.Event) SessionProjectio
 			return left.Timestamp.Before(right.Timestamp)
 		}
 	})
+}
+
+func projectSessionEvents(events []*adksession.Event) ([]TranscriptEntry, map[string]*projectedRunState, []string) {
 	entries := make([]TranscriptEntry, 0, len(events))
 	runStates := map[string]*projectedRunState{}
 	runOrder := make([]string, 0, len(events))
 	for _, event := range events {
-		if event == nil || event.Content == nil || len(event.Content.Parts) == 0 {
-			continue
-		}
-		if isUserEvent(event) {
-			if event.Partial {
-				continue
-			}
-			entry, ok := transcriptEntryFromADKEvent(event)
-			if ok {
-				entries = append(entries, entry)
-			}
-			continue
-		}
-		for _, part := range event.Content.Parts {
-			if part == nil {
-				continue
-			}
-			state := ensureProjectedRunState(runStates, &runOrder, &entries, event)
-			switch {
-			case part.FunctionCall != nil:
-				if part.FunctionCall.Name == toolconfirmation.FunctionCallName {
-					continue
-				}
-				ensureProjectedToolCall(state, part.FunctionCall, eventTimeString(event))
-			case part.FunctionResponse != nil:
-				if part.FunctionResponse.Name == toolconfirmation.FunctionCallName {
-					continue
-				}
-				projectedToolResponse(state, part.FunctionResponse, eventTimeString(event))
-			case part.Text != "":
-				reply, reasoning := visibleTextFromParts([]*genai.Part{part})
-				mergeProjectedText(&state.reply, reply, event.Partial)
-				mergeProjectedText(&state.reasoning, reasoning, event.Partial)
-				if textID := strings.TrimSpace(event.ID); textID != "" {
-					state.entryID = textID
-				}
-			}
-		}
+		projectSessionEvent(event, &entries, runStates, &runOrder)
 	}
+	return entries, runStates, runOrder
+}
 
+func projectSessionEvent(event *adksession.Event, entries *[]TranscriptEntry, runStates map[string]*projectedRunState, runOrder *[]string) {
+	if event == nil || event.Content == nil || len(event.Content.Parts) == 0 {
+		return
+	}
+	if isUserEvent(event) {
+		appendProjectedUserEntry(event, entries)
+		return
+	}
+	for _, part := range event.Content.Parts {
+		projectSessionEventPart(event, part, entries, runStates, runOrder)
+	}
+}
+
+func appendProjectedUserEntry(event *adksession.Event, entries *[]TranscriptEntry) {
+	if event.Partial {
+		return
+	}
+	entry, ok := transcriptEntryFromADKEvent(event)
+	if ok {
+		*entries = append(*entries, entry)
+	}
+}
+
+func projectSessionEventPart(event *adksession.Event, part *genai.Part, entries *[]TranscriptEntry, runStates map[string]*projectedRunState, runOrder *[]string) {
+	if part == nil {
+		return
+	}
+	state := ensureProjectedRunState(runStates, runOrder, entries, event)
+	switch {
+	case part.FunctionCall != nil:
+		if part.FunctionCall.Name != toolconfirmation.FunctionCallName {
+			ensureProjectedToolCall(state, part.FunctionCall, eventTimeString(event))
+		}
+	case part.FunctionResponse != nil:
+		if part.FunctionResponse.Name != toolconfirmation.FunctionCallName {
+			projectedToolResponse(state, part.FunctionResponse, eventTimeString(event))
+		}
+	case part.Text != "":
+		projectProjectedTextPart(state, part, event)
+	}
+}
+
+func projectProjectedTextPart(state *projectedRunState, part *genai.Part, event *adksession.Event) {
+	reply, reasoning := visibleTextFromParts([]*genai.Part{part})
+	mergeProjectedText(&state.reply, reply, event.Partial)
+	mergeProjectedText(&state.reasoning, reasoning, event.Partial)
+	if textID := strings.TrimSpace(event.ID); textID != "" {
+		state.entryID = textID
+	}
+}
+
+func buildSessionProjection(entries []TranscriptEntry, runStates map[string]*projectedRunState, runOrder []string) SessionProjection {
 	projection := SessionProjection{}
 	for _, runID := range runOrder {
 		state := runStates[runID]
 		if state == nil {
 			continue
 		}
-		if state.entryIndex >= 0 && state.entryIndex < len(entries) {
-			entry := &entries[state.entryIndex]
-			entry.ID = defaultString(strings.TrimSpace(state.entryID), entry.ID)
-			entry.Content = strings.TrimSpace(state.reply.String())
-			entry.ReasoningContent = strings.TrimSpace(state.reasoning.String())
-		}
-		if strings.TrimSpace(state.preToolContent) != "" || strings.TrimSpace(state.preToolReasoning) != "" {
-			projection.PreToolContent = strings.TrimSpace(state.preToolContent)
-			projection.PreToolReasoning = strings.TrimSpace(state.preToolReasoning)
-		}
-		for _, toolCallID := range state.toolCallOrder {
-			call := state.toolCalls[toolCallID]
-			if call == nil {
-				continue
-			}
+		applyProjectedRunState(&projection, entries, state)
+	}
+	return projection
+}
+
+func applyProjectedRunState(projection *SessionProjection, entries []TranscriptEntry, state *projectedRunState) {
+	if state.entryIndex >= 0 && state.entryIndex < len(entries) {
+		entry := &entries[state.entryIndex]
+		entry.ID = defaultString(strings.TrimSpace(state.entryID), entry.ID)
+		entry.Content = strings.TrimSpace(state.reply.String())
+		entry.ReasoningContent = strings.TrimSpace(state.reasoning.String())
+	}
+	if strings.TrimSpace(state.preToolContent) != "" || strings.TrimSpace(state.preToolReasoning) != "" {
+		projection.PreToolContent = strings.TrimSpace(state.preToolContent)
+		projection.PreToolReasoning = strings.TrimSpace(state.preToolReasoning)
+	}
+	for _, toolCallID := range state.toolCallOrder {
+		call := state.toolCalls[toolCallID]
+		if call != nil {
 			projection.ToolCalls = append(projection.ToolCalls, *call)
 		}
 	}
+}
 
+func filterProjectedEntries(entries []TranscriptEntry, projection *SessionProjection) []TranscriptEntry {
 	filtered := make([]TranscriptEntry, 0, len(entries))
 	for _, entry := range entries {
 		if entry.Role == "assistant" &&
@@ -226,13 +261,16 @@ func sessionProjectionFromADKEvents(events []*adksession.Event) SessionProjectio
 			projection.LatestAssistant = new(entry)
 		}
 	}
-	projection.Messages = filtered
-	if projection.LatestAssistant != nil {
-		projection.Reply = projection.LatestAssistant.Content
-		projection.ReasoningContent = projection.LatestAssistant.ReasoningContent
-		projection.FinalMessageID = projection.LatestAssistant.ID
+	return filtered
+}
+
+func applyProjectionLatestAssistant(projection *SessionProjection) {
+	if projection.LatestAssistant == nil {
+		return
 	}
-	return projection
+	projection.Reply = projection.LatestAssistant.Content
+	projection.ReasoningContent = projection.LatestAssistant.ReasoningContent
+	projection.FinalMessageID = projection.LatestAssistant.ID
 }
 
 func ensureProjectedRunState(

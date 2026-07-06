@@ -80,34 +80,52 @@ func (s *Store) SessionRuns(ctx context.Context, sessionID string) ([]Run, error
 }
 
 func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Run, notices []TimelineEntry) []TimelineEntry {
-	sortedMessages := append([]TranscriptEntry(nil), messages...)
-	sort.SliceStable(sortedMessages, func(i, j int) bool {
-		return compareTimelineKeys(sortedMessages[i].CreatedAt, 0, sortedMessages[i].ID, sortedMessages[j].CreatedAt, 0, sortedMessages[j].ID)
-	})
+	sortedMessages := sortTimelineMessages(messages)
+	sortedRuns := sortTimelineRuns(runs)
+	runsByID, runsByFinalMessageID := indexTimelineRuns(sortedRuns)
+	raw := make([]timelinePrimitive, 0, len(sortedMessages)+(len(sortedRuns)*3)+len(notices))
+	appendTimelineNotices(&raw, session.ID, notices)
+	processedRuns := appendTimelineMessages(&raw, session.ID, sortedMessages, sortedRuns, runsByID, runsByFinalMessageID)
+	appendTimelineOrphanRuns(&raw, session.ID, sortedRuns, processedRuns)
+	return normalizeTimelineEntries(groupTimelinePrimitives(raw))
+}
 
-	sortedRuns := append([]Run(nil), runs...)
-	sort.SliceStable(sortedRuns, func(i, j int) bool {
-		return compareTimelineKeys(sortedRuns[i].CreatedAt, 0, sortedRuns[i].ID, sortedRuns[j].CreatedAt, 0, sortedRuns[j].ID)
+func sortTimelineMessages(messages []TranscriptEntry) []TranscriptEntry {
+	sorted := append([]TranscriptEntry(nil), messages...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return compareTimelineKeys(sorted[i].CreatedAt, 0, sorted[i].ID, sorted[j].CreatedAt, 0, sorted[j].ID)
 	})
+	return sorted
+}
 
-	runsByID := make(map[string]Run, len(sortedRuns))
-	runsByFinalMessageID := make(map[string]Run, len(sortedRuns))
-	for _, run := range sortedRuns {
+func sortTimelineRuns(runs []Run) []Run {
+	sorted := append([]Run(nil), runs...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return compareTimelineKeys(sorted[i].CreatedAt, 0, sorted[i].ID, sorted[j].CreatedAt, 0, sorted[j].ID)
+	})
+	return sorted
+}
+
+func indexTimelineRuns(runs []Run) (map[string]Run, map[string]Run) {
+	runsByID := make(map[string]Run, len(runs))
+	runsByFinalMessageID := make(map[string]Run, len(runs))
+	for _, run := range runs {
 		runsByID[run.ID] = run
 		if finalID := strings.TrimSpace(run.FinalMessageID); finalID != "" {
 			runsByFinalMessageID[finalID] = run
 		}
 	}
+	return runsByID, runsByFinalMessageID
+}
 
-	raw := make([]timelinePrimitive, 0, len(sortedMessages)+(len(sortedRuns)*3)+len(notices))
-	visibleUserRuns := map[string]struct{}{}
+func appendTimelineNotices(raw *[]timelinePrimitive, sessionID string, notices []TimelineEntry) {
 	for _, notice := range notices {
 		if strings.TrimSpace(notice.Text) == "" {
 			continue
 		}
-		raw = append(raw, timelinePrimitive{
+		*raw = append(*raw, timelinePrimitive{
 			id:        strings.TrimSpace(notice.ID),
-			sessionID: session.ID,
+			sessionID: sessionID,
 			runID:     strings.TrimSpace(notice.RunID),
 			kind:      defaultString(strings.TrimSpace(notice.Kind), TimelineKindContextNotice),
 			createdAt: notice.CreatedAt,
@@ -117,67 +135,81 @@ func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Ru
 			text:      strings.TrimSpace(notice.Text),
 		})
 	}
+}
+
+func appendTimelineMessages(raw *[]timelinePrimitive, sessionID string, messages []TranscriptEntry, runs []Run, runsByID map[string]Run, runsByFinalMessageID map[string]Run) map[string]struct{} {
 	processedRuns := map[string]struct{}{}
-	for _, message := range sortedMessages {
-		switch strings.ToLower(strings.TrimSpace(message.Role)) {
-		case "user":
-			text := strings.TrimSpace(message.Content)
-			prompt := classifyWorkflowUserPrompt(text)
-			run, runOK := runsByID[strings.TrimSpace(message.RunID)]
-			if !runOK && prompt.isInternal {
-				run, runOK = matchWorkflowPromptRun(prompt, sortedRuns)
-			}
-			if prompt.isHidden {
-				continue
-			}
-			originalText := ""
-			processedText := ""
-			runID := strings.TrimSpace(message.RunID)
-			if runOK {
-				runID = strings.TrimSpace(run.ID)
-				if _, seen := visibleUserRuns[runID]; seen {
-					continue
-				}
-				visibleUserRuns[runID] = struct{}{}
-				if userMessage := strings.TrimSpace(run.UserMessage); userMessage != "" && userMessage != text {
-					originalText = userMessage
-					processedText = text
-					text = userMessage
-				}
-			}
-			raw = append(raw, timelinePrimitive{
-				id:            message.ID,
-				sessionID:     session.ID,
-				runID:         runID,
-				kind:          TimelineKindUserMessage,
-				createdAt:     message.CreatedAt,
-				order:         10,
-				text:          text,
-				originalText:  originalText,
-				processedText: processedText,
-			})
-		default:
-			run, ok := runsByID[strings.TrimSpace(message.RunID)]
-			if !ok {
-				run, ok = runsByFinalMessageID[strings.TrimSpace(message.ID)]
-			}
-			if ok {
-				processedRuns[run.ID] = struct{}{}
-				raw = append(raw, timelinePrimitivesForRunMessage(session.ID, run, message)...)
-				continue
-			}
-			raw = append(raw, timelinePrimitivesForLooseAssistantMessage(session.ID, message)...)
+	visibleUserRuns := map[string]struct{}{}
+	for _, message := range messages {
+		appendTimelineMessage(raw, sessionID, message, runs, runsByID, runsByFinalMessageID, visibleUserRuns, processedRuns)
+	}
+	return processedRuns
+}
+
+func appendTimelineMessage(raw *[]timelinePrimitive, sessionID string, message TranscriptEntry, runs []Run, runsByID map[string]Run, runsByFinalMessageID map[string]Run, visibleUserRuns map[string]struct{}, processedRuns map[string]struct{}) {
+	if strings.EqualFold(strings.TrimSpace(message.Role), "user") {
+		if primitive, ok := timelinePrimitiveForUserMessage(sessionID, message, runs, runsByID, visibleUserRuns); ok {
+			*raw = append(*raw, primitive)
+		}
+		return
+	}
+	run, ok := runsByID[strings.TrimSpace(message.RunID)]
+	if !ok {
+		run, ok = runsByFinalMessageID[strings.TrimSpace(message.ID)]
+	}
+	if ok {
+		processedRuns[run.ID] = struct{}{}
+		*raw = append(*raw, timelinePrimitivesForRunMessage(sessionID, run, message)...)
+		return
+	}
+	*raw = append(*raw, timelinePrimitivesForLooseAssistantMessage(sessionID, message)...)
+}
+
+func timelinePrimitiveForUserMessage(sessionID string, message TranscriptEntry, runs []Run, runsByID map[string]Run, visibleUserRuns map[string]struct{}) (timelinePrimitive, bool) {
+	text := strings.TrimSpace(message.Content)
+	prompt := classifyWorkflowUserPrompt(text)
+	run, runOK := runsByID[strings.TrimSpace(message.RunID)]
+	if !runOK && prompt.isInternal {
+		run, runOK = matchWorkflowPromptRun(prompt, runs)
+	}
+	if prompt.isHidden {
+		return timelinePrimitive{}, false
+	}
+	originalText := ""
+	processedText := ""
+	runID := strings.TrimSpace(message.RunID)
+	if runOK {
+		runID = strings.TrimSpace(run.ID)
+		if _, seen := visibleUserRuns[runID]; seen {
+			return timelinePrimitive{}, false
+		}
+		visibleUserRuns[runID] = struct{}{}
+		if userMessage := strings.TrimSpace(run.UserMessage); userMessage != "" && userMessage != text {
+			originalText = userMessage
+			processedText = text
+			text = userMessage
 		}
 	}
+	return timelinePrimitive{
+		id:            message.ID,
+		sessionID:     sessionID,
+		runID:         runID,
+		kind:          TimelineKindUserMessage,
+		createdAt:     message.CreatedAt,
+		order:         10,
+		text:          text,
+		originalText:  originalText,
+		processedText: processedText,
+	}, true
+}
 
-	for _, run := range sortedRuns {
+func appendTimelineOrphanRuns(raw *[]timelinePrimitive, sessionID string, runs []Run, processedRuns map[string]struct{}) {
+	for _, run := range runs {
 		if _, ok := processedRuns[run.ID]; ok {
 			continue
 		}
-		raw = append(raw, timelinePrimitivesForOrphanRun(session.ID, run)...)
+		*raw = append(*raw, timelinePrimitivesForOrphanRun(sessionID, run)...)
 	}
-
-	return normalizeTimelineEntries(groupTimelinePrimitives(raw))
 }
 
 type workflowUserPrompt struct {
