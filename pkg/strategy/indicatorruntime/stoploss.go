@@ -23,24 +23,13 @@ func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTime
 	if usesTradingPeriodWindow(config.timeUnit, intervalMinutes, symbol, endTimes, includeExtendedHours) {
 		return buildStopLossSnapshotForTradingWindowWithCache(closes, endTimes, sessions, config, intervalMinutes, symbol, includeExtendedHours, cache)
 	}
-	lookback := resolveBarCount(config.timeValue, config.timeUnit, intervalMinutes)
-	if lookback <= 0 || len(closes) <= lookback {
+	windowStart, windowPolicy, ok := stopLossWindowStart(closes, endTimes, sessions, config, intervalMinutes, cache)
+	if !ok {
 		return nil
-	}
-	windowStart := len(closes) - 1 - lookback
-	if windowStart < 0 {
-		return nil
-	}
-	windowPolicy := normalizeStopLossWindowPolicy(config.windowPolicy)
-	if windowPolicy == "session" {
-		windowStart = resolveSessionAwareWindowStartWithCache(endTimes, sessions, windowStart, intervalMinutes, cache)
-		if windowStart < 0 {
-			return nil
-		}
 	}
 	reference := closes[windowStart]
 	current := closes[len(closes)-1]
-	if reference <= 0 || math.IsNaN(reference) || math.IsInf(reference, 0) || math.IsNaN(current) || math.IsInf(current, 0) {
+	if invalidStopLossPrice(reference) || invalidStopLossPrice(current) {
 		return nil
 	}
 	changePercent := ((current - reference) / reference) * 100
@@ -72,21 +61,6 @@ func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTime
 		longTriggered = changePercent <= -config.percentage
 		shortTriggered = changePercent >= config.percentage
 	}
-	var triggerPercent float64
-	switch direction {
-	case "long":
-		triggerPercent = longTriggerPercent
-	case "short":
-		triggerPercent = shortTriggerPercent
-	default:
-		if longTriggered && !shortTriggered {
-			triggerPercent = longTriggerPercent
-		} else if shortTriggered && !longTriggered {
-			triggerPercent = shortTriggerPercent
-		} else {
-			triggerPercent = max(longTriggerPercent, shortTriggerPercent)
-		}
-	}
 	return fillStopLossSnapshot(
 		cache,
 		config,
@@ -97,7 +71,7 @@ func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTime
 		reference,
 		current,
 		changePercent,
-		triggerPercent,
+		stopLossTriggerPercent(direction, longTriggered, shortTriggered, longTriggerPercent, shortTriggerPercent),
 		longTriggered,
 		shortTriggered,
 		longTriggerPercent,
@@ -107,6 +81,47 @@ func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTime
 		longDrawdownPercent,
 		shortReboundPercent,
 	)
+}
+
+func stopLossWindowStart(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int, cache *snapshotSeriesCache) (int, string, bool) {
+	lookback := resolveBarCount(config.timeValue, config.timeUnit, intervalMinutes)
+	if lookback <= 0 || len(closes) <= lookback {
+		return 0, "", false
+	}
+	windowStart := len(closes) - 1 - lookback
+	if windowStart < 0 {
+		return 0, "", false
+	}
+	windowPolicy := normalizeStopLossWindowPolicy(config.windowPolicy)
+	if windowPolicy != "session" {
+		return windowStart, windowPolicy, true
+	}
+	windowStart = resolveSessionAwareWindowStartWithCache(endTimes, sessions, windowStart, intervalMinutes, cache)
+	if windowStart < 0 {
+		return 0, "", false
+	}
+	return windowStart, windowPolicy, true
+}
+
+func invalidStopLossPrice(value float64) bool {
+	return value <= 0 || math.IsNaN(value) || math.IsInf(value, 0)
+}
+
+func stopLossTriggerPercent(direction string, longTriggered bool, shortTriggered bool, longTriggerPercent float64, shortTriggerPercent float64) float64 {
+	switch direction {
+	case "long":
+		return longTriggerPercent
+	case "short":
+		return shortTriggerPercent
+	default:
+		if longTriggered && !shortTriggered {
+			return longTriggerPercent
+		}
+		if shortTriggered && !longTriggered {
+			return shortTriggerPercent
+		}
+		return max(longTriggerPercent, shortTriggerPercent)
+	}
 }
 
 func buildStopLossSnapshotForTradingWindowWithCache(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) map[string]any {

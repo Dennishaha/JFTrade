@@ -342,92 +342,117 @@ func defaultNewPineWorkerDialer(maxMessageBytes int) pineworker.TransportDialer 
 	return pineworker.NewGRPCDialer(pineworker.GRPCDialerConfig{MaxMessageBytes: maxMessageBytes})
 }
 
+type pineWorkerBundleConfig struct {
+	bundlePath string
+	asset      pineworkerassets.Asset
+	embedded   bool
+}
+
 func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWorkerSettings) (pineWorkerRuntimeConfig, bool, error) {
 	if envBool(envPineWorkerDisabled, false) {
 		return pineWorkerRuntimeConfig{}, false, nil
 	}
-	bundlePath := strings.TrimSpace(os.Getenv(envPineWorkerBundle))
-	var embeddedAsset pineworkerassets.Asset
-	var embedded bool
-	if bundlePath == "" {
-		var err error
-		embeddedAsset, embedded, err = selectPineWorkerAsset()
-		if err != nil {
-			return pineWorkerRuntimeConfig{}, false, err
-		}
-		if !embedded {
-			return pineWorkerRuntimeConfig{}, false, nil
-		}
-		bundlePath = embeddedAsset.Name
+	bundleConfig, enabled, err := resolvePineWorkerBundleConfig()
+	if err != nil || !enabled {
+		return pineWorkerRuntimeConfig{}, enabled, err
 	}
-	defaultSettings := settingsfile.DefaultPineWorkerSettings()
-	if settingsProvider != nil {
-		defaultSettings = settingsfile.NormalizePineWorkerSettings(settingsProvider())
-	}
+	defaultSettings := defaultPineWorkerSettings(settingsProvider)
 	defaultWorkerConfig := pineworker.DefaultWorkerConfig(runtime.NumCPU())
-	backtestWorkers, err := envIntInRange(envPineWorkerBacktestWorkers, defaultSettings.BacktestWorkerLimit, 1, 1000)
+	backtestWorkers, instanceWorkers, err := resolvePineWorkerWorkerCounts(defaultSettings)
 	if err != nil {
 		return pineWorkerRuntimeConfig{}, false, err
+	}
+	runtimeConfig, err := resolvePineWorkerRuntimeLimits(defaultWorkerConfig)
+	if err != nil {
+		return pineWorkerRuntimeConfig{}, false, err
+	}
+	workDir := resolvePineWorkerWorkDir(bundleConfig.bundlePath)
+	protoPath := resolvePineWorkerProtoPath(workDir)
+	runtimePath := resolvePineWorkerRuntime(defaultSettings)
+	runtimeConfig.BundlePath = bundleConfig.bundlePath
+	runtimeConfig.RuntimePath = runtimePath
+	runtimeConfig.SHA256 = firstNonEmpty(strings.TrimSpace(os.Getenv(envPineWorkerSHA256)), bundleConfig.asset.SHA256)
+	runtimeConfig.BacktestWorkers = backtestWorkers
+	runtimeConfig.InstanceWorkers = instanceWorkers
+	runtimeConfig.WorkDir = workDir
+	runtimeConfig.ProtoPath = protoPath
+	runtimeConfig.embedded = bundleConfig.embedded
+	runtimeConfig.bundleData = bundleConfig.asset.Data
+	return runtimeConfig, true, nil
+}
+
+func resolvePineWorkerBundleConfig() (pineWorkerBundleConfig, bool, error) {
+	bundlePath := strings.TrimSpace(os.Getenv(envPineWorkerBundle))
+	if bundlePath != "" {
+		return pineWorkerBundleConfig{bundlePath: bundlePath}, true, nil
+	}
+	asset, embedded, err := selectPineWorkerAsset()
+	if err != nil {
+		return pineWorkerBundleConfig{}, false, err
+	}
+	if !embedded {
+		return pineWorkerBundleConfig{}, false, nil
+	}
+	return pineWorkerBundleConfig{
+		bundlePath: asset.Name,
+		asset:      asset,
+		embedded:   true,
+	}, true, nil
+}
+
+func defaultPineWorkerSettings(settingsProvider func() jftsettings.PineWorkerSettings) jftsettings.PineWorkerSettings {
+	settings := settingsfile.DefaultPineWorkerSettings()
+	if settingsProvider != nil {
+		settings = settingsfile.NormalizePineWorkerSettings(settingsProvider())
+	}
+	return settings
+}
+
+func resolvePineWorkerWorkerCounts(defaultSettings jftsettings.PineWorkerSettings) (int, int, error) {
+	backtestWorkers, err := envIntInRange(envPineWorkerBacktestWorkers, defaultSettings.BacktestWorkerLimit, 1, 1000)
+	if err != nil {
+		return 0, 0, err
 	}
 	instanceWorkers, err := envIntInRange(envPineWorkerInstanceWorkers, defaultSettings.InstanceWorkerLimit, 1, 1000)
 	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
+		return 0, 0, err
 	}
+	return backtestWorkers, instanceWorkers, nil
+}
+
+func resolvePineWorkerRuntimeLimits(defaultWorkerConfig pineworker.WorkerConfig) (pineWorkerRuntimeConfig, error) {
 	startPort, err := envPositiveInt(envPineWorkerStartPort, 50051)
 	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
+		return pineWorkerRuntimeConfig{}, err
 	}
 	requestTimeout, err := envDuration(envPineWorkerRequestTimeout, defaultWorkerConfig.RequestTimeout)
 	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
+		return pineWorkerRuntimeConfig{}, err
 	}
 	healthTimeout, err := envDuration(envPineWorkerHealthTimeout, 5*time.Second)
 	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
+		return pineWorkerRuntimeConfig{}, err
 	}
 	maxMessageBytes, err := envPositiveInt(envPineWorkerMaxMessageBytes, defaultWorkerConfig.MaxMessageBytes)
 	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
+		return pineWorkerRuntimeConfig{}, err
 	}
 	maxCandles, err := envPositiveInt(envPineWorkerMaxCandles, defaultWorkerConfig.MaxCandlesPerRequest)
 	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
+		return pineWorkerRuntimeConfig{}, err
 	}
-	gate := pineworker.DefaultPerformanceGate()
-	maxDuration, err := envDuration(envPineWorkerMaxDuration, gate.MaxDuration)
+	maxDuration, maxDurationPerBar, minCandlesPerSec, maxPeakRSSBytes, err := resolvePineWorkerPerformanceGate()
 	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
-	}
-	maxDurationPerBar, err := envDuration(envPineWorkerMaxDurationPerBar, gate.MaxDurationPerBar)
-	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
-	}
-	minCandlesPerSec, err := envPositiveFloat(envPineWorkerMinCandlesPerSec, gate.MinCandlesPerSec)
-	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
-	}
-	maxPeakRSSBytes, err := envPositiveInt64(envPineWorkerMaxPeakRSSBytes, gate.MaxPeakRSSBytes)
-	if err != nil {
-		return pineWorkerRuntimeConfig{}, false, err
+		return pineWorkerRuntimeConfig{}, err
 	}
 	host := strings.TrimSpace(os.Getenv(envPineWorkerHost))
 	if host == "" {
 		host = "127.0.0.1"
 	}
-	workDir := resolvePineWorkerWorkDir(bundlePath)
-	protoPath := resolvePineWorkerProtoPath(workDir)
-	runtimePath := resolvePineWorkerRuntime(defaultSettings)
 	return pineWorkerRuntimeConfig{
-		BundlePath:        bundlePath,
-		RuntimePath:       runtimePath,
-		SHA256:            firstNonEmpty(strings.TrimSpace(os.Getenv(envPineWorkerSHA256)), embeddedAsset.SHA256),
-		BacktestWorkers:   backtestWorkers,
-		InstanceWorkers:   instanceWorkers,
 		Host:              host,
 		StartPort:         startPort,
 		TempDir:           strings.TrimSpace(os.Getenv(envPineWorkerTempDir)),
-		WorkDir:           workDir,
-		ProtoPath:         protoPath,
 		PineTSVersion:     strings.TrimSpace(os.Getenv(envPineWorkerPineTSVersion)),
 		Mock:              envBool(envPineWorkerMock, false),
 		RequestTimeout:    requestTimeout,
@@ -438,9 +463,28 @@ func resolvePineWorkerRuntimeConfig(settingsProvider func() jftsettings.PineWork
 		MaxDurationPerBar: maxDurationPerBar,
 		MinCandlesPerSec:  minCandlesPerSec,
 		MaxPeakRSSBytes:   maxPeakRSSBytes,
-		embedded:          embedded,
-		bundleData:        embeddedAsset.Data,
-	}, true, nil
+	}, nil
+}
+
+func resolvePineWorkerPerformanceGate() (time.Duration, time.Duration, float64, int64, error) {
+	gate := pineworker.DefaultPerformanceGate()
+	maxDuration, err := envDuration(envPineWorkerMaxDuration, gate.MaxDuration)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	maxDurationPerBar, err := envDuration(envPineWorkerMaxDurationPerBar, gate.MaxDurationPerBar)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	minCandlesPerSec, err := envPositiveFloat(envPineWorkerMinCandlesPerSec, gate.MinCandlesPerSec)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	maxPeakRSSBytes, err := envPositiveInt64(envPineWorkerMaxPeakRSSBytes, gate.MaxPeakRSSBytes)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	return maxDuration, maxDurationPerBar, minCandlesPerSec, maxPeakRSSBytes, nil
 }
 
 func resolvePineWorkerRuntime(settings jftsettings.PineWorkerSettings) string {

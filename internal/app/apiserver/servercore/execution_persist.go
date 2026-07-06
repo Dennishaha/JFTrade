@@ -207,7 +207,21 @@ func (s *executionOrderSQLiteStore) Close() error {
 }
 
 func (s *executionOrderSQLiteStore) initializeOrValidateSchema() error {
-	statements := []string{
+	return sqliteschema.InitializeOrValidate(
+		context.Background(),
+		s.db,
+		s.path,
+		"execution-orders",
+		2,
+		executionSchemaStatements(),
+		func(ctx context.Context, _ sqliteschema.Database) error {
+			return s.validateExecutionSchemas(ctx)
+		},
+	)
+}
+
+func executionSchemaStatements() []string {
+	return []string{
 		strings.Join([]string{
 			`CREATE TABLE IF NOT EXISTS ` + executionOrderTable + ` (`,
 			`  internal_order_id    TEXT PRIMARY KEY,`,
@@ -265,33 +279,33 @@ func (s *executionOrderSQLiteStore) initializeOrValidateSchema() error {
 		`CREATE INDEX IF NOT EXISTS idx_execution_orders_broker_order_ex ON ` + executionOrderTable + ` (broker_id, trading_environment, account_id, market, broker_order_id_ex)`,
 		`CREATE INDEX IF NOT EXISTS idx_execution_order_events_order ON ` + executionOrderEventTable + ` (internal_order_id, created_at ASC, id ASC)`,
 	}
-	return sqliteschema.InitializeOrValidate(
-		context.Background(),
-		s.db,
-		s.path,
-		"execution-orders",
-		2,
-		statements,
-		func(ctx context.Context, _ sqliteschema.Database) error {
-			if err := s.ensureExistingSchemaCanBeOpened(); err != nil {
-				return err
-			}
-			for _, schema := range []struct {
-				table   string
-				columns []string
-			}{
-				{table: executionOrderTable, columns: expectedExecutionOrderColumns()},
-				{table: executionOrderEventTable, columns: expectedExecutionOrderEventColumns()},
-				{table: executionSeenFillTable, columns: expectedExecutionSeenFillColumns()},
-				{table: executionSequenceTable, columns: expectedExecutionSequenceColumns()},
-			} {
-				if err := s.ensureSchema(schema.table, schema.columns); err != nil {
-					return err
-				}
-			}
-			return nil
-		},
-	)
+}
+
+func (s *executionOrderSQLiteStore) validateExecutionSchemas(context.Context) error {
+	if err := s.ensureExistingSchemaCanBeOpened(); err != nil {
+		return err
+	}
+	for _, schema := range expectedExecutionSchemas() {
+		if err := s.ensureSchema(schema.table, schema.columns); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func expectedExecutionSchemas() []struct {
+	table   string
+	columns []string
+} {
+	return []struct {
+		table   string
+		columns []string
+	}{
+		{table: executionOrderTable, columns: expectedExecutionOrderColumns()},
+		{table: executionOrderEventTable, columns: expectedExecutionOrderEventColumns()},
+		{table: executionSeenFillTable, columns: expectedExecutionSeenFillColumns()},
+		{table: executionSequenceTable, columns: expectedExecutionSequenceColumns()},
+	}
 }
 
 func (s *executionOrderSQLiteStore) ensureExistingSchemaCanBeOpened() error {

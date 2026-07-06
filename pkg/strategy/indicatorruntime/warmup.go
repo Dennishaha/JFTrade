@@ -57,6 +57,12 @@ func WarmupBarsFromPlanForSymbolWithOptions(plan strategyir.Requirements, interv
 
 func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMinutes int, symbol string, includeExtendedHours bool) int {
 	warmup := 0
+	warmup = calculateTrendWarmupBars(warmup, requirements, intervalMinutes, symbol, includeExtendedHours)
+	warmup = calculateOscillatorWarmupBars(warmup, requirements, intervalMinutes, symbol, includeExtendedHours)
+	return calculateRiskAndAdvancedWarmupBars(warmup, requirements, intervalMinutes, symbol, includeExtendedHours)
+}
+
+func calculateTrendWarmupBars(warmup int, requirements indicatorRequirements, intervalMinutes int, symbol string, includeExtendedHours bool) int {
 	for _, config := range requirements.ma {
 		warmup = max(warmup, estimateTradingPeriodBars(config.period, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
 	}
@@ -75,6 +81,10 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 	for _, config := range requirements.bollinger {
 		warmup = max(warmup, config.period)
 	}
+	return warmup
+}
+
+func calculateOscillatorWarmupBars(warmup int, requirements indicatorRequirements, intervalMinutes int, symbol string, includeExtendedHours bool) int {
 	for _, period := range requirements.stdev {
 		warmup = max(warmup, period)
 	}
@@ -113,6 +123,10 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 	for _, period := range requirements.williamsR {
 		warmup = max(warmup, period)
 	}
+	return warmup
+}
+
+func calculateRiskAndAdvancedWarmupBars(warmup int, requirements indicatorRequirements, intervalMinutes int, symbol string, includeExtendedHours bool) int {
 	for _, config := range requirements.mfi {
 		warmup = max(warmup, estimateTradingPeriodBars(config.period+1, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
 	}

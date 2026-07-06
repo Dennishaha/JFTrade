@@ -61,68 +61,51 @@ func normalizeWindowFunction(value string) string {
 }
 
 func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
-	if len(parts) == 2 {
-		period, ok := parsePositiveInt(parts[1])
-		if !ok {
-			return movingAverageConfig{}, false
-		}
-		return movingAverageConfig{averageType: "MA", period: period}, true
-	}
-	if len(parts) == 3 {
-		if period, ok := parsePositiveInt(parts[1]); ok {
-			source, sourceOK := parseOHLCVSource(parts[2])
-			if sourceOK {
-				return movingAverageConfig{
-					averageType: "MA",
-					period:      period,
-					source:      source,
-				}, true
-			}
-			timeUnit, timeUnitOK := parseIndicatorTimeUnit(parts[2])
-			if !timeUnitOK {
-				return movingAverageConfig{}, false
-			}
-			return movingAverageConfig{
-				averageType: "MA",
-				period:      period,
-				timeUnit:    timeUnit,
-			}, true
-		}
-		period, ok := parsePositiveInt(parts[2])
-		if !ok {
-			return movingAverageConfig{}, false
-		}
-		return movingAverageConfig{
-			averageType: normalizeMovingAverageType(parts[1]),
-			period:      period,
-		}, true
-	}
-	if len(parts) == 4 {
-		period, ok := parsePositiveInt(parts[2])
-		if !ok {
-			return movingAverageConfig{}, false
-		}
-		source, sourceOK := parseOHLCVSource(parts[3])
-		if sourceOK {
-			return movingAverageConfig{
-				averageType: normalizeMovingAverageType(parts[1]),
-				period:      period,
-				source:      source,
-			}, true
-		}
-		timeUnit, timeUnitOK := parseIndicatorTimeUnit(parts[3])
-		if !timeUnitOK {
-			return movingAverageConfig{}, false
-		}
-		return movingAverageConfig{
-			averageType: normalizeMovingAverageType(parts[1]),
-			period:      period,
-			timeUnit:    timeUnit,
-		}, true
-	}
-	if len(parts) != 5 {
+	switch len(parts) {
+	case 2:
+		return parseBasicMovingAverageConfig(parts)
+	case 3:
+		return parseThreePartMovingAverageConfig(parts)
+	case 4:
+		return parseFourPartMovingAverageConfig(parts)
+	case 5:
+		return parseFivePartMovingAverageConfig(parts)
+	default:
 		return movingAverageConfig{}, false
 	}
+}
+
+func parseBasicMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
+	period, ok := parsePositiveInt(parts[1])
+	if !ok {
+		return movingAverageConfig{}, false
+	}
+	return movingAverageConfig{averageType: "MA", period: period}, true
+}
+
+func parseThreePartMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
+	if period, ok := parsePositiveInt(parts[1]); ok {
+		return parseDefaultMovingAverageTail("MA", period, parts[2])
+	}
+	period, ok := parsePositiveInt(parts[2])
+	if !ok {
+		return movingAverageConfig{}, false
+	}
+	return movingAverageConfig{
+		averageType: normalizeMovingAverageType(parts[1]),
+		period:      period,
+	}, true
+}
+
+func parseFourPartMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
+	period, ok := parsePositiveInt(parts[2])
+	if !ok {
+		return movingAverageConfig{}, false
+	}
+	return parseDefaultMovingAverageTail(normalizeMovingAverageType(parts[1]), period, parts[3])
+}
+
+func parseFivePartMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 	period, ok := parsePositiveInt(parts[2])
 	if !ok {
 		return movingAverageConfig{}, false
@@ -140,6 +123,26 @@ func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 		period:      period,
 		timeUnit:    timeUnit,
 		source:      source,
+	}, true
+}
+
+func parseDefaultMovingAverageTail(averageType string, period int, tail string) (movingAverageConfig, bool) {
+	source, sourceOK := parseOHLCVSource(tail)
+	if sourceOK {
+		return movingAverageConfig{
+			averageType: averageType,
+			period:      period,
+			source:      source,
+		}, true
+	}
+	timeUnit, timeUnitOK := parseIndicatorTimeUnit(tail)
+	if !timeUnitOK {
+		return movingAverageConfig{}, false
+	}
+	return movingAverageConfig{
+		averageType: averageType,
+		period:      period,
+		timeUnit:    timeUnit,
 	}, true
 }
 

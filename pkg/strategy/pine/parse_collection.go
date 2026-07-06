@@ -185,109 +185,158 @@ func (s *parseState) updateCollectionResultNamespace(name string, namespace stri
 	delete(s.collectionNamespaces, key)
 }
 
-//nolint:funlen
+type collectionHistoryCall struct {
+	start     int
+	end       int
+	name      string
+	lookback  string
+	operation string
+	args      string
+}
+
 func (s *parseState) lowerCollectionHistoryReadCalls(expression string) (string, error) {
 	result := expression
 	for {
-		matchStart := -1
-		matchEnd := -1
-		var name, lookback, operation string
-		rewriteOutsideStringLiterals(result, func(segment string) string {
-			if matchStart >= 0 {
-				return segment
-			}
-			offset := strings.Index(result, segment)
-			for search := 0; search < len(segment); search++ {
-				openBracket := strings.Index(segment[search:], "[")
-				if openBracket < 0 {
-					return segment
-				}
-				openBracket += search
-				nameEnd := openBracket
-				nameStart := nameEnd - 1
-				for nameStart >= 0 {
-					ch := segment[nameStart]
-					if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' {
-						nameStart--
-						continue
-					}
-					break
-				}
-				nameStart++
-				if nameStart >= nameEnd {
-					search = openBracket + 1
-					continue
-				}
-				closeBracket := strings.Index(segment[openBracket:], "]")
-				if closeBracket < 0 {
-					return segment
-				}
-				closeBracket += openBracket
-				rawLookback := strings.TrimSpace(segment[openBracket+1 : closeBracket])
-				if !numberPattern.MatchString(rawLookback) || strings.Contains(rawLookback, ".") || strings.HasPrefix(rawLookback, "-") {
-					search = closeBracket + 1
-					continue
-				}
-				after := strings.TrimLeft(segment[closeBracket+1:], " \t")
-				skipped := len(segment[closeBracket+1:]) - len(after)
-				if !strings.HasPrefix(after, ".") {
-					search = closeBracket + 1
-					continue
-				}
-				methodStart := closeBracket + 1 + skipped + 1
-				methodEnd := methodStart
-				for methodEnd < len(segment) {
-					ch := segment[methodEnd]
-					if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' {
-						methodEnd++
-						continue
-					}
-					break
-				}
-				if methodEnd == methodStart || methodEnd >= len(segment) || segment[methodEnd] != '(' {
-					search = methodEnd
-					continue
-				}
-				closeParen := matchingParen(segment, methodEnd)
-				if closeParen < 0 {
-					return segment
-				}
-				matchStart = offset + nameStart
-				matchEnd = offset + closeParen + 1
-				name = strings.TrimSpace(segment[nameStart:nameEnd])
-				lookback = rawLookback
-				operation = strings.ToLower(strings.TrimSpace(segment[methodStart:methodEnd]))
-				return segment
-			}
-			return segment
-		})
-		if matchStart < 0 {
+		call, ok := findCollectionHistoryCall(result)
+		if !ok {
 			return result, nil
 		}
-		namespace := s.collectionNamespaces[strings.ToLower(name)]
+		namespace := s.collectionNamespaces[strings.ToLower(call.name)]
 		if namespace == "" {
-			return result, fmt.Errorf("collection history reference %s[%s].%s requires a known collection variable", name, lookback, operation)
+			return result, fmt.Errorf("collection history reference %s[%s].%s requires a known collection variable", call.name, call.lookback, call.operation)
 		}
 		if namespace != "array" {
 			return result, fmt.Errorf("collection history is supported only for arrays")
 		}
-		if !collectionHistoryReadOperation(operation) {
+		if !collectionHistoryReadOperation(call.operation) {
 			return result, fmt.Errorf("collection history supports only read operations get/size/first/last")
 		}
-		call := result[matchStart:matchEnd]
-		open := strings.LastIndex(call, "(")
-		close := strings.LastIndex(call, ")")
-		args := ""
-		if open >= 0 && close > open {
-			args = strings.TrimSpace(call[open+1 : close])
-		}
-		replacement := "collection_array_" + operation + "(history(" + name + ", " + lookback + ")"
-		if args != "" {
-			replacement += ", " + args
-		}
-		replacement += ")"
-		result = result[:matchStart] + replacement + result[matchEnd:]
+		result = result[:call.start] + collectionHistoryReplacement(call) + result[call.end:]
 	}
+}
+
+func findCollectionHistoryCall(expression string) (collectionHistoryCall, bool) {
+	match := collectionHistoryCall{start: -1}
+	rewriteOutsideStringLiterals(expression, func(segment string) string {
+		if match.start >= 0 {
+			return segment
+		}
+		offset := strings.Index(expression, segment)
+		match = findCollectionHistoryCallInSegment(segment, offset)
+		return segment
+	})
+	return match, match.start >= 0
+}
+
+func findCollectionHistoryCallInSegment(segment string, offset int) collectionHistoryCall {
+	for search := 0; search < len(segment); search++ {
+		match, nextSearch, ok := parseCollectionHistoryCallAt(segment, offset, search)
+		if ok {
+			return match
+		}
+		search = nextSearch
+	}
+	return collectionHistoryCall{start: -1}
+}
+
+func parseCollectionHistoryCallAt(segment string, offset int, search int) (collectionHistoryCall, int, bool) {
+	openBracket := strings.Index(segment[search:], "[")
+	if openBracket < 0 {
+		return collectionHistoryCall{}, len(segment), false
+	}
+	openBracket += search
+	nameStart, nameEnd, ok := collectionHistoryNameRange(segment, openBracket)
+	if !ok {
+		return collectionHistoryCall{}, openBracket + 1, false
+	}
+	closeBracket, rawLookback, ok := collectionHistoryLookback(segment, openBracket)
+	if !ok {
+		return collectionHistoryCall{}, closeBracket + 1, false
+	}
+	methodStart, methodEnd, closeParen, ok := collectionHistoryMethodRange(segment, closeBracket)
+	if !ok {
+		return collectionHistoryCall{}, max(methodEnd, closeBracket+1), false
+	}
+	callText := segment[nameStart : closeParen+1]
+	return collectionHistoryCall{
+		start:     offset + nameStart,
+		end:       offset + closeParen + 1,
+		name:      strings.TrimSpace(segment[nameStart:nameEnd]),
+		lookback:  rawLookback,
+		operation: strings.ToLower(strings.TrimSpace(segment[methodStart:methodEnd])),
+		args:      collectionHistoryCallArgs(callText),
+	}, closeParen, true
+}
+
+func collectionHistoryNameRange(segment string, openBracket int) (int, int, bool) {
+	nameEnd := openBracket
+	nameStart := nameEnd - 1
+	for nameStart >= 0 {
+		ch := segment[nameStart]
+		if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' {
+			nameStart--
+			continue
+		}
+		break
+	}
+	nameStart++
+	return nameStart, nameEnd, nameStart < nameEnd
+}
+
+func collectionHistoryLookback(segment string, openBracket int) (int, string, bool) {
+	closeBracket := strings.Index(segment[openBracket:], "]")
+	if closeBracket < 0 {
+		return 0, "", false
+	}
+	closeBracket += openBracket
+	rawLookback := strings.TrimSpace(segment[openBracket+1 : closeBracket])
+	if !numberPattern.MatchString(rawLookback) || strings.Contains(rawLookback, ".") || strings.HasPrefix(rawLookback, "-") {
+		return closeBracket, "", false
+	}
+	return closeBracket, rawLookback, true
+}
+
+func collectionHistoryMethodRange(segment string, closeBracket int) (int, int, int, bool) {
+	after := strings.TrimLeft(segment[closeBracket+1:], " \t")
+	skipped := len(segment[closeBracket+1:]) - len(after)
+	if !strings.HasPrefix(after, ".") {
+		return 0, closeBracket + 1, 0, false
+	}
+	methodStart := closeBracket + 1 + skipped + 1
+	methodEnd := methodStart
+	for methodEnd < len(segment) {
+		ch := segment[methodEnd]
+		if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' {
+			methodEnd++
+			continue
+		}
+		break
+	}
+	if methodEnd == methodStart || methodEnd >= len(segment) || segment[methodEnd] != '(' {
+		return methodStart, methodEnd, 0, false
+	}
+	closeParen := matchingParen(segment, methodEnd)
+	if closeParen < 0 {
+		return methodStart, methodEnd, 0, false
+	}
+	return methodStart, methodEnd, closeParen, true
+}
+
+func collectionHistoryCallArgs(call string) string {
+	open := strings.LastIndex(call, "(")
+	close := strings.LastIndex(call, ")")
+	if open < 0 || close <= open {
+		return ""
+	}
+	return strings.TrimSpace(call[open+1 : close])
+}
+
+func collectionHistoryReplacement(call collectionHistoryCall) string {
+	replacement := "collection_array_" + call.operation + "(history(" + call.name + ", " + call.lookback + ")"
+	if call.args != "" {
+		replacement += ", " + call.args
+	}
+	return replacement + ")"
 }
 
 func collectionHistoryReadOperation(operation string) bool {
