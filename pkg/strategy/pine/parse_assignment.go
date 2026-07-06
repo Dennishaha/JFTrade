@@ -62,7 +62,6 @@ func (s *parseState) parseGeneralTupleAssignment(line parsedLine) (strategyir.St
 	}, true, nil
 }
 
-//nolint:funlen
 func (s *parseState) parseTupleAssignment(line parsedLine) (strategyir.Statement, bool, error) {
 	match := tupleAssignmentPattern.FindStringSubmatch(line.trimmed)
 	if match == nil {
@@ -70,228 +69,23 @@ func (s *parseState) parseTupleAssignment(line parsedLine) (strategyir.Statement
 	}
 	aliases := tupleAssignmentAliases(match)
 	expression := strings.TrimSpace(match[5])
-	if args, ok := requestSecurityCallArgs(expression); ok {
-		if lowered, tupleOK := lowerSupportedRequestSecurityTuple(args); tupleOK {
-			if len(lowered) != len(aliases) {
-				return nil, true, fmt.Errorf("pine line %d: request.security tuple returns %d values but assignment has %d aliases", line.number, len(lowered), len(aliases))
-			}
-			for index := range lowered {
-				lowered[index] = s.normalizeExpression(lowered[index])
-				if err := s.takeNormalizationErr(line.number); err != nil {
-					return nil, true, err
-				}
-				if err := validateExpression(line.number, "assignment expression", lowered[index]); err != nil {
-					return nil, true, err
-				}
-			}
-			for index := 1; index < len(aliases); index++ {
-				s.expressionAliases[aliases[index]] = lowered[index]
-			}
-			return &strategyir.LetStmt{
-				Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-				Name:       aliases[0],
-				Expression: lowered[0],
-			}, true, nil
+	if statement, ok, err := s.parseRequestSecurityTupleAssignment(line, aliases, expression); ok || err != nil {
+		return statement, true, err
+	}
+	tupleExpression, args := tupleAssignmentExpressionParts(expression)
+	parsers := []func(parsedLine, []string, []string, string) (strategyir.Statement, bool, error){
+		s.parseBollingerTupleAssignment,
+		s.parseDMITupleAssignment,
+		s.parseSupertrendTupleAssignment,
+		s.parseKeltnerTupleAssignment,
+		s.parseMACDTupleAssignment,
+	}
+	for _, parser := range parsers {
+		if statement, ok, err := parser(line, aliases, args, tupleExpression); ok || err != nil {
+			return statement, true, err
 		}
 	}
-	tupleExpression := expression
-	if lowered := replaceSupportedRequestSecurity(expression); lowered != expression {
-		tupleExpression = stripWrappingParens(lowered)
-	}
-	lower := strings.ToLower(tupleExpression)
-	args := splitArguments(callArgs(tupleExpression))
-	if strings.HasPrefix(lower, "ta.bb(") {
-		if len(args) < 3 {
-			return nil, true, fmt.Errorf("pine line %d: ta.bb(source, length, mult) requires three arguments", line.number)
-		}
-		basisAlias := strings.TrimSpace(match[1])
-		upperAlias := strings.TrimSpace(match[2])
-		lowerAlias := strings.TrimSpace(match[3])
-		expr := fmt.Sprintf("bollinger(%s, %s)", s.normalizeExpression(args[1]), s.normalizeExpression(args[2]))
-		if err := s.takeNormalizationErr(line.number); err != nil {
-			return nil, true, err
-		}
-		if upperAlias != "" {
-			s.expressionAliases[upperAlias] = basisAlias + ".upper"
-		}
-		if lowerAlias != "" {
-			s.expressionAliases[lowerAlias] = basisAlias + ".lower"
-		}
-		return &strategyir.LetStmt{
-			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Name:       basisAlias,
-			Expression: expr,
-		}, true, validateExpression(line.number, "assignment expression", expr)
-	}
-	if strings.HasPrefix(lower, "bollinger(") {
-		if len(args) != 4 {
-			return nil, true, fmt.Errorf("pine line %d: MTF ta.bb requires length, multiplier, static timeframe, and source", line.number)
-		}
-		basisAlias := strings.TrimSpace(match[1])
-		upperAlias := strings.TrimSpace(match[2])
-		lowerAlias := strings.TrimSpace(match[3])
-		expr := fmt.Sprintf("bollinger(%s, %s, %s, %s)", args[0], args[1], args[2], args[3])
-		if upperAlias != "" {
-			s.expressionAliases[upperAlias] = basisAlias + ".upper"
-		}
-		if lowerAlias != "" {
-			s.expressionAliases[lowerAlias] = basisAlias + ".lower"
-		}
-		return &strategyir.LetStmt{
-			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Name:       basisAlias,
-			Expression: expr,
-		}, true, validateExpression(line.number, "assignment expression", expr)
-	}
-	if strings.HasPrefix(lower, "ta.dmi(") {
-		if len(args) < 2 {
-			return nil, true, fmt.Errorf("pine line %d: ta.dmi(diLength, adxSmoothing) requires two arguments", line.number)
-		}
-		alias := strings.TrimSpace(match[1])
-		minusAlias := strings.TrimSpace(match[2])
-		adxAlias := strings.TrimSpace(match[3])
-		expr := fmt.Sprintf("dmi(%s, %s)", s.normalizeExpression(args[0]), s.normalizeExpression(args[1]))
-		if err := s.takeNormalizationErr(line.number); err != nil {
-			return nil, true, err
-		}
-		if minusAlias != "" {
-			s.expressionAliases[minusAlias] = alias + ".minus"
-		}
-		if adxAlias != "" {
-			s.expressionAliases[adxAlias] = alias + ".adx"
-		}
-		return &strategyir.LetStmt{
-			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Name:       alias,
-			Expression: expr,
-		}, true, validateExpression(line.number, "assignment expression", expr)
-	}
-	if strings.HasPrefix(lower, "ta.supertrend(") {
-		if len(args) < 2 {
-			return nil, true, fmt.Errorf("pine line %d: ta.supertrend(factor, atrPeriod) requires two arguments", line.number)
-		}
-		alias := strings.TrimSpace(match[1])
-		directionAlias := strings.TrimSpace(match[2])
-		expr := fmt.Sprintf("supertrend(%s, %s)", s.normalizeExpression(args[0]), s.normalizeExpression(args[1]))
-		if err := s.takeNormalizationErr(line.number); err != nil {
-			return nil, true, err
-		}
-		if directionAlias != "" {
-			s.expressionAliases[directionAlias] = alias + ".direction"
-		}
-		return &strategyir.LetStmt{
-			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Name:       alias,
-			Expression: expr,
-		}, true, validateExpression(line.number, "assignment expression", expr)
-	}
-	if strings.HasPrefix(lower, "supertrend(") {
-		if len(args) != 3 {
-			return nil, true, fmt.Errorf("pine line %d: MTF ta.supertrend requires factor, ATR period, and static timeframe", line.number)
-		}
-		alias := strings.TrimSpace(match[1])
-		directionAlias := strings.TrimSpace(match[2])
-		expr := fmt.Sprintf("supertrend(%s, %s, %s)", args[0], args[1], args[2])
-		if directionAlias != "" {
-			s.expressionAliases[directionAlias] = alias + ".direction"
-		}
-		return &strategyir.LetStmt{
-			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Name:       alias,
-			Expression: expr,
-		}, true, validateExpression(line.number, "assignment expression", expr)
-	}
-	if strings.HasPrefix(lower, "ta.kc(") {
-		if len(args) < 3 || len(args) > 4 {
-			return nil, true, fmt.Errorf("pine line %d: ta.kc(source, length, mult, useTrueRange?) requires three or four arguments", line.number)
-		}
-		alias := strings.TrimSpace(match[1])
-		upperAlias := strings.TrimSpace(match[2])
-		lowerAlias := strings.TrimSpace(match[3])
-		useTR := "true"
-		if len(args) == 4 {
-			useTR = s.normalizeExpression(args[3])
-		}
-		expr := fmt.Sprintf("kc(%s, %s, %s, %s)", s.normalizeExpression(args[0]), s.normalizeExpression(args[1]), s.normalizeExpression(args[2]), useTR)
-		if err := s.takeNormalizationErr(line.number); err != nil {
-			return nil, true, err
-		}
-		if upperAlias != "" {
-			s.expressionAliases[upperAlias] = alias + ".upper"
-		}
-		if lowerAlias != "" {
-			s.expressionAliases[lowerAlias] = alias + ".lower"
-		}
-		return &strategyir.LetStmt{
-			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Name:       alias,
-			Expression: expr,
-		}, true, validateExpression(line.number, "assignment expression", expr)
-	}
-	if strings.HasPrefix(lower, "kc(") {
-		if len(args) != 5 {
-			return nil, true, fmt.Errorf("pine line %d: MTF ta.kc requires source, length, mult, useTrueRange, and static timeframe", line.number)
-		}
-		alias := strings.TrimSpace(match[1])
-		upperAlias := strings.TrimSpace(match[2])
-		lowerAlias := strings.TrimSpace(match[3])
-		expr := fmt.Sprintf("kc(%s, %s, %s, %s, %s)", args[0], args[1], args[2], args[3], args[4])
-		if upperAlias != "" {
-			s.expressionAliases[upperAlias] = alias + ".upper"
-		}
-		if lowerAlias != "" {
-			s.expressionAliases[lowerAlias] = alias + ".lower"
-		}
-		return &strategyir.LetStmt{
-			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Name:       alias,
-			Expression: expr,
-		}, true, validateExpression(line.number, "assignment expression", expr)
-	}
-	if strings.HasPrefix(lower, "macd(") {
-		if len(args) != 5 {
-			return nil, true, fmt.Errorf("pine line %d: MTF ta.macd requires fast, slow, signal, static timeframe, and source", line.number)
-		}
-		alias := strings.TrimSpace(match[1])
-		signalAlias := strings.TrimSpace(match[2])
-		histAlias := strings.TrimSpace(match[3])
-		expr := fmt.Sprintf("macd(%s, %s, %s, %s, %s)", args[0], args[1], args[2], args[3], args[4])
-		if signalAlias != "" {
-			s.expressionAliases[signalAlias] = alias + ".signal"
-		}
-		if histAlias != "" {
-			s.expressionAliases[histAlias] = alias + ".histogram"
-		}
-		return &strategyir.LetStmt{
-			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-			Name:       alias,
-			Expression: expr,
-		}, true, validateExpression(line.number, "assignment expression", expr)
-	}
-	if !strings.HasPrefix(lower, "ta.macd(") {
-		return nil, true, fmt.Errorf("pine line %d: tuple assignment is supported only for ta.macd(...), ta.bb(...), ta.dmi(...), ta.supertrend(...), ta.kc(...), or whitelisted request.security tuples", line.number)
-	}
-	if len(args) < 4 {
-		return nil, true, fmt.Errorf("pine line %d: ta.macd(source, fast, slow, signal) requires four arguments", line.number)
-	}
-	alias := strings.TrimSpace(match[1])
-	signalAlias := strings.TrimSpace(match[2])
-	histAlias := strings.TrimSpace(match[3])
-	expr := fmt.Sprintf("macd(%s, %s, %s)", s.normalizeExpression(args[1]), s.normalizeExpression(args[2]), s.normalizeExpression(args[3]))
-	if err := s.takeNormalizationErr(line.number); err != nil {
-		return nil, true, err
-	}
-	if signalAlias != "" {
-		s.expressionAliases[signalAlias] = alias + ".signal"
-	}
-	if histAlias != "" {
-		s.expressionAliases[histAlias] = alias + ".histogram"
-	}
-	return &strategyir.LetStmt{
-		Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
-		Name:       alias,
-		Expression: expr,
-	}, true, validateExpression(line.number, "assignment expression", expr)
+	return nil, true, fmt.Errorf("pine line %d: tuple assignment is supported only for ta.macd(...), ta.bb(...), ta.dmi(...), ta.supertrend(...), ta.kc(...), or whitelisted request.security tuples", line.number)
 }
 
 func tupleAssignmentAliases(match []string) []string {
