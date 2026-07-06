@@ -36,34 +36,20 @@ func (r *indicatorRuntime) pushOBVStates(openValue, high, low, closeValue, volum
 }
 
 func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorConfig, cache *snapshotSeriesCache) any {
-	if config.kind == "anchored_vwap" {
-		value, ok := r.anchoredVWAPStates[config].value()
-		return cache.getScalarSnapshot(config.key, value, ok)
+	if snapshot, ok := r.anchoredVWAPSnapshot(config, cache); ok {
+		return snapshot
 	}
-	values := r.seriesForSource(config.source)
-	if config.timeUnit != "" {
-		aggregated, _, ok := r.fixedTimeframeSeries(config.timeUnit, config.source)
-		if !ok {
-			return nil
-		}
-		values = aggregated
+	values, ok := r.advancedSnapshotSeries(config)
+	if !ok {
+		return nil
 	}
 	switch config.kind {
 	case "rsi":
-		value, ok := calculateRSIValueFromSeries(calculateRSISeries(values, config.period))
-		return cache.getScalarSnapshot(config.key, value, ok)
+		return r.advancedRSISnapshot(config, values, cache)
 	case "macd":
 		return calculateMACDSnapshot(values, macdConfig{fastPeriod: config.period, slowPeriod: config.right, signalPeriod: config.offset})
 	case "atr":
-		highs, lows, closes, ok := r.fixedTimeframeOHLC(config.timeUnit)
-		if !ok {
-			return nil
-		}
-		value := calculateATR(highs, lows, closes, config.period)
-		if typed, ok := value.(float64); ok {
-			return cache.getScalarSnapshot(config.key, typed, true)
-		}
-		return nil
+		return r.advancedATRSnapshot(config, cache)
 	case "bollinger":
 		return calculateBollingerSnapshot(values, bollingerConfig{period: config.period, multiplier: config.multiplier})
 	case "bbw":
@@ -97,16 +83,7 @@ func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorCon
 		value, ok := calculateTSI(values, config.period, config.right)
 		return cache.getScalarSnapshot(config.key, value, ok)
 	case "correlation":
-		values2 := r.seriesForSource(config.source2)
-		if config.timeUnit != "" {
-			aggregated, _, ok := r.fixedTimeframeSeries(config.timeUnit, config.source2)
-			if !ok {
-				return nil
-			}
-			values2 = aggregated
-		}
-		value, ok := calculateCorrelation(values, values2, config.period)
-		return cache.getScalarSnapshot(config.key, value, ok)
+		return r.advancedCorrelationSnapshot(config, values, cache)
 	case "dev":
 		value, ok := calculateMeanDeviation(values, config.period)
 		return cache.getScalarSnapshot(config.key, value, ok)
@@ -126,25 +103,81 @@ func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorCon
 		value, ok := calculateSWMA(values)
 		return cache.getScalarSnapshot(config.key, value, ok)
 	case "obv":
-		_, volumes, ok := r.fixedTimeframeSeries(config.timeUnit, config.source)
-		if !ok {
-			return nil
-		}
-		current, previous, currentOK, previousOK := calculateOBVSnapshot(values, volumes)
-		return cache.getSeriesSnapshot(config.key, current, previous, currentOK, previousOK)
+		return r.advancedOBVSnapshot(config, values, cache)
 	case "kc", "kcw":
-		snapshot := r.calculateKeltnerSnapshot(config)
-		if config.kind == "kcw" {
-			if snapshot == nil {
-				return nil
-			}
-			width := jftradeOptionalTypeAssertion[float64](snapshot["width"])
-			return cache.getScalarSnapshot(config.key, width, true)
-		}
-		return snapshot
+		return r.advancedKeltnerSnapshot(config, cache)
 	default:
 		return nil
 	}
+}
+
+func (r *indicatorRuntime) anchoredVWAPSnapshot(config advancedIndicatorConfig, cache *snapshotSeriesCache) (any, bool) {
+	if config.kind != "anchored_vwap" {
+		return nil, false
+	}
+	value, ok := r.anchoredVWAPStates[config].value()
+	return cache.getScalarSnapshot(config.key, value, ok), true
+}
+
+func (r *indicatorRuntime) advancedSnapshotSeries(config advancedIndicatorConfig) ([]float64, bool) {
+	if config.timeUnit == "" {
+		return r.seriesForSource(config.source), true
+	}
+	values, _, ok := r.fixedTimeframeSeries(config.timeUnit, config.source)
+	return values, ok
+}
+
+func (r *indicatorRuntime) advancedRSISnapshot(config advancedIndicatorConfig, values []float64, cache *snapshotSeriesCache) any {
+	value, ok := calculateRSIValueFromSeries(calculateRSISeries(values, config.period))
+	return cache.getScalarSnapshot(config.key, value, ok)
+}
+
+func (r *indicatorRuntime) advancedATRSnapshot(config advancedIndicatorConfig, cache *snapshotSeriesCache) any {
+	highs, lows, closes, ok := r.fixedTimeframeOHLC(config.timeUnit)
+	if !ok {
+		return nil
+	}
+	value := calculateATR(highs, lows, closes, config.period)
+	typed, ok := value.(float64)
+	if !ok {
+		return nil
+	}
+	return cache.getScalarSnapshot(config.key, typed, true)
+}
+
+func (r *indicatorRuntime) advancedCorrelationSnapshot(config advancedIndicatorConfig, values []float64, cache *snapshotSeriesCache) any {
+	values2, ok := r.advancedSourceSeries(config.timeUnit, config.source2)
+	if !ok {
+		return nil
+	}
+	value, valueOK := calculateCorrelation(values, values2, config.period)
+	return cache.getScalarSnapshot(config.key, value, valueOK)
+}
+
+func (r *indicatorRuntime) advancedSourceSeries(timeUnit string, source string) ([]float64, bool) {
+	if timeUnit == "" {
+		return r.seriesForSource(source), true
+	}
+	values, _, ok := r.fixedTimeframeSeries(timeUnit, source)
+	return values, ok
+}
+
+func (r *indicatorRuntime) advancedOBVSnapshot(config advancedIndicatorConfig, values []float64, cache *snapshotSeriesCache) any {
+	_, volumes, ok := r.fixedTimeframeSeries(config.timeUnit, config.source)
+	if !ok {
+		return nil
+	}
+	current, previous, currentOK, previousOK := calculateOBVSnapshot(values, volumes)
+	return cache.getSeriesSnapshot(config.key, current, previous, currentOK, previousOK)
+}
+
+func (r *indicatorRuntime) advancedKeltnerSnapshot(config advancedIndicatorConfig, cache *snapshotSeriesCache) any {
+	snapshot := r.calculateKeltnerSnapshot(config)
+	if config.kind != "kcw" || snapshot == nil {
+		return snapshot
+	}
+	width := jftradeOptionalTypeAssertion[float64](snapshot["width"])
+	return cache.getScalarSnapshot(config.key, width, true)
 }
 
 func calculateBollingerBandWidth(values []float64, period int, multiplier float64) (float64, bool) {

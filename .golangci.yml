@@ -6,10 +6,14 @@ run:
 linters:
   default: standard
   enable:
+    - funlen
     - revive
   exclusions:
     generated: strict
   settings:
+    funlen:
+      lines: 80
+      statements: 60
     revive:
       enable-default-rules: false
       rules:
