@@ -233,6 +233,14 @@ func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, d
 }
 
 func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolRegistry, deps ToolDeps) {
+	registerADKStrategyDefinitionTools(registry, deps)
+	registerADKStrategyResearchTools(registry, deps)
+	registerADKStrategyWriteTools(registry, deps)
+	registerADKBacktestReadTools(registry, deps)
+	registerADKStrategyOptimizationTools(store, registry, deps)
+}
+
+func registerADKStrategyDefinitionTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.definitions", DisplayName: "策略定义", Description: "读取当前策略定义和策略实例摘要。", Category: "strategy", Permission: "read_internal", OutputSummary: "策略定义、运行实例和数量摘要。"}, func(context.Context, map[string]any) (any, error) {
 		return SummarizeADKStrategyDefinitions(deps.ListStrategyDefinitions(), deps.ListStrategyInstances()), nil
 	})
@@ -242,6 +250,9 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.validate_pine", DisplayName: "校验 Pine", Description: "校验 Pine Script v6 是否可被当前 parser、lowerer、planner 和 runtime 接受，并返回结构化元数据、warnings 与 requirements。", Category: "strategy", Permission: "read_internal", OutputSummary: "校验结果、元数据、hooks、warnings、编译后的 requirements，以及失败时的保存提示。"}, func(_ context.Context, input map[string]any) (any, error) {
 		return StrategyValidatePineToolPayload(input), nil
 	})
+}
+
+func registerADKStrategyResearchTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.research_backtest", DisplayName: "策略研究回测", Description: "用临时 Pine Script v6 脚本进行研究回测；会先校验脚本并启动临时回测，但不会保存策略草稿或定义。回测运行和结果会保留供后续查询。", Category: "strategy", Permission: "optimize_strategy", RiskLevel: "low", OutputSummary: "临时回测 runId、状态、脚本 hash、校验摘要和可选结果视图。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		if deps.StartResearchBacktest == nil {
 			return nil, fmt.Errorf("research backtest is unavailable")
@@ -314,6 +325,9 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		}
 		return payload, nil
 	})
+}
+
+func registerADKStrategyWriteTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 Pine Script v6 策略脚本保存为策略定义草稿。", Category: "strategy", Permission: "write_strategy", RiskLevel: "low", OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
 		script := strings.TrimSpace(stringValue(input, "script"))
 		if script == "" {
@@ -361,6 +375,9 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		}
 		return map[string]any{"instance": updated, "updatedFields": []string{"executionMode"}}, nil
 	})
+}
+
+func registerADKBacktestReadTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。"}, func(context.Context, map[string]any) (any, error) {
 		return SummarizeADKBacktestRuns(deps.ListBacktestRuns()), nil
 	})
@@ -389,6 +406,9 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		}
 		return klineSyncProgressPayload(progress), nil
 	})
+}
+
+func registerADKStrategyOptimizationTools(store *jfadk.Store, registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.optimize", DisplayName: "策略优化", Description: "为多个候选策略定义创建真实异步回测任务，并返回任务引用。", Category: "strategy", Permission: "optimize_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "优化任务 ID 与候选回测 Run。"}, func(_ context.Context, input map[string]any) (any, error) {
 		definitionIDs := stringSliceValue(input, "definitionIds")
 		if len(definitionIDs) == 0 {

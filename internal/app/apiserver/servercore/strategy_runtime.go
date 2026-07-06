@@ -307,55 +307,80 @@ func (m *strategyRuntimeManager) activeInstrumentIDs() []string {
 }
 
 func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance managedStrategyInstance) error {
-	interval := bbgotypes.Interval(strings.TrimSpace(instance.Binding.Interval))
-	if duration, ok := strategyRuntimeIntervalDuration(interval); !ok || duration <= 0 {
-		return fmt.Errorf("strategy interval %q is invalid", instance.Binding.Interval)
+	interval, script, err := validateStrategyRuntimeInstance(instance)
+	if err != nil {
+		return err
 	}
-	if len(instance.Binding.Symbols) == 0 {
-		return fmt.Errorf("strategy instance requires at least one symbol binding")
+	if err := m.ensureStrategyStopped(instance.ID); err != nil {
+		return err
 	}
-	script, ok := instance.Params["script"].(string)
-	if !ok || strings.TrimSpace(script) == "" {
-		return fmt.Errorf("strategy instance is missing script")
-	}
-
-	m.mu.Lock()
-	if _, exists := m.runtimes[instance.ID]; exists {
-		m.mu.Unlock()
-		return fmt.Errorf("strategy instance is already running")
-	}
-	m.mu.Unlock()
-
 	releaseStartReservation, err := m.reserveRuntimeStart(instance.ID)
 	if err != nil {
 		return err
 	}
 	defer releaseStartReservation()
+	exchange, markets, funds, positions, err := m.loadStrategyRuntimeInputs(ctx, instance)
+	if err != nil {
+		return err
+	}
+	managed, err := m.buildManagedStrategyRuntime(ctx, exchange, markets, funds, positions, instance, script, interval)
+	if err != nil {
+		return err
+	}
+	return m.activateStrategyRuntime(instance.ID, managed)
+}
 
+func validateStrategyRuntimeInstance(instance managedStrategyInstance) (bbgotypes.Interval, string, error) {
+	interval := bbgotypes.Interval(strings.TrimSpace(instance.Binding.Interval))
+	if duration, ok := strategyRuntimeIntervalDuration(interval); !ok || duration <= 0 {
+		return "", "", fmt.Errorf("strategy interval %q is invalid", instance.Binding.Interval)
+	}
+	if len(instance.Binding.Symbols) == 0 {
+		return "", "", fmt.Errorf("strategy instance requires at least one symbol binding")
+	}
+	script, ok := instance.Params["script"].(string)
+	if !ok || strings.TrimSpace(script) == "" {
+		return "", "", fmt.Errorf("strategy instance is missing script")
+	}
+	return interval, script, nil
+}
+
+func (m *strategyRuntimeManager) ensureStrategyStopped(instanceID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, exists := m.runtimes[instanceID]; exists {
+		return fmt.Errorf("strategy instance is already running")
+	}
+	return nil
+}
+
+func (m *strategyRuntimeManager) loadStrategyRuntimeInputs(ctx context.Context, instance managedStrategyInstance) (strategyRuntimeExchange, map[string]bbgotypes.Market, *broker.FundsSnapshot, []broker.PositionSnapshot, error) {
 	exchange := m.exchangeProvider()
 	if exchange == nil {
-		return fmt.Errorf("strategy runtime exchange is unavailable")
+		return nil, nil, nil, nil, fmt.Errorf("strategy runtime exchange is unavailable")
 	}
 	if marketEnsurer, ok := exchange.(strategyRuntimeMarketEnsurer); ok {
 		for _, symbol := range instance.Binding.Symbols {
 			marketEnsurer.EnsureMarket(symbol)
 		}
 	}
-
 	markets, err := exchange.QueryMarkets(ctx)
 	if err != nil {
-		return fmt.Errorf("load strategy markets: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("load strategy markets: %w", err)
 	}
 	brokerQuery := strategyRuntimeBrokerReadQuery(instance.Binding)
 	funds, err := exchange.QueryBrokerFunds(ctx, brokerQuery)
 	if err != nil {
-		return fmt.Errorf("load strategy broker funds: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("load strategy broker funds: %w", err)
 	}
 	positions, err := exchange.QueryBrokerPositions(ctx, brokerQuery)
 	if err != nil {
-		return fmt.Errorf("load strategy broker positions: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("load strategy broker positions: %w", err)
 	}
+	return exchange, markets, funds, positions, nil
+}
 
+func (m *strategyRuntimeManager) buildManagedStrategyRuntime(ctx context.Context, exchange strategyRuntimeExchange, markets map[string]bbgotypes.Market, funds *broker.FundsSnapshot, positions []broker.PositionSnapshot, instance managedStrategyInstance, script string, interval bbgotypes.Interval) (*managedStrategyRuntime, error) {
 	runtimeCtx, cancel := context.WithCancel(context.Background())
 	managed := &managedStrategyRuntime{
 		instanceID: instance.ID,
@@ -364,23 +389,25 @@ func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance man
 		symbols:    make(map[string]*strategySymbolRuntime, len(instance.Binding.Symbols)),
 		updatedAt:  time.Now().UTC(),
 	}
-
 	for _, symbol := range instance.Binding.Symbols {
-		runner, runnerErr := m.buildSymbolRuntime(ctx, runtimeCtx, exchange, markets, funds, positions, instance, script, symbol, interval)
-		if runnerErr != nil {
+		runner, err := m.buildSymbolRuntime(ctx, runtimeCtx, exchange, markets, funds, positions, instance, script, symbol, interval)
+		if err != nil {
 			cancel()
-			return runnerErr
+			return nil, err
 		}
 		managed.symbols[symbol] = runner
 	}
+	return managed, nil
+}
 
+func (m *strategyRuntimeManager) activateStrategyRuntime(instanceID string, managed *managedStrategyRuntime) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if _, exists := m.runtimes[instance.ID]; exists {
-		cancel()
+	if _, exists := m.runtimes[instanceID]; exists {
+		managed.cancel()
 		return fmt.Errorf("strategy instance is already running")
 	}
-	m.runtimes[instance.ID] = managed
+	m.runtimes[instanceID] = managed
 	m.persistObservationSnapshot(managed.snapshot(strategyStatusRunning))
 	for _, runner := range managed.symbols {
 		go runner.syncClosedKLinesLoop()

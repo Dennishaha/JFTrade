@@ -29,6 +29,19 @@ func newADKRuntime(server *Server, settingsPath string) *jfadk.Runtime {
 }
 
 func (s *Server) adkToolDeps() ToolDeps {
+	deps := s.baseADKToolDeps()
+	s.populateADKBrokerToolDeps(&deps)
+	s.populateADKStrategyToolDeps(&deps)
+	s.populateADKBacktestToolDeps(&deps)
+	deps.RecordAudit = func(ctx context.Context, kind string, subjectID string, detail string, metadata map[string]any) {
+		if s != nil && s.adkRuntime != nil {
+			s.adkRuntime.RecordAudit(ctx, kind, subjectID, detail, metadata)
+		}
+	}
+	return deps
+}
+
+func (s *Server) baseADKToolDeps() ToolDeps {
 	return ToolDeps{
 		SystemStatus: func() map[string]any { return s.sysSvc.Status() },
 		ADKEnabled:   func() bool { return s != nil && s.adkRuntime != nil },
@@ -59,182 +72,228 @@ func (s *Server) adkToolDeps() ToolDeps {
 		BrokerPositions: func(ctx context.Context, query broker.ReadQuery, timeout time.Duration) any {
 			return s.tradingSvc.PositionsWithTimeout(ctx, query, timeout)
 		},
-		ExecutionOrders: func() any {
-			orders, err := s.tradingSvc.ExecutionOrdersSnapshot(context.Background())
-			if err != nil {
-				return []trdsrv.ExecutionOrder{}
-			}
-			return orders.Orders
-		},
-		ExecutionOrderEvents: func(internalOrderID string) any {
-			events, err := s.tradingSvc.ExecutionOrderEvents(context.Background(), internalOrderID)
-			if err != nil {
-				return trdsrv.ExecutionOrderEvents{InternalOrderID: internalOrderID}
-			}
-			return events
-		},
-		BrokerOrders: func(ctx context.Context, input BrokerReadInput) (any, error) {
-			scope, err := normalizeTradingBrokerScope(input.Scope)
-			if err != nil {
-				return nil, err
-			}
-			return s.tradingSvc.Orders(ctx, trdsrv.OrdersQuery{
-				ReadQuery: brokerReadQueryFromADK(s.tradingSvc, input),
-				Scope:     scope,
-				Symbol:    strings.TrimSpace(input.Symbol),
-				StartTime: strings.TrimSpace(input.StartTime),
-				EndTime:   strings.TrimSpace(input.EndTime),
-				Statuses:  mergeADKBrokerValues(input.Status, input.Statuses),
-			})
-		},
-		BrokerFills: func(ctx context.Context, input BrokerReadInput) (any, error) {
-			scope, err := normalizeTradingBrokerScope(input.Scope)
-			if err != nil {
-				return nil, err
-			}
-			return s.tradingSvc.Fills(ctx, trdsrv.FillsQuery{
-				ReadQuery: brokerReadQueryFromADK(s.tradingSvc, input),
-				Scope:     scope,
-				Symbol:    strings.TrimSpace(input.Symbol),
-				StartTime: strings.TrimSpace(input.StartTime),
-				EndTime:   strings.TrimSpace(input.EndTime),
-			})
-		},
-		BrokerCashFlows: func(ctx context.Context, input BrokerReadInput) (any, error) {
-			clearingDate := strings.TrimSpace(input.ClearingDate)
-			if clearingDate == "" {
-				return nil, fmt.Errorf("query parameter clearingDate is required")
-			}
-			return s.tradingSvc.CashFlows(ctx, broker.CashFlowQuery{
-				ReadQuery:    brokerReadQueryFromADK(s.tradingSvc, input),
-				ClearingDate: clearingDate,
-				Direction:    strings.TrimSpace(input.Direction),
-			})
-		},
-		BrokerFees: func(ctx context.Context, input BrokerReadInput) (any, error) {
-			orderIDs := mergeADKBrokerValues(input.OrderIDEx, input.OrderIDExList)
-			if len(orderIDs) == 0 {
-				return nil, fmt.Errorf("query parameter orderIdEx is required")
-			}
-			return s.tradingSvc.OrderFees(ctx, broker.OrderFeeQuery{
-				ReadQuery:     brokerReadQueryFromADK(s.tradingSvc, input),
-				OrderIDExList: orderIDs,
-			})
-		},
-		BrokerMarginRatios: func(ctx context.Context, input BrokerReadInput) (any, error) {
-			readQuery := brokerReadQueryFromADK(s.tradingSvc, input)
-			symbols, err := trdsrv.NormalizeSymbols(readQuery.Market, input.Symbols)
-			if err != nil {
-				return nil, err
-			}
-			if len(symbols) == 0 {
-				return nil, fmt.Errorf("query parameter symbol is required")
-			}
-			return s.tradingSvc.MarginRatios(ctx, broker.MarginRatioQuery{
-				ReadQuery: readQuery,
-				Symbols:   symbols,
-			})
-		},
+		ExecutionOrders:      s.adkExecutionOrders,
+		ExecutionOrderEvents: s.adkExecutionOrderEvents,
+		BrokerOrders:         s.adkBrokerOrders,
+		BrokerFills:          s.adkBrokerFills,
+		BrokerCashFlows:      s.adkBrokerCashFlows,
+		BrokerFees:           s.adkBrokerFees,
+		BrokerMarginRatios:   s.adkBrokerMarginRatios,
 		MarketDepth: func(ctx context.Context, market string, symbol string, num int) (any, error) {
 			return s.marketDepthResponseForInstrument(ctx, market, symbol, marketDepthQuery{Num: newOptionalIntValue(num)})
 		},
-		RiskState: func() any {
-			return map[string]any{
-				"killSwitch": s.sysSvc.RealTradeKillSwitch(),
-				"riskLimits": s.sysSvc.RealTradeRiskLimits(),
-				"checkedAt":  time.Now().UTC().Format(time.RFC3339Nano),
-			}
-		},
-		RiskEvents:              func() any { return s.sysSvc.RealTradeRiskEvents() },
-		ListStrategyDefinitions: s.adkStrategyDefinitionSummaries,
-		ListStrategyInstances:   s.adkStrategyInstanceSummaries,
-		SaveStrategyDraft:       s.adkSaveStrategyDraft,
-		SaveStrategyDefinition:  s.adkSaveStrategyDefinition,
-		UpdateStrategyInstanceMode: func(instanceID string, executionMode string) (any, error) {
-			current, ok := s.strategySvc.GetInstance(instanceID)
-			if !ok {
-				return nil, fmt.Errorf("策略实例 %q 不存在", instanceID)
-			}
-			binding := current.Binding
-			binding.ExecutionMode = executionMode
-			return s.strategySvc.UpdateInstance(instanceID, binding)
-		},
-		ListBacktestRuns: s.adkBacktestRunSummaries,
-		EnsureBacktestData: func(definitionIDs []string, input BacktestStartInput) (BacktestDataReadiness, error) {
-			readiness, err := s.backtestSvc.EnsureDefinitionsData(context.Background(), btsrv.StartRequest{
-				Market: input.Market, Symbol: input.Symbol, Code: input.Code, Interval: input.Interval,
-				StartDate: input.StartDate, EndDate: input.EndDate, StartTime: input.StartTime, EndTime: input.EndTime,
-				InitialBalance: input.InitialBalance, RehabType: input.RehabType,
-			}, definitionIDs)
-			return backtestDataReadinessFromService(readiness), err
-		},
-		EnsureResearchBacktestData: func(input ResearchBacktestInput) (BacktestDataReadiness, error) {
-			readiness, err := s.backtestSvc.EnsureScriptData(context.Background(), btsrv.ScriptStartRequest{
-				Script: input.Script, Market: input.Market, Symbol: input.Symbol, Code: input.Code, Interval: input.Interval,
-				StartDate: input.StartDate, EndDate: input.EndDate, StartTime: input.StartTime, EndTime: input.EndTime,
-				InitialBalance: input.InitialBalance, RehabType: input.RehabType, UseExtendedHours: input.UseExtendedHours,
-			})
-			return backtestDataReadinessFromService(readiness), err
-		},
-		BacktestKLineSyncProgress: s.backtestSvc.GetSyncProgress,
-		EnqueueBacktest: func(input BacktestStartInput) (BacktestRunRef, error) {
-			run, err := s.backtestSvc.Start(context.Background(), btsrv.StartRequest{
-				DefinitionID:   input.DefinitionID,
-				Market:         input.Market,
-				Symbol:         input.Symbol,
-				Code:           input.Code,
-				Interval:       input.Interval,
-				StartDate:      input.StartDate,
-				EndDate:        input.EndDate,
-				StartTime:      input.StartTime,
-				EndTime:        input.EndTime,
-				InitialBalance: input.InitialBalance,
-				RehabType:      input.RehabType,
-			})
-			if err != nil {
-				return BacktestRunRef{}, err
-			}
-			return BacktestRunRef{ID: run.ID, Status: run.Status}, nil
-		},
-		StartResearchBacktest: func(input ResearchBacktestInput) (BacktestRunSummary, error) {
-			run, err := s.backtestSvc.StartScript(context.Background(), btsrv.ScriptStartRequest{
-				Script:           input.Script,
-				Market:           input.Market,
-				Symbol:           input.Symbol,
-				Code:             input.Code,
-				Interval:         input.Interval,
-				StartDate:        input.StartDate,
-				EndDate:          input.EndDate,
-				StartTime:        input.StartTime,
-				EndTime:          input.EndTime,
-				InitialBalance:   input.InitialBalance,
-				RehabType:        input.RehabType,
-				UseExtendedHours: input.UseExtendedHours,
-			})
-			if err != nil {
-				return BacktestRunSummary{}, err
-			}
-			return backtestRunSummaryFromSrvRun(run), nil
-		},
-		BacktestResultView: func(input BacktestResultViewInput) (any, error) {
-			return s.backtestSvc.ResultView(btsrv.ResultViewRequest{
-				RunID:      input.RunID,
-				View:       input.View,
-				Resolution: input.Resolution,
-				StartTime:  input.StartTime,
-				EndTime:    input.EndTime,
-				Include:    append([]string(nil), input.Include...),
-				Limit:      input.Limit,
-				Cursor:     input.Cursor,
-			})
-		},
-		CancelBacktest: func(runID string) { s.backtestSvc.Cancel(runID) },
-		RecordAudit: func(ctx context.Context, kind string, subjectID string, detail string, metadata map[string]any) {
-			if s != nil && s.adkRuntime != nil {
-				s.adkRuntime.RecordAudit(ctx, kind, subjectID, detail, metadata)
-			}
-		},
+		RiskState:  s.adkRiskState,
+		RiskEvents: func() any { return s.sysSvc.RealTradeRiskEvents() },
 	}
+}
+
+func (s *Server) populateADKBrokerToolDeps(deps *ToolDeps) {
+	if deps == nil {
+		return
+	}
+	deps.BrokerOrders = s.adkBrokerOrders
+	deps.BrokerFills = s.adkBrokerFills
+	deps.BrokerCashFlows = s.adkBrokerCashFlows
+	deps.BrokerFees = s.adkBrokerFees
+	deps.BrokerMarginRatios = s.adkBrokerMarginRatios
+}
+
+func (s *Server) populateADKStrategyToolDeps(deps *ToolDeps) {
+	if deps == nil {
+		return
+	}
+	deps.ListStrategyDefinitions = s.adkStrategyDefinitionSummaries
+	deps.ListStrategyInstances = s.adkStrategyInstanceSummaries
+	deps.SaveStrategyDraft = s.adkSaveStrategyDraft
+	deps.SaveStrategyDefinition = s.adkSaveStrategyDefinition
+	deps.UpdateStrategyInstanceMode = s.adkUpdateStrategyInstanceMode
+}
+
+func (s *Server) populateADKBacktestToolDeps(deps *ToolDeps) {
+	if deps == nil {
+		return
+	}
+	deps.ListBacktestRuns = s.adkBacktestRunSummaries
+	deps.EnsureBacktestData = s.adkEnsureBacktestData
+	deps.EnsureResearchBacktestData = s.adkEnsureResearchBacktestData
+	deps.BacktestKLineSyncProgress = s.backtestSvc.GetSyncProgress
+	deps.EnqueueBacktest = s.adkEnqueueBacktest
+	deps.StartResearchBacktest = s.adkStartResearchBacktest
+	deps.BacktestResultView = s.adkBacktestResultView
+	deps.CancelBacktest = func(runID string) { s.backtestSvc.Cancel(runID) }
+}
+
+func (s *Server) adkExecutionOrders() any {
+	orders, err := s.tradingSvc.ExecutionOrdersSnapshot(context.Background())
+	if err != nil {
+		return []trdsrv.ExecutionOrder{}
+	}
+	return orders.Orders
+}
+
+func (s *Server) adkExecutionOrderEvents(internalOrderID string) any {
+	events, err := s.tradingSvc.ExecutionOrderEvents(context.Background(), internalOrderID)
+	if err != nil {
+		return trdsrv.ExecutionOrderEvents{InternalOrderID: internalOrderID}
+	}
+	return events
+}
+
+func (s *Server) adkBrokerOrders(ctx context.Context, input BrokerReadInput) (any, error) {
+	scope, err := normalizeTradingBrokerScope(input.Scope)
+	if err != nil {
+		return nil, err
+	}
+	return s.tradingSvc.Orders(ctx, trdsrv.OrdersQuery{
+		ReadQuery: brokerReadQueryFromADK(s.tradingSvc, input),
+		Scope:     scope,
+		Symbol:    strings.TrimSpace(input.Symbol),
+		StartTime: strings.TrimSpace(input.StartTime),
+		EndTime:   strings.TrimSpace(input.EndTime),
+		Statuses:  mergeADKBrokerValues(input.Status, input.Statuses),
+	})
+}
+
+func (s *Server) adkBrokerFills(ctx context.Context, input BrokerReadInput) (any, error) {
+	scope, err := normalizeTradingBrokerScope(input.Scope)
+	if err != nil {
+		return nil, err
+	}
+	return s.tradingSvc.Fills(ctx, trdsrv.FillsQuery{
+		ReadQuery: brokerReadQueryFromADK(s.tradingSvc, input),
+		Scope:     scope,
+		Symbol:    strings.TrimSpace(input.Symbol),
+		StartTime: strings.TrimSpace(input.StartTime),
+		EndTime:   strings.TrimSpace(input.EndTime),
+	})
+}
+
+func (s *Server) adkBrokerCashFlows(ctx context.Context, input BrokerReadInput) (any, error) {
+	clearingDate := strings.TrimSpace(input.ClearingDate)
+	if clearingDate == "" {
+		return nil, fmt.Errorf("query parameter clearingDate is required")
+	}
+	return s.tradingSvc.CashFlows(ctx, broker.CashFlowQuery{
+		ReadQuery:    brokerReadQueryFromADK(s.tradingSvc, input),
+		ClearingDate: clearingDate,
+		Direction:    strings.TrimSpace(input.Direction),
+	})
+}
+
+func (s *Server) adkBrokerFees(ctx context.Context, input BrokerReadInput) (any, error) {
+	orderIDs := mergeADKBrokerValues(input.OrderIDEx, input.OrderIDExList)
+	if len(orderIDs) == 0 {
+		return nil, fmt.Errorf("query parameter orderIdEx is required")
+	}
+	return s.tradingSvc.OrderFees(ctx, broker.OrderFeeQuery{
+		ReadQuery:     brokerReadQueryFromADK(s.tradingSvc, input),
+		OrderIDExList: orderIDs,
+	})
+}
+
+func (s *Server) adkBrokerMarginRatios(ctx context.Context, input BrokerReadInput) (any, error) {
+	readQuery := brokerReadQueryFromADK(s.tradingSvc, input)
+	symbols, err := trdsrv.NormalizeSymbols(readQuery.Market, input.Symbols)
+	if err != nil {
+		return nil, err
+	}
+	if len(symbols) == 0 {
+		return nil, fmt.Errorf("query parameter symbol is required")
+	}
+	return s.tradingSvc.MarginRatios(ctx, broker.MarginRatioQuery{
+		ReadQuery: readQuery,
+		Symbols:   symbols,
+	})
+}
+
+func (s *Server) adkRiskState() any {
+	return map[string]any{
+		"killSwitch": s.sysSvc.RealTradeKillSwitch(),
+		"riskLimits": s.sysSvc.RealTradeRiskLimits(),
+		"checkedAt":  time.Now().UTC().Format(time.RFC3339Nano),
+	}
+}
+
+func (s *Server) adkUpdateStrategyInstanceMode(instanceID string, executionMode string) (any, error) {
+	current, ok := s.strategySvc.GetInstance(instanceID)
+	if !ok {
+		return nil, fmt.Errorf("策略实例 %q 不存在", instanceID)
+	}
+	binding := current.Binding
+	binding.ExecutionMode = executionMode
+	return s.strategySvc.UpdateInstance(instanceID, binding)
+}
+
+func (s *Server) adkEnsureBacktestData(definitionIDs []string, input BacktestStartInput) (BacktestDataReadiness, error) {
+	readiness, err := s.backtestSvc.EnsureDefinitionsData(context.Background(), btsrv.StartRequest{
+		Market: input.Market, Symbol: input.Symbol, Code: input.Code, Interval: input.Interval,
+		StartDate: input.StartDate, EndDate: input.EndDate, StartTime: input.StartTime, EndTime: input.EndTime,
+		InitialBalance: input.InitialBalance, RehabType: input.RehabType,
+	}, definitionIDs)
+	return backtestDataReadinessFromService(readiness), err
+}
+
+func (s *Server) adkEnsureResearchBacktestData(input ResearchBacktestInput) (BacktestDataReadiness, error) {
+	readiness, err := s.backtestSvc.EnsureScriptData(context.Background(), btsrv.ScriptStartRequest{
+		Script: input.Script, Market: input.Market, Symbol: input.Symbol, Code: input.Code, Interval: input.Interval,
+		StartDate: input.StartDate, EndDate: input.EndDate, StartTime: input.StartTime, EndTime: input.EndTime,
+		InitialBalance: input.InitialBalance, RehabType: input.RehabType, UseExtendedHours: input.UseExtendedHours,
+	})
+	return backtestDataReadinessFromService(readiness), err
+}
+
+func (s *Server) adkEnqueueBacktest(input BacktestStartInput) (BacktestRunRef, error) {
+	run, err := s.backtestSvc.Start(context.Background(), btsrv.StartRequest{
+		DefinitionID:   input.DefinitionID,
+		Market:         input.Market,
+		Symbol:         input.Symbol,
+		Code:           input.Code,
+		Interval:       input.Interval,
+		StartDate:      input.StartDate,
+		EndDate:        input.EndDate,
+		StartTime:      input.StartTime,
+		EndTime:        input.EndTime,
+		InitialBalance: input.InitialBalance,
+		RehabType:      input.RehabType,
+	})
+	if err != nil {
+		return BacktestRunRef{}, err
+	}
+	return BacktestRunRef{ID: run.ID, Status: run.Status}, nil
+}
+
+func (s *Server) adkStartResearchBacktest(input ResearchBacktestInput) (BacktestRunSummary, error) {
+	run, err := s.backtestSvc.StartScript(context.Background(), btsrv.ScriptStartRequest{
+		Script:           input.Script,
+		Market:           input.Market,
+		Symbol:           input.Symbol,
+		Code:             input.Code,
+		Interval:         input.Interval,
+		StartDate:        input.StartDate,
+		EndDate:          input.EndDate,
+		StartTime:        input.StartTime,
+		EndTime:          input.EndTime,
+		InitialBalance:   input.InitialBalance,
+		RehabType:        input.RehabType,
+		UseExtendedHours: input.UseExtendedHours,
+	})
+	if err != nil {
+		return BacktestRunSummary{}, err
+	}
+	return backtestRunSummaryFromSrvRun(run), nil
+}
+
+func (s *Server) adkBacktestResultView(input BacktestResultViewInput) (any, error) {
+	return s.backtestSvc.ResultView(btsrv.ResultViewRequest{
+		RunID:      input.RunID,
+		View:       input.View,
+		Resolution: input.Resolution,
+		StartTime:  input.StartTime,
+		EndTime:    input.EndTime,
+		Include:    append([]string(nil), input.Include...),
+		Limit:      input.Limit,
+		Cursor:     input.Cursor,
+	})
 }
 
 func backtestDataReadinessFromService(readiness *btsrv.DataReadiness) BacktestDataReadiness {

@@ -245,160 +245,23 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 
 	internalOrderID := s.findInternalOrderIDLocked(brokerID, snapshot.AccountID, snapshot.TradingEnvironment, snapshot.Market, snapshot.BrokerOrderID, snapshot.BrokerOrderIDEx)
 	if internalOrderID == "" {
-		s.nextOrderSeq++
-		s.persistSequenceLocked("orders", s.nextOrderSeq)
-		internalOrderID = fmt.Sprintf("exec-%06d", s.nextOrderSeq)
-		filledQuantity := cloneFloat64Pointer(snapshot.FilledQuantity)
-		if filledQuantity == nil {
-			filledQuantity = new(0.0)
-		}
-		rawBrokerStatus := strings.TrimSpace(snapshot.Status)
-		summary := executionOrderSummaryResponse{
-			InternalOrderID:    internalOrderID,
-			BrokerID:           strings.TrimSpace(brokerID),
-			BrokerOrderID:      stringPointerOrNil(snapshot.BrokerOrderID),
-			BrokerOrderIDEx:    cloneStringPointer(snapshot.BrokerOrderIDEx),
-			Source:             firstNonEmptyString(source, "broker"),
-			SourceDetail:       firstNonEmptyString(sourceDetail, "broker.current"),
-			TradingEnvironment: snapshot.TradingEnvironment,
-			AccountID:          snapshot.AccountID,
-			Market:             snapshot.Market,
-			Symbol:             stringPointerOrNil(snapshot.Symbol),
-			Side:               stringPointerOrNil(snapshot.Side),
-			OrderType:          stringPointerOrNil(snapshot.OrderType),
-			Status:             trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus),
-			RawBrokerStatus:    stringPointerOrNil(rawBrokerStatus),
-			RequestedQuantity:  new(snapshot.Quantity),
-			RequestedPrice:     cloneFloat64Pointer(snapshot.Price),
-			FilledQuantity:     filledQuantity,
-			FilledAveragePrice: cloneFloat64Pointer(snapshot.FilledAveragePrice),
-			Remark:             cloneStringPointer(snapshot.Remark),
-			LastError:          cloneStringPointer(snapshot.LastError),
-			LastErrorCode:      nil,
-			LastErrorSource:    executionStringPointerOrNil("broker.sync"),
-			SubmittedAt:        stringPointerOrNil(firstNonEmptyString(snapshot.SubmittedAt, now)),
-			UpdatedAt:          firstNonEmptyString(snapshot.UpdatedAt, now),
-			CreatedAt:          now,
-		}
-		if summary.BrokerID == "" {
-			summary.BrokerID = "futu"
-		}
-		s.orders[internalOrderID] = summary
-		s.linkBrokerOrderLocked(summary)
-		s.persistOrderLocked(summary)
-		event := s.appendEventLocked(internalOrderID, nil, summary.Status, discoveredEventType, snapshot, firstNonEmptyString(summary.UpdatedAt, now))
-		return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event)), true
+		summary := s.brokerOrderSummaryFromSnapshot(s.allocateInternalOrderIDLocked(), brokerID, snapshot, now, source, sourceDetail)
+		order, event := s.persistBrokerOrderLocked(summary, nil, discoveredEventType, snapshot, firstNonEmptyString(summary.UpdatedAt, now))
+		return order, event, true
 	}
 
 	summary := s.orders[internalOrderID]
 	if brokerOrderSnapshotStale(summary, snapshot) {
 		return executionOrderSummaryResponse{}, nil, false
 	}
-	changed := false
 	previousStatus := summary.Status
-	if rawBrokerStatus := strings.TrimSpace(snapshot.Status); rawBrokerStatus != "" {
-		incomingStatus := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
-		if reconciled, accepted := trdsrv.ReconcileCanonicalOrderStatus(summary.Status, incomingStatus); accepted {
-			if summary.Status != reconciled {
-				summary.Status = reconciled
-				changed = true
-			}
-			if stringPointersDiffer(summary.RawBrokerStatus, &rawBrokerStatus) {
-				summary.RawBrokerStatus = stringPointerOrNil(rawBrokerStatus)
-				changed = true
-			}
-		}
-	}
-	if value := strings.TrimSpace(snapshot.Market); value != "" && value != summary.Market {
-		summary.Market = value
-		changed = true
-	}
-	if value := strings.TrimSpace(snapshot.AccountID); value != "" && value != summary.AccountID {
-		summary.AccountID = value
-		changed = true
-	}
-	if value := strings.TrimSpace(snapshot.TradingEnvironment); value != "" && value != summary.TradingEnvironment {
-		summary.TradingEnvironment = value
-		changed = true
-	}
-	if stringPointersDiffer(summary.Symbol, stringPointerOrNil(snapshot.Symbol)) {
-		summary.Symbol = stringPointerOrNil(snapshot.Symbol)
-		changed = true
-	}
-	if stringPointersDiffer(summary.Side, stringPointerOrNil(snapshot.Side)) {
-		summary.Side = stringPointerOrNil(snapshot.Side)
-		changed = true
-	}
-	if stringPointersDiffer(summary.OrderType, stringPointerOrNil(snapshot.OrderType)) {
-		summary.OrderType = stringPointerOrNil(snapshot.OrderType)
-		changed = true
-	}
-	if stringPointersDiffer(summary.BrokerOrderIDEx, snapshot.BrokerOrderIDEx) {
-		summary.BrokerOrderIDEx = cloneStringPointer(snapshot.BrokerOrderIDEx)
-		changed = true
-	}
-	if stringPointersDiffer(summary.Remark, snapshot.Remark) {
-		summary.Remark = cloneStringPointer(snapshot.Remark)
-		changed = true
-	}
-	if stringPointersDiffer(summary.LastError, snapshot.LastError) {
-		summary.LastError = cloneStringPointer(snapshot.LastError)
-		changed = true
-	}
-	if snapshot.LastError != nil {
-		summary.LastErrorSource = executionStringPointerOrNil("broker.sync")
-	} else {
-		summary.LastErrorSource = nil
-	}
-	if snapshot.Quantity > 0 && float64PointersDiffer(summary.RequestedQuantity, &snapshot.Quantity) {
-		summary.RequestedQuantity = new(snapshot.Quantity)
-		changed = true
-	}
-	if snapshot.Price != nil && float64PointersDiffer(summary.RequestedPrice, snapshot.Price) {
-		summary.RequestedPrice = cloneFloat64Pointer(snapshot.Price)
-		changed = true
-	}
-	if snapshot.FilledQuantity != nil && *snapshot.FilledQuantity >= optionalFloat64(summary.FilledQuantity) && float64PointersDiffer(summary.FilledQuantity, snapshot.FilledQuantity) {
-		summary.FilledQuantity = cloneFloat64Pointer(snapshot.FilledQuantity)
-		changed = true
-	}
-	if snapshot.FilledAveragePrice != nil && optionalFloat64(snapshot.FilledQuantity) >= optionalFloat64(summary.FilledQuantity) && float64PointersDiffer(summary.FilledAveragePrice, snapshot.FilledAveragePrice) {
-		summary.FilledAveragePrice = cloneFloat64Pointer(snapshot.FilledAveragePrice)
-		changed = true
-	}
-	if value := strings.TrimSpace(snapshot.SubmittedAt); value != "" && stringPointersDiffer(summary.SubmittedAt, &value) {
-		summary.SubmittedAt = stringPointerOrNil(value)
-		changed = true
-	}
-	if value := strings.TrimSpace(snapshot.UpdatedAt); value != "" {
-		if executionTimestampAdvances(summary.UpdatedAt, value) || (changed && summary.UpdatedAt != value) {
-			summary.UpdatedAt = value
-			changed = true
-		}
-	}
+	changed := applyBrokerOrderSnapshot(&summary, snapshot)
 	if !changed {
 		return executionOrderSummaryResponse{}, nil, false
 	}
-	if summary.UpdatedAt == "" {
-		summary.UpdatedAt = now
-	}
-	if summary.SubmittedAt == nil {
-		summary.SubmittedAt = stringPointerOrNil(summary.CreatedAt)
-	}
-	if snapshot.LastError == nil {
-		summary.LastErrorCode = nil
-	}
-	if summary.Source == "" {
-		summary.Source = firstNonEmptyString(source, "broker")
-	}
-	if summary.SourceDetail == "" {
-		summary.SourceDetail = firstNonEmptyString(sourceDetail, "broker.current")
-	}
-	s.orders[internalOrderID] = summary
-	s.linkBrokerOrderLocked(summary)
-	s.persistOrderLocked(summary)
-	event := s.appendEventLocked(internalOrderID, stringPointerOrNil(previousStatus), summary.Status, updatedEventType, snapshot, summary.UpdatedAt)
-	return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event)), true
+	normalizeBrokerOrderSummary(&summary, snapshot, now, source, sourceDetail)
+	order, event := s.persistBrokerOrderLocked(summary, stringPointerOrNil(previousStatus), updatedEventType, snapshot, summary.UpdatedAt)
+	return order, event, true
 }
 
 func executionTimestampAdvances(current, incoming string) bool {
@@ -447,62 +310,249 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 	defer s.mu.Unlock()
 
 	fillKey := executionFillLookupKey(brokerID, fill.AccountID, fill.TradingEnvironment, fill.Market, fill.BrokerFillID, fill.BrokerFillIDEx)
-	if fillKey != "" {
-		if _, exists := s.seenFillKeys[fillKey]; exists {
-			return executionOrderSummaryResponse{}, nil, false
-		}
-		s.seenFillKeys[fillKey] = now
-		s.persistSeenFillKeyLocked(fillKey, now)
+	if s.registerFillKeyLocked(fillKey, now) {
+		return executionOrderSummaryResponse{}, nil, false
 	}
 
 	internalOrderID := s.findInternalOrderIDLocked(brokerID, fill.AccountID, fill.TradingEnvironment, fill.Market, fill.BrokerOrderID, fill.BrokerOrderIDEx)
 	if internalOrderID == "" {
-		s.nextOrderSeq++
-		s.persistSequenceLocked("orders", s.nextOrderSeq)
-		internalOrderID = fmt.Sprintf("exec-%06d", s.nextOrderSeq)
-		rawBrokerStatus := strings.TrimSpace(derefString(fill.Status))
-		status := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
-		if status == trdsrv.OrderStatusUnknown {
-			status = trdsrv.OrderStatusPartiallyFilled
-		}
-		summary := executionOrderSummaryResponse{
-			InternalOrderID:    internalOrderID,
-			BrokerID:           strings.TrimSpace(brokerID),
-			BrokerOrderID:      stringPointerOrNil(fill.BrokerOrderID),
-			BrokerOrderIDEx:    cloneStringPointer(fill.BrokerOrderIDEx),
-			Source:             "broker",
-			SourceDetail:       "broker.fill",
-			TradingEnvironment: fill.TradingEnvironment,
-			AccountID:          fill.AccountID,
-			Market:             fill.Market,
-			Symbol:             stringPointerOrNil(fill.Symbol),
-			Side:               stringPointerOrNil(fill.Side),
-			OrderType:          nil,
-			Status:             status,
-			RawBrokerStatus:    stringPointerOrNil(rawBrokerStatus),
-			RequestedQuantity:  nil,
-			RequestedPrice:     nil,
-			FilledQuantity:     new(fill.FilledQuantity),
-			FilledAveragePrice: cloneFloat64Pointer(fill.FillPrice),
-			Remark:             nil,
-			LastError:          nil,
-			LastErrorCode:      nil,
-			LastErrorSource:    executionStringPointerOrNil("broker.push"),
-			SubmittedAt:        stringPointerOrNil(firstNonEmptyString(fill.FilledAt, now)),
-			UpdatedAt:          firstNonEmptyString(fill.FilledAt, now),
-			CreatedAt:          now,
-		}
-		if summary.BrokerID == "" {
-			summary.BrokerID = "futu"
-		}
-		s.orders[internalOrderID] = summary
-		s.linkBrokerOrderLocked(summary)
-		s.persistOrderLocked(summary)
-		event := s.appendEventLocked(internalOrderID, nil, summary.Status, "BROKER_FILL_RECEIVED", fill, firstNonEmptyString(summary.UpdatedAt, now))
-		return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event)), true
+		summary := brokerOrderSummaryFromFill(s.allocateInternalOrderIDLocked(), brokerID, fill, now)
+		order, event := s.persistBrokerOrderLocked(summary, nil, "BROKER_FILL_RECEIVED", fill, firstNonEmptyString(summary.UpdatedAt, now))
+		return order, event, true
 	}
 
 	summary := s.orders[internalOrderID]
+	previousStatus, previousFilled, newFilled := applyBrokerOrderFill(&summary, fill, now)
+	order, event := s.persistBrokerOrderLocked(summary, stringPointerOrNil(previousStatus), "BROKER_FILL_RECEIVED", fill, summary.UpdatedAt)
+	return order, event, previousStatus != summary.Status || newFilled != previousFilled
+}
+
+func (s *executionOrderStore) allocateInternalOrderIDLocked() string {
+	s.nextOrderSeq++
+	s.persistSequenceLocked("orders", s.nextOrderSeq)
+	return fmt.Sprintf("exec-%06d", s.nextOrderSeq)
+}
+
+func (s *executionOrderStore) persistBrokerOrderLocked(summary executionOrderSummaryResponse, previousStatus *string, eventType string, payload any, createdAt string) (executionOrderSummaryResponse, *executionOrderEventResponse) {
+	s.orders[summary.InternalOrderID] = summary
+	s.linkBrokerOrderLocked(summary)
+	s.persistOrderLocked(summary)
+	event := s.appendEventLocked(summary.InternalOrderID, previousStatus, summary.Status, eventType, payload, createdAt)
+	return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event))
+}
+
+func (s *executionOrderStore) registerFillKeyLocked(fillKey string, now string) bool {
+	if fillKey == "" {
+		return false
+	}
+	if _, exists := s.seenFillKeys[fillKey]; exists {
+		return true
+	}
+	s.seenFillKeys[fillKey] = now
+	s.persistSeenFillKeyLocked(fillKey, now)
+	return false
+}
+
+func (s *executionOrderStore) brokerOrderSummaryFromSnapshot(internalOrderID string, brokerID string, snapshot broker.OrderSnapshot, now string, source string, sourceDetail string) executionOrderSummaryResponse {
+	filledQuantity := cloneFloat64Pointer(snapshot.FilledQuantity)
+	if filledQuantity == nil {
+		filledQuantity = new(0.0)
+	}
+	rawBrokerStatus := strings.TrimSpace(snapshot.Status)
+	summary := executionOrderSummaryResponse{
+		InternalOrderID:    internalOrderID,
+		BrokerID:           strings.TrimSpace(brokerID),
+		BrokerOrderID:      stringPointerOrNil(snapshot.BrokerOrderID),
+		BrokerOrderIDEx:    cloneStringPointer(snapshot.BrokerOrderIDEx),
+		Source:             firstNonEmptyString(source, "broker"),
+		SourceDetail:       firstNonEmptyString(sourceDetail, "broker.current"),
+		TradingEnvironment: snapshot.TradingEnvironment,
+		AccountID:          snapshot.AccountID,
+		Market:             snapshot.Market,
+		Symbol:             stringPointerOrNil(snapshot.Symbol),
+		Side:               stringPointerOrNil(snapshot.Side),
+		OrderType:          stringPointerOrNil(snapshot.OrderType),
+		Status:             trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus),
+		RawBrokerStatus:    stringPointerOrNil(rawBrokerStatus),
+		RequestedQuantity:  new(snapshot.Quantity),
+		RequestedPrice:     cloneFloat64Pointer(snapshot.Price),
+		FilledQuantity:     filledQuantity,
+		FilledAveragePrice: cloneFloat64Pointer(snapshot.FilledAveragePrice),
+		Remark:             cloneStringPointer(snapshot.Remark),
+		LastError:          cloneStringPointer(snapshot.LastError),
+		LastErrorCode:      nil,
+		LastErrorSource:    executionStringPointerOrNil("broker.sync"),
+		SubmittedAt:        stringPointerOrNil(firstNonEmptyString(snapshot.SubmittedAt, now)),
+		UpdatedAt:          firstNonEmptyString(snapshot.UpdatedAt, now),
+		CreatedAt:          now,
+	}
+	if summary.BrokerID == "" {
+		summary.BrokerID = "futu"
+	}
+	return summary
+}
+
+func applyBrokerOrderSnapshot(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+	changed := false
+	changed = applyBrokerOrderSnapshotStatus(summary, snapshot) || changed
+	changed = applyBrokerOrderSnapshotIdentity(summary, snapshot) || changed
+	changed = applyBrokerOrderSnapshotQuantities(summary, snapshot) || changed
+	if value := strings.TrimSpace(snapshot.SubmittedAt); value != "" && stringPointersDiffer(summary.SubmittedAt, &value) {
+		summary.SubmittedAt = stringPointerOrNil(value)
+		changed = true
+	}
+	if value := strings.TrimSpace(snapshot.UpdatedAt); value != "" {
+		if executionTimestampAdvances(summary.UpdatedAt, value) || (changed && summary.UpdatedAt != value) {
+			summary.UpdatedAt = value
+			changed = true
+		}
+	}
+	return changed
+}
+
+func applyBrokerOrderSnapshotStatus(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+	changed := false
+	if rawBrokerStatus := strings.TrimSpace(snapshot.Status); rawBrokerStatus != "" {
+		incomingStatus := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
+		if reconciled, accepted := trdsrv.ReconcileCanonicalOrderStatus(summary.Status, incomingStatus); accepted {
+			if summary.Status != reconciled {
+				summary.Status = reconciled
+				changed = true
+			}
+			if stringPointersDiffer(summary.RawBrokerStatus, &rawBrokerStatus) {
+				summary.RawBrokerStatus = stringPointerOrNil(rawBrokerStatus)
+				changed = true
+			}
+		}
+	}
+	if stringPointersDiffer(summary.LastError, snapshot.LastError) {
+		summary.LastError = cloneStringPointer(snapshot.LastError)
+		changed = true
+	}
+	if snapshot.LastError != nil {
+		summary.LastErrorSource = executionStringPointerOrNil("broker.sync")
+	} else {
+		summary.LastErrorSource = nil
+	}
+	return changed
+}
+
+func applyBrokerOrderSnapshotIdentity(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+	changed := false
+	if value := strings.TrimSpace(snapshot.Market); value != "" && value != summary.Market {
+		summary.Market = value
+		changed = true
+	}
+	if value := strings.TrimSpace(snapshot.AccountID); value != "" && value != summary.AccountID {
+		summary.AccountID = value
+		changed = true
+	}
+	if value := strings.TrimSpace(snapshot.TradingEnvironment); value != "" && value != summary.TradingEnvironment {
+		summary.TradingEnvironment = value
+		changed = true
+	}
+	if stringPointersDiffer(summary.Symbol, stringPointerOrNil(snapshot.Symbol)) {
+		summary.Symbol = stringPointerOrNil(snapshot.Symbol)
+		changed = true
+	}
+	if stringPointersDiffer(summary.Side, stringPointerOrNil(snapshot.Side)) {
+		summary.Side = stringPointerOrNil(snapshot.Side)
+		changed = true
+	}
+	if stringPointersDiffer(summary.OrderType, stringPointerOrNil(snapshot.OrderType)) {
+		summary.OrderType = stringPointerOrNil(snapshot.OrderType)
+		changed = true
+	}
+	if stringPointersDiffer(summary.BrokerOrderIDEx, snapshot.BrokerOrderIDEx) {
+		summary.BrokerOrderIDEx = cloneStringPointer(snapshot.BrokerOrderIDEx)
+		changed = true
+	}
+	if stringPointersDiffer(summary.Remark, snapshot.Remark) {
+		summary.Remark = cloneStringPointer(snapshot.Remark)
+		changed = true
+	}
+	return changed
+}
+
+func applyBrokerOrderSnapshotQuantities(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+	changed := false
+	if snapshot.Quantity > 0 && float64PointersDiffer(summary.RequestedQuantity, &snapshot.Quantity) {
+		summary.RequestedQuantity = new(snapshot.Quantity)
+		changed = true
+	}
+	if snapshot.Price != nil && float64PointersDiffer(summary.RequestedPrice, snapshot.Price) {
+		summary.RequestedPrice = cloneFloat64Pointer(snapshot.Price)
+		changed = true
+	}
+	if snapshot.FilledQuantity != nil && *snapshot.FilledQuantity >= optionalFloat64(summary.FilledQuantity) && float64PointersDiffer(summary.FilledQuantity, snapshot.FilledQuantity) {
+		summary.FilledQuantity = cloneFloat64Pointer(snapshot.FilledQuantity)
+		changed = true
+	}
+	if snapshot.FilledAveragePrice != nil && optionalFloat64(snapshot.FilledQuantity) >= optionalFloat64(summary.FilledQuantity) && float64PointersDiffer(summary.FilledAveragePrice, snapshot.FilledAveragePrice) {
+		summary.FilledAveragePrice = cloneFloat64Pointer(snapshot.FilledAveragePrice)
+		changed = true
+	}
+	return changed
+}
+
+func normalizeBrokerOrderSummary(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot, now string, source string, sourceDetail string) {
+	if summary.UpdatedAt == "" {
+		summary.UpdatedAt = now
+	}
+	if summary.SubmittedAt == nil {
+		summary.SubmittedAt = stringPointerOrNil(summary.CreatedAt)
+	}
+	if snapshot.LastError == nil {
+		summary.LastErrorCode = nil
+	}
+	if summary.Source == "" {
+		summary.Source = firstNonEmptyString(source, "broker")
+	}
+	if summary.SourceDetail == "" {
+		summary.SourceDetail = firstNonEmptyString(sourceDetail, "broker.current")
+	}
+}
+
+func brokerOrderSummaryFromFill(internalOrderID string, brokerID string, fill broker.OrderFillSnapshot, now string) executionOrderSummaryResponse {
+	rawBrokerStatus := strings.TrimSpace(derefString(fill.Status))
+	status := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
+	if status == trdsrv.OrderStatusUnknown {
+		status = trdsrv.OrderStatusPartiallyFilled
+	}
+	summary := executionOrderSummaryResponse{
+		InternalOrderID:    internalOrderID,
+		BrokerID:           strings.TrimSpace(brokerID),
+		BrokerOrderID:      stringPointerOrNil(fill.BrokerOrderID),
+		BrokerOrderIDEx:    cloneStringPointer(fill.BrokerOrderIDEx),
+		Source:             "broker",
+		SourceDetail:       "broker.fill",
+		TradingEnvironment: fill.TradingEnvironment,
+		AccountID:          fill.AccountID,
+		Market:             fill.Market,
+		Symbol:             stringPointerOrNil(fill.Symbol),
+		Side:               stringPointerOrNil(fill.Side),
+		OrderType:          nil,
+		Status:             status,
+		RawBrokerStatus:    stringPointerOrNil(rawBrokerStatus),
+		RequestedQuantity:  nil,
+		RequestedPrice:     nil,
+		FilledQuantity:     new(fill.FilledQuantity),
+		FilledAveragePrice: cloneFloat64Pointer(fill.FillPrice),
+		Remark:             nil,
+		LastError:          nil,
+		LastErrorCode:      nil,
+		LastErrorSource:    executionStringPointerOrNil("broker.push"),
+		SubmittedAt:        stringPointerOrNil(firstNonEmptyString(fill.FilledAt, now)),
+		UpdatedAt:          firstNonEmptyString(fill.FilledAt, now),
+		CreatedAt:          now,
+	}
+	if summary.BrokerID == "" {
+		summary.BrokerID = "futu"
+	}
+	return summary
+}
+
+func applyBrokerOrderFill(summary *executionOrderSummaryResponse, fill broker.OrderFillSnapshot, now string) (string, float64, float64) {
 	previousStatus := summary.Status
 	previousFilled := optionalFloat64(summary.FilledQuantity)
 	previousAverage := optionalFloat64(summary.FilledAveragePrice)
@@ -560,11 +610,7 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 	if summary.SourceDetail == "" {
 		summary.SourceDetail = "broker.fill"
 	}
-	s.orders[internalOrderID] = summary
-	s.linkBrokerOrderLocked(summary)
-	s.persistOrderLocked(summary)
-	event := s.appendEventLocked(internalOrderID, stringPointerOrNil(previousStatus), summary.Status, "BROKER_FILL_RECEIVED", fill, summary.UpdatedAt)
-	return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event)), previousStatus != summary.Status || newFilled != previousFilled
+	return previousStatus, previousFilled, newFilled
 }
 
 func (s *executionOrderStore) appendEventLocked(internalOrderID string, previousStatus *string, nextStatus string, eventType string, payload any, createdAt string) executionOrderEventResponse {
