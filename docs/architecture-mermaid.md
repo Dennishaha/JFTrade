@@ -1,0 +1,229 @@
+# JFTrade 架构 Mermaid 图
+
+本文用 Mermaid 图补充 [architecture.md](./architecture.md) 的文字说明。它偏向“快速看边界”，不是替代接口、配置或协议专题文档。
+
+## 系统总览
+
+```mermaid
+flowchart TB
+    User["用户 / 浏览器"]
+
+    subgraph Frontend["前端与文档"]
+        Web["apps/web<br/>Vue 3 + Vite 控制台"]
+        Docs["docs<br/>VitePress 文档站"]
+        RuntimeConfig["runtime-config.js<br/>运行时 API 地址"]
+    end
+
+    subgraph Entrypoint["进程入口与装配"]
+        CLI["cmd/jftrade-api<br/>唯一后端入口"]
+        App["internal/app/apiserver<br/>启动 / 生命周期 / 运行时目录"]
+        Core["servercore<br/>依赖装配 / 路由挂载 / runtime bridge"]
+    end
+
+    subgraph Transport["HTTP / SSE / WebSocket 层"]
+        Middleware["internal/api/middleware<br/>认证 / CORS / 安全"]
+        HTTP["internal/api/*<br/>/api/v1 JSON routes"]
+        LiveAPI["internal/api/live<br/>SSE / WS live stream"]
+        Swagger["docs/swagger<br/>OpenAPI / Swagger UI"]
+    end
+
+    subgraph Services["业务服务层"]
+        SystemSvc["internal/system<br/>状态 / 诊断 / 观测摘要"]
+        SettingsSvc["internal/settings<br/>配置读写 / 归一化"]
+        MarketSvc["internal/marketdata<br/>订阅 / cache / collector / K线"]
+        TradingSvc["internal/trading<br/>账户 / 订单 / 风控 / execution"]
+        StrategySvc["internal/strategy<br/>策略定义 / 实例 / runtime 控制"]
+        BacktestSvc["internal/backtest<br/>回测 / 历史同步 / 结果视图"]
+        AssistantSvc["internal/assistant<br/>ADK session / run / approval / workflow"]
+        CalendarSvc["internal/exchangecalendar<br/>交易日历管理"]
+        DataSvc["internal/datamanagement<br/>数据维护 / 迁移入口"]
+        LiveBus["internal/live<br/>ReplayPublisher / live events"]
+    end
+
+    subgraph Integration["集成与可复用能力"]
+        FutuIntegration["internal/integration/futu<br/>OpenD 访问与 DTO 转换"]
+        FutuPkg["pkg/futu<br/>Futu exchange adapter"]
+        BrokerPkg["pkg/broker + pkg/market<br/>券商抽象 / 市场规则"]
+        StrategyPkg["pkg/strategy<br/>Pine parser / IR / spec / lowering"]
+        PineWorkerGo["pkg/strategy/pineworker<br/>Go gRPC client / worker manager"]
+        PineWorkerNode["workers/pineworker<br/>Node ESM + PineTS executor"]
+        BacktestPkg["pkg/backtest<br/>回测引擎与历史存储能力"]
+        ADKPkg["pkg/adk<br/>ADK runtime"]
+        BBGO["pkg/bbgo/*<br/>公共 types / stream / backtest primitives"]
+    end
+
+    subgraph RuntimeState["本地运行时文件"]
+        Var["var/jftrade-api"]
+        SettingsFile["settings.json"]
+        BacktestDB["backtest.db"]
+        Secrets["secrets/admin.key"]
+        Artifacts["策略 / 回测 / worker artifacts"]
+    end
+
+    subgraph External["外部依赖"]
+        OpenD["Futu OpenD<br/>TCP 11110 / WebSocket 11111"]
+        PineTS["pinets<br/>PineTS runtime"]
+    end
+
+    User --> Web
+    User --> Docs
+    RuntimeConfig --> Web
+
+    Web -->|JSON HTTP /api/v1/*| Middleware
+    Web -->|SSE /api/v1/stream/live| LiveAPI
+    Web -->|WS /api/v1/ws/live| LiveAPI
+    Web -->|/docs| Docs
+    Web -->|/swagger| Swagger
+
+    CLI --> App --> Core
+    Core --> Middleware --> HTTP
+    Core --> LiveAPI
+    Core --> Swagger
+
+    HTTP --> SystemSvc
+    HTTP --> SettingsSvc
+    HTTP --> MarketSvc
+    HTTP --> TradingSvc
+    HTTP --> StrategySvc
+    HTTP --> BacktestSvc
+    HTTP --> AssistantSvc
+    HTTP --> CalendarSvc
+    HTTP --> DataSvc
+    LiveAPI --> LiveBus
+
+    SystemSvc --> Core
+    SettingsSvc --> Core
+    TradingSvc --> Core
+    StrategySvc --> Core
+    BacktestSvc --> Core
+    AssistantSvc --> Core
+    DataSvc --> Core
+
+    MarketSvc --> FutuIntegration
+    TradingSvc --> FutuIntegration
+    Core --> FutuIntegration
+    FutuIntegration --> FutuPkg --> OpenD
+    FutuPkg --> BrokerPkg
+    FutuPkg --> BBGO
+
+    StrategySvc --> StrategyPkg
+    StrategySvc --> PineWorkerGo
+    BacktestSvc --> BacktestPkg
+    BacktestSvc --> PineWorkerGo
+    PineWorkerGo -->|localhost gRPC| PineWorkerNode --> PineTS
+    PineWorkerGo --> StrategyPkg
+    BacktestPkg --> BBGO
+    AssistantSvc --> ADKPkg
+
+    MarketSvc --> LiveBus
+    TradingSvc --> LiveBus
+    Core --> LiveBus
+    LiveBus --> LiveAPI
+
+    Core --> Var
+    SettingsSvc --> SettingsFile
+    BacktestSvc --> BacktestDB
+    Core --> Secrets
+    StrategySvc --> Artifacts
+    Var --> SettingsFile
+    Var --> BacktestDB
+    Var --> Secrets
+    Var --> Artifacts
+```
+
+## 主要运行链路
+
+```mermaid
+flowchart LR
+    Web["apps/web 控制台"]
+
+    subgraph JSON["JSON 控制面"]
+        API["internal/api/*"]
+        Services["internal/{system,settings,marketdata,trading,strategy,backtest,assistant}"]
+        Core["servercore adapters / runtime bridge"]
+    end
+
+    subgraph Live["实时推送面"]
+        LiveAPI["internal/api/live"]
+        LiveBus["internal/live ReplayPublisher"]
+        Collector["internal/marketdata collector + cache"]
+    end
+
+    subgraph MarketTrade["行情与交易"]
+        FutuIntegration["internal/integration/futu"]
+        FutuPkg["pkg/futu"]
+        OpenD["Futu OpenD"]
+    end
+
+    subgraph StrategyBacktest["策略与回测"]
+        StrategySvc["internal/strategy"]
+        BacktestSvc["internal/backtest"]
+        StrategyPkg["pkg/strategy"]
+        BacktestPkg["pkg/backtest"]
+        WorkerGo["pkg/strategy/pineworker"]
+        WorkerNode["workers/pineworker"]
+        PineTS["pinets"]
+    end
+
+    subgraph LocalStore["本地状态"]
+        Settings["settings.json"]
+        DB["backtest.db"]
+        RuntimeFiles["策略定义 / 实例 / artifacts"]
+    end
+
+    Web -->|/api/v1/*| API --> Services --> Core
+    Web -->|SSE / WS| LiveAPI --> LiveBus --> Web
+
+    Services --> Collector --> FutuIntegration
+    Services --> FutuIntegration --> FutuPkg --> OpenD
+    Collector --> LiveBus
+    FutuPkg --> LiveBus
+
+    Services --> StrategySvc --> StrategyPkg
+    Services --> BacktestSvc --> BacktestPkg
+    StrategySvc --> WorkerGo
+    BacktestSvc --> WorkerGo
+    WorkerGo -->|gRPC| WorkerNode --> PineTS
+
+    Core --> Settings
+    Core --> DB
+    Core --> RuntimeFiles
+```
+
+## 开发与发布链路
+
+```mermaid
+flowchart TB
+    subgraph Dev["开发态"]
+        DevAPI["go run ./cmd/jftrade-api<br/>127.0.0.1:3000"]
+        DevWeb["npm run dev:web<br/>Vite 127.0.0.1:5173"]
+        DevDocs["npm run dev:docs<br/>VitePress 127.0.0.1:3001"]
+        Proxy["Vite proxy<br/>/api /swagger -> 3000<br/>/docs -> 3001"]
+    end
+
+    subgraph Build["构建任务"]
+        BuildWeb["npm run build:web"]
+        BuildDocs["npm run build:docs<br/>generate OpenAPI + reference"]
+        BuildWorker["npm run build:pineworker"]
+        BuildAPI["go build ./cmd/jftrade-api"]
+    end
+
+    subgraph Release["发布态"]
+        Dist["dist/"]
+        GUI["GUI 同源入口<br/>127.0.0.1:6688"]
+        Gateway["API gateway<br/>127.0.0.1:6699"]
+        EmbeddedAssets["internal/frontendassets<br/>internal/pineworkerassets"]
+    end
+
+    DevWeb --> Proxy --> DevAPI
+    DevWeb --> Proxy --> DevDocs
+
+    BuildWeb --> Dist
+    BuildDocs --> Dist
+    BuildWorker --> EmbeddedAssets
+    BuildAPI --> Dist
+    EmbeddedAssets --> BuildAPI
+
+    Dist --> GUI
+    Dist --> Gateway
+```

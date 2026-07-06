@@ -2,7 +2,7 @@
 
 这份 README 面向仓库维护者、协作者和后续 AI。它不重复介绍项目本身，只负责把你引到正确的事实来源。
 
-如果只看一篇，请先看本文和 [architecture.md](architecture.md)。
+如果只看一篇，请先看本文和 [architecture.md](architecture.md)。需要图形化总览时看 [architecture-mermaid.md](architecture-mermaid.md)。
 
 ## 当前版本快照
 
@@ -39,6 +39,7 @@ npm run check:pinets-release
 ### 1. 先确认系统边界
 
 - [architecture.md](architecture.md)：当前系统架构、单一 API 入口、请求链路和职责边界。
+- [architecture-mermaid.md](architecture-mermaid.md)：项目架构、主要运行链路和开发/发布链路的 Mermaid 图。
 - [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层约束、依赖方向和常见禁区。
 - [architecture/high-roi-tech-stack-refactor-plan.md](architecture/high-roi-tech-stack-refactor-plan.md)：高收益技术栈重构计划，拆分 API 契约、状态层、实时事件、性能、领域组件和观测能力。
 - [architecture/high-value-optimization-implementation-plan.md](architecture/high-value-optimization-implementation-plan.md)：高价值优化实施路线，覆盖回测执行模型、券商适配、行情 provider 和开源工程化。

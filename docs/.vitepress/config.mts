@@ -6,6 +6,27 @@ export default defineConfig({
   base: "/docs/",
   cleanUrls: true,
   ignoreDeadLinks: true,
+  markdown: {
+    config(md) {
+      const defaultFenceRenderer = md.renderer.rules.fence;
+
+      md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+        const token = tokens[idx];
+        const language = token.info.trim().split(/\s+/)[0]?.toLowerCase();
+
+        if (language === "mermaid") {
+          const encodedSource = encodeURIComponent(token.content.trim());
+          return `<MermaidBlock code="${md.utils.escapeHtml(encodedSource)}" />`;
+        }
+
+        if (defaultFenceRenderer) {
+          return defaultFenceRenderer(tokens, idx, options, env, self);
+        }
+
+        return self.renderToken(tokens, idx, options);
+      };
+    },
+  },
   srcExclude: [
     "reference/Futu-API-Doc-zh-Proto.md",
     "reference/bbgo-doc/**/*.md",
@@ -41,6 +62,7 @@ export default defineConfig({
         text: "维护参考",
         items: [
           { text: "架构", link: "/architecture" },
+          { text: "架构 Mermaid 图", link: "/architecture-mermaid" },
           { text: "PineTS 发布清单", link: "/troubleshooting/pinets-worker-release" },
           { text: "ADK", link: "/adk" },
           { text: "Reference", link: "/reference/" },
