@@ -9,273 +9,320 @@ import (
 )
 
 func parseAdvancedIndicatorBinding(lineNumber int, alias, name string, args []string) (plannedBinding, bool, error) {
-	sourceArg := func(value string) (string, error) {
-		source, ok := indicatorbinding.ParsePriceSource(value)
-		if !ok {
-			return "", fmt.Errorf("pine line %d: %s() source %q is not supported", lineNumber, name, strings.TrimSpace(value))
-		}
-		return source, nil
-	}
-	timeUnit := ""
-	parseTimeUnit := func(index int) error {
-		if len(args) <= index {
-			return nil
-		}
-		if len(args) != index+1 {
-			return fmt.Errorf("pine line %d: %s() received an invalid argument count", lineNumber, name)
-		}
-		parsed, ok := indicatorbinding.ParseIndicatorTimeUnitValue(args[index])
-		if !ok || parsed == "" {
-			return fmt.Errorf("pine line %d: %s() timeframe %q is not supported", lineNumber, name, strings.TrimSpace(args[index]))
-		}
-		timeUnit = parsed
-		args = args[:index]
-		return nil
-	}
-	withTimeUnit := func(key string) string {
-		if timeUnit == "" {
-			return key
-		}
-		return key + ":" + timeUnit
-	}
+	parser := newAdvancedIndicatorParser(lineNumber, alias, name, args)
 	switch name {
 	case "cog", "cmo", "dev", "median", "percentrank":
-		if err := parseTimeUnit(2); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) != 2 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source and length", lineNumber, name)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		period, err := indicatorbinding.ParsePositiveInt(args[1])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() length must be positive", lineNumber, name)
-		}
-		key := withTimeUnit(fmt.Sprintf("%s:%s:%d", name, source, period))
-		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(period)}}, true, nil
+		return parser.parseSourcePeriodIndicator(2)
 	case "bbw":
-		if err := parseTimeUnit(3); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) != 3 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: bbw() requires source, length, and multiplier", lineNumber)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		period, err := indicatorbinding.ParsePositiveInt(args[1])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: bbw() length must be positive", lineNumber)
-		}
-		multiplier, err := indicatorbinding.ParsePositiveFloat(args[2])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: bbw() multiplier must be positive", lineNumber)
-		}
-		multiplierText := strconv.FormatFloat(multiplier, 'f', -1, 64)
-		key := withTimeUnit(fmt.Sprintf("bbw:%s:%d:%s", source, period, multiplierText))
-		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(period), multiplierText}}, true, nil
+		return parser.parseBBWBinding()
 	case "tsi":
-		if err := parseTimeUnit(3); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) != 3 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: tsi() requires source, short length, and long length", lineNumber)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		shortPeriod, err := indicatorbinding.ParsePositiveInt(args[1])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: tsi() short length must be positive", lineNumber)
-		}
-		longPeriod, err := indicatorbinding.ParsePositiveInt(args[2])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: tsi() long length must be positive", lineNumber)
-		}
-		key := withTimeUnit(fmt.Sprintf("tsi:%s:%d:%d", source, shortPeriod, longPeriod))
-		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(shortPeriod), strconv.Itoa(longPeriod)}}, true, nil
+		return parser.parseTSIBinding()
 	case "correlation":
-		if err := parseTimeUnit(3); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) != 3 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: correlation() requires source, second source, and length", lineNumber)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		source2, err := sourceArg(args[1])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		period, err := indicatorbinding.ParsePositiveInt(args[2])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: correlation() length must be positive", lineNumber)
-		}
-		key := withTimeUnit(fmt.Sprintf("correlation:%s:%s:%d", source, source2, period))
-		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, source2, strconv.Itoa(period)}}, true, nil
+		return parser.parseCorrelationBinding()
 	case "percentile_linear_interpolation", "percentile_nearest_rank":
-		if err := parseTimeUnit(3); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) != 3 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source, length, and percentage", lineNumber, name)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		period, err := indicatorbinding.ParsePositiveInt(args[1])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() length must be positive", lineNumber, name)
-		}
-		percentage, err := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
-		if err != nil || percentage < 0 || percentage > 100 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() percentage must be between 0 and 100", lineNumber, name)
-		}
-		key := withTimeUnit(fmt.Sprintf("%s:%s:%d:%s", name, source, period, strconv.FormatFloat(percentage, 'f', -1, 64)))
-		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(period), strconv.FormatFloat(percentage, 'f', -1, 64)}}, true, nil
+		return parser.parsePercentileBinding()
 	case "swma":
-		if err := parseTimeUnit(1); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) != 1 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: swma() requires one source", lineNumber)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		return plannedBinding{Alias: alias, Kind: name, Key: withTimeUnit("swma:" + source), Args: []string{source}}, true, nil
+		return parser.parseSingleSourceBinding(1)
 	case "linreg":
-		if err := parseTimeUnit(3); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) != 3 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: linreg() requires source, length, and offset", lineNumber)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		period, err := indicatorbinding.ParsePositiveInt(args[1])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: linreg() length must be positive", lineNumber)
-		}
-		offset, err := strconv.Atoi(strings.TrimSpace(args[2]))
-		if err != nil || offset < 0 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: linreg() offset must be a non-negative integer", lineNumber)
-		}
-		key := withTimeUnit(fmt.Sprintf("linreg:%s:%d:%d", source, period, offset))
-		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(period), strconv.Itoa(offset)}}, true, nil
+		return parser.parseLinregBinding()
 	case "obv":
-		if len(args) == 0 {
-			args = []string{"close"}
-		}
-		if err := parseTimeUnit(1); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) != 1 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: obv() accepts one source", lineNumber)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		return plannedBinding{Alias: alias, Kind: name, Key: withTimeUnit("obv:" + source), Args: []string{source}}, true, nil
+		return parser.parseOBVBinding()
 	case "pivothigh", "pivotlow":
-		if err := parseTimeUnit(3); err != nil {
-			return plannedBinding{}, false, err
-		}
-		source := "high"
-		if name == "pivotlow" {
-			source = "low"
-		}
-		lengthArgs := args
-		if len(args) == 3 {
-			var err error
-			source, err = sourceArg(args[0])
-			if err != nil {
-				return plannedBinding{}, false, err
-			}
-			lengthArgs = args[1:]
-		}
-		if len(lengthArgs) != 2 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires left and right bars with optional source", lineNumber, name)
-		}
-		left, err := indicatorbinding.ParsePositiveInt(lengthArgs[0])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() left bars must be positive", lineNumber, name)
-		}
-		right, err := indicatorbinding.ParsePositiveInt(lengthArgs[1])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() right bars must be positive", lineNumber, name)
-		}
-		key := withTimeUnit(fmt.Sprintf("%s:%s:%d:%d", name, source, left, right))
-		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(left), strconv.Itoa(right)}}, true, nil
+		return parser.parsePivotBinding()
 	case "kc", "kcw":
-		if err := parseTimeUnit(4); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) < 3 || len(args) > 4 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source, length, multiplier, and optional useTrueRange", lineNumber, name)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		period, err := indicatorbinding.ParsePositiveInt(args[1])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() length must be positive", lineNumber, name)
-		}
-		multiplier, err := indicatorbinding.ParsePositiveFloat(args[2])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() multiplier must be positive", lineNumber, name)
-		}
-		useTR := true
-		if len(args) == 4 {
-			parsed, parseErr := strconv.ParseBool(strings.TrimSpace(args[3]))
-			if parseErr != nil {
-				return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() useTrueRange must be boolean", lineNumber, name)
-			}
-			useTR = parsed
-		}
-		key := withTimeUnit(fmt.Sprintf("%s:%s:%d:%s:%t", name, source, period, strconv.FormatFloat(multiplier, 'f', -1, 64), useTR))
-		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: args}, true, nil
+		return parser.parseKeltnerBinding()
 	case "alma":
-		if err := parseTimeUnit(4); err != nil {
-			return plannedBinding{}, false, err
-		}
-		if len(args) != 4 {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() requires source, length, offset, and sigma", lineNumber)
-		}
-		source, err := sourceArg(args[0])
-		if err != nil {
-			return plannedBinding{}, false, err
-		}
-		period, err := indicatorbinding.ParsePositiveInt(args[1])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() length must be positive", lineNumber)
-		}
-		offset, err := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() offset must be numeric", lineNumber)
-		}
-		sigma, err := indicatorbinding.ParsePositiveFloat(args[3])
-		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() sigma must be positive", lineNumber)
-		}
-		key := withTimeUnit(fmt.Sprintf("alma:%s:%d:%s:%s", source, period, strconv.FormatFloat(offset, 'f', -1, 64), strconv.FormatFloat(sigma, 'f', -1, 64)))
-		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: args}, true, nil
+		return parser.parseALMABinding()
 	default:
 		return plannedBinding{}, false, nil
 	}
+}
+
+type advancedIndicatorParser struct {
+	lineNumber int
+	alias      string
+	name       string
+	args       []string
+	timeUnit   string
+}
+
+func newAdvancedIndicatorParser(lineNumber int, alias, name string, args []string) *advancedIndicatorParser {
+	return &advancedIndicatorParser{lineNumber: lineNumber, alias: alias, name: name, args: args}
+}
+
+func (p *advancedIndicatorParser) parseTimeUnit(index int) error {
+	if len(p.args) <= index {
+		return nil
+	}
+	if len(p.args) != index+1 {
+		return fmt.Errorf("pine line %d: %s() received an invalid argument count", p.lineNumber, p.name)
+	}
+	parsed, ok := indicatorbinding.ParseIndicatorTimeUnitValue(p.args[index])
+	if !ok || parsed == "" {
+		return fmt.Errorf("pine line %d: %s() timeframe %q is not supported", p.lineNumber, p.name, strings.TrimSpace(p.args[index]))
+	}
+	p.timeUnit = parsed
+	p.args = p.args[:index]
+	return nil
+}
+
+func (p *advancedIndicatorParser) sourceArg(value string) (string, error) {
+	source, ok := indicatorbinding.ParsePriceSource(value)
+	if !ok {
+		return "", fmt.Errorf("pine line %d: %s() source %q is not supported", p.lineNumber, p.name, strings.TrimSpace(value))
+	}
+	return source, nil
+}
+
+func (p *advancedIndicatorParser) withTimeUnit(key string) string {
+	if p.timeUnit == "" {
+		return key
+	}
+	return key + ":" + p.timeUnit
+}
+
+func (p *advancedIndicatorParser) buildBinding(key string, args []string) (plannedBinding, bool, error) {
+	return plannedBinding{Alias: p.alias, Kind: p.name, Key: key, Args: args}, true, nil
+}
+
+func (p *advancedIndicatorParser) parseSourcePeriodIndicator(timeUnitIndex int) (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(timeUnitIndex); err != nil {
+		return plannedBinding{}, false, err
+	}
+	if len(p.args) != 2 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source and length", p.lineNumber, p.name)
+	}
+	source, err := p.sourceArg(p.args[0])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	period, err := indicatorbinding.ParsePositiveInt(p.args[1])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() length must be positive", p.lineNumber, p.name)
+	}
+	return p.buildBinding(p.withTimeUnit(fmt.Sprintf("%s:%s:%d", p.name, source, period)), []string{source, strconv.Itoa(period)})
+}
+
+func (p *advancedIndicatorParser) parseBBWBinding() (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(3); err != nil {
+		return plannedBinding{}, false, err
+	}
+	if len(p.args) != 3 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: bbw() requires source, length, and multiplier", p.lineNumber)
+	}
+	source, err := p.sourceArg(p.args[0])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	period, err := indicatorbinding.ParsePositiveInt(p.args[1])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: bbw() length must be positive", p.lineNumber)
+	}
+	multiplier, err := indicatorbinding.ParsePositiveFloat(p.args[2])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: bbw() multiplier must be positive", p.lineNumber)
+	}
+	multiplierText := strconv.FormatFloat(multiplier, 'f', -1, 64)
+	return p.buildBinding(p.withTimeUnit(fmt.Sprintf("bbw:%s:%d:%s", source, period, multiplierText)), []string{source, strconv.Itoa(period), multiplierText})
+}
+
+func (p *advancedIndicatorParser) parseTSIBinding() (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(3); err != nil {
+		return plannedBinding{}, false, err
+	}
+	if len(p.args) != 3 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: tsi() requires source, short length, and long length", p.lineNumber)
+	}
+	source, err := p.sourceArg(p.args[0])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	shortPeriod, err := indicatorbinding.ParsePositiveInt(p.args[1])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: tsi() short length must be positive", p.lineNumber)
+	}
+	longPeriod, err := indicatorbinding.ParsePositiveInt(p.args[2])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: tsi() long length must be positive", p.lineNumber)
+	}
+	return p.buildBinding(p.withTimeUnit(fmt.Sprintf("tsi:%s:%d:%d", source, shortPeriod, longPeriod)), []string{source, strconv.Itoa(shortPeriod), strconv.Itoa(longPeriod)})
+}
+
+func (p *advancedIndicatorParser) parseCorrelationBinding() (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(3); err != nil {
+		return plannedBinding{}, false, err
+	}
+	if len(p.args) != 3 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: correlation() requires source, second source, and length", p.lineNumber)
+	}
+	source, err := p.sourceArg(p.args[0])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	source2, err := p.sourceArg(p.args[1])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	period, err := indicatorbinding.ParsePositiveInt(p.args[2])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: correlation() length must be positive", p.lineNumber)
+	}
+	return p.buildBinding(p.withTimeUnit(fmt.Sprintf("correlation:%s:%s:%d", source, source2, period)), []string{source, source2, strconv.Itoa(period)})
+}
+
+func (p *advancedIndicatorParser) parsePercentileBinding() (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(3); err != nil {
+		return plannedBinding{}, false, err
+	}
+	if len(p.args) != 3 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source, length, and percentage", p.lineNumber, p.name)
+	}
+	source, err := p.sourceArg(p.args[0])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	period, err := indicatorbinding.ParsePositiveInt(p.args[1])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() length must be positive", p.lineNumber, p.name)
+	}
+	percentage, err := strconv.ParseFloat(strings.TrimSpace(p.args[2]), 64)
+	if err != nil || percentage < 0 || percentage > 100 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() percentage must be between 0 and 100", p.lineNumber, p.name)
+	}
+	percentageText := strconv.FormatFloat(percentage, 'f', -1, 64)
+	return p.buildBinding(p.withTimeUnit(fmt.Sprintf("%s:%s:%d:%s", p.name, source, period, percentageText)), []string{source, strconv.Itoa(period), percentageText})
+}
+
+func (p *advancedIndicatorParser) parseSingleSourceBinding(timeUnitIndex int) (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(timeUnitIndex); err != nil {
+		return plannedBinding{}, false, err
+	}
+	if len(p.args) != 1 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires one source", p.lineNumber, p.name)
+	}
+	source, err := p.sourceArg(p.args[0])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	return p.buildBinding(p.withTimeUnit(p.name+":"+source), []string{source})
+}
+
+func (p *advancedIndicatorParser) parseLinregBinding() (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(3); err != nil {
+		return plannedBinding{}, false, err
+	}
+	if len(p.args) != 3 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: linreg() requires source, length, and offset", p.lineNumber)
+	}
+	source, err := p.sourceArg(p.args[0])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	period, err := indicatorbinding.ParsePositiveInt(p.args[1])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: linreg() length must be positive", p.lineNumber)
+	}
+	offset, err := strconv.Atoi(strings.TrimSpace(p.args[2]))
+	if err != nil || offset < 0 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: linreg() offset must be a non-negative integer", p.lineNumber)
+	}
+	return p.buildBinding(p.withTimeUnit(fmt.Sprintf("linreg:%s:%d:%d", source, period, offset)), []string{source, strconv.Itoa(period), strconv.Itoa(offset)})
+}
+
+func (p *advancedIndicatorParser) parseOBVBinding() (plannedBinding, bool, error) {
+	if len(p.args) == 0 {
+		p.args = []string{"close"}
+	}
+	return p.parseSingleSourceBinding(1)
+}
+
+func (p *advancedIndicatorParser) parsePivotBinding() (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(3); err != nil {
+		return plannedBinding{}, false, err
+	}
+	source := "high"
+	if p.name == "pivotlow" {
+		source = "low"
+	}
+	lengthArgs := p.args
+	if len(p.args) == 3 {
+		var err error
+		source, err = p.sourceArg(p.args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		lengthArgs = p.args[1:]
+	}
+	if len(lengthArgs) != 2 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires left and right bars with optional source", p.lineNumber, p.name)
+	}
+	left, err := indicatorbinding.ParsePositiveInt(lengthArgs[0])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() left bars must be positive", p.lineNumber, p.name)
+	}
+	right, err := indicatorbinding.ParsePositiveInt(lengthArgs[1])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() right bars must be positive", p.lineNumber, p.name)
+	}
+	return p.buildBinding(p.withTimeUnit(fmt.Sprintf("%s:%s:%d:%d", p.name, source, left, right)), []string{source, strconv.Itoa(left), strconv.Itoa(right)})
+}
+
+func (p *advancedIndicatorParser) parseKeltnerBinding() (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(4); err != nil {
+		return plannedBinding{}, false, err
+	}
+	if len(p.args) < 3 || len(p.args) > 4 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source, length, multiplier, and optional useTrueRange", p.lineNumber, p.name)
+	}
+	source, err := p.sourceArg(p.args[0])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	period, err := indicatorbinding.ParsePositiveInt(p.args[1])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() length must be positive", p.lineNumber, p.name)
+	}
+	multiplier, err := indicatorbinding.ParsePositiveFloat(p.args[2])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() multiplier must be positive", p.lineNumber, p.name)
+	}
+	useTR := true
+	if len(p.args) == 4 {
+		parsed, parseErr := strconv.ParseBool(strings.TrimSpace(p.args[3]))
+		if parseErr != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() useTrueRange must be boolean", p.lineNumber, p.name)
+		}
+		useTR = parsed
+	}
+	key := p.withTimeUnit(fmt.Sprintf("%s:%s:%d:%s:%t", p.name, source, period, strconv.FormatFloat(multiplier, 'f', -1, 64), useTR))
+	return p.buildBinding(key, p.args)
+}
+
+func (p *advancedIndicatorParser) parseALMABinding() (plannedBinding, bool, error) {
+	if err := p.parseTimeUnit(4); err != nil {
+		return plannedBinding{}, false, err
+	}
+	if len(p.args) != 4 {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() requires source, length, offset, and sigma", p.lineNumber)
+	}
+	source, err := p.sourceArg(p.args[0])
+	if err != nil {
+		return plannedBinding{}, false, err
+	}
+	period, err := indicatorbinding.ParsePositiveInt(p.args[1])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() length must be positive", p.lineNumber)
+	}
+	offset, err := strconv.ParseFloat(strings.TrimSpace(p.args[2]), 64)
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() offset must be numeric", p.lineNumber)
+	}
+	sigma, err := indicatorbinding.ParsePositiveFloat(p.args[3])
+	if err != nil {
+		return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() sigma must be positive", p.lineNumber)
+	}
+	key := p.withTimeUnit(fmt.Sprintf("alma:%s:%d:%s:%s", source, period, strconv.FormatFloat(offset, 'f', -1, 64), strconv.FormatFloat(sigma, 'f', -1, 64)))
+	return p.buildBinding(key, p.args)
 }
 
 func parseMACDBinding(lineNumber int, alias string, name string, args []string) (plannedBinding, error) {
