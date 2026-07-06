@@ -19,9 +19,6 @@ func runTimeoutForRun(run Run) time.Duration {
 	}
 	return DefaultRunTimeout
 }
-
-// reconcileStaleRuns reclassifies unfinished runs from a previous process
-
 func (r *Runtime) reconcileStaleRuns(ctx context.Context) {
 	if r == nil || r.store == nil {
 		return
@@ -30,87 +27,123 @@ func (r *Runtime) reconcileStaleRuns(ctx context.Context) {
 	if err != nil {
 		return
 	}
+	executor := &WorkflowExecutor{runtime: r}
 	for _, run := range runs {
-		latest, ok, latestErr := r.store.Run(ctx, run.ID)
-		if latestErr != nil || !ok {
-			jftradeLogError(latestErr)
-			continue
-		}
-		run = latest
-		if repaired, repairErr := r.repairWorkflowSelfReference(ctx, &run); repairErr != nil {
-			jftradeLogError(repairErr)
-			continue
-		} else if repaired {
-			continue
-		}
-		if isCompletedRunningWorkflowParent(run) {
-			executor := &WorkflowExecutor{runtime: r}
-			_, _, reconcileErr := executor.reconcileWorkflowChildren(ctx, run)
-			jftradeLogError(reconcileErr)
-			continue
-		}
-		if isTerminalLifecycleRunStatus(run.Status) {
-			changed := len(run.PendingApprovals) > 0
-			run.PendingApprovals = nil
-			if isWorkflowParentRun(run) {
-				executor := &WorkflowExecutor{runtime: r}
-				if tasks, taskErr := executor.workflowTasks(ctx, run, nil); taskErr == nil && len(tasks) > 0 {
-					refreshed := workflowPlanFromTasks(tasks, run.WorkflowPlan)
-					if !reflect.DeepEqual(refreshed, run.WorkflowPlan) {
-						run.WorkflowPlan = refreshed
-						changed = true
-					}
-				}
-				r.cancelUnfinishedWorkflowChildren(ctx, run)
-			}
-			if changed {
-				jftradeErr := r.store.SaveRunAndDenyPendingApprovals(ctx, run)
-				jftradeLogError(jftradeErr)
-			}
-			continue
-		}
-		if run.Status != RunStatusRunning && run.Status != RunStatusPending && run.Status != RunStatusPaused {
-			continue
-		}
-		if parentID := strings.TrimSpace(run.ParentRunID); parentID != "" {
-			parent, ok, parentErr := r.store.Run(ctx, parentID)
-			if parentErr == nil && ok && isTerminalLifecycleRunStatus(parent.Status) && !isCompletedRunningWorkflowParent(parent) {
-				_, terminateErr := r.cancelRunTree(ctx, run, "parent workflow "+parent.ID+" is already terminal", "PARENT_RUN_TERMINATED", "cancelled because parent workflow terminated", "run.parent_terminated")
-				jftradeLogError(terminateErr)
-				continue
-			}
-		}
-		if run.Status == RunStatusPaused {
-			continue
-		}
-		if isWorkflowParentRun(run) {
-			continue
-		}
-		originalStatus := run.Status
-		if originalStatus == RunStatusPending && runHasRecoverableApprovalContext(run) {
-			continue
-		}
-		if originalStatus == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run) {
-			continue
-		}
-		run.Status = RunStatusFailed
-		run.ErrorCode = "RUN_ORPHANED"
-		run.Message = "run was interrupted by server restart"
-		run.FailureReason = "run was interrupted by server restart before completion"
-		run.ResumeState = "restart_unrecoverable"
-		run.CompletedAt = new(nowString())
-		run.Degraded = true
-		if originalStatus == RunStatusPending {
-			run.FailureReason = "run was waiting for approval, but its ADK confirmation context could not be recovered after server restart"
-			run.ResumeState = "approval_context_missing"
-		}
-		finalizeRunUsage(&run)
-		jftradeErr2 := r.store.SaveRun(ctx, run)
-		jftradeLogError(jftradeErr2)
-		r.audit(ctx, "run.orphaned", run.ID, "Agent run became unrecoverable after server restart.", map[string]any{
-			"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState,
-		})
+		r.reconcileStaleRun(ctx, executor, run)
 	}
+}
+
+func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecutor, run Run) {
+	latest, ok := r.loadStaleRunForReconcile(ctx, run.ID)
+	if !ok {
+		return
+	}
+	run = latest
+	if repaired, repairErr := r.repairWorkflowSelfReference(ctx, &run); repairErr != nil {
+		jftradeLogError(repairErr)
+		return
+	} else if repaired {
+		return
+	}
+	if r.reconcileCompletedWorkflowParent(ctx, executor, run) {
+		return
+	}
+	if r.reconcileTerminalStaleRun(ctx, executor, run) {
+		return
+	}
+	if !isRecoverableReconcileStatus(run.Status) || r.cancelChildOfTerminalParent(ctx, run) {
+		return
+	}
+	if run.Status == RunStatusPaused || isWorkflowParentRun(run) {
+		return
+	}
+	if run.Status == RunStatusPending && runHasRecoverableApprovalContext(run) {
+		return
+	}
+	if run.Status == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run) {
+		return
+	}
+	r.failUnrecoverableStaleRun(ctx, run)
+}
+
+func (r *Runtime) loadStaleRunForReconcile(ctx context.Context, runID string) (Run, bool) {
+	latest, ok, err := r.store.Run(ctx, runID)
+	if err != nil || !ok {
+		jftradeLogError(err)
+		return Run{}, false
+	}
+	return latest, true
+}
+
+func (r *Runtime) reconcileCompletedWorkflowParent(ctx context.Context, executor *WorkflowExecutor, run Run) bool {
+	if !isCompletedRunningWorkflowParent(run) {
+		return false
+	}
+	_, _, err := executor.reconcileWorkflowChildren(ctx, run)
+	jftradeLogError(err)
+	return true
+}
+
+func (r *Runtime) reconcileTerminalStaleRun(ctx context.Context, executor *WorkflowExecutor, run Run) bool {
+	if !isTerminalLifecycleRunStatus(run.Status) {
+		return false
+	}
+	changed := len(run.PendingApprovals) > 0
+	run.PendingApprovals = nil
+	if isWorkflowParentRun(run) {
+		if tasks, err := executor.workflowTasks(ctx, run, nil); err == nil && len(tasks) > 0 {
+			refreshed := workflowPlanFromTasks(tasks, run.WorkflowPlan)
+			if !reflect.DeepEqual(refreshed, run.WorkflowPlan) {
+				run.WorkflowPlan = refreshed
+				changed = true
+			}
+		}
+		r.cancelUnfinishedWorkflowChildren(ctx, run)
+	}
+	if changed {
+		jftradeErr := r.store.SaveRunAndDenyPendingApprovals(ctx, run)
+		jftradeLogError(jftradeErr)
+	}
+	return true
+}
+
+func isRecoverableReconcileStatus(status string) bool {
+	return status == RunStatusRunning || status == RunStatusPending || status == RunStatusPaused
+}
+
+func (r *Runtime) cancelChildOfTerminalParent(ctx context.Context, run Run) bool {
+	parentID := strings.TrimSpace(run.ParentRunID)
+	if parentID == "" {
+		return false
+	}
+	parent, ok, err := r.store.Run(ctx, parentID)
+	if err != nil || !ok || !isTerminalLifecycleRunStatus(parent.Status) || isCompletedRunningWorkflowParent(parent) {
+		return false
+	}
+	_, terminateErr := r.cancelRunTree(ctx, run, "parent workflow "+parent.ID+" is already terminal", "PARENT_RUN_TERMINATED", "cancelled because parent workflow terminated", "run.parent_terminated")
+	jftradeLogError(terminateErr)
+	return true
+}
+
+func (r *Runtime) failUnrecoverableStaleRun(ctx context.Context, run Run) {
+	originalStatus := run.Status
+	run.Status = RunStatusFailed
+	run.ErrorCode = "RUN_ORPHANED"
+	run.Message = "run was interrupted by server restart"
+	run.FailureReason = "run was interrupted by server restart before completion"
+	run.ResumeState = "restart_unrecoverable"
+	run.CompletedAt = new(nowString())
+	run.Degraded = true
+	if originalStatus == RunStatusPending {
+		run.FailureReason = "run was waiting for approval, but its ADK confirmation context could not be recovered after server restart"
+		run.ResumeState = "approval_context_missing"
+	}
+	finalizeRunUsage(&run)
+	jftradeErr := r.store.SaveRun(ctx, run)
+	jftradeLogError(jftradeErr)
+	r.audit(ctx, "run.orphaned", run.ID, "Agent run became unrecoverable after server restart.", map[string]any{
+		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState,
+	})
 }
 
 func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {

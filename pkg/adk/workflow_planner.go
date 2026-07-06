@@ -166,93 +166,118 @@ func (t *workflowPlannerToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool
 		return nil, nil
 	}
 	return newWorkflowMapFunctionTools(
-		workflowMapToolSpec{
-			name:        workflowPlanResetTool,
-			description: "Reset the in-memory workflow plan draft.",
-			schema:      map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false},
-			run: func(map[string]any) (map[string]any, error) {
-				if len(t.draft.Steps) > 0 && !t.draft.Finished {
-					t.draft.Warnings = append(t.draft.Warnings, "planner reset ignored after steps were added")
-					return map[string]any{"success": true, "ignored": true, "count": len(t.draft.Steps)}, nil
-				}
-				mode := t.draft.Mode
-				objective := t.draft.Objective
-				*t.draft = workflowPlanDraft{Mode: mode, Objective: objective}
-				return map[string]any{"success": true}, nil
-			},
-		},
-		workflowMapToolSpec{
-			name:        workflowPlanAddStepTool,
-			description: "Add one task step to the workflow plan draft. This does not execute the step.",
-			schema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"title":           map[string]any{"type": "string"},
-					"order":           map[string]any{"type": "integer", "minimum": 1},
-					"message":         map[string]any{"type": "string"},
-					"description":     map[string]any{"type": "string"},
-					"modeHint":        map[string]any{"type": "string", "enum": []string{"task", "loop", "chat", ""}},
-					"dependsOn":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"agentRole":       map[string]any{"type": "string"},
-					"childProviderId": map[string]any{"type": "string"},
-					"childModel":      map[string]any{"type": "string"},
-				},
-				"required":             []string{"title", "message"},
-				"additionalProperties": false,
-			},
-			run: func(args map[string]any) (map[string]any, error) {
-				step := workflowPlanDraftStep{
-					Order:           plannerIntArg(args, "order"),
-					Title:           plannerStringArg(args, "title"),
-					Message:         plannerStringArg(args, "message"),
-					Description:     plannerStringArg(args, "description"),
-					ModeHint:        plannerStringArg(args, "modeHint"),
-					AgentRole:       plannerStringArg(args, "agentRole"),
-					ChildProviderID: plannerStringArg(args, "childProviderId"),
-					ChildModel:      plannerStringArg(args, "childModel"),
-				}
-				if values, ok := args["dependsOn"].([]any); ok {
-					for _, value := range values {
-						if dep := strings.TrimSpace(fmt.Sprint(value)); dep != "" {
-							step.DependsOn = append(step.DependsOn, dep)
-						}
-					}
-				}
-				t.draft.Steps = append(t.draft.Steps, step)
-				return map[string]any{"success": true, "count": len(t.draft.Steps)}, nil
-			},
-		},
-		workflowMapToolSpec{
-			name:        workflowPlanFinishTool,
-			description: "Mark the workflow plan draft as complete.",
-			schema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"mode":      map[string]any{"type": "string", "enum": []string{"task", "loop", ""}},
-					"objective": map[string]any{"type": "string"},
-					"warnings":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-				},
-				"additionalProperties": false,
-			},
-			run: func(args map[string]any) (map[string]any, error) {
-				if mode := normalizeWorkMode(plannerStringArg(args, "mode")); mode != WorkModeChat {
-					t.draft.Mode = mode
-				}
-				if objective := plannerStringArg(args, "objective"); objective != "" {
-					t.draft.Objective = objective
-				}
-				if values, ok := args["warnings"].([]any); ok {
-					for _, value := range values {
-						if warning := strings.TrimSpace(fmt.Sprint(value)); warning != "" {
-							t.draft.Warnings = append(t.draft.Warnings, warning)
-						}
-					}
-				}
-				t.draft.Finished = true
-				return map[string]any{"success": true, "steps": len(t.draft.Steps)}, nil
-			},
-		},
+		workflowPlannerResetSpec(t.draft),
+		workflowPlannerAddStepSpec(t.draft),
+		workflowPlannerFinishSpec(t.draft),
 	)
+}
+
+func workflowPlannerResetSpec(draft *workflowPlanDraft) workflowMapToolSpec {
+	return workflowMapToolSpec{
+		name:        workflowPlanResetTool,
+		description: "Reset the in-memory workflow plan draft.",
+		schema:      map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false},
+		run: func(map[string]any) (map[string]any, error) {
+			if len(draft.Steps) > 0 && !draft.Finished {
+				draft.Warnings = append(draft.Warnings, "planner reset ignored after steps were added")
+				return map[string]any{"success": true, "ignored": true, "count": len(draft.Steps)}, nil
+			}
+			mode := draft.Mode
+			objective := draft.Objective
+			*draft = workflowPlanDraft{Mode: mode, Objective: objective}
+			return map[string]any{"success": true}, nil
+		},
+	}
+}
+
+func workflowPlannerAddStepSpec(draft *workflowPlanDraft) workflowMapToolSpec {
+	return workflowMapToolSpec{
+		name:        workflowPlanAddStepTool,
+		description: "Add one task step to the workflow plan draft. This does not execute the step.",
+		schema:      workflowPlannerAddStepSchema(),
+		run: func(args map[string]any) (map[string]any, error) {
+			draft.Steps = append(draft.Steps, workflowPlannerDraftStepFromArgs(args))
+			return map[string]any{"success": true, "count": len(draft.Steps)}, nil
+		},
+	}
+}
+
+func workflowPlannerAddStepSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"title":           map[string]any{"type": "string"},
+			"order":           map[string]any{"type": "integer", "minimum": 1},
+			"message":         map[string]any{"type": "string"},
+			"description":     map[string]any{"type": "string"},
+			"modeHint":        map[string]any{"type": "string", "enum": []string{"task", "loop", "chat", ""}},
+			"dependsOn":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"agentRole":       map[string]any{"type": "string"},
+			"childProviderId": map[string]any{"type": "string"},
+			"childModel":      map[string]any{"type": "string"},
+		},
+		"required":             []string{"title", "message"},
+		"additionalProperties": false,
+	}
+}
+
+func workflowPlannerDraftStepFromArgs(args map[string]any) workflowPlanDraftStep {
+	return workflowPlanDraftStep{
+		Order:           plannerIntArg(args, "order"),
+		Title:           plannerStringArg(args, "title"),
+		Message:         plannerStringArg(args, "message"),
+		Description:     plannerStringArg(args, "description"),
+		ModeHint:        plannerStringArg(args, "modeHint"),
+		DependsOn:       plannerStringListArg(args, "dependsOn"),
+		AgentRole:       plannerStringArg(args, "agentRole"),
+		ChildProviderID: plannerStringArg(args, "childProviderId"),
+		ChildModel:      plannerStringArg(args, "childModel"),
+	}
+}
+
+func workflowPlannerFinishSpec(draft *workflowPlanDraft) workflowMapToolSpec {
+	return workflowMapToolSpec{
+		name:        workflowPlanFinishTool,
+		description: "Mark the workflow plan draft as complete.",
+		schema:      workflowPlannerFinishSchema(),
+		run: func(args map[string]any) (map[string]any, error) {
+			if mode := normalizeWorkMode(plannerStringArg(args, "mode")); mode != WorkModeChat {
+				draft.Mode = mode
+			}
+			if objective := plannerStringArg(args, "objective"); objective != "" {
+				draft.Objective = objective
+			}
+			draft.Warnings = append(draft.Warnings, plannerStringListArg(args, "warnings")...)
+			draft.Finished = true
+			return map[string]any{"success": true, "steps": len(draft.Steps)}, nil
+		},
+	}
+}
+
+func workflowPlannerFinishSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"mode":      map[string]any{"type": "string", "enum": []string{"task", "loop", ""}},
+			"objective": map[string]any{"type": "string"},
+			"warnings":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+		},
+		"additionalProperties": false,
+	}
+}
+
+func plannerStringListArg(args map[string]any, key string) []string {
+	values, ok := args[key].([]any)
+	if !ok {
+		return nil
+	}
+	items := make([]string, 0, len(values))
+	for _, value := range values {
+		if item := strings.TrimSpace(fmt.Sprint(value)); item != "" {
+			items = append(items, item)
+		}
+	}
+	return items
 }
 
 func newWorkflowMapFunctionTools(specs ...workflowMapToolSpec) ([]adktool.Tool, error) {

@@ -57,6 +57,21 @@ type projectionState struct {
 	compactionCutoff int
 }
 
+type sessionContextProjectionData struct {
+	raw        *adksession.GetResponse
+	state      SessionContextState
+	segments   []HandoffSegment
+	projection projectionState
+}
+
+type sessionCompactionResult struct {
+	wroteRevision         bool
+	degradedSummary       bool
+	previousRevisionID    string
+	nextRevisionID        string
+	nextRevisionCreatedAt string
+}
+
 type contextProjectionBucket int
 
 const (
@@ -121,45 +136,50 @@ func (m *SessionContextManager) ProjectedSnapshot(ctx context.Context, session S
 }
 
 func (m *SessionContextManager) snapshotWithPending(ctx context.Context, session Session, agent Agent, pendingUserText string) (SessionContextSnapshot, error) {
-	raw, err := m.rawSession(ctx, session.AgentID, session.ID)
+	data, err := m.loadSessionContextProjection(ctx, session, agent, pendingUserText)
 	if err != nil {
 		return SessionContextSnapshot{}, err
 	}
-	state, ok, err := m.store.SessionContext(ctx, session.ID)
-	if err != nil {
-		return SessionContextSnapshot{}, err
-	}
-	if !ok {
-		state = SessionContextState{SessionID: session.ID}
-	}
-	state = ensureSessionContextRevision(state, session.ID)
-	segments, err := m.store.HandoffSegmentsForRevision(ctx, session.ID, state.ContextRevisionID, true)
-	if err != nil {
-		return SessionContextSnapshot{}, err
-	}
-	projection := m.projectSnapshot(raw.Session, state, agent, segments, pendingUserText)
-	state = mergeStateMetrics(state, projection.snapshot)
-	state.SessionID = session.ID
-	state.RecentUserWindow = normalizeRecentUserWindow(agent.RecentUserWindow)
-	if _, err := m.store.SaveSessionContext(ctx, state); err != nil {
+	data.state = mergeStateMetrics(data.state, data.projection.snapshot)
+	data.state.SessionID = session.ID
+	data.state.RecentUserWindow = normalizeRecentUserWindow(agent.RecentUserWindow)
+	if _, err := m.store.SaveSessionContext(ctx, data.state); err != nil {
 		return SessionContextSnapshot{}, err
 	}
 	jftradeErr2 := m.syncHandoffStateForSession(ctx, session)
 	jftradeLogError(jftradeErr2)
-	return projection.snapshot, nil
+	return data.projection.snapshot, nil
 }
 
 func (m *SessionContextManager) Compact(ctx context.Context, session Session, agent Agent, request SessionCompactRequest) (SessionContextSnapshot, error) {
 	if m == nil {
 		return SessionContextSnapshot{}, fmt.Errorf("session context manager is unavailable")
 	}
-	raw, err := m.rawSession(ctx, session.AgentID, session.ID)
+	data, err := m.loadSessionContextProjection(ctx, session, agent, "")
 	if err != nil {
 		return SessionContextSnapshot{}, err
 	}
-	state, ok, err := m.store.SessionContext(ctx, session.ID)
+	compaction, err := m.compactSessionProjection(ctx, session, agent, request, data)
 	if err != nil {
 		return SessionContextSnapshot{}, err
+	}
+	state := applySessionCompactionState(data.state, session.ID, agent, request, compaction, nowString())
+	if _, err := m.store.SaveSessionContext(ctx, state); err != nil {
+		return SessionContextSnapshot{}, err
+	}
+	jftradeErr1 := m.syncHandoffStateForSession(ctx, session)
+	jftradeLogError(jftradeErr1)
+	return m.snapshotWithPending(ctx, session, agent, "")
+}
+
+func (m *SessionContextManager) loadSessionContextProjection(ctx context.Context, session Session, agent Agent, pendingUserText string) (sessionContextProjectionData, error) {
+	raw, err := m.rawSession(ctx, session.AgentID, session.ID)
+	if err != nil {
+		return sessionContextProjectionData{}, err
+	}
+	state, ok, err := m.store.SessionContext(ctx, session.ID)
+	if err != nil {
+		return sessionContextProjectionData{}, err
 	}
 	if !ok {
 		state = SessionContextState{SessionID: session.ID}
@@ -167,82 +187,101 @@ func (m *SessionContextManager) Compact(ctx context.Context, session Session, ag
 	state = ensureSessionContextRevision(state, session.ID)
 	segments, err := m.store.HandoffSegmentsForRevision(ctx, session.ID, state.ContextRevisionID, true)
 	if err != nil {
-		return SessionContextSnapshot{}, err
+		return sessionContextProjectionData{}, err
 	}
-	projection := m.projectSnapshot(raw.Session, state, agent, segments, "")
-	events := eventSlice(raw.Session.Events())
-	cutoff := min(projection.compactionCutoff, len(events))
-	mode := normalizeCompactMode(request.Mode)
-	activeEnd := maxActiveSegmentEnd(segments)
-	degraded := state.DegradedSummary
-	previousRevisionID := state.ContextRevisionID
-	nextRevisionID := newContextRevisionID()
-	nextRevisionCreatedAt := nowString()
-	wroteRevision := false
-	if mode == "aggressive" {
-		if cutoff > 0 || len(segments) > 0 {
-			deterministic := buildHandoffSummary(segments, events[:cutoff], mode)
-			merged, nextDegraded := m.mergeSummary(ctx, agent, deterministic, joinSegmentSummaries(segments), mode)
-			next := HandoffSegment{
-				SessionID:         session.ID,
-				ContextRevisionID: nextRevisionID,
-				Sequence:          nextHandoffSequence(segments),
-				StartEventIndex:   0,
-				EndEventIndex:     cutoff,
-				Summary:           merged,
-				Mode:              "aggressive",
-				Reason:            strings.TrimSpace(request.Reason),
-				EstimatedTokens:   estimateTextTokens(merged),
-				Active:            true,
-			}
-			if _, err := m.store.ReplaceActiveHandoffSegments(ctx, session.ID, next, segments); err != nil {
-				return SessionContextSnapshot{}, err
-			}
-			degraded = nextDegraded
-			wroteRevision = true
-		}
-	} else if cutoff > activeEnd {
-		deterministic := buildHandoffSummary(nil, events[activeEnd:cutoff], mode)
-		merged, nextDegraded := m.mergeSummary(ctx, agent, deterministic, joinSegmentSummaries(segments), mode)
-		next := HandoffSegment{
-			SessionID:         session.ID,
-			ContextRevisionID: nextRevisionID,
-			Sequence:          nextHandoffSequence(segments),
-			StartEventIndex:   0,
-			EndEventIndex:     cutoff,
-			Summary:           merged,
-			Mode:              "manual",
-			Reason:            strings.TrimSpace(request.Reason),
-			EstimatedTokens:   estimateTextTokens(merged),
-			Active:            true,
-		}
-		if _, err := m.store.SaveHandoffSegment(ctx, next); err != nil {
-			return SessionContextSnapshot{}, err
-		}
-		degraded = nextDegraded
-		wroteRevision = true
-	}
+	return sessionContextProjectionData{
+		raw:        raw,
+		state:      state,
+		segments:   segments,
+		projection: m.projectSnapshot(raw.Session, state, agent, segments, pendingUserText),
+	}, nil
+}
 
-	now := nowString()
-	state.SessionID = session.ID
-	if wroteRevision {
-		state.PreviousContextRevisionID = previousRevisionID
-		state.ContextRevisionID = nextRevisionID
-		state.ContextRevisionCreatedAt = nextRevisionCreatedAt
+func (m *SessionContextManager) compactSessionProjection(ctx context.Context, session Session, agent Agent, request SessionCompactRequest, data sessionContextProjectionData) (sessionCompactionResult, error) {
+	events := eventSlice(data.raw.Session.Events())
+	result := sessionCompactionResult{
+		degradedSummary:       data.state.DegradedSummary,
+		previousRevisionID:    data.state.ContextRevisionID,
+		nextRevisionID:        newContextRevisionID(),
+		nextRevisionCreatedAt: nowString(),
+	}
+	cutoff := min(data.projection.compactionCutoff, len(events))
+	mode := normalizeCompactMode(request.Mode)
+	activeEnd := maxActiveSegmentEnd(data.segments)
+	switch {
+	case mode == "aggressive":
+		return m.writeAggressiveSessionCompaction(ctx, session, agent, request, data.segments, events, cutoff, result)
+	case cutoff > activeEnd:
+		return m.writeManualSessionCompaction(ctx, session, agent, request, data.segments, events, cutoff, activeEnd, result)
+	default:
+		return result, nil
+	}
+}
+
+func (m *SessionContextManager) writeAggressiveSessionCompaction(ctx context.Context, session Session, agent Agent, request SessionCompactRequest, segments []HandoffSegment, events []*adksession.Event, cutoff int, result sessionCompactionResult) (sessionCompactionResult, error) {
+	if cutoff == 0 && len(segments) == 0 {
+		return result, nil
+	}
+	deterministic := buildHandoffSummary(segments, events[:cutoff], "aggressive")
+	merged, degraded := m.mergeSummary(ctx, agent, deterministic, joinSegmentSummaries(segments), "aggressive")
+	next := HandoffSegment{
+		SessionID:         session.ID,
+		ContextRevisionID: result.nextRevisionID,
+		Sequence:          nextHandoffSequence(segments),
+		StartEventIndex:   0,
+		EndEventIndex:     cutoff,
+		Summary:           merged,
+		Mode:              "aggressive",
+		Reason:            strings.TrimSpace(request.Reason),
+		EstimatedTokens:   estimateTextTokens(merged),
+		Active:            true,
+	}
+	if _, err := m.store.ReplaceActiveHandoffSegments(ctx, session.ID, next, segments); err != nil {
+		return sessionCompactionResult{}, err
+	}
+	result.wroteRevision = true
+	result.degradedSummary = degraded
+	return result, nil
+}
+
+func (m *SessionContextManager) writeManualSessionCompaction(ctx context.Context, session Session, agent Agent, request SessionCompactRequest, segments []HandoffSegment, events []*adksession.Event, cutoff int, activeEnd int, result sessionCompactionResult) (sessionCompactionResult, error) {
+	deterministic := buildHandoffSummary(nil, events[activeEnd:cutoff], "normal")
+	merged, degraded := m.mergeSummary(ctx, agent, deterministic, joinSegmentSummaries(segments), "normal")
+	next := HandoffSegment{
+		SessionID:         session.ID,
+		ContextRevisionID: result.nextRevisionID,
+		Sequence:          nextHandoffSequence(segments),
+		StartEventIndex:   0,
+		EndEventIndex:     cutoff,
+		Summary:           merged,
+		Mode:              "manual",
+		Reason:            strings.TrimSpace(request.Reason),
+		EstimatedTokens:   estimateTextTokens(merged),
+		Active:            true,
+	}
+	if _, err := m.store.SaveHandoffSegment(ctx, next); err != nil {
+		return sessionCompactionResult{}, err
+	}
+	result.wroteRevision = true
+	result.degradedSummary = degraded
+	return result, nil
+}
+
+func applySessionCompactionState(state SessionContextState, sessionID string, agent Agent, request SessionCompactRequest, result sessionCompactionResult, now string) SessionContextState {
+	state.SessionID = sessionID
+	if result.wroteRevision {
+		state.PreviousContextRevisionID = result.previousRevisionID
+		state.ContextRevisionID = result.nextRevisionID
+		state.ContextRevisionCreatedAt = result.nextRevisionCreatedAt
 	}
 	state.RecentUserWindow = normalizeRecentUserWindow(agent.RecentUserWindow)
 	state.LastCompactedAt = now
 	state.LastCompactionMode = compactionModeLabel(request)
 	state.LastCompactionReason = strings.TrimSpace(request.Reason)
 	state.AutoCompacted = request.Trigger == "auto"
-	state.DegradedSummary = degraded
+	state.DegradedSummary = result.degradedSummary
 	state.UpdatedAt = now
-	if _, err := m.store.SaveSessionContext(ctx, state); err != nil {
-		return SessionContextSnapshot{}, err
-	}
-	jftradeErr1 := m.syncHandoffStateForSession(ctx, session)
-	jftradeLogError(jftradeErr1)
-	return m.snapshotWithPending(ctx, session, agent, "")
+	return state
 }
 
 func (m *SessionContextManager) ShouldAutoCompact(snapshot SessionContextSnapshot) (string, bool) {
