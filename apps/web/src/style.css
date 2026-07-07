@@ -1744,11 +1744,41 @@ body {
   white-space: nowrap;
 }
 
+.adk-session-group__actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
 .adk-session-group__header small {
   flex: 0 0 auto;
   color: color-mix(in srgb, var(--tv-accent) 72%, var(--tv-text-dim));
   font-size: 10px;
   letter-spacing: 0;
+}
+
+.adk-session-group__toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tv-text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0;
+  padding: 0;
+  transition: background 120ms, color 120ms;
+}
+
+.adk-session-group__toggle:hover {
+  background: color-mix(in srgb, var(--tv-accent) 12%, transparent);
+  color: var(--tv-text);
 }
 
 .adk-session-title {

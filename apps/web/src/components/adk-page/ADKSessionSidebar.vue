@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from "vue";
+
 import type { ADKAgent, ADKSession } from "@/contracts";
 import type { ADKSessionGroup } from "@/composables/useADKPageSessionState";
 
@@ -27,6 +29,19 @@ defineEmits<{
   "update:sessionSearch": [value: string];
   "update:sessionAgentFilter": [value: string];
 }>();
+
+const collapsedSessionGroupIds = ref<Record<string, boolean>>({});
+
+function isSessionGroupCollapsed(groupId: string): boolean {
+  return collapsedSessionGroupIds.value[groupId] === true;
+}
+
+function toggleSessionGroup(groupId: string): void {
+  collapsedSessionGroupIds.value = {
+    ...collapsedSessionGroupIds.value,
+    [groupId]: !isSessionGroupCollapsed(groupId),
+  };
+}
 </script>
 
 <template>
@@ -96,33 +111,49 @@ defineEmits<{
         >
           <div class="adk-session-group__header">
             <span>{{ group.title }}</span>
-            <small>{{ group.sessions.length }}</small>
-          </div>
-          <div
-            v-for="session in group.sessions"
-            :key="session.id"
-            class="adk-session-item"
-            :class="{ 'adk-session-item--active': session.id === selectedSessionId }"
-            @click="selectSession(session.id)"
-          >
-            <v-icon size="13">fa-solid fa-comment</v-icon>
-            <span class="adk-session-title">
-              {{ sessionTitle(session) }}
-              <small class="adk-session-agent">{{ agentName(session.agentId) }}</small>
+            <span class="adk-session-group__actions">
+              <small>{{ group.sessions.length }}</small>
+              <button
+                type="button"
+                class="adk-session-group__toggle"
+                :title="isSessionGroupCollapsed(group.id) ? '展开分组' : '折叠分组'"
+                :aria-label="isSessionGroupCollapsed(group.id) ? `展开${group.title}` : `折叠${group.title}`"
+                :aria-expanded="isSessionGroupCollapsed(group.id) ? 'false' : 'true'"
+                @click="toggleSessionGroup(group.id)"
+              >
+                <v-icon size="11">
+                  {{ isSessionGroupCollapsed(group.id) ? "fa-solid fa-chevron-down" : "fa-solid fa-chevron-up" }}
+                </v-icon>
+              </button>
             </span>
-            <v-icon
-              size="13"
-              class="adk-session-close"
-              title="重命名会话"
-              @click.stop="renameSession(session)"
-            >fa-solid fa-pen</v-icon>
-            <v-icon
-              size="14"
-              class="adk-session-close"
-              title="关闭会话"
-              @click.stop="deleteSession(session.id)"
-            >fa-solid fa-xmark</v-icon>
           </div>
+          <template v-if="!isSessionGroupCollapsed(group.id)">
+            <div
+              v-for="session in group.sessions"
+              :key="session.id"
+              class="adk-session-item"
+              :class="{ 'adk-session-item--active': session.id === selectedSessionId }"
+              @click="selectSession(session.id)"
+            >
+              <v-icon size="13">fa-solid fa-comment</v-icon>
+              <span class="adk-session-title">
+                {{ sessionTitle(session) }}
+                <small class="adk-session-agent">{{ agentName(session.agentId) }}</small>
+              </span>
+              <v-icon
+                size="13"
+                class="adk-session-close"
+                title="重命名会话"
+                @click.stop="renameSession(session)"
+              >fa-solid fa-pen</v-icon>
+              <v-icon
+                size="14"
+                class="adk-session-close"
+                title="关闭会话"
+                @click.stop="deleteSession(session.id)"
+              >fa-solid fa-xmark</v-icon>
+            </div>
+          </template>
         </div>
       </template>
       <div v-if="sessions.length === 0" class="adk-session-empty">暂无会话</div>

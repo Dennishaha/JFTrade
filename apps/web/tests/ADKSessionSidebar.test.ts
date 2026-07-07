@@ -60,7 +60,60 @@ describe("ADKSessionSidebar", () => {
     });
 
     const headers = wrapper.findAll(".adk-session-group__header");
-    expect(headers.map((header) => header.text())).toEqual(["对话1", "每日盘点1"]);
+    expect(
+      headers.map((header) => header.find("span:first-child").text()),
+    ).toEqual(["对话", "每日盘点"]);
+    expect(headers.map((header) => header.find("small").text())).toEqual(["1", "1"]);
+    expect(wrapper.findAll(".adk-session-item")).toHaveLength(2);
+  });
+
+  it("collapses and expands grouped sessions with the caret button", async () => {
+    const defaultSession = buildSession({ title: "普通对话" });
+    const workflowSession = buildSession({
+      id: "session-workflow",
+      title: "工作流对话",
+      workflowId: "workflow-1",
+      workflowName: "每日盘点",
+    });
+    const wrapper = mountSidebar([defaultSession, workflowSession], {
+      showSessionGroups: true,
+      visibleSessionGroups: [
+        {
+          id: "__default_conversation__",
+          title: "对话",
+          sessions: [defaultSession],
+          isDefault: true,
+        },
+        {
+          id: "workflow-1",
+          title: "每日盘点",
+          sessions: [workflowSession],
+          isDefault: false,
+        },
+      ],
+    });
+
+    const toggles = wrapper.findAll(".adk-session-group__toggle");
+    expect(toggles.map((toggle) => toggle.text())).toEqual([
+      "fa-solid fa-chevron-up",
+      "fa-solid fa-chevron-up",
+    ]);
+
+    await toggles[1]!.trigger("click");
+
+    expect(wrapper.findAll(".adk-session-group__toggle")[1]!.text()).toBe(
+      "fa-solid fa-chevron-down",
+    );
+    expect(wrapper.text()).toContain("普通对话");
+    expect(wrapper.text()).not.toContain("工作流对话");
+    expect(wrapper.findAll(".adk-session-item")).toHaveLength(1);
+
+    await wrapper.findAll(".adk-session-group__toggle")[1]!.trigger("click");
+
+    expect(wrapper.findAll(".adk-session-group__toggle")[1]!.text()).toBe(
+      "fa-solid fa-chevron-up",
+    );
+    expect(wrapper.text()).toContain("工作流对话");
     expect(wrapper.findAll(".adk-session-item")).toHaveLength(2);
   });
 });
