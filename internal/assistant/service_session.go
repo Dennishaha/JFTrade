@@ -27,7 +27,7 @@ func (s *Service) CreateSession(ctx context.Context, req CreateSessionRequest) (
 	if err != nil || !ok || agent.Status != jfadk.AgentStatusEnabled || agent.DeletedAt != nil {
 		return jfadk.Session{}, fmt.Errorf("enabled agent is required")
 	}
-	return s.runtime.Store().CreateSession(ctx, req.AgentID, req.Title)
+	return s.runtime.Store().CreateSessionWithSource(ctx, req.AgentID, req.Title, req.WorkflowID, req.WorkflowName)
 }
 
 // GetSession 按 ID 获取会话。

@@ -313,9 +313,15 @@ func TestServiceCRUDQueriesAndSnapshots(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
+	if session.WorkflowID != "" || session.WorkflowName != "" {
+		t.Fatalf("CreateSession workflow source = %+v, want empty", session)
+	}
 	sessionPage, err := service.ListSessions(ctx, SessionQuery{AgentID: agent.ID, Limit: 20, Offset: 0})
 	if err != nil || len(sessionPage.Items) != 1 {
 		t.Fatalf("ListSessions() page=%+v err=%v", sessionPage, err)
+	}
+	if sessionPage.Items[0].WorkflowID != "" || sessionPage.Items[0].WorkflowName != "" {
+		t.Fatalf("ListSessions workflow source = %+v, want empty", sessionPage.Items[0])
 	}
 	fetchedSession, err := service.GetSession(ctx, session.ID)
 	if err != nil || fetchedSession.ID != session.ID {

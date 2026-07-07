@@ -146,6 +146,7 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 	if result.Trigger == nil || result.Trigger.ID != manual.Trigger.ID || result.Log.TriggerID != manual.Trigger.ID || result.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded {
 		t.Fatalf("manual trigger result = %+v", result)
 	}
+	assertWorkflowSessionSource(t, runtime, result.Log.SessionID, workflow.ID, workflow.Name)
 
 	disabledWebhook, err := service.SaveWorkflowTrigger(ctx, workflow.ID, "", jfadk.WorkflowTriggerWriteRequest{
 		ID:     "workflow-disabled-webhook",
@@ -178,6 +179,7 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 	if webhookResult.Trigger == nil || webhookResult.Trigger.ID != enabledWebhook.Trigger.ID || webhookResult.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded {
 		t.Fatalf("webhook invocation result = %+v, want succeeded trigger log", webhookResult)
 	}
+	assertWorkflowSessionSource(t, runtime, webhookResult.Log.SessionID, workflow.ID, workflow.Name)
 	if webhookResult.Log.MatchedEvent["type"] != "workflow.webhook" || webhookResult.Log.MatchedEvent["triggerId"] != enabledWebhook.Trigger.ID {
 		t.Fatalf("webhook matched event = %+v, want webhook context", webhookResult.Log.MatchedEvent)
 	}
@@ -363,6 +365,7 @@ func TestWorkflowInvocationFailureAndBackgroundPaths(t *testing.T) {
 	if err == nil || result.Log.SessionID == "" || result.Log.Status != jfadk.WorkflowTriggerLogStatusFailed {
 		t.Fatalf("RunWorkflow broken provider result=%+v err=%v, want chat failure after session creation", result, err)
 	}
+	assertWorkflowSessionSource(t, runtime, result.Log.SessionID, brokenWorkflow.ID, brokenWorkflow.Name)
 
 	agent, workflow = saveWorkflowTestAgentAndDefinition(t, runtime, service, "workflow-background", jfadk.WorkflowStatusEnabled)
 	workflow, err = service.SaveWorkflow(ctx, workflow.ID, jfadk.WorkflowDefinitionWriteRequest{
@@ -442,6 +445,7 @@ func TestWorkflowInvocationPreflightAndStaleResourcePaths(t *testing.T) {
 	if err != nil || result.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded {
 		t.Fatalf("RunWorkflow objective result=%+v err=%v", result, err)
 	}
+	assertWorkflowSessionSource(t, runtime, result.Log.SessionID, withObjective.ID, withObjective.Name)
 	if result.Log.NodeRuns[0].Outputs["objective"] != "review US.AAPL" {
 		t.Fatalf("objective node output = %+v", result.Log.NodeRuns[0].Outputs)
 	}
@@ -708,5 +712,16 @@ func TestWorkflowCoreHelpersAndUnavailableService(t *testing.T) {
 	}
 	if prompt := dailyStockReviewPrompt(); !strings.Contains(prompt, "每日股票盘点") || !strings.Contains(prompt, "tasks.create") {
 		t.Fatalf("dailyStockReviewPrompt = %q", prompt)
+	}
+}
+
+func assertWorkflowSessionSource(t *testing.T, runtime *jfadk.Runtime, sessionID string, workflowID string, workflowName string) {
+	t.Helper()
+	session, ok, err := runtime.Store().Session(t.Context(), sessionID)
+	if err != nil || !ok {
+		t.Fatalf("workflow session %q session=%+v ok=%v err=%v", sessionID, session, ok, err)
+	}
+	if session.WorkflowID != workflowID || session.WorkflowName != workflowName {
+		t.Fatalf("workflow session source = %+v, want %q/%q", session, workflowID, workflowName)
 	}
 }

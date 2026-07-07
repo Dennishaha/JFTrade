@@ -454,8 +454,20 @@ func (s *Store) DeleteAgent(ctx context.Context, id string) error {
 }
 
 func (s *Store) CreateSession(ctx context.Context, agentID string, title string) (Session, error) {
+	return s.CreateSessionWithSource(ctx, agentID, title, "", "")
+}
+
+func (s *Store) CreateSessionWithSource(ctx context.Context, agentID string, title string, workflowID string, workflowName string) (Session, error) {
 	now := nowString()
-	session := Session{ID: "session-" + uuid.NewString(), AgentID: strings.TrimSpace(agentID), Title: defaultString(title, "新的 ADK 会话"), CreatedAt: now, UpdatedAt: now}
+	session := Session{
+		ID:           "session-" + uuid.NewString(),
+		AgentID:      strings.TrimSpace(agentID),
+		Title:        defaultString(title, "新的 ADK 会话"),
+		WorkflowID:   strings.TrimSpace(workflowID),
+		WorkflowName: strings.TrimSpace(workflowName),
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
 	payload, err := json.Marshal(session)
 	if err != nil {
 		return Session{}, err

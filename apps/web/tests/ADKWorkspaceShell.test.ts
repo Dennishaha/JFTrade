@@ -420,6 +420,7 @@ function buildControllerState(
     sessions,
     sessionTitle: (session: { title?: string; id: string }) =>
       session.title || session.id,
+    showSessionGroups: computed(() => false),
     activityIndicator: ref("idle"),
     suggestions: ref<string[]>([]),
     composerPlaceholder: ref("输入问题或任务..."),
@@ -432,6 +433,14 @@ function buildControllerState(
     setActiveChildRunId: vi.fn(),
     updateGoalObjective: vi.fn(),
     updateGoalObjectiveDraft: vi.fn(),
+    visibleSessionGroups: computed(() => [
+      {
+        id: "__default_conversation__",
+        title: "对话",
+        sessions: sessions.value,
+        isDefault: true,
+      },
+    ]),
     visibleSessions: computed(() => sessions.value),
     visibleTimelineEntries: ref(
       overrides.visibleTimelineEntries ?? buildTimelineEntries(3),

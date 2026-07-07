@@ -178,6 +178,8 @@ export function useADKPageController(
     updateGoalObjectiveDraft: chatState.updateGoalObjectiveDraft,
     visibleTimelineEntries: chatState.visibleTimelineEntries,
     visibleWorkflowPlanRun: chatState.visibleWorkflowPlanRun,
+    showSessionGroups: sessionState.showSessionGroups,
+    visibleSessionGroups: sessionState.visibleSessionGroups,
     visibleSessions: sessionState.visibleSessions,
     workModeOverride: chatState.workModeOverride,
     permissionModeOverride: chatState.permissionModeOverride,

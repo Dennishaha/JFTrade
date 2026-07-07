@@ -113,6 +113,7 @@ const {
   sessionSearch,
   sessions,
   sessionTitle,
+  showSessionGroups,
   activityIndicator,
   suggestions,
   composerPlaceholder,
@@ -124,6 +125,7 @@ const {
   updateGoalObjective,
   updateGoalObjectiveDraft,
   visibleSessions,
+  visibleSessionGroups,
   visibleTimelineEntries,
   visibleWorkflowPlanRun,
   workModeOverride,
@@ -369,6 +371,8 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
       :session-agent-filter="sessionAgentFilter"
       :agent-options="agentOptions"
       :visible-sessions="visibleSessions"
+      :visible-session-groups="visibleSessionGroups"
+      :show-session-groups="showSessionGroups"
       :sessions="sessions"
       :format-permission="formatPermission"
       :session-title="sessionTitle"
@@ -432,6 +436,8 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
           :session-agent-filter="sessionAgentFilter"
           :agent-options="agentOptions"
           :visible-sessions="visibleSessions"
+          :visible-session-groups="visibleSessionGroups"
+          :show-session-groups="showSessionGroups"
           :sessions="sessions"
           :format-permission="formatPermission"
           :session-title="sessionTitle"

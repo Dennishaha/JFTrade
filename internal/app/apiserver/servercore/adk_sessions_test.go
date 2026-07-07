@@ -51,6 +51,16 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	if !createEnvelope.OK || createEnvelope.Data.AgentID != agent.ID {
 		t.Fatalf("create session envelope = %+v", createEnvelope)
 	}
+	workflowSession, err := server.adkRuntime.Store().CreateSessionWithSource(
+		t.Context(),
+		agent.ID,
+		"工作流来源会话",
+		"workflow-session-source",
+		"来源工作流",
+	)
+	if err != nil {
+		t.Fatalf("CreateSessionWithSource: %v", err)
+	}
 
 	composerReq, err := http.NewRequestWithContext(t.Context(),
 		http.MethodPatch,
@@ -150,6 +160,26 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	}
 	if bytes.Contains(listPayload, []byte("未发送草稿")) {
 		t.Fatalf("session list leaked composer draft: %s", string(listPayload))
+	}
+	workflowListResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/sessions?agentId="+agent.ID+"&query=工作流来源&limit=5")
+	if err != nil {
+		t.Fatalf("GET workflow source sessions: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, workflowListResp.Body.Close()) }()
+	var workflowListEnvelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Sessions []jfadk.Session `json:"sessions"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(workflowListResp.Body).Decode(&workflowListEnvelope); err != nil {
+		t.Fatalf("decode workflow source sessions: %v", err)
+	}
+	if !workflowListEnvelope.OK || len(workflowListEnvelope.Data.Sessions) != 1 ||
+		workflowListEnvelope.Data.Sessions[0].ID != workflowSession.ID ||
+		workflowListEnvelope.Data.Sessions[0].WorkflowID != "workflow-session-source" ||
+		workflowListEnvelope.Data.Sessions[0].WorkflowName != "来源工作流" {
+		t.Fatalf("workflow source sessions envelope = %+v", workflowListEnvelope)
 	}
 
 	getResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID)

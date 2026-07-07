@@ -3,7 +3,15 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
+import type { ADKSession } from "@/contracts";
+import type { ADKSessionGroup } from "@/composables/useADKPageSessionState";
+
 import ADKSessionSidebar from "../src/components/adk-page/ADKSessionSidebar.vue";
+
+interface SidebarOverrides {
+  visibleSessionGroups?: ADKSessionGroup[];
+  showSessionGroups?: boolean;
+}
 
 describe("ADKSessionSidebar", () => {
   it("distinguishes an empty list from filters with no matches", async () => {
@@ -17,10 +25,49 @@ describe("ADKSessionSidebar", () => {
     expect(wrapper.text()).toContain("没有匹配会话");
     expect(wrapper.text()).not.toContain("暂无会话");
   });
+
+  it("keeps the flat list for the default conversation group", () => {
+    const wrapper = mountSidebar([buildSession({ title: "普通对话" })]);
+
+    expect(wrapper.find(".adk-session-group__header").exists()).toBe(false);
+    expect(wrapper.text()).toContain("普通对话");
+  });
+
+  it("renders workflow group headers when workflow sessions are present", () => {
+    const defaultSession = buildSession({ title: "普通对话" });
+    const workflowSession = buildSession({
+      id: "session-workflow",
+      title: "工作流对话",
+      workflowId: "workflow-1",
+      workflowName: "每日盘点",
+    });
+    const wrapper = mountSidebar([defaultSession, workflowSession], {
+      showSessionGroups: true,
+      visibleSessionGroups: [
+        {
+          id: "__default_conversation__",
+          title: "对话",
+          sessions: [defaultSession],
+          isDefault: true,
+        },
+        {
+          id: "workflow-1",
+          title: "每日盘点",
+          sessions: [workflowSession],
+          isDefault: false,
+        },
+      ],
+    });
+
+    const headers = wrapper.findAll(".adk-session-group__header");
+    expect(headers.map((header) => header.text())).toEqual(["对话1", "每日盘点1"]);
+    expect(wrapper.findAll(".adk-session-item")).toHaveLength(2);
+  });
 });
 
 function mountSidebar(
-  sessions: Array<ReturnType<typeof buildSession>>,
+  sessions: ADKSession[],
+  overrides: SidebarOverrides = {},
 ) {
   return mount(ADKSessionSidebar, {
     props: {
@@ -31,6 +78,15 @@ function mountSidebar(
       sessionAgentFilter: "",
       agentOptions: [],
       visibleSessions: sessions,
+      visibleSessionGroups: [
+        {
+          id: "__default_conversation__",
+          title: "对话",
+          sessions,
+          isDefault: true,
+        },
+      ],
+      showSessionGroups: false,
       sessions,
       formatPermission: (mode: string) => mode,
       sessionTitle: (session) => session.title,
@@ -40,6 +96,7 @@ function mountSidebar(
       selectSession: () => undefined,
       renameSession: () => undefined,
       deleteSession: () => undefined,
+      ...overrides,
     },
     global: {
       stubs: {
@@ -53,12 +110,13 @@ function mountSidebar(
   });
 }
 
-function buildSession() {
+function buildSession(overrides: Partial<ADKSession> = {}): ADKSession {
   return {
     id: "session-1",
     agentId: "agent-1",
     title: "会话",
     createdAt: "2026-06-18T00:00:00Z",
     updatedAt: "2026-06-18T00:00:00Z",
+    ...overrides,
   };
 }

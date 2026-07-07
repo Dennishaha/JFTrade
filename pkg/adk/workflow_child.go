@@ -143,53 +143,51 @@ func (e *WorkflowExecutor) failWorkflowChildAfterMissingFinal(
 	return cause
 }
 
+func (e *WorkflowExecutor) blockedWorkflowChildResult(
+	ctx context.Context,
+	req workflowRequest,
+	parent Run,
+	task Task,
+	iteration int,
+	childAgent Agent,
+	fallbackAgentID string,
+	reason string,
+) workflowChildResult {
+	_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID), ResultSummary: &reason})
+	jftradeLogError(jftradeErr13)
+	agentID := strings.TrimSpace(childAgent.ID)
+	if agentID == "" {
+		agentID = strings.TrimSpace(fallbackAgentID)
+	}
+	failed := Run{
+		ID:             parent.ID,
+		SessionID:      req.Session.ID,
+		AgentID:        agentID,
+		ProviderID:     childAgent.ProviderID,
+		Model:          childAgent.Model,
+		ParentRunID:    parent.ID,
+		Status:         RunStatusFailed,
+		Message:        reason,
+		FailureReason:  reason,
+		ErrorCode:      runErrorCode(RunStatusFailed),
+		WorkMode:       WorkModeChat,
+		WorkflowEngine: defaultString(parent.WorkflowEngine, workflowEngineForMode(parent.WorkMode)),
+		CreatedAt:      nowString(),
+		UpdatedAt:      nowString(),
+		Usage:          &RunUsage{},
+	}
+	return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: ChatResponse{Reply: reason, Session: req.Session, Run: failed}}
+}
+
 func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, parent Run, step workflowStep, task Task, iteration int) workflowChildResult {
 	_, jftradeErr14 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("IN_PROGRESS"), Executor: new(workflowTaskExecutorChild)})
 	jftradeLogError(jftradeErr14)
 	childAgent, err := e.runtime.workflowChildAgentForStep(ctx, req.Agent, step)
 	if err != nil {
-		reason := err.Error()
-		_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID), ResultSummary: &reason})
-		jftradeLogError(jftradeErr13)
-		failed := Run{
-			ID:             parent.ID,
-			SessionID:      req.Session.ID,
-			AgentID:        strings.TrimSpace(step.ChildAgentID),
-			ParentRunID:    parent.ID,
-			Status:         RunStatusFailed,
-			Message:        reason,
-			FailureReason:  reason,
-			ErrorCode:      runErrorCode(RunStatusFailed),
-			WorkMode:       WorkModeChat,
-			WorkflowEngine: defaultString(parent.WorkflowEngine, workflowEngineForMode(parent.WorkMode)),
-			CreatedAt:      nowString(),
-			UpdatedAt:      nowString(),
-			Usage:          &RunUsage{},
-		}
-		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: ChatResponse{Reply: reason, Session: req.Session, Run: failed}}
+		return e.blockedWorkflowChildResult(ctx, req, parent, task, iteration, Agent{}, step.ChildAgentID, err.Error())
 	}
 	if _, err := e.runtime.googleADKModelForAgent(ctx, childAgent); err != nil {
-		reason := err.Error()
-		_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID), ResultSummary: &reason})
-		jftradeLogError(jftradeErr13)
-		failed := Run{
-			ID:             parent.ID,
-			SessionID:      req.Session.ID,
-			AgentID:        childAgent.ID,
-			ProviderID:     childAgent.ProviderID,
-			Model:          childAgent.Model,
-			ParentRunID:    parent.ID,
-			Status:         RunStatusFailed,
-			Message:        reason,
-			FailureReason:  reason,
-			ErrorCode:      runErrorCode(RunStatusFailed),
-			WorkMode:       WorkModeChat,
-			WorkflowEngine: defaultString(parent.WorkflowEngine, workflowEngineForMode(parent.WorkMode)),
-			CreatedAt:      nowString(),
-			UpdatedAt:      nowString(),
-			Usage:          &RunUsage{},
-		}
-		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: ChatResponse{Reply: reason, Session: req.Session, Run: failed}}
+		return e.blockedWorkflowChildResult(ctx, req, parent, task, iteration, childAgent, "", err.Error())
 	}
 	child, childCtx, finishChild, err := e.runtime.startRunWithOptions(ctx, req.Session.ID, childAgent, step.Message, runStartOptions{
 		WorkMode:       WorkModeChat,

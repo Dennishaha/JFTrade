@@ -229,6 +229,8 @@ export interface ADKSession {
   id: string;
   agentId: string;
   title: string;
+  workflowId?: string;
+  workflowName?: string;
   createdAt: string;
   updatedAt: string;
 }

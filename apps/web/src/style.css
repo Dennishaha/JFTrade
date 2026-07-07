@@ -1609,6 +1609,42 @@ body {
   color: var(--tv-text);
 }
 
+.adk-session-group {
+  display: grid;
+  gap: 2px;
+}
+
+.adk-session-group + .adk-session-group {
+  margin-top: 4px;
+}
+
+.adk-session-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px 4px;
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.adk-session-group__header span,
+.adk-session-group__header small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-session-group__header small {
+  flex: 0 0 auto;
+  color: color-mix(in srgb, var(--tv-accent) 72%, var(--tv-text-dim));
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
 .adk-session-title {
   display: flex;
   flex-direction: column;

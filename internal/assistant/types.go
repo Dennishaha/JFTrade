@@ -33,8 +33,10 @@ type SessionQuery struct {
 }
 
 type CreateSessionRequest struct {
-	AgentID string
-	Title   string
+	AgentID      string
+	Title        string
+	WorkflowID   string
+	WorkflowName string
 }
 
 type RunQuery struct {

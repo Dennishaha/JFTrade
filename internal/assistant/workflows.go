@@ -460,8 +460,10 @@ func (s *Service) invokeWorkflowWithStore(ctx context.Context, store workflowInv
 		return s.failWorkflowInvocation(ctx, store, workflow, trigger, inputs, matchedEvent, log, started, message, objective, "", err, false)
 	}
 	session, err := s.CreateSession(ctx, CreateSessionRequest{
-		AgentID: workflow.AgentID,
-		Title:   workflowSessionTitle(workflow.Name, time.Now()),
+		AgentID:      workflow.AgentID,
+		Title:        workflowSessionTitle(workflow.Name, time.Now()),
+		WorkflowID:   workflow.ID,
+		WorkflowName: workflow.Name,
 	})
 	if err != nil {
 		return s.failWorkflowInvocation(ctx, store, workflow, trigger, inputs, matchedEvent, log, started, message, objective, "", err, false)

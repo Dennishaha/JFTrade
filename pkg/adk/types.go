@@ -135,11 +135,13 @@ type AgentWriteRequest struct {
 }
 
 type Session struct {
-	ID        string `json:"id"`
-	AgentID   string `json:"agentId"`
-	Title     string `json:"title"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
+	ID           string `json:"id"`
+	AgentID      string `json:"agentId"`
+	Title        string `json:"title"`
+	WorkflowID   string `json:"workflowId,omitempty"`
+	WorkflowName string `json:"workflowName,omitempty"`
+	CreatedAt    string `json:"createdAt"`
+	UpdatedAt    string `json:"updatedAt"`
 }
 
 type SessionComposerState struct {

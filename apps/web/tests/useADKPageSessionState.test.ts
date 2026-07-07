@@ -385,6 +385,78 @@ describe("useADKPageSessionState", () => {
     expect(state.sessionTitle(state.sessions.value[2]!)).not.toBe("   ");
   });
 
+  it("groups visible sessions by workflow source and keeps default-only lists flat", async () => {
+    fetchADKPageSessionDataMock.mockResolvedValueOnce(
+      buildPageData([
+        buildSession({
+          id: "session-default",
+          title: "普通对话",
+          updatedAt: "2026-06-21T00:00:00Z",
+        }),
+        buildSession({
+          id: "session-daily-new",
+          title: "每日盘点新会话",
+          workflowId: "workflow-daily",
+          workflowName: "每日盘点",
+          updatedAt: "2026-06-23T00:00:00Z",
+        }),
+        buildSession({
+          id: "session-risk",
+          title: "风险巡检",
+          workflowId: "workflow-risk",
+          workflowName: "风险巡检",
+          updatedAt: "2026-06-24T00:00:00Z",
+        }),
+        buildSession({
+          id: "session-daily-old",
+          title: "每日盘点旧会话",
+          workflowId: "workflow-daily",
+          workflowName: "每日盘点",
+          updatedAt: "2026-06-20T00:00:00Z",
+        }),
+        buildSession({
+          id: "session-agent-2",
+          agentId: "agent-2",
+          title: "其他 Agent",
+          workflowId: "workflow-other",
+          workflowName: "其他工作流",
+          updatedAt: "2026-06-25T00:00:00Z",
+        }),
+      ]),
+    );
+
+    const { state } = await mountSessionState();
+
+    expect(state.showSessionGroups.value).toBe(true);
+    expect(state.visibleSessionGroups.value.map((group) => group.title)).toEqual([
+      "对话",
+      "其他工作流",
+      "风险巡检",
+      "每日盘点",
+    ]);
+    expect(state.visibleSessionGroups.value[3]?.sessions.map((session) => session.id)).toEqual([
+      "session-daily-new",
+      "session-daily-old",
+    ]);
+
+    state.sessionSearch.value = "普通";
+    expect(state.showSessionGroups.value).toBe(false);
+    expect(state.visibleSessionGroups.value).toMatchObject([
+      {
+        title: "对话",
+        isDefault: true,
+        sessions: [{ id: "session-default" }],
+      },
+    ]);
+
+    state.sessionSearch.value = "";
+    state.sessionAgentFilter.value = "agent-2";
+    expect(state.visibleSessionGroups.value.map((group) => group.title)).toEqual([
+      "其他工作流",
+    ]);
+    expect(state.showSessionGroups.value).toBe(true);
+  });
+
   it("opens provider settings and preserves invalid session-selection agent ids", async () => {
     const { state, router } = await mountSessionState();
 

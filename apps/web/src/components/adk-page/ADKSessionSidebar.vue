@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ADKAgent, ADKSession } from "@/contracts";
+import type { ADKSessionGroup } from "@/composables/useADKPageSessionState";
 
 defineProps<{
   selectedAgentId: string;
@@ -9,6 +10,8 @@ defineProps<{
   sessionAgentFilter: string;
   agentOptions: Array<{ title: string; value: string }>;
   visibleSessions: ADKSession[];
+  visibleSessionGroups: ADKSessionGroup[];
+  showSessionGroups: boolean;
   sessions: ADKSession[];
   formatPermission: (mode: string) => string;
   sessionTitle: (session: ADKSession) => string;
@@ -58,31 +61,70 @@ defineEmits<{
           @update:model-value="$emit('update:sessionAgentFilter', String($event))"
         />
       </div>
-      <div
-        v-for="session in visibleSessions"
-        :key="session.id"
-        class="adk-session-item"
-        :class="{ 'adk-session-item--active': session.id === selectedSessionId }"
-        @click="selectSession(session.id)"
-      >
-        <v-icon size="13">fa-solid fa-comment</v-icon>
-        <span class="adk-session-title">
-          {{ sessionTitle(session) }}
-          <small class="adk-session-agent">{{ agentName(session.agentId) }}</small>
-        </span>
-        <v-icon
-          size="13"
-          class="adk-session-close"
-          title="重命名会话"
-          @click.stop="renameSession(session)"
-        >fa-solid fa-pen</v-icon>
-        <v-icon
-          size="14"
-          class="adk-session-close"
-          title="关闭会话"
-          @click.stop="deleteSession(session.id)"
-        >fa-solid fa-xmark</v-icon>
-      </div>
+      <template v-if="!showSessionGroups">
+        <div
+          v-for="session in visibleSessions"
+          :key="session.id"
+          class="adk-session-item"
+          :class="{ 'adk-session-item--active': session.id === selectedSessionId }"
+          @click="selectSession(session.id)"
+        >
+          <v-icon size="13">fa-solid fa-comment</v-icon>
+          <span class="adk-session-title">
+            {{ sessionTitle(session) }}
+            <small class="adk-session-agent">{{ agentName(session.agentId) }}</small>
+          </span>
+          <v-icon
+            size="13"
+            class="adk-session-close"
+            title="重命名会话"
+            @click.stop="renameSession(session)"
+          >fa-solid fa-pen</v-icon>
+          <v-icon
+            size="14"
+            class="adk-session-close"
+            title="关闭会话"
+            @click.stop="deleteSession(session.id)"
+          >fa-solid fa-xmark</v-icon>
+        </div>
+      </template>
+      <template v-else>
+        <div
+          v-for="group in visibleSessionGroups"
+          :key="group.id"
+          class="adk-session-group"
+        >
+          <div class="adk-session-group__header">
+            <span>{{ group.title }}</span>
+            <small>{{ group.sessions.length }}</small>
+          </div>
+          <div
+            v-for="session in group.sessions"
+            :key="session.id"
+            class="adk-session-item"
+            :class="{ 'adk-session-item--active': session.id === selectedSessionId }"
+            @click="selectSession(session.id)"
+          >
+            <v-icon size="13">fa-solid fa-comment</v-icon>
+            <span class="adk-session-title">
+              {{ sessionTitle(session) }}
+              <small class="adk-session-agent">{{ agentName(session.agentId) }}</small>
+            </span>
+            <v-icon
+              size="13"
+              class="adk-session-close"
+              title="重命名会话"
+              @click.stop="renameSession(session)"
+            >fa-solid fa-pen</v-icon>
+            <v-icon
+              size="14"
+              class="adk-session-close"
+              title="关闭会话"
+              @click.stop="deleteSession(session.id)"
+            >fa-solid fa-xmark</v-icon>
+          </div>
+        </div>
+      </template>
       <div v-if="sessions.length === 0" class="adk-session-empty">暂无会话</div>
       <div
         v-else-if="visibleSessions.length === 0"

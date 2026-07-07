@@ -18,6 +18,16 @@ import {
 import { formatDateTime } from "./consoleDataFormatting";
 import { scrollToBottom } from "./adkThreadScroll";
 
+const defaultSessionGroupId = "__default_conversation__";
+const defaultSessionGroupTitle = "对话";
+
+export interface ADKSessionGroup {
+  id: string;
+  title: string;
+  sessions: ADKSession[];
+  isDefault: boolean;
+}
+
 function defaultProvider(providers: ADKProvider[]): ADKProvider | null {
   return providers.find((item) => item.default) ?? providers[0] ?? null;
 }
@@ -77,6 +87,12 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
       return query === "" || session.title.toLowerCase().includes(query);
     });
   });
+  const visibleSessionGroups = computed<ADKSessionGroup[]>(() =>
+    groupVisibleSessions(visibleSessions.value),
+  );
+  const showSessionGroups = computed(() =>
+    visibleSessionGroups.value.some((group) => !group.isDefault),
+  );
   const selectedAgent = computed(() =>
     agents.value.find((a) => a.id === selectedAgentId.value) ?? null,
   );
@@ -317,8 +333,60 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
     sessionTitle,
     syncSelectedProviderFromAgent,
     tools,
+    showSessionGroups,
+    visibleSessionGroups,
     visibleSessions,
   };
+}
+
+function groupVisibleSessions(sessions: ADKSession[]): ADKSessionGroup[] {
+  const defaultGroup: ADKSessionGroup = {
+    id: defaultSessionGroupId,
+    title: defaultSessionGroupTitle,
+    sessions: [],
+    isDefault: true,
+  };
+  const workflowGroups = new Map<string, ADKSessionGroup>();
+
+  for (const session of sessions) {
+    const workflowId = session.workflowId?.trim() ?? "";
+    if (workflowId === "") {
+      defaultGroup.sessions.push(session);
+      continue;
+    }
+
+    const existing = workflowGroups.get(workflowId);
+    if (existing) {
+      existing.sessions.push(session);
+      continue;
+    }
+
+    const workflowName = session.workflowName?.trim();
+    const group: ADKSessionGroup = {
+      id: workflowId,
+      title: workflowName || workflowId,
+      sessions: [session],
+      isDefault: false,
+    };
+    workflowGroups.set(workflowId, group);
+  }
+
+  const groups = Array.from(workflowGroups.values()).sort(
+    (left, right) =>
+      latestGroupUpdatedAt(right).localeCompare(latestGroupUpdatedAt(left)) ||
+      left.title.localeCompare(right.title),
+  );
+
+  return defaultGroup.sessions.length > 0
+    ? [defaultGroup, ...groups]
+    : groups;
+}
+
+function latestGroupUpdatedAt(group: ADKSessionGroup): string {
+  return group.sessions.reduce(
+    (latest, session) => session.updatedAt > latest ? session.updatedAt : latest,
+    "",
+  );
 }
 
 function formatPermission(mode: string): string {
