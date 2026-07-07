@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	adkmodel "google.golang.org/adk/v2/model"
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
@@ -120,5 +122,44 @@ func TestSQLiteSessionServiceBoundaries(t *testing.T) {
 	})
 	if err := CompactSQLiteSessionService(context.Background(), service); err != nil {
 		t.Fatalf("CompactSQLiteSessionService: %v", err)
+	}
+}
+
+func TestSQLiteSessionServiceClosedAndBrokenMetadataBranches(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "adk-session.db")
+	service, err := NewSQLiteSessionService(path)
+	if err != nil {
+		t.Fatalf("NewSQLiteSessionService: %v", err)
+	}
+	if err := service.Close(); err != nil {
+		t.Fatalf("Close service: %v", err)
+	}
+	if err := CompactSQLiteSessionService(ctx, service); err == nil {
+		t.Fatal("CompactSQLiteSessionService accepted closed sqlite session service")
+	}
+	if err := ValidateSQLiteSessionService(service); err == nil {
+		t.Fatal("ValidateSQLiteSessionService accepted closed sqlite session service")
+	}
+
+	brokenPath := filepath.Join(t.TempDir(), "broken-metadata.db")
+	db, err := sqliteconn.Open(brokenPath)
+	if err != nil {
+		t.Fatalf("sqliteconn.Open broken metadata db: %v", err)
+	}
+	t.Cleanup(func() {
+		jftradeErr := db.Close()
+		jftradeCheckTestError(t, jftradeErr)
+	})
+	if _, err := db.ExecContext(ctx, `CREATE TABLE `+sqliteschema.MetadataTable+` (component_id TEXT PRIMARY KEY, created_at TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create broken metadata table: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO `+sqliteschema.MetadataTable+` (component_id, created_at) VALUES (?, ?)`, sqliteSessionComponent, nowString()); err != nil {
+		t.Fatalf("insert broken metadata row: %v", err)
+	}
+	if _, err := validateSQLiteSessionMetadata(ctx, db, brokenPath); err == nil {
+		t.Fatal("validateSQLiteSessionMetadata accepted metadata table without version column")
 	}
 }

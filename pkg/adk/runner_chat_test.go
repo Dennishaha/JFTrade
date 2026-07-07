@@ -54,6 +54,19 @@ func TestPrepareChatRequestValidationAndConcurrency(t *testing.T) {
 	<-runtime.runSem
 }
 
+func TestRequestedInputEventFailsWithUnsupportedInputCode(t *testing.T) {
+	execution := &googleADKExecution{}
+	err := execution.consumeEvent(&adksession.Event{
+		RequestedInput: &adksession.RequestInput{InterruptID: "ask-more", Message: "need more input"},
+	})
+	if !errors.Is(err, errADKInputUnsupported) {
+		t.Fatalf("consumeEvent error = %v, want errADKInputUnsupported", err)
+	}
+	if code := runErrorCode(RunStatusFailed, err); code != "ADK_INPUT_UNSUPPORTED" {
+		t.Fatalf("runErrorCode = %q, want ADK_INPUT_UNSUPPORTED", code)
+	}
+}
+
 func TestHydrateRunExecutionResultPopulatesRunFields(t *testing.T) {
 	run := Run{ID: "run-1", Usage: &RunUsage{}}
 	result := hydrateRunExecutionResult(
@@ -84,6 +97,31 @@ func TestHydrateRunExecutionResultPopulatesRunFields(t *testing.T) {
 	}
 	if result.Usage == nil || result.Usage.ToolCallsTotal != 2 {
 		t.Fatalf("usage = %+v, want tool call total 2", result.Usage)
+	}
+}
+
+func TestCompleteChatRunDoesNotPromoteTopLevelFollowUpToPendingInput(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	session := mustCreateSession(t, runtime, "agent-follow-up-top", "top-level follow up")
+	reply := "请提供策略名称、Pine Script 代码和关键参数，并发给我后我来继续处理。"
+	run := mustSaveRun(t, runtime, Run{
+		ID: "run-follow-up-top", SessionID: session.ID, AgentID: session.AgentID,
+		Status: RunStatusRunning, UserMessage: "整理策略定义",
+		CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+	})
+
+	response, err := runtime.completeChatRun(ctx, session, run, run.UserMessage, toolExecutionContext{}, nil, openAIChatResult{
+		Reply: reply,
+	}, nil)
+	if err != nil {
+		t.Fatalf("completeChatRun top-level: %v", err)
+	}
+	if response.Run.Status != RunStatusCompleted {
+		t.Fatalf("response run = %+v, want completed top-level follow-up", response.Run)
+	}
+	if response.Reply != reply {
+		t.Fatalf("response reply = %q, want preserved top-level reply", response.Reply)
 	}
 }
 
@@ -792,10 +830,10 @@ func TestRunnerChatProjectionPersistenceAndAssistantBoundaries(t *testing.T) {
 	if applied.FinalMessageID != "projected-final" || applied.PreToolContent != "projected pre" || applied.OptimizationTaskID != "projected-opt" || applied.Usage.ToolCallsTotal != 2 || len(applied.PendingApprovals) != 1 {
 		t.Fatalf("applied projection = %+v", applied)
 	}
-	if shouldPreferProjectedToolCalls([]ToolCall{{Status: "SUCCEEDED"}}, []ToolCall{{Status: "RUNNING"}}) {
+	if shouldPreferProjectedToolCalls(Run{ToolCalls: []ToolCall{{Status: "SUCCEEDED"}}}, []ToolCall{{Status: "RUNNING"}}) {
 		t.Fatal("running projected calls should not beat terminal current calls")
 	}
-	if !shouldPreferProjectedToolCalls([]ToolCall{{Status: "RUNNING"}}, []ToolCall{{Status: "PENDING_APPROVAL"}}) {
+	if !shouldPreferProjectedToolCalls(Run{ToolCalls: []ToolCall{{Status: "RUNNING"}}}, []ToolCall{{Status: "PENDING_APPROVAL"}}) {
 		t.Fatal("pending projected calls should beat running current calls")
 	}
 	if terminalToolCallCount([]ToolCall{{Status: "TIMED_OUT"}, {Status: "RUNNING"}}) != 1 {

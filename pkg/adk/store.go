@@ -508,8 +508,6 @@ func validPermissionMode(value string) bool {
 
 func normalizeWorkMode(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case WorkModeTask:
-		return WorkModeTask
 	case WorkModeLoop:
 		return WorkModeLoop
 	default:
@@ -519,7 +517,7 @@ func normalizeWorkMode(value string) string {
 
 func normalizeAgentDefaultWorkMode(value string) string {
 	switch normalizeWorkMode(value) {
-	case WorkModeTask, WorkModeLoop:
+	case WorkModeLoop:
 		return normalizeWorkMode(value)
 	default:
 		return WorkModeChat
@@ -528,7 +526,7 @@ func normalizeAgentDefaultWorkMode(value string) string {
 
 func validWorkMode(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "", WorkModeChat, WorkModeTask, WorkModeLoop:
+	case "", WorkModeChat, WorkModeLoop:
 		return true
 	default:
 		return false

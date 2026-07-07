@@ -30,7 +30,7 @@ function createAgentForm(_providers: ADKProvider[], _tools: ADKToolDescriptor[],
 }
 
 function selectableAgentWorkMode(mode?: string): ADKWorkMode {
-  if (mode === "task" || mode === "loop") return mode;
+  if (mode === "loop") return mode;
   return "chat";
 }
 

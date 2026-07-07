@@ -278,7 +278,7 @@ describe("useADKPageSessionState", () => {
           permissionMode: "all",
           memoryEnabled: true,
           recentUserWindow: 6,
-          workMode: "task",
+          workMode: "loop",
           loopMaxIterations: 5,
           status: "ENABLED",
           createdAt: "2026-06-18T00:00:00Z",

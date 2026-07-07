@@ -64,7 +64,7 @@ func TestWorkflowTaskToolsetBusinessLifecycle(t *testing.T) {
 
 	added, err := toolset.add(map[string]any{
 		"title": "Verify rollout", "message": "Verify the changed behavior", "dependsOn": []any{first.ID},
-		"agentRole": "reviewer", "modeHint": WorkModeTask,
+		"agentRole": "reviewer", "modeHint": WorkModeLoop,
 	})
 	if err != nil || added["success"] != true {
 		t.Fatalf("add runtime task = %#v err=%v", added, err)
@@ -113,7 +113,7 @@ func TestWorkflowPlanningHelpersPreserveBusinessOrdering(t *testing.T) {
 	steps := applyWorkflowStepPlanningMetadata([]workflowStep{
 		{Title: "Ship feature", Description: "Ship feature", Message: "Ship feature"},
 		{Order: 9, Title: "Verify", PlanSource: workflowPlanSourceRuntime, WorkflowMode: WorkModeLoop},
-	}, WorkModeTask, "Ship feature", []string{"planner used fallback", ""})
+	}, WorkModeLoop, "Ship feature", []string{"planner used fallback", ""})
 	if steps[0].Order != 1 || steps[0].Title == "Ship feature" || steps[0].Message == "Ship feature" {
 		t.Fatalf("sanitized first step = %#v", steps[0])
 	}
@@ -130,7 +130,7 @@ func TestWorkflowPlanningHelpersPreserveBusinessOrdering(t *testing.T) {
 		{ID: "ready-b", Title: "Ready B", Status: "TODO", DependsOn: []string{"done"}, Order: 2},
 		{ID: "blocked", Title: "Blocked", Status: "TODO", DependsOn: []string{"missing"}, Order: 4},
 	}
-	ready := executableWorkflowTasks(tasks, WorkModeTask)
+	ready := executableWorkflowTasks(tasks, WorkModeLoop)
 	if len(ready) != 1 || ready[0].ID != "ready-b" {
 		t.Fatalf("ready workflow tasks = %#v", ready)
 	}

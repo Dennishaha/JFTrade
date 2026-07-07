@@ -8,7 +8,12 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	adksession "google.golang.org/adk/v2/session"
+	"google.golang.org/genai"
 )
 
 const testProviderID = "test-openai-compatible"
@@ -93,6 +98,174 @@ func mustSaveAgent(t *testing.T, runtime *Runtime, req AgentWriteRequest) Agent 
 		t.Fatalf("SaveAgent: %v", err)
 	}
 	return agent
+}
+
+type workflowDeclaredTool interface {
+	Declaration() *genai.FunctionDeclaration
+}
+
+func saveGoalWorkflowProvider(t *testing.T, runtime *Runtime, providerID string, responder func(openAIChatRequest) openAIChatMessage) string {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+			http.NotFound(w, r)
+			return
+		}
+		defer func() { jftradePanicOnError(r.Body.Close()) }()
+		var req openAIChatRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		jftradeErr := json.NewEncoder(w).Encode(openAIChatResponse{
+			Choices: []struct {
+				Message openAIChatMessage `json:"message"`
+			}{{Message: responder(req)}},
+		})
+		jftradePanicOnError(jftradeErr)
+	}))
+	t.Cleanup(server.Close)
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID: providerID, DisplayName: providerID, BaseURL: server.URL, Model: "test-model", APIKey: "sk-test", Enabled: true,
+	})
+	return providerID
+}
+
+func newWorkflowApprovalRuntime(t *testing.T, mode string) (*Runtime, *atomic.Int64) {
+	t.Helper()
+	base := newTestRuntime(t)
+	registry := NewToolRegistry()
+	executions := &atomic.Int64{}
+	registry.Register(ToolDescriptor{
+		Name:               "approval.required",
+		DisplayName:        "Approval Required",
+		Description:        "test approval tool",
+		Category:           "strategy",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
+		RequiresApprovalIn: []string{PermissionModeApproval},
+	}, func(context.Context, map[string]any) (any, error) {
+		executions.Add(1)
+		return map[string]any{"saved": true, "mode": normalizeWorkMode(mode)}, nil
+	})
+	runtime := newRuntimeWithRegistry(t, base.Store(), registry)
+	return runtime, executions
+}
+
+func waitForRunStatus(t *testing.T, runtime *Runtime, runID string, status string) Run {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		run, ok, err := runtime.Store().Run(context.Background(), runID)
+		if err != nil {
+			t.Fatalf("Run(%s): %v", runID, err)
+		}
+		if ok && run.Status == status {
+			return run
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Run(%s) did not reach status %s; last=%+v ok=%v", runID, status, run, ok)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func appendADKEvent(t *testing.T, runtime *Runtime, agentID string, sessionID string, event *adksession.Event) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
+		AppName: googleADKAppName(agentID), UserID: googleADKUserID, SessionID: sessionID,
+	}); err != nil && !strings.Contains(strings.ToLower(err.Error()), "already") && !strings.Contains(strings.ToLower(err.Error()), "unique constraint") && !strings.Contains(strings.ToLower(err.Error()), "constraint failed") {
+		t.Fatalf("Create ADK session: %v", err)
+	}
+	response, err := runtime.rawSessionService.Get(context.Background(), &adksession.GetRequest{
+		AppName: googleADKAppName(agentID), UserID: googleADKUserID, SessionID: sessionID,
+	})
+	if err != nil || response == nil || response.Session == nil {
+		t.Fatalf("Get ADK session: response=%#v err=%v", response, err)
+	}
+	if err := appendADKEventWithStaleRetry(context.Background(), runtimeAppendLocks(runtime), runtime.rawSessionService, response.Session, event); err != nil {
+		t.Fatalf("appendADKEventWithStaleRetry: %v", err)
+	}
+}
+
+func newAssistantEvent(runID string, parts []*genai.Part, at time.Time) *adksession.Event {
+	event := adksession.NewEvent(context.Background(), runID)
+	event.Author = googleADKAgentName("agent")
+	event.Content = &genai.Content{Role: genai.RoleModel, Parts: parts}
+	event.Timestamp = at
+	return event
+}
+
+func newToolCallEvent(runID string, callID string, toolName string, at time.Time) *adksession.Event {
+	event := newAssistantEvent(runID, []*genai.Part{{FunctionCall: &genai.FunctionCall{
+		ID: callID, Name: toolName, Args: map[string]any{},
+	}}}, at)
+	return event
+}
+
+func newToolResponseEvent(runID string, callID string, toolName string, response map[string]any, at time.Time) *adksession.Event {
+	event := adksession.NewEvent(context.Background(), runID)
+	event.Author = googleADKAgentName("agent")
+	event.Content = &genai.Content{Role: genai.RoleUser, Parts: []*genai.Part{{FunctionResponse: &genai.FunctionResponse{
+		ID: callID, Name: toolName, Response: response,
+	}}}}
+	event.Timestamp = at
+	return event
+}
+
+func runHasToolCall(run Run, toolName string) bool {
+	for _, call := range run.ToolCalls {
+		if call.ToolName == toolName {
+			return true
+		}
+	}
+	return false
+}
+
+func testGoalWorkflowLastUserMessage(req openAIChatRequest) string {
+	for index := len(req.Messages) - 1; index >= 0; index-- {
+		if req.Messages[index].Role == "user" {
+			return req.Messages[index].Content
+		}
+	}
+	return ""
+}
+
+func testGoalWorkflowToolResponsesSinceLastUser(messages []openAIChatMessage) map[string]bool {
+	seen := map[string]bool{}
+	for index := len(messages) - 1; index >= 0; index-- {
+		message := messages[index]
+		if message.Role == "user" {
+			break
+		}
+		if message.Role == "tool" {
+			name := restoreToolNameFromOpenAI(message.Name)
+			if name == "" {
+				name = message.Name
+			}
+			seen[name] = true
+		}
+	}
+	return seen
+}
+
+func testGoalWorkflowTaskProgressCalls(req openAIChatRequest) []openAIToolCall {
+	toolNames := testProviderToolNames(req)
+	seen := testGoalWorkflowToolResponsesSinceLastUser(req.Messages)
+	if containsTool(toolNames, workflowTasksListTool) && !seen[workflowTasksListTool] {
+		return []openAIToolCall{testProviderToolCall("call-workflow-tasks-list", workflowTasksListTool, map[string]any{})}
+	}
+	if containsTool(toolNames, workflowTaskClaimTool) && !seen[workflowTaskClaimTool] {
+		return []openAIToolCall{testProviderToolCall("call-workflow-task-claim", workflowTaskClaimTool, map[string]any{})}
+	}
+	if containsTool(toolNames, workflowTaskCompleteTool) && !seen[workflowTaskCompleteTool] {
+		return []openAIToolCall{testProviderToolCall("call-workflow-task-complete", workflowTaskCompleteTool, map[string]any{
+			"taskId": "", "summary": "任务已推进。",
+		})}
+	}
+	return nil
 }
 
 func testProviderChatHandler(w http.ResponseWriter, r *http.Request) {
@@ -197,7 +370,7 @@ func testProviderWorkflowPlanCalls(req openAIChatRequest, text string) []openAIT
 		return []openAIToolCall{testProviderToolCall("call-plan-reset", workflowPlanResetTool, map[string]any{})}
 	case !seen[workflowPlanAddStepTool]:
 		return []openAIToolCall{testProviderToolCall("call-plan-add", workflowPlanAddStepTool, map[string]any{
-			"order": 1, "title": title, "message": message, "description": message, "modeHint": WorkModeTask, "agentRole": "执行子 Agent",
+			"order": 1, "title": title, "message": message, "description": message, "modeHint": WorkModeLoop, "agentRole": "执行子 Agent",
 		})}
 	case !seen[workflowPlanFinishTool]:
 		return []openAIToolCall{testProviderToolCall("call-plan-finish", workflowPlanFinishTool, map[string]any{})}

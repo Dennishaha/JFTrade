@@ -23,7 +23,7 @@ func TestWorkflowPlannerToolsetDraftLifecycleAndRequestInjection(t *testing.T) {
 		t.Fatalf("nil draft toolset tools = %#v err=%v, want nil nil", tools, err)
 	}
 
-	draft := &workflowPlanDraft{Mode: WorkModeTask, Objective: "研究 AAPL 风险"}
+	draft := &workflowPlanDraft{Mode: WorkModeLoop, Objective: "研究 AAPL 风险"}
 	tools, err := newWorkflowPlannerToolset(draft).Tools(nil)
 	if err != nil {
 		t.Fatalf("Tools: %v", err)
@@ -76,7 +76,7 @@ func TestWorkflowPlannerToolsetDraftLifecycleAndRequestInjection(t *testing.T) {
 		"title":           " 收集约束 ",
 		"message":         " 读取持仓和行情 ",
 		"description":     " 用真实账户状态规划 ",
-		"modeHint":        "task",
+		"modeHint":        "loop",
 		"dependsOn":       []any{" 1 ", "", "收集约束"},
 		"agentRole":       " researcher ",
 		"childProviderId": " provider-a ",

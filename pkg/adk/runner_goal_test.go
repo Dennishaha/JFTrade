@@ -171,7 +171,7 @@ func TestCancelRunTreeAndRunLifecycleHelpers(t *testing.T) {
 	now := nowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "cancel-parent", SessionID: "session-cancel", AgentID: "agent-cancel",
-		Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		ChildRunIDs: []string{"", "cancel-parent", "cancel-child-explicit"},
 		WorkflowPlan: []WorkflowStepState{
 			{TaskID: "done-step", Title: "Done", Status: "DONE"},

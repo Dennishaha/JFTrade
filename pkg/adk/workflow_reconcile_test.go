@@ -7,16 +7,16 @@ import (
 
 func TestTaskWorkflowApprovalContinuesParentWorkflow(t *testing.T) {
 	ctx := context.Background()
-	runtime, executions := newWorkflowApprovalRuntime(t, WorkModeTask)
+	runtime, executions := newWorkflowApprovalRuntime(t, WorkModeLoop)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "seq-approval-agent", Name: "Task Approval", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
+		WorkMode: WorkModeLoop, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
 	})
 	response, err := runtime.Chat(ctx, ChatRequest{
 		AgentID:          agent.ID,
 		Message:          "请创建子智能体并 @approval.required 保存策略",
 		Objective:        "完成审批续跑测试",
-		WorkModeOverride: WorkModeTask,
+		WorkModeOverride: WorkModeLoop,
 	})
 	if err != nil {
 		t.Fatalf("Chat task approval workflow: %v", err)
@@ -48,15 +48,15 @@ func TestTaskWorkflowApprovalContinuesParentWorkflow(t *testing.T) {
 
 func TestTaskWorkflowApprovalDeniedTerminatesParentWorkflow(t *testing.T) {
 	ctx := context.Background()
-	runtime, _ := newWorkflowApprovalRuntime(t, WorkModeTask)
+	runtime, _ := newWorkflowApprovalRuntime(t, WorkModeLoop)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "seq-deny-agent", Name: "Task Deny", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
+		WorkMode: WorkModeLoop, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
 	})
 	response, err := runtime.Chat(ctx, ChatRequest{
 		AgentID:          agent.ID,
 		Message:          "请创建子智能体并 @approval.required 保存策略",
-		WorkModeOverride: WorkModeTask,
+		WorkModeOverride: WorkModeLoop,
 	})
 	if err != nil {
 		t.Fatalf("Chat task denial workflow: %v", err)
@@ -75,7 +75,7 @@ func TestTaskResumeUsesStoredPendingChildBeforeCompletingParent(t *testing.T) {
 	runtime := newTestRuntime(t)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "seq-stale-child-agent", Name: "Task Stale Child", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask,
+		WorkMode: WorkModeLoop,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "stale child")
 	approval := Approval{
@@ -85,7 +85,7 @@ func TestTaskResumeUsesStoredPendingChildBeforeCompletingParent(t *testing.T) {
 	}
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "parent-stale-plan", SessionID: session.ID, AgentID: agent.ID,
-		Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		Objective: "等待子审批", ChildRunIDs: []string{"child-stale-pending"},
 		WorkflowPlan: []WorkflowStepState{{
 			Title: "需要审批的步骤", Message: "保存策略", Status: "DONE", ChildRunID: "child-stale-pending",
@@ -189,12 +189,12 @@ func TestTaskResumeUsesStoredRunningChildBeforeCompletingParent(t *testing.T) {
 	runtime := newTestRuntime(t)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "seq-running-child-agent", Name: "Task Running Child", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask,
+		WorkMode: WorkModeLoop,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "running child")
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "parent-running-plan", SessionID: session.ID, AgentID: agent.ID,
-		Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		Objective: "等待子运行", ChildRunIDs: []string{"child-still-running"},
 		WorkflowPlan: []WorkflowStepState{{
 			Title: "仍在运行的步骤", Message: "继续运行", Status: "DONE", ChildRunID: "child-still-running",
@@ -240,13 +240,13 @@ func TestTaskResumeTerminatesParentForStoredTerminalChild(t *testing.T) {
 			runtime := newTestRuntime(t)
 			agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 				ID: "seq-terminal-child-agent-" + tc.name, Name: "Task Terminal Child", Status: AgentStatusEnabled,
-				WorkMode: WorkModeTask,
+				WorkMode: WorkModeLoop,
 			})
 			session := mustCreateSession(t, runtime, agent.ID, "terminal child "+tc.name)
 			childID := "child-terminal-" + tc.name
 			parent := mustSaveRun(t, runtime, Run{
 				ID: "parent-terminal-plan-" + tc.name, SessionID: session.ID, AgentID: agent.ID,
-				Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+				Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 				Objective: "处理终止子运行", ChildRunIDs: []string{childID},
 				WorkflowPlan: []WorkflowStepState{{
 					Title: "终止步骤", Message: "终止", Status: "DONE", ChildRunID: childID,
@@ -281,16 +281,16 @@ func TestTaskResumeTerminatesParentForStoredTerminalChild(t *testing.T) {
 
 func TestWorkflowParentReconcilesResolvedChildApproval(t *testing.T) {
 	ctx := context.Background()
-	runtime, executions := newWorkflowApprovalRuntime(t, WorkModeTask)
+	runtime, executions := newWorkflowApprovalRuntime(t, WorkModeLoop)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "seq-reconcile-agent", Name: "Task Reconcile", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
+		WorkMode: WorkModeLoop, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
 	})
 	response, err := runtime.Chat(ctx, ChatRequest{
 		AgentID:          agent.ID,
 		Message:          "请创建子智能体并 @approval.required 保存策略",
 		Objective:        "完成审批恢复测试",
-		WorkModeOverride: WorkModeTask,
+		WorkModeOverride: WorkModeLoop,
 	})
 	if err != nil {
 		t.Fatalf("Chat task approval workflow: %v", err)

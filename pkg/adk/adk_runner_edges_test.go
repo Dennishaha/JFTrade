@@ -43,7 +43,7 @@ func TestWorkflowApprovalParentChildBoundaryBranches(t *testing.T) {
 		})
 	}
 
-	pendingParent := newParent("wf-pending-parent", WorkModeTask)
+	pendingParent := newParent("wf-pending-parent", WorkModeLoop)
 	pendingChild := saveChild(pendingParent, RunStatusPending, "waiting approval")
 	synced, err := runtime.syncParentWorkflowFromChild(ctx, pendingChild)
 	if err != nil || synced == nil || synced.Status != RunStatusPending || synced.WorkflowStatus != workflowStatusPaused || len(synced.PendingApprovals) != 1 {
@@ -54,7 +54,7 @@ func TestWorkflowApprovalParentChildBoundaryBranches(t *testing.T) {
 		t.Fatalf("continue pending parent=%+v err=%v", continued, err)
 	}
 
-	runningParent := newParent("wf-running-parent", WorkModeTask)
+	runningParent := newParent("wf-running-parent", WorkModeLoop)
 	runningChild := saveChild(runningParent, RunStatusRunning, "child running")
 	synced, err = runtime.syncParentWorkflowFromChild(ctx, runningChild)
 	if err != nil || synced == nil || synced.Status != RunStatusRunning || synced.WorkflowStatus != workflowStatusRunning {
@@ -72,7 +72,7 @@ func TestWorkflowApprovalParentChildBoundaryBranches(t *testing.T) {
 		{status: RunStatusTimedOut, wantReason: "timed out"},
 		{status: RunStatusFailed, wantReason: "failed"},
 	} {
-		parent := newParent("wf-terminal-"+tc.status, WorkModeTask)
+		parent := newParent("wf-terminal-"+tc.status, WorkModeLoop)
 		child := saveChild(parent, tc.status, "child "+tc.status)
 		terminated := runtime.terminateParentWorkflowFromChild(ctx, parent, child)
 		if terminated.Status != tc.status || !strings.Contains(terminated.FailureReason, tc.wantReason) || terminated.CompletedAt == nil {
@@ -369,18 +369,18 @@ func TestWorkflowExecutorAdditionalBoundaryBranches(t *testing.T) {
 	}); err == nil || !strings.Contains(err.Error(), "emit failed") {
 		t.Fatalf("emit workflow err = %v, want emit failed", err)
 	}
-	if _, _, err := executor.planWorkflowSteps(ctx, workflowRequest{Agent: Agent{ID: "missing", ProviderID: "missing"}}, WorkModeTask, "objective"); err == nil || !strings.Contains(err.Error(), "workflow planner failed") {
+	if _, _, err := executor.planWorkflowSteps(ctx, workflowRequest{Agent: Agent{ID: "missing", ProviderID: "missing"}}, WorkModeLoop, "objective"); err == nil || !strings.Contains(err.Error(), "workflow planner failed") {
 		t.Fatalf("planWorkflowSteps err = %v, want planner failed", err)
 	}
 
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-executor-parent", SessionID: session.ID, AgentID: agent.ID,
-		Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 	})
 	steps := []workflowStep{
-		{Title: "First", Description: "Desc", Message: "First message", DependencyID: "first", Order: 1, AgentRole: "researcher", ModeHint: WorkModeChat, PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeTask},
-		{Title: "Second", Message: "Second message", DependsOn: []string{"first", "__previous_step_1"}, DependencyID: "second", Order: 2, PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeTask},
+		{Title: "First", Description: "Desc", Message: "First message", DependencyID: "first", Order: 1, AgentRole: "researcher", ModeHint: WorkModeChat, PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
+		{Title: "Second", Message: "Second message", DependsOn: []string{"first", "__previous_step_1"}, DependencyID: "second", Order: 2, PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeLoop},
 	}
 	tasks, err := executor.persistWorkflowTasks(ctx, parent, agent, steps)
 	if err != nil {
@@ -394,14 +394,14 @@ func TestWorkflowExecutorAdditionalBoundaryBranches(t *testing.T) {
 	mustSaveRun(t, runtime, failingParent)
 	response, err := executor.runPlannedGoogleADKWorkflow(ctx, workflowRequest{
 		Agent:   Agent{ID: "bad-child-agent", Name: "Bad Child", ProviderID: "missing-provider"},
-		Session: session, Message: "run children", Mode: WorkModeTask,
+		Session: session, Message: "run children", Mode: WorkModeLoop,
 	}, failingParent, []workflowStep{{Title: "Bad", Message: "bad child"}}, nil)
 	if err != nil || response.Run.Status != RunStatusFailed || response.Run.FailureReason == "" {
 		t.Fatalf("runPlannedGoogleADKWorkflow response=%+v err=%v, want failed response", response, err)
 	}
 	if _, _, err := executor.startWorkflowChildRuns(ctx, workflowRequest{
 		Agent:   Agent{ID: "bad-child-agent", Name: "Bad Child", ProviderID: "missing-provider"},
-		Session: session, Message: "run child", Mode: WorkModeTask,
+		Session: session, Message: "run child", Mode: WorkModeLoop,
 	}, parent, []workflowStep{{Title: "Bad", Message: "bad child"}}, nil); err == nil {
 		t.Fatal("startWorkflowChildRuns bad provider err = nil, want error")
 	}

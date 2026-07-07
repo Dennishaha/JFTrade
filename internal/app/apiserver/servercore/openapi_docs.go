@@ -89,7 +89,7 @@ func documentAssistantCatalogRoutes() {}
 
 // documentAssistantTaskMemoryRoutes godoc
 // @Summary ADK task and memory routes
-// @Description ADK tasks include lightweight agent tasks and workflow step projections from sequential, parallel, and loop runs.
+// @Description ADK tasks include lightweight agent tasks and goal workflow step projections.
 // @Tags adk
 // @Produce json
 // @Success 200 {object} envelope

@@ -314,7 +314,7 @@ func TestSessionRunAndOptimizationRouteContracts(t *testing.T) {
 	if response := performAssistantRequest(router, http.MethodGet, "/api/v1/adk/sessions/session-missing/context", nil); response.Code != http.StatusNotFound {
 		t.Fatalf("missing session context status=%d body=%s", response.Code, response.Body.String())
 	}
-	if response := performAssistantRequest(router, http.MethodPatch, "/api/v1/adk/sessions/session-missing/composer-state", []byte(`{"workModeOverride":"task"}`)); response.Code != http.StatusNotFound {
+	if response := performAssistantRequest(router, http.MethodPatch, "/api/v1/adk/sessions/session-missing/composer-state", []byte(`{"workModeOverride":"loop"}`)); response.Code != http.StatusNotFound {
 		t.Fatalf("missing composer state status=%d body=%s", response.Code, response.Body.String())
 	}
 	if response := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/sessions/session-missing/context/compact", []byte(`{"mode":"normal"}`)); response.Code != http.StatusNotFound {

@@ -91,7 +91,7 @@ describe("ADKWorkflowPlanPanel", () => {
     const wrapper = mount(ADKWorkflowPlanPanel, {
       props: {
         run: buildRun({
-          workMode: "task",
+          workMode: "loop",
           workflowPlan: steps(7),
         }),
       },
@@ -112,7 +112,7 @@ describe("ADKWorkflowPlanPanel", () => {
       props: {
         run: buildRun({
           status: "COMPLETED",
-          workMode: "task",
+          workMode: "loop",
           workflowStatus: "COMPLETED",
           workflowPlan: [
             {
@@ -146,7 +146,7 @@ describe("ADKWorkflowPlanPanel", () => {
       props: {
         run: buildRun({
           status: "FAILED",
-          workMode: "task",
+          workMode: "loop",
           workflowStatus: "FAILED",
           workflowPlan: [
             {

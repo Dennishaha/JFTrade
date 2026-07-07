@@ -9,6 +9,7 @@ import (
 
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
+	adkartifact "google.golang.org/adk/v2/artifact"
 	adkmodel "google.golang.org/adk/v2/model"
 	"google.golang.org/adk/v2/plugin"
 	adkrunner "google.golang.org/adk/v2/runner"
@@ -22,11 +23,13 @@ import (
 const googleADKUserID = "jftrade-user"
 
 var errUserGoalPauseRequested = errors.New("user goal pause requested")
+var errADKInputUnsupported = errors.New("GO-ADK requested input is unsupported; configure the agent/workflow to collect required input before running")
 
 type googleADKExecution struct {
 	mu                       sync.Mutex
 	runner                   *adkrunner.Runner
 	sessionService           adksession.Service
+	artifactService          adkartifact.Service
 	sessionID                string
 	appName                  string
 	agent                    Agent
@@ -72,7 +75,8 @@ func (r *Runtime) executeGoogleADK(
 	}
 	if err := execution.run(ctx, genai.NewContentFromText(text, genai.RoleUser)); err != nil {
 		preToolContent, preToolReasoning := execution.preToolState()
-		return execution.toolContext(), nil, execution.result(), preToolContent, preToolReasoning, err
+		toolContext := execution.toolContext()
+		return toolContext, nil, execution.result(), preToolContent, preToolReasoning, err
 	}
 	approvals, err := execution.pendingApprovals(ctx, r.store)
 	if err != nil {
@@ -96,6 +100,36 @@ func (r *Runtime) executeGoogleADK(
 }
 
 func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*googleADKExecution, error) {
+	execution, err := r.newResumedGoogleADKExecution(ctx, run)
+	if err != nil {
+		return nil, err
+	}
+	seedResumedExecutionState(execution, run)
+	parts := make([]*genai.Part, 0, len(run.PendingApprovals))
+	for _, approval := range run.PendingApprovals {
+		if approval.ConfirmationCallID == "" || approval.FunctionCallID == "" {
+			continue
+		}
+		original := &genai.FunctionCall{
+			ID: approval.FunctionCallID, Name: approval.ToolName, Args: approval.Input,
+		}
+		parts = append(parts, &genai.Part{FunctionCall: &genai.FunctionCall{
+			ID: approval.ConfirmationCallID, Name: toolconfirmation.FunctionCallName,
+			Args: map[string]any{
+				"originalFunctionCall": original,
+				"toolConfirmation": toolconfirmation.ToolConfirmation{
+					Hint: "请批准或拒绝 JFTrade 工具调用 " + approval.ToolName,
+				},
+			},
+		}})
+	}
+	if len(parts) == 0 {
+		return nil, nil
+	}
+	return execution, nil
+}
+
+func (r *Runtime) newResumedGoogleADKExecution(ctx context.Context, run Run) (*googleADKExecution, error) {
 	agentDefinition, err := r.resolveAgent(ctx, run.AgentID)
 	if err != nil {
 		return nil, err
@@ -124,30 +158,42 @@ func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*go
 	if err != nil {
 		return nil, err
 	}
-	execution.calls = append([]ToolCall(nil), run.ToolCalls...)
-	execution.summaries = append([]string(nil), run.ToolSummaries...)
-	parts := make([]*genai.Part, 0, len(run.PendingApprovals))
-	for _, approval := range run.PendingApprovals {
-		if approval.ConfirmationCallID == "" || approval.FunctionCallID == "" {
-			continue
-		}
-		original := &genai.FunctionCall{
-			ID: approval.FunctionCallID, Name: approval.ToolName, Args: approval.Input,
-		}
-		parts = append(parts, &genai.Part{FunctionCall: &genai.FunctionCall{
-			ID: approval.ConfirmationCallID, Name: toolconfirmation.FunctionCallName,
-			Args: map[string]any{
-				"originalFunctionCall": original,
-				"toolConfirmation": toolconfirmation.ToolConfirmation{
-					Hint: "请批准或拒绝 JFTrade 工具调用 " + approval.ToolName,
-				},
-			},
-		}})
-	}
-	if len(parts) == 0 {
-		return nil, nil
-	}
 	return execution, nil
+}
+
+func seedResumedExecutionState(execution *googleADKExecution, run Run) {
+	if execution == nil || strings.TrimSpace(run.ID) == "" {
+		return
+	}
+	if execution.runSnapshotBaseByID == nil {
+		execution.runSnapshotBaseByID = map[string]Run{}
+	}
+	execution.runSnapshotBaseByID[run.ID] = run
+	seenCalls := map[string]struct{}{}
+	for _, call := range execution.calls {
+		if strings.TrimSpace(call.ID) != "" {
+			seenCalls["id:"+strings.TrimSpace(call.ID)] = struct{}{}
+		}
+		if strings.TrimSpace(call.IdempotencyKey) != "" {
+			seenCalls["key:"+strings.TrimSpace(call.IdempotencyKey)] = struct{}{}
+		}
+	}
+	for _, call := range run.ToolCalls {
+		key := strings.TrimSpace(call.ID)
+		if key != "" {
+			key = "id:" + key
+		} else if strings.TrimSpace(call.IdempotencyKey) != "" {
+			key = "key:" + strings.TrimSpace(call.IdempotencyKey)
+		}
+		if key != "" {
+			if _, ok := seenCalls[key]; ok {
+				continue
+			}
+			seenCalls[key] = struct{}{}
+		}
+		execution.calls = append(execution.calls, call)
+	}
+	execution.summaries = append(execution.summaries, run.ToolSummaries...)
 }
 
 func classifyToolExecutionError(err error) (string, string) {
@@ -236,10 +282,11 @@ func (r *Runtime) newGoogleADKExecution(
 	}
 
 	execution := &googleADKExecution{
-		sessionID: productSession.ID,
-		appName:   googleADKAppName(definition.ID),
-		agent:     definition,
-		runID:     runID,
+		sessionID:       productSession.ID,
+		appName:         googleADKAppName(definition.ID),
+		artifactService: r.artifactService,
+		agent:           definition,
+		runID:           runID,
 		runIDByAgentName: map[string]string{
 			googleADKAgentName(definition.ID): runID,
 		},
@@ -321,11 +368,15 @@ func (r *Runtime) newGoogleADKWorkflowExecutionState(
 	rootName string,
 	onDelta func(ChatDelta) error,
 ) *googleADKExecution {
+	if strings.TrimSpace(parent.WorkflowEngine) == "" {
+		parent.WorkflowEngine = WorkflowEngineADK2Loop
+	}
 	return &googleADKExecution{
-		sessionID: productSession.ID,
-		appName:   googleADKAppName(definition.ID),
-		agent:     definition,
-		runID:     parent.ID,
+		sessionID:       productSession.ID,
+		appName:         googleADKAppName(definition.ID),
+		artifactService: r.artifactService,
+		agent:           definition,
+		runID:           parent.ID,
 		runIDByAgentName: map[string]string{
 			rootName: parent.ID,
 		},
@@ -409,11 +460,7 @@ func (r *Runtime) newGoogleADKWorkflowChildNode(
 	if err != nil {
 		return nil, err
 	}
-	childNode, err := newGoogleADKWorkflowAgentNode(childAgent)
-	if err != nil {
-		return nil, fmt.Errorf("create GO-ADK workflow node: %w", err)
-	}
-	return childNode, nil
+	return newGoogleADKWorkflowAgentNode(childAgent)
 }
 
 func compileGoogleADKWorkflowEdges(steps []workflowStep, nodes []adkworkflow.Node) ([]adkworkflow.Edge, error) {

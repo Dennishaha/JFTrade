@@ -18,7 +18,6 @@ export const triggerStatusOptions = [
 ];
 export const workModeOptions = [
   { title: "对话", value: "chat" },
-  { title: "任务", value: "task" },
   { title: "目标", value: "loop" },
 ];
 export const permissionOptions = [
@@ -150,8 +149,6 @@ export function statusLabel(status: string): string {
       return "全部";
     case "chat":
       return "对话";
-    case "task":
-      return "任务";
     case "loop":
       return "目标";
     default:

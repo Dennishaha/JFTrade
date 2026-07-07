@@ -163,7 +163,7 @@ describe("adkWorkflowStudio helpers", () => {
       nodeDataContext: () => ({
         workflowName: "每日复盘",
         workflowStatus: "ENABLED",
-        workflowWorkMode: "task",
+        workflowWorkMode: "loop",
         workflowInputCount: 1,
         agentName: "投研智能体",
         logsCount: 0,
@@ -182,7 +182,7 @@ describe("adkWorkflowStudio helpers", () => {
       name: "每日复盘",
       status: "ENABLED",
       agentId: "agent-1",
-      workMode: "task",
+      workMode: "loop",
       promptTemplate: "run",
       createdAt: "2026-07-01T00:00:00Z",
       updatedAt: "2026-07-01T00:00:00Z",
@@ -220,7 +220,7 @@ describe("adkWorkflowStudio helpers", () => {
     const vm = useADKWorkflowStudioViewModel({
       agents: () => [
         { id: "agent-disabled", name: "停用", status: "DISABLED", workMode: "chat" },
-        { id: "agent-enabled", name: "启用", status: "ENABLED", workMode: "task" },
+        { id: "agent-enabled", name: "启用", status: "ENABLED", workMode: "loop" },
       ],
       providers: () => [
         {
@@ -259,7 +259,7 @@ describe("adkWorkflowStudio helpers", () => {
           description: "关注持仓",
           status: "ENABLED",
           agentId: "agent-enabled",
-          workMode: "task",
+          workMode: "loop",
           promptTemplate: "run",
           tags: ["复盘"],
           createdAt: "2026-07-01T00:00:00Z",
@@ -281,7 +281,7 @@ describe("adkWorkflowStudio helpers", () => {
           name: "无元数据工作流",
           status: "DISABLED",
           agentId: "agent-enabled",
-          workMode: "task",
+          workMode: "loop",
           promptTemplate: "run",
           createdAt: "2026-07-01T00:00:00Z",
           updatedAt: "2026-07-01T00:00:00Z",
@@ -429,7 +429,7 @@ describe("adkWorkflowStudio helpers", () => {
       name: "每日复盘",
       status: "ENABLED",
       agentId: "agent-1",
-      workMode: "task",
+      workMode: "loop",
       promptTemplate: "run",
       createdAt: "2026-07-01T00:00:00Z",
       updatedAt: "2026-07-01T00:00:00Z",
@@ -783,7 +783,7 @@ describe("adkWorkflowStudio helpers", () => {
       {
         workflowName: "每日复盘",
         workflowStatus: "ENABLED",
-        workflowWorkMode: "task",
+        workflowWorkMode: "loop",
         workflowInputCount: 2,
         agentName: "投研智能体",
         logsCount: 7,
@@ -816,7 +816,7 @@ describe("adkWorkflowStudio helpers", () => {
     expect(nodes[1]?.data).toMatchObject({
       title: "每日复盘",
       subtitle: "投研智能体",
-      status: "task",
+      status: "loop",
     });
     expect(nodes[2]?.data).toMatchObject({
       title: "监控",
@@ -853,7 +853,7 @@ describe("adkWorkflowStudio helpers", () => {
       {
         workflowName: "",
         workflowStatus: "DISABLED",
-        workflowWorkMode: "task",
+        workflowWorkMode: "loop",
         workflowInputCount: 0,
         agentName: "默认智能体",
         logsCount: 1,
@@ -1047,8 +1047,7 @@ describe("adkWorkflowStudio helpers", () => {
     expect(statusLabel("CANCELLED")).toBe("已取消");
     expect(statusLabel("ALL")).toBe("全部");
     expect(statusLabel("chat")).toBe("对话");
-    expect(statusLabel("task")).toBe("任务");
-    expect(statusLabel("loop")).toBe("目标");
+        expect(statusLabel("loop")).toBe("目标");
     expect(statusLabel("unknown_status")).toBe("unknown_status");
     expect(statusLabel("")).toBe("未知");
     expect(workflowTone("ENABLED")).toBe("is-success");
@@ -1093,7 +1092,7 @@ describe("adkWorkflowStudio helpers", () => {
     ]);
     expect(workflowEditStatusOptions.map((item) => item.value)).toEqual(["ENABLED", "DISABLED"]);
     expect(triggerStatusOptions.map((item) => item.title)).toEqual(["启用", "停用"]);
-    expect(workModeOptions.map((item) => item.value)).toEqual(["chat", "task", "loop"]);
+    expect(workModeOptions.map((item) => item.value)).toEqual(["chat", "loop"]);
     expect(permissionOptions.map((item) => item.value)).toEqual([
       "approval",
       "less_approval",
@@ -1269,7 +1268,7 @@ function buildWorkflow(id: string) {
     name: "每日复盘",
     status: "ENABLED",
     agentId: "agent-1",
-    workMode: "task",
+    workMode: "loop",
     promptTemplate: "run",
     createdAt: "2026-07-01T00:00:00Z",
     updatedAt: "2026-07-01T00:00:00Z",

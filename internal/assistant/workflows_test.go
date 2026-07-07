@@ -99,7 +99,7 @@ func TestWorkflowWebhookTriggerSecretLifecycle(t *testing.T) {
 		Name:           "Webhook Secret",
 		Status:         jfadk.WorkflowStatusEnabled,
 		AgentID:        agent.ID,
-		WorkMode:       jfadk.WorkModeTask,
+		WorkMode:       jfadk.WorkModeLoop,
 		PromptTemplate: "run webhook",
 	})
 	if err != nil {
@@ -169,7 +169,7 @@ func TestSaveWorkflowRoundTripsCanvasGraph(t *testing.T) {
 		Name:           "Canvas Round Trip",
 		Status:         jfadk.WorkflowStatusDisabled,
 		AgentID:        agent.ID,
-		WorkMode:       jfadk.WorkModeTask,
+		WorkMode:       jfadk.WorkModeLoop,
 		PromptTemplate: "run canvas",
 		CanvasGraph: &jfadk.WorkflowCanvasGraph{
 			Version: "adk-workflow-canvas/v1",

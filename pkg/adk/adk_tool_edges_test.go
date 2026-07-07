@@ -272,7 +272,7 @@ func TestWorkflowTaskToolsetLookupBoundaryBranches(t *testing.T) {
 	now := nowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "workflow-helper-parent", SessionID: "workflow-helper-session", AgentID: "workflow-helper-agent",
-		Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		WorkflowPlan: []WorkflowStepState{
 			{TaskID: "task-current", ChildRunID: ""},
 			{TaskID: "task-missing-child", ChildRunID: "missing-child"},
@@ -306,7 +306,7 @@ func TestWorkflowTaskToolsetLookupBoundaryBranches(t *testing.T) {
 		executor:      runtime.workflowExecutor(),
 		parentID:      parent.ID,
 		currentTaskID: current.ID,
-		req:           workflowRequest{Mode: WorkModeTask},
+		req:           workflowRequest{Mode: WorkModeLoop},
 	}
 	if _, _, err := (&workflowTaskToolset{executor: runtime.workflowExecutor(), parentID: "missing-parent"}).parentAndTasks(ctx); err == nil || !strings.Contains(err.Error(), "parent run not found") {
 		t.Fatalf("missing parentAndTasks err = %v", err)
@@ -504,11 +504,11 @@ func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
 	}
 
 	unfinished := workflowPlanDraft{Warnings: []string{"keep"}}
-	if steps, warnings, err := compileWorkflowPlanDraft(unfinished, WorkModeTask, "msg", "msg", RunOptions{}); err == nil || steps != nil || len(warnings) != 1 {
+	if steps, warnings, err := compileWorkflowPlanDraft(unfinished, WorkModeLoop, "msg", "msg", RunOptions{}); err == nil || steps != nil || len(warnings) != 1 {
 		t.Fatalf("unfinished draft = steps:%#v warnings:%#v err:%v, want warning/error", steps, warnings, err)
 	}
 	empty := workflowPlanDraft{Finished: true, Steps: []workflowPlanDraftStep{{Title: "empty"}}}
-	if steps, _, err := compileWorkflowPlanDraft(empty, WorkModeTask, "msg", "msg", RunOptions{}); err == nil || steps != nil || !strings.Contains(err.Error(), "no valid steps") {
+	if steps, _, err := compileWorkflowPlanDraft(empty, WorkModeLoop, "msg", "msg", RunOptions{}); err == nil || steps != nil || !strings.Contains(err.Error(), "no valid steps") {
 		t.Fatalf("empty draft = steps:%#v err:%v, want no valid steps", steps, err)
 	}
 	duplicate := workflowPlanDraft{Finished: true, Steps: []workflowPlanDraftStep{
@@ -516,15 +516,12 @@ func TestWorkflowPlannerAdditionalBoundaryBranches(t *testing.T) {
 		{Order: 2, Title: "A", Message: "run A"},
 		{Order: 0, Title: "C", Message: "run C"},
 	}}
-	steps, warnings, err := compileWorkflowPlanDraft(duplicate, WorkModeTask, "user message", "different objective", RunOptions{})
+	steps, warnings, err := compileWorkflowPlanDraft(duplicate, WorkModeLoop, "user message", "different objective", RunOptions{})
 	if err != nil {
 		t.Fatalf("compile duplicate draft: %v", err)
 	}
-	if len(steps) != 3 || steps[0].Order != 1 || len(warnings) != 1 || !strings.Contains(warnings[0], "duplicated") {
+	if len(steps) != 1 || steps[0].Order != 1 || len(warnings) != 2 || !strings.Contains(warnings[0], "duplicated") || !strings.Contains(warnings[1], "loop workflow") {
 		t.Fatalf("duplicate normalization steps=%#v warnings=%#v", steps, warnings)
-	}
-	if len(steps[1].DependsOn) != 1 || steps[1].DependsOn[0] != steps[0].DependencyID {
-		t.Fatalf("sequential dependency = %#v, want previous id %q", steps[1].DependsOn, steps[0].DependencyID)
 	}
 	loop := workflowPlanDraft{Finished: true, Steps: []workflowPlanDraftStep{
 		{Title: "one", Message: "first"},

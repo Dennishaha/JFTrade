@@ -654,7 +654,7 @@ func TestWorkflowResultAndRunStatusHelpers(t *testing.T) {
 	}
 
 	nodeRuns := workflowNodeRuns(
-		jfadk.WorkflowDefinition{Name: "Fallback Trace", AgentID: "agent-1", WorkMode: jfadk.WorkModeTask},
+		jfadk.WorkflowDefinition{Name: "Fallback Trace", AgentID: "agent-1", WorkMode: jfadk.WorkModeLoop},
 		&jfadk.WorkflowTrigger{ID: "trigger-1", Type: jfadk.WorkflowTriggerTypeEvent, Title: "   "},
 		jfadk.WorkflowTriggerTypeEvent,
 		map[string]any{"symbol": "US.AAPL"},
@@ -809,7 +809,7 @@ func saveWorkflowTestAgentAndDefinition(t *testing.T, runtime *jfadk.Runtime, se
 		Name:           id + " Workflow",
 		Status:         status,
 		AgentID:        agent.ID,
-		WorkMode:       jfadk.WorkModeTask,
+		WorkMode:       jfadk.WorkModeLoop,
 		PermissionMode: jfadk.PermissionModeApproval,
 		PromptTemplate: "run {{ .symbol }}",
 		DefaultInputs:  map[string]any{"symbol": "US.AAPL"},

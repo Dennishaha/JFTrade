@@ -10,6 +10,7 @@ import (
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	adktool "google.golang.org/adk/v2/tool"
+	adkworkflow "google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
 )
 
@@ -105,30 +106,10 @@ func (d *workflowGoalDecision) snapshot() workflowGoalDecisionSnapshot {
 	return workflowGoalDecisionSnapshot{status: d.status, summary: d.summary, reason: d.reason}
 }
 
-func (e *WorkflowExecutor) runADKTaskWorkflow(ctx context.Context, req workflowRequest, parent Run, tasks []Task) (ChatResponse, error) {
-	parent.Status = RunStatusRunning
-	parent.WorkflowStatus = workflowStatusRunning
-	parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
-	if _, err := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
-		parent = e.failParent(ctx, parent, err)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
-	}
-	execution, err := e.runtime.newGoogleADKTaskExecution(ctx, req.Agent, req.Session, parent, req, req.OnDelta)
-	if err != nil {
-		parent = e.failParent(ctx, parent, err)
-		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
-	}
-	adkErr := execution.run(ctx, genai.NewContentFromText(taskOrchestratorUserMessage(parent), genai.RoleUser))
-	parent, response, done := e.finishADKTaskWorkflowAttempt(ctx, req, parent, tasks, execution, adkErr, false)
-	if done {
-		return response, nil
-	}
-	adkErr = execution.run(ctx, genai.NewContentFromText(taskOrchestratorNudge(parent), genai.RoleUser))
-	_, response, _ = e.finishADKTaskWorkflowAttempt(ctx, req, parent, tasks, execution, adkErr, true)
-	return response, nil
-}
-
 func (e *WorkflowExecutor) runADKGoalWorkflow(ctx context.Context, req workflowRequest, parent Run, tasks []Task) (ChatResponse, error) {
+	if strings.TrimSpace(parent.WorkflowEngine) == "" {
+		parent.WorkflowEngine = workflowEngineForMode(WorkModeLoop)
+	}
 	parent.Status = RunStatusRunning
 	parent.WorkflowStatus = workflowStatusRunning
 	parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
@@ -149,6 +130,9 @@ func (e *WorkflowExecutor) continueADKGoalWorkflow(
 	startIteration int,
 	limit int,
 ) (ChatResponse, error) {
+	if strings.TrimSpace(parent.WorkflowEngine) == "" {
+		parent.WorkflowEngine = workflowEngineForMode(WorkModeLoop)
+	}
 	decision := &workflowGoalDecision{}
 	req.GoalDecision = decision
 	execution, err := e.runtime.newGoogleADKTaskExecution(ctx, req.Agent, req.Session, parent, req, req.OnDelta)
@@ -553,134 +537,27 @@ func pruneInterruptedGoalWorkflowToolCalls(run Run) (Run, bool) {
 }
 
 func interruptedGoalWorkflowToolCall(parent Run, call ToolCall) bool {
-	runID := strings.TrimSpace(call.RunID)
-	if runID != "" && runID != strings.TrimSpace(parent.ID) {
-		return false
-	}
 	switch strings.ToUpper(strings.TrimSpace(call.Status)) {
 	case "RUNNING", "PENDING":
+		runID := strings.TrimSpace(call.RunID)
+		if runID != "" && runID != strings.TrimSpace(parent.ID) {
+			return false
+		}
 		return strings.HasPrefix(strings.TrimSpace(call.ToolName), "workflow.")
 	case "FAILED":
-		if call.Error == nil || !strings.Contains(strings.TrimSpace(*call.Error), errUserGoalPauseRequested.Error()) {
+		if strings.HasPrefix(strings.TrimSpace(call.ToolName), "workflow.goal.") {
+			return true
+		}
+		if call.Error == nil {
+			return false
+		}
+		errorText := strings.TrimSpace(*call.Error)
+		if !strings.Contains(errorText, errUserGoalPauseRequested.Error()) && !strings.Contains(errorText, adkworkflow.ErrNodeInterrupted.Error()) {
 			return false
 		}
 		return strings.HasPrefix(strings.TrimSpace(call.ToolName), "workflow.")
 	}
 	return false
-}
-
-func (e *WorkflowExecutor) resumeADKTaskWorkflow(ctx context.Context, session Session, agent Agent, parent Run) (Run, error) {
-	parent, blocked, err := e.reconcileWorkflowChildren(ctx, parent)
-	if err != nil {
-		return Run{}, err
-	}
-	if blocked {
-		return parent, nil
-	}
-	parent.Status = RunStatusRunning
-	parent.WorkflowStatus = workflowStatusRunning
-	parent.Message = "workflow resumed"
-	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
-	if err := e.runtime.store.SaveRun(ctx, parent); err != nil {
-		return Run{}, err
-	}
-	tasks, err := e.workflowTasks(ctx, parent, nil)
-	if err != nil {
-		return Run{}, err
-	}
-	response, err := e.runADKTaskWorkflow(ctx, workflowRequest{
-		Agent: agent, Session: session, Message: parent.UserMessage, Mode: parent.WorkMode, Objective: parent.Objective,
-		RunOptions: RunOptions{
-			LoopMaxIterations: normalizeLoopMaxIterations(agent.LoopMaxIterations),
-		},
-	}, parent, tasks)
-	if err != nil {
-		return Run{}, err
-	}
-	return response.Run, nil
-}
-
-func (e *WorkflowExecutor) finishADKTaskWorkflowAttempt(
-	ctx context.Context,
-	req workflowRequest,
-	parent Run,
-	known []Task,
-	execution *googleADKExecution,
-	adkErr error,
-	finalAttempt bool,
-) (Run, ChatResponse, bool) {
-	if latest, ok, err := e.runtime.store.Run(ctx, parent.ID); err == nil && ok {
-		parent = latest
-	}
-	toolContext := execution.toolContextForRun(parent.ID)
-	replyResult := execution.resultForRun(parent.ID)
-	parent = hydrateRunExecutionResult(parent, toolContext, nil, "", "")
-	tasks, err := e.workflowTasks(ctx, parent, known)
-	if err != nil {
-		parent = e.failParent(ctx, parent, err)
-		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), true
-	}
-	parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
-	if adkErr != nil {
-		parent = e.failParent(ctx, parent, adkErr)
-		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), true
-	}
-	if child, index, ok := e.firstBlockingTaskChild(ctx, parent); ok {
-		if child.Status == RunStatusPending || child.Status == RunStatusRunning {
-			parent = pauseParentForChild(parent, child, index)
-			jftradeErr4 := e.runtime.store.SaveRun(ctx, parent)
-			jftradeLogError(jftradeErr4)
-			return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: workflowPendingReply(parent)}), true
-		}
-		parent = e.runtime.terminateParentWorkflowFromChild(ctx, parent, child)
-		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), true
-	}
-	if blockedTask, ok := firstTerminalWorkflowTask(tasks); ok {
-		parent.Status = RunStatusFailed
-		parent.WorkflowStatus = workflowStatusFailed
-		parent.Message = defaultString(blockedTask.ResultSummary, blockedTask.Description)
-		parent.FailureReason = parent.Message
-		parent.ErrorCode = "WORKFLOW_TASK_BLOCKED"
-		parent.Degraded = true
-		parent.CompletedAt = new(nowString())
-		finalizeRunUsage(&parent)
-		jftradeErr5 := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr5)
-		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), true
-	}
-	if !workflowTasksComplete(tasks) {
-		parent.Status = RunStatusRunning
-		parent.WorkflowStatus = workflowStatusRunning
-		parent.Message = "workflow running"
-		jftradeErr9 := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr9)
-		if !finalAttempt {
-			return parent, ChatResponse{}, false
-		}
-		parent = e.failParent(ctx, parent, fmt.Errorf("workflow task scheduler incomplete"))
-		parent.ErrorCode = workflowTaskIncompleteErr
-		jftradeErr2 := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr2)
-		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), true
-	}
-	reply := strings.TrimSpace(replyResult.Reply)
-	if reply == "" {
-		reply = workflowSummary(parent, workflowTaskResultSummaries(tasks))
-		replyResult.Reply = reply
-	}
-	parent.Status = RunStatusCompleted
-	parent.WorkflowStatus = workflowStatusComplete
-	parent.Message = "workflow completed"
-	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
-	parent.CompletedAt = new(nowString())
-	finalizeRunUsage(&parent)
-	if saved, err := e.runtime.attachFinalAssistantMessage(ctx, req.Session, parent, replyResult); err == nil {
-		parent = saved
-	} else {
-		jftradeErr3 := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr3)
-	}
-	return parent, e.workflowResponse(ctx, req.Session, parent, replyResult), true
 }
 
 func (e *WorkflowExecutor) firstBlockingTaskChild(ctx context.Context, parent Run) (Run, int, bool) {
@@ -717,6 +594,10 @@ func (r *Runtime) newGoogleADKTaskExecution(
 		return nil, err
 	}
 	rootName := googleADKWorkflowRootName(parent.ID)
+	engine := workflowEngineForMode(req.Mode)
+	if strings.TrimSpace(parent.WorkflowEngine) == "" {
+		parent.WorkflowEngine = engine
+	}
 	descriptors := toolDescriptorIndex(workflowTaskToolDescriptors())
 	execution := &googleADKExecution{
 		sessionID: productSession.ID,
@@ -752,14 +633,13 @@ func (r *Runtime) newGoogleADKTaskExecution(
 		},
 	}
 	taskToolset := &workflowTaskToolset{executor: &WorkflowExecutor{runtime: r}, req: req, parentID: parent.ID}
-	root, err := llmagent.New(llmagent.Config{
-		Name:        rootName,
-		Description: definition.Name + " task orchestrator",
+	orchestratorName := rootName + "_iteration"
+	execution.runIDByAgentName[orchestratorName] = parent.ID
+	orchestrator, err := llmagent.New(llmagent.Config{
+		Name:        orchestratorName,
+		Description: definition.Name + " goal orchestrator",
 		InstructionProvider: func(ctx adkagent.ReadonlyContext) (string, error) {
-			instruction := taskOrchestratorInstruction(definition.Instruction)
-			if normalizeWorkMode(req.Mode) == WorkModeLoop {
-				instruction = goalOrchestratorInstruction(definition.Instruction)
-			}
+			instruction := goalOrchestratorInstruction(definition.Instruction)
 			if r.contextManager == nil || ctx == nil {
 				return instruction, nil
 			}
@@ -774,7 +654,11 @@ func (r *Runtime) newGoogleADKTaskExecution(
 		IncludeContents: llmagent.IncludeContentsDefault,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create GO-ADK task orchestrator agent: %w", err)
+		return nil, fmt.Errorf("create GO-ADK goal orchestrator agent: %w", err)
+	}
+	root, err := newGoogleADKLoopWorkflowAgent(rootName, definition.Name+" goal loop", []adkagent.Agent{orchestrator}, 1)
+	if err != nil {
+		return nil, fmt.Errorf("create GO-ADK goal loop agent: %w", err)
 	}
 	return r.attachGoogleADKRunner(ctx, execution, productSession, root)
 }

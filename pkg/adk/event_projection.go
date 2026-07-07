@@ -10,6 +10,7 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
+	adkworkflow "google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
 )
 
@@ -170,13 +171,25 @@ func projectSessionEvent(event *adksession.Event, entries *[]TranscriptEntry, ru
 	if event == nil || event.Content == nil || len(event.Content.Parts) == 0 {
 		return
 	}
-	if isUserEvent(event) {
+	if isUserEvent(event) && !eventHasFunctionResponse(event) {
 		appendProjectedUserEntry(event, entries)
 		return
 	}
 	for _, part := range event.Content.Parts {
 		projectSessionEventPart(event, part, entries, runStates, runOrder)
 	}
+}
+
+func eventHasFunctionResponse(event *adksession.Event) bool {
+	if event == nil || event.Content == nil {
+		return false
+	}
+	for _, part := range event.Content.Parts {
+		if part != nil && part.FunctionResponse != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func appendProjectedUserEntry(event *adksession.Event, entries *[]TranscriptEntry) {
@@ -196,11 +209,11 @@ func projectSessionEventPart(event *adksession.Event, part *genai.Part, entries 
 	state := ensureProjectedRunState(runStates, runOrder, entries, event)
 	switch {
 	case part.FunctionCall != nil:
-		if part.FunctionCall.Name != toolconfirmation.FunctionCallName {
+		if part.FunctionCall.Name != toolconfirmation.FunctionCallName && part.FunctionCall.Name != adkworkflow.WorkflowInputFunctionCallName {
 			ensureProjectedToolCall(state, part.FunctionCall, eventTimeString(event))
 		}
 	case part.FunctionResponse != nil:
-		if part.FunctionResponse.Name != toolconfirmation.FunctionCallName {
+		if part.FunctionResponse.Name != toolconfirmation.FunctionCallName && part.FunctionResponse.Name != adkworkflow.WorkflowInputFunctionCallName {
 			projectedToolResponse(state, part.FunctionResponse, eventTimeString(event))
 		}
 	case part.Text != "":
@@ -359,6 +372,10 @@ func projectedToolResponse(state *projectedRunState, response *genai.FunctionRes
 			call.RequiresUser = true
 			return
 		}
+		if strings.Contains(errText, adkworkflow.ErrNodeInterrupted.Error()) {
+			pruneProjectedToolCall(state, response.ID, response.Name, timestamp)
+			return
+		}
 		call.Status = "FAILED"
 		call.Error = &errText
 		finishToolCall(call)
@@ -367,6 +384,24 @@ func projectedToolResponse(state *projectedRunState, response *genai.FunctionRes
 	call.Status = "SUCCEEDED"
 	call.Output = limitToolOutput(response.Response)
 	finishToolCall(call)
+}
+
+func pruneProjectedToolCall(state *projectedRunState, callID string, toolName string, timestamp string) {
+	if state == nil || state.toolCalls == nil {
+		return
+	}
+	id := strings.TrimSpace(callID)
+	if id == "" {
+		id = toolName + ":" + timestamp
+	}
+	delete(state.toolCalls, id)
+	filtered := state.toolCallOrder[:0]
+	for _, existingID := range state.toolCallOrder {
+		if existingID != id {
+			filtered = append(filtered, existingID)
+		}
+	}
+	state.toolCallOrder = filtered
 }
 
 func mergeProjectedText(builder *strings.Builder, text string, partial bool) {

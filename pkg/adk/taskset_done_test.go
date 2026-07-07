@@ -11,7 +11,7 @@ func TestWorkflowTaskToolsetCompleteHonorsTaskAndChildRunBoundaries(t *testing.T
 	now := nowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "run-complete-boundaries", SessionID: "session-complete-boundaries", AgentID: "agent-complete",
-		Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		WorkflowPlan: []WorkflowStepState{
 			{TaskID: "task-already-done", Title: "Already done"},
 			{TaskID: "task-self-complete", Title: "Self complete"},
@@ -58,7 +58,7 @@ func TestWorkflowTaskToolsetCompleteHonorsTaskAndChildRunBoundaries(t *testing.T
 		executor:      &WorkflowExecutor{runtime: runtime},
 		parentID:      parent.ID,
 		currentTaskID: selfTask.ID,
-		req:           workflowRequest{Mode: WorkModeTask},
+		req:           workflowRequest{Mode: WorkModeLoop},
 	}
 
 	selfResult, err := toolset.complete(nil)

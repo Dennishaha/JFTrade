@@ -212,15 +212,7 @@ func (e *googleADKExecution) runSnapshotLocked(runID string, persisted bool) Run
 	if runID == "" {
 		runID = e.runID
 	}
-	base := Run{
-		ID: runID, SessionID: e.sessionID, AgentID: e.agent.ID,
-		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
-	}
-	if e.runSnapshotBaseByID != nil {
-		if candidate, ok := e.runSnapshotBaseByID[runID]; ok {
-			base = candidate
-		}
-	}
+	base := e.runBaseLocked(runID)
 	calls := e.callsForRunLocked(runID)
 	base.ToolCalls = calls
 	base.ToolSummaries = toolSummariesForRun(Run{ToolCalls: calls})
@@ -231,6 +223,23 @@ func (e *googleADKExecution) runSnapshotLocked(runID string, persisted bool) Run
 	base.UpdatedAt = nowString()
 	if base.CreatedAt == "" {
 		base.CreatedAt = ""
+	}
+	return base
+}
+
+func (e *googleADKExecution) runBaseLocked(runID string) Run {
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
+	base := Run{
+		ID: runID, SessionID: e.sessionID, AgentID: e.agent.ID,
+		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
+	}
+	if e.runSnapshotBaseByID != nil {
+		if candidate, ok := e.runSnapshotBaseByID[runID]; ok {
+			base = candidate
+		}
 	}
 	return base
 }
@@ -277,11 +286,7 @@ func googleADKWorkflowRootName(parentRunID string) string {
 }
 
 func googleADKWorkflowChildName(parentRunID string, index int) string {
-	name := fmt.Sprintf("%s_child_%d", googleADKWorkflowRootName(parentRunID), index+1)
-	if name == "user" {
-		return "workflow_child_agent"
-	}
-	return name
+	return fmt.Sprintf("%s_child_%d", googleADKWorkflowRootName(parentRunID), index+1)
 }
 
 func workflowChildInstruction(base string, task string) string {

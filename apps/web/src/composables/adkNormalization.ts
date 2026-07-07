@@ -39,6 +39,7 @@ export function normalizeADKRun(run: ADKRun): ADKRun {
     ].map((step) => ({
       ...step,
       dependsOn: [...ensureArray(step.dependsOn as string[] | null)],
+      routes: [...ensureArray(step.routes as string[] | null)],
     }));
   }
   return normalized;

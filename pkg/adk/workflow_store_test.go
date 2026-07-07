@@ -30,7 +30,7 @@ func TestWorkflowStoreCRUDSoftDeleteAndLogs(t *testing.T) {
 		Name:           "Store Test Workflow",
 		Status:         WorkflowStatusEnabled,
 		AgentID:        "agent-store-test",
-		WorkMode:       WorkModeTask,
+		WorkMode:       WorkModeLoop,
 		PromptTemplate: "run {{ .workflow.name }}",
 		DefaultInputs:  map[string]any{"market": "US"},
 		CanvasGraph: &WorkflowCanvasGraph{

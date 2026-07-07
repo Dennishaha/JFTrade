@@ -61,7 +61,7 @@ describe("ADKChatComposer", () => {
       props: {
         canSendChat: true,
         chatDraft: "",
-        defaultWorkMode: "task",
+        defaultWorkMode: "loop",
         sendChat: async () => {},
       },
       global: {
@@ -74,9 +74,9 @@ describe("ADKChatComposer", () => {
     const text = wrapper.text();
     expect(text).not.toContain("跟随 Agent");
     expect(text).toContain("对话");
-    expect(text).toContain("任务");
     expect(text).toContain("目标");
-    expect(text).toContain("任务默认");
+    expect(text).not.toContain("任务");
+    expect(text).toContain("目标默认");
     expect(text).not.toContain("顺序");
     expect(text).not.toContain("并行");
   });
@@ -88,7 +88,7 @@ describe("ADKChatComposer", () => {
         canSendChat: true,
         chatDraft: "",
         defaultWorkMode: "loop",
-        workModeOverride: "task",
+        workModeOverride: "loop",
         sendChat: async () => {},
       },
       global: {

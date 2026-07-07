@@ -30,7 +30,7 @@ describe("adkWorkflowForms", () => {
       name: "Daily Review",
       status: "DISABLED",
       agentId: "agent-1",
-      workMode: "task",
+      workMode: "loop",
       permissionMode: "approval",
       promptTemplate: "Run {{ .symbol }}",
       defaultInputs: {
@@ -68,7 +68,7 @@ describe("adkWorkflowForms", () => {
 
     expect(form).toMatchObject({
       status: "DISABLED",
-      workMode: "task",
+      workMode: "loop",
       permissionMode: "approval",
       inputRows: [],
       preservedDefaultInputs: {},
@@ -577,7 +577,7 @@ function buildWorkflow(): ADKWorkflowDefinition {
     name: "Daily Review",
     status: "DISABLED",
     agentId: "agent-1",
-    workMode: "task",
+    workMode: "loop",
     permissionMode: "approval",
     promptTemplate: "Run {{ .symbol }}",
     defaultInputs: { symbol: "US.AAPL" },

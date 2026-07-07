@@ -289,7 +289,7 @@ func TestRuleFallbacksMismatchesAndValidVariants(t *testing.T) {
 	if NormalizeTriggerStatus("disabled", "") != jfadk.WorkflowTriggerStatusDisabled || NormalizeTriggerStatus("unknown", "") != jfadk.WorkflowTriggerStatusEnabled {
 		t.Fatal("trigger status variants mismatch")
 	}
-	if NormalizeWorkflowWorkMode("loop", "") != jfadk.WorkModeLoop || NormalizeWorkflowWorkMode("unknown", "") != jfadk.WorkModeTask {
+	if NormalizeWorkflowWorkMode("loop", "") != jfadk.WorkModeLoop || NormalizeWorkflowWorkMode("unknown", "") != jfadk.WorkModeLoop {
 		t.Fatal("work mode variants mismatch")
 	}
 	if NormalizeWorkflowPermissionMode("all", "") != jfadk.PermissionModeAll || NormalizeWorkflowPermissionMode("", "") != "" {

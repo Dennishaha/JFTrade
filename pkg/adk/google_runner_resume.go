@@ -2,10 +2,12 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
+	adkworkflow "google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
 )
 
@@ -22,6 +24,9 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 		return run, nil, true, err
 	}
 	if err := execution.run(ctx, genai.NewContentFromParts(parts, genai.RoleUser)); err != nil {
+		if errors.Is(err, adkworkflow.ErrNothingToResume) && strings.TrimSpace(run.ParentRunID) != "" {
+			return r.resumeGoogleADKDirect(ctx, run)
+		}
 		return run, nil, true, err
 	}
 	seedResumedConfirmationIDs(execution, run.PendingApprovals)
@@ -30,7 +35,58 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 	} else if waiting {
 		return updatedRun, nil, true, nil
 	}
+	if !runHasDeniedApproval(run.PendingApprovals) && len(run.PendingApprovals) > 0 {
+		jftradeErr := execution.appendVisibleTextForRun(run.ID, approvalResolutionSummary(run, run.PendingApprovals[0], true), "")
+		jftradeLogError(jftradeErr)
+	}
 	return r.completeResumedExecution(ctx, run, execution)
+}
+
+func (r *Runtime) resumeGoogleADKDirect(ctx context.Context, run Run) (Run, *Message, bool, error) {
+	execution, err := r.rehydrateGoogleADKExecution(ctx, run)
+	if err != nil {
+		return run, nil, true, err
+	}
+	if execution == nil {
+		return run, nil, false, nil
+	}
+	parts := approvalResolutionParts(run.PendingApprovals)
+	if len(parts) == 0 {
+		return run, nil, false, nil
+	}
+	if err := r.prepareResumedExecution(ctx, run, execution); err != nil {
+		return run, nil, true, err
+	}
+	if err := execution.run(ctx, genai.NewContentFromParts(parts, genai.RoleUser)); err != nil {
+		if !isIgnorableDirectApprovalResumeError(err, execution.toolContextForRun(run.ID)) {
+			return run, nil, true, err
+		}
+	}
+	seedResumedConfirmationIDs(execution, run.PendingApprovals)
+	if updatedRun, waiting, err := r.handleResumedApprovals(ctx, run, execution); err != nil {
+		return updatedRun, nil, true, err
+	} else if waiting {
+		return updatedRun, nil, true, nil
+	}
+	return r.completeDirectResumedExecution(ctx, run, execution)
+}
+
+func isIgnorableDirectApprovalResumeError(err error, toolContext toolExecutionContext) bool {
+	if err == nil || !strings.Contains(err.Error(), "no function call event found for function responses ids") {
+		return false
+	}
+	if len(toolContext.calls) == 0 {
+		return false
+	}
+	for _, call := range toolContext.calls {
+		switch strings.ToUpper(strings.TrimSpace(call.Status)) {
+		case "SUCCEEDED", "COMPLETED", "FAILED", "TIMED_OUT", "DENIED", "CANCELLED":
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Runtime) loadResumedExecution(ctx context.Context, run Run) (*googleADKExecution, bool, error) {
@@ -111,13 +167,26 @@ func persistResumedApprovalMessage(ctx context.Context, r *Runtime, run Run, exe
 }
 
 func (r *Runtime) completeResumedExecution(ctx context.Context, run Run, execution *googleADKExecution) (Run, *Message, bool, error) {
-	denied := runHasDeniedApproval(run.PendingApprovals)
-	if !denied {
+	initialDenied := runHasDeniedApproval(run.PendingApprovals)
+	if !initialDenied {
 		if err := r.ensureGoogleADKFinalReply(ctx, execution.agent, Session{ID: run.SessionID, AgentID: run.AgentID}, execution, run.ID, run.UserMessage); err != nil {
 			return r.failResumedExecution(ctx, run, execution, err)
 		}
 	}
-	run, denied = hydrateResumedRun(run, execution)
+	run, denied := hydrateResumedRun(run, execution)
+	result := finalizeResumedResult(run, execution.resultForRun(run.ID), denied)
+	run.CompletedAt = new(nowString())
+	message, err := r.persistResumedRunResult(ctx, run, result)
+	if err != nil {
+		return run, nil, true, err
+	}
+	r.auditResumedRun(ctx, run)
+	r.deleteADKRun(run.ID)
+	return run, message, true, nil
+}
+
+func (r *Runtime) completeDirectResumedExecution(ctx context.Context, run Run, execution *googleADKExecution) (Run, *Message, bool, error) {
+	run, denied := hydrateResumedRun(run, execution)
 	result := finalizeResumedResult(run, execution.resultForRun(run.ID), denied)
 	run.CompletedAt = new(nowString())
 	message, err := r.persistResumedRunResult(ctx, run, result)

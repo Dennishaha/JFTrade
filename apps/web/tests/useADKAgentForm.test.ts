@@ -78,14 +78,14 @@ describe("useADKAgentForm", () => {
     state.editAgent(buildAgent("loop"));
     expect(state.agentForm.value.workMode).toBe("loop");
 
-    state.editAgent(buildAgent("task"));
-    expect(state.agentForm.value.workMode).toBe("task");
+    state.editAgent(buildAgent("loop"));
+    expect(state.agentForm.value.workMode).toBe("loop");
   });
 
   it("restores supported work modes when editing and duplicating", () => {
     const state = createState();
 
-    for (const mode of ["chat", "task", "loop"] as const) {
+    for (const mode of ["chat", "loop"] as const) {
       state.editAgent(buildAgent(mode));
       expect(state.agentForm.value.workMode).toBe(mode);
 

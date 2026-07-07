@@ -148,11 +148,10 @@ const goalEditorExpanded = ref(false);
 const isMobileLayout = computed(() => props.layout === "mobile");
 const supportedWorkModes: Array<{ title: string; value: ADKWorkMode }> = [
   { title: "对话", value: "chat" },
-  { title: "任务", value: "task" },
   { title: "目标", value: "loop" },
 ];
 const normalizedDefaultWorkMode = computed<ADKWorkMode>(() => {
-  if (props.defaultWorkMode === "task" || props.defaultWorkMode === "loop") {
+  if (props.defaultWorkMode === "loop") {
     return props.defaultWorkMode;
   }
   return "chat";

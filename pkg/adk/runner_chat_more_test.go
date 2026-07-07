@@ -136,6 +136,47 @@ func TestGoogleADKExecuteAdditionalBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("missing synthesized final reply is surfaced after tool execution", func(t *testing.T) {
+		runtime := newTestRuntime(t)
+		runtime.tools.Register(ToolDescriptor{
+			Name:         "strategy.save_draft",
+			DisplayName:  "Save Draft",
+			Description:  "save strategy draft",
+			Category:     "test",
+			Permission:   "write_strategy",
+			AllowedModes: []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
+		}, func(context.Context, map[string]any) (any, error) {
+			return map[string]any{"saved": true}, nil
+		})
+		providerID := saveGoalWorkflowProvider(t, runtime, "execute-missing-final-reply-provider", func(req openAIChatRequest) openAIChatMessage {
+			if len(testProviderToolResponseNames(req.Messages)) > 0 {
+				return openAIChatMessage{Role: "assistant", Content: "   "}
+			}
+			return openAIChatMessage{Role: "assistant", ToolCalls: []openAIToolCall{
+				testProviderToolCall("call-save-draft", "strategy.save_draft", map[string]any{"name": "draft"}),
+			}}
+		})
+		agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+			ID:         "execute-missing-final-reply-agent",
+			Name:       "Execute Missing Final Reply",
+			ProviderID: providerID,
+			Status:     AgentStatusEnabled,
+			Tools:      []string{"strategy.save_draft"},
+		})
+		session := mustCreateSession(t, runtime, agent.ID, "execute missing final reply")
+
+		toolContext, approvals, result, _, _, err := runtime.executeGoogleADK(ctx, agent, session, "run-execute-missing-final-reply", "保存策略草稿", nil)
+		if err == nil || !strings.Contains(err.Error(), errADKMissingFinalReply().Error()) {
+			t.Fatalf("executeGoogleADK missing final reply err = %v, want %v", err, errADKMissingFinalReply())
+		}
+		if len(approvals) != 0 || len(toolContext.calls) != 1 || toolContext.calls[0].Status != "SUCCEEDED" {
+			t.Fatalf("toolContext=%+v approvals=%+v, want one succeeded tool call and no approvals", toolContext, approvals)
+		}
+		if strings.TrimSpace(result.Reply) != "" {
+			t.Fatalf("result = %+v, want no synthesized reply after the missing-final-reply failure", result)
+		}
+	})
+
 }
 
 func TestGoogleADKResumeAdditionalBranches(t *testing.T) {
@@ -424,14 +465,14 @@ func TestGoogleADKRunnerConstructionAndSynthesisBranches(t *testing.T) {
 
 		agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 			ID: "workflow-exec-boundary-agent", Name: "Workflow Exec Boundary", Status: AgentStatusEnabled,
-			WorkMode: WorkModeTask,
+			WorkMode: WorkModeLoop,
 		})
 		session := mustCreateSession(t, runtime, agent.ID, "workflow exec boundary")
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "workflow-exec-boundary-parent", SessionID: session.ID, AgentID: agent.ID, Status: RunStatusRunning,
-			WorkMode: WorkModeTask, CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+			WorkMode: WorkModeLoop, CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
-		if _, err := runtime.newGoogleADKWorkflowExecution(ctx, agent, session, parent, nil, nil, WorkModeTask, RunOptions{}, nil); err == nil || !strings.Contains(err.Error(), "requires at least one sub-agent") {
+		if _, err := runtime.newGoogleADKWorkflowExecution(ctx, agent, session, parent, nil, nil, WorkModeLoop, RunOptions{}, nil); err == nil || !strings.Contains(err.Error(), "requires at least one sub-agent") {
 			t.Fatalf("newGoogleADKWorkflowExecution no-child err = %v", err)
 		}
 		child := mustSaveRun(t, runtime, Run{
@@ -440,7 +481,7 @@ func TestGoogleADKRunnerConstructionAndSynthesisBranches(t *testing.T) {
 		})
 		if _, err := runtime.newGoogleADKWorkflowExecution(ctx, agent, session, parent, []Run{child}, []workflowStep{{
 			DependencyID: "step-1", Title: "child step", Message: "child step", DependsOn: []string{"missing-step"},
-		}}, WorkModeTask, RunOptions{}, nil); err == nil || !strings.Contains(err.Error(), "unknown dependency") {
+		}}, WorkModeLoop, RunOptions{}, nil); err == nil || !strings.Contains(err.Error(), "unknown dependency") {
 			t.Fatalf("newGoogleADKWorkflowExecution bad dependency err = %v", err)
 		}
 	})

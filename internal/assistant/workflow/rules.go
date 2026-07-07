@@ -231,7 +231,7 @@ func NormalizeWorkflowWorkMode(input string, fallback string) string {
 	case jfadk.WorkModeChat, jfadk.WorkModeLoop:
 		return mode
 	default:
-		return jfadk.WorkModeTask
+		return jfadk.WorkModeLoop
 	}
 }
 

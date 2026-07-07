@@ -80,14 +80,14 @@ func TestCompletedChildReopensPendingParentWorkflowToRunning(t *testing.T) {
 	runtime := newTestRuntime(t)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "parent-reopen-completed-child-agent", Name: "Parent Reopen Completed Child", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask,
+		WorkMode: WorkModeLoop,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "reopen completed child")
 	now := nowString()
 	parent := mustSaveRun(t, runtime, Run{
 		ID: "parent-pending-resume-from-child", SessionID: session.ID, AgentID: agent.ID,
 		Status:         RunStatusPending,
-		WorkMode:       WorkModeTask,
+		WorkMode:       WorkModeLoop,
 		WorkflowStatus: workflowStatusPaused,
 		Message:        "等待用户审批后继续执行。",
 		Objective:      "完成审批后的续跑",
@@ -132,77 +132,6 @@ func TestCompletedChildReopensPendingParentWorkflowToRunning(t *testing.T) {
 	}
 }
 
-func TestCompletedChildTaskResumeFailsWhenSiblingTaskIsBlocked(t *testing.T) {
-	ctx := context.Background()
-	runtime := newTestRuntime(t)
-	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
-		ID: "parent-task-resume-blocked-agent", Name: "Parent Task Resume Blocked", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask,
-	})
-	session := mustCreateSession(t, runtime, agent.ID, "task resume blocked")
-	now := nowString()
-	parent := mustSaveRun(t, runtime, Run{
-		ID:             "parent-task-resume-blocked",
-		SessionID:      session.ID,
-		AgentID:        agent.ID,
-		Status:         RunStatusPending,
-		WorkMode:       WorkModeTask,
-		WorkflowStatus: workflowStatusPaused,
-		Message:        "等待子运行完成",
-		Objective:      "恢复后发现阻塞任务",
-		UserMessage:    "继续工作流",
-		ChildRunIDs:    []string{"child-task-resume-blocked"},
-		WorkflowPlan: []WorkflowStepState{
-			{TaskID: "task-task-resume-completed-child", Title: "已完成子步骤", Status: "BLOCKED", ChildRunID: "child-task-resume-blocked"},
-			{TaskID: "task-task-resume-blocked-sibling", Title: "缺数据步骤", Status: "BLOCKED"},
-		},
-		CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
-	})
-	if _, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
-		ID: "task-task-resume-completed-child", Title: "已完成子步骤", Status: "BLOCKED", AgentID: agent.ID,
-		RunID: parent.ID, Executor: workflowTaskExecutorChild, WorkflowMode: WorkModeTask, Objective: parent.Objective,
-	}); err != nil {
-		t.Fatalf("Save child task: %v", err)
-	}
-	if _, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
-		ID: "task-task-resume-blocked-sibling", Title: "缺数据步骤", Status: "BLOCKED", AgentID: agent.ID,
-		RunID: parent.ID, WorkflowMode: WorkModeTask, Objective: parent.Objective, ResultSummary: "缺少行情数据",
-	}); err != nil {
-		t.Fatalf("Save blocked sibling task: %v", err)
-	}
-	completedAt := nowString()
-	child := mustSaveRun(t, runtime, Run{
-		ID:          "child-task-resume-blocked",
-		SessionID:   session.ID,
-		AgentID:     agent.ID,
-		ParentRunID: parent.ID,
-		Status:      RunStatusCompleted,
-		Message:     "子运行完成",
-		CompletedAt: &completedAt,
-		CreatedAt:   now,
-		UpdatedAt:   completedAt,
-		Usage:       &RunUsage{},
-	})
-
-	updated, err := runtime.continueParentWorkflowAfterChild(ctx, child)
-	if err != nil {
-		t.Fatalf("continueParentWorkflowAfterChild blocked sibling: %v", err)
-	}
-	if updated == nil || updated.Status != RunStatusFailed || updated.WorkflowStatus != workflowStatusFailed {
-		t.Fatalf("updated parent = %+v, want failed parent after blocked sibling", updated)
-	}
-	if updated.ErrorCode != "WORKFLOW_TASK_BLOCKED" || updated.FailureReason != "缺少行情数据" {
-		t.Fatalf("updated parent failure = %+v, want blocked sibling summary", updated)
-	}
-	stored, ok, err := runtime.Store().Run(ctx, parent.ID)
-	if err != nil || !ok {
-		t.Fatalf("stored parent lookup ok=%v err=%v", ok, err)
-	}
-	if stored.Status != RunStatusFailed || stored.FailureReason != "缺少行情数据" {
-		t.Fatalf("stored parent = %+v, want persisted blocked sibling failure", stored)
-	}
-}
-
 func TestNonWorkflowParentIgnoresChildWorkflowCallbacks(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -228,7 +157,7 @@ func TestNonWorkflowParentIgnoresChildWorkflowCallbacks(t *testing.T) {
 		SessionID: session.ID,
 		AgentID:   agent.ID,
 		Status:    RunStatusRunning,
-		WorkMode:  WorkModeTask,
+		WorkMode:  WorkModeLoop,
 		Message:   "not marked as workflow",
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -288,7 +217,7 @@ func TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns(t *testing.T) {
 	runtime := newTestRuntime(t)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "reconcile-ignore-agent", Name: "Reconcile Ignore", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask,
+		WorkMode: WorkModeLoop,
 	})
 	session := mustCreateSession(t, runtime, agent.ID, "reconcile ignore")
 	now := nowString()
@@ -297,7 +226,7 @@ func TestReconcileWorkflowChildrenIgnoresMissingAndForeignRuns(t *testing.T) {
 		SessionID:      session.ID,
 		AgentID:        agent.ID,
 		Status:         RunStatusRunning,
-		WorkMode:       WorkModeTask,
+		WorkMode:       WorkModeLoop,
 		WorkflowStatus: workflowStatusRunning,
 		ChildRunIDs:    []string{"child-missing-ignore", "child-foreign-ignore"},
 		WorkflowPlan: []WorkflowStepState{

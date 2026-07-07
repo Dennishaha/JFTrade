@@ -153,9 +153,14 @@ func TestAssistantRoutesEnforceBusinessValidationOnUpdates(t *testing.T) {
 	}`))
 	assertAssistantErrorCode(t, composerInvalid, http.StatusBadRequest, "ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED")
 
+	composerTaskMode := performAssistantRequest(router, http.MethodPatch, "/api/v1/adk/sessions/"+session.ID+"/composer-state", []byte(`{
+		"workModeOverride":"task"
+	}`))
+	assertAssistantErrorCode(t, composerTaskMode, http.StatusBadRequest, "ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED")
+
 	composerValid := performAssistantRequest(router, http.MethodPatch, "/api/v1/adk/sessions/"+session.ID+"/composer-state", []byte(`{
 		"chatDraft":"复盘昨晚的挂单",
-		"workModeOverride":"task",
+		"workModeOverride":"loop",
 		"permissionModeOverride":"approval",
 		"goalObjectiveDraft":"检查今日开盘风险",
 		"goalObjectiveTouched":true
@@ -170,7 +175,7 @@ func TestAssistantRoutesEnforceBusinessValidationOnUpdates(t *testing.T) {
 	if err := json.Unmarshal(composerValid.Body.Bytes(), &composerEnvelope); err != nil {
 		t.Fatalf("decode composer state: %v body=%s", err, composerValid.Body.String())
 	}
-	if !composerEnvelope.OK || composerEnvelope.Data.WorkModeOverride != jfadk.WorkModeTask || composerEnvelope.Data.PermissionModeOverride != jfadk.PermissionModeApproval || !composerEnvelope.Data.GoalObjectiveTouched {
+	if !composerEnvelope.OK || composerEnvelope.Data.WorkModeOverride != jfadk.WorkModeLoop || composerEnvelope.Data.PermissionModeOverride != jfadk.PermissionModeApproval || !composerEnvelope.Data.GoalObjectiveTouched {
 		t.Fatalf("composer state envelope=%s", composerValid.Body.String())
 	}
 

@@ -103,7 +103,7 @@ func TestServiceSaveAgentValidationScenarios(t *testing.T) {
 		Status:            jfadk.AgentStatusEnabled,
 		ProviderID:        enabledProvider.ID,
 		Tools:             []string{"market.read"},
-		WorkMode:          jfadk.WorkModeTask,
+		WorkMode:          jfadk.WorkModeLoop,
 		LoopMaxIterations: 1,
 	})
 	if err != nil {
@@ -325,7 +325,7 @@ func TestServiceCRUDQueriesAndSnapshots(t *testing.T) {
 	if err != nil || renamedSession.Title != "Renamed Session" {
 		t.Fatalf("RenameSession() session=%+v err=%v", renamedSession, err)
 	}
-	workModeOverride := "task"
+	workModeOverride := jfadk.WorkModeLoop
 	composerState, err := service.UpdateSessionComposerState(ctx, session.ID, jfadk.SessionComposerStatePatch{
 		WorkModeOverride: &workModeOverride,
 	})

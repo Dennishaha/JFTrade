@@ -9,6 +9,7 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
+	adkworkflow "google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
 )
 
@@ -67,6 +68,9 @@ func (e *googleADKExecution) runBlockingWithRunner(ctx context.Context, content 
 }
 
 func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
+	if requestedInputUnsupported(event) {
+		return errADKInputUnsupported
+	}
 	if event == nil || event.Content == nil {
 		if event != nil && !event.Partial {
 			e.sawPartialText = false
@@ -81,6 +85,9 @@ func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
 	}
 	for _, part := range event.Content.Parts {
 		if part.FunctionCall != nil {
+			if part.FunctionCall.Name == adkworkflow.WorkflowInputFunctionCallName {
+				continue
+			}
 			if part.FunctionCall.Name == toolconfirmation.FunctionCallName {
 				continue
 			}
@@ -104,6 +111,24 @@ func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
 		return err
 	}
 	return nil
+}
+
+func requestedInputUnsupported(event *adksession.Event) bool {
+	if event == nil {
+		return false
+	}
+	if event.RequestedInput != nil {
+		return true
+	}
+	if event.Content == nil {
+		return false
+	}
+	for _, part := range event.Content.Parts {
+		if part != nil && part.FunctionCall != nil && part.FunctionCall.Name == adkworkflow.WorkflowInputFunctionCallName {
+			return true
+		}
+	}
+	return false
 }
 
 func contentHasText(content *genai.Content) bool {
@@ -199,7 +224,7 @@ func (e *googleADKExecution) finishCall(callID string, output any, err error) {
 			call.RequiresUser = false
 		} else {
 			call.Status = "SUCCEEDED"
-			call.Output = limitToolOutput(output)
+			call.Output = e.materializeToolOutput(call.ToolName, call.ID, output)
 			call.Error = nil
 			call.RequiresUser = false
 			e.summaries = append(e.summaries, summarizeToolOutput(call.ToolName, output))
@@ -247,7 +272,7 @@ func (e *googleADKExecution) consumeFunctionResponse(response *genai.FunctionRes
 			changed = true
 		} else {
 			call.Status = "SUCCEEDED"
-			call.Output = limitToolOutput(response.Response)
+			call.Output = e.materializeToolOutput(call.ToolName, call.ID, response.Response)
 			call.Error = nil
 			call.RequiresUser = false
 			e.summaries = append(e.summaries, summarizeToolOutput(call.ToolName, response.Response))
@@ -438,10 +463,6 @@ func (e *googleADKExecution) emitToolProgress(callID string, toolName string) {
 	}
 	jftradeErr4 := e.onDelta(ChatDelta{ToolProgress: projectedToolProgress(toolName)})
 	jftradeLogError(jftradeErr4)
-}
-
-func (e *googleADKExecution) appendVisibleText(reply string, reasoning string) error {
-	return e.appendVisibleTextForRun(e.runID, reply, reasoning)
 }
 
 func (e *googleADKExecution) appendVisibleTextForRun(runID string, reply string, reasoning string) error {

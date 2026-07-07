@@ -27,6 +27,11 @@ func normalizeWorkflowPlan(plan []WorkflowStepState) []WorkflowStepState {
 		} else {
 			step.DependsOn = normalizeStringSlice(step.DependsOn)
 		}
+		if len(step.Routes) == 0 {
+			step.Routes = []string{}
+		} else {
+			step.Routes = normalizeStringSlice(step.Routes)
+		}
 		normalized = append(normalized, step)
 	}
 	return normalized
@@ -48,6 +53,7 @@ func NormalizeRun(run Run) Run {
 	run.ProviderID = strings.TrimSpace(run.ProviderID)
 	run.ProviderName = strings.TrimSpace(run.ProviderName)
 	run.Model = strings.TrimSpace(run.Model)
+	run.WorkflowEngine = strings.TrimSpace(run.WorkflowEngine)
 	if len(run.ChildRunIDs) == 0 {
 		run.ChildRunIDs = []string{}
 	} else {

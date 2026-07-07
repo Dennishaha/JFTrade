@@ -27,10 +27,11 @@ func (e *WorkflowExecutor) startWorkflowChildRuns(ctx context.Context, req workf
 			return nil, nil, err
 		}
 		child, _, finishChild, err := e.runtime.startRunWithOptions(ctx, req.Session.ID, childAgent, step.Message, runStartOptions{
-			WorkMode:    WorkModeChat,
-			Objective:   req.Objective,
-			ParentRunID: parent.ID,
-			Iteration:   index + 1,
+			WorkMode:       WorkModeChat,
+			Objective:      req.Objective,
+			ParentRunID:    parent.ID,
+			Iteration:      index + 1,
+			WorkflowEngine: defaultString(parent.WorkflowEngine, WorkflowEngineADK2Loop),
 		})
 		if err != nil {
 			for _, finish := range finishes {
@@ -60,6 +61,9 @@ func (e *WorkflowExecutor) completeWorkflowChildrenFromADK(
 		childApprovals := approvalsForRun(approvals, child.ID)
 		toolContext := execution.toolContextForRun(child.ID)
 		replyResult := execution.resultForRun(child.ID)
+		if !workflowChildHasExecutionActivity(execution, child, toolContext, childApprovals, replyResult) {
+			continue
+		}
 		child = hydrateRunExecutionResult(child, toolContext, childApprovals, "", "")
 		response, err := e.runtime.completeChatRun(ctx, req.Session, child, child.UserMessage, toolContext, childApprovals, replyResult, nil)
 		if err != nil {
@@ -68,6 +72,22 @@ func (e *WorkflowExecutor) completeWorkflowChildrenFromADK(
 		responses = append(responses, response)
 	}
 	return responses, nil
+}
+
+func workflowChildHasExecutionActivity(
+	execution *googleADKExecution,
+	child Run,
+	toolContext toolExecutionContext,
+	approvals []Approval,
+	replyResult openAIChatResult,
+) bool {
+	if len(approvals) > 0 || len(toolContext.calls) > 0 {
+		return true
+	}
+	if strings.TrimSpace(replyResult.Reply) != "" || strings.TrimSpace(replyResult.ReasoningContent) != "" {
+		return true
+	}
+	return execution != nil && execution.workflowRunObserved(child.ID)
 }
 
 func (e *WorkflowExecutor) ensureWorkflowChildrenFinalReplies(
@@ -122,28 +142,30 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 		_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID), ResultSummary: &reason})
 		jftradeLogError(jftradeErr13)
 		failed := Run{
-			ID:            parent.ID,
-			SessionID:     req.Session.ID,
-			AgentID:       childAgent.ID,
-			ProviderID:    childAgent.ProviderID,
-			Model:         childAgent.Model,
-			ParentRunID:   parent.ID,
-			Status:        RunStatusFailed,
-			Message:       reason,
-			FailureReason: reason,
-			ErrorCode:     runErrorCode(RunStatusFailed),
-			WorkMode:      WorkModeChat,
-			CreatedAt:     nowString(),
-			UpdatedAt:     nowString(),
-			Usage:         &RunUsage{},
+			ID:             parent.ID,
+			SessionID:      req.Session.ID,
+			AgentID:        childAgent.ID,
+			ProviderID:     childAgent.ProviderID,
+			Model:          childAgent.Model,
+			ParentRunID:    parent.ID,
+			Status:         RunStatusFailed,
+			Message:        reason,
+			FailureReason:  reason,
+			ErrorCode:      runErrorCode(RunStatusFailed),
+			WorkMode:       WorkModeChat,
+			WorkflowEngine: defaultString(parent.WorkflowEngine, workflowEngineForMode(parent.WorkMode)),
+			CreatedAt:      nowString(),
+			UpdatedAt:      nowString(),
+			Usage:          &RunUsage{},
 		}
 		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: ChatResponse{Reply: reason, Session: req.Session, Run: failed}}
 	}
 	child, childCtx, finishChild, err := e.runtime.startRunWithOptions(ctx, req.Session.ID, childAgent, step.Message, runStartOptions{
-		WorkMode:    WorkModeChat,
-		Objective:   req.Objective,
-		ParentRunID: parent.ID,
-		Iteration:   iteration,
+		WorkMode:       WorkModeChat,
+		Objective:      req.Objective,
+		ParentRunID:    parent.ID,
+		Iteration:      iteration,
+		WorkflowEngine: defaultString(parent.WorkflowEngine, workflowEngineForMode(parent.WorkMode)),
 	})
 	if err != nil {
 		_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID)})

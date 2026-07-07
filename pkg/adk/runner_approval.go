@@ -308,7 +308,7 @@ func (r *Runtime) continueResolvedApproval(ctx context.Context, approval Approva
 func (r *Runtime) resumeGoogleADKWithBusyRetry(ctx context.Context, run Run) (Run, *Message, bool, error) {
 	delays := []time.Duration{120 * time.Millisecond, 250 * time.Millisecond, 500 * time.Millisecond, time.Second}
 	var lastErr error
-	for attempt := 0; attempt <= len(delays); attempt++ {
+	for attempt := 0; ; attempt++ {
 		resumedRun, message, handled, err := r.resumeGoogleADK(ctx, run)
 		if err == nil || !isRetryableADKSessionBusy(err) || attempt == len(delays) {
 			return resumedRun, message, handled, err
@@ -322,7 +322,6 @@ func (r *Runtime) resumeGoogleADKWithBusyRetry(ctx context.Context, run Run) (Ru
 		case <-timer.C:
 		}
 	}
-	return run, nil, true, lastErr
 }
 
 func isRetryableADKSessionBusy(err error) bool {

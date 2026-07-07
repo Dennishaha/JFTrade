@@ -90,13 +90,13 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("runChild blocks task when delegated child needs approval", func(t *testing.T) {
-		runtime, executions := newWorkflowApprovalRuntime(t, WorkModeTask)
+		runtime, executions := newWorkflowApprovalRuntime(t, WorkModeLoop)
 		agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 			ID:             "run-child-approval-agent",
 			Name:           "Run Child Approval",
 			ProviderID:     testProviderID,
 			Status:         AgentStatusEnabled,
-			WorkMode:       WorkModeTask,
+			WorkMode:       WorkModeLoop,
 			PermissionMode: PermissionModeApproval,
 			Tools:          []string{"approval.required"},
 		})
@@ -107,7 +107,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 			SessionID:      session.ID,
 			AgentID:        agent.ID,
 			Status:         RunStatusRunning,
-			WorkMode:       WorkModeTask,
+			WorkMode:       WorkModeLoop,
 			WorkflowStatus: workflowStatusRunning,
 			Objective:      "保存策略草稿",
 			CreatedAt:      now,
@@ -122,7 +122,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 			AgentID:      agent.ID,
 			RunID:        parent.ID,
 			Order:        1,
-			WorkflowMode: WorkModeTask,
+			WorkflowMode: WorkModeLoop,
 			Objective:    parent.Objective,
 			Message:      "请 @approval.required 保存策略",
 		})
@@ -184,7 +184,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 		runtime := newTestRuntime(t)
 		agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 			ID: "run-child-delta-error-agent", Name: "Run Child Delta Error", Status: AgentStatusEnabled,
-			WorkMode: WorkModeTask,
+			WorkMode: WorkModeLoop,
 		})
 		session := mustCreateSession(t, runtime, agent.ID, "run child delta error")
 		now := nowString()
@@ -193,7 +193,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 			SessionID:      session.ID,
 			AgentID:        agent.ID,
 			Status:         RunStatusRunning,
-			WorkMode:       WorkModeTask,
+			WorkMode:       WorkModeLoop,
 			WorkflowStatus: workflowStatusRunning,
 			Objective:      "整理一个子任务",
 			CreatedAt:      now,
@@ -208,7 +208,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 			AgentID:      agent.ID,
 			RunID:        parent.ID,
 			Order:        1,
-			WorkflowMode: WorkModeTask,
+			WorkflowMode: WorkModeLoop,
 			Objective:    parent.Objective,
 			Message:      "整理这个子任务",
 		})
@@ -224,7 +224,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 		result := (&WorkflowExecutor{runtime: runtime}).runChild(ctx, workflowRequest{
 			Agent:   agent,
 			Session: session,
-			Mode:    WorkModeTask,
+			Mode:    WorkModeLoop,
 			EmitRun: true,
 			OnDelta: func(ChatDelta) error { return wantErr },
 		}, parent, workflowStep{
@@ -254,7 +254,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 		runtime := newTestRuntime(t)
 		agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 			ID: "run-child-immediate-fail-agent", Name: "Run Child Immediate Fail", Status: AgentStatusEnabled,
-			WorkMode: WorkModeTask,
+			WorkMode: WorkModeLoop,
 		})
 		session := mustCreateSession(t, runtime, agent.ID, "run child immediate fail")
 		now := nowString()
@@ -263,7 +263,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 			SessionID:      session.ID,
 			AgentID:        agent.ID,
 			Status:         RunStatusRunning,
-			WorkMode:       WorkModeTask,
+			WorkMode:       WorkModeLoop,
 			WorkflowStatus: workflowStatusRunning,
 			Objective:      "触发子运行立即失败",
 			CreatedAt:      now,
@@ -278,7 +278,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 			AgentID:      agent.ID,
 			RunID:        parent.ID,
 			Order:        1,
-			WorkflowMode: WorkModeTask,
+			WorkflowMode: WorkModeLoop,
 			Objective:    parent.Objective,
 			Message:      "执行会失败的子任务",
 		})
@@ -295,7 +295,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 		result := (&WorkflowExecutor{runtime: runtime}).runChild(ctx, workflowRequest{
 			Agent:     badAgent,
 			Session:   session,
-			Mode:      WorkModeTask,
+			Mode:      WorkModeLoop,
 			Objective: parent.Objective,
 		}, parent, workflowStep{
 			Title:   task.Title,

@@ -364,7 +364,7 @@ func TestWorkflowStoreFullCRUDAndLogBoundaryBranches(t *testing.T) {
 	store := newBusinessStore(t)
 
 	workflow, err := store.SaveWorkflowDefinition(ctx, WorkflowDefinition{
-		Name: "Coverage Workflow", Status: WorkflowStatusEnabled, AgentID: "agent", WorkMode: WorkModeTask,
+		Name: "Coverage Workflow", Status: WorkflowStatusEnabled, AgentID: "agent", WorkMode: WorkModeLoop,
 		PromptTemplate: "run {{symbol}}", DefaultInputs: map[string]any{"symbol": "TME"},
 	})
 	if err != nil {

@@ -210,7 +210,7 @@ func workflowPlannerAddStepSchema() map[string]any {
 			"order":           map[string]any{"type": "integer", "minimum": 1},
 			"message":         map[string]any{"type": "string"},
 			"description":     map[string]any{"type": "string"},
-			"modeHint":        map[string]any{"type": "string", "enum": []string{"task", "loop", "chat", ""}},
+			"modeHint":        map[string]any{"type": "string", "enum": []string{"loop", "chat", ""}},
 			"dependsOn":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 			"agentRole":       map[string]any{"type": "string"},
 			"childProviderId": map[string]any{"type": "string"},
@@ -258,7 +258,7 @@ func workflowPlannerFinishSchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"mode":      map[string]any{"type": "string", "enum": []string{"task", "loop", ""}},
+			"mode":      map[string]any{"type": "string", "enum": []string{"loop", ""}},
 			"objective": map[string]any{"type": "string"},
 			"warnings":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 		},
@@ -397,11 +397,7 @@ func compileWorkflowPlanDraft(draft workflowPlanDraft, mode string, message stri
 		draft.Warnings = append(draft.Warnings, "loop workflow uses the first planner step")
 		steps = steps[:1]
 	}
-	if normalizedMode == WorkModeTask {
-		if err := normalizeSequentialPlannerDependencies(steps); err != nil {
-			return nil, draft.Warnings, err
-		}
-	} else if normalizedMode == WorkModeLoop && workflowStepsHaveDependencies(steps) {
+	if normalizedMode == WorkModeLoop && workflowStepsHaveDependencies(steps) {
 		return nil, draft.Warnings, fmt.Errorf("loop planner step must not depend on another step")
 	}
 	return steps, draft.Warnings, nil

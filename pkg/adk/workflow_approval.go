@@ -17,6 +17,9 @@ func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*
 	if normalizeWorkMode(parent.WorkMode) == WorkModeChat || strings.TrimSpace(parent.WorkflowStatus) == "" {
 		return nil, nil
 	}
+	if strings.TrimSpace(parent.WorkflowEngine) == "" {
+		parent.WorkflowEngine = workflowEngineForMode(parent.WorkMode)
+	}
 	parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
 	parent = updateWorkflowPlanForChild(parent, child)
 	parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
@@ -80,15 +83,13 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 	if child.Status != RunStatusCompleted {
 		return new(r.terminateParentWorkflowFromChild(ctx, *parent, child)), nil
 	}
-	session, agent, err := r.workflowResumeContext(ctx, *parent)
+	session, _, err := r.workflowResumeContext(ctx, *parent)
 	if err != nil {
 		return new((&WorkflowExecutor{runtime: r}).failParent(ctx, *parent, err)), nil
 	}
 	executor := &WorkflowExecutor{runtime: r}
 	var updated Run
 	switch normalizeWorkMode(parent.WorkMode) {
-	case WorkModeTask:
-		updated, err = executor.resumeADKTaskWorkflow(ctx, session, agent, *parent)
 	case WorkModeLoop:
 		updated, err = executor.resumeLoopWorkflow(ctx, session, *parent)
 	default:
@@ -234,8 +235,8 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 		case RunStatusPending:
 			parent.Status = RunStatusPending
 			parent.WorkflowStatus = workflowStatusPaused
-			parent.Message = defaultString(child.Message, "工作流正在等待审批。")
 			parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
+			parent.Message = defaultString(child.Message, "工作流正在等待审批。")
 			if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
 				return Run{}, false, saveErr
 			}

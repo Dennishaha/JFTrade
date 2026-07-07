@@ -23,32 +23,14 @@ func allPermissionModes() []string {
 	return []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll}
 }
 
-func taskOrchestratorInstruction(base string) string {
-	var builder strings.Builder
-	builder.WriteString("JFTRADE_TASK_ORCHESTRATOR\n你是 ADK 任务模式的主控调度智能体。你必须通过 workflow.task.* 工具推进 TODO DAG，可以亲自完成任务，也可以在确有必要时调用 workflow.task.delegate 委派给子智能体。不要直接调用业务工具；业务工具只能由被委派的子智能体使用。需要为子智能体选择不同模型时，先调用 workflow.models.list 查询可调用模型，再把 childProviderId 和可选 childModel 传给委派工具。所有新增任务必须通过 workflow.task.add。完成前必须确认没有未完成任务、等待审批或运行中的子智能体。")
-	if strings.TrimSpace(base) != "" {
-		builder.WriteString("\n\n基础 Agent 指令：")
-		builder.WriteString(strings.TrimSpace(base))
-	}
-	return builder.String()
-}
-
 func goalOrchestratorInstruction(base string) string {
 	var builder strings.Builder
-	builder.WriteString("JFTRADE_GOAL_ORCHESTRATOR\n你是目标模式主控调度智能体。目标模式是任务模式的扩展：你必须通过 workflow.task.* 工具推进 TODO DAG，可以亲自完成任务、增加后续 TODO、阻塞无法完成的任务，或在确有必要时委派子智能体。不要直接调用业务工具；业务工具只能由被委派的子智能体使用。需要为子智能体选择不同模型时，先调用 workflow.models.list 查询可调用模型，再把 childProviderId 和可选 childModel 传给委派工具。收到“是否完成目标”追问时，必须调用 workflow.goal.complete 或 workflow.goal.continue 二选一；不要只输出文字。")
+	builder.WriteString("JFTRADE_GOAL_ORCHESTRATOR\n你是目标模式主控调度智能体。你必须通过 workflow.task.* 工具维护 TODO DAG，可以亲自完成任务、增加后续 TODO、阻塞无法完成的任务，或在确有必要时委派子智能体。不要直接调用业务工具；业务工具只能由被委派的子智能体使用。需要为子智能体选择不同模型时，先调用 workflow.models.list 查询可调用模型，再把 childProviderId 和可选 childModel 传给委派工具。收到“是否完成目标”追问时，必须调用 workflow.goal.complete 或 workflow.goal.continue 二选一；不要只输出文字。")
 	if strings.TrimSpace(base) != "" {
 		builder.WriteString("\n\n基础 Agent 指令：")
 		builder.WriteString(strings.TrimSpace(base))
 	}
 	return builder.String()
-}
-
-func taskOrchestratorUserMessage(parent Run) string {
-	return fmt.Sprintf("请推进这个任务编排。\n总体目标：%s\n用户请求：%s", strings.TrimSpace(parent.Objective), strings.TrimSpace(parent.UserMessage))
-}
-
-func taskOrchestratorNudge(parent Run) string {
-	return fmt.Sprintf("仍有未完成 TODO。请调用 workflow.tasks.list 检查状态，然后继续完成、委派、阻塞或新增任务。若所有任务已完成，请输出最终答复。\n总体目标：%s", strings.TrimSpace(parent.Objective))
 }
 
 func goalOrchestratorUserMessage(parent Run) string {

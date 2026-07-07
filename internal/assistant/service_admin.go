@@ -269,7 +269,7 @@ func (s *Service) validateAgent(ctx context.Context, payload jfadk.AgentWriteReq
 	}
 	if strings.TrimSpace(payload.WorkMode) != "" {
 		switch strings.ToLower(strings.TrimSpace(payload.WorkMode)) {
-		case jfadk.WorkModeChat, jfadk.WorkModeTask, jfadk.WorkModeLoop:
+		case jfadk.WorkModeChat, jfadk.WorkModeLoop:
 		default:
 			return fmt.Errorf("invalid agent work mode")
 		}

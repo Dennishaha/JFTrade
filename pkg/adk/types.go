@@ -11,8 +11,9 @@ const (
 	PermissionModeAll          = "all"
 
 	WorkModeChat = "chat"
-	WorkModeTask = "task"
 	WorkModeLoop = "loop"
+
+	WorkflowEngineADK2Loop = "adk2_loop"
 
 	AgentStatusEnabled  = "ENABLED"
 	AgentStatusDisabled = "DISABLED"
@@ -231,6 +232,7 @@ type Run struct {
 	ChildRunIDs        []string            `json:"childRunIds,omitempty"`
 	Iteration          int                 `json:"iteration,omitempty"`
 	WorkflowStatus     string              `json:"workflowStatus,omitempty"`
+	WorkflowEngine     string              `json:"workflowEngine,omitempty"`
 	WorkflowCursor     int                 `json:"workflowCursor,omitempty"`
 	WorkflowPlan       []WorkflowStepState `json:"workflowPlan,omitempty"`
 	ToolCalls          []ToolCall          `json:"toolCalls"`
@@ -269,6 +271,10 @@ type WorkflowStepState struct {
 	Executor        string   `json:"executor,omitempty"`
 	ResultSummary   string   `json:"resultSummary,omitempty"`
 	PlannerWarnings []string `json:"plannerWarnings,omitempty"`
+	NodeName        string   `json:"nodeName,omitempty"`
+	NodeStatus      string   `json:"nodeStatus,omitempty"`
+	Routes          []string `json:"routes,omitempty"`
+	OutputSummary   string   `json:"outputSummary,omitempty"`
 }
 
 type RunUsage struct {

@@ -38,6 +38,7 @@ func (e *googleADKExecution) afterRunCallback(_ adkagent.InvocationContext) {
 }
 
 func (e *googleADKExecution) onEventCallback(_ adkagent.InvocationContext, event *adksession.Event) (*adksession.Event, error) {
+	e.observeWorkflowEvent(event)
 	return event, nil
 }
 

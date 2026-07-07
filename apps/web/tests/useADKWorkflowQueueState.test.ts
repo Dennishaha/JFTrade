@@ -186,7 +186,7 @@ describe("useADKWorkflowQueueState", () => {
     await state.syncWorkflowRun(
       buildRun({
         id: "run-parent",
-        workMode: "task",
+        workMode: "loop",
         workflowStatus: "RUNNING",
         childRunIds: ["child-1", " child-2 ", "child-2"],
         pendingApprovals: [parentApproval, resolvingApproval],
@@ -350,7 +350,7 @@ describe("useADKWorkflowQueueState", () => {
     await state.syncWorkflowRun(
       buildRun({
         id: "run-parent",
-        workMode: "task",
+        workMode: "loop",
         childRunIds: ["child-1"],
         workflowPlan: [
           buildWorkflowStep({
@@ -460,7 +460,7 @@ describe("useADKWorkflowQueueState", () => {
     await state.syncWorkflowRun(
       buildRun({
         id: "run-parent",
-        workMode: "task",
+        workMode: "loop",
         workflowStatus: "RUNNING",
         childRunIds: Object.keys(childRuns),
         workflowPlan: [
@@ -506,5 +506,64 @@ describe("useADKWorkflowQueueState", () => {
         "子智能体 #5 状态 QUEUED_EXTERNALLY：External child（child-external）",
       ]),
     );
+  });
+
+  it("keeps child lifecycle rows ordered by child creation time", async () => {
+    const state = useADKWorkflowQueueState({
+      timelineEntries: ref([]),
+      selectedSessionId: ref("session-1"),
+    });
+
+    mocks.fetchEnvelope.mockImplementation(async (url: string) => {
+      if (url.endsWith("/child-older")) {
+        return buildRun({
+          id: "child-older",
+          parentRunId: "run-parent",
+          status: "RUNNING",
+          createdAt: "2026-07-03T10:00:00.000Z",
+          updatedAt: "2026-07-03T10:10:00.000Z",
+        });
+      }
+      if (url.endsWith("/child-newer")) {
+        return buildRun({
+          id: "child-newer",
+          parentRunId: "run-parent",
+          status: "RUNNING",
+          createdAt: "2026-07-03T10:05:00.000Z",
+          updatedAt: "2026-07-03T10:06:00.000Z",
+        });
+      }
+      throw new Error(`Unexpected workflow run fetch: ${url}`);
+    });
+
+    await state.syncWorkflowRun(
+      buildRun({
+        id: "run-parent",
+        workMode: "loop",
+        workflowStatus: "RUNNING",
+        childRunIds: ["child-older", "child-newer"],
+        workflowPlan: [
+          buildWorkflowStep({
+            title: "Older child",
+            status: "IN_PROGRESS",
+            childRunId: "child-older",
+          }),
+          buildWorkflowStep({
+            title: "Newer child",
+            status: "IN_PROGRESS",
+            childRunId: "child-newer",
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      state.parentTimelineEntries.value.map((entry) => entry.text).filter(Boolean),
+    ).toEqual([
+      "启动子智能体 #1：Older child（child-older）",
+      "子智能体 #1 正在运行：Older child（child-older）",
+      "启动子智能体 #2：Newer child（child-newer）",
+      "子智能体 #2 正在运行：Newer child（child-newer）",
+    ]);
   });
 });

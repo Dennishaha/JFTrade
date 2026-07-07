@@ -31,7 +31,7 @@ vi.mock("@vue-flow/core", async () => {
               selected: false,
             }),
             slots["node-agent"]?.({
-              data: { title: "每日复盘", subtitle: "Agent", status: "task" },
+              data: { title: "每日复盘", subtitle: "Agent", status: "loop" },
               selected: false,
             }),
             slots["node-monitor"]?.({
@@ -156,7 +156,7 @@ describe("ADK workflow Studio components", () => {
       description: "",
       status: "ENABLED",
       agentId: "agent-1",
-      workMode: "task",
+      workMode: "loop",
       promptTemplate: "run",
       createdAt: "2026-07-01T00:00:00Z",
       updatedAt: "2026-07-01T00:00:00Z",
@@ -735,7 +735,7 @@ describe("ADK workflow Studio components", () => {
           id: "run-1",
           status: "COMPLETED",
           workflowStatus: "COMPLETED",
-          workMode: "task",
+          workMode: "loop",
           objective: "完成盘前复盘",
           iteration: 2,
           childRunIds: ["child-1", "child-2"],
@@ -781,7 +781,7 @@ describe("ADK workflow Studio components", () => {
         run: {
           id: "empty-run",
           status: "RUNNING",
-          workMode: "task",
+          workMode: "loop",
           workflowPlan: [],
         },
       },

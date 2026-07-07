@@ -567,7 +567,7 @@ describe("AiAssistantPanel", () => {
     const workflowRun = buildRun({
       id: "dock-parent-run",
       status: "COMPLETED",
-      workMode: "task",
+      workMode: "loop",
       childRunIds: ["dock-child-run"],
       workflowPlan: [
         {
@@ -712,7 +712,7 @@ describe("AiAssistantPanel", () => {
     const workflowRun = buildRun({
       id: "dock-parent-child-failed",
       status: "FAILED",
-      workMode: "task",
+      workMode: "loop",
       childRunIds: ["dock-child-failed"],
       workflowPlan: [
         {

@@ -876,8 +876,8 @@ func TestADKTaskUpdateDeleteAndValidation(t *testing.T) {
 	runtime := newTestRuntime(t)
 	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
 		ID: "task-a", Title: "Original", Status: "TODO", AgentID: "agent-a", DependsOn: []string{"task-b", "task-b"},
-		Order: 2, ModeHint: WorkModeTask, AgentRole: "实现 Agent", PlannerStepID: "__planner_step_2",
-		PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeTask, Objective: "完成目标",
+		Order: 2, ModeHint: WorkModeLoop, AgentRole: "实现 Agent", PlannerStepID: "__planner_step_2",
+		PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeLoop, Objective: "完成目标",
 		PlannerWarnings: []string{"裁剪了多余步骤", "裁剪了多余步骤"},
 	})
 	if err != nil {
@@ -886,7 +886,7 @@ func TestADKTaskUpdateDeleteAndValidation(t *testing.T) {
 	if len(task.DependsOn) != 1 || task.DependsOn[0] != "task-b" {
 		t.Fatalf("dependsOn = %+v, want deduplicated task-b", task.DependsOn)
 	}
-	if task.Order != 2 || task.ModeHint != WorkModeTask || task.AgentRole != "实现 Agent" || task.PlannerStepID != "__planner_step_2" || task.PlanSource != workflowPlanSourcePlanner || task.WorkflowMode != WorkModeTask || task.Objective != "完成目标" {
+	if task.Order != 2 || task.ModeHint != WorkModeLoop || task.AgentRole != "实现 Agent" || task.PlannerStepID != "__planner_step_2" || task.PlanSource != workflowPlanSourcePlanner || task.WorkflowMode != WorkModeLoop || task.Objective != "完成目标" {
 		t.Fatalf("task planner metadata = %+v, want saved metadata", task)
 	}
 	if len(task.PlannerWarnings) != 1 || task.PlannerWarnings[0] != "裁剪了多余步骤" {

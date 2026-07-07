@@ -83,7 +83,7 @@ func (s *Service) EnsureBuiltinWorkflowTemplates(ctx context.Context) error {
 		Description:       "交易日上午盘点关注列表、持仓、风险事件与待办事项。",
 		Status:            jfadk.WorkflowStatusDisabled,
 		AgentID:           "investment-analyst",
-		WorkMode:          jfadk.WorkModeTask,
+		WorkMode:          jfadk.WorkModeLoop,
 		PermissionMode:    jfadk.PermissionModeApproval,
 		PromptTemplate:    dailyStockReviewPrompt(),
 		ObjectiveTemplate: "完成每日股票盘点，输出可审计的市场、持仓、风险和待办摘要。",
@@ -161,6 +161,9 @@ func (s *Service) SaveWorkflow(ctx context.Context, workflowID string, payload j
 	workflow.Description = strings.TrimSpace(payload.Description)
 	workflow.Status = workflowrules.NormalizeWorkflowStatus(payload.Status, workflow.Status)
 	workflow.AgentID = strings.TrimSpace(payload.AgentID)
+	if mode := strings.ToLower(strings.TrimSpace(payload.WorkMode)); mode != "" && mode != jfadk.WorkModeChat && mode != jfadk.WorkModeLoop {
+		return jfadk.WorkflowDefinition{}, fmt.Errorf("invalid workflow work mode")
+	}
 	workflow.WorkMode = workflowrules.NormalizeWorkflowWorkMode(payload.WorkMode, workflow.WorkMode)
 	workflow.ProviderID = strings.TrimSpace(payload.ProviderID)
 	workflow.Model = strings.TrimSpace(payload.Model)

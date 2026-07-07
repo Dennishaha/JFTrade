@@ -528,7 +528,7 @@ func TestWorkflowStoreTriggerDeletionAndLogLookupBoundaries(t *testing.T) {
 	ctx := context.Background()
 	store := newTestRuntime(t).Store()
 	workflow, err := store.SaveWorkflowDefinition(ctx, WorkflowDefinition{
-		ID: " workflow-a ", Name: " Morning rebalance ", AgentID: "agent-a", WorkMode: WorkModeTask, PromptTemplate: "Run rebalance",
+		ID: " workflow-a ", Name: " Morning rebalance ", AgentID: "agent-a", WorkMode: WorkModeLoop, PromptTemplate: "Run rebalance",
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflowDefinition: %v", err)

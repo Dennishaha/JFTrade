@@ -234,7 +234,7 @@ describe("ADKChatComposer business flows", () => {
     expect(wrapper.emitted("update:selectedAgentId")?.at(-1)).toEqual(["agent-2"]);
     expect(handleAgentChange).toHaveBeenCalledOnce();
 
-    await compactMenus[1]!.findAll("button")[2]!.trigger("click");
+    await compactMenus[1]!.findAll("button")[1]!.trigger("click");
     expect(wrapper.emitted("update:workModeOverride")?.at(-1)).toEqual(["loop"]);
     expect(wrapper.text()).toContain("上下文");
   });

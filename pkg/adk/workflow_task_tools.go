@@ -231,7 +231,7 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 		if childErr != nil {
 			return nil, childErr
 		}
-		if ok && isDirectWorkflowChild(parent, child) && (child.Status == RunStatusPending || child.Status == RunStatusRunning) {
+		if ok && isDirectWorkflowChild(parent, child) && (child.Status == RunStatusPending || child.Status == RunStatusRunning || child.Status == RunStatusCompleted) {
 			return map[string]any{
 				"success": true, "taskId": task.ID, "childRunId": child.ID, "status": child.Status,
 				"pendingApproval": child.Status == RunStatusPending, "result": strings.TrimSpace(child.Message),

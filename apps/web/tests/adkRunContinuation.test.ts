@@ -177,7 +177,7 @@ function buildRun(
     failureReason,
     toolCalls,
     pendingApprovals: [],
-    createdAt: "2026-06-10T00:00:00Z",
+        createdAt: "2026-06-10T00:00:00Z",
     updatedAt: "2026-06-10T00:00:00Z",
     ...overrides,
   };

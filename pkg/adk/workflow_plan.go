@@ -8,50 +8,6 @@ import (
 	"strings"
 )
 
-func workflowPlanFromSteps(steps []workflowStep, tasks []Task) []WorkflowStepState {
-	plan := make([]WorkflowStepState, 0, len(steps))
-	for index, step := range steps {
-		state := WorkflowStepState{
-			Title:           step.Title,
-			Description:     workflowStepDescription(step),
-			Message:         step.Message,
-			Status:          "TODO",
-			DependsOn:       append([]string(nil), step.DependsOn...),
-			Iteration:       index + 1,
-			Order:           step.Order,
-			ModeHint:        step.ModeHint,
-			AgentRole:       step.AgentRole,
-			ChildProviderID: step.ChildProviderID,
-			ChildModel:      step.ChildModel,
-			PlannerStepID:   step.DependencyID,
-			PlanSource:      step.PlanSource,
-			WorkflowMode:    step.WorkflowMode,
-			Objective:       step.Objective,
-			PlannerWarnings: append([]string(nil), step.PlannerWarnings...),
-		}
-		if index < len(tasks) {
-			state.TaskID = tasks[index].ID
-			state.Message = defaultString(tasks[index].Message, state.Message)
-			state.Status = defaultString(tasks[index].Status, state.Status)
-			state.DependsOn = append([]string(nil), tasks[index].DependsOn...)
-			state.Order = tasks[index].Order
-			state.ModeHint = tasks[index].ModeHint
-			state.AgentRole = tasks[index].AgentRole
-			state.ChildProviderID = tasks[index].ChildProviderID
-			state.ChildModel = tasks[index].ChildModel
-			state.PlannerStepID = tasks[index].PlannerStepID
-			state.PlanSource = tasks[index].PlanSource
-			state.WorkflowMode = tasks[index].WorkflowMode
-			state.Objective = tasks[index].Objective
-			state.Executor = tasks[index].Executor
-			state.ResultSummary = tasks[index].ResultSummary
-			state.PlannerWarnings = append([]string(nil), tasks[index].PlannerWarnings...)
-		}
-		plan = append(plan, state)
-	}
-	return plan
-}
-
 func workflowPlanFromTasks(tasks []Task, existing []WorkflowStepState) []WorkflowStepState {
 	existingByTaskID := make(map[string]WorkflowStepState, len(existing))
 	for _, state := range existing {
@@ -104,6 +60,10 @@ func workflowPlanFromTasks(tasks []Task, existing []WorkflowStepState) []Workflo
 			state.Objective = prior.Objective
 		}
 		state.ChildRunID = prior.ChildRunID
+		state.NodeName = prior.NodeName
+		state.NodeStatus = prior.NodeStatus
+		state.Routes = normalizeStringSlice(prior.Routes)
+		state.OutputSummary = prior.OutputSummary
 		plan = append(plan, state)
 	}
 	return plan
@@ -421,6 +381,9 @@ func workflowDescriptionWithoutAgentRole(description string) string {
 }
 
 func pauseParentForChild(parent Run, child Run, cursor int) Run {
+	if strings.TrimSpace(parent.WorkflowEngine) == "" {
+		parent.WorkflowEngine = workflowEngineForMode(parent.WorkMode)
+	}
 	parent.Status = child.Status
 	parent.Message = child.Message
 	parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
@@ -460,8 +423,6 @@ func workflowPendingReply(parent Run) string {
 		return parent.Message
 	}
 	switch parent.WorkMode {
-	case WorkModeTask:
-		return "任务编排正在等待审批。"
 	case WorkModeLoop:
 		return "目标模式正在等待审批。"
 	default:
@@ -532,25 +493,6 @@ func applyWorkflowChildState(step *WorkflowStepState, child Run) {
 	}
 }
 
-func workflowStepFromState(state WorkflowStepState) workflowStep {
-	return workflowStep{
-		Order:           state.Order,
-		DependencyID:    state.PlannerStepID,
-		Title:           state.Title,
-		Description:     workflowDescriptionWithoutAgentRole(state.Description),
-		Message:         state.Message,
-		DependsOn:       append([]string(nil), state.DependsOn...),
-		AgentRole:       state.AgentRole,
-		ChildProviderID: state.ChildProviderID,
-		ChildModel:      state.ChildModel,
-		ModeHint:        state.ModeHint,
-		Objective:       state.Objective,
-		PlanSource:      state.PlanSource,
-		WorkflowMode:    state.WorkflowMode,
-		PlannerWarnings: append([]string(nil), state.PlannerWarnings...),
-	}
-}
-
 func workflowChildAgentForStep(agent Agent, step workflowStep) Agent {
 	child := agent
 	child.WorkMode = WorkModeChat
@@ -566,8 +508,6 @@ func workflowChildAgentForStep(agent Agent, step workflowStep) Agent {
 func workflowSummary(parent Run, replies []string) string {
 	var builder strings.Builder
 	switch parent.WorkMode {
-	case WorkModeTask:
-		builder.WriteString("任务编排已完成。")
 	case WorkModeLoop:
 		builder.WriteString("目标模式已完成。")
 	default:

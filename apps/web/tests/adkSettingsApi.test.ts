@@ -145,7 +145,7 @@ describe("ADK settings API business contracts", () => {
       description: "Run risk checks",
       dependsOn: ["research"],
       order: 2,
-      modeHint: "task",
+      modeHint: "loop",
       plannerStepId: "step-2",
       plannerWarnings: ["missing benchmark"],
     };

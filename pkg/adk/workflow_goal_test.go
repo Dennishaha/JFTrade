@@ -29,6 +29,9 @@ func TestLoopWorkflowCanBeSelectedPerRun(t *testing.T) {
 	if response.Run.Objective != "完成一次目标推进" {
 		t.Fatalf("objective = %q", response.Run.Objective)
 	}
+	if response.Run.WorkflowEngine != WorkflowEngineADK2Loop {
+		t.Fatalf("workflow engine = %q, want %q", response.Run.WorkflowEngine, WorkflowEngineADK2Loop)
+	}
 	if len(response.Run.WorkflowPlan) != 1 || response.Run.WorkflowPlan[0].PlanSource != workflowPlanSourceRuntime {
 		t.Fatalf("workflow plan = %+v, want runtime initial goal task", response.Run.WorkflowPlan)
 	}
@@ -297,7 +300,7 @@ func TestGoalWorkflowPauseRequestBeforeNextTurnDoesNotCallModel(t *testing.T) {
 	})
 	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
 		Title: "继续目标", Status: "DONE", AgentID: agent.ID, RunID: run.ID,
-		Order: 1, ModeHint: WorkModeTask, PlanSource: workflowPlanSourceRuntime, WorkflowMode: WorkModeLoop,
+		Order: 1, ModeHint: WorkModeLoop, PlanSource: workflowPlanSourceRuntime, WorkflowMode: WorkModeLoop,
 		Objective: run.Objective, Message: run.UserMessage,
 	})
 	if err != nil {

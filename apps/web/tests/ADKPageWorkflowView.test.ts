@@ -21,7 +21,7 @@ vi.mock("@vue-flow/core", async () => {
               selected: false,
             }),
             slots["node-agent"]?.({
-              data: { title: "Daily Review", subtitle: "智能体", status: "task" },
+              data: { title: "Daily Review", subtitle: "智能体", status: "loop" },
               selected: false,
             }),
             slots["node-monitor"]?.({
@@ -749,7 +749,7 @@ function buildWorkflow() {
     description: "Review positions",
     status: "ENABLED",
     agentId: "agent-1",
-    workMode: "task",
+    workMode: "loop",
     permissionMode: "approval",
     promptTemplate: "Run review",
     defaultInputs: { symbol: "US.AAPL" },

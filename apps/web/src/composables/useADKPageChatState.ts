@@ -213,13 +213,13 @@ export function useADKPageChatState(
       (candidate) => candidate.id === sessionState.selectedAgentId.value,
     );
     const mode = String(agent?.workMode ?? "").trim();
-    return mode === "task" || mode === "loop" ? mode : "chat";
+    return mode === "loop" ? mode : "chat";
   });
   const effectiveWorkMode = computed(() => {
     const mode = String(
       workModeOverride.value || selectedAgentDefaultWorkMode.value,
     ).trim();
-    return mode === "task" || mode === "loop" ? mode : "chat";
+    return mode === "loop" ? mode : "chat";
   });
   const showGoalObjectiveEditor = computed(
     () => activeGoalRun.value != null || goalObjectiveDraft.value.trim() !== "",

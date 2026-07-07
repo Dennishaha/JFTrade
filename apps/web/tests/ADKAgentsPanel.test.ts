@@ -33,7 +33,7 @@ describe("ADKAgentsPanel", () => {
   it("opens templates and applies the selected template", async () => {
     const applyAgentTemplate = vi.fn();
     const template = {
-      ...buildAgent("task"),
+      ...buildAgent("loop"),
       id: "template-strategy",
       name: "策略模板",
       tools: [],
@@ -63,8 +63,8 @@ describe("ADKAgentsPanel", () => {
 
     const text = wrapper.text();
     expect(text).toContain("对话");
-    expect(text).toContain("任务");
     expect(text).toContain("目标");
+    expect(text).not.toContain("任务");
     expect(text).not.toContain("顺序执行");
     expect(text).not.toContain("并行分支");
     expect(text).not.toContain("目标循环最大轮次");
@@ -74,14 +74,14 @@ describe("ADKAgentsPanel", () => {
     const wrapper = mountAgentsPanel({
       agents: [
         buildAgent("chat"),
-        buildAgent("task"),
+        buildAgent("loop"),
         buildAgent("loop"),
       ],
     });
 
     expect(wrapper.text()).toContain("默认：对话");
-    expect(wrapper.text()).toContain("默认：任务");
     expect(wrapper.text()).toContain("默认：目标");
+    expect(wrapper.text()).not.toContain("默认：任务");
     expect(wrapper.text()).toContain("审批制");
   });
 
@@ -108,7 +108,7 @@ describe("ADKAgentsPanel", () => {
     const wrapper = mountAgentsPanel({
       agents: [
         {
-          ...buildAgent("task"),
+          ...buildAgent("loop"),
           id: "custom-agent",
           name: "Custom Agent",
         },
@@ -142,7 +142,7 @@ describe("ADKAgentsPanel", () => {
         ),
       ),
     ];
-    expect(modeValues).toEqual(["chat", "task", "loop"]);
+    expect(modeValues).toEqual(["chat", "loop"]);
     expect(wrapper.text()).not.toContain("顺序执行");
     expect(wrapper.text()).not.toContain("并行分支");
   });
@@ -159,7 +159,7 @@ describe("ADKAgentsPanel", () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("目标循环最大轮次");
 
-    form.workMode = "task";
+    form.workMode = "chat";
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).not.toContain("目标循环最大轮次");
     expect(form.loopMaxIterations).toBe(5);
@@ -250,7 +250,7 @@ function mountAgentsPanel(
   });
 }
 
-function buildAgent(workMode: "chat" | "task" | "loop"): ADKAgent {
+function buildAgent(workMode: "chat" | "loop"): ADKAgent {
   return {
     id: `agent-${workMode}`,
     name: `Agent ${workMode}`,

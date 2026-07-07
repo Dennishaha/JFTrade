@@ -2,7 +2,6 @@ package adk
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -61,6 +60,9 @@ func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecu
 		return
 	}
 	if run.Status == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run) {
+		return
+	}
+	if r.isDormantWorkflowChildRun(ctx, run) {
 		return
 	}
 	r.failUnrecoverableStaleRun(ctx, run)
@@ -168,6 +170,9 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
 		if parseErr != nil || now.Sub(started) < timeout {
 			continue
 		}
+		if r.isDormantWorkflowChildRun(ctx, run) {
+			continue
+		}
 		r.activeMu.Lock()
 		cancel := r.activeRuns[run.ID]
 		delete(r.activeRuns, run.ID)
@@ -200,6 +205,49 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
 	}
 }
 
+func (r *Runtime) isDormantWorkflowChildRun(ctx context.Context, run Run) bool {
+	if !workflowChildRunHasNoExecutionActivity(run) {
+		return false
+	}
+	parentID := strings.TrimSpace(run.ParentRunID)
+	if parentID == "" || r == nil || r.store == nil {
+		return false
+	}
+	parent, ok, err := r.store.Run(ctx, parentID)
+	if err != nil || !ok || !isWorkflowParentRun(parent) || isTerminalLifecycleRunStatus(parent.Status) {
+		return false
+	}
+	return workflowParentReferencesChild(parent, run.ID)
+}
+
+func workflowChildRunHasNoExecutionActivity(run Run) bool {
+	return strings.TrimSpace(run.ParentRunID) != "" &&
+		run.Status == RunStatusRunning &&
+		len(run.ToolCalls) == 0 &&
+		len(run.PendingApprovals) == 0 &&
+		strings.TrimSpace(run.PreToolContent) == "" &&
+		strings.TrimSpace(run.PreToolReasoning) == "" &&
+		strings.TrimSpace(run.FinalMessageID) == ""
+}
+
+func workflowParentReferencesChild(parent Run, childRunID string) bool {
+	childRunID = strings.TrimSpace(childRunID)
+	if childRunID == "" {
+		return false
+	}
+	for _, id := range parent.ChildRunIDs {
+		if strings.TrimSpace(id) == childRunID {
+			return true
+		}
+	}
+	for _, step := range parent.WorkflowPlan {
+		if strings.TrimSpace(step.ChildRunID) == childRunID {
+			return true
+		}
+	}
+	return false
+}
+
 type toolExecutionContext struct {
 	calls     []ToolCall
 	summaries []string
@@ -212,6 +260,7 @@ type runStartOptions struct {
 	ChildRunIDs    []string
 	Iteration      int
 	WorkflowStatus string
+	WorkflowEngine string
 }
 
 func (r *Runtime) startRun(ctx context.Context, sessionID string, agent Agent, text string) (Run, context.Context, func(), error) {
@@ -235,7 +284,7 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 		Status:        RunStatusRunning, UserMessage: text, Message: "running",
 		WorkMode: workMode, PermissionMode: normalizePermissionMode(agent.PermissionMode), Objective: strings.TrimSpace(options.Objective),
 		ParentRunID: strings.TrimSpace(options.ParentRunID), ChildRunIDs: normalizeStringSlice(options.ChildRunIDs),
-		Iteration: options.Iteration, WorkflowStatus: strings.TrimSpace(options.WorkflowStatus),
+		Iteration: options.Iteration, WorkflowStatus: strings.TrimSpace(options.WorkflowStatus), WorkflowEngine: strings.TrimSpace(options.WorkflowEngine),
 		CreatedAt: now, StartedAt: now, UpdatedAt: now,
 		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
 		Usage: &RunUsage{},
@@ -711,88 +760,4 @@ func recentOpenAIMessages(messages []Message, maxMessages int, maxChars int) []o
 func isIntermediateApprovalMessage(content string) bool {
 	return strings.Contains(content, "绛夊緟鐢ㄦ埛瀹℃壒") ||
 		strings.Contains(content, "璇峰厛鍦?ADK 瀹℃壒闃熷垪")
-}
-
-func runStatusForContext(ctx context.Context, err error) string {
-	if err == nil {
-		return RunStatusCompleted
-	}
-	if ctx != nil {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return RunStatusTimedOut
-		}
-		if errors.Is(ctx.Err(), context.Canceled) {
-			return RunStatusCancelled
-		}
-	}
-	return RunStatusFailed
-}
-
-func runErrorCode(status string) string {
-	switch status {
-	case RunStatusTimedOut:
-		return "RUN_TIMED_OUT"
-	case RunStatusCancelled:
-		return "RUN_CANCELLED"
-	default:
-		return "MODEL_CALL_FAILED"
-	}
-}
-
-func runLifecycleAuditKind(status string) string {
-	switch status {
-	case RunStatusTimedOut:
-		return "run.timed_out"
-	case RunStatusCancelled:
-		return "run.cancelled"
-	case RunStatusDenied:
-		return "run.denied"
-	case RunStatusFailed:
-		return "run.failed"
-	default:
-		return "run.completed"
-	}
-}
-
-func finalizeRunUsage(run *Run) {
-	if run.Usage == nil {
-		return
-	}
-	if run.StartedAt != "" && run.CompletedAt != nil {
-		if started, err := time.Parse(time.RFC3339Nano, run.StartedAt); err == nil {
-			if completed, err := time.Parse(time.RFC3339Nano, *run.CompletedAt); err == nil {
-				run.Usage.DurationMs = completed.Sub(started).Milliseconds()
-			}
-		}
-	}
-}
-
-func toolSummariesForRun(run Run) []string {
-	summaries := make([]string, 0, len(run.ToolCalls))
-	for _, call := range run.ToolCalls {
-		if call.Status == "SUCCEEDED" {
-			summaries = append(summaries, summarizeToolOutput(call.ToolName, call.Output))
-		}
-		if call.Status == "FAILED" && call.Error != nil {
-			summaries = append(summaries, fmt.Sprintf("%s failed: %s", call.ToolName, *call.Error))
-		}
-		if call.Status == "DENIED" {
-			summaries = append(summaries, fmt.Sprintf("%s denied by user", call.ToolName))
-		}
-	}
-	return summaries
-}
-
-func optimizationTaskID(calls []ToolCall) string {
-	for _, call := range calls {
-		if call.ToolName != "strategy.optimize" || call.Status != "SUCCEEDED" {
-			continue
-		}
-		if output, ok := call.Output.(map[string]any); ok {
-			if taskID, ok := output["taskId"].(string); ok {
-				return strings.TrimSpace(taskID)
-			}
-		}
-	}
-	return ""
 }

@@ -119,7 +119,11 @@ function highestPriorityStatus(statuses: string[]): string {
             </span>
             <span v-if="step.iteration"> · 轮次 {{ step.iteration }}</span>
             <span v-if="step.childRunId"> · 子智能体 {{ step.childRunId }}</span>
+            <span v-if="step.nodeName"> · Node {{ step.nodeName }}</span>
+            <span v-if="step.nodeStatus"> · {{ stepStatusLabel(step.nodeStatus) }}</span>
+            <span v-if="step.routes?.length"> · Routes {{ step.routes.join(', ') }}</span>
           </div>
+          <pre v-if="step.outputSummary" class="adk-workflow-queue__output">{{ step.outputSummary }}</pre>
         </div>
       </li>
     </ol>
@@ -139,5 +143,18 @@ function highestPriorityStatus(statuses: string[]): string {
   gap: 6px 10px;
   color: var(--tv-text-muted);
   font-size: 12px;
+}
+
+.adk-workflow-queue__output {
+  max-height: 96px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding: 8px;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-bg-surface-2) 92%, transparent);
+  color: var(--tv-text-muted);
+  font-size: 11px;
+  white-space: pre-wrap;
 }
 </style>

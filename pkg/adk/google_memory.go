@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 
@@ -45,14 +46,43 @@ func (s *googleADKMemoryService) SearchMemory(ctx context.Context, req *adkmemor
 		return nil, err
 	}
 	query := strings.ToLower(strings.TrimSpace(req.Query))
-	memories := make([]adkmemory.Entry, 0, len(entries))
+	scored := make([]googleADKScoredMemory, 0, len(entries))
 	for _, entry := range entries {
-		if !googleADKMemoryMatches(entry, query) {
+		score := googleADKMemoryScore(entry, query)
+		if score <= 0 && query != "" {
 			continue
 		}
-		memories = append(memories, googleADKMemoryEntry(entry))
+		scored = append(scored, googleADKScoredMemory{entry: entry, score: score})
+	}
+	sort.SliceStable(scored, func(i, j int) bool {
+		left := scored[i]
+		right := scored[j]
+		if left.score != right.score {
+			return left.score > right.score
+		}
+		leftUpdated := parseMemoryTime(left.entry.UpdatedAt)
+		rightUpdated := parseMemoryTime(right.entry.UpdatedAt)
+		if !leftUpdated.Equal(rightUpdated) {
+			return leftUpdated.After(rightUpdated)
+		}
+		if left.entry.Key != right.entry.Key {
+			return left.entry.Key < right.entry.Key
+		}
+		return left.entry.ID < right.entry.ID
+	})
+	if len(scored) > 8 {
+		scored = scored[:8]
+	}
+	memories := make([]adkmemory.Entry, 0, len(scored))
+	for _, item := range scored {
+		memories = append(memories, googleADKMemoryEntry(item.entry))
 	}
 	return &adkmemory.SearchResponse{Memories: memories}, nil
+}
+
+type googleADKScoredMemory struct {
+	entry MemoryEntry
+	score int
 }
 
 func googleADKMemoryEntry(entry MemoryEntry) adkmemory.Entry {
@@ -74,17 +104,41 @@ func googleADKMemoryEntry(entry MemoryEntry) adkmemory.Entry {
 	}
 }
 
-func googleADKMemoryMatches(entry MemoryEntry, query string) bool {
+func googleADKMemoryScore(entry MemoryEntry, query string) int {
 	if query == "" {
-		return true
+		return 1
 	}
-	haystack := strings.ToLower(strings.TrimSpace(entry.Key) + " " + strings.TrimSpace(entry.Value) + " " + strings.TrimSpace(entry.Scope))
+	key := strings.ToLower(strings.TrimSpace(entry.Key))
+	value := strings.ToLower(strings.TrimSpace(entry.Value))
+	scope := strings.ToLower(strings.TrimSpace(entry.Scope))
+	score := 0
 	for token := range strings.FieldsSeq(query) {
-		if strings.Contains(haystack, token) {
-			return true
+		if token == "" {
+			continue
+		}
+		if key == token {
+			score += 4
+		} else if strings.Contains(key, token) {
+			score += 3
+		}
+		if strings.Contains(value, token) {
+			score += 2
+		}
+		if strings.Contains(scope, token) {
+			score++
 		}
 	}
-	return false
+	return score
+}
+
+func googleADKMemoryMatches(entry MemoryEntry, query string) bool {
+	query = strings.ToLower(strings.TrimSpace(query))
+	return query == "" || googleADKMemoryScore(entry, query) > 0
+}
+
+func parseMemoryTime(value string) time.Time {
+	parsed, _ := time.Parse(time.RFC3339Nano, value)
+	return parsed
 }
 
 func googleADKAgentIDFromAppName(appName string) string {

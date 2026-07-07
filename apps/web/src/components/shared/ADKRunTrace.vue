@@ -121,8 +121,6 @@ const showWorkflowMeta = computed(
 );
 const workflowModeLabel = computed(() => {
   switch (props.run?.workMode) {
-    case "task":
-      return "任务编排";
     case "loop":
       return "目标模式";
     default:

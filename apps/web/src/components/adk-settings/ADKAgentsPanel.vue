@@ -58,14 +58,11 @@ const checkedAvailableTools = ref<string[]>([]);
 const checkedEnabledTools = ref<string[]>([]);
 const workModeOptions: Array<{ title: string; value: ADKWorkMode }> = [
   { title: "对话", value: "chat" },
-  { title: "任务", value: "task" },
   { title: "目标", value: "loop" },
 ];
 
 function workModeLabel(mode: string): string {
   switch (mode) {
-    case "task":
-      return "任务";
     case "loop":
       return "目标";
     default:

@@ -279,6 +279,11 @@ func (s *Service) validateWorkflowDefinition(ctx context.Context, workflow jfadk
 	if workflow.Status == jfadk.WorkflowStatusEnabled && agent.Status != jfadk.AgentStatusEnabled {
 		return fmt.Errorf("enabled workflow requires an enabled agent")
 	}
+	switch strings.ToLower(strings.TrimSpace(workflow.WorkMode)) {
+	case jfadk.WorkModeChat, jfadk.WorkModeLoop:
+	default:
+		return fmt.Errorf("invalid workflow work mode")
+	}
 	if strings.TrimSpace(workflow.PromptTemplate) == "" {
 		return fmt.Errorf("workflow promptTemplate is required")
 	}

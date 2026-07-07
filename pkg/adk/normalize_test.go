@@ -89,7 +89,7 @@ func TestNormalizeWorkflowAndSessionResponsesPreserveBusinessContracts(t *testin
 		Description:       " check exposure ",
 		Status:            "",
 		AgentID:           " agent-1 ",
-		WorkMode:          "task",
+		WorkMode:          "loop",
 		ProviderID:        " provider-1 ",
 		Model:             " model-1 ",
 		PermissionMode:    "all",

@@ -771,7 +771,7 @@ describe("ADKPage", () => {
     const workflowRun = buildRun({
       id: "run-workflow-plan",
       status: "COMPLETED",
-      workMode: "task",
+      workMode: "loop",
       objective: "检查账户风险后生成建议",
       workflowStatus: "COMPLETED",
       workflowPlan: [
@@ -848,7 +848,7 @@ describe("ADKPage", () => {
     const workflowRun = buildRun({
       id: "parent-run-drilldown",
       status: "COMPLETED",
-      workMode: "task",
+      workMode: "loop",
       childRunIds: ["child-run-drilldown"],
       workflowPlan: [
         buildWorkflowStep(
@@ -1254,7 +1254,7 @@ describe("ADKPage", () => {
     const workflowRun = buildRun({
       id: "parent-run-child-failed",
       status: "FAILED",
-      workMode: "task",
+      workMode: "loop",
       childRunIds: ["child-run-failed"],
       workflowPlan: [
         buildWorkflowStep(
@@ -1320,7 +1320,7 @@ describe("ADKPage", () => {
     const workflowRun = buildRun({
       id: "parent-run-stale-running-child-complete",
       status: "RUNNING",
-      workMode: "task",
+      workMode: "loop",
       workflowStatus: "RUNNING",
       childRunIds: ["child-run-complete"],
       workflowPlan: [
@@ -1387,7 +1387,7 @@ describe("ADKPage", () => {
     const workflowRun = buildRun({
       id: "parent-run-child-blocked",
       status: "RUNNING",
-      workMode: "task",
+      workMode: "loop",
       childRunIds: ["child-run-blocked"],
       workflowPlan: [
         buildWorkflowStep(
@@ -1455,7 +1455,7 @@ describe("ADKPage", () => {
     const parentRun = buildRun({
       id: "parent-run-approval",
       status: "PENDING_APPROVAL",
-      workMode: "task",
+      workMode: "loop",
       childRunIds: ["child-run-approval"],
       workflowPlan: [
         buildWorkflowStep(
@@ -1536,7 +1536,7 @@ describe("ADKPage", () => {
     const parentRun = buildRun({
       id: "parent-run-nested",
       status: "COMPLETED",
-      workMode: "task",
+      workMode: "loop",
       childRunIds: ["child-run-nested"],
       workflowPlan: [
         buildWorkflowStep(
@@ -1551,7 +1551,7 @@ describe("ADKPage", () => {
       id: "child-run-nested",
       parentRunId: parentRun.id,
       status: "RUNNING",
-      workMode: "task",
+      workMode: "loop",
       childRunIds: ["grandchild-run"],
       workflowPlan: [
         buildWorkflowStep(

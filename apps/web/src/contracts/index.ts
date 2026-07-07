@@ -84,7 +84,7 @@ export interface NormalizeInstrumentResponse {
 }
 
 export type ADKPermissionMode = "approval" | "less_approval" | "all";
-export type ADKWorkMode = "chat" | "task" | "loop";
+export type ADKWorkMode = "chat" | "loop";
 
 export interface ADKProvider {
   id: string;
@@ -201,6 +201,14 @@ export interface ADKToolCall {
   updatedAt: string;
   completedAt?: string;
   durationMs?: number;
+}
+
+export interface ADKArtifactRef {
+  name: string;
+  version: number;
+  uri: string;
+  mimeType: string;
+  truncated: true;
 }
 
 export interface ADKApproval {
@@ -363,6 +371,7 @@ export interface ADKRun {
   childRunIds?: string[];
   iteration?: number;
   workflowStatus?: string;
+  workflowEngine?: string;
   workflowCursor?: number;
   workflowPlan?: ADKWorkflowStepState[];
   toolCalls: ADKToolCall[];
@@ -401,6 +410,10 @@ export interface ADKWorkflowStepState {
   executor?: string;
   resultSummary?: string;
   plannerWarnings?: string[];
+  nodeName?: string;
+  nodeStatus?: string;
+  routes?: string[];
+  outputSummary?: string;
 }
 
 export type ADKWorkflowStatus = "ENABLED" | "DISABLED" | string;

@@ -647,6 +647,7 @@ function buildChildLifecycleEntries(options: {
         runId,
         kind: "assistant_message",
         createdAt: startTime,
+        updatedAt: startTime,
         sequence: baseSequence + item.index * 2 - 1,
         status: "final",
         text: `启动子智能体 #${item.index}：${label}（${item.id}）`,
@@ -656,7 +657,10 @@ function buildChildLifecycleEntries(options: {
         sessionId,
         runId,
         kind: "assistant_message",
-        createdAt: statusTime,
+        // Keep the parent timeline stable by anchoring child lifecycle rows
+        // to the child's creation time instead of its latest refresh time.
+        createdAt: startTime,
+        updatedAt: statusTime,
         sequence: baseSequence + item.index * 2,
         status: "final",
         text: childLifecycleStatusText(item, label),

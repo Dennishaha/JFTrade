@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -59,6 +60,9 @@ func TestWorkflowStoreAdditionalBoundaryBranches(t *testing.T) {
 		store := newWorkflowStoreBoundaryStore(t)
 		if _, err := store.db.ExecContext(ctx, `DROP TABLE `+tableWorkflows); err != nil {
 			t.Fatalf("drop workflows: %v", err)
+		}
+		if _, err := store.SaveWorkflowDefinition(ctx, WorkflowDefinition{ID: "wf-dropped", Name: "Dropped"}); err == nil {
+			t.Fatal("SaveWorkflowDefinition succeeded after dropping workflows table")
 		}
 		if _, ok, err := store.WorkflowDefinition(ctx, "wf"); err == nil || ok {
 			t.Fatalf("WorkflowDefinition dropped table ok=%v err=%v, want error", ok, err)
@@ -119,6 +123,38 @@ func TestWorkflowStoreAdditionalBoundaryBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("workflow definition deletion surfaces trigger lookup and update errors", func(t *testing.T) {
+		lookupStore := newWorkflowStoreBoundaryStore(t)
+		workflow, err := lookupStore.SaveWorkflowDefinition(ctx, WorkflowDefinition{ID: "wf-delete-trigger-lookup", Name: "Delete Lookup"})
+		if err != nil {
+			t.Fatalf("SaveWorkflowDefinition lookup: %v", err)
+		}
+		if _, err := lookupStore.db.ExecContext(ctx, `DROP TABLE `+tableWorkflowTriggers); err != nil {
+			t.Fatalf("drop workflow triggers: %v", err)
+		}
+		if _, err := lookupStore.DeleteWorkflowDefinition(ctx, workflow.ID); err == nil || !strings.Contains(err.Error(), tableWorkflowTriggers) {
+			t.Fatalf("DeleteWorkflowDefinition trigger lookup err = %v, want %s", err, tableWorkflowTriggers)
+		}
+
+		updateStore := newWorkflowStoreBoundaryStore(t)
+		workflow, err = updateStore.SaveWorkflowDefinition(ctx, WorkflowDefinition{ID: "wf-delete-trigger-update", Name: "Delete Update"})
+		if err != nil {
+			t.Fatalf("SaveWorkflowDefinition update: %v", err)
+		}
+		if _, err := updateStore.SaveWorkflowTrigger(ctx, WorkflowTrigger{
+			ID: "trigger-delete-update", WorkflowID: workflow.ID, Type: WorkflowTriggerTypeSchedule,
+			Status: WorkflowTriggerStatusEnabled, NextRunAt: "2026-07-05T00:00:00Z",
+		}); err != nil {
+			t.Fatalf("SaveWorkflowTrigger update: %v", err)
+		}
+		if _, err := updateStore.db.ExecContext(ctx, `CREATE TRIGGER fail_workflow_trigger_update BEFORE UPDATE ON `+tableWorkflowTriggers+` BEGIN SELECT RAISE(FAIL, 'trigger update failed'); END`); err != nil {
+			t.Fatalf("create trigger update failure: %v", err)
+		}
+		if _, err := updateStore.DeleteWorkflowDefinition(ctx, workflow.ID); err == nil || !strings.Contains(err.Error(), "trigger update failed") {
+			t.Fatalf("DeleteWorkflowDefinition trigger update err = %v, want trigger update failed", err)
+		}
+	})
+
 	t.Run("workflow trigger logs surface marshal lookup and list errors", func(t *testing.T) {
 		store := newWorkflowStoreBoundaryStore(t)
 		if _, err := store.SaveWorkflowTriggerLog(ctx, WorkflowTriggerLog{
@@ -138,6 +174,9 @@ func TestWorkflowStoreAdditionalBoundaryBranches(t *testing.T) {
 		}
 		if _, ok, err := errorStore.WorkflowTriggerLog(ctx, "log"); err == nil || ok {
 			t.Fatalf("WorkflowTriggerLog dropped table ok=%v err=%v, want error", ok, err)
+		}
+		if _, err := errorStore.SaveWorkflowTriggerLog(ctx, WorkflowTriggerLog{ID: "log-dropped", WorkflowID: "wf", TriggerID: "trigger"}); err == nil {
+			t.Fatal("SaveWorkflowTriggerLog succeeded after dropping log table")
 		}
 		if _, _, err := errorStore.ListWorkflowTriggerLogsPage(ctx, "", "", "", 10, 0); err == nil {
 			t.Fatal("ListWorkflowTriggerLogsPage succeeded after dropping log table")

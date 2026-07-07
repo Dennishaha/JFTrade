@@ -207,7 +207,7 @@ func markFailedChatRun(ctx context.Context, run Run, adkErr error) Run {
 	run.Status = runStatusForContext(ctx, adkErr)
 	run.Message = adkErr.Error()
 	run.FailureReason = adkErr.Error()
-	run.ErrorCode = runErrorCode(run.Status)
+	run.ErrorCode = runErrorCode(run.Status, adkErr)
 	run.Degraded = true
 	completedAt := nowString()
 	run.CompletedAt = &completedAt
@@ -466,7 +466,7 @@ func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
 	if len(projectedPendingApprovals) > 0 {
 		run.PendingApprovals = projectedPendingApprovals
 	}
-	if shouldPreferProjectedToolCalls(run.ToolCalls, projection.ToolCalls) {
+	if shouldPreferProjectedToolCalls(run, projection.ToolCalls) {
 		run.ToolCalls = append([]ToolCall(nil), projection.ToolCalls...)
 	}
 	if len(run.ToolCalls) > 0 {
@@ -476,14 +476,21 @@ func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
 			run.Usage.ToolCallsTotal = len(run.ToolCalls)
 		}
 	}
+	if run.Status == RunStatusPaused && run.PausedReason == "user" {
+		run, _ = pruneInterruptedGoalWorkflowToolCalls(run)
+	}
 	return NormalizeRun(run)
 }
 
-func shouldPreferProjectedToolCalls(current []ToolCall, projected []ToolCall) bool {
+func shouldPreferProjectedToolCalls(run Run, projected []ToolCall) bool {
+	current := run.ToolCalls
 	if len(projected) == 0 {
 		return false
 	}
 	if len(current) == 0 {
+		if strings.TrimSpace(run.ParentRunID) == "" && normalizeWorkMode(run.WorkMode) != WorkModeChat {
+			return false
+		}
 		return true
 	}
 	projectedTerminal := terminalToolCallCount(projected)
