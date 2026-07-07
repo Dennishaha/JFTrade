@@ -13,7 +13,8 @@ const (
 	WorkModeChat = "chat"
 	WorkModeLoop = "loop"
 
-	WorkflowEngineADK2Loop = "adk2_loop"
+	WorkflowEngineADK2Loop   = "adk2_loop"
+	WorkflowEngineADK2Canvas = "adk2_canvas"
 
 	AgentStatusEnabled  = "ENABLED"
 	AgentStatusDisabled = "DISABLED"
@@ -251,30 +252,32 @@ type Run struct {
 }
 
 type WorkflowStepState struct {
-	TaskID          string   `json:"taskId,omitempty"`
-	Title           string   `json:"title"`
-	Description     string   `json:"description,omitempty"`
-	Message         string   `json:"message,omitempty"`
-	Status          string   `json:"status"`
-	ChildRunID      string   `json:"childRunId,omitempty"`
-	ChildProviderID string   `json:"childProviderId,omitempty"`
-	ChildModel      string   `json:"childModel,omitempty"`
-	DependsOn       []string `json:"dependsOn,omitempty"`
-	Iteration       int      `json:"iteration,omitempty"`
-	Order           int      `json:"order,omitempty"`
-	ModeHint        string   `json:"modeHint,omitempty"`
-	AgentRole       string   `json:"agentRole,omitempty"`
-	PlannerStepID   string   `json:"plannerStepId,omitempty"`
-	PlanSource      string   `json:"planSource,omitempty"`
-	WorkflowMode    string   `json:"workflowMode,omitempty"`
-	Objective       string   `json:"objective,omitempty"`
-	Executor        string   `json:"executor,omitempty"`
-	ResultSummary   string   `json:"resultSummary,omitempty"`
-	PlannerWarnings []string `json:"plannerWarnings,omitempty"`
-	NodeName        string   `json:"nodeName,omitempty"`
-	NodeStatus      string   `json:"nodeStatus,omitempty"`
-	Routes          []string `json:"routes,omitempty"`
-	OutputSummary   string   `json:"outputSummary,omitempty"`
+	TaskID              string   `json:"taskId,omitempty"`
+	Title               string   `json:"title"`
+	Description         string   `json:"description,omitempty"`
+	Message             string   `json:"message,omitempty"`
+	Status              string   `json:"status"`
+	ChildRunID          string   `json:"childRunId,omitempty"`
+	ChildAgentID        string   `json:"childAgentId,omitempty"`
+	ChildProviderID     string   `json:"childProviderId,omitempty"`
+	ChildModel          string   `json:"childModel,omitempty"`
+	ChildPermissionMode string   `json:"childPermissionMode,omitempty"`
+	DependsOn           []string `json:"dependsOn,omitempty"`
+	Iteration           int      `json:"iteration,omitempty"`
+	Order               int      `json:"order,omitempty"`
+	ModeHint            string   `json:"modeHint,omitempty"`
+	AgentRole           string   `json:"agentRole,omitempty"`
+	PlannerStepID       string   `json:"plannerStepId,omitempty"`
+	PlanSource          string   `json:"planSource,omitempty"`
+	WorkflowMode        string   `json:"workflowMode,omitempty"`
+	Objective           string   `json:"objective,omitempty"`
+	Executor            string   `json:"executor,omitempty"`
+	ResultSummary       string   `json:"resultSummary,omitempty"`
+	PlannerWarnings     []string `json:"plannerWarnings,omitempty"`
+	NodeName            string   `json:"nodeName,omitempty"`
+	NodeStatus          string   `json:"nodeStatus,omitempty"`
+	Routes              []string `json:"routes,omitempty"`
+	OutputSummary       string   `json:"outputSummary,omitempty"`
 }
 
 type RunUsage struct {
@@ -568,73 +571,79 @@ type OptimizationTask struct {
 }
 
 type Task struct {
-	ID              string   `json:"id"`
-	Title           string   `json:"title"`
-	Description     string   `json:"description,omitempty"`
-	Status          string   `json:"status"`
-	AgentID         string   `json:"agentId,omitempty"`
-	RunID           string   `json:"runId,omitempty"`
-	DependsOn       []string `json:"dependsOn,omitempty"`
-	Order           int      `json:"order,omitempty"`
-	ModeHint        string   `json:"modeHint,omitempty"`
-	AgentRole       string   `json:"agentRole,omitempty"`
-	PlannerStepID   string   `json:"plannerStepId,omitempty"`
-	PlanSource      string   `json:"planSource,omitempty"`
-	WorkflowMode    string   `json:"workflowMode,omitempty"`
-	Objective       string   `json:"objective,omitempty"`
-	Message         string   `json:"message,omitempty"`
-	Executor        string   `json:"executor,omitempty"`
-	ChildProviderID string   `json:"childProviderId,omitempty"`
-	ChildModel      string   `json:"childModel,omitempty"`
-	ResultSummary   string   `json:"resultSummary,omitempty"`
-	PlannerWarnings []string `json:"plannerWarnings,omitempty"`
-	CreatedAt       string   `json:"createdAt"`
-	UpdatedAt       string   `json:"updatedAt"`
+	ID                  string   `json:"id"`
+	Title               string   `json:"title"`
+	Description         string   `json:"description,omitempty"`
+	Status              string   `json:"status"`
+	AgentID             string   `json:"agentId,omitempty"`
+	RunID               string   `json:"runId,omitempty"`
+	DependsOn           []string `json:"dependsOn,omitempty"`
+	Order               int      `json:"order,omitempty"`
+	ModeHint            string   `json:"modeHint,omitempty"`
+	AgentRole           string   `json:"agentRole,omitempty"`
+	PlannerStepID       string   `json:"plannerStepId,omitempty"`
+	PlanSource          string   `json:"planSource,omitempty"`
+	WorkflowMode        string   `json:"workflowMode,omitempty"`
+	Objective           string   `json:"objective,omitempty"`
+	Message             string   `json:"message,omitempty"`
+	Executor            string   `json:"executor,omitempty"`
+	ChildAgentID        string   `json:"childAgentId,omitempty"`
+	ChildProviderID     string   `json:"childProviderId,omitempty"`
+	ChildModel          string   `json:"childModel,omitempty"`
+	ChildPermissionMode string   `json:"childPermissionMode,omitempty"`
+	ResultSummary       string   `json:"resultSummary,omitempty"`
+	PlannerWarnings     []string `json:"plannerWarnings,omitempty"`
+	CreatedAt           string   `json:"createdAt"`
+	UpdatedAt           string   `json:"updatedAt"`
 }
 
 type TaskWriteRequest struct {
-	ID              string   `json:"id,omitempty"`
-	Title           string   `json:"title"`
-	Description     string   `json:"description,omitempty"`
-	Status          string   `json:"status,omitempty"`
-	AgentID         string   `json:"agentId,omitempty"`
-	RunID           string   `json:"runId,omitempty"`
-	DependsOn       []string `json:"dependsOn,omitempty"`
-	Order           int      `json:"order,omitempty"`
-	ModeHint        string   `json:"modeHint,omitempty"`
-	AgentRole       string   `json:"agentRole,omitempty"`
-	PlannerStepID   string   `json:"plannerStepId,omitempty"`
-	PlanSource      string   `json:"planSource,omitempty"`
-	WorkflowMode    string   `json:"workflowMode,omitempty"`
-	Objective       string   `json:"objective,omitempty"`
-	Message         string   `json:"message,omitempty"`
-	Executor        string   `json:"executor,omitempty"`
-	ChildProviderID string   `json:"childProviderId,omitempty"`
-	ChildModel      string   `json:"childModel,omitempty"`
-	ResultSummary   string   `json:"resultSummary,omitempty"`
-	PlannerWarnings []string `json:"plannerWarnings,omitempty"`
+	ID                  string   `json:"id,omitempty"`
+	Title               string   `json:"title"`
+	Description         string   `json:"description,omitempty"`
+	Status              string   `json:"status,omitempty"`
+	AgentID             string   `json:"agentId,omitempty"`
+	RunID               string   `json:"runId,omitempty"`
+	DependsOn           []string `json:"dependsOn,omitempty"`
+	Order               int      `json:"order,omitempty"`
+	ModeHint            string   `json:"modeHint,omitempty"`
+	AgentRole           string   `json:"agentRole,omitempty"`
+	PlannerStepID       string   `json:"plannerStepId,omitempty"`
+	PlanSource          string   `json:"planSource,omitempty"`
+	WorkflowMode        string   `json:"workflowMode,omitempty"`
+	Objective           string   `json:"objective,omitempty"`
+	Message             string   `json:"message,omitempty"`
+	Executor            string   `json:"executor,omitempty"`
+	ChildAgentID        string   `json:"childAgentId,omitempty"`
+	ChildProviderID     string   `json:"childProviderId,omitempty"`
+	ChildModel          string   `json:"childModel,omitempty"`
+	ChildPermissionMode string   `json:"childPermissionMode,omitempty"`
+	ResultSummary       string   `json:"resultSummary,omitempty"`
+	PlannerWarnings     []string `json:"plannerWarnings,omitempty"`
 }
 
 type TaskPatchRequest struct {
-	Title           *string  `json:"title,omitempty"`
-	Description     *string  `json:"description,omitempty"`
-	Status          *string  `json:"status,omitempty"`
-	AgentID         *string  `json:"agentId,omitempty"`
-	RunID           *string  `json:"runId,omitempty"`
-	DependsOn       []string `json:"dependsOn,omitempty"`
-	Order           *int     `json:"order,omitempty"`
-	ModeHint        *string  `json:"modeHint,omitempty"`
-	AgentRole       *string  `json:"agentRole,omitempty"`
-	PlannerStepID   *string  `json:"plannerStepId,omitempty"`
-	PlanSource      *string  `json:"planSource,omitempty"`
-	WorkflowMode    *string  `json:"workflowMode,omitempty"`
-	Objective       *string  `json:"objective,omitempty"`
-	Message         *string  `json:"message,omitempty"`
-	Executor        *string  `json:"executor,omitempty"`
-	ChildProviderID *string  `json:"childProviderId,omitempty"`
-	ChildModel      *string  `json:"childModel,omitempty"`
-	ResultSummary   *string  `json:"resultSummary,omitempty"`
-	PlannerWarnings []string `json:"plannerWarnings,omitempty"`
+	Title               *string  `json:"title,omitempty"`
+	Description         *string  `json:"description,omitempty"`
+	Status              *string  `json:"status,omitempty"`
+	AgentID             *string  `json:"agentId,omitempty"`
+	RunID               *string  `json:"runId,omitempty"`
+	DependsOn           []string `json:"dependsOn,omitempty"`
+	Order               *int     `json:"order,omitempty"`
+	ModeHint            *string  `json:"modeHint,omitempty"`
+	AgentRole           *string  `json:"agentRole,omitempty"`
+	PlannerStepID       *string  `json:"plannerStepId,omitempty"`
+	PlanSource          *string  `json:"planSource,omitempty"`
+	WorkflowMode        *string  `json:"workflowMode,omitempty"`
+	Objective           *string  `json:"objective,omitempty"`
+	Message             *string  `json:"message,omitempty"`
+	Executor            *string  `json:"executor,omitempty"`
+	ChildAgentID        *string  `json:"childAgentId,omitempty"`
+	ChildProviderID     *string  `json:"childProviderId,omitempty"`
+	ChildModel          *string  `json:"childModel,omitempty"`
+	ChildPermissionMode *string  `json:"childPermissionMode,omitempty"`
+	ResultSummary       *string  `json:"resultSummary,omitempty"`
+	PlannerWarnings     []string `json:"plannerWarnings,omitempty"`
 }
 
 type MemoryEntry struct {

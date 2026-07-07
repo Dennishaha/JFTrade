@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"maps"
 	"strings"
 	"text/template"
@@ -46,6 +47,44 @@ func workflowInputs(workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTr
 	}
 	merged["now"] = time.Now().UTC().Format(time.RFC3339Nano)
 	return merged
+}
+
+func renderWorkflowCanvasTemplates(workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any) (jfadk.WorkflowDefinition, error) {
+	if workflow.CanvasGraph == nil {
+		return workflow, nil
+	}
+	merged := workflowInputs(workflow, trigger, inputs, matchedEvent)
+	graph := *workflow.CanvasGraph
+	graph.Nodes = append([]jfadk.WorkflowCanvasNode(nil), workflow.CanvasGraph.Nodes...)
+	graph.Edges = append([]jfadk.WorkflowCanvasEdge(nil), workflow.CanvasGraph.Edges...)
+	for index, node := range graph.Nodes {
+		if strings.ToLower(strings.TrimSpace(node.Type)) != "agent" {
+			continue
+		}
+		data := cloneMap(node.Data)
+		for _, spec := range []struct {
+			source string
+			target string
+		}{
+			{source: "promptTemplate", target: "message"},
+			{source: "messageTemplate", target: "message"},
+			{source: "objectiveTemplate", target: "objective"},
+		} {
+			raw, ok := data[spec.source].(string)
+			if !ok || strings.TrimSpace(raw) == "" {
+				continue
+			}
+			rendered, err := renderWorkflowTemplate(raw, merged)
+			if err != nil {
+				return jfadk.WorkflowDefinition{}, fmt.Errorf("render canvas node %q %s: %w", node.ID, spec.source, err)
+			}
+			data[spec.target] = rendered
+		}
+		node.Data = data
+		graph.Nodes[index] = node
+	}
+	workflow.CanvasGraph = &graph
+	return workflow, nil
 }
 
 func evaluateMarketThresholdTrigger(trigger jfadk.WorkflowTrigger, events []map[string]any, now time.Time) ([]map[string]any, bool) {

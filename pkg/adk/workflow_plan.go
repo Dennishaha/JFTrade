@@ -21,25 +21,27 @@ func workflowPlanFromTasks(tasks []Task, existing []WorkflowStepState) []Workflo
 	for index, task := range ordered {
 		prior := existingByTaskID[task.ID]
 		state := WorkflowStepState{
-			TaskID:          task.ID,
-			Title:           task.Title,
-			Description:     task.Description,
-			Message:         task.Message,
-			Status:          defaultString(task.Status, "TODO"),
-			DependsOn:       append([]string(nil), task.DependsOn...),
-			Iteration:       index + 1,
-			Order:           task.Order,
-			ModeHint:        task.ModeHint,
-			AgentRole:       task.AgentRole,
-			ChildProviderID: task.ChildProviderID,
-			ChildModel:      task.ChildModel,
-			PlannerStepID:   task.PlannerStepID,
-			PlanSource:      task.PlanSource,
-			WorkflowMode:    task.WorkflowMode,
-			Objective:       task.Objective,
-			Executor:        task.Executor,
-			ResultSummary:   task.ResultSummary,
-			PlannerWarnings: append([]string(nil), task.PlannerWarnings...),
+			TaskID:              task.ID,
+			Title:               task.Title,
+			Description:         task.Description,
+			Message:             task.Message,
+			Status:              defaultString(task.Status, "TODO"),
+			DependsOn:           append([]string(nil), task.DependsOn...),
+			Iteration:           index + 1,
+			Order:               task.Order,
+			ModeHint:            task.ModeHint,
+			AgentRole:           task.AgentRole,
+			ChildAgentID:        task.ChildAgentID,
+			ChildProviderID:     task.ChildProviderID,
+			ChildModel:          task.ChildModel,
+			ChildPermissionMode: task.ChildPermissionMode,
+			PlannerStepID:       task.PlannerStepID,
+			PlanSource:          task.PlanSource,
+			WorkflowMode:        task.WorkflowMode,
+			Objective:           task.Objective,
+			Executor:            task.Executor,
+			ResultSummary:       task.ResultSummary,
+			PlannerWarnings:     append([]string(nil), task.PlannerWarnings...),
 		}
 		if strings.TrimSpace(state.Title) == "" {
 			state.Title = prior.Title
@@ -166,20 +168,22 @@ func workflowStepFromTask(task Task) workflowStep {
 		message = defaultString(task.Description, task.Title)
 	}
 	return workflowStep{
-		Order:           task.Order,
-		DependencyID:    task.PlannerStepID,
-		Title:           task.Title,
-		Description:     workflowDescriptionWithoutAgentRole(task.Description),
-		Message:         message,
-		DependsOn:       append([]string(nil), task.DependsOn...),
-		AgentRole:       task.AgentRole,
-		ChildProviderID: task.ChildProviderID,
-		ChildModel:      task.ChildModel,
-		ModeHint:        task.ModeHint,
-		Objective:       task.Objective,
-		PlanSource:      task.PlanSource,
-		WorkflowMode:    task.WorkflowMode,
-		PlannerWarnings: append([]string(nil), task.PlannerWarnings...),
+		Order:               task.Order,
+		DependencyID:        task.PlannerStepID,
+		Title:               task.Title,
+		Description:         workflowDescriptionWithoutAgentRole(task.Description),
+		Message:             message,
+		DependsOn:           append([]string(nil), task.DependsOn...),
+		AgentRole:           task.AgentRole,
+		ChildAgentID:        task.ChildAgentID,
+		ChildProviderID:     task.ChildProviderID,
+		ChildModel:          task.ChildModel,
+		ChildPermissionMode: task.ChildPermissionMode,
+		ModeHint:            task.ModeHint,
+		Objective:           task.Objective,
+		PlanSource:          task.PlanSource,
+		WorkflowMode:        task.WorkflowMode,
+		PlannerWarnings:     append([]string(nil), task.PlannerWarnings...),
 	}
 }
 
@@ -221,14 +225,16 @@ func workflowSelfTaskSummary(task Task) string {
 }
 
 type workflowRuntimeTaskRequest struct {
-	Title           string
-	Message         string
-	Description     string
-	DependsOn       []string
-	AgentRole       string
-	ModeHint        string
-	ChildProviderID string
-	ChildModel      string
+	Title               string
+	Message             string
+	Description         string
+	DependsOn           []string
+	AgentRole           string
+	ModeHint            string
+	ChildAgentID        string
+	ChildProviderID     string
+	ChildModel          string
+	ChildPermissionMode string
 }
 
 func (e *WorkflowExecutor) addRuntimeWorkflowTask(ctx context.Context, parent Run, current Task, req workflowRuntimeTaskRequest) (Task, error) {
@@ -271,22 +277,24 @@ func (e *WorkflowExecutor) addRuntimeWorkflowTask(ctx context.Context, parent Ru
 	}
 	nextRuntime := runtimeCount + 1
 	task, err := e.runtime.store.SaveTask(ctx, TaskWriteRequest{
-		Title:           title,
-		Description:     description,
-		Message:         message,
-		Status:          "TODO",
-		AgentID:         parent.AgentID,
-		RunID:           parent.ID,
-		DependsOn:       dependsOn,
-		Order:           maxOrder + 1,
-		ModeHint:        req.ModeHint,
-		AgentRole:       req.AgentRole,
-		ChildProviderID: req.ChildProviderID,
-		ChildModel:      req.ChildModel,
-		PlannerStepID:   fmt.Sprintf("runtime-%d", nextRuntime),
-		PlanSource:      workflowPlanSourceRuntime,
-		WorkflowMode:    parent.WorkMode,
-		Objective:       parent.Objective,
+		Title:               title,
+		Description:         description,
+		Message:             message,
+		Status:              "TODO",
+		AgentID:             parent.AgentID,
+		RunID:               parent.ID,
+		DependsOn:           dependsOn,
+		Order:               maxOrder + 1,
+		ModeHint:            req.ModeHint,
+		AgentRole:           req.AgentRole,
+		ChildAgentID:        req.ChildAgentID,
+		ChildProviderID:     req.ChildProviderID,
+		ChildModel:          req.ChildModel,
+		ChildPermissionMode: req.ChildPermissionMode,
+		PlannerStepID:       fmt.Sprintf("runtime-%d", nextRuntime),
+		PlanSource:          workflowPlanSourceRuntime,
+		WorkflowMode:        parent.WorkMode,
+		Objective:           parent.Objective,
 	})
 	if err != nil {
 		return Task{}, err
@@ -471,11 +479,17 @@ func applyWorkflowChildState(step *WorkflowStepState, child Run) {
 	}
 	step.ChildRunID = child.ID
 	step.Executor = workflowTaskExecutorChild
+	if strings.TrimSpace(step.ChildAgentID) == "" {
+		step.ChildAgentID = strings.TrimSpace(child.AgentID)
+	}
 	if strings.TrimSpace(step.ChildProviderID) == "" {
 		step.ChildProviderID = strings.TrimSpace(child.ProviderID)
 	}
 	if strings.TrimSpace(step.ChildModel) == "" {
 		step.ChildModel = strings.TrimSpace(child.Model)
+	}
+	if strings.TrimSpace(step.ChildPermissionMode) == "" {
+		step.ChildPermissionMode = strings.TrimSpace(child.PermissionMode)
 	}
 	switch child.Status {
 	case RunStatusCompleted:
@@ -496,13 +510,36 @@ func applyWorkflowChildState(step *WorkflowStepState, child Run) {
 func workflowChildAgentForStep(agent Agent, step workflowStep) Agent {
 	child := agent
 	child.WorkMode = WorkModeChat
+	if agentID := strings.TrimSpace(step.ChildAgentID); agentID != "" {
+		child.ID = agentID
+	}
 	if providerID := strings.TrimSpace(step.ChildProviderID); providerID != "" {
 		child.ProviderID = providerID
 	}
 	if model := strings.TrimSpace(step.ChildModel); model != "" {
 		child.Model = model
 	}
+	if mode := strings.TrimSpace(step.ChildPermissionMode); mode != "" {
+		child.PermissionMode = mode
+	}
 	return child
+}
+
+func (r *Runtime) workflowChildAgentForStep(ctx context.Context, agent Agent, step workflowStep) (Agent, error) {
+	child := agent
+	if agentID := strings.TrimSpace(step.ChildAgentID); agentID != "" && agentID != agent.ID {
+		resolved, err := r.resolveAgentDefinition(ctx, agentID)
+		if err != nil {
+			return Agent{}, err
+		}
+		child = resolved
+	}
+	child = workflowChildAgentForStep(child, step)
+	child.WorkMode = WorkModeChat
+	if strings.TrimSpace(child.PermissionMode) == "" {
+		child.PermissionMode = agent.PermissionMode
+	}
+	return r.prepareAgent(ctx, child)
 }
 
 func workflowSummary(parent Run, replies []string) string {

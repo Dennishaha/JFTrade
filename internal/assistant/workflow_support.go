@@ -75,6 +75,9 @@ func workflowNodeRuns(
 	startedAt string,
 	finishedAt string,
 ) []jfadk.WorkflowNodeRun {
+	if workflow.CanvasGraph != nil {
+		return workflowCanvasNodeRuns(workflow, trigger, triggerType, inputs, matchedEvent, message, objective, response, status, errorMessage, startedAt, finishedAt)
+	}
 	context := newWorkflowNodeRunContext(workflow, trigger, triggerType, message, objective, response, status, errorMessage)
 	return []jfadk.WorkflowNodeRun{
 		context.triggerNode(inputs, matchedEvent, startedAt, finishedAt),
@@ -82,6 +85,46 @@ func workflowNodeRuns(
 		context.agentNode(startedAt, finishedAt),
 		context.monitorNode(startedAt, finishedAt),
 	}
+}
+
+func workflowCanvasNodeRuns(
+	workflow jfadk.WorkflowDefinition,
+	trigger *jfadk.WorkflowTrigger,
+	triggerType string,
+	inputs map[string]any,
+	matchedEvent map[string]any,
+	message string,
+	objective string,
+	response *jfadk.ChatResponse,
+	status string,
+	errorMessage string,
+	startedAt string,
+	finishedAt string,
+) []jfadk.WorkflowNodeRun {
+	context := newWorkflowNodeRunContext(workflow, trigger, triggerType, message, objective, response, status, errorMessage)
+	planByNodeID := map[string]jfadk.WorkflowStepState{}
+	if response != nil {
+		for _, step := range response.Run.WorkflowPlan {
+			if strings.TrimSpace(step.PlannerStepID) != "" {
+				planByNodeID[step.PlannerStepID] = step
+			}
+		}
+	}
+	runs := make([]jfadk.WorkflowNodeRun, 0, len(workflow.CanvasGraph.Nodes)+2)
+	for _, node := range workflow.CanvasGraph.Nodes {
+		nodeType := strings.ToLower(strings.TrimSpace(node.Type))
+		switch nodeType {
+		case "trigger":
+			runs = append(runs, context.canvasTriggerNode(node, inputs, matchedEvent, startedAt, finishedAt))
+		case "start":
+			runs = append(runs, context.canvasStartNode(node, inputs, startedAt, finishedAt))
+		case "agent":
+			runs = append(runs, canvasAgentNodeRun(node, planByNodeID[node.ID], errorMessage, startedAt, finishedAt))
+		case "monitor":
+			runs = append(runs, context.canvasMonitorNode(node, startedAt, finishedAt))
+		}
+	}
+	return runs
 }
 
 type workflowNodeRunContext struct {
@@ -205,6 +248,13 @@ func (c workflowNodeRunContext) triggerNode(inputs map[string]any, matchedEvent 
 	}
 }
 
+func (c workflowNodeRunContext) canvasTriggerNode(node jfadk.WorkflowCanvasNode, inputs map[string]any, matchedEvent map[string]any, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+	run := c.triggerNode(inputs, matchedEvent, startedAt, finishedAt)
+	run.NodeID = node.ID
+	run.Title = canvasNodeTitle(node, run.Title)
+	return run
+}
+
 func (c workflowNodeRunContext) startNode(inputs map[string]any, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
 	return jfadk.WorkflowNodeRun{
 		NodeID:     "start",
@@ -217,6 +267,13 @@ func (c workflowNodeRunContext) startNode(inputs map[string]any, startedAt strin
 		Outputs:    c.startOutputs,
 		Error:      errorForNode(c.startStatus, c.errorMessage),
 	}
+}
+
+func (c workflowNodeRunContext) canvasStartNode(node jfadk.WorkflowCanvasNode, inputs map[string]any, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+	run := c.startNode(inputs, startedAt, finishedAt)
+	run.NodeID = node.ID
+	run.Title = canvasNodeTitle(node, run.Title)
+	return run
 }
 
 func (c workflowNodeRunContext) agentNode(startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
@@ -244,6 +301,77 @@ func (c workflowNodeRunContext) monitorNode(startedAt string, finishedAt string)
 		Outputs:    c.monitorOutputs,
 		Error:      errorForNode(c.monitorStatus, c.errorMessage),
 	}
+}
+
+func (c workflowNodeRunContext) canvasMonitorNode(node jfadk.WorkflowCanvasNode, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+	run := c.monitorNode(startedAt, finishedAt)
+	run.NodeID = node.ID
+	run.Title = canvasNodeTitle(node, run.Title)
+	return run
+}
+
+func canvasAgentNodeRun(node jfadk.WorkflowCanvasNode, step jfadk.WorkflowStepState, errorMessage string, startedAt string, finishedAt string) jfadk.WorkflowNodeRun {
+	status := workflowNodeStatusFromStep(step.Status)
+	if strings.TrimSpace(step.Status) == "" {
+		status = jfadk.WorkflowTriggerLogStatusSkipped
+	}
+	outputs := map[string]any{}
+	if strings.TrimSpace(step.ChildRunID) != "" {
+		outputs["runId"] = step.ChildRunID
+	}
+	if strings.TrimSpace(step.OutputSummary) != "" {
+		outputs["reply"] = step.OutputSummary
+	}
+	if strings.TrimSpace(step.ResultSummary) != "" && outputs["reply"] == nil {
+		outputs["reply"] = step.ResultSummary
+	}
+	outputs["status"] = step.Status
+	if status != jfadk.WorkflowTriggerLogStatusSucceeded && strings.TrimSpace(errorMessage) != "" {
+		outputs["error"] = errorMessage
+	}
+	outputs["toolCalls"] = []any{}
+	inputs := map[string]any{}
+	if strings.TrimSpace(step.Message) != "" {
+		inputs["message"] = step.Message
+	}
+	if strings.TrimSpace(step.ChildAgentID) != "" {
+		inputs["agentId"] = step.ChildAgentID
+	}
+	if strings.TrimSpace(step.ChildProviderID) != "" {
+		inputs["providerId"] = step.ChildProviderID
+	}
+	if strings.TrimSpace(step.ChildModel) != "" {
+		inputs["model"] = step.ChildModel
+	}
+	return jfadk.WorkflowNodeRun{
+		NodeID: node.ID, NodeType: "agent", Title: canvasNodeTitle(node, defaultString(step.Title, node.ID)),
+		Status: status, StartedAt: startedAt, FinishedAt: finishedAt, Inputs: inputs, Outputs: outputs,
+		Error: errorForNode(status, errorMessage),
+	}
+}
+
+func workflowNodeStatusFromStep(status string) string {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "DONE":
+		return jfadk.WorkflowTriggerLogStatusSucceeded
+	case "IN_PROGRESS":
+		return jfadk.WorkflowTriggerLogStatusRunning
+	case "TODO":
+		return jfadk.WorkflowTriggerLogStatusQueued
+	case "BLOCKED", "CANCELLED":
+		return jfadk.WorkflowTriggerLogStatusFailed
+	default:
+		return strings.ToUpper(strings.TrimSpace(status))
+	}
+}
+
+func canvasNodeTitle(node jfadk.WorkflowCanvasNode, fallback string) string {
+	if node.Data != nil {
+		if title := strings.TrimSpace(fmt.Sprint(node.Data["title"])); title != "" && title != "<nil>" {
+			return title
+		}
+	}
+	return fallback
 }
 
 func errorForNode(status string, message string) string {

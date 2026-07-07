@@ -11,6 +11,7 @@ import {
 } from "@/features/adkWorkflowCanvasGraph";
 import {
   addDraftTriggerFlowNode,
+  addAgentFlowNode,
   connectWorkflowFlowEdge,
   flowFromGraph,
   graphFromFlow as graphFromFlowSnapshots,
@@ -60,6 +61,16 @@ export function useADKWorkflowStudioCanvas(options: {
     flowEdges.value = flow.edges;
   }
 
+  function addAgentNode(options: {
+    id: string;
+    title: string;
+    agentId: string;
+  }): void {
+    const flow = addAgentFlowNode(flowNodes.value, flowEdges.value, options);
+    flowNodes.value = flow.nodes;
+    flowEdges.value = flow.edges;
+  }
+
   function removeNode(nodeId: string): void {
     const flow = removeWorkflowFlowNode(flowNodes.value, flowEdges.value, nodeId);
     flowNodes.value = flow.nodes;
@@ -78,6 +89,7 @@ export function useADKWorkflowStudioCanvas(options: {
     loadWorkflowGraph,
     refreshNodeData,
     addTriggerNode,
+    addAgentNode,
     removeNode,
     connect,
   };

@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import type { Connection, NodeMouseEvent } from "@vue-flow/core";
 import type { SplitpanesResizedPayload } from "splitpanes";
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import "@/styles/adk-workflow-studio.css";
 
 import type {
   ADKAgent,
   ADKProvider,
   ADKWorkflowDefinition,
+  ADKWorkflowTrigger,
   ADKWorkflowTriggerLog,
   ADKWorkflowTriggerType,
 } from "@/contracts";
 import {
   canvasGraphToWorkflowPayload,
-  legacyWorkflowToCanvasGraph,
+  defaultWorkflowCanvasGraph,
 } from "@/features/adkWorkflowCanvasGraph";
 import {
   createTriggerForm,
@@ -45,6 +46,8 @@ import {
   workflowTemplates,
   workflowTone,
   workModeLabel,
+  type FlowNodeData,
+  type InspectorNodeKind,
   type WorkflowStudioPanePair,
   type WorkflowStudioPaneSizes,
   type WorkflowTemplate,
@@ -151,7 +154,7 @@ const {
   selectedWorkflowTriggers,
   selectedTrigger,
   logTriggerOptions,
-  inspectorKind,
+  inspectorKind: fallbackInspectorKind,
   agentOptions,
   providerOptions,
   inputVariableOptions,
@@ -194,6 +197,7 @@ const {
   loadWorkflowGraph,
   refreshNodeData,
   addTriggerNode: addTriggerFlowNode,
+  addAgentNode: addAgentFlowNode,
   removeNode: removeFlowNode,
   connect: connectFlowNode,
 } = useADKWorkflowStudioCanvas({
@@ -203,7 +207,9 @@ const {
     workflowStatus: workflowForm.status,
     workflowWorkMode: workflowForm.workMode,
     workflowInputCount: workflowForm.inputRows.length,
+    workflowAgentId: workflowForm.agentId,
     agentName: agentName(workflowForm.agentId),
+    agentNameForId: agentName,
     logsCount: logs.value.length,
     logStatusFilter: logStatusFilter.value,
     selectedLog: selectedLog.value,
@@ -215,6 +221,17 @@ const {
   }),
 });
 const templates = workflowTemplates;
+const selectedFlowNode = computed(() =>
+  flowNodes.value.find((node) => node.id === selectedNodeId.value) ?? null,
+);
+const inspectorKind = computed<InspectorNodeKind>(() => {
+  if (selectedFlowNode.value?.type === "agent") return "agent";
+  return fallbackInspectorKind.value;
+});
+const selectedAgentNodeData = computed<FlowNodeData>(() => {
+  const node = selectedFlowNode.value?.type === "agent" ? selectedFlowNode.value : null;
+  return { ...(node?.data ?? {}) };
+});
 
 watch(
   () => props.viewMode,
@@ -294,11 +311,7 @@ function startDraftWorkflow(template: WorkflowTemplate): void {
   draftTriggerPending.value = trigger != null;
   draftTriggerNodeId.value = trigger ? "trigger:draft" : "";
   if (trigger) assignTriggerForm(trigger);
-  setFlowGraph(legacyWorkflowToCanvasGraph(pseudoWorkflow, []));
-  if (!trigger) {
-    flowNodes.value = flowNodes.value.filter((node) => node.id !== "trigger:draft");
-    flowEdges.value = flowEdges.value.filter((edge) => edge.source !== "trigger:draft");
-  }
+  setFlowGraph(defaultWorkflowCanvasGraph(pseudoWorkflow, trigger ? [draftTriggerFromForm(trigger)] : []));
   selectedNodeId.value = props.viewMode === "workflow-logs"
     ? "monitor"
     : trigger
@@ -306,6 +319,19 @@ function startDraftWorkflow(template: WorkflowTemplate): void {
       : "start";
   refreshNodeData();
   showTemplatePicker.value = false;
+}
+
+function draftTriggerFromForm(form: TriggerFormModel): ADKWorkflowTrigger {
+  return {
+    id: "draft",
+    workflowId: "",
+    type: form.type,
+    title: form.title,
+    status: form.status,
+    config: {},
+    createdAt: "",
+    updatedAt: "",
+  };
 }
 
 async function saveStudio(): Promise<void> {
@@ -504,6 +530,33 @@ function addTriggerNode(type: ADKWorkflowTriggerType = "schedule"): void {
   selectedNodeId.value = id;
 }
 
+function addAgentNode(): void {
+  const id = `agent:${Date.now()}`;
+  addAgentFlowNode({
+    id,
+    title: "智能体",
+    agentId: workflowForm.agentId,
+  });
+  selectedNodeId.value = id;
+  refreshNodeData();
+}
+
+function updateSelectedAgentNodeData(payload: { key: string; value: unknown }): void {
+  const key = payload.key.trim();
+  if (key === "") return;
+  flowNodes.value = flowNodes.value.map((node) => {
+    if (node.id !== selectedNodeId.value || node.type !== "agent") return node;
+    const data = { ...(node.data ?? {}) };
+    if (typeof payload.value === "string" && payload.value.trim() === "") {
+      delete data[key];
+    } else {
+      data[key] = payload.value;
+    }
+    return { ...node, data };
+  });
+  refreshNodeData();
+}
+
 function removeDraftTriggerNode(): void {
   const id = selectedNodeId.value;
   removeFlowNode(id);
@@ -672,6 +725,7 @@ function providerName(providerId: string): string {
                 @refresh="refreshWorkflows"
                 @show-inspector="showInspector"
                 @add-trigger="addTriggerNode('schedule')"
+                @add-agent="addAgentNode"
                 @open-logs="openWorkflowLogs"
                 @run="runWorkflowNow()"
                 @debug="openDebugPanel"
@@ -722,6 +776,7 @@ function providerName(providerId: string): string {
                 :trigger-form="triggerForm"
                 :selected-trigger="selectedTrigger"
                 :selected-node-run="selectedNodeRun"
+                :selected-agent-node-data="selectedAgentNodeData"
                 :selected-log="selectedLog"
                 :visible-logs="visibleLogs"
                 :selected-node-id="selectedNodeId"
@@ -751,6 +806,7 @@ function providerName(providerId: string): string {
                 @add-input-row="addInputRow"
                 @remove-input-row="removeInputRow"
                 @insert-prompt-variable="insertPromptVariable"
+                @update-agent-node-data="updateSelectedAgentNodeData"
                 @run-selected-trigger="runSelectedTrigger"
                 @remove-selected-trigger="removeSelectedTrigger"
                 @refresh-logs="refreshLogs"

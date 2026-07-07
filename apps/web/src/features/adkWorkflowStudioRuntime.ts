@@ -43,7 +43,9 @@ export type WorkflowFlowNodeDataContext = {
   workflowStatus: string;
   workflowWorkMode: string;
   workflowInputCount: number;
+  workflowAgentId: string;
   agentName: string;
+  agentNameForId: (agentId: string) => string;
   logsCount: number;
   logStatusFilter: string;
   selectedLog: ADKWorkflowTriggerLog | null;
@@ -105,14 +107,15 @@ export function refreshWorkflowFlowNodeData(
         },
       };
     }
-    if (node.id === "agent") {
-      const run = context.selectedLog ? workflowNodeRunFor(context.selectedLog, "agent") : null;
+    if (node.type === "agent") {
+      const run = context.selectedLog ? workflowNodeRunFor(context.selectedLog, node.id) : null;
+      const agentId = String(node.data?.agentId ?? context.workflowAgentId);
       return {
         ...node,
         data: {
           ...(node.data ?? {}),
-          title: context.workflowName || "智能体",
-          subtitle: context.agentName,
+          title: String(node.data?.title ?? "") || "智能体",
+          subtitle: context.agentNameForId(agentId) || context.agentName,
           status: run?.status ?? context.workflowWorkMode,
           runStatus: run?.status ?? "",
         },
@@ -189,6 +192,35 @@ export function addDraftTriggerFlowNode(
         animated: true,
       },
     ],
+  };
+}
+
+export function addAgentFlowNode(
+  nodes: FlowNodeSnapshot[],
+  edges: FlowEdgeSnapshot[],
+  options: {
+    id: string;
+    title: string;
+    agentId: string;
+  },
+): { nodes: FlowNodeSnapshot[]; edges: FlowEdgeSnapshot[] } {
+  const agentCount = nodes.filter((node) => node.type === "agent").length;
+  return {
+    nodes: [
+      ...nodes,
+      {
+        id: options.id,
+        type: "agent",
+        position: { x: 385 + agentCount * 120, y: 250 + agentCount * 72 },
+        data: {
+          title: options.title,
+          agentId: options.agentId,
+          promptTemplate: "",
+          objectiveTemplate: "",
+        },
+      },
+    ],
+    edges,
   };
 }
 

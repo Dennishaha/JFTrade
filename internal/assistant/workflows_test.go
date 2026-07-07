@@ -214,6 +214,7 @@ func TestRunWorkflowStoresResultAndNodeTrace(t *testing.T) {
 		WorkMode:       jfadk.WorkModeChat,
 		PromptTemplate: "run {{ .symbol }}",
 		DefaultInputs:  map[string]any{"symbol": "US.AAPL"},
+		CanvasGraph:    workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow: %v", err)
@@ -223,23 +224,135 @@ func TestRunWorkflowStoresResultAndNodeTrace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunWorkflow: %v", err)
 	}
-	if result.Log.Result == nil || result.Log.Result.Markdown != "ok" {
-		t.Fatalf("workflow result = %+v, want markdown ok", result.Log.Result)
+	if result.Log.Result == nil || !strings.Contains(result.Log.Result.Markdown, "ok") {
+		t.Fatalf("workflow result = %+v, want markdown containing child reply", result.Log.Result)
 	}
 	if len(result.Log.NodeRuns) < 3 {
 		t.Fatalf("node runs = %+v, want Start/Agent/Monitor trace", result.Log.NodeRuns)
 	}
-	if result.Log.NodeRuns[1].NodeID != "start" || result.Log.NodeRuns[2].NodeID != "agent" {
+	if result.Log.NodeRuns[0].NodeID != "start" || result.Log.NodeRuns[1].NodeID != "agent:primary" {
 		t.Fatalf("node run order = %+v", result.Log.NodeRuns)
 	}
-	if result.Log.NodeRuns[2].Outputs["reply"] != "ok" {
-		t.Fatalf("agent outputs = %+v, want reply ok", result.Log.NodeRuns[2].Outputs)
+	if result.Log.NodeRuns[1].Outputs["reply"] != "ok" {
+		t.Fatalf("agent outputs = %+v, want reply ok", result.Log.NodeRuns[1].Outputs)
 	}
 	stored, ok, err := runtime.Store().WorkflowTriggerLog(ctx, result.Log.ID)
 	if err != nil || !ok {
 		t.Fatalf("WorkflowTriggerLog ok=%v err=%v", ok, err)
 	}
-	if stored.Result == nil || stored.Result.Markdown != "ok" || len(stored.NodeRuns) < 3 {
+	if stored.Result == nil || !strings.Contains(stored.Result.Markdown, "ok") || len(stored.NodeRuns) < 3 {
 		t.Fatalf("stored log = %+v, want result and node trace", stored)
 	}
+}
+
+func TestRunWorkflowWithoutCanvasGraphFailsInsteadOfChatFallback(t *testing.T) {
+	runtime, service, _ := newAssistantServiceHarness(t)
+	assistantServiceProvider(t, runtime)
+	ctx := t.Context()
+	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
+		ID: "workflow-no-canvas-agent", Name: "Workflow No Canvas Agent", Status: jfadk.AgentStatusEnabled,
+		ProviderID: "test-provider", Model: "test-model",
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	workflow, err := service.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
+		ID: "workflow-no-canvas", Name: "Workflow No Canvas", Status: jfadk.WorkflowStatusEnabled,
+		AgentID: agent.ID, WorkMode: jfadk.WorkModeChat, PromptTemplate: "run",
+	})
+	if err != nil {
+		t.Fatalf("SaveWorkflow: %v", err)
+	}
+
+	result, err := service.RunWorkflow(ctx, workflow.ID, nil)
+	if err == nil || result.Response != nil || result.Log.Status != jfadk.WorkflowTriggerLogStatusFailed {
+		t.Fatalf("RunWorkflow result=%+v err=%v, want failed log without response", result, err)
+	}
+	if !strings.Contains(err.Error(), "canvas graph is required") || !strings.Contains(result.Log.Error, "canvas graph is required") {
+		t.Fatalf("RunWorkflow err=%v log=%+v, want canvas graph error", err, result.Log)
+	}
+}
+
+func TestRunWorkflowCanvasCompilesAndStoresNodeOutputs(t *testing.T) {
+	runtime, service, _ := newAssistantServiceHarness(t)
+	assistantServiceProvider(t, runtime)
+	ctx := t.Context()
+	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
+		ID: "workflow-canvas-agent", Name: "Workflow Canvas Agent", Status: jfadk.AgentStatusEnabled,
+		ProviderID: "test-provider", Model: "test-model",
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent parent: %v", err)
+	}
+	child, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
+		ID: "workflow-canvas-child", Name: "Workflow Canvas Child", Status: jfadk.AgentStatusEnabled,
+		ProviderID: "test-provider", Model: "test-model",
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent child: %v", err)
+	}
+	workflow, err := service.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
+		ID:             "workflow-canvas",
+		Name:           "Workflow Canvas",
+		Status:         jfadk.WorkflowStatusEnabled,
+		AgentID:        agent.ID,
+		WorkMode:       jfadk.WorkModeLoop,
+		PromptTemplate: "fallback {{ .symbol }}",
+		DefaultInputs:  map[string]any{"symbol": "US.AAPL"},
+		CanvasGraph: &jfadk.WorkflowCanvasGraph{
+			Version: "adk-workflow-canvas/v1",
+			Nodes: []jfadk.WorkflowCanvasNode{
+				{ID: "start", Type: "start", Position: jfadk.WorkflowCanvasPoint{}},
+				{ID: "research", Type: "agent", Position: jfadk.WorkflowCanvasPoint{}, Data: map[string]any{
+					"title": "Research", "agentId": child.ID, "promptTemplate": "research {{ .symbol }}",
+				}},
+				{ID: "report", Type: "agent", Position: jfadk.WorkflowCanvasPoint{}, Data: map[string]any{
+					"title": "Report", "promptTemplate": "report {{ .symbol }}",
+				}},
+				{ID: "monitor", Type: "monitor", Position: jfadk.WorkflowCanvasPoint{}},
+			},
+			Edges: []jfadk.WorkflowCanvasEdge{
+				{ID: "start-research", Source: "start", Target: "research"},
+				{ID: "research-report", Source: "research", Target: "report"},
+				{ID: "report-monitor", Source: "report", Target: "monitor"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("SaveWorkflow: %v", err)
+	}
+
+	result, err := service.RunWorkflow(ctx, workflow.ID, map[string]any{"symbol": "US.MSFT"})
+	if err != nil {
+		t.Fatalf("RunWorkflow canvas: %v", err)
+	}
+	if result.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded || result.Response == nil {
+		t.Fatalf("canvas result = %+v, want succeeded response", result)
+	}
+	if result.Response.Run.WorkflowEngine != jfadk.WorkflowEngineADK2Canvas {
+		t.Fatalf("workflow engine = %q, want canvas", result.Response.Run.WorkflowEngine)
+	}
+	if len(result.Response.Run.ChildRunIDs) != 2 {
+		t.Fatalf("child run ids = %+v, want two canvas child runs", result.Response.Run.ChildRunIDs)
+	}
+	research := workflowNodeRunByID(result.Log.NodeRuns, "research")
+	report := workflowNodeRunByID(result.Log.NodeRuns, "report")
+	if research == nil || report == nil {
+		t.Fatalf("node runs = %+v, want research and report nodes", result.Log.NodeRuns)
+	}
+	if research.Inputs["agentId"] != child.ID || research.Inputs["message"] != "research US.MSFT" {
+		t.Fatalf("research inputs = %+v, want rendered child agent message", research.Inputs)
+	}
+	if research.Outputs["reply"] != "ok" || report.Outputs["reply"] != "ok" {
+		t.Fatalf("node outputs research=%+v report=%+v, want replies", research.Outputs, report.Outputs)
+	}
+}
+
+func workflowNodeRunByID(runs []jfadk.WorkflowNodeRun, id string) *jfadk.WorkflowNodeRun {
+	for index := range runs {
+		if runs[index].NodeID == id {
+			return &runs[index]
+		}
+	}
+	return nil
 }

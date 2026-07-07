@@ -449,9 +449,12 @@ func (r *Runtime) newGoogleADKWorkflowChildNode(
 	name := googleADKWorkflowChildName(parentID, index)
 	execution.runIDByAgentName[name] = child.ID
 	execution.runSnapshotBaseByID[child.ID] = child
-	childDefinition := workflowChildAgentForStep(definition, step)
+	childDefinition, err := r.workflowChildAgentForStep(ctx, definition, step)
+	if err != nil {
+		return nil, err
+	}
 	childDefinition.WorkMode = WorkModeChat
-	childDefinition.Instruction = workflowChildInstruction(definition.Instruction, workflowChildInstructionTask(step))
+	childDefinition.Instruction = workflowChildInstruction(childDefinition.Instruction, workflowChildInstructionTask(step))
 	childLLM, err := r.googleADKModelForAgent(ctx, childDefinition)
 	if err != nil {
 		return nil, err

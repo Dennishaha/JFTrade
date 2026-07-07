@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ADKWorkflowDefinition, ADKWorkflowTrigger } from "@/contracts";
 import {
   canvasGraphToWorkflowPayload,
-  legacyWorkflowToCanvasGraph,
+  defaultWorkflowCanvasGraph,
   sanitizeWorkflowCanvasGraph,
   triggerNodeId,
   validateWorkflowCanvasGraph,
@@ -373,29 +373,29 @@ describe("adkWorkflowForms", () => {
     expect(marketTrigger.market.instrumentIdsText).toBe("");
   });
 
-  it("builds a canvas graph for legacy workflows and trigger nodes", () => {
+  it("builds a default executable canvas DAG for new workflows and trigger nodes", () => {
     const workflow = buildWorkflow();
     const trigger = buildTrigger();
 
-    const graph = legacyWorkflowToCanvasGraph(workflow, [trigger]);
+    const graph = defaultWorkflowCanvasGraph(workflow, [trigger]);
 
     expect(validateWorkflowCanvasGraph(graph)).toBe(true);
     expect(graph.nodes?.map((node) => node.id)).toEqual([
       "start",
       "trigger:trigger-1",
-      "agent",
+      "agent:primary",
       "monitor",
     ]);
     expect(graph.edges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ source: "trigger:trigger-1", target: "start" }),
-        expect.objectContaining({ source: "start", target: "agent" }),
+        expect.objectContaining({ source: "start", target: "agent:primary" }),
       ]),
     );
   });
 
-  it("labels all legacy trigger node types for canvas fallback graphs", () => {
-    const graph = legacyWorkflowToCanvasGraph(buildWorkflow(), [
+  it("labels all trigger node types for default canvas graphs", () => {
+    const graph = defaultWorkflowCanvasGraph(buildWorkflow(), [
       { ...buildTrigger(), id: "schedule", title: "", type: "schedule" },
       { ...buildTrigger(), id: "webhook", title: "", type: "webhook" },
       { ...buildTrigger(), id: "event", title: "", type: "event" },
@@ -410,18 +410,22 @@ describe("adkWorkflowForms", () => {
     ).toEqual(["定时", "网络回调", "事件", "行情阈值", "手动"]);
   });
 
-  it("creates draft trigger nodes when legacy workflows have no trigger resources", () => {
-    const graph = legacyWorkflowToCanvasGraph(
+  it("does not create draft trigger nodes unless the caller supplies them", () => {
+    const graph = defaultWorkflowCanvasGraph(
       { ...buildWorkflow(), name: "", defaultInputs: undefined },
       [],
     );
 
-    expect(graph.nodes?.find((node) => node.id === "trigger:draft")).toMatchObject({
-      type: "trigger",
-      data: { title: "手动", status: "DISABLED" },
-    });
-    expect(graph.nodes?.find((node) => node.id === "agent")?.data?.title).toBe("智能体");
+    expect(graph.nodes?.some((node) => node.id === "trigger:draft")).toBe(false);
+    expect(graph.nodes?.find((node) => node.id === "agent:primary")?.data?.title).toBe("智能体");
     expect(triggerNodeId("   ")).toBe("trigger:draft");
+  });
+
+  it("returns an empty canvas for workflows without saved canvas graphs", () => {
+    const graph = workflowToCanvasGraph(buildWorkflow(), [buildTrigger()]);
+
+    expect(graph.nodes).toEqual([]);
+    expect(graph.edges).toEqual([]);
   });
 
   it("preserves saved canvas graph while merging missing trigger nodes", () => {
@@ -547,12 +551,12 @@ describe("adkWorkflowForms", () => {
   it("writes canvas graph into workflow payload with form values", () => {
     const form = workflowToForm(buildWorkflow());
     form.inputRows.push(createWorkflowInputRow("threshold", 100));
-    const graph = legacyWorkflowToCanvasGraph(buildWorkflow(), [buildTrigger()]);
+    const graph = defaultWorkflowCanvasGraph(buildWorkflow(), [buildTrigger()]);
 
     const payload = canvasGraphToWorkflowPayload(form, graph);
 
     expect(payload.defaultInputs).toMatchObject({ symbol: "US.AAPL", threshold: 100 });
-    expect(payload.canvasGraph?.nodes?.map((node) => node.id)).toContain("agent");
+    expect(payload.canvasGraph?.nodes?.map((node) => node.id)).toContain("agent:primary");
   });
 
   it("builds workflow run links with session and run ids", () => {

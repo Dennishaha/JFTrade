@@ -17,7 +17,7 @@ vi.mock("@vue-flow/core", async () => {
               {
                 type: "button",
                 "data-testid": "connect-edge",
-                onClick: () => emit("connect", { source: "start", target: "agent" }),
+                onClick: () => emit("connect", { source: "start", target: "agent:primary" }),
               },
               "connect",
             ),
@@ -31,6 +31,7 @@ vi.mock("@vue-flow/core", async () => {
               selected: false,
             }),
             slots["node-agent"]?.({
+              id: "agent:primary",
               data: { title: "每日复盘", subtitle: "Agent", status: "loop" },
               selected: false,
             }),
@@ -104,9 +105,11 @@ describe("ADK workflow Studio components", () => {
 
     await wrapper.find("[aria-label='运行']").trigger("click");
     await wrapper.find("[aria-label='删除工作流']").trigger("click");
+    await wrapper.find("[aria-label='添加智能体']").trigger("click");
 
     expect(wrapper.emitted("run")).toHaveLength(1);
     expect(wrapper.emitted("remove")).toHaveLength(1);
+    expect(wrapper.emitted("addAgent")).toHaveLength(1);
   });
 
   it("keeps unavailable toolbar actions disabled while still exposing navigation controls", async () => {
@@ -136,6 +139,7 @@ describe("ADK workflow Studio components", () => {
     await wrapper.find("[aria-label='刷新']").trigger("click");
     await wrapper.find("[aria-label='显示右栏']").trigger("click");
     await wrapper.find("[aria-label='添加触发器']").trigger("click");
+    await wrapper.find("[aria-label='添加智能体']").trigger("click");
     await wrapper.find("[aria-label='触发日志']").trigger("click");
     await wrapper.find("[aria-label='调试']").trigger("click");
     await wrapper.find("[aria-label='保存']").trigger("click");
@@ -143,6 +147,7 @@ describe("ADK workflow Studio components", () => {
     expect(wrapper.emitted("refresh")).toHaveLength(1);
     expect(wrapper.emitted("showInspector")).toHaveLength(1);
     expect(wrapper.emitted("addTrigger")).toHaveLength(1);
+    expect(wrapper.emitted("addAgent")).toHaveLength(1);
     expect(wrapper.emitted("openLogs")).toHaveLength(1);
     expect(wrapper.emitted("debug")).toBeUndefined();
     expect(wrapper.emitted("save")).toBeUndefined();
@@ -201,7 +206,7 @@ describe("ADK workflow Studio components", () => {
       props: {
         nodes: [
           { id: "start", type: "start", position: { x: 0, y: 0 }, data: {} },
-          { id: "agent", type: "agent", position: { x: 200, y: 0 }, data: {} },
+          { id: "agent:primary", type: "agent", position: { x: 200, y: 0 }, data: {} },
         ],
         edges: [],
         selectedNodeId: "start",
@@ -216,7 +221,7 @@ describe("ADK workflow Studio components", () => {
     await wrapper.find("[data-testid='connect-edge']").trigger("click");
 
     expect(wrapper.emitted("selectNode")?.[0]).toEqual(["start"]);
-    expect(wrapper.emitted("connect")?.[0]).toEqual([{ source: "start", target: "agent" }]);
+    expect(wrapper.emitted("connect")?.[0]).toEqual([{ source: "start", target: "agent:primary" }]);
   });
 
   it("keeps debug inputs in the Studio flow and emits run controls", async () => {
@@ -327,29 +332,37 @@ describe("ADK workflow Studio components", () => {
     expect(wrapper.emitted("addInputRow")).toHaveLength(1);
   });
 
-  it("shows agent prompt variables and forwards insertion requests from the inspector", async () => {
+  it("shows agent prompt variables and writes them to node canvas data", async () => {
     const workflowForm = createWorkflowForm("agent-1", "Run");
     workflowForm.providerId = "provider-1";
 
     const wrapper = mountInspector({
       inspectorKind: "agent",
+      selectedNodeId: "agent:primary",
       workflowForm,
+      selectedAgentNodeData: { providerId: "provider-1", promptTemplate: "Run" },
       inputVariableOptions: [{ title: "symbol", value: "{{ .symbol }}" }],
     });
 
     await wrapper.findAll("button").find((button) => button.text().includes("symbol"))!.trigger("click");
 
     expect(wrapper.text()).toContain("默认模型 provider-1");
-    expect(wrapper.emitted("insertPromptVariable")?.[0]).toEqual(["{{ .symbol }}"]);
+    expect(wrapper.emitted("insertPromptVariable")).toBeUndefined();
+    expect(wrapper.emitted("updateAgentNodeData")?.at(-1)?.[0]).toEqual({
+      key: "promptTemplate",
+      value: "Run\n{{ .symbol }}",
+    });
   });
 
-  it("keeps Agent inspector prompt variable actions explicit", async () => {
+  it("keeps Agent inspector prompt variable actions node-scoped", async () => {
     const workflowForm = createWorkflowForm("agent-1", "Run");
 
     const wrapper = mount(ADKWorkflowAgentInspector, {
       props: {
         workflowForm,
         selectedNodeRun: null,
+        selectedNodeId: "agent:primary",
+        selectedAgentNodeData: { promptTemplate: "" },
         agentOptions: [
           { title: "Agent 1", value: "agent-1" },
           { title: "Agent 2", value: "agent-2" },
@@ -363,7 +376,40 @@ describe("ADK workflow Studio components", () => {
 
     await wrapper.findAll("button").find((button) => button.text().includes("当前时间"))!.trigger("click");
 
-    expect(wrapper.emitted("insertPromptVariable")?.[0]).toEqual(["{{ .now }}"]);
+    expect(wrapper.emitted("insertPromptVariable")).toBeUndefined();
+    expect(wrapper.emitted("updateAgentNodeData")?.at(-1)?.[0]).toEqual({
+      key: "promptTemplate",
+      value: "{{ .now }}",
+    });
+  });
+
+  it("edits node-scoped agent canvas data from the Agent inspector", async () => {
+    const workflowForm = createWorkflowForm("agent-1", "Run");
+
+    const wrapper = mount(ADKWorkflowAgentInspector, {
+      props: {
+        workflowForm,
+        selectedNodeRun: null,
+        selectedNodeId: "agent:child",
+        selectedAgentNodeData: { title: "研究", agentId: "agent-2", promptTemplate: "Child" },
+        agentOptions: [
+          { title: "Agent 1", value: "agent-1" },
+          { title: "Agent 2", value: "agent-2" },
+        ],
+        providerOptions: [{ title: "默认模型", value: "" }],
+        inputVariableOptions: [{ title: "当前时间", value: "{{ .now }}" }],
+        providerName: (providerId: string) => providerId || "默认模型",
+      },
+      global: workflowMountGlobal(),
+    });
+
+    await wrapper.findAll("button").find((button) => button.text().includes("当前时间"))!.trigger("click");
+
+    expect(wrapper.emitted("insertPromptVariable")).toBeUndefined();
+    expect(wrapper.emitted("updateAgentNodeData")?.at(-1)?.[0]).toEqual({
+      key: "promptTemplate",
+      value: "Child\n{{ .now }}",
+    });
   });
 
   it("renders webhook trigger health and emits run/delete actions", async () => {
@@ -820,6 +866,7 @@ function mountInspector(overrides: Partial<InstanceType<typeof ADKWorkflowStudio
       triggerForm,
       selectedTrigger: null,
       selectedNodeRun: null,
+      selectedAgentNodeData: {},
       selectedLog: null,
       visibleLogs: [],
       selectedNodeId: "start",

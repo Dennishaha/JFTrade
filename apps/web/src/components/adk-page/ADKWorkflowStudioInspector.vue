@@ -4,6 +4,7 @@ import type {
   ADKWorkflowTrigger,
   ADKWorkflowTriggerLog,
 } from "@/contracts";
+import type { FlowNodeData } from "@/features/adkWorkflowStudio";
 import type { PageEnvelope } from "@/composables/adkWorkflowsApi";
 import type {
   TriggerFormModel,
@@ -24,6 +25,7 @@ defineProps<{
   triggerForm: TriggerFormModel;
   selectedTrigger: ADKWorkflowTrigger | null;
   selectedNodeRun: ADKWorkflowNodeRun | null;
+  selectedAgentNodeData: FlowNodeData;
   selectedLog: ADKWorkflowTriggerLog | null;
   visibleLogs: ADKWorkflowTriggerLog[];
   selectedNodeId: string;
@@ -70,6 +72,7 @@ defineEmits<{
   addInputRow: [];
   removeInputRow: [index: number];
   insertPromptVariable: [value: string];
+  updateAgentNodeData: [payload: { key: string; value: unknown }];
   runSelectedTrigger: [];
   removeSelectedTrigger: [];
   refreshLogs: [];
@@ -116,12 +119,15 @@ defineEmits<{
       v-else-if="inspectorKind === 'agent'"
       :workflow-form="workflowForm"
       :selected-node-run="selectedNodeRun"
+      :selected-node-id="selectedNodeId"
+      :selected-agent-node-data="selectedAgentNodeData"
       :agent-options="agentOptions"
       :provider-options="providerOptions"
       :input-variable-options="inputVariableOptions"
       :provider-name="providerName"
       @refresh-node-data="$emit('refreshNodeData')"
       @insert-prompt-variable="$emit('insertPromptVariable', $event)"
+      @update-agent-node-data="$emit('updateAgentNodeData', $event)"
     />
 
     <ADKWorkflowTriggerInspector

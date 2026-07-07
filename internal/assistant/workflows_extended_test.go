@@ -285,6 +285,7 @@ func TestWorkflowEventAndSchedulerTriggerBackgroundRuns(t *testing.T) {
 	eventWorkflow, err := service.SaveWorkflow(ctx, eventWorkflow.ID, jfadk.WorkflowDefinitionWriteRequest{
 		Name: eventWorkflow.Name, Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
 		WorkMode: jfadk.WorkModeChat, PromptTemplate: "notification {{ .event.category }}",
+		CanvasGraph: workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow event: %v", err)
@@ -365,6 +366,7 @@ func TestWorkflowEventAndSchedulerTriggerBackgroundRuns(t *testing.T) {
 	scheduleWorkflow, err = service.SaveWorkflow(ctx, scheduleWorkflow.ID, jfadk.WorkflowDefinitionWriteRequest{
 		Name: scheduleWorkflow.Name, Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
 		WorkMode: jfadk.WorkModeChat, PromptTemplate: "scheduled {{ .event.scheduledAt }}",
+		CanvasGraph: workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow schedule: %v", err)
@@ -392,6 +394,7 @@ func TestWorkflowEventAndSchedulerTriggerBackgroundRuns(t *testing.T) {
 	marketWorkflow, err = service.SaveWorkflow(ctx, marketWorkflow.ID, jfadk.WorkflowDefinitionWriteRequest{
 		Name: marketWorkflow.Name, Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
 		WorkMode: jfadk.WorkModeChat, PromptTemplate: "market {{ .event.threshold.current }}",
+		CanvasGraph: workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow market: %v", err)
@@ -425,6 +428,7 @@ func TestWorkflowEventAndSchedulerTriggerBackgroundRuns(t *testing.T) {
 	tickWorkflow, err = service.SaveWorkflow(ctx, tickWorkflow.ID, jfadk.WorkflowDefinitionWriteRequest{
 		Name: tickWorkflow.Name, Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
 		WorkMode: jfadk.WorkModeChat, PromptTemplate: "tick {{ .event.threshold.current }}",
+		CanvasGraph: workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow market tick: %v", err)
@@ -530,6 +534,7 @@ func TestWorkflowActiveRunSkipAndReconciliation(t *testing.T) {
 		PermissionMode: jfadk.PermissionModeApproval,
 		PromptTemplate: workflow.PromptTemplate,
 		DefaultInputs:  workflow.DefaultInputs,
+		CanvasGraph:    workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow chat mode: %v", err)
@@ -813,9 +818,25 @@ func saveWorkflowTestAgentAndDefinition(t *testing.T, runtime *jfadk.Runtime, se
 		PermissionMode: jfadk.PermissionModeApproval,
 		PromptTemplate: "run {{ .symbol }}",
 		DefaultInputs:  map[string]any{"symbol": "US.AAPL"},
+		CanvasGraph:    workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow: %v", err)
 	}
 	return agent, workflow
+}
+
+func workflowTestCanvasGraph() *jfadk.WorkflowCanvasGraph {
+	return &jfadk.WorkflowCanvasGraph{
+		Version: "adk-workflow-canvas/v1",
+		Nodes: []jfadk.WorkflowCanvasNode{
+			{ID: "start", Type: "start", Position: jfadk.WorkflowCanvasPoint{}},
+			{ID: "agent:primary", Type: "agent", Position: jfadk.WorkflowCanvasPoint{}},
+			{ID: "monitor", Type: "monitor", Position: jfadk.WorkflowCanvasPoint{}},
+		},
+		Edges: []jfadk.WorkflowCanvasEdge{
+			{ID: "start-agent", Source: "start", Target: "agent:primary"},
+			{ID: "agent-monitor", Source: "agent:primary", Target: "monitor"},
+		},
+	}
 }

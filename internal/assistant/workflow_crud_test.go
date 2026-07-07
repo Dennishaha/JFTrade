@@ -125,6 +125,7 @@ func TestWorkflowTriggerRunWebhookAndValidationFailures(t *testing.T) {
 		PermissionMode: jfadk.PermissionModeApproval,
 		PromptTemplate: workflow.PromptTemplate,
 		DefaultInputs:  workflow.DefaultInputs,
+		CanvasGraph:    workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow chat mode: %v", err)
@@ -353,6 +354,7 @@ func TestWorkflowInvocationFailureAndBackgroundPaths(t *testing.T) {
 	brokenWorkflow, err := service.SaveWorkflow(ctx, "", jfadk.WorkflowDefinitionWriteRequest{
 		ID: "workflow-broken-provider", Name: "Broken Provider Workflow", Status: jfadk.WorkflowStatusEnabled,
 		AgentID: brokenAgent.ID, WorkMode: jfadk.WorkModeChat, PromptTemplate: "run",
+		CanvasGraph: workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow broken provider: %v", err)
@@ -367,6 +369,7 @@ func TestWorkflowInvocationFailureAndBackgroundPaths(t *testing.T) {
 		Name: workflow.Name, Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
 		WorkMode: jfadk.WorkModeChat, PermissionMode: jfadk.PermissionModeApproval,
 		PromptTemplate: "event {{ .event.price }} for {{ .trigger.title }}",
+		CanvasGraph:    workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow background: %v", err)
@@ -430,6 +433,7 @@ func TestWorkflowInvocationPreflightAndStaleResourcePaths(t *testing.T) {
 		Name: workflow.Name, Status: jfadk.WorkflowStatusEnabled, AgentID: agent.ID,
 		WorkMode: jfadk.WorkModeChat, PromptTemplate: "run {{ .symbol }}",
 		ObjectiveTemplate: "review {{ .symbol }}", DefaultInputs: map[string]any{"symbol": "US.AAPL"},
+		CanvasGraph: workflowTestCanvasGraph(),
 	})
 	if err != nil {
 		t.Fatalf("SaveWorkflow objective: %v", err)
@@ -438,8 +442,8 @@ func TestWorkflowInvocationPreflightAndStaleResourcePaths(t *testing.T) {
 	if err != nil || result.Log.Status != jfadk.WorkflowTriggerLogStatusSucceeded {
 		t.Fatalf("RunWorkflow objective result=%+v err=%v", result, err)
 	}
-	if result.Log.NodeRuns[1].Outputs["objective"] != "review US.AAPL" {
-		t.Fatalf("objective node output = %+v", result.Log.NodeRuns[1].Outputs)
+	if result.Log.NodeRuns[0].Outputs["objective"] != "review US.AAPL" {
+		t.Fatalf("objective node output = %+v", result.Log.NodeRuns[0].Outputs)
 	}
 }
 

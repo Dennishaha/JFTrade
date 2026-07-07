@@ -92,7 +92,8 @@ func taskToolTaskSummary(task Task) map[string]any {
 		"id": task.ID, "title": task.Title, "status": task.Status, "order": task.Order,
 		"dependsOn": task.DependsOn, "executor": task.Executor, "runId": task.RunID,
 		"agentRole": task.AgentRole, "planSource": task.PlanSource, "resultSummary": task.ResultSummary,
-		"childProviderId": task.ChildProviderID, "childModel": task.ChildModel,
+		"childAgentId": task.ChildAgentID, "childProviderId": task.ChildProviderID, "childModel": task.ChildModel,
+		"childPermissionMode": task.ChildPermissionMode,
 	}
 }
 

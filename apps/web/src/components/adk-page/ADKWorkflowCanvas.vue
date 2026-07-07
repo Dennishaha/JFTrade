@@ -105,15 +105,15 @@ const flowEdges = computed({
         </button>
       </template>
 
-      <template #node-agent="{ data, selected }">
+      <template #node-agent="{ id, data, selected }">
         <button
           type="button"
           class="adk-flow-node is-agent"
           :class="[
-            { 'is-selected': selected || selectedNodeId === 'agent' },
+            { 'is-selected': selected || selectedNodeId === id },
             nodeRunClass(data.runStatus),
           ]"
-          @click.stop="$emit('selectNode', 'agent')"
+          @click.stop="$emit('selectNode', id)"
         >
           <span class="adk-flow-node__icon"><v-icon size="15">fa-solid fa-robot</v-icon></span>
           <span>

@@ -16,6 +16,7 @@ const (
 
 	workflowPlanSourcePlanner = "planner"
 	workflowPlanSourceRuntime = "runtime"
+	workflowPlanSourceCanvas  = "canvas"
 
 	workflowTaskExecutorSelf  = "self"
 	workflowTaskExecutorChild = "child"
@@ -41,20 +42,22 @@ type workflowRequest struct {
 }
 
 type workflowStep struct {
-	Order           int
-	DependencyID    string
-	Title           string
-	Description     string
-	Message         string
-	DependsOn       []string
-	AgentRole       string
-	ChildProviderID string
-	ChildModel      string
-	ModeHint        string
-	Objective       string
-	PlanSource      string
-	WorkflowMode    string
-	PlannerWarnings []string
+	Order               int
+	DependencyID        string
+	Title               string
+	Description         string
+	Message             string
+	DependsOn           []string
+	AgentRole           string
+	ChildAgentID        string
+	ChildProviderID     string
+	ChildModel          string
+	ChildPermissionMode string
+	ModeHint            string
+	Objective           string
+	PlanSource          string
+	WorkflowMode        string
+	PlannerWarnings     []string
 }
 
 type workflowChildResult struct {
@@ -211,23 +214,25 @@ func (e *WorkflowExecutor) persistWorkflowTasks(ctx context.Context, parent Run,
 			description += "Agent role: " + strings.TrimSpace(step.AgentRole)
 		}
 		task, err := e.runtime.store.SaveTask(ctx, TaskWriteRequest{
-			Title:           step.Title,
-			Description:     description,
-			Status:          "TODO",
-			AgentID:         agent.ID,
-			RunID:           parent.ID,
-			DependsOn:       dependsOn,
-			Order:           step.Order,
-			ModeHint:        step.ModeHint,
-			AgentRole:       step.AgentRole,
-			ChildProviderID: step.ChildProviderID,
-			ChildModel:      step.ChildModel,
-			PlannerStepID:   step.DependencyID,
-			PlanSource:      step.PlanSource,
-			WorkflowMode:    step.WorkflowMode,
-			Objective:       step.Objective,
-			Message:         step.Message,
-			PlannerWarnings: step.PlannerWarnings,
+			Title:               step.Title,
+			Description:         description,
+			Status:              "TODO",
+			AgentID:             agent.ID,
+			RunID:               parent.ID,
+			DependsOn:           dependsOn,
+			Order:               step.Order,
+			ModeHint:            step.ModeHint,
+			AgentRole:           step.AgentRole,
+			ChildAgentID:        step.ChildAgentID,
+			ChildProviderID:     step.ChildProviderID,
+			ChildModel:          step.ChildModel,
+			ChildPermissionMode: step.ChildPermissionMode,
+			PlannerStepID:       step.DependencyID,
+			PlanSource:          step.PlanSource,
+			WorkflowMode:        step.WorkflowMode,
+			Objective:           step.Objective,
+			Message:             step.Message,
+			PlannerWarnings:     step.PlannerWarnings,
 		})
 		if err != nil {
 			return nil, err
@@ -419,7 +424,10 @@ func (e *WorkflowExecutor) applyWorkflowChildResponses(ctx context.Context, pare
 		index := workflowResponsePlanIndex(responseIndex, child)
 		parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
 		parent = updateWorkflowPlanForChildAt(parent, child, index)
-		e.updateWorkflowTaskResult(ctx, tasks, index, child)
+		if index >= 0 && index < len(parent.WorkflowPlan) {
+			parent.WorkflowPlan[index].OutputSummary = strings.TrimSpace(response.Reply)
+		}
+		e.updateWorkflowTaskResult(ctx, tasks, index, child, response.Reply)
 		pendingApprovals = append(pendingApprovals, child.PendingApprovals...)
 		if strings.TrimSpace(response.Reply) != "" {
 			replies = append(replies, response.Reply)
@@ -444,7 +452,7 @@ func workflowResponsePlanIndex(fallback int, child Run) int {
 	return fallback
 }
 
-func (e *WorkflowExecutor) updateWorkflowTaskResult(ctx context.Context, tasks []Task, index int, child Run) {
+func (e *WorkflowExecutor) updateWorkflowTaskResult(ctx context.Context, tasks []Task, index int, child Run, reply string) {
 	if index >= len(tasks) {
 		return
 	}
@@ -452,7 +460,8 @@ func (e *WorkflowExecutor) updateWorkflowTaskResult(ctx context.Context, tasks [
 	if child.Status != RunStatusCompleted {
 		status = "BLOCKED"
 	}
-	_, jftradeErr := e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: &status, RunID: &child.ID})
+	summary := strings.TrimSpace(reply)
+	_, jftradeErr := e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: &status, RunID: &child.ID, ResultSummary: &summary})
 	jftradeLogError(jftradeErr)
 }
 

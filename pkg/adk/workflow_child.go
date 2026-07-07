@@ -19,7 +19,13 @@ func (e *WorkflowExecutor) startWorkflowChildRuns(ctx context.Context, req workf
 			_, jftradeErr11 := e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: new("IN_PROGRESS")})
 			jftradeLogError(jftradeErr11)
 		}
-		childAgent := workflowChildAgentForStep(req.Agent, step)
+		childAgent, err := e.runtime.workflowChildAgentForStep(ctx, req.Agent, step)
+		if err != nil {
+			for _, finish := range finishes {
+				finish()
+			}
+			return nil, nil, err
+		}
 		if _, err := e.runtime.googleADKModelForAgent(ctx, childAgent); err != nil {
 			for _, finish := range finishes {
 				finish()
@@ -107,7 +113,11 @@ func (e *WorkflowExecutor) ensureWorkflowChildrenFinalReplies(
 		}
 		childAgent := req.Agent
 		if index < len(steps) {
-			childAgent = workflowChildAgentForStep(req.Agent, steps[index])
+			resolved, err := e.runtime.workflowChildAgentForStep(ctx, req.Agent, steps[index])
+			if err != nil {
+				return err
+			}
+			childAgent = resolved
 		}
 		if err := e.runtime.runGoogleADKWorkflowChildFinalSynthesis(ctx, childAgent, req.Session, execution, child); err != nil {
 			return e.failWorkflowChildAfterMissingFinal(ctx, child, execution, err)
@@ -136,7 +146,28 @@ func (e *WorkflowExecutor) failWorkflowChildAfterMissingFinal(
 func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, parent Run, step workflowStep, task Task, iteration int) workflowChildResult {
 	_, jftradeErr14 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("IN_PROGRESS"), Executor: new(workflowTaskExecutorChild)})
 	jftradeLogError(jftradeErr14)
-	childAgent := workflowChildAgentForStep(req.Agent, step)
+	childAgent, err := e.runtime.workflowChildAgentForStep(ctx, req.Agent, step)
+	if err != nil {
+		reason := err.Error()
+		_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID), ResultSummary: &reason})
+		jftradeLogError(jftradeErr13)
+		failed := Run{
+			ID:             parent.ID,
+			SessionID:      req.Session.ID,
+			AgentID:        strings.TrimSpace(step.ChildAgentID),
+			ParentRunID:    parent.ID,
+			Status:         RunStatusFailed,
+			Message:        reason,
+			FailureReason:  reason,
+			ErrorCode:      runErrorCode(RunStatusFailed),
+			WorkMode:       WorkModeChat,
+			WorkflowEngine: defaultString(parent.WorkflowEngine, workflowEngineForMode(parent.WorkMode)),
+			CreatedAt:      nowString(),
+			UpdatedAt:      nowString(),
+			Usage:          &RunUsage{},
+		}
+		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: ChatResponse{Reply: reason, Session: req.Session, Run: failed}}
+	}
 	if _, err := e.runtime.googleADKModelForAgent(ctx, childAgent); err != nil {
 		reason := err.Error()
 		_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID), ResultSummary: &reason})

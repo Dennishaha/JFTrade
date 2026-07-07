@@ -23,34 +23,26 @@ export function workflowToCanvasGraph(
   if (validateWorkflowCanvasGraph(workflow.canvasGraph)) {
     return mergeTriggerNodes(workflow.canvasGraph, triggers);
   }
-  return legacyWorkflowToCanvasGraph(workflow, triggers);
+  return emptyWorkflowCanvasGraph();
 }
 
-export function legacyWorkflowToCanvasGraph(
+export function defaultWorkflowCanvasGraph(
   workflow: ADKWorkflowDefinition,
   triggers: ADKWorkflowTrigger[] = [],
 ): ADKWorkflowCanvasGraph {
-  const triggerNodes = triggers.length > 0
-    ? triggers.map((trigger, index) =>
-        createCanvasNode(
-          triggerNodeId(trigger.id),
-          "trigger",
-          { x: 80, y: 42 + index * 104 },
-          {
-            title: trigger.title || triggerTypeLabel(trigger.type),
-            triggerId: trigger.id,
-            triggerType: trigger.type,
-            status: trigger.status,
-          },
-        ),
-      )
-    : [
-        createCanvasNode("trigger:draft", "trigger", { x: 80, y: 56 }, {
-          title: "手动",
-          triggerType: "manual",
-          status: "DISABLED",
-        }),
-      ];
+  const triggerNodes = triggers.map((trigger, index) =>
+    createCanvasNode(
+      triggerNodeId(trigger.id),
+      "trigger",
+      { x: 80, y: 42 + index * 104 },
+      {
+        title: trigger.title || triggerTypeLabel(trigger.type),
+        triggerId: trigger.id,
+        triggerType: trigger.type,
+        status: trigger.status,
+      },
+    ),
+  );
 
   const nodes: ADKWorkflowCanvasNode[] = [
     createCanvasNode("start", "start", { x: 80, y: 250 }, {
@@ -58,10 +50,14 @@ export function legacyWorkflowToCanvasGraph(
       inputCount: Object.keys(workflow.defaultInputs ?? {}).length,
     }),
     ...triggerNodes,
-    createCanvasNode("agent", "agent", { x: 385, y: 250 }, {
+    createCanvasNode("agent:primary", "agent", { x: 385, y: 250 }, {
       title: workflow.name || "智能体",
       agentId: workflow.agentId,
-      workMode: workflow.workMode,
+      providerId: workflow.providerId,
+      model: workflow.model,
+      permissionMode: workflow.permissionMode,
+      promptTemplate: workflow.promptTemplate,
+      objectiveTemplate: workflow.objectiveTemplate,
     }),
     createCanvasNode("monitor", "monitor", { x: 690, y: 250 }, {
       title: "监控",
@@ -77,9 +73,18 @@ export function legacyWorkflowToCanvasGraph(
     nodes,
     edges: [
       ...triggerEdges,
-      createCanvasEdge("start->agent", "start", "agent"),
-      createCanvasEdge("agent->monitor", "agent", "monitor"),
+      createCanvasEdge("start->agent:primary", "start", "agent:primary"),
+      createCanvasEdge("agent:primary->monitor", "agent:primary", "monitor"),
     ],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+function emptyWorkflowCanvasGraph(): ADKWorkflowCanvasGraph {
+  return {
+    version: ADK_WORKFLOW_CANVAS_VERSION,
+    nodes: [],
+    edges: [],
     viewport: { x: 0, y: 0, zoom: 1 },
   };
 }

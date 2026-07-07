@@ -427,11 +427,13 @@ func (s *Store) SaveTask(ctx context.Context, req TaskWriteRequest) (Task, error
 		PlannerStepID: strings.TrimSpace(req.PlannerStepID), PlanSource: strings.TrimSpace(req.PlanSource),
 		WorkflowMode: strings.TrimSpace(req.WorkflowMode), Objective: strings.TrimSpace(req.Objective),
 		Message: strings.TrimSpace(req.Message), Executor: strings.TrimSpace(req.Executor),
-		ChildProviderID: strings.TrimSpace(req.ChildProviderID),
-		ChildModel:      strings.TrimSpace(req.ChildModel),
-		ResultSummary:   strings.TrimSpace(req.ResultSummary),
-		PlannerWarnings: normalizeStringSlice(req.PlannerWarnings),
-		CreatedAt:       createdAt, UpdatedAt: now,
+		ChildAgentID:        strings.TrimSpace(req.ChildAgentID),
+		ChildProviderID:     strings.TrimSpace(req.ChildProviderID),
+		ChildModel:          strings.TrimSpace(req.ChildModel),
+		ChildPermissionMode: strings.TrimSpace(req.ChildPermissionMode),
+		ResultSummary:       strings.TrimSpace(req.ResultSummary),
+		PlannerWarnings:     normalizeStringSlice(req.PlannerWarnings),
+		CreatedAt:           createdAt, UpdatedAt: now,
 	}
 	return s.saveTask(ctx, task)
 }
@@ -521,11 +523,17 @@ func applyTaskMetadataPatch(task *Task, req TaskPatchRequest) {
 	if req.Executor != nil {
 		task.Executor = strings.TrimSpace(*req.Executor)
 	}
+	if req.ChildAgentID != nil {
+		task.ChildAgentID = strings.TrimSpace(*req.ChildAgentID)
+	}
 	if req.ChildProviderID != nil {
 		task.ChildProviderID = strings.TrimSpace(*req.ChildProviderID)
 	}
 	if req.ChildModel != nil {
 		task.ChildModel = strings.TrimSpace(*req.ChildModel)
+	}
+	if req.ChildPermissionMode != nil {
+		task.ChildPermissionMode = strings.TrimSpace(*req.ChildPermissionMode)
 	}
 	if req.ResultSummary != nil {
 		task.ResultSummary = strings.TrimSpace(*req.ResultSummary)

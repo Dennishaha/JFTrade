@@ -83,7 +83,7 @@ export function useADKWorkflowStudioViewModel(options: {
   ]);
   const inspectorKind = computed<InspectorNodeKind>(() => {
     if (options.selectedNodeId.value === "start") return "start";
-    if (options.selectedNodeId.value === "agent") return "agent";
+    if (options.selectedNodeId.value.startsWith("agent:")) return "agent";
     if (options.selectedNodeId.value.startsWith("trigger:")) return "trigger";
     if (options.selectedNodeId.value === "monitor") return "monitor";
     return "workflow";

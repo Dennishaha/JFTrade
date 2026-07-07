@@ -466,7 +466,7 @@ func (s *Service) invokeWorkflowWithStore(ctx context.Context, store workflowInv
 	if err != nil {
 		return s.failWorkflowInvocation(ctx, store, workflow, trigger, inputs, matchedEvent, log, started, message, objective, "", err, false)
 	}
-	normalized, err := s.runWorkflowChat(ctx, workflow, session.ID, message, objective)
+	normalized, err := s.runWorkflowCanvas(ctx, workflow, trigger, session.ID, message, objective, inputs, matchedEvent)
 	if err != nil {
 		return s.failWorkflowInvocation(ctx, store, workflow, trigger, inputs, matchedEvent, log, started, message, objective, session.ID, err, true)
 	}
@@ -554,16 +554,25 @@ func renderWorkflowInvocationMessage(workflow jfadk.WorkflowDefinition, trigger 
 	return message, objective, err
 }
 
-func (s *Service) runWorkflowChat(ctx context.Context, workflow jfadk.WorkflowDefinition, sessionID string, message string, objective string) (jfadk.ChatResponse, error) {
-	response, err := s.Chat(ctx, jfadk.ChatRequest{
-		AgentID:                workflow.AgentID,
-		SessionID:              sessionID,
-		Message:                message,
-		ProviderID:             workflow.ProviderID,
-		Model:                  workflow.Model,
-		WorkModeOverride:       workflow.WorkMode,
-		PermissionModeOverride: workflow.PermissionMode,
-		Objective:              objective,
+func (s *Service) runWorkflowCanvas(
+	ctx context.Context,
+	workflow jfadk.WorkflowDefinition,
+	trigger *jfadk.WorkflowTrigger,
+	sessionID string,
+	message string,
+	objective string,
+	inputs map[string]any,
+	matchedEvent map[string]any,
+) (jfadk.ChatResponse, error) {
+	rendered, err := renderWorkflowCanvasTemplates(workflow, trigger, inputs, matchedEvent)
+	if err != nil {
+		return jfadk.ChatResponse{}, err
+	}
+	if s == nil || s.runtime == nil {
+		return jfadk.ChatResponse{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	response, err := s.runtime.RunCanvasWorkflow(ctx, jfadk.WorkflowCanvasRunRequest{
+		Workflow: rendered, SessionID: sessionID, Message: message, Objective: objective,
 	})
 	if err != nil {
 		return jfadk.ChatResponse{}, err

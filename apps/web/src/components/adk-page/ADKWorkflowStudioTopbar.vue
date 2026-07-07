@@ -18,6 +18,7 @@ defineEmits<{
   refresh: [];
   showInspector: [];
   addTrigger: [];
+  addAgent: [];
   openLogs: [];
   run: [];
   debug: [];
@@ -62,6 +63,12 @@ defineEmits<{
           label="添加触发器"
           tone="info"
           @click="$emit('addTrigger')"
+        />
+        <ToolbarActionButton
+          icon="fa-solid fa-robot"
+          label="添加智能体"
+          tone="info"
+          @click="$emit('addAgent')"
         />
         <ToolbarActionButton
           icon="fa-solid fa-clock-rotate-left"

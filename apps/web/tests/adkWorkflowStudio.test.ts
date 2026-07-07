@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ADKWorkflowCanvasGraph, ADKWorkflowTriggerLog } from "@/contracts";
 import {
   addDraftTriggerFlowNode,
+  addAgentFlowNode,
   cloneInputRows,
   cloneWorkflowStudioPaneSizes,
   connectWorkflowFlowEdge,
@@ -165,7 +166,9 @@ describe("adkWorkflowStudio helpers", () => {
         workflowStatus: "ENABLED",
         workflowWorkMode: "loop",
         workflowInputCount: 1,
+        workflowAgentId: "agent-1",
         agentName: "投研智能体",
+        agentNameForId: () => "投研智能体",
         logsCount: 0,
         logStatusFilter: "",
         selectedLog: null,
@@ -184,6 +187,18 @@ describe("adkWorkflowStudio helpers", () => {
       agentId: "agent-1",
       workMode: "loop",
       promptTemplate: "run",
+      canvasGraph: {
+        version: "adk-workflow-canvas/v1",
+        nodes: [
+          { id: "start", type: "start", position: { x: 0, y: 0 } },
+          { id: "agent:primary", type: "agent", position: { x: 1, y: 0 }, data: { title: "每日复盘", agentId: "agent-1" } },
+          { id: "monitor", type: "monitor", position: { x: 2, y: 0 } },
+        ],
+        edges: [
+          { id: "start->agent:primary", source: "start", target: "agent:primary" },
+          { id: "agent:primary->monitor", source: "agent:primary", target: "monitor" },
+        ],
+      },
       createdAt: "2026-07-01T00:00:00Z",
       updatedAt: "2026-07-01T00:00:00Z",
     });
@@ -193,18 +208,39 @@ describe("adkWorkflowStudio helpers", () => {
       title: "外部事件",
       status: "DISABLED",
     });
-    canvas.connect({ source: "start", target: "agent" });
-    canvas.connect({ source: "start", target: "agent" });
+    canvas.connect({ source: "start", target: "agent:primary" });
+    canvas.connect({ source: "start", target: "agent:primary" });
     canvas.removeNode("trigger:draft-1");
 
     expect(canvas.flowNodes.value.some((node) => node.id === "trigger:trigger-1")).toBe(true);
-    expect(canvas.flowNodes.value.find((node) => node.id === "agent")?.data).toMatchObject({
+    expect(canvas.flowNodes.value.find((node) => node.id === "agent:primary")?.data).toMatchObject({
       title: "每日复盘",
       subtitle: "投研智能体",
     });
     expect(canvas.flowNodes.value.some((node) => node.id === "trigger:draft-1")).toBe(false);
-    expect(canvas.flowEdges.value.filter((edge) => edge.id === "start->agent")).toHaveLength(1);
-    expect(canvas.graphFromFlow().nodes.map((node) => node.id)).toContain("agent");
+    expect(canvas.flowEdges.value.filter((edge) => edge.id === "start->agent:primary")).toHaveLength(1);
+    expect(canvas.graphFromFlow().nodes.map((node) => node.id)).toContain("agent:primary");
+  });
+
+  it("adds canvas agent nodes with node-scoped defaults", () => {
+    const flow = addAgentFlowNode(
+      [{ id: "agent", type: "agent", position: { x: 1, y: 2 }, data: { title: "默认" } }],
+      [],
+      { id: "agent:child", title: "研究", agentId: "research-agent" },
+    );
+
+    expect(flow.nodes).toHaveLength(2);
+    expect(flow.nodes[1]).toMatchObject({
+      id: "agent:child",
+      type: "agent",
+      data: {
+        title: "研究",
+        agentId: "research-agent",
+        promptTemplate: "",
+        objectiveTemplate: "",
+      },
+    });
+    expect(flow.edges).toEqual([]);
   });
 
   it("derives Studio list, inspector, log, variable, and webhook view state", () => {
@@ -395,7 +431,7 @@ describe("adkWorkflowStudio helpers", () => {
     expect(vm.inspectorKind.value).toBe("workflow");
     selectedNodeId.value = "start";
     expect(vm.inspectorKind.value).toBe("start");
-    selectedNodeId.value = "agent";
+    selectedNodeId.value = "agent:primary";
     expect(vm.inspectorKind.value).toBe("agent");
     selectedNodeId.value = "monitor";
     expect(vm.inspectorKind.value).toBe("monitor");
@@ -785,7 +821,9 @@ describe("adkWorkflowStudio helpers", () => {
         workflowStatus: "ENABLED",
         workflowWorkMode: "loop",
         workflowInputCount: 2,
+        workflowAgentId: "agent-1",
         agentName: "投研智能体",
+        agentNameForId: () => "投研智能体",
         logsCount: 7,
         logStatusFilter: "FAILED",
         selectedLog: null,
@@ -814,7 +852,7 @@ describe("adkWorkflowStudio helpers", () => {
       status: "ENABLED",
     });
     expect(nodes[1]?.data).toMatchObject({
-      title: "每日复盘",
+      title: "智能体",
       subtitle: "投研智能体",
       status: "loop",
     });
@@ -855,7 +893,9 @@ describe("adkWorkflowStudio helpers", () => {
         workflowStatus: "DISABLED",
         workflowWorkMode: "loop",
         workflowInputCount: 0,
+        workflowAgentId: "agent-1",
         agentName: "默认智能体",
+        agentNameForId: () => "默认智能体",
         logsCount: 1,
         logStatusFilter: "",
         selectedLog,
