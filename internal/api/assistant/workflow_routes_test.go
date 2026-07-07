@@ -33,7 +33,18 @@ func TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts(t *testing.T
 		"objectiveTemplate":"形成 {{.symbol}} 的风险摘要",
 		"defaultInputs":{"symbol":"US.AAPL","session":"盘前"},
 		"tags":["route","workflow"],
-		"canvasGraph":{"version":"1","nodes":[{"id":"start","type":"trigger","position":{"x":0,"y":0}}]}
+		"canvasGraph":{
+			"version":"adk-workflow-canvas/v1",
+			"nodes":[
+				{"id":"start","type":"start","position":{"x":0,"y":0}},
+				{"id":"agent:primary","type":"agent","position":{"x":160,"y":0}},
+				{"id":"monitor","type":"monitor","position":{"x":320,"y":0}}
+			],
+			"edges":[
+				{"id":"start-agent","source":"start","target":"agent:primary"},
+				{"id":"agent-monitor","source":"agent:primary","target":"monitor"}
+			]
+		}
 	}`))
 	if createWorkflow.Code != http.StatusOK {
 		t.Fatalf("create workflow status=%d body=%s", createWorkflow.Code, createWorkflow.Body.String())
@@ -56,7 +67,19 @@ func TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts(t *testing.T
 		"workMode":"chat",
 		"permissionMode":"all",
 		"promptTemplate":"复盘 {{.symbol}} 在 {{.session}} 的交易风险",
-		"defaultInputs":{"symbol":"US.AAPL","session":"盘中"}
+		"defaultInputs":{"symbol":"US.AAPL","session":"盘中"},
+		"canvasGraph":{
+			"version":"adk-workflow-canvas/v1",
+			"nodes":[
+				{"id":"start","type":"start","position":{"x":0,"y":0}},
+				{"id":"agent:primary","type":"agent","position":{"x":160,"y":0}},
+				{"id":"monitor","type":"monitor","position":{"x":320,"y":0}}
+			],
+			"edges":[
+				{"id":"start-agent","source":"start","target":"agent:primary"},
+				{"id":"agent-monitor","source":"agent:primary","target":"monitor"}
+			]
+		}
 	}`))
 	if updateWorkflow.Code != http.StatusOK || !strings.Contains(updateWorkflow.Body.String(), "Route Review Workflow Updated") {
 		t.Fatalf("update workflow status=%d body=%s", updateWorkflow.Code, updateWorkflow.Body.String())

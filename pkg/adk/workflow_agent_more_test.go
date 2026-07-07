@@ -76,7 +76,7 @@ type googleADKWorkflowNodeRunnerErrorDouble struct {
 func (runner *googleADKWorkflowNodeRunnerErrorDouble) RunNode(_ adkagent.Context, _ any) iter.Seq2[*adksession.Event, error] {
 	return func(yield func(*adksession.Event, error) bool) {
 		limit := max(len(runner.errors), len(runner.events))
-		for index := 0; index < limit; index++ {
+		for index := range limit {
 			var event *adksession.Event
 			var err error
 			if index < len(runner.events) {

@@ -40,11 +40,25 @@ func TestADKWorkflowDefinitionTriggerAndRunRoutes(t *testing.T) {
 		"promptTemplate": "Review {{ .symbol }} from {{ .source }}",
 		"defaultInputs":  map[string]any{"symbol": "US.AAPL", "source": "default"},
 		"canvasGraph": map[string]any{
-			"version": "1",
-			"nodes": []map[string]any{{
-				"id": "start", "type": "start",
-				"position": map[string]any{"x": 0, "y": 0},
-			}},
+			"version": "adk-workflow-canvas/v1",
+			"nodes": []map[string]any{
+				{
+					"id": "start", "type": "start",
+					"position": map[string]any{"x": 0, "y": 0},
+				},
+				{
+					"id": "agent:primary", "type": "agent",
+					"position": map[string]any{"x": 160, "y": 0},
+				},
+				{
+					"id": "monitor", "type": "monitor",
+					"position": map[string]any{"x": 320, "y": 0},
+				},
+			},
+			"edges": []map[string]any{
+				{"id": "start-agent", "source": "start", "target": "agent:primary"},
+				{"id": "agent-monitor", "source": "agent:primary", "target": "monitor"},
+			},
 		},
 		"tags": []string{"route", "workflow"},
 	}
