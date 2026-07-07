@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 
 import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@/contracts";
 
@@ -7,6 +7,7 @@ import {
   buildTimelineRun,
   type ADKTimelineEntryState,
 } from "../../composables/adkTimeline";
+import ADKChildRunTrace from "../shared/ADKChildRunTrace.vue";
 import ADKRunTrace from "../shared/ADKRunTrace.vue";
 
 const props = withDefaults(
@@ -84,6 +85,16 @@ const canShowOlderTimeline = computed(
 const canShowNewerTimeline = computed(
   () => hasTimelineWindow.value && props.timelineWindowEnd < props.timelineTotal,
 );
+const errorAlertLines = computed(() =>
+  props.errorMessage
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== ""),
+);
+const errorAlertTitle = computed(() => errorAlertLines.value[0] ?? "");
+const errorAlertDetails = computed(() => errorAlertLines.value.slice(1));
+const errorAlertExpanded = ref(false);
+const canExpandErrorAlert = computed(() => errorAlertDetails.value.length > 0);
 
 const markdownCache = new Map<
   string,
@@ -101,6 +112,13 @@ watch(
     }
   },
   { flush: "post" },
+);
+
+watch(
+  () => props.errorMessage,
+  () => {
+    errorAlertExpanded.value = false;
+  },
 );
 
 function isEntryActiveRun(entry: ADKTimelineEntryState): boolean {
@@ -331,10 +349,22 @@ function showLatestTimeline(): void {
           :tool-progress="entryToolProgress(entry)"
           :busy="entryToolBusy(entry)"
           :compact="layout === 'mobile'"
+          variant="timeline"
           :summary-expanded="entry.toolSummaryExpanded"
           :expanded-tool-call-ids="entry.expandedToolCallIds"
           @update:summary-expanded="entry.toolSummaryExpanded = $event"
           @update:expanded-tool-call-ids="entry.expandedToolCallIds = $event"
+        />
+      </div>
+
+      <div
+        v-else-if="entry.kind === 'child_run_group' && entry.childRunItem"
+        class="adk-msg adk-msg--assistant"
+      >
+        <ADKChildRunTrace
+          :item="entry.childRunItem"
+          :compact="layout === 'mobile'"
+          variant="timeline"
         />
       </div>
 
@@ -358,7 +388,30 @@ function showLatestTimeline(): void {
         class="adk-inline-alert"
         @click:close="clearErrorMessage"
       >
-        {{ errorMessage }}
+        <div class="adk-inline-alert__content">
+          <div class="adk-inline-alert__summary">
+            <strong v-if="errorAlertTitle" class="adk-inline-alert__title">
+              {{ errorAlertTitle }}
+            </strong>
+            <button
+              v-if="canExpandErrorAlert"
+              type="button"
+              class="adk-inline-alert__toggle"
+              @click="errorAlertExpanded = !errorAlertExpanded"
+            >
+              {{ errorAlertExpanded ? "收起" : "展开" }}
+            </button>
+          </div>
+          <div v-if="errorAlertExpanded" class="adk-inline-alert__details">
+            <span
+              v-for="(line, index) in errorAlertDetails"
+              :key="`${index}:${line}`"
+              class="adk-inline-alert__detail"
+            >
+              {{ line }}
+            </span>
+          </div>
+        </div>
       </v-alert>
     </div>
 

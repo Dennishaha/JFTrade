@@ -81,13 +81,6 @@ const chatThreadStub = defineComponent({
   `,
 });
 
-const childQueueStub = {
-  props: ["items", "activeChildRunId"],
-  emits: ["select"],
-  template:
-    "<div class='child-queue'><button type='button' class='select-child' @click=\"$emit('select', 'child-2')\">child</button></div>",
-};
-
 const composerStub = defineComponent({
   emits: [
     "update:chatDraft",
@@ -282,7 +275,6 @@ async function mountShell() {
         ADKSessionSidebar: sessionSidebarStub,
         ADKChatThread: chatThreadStub,
         ADKApprovalQueuePanel: approvalQueueStub,
-        ADKChildRunQueuePanel: childQueueStub,
         ADKWorkflowPlanPanel: workflowPlanStub,
         ADKChatComposer: composerStub,
       },

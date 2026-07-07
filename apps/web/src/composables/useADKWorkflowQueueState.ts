@@ -7,7 +7,11 @@ import type {
 } from "@/contracts";
 
 import { uniqueADKApprovalsById } from "./adkApprovalResolution";
-import { isTerminalRunStatus, runStatusTone } from "./adkChatPresentation";
+import {
+  isTerminalRunStatus,
+  runErrorSummary,
+  runStatusTone,
+} from "./adkChatPresentation";
 import { mergeADKRunLifecycleSnapshot } from "./adkChatRuntime";
 import { normalizeADKRun } from "./adkNormalization";
 import {
@@ -27,6 +31,11 @@ export interface ADKChildRunQueueItem {
   status: string;
   updatedAt?: string | undefined;
   pendingApprovalCount: number;
+  errorSummary?: string | undefined;
+  errorDetail?: string | undefined;
+  errorCode?: string | undefined;
+  parentRunId?: string | undefined;
+  userMessage?: string | undefined;
 }
 
 export interface ADKApprovalQueueItem {
@@ -117,6 +126,7 @@ export function useADKWorkflowQueueState(options: {
       const runSnapshot = snapshots[id];
       const stepMeta = stepByChildRunId.get(id);
       const stepStatus = effectiveWorkflowStepStatus(run, stepMeta?.step);
+      const error = childRunError(runSnapshot, stepMeta?.step);
       return {
         id,
         index: index + 1,
@@ -128,6 +138,11 @@ export function useADKWorkflowQueueState(options: {
         updatedAt: runSnapshot?.updatedAt,
         pendingApprovalCount: pendingApprovals(runSnapshot?.pendingApprovals)
           .length,
+        errorSummary: error.summary,
+        errorDetail: error.detail,
+        errorCode: error.code,
+        parentRunId: runSnapshot?.parentRunId || run?.id,
+        userMessage: runSnapshot?.userMessage || stepMeta?.step.message,
       };
     });
   }
@@ -621,8 +636,7 @@ function buildChildLifecycleEntries(options: {
     options.timelineEntries.length,
     ...options.timelineEntries.map((entry) => entry.sequence ?? 0),
   );
-  return options.childItems.flatMap((item) => {
-    const label = childLifecycleLabel(item);
+  return options.childItems.map((item) => {
     const sessionId =
       options.parentRun.sessionId ||
       item.run?.sessionId ||
@@ -640,80 +654,45 @@ function buildChildLifecycleEntries(options: {
       options.parentRun.updatedAt ||
       options.parentRun.createdAt ||
       startTime;
-    return [
-      {
-        id: `workflow-child-start:${options.parentRun.id}:${item.id}`,
-        sessionId,
-        runId,
-        kind: "assistant_message",
-        createdAt: startTime,
-        updatedAt: startTime,
-        sequence: baseSequence + item.index * 2 - 1,
-        status: "final",
-        text: `启动子智能体 #${item.index}：${label}（${item.id}）`,
-      },
-      {
-        id: `workflow-child-status:${options.parentRun.id}:${item.id}`,
-        sessionId,
-        runId,
-        kind: "assistant_message",
-        // Keep the parent timeline stable by anchoring child lifecycle rows
-        // to the child's creation time instead of its latest refresh time.
-        createdAt: startTime,
-        updatedAt: statusTime,
-        sequence: baseSequence + item.index * 2,
-        status: "final",
-        text: childLifecycleStatusText(item, label),
-      },
-    ];
+    return {
+      id: `workflow-child-run:${options.parentRun.id}:${item.id}`,
+      sessionId,
+      runId,
+      kind: "child_run_group",
+      createdAt: startTime,
+      updatedAt: statusTime,
+      sequence: baseSequence + item.index,
+      status: "final",
+      childRunItem: item,
+    };
   });
 }
 
-function childLifecycleLabel(item: ADKChildRunQueueItem): string {
-  return (
-    item.stepTitle ||
-    item.stepMessage ||
-    item.run?.userMessage ||
-    item.run?.message ||
-    "子智能体"
-  );
-}
-
-function childLifecycleStatusText(
-  item: ADKChildRunQueueItem,
-  label: string,
-): string {
-  const prefix = `子智能体 #${item.index}`;
-  const suffix = `${label}（${item.id}）`;
-  const status = String(item.status ?? "").trim().toUpperCase();
-  if (item.pendingApprovalCount > 0 || status === "PENDING_APPROVAL") {
-    return `${prefix} 等待审批：${suffix}`;
+function childRunError(
+  run: ADKRun | undefined,
+  step: ADKWorkflowStepState | undefined,
+): { summary?: string; detail?: string; code?: string } {
+  const runSummary = runErrorSummary(run);
+  if (runSummary) {
+    return {
+      summary: runSummary.title,
+      detail: runSummary.detail,
+      ...(runSummary.code ? { code: runSummary.code } : {}),
+    };
   }
-  switch (status) {
-    case "BLOCKED":
-      return `${prefix} 已阻断：${suffix}`;
-    case "DONE":
-    case "COMPLETED":
-    case "SUCCEEDED":
-      return `${prefix} 已结束：已完成 · ${suffix}`;
-    case "FAILED":
-    case "TIMED_OUT":
-    case "DENIED":
-      return `${prefix} 已结束：失败 · ${suffix}`;
-    case "CANCELLED":
-    case "CANCELED":
-      return `${prefix} 已结束：已取消 · ${suffix}`;
-    case "IN_PROGRESS":
-    case "RUNNING":
-      return `${prefix} 正在运行：${suffix}`;
-    case "TODO":
-    case "PENDING":
-      return `${prefix} 等待启动：${suffix}`;
-    default:
-      return status === ""
-        ? `${prefix} 状态未知：${suffix}`
-        : `${prefix} 状态 ${status}：${suffix}`;
+  const stepStatus = String(step?.status ?? "").trim().toUpperCase();
+  if (
+    stepStatus !== "FAILED" &&
+    stepStatus !== "TIMED_OUT" &&
+    stepStatus !== "DENIED" &&
+    stepStatus !== "BLOCKED" &&
+    stepStatus !== "CANCELLED" &&
+    stepStatus !== "CANCELED"
+  ) {
+    return {};
   }
+  const summary = String(step?.resultSummary || step?.outputSummary || "").trim();
+  return summary ? { summary, detail: summary } : {};
 }
 
 function pendingApprovals(

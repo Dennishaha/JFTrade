@@ -39,7 +39,7 @@ function mountThread(
     global: {
       stubs: {
         ADKRunTrace: { template: "<div />" },
-        "v-alert": { template: "<div><slot /></div>" },
+        "v-alert": { template: "<div :class='$attrs.class'><slot /></div>" },
         "v-chip": { template: "<button><slot /></button>" },
         "v-icon": { template: "<span><slot /></span>" },
         "v-progress-circular": { template: "<span />" },
@@ -58,6 +58,65 @@ describe("ADKChatThread", () => {
     expect(wrapper.find(".adk-child-finished-status").text()).toContain(
       "子智能体已结束，主智能体继续处理中",
     );
+  });
+
+  it("renders structured run errors as one-line alerts with expandable details", async () => {
+    const wrapper = mountThread([], {
+      props: {
+        errorMessage:
+          "模型调用失败：服务商余额不足\nprovider returned 402\n错误码：MODEL_CALL_FAILED · Run：run-1",
+      },
+    });
+
+    const alert = wrapper.get(".adk-inline-alert");
+    expect(alert.find(".adk-inline-alert__title").text()).toBe(
+      "模型调用失败：服务商余额不足",
+    );
+    expect(alert.text()).not.toContain("provider returned 402");
+    expect(alert.text()).not.toContain("MODEL_CALL_FAILED");
+
+    await alert.get(".adk-inline-alert__toggle").trigger("click");
+
+    expect(alert.text()).toContain("provider returned 402");
+    expect(alert.text()).toContain("MODEL_CALL_FAILED");
+    expect(alert.text()).toContain("run-1");
+  });
+
+  it("renders child run groups with the child trace component", () => {
+    const childTraceStub = defineComponent({
+      props: ["item", "variant"],
+      template: "<div class='child-trace-stub'>{{ item.stepTitle }} / {{ item.status }} / {{ variant }}</div>",
+    });
+    const wrapper = mountThread(
+      [
+        {
+          id: "child-entry",
+          sessionId: "session-1",
+          runId: "parent-run",
+          kind: "child_run_group",
+          createdAt: "2026-06-17T00:00:00Z",
+          sequence: 1,
+          status: "final",
+          text: "启动子智能体 #1：不应显示",
+          childRunItem: {
+            id: "child-run",
+            index: 1,
+            stepTitle: "检查子智能体",
+            status: "FAILED",
+            pendingApprovalCount: 0,
+          },
+        } as never,
+      ],
+      {
+        stubs: {
+          ADKChildRunTrace: childTraceStub,
+        },
+      },
+    );
+
+    expect(wrapper.find(".child-trace-stub").text()).toContain("检查子智能体");
+    expect(wrapper.find(".child-trace-stub").text()).toContain("timeline");
+    expect(wrapper.text()).not.toContain("启动子智能体");
   });
 
   it("shows original user prompt by default and toggles processed prompt", async () => {
@@ -245,6 +304,7 @@ describe("ADKChatThread", () => {
         "run",
         "toolProgress",
         "busy",
+        "variant",
         "summaryExpanded",
         "expandedToolCallIds",
       ],
@@ -255,6 +315,7 @@ describe("ADKChatThread", () => {
           <span class="trace-tool-status">{{ run.toolCalls?.[0]?.status }}</span>
           <span class="trace-progress">{{ toolProgress }}</span>
           <span class="trace-busy">{{ busy ? 'busy' : 'idle' }}</span>
+          <span class="trace-variant">{{ variant }}</span>
           <button type="button" class="emit-summary" @click="$emit('update:summaryExpanded', true)">summary</button>
           <button type="button" class="emit-tools" @click="$emit('update:expandedToolCallIds', ['tool-1'])">tools</button>
         </div>
@@ -304,6 +365,7 @@ describe("ADKChatThread", () => {
     expect(trace.text()).toContain("工具执行中...");
     expect(trace.text()).toContain("busy");
     expect(trace.text()).toContain("RUNNING");
+    expect(trace.text()).toContain("timeline");
 
     await trace.get(".emit-summary").trigger("click");
     await nextTick();

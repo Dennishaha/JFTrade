@@ -1048,6 +1048,34 @@ body {
   max-width: 100%;
 }
 
+.adk-run-trace--timeline {
+  width: fit-content;
+  max-width: min(720px, 100%);
+  justify-self: start;
+}
+
+.adk-run-trace--timeline.adk-run-trace--expanded {
+  width: min(720px, 100%);
+}
+
+.adk-run-trace--timeline .adk-run-trace-card {
+  width: auto;
+  max-width: 100%;
+}
+
+.adk-run-trace--timeline .adk-run-trace-card__main {
+  flex: 0 1 auto;
+}
+
+.adk-run-trace--timeline.adk-run-trace--expanded .adk-run-trace-card,
+.adk-run-trace--timeline.adk-run-trace--expanded .adk-run-trace-tools {
+  width: 100%;
+}
+
+.adk-run-trace--compact.adk-run-trace--timeline {
+  width: 100%;
+}
+
 .adk-status-pill {
   display: inline-flex;
   align-items: center;
@@ -1243,6 +1271,15 @@ body {
   white-space: nowrap;
 }
 
+.adk-run-trace-card__error {
+  max-width: min(420px, 100%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--adk-error-fg);
+  font-weight: 600;
+}
+
 .adk-run-trace-card__chevron {
   flex-shrink: 0;
   color: var(--tv-text-dim);
@@ -1252,6 +1289,75 @@ body {
 
 .adk-run-trace-detail {
   padding: 0 4px 0 10px;
+}
+
+.adk-child-run-trace {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.adk-child-run-trace--timeline {
+  width: fit-content;
+  max-width: min(720px, 100%);
+  justify-self: start;
+}
+
+.adk-child-run-trace--timeline .adk-child-run-trace__card {
+  width: auto;
+  max-width: 100%;
+}
+
+.adk-child-run-trace--timeline .adk-run-trace-card__main {
+  flex: 0 1 auto;
+}
+
+.adk-child-run-trace--timeline .adk-child-run-trace__detail {
+  max-width: 100%;
+}
+
+.adk-child-run-trace--compact.adk-child-run-trace--timeline {
+  width: 100%;
+}
+
+.adk-child-run-trace.is-active-child .adk-child-run-trace__card {
+  border-color: color-mix(in srgb, var(--tv-accent) 52%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-accent) 12%, var(--tv-bg-elevated));
+}
+
+.adk-child-run-trace__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.adk-child-run-trace__detail {
+  display: grid;
+  gap: 8px;
+}
+
+.adk-child-run-trace__usage {
+  color: var(--tv-text-dim);
+  font-size: 12px;
+}
+
+.adk-child-run-trace__fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.adk-child-run-trace__fields dt {
+  color: var(--tv-text-dim);
+}
+
+.adk-child-run-trace__fields dd {
+  margin: 0;
+  color: var(--tv-text);
+  overflow-wrap: anywhere;
 }
 
 .adk-tool-visual {
@@ -2084,6 +2190,49 @@ body {
 
 .adk-inline-alert {
   width: 100%;
+}
+
+.adk-inline-alert__content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.adk-inline-alert__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.adk-inline-alert__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-inline-alert__toggle {
+  flex: 0 0 auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--adk-accent-fg);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.adk-inline-alert__details {
+  display: grid;
+  gap: 3px;
+}
+
+.adk-inline-alert__detail {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: 0.86;
 }
 
 /* === Composer === */

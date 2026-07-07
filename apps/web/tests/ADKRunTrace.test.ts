@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { ADKRun } from "@/contracts";
 
 import ADKRunTrace from "../src/components/shared/ADKRunTrace.vue";
+import { runErrorDisplayMessage } from "../src/composables/adkChatPresentation";
 
 describe("ADKRunTrace", () => {
   it("shows a collapsed summary for completed multi-tool runs", () => {
@@ -24,6 +25,33 @@ describe("ADKRunTrace", () => {
     expect(wrapper.text()).toContain("调用了 2 个工具");
     expect(wrapper.text()).toContain("已完成");
     expect(wrapper.text()).not.toContain("portfolio.summary");
+  });
+
+  it("uses timeline width classes and expands to a readable width state", () => {
+    const collapsed = mount(ADKRunTrace, {
+      props: {
+        run: buildRun([
+          buildToolCall("tool-1", "portfolio.summary"),
+          buildToolCall("tool-2", "orders.latest"),
+        ]),
+        variant: "timeline",
+        summaryExpanded: false,
+        expandedToolCallIds: [],
+      },
+    });
+    const expanded = mount(ADKRunTrace, {
+      props: {
+        run: buildRun([buildToolCall("tool-1", "portfolio.summary")]),
+        variant: "timeline",
+        summaryExpanded: true,
+        expandedToolCallIds: [],
+      },
+    });
+
+    expect(collapsed.classes()).toContain("adk-run-trace--timeline");
+    expect(collapsed.classes()).not.toContain("adk-run-trace--expanded");
+    expect(expanded.classes()).toContain("adk-run-trace--timeline");
+    expect(expanded.classes()).toContain("adk-run-trace--expanded");
   });
 
   it("shows a direct tool summary for a completed single-tool run", () => {
@@ -329,6 +357,73 @@ describe("ADKRunTrace", () => {
     );
   });
 
+  it("does not treat normal running messages as run errors", () => {
+    const run = buildRun([], "RUNNING", "", {
+      id: "run-running-normal",
+      message: "running",
+      workMode: "loop",
+      workflowStatus: "RUNNING",
+      objective: "正常运行中",
+      childRunIds: ["child-1"],
+    });
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run,
+        busy: true,
+      },
+    });
+
+    expect(runErrorDisplayMessage(run)).toBe("");
+    expect(wrapper.text()).toContain("运行中");
+    expect(wrapper.text()).not.toContain("运行异常");
+    expect(wrapper.text()).not.toContain("Run：run-running-normal");
+  });
+
+  it("shows localized workflow error summaries and codes", () => {
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun(
+          [],
+          "FAILED",
+          'provider returned 402: {"error":{"message":"Insufficient Balance"}}',
+          {
+            workMode: "loop",
+            workflowStatus: "FAILED",
+            errorCode: "MODEL_CALL_FAILED",
+            childRunIds: ["child-1"],
+          },
+        ),
+        busy: false,
+      },
+    });
+
+    expect(wrapper.text()).toContain("模型调用失败：服务商余额不足");
+    expect(wrapper.text()).toContain("MODEL_CALL_FAILED");
+  });
+
+  it("explains parent-terminated child runs", () => {
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun(
+          [],
+          "CANCELLED",
+          "parent workflow run-parent terminated",
+          {
+            workMode: "loop",
+            workflowStatus: "FAILED",
+            errorCode: "PARENT_RUN_TERMINATED",
+            parentRunId: "run-parent",
+            childRunIds: ["nested-child"],
+          },
+        ),
+        busy: false,
+      },
+    });
+
+    expect(wrapper.text()).toContain("父工作流已终止，子智能体已取消");
+    expect(wrapper.text()).toContain("PARENT_RUN_TERMINATED");
+  });
+
   it("collapses expanded tools, formats second durations, and falls back for circular payloads", async () => {
     const circular: Record<string, unknown> = { step: "circular" };
     circular.self = circular;
@@ -363,6 +458,7 @@ function buildRun(
   toolCalls: ADKRun["toolCalls"],
   status = "COMPLETED",
   failureReason = "",
+  overrides: Partial<ADKRun> = {},
 ): ADKRun {
   return {
     id: "run-1",
@@ -375,6 +471,7 @@ function buildRun(
     pendingApprovals: [],
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",
+    ...overrides,
   };
 }
 

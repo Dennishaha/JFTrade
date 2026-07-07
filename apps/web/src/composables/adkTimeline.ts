@@ -8,9 +8,11 @@ import type {
 
 import { uniqueADKApprovalsById } from "./adkApprovalResolution";
 import { normalizeADKChatResponse } from "./adkNormalization";
+import type { ADKChildRunQueueItem } from "./useADKWorkflowQueueState";
 
 export interface ADKTimelineEntryState extends ADKTimelineEntry {
   run?: ADKRun;
+  childRunItem?: ADKChildRunQueueItem;
   reasoningExpanded?: boolean;
   userPromptVariant?: "original" | "processed";
   toolSummaryExpanded?: boolean;

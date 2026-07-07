@@ -19,7 +19,7 @@ import {
 import {
   isTerminalRunStatus,
   isUserPausedGoalRun,
-  runTerminalMessage,
+  runErrorDisplayMessage,
 } from "./adkChatPresentation";
 import {
   resumeADKChatStream,
@@ -1039,13 +1039,13 @@ export function useADKPageChatState(
     } else {
       await refreshSessionContext(resolution.normalizedResponse.session.id);
     }
+    await sessionState.refreshAll();
     if (resolution.failMessage) {
       sessionState.errorMessage.value = resolution.failMessage;
     }
     if (resolution.terminal) {
       clearSessionRuntimeState(resolution.normalizedResponse.session.id);
     }
-    await sessionState.refreshAll();
     await scrollToBottom(threadRef);
   }
 
@@ -1169,7 +1169,7 @@ export function useADKPageChatState(
 
   async function handleTerminalRun(run: ADKRun): Promise<void> {
     syncActiveRun(run);
-    const failMsg = runTerminalMessage(run);
+    const failMsg = runErrorDisplayMessage(run);
     if (failMsg) {
       sessionState.errorMessage.value = failMsg;
     }

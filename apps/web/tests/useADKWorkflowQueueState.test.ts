@@ -234,14 +234,24 @@ describe("useADKWorkflowQueueState", () => {
       state.parentTimelineEntries.value.find((entry) => entry.id === "entry-tools")
         ?.toolCalls,
     ).toEqual([expect.objectContaining({ id: "tool-parent" })]);
-    expect(
-      state.parentTimelineEntries.value.map((entry) => entry.text).filter(Boolean),
-    ).toEqual(
-      expect.arrayContaining([
-        "启动子智能体 #1：Collect quotes（child-1）",
-        "子智能体 #2 等待审批：Place order（child-2）",
-      ]),
+    const childEntries = state.parentTimelineEntries.value.filter(
+      (entry) => entry.kind === "child_run_group",
     );
+    expect(childEntries).toHaveLength(2);
+    expect(childEntries[0]?.childRunItem).toMatchObject({
+      id: "child-1",
+      stepTitle: "Collect quotes",
+      status: "COMPLETED",
+    });
+    expect(childEntries[1]?.childRunItem).toMatchObject({
+      id: "child-2",
+      stepTitle: "Place order",
+      status: "PENDING_APPROVAL",
+      pendingApprovalCount: 1,
+    });
+    expect(
+      state.parentTimelineEntries.value.map((entry) => entry.text).join("\n"),
+    ).not.toContain("启动子智能体");
 
     state.setActiveChildRunId("child-2");
     expect(state.activeChildRunId.value).toBe("child-2");
@@ -493,19 +503,89 @@ describe("useADKWorkflowQueueState", () => {
       }),
     );
 
-    const texts = state.parentTimelineEntries.value
-      .map((entry) => entry.text)
-      .filter(Boolean);
-
-    expect(texts).toEqual(
-      expect.arrayContaining([
-        "子智能体 #1 已阻断：Blocked child（child-blocked）",
-        "子智能体 #2 已结束：失败 · Failed child（child-failed）",
-        "子智能体 #3 已结束：已取消 · Cancelled child（child-cancelled）",
-        "子智能体 #4 等待启动：Pending child（child-pending）",
-        "子智能体 #5 状态 QUEUED_EXTERNALLY：External child（child-external）",
-      ]),
+    const childEntries = state.parentTimelineEntries.value.filter(
+      (entry) => entry.kind === "child_run_group",
     );
+    expect(childEntries.map((entry) => entry.childRunItem?.status)).toEqual([
+      "BLOCKED",
+      "FAILED",
+      "CANCELLED",
+      "PENDING",
+      "QUEUED_EXTERNALLY",
+    ]);
+    expect(childEntries[1]?.childRunItem?.errorSummary).toBe("运行失败");
+    expect(childEntries[2]?.childRunItem?.errorSummary).toBe("运行已取消");
+    expect(
+      state.parentTimelineEntries.value.map((entry) => entry.text).join("\n"),
+    ).not.toContain("子智能体 #");
+  });
+
+  it("derives child queue error summaries from child run snapshots", async () => {
+    const state = useADKWorkflowQueueState({
+      timelineEntries: ref([]),
+      selectedSessionId: ref("session-1"),
+    });
+    mocks.fetchEnvelope.mockResolvedValue(
+      buildRun({
+        id: "child-model-failed",
+        parentRunId: "run-parent",
+        status: "FAILED",
+        failureReason:
+          'provider returned 402: {"error":{"message":"Insufficient Balance"}}',
+        errorCode: "MODEL_CALL_FAILED",
+      }),
+    );
+
+    await state.syncWorkflowRun(
+      buildRun({
+        id: "run-parent",
+        workMode: "loop",
+        workflowStatus: "RUNNING",
+        childRunIds: ["child-model-failed"],
+        workflowPlan: [
+          buildWorkflowStep({
+            title: "模型调用",
+            status: "IN_PROGRESS",
+            childRunId: "child-model-failed",
+          }),
+        ],
+      }),
+    );
+
+    expect(state.parentChildRunItems.value[0]?.errorSummary).toBe(
+      "模型调用失败：服务商余额不足",
+    );
+    expect(
+      state.parentTimelineEntries.value.find(
+        (entry) => entry.kind === "child_run_group",
+      )?.childRunItem?.errorSummary,
+    ).toBe("模型调用失败：服务商余额不足");
+  });
+
+  it("does not invent child queue error summaries before snapshots load", async () => {
+    const state = useADKWorkflowQueueState({
+      timelineEntries: ref([]),
+      selectedSessionId: ref("session-1"),
+    });
+    mocks.fetchEnvelope.mockRejectedValue(new Error("offline"));
+
+    await state.syncWorkflowRun(
+      buildRun({
+        id: "run-parent",
+        workMode: "loop",
+        workflowStatus: "RUNNING",
+        childRunIds: ["child-not-loaded"],
+        workflowPlan: [
+          buildWorkflowStep({
+            title: "等待子运行",
+            status: "IN_PROGRESS",
+            childRunId: "child-not-loaded",
+          }),
+        ],
+      }),
+    );
+
+    expect(state.parentChildRunItems.value[0]?.errorSummary).toBeUndefined();
   });
 
   it("keeps child lifecycle rows ordered by child creation time", async () => {
@@ -558,12 +638,9 @@ describe("useADKWorkflowQueueState", () => {
     );
 
     expect(
-      state.parentTimelineEntries.value.map((entry) => entry.text).filter(Boolean),
-    ).toEqual([
-      "启动子智能体 #1：Older child（child-older）",
-      "子智能体 #1 正在运行：Older child（child-older）",
-      "启动子智能体 #2：Newer child（child-newer）",
-      "子智能体 #2 正在运行：Newer child（child-newer）",
-    ]);
+      state.parentTimelineEntries.value
+        .filter((entry) => entry.kind === "child_run_group")
+        .map((entry) => entry.childRunItem?.id),
+    ).toEqual(["child-older", "child-newer"]);
   });
 });

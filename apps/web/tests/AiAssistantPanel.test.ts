@@ -649,21 +649,19 @@ describe("AiAssistantPanel", () => {
 
     await sendDockMessage("dock child workflow");
     expect(document.body.textContent).toContain("42% 正常");
-    await expandQueue("子智能体");
+    const childTrace = document.querySelector(".adk-child-run-trace");
+    expect(childTrace).not.toBeNull();
     const childQueue = document.querySelector('[aria-label="子智能体"]');
     expect(childQueue).not.toBeNull();
     expect(document.querySelector('[aria-label="执行计划"]')).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-success")).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-success")).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-error")).toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-error")).toBeNull();
+    expect(childTrace?.querySelector(".adk-status-pill.is-success")).not.toBeNull();
+    expect(childTrace?.querySelector(".adk-status-pill.is-error")).toBeNull();
     expect(document.body.textContent).toContain("侧栏子智能体");
     expect(document.body.textContent).toContain("dock parent visible answer");
-    expect(document.body.textContent).toContain("启动子智能体 #1");
-    expect(document.body.textContent).toContain("子智能体 #1 已结束：已完成");
-    expect(
-      document.querySelector('[aria-label="子智能体"]')?.textContent,
-    ).not.toContain("运行中");
+    expect(document.body.textContent).not.toContain("启动子智能体 #1");
+    expect(document.body.textContent).not.toContain("子智能体 #1 已结束：已完成");
+    expect(document.body.textContent).toContain("已完成");
+    expect(childTrace?.textContent).not.toContain("运行中");
     expect(
       document.querySelector('[aria-label="执行计划"]')?.textContent,
     ).not.toContain("IN_PROGRESS");
@@ -674,6 +672,7 @@ describe("AiAssistantPanel", () => {
     );
     expect(document.body.textContent).not.toContain("dock-child-only-success");
 
+    await expandQueue("子智能体");
     clickButtonByText("进入");
     await nextTick();
 
@@ -696,8 +695,9 @@ describe("AiAssistantPanel", () => {
     expect(document.body.textContent).toContain("dock parent visible answer");
     expect(document.body.textContent).toContain("42% 正常");
     expect(document.body.textContent).not.toContain("15% 正常");
-    expect(document.body.textContent).toContain("启动子智能体 #1");
-    expect(document.body.textContent).toContain("子智能体 #1 已结束：已完成");
+    expect(document.body.textContent).not.toContain("启动子智能体 #1");
+    expect(document.body.textContent).not.toContain("子智能体 #1 已结束：已完成");
+    expect(document.body.textContent).toContain("已完成");
     expect(document.body.textContent).not.toContain("dock child filtered answer");
     expect(document.body.textContent).not.toContain("strategy.inspect_dock_child");
     expect(document.body.textContent).not.toContain(
@@ -756,14 +756,13 @@ describe("AiAssistantPanel", () => {
     await flushRequests();
 
     await sendDockMessage("dock failed child workflow");
-    await expandQueue("子智能体");
 
-    const childQueue = document.querySelector('[aria-label="子智能体"]');
-    expect(childQueue).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-error")).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-error")).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-success")).toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-success")).toBeNull();
+    const childTrace = document.querySelector(".adk-child-run-trace");
+    expect(childTrace).not.toBeNull();
+    await expandQueue("子智能体");
+    expect(document.querySelector('[aria-label="子智能体"]')).not.toBeNull();
+    expect(childTrace?.querySelector(".adk-status-pill.is-error")).not.toBeNull();
+    expect(childTrace?.querySelector(".adk-status-pill.is-success")).toBeNull();
   });
 
   it("queues dock messages and auto-dispatches them after the blocking run completes", async () => {

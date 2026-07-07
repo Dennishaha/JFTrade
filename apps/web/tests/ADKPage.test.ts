@@ -930,29 +930,23 @@ describe("ADKPage", () => {
 
     await sendPageMessage("run child workflow");
     expect(document.body.textContent).toContain("42% 正常");
-    await expandQueue("子智能体");
+    const childTrace = document.querySelector(".adk-child-run-trace");
+    expect(childTrace).not.toBeNull();
     const childQueue = document.querySelector('[aria-label="子智能体"]');
     expect(childQueue).not.toBeNull();
     expect(document.querySelector('[aria-label="执行计划"]')).not.toBeNull();
     expect(
-      childQueue?.querySelector(".adk-workspace-queue__badge.is-success"),
+      childTrace?.querySelector(".adk-status-pill.is-success"),
     ).not.toBeNull();
     expect(
-      childQueue?.querySelector(".adk-workspace-queue-status.is-success"),
-    ).not.toBeNull();
-    expect(
-      childQueue?.querySelector(".adk-workspace-queue__badge.is-error"),
-    ).toBeNull();
-    expect(
-      childQueue?.querySelector(".adk-workspace-queue-status.is-error"),
+      childTrace?.querySelector(".adk-status-pill.is-error"),
     ).toBeNull();
     expect(document.body.textContent).toContain("检查子智能体");
     expect(document.body.textContent).toContain("parent visible answer");
-    expect(document.body.textContent).toContain("启动子智能体 #1");
-    expect(document.body.textContent).toContain("子智能体 #1 已结束：已完成");
-    expect(
-      document.querySelector('[aria-label="子智能体"]')?.textContent,
-    ).not.toContain("运行中");
+    expect(document.body.textContent).not.toContain("启动子智能体 #1");
+    expect(document.body.textContent).not.toContain("子智能体 #1 已结束：已完成");
+    expect(document.body.textContent).toContain("已完成");
+    expect(childTrace?.textContent).not.toContain("运行中");
     expect(
       document.querySelector('[aria-label="执行计划"]')?.textContent,
     ).not.toContain("IN_PROGRESS");
@@ -963,6 +957,7 @@ describe("ADKPage", () => {
     );
     expect(document.body.textContent).not.toContain("child-only-success");
 
+    await expandQueue("子智能体");
     clickButtonByText("进入");
     await nextTick();
 
@@ -986,8 +981,9 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("parent visible answer");
     expect(document.body.textContent).toContain("42% 正常");
     expect(document.body.textContent).not.toContain("15% 正常");
-    expect(document.body.textContent).toContain("启动子智能体 #1");
-    expect(document.body.textContent).toContain("子智能体 #1 已结束：已完成");
+    expect(document.body.textContent).not.toContain("启动子智能体 #1");
+    expect(document.body.textContent).not.toContain("子智能体 #1 已结束：已完成");
+    expect(document.body.textContent).toContain("检查子智能体");
     expect(document.body.textContent).not.toContain("child filtered answer");
     expect(document.body.textContent).not.toContain("strategy.inspect_child");
     expect(document.body.textContent).not.toContain(
@@ -1298,22 +1294,89 @@ describe("ADKPage", () => {
     await flushRequests();
 
     await sendPageMessage("run failed child workflow");
-    await expandQueue("子智能体");
 
+    const childTrace = document.querySelector(".adk-child-run-trace");
+    expect(childTrace).not.toBeNull();
+    await expandQueue("子智能体");
     const childQueue = document.querySelector('[aria-label="子智能体"]');
     expect(childQueue).not.toBeNull();
     expect(
-      childQueue?.querySelector(".adk-workspace-queue__badge.is-error"),
+      childTrace?.querySelector(".adk-status-pill.is-error"),
     ).not.toBeNull();
     expect(
-      childQueue?.querySelector(".adk-workspace-queue-status.is-error"),
-    ).not.toBeNull();
-    expect(
-      childQueue?.querySelector(".adk-workspace-queue__badge.is-success"),
+      childTrace?.querySelector(".adk-status-pill.is-success"),
     ).toBeNull();
-    expect(
-      childQueue?.querySelector(".adk-workspace-queue-status.is-success"),
-    ).toBeNull();
+    expect(childTrace?.textContent).toContain("运行失败");
+    expect(childQueue?.textContent).toContain("运行失败");
+  });
+
+  it("surfaces workflow provider failures in the conversation alert and child queue", async () => {
+    const workflowRun = buildRun({
+      id: "parent-run-provider-failed",
+      status: "FAILED",
+      workMode: "loop",
+      workflowStatus: "FAILED",
+      message:
+        'provider returned 402: {"error":{"message":"Insufficient Balance"}}',
+      failureReason:
+        'provider returned 402: {"error":{"message":"Insufficient Balance"}}',
+      errorCode: "MODEL_CALL_FAILED",
+      childRunIds: ["child-run-provider-cancelled"],
+      workflowPlan: [
+        buildWorkflowStep(
+          "step-provider-failed",
+          "每日股票盘点",
+          "IN_PROGRESS",
+          "child-run-provider-cancelled",
+        ),
+      ],
+    });
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply:
+          'provider returned 402: {"error":{"message":"Insufficient Balance"}}',
+        session: buildSession(),
+        run: workflowRun,
+        pendingApprovals: [],
+        timeline: [],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      runById: {
+        "child-run-provider-cancelled": buildRun({
+          id: "child-run-provider-cancelled",
+          parentRunId: workflowRun.id,
+          status: "CANCELLED",
+          failureReason: "parent workflow parent-run-provider-failed terminated",
+          errorCode: "PARENT_RUN_TERMINATED",
+        }),
+      },
+    });
+    await flushRequests();
+
+    await sendPageMessage("run failed provider workflow");
+
+    expect(document.body.textContent).toContain(
+      "模型调用失败：服务商余额不足",
+    );
+    expect(document.body.textContent).not.toContain(
+      "MODEL_CALL_FAILED",
+    );
+    document.querySelector<HTMLButtonElement>(".adk-inline-alert__toggle")?.click();
+    await nextTick();
+    expect(document.body.textContent).toContain(
+      "MODEL_CALL_FAILED",
+    );
+    await expandQueue("子智能体");
+    expect(document.querySelector('[aria-label="子智能体"]')).not.toBeNull();
+    expect(document.querySelector(".adk-child-run-trace")?.textContent).toContain(
+      "父工作流已终止，子智能体已取消",
+    );
   });
 
   it("derives completed workflow state from terminal child snapshots", async () => {
@@ -1366,16 +1429,17 @@ describe("ADKPage", () => {
     await flushRequests();
 
     await sendPageMessage("run stale parent workflow");
-    await expandQueue("子智能体");
 
-    const childQueue = document.querySelector('[aria-label="子智能体"]');
-    expect(childQueue?.textContent).toContain("已完成");
-    expect(childQueue?.textContent).not.toContain("运行中");
+    const childTrace = document.querySelector(".adk-child-run-trace");
+    expect(childTrace?.textContent).toContain("已完成");
+    expect(childTrace?.textContent).not.toContain("运行中");
     expect(
-      childQueue?.querySelector(".adk-workspace-queue__badge.is-success"),
+      childTrace?.querySelector(".adk-status-pill.is-success"),
     ).not.toBeNull();
+    expect(document.querySelector('[aria-label="子智能体"]')).not.toBeNull();
     expect(document.querySelector(".adk-composer-stop")).toBeNull();
 
+    await expandQueue("子智能体");
     clickButtonByText("进入");
     await nextTick();
 
@@ -1422,9 +1486,9 @@ describe("ADKPage", () => {
     });
     await flushRequests();
     await sendPageMessage("run blocked child workflow");
-    await expandQueue("子智能体");
 
     expect(document.querySelector('[aria-label="待审批"]')).toBeNull();
+    expect(document.querySelector('[aria-label="子智能体"]')).not.toBeNull();
     expect(document.body.textContent).toContain("已阻断");
   });
 
@@ -1516,8 +1580,8 @@ describe("ADKPage", () => {
     await sendPageMessage("run child approval workflow");
 
     expect(document.body.textContent).toContain("parent waiting answer");
-    expect(document.body.textContent).toContain("启动子智能体 #1");
-    expect(document.body.textContent).toContain("子智能体 #1 等待审批");
+    expect(document.body.textContent).not.toContain("启动子智能体 #1");
+    expect(document.body.textContent).toContain("等待审批");
     expect(document.body.textContent).not.toContain(
       "child approval detail should stay hidden",
     );
@@ -1611,6 +1675,7 @@ describe("ADKPage", () => {
     expect(
       document.querySelector('[aria-label="子智能体"]')?.textContent,
     ).not.toContain("父级入口步骤");
+    expect(document.body.textContent).toContain("子级计划步骤");
   });
 
   it("updates the workflow plan from approval parentRun instead of the child run", async () => {
@@ -2666,6 +2731,20 @@ describe("ADKPage", () => {
       "本地兜底回复。",
     );
     expect(document.body.textContent).toContain("disk full");
+    expect(document.body.textContent).toContain(
+      "运行失败",
+    );
+    expect(document.body.textContent).not.toContain(
+      "TOOL_EXECUTION_FAILED",
+    );
+    document.querySelector<HTMLButtonElement>(".adk-inline-alert__toggle")?.click();
+    await nextTick();
+    expect(document.body.textContent).toContain(
+      "TOOL_EXECUTION_FAILED",
+    );
+    expect(document.body.textContent).toContain(
+      "run-failed-final",
+    );
     expect(
       document.querySelector<HTMLTextAreaElement>(
         ".adk-composer textarea, .adk-composer input",

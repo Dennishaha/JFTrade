@@ -4,7 +4,7 @@ import {
   isActiveRunStatus,
   isTerminalRunStatus,
   isUserPausedGoalRun,
-  runTerminalMessage,
+  runErrorDisplayMessage,
 } from "./adkChatPresentation";
 import { normalizeADKChatResponse } from "./adkNormalization";
 
@@ -292,7 +292,9 @@ export function resolveGoalAwareChatResponse(
     },
     resolvedRun,
     staleTerminalGoalPauseOverride,
-    failMessage: runTerminalMessage(resolvedRun),
+    failMessage:
+      runErrorDisplayMessage(resolvedRun) ||
+      runErrorDisplayMessage(normalizedResponse.run),
     terminal: isTerminalRunStatus(resolvedRun.status),
   };
 }
@@ -572,7 +574,7 @@ function syncGoalAwareContinuationProgress(
   options: GoalAwareRunContinuationOptions,
 ): void {
   options.syncActiveRun(run, shouldWaitForRunContinuation(run));
-  const failMessage = runTerminalMessage(run);
+  const failMessage = runErrorDisplayMessage(run);
   if (failMessage) {
     options.setErrorMessage?.(failMessage);
   }

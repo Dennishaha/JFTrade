@@ -152,6 +152,7 @@ const BOOLEAN_LABELS: Record<string, string> = {
   READY: "就绪",
   TODO: "待办",
   PENDING: "待处理",
+  PENDING_APPROVAL: "等待审批",
   IN_PROGRESS: "进行中",
   FOUND: "已命中",
   EMPTY: "空",

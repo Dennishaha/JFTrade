@@ -807,7 +807,7 @@ describe("ADK workflow Studio components", () => {
     expect(wrapper.text()).toContain("执行计划");
     expect(wrapper.text()).toContain("收集持仓");
     expect(wrapper.text()).toContain("收集持仓 · 已完成");
-    expect(wrapper.text()).toContain("PENDING_APPROVAL");
+    expect(wrapper.text()).toContain("等待审批");
     expect(wrapper.text()).toContain("完成");
   });
 

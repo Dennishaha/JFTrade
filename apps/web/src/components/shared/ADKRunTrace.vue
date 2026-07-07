@@ -10,6 +10,7 @@ import {
   firstFailedToolCall,
   isActiveRunStatus,
   normalizedDisplayStatus,
+  runErrorSummary,
   runStatusTone,
   runTerminalMessage,
   toolCallErrorSummary,
@@ -24,6 +25,7 @@ const props = withDefaults(
     toolProgress?: string | undefined;
     busy?: boolean;
     compact?: boolean;
+    variant?: "panel" | "timeline";
     summaryExpanded?: boolean | undefined;
     expandedToolCallIds?: string[] | undefined;
   }>(),
@@ -31,6 +33,7 @@ const props = withDefaults(
     toolProgress: "",
     busy: false,
     compact: false,
+    variant: "panel",
     summaryExpanded: false,
     expandedToolCallIds: () => [],
   },
@@ -119,6 +122,7 @@ const showWorkflowMeta = computed(
       props.run.objective ||
       (props.run.childRunIds?.length ?? 0) > 0),
 );
+const workflowErrorSummary = computed(() => runErrorSummary(props.run));
 const workflowModeLabel = computed(() => {
   switch (props.run?.workMode) {
     case "loop":
@@ -243,7 +247,11 @@ function truncate(value: string, maxLength: number): string {
   <div
     v-if="run || toolProgress.trim() !== ''"
     class="adk-run-trace"
-    :class="{ 'adk-run-trace--compact': compact }"
+    :class="{
+      'adk-run-trace--compact': compact,
+      'adk-run-trace--timeline': variant === 'timeline',
+      'adk-run-trace--expanded': showExpandedToolCalls,
+    }"
   >
     <div
       v-if="showProgress"
@@ -279,6 +287,12 @@ function truncate(value: string, maxLength: number): string {
           </span>
           <span v-if="run?.iteration">第 {{ run.iteration }} 轮</span>
           <span v-if="run?.childRunIds?.length">{{ run.childRunIds.length }} 个子智能体</span>
+          <span v-if="workflowErrorSummary" class="adk-run-trace-card__error">
+            {{ workflowErrorSummary.title }}
+          </span>
+          <span v-if="workflowErrorSummary?.code">
+            {{ workflowErrorSummary.code }}
+          </span>
           <span v-if="run?.objective">{{ truncate(run.objective, 120) }}</span>
         </span>
       </span>
