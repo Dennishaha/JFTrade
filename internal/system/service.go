@@ -340,9 +340,25 @@ func (s *Service) optionalExchangeCalendarStatus() map[string]any {
 
 func (s *Service) optionalRequestObservability() any {
 	if s.requestObservabilityFn == nil {
-		return nil
+		return defaultRequestObservabilitySummary()
 	}
-	return s.requestObservabilityFn()
+	if summary := s.requestObservabilityFn(); summary != nil {
+		return summary
+	}
+	return defaultRequestObservabilitySummary()
+}
+
+func defaultRequestObservabilitySummary() map[string]any {
+	return map[string]any{
+		"recentErrors":       []any{},
+		"recentSlowRequests": []any{},
+		"openD": map[string]any{
+			"totalCalls":  0,
+			"failedCalls": 0,
+		},
+		"slowThresholdMs":   750,
+		"minimumImportance": "low",
+	}
 }
 
 func attachOptionalSystemStatus(status map[string]any, broker map[string]any, strategyRuntime map[string]any) {

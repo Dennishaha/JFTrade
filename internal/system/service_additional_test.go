@@ -44,6 +44,34 @@ func TestStatusIncludesInjectedObservabilitySummaries(t *testing.T) {
 	}
 }
 
+func TestStatusProvidesDefaultRequestObservabilitySummary(t *testing.T) {
+	status := NewService().Status()
+	observability, ok := status["observability"].(map[string]any)
+	if !ok {
+		t.Fatalf("observability = %#v, want map", status["observability"])
+	}
+	requests, ok := observability["requests"].(map[string]any)
+	if !ok {
+		t.Fatalf("requests = %#v, want map", observability["requests"])
+	}
+	if got := requests["slowThresholdMs"]; got != 750 {
+		t.Fatalf("slowThresholdMs = %#v, want 750", got)
+	}
+	if got := requests["minimumImportance"]; got != "low" {
+		t.Fatalf("minimumImportance = %#v, want low", got)
+	}
+	if errors, ok := requests["recentErrors"].([]any); !ok || len(errors) != 0 {
+		t.Fatalf("recentErrors = %#v, want empty slice", requests["recentErrors"])
+	}
+	if slowRequests, ok := requests["recentSlowRequests"].([]any); !ok || len(slowRequests) != 0 {
+		t.Fatalf("recentSlowRequests = %#v, want empty slice", requests["recentSlowRequests"])
+	}
+	openD, ok := requests["openD"].(map[string]any)
+	if !ok || openD["totalCalls"] != 0 || openD["failedCalls"] != 0 {
+		t.Fatalf("openD = %#v, want zero call counters", requests["openD"])
+	}
+}
+
 func TestExchangeCalendarDelegatesAndFallbacks(t *testing.T) {
 	svc := NewService()
 	if got := svc.ExchangeCalendarStatus(); len(got) != 0 {
