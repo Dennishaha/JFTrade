@@ -27,6 +27,7 @@ func TestSettingWriteRoutesRejectMalformedJSON(t *testing.T) {
 		{name: "appearance", method: http.MethodPut, path: "/api/v1/settings/ui"},
 		{name: "onboarding", method: http.MethodPut, path: "/api/v1/settings/onboarding"},
 		{name: "security", method: http.MethodPut, path: "/api/v1/settings/security"},
+		{name: "system notifications", method: http.MethodPut, path: "/api/v1/settings/system-notifications"},
 		{name: "adk", method: http.MethodPut, path: "/api/v1/settings/adk"},
 		{name: "pine worker", method: http.MethodPut, path: "/api/v1/settings/pine-worker"},
 		{name: "managed account create", method: http.MethodPost, path: "/api/v1/settings/broker-accounts"},
@@ -60,6 +61,7 @@ func TestSettingWriteRoutesMapPersistenceFailures(t *testing.T) {
 		{name: "onboarding", method: http.MethodPut, path: "/api/v1/settings/onboarding", body: `{"completed":true}`},
 		{name: "execution", method: http.MethodPut, path: "/api/v1/settings/execution", body: `{}`},
 		{name: "security", method: http.MethodPut, path: "/api/v1/settings/security", body: `{}`},
+		{name: "system notifications", method: http.MethodPut, path: "/api/v1/settings/system-notifications", body: `{}`},
 		{name: "adk", method: http.MethodPut, path: "/api/v1/settings/adk", body: `{}`},
 		{name: "pine worker", method: http.MethodPut, path: "/api/v1/settings/pine-worker", body: `{}`},
 		{name: "exchange calendar", method: http.MethodPut, path: "/api/v1/settings/exchange-calendars", body: `{"exchangeCalendars":{}}`},
@@ -75,6 +77,47 @@ func TestSettingWriteRoutesMapPersistenceFailures(t *testing.T) {
 				t.Fatalf("response = %d %s", response.Code, response.Body.String())
 			}
 		})
+	}
+}
+
+func TestSystemNotificationRoutesReadAndSaveSettings(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := &routeStore{
+		systemNotifications: jfsettings.SystemNotificationSettings{
+			Enabled:      true,
+			Mode:         "important",
+			Levels:       []string{"error"},
+			Categories:   []string{"trading"},
+			SoundEnabled: true,
+		},
+	}
+	router := settingsRouter(store)
+
+	getResponse := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/system-notifications", "")
+	if getResponse.Code != http.StatusOK ||
+		!strings.Contains(getResponse.Body.String(), `"mode":"important"`) ||
+		!strings.Contains(getResponse.Body.String(), `"categories":["trading"]`) {
+		t.Fatalf("get response = %d %s", getResponse.Code, getResponse.Body.String())
+	}
+
+	putResponse := performSettingsRequest(
+		t,
+		router,
+		http.MethodPut,
+		"/api/v1/settings/system-notifications",
+		`{"enabled":false,"mode":"off","levels":["warn"],"categories":["system"],"soundEnabled":false}`,
+	)
+	if putResponse.Code != http.StatusOK {
+		t.Fatalf("put response = %d %s", putResponse.Code, putResponse.Body.String())
+	}
+	if store.systemNotifications.Enabled ||
+		store.systemNotifications.Mode != "off" ||
+		len(store.systemNotifications.Levels) != 1 ||
+		store.systemNotifications.Levels[0] != "warn" ||
+		len(store.systemNotifications.Categories) != 1 ||
+		store.systemNotifications.Categories[0] != "system" ||
+		store.systemNotifications.SoundEnabled {
+		t.Fatalf("stored system notification settings = %#v", store.systemNotifications)
 	}
 }
 

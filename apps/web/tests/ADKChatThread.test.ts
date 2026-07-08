@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick } from "vue";
 
 import type { ADKTimelineEntry } from "@/contracts";
@@ -49,6 +49,10 @@ function mountThread(
     },
   });
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("ADKChatThread", () => {
   it("replaces typing dots with a child-finished status", () => {
@@ -194,6 +198,34 @@ describe("ADKChatThread", () => {
     await nextTick();
 
     expect(renderMarkdown).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens rendered markdown links through the shared external link opener", async () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const wrapper = mountThread(
+      [
+        {
+          id: "entry-assistant-link",
+          sessionId: "session-1",
+          kind: "assistant_message",
+          createdAt: "2026-06-17T00:00:00Z",
+          sequence: 1,
+          text: "docs",
+        },
+      ],
+      {
+        renderMarkdown: () =>
+          '<p><a href="https://docs.example.com/reference">文档参考</a></p>',
+      },
+    );
+
+    await wrapper.get(".adk-markdown a").trigger("click");
+
+    expect(open).toHaveBeenCalledWith(
+      "https://docs.example.com/reference",
+      "_blank",
+      "noopener,noreferrer",
+    );
   });
 
   it("shows provider hints, suggestion chips, and timeline window actions", async () => {

@@ -44,6 +44,25 @@ func (s *Store) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfsetti
 	return normalized, err
 }
 
+func (s *Store) SystemNotificationSettings() jfsettings.SystemNotificationSettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.SystemNotifications != nil {
+		return NormalizeSystemNotificationSettings(*s.data.SystemNotifications)
+	}
+	return DefaultSystemNotificationSettings()
+}
+
+func (s *Store) SaveSystemNotificationSettings(input jfsettings.SystemNotificationSettings) (jfsettings.SystemNotificationSettings, error) {
+	normalized := NormalizeSystemNotificationSettings(input)
+
+	s.mu.Lock()
+	s.data.SystemNotifications = systemNotificationSettingsPointer(normalized)
+	err := s.persistLocked()
+	s.mu.Unlock()
+	return normalized, err
+}
+
 func (s *Store) ADKSettings() jfsettings.ADKRuntimeSettings {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -138,6 +157,69 @@ func NormalizeSecuritySettings(input jfsettings.SecuritySettings) jfsettings.Sec
 }
 
 func securitySettingsPointer(value jfsettings.SecuritySettings) *jfsettings.SecuritySettings {
+	return new(value)
+}
+
+func DefaultSystemNotificationSettings() jfsettings.SystemNotificationSettings {
+	return jfsettings.SystemNotificationSettings{
+		Enabled:      true,
+		Mode:         "important",
+		Levels:       []string{"warn", "error"},
+		Categories:   []string{"broker.connection", "strategy.order.signal", "execution.order", "execution.fill"},
+		SoundEnabled: true,
+	}
+}
+
+func NormalizeSystemNotificationSettings(input jfsettings.SystemNotificationSettings) jfsettings.SystemNotificationSettings {
+	defaults := DefaultSystemNotificationSettings()
+	settings := input
+	settings.Mode = normalizeSystemNotificationMode(settings.Mode)
+	if settings.Mode == "" {
+		settings.Mode = defaults.Mode
+	}
+	settings.Levels = normalizeStringList(settings.Levels, true)
+	settings.Categories = normalizeStringList(settings.Categories, false)
+	if settings.Mode == "important" {
+		settings.Levels = append([]string(nil), defaults.Levels...)
+		settings.Categories = append([]string(nil), defaults.Categories...)
+	}
+	if settings.Mode == "all" {
+		settings.Levels = nil
+		settings.Categories = nil
+	}
+	return settings
+}
+
+func normalizeSystemNotificationMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "important", "all", "custom":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return ""
+	}
+}
+
+func normalizeStringList(values []string, lower bool) []string {
+	seen := map[string]struct{}{}
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		item := strings.TrimSpace(value)
+		if lower {
+			item = strings.ToLower(item)
+		}
+		if item == "" {
+			continue
+		}
+		if _, ok := seen[item]; ok {
+			continue
+		}
+		seen[item] = struct{}{}
+		normalized = append(normalized, item)
+	}
+	return normalized
+}
+
+func systemNotificationSettingsPointer(value jfsettings.SystemNotificationSettings) *jfsettings.SystemNotificationSettings {
 	return new(value)
 }
 

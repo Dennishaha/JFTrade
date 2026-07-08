@@ -12,16 +12,17 @@ import (
 )
 
 type fileData struct {
-	Interfaces  *jfsettings.InterfaceSettings        `json:"interfaces,omitempty"`
-	Integration *jfsettings.BrokerIntegration        `json:"integration,omitempty"`
-	Accounts    []jfsettings.ManagedBrokerAccount    `json:"accounts,omitempty"`
-	Appearance  *jfsettings.UIAppearanceSettings     `json:"appearance,omitempty"`
-	Onboarding  *jfsettings.OnboardingSettings       `json:"onboarding,omitempty"`
-	Execution   *jfsettings.ExecutionSettings        `json:"execution,omitempty"`
-	Security    *jfsettings.SecuritySettings         `json:"security,omitempty"`
-	ADK         *jfsettings.ADKRuntimeSettings       `json:"adk,omitempty"`
-	PineWorker  *jfsettings.PineWorkerSettings       `json:"pineWorker,omitempty"`
-	Calendars   *jfsettings.ExchangeCalendarSettings `json:"exchangeCalendars,omitempty"`
+	Interfaces          *jfsettings.InterfaceSettings          `json:"interfaces,omitempty"`
+	Integration         *jfsettings.BrokerIntegration          `json:"integration,omitempty"`
+	Accounts            []jfsettings.ManagedBrokerAccount      `json:"accounts,omitempty"`
+	Appearance          *jfsettings.UIAppearanceSettings       `json:"appearance,omitempty"`
+	Onboarding          *jfsettings.OnboardingSettings         `json:"onboarding,omitempty"`
+	Execution           *jfsettings.ExecutionSettings          `json:"execution,omitempty"`
+	Security            *jfsettings.SecuritySettings           `json:"security,omitempty"`
+	SystemNotifications *jfsettings.SystemNotificationSettings `json:"systemNotifications,omitempty"`
+	ADK                 *jfsettings.ADKRuntimeSettings         `json:"adk,omitempty"`
+	PineWorker          *jfsettings.PineWorkerSettings         `json:"pineWorker,omitempty"`
+	Calendars           *jfsettings.ExchangeCalendarSettings   `json:"exchangeCalendars,omitempty"`
 }
 
 // Pine worker defaults remain documented here for the PineTS hard-cut audit:

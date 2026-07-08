@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +19,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
+	"github.com/jftrade/jftrade-main/internal/api/origin"
 )
 
 const (
@@ -141,28 +141,11 @@ func (a *adminAuth) IsOriginAllowed(origin string) bool {
 }
 
 func canonicalOrigin(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	parsed, err := url.Parse(value)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-		return ""
-	}
-	return strings.ToLower(parsed.Scheme + "://" + parsed.Host)
+	return origin.Canonical(value)
 }
 
 func requestOrigin(r *http.Request) string {
-	if r == nil {
-		return ""
-	}
-	if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" {
-		return canonicalOrigin(origin)
-	}
-	if referer := strings.TrimSpace(r.Header.Get("Referer")); referer != "" {
-		return canonicalOrigin(referer)
-	}
-	return ""
+	return origin.FromRequest(r)
 }
 
 func requestRemoteIP(r *http.Request) net.IP {

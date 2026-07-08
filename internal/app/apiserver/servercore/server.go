@@ -16,7 +16,6 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
-	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
@@ -69,6 +68,7 @@ type Server struct {
 	executionOrders          *executionOrderStore
 	liveWebSocket            *apilive.Handler
 	liveNotifications        *live.ReplayPublisher
+	liveNotificationSink     func(live.Event) live.NotificationDelivery
 	closeOnce                sync.Once
 	closeErr                 error
 	marketdataRuntime        *futuintegration.MarketDataRuntime
@@ -79,6 +79,7 @@ type Server struct {
 	apiPort                  int
 	auth                     *adminAuth
 	router                   *gin.Engine
+	desktopMode              bool
 	exchangeCalendars        *exchangecalendar.Manager
 	previousCalendarResolver marketcalendar.Resolver
 	sysSvc                   *system.Service
@@ -105,6 +106,14 @@ type SidecarHandler interface {
 	ConfigureAuthOrigins(...string)
 	SetFrontendFS(fs.FS, string)
 	ApplySecuritySettings(SecuritySettings)
+}
+
+// SidecarOptions customizes API sidecar assembly for embedded hosts.
+type SidecarOptions struct {
+	FrontendFS        fs.FS
+	RuntimeAPIBaseURL string
+	NotificationSink  func(live.Event) live.NotificationDelivery
+	DesktopMode       bool
 }
 
 // SidecarSettingsStore is the settings surface required by the legacy HTTP server.
@@ -139,7 +148,24 @@ func NewSidecarHandler(store *SettingsStore, frontendFS fs.FS, runtimeAPIBaseURL
 
 // NewSidecarHandlerWithStore creates the HTTP handler from an abstract settings store.
 func NewSidecarHandlerWithStore(store SidecarSettingsStore, frontendFS fs.FS, runtimeAPIBaseURL string) SidecarHandler {
-	return newServerWithFrontend(store, newFrontendServerWithRuntimeConfig(frontendFS, runtimeAPIBaseURL))
+	return NewSidecarHandlerWithOptions(store, SidecarOptions{
+		FrontendFS:        frontendFS,
+		RuntimeAPIBaseURL: runtimeAPIBaseURL,
+	})
+}
+
+// NewSidecarHandlerWithOptions creates the HTTP handler from an abstract settings store.
+func NewSidecarHandlerWithOptions(store SidecarSettingsStore, options SidecarOptions) SidecarHandler {
+	server := newServerWithFrontend(store, newFrontendServerWithRuntimeConfig(options.FrontendFS, options.RuntimeAPIBaseURL))
+	server.liveNotificationSink = options.NotificationSink
+	server.desktopMode = options.DesktopMode
+	if server.frontend != nil {
+		server.frontend.setDesktopMode(options.DesktopMode)
+	}
+	if options.DesktopMode {
+		server.applySecuritySettings(store.SecuritySettings())
+	}
+	return server
 }
 
 // SetAPIPort updates the API port exposed by system status responses.
@@ -160,6 +186,9 @@ func (s *Server) ConfigureAuthOrigins(origins ...string) {
 func (s *Server) SetFrontendFS(frontendFS fs.FS, runtimeAPIBaseURL string) {
 	if s != nil {
 		s.frontend = newFrontendServerWithRuntimeConfig(frontendFS, runtimeAPIBaseURL)
+		if s.frontend != nil {
+			s.frontend.setDesktopMode(s.desktopMode)
+		}
 	}
 }
 
@@ -385,6 +414,14 @@ func (s *Server) configureAuthOrigins() {
 		"http://127.0.0.1:5174",
 		"http://localhost:5173",
 		"http://localhost:5174",
+		"wails://127.0.0.1",
+		"wails://127.0.0.1:5173",
+		"wails://127.0.0.1:5174",
+		"wails://localhost",
+		"wails://localhost:5173",
+		"wails://localhost:5174",
+		"http://wails.localhost",
+		"https://wails.localhost",
 	)
 	log.Printf("JFTrade administrator key file: %s", s.auth.keyPath)
 }
@@ -755,24 +792,3 @@ func (s *Server) activeBroker() broker.Broker {
 	s.futuExchange()
 	return s.brokers.ActiveBroker()
 }
-
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if s == nil || s.router == nil {
-		http.NotFound(w, r)
-		return
-	}
-	s.router.ServeHTTP(w, r)
-}
-
-var _ middleware.WriteMethodDetector = (*Server)(nil)
-
-func (s *Server) IsWriteMethod(r *http.Request) bool {
-	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
-}
-
-func (s *Server) writeError(c *gin.Context, status int, code string, message string) {
-	httpserver.WriteError(c, status, code, message)
-}
-
-// Close releases all resources held by the server, including database connections.
-// It is safe to call Close multiple times. After Close, the server should not be used.

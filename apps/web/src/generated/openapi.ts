@@ -72,6 +72,13 @@ export interface components {
     "jftsettings.SecuritySettings": {
     adminAuthRequired?: boolean;
   };
+    "jftsettings.SystemNotificationSettings": {
+    categories?: Array<string>;
+    enabled?: boolean;
+    levels?: Array<string>;
+    mode?: string;
+    soundEnabled?: boolean;
+  };
     "jftsettings.UIAppearanceSettings": {
     downColor?: string;
     upColor?: string;
@@ -2623,6 +2630,57 @@ export interface paths {
         };
         "400": {
           description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/system-notifications": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    put: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["jftsettings.SystemNotificationSettings"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/system-notifications/test": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "500": {
+          description: "Internal Server Error";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };

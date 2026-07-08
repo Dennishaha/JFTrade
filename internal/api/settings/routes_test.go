@@ -21,19 +21,20 @@ import (
 )
 
 type routeStore struct {
-	appearance  jfsettings.UIAppearanceSettings
-	onboarding  jfsettings.OnboardingSettings
-	execution   jfsettings.ExecutionSettings
-	security    jfsettings.SecuritySettings
-	adk         jfsettings.ADKRuntimeSettings
-	pineWorker  jfsettings.PineWorkerSettings
-	calendars   jfsettings.ExchangeCalendarSettings
-	updateErr   error
-	deleteErr   error
-	saveErr     error
-	createErr   error
-	integration jfsettings.BrokerIntegration
-	created     jfsettings.ManagedBrokerAccount
+	appearance          jfsettings.UIAppearanceSettings
+	onboarding          jfsettings.OnboardingSettings
+	execution           jfsettings.ExecutionSettings
+	security            jfsettings.SecuritySettings
+	systemNotifications jfsettings.SystemNotificationSettings
+	adk                 jfsettings.ADKRuntimeSettings
+	pineWorker          jfsettings.PineWorkerSettings
+	calendars           jfsettings.ExchangeCalendarSettings
+	updateErr           error
+	deleteErr           error
+	saveErr             error
+	createErr           error
+	integration         jfsettings.BrokerIntegration
+	created             jfsettings.ManagedBrokerAccount
 }
 
 type routeDataManagementBackend struct {
@@ -89,6 +90,9 @@ func (s *routeStore) ExecutionSettings() jfsettings.ExecutionSettings { return s
 func (s *routeStore) SecuritySettings() jfsettings.SecuritySettings {
 	return s.security
 }
+func (s *routeStore) SystemNotificationSettings() jfsettings.SystemNotificationSettings {
+	return s.systemNotifications
+}
 func (s *routeStore) ADKSettings() jfsettings.ADKRuntimeSettings {
 	return s.adk
 }
@@ -132,6 +136,13 @@ func (s *routeStore) SaveSecuritySettings(input jfsettings.SecuritySettings) (jf
 		return jfsettings.SecuritySettings{}, s.saveErr
 	}
 	s.security = input
+	return input, nil
+}
+func (s *routeStore) SaveSystemNotificationSettings(input jfsettings.SystemNotificationSettings) (jfsettings.SystemNotificationSettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.SystemNotificationSettings{}, s.saveErr
+	}
+	s.systemNotifications = input
 	return input, nil
 }
 func (s *routeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
@@ -672,6 +683,9 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	var overviewRequest dmsrv.OverviewRequest
 	var previewRequest dmsrv.CleanupPreviewRequest
+	var executeRequest dmsrv.CleanupExecuteRequest
+	var compactRequest dmsrv.CompactRequest
+	var compactDatabaseID string
 	dataManagementSvc := dmsrv.NewService(routeDataManagementBackend{
 		overview: func(_ context.Context, request dmsrv.OverviewRequest) (any, error) {
 			overviewRequest = request
@@ -685,7 +699,10 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 			return map[string]any{"previewId": "preview-1", "candidateCount": 2}, nil
 		},
 		execute: func(_ context.Context, request dmsrv.CleanupExecuteRequest) (any, error) {
+			executeRequest = request
 			switch request.PreviewID {
+			case "preview-1":
+				return map[string]any{"deletedRows": 2}, nil
 			case "missing":
 				return nil, dmsrv.ErrCleanupPreviewNotFound
 			case "stale":
@@ -694,7 +711,12 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 				return nil, fmt.Errorf("%w: active run", dmsrv.ErrDatabaseMaintenanceConflict)
 			}
 		},
-		compact: func(context.Context, string, dmsrv.CompactRequest) (any, error) {
+		compact: func(_ context.Context, databaseID string, request dmsrv.CompactRequest) (any, error) {
+			compactDatabaseID = databaseID
+			compactRequest = request
+			if request.Confirmation == "bad" {
+				return nil, errors.New("confirmation mismatch")
+			}
 			return map[string]any{"compacted": true}, nil
 		},
 		rebuild: func(context.Context, dmsrv.RebuildRequest) (any, error) {
@@ -722,16 +744,24 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 		t.Fatalf("preview = %d %s request=%+v", preview.Code, preview.Body.String(), previewRequest)
 	}
 	execute := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/execute", `{"previewId":"preview-1","confirmation":"CLEANUP backtest-runs 2"}`)
-	if execute.Code != http.StatusConflict || !strings.Contains(execute.Body.String(), `DATABASE_MAINTENANCE_CONFLICT`) {
-		t.Fatalf("execute = %d %s", execute.Code, execute.Body.String())
+	if execute.Code != http.StatusOK || executeRequest.Confirmation != "CLEANUP backtest-runs 2" || !strings.Contains(execute.Body.String(), `"deletedRows":2`) {
+		t.Fatalf("execute = %d %s request=%+v", execute.Code, execute.Body.String(), executeRequest)
 	}
 	compact := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/adk/compact", `{"confirmation":"COMPACT adk"}`)
-	if compact.Code != http.StatusOK || !strings.Contains(compact.Body.String(), `"compacted":true`) {
-		t.Fatalf("compact = %d %s", compact.Code, compact.Body.String())
+	if compact.Code != http.StatusOK || compactDatabaseID != "adk" || compactRequest.Confirmation != "COMPACT adk" || !strings.Contains(compact.Body.String(), `"compacted":true`) {
+		t.Fatalf("compact = %d %s databaseID=%q request=%+v", compact.Code, compact.Body.String(), compactDatabaseID, compactRequest)
 	}
 	malformedPreview := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/preview", `{"kind":`)
 	if malformedPreview.Code != http.StatusBadRequest || !strings.Contains(malformedPreview.Body.String(), `BAD_REQUEST`) {
 		t.Fatalf("malformed preview = %d %s", malformedPreview.Code, malformedPreview.Body.String())
+	}
+	malformedExecute := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/execute", `{"previewId":`)
+	if malformedExecute.Code != http.StatusBadRequest || !strings.Contains(malformedExecute.Body.String(), `BAD_REQUEST`) {
+		t.Fatalf("malformed execute = %d %s", malformedExecute.Code, malformedExecute.Body.String())
+	}
+	malformedCompact := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/adk/compact", `{"confirmation":`)
+	if malformedCompact.Code != http.StatusBadRequest || !strings.Contains(malformedCompact.Body.String(), `BAD_REQUEST`) {
+		t.Fatalf("malformed compact = %d %s", malformedCompact.Code, malformedCompact.Body.String())
 	}
 	missing := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/execute", `{"previewId":"missing"}`)
 	if missing.Code != http.StatusNotFound || !strings.Contains(missing.Body.String(), `CLEANUP_PREVIEW_NOT_FOUND`) {
@@ -740,5 +770,13 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 	stale := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/execute", `{"previewId":"stale"}`)
 	if stale.Code != http.StatusConflict || !strings.Contains(stale.Body.String(), `CLEANUP_PREVIEW_STALE`) {
 		t.Fatalf("stale = %d %s", stale.Code, stale.Body.String())
+	}
+	conflict := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/execute", `{"previewId":"busy"}`)
+	if conflict.Code != http.StatusConflict || !strings.Contains(conflict.Body.String(), `DATABASE_MAINTENANCE_CONFLICT`) {
+		t.Fatalf("conflict = %d %s", conflict.Code, conflict.Body.String())
+	}
+	compactRejected := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/adk/compact", `{"confirmation":"bad"}`)
+	if compactRejected.Code != http.StatusBadRequest || !strings.Contains(compactRejected.Body.String(), `DATABASE_COMPACT_FAILED`) {
+		t.Fatalf("compact rejected = %d %s", compactRejected.Code, compactRejected.Body.String())
 	}
 }

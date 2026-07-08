@@ -1,148 +1,329 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "generate:docs",
-            "type": "npm",
-            "script": "generate:docs",
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "close": false
-            }
-        },
-        {
-            "label": "go:fix",
-            "type": "shell",
-            "command": "go fix ./...",
-            "group": "build",
-            "problemMatcher": [
-                "$go"
-            ],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "close": false
-            }
-        },
-        {
-            "label": "go:vet",
-            "type": "shell",
-            "command": "go vet ./...",
-            "group": "build",
-            "problemMatcher": [
-                "$go"
-            ],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "close": false
-            }
-        },
-        {
-            "label": "go:lint",
-            "type": "shell",
-            "command": "${env:HOME}/go/bin/golangci-lint",
-            "args": [
-                "run",
-                "--timeout=5m"
-            ],
-            "group": "test",
-            "problemMatcher": [
-                "$go"
-            ],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "close": false
-            }
-        },
-        {
-            "label": "build:web",
-            "type": "npm",
-            "script": "build:web",
-            "group": "build",
-            "problemMatcher": []
-        },
-        {
-            "label": "test:web",
-            "type": "npm",
-            "script": "test:web",
-            "group": "test",
-            "problemMatcher": []
-        },
-        {
-            "label": "typecheck:web",
-            "type": "npm",
-            "script": "typecheck:web",
-            "group": "test",
-            "problemMatcher": []
-        },
-        {
-            "label": "ci:web-local",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "generate:docs",
-                "go:lint",
-                "test:web",
-                "typecheck:web"
-            ],
-            "group": "test",
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "close": false
-            }
-        },
-        {
-            "label": "build:docs",
-            "type": "npm",
-            "script": "build:docs",
-            "group": "build",
-            "problemMatcher": []
-        },
-        {
-            "label": "build:backend",
-            "type": "npm",
-            "script": "build:backend",
-            "group": "build",
-            "problemMatcher": ["$go"]
-        },
-        {
-            "label": "build:pineworker:dev",
-            "type": "shell",
-            "command": "npm",
-            "args": ["run", "build:pineworker:dev"],
-            "options": {
-                "env": {
-                    "JFTRADE_PINEWORKER_DEV_ENV_FILE": "${workspaceFolder}/var/pineworker/vscode.env"
-                }
-            },
-            "group": "build",
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "close": false
-            }
-        },
-        {
-            "label": "build:all",
-            "type": "npm",
-            "script": "build",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": []
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev:web",
+      "type": "npm",
+      "script": "dev:web",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "dev:docs",
+      "type": "npm",
+      "script": "dev:docs",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "desktop:dev",
+      "type": "npm",
+      "script": "desktop:dev",
+      "problemMatcher": [
+        "$go"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "generate:docs",
+      "type": "npm",
+      "script": "generate:docs",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "generate:api-types",
+      "type": "npm",
+      "script": "generate:api-types",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "go:fix",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "fix",
+        "./..."
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$go"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "go:vet",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "vet",
+        "./..."
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$go"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "go:test",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "test",
+        "./...",
+        "-count=1",
+        "-timeout",
+        "300s"
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$go"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "go:test:servercore",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "test",
+        "./internal/app/apiserver/servercore",
+        "-count=1",
+        "-timeout",
+        "120s"
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$go"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "go:lint",
+      "type": "shell",
+      "command": "${env:HOME}/go/bin/golangci-lint",
+      "args": [
+        "run",
+        "--timeout=5m"
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$go"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "test:web",
+      "type": "npm",
+      "script": "test:web",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "test:pineworker",
+      "type": "npm",
+      "script": "test:pineworker",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "typecheck:web",
+      "type": "npm",
+      "script": "typecheck:web",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "typecheck:pineworker",
+      "type": "npm",
+      "script": "typecheck:pineworker",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:web",
+      "type": "npm",
+      "script": "build:web",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:docs",
+      "type": "npm",
+      "script": "build:docs",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:backend",
+      "type": "npm",
+      "script": "build:backend",
+      "group": "build",
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "build:pineworker",
+      "type": "npm",
+      "script": "build:pineworker",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:pineworker:dev",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "build:pineworker:dev"
+      ],
+      "options": {
+        "env": {
+          "JFTRADE_PINEWORKER_DEV_ENV_FILE": "${workspaceFolder}/var/pineworker/vscode.env"
         }
-    ]
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "desktop:build",
+      "type": "npm",
+      "script": "desktop:build",
+      "group": "build",
+      "problemMatcher": [
+        "$go"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "desktop:release:darwin-arm64",
+      "type": "npm",
+      "script": "desktop:release:darwin-arm64",
+      "group": "build",
+      "problemMatcher": [
+        "$go"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "build:all",
+      "type": "npm",
+      "script": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ci:web-local",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "generate:docs",
+        "go:lint",
+        "test:web",
+        "typecheck:web"
+      ],
+      "group": "test",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    },
+    {
+      "label": "ci:focused",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "generate:docs",
+        "go:lint",
+        "go:vet",
+        "go:test:servercore",
+        "typecheck:web",
+        "test:web"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "close": false
+      }
+    }
+  ]
 }

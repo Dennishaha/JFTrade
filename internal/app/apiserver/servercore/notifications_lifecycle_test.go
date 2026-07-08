@@ -1,9 +1,14 @@
 package servercore
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/jftrade/jftrade-main/internal/live"
 )
 
 func TestServerCloseUnregistersOnlyItsBBGONotificationSink(t *testing.T) {
@@ -78,5 +83,77 @@ func TestLiveNotificationEventMapContract(t *testing.T) {
 	delete(want, "message")
 	if got := liveNotificationEventMap(event); !reflect.DeepEqual(got, want) {
 		t.Fatalf("event map without message = %#v, want %#v", got, want)
+	}
+}
+
+func TestRecordLiveNotificationCallsSink(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	disableTestExchangeCalendarAutoRefresh(t, store)
+	server := NewServer(store)
+	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
+
+	var got liveNotificationEvent
+	server.liveNotificationSink = func(event liveNotificationEvent) live.NotificationDelivery {
+		got = event
+		return live.NotificationDelivered("sent")
+	}
+
+	event := server.recordLiveNotification(liveNotification{Level: "warn", Title: "Risk", Message: "blocked", Category: "execution.order"})
+	if event == nil {
+		t.Fatal("recordLiveNotification event = nil")
+	}
+	if got.Sequence != event.Sequence || got.Title != "Risk" || got.Category != "execution.order" {
+		t.Fatalf("sink event = %#v, want sequence %d title/category", got, event.Sequence)
+	}
+}
+
+func TestSystemNotificationTestRouteReturnsDeliveryStatus(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	disableTestExchangeCalendarAutoRefresh(t, store)
+	server := NewServer(store)
+	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
+	server.liveNotificationSink = func(liveNotificationEvent) live.NotificationDelivery {
+		return live.NotificationDelivered("sent to operating system")
+	}
+
+	recorder := httptest.NewRecorder()
+	server.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/v1/settings/system-notifications/test", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	for _, want := range []string{`"event"`, `"delivery"`, `"status":"delivered"`, `"delivered":true`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %q, want %s", body, want)
+		}
+	}
+}
+
+func TestRecordLiveNotificationSinkPanicDoesNotDropEvent(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	disableTestExchangeCalendarAutoRefresh(t, store)
+	server := NewServer(store)
+	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
+
+	server.liveNotificationSink = func(liveNotificationEvent) live.NotificationDelivery {
+		panic("desktop notification failed")
+	}
+
+	event := server.recordLiveNotification(liveNotification{Level: "error", Title: "OpenD"})
+	if event == nil {
+		t.Fatal("recordLiveNotification event = nil")
+	}
+	if got := len(server.liveNotificationsAfter(0)); got != 1 {
+		t.Fatalf("live notifications after sink panic = %d, want 1", got)
 	}
 }

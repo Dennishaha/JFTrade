@@ -3,6 +3,7 @@ package servercore
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -124,7 +125,13 @@ func (s *Server) handleFutuSystemNotify(response *notifypb.Response) {
 }
 
 func (s *Server) recordLiveNotification(note liveNotification) *liveNotificationEvent {
+	event, _ := s.recordLiveNotificationWithDelivery(note)
+	return event
+}
+
+func (s *Server) recordLiveNotificationWithDelivery(note liveNotification) (*liveNotificationEvent, live.NotificationDelivery) {
 	event := s.liveNotifications.Publish(note)
+	delivery := live.NotificationNotDelivered(live.NotificationDeliveryUnavailable, "desktop system notifications are not configured")
 	if event != nil {
 		s.emitWorkflowEvent(jfadk.WorkflowEvent{
 			ID:       fmt.Sprintf("system-notification-%d", event.Sequence),
@@ -144,8 +151,23 @@ func (s *Server) recordLiveNotification(note liveNotification) *liveNotification
 				"category": event.Category,
 			},
 		})
+		delivery = s.emitLiveNotificationSink(*event)
 	}
-	return event
+	return event, delivery
+}
+
+func (s *Server) emitLiveNotificationSink(event liveNotificationEvent) (delivery live.NotificationDelivery) {
+	delivery = live.NotificationNotDelivered(live.NotificationDeliveryUnavailable, "desktop system notifications are not configured")
+	if s == nil || s.liveNotificationSink == nil {
+		return delivery
+	}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			log.Printf("JFTrade live notification sink failed: %v", recovered)
+			delivery = live.NotificationNotDelivered(live.NotificationDeliveryFailed, fmt.Sprintf("desktop notification sink failed: %v", recovered))
+		}
+	}()
+	return s.liveNotificationSink(event)
 }
 
 func (s *Server) liveNotificationsAfter(sequence uint64) []liveNotificationEvent {
@@ -157,6 +179,23 @@ func liveNotificationText(note liveNotification) string {
 		return note.Title
 	}
 	return note.Title + " - " + note.Message
+}
+
+func liveNotificationEventMap(event liveNotificationEvent) map[string]any {
+	payload := map[string]any{
+		"type":     "system.notification",
+		"id":       fmt.Sprintf("system-notification-%d", event.Sequence),
+		"at":       event.At,
+		"level":    event.Level,
+		"title":    event.Title,
+		"source":   event.Source,
+		"brokerId": event.BrokerID,
+		"category": event.Category,
+	}
+	if event.Message != "" {
+		payload["message"] = event.Message
+	}
+	return payload
 }
 
 func shouldForwardNotificationToBBGO(note liveNotification) bool {

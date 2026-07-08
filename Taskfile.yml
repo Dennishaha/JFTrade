@@ -1,0 +1,74 @@
+version: '3'
+
+tasks:
+  desktop:dev:
+    desc: Run the Wails v3 desktop app with the Vue dev server
+    cmds:
+      - node scripts/dev-desktop.mjs
+
+  desktop:build:
+    desc: Build the Wails v3 desktop artifact for the current platform
+    cmds:
+      - node scripts/build-desktop.mjs
+
+  desktop:build:darwin:
+    desc: Build the macOS JFTrade.app desktop artifact
+    cmds:
+      - node scripts/build-desktop.mjs darwin
+
+  desktop:build:darwin-arm64:
+    desc: Build the macOS arm64 JFTrade.app desktop artifact
+    cmds:
+      - node scripts/build-desktop.mjs darwin-arm64
+
+  desktop:build:windows:
+    desc: Build the Windows desktop executable
+    cmds:
+      - node scripts/build-desktop.mjs windows
+
+  desktop:build:windows-arm64:
+    desc: Build the Windows arm64 desktop executable
+    cmds:
+      - node scripts/build-desktop.mjs windows-arm64
+
+  desktop:build:linux:
+    desc: Build the Linux desktop executable
+    cmds:
+      - node scripts/build-desktop.mjs linux
+
+  desktop:release:
+    desc: Build and verify the desktop release for the current platform
+    cmds:
+      - node scripts/release-desktop.mjs {{OS}}
+
+  desktop:release:darwin:
+    desc: Build and verify the macOS desktop release on macOS
+    cmds:
+      - node scripts/release-desktop.mjs darwin
+
+  desktop:release:darwin-arm64:
+    desc: Build and verify the macOS arm64 desktop release on arm64 macOS
+    cmds:
+      - node scripts/release-desktop.mjs darwin-arm64
+
+  desktop:release:windows:
+    desc: Build and verify the Windows desktop release on Windows
+    cmds:
+      - node scripts/release-desktop.mjs windows
+
+  desktop:release:windows-arm64:
+    desc: Build and verify the Windows arm64 desktop release on Windows
+    cmds:
+      - node scripts/release-desktop.mjs windows-arm64
+
+  desktop:release:linux:
+    desc: Build and verify the Linux desktop release on Linux
+    cmds:
+      - node scripts/release-desktop.mjs linux
+
+  desktop:release:all:
+    desc: Run desktop release verification for supported native macOS, Windows, and Linux targets
+    cmds:
+      - node scripts/release-desktop.mjs darwin
+      - node scripts/release-desktop.mjs windows
+      - node scripts/release-desktop.mjs linux

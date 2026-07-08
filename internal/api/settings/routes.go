@@ -39,6 +39,10 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, dataManagementServic
 	settings.GET("/security", handleSecuritySettings(svc))
 	settings.PUT("/security", handleSaveSecuritySettings(svc))
 
+	// System Notifications
+	settings.GET("/system-notifications", handleSystemNotificationSettings(svc))
+	settings.PUT("/system-notifications", handleSaveSystemNotificationSettings(svc))
+
 	// ADK
 	settings.GET("/adk", handleADKRuntimeSettings(svc))
 	settings.PUT("/adk", handleSaveADKRuntimeSettings(svc))
@@ -342,6 +346,45 @@ func handleSaveSecuritySettings(svc *srv.Service) gin.HandlerFunc {
 			return
 		}
 		result, err := svc.SaveSecuritySettings(input)
+		if err != nil {
+			httpserver.WriteError(c, 500, "SETTINGS_SAVE_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+// ── System Notifications ──
+
+// handleSystemNotificationSettings godoc
+// @Summary 读取系统通知设置
+// @Tags settings
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/settings/system-notifications [get]
+func handleSystemNotificationSettings(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, svc.GetSystemNotificationSettings())
+	}
+}
+
+// handleSaveSystemNotificationSettings godoc
+// @Summary 保存系统通知设置
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body jfsettings.SystemNotificationSettings true "系统通知设置"
+// @Success 200 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.Envelope
+// @Router /api/v1/settings/system-notifications [put]
+func handleSaveSystemNotificationSettings(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input jfsettings.SystemNotificationSettings
+		if err := c.ShouldBindJSON(&input); err != nil {
+			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid system notification payload")
+			return
+		}
+		result, err := svc.SaveSystemNotificationSettings(input)
 		if err != nil {
 			httpserver.WriteError(c, 500, "SETTINGS_SAVE_FAILED", err.Error())
 			return

@@ -1,0 +1,29 @@
+version: '3'
+
+info:
+  companyName: "JFTrade"
+  productName: "JFTrade"
+  productIdentifier: "com.jftrade.desktop"
+  description: "JFTrade desktop application"
+  copyright: "(c) JFTrade"
+  comments: "Wails v3 desktop shell for JFTrade"
+  version: "v0.0.0"
+
+dev_mode:
+  root_path: ../..
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - dist
+      - internal/frontendassets/dist
+    file:
+      - .DS_Store
+    watched_extension:
+      - "*.go"
+      - "*.vue"
+      - "*.ts"
+      - "*.js"
+    git_ignore: true

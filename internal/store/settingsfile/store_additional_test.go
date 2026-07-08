@@ -42,6 +42,9 @@ func TestStoreDefaultsExposePathAndNormalizedDefaults(t *testing.T) {
 	if got := store.ADKSettings(); got != DefaultADKRuntimeSettings() {
 		t.Fatalf("ADKSettings = %#v", got)
 	}
+	if got := store.SystemNotificationSettings(); !reflect.DeepEqual(got, DefaultSystemNotificationSettings()) {
+		t.Fatalf("SystemNotificationSettings = %#v", got)
+	}
 	if got := store.PineWorkerSettings(); got != DefaultPineWorkerSettings() {
 		t.Fatalf("PineWorkerSettings = %#v", got)
 	}
@@ -111,6 +114,57 @@ func TestSaveAppearanceAndADKSettingsPersistNormalizedValues(t *testing.T) {
 	}
 	if got := reloaded.ADKSettings(); got != adk {
 		t.Fatalf("reloaded adk = %#v, want %#v", got, adk)
+	}
+}
+
+func TestSaveSystemNotificationSettingsNormalizesAndPersists(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	store, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	saved, err := store.SaveSystemNotificationSettings(jfsettings.SystemNotificationSettings{
+		Enabled:      true,
+		Mode:         " CUSTOM ",
+		Levels:       []string{" WARN ", "warn", "ERROR", ""},
+		Categories:   []string{" broker.connection ", "broker.connection", "execution.fill"},
+		SoundEnabled: false,
+	})
+	if err != nil {
+		t.Fatalf("SaveSystemNotificationSettings: %v", err)
+	}
+	want := jfsettings.SystemNotificationSettings{
+		Enabled:      true,
+		Mode:         "custom",
+		Levels:       []string{"warn", "error"},
+		Categories:   []string{"broker.connection", "execution.fill"},
+		SoundEnabled: false,
+	}
+	if !reflect.DeepEqual(saved, want) {
+		t.Fatalf("system notification settings = %#v, want %#v", saved, want)
+	}
+
+	reloaded, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New reload: %v", err)
+	}
+	if got := reloaded.SystemNotificationSettings(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("reloaded system notification settings = %#v, want %#v", got, want)
+	}
+}
+
+func TestSystemNotificationSettingsImportantUsesDefaults(t *testing.T) {
+	settings := NormalizeSystemNotificationSettings(jfsettings.SystemNotificationSettings{
+		Enabled:      true,
+		Mode:         "important",
+		Levels:       []string{"info"},
+		Categories:   []string{"other"},
+		SoundEnabled: true,
+	})
+	defaults := DefaultSystemNotificationSettings()
+	if !reflect.DeepEqual(settings.Levels, defaults.Levels) || !reflect.DeepEqual(settings.Categories, defaults.Categories) {
+		t.Fatalf("important settings = %#v, want default filters %#v", settings, defaults)
 	}
 }
 

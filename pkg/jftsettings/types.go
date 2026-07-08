@@ -73,6 +73,16 @@ type SecuritySettings struct {
 	AdminAuthRequired bool `json:"adminAuthRequired"`
 }
 
+// SystemNotificationSettings controls which live notifications are forwarded
+// to the host operating system.
+type SystemNotificationSettings struct {
+	Enabled      bool     `json:"enabled"`
+	Mode         string   `json:"mode"`
+	Levels       []string `json:"levels,omitempty"`
+	Categories   []string `json:"categories,omitempty"`
+	SoundEnabled bool     `json:"soundEnabled"`
+}
+
 // ADKRuntimeSettings holds ADK runtime tuning parameters.
 type ADKRuntimeSettings struct {
 	RunTimeoutMs        int `json:"runTimeoutMs"`

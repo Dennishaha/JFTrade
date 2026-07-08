@@ -1,6 +1,7 @@
 type JFTradeRuntimeConfig = {
   apiBaseUrl?: string;
   authRequired?: boolean;
+  desktopMode?: boolean;
 };
 
 declare global {
@@ -46,6 +47,13 @@ export function resolveAuthRequired(): boolean {
     return window.__JFTRADE_RUNTIME_CONFIG__.authRequired;
   }
   return import.meta.env.MODE !== "test";
+}
+
+export function resolveDesktopMode(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return window.__JFTRADE_RUNTIME_CONFIG__?.desktopMode === true;
 }
 
 export function buildRuntimeApiUrl(path: string): string {

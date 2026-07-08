@@ -110,6 +110,32 @@ func liveHandlerOrNotFound(handler *apilive.Handler) http.Handler {
 
 func (s *Server) registerSettingsRoutes(api *gin.RouterGroup) {
 	apiset.RegisterRoutes(api, s.settingsSvc, s.dataManagementSvc)
+	api.POST("/settings/system-notifications/test", s.handleSystemNotificationTest)
+}
+
+// handleSystemNotificationTest godoc
+// @Summary 发送系统通知测试事件
+// @Tags settings
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Failure 500 {object} httpserver.Envelope
+// @Router /api/v1/settings/system-notifications/test [post]
+func (s *Server) handleSystemNotificationTest(c *gin.Context) {
+	event, delivery := s.recordLiveNotificationWithDelivery(liveNotification{
+		Level:    "warn",
+		Title:    "JFTrade 系统通知测试",
+		Message:  "系统通知通道已连接。",
+		Source:   "desktop",
+		Category: "system.notification.test",
+	})
+	if event == nil {
+		httpserver.WriteError(c, 500, "SYSTEM_NOTIFICATION_TEST_FAILED", "notification publisher is unavailable")
+		return
+	}
+	httpserver.WriteOK(c, map[string]any{
+		"event":    liveNotificationEventMap(*event),
+		"delivery": delivery,
+	})
 }
 
 func (s *Server) registerSystemRoutes(api *gin.RouterGroup) {

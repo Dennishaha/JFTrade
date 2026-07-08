@@ -9,6 +9,7 @@ import type {
 import type { components } from "@/generated/openapi";
 
 import { apiGet, apiPut, fetchEnvelope } from "../composables/apiClient";
+import { useExternalLink } from "../composables/externalLink";
 import { queryClient, queryKeys } from "../composables/serverState";
 import SectionHeader from "./SectionHeader.vue";
 
@@ -26,6 +27,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   "status-change": [RuntimeDependenciesResponse];
 }>();
+const { handleExternalLinkClick } = useExternalLink();
 
 const defaultPineWorkerSettings: PineWorkerSettings = {
   backtestWorkerLimit: 2,
@@ -316,6 +318,7 @@ function dependencySourceLabel(value: string): string {
             :href="dependency.homepageUrl"
             target="_blank"
             rel="noreferrer"
+            @click="handleExternalLinkClick($event, dependency.homepageUrl)"
           >
             打开 {{ dependency.displayName }} 网站
           </a>

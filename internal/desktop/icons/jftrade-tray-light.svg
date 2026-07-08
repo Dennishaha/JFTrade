@@ -1,0 +1,18 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">JFTrade Tray Icon Light Mode</title>
+  <desc id="desc">Transparent original JFTrade tray icon with JF initials and market momentum.</desc>
+  <defs>
+    <linearGradient id="mark" x1="195" y1="190" x2="831" y2="844" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00C2A8"/>
+      <stop offset="0.46" stop-color="#1F8CFF"/>
+      <stop offset="1" stop-color="#FFB020"/>
+    </linearGradient>
+    <linearGradient id="dark" x1="141" y1="79" x2="891" y2="965" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#030712"/>
+    </linearGradient>
+  </defs>
+  <path d="M141 724L332 533L428 629L740 317H574V227H894V547H804V381L429 756L333 660L205 788L141 724Z" fill="url(#mark)"/>
+  <path d="M265 298H485V504C485 642 408 720 296 720C257 720 221 712 188 694L225 610C246 621 269 628 295 628C353 628 387 590 387 504V392H265V298Z" fill="#F8FAFC"/>
+  <path d="M546 298H834V392H646V467H811V557H646V720H546V298Z" fill="#F8FAFC"/>
+</svg>

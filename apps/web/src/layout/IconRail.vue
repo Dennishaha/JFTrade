@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { useDocsLink } from "../composables/useDocsLink";
+import { useExternalLink } from "../composables/externalLink";
 
 interface InternalNavItem {
   type: "route";
@@ -21,6 +22,7 @@ interface ExternalNavItem {
 type NavItem = InternalNavItem | ExternalNavItem;
 
 const { docsHomeUrl } = useDocsLink();
+const { handleExternalLinkClick } = useExternalLink();
 
 const items: NavItem[] = [
   { type: "route", to: "/workspace", label: "交易", icon: "fa-solid fa-display" },
@@ -54,7 +56,7 @@ function go(to: string): void {
   <nav class="tv-iconrail" aria-label="主导航">
     <template v-for="item in items" :key="item.label">
       <a v-if="item.type === 'external'" :href="item.href" target="_blank" rel="noopener noreferrer"
-        class="tv-iconrail-btn" :title="item.label">
+        class="tv-iconrail-btn" :title="item.label" @click="handleExternalLinkClick($event, item.href)">
         <v-icon class="tv-iconrail-glyph tv-iconrail-glyph--external">{{ item.icon }}</v-icon>
         <span>{{ item.label }}</span>
       </a>

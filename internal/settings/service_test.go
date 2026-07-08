@@ -13,19 +13,20 @@ import (
 )
 
 type fakeStore struct {
-	appearance      jfsettings.UIAppearanceSettings
-	onboarding      jfsettings.OnboardingSettings
-	execution       jfsettings.ExecutionSettings
-	security        jfsettings.SecuritySettings
-	adk             jfsettings.ADKRuntimeSettings
-	pineWorker      jfsettings.PineWorkerSettings
-	calendars       jfsettings.ExchangeCalendarSettings
-	integration     jfsettings.BrokerIntegration
-	managedAccounts []jfsettings.ManagedBrokerAccount
-	path            string
-	hasAppearance   bool
-	bootstrapCalls  int
-	bootstrapArg    jfsettings.LaunchDefaults
+	appearance          jfsettings.UIAppearanceSettings
+	onboarding          jfsettings.OnboardingSettings
+	execution           jfsettings.ExecutionSettings
+	security            jfsettings.SecuritySettings
+	systemNotifications jfsettings.SystemNotificationSettings
+	adk                 jfsettings.ADKRuntimeSettings
+	pineWorker          jfsettings.PineWorkerSettings
+	calendars           jfsettings.ExchangeCalendarSettings
+	integration         jfsettings.BrokerIntegration
+	managedAccounts     []jfsettings.ManagedBrokerAccount
+	path                string
+	hasAppearance       bool
+	bootstrapCalls      int
+	bootstrapArg        jfsettings.LaunchDefaults
 }
 
 func (s *fakeStore) Appearance() jfsettings.UIAppearanceSettings { return s.appearance }
@@ -34,7 +35,10 @@ func (s *fakeStore) ExecutionSettings() jfsettings.ExecutionSettings {
 	return s.execution
 }
 func (s *fakeStore) SecuritySettings() jfsettings.SecuritySettings { return s.security }
-func (s *fakeStore) ADKSettings() jfsettings.ADKRuntimeSettings    { return s.adk }
+func (s *fakeStore) SystemNotificationSettings() jfsettings.SystemNotificationSettings {
+	return s.systemNotifications
+}
+func (s *fakeStore) ADKSettings() jfsettings.ADKRuntimeSettings { return s.adk }
 func (s *fakeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
 	return s.pineWorker
 }
@@ -69,6 +73,10 @@ func (s *fakeStore) SaveExecutionSettings(input jfsettings.ExecutionSettings) (j
 }
 func (s *fakeStore) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfsettings.SecuritySettings, error) {
 	s.security = input
+	return input, nil
+}
+func (s *fakeStore) SaveSystemNotificationSettings(input jfsettings.SystemNotificationSettings) (jfsettings.SystemNotificationSettings, error) {
+	s.systemNotifications = input
 	return input, nil
 }
 func (s *fakeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {

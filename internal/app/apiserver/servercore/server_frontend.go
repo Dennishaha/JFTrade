@@ -18,6 +18,7 @@ type frontendServer struct {
 	files             fs.FS
 	runtimeAPIBaseURL string
 	authRequired      bool
+	desktopMode       bool
 }
 
 func loadFrontendFS() fs.FS {
@@ -49,6 +50,12 @@ func newFrontendServerWithRuntimeConfig(frontendFS fs.FS, runtimeAPIBaseURL stri
 func (f *frontendServer) setAuthRequired(required bool) {
 	if f != nil {
 		f.authRequired = required
+	}
+}
+
+func (f *frontendServer) setDesktopMode(enabled bool) {
+	if f != nil {
+		f.desktopMode = enabled
 	}
 }
 
@@ -88,7 +95,11 @@ func (f *frontendServer) serveRequest(w http.ResponseWriter, r *http.Request) bo
 }
 
 func (f *frontendServer) serveRuntimeConfig(w http.ResponseWriter, r *http.Request) {
-	config := map[string]any{"apiBaseUrl": f.runtimeAPIBaseURL, "authRequired": f.authRequired}
+	config := map[string]any{
+		"apiBaseUrl":   f.runtimeAPIBaseURL,
+		"authRequired": f.authRequired,
+		"desktopMode":  f.desktopMode,
+	}
 	payload, err := json.Marshal(config)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

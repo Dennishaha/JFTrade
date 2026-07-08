@@ -79,6 +79,7 @@ describe("RuntimeDependenciesSection", () => {
       },
     );
     vi.stubGlobal("fetch", fetchMock);
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
 
     const wrapper = mount(RuntimeDependenciesSection, {
       props: { mode: "settings" },
@@ -88,6 +89,13 @@ describe("RuntimeDependenciesSection", () => {
     expect(wrapper.text()).toContain("依赖项管理");
     expect(wrapper.text()).toContain("1 个必需依赖需要处理");
     expect(wrapper.text()).toContain("打开 Node.js 网站");
+
+    await wrapper.get('a[href="https://nodejs.org/"]').trigger("click");
+    expect(open).toHaveBeenCalledWith(
+      "https://nodejs.org/",
+      "_blank",
+      "noopener,noreferrer",
+    );
 
     await wrapper
       .get("[data-testid='runtime-dependency-node-path-input']")

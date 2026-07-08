@@ -488,16 +488,8 @@ func resolvePineWorkerPerformanceGate() (time.Duration, time.Duration, float64, 
 }
 
 func resolvePineWorkerRuntime(settings jftsettings.PineWorkerSettings) string {
-	if value := settingsfile.NormalizeNodeBinaryPath(settings.NodeBinaryPath); value != "" {
-		return value
-	}
-	if value := settingsfile.NormalizeNodeBinaryPath(os.Getenv(envPineWorkerRuntime)); value != "" {
-		return value
-	}
-	if value := settingsfile.NormalizeNodeBinaryPath(os.Getenv("JFTRADE_NODE_BINARY")); value != "" {
-		return value
-	}
-	return "node"
+	resolution := resolveNodeDependencyRuntime(settings)
+	return resolution.effectivePath
 }
 
 func resolvePineWorkerWorkDir(bundlePath string) string {

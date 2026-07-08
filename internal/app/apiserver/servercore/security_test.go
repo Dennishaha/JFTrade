@@ -339,6 +339,9 @@ func TestCORSOnlyReflectsConfiguredOrigins(t *testing.T) {
 	}{
 		{origin: "http://localhost:5173", want: "http://localhost:5173"},
 		{origin: "http://localhost:5174", want: "http://localhost:5174"},
+		{origin: "wails://localhost", want: "wails://localhost"},
+		{origin: "wails://localhost:5173", want: "wails://localhost:5173"},
+		{origin: "http://wails.localhost", want: "http://wails.localhost"},
 		{origin: "https://evil.example.com", want: ""},
 	} {
 		req, jftradeErr13 := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/system/status", nil)

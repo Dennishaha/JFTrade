@@ -70,6 +70,7 @@ func TestResolvePineWorkerRuntimeConfigFromEnv(t *testing.T) {
 }
 
 func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) {
+	setRuntimeDependencyGOOS(t, "linux")
 	binaryPath := filepath.Join(t.TempDir(), "worker.mjs")
 	t.Setenv(envPineWorkerBundle, binaryPath)
 

@@ -7,6 +7,7 @@ import {
   buildTimelineRun,
   type ADKTimelineEntryState,
 } from "../../composables/adkTimeline";
+import { useExternalLink } from "../../composables/externalLink";
 import ADKChildRunTrace from "../shared/ADKChildRunTrace.vue";
 import ADKRunTrace from "../shared/ADKRunTrace.vue";
 
@@ -61,6 +62,7 @@ const emit = defineEmits<{
   "showNewerTimeline": [];
   "showLatestTimeline": [];
 }>();
+const { handleExternalLinkClick } = useExternalLink();
 
 const threadClass = computed(() => ({
   "adk-chat-thread": true,
@@ -123,6 +125,12 @@ watch(
 
 function isEntryActiveRun(entry: ADKTimelineEntryState): boolean {
   return !!entry.runId && props.hasBlockingRun && entry.runId === props.activeRunId;
+}
+
+function handleMarkdownClick(event: MouseEvent): void {
+  const link = (event.target as Element | null)?.closest("a[href]");
+  if (!(link instanceof HTMLAnchorElement)) return;
+  handleExternalLinkClick(event, link.getAttribute("href") || link.href);
 }
 
 function entryToolRun(entry: ADKTimelineEntryState): ADKRun {
@@ -374,6 +382,7 @@ function showLatestTimeline(): void {
         <div
           v-if="(entry.text ?? '').trim() !== ''"
           class="adk-bubble adk-bubble--assistant adk-markdown"
+          @click="handleMarkdownClick"
           v-html="renderedMarkdown(entry)"
         />
       </div>

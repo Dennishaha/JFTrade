@@ -9,6 +9,9 @@ import (
 
 func (s *Server) applySecuritySettings(settings SecuritySettings) {
 	required := normalizeSecuritySettings(settings).AdminAuthRequired
+	if s != nil && s.desktopMode {
+		required = false
+	}
 	if s.auth != nil {
 		s.auth.enabled = required
 	}

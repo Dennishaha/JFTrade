@@ -2,9 +2,13 @@ package apiserver
 
 import (
 	"context"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
@@ -72,6 +76,249 @@ func TestStartForRunArgsDisabledReturnsNoop(t *testing.T) {
 	}
 	if err := shutdown(context.Background()); err != nil {
 		t.Fatalf("shutdown() error = %v", err)
+	}
+}
+
+func TestStartDesktopDoesNotPersistentlyDisableAdminAuth(t *testing.T) {
+	apiBind := freeTCPAddr(t)
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	backtestDBPath := filepath.Join(t.TempDir(), "backtest.db")
+	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
+	t.Setenv("JFTRADE_BACKTEST_DB", backtestDBPath)
+	t.Setenv("JFTRADE_API_BIND", apiBind)
+
+	store, err := settingsfile.New(settingsPath)
+	if err != nil {
+		t.Fatalf("settingsfile.New: %v", err)
+	}
+	if _, err := store.SaveSecuritySettings(jfsettings.SecuritySettings{AdminAuthRequired: true}); err != nil {
+		t.Fatalf("SaveSecuritySettings: %v", err)
+	}
+
+	shutdown, err := StartDesktop(t.Context(), nil)
+	if err != nil {
+		t.Fatalf("StartDesktop: %v", err)
+	}
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			t.Fatalf("shutdown: %v", err)
+		}
+	}()
+
+	resp, err := http.Get("http://" + apiBind + "/api/v1/settings/security")
+	if err != nil {
+		t.Fatalf("GET desktop security settings: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("desktop security settings status = %d, want 200 without login", resp.StatusCode)
+	}
+
+	if got := store.SecuritySettings(); !got.AdminAuthRequired {
+		t.Fatalf("in-memory desktop security settings mutated to %#v, want persisted admin auth required", got)
+	}
+	reloaded, err := settingsfile.New(settingsPath)
+	if err != nil {
+		t.Fatalf("settingsfile.New reload: %v", err)
+	}
+	if got := reloaded.SecuritySettings(); !got.AdminAuthRequired {
+		t.Fatalf("reloaded desktop security settings = %#v, want persisted admin auth required", got)
+	}
+}
+
+func TestResolveDesktopRuntimeConfigUsesSettingsAPIBind(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	settingsBind := freeTCPAddr(t)
+	if err := os.WriteFile(settingsPath, []byte(`{"interfaces":{"apiBind":"`+settingsBind+`"}}`), 0o600); err != nil {
+		t.Fatalf("write settings: %v", err)
+	}
+	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
+	t.Setenv("JFTRADE_API_BIND", "")
+
+	config, err := ResolveDesktopRuntimeConfig()
+	if err != nil {
+		t.Fatalf("ResolveDesktopRuntimeConfig: %v", err)
+	}
+	if config.APIBind != settingsBind {
+		t.Fatalf("APIBind = %q, want settings override %q", config.APIBind, settingsBind)
+	}
+	if config.APIBaseURL != "http://"+settingsBind {
+		t.Fatalf("APIBaseURL = %q, want http://%s", config.APIBaseURL, settingsBind)
+	}
+}
+
+func TestResolveDesktopRuntimeConfigRejectsEphemeralAPIBind(t *testing.T) {
+	t.Setenv("JFTRADE_API_BIND", "127.0.0.1:0")
+
+	if _, err := ResolveDesktopRuntimeConfig(); err == nil || !strings.Contains(err.Error(), "stable local port") {
+		t.Fatalf("ResolveDesktopRuntimeConfig error = %v, want stable port error", err)
+	}
+}
+
+func TestStartDesktopStartsAPIButNotLegacyGUIServer(t *testing.T) {
+	apiBind := freeTCPAddr(t)
+	guiBind := freeTCPAddr(t)
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	backtestDBPath := filepath.Join(t.TempDir(), "backtest.db")
+	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
+	t.Setenv("JFTRADE_BACKTEST_DB", backtestDBPath)
+	t.Setenv("JFTRADE_API_BIND", apiBind)
+	t.Setenv("JFTRADE_GUI_BIND", guiBind)
+
+	shutdown, err := StartDesktop(t.Context(), nil)
+	if err != nil {
+		t.Fatalf("StartDesktop: %v", err)
+	}
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			t.Fatalf("shutdown: %v", err)
+		}
+	}()
+
+	waitForHTTPStatus(t, "http://"+apiBind+"/api/v1/system/status", http.StatusOK)
+
+	client := &http.Client{Timeout: 200 * time.Millisecond}
+	resp, err := client.Get("http://" + guiBind + "/")
+	if err == nil {
+		defer func() { _ = resp.Body.Close() }()
+		t.Fatalf("legacy GUI server unexpectedly listening on %s with status %d", guiBind, resp.StatusCode)
+	}
+}
+
+func TestStartDesktopAllowsWailsDevOrigin(t *testing.T) {
+	apiBind := freeTCPAddr(t)
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	backtestDBPath := filepath.Join(t.TempDir(), "backtest.db")
+	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
+	t.Setenv("JFTRADE_BACKTEST_DB", backtestDBPath)
+	t.Setenv("JFTRADE_API_BIND", apiBind)
+	t.Setenv("FRONTEND_DEVSERVER_URL", "http://127.0.0.1:5173")
+
+	shutdown, err := StartDesktop(t.Context(), nil)
+	if err != nil {
+		t.Fatalf("StartDesktop: %v", err)
+	}
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			t.Fatalf("shutdown: %v", err)
+		}
+	}()
+
+	client := &http.Client{Timeout: 500 * time.Millisecond}
+	assertWailsCORS(t, client, http.MethodGet, "http://"+apiBind+"/api/v1/settings/ui", "wails://localhost:5173")
+	assertWailsCORS(t, client, http.MethodOptions, "http://"+apiBind+"/api/v1/settings/ui", "wails://localhost:5173")
+}
+
+func TestStartDesktopAllowsPackagedWailsOrigins(t *testing.T) {
+	apiBind := freeTCPAddr(t)
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	backtestDBPath := filepath.Join(t.TempDir(), "backtest.db")
+	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
+	t.Setenv("JFTRADE_BACKTEST_DB", backtestDBPath)
+	t.Setenv("JFTRADE_API_BIND", apiBind)
+
+	shutdown, err := StartDesktop(t.Context(), nil)
+	if err != nil {
+		t.Fatalf("StartDesktop: %v", err)
+	}
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			t.Fatalf("shutdown: %v", err)
+		}
+	}()
+
+	client := &http.Client{Timeout: 500 * time.Millisecond}
+	for _, origin := range []string{
+		"wails://localhost",
+		"http://wails.localhost",
+	} {
+		assertWailsCORS(t, client, http.MethodGet, "http://"+apiBind+"/api/v1/settings/ui", origin)
+		assertWailsCORS(t, client, http.MethodOptions, "http://"+apiBind+"/api/v1/settings/ui", origin)
+	}
+}
+
+func TestStartDesktopReportsAPIBindFailure(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	defer func() { _ = listener.Close() }()
+
+	previousTimeout := desktopAPIReadyTimeout
+	desktopAPIReadyTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { desktopAPIReadyTimeout = previousTimeout })
+
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	backtestDBPath := filepath.Join(t.TempDir(), "backtest.db")
+	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
+	t.Setenv("JFTRADE_BACKTEST_DB", backtestDBPath)
+	t.Setenv("JFTRADE_API_BIND", listener.Addr().String())
+
+	shutdown, err := StartDesktop(t.Context(), nil)
+	if err == nil {
+		if shutdown != nil {
+			_ = shutdown(context.Background())
+		}
+		t.Fatal("StartDesktop succeeded with occupied API bind")
+	}
+	if shutdown != nil {
+		t.Fatal("StartDesktop returned shutdown on startup failure")
+	}
+}
+
+func freeTCPAddr(t *testing.T) string {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	addr := listener.Addr().String()
+	if err := listener.Close(); err != nil {
+		t.Fatalf("Close listener: %v", err)
+	}
+	return addr
+}
+
+func waitForHTTPStatus(t *testing.T, url string, wantStatus int) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(url)
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode == wantStatus {
+				return
+			}
+			lastErr = nil
+		} else {
+			lastErr = err
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if lastErr != nil {
+		t.Fatalf("GET %s: %v", url, lastErr)
+	}
+	t.Fatalf("GET %s did not return status %d before deadline", url, wantStatus)
+}
+
+func assertWailsCORS(t *testing.T, client *http.Client, method string, url string, origin string) {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), method, url, nil)
+	if err != nil {
+		t.Fatalf("NewRequest %s: %v", method, err)
+	}
+	req.Header.Set("Origin", origin)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, url, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("%s origin %q Access-Control-Allow-Origin = %q", method, origin, got)
+	}
+	if method == http.MethodOptions && resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("OPTIONS status = %d, want 204", resp.StatusCode)
 	}
 }
 

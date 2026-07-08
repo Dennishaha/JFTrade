@@ -5,17 +5,25 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/lifecycle"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/servercore"
 	"github.com/jftrade/jftrade-main/internal/frontendassets"
+	"github.com/jftrade/jftrade-main/internal/live"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
+
+var desktopAPIReadyTimeout = 5 * time.Second
 
 // RunAPIOnly starts the sidecar in API-only mode and waits for ctx shutdown.
 func RunAPIOnly(ctx context.Context) error {
@@ -25,6 +33,178 @@ func RunAPIOnly(ctx context.Context) error {
 // StartForRunArgs starts the API sidecar for supported API command args.
 func StartForRunArgs(ctx context.Context, args []string) (func(context.Context) error, error) {
 	return lifecycle.StartForRunArgs(ctx, args, dependencies())
+}
+
+type DesktopRuntimeConfig struct {
+	Defaults     jfsettings.LaunchDefaults
+	SettingsPath string
+	BacktestPath string
+	APIBind      string
+	APIBaseURL   string
+}
+
+// ResolveDesktopRuntimeConfig resolves the desktop API/runtime paths once so
+// the Wails asset host and embedded API sidecar agree on the same local API.
+func ResolveDesktopRuntimeConfig() (DesktopRuntimeConfig, error) {
+	defaults := apiruntime.ResolveLaunchDefaults(true)
+	config := DesktopRuntimeConfig{
+		Defaults:     defaults,
+		SettingsPath: envOrDefault("JFTRADE_SETTINGS_PATH", defaults.SettingsPath),
+		BacktestPath: envOrDefault("JFTRADE_BACKTEST_DB", defaults.BacktestDBPath),
+		APIBind:      defaults.APIBind,
+	}
+	if store, err := settingsfile.New(config.SettingsPath); err == nil {
+		if configured := strings.TrimSpace(store.InterfaceSettings(defaults).APIBind); configured != "" {
+			config.APIBind = configured
+		}
+	}
+	config.APIBind = envOrDefault("JFTRADE_API_BIND", config.APIBind)
+	config.APIBaseURL = apiruntime.APIBaseURLForBind(config.APIBind)
+	if err := validateDesktopAPIBind(config.APIBind, config.APIBaseURL); err != nil {
+		return DesktopRuntimeConfig{}, err
+	}
+	config.Defaults.SettingsPath = config.SettingsPath
+	config.Defaults.BacktestDBPath = config.BacktestPath
+	config.Defaults.APIBind = config.APIBind
+	return config, nil
+}
+
+func validateDesktopAPIBind(apiBind string, apiBaseURL string) error {
+	if strings.TrimSpace(apiBaseURL) == "" {
+		return fmt.Errorf("desktop API bind %q does not produce a browser-accessible API URL", apiBind)
+	}
+	_, port, err := net.SplitHostPort(strings.TrimSpace(apiBind))
+	if err != nil {
+		return fmt.Errorf("desktop API bind %q is invalid: %w", apiBind, err)
+	}
+	if strings.TrimSpace(port) == "0" {
+		return fmt.Errorf("desktop API bind %q is not supported; configure a stable local port", apiBind)
+	}
+	return nil
+}
+
+// StartDesktop starts the API sidecar for an embedded Wails desktop host.
+func StartDesktop(ctx context.Context, sink func(live.Event) live.NotificationDelivery) (func(context.Context) error, error) {
+	runtimeConfig, err := ResolveDesktopRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
+	deps := dependencies()
+	deps.LoadFrontendFS = func() fs.FS { return nil }
+	deps.ResolveLaunchDefaults = func(bool) jfsettings.LaunchDefaults {
+		return runtimeConfig.Defaults
+	}
+	deps.NewHandler = func(store lifecycle.SettingsStore) (lifecycle.Handler, error) {
+		settingsStore, ok := store.(servercore.SidecarSettingsStore)
+		if !ok {
+			return nil, fmt.Errorf("unexpected settings store type %T", store)
+		}
+		handler := servercore.NewSidecarHandlerWithOptions(settingsStore, servercore.SidecarOptions{
+			NotificationSink: sink,
+			DesktopMode:      true,
+		})
+		handler.ConfigureAuthOrigins(desktopTrustedOrigins()...)
+		return handler, nil
+	}
+	shutdown, err := lifecycle.StartForRunArgs(ctx, []string{"api"}, deps)
+	if err != nil {
+		return nil, err
+	}
+	if err := waitDesktopAPIReady(ctx, runtimeConfig.APIBaseURL); err != nil {
+		shutdownErr := shutdown(context.Background())
+		if shutdownErr != nil {
+			return nil, fmt.Errorf("%w; shutdown after desktop API startup failure: %v", err, shutdownErr)
+		}
+		return nil, err
+	}
+	return shutdown, nil
+}
+
+func desktopTrustedOrigins() []string {
+	origins := []string{
+		"wails://localhost",
+		"wails://127.0.0.1",
+		"wails://localhost:5173",
+		"wails://127.0.0.1:5173",
+		"http://wails.localhost",
+		"https://wails.localhost",
+	}
+	for _, origin := range wailsOriginsForDevServer(os.Getenv("FRONTEND_DEVSERVER_URL")) {
+		if !containsString(origins, origin) {
+			origins = append(origins, origin)
+		}
+	}
+	return origins
+}
+
+func wailsOriginsForDevServer(rawURL string) []string {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return nil
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || strings.TrimSpace(parsed.Host) == "" {
+		return nil
+	}
+	hosts := []string{parsed.Host}
+	host, port, err := net.SplitHostPort(parsed.Host)
+	if err == nil && port != "" {
+		switch strings.Trim(host, "[]") {
+		case "127.0.0.1":
+			hosts = append(hosts, net.JoinHostPort("localhost", port))
+		case "localhost":
+			hosts = append(hosts, net.JoinHostPort("127.0.0.1", port))
+		}
+	}
+	origins := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		if host = strings.TrimSpace(host); host != "" {
+			origins = append(origins, "wails://"+host)
+		}
+	}
+	return origins
+}
+
+func containsString(values []string, target string) bool {
+	return slices.Contains(values, target)
+}
+
+func waitDesktopAPIReady(ctx context.Context, apiBaseURL string) error {
+	apiBaseURL = strings.TrimRight(strings.TrimSpace(apiBaseURL), "/")
+	if apiBaseURL == "" {
+		return fmt.Errorf("desktop API base URL is empty")
+	}
+
+	waitCtx, cancel := context.WithTimeout(ctx, desktopAPIReadyTimeout)
+	defer cancel()
+	client := &http.Client{Timeout: 250 * time.Millisecond}
+	statusURL := apiBaseURL + "/api/v1/system/status"
+	var lastErr error
+	for {
+		req, err := http.NewRequestWithContext(waitCtx, http.MethodGet, statusURL, nil)
+		if err != nil {
+			return err
+		}
+		resp, err := client.Do(req)
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode >= 200 && resp.StatusCode < 500 {
+				return nil
+			}
+			lastErr = fmt.Errorf("desktop API readiness status %d", resp.StatusCode)
+		} else {
+			lastErr = err
+		}
+
+		select {
+		case <-waitCtx.Done():
+			if lastErr != nil {
+				return fmt.Errorf("desktop API did not become ready at %s: %w", apiBaseURL, lastErr)
+			}
+			return fmt.Errorf("desktop API did not become ready at %s: %w", apiBaseURL, waitCtx.Err())
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
 }
 
 func dependencies() lifecycle.Dependencies {

@@ -29,18 +29,6 @@
             }
         },
         {
-            "name": "Dev Web with Docs",
-            "type": "node-terminal",
-            "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "command": "npm run dev:all",
-            "serverReadyAction": {
-                "action": "openExternally",
-                "pattern": "Local:\\s+(https?://[^\\s]+)",
-                "uriFormat": "%s"
-            }
-        },
-        {
             "name": "Dev Backend",
             "type": "go",
             "request": "launch",
@@ -84,6 +72,13 @@
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "command": "npm run dev:api:pineworker"
+        },
+        {
+            "name": "Dev Desktop (Wails)",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "npm run desktop:dev"
         }
     ]
 }

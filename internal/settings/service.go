@@ -14,6 +14,7 @@ type Store interface {
 	Onboarding() jfsettings.OnboardingSettings
 	ExecutionSettings() jfsettings.ExecutionSettings
 	SecuritySettings() jfsettings.SecuritySettings
+	SystemNotificationSettings() jfsettings.SystemNotificationSettings
 	ADKSettings() jfsettings.ADKRuntimeSettings
 	PineWorkerSettings() jfsettings.PineWorkerSettings
 	ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings
@@ -27,6 +28,7 @@ type Store interface {
 	SaveOnboarding(jfsettings.OnboardingSettings) (jfsettings.OnboardingSettings, error)
 	SaveExecutionSettings(jfsettings.ExecutionSettings) (jfsettings.ExecutionSettings, error)
 	SaveSecuritySettings(jfsettings.SecuritySettings) (jfsettings.SecuritySettings, error)
+	SaveSystemNotificationSettings(jfsettings.SystemNotificationSettings) (jfsettings.SystemNotificationSettings, error)
 	SaveADKSettings(jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error)
 	SavePineWorkerSettings(jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error)
 	SaveExchangeCalendarSettings(jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error)
@@ -173,6 +175,18 @@ func (s *Service) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfset
 		s.sideEffects.OnSecurityChanged(result)
 	}
 	return result, nil
+}
+
+// ── System Notifications ──
+
+// GetSystemNotificationSettings 返回系统通知设置。
+func (s *Service) GetSystemNotificationSettings() jfsettings.SystemNotificationSettings {
+	return s.store.SystemNotificationSettings()
+}
+
+// SaveSystemNotificationSettings 保存系统通知设置。
+func (s *Service) SaveSystemNotificationSettings(input jfsettings.SystemNotificationSettings) (jfsettings.SystemNotificationSettings, error) {
+	return s.store.SaveSystemNotificationSettings(input)
 }
 
 // ── ADK ──

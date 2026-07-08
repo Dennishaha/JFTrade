@@ -114,4 +114,13 @@ func TestCanonicalOriginRejectsMalformedAndUnsupportedValues(t *testing.T) {
 	if got := canonicalOrigin("HTTP://EXAMPLE.COM"); got != "http://example.com" {
 		t.Fatalf("canonical origin = %q", got)
 	}
+	if got := canonicalOrigin("wails://LOCALHOST:5173/app"); got != "wails://localhost:5173" {
+		t.Fatalf("wails canonical origin = %q", got)
+	}
+	if got := canonicalOrigin("wails://LOCALHOST/app"); got != "wails://localhost" {
+		t.Fatalf("packaged wails canonical origin = %q", got)
+	}
+	if got := canonicalOrigin("HTTP://WAILS.LOCALHOST/app"); got != "http://wails.localhost" {
+		t.Fatalf("windows wails canonical origin = %q", got)
+	}
 }

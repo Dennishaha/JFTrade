@@ -10,9 +10,11 @@ import SettingsExchangeCalendarSection from "../components/SettingsExchangeCalen
 import SettingsManagedAccountsSection from "../components/SettingsManagedAccountsSection.vue";
 import SettingsPineWorkerSection from "../components/SettingsPineWorkerSection.vue";
 import SettingsSecuritySection from "../components/SettingsSecuritySection.vue";
+import SettingsSystemNotificationsSection from "../components/SettingsSystemNotificationsSection.vue";
 import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
 import { readLocalStorage, writeLocalStorage } from "../composables/safeStorage";
 import { useConsoleData } from "../composables/useConsoleData";
+import { resolveDesktopMode } from "../runtimeConfig";
 
 const route = useRoute();
 const router = useRouter();
@@ -29,7 +31,7 @@ const {
   updateManagedBrokerAccount,
 } = useConsoleData();
 
-const settingsMenu = [
+const allSettingsMenu = [
   {
     index: "runtime-dependencies",
     label: "依赖项管理",
@@ -66,6 +68,11 @@ const settingsMenu = [
     description: "配置管理员认证与访问保护。",
   },
   {
+    index: "system-notifications",
+    label: "系统通知",
+    description: "配置托盘常驻时的系统通知策略。",
+  },
+  {
     index: "pine-worker",
     label: "PineTS Worker",
     description: "配置 Pine Script 计算 Worker 上限。",
@@ -82,14 +89,22 @@ const settingsMenu = [
   },
 ] as const;
 
-type MenuIndex = (typeof settingsMenu)[number]["index"];
+type MenuIndex = (typeof allSettingsMenu)[number]["index"];
 
 const DEFAULT_SECTION: MenuIndex = "runtime-dependencies";
+const isDesktopMode = computed(() => resolveDesktopMode());
+const settingsMenu = computed(() =>
+  allSettingsMenu.filter((entry) => !(isDesktopMode.value && entry.index === "security")),
+);
+
+function isKnownSettingsMenu(index: string | undefined | null): index is MenuIndex {
+  return settingsMenu.value.some((entry) => entry.index === index);
+}
 
 const activeMenu = computed<MenuIndex>(() => {
   const s = route.params.section as string | undefined;
   if (s === "data-migration") return "data-management";
-  if (s && settingsMenu.some((e) => e.index === s)) {
+  if (s && isKnownSettingsMenu(s)) {
     return s as MenuIndex;
   }
   return DEFAULT_SECTION;
@@ -104,10 +119,16 @@ onMounted(() => {
   if (!route.params.section) {
     const storedValue = readLocalStorage(SETTINGS_LAST_KEY);
     const stored = storedValue === "data-migration" ? "data-management" : storedValue;
-    const last = settingsMenu.some((entry) => entry.index === stored)
+    const last = isKnownSettingsMenu(stored)
       ? stored as MenuIndex
       : DEFAULT_SECTION;
     void router.replace(`/settings/${last}`);
+    return;
+  }
+  const requested = route.params.section as string | undefined;
+  if (requested && !isKnownSettingsMenu(requested)) {
+    writeLocalStorage(SETTINGS_LAST_KEY, DEFAULT_SECTION);
+    void router.replace(`/settings/${DEFAULT_SECTION}`);
   }
 });
 
@@ -132,7 +153,7 @@ const accountDiscoveryUnavailableMessage = computed(() => {
 });
 
 function handleMenuSelect(index: string): void {
-  if (!settingsMenu.some((entry) => entry.index === index)) return;
+  if (!isKnownSettingsMenu(index)) return;
   writeLocalStorage(SETTINGS_LAST_KEY, index);
   void router.push(`/settings/${index}`);
 }
@@ -223,6 +244,8 @@ const {
         <SettingsExchangeCalendarSection v-show="activeMenu === 'exchange-calendars'" />
 
         <SettingsSecuritySection v-if="activeMenu === 'security'" />
+
+        <SettingsSystemNotificationsSection v-if="activeMenu === 'system-notifications'" />
 
         <SettingsPineWorkerSection v-if="activeMenu === 'pine-worker'" />
 

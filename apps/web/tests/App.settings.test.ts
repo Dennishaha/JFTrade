@@ -35,6 +35,11 @@ import {
 } from "./helpers";
 
 afterEach(() => {
+  delete (
+    window as Window & {
+      __JFTRADE_RUNTIME_CONFIG__?: { desktopMode?: boolean };
+    }
+  ).__JFTRADE_RUNTIME_CONFIG__;
   vi.unstubAllGlobals();
   MockWebSocket.instances = [];
 });
@@ -369,6 +374,7 @@ describe("Settings page", () => {
       "界面外观",
       "交易所日历",
       "安全",
+      "系统通知",
       "PineTS Worker",
       "智能体",
       "数据管理",
@@ -974,6 +980,90 @@ describe("Settings page", () => {
       adminAuthRequired: true,
     });
     expect(wrapper.text()).toContain("已开启");
+
+    wrapper.unmount();
+  });
+
+  it("hides administrator authentication settings in desktop mode", async () => {
+    (
+      window as Window & {
+        __JFTRADE_RUNTIME_CONFIG__?: { desktopMode?: boolean };
+      }
+    ).__JFTRADE_RUNTIME_CONFIG__ = { desktopMode: true };
+    const fetchMock = vi.fn(
+      (input: string | URL | Request) => {
+        const url = String(input);
+        const dependencyResponse = runtimeDependencyMockResponse(url);
+        if (dependencyResponse != null) {
+          return Promise.resolve(dependencyResponse);
+        }
+        if (url.includes("/api/v1/settings/security")) {
+          throw new Error("security settings should be hidden in desktop mode");
+        }
+        if (url.includes("/api/v1/system/status")) {
+          return Promise.resolve(createResponse(emptySystemStatus));
+        }
+        if (url.includes("/api/v1/system/storage/overview")) {
+          return Promise.resolve(createResponse(emptyStorageOverview));
+        }
+        if (url.includes("/api/v1/settings/brokers")) {
+          return Promise.resolve(createResponse({ brokers: [], accounts: [] }));
+        }
+        if (url.includes("/api/v1/settings/onboarding")) {
+          return Promise.resolve(createResponse(emptyOnboardingState));
+        }
+        if (url.includes("/api/v1/plugins")) {
+          return Promise.resolve(createResponse({ targetDir: "", plugins: [] }));
+        }
+        if (url.includes("/api/v1/system/real-trade-approvals")) {
+          return Promise.resolve(createResponse(emptyRealTradeApprovals));
+        }
+        if (url.includes("/api/v1/system/real-trade-hard-stops")) {
+          return Promise.resolve(createResponse(emptyRealTradeHardStops));
+        }
+        if (url.includes("/api/v1/system/real-trade-hard-stop-events")) {
+          return Promise.resolve(createResponse(emptyRealTradeHardStopEvents));
+        }
+        if (url.includes("/api/v1/system/real-trade-kill-switch-events")) {
+          return Promise.resolve(createResponse(emptyRealTradeKillSwitchEvents));
+        }
+        if (url.includes("/api/v1/system/real-trade-kill-switch")) {
+          return Promise.resolve(createResponse(emptyRealTradeKillSwitchState));
+        }
+        if (url.includes("/api/v1/system/real-trade-risk-events")) {
+          return Promise.resolve(createResponse(emptyRealTradeRiskEvents));
+        }
+        if (url.includes("/api/v1/system/real-trade-risk-limits")) {
+          return Promise.resolve(createResponse(emptyRealTradeRiskState));
+        }
+        if (url.includes("/api/v1/system/worker/broker-order-updates")) {
+          return Promise.resolve(createResponse(emptyWorkerBrokerOrderUpdates));
+        }
+        if (url.includes("/api/v1/market-data/instruments")) {
+          return Promise.resolve(createResponse({ query: "", totalReturned: 0, entries: [] }));
+        }
+        if (url.includes("/api/v1/execution/orders")) {
+          return Promise.resolve(createResponse(emptyExecutionOrders));
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      },
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountApp("/settings/security");
+    await flushRequests();
+
+    const mobileSelector = wrapper.get(".settings-page__mobile-selector select");
+    expect(
+      mobileSelector.findAll("option").map((option) => option.text()),
+    ).not.toContain("安全");
+    expect(wrapper.text()).toContain("依赖项管理");
+    expect(wrapper.text()).not.toContain("管理员认证");
 
     wrapper.unmount();
   });

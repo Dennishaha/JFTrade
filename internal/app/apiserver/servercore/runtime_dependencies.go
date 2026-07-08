@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -33,12 +34,26 @@ var (
 	runtimeDependencyOutput   = func(ctx context.Context, path string, args ...string) ([]byte, error) {
 		return exec.CommandContext(ctx, path, args...).CombinedOutput()
 	}
+	runtimeDependencyGOOS = runtime.GOOS
 )
 
 type dependencySemanticVersion struct {
 	major int
 	minor int
 	patch int
+}
+
+type nodeRuntimeCandidate struct {
+	path   string
+	source string
+}
+
+type nodeRuntimeResolution struct {
+	effectivePath  string
+	source         string
+	resolvedPath   string
+	attemptedPaths []string
+	err            error
 }
 
 func (s *Server) runtimeDependencies(ctx context.Context) map[string]any {
@@ -66,20 +81,20 @@ func checkNodeRuntimeDependency(ctx context.Context, settings jftsettings.PineWo
 	}
 	normalized := settings
 	normalized.NodeBinaryPath = settingsfile.NormalizeNodeBinaryPath(normalized.NodeBinaryPath)
-	effectivePath, source := resolveNodeDependencyRuntimePath(normalized)
-	result := baseNodeRuntimeDependency(normalized.NodeBinaryPath, effectivePath, source)
+	resolution := resolveNodeDependencyRuntime(normalized)
+	result := baseNodeRuntimeDependency(normalized.NodeBinaryPath, resolution.effectivePath, resolution.source)
+	result["attemptedPaths"] = resolution.attemptedPaths
 
-	resolvedPath, err := runtimeDependencyLookPath(effectivePath)
-	if err != nil {
+	if resolution.resolvedPath == "" {
 		result["status"] = runtimeDependencyStatusMissing
-		result["message"] = nodeMissingMessage(normalized.NodeBinaryPath, err)
+		result["message"] = nodeMissingMessage(normalized.NodeBinaryPath, resolution.attemptedPaths, resolution.err)
 		return result
 	}
-	result["resolvedPath"] = resolvedPath
+	result["resolvedPath"] = resolution.resolvedPath
 
 	checkCtx, cancel := context.WithTimeout(ctx, runtimeDependencyNodeCheckTimeout)
 	defer cancel()
-	output, err := runtimeDependencyOutput(checkCtx, resolvedPath, "--version")
+	output, err := runtimeDependencyOutput(checkCtx, resolution.resolvedPath, "--version")
 	if err != nil {
 		result["status"] = runtimeDependencyStatusError
 		if errors.Is(checkCtx.Err(), context.DeadlineExceeded) {
@@ -128,28 +143,72 @@ func baseNodeRuntimeDependency(configuredPath string, effectivePath string, sour
 	}
 }
 
-func resolveNodeDependencyRuntimePath(settings jftsettings.PineWorkerSettings) (string, string) {
+func resolveNodeDependencyRuntime(settings jftsettings.PineWorkerSettings) nodeRuntimeResolution {
+	candidates := nodeRuntimeCandidates(settings)
+	if len(candidates) == 0 {
+		candidates = []nodeRuntimeCandidate{{path: "node", source: runtimeDependencySourceDefaultPath}}
+	}
+
+	attempted := make([]string, 0, len(candidates))
+	var lastErr error
+	for _, candidate := range candidates {
+		attempted = append(attempted, candidate.path)
+		resolvedPath, err := runtimeDependencyLookPath(candidate.path)
+		if err == nil {
+			return nodeRuntimeResolution{
+				effectivePath:  candidate.path,
+				source:         candidate.source,
+				resolvedPath:   resolvedPath,
+				attemptedPaths: attempted,
+			}
+		}
+		lastErr = err
+	}
+
+	first := candidates[0]
+	return nodeRuntimeResolution{
+		effectivePath:  first.path,
+		source:         first.source,
+		attemptedPaths: attempted,
+		err:            lastErr,
+	}
+}
+
+func nodeRuntimeCandidates(settings jftsettings.PineWorkerSettings) []nodeRuntimeCandidate {
 	if value := settingsfile.NormalizeNodeBinaryPath(settings.NodeBinaryPath); value != "" {
-		return value, runtimeDependencySourceSettings
+		return []nodeRuntimeCandidate{{path: value, source: runtimeDependencySourceSettings}}
 	}
 	if value := settingsfile.NormalizeNodeBinaryPath(envValue(envPineWorkerRuntime)); value != "" {
-		return value, "env:" + envPineWorkerRuntime
+		return []nodeRuntimeCandidate{{path: value, source: "env:" + envPineWorkerRuntime}}
 	}
 	if value := settingsfile.NormalizeNodeBinaryPath(envValue("JFTRADE_NODE_BINARY")); value != "" {
-		return value, "env:JFTRADE_NODE_BINARY"
+		return []nodeRuntimeCandidate{{path: value, source: "env:JFTRADE_NODE_BINARY"}}
 	}
-	return "node", runtimeDependencySourceDefaultPath
+	candidates := []nodeRuntimeCandidate{{path: "node", source: runtimeDependencySourceDefaultPath}}
+	if runtimeDependencyGOOS == "darwin" {
+		candidates = append(candidates,
+			nodeRuntimeCandidate{path: "/opt/homebrew/bin/node", source: "common:/opt/homebrew/bin/node"},
+			nodeRuntimeCandidate{path: "/usr/local/bin/node", source: "common:/usr/local/bin/node"},
+			nodeRuntimeCandidate{path: "/opt/homebrew/opt/node/bin/node", source: "common:/opt/homebrew/opt/node/bin/node"},
+			nodeRuntimeCandidate{path: "/usr/local/opt/node/bin/node", source: "common:/usr/local/opt/node/bin/node"},
+		)
+	}
+	return candidates
 }
 
 func envValue(key string) string {
 	return strings.TrimSpace(os.Getenv(key))
 }
 
-func nodeMissingMessage(configuredPath string, err error) string {
+func nodeMissingMessage(configuredPath string, attemptedPaths []string, err error) string {
 	if strings.TrimSpace(configuredPath) != "" {
 		return fmt.Sprintf("Configured Node.js binary was not found or is not executable: %v", err)
 	}
-	return fmt.Sprintf("Node.js was not found on PATH: %v", err)
+	attempted := strings.Join(attemptedPaths, ", ")
+	if attempted == "" {
+		attempted = "node"
+	}
+	return fmt.Sprintf("Node.js was not found from the app environment: %v. macOS apps launched from Finder do not inherit your shell PATH. Tried: %s. Set the Node.js binary path in Settings if Node is installed in a custom location.", err, attempted)
 }
 
 func summarizeDependencyCommandError(err error, output []byte) string {

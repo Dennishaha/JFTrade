@@ -37,6 +37,7 @@ func TestCheckNodeRuntimeDependencyOK(t *testing.T) {
 }
 
 func TestCheckNodeRuntimeDependencyReportsMissing(t *testing.T) {
+	setRuntimeDependencyGOOS(t, "linux")
 	restoreRuntimeDependencyProbe(t,
 		func(path string) (string, error) {
 			if path != "node" {
@@ -53,6 +54,61 @@ func TestCheckNodeRuntimeDependencyReportsMissing(t *testing.T) {
 	}
 	if !strings.Contains(result["message"].(string), "not found") {
 		t.Fatalf("message = %#v", result["message"])
+	}
+}
+
+func TestCheckNodeRuntimeDependencyUsesMacOSCommonPathFallback(t *testing.T) {
+	setRuntimeDependencyGOOS(t, "darwin")
+	lookups := []string{}
+	restoreRuntimeDependencyProbe(t,
+		func(path string) (string, error) {
+			lookups = append(lookups, path)
+			if path == "/opt/homebrew/bin/node" {
+				return path, nil
+			}
+			return "", exec.ErrNotFound
+		},
+		func(_ context.Context, path string, args ...string) ([]byte, error) {
+			if path != "/opt/homebrew/bin/node" || strings.Join(args, " ") != "--version" {
+				t.Fatalf("command = %s %v, want fallback node --version", path, args)
+			}
+			return []byte("v22.2.0\n"), nil
+		},
+	)
+
+	result := checkNodeRuntimeDependency(context.Background(), jftsettings.PineWorkerSettings{})
+	if result["status"] != runtimeDependencyStatusOK {
+		t.Fatalf("status = %#v, result = %#v", result["status"], result)
+	}
+	if result["effectivePath"] != "/opt/homebrew/bin/node" || result["source"] != "common:/opt/homebrew/bin/node" {
+		t.Fatalf("result = %#v", result)
+	}
+	if strings.Join(lookups, ",") != "node,/opt/homebrew/bin/node" {
+		t.Fatalf("lookups = %#v, want PATH node then Homebrew fallback", lookups)
+	}
+	if got := resolvePineWorkerRuntime(jftsettings.PineWorkerSettings{}); got != "/opt/homebrew/bin/node" {
+		t.Fatalf("resolvePineWorkerRuntime() = %q, want shared fallback", got)
+	}
+}
+
+func TestCheckNodeRuntimeDependencyMissingMessageListsMacOSAttempts(t *testing.T) {
+	setRuntimeDependencyGOOS(t, "darwin")
+	restoreRuntimeDependencyProbe(t,
+		func(string) (string, error) {
+			return "", exec.ErrNotFound
+		},
+		nil,
+	)
+
+	result := checkNodeRuntimeDependency(context.Background(), jftsettings.PineWorkerSettings{})
+	message, _ := result["message"].(string)
+	if result["status"] != runtimeDependencyStatusMissing {
+		t.Fatalf("status = %#v, result = %#v", result["status"], result)
+	}
+	for _, want := range []string{"Finder", "Tried: node, /opt/homebrew/bin/node", "Settings"} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("message = %q, want %q", message, want)
+		}
 	}
 }
 
@@ -96,6 +152,15 @@ func TestRuntimeDependenciesAggregatesRequiredStatus(t *testing.T) {
 	if !ok || len(dependencies) != 1 || dependencies[0]["id"] != "node" {
 		t.Fatalf("dependencies = %#v", result["dependencies"])
 	}
+}
+
+func setRuntimeDependencyGOOS(t *testing.T, goos string) {
+	t.Helper()
+	previous := runtimeDependencyGOOS
+	runtimeDependencyGOOS = goos
+	t.Cleanup(func() {
+		runtimeDependencyGOOS = previous
+	})
 }
 
 func restoreRuntimeDependencyProbe(
