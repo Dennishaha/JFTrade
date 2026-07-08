@@ -3,7 +3,7 @@
 ## PineTS / pinets
 
 - Package: `pinets`
-- Version: `0.9.27`
+- Version: `0.9.28`
 - Upstream: <https://github.com/LuxAlgo/PineTS>
 - npm: <https://www.npmjs.com/package/pinets>
 - License: `AGPL-3.0-only`

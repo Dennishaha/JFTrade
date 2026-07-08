@@ -6,7 +6,7 @@
 
 - Runtime target: `sourceFormat=pine-v6` + `runtime=pine-pinets`.
 - Legacy runtime: `pine-go-plan` is migration-only and must not remain a selectable execution path.
-- Dependency assumption: public `pinets@0.9.27` is the worker runtime dependency; its current npm license is `AGPL-3.0-only` and must be treated as a release compliance fact, not a commercial-license blocker.
+- Dependency assumption: public `pinets@0.9.28` is the worker runtime dependency; its current npm license is `AGPL-3.0-only` and must be treated as a release compliance fact, not a commercial-license blocker.
 - Execution authority: PineTS computes Pine outputs, upstream strategy metrics, and order intents; Go remains authoritative for backtest matching, equity curves, live risk, and order placement.
 - Release shape: one platform-independent Node ESM bundle is built with RollDown, embedded into the Go `trading-engine` binary, and started as a localhost gRPC child process through an installed Node runtime.
 - File-size guardrail: new or materially rewritten files must stay under 1200 lines.
@@ -25,7 +25,7 @@
 | 6. Backtest integration | Done | `pkg/backtest` has a Pine worker adapter, replay planner, command executor, replay pump, and `RunWithPineWorker`; `internal/backtest.Service` defaults to the Pine worker path and API startup injects a configured `WorkerManager` from `JFTRADE_PINEWORKER_BUNDLE`. Missing worker config now fails fast instead of falling back to Go runtime. |
 | 7. Live integration | Done | Bar-close live flow now builds Pine worker `live` requests, filters current-bar order intents, applies Go risk/notification/order placement, records runtime observation/errors, and does not fall back to Go Pine runtime. |
 | 8. Hard removal | Done | Public Pine spec/runtime payloads now emit `pine-pinets`; direct `pkg/backtest.Run` no longer imports or executes the Go Pine runtime and fails fast; current architecture, performance, and completion docs now point to the PineTS worker boundary; the old Go Pine runtime package has been deleted. |
-| 9. Packaging | Done | `pinets@0.9.27` is installed as a worker dependency, `npm run build:pineworker` checks that `pinets` is visible before building a platform-independent Node ESM bundle with RollDown into `internal/pineworkerassets/assets/bin`; Go embeds that bundle under `release_assets` and uses the installed Node runtime. Mock and real non-mock PineTS process smoke pass through real gRPC. |
+| 9. Packaging | Done | `pinets@0.9.28` is installed as a worker dependency, `npm run build:pineworker` checks that `pinets` is visible before building a platform-independent Node ESM bundle with RollDown into `internal/pineworkerassets/assets/bin`; Go embeds that bundle under `release_assets` and uses the installed Node runtime. Mock and real non-mock PineTS process smoke pass through real gRPC. |
 | 10. Acceptance | Done | `npm run check:pinets-release` passes on Windows with public AGPL `pinets`, focused Go/web/worker tests, web typecheck, worker typecheck, PineTS compliance notice check, frontend asset build, Pineworker asset build, `release_assets` tests, real PineTS process smoke, whitespace gate, and `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api`. |
 
 ## Runtime Boundary
@@ -51,7 +51,7 @@ PineTS worker must not be the source of truth for final trades, live orders, acc
 
 ## Release Gate Facts
 
-- `pinets@0.9.27` is installed as an exact worker dependency; current npm metadata reports `AGPL-3.0-only`.
+- `pinets@0.9.28` is installed as an exact worker dependency; current npm metadata reports `AGPL-3.0-only`.
 - Release compliance must explicitly account for the public `pinets` license because the commercial PineTS plan is canceled.
 - Production worker startup defaults to the native PineTS executor; mock mode requires explicit `JFTRADE_PINEWORKER_MOCK=true` or `--mock true` and is test-only.
 - Real PineTS worker process smoke must continue to pass without mock mode before release binaries ship.
@@ -59,7 +59,7 @@ PineTS worker must not be the source of truth for final trades, live orders, acc
 
 ## Worker PoC Boundary
 
-The Node worker slice lives under `workers/pineworker` and now depends directly on public `pinets@0.9.27`.
+The Node worker slice lives under `workers/pineworker` and now depends directly on public `pinets@0.9.28`.
 
 - `NativePineTSExecutor` statically imports `pinets` so RollDown includes it in the Node ESM bundle, then constructs `new PineTS(candles)` for custom OHLCV execution.
 - `runScriptWithPineTS` validates requests before dispatch and maps both validation/runtime failures into worker error responses.

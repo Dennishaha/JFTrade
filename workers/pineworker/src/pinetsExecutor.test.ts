@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { createNativePineTSExecutor, NativePineTSExecutor, normalizePineSourceForPineTS } from "./pinetsExecutor";
 import { prepareCandleBatch, prepareRunScriptRequest } from "./preparedRequest";
-import type { PreparedRunScriptRequest, RunScriptRequest } from "./types";
+import type { PineTSPlot, PineTSRunResult, PreparedRunScriptRequest, RunScriptRequest } from "./types";
 
 describe("NativePineTSExecutor", () => {
   test("passes custom candles and Pine source to PineTS", async () => {
@@ -116,6 +116,57 @@ describe("NativePineTSExecutor", () => {
     expect(JSON.stringify(candles)).toBe(before);
   });
 
+  test("keeps PineTS integer division semantics at the adapter boundary", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+
+    const result = await executor.run(preparedRequest({
+      jobId: "job-1",
+      source: [
+        `//@version=6`,
+        `indicator("division")`,
+        `plot(11 / 2, "intDiv")`,
+        `plot(11 / 2.0, "floatDiv")`,
+        `plot(-11 / 2, "negIntDiv")`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: pineTSBoundaryCandles(),
+    }));
+
+    expect(plotValues(result, "intDiv")).toEqual([5, 5, 5, 5, 5, 5]);
+    expect(plotValues(result, "floatDiv")).toEqual([5.5, 5.5, 5.5, 5.5, 5.5, 5.5]);
+    expect(plotValues(result, "negIntDiv")).toEqual([-5, -5, -5, -5, -5, -5]);
+  });
+
+  test("keeps PineTS user-function history access semantics at the adapter boundary", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+
+    const result = await executor.run(preparedRequest({
+      jobId: "job-1",
+      source: [
+        `//@version=6`,
+        `indicator("function history")`,
+        `fromParam(src, len) => src[len]`,
+        `fromClose(len) => close[len]`,
+        `fromTuple(src, len) => [src[len], close[len]]`,
+        `[tupleParam, tupleClose] = fromTuple(close, 1)`,
+        `plot(fromParam(close, 1), "paramHistory")`,
+        `plot(fromClose(1), "closeHistory")`,
+        `plot(tupleParam, "tupleParamHistory")`,
+        `plot(tupleClose, "tupleCloseHistory")`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: pineTSBoundaryCandles(),
+    }));
+
+    const expected = [NaN, 10, 11, 12, 13, 14];
+    expect(plotValues(result, "paramHistory")).toEqual(expected);
+    expect(plotValues(result, "closeHistory")).toEqual(expected);
+    expect(plotValues(result, "tupleParamHistory")).toEqual(expected);
+    expect(plotValues(result, "tupleCloseHistory")).toEqual(expected);
+  });
+
   test("normalizes timenow to PineTS-supported time_close", async () => {
     const calls: unknown[] = [];
     const executor = new NativePineTSExecutor({
@@ -162,4 +213,24 @@ describe("NativePineTSExecutor", () => {
 function preparedRequest(request: RunScriptRequest): PreparedRunScriptRequest {
   const { candles, ...fields } = request;
   return prepareRunScriptRequest(fields, prepareCandleBatch(candles));
+}
+
+function pineTSBoundaryCandles(): RunScriptRequest["candles"] {
+  return Array.from({ length: 6 }, (_, index) => ({
+    openTime: 1_700_000_000_000 + index * 60_000,
+    closeTime: 1_700_000_059_999 + index * 60_000,
+    open: 10 + index,
+    high: 11 + index,
+    low: 9 + index,
+    close: 10 + index,
+    volume: 100 + index,
+  }));
+}
+
+function plotValues(result: PineTSRunResult, name: string): number[] {
+  const plot = result.plots?.[name];
+  expect(plot).toBeDefined();
+  const data = (plot as PineTSPlot).data;
+  expect(data).toBeDefined();
+  return data!.map((point) => typeof point === "number" ? point : Number(point.value));
 }

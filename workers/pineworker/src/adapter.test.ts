@@ -280,7 +280,7 @@ describe("buildResponse", () => {
     ]);
   });
 
-  test("normalizes PineTS strategy metrics from v0.9.27 state", () => {
+  test("normalizes PineTS strategy metrics from v0.9.28 state", () => {
     const response = buildResponse(validRequest(), {
       strategy: {
         buy_and_hold_pnl: 0,

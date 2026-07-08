@@ -6,8 +6,8 @@
 
 发布二进制必须同时满足：
 
-- 公开 `pinets` 包已按 workspace `package.json` 精确版本安装并记录版本；当前 `pinets@0.9.27` npm license 为 `AGPL-3.0-only`。
-- worker contract 已接入 PineTS `0.9.27` 新增的 strategy-state 指标：`buy_and_hold_pnl`、`buy_and_hold_per_gain`、`strategy_outperformance`，并通过可选 `strategy_metrics` 返回。
+- 公开 `pinets` 包已按 workspace `package.json` 精确版本安装并记录版本；当前 `pinets@0.9.28` npm license 为 `AGPL-3.0-only`。
+- worker contract 已接入 PineTS `0.9.28` 覆盖的 integer division、用户函数历史索引语义，以及 strategy-state 指标：`buy_and_hold_pnl`、`buy_and_hold_per_gain`、`strategy_outperformance`，并通过可选 `strategy_metrics` 返回。
 - 发布合规材料必须按公开 `pinets` 许可证准备；商业 PineTS 授权计划已取消。
 - worker 以真实 PineTS executor 启动，未启用 mock。
 - 真实 worker 进程通过 localhost gRPC smoke，覆盖 `HealthCheck` 和 `RunScript`。
@@ -16,7 +16,7 @@
 - `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` 后的发布产物必须存在、非空且可执行。
 - Go、worker、前端 focused test、coverage、performance gate、PineTS AGPL notice/source-offer check 和 `git diff --check` 通过。
 
-当前仓库已通过 workspace 依赖锁定公开 `pinets@0.9.27`，真实非 mock PineTS worker 进程 smoke 已可作为放行依据；完整 strict release gate 已可通过 `npm run check:pinets-release` 在 Windows 和 CI 风格环境中直接运行。
+当前仓库已通过 workspace 依赖锁定公开 `pinets@0.9.28`，真实非 mock PineTS worker 进程 smoke 已可作为放行依据；完整 strict release gate 已可通过 `npm run check:pinets-release` 在 Windows 和 CI 风格环境中直接运行。
 
 ## 运行模式
 
