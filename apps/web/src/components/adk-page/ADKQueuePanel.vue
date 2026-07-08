@@ -156,7 +156,7 @@ watch(
 .adk-workspace-queue__body {
   display: grid;
   gap: 8px;
-  max-height: 430px;
+  max-height: min(50vh, 28rem);
   overflow: auto;
   padding-right: 2px;
 }

@@ -189,7 +189,7 @@ describe("ADKPage", () => {
   it("switches to the shared mobile shell on narrow viewports", async () => {
     const originalMatchMedia = window.matchMedia;
     const matchMediaMock = vi.fn().mockImplementation((query: string) => ({
-      matches: query === "(max-width: 720px)",
+      matches: query === "(max-width: 768px)",
       media: query,
       onchange: null,
       addEventListener: vi.fn(),

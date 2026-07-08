@@ -532,6 +532,8 @@ function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivi
 
 <style scoped>
 .strategy-instance-dialog {
+    width: min(100%, 840px);
+    max-width: calc(100vw - 1rem);
     max-height: calc(100vh - 2rem);
     overflow-y: auto;
     overflow-x: hidden;
@@ -832,5 +834,44 @@ function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivi
 .strategy-instance-dialog .border-slate-200,
 .strategy-instance-dialog .border-slate-300 {
     border-color: var(--card-border);
+}
+
+@media (max-width: 768px) {
+    .strategy-instance-dialog {
+        max-width: calc(100vw - 0.75rem);
+        border-radius: 1rem;
+        padding: 0.875rem;
+    }
+
+    .tv-main .strategy-activity-panel {
+        border-radius: 8px;
+        padding: 0.75rem;
+    }
+
+    .tv-main .strategy-activity-tab,
+    .tv-main .strategy-activity-filter {
+        min-width: 0;
+        padding: 0.45rem 0.65rem;
+        letter-spacing: 0.04em;
+    }
+
+    .tv-main .strategy-activity-viewport {
+        max-height: min(28rem, calc(100dvh - 22rem));
+        padding-right: 0;
+    }
+
+    .tv-main .strategy-activity-entry {
+        border-radius: 8px;
+        padding: 0.75rem;
+    }
+
+    .tv-main .strategy-activity-entry__summary {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .strategy-params-editor {
+        border-radius: 8px;
+    }
 }
 </style>

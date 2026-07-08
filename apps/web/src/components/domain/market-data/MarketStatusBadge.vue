@@ -31,7 +31,7 @@ const displayLabel = computed(() => props.label || defaultLabels[props.state]);
     :aria-live="state === 'loading' ? 'polite' : undefined"
   >
     <span class="market-status-badge__dot" aria-hidden="true"></span>
-    {{ displayLabel }}
+    <span class="market-status-badge__label">{{ displayLabel }}</span>
   </span>
 </template>
 
@@ -40,20 +40,32 @@ const displayLabel = computed(() => props.label || defaultLabels[props.state]);
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--tv-border);
   border-radius: 999px;
   padding: 3px 8px;
+  overflow: hidden;
   color: var(--tv-text-dim);
   font-size: 11px;
   line-height: 1.2;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .market-status-badge__dot {
+  flex: 0 0 auto;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: currentColor;
+}
+
+.market-status-badge__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .market-status-badge--live {

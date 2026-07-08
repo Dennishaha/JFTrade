@@ -585,6 +585,25 @@ afterEach(() => {
 });
 
 describe("SystemPage business flows", () => {
+  it("exposes a compact native selector for mobile system tabs", async () => {
+    const wrapper = mountSystemPage();
+    await flushPromises();
+
+    const selector = wrapper.get(".system-page__mobile-tab-select select");
+    expect(
+      selector.findAll("option").map((option) => option.text()),
+    ).toEqual([
+      "状态",
+      "工作进程券商",
+      "实盘风控与审批硬停止",
+      "自选 / 行情数据订阅",
+    ]);
+
+    await selector.setValue("market-data");
+
+    expect((selector.element as HTMLSelectElement).value).toBe("market-data");
+  });
+
   it("treats nullable real-trade arrays as empty lists while rendering", async () => {
     testState.store!.realTradeApprovals.value = {
       ...testState.store!.realTradeApprovals.value,

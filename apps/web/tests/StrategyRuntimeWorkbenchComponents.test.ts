@@ -91,6 +91,58 @@ describe("Strategy runtime workbench components", () => {
     );
   });
 
+  it("switches the runtime shell to non-resizable compact and mobile sections", async () => {
+    const compact = mount(StrategyRuntimeWorkbenchShell, {
+      props: {
+        runtimePaneSizes: [30, 70],
+        layout: "compact",
+        hasSelectedDetail: true,
+      },
+      slots: {
+        messages: "<div data-testid='messages'>notice</div>",
+        list: "<div data-testid='list'>instances</div>",
+        detail: "<div data-testid='detail'>workbench</div>",
+      },
+      global: {
+        stubs: {
+          SplitPane: defineComponent({
+            emits: ["resized"],
+            template:
+              "<div><button data-testid='resize' @click=\"$emit('resized', { panes: [{ size: 34 }, { size: 66 }] })\">resize</button><slot /></div>",
+          }),
+          SplitPaneItem: defineComponent({
+            props: ["size"],
+            template: "<section class='split-item'><slot /></section>",
+          }),
+        },
+      },
+    });
+
+    expect(compact.find(".runtime-panel__split").exists()).toBe(false);
+    expect(compact.get(".runtime-panel__compact-stack").exists()).toBe(true);
+    expect(compact.get('[data-testid="list"]').text()).toBe("instances");
+    expect(compact.get('[data-testid="detail"]').text()).toBe("workbench");
+    expect(compact.find('[data-testid="resize"]').exists()).toBe(false);
+    expect(compact.emitted("resized")).toBeUndefined();
+
+    const mobile = mount(StrategyRuntimeWorkbenchShell, {
+      props: {
+        runtimePaneSizes: [30, 70],
+        layout: "mobile",
+        mobileSection: "instances",
+        hasSelectedDetail: true,
+      },
+      slots: {
+        list: "<div data-testid='mobile-list'>instances</div>",
+        detail: "<div data-testid='mobile-detail'>workbench</div>",
+      },
+    });
+
+    expect(mobile.get('[data-testid="strategy-runtime-mobile-section-instances"]').classes()).toContain("is-active");
+    await mobile.get('[data-testid="strategy-runtime-mobile-section-workbench"]').trigger("click");
+    expect(mobile.emitted("update:mobile-section")).toEqual([["workbench"]]);
+  });
+
   it("emits selected workbench header actions without owning business state", async () => {
     const wrapper = mount(StrategyRuntimeWorkbenchHeader, {
       props: {

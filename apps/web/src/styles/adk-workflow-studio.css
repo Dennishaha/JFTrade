@@ -421,6 +421,14 @@
   gap: 0;
 }
 
+.adk-workflow-mobile-more {
+  display: none;
+}
+
+.adk-workflow-more-menu {
+  min-width: 190px;
+}
+
 .adk-workflow-action-group .tv-toolbar-action__surface {
   border-radius: 0;
 }
@@ -859,7 +867,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .adk-workflow-studio {
     overflow-y: auto;
   }
@@ -902,6 +910,19 @@
 
   .adk-workflow-actions {
     justify-content: flex-start;
+    max-width: 100%;
+  }
+
+  .adk-workflow-actions .adk-workflow-action-group:not(.adk-workflow-action-group--mobile-primary):not(.adk-workflow-mobile-more) {
+    display: none;
+  }
+
+  .adk-workflow-actions .adk-workflow-desktop-action {
+    display: none;
+  }
+
+  .adk-workflow-mobile-more {
+    display: flex;
   }
 
   .adk-workflow-title-block h1 {

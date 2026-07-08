@@ -192,7 +192,17 @@ async function mountAppShell(initialPath = "/workspace") {
     global: {
       plugins: [router],
       stubs: {
-        TopBar: { template: "<header data-testid='top-bar'>top</header>" },
+        TopBar: defineComponent({
+          props: {
+            compact: {
+              type: Boolean,
+              default: false,
+            },
+          },
+          emits: ["toggle-nav"],
+          template:
+            "<header data-testid='top-bar'>top<button v-if='compact' data-testid='stub-compact-nav-toggle' @click=\"$emit('toggle-nav')\">nav</button></header>",
+        }),
         IconRail: { template: "<aside data-testid='icon-rail'>rail</aside>" },
         RightDock: { template: "<aside data-testid='right-dock'>dock</aside>" },
         StatusBar: { template: "<footer data-testid='status-bar'>status</footer>" },
@@ -262,6 +272,7 @@ describe("AppShell business flows", () => {
       "change",
       expect.any(Function),
     );
+    expect(window.matchMedia).toHaveBeenCalledWith("(max-width: 1180px)");
 
     testState.notificationsStore?.push.mockClear();
 
@@ -391,6 +402,19 @@ describe("AppShell business flows", () => {
     setup.syncCompactAppShell({ matches: true });
     await nextTick();
     expect(wrapper.find(".tv-rightdock-resizer").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='icon-rail']").exists()).toBe(false);
+
+    await wrapper.get("[data-testid='stub-compact-nav-toggle']").trigger("click");
+    expect(wrapper.find("[data-testid='compact-nav-drawer']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='icon-rail']").exists()).toBe(true);
+
+    await wrapper.get(".tv-shell-backdrop--nav").trigger("click");
+    expect(wrapper.find("[data-testid='compact-nav-drawer']").exists()).toBe(false);
+
+    await wrapper.get(".tv-shell-backdrop--dock").trigger("click");
+    expect(testState.workspaceLayoutStore?.update).toHaveBeenCalledWith({
+      rightDockOpen: false,
+    });
 
     testState.consoleStore!.onboardingState.value.shouldShowOobe = true;
     await nextTick();

@@ -544,12 +544,14 @@ const {
 });
 
 type BacktestReportTab = "chart" | "orders" | "properties";
+type BacktestMobileSection = "setup" | "report";
 
 const activeReportTab = ref<BacktestReportTab>("chart");
 const selectedRunId = ref("");
 const showNewBacktestForm = ref(false);
 const newBacktestFormTouched = ref(false);
 const backtestPaneSizes = ref<[number, number]>([30, 70]);
+const backtestMobileSection = ref<BacktestMobileSection>("setup");
 
 const resultStrategyOptions = computed(() => {
   const options = [{ value: "all", title: "全部策略" }];
@@ -664,6 +666,12 @@ const focusedRunResultReady = computed(() => {
   return run?.result != null && isTerminalBacktestStatus(run.status);
 });
 
+watch(focusedRun, (run) => {
+  if (run == null && backtestMobileSection.value === "report") {
+    backtestMobileSection.value = "setup";
+  }
+});
+
 const focusedRunHasChartData = computed(() => {
   const run = focusedRun.value;
   return run?.status === "completed" && (run.result?.pnlCurve?.length ?? 0) > 0;
@@ -672,11 +680,23 @@ const focusedRunHasChartData = computed(() => {
 function selectFocusedRun(runId: string) {
   selectedRunId.value = runId;
   activeReportTab.value = "chart";
+  backtestMobileSection.value = "report";
 }
 
 function toggleNewBacktestForm() {
   newBacktestFormTouched.value = true;
   showNewBacktestForm.value = !showNewBacktestForm.value;
+  if (showNewBacktestForm.value) {
+    backtestMobileSection.value = "setup";
+  }
+}
+
+function selectBacktestMobileSection(section: BacktestMobileSection): void {
+  if (section === "report" && focusedRun.value == null) {
+    backtestMobileSection.value = "setup";
+    return;
+  }
+  backtestMobileSection.value = section;
 }
 
 function handleBacktestPaneResized(payload: SplitpanesResizedPayload): void {
@@ -1167,7 +1187,10 @@ watch(
 </script>
 
 <template>
-  <div class="backtest-page grid">
+  <div
+    class="backtest-page grid"
+    :class="`backtest-page--mobile-${backtestMobileSection}`"
+  >
     <!-- Error banner -->
     <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
       {{ error }}
@@ -1176,16 +1199,38 @@ watch(
       </button>
     </div>
 
+    <nav class="backtest-page__mobile-switch" aria-label="回测移动端工作区">
+      <button
+        class="backtest-page__mobile-switch-button"
+        :class="{ 'is-active': backtestMobileSection === 'setup' }"
+        data-testid="backtest-mobile-section-setup"
+        type="button"
+        @click="selectBacktestMobileSection('setup')"
+      >
+        历史/配置
+      </button>
+      <button
+        class="backtest-page__mobile-switch-button"
+        :class="{ 'is-active': backtestMobileSection === 'report' }"
+        data-testid="backtest-mobile-section-report"
+        :disabled="focusedRun == null"
+        type="button"
+        @click="selectBacktestMobileSection('report')"
+      >
+        报告
+      </button>
+    </nav>
+
     <SplitPane class="backtest-page__split" :pane-min-size="18" @resized="handleBacktestPaneResized">
       <SplitPaneItem :size="backtestPaneSizes[0]" :min-size="22" :max-size="55">
-        <aside class="backtest-page__pane">
+        <aside class="backtest-page__pane backtest-page__pane--sidebar">
           <div :class="[controlPanelClass, 'flex min-h-0 flex-1 flex-col overflow-hidden']">
-            <div class="flex items-center justify-between gap-3 border-b bt-border px-3 py-3">
+            <div class="bt-sidebar-header flex items-center justify-between gap-3 border-b bt-border px-3 py-3">
               <div class="min-w-0">
                 <div class="text-sm font-semibold bt-text-strong">历史回测</div>
                 <div class="text-xs bt-text-muted">{{ resultsPageSummary || "回测结果由服务端提供。" }}</div>
               </div>
-              <v-btn class="bt-accent-action" size="small" variant="tonal" @click="toggleNewBacktestForm">
+              <v-btn class="bt-accent-action bt-sidebar-create-action" size="small" variant="tonal" @click="toggleNewBacktestForm">
                 <v-icon size="13" class="mr-1">fa-solid fa-plus</v-icon>
                 新建回测
               </v-btn>
@@ -1427,7 +1472,13 @@ watch(
                 </div>
 
                 <div v-if="resultsPageCount > 1" class="flex justify-center pt-2">
-                  <v-pagination v-model="resultsPage" :length="resultsPageCount" :total-visible="5" density="comfortable" />
+                  <v-pagination
+                    v-model="resultsPage"
+                    class="bt-sidebar-pagination"
+                    :length="resultsPageCount"
+                    :total-visible="3"
+                    density="comfortable"
+                  />
                 </div>
               </section>
           </div>
@@ -1493,7 +1544,7 @@ watch(
               </div>
 
               <div class="grid shrink-0 gap-3 border-b bt-border px-4 py-4">
-                <div v-if="focusedRunResultReady && focusedRun.result" class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-9">
+                <div v-if="focusedRunResultReady && focusedRun.result" class="bt-report-stats-grid">
                   <div :class="[statCardClass, 'px-3 py-3']">
                     <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">最终资金</div>
                     <div class="mt-1 text-lg font-semibold bt-text">
@@ -1576,7 +1627,7 @@ watch(
               <v-window v-model="activeReportTab" class="bt-report-window min-h-0 flex-1 overflow-hidden">
                 <v-window-item value="chart" class="bt-report-window-item bt-report-window-item--chart">
                   <div class="bt-report-chart-tab flex h-full min-h-0 flex-col p-4">
-                    <div v-if="focusedRunResultReady && focusedRun.result" class="min-h-0 flex-1">
+                    <div v-if="focusedRunResultReady && focusedRun.result" class="bt-report-chart-stage min-h-0 flex-1">
                       <BacktestChart v-if="focusedRunHasChartData" :candles="focusedRun.result.candles ?? []"
                         :trades="focusedRun.result.trades ?? []" :pnl-curve="focusedRun.result.pnlCurve ?? []"
                         :drawdown-curve="focusedRun.result.drawdownCurve ?? []"
@@ -1602,8 +1653,8 @@ watch(
                           {{ focusedRun.result.orderBook.length }} 笔
                         </span>
                       </div>
-                      <div class="max-h-[520px] overflow-auto">
-                        <table class="min-w-full divide-y bt-divide text-sm">
+                      <div class="bt-order-table-scroll max-h-[520px] overflow-auto">
+                        <table class="bt-order-table min-w-full divide-y bt-divide text-sm">
                           <thead class="sticky top-0 bt-bg-muted text-left text-xs uppercase tracking-[0.14em] bt-text-muted">
                             <tr>
                               <th class="px-4 py-3 font-medium">下单</th>
@@ -1748,8 +1799,24 @@ watch(
 </template>
 
 <style scoped>
+.backtest-page {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.backtest-page__mobile-switch {
+  display: none;
+}
+
 .backtest-page__split {
   min-height: 300px;
+}
+
+.backtest-page__split :deep(.splitpanes__pane) {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .backtest-page__pane {
@@ -1760,27 +1827,312 @@ watch(
   overflow: hidden;
 }
 
+.backtest-page__pane > * {
+  min-width: 0;
+}
+
+.backtest-page__pane--sidebar {
+  container-type: inline-size;
+}
+
+.backtest-page__pane--sidebar :deep(.v-input),
+.backtest-page__pane--sidebar :deep(.v-field),
+.backtest-page__pane--sidebar :deep(.v-field__field),
+.backtest-page__pane--sidebar :deep(.v-field__input),
+.backtest-page__pane--sidebar :deep(.v-select__selection),
+.backtest-page__pane--sidebar :deep(.v-select__selection-text),
+.backtest-page__pane--sidebar :deep(.v-selection-control),
+.backtest-page__pane--sidebar :deep(.v-selection-control__wrapper) {
+  min-width: 0;
+}
+
+.backtest-page__pane--sidebar :deep(.v-input),
+.backtest-page__pane--sidebar :deep(.v-field) {
+  width: 100%;
+  max-width: 100%;
+}
+
+.backtest-page__pane--sidebar :deep(.v-field__input),
+.backtest-page__pane--sidebar :deep(.v-select__selection),
+.backtest-page__pane--sidebar :deep(.v-select__selection-text) {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backtest-page__pane--sidebar input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.backtest-page__pane--sidebar .grid {
+  min-width: 0;
+}
+
+.backtest-page__pane--sidebar .grid > *,
+.backtest-page__pane--sidebar .flex > * {
+  min-width: 0;
+}
+
+.bt-sidebar-header {
+  min-width: 0;
+}
+
+.bt-sidebar-create-action {
+  flex: 0 0 auto;
+}
+
+.bt-sidebar-pagination {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.bt-sidebar-pagination :deep(.v-pagination__list) {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.bt-sidebar-pagination :deep(.v-btn) {
+  height: 30px;
+  min-width: 30px;
+  width: 30px;
+}
+
+.backtest-page__pane--sidebar .bt-text-muted,
+.backtest-page__pane--sidebar .bt-text-dim,
+.backtest-page__pane--sidebar .bt-text,
+.backtest-page__pane--sidebar .bt-text-strong,
+.backtest-page .bt-text-muted,
+.backtest-page .bt-text-dim,
+.backtest-page .bt-text,
+.backtest-page .bt-text-strong {
+  overflow-wrap: anywhere;
+}
+
 .bt-report-window,
 .bt-report-window-item,
 .bt-report-chart-tab {
+  min-width: 0;
   min-height: 0;
+}
+
+.bt-report-chart-tab {
+  --bt-report-chart-min-height: 520px;
+}
+
+.bt-report-chart-stage {
+  min-width: 0;
+  min-height: var(--bt-report-chart-min-height);
+}
+
+.bt-report-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.bt-report-stats-grid > * {
+  min-width: 0;
 }
 
 .bt-report-window :deep(.v-window__container),
 .bt-report-window :deep(.v-window-item),
 .bt-report-window :deep(.v-window-item--active) {
+  min-width: 0;
   height: 100%;
   min-height: 0;
 }
 
-@media (max-width: 960px) {
-  .backtest-page__split {
+.bt-report-tabs {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.bt-report-tabs :deep(.v-slide-group__container) {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.bt-order-table-scroll {
+  max-width: 100%;
+  min-width: 0;
+  overscroll-behavior: contain;
+}
+
+.bt-order-table {
+  min-width: 48rem;
+}
+
+@container (max-width: 360px) {
+  .backtest-page__pane--sidebar .grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .bt-sidebar-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bt-sidebar-create-action {
+    width: 100%;
+  }
+}
+
+@container (max-width: 320px) {
+  .bt-sidebar-pagination :deep(.v-btn) {
+    height: 28px;
+    min-width: 28px;
+    width: 28px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .backtest-page {
+    align-content: start;
+    gap: 0.75rem;
+    overflow: auto;
+    scrollbar-gutter: stable both-edges;
+  }
+
+  .backtest-page__split.tv-splitpanes {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
     height: auto;
     min-height: 0;
+    overflow: visible;
+  }
+
+  .backtest-page__split :deep(.splitpanes__pane) {
+    display: contents !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    transform: none !important;
+  }
+
+  .backtest-page__split :deep(.splitpanes__splitter) {
+    display: none !important;
   }
 
   .backtest-page__pane {
-    min-height: 360px;
+    height: auto;
+    min-height: min(42rem, 78vh);
+  }
+
+  .backtest-page__pane--sidebar {
+    min-height: min(38rem, 72vh);
+  }
+
+  .backtest-page .grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .bt-report-chart-tab {
+    --bt-report-chart-min-height: 440px;
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .backtest-page {
+    gap: 0.5rem;
+    overflow: hidden;
+  }
+
+  .backtest-page__mobile-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.375rem;
+    min-width: 0;
+  }
+
+  .backtest-page__mobile-switch-button {
+    min-width: 0;
+    min-height: 2.2rem;
+    border-radius: 8px;
+    border: 1px solid var(--tv-border);
+    background: color-mix(in srgb, var(--tv-bg-elevated) 82%, transparent);
+    color: var(--tv-text-muted);
+    font-size: 0.82rem;
+    font-weight: 750;
+    line-height: 1.2;
+  }
+
+  .backtest-page__mobile-switch-button.is-active {
+    border-color: color-mix(in srgb, var(--tv-accent) 58%, var(--tv-border));
+    background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-elevated));
+    color: var(--tv-text);
+  }
+
+  .backtest-page__mobile-switch-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .backtest-page__split.tv-splitpanes {
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .backtest-page__pane {
+    min-height: min(36rem, calc(100dvh - 12rem));
+  }
+
+  .backtest-page--mobile-setup .backtest-page__pane:not(.backtest-page__pane--sidebar),
+  .backtest-page--mobile-report .backtest-page__pane--sidebar {
+    display: none;
+  }
+
+  .bt-sidebar-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bt-sidebar-create-action {
+    width: 100%;
+  }
+
+  .bt-report-stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bt-report-window {
+    overflow: hidden;
+  }
+
+  .bt-report-window :deep(.v-window__container),
+  .bt-report-window :deep(.v-window-item),
+  .bt-report-window :deep(.v-window-item--active) {
+    height: 100%;
+  }
+
+  .bt-report-tabs :deep(.v-tab) {
+    min-width: 0;
+    padding-inline: 0.75rem;
+  }
+
+  .bt-report-chart-tab {
+    --bt-report-chart-min-height: 360px;
+  }
+
+  .bt-order-table {
+    min-width: 42rem;
+  }
+
+  .backtest-page :deep(.v-chip) {
+    max-width: 100%;
+  }
+
+  .backtest-page :deep(.v-chip__content) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

@@ -78,7 +78,7 @@ defineEmits<{
           @click="$emit('openLogs')"
         />
       </div>
-      <div class="adk-workflow-action-group" role="group" aria-label="执行操作">
+      <div class="adk-workflow-action-group adk-workflow-action-group--mobile-primary" role="group" aria-label="执行操作">
         <ToolbarActionButton
           data-testid="adk-workflow-run-button"
           icon="fa-solid fa-play"
@@ -89,6 +89,7 @@ defineEmits<{
           @click="$emit('run')"
         />
         <ToolbarActionButton
+          class="adk-workflow-desktop-action"
           icon="fa-solid fa-vial"
           label="调试"
           tone="success"
@@ -121,7 +122,7 @@ defineEmits<{
           @click="$emit('remove')"
         />
       </div>
-      <div class="adk-workflow-action-group" role="group" aria-label="保存操作">
+      <div class="adk-workflow-action-group adk-workflow-action-group--mobile-primary" role="group" aria-label="保存操作">
         <ToolbarActionButton
           icon="fa-solid fa-floppy-disk"
           label="保存"
@@ -129,6 +130,60 @@ defineEmits<{
           :loading="saving"
           @click="$emit('save')"
         />
+      </div>
+      <div class="adk-workflow-action-group adk-workflow-mobile-more" role="group" aria-label="更多操作">
+        <v-menu location="bottom end">
+          <template #activator="{ props: activatorProps }">
+            <ToolbarActionButton
+              v-bind="activatorProps"
+              data-testid="adk-workflow-mobile-more"
+              icon="fa-solid fa-ellipsis"
+              label="更多"
+            />
+          </template>
+          <v-list
+            class="adk-workflow-more-menu"
+            data-testid="adk-workflow-mobile-more-menu"
+            density="compact"
+          >
+            <v-list-item :disabled="loading" @click="$emit('refresh')">
+              <template #prepend><v-icon size="14">fa-solid fa-rotate-right</v-icon></template>
+              <v-list-item-title>刷新</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="$emit('showInspector')">
+              <template #prepend><v-icon size="14">fa-solid fa-chevron-left</v-icon></template>
+              <v-list-item-title>显示右栏</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="$emit('addTrigger')">
+              <template #prepend><v-icon size="14">fa-solid fa-bolt</v-icon></template>
+              <v-list-item-title>添加触发器</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="$emit('addAgent')">
+              <template #prepend><v-icon size="14">fa-solid fa-robot</v-icon></template>
+              <v-list-item-title>添加智能体</v-list-item-title>
+            </v-list-item>
+            <v-list-item :disabled="logLoading" @click="$emit('openLogs')">
+              <template #prepend><v-icon size="14">fa-solid fa-clock-rotate-left</v-icon></template>
+              <v-list-item-title>触发日志</v-list-item-title>
+            </v-list-item>
+            <v-list-item :disabled="saving" @click="$emit('debug')">
+              <template #prepend><v-icon size="14">fa-solid fa-vial</v-icon></template>
+              <v-list-item-title>调试</v-list-item-title>
+            </v-list-item>
+            <v-list-item :disabled="saving || !hasWorkflow" @click="$emit('duplicate')">
+              <template #prepend><v-icon size="14">fa-solid fa-copy</v-icon></template>
+              <v-list-item-title>复制</v-list-item-title>
+            </v-list-item>
+            <v-list-item :disabled="saving || !hasWorkflow" @click="$emit('saveTemplate')">
+              <template #prepend><v-icon size="14">fa-solid fa-bookmark</v-icon></template>
+              <v-list-item-title>存为模板</v-list-item-title>
+            </v-list-item>
+            <v-list-item v-if="hasWorkflow" :disabled="saving" @click="$emit('remove')">
+              <template #prepend><v-icon size="14">fa-solid fa-trash</v-icon></template>
+              <v-list-item-title>删除工作流</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
       </div>
     </div>
   </header>

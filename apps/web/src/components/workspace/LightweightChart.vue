@@ -331,10 +331,10 @@ watch(
 
 <template>
   <section class="tv-panel">
-    <div class="tv-panel-head">
+    <div class="tv-panel-head lightweight-chart-head">
       <span class="tv-panel-title">图表</span>
-      <span style="color: var(--tv-text); font-weight: 600">{{ chartInstrumentTitle }}</span>
-      <div class="tv-seg" style="margin-left: 12px">
+      <span class="lightweight-chart-head__instrument">{{ chartInstrumentTitle }}</span>
+      <div class="tv-seg lightweight-chart-head__periods">
         <button
           v-for="p in periods"
           :key="p.value"
@@ -358,7 +358,7 @@ watch(
         :loading="isLoadingMarketDataQuery"
         :error="marketDataQueryError"
       />
-      <span style="color: var(--tv-text-dim); font-size: 11px">{{ marketDataCandles?.totalReturned ?? 0 }} 根 · {{ formatKlinePeriodLabel(prefs.period) }} · 上限 {{ marketDataQueryLimit }}</span>
+      <span class="lightweight-chart-head__meta">{{ marketDataCandles?.totalReturned ?? 0 }} 根 · {{ formatKlinePeriodLabel(prefs.period) }} · 上限 {{ marketDataQueryLimit }}</span>
       <button class="tv-icon-btn" title="刷新" @click="() => reload()">↻</button>
     </div>
     <div class="tv-panel-body is-flush">
@@ -377,6 +377,30 @@ watch(
 </template>
 
 <style scoped>
+.lightweight-chart-head__instrument {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tv-text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lightweight-chart-head__periods {
+  margin-left: 12px;
+  flex: 0 0 auto;
+}
+
+.lightweight-chart-head__meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tv-text-dim);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tv-panel-body.is-flush {
   display: flex;
   flex-direction: column;
@@ -394,5 +418,32 @@ watch(
 .tv-chart-host :deep(.kline-chart-shell) {
   height: 100%;
   min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .lightweight-chart-head {
+    height: auto;
+    min-height: 36px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .lightweight-chart-head__instrument {
+    flex: 1 1 140px;
+  }
+
+  .lightweight-chart-head__periods {
+    order: 10;
+    flex: 1 1 100%;
+    margin-left: 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .lightweight-chart-head__meta {
+    flex: 1 1 160px;
+  }
 }
 </style>

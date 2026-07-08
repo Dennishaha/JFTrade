@@ -155,7 +155,14 @@ function formatObservabilityImportance(importance: ObservabilityEvent["importanc
   }
 }
 
-const systemActiveTab = ref("status");
+const systemTabOptions = [
+  { value: "status", label: "状态" },
+  { value: "worker-broker", label: "工作进程券商" },
+  { value: "real-trade-control", label: "实盘风控与审批硬停止" },
+  { value: "market-data", label: "自选 / 行情数据订阅" },
+] as const;
+
+const systemActiveTab = ref<(typeof systemTabOptions)[number]["value"]>("status");
 
 async function loadStrategyInstances(): Promise<void> {
   try {
@@ -252,11 +259,18 @@ function formatRuntimeResourceKind(kind: string): string {
 
 <template>
   <div class="system-page grid min-w-0 gap-6">
-    <v-tabs v-model="systemActiveTab" bg-color="transparent" class="tv-page-tabs">
-      <v-tab value="status">状态</v-tab>
-      <v-tab value="worker-broker">工作进程券商</v-tab>
-      <v-tab value="real-trade-control">实盘风控与审批硬停止</v-tab>
-      <v-tab value="market-data">自选 / 行情数据订阅</v-tab>
+    <label class="system-page__mobile-tab-select">
+      <span>系统视图</span>
+      <select v-model="systemActiveTab">
+        <option v-for="tab in systemTabOptions" :key="tab.value" :value="tab.value">
+          {{ tab.label }}
+        </option>
+      </select>
+    </label>
+    <v-tabs v-model="systemActiveTab" bg-color="transparent" class="tv-page-tabs system-page__tabs">
+      <v-tab v-for="tab in systemTabOptions" :key="tab.value" :value="tab.value">
+        {{ tab.label }}
+      </v-tab>
     </v-tabs>
     <v-window v-model="systemActiveTab">
       <v-window-item value="status">
@@ -1026,5 +1040,50 @@ function formatRuntimeResourceKind(kind: string): string {
   height: auto;
   min-height: 100%;
   align-content: start;
+}
+
+.system-page__mobile-tab-select {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .system-page {
+    gap: 1rem;
+  }
+
+  .system-page__tabs {
+    display: none;
+  }
+
+  .system-page__mobile-tab-select {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid;
+    gap: 0.35rem;
+    border: 1px solid var(--tv-border);
+    border-radius: 0.6rem;
+    background: var(--tv-bg-surface);
+    padding: 0.65rem;
+  }
+
+  .system-page__mobile-tab-select span {
+    color: var(--tv-text-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .system-page__mobile-tab-select select {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--tv-border);
+    border-radius: 0.45rem;
+    background: var(--tv-bg-surface-2);
+    color: var(--tv-text);
+    padding: 0.48rem 0.6rem;
+    font-size: 0.9rem;
+  }
 }
 </style>

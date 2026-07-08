@@ -15,6 +15,14 @@ import {
   useWorkspaceViewState,
 } from "../composables/useWorkspaceLayout";
 
+const props = defineProps<{
+  compact?: boolean;
+}>();
+
+defineEmits<{
+  "toggle-nav": [];
+}>();
+
 const {
   availableBrokerAccounts,
   marketInstrumentSearchOptions,
@@ -139,6 +147,19 @@ const brokerAccountLabel = computed(() => {
   }
 
   return `${selectedBrokerAccount.value.securityFirm ?? "未知券商"} / ${selectedBrokerAccount.value.brokerId.toUpperCase()} / ${selectedBrokerAccount.value.displayName} / ${formatMarketLabel(selectedBrokerAccount.value.market)}`;
+});
+
+const compactBrokerAccountLabel = computed(() => {
+  const environmentLabel = tradingEnvironmentFilterLabel.value;
+  if (
+    selectedBrokerAccount.value == null ||
+    selectedBrokerAccount.value.tradingEnvironment !==
+      tradingEnvironmentFilter.value
+  ) {
+    return `${environmentLabel} · 选择账户`;
+  }
+
+  return `${environmentLabel} · ${selectedBrokerAccount.value.brokerId.toUpperCase()} / ${selectedBrokerAccount.value.accountId}`;
 });
 
 const codeSuggestions = computed(() => {
@@ -284,8 +305,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <header class="tv-topbar">
-    <div class="font-bold tracking-wider" style="letter-spacing: 0.18em; color: var(--tv-accent)">
+  <header class="tv-topbar" :class="{ 'tv-topbar--compact': compact }">
+    <button
+      v-if="compact"
+      type="button"
+      class="tv-icon-btn tv-topbar-nav-button"
+      title="导航"
+      aria-label="打开导航"
+      data-testid="topbar-compact-nav-toggle"
+      @click="$emit('toggle-nav')"
+    >
+      ☰
+    </button>
+
+    <div class="tv-topbar-brand font-bold tracking-wider">
       JFTRADE
     </div>
 
@@ -318,18 +351,18 @@ onMounted(() => {
       <span style="font-size: 10px; color: var(--tv-text-dim)">⏎</span>
     </form>
 
-    <button type="button" class="tv-btn tv-btn-ghost" style="height: 28px; padding: 0 8px; font-size: 11px"
+    <button type="button" class="tv-btn tv-btn-ghost tv-topbar-command"
       @click="palette.show()" title="命令面板（⌘K / Ctrl+K）">
       ⌘K
     </button>
 
-    <div style="flex: 1"></div>
+    <div class="tv-topbar-spacer"></div>
 
-    <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--tv-text-muted)">
-      <div>
+    <div class="tv-topbar-account-group">
+      <div v-if="!props.compact" class="tv-topbar-env-control">
         <v-btn-toggle :model-value="tradingEnvironmentFilter" data-testid="topbar-trading-environment-switch"
           class="tv-topbar-env-toggle" color="teal" density="compact" divided mandatory variant="outlined"
-          @update:modelValue="onTradingEnvironmentSwitch" style="width: max-content;">
+          @update:modelValue="onTradingEnvironmentSwitch">
           <v-btn value="SIMULATE" data-testid="topbar-trading-environment-simulate" size="small"
             class="tv-topbar-env-btn tv-topbar-env-btn--simulate"
             @click="onTradingEnvironmentSwitch('SIMULATE')">
@@ -343,15 +376,15 @@ onMounted(() => {
         </v-btn-toggle>
       </div>
 
-      <span style="white-space: nowrap;">选定账户</span>
+      <span class="tv-topbar-account-label">选定账户</span>
       <button
         type="button"
-        class="tv-btn tv-btn-ghost"
-        style="height: 28px; padding: 0 10px; font-size: 11px; min-width: 360px; text-align: left"
+        class="tv-btn tv-btn-ghost tv-topbar-account-trigger"
         data-testid="topbar-broker-account-picker-open"
+        :title="brokerAccountLabel"
         @click="openBrokerAccountPicker"
       >
-        {{ brokerAccountLabel }}
+        {{ props.compact ? compactBrokerAccountLabel : brokerAccountLabel }}
       </button>
     </div>
 
@@ -375,6 +408,40 @@ onMounted(() => {
         </v-card-title>
 
         <v-card-text class="tv-topbar-account-picker__body">
+          <div class="tv-topbar-account-picker__env">
+            <span class="tv-topbar-account-picker__env-label">交易环境</span>
+            <v-btn-toggle
+              :model-value="tradingEnvironmentFilter"
+              data-testid="topbar-account-picker-trading-environment-switch"
+              class="tv-topbar-env-toggle"
+              color="teal"
+              density="compact"
+              divided
+              mandatory
+              variant="outlined"
+              @update:modelValue="onTradingEnvironmentSwitch"
+            >
+              <v-btn
+                value="SIMULATE"
+                data-testid="topbar-account-picker-trading-environment-simulate"
+                size="small"
+                class="tv-topbar-env-btn tv-topbar-env-btn--simulate"
+                @click="onTradingEnvironmentSwitch('SIMULATE')"
+              >
+                模拟盘
+              </v-btn>
+              <v-btn
+                value="REAL"
+                data-testid="topbar-account-picker-trading-environment-real"
+                size="small"
+                class="tv-topbar-env-btn tv-topbar-env-btn--real"
+                @click="onTradingEnvironmentSwitch('REAL')"
+              >
+                实盘
+              </v-btn>
+            </v-btn-toggle>
+          </div>
+
           <v-text-field
             v-model="brokerAccountFilterQuery"
             data-testid="topbar-broker-account-filter"
@@ -430,6 +497,7 @@ onMounted(() => {
       </v-card>
     </v-dialog>
 
+    <div class="tv-topbar-actions">
     <button type="button" class="tv-icon-btn" :title="`主题：${theme === 'dark' ? '深色' : '浅色'}`" @click="toggleTheme">
       {{ theme === "dark" ? "☾" : "☀" }}
     </button>
@@ -442,10 +510,75 @@ onMounted(() => {
     <button type="button" class="tv-icon-btn" title="AI 助手" @click="openRightDock('ai')">
       ✦
     </button>
+    </div>
   </header>
 </template>
 
 <style scoped>
+.tv-topbar-brand {
+  flex: 0 0 auto;
+  letter-spacing: 0.18em;
+  color: var(--tv-accent);
+}
+
+.tv-topbar-command {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.tv-topbar-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tv-topbar-account-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--tv-text-muted);
+  font-size: 13px;
+}
+
+.tv-topbar-env-control {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.tv-topbar-env-toggle {
+  width: max-content;
+}
+
+.tv-topbar-account-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.tv-topbar-account-trigger {
+  height: 28px;
+  min-width: 0;
+  max-width: min(360px, 28vw);
+  padding: 0 10px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.tv-topbar-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.tv-topbar-nav-button {
+  flex: 0 0 auto;
+}
+
 .tv-topbar-symbol__market {
   color: var(--tv-text);
   background: var(--tv-bg-surface-2);
@@ -474,6 +607,20 @@ onMounted(() => {
   display: grid;
   gap: 10px;
   background: var(--tv-bg-surface);
+}
+
+.tv-topbar-account-picker__env {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tv-topbar-account-picker__env-label {
+  flex: 0 0 auto;
+  color: var(--tv-text-muted);
+  font-size: 12px;
 }
 
 .tv-topbar-account-picker__list {
@@ -561,5 +708,108 @@ onMounted(() => {
     var(--tv-border)
   );
   color: rgba(255, 255, 255, 0.95);
+}
+
+@media (max-width: 900px) {
+  :global(.tv-topbar-symbol) {
+    min-width: min(300px, 42vw);
+  }
+
+  .tv-topbar-account-trigger {
+    max-width: min(280px, 24vw);
+  }
+}
+
+@media (max-width: 1180px) {
+  .tv-topbar--compact {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: auto auto minmax(76px, 1fr) auto;
+    grid-template-areas:
+      "nav brand account actions"
+      "search search search search";
+    gap: 5px 6px;
+    align-items: center;
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    overflow: hidden;
+    padding: 5px 6px;
+  }
+
+  .tv-topbar--compact .tv-topbar-nav-button {
+    grid-area: nav;
+  }
+
+  .tv-topbar-brand {
+    min-width: 0;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+  }
+
+  .tv-topbar--compact .tv-topbar-brand {
+    grid-area: brand;
+  }
+
+  .tv-topbar--compact :global(.tv-topbar-symbol) {
+    box-sizing: border-box;
+    grid-area: search;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 4px;
+    padding: 3px 6px;
+  }
+
+  .tv-topbar--compact .tv-topbar-symbol__market {
+    flex: 0 1 74px;
+    width: 74px;
+    min-width: 74px;
+    max-width: 86px;
+  }
+
+  .tv-topbar--compact :global(.tv-topbar-symbol select),
+  .tv-topbar--compact :global(.tv-topbar-symbol input) {
+    min-width: 0;
+  }
+
+  .tv-topbar--compact .tv-topbar-command,
+  .tv-topbar--compact .tv-topbar-spacer {
+    display: none;
+  }
+
+  .tv-topbar--compact .tv-topbar-account-group {
+    grid-area: account;
+    justify-self: stretch;
+    width: auto;
+    min-width: 0;
+  }
+
+  .tv-topbar--compact .tv-topbar-account-label {
+    display: none;
+  }
+
+  .tv-topbar--compact .tv-topbar-account-trigger {
+    width: 100%;
+    max-width: none;
+    padding: 0 6px;
+    text-align: center;
+    font-size: 10px;
+  }
+
+  .tv-topbar--compact .tv-topbar-actions {
+    grid-area: actions;
+    justify-self: end;
+    gap: 0;
+  }
+
+  .tv-topbar--compact .tv-icon-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .tv-topbar--compact .tv-topbar-command {
+    display: none;
+  }
 }
 </style>

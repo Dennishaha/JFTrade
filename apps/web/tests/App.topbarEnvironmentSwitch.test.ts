@@ -31,6 +31,7 @@ import {
   MockWebSocket,
   createLiveEnvelope,
   createResponse,
+  enabledFutuBrokerSettings,
   flushRequests,
   mountApp,
 } from "./helpers";
@@ -53,6 +54,171 @@ function findLiveEventStream(): MockWebSocket | undefined {
 }
 
 describe("TopBar trading environment switch", () => {
+  it("keeps compact topbar to primary controls plus search and moves environment switching into the account picker", async () => {
+    window.sessionStorage.removeItem("jftrade.workspace.layout.v1");
+
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(max-width: 1180px)",
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/system/status")) {
+        return createResponse({
+          ...emptySystemStatus,
+          defaultBroker: "futu",
+          defaultTradingEnvironment: "SIMULATE",
+        });
+      }
+      if (url.includes("/api/v1/system/storage/overview")) {
+        return createResponse(emptyStorageOverview);
+      }
+      if (url.includes("/api/v1/settings/brokers")) {
+        return createResponse(
+          enabledFutuBrokerSettings([
+            {
+              accountId: "SIM-001",
+              displayName: "Sim Primary",
+              tradingEnvironment: "SIMULATE",
+              market: "HK",
+            },
+            {
+              accountId: "REAL-001",
+              displayName: "Real Primary",
+              tradingEnvironment: "REAL",
+              market: "US",
+            },
+          ]),
+        );
+      }
+      if (url.includes("/api/v1/system/real-trade-approvals"))
+        return createResponse(emptyRealTradeApprovals);
+      if (url.includes("/api/v1/system/real-trade-hard-stops"))
+        return createResponse(emptyRealTradeHardStops);
+      if (url.includes("/api/v1/system/real-trade-hard-stop-events"))
+        return createResponse(emptyRealTradeHardStopEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch-events"))
+        return createResponse(emptyRealTradeKillSwitchEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch"))
+        return createResponse(emptyRealTradeKillSwitchState);
+      if (url.includes("/api/v1/system/real-trade-risk-events"))
+        return createResponse(emptyRealTradeRiskEvents);
+      if (url.includes("/api/v1/system/real-trade-risk-limits"))
+        return createResponse(emptyRealTradeRiskState);
+      if (url.includes("/api/v1/system/worker/broker-order-updates"))
+        return createResponse(emptyWorkerBrokerOrderUpdates);
+      if (url.includes("/api/v1/brokers/futu/runtime"))
+        return createResponse(emptyBrokerRuntime);
+      if (url.includes("/api/v1/brokers/futu/funds"))
+        return createResponse(emptyBrokerFunds);
+      if (url.includes("/api/v1/brokers/futu/positions"))
+        return createResponse(emptyBrokerPositions);
+      if (url.includes("/api/v1/brokers/futu/orders"))
+        return createResponse(emptyBrokerOrders);
+      if (url.includes("/api/v1/brokers/futu/cash-flows"))
+        return createResponse(emptyBrokerCashFlows);
+      if (url.includes("/api/v1/portfolio/futu/cash-balances"))
+        return createResponse(emptyPortfolioCashBalances);
+      if (url.includes("/api/v1/portfolio/futu/positions"))
+        return createResponse(emptyPortfolioPositions);
+      if (url.includes("/api/v1/portfolio/futu/cash-reconciliation"))
+        return createResponse(emptyPortfolioCashReconciliation);
+      if (url.includes("/api/v1/portfolio/futu/reconciliation"))
+        return createResponse(emptyPortfolioReconciliation);
+      if (url.includes("/api/v1/execution/orders"))
+        return createResponse(emptyExecutionOrders);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          defaultMarket: "HK",
+          updatedAt: "2026-06-12T00:00:00.000Z",
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/subscriptions")) {
+        return createResponse(emptyMarketDataSubscriptions);
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountApp("/test-shell-only");
+    await waitForShellData();
+
+    expect(wrapper.get(".tv-topbar").classes()).toContain(
+      "tv-topbar--compact",
+    );
+    expect(
+      wrapper.get('[data-testid="topbar-compact-nav-toggle"]').exists(),
+    ).toBe(true);
+    expect(wrapper.get('[data-testid="topbar-instrument-form"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.get('button[title="通知"]').exists()).toBe(true);
+    expect(wrapper.get('button[title="AI 助手"]').exists()).toBe(true);
+    expect(
+      wrapper.find('[data-testid="topbar-trading-environment-switch"]').exists(),
+    ).toBe(false);
+
+    const pickerOpenButton = wrapper.get(
+      '[data-testid="topbar-broker-account-picker-open"]',
+    );
+    expect(pickerOpenButton.text()).toContain("模拟盘 · FUTU / SIM-001");
+
+    await pickerOpenButton.trigger("click");
+    expect(
+      wrapper
+        .get('[data-testid="topbar-account-picker-trading-environment-switch"]')
+        .exists(),
+    ).toBe(true);
+
+    await wrapper
+      .get('[data-testid="topbar-account-picker-trading-environment-real"]')
+      .trigger("click");
+    await flushRequests();
+
+    expect(pickerOpenButton.text()).toContain("实盘 · FUTU / REAL-001");
+    expect(
+      wrapper
+        .findAll('[data-testid="topbar-broker-account-item"]')
+        .some((item) => item.text().includes("REAL-001")),
+    ).toBe(true);
+
+    await wrapper
+      .get('[data-testid="topbar-account-picker-trading-environment-simulate"]')
+      .trigger("click");
+    await flushRequests();
+
+    wrapper.unmount();
+    window.sessionStorage.removeItem("jftrade.workspace.layout.v1");
+  });
+
   it("filters account list in picker by environment and auto-selects the first available account", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);

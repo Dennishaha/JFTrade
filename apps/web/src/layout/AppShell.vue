@@ -44,9 +44,11 @@ const route = useRoute();
 const isOobeRoute = computed(() => route.path === "/oobe");
 const onboardingGateReady = ref(false);
 const isCompactAppShell = ref(false);
+const compactNavOpen = ref(false);
 const appBodyRef = ref<HTMLElement | null>(null);
 const { docsHomeUrl, openDocs } = useDocsLink();
 const documentTitleSuffix = "JFTrade Console";
+const APP_SHELL_COMPACT_MEDIA_QUERY = "(max-width: 1180px)";
 let compactAppShellMediaQuery: MediaQueryList | null = null;
 let dockResizeStart:
   | {
@@ -207,6 +209,9 @@ function syncCompactAppShell(
   event: MediaQueryListEvent | MediaQueryList,
 ): void {
   isCompactAppShell.value = event.matches;
+  if (!event.matches) {
+    compactNavOpen.value = false;
+  }
 }
 
 function reconnectLiveStreamIfNeeded(): void {
@@ -214,6 +219,18 @@ function reconnectLiveStreamIfNeeded(): void {
     return;
   }
   live.reconnect();
+}
+
+function toggleCompactNav(): void {
+  compactNavOpen.value = !compactNavOpen.value;
+}
+
+function closeCompactNav(): void {
+  compactNavOpen.value = false;
+}
+
+function closeRightDock(): void {
+  workspaceLayout.update({ rightDockOpen: false });
 }
 
 function clampRightDockSize(size: number): number {
@@ -328,6 +345,13 @@ const stopOobeRedirect = watch(
   { immediate: true },
 );
 
+const stopRouteCompactOverlays = watch(
+  () => route.fullPath,
+  () => {
+    compactNavOpen.value = false;
+  },
+);
+
 onMounted(() => {
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", reconnectLiveStreamIfNeeded);
@@ -335,7 +359,9 @@ onMounted(() => {
   if (typeof window !== "undefined") {
     window.addEventListener("online", reconnectLiveStreamIfNeeded);
     if (typeof window.matchMedia === "function") {
-      compactAppShellMediaQuery = window.matchMedia("(max-width: 960px)");
+      compactAppShellMediaQuery = window.matchMedia(
+        APP_SHELL_COMPACT_MEDIA_QUERY,
+      );
       isCompactAppShell.value = compactAppShellMediaQuery.matches;
       if (typeof compactAppShellMediaQuery.addEventListener === "function") {
         compactAppShellMediaQuery.addEventListener(
@@ -383,12 +409,17 @@ onUnmounted(() => {
   console_.dispose();
   stopFutuOpenDMessages();
   stopOobeRedirect();
+  stopRouteCompactOverlays();
 });
 </script>
 
 <template>
   <div class="tv-app" :class="{ 'tv-app--oobe': isOobeRoute }">
-    <TopBar v-if="!isOobeRoute" />
+    <TopBar
+      v-if="!isOobeRoute"
+      :compact="isCompactAppShell"
+      @toggle-nav="toggleCompactNav"
+    />
     <div
       ref="appBodyRef"
       class="tv-app-body"
@@ -398,12 +429,34 @@ onUnmounted(() => {
       }"
       :style="appBodyStyle"
     >
-      <IconRail v-if="!isOobeRoute" />
+      <IconRail v-if="!isOobeRoute && !isCompactAppShell" />
       <main class="tv-main">
         <div class="tv-main-scroll">
           <RouterView v-if="onboardingGateReady" />
         </div>
       </main>
+      <button
+        v-if="!isOobeRoute && isCompactAppShell && compactNavOpen"
+        type="button"
+        class="tv-shell-backdrop tv-shell-backdrop--nav"
+        aria-label="关闭导航"
+        @click="closeCompactNav"
+      />
+      <div
+        v-if="!isOobeRoute && isCompactAppShell && compactNavOpen"
+        class="tv-compact-nav-slot"
+        data-testid="compact-nav-drawer"
+        @click="closeCompactNav"
+      >
+        <IconRail />
+      </div>
+      <button
+        v-if="!isOobeRoute && isCompactAppShell && rightDockOpen"
+        type="button"
+        class="tv-shell-backdrop tv-shell-backdrop--dock"
+        aria-label="关闭侧栏"
+        @click="closeRightDock"
+      />
       <div
         v-if="!isOobeRoute && rightDockOpen"
         class="tv-rightdock-slot"

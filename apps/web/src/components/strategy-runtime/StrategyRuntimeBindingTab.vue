@@ -211,6 +211,11 @@ function handleRuntimeRiskCloseOnlyChange(event: Event): void {
     min-width: 0;
 }
 
+.runtime-workbench-sync-panel__hint {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .strategy-binding-summary__detail--wide,
 .strategy-binding-summary__detail--risk {
     grid-column: span 2;
@@ -231,6 +236,10 @@ function handleRuntimeRiskCloseOnlyChange(event: Event): void {
 }
 
 @media (max-width: 900px) {
+    .strategy-binding-summary {
+        padding: 0.75rem;
+    }
+
     .strategy-binding-summary__detail--wide,
     .strategy-binding-summary__detail--risk {
         grid-column: span 1;
@@ -242,10 +251,19 @@ function handleRuntimeRiskCloseOnlyChange(event: Event): void {
 
     .strategy-binding-summary__risk-controls {
         grid-template-columns: minmax(0, 1fr) auto;
+        min-width: 0;
     }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 768px) {
+    .strategy-binding-summary__details {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .strategy-binding-summary__risk-row {
+        min-width: 0;
+    }
+
     .strategy-binding-summary__risk-controls {
         grid-template-columns: 1fr;
     }

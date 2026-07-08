@@ -358,6 +358,24 @@ describe("Settings page", () => {
     const { wrapper } = await mountApp("/settings");
 
     expect(wrapper.text()).toContain("设置");
+    const mobileSelector = wrapper.get(".settings-page__mobile-selector select");
+    expect(
+      mobileSelector.findAll("option").map((option) => option.text()),
+    ).toEqual([
+      "依赖项管理",
+      "富途接入",
+      "托管账户",
+      "账户发现",
+      "界面外观",
+      "交易所日历",
+      "安全",
+      "PineTS Worker",
+      "智能体",
+      "数据管理",
+    ]);
+    expect((mobileSelector.element as HTMLSelectElement).value).toBe(
+      "runtime-dependencies",
+    );
     expect(wrapper.text()).toContain("依赖项管理");
     expect(wrapper.text()).toContain("富途接入");
     expect(wrapper.text()).toContain("交易所日历");

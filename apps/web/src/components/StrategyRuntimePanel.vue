@@ -53,8 +53,12 @@ type StrategyAuditResponse = StrategyAuditListResponse;
 
 const STRATEGY_RUNTIME_ACTIVE_REFRESH_MS = 1_000;
 const STRATEGY_RUNTIME_IDLE_REFRESH_MS = 3_000;
+const STRATEGY_RUNTIME_COMPACT_MEDIA_QUERY = "(max-width: 1180px)";
+const STRATEGY_RUNTIME_MOBILE_MEDIA_QUERY = "(max-width: 768px)";
 
 type StrategyAction = "start" | "pause" | "stop";
+type StrategyRuntimeWorkbenchLayout = "desktop" | "compact" | "mobile";
+type StrategyRuntimeMobileSection = "instances" | "workbench";
 
 interface StrategyTimestampParts {
     display: string;
@@ -98,7 +102,12 @@ const instanceMutationNotice = ref("");
 const instanceMutationError = ref("");
 const isCreateMenuOpen = ref(false);
 const runtimePaneSizes = ref<[number, number]>([30, 70]);
+const isCompactStrategyRuntime = ref(false);
+const isMobileStrategyRuntime = ref(false);
+const strategyRuntimeMobileSection = ref<StrategyRuntimeMobileSection>("instances");
 let strategyRuntimeRefreshTimer: number | null = null;
+let compactStrategyRuntimeMediaQuery: MediaQueryList | null = null;
+let mobileStrategyRuntimeMediaQuery: MediaQueryList | null = null;
 
 const selectedStrategy = computed(
     () => strategies.value.find((item) => item.id === selectedStrategyId.value) ?? null,
@@ -144,6 +153,13 @@ const runtimeKillSwitchLabel = computed(() =>
 const isRefreshingStrategyContent = computed(
     () => isLoadingStrategies.value || isLoadingDetails.value,
 );
+
+const strategyRuntimeWorkbenchLayout = computed<StrategyRuntimeWorkbenchLayout>(() => {
+    if (isMobileStrategyRuntime.value) {
+        return "mobile";
+    }
+    return isCompactStrategyRuntime.value ? "compact" : "desktop";
+});
 
 const defaultBrokerAccountSelectionKey = computed(
     () => selectedBrokerAccount.value?.selectionKey ?? brokerAccountOptions.value[0]?.selectionKey ?? "",
@@ -406,15 +422,73 @@ onMounted(() => {
     if (typeof document !== "undefined") {
         document.addEventListener("visibilitychange", handleStrategyRuntimeVisibilityChange);
     }
+    setupStrategyRuntimeMediaQueries();
     void Promise.all([loadMarketProfiles(), loadStrategyDefinitions(), loadStrategies()]);
 });
 
 onUnmounted(() => {
     clearStrategyRuntimeRefreshTimer();
+    teardownStrategyRuntimeMediaQueries();
     if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", handleStrategyRuntimeVisibilityChange);
     }
 });
+
+function syncCompactStrategyRuntime(event: MediaQueryListEvent | MediaQueryList): void {
+    isCompactStrategyRuntime.value = event.matches;
+}
+
+function syncMobileStrategyRuntime(event: MediaQueryListEvent | MediaQueryList): void {
+    isMobileStrategyRuntime.value = event.matches;
+    if (!event.matches && strategyRuntimeMobileSection.value !== "instances") {
+        strategyRuntimeMobileSection.value = "instances";
+    }
+}
+
+function setupStrategyRuntimeMediaQueries(): void {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+        return;
+    }
+    compactStrategyRuntimeMediaQuery = window.matchMedia(STRATEGY_RUNTIME_COMPACT_MEDIA_QUERY);
+    mobileStrategyRuntimeMediaQuery = window.matchMedia(STRATEGY_RUNTIME_MOBILE_MEDIA_QUERY);
+    isCompactStrategyRuntime.value = compactStrategyRuntimeMediaQuery.matches;
+    isMobileStrategyRuntime.value = mobileStrategyRuntimeMediaQuery.matches;
+
+    if (typeof compactStrategyRuntimeMediaQuery.addEventListener === "function") {
+        compactStrategyRuntimeMediaQuery.addEventListener("change", syncCompactStrategyRuntime);
+        mobileStrategyRuntimeMediaQuery.addEventListener("change", syncMobileStrategyRuntime);
+    } else {
+        compactStrategyRuntimeMediaQuery.addListener(syncCompactStrategyRuntime);
+        mobileStrategyRuntimeMediaQuery.addListener(syncMobileStrategyRuntime);
+    }
+}
+
+function teardownStrategyRuntimeMediaQueries(): void {
+    if (compactStrategyRuntimeMediaQuery !== null) {
+        if (typeof compactStrategyRuntimeMediaQuery.removeEventListener === "function") {
+            compactStrategyRuntimeMediaQuery.removeEventListener("change", syncCompactStrategyRuntime);
+        } else {
+            compactStrategyRuntimeMediaQuery.removeListener(syncCompactStrategyRuntime);
+        }
+    }
+    if (mobileStrategyRuntimeMediaQuery !== null) {
+        if (typeof mobileStrategyRuntimeMediaQuery.removeEventListener === "function") {
+            mobileStrategyRuntimeMediaQuery.removeEventListener("change", syncMobileStrategyRuntime);
+        } else {
+            mobileStrategyRuntimeMediaQuery.removeListener(syncMobileStrategyRuntime);
+        }
+    }
+    compactStrategyRuntimeMediaQuery = null;
+    mobileStrategyRuntimeMediaQuery = null;
+}
+
+function selectStrategyRuntimeMobileSection(section: StrategyRuntimeMobileSection): void {
+    if (section === "workbench" && selectedStrategy.value === null) {
+        strategyRuntimeMobileSection.value = "instances";
+        return;
+    }
+    strategyRuntimeMobileSection.value = section;
+}
 
 function isCurrentBrokerAccountSelectionKey(selectionKey: string | null | undefined): boolean {
     return selectionKey != null && selectionKey !== "" && selectionKey === effectiveCurrentBrokerAccountSelectionKey.value;
@@ -717,6 +791,7 @@ async function refreshStrategyRuntimeContent(): Promise<void> {
 async function selectStrategy(instanceId: string): Promise<void> {
     clearStrategyRuntimeRefreshTimer();
     await loadStrategyDetails(instanceId);
+    strategyRuntimeMobileSection.value = "workbench";
 }
 
 async function createStrategyInstance(): Promise<void> {
@@ -996,8 +1071,12 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
         />
 
         <StrategyRuntimeWorkbenchShell
+            :layout="strategyRuntimeWorkbenchLayout"
             :runtime-pane-sizes="runtimePaneSizes"
+            :mobile-section="strategyRuntimeMobileSection"
+            :has-selected-detail="selectedStrategy !== null"
             @resized="handleRuntimePaneResized"
+            @update:mobile-section="selectStrategyRuntimeMobileSection"
         >
             <template #messages>
                 <RuntimeWorkbenchAlert

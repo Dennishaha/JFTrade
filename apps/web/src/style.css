@@ -454,6 +454,38 @@ body {
   font-size: 20px;
 }
 
+.tv-shell-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(2, 6, 23, 0.36);
+}
+
+.tv-shell-backdrop--nav {
+  z-index: 35;
+}
+
+.tv-shell-backdrop--dock {
+  z-index: 25;
+}
+
+.tv-compact-nav-slot {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 40;
+  width: 72px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: 16px 0 40px rgba(2, 6, 23, 0.28);
+}
+
+.tv-compact-nav-slot .tv-iconrail {
+  width: 72px;
+  height: 100%;
+}
+
 .tv-main {
   display: flex;
   flex-direction: column;
@@ -1625,14 +1657,37 @@ body {
 }
 
 @media (max-width: 1180px) {
+  .tv-app {
+    grid-template-rows: auto minmax(0, 1fr) 28px;
+  }
+
   .tv-app-body {
-    grid-template-columns: 56px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .tv-app-body--dock-open {
-    grid-template-columns:
-      56px minmax(0, 1fr)
-      clamp(280px, var(--tv-rightdock-width, 32%), 48vw);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tv-rightdock-slot {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, calc(100vw - 24px));
+    z-index: 30;
+  }
+
+  .tv-rightdock-slot:has(.tv-rightdock.is-ai) {
+    width: min(420px, calc(100vw - 24px));
+  }
+
+  .tv-rightdock {
+    box-shadow: -16px 0 40px rgba(2, 6, 23, 0.28);
+  }
+
+  .tv-main-scroll {
+    overflow-x: hidden;
   }
 }
 
@@ -2438,7 +2493,7 @@ body {
 }
 
 /* === Responsive: hide sidebar on small screens === */
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .adk-shell > .adk-sidebar {
     display: none;
   }
@@ -2466,28 +2521,7 @@ body {
 
 /* ===== end ADK layout ===== */
 
-@media (max-width: 960px) {
-  .tv-app-body {
-    grid-template-columns: 56px minmax(0, 1fr);
-  }
-
-  .tv-rightdock-slot {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(360px, calc(100vw - 72px));
-    z-index: 30;
-  }
-
-  .tv-rightdock-slot:has(.tv-rightdock.is-ai) {
-    width: min(420px, calc(100vw - 72px));
-  }
-
-  .tv-rightdock {
-    box-shadow: -16px 0 40px rgba(2, 6, 23, 0.28);
-  }
-
+@media (max-width: 768px) {
   /* On mobile, stack all panes vertically */
   .tv-workspace {
     overflow: auto;
@@ -2510,6 +2544,25 @@ body {
 
   .tv-pane {
     min-height: 220px;
+  }
+
+  .tv-main :is(.account-page, .risk-page, .settings-page, .system-page, .backtest-page) {
+    min-width: 0;
+  }
+
+  .tv-main [class*="sm:grid-cols-"],
+  .tv-main [class*="md:grid-cols-"],
+  .tv-main [class*="lg:grid-cols-"],
+  .tv-main [class*="xl:grid-cols-"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .tv-main [class*="min-w-["] {
+    min-width: 0 !important;
+  }
+
+  .tv-main :is(.overflow-x-auto, .overflow-auto) {
+    max-width: 100%;
   }
 }
 .auth-gate {

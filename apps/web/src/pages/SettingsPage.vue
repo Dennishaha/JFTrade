@@ -161,6 +161,15 @@ const {
 <template>
   <div class="settings-page grid gap-6">
     <section class="settings-page__layout grid lg:grid-cols-[220px_1fr]">
+      <label class="settings-page__mobile-selector">
+        <span>设置分类</span>
+        <select :value="activeMenu" @change="handleMenuSelect(($event.target as HTMLSelectElement).value)">
+          <option v-for="entry in settingsMenu" :key="entry.index" :value="entry.index">
+            {{ entry.label }}
+          </option>
+        </select>
+      </label>
+
       <nav class="settings-page__nav border border-slate-200 bg-white">
         <button
           v-for="entry in settingsMenu"
@@ -246,6 +255,10 @@ const {
   min-width: 0;
 }
 
+.settings-page__mobile-selector {
+  display: none;
+}
+
 @media (max-width: 1023px) {
   .settings-page,
   .settings-page__layout {
@@ -258,6 +271,56 @@ const {
 
   .settings-page__nav {
     min-height: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-page {
+    gap: 1rem;
+  }
+
+  .settings-page__layout {
+    gap: 0.75rem;
+  }
+
+  .settings-page__nav {
+    display: none;
+  }
+
+  .settings-page__mobile-selector {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid;
+    gap: 0.35rem;
+    border: 1px solid var(--tv-border);
+    border-radius: 0.6rem;
+    background: var(--tv-bg-surface);
+    padding: 0.65rem;
+  }
+
+  .settings-page__mobile-selector span {
+    color: var(--tv-text-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .settings-page__mobile-selector select {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--tv-border);
+    border-radius: 0.45rem;
+    background: var(--tv-bg-surface-2);
+    color: var(--tv-text);
+    padding: 0.48rem 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .settings-page__content {
+    gap: 1rem;
+    padding: 0.75rem;
   }
 }
 </style>

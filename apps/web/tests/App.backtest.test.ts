@@ -151,6 +151,18 @@ describe("Backtest page", () => {
     expect(page.get(".bt-report-window-item--chart").classes()).toContain("bt-report-window-item");
     expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(false);
     expect(readSetupValue<string>(setup.activeReportTab)).toBe("chart");
+    expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("setup");
+    expect(wrapper.get('[data-testid="backtest-mobile-section-setup"]').classes()).toContain("is-active");
+    await wrapper.get('[data-testid="backtest-mobile-section-report"]').trigger("click");
+    expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("report");
+    await wrapper.get('[data-testid="backtest-mobile-section-setup"]').trigger("click");
+    expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("setup");
+    call("selectFocusedRun", "run-002");
+    await nextTick();
+    expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("report");
+    expect(readSetupValue(setup.focusedRun)).toMatchObject({ id: "run-002" });
+    call("selectFocusedRun", richRun.id);
+    await nextTick();
     expect(readSetupValue<[number, number]>(setup.backtestPaneSizes)).toEqual([30, 70]);
     call("handleBacktestPaneResized", { panes: [{ size: 34 }, { size: 66 }] });
     expect(readSetupValue<[number, number]>(setup.backtestPaneSizes)).toEqual([34, 66]);
@@ -162,6 +174,8 @@ describe("Backtest page", () => {
     await nextTick();
     expect(wrapper.text()).toContain("最终资金");
     expect(wrapper.text()).toContain("101,250.50");
+    expect(wrapper.get(".bt-order-table-scroll").exists()).toBe(true);
+    expect(wrapper.get(".bt-order-table").exists()).toBe(true);
     writeSetupValue(setup, "activeReportTab", "properties");
     await nextTick();
     expect(wrapper.text()).toContain("最终资金");
@@ -169,6 +183,7 @@ describe("Backtest page", () => {
     call("toggleNewBacktestForm");
     await nextTick();
     expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(true);
+    expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("setup");
     expect(wrapper.text()).toContain("策略与标的");
     expect(wrapper.text()).toContain("数据范围");
     expect(wrapper.text()).toContain("资金与成本");

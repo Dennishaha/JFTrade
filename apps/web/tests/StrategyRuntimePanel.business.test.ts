@@ -140,6 +140,48 @@ describe("StrategyRuntimePanel business workflows", () => {
     wrapper.unmount();
   });
 
+  it("keeps the mobile runtime shell on instances until a strategy is selected", async () => {
+    vi.stubGlobal("fetch", buildFetchMock({
+      definitions: [buildDefinition()],
+      strategies: [
+        buildStrategy("STOPPED"),
+        {
+          ...buildStrategy("RUNNING"),
+          id: "mobile-running",
+          definition: { strategyId: "mobile", name: "Mobile Running", version: "1.0.0" },
+          binding: {
+            ...buildStrategy("RUNNING").binding,
+            symbols: ["US.AAPL"],
+          },
+          params: {
+            ...buildStrategy("RUNNING").params,
+            symbols: ["US.AAPL"],
+            symbol: "US.AAPL",
+          },
+        },
+      ],
+    }));
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+    installStrategyRuntimeMatchMedia({ compact: true, mobile: true });
+
+    const { wrapper } = await mountStrategyPage("/strategy/runtime");
+    await waitForSelector(wrapper, '[data-testid="strategy-runtime-mobile-section-instances"]');
+
+    expect(wrapper.find(".runtime-panel__split").exists()).toBe(false);
+    expect(wrapper.get('[data-testid="strategy-runtime-mobile-section-instances"]').classes()).toContain("is-active");
+    expect(wrapper.get('[data-testid="strategy-runtime-mobile-section-workbench"]').classes()).not.toContain("is-active");
+
+    await wrapper.get('[data-testid="strategy-mobile-running"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.get('[data-testid="strategy-runtime-mobile-section-workbench"]').classes()).toContain("is-active");
+    expect(wrapper.get('[data-testid="strategy-start"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-pause"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-stop"]').exists()).toBe(true);
+
+    wrapper.unmount();
+  });
+
   it("creates, edits, risk-controls and deletes a stopped strategy instance", async () => {
     const fetchMock = buildFetchMock({ definitions: [buildDefinition()] });
     const fetchSpy = vi.fn(fetchMock);
@@ -704,6 +746,24 @@ function findFetchCall(
   );
   expect(call, `${method} ${path}`).toBeDefined();
   return call as [string | URL | Request, RequestInit | undefined];
+}
+
+function installStrategyRuntimeMatchMedia(options: { compact: boolean; mobile: boolean }): void {
+  vi.stubGlobal("matchMedia", vi.fn((query: string) => ({
+    matches:
+      query === "(max-width: 768px)"
+        ? options.mobile
+        : query === "(max-width: 1180px)"
+          ? options.compact
+          : false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })));
 }
 
 function readBody(call: [string | URL | Request, RequestInit | undefined]): Record<string, unknown> {

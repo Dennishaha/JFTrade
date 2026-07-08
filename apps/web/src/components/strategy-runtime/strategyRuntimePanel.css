@@ -67,6 +67,7 @@
 .runtime-panel__workspace {
     flex: 1;
     min-height: 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -86,8 +87,64 @@
     overflow: hidden;
 }
 
+.runtime-panel__compact-stack {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    align-content: start;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
+}
+
+.runtime-panel__compact-pane {
+    display: flex;
+    min-width: 0;
+    min-height: min(38rem, 76vh);
+    overflow: hidden;
+}
+
+.runtime-panel__compact-pane--list {
+    min-height: min(34rem, 68vh);
+}
+
+.runtime-panel__mobile-switch {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.375rem;
+    min-width: 0;
+}
+
+.runtime-panel__mobile-switch-button {
+    min-width: 0;
+    min-height: 2.2rem;
+    border-radius: 8px;
+    border: 1px solid var(--tv-border);
+    background: color-mix(in srgb, var(--tv-bg-elevated) 82%, transparent);
+    color: var(--tv-text-muted);
+    font-size: 0.82rem;
+    font-weight: 750;
+    line-height: 1.2;
+}
+
+.runtime-panel__mobile-switch-button.is-active {
+    border-color: color-mix(in srgb, var(--tv-accent) 58%, var(--tv-border));
+    background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-elevated));
+    color: var(--tv-text);
+}
+
+.runtime-panel__mobile-switch-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
 .runtime-workbench-panel {
     width: 100%;
+    min-width: 0;
     border: 1px solid var(--tv-border);
     border-radius: 8px;
     background: color-mix(in srgb, var(--tv-bg-surface) 92%, transparent);
@@ -420,10 +477,15 @@
 .runtime-workbench-tabs {
     display: flex;
     gap: 1rem;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
     border-color: var(--tv-border);
 }
 
 .runtime-workbench-tab {
+    flex: 0 0 auto;
     border-bottom: 2px solid transparent;
     padding: 0.75rem 0.1rem 0.65rem;
     color: var(--tv-text-muted);
@@ -452,6 +514,8 @@
 .runtime-workbench-pill {
     display: inline-flex;
     align-items: center;
+    max-width: 100%;
+    min-width: 0;
     min-height: 1.55rem;
     border-radius: 999px;
     border: 1px solid var(--tv-border);
@@ -462,6 +526,7 @@
     font-weight: 750;
     letter-spacing: 0.12em;
     text-transform: uppercase;
+    overflow-wrap: anywhere;
 }
 
 .runtime-workbench-pill--success {
@@ -492,12 +557,13 @@
 
 .runtime-workbench-field-value {
     margin-top: 0.25rem;
+    min-width: 0;
     overflow-wrap: anywhere;
     color: var(--tv-text);
     font-weight: 650;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1180px) {
     .runtime-panel__bar {
         display: grid;
     }
@@ -505,15 +571,6 @@
     .runtime-panel__bar-actions {
         align-items: stretch;
         min-width: 0;
-    }
-
-    .runtime-panel__split {
-        height: auto;
-        min-height: 0;
-    }
-
-    .runtime-panel__pane {
-        min-height: 360px;
     }
 
     .runtime-workbench-header-row {
@@ -530,7 +587,67 @@
     }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+    .runtime-panel {
+        gap: 0.5rem;
+    }
+
+    .runtime-panel__workspace {
+        gap: 0.5rem;
+    }
+
+    .runtime-panel__compact-stack {
+        gap: 0;
+        overflow: hidden;
+    }
+
+    .runtime-panel__compact-pane {
+        min-height: min(34rem, calc(100dvh - 16rem));
+    }
+
+    .runtime-workbench-panel__header {
+        padding-inline: 0.75rem;
+    }
+
+    .runtime-workbench-header-main {
+        flex-basis: auto;
+    }
+
+    .runtime-workbench-header-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .runtime-workbench-header-actions > * {
+        min-width: 0;
+    }
+
+    .runtime-workbench-header-actions .runtime-workbench-action--start {
+        grid-column: 1 / -1;
+    }
+
+    .runtime-workbench-button,
+    .runtime-workbench-action {
+        width: 100%;
+        min-width: 0;
+        padding-inline: 0.55rem;
+    }
+
+    .runtime-workbench-tabs {
+        gap: 0.5rem;
+        padding-inline: 0.75rem;
+    }
+
+    .runtime-workbench-tab {
+        padding-block: 0.65rem 0.55rem;
+        font-size: 0.8rem;
+    }
+
+    .runtime-workbench-section {
+        padding: 0.75rem;
+    }
+
     .runtime-workbench-stats,
     .runtime-workbench-stats.runtime-panel__top-stats {
         grid-template-columns: 1fr;

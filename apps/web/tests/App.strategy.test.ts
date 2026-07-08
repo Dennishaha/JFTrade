@@ -100,6 +100,9 @@ describe("Strategy page Pine v6 workflow", () => {
     expect(wrapper.get('[data-testid="strategy-display-mode-instruction"]').text()).toBe("指令")
     expect(wrapper.get('[data-testid="strategy-display-mode-split"]').text()).toBe("双栏")
     expect(wrapper.get('[data-testid="strategy-display-mode-code"]').text()).toBe("代码")
+    expect(wrapper.get('[data-testid="strategy-mobile-section-definition"]').text()).toBe("策略定义")
+    expect(wrapper.get('[data-testid="strategy-mobile-section-instruction"]').text()).toBe("结构指令")
+    expect(wrapper.get('[data-testid="strategy-mobile-section-code"]').text()).toBe("Pine 代码")
     expect(wrapper.find(".strategy-native-shell.splitpanes").exists()).toBe(true)
     expect(wrapper.findAll(".strategy-native-shell > .splitpanes__pane")).toHaveLength(2)
     expect(wrapper.findAll(".strategy-native-shell > .splitpanes__splitter")).toHaveLength(1)
@@ -146,12 +149,22 @@ describe("Strategy page Pine v6 workflow", () => {
     expect(wrapper.find('[data-testid="strategy-instruction-scroll"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="strategy-variables-panel"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="pine-source-node-order"]').text()).toContain("指令")
-    const sourceEditor = wrapper.get('[data-testid="strategy-script-editor"]').element as HTMLTextAreaElement
+    let sourceEditor = wrapper.get('[data-testid="strategy-script-editor"]').element as HTMLTextAreaElement
     expect(sourceEditor.value).toContain("//@version=6")
+
+    await wrapper.get('[data-testid="strategy-mobile-section-code"]').trigger("click")
+    expect(wrapper.get('[data-testid="strategy-design-stage"]').classes()).toContain("strategy-native-page--mobile-code")
+    expect(wrapper.get('[data-testid="strategy-display-mode-code"]').classes()).toContain("is-active")
+
+    await wrapper.get('[data-testid="strategy-mobile-section-definition"]').trigger("click")
+    expect(wrapper.get('[data-testid="strategy-design-stage"]').classes()).toContain("strategy-native-page--mobile-definition")
+    expect(wrapper.get('[data-testid="strategy-display-mode-instruction"]').classes()).toContain("is-active")
     expect(sourceEditor.value).toContain("import TradingView/ta/7 as ta7")
     expect(sourceEditor.readOnly).toBe(true)
     await wrapper.get('[data-testid="strategy-declaration-title"]').setValue("Native Edited")
     await flushRequests()
+    await wrapper.get('[data-testid="strategy-mobile-section-code"]').trigger("click")
+    sourceEditor = wrapper.get('[data-testid="strategy-script-editor"]').element as HTMLTextAreaElement
     expect((wrapper.get('[data-testid="strategy-script-editor"]').element as HTMLTextAreaElement).value).toContain('strategy("Native Edited"')
     const scriptBeforeSourceEdit = sourceEditor.value
     await wrapper.get('[data-testid="strategy-source-override-toggle"]').setValue(true)

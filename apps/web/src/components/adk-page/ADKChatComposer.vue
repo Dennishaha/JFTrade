@@ -1452,15 +1452,20 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   padding: 0 8px 8px;
 }
 
 .adk-mobile-composer-summary__chips {
   min-width: 0;
+  max-width: 100%;
   flex: 1 1 auto;
   display: flex;
   gap: 6px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
 }
 
@@ -1473,7 +1478,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
   align-items: center;
   gap: 5px;
   min-width: 0;
-  max-width: 168px;
+  max-width: min(168px, 100%);
   padding: 4px 8px;
   border: 1px solid color-mix(in srgb, var(--tv-border) 86%, var(--tv-accent) 14%);
   border-radius: 999px;
@@ -1485,7 +1490,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
 }
 
 .adk-mobile-composer-summary__chip--context {
-  max-width: 176px;
+  max-width: min(176px, 100%);
 }
 
 .adk-mobile-composer-summary__label {

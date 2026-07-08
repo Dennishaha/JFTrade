@@ -196,7 +196,7 @@ onMounted(() => {
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function"
   ) {
-    narrowViewportMediaQuery = window.matchMedia("(max-width: 720px)");
+    narrowViewportMediaQuery = window.matchMedia("(max-width: 768px)");
     isNarrowViewport.value = narrowViewportMediaQuery.matches;
     if (typeof narrowViewportMediaQuery.addEventListener === "function") {
       narrowViewportMediaQuery.addEventListener("change", syncNarrowViewport);

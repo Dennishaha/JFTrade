@@ -73,6 +73,7 @@ interface StrategyPineAnalyzeResponse {
 }
 
 type StrategyDefinitionRequest = components["schemas"]["strategy.StrategyDesignDefinition"];
+type StrategyMobileSection = "definition" | "instruction" | "code";
 const strategyDefinitionsQueryKey = queryKeys.strategyDefinitions();
 
 function fetchStrategyDefinitions(): Promise<StrategyDefinitionDocument[]> {
@@ -104,6 +105,7 @@ const definitionDescription = ref("Pine v6 原生快捷指令工作台生成的�
 const sourceOverride = ref(buildPineV6WorkflowScript(workflow.value));
 const useSourceOverride = ref(false);
 const strategyDisplayMode = ref<"instruction" | "split" | "code">("split");
+const strategyMobileSection = ref<StrategyMobileSection>("definition");
 const sourceUndoStack = ref<string[]>([]);
 const sourceRedoStack = ref<string[]>([]);
 const strategySidePanelIds = [
@@ -169,6 +171,15 @@ function statusLabel(status: string): string {
 
 function setStrategyDisplayMode(mode: "instruction" | "split" | "code"): void {
   strategyDisplayMode.value = mode;
+}
+
+function setStrategyMobileSection(section: StrategyMobileSection): void {
+  strategyMobileSection.value = section;
+  if (section === "code") {
+    setStrategyDisplayMode("code");
+    return;
+  }
+  setStrategyDisplayMode("instruction");
 }
 
 function sourceBlockIsEditable(block: PineSourceBlock): boolean {
@@ -517,7 +528,11 @@ function statusClass(status: string): string {
 </script>
 
 <template>
-  <div class="strategy-native-page" data-testid="strategy-design-stage">
+  <div
+    class="strategy-native-page"
+    :class="`strategy-native-page--mobile-${strategyMobileSection}`"
+    data-testid="strategy-design-stage"
+  >
     <header class="strategy-native-header">
       <div>
         <div class="strategy-native-eyebrow">Pine v6 原生</div>
@@ -586,6 +601,36 @@ function statusClass(status: string): string {
         </button>
       </div>
     </header>
+
+    <nav class="strategy-native-mobile-switch" aria-label="策略移动端工作区">
+      <button
+        type="button"
+        class="strategy-native-mobile-switch__button"
+        :class="{ 'is-active': strategyMobileSection === 'definition' }"
+        data-testid="strategy-mobile-section-definition"
+        @click="setStrategyMobileSection('definition')"
+      >
+        策略定义
+      </button>
+      <button
+        type="button"
+        class="strategy-native-mobile-switch__button"
+        :class="{ 'is-active': strategyMobileSection === 'instruction' }"
+        data-testid="strategy-mobile-section-instruction"
+        @click="setStrategyMobileSection('instruction')"
+      >
+        结构指令
+      </button>
+      <button
+        type="button"
+        class="strategy-native-mobile-switch__button"
+        :class="{ 'is-active': strategyMobileSection === 'code' }"
+        data-testid="strategy-mobile-section-code"
+        @click="setStrategyMobileSection('code')"
+      >
+        Pine 代码
+      </button>
+    </nav>
 
     <div v-if="error" class="strategy-native-banner strategy-native-banner--error">{{ error }}</div>
 
@@ -914,6 +959,10 @@ function statusClass(status: string): string {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tv-accent) 36%, transparent);
 }
 
+.strategy-native-mobile-switch {
+  display: none;
+}
+
 .strategy-native-shell {
   flex: 1;
   min-height: 0;
@@ -1160,6 +1209,7 @@ button:disabled {
   border: 1px solid var(--tv-border);
   padding: 0.55rem 0.65rem;
   font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 
 .strategy-native-diagnostic--error {
@@ -1217,6 +1267,130 @@ button:disabled {
   .strategy-native-header {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+}
+
+@media (max-width: 768px) {
+  .strategy-native-page {
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .strategy-native-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .strategy-native-header h1 {
+    font-size: 1.1rem;
+  }
+
+  .strategy-native-header__actions {
+    justify-content: flex-start;
+  }
+
+  .strategy-native-view-switch {
+    display: none;
+  }
+
+  .strategy-native-mobile-switch {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.25rem;
+    border: 1px solid var(--tv-border);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--tv-bg-elevated) 72%, transparent);
+    padding: 0.2rem;
+  }
+
+  .strategy-native-mobile-switch__button {
+    min-width: 0;
+    min-height: 2rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    padding: 0.35rem 0.45rem;
+    color: var(--tv-text-muted);
+    font-size: 0.76rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .strategy-native-mobile-switch__button.is-active {
+    background: color-mix(in srgb, var(--tv-accent) 22%, var(--tv-bg-surface));
+    color: var(--tv-text);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tv-accent) 36%, transparent);
+  }
+
+  .strategy-native-shell,
+  .strategy-native-instruction {
+    display: block !important;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .strategy-native-shell :deep(.splitpanes__splitter),
+  .strategy-native-instruction :deep(.splitpanes__splitter) {
+    display: none !important;
+  }
+
+  .strategy-native-shell :deep(.splitpanes__pane),
+  .strategy-native-instruction :deep(.splitpanes__pane) {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    flex: none !important;
+    transform: none !important;
+  }
+
+  .strategy-native-page--mobile-definition .strategy-native-shell :deep(.splitpanes__pane:has(.strategy-native-code-pane)),
+  .strategy-native-page--mobile-definition .strategy-native-instruction :deep(.splitpanes__pane:has(.strategy-native-main)),
+  .strategy-native-page--mobile-instruction .strategy-native-shell :deep(.splitpanes__pane:has(.strategy-native-code-pane)),
+  .strategy-native-page--mobile-instruction .strategy-native-instruction :deep(.splitpanes__pane:has(.strategy-native-side)),
+  .strategy-native-page--mobile-code .strategy-native-shell :deep(.splitpanes__pane:has(.strategy-native-instruction)) {
+    display: none !important;
+  }
+
+  .strategy-native-side,
+  .strategy-native-main,
+  .strategy-native-code-pane {
+    max-width: 100%;
+    padding: 0.55rem;
+  }
+
+  .strategy-native-workspace-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .strategy-native-panel {
+    border-radius: 0.45rem;
+    padding: 0.65rem;
+  }
+
+  .strategy-native-panel__content {
+    padding: 0.65rem;
+  }
+
+  .strategy-native-panel input,
+  .strategy-native-panel select,
+  .strategy-native-panel textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .strategy-native-diagnostic strong,
+  .strategy-native-diagnostic span,
+  .strategy-native-meta,
+  .strategy-native-selected-block,
+  :deep(.pine-block__summary-description) {
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 }
 </style>
