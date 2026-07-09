@@ -1,5 +1,5 @@
 // Package retry provides a thin exponential-backoff retry helper built on
-// github.com/cenkalti/backoff/v4.  It preserves shouldRetry / notifyRetry
+// github.com/cenkalti/backoff/v7.  It preserves shouldRetry / notifyRetry
 // hooks so callers retain control over which errors are retryable and how
 // progress is reported.
 package retry
@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v7"
 )
 
 // ShouldRetryFunc decides whether err should trigger a retry.
@@ -43,7 +43,7 @@ type Config struct {
 
 // Do executes operation with up to cfg.MaxRetries+1 total attempts.
 //
-// Exponential-backoff delays are derived from backoff/v4 with deterministic
+// Exponential-backoff delays are derived from backoff/v7 with deterministic
 // doubling. A zero BaseDelay is valid and disables sleeps, which keeps tests
 // fast while production callers can still opt into real waiting explicitly.
 // cfg.ShouldRetry is consulted after each failure; if it returns false
@@ -63,7 +63,6 @@ func Do(operation func() error, cfg Config) error {
 	b.MaxInterval = cfg.MaxDelay
 	b.Multiplier = 2
 	b.RandomizationFactor = 0
-	b.MaxElapsedTime = 0 // rely on MaxRetries
 	b.Reset()
 
 	var lastErr error

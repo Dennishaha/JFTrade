@@ -3,18 +3,19 @@ module github.com/jftrade/jftrade-main
 go 1.26.0
 
 require (
+	github.com/cenkalti/backoff/v7 v7.0.0
 	github.com/expr-lang/expr v1.17.8
 	github.com/gin-gonic/gin v1.12.0
+	github.com/google/jsonschema-go v0.4.3
 	github.com/gorilla/websocket v1.5.3
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
-	github.com/swaggo/files v1.0.1
-	github.com/swaggo/gin-swagger v1.6.1
+	github.com/swaggo/http-swagger/v2 v2.0.2
 	github.com/swaggo/swag v1.16.6
 	go.uber.org/mock v0.6.0
 	google.golang.org/adk/v2 v2.0.0
-	google.golang.org/genai v1.62.0
+	google.golang.org/genai v1.63.0
 	google.golang.org/protobuf v1.36.11
 	gorm.io/gorm v1.31.2
 	modernc.org/sqlite v1.53.0
@@ -40,7 +41,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/google/safehtml v0.1.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
@@ -49,6 +49,7 @@ require (
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.60.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/swaggo/files/v2 v2.0.2 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.7.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/log v0.20.0 // indirect
@@ -68,7 +69,6 @@ require (
 	github.com/bytedance/sonic v1.15.2 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/c9s/requestgen v1.6.0
-	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/cockroachdb/apd v1.1.0 // indirect
@@ -123,7 +123,7 @@ require (
 	golang.org/x/arch v0.28.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/image v0.43.0 // indirect
-	golang.org/x/mod v0.37.0
+	golang.org/x/mod v0.38.0
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
