@@ -43,6 +43,7 @@ const (
 )
 
 func main() {
+	logManager := configureDesktopLogging()
 	configureDesktopEnvironment()
 
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -50,8 +51,11 @@ func main() {
 
 	state := newDesktopAppState(stopSignals)
 	app, linkService, notificationSink := newDesktopApplication(state)
+	if logManager != nil {
+		logManager.bindApp(app)
+	}
 	window := newDesktopMainWindow(app, state)
-	configureDesktopSystemTray(app, window, linkService, state)
+	configureDesktopSystemTray(app, window, linkService, logManager, state)
 	startDesktopAPI(ctx, state, notificationSink)
 	quitDesktopOnSignal(ctx, app, state)
 
@@ -153,7 +157,7 @@ func newDesktopMainWindow(app *application.App, state *desktopAppState) applicat
 	return window
 }
 
-func configureDesktopSystemTray(app *application.App, window application.Window, linkService *DesktopLinkService, state *desktopAppState) {
+func configureDesktopSystemTray(app *application.App, window application.Window, linkService *DesktopLinkService, logManager *desktopLogManager, state *desktopAppState) {
 	systemTray := app.SystemTray.New()
 	systemTray.SetTooltip("JFTrade")
 	if runtime.GOOS == "darwin" {
@@ -162,7 +166,7 @@ func configureDesktopSystemTray(app *application.App, window application.Window,
 		systemTray.SetIcon(desktopicons.TrayLight).SetDarkModeIcon(desktopicons.TrayDark)
 	}
 
-	menu := newDesktopTrayMenu(window, linkService, func() {
+	menu := newDesktopTrayMenu(window, linkService, logManager, func() {
 		state.quit(app)
 	})
 	systemTray.SetMenu(menu)
@@ -213,7 +217,7 @@ func shouldQuitDesktopApp(exiting *atomic.Bool, window desktopWindowHider) bool 
 	return false
 }
 
-func newDesktopTrayMenu(window application.Window, linkService *DesktopLinkService, quit func()) *application.Menu {
+func newDesktopTrayMenu(window application.Window, linkService *DesktopLinkService, logManager *desktopLogManager, quit func()) *application.Menu {
 	menu := application.NewMenu()
 	menu.Add("打开 JFTrade").OnClick(func(*application.Context) {
 		if window == nil {
@@ -222,6 +226,7 @@ func newDesktopTrayMenu(window application.Window, linkService *DesktopLinkServi
 		window.SetURL("/")
 		window.Show().Focus()
 	})
+	menu.AddSeparator()
 	menu.Add("设置").OnClick(func(*application.Context) {
 		if window == nil {
 			return
@@ -234,6 +239,12 @@ func newDesktopTrayMenu(window application.Window, linkService *DesktopLinkServi
 			return
 		}
 		linkService.openDocsWindow(desktopDocsURL)
+	})
+	menu.Add("查看日志").OnClick(func(*application.Context) {
+		if linkService == nil || linkService.app == nil {
+			return
+		}
+		openDesktopLogWindow(linkService.app, logManager)
 	})
 	menu.AddSeparator()
 	menu.Add("退出").OnClick(func(*application.Context) {
@@ -278,6 +289,10 @@ func newDesktopAssetHandler(next http.Handler, frontendFS fs.FS, apiBaseURL stri
 		cleanPath := desktopCleanAssetPath(r.URL.Path)
 		if cleanPath == "/runtime-config.js" {
 			writeDesktopRuntimeConfig(w, r, apiBaseURL)
+			return
+		}
+		if cleanPath == desktopLogsURL {
+			serveDesktopLogsPage(w, r)
 			return
 		}
 		if !shouldServeDesktopIndex(r, cleanPath) {

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
@@ -68,6 +69,7 @@ func TestEnsureRuntimeLayout(t *testing.T) {
 		runtimeDir,
 		DeriveStrategyPluginTargetDir(settingsPath),
 		DeriveADKSkillsDir(settingsPath),
+		DeriveDesktopLogDir(settingsPath),
 		filepath.Dir(DeriveADKSecretsPath(settingsPath)),
 		filepath.Dir(backtestDBPath),
 	} {
@@ -136,10 +138,26 @@ func TestRuntimePathDerivationFallsBackForRelativeSettings(t *testing.T) {
 		"adk skills":       {DeriveADKSkillsDir("settings.json"), filepath.Join("adk", "skills")},
 		"adk session":      {DeriveADKSessionDBPath("settings.json"), "adk-session.db"},
 		"calendar":         {DeriveExchangeCalendarDir("settings.json"), "exchange-calendars"},
+		"desktop logs":     {DeriveDesktopLogDir("settings.json"), "logs"},
 	} {
 		if item.got != item.want {
 			t.Fatalf("%s = %q, want %q", name, item.got, item.want)
 		}
+	}
+}
+
+func TestDeriveDesktopLogPaths(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "runtime", "settings.json")
+	day := time.Date(2026, 7, 9, 23, 59, 0, 0, time.FixedZone("CST", 8*60*60))
+
+	if got, want := DeriveDesktopLogDir(settingsPath), filepath.Join(filepath.Dir(settingsPath), "logs"); got != want {
+		t.Fatalf("DeriveDesktopLogDir() = %q, want %q", got, want)
+	}
+	if got, want := DeriveDesktopLogPath(settingsPath, day), filepath.Join(filepath.Dir(settingsPath), "logs", "desktop-2026-07-09.log"); got != want {
+		t.Fatalf("DeriveDesktopLogPath() = %q, want %q", got, want)
+	}
+	if got, want := DeriveDesktopLogPath("settings.json", day), filepath.Join("logs", "desktop-2026-07-09.log"); got != want {
+		t.Fatalf("DeriveDesktopLogPath(relative) = %q, want %q", got, want)
 	}
 }
 

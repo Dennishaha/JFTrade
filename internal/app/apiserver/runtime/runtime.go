@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
@@ -25,6 +26,8 @@ const (
 	defaultStrategyRuntimeDBFilename = "strategy-runtime.db"
 	defaultBacktestRunDBFilename     = "backtest-runs.db"
 	defaultExecutionOrderDBFilename  = "execution-orders.db"
+	defaultDesktopLogDirName         = "logs"
+	defaultDesktopLogPrefix          = "desktop"
 )
 
 func ResolveLaunchDefaults(embeddedFrontend bool) jfsettings.LaunchDefaults {
@@ -118,6 +121,7 @@ func EnsureRuntimeLayout(settingsPath string, backtestDBPath string) error {
 		filepath.Dir(DeriveADKDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSessionDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSecretsPath(settingsPath)),
+		DeriveDesktopLogDir(settingsPath),
 		DeriveExchangeCalendarDir(settingsPath),
 		DeriveStrategyPluginTargetDir(settingsPath),
 		DeriveADKSkillsDir(settingsPath),
@@ -140,6 +144,22 @@ func EnsureRuntimeLayout(settingsPath string, backtestDBPath string) error {
 	}
 
 	return nil
+}
+
+func DeriveDesktopLogDir(settingsPath string) string {
+	directory := filepath.Dir(strings.TrimSpace(settingsPath))
+	if directory == "" || directory == "." {
+		return defaultDesktopLogDirName
+	}
+	return filepath.Join(directory, defaultDesktopLogDirName)
+}
+
+func DeriveDesktopLogPath(settingsPath string, day time.Time) string {
+	if day.IsZero() {
+		day = time.Now()
+	}
+	filename := defaultDesktopLogPrefix + "-" + day.Local().Format("2006-01-02") + ".log"
+	return filepath.Join(DeriveDesktopLogDir(settingsPath), filename)
 }
 
 func DeriveBacktestDBPath(embeddedFrontend bool) string {
