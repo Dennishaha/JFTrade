@@ -67,9 +67,11 @@ npm run typecheck:web
 
 - macOS：固定使用 `macos-15` ARM64 runner，仅构建 Apple Silicon ARM64，生成文件名带 `macos-arm64-unsigned` 的 DMG，不再生成 x86_64 或 Universal 产物，也不执行 Developer ID 签名、公证或 staple。
 - Windows：生成文件名带 `unsigned` 的 x64 per-user NSIS，不执行 Authenticode 签名。
-- Linux x64：构建门禁仍使用 GTK3；共享输入预构建任务同时安装 GTK4/WebKitGTK 6.0，以满足 Wails `doctor` 的默认依赖探测。
+- Linux x64：应用二进制仍使用 GTK3；共享输入与 Linux 构建任务同时安装 GTK4/WebKitGTK 6.0，供 Wails `doctor` 和 task runner 使用，并安装 GTK3/WebKitGTK 4.1 供实际应用编译与链接。
 
 平台 job 通过内部环境变量 `JFTRADE_DESKTOP_PREPARED=1` 使用共享输入，并会在编译前拒绝缺失或空的 Swagger、前端压缩包和 Pineworker bundle。该变量只供 CI 使用；本地 `desktop:build` / `desktop:release:*` 仍会完整准备所需资产。
+
+普通 CI 的 `Linux Desktop Build` job 会复用 Web 与 Pine job 生成的资产，运行 GTK3 release-profile 测试，并通过 Wails task runner 构建真实 ELF 二进制。随后检查 Go 构建元数据和动态库解析结果，最终仍由 required check `Build & Test` 汇总门禁。
 
 发布流程不需要任何 Apple 或 Windows 证书 secrets。未签名的 macOS 包会触发 Gatekeeper 的“无法验证开发者”提示，Windows 包可能触发 SmartScreen 提示。发布任务仍上传各平台 SPDX JSON SBOM 和 `SHA256SUMS`；GitHub artifact attestation 仅在公开仓库写入 provenance，因为 GitHub 不支持用户所有的私有仓库持久化该类 attestation。
 

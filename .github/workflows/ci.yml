@@ -36,18 +36,10 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      - name: Install CI tools
+      - name: Install Linux desktop and CI dependencies
         run: |
-          sudo apt-get update
-          # Wails doctor probes the default GTK4/WebKitGTK 6.0 stack. The
-          # project Linux release gate still builds the legacy GTK3 path.
-          sudo apt-get install -y \
-            pkg-config \
-            ripgrep \
-            libgtk-4-dev \
-            libwebkitgtk-6.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev
+          bash scripts/install-linux-desktop-dependencies.sh
+          sudo apt-get install -y ripgrep
 
       - name: Install revive
         run: |
@@ -226,6 +218,14 @@ jobs:
           npm run test:desktop-windows-resource-metadata
           node scripts/dev-desktop.test.mjs
 
+      - name: Upload frontend build input
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
+          path: internal/frontendassets/dist.zip
+          if-no-files-found: error
+          retention-days: 1
+
   pine:
     name: Pine & Workers
     runs-on: ubuntu-latest
@@ -288,10 +288,91 @@ jobs:
       - name: PineTS worker asset build script test
         run: npm run test:pineworker-asset-build
 
+      - name: Build PineTS worker input
+        run: npm run build:pineworker
+
+      - name: Verify embedded PineTS worker input
+        run: go test -tags release_assets ./internal/pineworkerassets -count=1
+
+      - name: Upload PineTS worker build input
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
+          path: internal/pineworkerassets/assets/bin/worker.mjs
+          if-no-files-found: error
+          retention-days: 1
+
+  linux-desktop-build:
+    name: Linux Desktop Build
+    needs: [web, pine]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      JFTRADE_DESKTOP_PREPARED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache-dependency-path: go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Download frontend build input
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
+          path: internal/frontendassets
+
+      - name: Download PineTS worker build input
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
+          path: internal/pineworkerassets/assets/bin
+
+      - name: Install Linux desktop dependencies
+        run: bash scripts/install-linux-desktop-dependencies.sh
+
+      - name: Generate OpenAPI build input
+        run: npm run generate:openapi
+
+      - name: Test Linux release profile
+        run: go test -tags release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
+
+      - name: Build Linux desktop binary
+        run: npm run desktop:build:linux
+
+      - name: Verify Linux desktop binary
+        id: artifact
+        run: |
+          artifact="dist/desktop/linux-amd64/jftrade-desktop-linux-amd64"
+          test -x "$artifact"
+          file "$artifact" | grep -q 'ELF 64-bit'
+          go version -m "$artifact" | tee /tmp/jftrade-linux-buildinfo.txt
+          grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-linux-buildinfo.txt
+          ldd "$artifact" | tee /tmp/jftrade-linux-ldd.txt
+          ! grep -q 'not found' /tmp/jftrade-linux-ldd.txt
+          echo "path=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Linux desktop binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-linux-desktop-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.artifact.outputs.path }}
+          if-no-files-found: error
+          retention-days: 1
+
   build-and-test:
     name: Build & Test
     if: ${{ always() }}
-    needs: [go-quality, go-coverage, web, pine]
+    needs: [go-quality, go-coverage, web, pine, linux-desktop-build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -301,11 +382,13 @@ jobs:
           GO_COVERAGE_RESULT: ${{ needs.go-coverage.result }}
           WEB_RESULT: ${{ needs.web.result }}
           PINE_RESULT: ${{ needs.pine.result }}
+          LINUX_DESKTOP_RESULT: ${{ needs.linux-desktop-build.result }}
         run: |
-          if [[ "$GO_QUALITY_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" ]]; then
+          if [[ "$GO_QUALITY_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" || "$LINUX_DESKTOP_RESULT" != "success" ]]; then
             echo "Go Quality & Contracts: $GO_QUALITY_RESULT"
             echo "Go Coverage: $GO_COVERAGE_RESULT"
             echo "Web: $WEB_RESULT"
             echo "Pine & Workers: $PINE_RESULT"
+            echo "Linux Desktop Build: $LINUX_DESKTOP_RESULT"
             exit 1
           fi

@@ -70,14 +70,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install Linux desktop dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            pkg-config \
-            libgtk-4-dev \
-            libwebkitgtk-6.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev
+        run: bash scripts/install-linux-desktop-dependencies.sh
 
       - name: Use declared npm version
         run: npm install --global npm@10.9.7 --no-audit --no-fund
@@ -358,12 +351,11 @@ jobs:
           if-no-files-found: error
 
   linux:
-    name: Linux x64 Gate
+    name: Linux x64 Build
     needs: release-inputs
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
-      GOFLAGS: "-tags=gtk3"
       JFTRADE_DESKTOP_PREPARED: "1"
     steps:
       - name: Checkout
@@ -390,27 +382,27 @@ jobs:
           path: .
 
       - name: Install Linux desktop dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            pkg-config \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev
+        run: bash scripts/install-linux-desktop-dependencies.sh
 
-      - name: Test Linux desktop package
+      - name: Test Linux release profile
         run: go test -tags release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
 
-      - name: Build Linux artifact
+      - name: Build Linux x64 release binary
         run: npm run desktop:release:linux
 
-      - name: Locate Linux artifact
+      - name: Verify Linux x64 release binary
         id: artifact
         run: |
           artifact="dist/desktop-release/linux-amd64/jftrade-desktop-linux-amd64"
           test -x "$artifact"
+          file "$artifact" | grep -q 'ELF 64-bit'
+          go version -m "$artifact" | tee /tmp/jftrade-linux-buildinfo.txt
+          grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-linux-buildinfo.txt
+          ldd "$artifact" | tee /tmp/jftrade-linux-ldd.txt
+          ! grep -q 'not found' /tmp/jftrade-linux-ldd.txt
           echo "path=$artifact" >> "$GITHUB_OUTPUT"
 
-      - name: Generate Linux SBOM
+      - name: Generate Linux x64 SBOM
         uses: anchore/sbom-action@v0
         with:
           file: ${{ steps.artifact.outputs.path }}
@@ -419,13 +411,13 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
-      - name: Attest Linux build provenance
+      - name: Attest Linux x64 build provenance
         if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.artifact.outputs.path }}
 
-      - name: Upload Linux release files
+      - name: Upload Linux x64 release files
         uses: actions/upload-artifact@v7
         with:
           name: desktop-release-linux
