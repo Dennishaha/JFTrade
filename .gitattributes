@@ -1,1 +1,4 @@
 docs/reference/generated/*.md text eol=lf
+# Wails always generates TypeScript bindings with LF. Keep checkout output
+# identical on Windows so the bindings freshness check is platform-neutral.
+apps/web/src/wails/** text eol=lf

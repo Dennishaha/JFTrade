@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -32,8 +33,13 @@ func TestDesktopWindowStateRoundTrip(t *testing.T) {
 	if state.X != 40 || state.Y != 60 || state.Width != 1280 || state.Height != 820 || state.Maximised {
 		t.Fatalf("desktop state = %#v", state)
 	}
-	if mode := mustFileMode(t, statePath); mode.Perm() != 0o600 {
-		t.Fatalf("desktop state mode = %v, want 0600", mode.Perm())
+	// Windows does not retain POSIX permission bits. The state file must still
+	// round-trip there; keep the restrictive-permission assertion for platforms
+	// that support it.
+	if runtime.GOOS != "windows" {
+		if mode := mustFileMode(t, statePath); mode.Perm() != 0o600 {
+			t.Fatalf("desktop state mode = %v, want 0600", mode.Perm())
+		}
 	}
 }
 

@@ -36,14 +36,14 @@ JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 npm run desktop:release:darwin
 
 `dev`、`v0.0.0`、分支名和其他 tag 都会被 release 脚本拒绝。版本、提交号和构建时间会同时注入 Go buildinfo、macOS Info.plist 和 Windows version resource。
 
-推送 tag 或发布同名 GitHub Release 都会启动 `.github/workflows/desktop-release.yml`；macOS、Windows x64 和 Linux 三个平台任务全部通过后，`publish` job 会创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`。Windows ARM64 是预览构建，失败不会阻塞这三套正式资产：
+推送 tag 会启动 `.github/workflows/desktop-release.yml`；macOS、Windows x64 和 Linux 三个平台任务全部通过后，`publish` job 会创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`。Windows ARM64 是预览构建，失败不会阻塞这三套正式资产：
 
 ```bash
 git tag v1.2.3
 git push origin v1.2.3
 ```
 
-也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径与 tag 推送一样会发布 Release。相同 tag 的发布会串行执行，避免重复上传同一组 assets。手动在 Releases 页面发布同名 Release 也会触发一次构建。
+也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径与 tag 推送一样会发布 Release。相同 tag 的发布会串行执行，避免重复上传同一组 assets。直接在 Releases 页面创建或发布 Release 不会触发构建。
 
 开发构建与 bindings：
 

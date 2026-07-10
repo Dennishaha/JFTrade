@@ -58,7 +58,7 @@ function releaseMacArm64(requestedArch) {
   fs.cpSync(arm64App, appPath, { recursive: true });
 
   const executable = path.join(appPath, "Contents", "MacOS", "JFTrade");
-  run("lipo", ["-verify_arch", "arm64", executable]);
+  run("lipo", [executable, "-verify_arch", "arm64"]);
 
   verifyMacBundle(appPath);
 

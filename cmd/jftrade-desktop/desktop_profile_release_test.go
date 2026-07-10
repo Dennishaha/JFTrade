@@ -4,6 +4,7 @@ package main
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -22,7 +23,11 @@ func TestReleaseDesktopBuildProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("launchDefaults: %v", err)
 	}
-	if filepath.Base(filepath.Dir(defaults.SettingsPath)) != "JFTrade" || filepath.Dir(defaults.SettingsPath) != filepath.Dir(defaults.BacktestDBPath) {
+	wantDataDirectory := "JFTrade"
+	if runtime.GOOS == "linux" {
+		wantDataDirectory = "jftrade"
+	}
+	if filepath.Base(filepath.Dir(defaults.SettingsPath)) != wantDataDirectory || filepath.Dir(defaults.SettingsPath) != filepath.Dir(defaults.BacktestDBPath) {
 		t.Fatalf("release paths = %#v", defaults)
 	}
 }
