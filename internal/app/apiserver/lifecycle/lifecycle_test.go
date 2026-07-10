@@ -212,7 +212,11 @@ func TestStartForRunArgsReportsAPIPortConflictAndClosesHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reserve API port: %v", err)
 	}
-	defer listener.Close()
+	defer func() {
+		if closeErr := listener.Close(); closeErr != nil {
+			t.Errorf("close reserved API listener: %v", closeErr)
+		}
+	}()
 
 	store := &lifecycleTestStore{
 		interfaceSettings: jfsettings.InterfaceSettings{APIBind: listener.Addr().String()},
@@ -230,7 +234,11 @@ func TestStartForRunArgsReportsGUIPortConflictAndClosesHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reserve GUI port: %v", err)
 	}
-	defer listener.Close()
+	defer func() {
+		if closeErr := listener.Close(); closeErr != nil {
+			t.Errorf("close reserved GUI listener: %v", closeErr)
+		}
+	}()
 
 	store := &lifecycleTestStore{
 		interfaceSettings: jfsettings.InterfaceSettings{

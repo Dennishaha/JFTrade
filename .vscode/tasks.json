@@ -40,6 +40,31 @@
       }
     },
     {
+      "label": "desktop:doctor",
+      "type": "npm",
+      "script": "desktop:doctor",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "test:desktop",
+      "type": "npm",
+      "script": "test:desktop",
+      "group": "test",
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "check:desktop",
+      "type": "npm",
+      "script": "check:desktop",
+      "group": "test",
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
       "label": "generate:docs",
       "type": "npm",
       "script": "generate:docs",
@@ -84,12 +109,8 @@
     },
     {
       "label": "go:vet",
-      "type": "shell",
-      "command": "go",
-      "args": [
-        "vet",
-        "./..."
-      ],
+      "type": "npm",
+      "script": "vet:go",
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -103,15 +124,8 @@
     },
     {
       "label": "go:test",
-      "type": "shell",
-      "command": "go",
-      "args": [
-        "test",
-        "./...",
-        "-count=1",
-        "-timeout",
-        "300s"
-      ],
+      "type": "npm",
+      "script": "test:go",
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -125,15 +139,8 @@
     },
     {
       "label": "go:test:servercore",
-      "type": "shell",
-      "command": "go",
-      "args": [
-        "test",
-        "./internal/app/apiserver/servercore",
-        "-count=1",
-        "-timeout",
-        "120s"
-      ],
+      "type": "npm",
+      "script": "test:servercore",
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -147,12 +154,8 @@
     },
     {
       "label": "go:lint",
-      "type": "shell",
-      "command": "${env:HOME}/go/bin/golangci-lint",
-      "args": [
-        "run",
-        "--timeout=5m"
-      ],
+      "type": "npm",
+      "script": "lint:go",
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -189,6 +192,13 @@
       "label": "typecheck:pineworker",
       "type": "npm",
       "script": "typecheck:pineworker",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "check:arch-deps",
+      "type": "npm",
+      "script": "check:arch-deps",
       "group": "test",
       "problemMatcher": []
     },
@@ -260,9 +270,9 @@
       }
     },
     {
-      "label": "desktop:release:darwin-arm64",
+      "label": "desktop:release:darwin",
       "type": "npm",
-      "script": "desktop:release:darwin-arm64",
+      "script": "desktop:release:darwin",
       "group": "build",
       "problemMatcher": [
         "$go"
@@ -275,7 +285,25 @@
       }
     },
     {
-      "label": "build:all",
+      "label": "desktop:release:windows",
+      "type": "npm",
+      "script": "desktop:release:windows",
+      "group": "build",
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "desktop:release:windows-arm64",
+      "type": "npm",
+      "script": "desktop:release:windows-arm64",
+      "group": "build",
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "build",
       "type": "npm",
       "script": "build",
       "group": {
@@ -285,24 +313,6 @@
       "problemMatcher": []
     },
     {
-      "label": "ci:web-local",
-      "dependsOrder": "sequence",
-      "dependsOn": [
-        "generate:docs",
-        "go:lint",
-        "test:web",
-        "typecheck:web"
-      ],
-      "group": "test",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "showReuseMessage": true,
-        "close": false
-      }
-    },
-    {
       "label": "ci:focused",
       "dependsOrder": "sequence",
       "dependsOn": [
@@ -310,8 +320,10 @@
         "go:lint",
         "go:vet",
         "go:test:servercore",
+        "check:desktop",
         "typecheck:web",
-        "test:web"
+        "test:web",
+        "check:arch-deps"
       ],
       "group": {
         "kind": "test",

@@ -55,7 +55,7 @@ jobs:
 
       - name: Verify Wails and desktop source
         run: |
-          node scripts/wails3.mjs doctor
+          npm run desktop:doctor
           npm run check:wails-bindings
           npm run typecheck:web
           go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
@@ -123,7 +123,7 @@ jobs:
 
       - name: Verify Wails and desktop source
         run: |
-          node scripts/wails3.mjs doctor
+          npm run desktop:doctor
           npm run check:wails-bindings
           npm run typecheck:web
           go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
@@ -197,7 +197,7 @@ jobs:
 
       - name: Verify Wails and desktop source
         run: |
-          node scripts/wails3.mjs doctor
+          npm run desktop:doctor
           npm run check:wails-bindings
           npm run typecheck:web
           go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
@@ -276,7 +276,7 @@ jobs:
 
       - name: Verify Wails and desktop source
         run: |
-          node scripts/wails3.mjs doctor
+          npm run desktop:doctor
           npm run check:wails-bindings
           npm run typecheck:web
           go test -tags release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1

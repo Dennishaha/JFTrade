@@ -56,10 +56,9 @@ npm run check:wails-bindings
 常用验证命令：
 
 ```bash
-node scripts/wails3.mjs doctor
-npm run check:wails-bindings
+npm run desktop:doctor
+npm run check:desktop
 npm run typecheck:web
-go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 ```
 
 ## CI 无签名发布
