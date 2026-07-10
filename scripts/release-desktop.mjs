@@ -71,15 +71,18 @@ function releaseMacArm64(requestedArch) {
     `.JFTrade-${metadata.version}-macos-arm64-unsigned.tmp.dmg`,
   );
   fs.rmSync(temporaryDmgPath, { force: true });
-  run("diskutil", [
-    "image",
+  // `diskutil image create from` changed its option spelling across macOS
+  // releases. hdiutil's folder-image interface is stable on the supported
+  // runners and produces the same compressed, named DMG.
+  run("hdiutil", [
     "create",
-    "from",
-    "--format",
-    "UDZO",
-    "--volumeName",
+    "-volname",
     "JFTrade",
+    "-srcfolder",
     releaseDir,
+    "-ov",
+    "-format",
+    "UDZO",
     temporaryDmgPath,
   ]);
   fs.renameSync(temporaryDmgPath, dmgPath);

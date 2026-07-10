@@ -69,7 +69,7 @@ npm run typecheck:web
 - Windows：生成文件名带 `unsigned` 的 x64 per-user NSIS，不执行 Authenticode 签名。
 - Linux x64：构建门禁仍使用 GTK3；CI 同时安装 GTK4/WebKitGTK 6.0，以满足 Wails `doctor` 的默认依赖探测。
 
-发布流程不需要任何 Apple 或 Windows 证书 secrets。未签名的 macOS 包会触发 Gatekeeper 的“无法验证开发者”提示，Windows 包可能触发 SmartScreen 提示。发布任务仍上传各平台 SPDX JSON SBOM、`SHA256SUMS`，并用 GitHub artifact attestation 写入构建 provenance。
+发布流程不需要任何 Apple 或 Windows 证书 secrets。未签名的 macOS 包会触发 Gatekeeper 的“无法验证开发者”提示，Windows 包可能触发 SmartScreen 提示。发布任务仍上传各平台 SPDX JSON SBOM 和 `SHA256SUMS`；GitHub artifact attestation 仅在公开仓库写入 provenance，因为 GitHub 不支持用户所有的私有仓库持久化该类 attestation。
 
 Windows ARM64 会在原生 `windows-11-arm` runner 上生成带 `preview` 标记的无签名 per-user NSIS 安装器，作为独立 asset 进入 GitHub Release。该 runner 当前处于 GitHub public preview。
 

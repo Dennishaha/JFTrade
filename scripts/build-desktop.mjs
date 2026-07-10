@@ -5,6 +5,7 @@ import process from "node:process";
 import { spawnChecked } from "./lib/spawn.mjs";
 import { writeMacAppBundle } from "./lib/mac-app-bundle.mjs";
 import { resolveDesktopBuildMetadata } from "./lib/desktop-release-metadata.mjs";
+import { withWindowsDesktopManifestVersion } from "./lib/windows-resource-metadata.mjs";
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const desktopDistDir = path.join(rootDir, "dist", "desktop");
@@ -218,12 +219,13 @@ function writeWindowsMetadata(infoPath, manifestPath, metadata) {
     `Wails v3 desktop shell for JFTrade; commit ${metadata.commit}; built ${metadata.buildTime}`;
   fs.writeFileSync(infoPath, `${JSON.stringify(info, null, 2)}\n`, "utf8");
 
-  const manifest = fs
-    .readFileSync(
+  const manifest = withWindowsDesktopManifestVersion(
+    fs.readFileSync(
       path.join(rootDir, "build", "desktop", "windows", "wails.exe.manifest"),
       "utf8",
-    )
-    .replace(/version="[^"]+"/, `version="${metadata.numericVersion}.0"`);
+    ),
+    metadata.numericVersion,
+  );
   fs.writeFileSync(manifestPath, manifest, "utf8");
 }
 
