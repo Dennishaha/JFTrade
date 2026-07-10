@@ -173,6 +173,9 @@ jobs:
       - name: Install PineTS integration dependency
         run: npm ci --workspace @jftrade/pineworker --include-workspace-root=false --omit=dev --no-audit --no-fund
 
+      - name: Generate OpenAPI test dependency
+        run: npm run generate:openapi
+
       - name: Go coverage gate
         run: npm run test:coverage:go
 
