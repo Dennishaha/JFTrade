@@ -396,8 +396,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "$JFTRADE_DESKTOP_RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --clobber
+          if gh release view "$JFTRADE_DESKTOP_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --verify-tag --generate-notes --title "JFTrade ${JFTRADE_DESKTOP_RELEASE_TAG#v}"
+            gh release create "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --verify-tag --generate-notes --title "JFTrade ${JFTRADE_DESKTOP_RELEASE_TAG#v}" --repo "$GITHUB_REPOSITORY"
           fi
