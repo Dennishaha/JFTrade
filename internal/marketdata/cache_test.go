@@ -124,6 +124,52 @@ func TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays(t *testing.T) {
 	}
 }
 
+func TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives(t *testing.T) {
+	afterHoursAt := time.Date(2026, time.July, 9, 16, 0, 1, 0, time.FixedZone("EDT", -4*60*60))
+	cache := NewCache()
+	cache.now = func() time.Time { return afterHoursAt }
+
+	regularClose := tickAt("US.BABA", "111.14", 14106666, afterHoursAt.Add(-2*time.Second))
+	regularClose.PreviousClosePrice = new(decimal.RequireFromString("108.98"))
+	regularClose.LastClosePrice = new(decimal.RequireFromString("108.98"))
+	cache.Store(regularClose)
+
+	afterHoursTrade := tickAt("US.BABA", "111.81", 100, afterHoursAt)
+	afterHoursTrade.Kind = TickKindTrade
+	afterHoursTrade.Source = "bbgo:futu:stream"
+	afterHoursTrade.Session = "after"
+	afterHoursTrade.ExtendedHours = true
+	stored := cache.Store(afterHoursTrade)
+	if stored == nil {
+		t.Fatal("expected after-hours trade to be stored")
+	}
+	if stored.PreviousClosePrice == nil || stored.PreviousClosePrice.String() != "111.14" {
+		t.Fatalf("previous close = %v, want Thursday regular close 111.14", stored.PreviousClosePrice)
+	}
+	if stored.LastClosePrice == nil || stored.LastClosePrice.String() != "108.98" {
+		t.Fatalf("last close = %v, want prior trading-day close 108.98", stored.LastClosePrice)
+	}
+	if stored.Price.String() != "111.81" {
+		t.Fatalf("after-hours price = %s, want 111.81", stored.Price)
+	}
+	serialized := SnapshotJSON(stored)
+	if serialized["previousClosePrice"] != "111.14" || serialized["lastClosePrice"] != "108.98" {
+		t.Fatalf("serialized close prices = %#v", serialized)
+	}
+	if serialized["price"] != "111.81" || serialized["session"] != "after" {
+		t.Fatalf("serialized after-hours snapshot = %#v", serialized)
+	}
+
+	nextAfterHoursTrade := afterHoursTrade
+	nextAfterHoursTrade.Price = decimal.RequireFromString("111.82")
+	nextAfterHoursTrade.QuoteAt = afterHoursAt.Add(time.Second).Format(time.RFC3339Nano)
+	nextAfterHoursTrade.ObservedAt = nextAfterHoursTrade.QuoteAt
+	stored = cache.Store(nextAfterHoursTrade)
+	if stored == nil || stored.PreviousClosePrice == nil || stored.PreviousClosePrice.String() != "111.14" {
+		t.Fatalf("subsequent after-hours trade lost regular close context: %#v", stored)
+	}
+}
+
 func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 	now := time.Date(2026, time.June, 14, 10, 0, 0, 0, time.UTC)
 	samples := []Tick{

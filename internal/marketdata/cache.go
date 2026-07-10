@@ -152,7 +152,14 @@ func inheritTickContext(incoming, latest *Tick) {
 		incoming.LowPrice = latest.LowPrice
 	}
 	if incoming.PreviousClosePrice == nil {
-		incoming.PreviousClosePrice = latest.PreviousClosePrice
+		// Trade pushes omit reference prices. When the first US after-hours
+		// trade arrives, the last regular-session trade is the close that the
+		// UI must keep beside the live extended-hours price.
+		if shouldPromoteRegularClose(incoming, latest, sameTradingDay) {
+			incoming.PreviousClosePrice = new(latest.Price)
+		} else {
+			incoming.PreviousClosePrice = latest.PreviousClosePrice
+		}
 	}
 	if incoming.LastClosePrice == nil {
 		incoming.LastClosePrice = latest.LastClosePrice
@@ -180,6 +187,14 @@ func inheritTickContext(incoming, latest *Tick) {
 			incoming.Volume = latest.Volume
 		}
 	}
+}
+
+func shouldPromoteRegularClose(incoming, latest *Tick, sameTradingDay bool) bool {
+	return sameTradingDay &&
+		marketpkg.IsUSSymbol(incoming.InstrumentID) &&
+		latest.Session == string(marketpkg.SessionRegular) &&
+		incoming.Session == string(marketpkg.SessionAfter) &&
+		latest.Price.GreaterThan(decimal.Zero)
 }
 
 func ticksEquivalent(left, right Tick) bool {

@@ -3,6 +3,57 @@ import { describe, expect, it } from "vitest";
 import { resolveMarketSnapshotDisplay } from "../src/composables/marketSessionDisplay";
 
 describe("marketSessionDisplay", () => {
+  it("keeps BABA Thursday regular close when the session advances to after-hours", () => {
+    const regularDisplay = resolveMarketSnapshotDisplay(
+      {
+        price: 111.14,
+        previousClosePrice: 108.98,
+        lastClosePrice: 108.98,
+        session: "regular",
+      },
+      true,
+    );
+
+    expect(regularDisplay.mainPriceLabel).toBe("最新价");
+    expect(regularDisplay.mainDisplayPrice).toBe(111.14);
+
+    const afterHoursDisplay = resolveMarketSnapshotDisplay(
+      {
+        price: 111.81,
+        previousClosePrice: 111.14,
+        lastClosePrice: 108.98,
+        session: "after",
+        extended: {
+          afterMarket: {
+            price: 111.81,
+            changeRate: 0.602,
+            quoteTime: "2026-07-09T23:36:39.917Z",
+          },
+        },
+      },
+      true,
+    );
+
+    expect(afterHoursDisplay.sessionLabel).toBe("盘后");
+    expect(afterHoursDisplay.mainPriceLabel).toBe("最近常规收盘");
+    expect(afterHoursDisplay.mainDisplayPrice).toBe(111.14);
+    expect(afterHoursDisplay.mainChangePercent).toBeCloseTo(
+      ((111.14 - 108.98) / 108.98) * 100,
+      10,
+    );
+    expect(afterHoursDisplay.extendedCards).toHaveLength(1);
+    expect(afterHoursDisplay.extendedCards[0]).toMatchObject({
+      key: "after",
+      label: "盘后价格",
+      price: 111.81,
+      quoteTime: "2026-07-09T23:36:39.917Z",
+    });
+    expect(afterHoursDisplay.extendedCards[0]?.changeRate).toBeCloseTo(
+      ((111.81 - 111.14) / 111.14) * 100,
+      10,
+    );
+  });
+
   it("shows only recent after-hours on closed sessions", () => {
     const display = resolveMarketSnapshotDisplay(
       {
