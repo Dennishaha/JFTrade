@@ -433,6 +433,65 @@ func TestDesktopLogPageCapsLimitAndPaginatesAllLines(t *testing.T) {
 	}
 }
 
+func TestDesktopLogPageTailOffsetReturnsLastPageInFileOrder(t *testing.T) {
+	tests := []struct {
+		name       string
+		total      int
+		wantOffset int
+		wantCount  int
+		wantFirst  string
+		wantLast   string
+	}{
+		{name: "partial last page", total: 2005, wantOffset: 2000, wantCount: 5, wantFirst: "INFO line-2001", wantLast: "INFO line-2005"},
+		{name: "full last page", total: 2000, wantOffset: 1500, wantCount: 500, wantFirst: "INFO line-1501", wantLast: "INFO line-2000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logDir := t.TempDir()
+			path := filepath.Join(logDir, "desktop-2026-07-10.log")
+			var body strings.Builder
+			for index := 1; index <= tt.total; index++ {
+				_, _ = fmt.Fprintf(&body, "INFO line-%04d\n", index)
+			}
+			if err := os.WriteFile(path, []byte(body.String()), 0o644); err != nil {
+				t.Fatalf("write log: %v", err)
+			}
+
+			page, err := readDesktopLogPage(path, logDir, "2026-07-10", "ALL", "", desktopLogPageLatest, 500)
+			if err != nil {
+				t.Fatalf("readDesktopLogPage tail: %v", err)
+			}
+			if page.Offset != tt.wantOffset || page.Total != tt.total || len(page.Items) != tt.wantCount {
+				t.Fatalf("tail page offset/total/count = %d/%d/%d, want %d/%d/%d", page.Offset, page.Total, len(page.Items), tt.wantOffset, tt.total, tt.wantCount)
+			}
+			if page.NextOffset != nil {
+				t.Fatalf("tail page nextOffset = %d, want nil", *page.NextOffset)
+			}
+			if page.Items[0].Text != tt.wantFirst || page.Items[len(page.Items)-1].Text != tt.wantLast {
+				t.Fatalf("tail page range = %q..%q, want %q..%q", page.Items[0].Text, page.Items[len(page.Items)-1].Text, tt.wantFirst, tt.wantLast)
+			}
+		})
+	}
+}
+
+func TestDesktopLogPageTailOffsetAppliesFiltersBeforePaging(t *testing.T) {
+	logDir := t.TempDir()
+	path := filepath.Join(logDir, "desktop-2026-07-10.log")
+	body := "INFO ignored\nWARN match-old\nERROR ignored\nWARN match-latest\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("write log: %v", err)
+	}
+
+	page, err := readDesktopLogPage(path, logDir, "2026-07-10", "WARN", "match", desktopLogPageLatest, 1)
+	if err != nil {
+		t.Fatalf("readDesktopLogPage filtered tail: %v", err)
+	}
+	if page.Offset != 1 || page.Total != 2 || len(page.Items) != 1 || page.Items[0].Text != "WARN match-latest" {
+		t.Fatalf("filtered tail page = %+v", page)
+	}
+}
+
 func TestListDesktopLogDaysMissingDirReturnsEmpty(t *testing.T) {
 	days, err := listDesktopLogDays(filepath.Join(t.TempDir(), "missing"))
 	if err != nil {

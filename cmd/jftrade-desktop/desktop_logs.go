@@ -26,6 +26,7 @@ const (
 	desktopLogEventAppend = "jftrade:desktop-log:append"
 	desktopLogPageDefault = 200
 	desktopLogPageMaximum = 500
+	desktopLogPageLatest  = -1
 )
 
 type desktopLogManager struct {
@@ -272,6 +273,7 @@ func desktopLogDayFromFilename(name string) (string, bool) {
 }
 
 func readDesktopLogPage(path string, logDir string, day string, level string, query string, offset int, limit int) (DesktopLogPage, error) {
+	readLastPage := offset == desktopLogPageLatest
 	if offset < 0 {
 		offset = 0
 	}
@@ -293,6 +295,11 @@ func readDesktopLogPage(path string, logDir string, day string, level string, qu
 
 	level = strings.ToUpper(strings.TrimSpace(level))
 	query = strings.ToLower(strings.TrimSpace(query))
+	var lastPageBuffer []DesktopLogLine
+	lastPageNext := 0
+	if readLastPage {
+		lastPageBuffer = make([]DesktopLogLine, limit)
+	}
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -309,6 +316,11 @@ func readDesktopLogPage(path string, logDir string, day string, level string, qu
 		}
 		index := page.Total
 		page.Total++
+		if readLastPage {
+			lastPageBuffer[lastPageNext] = line
+			lastPageNext = (lastPageNext + 1) % limit
+			continue
+		}
 		if index >= offset && len(page.Items) < limit {
 			page.Items = append(page.Items, line)
 		}
@@ -316,7 +328,16 @@ func readDesktopLogPage(path string, logDir string, day string, level string, qu
 	if err := scanner.Err(); err != nil {
 		return DesktopLogPage{}, err
 	}
-	if next := offset + len(page.Items); next < page.Total {
+	if readLastPage && page.Total > 0 {
+		page.Offset = ((page.Total - 1) / limit) * limit
+		itemCount := page.Total - page.Offset
+		start := (lastPageNext - itemCount + limit) % limit
+		page.Items = make([]DesktopLogLine, 0, itemCount)
+		for index := range itemCount {
+			page.Items = append(page.Items, lastPageBuffer[(start+index)%limit])
+		}
+	}
+	if next := page.Offset + len(page.Items); next < page.Total {
 		page.NextOffset = &next
 	}
 	return page, nil

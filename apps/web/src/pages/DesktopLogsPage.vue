@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Events } from "@wailsio/runtime";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
 import {
   ListDays,
@@ -14,6 +14,8 @@ import type {
 
 type DesktopLogAppend = { day: string; line: DesktopLogLine };
 
+const latestPageOffset = -1;
+
 const days = ref<DesktopLogDay[]>([]);
 const selectedDay = ref("");
 const selectedLevel = ref("ALL");
@@ -25,8 +27,10 @@ const lines = ref<DesktopLogLine[]>([]);
 const logDir = ref("");
 const loading = ref(false);
 const error = ref("");
+const contentElement = ref<HTMLElement | null>(null);
 let cancelAppend: (() => void) | null = null;
-let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+let filterTimer: ReturnType<typeof setTimeout> | null = null;
+let initialized = false;
 
 const page = computed(() => Math.floor(offset.value / pageSize.value) + 1);
 const totalPages = computed(() =>
@@ -42,7 +46,14 @@ async function loadDays(): Promise<void> {
   }
 }
 
-async function loadPage(): Promise<void> {
+async function scrollToBottom(): Promise<void> {
+  await nextTick();
+  if (contentElement.value) {
+    contentElement.value.scrollTop = contentElement.value.scrollHeight;
+  }
+}
+
+async function loadPage(requestedOffset = offset.value): Promise<void> {
   if (!selectedDay.value) {
     lines.value = [];
     total.value = 0;
@@ -50,32 +61,39 @@ async function loadPage(): Promise<void> {
   }
   loading.value = true;
   error.value = "";
+  let loaded = false;
   try {
     const result = await ReadPage(
       selectedDay.value,
       selectedLevel.value,
       keyword.value,
-      offset.value,
+      requestedOffset,
       pageSize.value,
     );
     lines.value = result.items ?? [];
+    offset.value = result.offset;
     total.value = result.total;
     logDir.value = result.logDir;
+    loaded = true;
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : "日志读取失败";
   } finally {
     loading.value = false;
   }
+  if (loaded && requestedOffset === latestPageOffset) {
+    await scrollToBottom();
+  }
 }
 
 function resetAndLoad(): void {
-  offset.value = 0;
-  void loadPage();
+  if (!initialized) return;
+  void loadPage(latestPageOffset);
 }
 
-function scheduleReload(): void {
-  if (reloadTimer != null) clearTimeout(reloadTimer);
-  reloadTimer = setTimeout(() => void loadPage(), 200);
+function scheduleResetAndLoad(): void {
+  if (!initialized) return;
+  if (filterTimer != null) clearTimeout(filterTimer);
+  filterTimer = setTimeout(() => void loadPage(latestPageOffset), 200);
 }
 
 function previousPage(): void {
@@ -97,19 +115,51 @@ async function openFolder(): Promise<void> {
   }
 }
 
+function matchesCurrentFilters(line: DesktopLogLine): boolean {
+  if (selectedLevel.value !== "ALL" && line.level !== selectedLevel.value) {
+    return false;
+  }
+  const normalizedKeyword = keyword.value.trim().toLowerCase();
+  return (
+    normalizedKeyword === "" ||
+    line.text.toLowerCase().includes(normalizedKeyword)
+  );
+}
+
+function appendLine(payload: DesktopLogAppend): void {
+  if (
+    payload?.day !== selectedDay.value ||
+    !payload.line ||
+    !matchesCurrentFilters(payload.line)
+  ) {
+    return;
+  }
+
+  const wasLastPage = offset.value + lines.value.length >= total.value;
+  total.value += 1;
+  if (!wasLastPage) return;
+
+  if (lines.value.length >= pageSize.value) {
+    offset.value += pageSize.value;
+    lines.value = [payload.line];
+  } else {
+    lines.value.push(payload.line);
+  }
+  void scrollToBottom();
+}
+
 watch([selectedDay, selectedLevel, pageSize], resetAndLoad);
 watch(keyword, () => {
-  offset.value = 0;
-  scheduleReload();
+  scheduleResetAndLoad();
 });
 
 onMounted(async () => {
   try {
     await loadDays();
-    await loadPage();
+    initialized = true;
+    await loadPage(latestPageOffset);
     cancelAppend = Events.On("jftrade:desktop-log:append", (event) => {
-      const payload = event.data as DesktopLogAppend;
-      if (payload?.day === selectedDay.value) scheduleReload();
+      appendLine(event.data as DesktopLogAppend);
     });
   } catch (reason) {
     error.value =
@@ -119,7 +169,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   cancelAppend?.();
-  if (reloadTimer != null) clearTimeout(reloadTimer);
+  if (filterTimer != null) clearTimeout(filterTimer);
 });
 </script>
 
@@ -154,7 +204,11 @@ onUnmounted(() => {
     </div>
 
     <div v-if="error" class="desktop-logs__error">{{ error }}</div>
-    <section class="desktop-logs__content" :aria-busy="loading">
+    <section
+      ref="contentElement"
+      class="desktop-logs__content"
+      :aria-busy="loading"
+    >
       <div v-if="loading" class="desktop-logs__empty">读取中…</div>
       <div v-else-if="lines.length === 0" class="desktop-logs__empty">
         没有匹配的日志
