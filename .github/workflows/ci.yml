@@ -302,10 +302,35 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  linux-desktop-build:
-    name: Linux Desktop Build
+  desktop-build:
+    name: Desktop Build (${{ matrix.label }})
     needs: [web, pine]
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Linux x64
+            runner: ubuntu-24.04
+            platform: linux
+            test_tags: release_assets,gtk3
+            build_script: desktop:build:linux
+            artifact_id: linux-x64
+            artifact_path: dist/desktop/linux-amd64/jftrade-desktop-linux-amd64
+          - label: macOS ARM64
+            runner: macos-15
+            platform: macos
+            test_tags: release_assets
+            build_script: desktop:build:darwin-arm64
+            artifact_id: macos-arm64
+            artifact_path: dist/desktop/darwin-arm64/JFTrade.app
+          - label: Windows x64
+            runner: windows-latest
+            platform: windows
+            test_tags: release_assets
+            build_script: desktop:build:windows
+            artifact_id: windows-x64
+            artifact_path: dist/desktop/windows-amd64/jftrade-desktop-windows-amd64.exe
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     env:
       JFTRADE_DESKTOP_PREPARED: "1"
@@ -338,19 +363,32 @@ jobs:
           path: internal/pineworkerassets/assets/bin
 
       - name: Install Linux desktop dependencies
+        if: ${{ matrix.platform == 'linux' }}
         run: bash scripts/install-linux-desktop-dependencies.sh
+
+      - name: Verify macOS ARM64 runner
+        if: ${{ matrix.platform == 'macos' }}
+        run: test "$(uname -m)" = "arm64"
+
+      - name: Verify Windows x64 runner
+        if: ${{ matrix.platform == 'windows' }}
+        shell: pwsh
+        run: |
+          if ((go env GOARCH) -ne "amd64") {
+            throw "Windows x64 runner is required"
+          }
 
       - name: Generate OpenAPI build input
         run: npm run generate:openapi
 
-      - name: Test Linux release profile
-        run: go test -tags release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
+      - name: Test desktop release profile
+        run: go test -tags "${{ matrix.test_tags }}" ./cmd/jftrade-desktop ./internal/desktop -count=1
 
-      - name: Build Linux desktop binary
-        run: npm run desktop:build:linux
+      - name: Build desktop application
+        run: npm run ${{ matrix.build_script }}
 
       - name: Verify Linux desktop binary
-        id: artifact
+        if: ${{ matrix.platform == 'linux' }}
         run: |
           artifact="dist/desktop/linux-amd64/jftrade-desktop-linux-amd64"
           test -x "$artifact"
@@ -359,20 +397,75 @@ jobs:
           grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-linux-buildinfo.txt
           ldd "$artifact" | tee /tmp/jftrade-linux-ldd.txt
           ! grep -q 'not found' /tmp/jftrade-linux-ldd.txt
-          echo "path=$artifact" >> "$GITHUB_OUTPUT"
 
-      - name: Upload Linux desktop binary
+      - name: Verify macOS desktop application
+        if: ${{ matrix.platform == 'macos' }}
+        run: |
+          bundle="dist/desktop/darwin-arm64/JFTrade.app"
+          binary="$bundle/Contents/MacOS/JFTrade"
+          plist="$bundle/Contents/Info.plist"
+          test -d "$bundle"
+          test -x "$binary"
+          plutil -lint "$plist"
+          file "$binary" | grep -q 'Mach-O 64-bit executable arm64'
+          test "$(lipo -archs "$binary")" = "arm64"
+          go version -m "$binary" | tee /tmp/jftrade-macos-buildinfo.txt
+          grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-macos-buildinfo.txt
+          grep -q 'GOARCH=arm64' /tmp/jftrade-macos-buildinfo.txt
+
+      - name: Verify Windows desktop executable
+        if: ${{ matrix.platform == 'windows' }}
+        shell: pwsh
+        run: |
+          $artifact = (Resolve-Path "dist/desktop/windows-amd64/jftrade-desktop-windows-amd64.exe").Path
+          if ((Get-Item $artifact).Length -le 0) {
+            throw "Windows desktop executable is empty"
+          }
+
+          $stream = [System.IO.File]::OpenRead($artifact)
+          $reader = [System.IO.BinaryReader]::new($stream)
+          try {
+            if ($reader.ReadUInt16() -ne 0x5A4D) {
+              throw "Windows desktop executable is missing the MZ header"
+            }
+            $stream.Position = 0x3C
+            $peOffset = $reader.ReadInt32()
+            $stream.Position = $peOffset
+            if ($reader.ReadUInt32() -ne 0x00004550) {
+              throw "Windows desktop executable is missing the PE header"
+            }
+            if ($reader.ReadUInt16() -ne 0x8664) {
+              throw "Windows desktop executable is not x64"
+            }
+          } finally {
+            $reader.Dispose()
+            $stream.Dispose()
+          }
+
+          $buildInfo = & go version -m $artifact
+          if ($LASTEXITCODE -ne 0) {
+            throw "Unable to read Windows desktop Go build metadata"
+          }
+          $buildInfo | Out-Host
+          if (-not ($buildInfo -match "github.com/jftrade/jftrade-main/cmd/jftrade-desktop")) {
+            throw "Windows desktop executable has unexpected Go module metadata"
+          }
+          if (-not ($buildInfo -match "GOARCH=amd64")) {
+            throw "Windows desktop executable has unexpected Go architecture metadata"
+          }
+
+      - name: Upload desktop build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ci-linux-desktop-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ steps.artifact.outputs.path }}
+          name: ci-desktop-${{ matrix.artifact_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ matrix.artifact_path }}
           if-no-files-found: error
           retention-days: 1
 
   build-and-test:
     name: Build & Test
     if: ${{ always() }}
-    needs: [go-quality, go-coverage, web, pine, linux-desktop-build]
+    needs: [go-quality, go-coverage, web, pine, desktop-build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -382,13 +475,13 @@ jobs:
           GO_COVERAGE_RESULT: ${{ needs.go-coverage.result }}
           WEB_RESULT: ${{ needs.web.result }}
           PINE_RESULT: ${{ needs.pine.result }}
-          LINUX_DESKTOP_RESULT: ${{ needs.linux-desktop-build.result }}
+          DESKTOP_BUILD_RESULT: ${{ needs.desktop-build.result }}
         run: |
-          if [[ "$GO_QUALITY_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" || "$LINUX_DESKTOP_RESULT" != "success" ]]; then
+          if [[ "$GO_QUALITY_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" || "$DESKTOP_BUILD_RESULT" != "success" ]]; then
             echo "Go Quality & Contracts: $GO_QUALITY_RESULT"
             echo "Go Coverage: $GO_COVERAGE_RESULT"
             echo "Web: $WEB_RESULT"
             echo "Pine & Workers: $PINE_RESULT"
-            echo "Linux Desktop Build: $LINUX_DESKTOP_RESULT"
+            echo "Desktop Build Matrix: $DESKTOP_BUILD_RESULT"
             exit 1
           fi
