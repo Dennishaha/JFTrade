@@ -7,6 +7,8 @@ on:
         description: Exact vX.Y.Z tag to publish
         required: true
         type: string
+  release:
+    types: [published]
   push:
     tags:
       - "v*"
@@ -18,11 +20,11 @@ permissions:
   id-token: write
 
 env:
-  JFTRADE_DESKTOP_RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
-  JFTRADE_DESKTOP_BUILD_TIME: ${{ github.event.head_commit.timestamp || '' }}
+  JFTRADE_DESKTOP_RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
+  JFTRADE_DESKTOP_BUILD_TIME: ${{ github.event_name == 'push' && github.event.head_commit.timestamp || github.event_name == 'release' && github.event.release.published_at || '' }}
 
 concurrency:
-  group: desktop-release-${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+  group: desktop-release-${{ github.event_name == 'push' && github.ref_name || github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
   cancel-in-progress: false
 
 jobs:
@@ -316,10 +318,19 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: >-
+      always() &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release') &&
+      needs.macos.result == 'success' &&
+      needs.windows.result == 'success' &&
+      needs.linux.result == 'success'
     needs: [macos, windows, windows_arm64, linux]
     runs-on: ubuntu-latest
     steps:
+      - name: Report unavailable Windows ARM64 preview
+        if: needs.windows_arm64.result != 'success'
+        run: echo "::warning::Windows ARM64 preview build did not complete; publishing the verified macOS, Windows x64, and Linux assets."
+
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
@@ -331,7 +342,9 @@ jobs:
         run: |
           mkdir release
           find incoming -type f -exec cp {} release/ \;
-          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 8
+          # macOS, Windows x64, and Linux each contribute one binary and one SBOM.
+          # Windows ARM64 is an optional preview artifact.
+          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 6
 
       - name: Generate SHA256SUMS
         working-directory: release
