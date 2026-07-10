@@ -5,6 +5,10 @@ import process from "node:process";
 import { spawnChecked } from "./lib/spawn.mjs";
 import { writeMacAppBundle } from "./lib/mac-app-bundle.mjs";
 import { resolveDesktopBuildMetadata } from "./lib/desktop-release-metadata.mjs";
+import {
+  assertPreparedDesktopReleaseInputs,
+  usesPreparedDesktopReleaseInputs,
+} from "./lib/desktop-release-inputs.mjs";
 import { withWindowsDesktopManifestVersion } from "./lib/windows-resource-metadata.mjs";
 
 const rootDir = path.resolve(import.meta.dirname, "..");
@@ -51,9 +55,7 @@ function runStatus(command, args, options = {}) {
   return spawnChecked(command, args, { cwd: rootDir, ...options });
 }
 
-run("npm", ["run", "prepare:desktop-release"]);
-run("npm", ["run", "generate:wails-bindings"], { env: hostGoEnvironment() });
-run("npm", ["run", "build:pineworker"]);
+prepareDesktopReleaseInputs();
 cleanupLegacyDesktopOutputs();
 
 const outputDir = targetOutputDir(requestedTarget, arch);
@@ -144,6 +146,28 @@ function hostGoEnvironment() {
     delete environment[name];
   }
   return environment;
+}
+
+function prepareDesktopReleaseInputs() {
+  let prepared;
+  try {
+    prepared = usesPreparedDesktopReleaseInputs();
+    if (prepared) {
+      assertPreparedDesktopReleaseInputs(rootDir);
+    }
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+  if (prepared) {
+    console.log("Using prepared desktop release inputs.");
+    return;
+  }
+  run("npm", ["run", "prepare:desktop-release"]);
+  run("npm", ["run", "generate:wails-bindings"], {
+    env: hostGoEnvironment(),
+  });
+  run("npm", ["run", "build:pineworker"]);
 }
 
 function preflightTargetToolchain(target, targetArch) {

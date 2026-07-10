@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Exact vX.Y.Z tag to publish
+        description: Exact vX.Y.Z tag to build or publish
         required: true
         type: string
+      dry_run:
+        description: Build and verify artifacts without attesting or publishing a GitHub Release
+        required: false
+        default: false
+        type: boolean
   push:
     tags:
       - "v*"
@@ -26,10 +31,107 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  release-inputs:
+    name: Prepare Release Inputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+
+      - name: Verify exact release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$JFTRADE_DESKTOP_RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
+            exit 1
+          fi
+          tag_commit="$(git rev-parse "$JFTRADE_DESKTOP_RELEASE_TAG^{commit}")"
+          head_commit="$(git rev-parse HEAD)"
+          if [[ "$tag_commit" != "$head_commit" ]]; then
+            echo "Checked out $head_commit, expected tag commit $tag_commit" >&2
+            exit 1
+          fi
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache-dependency-path: go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Use declared npm version
+        run: npm install --global npm@10.9.7 --no-audit --no-fund
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify Wails host
+        env:
+          GOFLAGS: "-tags=gtk3"
+        run: npm run desktop:doctor
+
+      - name: Generate release inputs
+        run: |
+          npm run generate:docs
+          npm run build:frontend-assets
+          npm run build:pineworker
+          git diff --exit-code -- docs/reference/generated/pine-v6-support.md
+
+      - name: Verify shared desktop source
+        env:
+          GOFLAGS: "-tags=gtk3"
+        run: |
+          npm run check:wails-bindings
+          npm run typecheck:web
+          npm run test:desktop-release-metadata
+          npm run test:desktop-release-inputs
+          npm run test:desktop-mac-bundle
+          npm run test:desktop-windows-resource-metadata
+          node scripts/dev-desktop.test.mjs
+
+      - name: Verify embedded release inputs
+        run: go test -tags release_assets ./internal/frontendassets ./internal/pineworkerassets -count=1
+
+      - name: Upload prepared release inputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-build-inputs-${{ github.run_id }}
+          path: |
+            docs/swagger/docs.go
+            docs/swagger/swagger.json
+            docs/swagger/swagger.yaml
+            internal/frontendassets/dist.zip
+            internal/pineworkerassets/assets/bin/worker.mjs
+          if-no-files-found: error
+          retention-days: 1
+
   macos:
     name: macOS ARM64 Unsigned DMG
+    needs: release-inputs
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 40
+    env:
+      JFTRADE_DESKTOP_PREPARED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -40,6 +142,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+          cache: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -47,23 +150,17 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
+      - name: Download prepared release inputs
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-build-inputs-${{ github.run_id }}
+          path: .
+
       - name: Verify ARM64 runner
         run: test "$(uname -m)" = "arm64"
 
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Prepare generated release inputs
-        run: |
-          npm run generate:docs
-          npm run build:frontend-assets
-
-      - name: Verify Wails and desktop source
-        run: |
-          npm run desktop:doctor
-          npm run check:wails-bindings
-          npm run typecheck:web
-          go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+      - name: Test macOS desktop package
+        run: go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build unsigned ARM64 DMG
         run: npm run desktop:release:darwin
@@ -85,10 +182,7 @@ jobs:
           upload-release-assets: false
 
       - name: Attest macOS build provenance
-        # GitHub does not support artifact attestations in user-owned private
-        # repositories. Keep release assets available there and attest public
-        # repository builds when the feature is available.
-        if: github.event.repository.private == false
+        if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.artifact.outputs.path }}
@@ -104,8 +198,11 @@ jobs:
 
   windows:
     name: Windows x64 Unsigned Installer
+    needs: release-inputs
     runs-on: windows-latest
-    timeout-minutes: 50
+    timeout-minutes: 35
+    env:
+      JFTRADE_DESKTOP_PREPARED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -116,12 +213,19 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+          cache: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           package-manager-cache: false
+
+      - name: Download prepared release inputs
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-build-inputs-${{ github.run_id }}
+          path: .
 
       - name: Install packaging tools
         shell: pwsh
@@ -132,20 +236,8 @@ jobs:
           "MAKENSIS=$makensis" | Out-File -FilePath $env:GITHUB_ENV -Append
           (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Prepare generated release inputs
-        run: |
-          npm run generate:docs
-          npm run build:frontend-assets
-
-      - name: Verify Wails and desktop source
-        run: |
-          npm run desktop:doctor
-          npm run check:wails-bindings
-          npm run typecheck:web
-          go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+      - name: Test Windows desktop package
+        run: go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build unsigned per-user NSIS installer
         run: npm run desktop:release:windows
@@ -168,7 +260,7 @@ jobs:
           upload-release-assets: false
 
       - name: Attest Windows build provenance
-        if: github.event.repository.private == false
+        if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.artifact.outputs.path }}
@@ -184,8 +276,11 @@ jobs:
 
   windows_arm64:
     name: Windows ARM64 Preview Installer
+    needs: release-inputs
     runs-on: windows-11-arm
-    timeout-minutes: 50
+    timeout-minutes: 35
+    env:
+      JFTRADE_DESKTOP_PREPARED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -196,12 +291,19 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+          cache: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           package-manager-cache: false
+
+      - name: Download prepared release inputs
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-build-inputs-${{ github.run_id }}
+          path: .
 
       - name: Verify ARM64 runner
         shell: pwsh
@@ -217,20 +319,8 @@ jobs:
           "MAKENSIS=$makensis" | Out-File -FilePath $env:GITHUB_ENV -Append
           (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Prepare generated release inputs
-        run: |
-          npm run generate:docs
-          npm run build:frontend-assets
-
-      - name: Verify Wails and desktop source
-        run: |
-          npm run desktop:doctor
-          npm run check:wails-bindings
-          npm run typecheck:web
-          go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+      - name: Test Windows ARM64 desktop package
+        run: go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build unsigned ARM64 preview NSIS installer
         run: npm run desktop:release:windows-arm64
@@ -253,7 +343,7 @@ jobs:
           upload-release-assets: false
 
       - name: Attest Windows ARM64 build provenance
-        if: github.event.repository.private == false
+        if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.artifact.outputs.path }}
@@ -269,10 +359,12 @@ jobs:
 
   linux:
     name: Linux x64 Gate
+    needs: release-inputs
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 25
     env:
       GOFLAGS: "-tags=gtk3"
+      JFTRADE_DESKTOP_PREPARED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -283,6 +375,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+          cache-dependency-path: go.sum
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -290,32 +383,22 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
+      - name: Download prepared release inputs
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-build-inputs-${{ github.run_id }}
+          path: .
+
       - name: Install Linux desktop dependencies
         run: |
           sudo apt-get update
-          # Wails doctor needs the default GTK4/WebKitGTK 6.0 stack; the
-          # actual release build below deliberately uses -tags=gtk3.
           sudo apt-get install -y \
             pkg-config \
-            libgtk-4-dev \
-            libwebkitgtk-6.0-dev \
             libgtk-3-dev \
             libwebkit2gtk-4.1-dev
 
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Prepare generated release inputs
-        run: |
-          npm run generate:docs
-          npm run build:frontend-assets
-
-      - name: Verify Wails and desktop source
-        run: |
-          npm run desktop:doctor
-          npm run check:wails-bindings
-          npm run typecheck:web
-          go test -tags release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
+      - name: Test Linux desktop package
+        run: go test -tags release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build Linux artifact
         run: npm run desktop:release:linux
@@ -337,7 +420,7 @@ jobs:
           upload-release-assets: false
 
       - name: Attest Linux build provenance
-        if: github.event.repository.private == false
+        if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.artifact.outputs.path }}
@@ -355,7 +438,7 @@ jobs:
     name: Publish GitHub Release
     if: >-
       always() &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run != true)) &&
       needs.macos.result == 'success' &&
       needs.windows.result == 'success' &&
       needs.linux.result == 'success'

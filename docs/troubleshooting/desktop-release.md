@@ -36,14 +36,14 @@ JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 npm run desktop:release:darwin
 
 `dev`、`v0.0.0`、分支名和其他 tag 都会被 release 脚本拒绝。版本、提交号和构建时间会同时注入 Go buildinfo、macOS Info.plist 和 Windows version resource。
 
-推送 tag 会启动 `.github/workflows/desktop-release.yml`；macOS、Windows x64 和 Linux 三个平台任务全部通过后，`publish` job 会创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`。Windows ARM64 是预览构建，失败不会阻塞这三套正式资产：
+推送 tag 会启动 `.github/workflows/desktop-release.yml`。工作流先集中生成一次 Swagger、前端压缩包和 Pineworker bundle，再把同一组输入交给四个平台构建；平台任务不再重复安装前端依赖或生成平台无关资产。`publish` 会等待四个平台任务结束，macOS、Windows x64 和 Linux 全部通过后创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`。Windows ARM64 是预览构建，失败不会阻塞这三套正式资产：
 
 ```bash
 git tag v1.2.3
 git push origin v1.2.3
 ```
 
-也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径与 tag 推送一样会发布 Release。相同 tag 的发布会串行执行，避免重复上传同一组 assets。直接在 Releases 页面创建或发布 Release 不会触发构建。
+也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径默认与 tag 推送一样发布 Release。勾选 `dry_run` 时仍会完成四个平台构建并保留 workflow artifacts，但不会写入 provenance 或修改 GitHub Release。相同 tag 的发布会串行执行，避免重复上传同一组 assets。直接在 Releases 页面创建或发布 Release 不会触发构建。
 
 开发构建与 bindings：
 
@@ -67,7 +67,9 @@ npm run typecheck:web
 
 - macOS：固定使用 `macos-15` ARM64 runner，仅构建 Apple Silicon ARM64，生成文件名带 `macos-arm64-unsigned` 的 DMG，不再生成 x86_64 或 Universal 产物，也不执行 Developer ID 签名、公证或 staple。
 - Windows：生成文件名带 `unsigned` 的 x64 per-user NSIS，不执行 Authenticode 签名。
-- Linux x64：构建门禁仍使用 GTK3；CI 同时安装 GTK4/WebKitGTK 6.0，以满足 Wails `doctor` 的默认依赖探测。
+- Linux x64：构建门禁仍使用 GTK3；共享输入预构建任务同时安装 GTK4/WebKitGTK 6.0，以满足 Wails `doctor` 的默认依赖探测。
+
+平台 job 通过内部环境变量 `JFTRADE_DESKTOP_PREPARED=1` 使用共享输入，并会在编译前拒绝缺失或空的 Swagger、前端压缩包和 Pineworker bundle。该变量只供 CI 使用；本地 `desktop:build` / `desktop:release:*` 仍会完整准备所需资产。
 
 发布流程不需要任何 Apple 或 Windows 证书 secrets。未签名的 macOS 包会触发 Gatekeeper 的“无法验证开发者”提示，Windows 包可能触发 SmartScreen 提示。发布任务仍上传各平台 SPDX JSON SBOM 和 `SHA256SUMS`；GitHub artifact attestation 仅在公开仓库写入 provenance，因为 GitHub 不支持用户所有的私有仓库持久化该类 attestation。
 

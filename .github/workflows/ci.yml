@@ -6,9 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-and-test:
-    name: Build & Test
+  go-and-contracts:
+    name: Go & Contracts
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -21,6 +28,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+          cache-dependency-path: go.sum
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -46,15 +54,14 @@ jobs:
           go install github.com/mgechev/revive@v1.15.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - name: Install frontend dependencies
-        run: npm install
-
       - name: Wails doctor
         run: npm run desktop:doctor
 
-      - name: Generate API docs
+      - name: Generate runtime contracts
         run: |
-          npm run generate:docs
+          npm run generate:openapi
+          go run ./cmd/generate-pine-spec-docs -out docs/reference/generated
+          git diff --exit-code -- docs/reference/generated/pine-v6-support.md
 
       - name: Lint
         uses: golangci/golangci-lint-action@v9
@@ -133,41 +140,8 @@ jobs:
       - name: Go coverage gate
         run: npm run test:coverage:go
 
-      - name: Build binaries
-        run: go build ./cmd/jftrade-api/
-
-      - name: Frontend test
-        run: npm run test:web
-
-      - name: Frontend typecheck
-        run: npm run typecheck:web
-
-      - name: PineTS worker test
-        run: npm run test:pineworker
-
-      - name: PineTS worker typecheck
-        run: npm run typecheck:pineworker
-
-      - name: Frontend embedded asset build
-        run: npm run build:frontend-assets
-
-      - name: Frontend release asset test
-        run: go test -tags release_assets ./internal/frontendassets -run TestFileSystem
-
       - name: Wails bindings are current
         run: npm run check:wails-bindings
-
-      - name: Desktop release metadata test
-        run: |
-          npm run test:desktop-release-metadata
-          npm run test:desktop-mac-bundle
-          node scripts/dev-desktop.test.mjs
-
-      - name: PineTS release check script test
-        run: npm run test:pinets-release-check
-
-      - name: PineTS compliance notice check
-        run: npm run check:pinets-compliance
 
       - name: PineTS shadow corpus report
         env:
@@ -184,8 +158,85 @@ jobs:
           path: artifacts/pinets-shadow/report.json
           if-no-files-found: warn
 
+      - name: Architecture dependency check
+        run: bash scripts/check-arch-deps.sh
+
+  web-and-pine:
+    name: Web & Pine
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Use declared npm version
+        run: npm install --global npm@10.9.7 --no-audit --no-fund
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Frontend test
+        run: npm run test:web:ci
+
+      - name: Frontend typecheck
+        run: npm run typecheck:web
+
+      - name: PineTS worker test
+        run: npm run test:pineworker
+
+      - name: PineTS worker typecheck
+        run: npm run typecheck:pineworker
+
+      - name: Frontend embedded asset build
+        run: npm run build:frontend-assets
+
+      - name: Frontend release asset test
+        run: go test -tags release_assets ./internal/frontendassets -run TestFileSystem
+
+      - name: Desktop release script tests
+        run: |
+          npm run test:desktop-release-metadata
+          npm run test:desktop-release-inputs
+          npm run test:desktop-mac-bundle
+          npm run test:desktop-windows-resource-metadata
+          node scripts/dev-desktop.test.mjs
+
+      - name: PineTS release check script test
+        run: npm run test:pinets-release-check
+
+      - name: PineTS compliance notice check
+        run: npm run check:pinets-compliance
+
       - name: PineTS worker asset build script test
         run: npm run test:pineworker-asset-build
 
-      - name: Architecture dependency check
-        run: bash scripts/check-arch-deps.sh
+  build-and-test:
+    name: Build & Test
+    if: ${{ always() }}
+    needs: [go-and-contracts, web-and-pine]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all CI lanes
+        env:
+          GO_RESULT: ${{ needs.go-and-contracts.result }}
+          WEB_RESULT: ${{ needs.web-and-pine.result }}
+        run: |
+          if [[ "$GO_RESULT" != "success" || "$WEB_RESULT" != "success" ]]; then
+            echo "Go & Contracts: $GO_RESULT"
+            echo "Web & Pine: $WEB_RESULT"
+            exit 1
+          fi

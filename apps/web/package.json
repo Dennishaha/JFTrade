@@ -13,6 +13,7 @@
     "docs:build": "vitepress build ../../docs",
     "build": "vite build",
     "test": "vitest run",
+    "test:ci": "vitest run --fileParallelism --maxWorkers=2",
     "test:watch": "vitest",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json"
   },

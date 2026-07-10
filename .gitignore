@@ -6,8 +6,6 @@
 coverage.txt
 
 # Node
-# lockfiles are generated locally and intentionally not committed
-package-lock.json
 node_modules/
 .npm
 .pnpm-store/
