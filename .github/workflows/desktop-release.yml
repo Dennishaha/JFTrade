@@ -55,6 +55,11 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
+      - name: Prepare generated release inputs
+        run: |
+          npm run generate:docs
+          npm run build:frontend-assets
+
       - name: Verify Wails and desktop source
         run: |
           npm run desktop:doctor
@@ -118,10 +123,20 @@ jobs:
 
       - name: Install packaging tools
         shell: pwsh
-        run: choco install nsis -y --no-progress
+        run: |
+          choco install nsis -y --no-progress
+          $makensis = Join-Path ${env:ProgramFiles(x86)} "NSIS\makensis.exe"
+          if (-not (Test-Path $makensis)) { throw "NSIS compiler was not installed: $makensis" }
+          "MAKENSIS=$makensis" | Out-File -FilePath $env:GITHUB_ENV -Append
+          (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Install frontend dependencies
         run: npm install
+
+      - name: Prepare generated release inputs
+        run: |
+          npm run generate:docs
+          npm run build:frontend-assets
 
       - name: Verify Wails and desktop source
         run: |
@@ -192,10 +207,20 @@ jobs:
 
       - name: Install packaging tools
         shell: pwsh
-        run: choco install nsis -y --no-progress
+        run: |
+          choco install nsis -y --no-progress
+          $makensis = Join-Path ${env:ProgramFiles(x86)} "NSIS\makensis.exe"
+          if (-not (Test-Path $makensis)) { throw "NSIS compiler was not installed: $makensis" }
+          "MAKENSIS=$makensis" | Out-File -FilePath $env:GITHUB_ENV -Append
+          (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Install frontend dependencies
         run: npm install
+
+      - name: Prepare generated release inputs
+        run: |
+          npm run generate:docs
+          npm run build:frontend-assets
 
       - name: Verify Wails and desktop source
         run: |
@@ -275,6 +300,11 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm install
+
+      - name: Prepare generated release inputs
+        run: |
+          npm run generate:docs
+          npm run build:frontend-assets
 
       - name: Verify Wails and desktop source
         run: |

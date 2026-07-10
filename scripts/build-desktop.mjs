@@ -8,14 +8,6 @@ import { resolveDesktopBuildMetadata } from "./lib/desktop-release-metadata.mjs"
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const desktopDistDir = path.join(rootDir, "dist", "desktop");
-const embedDir = path.join(rootDir, "internal", "frontendassets", "dist");
-const embedArchive = path.join(
-  rootDir,
-  "internal",
-  "frontendassets",
-  "dist.zip",
-);
-const webDistDir = path.join(rootDir, "apps", "web", "dist");
 const buildMetadata = resolveDesktopBuildMetadata();
 
 const platformAliases = {
@@ -58,23 +50,10 @@ function runStatus(command, args, options = {}) {
   return spawnChecked(command, args, { cwd: rootDir, ...options });
 }
 
+run("npm", ["run", "prepare:desktop-release"]);
 run("npm", ["run", "generate:wails-bindings"], { env: hostGoEnvironment() });
-run("npm", ["run", "build:web"]);
 run("npm", ["run", "build:pineworker"]);
 cleanupLegacyDesktopOutputs();
-
-fs.rmSync(embedDir, { recursive: true, force: true });
-fs.rmSync(embedArchive, { force: true });
-fs.mkdirSync(path.dirname(embedDir), { recursive: true });
-fs.cpSync(webDistDir, embedDir, { recursive: true });
-run("go", [
-  "run",
-  "./scripts/archive_frontend_assets.go",
-  "-src",
-  webDistDir,
-  "-dst",
-  embedArchive,
-]);
 
 const outputDir = targetOutputDir(requestedTarget, arch);
 fs.rmSync(outputDir, { recursive: true, force: true });
