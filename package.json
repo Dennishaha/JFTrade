@@ -58,7 +58,7 @@
     "test:coverage:web": "npm -w @jftrade/web run test -- --coverage",
     "test:pineworker": "npm -w @jftrade/pineworker run test",
     "typecheck:web": "npm -w @jftrade/web run typecheck",
-    "typecheck:pineworker": "npx tsc --noEmit -p workers/pineworker/tsconfig.json",
+    "typecheck:pineworker": "npm -w @jftrade/pineworker run typecheck",
     "generate:openapi": "go generate ./cmd/jftrade-api",
     "generate:reference": "node scripts/generate-docs.mjs",
     "generate:docs": "npm run generate:openapi && npm run generate:reference",

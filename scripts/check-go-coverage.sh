@@ -11,7 +11,11 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$repo_root"
-go test ./... -count=1 -timeout "${GO_TEST_TIMEOUT:-300s}" -coverprofile="$profile"
+test_packages=(./...)
+if [[ -n "${GO_COVERAGE_PACKAGES:-}" ]]; then
+  read -r -a test_packages <<<"$GO_COVERAGE_PACKAGES"
+fi
+go test "${test_packages[@]}" -count=1 -timeout "${GO_TEST_TIMEOUT:-300s}" -coverprofile="$profile"
 
 raw_total="$(go tool cover -func="$profile" | tail -1 | awk '{print $NF}')"
 read -r covered total percentage < <(

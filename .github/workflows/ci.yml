@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  go-and-contracts:
-    name: Go & Contracts
+  go-quality:
+    name: Go Quality & Contracts
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -57,11 +57,8 @@ jobs:
       - name: Wails doctor
         run: npm run desktop:doctor
 
-      - name: Generate runtime contracts
-        run: |
-          npm run generate:openapi
-          go run ./cmd/generate-pine-spec-docs -out docs/reference/generated
-          git diff --exit-code -- docs/reference/generated/pine-v6-support.md
+      - name: Generate OpenAPI contract
+        run: npm run generate:openapi
 
       - name: Lint
         uses: golangci/golangci-lint-action@v9
@@ -137,32 +134,50 @@ jobs:
       - name: Build
         run: go build ./...
 
-      - name: Go coverage gate
-        run: npm run test:coverage:go
+      - name: Test command packages
+        run: go test ./cmd/... -count=1 -timeout 300s
 
       - name: Wails bindings are current
         run: npm run check:wails-bindings
 
-      - name: PineTS shadow corpus report
-        env:
-          JFTRADE_PINETS_SHADOW_REPORT_PATH: ${{ github.workspace }}/artifacts/pinets-shadow/report.json
-        run: |
-          mkdir -p artifacts/pinets-shadow
-          npm run test:pinets-shadow-corpus
-
-      - name: Upload PineTS shadow corpus report
-        if: ${{ always() && hashFiles('artifacts/pinets-shadow/report.json') != '' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: pinets-shadow-corpus-${{ github.run_id }}
-          path: artifacts/pinets-shadow/report.json
-          if-no-files-found: warn
-
       - name: Architecture dependency check
         run: bash scripts/check-arch-deps.sh
 
-  web-and-pine:
-    name: Web & Pine
+  go-coverage:
+    name: Go Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: "0"
+      GO_COVERAGE_PACKAGES: ./internal/... ./pkg/... ./scripts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache-dependency-path: go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Use declared npm version
+        run: npm install --global npm@10.9.7 --no-audit --no-fund
+
+      - name: Install PineTS integration dependency
+        run: npm ci --workspace @jftrade/pineworker --include-workspace-root=false --omit=dev --no-audit --no-fund
+
+      - name: Go coverage gate
+        run: npm run test:coverage:go
+
+  web:
+    name: Web
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -186,19 +201,13 @@ jobs:
         run: npm install --global npm@10.9.7 --no-audit --no-fund
 
       - name: Install frontend dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --workspace @jftrade/web --include-workspace-root=true --no-audit --no-fund
 
       - name: Frontend test
         run: npm run test:web:ci
 
       - name: Frontend typecheck
         run: npm run typecheck:web
-
-      - name: PineTS worker test
-        run: npm run test:pineworker
-
-      - name: PineTS worker typecheck
-        run: npm run typecheck:pineworker
 
       - name: Frontend embedded asset build
         run: npm run build:frontend-assets
@@ -214,11 +223,64 @@ jobs:
           npm run test:desktop-windows-resource-metadata
           node scripts/dev-desktop.test.mjs
 
+  pine:
+    name: Pine & Workers
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache-dependency-path: go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Use declared npm version
+        run: npm install --global npm@10.9.7 --no-audit --no-fund
+
+      - name: Install Pine dependencies
+        run: npm ci --workspace @jftrade/pineworker --include-workspace-root=false --no-audit --no-fund
+
+      - name: PineTS worker test
+        run: npm run test:pineworker
+
+      - name: PineTS worker typecheck
+        run: npm run typecheck:pineworker
+
+      - name: Generate Pine contract
+        run: |
+          go run ./cmd/generate-pine-spec-docs -out docs/reference/generated
+          git diff --exit-code -- docs/reference/generated/pine-v6-support.md
+
       - name: PineTS release check script test
         run: npm run test:pinets-release-check
 
       - name: PineTS compliance notice check
         run: npm run check:pinets-compliance
+
+      - name: PineTS shadow corpus report
+        env:
+          JFTRADE_PINETS_SHADOW_REPORT_PATH: ${{ github.workspace }}/artifacts/pinets-shadow/report.json
+        run: |
+          mkdir -p artifacts/pinets-shadow
+          npm run test:pinets-shadow-corpus
+
+      - name: Upload PineTS shadow corpus report
+        if: ${{ always() && hashFiles('artifacts/pinets-shadow/report.json') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: pinets-shadow-corpus-${{ github.run_id }}
+          path: artifacts/pinets-shadow/report.json
+          if-no-files-found: warn
 
       - name: PineTS worker asset build script test
         run: npm run test:pineworker-asset-build
@@ -226,17 +288,21 @@ jobs:
   build-and-test:
     name: Build & Test
     if: ${{ always() }}
-    needs: [go-and-contracts, web-and-pine]
+    needs: [go-quality, go-coverage, web, pine]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require all CI lanes
         env:
-          GO_RESULT: ${{ needs.go-and-contracts.result }}
-          WEB_RESULT: ${{ needs.web-and-pine.result }}
+          GO_QUALITY_RESULT: ${{ needs.go-quality.result }}
+          GO_COVERAGE_RESULT: ${{ needs.go-coverage.result }}
+          WEB_RESULT: ${{ needs.web.result }}
+          PINE_RESULT: ${{ needs.pine.result }}
         run: |
-          if [[ "$GO_RESULT" != "success" || "$WEB_RESULT" != "success" ]]; then
-            echo "Go & Contracts: $GO_RESULT"
-            echo "Web & Pine: $WEB_RESULT"
+          if [[ "$GO_QUALITY_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" ]]; then
+            echo "Go Quality & Contracts: $GO_QUALITY_RESULT"
+            echo "Go Coverage: $GO_COVERAGE_RESULT"
+            echo "Web: $WEB_RESULT"
+            echo "Pine & Workers: $PINE_RESULT"
             exit 1
           fi
