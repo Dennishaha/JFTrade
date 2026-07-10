@@ -11,24 +11,26 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      GOFLAGS: "-tags=gtk3"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.26'
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
 
       - name: Install CI tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ripgrep
+          sudo apt-get install -y pkg-config ripgrep libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Install revive
         run: |
@@ -46,7 +48,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.0
-          args: --timeout=5m
+          args: --timeout=5m --build-tags=gtk3
 
       - name: Go production file length gate
         shell: bash
@@ -154,8 +156,8 @@ jobs:
           npm run test:pinets-shadow-corpus
 
       - name: Upload PineTS shadow corpus report
-        if: always()
-        uses: actions/upload-artifact@v4
+        if: ${{ always() && hashFiles('artifacts/pinets-shadow/report.json') != '' }}
+        uses: actions/upload-artifact@v7
         with:
           name: pinets-shadow-corpus-${{ github.run_id }}
           path: artifacts/pinets-shadow/report.json
