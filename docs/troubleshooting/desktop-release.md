@@ -68,7 +68,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
 - macOS：固定使用 `macos-15` ARM64 runner，仅构建 Apple Silicon ARM64，生成文件名带 `macos-arm64-unsigned` 的 DMG，不再生成 x86_64 或 Universal 产物，也不执行 Developer ID 签名、公证或 staple。
 - Windows：生成文件名带 `unsigned` 的 x64 per-user NSIS，不执行 Authenticode 签名。
-- Linux x64：维持 GTK3 构建门禁。
+- Linux x64：构建门禁仍使用 GTK3；CI 同时安装 GTK4/WebKitGTK 6.0，以满足 Wails `doctor` 的默认依赖探测。
 
 发布流程不需要任何 Apple 或 Windows 证书 secrets。未签名的 macOS 包会触发 Gatekeeper 的“无法验证开发者”提示，Windows 包可能触发 SmartScreen 提示。发布任务仍上传各平台 SPDX JSON SBOM、`SHA256SUMS`，并用 GitHub artifact attestation 写入构建 provenance。
 
