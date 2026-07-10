@@ -32,6 +32,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
 
       - name: Prepare artifact directory
         run: mkdir -p artifacts/performance
