@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"testing/fstest"
@@ -205,6 +207,49 @@ func TestStartForRunArgsClosesHandlerWhenDatabaseRebuildFinalizeFails(t *testing
 	waitForClose(t, handler, 1)
 }
 
+func TestStartForRunArgsReportsAPIPortConflictAndClosesHandler(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve API port: %v", err)
+	}
+	defer listener.Close()
+
+	store := &lifecycleTestStore{
+		interfaceSettings: jfsettings.InterfaceSettings{APIBind: listener.Addr().String()},
+	}
+	handler := &lifecycleTestHandler{}
+	_, err = StartForRunArgs(t.Context(), []string{"api"}, lifecycleDependencies(store, handler, nil))
+	if err == nil || !strings.Contains(err.Error(), "JFTrade API port conflict") {
+		t.Fatalf("StartForRunArgs error = %v, want API port conflict", err)
+	}
+	waitForClose(t, handler, 1)
+}
+
+func TestStartForRunArgsReportsGUIPortConflictAndClosesHandler(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve GUI port: %v", err)
+	}
+	defer listener.Close()
+
+	store := &lifecycleTestStore{
+		interfaceSettings: jfsettings.InterfaceSettings{
+			APIBind: "127.0.0.1:0",
+			GUIBind: listener.Addr().String(),
+		},
+	}
+	handler := &lifecycleTestHandler{}
+	_, err = StartForRunArgs(
+		t.Context(),
+		[]string{"api"},
+		lifecycleDependencies(store, handler, fstest.MapFS{"index.html": {Data: []byte("ok")}}),
+	)
+	if err == nil || !strings.Contains(err.Error(), "JFTrade GUI port conflict") {
+		t.Fatalf("StartForRunArgs error = %v, want GUI port conflict", err)
+	}
+	waitForClose(t, handler, 1)
+}
+
 func TestStartForRunArgsStopsAtFailingStartupStage(t *testing.T) {
 	wantErr := errors.New("startup failed")
 	defaults := jfsettings.LaunchDefaults{
@@ -316,6 +361,30 @@ func TestOnceShutdownReturnsStableHandlerError(t *testing.T) {
 
 func TestBestEffortLoggingIgnoresNonErrors(t *testing.T) {
 	jftradeLogError("ignored", nil, errors.New("expected close error"))
+}
+
+func lifecycleDependencies(store SettingsStore, handler Handler, frontendFS fs.FS) Dependencies {
+	return Dependencies{
+		ShouldStartForArgs: func([]string) bool { return true },
+		LoadFrontendFS:     func() fs.FS { return frontendFS },
+		ResolveLaunchDefaults: func(bool) jfsettings.LaunchDefaults {
+			return jfsettings.LaunchDefaults{
+				APIBind:        "127.0.0.1:3000",
+				GUIBind:        "127.0.0.1:5173",
+				SettingsPath:   "settings.json",
+				BacktestDBPath: "backtest.db",
+			}
+		},
+		EnvOrDefault:        func(_ string, value string) string { return value },
+		EnsureRuntimeLayout: func(string, string) error { return nil },
+		NewSettingsStore:    func(string) (SettingsStore, error) { return store, nil },
+		NewHandler:          func(SettingsStore) (Handler, error) { return handler, nil },
+		APIBaseURLForBind:   func(bind string) string { return "http://" + bind },
+		PortFromBind:        func(string, int) int { return 3000 },
+		ResolveGUIRuntimeAPIBase: func(jfsettings.InterfaceSettings, string) string {
+			return "http://runtime-api"
+		},
+	}
 }
 
 func waitForClose(t *testing.T, handler *lifecycleTestHandler, want int) {

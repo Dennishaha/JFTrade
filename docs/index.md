@@ -2,8 +2,9 @@
 
 这里是 JFTrade 控制台的用户文档入口。
 
-- 开发态：可以直接访问 `http://127.0.0.1:3001/`，也可以通过前端开发服务器的 `http://127.0.0.1:5173/docs/` 进入
-- 发布态：通过 GUI 同源路径 `/docs/` 访问
+- 浏览器开发态：可以直接访问 `http://127.0.0.1:3001/`，也可以通过前端开发服务器的 `http://127.0.0.1:5173/docs/` 进入
+- 浏览器式发布态：通过 GUI 同源路径 `/docs/` 访问
+- Wails 桌面版：前端仍直接访问 HTTP/SSE/WebSocket API；桌面构建与数据目录说明见 [桌面发布与通道隔离](./troubleshooting/desktop-release.md)
 
 ## 从这里开始
 
@@ -11,6 +12,7 @@
 - [配置](./configuration.md)：了解运行时目录、管理员密钥、端口绑定和 OpenD 集成。
 - [使用指南](./usage.md)：按控制台功能区进入账户、行情、策略、回测和系统功能。
 - [排障](./troubleshooting.md)：定位启动、端口、实时连接和 OpenD 问题。
+- [桌面发布与通道隔离](./troubleshooting/desktop-release.md)：运行 `JFTrade Dev`、构建正式产品并理解数据、端口和单实例隔离。
 
 ## 自动生成参考
 

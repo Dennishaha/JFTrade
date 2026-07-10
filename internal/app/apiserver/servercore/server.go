@@ -96,6 +96,7 @@ type Server struct {
 	backtestPineWorkerRunner pineWorkerRunner
 	instancePineWorkerRunner pineWorkerRunner
 	observability            *observability.Recorder
+	desktopAPIToken          string
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
@@ -114,6 +115,7 @@ type SidecarOptions struct {
 	RuntimeAPIBaseURL string
 	NotificationSink  func(live.Event) live.NotificationDelivery
 	DesktopMode       bool
+	DesktopAPIToken   string
 }
 
 // SidecarSettingsStore is the settings surface required by the legacy HTTP server.
@@ -159,6 +161,7 @@ func NewSidecarHandlerWithOptions(store SidecarSettingsStore, options SidecarOpt
 	server := newServerWithFrontend(store, newFrontendServerWithRuntimeConfig(options.FrontendFS, options.RuntimeAPIBaseURL))
 	server.liveNotificationSink = options.NotificationSink
 	server.desktopMode = options.DesktopMode
+	server.desktopAPIToken = strings.TrimSpace(options.DesktopAPIToken)
 	if server.frontend != nil {
 		server.frontend.setDesktopMode(options.DesktopMode)
 	}

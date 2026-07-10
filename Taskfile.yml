@@ -42,7 +42,7 @@ tasks:
       - node scripts/release-desktop.mjs {{OS}}
 
   desktop:release:darwin:
-    desc: Build and verify the macOS desktop release on macOS
+    desc: Build and verify the macOS arm64 desktop release on macOS
     cmds:
       - node scripts/release-desktop.mjs darwin
 

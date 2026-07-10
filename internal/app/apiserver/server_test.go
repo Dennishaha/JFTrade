@@ -126,7 +126,7 @@ func TestStartDesktopDoesNotPersistentlyDisableAdminAuth(t *testing.T) {
 	}
 }
 
-func TestResolveDesktopRuntimeConfigUsesSettingsAPIBind(t *testing.T) {
+func TestResolveDesktopRuntimeConfigUsesProfileBindInsteadOfPersistedInterfaceBind(t *testing.T) {
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
 	settingsBind := freeTCPAddr(t)
 	if err := os.WriteFile(settingsPath, []byte(`{"interfaces":{"apiBind":"`+settingsBind+`"}}`), 0o600); err != nil {
@@ -134,16 +134,21 @@ func TestResolveDesktopRuntimeConfigUsesSettingsAPIBind(t *testing.T) {
 	}
 	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
 	t.Setenv("JFTRADE_API_BIND", "")
+	defaults := jfsettings.LaunchDefaults{
+		APIBind:        "127.0.0.1:6698",
+		SettingsPath:   settingsPath,
+		BacktestDBPath: filepath.Join(t.TempDir(), "backtest.db"),
+	}
 
-	config, err := ResolveDesktopRuntimeConfig()
+	config, err := ResolveDesktopRuntimeConfigWithDefaults(defaults, false)
 	if err != nil {
-		t.Fatalf("ResolveDesktopRuntimeConfig: %v", err)
+		t.Fatalf("ResolveDesktopRuntimeConfigWithDefaults: %v", err)
 	}
-	if config.APIBind != settingsBind {
-		t.Fatalf("APIBind = %q, want settings override %q", config.APIBind, settingsBind)
+	if config.APIBind != defaults.APIBind {
+		t.Fatalf("APIBind = %q, want profile bind %q instead of persisted %q", config.APIBind, defaults.APIBind, settingsBind)
 	}
-	if config.APIBaseURL != "http://"+settingsBind {
-		t.Fatalf("APIBaseURL = %q, want http://%s", config.APIBaseURL, settingsBind)
+	if config.APIBaseURL != "http://"+defaults.APIBind {
+		t.Fatalf("APIBaseURL = %q, want http://%s", config.APIBaseURL, defaults.APIBind)
 	}
 }
 
@@ -152,6 +157,72 @@ func TestResolveDesktopRuntimeConfigRejectsEphemeralAPIBind(t *testing.T) {
 
 	if _, err := ResolveDesktopRuntimeConfig(); err == nil || !strings.Contains(err.Error(), "stable local port") {
 		t.Fatalf("ResolveDesktopRuntimeConfig error = %v, want stable port error", err)
+	}
+}
+
+func TestStartDesktopWithConfigKeepsResolvedProfileBind(t *testing.T) {
+	profileBind := freeTCPAddr(t)
+	persistedBind := freeTCPAddr(t)
+	runtimeDir := t.TempDir()
+	settingsPath := filepath.Join(runtimeDir, "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"interfaces":{"apiBind":"`+persistedBind+`"}}`), 0o600); err != nil {
+		t.Fatalf("write settings: %v", err)
+	}
+	runtimeConfig := DesktopRuntimeConfig{
+		Defaults: jfsettings.LaunchDefaults{
+			APIBind:        profileBind,
+			SettingsPath:   settingsPath,
+			BacktestDBPath: filepath.Join(runtimeDir, "backtest.db"),
+		},
+		SettingsPath: settingsPath,
+		BacktestPath: filepath.Join(runtimeDir, "backtest.db"),
+		APIBind:      profileBind,
+		APIBaseURL:   "http://" + profileBind,
+	}
+
+	shutdown, err := StartDesktopWithConfig(t.Context(), runtimeConfig, nil)
+	if err != nil {
+		t.Fatalf("StartDesktopWithConfig: %v", err)
+	}
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			t.Fatalf("shutdown: %v", err)
+		}
+	}()
+
+	response, err := http.Get(runtimeConfig.APIBaseURL + "/api/v1/system/status")
+	if err != nil {
+		t.Fatalf("GET resolved profile bind: %v", err)
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("resolved profile status = %d", response.StatusCode)
+	}
+}
+
+func TestResolvePackagedDesktopRuntimeRequiresLoopback(t *testing.T) {
+	defaults := jfsettings.LaunchDefaults{
+		APIBind:        "127.0.0.1:6699",
+		SettingsPath:   filepath.Join(t.TempDir(), "settings.json"),
+		BacktestDBPath: filepath.Join(t.TempDir(), "backtest.db"),
+	}
+
+	for _, bind := range []string{"0.0.0.0:6699", "192.168.1.20:6699", "[::]:6699"} {
+		t.Run(bind, func(t *testing.T) {
+			t.Setenv("JFTRADE_API_BIND", bind)
+			if _, err := ResolveDesktopRuntimeConfigWithDefaults(defaults, true); err == nil || !strings.Contains(err.Error(), "loopback") {
+				t.Fatalf("ResolveDesktopRuntimeConfigWithDefaults(%q) error = %v, want loopback rejection", bind, err)
+			}
+		})
+	}
+
+	for _, bind := range []string{"127.0.0.1:6699", "localhost:6699", "[::1]:6699"} {
+		t.Run(bind, func(t *testing.T) {
+			t.Setenv("JFTRADE_API_BIND", bind)
+			if _, err := ResolveDesktopRuntimeConfigWithDefaults(defaults, true); err != nil {
+				t.Fatalf("ResolveDesktopRuntimeConfigWithDefaults(%q): %v", bind, err)
+			}
+		})
 	}
 }
 
@@ -263,6 +334,9 @@ func TestStartDesktopReportsAPIBindFailure(t *testing.T) {
 	}
 	if shutdown != nil {
 		t.Fatal("StartDesktop returned shutdown on startup failure")
+	}
+	if !strings.Contains(err.Error(), "API port conflict") || !strings.Contains(err.Error(), listener.Addr().String()) {
+		t.Fatalf("StartDesktop error = %q, want explicit occupied port", err)
 	}
 }
 

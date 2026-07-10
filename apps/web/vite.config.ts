@@ -2,6 +2,7 @@ import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 import vueDevTools from "vite-plugin-vue-devtools";
 import { defineConfig } from "vitest/config";
+import type { Plugin } from "vite";
 
 type RuntimeProcess = {
   env?: Record<string, string | undefined>;
@@ -9,9 +10,11 @@ type RuntimeProcess = {
 };
 
 function resolveLaunchEditor(): string | null {
-  const runtimeProcess = (globalThis as typeof globalThis & {
-    [key: string]: RuntimeProcess | undefined;
-  })["process"];
+  const runtimeProcess = (
+    globalThis as typeof globalThis & {
+      [key: string]: RuntimeProcess | undefined;
+    }
+  )["process"];
   const launchEditorFromEnv = runtimeProcess?.env?.LAUNCH_EDITOR;
 
   if (launchEditorFromEnv) {
@@ -29,7 +32,9 @@ const launchEditor = resolveLaunchEditor();
 let devToolsOptions: Parameters<typeof vueDevTools>[0];
 
 if (typeof launchEditor === "string") {
-  devToolsOptions = { launchEditor } as NonNullable<Parameters<typeof vueDevTools>[0]>;
+  devToolsOptions = { launchEditor } as NonNullable<
+    Parameters<typeof vueDevTools>[0]
+  >;
 }
 
 const developmentApiTarget = "http://127.0.0.1:3000";
@@ -54,9 +59,11 @@ function createProxyEntry(target: string) {
 
 function runtimeEnv(): Record<string, string | undefined> {
   return (
-    (globalThis as typeof globalThis & {
-      [key: string]: RuntimeProcess | undefined;
-    })["process"]?.env ?? {}
+    (
+      globalThis as typeof globalThis & {
+        [key: string]: RuntimeProcess | undefined;
+      }
+    )["process"]?.env ?? {}
   );
 }
 
@@ -96,6 +103,31 @@ function resolveDevelopmentApiTarget(): string {
 
 const resolvedDevelopmentApiTarget = resolveDevelopmentApiTarget();
 
+function desktopRuntimeConfigPlugin(): Plugin {
+  return {
+    name: "jftrade-desktop-runtime-config",
+    configureServer(server) {
+      server.middlewares.use(
+        "/runtime-config.js",
+        (_request, response, next) => {
+          if (runtimeEnv().JFTRADE_DESKTOP_MODE !== "1") {
+            next();
+            return;
+          }
+          response.setHeader(
+            "Content-Type",
+            "application/javascript; charset=utf-8",
+          );
+          response.setHeader("Cache-Control", "no-store");
+          response.end(
+            `window.__JFTRADE_RUNTIME_CONFIG__ = Object.assign({}, window.__JFTRADE_RUNTIME_CONFIG__, ${JSON.stringify({ apiBaseUrl: resolvedDevelopmentApiTarget, authRequired: false, desktopMode: true })});\n`,
+          );
+        },
+      );
+    },
+  };
+}
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -110,7 +142,12 @@ export default defineConfig({
       "vue",
     ],
   },
-  plugins: [vue(), tailwindcss(), vueDevTools(devToolsOptions)],
+  plugins: [
+    desktopRuntimeConfigPlugin(),
+    vue(),
+    tailwindcss(),
+    vueDevTools(devToolsOptions),
+  ],
   optimizeDeps: {
     include: [
       "@vue-flow/background",

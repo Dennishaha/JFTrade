@@ -77,7 +77,7 @@ func NewHandler(backend Backend, options Options) *Handler {
 		backend: backend,
 		upgrader: websocket.Upgrader{CheckOrigin: func(*http.Request) bool {
 			return true
-		}},
+		}, Subprotocols: []string{"jftrade.desktop.v1"}},
 		options:     options,
 		ctx:         ctx,
 		cancel:      cancel,

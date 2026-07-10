@@ -17,7 +17,7 @@ import (
 )
 
 func TestMainWindowOptionsUseWebZoom(t *testing.T) {
-	options := mainWindowOptions()
+	options := mainWindowOptions(currentDesktopBuildProfile())
 
 	if options.Zoom != desktopWebviewZoom {
 		t.Fatalf("window zoom = %v, want %v", options.Zoom, desktopWebviewZoom)
@@ -28,13 +28,43 @@ func TestMainWindowOptionsUseWebZoom(t *testing.T) {
 	if options.CSS != "" {
 		t.Fatalf("window CSS = %q, want no desktop scale override", options.CSS)
 	}
+	if !options.UseApplicationMenu {
+		t.Fatal("main window should use the native application menu")
+	}
+}
+
+func TestDesktopSingleInstanceOptionsAreChannelScoped(t *testing.T) {
+	profile := desktopBuildProfile{SingleInstanceID: "com.jftrade.desktop.dev"}
+	secondLaunches := 0
+	options := desktopSingleInstanceOptions(profile, func() { secondLaunches++ })
+	if options.UniqueID != profile.SingleInstanceID {
+		t.Fatalf("single instance ID = %q", options.UniqueID)
+	}
+	options.OnSecondInstanceLaunch(application.SecondInstanceData{})
+	if secondLaunches != 1 {
+		t.Fatalf("second launch callbacks = %d, want 1", secondLaunches)
+	}
+}
+
+func TestDesktopBuildChannelsCanCoexist(t *testing.T) {
+	development := developmentDesktopBuildProfile()
+	release := releaseDesktopBuildProfile()
+	if development.ApplicationName == release.ApplicationName || development.ProductIdentifier == release.ProductIdentifier {
+		t.Fatalf("application identities overlap: dev=%#v release=%#v", development, release)
+	}
+	if development.SingleInstanceID == release.SingleInstanceID || development.DefaultAPIBind == release.DefaultAPIBind {
+		t.Fatalf("runtime identities overlap: dev=%#v release=%#v", development, release)
+	}
+	if development.UpdateChecksEnabled || !release.UpdateChecksEnabled {
+		t.Fatalf("update policies = dev:%v release:%v", development.UpdateChecksEnabled, release.UpdateChecksEnabled)
+	}
 }
 
 func TestDesktopRuntimeConfigDisablesAuth(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/runtime-config.js", nil)
 
-	writeDesktopRuntimeConfig(recorder, request, "http://127.0.0.1:6699")
+	writeDesktopRuntimeConfig(recorder, request, "http://127.0.0.1:6699", "desktop-token")
 
 	body := recorder.Body.String()
 	if recorder.Code != http.StatusOK {
@@ -49,6 +79,9 @@ func TestDesktopRuntimeConfigDisablesAuth(t *testing.T) {
 	if !strings.Contains(body, `"apiBaseUrl":"http://127.0.0.1:6699"`) {
 		t.Fatalf("runtime config did not include API base URL: %q", body)
 	}
+	if !strings.Contains(body, `"desktopApiToken":"desktop-token"`) {
+		t.Fatalf("runtime config did not include desktop API token: %q", body)
+	}
 	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
@@ -58,7 +91,7 @@ func TestDesktopAssetHandlerOverridesRuntimeConfig(t *testing.T) {
 	nextCalled := false
 	handler := newDesktopAssetHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		nextCalled = true
-	}), fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<main>JFTrade</main>")}}, "http://127.0.0.1:6699")
+	}), fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<main>JFTrade</main>")}}, "http://127.0.0.1:6699", "")
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/runtime-config.js", nil))
@@ -76,7 +109,7 @@ func TestDesktopAssetHandlerServesIndexForSPARoute(t *testing.T) {
 		http.NotFound(w, nil)
 	}), fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("<main>JFTrade settings</main>")},
-	}, "http://127.0.0.1:6699")
+	}, "http://127.0.0.1:6699", "")
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/settings/system-notifications", nil))
@@ -97,7 +130,7 @@ func TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset(t *testing.T) {
 		http.NotFound(w, nil)
 	}), fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("<main>JFTrade</main>")},
-	}, "http://127.0.0.1:6699")
+	}, "http://127.0.0.1:6699", "")
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/assets/missing.js", nil))
@@ -111,9 +144,10 @@ func TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset(t *testing.T) {
 }
 
 func TestDesktopTrayMenuLabels(t *testing.T) {
-	menu := newDesktopTrayMenu(nil, nil, nil, nil)
+	profile := currentDesktopBuildProfile()
+	menu := newDesktopTrayMenu(nil, nil, nil, profile, nil)
 
-	for _, label := range []string{"打开 JFTrade", "查看日志", "设置", "文档", "退出"} {
+	for _, label := range []string{"打开 " + profile.ApplicationName, "查看日志", "设置", "文档", "退出"} {
 		if menu.FindByLabel(label) == nil {
 			t.Fatalf("tray menu missing %q", label)
 		}
@@ -121,94 +155,25 @@ func TestDesktopTrayMenuLabels(t *testing.T) {
 	if menu.FindByLabel("通知设置") != nil {
 		t.Fatal("tray menu should use 设置 instead of 通知设置")
 	}
-}
-
-func TestDesktopLogWindowOptionsUseInlineHTML(t *testing.T) {
-	options := desktopLogWindowOptions()
-
-	if options.URL != "" {
-		t.Fatalf("log window URL = %q, want inline HTML without frontend route", options.URL)
-	}
-	if options.HTML == "" {
-		t.Fatal("log window HTML is empty")
-	}
-	if !options.AllowSimpleEventEmit {
-		t.Fatal("log window must allow simple event emit for inline HTML controls")
-	}
-	if strings.Contains(options.HTML, "/wails/runtime.js") {
-		t.Fatal("inline log window must not import /wails/runtime.js")
-	}
-	if !strings.Contains(options.HTML, "window.wails.Events") {
-		t.Fatal("inline log window should use Wails inline event shim")
-	}
-	if !strings.Contains(options.HTML, "window._wails.invoke") {
-		t.Fatal("inline log window should wait for Wails invoke before emitting startup events")
-	}
-	requireDesktopLogHTML(t, options.HTML, []string{
-		`const state = { day: "", logDir: "", files: [], lines: [], level: "ALL", keyword: "", page: 1, pageSize: 200 }`,
-		`<input id="keyword" type="search" placeholder="过滤日志内容">`,
-		`<select id="pageSize">`,
-		`<option value="100">100</option>`,
-		`<option value="200" selected>200</option>`,
-		`<option value="500">500</option>`,
-		`<option value="1000">1000</option>`,
-		`<button id="firstPage" type="button">首页</button>`,
-		`<button id="prevPage" type="button">上一页</button>`,
-		`<button id="nextPage" type="button">下一页</button>`,
-		`<button id="lastPage" type="button">末页</button>`,
-	})
-}
-
-func TestDesktopLogViewerHTMLPaginationAndFilteringScript(t *testing.T) {
-	html := desktopLogsHTML
-
-	requireDesktopLogHTML(t, html, []string{
-		`function visibleLines()`,
-		`const keyword = state.keyword.trim().toLowerCase();`,
-		`if (state.level !== "ALL" && line.level !== state.level) return false;`,
-		`return String(line.text || "").toLowerCase().indexOf(keyword) >= 0;`,
-		`function totalPagesFor(count)`,
-		`return Math.max(1, Math.ceil(count / state.pageSize));`,
-		`function clampPage(count)`,
-		`function goToLastPage()`,
-		`state.page = totalPagesFor(visibleLines().length);`,
-		`renderPager(lines.length, pages);`,
-		`const start = (state.page - 1) * state.pageSize;`,
-		`const pageLines = lines.slice(start, start + state.pageSize);`,
-	})
-	requireDesktopLogHTML(t, html, []string{
-		`levelSelect.addEventListener("change", function () {`,
-		`keywordInput.addEventListener("input", function () {`,
-		`pageSizeSelect.addEventListener("change", function () {`,
-		`state.page = 1;`,
-		`firstPage.addEventListener("click", function () { state.page = 1; renderLogs(); });`,
-		`prevPage.addEventListener("click", function () { state.page -= 1; renderLogs(); });`,
-		`nextPage.addEventListener("click", function () { state.page += 1; renderLogs(); });`,
-		`lastPage.addEventListener("click", function () { state.page = totalPagesFor(visibleLines().length); renderLogs(); });`,
-	})
-	requireDesktopLogHTML(t, html, []string{
-		`goToLastPage();`,
-		`const wasLastPage = state.page >= totalPagesFor(visibleLines().length);`,
-		`if (wasLastPage) goToLastPage();`,
-	})
-	if strings.Contains(html, "maxRows") || strings.Contains(html, "splice(0, state.lines.length") {
-		t.Fatal("desktop log viewer must not truncate loaded or appended log lines")
+	if (menu.FindByLabel("检查更新…") != nil) != profile.UpdateChecksEnabled {
+		t.Fatalf("update menu availability does not match profile: %#v", profile)
 	}
 }
 
-func requireDesktopLogHTML(t *testing.T, html string, values []string) {
-	t.Helper()
-	for _, value := range values {
-		if !strings.Contains(html, value) {
-			t.Fatalf("desktop log viewer HTML missing %q", value)
-		}
+func TestDesktopLogWindowOptionsUseVueRoute(t *testing.T) {
+	options := desktopLogWindowOptions("JFTrade Dev")
+	if options.URL != desktopLogsURL || options.HTML != "" {
+		t.Fatalf("log window options = %#v, want Vue route without inline HTML", options)
+	}
+	if options.Title != "JFTrade Dev 日志" || options.Zoom != desktopWebviewZoom {
+		t.Fatalf("log window identity = %#v", options)
 	}
 }
 
 func TestDesktopAssetHandlerServesLogViewer(t *testing.T) {
 	handler := newDesktopAssetHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.NotFound(w, nil)
-	}), fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<main>JFTrade</main>")}}, "http://127.0.0.1:6699")
+	}), fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<main>JFTrade</main>")}}, "http://127.0.0.1:6699", "")
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, desktopLogsURL, nil))
@@ -216,11 +181,8 @@ func TestDesktopAssetHandlerServesLogViewer(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %q", recorder.Code, recorder.Body.String())
 	}
-	body := recorder.Body.String()
-	for _, value := range []string{desktopLogEventReady, desktopLogEventSnapshot, desktopLogEventAppend, desktopLogEventSelectDay, `eventSelectDay + ":" + day`, "关键词", "每页", "上一页", "下一页", "打开日志文件夹"} {
-		if !strings.Contains(body, value) {
-			t.Fatalf("desktop log viewer missing %q", value)
-		}
+	if !strings.Contains(recorder.Body.String(), "<main>JFTrade</main>") {
+		t.Fatalf("body = %q, want SPA index", recorder.Body.String())
 	}
 }
 
@@ -402,7 +364,7 @@ func TestDesktopLogLevelParsing(t *testing.T) {
 	}
 }
 
-func TestListDesktopLogFilesAndReadsAllLines(t *testing.T) {
+func TestListDesktopLogDaysAndReadsFilteredPage(t *testing.T) {
 	logDir := t.TempDir()
 	for _, item := range []struct {
 		name string
@@ -417,23 +379,23 @@ func TestListDesktopLogFilesAndReadsAllLines(t *testing.T) {
 		}
 	}
 
-	files, err := listDesktopLogFiles(logDir)
+	days, err := listDesktopLogDays(logDir)
 	if err != nil {
-		t.Fatalf("listDesktopLogFiles: %v", err)
+		t.Fatalf("listDesktopLogDays: %v", err)
 	}
-	if len(files) != 2 || files[0].Day != "2026-07-10" || files[1].Day != "2026-07-08" {
-		t.Fatalf("files = %+v", files)
+	if len(days) != 2 || days[0].Day != "2026-07-10" || days[1].Day != "2026-07-08" {
+		t.Fatalf("days = %+v", days)
 	}
-	lines, err := readDesktopLogLines(filepath.Join(logDir, "desktop-2026-07-10.log"))
+	page, err := readDesktopLogPage(filepath.Join(logDir, "desktop-2026-07-10.log"), logDir, "2026-07-10", "ERROR", "final", 0, 200)
 	if err != nil {
-		t.Fatalf("readDesktopLogLines: %v", err)
+		t.Fatalf("readDesktopLogPage: %v", err)
 	}
-	if len(lines) != 2 || lines[0].Level != "WARN" || lines[0].Text != "WARN latest" || lines[1].Level != "ERROR" || lines[1].Text != "ERROR final" {
-		t.Fatalf("lines = %+v", lines)
+	if page.Total != 1 || len(page.Items) != 1 || page.Items[0].Level != "ERROR" || page.Items[0].Text != "ERROR final" {
+		t.Fatalf("page = %+v", page)
 	}
 }
 
-func TestDesktopLogSnapshotIncludesAllLinesBeyondPreviousTailLimit(t *testing.T) {
+func TestDesktopLogPageCapsLimitAndPaginatesAllLines(t *testing.T) {
 	tempDir := t.TempDir()
 	settingsPath := filepath.Join(tempDir, "runtime", "settings.json")
 	logDir := filepath.Join(tempDir, "runtime", "logs")
@@ -449,32 +411,35 @@ func TestDesktopLogSnapshotIncludesAllLinesBeyondPreviousTailLimit(t *testing.T)
 		t.Fatalf("write log: %v", err)
 	}
 
-	manager, err := newDesktopLogManager(settingsPath, nil, func() time.Time {
-		return time.Date(2026, 7, 10, 12, 0, 0, 0, time.Local)
-	})
+	manager, err := newDesktopLogManager(settingsPath, nil, func() time.Time { return time.Date(2026, 7, 10, 12, 0, 0, 0, time.Local) })
 	if err != nil {
 		t.Fatalf("newDesktopLogManager: %v", err)
 	}
 
-	snapshot := manager.snapshot("2026-07-10")
-	if snapshot.Error != "" {
-		t.Fatalf("snapshot error = %q", snapshot.Error)
+	service := newDesktopLogService(manager)
+	first, err := service.ReadPage("2026-07-10", "ALL", "", 0, 1000)
+	if err != nil {
+		t.Fatalf("ReadPage first: %v", err)
 	}
-	if len(snapshot.Lines) != 2005 {
-		t.Fatalf("snapshot lines = %d, want all 2005", len(snapshot.Lines))
+	if first.Total != 2005 || first.Limit != desktopLogPageMaximum || len(first.Items) != desktopLogPageMaximum || first.NextOffset == nil || *first.NextOffset != 500 {
+		t.Fatalf("first page = %+v", first)
 	}
-	if snapshot.Lines[0].Text != "INFO line-0001" || snapshot.Lines[2004].Text != "INFO line-2005" {
-		t.Fatalf("snapshot boundary lines = %q ... %q", snapshot.Lines[0].Text, snapshot.Lines[2004].Text)
+	last, err := service.ReadPage("2026-07-10", "ALL", "", 2000, 500)
+	if err != nil {
+		t.Fatalf("ReadPage last: %v", err)
+	}
+	if len(last.Items) != 5 || last.NextOffset != nil || last.Items[4].Text != "INFO line-2005" {
+		t.Fatalf("last page = %+v", last)
 	}
 }
 
-func TestListDesktopLogFilesMissingDirReturnsEmpty(t *testing.T) {
-	files, err := listDesktopLogFiles(filepath.Join(t.TempDir(), "missing"))
+func TestListDesktopLogDaysMissingDirReturnsEmpty(t *testing.T) {
+	days, err := listDesktopLogDays(filepath.Join(t.TempDir(), "missing"))
 	if err != nil {
-		t.Fatalf("listDesktopLogFiles missing dir: %v", err)
+		t.Fatalf("listDesktopLogDays missing dir: %v", err)
 	}
-	if len(files) != 0 {
-		t.Fatalf("files = %+v, want empty", files)
+	if len(days) != 0 {
+		t.Fatalf("days = %+v, want empty", days)
 	}
 }
 

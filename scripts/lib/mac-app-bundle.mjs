@@ -5,14 +5,34 @@ export const macBundleIdentifier = "com.jftrade.desktop";
 export const macBundleName = "JFTrade";
 export const macBundleExecutable = "JFTrade";
 export const macBundleIconFile = "icons.icns";
+export const macDevelopmentBundleIdentifier = "com.jftrade.desktop.dev";
+export const macDevelopmentBundleName = "JFTrade Dev";
+export const macDevelopmentBundleExecutable = "JFTrade Dev";
 
-export function writeMacAppBundle(appPath, binaryPath) {
+export function writeMacAppBundle(appPath, binaryPath, options = {}) {
+  const profile = options.development
+    ? {
+        bundleIdentifier: macDevelopmentBundleIdentifier,
+        bundleName: macDevelopmentBundleName,
+        executable: macDevelopmentBundleExecutable,
+      }
+    : {
+        bundleIdentifier: macBundleIdentifier,
+        bundleName: macBundleName,
+        executable: macBundleExecutable,
+      };
   const rootDir = path.resolve(import.meta.dirname, "../..");
-  const iconSourcePath = path.join(rootDir, "build", "desktop", "darwin", macBundleIconFile);
+  const iconSourcePath = path.join(
+    rootDir,
+    "build",
+    "desktop",
+    "darwin",
+    macBundleIconFile,
+  );
   const contentsDir = path.join(appPath, "Contents");
   const macOSDir = path.join(contentsDir, "MacOS");
   const resourcesDir = path.join(contentsDir, "Resources");
-  const executablePath = path.join(macOSDir, macBundleExecutable);
+  const executablePath = path.join(macOSDir, profile.executable);
 
   fs.rmSync(appPath, { recursive: true, force: true });
   fs.mkdirSync(macOSDir, { recursive: true });
@@ -22,13 +42,20 @@ export function writeMacAppBundle(appPath, binaryPath) {
   if (fs.existsSync(iconSourcePath)) {
     fs.copyFileSync(iconSourcePath, path.join(resourcesDir, macBundleIconFile));
   }
-  fs.writeFileSync(path.join(contentsDir, "Info.plist"), macInfoPlist(), "utf8");
+  fs.writeFileSync(
+    path.join(contentsDir, "Info.plist"),
+    macInfoPlist(profile, options),
+    "utf8",
+  );
   fs.writeFileSync(path.join(contentsDir, "PkgInfo"), "APPL????", "utf8");
 
   return executablePath;
 }
 
-function macInfoPlist() {
+export function macInfoPlist(profile, options = {}) {
+  const version = xmlEscape(options.version || "0.0.0");
+  const commit = xmlEscape(options.commit || "unknown");
+  const buildTime = xmlEscape(options.buildTime || "dev");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -36,23 +63,27 @@ function macInfoPlist() {
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleExecutable</key>
-  <string>${macBundleExecutable}</string>
+  <string>${profile.executable}</string>
   <key>CFBundleIdentifier</key>
-  <string>${macBundleIdentifier}</string>
+  <string>${profile.bundleIdentifier}</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>${macBundleName}</string>
+  <string>${profile.bundleName}</string>
   <key>CFBundleDisplayName</key>
-  <string>${macBundleName}</string>
+  <string>${profile.bundleName}</string>
   <key>CFBundleIconFile</key>
   <string>${macBundleIconFile}</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.0.0</string>
+  <string>${version}</string>
   <key>CFBundleVersion</key>
-  <string>0.0.0</string>
+  <string>${version}</string>
+  <key>JFTradeCommit</key>
+  <string>${commit}</string>
+  <key>JFTradeBuildTime</key>
+  <string>${buildTime}</string>
   <key>LSMinimumSystemVersion</key>
   <string>11.0</string>
   <key>NSHighResolutionCapable</key>
@@ -60,4 +91,13 @@ function macInfoPlist() {
 </dict>
 </plist>
 `;
+}
+
+function xmlEscape(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
 }

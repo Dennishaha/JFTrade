@@ -6,16 +6,19 @@
 
 ## 当前版本快照
 
-更新时间：2026-07-04。当前代码基线为 `704a02e`，提交说明是 `Support Pine live percent sizing and cancel commands`。
+更新时间：2026-07-10。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `desktop-vX.Y.Z` 发布 tag 为准。
 
-JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。它以 `cmd/jftrade-api` 这一条 API sidecar 入口为核心，前端控制台、文档站、Futu/OpenD 接入、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
+JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。它以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、Futu/OpenD 接入、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
 当前主线事实：
 
-- 后端入口：`cmd/jftrade-api`，只支持 API sidecar 模式。
+- 独立后端入口：`cmd/jftrade-api`，只支持 API sidecar 模式。
+- 桌面入口：`cmd/jftrade-desktop`，使用 Wails `v3.0.0-alpha2.117`，仍通过 HTTP/SSE/WebSocket 访问内置 sidecar，仅将链接、日志和更新检查暴露为桌面 bindings。
 - 前端入口：`apps/web`，Vue 3 + Vite；文档站使用 VitePress。
 - 开发端口：API `127.0.0.1:3000`，Web `127.0.0.1:5173`，Docs `127.0.0.1:3001`。
-- 发布端口：GUI `127.0.0.1:6688`，API gateway `127.0.0.1:6699`。
+- 桌面端口：`JFTrade Dev` sidecar 为 `127.0.0.1:6698`，正式 `JFTrade` sidecar 为 `127.0.0.1:6699`；两者可同时运行。
+- 浏览器式本地验收端口：GUI `127.0.0.1:6688`，API gateway `127.0.0.1:6699`。
+- 数据隔离：桌面开发版继续使用仓库 `var/jftrade-api`；正式产品使用系统用户数据目录，不扫描或迁移开发数据。
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
 - PineTS worker：Node ESM `worker.mjs`，Go 通过 localhost gRPC 管理 worker pool。
 - 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Go 负责撮合、成交、资金曲线、风控、账户刷新和券商下单。
@@ -30,9 +33,11 @@ npm run typecheck:web
 npm run test:pineworker
 npm run typecheck:pineworker
 npm run check:pinets-release
+npm run check:wails-bindings
+go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 ```
 
-发布脚本没有写死语义化版本号，会按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 的顺序解析版本。正式发布建议显式设置 `JFTRADE_VERSION` 或先打 git tag。
+独立 API 发行脚本仍按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 解析版本。Wails 正式产品只接受 `desktop-vX.Y.Z`，并把版本、提交号和构建时间注入 Go buildinfo 与平台资源；`dev/0.0.0` 禁止进入桌面 release。
 
 ## 推荐阅读顺序
 
@@ -53,6 +58,7 @@ npm run check:pinets-release
 - [pinets-hardcut-migration.md](pinets-hardcut-migration.md)：PineTS 硬切替换 Go Pine runtime 的执行计划、进度、测试覆盖和性能门禁。
 - [pinets-contract-audit.md](pinets-contract-audit.md)：PineTS 切换后的 Go/API/worker/前端契约矩阵和 visual output 边界。
 - [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)：PineTS worker 发布、运行配置、embedded asset 和非 mock smoke 放行清单。
+- [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)：Wails v3 开发/产品通道隔离、系统数据目录、版本注入、ARM64-only macOS 无签名 DMG、Windows 无签名安装器与发布产物。
 - [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)：从 SystemPage 的错误、慢请求和 OpenD 摘要进入结构化日志及 ADK/回测运行记录。
 - [reference/README.md](reference/README.md)：协议细节、OpenD 资料和上游参考。
 
@@ -67,6 +73,7 @@ npm run check:pinets-release
 ## 快速路由
 
 - 改启动方式、端口、运行时目录：先看 [architecture.md](architecture.md) 和 [troubleshooting/startup-ports.md](troubleshooting/startup-ports.md)
+- 改 Wails profile、bindings、菜单、窗口状态或桌面发布：先看 [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md) 和 `cmd/jftrade-desktop`
 - 改前端默认接口、系统状态、设置：先看 [architecture.md](architecture.md)、[configuration.md](configuration.md)、[troubleshooting.md](troubleshooting.md)
 - 改 ADK、agent、approval、provider、tools：先看 [adk.md](adk.md)
 - 改实时行情、K 线、SSE、WS：先看 [frontend-kline.md](frontend-kline.md) 和 [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md)

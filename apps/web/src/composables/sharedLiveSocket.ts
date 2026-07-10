@@ -1,6 +1,9 @@
 import { ref, watch, type Ref } from "vue";
 
-import { buildRuntimeLiveSocketUrl } from "../runtimeConfig";
+import {
+  buildRuntimeLiveSocketUrl,
+  resolveDesktopApiToken,
+} from "../runtimeConfig";
 import {
   getLiveEventBus,
   parseLiveEventEnvelope,
@@ -140,9 +143,9 @@ function liveStreamPayloadFromEnvelope(
   );
 }
 
-function normalizeTarget<T extends { market: string; symbol: string; instrumentId: string }>(
-  target: T,
-): T {
+function normalizeTarget<
+  T extends { market: string; symbol: string; instrumentId: string },
+>(target: T): T {
   return {
     ...target,
     market: target.market.trim().toUpperCase(),
@@ -177,7 +180,9 @@ class SharedLiveSocketHub {
   private consoleRefreshOwners = new Set<string>();
   private ownerSeq = 0;
 
-  connect(url = buildRuntimeLiveSocketUrl("/api/v1/ws/live")): WebSocket | null {
+  connect(
+    url = buildRuntimeLiveSocketUrl("/api/v1/ws/live"),
+  ): WebSocket | null {
     if (typeof WebSocket === "undefined") {
       this.connectionState.value = "unsupported";
       return null;
@@ -190,7 +195,10 @@ class SharedLiveSocketHub {
     this.connectionState.value = "connecting";
     this.currentAttemptConnected = false;
 
-    const nextSocket = new WebSocket(url);
+    const desktopApiToken = resolveDesktopApiToken();
+    const nextSocket = desktopApiToken
+      ? new WebSocket(url, ["jftrade.desktop.v1", desktopApiToken])
+      : new WebSocket(url);
     this.socket = nextSocket;
 
     nextSocket.addEventListener("open", () => {
@@ -208,7 +216,9 @@ class SharedLiveSocketHub {
         return;
       }
       try {
-        const envelope = parseLiveEventEnvelope(JSON.parse(event.data) as unknown);
+        const envelope = parseLiveEventEnvelope(
+          JSON.parse(event.data) as unknown,
+        );
         if (envelope == null) {
           this.connectionState.value = "error";
           return;
@@ -304,7 +314,10 @@ class SharedLiveSocketHub {
     if (instrumentId == null || normalizeInstrumentId(instrumentId) === "") {
       this.activeInstrumentOwners.delete(ownerId);
     } else {
-      this.activeInstrumentOwners.set(ownerId, normalizeInstrumentId(instrumentId));
+      this.activeInstrumentOwners.set(
+        ownerId,
+        normalizeInstrumentId(instrumentId),
+      );
     }
     this.sendSubscriptionSnapshot();
   }
@@ -323,9 +336,12 @@ class SharedLiveSocketHub {
 
   setDepthTarget(
     ownerId: string,
-    target:
-      | { market: string; symbol: string; instrumentId: string; num: number }
-      | null,
+    target: {
+      market: string;
+      symbol: string;
+      instrumentId: string;
+      num: number;
+    } | null,
   ): void {
     if (target == null || normalizeInstrumentId(target.instrumentId) === "") {
       this.depthOwners.delete(ownerId);
@@ -352,8 +368,10 @@ class SharedLiveSocketHub {
       new Set(this.activeInstrumentOwners.values()),
     ).sort();
 
-    const securityDetails = Array.from(this.securityDetailsOwners.values()).sort(
-      (left, right) => left.instrumentId.localeCompare(right.instrumentId),
+    const securityDetails = Array.from(
+      this.securityDetailsOwners.values(),
+    ).sort((left, right) =>
+      left.instrumentId.localeCompare(right.instrumentId),
     );
 
     const depth = Array.from(this.depthOwners.values()).sort((left, right) => {
@@ -491,9 +509,12 @@ export type SharedLiveSocketHubStore = {
   ) => void;
   setDepthTarget: (
     ownerId: string,
-    target:
-      | { market: string; symbol: string; instrumentId: string; num: number }
-      | null,
+    target: {
+      market: string;
+      symbol: string;
+      instrumentId: string;
+      num: number;
+    } | null,
   ) => void;
   setConsoleRefreshEnabled: (ownerId: string, enabled: boolean) => void;
   snapshotSubscriptions: () => LiveSocketSubscriptionSnapshot;

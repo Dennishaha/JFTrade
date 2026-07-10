@@ -2,6 +2,7 @@ type JFTradeRuntimeConfig = {
   apiBaseUrl?: string;
   authRequired?: boolean;
   desktopMode?: boolean;
+  desktopApiToken?: string;
 };
 
 declare global {
@@ -43,7 +44,10 @@ function resolveDevelopmentApiBaseUrl(): string {
 }
 
 export function resolveAuthRequired(): boolean {
-  if (typeof window !== "undefined" && window.__JFTRADE_RUNTIME_CONFIG__?.authRequired !== undefined) {
+  if (
+    typeof window !== "undefined" &&
+    window.__JFTRADE_RUNTIME_CONFIG__?.authRequired !== undefined
+  ) {
     return window.__JFTRADE_RUNTIME_CONFIG__.authRequired;
   }
   return import.meta.env.MODE !== "test";
@@ -54,6 +58,14 @@ export function resolveDesktopMode(): boolean {
     return false;
   }
   return window.__JFTRADE_RUNTIME_CONFIG__?.desktopMode === true;
+}
+
+export function resolveDesktopApiToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const token = window.__JFTRADE_RUNTIME_CONFIG__?.desktopApiToken?.trim();
+  return token || null;
 }
 
 export function buildRuntimeApiUrl(path: string): string {

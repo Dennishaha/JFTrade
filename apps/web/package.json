@@ -23,6 +23,7 @@
     "@vue-flow/controls": "^1.1.3",
     "@vue-flow/core": "^1.48.2",
     "@vue-flow/minimap": "^1.5.4",
+    "@wailsio/runtime": "3.0.0-alpha.97",
     "acorn": "^8.17.0",
     "dayjs": "1.11.21",
     "lightweight-charts": "^5.2.0",

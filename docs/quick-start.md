@@ -34,6 +34,15 @@ npm run dev:docs
 
 VitePress 文档站默认在 `http://127.0.0.1:3001/`。如果前端开发服务器也在运行，则 `http://127.0.0.1:5173/docs/` 会代理到这个文档站。
 
+## 桌面开发：JFTrade Dev
+
+```bash
+npm install
+npm run desktop:dev
+```
+
+该命令同时启动 Vite 和 Wails `JFTrade Dev`。桌面 sidecar 默认监听 `127.0.0.1:6698`，数据仍写入仓库内 `var/jftrade-api/`。开发版与正式 `JFTrade` 的应用 ID、单实例 ID、窗口标题和端口相互隔离，可以同时运行。
+
 ## 本地一键验收
 
 ```bash
@@ -64,3 +73,27 @@ Windows PowerShell:
 ```
 
 发布脚本会生成 API-only 发行版，并把前端和文档站一起打包到 `dist/`。
+
+## Wails 正式产品
+
+正式桌面构建必须提供准确的 `desktop-vX.Y.Z` tag。macOS 只生成 Apple Silicon ARM64 无签名 DMG：
+
+```bash
+JFTRADE_DESKTOP_RELEASE_TAG=desktop-v1.2.3 npm run desktop:release:darwin
+```
+
+Windows x64 无签名 per-user NSIS 安装器：
+
+```powershell
+$env:JFTRADE_DESKTOP_RELEASE_TAG = "desktop-v1.2.3"
+npm run desktop:release:windows
+```
+
+Windows ARM64 使用同一命令的 `windows-arm64` 目标，生成标记为 preview 的无签名 per-user NSIS 安装器：
+
+```powershell
+$env:JFTRADE_DESKTOP_RELEASE_TAG = "desktop-v1.2.3"
+npm run desktop:release:windows-arm64
+```
+
+正式产品默认监听 `127.0.0.1:6699`，数据写入系统用户数据目录，不复制仓库 `var/jftrade-api/`。平台产物、版本门禁和安全提示见 [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)。

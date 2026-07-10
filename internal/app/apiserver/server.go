@@ -41,26 +41,28 @@ type DesktopRuntimeConfig struct {
 	BacktestPath string
 	APIBind      string
 	APIBaseURL   string
+	APIToken     string
 }
 
 // ResolveDesktopRuntimeConfig resolves the desktop API/runtime paths once so
 // the Wails asset host and embedded API sidecar agree on the same local API.
 func ResolveDesktopRuntimeConfig() (DesktopRuntimeConfig, error) {
-	defaults := apiruntime.ResolveLaunchDefaults(true)
+	return ResolveDesktopRuntimeConfigWithDefaults(apiruntime.ResolveLaunchDefaults(true), false)
+}
+
+// ResolveDesktopRuntimeConfigWithDefaults resolves a desktop runtime from a
+// build-profile-specific set of defaults. Packaged builds may require the
+// sidecar to remain loopback-only while development builds retain explicit
+// bind overrides.
+func ResolveDesktopRuntimeConfigWithDefaults(defaults jfsettings.LaunchDefaults, requireLoopback bool) (DesktopRuntimeConfig, error) {
 	config := DesktopRuntimeConfig{
 		Defaults:     defaults,
 		SettingsPath: envOrDefault("JFTRADE_SETTINGS_PATH", defaults.SettingsPath),
 		BacktestPath: envOrDefault("JFTRADE_BACKTEST_DB", defaults.BacktestDBPath),
-		APIBind:      defaults.APIBind,
+		APIBind:      envOrDefault("JFTRADE_API_BIND", defaults.APIBind),
 	}
-	if store, err := settingsfile.New(config.SettingsPath); err == nil {
-		if configured := strings.TrimSpace(store.InterfaceSettings(defaults).APIBind); configured != "" {
-			config.APIBind = configured
-		}
-	}
-	config.APIBind = envOrDefault("JFTRADE_API_BIND", config.APIBind)
 	config.APIBaseURL = apiruntime.APIBaseURLForBind(config.APIBind)
-	if err := validateDesktopAPIBind(config.APIBind, config.APIBaseURL); err != nil {
+	if err := validateDesktopAPIBind(config.APIBind, config.APIBaseURL, requireLoopback); err != nil {
 		return DesktopRuntimeConfig{}, err
 	}
 	config.Defaults.SettingsPath = config.SettingsPath
@@ -69,18 +71,30 @@ func ResolveDesktopRuntimeConfig() (DesktopRuntimeConfig, error) {
 	return config, nil
 }
 
-func validateDesktopAPIBind(apiBind string, apiBaseURL string) error {
+func validateDesktopAPIBind(apiBind string, apiBaseURL string, requireLoopback bool) error {
 	if strings.TrimSpace(apiBaseURL) == "" {
 		return fmt.Errorf("desktop API bind %q does not produce a browser-accessible API URL", apiBind)
 	}
-	_, port, err := net.SplitHostPort(strings.TrimSpace(apiBind))
+	host, port, err := net.SplitHostPort(strings.TrimSpace(apiBind))
 	if err != nil {
 		return fmt.Errorf("desktop API bind %q is invalid: %w", apiBind, err)
 	}
 	if strings.TrimSpace(port) == "0" {
 		return fmt.Errorf("desktop API bind %q is not supported; configure a stable local port", apiBind)
 	}
+	if requireLoopback && !isLoopbackDesktopHost(host) {
+		return fmt.Errorf("packaged desktop API bind %q must use a loopback host", apiBind)
+	}
 	return nil
+}
+
+func isLoopbackDesktopHost(host string) bool {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // StartDesktop starts the API sidecar for an embedded Wails desktop host.
@@ -89,10 +103,29 @@ func StartDesktop(ctx context.Context, sink func(live.Event) live.NotificationDe
 	if err != nil {
 		return nil, err
 	}
+	return StartDesktopWithConfig(ctx, runtimeConfig, sink)
+}
+
+// StartDesktopWithConfig starts the desktop sidecar using a runtime config
+// resolved once by the desktop bootstrap.
+func StartDesktopWithConfig(ctx context.Context, runtimeConfig DesktopRuntimeConfig, sink func(live.Event) live.NotificationDelivery) (func(context.Context) error, error) {
 	deps := dependencies()
 	deps.LoadFrontendFS = func() fs.FS { return nil }
 	deps.ResolveLaunchDefaults = func(bool) jfsettings.LaunchDefaults {
 		return runtimeConfig.Defaults
+	}
+	defaultEnvOrDefault := deps.EnvOrDefault
+	deps.EnvOrDefault = func(key string, fallback string) string {
+		switch key {
+		case "JFTRADE_SETTINGS_PATH":
+			return runtimeConfig.SettingsPath
+		case "JFTRADE_BACKTEST_DB":
+			return runtimeConfig.BacktestPath
+		case "JFTRADE_API_BIND":
+			return runtimeConfig.APIBind
+		default:
+			return defaultEnvOrDefault(key, fallback)
+		}
 	}
 	deps.NewHandler = func(store lifecycle.SettingsStore) (lifecycle.Handler, error) {
 		settingsStore, ok := store.(servercore.SidecarSettingsStore)
@@ -102,6 +135,7 @@ func StartDesktop(ctx context.Context, sink func(live.Event) live.NotificationDe
 		handler := servercore.NewSidecarHandlerWithOptions(settingsStore, servercore.SidecarOptions{
 			NotificationSink: sink,
 			DesktopMode:      true,
+			DesktopAPIToken:  runtimeConfig.APIToken,
 		})
 		handler.ConfigureAuthOrigins(desktopTrustedOrigins()...)
 		return handler, nil
@@ -110,7 +144,7 @@ func StartDesktop(ctx context.Context, sink func(live.Event) live.NotificationDe
 	if err != nil {
 		return nil, err
 	}
-	if err := waitDesktopAPIReady(ctx, runtimeConfig.APIBaseURL); err != nil {
+	if err := waitDesktopAPIReady(ctx, runtimeConfig.APIBaseURL, runtimeConfig.APIToken); err != nil {
 		shutdownErr := shutdown(context.Background())
 		if shutdownErr != nil {
 			return nil, fmt.Errorf("%w; shutdown after desktop API startup failure: %v", err, shutdownErr)
@@ -169,7 +203,7 @@ func containsString(values []string, target string) bool {
 	return slices.Contains(values, target)
 }
 
-func waitDesktopAPIReady(ctx context.Context, apiBaseURL string) error {
+func waitDesktopAPIReady(ctx context.Context, apiBaseURL string, apiToken string) error {
 	apiBaseURL = strings.TrimRight(strings.TrimSpace(apiBaseURL), "/")
 	if apiBaseURL == "" {
 		return fmt.Errorf("desktop API base URL is empty")
@@ -184,6 +218,9 @@ func waitDesktopAPIReady(ctx context.Context, apiBaseURL string) error {
 		req, err := http.NewRequestWithContext(waitCtx, http.MethodGet, statusURL, nil)
 		if err != nil {
 			return err
+		}
+		if token := strings.TrimSpace(apiToken); token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
 		}
 		resp, err := client.Do(req)
 		if err == nil {

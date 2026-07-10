@@ -43,20 +43,27 @@ const (
 )
 
 func main() {
-	logManager := configureDesktopLogging()
 	configureDesktopEnvironment()
+	bootstrap, err := resolveDesktopBootstrap()
+	if err != nil {
+		log.Fatalf("JFTrade desktop bootstrap failed: %v", err)
+	}
+	logManager := configureDesktopLogging(bootstrap.Runtime.SettingsPath)
 
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 
 	state := newDesktopAppState(stopSignals)
-	app, linkService, notificationSink := newDesktopApplication(state)
+	state.logManager = logManager
+	app, linkService, updateService, notificationSink := newDesktopApplication(state, bootstrap, logManager)
 	if logManager != nil {
 		logManager.bindApp(app)
 	}
-	window := newDesktopMainWindow(app, state)
-	configureDesktopSystemTray(app, window, linkService, logManager, state)
-	startDesktopAPI(ctx, state, notificationSink)
+	window := newDesktopMainWindow(app, state, bootstrap)
+	configureDesktopApplicationMenu(app, window, linkService, updateService, state, bootstrap.Profile)
+	configureDesktopSystemTray(app, window, linkService, updateService, state, bootstrap.Profile)
+	startDesktopAPI(ctx, state, notificationSink, bootstrap.Runtime)
+	startDesktopUpdateChecks(ctx, app, updateService)
 	quitDesktopOnSignal(ctx, app, state)
 
 	if err := app.Run(); err != nil {
@@ -77,7 +84,9 @@ type desktopAppState struct {
 	shutdownOnce sync.Once
 	exiting      atomic.Bool
 	stopSignals  context.CancelFunc
-	mainWindow   desktopWindowHider
+	mainWindow   application.Window
+	logManager   *desktopLogManager
+	windowState  *desktopWindowStateStore
 }
 
 func newDesktopAppState(stopSignals context.CancelFunc) *desktopAppState {
@@ -97,6 +106,10 @@ func (state *desktopAppState) shutdownApp() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		jftradeLogError(state.shutdown(shutdownCtx))
+		if state.logManager != nil {
+			jftradeLogError(state.logManager.close())
+		}
+		jftradeLogError(state.windowState.close())
 	})
 }
 
@@ -105,24 +118,32 @@ func (state *desktopAppState) quit(app *application.App) {
 	app.Quit()
 }
 
-func newDesktopApplication(state *desktopAppState) (*application.App, *DesktopLinkService, *desktopNotificationSink) {
+func newDesktopApplication(state *desktopAppState, bootstrap desktopBootstrap, logManager *desktopLogManager) (*application.App, *DesktopLinkService, *DesktopUpdateService, *desktopNotificationSink) {
 	var notificationService *notifications.NotificationService
 	linkService := &DesktopLinkService{}
-	services := []application.Service{application.NewService(linkService)}
+	updateService := newDesktopUpdateService(bootstrap.Profile)
+	services := []application.Service{
+		application.NewService(linkService),
+		application.NewService(newDesktopLogService(logManager)),
+		application.NewService(updateService),
+	}
 	if runtime.GOOS != "darwin" || macBundleIdentifier() != "" {
 		notificationService = notifications.New()
-		services = append(services, application.NewService(notificationService))
+		services = append(services, application.NewService(newDesktopNotificationLifecycle(notificationService)))
 	} else {
 		log.Printf("JFTrade desktop system notifications disabled: macOS requires running from JFTrade.app with CFBundleIdentifier")
 	}
-	notificationSink := newDesktopNotificationSink(notificationService, resolveSettingsPath())
+	notificationSink := newDesktopNotificationSink(notificationService, bootstrap.Runtime.SettingsPath)
 
 	app := application.New(application.Options{
-		Name:        "JFTrade",
+		Name:        bootstrap.Profile.ApplicationName,
 		Description: "JFTrade desktop trading console",
 		Icon:        desktopicons.Application,
 		Services:    services,
-		Assets:      desktopAssets(),
+		Assets:      desktopAssets(bootstrap.Runtime),
+		SingleInstance: desktopSingleInstanceOptions(bootstrap.Profile, func() {
+			restoreDesktopMainWindow(state)
+		}),
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
@@ -140,13 +161,44 @@ func newDesktopApplication(state *desktopAppState) (*application.App, *DesktopLi
 		},
 	})
 	linkService.app = app
-	return app, linkService, notificationSink
+	return app, linkService, updateService, notificationSink
 }
 
-func newDesktopMainWindow(app *application.App, state *desktopAppState) application.Window {
-	window := app.Window.NewWithOptions(mainWindowOptions())
+func desktopSingleInstanceOptions(profile desktopBuildProfile, onSecondInstance func()) *application.SingleInstanceOptions {
+	return &application.SingleInstanceOptions{
+		UniqueID: profile.SingleInstanceID,
+		OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+			if onSecondInstance != nil {
+				onSecondInstance()
+			}
+		},
+	}
+}
+
+func newDesktopMainWindow(app *application.App, state *desktopAppState, bootstrap desktopBootstrap) application.Window {
+	saved, savedOK, err := loadDesktopWindowState(bootstrap.StatePath)
+	if err != nil {
+		log.Printf("JFTrade desktop window state ignored: %v", err)
+	}
+	options := applyDesktopWindowState(mainWindowOptions(bootstrap.Profile), saved, savedOK)
+	window := app.Window.NewWithOptions(options)
 	state.mainWindow = window
+	state.windowState = newDesktopWindowStateStore(bootstrap.StatePath, window, saved)
 	window.SetZoom(desktopWebviewZoom)
+	for _, event := range []events.WindowEventType{
+		events.Common.WindowDidMove,
+		events.Common.WindowDidResize,
+		events.Common.WindowMaximise,
+		events.Common.WindowUnMaximise,
+		events.Common.WindowRestore,
+	} {
+		window.RegisterHook(event, func(*application.WindowEvent) {
+			state.windowState.schedule()
+		})
+	}
+	window.RegisterHook(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+		ensureDesktopWindowVisible(window, app.Screen.GetAll())
+	})
 	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		if state.exiting.Load() {
 			return
@@ -157,25 +209,33 @@ func newDesktopMainWindow(app *application.App, state *desktopAppState) applicat
 	return window
 }
 
-func configureDesktopSystemTray(app *application.App, window application.Window, linkService *DesktopLinkService, logManager *desktopLogManager, state *desktopAppState) {
+func restoreDesktopMainWindow(state *desktopAppState) {
+	if state == nil || state.mainWindow == nil {
+		return
+	}
+	state.mainWindow.Restore()
+	state.mainWindow.Show().Focus()
+}
+
+func configureDesktopSystemTray(app *application.App, window application.Window, linkService *DesktopLinkService, updateService *DesktopUpdateService, state *desktopAppState, profile desktopBuildProfile) {
 	systemTray := app.SystemTray.New()
-	systemTray.SetTooltip("JFTrade")
+	systemTray.SetTooltip(profile.ApplicationName)
 	if runtime.GOOS == "darwin" {
 		systemTray.SetIcon(desktopicons.TrayLight)
 	} else {
 		systemTray.SetIcon(desktopicons.TrayLight).SetDarkModeIcon(desktopicons.TrayDark)
 	}
 
-	menu := newDesktopTrayMenu(window, linkService, logManager, func() {
+	menu := newDesktopTrayMenu(window, linkService, updateService, profile, func() {
 		state.quit(app)
 	})
 	systemTray.SetMenu(menu)
 	configureDesktopTrayMenuClick(systemTray, runtime.GOOS)
 }
 
-func startDesktopAPI(ctx context.Context, state *desktopAppState, notificationSink *desktopNotificationSink) {
+func startDesktopAPI(ctx context.Context, state *desktopAppState, notificationSink *desktopNotificationSink, runtimeConfig apiserver.DesktopRuntimeConfig) {
 	var err error
-	state.shutdown, err = apiserver.StartDesktop(ctx, notificationSink.Notify)
+	state.shutdown, err = apiserver.StartDesktopWithConfig(ctx, runtimeConfig, notificationSink.Notify)
 	if err != nil {
 		log.Fatalf("JFTrade desktop API startup failed: %v", err)
 	}
@@ -188,17 +248,18 @@ func quitDesktopOnSignal(ctx context.Context, app *application.App, state *deskt
 	}()
 }
 
-func mainWindowOptions() application.WebviewWindowOptions {
+func mainWindowOptions(profile desktopBuildProfile) application.WebviewWindowOptions {
 	return application.WebviewWindowOptions{
-		Name:            "main",
-		Title:           "JFTrade",
-		URL:             "/",
-		Width:           1280,
-		Height:          820,
-		MinWidth:        1024,
-		MinHeight:       700,
-		InitialPosition: application.WindowCentered,
-		Zoom:            desktopWebviewZoom,
+		Name:               "main",
+		Title:              profile.ApplicationName,
+		URL:                "/",
+		Width:              1280,
+		Height:             820,
+		MinWidth:           1024,
+		MinHeight:          700,
+		InitialPosition:    application.WindowCentered,
+		Zoom:               desktopWebviewZoom,
+		UseApplicationMenu: true,
 	}
 }
 
@@ -217,9 +278,9 @@ func shouldQuitDesktopApp(exiting *atomic.Bool, window desktopWindowHider) bool 
 	return false
 }
 
-func newDesktopTrayMenu(window application.Window, linkService *DesktopLinkService, logManager *desktopLogManager, quit func()) *application.Menu {
+func newDesktopTrayMenu(window application.Window, linkService *DesktopLinkService, updateService *DesktopUpdateService, profile desktopBuildProfile, quit func()) *application.Menu {
 	menu := application.NewMenu()
-	menu.Add("打开 JFTrade").OnClick(func(*application.Context) {
+	menu.Add("打开 " + profile.ApplicationName).OnClick(func(*application.Context) {
 		if window == nil {
 			return
 		}
@@ -228,11 +289,7 @@ func newDesktopTrayMenu(window application.Window, linkService *DesktopLinkServi
 	})
 	menu.AddSeparator()
 	menu.Add("设置").OnClick(func(*application.Context) {
-		if window == nil {
-			return
-		}
-		window.SetURL(desktopSettingsURL)
-		window.Show().Focus()
+		openDesktopSettings(window)
 	})
 	menu.Add("文档").OnClick(func(*application.Context) {
 		if linkService == nil || linkService.app == nil {
@@ -244,8 +301,13 @@ func newDesktopTrayMenu(window application.Window, linkService *DesktopLinkServi
 		if linkService == nil || linkService.app == nil {
 			return
 		}
-		openDesktopLogWindow(linkService.app, logManager)
+		openDesktopLogWindow(linkService.app, profile.ApplicationName)
 	})
+	if profile.UpdateChecksEnabled {
+		menu.Add("检查更新…").OnClick(func(*application.Context) {
+			checkDesktopUpdateInteractively(window, linkService.app, updateService)
+		})
+	}
 	menu.AddSeparator()
 	menu.Add("退出").OnClick(func(*application.Context) {
 		if quit != nil {
@@ -271,28 +333,24 @@ func shouldUseExplicitTrayMenuClick(goos string) bool {
 	return goos == "darwin" || goos == "windows"
 }
 
-func desktopAssets() application.AssetOptions {
+func desktopAssets(runtimeConfig apiserver.DesktopRuntimeConfig) application.AssetOptions {
 	frontendFS, available, err := frontendassets.FileSystem()
 	if err != nil {
 		log.Printf("JFTrade embedded frontend assets unavailable: %v", err)
 	}
 	if available && frontendFS != nil {
 		return application.AssetOptions{
-			Handler: newDesktopAssetHandler(application.AssetFileServerFS(frontendFS), frontendFS, desktopRuntimeAPIBaseURL()),
+			Handler: newDesktopAssetHandler(application.AssetFileServerFS(frontendFS), frontendFS, runtimeConfig.APIBaseURL, runtimeConfig.APIToken),
 		}
 	}
 	return application.AlphaAssets
 }
 
-func newDesktopAssetHandler(next http.Handler, frontendFS fs.FS, apiBaseURL string) http.Handler {
+func newDesktopAssetHandler(next http.Handler, frontendFS fs.FS, apiBaseURL string, apiToken string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cleanPath := desktopCleanAssetPath(r.URL.Path)
 		if cleanPath == "/runtime-config.js" {
-			writeDesktopRuntimeConfig(w, r, apiBaseURL)
-			return
-		}
-		if cleanPath == desktopLogsURL {
-			serveDesktopLogsPage(w, r)
+			writeDesktopRuntimeConfig(w, r, apiBaseURL, apiToken)
 			return
 		}
 		if !shouldServeDesktopIndex(r, cleanPath) {
@@ -349,6 +407,7 @@ func shouldServeDesktopIndex(r *http.Request, cleanPath string) bool {
 		"/strategy",
 		"/adk",
 		"/backtest",
+		"/desktop-logs",
 	} {
 		if cleanPath == route || strings.HasPrefix(cleanPath, route+"/") {
 			return true
@@ -416,7 +475,7 @@ func (c *desktopResponseCapture) replay(w http.ResponseWriter) {
 	}
 }
 
-func writeDesktopRuntimeConfig(w http.ResponseWriter, r *http.Request, apiBaseURL string) {
+func writeDesktopRuntimeConfig(w http.ResponseWriter, r *http.Request, apiBaseURL string, apiToken string) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	if r.Method == http.MethodHead {
@@ -426,6 +485,9 @@ func writeDesktopRuntimeConfig(w http.ResponseWriter, r *http.Request, apiBaseUR
 		"apiBaseUrl":   strings.TrimRight(apiBaseURL, "/"),
 		"authRequired": false,
 		"desktopMode":  true,
+	}
+	if token := strings.TrimSpace(apiToken); token != "" {
+		payload["desktopApiToken"] = token
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -437,27 +499,6 @@ func writeDesktopRuntimeConfig(w http.ResponseWriter, r *http.Request, apiBaseUR
 		"window.__JFTRADE_RUNTIME_CONFIG__ = Object.assign({}, window.__JFTRADE_RUNTIME_CONFIG__, %s);\n",
 		data,
 	)
-}
-
-func desktopRuntimeAPIBaseURL() string {
-	config, err := apiserver.ResolveDesktopRuntimeConfig()
-	if err != nil {
-		log.Printf("JFTrade desktop runtime config unavailable: %v", err)
-		return ""
-	}
-	return config.APIBaseURL
-}
-
-func resolveSettingsPath() string {
-	config, err := apiserver.ResolveDesktopRuntimeConfig()
-	if err != nil {
-		log.Printf("JFTrade desktop settings path fallback after runtime config error: %v", err)
-		if path := strings.TrimSpace(os.Getenv("JFTRADE_SETTINGS_PATH")); path != "" {
-			return path
-		}
-		return ""
-	}
-	return config.SettingsPath
 }
 
 type desktopNotificationSink struct {

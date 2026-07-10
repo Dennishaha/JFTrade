@@ -26,7 +26,15 @@ npm run dev:web
 - Swagger UI：`http://127.0.0.1:3000/swagger/`
 - Swagger JSON：`http://127.0.0.1:3000/swagger/doc.json`
 
-前端开发服务器在 `5173`，会把 `/api` 和 `/swagger` 转发到后端 `3000`。当前仓库只保留 `cmd/jftrade-api` 这一条后端入口。
+前端开发服务器在 `5173`，会把 `/api` 和 `/swagger` 转发到后端 `3000`。`cmd/jftrade-api` 是独立 API 入口；Wails 产品由 `cmd/jftrade-desktop` 启动同一套应用服务。
+
+桌面开发使用 Wails v3，一条命令同时启动 `JFTrade Dev`、Vite 和桌面内置 API sidecar：
+
+```bash
+npm run desktop:dev
+```
+
+桌面开发版默认使用 `127.0.0.1:6698`，仍读取仓库内的 `var/jftrade-api/`。它与正式产品拥有不同的应用 ID 和单实例 ID，可以和正式产品同时运行。
 
 ## 常用入口
 
@@ -39,7 +47,7 @@ npm run dev:docs
 
 VitePress 文档站默认在 `http://127.0.0.1:3001/`。
 
-本地按接近发布包的方式验收：
+本地按浏览器式发布包的方式验收：
 
 ```bash
 ./start.sh
@@ -70,6 +78,21 @@ Windows PowerShell:
 
 发布脚本会构建 `cmd/jftrade-api`，并把前端静态资源和文档站一起放进 `dist/`。
 
+Wails 正式产品使用 `desktop-vX.Y.Z` tag 作为唯一版本源。macOS 只发布 Apple Silicon ARM64 无签名 DMG：
+
+```bash
+JFTRADE_DESKTOP_RELEASE_TAG=desktop-v1.2.3 npm run desktop:release:darwin
+```
+
+Windows x64 无签名 NSIS 安装器使用 `npm run desktop:release:windows`；tag CI 还会在原生 ARM64 runner 上生成 Windows ARM64 preview 无签名 NSIS 安装器。完整发布约束见 [桌面发布与通道隔离](docs/troubleshooting/desktop-release.md)。
+
+推送正式桌面 tag 会自动触发 GitHub Actions，在全部平台构建通过后创建或更新同名 GitHub Release，并上传可下载二进制、SBOM 和 `SHA256SUMS`：
+
+```bash
+git tag desktop-v1.2.3
+git push origin desktop-v1.2.3
+```
+
 ## 常用命令
 
 ```bash
@@ -98,7 +121,7 @@ npm run generate:docs
 
 ## 运行时文件
 
-后端默认把运行时文件放在 `var/jftrade-api/`。首次启动后通常会看到：
+浏览器开发、独立 API 入口和 `JFTrade Dev` 默认把运行时文件放在仓库内的 `var/jftrade-api/`。首次启动后通常会看到：
 
 - `settings.json`：本地设置
 - `backtest.db`：回测和历史数据相关存储
@@ -106,13 +129,20 @@ npm run generate:docs
 
 配置优先级是：环境变量 > `settings.json` > 内置默认值。配置细节见 [docs/configuration.md](docs/configuration.md)，端口和启动排障见 [docs/troubleshooting/startup-ports.md](docs/troubleshooting/startup-ports.md)。
 
+正式 Wails 产品不迁移开发数据，也不在安装目录写入业务数据，默认使用系统用户数据目录：
+
+- macOS：`~/Library/Application Support/JFTrade`
+- Windows：`%LOCALAPPDATA%/JFTrade`
+- Linux：`${XDG_DATA_HOME:-~/.local/share}/jftrade`
+
 常见端口：
 
 - `127.0.0.1:5173`：前端开发服务器
 - `127.0.0.1:3000`：开发态后端服务
 - `127.0.0.1:3001`：文档开发服务器
+- `127.0.0.1:6698`：`JFTrade Dev` 桌面 sidecar
 - `127.0.0.1:6688`：发布态 GUI、文档和 Swagger 的同源入口
-- `127.0.0.1:6699`：发布态 API gateway
+- `127.0.0.1:6699`：浏览器式发布 gateway 与正式 Wails 产品 sidecar
 - `127.0.0.1:11110`：Futu OpenD API
 - `127.0.0.1:11111`：Futu OpenD WebSocket
 
@@ -121,6 +151,7 @@ npm run generate:docs
 - 想确认当前版本状态、发布形态和验收基线：读 [docs/README.md](docs/README.md)
 - 想快速使用控制台：读 [docs/quick-start.md](docs/quick-start.md)
 - 想改启动、端口、配置或管理密钥：读 [docs/configuration.md](docs/configuration.md)
+- 想构建或排查 Wails 桌面产品：读 [docs/troubleshooting/desktop-release.md](docs/troubleshooting/desktop-release.md)
 - 启动失败、OpenD 连不上、实时行情异常：读 [docs/troubleshooting.md](docs/troubleshooting.md)
 - 想理解模块边界和数据流：读 [docs/architecture.md](docs/architecture.md)
 - 想改 ADK 助手、agent、approval 或工具权限：读 [docs/adk.md](docs/adk.md)
@@ -130,7 +161,9 @@ npm run generate:docs
 
 ```text
 cmd/jftrade-api/           后端入口
+cmd/jftrade-desktop/       Wails v3 桌面入口与桌面专属服务
 internal/app/apiserver/    后端启动、装配、运行时目录
+internal/desktop/          正式产品系统用户数据目录解析
 internal/api/              /api/v1/*、SSE、WebSocket
 internal/{system,settings,marketdata,trading,strategy,backtest,assistant}/
                            控制台业务能力
@@ -141,4 +174,5 @@ pkg/backtest/              回测与历史数据存储
 apps/web/                  Vue 3 控制台
 docs/                      用户文档、维护者导航与参考资料
 scripts/                   文档生成、打包和辅助脚本
+build/desktop/             桌面平台资源与安装器定义
 ```

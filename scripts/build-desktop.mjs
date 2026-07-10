@@ -4,12 +4,19 @@ import process from "node:process";
 
 import { spawnChecked } from "./lib/spawn.mjs";
 import { writeMacAppBundle } from "./lib/mac-app-bundle.mjs";
+import { resolveDesktopBuildMetadata } from "./lib/desktop-release-metadata.mjs";
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const desktopDistDir = path.join(rootDir, "dist", "desktop");
 const embedDir = path.join(rootDir, "internal", "frontendassets", "dist");
-const embedArchive = path.join(rootDir, "internal", "frontendassets", "dist.zip");
+const embedArchive = path.join(
+  rootDir,
+  "internal",
+  "frontendassets",
+  "dist.zip",
+);
 const webDistDir = path.join(rootDir, "apps", "web", "dist");
+const buildMetadata = resolveDesktopBuildMetadata();
 
 const platformAliases = {
   darwin: "darwin",
@@ -22,7 +29,9 @@ const platformAliases = {
 };
 
 const currentTarget = platformAliases[process.platform] || process.platform;
-const requestedSpec = parseTargetSpec(process.env.JFTRADE_DESKTOP_TARGET || process.argv[2] || currentTarget);
+const requestedSpec = parseTargetSpec(
+  process.env.JFTRADE_DESKTOP_TARGET || process.argv[2] || currentTarget,
+);
 const requestedTarget = requestedSpec.target;
 const arch =
   process.env.GOARCH ||
@@ -32,7 +41,9 @@ const arch =
   defaultArch(requestedTarget);
 
 if (!requestedTarget) {
-  console.error(`Unknown desktop target: ${process.env.JFTRADE_DESKTOP_TARGET || process.argv[2]}`);
+  console.error(
+    `Unknown desktop target: ${process.env.JFTRADE_DESKTOP_TARGET || process.argv[2]}`,
+  );
   process.exit(1);
 }
 
@@ -47,6 +58,7 @@ function runStatus(command, args, options = {}) {
   return spawnChecked(command, args, { cwd: rootDir, ...options });
 }
 
+run("npm", ["run", "generate:wails-bindings"], { env: hostGoEnvironment() });
 run("npm", ["run", "build:web"]);
 run("npm", ["run", "build:pineworker"]);
 cleanupLegacyDesktopOutputs();
@@ -55,7 +67,14 @@ fs.rmSync(embedDir, { recursive: true, force: true });
 fs.rmSync(embedArchive, { force: true });
 fs.mkdirSync(path.dirname(embedDir), { recursive: true });
 fs.cpSync(webDistDir, embedDir, { recursive: true });
-run("go", ["run", "./scripts/archive_frontend_assets.go", "-src", webDistDir, "-dst", embedArchive]);
+run("go", [
+  "run",
+  "./scripts/archive_frontend_assets.go",
+  "-src",
+  webDistDir,
+  "-dst",
+  embedArchive,
+]);
 
 const outputDir = targetOutputDir(requestedTarget, arch);
 fs.rmSync(outputDir, { recursive: true, force: true });
@@ -63,18 +82,26 @@ fs.mkdirSync(outputDir, { recursive: true });
 const outputPath = targetOutputPath(requestedTarget, arch);
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 const goEnv = targetGoEnv(requestedTarget, arch);
-const buildTags = requestedTarget === "linux" ? "release_assets,gtk3" : "release_assets";
+const buildTags =
+  requestedTarget === "linux" ? "release_assets,gtk3" : "release_assets";
 const generatedWindowsSyso = generateWindowsSyso(requestedTarget, arch);
 let buildStatus = 0;
 try {
-  buildStatus = runStatus("go", [
-    "build",
-    "-tags",
-    buildTags,
-    "-o",
-    outputPath,
-    "./cmd/jftrade-desktop",
-  ], { env: { ...process.env, ...goEnv } });
+  buildStatus = runStatus(
+    "go",
+    [
+      "build",
+      "-buildvcs=false",
+      "-tags",
+      buildTags,
+      "-ldflags",
+      desktopGoLDFlags(buildMetadata),
+      "-o",
+      outputPath,
+      "./cmd/jftrade-desktop",
+    ],
+    { env: { ...process.env, ...goEnv } },
+  );
 } finally {
   if (generatedWindowsSyso) {
     fs.rmSync(generatedWindowsSyso, { force: true });
@@ -84,13 +111,15 @@ if (buildStatus !== 0) {
   process.exit(buildStatus);
 }
 if (generatedWindowsSyso && fs.existsSync(generatedWindowsSyso)) {
-  console.error(`Windows syso file was not cleaned up: ${generatedWindowsSyso}`);
+  console.error(
+    `Windows syso file was not cleaned up: ${generatedWindowsSyso}`,
+  );
   process.exit(1);
 }
 
 if (requestedTarget === "darwin") {
   const appPath = path.join(outputDir, "JFTrade.app");
-  writeMacAppBundle(appPath, outputPath);
+  writeMacAppBundle(appPath, outputPath, buildMetadata);
   console.log(`macOS app bundle written to ${appPath}`);
 } else {
   console.log(`Desktop artifact written to ${outputPath}`);
@@ -122,6 +151,21 @@ function currentGoArch() {
   return "";
 }
 
+function hostGoEnvironment() {
+  const environment = { ...process.env };
+  for (const name of [
+    "GOOS",
+    "GOARCH",
+    "GOARM64",
+    "CGO_ENABLED",
+    "CC",
+    "CXX",
+  ]) {
+    delete environment[name];
+  }
+  return environment;
+}
+
 function preflightTargetToolchain(target, targetArch) {
   if (target === "linux" && currentTarget !== "linux" && !process.env.CC) {
     console.error(
@@ -133,8 +177,14 @@ function preflightTargetToolchain(target, targetArch) {
     );
     process.exit(1);
   }
-  if (target === "windows" && targetArch === "arm64" && !(currentTarget === "windows" && currentGoArch() === "arm64")) {
-    console.error("Windows arm64 desktop releases require a native Windows arm64 CGO toolchain.");
+  if (
+    target === "windows" &&
+    targetArch === "arm64" &&
+    !(currentTarget === "windows" && currentGoArch() === "arm64")
+  ) {
+    console.error(
+      "Windows arm64 desktop releases require a native Windows arm64 CGO toolchain.",
+    );
     process.exit(1);
   }
   if (target === "darwin" && currentTarget !== "darwin") {
@@ -148,8 +198,16 @@ function generateWindowsSyso(target, targetArch) {
     return "";
   }
 
-  const sysoPath = path.join(rootDir, "cmd", "jftrade-desktop", `jftrade_windows_${targetArch}.syso`);
+  const sysoPath = path.join(
+    rootDir,
+    "cmd",
+    "jftrade-desktop",
+    `jftrade_windows_${targetArch}.syso`,
+  );
+  const generatedInfo = path.join(outputDir, "windows-info.json");
+  const generatedManifest = path.join(outputDir, "wails.exe.manifest");
   fs.rmSync(sysoPath, { force: true });
+  writeWindowsMetadata(generatedInfo, generatedManifest, buildMetadata);
   run(process.execPath, [
     "scripts/wails3.mjs",
     "generate",
@@ -159,13 +217,44 @@ function generateWindowsSyso(target, targetArch) {
     "-icon",
     "build/desktop/windows/icon.ico",
     "-manifest",
-    "build/desktop/windows/wails.exe.manifest",
+    generatedManifest,
     "-info",
-    "build/desktop/windows/info.json",
+    generatedInfo,
     "-out",
     sysoPath,
   ]);
   return sysoPath;
+}
+
+function writeWindowsMetadata(infoPath, manifestPath, metadata) {
+  const info = JSON.parse(
+    fs.readFileSync(
+      path.join(rootDir, "build", "desktop", "windows", "info.json"),
+      "utf8",
+    ),
+  );
+  info.fixed.file_version = metadata.numericVersion;
+  info.info["0000"].ProductVersion = metadata.numericVersion;
+  info.info["0000"].Comments =
+    `Wails v3 desktop shell for JFTrade; commit ${metadata.commit}; built ${metadata.buildTime}`;
+  fs.writeFileSync(infoPath, `${JSON.stringify(info, null, 2)}\n`, "utf8");
+
+  const manifest = fs
+    .readFileSync(
+      path.join(rootDir, "build", "desktop", "windows", "wails.exe.manifest"),
+      "utf8",
+    )
+    .replace(/version="[^"]+"/, `version="${metadata.numericVersion}.0"`);
+  fs.writeFileSync(manifestPath, manifest, "utf8");
+}
+
+function desktopGoLDFlags(metadata) {
+  const packagePath = "github.com/jftrade/jftrade-main/internal/buildinfo";
+  return [
+    `-X ${packagePath}.Version=${metadata.version}`,
+    `-X ${packagePath}.Commit=${metadata.commit}`,
+    `-X ${packagePath}.BuildTime=${metadata.buildTime}`,
+  ].join(" ");
 }
 
 function cleanupLegacyDesktopOutputs() {
@@ -179,7 +268,10 @@ function cleanupLegacyDesktopOutputs() {
     "jftrade-desktop-linux-amd64",
     "jftrade-desktop-linux-arm64",
   ]) {
-    fs.rmSync(path.join(rootDir, "dist", entry), { recursive: true, force: true });
+    fs.rmSync(path.join(rootDir, "dist", entry), {
+      recursive: true,
+      force: true,
+    });
   }
 }
 

@@ -18,10 +18,9 @@ import { provideNotificationsStore } from "../composables/useNotifications";
 import { provideLiveStreamStore } from "../composables/useSharedLiveStream";
 import { provideThemeStore } from "../composables/useTheme";
 import { provideUIColorPreferencesStore } from "../composables/useUIColorPreferences";
-import {
-  provideWorkspaceLayoutStore,
-} from "../composables/useWorkspaceLayout";
+import { provideWorkspaceLayoutStore } from "../composables/useWorkspaceLayout";
 import CommandPalette from "./CommandPalette.vue";
+import DesktopUpdateBanner from "../components/DesktopUpdateBanner.vue";
 import IconRail from "./IconRail.vue";
 import RightDock from "./RightDock.vue";
 import StatusBar from "./StatusBar.vue";
@@ -50,23 +49,19 @@ const { docsHomeUrl, openDocs } = useDocsLink();
 const documentTitleSuffix = "JFTrade Console";
 const APP_SHELL_COMPACT_MEDIA_QUERY = "(max-width: 1180px)";
 let compactAppShellMediaQuery: MediaQueryList | null = null;
-let dockResizeStart:
-  | {
-      pointerId: number;
-      bodyWidth: number;
-    }
-  | null = null;
-const activeWorkspaceInstrumentId = computed(
-  () =>
-    `${workspaceTradingPrefs.prefs.value.market}.${workspaceTradingPrefs.prefs.value.symbol}`
-      .trim()
-      .toUpperCase(),
+let dockResizeStart: {
+  pointerId: number;
+  bodyWidth: number;
+} | null = null;
+const activeWorkspaceInstrumentId = computed(() =>
+  `${workspaceTradingPrefs.prefs.value.market}.${workspaceTradingPrefs.prefs.value.symbol}`
+    .trim()
+    .toUpperCase(),
 );
 const workspaceInstrumentName = computed(() => {
   const instrumentId = activeWorkspaceInstrumentId.value;
   const option = console_.marketInstrumentSearchOptions.value.find(
-    (candidate) =>
-      candidate.instrumentId.trim().toUpperCase() === instrumentId,
+    (candidate) => candidate.instrumentId.trim().toUpperCase() === instrumentId,
   );
   const optionName = option?.name?.trim() ?? "";
   if (optionName !== "") {
@@ -84,7 +79,8 @@ const workspaceInstrumentName = computed(() => {
 const workspaceDocumentTitle = computed(() => {
   const instrumentId = activeWorkspaceInstrumentId.value;
   const name = workspaceInstrumentName.value;
-  const instrumentTitle = name === "" ? instrumentId : `${instrumentId}-${name}`;
+  const instrumentTitle =
+    name === "" ? instrumentId : `${instrumentId}-${name}`;
   return `${instrumentTitle} - ${documentTitleSuffix}`;
 });
 const routeDocumentTitle = computed(() => {
@@ -114,7 +110,11 @@ watch(
 
 const navTargets = [
   { id: "nav.workspace", label: "打开交易工作台", to: "/workspace" },
-  { id: "nav.strategy.runtime", label: "打开策略执行", to: "/strategy/runtime" },
+  {
+    id: "nav.strategy.runtime",
+    label: "打开策略执行",
+    to: "/strategy/runtime",
+  },
   { id: "nav.strategy.design", label: "打开策略设计", to: "/strategy/design" },
   { id: "nav.adk", label: "打开智能体", to: "/adk/agents" },
   { id: "nav.backtest", label: "打开回测", to: "/backtest" },
@@ -123,12 +123,8 @@ const navTargets = [
   { id: "nav.system", label: "打开系统", to: "/system" },
   { id: "nav.settings", label: "打开设置", to: "/settings" },
 ];
-const rightDockOpen = computed(
-  () => workspaceLayout.prefs.value.rightDockOpen,
-);
-const rightDockSize = computed(
-  () => workspaceLayout.prefs.value.rightDockSize,
-);
+const rightDockOpen = computed(() => workspaceLayout.prefs.value.rightDockOpen);
+const rightDockSize = computed(() => workspaceLayout.prefs.value.rightDockSize);
 const appBodyStyle = computed(() => {
   if (isOobeRoute.value) {
     return {};
@@ -215,7 +211,10 @@ function syncCompactAppShell(
 }
 
 function reconnectLiveStreamIfNeeded(): void {
-  if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+  if (
+    typeof document !== "undefined" &&
+    document.visibilityState === "hidden"
+  ) {
     return;
   }
   live.reconnect();
@@ -290,7 +289,10 @@ function stopRightDockResize(event?: PointerEvent): void {
 async function initializeConsoleShell(): Promise<void> {
   try {
     const onboarding = await console_.loadOnboardingState();
-    if (onboarding.shouldShowOobe && router.currentRoute.value.path !== "/oobe") {
+    if (
+      onboarding.shouldShowOobe &&
+      router.currentRoute.value.path !== "/oobe"
+    ) {
       await router.replace("/oobe");
     }
   } finally {
@@ -389,7 +391,10 @@ onUnmounted(() => {
   stopLiveEventReducers();
   stopRightDockResize();
   if (typeof document !== "undefined") {
-    document.removeEventListener("visibilitychange", reconnectLiveStreamIfNeeded);
+    document.removeEventListener(
+      "visibilitychange",
+      reconnectLiveStreamIfNeeded,
+    );
   }
   if (typeof window !== "undefined") {
     window.removeEventListener("online", reconnectLiveStreamIfNeeded);
@@ -420,12 +425,14 @@ onUnmounted(() => {
       :compact="isCompactAppShell"
       @toggle-nav="toggleCompactNav"
     />
+    <DesktopUpdateBanner v-if="!isOobeRoute" />
     <div
       ref="appBodyRef"
       class="tv-app-body"
       :class="{
         'tv-app-body--oobe': isOobeRoute,
-        'tv-app-body--dock-open': !isOobeRoute && rightDockOpen && !isCompactAppShell,
+        'tv-app-body--dock-open':
+          !isOobeRoute && rightDockOpen && !isCompactAppShell,
       }"
       :style="appBodyStyle"
     >
@@ -457,10 +464,7 @@ onUnmounted(() => {
         aria-label="关闭侧栏"
         @click="closeRightDock"
       />
-      <div
-        v-if="!isOobeRoute && rightDockOpen"
-        class="tv-rightdock-slot"
-      >
+      <div v-if="!isOobeRoute && rightDockOpen" class="tv-rightdock-slot">
         <button
           v-if="!isCompactAppShell"
           type="button"

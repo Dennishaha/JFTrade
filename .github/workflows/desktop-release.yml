@@ -2,43 +2,256 @@ name: Desktop Release
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Exact desktop-vX.Y.Z tag to publish
+        required: true
+        type: string
   push:
     tags:
-      - 'desktop-v*'
+      - "desktop-v*"
+
+permissions:
+  actions: read
+  attestations: write
+  contents: write
+  id-token: write
+
+env:
+  JFTRADE_DESKTOP_RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+  JFTRADE_DESKTOP_BUILD_TIME: ${{ github.event.head_commit.timestamp || '' }}
+
+concurrency:
+  group: desktop-release-${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+  cancel-in-progress: false
 
 jobs:
-  desktop:
-    name: Desktop ${{ matrix.release }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: darwin
-            release: darwin-amd64
-            arch: amd64
-            os: macos-latest
-            artifact: JFTrade.app
-          - target: windows
-            release: windows-amd64
-            arch: amd64
-            os: windows-latest
-            artifact: jftrade-desktop-windows-amd64.exe
-          - target: linux
-            release: linux-amd64
-            arch: amd64
-            os: ubuntu-24.04
-            artifact: jftrade-desktop-linux-amd64
-
+  macos:
+    name: macOS ARM64 Unsigned DMG
+    runs-on: macos-15
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: "1.26"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Verify ARM64 runner
+        run: test "$(uname -m)" = "arm64"
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Verify Wails and desktop source
+        run: |
+          node scripts/wails3.mjs doctor
+          npm run check:wails-bindings
+          npm run typecheck:web
+          go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+
+      - name: Build unsigned ARM64 DMG
+        run: npm run desktop:release:darwin
+
+      - name: Locate macOS artifact
+        id: artifact
+        run: |
+          artifact="$(find dist/desktop-release/darwin-arm64 -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$artifact"
+          echo "path=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Generate macOS SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: dist/desktop-release/darwin-arm64/JFTrade.app
+          format: spdx-json
+          output-file: dist/desktop-release/JFTrade-macos-arm64.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Attest macOS build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.artifact.outputs.path }}
+
+      - name: Upload macOS release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-macos
+          path: |
+            ${{ steps.artifact.outputs.path }}
+            dist/desktop-release/JFTrade-macos-arm64.spdx.json
+          if-no-files-found: error
+
+  windows:
+    name: Windows x64 Unsigned Installer
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install packaging tools
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Verify Wails and desktop source
+        run: |
+          node scripts/wails3.mjs doctor
+          npm run check:wails-bindings
+          npm run typecheck:web
+          go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+
+      - name: Build unsigned per-user NSIS installer
+        run: npm run desktop:release:windows
+
+      - name: Locate Windows artifact
+        id: artifact
+        shell: pwsh
+        run: |
+          $artifact = Get-ChildItem dist/desktop-release/windows-amd64/*-setup.exe | Select-Object -First 1
+          if (-not $artifact) { throw "Windows installer was not produced" }
+          "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Generate Windows SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          file: dist/desktop-release/windows-amd64/JFTrade.exe
+          format: spdx-json
+          output-file: dist/desktop-release/JFTrade-windows-x64.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Attest Windows build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.artifact.outputs.path }}
+
+      - name: Upload Windows release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-windows
+          path: |
+            ${{ steps.artifact.outputs.path }}
+            dist/desktop-release/JFTrade-windows-x64.spdx.json
+          if-no-files-found: error
+
+  windows_arm64:
+    name: Windows ARM64 Preview Installer
+    runs-on: windows-11-arm
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Verify ARM64 runner
+        shell: pwsh
+        run: |
+          if ((go env GOARCH) -ne "arm64") { throw "Windows ARM64 runner is required" }
+
+      - name: Install packaging tools
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Verify Wails and desktop source
+        run: |
+          node scripts/wails3.mjs doctor
+          npm run check:wails-bindings
+          npm run typecheck:web
+          go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+
+      - name: Build unsigned ARM64 preview NSIS installer
+        run: npm run desktop:release:windows-arm64
+
+      - name: Locate Windows ARM64 artifact
+        id: artifact
+        shell: pwsh
+        run: |
+          $artifact = Get-ChildItem dist/desktop-release/windows-arm64/*-preview-unsigned-setup.exe | Select-Object -First 1
+          if (-not $artifact) { throw "Windows ARM64 preview installer was not produced" }
+          "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Generate Windows ARM64 SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          file: ${{ steps.artifact.outputs.path }}
+          format: spdx-json
+          output-file: dist/desktop-release/JFTrade-windows-arm64.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Attest Windows ARM64 build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.artifact.outputs.path }}
+
+      - name: Upload Windows ARM64 release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-windows-arm64
+          path: |
+            ${{ steps.artifact.outputs.path }}
+            dist/desktop-release/JFTrade-windows-arm64.spdx.json
+          if-no-files-found: error
+
+  linux:
+    name: Linux x64 Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      GOFLAGS: "-tags=gtk3"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -47,7 +260,6 @@ jobs:
           package-manager-cache: false
 
       - name: Install Linux desktop dependencies
-        if: matrix.target == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
@@ -55,14 +267,81 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build desktop artifact
-        run: npm run desktop:release:${{ matrix.target }}
-        env:
-          GOARCH: ${{ matrix.arch }}
+      - name: Verify Wails and desktop source
+        run: |
+          node scripts/wails3.mjs doctor
+          npm run check:wails-bindings
+          npm run typecheck:web
+          go test -tags release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
 
-      - name: Upload desktop artifact
+      - name: Build Linux artifact
+        run: npm run desktop:release:linux
+
+      - name: Locate Linux artifact
+        id: artifact
+        run: |
+          artifact="dist/desktop-release/linux-amd64/jftrade-desktop-linux-amd64"
+          test -x "$artifact"
+          echo "path=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Linux SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          file: ${{ steps.artifact.outputs.path }}
+          format: spdx-json
+          output-file: dist/desktop-release/JFTrade-linux-x64.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Attest Linux build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.artifact.outputs.path }}
+
+      - name: Upload Linux release files
         uses: actions/upload-artifact@v7
         with:
-          name: jftrade-desktop-${{ matrix.release }}-${{ github.run_id }}
-          path: dist/desktop-release/${{ matrix.release }}/${{ matrix.artifact }}
+          name: desktop-release-linux
+          path: |
+            ${{ steps.artifact.outputs.path }}
+            dist/desktop-release/JFTrade-linux-x64.spdx.json
           if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [macos, windows, windows_arm64, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-release-*
+          merge-multiple: true
+          path: incoming
+
+      - name: Flatten release files
+        run: |
+          mkdir release
+          find incoming -type f -exec cp {} release/ \;
+          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 8
+
+      - name: Generate SHA256SUMS
+        working-directory: release
+        run: |
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+
+      - name: Attest checksum manifest
+        uses: actions/attest@v4
+        with:
+          subject-path: release/SHA256SUMS
+
+      - name: Publish GitHub release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$JFTRADE_DESKTOP_RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --clobber
+          else
+            gh release create "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --verify-tag --generate-notes --title "JFTrade ${JFTRADE_DESKTOP_RELEASE_TAG#desktop-v}"
+          fi

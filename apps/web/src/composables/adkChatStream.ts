@@ -98,6 +98,7 @@ export async function resumeADKChatStream(
   const init: RequestInit = {
     method: "GET",
     credentials: "include",
+    headers: csrfHeaders("GET"),
   };
   if (cursor.signal) {
     init.signal = cursor.signal;
@@ -110,7 +111,9 @@ export async function resumeADKChatStream(
     return null;
   }
   if (!response.ok) {
-    throw new Error((await response.text()) || "Agents stream reconnect failed");
+    throw new Error(
+      (await response.text()) || "Agents stream reconnect failed",
+    );
   }
   return consumeADKChatStream(response, onEvent);
 }
@@ -222,19 +225,22 @@ async function consumeADKChatStream(
           updatedAt: lastRun.updatedAt ?? new Date().toISOString(),
         },
         run: lastRun,
-        pendingApprovals: lastRun.toolCalls
-          ?.filter((tc) => tc.status === "PENDING_APPROVAL")
-          .map((tc) => ({
-            id: tc.id,
-            runId: lastRun.id,
-            agentId: lastRun.agentId,
-            toolName: tc.toolName,
-            ...(tc.input !== undefined ? { input: tc.input } : {}),
-            status: "PENDING" as const,
-            reason: tc.permission ?? "",
-            createdAt: tc.createdAt ?? lastRun.createdAt ?? new Date().toISOString(),
-            updatedAt: tc.updatedAt ?? lastRun.updatedAt ?? new Date().toISOString(),
-          })) ?? [],
+        pendingApprovals:
+          lastRun.toolCalls
+            ?.filter((tc) => tc.status === "PENDING_APPROVAL")
+            .map((tc) => ({
+              id: tc.id,
+              runId: lastRun.id,
+              agentId: lastRun.agentId,
+              toolName: tc.toolName,
+              ...(tc.input !== undefined ? { input: tc.input } : {}),
+              status: "PENDING" as const,
+              reason: tc.permission ?? "",
+              createdAt:
+                tc.createdAt ?? lastRun.createdAt ?? new Date().toISOString(),
+              updatedAt:
+                tc.updatedAt ?? lastRun.updatedAt ?? new Date().toISOString(),
+            })) ?? [],
         timeline: [],
       };
       return response;

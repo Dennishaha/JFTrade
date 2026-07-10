@@ -25,6 +25,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	router.Use(requestObservabilityMiddleware(s.observability))
 	router.Use(gin.Recovery())
 	router.Use(s.corsMiddleware())
+	router.Use(s.desktopTokenMiddleware())
 	router.Use(s.authMiddleware())
 	router.Use(s.databaseAvailabilityMiddleware())
 

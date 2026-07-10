@@ -10,13 +10,8 @@ import (
 )
 
 const (
-	desktopOpenLinkMethodID = 0x4a465401
-	desktopDocsWindowName   = "docs"
+	desktopDocsWindowName = "docs"
 )
-
-func init() {
-	application.RegisterBindingMethodID((*DesktopLinkService).OpenLink, desktopOpenLinkMethodID)
-}
 
 type DesktopLinkService struct {
 	app *application.App

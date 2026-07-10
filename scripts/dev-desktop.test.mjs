@@ -14,17 +14,28 @@ const defaults = runDevDesktop({
   VITE_API_BASE_URL: "",
   VITE_DEV_API_TARGET: "",
 });
-assert(defaults.status === 0, `desktop dev dry run failed: ${defaults.stderr || defaults.stdout}`);
 assert(
-  defaults.stdout.includes(`JFTRADE_SETTINGS_PATH=${path.join(desktopRuntimeDir, "settings.json")}`),
+  defaults.status === 0,
+  `desktop dev dry run failed: ${defaults.stderr || defaults.stdout}`,
+);
+assert(
+  defaults.stdout.includes("JFTRADE_DESKTOP_MODE=1"),
+  "desktop dev did not identify the Vite runtime as desktop mode",
+);
+assert(
+  defaults.stdout.includes(
+    `JFTRADE_SETTINGS_PATH=${path.join(desktopRuntimeDir, "settings.json")}`,
+  ),
   "desktop dev did not default to the desktop settings path",
 );
 assert(
-  defaults.stdout.includes(`JFTRADE_BACKTEST_DB=${path.join(desktopRuntimeDir, "backtest.db")}`),
+  defaults.stdout.includes(
+    `JFTRADE_BACKTEST_DB=${path.join(desktopRuntimeDir, "backtest.db")}`,
+  ),
   "desktop dev did not default to the desktop backtest DB path",
 );
 assert(
-  defaults.stdout.includes("JFTRADE_API_BIND=127.0.0.1:6699"),
+  defaults.stdout.includes("JFTRADE_API_BIND=127.0.0.1:6698"),
   "desktop dev did not default to the desktop API bind",
 );
 assert(
@@ -32,11 +43,11 @@ assert(
   "desktop dev did not disable the markets cache by default",
 );
 assert(
-  defaults.stdout.includes("VITE_API_BASE_URL=http://127.0.0.1:6699"),
+  defaults.stdout.includes("VITE_API_BASE_URL=http://127.0.0.1:6698"),
   "desktop dev did not inject the desktop API base URL into the frontend",
 );
 assert(
-  defaults.stdout.includes("VITE_DEV_API_TARGET=http://127.0.0.1:6699"),
+  defaults.stdout.includes("VITE_DEV_API_TARGET=http://127.0.0.1:6698"),
   "desktop dev did not point the Vite proxy at the desktop API",
 );
 
@@ -48,13 +59,20 @@ const overrides = runDevDesktop({
   VITE_API_BASE_URL: "http://127.0.0.1:8899",
   VITE_DEV_API_TARGET: "http://127.0.0.1:8899",
 });
-assert(overrides.status === 0, `desktop dev override dry run failed: ${overrides.stderr || overrides.stdout}`);
 assert(
-  overrides.stdout.includes(`JFTRADE_SETTINGS_PATH=${path.join(rootDir, "tmp", "settings.json")}`),
+  overrides.status === 0,
+  `desktop dev override dry run failed: ${overrides.stderr || overrides.stdout}`,
+);
+assert(
+  overrides.stdout.includes(
+    `JFTRADE_SETTINGS_PATH=${path.join(rootDir, "tmp", "settings.json")}`,
+  ),
   "desktop dev did not preserve the settings path override",
 );
 assert(
-  overrides.stdout.includes(`JFTRADE_BACKTEST_DB=${path.join(rootDir, "tmp", "backtest.db")}`),
+  overrides.stdout.includes(
+    `JFTRADE_BACKTEST_DB=${path.join(rootDir, "tmp", "backtest.db")}`,
+  ),
   "desktop dev did not preserve the backtest DB override",
 );
 assert(

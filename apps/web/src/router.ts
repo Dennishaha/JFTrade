@@ -86,6 +86,11 @@ export function createConsoleRouter(
         component: () => import("./pages/BacktestPage.vue"),
         meta: { title: "回测" },
       },
+      {
+        path: "/desktop-logs",
+        component: () => import("./pages/DesktopLogsPage.vue"),
+        meta: { title: "桌面日志", standalone: true },
+      },
     ],
   });
 }

@@ -1,10 +1,7 @@
-import {
-  type ApiErrorEnvelope,
-  type ApiSuccessEnvelope,
-} from "@/contracts";
+import { type ApiErrorEnvelope, type ApiSuccessEnvelope } from "@/contracts";
 import type { paths } from "@/generated/openapi";
 
-import { buildRuntimeApiUrl } from "../runtimeConfig";
+import { buildRuntimeApiUrl, resolveDesktopApiToken } from "../runtimeConfig";
 
 export function buildApiUrl(path: string): string {
   return buildRuntimeApiUrl(path);
@@ -39,14 +36,12 @@ type OperationFor<
   TPath extends ApiPath,
   TMethod extends HttpMethod,
 > = TMethod extends keyof paths[TPath] ? paths[TPath][TMethod] : never;
-type JsonRequestBody<
-  TPath extends ApiPath,
-  TMethod extends HttpMethod,
-> = OperationFor<TPath, TMethod> extends {
-  requestBody: { content: { "application/json": infer TBody } };
-}
-  ? TBody
-  : never;
+type JsonRequestBody<TPath extends ApiPath, TMethod extends HttpMethod> =
+  OperationFor<TPath, TMethod> extends {
+    requestBody: { content: { "application/json": infer TBody } };
+  }
+    ? TBody
+    : never;
 
 type ApiRequestOptions = Omit<RequestInit, "body" | "credentials" | "method">;
 
@@ -59,10 +54,15 @@ export function csrfHeaders(method = "POST"): Record<string, string> {
 }
 
 function authHeaders(method = "GET"): Record<string, string> {
-  if (csrfToken && !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) {
-    return { "X-CSRF-Token": csrfToken };
+  const headers: Record<string, string> = {};
+  const desktopApiToken = resolveDesktopApiToken();
+  if (desktopApiToken) {
+    headers.Authorization = `Bearer ${desktopApiToken}`;
   }
-  return {};
+  if (csrfToken && !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) {
+    headers["X-CSRF-Token"] = csrfToken;
+  }
+  return headers;
 }
 
 async function parseEnvelope<T>(response: Response): Promise<T> {
@@ -90,7 +90,11 @@ async function parseEnvelope<T>(response: Response): Promise<T> {
 
   if (!response.ok) {
     if (body != null && !body.ok) {
-      throw new ApiClientError(body.error.message, body.error.code, response.status);
+      throw new ApiClientError(
+        body.error.message,
+        body.error.code,
+        response.status,
+      );
     }
     throw new Error(`${response.status} ${response.statusText}`);
   }
@@ -100,7 +104,11 @@ async function parseEnvelope<T>(response: Response): Promise<T> {
   }
 
   if (!body.ok) {
-    throw new ApiClientError(body.error.message || "Unknown API error", body.error.code, response.status);
+    throw new ApiClientError(
+      body.error.message || "Unknown API error",
+      body.error.code,
+      response.status,
+    );
   }
 
   return body.data;
@@ -109,6 +117,7 @@ async function parseEnvelope<T>(response: Response): Promise<T> {
 export async function administratorSession(): Promise<AdministratorSession> {
   const response = await fetch(buildApiUrl("/api/v1/auth/session"), {
     credentials: "include",
+    headers: authHeaders("GET"),
   });
   return parseEnvelope<AdministratorSession>(response);
 }
@@ -119,7 +128,7 @@ export async function administratorLogin(
   const response = await fetch(buildApiUrl("/api/v1/auth/login"), {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders("POST") },
     body: JSON.stringify({ key }),
   });
   return parseEnvelope<AdministratorSession>(response);
@@ -172,35 +181,32 @@ export async function apiGet<TResponse, TPath extends PathWithMethod<"get">>(
   return fetchEnvelopeWithInit<TResponse>(path, { ...init, method: "GET" });
 }
 
-export async function apiPost<
-  TResponse,
-  TPath extends PathWithMethod<"post">,
->(
+export async function apiPost<TResponse, TPath extends PathWithMethod<"post">>(
   path: TPath,
   body: JsonRequestBody<TPath, "post">,
   init?: ApiRequestOptions,
 ): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(path, withJsonBody("POST", body, init));
+  return fetchEnvelopeWithInit<TResponse>(
+    path,
+    withJsonBody("POST", body, init),
+  );
 }
 
-export async function apiPut<
-  TResponse,
-  TPath extends PathWithMethod<"put">,
->(
+export async function apiPut<TResponse, TPath extends PathWithMethod<"put">>(
   path: TPath,
   body: JsonRequestBody<TPath, "put">,
   init?: ApiRequestOptions,
 ): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(path, withJsonBody("PUT", body, init));
+  return fetchEnvelopeWithInit<TResponse>(
+    path,
+    withJsonBody("PUT", body, init),
+  );
 }
 
 export async function apiDelete<
   TResponse,
   TPath extends PathWithMethod<"delete">,
->(
-  path: TPath,
-  init?: ApiRequestOptions,
-): Promise<TResponse> {
+>(path: TPath, init?: ApiRequestOptions): Promise<TResponse> {
   return fetchEnvelopeWithInit<TResponse>(path, { ...init, method: "DELETE" });
 }
 
@@ -224,7 +230,10 @@ export async function apiPutPath<
   body: JsonRequestBody<TPath, "put">,
   init?: ApiRequestOptions,
 ): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(path, withJsonBody("PUT", body, init));
+  return fetchEnvelopeWithInit<TResponse>(
+    path,
+    withJsonBody("PUT", body, init),
+  );
 }
 
 export async function apiDeletePath<

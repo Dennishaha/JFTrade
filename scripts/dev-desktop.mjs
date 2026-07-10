@@ -11,10 +11,12 @@ const npmCommand = process.env.npm_execpath
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const desktopRuntimeDir = path.join(rootDir, "var", "jftrade-api");
-const apiBind = process.env.JFTRADE_API_BIND || "127.0.0.1:6699";
+const apiBind = process.env.JFTRADE_API_BIND || "127.0.0.1:6698";
 const apiBaseUrl = apiBaseURLForBind(apiBind);
 const devEnv = {
-  FRONTEND_DEVSERVER_URL: process.env.FRONTEND_DEVSERVER_URL || "http://127.0.0.1:5173",
+  JFTRADE_DESKTOP_MODE: "1",
+  FRONTEND_DEVSERVER_URL:
+    process.env.FRONTEND_DEVSERVER_URL || "http://127.0.0.1:5173",
   JFTRADE_SETTINGS_PATH:
     process.env.JFTRADE_SETTINGS_PATH ||
     path.join(desktopRuntimeDir, "settings.json"),
@@ -32,6 +34,7 @@ let desktopArgs = ["run", "./cmd/jftrade-desktop"];
 
 if (process.env.JFTRADE_DESKTOP_DEV_DRY_RUN === "1") {
   console.log(`FRONTEND_DEVSERVER_URL=${devEnv.FRONTEND_DEVSERVER_URL}`);
+  console.log(`JFTRADE_DESKTOP_MODE=${devEnv.JFTRADE_DESKTOP_MODE}`);
   console.log(`JFTRADE_SETTINGS_PATH=${devEnv.JFTRADE_SETTINGS_PATH}`);
   console.log(`JFTRADE_BACKTEST_DB=${devEnv.JFTRADE_BACKTEST_DB}`);
   console.log(`JFTRADE_API_BIND=${devEnv.JFTRADE_API_BIND}`);
@@ -42,16 +45,22 @@ if (process.env.JFTRADE_DESKTOP_DEV_DRY_RUN === "1") {
 }
 
 if (process.platform === "darwin") {
-  const binaryPath = path.join(rootDir, "dist", "dev", "jftrade-desktop");
-  const appPath = path.join(rootDir, "dist", "dev", "JFTrade.app");
+  const binaryPath = path.join(rootDir, "dist", "dev", "jftrade-desktop-dev");
+  const appPath = path.join(rootDir, "dist", "dev", "JFTrade Dev.app");
   fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
-  const build = spawn("go", ["build", "-o", binaryPath, "./cmd/jftrade-desktop"], {
-    cwd: rootDir,
-    stdio: "inherit",
-  });
+  const build = spawn(
+    "go",
+    ["build", "-o", binaryPath, "./cmd/jftrade-desktop"],
+    {
+      cwd: rootDir,
+      stdio: "inherit",
+    },
+  );
   const code = await new Promise((resolve) => build.on("exit", resolve));
   if (code !== 0) process.exit(code ?? 1);
-  desktopCommand = writeMacAppBundle(appPath, binaryPath);
+  desktopCommand = writeMacAppBundle(appPath, binaryPath, {
+    development: true,
+  });
   desktopArgs = [];
 }
 

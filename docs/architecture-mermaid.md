@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart TB
-    User["用户 / 浏览器"]
+    User["用户 / 浏览器 / 桌面窗口"]
 
     subgraph Frontend["前端与文档"]
         Web["apps/web<br/>Vue 3 + Vite 控制台"]
@@ -15,7 +15,8 @@ flowchart TB
     end
 
     subgraph Entrypoint["进程入口与装配"]
-        CLI["cmd/jftrade-api<br/>唯一后端入口"]
+        CLI["cmd/jftrade-api<br/>独立 API 入口"]
+        Desktop["cmd/jftrade-desktop<br/>Wails v3 / profile / 单实例"]
         App["internal/app/apiserver<br/>启动 / 生命周期 / 运行时目录"]
         Core["servercore<br/>依赖装配 / 路由挂载 / runtime bridge"]
     end
@@ -53,11 +54,12 @@ flowchart TB
     end
 
     subgraph RuntimeState["本地运行时文件"]
-        Var["var/jftrade-api"]
+        DevVar["开发 / JFTrade Dev<br/>仓库 var/jftrade-api"]
+        ProductData["正式桌面产品<br/>系统用户数据目录"]
         SettingsFile["settings.json"]
         BacktestDB["backtest.db"]
         Secrets["secrets/admin.key"]
-        Artifacts["策略 / 回测 / worker artifacts"]
+        Artifacts["策略 / 回测 / worker artifacts<br/>日志 / desktop-state.json"]
     end
 
     subgraph External["外部依赖"]
@@ -66,8 +68,10 @@ flowchart TB
     end
 
     User --> Web
+    User --> Desktop --> Web
     User --> Docs
     RuntimeConfig --> Web
+    Desktop --> App
 
     Web -->|JSON HTTP /api/v1/*| Middleware
     Web -->|SSE /api/v1/stream/live| LiveAPI
@@ -120,15 +124,20 @@ flowchart TB
     Core --> LiveBus
     LiveBus --> LiveAPI
 
-    Core --> Var
+    Core --> DevVar
+    Desktop --> ProductData
     SettingsSvc --> SettingsFile
     BacktestSvc --> BacktestDB
     Core --> Secrets
     StrategySvc --> Artifacts
-    Var --> SettingsFile
-    Var --> BacktestDB
-    Var --> Secrets
-    Var --> Artifacts
+    DevVar --> SettingsFile
+    DevVar --> BacktestDB
+    DevVar --> Secrets
+    DevVar --> Artifacts
+    ProductData --> SettingsFile
+    ProductData --> BacktestDB
+    ProductData --> Secrets
+    ProductData --> Artifacts
 ```
 
 ## 主要运行链路
@@ -199,6 +208,7 @@ flowchart TB
         DevWeb["npm run dev:web<br/>Vite 127.0.0.1:5173"]
         DevDocs["npm run dev:docs<br/>VitePress 127.0.0.1:3001"]
         Proxy["Vite proxy<br/>/api /swagger -> 3000<br/>/docs -> 3001"]
+        DesktopDev["npm run desktop:dev<br/>JFTrade Dev / API 6698<br/>仓库 var/jftrade-api"]
     end
 
     subgraph Build["构建任务"]
@@ -206,6 +216,7 @@ flowchart TB
         BuildDocs["npm run build:docs<br/>generate OpenAPI + reference"]
         BuildWorker["npm run build:pineworker"]
         BuildAPI["go build ./cmd/jftrade-api"]
+        BuildDesktop["release_assets<br/>cmd/jftrade-desktop"]
     end
 
     subgraph Release["发布态"]
@@ -213,15 +224,22 @@ flowchart TB
         GUI["GUI 同源入口<br/>127.0.0.1:6688"]
         Gateway["API gateway<br/>127.0.0.1:6699"]
         EmbeddedAssets["internal/frontendassets<br/>internal/pineworkerassets"]
+        DesktopProduct["JFTrade<br/>Wails / API 6699<br/>系统用户数据目录"]
+        MacDMG["macOS ARM64<br/>unsigned DMG"]
+        WinNSIS["Windows x64 + ARM64 preview<br/>unsigned per-user NSIS"]
     end
 
     DevWeb --> Proxy --> DevAPI
     DevWeb --> Proxy --> DevDocs
+    DevWeb --> DesktopDev
 
     BuildWeb --> Dist
     BuildDocs --> Dist
     BuildWorker --> EmbeddedAssets
     BuildAPI --> Dist
+    BuildDesktop --> MacDMG
+    BuildDesktop --> WinNSIS
+    BuildDesktop --> DesktopProduct
     EmbeddedAssets --> BuildAPI
 
     Dist --> GUI
