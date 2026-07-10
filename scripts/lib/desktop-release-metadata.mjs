@@ -1,7 +1,7 @@
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 
-export const desktopReleaseTagPattern = /^desktop-v(\d+)\.(\d+)\.(\d+)$/;
+export const desktopReleaseTagPattern = /^v(\d+)\.(\d+)\.(\d+)$/;
 
 export function resolveDesktopBuildMetadata(
   env = process.env,
@@ -35,7 +35,7 @@ export function requireDesktopReleaseMetadata(metadata) {
     metadata.numericVersion === "0.0.0"
   ) {
     throw new Error(
-      "Desktop releases require JFTRADE_DESKTOP_RELEASE_TAG=desktop-vX.Y.Z (0.0.0 and dev are forbidden).",
+      "Desktop releases require JFTRADE_DESKTOP_RELEASE_TAG=vX.Y.Z (v0.0.0 and dev are forbidden).",
     );
   }
   return metadata;

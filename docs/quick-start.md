@@ -76,23 +76,23 @@ Windows PowerShell:
 
 ## Wails 正式产品
 
-正式桌面构建必须提供准确的 `desktop-vX.Y.Z` tag。macOS 只生成 Apple Silicon ARM64 无签名 DMG：
+正式桌面构建必须提供准确的 `vX.Y.Z` tag。macOS 只生成 Apple Silicon ARM64 无签名 DMG：
 
 ```bash
-JFTRADE_DESKTOP_RELEASE_TAG=desktop-v1.2.3 npm run desktop:release:darwin
+JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 npm run desktop:release:darwin
 ```
 
 Windows x64 无签名 per-user NSIS 安装器：
 
 ```powershell
-$env:JFTRADE_DESKTOP_RELEASE_TAG = "desktop-v1.2.3"
+$env:JFTRADE_DESKTOP_RELEASE_TAG = "v1.2.3"
 npm run desktop:release:windows
 ```
 
 Windows ARM64 使用同一命令的 `windows-arm64` 目标，生成标记为 preview 的无签名 per-user NSIS 安装器：
 
 ```powershell
-$env:JFTRADE_DESKTOP_RELEASE_TAG = "desktop-v1.2.3"
+$env:JFTRADE_DESKTOP_RELEASE_TAG = "v1.2.3"
 npm run desktop:release:windows-arm64
 ```
 

@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Exact desktop-vX.Y.Z tag to publish
+        description: Exact vX.Y.Z tag to publish
         required: true
         type: string
   push:
     tags:
-      - "desktop-v*"
+      - "v*"
 
 permissions:
   actions: read
@@ -350,5 +350,5 @@ jobs:
           if gh release view "$JFTRADE_DESKTOP_RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --clobber
           else
-            gh release create "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --verify-tag --generate-notes --title "JFTrade ${JFTRADE_DESKTOP_RELEASE_TAG#desktop-v}"
+            gh release create "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --verify-tag --generate-notes --title "JFTrade ${JFTRADE_DESKTOP_RELEASE_TAG#v}"
           fi

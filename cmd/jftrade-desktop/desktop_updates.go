@@ -16,7 +16,7 @@ import (
 
 const (
 	desktopReleaseRepository = "Dennishaha/jftrade"
-	desktopReleaseTagPrefix  = "desktop-v"
+	desktopReleaseTagPrefix  = "v"
 	desktopUpdateEvent       = "jftrade:desktop-update:available"
 )
 
@@ -99,7 +99,6 @@ func (s *DesktopUpdateService) Check() (DesktopUpdateResult, error) {
 func normalizeDesktopVersion(value string) string {
 	value = strings.TrimSpace(value)
 	value = strings.TrimPrefix(value, desktopReleaseTagPrefix)
-	value = strings.TrimPrefix(value, "v")
 	if value == "" {
 		return "dev"
 	}

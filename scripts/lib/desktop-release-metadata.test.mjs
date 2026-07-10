@@ -7,14 +7,14 @@ import {
 
 const metadata = resolveDesktopBuildMetadata(
   {
-    JFTRADE_DESKTOP_RELEASE_TAG: "desktop-v1.2.3",
+    JFTRADE_DESKTOP_RELEASE_TAG: "v1.2.3",
     JFTRADE_DESKTOP_COMMIT: "abc123",
     SOURCE_DATE_EPOCH: "0",
   },
   new Date("2026-07-10T00:00:00Z"),
 );
 assert.deepEqual(metadata, {
-  tag: "desktop-v1.2.3",
+  tag: "v1.2.3",
   version: "1.2.3",
   numericVersion: "1.2.3",
   commit: "abc123",
@@ -30,7 +30,13 @@ assert.equal(development.version, "dev");
 assert.equal(development.numericVersion, "0.0.0");
 assert.throws(
   () => requireDesktopReleaseMetadata(development),
-  /desktop-vX\.Y\.Z/,
+  /vX\.Y\.Z/,
 );
+
+const zeroVersion = resolveDesktopBuildMetadata(
+  { JFTRADE_DESKTOP_RELEASE_TAG: "v0.0.0" },
+  new Date("2026-07-10T00:00:00Z"),
+);
+assert.throws(() => requireDesktopReleaseMetadata(zeroVersion), /v0\.0\.0/);
 
 console.log("desktop release metadata tests passed");

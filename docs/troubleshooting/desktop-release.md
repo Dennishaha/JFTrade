@@ -28,22 +28,22 @@
 
 ## 版本与本地验证
 
-正式发布只接受 `desktop-vX.Y.Z`：
+正式发布只接受 `vX.Y.Z`：
 
 ```bash
-JFTRADE_DESKTOP_RELEASE_TAG=desktop-v1.2.3 npm run desktop:release:darwin
+JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 npm run desktop:release:darwin
 ```
 
-`dev`、`0.0.0`、分支名和其他 tag 都会被 release 脚本拒绝。版本、提交号和构建时间会同时注入 Go buildinfo、macOS Info.plist 和 Windows version resource。
+`dev`、`v0.0.0`、分支名和其他 tag 都会被 release 脚本拒绝。版本、提交号和构建时间会同时注入 Go buildinfo、macOS Info.plist 和 Windows version resource。
 
 推送 tag 会启动 `.github/workflows/desktop-release.yml`；三平台任务全部通过后，`publish` job 会创建或更新同名 GitHub Release，并上传二进制、SBOM 和 `SHA256SUMS`：
 
 ```bash
-git tag desktop-v1.2.3
-git push origin desktop-v1.2.3
+git tag v1.2.3
+git push origin v1.2.3
 ```
 
-也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `desktop-vX.Y.Z` tag；手动路径与 tag 推送一样会发布 Release。相同 tag 的发布会串行执行，避免重复上传同一组 assets。
+也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径与 tag 推送一样会发布 Release。相同 tag 的发布会串行执行，避免重复上传同一组 assets。
 
 开发构建与 bindings：
 
@@ -63,7 +63,7 @@ npm run typecheck:web
 
 ## CI 无签名发布
 
-`.github/workflows/desktop-release.yml` 从准确的 `desktop-vX.Y.Z` tag checkout 并构建：
+`.github/workflows/desktop-release.yml` 从准确的 `vX.Y.Z` tag checkout 并构建：
 
 - macOS：固定使用 `macos-15` ARM64 runner，仅构建 Apple Silicon ARM64，生成文件名带 `macos-arm64-unsigned` 的 DMG，不再生成 x86_64 或 Universal 产物，也不执行 Developer ID 签名、公证或 staple。
 - Windows：生成文件名带 `unsigned` 的 x64 per-user NSIS，不执行 Authenticode 签名。

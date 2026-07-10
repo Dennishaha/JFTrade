@@ -6,7 +6,7 @@
 
 ## 当前版本快照
 
-更新时间：2026-07-10。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `desktop-vX.Y.Z` 发布 tag 为准。
+更新时间：2026-07-10。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
 
 JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。它以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、Futu/OpenD 接入、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
@@ -37,7 +37,7 @@ npm run check:wails-bindings
 go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 ```
 
-独立 API 发行脚本仍按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 解析版本。Wails 正式产品只接受 `desktop-vX.Y.Z`，并把版本、提交号和构建时间注入 Go buildinfo 与平台资源；`dev/0.0.0` 禁止进入桌面 release。
+独立 API 发行脚本仍按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 解析版本。Wails 正式产品只接受 `vX.Y.Z`，并把版本、提交号和构建时间注入 Go buildinfo 与平台资源；`dev` 与 `v0.0.0` 禁止进入桌面 release。
 
 ## 推荐阅读顺序
 

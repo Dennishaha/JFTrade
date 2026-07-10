@@ -12,10 +12,10 @@ func TestDesktopUpdateServiceSelectsLatestStableDesktopRelease(t *testing.T) {
 			t.Fatalf("User-Agent = %q", r.Header.Get("User-Agent"))
 		}
 		_, _ = w.Write([]byte(`[
-			{"tag_name":"v9.0.0","html_url":"https://example.invalid/general","draft":false,"prerelease":false},
-			{"tag_name":"desktop-v1.3.0-beta.1","html_url":"https://example.invalid/beta","draft":false,"prerelease":true},
-			{"tag_name":"desktop-v1.4.0","html_url":"https://example.invalid/1.4.0","body":"new","published_at":"2026-07-10T00:00:00Z","draft":false,"prerelease":false},
-			{"tag_name":"desktop-v1.3.0","html_url":"https://example.invalid/1.3.0","draft":false,"prerelease":false}
+			{"tag_name":"desktop-v9.0.0","html_url":"https://example.invalid/legacy","draft":false,"prerelease":false},
+			{"tag_name":"v1.3.0-beta.1","html_url":"https://example.invalid/beta","draft":false,"prerelease":true},
+			{"tag_name":"v1.4.0","html_url":"https://example.invalid/1.4.0","body":"new","published_at":"2026-07-10T00:00:00Z","draft":false,"prerelease":false},
+			{"tag_name":"v1.3.0","html_url":"https://example.invalid/1.3.0","draft":false,"prerelease":false}
 		]`))
 	}))
 	defer server.Close()

@@ -78,10 +78,10 @@ Windows PowerShell:
 
 发布脚本会构建 `cmd/jftrade-api`，并把前端静态资源和文档站一起放进 `dist/`。
 
-Wails 正式产品使用 `desktop-vX.Y.Z` tag 作为唯一版本源。macOS 只发布 Apple Silicon ARM64 无签名 DMG：
+Wails 正式产品使用 `vX.Y.Z` tag 作为唯一版本源。macOS 只发布 Apple Silicon ARM64 无签名 DMG：
 
 ```bash
-JFTRADE_DESKTOP_RELEASE_TAG=desktop-v1.2.3 npm run desktop:release:darwin
+JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 npm run desktop:release:darwin
 ```
 
 Windows x64 无签名 NSIS 安装器使用 `npm run desktop:release:windows`；tag CI 还会在原生 ARM64 runner 上生成 Windows ARM64 preview 无签名 NSIS 安装器。完整发布约束见 [桌面发布与通道隔离](docs/troubleshooting/desktop-release.md)。
@@ -89,8 +89,8 @@ Windows x64 无签名 NSIS 安装器使用 `npm run desktop:release:windows`；t
 推送正式桌面 tag 会自动触发 GitHub Actions，在全部平台构建通过后创建或更新同名 GitHub Release，并上传可下载二进制、SBOM 和 `SHA256SUMS`：
 
 ```bash
-git tag desktop-v1.2.3
-git push origin desktop-v1.2.3
+git tag v1.2.3
+git push origin v1.2.3
 ```
 
 ## 常用命令
