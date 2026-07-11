@@ -49,8 +49,7 @@ go test ./...
 - API sidecar：`go run ./cmd/jftrade-api`，启动 JFTrade 控制台后端
 - JFTrade Dev：Wails 开发通道，默认 sidecar `127.0.0.1:6698`，使用仓库 `var/jftrade-api`
 - JFTrade：Wails 正式通道，默认 sidecar `127.0.0.1:6699`，使用系统用户数据目录
-- 发布态 GUI：默认 `127.0.0.1:6688`，内嵌前端、`/api/v1/*` 与 Swagger 的同源入口
-- 发布态 gateway：默认 `127.0.0.1:6699`，API 直连与排障入口
+- 发布态 Web 服务：默认 `127.0.0.1:6688`，内嵌前端、`/api/v1/*`、SSE、WS 与 Swagger 的单一同源入口
 - OpenD API port：默认 `127.0.0.1:11110`，Go 原生 TCP API 使用
 - OpenD WebSocket port：默认 `127.0.0.1:11111`，FTWebSocket / JavaScript API 使用
 

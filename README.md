@@ -61,8 +61,7 @@ start.cmd
 
 默认入口：
 
-- GUI：`http://127.0.0.1:6688/`
-- API gateway：`http://127.0.0.1:6699/`
+- 前端 + API：`http://127.0.0.1:6688/`
 
 生成发布产物：
 
@@ -142,8 +141,8 @@ npm run generate:docs
 - `127.0.0.1:3000`：开发态后端服务
 - `127.0.0.1:3001`：文档开发服务器
 - `127.0.0.1:6698`：`JFTrade Dev` 桌面 sidecar
-- `127.0.0.1:6688`：发布态 GUI、文档和 Swagger 的同源入口
-- `127.0.0.1:6699`：浏览器式发布 gateway 与正式 Wails 产品 sidecar
+- `127.0.0.1:6688`：发布态内嵌前端、API、SSE、WS、文档和 Swagger 的单一同源入口
+- `127.0.0.1:6699`：仅正式 Wails 产品 sidecar
 - `127.0.0.1:11110`：Futu OpenD API
 - `127.0.0.1:11111`：Futu OpenD WebSocket
 

@@ -55,10 +55,9 @@ Windows CMD:
 start.cmd
 ```
 
-这条路径会安装依赖、生成 Swagger、执行前端类型检查和构建，然后以 release-style 端口启动带内嵌前端的 sidecar：
+这条路径会安装依赖、生成 Swagger、执行前端类型检查和构建，然后启动带内嵌前端的单端口发布服务：
 
-- GUI：`http://127.0.0.1:6688/`
-- API gateway：`http://127.0.0.1:6699/`
+- 前端 + API：`http://127.0.0.1:6688/`
 
 ## 发布构建
 

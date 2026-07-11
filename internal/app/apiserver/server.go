@@ -263,7 +263,6 @@ func dependencies() lifecycle.Dependencies {
 		NewHandler:                newHandler,
 		APIBaseURLForBind:         apiruntime.APIBaseURLForBind,
 		PortFromBind:              apiruntime.PortFromBind,
-		ResolveGUIRuntimeAPIBase:  resolveGUIRuntimeAPIBaseURL,
 	}
 }
 
@@ -312,31 +311,4 @@ func envOrDefault(key string, fallback string) string {
 		return fallback
 	}
 	return value
-}
-
-func resolveGUIAPIBaseURL(interfaceSettings jfsettings.InterfaceSettings, apiBind string) string {
-	envValue := strings.TrimSpace(os.Getenv("JFTRADE_GUI_API_BASE_URL"))
-	if envValue != "" {
-		return envValue
-	}
-
-	configuredValue := strings.TrimSpace(interfaceSettings.GUIAPIBaseURL)
-	defaultConfiguredValue := apiruntime.APIBaseURLForBind(interfaceSettings.APIBind)
-	if configuredValue == "" || configuredValue == defaultConfiguredValue {
-		return apiruntime.APIBaseURLForBind(apiBind)
-	}
-	return configuredValue
-}
-
-func resolveGUIRuntimeAPIBaseURL(interfaceSettings jfsettings.InterfaceSettings, apiBind string) string {
-	envValue := strings.TrimSpace(os.Getenv("JFTRADE_GUI_API_BASE_URL"))
-	if envValue != "" {
-		return envValue
-	}
-
-	guiAPIBaseURL := resolveGUIAPIBaseURL(interfaceSettings, apiBind)
-	if guiAPIBaseURL == apiruntime.APIBaseURLForBind(apiBind) {
-		return ""
-	}
-	return guiAPIBaseURL
 }

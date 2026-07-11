@@ -36,7 +36,6 @@ func startupDependencies() lifecycle.Dependencies {
 		NewHandler:                newLifecycleHandler,
 		APIBaseURLForBind:         apiBaseURLForBind,
 		PortFromBind:              portFromBind,
-		ResolveGUIRuntimeAPIBase:  resolveGUIRuntimeAPIBaseURL,
 	}
 }
 
@@ -50,33 +49,6 @@ func newLifecycleHandler(store lifecycle.SettingsStore) (lifecycle.Handler, erro
 		return nil, fmt.Errorf("unexpected settings store type %T", store)
 	}
 	return NewSidecarHandler(settingsStore, nil, ""), nil
-}
-
-func resolveGUIAPIBaseURL(interfaceSettings InterfaceSettings, apiBind string) string {
-	envValue := strings.TrimSpace(os.Getenv("JFTRADE_GUI_API_BASE_URL"))
-	if envValue != "" {
-		return envValue
-	}
-
-	configuredValue := strings.TrimSpace(interfaceSettings.GUIAPIBaseURL)
-	defaultConfiguredValue := apiBaseURLForBind(interfaceSettings.APIBind)
-	if configuredValue == "" || configuredValue == defaultConfiguredValue {
-		return apiBaseURLForBind(apiBind)
-	}
-	return configuredValue
-}
-
-func resolveGUIRuntimeAPIBaseURL(interfaceSettings InterfaceSettings, apiBind string) string {
-	envValue := strings.TrimSpace(os.Getenv("JFTRADE_GUI_API_BASE_URL"))
-	if envValue != "" {
-		return envValue
-	}
-
-	guiAPIBaseURL := resolveGUIAPIBaseURL(interfaceSettings, apiBind)
-	if guiAPIBaseURL == apiBaseURLForBind(apiBind) {
-		return ""
-	}
-	return guiAPIBaseURL
 }
 
 func shouldStartForArgs(args []string) bool {

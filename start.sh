@@ -6,8 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 # --- Default runtime configuration ---------------------------------------
-# Default to the release-style GUI/API ports.
-export JFTRADE_API_BIND="${JFTRADE_API_BIND:-127.0.0.1:6699}"
+# The release backend serves the embedded frontend and API on one HTTP port.
 export JFTRADE_GUI_BIND="${JFTRADE_GUI_BIND:-127.0.0.1:6688}"
 export JFTRADE_FUTU_API_PORT="${JFTRADE_FUTU_API_PORT:-11110}"
 export JFTRADE_FUTU_WEBSOCKET_PORT="${JFTRADE_FUTU_WEBSOCKET_PORT:-11111}"
@@ -54,6 +53,5 @@ echo "Building embedded PineTS worker assets / 构建内嵌 PineTS worker 资源
 npm run build:pineworker
 
 echo "Starting JFTrade service / 启动 JFTrade 服务..."
-echo "JFTrade GUI / 前端地址: http://${JFTRADE_GUI_BIND}"
-echo "JFTrade API / 后端地址: http://${JFTRADE_API_BIND}"
+echo "JFTrade frontend + API / 前端 + API 地址: http://${JFTRADE_GUI_BIND}"
 go run -tags release_assets ./cmd/jftrade-api

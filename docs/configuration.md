@@ -29,9 +29,9 @@
 
 ## 常用环境变量
 
-- `JFTRADE_API_BIND`：API 监听地址。独立 API 开发态默认 `127.0.0.1:3000`，`JFTrade Dev` 默认 `127.0.0.1:6698`，浏览器式发布 gateway 和正式桌面产品默认 `127.0.0.1:6699`。
-- `JFTRADE_GUI_BIND`：发布态 GUI 监听地址，默认 `127.0.0.1:6688`。
-- `JFTRADE_GUI_API_BASE_URL`：覆盖发布态 GUI 注入的 API 基地址。
+- `JFTRADE_API_BIND`：独立 API/Wails sidecar 监听地址。开发 API 默认 `127.0.0.1:3000`，`JFTrade Dev` 默认 `127.0.0.1:6698`，正式桌面产品默认 `127.0.0.1:6699`。
+- `JFTRADE_GUI_BIND`：带内嵌前端的生产 HTTP 服务监听地址，默认 `127.0.0.1:6688`；该端口同时提供前端、API、SSE、WS 和 Swagger。
+- `JFTRADE_GUI_API_BASE_URL`：历史兼容字段；单端口生产服务始终使用同源 API，不再依赖该覆盖。
 - `JFTRADE_SETTINGS_PATH`：运行时配置文件路径。
 - `JFTRADE_BACKTEST_DB`：回测数据库路径。
 - `JFTRADE_WATCHLIST_DB`：本地自选主数据库路径。未设置时使用 `settings.json` 同目录下的 `watchlists.db`。
@@ -49,11 +49,12 @@
 ```json
 {
   "interfaces": {
-    "apiBind": "127.0.0.1:6699",
     "guiBind": "127.0.0.1:6688"
   }
 }
 ```
+
+带内嵌前端的生产后端仅使用 `guiBind`。`apiBind` 仍保留给独立 API 开发态和 Wails sidecar。
 
 ### Futu / OpenD 集成
 

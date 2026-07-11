@@ -139,7 +139,6 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 			}
 			return fallback
 		},
-		ResolveGUIRuntimeAPIBase: func(jfsettings.InterfaceSettings, string) string { return "http://runtime-api" },
 	})
 	if err != nil {
 		t.Fatalf("StartForRunArgs: %v", err)
@@ -153,16 +152,16 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 	gotOrigins := append([]string(nil), handler.authOrigins...)
 	handler.mu.Unlock()
 
-	if gotPort != 3000 {
-		t.Fatalf("SetAPIPort = %d, want 3000", gotPort)
+	if gotPort != 6688 {
+		t.Fatalf("SetAPIPort = %d, want integrated HTTP port fallback 6688", gotPort)
 	}
-	if !gotFrontend || gotFrontendBase != "http://runtime-api" {
+	if !gotFrontend || gotFrontendBase != "" {
 		t.Fatalf("frontend config = set:%v base:%q", gotFrontend, gotFrontendBase)
 	}
 	if !gotSecurity.AdminAuthRequired {
 		t.Fatalf("security settings not applied: %#v", gotSecurity)
 	}
-	if len(gotOrigins) != 2 || gotOrigins[0] != "http://127.0.0.1:0" || gotOrigins[1] != "http://127.0.0.1:0" {
+	if len(gotOrigins) != 1 || gotOrigins[0] != "http://127.0.0.1:0" {
 		t.Fatalf("auth origins = %#v", gotOrigins)
 	}
 	if appliedIntegration.Config.Host != "runtime-host" {
@@ -229,7 +228,39 @@ func TestStartForRunArgsReportsAPIPortConflictAndClosesHandler(t *testing.T) {
 	waitForClose(t, handler, 1)
 }
 
-func TestStartForRunArgsReportsGUIPortConflictAndClosesHandler(t *testing.T) {
+func TestStartForRunArgsWithEmbeddedFrontendDoesNotBindAPIPort(t *testing.T) {
+	apiListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve API port: %v", err)
+	}
+	defer func() {
+		if closeErr := apiListener.Close(); closeErr != nil {
+			t.Errorf("close reserved API listener: %v", closeErr)
+		}
+	}()
+
+	store := &lifecycleTestStore{
+		interfaceSettings: jfsettings.InterfaceSettings{
+			APIBind: apiListener.Addr().String(),
+			GUIBind: "127.0.0.1:0",
+		},
+	}
+	handler := &lifecycleTestHandler{}
+	shutdown, err := StartForRunArgs(
+		t.Context(),
+		[]string{"api"},
+		lifecycleDependencies(store, handler, fstest.MapFS{"index.html": {Data: []byte("ok")}}),
+	)
+	if err != nil {
+		t.Fatalf("StartForRunArgs with occupied API port: %v", err)
+	}
+	if err := shutdown(t.Context()); err != nil {
+		t.Fatalf("shutdown integrated HTTP server: %v", err)
+	}
+	waitForClose(t, handler, 1)
+}
+
+func TestStartForRunArgsReportsIntegratedHTTPPortConflictAndClosesHandler(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("reserve GUI port: %v", err)
@@ -252,8 +283,8 @@ func TestStartForRunArgsReportsGUIPortConflictAndClosesHandler(t *testing.T) {
 		[]string{"api"},
 		lifecycleDependencies(store, handler, fstest.MapFS{"index.html": {Data: []byte("ok")}}),
 	)
-	if err == nil || !strings.Contains(err.Error(), "JFTrade GUI port conflict") {
-		t.Fatalf("StartForRunArgs error = %v, want GUI port conflict", err)
+	if err == nil || !strings.Contains(err.Error(), "JFTrade integrated HTTP port conflict") {
+		t.Fatalf("StartForRunArgs error = %v, want integrated HTTP port conflict", err)
 	}
 	waitForClose(t, handler, 1)
 }
@@ -389,9 +420,6 @@ func lifecycleDependencies(store SettingsStore, handler Handler, frontendFS fs.F
 		NewHandler:          func(SettingsStore) (Handler, error) { return handler, nil },
 		APIBaseURLForBind:   func(bind string) string { return "http://" + bind },
 		PortFromBind:        func(string, int) int { return 3000 },
-		ResolveGUIRuntimeAPIBase: func(jfsettings.InterfaceSettings, string) string {
-			return "http://runtime-api"
-		},
 	}
 }
 

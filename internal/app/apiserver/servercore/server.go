@@ -140,7 +140,7 @@ type opendProbe struct {
 	Markets          []map[string]any
 }
 
-// StartForRunArgs, resolveGUIAPIBaseURL, resolveGUIRuntimeAPIBaseURL,
+// StartForRunArgs,
 // shouldStartForArgs, and envOrDefault are defined in server_startup.go.
 
 func NewServer(store *SettingsStore) *Server {

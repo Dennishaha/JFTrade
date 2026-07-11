@@ -23,8 +23,8 @@
 | 开发态 Web GUI                            | `127.0.0.1:5173`  | Vite dev server                                    |
 | 开发态 JFTrade sidecar                    | `127.0.0.1:3000`  | 前端 `/api/v1/*`、SSE、WS                          |
 | `JFTrade Dev` sidecar                     | `127.0.0.1:6698`  | Wails 开发窗口直接访问 `/api/v1/*`、SSE、WS        |
-| 发布态 Web GUI                            | `127.0.0.1:6688`  | 内嵌前端、`/api/v1/*`、SSE、WS、Swagger 的同源入口 |
-| 发布态 JFTrade gateway / 正式桌面 sidecar | `127.0.0.1:6699`  | API 直连与正式 Wails 产品前端访问入口              |
+| 发布态 Web 服务                         | `127.0.0.1:6688`  | 内嵌前端、`/api/v1/*`、SSE、WS、Swagger 的单一同源入口 |
+| 正式 Wails 桌面 sidecar                    | `127.0.0.1:6699`  | 仅供正式 Wails 产品 WebView 访问 API、SSE 和 WS                 |
 | Futu OpenD API                            | `127.0.0.1:11110` | Go 原生 TCP/protobuf 查询与探针                    |
 | Futu OpenD WebSocket                      | `127.0.0.1:11111` | FTWebSocket / JavaScript API                       |
 
@@ -35,7 +35,6 @@
 ```json
 {
   "interfaces": {
-    "apiBind": "127.0.0.1:6699",
     "guiBind": "127.0.0.1:6688"
   }
 }
@@ -47,6 +46,7 @@
 curl -fsS http://127.0.0.1:3000/api/v1/system/status
 curl -fsS http://127.0.0.1:6698/api/v1/system/status
 curl -fsS http://127.0.0.1:6688/api/v1/system/status
+# 仅在排查正式 Wails 桌面产品时检查 6699
 curl -fsS http://127.0.0.1:6699/api/v1/system/status
 lsof -nP -iTCP:3000 -sTCP:LISTEN
 lsof -nP -iTCP:6698 -sTCP:LISTEN
@@ -79,7 +79,7 @@ echo "$JFTRADE_FUTU_API_PORT"
 
 ## 需要避免的旧表述
 
-- 不要写“bbgo server 起不来，所以前端断开”，应写清到底是开发态 sidecar 3000 消失，还是发布态 gateway 6699 消失
+- 不要写“bbgo server 起不来，所以前端断开”，应写清到底是开发态 sidecar 3000 消失，还是发布态同源服务 6688 消失
 - 桌面问题还要区分 `JFTrade Dev` 的 6698 和正式 `JFTrade` 的 6699；不要把同通道单实例误判成两个通道互斥
 - 不要把 `/api/v1/*` 说成 bbgo 自带接口
 - 不要把 `start.sh` 的默认行为等同于所有运行方式；独立 API 入口在 [../../cmd/jftrade-api/main.go](../../cmd/jftrade-api/main.go)，桌面入口在 [../../cmd/jftrade-desktop](../../cmd/jftrade-desktop)

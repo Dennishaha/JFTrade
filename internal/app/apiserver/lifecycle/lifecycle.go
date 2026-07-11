@@ -48,7 +48,6 @@ type Dependencies struct {
 	NewHandler                func(store SettingsStore) (Handler, error)
 	APIBaseURLForBind         func(bind string) string
 	PortFromBind              func(bind string, fallback int) int
-	ResolveGUIRuntimeAPIBase  func(settings jfsettings.InterfaceSettings, apiBind string) string
 }
 
 type lifecycleStartup struct {
@@ -150,20 +149,22 @@ func newLifecycleHandler(deps Dependencies, startup lifecycleStartup, store Sett
 }
 
 func startLifecycleServers(deps Dependencies, startup lifecycleStartup, store SettingsStore, interfaceSettings jfsettings.InterfaceSettings, apiBind string, apiHandler Handler) ([]*http.Server, error) {
+	if startup.frontendFS != nil {
+		guiBind := deps.EnvOrDefault("JFTRADE_GUI_BIND", interfaceSettings.GUIBind)
+		if guiBind != "" {
+			server, err := startLifecycleIntegratedServer(deps, startup, store, guiBind, apiHandler)
+			if err != nil {
+				return nil, err
+			}
+			return []*http.Server{server}, nil
+		}
+	}
+
 	apiServer, err := startLifecycleAPIServer(deps, startup.defaults, apiBind, apiHandler)
 	if err != nil {
 		return nil, err
 	}
-	servers := []*http.Server{apiServer}
-	guiServer, err := startLifecycleGUIServer(deps, startup, store, interfaceSettings, apiBind, apiHandler)
-	if err != nil {
-		_ = apiServer.Close()
-		return nil, err
-	}
-	if guiServer != nil {
-		servers = append(servers, guiServer)
-	}
-	return servers, nil
+	return []*http.Server{apiServer}, nil
 }
 
 func startLifecycleAPIServer(deps Dependencies, defaults jfsettings.LaunchDefaults, apiBind string, apiHandler Handler) (*http.Server, error) {
@@ -187,32 +188,28 @@ func startLifecycleAPIServer(deps Dependencies, defaults jfsettings.LaunchDefaul
 	return apiServer, nil
 }
 
-func startLifecycleGUIServer(deps Dependencies, startup lifecycleStartup, store SettingsStore, interfaceSettings jfsettings.InterfaceSettings, apiBind string, apiHandler Handler) (*http.Server, error) {
-	if startup.frontendFS == nil {
-		return nil, nil
-	}
-	guiBind := deps.EnvOrDefault("JFTRADE_GUI_BIND", interfaceSettings.GUIBind)
+func startLifecycleIntegratedServer(deps Dependencies, startup lifecycleStartup, store SettingsStore, guiBind string, apiHandler Handler) (*http.Server, error) {
 	listener, err := net.Listen("tcp", guiBind)
 	if err != nil {
-		return nil, fmt.Errorf("JFTrade GUI port conflict on %s: %w", guiBind, err)
+		return nil, fmt.Errorf("JFTrade integrated HTTP port conflict on %s: %w", guiBind, err)
 	}
-	guiAPIBaseURL := deps.ResolveGUIRuntimeAPIBase(interfaceSettings, apiBind)
-	apiHandler.SetFrontendFS(startup.frontendFS, guiAPIBaseURL)
+	apiHandler.SetAPIPort(deps.PortFromBind(guiBind, deps.PortFromBind(startup.defaults.GUIBind, 6688)))
+	apiHandler.SetFrontendFS(startup.frontendFS, "")
 	apiHandler.ApplySecuritySettings(store.SecuritySettings())
-	apiHandler.ConfigureAuthOrigins("http://" + guiBind)
-	guiServer := &http.Server{
+	apiHandler.ConfigureAuthOrigins(deps.APIBaseURLForBind(guiBind))
+	integratedServer := &http.Server{
 		Addr:              guiBind,
 		Handler:           apiHandler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
 		fmt.Printf("JFTrade 交互界面已启动，请访问 http://%s\n\n", guiBind)
-		log.Printf("JFTrade GUI listening on http://%s", guiBind)
-		if err := guiServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("JFTrade GUI server stopped: %v", err)
+		log.Printf("JFTrade integrated frontend and API listening on http://%s", guiBind)
+		if err := integratedServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("JFTrade integrated HTTP server stopped: %v", err)
 		}
 	}()
-	return guiServer, nil
+	return integratedServer, nil
 }
 
 // RunAPIOnly starts the sidecar in API-only mode and waits for ctx shutdown.

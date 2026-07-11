@@ -13,12 +13,14 @@ import (
 )
 
 const (
-	DefaultDevelopmentAPIBind = "127.0.0.1:3000"
-	DefaultReleaseAPIBind     = "127.0.0.1:6699"
-	DefaultReleaseGUIBind     = "127.0.0.1:6688"
-	DefaultRuntimeDir         = "var/jftrade-api"
-	DefaultSettingsFilename   = "settings.json"
-	DefaultBacktestDBFilename = "backtest.db"
+	DefaultDevelopmentAPIBind    = "127.0.0.1:3000"
+	DefaultReleaseHTTPBind       = "127.0.0.1:6688"
+	DefaultDesktopReleaseAPIBind = "127.0.0.1:6699"
+	DefaultReleaseAPIBind        = DefaultReleaseHTTPBind
+	DefaultReleaseGUIBind        = DefaultReleaseHTTPBind
+	DefaultRuntimeDir            = "var/jftrade-api"
+	DefaultSettingsFilename      = "settings.json"
+	DefaultBacktestDBFilename    = "backtest.db"
 
 	defaultStrategyCatalogFilename   = "strategies.json"
 	defaultStrategyPluginDirName     = "plugins"

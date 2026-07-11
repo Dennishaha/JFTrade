@@ -31,7 +31,7 @@ func releaseDesktopBuildProfile() desktopBuildProfile {
 		ApplicationName:     "JFTrade",
 		ProductIdentifier:   "com.jftrade.desktop",
 		SingleInstanceID:    "com.jftrade.desktop",
-		DefaultAPIBind:      apiruntime.DefaultReleaseAPIBind,
+		DefaultAPIBind:      apiruntime.DefaultDesktopReleaseAPIBind,
 		Release:             true,
 		UpdateChecksEnabled: true,
 	}

@@ -221,8 +221,7 @@ flowchart TB
 
     subgraph Release["发布态"]
         Dist["dist/"]
-        GUI["GUI 同源入口<br/>127.0.0.1:6688"]
-        Gateway["API gateway<br/>127.0.0.1:6699"]
+        GUI["前端 + API 单一同源入口<br/>127.0.0.1:6688"]
         EmbeddedAssets["internal/frontendassets<br/>internal/pineworkerassets"]
         DesktopProduct["JFTrade<br/>Wails / API 6699<br/>系统用户数据目录"]
         MacDMG["macOS ARM64<br/>unsigned DMG"]
@@ -243,5 +242,4 @@ flowchart TB
     EmbeddedAssets --> BuildAPI
 
     Dist --> GUI
-    Dist --> Gateway
 ```

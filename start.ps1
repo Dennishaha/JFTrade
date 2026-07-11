@@ -26,7 +26,6 @@ $cnBuildFrontend = Join-CharCodes 0x6784,0x5efa,0x524d,0x7aef
 $cnFrontendBuildFailed = Join-CharCodes 0x524d,0x7aef,0x6784,0x5efa,0x5931,0x8d25
 $cnStartBackend = Join-CharCodes 0x542f,0x52a8,0x540e,0x7aef,0x670d,0x52a1
 $cnBackendBuildFailed = Join-CharCodes 0x540e,0x7aef,0x6784,0x5efa,0x5931,0x8d25
-$cnBackendAddress = Join-CharCodes 0x540e,0x7aef,0x5730,0x5740
 $cnStopAllServices = Join-CharCodes 0x6309,0x20,0x43,0x74,0x72,0x6c,0x2b,0x43,0x20,0x7ec8,0x6b62,0x6240,0x6709,0x670d,0x52a1
 $cnStoppingBackend = Join-CharCodes 0x6b63,0x5728,0x505c,0x6b62,0x540e,0x7aef,0x670d,0x52a1
 $cnBackendStopped = Join-CharCodes 0x540e,0x7aef,0x670d,0x52a1,0x5df2,0x505c,0x6b62
@@ -43,7 +42,6 @@ function Set-DefaultEnv {
     }
 }
 
-Set-DefaultEnv "JFTRADE_API_BIND" "127.0.0.1:6699"
 Set-DefaultEnv "JFTRADE_GUI_BIND" "127.0.0.1:6688"
 Set-DefaultEnv "JFTRADE_SETTINGS_PATH" $settingsPath
 Set-DefaultEnv "JFTRADE_BACKTEST_DB" $backtestDBPath
@@ -155,8 +153,7 @@ $watchdogProcess = Start-Process -FilePath "powershell.exe" -WindowStyle hidden 
     $backendProcess.Id
 )
 
-Write-Host ("JFTrade GUI: http://$($env:JFTRADE_GUI_BIND)") -ForegroundColor Green
-Write-Host ("JFTrade API / {0}: http://$($env:JFTRADE_API_BIND)" -f $cnBackendAddress) -ForegroundColor Green
+Write-Host ("JFTrade frontend + API: http://$($env:JFTRADE_GUI_BIND)") -ForegroundColor Green
 Write-Host ("`n=== Press Ctrl+C to stop all services / {0} ===" -f $cnStopAllServices) -ForegroundColor Yellow
 
 try {
