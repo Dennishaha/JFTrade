@@ -93,14 +93,18 @@ type recordingBatchSnapshotSource struct {
 	mu      sync.Mutex
 	batches [][]string
 	failID  string
+	err     error
 }
 
 func (f *recordingBatchSnapshotSource) QuerySecuritySnapshot(_ context.Context, query broker.SecuritySnapshotQuery) (*broker.SecuritySnapshotResult, error) {
 	f.mu.Lock()
 	f.batches = append(f.batches, append([]string(nil), query.Symbols...))
 	f.mu.Unlock()
+	if f.err != nil {
+		return nil, f.err
+	}
 	if f.failID != "" && slices.Contains(query.Symbols, f.failID) {
-		return nil, fmt.Errorf("permission denied for %s", f.failID)
+		return nil, broker.NewSymbolScopedSnapshotError(fmt.Errorf("permission denied for %s", f.failID))
 	}
 	items := make([]broker.SecuritySnapshotItem, 0, len(query.Symbols))
 	for _, symbol := range query.Symbols {
@@ -108,6 +112,38 @@ func (f *recordingBatchSnapshotSource) QuerySecuritySnapshot(_ context.Context, 
 		items = append(items, broker.SecuritySnapshotItem{Symbol: symbol, LastPrice: &price, PreviousClose: &previous, ObservedAt: time.Date(2026, 7, 11, 4, 0, 0, 0, time.UTC)})
 	}
 	return &broker.SecuritySnapshotResult{Snapshots: items}, nil
+}
+
+func TestFutuWatchlistSnapshotDoesNotSplitGlobalOrCanceledFailures(t *testing.T) {
+	ids := make([]string, 400)
+	for index := range ids {
+		ids[index] = fmt.Sprintf("US.TEST%d", index)
+	}
+	tests := []struct {
+		name    string
+		context func() context.Context
+		err     error
+	}{
+		{name: "service failure", context: context.Background, err: errors.New("OpenD quote service unavailable")},
+		{name: "canceled", context: func() context.Context {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			return ctx
+		}, err: context.Canceled},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fake := &recordingBatchSnapshotSource{err: test.err}
+			source := newFutuWatchlistSnapshotSource(func() (broker.BatchSnapshotSource, error) { return fake, nil })
+			quotes, itemErrors, err := source.BatchSnapshots(test.context(), ids)
+			if err != nil || len(quotes) != 0 || len(itemErrors) != len(ids) {
+				t.Fatalf("quotes=%d errors=%d err=%v", len(quotes), len(itemErrors), err)
+			}
+			if len(fake.batches) != 1 {
+				t.Fatalf("snapshot calls = %d, want 1", len(fake.batches))
+			}
+		})
+	}
 }
 
 func TestFutuWatchlistSnapshotUsesTwentyAndFourHundredChunksWithPerItemErrors(t *testing.T) {

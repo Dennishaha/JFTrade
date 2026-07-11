@@ -245,7 +245,7 @@ func (r *futuMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query 
 	if err := r.exchange.withClient(ctx, func(client *opend.Client) error {
 		securities, err := securitiesFromSymbols(query.Symbols)
 		if err != nil {
-			return err
+			return broker.NewSymbolScopedSnapshotError(err)
 		}
 		snapshots, err := client.GetSecuritySnapshot(ctx, securities)
 		if err != nil {

@@ -344,8 +344,14 @@ func queryFutuSnapshotBatch(ctx context.Context, source broker.BatchSnapshotSour
 	}
 	result, err := source.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{Symbols: instrumentIDs})
 	if err != nil {
-		if len(instrumentIDs) == 1 {
-			return nil, []watchlist.QuoteError{{InstrumentID: instrumentIDs[0], Code: "SNAPSHOT_UNAVAILABLE", Message: err.Error()}}
+		if len(instrumentIDs) == 1 || ctx.Err() != nil || !broker.IsSymbolScopedSnapshotError(err) {
+			itemErrors := make([]watchlist.QuoteError, 0, len(instrumentIDs))
+			for _, instrumentID := range instrumentIDs {
+				itemErrors = append(itemErrors, watchlist.QuoteError{
+					InstrumentID: instrumentID, Code: "SNAPSHOT_UNAVAILABLE", Message: err.Error(),
+				})
+			}
+			return nil, itemErrors
 		}
 		middle := len(instrumentIDs) / 2
 		leftItems, leftErrors := queryFutuSnapshotBatch(ctx, source, instrumentIDs[:middle], allow)
