@@ -136,7 +136,7 @@ tasks:
         {{.ROOT_DIR}}/dist/desktop-release/linux-{{.ARCH}}/JFTrade.desktop
         {{.ROOT_DIR}}/build/desktop/appicon.png
       - >-
-        go tool wails3 tool package -name JFTrade -format {{.FORMAT}}
+        go tool wails3 tool package -name jftrade -format {{.FORMAT}}
         -config dist/desktop-release/linux-{{.ARCH}}/nfpm.yaml
         -out dist/desktop-release/linux-{{.ARCH}}
     vars:

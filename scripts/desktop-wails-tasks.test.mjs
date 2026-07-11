@@ -85,11 +85,28 @@ assert(
   "Linux does not use Wails packaging tools",
 );
 assert(
+  linux.includes("tool package -name jftrade"),
+  "Linux package name must remain lowercase for Debian compatibility",
+);
+assert(
   common.includes("update build-assets") && common.includes("generate icons"),
   "common task does not use Wails build asset generation",
 );
 
 const nfpm = read("build/linux/nfpm.yaml");
+assert(nfpm.includes("name: jftrade"), "Linux package name is not lowercase");
+assert(
+  /maintainer: .+<[^<>\s]+@[^<>\s]+>/.test(nfpm),
+  "Linux package maintainer is missing a valid email address",
+);
+assert(
+  nfpm.includes("homepage: https://github.com/Dennishaha/jftrade"),
+  "Linux package homepage does not match the source repository",
+);
+assert(
+  nfpm.includes("AGPL-3.0-only") && !nfpm.includes("license: Proprietary"),
+  "Linux package metadata omits the bundled AGPL component",
+);
 assert(
   nfpm.includes("libgtk-3-0") && nfpm.includes("libwebkit2gtk-4.1-0"),
   "Linux package dependencies do not match GTK3 build",

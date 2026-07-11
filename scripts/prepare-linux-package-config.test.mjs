@@ -24,5 +24,15 @@ assert.equal(result.status, 0, result.stderr);
 const config = fs.readFileSync(output, "utf8");
 assert(config.includes("version: 1.2.3"));
 assert(config.includes("arch: amd64"));
+assert(config.includes("name: jftrade"));
+assert(
+  config.includes(
+    "maintainer: JFTrade Maintainers <38273998+Dennishaha@users.noreply.github.com>",
+  ),
+);
+assert(config.includes("homepage: https://github.com/Dennishaha/jftrade"));
+assert(
+  config.includes("license: LicenseRef-Proprietary AND AGPL-3.0-only"),
+);
 assert(!config.includes("__"));
 fs.rmSync(directory, { recursive: true, force: true });

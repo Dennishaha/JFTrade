@@ -1,14 +1,14 @@
-name: JFTrade
+name: jftrade
 arch: __ARCH__
 platform: linux
 version: __VERSION__
 section: finance
 priority: optional
-maintainer: JFTrade
+maintainer: JFTrade Maintainers <38273998+Dennishaha@users.noreply.github.com>
 description: JFTrade desktop application
 vendor: JFTrade
-homepage: https://github.com/jftrade/jftrade-main
-license: Proprietary
+homepage: https://github.com/Dennishaha/jftrade
+license: LicenseRef-Proprietary AND AGPL-3.0-only
 contents:
   - src: __BINARY__
     dst: /usr/bin/jftrade-desktop
