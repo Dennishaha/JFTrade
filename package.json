@@ -89,6 +89,7 @@
     "typecheck": "npm run typecheck:web && npm run typecheck:pineworker"
   },
   "devDependencies": {
+    "vitepress": "2.0.0-alpha.18",
     "vue": "3.5.39"
   }
 }
