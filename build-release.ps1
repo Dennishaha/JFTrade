@@ -218,6 +218,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "PineTS worker asset build failed"
 }
 
+Write-Host "Running tests..." -ForegroundColor Cyan
+go test ./... -count=1 -timeout 300s
+if ($LASTEXITCODE -ne 0) {
+    throw "Tests failed"
+}
+
 foreach ($target in $targets) {
     Invoke-GoReleaseBuild -Goos $target.GOOS -Goarch $target.GOARCH -Version $version -Commit $commit -BuildTime $buildTime -BuildTarget $buildTarget -ArtifactPrefix $artifactPrefix
 }
