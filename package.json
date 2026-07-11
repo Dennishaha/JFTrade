@@ -18,6 +18,7 @@
     "vue": "3.5.39"
   },
   "scripts": {
+    "audit:dependencies": "npm audit --package-lock-only --audit-level=moderate",
     "dev:web": "npm -w @jftrade/web run dev",
     "dev:docs": "npm -w @jftrade/web run docs:dev",
     "dev:all": "node scripts/dev-all.mjs",

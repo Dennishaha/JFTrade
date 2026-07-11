@@ -76,6 +76,9 @@ ARTIFACT_PREFIX="jftrade"
 echo "Installing frontend dependencies..."
 install_frontend_dependencies
 
+echo "Auditing locked frontend dependencies..."
+npm run audit:dependencies
+
 echo "Building frontend bundle..."
 npm run build:web
 

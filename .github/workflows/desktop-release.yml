@@ -110,6 +110,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Audit locked npm dependencies
+        run: npm run audit:dependencies
+
       - name: Verify Wails host
         env:
           GOFLAGS: "-tags=gtk3"

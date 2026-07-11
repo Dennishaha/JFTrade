@@ -135,6 +135,12 @@ $buildTime = if ([string]::IsNullOrWhiteSpace($env:JFTRADE_BUILD_TIME)) {
 Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
 Install-FrontendDependencies
 
+Write-Host "Auditing locked frontend dependencies..." -ForegroundColor Cyan
+npm run audit:dependencies
+if ($LASTEXITCODE -ne 0) {
+    throw "npm dependency audit failed"
+}
+
 Write-Host "Building frontend bundle..." -ForegroundColor Cyan
 npm run build:web
 if ($LASTEXITCODE -ne 0) {

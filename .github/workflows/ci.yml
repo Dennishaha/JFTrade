@@ -207,6 +207,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --workspace @jftrade/web --include-workspace-root=true --no-audit --no-fund
 
+      - name: Audit locked npm dependencies
+        run: npm run audit:dependencies
+
       - name: Frontend test
         run: npm run test:web:ci
 
