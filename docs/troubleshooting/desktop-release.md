@@ -102,6 +102,8 @@ Windows ARM64 会在原生 `windows-11-arm` runner 上生成带 `preview` 标记
 
 macOS DMG 只包含 ARM64 `JFTrade.app`，不包含 Rosetta/x86_64 slice。CI 固定运行在 `macos-15` ARM64 runner，并在构建前检查 runner 架构。
 
+DMG 使用标准拖拽安装布局：左侧为 `JFTrade.app`，右侧为指向 `/Applications` 的文件夹快捷方式，背景箭头和说明文字引导用户将应用拖入 Applications。背景保留可审查的 SVG 矢量源，并在打包时生成 1320×800、144 DPI 的 Retina 2× PNG。发布任务会重新挂载 DMG，验证应用、快捷方式、背景分辨率和 Finder `.DS_Store` 布局都已写入。
+
 ## 验收要点
 
 - 同时运行 `npm run desktop:dev` 和正式产品：6698、6699、窗口、托盘、日志和退出生命周期互不影响。

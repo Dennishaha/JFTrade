@@ -98,11 +98,12 @@ tasks:
       - cp -R dist/desktop/darwin-{{.ARCH}}/JFTrade.app dist/desktop-release/darwin-{{.ARCH}}/JFTrade.app
       # alpha2.117 temporarily disables `wails3 tool package -format dmg`; use the same native hdiutil final step.
       - >-
-        hdiutil create -volname JFTrade
-        -srcfolder dist/desktop-release/darwin-{{.ARCH}}
-        -ov -format UDZO
-        dist/desktop-release/.JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.tmp.dmg
-      - mv dist/desktop-release/.JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.tmp.dmg dist/desktop-release/darwin-{{.ARCH}}/JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.dmg
+        bash build/darwin/package-dmg.sh
+        dist/desktop-release/darwin-{{.ARCH}}/JFTrade.app
+        dist/desktop-release/darwin-{{.ARCH}}/JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.dmg
+      - >-
+        bash build/darwin/verify-dmg.sh
+        dist/desktop-release/darwin-{{.ARCH}}/JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.dmg
     vars:
       ARCH: '{{.ARCH | default "arm64"}}'
       QUALIFIER: '{{.QUALIFIER | default "unsigned"}}'

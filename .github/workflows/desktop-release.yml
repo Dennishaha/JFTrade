@@ -201,6 +201,7 @@ jobs:
           test "$(lipo -archs "$bundle/Contents/MacOS/JFTrade")" = "arm64"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$bundle/Contents/Info.plist")" = "com.jftrade.desktop"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$bundle/Contents/Info.plist")" = "${JFTRADE_DESKTOP_RELEASE_TAG#v}"
+          bash build/darwin/verify-dmg.sh "${{ steps.artifact.outputs.path }}"
 
       - name: Generate macOS SBOM
         uses: anchore/sbom-action@v0

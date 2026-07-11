@@ -56,6 +56,26 @@ assert(
   "macOS bundle sealing is not verified",
 );
 assert(
+  darwin.includes("package-dmg.sh") && darwin.includes("verify-dmg.sh"),
+  "macOS release does not build and verify the drag-install DMG",
+);
+const dmgPackager = read("build/darwin/package-dmg.sh");
+const dmgBackground = read("build/darwin/dmg-background.svg");
+assert(
+  dmgPackager.includes("ln -s /Applications") &&
+    dmgPackager.includes("background picture") &&
+    dmgPackager.includes('position of item "JFTrade.app"') &&
+    dmgPackager.includes('position of item "Applications"'),
+  "macOS DMG is missing the Applications shortcut or Finder drag layout",
+);
+assert(
+  dmgBackground.includes('width="1320"') &&
+    dmgBackground.includes('height="800"') &&
+    dmgPackager.includes("dpiWidth 144") &&
+    dmgPackager.includes("dpiHeight 144"),
+  "macOS DMG background is not generated from a Retina 2x vector source",
+);
+assert(
   darwin.includes("build:dev") &&
     read("build/darwin/Info.dev.plist").includes("com.jftrade.desktop.dev"),
   "macOS development bundle is not isolated through Wails tasks",
