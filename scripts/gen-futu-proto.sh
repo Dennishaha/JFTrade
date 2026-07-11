@@ -11,6 +11,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_DIR="${FUTU_PROTO_SRC:-${HOME}/Downloads/FTAPIProtoFiles_10.5.6508}"
 EXTRA_PROTO_DIR="${REPO_ROOT}/scripts/futu-proto-overlays"
+CHECKSUM_FILE="${REPO_ROOT}/scripts/futu-proto-10.5.6508.sha256"
 STAGE_DIR="${REPO_ROOT}/pkg/futu/proto"
 OUT_DIR="${REPO_ROOT}/pkg/futu/pb"
 
@@ -63,22 +64,75 @@ EXTRA_PROTO_FILES=(
 
 ALL_PROTO_FILES=("${PROTO_FILES[@]}" "${EXTRA_PROTO_FILES[@]}")
 
-rm -rf "${STAGE_DIR}" "${OUT_DIR}"
-mkdir -p "${STAGE_DIR}" "${OUT_DIR}"
+python3 - "${SRC_DIR}" "${CHECKSUM_FILE}" "${PROTO_FILES[@]}" <<'PY'
+import hashlib
+import re
+import sys
+from pathlib import Path
 
-for f in "${PROTO_FILES[@]}"; do
-  if [ ! -f "${SRC_DIR}/${f}" ]; then
-    echo "missing proto file: ${SRC_DIR}/${f}" >&2
-    exit 1
-  fi
-  cp "${SRC_DIR}/${f}" "${STAGE_DIR}/${f}"
-done
+source_dir = Path(sys.argv[1])
+checksum_file = Path(sys.argv[2])
+expected_files = sys.argv[3:]
+
+if not checksum_file.is_file():
+    raise SystemExit(f"Futu proto checksum manifest not found: {checksum_file}")
+
+checksums = {}
+for line_number, raw_line in enumerate(checksum_file.read_text().splitlines(), 1):
+    line = raw_line.strip()
+    if not line or line.startswith("#"):
+        continue
+    parts = line.split()
+    if len(parts) != 2 or not re.fullmatch(r"[0-9a-f]{64}", parts[0]):
+        raise SystemExit(
+            f"invalid checksum manifest entry at {checksum_file}:{line_number}"
+        )
+    digest, filename = parts
+    if Path(filename).name != filename or filename in checksums:
+        raise SystemExit(
+            f"invalid checksum manifest filename at {checksum_file}:{line_number}"
+        )
+    checksums[filename] = digest
+
+missing_checksums = sorted(set(expected_files) - checksums.keys())
+unexpected_checksums = sorted(checksums.keys() - set(expected_files))
+if missing_checksums or unexpected_checksums:
+    details = []
+    if missing_checksums:
+        details.append("missing: " + ", ".join(missing_checksums))
+    if unexpected_checksums:
+        details.append("unexpected: " + ", ".join(unexpected_checksums))
+    raise SystemExit("Futu proto checksum manifest does not match input list (" + "; ".join(details) + ")")
+
+for filename in expected_files:
+    source = source_dir / filename
+    if not source.is_file():
+        raise SystemExit(f"missing proto file: {source}")
+    actual = hashlib.sha256(source.read_bytes()).hexdigest()
+    if actual != checksums[filename]:
+        raise SystemExit(
+            f"Futu proto checksum mismatch for {source}: "
+            f"expected {checksums[filename]}, got {actual}"
+        )
+
+print(f"[gen-futu-proto] verified Futu OpenAPI 10.5.6508 inputs ({len(expected_files)} files)")
+PY
 
 for f in "${EXTRA_PROTO_FILES[@]}"; do
   if [ ! -f "${EXTRA_PROTO_DIR}/${f}" ]; then
     echo "missing extra proto file: ${EXTRA_PROTO_DIR}/${f}" >&2
     exit 1
   fi
+done
+
+rm -rf "${STAGE_DIR}" "${OUT_DIR}"
+mkdir -p "${STAGE_DIR}" "${OUT_DIR}"
+
+for f in "${PROTO_FILES[@]}"; do
+  cp "${SRC_DIR}/${f}" "${STAGE_DIR}/${f}"
+done
+
+for f in "${EXTRA_PROTO_FILES[@]}"; do
   cp "${EXTRA_PROTO_DIR}/${f}" "${STAGE_DIR}/${f}"
 done
 

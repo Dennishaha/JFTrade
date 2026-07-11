@@ -135,6 +135,9 @@ jobs:
       - name: Architecture dependency check
         run: bash scripts/check-arch-deps.sh
 
+      - name: Futu proto generation test
+        run: npm run test:futu-proto-generation
+
   go-coverage:
     name: Go Coverage
     runs-on: ubuntu-latest
