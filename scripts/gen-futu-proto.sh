@@ -5,7 +5,7 @@
 # Target: pkg/futu/pb/<name>
 #
 # Requirements: protoc, protoc-gen-go
-#   go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+#   go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,6 +14,8 @@ EXTRA_PROTO_DIR="${REPO_ROOT}/scripts/futu-proto-overlays"
 CHECKSUM_FILE="${REPO_ROOT}/scripts/futu-proto-10.5.6508.sha256"
 STAGE_DIR="${REPO_ROOT}/pkg/futu/proto"
 OUT_DIR="${REPO_ROOT}/pkg/futu/pb"
+PROTOC_VERSION="34.1"
+PROTOC_GEN_GO_VERSION="v1.36.11"
 
 if [ ! -d "${SRC_DIR}" ]; then
   echo "Futu proto source not found: ${SRC_DIR}" >&2
@@ -125,6 +127,28 @@ for f in "${EXTRA_PROTO_FILES[@]}"; do
   fi
 done
 
+if ! command -v protoc >/dev/null 2>&1; then
+  echo "protoc not found. Install protoc ${PROTOC_VERSION}." >&2
+  exit 1
+fi
+actual_protoc_version="$(protoc --version)"
+if [ "${actual_protoc_version}" != "libprotoc ${PROTOC_VERSION}" ]; then
+  echo "protoc ${PROTOC_VERSION} required, found: ${actual_protoc_version}" >&2
+  exit 1
+fi
+
+export PATH="$(go env GOPATH)/bin:${PATH}"
+actual_protoc_gen_go_version="$(protoc-gen-go --version 2>/dev/null || true)"
+if [ "${actual_protoc_gen_go_version}" != "protoc-gen-go ${PROTOC_GEN_GO_VERSION}" ]; then
+  echo "installing protoc-gen-go ${PROTOC_GEN_GO_VERSION}..." >&2
+  GOFLAGS= go install "google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION}"
+  actual_protoc_gen_go_version="$(protoc-gen-go --version 2>/dev/null || true)"
+  if [ "${actual_protoc_gen_go_version}" != "protoc-gen-go ${PROTOC_GEN_GO_VERSION}" ]; then
+    echo "protoc-gen-go ${PROTOC_GEN_GO_VERSION} required, found: ${actual_protoc_gen_go_version:-missing}" >&2
+    exit 1
+  fi
+fi
+
 rm -rf "${STAGE_DIR}" "${OUT_DIR}"
 mkdir -p "${STAGE_DIR}" "${OUT_DIR}"
 
@@ -170,16 +194,6 @@ for p in sorted(stage.glob("*.proto")):
     p.write_text(text)
 print("[gen-futu-proto] rewrote go_package in", len(list(stage.glob("*.proto"))), "files")
 PY
-
-if ! command -v protoc >/dev/null 2>&1; then
-  echo "protoc not found. brew install protobuf" >&2
-  exit 1
-fi
-export PATH="$(go env GOPATH)/bin:${PATH}"
-if ! command -v protoc-gen-go >/dev/null 2>&1; then
-  echo "installing protoc-gen-go..." >&2
-  GOFLAGS= go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-fi
 
 protoc \
   --proto_path="${STAGE_DIR}" \

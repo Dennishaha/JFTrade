@@ -34,11 +34,24 @@ try {
   }
 
   const failingProtoc = path.join(binDirectory, "protoc");
-  fs.writeFileSync(failingProtoc, "#!/usr/bin/env bash\necho synthetic protoc failure >&2\nexit 42\n");
+  fs.writeFileSync(
+    failingProtoc,
+    `#!/usr/bin/env bash
+if [ "\${1:-}" = "--version" ]; then
+  echo 'libprotoc 34.1'
+  exit 0
+fi
+echo synthetic protoc failure >&2
+exit 42
+`,
+  );
   fs.chmodSync(failingProtoc, 0o755);
-  for (const plugin of ["protoc-gen-go", "protoc-gen-go-grpc"]) {
+  for (const [plugin, version] of [
+    ["protoc-gen-go", "protoc-gen-go v1.36.11"],
+    ["protoc-gen-go-grpc", "protoc-gen-go-grpc 1.6.2"],
+  ]) {
     const pluginPath = path.join(binDirectory, plugin);
-    fs.writeFileSync(pluginPath, "#!/usr/bin/env bash\nexit 0\n");
+    fs.writeFileSync(pluginPath, `#!/usr/bin/env bash\necho '${version}'\n`);
     fs.chmodSync(pluginPath, 0o755);
   }
 
@@ -56,6 +69,10 @@ try {
   fs.writeFileSync(
     failingProtoc,
     `#!/usr/bin/env bash
+if [ "\${1:-}" = "--version" ]; then
+  echo 'libprotoc 34.1'
+  exit 0
+fi
 for argument in "$@"; do
   case "$argument" in
     --go_out=*) output="\${argument#*=}" ;;

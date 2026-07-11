@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -41,6 +42,49 @@ try {
 
   assert.notEqual(result.status, 0, "tampered Futu proto input should be rejected");
   assert.match(result.stderr, /Futu proto checksum mismatch for .*Common\.proto/);
+  assert.equal(fs.readFileSync(stageMarker, "utf8"), "existing staged proto\n");
+  assert.equal(fs.readFileSync(outputMarker, "utf8"), "existing generated code\n");
+
+  const validManifest = filenames
+    .map((filename) => {
+      const digest = crypto
+        .createHash("sha256")
+        .update(fs.readFileSync(path.join(sourceDirectory, filename)))
+        .digest("hex");
+      return `${digest}  ${filename}`;
+    })
+    .join("\n");
+  fs.writeFileSync(path.join(scriptsDirectory, manifestName), `${validManifest}\n`);
+  const overlayDirectory = path.join(scriptsDirectory, "futu-proto-overlays");
+  fs.mkdirSync(overlayDirectory);
+  for (const filename of [
+    "Notify.proto",
+    "Qot_GetOrderBook.proto",
+    "Qot_GetSecuritySnapshot.proto",
+    "Qot_UpdateOrderBook.proto",
+  ]) {
+    fs.writeFileSync(path.join(overlayDirectory, filename), "syntax = \"proto3\";\n");
+  }
+  const binDirectory = path.join(directory, "bin");
+  fs.mkdirSync(binDirectory);
+  const protoc = path.join(binDirectory, "protoc");
+  fs.writeFileSync(protoc, "#!/usr/bin/env bash\necho 'libprotoc 33.0'\n");
+  fs.chmodSync(protoc, 0o755);
+
+  const wrongProtocResult = spawnSync(
+    "bash",
+    [path.join(scriptsDirectory, "gen-futu-proto.sh")],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        FUTU_PROTO_SRC: sourceDirectory,
+        PATH: `${binDirectory}:${process.env.PATH}`,
+      },
+    },
+  );
+  assert.notEqual(wrongProtocResult.status, 0);
+  assert.match(wrongProtocResult.stderr, /protoc 34\.1 required, found: libprotoc 33\.0/);
   assert.equal(fs.readFileSync(stageMarker, "utf8"), "existing staged proto\n");
   assert.equal(fs.readFileSync(outputMarker, "utf8"), "existing generated code\n");
 } finally {
