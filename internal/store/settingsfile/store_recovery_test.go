@@ -74,7 +74,7 @@ func TestSettingsStoreReadsPersistedConfigurationBranches(t *testing.T) {
 	if got := store.SecuritySettings(); !got.AdminAuthRequired {
 		t.Fatalf("persisted security settings = %#v", got)
 	}
-	if defaults := DefaultSecuritySettings(); defaults.AdminAuthRequired {
-		t.Fatalf("default security settings = %#v", defaults)
+	if defaults := DefaultSecuritySettings(); !defaults.AdminAuthRequired {
+		t.Fatalf("default security settings must require administrator authentication: %#v", defaults)
 	}
 }

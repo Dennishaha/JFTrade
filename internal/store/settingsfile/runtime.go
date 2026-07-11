@@ -146,7 +146,7 @@ func executionSettingsPointer(value jfsettings.ExecutionSettings) *jfsettings.Ex
 
 func DefaultSecuritySettings() jfsettings.SecuritySettings {
 	return jfsettings.SecuritySettings{
-		AdminAuthRequired: false,
+		AdminAuthRequired: true,
 	}
 }
 

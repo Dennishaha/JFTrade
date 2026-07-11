@@ -118,6 +118,7 @@ func TestSystemNotificationTestRouteReturnsDeliveryStatus(t *testing.T) {
 	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
 	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
+	server.auth.enabled = false
 	server.liveNotificationSink = func(liveNotificationEvent) live.NotificationDelivery {
 		return live.NotificationDelivered("sent to operating system")
 	}

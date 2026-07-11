@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestSecuritySettingsDefaultDoesNotRequireAuthentication(t *testing.T) {
+func TestSecuritySettingsDefaultRequiresAuthentication(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -27,11 +27,22 @@ func TestSecuritySettingsDefaultDoesNotRequireAuthentication(t *testing.T) {
 		t.Fatalf("GET security settings: %v", err)
 	}
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
-	if resp.StatusCode == http.StatusUnauthorized {
-		t.Fatal("default security settings unexpectedly require authentication")
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated GET security settings status = %d, want 401", resp.StatusCode)
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET security settings status = %d, want 200", resp.StatusCode)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/settings/security", nil)
+	if err != nil {
+		t.Fatalf("NewRequest security settings: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+server.auth.key)
+	authorized, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("authorized GET security settings: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, authorized.Body.Close()) }()
+	if authorized.StatusCode != http.StatusOK {
+		t.Fatalf("authorized GET security settings status = %d, want 200", authorized.StatusCode)
 	}
 }
 
@@ -48,7 +59,7 @@ func TestSecuritySettingsToggleAuthenticationImmediately(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	saveSecuritySettings(t, srv.URL, "", true)
+	saveSecuritySettings(t, srv.URL, server.auth.key, true)
 
 	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/security")
 	if err != nil {

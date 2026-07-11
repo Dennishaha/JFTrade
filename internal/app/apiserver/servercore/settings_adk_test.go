@@ -14,6 +14,9 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
+	if _, err := store.SaveSecuritySettings(SecuritySettings{AdminAuthRequired: false}); err != nil {
+		t.Fatalf("SaveSecuritySettings: %v", err)
+	}
 	server := NewServer(store)
 	t.Cleanup(func() {
 		jftradeErr1 := server.Close()
