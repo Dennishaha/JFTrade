@@ -730,6 +730,12 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 		},
 		backup: func(_ context.Context, request dmsrv.BackupRequest) (any, error) {
 			backupRequest = request
+			switch request.Confirmation {
+			case "RATE":
+				return nil, dmsrv.ErrBackupRateLimited
+			case "QUOTA":
+				return nil, dmsrv.ErrBackupQuotaExceeded
+			}
 			return dmsrv.BackupResult{DatabaseID: request.DatabaseID, BackupPath: "/tmp/watchlist.db", SizeBytes: 42}, nil
 		},
 		rebuild: func(context.Context, dmsrv.RebuildRequest) (any, error) {
@@ -764,9 +770,25 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 	if compact.Code != http.StatusOK || compactDatabaseID != "adk" || compactRequest.Confirmation != "COMPACT adk" || !strings.Contains(compact.Body.String(), `"compacted":true`) {
 		t.Fatalf("compact = %d %s databaseID=%q request=%+v", compact.Code, compact.Body.String(), compactDatabaseID, compactRequest)
 	}
-	backup := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/watchlist/backup", "")
-	if backup.Code != http.StatusOK || backupRequest.DatabaseID != "watchlist" || !strings.Contains(backup.Body.String(), `"backupPath":"/tmp/watchlist.db"`) {
+	backup := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/watchlist/backup", `{"confirmation":"BACKUP watchlist"}`)
+	if backup.Code != http.StatusOK || backupRequest.DatabaseID != "watchlist" || backupRequest.Confirmation != "BACKUP watchlist" || !strings.Contains(backup.Body.String(), `"backupPath":"/tmp/watchlist.db"`) {
 		t.Fatalf("backup = %d %s request=%+v", backup.Code, backup.Body.String(), backupRequest)
+	}
+	missingBackupPayload := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/watchlist/backup", "")
+	if missingBackupPayload.Code != http.StatusBadRequest || !strings.Contains(missingBackupPayload.Body.String(), `BAD_REQUEST`) {
+		t.Fatalf("missing backup payload = %d %s", missingBackupPayload.Code, missingBackupPayload.Body.String())
+	}
+	malformedBackup := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/watchlist/backup", `{"confirmation":`)
+	if malformedBackup.Code != http.StatusBadRequest || !strings.Contains(malformedBackup.Body.String(), `BAD_REQUEST`) {
+		t.Fatalf("malformed backup = %d %s", malformedBackup.Code, malformedBackup.Body.String())
+	}
+	rateLimitedBackup := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/watchlist/backup", `{"confirmation":"RATE"}`)
+	if rateLimitedBackup.Code != http.StatusTooManyRequests || !strings.Contains(rateLimitedBackup.Body.String(), `DATABASE_BACKUP_RATE_LIMITED`) {
+		t.Fatalf("rate-limited backup = %d %s", rateLimitedBackup.Code, rateLimitedBackup.Body.String())
+	}
+	quotaLimitedBackup := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/watchlist/backup", `{"confirmation":"QUOTA"}`)
+	if quotaLimitedBackup.Code != http.StatusInsufficientStorage || !strings.Contains(quotaLimitedBackup.Body.String(), `DATABASE_BACKUP_QUOTA_EXCEEDED`) {
+		t.Fatalf("quota-limited backup = %d %s", quotaLimitedBackup.Code, quotaLimitedBackup.Body.String())
 	}
 	malformedPreview := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/preview", `{"kind":`)
 	if malformedPreview.Code != http.StatusBadRequest || !strings.Contains(malformedPreview.Body.String(), `BAD_REQUEST`) {

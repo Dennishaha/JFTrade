@@ -219,6 +219,8 @@ describe("SettingsDataMigrationSection", () => {
       }
     });
     vi.stubGlobal("fetch", fetchMock);
+    const confirmMock = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirmMock);
     const wrapper = mount(SettingsDataMigrationSection, {
       global: { stubs: expansionPanelStubs },
     });
@@ -231,7 +233,15 @@ describe("SettingsDataMigrationSection", () => {
     await wrapper.get("[data-testid='backup-watchlist']").trigger("click");
     await flushRequests();
 
-    expect(fetchMock.mock.calls.some((call) => String(call[0]).endsWith("/databases/watchlist/backup"))).toBe(true);
+    expect(confirmMock).toHaveBeenCalledOnce();
+    const backupCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).endsWith("/databases/watchlist/backup"),
+    );
+    expect(backupCall?.[1]).toMatchObject({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmation: "BACKUP watchlist" }),
+    });
     expect(wrapper.text()).toContain("已备份 watchlist（4.0 KiB）");
     expect(wrapper.text()).toContain("/var/jftrade-api/backups/watchlist-20260711.db");
   });

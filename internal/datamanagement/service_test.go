@@ -32,7 +32,7 @@ func (b *fakeBackend) Compact(_ context.Context, databaseID string, request Comp
 }
 
 func (b *fakeBackend) Backup(_ context.Context, request BackupRequest) (any, error) {
-	b.called["backup"] = request.DatabaseID == "watchlist"
+	b.called["backup"] = request.DatabaseID == "watchlist" && request.Confirmation == "BACKUP watchlist"
 	return "backup", b.err
 }
 
@@ -85,7 +85,7 @@ func TestServiceDelegatesTypedRequests(t *testing.T) {
 	if _, err := svc.Compact(ctx, "strategy", CompactRequest{Confirmation: "COMPACT strategy"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Backup(ctx, BackupRequest{DatabaseID: "watchlist"}); err != nil {
+	if _, err := svc.Backup(ctx, BackupRequest{DatabaseID: "watchlist", Confirmation: "BACKUP watchlist"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.Rebuild(ctx, RebuildRequest{DatabaseID: "strategy", Mode: "single"}); err != nil {

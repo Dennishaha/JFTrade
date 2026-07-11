@@ -9,6 +9,8 @@ var (
 	ErrDatabaseMaintenanceConflict = errors.New("database maintenance conflict")
 	ErrCleanupPreviewNotFound      = errors.New("cleanup preview not found or expired")
 	ErrCleanupPreviewStale         = errors.New("cleanup preview is stale")
+	ErrBackupRateLimited           = errors.New("database backup rate limit exceeded")
+	ErrBackupQuotaExceeded         = errors.New("database backup storage quota exceeded")
 )
 
 type OverviewRequest struct {
@@ -33,7 +35,8 @@ type CompactRequest struct {
 }
 
 type BackupRequest struct {
-	DatabaseID string `json:"databaseId"`
+	DatabaseID   string `json:"databaseId"`
+	Confirmation string `json:"confirmation"`
 }
 
 type BackupResult struct {

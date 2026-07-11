@@ -94,7 +94,11 @@ func TestDatabaseBackupCreatesVerifiedPrivateSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := manager.Backup(t.Context(), DatabaseWatchlist)
+	if _, err := manager.Backup(t.Context(), DatabaseWatchlist, ""); err == nil {
+		t.Fatal("backup without confirmation succeeded")
+	}
+	confirmation := BackupConfirmationText(DatabaseWatchlist)
+	result, err := manager.Backup(t.Context(), DatabaseWatchlist, confirmation)
 	if err != nil {
 		t.Fatalf("Backup: %v", err)
 	}
@@ -123,13 +127,54 @@ func TestDatabaseBackupCreatesVerifiedPrivateSnapshot(t *testing.T) {
 
 	lock := manager.maintenance.locks[DatabaseWatchlist]
 	lock.Lock()
-	_, conflictErr := manager.Backup(t.Context(), DatabaseWatchlist)
+	_, conflictErr := manager.Backup(t.Context(), DatabaseWatchlist, confirmation)
 	lock.Unlock()
 	if !errors.Is(conflictErr, ErrMaintenanceConflict) {
 		t.Fatalf("concurrent backup = %v", conflictErr)
 	}
-	if _, err := manager.Backup(t.Context(), "unknown"); err == nil {
+	if _, err := manager.Backup(t.Context(), DatabaseWatchlist, confirmation); !errors.Is(err, ErrBackupRateLimited) {
+		t.Fatalf("repeated backup = %v, want rate limit", err)
+	}
+	if _, err := manager.Backup(t.Context(), "unknown", BackupConfirmationText("unknown")); err == nil {
 		t.Fatal("unknown database backup succeeded")
+	}
+}
+
+func TestBackupCapacityPrunesManagedFilesOnlyAndEnforcesQuota(t *testing.T) {
+	root := t.TempDir()
+	backupDir := filepath.Join(root, "backups")
+	if err := os.MkdirAll(backupDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager(filepath.Join(root, "settings.json"), filepath.Join(root, "backtest.db"))
+	for index, name := range []string{
+		"watchlist-20260711T140000.000000000Z-00000001.db",
+		"watchlist-20260711T140100.000000000Z-00000002.db",
+		"watchlist-20260711T140200.000000000Z-00000003.db",
+	} {
+		if err := os.WriteFile(filepath.Join(backupDir, name), make([]byte, index+3), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unmanagedPath := filepath.Join(backupDir, "watchlist-not-managed.db")
+	if err := os.WriteFile(unmanagedPath, make([]byte, 20), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.prepareBackupCapacity(backupDir, DatabaseWatchlist, 4, 10); err != nil {
+		t.Fatalf("prepareBackupCapacity: %v", err)
+	}
+	files, err := manager.listManagedBackupFiles(backupDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("managed backups after pruning = %d, want 1", len(files))
+	}
+	if _, err := os.Stat(unmanagedPath); err != nil {
+		t.Fatalf("unmanaged file was removed: %v", err)
+	}
+	if err := manager.prepareBackupCapacity(backupDir, DatabaseWatchlist, 11, 10); !errors.Is(err, ErrBackupQuotaExceeded) {
+		t.Fatalf("quota error = %v", err)
 	}
 }
 

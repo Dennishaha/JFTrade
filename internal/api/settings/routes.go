@@ -161,17 +161,23 @@ func handleDatabaseCompact(svc *dmsrv.Service) gin.HandlerFunc {
 // handleDatabaseBackup godoc
 // @Summary 创建本地数据库一致性备份
 // @Tags settings
+// @Accept json
 // @Produce json
 // @Param databaseId path string true "数据库 ID"
+// @Param request body datamanagement.BackupRequest true "备份确认"
 // @Success 200 {object} httpserver.Envelope{data=datamanagement.BackupResult}
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 409 {object} httpserver.Envelope
 // @Router /api/v1/settings/data-management/databases/{databaseId}/backup [post]
 func handleDatabaseBackup(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		result, err := svc.Backup(c.Request.Context(), dmsrv.BackupRequest{
-			DatabaseID: c.Param("databaseId"),
-		})
+		var input dmsrv.BackupRequest
+		if err := c.ShouldBindJSON(&input); err != nil {
+			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid database backup payload")
+			return
+		}
+		input.DatabaseID = c.Param("databaseId")
+		result, err := svc.Backup(c.Request.Context(), input)
 		if err != nil {
 			writeDataManagementError(c, err, "DATABASE_BACKUP_FAILED")
 			return
@@ -188,6 +194,10 @@ func writeDataManagementError(c *gin.Context, err error, fallbackCode string) {
 		httpserver.WriteError(c, 404, "CLEANUP_PREVIEW_NOT_FOUND", err.Error())
 	case errors.Is(err, dmsrv.ErrCleanupPreviewStale):
 		httpserver.WriteError(c, 409, "CLEANUP_PREVIEW_STALE", err.Error())
+	case errors.Is(err, dmsrv.ErrBackupRateLimited):
+		httpserver.WriteError(c, 429, "DATABASE_BACKUP_RATE_LIMITED", err.Error())
+	case errors.Is(err, dmsrv.ErrBackupQuotaExceeded):
+		httpserver.WriteError(c, 507, "DATABASE_BACKUP_QUOTA_EXCEEDED", err.Error())
 	default:
 		httpserver.WriteError(c, 400, fallbackCode, err.Error())
 	}

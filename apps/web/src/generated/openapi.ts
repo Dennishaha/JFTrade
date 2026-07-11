@@ -5,6 +5,10 @@
 
 export interface components {
   schemas: {
+    "datamanagement.BackupRequest": {
+    confirmation?: string;
+    databaseId?: string;
+  };
     "datamanagement.BackupResult": {
     backupPath?: string;
     createdAt?: string;
@@ -2598,6 +2602,11 @@ export interface paths {
         path: {
         databaseId: string;
       };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["datamanagement.BackupRequest"];
+        };
       };
       responses: {
         "200": {

@@ -25,6 +25,10 @@ func translateDataManagementError(err error) error {
 		return fmt.Errorf("%w: %v", dmsrv.ErrCleanupPreviewNotFound, err)
 	case errors.Is(err, datamigration.ErrPreviewStale):
 		return fmt.Errorf("%w: %v", dmsrv.ErrCleanupPreviewStale, err)
+	case errors.Is(err, datamigration.ErrBackupRateLimited):
+		return fmt.Errorf("%w: %v", dmsrv.ErrBackupRateLimited, err)
+	case errors.Is(err, datamigration.ErrBackupQuotaExceeded):
+		return fmt.Errorf("%w: %v", dmsrv.ErrBackupQuotaExceeded, err)
 	default:
 		return err
 	}
@@ -87,7 +91,7 @@ func (b dataManagementBackend) Backup(ctx context.Context, request dmsrv.BackupR
 	if b.manager == nil {
 		return nil, fmt.Errorf("database backup is unavailable")
 	}
-	result, err := b.manager.Backup(ctx, request.DatabaseID)
+	result, err := b.manager.Backup(ctx, request.DatabaseID, request.Confirmation)
 	if err != nil {
 		return nil, translateDataManagementError(err)
 	}

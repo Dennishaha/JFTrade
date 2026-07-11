@@ -119,6 +119,8 @@ func TestTranslateDataManagementErrors(t *testing.T) {
 		{datamigration.ErrMaintenanceConflict, dmsrv.ErrDatabaseMaintenanceConflict},
 		{datamigration.ErrPreviewNotFound, dmsrv.ErrCleanupPreviewNotFound},
 		{datamigration.ErrPreviewStale, dmsrv.ErrCleanupPreviewStale},
+		{datamigration.ErrBackupRateLimited, dmsrv.ErrBackupRateLimited},
+		{datamigration.ErrBackupQuotaExceeded, dmsrv.ErrBackupQuotaExceeded},
 		{context.Canceled, context.Canceled},
 	}
 	for _, test := range tests {

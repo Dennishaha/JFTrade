@@ -424,12 +424,18 @@ async function executeCompact(): Promise<void> {
 
 async function backupDatabase(database: DatabaseStatus): Promise<void> {
   if (submitting.value) return;
+  const confirmation = `BACKUP ${database.id}`;
+  if (!window.confirm(`确认创建“${database.name}”的本地数据库备份？`)) return;
   submitting.value = true;
   errorMessage.value = "";
   try {
     const result = await fetchEnvelopeWithInit<BackupResult>(
       `/api/v1/settings/data-management/databases/${encodeURIComponent(database.id)}/backup`,
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation }),
+      },
     );
     noticeMessage.value = `已备份 ${database.name}（${formatBytes(result.sizeBytes)}）：${result.backupPath}`;
   } catch (error) {
