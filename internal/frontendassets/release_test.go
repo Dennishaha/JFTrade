@@ -46,6 +46,28 @@ func TestFileSystemEmbedsUnderscorePrefixedAssets(t *testing.T) {
 	}
 }
 
+func TestFileSystemEmbedsDocumentationAndLegalNotices(t *testing.T) {
+	frontendFS, available, err := FileSystem()
+	if err != nil {
+		t.Fatalf("FileSystem: %v", err)
+	}
+	if !available {
+		t.Fatal("expected embedded frontend assets to be available")
+	}
+	for _, path := range []string{
+		"docs/index.html",
+		"docs/legal/third-party-notices.html",
+	} {
+		info, err := fs.Stat(frontendFS, path)
+		if err != nil {
+			t.Fatalf("embedded filesystem missing %s: %v", path, err)
+		}
+		if !info.Mode().IsRegular() || info.Size() == 0 {
+			t.Fatalf("embedded documentation %s is empty or invalid", path)
+		}
+	}
+}
+
 func TestFileSystemDoesNotEmbedRemovedGoPineRuntimeReferences(t *testing.T) {
 	frontendFS, available, err := FileSystem()
 	if err != nil {
@@ -64,7 +86,7 @@ func TestFileSystemDoesNotEmbedRemovedGoPineRuntimeReferences(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() || !isFrontendTextAsset(path) {
+		if entry.IsDir() || strings.HasPrefix(path, "docs/") || !isFrontendTextAsset(path) {
 			return nil
 		}
 		file, err := frontendFS.Open(path)
