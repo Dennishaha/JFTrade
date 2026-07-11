@@ -249,6 +249,7 @@ function createSystemFetchMock(
   readFeatureOverrides: Partial<
     Record<BrokerReadFeatureKey, Partial<BrokerReadFeatureCapability>>
   > = {},
+  transformSystemStatus?: (status: typeof emptySystemStatus) => unknown,
 ) {
   const runtime = createBrokerRuntime(readFeatureOverrides);
   const funds = createBrokerFunds();
@@ -257,12 +258,13 @@ function createSystemFetchMock(
     const url = String(input);
 
     if (url.includes("/api/v1/system/status")) {
-      return createResponse({
+      const status = {
         ...emptySystemStatus,
         defaultBroker: "futu",
         defaultTradingEnvironment: "REAL",
         broker: runtime.descriptor,
-      });
+      };
+      return createResponse(transformSystemStatus?.(status) ?? status);
     }
     if (url.includes("/api/v1/system/storage/overview")) {
       return createResponse(emptyStorageOverview);
@@ -405,6 +407,24 @@ afterEach(() => {
 });
 
 describe("console data broker readFeatures consumption", () => {
+  it("normalizes null request observability from older system status payloads", async () => {
+    const store = createConsoleStore();
+    const fetchMock = createSystemFetchMock({}, (status) => ({
+      ...status,
+      observability: {
+        ...status.observability,
+        requests: null,
+      },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await store.loadSystemState({ bypassCooldown: true });
+
+    expect(store.systemStatus.value.observability.requests).toEqual(
+      emptySystemStatus.observability.requests,
+    );
+  });
+
   it("uses history fill parameters when fills capability supports history", async () => {
     const store = createConsoleStore();
     const fetchMock = createSystemFetchMock({

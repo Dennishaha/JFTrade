@@ -31,6 +31,7 @@ import {
   emptyRealTradeKillSwitchEvents,
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
+  emptySystemStatus,
 } from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
@@ -158,6 +159,29 @@ function normalizeRealTradeRiskEvents(
   };
 }
 
+function normalizeSystemStatus(
+  response: SystemStatusResponse,
+): SystemStatusResponse {
+  const fallback = emptySystemStatus.observability.requests;
+  const requests = response.observability?.requests ?? fallback;
+  return {
+    ...response,
+    observability: {
+      ...response.observability,
+      requests: {
+        ...fallback,
+        ...requests,
+        recentErrors: arrayOrEmpty(requests.recentErrors),
+        recentSlowRequests: arrayOrEmpty(requests.recentSlowRequests),
+        openD: {
+          ...fallback.openD,
+          ...requests.openD,
+        },
+      },
+    },
+  };
+}
+
 interface CreateConsoleDataSystemStateControllerOptions {
   prefs: Ref<WorkspaceTradingPreferences>;
   update: (patch: Partial<WorkspaceTradingPreferences>) => void;
@@ -265,7 +289,7 @@ export function createConsoleDataSystemStateController(
     try {
       const [
         onboarding,
-        status,
+        statusPayload,
         overview,
         settingsSnapshot,
         realTradeApprovalSummary,
@@ -324,6 +348,7 @@ export function createConsoleDataSystemStateController(
           entries: [],
         })),
       ]);
+      const status = normalizeSystemStatus(statusPayload);
       const savedFutuIntegration =
         settingsSnapshot.brokers.find(
           (broker) => broker.descriptor.id === "futu",

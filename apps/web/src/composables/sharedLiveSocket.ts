@@ -256,9 +256,10 @@ class SharedLiveSocketHub {
     });
 
     nextSocket.addEventListener("close", () => {
-      if (this.socket === nextSocket) {
-        this.socket = null;
+      if (this.socket !== nextSocket) {
+        return;
       }
+      this.socket = null;
       if (this.connectionState.value !== "unsupported") {
         this.connectionState.value =
           this.connectionState.value === "error" ? "error" : "disconnected";
@@ -294,6 +295,15 @@ class SharedLiveSocketHub {
   reconnect(): WebSocket | null {
     if (this.activeUrl == null) {
       return null;
+    }
+    if (
+      this.socket != null &&
+      ((this.connectionState.value === "connecting" &&
+        this.socket.readyState === WebSocket.CONNECTING) ||
+        (this.connectionState.value === "connected" &&
+          this.socket.readyState === WebSocket.OPEN))
+    ) {
+      return this.socket;
     }
     return this.connect(this.activeUrl);
   }

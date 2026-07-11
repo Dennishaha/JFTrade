@@ -248,6 +248,39 @@ describe("SharedLiveSocketHub", () => {
     await expect(timeout).resolves.toBe(false);
   });
 
+  it("keeps an active connection when reconnect is requested repeatedly", async () => {
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const hub = getSharedLiveSocketHub();
+    const socket = hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+
+    expect(hub.reconnect()).toBe(socket);
+    expect(MockWebSocket.instances).toHaveLength(1);
+
+    await Promise.resolve();
+
+    expect(hub.reconnect()).toBe(socket);
+    expect(MockWebSocket.instances).toHaveLength(1);
+    expect(MockWebSocket.instances[0]?.closed).toBe(false);
+  });
+
+  it("does not let a replaced socket schedule another reconnect", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const hub = getSharedLiveSocketHub();
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+    hub.connect("ws://127.0.0.1:3001/api/v1/ws/live");
+
+    expect(MockWebSocket.instances).toHaveLength(2);
+    expect(MockWebSocket.instances[0]?.closed).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(MockWebSocket.instances).toHaveLength(2);
+    expect(MockWebSocket.instances[1]?.closed).toBe(false);
+  });
+
   it("reconnects after close events and clears scheduled reconnects on disconnect", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
