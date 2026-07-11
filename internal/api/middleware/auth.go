@@ -104,7 +104,7 @@ func isWriteMethod(detector WriteMethodDetector, r *http.Request) bool {
 	if r == nil {
 		return false
 	}
-	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
+	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch || r.Method == http.MethodDelete
 }
 
 func markRequestOriginValidated(r *http.Request) {

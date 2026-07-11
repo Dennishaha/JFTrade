@@ -101,6 +101,26 @@ func TestAuthRequiresOriginAndCSRFForSessionWrites(t *testing.T) {
 	}
 }
 
+func TestAuthTreatsPatchAsSessionWrite(t *testing.T) {
+	auth := &stubAuthenticator{ok: true, session: "csrf"}
+	origins := allowOrigins("http://localhost:5173")
+
+	missingCSRF := performAuthRequest(http.MethodPatch, "/api/v1/adk/sessions/one", map[string]string{
+		"Origin": "http://localhost:5173",
+	}, auth, &stubCSRFValidator{valid: true}, origins)
+	if missingCSRF.Code != http.StatusForbidden {
+		t.Fatalf("missing csrf status = %d", missingCSRF.Code)
+	}
+
+	allowed := performAuthRequest(http.MethodPatch, "/api/v1/adk/sessions/one", map[string]string{
+		"Origin":       "http://localhost:5173",
+		"X-CSRF-Token": "csrf",
+	}, auth, &stubCSRFValidator{valid: true}, origins)
+	if allowed.Code != http.StatusNoContent {
+		t.Fatalf("allowed status = %d", allowed.Code)
+	}
+}
+
 func TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -120,6 +140,9 @@ func TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight(t *testing.T) {
 	}
 	if got := allowedResp.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "X-Request-ID") {
 		t.Fatalf("allow headers = %q, want X-Request-ID", got)
+	}
+	if got := allowedResp.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(got, http.MethodPatch) {
+		t.Fatalf("allow methods = %q, want PATCH", got)
 	}
 	deniedReq := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/settings/ui", nil)
 	deniedReq.Header.Set("Origin", "http://evil.example")

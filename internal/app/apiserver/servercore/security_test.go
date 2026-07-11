@@ -152,6 +152,17 @@ func TestDisabledAdministratorAuthStillRejectsUntrustedBrowserOrigin(t *testing.
 	}
 }
 
+func TestServerTreatsPatchAsWrite(t *testing.T) {
+	server := &Server{}
+	request := httptest.NewRequest(http.MethodPatch, "/api/v1/adk/sessions/one", nil)
+	if !server.IsWriteMethod(request) {
+		t.Fatal("PATCH was not classified as a write")
+	}
+	if server.IsWriteMethod(nil) {
+		t.Fatal("nil request was classified as a write")
+	}
+}
+
 func TestAdministratorBearerWebSocketAcceptsConfiguredOrigin(t *testing.T) {
 	server, srv := newAuthenticatedSecurityServer(t)
 	headers := http.Header{

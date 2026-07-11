@@ -51,7 +51,7 @@ func TestWriteMethodDetectionSupportsOverridesAndNilRequests(t *testing.T) {
 	if isWriteMethod(nil, nil) {
 		t.Fatal("nil request is a write")
 	}
-	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
 		request.Method = method
 		if !isWriteMethod(nil, request) {
 			t.Fatalf("method %s was not classified as a write", method)

@@ -20,7 +20,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 var _ middleware.WriteMethodDetector = (*Server)(nil)
 
 func (s *Server) IsWriteMethod(r *http.Request) bool {
-	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
+	if r == nil {
+		return false
+	}
+	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch || r.Method == http.MethodDelete
 }
 
 func (s *Server) writeError(c *gin.Context, status int, code string, message string) {
