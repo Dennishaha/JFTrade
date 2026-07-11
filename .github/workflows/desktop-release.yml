@@ -122,6 +122,9 @@ jobs:
           npm run build:pineworker
           git diff --exit-code -- docs/reference/generated/pine-v6-support.md
 
+      - name: Verify PineTS release acceptance
+        run: npm run check:pinets-release
+
       - name: Verify shared desktop source
         env:
           GOFLAGS: "-tags=gtk3"
