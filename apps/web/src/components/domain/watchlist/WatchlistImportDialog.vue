@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
 import type {
   WatchlistBinding,
@@ -22,6 +22,7 @@ const newLocalGroupName = ref("");
 const deleteLocalOnlyIds = ref<string[]>([]);
 const errorMessage = ref("");
 const committedMessage = ref("");
+let preserveCommitResult = false;
 
 const groupsQuery = useWatchlistGroups();
 const {
@@ -139,6 +140,7 @@ async function commit(): Promise<void> {
   const current = preview.value;
   if (current == null) return;
   errorMessage.value = "";
+  preserveCommitResult = true;
   try {
     const run = await commitMutation.mutateAsync({
       previewId: current.id,
@@ -152,6 +154,9 @@ async function commit(): Promise<void> {
     emit("imported");
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "提交导入失败";
+  } finally {
+    await nextTick();
+    preserveCommitResult = false;
   }
 }
 
@@ -208,7 +213,10 @@ watch(
 
 watch(
   [selectedSourceId, selectedRemoteGroupKey, selectedLocalGroupId, newLocalGroupName],
-  resetPreview,
+  () => {
+    if (preserveCommitResult) return;
+    resetPreview();
+  },
 );
 
 watch(

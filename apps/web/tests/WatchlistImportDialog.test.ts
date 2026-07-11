@@ -129,6 +129,63 @@ describe("WatchlistImportDialog", () => {
     );
   });
 
+  it("keeps the committed result after creating a local group", async () => {
+    importMocks.listSources.mockResolvedValue([
+      { id: "futu:default", displayName: "富途 OpenD", available: true },
+    ]);
+    importMocks.listSourceGroups.mockResolvedValue([
+      { remoteGroupId: "remote-growth", name: "成长股", type: "CUSTOM", ambiguous: false },
+    ]);
+    importMocks.preview.mockResolvedValue({
+      id: "preview-new-group",
+      previewId: "preview-new-group",
+      sourceId: "futu:default",
+      remoteGroupName: "成长股",
+      added: [{ instrumentId: "US.NVDA" }],
+      unchanged: [],
+      localOnly: [],
+    });
+    importMocks.commit.mockResolvedValue({
+      id: "run-new-group",
+      sourceId: "futu:default",
+      status: "completed",
+      localGroupId: "g-growth",
+    });
+
+    const wrapper = mount(WatchlistImportDialog, {
+      props: { modelValue: true },
+      global: { stubs: { "v-dialog": DialogStub } },
+    });
+    await flushPromises();
+
+    const localGroupSelect = wrapper.findAll(
+      ".watchlist-import-dialog__form-grid select",
+    )[2]!;
+    await localGroupSelect.setValue("");
+    await wrapper.get(".watchlist-import-dialog__form-grid input").setValue("成长股");
+    await wrapper.get(".watchlist-import-dialog__primary").trigger("click");
+    await flushPromises();
+    expect(importMocks.preview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceId: "futu:default",
+        remoteGroupId: "remote-growth",
+        newGroupName: "成长股",
+      }),
+    );
+
+    await wrapper.get(".watchlist-import-dialog__primary").trigger("click");
+    await flushPromises();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("导入已完成，本地自选已更新。");
+    expect(wrapper.text()).toContain("US.NVDA");
+    expect(wrapper.get("footer .tv-btn-ghost").text()).toBe("关闭");
+
+    await localGroupSelect.setValue("g-default");
+    expect(wrapper.text()).not.toContain("导入已完成，本地自选已更新。");
+    expect(wrapper.text()).not.toContain("US.NVDA");
+  });
+
   it("restores the bound local group for repeat imports", async () => {
     importMocks.listSources.mockResolvedValue([
       { id: "futu:default", displayName: "富途 OpenD", available: true },
