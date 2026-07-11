@@ -3,58 +3,90 @@ name: Desktop Release
 on:
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: Exact vX.Y.Z tag to build or publish
+      release_ref:
+        description: Git ref/SHA for a dry run, or an exact vX.Y.Z tag to publish
         required: true
+        default: main
         type: string
       dry_run:
         description: Build and verify artifacts without attesting or publishing a GitHub Release
         required: false
-        default: false
+        default: true
         type: boolean
   push:
     tags:
       - "v*"
 
-permissions:
-  actions: read
-  attestations: write
-  contents: write
-  id-token: write
+permissions: {}
 
 env:
-  JFTRADE_DESKTOP_RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+  JFTRADE_DESKTOP_BUILD_REF: ${{ github.event_name == 'push' && github.ref_name || inputs.release_ref }}
+  JFTRADE_DESKTOP_RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || (inputs.dry_run && format('v0.0.{0}', github.run_number) || inputs.release_ref) }}
+  JFTRADE_DESKTOP_PUBLISH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run != true) }}
   JFTRADE_DESKTOP_BUILD_TIME: ${{ github.event.head_commit.timestamp || '' }}
 
 concurrency:
-  group: desktop-release-${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+  group: desktop-release-${{ github.event_name == 'push' && github.ref_name || inputs.release_ref }}
   cancel-in-progress: false
 
 jobs:
   release-inputs:
     name: Prepare Release Inputs
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
     steps:
-      - name: Checkout release tag
+      - name: Checkout requested ref
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+          ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
+          fetch-depth: 0
 
-      - name: Verify exact release tag
+      - name: Verify release policy
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! "$JFTRADE_DESKTOP_RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          head_commit="$(git rev-parse HEAD)"
+          if [[ "$JFTRADE_DESKTOP_PUBLISH" != "true" ]]; then
+            echo "Dry run will build $JFTRADE_DESKTOP_BUILD_REF at $head_commit as $JFTRADE_DESKTOP_RELEASE_TAG."
+            exit 0
+          fi
+          if [[ ! "$JFTRADE_DESKTOP_RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || [[ "$JFTRADE_DESKTOP_RELEASE_TAG" = "v0.0.0" ]]; then
             echo "Invalid release tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
             exit 1
           fi
-          tag_commit="$(git rev-parse "$JFTRADE_DESKTOP_RELEASE_TAG^{commit}")"
-          head_commit="$(git rev-parse HEAD)"
+          if ! git show-ref --verify --quiet "refs/tags/$JFTRADE_DESKTOP_RELEASE_TAG"; then
+            echo "Publishing requires an existing tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
+            exit 1
+          fi
+          tag_commit="$(git rev-parse "refs/tags/$JFTRADE_DESKTOP_RELEASE_TAG^{commit}")"
           if [[ "$tag_commit" != "$head_commit" ]]; then
             echo "Checked out $head_commit, expected tag commit $tag_commit" >&2
             exit 1
           fi
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$tag_commit" refs/remotes/origin/main; then
+            echo "Release tag $JFTRADE_DESKTOP_RELEASE_TAG does not belong to main" >&2
+            exit 1
+          fi
+          ci_url="$(
+            gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+              -f head_sha="$tag_commit" \
+              -f branch=main \
+              -f event=push \
+              -f status=success \
+              -F per_page=100 \
+              --jq '.workflow_runs[0].html_url // ""'
+          )"
+          if [[ -z "$ci_url" ]]; then
+            echo "No successful main CI run found for $tag_commit" >&2
+            exit 1
+          fi
+          echo "Verified required CI run: $ci_url"
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -124,13 +156,17 @@ jobs:
     needs: release-inputs
     runs-on: macos-15
     timeout-minutes: 40
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
     env:
       JFTRADE_DESKTOP_PREPARED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+          ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -232,13 +268,17 @@ jobs:
     needs: release-inputs
     runs-on: windows-latest
     timeout-minutes: 35
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
     env:
       JFTRADE_DESKTOP_PREPARED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+          ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -324,13 +364,17 @@ jobs:
     needs: release-inputs
     runs-on: windows-11-arm
     timeout-minutes: 35
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
     env:
       JFTRADE_DESKTOP_PREPARED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+          ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -421,13 +465,17 @@ jobs:
     needs: release-inputs
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
     env:
       JFTRADE_DESKTOP_PREPARED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+          ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -512,14 +560,16 @@ jobs:
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run != true)) &&
       needs.macos.result == 'success' &&
       needs.windows.result == 'success' &&
+      needs.windows_arm64.result == 'success' &&
       needs.linux.result == 'success'
     needs: [macos, windows, windows_arm64, linux]
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      attestations: write
+      contents: write
+      id-token: write
     steps:
-      - name: Report unavailable Windows ARM64 preview
-        if: needs.windows_arm64.result != 'success'
-        run: echo "::warning::Windows ARM64 preview build did not complete; publishing the verified macOS, Windows x64, and Linux assets."
-
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
@@ -532,7 +582,6 @@ jobs:
           mkdir release
           find incoming -type f -exec cp {} release/ \;
           # Linux contributes a raw binary, AppImage, deb and SBOM; other platforms contribute installer and SBOM.
-          # Windows ARM64 is an optional preview artifact.
           test "$(find release -maxdepth 1 -type f | wc -l)" -ge 8
 
       - name: Generate SHA256SUMS
