@@ -138,6 +138,9 @@ jobs:
       - name: Futu proto generation test
         run: npm run test:futu-proto-generation
 
+      - name: Pineworker proto generation test
+        run: npm run test:pineworker-proto-generation
+
   go-coverage:
     name: Go Coverage
     runs-on: ubuntu-latest
