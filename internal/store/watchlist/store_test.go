@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	store "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	domain "github.com/jftrade/jftrade-main/internal/watchlist"
@@ -189,6 +190,104 @@ func TestListItemsBatchHydratesGroupsAndSources(t *testing.T) {
 	if microsoft.ID != "US.MSFT" || !slices.Equal(microsoft.GroupIDs, []string{technology.ID}) ||
 		len(microsoft.SourceIDs) != 0 {
 		t.Fatalf("Microsoft item = %#v", microsoft)
+	}
+}
+
+func TestStoreGroupUpdateAndDeletePreserveMembershipRevisionContract(t *testing.T) {
+	repository := openStore(t)
+	service := domain.NewService(repository)
+	if repository.Path() == "" || repository.DB() == nil {
+		t.Fatalf("opened store path/db = %q/%p", repository.Path(), repository.DB())
+	}
+	first, err := service.CreateGroup(t.Context(), domain.CreateGroupInput{Name: "First"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.CreateGroup(t.Context(), domain.CreateGroupInput{Name: "Second"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := service.UpdateGroup(t.Context(), first.ID, domain.UpdateGroupInput{Name: "Renamed", ExpectedRevision: first.Revision})
+	if err != nil || updated.Name != "Renamed" || updated.Revision != first.Revision+1 {
+		t.Fatalf("updated group = %#v, %v", updated, err)
+	}
+	if _, err := service.UpdateGroup(t.Context(), first.ID, domain.UpdateGroupInput{Name: "Stale", ExpectedRevision: first.Revision}); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("stale update = %v", err)
+	}
+	if _, err := service.UpdateGroup(t.Context(), first.ID, domain.UpdateGroupInput{Name: second.Name, ExpectedRevision: updated.Revision}); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("duplicate-name update = %v", err)
+	}
+	if _, err := service.UpdateGroup(t.Context(), "missing", domain.UpdateGroupInput{Name: "Missing", ExpectedRevision: 1}); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("missing update = %v", err)
+	}
+
+	membership, err := service.ReplaceMemberships(t.Context(), domain.ReplaceMembershipsInput{
+		InstrumentID: "US.AAPL", GroupIDs: []string{first.ID, second.ID}, ExpectedRevision: 0,
+	})
+	if err != nil || membership.Revision != 1 || len(membership.Groups) != 2 {
+		t.Fatalf("seed membership = %#v, %v", membership, err)
+	}
+	if err := service.DeleteGroup(t.Context(), first.ID); err != nil {
+		t.Fatal(err)
+	}
+	after, err := service.GetMemberships(t.Context(), "US.AAPL")
+	if err != nil || after.Revision != 2 || len(after.Groups) != 1 || after.Groups[0].ID != second.ID {
+		t.Fatalf("membership after group delete = %#v, %v", after, err)
+	}
+	if _, err := repository.GetGroup(t.Context(), first.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("deleted group lookup = %v", err)
+	}
+	if err := service.DeleteGroup(t.Context(), "missing"); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("missing delete = %v", err)
+	}
+
+	var nilStore *store.Store
+	if nilStore.Path() != "" || nilStore.DB() != nil || nilStore.Close() != nil {
+		t.Fatal("nil store accessors should be safe")
+	}
+	if _, err := store.Open(t.Context(), " "); err == nil {
+		t.Fatal("Open accepted an empty database path")
+	}
+}
+
+func TestStoreRoundTripsSourceAndRemoteGroupSnapshots(t *testing.T) {
+	repository := openStore(t)
+	now := time.Date(2026, time.July, 11, 13, 0, 0, 0, time.UTC)
+	if err := repository.UpsertSource(t.Context(), domain.Source{
+		ID: "futu:default", Broker: "futu", DisplayName: "OpenD", Status: "ready", UpdatedAt: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.UpsertSource(t.Context(), domain.Source{
+		ID: "futu:default", Broker: "futu", DisplayName: "OpenD", Status: "unavailable", Error: "offline",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	sources, err := repository.ListSources(t.Context())
+	if err != nil || len(sources) != 1 || sources[0].Status != "unavailable" || sources[0].Error != "offline" || sources[0].UpdatedAt.IsZero() {
+		t.Fatalf("sources = %#v, %v", sources, err)
+	}
+
+	groups := []domain.RemoteGroup{
+		{SourceID: "futu:default", RemoteGroupID: "two", Name: "Beta", Type: "custom", MemberCount: 2, RemoteHash: "hash-2", ObservedAt: now},
+		{SourceID: "futu:default", RemoteGroupID: "one", Name: "Alpha", Type: "custom", Ambiguous: true, MemberCount: 1, RemoteHash: "hash-1"},
+	}
+	if err := repository.ReplaceRemoteGroups(t.Context(), "futu:default", groups); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := repository.ListRemoteGroups(t.Context(), "futu:default")
+	if err != nil || len(stored) != 2 {
+		t.Fatalf("remote groups = %#v, %v", stored, err)
+	}
+	if stored[0].RemoteGroupID != "one" || !stored[0].Ambiguous || stored[0].ObservedAt.IsZero() || stored[1].RemoteGroupID != "two" || !stored[1].ObservedAt.Equal(now) {
+		t.Fatalf("round-tripped remote groups = %#v", stored)
+	}
+	if err := repository.ReplaceRemoteGroups(t.Context(), "futu:default", nil); err != nil {
+		t.Fatal(err)
+	}
+	stored, err = repository.ListRemoteGroups(t.Context(), "futu:default")
+	if err != nil || stored == nil || len(stored) != 0 {
+		t.Fatalf("cleared remote groups = %#v, %v", stored, err)
 	}
 }
 

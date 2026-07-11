@@ -96,6 +96,21 @@ func TestImportPreviewCommitRepeatAndStaleGuards(t *testing.T) {
 	if err != nil || repeatRun.AddedCount != 0 || repeatRun.UnchangedCount != 2 {
 		t.Fatalf("repeat run = %#v, %v", repeatRun, err)
 	}
+	runs, err := service.ListImportRuns(t.Context(), "futu:default", "", 1)
+	if err != nil || len(runs.Items) != 1 || runs.NextCursor == "" || runs.Items[0].SourceID != "futu:default" {
+		t.Fatalf("first import run page = %#v, %v", runs, err)
+	}
+	secondPage, err := service.ListImportRuns(t.Context(), "futu:default", runs.NextCursor, 1)
+	if err != nil || len(secondPage.Items) != 1 || secondPage.NextCursor != "" || secondPage.Items[0].ID == runs.Items[0].ID {
+		t.Fatalf("second import run page = %#v, %v", secondPage, err)
+	}
+	if _, err := service.ListImportRuns(t.Context(), "futu:default", "missing", 1); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("missing import run cursor = %v", err)
+	}
+	filtered, err := service.ListImportRuns(t.Context(), "other:default", "", 10)
+	if err != nil || filtered.Items == nil || len(filtered.Items) != 0 {
+		t.Fatalf("filtered import runs = %#v, %v", filtered, err)
+	}
 
 	staleLocal, err := service.PreviewImport(t.Context(), domain.ImportPreviewRequest{SourceID: "futu:default", RemoteGroupID: "custom:核心", LocalGroupID: group.ID})
 	if err != nil {
