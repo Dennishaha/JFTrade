@@ -22,7 +22,15 @@ func (s *Server) applySecuritySettings(settings SecuritySettings) {
 
 func (s *Server) authorizeRequest(c *gin.Context) bool {
 	r := c.Request
-	if s.auth == nil || !s.auth.enabled {
+	if s.auth == nil {
+		s.writeError(c, http.StatusUnauthorized, "UNAUTHORIZED", "administrator authentication is required")
+		return false
+	}
+	if !s.auth.requestOriginAllowed(r) {
+		s.writeError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
+		return false
+	}
+	if !s.auth.enabled {
 		return true
 	}
 	session, ok, bearer := s.auth.authenticate(r)
@@ -34,10 +42,6 @@ func (s *Server) authorizeRequest(c *gin.Context) bool {
 		return true
 	}
 	origin := requestOrigin(r)
-	if origin != "" && !s.auth.originAllowed(origin) {
-		s.writeError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
-		return false
-	}
 	if !s.IsWriteMethod(r) {
 		return true
 	}

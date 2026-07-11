@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 
+	"github.com/jftrade/jftrade-main/internal/api/middleware"
+	apiOrigin "github.com/jftrade/jftrade-main/internal/api/origin"
 	livecore "github.com/jftrade/jftrade-main/internal/live"
 )
 
@@ -75,14 +78,38 @@ func NewHandler(backend Backend, options Options) *Handler {
 	options = normalizeOptions(options)
 	return &Handler{
 		backend: backend,
-		upgrader: websocket.Upgrader{CheckOrigin: func(*http.Request) bool {
-			return true
-		}, Subprotocols: []string{"jftrade.desktop.v1"}},
+		upgrader: websocket.Upgrader{
+			CheckOrigin:  checkWebSocketOrigin,
+			Subprotocols: []string{"jftrade.desktop.v1"},
+		},
 		options:     options,
 		ctx:         ctx,
 		cancel:      cancel,
 		connections: map[*websocket.Conn]struct{}{},
 	}
+}
+
+func checkWebSocketOrigin(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	rawOrigin := strings.TrimSpace(r.Header.Get("Origin"))
+	if rawOrigin == "" {
+		return true
+	}
+	canonical := apiOrigin.Canonical(rawOrigin)
+	parsed, err := url.Parse(canonical)
+	if err != nil || canonical == "" {
+		return false
+	}
+	expectedScheme := "http"
+	if r.TLS != nil {
+		expectedScheme = "https"
+	}
+	if parsed.Scheme == expectedScheme && strings.EqualFold(parsed.Host, r.Host) {
+		return true
+	}
+	return middleware.IsRequestOriginValidated(r)
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -26,13 +26,37 @@ func TestAuthSkipsPublicPaths(t *testing.T) {
 	}
 }
 
-func TestAuthBearerBypassesOriginAndCSRFChecks(t *testing.T) {
+func TestAuthBearerWithoutBrowserOriginBypassesCSRFChecks(t *testing.T) {
 	auth := &stubAuthenticator{ok: true, bearer: true}
-	resp := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
-		"Origin": "http://evil.example",
-	}, auth, nil, nil)
+	resp := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", nil, auth, nil, nil)
 	if resp.Code != http.StatusNoContent {
 		t.Fatalf("status = %d", resp.Code)
+	}
+}
+
+func TestAuthBearerStillRequiresTrustedBrowserOrigin(t *testing.T) {
+	auth := &stubAuthenticator{ok: true, bearer: true}
+
+	denied := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
+		"Origin": "http://evil.example",
+	}, auth, nil, allowOrigins("http://localhost:5173"))
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("untrusted origin status = %d", denied.Code)
+	}
+
+	malformed := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
+		"Origin":  "null",
+		"Referer": "http://localhost:5173/app",
+	}, auth, nil, allowOrigins("http://localhost:5173"))
+	if malformed.Code != http.StatusForbidden {
+		t.Fatalf("malformed origin status = %d", malformed.Code)
+	}
+
+	allowed := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
+		"Origin": "http://localhost:5173",
+	}, auth, nil, allowOrigins("http://localhost:5173"))
+	if allowed.Code != http.StatusNoContent {
+		t.Fatalf("trusted origin status = %d", allowed.Code)
 	}
 }
 
@@ -97,13 +121,21 @@ func TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight(t *testing.T) {
 	if got := allowedResp.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "X-Request-ID") {
 		t.Fatalf("allow headers = %q, want X-Request-ID", got)
 	}
-
 	deniedReq := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/settings/ui", nil)
 	deniedReq.Header.Set("Origin", "http://evil.example")
 	deniedResp := httptest.NewRecorder()
 	router.ServeHTTP(deniedResp, deniedReq)
 	if deniedResp.Code != http.StatusForbidden {
 		t.Fatalf("denied preflight status = %d", deniedResp.Code)
+	}
+
+	malformedReq := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/settings/ui", nil)
+	malformedReq.Header.Set("Origin", "null")
+	malformedReq.Header.Set("Referer", "http://localhost:5173/app")
+	malformedResp := httptest.NewRecorder()
+	router.ServeHTTP(malformedResp, malformedReq)
+	if malformedResp.Code != http.StatusForbidden {
+		t.Fatalf("malformed preflight status = %d", malformedResp.Code)
 	}
 }
 

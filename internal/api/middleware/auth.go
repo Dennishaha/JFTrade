@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -24,6 +25,8 @@ type CSRFValidator interface {
 type WriteMethodDetector interface {
 	IsWriteMethod(r *http.Request) bool
 }
+
+type validatedOriginContextKey struct{}
 
 // Auth 返回 Gin 鉴权中间件。
 // 跳过 /api/v1/auth/* 和 /api/v1/system/status 路径。
@@ -59,6 +62,14 @@ func requiresAuthentication(r *http.Request) bool {
 // authorizeRequest 执行请求鉴权。返回 true 表示通过。
 func authorizeRequest(c *gin.Context, auth Authenticator, csrf CSRFValidator, writeDetector WriteMethodDetector, originChecker OriginChecker) bool {
 	r := c.Request
+	origin := requestOrigin(r)
+	if requestOriginProvided(r) {
+		if origin == "" || originChecker == nil || !originChecker.IsOriginAllowed(origin) {
+			writeAuthError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
+			return false
+		}
+		markRequestOriginValidated(r)
+	}
 
 	if auth == nil {
 		writeAuthError(c, http.StatusUnauthorized, "UNAUTHORIZED", "administrator authentication is required")
@@ -71,12 +82,6 @@ func authorizeRequest(c *gin.Context, auth Authenticator, csrf CSRFValidator, wr
 	}
 	if bearer {
 		return true
-	}
-
-	origin := requestOrigin(r)
-	if origin != "" && (originChecker == nil || !originChecker.IsOriginAllowed(origin)) {
-		writeAuthError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
-		return false
 	}
 	if !isWriteMethod(writeDetector, r) {
 		return true
@@ -100,6 +105,18 @@ func isWriteMethod(detector WriteMethodDetector, r *http.Request) bool {
 		return false
 	}
 	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
+}
+
+func markRequestOriginValidated(r *http.Request) {
+	if r == nil {
+		return
+	}
+	*r = *r.WithContext(context.WithValue(r.Context(), validatedOriginContextKey{}, true))
+}
+
+// IsRequestOriginValidated reports whether Auth accepted the browser origin on this request.
+func IsRequestOriginValidated(r *http.Request) bool {
+	return r != nil && r.Context().Value(validatedOriginContextKey{}) == true
 }
 
 // writeAuthError 写入鉴权错误响应。使用本地 envelope 结构避免引入 httpserver 依赖。

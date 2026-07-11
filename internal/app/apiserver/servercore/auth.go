@@ -145,7 +145,28 @@ func canonicalOrigin(value string) string {
 }
 
 func requestOrigin(r *http.Request) string {
-	return origin.FromRequest(r)
+	if r == nil {
+		return ""
+	}
+	if value := strings.TrimSpace(r.Header.Get("Origin")); value != "" {
+		return canonicalOrigin(value)
+	}
+	return canonicalOrigin(r.Header.Get("Referer"))
+}
+
+func requestOriginProvided(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	return strings.TrimSpace(r.Header.Get("Origin")) != "" || strings.TrimSpace(r.Header.Get("Referer")) != ""
+}
+
+func (a *adminAuth) requestOriginAllowed(r *http.Request) bool {
+	if !requestOriginProvided(r) {
+		return true
+	}
+	origin := requestOrigin(r)
+	return origin != "" && a != nil && a.originAllowed(origin)
 }
 
 func requestRemoteIP(r *http.Request) net.IP {
@@ -226,16 +247,16 @@ func constantTimeEqual(left string, right string) bool {
 // @Router /api/v1/auth/login [post]
 func (a *adminAuth) login(c *gin.Context) {
 	r := c.Request
+	if !a.requestOriginAllowed(r) {
+		writeAuthError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
+		return
+	}
 	if a == nil || !a.enabled {
 		writeAuthJSON(c, http.StatusOK, map[string]any{"authenticated": true, "csrfToken": ""})
 		return
 	}
 	if a.unavailable {
 		writeAuthError(c, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "administrator authentication is unavailable")
-		return
-	}
-	if origin := requestOrigin(r); origin != "" && !a.originAllowed(origin) {
-		writeAuthError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
 		return
 	}
 	remote := requestRemoteIP(r)
@@ -325,6 +346,10 @@ func (a *adminAuth) logout(c *gin.Context) {
 // @Success 200 {object} envelope
 // @Router /api/v1/auth/session [get]
 func (a *adminAuth) status(c *gin.Context) {
+	if !a.requestOriginAllowed(c.Request) {
+		writeAuthError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
+		return
+	}
 	session, ok, bearer := a.authenticate(c.Request)
 	data := map[string]any{"authenticated": ok}
 	if ok && !bearer {

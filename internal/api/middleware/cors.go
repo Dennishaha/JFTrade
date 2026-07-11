@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,6 +19,7 @@ type OriginChecker interface {
 func CORS(checker OriginChecker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := requestOrigin(c.Request)
+		originProvided := requestOriginProvided(c.Request)
 		if origin != "" && checker != nil && checker.IsOriginAllowed(origin) {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Vary", "Origin")
@@ -28,7 +30,7 @@ func CORS(checker OriginChecker) gin.HandlerFunc {
 		c.Header("Access-Control-Expose-Headers", "X-Request-ID")
 
 		if c.Request.Method == http.MethodOptions {
-			if origin != "" && (checker == nil || !checker.IsOriginAllowed(origin)) {
+			if originProvided && (origin == "" || checker == nil || !checker.IsOriginAllowed(origin)) {
 				c.AbortWithStatus(http.StatusForbidden)
 				return
 			}
@@ -41,7 +43,20 @@ func CORS(checker OriginChecker) gin.HandlerFunc {
 
 // requestOrigin 从请求中提取规范化的来源。
 func requestOrigin(r *http.Request) string {
-	return origin.FromRequest(r)
+	if r == nil {
+		return ""
+	}
+	if value := strings.TrimSpace(r.Header.Get("Origin")); value != "" {
+		return canonicalOrigin(value)
+	}
+	return canonicalOrigin(r.Header.Get("Referer"))
+}
+
+func requestOriginProvided(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	return strings.TrimSpace(r.Header.Get("Origin")) != "" || strings.TrimSpace(r.Header.Get("Referer")) != ""
 }
 
 // canonicalOrigin 将原始来源字符串规范化为 scheme://host 格式。

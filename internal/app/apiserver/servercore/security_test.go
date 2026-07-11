@@ -7,8 +7,11 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func newAuthenticatedSecurityServer(t *testing.T) (*Server, *httptest.Server) {
@@ -91,6 +94,78 @@ func TestAdministratorBearerKeyAllowsSensitiveRequests(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
+}
+
+func TestAdministratorBearerRejectsUntrustedBrowserOrigin(t *testing.T) {
+	server, srv := newAuthenticatedSecurityServer(t)
+	for _, test := range []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "protected API", method: http.MethodGet, path: "/api/v1/adk"},
+		{name: "logout", method: http.MethodPost, path: "/api/v1/auth/logout"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), test.method, srv.URL+test.path, nil)
+			jftradeCheckTestError(t, err)
+			req.Header.Set("Authorization", "Bearer "+server.auth.key)
+			req.Header.Set("Origin", "https://evil.example.com")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
+			if resp.StatusCode != http.StatusForbidden {
+				t.Fatalf("status = %d, want 403", resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestDisabledAdministratorAuthStillRejectsUntrustedBrowserOrigin(t *testing.T) {
+	server, srv := newAuthenticatedSecurityServer(t)
+	server.auth.enabled = false
+	for _, test := range []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "protected API", method: http.MethodGet, path: "/api/v1/adk"},
+		{name: "login", method: http.MethodPost, path: "/api/v1/auth/login"},
+		{name: "session", method: http.MethodGet, path: "/api/v1/auth/session"},
+		{name: "logout", method: http.MethodPost, path: "/api/v1/auth/logout"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), test.method, srv.URL+test.path, nil)
+			jftradeCheckTestError(t, err)
+			req.Header.Set("Origin", "https://evil.example.com")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
+			if resp.StatusCode != http.StatusForbidden {
+				t.Fatalf("status = %d, want 403", resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestAdministratorBearerWebSocketAcceptsConfiguredOrigin(t *testing.T) {
+	server, srv := newAuthenticatedSecurityServer(t)
+	headers := http.Header{
+		"Authorization": []string{"Bearer " + server.auth.key},
+		"Origin":        []string{"http://localhost:5173"},
+	}
+	conn, response, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http")+"/api/v1/ws/live", headers)
+	if response != nil && response.Body != nil {
+		defer func() { jftradeCheckTestError(t, response.Body.Close()) }()
+	}
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 }
 
 func TestWrongAdministratorBearerKeyIsRejected(t *testing.T) {

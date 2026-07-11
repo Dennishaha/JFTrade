@@ -96,6 +96,13 @@ func TestRequestOriginUsesRefererAndHandlesNil(t *testing.T) {
 	if origin := requestOrigin(request); origin != "https://example.com" {
 		t.Fatalf("referer origin = %q", origin)
 	}
+	request.Header.Set("Origin", "null")
+	if origin := requestOrigin(request); origin != "" {
+		t.Fatalf("malformed Origin fell back to Referer: %q", origin)
+	}
+	if !requestOriginProvided(request) {
+		t.Fatal("malformed Origin was not recorded as provided")
+	}
 }
 
 func TestCanonicalOriginRejectsMalformedAndUnsupportedValues(t *testing.T) {

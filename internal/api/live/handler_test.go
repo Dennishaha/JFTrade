@@ -275,6 +275,49 @@ func TestHandlerConnectionLimitAndCloseLifecycle(t *testing.T) {
 	}
 }
 
+func TestHandlerRejectsUntrustedWebSocketOrigin(t *testing.T) {
+	handler := NewHandler(&fakeBackend{limit: 1}, Options{})
+	server := httptest.NewServer(handler)
+	t.Cleanup(func() {
+		jftradeCheckTestError(t, handler.Close())
+		server.Close()
+	})
+
+	for _, value := range []string{"http://evil.example", "null"} {
+		t.Run(value, func(t *testing.T) {
+			headers := http.Header{"Origin": []string{value}}
+			conn, response, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), headers)
+			if conn != nil {
+				jftradeCheckTestError(t, conn.Close())
+			}
+			if err == nil || response == nil || response.StatusCode != http.StatusForbidden {
+				t.Fatalf("dial err=%v status=%v", err, responseStatus(response))
+			}
+			jftradeCheckTestError(t, response.Body.Close())
+		})
+	}
+}
+
+func TestHandlerAcceptsSameOriginWebSocket(t *testing.T) {
+	handler := NewHandler(&fakeBackend{limit: 1}, Options{})
+	server := httptest.NewServer(handler)
+	t.Cleanup(func() {
+		jftradeCheckTestError(t, handler.Close())
+		server.Close()
+	})
+
+	headers := http.Header{"Origin": []string{server.URL}}
+	conn, response, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), headers)
+	if response != nil && response.Body != nil {
+		t.Cleanup(func() { jftradeCheckTestError(t, response.Body.Close()) })
+	}
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	t.Cleanup(func() { jftradeCheckTestError(t, conn.Close()) })
+	_ = readEvent(t, conn)
+}
+
 func TestDispatcherDeduplicatesTickObservedAt(t *testing.T) {
 	backend := &fakeBackend{
 		limit: 1,
