@@ -101,6 +101,24 @@ func TestCallFailureRecordsRequestCorrelation(t *testing.T) {
 	}
 }
 
+func TestStartKeepAliveIgnoresNonPositiveIntervalsWithoutConsumingStart(t *testing.T) {
+	client := New(Config{})
+	client.StartKeepAlive(0)
+	client.StartKeepAlive(-time.Second)
+	select {
+	case <-client.Done():
+		t.Fatal("non-positive keepalive interval closed the client")
+	default:
+	}
+
+	client.StartKeepAlive(time.Millisecond)
+	select {
+	case <-client.Done():
+	case <-time.After(time.Second):
+		t.Fatal("valid keepalive interval did not start after ignored intervals")
+	}
+}
+
 func startKeepAliveStallOpenD(t *testing.T) (addr string, stop func()) {
 	t.Helper()
 	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
