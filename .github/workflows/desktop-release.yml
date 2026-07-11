@@ -195,7 +195,7 @@ jobs:
       - name: Test macOS desktop package
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
-      - name: Configure optional macOS signing and notarization
+      - name: Configure macOS signing and notarization
         env:
           CERTIFICATE_BASE64: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_PASSWORD }}
@@ -207,7 +207,14 @@ jobs:
           values=("$CERTIFICATE_BASE64" "$CERTIFICATE_PASSWORD" "$SIGN_IDENTITY" "$NOTARY_APPLE_ID" "$NOTARY_PASSWORD" "$NOTARY_TEAM_ID")
           configured=0
           for value in "${values[@]}"; do test -n "$value" && configured=$((configured + 1)); done
-          if [ "$configured" -eq 0 ]; then exit 0; fi
+          if [ "$configured" -eq 0 ]; then
+            if [ "$JFTRADE_DESKTOP_PUBLISH" = "true" ]; then
+              echo "Published macOS releases require signing and notarization credentials" >&2
+              exit 1
+            fi
+            echo "Dry run will use an ad-hoc macOS signature."
+            exit 0
+          fi
           if [ "$configured" -ne "${#values[@]}" ]; then echo "macOS signing secrets must be all set or all unset" >&2; exit 1; fi
           keychain="$RUNNER_TEMP/jftrade-signing.keychain-db"
           certificate="$RUNNER_TEMP/jftrade-signing.p12"
@@ -310,14 +317,20 @@ jobs:
           "MAKENSIS=$makensis" | Out-File -FilePath $env:GITHUB_ENV -Append
           (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
-      - name: Configure optional Windows signing
+      - name: Configure Windows signing
         shell: pwsh
         env:
           CERTIFICATE_BASE64: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
-          if ($configured.Count -eq 0) { exit 0 }
+          if ($configured.Count -eq 0) {
+            if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") {
+              throw "Published Windows releases require Authenticode credentials"
+            }
+            Write-Host "Dry run will produce an unsigned Windows installer."
+            exit 0
+          }
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
           $certificate = Join-Path $env:RUNNER_TEMP "jftrade-signing.pfx"
           [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
@@ -411,14 +424,20 @@ jobs:
           "MAKENSIS=$makensis" | Out-File -FilePath $env:GITHUB_ENV -Append
           (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
-      - name: Configure optional Windows signing
+      - name: Configure Windows signing
         shell: pwsh
         env:
           CERTIFICATE_BASE64: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
-          if ($configured.Count -eq 0) { exit 0 }
+          if ($configured.Count -eq 0) {
+            if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") {
+              throw "Published Windows releases require Authenticode credentials"
+            }
+            Write-Host "Dry run will produce an unsigned Windows installer."
+            exit 0
+          }
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
           $certificate = Join-Path $env:RUNNER_TEMP "jftrade-signing.pfx"
           [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
