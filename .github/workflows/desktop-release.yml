@@ -98,8 +98,9 @@ jobs:
           npm run typecheck:web
           npm run test:desktop-release-metadata
           npm run test:desktop-release-inputs
-          npm run test:desktop-mac-bundle
-          npm run test:desktop-windows-resource-metadata
+          npm run test:desktop-wails-tasks
+          npm run test:desktop-signing
+          npm run test:desktop-linux-package-config
           node scripts/dev-desktop.test.mjs
 
       - name: Verify embedded release inputs
@@ -119,7 +120,7 @@ jobs:
           retention-days: 1
 
   macos:
-    name: macOS ARM64 Unsigned DMG
+    name: macOS ARM64 DMG
     needs: release-inputs
     runs-on: macos-15
     timeout-minutes: 40
@@ -153,9 +154,37 @@ jobs:
         run: test "$(uname -m)" = "arm64"
 
       - name: Test macOS desktop package
-        run: go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+        run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
-      - name: Build unsigned ARM64 DMG
+      - name: Configure optional macOS signing and notarization
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_PASSWORD }}
+          SIGN_IDENTITY: ${{ secrets.JFTRADE_MACOS_SIGN_IDENTITY }}
+          NOTARY_APPLE_ID: ${{ secrets.JFTRADE_MACOS_NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.JFTRADE_MACOS_NOTARY_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.JFTRADE_MACOS_NOTARY_TEAM_ID }}
+        run: |
+          values=("$CERTIFICATE_BASE64" "$CERTIFICATE_PASSWORD" "$SIGN_IDENTITY" "$NOTARY_APPLE_ID" "$NOTARY_PASSWORD" "$NOTARY_TEAM_ID")
+          configured=0
+          for value in "${values[@]}"; do test -n "$value" && configured=$((configured + 1)); done
+          if [ "$configured" -eq 0 ]; then exit 0; fi
+          if [ "$configured" -ne "${#values[@]}" ]; then echo "macOS signing secrets must be all set or all unset" >&2; exit 1; fi
+          keychain="$RUNNER_TEMP/jftrade-signing.keychain-db"
+          certificate="$RUNNER_TEMP/jftrade-signing.p12"
+          keychain_password="$(openssl rand -hex 24)"
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          xcrun notarytool store-credentials jftrade-ci --apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$NOTARY_TEAM_ID"
+          echo "JFTRADE_MACOS_SIGN_IDENTITY=$SIGN_IDENTITY" >> "$GITHUB_ENV"
+          echo "JFTRADE_MACOS_NOTARY_PROFILE=jftrade-ci" >> "$GITHUB_ENV"
+
+      - name: Build ARM64 DMG
         run: npm run desktop:release:darwin
 
       - name: Locate macOS artifact
@@ -164,6 +193,14 @@ jobs:
           artifact="$(find dist/desktop-release/darwin-arm64 -maxdepth 1 -name '*.dmg' -print -quit)"
           test -n "$artifact"
           echo "path=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Verify sealed macOS bundle
+        run: |
+          bundle="dist/desktop-release/darwin-arm64/JFTrade.app"
+          codesign --verify --deep --strict --verbose=2 "$bundle"
+          test "$(lipo -archs "$bundle/Contents/MacOS/JFTrade")" = "arm64"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$bundle/Contents/Info.plist")" = "com.jftrade.desktop"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$bundle/Contents/Info.plist")" = "${JFTRADE_DESKTOP_RELEASE_TAG#v}"
 
       - name: Generate macOS SBOM
         uses: anchore/sbom-action@v0
@@ -190,7 +227,7 @@ jobs:
           if-no-files-found: error
 
   windows:
-    name: Windows x64 Unsigned Installer
+    name: Windows x64 Installer
     needs: release-inputs
     runs-on: windows-latest
     timeout-minutes: 35
@@ -229,10 +266,24 @@ jobs:
           "MAKENSIS=$makensis" | Out-File -FilePath $env:GITHUB_ENV -Append
           (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
-      - name: Test Windows desktop package
-        run: go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+      - name: Configure optional Windows signing
+        shell: pwsh
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
+          if ($configured.Count -eq 0) { exit 0 }
+          if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
+          $certificate = Join-Path $env:RUNNER_TEMP "jftrade-signing.pfx"
+          [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
+          "JFTRADE_WINDOWS_CERTIFICATE=$certificate" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Build unsigned per-user NSIS installer
+      - name: Test Windows desktop package
+        run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+
+      - name: Build per-user NSIS installer
         run: npm run desktop:release:windows
 
       - name: Locate Windows artifact
@@ -246,7 +297,7 @@ jobs:
       - name: Generate Windows SBOM
         uses: anchore/sbom-action@v0
         with:
-          file: dist/desktop-release/windows-amd64/JFTrade.exe
+          file: dist/desktop/windows-amd64/jftrade-desktop-windows-amd64.exe
           format: spdx-json
           output-file: dist/desktop-release/JFTrade-windows-x64.spdx.json
           upload-artifact: false
@@ -312,17 +363,31 @@ jobs:
           "MAKENSIS=$makensis" | Out-File -FilePath $env:GITHUB_ENV -Append
           (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
-      - name: Test Windows ARM64 desktop package
-        run: go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+      - name: Configure optional Windows signing
+        shell: pwsh
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
+          if ($configured.Count -eq 0) { exit 0 }
+          if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
+          $certificate = Join-Path $env:RUNNER_TEMP "jftrade-signing.pfx"
+          [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
+          "JFTRADE_WINDOWS_CERTIFICATE=$certificate" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Build unsigned ARM64 preview NSIS installer
+      - name: Test Windows ARM64 desktop package
+        run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+
+      - name: Build ARM64 preview NSIS installer
         run: npm run desktop:release:windows-arm64
 
       - name: Locate Windows ARM64 artifact
         id: artifact
         shell: pwsh
         run: |
-          $artifact = Get-ChildItem dist/desktop-release/windows-arm64/*-preview-unsigned-setup.exe | Select-Object -First 1
+          $artifact = Get-ChildItem dist/desktop-release/windows-arm64/*-preview-*-setup.exe | Select-Object -First 1
           if (-not $artifact) { throw "Windows ARM64 preview installer was not produced" }
           "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
@@ -385,7 +450,7 @@ jobs:
         run: bash scripts/install-linux-desktop-dependencies.sh
 
       - name: Test Linux release profile
-        run: go test -tags release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
+        run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build Linux x64 release binary
         run: npm run desktop:release:linux
@@ -401,6 +466,14 @@ jobs:
           ldd "$artifact" | tee /tmp/jftrade-linux-ldd.txt
           ! grep -q 'not found' /tmp/jftrade-linux-ldd.txt
           echo "path=$artifact" >> "$GITHUB_OUTPUT"
+          appimage="$(find dist/desktop-release/linux-amd64 -maxdepth 1 -name '*.AppImage' -print -quit)"
+          deb="$(find dist/desktop-release/linux-amd64 -maxdepth 1 -name '*.deb' -print -quit)"
+          test -x "$appimage"
+          test -s "$deb"
+          "$appimage" --appimage-extract >/dev/null
+          dpkg-deb --info "$deb" | tee /tmp/jftrade-deb-info.txt
+          grep -q 'libgtk-3-0' /tmp/jftrade-deb-info.txt
+          grep -q 'libwebkit2gtk-4.1-0' /tmp/jftrade-deb-info.txt
 
       - name: Generate Linux x64 SBOM
         uses: anchore/sbom-action@v0
@@ -415,14 +488,19 @@ jobs:
         if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
         uses: actions/attest@v4
         with:
-          subject-path: ${{ steps.artifact.outputs.path }}
+          subject-path: |
+            dist/desktop-release/linux-amd64/jftrade-desktop-linux-amd64
+            dist/desktop-release/linux-amd64/*.AppImage
+            dist/desktop-release/linux-amd64/*.deb
 
       - name: Upload Linux x64 release files
         uses: actions/upload-artifact@v7
         with:
           name: desktop-release-linux
           path: |
-            ${{ steps.artifact.outputs.path }}
+            dist/desktop-release/linux-amd64/jftrade-desktop-linux-amd64
+            dist/desktop-release/linux-amd64/*.AppImage
+            dist/desktop-release/linux-amd64/*.deb
             dist/desktop-release/JFTrade-linux-x64.spdx.json
           if-no-files-found: error
 
@@ -452,9 +530,9 @@ jobs:
         run: |
           mkdir release
           find incoming -type f -exec cp {} release/ \;
-          # macOS, Windows x64, and Linux each contribute one binary and one SBOM.
+          # Linux contributes a raw binary, AppImage, deb and SBOM; other platforms contribute installer and SBOM.
           # Windows ARM64 is an optional preview artifact.
-          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 6
+          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 8
 
       - name: Generate SHA256SUMS
         working-directory: release

@@ -1,0 +1,45 @@
+version: "3"
+
+vars:
+  GENERATED_DIR: dist/desktop/.wails-build
+
+tasks:
+  prepare:
+    internal: true
+    run: once
+    cmds:
+      - node scripts/prepare-desktop-release.mjs
+
+  generate:assets:
+    internal: true
+    run: once
+    cmds:
+      - cmd: rm -rf {{.GENERATED_DIR}} && mkdir -p {{.GENERATED_DIR}}
+        platforms: [linux, darwin]
+      - cmd: powershell -NoProfile -Command "Remove-Item -Recurse -Force '{{.GENERATED_DIR}}' -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force '{{.GENERATED_DIR}}' | Out-Null"
+        platforms: [windows]
+      - >-
+        go tool wails3 update build-assets
+        -name JFTrade -binaryname JFTrade
+        -config build/config.yml -dir {{.GENERATED_DIR}}
+        -productname JFTrade -productidentifier com.jftrade.desktop
+        -productcompany JFTrade -productdescription "JFTrade desktop application"
+        -productcomments "Wails v3 desktop shell for JFTrade; commit {{.COMMIT}}; built {{.BUILD_TIME}}"
+        -productcopyright "(c) JFTrade"
+        -productversion {{.VERSION}} -silent
+      - >-
+        go tool wails3 generate icons
+        -input build/desktop/appicon.png
+        -macfilename {{.GENERATED_DIR}}/darwin/icons.icns
+        -windowsfilename {{.GENERATED_DIR}}/windows/icon.ico
+    vars:
+      GENERATED_DIR: '{{.GENERATED_DIR | default "dist/desktop/.wails-build"}}'
+      VERSION: '{{.VERSION | default "0.0.0"}}'
+      COMMIT: '{{.COMMIT | default "unknown"}}'
+      BUILD_TIME: '{{.BUILD_TIME | default "dev"}}'
+
+  verify:metadata:
+    internal: true
+    preconditions:
+      - sh: test -n "{{.VERSION}}" && test -n "{{.COMMIT}}" && test -n "{{.BUILD_TIME}}"
+        msg: VERSION, COMMIT and BUILD_TIME are required

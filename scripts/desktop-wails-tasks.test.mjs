@@ -1,0 +1,76 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+
+const read = (file) => fs.readFileSync(file, "utf8");
+const root = read("Taskfile.yml");
+const common = read("build/Taskfile.yml");
+const darwin = read("build/darwin/Taskfile.yml");
+const windows = read("build/windows/Taskfile.yml");
+const linux = read("build/linux/Taskfile.yml");
+
+for (const standardTask of ["build:", "package:", "dev:"]) {
+  assert(
+    root.includes(`  ${standardTask}`),
+    `root Taskfile is missing standard Wails task ${standardTask}`,
+  );
+}
+
+for (const include of [
+  "build/Taskfile.yml",
+  "build/darwin/Taskfile.yml",
+  "build/windows/Taskfile.yml",
+  "build/linux/Taskfile.yml",
+]) {
+  assert(root.includes(include), `root Taskfile does not include ${include}`);
+}
+for (const taskfile of [darwin, windows]) {
+  assert(
+    taskfile.includes("production,release_assets"),
+    "release build is missing Wails production tag",
+  );
+  assert(
+    taskfile.includes("-trimpath") && taskfile.includes("-w -s"),
+    "release build is missing Wails production flags",
+  );
+}
+assert(
+  linux.includes("production,release_assets,gtk3"),
+  "Linux release is missing production/release_assets/gtk3 tags",
+);
+assert(
+  windows.includes("-H windowsgui"),
+  "Windows release is not a GUI subsystem build",
+);
+assert(
+  windows.includes("defer:") &&
+    windows.includes("jftrade_windows_{{.ARCH}}.syso"),
+  "Windows generated syso is not cleaned on build failure",
+);
+assert(
+  windows.includes("generate syso") &&
+    windows.includes("generate webview2bootstrapper"),
+  "Windows does not use Wails resource and WebView2 tools",
+);
+assert(
+  darwin.includes("codesign --verify --deep --strict"),
+  "macOS bundle sealing is not verified",
+);
+assert(
+  darwin.includes("build:dev") &&
+    read("build/darwin/Info.dev.plist").includes("com.jftrade.desktop.dev"),
+  "macOS development bundle is not isolated through Wails tasks",
+);
+assert(
+  linux.includes("generate appimage") && linux.includes("tool package"),
+  "Linux does not use Wails packaging tools",
+);
+assert(
+  common.includes("update build-assets") && common.includes("generate icons"),
+  "common task does not use Wails build asset generation",
+);
+
+const nfpm = read("build/linux/nfpm.yaml");
+assert(
+  nfpm.includes("libgtk-3-0") && nfpm.includes("libwebkit2gtk-4.1-0"),
+  "Linux package dependencies do not match GTK3 build",
+);

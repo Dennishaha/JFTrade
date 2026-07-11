@@ -214,8 +214,9 @@ jobs:
         run: |
           npm run test:desktop-release-metadata
           npm run test:desktop-release-inputs
-          npm run test:desktop-mac-bundle
-          npm run test:desktop-windows-resource-metadata
+          npm run test:desktop-wails-tasks
+          npm run test:desktop-signing
+          npm run test:desktop-linux-package-config
           node scripts/dev-desktop.test.mjs
 
       - name: Upload frontend build input
@@ -312,21 +313,21 @@ jobs:
           - label: Linux x64
             runner: ubuntu-24.04
             platform: linux
-            test_tags: release_assets,gtk3
+            test_tags: production,release_assets,gtk3
             build_script: desktop:build:linux
             artifact_id: linux-x64
             artifact_path: dist/desktop/linux-amd64/jftrade-desktop-linux-amd64
           - label: macOS ARM64
             runner: macos-15
             platform: macos
-            test_tags: release_assets
+            test_tags: production,release_assets
             build_script: desktop:build:darwin-arm64
             artifact_id: macos-arm64
             artifact_path: dist/desktop/darwin-arm64/JFTrade.app
           - label: Windows x64
             runner: windows-latest
             platform: windows
-            test_tags: release_assets
+            test_tags: production,release_assets
             build_script: desktop:build:windows
             artifact_id: windows-x64
             artifact_path: dist/desktop/windows-amd64/jftrade-desktop-windows-amd64.exe
@@ -412,6 +413,9 @@ jobs:
           go version -m "$binary" | tee /tmp/jftrade-macos-buildinfo.txt
           grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-macos-buildinfo.txt
           grep -q 'GOARCH=arm64' /tmp/jftrade-macos-buildinfo.txt
+          strings "$binary" > /tmp/jftrade-macos-strings.txt
+          grep -q '"Debug":false' /tmp/jftrade-macos-strings.txt
+          codesign --verify --deep --strict --verbose=2 "$bundle"
 
       - name: Verify Windows desktop executable
         if: ${{ matrix.platform == 'windows' }}
@@ -436,6 +440,10 @@ jobs:
             }
             if ($reader.ReadUInt16() -ne 0x8664) {
               throw "Windows desktop executable is not x64"
+            }
+            $stream.Position = $peOffset + 24 + 68
+            if ($reader.ReadUInt16() -ne 2) {
+              throw "Windows desktop executable is not using the Windows GUI subsystem"
             }
           } finally {
             $reader.Dispose()

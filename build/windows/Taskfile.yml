@@ -1,0 +1,98 @@
+version: "3"
+
+includes:
+  common: ../Taskfile.yml
+
+vars:
+  GENERATED_DIR: dist/desktop/.wails-build
+
+tasks:
+  build:
+    desc: Build the production Windows GUI executable with Wails resources
+    platforms: [windows]
+    deps:
+      - task: common:prepare
+      - task: common:verify:metadata
+        vars:
+          {
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+      - task: common:generate:assets
+        vars:
+          {
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+    cmds:
+      - powershell -NoProfile -Command "Remove-Item -Recurse -Force 'dist/desktop/windows-{{.ARCH}}' -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force 'dist/desktop/windows-{{.ARCH}}' | Out-Null"
+      - defer: powershell -NoProfile -Command "Remove-Item -Force 'cmd/jftrade-desktop/jftrade_windows_{{.ARCH}}.syso' -ErrorAction SilentlyContinue"
+      - >-
+        go tool wails3 generate syso -arch {{.ARCH}}
+        -icon {{.GENERATED_DIR}}/windows/icon.ico
+        -manifest {{.GENERATED_DIR}}/windows/wails.exe.manifest
+        -info {{.GENERATED_DIR}}/windows/info.json
+        -out cmd/jftrade-desktop/jftrade_windows_{{.ARCH}}.syso
+      - >-
+        go build -trimpath -buildvcs=false
+        -tags production,release_assets
+        -ldflags "-w -s -H windowsgui -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"
+        -o dist/desktop/windows-{{.ARCH}}/jftrade-desktop-windows-{{.ARCH}}.exe ./cmd/jftrade-desktop
+    env:
+      GOOS: windows
+      GOARCH: "{{.ARCH}}"
+      CGO_ENABLED: "1"
+    vars:
+      ARCH: '{{.ARCH | default "amd64"}}'
+
+  package:
+    desc: Build the Wails NSIS per-user installer with WebView2 bootstrapper
+    deps:
+      - task: build
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+    cmds:
+      - powershell -NoProfile -Command "Remove-Item -Recurse -Force 'dist/desktop-release/windows-{{.ARCH}}' -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force 'dist/desktop-release/windows-{{.ARCH}}/nsis' | Out-Null"
+      - powershell -NoProfile -Command "Copy-Item '{{.GENERATED_DIR}}/windows/nsis/wails_tools.nsh' 'dist/desktop-release/windows-{{.ARCH}}/nsis/wails_tools.nsh'; Copy-Item 'build/windows/nsis/project.nsi' 'dist/desktop-release/windows-{{.ARCH}}/nsis/project.nsi'; Copy-Item '{{.GENERATED_DIR}}/windows/icon.ico' 'dist/desktop-release/windows-{{.ARCH}}/icon.ico'"
+      - go tool wails3 generate webview2bootstrapper -dir dist/desktop-release/windows-{{.ARCH}}/nsis
+      - node scripts/sign-desktop-release.mjs windows dist/desktop/windows-{{.ARCH}}/jftrade-desktop-windows-{{.ARCH}}.exe
+      - cmd: >-
+          {{.MAKENSIS}} /DWAILS_INSTALL_SCOPE=user /DREQUEST_EXECUTION_LEVEL=user
+          /DARG_WAILS_{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}_BINARY={{.ROOT_DIR}}\dist\desktop\windows-{{.ARCH}}\jftrade-desktop-windows-{{.ARCH}}.exe
+          /DOUTPUT_EXE={{.ROOT_DIR}}\dist\desktop-release\windows-{{.ARCH}}\{{.INSTALLER}}
+          project.nsi
+        dir: dist/desktop-release/windows-{{.ARCH}}/nsis
+      - node scripts/sign-desktop-release.mjs windows dist/desktop-release/windows-{{.ARCH}}/{{.INSTALLER}}
+    vars:
+      ARCH: '{{.ARCH | default "amd64"}}'
+      MAKENSIS: '{{.MAKENSIS | default "makensis"}}'
+      QUALIFIER: '{{.QUALIFIER | default "unsigned"}}'
+      INSTALLER: 'JFTrade-{{.VERSION}}-windows-{{if eq .ARCH "amd64"}}x64-{{.QUALIFIER}}{{else}}arm64-preview-{{.QUALIFIER}}{{end}}-setup.exe'
+
+  package:msix:
+    desc: Build an optional Wails MSIX package
+    deps:
+      - task: build
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+    cmds:
+      - >-
+        go tool wails3 tool msix
+        --config build/config.yml --name JFTrade
+        --executable dist/desktop/windows-{{.ARCH}}/jftrade-desktop-windows-{{.ARCH}}.exe
+        --arch {{.ARCH}} --out dist/desktop-release/windows-{{.ARCH}}/JFTrade-{{.VERSION}}-windows-{{.ARCH}}.msix
+        --use-makeappx
+    vars:
+      ARCH: '{{.ARCH | default "amd64"}}'

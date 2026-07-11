@@ -1,9 +1,6 @@
 import { spawn } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-
-import { writeMacAppBundle } from "./lib/mac-app-bundle.mjs";
 
 const npmCommand = process.env.npm_execpath
   ? [process.execPath, [process.env.npm_execpath]]
@@ -45,12 +42,9 @@ if (process.env.JFTRADE_DESKTOP_DEV_DRY_RUN === "1") {
 }
 
 if (process.platform === "darwin") {
-  const binaryPath = path.join(rootDir, "dist", "dev", "jftrade-desktop-dev");
-  const appPath = path.join(rootDir, "dist", "dev", "JFTrade Dev.app");
-  fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
   const build = spawn(
-    "go",
-    ["build", "-o", binaryPath, "./cmd/jftrade-desktop"],
+    process.execPath,
+    ["scripts/wails3.mjs", "task", "darwin:build:dev"],
     {
       cwd: rootDir,
       stdio: "inherit",
@@ -58,9 +52,15 @@ if (process.platform === "darwin") {
   );
   const code = await new Promise((resolve) => build.on("exit", resolve));
   if (code !== 0) process.exit(code ?? 1);
-  desktopCommand = writeMacAppBundle(appPath, binaryPath, {
-    development: true,
-  });
+  desktopCommand = path.join(
+    rootDir,
+    "dist",
+    "dev",
+    "JFTrade Dev.app",
+    "Contents",
+    "MacOS",
+    "JFTrade Dev",
+  );
   desktopArgs = [];
 }
 

@@ -1,6 +1,27 @@
-version: '3'
+version: "3"
+
+includes:
+  common: ./build/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
 
 tasks:
+  build:
+    desc: Standard Wails build entrypoint for the current platform
+    cmds:
+      - node scripts/build-desktop.mjs
+
+  package:
+    desc: Standard Wails package entrypoint for the current platform
+    cmds:
+      - node scripts/release-desktop.mjs
+
+  dev:
+    desc: Standard Wails development entrypoint
+    cmds:
+      - node scripts/dev-desktop.mjs
+
   desktop:dev:
     desc: Run the Wails v3 desktop app with the Vue dev server
     cmds:
@@ -17,46 +38,32 @@ tasks:
       - node scripts/build-desktop.mjs
 
   desktop:build:darwin-arm64:
-    desc: Build the macOS ARM64 JFTrade.app desktop artifact
-    cmds:
-      - node scripts/build-desktop.mjs darwin-arm64
-
+    cmds: [node scripts/build-desktop.mjs darwin-arm64]
   desktop:build:windows:
-    desc: Build the Windows x64 desktop executable
-    cmds:
-      - node scripts/build-desktop.mjs windows
-
+    cmds: [node scripts/build-desktop.mjs windows-amd64]
   desktop:build:windows-arm64:
-    desc: Build the Windows ARM64 desktop executable
-    cmds:
-      - node scripts/build-desktop.mjs windows-arm64
-
+    cmds: [node scripts/build-desktop.mjs windows-arm64]
   desktop:build:linux:
-    desc: Build the Linux x64 desktop executable
-    cmds:
-      - node scripts/build-desktop.mjs linux
+    cmds: [node scripts/build-desktop.mjs linux-amd64]
 
   desktop:release:
-    desc: Build and verify the desktop release for the current platform
-    cmds:
-      - node scripts/release-desktop.mjs {{OS}}
-
+    cmds: [node scripts/release-desktop.mjs]
   desktop:release:darwin:
-    desc: Build and verify the macOS ARM64 desktop release on macOS
-    cmds:
-      - node scripts/release-desktop.mjs darwin
-
+    cmds: [node scripts/release-desktop.mjs darwin-arm64]
   desktop:release:windows:
-    desc: Build and verify the Windows x64 NSIS desktop release on Windows
-    cmds:
-      - node scripts/release-desktop.mjs windows
-
+    cmds: [node scripts/release-desktop.mjs windows-amd64]
   desktop:release:windows-arm64:
-    desc: Build and verify the Windows ARM64 preview NSIS desktop release on Windows ARM64
-    cmds:
-      - node scripts/release-desktop.mjs windows-arm64
-
+    cmds: [node scripts/release-desktop.mjs windows-arm64]
   desktop:release:linux:
-    desc: Build and verify the Linux x64 desktop release on Linux
-    cmds:
-      - node scripts/release-desktop.mjs linux
+    cmds: [node scripts/release-desktop.mjs linux-amd64]
+
+  desktop:package:windows-msix:
+    cmds: [node scripts/release-desktop.mjs windows-amd64 msix]
+  desktop:package:linux-appimage:
+    cmds: [node scripts/release-desktop.mjs linux-amd64 appimage]
+  desktop:package:linux-deb:
+    cmds: [node scripts/release-desktop.mjs linux-amd64 deb]
+  desktop:package:linux-rpm:
+    cmds: [node scripts/release-desktop.mjs linux-amd64 rpm]
+  desktop:package:linux-arch:
+    cmds: [node scripts/release-desktop.mjs linux-amd64 archlinux]

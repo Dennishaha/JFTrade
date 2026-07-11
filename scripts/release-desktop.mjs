@@ -2,206 +2,140 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
+import { spawnChecked } from "./lib/spawn.mjs";
 import {
   requireDesktopReleaseMetadata,
   resolveDesktopBuildMetadata,
 } from "./lib/desktop-release-metadata.mjs";
-import { macBundleIdentifier } from "./lib/mac-app-bundle.mjs";
-import { spawnChecked } from "./lib/spawn.mjs";
 
-const rootDir = path.resolve(import.meta.dirname, "..");
-const desktopDistDir = path.join(rootDir, "dist", "desktop");
-const desktopReleaseDir = path.join(rootDir, "dist", "desktop-release");
-const metadata = requireReleaseMetadata();
-
-const platformAliases = {
+const aliases = {
   darwin: "darwin",
   macos: "darwin",
-  mac: "darwin",
   win32: "windows",
   windows: "windows",
-  win: "windows",
   linux: "linux",
 };
-const currentTarget = platformAliases[process.platform] || process.platform;
-const requestedSpec = parseTargetSpec(process.argv[2] || currentTarget);
-if (!requestedSpec.target) {
-  fail(`Unknown desktop release target: ${process.argv[2]}`);
-}
-if (requestedSpec.target !== currentTarget) {
+const host = aliases[process.platform] || process.platform;
+const spec = parseSpec(process.argv[2] || host);
+const format = String(process.argv[3] || "").toLowerCase();
+if (!spec.target) fail(`Unknown desktop release target: ${process.argv[2]}`);
+if (spec.target !== host)
   fail(
-    `Desktop releases must run on their native OS (${requestedSpec.target} requested on ${currentTarget}).`,
+    `Desktop releases run on their native OS (${spec.target} requested on ${host}).`,
   );
-}
 
-const artifacts =
-  requestedSpec.target === "darwin"
-    ? releaseMacArm64(requestedSpec.arch)
-    : requestedSpec.target === "windows"
-      ? releaseWindows(requestedSpec.arch || "amd64")
-      : releaseLinux(requestedSpec.arch || "amd64");
+const metadata = requireDesktopReleaseMetadata(resolveDesktopBuildMetadata());
+const arch = spec.arch || hostArch();
+const task = resolveTask(spec.target, format);
+const qualifier = signingQualifier(spec.target);
+const args = [
+  "scripts/wails3.mjs",
+  "task",
+  task,
+  `ARCH=${arch}`,
+  `VERSION=${metadata.version}`,
+  `COMMIT=${metadata.commit}`,
+  `BUILD_TIME=${metadata.buildTime}`,
+  `QUALIFIER=${qualifier}`,
+];
+if (format === "rpm" || format === "archlinux" || format === "deb")
+  args.push(`FORMAT=${format}`);
+const status = spawnChecked(process.execPath, args, { cwd: process.cwd() });
+if (status !== 0) process.exit(status);
 
-for (const artifact of artifacts) {
-  verifyNonEmptyFile(artifact);
+for (const artifact of expectedArtifacts(
+  spec.target,
+  arch,
+  metadata.version,
+  format,
+  qualifier,
+)) {
+  const stat = fs.statSync(artifact, { throwIfNoEntry: false });
+  if (!stat?.isFile() || stat.size === 0)
+    fail(`Desktop release artifact is missing or empty: ${artifact}`);
   console.log(`Desktop release artifact verified at ${artifact}`);
 }
 
-function releaseMacArm64(requestedArch) {
-  if (requestedArch && requestedArch !== "arm64") {
-    fail("macOS releases only support arm64.");
-  }
-  buildTarget("darwin", "arm64");
-
-  const releaseDir = freshReleaseDir("darwin-arm64");
-  const appPath = path.join(releaseDir, "JFTrade.app");
-  const arm64App = path.join(targetOutputDir("darwin", "arm64"), "JFTrade.app");
-  fs.cpSync(arm64App, appPath, { recursive: true });
-
-  const executable = path.join(appPath, "Contents", "MacOS", "JFTrade");
-  run("lipo", [executable, "-verify_arch", "arm64"]);
-
-  verifyMacBundle(appPath);
-
-  const dmgPath = path.join(
-    releaseDir,
-    `JFTrade-${metadata.version}-macos-arm64-unsigned.dmg`,
-  );
-  const temporaryDmgPath = path.join(
-    desktopReleaseDir,
-    `.JFTrade-${metadata.version}-macos-arm64-unsigned.tmp.dmg`,
-  );
-  fs.rmSync(temporaryDmgPath, { force: true });
-  // `diskutil image create from` changed its option spelling across macOS
-  // releases. hdiutil's folder-image interface is stable on the supported
-  // runners and produces the same compressed, named DMG.
-  run("hdiutil", [
-    "create",
-    "-volname",
-    "JFTrade",
-    "-srcfolder",
-    releaseDir,
-    "-ov",
-    "-format",
-    "UDZO",
-    temporaryDmgPath,
-  ]);
-  fs.renameSync(temporaryDmgPath, dmgPath);
-  return [dmgPath];
+function resolveTask(target, selectedFormat) {
+  if (target === "windows" && selectedFormat === "msix")
+    return "windows:package:msix";
+  if (target === "linux" && selectedFormat === "appimage")
+    return "linux:package:appimage";
+  if (
+    target === "linux" &&
+    ["deb", "rpm", "archlinux"].includes(selectedFormat)
+  )
+    return "linux:package:linux";
+  return `${target}:package`;
 }
 
-function releaseWindows(arch) {
-  buildTarget("windows", arch);
-  const releaseDir = freshReleaseDir(`windows-${arch}`);
-  const source = targetOutputPath("windows", arch);
-
-  if (arch !== "amd64" && arch !== "arm64")
-    fail(`Unsupported Windows release architecture: ${arch}`);
-
-  const applicationPath = path.join(releaseDir, "JFTrade.exe");
-  fs.copyFileSync(source, applicationPath);
-
-  const installer = path.join(
-    releaseDir,
-    arch === "arm64"
-      ? `JFTrade-${metadata.version}-windows-arm64-preview-unsigned-setup.exe`
-      : `JFTrade-${metadata.version}-windows-x64-unsigned-setup.exe`,
-  );
-  run(process.env.MAKENSIS || "makensis", [
-    `/DVERSION=${metadata.numericVersion}`,
-    `/DSOURCE_EXE=${applicationPath}`,
-    `/DOUTPUT_EXE=${installer}`,
-    path.join(rootDir, "build", "desktop", "windows", "installer.nsi"),
-  ]);
-  return [installer];
+function expectedArtifacts(target, arch, version, selectedFormat, qualifier) {
+  const dir = path.join("dist", "desktop-release", `${target}-${arch}`);
+  if (target === "darwin")
+    return [
+      path.join(dir, `JFTrade-${version}-macos-${arch}-${qualifier}.dmg`),
+    ];
+  if (target === "windows" && selectedFormat === "msix")
+    return [path.join(dir, `JFTrade-${version}-windows-${arch}.msix`)];
+  if (target === "windows")
+    return [
+      path.join(
+        dir,
+        arch === "amd64"
+          ? `JFTrade-${version}-windows-x64-${qualifier}-setup.exe`
+          : `JFTrade-${version}-windows-arm64-preview-${qualifier}-setup.exe`,
+      ),
+    ];
+  if (selectedFormat === "appimage") return findBySuffix(dir, ".AppImage");
+  if (["deb", "rpm", "archlinux"].includes(selectedFormat))
+    return findBySuffix(
+      dir,
+      selectedFormat === "archlinux" ? ".pkg.tar.zst" : `.${selectedFormat}`,
+    );
+  return [
+    path.join(dir, `jftrade-desktop-linux-${arch}`),
+    ...findBySuffix(dir, ".AppImage"),
+    ...findBySuffix(dir, ".deb"),
+  ];
 }
 
-function releaseLinux(arch) {
-  buildTarget("linux", arch);
-  const releaseDir = freshReleaseDir(`linux-${arch}`);
-  const source = targetOutputPath("linux", arch);
-  const destination = path.join(releaseDir, `jftrade-desktop-linux-${arch}`);
-  fs.copyFileSync(source, destination);
-  fs.chmodSync(destination, 0o755);
-  return [destination];
+function findBySuffix(dir, suffix) {
+  if (!fs.existsSync(dir)) return [path.join(dir, `missing${suffix}`)];
+  const matches = fs
+    .readdirSync(dir)
+    .filter((entry) => entry.endsWith(suffix))
+    .map((entry) => path.join(dir, entry));
+  return matches.length ? matches : [path.join(dir, `missing${suffix}`)];
 }
 
-function buildTarget(target, arch) {
-  run(process.execPath, ["scripts/build-desktop.mjs", `${target}-${arch}`], {
-    env: {
-      ...process.env,
-      JFTRADE_DESKTOP_RELEASE_TAG: metadata.tag,
-      JFTRADE_DESKTOP_BUILD_TIME: metadata.buildTime,
-      JFTRADE_DESKTOP_COMMIT: metadata.commit,
-    },
-  });
-}
-
-function verifyMacBundle(appPath) {
-  const plist = fs.readFileSync(
-    path.join(appPath, "Contents", "Info.plist"),
-    "utf8",
-  );
-  for (const expected of [
-    macBundleIdentifier,
-    metadata.version,
-    metadata.commit,
-    metadata.buildTime,
-  ]) {
-    if (!plist.includes(expected))
-      fail(`macOS Info.plist is missing ${expected}`);
-  }
-}
-
-function requireReleaseMetadata() {
-  try {
-    return requireDesktopReleaseMetadata(resolveDesktopBuildMetadata());
-  } catch (error) {
-    fail(error instanceof Error ? error.message : String(error));
-  }
-}
-
-function freshReleaseDir(name) {
-  const directory = path.join(desktopReleaseDir, name);
-  fs.rmSync(directory, { recursive: true, force: true });
-  fs.mkdirSync(directory, { recursive: true });
-  return directory;
-}
-
-function parseTargetSpec(value) {
+function parseSpec(value) {
   const normalized = String(value || "").toLowerCase();
   const match = normalized.match(/^(.*?)[-_:](amd64|arm64)$/);
-  if (match) return { target: platformAliases[match[1]] || "", arch: match[2] };
-  return { target: platformAliases[normalized] || "", arch: "" };
+  if (match) return { target: aliases[match[1]] || "", arch: match[2] };
+  return { target: aliases[normalized] || "", arch: "" };
 }
-
-function targetOutputPath(target, arch) {
-  const directory = targetOutputDir(target, arch);
-  if (target === "windows")
-    return path.join(directory, `jftrade-desktop-windows-${arch}.exe`);
-  if (target === "linux")
-    return path.join(directory, `jftrade-desktop-linux-${arch}`);
-  return path.join(directory, ".build", "JFTrade");
+function signingQualifier(target) {
+  const names =
+    target === "darwin"
+      ? ["JFTRADE_MACOS_SIGN_IDENTITY", "JFTRADE_MACOS_NOTARY_PROFILE"]
+      : target === "windows"
+        ? [
+            "JFTRADE_WINDOWS_CERTIFICATE",
+            "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD",
+          ]
+        : [];
+  const count = names.filter((name) =>
+    String(process.env[name] || "").trim(),
+  ).length;
+  if (count !== 0 && count !== names.length)
+    fail(
+      `Signing credentials must be all set or all unset: ${names.join(", ")}`,
+    );
+  return count === names.length && count > 0 ? "signed" : "unsigned";
 }
-
-function targetOutputDir(target, arch) {
-  return path.join(desktopDistDir, `${target}-${arch}`);
+function hostArch() {
+  return process.arch === "arm64" ? "arm64" : "amd64";
 }
-
-function verifyNonEmptyFile(file) {
-  if (
-    !fs.existsSync(file) ||
-    !fs.statSync(file).isFile() ||
-    fs.statSync(file).size === 0
-  ) {
-    fail(`Desktop release artifact is missing or empty: ${file}`);
-  }
-}
-
-function run(command, args, options = {}) {
-  const status = spawnChecked(command, args, { cwd: rootDir, ...options });
-  if (status !== 0) process.exit(status);
-}
-
 function fail(message) {
   console.error(message);
   process.exit(1);

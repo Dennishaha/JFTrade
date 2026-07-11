@@ -1,0 +1,144 @@
+version: "3"
+
+includes:
+  common: ../Taskfile.yml
+
+vars:
+  GENERATED_DIR: dist/desktop/.wails-build
+
+tasks:
+  build:
+    desc: Build the production GTK3 Linux executable
+    platforms: [linux]
+    run: once
+    deps:
+      - task: common:prepare
+      - task: common:verify:metadata
+        vars:
+          {
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+      - task: common:generate:assets
+        vars:
+          {
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+    cmds:
+      - rm -rf dist/desktop/linux-{{.ARCH}} && mkdir -p dist/desktop/linux-{{.ARCH}}
+      - >-
+        go build -trimpath -buildvcs=false
+        -tags production,release_assets,gtk3
+        -ldflags "-w -s -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"
+        -o dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}} ./cmd/jftrade-desktop
+    env:
+      GOOS: linux
+      GOARCH: "{{.ARCH}}"
+      CGO_ENABLED: "1"
+    vars:
+      ARCH: '{{.ARCH | default "amd64"}}'
+
+  generate:desktop:
+    internal: true
+    run: once
+    cmds:
+      - mkdir -p dist/desktop-release/linux-{{.ARCH}}
+      - >-
+        go tool wails3 generate .desktop -name JFTrade -exec jftrade-desktop
+        -icon JFTrade -outputfile dist/desktop-release/linux-{{.ARCH}}/JFTrade.desktop
+        -categories "Finance;Development;"
+    vars:
+      ARCH: '{{.ARCH | default "amd64"}}'
+
+  package:
+    desc: Build raw, AppImage and deb Linux release assets
+    deps:
+      - task: build
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+      - task: generate:desktop
+        vars: { ARCH: "{{.ARCH}}" }
+    cmds:
+      - cp dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}} dist/desktop-release/linux-{{.ARCH}}/
+      - task: package:appimage
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+      - task: package:linux
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+            FORMAT: deb,
+          }
+    vars:
+      ARCH: '{{.ARCH | default "amd64"}}'
+
+  package:appimage:
+    desc: Build an AppImage with the Wails generator
+    deps:
+      - task: build
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+      - task: generate:desktop
+        vars: { ARCH: "{{.ARCH}}" }
+    cmds:
+      - mkdir -p dist/desktop-release/linux-{{.ARCH}}/appimage
+      - cp build/desktop/appicon.png dist/desktop-release/linux-{{.ARCH}}/appimage/JFTrade.png
+      - >-
+        go tool wails3 generate appimage
+        -binary dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}}
+        -icon dist/desktop-release/linux-{{.ARCH}}/appimage/JFTrade.png
+        -desktopfile dist/desktop-release/linux-{{.ARCH}}/JFTrade.desktop
+        -outputdir dist/desktop-release/linux-{{.ARCH}}
+        -builddir dist/desktop-release/linux-{{.ARCH}}/appimage/build
+    vars:
+      ARCH: '{{.ARCH | default "amd64"}}'
+
+  package:linux:
+    desc: Build deb, rpm or Arch package with the Wails packager
+    deps:
+      - task: build
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+      - task: generate:desktop
+        vars: { ARCH: "{{.ARCH}}" }
+    cmds:
+      - >-
+        node scripts/prepare-linux-package-config.mjs
+        build/linux/nfpm.yaml dist/desktop-release/linux-{{.ARCH}}/nfpm.yaml
+        {{.VERSION}} {{.ARCH}}
+        {{.ROOT_DIR}}/dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}}
+        {{.ROOT_DIR}}/dist/desktop-release/linux-{{.ARCH}}/JFTrade.desktop
+        {{.ROOT_DIR}}/build/desktop/appicon.png
+      - >-
+        go tool wails3 tool package -name JFTrade -format {{.FORMAT}}
+        -config dist/desktop-release/linux-{{.ARCH}}/nfpm.yaml
+        -out dist/desktop-release/linux-{{.ARCH}}
+    vars:
+      ARCH: '{{.ARCH | default "amd64"}}'
+      FORMAT: '{{.FORMAT | default "deb"}}'

@@ -174,5 +174,5 @@ pkg/backtest/              回测与历史数据存储
 apps/web/                  Vue 3 控制台
 docs/                      用户文档、维护者导航与参考资料
 scripts/                   文档生成、打包和辅助脚本
-build/desktop/             桌面平台资源与安装器定义
+build/                     Wails 配置、平台 Taskfile 与桌面资源
 ```

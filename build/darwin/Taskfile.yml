@@ -1,0 +1,108 @@
+version: "3"
+
+includes:
+  common: ../Taskfile.yml
+
+vars:
+  GENERATED_DIR: dist/desktop/.wails-build
+
+tasks:
+  build:dev:
+    desc: Build the isolated macOS development bundle
+    platforms: [darwin]
+    deps:
+      - task: common:generate:assets
+        vars: { VERSION: "0.0.0" }
+    cmds:
+      - rm -rf "dist/dev/JFTrade Dev.app"
+      - mkdir -p "dist/dev/JFTrade Dev.app/Contents/MacOS" "dist/dev/JFTrade Dev.app/Contents/Resources"
+      - go build -buildvcs=false -o "dist/dev/JFTrade Dev.app/Contents/MacOS/JFTrade Dev" ./cmd/jftrade-desktop
+      - cp build/darwin/Info.dev.plist "dist/dev/JFTrade Dev.app/Contents/Info.plist"
+      - cp "{{.GENERATED_DIR}}/darwin/icons.icns" "dist/dev/JFTrade Dev.app/Contents/Resources/icons.icns"
+      - codesign --force --deep --sign - "dist/dev/JFTrade Dev.app"
+
+  build:
+    desc: Build the production macOS application bundle with Wails assets
+    platforms: [darwin]
+    deps:
+      - task: common:prepare
+      - task: common:verify:metadata
+        vars:
+          {
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+      - task: common:generate:assets
+        vars:
+          {
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+    cmds:
+      - rm -rf dist/desktop/darwin-{{.ARCH}}
+      - mkdir -p dist/desktop/darwin-{{.ARCH}}/.build
+      - >-
+        go build -trimpath -buildvcs=false
+        -tags production,release_assets
+        -ldflags "-w -s -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"
+        -o dist/desktop/darwin-{{.ARCH}}/.build/JFTrade ./cmd/jftrade-desktop
+      - task: create:app
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+    env:
+      GOOS: darwin
+      GOARCH: "{{.ARCH}}"
+      CGO_ENABLED: "1"
+      MACOSX_DEPLOYMENT_TARGET: "12.0"
+      CGO_CFLAGS: -mmacosx-version-min=12.0
+      CGO_LDFLAGS: -mmacosx-version-min=12.0
+    vars:
+      ARCH: '{{.ARCH | default "arm64"}}'
+
+  create:app:
+    internal: true
+    cmds:
+      - mkdir -p "{{.APP}}/Contents/MacOS" "{{.APP}}/Contents/Resources"
+      - cp "dist/desktop/darwin-{{.ARCH}}/.build/JFTrade" "{{.APP}}/Contents/MacOS/JFTrade"
+      - cp "{{.GENERATED_DIR}}/darwin/Info.plist" "{{.APP}}/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Add :JFTradeCommit string {{.COMMIT}}" "{{.APP}}/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Add :JFTradeBuildTime string {{.BUILD_TIME}}" "{{.APP}}/Contents/Info.plist"
+      - cp "{{.GENERATED_DIR}}/darwin/icons.icns" "{{.APP}}/Contents/Resources/icons.icns"
+      - codesign --force --deep --sign - "{{.APP}}"
+      - codesign --verify --deep --strict --verbose=2 "{{.APP}}"
+    vars:
+      ARCH: '{{.ARCH | default "arm64"}}'
+      APP: dist/desktop/darwin-{{.ARCH}}/JFTrade.app
+
+  package:
+    desc: Package the sealed macOS app in a DMG
+    deps:
+      - task: build
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+          }
+    cmds:
+      - rm -rf dist/desktop-release/darwin-{{.ARCH}}
+      - mkdir -p dist/desktop-release/darwin-{{.ARCH}}
+      - node scripts/sign-desktop-release.mjs macos dist/desktop/darwin-{{.ARCH}}/JFTrade.app
+      - cp -R dist/desktop/darwin-{{.ARCH}}/JFTrade.app dist/desktop-release/darwin-{{.ARCH}}/JFTrade.app
+      # alpha2.117 temporarily disables `wails3 tool package -format dmg`; use the same native hdiutil final step.
+      - >-
+        hdiutil create -volname JFTrade
+        -srcfolder dist/desktop-release/darwin-{{.ARCH}}
+        -ov -format UDZO
+        dist/desktop-release/.JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.tmp.dmg
+      - mv dist/desktop-release/.JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.tmp.dmg dist/desktop-release/darwin-{{.ARCH}}/JFTrade-{{.VERSION}}-macos-{{.ARCH}}-{{.QUALIFIER}}.dmg
+    vars:
+      ARCH: '{{.ARCH | default "arm64"}}'
+      QUALIFIER: '{{.QUALIFIER | default "unsigned"}}'

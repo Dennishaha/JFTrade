@@ -1,0 +1,26 @@
+name: JFTrade
+arch: __ARCH__
+platform: linux
+version: __VERSION__
+section: finance
+priority: optional
+maintainer: JFTrade
+description: JFTrade desktop application
+vendor: JFTrade
+homepage: https://github.com/jftrade/jftrade-main
+license: Proprietary
+contents:
+  - src: __BINARY__
+    dst: /usr/bin/jftrade-desktop
+  - src: __ICON__
+    dst: /usr/share/icons/hicolor/512x512/apps/JFTrade.png
+  - src: __DESKTOP_FILE__
+    dst: /usr/share/applications/JFTrade.desktop
+depends:
+  - libgtk-3-0
+  - libwebkit2gtk-4.1-0
+overrides:
+  rpm:
+    depends: [gtk3, webkit2gtk4.1]
+  archlinux:
+    depends: [gtk3, webkit2gtk-4.1]
