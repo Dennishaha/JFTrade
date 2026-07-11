@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import KlineChart from "../KlineChart.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";

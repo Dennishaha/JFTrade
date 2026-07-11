@@ -40,6 +40,9 @@ func TestRuntimeResourcesDeclareOwnersAndDerivedPaths(t *testing.T) {
 	if got := byID["adk-session-db"]; got.Owner != "assistant/runtime" || got.EnvironmentOverride != "JFTRADE_ADK_SESSION_DB" {
 		t.Fatalf("adk-session-db = %+v", got)
 	}
+	if got := byID["watchlist-db"]; got.Owner != "watchlist" || got.Path != filepath.Join(filepath.Dir(settingsPath), "watchlists.db") || got.EnvironmentOverride != "JFTRADE_WATCHLIST_DB" {
+		t.Fatalf("watchlist-db = %+v", got)
+	}
 	if got := byID["real-trade-control"]; got.Owner != "trading" || got.Path != filepath.Join(filepath.Dir(settingsPath), "real-trade-control.json") || got.EnvironmentOverride != "JFTRADE_REAL_TRADE_CONTROL_PATH" {
 		t.Fatalf("real-trade-control = %+v", got)
 	}

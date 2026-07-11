@@ -268,6 +268,18 @@ body {
   --tv-up: #16c784;
   --tv-down: #ea3943;
   --tv-warn: #f59e0b;
+  --tv-status-success-fg: #2dd4bf;
+  --tv-status-success-bg: rgba(13, 148, 136, 0.12);
+  --tv-status-success-border: rgba(45, 212, 191, 0.30);
+  --tv-status-error-fg: #f87171;
+  --tv-status-error-bg: rgba(239, 68, 68, 0.10);
+  --tv-status-error-border: rgba(248, 113, 113, 0.28);
+  --tv-status-warning-fg: #fbbf24;
+  --tv-status-warning-bg: rgba(245, 158, 11, 0.10);
+  --tv-status-warning-border: rgba(251, 191, 36, 0.28);
+  --tv-status-info-fg: #7dd3fc;
+  --tv-status-info-bg: rgba(14, 165, 233, 0.12);
+  --tv-status-info-border: rgba(125, 211, 252, 0.28);
 
   /* Card-content semantic tokens (page body inside .card-shell) */
   --card-surface: rgba(17, 24, 39, 0.90);
@@ -314,6 +326,18 @@ body {
   --tv-up: #15803d;
   --tv-down: #b91c1c;
   --tv-warn: #b45309;
+  --tv-status-success-fg: #0f766e;
+  --tv-status-success-bg: #f0fdfa;
+  --tv-status-success-border: #99f6e4;
+  --tv-status-error-fg: #991b1b;
+  --tv-status-error-bg: #fef2f2;
+  --tv-status-error-border: #fecaca;
+  --tv-status-warning-fg: #92400e;
+  --tv-status-warning-bg: #fffbeb;
+  --tv-status-warning-border: #fde68a;
+  --tv-status-info-fg: #0369a1;
+  --tv-status-info-bg: #f0f9ff;
+  --tv-status-info-border: #bae6fd;
 
   /* Card-content semantic tokens (light overrides) */
   --card-surface: rgba(255, 255, 255, 0.98);
@@ -347,6 +371,51 @@ body {
 
 [data-theme="light"] body {
   background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
+}
+
+/* Semantic UI state colors. Keep these separate from market up/down colors. */
+.tv-status--success {
+  --tv-status-fg: var(--tv-status-success-fg);
+  --tv-status-bg: var(--tv-status-success-bg);
+  --tv-status-border-color: var(--tv-status-success-border);
+}
+
+.tv-status--error {
+  --tv-status-fg: var(--tv-status-error-fg);
+  --tv-status-bg: var(--tv-status-error-bg);
+  --tv-status-border-color: var(--tv-status-error-border);
+}
+
+.tv-status--warning {
+  --tv-status-fg: var(--tv-status-warning-fg);
+  --tv-status-bg: var(--tv-status-warning-bg);
+  --tv-status-border-color: var(--tv-status-warning-border);
+}
+
+.tv-status--info {
+  --tv-status-fg: var(--tv-status-info-fg);
+  --tv-status-bg: var(--tv-status-info-bg);
+  --tv-status-border-color: var(--tv-status-info-border);
+}
+
+.tv-status-text {
+  color: var(--tv-status-fg, var(--tv-text-muted));
+}
+
+.tv-status-surface {
+  border-color: var(--tv-status-border-color, var(--tv-border));
+  background: var(--tv-status-bg, var(--tv-bg-surface));
+  color: var(--tv-status-fg, var(--tv-text-muted));
+}
+
+.tv-state-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--tv-status-fg, var(--tv-text-muted));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tv-status-fg, var(--tv-text-muted)) 12%, transparent);
 }
 
 /* App shell layout */
@@ -540,38 +609,6 @@ body {
   bottom: 0;
   left: 0;
   z-index: 5;
-  box-sizing: border-box;
-  width: 6px;
-  border: 0;
-  border-left: 1px solid var(--tv-border);
-  border-right: 1px solid var(--tv-border);
-  padding: 0;
-  background: var(--tv-bg-surface-2);
-  cursor: col-resize;
-  transition: background 120ms ease;
-}
-
-.tv-rightdock-resizer::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 3px;
-  height: 32px;
-  border-radius: 2px;
-  background: var(--tv-border-strong);
-  transform: translate(-50%, -50%);
-  transition: background 120ms ease;
-}
-
-.tv-rightdock-resizer:hover,
-.tv-rightdock-resizer:active {
-  background: var(--tv-bg-elevated);
-}
-
-.tv-rightdock-resizer:hover::before,
-.tv-rightdock-resizer:active::before {
-  background: var(--tv-text-dim);
 }
 
 .tv-statusbar {
@@ -702,14 +739,19 @@ body {
   width: 100%;
 }
 
-.tv-splitpanes .splitpanes__splitter {
+.tv-splitpanes .splitpanes__splitter,
+.tv-resizer--vertical {
   background: var(--tv-bg-surface-2);
   border-color: var(--tv-border);
-  position: relative;
   transition: background 120ms ease;
 }
 
-.tv-splitpanes .splitpanes__splitter:hover {
+.tv-splitpanes .splitpanes__splitter {
+  position: relative;
+}
+
+.tv-splitpanes .splitpanes__splitter:hover,
+.tv-resizer--vertical:is(:hover, :focus-visible, :active) {
   background: var(--tv-bg-elevated);
 }
 
@@ -738,13 +780,24 @@ body {
 }
 
 /* Vertical splitter (horizontal layout → col-resize cursor) */
-.tv-splitpanes--vertical > .splitpanes__splitter {
+.tv-splitpanes--vertical > .splitpanes__splitter,
+.tv-resizer--vertical {
   min-width: 6px;
   border-left: 1px solid var(--tv-border);
   border-right: 1px solid var(--tv-border);
 }
 
-.tv-splitpanes--vertical > .splitpanes__splitter::before {
+.tv-resizer--vertical {
+  box-sizing: border-box;
+  width: 6px;
+  border-top: 0;
+  border-bottom: 0;
+  padding: 0;
+  cursor: col-resize;
+}
+
+.tv-splitpanes--vertical > .splitpanes__splitter::before,
+.tv-resizer--vertical::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -757,7 +810,8 @@ body {
   transition: background 120ms ease;
 }
 
-.tv-splitpanes--vertical > .splitpanes__splitter:hover::before {
+.tv-splitpanes--vertical > .splitpanes__splitter:hover::before,
+.tv-resizer--vertical:is(:hover, :focus-visible, :active)::before {
   background: var(--tv-text-dim);
 }
 

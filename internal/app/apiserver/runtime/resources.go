@@ -62,6 +62,11 @@ func RuntimeResources(settingsPath string, backtestDBPath string) []ResourceDesc
 			HealthProvider: "data-migration/execution", EnvironmentOverride: "JFTRADE_EXECUTION_ORDER_DB", Critical: true,
 		},
 		{
+			ID: "watchlist-db", Owner: "watchlist", Kind: "sqlite", Path: DeriveWatchlistDBPath(settingsPath),
+			InitializedBy: "watchlist module", SchemaOwner: "internal/store/watchlist migrations", CloseOwner: "watchlist module",
+			HealthProvider: "data-migration/watchlist", EnvironmentOverride: "JFTRADE_WATCHLIST_DB", Critical: true,
+		},
+		{
 			ID: "real-trade-control", Owner: "trading", Kind: "json-file", Path: deriveRealTradeControlPath(settingsPath),
 			InitializedBy: "trading risk module", SchemaOwner: "real-trade control plane", CloseOwner: "n/a",
 			HealthProvider: "system.real-trade-risk", EnvironmentOverride: "JFTRADE_REAL_TRADE_CONTROL_PATH", Critical: true,

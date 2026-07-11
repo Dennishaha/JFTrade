@@ -428,19 +428,58 @@ type SecuritySnapshotResult struct {
 }
 
 type SecuritySnapshotItem struct {
-	Symbol       string   `json:"symbol"`
-	Name         *string  `json:"name,omitempty"`
-	SecurityType *string  `json:"securityType,omitempty"`
-	IsSuspended  *bool    `json:"isSuspended,omitempty"`
-	LastPrice    *float64 `json:"lastPrice,omitempty"`
-	OpenPrice    *float64 `json:"openPrice,omitempty"`
-	HighPrice    *float64 `json:"highPrice,omitempty"`
-	LowPrice     *float64 `json:"lowPrice,omitempty"`
-	Volume       *float64 `json:"volume,omitempty"`
-	Turnover     *float64 `json:"turnover,omitempty"`
-	PERate       *float64 `json:"peRate,omitempty"`
-	PBRate       *float64 `json:"pbRate,omitempty"`
-	LotSize      *int32   `json:"lotSize,omitempty"`
+	Symbol        string                   `json:"symbol"`
+	Name          *string                  `json:"name,omitempty"`
+	SecurityType  *string                  `json:"securityType,omitempty"`
+	IsSuspended   *bool                    `json:"isSuspended,omitempty"`
+	LastPrice     *float64                 `json:"lastPrice,omitempty"`
+	PreviousClose *float64                 `json:"previousClose,omitempty"`
+	OpenPrice     *float64                 `json:"openPrice,omitempty"`
+	HighPrice     *float64                 `json:"highPrice,omitempty"`
+	LowPrice      *float64                 `json:"lowPrice,omitempty"`
+	Volume        *float64                 `json:"volume,omitempty"`
+	Turnover      *float64                 `json:"turnover,omitempty"`
+	PERate        *float64                 `json:"peRate,omitempty"`
+	PBRate        *float64                 `json:"pbRate,omitempty"`
+	LotSize       *int32                   `json:"lotSize,omitempty"`
+	UpdateTime    *string                  `json:"updateTime,omitempty"`
+	ObservedAt    time.Time                `json:"observedAt"`
+	Session       *string                  `json:"session,omitempty"`
+	PreMarket     *ExtendedSessionSnapshot `json:"preMarket,omitempty"`
+	AfterMarket   *ExtendedSessionSnapshot `json:"afterMarket,omitempty"`
+	Overnight     *ExtendedSessionSnapshot `json:"overnight,omitempty"`
+}
+
+// ExtendedSessionSnapshot carries the optional pre-market, after-hours, or
+// overnight block returned by a snapshot API.
+type ExtendedSessionSnapshot struct {
+	Price      *float64 `json:"price,omitempty"`
+	HighPrice  *float64 `json:"highPrice,omitempty"`
+	LowPrice   *float64 `json:"lowPrice,omitempty"`
+	Volume     *float64 `json:"volume,omitempty"`
+	Turnover   *float64 `json:"turnover,omitempty"`
+	Change     *float64 `json:"change,omitempty"`
+	ChangeRate *float64 `json:"changeRate,omitempty"`
+	Amplitude  *float64 `json:"amplitude,omitempty"`
+}
+
+// WatchlistGroup is a remote broker watchlist group discovered for import.
+// Ambiguous is true when more than one remote group has the same normalized
+// name and the broker API cannot address them independently.
+type WatchlistGroup struct {
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	Ambiguous bool   `json:"ambiguous,omitempty"`
+}
+
+// WatchlistSecurity is a broker watchlist member normalized to JFTrade's
+// canonical instrument ID. BrokerCode and BrokerSecurityID remain aliases only.
+type WatchlistSecurity struct {
+	InstrumentID     string  `json:"instrumentId"`
+	Name             *string `json:"name,omitempty"`
+	SecurityType     *string `json:"securityType,omitempty"`
+	BrokerCode       *string `json:"brokerCode,omitempty"`
+	BrokerSecurityID *string `json:"brokerSecurityId,omitempty"`
 }
 
 // --- Quote Subscribe ---

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -115,6 +116,13 @@ type CompactResult struct {
 	AfterBytes     int64  `json:"afterBytes"`
 	ReclaimedBytes int64  `json:"reclaimedBytes"`
 	Compacted      bool   `json:"compacted"`
+}
+
+type BackupResult struct {
+	DatabaseID string `json:"databaseId"`
+	BackupPath string `json:"backupPath"`
+	SizeBytes  int64  `json:"sizeBytes"`
+	CreatedAt  string `json:"createdAt"`
 }
 
 type CleanupCandidate struct {
@@ -520,6 +528,96 @@ func (m *Manager) Compact(ctx context.Context, databaseID string, request Compac
 		result.ReclaimedBytes = before - after
 	}
 	return result, nil
+}
+
+// Backup creates a transactionally consistent SQLite snapshot with VACUUM
+// INTO. It serializes against destructive maintenance but does not mutate the
+// source database or require application downtime.
+func (m *Manager) Backup(ctx context.Context, databaseID string) (BackupResult, error) {
+	databaseID = strings.TrimSpace(databaseID)
+	descriptor, ok := m.descriptorMap()[databaseID]
+	if !ok {
+		return BackupResult{}, fmt.Errorf("unknown database id %q", databaseID)
+	}
+	status, err := m.currentDatabaseStatus(ctx, databaseID)
+	if err != nil {
+		return BackupResult{}, err
+	}
+	if status.Status != "ready" && status.Status != "incompatible" {
+		return BackupResult{}, fmt.Errorf("database %s is not available for backup", databaseID)
+	}
+	lock := m.maintenance.locks[databaseID]
+	if lock == nil || !lock.TryLock() {
+		return BackupResult{}, ErrMaintenanceConflict
+	}
+	defer lock.Unlock()
+
+	backupDir := filepath.Join(filepath.Dir(m.settingsPath), "backups")
+	if err := os.MkdirAll(backupDir, 0o700); err != nil {
+		return BackupResult{}, fmt.Errorf("create database backup directory: %w", err)
+	}
+	if err := os.Chmod(backupDir, 0o700); err != nil {
+		return BackupResult{}, fmt.Errorf("secure database backup directory: %w", err)
+	}
+	token, err := newPreviewID()
+	if err != nil {
+		return BackupResult{}, err
+	}
+	now := m.maintenance.now().UTC()
+	filename := fmt.Sprintf("%s-%s-%s.db", databaseID, now.Format("20060102T150405.000000000Z"), token[:8])
+	backupPath := filepath.Join(backupDir, filename)
+	complete := false
+	defer func() {
+		if !complete {
+			_ = os.Remove(backupPath)
+		}
+	}()
+
+	source, err := sqliteconn.Open(descriptor.Path)
+	if err != nil {
+		return BackupResult{}, fmt.Errorf("open %s database for backup: %w", databaseID, err)
+	}
+	_, backupErr := source.ExecContext(ctx, `VACUUM INTO ?`, backupPath)
+	closeErr := source.Close()
+	if backupErr != nil {
+		return BackupResult{}, fmt.Errorf("backup %s database: %w", databaseID, backupErr)
+	}
+	if closeErr != nil {
+		return BackupResult{}, fmt.Errorf("close %s backup source: %w", databaseID, closeErr)
+	}
+	if err := os.Chmod(backupPath, 0o600); err != nil {
+		return BackupResult{}, fmt.Errorf("secure %s database backup: %w", databaseID, err)
+	}
+	if err := verifySQLiteBackup(ctx, backupPath); err != nil {
+		return BackupResult{}, fmt.Errorf("verify %s database backup: %w", databaseID, err)
+	}
+	info, err := os.Stat(backupPath)
+	if err != nil {
+		return BackupResult{}, err
+	}
+	complete = true
+	return BackupResult{
+		DatabaseID: databaseID,
+		BackupPath: backupPath,
+		SizeBytes:  info.Size(),
+		CreatedAt:  now.Format(time.RFC3339Nano),
+	}, nil
+}
+
+func verifySQLiteBackup(ctx context.Context, path string) error {
+	db, err := sqliteconn.OpenReadOnly(path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+	var result string
+	if err := db.QueryRowContext(ctx, `SELECT quick_check FROM pragma_quick_check`).Scan(&result); err != nil {
+		return err
+	}
+	if !strings.EqualFold(strings.TrimSpace(result), "ok") {
+		return fmt.Errorf("SQLite quick_check returned %q", result)
+	}
+	return nil
 }
 
 func (m *Manager) pruneExpiredPreviewsLocked(now time.Time) {

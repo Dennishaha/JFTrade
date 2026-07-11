@@ -28,6 +28,7 @@ type ToolDeps struct {
 	MarketSubscriptions        func(context.Context) (subscriptions any, activeInstruments any, err error)
 	MarketSnapshot             func(context.Context, string, string) (any, error)
 	MarketCandles              func(context.Context, string, string, string, int) (any, error)
+	WatchlistList              func(context.Context, WatchlistListInput) (any, error)
 	ManagedAccounts            func() any
 	BrokerEnabled              func() bool
 	DefaultTradeMarket         func() string
@@ -57,6 +58,18 @@ type ToolDeps struct {
 	BacktestResultView         func(BacktestResultViewInput) (any, error)
 	CancelBacktest             func(string)
 	RecordAudit                func(context.Context, string, string, string, map[string]any)
+}
+
+// WatchlistListInput is the broker-neutral query surface exposed to the
+// read-only watchlist.list ADK tool. Group may be either a local group ID or
+// display name; an empty group requests group summaries instead of members.
+type WatchlistListInput struct {
+	Group         string
+	Market        string
+	Query         string
+	Cursor        string
+	Limit         int
+	IncludeQuotes bool
 }
 
 type BrokerReadInput struct {
@@ -212,6 +225,23 @@ func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, d
 			return nil, err
 		}
 		return deps.MarketCandles(ctx, market, symbol, normalizedPeriod, limit)
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "watchlist.list", DisplayName: "查看自选股", Description: "读取 JFTrade 本地自选分组摘要或指定分组的分页成员；默认不请求实时行情。", Category: "market", Permission: "read_internal", OutputSummary: "本地自选分组，或成员、来源与最近导入状态的分页结果。"}, func(ctx context.Context, input map[string]any) (any, error) {
+		if deps.WatchlistList == nil {
+			return nil, fmt.Errorf("watchlist is unavailable")
+		}
+		limit := intValue(input, "limit", 50)
+		if limit < 1 || limit > 200 {
+			return nil, fmt.Errorf("limit must be between 1 and 200")
+		}
+		return deps.WatchlistList(ctx, WatchlistListInput{
+			Group:         strings.TrimSpace(stringOrDefault(stringValue(input, "group"), stringValue(input, "groupName"))),
+			Market:        strings.ToUpper(strings.TrimSpace(stringValue(input, "market"))),
+			Query:         strings.TrimSpace(stringValue(input, "query")),
+			Cursor:        strings.TrimSpace(stringValue(input, "cursor")),
+			Limit:         limit,
+			IncludeQuotes: boolInputValue(input, "includeQuotes"),
+		})
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "portfolio.summary", DisplayName: "组合摘要", Description: "读取托管账户、资金、订单和持仓的控制台摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "托管账户、broker 状态、执行订单摘要和当前检查时间。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		query := broker.ReadQuery{

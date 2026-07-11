@@ -23,10 +23,12 @@ const (
 	DatabaseExecution       = "execution-orders"
 	DatabaseADK             = "adk"
 	DatabaseADKSession      = "adk-session"
+	DatabaseWatchlist       = "watchlist"
 	RebuildMarkerFilename   = "database-rebuild.json"
 	SchemaVersion           = 1
 	ExecutionSchemaVersion  = 2
 	ADKSessionSchemaVersion = 3
+	WatchlistSchemaVersion  = 1
 	BatchConfirmationText   = "REBUILD INCOMPATIBLE DATABASES"
 )
 
@@ -84,6 +86,7 @@ func NewManager(settingsPath string, backtestDBPath string) *Manager {
 			{ID: DatabaseExecution, Name: "执行订单", Path: apiruntime.DeriveExecutionOrderDBPath(settingsPath), Description: "执行订单、状态事件、成交去重和序列。", Features: []string{"订单执行", "成交同步"}, Version: ExecutionSchemaVersion},
 			{ID: DatabaseADK, Name: "ADK 数据", Path: apiruntime.DeriveADKDBPath(settingsPath), Description: "模型、智能体、技能、会话运行、任务、审批和记忆。", Features: []string{"智能体配置", "ADK 工作流"}, Version: SchemaVersion},
 			{ID: DatabaseADKSession, Name: "ADK 会话", Path: apiruntime.DeriveADKSessionDBPath(settingsPath), Description: "ADK Go v2 原始会话事件和状态，可重建。", Features: []string{"对话上下文", "工具事件"}, Version: ADKSessionSchemaVersion},
+			{ID: DatabaseWatchlist, Name: "自选股", Path: apiruntime.DeriveWatchlistDBPath(settingsPath), Description: "本地自选分组、成员、券商导入绑定、快照与审计记录。", Features: []string{"自选分组", "券商导入", "来源对账"}, Version: WatchlistSchemaVersion},
 		},
 	}
 	manager.initializeMaintenance()

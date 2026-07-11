@@ -83,6 +83,22 @@ func (b dataManagementBackend) Compact(ctx context.Context, databaseID string, r
 	return result, translateDataManagementError(err)
 }
 
+func (b dataManagementBackend) Backup(ctx context.Context, request dmsrv.BackupRequest) (any, error) {
+	if b.manager == nil {
+		return nil, fmt.Errorf("database backup is unavailable")
+	}
+	result, err := b.manager.Backup(ctx, request.DatabaseID)
+	if err != nil {
+		return nil, translateDataManagementError(err)
+	}
+	return dmsrv.BackupResult{
+		DatabaseID: result.DatabaseID,
+		BackupPath: result.BackupPath,
+		SizeBytes:  result.SizeBytes,
+		CreatedAt:  result.CreatedAt,
+	}, nil
+}
+
 func (b dataManagementBackend) Rebuild(ctx context.Context, request dmsrv.RebuildRequest) (any, error) {
 	if b.manager == nil {
 		return nil, fmt.Errorf("database rebuild is unavailable")

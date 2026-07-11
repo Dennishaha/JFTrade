@@ -11,12 +11,16 @@ import (
 
 // futuAdapter implements broker.Broker by delegating to a Futu Exchange.
 type futuAdapter struct {
-	exchange *Exchange
+	exchange  *Exchange
+	watchlist *futuWatchlistReader
 }
 
 // NewBrokerAdapter wraps a Futu Exchange as a broker.Broker.
 func NewBrokerAdapter(exchange *Exchange) broker.Broker {
-	return &futuAdapter{exchange: exchange}
+	return &futuAdapter{
+		exchange:  exchange,
+		watchlist: newFutuWatchlistReader(exchange),
+	}
 }
 
 func (a *futuAdapter) ID() string { return string(Name) }

@@ -140,6 +140,27 @@ func TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge(t *testing.T) {
 	if snapshot.Snapshots[0].Volume == nil || *snapshot.Snapshots[0].Volume != 10000000 {
 		t.Fatalf("Volume = %#v, want 10000000", snapshot.Snapshots[0].Volume)
 	}
+	if snapshot.Snapshots[0].PreviousClose == nil || *snapshot.Snapshots[0].PreviousClose != 379 {
+		t.Fatalf("PreviousClose = %#v, want 379", snapshot.Snapshots[0].PreviousClose)
+	}
+	if snapshot.Snapshots[0].UpdateTime == nil || *snapshot.Snapshots[0].UpdateTime != "2026-05-31 16:00:00" {
+		t.Fatalf("UpdateTime = %#v", snapshot.Snapshots[0].UpdateTime)
+	}
+	if snapshot.Snapshots[0].ObservedAt.IsZero() {
+		t.Fatal("ObservedAt should be populated at the 3203 response boundary")
+	}
+	if snapshot.Snapshots[0].PreMarket == nil || snapshot.Snapshots[0].PreMarket.Price == nil || *snapshot.Snapshots[0].PreMarket.Price != 379.5 {
+		t.Fatalf("PreMarket = %#v", snapshot.Snapshots[0].PreMarket)
+	}
+	if got := server.securitySnapshotCalls.Load(); got != 1 {
+		t.Fatalf("expected one 3203 snapshot call, got %d", got)
+	}
+	if got := server.basicQotCalls.Load(); got != 0 {
+		t.Fatalf("watchlist-style snapshot must not call 3004 BasicQot, got %d", got)
+	}
+	if got := server.qotSubCalls.Load(); got != 0 {
+		t.Fatalf("watchlist-style snapshot must not call 3001 Qot_Sub, got %d", got)
+	}
 
 	orderBook, err := reader.QueryOrderBook(ctx, broker.OrderBookQuery{
 		ReadQuery: broker.ReadQuery{AccountID: "1001"},

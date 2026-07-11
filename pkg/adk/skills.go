@@ -40,9 +40,9 @@ var builtinSkillSpecs = []builtinSkillSpec{
 				"谨慎使用 JFTrade 行情工具；缺少具体标的时，必须先向用户确认市场和代码。",
 				"使用行情数据时，始终确认 market 和 instrument。"+
 					"如果用户请求存在歧义，先补齐缺失的 symbol 再继续。"+
-					"最终回答中应说明市场、周期和数据新鲜度。",
-				[]string{"market.snapshot", "market.candles", "market.subscriptions"},
-				"2",
+					"最终回答中应说明市场、周期和数据新鲜度。查看本地收藏时优先使用 watchlist.list，除非确实需要报价，否则保持 includeQuotes=false。",
+				[]string{"market.snapshot", "market.candles", "market.subscriptions", "watchlist.list"},
+				"3",
 			)
 		},
 	},

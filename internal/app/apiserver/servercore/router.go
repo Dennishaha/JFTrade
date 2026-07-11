@@ -17,6 +17,7 @@ import (
 	apistrat "github.com/jftrade/jftrade-main/internal/api/strategy"
 	apiroutes "github.com/jftrade/jftrade-main/internal/api/system"
 	apitrading "github.com/jftrade/jftrade-main/internal/api/trading"
+	apiwatchlist "github.com/jftrade/jftrade-main/internal/api/watchlist"
 )
 
 func (s *Server) buildRouter() *gin.Engine {
@@ -44,6 +45,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	s.registerBrokerRoutes(api)
 	s.registerPortfolioRoutes(api)
 	s.registerExecutionRoutes(api)
+	s.registerWatchlistRoutes(api)
 
 	router.NoRoute(s.handleNoRoute)
 	return router
@@ -62,6 +64,8 @@ func (s *Server) databaseAvailabilityMiddleware() gin.HandlerFunc {
 			required = []string{"execution-orders"}
 		case strings.HasPrefix(path, "/api/v1/adk"), strings.HasPrefix(path, "/api/v1/assistant"):
 			required = []string{"adk", "adk-session"}
+		case strings.HasPrefix(path, "/api/v1/watchlist"):
+			required = []string{"watchlist"}
 		}
 		for _, id := range required {
 			if err := s.unavailableDatabases[id]; err != nil {
@@ -71,6 +75,10 @@ func (s *Server) databaseAvailabilityMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func (s *Server) registerWatchlistRoutes(api *gin.RouterGroup) {
+	apiwatchlist.RegisterRoutes(api, s.watchlistSvc)
 }
 
 func (s *Server) corsMiddleware() gin.HandlerFunc {

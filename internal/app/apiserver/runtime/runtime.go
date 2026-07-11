@@ -26,6 +26,7 @@ const (
 	defaultStrategyRuntimeDBFilename = "strategy-runtime.db"
 	defaultBacktestRunDBFilename     = "backtest-runs.db"
 	defaultExecutionOrderDBFilename  = "execution-orders.db"
+	defaultWatchlistDBFilename       = "watchlists.db"
 	defaultDesktopLogDirName         = "logs"
 	defaultDesktopLogPrefix          = "desktop"
 )
@@ -120,6 +121,7 @@ func EnsureRuntimeLayout(settingsPath string, backtestDBPath string) error {
 		filepath.Dir(DeriveBacktestRunDBPath(settingsPath)),
 		filepath.Dir(DeriveADKDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSessionDBPath(settingsPath)),
+		filepath.Dir(DeriveWatchlistDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSecretsPath(settingsPath)),
 		DeriveDesktopLogDir(settingsPath),
 		DeriveExchangeCalendarDir(settingsPath),
@@ -269,6 +271,20 @@ func DeriveADKSessionDBPath(settingsPath string) string {
 		return "adk-session.db"
 	}
 	return filepath.Join(directory, "adk-session.db")
+}
+
+// DeriveWatchlistDBPath returns the canonical local watchlist database. The
+// watchlist domain deliberately owns a separate database so broker imports can
+// never become the application's source of truth.
+func DeriveWatchlistDBPath(settingsPath string) string {
+	if envPath := strings.TrimSpace(os.Getenv("JFTRADE_WATCHLIST_DB")); envPath != "" {
+		return envPath
+	}
+	directory := filepath.Dir(strings.TrimSpace(settingsPath))
+	if directory == "" || directory == "." {
+		return defaultWatchlistDBFilename
+	}
+	return filepath.Join(directory, defaultWatchlistDBFilename)
 }
 
 func DeriveExchangeCalendarDir(settingsPath string) string {

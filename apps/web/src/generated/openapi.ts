@@ -5,6 +5,12 @@
 
 export interface components {
   schemas: {
+    "datamanagement.BackupResult": {
+    backupPath?: string;
+    createdAt?: string;
+    databaseId?: string;
+    sizeBytes?: number;
+  };
     "httpserver.APIError": {
     code?: string;
     message?: string;
@@ -291,6 +297,183 @@ export interface components {
     nextStatus?: string;
     payloadJson?: string;
     previousStatus?: string;
+  };
+    "watchlist.CommitImportInput": {
+    deleteInstrumentIds?: Array<string>;
+  };
+    "watchlist.CreateGroupInput": {
+    name: string;
+  };
+    "watchlist.ExtendedQuote": {
+    after?: components["schemas"]["watchlist.QuoteBlock"];
+    overnight?: components["schemas"]["watchlist.QuoteBlock"];
+    pre?: components["schemas"]["watchlist.QuoteBlock"];
+  };
+    "watchlist.GroupRef": {
+    groupId?: string;
+    name?: string;
+  };
+    "watchlist.ImportDiffItem": {
+    instrumentId?: string;
+    name?: string;
+    selected?: boolean;
+    type?: string;
+  };
+    "watchlist.ImportPreviewRequest": {
+    localGroupId?: string;
+    newGroupName?: string;
+    remoteGroupId: string;
+    sourceId: string;
+  };
+    "watchlist.QuoteBlock": {
+    change?: number;
+    changePercent?: number;
+    observedAt?: string;
+    price?: number;
+    updateTime?: string;
+  };
+    "watchlist.ReplaceMembershipsInput": {
+    expectedRevision?: number;
+    groupIds?: Array<string>;
+    newGroupNames?: Array<string>;
+  };
+    "watchlist.UpdateGroupInput": {
+    expectedRevision: number;
+    name: string;
+  };
+    "watchlist.WatchlistBinding": {
+    bindingId?: string;
+    createdAt?: string;
+    localGroupId?: string;
+    remoteGroupId?: string;
+    remoteName?: string;
+    sourceId?: string;
+    updatedAt?: string;
+  };
+    "watchlist.WatchlistBindingsData": {
+    bindings?: Array<components["schemas"]["watchlist.WatchlistBinding"]>;
+  };
+    "watchlist.WatchlistDeleteData": {
+    deleted?: boolean;
+  };
+    "watchlist.WatchlistGroup": {
+    createdAt?: string;
+    groupId?: string;
+    isDefault?: boolean;
+    itemCount?: number;
+    name?: string;
+    protected?: boolean;
+    revision?: number;
+    updatedAt?: string;
+  };
+    "watchlist.WatchlistGroupsData": {
+    groups?: Array<components["schemas"]["watchlist.WatchlistGroup"]>;
+  };
+    "watchlist.WatchlistImportPreview": {
+    added?: Array<components["schemas"]["watchlist.ImportDiffItem"]>;
+    createdAt?: string;
+    expiresAt?: string;
+    localGroupId?: string;
+    localGroupRevision?: number;
+    localOnly?: Array<components["schemas"]["watchlist.ImportDiffItem"]>;
+    newGroupName?: string;
+    previewId?: string;
+    remoteGroupId?: string;
+    remoteGroupName?: string;
+    remoteHash?: string;
+    sourceId?: string;
+    unchanged?: Array<components["schemas"]["watchlist.ImportDiffItem"]>;
+  };
+    "watchlist.WatchlistImportRun": {
+    addedCount?: number;
+    completedAt?: string;
+    createdAt?: string;
+    localGroupId?: string;
+    previewId?: string;
+    remoteGroupId?: string;
+    remoteGroupName?: string;
+    remoteHash?: string;
+    removedCount?: number;
+    runId?: string;
+    sourceId?: string;
+    status?: string;
+    unchangedCount?: number;
+  };
+    "watchlist.WatchlistImportRunsData": {
+    items?: Array<components["schemas"]["watchlist.WatchlistImportRun"]>;
+    nextCursor?: string;
+  };
+    "watchlist.WatchlistItem": {
+    groupIds?: Array<string>;
+    groups?: Array<components["schemas"]["watchlist.GroupRef"]>;
+    instrumentId?: string;
+    lastImportedAt?: string;
+    market?: string;
+    name?: string;
+    revision?: number;
+    sourceIds?: Array<string>;
+    symbol?: string;
+    type?: string;
+  };
+    "watchlist.WatchlistItemsData": {
+    items?: Array<components["schemas"]["watchlist.WatchlistItem"]>;
+    nextCursor?: string;
+  };
+    "watchlist.WatchlistMemberships": {
+    groups?: Array<components["schemas"]["watchlist.GroupRef"]>;
+    instrumentId?: string;
+    revision?: number;
+  };
+    "watchlist.WatchlistQuote": {
+    change?: number;
+    changePercent?: number;
+    extended?: components["schemas"]["watchlist.ExtendedQuote"];
+    instrumentId?: string;
+    name?: string;
+    observedAt?: string;
+    previousClose?: number;
+    price?: number;
+    session?: string;
+    source?: string;
+    type?: string;
+    updateTime?: string;
+  };
+    "watchlist.WatchlistQuoteBatchRequest": {
+    instrumentIds?: Array<string>;
+  };
+    "watchlist.WatchlistQuoteError": {
+    code?: string;
+    instrumentId?: string;
+    message?: string;
+  };
+    "watchlist.WatchlistQuotesData": {
+    errors?: Array<components["schemas"]["watchlist.WatchlistQuoteError"]>;
+    observedAt?: string;
+    quotes?: Array<components["schemas"]["watchlist.WatchlistQuote"]>;
+  };
+    "watchlist.WatchlistRemoteGroup": {
+    ambiguous?: boolean;
+    memberCount?: number;
+    name?: string;
+    observedAt?: string;
+    remoteGroupId?: string;
+    remoteHash?: string;
+    sourceId?: string;
+    type?: string;
+  };
+    "watchlist.WatchlistRemoteGroupsData": {
+    groups?: Array<components["schemas"]["watchlist.WatchlistRemoteGroup"]>;
+  };
+    "watchlist.WatchlistSource": {
+    broker?: string;
+    displayName?: string;
+    error?: string;
+    sourceId?: string;
+    status?: string;
+    updatedAt?: string;
+  };
+    "watchlist.WatchlistSourcesData": {
+    sources?: Array<components["schemas"]["watchlist.WatchlistSource"]>;
   };
   };
 }
@@ -2409,6 +2592,37 @@ export interface paths {
       };
     };
   };
+  "/api/v1/settings/data-management/databases/{databaseId}/backup": {
+    post: {
+      parameters: {
+        path: {
+        databaseId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["datamanagement.BackupResult"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/settings/data-management/databases/{databaseId}/compact": {
     post: {
       parameters: {
@@ -3545,6 +3759,518 @@ export interface paths {
           description: "OK";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/bindings": {
+    get: {
+      parameters: {
+        query: {
+        sourceId?: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistBindingsData"];
+  };
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        query: {
+        bindingId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistDeleteData"];
+  };
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/groups": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistGroupsData"];
+  };
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["watchlist.CreateGroupInput"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistGroup"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/groups/{groupId}": {
+    patch: {
+      parameters: {
+        path: {
+        groupId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["watchlist.UpdateGroupInput"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistGroup"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        path: {
+        groupId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistDeleteData"];
+  };
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/import-runs": {
+    get: {
+      parameters: {
+        query: {
+        sourceId?: string;
+        cursor?: string;
+        limit?: number;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistImportRunsData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/imports/{previewId}/commit": {
+    post: {
+      parameters: {
+        path: {
+        previewId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["watchlist.CommitImportInput"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistImportRun"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/imports/preview": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["watchlist.ImportPreviewRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistImportPreview"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/instruments/{market}/{symbol}/memberships": {
+    get: {
+      parameters: {
+        path: {
+        market: string;
+        symbol: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistMemberships"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        path: {
+        market: string;
+        symbol: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["watchlist.ReplaceMembershipsInput"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistMemberships"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/items": {
+    get: {
+      parameters: {
+        query: {
+        groupId?: string;
+        cursor?: string;
+        limit?: number;
+        query?: string;
+        market?: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistItemsData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/quotes/batch": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["watchlist.WatchlistQuoteBatchRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistQuotesData"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/sources": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistSourcesData"];
+  };
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlist/sources/{sourceId}/groups": {
+    get: {
+      parameters: {
+        path: {
+        sourceId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["watchlist.WatchlistRemoteGroupsData"];
+  };
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };

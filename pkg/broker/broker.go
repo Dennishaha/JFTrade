@@ -65,6 +65,28 @@ type MarketRuleProvider interface {
 	QueryMarketRules(ctx context.Context, query MarketRuleQuery) (*MarketRuleSnapshot, error)
 }
 
+// BatchSnapshotSource is the broker-neutral, non-streaming snapshot capability
+// used by dense quote surfaces such as watchlists. Implementations must not
+// implicitly create push subscriptions.
+type BatchSnapshotSource interface {
+	QuerySecuritySnapshot(ctx context.Context, query SecuritySnapshotQuery) (*SecuritySnapshotResult, error)
+}
+
+// WatchlistGroupReader is an optional broker connection capability for
+// importing remote watchlist groups. It is deliberately read-only.
+type WatchlistGroupReader interface {
+	ListWatchlistGroups(ctx context.Context) ([]WatchlistGroup, error)
+	ListWatchlistGroupSecurities(ctx context.Context, groupName string) ([]WatchlistSecurity, error)
+}
+
+// FreshWatchlistGroupReader is the optional cache-bypass counterpart used at
+// optimistic-concurrency boundaries such as an import commit. Fresh reads are
+// still subject to the broker's documented request-rate limit.
+type FreshWatchlistGroupReader interface {
+	ListWatchlistGroupsFresh(ctx context.Context) ([]WatchlistGroup, error)
+	ListWatchlistGroupSecuritiesFresh(ctx context.Context, groupName string) ([]WatchlistSecurity, error)
+}
+
 // TradingService provides write-side broker operations: place and cancel orders.
 type TradingService interface {
 	PlaceOrder(ctx context.Context, query PlaceOrderQuery) (*PlaceOrderResult, error)

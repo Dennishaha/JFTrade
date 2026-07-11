@@ -38,10 +38,18 @@ func (s *Server) closeCoreServices(errs *[]error) {
 }
 
 func (s *Server) closePersistentStores(errs *[]error) {
+	s.appendCloseError(errs, "watchlist store close", s.closeWatchlistStore)
 	s.appendCloseError(errs, "backtestRuns close", s.closeBacktestRuns)
 	s.appendCloseError(errs, "executionOrders close", s.closeExecutionOrders)
 	s.appendCloseError(errs, "strategyStore close", s.closeStrategyStore)
 	s.appendCloseError(errs, "designStore close", s.closeDesignStore)
+}
+
+func (s *Server) closeWatchlistStore() error {
+	if s.watchlistStore == nil {
+		return nil
+	}
+	return s.watchlistStore.Close()
 }
 
 func (s *Server) closeRuntimeManagers(errs *[]error) {

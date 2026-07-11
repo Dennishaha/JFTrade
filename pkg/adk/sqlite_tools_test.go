@@ -287,6 +287,7 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 		"execution.order_events",
 		"market.snapshot",
 		"market.candles",
+		"watchlist.list",
 		"portfolio.summary",
 		"strategy.optimize",
 		"strategy.research_backtest",
@@ -377,6 +378,14 @@ func TestDefaultToolSchemasCoverBusinessCriticalToolPayloads(t *testing.T) {
 	modelsList := fmt.Sprint(defaultToolInputSchema("models.list"))
 	if strings.Contains(modelsList, "apiKey") {
 		t.Fatalf("models.list schema leaks api key fields: %s", modelsList)
+	}
+
+	watchlist := schemaPropertiesForBoundaryTest(t, defaultToolInputSchema("watchlist.list"))
+	if includeQuotes := watchlist["includeQuotes"].(map[string]any); includeQuotes["default"] != false {
+		t.Fatalf("watchlist.list includeQuotes schema = %#v, want default false", includeQuotes)
+	}
+	if limit := watchlist["limit"].(map[string]any); limit["maximum"] != 200 {
+		t.Fatalf("watchlist.list limit schema = %#v, want maximum 200", limit)
 	}
 }
 

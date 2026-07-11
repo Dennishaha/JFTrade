@@ -86,6 +86,7 @@ func TestRuntimePathEnvOverrides(t *testing.T) {
 	t.Setenv("JFTRADE_ADK_DB", filepath.Join(t.TempDir(), "adk.db"))
 	t.Setenv("JFTRADE_BACKTEST_RUN_DB", filepath.Join(t.TempDir(), "runs.db"))
 	t.Setenv("JFTRADE_EXECUTION_ORDER_DB", filepath.Join(t.TempDir(), "orders.db"))
+	t.Setenv("JFTRADE_WATCHLIST_DB", filepath.Join(t.TempDir(), "watchlists.db"))
 	t.Setenv("JFTRADE_ADK_SECRETS", filepath.Join(t.TempDir(), "adk-secrets.json"))
 
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
@@ -104,6 +105,9 @@ func TestRuntimePathEnvOverrides(t *testing.T) {
 	if got := DeriveExecutionOrderDBPath(settingsPath); got != os.Getenv("JFTRADE_EXECUTION_ORDER_DB") {
 		t.Fatalf("DeriveExecutionOrderDBPath() = %q", got)
 	}
+	if got := DeriveWatchlistDBPath(settingsPath); got != os.Getenv("JFTRADE_WATCHLIST_DB") {
+		t.Fatalf("DeriveWatchlistDBPath() = %q", got)
+	}
 	if got := DeriveADKSecretsPath(settingsPath); got != os.Getenv("JFTRADE_ADK_SECRETS") {
 		t.Fatalf("DeriveADKSecretsPath() = %q", got)
 	}
@@ -115,6 +119,7 @@ func TestRuntimePathDerivationFallsBackForRelativeSettings(t *testing.T) {
 	t.Setenv("JFTRADE_BACKTEST_RUN_DB", "")
 	t.Setenv("JFTRADE_EXECUTION_ORDER_DB", "")
 	t.Setenv("JFTRADE_ADK_DB", "")
+	t.Setenv("JFTRADE_WATCHLIST_DB", "")
 	t.Setenv("JFTRADE_ADK_SECRETS", "")
 
 	if got := ResolveLaunchDefaults(false); got.APIBind != DefaultDevelopmentAPIBind || got.BacktestDBPath != filepath.Join(DefaultRuntimeDir, DefaultBacktestDBFilename) {
@@ -137,6 +142,7 @@ func TestRuntimePathDerivationFallsBackForRelativeSettings(t *testing.T) {
 		"adk secrets":      {DeriveADKSecretsPath("settings.json"), filepath.Join("secrets", "adk-secrets.json")},
 		"adk skills":       {DeriveADKSkillsDir("settings.json"), filepath.Join("adk", "skills")},
 		"adk session":      {DeriveADKSessionDBPath("settings.json"), "adk-session.db"},
+		"watchlist":        {DeriveWatchlistDBPath("settings.json"), defaultWatchlistDBFilename},
 		"calendar":         {DeriveExchangeCalendarDir("settings.json"), "exchange-calendars"},
 		"desktop logs":     {DeriveDesktopLogDir("settings.json"), "logs"},
 	} {

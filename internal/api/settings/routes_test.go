@@ -42,6 +42,7 @@ type routeDataManagementBackend struct {
 	preview  func(context.Context, dmsrv.CleanupPreviewRequest) (any, error)
 	execute  func(context.Context, dmsrv.CleanupExecuteRequest) (any, error)
 	compact  func(context.Context, string, dmsrv.CompactRequest) (any, error)
+	backup   func(context.Context, dmsrv.BackupRequest) (any, error)
 	rebuild  func(context.Context, dmsrv.RebuildRequest) (any, error)
 }
 
@@ -71,6 +72,13 @@ func (b routeDataManagementBackend) Compact(ctx context.Context, databaseID stri
 		return nil, errors.New("compact unavailable")
 	}
 	return b.compact(ctx, databaseID, request)
+}
+
+func (b routeDataManagementBackend) Backup(ctx context.Context, request dmsrv.BackupRequest) (any, error) {
+	if b.backup == nil {
+		return nil, errors.New("backup unavailable")
+	}
+	return b.backup(ctx, request)
 }
 
 func (b routeDataManagementBackend) Rebuild(ctx context.Context, request dmsrv.RebuildRequest) (any, error) {
@@ -686,6 +694,7 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 	var executeRequest dmsrv.CleanupExecuteRequest
 	var compactRequest dmsrv.CompactRequest
 	var compactDatabaseID string
+	var backupRequest dmsrv.BackupRequest
 	dataManagementSvc := dmsrv.NewService(routeDataManagementBackend{
 		overview: func(_ context.Context, request dmsrv.OverviewRequest) (any, error) {
 			overviewRequest = request
@@ -719,6 +728,10 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 			}
 			return map[string]any{"compacted": true}, nil
 		},
+		backup: func(_ context.Context, request dmsrv.BackupRequest) (any, error) {
+			backupRequest = request
+			return dmsrv.BackupResult{DatabaseID: request.DatabaseID, BackupPath: "/tmp/watchlist.db", SizeBytes: 42}, nil
+		},
 		rebuild: func(context.Context, dmsrv.RebuildRequest) (any, error) {
 			return map[string]any{"scheduled": true}, nil
 		},
@@ -750,6 +763,10 @@ func TestDataManagementRoutesUseTypedCallbacks(t *testing.T) {
 	compact := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/adk/compact", `{"confirmation":"COMPACT adk"}`)
 	if compact.Code != http.StatusOK || compactDatabaseID != "adk" || compactRequest.Confirmation != "COMPACT adk" || !strings.Contains(compact.Body.String(), `"compacted":true`) {
 		t.Fatalf("compact = %d %s databaseID=%q request=%+v", compact.Code, compact.Body.String(), compactDatabaseID, compactRequest)
+	}
+	backup := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/databases/watchlist/backup", "")
+	if backup.Code != http.StatusOK || backupRequest.DatabaseID != "watchlist" || !strings.Contains(backup.Body.String(), `"backupPath":"/tmp/watchlist.db"`) {
+		t.Fatalf("backup = %d %s request=%+v", backup.Code, backup.Body.String(), backupRequest)
 	}
 	malformedPreview := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/preview", `{"kind":`)
 	if malformedPreview.Code != http.StatusBadRequest || !strings.Contains(malformedPreview.Body.String(), `BAD_REQUEST`) {

@@ -181,10 +181,22 @@ server.RegisterBroker(ib.NewBrokerAdapter(ibClient))
 | `Connect(ctx)` | 建立连接 |
 | `Close()` | 关闭连接 |
 
+### 自选导入与密集快照（可选）
+
+自选领域不直接依赖具体券商包。需要支持远端分组导入时，券商 adapter 可以实现：
+
+| 接口 | 说明 |
+|------|------|
+| `broker.WatchlistGroupReader` | 只读列出券商分组及指定组成员 |
+| `broker.FreshWatchlistGroupReader` | import commit 时绕过普通缓存，重新校验远端成员 hash |
+| `broker.BatchSnapshotSource` | 为自选等密集界面提供不创建推送订阅的批量快照 |
+
+还需要在 `servercore` 装配层把连接注册为稳定 `sourceId`，并将券商 security code 映射为 canonical `instrumentId`。source 表示券商登录连接，不应直接复用交易 `accountId`。完整约束见 [自选系统](watchlist.md#增加新的券商-source)。
+
 ## 类型映射
 
 所有 `broker.*` 类型字段名与 JSON 序列化名一致，可直接作为 API 响应返回。对于券商特有的字段，可使用 `*float64`、`*string` 等指针字段，不支持的留 nil 即可。
 
 ## 参考：Futu 适配器
 
-完整实现参考 `pkg/futu/adapter.go` 和 `pkg/futu/adapter_convert.go`。
+完整实现参考 `pkg/futu/adapter.go`、`pkg/futu/adapter_convert.go` 和 `pkg/futu/watchlist_reader.go`。

@@ -10,8 +10,18 @@ describe("console router", () => {
     expect(router.resolve("/adk/agents").matched).toHaveLength(1);
     expect(router.resolve("/adk/workflows").matched).toHaveLength(1);
     expect(router.resolve("/risk").matched).toHaveLength(1);
+    expect(router.resolve("/watchlist").matched).toHaveLength(1);
     expect(router.resolve("/adk").matched).toHaveLength(0);
     expect(router.resolve("/adk?view=chat").matched).toHaveLength(0);
     expect(router.resolve("/adk?view=workflows").matched).toHaveLength(0);
+  });
+
+  it("keeps the root route on the trading workspace", async () => {
+    const router = createConsoleRouter(createMemoryHistory());
+
+    await router.push("/");
+    await router.isReady();
+
+    expect(router.currentRoute.value.path).toBe("/workspace");
   });
 });

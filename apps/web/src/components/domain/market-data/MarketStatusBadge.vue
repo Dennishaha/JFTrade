@@ -74,18 +74,21 @@ const displayLabel = computed(() => props.label || defaultLabels[props.state]);
 }
 
 .market-status-badge--loading {
-  color: var(--card-amber-text);
-  background: var(--card-amber-surface);
+  border-color: var(--tv-status-warning-border);
+  color: var(--tv-status-warning-fg);
+  background: var(--tv-status-warning-bg);
 }
 
 .market-status-badge--stale {
-  color: var(--card-amber-text);
-  background: var(--card-amber-surface);
+  border-color: var(--tv-status-warning-border);
+  color: var(--tv-status-warning-fg);
+  background: var(--tv-status-warning-bg);
 }
 
 .market-status-badge--error {
-  color: var(--tv-down);
-  background: color-mix(in srgb, var(--tv-down) 10%, var(--tv-bg-surface-2));
+  border-color: var(--tv-status-error-border);
+  color: var(--tv-status-error-fg);
+  background: var(--tv-status-error-bg);
 }
 
 .market-status-badge--disabled {

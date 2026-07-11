@@ -596,7 +596,7 @@ describe("SystemPage business flows", () => {
       "状态",
       "工作进程券商",
       "实盘风控与审批硬停止",
-      "自选 / 行情数据订阅",
+      "行情数据订阅",
     ]);
 
     await selector.setValue("market-data");

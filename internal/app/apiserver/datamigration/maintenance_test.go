@@ -51,7 +51,7 @@ func TestOverviewSupportsSummaryOnlyAndSingleDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("summary overview: %v", err)
 	}
-	if len(summary.Databases) != 6 || summary.Totals.TotalBytes != 0 {
+	if len(summary.Databases) != 7 || summary.Totals.TotalBytes != 0 {
 		t.Fatalf("summary overview = %+v", summary)
 	}
 	for _, database := range summary.Databases {
@@ -72,6 +72,64 @@ func TestOverviewSupportsSummaryOnlyAndSingleDatabase(t *testing.T) {
 	}
 	if _, err := manager.Overview(t.Context(), OverviewRequest{DatabaseID: "missing"}); err == nil {
 		t.Fatal("unknown database id succeeded")
+	}
+}
+
+func TestDatabaseBackupCreatesVerifiedPrivateSnapshot(t *testing.T) {
+	root := t.TempDir()
+	manager := NewManager(filepath.Join(root, "settings.json"), filepath.Join(root, "backtest.db"))
+	now := time.Date(2026, time.July, 11, 15, 0, 0, 0, time.UTC)
+	manager.maintenance.now = func() time.Time { return now }
+	descriptor := manager.descriptorMap()[DatabaseWatchlist]
+	initializeDescriptor(t, descriptor)
+	db, err := sql.Open("sqlite", descriptor.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE backup_payload (value TEXT); INSERT INTO backup_payload(value) VALUES ('watchlist')`); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.Backup(t.Context(), DatabaseWatchlist)
+	if err != nil {
+		t.Fatalf("Backup: %v", err)
+	}
+	if result.DatabaseID != DatabaseWatchlist || result.SizeBytes <= 0 || result.CreatedAt != now.Format(time.RFC3339Nano) {
+		t.Fatalf("backup result = %+v", result)
+	}
+	if filepath.Dir(result.BackupPath) != filepath.Join(root, "backups") {
+		t.Fatalf("backup path = %q", result.BackupPath)
+	}
+	info, err := os.Stat(result.BackupPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("backup permissions = %v", info.Mode().Perm())
+	}
+	backupDB, err := sql.Open("sqlite", result.BackupPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = backupDB.Close() }()
+	var value string
+	if err := backupDB.QueryRow(`SELECT value FROM backup_payload`).Scan(&value); err != nil || value != "watchlist" {
+		t.Fatalf("backup payload = %q err=%v", value, err)
+	}
+
+	lock := manager.maintenance.locks[DatabaseWatchlist]
+	lock.Lock()
+	_, conflictErr := manager.Backup(t.Context(), DatabaseWatchlist)
+	lock.Unlock()
+	if !errors.Is(conflictErr, ErrMaintenanceConflict) {
+		t.Fatalf("concurrent backup = %v", conflictErr)
+	}
+	if _, err := manager.Backup(t.Context(), "unknown"); err == nil {
+		t.Fatal("unknown database backup succeeded")
 	}
 }
 

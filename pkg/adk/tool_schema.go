@@ -41,6 +41,8 @@ func defaultToolInputSchema(name string) map[string]any {
 		return executionOrderEventsInputSchema()
 	case "market.snapshot", "market.candles":
 		return marketReadInputSchema(name)
+	case "watchlist.list":
+		return watchlistListInputSchema()
 	case "portfolio.summary":
 		return portfolioSummaryInputSchema()
 	case "strategy.optimize":
@@ -63,6 +65,22 @@ func defaultToolInputSchema(name string) map[string]any {
 		return strategyUpdateInstanceModeInputSchema()
 	default:
 		return defaultQueryInputSchema()
+	}
+}
+
+func watchlistListInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"group":         map[string]any{"type": "string", "description": "本地分组 ID 或名称；留空时返回分组摘要。"},
+			"groupName":     map[string]any{"type": "string", "description": "group 的兼容名称参数。"},
+			"market":        map[string]any{"type": "string", "description": "可选市场过滤，例如 HK、US、SH。"},
+			"query":         map[string]any{"type": "string", "description": "按名称、代码或 instrumentId 搜索。"},
+			"cursor":        map[string]any{"type": "string", "description": "上一页返回的游标。"},
+			"limit":         map[string]any{"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+			"includeQuotes": map[string]any{"type": "boolean", "default": false, "description": "是否附带批量快照；默认 false，不触发行情请求。"},
+		},
+		"additionalProperties": false,
 	}
 }
 

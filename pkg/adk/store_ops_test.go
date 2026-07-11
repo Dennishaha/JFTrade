@@ -137,6 +137,9 @@ func TestBuiltinStrategyAgentTemplatesExposeExplicitStrategyTools(t *testing.T) 
 		}
 	}
 	investment, _ := BuiltinAgentTemplate("investment-analyst")
+	if !containsString(investment.Tools, "watchlist.list") {
+		t.Fatalf("investment tools = %+v, want watchlist.list", investment.Tools)
+	}
 	if !containsString(investment.Skills, strategypinespec.ResearchBuiltinSkillName) || containsString(investment.Skills, strategypinespec.PublishBuiltinSkillName) {
 		t.Fatalf("investment skills = %+v, want research only", investment.Skills)
 	}

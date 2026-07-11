@@ -31,6 +31,8 @@ PROTO_FILES=(
   Qot_GetKL.proto
   Qot_RequestHistoryKL.proto
   Qot_GetStaticInfo.proto
+  Qot_GetUserSecurity.proto
+  Qot_GetUserSecurityGroup.proto
   Trd_Common.proto
   Trd_GetAccList.proto
   Trd_GetFunds.proto
@@ -97,7 +99,7 @@ for p in sorted(stage.glob("*.proto")):
     target = f'github.com/jftrade/jftrade-main/pkg/futu/pb/{go_pkg_name};{go_pkg_name}'
     if re.search(r"^\s*option\s+go_package\s*=", text, re.MULTILINE):
         text = re.sub(
-            r"^\s*option\s+go_package\s*=.*?;",
+            r"^\s*option\s+go_package\s*=.*$",
             f'option go_package = "{target}";',
             text,
             count=1,

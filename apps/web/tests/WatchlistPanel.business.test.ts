@@ -45,7 +45,7 @@ vi.mock("../src/composables/useWorkspaceLayout", () => ({
   useWorkspaceTradingPrefs: () => workspacePrefsState,
 }));
 
-import WatchlistPanel from "../src/components/workspace/WatchlistPanel.vue";
+import WatchlistPanel from "../src/components/workspace/InstrumentOverviewPanel.vue";
 
 type SetupState = Record<string, unknown>;
 
@@ -174,6 +174,16 @@ afterEach(() => {
 });
 
 describe("WatchlistPanel business flows", () => {
+  it("places the watchlist action in the realtime price card", () => {
+    const wrapper = mountWatchlistPanel();
+
+    const favorite = wrapper.get('[data-testid="instrument-overview-favorite"]');
+    expect(favorite.attributes("title")).toBe("加入自选");
+    expect(favorite.element.parentElement?.classList).toContain(
+      "instrument-overview__quote-card",
+    );
+  });
+
   it("prefers searched instrument names and keeps neutral snapshots free of up/down coloring", () => {
     consoleDataState.marketInstrumentSearchOptions.value = [
       {

@@ -15,9 +15,11 @@ import { useMarketProfiles } from "../../composables/marketProfiles";
 import { resolveMarketSnapshotDisplay } from "../../composables/marketSessionDisplay";
 import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
+import { useWatchlistMembership } from "../../composables/useWatchlist";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import DenseMetricStrip from "../domain/shared/DenseMetricStrip.vue";
+import WatchlistMembershipDialog from "../domain/watchlist/WatchlistMembershipDialog.vue";
 
 const {
   currentMarketDataSnapshot: marketDataSnapshot,
@@ -36,6 +38,7 @@ const {
   providerDisplayName,
 } = useMarketDataProviderStatus();
 const liveHub = getSharedLiveSocketHub();
+const membershipDialogOpen = ref(false);
 
 void loadMarketDataProviderStatus();
 
@@ -51,6 +54,13 @@ const instrumentTitle = computed(() => {
     ? instrumentId.value
     : `${instrumentId.value} · ${resolvedName}`;
 });
+const { query: watchlistMembershipQuery } = useWatchlistMembership(
+  () => prefs.value.market,
+  () => prefs.value.symbol,
+);
+const isWatchlisted = computed(
+  () => (watchlistMembershipQuery.data.value?.groupIds.length ?? 0) > 0,
+);
 const supportsExtendedHoursMarket = computed(() => supportsExtendedHoursForMarket(prefs.value.market));
 const displayModel = computed(() =>
   resolveMarketSnapshotDisplay(snapshot.value, supportsExtendedHoursMarket.value),
@@ -394,7 +404,18 @@ function formatPercent(value: number | null | undefined): string {
     </div>
     <div class="tv-panel-body">
       <div v-if="snapshot" style="display: flex; flex-direction: column; gap: 12px; min-height: 100%">
-        <div style="padding: 6px 4px 2px">
+        <div class="instrument-overview__quote-card">
+          <button
+            type="button"
+            class="instrument-overview__favorite"
+            :class="{ 'is-active': isWatchlisted }"
+            :title="isWatchlisted ? '管理自选分组' : '加入自选'"
+            :aria-label="isWatchlisted ? '管理自选分组' : '加入自选'"
+            data-testid="instrument-overview-favorite"
+            @click="membershipDialogOpen = true"
+          >
+            {{ isWatchlisted ? "★" : "☆" }}
+          </button>
           <div style="font-size: 11px; color: var(--tv-text-dim); text-transform: uppercase; letter-spacing: 0.08em">
             {{ mainPriceLabel }}
           </div>
@@ -538,5 +559,41 @@ function formatPercent(value: number | null | undefined): string {
         当前标的暂无快照，行情加载后会在这里显示价格信息。
       </div>
     </div>
+    <WatchlistMembershipDialog
+      v-model="membershipDialogOpen"
+      :market="prefs.market"
+      :symbol="prefs.symbol"
+      :title="instrumentTitle"
+    />
   </section>
 </template>
+
+<style scoped>
+.instrument-overview__quote-card {
+  position: relative;
+  padding: 6px 36px 2px 4px;
+}
+
+.instrument-overview__favorite {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tv-text-dim);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.instrument-overview__favorite:hover,
+.instrument-overview__favorite.is-active {
+  background: color-mix(in srgb, #eab308 12%, transparent);
+  color: #eab308;
+}
+</style>

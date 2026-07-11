@@ -172,7 +172,8 @@ for pattern in \
   ./internal/trading/... \
   ./internal/strategy/... \
   ./internal/backtest/... \
-  ./internal/assistant/...
+  ./internal/assistant/... \
+  ./internal/watchlist/...
 do
   check_package_set_no_import "$pattern" "internal/api" "business module transport boundary"
 done
@@ -188,7 +189,8 @@ for pattern in \
   ./internal/trading/... \
   ./internal/strategy/... \
   ./internal/backtest/... \
-  ./internal/assistant/...
+  ./internal/assistant/... \
+  ./internal/watchlist/...
 do
   check_package_set_no_import "$pattern" "internal/app/apiserver/servercore" "business module composition-root boundary"
 done

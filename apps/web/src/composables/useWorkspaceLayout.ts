@@ -28,6 +28,9 @@ export interface WorkspaceViewState {
   rightDockOpen: boolean;
   rightDockTab: WorkspaceRightDockTab;
   rightDockSize: number;
+  watchlistSidebarOpen: boolean;
+  watchlistSidebarWidth: number;
+  watchlistGroupId: string | null;
   paneSizes: WorkspacePaneSizes;
 }
 
@@ -59,6 +62,9 @@ const defaultViewState: WorkspaceViewState = {
   rightDockOpen: false,
   rightDockTab: "notifications",
   rightDockSize: 28,
+  watchlistSidebarOpen: true,
+  watchlistSidebarWidth: 280,
+  watchlistGroupId: null,
   paneSizes: { ...defaultPaneSizes },
 };
 
@@ -171,6 +177,20 @@ function normalizeRightDockTab(input: unknown): WorkspaceRightDockTab {
   return input === "ai" ? input : "notifications";
 }
 
+function normalizeWatchlistSidebarWidth(input: unknown): number {
+  const value = Number(input);
+  if (!Number.isFinite(value)) {
+    return defaultViewState.watchlistSidebarWidth;
+  }
+  return Math.min(420, Math.max(220, Math.round(value)));
+}
+
+function normalizeWatchlistGroupId(input: unknown): string | null {
+  return typeof input === "string" && input.trim() !== ""
+    ? input.trim()
+    : null;
+}
+
 function normalizeViewState(
   input: Partial<WorkspaceViewState>,
 ): WorkspaceViewState {
@@ -179,6 +199,11 @@ function normalizeViewState(
     rightDockOpen: merged.rightDockOpen === true,
     rightDockTab: normalizeRightDockTab(merged.rightDockTab),
     rightDockSize: normalizeRightDockSize(merged.rightDockSize),
+    watchlistSidebarOpen: merged.watchlistSidebarOpen !== false,
+    watchlistSidebarWidth: normalizeWatchlistSidebarWidth(
+      merged.watchlistSidebarWidth,
+    ),
+    watchlistGroupId: normalizeWatchlistGroupId(merged.watchlistGroupId),
     paneSizes: normalizePaneSizes(input.paneSizes),
   };
 }

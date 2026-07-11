@@ -110,6 +110,7 @@ watch(
 
 const navTargets = [
   { id: "nav.workspace", label: "打开交易工作台", to: "/workspace" },
+  { id: "nav.watchlist", label: "打开自选股", to: "/watchlist" },
   {
     id: "nav.strategy.runtime",
     label: "打开策略执行",
@@ -468,7 +469,7 @@ onUnmounted(() => {
         <button
           v-if="!isCompactAppShell"
           type="button"
-          class="tv-rightdock-resizer"
+          class="tv-rightdock-resizer tv-resizer--vertical"
           title="调整侧栏宽度"
           aria-label="调整侧栏宽度"
           @pointerdown="startRightDockResize"

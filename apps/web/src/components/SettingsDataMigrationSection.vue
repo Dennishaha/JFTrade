@@ -71,6 +71,7 @@ type CleanupResult = {
   warning?: string;
 };
 type CompactResult = { databaseId: string; reclaimedBytes: number; compacted: boolean };
+type BackupResult = { databaseId: string; backupPath: string; sizeBytes: number; createdAt: string };
 
 const emptyStorage: StorageStats = {
   mainBytes: 0,
@@ -81,7 +82,7 @@ const emptyStorage: StorageStats = {
   reclaimableBytes: 0,
 };
 
-const databaseLoadOrder = ["strategy", "adk", "backtest-runs", "backtest", "execution-orders", "adk-session"];
+const databaseLoadOrder = ["strategy", "adk", "watchlist", "backtest-runs", "backtest", "execution-orders", "adk-session"];
 const databases = ref<DatabaseStatus[]>([]);
 const loadedDatabaseIds = ref<string[]>([]);
 const loadingDatabaseIds = ref<string[]>([]);
@@ -421,6 +422,23 @@ async function executeCompact(): Promise<void> {
   }
 }
 
+async function backupDatabase(database: DatabaseStatus): Promise<void> {
+  if (submitting.value) return;
+  submitting.value = true;
+  errorMessage.value = "";
+  try {
+    const result = await fetchEnvelopeWithInit<BackupResult>(
+      `/api/v1/settings/data-management/databases/${encodeURIComponent(database.id)}/backup`,
+      { method: "POST" },
+    );
+    noticeMessage.value = `已备份 ${database.name}（${formatBytes(result.sizeBytes)}）：${result.backupPath}`;
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : "备份数据库失败";
+  } finally {
+    submitting.value = false;
+  }
+}
+
 function statusLabel(status: DatabaseStatus["status"]): string {
   return { ready: "可用", missing: "缺失", incompatible: "不兼容", unavailable: "不可用" }[status];
 }
@@ -439,7 +457,7 @@ function statusClass(status: DatabaseStatus["status"]): string {
         <div>
           <h2 class="text-base font-semibold text-slate-900">数据管理</h2>
           <p class="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-            查看本地数据库实际占用，清理不再需要的数据，并在必要时重建不兼容数据库。
+            查看本地数据库实际占用，创建一致性备份，清理不再需要的数据，并在必要时重建不兼容数据库。
           </p>
         </div>
         <button type="button" class="rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-50" :disabled="loading" @click="loadStatuses">
@@ -554,6 +572,7 @@ function statusClass(status: DatabaseStatus["status"]): string {
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <p class="text-xs text-slate-500">{{ database.description }}</p>
                 <div class="flex gap-2">
+                  <button type="button" class="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50" :disabled="database.status === 'missing' || database.status === 'unavailable' || !isDatabaseLoaded(database.id) || submitting" :data-testid="`backup-${database.id}`" @click="backupDatabase(database)">创建备份</button>
                   <button type="button" class="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50" :disabled="database.status !== 'ready' || database.rebuildScheduled || !isDatabaseLoaded(database.id) || submitting" :data-testid="`compact-${database.id}`" @click="openCompact(database)">整理空间</button>
                   <button type="button" class="rounded-md border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-700 disabled:opacity-50" :data-testid="`rebuild-${database.id}`" :disabled="database.rebuildScheduled" @click="openDatabaseRebuild(database); showDialog('database-rebuild-dialog')">{{ database.status === "ready" ? "危险操作：重建" : "重建数据库" }}</button>
                 </div>

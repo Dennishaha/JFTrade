@@ -4,6 +4,7 @@
 
 - `settings.json`
 - `backtest.db`
+- `watchlists.db`
 - `secrets/admin.key`
 
 正式 Wails 产品使用独立的系统用户数据目录，不扫描、复制或移动仓库数据：
@@ -14,7 +15,7 @@
 | Windows | `%LOCALAPPDATA%/JFTrade`                   |
 | Linux   | `${XDG_DATA_HOME:-~/.local/share}/jftrade` |
 
-正式产品的 `settings.json`、`backtest.db`、策略、插件、日志和 `desktop-state.json` 都从该目录派生；安装目录保持无业务数据。
+正式产品的 `settings.json`、`backtest.db`、`watchlists.db`、策略、插件、日志和 `desktop-state.json` 都从该目录派生；安装目录保持无业务数据。
 
 ## 配置优先级
 
@@ -33,6 +34,7 @@
 - `JFTRADE_GUI_API_BASE_URL`：覆盖发布态 GUI 注入的 API 基地址。
 - `JFTRADE_SETTINGS_PATH`：运行时配置文件路径。
 - `JFTRADE_BACKTEST_DB`：回测数据库路径。
+- `JFTRADE_WATCHLIST_DB`：本地自选主数据库路径。未设置时使用 `settings.json` 同目录下的 `watchlists.db`。
 - `JFTRADE_ADMIN_KEY`：直接通过环境变量提供管理员密钥。
 - `JFTRADE_ADMIN_KEY_FILE`：从文件读取管理员密钥。
 
@@ -84,6 +86,8 @@ OpenD 连接配置位于 `integration.config`。常用字段包括：
   }
 }
 ```
+
+启用 Futu 后，自选系统会注册稳定 source `futu:default`，用于只读发现和导入 Futu 分组。自选主数据始终保存在 `watchlists.db`，不会因禁用 Futu 或 OpenD 暂时离线而改用券商数据。详细边界见 [自选系统](./watchlist.md)。
 
 ## 管理员密钥
 

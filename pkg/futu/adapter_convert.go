@@ -307,7 +307,8 @@ func orderBookLevelFromPb(pb *qotcommonpb.OrderBook) broker.OrderBookLevel {
 
 // Verify interface compliance at compile time.
 var (
-	_ broker.Broker           = (*futuAdapter)(nil)
-	_ broker.TradingService   = (*futuTradingService)(nil)
-	_ broker.MarketDataReader = (*futuMarketDataReader)(nil)
+	_ broker.Broker              = (*futuAdapter)(nil)
+	_ broker.TradingService      = (*futuTradingService)(nil)
+	_ broker.MarketDataReader    = (*futuMarketDataReader)(nil)
+	_ broker.BatchSnapshotSource = (*futuMarketDataReader)(nil)
 )

@@ -25,20 +25,22 @@ import (
 
 // Protocol IDs (selected — see Futu OpenAPI docs for the full list).
 const (
-	ProtoInitConnect         uint32 = 1001
-	ProtoGetGlobalState      uint32 = 1002
-	ProtoNotify              uint32 = 1003
-	ProtoKeepAlive           uint32 = 1004
-	ProtoQotSub              uint32 = 3001
-	ProtoGetBasicQot         uint32 = 3004
-	ProtoQotUpdateBasicQot   uint32 = 3005
-	ProtoGetKL               uint32 = 3006
-	ProtoQotUpdateKL         uint32 = 3007
-	ProtoGetOrderBook        uint32 = 3012
-	ProtoQotUpdateOrderBook  uint32 = 3013
-	ProtoRequestHistoryKL    uint32 = 3103
-	ProtoGetStaticInfo       uint32 = 3202
-	ProtoGetSecuritySnapshot uint32 = 3203
+	ProtoInitConnect          uint32 = 1001
+	ProtoGetGlobalState       uint32 = 1002
+	ProtoNotify               uint32 = 1003
+	ProtoKeepAlive            uint32 = 1004
+	ProtoQotSub               uint32 = 3001
+	ProtoGetBasicQot          uint32 = 3004
+	ProtoQotUpdateBasicQot    uint32 = 3005
+	ProtoGetKL                uint32 = 3006
+	ProtoQotUpdateKL          uint32 = 3007
+	ProtoGetOrderBook         uint32 = 3012
+	ProtoQotUpdateOrderBook   uint32 = 3013
+	ProtoRequestHistoryKL     uint32 = 3103
+	ProtoGetStaticInfo        uint32 = 3202
+	ProtoGetSecuritySnapshot  uint32 = 3203
+	ProtoGetUserSecurity      uint32 = 3213
+	ProtoGetUserSecurityGroup uint32 = 3222
 
 	ProtoTrdGetAccList              uint32 = 2001
 	ProtoTrdUnlockTrade             uint32 = 2005

@@ -236,6 +236,36 @@ export async function apiPutPath<
   );
 }
 
+export async function apiPostPath<
+  TResponse,
+  TPath extends PathWithMethod<"post">,
+>(
+  _template: TPath,
+  path: string,
+  body: JsonRequestBody<TPath, "post">,
+  init?: ApiRequestOptions,
+): Promise<TResponse> {
+  return fetchEnvelopeWithInit<TResponse>(
+    path,
+    withJsonBody("POST", body, init),
+  );
+}
+
+export async function apiPatchPath<
+  TResponse,
+  TPath extends PathWithMethod<"patch">,
+>(
+  _template: TPath,
+  path: string,
+  body: JsonRequestBody<TPath, "patch">,
+  init?: ApiRequestOptions,
+): Promise<TResponse> {
+  return fetchEnvelopeWithInit<TResponse>(
+    path,
+    withJsonBody("PATCH", body, init),
+  );
+}
+
 export async function apiDeletePath<
   TResponse,
   TPath extends PathWithMethod<"delete">,

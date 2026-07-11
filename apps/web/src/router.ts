@@ -25,6 +25,11 @@ export function createConsoleRouter(
         meta: { title: "交易" },
       },
       {
+        path: "/watchlist",
+        component: () => import("./pages/WatchlistPage.vue"),
+        meta: { title: "自选股" },
+      },
+      {
         path: "/system",
         component: () => import("./pages/SystemPage.vue"),
         meta: { title: "系统" },

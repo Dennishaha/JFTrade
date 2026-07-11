@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 // --- broker.MarketDataReader extended methods (futuMarketDataReader) ---
@@ -248,23 +252,47 @@ func (r *futuMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query 
 			return err
 		}
 		res := &broker.SecuritySnapshotResult{AccountID: query.AccountID}
+		observedAt := time.Now().UTC()
 		for _, snap := range snapshots {
 			if snap == nil || snap.Basic == nil {
 				continue
 			}
 			basic := snap.Basic
+			preMarket := extendedSessionSnapshotFromProto(basic.GetPreMarket())
+			afterMarket := extendedSessionSnapshotFromProto(basic.GetAfterMarket())
+			overnight := extendedSessionSnapshotFromProto(basic.GetOvernight())
 			item := broker.SecuritySnapshotItem{
-				Symbol:       securitySymbol(basic.GetSecurity()),
-				Name:         cloneStringPtr(basic.Name),
-				SecurityType: new(enumName(basic.GetType(), qotcommonpb.SecurityType_name)),
-				IsSuspended:  cloneBoolPtr(basic.IsSuspend),
-				LastPrice:    cloneFloat64Ptr(basic.CurPrice),
-				OpenPrice:    cloneFloat64Ptr(basic.OpenPrice),
-				HighPrice:    cloneFloat64Ptr(basic.HighPrice),
-				LowPrice:     cloneFloat64Ptr(basic.LowPrice),
-				Volume:       int64AsFloat64Ptr(basic.Volume),
-				Turnover:     cloneFloat64Ptr(basic.Turnover),
-				LotSize:      cloneInt32Ptr(basic.LotSize),
+				Symbol:        securitySymbol(basic.GetSecurity()),
+				Name:          cloneStringPtr(basic.Name),
+				SecurityType:  new(enumName(basic.GetType(), qotcommonpb.SecurityType_name)),
+				IsSuspended:   cloneBoolPtr(basic.IsSuspend),
+				LastPrice:     cloneFloat64Ptr(basic.CurPrice),
+				PreviousClose: cloneFloat64Ptr(basic.LastClosePrice),
+				OpenPrice:     cloneFloat64Ptr(basic.OpenPrice),
+				HighPrice:     cloneFloat64Ptr(basic.HighPrice),
+				LowPrice:      cloneFloat64Ptr(basic.LowPrice),
+				Volume:        int64AsFloat64Ptr(basic.Volume),
+				Turnover:      cloneFloat64Ptr(basic.Turnover),
+				LotSize:       cloneInt32Ptr(basic.LotSize),
+				UpdateTime:    cloneStringPtr(basic.UpdateTime),
+				ObservedAt:    observedAt,
+				PreMarket:     preMarket,
+				AfterMarket:   afterMarket,
+				Overnight:     overnight,
+			}
+			preQuote := extendedMarketQuoteFromProto(basic.GetPreMarket(), basic.GetUpdateTime())
+			afterQuote := extendedMarketQuoteFromProto(basic.GetAfterMarket(), basic.GetUpdateTime())
+			overnightQuote := extendedMarketQuoteFromProto(basic.GetOvernight(), basic.GetUpdateTime())
+			session := sessionFromExtendedBlocksAt(item.Symbol, preQuote, afterQuote, overnightQuote, observedAt)
+			if session != market.SessionUnknown {
+				item.Session = new(string(session))
+			}
+			if basic.CurPrice != nil && market.ShouldUseRegularCloseAsPreviousClose(
+				item.Symbol,
+				session,
+				decimal.NewFromFloat(basic.GetCurPrice()),
+			) {
+				item.PreviousClose = cloneFloat64Ptr(basic.CurPrice)
 			}
 			if snap.EquityExData != nil {
 				item.PERate = cloneFloat64Ptr(snap.EquityExData.PeRate)
@@ -278,6 +306,22 @@ func (r *futuMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query 
 		return nil, err
 	}
 	return result, nil
+}
+
+func extendedSessionSnapshotFromProto(data *qotcommonpb.PreAfterMarketData) *broker.ExtendedSessionSnapshot {
+	if data == nil {
+		return nil
+	}
+	return &broker.ExtendedSessionSnapshot{
+		Price:      cloneFloat64Ptr(data.Price),
+		HighPrice:  cloneFloat64Ptr(data.HighPrice),
+		LowPrice:   cloneFloat64Ptr(data.LowPrice),
+		Volume:     int64AsFloat64Ptr(data.Volume),
+		Turnover:   cloneFloat64Ptr(data.Turnover),
+		Change:     cloneFloat64Ptr(data.ChangeVal),
+		ChangeRate: cloneFloat64Ptr(data.ChangeRate),
+		Amplitude:  cloneFloat64Ptr(data.Amplitude),
+	}
 }
 
 func (r *futuMarketDataReader) QueryOrderBook(ctx context.Context, query broker.OrderBookQuery) (*broker.OrderBookSnapshot, error) {

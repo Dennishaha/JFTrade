@@ -192,7 +192,7 @@ describe("LightweightChart", () => {
 
     stores.consoleData.releaseMarketDataSubscription.mockClear();
     stores.consoleData.acquireMarketDataSubscription.mockClear();
-    await wrapper.get("button").trigger("click");
+    await wrapper.get(".lightweight-chart-head__periods button").trigger("click");
     await flushUi();
 
     expect(stores.workspace.update).toHaveBeenCalledWith({ period: "tick" });

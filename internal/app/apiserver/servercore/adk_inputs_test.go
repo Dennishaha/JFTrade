@@ -671,3 +671,38 @@ func TestADKCoreToolHandlersNormalizeMarketAndPortfolioFlows(t *testing.T) {
 		t.Fatalf("account.orders payload = %#v, want count=2", ordersPayload)
 	}
 }
+
+func TestWatchlistListToolDefaultsToReadOnlyMetadataAndNormalizesPaging(t *testing.T) {
+	registry := jfadk.NewToolRegistry()
+	var captured WatchlistListInput
+	RegisterJFTradeADKTools(nil, registry, ToolDeps{
+		WatchlistList: func(_ context.Context, input WatchlistListInput) (any, error) {
+			captured = input
+			return map[string]any{"groups": []string{"自选股"}}, nil
+		},
+	})
+
+	tool, ok := registry.Get("watchlist.list")
+	if !ok {
+		t.Fatal("watchlist.list not registered")
+	}
+	output, err := tool.Handler(context.Background(), map[string]any{
+		"groupName": " 科技 ", "market": "us", "query": " apple ", "cursor": " next ", "limit": float64(20),
+	})
+	if err != nil {
+		t.Fatalf("watchlist.list Handler: %v", err)
+	}
+	if captured.Group != "科技" || captured.Market != "US" || captured.Query != "apple" || captured.Cursor != "next" || captured.Limit != 20 || captured.IncludeQuotes {
+		t.Fatalf("captured input = %#v", captured)
+	}
+	if output == nil {
+		t.Fatal("watchlist.list returned nil output")
+	}
+
+	if _, err := tool.Handler(context.Background(), map[string]any{"limit": 201}); err == nil {
+		t.Fatal("watchlist.list accepted limit over 200")
+	}
+	if _, err := tool.Handler(context.Background(), map[string]any{"includeQuotes": true}); err != nil || !captured.IncludeQuotes {
+		t.Fatalf("includeQuotes opt-in captured=%#v err=%v", captured, err)
+	}
+}

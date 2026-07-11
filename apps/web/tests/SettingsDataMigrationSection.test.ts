@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe("SettingsDataMigrationSection", () => {
-  it("renders six databases and schedules a confirmed single rebuild", async () => {
+  it("renders seven databases and schedules a confirmed single rebuild", async () => {
     const statuses = buildStatuses();
     const fetchMock = buildDataManagementFetch(statuses, async (_input, init) => {
       if (init?.method === "POST") {
@@ -43,7 +43,7 @@ describe("SettingsDataMigrationSection", () => {
     await wrapper.get("[data-testid='cleanup-tab-database']").trigger("click");
     await nextTick();
 
-    expect(wrapper.findAll("[data-testid^='database-card-']")).toHaveLength(6);
+    expect(wrapper.findAll("[data-testid^='database-card-']")).toHaveLength(7);
     expect(wrapper.get("[data-testid='cleanup-tab-database']").attributes("aria-selected")).toBe("true");
     expect(wrapper.find("[data-testid='compact-backtest']").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("/var/jftrade-api/adk.db");
@@ -96,14 +96,14 @@ describe("SettingsDataMigrationSection", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("summaryOnly=true");
     expect(wrapper.find("[data-testid='cleanup-by-type']").exists()).toBe(true);
     expect(wrapper.get("[data-testid='preview-soft-deleted-strategy']").attributes("disabled")).toBeDefined();
-    expect(wrapper.text()).toContain("已加载 0 / 6 个数据库");
+    expect(wrapper.text()).toContain("已加载 0 / 7 个数据库");
     expect(wrapper.find(".database-spinner").exists()).toBe(true);
     expect(wrapper.find(".database-progress-bar").exists()).toBe(true);
 
     if (resolveStrategy != null) resolveStrategy();
     await flushRequests();
 
-    expect(wrapper.text()).toContain("已加载 1 / 6 个数据库");
+    expect(wrapper.text()).toContain("已加载 1 / 7 个数据库");
     expect(wrapper.text()).toContain("1 项 · 内容约 2.0 KiB");
     expect(wrapper.get("[data-testid='preview-soft-deleted-strategy']").attributes("disabled")).toBeUndefined();
   });
@@ -127,7 +127,7 @@ describe("SettingsDataMigrationSection", () => {
 
     expect(wrapper.find("[data-testid='cleanup-by-type']").exists()).toBe(false);
     expect(wrapper.find("[data-testid='cleanup-by-database']").exists()).toBe(true);
-    expect(wrapper.findAll("[data-testid^='database-card-']")).toHaveLength(6);
+    expect(wrapper.findAll("[data-testid^='database-card-']")).toHaveLength(7);
 
     (wrapper.vm as unknown as { expandedDatabaseIDs: string[] }).expandedDatabaseIDs = ["strategy"];
     await nextTick();
@@ -205,6 +205,36 @@ describe("SettingsDataMigrationSection", () => {
     expect(wrapper.text()).toContain("已永久清理 2 项");
     expect(fetchMock.mock.calls.some((call) => String(call[0]).endsWith("/cleanup/execute"))).toBe(true);
   });
+
+  it("creates a consistent backup for the watchlist database", async () => {
+    const statuses = buildStatuses();
+    const fetchMock = buildDataManagementFetch(statuses, async (input, init) => {
+      if (String(input).endsWith("/databases/watchlist/backup") && init?.method === "POST") {
+        return createResponse({
+          databaseId: "watchlist",
+          backupPath: "/var/jftrade-api/backups/watchlist-20260711.db",
+          sizeBytes: 4096,
+          createdAt: "2026-07-11T15:00:00Z",
+        });
+      }
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(SettingsDataMigrationSection, {
+      global: { stubs: expansionPanelStubs },
+    });
+    await flushRequests();
+    await flushRequests();
+    await wrapper.get("[data-testid='cleanup-tab-database']").trigger("click");
+    (wrapper.vm as unknown as { expandedDatabaseIDs: string[] }).expandedDatabaseIDs = ["watchlist"];
+    await nextTick();
+
+    await wrapper.get("[data-testid='backup-watchlist']").trigger("click");
+    await flushRequests();
+
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).endsWith("/databases/watchlist/backup"))).toBe(true);
+    expect(wrapper.text()).toContain("已备份 watchlist（4.0 KiB）");
+    expect(wrapper.text()).toContain("/var/jftrade-api/backups/watchlist-20260711.db");
+  });
 });
 
 const expansionPanelStubs = {
@@ -215,7 +245,7 @@ const expansionPanelStubs = {
 };
 
 function buildStatuses() {
-  const ids = ["backtest", "backtest-runs", "strategy", "execution-orders", "adk", "adk-session"];
+  const ids = ["backtest", "backtest-runs", "strategy", "execution-orders", "adk", "adk-session", "watchlist"];
   return ids.map((id, index) => ({
     id,
     name: id,

@@ -15,7 +15,7 @@ func BuiltinAgentTemplates() []AgentWriteRequest {
 			ID: "investment-analyst", Name: "投资分析助手",
 			Instruction:    "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；输出必须说明数据来源，不承诺收益。",
 			PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled, MemoryEnabled: true, WorkMode: WorkModeChat, LoopMaxIterations: DefaultLoopMaxIterations,
-			Tools:  []string{"system.status", "tools.search", "workflow.wait", "market.snapshot", "market.candles", "market.depth", "portfolio.summary", "broker.orders", "broker.fills", "risk.state", "strategy.pine_spec", "strategy.validate_pine", "strategy.research_backtest", "backtest.runs", "backtest.result_view", "backtest.kline_sync_status", "tasks.create", "tasks.update", "tasks.delete", "tasks.list", "memory.list", "memory.remember", "memory.forget"},
+			Tools:  []string{"system.status", "tools.search", "workflow.wait", "market.snapshot", "market.candles", "market.depth", "watchlist.list", "portfolio.summary", "broker.orders", "broker.fills", "risk.state", "strategy.pine_spec", "strategy.validate_pine", "strategy.research_backtest", "backtest.runs", "backtest.result_view", "backtest.kline_sync_status", "tasks.create", "tasks.update", "tasks.delete", "tasks.list", "memory.list", "memory.remember", "memory.forget"},
 			Skills: []string{"jftrade-market", "jftrade-portfolio", "jftrade-strategy-research"},
 		},
 		{

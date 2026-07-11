@@ -31,6 +31,11 @@ func (b *fakeBackend) Compact(_ context.Context, databaseID string, request Comp
 	return "compact", b.err
 }
 
+func (b *fakeBackend) Backup(_ context.Context, request BackupRequest) (any, error) {
+	b.called["backup"] = request.DatabaseID == "watchlist"
+	return "backup", b.err
+}
+
 func (b *fakeBackend) Rebuild(_ context.Context, request RebuildRequest) (any, error) {
 	b.called["rebuild"] = request.DatabaseID == "strategy" && request.Mode == "single"
 	return "rebuild", b.err
@@ -55,6 +60,9 @@ func TestServiceFallbacks(t *testing.T) {
 	if _, err := svc.Compact(t.Context(), "strategy", CompactRequest{}); err == nil {
 		t.Fatal("Compact fallback succeeded")
 	}
+	if _, err := svc.Backup(t.Context(), BackupRequest{}); err == nil {
+		t.Fatal("Backup fallback succeeded")
+	}
 	if _, err := svc.Rebuild(t.Context(), RebuildRequest{}); err == nil {
 		t.Fatal("Rebuild fallback succeeded")
 	}
@@ -77,10 +85,13 @@ func TestServiceDelegatesTypedRequests(t *testing.T) {
 	if _, err := svc.Compact(ctx, "strategy", CompactRequest{Confirmation: "COMPACT strategy"}); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := svc.Backup(ctx, BackupRequest{DatabaseID: "watchlist"}); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := svc.Rebuild(ctx, RebuildRequest{DatabaseID: "strategy", Mode: "single"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"overview", "preview", "execute", "compact", "rebuild"} {
+	for _, name := range []string{"overview", "preview", "execute", "compact", "backup", "rebuild"} {
 		if !backend.called[name] {
 			t.Fatalf("backend method %s was not called with typed request", name)
 		}

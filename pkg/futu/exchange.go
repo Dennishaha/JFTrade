@@ -477,6 +477,16 @@ func futuMarketCodeFromQotMarket(market qotcommonpb.QotMarket) (string, error) {
 		return "SH", nil
 	case qotcommonpb.QotMarket_QotMarket_CNSZ_Security:
 		return "SZ", nil
+	case qotcommonpb.QotMarket_QotMarket_SG_Security:
+		return "SG", nil
+	case qotcommonpb.QotMarket_QotMarket_JP_Security:
+		return "JP", nil
+	case qotcommonpb.QotMarket_QotMarket_AU_Security:
+		return "AU", nil
+	case qotcommonpb.QotMarket_QotMarket_MY_Security:
+		return "MY", nil
+	case qotcommonpb.QotMarket_QotMarket_CA_Security:
+		return "CA", nil
 	default:
 		return "", fmt.Errorf("unsupported market %q", market.String())
 	}
@@ -510,6 +520,16 @@ func futuQotMarketForCode(market string) (qotcommonpb.QotMarket, error) {
 		return qotcommonpb.QotMarket_QotMarket_CNSH_Security, nil
 	case "SZ", "CNSZ":
 		return qotcommonpb.QotMarket_QotMarket_CNSZ_Security, nil
+	case "SG":
+		return qotcommonpb.QotMarket_QotMarket_SG_Security, nil
+	case "JP":
+		return qotcommonpb.QotMarket_QotMarket_JP_Security, nil
+	case "AU":
+		return qotcommonpb.QotMarket_QotMarket_AU_Security, nil
+	case "MY":
+		return qotcommonpb.QotMarket_QotMarket_MY_Security, nil
+	case "CA":
+		return qotcommonpb.QotMarket_QotMarket_CA_Security, nil
 	default:
 		return qotcommonpb.QotMarket_QotMarket_Unknown, fmt.Errorf("unsupported market %q", market)
 	}

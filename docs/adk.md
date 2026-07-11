@@ -54,7 +54,7 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 当前内置 tools 覆盖：
 
 - 系统：`system.status`、`system.futu_opend`、`plugins.catalog`
-- 行情：`market.subscriptions`、`market.snapshot`、`market.candles`
+- 行情：`market.subscriptions`、`market.snapshot`、`market.candles`、`watchlist.list`
 - 账户：`portfolio.summary`、`account.orders`
 - 工作流：`workflow.wait`
 - 策略：`strategy.definitions`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.research_backtest`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.optimize`
@@ -62,6 +62,8 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 - 外部：`http.fetch`
 
 `http.fetch` 允许公网 HTTP/HTTPS，默认阻止本机、私网、link-local、multicast 和 metadata IP，且限制响应大小。
+
+`watchlist.list` 是只读工具：不指定 group 时返回本地分组摘要，指定 group 后按 market、query、cursor/limit 返回成员、来源和最近导入状态。它默认 `includeQuotes=false`，不会触发券商导入或行情订阅；完整参数和数据边界见 [自选系统](watchlist.md)。
 
 策略内置 skill 已拆分为 `jftrade-strategy-research` 和 `jftrade-strategy-publish`。前者用于临时研究回测与结果查看，不写入策略定义；后者用于用户明确要求的保存、发布、实例模式调整和已保存定义优化。旧的 `jftrade-strategy` 不再作为内置 skill 同步。
 

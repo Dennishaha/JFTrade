@@ -27,9 +27,11 @@ import (
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/internal/settings"
 	exchangecalendarstore "github.com/jftrade/jftrade-main/internal/store/exchangecalendar"
+	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/internal/watchlist"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -66,6 +68,7 @@ type Server struct {
 	backtestRuns             *backtestRunStore
 	backtestSyncTasks        *backtestSyncTaskStore
 	executionOrders          *executionOrderStore
+	watchlistStore           *watchliststore.Store
 	liveWebSocket            *apilive.Handler
 	liveNotifications        *live.ReplayPublisher
 	liveNotificationSink     func(live.Event) live.NotificationDelivery
@@ -90,6 +93,7 @@ type Server struct {
 	backtestSvc              *btsrv.Service
 	strategySvc              *stratsrv.Service
 	marketdataSvc            *mdsrv.Service
+	watchlistSvc             *watchlist.Service
 	tradingSvc               *trdsrv.Service
 	preTradeRiskGateway      trdsrv.PreTradeRiskGateway
 	realTradeControlPlane    *trdsrv.RealTradeControlPlane
@@ -215,6 +219,7 @@ type serverPersistentState struct {
 	designStore         *strategyDesignStore
 	backtestRunStore    *backtestRunStore
 	executionOrderStore *executionOrderStore
+	watchlistStore      *watchliststore.Store
 	auth                *adminAuth
 }
 
@@ -267,6 +272,7 @@ func (b serverBootstrap) loadPersistentState(store SidecarSettingsStore) serverP
 		designStore:         b.loadDesignStore(),
 		backtestRunStore:    b.loadBacktestRunStore(),
 		executionOrderStore: b.loadExecutionOrderStore(store.ExecutionSettings()),
+		watchlistStore:      b.loadWatchlistStore(),
 		auth:                b.loadAdminAuth(),
 	}
 	if state.strategyStore != nil {
@@ -351,6 +357,7 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 		backtestRuns:         state.backtestRunStore,
 		backtestSyncTasks:    newBacktestSyncTaskStore(),
 		executionOrders:      state.executionOrderStore,
+		watchlistStore:       state.watchlistStore,
 		liveNotifications:    live.NewReplayPublisher(),
 		brokers:              broker.NewRegistry(),
 		apiPort:              portFromBind(defaultDevelopmentAPIBind, 3000),
@@ -370,23 +377,6 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 		DepthRefreshInterval:    marketDepthStreamRefreshInterval,
 	})
 	return server
-}
-
-func (s *Server) initializeBootstrapState(store SidecarSettingsStore, bootstrap serverBootstrap, state serverPersistentState) {
-	s.initializeSecurityAndCalendars(store, bootstrap.settingsPath)
-	s.initializeADKRuntime(bootstrap)
-	s.initializeAssistantService()
-	s.strategyRuntimeManager = newStrategyRuntimeManager(s)
-	s.initializeMarketdataRuntime()
-	s.reconcileStrategyRuntimeStates()
-	s.startLiveNotifications()
-	s.initializeRealTradeControl(bootstrap)
-	s.initializeSystemService(bootstrap)
-	s.initializeBacktestService(state)
-	s.initializeStrategyService(state)
-	s.initializeMarketdataService()
-	s.startAssistantWorkflowScheduler()
-	s.initializeRuntimeServices(store)
 }
 
 func (s *Server) initializeSecurityAndCalendars(store SidecarSettingsStore, settingsPath string) {

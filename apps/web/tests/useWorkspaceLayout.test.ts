@@ -143,7 +143,36 @@ describe("useWorkspaceLayout", () => {
     expect(store.prefs.value.symbol).toBe("00700");
     expect(store.prefs.value.period).toBe("1m");
     expect(store.prefs.value.rightDockOpen).toBe(false);
+    expect(store.prefs.value.watchlistSidebarOpen).toBe(true);
+    expect(store.prefs.value.watchlistSidebarWidth).toBe(280);
+    expect(store.prefs.value.watchlistGroupId).toBeNull();
     expect(store.prefs.value.paneSizes.main).toEqual([72, 28]);
+
+    wrapper.unmount();
+  });
+
+  it("persists and clamps the workspace watchlist view state", async () => {
+    const { store, wrapper } = mountLayoutStore();
+
+    store.update({
+      watchlistSidebarOpen: false,
+      watchlistSidebarWidth: 999,
+      watchlistGroupId: "group-growth",
+    });
+    await nextTick();
+
+    expect(store.prefs.value.watchlistSidebarOpen).toBe(false);
+    expect(store.prefs.value.watchlistSidebarWidth).toBe(420);
+    expect(store.prefs.value.watchlistGroupId).toBe("group-growth");
+    expect(
+      JSON.parse(
+        window.localStorage.getItem("jftrade.workspace.view.v1") ?? "{}",
+      ),
+    ).toMatchObject({
+      watchlistSidebarOpen: false,
+      watchlistSidebarWidth: 420,
+      watchlistGroupId: "group-growth",
+    });
 
     wrapper.unmount();
   });

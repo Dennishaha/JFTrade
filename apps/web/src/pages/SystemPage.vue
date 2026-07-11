@@ -159,7 +159,7 @@ const systemTabOptions = [
   { value: "status", label: "状态" },
   { value: "worker-broker", label: "工作进程券商" },
   { value: "real-trade-control", label: "实盘风控与审批硬停止" },
-  { value: "market-data", label: "自选 / 行情数据订阅" },
+  { value: "market-data", label: "行情数据订阅" },
 ] as const;
 
 const systemActiveTab = ref<(typeof systemTabOptions)[number]["value"]>("status");
@@ -946,7 +946,7 @@ function formatRuntimeResourceKind(kind: string): string {
           <v-card flat class="card-shell border-0">
         <div class="flex items-center justify-between gap-3 px-4 pt-4">
           <div>
-            <div class="text-xl font-semibold text-slate-900">自选 / 行情数据订阅</div>
+            <div class="text-xl font-semibold text-slate-900">行情数据订阅</div>
             <div class="mt-1 text-sm text-slate-500">
               系统当前所有活跃行情订阅及配额使用情况。
             </div>

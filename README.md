@@ -125,6 +125,7 @@ npm run generate:docs
 
 - `settings.json`：本地设置
 - `backtest.db`：回测和历史数据相关存储
+- `watchlists.db`：本地多分组自选、券商导入绑定与审计
 - `secrets/admin.key`：本地管理密钥
 
 配置优先级是：环境变量 > `settings.json` > 内置默认值。配置细节见 [docs/configuration.md](docs/configuration.md)，端口和启动排障见 [docs/troubleshooting/startup-ports.md](docs/troubleshooting/startup-ports.md)。
@@ -154,6 +155,7 @@ npm run generate:docs
 - 想构建或排查 Wails 桌面产品：读 [docs/troubleshooting/desktop-release.md](docs/troubleshooting/desktop-release.md)
 - 启动失败、OpenD 连不上、实时行情异常：读 [docs/troubleshooting.md](docs/troubleshooting.md)
 - 想理解模块边界和数据流：读 [docs/architecture.md](docs/architecture.md)
+- 想管理或扩展自选、Futu 分组导入和自选快照：读 [docs/watchlist.md](docs/watchlist.md)
 - 想改 ADK 助手、agent、approval 或工具权限：读 [docs/adk.md](docs/adk.md)
 - 想查 Futu/OpenD、bbgo 或生成接口参考：读 [docs/reference/README.md](docs/reference/README.md)
 
@@ -165,7 +167,7 @@ cmd/jftrade-desktop/       Wails v3 桌面入口与桌面专属服务
 internal/app/apiserver/    后端启动、装配、运行时目录
 internal/desktop/          正式产品系统用户数据目录解析
 internal/api/              /api/v1/*、SSE、WebSocket
-internal/{system,settings,marketdata,trading,strategy,backtest,assistant}/
+internal/{system,settings,marketdata,trading,strategy,backtest,assistant,watchlist}/
                            控制台业务能力
 internal/integration/futu/ 后端内部的 Futu/OpenD 集成
 pkg/futu/                  Futu exchange 适配层

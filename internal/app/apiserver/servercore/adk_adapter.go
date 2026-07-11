@@ -10,6 +10,7 @@ import (
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/internal/watchlist"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
@@ -63,6 +64,7 @@ func (s *Server) baseADKToolDeps() ToolDeps {
 		MarketCandles: func(ctx context.Context, market string, symbol string, period string, limit int) (any, error) {
 			return s.marketCandlesResponseForInstrument(ctx, market, symbol, marketCandlesQuery{Period: candlePeriodValue(period), Limit: newOptionalIntValue(limit)})
 		},
+		WatchlistList:      s.adkWatchlistList,
 		ManagedAccounts:    func() any { return s.store.ManagedAccounts() },
 		BrokerEnabled:      func() bool { return s.futuIntegrationEnabled() },
 		DefaultTradeMarket: func() string { return s.store.Integration().Config.TradeMarket },
@@ -85,6 +87,68 @@ func (s *Server) baseADKToolDeps() ToolDeps {
 		RiskState:  s.adkRiskState,
 		RiskEvents: func() any { return s.sysSvc.RealTradeRiskEvents() },
 	}
+}
+
+func (s *Server) adkWatchlistList(ctx context.Context, input WatchlistListInput) (any, error) {
+	if s == nil || s.watchlistSvc == nil {
+		return nil, fmt.Errorf("watchlist is unavailable")
+	}
+	groups, err := s.watchlistSvc.ListGroups(ctx)
+	if err != nil {
+		return nil, err
+	}
+	recentImports, importErr := s.watchlistSvc.ListImportRuns(ctx, "", "", 10)
+	if importErr != nil {
+		return nil, importErr
+	}
+	if strings.TrimSpace(input.Group) == "" {
+		sources, sourceErr := s.watchlistSvc.ListSources(ctx)
+		if sourceErr != nil {
+			return nil, sourceErr
+		}
+		return map[string]any{
+			"groups": groups, "sources": sources, "recentImports": recentImports.Items,
+			"includeQuotes": false, "checkedAt": nowStringRFC3339Nano(),
+		}, nil
+	}
+	group, ok := resolveADKWatchlistGroup(groups, input.Group)
+	if !ok {
+		return nil, fmt.Errorf("watchlist group %q not found", input.Group)
+	}
+	page, err := s.watchlistSvc.ListItems(ctx, watchlist.ListItemsOptions{
+		GroupID: group.ID, Cursor: input.Cursor, Limit: input.Limit, Query: input.Query, Market: input.Market,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]any{
+		"group": group, "items": page.Items, "nextCursor": page.NextCursor,
+		"recentImports": recentImports.Items, "includeQuotes": input.IncludeQuotes,
+	}
+	if input.IncludeQuotes && len(page.Items) > 0 {
+		instrumentIDs := make([]string, 0, len(page.Items))
+		for _, item := range page.Items {
+			instrumentIDs = append(instrumentIDs, item.ID)
+		}
+		quotes, quoteErr := s.watchlistSvc.BatchQuotes(ctx, instrumentIDs)
+		if quoteErr != nil {
+			return nil, quoteErr
+		}
+		result["quotes"] = quotes.Quotes
+		result["quoteErrors"] = quotes.Errors
+		result["quotesObservedAt"] = quotes.ObservedAt
+	}
+	return result, nil
+}
+
+func resolveADKWatchlistGroup(groups []watchlist.Group, value string) (watchlist.Group, bool) {
+	value = strings.TrimSpace(value)
+	for _, group := range groups {
+		if group.ID == value || strings.EqualFold(group.Name, value) {
+			return group, true
+		}
+	}
+	return watchlist.Group{}, false
 }
 
 func (s *Server) populateADKBrokerToolDeps(deps *ToolDeps) {

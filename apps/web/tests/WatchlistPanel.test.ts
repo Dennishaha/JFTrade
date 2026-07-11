@@ -10,7 +10,7 @@ import { createPinia } from "pinia";
 import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, h } from "vue";
 
-import WatchlistPanel from "../src/components/workspace/WatchlistPanel.vue";
+import WatchlistPanel from "../src/components/workspace/InstrumentOverviewPanel.vue";
 import type { MarketDataSnapshotQueryResult } from "../src/composables/marketDataRealtime";
 import { useMarketProfiles } from "../src/composables/marketProfiles";
 import { provideConsoleDataStore } from "../src/composables/useConsoleData";

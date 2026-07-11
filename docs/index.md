@@ -11,6 +11,7 @@
 - [快速开始](./quick-start.md)：启动开发态、文档站或发布构建。
 - [配置](./configuration.md)：了解运行时目录、管理员密钥、端口绑定和 OpenD 集成。
 - [使用指南](./usage.md)：按控制台功能区进入账户、行情、策略、回测和系统功能。
+- [自选系统](./watchlist.md)：管理多分组收藏、使用工作台自选栏，并从 Futu 预览导入。
 - [排障](./troubleshooting.md)：定位启动、端口、实时连接和 OpenD 问题。
 - [桌面发布与通道隔离](./troubleshooting/desktop-release.md)：运行 `JFTrade Dev`、构建正式产品并理解数据、端口和单实例隔离。
 

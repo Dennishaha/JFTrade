@@ -57,6 +57,7 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, dataManagementServic
 	settings.POST("/data-management/cleanup/preview", handleDataCleanupPreview(dataManagementSvc))
 	settings.POST("/data-management/cleanup/execute", handleDataCleanupExecute(dataManagementSvc))
 	settings.POST("/data-management/databases/:databaseId/compact", handleDatabaseCompact(dataManagementSvc))
+	settings.POST("/data-management/databases/:databaseId/backup", handleDatabaseBackup(dataManagementSvc))
 	settings.POST("/data-management/databases/rebuild", handleDataMigrationRebuild(dataManagementSvc))
 
 	// Exchange Calendars
@@ -151,6 +152,28 @@ func handleDatabaseCompact(svc *dmsrv.Service) gin.HandlerFunc {
 		result, err := svc.Compact(c.Request.Context(), c.Param("databaseId"), input)
 		if err != nil {
 			writeDataManagementError(c, err, "DATABASE_COMPACT_FAILED")
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+// handleDatabaseBackup godoc
+// @Summary 创建本地数据库一致性备份
+// @Tags settings
+// @Produce json
+// @Param databaseId path string true "数据库 ID"
+// @Success 200 {object} httpserver.Envelope{data=datamanagement.BackupResult}
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
+// @Router /api/v1/settings/data-management/databases/{databaseId}/backup [post]
+func handleDatabaseBackup(svc *dmsrv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		result, err := svc.Backup(c.Request.Context(), dmsrv.BackupRequest{
+			DatabaseID: c.Param("databaseId"),
+		})
+		if err != nil {
+			writeDataManagementError(c, err, "DATABASE_BACKUP_FAILED")
 			return
 		}
 		httpserver.WriteOK(c, result)

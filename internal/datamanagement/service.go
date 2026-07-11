@@ -32,6 +32,17 @@ type CompactRequest struct {
 	Confirmation string `json:"confirmation"`
 }
 
+type BackupRequest struct {
+	DatabaseID string `json:"databaseId"`
+}
+
+type BackupResult struct {
+	DatabaseID string `json:"databaseId"`
+	BackupPath string `json:"backupPath"`
+	SizeBytes  int64  `json:"sizeBytes"`
+	CreatedAt  string `json:"createdAt"`
+}
+
 type RebuildRequest struct {
 	DatabaseIDs  []string `json:"databaseIds"`
 	DatabaseID   string   `json:"databaseId"`
@@ -44,6 +55,7 @@ type Backend interface {
 	PreviewCleanup(context.Context, CleanupPreviewRequest) (any, error)
 	ExecuteCleanup(context.Context, CleanupExecuteRequest) (any, error)
 	Compact(context.Context, string, CompactRequest) (any, error)
+	Backup(context.Context, BackupRequest) (any, error)
 	Rebuild(context.Context, RebuildRequest) (any, error)
 }
 
@@ -81,6 +93,13 @@ func (s *Service) Compact(ctx context.Context, databaseID string, request Compac
 		return nil, errors.New("database compaction is unavailable")
 	}
 	return s.backend.Compact(ctx, databaseID, request)
+}
+
+func (s *Service) Backup(ctx context.Context, request BackupRequest) (any, error) {
+	if s == nil || s.backend == nil {
+		return nil, errors.New("database backup is unavailable")
+	}
+	return s.backend.Backup(ctx, request)
 }
 
 func (s *Service) Rebuild(ctx context.Context, request RebuildRequest) (any, error) {
