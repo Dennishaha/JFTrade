@@ -275,16 +275,16 @@ func registerADKStrategyDefinitionTools(registry *jfadk.ToolRegistry, deps ToolD
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.definitions", DisplayName: "策略定义", Description: "读取当前策略定义和策略实例摘要。", Category: "strategy", Permission: "read_internal", OutputSummary: "策略定义、运行实例和数量摘要。"}, func(context.Context, map[string]any) (any, error) {
 		return SummarizeADKStrategyDefinitions(deps.ListStrategyDefinitions(), deps.ListStrategyInstances()), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: strategypinespec.ToolName, DisplayName: "Pine 定义", Description: "读取当前 JFTrade Pine Script v6 的结构化定义、最小骨架、支持清单和示例。", Category: "strategy", Permission: "read_internal", OutputSummary: "JFTrade Pine Script v6 的章节摘要、支持语法与可选示例。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: strategypinespec.ToolName, DisplayName: "Pine 定义", Description: "读取当前 JFTrade Pine Script v6 的结构化定义、最小骨架、支持清单和示例。", Category: "strategy", Permission: "read_internal", OutputSummary: "JFTrade Pine Script v6 的章节摘要、支持语法与可选示例。", RequiredSkill: strategypinespec.ResearchBuiltinSkillName}, func(_ context.Context, input map[string]any) (any, error) {
 		return StrategyPineSpecToolPayload(input)
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.validate_pine", DisplayName: "校验 Pine", Description: "校验 Pine Script v6 是否可被当前 parser、lowerer、planner 和 runtime 接受，并返回结构化元数据、warnings 与 requirements。", Category: "strategy", Permission: "read_internal", OutputSummary: "校验结果、元数据、hooks、warnings、编译后的 requirements，以及失败时的保存提示。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.validate_pine", DisplayName: "校验 Pine", Description: "校验 Pine Script v6 是否可被当前 parser、lowerer、planner 和 runtime 接受，并返回结构化元数据、warnings 与 requirements。", Category: "strategy", Permission: "read_internal", OutputSummary: "校验结果、元数据、hooks、warnings、编译后的 requirements，以及失败时的保存提示。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}}, func(_ context.Context, input map[string]any) (any, error) {
 		return StrategyValidatePineToolPayload(input), nil
 	})
 }
 
 func registerADKStrategyResearchTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.research_backtest", DisplayName: "策略研究回测", Description: "用临时 Pine Script v6 脚本进行研究回测；会先校验脚本并启动临时回测，但不会保存策略草稿或定义。回测运行和结果会保留供后续查询。", Category: "strategy", Permission: "optimize_strategy", RiskLevel: "low", OutputSummary: "临时回测 runId、状态、脚本 hash、校验摘要和可选结果视图。"}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.research_backtest", DisplayName: "策略研究回测", Description: "用临时 Pine Script v6 脚本进行研究回测；会先校验脚本并启动临时回测，但不会保存策略草稿或定义。回测运行和结果会保留供后续查询。", Category: "strategy", Permission: "optimize_strategy", RiskLevel: "low", OutputSummary: "临时回测 runId、状态、脚本 hash、校验摘要和可选结果视图。", RequiredSkill: strategypinespec.ResearchBuiltinSkillName}, func(ctx context.Context, input map[string]any) (any, error) {
 		if deps.StartResearchBacktest == nil {
 			return nil, fmt.Errorf("research backtest is unavailable")
 		}
@@ -359,7 +359,7 @@ func registerADKStrategyResearchTools(registry *jfadk.ToolRegistry, deps ToolDep
 }
 
 func registerADKStrategyWriteTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 Pine Script v6 策略脚本保存为策略定义草稿。", Category: "strategy", Permission: "write_strategy", RiskLevel: "low", OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 Pine Script v6 策略脚本保存为策略定义草稿。", Category: "strategy", Permission: "write_strategy", RiskLevel: "low", OutputSummary: "保存后的策略定义。", RequiredSkill: strategypinespec.PublishBuiltinSkillName}, func(_ context.Context, input map[string]any) (any, error) {
 		script := strings.TrimSpace(stringValue(input, "script"))
 		if script == "" {
 			script = strategypinespec.Skeleton()
@@ -370,7 +370,7 @@ func registerADKStrategyWriteTools(registry *jfadk.ToolRegistry, deps ToolDeps) 
 		}
 		return deps.SaveStrategyDraft(StrategyDraftInput{Name: stringValue(input, "name"), Script: script, Validation: validation})
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_definition", DisplayName: "保存策略定义", Description: "新建或更新 Pine Script v6 策略定义；保存前会强制校验 Pine 并拒绝 JFTrade 暂不支持的执行语义。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义，以及本次是创建还是更新。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_definition", DisplayName: "保存策略定义", Description: "新建或更新 Pine Script v6 策略定义；保存前会强制校验 Pine 并拒绝 JFTrade 暂不支持的执行语义。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义，以及本次是创建还是更新。", RequiredSkill: strategypinespec.PublishBuiltinSkillName}, func(_ context.Context, input map[string]any) (any, error) {
 		name := strings.TrimSpace(stringValue(input, "name"))
 		if name == "" {
 			return nil, fmt.Errorf("name 是必填项")
@@ -389,7 +389,7 @@ func registerADKStrategyWriteTools(registry *jfadk.ToolRegistry, deps ToolDeps) 
 		}
 		return map[string]any{"operation": operation, "definition": saved}, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.update_instance_mode", DisplayName: "修改实例模式", Description: "按 strategy instanceId 修改单个实例的 executionMode，仅允许在实例处于 STOPPED 时执行。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "更新后的策略实例，以及本次实际修改的字段。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.update_instance_mode", DisplayName: "修改实例模式", Description: "按 strategy instanceId 修改单个实例的 executionMode，仅允许在实例处于 STOPPED 时执行。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "更新后的策略实例，以及本次实际修改的字段。", RequiredSkill: strategypinespec.PublishBuiltinSkillName}, func(_ context.Context, input map[string]any) (any, error) {
 		instanceID := strings.TrimSpace(stringValue(input, "instanceId"))
 		if instanceID == "" {
 			return nil, fmt.Errorf("instanceId 是必填项")
@@ -409,10 +409,10 @@ func registerADKStrategyWriteTools(registry *jfadk.ToolRegistry, deps ToolDeps) 
 }
 
 func registerADKBacktestReadTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
-	registry.Register(jfadk.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。"}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}}, func(context.Context, map[string]any) (any, error) {
 		return SummarizeADKBacktestRuns(deps.ListBacktestRuns()), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "backtest.result_view", DisplayName: "回测结果视图", Description: "按 runId 同步读取回测摘要、图表窗口、订单、日志或错误；支持按时间范围、精度和 limit 多次查询。", Category: "strategy", Permission: "read_internal", OutputSummary: "指定回测 run 的轻量摘要或窗口化结果序列。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "backtest.result_view", DisplayName: "回测结果视图", Description: "按 runId 同步读取回测摘要、图表窗口、订单、日志或错误；支持按时间范围、精度和 limit 多次查询。", Category: "strategy", Permission: "read_internal", OutputSummary: "指定回测 run 的轻量摘要或窗口化结果序列。", RequiredSkill: strategypinespec.ResearchBuiltinSkillName}, func(_ context.Context, input map[string]any) (any, error) {
 		if deps.BacktestResultView == nil {
 			return nil, fmt.Errorf("backtest result view is unavailable")
 		}
@@ -422,7 +422,7 @@ func registerADKBacktestReadTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 		}
 		return deps.BacktestResultView(viewInput)
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "backtest.kline_sync_status", DisplayName: "K 线同步状态", Description: "查询回测历史 K 线自动同步任务；可短暂等待任务完成。", Category: "strategy", Permission: "read_internal", RiskLevel: "low", OutputSummary: "K 线同步进度、错误和是否可以重试回测。"}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "backtest.kline_sync_status", DisplayName: "K 线同步状态", Description: "查询回测历史 K 线自动同步任务；可短暂等待任务完成。", Category: "strategy", Permission: "read_internal", RiskLevel: "low", OutputSummary: "K 线同步进度、错误和是否可以重试回测。", RequiredSkills: []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName}}, func(ctx context.Context, input map[string]any) (any, error) {
 		if deps.BacktestKLineSyncProgress == nil {
 			return nil, fmt.Errorf("backtest K-line sync status is unavailable")
 		}
@@ -440,7 +440,7 @@ func registerADKBacktestReadTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 }
 
 func registerADKStrategyOptimizationTools(store *jfadk.Store, registry *jfadk.ToolRegistry, deps ToolDeps) {
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.optimize", DisplayName: "策略优化", Description: "为多个候选策略定义创建真实异步回测任务，并返回任务引用。", Category: "strategy", Permission: "optimize_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "优化任务 ID 与候选回测 Run。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.optimize", DisplayName: "策略优化", Description: "为多个候选策略定义创建真实异步回测任务，并返回任务引用。", Category: "strategy", Permission: "optimize_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "优化任务 ID 与候选回测 Run。", RequiredSkill: strategypinespec.PublishBuiltinSkillName}, func(_ context.Context, input map[string]any) (any, error) {
 		definitionIDs := stringSliceValue(input, "definitionIds")
 		if len(definitionIDs) == 0 {
 			if definitionID := strings.TrimSpace(stringValue(input, "definitionId")); definitionID != "" {

@@ -115,6 +115,15 @@ func WorkflowManagementToolNames() []string {
 	return append([]string(nil), workflowManagementToolNames...)
 }
 
+func builtinSkillAllowsAuthorizedToolSubset(name string) bool {
+	switch strings.TrimSpace(name) {
+	case WorkflowManagementSkillName, strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName:
+		return true
+	default:
+		return false
+	}
+}
+
 func BuiltinSkillIDs() []string {
 	ids := make([]string, 0, len(builtinSkillSpecs))
 	for _, spec := range builtinSkillSpecs {

@@ -38,3 +38,12 @@ func skillActiveInState(state adksession.ReadonlyState, agentName string, skillN
 	active, ok := value.(bool)
 	return ok && active
 }
+
+func anySkillActiveInState(state adksession.ReadonlyState, agentName string, skillNames []string) bool {
+	for _, skillName := range normalizeStringSlice(skillNames) {
+		if skillActiveInState(state, agentName, skillName) {
+			return true
+		}
+	}
+	return false
+}

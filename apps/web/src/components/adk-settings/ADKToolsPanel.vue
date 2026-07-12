@@ -44,6 +44,24 @@ function requiresApprovalText(tool: ADKToolDescriptor | null): string[] {
   return tool.requiresApprovalIn;
 }
 
+function requiredSkillNames(tool: ADKToolDescriptor | null): string[] {
+  const names = [tool?.requiredSkill, ...(tool?.requiredSkills ?? [])]
+    .map((name) => name?.trim() ?? "")
+    .filter((name) => name !== "");
+  return Array.from(new Set(names));
+}
+
+function hasRequiredSkills(tool: ADKToolDescriptor | null): boolean {
+  return requiredSkillNames(tool).length > 0;
+}
+
+function requiredSkillLead(tool: ADKToolDescriptor | null): string {
+  const names = requiredSkillNames(tool);
+  return names.length > 1
+    ? "当前 invocation 必须先加载以下任一 Skill："
+    : "当前 invocation 必须先加载：";
+}
+
 const toolPermissionLabels: Record<string, string> = {
   read: "读取",
   read_internal: "内部读取",
@@ -158,7 +176,7 @@ function toolPermissionColor(permission?: string): string {
               </td>
               <td>
                 <div class="flex justify-center">
-                  <v-chip v-if="tool.requiredSkill" size="x-small" variant="tonal" color="info">
+                  <v-chip v-if="hasRequiredSkills(tool)" size="x-small" variant="tonal" color="info">
                     需加载 Skill
                   </v-chip>
                   <span v-else class="text-body-2 text-medium-emphasis">无</span>
@@ -224,11 +242,25 @@ function toolPermissionColor(permission?: string): string {
               </div>
             </div>
 
-            <div v-if="selectedTool?.requiredSkill" class="rounded border bg-surface p-2 text-high-emphasis">
+            <div v-if="hasRequiredSkills(selectedTool)" class="rounded border bg-surface p-2 text-high-emphasis">
               <div class="text-caption text-medium-emphasis">调用前置 Skill</div>
               <div class="mt-1 text-body-2">
-                当前 invocation 必须先加载
-                {{ selectedTool.requiredSkill }}；下一条用户消息需要重新加载。
+                {{ requiredSkillLead(selectedTool) }}
+              </div>
+              <div class="mt-1 flex flex-wrap gap-1">
+                <v-chip
+                  v-for="skillName in requiredSkillNames(selectedTool)"
+                  :key="skillName"
+                  data-testid="required-skill-tag"
+                  size="x-small"
+                  variant="tonal"
+                  color="info"
+                >
+                  {{ skillName }}
+                </v-chip>
+              </div>
+              <div class="mt-1 text-caption text-medium-emphasis">
+                下一条用户消息需要重新加载。
               </div>
             </div>
 

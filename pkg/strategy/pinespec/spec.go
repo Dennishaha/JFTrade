@@ -19,7 +19,7 @@ const (
 	LegacyBuiltinSkillName   = "jftrade-strategy"
 	ResearchBuiltinSkillName = "jftrade-strategy-research"
 	PublishBuiltinSkillName  = "jftrade-strategy-publish"
-	BuiltinSkillVersion      = "9"
+	BuiltinSkillVersion      = "10"
 )
 
 type Section struct {

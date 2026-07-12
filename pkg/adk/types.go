@@ -351,6 +351,7 @@ type ToolDescriptor struct {
 	OutputSummary      string         `json:"outputSummary,omitempty"`
 	RiskLevel          string         `json:"riskLevel,omitempty"`
 	RequiredSkill      string         `json:"requiredSkill,omitempty"`
+	RequiredSkills     []string       `json:"requiredSkills,omitempty"`
 }
 
 type ChatRequest struct {

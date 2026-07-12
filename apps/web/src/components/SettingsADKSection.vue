@@ -485,6 +485,10 @@ function memoryScopeHint(scope: string): string {
   align-content: start;
 }
 
+.adk-settings-section :deep(.card-shell) {
+  box-shadow: none;
+}
+
 .adk-settings-alert {
   align-self: start;
   width: 100%;

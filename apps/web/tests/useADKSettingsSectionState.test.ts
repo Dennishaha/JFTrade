@@ -199,6 +199,7 @@ describe("useADKSettingsSectionState", () => {
             riskLevel: "critical",
             outputSummary: "已发送到经纪商",
             requiredSkill: "jftrade-workflow-management",
+            requiredSkills: ["jftrade-strategy-research", "jftrade-strategy-publish"],
           }),
         ],
         skills: [
@@ -288,6 +289,12 @@ describe("useADKSettingsSectionState", () => {
     ]);
 
     state.toolSearchQuery.value = "jftrade-workflow-management";
+    await nextTick();
+    expect(state.filteredTools.value.map((tool) => tool.name)).toEqual([
+      "trading.submit_order",
+    ]);
+
+    state.toolSearchQuery.value = "jftrade-strategy-publish";
     await nextTick();
     expect(state.filteredTools.value.map((tool) => tool.name)).toEqual([
       "trading.submit_order",

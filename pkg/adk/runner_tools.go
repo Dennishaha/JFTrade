@@ -132,8 +132,8 @@ func skillAllowedForAgent(
 	if frontmatter == nil {
 		return false
 	}
-	if strings.TrimSpace(frontmatter.Name) == WorkflowManagementSkillName {
-		return workflowManagementSkillAllowedForAgent(frontmatter, allowedTools, registry, mode)
+	if builtinSkillAllowsAuthorizedToolSubset(frontmatter.Name) {
+		return builtinSkillAllowedForAgentSubset(frontmatter, allowedTools, registry, mode)
 	}
 	for _, toolName := range frontmatter.AllowedTools {
 		if registry == nil {
@@ -157,7 +157,7 @@ func skillAllowedForAgent(
 	return true
 }
 
-func workflowManagementSkillAllowedForAgent(
+func builtinSkillAllowedForAgentSubset(
 	frontmatter *adkskill.Frontmatter,
 	allowedTools map[string]struct{},
 	registry *ToolRegistry,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,39 @@ fast =`)
 	}
 	if !strings.Contains(err.Error(), "可以先查询 Pine v6 规范和示例，确认脚本格式正确。也可以从下面这个 JFTrade Pine v6 骨架开始") {
 		t.Fatalf("validateADKStrategyDraftScript() error = %q, want shared skeleton hint", err)
+	}
+}
+
+func TestADKStrategyToolCatalogRequiresExpectedSkills(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	expected := map[string][]string{
+		strategypinespec.ToolName:       {strategypinespec.ResearchBuiltinSkillName},
+		"strategy.validate_pine":        {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
+		"strategy.research_backtest":    {strategypinespec.ResearchBuiltinSkillName},
+		"backtest.result_view":          {strategypinespec.ResearchBuiltinSkillName},
+		"strategy.save_draft":           {strategypinespec.PublishBuiltinSkillName},
+		"strategy.save_definition":      {strategypinespec.PublishBuiltinSkillName},
+		"strategy.update_instance_mode": {strategypinespec.PublishBuiltinSkillName},
+		"strategy.optimize":             {strategypinespec.PublishBuiltinSkillName},
+		"backtest.runs":                 {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
+		"backtest.kline_sync_status":    {strategypinespec.PublishBuiltinSkillName, strategypinespec.ResearchBuiltinSkillName},
+	}
+	for name, want := range expected {
+		tool, ok := server.adkRuntime.Tools().Get(name)
+		if !ok {
+			t.Fatalf("tool %q not registered", name)
+		}
+		if got := jfadk.ToolRequiredSkillNames(tool.Descriptor); !slices.Equal(got, want) {
+			t.Fatalf("tool %q required skills = %q, want %q", name, got, want)
+		}
+	}
+	definitions, ok := server.adkRuntime.Tools().Get("strategy.definitions")
+	if !ok || len(jfadk.ToolRequiredSkillNames(definitions.Descriptor)) != 0 {
+		t.Fatalf("strategy.definitions descriptor = %+v, want ungated", definitions.Descriptor)
 	}
 }
 

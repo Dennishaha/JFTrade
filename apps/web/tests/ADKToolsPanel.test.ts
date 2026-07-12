@@ -77,6 +77,7 @@ describe("ADKToolsPanel", () => {
           outputSummary: "",
           requiresApprovalIn: [],
           requiredSkill: "jftrade-workflow-management",
+          requiredSkills: ["jftrade-strategy-research", "jftrade-strategy-publish"],
           inputSchema: {
             type: "object",
             properties: {
@@ -124,7 +125,12 @@ describe("ADKToolsPanel", () => {
     expect(wrapper.text()).toContain("无额外审批模式限制");
     expect(wrapper.text()).toContain("未提供");
     expect(wrapper.text()).toContain("需加载 Skill");
-    expect(wrapper.text()).toContain("jftrade-workflow-management");
+    expect(wrapper.text()).toContain("当前 invocation 必须先加载以下任一 Skill：");
+    expect(requiredSkillTagTexts(wrapper)).toEqual([
+      "jftrade-workflow-management",
+      "jftrade-strategy-research",
+      "jftrade-strategy-publish",
+    ]);
     expect(wrapper.text()).toContain("下一条用户消息需要重新加载");
     expect(wrapper.text()).toContain('"scope": {');
 
@@ -135,7 +141,87 @@ describe("ADKToolsPanel", () => {
     closeButton?.trigger("click");
     expect(closeToolDetail).toHaveBeenCalled();
   });
+
+  it("renders an any-of Skill requirement when only requiredSkills is provided", async () => {
+    const wrapper = mount(ADKToolsPanel, {
+      props: {
+        tools: [buildTool()],
+        filteredTools: [
+          buildTool({
+            requiredSkills: [
+              "jftrade-strategy-research",
+              "jftrade-strategy-publish",
+            ],
+          }),
+        ],
+        selectedTool: buildTool({
+          requiredSkills: [
+            " jftrade-strategy-research ",
+            "jftrade-strategy-research",
+            "",
+            "jftrade-strategy-publish",
+          ],
+        }),
+        toolCategoryFilter: "",
+        toolCategoryOptions: ["system"],
+        toolRiskFilter: "",
+        toolRiskOptions: ["low"],
+        toolSearchQuery: "",
+        toolDetailDialogOpen: true,
+        preview: previewJSON,
+        formatPermissionMode: formatPermissionMode,
+        riskColor: () => "success",
+        riskLabel: () => "低风险",
+        openToolDetail: vi.fn(),
+        closeToolDetail: vi.fn(),
+      },
+      global: {
+        stubs: {
+          "v-btn": buttonStub,
+          "v-card": { template: "<section><slot /></section>" },
+          "v-card-actions": passthroughStub,
+          "v-card-title": { template: "<div><slot /></div>" },
+          "v-card-text": { template: "<div><slot /></div>" },
+          "v-chip": { template: "<span><slot /></span>" },
+          "v-dialog": dialogStub,
+          "v-form": passthroughStub,
+          "v-select": selectStub,
+          "v-table": passthroughStub,
+          "v-text-field": inputStub,
+          "v-theme-provider": passthroughStub,
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain("需加载 Skill");
+    expect(wrapper.text()).toContain("当前 invocation 必须先加载以下任一 Skill：");
+    expect(requiredSkillTagTexts(wrapper)).toEqual([
+      "jftrade-strategy-research",
+      "jftrade-strategy-publish",
+    ]);
+
+    await wrapper.setProps({
+      filteredTools: [buildTool({ requiredSkill: "jftrade-workflow-management" })],
+      selectedTool: buildTool({ requiredSkill: "jftrade-workflow-management" }),
+    });
+    expect(wrapper.text()).toContain("jftrade-workflow-management");
+    expect(wrapper.text()).toContain("当前 invocation 必须先加载：");
+    expect(wrapper.text()).not.toContain("当前 invocation 必须先加载以下任一 Skill：");
+    expect(requiredSkillTagTexts(wrapper)).toEqual([
+      "jftrade-workflow-management",
+    ]);
+  });
 });
+
+function requiredSkillTagTexts(wrapper: ReturnType<typeof mount>): string[] {
+  return Array.from(
+    new Set(
+      wrapper
+        .findAll('[data-testid="required-skill-tag"]')
+        .map((tag) => tag.text()),
+    ),
+  );
+}
 
 function buildTool(overrides: Record<string, unknown> = {}) {
   return {

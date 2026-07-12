@@ -99,6 +99,24 @@ func ToolInvocationSkillActive(ctx context.Context, skillName string) bool {
 	return ok && skillActiveInState(source.ReadonlyState(), source.AgentName(), skillName)
 }
 
+// ToolInvocationAnySkillActive reports whether any required skill was loaded
+// for the current agent in this invocation.
+func ToolInvocationAnySkillActive(ctx context.Context, skillNames []string) bool {
+	for _, skillName := range normalizeStringSlice(skillNames) {
+		if ToolInvocationSkillActive(ctx, skillName) {
+			return true
+		}
+	}
+	return false
+}
+
+// ToolRequiredSkillNames returns the normalized set of skills that can unlock
+// a tool. RequiredSkill remains the backwards-compatible single-skill field;
+// RequiredSkills is used when any one of multiple skills can unlock a tool.
+func ToolRequiredSkillNames(descriptor ToolDescriptor) []string {
+	return normalizeStringSlice(append([]string{descriptor.RequiredSkill}, descriptor.RequiredSkills...))
+}
+
 type RegisteredTool struct {
 	Descriptor ToolDescriptor
 	Handler    ToolFunc
@@ -153,7 +171,8 @@ func NewToolRegistry() *ToolRegistry {
 			if descriptor.Name == "tools.search" {
 				continue
 			}
-			if descriptor.RequiredSkill != "" && !ToolInvocationSkillActive(ctx, descriptor.RequiredSkill) {
+			requiredSkills := ToolRequiredSkillNames(descriptor)
+			if len(requiredSkills) > 0 && !ToolInvocationAnySkillActive(ctx, requiredSkills) {
 				continue
 			}
 			if category != "" && strings.ToLower(descriptor.Category) != category {
@@ -161,7 +180,7 @@ func NewToolRegistry() *ToolRegistry {
 			}
 			haystack := strings.ToLower(strings.Join([]string{
 				descriptor.Name, descriptor.DisplayName, descriptor.Description, descriptor.Category,
-				descriptor.Permission, descriptor.OutputSummary, descriptor.RiskLevel, descriptor.RequiredSkill,
+				descriptor.Permission, descriptor.OutputSummary, descriptor.RiskLevel, strings.Join(requiredSkills, " "),
 			}, " "))
 			if query != "" && !strings.Contains(haystack, query) {
 				continue
@@ -174,6 +193,9 @@ func NewToolRegistry() *ToolRegistry {
 			}
 			if descriptor.RequiredSkill != "" {
 				item["requiredSkill"] = descriptor.RequiredSkill
+			}
+			if len(requiredSkills) > 0 {
+				item["requiredSkills"] = requiredSkills
 			}
 			matches = append(matches, item)
 			if len(matches) >= limit {
@@ -192,6 +214,7 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 	descriptor.Name = strings.TrimSpace(descriptor.Name)
 	descriptor.Permission = strings.TrimSpace(descriptor.Permission)
 	descriptor.RequiredSkill = strings.TrimSpace(descriptor.RequiredSkill)
+	descriptor.RequiredSkills = normalizeStringSlice(descriptor.RequiredSkills)
 	if len(descriptor.AllowedModes) == 0 {
 		if descriptor.Permission == "live_trading" {
 			descriptor.AllowedModes = []string{PermissionModeAll}

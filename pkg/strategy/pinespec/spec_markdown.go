@@ -31,7 +31,8 @@ func BuildResearchWorkflowMarkdown() string {
 		"4. 返回 `syncing_data` 时调用 `workflow.wait` 和 `backtest.kline_sync_status`；同步 completed 后以完全相同参数重试 `strategy.research_backtest`。",
 		"5. 同步 failed、cancelled 或 insufficient_after_sync 时停止自动重试并说明原因；回测未完成时短等后用 `backtest.result_view` 查询。",
 		"6. 查看结果先用 `view=summary`；查看图表用 `view=chart`、`resolution=auto`、`limit<=1000`，并按需 include candles/trades/pnlCurve/drawdownCurve。",
-		"7. 不要在研究阶段调用保存工具；只有用户明确要求保存或发布时，切换到发布流程。",
+		"7. 仅使用当前已声明且已获授权的工具。不要在研究阶段调用保存或优化工具；只有用户明确要求持久化、发布、实例模式调整或优化已保存定义时，先 `load_skill(jftrade-strategy-publish)` 再交接。",
+		"8. 汇报时说明回测范围、参数、状态和数据限制；未完成时只报告进度。",
 	}, "\n")
 }
 
@@ -40,12 +41,13 @@ func BuildPublishChecklistMarkdown() string {
 		"# 策略发布检查清单",
 		"",
 		"- 用户必须明确要求保存、发布、更新定义、保存草稿、修改实例模式或优化已保存定义。",
+		"- 仅使用当前已声明且已获授权的工具。若仍需验证策略想法或进行临时回测，先 `load_skill(jftrade-strategy-research)`，不要用写入或优化替代研究。",
 		"- 保存前必须调用 `strategy.validate_pine` 并确认校验成功。",
 		"- `strategy.save_definition` 用于明确保存为策略定义；`strategy.save_draft` 只用于明确草稿保存。",
 		"- `strategy.update_instance_mode` 只用于用户点名的具体实例。",
 		"- `strategy.optimize` 只针对已保存定义创建真实异步回测任务，结果用 `backtest.runs` 查看。",
 		"- `strategy.optimize` 返回 `syncing_data` 时用 `backtest.kline_sync_status` 等待，completed 后以相同参数重试；失败或覆盖仍不足时停止。",
-		"- 输出中必须说明写入/优化动作受审批模式控制，不承诺收益。",
+		"- 输出中必须说明实际写入/优化对象、审批状态和后续查询方式；不承诺收益。",
 	}, "\n")
 }
 

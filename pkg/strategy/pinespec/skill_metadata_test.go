@@ -22,8 +22,22 @@ func TestPineSpecSkillMetadataAndResources(t *testing.T) {
 	if ResearchSkillDescription() == "" || !strings.Contains(ResearchSkillInstructions(), "strategy.research_backtest") {
 		t.Fatalf("research skill metadata missing backtest guidance")
 	}
+	if !strings.Contains(ResearchSkillInstructions(), "load_skill(jftrade-strategy-publish)") {
+		t.Fatal("research skill metadata missing publish handoff guidance")
+	}
 	if PublishSkillDescription() == "" || !strings.Contains(PublishSkillInstructions(), "strategy.save_definition") {
 		t.Fatalf("publish skill metadata missing save guidance")
+	}
+	if !strings.Contains(PublishSkillInstructions(), "load_skill(jftrade-strategy-research)") {
+		t.Fatal("publish skill metadata missing research handoff guidance")
+	}
+	if researchWorkflow := BuildResearchWorkflowMarkdown(); !strings.Contains(researchWorkflow, "load_skill(jftrade-strategy-publish)") ||
+		!strings.Contains(researchWorkflow, "未完成时只报告进度") {
+		t.Fatalf("research workflow markdown missing handoff/reporting guidance: %s", researchWorkflow)
+	}
+	if publishChecklist := BuildPublishChecklistMarkdown(); !strings.Contains(publishChecklist, "load_skill(jftrade-strategy-research)") ||
+		!strings.Contains(publishChecklist, "实际写入/优化对象") {
+		t.Fatalf("publish checklist markdown missing research handoff/reporting guidance: %s", publishChecklist)
 	}
 	if tools := ResearchSkillAllowedTools(); len(tools) == 0 || tools[0] != ToolName {
 		t.Fatalf("research allowed tools = %#v", tools)

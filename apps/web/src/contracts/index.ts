@@ -334,6 +334,7 @@ export interface ADKToolDescriptor {
   outputSummary?: string;
   riskLevel?: "low" | "medium" | "high" | "critical" | string;
   requiredSkill?: string;
+  requiredSkills?: string[];
 }
 
 export interface ADKSkill {
