@@ -350,6 +350,7 @@ type ToolDescriptor struct {
 	InputSchema        map[string]any `json:"inputSchema,omitempty"`
 	OutputSummary      string         `json:"outputSummary,omitempty"`
 	RiskLevel          string         `json:"riskLevel,omitempty"`
+	RequiredSkill      string         `json:"requiredSkill,omitempty"`
 }
 
 type ChatRequest struct {

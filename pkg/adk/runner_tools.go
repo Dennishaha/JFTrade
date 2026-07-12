@@ -24,6 +24,7 @@ type googleADKTool struct {
 	descriptor ToolDescriptor
 	registered RegisteredTool
 	tool       googleADKRunnableTool
+	agent      Agent
 }
 
 type googleADKRunnableTool interface {
@@ -59,13 +60,14 @@ func (r *Runtime) googleADKToolsets(ctx context.Context, definition Agent) ([]ad
 			}
 			return false
 		})
-		toolsets = append(toolsets, adktool.WithConfirmation(filtered, false, func(toolName string, _ any) bool {
+		confirmed := adktool.WithConfirmation(filtered, false, func(toolName string, _ any) bool {
 			registered, ok := r.tools.Get(toolName)
 			if !ok {
 				return false
 			}
 			return ToolRequiresApproval(registered.Descriptor, definition.PermissionMode)
-		}))
+		})
+		toolsets = append(toolsets, newGoogleADKSkillGatedToolset(confirmed, ToolDescriptorsForAgent(definition, r.tools)))
 	}
 	if definition.MemoryEnabled && r.memoryService != nil {
 		toolsets = append(toolsets, googleADKStaticToolset{name: "jftrade-adk-memory-tools", tools: []adktool.Tool{preloadmemorytool.New(), loadmemorytool.New()}})
@@ -130,6 +132,9 @@ func skillAllowedForAgent(
 	if frontmatter == nil {
 		return false
 	}
+	if strings.TrimSpace(frontmatter.Name) == WorkflowManagementSkillName {
+		return workflowManagementSkillAllowedForAgent(frontmatter, allowedTools, registry, mode)
+	}
 	for _, toolName := range frontmatter.AllowedTools {
 		if registry == nil {
 			return false
@@ -150,6 +155,31 @@ func skillAllowedForAgent(
 		}
 	}
 	return true
+}
+
+func workflowManagementSkillAllowedForAgent(
+	frontmatter *adkskill.Frontmatter,
+	allowedTools map[string]struct{},
+	registry *ToolRegistry,
+	mode string,
+) bool {
+	if frontmatter == nil || registry == nil {
+		return false
+	}
+	for _, toolName := range frontmatter.AllowedTools {
+		canonical, ok := registry.CanonicalName(toolName)
+		if !ok {
+			continue
+		}
+		registered, ok := registry.Get(canonical)
+		if !ok || !ToolAllowedInMode(registered.Descriptor, mode) {
+			continue
+		}
+		if _, ok := allowedTools[canonical]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 type agentFilteredSkillSource struct {
@@ -219,6 +249,7 @@ func (r *Runtime) googleADKProductToolset(definition Agent) (adktool.Toolset, er
 		if err != nil {
 			return nil, err
 		}
+		tool.agent = definition
 		tools = append(tools, tool)
 	}
 	return &googleADKProductToolset{name: "jftrade-tools", tools: tools}, nil
@@ -345,13 +376,26 @@ func (t *googleADKTool) Declaration() *genai.FunctionDeclaration {
 }
 
 func (t *googleADKTool) ProcessRequest(ctx adkagent.Context, req *adkmodel.LLMRequest) error {
+	return packGoogleADKTool(req, t)
+}
+
+type googleADKDeclaredRunnableTool interface {
+	adktool.Tool
+	Declaration() *genai.FunctionDeclaration
+	Run(adkagent.Context, any) (map[string]any, error)
+}
+
+func packGoogleADKTool(req *adkmodel.LLMRequest, tool googleADKDeclaredRunnableTool) error {
+	if req == nil || tool == nil {
+		return fmt.Errorf("GO-ADK tool request is unavailable")
+	}
 	if req.Tools == nil {
 		req.Tools = make(map[string]any)
 	}
-	if _, exists := req.Tools[t.Name()]; exists {
-		return fmt.Errorf("duplicate tool: %q", t.Name())
+	if _, exists := req.Tools[tool.Name()]; exists {
+		return fmt.Errorf("duplicate tool: %q", tool.Name())
 	}
-	req.Tools[t.Name()] = t
+	req.Tools[tool.Name()] = tool
 	if req.Config == nil {
 		req.Config = &genai.GenerateContentConfig{}
 	}
@@ -364,12 +408,11 @@ func (t *googleADKTool) ProcessRequest(ctx adkagent.Context, req *adkmodel.LLMRe
 	}
 	if functionTools == nil {
 		req.Config.Tools = append(req.Config.Tools, &genai.Tool{
-			FunctionDeclarations: []*genai.FunctionDeclaration{t.Declaration()},
+			FunctionDeclarations: []*genai.FunctionDeclaration{tool.Declaration()},
 		})
 	} else {
-		functionTools.FunctionDeclarations = append(functionTools.FunctionDeclarations, t.Declaration())
+		functionTools.FunctionDeclarations = append(functionTools.FunctionDeclarations, tool.Declaration())
 	}
-	_ = ctx
 	return nil
 }
 
@@ -381,7 +424,9 @@ func (t *googleADKTool) Run(ctx adkagent.Context, args any) (map[string]any, err
 }
 
 func (t *googleADKTool) run(ctx adkagent.Context, input map[string]any) (map[string]any, error) {
-	output, execErr := executeRegisteredTool(ctx, t.registered, input)
+	toolCtx := contextWithToolInvocationMetadata(ctx)
+	toolCtx = contextWithToolAgent(toolCtx, t.agent)
+	output, execErr := executeRegisteredTool(toolCtx, t.registered, input)
 	if execErr != nil {
 		if errors.Is(execErr, adktool.ErrConfirmationRequired) || errors.Is(execErr, adktool.ErrConfirmationRejected) {
 			return nil, execErr

@@ -45,6 +45,13 @@ type WorkflowInvocationResult struct {
 	Response *jfadk.ChatResponse      `json:"response,omitempty"`
 }
 
+type WorkflowStartResult struct {
+	Accepted bool                     `json:"accepted"`
+	Workflow jfadk.WorkflowDefinition `json:"workflow"`
+	Trigger  *jfadk.WorkflowTrigger   `json:"trigger,omitempty"`
+	Log      jfadk.WorkflowTriggerLog `json:"log"`
+}
+
 type WorkflowScheduler struct {
 	service  *Service
 	interval time.Duration
@@ -215,6 +222,24 @@ func (s *Service) ListWorkflowTriggers(ctx context.Context, workflowID string) (
 	return triggers, nil
 }
 
+func (s *Service) GetWorkflowTrigger(ctx context.Context, workflowID string, triggerID string) (jfadk.WorkflowTrigger, error) {
+	store, err := s.workflowStore()
+	if err != nil {
+		return jfadk.WorkflowTrigger{}, err
+	}
+	if _, err := s.GetWorkflow(ctx, workflowID); err != nil {
+		return jfadk.WorkflowTrigger{}, err
+	}
+	trigger, ok, err := store.WorkflowTrigger(ctx, triggerID)
+	if err != nil {
+		return jfadk.WorkflowTrigger{}, err
+	}
+	if !ok || trigger.WorkflowID != strings.TrimSpace(workflowID) || trigger.DeletedAt != nil {
+		return jfadk.WorkflowTrigger{}, fmt.Errorf("workflow trigger not found")
+	}
+	return sanitizeWorkflowTrigger(trigger), nil
+}
+
 func (s *Service) SaveWorkflowTrigger(ctx context.Context, workflowID string, triggerID string, payload jfadk.WorkflowTriggerWriteRequest) (WorkflowTriggerSaveResult, error) {
 	store, err := s.workflowStore()
 	if err != nil {
@@ -302,12 +327,35 @@ func (s *Service) ListWorkflowTriggerLogs(ctx context.Context, query WorkflowTri
 	return Page[jfadk.WorkflowTriggerLog]{Items: items, Total: total, Limit: limit, Offset: offset}, nil
 }
 
+func (s *Service) GetWorkflowTriggerLog(ctx context.Context, logID string) (jfadk.WorkflowTriggerLog, error) {
+	store, err := s.workflowStore()
+	if err != nil {
+		return jfadk.WorkflowTriggerLog{}, err
+	}
+	log, ok, err := store.WorkflowTriggerLog(ctx, strings.TrimSpace(logID))
+	if err != nil {
+		return jfadk.WorkflowTriggerLog{}, err
+	}
+	if !ok {
+		return jfadk.WorkflowTriggerLog{}, fmt.Errorf("workflow run not found")
+	}
+	return log, nil
+}
+
 func (s *Service) RunWorkflow(ctx context.Context, workflowID string, inputs map[string]any) (WorkflowInvocationResult, error) {
 	workflow, err := s.GetWorkflow(ctx, workflowID)
 	if err != nil {
 		return WorkflowInvocationResult{}, err
 	}
 	return s.invokeWorkflow(ctx, workflow, nil, jfadk.WorkflowTriggerTypeManual, inputs, nil)
+}
+
+func (s *Service) StartWorkflow(ctx context.Context, workflowID string, inputs map[string]any) (WorkflowStartResult, error) {
+	workflow, err := s.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return WorkflowStartResult{}, err
+	}
+	return s.startWorkflowAsync(ctx, workflow, nil, jfadk.WorkflowTriggerTypeManual, inputs, nil)
 }
 
 func (s *Service) RunWorkflowTrigger(ctx context.Context, triggerID string, inputs map[string]any) (WorkflowInvocationResult, error) {
@@ -327,6 +375,25 @@ func (s *Service) RunWorkflowTrigger(ctx context.Context, triggerID string, inpu
 		return WorkflowInvocationResult{}, err
 	}
 	return s.invokeWorkflow(ctx, workflow, &trigger, trigger.Type, inputs, nil)
+}
+
+func (s *Service) StartWorkflowTrigger(ctx context.Context, triggerID string, inputs map[string]any) (WorkflowStartResult, error) {
+	store, err := s.workflowStore()
+	if err != nil {
+		return WorkflowStartResult{}, err
+	}
+	trigger, ok, err := store.WorkflowTrigger(ctx, triggerID)
+	if err != nil {
+		return WorkflowStartResult{}, err
+	}
+	if !ok || trigger.DeletedAt != nil {
+		return WorkflowStartResult{}, fmt.Errorf("workflow trigger not found")
+	}
+	workflow, err := s.GetWorkflow(ctx, trigger.WorkflowID)
+	if err != nil {
+		return WorkflowStartResult{}, err
+	}
+	return s.startWorkflowAsync(ctx, workflow, &trigger, trigger.Type, inputs, nil)
 }
 
 func (s *Service) RunWorkflowWebhook(ctx context.Context, triggerID string, secret string, inputs map[string]any) (WorkflowInvocationResult, error) {
@@ -445,13 +512,55 @@ type workflowInvocationStore interface {
 }
 
 func (s *Service) invokeWorkflowWithStore(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, triggerType string, inputs map[string]any, matchedEvent map[string]any) (WorkflowInvocationResult, error) {
-	if err := validateWorkflowInvocation(workflow, trigger); err != nil {
-		return WorkflowInvocationResult{}, err
+	prepared, accepted, err := prepareWorkflowInvocation(ctx, store, workflow, trigger, triggerType, inputs, matchedEvent)
+	if err != nil || !accepted {
+		return prepared, err
 	}
-	if result, handled, err := invokeWorkflowActiveTriggerGuard(ctx, store, workflow, trigger, inputs, matchedEvent); handled || err != nil {
+	return s.executeQueuedWorkflowInvocation(ctx, store, workflow, trigger, inputs, matchedEvent, prepared.Log)
+}
+
+func (s *Service) startWorkflowAsync(ctx context.Context, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, triggerType string, inputs map[string]any, matchedEvent map[string]any) (WorkflowStartResult, error) {
+	store, err := s.workflowStore()
+	if err != nil {
+		return WorkflowStartResult{}, err
+	}
+	prepared, accepted, err := prepareWorkflowInvocation(ctx, store, workflow, trigger, triggerType, inputs, matchedEvent)
+	result := WorkflowStartResult{
+		Accepted: accepted,
+		Workflow: prepared.Workflow,
+		Trigger:  prepared.Trigger,
+		Log:      prepared.Log,
+	}
+	if err != nil || !accepted {
 		return result, err
 	}
-	log, started, err := startWorkflowInvocationLog(ctx, store, workflow, trigger, triggerType, inputs, matchedEvent)
+	workflowInputs := cloneMap(inputs)
+	matched := cloneMap(matchedEvent)
+	var triggerCopy *jfadk.WorkflowTrigger
+	if trigger != nil {
+		copyValue := *trigger
+		triggerCopy = &copyValue
+	}
+	go s.executeQueuedWorkflowBackground(context.WithoutCancel(ctx), store, workflow, triggerCopy, workflowInputs, matched, prepared.Log)
+	return result, nil
+}
+
+func prepareWorkflowInvocation(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, triggerType string, inputs map[string]any, matchedEvent map[string]any) (WorkflowInvocationResult, bool, error) {
+	if err := validateWorkflowInvocation(workflow, trigger); err != nil {
+		return WorkflowInvocationResult{}, false, err
+	}
+	if result, handled, err := invokeWorkflowActiveTriggerGuard(ctx, store, workflow, trigger, inputs, matchedEvent); handled || err != nil {
+		return result, false, err
+	}
+	log, err := queueWorkflowInvocationLog(ctx, store, workflow, trigger, triggerType, inputs, matchedEvent)
+	if err != nil {
+		return WorkflowInvocationResult{}, false, err
+	}
+	return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTriggerPtr(trigger), Log: log}, true, nil
+}
+
+func (s *Service) executeQueuedWorkflowInvocation(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any, log jfadk.WorkflowTriggerLog) (WorkflowInvocationResult, error) {
+	log, started, err := markWorkflowInvocationRunning(ctx, store, workflow, trigger, inputs, matchedEvent, log)
 	if err != nil {
 		return WorkflowInvocationResult{}, err
 	}
@@ -479,6 +588,27 @@ func (s *Service) invokeWorkflowWithStore(ctx context.Context, store workflowInv
 	}
 	s.updateTriggerAfterRun(ctx, trigger, normalized.Run.ID, log.Error)
 	return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTriggerPtr(trigger), Log: log, Response: &normalized}, nil
+}
+
+func (s *Service) executeQueuedWorkflowBackground(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any, log jfadk.WorkflowTriggerLog) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			s.finishQueuedWorkflowBackgroundFailure(store, workflow, trigger, inputs, matchedEvent, log, fmt.Errorf("workflow background panic: %v", recovered))
+		}
+	}()
+	result, err := s.executeQueuedWorkflowInvocation(ctx, store, workflow, trigger, inputs, matchedEvent, log)
+	if err != nil && result.Log.Status != jfadk.WorkflowTriggerLogStatusFailed {
+		s.finishQueuedWorkflowBackgroundFailure(store, workflow, trigger, inputs, matchedEvent, log, err)
+	}
+}
+
+func (s *Service) finishQueuedWorkflowBackgroundFailure(store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any, log jfadk.WorkflowTriggerLog, cause error) {
+	cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cleanupCancel()
+	_, _ = s.failWorkflowInvocation(cleanupCtx, store, workflow, trigger, inputs, matchedEvent, log, "", "", "", log.SessionID, cause, true)
 }
 
 func validateWorkflowInvocation(workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger) error {
@@ -520,7 +650,7 @@ func invokeWorkflowActiveTriggerGuard(ctx context.Context, store workflowInvocat
 	return WorkflowInvocationResult{Workflow: workflow, Trigger: newSanitizedTrigger(*trigger), Log: log}, true, nil
 }
 
-func startWorkflowInvocationLog(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, triggerType string, inputs map[string]any, matchedEvent map[string]any) (jfadk.WorkflowTriggerLog, string, error) {
+func queueWorkflowInvocationLog(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, triggerType string, inputs map[string]any, matchedEvent map[string]any) (jfadk.WorkflowTriggerLog, error) {
 	log, err := store.SaveWorkflowTriggerLog(ctx, jfadk.WorkflowTriggerLog{
 		WorkflowID:   workflow.ID,
 		TriggerID:    triggerID(trigger),
@@ -530,13 +660,17 @@ func startWorkflowInvocationLog(ctx context.Context, store workflowInvocationSto
 		MatchedEvent: cloneMap(matchedEvent),
 	})
 	if err != nil {
-		return jfadk.WorkflowTriggerLog{}, "", err
+		return jfadk.WorkflowTriggerLog{}, err
 	}
+	return log, nil
+}
+
+func markWorkflowInvocationRunning(ctx context.Context, store workflowInvocationStore, workflow jfadk.WorkflowDefinition, trigger *jfadk.WorkflowTrigger, inputs map[string]any, matchedEvent map[string]any, log jfadk.WorkflowTriggerLog) (jfadk.WorkflowTriggerLog, string, error) {
 	started := time.Now().UTC().Format(time.RFC3339Nano)
 	log.Status = jfadk.WorkflowTriggerLogStatusRunning
 	log.StartedAt = started
 	log.NodeRuns = workflowNodeRuns(workflow, trigger, log.TriggerType, inputs, matchedEvent, "", "", nil, log.Status, "", started, "")
-	log, err = store.SaveWorkflowTriggerLog(ctx, log)
+	log, err := store.SaveWorkflowTriggerLog(ctx, log)
 	if err != nil {
 		return jfadk.WorkflowTriggerLog{}, "", err
 	}

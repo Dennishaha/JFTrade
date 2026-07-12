@@ -118,6 +118,9 @@ function handleToolCardKeydown(event: KeyboardEvent, toolName: string): void {
               >
                 {{ riskLabel(tool.riskLevel) }}
               </v-chip>
+              <v-chip v-if="tool.requiredSkill" size="x-small" variant="tonal" color="info">
+                需加载 Skill
+              </v-chip>
             </div>
             <div class="mt-1 text-xs text-slate-500">
               权限：{{ tool.permission }}
@@ -171,6 +174,17 @@ function handleToolCardKeydown(event: KeyboardEvent, toolName: string): void {
           <div class="adk-tool-detail-card rounded border p-3">
             <div class="adk-tool-detail-label text-xs font-medium">描述</div>
             <div class="adk-tool-detail-muted mt-1 text-sm">{{ selectedTool?.description ?? "-" }}</div>
+          </div>
+
+          <div
+            v-if="selectedTool?.requiredSkill"
+            class="adk-tool-detail-card rounded border p-3"
+          >
+            <div class="adk-tool-detail-label text-xs font-medium">调用前置 Skill</div>
+            <div class="adk-tool-detail-muted mt-1 text-sm">
+              当前 invocation 必须先加载
+              {{ selectedTool.requiredSkill }}；下一条用户消息需要重新加载。
+            </div>
           </div>
 
           <div class="grid gap-3 md:grid-cols-3">

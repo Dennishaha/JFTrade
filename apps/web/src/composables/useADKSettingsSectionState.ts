@@ -137,6 +137,7 @@ export function useADKSettingsSectionState() {
           tool.category,
           tool.permission,
           tool.outputSummary ?? "",
+          tool.requiredSkill ?? "",
         ]
           .join(" ")
           .toLowerCase();

@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	adksession "google.golang.org/adk/v2/session"
 )
 
 type ToolFunc func(context.Context, map[string]any) (any, error)
@@ -16,6 +18,15 @@ type toolContextKey string
 
 const toolContextAgentKey toolContextKey = "adkToolAgent"
 
+const toolContextSessionIDKey toolContextKey = "adkToolSessionID"
+
+const toolContextSkillActivationKey toolContextKey = "adkToolSkillActivation"
+
+type toolInvocationSkillActivation struct {
+	agentName string
+	state     adksession.ReadonlyState
+}
+
 func contextWithToolAgent(ctx context.Context, agent Agent) context.Context {
 	return context.WithValue(ctx, toolContextAgentKey, agent)
 }
@@ -23,6 +34,69 @@ func contextWithToolAgent(ctx context.Context, agent Agent) context.Context {
 func toolAgentFromContext(ctx context.Context) (Agent, bool) {
 	agent, ok := ctx.Value(toolContextAgentKey).(Agent)
 	return agent, ok
+}
+
+// ToolInvocationSessionID returns the product session associated with an ADK
+// tool call. The value is copied out of the GO-ADK context before the generic
+// tool timeout wrapper hides its extended context methods.
+func ToolInvocationSessionID(ctx context.Context) (string, bool) {
+	if ctx == nil {
+		return "", false
+	}
+	sessionID, ok := ctx.Value(toolContextSessionIDKey).(string)
+	sessionID = strings.TrimSpace(sessionID)
+	if ok && sessionID != "" {
+		return sessionID, true
+	}
+	if source, sourceOK := ctx.(interface{ SessionID() string }); sourceOK {
+		sessionID = strings.TrimSpace(source.SessionID())
+		return sessionID, sessionID != ""
+	}
+	return "", false
+}
+
+func contextWithToolInvocationMetadata(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	out := ctx
+	if sessionID, ok := ctx.Value(toolContextSessionIDKey).(string); !ok || strings.TrimSpace(sessionID) == "" {
+		if source, sourceOK := ctx.(interface{ SessionID() string }); sourceOK {
+			if sessionID = strings.TrimSpace(source.SessionID()); sessionID != "" {
+				out = context.WithValue(out, toolContextSessionIDKey, sessionID)
+			}
+		}
+	}
+	if _, ok := ctx.Value(toolContextSkillActivationKey).(toolInvocationSkillActivation); !ok {
+		if source, sourceOK := ctx.(interface {
+			AgentName() string
+			ReadonlyState() adksession.ReadonlyState
+		}); sourceOK && source.ReadonlyState() != nil {
+			activation := toolInvocationSkillActivation{
+				agentName: strings.TrimSpace(source.AgentName()),
+				state:     source.ReadonlyState(),
+			}
+			out = context.WithValue(out, toolContextSkillActivationKey, activation)
+		}
+	}
+	return out
+}
+
+// ToolInvocationSkillActive reports whether a skill was loaded for the
+// current agent in this invocation. The state projection survives the generic
+// tool timeout wrapper, which otherwise hides GO-ADK's extended context API.
+func ToolInvocationSkillActive(ctx context.Context, skillName string) bool {
+	if ctx == nil {
+		return false
+	}
+	if activation, ok := ctx.Value(toolContextSkillActivationKey).(toolInvocationSkillActivation); ok {
+		return skillActiveInState(activation.state, activation.agentName, skillName)
+	}
+	source, ok := ctx.(interface {
+		AgentName() string
+		ReadonlyState() adksession.ReadonlyState
+	})
+	return ok && skillActiveInState(source.ReadonlyState(), source.AgentName(), skillName)
 }
 
 type RegisteredTool struct {
@@ -79,22 +153,29 @@ func NewToolRegistry() *ToolRegistry {
 			if descriptor.Name == "tools.search" {
 				continue
 			}
+			if descriptor.RequiredSkill != "" && !ToolInvocationSkillActive(ctx, descriptor.RequiredSkill) {
+				continue
+			}
 			if category != "" && strings.ToLower(descriptor.Category) != category {
 				continue
 			}
 			haystack := strings.ToLower(strings.Join([]string{
 				descriptor.Name, descriptor.DisplayName, descriptor.Description, descriptor.Category,
-				descriptor.Permission, descriptor.OutputSummary, descriptor.RiskLevel,
+				descriptor.Permission, descriptor.OutputSummary, descriptor.RiskLevel, descriptor.RequiredSkill,
 			}, " "))
 			if query != "" && !strings.Contains(haystack, query) {
 				continue
 			}
-			matches = append(matches, map[string]any{
+			item := map[string]any{
 				"name": descriptor.Name, "displayName": descriptor.DisplayName, "category": descriptor.Category,
 				"permission": descriptor.Permission, "riskLevel": descriptor.RiskLevel, "description": descriptor.Description,
 				"inputSchema": descriptor.InputSchema, "outputSummary": descriptor.OutputSummary,
 				"requiresApprovalIn": descriptor.RequiresApprovalIn,
-			})
+			}
+			if descriptor.RequiredSkill != "" {
+				item["requiredSkill"] = descriptor.RequiredSkill
+			}
+			matches = append(matches, item)
 			if len(matches) >= limit {
 				break
 			}
@@ -110,6 +191,7 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 	}
 	descriptor.Name = strings.TrimSpace(descriptor.Name)
 	descriptor.Permission = strings.TrimSpace(descriptor.Permission)
+	descriptor.RequiredSkill = strings.TrimSpace(descriptor.RequiredSkill)
 	if len(descriptor.AllowedModes) == 0 {
 		if descriptor.Permission == "live_trading" {
 			descriptor.AllowedModes = []string{PermissionModeAll}
@@ -279,6 +361,7 @@ func finishToolCall(call *ToolCall) {
 }
 
 func executeRegisteredTool(ctx context.Context, registered RegisteredTool, input map[string]any) (output any, err error) {
+	ctx = contextWithToolInvocationMetadata(ctx)
 	toolCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	type result struct {

@@ -3,6 +3,7 @@ package adk
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	adkagent "google.golang.org/adk/v2/agent"
 	adkmodel "google.golang.org/adk/v2/model"
@@ -90,6 +91,15 @@ func (e *googleADKExecution) afterToolCallback(
 	result map[string]any,
 	err error,
 ) (map[string]any, error) {
+	if err == nil && tool != nil && tool.Name() == "load_skill" {
+		skillName, _ := result["skill_name"].(string)
+		skillName = strings.TrimSpace(skillName)
+		if skillName != "" {
+			if activationErr := activateSkill(ctx.State(), ctx.AgentName(), skillName); activationErr != nil {
+				return nil, fmt.Errorf("activate loaded skill %q: %w", skillName, activationErr)
+			}
+		}
+	}
 	descriptor, ok := e.descriptorForTool(tool)
 	if !ok {
 		return nil, nil

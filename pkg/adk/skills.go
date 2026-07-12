@@ -33,6 +33,21 @@ type builtinSkillSpec struct {
 
 var builtinSkillSpecs = []builtinSkillSpec{
 	{
+		Name: WorkflowManagementSkillName,
+		BuildBundle: func() (map[string]string, error) {
+			return buildSingleFileBuiltinSkill(
+				WorkflowManagementSkillName,
+				"管理 JFTrade ADK 工作流、触发器和运行记录；只有加载本 Skill 后才会提供对应工具。",
+				"先使用 list/get 工具读取当前状态，再执行创建、补丁更新、删除或运行。"+
+					"update 只修改显式提供的字段；空字符串、空数组或空对象表示清空可选字段，clearCanvasGraph=true 用于清除画布。"+
+					"工作流运行是异步的；启动后使用 workflow_runs.get 或 workflow_runs.list 查询状态，必要时用 workflow.wait 短暂等待后再次轮询。"+
+					"不得通过工具创建 Webhook、读取或重置 Webhook secret。不得从工作流来源会话再次启动工作流。",
+				WorkflowManagementToolNames(),
+				"1",
+			)
+		},
+	},
+	{
 		Name: "jftrade-market",
 		BuildBundle: func() (map[string]string, error) {
 			return buildSingleFileBuiltinSkill(
@@ -84,6 +99,20 @@ var builtinSkillSpecs = []builtinSkillSpec{
 			)
 		},
 	},
+}
+
+const WorkflowManagementSkillName = "jftrade-workflow-management"
+
+var workflowManagementToolNames = []string{
+	"workflows.list", "workflows.get", "workflows.create", "workflows.update", "workflows.delete", "workflows.run",
+	"workflow_triggers.list", "workflow_triggers.get", "workflow_triggers.create", "workflow_triggers.update", "workflow_triggers.delete", "workflow_triggers.run",
+	"workflow_runs.list", "workflow_runs.get",
+}
+
+// WorkflowManagementToolNames returns the tools unlocked by the builtin
+// workflow-management skill.
+func WorkflowManagementToolNames() []string {
+	return append([]string(nil), workflowManagementToolNames...)
 }
 
 func BuiltinSkillIDs() []string {

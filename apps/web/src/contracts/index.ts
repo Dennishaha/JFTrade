@@ -333,6 +333,7 @@ export interface ADKToolDescriptor {
   inputSchema?: Record<string, unknown>;
   outputSummary?: string;
   riskLevel?: "low" | "medium" | "high" | "critical" | string;
+  requiredSkill?: string;
 }
 
 export interface ADKSkill {

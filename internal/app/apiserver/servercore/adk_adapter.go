@@ -31,6 +31,7 @@ func newADKRuntime(server *Server, settingsPath string) *jfadk.Runtime {
 
 func (s *Server) adkToolDeps() ToolDeps {
 	deps := s.baseADKToolDeps()
+	deps.Workflows = assistantWorkflowToolManager{server: s}
 	s.populateADKBrokerToolDeps(&deps)
 	s.populateADKStrategyToolDeps(&deps)
 	s.populateADKBacktestToolDeps(&deps)
@@ -40,6 +41,118 @@ func (s *Server) adkToolDeps() ToolDeps {
 		}
 	}
 	return deps
+}
+
+type assistantWorkflowToolManager struct {
+	server *Server
+}
+
+func (m assistantWorkflowToolManager) service() (*asst.Service, error) {
+	if m.server == nil || m.server.assistantSvc == nil || !m.server.assistantSvc.Available() {
+		return nil, fmt.Errorf("workflow management is unavailable")
+	}
+	return m.server.assistantSvc, nil
+}
+
+func (m assistantWorkflowToolManager) ListWorkflows(ctx context.Context, status string, limit int, offset int) (WorkflowToolPage[jfadk.WorkflowDefinition], error) {
+	service, err := m.service()
+	if err != nil {
+		return WorkflowToolPage[jfadk.WorkflowDefinition]{}, err
+	}
+	page, err := service.ListWorkflows(ctx, asst.WorkflowQuery{Status: status, Limit: limit, Offset: offset})
+	return WorkflowToolPage[jfadk.WorkflowDefinition]{Items: page.Items, Total: page.Total, Limit: page.Limit, Offset: page.Offset}, err
+}
+
+func (m assistantWorkflowToolManager) GetWorkflow(ctx context.Context, workflowID string) (jfadk.WorkflowDefinition, error) {
+	service, err := m.service()
+	if err != nil {
+		return jfadk.WorkflowDefinition{}, err
+	}
+	return service.GetWorkflow(ctx, workflowID)
+}
+
+func (m assistantWorkflowToolManager) SaveWorkflow(ctx context.Context, workflowID string, payload jfadk.WorkflowDefinitionWriteRequest) (jfadk.WorkflowDefinition, error) {
+	service, err := m.service()
+	if err != nil {
+		return jfadk.WorkflowDefinition{}, err
+	}
+	return service.SaveWorkflow(ctx, workflowID, payload)
+}
+
+func (m assistantWorkflowToolManager) DeleteWorkflow(ctx context.Context, workflowID string) (jfadk.WorkflowDefinition, error) {
+	service, err := m.service()
+	if err != nil {
+		return jfadk.WorkflowDefinition{}, err
+	}
+	return service.DeleteWorkflow(ctx, workflowID)
+}
+
+func (m assistantWorkflowToolManager) ListWorkflowTriggers(ctx context.Context, workflowID string) ([]jfadk.WorkflowTrigger, error) {
+	service, err := m.service()
+	if err != nil {
+		return nil, err
+	}
+	return service.ListWorkflowTriggers(ctx, workflowID)
+}
+
+func (m assistantWorkflowToolManager) GetWorkflowTrigger(ctx context.Context, workflowID string, triggerID string) (jfadk.WorkflowTrigger, error) {
+	service, err := m.service()
+	if err != nil {
+		return jfadk.WorkflowTrigger{}, err
+	}
+	return service.GetWorkflowTrigger(ctx, workflowID, triggerID)
+}
+
+func (m assistantWorkflowToolManager) SaveWorkflowTrigger(ctx context.Context, workflowID string, triggerID string, payload jfadk.WorkflowTriggerWriteRequest) (jfadk.WorkflowTrigger, error) {
+	service, err := m.service()
+	if err != nil {
+		return jfadk.WorkflowTrigger{}, err
+	}
+	result, err := service.SaveWorkflowTrigger(ctx, workflowID, triggerID, payload)
+	return result.Trigger, err
+}
+
+func (m assistantWorkflowToolManager) DeleteWorkflowTrigger(ctx context.Context, workflowID string, triggerID string) (jfadk.WorkflowTrigger, error) {
+	service, err := m.service()
+	if err != nil {
+		return jfadk.WorkflowTrigger{}, err
+	}
+	return service.DeleteWorkflowTrigger(ctx, workflowID, triggerID)
+}
+
+func (m assistantWorkflowToolManager) ListWorkflowRuns(ctx context.Context, workflowID string, triggerID string, status string, limit int, offset int) (WorkflowToolPage[jfadk.WorkflowTriggerLog], error) {
+	service, err := m.service()
+	if err != nil {
+		return WorkflowToolPage[jfadk.WorkflowTriggerLog]{}, err
+	}
+	page, err := service.ListWorkflowTriggerLogs(ctx, asst.WorkflowTriggerLogQuery{WorkflowID: workflowID, TriggerID: triggerID, Status: status, Limit: limit, Offset: offset})
+	return WorkflowToolPage[jfadk.WorkflowTriggerLog]{Items: page.Items, Total: page.Total, Limit: page.Limit, Offset: page.Offset}, err
+}
+
+func (m assistantWorkflowToolManager) GetWorkflowRun(ctx context.Context, logID string) (jfadk.WorkflowTriggerLog, error) {
+	service, err := m.service()
+	if err != nil {
+		return jfadk.WorkflowTriggerLog{}, err
+	}
+	return service.GetWorkflowTriggerLog(ctx, logID)
+}
+
+func (m assistantWorkflowToolManager) StartWorkflow(ctx context.Context, workflowID string, inputs map[string]any) (WorkflowToolStartResult, error) {
+	service, err := m.service()
+	if err != nil {
+		return WorkflowToolStartResult{}, err
+	}
+	result, err := service.StartWorkflow(ctx, workflowID, inputs)
+	return WorkflowToolStartResult{Accepted: result.Accepted, Workflow: result.Workflow, Trigger: result.Trigger, Log: result.Log}, err
+}
+
+func (m assistantWorkflowToolManager) StartWorkflowTrigger(ctx context.Context, triggerID string, inputs map[string]any) (WorkflowToolStartResult, error) {
+	service, err := m.service()
+	if err != nil {
+		return WorkflowToolStartResult{}, err
+	}
+	result, err := service.StartWorkflowTrigger(ctx, triggerID, inputs)
+	return WorkflowToolStartResult{Accepted: result.Accepted, Workflow: result.Workflow, Trigger: result.Trigger, Log: result.Log}, err
 }
 
 func (s *Server) baseADKToolDeps() ToolDeps {

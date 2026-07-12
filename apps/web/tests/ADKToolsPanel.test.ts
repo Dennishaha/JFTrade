@@ -19,7 +19,7 @@ describe("ADKToolsPanel", () => {
     const wrapper = mount(ADKToolsPanel, {
       props: {
         tools: [buildTool()],
-        filteredTools: [buildTool()],
+        filteredTools: [buildTool({ requiredSkill: "jftrade-workflow-management" })],
         selectedTool: null,
         toolCategoryFilter: "",
         toolCategoryOptions: ["system"],
@@ -67,10 +67,11 @@ describe("ADKToolsPanel", () => {
     const wrapper = mount(ADKToolsPanel, {
       props: {
         tools: [buildTool()],
-        filteredTools: [buildTool()],
+        filteredTools: [buildTool({ requiredSkill: "jftrade-workflow-management" })],
         selectedTool: buildTool({
           outputSummary: "",
           requiresApprovalIn: [],
+          requiredSkill: "jftrade-workflow-management",
           inputSchema: {
             type: "object",
             properties: {
@@ -112,6 +113,9 @@ describe("ADKToolsPanel", () => {
     expect(wrapper.text()).toContain("高度自动");
     expect(wrapper.text()).toContain("无额外审批模式限制");
     expect(wrapper.text()).toContain("未提供");
+    expect(wrapper.text()).toContain("需加载 Skill");
+    expect(wrapper.text()).toContain("jftrade-workflow-management");
+    expect(wrapper.text()).toContain("下一条用户消息需要重新加载");
     expect(wrapper.text()).toContain('"scope": {');
 
     const closeButton = wrapper

@@ -21,6 +21,7 @@ type RuntimeDeps struct {
 }
 
 type ToolDeps struct {
+	Workflows                  WorkflowToolManager
 	SystemStatus               func() map[string]any
 	ADKEnabled                 func() bool
 	FutuOpenDHealth            func(context.Context) (any, error)
@@ -539,6 +540,7 @@ func registerJFTradeADKReadTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 }
 
 func registerJFTradeADKWorkflowTools(store *jfadk.Store, registry *jfadk.ToolRegistry, deps ToolDeps) {
+	registerJFTradeADKWorkflowManagementTools(store, registry, deps.Workflows)
 	registry.Register(jfadk.ToolDescriptor{Name: "tasks.list", DisplayName: "ADK 任务列表", Description: "列出用于跟踪 agent 工作的 ADK 任务记录。", Category: "workflow", Permission: "read_internal", OutputSummary: "任务分页结果。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		limit, offset := httpserver.NormalizeBoundPage(intValue(input, "limit", 20), intValue(input, "offset", 0), 20, 100)
 		tasks, total, err := store.ListTasksPage(ctx, stringValue(input, "status"), stringValue(input, "agentId"), stringValue(input, "runId"), limit, offset)

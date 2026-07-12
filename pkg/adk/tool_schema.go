@@ -6,6 +6,9 @@ import (
 )
 
 func defaultToolInputSchema(name string) map[string]any {
+	if schema, ok := workflowManagementToolInputSchema(name); ok {
+		return schema
+	}
 	switch name {
 	case "http.fetch":
 		return httpFetchToolInputSchema()
@@ -13,8 +16,6 @@ func defaultToolInputSchema(name string) map[string]any {
 		return toolsSearchInputSchema()
 	case "models.list":
 		return modelsListInputSchema()
-	case "workflow.wait":
-		return workflowWaitInputSchema()
 	case "tasks.create", "tasks.update":
 		return tasksMutationInputSchema(name)
 	case "tasks.delete":
