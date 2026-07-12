@@ -8,6 +8,7 @@ const (
 	DefaultWebAccessPort = 6688
 	MinWebAccessPort     = 1024
 	MaxWebAccessPort     = 65535
+	DefaultMCPServerPort = 6697
 )
 
 // FutuIntegrationConfig holds Futu OpenD connection parameters.
@@ -107,6 +108,46 @@ type SystemNotificationSettings struct {
 type ADKRuntimeSettings struct {
 	RunTimeoutMs        int `json:"runTimeoutMs"`
 	StreamIdleTimeoutMs int `json:"streamIdleTimeoutMs"`
+}
+
+// MCPServerSettings controls JFTrade's local Streamable HTTP MCP endpoint.
+// TokenHash is persisted locally but is never serialized into API responses.
+type MCPServerSettings struct {
+	Enabled         bool   `json:"enabled"`
+	Port            int    `json:"port"`
+	AuthMode        string `json:"authMode"`
+	TokenConfigured bool   `json:"tokenConfigured"`
+	TokenHash       string `json:"-"`
+}
+
+// MCPServerSettingsUpdate is the public write contract. Tokens are generated
+// separately and intentionally cannot be supplied through this endpoint.
+type MCPServerSettingsUpdate struct {
+	Enabled  bool   `json:"enabled"`
+	Port     int    `json:"port"`
+	AuthMode string `json:"authMode"`
+}
+
+// MCPServerStatus is runtime state for the independently managed local MCP
+// listener. It is informational and is not persisted.
+type MCPServerStatus struct {
+	Running   bool   `json:"running"`
+	Endpoint  string `json:"endpoint"`
+	LastError string `json:"lastError,omitempty"`
+}
+
+// MCPServerSettingsSnapshot combines persisted settings with listener state.
+type MCPServerSettingsSnapshot struct {
+	Settings MCPServerSettings `json:"settings"`
+	Status   MCPServerStatus   `json:"status"`
+}
+
+// MCPServerTokenResetResult returns a newly generated secret exactly once.
+// Token is deliberately omitted from all settings read and update responses.
+type MCPServerTokenResetResult struct {
+	Settings MCPServerSettings `json:"settings"`
+	Status   MCPServerStatus   `json:"status"`
+	Token    string            `json:"token"`
 }
 
 // PineWorkerSettings holds PineTS worker pool user-facing runtime settings.

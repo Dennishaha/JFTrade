@@ -262,6 +262,62 @@ func adkRuntimeSettingsPointer(value jfsettings.ADKRuntimeSettings) *jfsettings.
 	return new(value)
 }
 
+func (s *Store) MCPServerSettings() jfsettings.MCPServerSettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.MCPServer != nil {
+		return NormalizeMCPServerSettings(jfsettings.MCPServerSettings{
+			Enabled:   s.data.MCPServer.Enabled,
+			Port:      s.data.MCPServer.Port,
+			AuthMode:  s.data.MCPServer.AuthMode,
+			TokenHash: s.data.MCPServer.TokenHash,
+		})
+	}
+	return DefaultMCPServerSettings()
+}
+
+func (s *Store) SaveMCPServerSettings(input jfsettings.MCPServerSettings) (jfsettings.MCPServerSettings, error) {
+	normalized := NormalizeMCPServerSettings(input)
+
+	s.mu.Lock()
+	previous := s.data.MCPServer
+	s.data.MCPServer = &storedMCPServerSettings{
+		Enabled:   normalized.Enabled,
+		Port:      normalized.Port,
+		AuthMode:  normalized.AuthMode,
+		TokenHash: normalized.TokenHash,
+	}
+	err := s.persistLocked()
+	if err != nil {
+		s.data.MCPServer = previous
+	}
+	s.mu.Unlock()
+	return normalized, err
+}
+
+func DefaultMCPServerSettings() jfsettings.MCPServerSettings {
+	return jfsettings.MCPServerSettings{
+		Enabled:  false,
+		Port:     jfsettings.DefaultMCPServerPort,
+		AuthMode: "token",
+	}
+}
+
+func NormalizeMCPServerSettings(input jfsettings.MCPServerSettings) jfsettings.MCPServerSettings {
+	settings := input
+	if settings.Port == 0 || settings.Port < jfsettings.MinWebAccessPort || settings.Port > jfsettings.MaxWebAccessPort {
+		settings.Port = jfsettings.DefaultMCPServerPort
+	}
+	switch strings.ToLower(strings.TrimSpace(settings.AuthMode)) {
+	case "none":
+		settings.AuthMode = "none"
+	default:
+		settings.AuthMode = "token"
+	}
+	settings.TokenConfigured = strings.TrimSpace(settings.TokenHash) != ""
+	return settings
+}
+
 func DefaultPineWorkerSettings() jfsettings.PineWorkerSettings {
 	return jfsettings.PineWorkerSettings{
 		BacktestWorkerLimit: 2,

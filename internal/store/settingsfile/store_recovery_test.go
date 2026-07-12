@@ -155,6 +155,40 @@ func TestFailedSecurityReplaceKeepsDiskAndRuntimeStateUnchanged(t *testing.T) {
 	}
 }
 
+func TestFailedMCPServerReplaceKeepsDiskAndRuntimeStateUnchanged(t *testing.T) {
+	directory := t.TempDir()
+	settingsPath := filepath.Join(directory, "settings.json")
+	store, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	original := jfsettings.MCPServerSettings{Port: 6697, AuthMode: "token", TokenHash: "original-token-verifier"}
+	if _, err := store.SaveMCPServerSettings(original); err != nil {
+		t.Fatalf("save original MCP settings: %v", err)
+	}
+	before, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("read original settings: %v", err)
+	}
+	store.replaceFile = func(string, string) error { return errors.New("replace failed") }
+
+	if _, err := store.SaveMCPServerSettings(jfsettings.MCPServerSettings{
+		Enabled: true, Port: 7443, AuthMode: "none", TokenHash: "replacement-token-verifier",
+	}); err == nil {
+		t.Fatal("SaveMCPServerSettings error = nil")
+	}
+	after, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("read settings after failed replace: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("settings changed after failed replace:\nbefore=%s\nafter=%s", before, after)
+	}
+	if got := store.MCPServerSettings(); got.TokenHash != original.TokenHash || got.Enabled || got.AuthMode != "token" {
+		t.Fatalf("runtime MCP settings changed after failed replace: %#v", got)
+	}
+}
+
 func fileMode(t *testing.T, path string) os.FileMode {
 	t.Helper()
 	info, err := os.Stat(path)

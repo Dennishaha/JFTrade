@@ -48,6 +48,9 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, dataManagementServic
 	// ADK
 	settings.GET("/adk", handleADKRuntimeSettings(svc))
 	settings.PUT("/adk", handleSaveADKRuntimeSettings(svc))
+	settings.GET("/adk/mcp", handleMCPServerSettings(svc))
+	settings.PUT("/adk/mcp", handleSaveMCPServerSettings(svc))
+	settings.POST("/adk/mcp/token/reset", handleResetMCPServerToken(svc))
 
 	// Pine Worker
 	settings.GET("/pine-worker", handlePineWorkerSettings(svc))
@@ -482,6 +485,77 @@ func handleSaveADKRuntimeSettings(svc *srv.Service) gin.HandlerFunc {
 			return
 		}
 		httpserver.WriteOK(c, result)
+	}
+}
+
+// ── Local MCP Server ──
+
+// handleMCPServerSettings godoc
+// @Summary 读取本机 MCP Server 设置
+// @Tags settings
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/settings/adk/mcp [get]
+func handleMCPServerSettings(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, svc.GetMCPServerSettingsSnapshot())
+	}
+}
+
+// handleSaveMCPServerSettings godoc
+// @Summary 保存本机 MCP Server 设置
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body jfsettings.MCPServerSettingsUpdate true "本机 MCP Server 设置"
+// @Success 200 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.Envelope
+// @Router /api/v1/settings/adk/mcp [put]
+func handleSaveMCPServerSettings(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input jfsettings.MCPServerSettingsUpdate
+		if err := c.ShouldBindJSON(&input); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid MCP server payload")
+			return
+		}
+		result, err := svc.SaveMCPServerSettings(input)
+		if err != nil {
+			status := http.StatusInternalServerError
+			code := "MCP_SERVER_SETTINGS_FAILED"
+			if errors.Is(err, srv.ErrMCPServerPortInvalid) ||
+				errors.Is(err, srv.ErrMCPServerAuthModeInvalid) ||
+				errors.Is(err, srv.ErrMCPServerTokenRequired) {
+				status = http.StatusBadRequest
+				code = "MCP_SERVER_SETTINGS_REJECTED"
+			}
+			httpserver.WriteError(c, status, code, err.Error())
+			return
+		}
+		httpserver.WriteOK(c, jfsettings.MCPServerSettingsSnapshot{
+			Settings: result,
+			Status:   svc.GetMCPServerSettingsSnapshot().Status,
+		})
+	}
+}
+
+// handleResetMCPServerToken godoc
+// @Summary 重置本机 MCP Server Bearer Token
+// @Tags settings
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/settings/adk/mcp/token/reset [post]
+func handleResetMCPServerToken(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		settings, token, err := svc.ResetMCPServerToken()
+		if err != nil {
+			httpserver.WriteError(c, http.StatusInternalServerError, "MCP_SERVER_TOKEN_RESET_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, jfsettings.MCPServerTokenResetResult{
+			Settings: settings,
+			Status:   svc.GetMCPServerSettingsSnapshot().Status,
+			Token:    token,
+		})
 	}
 }
 

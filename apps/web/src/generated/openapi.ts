@@ -74,6 +74,11 @@ export interface components {
     websocketKey?: string;
     websocketPort?: number;
   };
+    "jftsettings.MCPServerSettingsUpdate": {
+    authMode?: string;
+    enabled?: boolean;
+    port?: number;
+  };
     "jftsettings.PineWorkerSettings": {
     backtestWorkerLimit?: number;
     instanceWorkerLimit?: number;
@@ -2410,6 +2415,51 @@ export interface paths {
         };
         "400": {
           description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/adk/mcp": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    put: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["jftsettings.MCPServerSettingsUpdate"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/settings/adk/mcp/token/reset": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };

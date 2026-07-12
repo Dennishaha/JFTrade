@@ -57,6 +57,7 @@ describe("SettingsADKSection business flows", () => {
           ADKProvidersPanel: { template: "<div />" },
           ADKAgentsPanel: { template: "<div />" },
           ADKToolsPanel: { template: "<div />" },
+          ADKMCPServerPanel: { template: "<div />" },
           ADKSkillsPanel: {
             emits: ["update:skillUrl"],
             template:
@@ -207,6 +208,7 @@ describe("SettingsADKSection business flows", () => {
           },
           ADKSkillsPanel: { template: "<div />" },
           ADKRunsPanel: { template: "<div />" },
+          ADKMCPServerPanel: { template: "<div />" },
           "v-alert": alertStub,
           "v-btn": buttonStub,
           "v-card": { template: "<section><slot /></section>" },
@@ -314,6 +316,11 @@ function buildState() {
     isInternalSkill: vi.fn(() => false),
     loading: ref(false),
     metrics: ref(null),
+    mcpServerForm: ref({ enabled: false, port: 6697, authMode: "token" }),
+    mcpServerOneTimeToken: ref(""),
+    mcpServerSaving: ref(false),
+    mcpServerStatus: ref({ running: false, endpoint: "http://127.0.0.1:6697/mcp" }),
+    mcpServerTokenConfigured: ref(false),
     memoryAgentFilter: ref(""),
     memoryEntries: ref([
       {
@@ -375,6 +382,9 @@ function buildState() {
     saveAgent: vi.fn(),
     saveProvider: vi.fn(),
     saveRuntimeSettings: vi.fn(),
+    saveMCPServerSettings: vi.fn(),
+    resetMCPServerToken: vi.fn(),
+    clearMCPServerOneTimeToken: vi.fn(),
     setDefaultProvider: vi.fn(),
     skillOptions: ref([]),
     skills: ref([]),

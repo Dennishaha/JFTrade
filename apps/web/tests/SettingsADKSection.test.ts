@@ -28,6 +28,7 @@ describe("SettingsADKSection", () => {
     document.body.innerHTML = "<div id='root'></div>";
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
+      if (url.endsWith("/api/v1/settings/adk/mcp")) return createResponse(buildMCPServerSnapshot());
       if (url.endsWith("/api/v1/adk")) {
         return createResponse({
           providers: [buildProvider()],
@@ -165,6 +166,7 @@ describe("SettingsADKSection", () => {
     document.body.innerHTML = "<div id='root'></div>";
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
+      if (url.endsWith("/api/v1/settings/adk/mcp")) return createResponse(buildMCPServerSnapshot());
       if (url.endsWith("/api/v1/adk")) {
         return createResponse({
           providers: [buildProvider()],
@@ -274,6 +276,7 @@ describe("SettingsADKSection", () => {
     };
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
+      if (url.endsWith("/api/v1/settings/adk/mcp")) return createResponse(buildMCPServerSnapshot());
       if (url.endsWith("/api/v1/adk")) {
         return createResponse({
           providers: [buildProvider()],
@@ -370,6 +373,7 @@ describe("SettingsADKSection", () => {
     document.body.innerHTML = "<div id='root'></div>";
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
+      if (url.endsWith("/api/v1/settings/adk/mcp")) return createResponse(buildMCPServerSnapshot());
       if (url.endsWith("/api/v1/adk")) {
         return createResponse({
           providers: [buildProvider()],
@@ -451,6 +455,7 @@ describe("SettingsADKSection", () => {
     document.body.innerHTML = "<div id='root'></div>";
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
+      if (url.endsWith("/api/v1/settings/adk/mcp")) return createResponse(buildMCPServerSnapshot());
       if (url.endsWith("/api/v1/adk")) {
         return createResponse({
           providers: [buildProvider()],
@@ -585,6 +590,21 @@ function buildProvider() {
     hasApiKey: true,
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",
+  };
+}
+
+function buildMCPServerSnapshot() {
+  return {
+    settings: {
+      enabled: false,
+      port: 6697,
+      authMode: "token",
+      tokenConfigured: false,
+    },
+    status: {
+      running: false,
+      endpoint: "http://127.0.0.1:6697/mcp",
+    },
   };
 }
 

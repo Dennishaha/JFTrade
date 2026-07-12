@@ -77,6 +77,7 @@ type Server struct {
 	marketdataRuntime        *futuintegration.MarketDataRuntime
 	brokers                  *broker.Registry // Unified broker registry for multi-broker support
 	adkRuntime               *jfadk.Runtime
+	mcpServer                *mcpServerManager
 	assistantSvc             *asst.Service
 	frontend                 *frontendServer
 	apiPort                  int
@@ -658,7 +659,16 @@ func (s *Server) initializeRuntimeServices(store SidecarSettingsStore) {
 	s.tradingSvc = s.newTradingService()
 	s.configureDataManagement()
 	s.dataManagementSvc = s.newDataManagementService()
-	s.settingsSvc = settings.NewService(persistenceOnlySettingsStore(store), s.settingsServiceOptions()...)
+	s.mcpServer = newMCPServerManager(s.adkRuntime)
+	persistenceStore := persistenceOnlySettingsStore(store)
+	s.settingsSvc = settings.NewService(persistenceStore, s.settingsServiceOptions()...)
+	if mcpStore, ok := persistenceStore.(settings.MCPServerStore); ok {
+		if err := s.mcpServer.Reconfigure(mcpStore.MCPServerSettings()); err != nil {
+			log.Printf("JFTrade local MCP server unavailable: %v", err)
+		}
+	} else {
+		log.Printf("JFTrade local MCP server settings unavailable")
+	}
 }
 
 func (s *Server) settingsServiceOptions() []settings.Option {
@@ -668,6 +678,12 @@ func (s *Server) settingsServiceOptions() []settings.Option {
 		settings.WithBrokerSettings(func() map[string]any { return s.brokerSettings() }),
 		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return s.onboardingState(ctx) }),
 		settings.WithDefaultTradingEnvironment(s.defaultTradingEnvironment()),
+		settings.WithMCPServerStatus(func() MCPServerStatus {
+			if s.mcpServer == nil {
+				return MCPServerStatus{}
+			}
+			return s.mcpServer.Status()
+		}),
 	}
 }
 
@@ -696,6 +712,12 @@ func (s *Server) settingsSideEffects() settings.SideEffects {
 		},
 		OnPineWorkerChanged: func(settings PineWorkerSettings) {
 			s.applyPineWorkerSettings(settings)
+		},
+		OnMCPServerChanged: func(settings MCPServerSettings) error {
+			if s.mcpServer == nil {
+				return errors.New("MCP server manager is unavailable")
+			}
+			return s.mcpServer.Reconfigure(settings)
 		},
 	}
 }

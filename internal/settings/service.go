@@ -2,6 +2,8 @@ package settings
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -15,6 +17,7 @@ import (
 const (
 	minWebAccessPasswordChars = 15
 	maxWebAccessPasswordBytes = 1024
+	mcpServerTokenBytes       = 32
 )
 
 var (
@@ -23,6 +26,11 @@ var (
 	ErrWebAccessPasswordTooLong  = errors.New("web access password must contain at most 1024 bytes")
 	ErrWebAccessPortInvalid      = errors.New("web access port must be between 1024 and 65535")
 	ErrWebAccessRuntimeUpdate    = errors.New("could not apply Web access listener settings")
+	ErrMCPServerPortInvalid      = errors.New("MCP server port must be between 1024 and 65535")
+	ErrMCPServerAuthModeInvalid  = errors.New("MCP server auth mode must be token or none")
+	ErrMCPServerTokenRequired    = errors.New("an MCP server token is required before token authentication can be enabled")
+	ErrMCPServerRuntimeUpdate    = errors.New("could not apply MCP server listener settings")
+	ErrMCPServerStoreUnavailable = errors.New("MCP server settings store is unavailable")
 )
 
 // Store 是 settings 持久化层接口，由应用装配层注入具体实现。
@@ -61,6 +69,15 @@ type Store interface {
 	Path() string
 }
 
+// MCPServerStore is an optional extension to Store. Keeping MCP persistence
+// outside the long-standing settings contract preserves compatibility for
+// existing settings stores and services that do not manage the local MCP
+// listener.
+type MCPServerStore interface {
+	MCPServerSettings() jfsettings.MCPServerSettings
+	SaveMCPServerSettings(jfsettings.MCPServerSettings) (jfsettings.MCPServerSettings, error)
+}
+
 // SideEffects 定义 settings 写操作触发的跨模块回调。
 // 由 Server 实现并注入，避免 settings 包直接依赖 Futu/execution/frontend。
 type SideEffects struct {
@@ -74,14 +91,20 @@ type SideEffects struct {
 	OnExchangeCalendarsChanged func(jfsettings.ExchangeCalendarSettings)
 	// OnPineWorkerChanged 在 PineTS worker 设置变更时调用。
 	OnPineWorkerChanged func(jfsettings.PineWorkerSettings)
+	// OnMCPServerChanged 在本机 MCP listener 设置变更时调用。
+	OnMCPServerChanged func(jfsettings.MCPServerSettings) error
 }
 
 // Service 提供 settings 业务逻辑：读取、持久化、副作用编排。
 type Service struct {
 	store        Store
+	mcpStore     MCPServerStore
 	sideEffects  SideEffects
 	securityMu   sync.Mutex
+	mcpServerMu  sync.Mutex
 	hashPassword func(string) (string, error)
+	newMCPToken  func() (string, error)
+	mcpStatus    func() jfsettings.MCPServerStatus
 
 	// 来自 Server 的委托（不在 Store 中的聚合信息）
 	brokerDescriptor  func() map[string]any
@@ -92,7 +115,8 @@ type Service struct {
 
 // NewService 创建 settings 服务。
 func NewService(store Store, opts ...Option) *Service {
-	s := &Service{store: store, hashPassword: passwordhash.Hash}
+	mcpStore, _ := store.(MCPServerStore)
+	s := &Service{store: store, mcpStore: mcpStore, hashPassword: passwordhash.Hash, newMCPToken: newMCPServerToken}
 	for _, o := range opts {
 		o(s)
 	}
@@ -125,6 +149,11 @@ func WithOnboardingState(fn func(ctx context.Context) map[string]any) Option {
 // WithDefaultTradingEnvironment 设置默认交易环境。
 func WithDefaultTradingEnvironment(env string) Option {
 	return func(s *Service) { s.defaultTradingEnv = env }
+}
+
+// WithMCPServerStatus supplies listener state owned by application assembly.
+func WithMCPServerStatus(fn func() jfsettings.MCPServerStatus) Option {
+	return func(s *Service) { s.mcpStatus = fn }
 }
 
 // ── UI Appearance ──
@@ -277,6 +306,136 @@ func (s *Service) GetADKRuntimeSettings() jfsettings.ADKRuntimeSettings {
 // SaveADKRuntimeSettings 保存 ADK 运行时设置。
 func (s *Service) SaveADKRuntimeSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
 	return s.store.SaveADKSettings(input)
+}
+
+// ── Local MCP Server ──
+
+// GetMCPServerSettings returns the public local MCP server settings. The
+// stored token verifier remains private through its json:"-" tag.
+func (s *Service) GetMCPServerSettings() jfsettings.MCPServerSettings {
+	if s == nil || s.mcpStore == nil {
+		return jfsettings.MCPServerSettings{
+			Port:     jfsettings.DefaultMCPServerPort,
+			AuthMode: "token",
+		}
+	}
+	return s.mcpStore.MCPServerSettings()
+}
+
+// GetMCPServerSettingsSnapshot returns persisted settings and current listener
+// status for the settings UI.
+func (s *Service) GetMCPServerSettingsSnapshot() jfsettings.MCPServerSettingsSnapshot {
+	settings := s.GetMCPServerSettings()
+	status := jfsettings.MCPServerStatus{
+		Endpoint: fmt.Sprintf("http://127.0.0.1:%d/mcp", settings.Port),
+	}
+	if s.mcpStatus != nil {
+		status = s.mcpStatus()
+	}
+	return jfsettings.MCPServerSettingsSnapshot{Settings: settings, Status: status}
+}
+
+// SaveMCPServerSettings persists local MCP listener configuration and applies
+// it immediately. A failed listener update restores the previous file state.
+func (s *Service) SaveMCPServerSettings(input jfsettings.MCPServerSettingsUpdate) (jfsettings.MCPServerSettings, error) {
+	s.mcpServerMu.Lock()
+	defer s.mcpServerMu.Unlock()
+	if s.mcpStore == nil {
+		return s.GetMCPServerSettings(), ErrMCPServerStoreUnavailable
+	}
+
+	current := s.mcpStore.MCPServerSettings()
+	port := input.Port
+	if port == 0 {
+		port = current.Port
+	}
+	if port == 0 {
+		port = jfsettings.DefaultMCPServerPort
+	}
+	if port < jfsettings.MinWebAccessPort || port > jfsettings.MaxWebAccessPort {
+		return current, ErrMCPServerPortInvalid
+	}
+	authMode := strings.ToLower(strings.TrimSpace(input.AuthMode))
+	if authMode == "" {
+		authMode = current.AuthMode
+	}
+	if authMode != "token" && authMode != "none" {
+		return current, ErrMCPServerAuthModeInvalid
+	}
+	next := jfsettings.MCPServerSettings{
+		Enabled:   input.Enabled,
+		Port:      port,
+		AuthMode:  authMode,
+		TokenHash: current.TokenHash,
+	}
+	next.TokenConfigured = next.TokenHash != ""
+	if next.Enabled && next.AuthMode == "token" && !next.TokenConfigured {
+		return current, ErrMCPServerTokenRequired
+	}
+	return s.saveMCPServerSettingsLocked(current, next)
+}
+
+// ResetMCPServerToken creates a fresh bearer secret, persists only its
+// verifier, applies it to a running listener, and returns the secret once.
+func (s *Service) ResetMCPServerToken() (jfsettings.MCPServerSettings, string, error) {
+	s.mcpServerMu.Lock()
+	defer s.mcpServerMu.Unlock()
+	if s.mcpStore == nil {
+		return s.GetMCPServerSettings(), "", ErrMCPServerStoreUnavailable
+	}
+
+	current := s.mcpStore.MCPServerSettings()
+	newToken := s.newMCPToken
+	if newToken == nil {
+		newToken = newMCPServerToken
+	}
+	token, err := newToken()
+	if err != nil {
+		return current, "", err
+	}
+	hashPassword := s.hashPassword
+	if hashPassword == nil {
+		hashPassword = passwordhash.Hash
+	}
+	hash, err := hashPassword(token)
+	if err != nil {
+		return current, "", err
+	}
+	next := current
+	next.TokenHash = hash
+	next.TokenConfigured = true
+	result, err := s.saveMCPServerSettingsLocked(current, next)
+	if err != nil {
+		return result, "", err
+	}
+	return result, token, nil
+}
+
+func (s *Service) saveMCPServerSettingsLocked(current jfsettings.MCPServerSettings, next jfsettings.MCPServerSettings) (jfsettings.MCPServerSettings, error) {
+	if s.mcpStore == nil {
+		return current, ErrMCPServerStoreUnavailable
+	}
+	result, err := s.mcpStore.SaveMCPServerSettings(next)
+	if err != nil {
+		return result, err
+	}
+	if s.sideEffects.OnMCPServerChanged != nil {
+		if err := s.sideEffects.OnMCPServerChanged(result); err != nil {
+			if _, rollbackErr := s.mcpStore.SaveMCPServerSettings(current); rollbackErr != nil {
+				return current, fmt.Errorf("%w: %v; settings rollback failed: %v", ErrMCPServerRuntimeUpdate, err, rollbackErr)
+			}
+			return current, fmt.Errorf("%w: %v", ErrMCPServerRuntimeUpdate, err)
+		}
+	}
+	return result, nil
+}
+
+func newMCPServerToken() (string, error) {
+	bytes := make([]byte, mcpServerTokenBytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return "jft_mcp_" + base64.RawURLEncoding.EncodeToString(bytes), nil
 }
 
 // ── Pine Worker ──

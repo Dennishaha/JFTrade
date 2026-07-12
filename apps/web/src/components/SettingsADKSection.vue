@@ -3,6 +3,7 @@ import { ref, watch } from "vue";
 import { useRoute, useRouter, type LocationQueryRaw } from "vue-router";
 
 import ADKAgentsPanel from "./adk-settings/ADKAgentsPanel.vue";
+import ADKMCPServerPanel from "./adk-settings/ADKMCPServerPanel.vue";
 import ADKProvidersPanel from "./adk-settings/ADKProvidersPanel.vue";
 import ADKRunsPanel from "./adk-settings/ADKRunsPanel.vue";
 import ADKSkillsPanel from "./adk-settings/ADKSkillsPanel.vue";
@@ -24,6 +25,7 @@ const {
   auditPage,
   cancelOptimizationTask,
   cancelRun,
+  clearMCPServerOneTimeToken,
   deleteAgent,
   deleteProvider,
   duplicateAgent,
@@ -38,6 +40,11 @@ const {
   isInternalSkill,
   loading,
   metrics,
+  mcpServerForm,
+  mcpServerOneTimeToken,
+  mcpServerSaving,
+  mcpServerStatus,
+  mcpServerTokenConfigured,
   memoryAgentFilter,
   memoryEntries,
   memoryKeyFilter,
@@ -66,8 +73,10 @@ const {
   runStatusFilter,
   runTerminalMessage,
   saveAgent,
+  saveMCPServerSettings,
   saveProvider,
   saveRuntimeSettings,
+  resetMCPServerToken,
   setDefaultProvider,
   skillOptions,
   skills,
@@ -97,7 +106,7 @@ const observationTab = ref("workflow");
 const route = useRoute();
 const router = useRouter();
 
-const adkTabs = new Set(["providers", "agents", "tools", "skills", "observation"]);
+const adkTabs = new Set(["providers", "agents", "tools", "skills", "mcp", "observation"]);
 const observationTabs = new Set(["workflow", "runs"]);
 
 function firstQueryValue(value: unknown): string | undefined {
@@ -252,6 +261,7 @@ function memoryScopeHint(scope: string): string {
         <v-tab value="agents">智能体</v-tab>
         <v-tab value="tools">工具</v-tab>
         <v-tab value="skills">技能</v-tab>
+        <v-tab value="mcp">MCP 服务</v-tab>
 
       <!-- 观察放最后 -->
       <v-tab value="observation">观察</v-tab>
@@ -326,6 +336,19 @@ function memoryScopeHint(scope: string): string {
           @update:tool-risk-filter="toolRiskFilter = $event"
           @update:tool-search-query="toolSearchQuery = $event"
           @update:tool-detail-dialog-open="toolDetailDialogOpen = $event"
+        />
+      </v-window-item>
+
+      <v-window-item value="mcp">
+        <ADKMCPServerPanel
+          :form="mcpServerForm"
+          :status="mcpServerStatus"
+          :token-configured="mcpServerTokenConfigured"
+          :one-time-token="mcpServerOneTimeToken"
+          :saving="mcpServerSaving"
+          :save="saveMCPServerSettings"
+          :reset-token="resetMCPServerToken"
+          :clear-one-time-token="clearMCPServerOneTimeToken"
         />
       </v-window-item>
 

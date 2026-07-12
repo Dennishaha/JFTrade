@@ -268,6 +268,30 @@ export interface ADKRuntimeSettings {
   streamIdleTimeoutMs: number;
 }
 
+export type MCPServerAuthMode = "token" | "none";
+
+export interface MCPServerSettings {
+  enabled: boolean;
+  port: number;
+  authMode: MCPServerAuthMode;
+  tokenConfigured: boolean;
+}
+
+export interface MCPServerStatus {
+  running: boolean;
+  endpoint: string;
+  lastError?: string;
+}
+
+export interface MCPServerSettingsSnapshot {
+  settings: MCPServerSettings;
+  status: MCPServerStatus;
+}
+
+export interface MCPServerTokenResetResult extends MCPServerSettingsSnapshot {
+  token: string;
+}
+
 export interface PineWorkerSettingsResponse {
   backtestWorkerLimit: number;
   instanceWorkerLimit: number;

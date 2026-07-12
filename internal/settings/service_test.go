@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -23,6 +24,7 @@ type fakeStore struct {
 	security            jfsettings.SecuritySettings
 	systemNotifications jfsettings.SystemNotificationSettings
 	adk                 jfsettings.ADKRuntimeSettings
+	mcpServer           jfsettings.MCPServerSettings
 	pineWorker          jfsettings.PineWorkerSettings
 	calendars           jfsettings.ExchangeCalendarSettings
 	integration         jfsettings.BrokerIntegration
@@ -43,6 +45,9 @@ func (s *fakeStore) SystemNotificationSettings() jfsettings.SystemNotificationSe
 	return s.systemNotifications
 }
 func (s *fakeStore) ADKSettings() jfsettings.ADKRuntimeSettings { return s.adk }
+func (s *fakeStore) MCPServerSettings() jfsettings.MCPServerSettings {
+	return s.mcpServer
+}
 func (s *fakeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
 	return s.pineWorker
 }
@@ -85,6 +90,10 @@ func (s *fakeStore) SaveSystemNotificationSettings(input jfsettings.SystemNotifi
 }
 func (s *fakeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
 	s.adk = input
+	return input, nil
+}
+func (s *fakeStore) SaveMCPServerSettings(input jfsettings.MCPServerSettings) (jfsettings.MCPServerSettings, error) {
+	s.mcpServer = input
 	return input, nil
 }
 func (s *fakeStore) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error) {
@@ -242,6 +251,99 @@ func TestSaveSecuritySettingsRollsBackWhenRuntimeListenerUpdateFails(t *testing.
 	}
 	if !reflect.DeepEqual(result, current) || !reflect.DeepEqual(store.security, current) {
 		t.Fatalf("runtime failure did not restore settings: result=%#v stored=%#v", result, store.security)
+	}
+}
+
+func TestMCPServerTokenResetDoesNotLeakAndInvalidatesPreviousToken(t *testing.T) {
+	store := &fakeStore{mcpServer: jfsettings.MCPServerSettings{
+		Enabled:   true,
+		Port:      jfsettings.DefaultMCPServerPort,
+		AuthMode:  "token",
+		TokenHash: "old-verifier",
+	}}
+	var applied []jfsettings.MCPServerSettings
+	svc := NewService(store, WithSideEffects(SideEffects{
+		OnMCPServerChanged: func(settings jfsettings.MCPServerSettings) error {
+			applied = append(applied, settings)
+			return nil
+		},
+	}))
+	generated := []string{"first-secret", "second-secret"}
+	svc.newMCPToken = func() (string, error) {
+		value := generated[0]
+		generated = generated[1:]
+		return value, nil
+	}
+	svc.hashPassword = func(value string) (string, error) { return "hash:" + value, nil }
+
+	first, firstToken, err := svc.ResetMCPServerToken()
+	if err != nil {
+		t.Fatalf("ResetMCPServerToken first: %v", err)
+	}
+	if firstToken != "first-secret" || first.TokenHash != "hash:first-secret" || !first.TokenConfigured {
+		t.Fatalf("first reset = settings=%#v token=%q", first, firstToken)
+	}
+	second, secondToken, err := svc.ResetMCPServerToken()
+	if err != nil {
+		t.Fatalf("ResetMCPServerToken second: %v", err)
+	}
+	if secondToken != "second-secret" || second.TokenHash != "hash:second-secret" || second.TokenHash == first.TokenHash {
+		t.Fatalf("second reset = settings=%#v token=%q", second, secondToken)
+	}
+	if len(applied) != 2 || applied[0].TokenHash == applied[1].TokenHash {
+		t.Fatalf("applied settings = %#v", applied)
+	}
+	encoded, err := json.Marshal(svc.GetMCPServerSettings())
+	if err != nil {
+		t.Fatalf("marshal settings: %v", err)
+	}
+	for _, secret := range []string{"first-secret", "second-secret", "hash:second-secret"} {
+		if strings.Contains(string(encoded), secret) {
+			t.Fatalf("settings response leaked %q: %s", secret, encoded)
+		}
+	}
+}
+
+func TestSaveMCPServerSettingsRollsBackWhenListenerUpdateFails(t *testing.T) {
+	current := jfsettings.MCPServerSettings{
+		Enabled:         true,
+		Port:            6697,
+		AuthMode:        "token",
+		TokenConfigured: true,
+		TokenHash:       "stored-hash",
+	}
+	store := &fakeStore{mcpServer: current}
+	svc := NewService(store, WithSideEffects(SideEffects{
+		OnMCPServerChanged: func(jfsettings.MCPServerSettings) error {
+			return errors.New("port occupied")
+		},
+	}))
+
+	result, err := svc.SaveMCPServerSettings(jfsettings.MCPServerSettingsUpdate{
+		Enabled: true, Port: 7443, AuthMode: "token",
+	})
+	if !errors.Is(err, ErrMCPServerRuntimeUpdate) {
+		t.Fatalf("SaveMCPServerSettings error = %v", err)
+	}
+	if !reflect.DeepEqual(result, current) || !reflect.DeepEqual(store.mcpServer, current) {
+		t.Fatalf("runtime failure did not restore MCP settings: result=%#v stored=%#v", result, store.mcpServer)
+	}
+}
+
+func TestSaveMCPServerSettingsValidatesTokenAndPort(t *testing.T) {
+	store := &fakeStore{mcpServer: jfsettings.MCPServerSettings{
+		Port: jfsettings.DefaultMCPServerPort, AuthMode: "token",
+	}}
+	svc := NewService(store)
+
+	if _, err := svc.SaveMCPServerSettings(jfsettings.MCPServerSettingsUpdate{Enabled: true, Port: 80, AuthMode: "token"}); !errors.Is(err, ErrMCPServerPortInvalid) {
+		t.Fatalf("invalid port error = %v", err)
+	}
+	if _, err := svc.SaveMCPServerSettings(jfsettings.MCPServerSettingsUpdate{Enabled: true, AuthMode: "token"}); !errors.Is(err, ErrMCPServerTokenRequired) {
+		t.Fatalf("missing token error = %v", err)
+	}
+	if _, err := svc.SaveMCPServerSettings(jfsettings.MCPServerSettingsUpdate{Enabled: false, AuthMode: "invalid"}); !errors.Is(err, ErrMCPServerAuthModeInvalid) {
+		t.Fatalf("invalid auth mode error = %v", err)
 	}
 }
 

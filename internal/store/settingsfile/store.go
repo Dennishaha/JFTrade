@@ -21,6 +21,7 @@ type fileData struct {
 	Security            *storedSecuritySettings                `json:"security,omitempty"`
 	SystemNotifications *jfsettings.SystemNotificationSettings `json:"systemNotifications,omitempty"`
 	ADK                 *jfsettings.ADKRuntimeSettings         `json:"adk,omitempty"`
+	MCPServer           *storedMCPServerSettings               `json:"mcpServer,omitempty"`
 	PineWorker          *jfsettings.PineWorkerSettings         `json:"pineWorker,omitempty"`
 	Calendars           *jfsettings.ExchangeCalendarSettings   `json:"exchangeCalendars,omitempty"`
 }
@@ -35,6 +36,16 @@ type storedSecuritySettings struct {
 	WebPort             int    `json:"webPort,omitempty"`
 	PasswordHash        string `json:"passwordHash,omitempty"`
 	AdminAuthRequired   *bool  `json:"adminAuthRequired,omitempty"`
+}
+
+// storedMCPServerSettings deliberately keeps the bearer-token verifier out of
+// the public settings shape so it can never accidentally be returned by API
+// handlers that serialize MCPServerSettings.
+type storedMCPServerSettings struct {
+	Enabled   bool   `json:"enabled"`
+	Port      int    `json:"port,omitempty"`
+	AuthMode  string `json:"authMode,omitempty"`
+	TokenHash string `json:"tokenHash,omitempty"`
 }
 
 // Pine worker defaults remain documented here for the PineTS hard-cut audit:

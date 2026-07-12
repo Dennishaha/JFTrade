@@ -56,9 +56,17 @@ func (s *Server) closeWatchlistStore() error {
 }
 
 func (s *Server) closeRuntimeManagers(errs *[]error) {
+	s.appendCloseError(errs, "local MCP server close", s.closeMCPServer)
 	s.appendCloseError(errs, "assistantSvc close", s.closeAssistantService)
 	s.appendCloseError(errs, "futu marketdata runtime close", s.closeMarketdataRuntime)
 	s.appendCloseError(errs, "exchange calendar manager close", s.closeExchangeCalendars)
+}
+
+func (s *Server) closeMCPServer() error {
+	if s.mcpServer == nil {
+		return nil
+	}
+	return s.mcpServer.Close()
 }
 
 func (s *Server) appendCloseError(errs *[]error, name string, closeFn func() error) {

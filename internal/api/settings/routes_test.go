@@ -28,6 +28,7 @@ type routeStore struct {
 	security            jfsettings.SecuritySettings
 	systemNotifications jfsettings.SystemNotificationSettings
 	adk                 jfsettings.ADKRuntimeSettings
+	mcpServer           jfsettings.MCPServerSettings
 	pineWorker          jfsettings.PineWorkerSettings
 	calendars           jfsettings.ExchangeCalendarSettings
 	updateErr           error
@@ -105,6 +106,9 @@ func (s *routeStore) SystemNotificationSettings() jfsettings.SystemNotificationS
 func (s *routeStore) ADKSettings() jfsettings.ADKRuntimeSettings {
 	return s.adk
 }
+func (s *routeStore) MCPServerSettings() jfsettings.MCPServerSettings {
+	return s.mcpServer
+}
 func (s *routeStore) PineWorkerSettings() jfsettings.PineWorkerSettings {
 	return s.pineWorker
 }
@@ -159,6 +163,13 @@ func (s *routeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfset
 		return jfsettings.ADKRuntimeSettings{}, s.saveErr
 	}
 	s.adk = input
+	return input, nil
+}
+func (s *routeStore) SaveMCPServerSettings(input jfsettings.MCPServerSettings) (jfsettings.MCPServerSettings, error) {
+	if s.saveErr != nil {
+		return jfsettings.MCPServerSettings{}, s.saveErr
+	}
+	s.mcpServer = input
 	return input, nil
 }
 func (s *routeStore) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (jfsettings.PineWorkerSettings, error) {
@@ -252,6 +263,52 @@ func TestSettingsRoutesPreserveLegacyResponseShapes(t *testing.T) {
 			t.Fatalf("envelope = %#v, want deleted flag and id", envelope)
 		}
 	})
+}
+
+func TestMCPServerSettingsRoutesReturnTokenOnlyOnce(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	store := &routeStore{mcpServer: jfsettings.MCPServerSettings{
+		Port:      jfsettings.DefaultMCPServerPort,
+		AuthMode:  "token",
+		TokenHash: "",
+	}}
+	router := gin.New()
+	apisettings.RegisterRoutes(router.Group("/api/v1"), srvsettings.NewService(store))
+
+	initial := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/adk/mcp", "")
+	if initial.Code != http.StatusOK || !strings.Contains(initial.Body.String(), `"port":6697`) || strings.Contains(initial.Body.String(), "tokenHash") {
+		t.Fatalf("initial MCP settings = %d %s", initial.Code, initial.Body.String())
+	}
+
+	rejected := performSettingsRequest(t, router, http.MethodPut, "/api/v1/settings/adk/mcp", `{"enabled":true,"port":6697,"authMode":"token"}`)
+	if rejected.Code != http.StatusBadRequest || !strings.Contains(rejected.Body.String(), `"code":"MCP_SERVER_SETTINGS_REJECTED"`) {
+		t.Fatalf("token-less MCP enable = %d %s", rejected.Code, rejected.Body.String())
+	}
+
+	reset := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/adk/mcp/token/reset", "")
+	if reset.Code != http.StatusOK || strings.Contains(reset.Body.String(), "tokenHash") {
+		t.Fatalf("MCP token reset = %d %s", reset.Code, reset.Body.String())
+	}
+	var resetEnvelope struct {
+		OK   bool                                 `json:"ok"`
+		Data jfsettings.MCPServerTokenResetResult `json:"data"`
+	}
+	if err := json.NewDecoder(reset.Body).Decode(&resetEnvelope); err != nil {
+		t.Fatalf("decode token reset response: %v", err)
+	}
+	if !resetEnvelope.OK || !resetEnvelope.Data.Settings.TokenConfigured || !strings.HasPrefix(resetEnvelope.Data.Token, "jft_mcp_") {
+		t.Fatalf("token reset response = %#v", resetEnvelope)
+	}
+
+	saved := performSettingsRequest(t, router, http.MethodPut, "/api/v1/settings/adk/mcp", `{"enabled":true,"port":6697,"authMode":"token"}`)
+	if saved.Code != http.StatusOK || !strings.Contains(saved.Body.String(), `"enabled":true`) || strings.Contains(saved.Body.String(), resetEnvelope.Data.Token) {
+		t.Fatalf("saved MCP settings = %d %s", saved.Code, saved.Body.String())
+	}
+
+	readback := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/adk/mcp", "")
+	if readback.Code != http.StatusOK || strings.Contains(readback.Body.String(), resetEnvelope.Data.Token) || strings.Contains(readback.Body.String(), "tokenHash") {
+		t.Fatalf("readback MCP settings = %d %s", readback.Code, readback.Body.String())
+	}
 }
 
 func TestManagedAccountRoutesMapMissingRecordsToNotFound(t *testing.T) {

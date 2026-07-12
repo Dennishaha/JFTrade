@@ -36,6 +36,7 @@ const {
   fetchADKOptimizationTasksMock,
   fetchADKRunsPageMock,
   fetchADKSettingsSnapshotMock,
+  fetchMCPServerSettingsMock,
   fetchADKSkillsMock,
   fetchADKTasksMock,
   installADKSkillMock,
@@ -43,6 +44,8 @@ const {
   saveADKAgentMock,
   saveADKProviderMock,
   saveADKRuntimeSettingsMock,
+  saveMCPServerSettingsMock,
+  resetMCPServerTokenMock,
   setADKDefaultProviderMock,
   testADKProviderMock,
   uninstallADKSkillMock,
@@ -58,6 +61,7 @@ const {
   fetchADKOptimizationTasksMock: vi.fn(),
   fetchADKRunsPageMock: vi.fn(),
   fetchADKSettingsSnapshotMock: vi.fn(),
+  fetchMCPServerSettingsMock: vi.fn(),
   fetchADKSkillsMock: vi.fn(),
   fetchADKTasksMock: vi.fn(),
   installADKSkillMock: vi.fn(),
@@ -65,6 +69,8 @@ const {
   saveADKAgentMock: vi.fn(),
   saveADKProviderMock: vi.fn(),
   saveADKRuntimeSettingsMock: vi.fn(),
+  saveMCPServerSettingsMock: vi.fn(),
+  resetMCPServerTokenMock: vi.fn(),
   setADKDefaultProviderMock: vi.fn(),
   testADKProviderMock: vi.fn(),
   uninstallADKSkillMock: vi.fn(),
@@ -87,6 +93,7 @@ vi.mock("../src/composables/adkSettingsApi", async () => {
     fetchADKOptimizationTasks: fetchADKOptimizationTasksMock,
     fetchADKRunsPage: fetchADKRunsPageMock,
     fetchADKSettingsSnapshot: fetchADKSettingsSnapshotMock,
+    fetchMCPServerSettings: fetchMCPServerSettingsMock,
     fetchADKSkills: fetchADKSkillsMock,
     fetchADKTasks: fetchADKTasksMock,
     installADKSkill: installADKSkillMock,
@@ -94,6 +101,8 @@ vi.mock("../src/composables/adkSettingsApi", async () => {
     saveADKAgent: saveADKAgentMock,
     saveADKProvider: saveADKProviderMock,
     saveADKRuntimeSettings: saveADKRuntimeSettingsMock,
+    saveMCPServerSettings: saveMCPServerSettingsMock,
+    resetMCPServerToken: resetMCPServerTokenMock,
     setADKDefaultProvider: setADKDefaultProviderMock,
     testADKProvider: testADKProviderMock,
     uninstallADKSkill: uninstallADKSkillMock,
@@ -106,6 +115,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 
   fetchADKSettingsSnapshotMock.mockResolvedValue(buildSnapshot());
+  fetchMCPServerSettingsMock.mockResolvedValue(buildMCPServerSnapshot());
   fetchADKRunsPageMock.mockImplementation(
     async (page: PageEnvelope, status: string) => ({
       runs:
@@ -576,6 +586,21 @@ function buildSnapshot(
     memoryEntries: overrides.memoryEntries ?? [buildMemoryEntry()],
     agentTemplates: overrides.agentTemplates ?? [buildTemplate()],
     metrics: overrides.metrics ?? buildMetrics(),
+  };
+}
+
+function buildMCPServerSnapshot() {
+  return {
+    settings: {
+      enabled: false,
+      port: 6697,
+      authMode: "token" as const,
+      tokenConfigured: false,
+    },
+    status: {
+      running: false,
+      endpoint: "http://127.0.0.1:6697/mcp",
+    },
   };
 }
 

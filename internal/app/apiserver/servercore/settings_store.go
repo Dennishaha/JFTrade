@@ -21,6 +21,8 @@ type (
 	ExecutionSettings        = jftsettings.ExecutionSettings
 	SecuritySettings         = jftsettings.SecuritySettings
 	ADKRuntimeSettings       = jftsettings.ADKRuntimeSettings
+	MCPServerSettings        = jftsettings.MCPServerSettings
+	MCPServerStatus          = jftsettings.MCPServerStatus
 	PineWorkerSettings       = jftsettings.PineWorkerSettings
 	ExchangeCalendarSettings = jftsettings.ExchangeCalendarSettings
 	LaunchDefaults           = jftsettings.LaunchDefaults

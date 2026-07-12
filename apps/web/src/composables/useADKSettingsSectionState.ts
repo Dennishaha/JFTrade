@@ -11,6 +11,8 @@ import type {
   ADKSkill,
   ADKTask,
   ADKToolDescriptor,
+  MCPServerSettings,
+  MCPServerStatus,
 } from "@/contracts";
 
 import {
@@ -26,12 +28,15 @@ import {
   fetchADKSettingsSnapshot,
   fetchADKSkills,
   fetchADKTasks,
+  fetchMCPServerSettings,
   installADKSkill,
   nextPage,
   pageSummary,
   previousPage,
   resumeADKRun,
   saveADKRuntimeSettings,
+  saveMCPServerSettings as saveMCPServerSettingsRequest,
+  resetMCPServerToken as resetMCPServerTokenRequest,
   type ADKMetricsResponse,
   type PageEnvelope,
   uninstallADKSkill,
@@ -106,6 +111,18 @@ export function useADKSettingsSectionState() {
     runTimeoutSeconds: 1800,
     streamIdleTimeoutSeconds: 300,
   });
+  const mcpServerForm = ref<Pick<MCPServerSettings, "enabled" | "port" | "authMode">>({
+    enabled: false,
+    port: 6697,
+    authMode: "token",
+  });
+  const mcpServerStatus = ref<MCPServerStatus>({
+    running: false,
+    endpoint: "http://127.0.0.1:6697/mcp",
+  });
+  const mcpServerTokenConfigured = ref(false);
+  const mcpServerOneTimeToken = ref("");
+  const mcpServerSaving = ref(false);
 
   const providerOptions = computed(() =>
     [
@@ -175,7 +192,10 @@ export function useADKSettingsSectionState() {
     loading.value = true;
     errorMessage.value = "";
     try {
-      const snapshot = await fetchADKSettingsSnapshot();
+      const [snapshot, mcpSnapshot] = await Promise.all([
+        fetchADKSettingsSnapshot(),
+        fetchMCPServerSettings(),
+      ]);
       providers.value = snapshot.providers;
       agents.value = snapshot.agents;
       tools.value = snapshot.tools;
@@ -199,6 +219,7 @@ export function useADKSettingsSectionState() {
       memoryEntries.value = snapshot.memoryEntries;
       agentTemplates.value = snapshot.agentTemplates;
       metrics.value = snapshot.metrics;
+      applyMCPServerSnapshot(mcpSnapshot);
       await Promise.all([refreshRuns(), refreshApprovals(), refreshAuditEvents()]);
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : "加载智能体配置失败";
@@ -400,6 +421,64 @@ export function useADKSettingsSectionState() {
     }
   }
 
+  function applyMCPServerSnapshot(snapshot: {
+    settings: MCPServerSettings;
+    status: MCPServerStatus;
+  }): void {
+    mcpServerForm.value = {
+      enabled: snapshot.settings.enabled,
+      port: snapshot.settings.port,
+      authMode: snapshot.settings.authMode,
+    };
+    mcpServerStatus.value = snapshot.status;
+    mcpServerTokenConfigured.value = snapshot.settings.tokenConfigured;
+  }
+
+  async function saveMCPServerSettings(): Promise<void> {
+    const port = Math.round(Number(mcpServerForm.value.port));
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+      errorMessage.value = "MCP 服务端口必须在 1024 到 65535 之间";
+      return;
+    }
+    try {
+      mcpServerSaving.value = true;
+      const snapshot = await saveMCPServerSettingsRequest({
+        enabled: mcpServerForm.value.enabled,
+        port,
+        authMode: mcpServerForm.value.authMode,
+      });
+      applyMCPServerSnapshot(snapshot);
+      successMessage.value = "MCP 服务设置已保存";
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : "保存 MCP 服务设置失败";
+    } finally {
+      mcpServerSaving.value = false;
+    }
+  }
+
+  async function resetMCPServerToken(): Promise<void> {
+    try {
+      mcpServerSaving.value = true;
+      const result = await resetMCPServerTokenRequest();
+      // Token rotation is independent from the settings form. Keep any
+      // unsaved port/enabled/auth-mode choices instead of replacing them with
+      // the persisted snapshot returned by the token endpoint.
+      const pendingForm = { ...mcpServerForm.value };
+      applyMCPServerSnapshot(result);
+      mcpServerForm.value = pendingForm;
+      mcpServerOneTimeToken.value = result.token;
+      successMessage.value = "MCP Token 已重置";
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : "重置 MCP Token 失败";
+    } finally {
+      mcpServerSaving.value = false;
+    }
+  }
+
+  function clearMCPServerOneTimeToken(): void {
+    mcpServerOneTimeToken.value = "";
+  }
+
   const providerFormState = useADKProviderForm(refreshAll, successMessage, errorMessage);
   const agentFormState = useADKAgentForm(providers, tools, skills, refreshAll, successMessage, errorMessage);
 
@@ -449,6 +528,7 @@ export function useADKSettingsSectionState() {
     applyAgentTemplate,
     cancelOptimizationTask,
     cancelRun,
+    clearMCPServerOneTimeToken,
     deleteAgent: agentFormState.deleteAgent,
     deleteProvider: providerFormState.deleteProvider,
     duplicateAgent: agentFormState.duplicateAgent,
@@ -463,6 +543,11 @@ export function useADKSettingsSectionState() {
     isInternalSkill,
     loading,
     metrics,
+    mcpServerForm,
+    mcpServerOneTimeToken,
+    mcpServerSaving,
+    mcpServerStatus,
+    mcpServerTokenConfigured,
     memoryAgentFilter,
     memoryEntries,
     memoryKeyFilter,
@@ -493,8 +578,10 @@ export function useADKSettingsSectionState() {
     runStatusFilter,
     runTerminalMessage,
     saveAgent: agentFormState.saveAgent,
+    saveMCPServerSettings,
     saveProvider: providerFormState.saveProvider,
     saveRuntimeSettings,
+    resetMCPServerToken,
     setDefaultProvider: providerFormState.setDefaultProvider,
     skillOptions,
     skills,

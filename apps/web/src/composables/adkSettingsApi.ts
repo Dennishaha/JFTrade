@@ -13,6 +13,9 @@ import type {
   ADKTaskFilters,
   ADKTaskPatch,
   ADKToolDescriptor,
+  MCPServerSettings,
+  MCPServerSettingsSnapshot,
+  MCPServerTokenResetResult,
 } from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
@@ -332,6 +335,24 @@ export async function saveADKRuntimeSettings(
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),
+  });
+}
+
+export async function fetchMCPServerSettings(): Promise<MCPServerSettingsSnapshot> {
+  return fetchEnvelope<MCPServerSettingsSnapshot>("/api/v1/settings/adk/mcp");
+}
+
+export async function saveMCPServerSettings(settings: Pick<MCPServerSettings, "enabled" | "port" | "authMode">): Promise<MCPServerSettingsSnapshot> {
+  return fetchEnvelopeWithInit<MCPServerSettingsSnapshot>("/api/v1/settings/adk/mcp", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+}
+
+export async function resetMCPServerToken(): Promise<MCPServerTokenResetResult> {
+  return fetchEnvelopeWithInit<MCPServerTokenResetResult>("/api/v1/settings/adk/mcp/token/reset", {
+    method: "POST",
   });
 }
 

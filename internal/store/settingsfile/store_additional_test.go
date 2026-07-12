@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
@@ -42,6 +43,9 @@ func TestStoreDefaultsExposePathAndNormalizedDefaults(t *testing.T) {
 	if got := store.ADKSettings(); got != DefaultADKRuntimeSettings() {
 		t.Fatalf("ADKSettings = %#v", got)
 	}
+	if got := store.MCPServerSettings(); got != DefaultMCPServerSettings() {
+		t.Fatalf("MCPServerSettings = %#v", got)
+	}
 	if got := store.SystemNotificationSettings(); !reflect.DeepEqual(got, DefaultSystemNotificationSettings()) {
 		t.Fatalf("SystemNotificationSettings = %#v", got)
 	}
@@ -53,6 +57,48 @@ func TestStoreDefaultsExposePathAndNormalizedDefaults(t *testing.T) {
 	}
 	if got := store.ManagedAccounts(); len(got) != 0 {
 		t.Fatalf("ManagedAccounts length = %d, want 0", len(got))
+	}
+}
+
+func TestMCPServerSettingsPersistVerifierWithoutPublicLeak(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	store, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	input := jfsettings.MCPServerSettings{
+		Enabled:   true,
+		Port:      6697,
+		AuthMode:  "token",
+		TokenHash: "$argon2id$test-verifier",
+	}
+	saved, err := store.SaveMCPServerSettings(input)
+	if err != nil {
+		t.Fatalf("SaveMCPServerSettings: %v", err)
+	}
+	if !saved.Enabled || saved.Port != 6697 || saved.AuthMode != "token" || !saved.TokenConfigured {
+		t.Fatalf("saved = %#v", saved)
+	}
+	encoded, err := json.Marshal(saved)
+	if err != nil {
+		t.Fatalf("marshal public settings: %v", err)
+	}
+	if strings.Contains(string(encoded), input.TokenHash) || strings.Contains(string(encoded), "tokenHash") {
+		t.Fatalf("public settings leaked verifier: %s", encoded)
+	}
+	persisted, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !strings.Contains(string(persisted), input.TokenHash) || !strings.Contains(string(persisted), "mcpServer") {
+		t.Fatalf("persisted MCP settings missing verifier: %s", persisted)
+	}
+	reloaded, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if got := reloaded.MCPServerSettings(); got.TokenHash != input.TokenHash || !got.TokenConfigured {
+		t.Fatalf("reloaded MCP settings = %#v", got)
 	}
 }
 
