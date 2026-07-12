@@ -52,6 +52,10 @@ assert(
   "Windows does not use Wails resource and WebView2 tools",
 );
 assert(
+  windows.includes('"{{.MAKENSIS}}" /DWAILS_INSTALL_SCOPE=user'),
+  "Windows NSIS command does not quote an executable path containing spaces",
+);
+assert(
   darwin.includes("codesign --verify --deep --strict"),
   "macOS bundle sealing is not verified",
 );

@@ -64,7 +64,7 @@ tasks:
       - go tool wails3 generate webview2bootstrapper -dir dist/desktop-release/windows-{{.ARCH}}/nsis
       - node scripts/sign-desktop-release.mjs windows dist/desktop/windows-{{.ARCH}}/jftrade-desktop-windows-{{.ARCH}}.exe
       - cmd: >-
-          {{.MAKENSIS}} /DWAILS_INSTALL_SCOPE=user /DREQUEST_EXECUTION_LEVEL=user
+          "{{.MAKENSIS}}" /DWAILS_INSTALL_SCOPE=user /DREQUEST_EXECUTION_LEVEL=user
           /DARG_WAILS_{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}_BINARY={{.ROOT_DIR}}\dist\desktop\windows-{{.ARCH}}\jftrade-desktop-windows-{{.ARCH}}.exe
           /DOUTPUT_EXE={{.ROOT_DIR}}\dist\desktop-release\windows-{{.ARCH}}\{{.INSTALLER}}
           project.nsi
