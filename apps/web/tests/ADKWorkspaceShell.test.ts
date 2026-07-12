@@ -110,6 +110,25 @@ const workflowPlanStub = {
   template: "<div class='workflow-plan' />",
 };
 
+const splitPaneStub = defineComponent({
+  emits: ["resized"],
+  template: `
+    <div class="split-pane-stub">
+      <button
+        type="button"
+        class="resize-workspace"
+        @click="$emit('resized', { panes: [{ size: 31 }, { size: 69 }] })"
+      >resize</button>
+      <slot />
+    </div>
+  `,
+});
+
+const splitPaneItemStub = defineComponent({
+  props: ["size", "minSize", "maxSize"],
+  template: `<div class="split-pane-item-stub" :data-size="size"><slot /></div>`,
+});
+
 let originalMatchMedia: typeof window.matchMedia;
 let originalRequestAnimationFrame: typeof window.requestAnimationFrame;
 let originalCancelAnimationFrame: typeof window.cancelAnimationFrame;
@@ -131,6 +150,28 @@ afterEach(() => {
 });
 
 describe("ADKWorkspaceShell", () => {
+  it("resizes the desktop session and conversation panes with the shared splitter", async () => {
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList);
+
+    const wrapper = await mountShell();
+    expect(
+      wrapper
+        .findAll(".split-pane-item-stub")
+        .map((pane) => pane.attributes("data-size")),
+    ).toEqual(["24", "76"]);
+
+    await wrapper.find(".resize-workspace").trigger("click");
+    expect(
+      wrapper
+        .findAll(".split-pane-item-stub")
+        .map((pane) => pane.attributes("data-size")),
+    ).toEqual(["31", "69"]);
+  });
+
   it("renders mermaid timelines, paginates windows, clears errors, and leaves child views", async () => {
     currentControllerState = buildControllerState({
       errorMessage: "stream failed",
@@ -272,6 +313,8 @@ async function mountShell() {
     global: {
       plugins: [router],
       stubs: {
+        SplitPane: splitPaneStub,
+        SplitPaneItem: splitPaneItemStub,
         ADKSessionSidebar: sessionSidebarStub,
         ADKChatThread: chatThreadStub,
         ADKApprovalQueuePanel: approvalQueueStub,

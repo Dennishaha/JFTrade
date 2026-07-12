@@ -148,6 +148,9 @@ func TestWorkflowBuiltinTemplatesWatchedInstrumentsAndScheduleHelpers(t *testing
 	if !builtin.BuiltinTemplate || builtin.Status != jfadk.WorkflowStatusDisabled || !strings.Contains(builtin.PromptTemplate, "每日股票盘点") {
 		t.Fatalf("builtin workflow = %+v", builtin)
 	}
+	if builtin.AgentID != jfadk.DefaultBuiltinAgentID {
+		t.Fatalf("builtin workflow agent = %q, want %q", builtin.AgentID, jfadk.DefaultBuiltinAgentID)
+	}
 	triggers, err := service.ListWorkflowTriggers(ctx, builtin.ID)
 	if err != nil {
 		t.Fatalf("ListWorkflowTriggers builtin: %v", err)

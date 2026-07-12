@@ -131,18 +131,6 @@ func TestStoreBuiltinAgentsAreProtected(t *testing.T) {
 		t.Fatalf("disable primary default err = %v, want ErrBuiltinAgentProtected", err)
 	}
 
-	secondary, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "investment-analyst", Name: "投资分析助手", Status: AgentStatusDisabled,
-	})
-	if err != nil {
-		t.Fatalf("disable secondary builtin: %v", err)
-	}
-	if secondary.Status != AgentStatusDisabled || !secondary.Builtin {
-		t.Fatalf("secondary builtin = %+v, want disabled builtin", secondary)
-	}
-	if err := runtime.Store().DeleteAgent(ctx, secondary.ID); !errors.Is(err, ErrBuiltinAgentProtected) {
-		t.Fatalf("DeleteAgent secondary err = %v, want ErrBuiltinAgentProtected", err)
-	}
 }
 
 func TestModelsListToolReturnsCallableModelsWithoutKeys(t *testing.T) {

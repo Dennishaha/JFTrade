@@ -125,7 +125,7 @@ func TestCatalogSnapshotToolsTemplatesAndDeleteAgentContracts(t *testing.T) {
 		t.Fatalf("tools status=%d body=%s", tools.Code, tools.Body.String())
 	}
 	templates := performAssistantRequest(router, http.MethodGet, "/api/v1/adk/agent-templates", nil)
-	if templates.Code != http.StatusOK || !strings.Contains(templates.Body.String(), "投资分析助手") {
+	if templates.Code != http.StatusOK || !strings.Contains(templates.Body.String(), "默认助手") || strings.Contains(templates.Body.String(), "investment-analyst") {
 		t.Fatalf("templates status=%d body=%s", templates.Code, templates.Body.String())
 	}
 	editDefault := performAssistantRequest(router, http.MethodPut, "/api/v1/adk/agents/"+jfadk.DefaultBuiltinAgentID, []byte(`{

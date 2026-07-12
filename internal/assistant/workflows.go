@@ -82,7 +82,7 @@ func (s *Service) EnsureBuiltinWorkflowTemplates(ctx context.Context) error {
 		Name:              "每日股票盘点",
 		Description:       "交易日上午盘点关注列表、持仓、风险事件与待办事项。",
 		Status:            jfadk.WorkflowStatusDisabled,
-		AgentID:           "investment-analyst",
+		AgentID:           jfadk.DefaultBuiltinAgentID,
 		WorkMode:          jfadk.WorkModeLoop,
 		PermissionMode:    jfadk.PermissionModeApproval,
 		PromptTemplate:    dailyStockReviewPrompt(),

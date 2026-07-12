@@ -118,7 +118,7 @@ Legacy strategy instructions.
 	}
 }
 
-func TestBuiltinStrategyAgentTemplatesExposeExplicitStrategyTools(t *testing.T) {
+func TestBuiltinAgentTemplatesOnlyExposeDefaultAgent(t *testing.T) {
 	defaultAgent, ok := BuiltinAgentTemplate(DefaultBuiltinAgentID)
 	if !ok {
 		t.Fatalf("BuiltinAgentTemplate(%q) not found", DefaultBuiltinAgentID)
@@ -127,52 +127,12 @@ func TestBuiltinStrategyAgentTemplatesExposeExplicitStrategyTools(t *testing.T) 
 		t.Fatalf("default agent skills = %+v, want all builtin skills %+v", defaultAgent.Skills, BuiltinSkillIDs())
 	}
 
-	for _, agentID := range []string{"investment-analyst", "strategy-researcher", "risk-reviewer"} {
-		template, ok := BuiltinAgentTemplate(agentID)
-		if !ok {
-			t.Fatalf("BuiltinAgentTemplate(%q) not found", agentID)
-		}
-		if containsString(template.Skills, strategypinespec.LegacyBuiltinSkillName) {
-			t.Fatalf("template %q still references legacy strategy skill: %+v", agentID, template.Skills)
-		}
+	if templates := BuiltinAgentTemplates(); len(templates) != 1 {
+		t.Fatalf("BuiltinAgentTemplates() len = %d, want 1", len(templates))
 	}
-	investment, _ := BuiltinAgentTemplate("investment-analyst")
-	if !containsString(investment.Tools, "watchlist.list") {
-		t.Fatalf("investment tools = %+v, want watchlist.list", investment.Tools)
-	}
-	if !containsString(investment.Skills, strategypinespec.ResearchBuiltinSkillName) || containsString(investment.Skills, strategypinespec.PublishBuiltinSkillName) {
-		t.Fatalf("investment skills = %+v, want research only", investment.Skills)
-	}
-	for _, toolName := range strategypinespec.ResearchSkillAllowedTools() {
-		if !containsString(investment.Tools, toolName) {
-			t.Fatalf("investment tools = %+v, want research tool %s", investment.Tools, toolName)
-		}
-	}
-	for _, toolName := range []string{"strategy.save_definition", "strategy.update_instance_mode"} {
-		if containsString(investment.Tools, toolName) {
-			t.Fatalf("investment tools unexpectedly include publish tool %s: %+v", toolName, investment.Tools)
-		}
-	}
-
-	researcher, _ := BuiltinAgentTemplate("strategy-researcher")
-	for _, skillName := range []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName} {
-		if !containsString(researcher.Skills, skillName) {
-			t.Fatalf("strategy-researcher skills = %+v, want %s", researcher.Skills, skillName)
-		}
-	}
-	for _, toolName := range append(strategypinespec.ResearchSkillAllowedTools(), strategypinespec.PublishSkillAllowedTools()...) {
-		if !containsString(researcher.Tools, toolName) {
-			t.Fatalf("strategy-researcher tools = %+v, want %s", researcher.Tools, toolName)
-		}
-	}
-
-	risk, _ := BuiltinAgentTemplate("risk-reviewer")
-	if !containsString(risk.Skills, strategypinespec.PublishBuiltinSkillName) || containsString(risk.Skills, strategypinespec.ResearchBuiltinSkillName) {
-		t.Fatalf("risk skills = %+v, want publish only", risk.Skills)
-	}
-	for _, toolName := range strategypinespec.PublishSkillAllowedTools() {
-		if !containsString(risk.Tools, toolName) {
-			t.Fatalf("risk tools = %+v, want publish tool %s", risk.Tools, toolName)
+	for _, retiredID := range []string{"investment-analyst", "strategy-researcher", "opend-diagnostician", "risk-reviewer"} {
+		if _, ok := BuiltinAgentTemplate(retiredID); ok {
+			t.Fatalf("retired builtin agent %q is still available", retiredID)
 		}
 	}
 }

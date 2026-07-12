@@ -8,6 +8,7 @@ import {
   watch,
 } from "vue";
 import { useRouter } from "vue-router";
+import type { SplitpanesResizedPayload } from "splitpanes";
 
 import ADKApprovalQueuePanel from "./ADKApprovalQueuePanel.vue";
 import ADKChatComposer from "./ADKChatComposer.vue";
@@ -15,6 +16,8 @@ import ADKChatThread from "./ADKChatThread.vue";
 import ADKChildRunQueuePanel from "./ADKChildRunQueuePanel.vue";
 import ADKSessionSidebar from "./ADKSessionSidebar.vue";
 import ADKWorkflowPlanPanel from "./ADKWorkflowPlanPanel.vue";
+import SplitPane from "../shared/SplitPane.vue";
+import SplitPaneItem from "../shared/SplitPaneItem.vue";
 import { useADKMarkdownRenderer } from "../../composables/useADKMarkdownRenderer";
 import { useADKPageController } from "../../composables/useADKPageController";
 
@@ -40,6 +43,7 @@ const showChildStickyBar = ref(false);
 const mobileSessionPanelOpen = ref(false);
 const isNarrowViewport = ref(false);
 const timelineRenderOffset = ref(0);
+const workspacePaneSizes = ref<[number, number]>([24, 76]);
 let mermaidRenderFrame: number | null = null;
 let mermaidModule: MermaidApi | null = null;
 let mermaidModulePromise: Promise<MermaidApi> | null = null;
@@ -355,6 +359,18 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
   await selectSession(sessionId);
   mobileSessionPanelOpen.value = false;
 }
+
+function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
+  const sizes = payload.panes?.map((pane) => pane.size);
+  if (
+    sizes == null ||
+    sizes.length !== 2 ||
+    !sizes.every((size) => Number.isFinite(size) && size > 0 && size <= 100)
+  ) {
+    return;
+  }
+  workspacePaneSizes.value = [sizes[0]!, sizes[1]!];
+}
 </script>
 
 <template>
@@ -362,247 +378,295 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
     class="adk-shell"
     :class="{ 'adk-shell--mobile': effectiveLayout === 'mobile' }"
   >
-    <ADKSessionSidebar
-      v-if="effectiveLayout === 'desktop'"
-      :selected-agent-id="selectedAgentId"
-      :selected-session-id="selectedSessionId"
-      :selected-agent="selectedAgent"
-      :session-search="sessionSearch"
-      :session-agent-filter="sessionAgentFilter"
-      :agent-options="agentOptions"
-      :visible-sessions="visibleSessions"
-      :visible-session-groups="visibleSessionGroups"
-      :show-session-groups="showSessionGroups"
-      :sessions="sessions"
-      :format-permission="formatPermission"
-      :session-title="sessionTitle"
-      :agent-name="agentName"
-      :creating-session="creatingSession"
-      :create-new-session="createNewSession"
-      :select-session="selectSession"
-      :rename-session="renameSession"
-      :delete-session="deleteSession"
-      @update:session-search="sessionSearch = $event"
-      @update:session-agent-filter="sessionAgentFilter = $event"
-    />
-
-    <div class="adk-main">
-      <div v-if="effectiveLayout === 'mobile'" class="adk-mobile-toolbar">
-        <button
-          type="button"
-          class="adk-mobile-toolbar__button"
-          :class="{ 'is-active': mobileSessionPanelOpen }"
-          data-testid="adk-mobile-sessions-toggle"
-          :aria-expanded="mobileSessionPanelOpen ? 'true' : 'false'"
-          @click="toggleMobileSessionPanel"
-        >
-          <span style="text-wrap: nowrap;">会话</span>
-          <span class="adk-mobile-toolbar__count">{{ sessions.length }}</span>
-        </button>
-        <div class="adk-mobile-toolbar__summary">
-          <strong :title="mobileSessionLabel">{{ mobileSessionLabel }}</strong>
-          <span :title="mobileAgentLabel">{{ mobileAgentLabel }}</span>
-        </div>
-        <button
-          type="button"
-          class="adk-mobile-toolbar__button"
-          :disabled="selectedAgentId === '' || creatingSession"
-          @click="void handleMobileCreateNewSession()"
-        >
-          <span style="text-wrap: nowrap;">{{ creatingSession ? "创建中" : "新建" }}</span>
-        </button>
-      </div>
-
-      <div
-        v-if="effectiveLayout === 'mobile' && mobileSessionPanelOpen"
-        class="adk-mobile-session-drawer"
-        data-testid="adk-mobile-session-drawer"
+    <SplitPane
+      class="adk-shell__split"
+      :pane-min-size="18"
+      @resized="handleWorkspacePaneResized"
+    >
+      <SplitPaneItem
+        v-if="effectiveLayout === 'desktop'"
+        :size="workspacePaneSizes[0]"
+        :min-size="18"
+        :max-size="40"
       >
-        <div class="adk-mobile-session-drawer__actions">
-          <button
-            type="button"
-            class="adk-mobile-session-drawer__close"
-            data-testid="adk-mobile-sessions-close"
-            @click="mobileSessionPanelOpen = false"
+        <div class="adk-shell__sidebar-pane">
+          <ADKSessionSidebar
+            :selected-agent-id="selectedAgentId"
+            :selected-session-id="selectedSessionId"
+            :selected-agent="selectedAgent"
+            :session-search="sessionSearch"
+            :session-agent-filter="sessionAgentFilter"
+            :agent-options="agentOptions"
+            :visible-sessions="visibleSessions"
+            :visible-session-groups="visibleSessionGroups"
+            :show-session-groups="showSessionGroups"
+            :sessions="sessions"
+            :format-permission="formatPermission"
+            :session-title="sessionTitle"
+            :agent-name="agentName"
+            :creating-session="creatingSession"
+            :create-new-session="createNewSession"
+            :select-session="selectSession"
+            :rename-session="renameSession"
+            :delete-session="deleteSession"
+            @update:session-search="sessionSearch = $event"
+            @update:session-agent-filter="sessionAgentFilter = $event"
+          />
+        </div>
+      </SplitPaneItem>
+
+      <SplitPaneItem
+        :size="effectiveLayout === 'desktop' ? workspacePaneSizes[1] : 100"
+        :min-size="effectiveLayout === 'desktop' ? 60 : 100"
+      >
+        <div class="adk-main">
+          <div v-if="effectiveLayout === 'mobile'" class="adk-mobile-toolbar">
+            <button
+              type="button"
+              class="adk-mobile-toolbar__button"
+              :class="{ 'is-active': mobileSessionPanelOpen }"
+              data-testid="adk-mobile-sessions-toggle"
+              :aria-expanded="mobileSessionPanelOpen ? 'true' : 'false'"
+              @click="toggleMobileSessionPanel"
+            >
+              <span style="text-wrap: nowrap">会话</span>
+              <span class="adk-mobile-toolbar__count">{{
+                sessions.length
+              }}</span>
+            </button>
+            <div class="adk-mobile-toolbar__summary">
+              <strong :title="mobileSessionLabel">{{
+                mobileSessionLabel
+              }}</strong>
+              <span :title="mobileAgentLabel">{{ mobileAgentLabel }}</span>
+            </div>
+            <button
+              type="button"
+              class="adk-mobile-toolbar__button"
+              :disabled="selectedAgentId === '' || creatingSession"
+              @click="void handleMobileCreateNewSession()"
+            >
+              <span style="text-wrap: nowrap">{{
+                creatingSession ? "创建中" : "新建"
+              }}</span>
+            </button>
+          </div>
+
+          <div
+            v-if="effectiveLayout === 'mobile' && mobileSessionPanelOpen"
+            class="adk-mobile-session-drawer"
+            data-testid="adk-mobile-session-drawer"
           >
-            收起
-          </button>
-        </div>
-        <ADKSessionSidebar
-          :selected-agent-id="selectedAgentId"
-          :selected-session-id="selectedSessionId"
-          :selected-agent="selectedAgent"
-          :session-search="sessionSearch"
-          :session-agent-filter="sessionAgentFilter"
-          :agent-options="agentOptions"
-          :visible-sessions="visibleSessions"
-          :visible-session-groups="visibleSessionGroups"
-          :show-session-groups="showSessionGroups"
-          :sessions="sessions"
-          :format-permission="formatPermission"
-          :session-title="sessionTitle"
-          :agent-name="agentName"
-          :creating-session="creatingSession"
-          :create-new-session="handleMobileCreateNewSession"
-          :select-session="handleMobileSessionSelect"
-          :rename-session="renameSession"
-          :delete-session="deleteSession"
-          @update:session-search="sessionSearch = $event"
-          @update:session-agent-filter="sessionAgentFilter = $event"
-        />
-      </div>
-
-      <div
-        ref="threadRef"
-        class="adk-thread"
-        :class="{ 'adk-thread--mobile': effectiveLayout === 'mobile' }"
-        @scroll="updateChildStickyBar"
-      >
-        <div
-          v-if="childViewContext"
-          ref="childHeaderRef"
-          class="adk-child-view-header"
-          :class="{ 'adk-child-view-header--mobile': effectiveLayout === 'mobile' }"
-        >
-          <div class="adk-child-view-header__crumb">
-            <span>父 Agent</span>
-            <span>/</span>
-            <strong>{{ childViewContext.title }}</strong>
-            <span>/</span>
-            <code>{{ childViewContext.runId }}</code>
+            <div class="adk-mobile-session-drawer__actions">
+              <button
+                type="button"
+                class="adk-mobile-session-drawer__close"
+                data-testid="adk-mobile-sessions-close"
+                @click="mobileSessionPanelOpen = false"
+              >
+                收起
+              </button>
+            </div>
+            <ADKSessionSidebar
+              :selected-agent-id="selectedAgentId"
+              :selected-session-id="selectedSessionId"
+              :selected-agent="selectedAgent"
+              :session-search="sessionSearch"
+              :session-agent-filter="sessionAgentFilter"
+              :agent-options="agentOptions"
+              :visible-sessions="visibleSessions"
+              :visible-session-groups="visibleSessionGroups"
+              :show-session-groups="showSessionGroups"
+              :sessions="sessions"
+              :format-permission="formatPermission"
+              :session-title="sessionTitle"
+              :agent-name="agentName"
+              :creating-session="creatingSession"
+              :create-new-session="handleMobileCreateNewSession"
+              :select-session="handleMobileSessionSelect"
+              :rename-session="renameSession"
+              :delete-session="deleteSession"
+              @update:session-search="sessionSearch = $event"
+              @update:session-agent-filter="sessionAgentFilter = $event"
+            />
           </div>
-          <p>{{ childViewContext.message }}</p>
-          <button type="button" @click="leaveChildView">返回父对话</button>
-        </div>
-        <div
-          v-if="childViewContext && showChildStickyBar"
-          class="adk-child-view-sticky"
-          :class="{ 'adk-child-view-sticky--mobile': effectiveLayout === 'mobile' }"
-        >
-          <div class="adk-child-view-sticky__label">
-            <span>父 Agent /</span>
-            <strong>{{ childViewContext.title }}</strong>
-            <code>{{ childViewContext.runId }}</code>
+
+          <div
+            ref="threadRef"
+            class="adk-thread"
+            :class="{ 'adk-thread--mobile': effectiveLayout === 'mobile' }"
+            @scroll="updateChildStickyBar"
+          >
+            <div
+              v-if="childViewContext"
+              ref="childHeaderRef"
+              class="adk-child-view-header"
+              :class="{
+                'adk-child-view-header--mobile': effectiveLayout === 'mobile',
+              }"
+            >
+              <div class="adk-child-view-header__crumb">
+                <span>父 Agent</span>
+                <span>/</span>
+                <strong>{{ childViewContext.title }}</strong>
+                <span>/</span>
+                <code>{{ childViewContext.runId }}</code>
+              </div>
+              <p>{{ childViewContext.message }}</p>
+              <button type="button" @click="leaveChildView">返回父对话</button>
+            </div>
+            <div
+              v-if="childViewContext && showChildStickyBar"
+              class="adk-child-view-sticky"
+              :class="{
+                'adk-child-view-sticky--mobile': effectiveLayout === 'mobile',
+              }"
+            >
+              <div class="adk-child-view-sticky__label">
+                <span>父 Agent /</span>
+                <strong>{{ childViewContext.title }}</strong>
+                <code>{{ childViewContext.runId }}</code>
+              </div>
+              <button type="button" @click="leaveChildView">返回</button>
+            </div>
+            <ADKChatThread
+              :layout="effectiveLayout"
+              :active-run-id="activeRunId"
+              :active-run-status="activeRunStatus"
+              :has-blocking-run="hasBlockingRun"
+              :timeline-entries="renderTimelineEntries"
+              :timeline-total="visibleTimelineEntries.length"
+              :timeline-window-start="timelineWindowStart"
+              :timeline-window-end="timelineWindowEnd"
+              :timeline-at-latest="timelineAtLatest"
+              :sending-chat="sendingChat"
+              :activity-indicator="activityIndicator"
+              :error-message="errorMessage"
+              :approvals-busy="approvalsBusy"
+              :suggestions="suggestions"
+              :empty-state-title="emptyStateTitle"
+              :empty-state-hint="emptyStateHint"
+              :empty-state-provider-hint="emptyStateProviderHint"
+              :approval-tool="approvalTool"
+              :clear-error-message="clearErrorMessage"
+              :preview="preview"
+              :render-markdown="renderMarkdown"
+              :resolve-approval-group="resolveApprovalGroup"
+              :resolve-approval="resolveApproval"
+              @show-older-timeline="showOlderTimelineWindow"
+              @show-newer-timeline="showNewerTimelineWindow"
+              @show-latest-timeline="showLatestTimelineWindow"
+              @update:chat-draft="chatDraft = $event"
+            />
           </div>
-          <button type="button" @click="leaveChildView">返回</button>
+
+          <ADKApprovalQueuePanel
+            :items="selectedApprovalQueue"
+            :approvals-busy="approvalsBusy"
+            :approval-tool="approvalTool"
+            :preview="preview"
+            :resolve-approval-group="resolveApprovalGroup"
+            :resolve-approval="resolveApproval"
+          />
+          <ADKChildRunQueuePanel
+            :items="childRunItems"
+            :active-child-run-id="activeChildRunId"
+            @select="setActiveChildRunId"
+          />
+          <ADKWorkflowPlanPanel :run="visibleWorkflowPlanRun" />
+
+          <ADKChatComposer
+            :layout="effectiveLayout"
+            :active-run-id="activeRunId"
+            :active-run-status="activeRunStatus"
+            :agent-options="agentOptions"
+            :can-interrupt-chat="canInterruptChat"
+            :can-send-chat="canSendChat"
+            :chat-draft="chatDraft"
+            :composer-block-message="composerBlockMessage"
+            :context-busy="contextBusy"
+            :context-details-open="contextDetailsOpen"
+            :context-snapshot="sessionContext"
+            :goal-objective-draft="goalObjectiveDraft"
+            :goal-objective-error="goalObjectiveError"
+            :goal-objective-saving="goalObjectiveSaving"
+            :goal-lifecycle-busy="goalLifecycleBusy"
+            :goal-paused="goalPaused"
+            :goal-timed-out="goalTimedOut"
+            :goal-pause-requested="goalPauseRequested"
+            :show-goal-objective-editor="showGoalObjectiveEditor"
+            :can-save-goal-objective="canSaveGoalObjective"
+            :can-pause-goal="canPauseGoal"
+            :can-resume-goal="canResumeGoal"
+            :has-blocking-run="hasBlockingRun"
+            :interrupting-run-id="interruptingRunId"
+            :loading="loading"
+            :placeholder="composerPlaceholder"
+            :provider-options="providerOptions"
+            :queued-messages="queuedMessages"
+            :queue-dispatching-id="queueDispatchingId"
+            :slash-commands="slashCommands"
+            :saving-provider-selection="savingProviderSelection"
+            :selected-agent="selectedAgent"
+            :selected-agent-id="selectedAgentId"
+            :selected-session-id="selectedSessionId"
+            :selected-provider="selectedProvider"
+            :selected-provider-id="selectedProviderId"
+            :sending-chat="sendingChat"
+            :suggestions="suggestions"
+            :default-work-mode="selectedAgent?.workMode ?? 'chat'"
+            :default-permission-mode="
+              selectedAgent?.permissionMode ?? 'approval'
+            "
+            :permission-mode-override="permissionModeOverride"
+            :work-mode-override="workModeOverride"
+            :cancel-active-run="cancelActiveRun"
+            :handle-agent-change="handleAgentChange"
+            :handle-composer-keydown="handleComposerKeydown"
+            :handle-provider-change="handleProviderChange"
+            :interrupt-and-queue-chat="interruptAndQueueChat"
+            :open-context-details="openContextDetails"
+            :open-provider-settings="openProviderSettings"
+            :pause-goal-run="pauseGoalRun"
+            :revoke-queued-message="revokeQueuedMessage"
+            :resume-goal-run="resumeGoalRun"
+            :run-slash-command="runSlashCommand"
+            :send-chat="sendChat"
+            :update-goal-objective="updateGoalObjective"
+            :update-goal-objective-draft="updateGoalObjectiveDraft"
+            @update:chat-draft="chatDraft = $event"
+            @update:context-details-open="contextDetailsOpen = $event"
+            @update:selected-agent-id="selectedAgentId = $event"
+            @update:selected-provider-id="selectedProviderId = $event"
+            @update:permission-mode-override="permissionModeOverride = $event"
+            @update:work-mode-override="workModeOverride = $event"
+          />
         </div>
-        <ADKChatThread
-          :layout="effectiveLayout"
-          :active-run-id="activeRunId"
-          :active-run-status="activeRunStatus"
-          :has-blocking-run="hasBlockingRun"
-          :timeline-entries="renderTimelineEntries"
-          :timeline-total="visibleTimelineEntries.length"
-          :timeline-window-start="timelineWindowStart"
-          :timeline-window-end="timelineWindowEnd"
-          :timeline-at-latest="timelineAtLatest"
-          :sending-chat="sendingChat"
-          :activity-indicator="activityIndicator"
-          :error-message="errorMessage"
-          :approvals-busy="approvalsBusy"
-          :suggestions="suggestions"
-          :empty-state-title="emptyStateTitle"
-          :empty-state-hint="emptyStateHint"
-          :empty-state-provider-hint="emptyStateProviderHint"
-          :approval-tool="approvalTool"
-          :clear-error-message="clearErrorMessage"
-          :preview="preview"
-          :render-markdown="renderMarkdown"
-          :resolve-approval-group="resolveApprovalGroup"
-          :resolve-approval="resolveApproval"
-          @show-older-timeline="showOlderTimelineWindow"
-          @show-newer-timeline="showNewerTimelineWindow"
-          @show-latest-timeline="showLatestTimelineWindow"
-          @update:chat-draft="chatDraft = $event"
-        />
-      </div>
-
-      <ADKApprovalQueuePanel
-        :items="selectedApprovalQueue"
-        :approvals-busy="approvalsBusy"
-        :approval-tool="approvalTool"
-        :preview="preview"
-        :resolve-approval-group="resolveApprovalGroup"
-        :resolve-approval="resolveApproval"
-      />
-      <ADKChildRunQueuePanel
-        :items="childRunItems"
-        :active-child-run-id="activeChildRunId"
-        @select="setActiveChildRunId"
-      />
-      <ADKWorkflowPlanPanel :run="visibleWorkflowPlanRun" />
-
-      <ADKChatComposer
-        :layout="effectiveLayout"
-        :active-run-id="activeRunId"
-        :active-run-status="activeRunStatus"
-        :agent-options="agentOptions"
-        :can-interrupt-chat="canInterruptChat"
-        :can-send-chat="canSendChat"
-        :chat-draft="chatDraft"
-        :composer-block-message="composerBlockMessage"
-        :context-busy="contextBusy"
-        :context-details-open="contextDetailsOpen"
-        :context-snapshot="sessionContext"
-        :goal-objective-draft="goalObjectiveDraft"
-        :goal-objective-error="goalObjectiveError"
-        :goal-objective-saving="goalObjectiveSaving"
-        :goal-lifecycle-busy="goalLifecycleBusy"
-        :goal-paused="goalPaused"
-        :goal-timed-out="goalTimedOut"
-        :goal-pause-requested="goalPauseRequested"
-        :show-goal-objective-editor="showGoalObjectiveEditor"
-        :can-save-goal-objective="canSaveGoalObjective"
-        :can-pause-goal="canPauseGoal"
-        :can-resume-goal="canResumeGoal"
-        :has-blocking-run="hasBlockingRun"
-        :interrupting-run-id="interruptingRunId"
-        :loading="loading"
-        :placeholder="composerPlaceholder"
-        :provider-options="providerOptions"
-        :queued-messages="queuedMessages"
-        :queue-dispatching-id="queueDispatchingId"
-        :slash-commands="slashCommands"
-        :saving-provider-selection="savingProviderSelection"
-        :selected-agent="selectedAgent"
-        :selected-agent-id="selectedAgentId"
-        :selected-session-id="selectedSessionId"
-        :selected-provider="selectedProvider"
-        :selected-provider-id="selectedProviderId"
-        :sending-chat="sendingChat"
-        :suggestions="suggestions"
-        :default-work-mode="selectedAgent?.workMode ?? 'chat'"
-        :default-permission-mode="selectedAgent?.permissionMode ?? 'approval'"
-        :permission-mode-override="permissionModeOverride"
-        :work-mode-override="workModeOverride"
-        :cancel-active-run="cancelActiveRun"
-        :handle-agent-change="handleAgentChange"
-        :handle-composer-keydown="handleComposerKeydown"
-        :handle-provider-change="handleProviderChange"
-        :interrupt-and-queue-chat="interruptAndQueueChat"
-        :open-context-details="openContextDetails"
-        :open-provider-settings="openProviderSettings"
-        :pause-goal-run="pauseGoalRun"
-        :revoke-queued-message="revokeQueuedMessage"
-        :resume-goal-run="resumeGoalRun"
-        :run-slash-command="runSlashCommand"
-        :send-chat="sendChat"
-        :update-goal-objective="updateGoalObjective"
-        :update-goal-objective-draft="updateGoalObjectiveDraft"
-        @update:chat-draft="chatDraft = $event"
-        @update:context-details-open="contextDetailsOpen = $event"
-        @update:selected-agent-id="selectedAgentId = $event"
-        @update:selected-provider-id="selectedProviderId = $event"
-        @update:permission-mode-override="permissionModeOverride = $event"
-        @update:work-mode-override="workModeOverride = $event"
-      />
-    </div>
+      </SplitPaneItem>
+    </SplitPane>
   </div>
 </template>
 
 <style scoped>
 .adk-main {
   position: relative;
+  height: 100%;
+}
+
+.adk-shell__split {
+  min-width: 0;
+}
+
+.adk-shell__sidebar-pane {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.adk-shell__sidebar-pane :deep(.adk-sidebar) {
+  width: 100%;
+  height: 100%;
 }
 
 .adk-mobile-toolbar {

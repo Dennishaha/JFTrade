@@ -66,6 +66,9 @@ func TestStoreListProvidersRepairsPersistedDefaultSelection(t *testing.T) {
 func TestStoreDefaultAgentSkipsDisabledPrimaryAndRestoresTemplate(t *testing.T) {
 	ctx := t.Context()
 	store := newBusinessStore(t)
+	if _, err := store.SaveAgent(ctx, AgentWriteRequest{ID: "fallback-agent", Name: "Fallback", Status: AgentStatusEnabled}); err != nil {
+		t.Fatalf("save fallback agent: %v", err)
+	}
 
 	if _, err := store.db.ExecContext(ctx, `UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.status', ?), updated_at = ? WHERE id = ?`, AgentStatusDisabled, nowString(), DefaultBuiltinAgentID); err != nil {
 		t.Fatalf("disable primary builtin agent: %v", err)

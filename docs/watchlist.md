@@ -174,7 +174,7 @@ BBGO 继续负责行情、账户、交易和 stream 公共能力。它的实时 
 
 ## ADK 工具
 
-只读工具 `watchlist.list` 已加入 `jftrade-market` skill 和投资分析助手：
+只读工具 `watchlist.list` 已加入 `jftrade-market` skill，默认助手可通过该 skill 使用此工具：
 
 | 参数 | 默认值 | 含义 |
 | --- | --- | --- |
