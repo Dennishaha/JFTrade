@@ -6,11 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
-
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -254,49 +253,9 @@ func (r *futuMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query 
 		res := &broker.SecuritySnapshotResult{AccountID: query.AccountID}
 		observedAt := time.Now().UTC()
 		for _, snap := range snapshots {
-			if snap == nil || snap.Basic == nil {
+			item, ok := securitySnapshotItemFromProto(snap, observedAt)
+			if !ok {
 				continue
-			}
-			basic := snap.Basic
-			preMarket := extendedSessionSnapshotFromProto(basic.GetPreMarket())
-			afterMarket := extendedSessionSnapshotFromProto(basic.GetAfterMarket())
-			overnight := extendedSessionSnapshotFromProto(basic.GetOvernight())
-			item := broker.SecuritySnapshotItem{
-				Symbol:        securitySymbol(basic.GetSecurity()),
-				Name:          cloneStringPtr(basic.Name),
-				SecurityType:  new(enumName(basic.GetType(), qotcommonpb.SecurityType_name)),
-				IsSuspended:   cloneBoolPtr(basic.IsSuspend),
-				LastPrice:     cloneFloat64Ptr(basic.CurPrice),
-				PreviousClose: cloneFloat64Ptr(basic.LastClosePrice),
-				OpenPrice:     cloneFloat64Ptr(basic.OpenPrice),
-				HighPrice:     cloneFloat64Ptr(basic.HighPrice),
-				LowPrice:      cloneFloat64Ptr(basic.LowPrice),
-				Volume:        int64AsFloat64Ptr(basic.Volume),
-				Turnover:      cloneFloat64Ptr(basic.Turnover),
-				LotSize:       cloneInt32Ptr(basic.LotSize),
-				UpdateTime:    cloneStringPtr(basic.UpdateTime),
-				ObservedAt:    observedAt,
-				PreMarket:     preMarket,
-				AfterMarket:   afterMarket,
-				Overnight:     overnight,
-			}
-			preQuote := extendedMarketQuoteFromProto(basic.GetPreMarket(), basic.GetUpdateTime())
-			afterQuote := extendedMarketQuoteFromProto(basic.GetAfterMarket(), basic.GetUpdateTime())
-			overnightQuote := extendedMarketQuoteFromProto(basic.GetOvernight(), basic.GetUpdateTime())
-			session := sessionFromExtendedBlocksAt(item.Symbol, preQuote, afterQuote, overnightQuote, observedAt)
-			if session != market.SessionUnknown {
-				item.Session = new(string(session))
-			}
-			if basic.CurPrice != nil && market.ShouldUseRegularCloseAsPreviousClose(
-				item.Symbol,
-				session,
-				decimal.NewFromFloat(basic.GetCurPrice()),
-			) {
-				item.PreviousClose = cloneFloat64Ptr(basic.CurPrice)
-			}
-			if snap.EquityExData != nil {
-				item.PERate = cloneFloat64Ptr(snap.EquityExData.PeRate)
-				item.PBRate = cloneFloat64Ptr(snap.EquityExData.PbRate)
 			}
 			res.Snapshots = append(res.Snapshots, item)
 		}
@@ -306,6 +265,46 @@ func (r *futuMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query 
 		return nil, err
 	}
 	return result, nil
+}
+
+func securitySnapshotItemFromProto(snap *qotgetsecuritysnapshotpb.Snapshot, observedAt time.Time) (broker.SecuritySnapshotItem, bool) {
+	if snap == nil || snap.Basic == nil {
+		return broker.SecuritySnapshotItem{}, false
+	}
+	basic := snap.Basic
+	item := broker.SecuritySnapshotItem{
+		Symbol:       securitySymbol(basic.GetSecurity()),
+		Name:         cloneStringPtr(basic.Name),
+		SecurityType: new(enumName(basic.GetType(), qotcommonpb.SecurityType_name)),
+		IsSuspended:  cloneBoolPtr(basic.IsSuspend),
+		LastPrice:    cloneFloat64Ptr(basic.CurPrice),
+		// Keep OpenD's raw LastClosePrice here. Watchlist regular-session
+		// change is measured against that value even while the US market is closed.
+		PreviousClose: cloneFloat64Ptr(basic.LastClosePrice),
+		OpenPrice:     cloneFloat64Ptr(basic.OpenPrice),
+		HighPrice:     cloneFloat64Ptr(basic.HighPrice),
+		LowPrice:      cloneFloat64Ptr(basic.LowPrice),
+		Volume:        int64AsFloat64Ptr(basic.Volume),
+		Turnover:      cloneFloat64Ptr(basic.Turnover),
+		LotSize:       cloneInt32Ptr(basic.LotSize),
+		UpdateTime:    cloneStringPtr(basic.UpdateTime),
+		ObservedAt:    observedAt,
+		PreMarket:     extendedSessionSnapshotFromProto(basic.GetPreMarket()),
+		AfterMarket:   extendedSessionSnapshotFromProto(basic.GetAfterMarket()),
+		Overnight:     extendedSessionSnapshotFromProto(basic.GetOvernight()),
+	}
+	preQuote := extendedMarketQuoteFromProto(basic.GetPreMarket(), basic.GetUpdateTime())
+	afterQuote := extendedMarketQuoteFromProto(basic.GetAfterMarket(), basic.GetUpdateTime())
+	overnightQuote := extendedMarketQuoteFromProto(basic.GetOvernight(), basic.GetUpdateTime())
+	session := sessionFromExtendedBlocksAt(item.Symbol, preQuote, afterQuote, overnightQuote, observedAt)
+	if session != market.SessionUnknown {
+		item.Session = new(string(session))
+	}
+	if snap.EquityExData != nil {
+		item.PERate = cloneFloat64Ptr(snap.EquityExData.PeRate)
+		item.PBRate = cloneFloat64Ptr(snap.EquityExData.PbRate)
+	}
+	return item, true
 }
 
 func extendedSessionSnapshotFromProto(data *qotcommonpb.PreAfterMarketData) *broker.ExtendedSessionSnapshot {

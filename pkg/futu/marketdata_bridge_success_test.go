@@ -78,6 +78,34 @@ func TestExchangeSecuritySnapshotMergesStaticInfo(t *testing.T) {
 	}
 }
 
+func TestSecuritySnapshotItemKeepsRawUSPreviousCloseWhenMarketIsClosed(t *testing.T) {
+	currentPrice, previousClose := 112.65, 111.99
+	observedAt := time.Date(2026, time.July, 12, 12, 0, 0, 0, time.UTC)
+
+	item, ok := securitySnapshotItemFromProto(&qotgetsecuritysnapshotpb.Snapshot{
+		Basic: &qotgetsecuritysnapshotpb.SnapshotBasicData{
+			Security:       testUSSecurity("TME"),
+			CurPrice:       &currentPrice,
+			LastClosePrice: &previousClose,
+		},
+	}, observedAt)
+	if !ok {
+		t.Fatal("expected a security snapshot item")
+	}
+	if item.Session == nil || *item.Session != "closed" {
+		t.Fatalf("Session = %#v, want closed", item.Session)
+	}
+	if item.LastPrice == nil || *item.LastPrice != currentPrice {
+		t.Fatalf("LastPrice = %#v, want %v", item.LastPrice, currentPrice)
+	}
+	if item.PreviousClose == nil || *item.PreviousClose != previousClose {
+		t.Fatalf("PreviousClose = %#v, want raw Futu LastClosePrice %v", item.PreviousClose, previousClose)
+	}
+	if *item.PreviousClose == *item.LastPrice {
+		t.Fatal("closed US snapshot collapsed previous close to current price")
+	}
+}
+
 //nolint:funlen
 func TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge(t *testing.T) {
 	server := startQuoteOpenDServer(t)
