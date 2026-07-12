@@ -48,7 +48,7 @@ git tag v1.2.3
 git push origin v1.2.3
 ```
 
-也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径默认与 tag 推送一样发布 Release。勾选 `dry_run` 时仍会完成四个平台构建并保留 workflow artifacts，但不会写入 provenance 或修改 GitHub Release。相同 tag 的发布会串行执行，避免重复上传同一组 assets。直接在 Releases 页面创建或发布 Release 不会触发构建。
+也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径默认与 tag 推送一样发布 Release。勾选 `dry_run` 时仍会完成四个平台构建并保留 workflow artifacts，但不会写入 provenance 或修改 GitHub Release。相同 tag 的发布会串行执行，重跑时使用本次构建结果覆盖同名 assets，无论 Release 当前是 draft 还是已发布状态。直接在 Releases 页面创建或发布 Release 不会触发构建。
 
 开发构建与 bindings：
 
