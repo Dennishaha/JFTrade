@@ -63,16 +63,10 @@ tasks:
       - powershell -NoProfile -Command "Copy-Item '{{.GENERATED_DIR}}/windows/nsis/wails_tools.nsh' 'dist/desktop-release/windows-{{.ARCH}}/nsis/wails_tools.nsh'; Copy-Item 'build/windows/nsis/project.nsi' 'dist/desktop-release/windows-{{.ARCH}}/nsis/project.nsi'; Copy-Item '{{.GENERATED_DIR}}/windows/icon.ico' 'dist/desktop-release/windows-{{.ARCH}}/icon.ico'"
       - go tool wails3 generate webview2bootstrapper -dir dist/desktop-release/windows-{{.ARCH}}/nsis
       - node scripts/sign-desktop-release.mjs windows dist/desktop/windows-{{.ARCH}}/jftrade-desktop-windows-{{.ARCH}}.exe
-      - cmd: >-
-          "{{.MAKENSIS}}" /DWAILS_INSTALL_SCOPE=user /DREQUEST_EXECUTION_LEVEL=user
-          /DARG_WAILS_{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}_BINARY={{.ROOT_DIR}}\dist\desktop\windows-{{.ARCH}}\jftrade-desktop-windows-{{.ARCH}}.exe
-          /DOUTPUT_EXE={{.ROOT_DIR}}\dist\desktop-release\windows-{{.ARCH}}\{{.INSTALLER}}
-          project.nsi
-        dir: dist/desktop-release/windows-{{.ARCH}}/nsis
+      - node scripts/compile-windows-nsis.mjs {{.ARCH}} {{.INSTALLER}}
       - node scripts/sign-desktop-release.mjs windows dist/desktop-release/windows-{{.ARCH}}/{{.INSTALLER}}
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
-      MAKENSIS: '{{.MAKENSIS | default "makensis"}}'
       QUALIFIER: '{{.QUALIFIER | default "unsigned"}}'
       INSTALLER: 'JFTrade-{{.VERSION}}-windows-{{if eq .ARCH "amd64"}}x64-{{.QUALIFIER}}{{else}}arm64-preview-{{.QUALIFIER}}{{end}}-setup.exe'
 

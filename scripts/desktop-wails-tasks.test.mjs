@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import path from "node:path";
+
+import { resolveWindowsNSISInvocation } from "./lib/windows-nsis.mjs";
 
 const read = (file) => fs.readFileSync(file, "utf8");
 const root = read("Taskfile.yml");
@@ -52,8 +55,40 @@ assert(
   "Windows does not use Wails resource and WebView2 tools",
 );
 assert(
-  windows.includes('"{{.MAKENSIS}}" /DWAILS_INSTALL_SCOPE=user'),
-  "Windows NSIS command does not quote an executable path containing spaces",
+  windows.includes(
+    "node scripts/compile-windows-nsis.mjs {{.ARCH}} {{.INSTALLER}}",
+  ) && !windows.includes("{{.MAKENSIS}}"),
+  "Windows NSIS command must bypass Task shell argument parsing",
+);
+const nsisInvocation = resolveWindowsNSISInvocation({
+  arch: "arm64",
+  installer: "JFTrade-0.2.2-windows-arm64-preview-unsigned-setup.exe",
+  makensis: "C:\\Program Files (x86)\\NSIS\\makensis.exe",
+  rootDir: path.resolve("test workspace"),
+});
+assert.equal(
+  nsisInvocation.command,
+  "C:\\Program Files (x86)\\NSIS\\makensis.exe",
+);
+assert(nsisInvocation.cwd.endsWith(path.join("windows-arm64", "nsis")));
+assert(
+  nsisInvocation.args.some(
+    (argument) =>
+      argument.startsWith("/DARG_WAILS_ARM64_BINARY=") &&
+      argument.includes("test workspace") &&
+      argument.endsWith("jftrade-desktop-windows-arm64.exe"),
+  ),
+  "Windows NSIS wrapper does not preserve the absolute ARM64 binary path",
+);
+assert(
+  nsisInvocation.args.some(
+    (argument) =>
+      argument.startsWith("/DOUTPUT_EXE=") &&
+      argument.endsWith(
+        "JFTrade-0.2.2-windows-arm64-preview-unsigned-setup.exe",
+      ),
+  ),
+  "Windows NSIS wrapper does not preserve the absolute output path",
 );
 assert(
   darwin.includes("codesign --verify --deep --strict"),
