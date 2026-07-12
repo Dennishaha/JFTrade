@@ -1149,7 +1149,10 @@ export interface UIColorPreferencesResponse {
 }
 
 export interface SecuritySettingsResponse {
-  adminAuthRequired: boolean;
+  webAccessEnabled: boolean;
+  publicAccessEnabled: boolean;
+  webPort: number;
+  passwordConfigured: boolean;
 }
 
 export type PluginInstallStatus =

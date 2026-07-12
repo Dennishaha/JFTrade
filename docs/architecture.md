@@ -44,12 +44,13 @@ flowchart LR
 | 模式           | 入口                       | 主要用途                                         | 核心组件                                                                                      |
 | -------------- | -------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | API 后端服务   | `go run ./cmd/jftrade-api` | 前端开发、配置调试、行情、策略运行控制与通知调试 | `cmd/jftrade-api` -> `internal/app/apiserver` -> `internal/api/*` -> services -> integrations |
-| Wails 桌面开发 | `npm run desktop:dev`      | 桌面联调，同时保留仓库开发数据                   | `JFTrade Dev` -> Vite -> HTTP/SSE/WS sidecar `6698`                                           |
-| Wails 正式产品 | `release_assets` 构建      | 独立安装的桌面产品                               | `JFTrade` -> embedded frontend -> loopback sidecar `6699`，数据位于系统用户目录               |
+| Wails 桌面开发 | `npm run desktop:dev`      | 桌面联调，同时保留仓库开发数据                   | `JFTrade Dev` -> Vite -> loopback sidecar `6698`；可选 Web 监听器使用用户端口                  |
+| Wails 正式产品 | `release_assets` 构建      | 独立安装的桌面产品                               | `JFTrade` -> embedded frontend -> loopback sidecar `6699`；可选 Web 默认 `6688`                |
 
 当前默认按下面理解：
 
 - 前端、控制台、策略运行控制和交易链路都先经过 JFTrade API 后端服务。
+- Wails sidecar 与可选 Web 入口是两个监听器，但复用同一个 Gin handler、服务层和数据目录；sidecar 始终只监听 loopback，不能被 Web 密码当作浏览器入口。
 - JFTrade 控制台只承诺 `/api/v1/*`；不要把它和 bbgo 原生 `/api/*` 混为一谈。
 - `pkg/futu`、`pkg/strategy/pineworker`、`pkg/backtest` 仍可复用 bbgo 公共类型、PineTS worker 边界和回测组件。
 

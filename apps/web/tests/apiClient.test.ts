@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ApiClientError,
+  WEB_AUTH_REQUIRED_EVENT,
   fetchEnvelopeWithInit,
+  webLogin,
+  webLogout,
 } from "../src/composables/apiClient";
 
 afterEach(() => {
@@ -93,5 +96,86 @@ describe("apiClient", () => {
       status: 400,
       message: "运行实例 PineTS Worker 已达到上限",
     } satisfies Partial<ApiClientError>);
+  });
+
+  it("logs browser users in with a Web password payload", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            data: { authenticated: true, csrfToken: "csrf-token" },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await webLogin("browser-password");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/auth/login",
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        body: JSON.stringify({ password: "browser-password" }),
+      }),
+    );
+  });
+
+  it("logs a browser session out and asks the app to show the login gate", async () => {
+    const listener = vi.fn();
+    window.addEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ ok: true, data: { authenticated: false } }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await webLogout();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/auth/logout",
+      expect.objectContaining({ method: "POST", credentials: "include" }),
+    );
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
+  });
+
+  it("notifies the app when a Web session expires", async () => {
+    const listener = vi.fn();
+    window.addEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              ok: false,
+              error: {
+                code: "WEB_AUTH_REQUIRED",
+                message: "Web authentication is required",
+              },
+              timestamp: "2026-07-11T00:00:00Z",
+            }),
+            {
+              status: 401,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+      ),
+    );
+
+    await expect(
+      fetchEnvelopeWithInit("/api/v1/system/status", { method: "GET" }),
+    ).rejects.toMatchObject({ code: "WEB_AUTH_REQUIRED", status: 401 });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    window.removeEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
   });
 });

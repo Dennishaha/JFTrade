@@ -11,7 +11,7 @@ import (
 
 // OriginChecker 检查请求来源是否在允许列表中。
 type OriginChecker interface {
-	IsOriginAllowed(origin string) bool
+	IsOriginAllowed(r *http.Request, origin string) bool
 }
 
 // CORS 返回一个 Gin 中间件，处理跨域请求。
@@ -20,7 +20,7 @@ func CORS(checker OriginChecker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := requestOrigin(c.Request)
 		originProvided := requestOriginProvided(c.Request)
-		if origin != "" && checker != nil && checker.IsOriginAllowed(origin) {
+		if origin != "" && checker != nil && checker.IsOriginAllowed(c.Request, origin) {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Vary", "Origin")
 			c.Header("Access-Control-Allow-Credentials", "true")
@@ -30,7 +30,7 @@ func CORS(checker OriginChecker) gin.HandlerFunc {
 		c.Header("Access-Control-Expose-Headers", "X-Request-ID")
 
 		if c.Request.Method == http.MethodOptions {
-			if originProvided && (origin == "" || checker == nil || !checker.IsOriginAllowed(origin)) {
+			if originProvided && (origin == "" || checker == nil || !checker.IsOriginAllowed(c.Request, origin)) {
 				c.AbortWithStatus(http.StatusForbidden)
 				return
 			}

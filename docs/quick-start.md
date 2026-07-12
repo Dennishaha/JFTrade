@@ -2,9 +2,18 @@
 
 本文只回答一个问题：你现在想跑哪一种入口。
 
-## 开发态：控制台 + sidecar
+## 桌面开发：JFTrade Dev（推荐）
 
-这是最常见的开发方式。前端开发服务器在 `5173`，默认把 `/api` 和 `/swagger` 代理到 `3000`。
+```bash
+npm install
+npm run desktop:dev
+```
+
+该命令同时启动 Vite 和 Wails `JFTrade Dev`。桌面 sidecar 默认监听 `127.0.0.1:6698`，数据仍写入仓库内 `var/jftrade-api/`。桌面始终免登录；开发版与正式 `JFTrade` 的应用 ID、单实例 ID、窗口标题和端口相互隔离，可以同时运行。
+
+## 可选：浏览器前端 + sidecar
+
+这条路径仅用于纯浏览器前端开发。先在 `JFTrade Dev` 的“设置 → Web 访问”中设置密码并主动开启；前端开发服务器在 `5173`，默认把 `/api` 和 `/swagger` 代理到 `3000`。
 
 终端 1：
 
@@ -19,7 +28,7 @@ npm install
 npm run dev:web
 ```
 
-访问入口：
+Web 已开启后的访问入口：
 
 - 控制台：`http://127.0.0.1:5173/`
 - Swagger UI：`http://127.0.0.1:3000/swagger/`
@@ -34,15 +43,6 @@ npm run dev:docs
 
 VitePress 文档站默认在 `http://127.0.0.1:3001/`。如果前端开发服务器也在运行，则 `http://127.0.0.1:5173/docs/` 会代理到这个文档站。
 
-## 桌面开发：JFTrade Dev
-
-```bash
-npm install
-npm run desktop:dev
-```
-
-该命令同时启动 Vite 和 Wails `JFTrade Dev`。桌面 sidecar 默认监听 `127.0.0.1:6698`，数据仍写入仓库内 `var/jftrade-api/`。开发版与正式 `JFTrade` 的应用 ID、单实例 ID、窗口标题和端口相互隔离，可以同时运行。
-
 ## 本地一键验收
 
 ```bash
@@ -55,7 +55,7 @@ Windows CMD:
 start.cmd
 ```
 
-这条路径会安装依赖、生成 Swagger、执行前端类型检查和构建，然后启动带内嵌前端的单端口发布服务：
+这条路径会安装依赖、生成 Swagger、执行前端类型检查和构建，然后启动带内嵌前端的单端口发布服务。Web 默认关闭；先从 `JFTrade Dev` 的“设置 → Web 访问”配置密码并开启后，可使用：
 
 - 前端 + API：`http://127.0.0.1:6688/`
 
@@ -95,4 +95,4 @@ $env:JFTRADE_DESKTOP_RELEASE_TAG = "v1.2.3"
 npm run desktop:release:windows-arm64
 ```
 
-正式产品默认监听 `127.0.0.1:6699`，数据写入系统用户数据目录，不复制仓库 `var/jftrade-api/`。平台产物、版本门禁和安全提示见 [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)。
+正式产品的 Wails sidecar 固定监听 `127.0.0.1:6699`，只供桌面 WebView 无感使用。用户主动开启 Web 后会立即创建默认 `127.0.0.1:6688` 的浏览器入口；端口可在“设置 → Web 访问”修改并立即切换。数据写入系统用户数据目录，不复制仓库 `var/jftrade-api/`。允许其他设备访问也会立即生效，且内置 HTTP 仅适用于可信局域网；互联网访问必须配置 HTTPS 反向代理。平台产物、版本门禁和安全提示见 [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)。

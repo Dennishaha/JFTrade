@@ -396,7 +396,7 @@ func TestServerSidecarBoundaryMethodsAreNilSafe(t *testing.T) {
 	server.SetAPIPort(3001)
 	server.ConfigureAuthOrigins("http://127.0.0.1:5173")
 	server.SetFrontendFS(os.DirFS(t.TempDir()), "http://127.0.0.1:3000")
-	server.ApplySecuritySettings(SecuritySettings{AdminAuthRequired: true})
+	server.ApplySecuritySettings(SecuritySettings{WebAccessEnabled: true})
 	if err := server.Close(); err != nil {
 		t.Fatalf("nil Close = %v", err)
 	}
@@ -452,14 +452,14 @@ func TestServerSidecarFrontendRuntimeConfigFollowsSecuritySettings(t *testing.T)
 		t.Fatalf("WriteFile index.html: %v", err)
 	}
 
-	server := &Server{auth: &adminAuth{}}
+	server := &Server{auth: newWebAuth(SecuritySettings{})}
 	server.SetFrontendFS(os.DirFS(frontendDir), " http://127.0.0.1:3000/api/ ")
-	server.ApplySecuritySettings(SecuritySettings{AdminAuthRequired: true})
+	server.ApplySecuritySettings(webSecuritySettings(t, false))
 	if server.frontend == nil {
 		t.Fatalf("SetFrontendFS did not mount frontend")
 	}
 	if server.auth == nil || !server.auth.enabled {
-		t.Fatalf("ApplySecuritySettings did not enable administrator auth")
+		t.Fatalf("ApplySecuritySettings did not enable Web password auth")
 	}
 
 	recorder := httptest.NewRecorder()
@@ -474,7 +474,7 @@ func TestServerSidecarFrontendRuntimeConfigFollowsSecuritySettings(t *testing.T)
 
 	server.ApplySecuritySettings(SecuritySettings{})
 	if server.auth.enabled {
-		t.Fatalf("ApplySecuritySettings should disable administrator auth")
+		t.Fatalf("ApplySecuritySettings should disable Web access")
 	}
 	recorder = httptest.NewRecorder()
 	server.frontend.ServeHTTP(recorder, httptest.NewRequest(http.MethodHead, "/runtime-config.js", nil))

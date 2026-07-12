@@ -18,24 +18,37 @@ type fileData struct {
 	Appearance          *jfsettings.UIAppearanceSettings       `json:"appearance,omitempty"`
 	Onboarding          *jfsettings.OnboardingSettings         `json:"onboarding,omitempty"`
 	Execution           *jfsettings.ExecutionSettings          `json:"execution,omitempty"`
-	Security            *jfsettings.SecuritySettings           `json:"security,omitempty"`
+	Security            *storedSecuritySettings                `json:"security,omitempty"`
 	SystemNotifications *jfsettings.SystemNotificationSettings `json:"systemNotifications,omitempty"`
 	ADK                 *jfsettings.ADKRuntimeSettings         `json:"adk,omitempty"`
 	PineWorker          *jfsettings.PineWorkerSettings         `json:"pineWorker,omitempty"`
 	Calendars           *jfsettings.ExchangeCalendarSettings   `json:"exchangeCalendars,omitempty"`
 }
 
+// storedSecuritySettings deliberately differs from the public API model so a
+// password hash can be persisted without ever being returned by an endpoint.
+// AdminAuthRequired is accepted only to migrate old settings files to the new
+// safe default (Web access disabled).
+type storedSecuritySettings struct {
+	WebAccessEnabled    bool   `json:"webAccessEnabled"`
+	PublicAccessEnabled bool   `json:"publicAccessEnabled"`
+	WebPort             int    `json:"webPort,omitempty"`
+	PasswordHash        string `json:"passwordHash,omitempty"`
+	AdminAuthRequired   *bool  `json:"adminAuthRequired,omitempty"`
+}
+
 // Pine worker defaults remain documented here for the PineTS hard-cut audit:
 // DefaultPineWorkerSettings, NormalizePineWorkerSettings,
 // BacktestWorkerLimit: 2, InstanceWorkerLimit: 10, NodeBinaryPath, max 1000.
 type Store struct {
-	path string
-	mu   sync.RWMutex
-	data fileData
+	path        string
+	mu          sync.RWMutex
+	data        fileData
+	replaceFile func(source string, destination string) error
 }
 
 func New(path string) (*Store, error) {
-	store := &Store{path: path}
+	store := &Store{path: path, replaceFile: replaceFile}
 	if err := store.load(); err != nil {
 		return nil, err
 	}
@@ -76,11 +89,26 @@ func (s *Store) load() error {
 		}
 		return err
 	}
+	if directory := filepath.Dir(s.path); directory != "." {
+		if err := os.Chmod(directory, 0o700); err != nil {
+			return err
+		}
+	}
+	if err := os.Chmod(s.path, 0o600); err != nil {
+		return err
+	}
 	if len(strings.TrimSpace(string(data))) == 0 {
 		s.data = fileData{}
 		return nil
 	}
-	return json.Unmarshal(data, &s.data)
+	if err := json.Unmarshal(data, &s.data); err != nil {
+		return err
+	}
+	if s.data.Security != nil && s.data.Security.AdminAuthRequired != nil {
+		s.data.Security.AdminAuthRequired = nil
+		return s.persistLocked()
+	}
+	return nil
 }
 
 func (s *Store) persistLocked() error {
@@ -88,8 +116,42 @@ func (s *Store) persistLocked() error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	directory := filepath.Dir(s.path)
+	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(s.path, data, 0o600)
+	if directory != "." {
+		if err := os.Chmod(directory, 0o700); err != nil {
+			return err
+		}
+	}
+	temporary, err := os.CreateTemp(directory, ".settings-*.tmp")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer func() { _ = os.Remove(temporaryPath) }()
+	if err := temporary.Chmod(0o600); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if _, err := temporary.Write(data); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	replace := s.replaceFile
+	if replace == nil {
+		replace = replaceFile
+	}
+	if err := replace(temporaryPath, s.path); err != nil {
+		return err
+	}
+	return syncSettingsDirectory(directory)
 }

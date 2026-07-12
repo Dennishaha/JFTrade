@@ -15,6 +15,7 @@
 | 编译条件                    | 默认构建                  | `production,release_assets`      |
 | Product / SingleInstance ID | `com.jftrade.desktop.dev` | `com.jftrade.desktop`            |
 | 默认 API                    | `127.0.0.1:6698`          | `127.0.0.1:6699`                 |
+| 可选 Web 入口               | 用户设置，默认 `127.0.0.1:6688` | 用户设置，默认 `127.0.0.1:6688` |
 | 数据目录                    | 仓库 `var/jftrade-api`    | 系统用户数据目录                 |
 | 更新检查                    | 禁用                      | 每日后台一次，并支持菜单手动检查 |
 
@@ -28,7 +29,7 @@
 - Windows：`%LOCALAPPDATA%/JFTrade`
 - Linux：`${XDG_DATA_HOME:-~/.local/share}/jftrade`
 
-正式 sidecar 只允许监听 loopback。开发通道保留现有显式覆盖能力；如果手工把两个通道配置成同一端口，后启动的一方会明确失败，另一方继续运行。
+正式 sidecar 只允许监听 loopback，也不会接受浏览器密码登录。可选 Web 入口是第二个 Gin HTTP 监听器：仅在用户已设置密码并主动开启时创建，默认也只监听 loopback；允许其他设备访问后才监听所有接口。启停、端口和网络范围保存后立即作用于监听器；新端口冲突时会保留原监听器和原设置。如果手工把 sidecar、Web 或两个通道配置成同一端口，后启动的一方会明确失败，另一方继续运行。
 
 ## 版本与本地验证
 

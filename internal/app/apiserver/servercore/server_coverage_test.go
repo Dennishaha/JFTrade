@@ -121,12 +121,12 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 	backtestRunner := &closeTrackingPineWorkerRunner{}
 	instanceRunner := &closeTrackingPineWorkerRunner{}
 	server := &Server{
-		auth:                    &adminAuth{},
-		frontend:                newFrontendServerWithRuntimeConfig(os.DirFS(frontendDir), "http://127.0.0.1:3000"),
-		executionOrders:         newExecutionOrderStore(),
+		auth:                     newWebAuth(SecuritySettings{}),
+		frontend:                 newFrontendServerWithRuntimeConfig(os.DirFS(frontendDir), "http://127.0.0.1:3000"),
+		executionOrders:          newExecutionOrderStore(),
 		backtestPineWorkerRunner: backtestRunner,
 		instancePineWorkerRunner: instanceRunner,
-		strategyRuntimeManager:  &strategyRuntimeManager{},
+		strategyRuntimeManager:   &strategyRuntimeManager{},
 	}
 
 	sideEffects := server.settingsSideEffects()
@@ -156,9 +156,11 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 		t.Fatalf("seenFillRetentionDays = %d, want 12", got)
 	}
 
-	sideEffects.OnSecurityChanged(SecuritySettings{AdminAuthRequired: true})
+	if err := sideEffects.OnSecurityChanged(webSecuritySettings(t, false)); err != nil {
+		t.Fatalf("OnSecurityChanged enable: %v", err)
+	}
 	if server.auth == nil || !server.auth.enabled {
-		t.Fatal("OnSecurityChanged should enable administrator auth")
+		t.Fatal("OnSecurityChanged should enable Web password auth")
 	}
 	recorder := httptest.NewRecorder()
 	server.frontend.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/runtime-config.js", nil))
@@ -166,9 +168,11 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 		t.Fatalf("runtime config body = %q, want authRequired true", body)
 	}
 
-	sideEffects.OnSecurityChanged(SecuritySettings{})
+	if err := sideEffects.OnSecurityChanged(SecuritySettings{}); err != nil {
+		t.Fatalf("OnSecurityChanged disable: %v", err)
+	}
 	if server.auth.enabled {
-		t.Fatal("OnSecurityChanged should disable administrator auth")
+		t.Fatal("OnSecurityChanged should disable Web access")
 	}
 
 	sideEffects.OnPineWorkerChanged(PineWorkerSettings{})

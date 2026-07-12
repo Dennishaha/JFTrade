@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	apisettings "github.com/jftrade/jftrade-main/internal/api/settings"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	srvsettings "github.com/jftrade/jftrade-main/internal/settings"
@@ -169,6 +170,9 @@ func settingsRouter(store *routeStore) *gin.Engine {
 func performSettingsRequest(t *testing.T, router http.Handler, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	request := httptest.NewRequestWithContext(t.Context(), method, path, strings.NewReader(body))
+	if method == http.MethodPut && path == "/api/v1/settings/security" {
+		request = middleware.MarkRequestTrustedHost(request)
+	}
 	if body != "" {
 		request.Header.Set("Content-Type", "application/json")
 	}

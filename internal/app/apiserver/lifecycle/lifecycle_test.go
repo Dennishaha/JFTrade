@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net"
 	"net/http"
@@ -46,11 +47,13 @@ type lifecycleTestHandler struct {
 	frontendBaseURL string
 	frontendSet     bool
 	securityApplied jfsettings.SecuritySettings
+	webReconfigure  func(jfsettings.SecuritySettings) error
 	closeCalls      int
 	closeErr        error
 }
 
 func (h *lifecycleTestHandler) ServeHTTP(http.ResponseWriter, *http.Request) {}
+func (h *lifecycleTestHandler) WebAccessHandler() http.Handler               { return h }
 func (h *lifecycleTestHandler) Close() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -77,6 +80,11 @@ func (h *lifecycleTestHandler) ApplySecuritySettings(settings jfsettings.Securit
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.securityApplied = settings
+}
+func (h *lifecycleTestHandler) SetWebAccessReconfigure(reconfigure func(jfsettings.SecuritySettings) error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.webReconfigure = reconfigure
 }
 
 func TestStartForRunArgsReturnsNoopWhenDisabled(t *testing.T) {
@@ -109,7 +117,11 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 			APIBind: "127.0.0.1:0",
 			GUIBind: "127.0.0.1:0",
 		},
-		securitySettings: jfsettings.SecuritySettings{AdminAuthRequired: true},
+		securitySettings: jfsettings.SecuritySettings{
+			WebAccessEnabled:   true,
+			PasswordConfigured: true,
+			PasswordHash:       "test-verifier",
+		},
 	}
 	handler := &lifecycleTestHandler{}
 	var appliedIntegration jfsettings.BrokerIntegration
@@ -158,7 +170,7 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 	if !gotFrontend || gotFrontendBase != "" {
 		t.Fatalf("frontend config = set:%v base:%q", gotFrontend, gotFrontendBase)
 	}
-	if !gotSecurity.AdminAuthRequired {
+	if !gotSecurity.WebAccessEnabled || !gotSecurity.PasswordConfigured {
 		t.Fatalf("security settings not applied: %#v", gotSecurity)
 	}
 	if len(gotOrigins) != 1 || gotOrigins[0] != "http://127.0.0.1:0" {
@@ -175,6 +187,269 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 	waitForClose(t, handler, 1)
 	if err := shutdown(context.Background()); err != nil {
 		t.Fatalf("shutdown: %v", err)
+	}
+	waitForClose(t, handler, 1)
+}
+
+func TestWebAccessBindDefaultsToLoopbackAndRequiresCompletePublicConfiguration(t *testing.T) {
+	configured := "192.0.2.10:6688"
+	for _, settings := range []jfsettings.SecuritySettings{
+		{},
+		{WebAccessEnabled: true, PublicAccessEnabled: true},
+		{WebAccessEnabled: true, PasswordConfigured: true},
+	} {
+		if got := webAccessBind(configured, settings); got != "127.0.0.1:6688" {
+			t.Fatalf("webAccessBind(%#v) = %q, want loopback", settings, got)
+		}
+	}
+	public := jfsettings.SecuritySettings{
+		WebAccessEnabled:    true,
+		PublicAccessEnabled: true,
+		PasswordConfigured:  true,
+	}
+	if got := webAccessBind(configured, public); got != "0.0.0.0:6688" {
+		t.Fatalf("public webAccessBind = %q", got)
+	}
+	for _, invalid := range []string{"", "not-a-bind", "127.0.0.1:"} {
+		if got := webAccessBind(invalid, public); got != invalid {
+			t.Fatalf("webAccessBind(%q) = %q, want unchanged", invalid, got)
+		}
+	}
+}
+
+func TestWebAccessListenerBindUsesIndependentConfiguredPort(t *testing.T) {
+	if got := webAccessListenerBind(jfsettings.SecuritySettings{}); got != "" {
+		t.Fatalf("disabled Web listener bind = %q, want empty", got)
+	}
+	local := jfsettings.SecuritySettings{
+		WebAccessEnabled:   true,
+		PasswordConfigured: true,
+		WebPort:            7443,
+	}
+	if got := webAccessListenerBind(local); got != "127.0.0.1:7443" {
+		t.Fatalf("local Web listener bind = %q", got)
+	}
+	local.PublicAccessEnabled = true
+	if got := webAccessListenerBind(local); got != "0.0.0.0:7443" {
+		t.Fatalf("public Web listener bind = %q", got)
+	}
+	if got := loopbackBind("0.0.0.0:6699"); got != "127.0.0.1:6699" {
+		t.Fatalf("desktop sidecar bind = %q", got)
+	}
+}
+
+func TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar(t *testing.T) {
+	webPort := availableTCPPort(t)
+	store := &lifecycleTestStore{
+		interfaceSettings: jfsettings.InterfaceSettings{APIBind: "0.0.0.0:0"},
+		securitySettings: jfsettings.SecuritySettings{
+			WebAccessEnabled:   true,
+			PasswordConfigured: true,
+			PasswordHash:       "test-verifier",
+			WebPort:            webPort,
+		},
+	}
+	handler := &lifecycleTestHandler{}
+	deps := lifecycleDependencies(store, handler, nil)
+	deps.SeparateWebListener = true
+
+	shutdown, err := StartForRunArgs(t.Context(), []string{"api"}, deps)
+	if err != nil {
+		t.Fatalf("StartForRunArgs: %v", err)
+	}
+	response, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", webPort))
+	if err != nil {
+		t.Fatalf("GET separate Web listener: %v", err)
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Web listener status = %d", response.StatusCode)
+	}
+	if err := shutdown(t.Context()); err != nil {
+		t.Fatalf("shutdown: %v", err)
+	}
+}
+
+func TestSeparateWebListenerRebindsImmediatelyAndKeepsOldPortOnConflict(t *testing.T) {
+	firstPort := availableTCPPort(t)
+	store := &lifecycleTestStore{
+		interfaceSettings: jfsettings.InterfaceSettings{APIBind: "127.0.0.1:0"},
+		securitySettings: jfsettings.SecuritySettings{
+			WebAccessEnabled:   true,
+			PasswordConfigured: true,
+			PasswordHash:       "test-verifier",
+			WebPort:            firstPort,
+		},
+	}
+	handler := &lifecycleTestHandler{}
+	deps := lifecycleDependencies(store, handler, nil)
+	deps.SeparateWebListener = true
+	shutdown, err := StartForRunArgs(t.Context(), []string{"api"}, deps)
+	if err != nil {
+		t.Fatalf("StartForRunArgs: %v", err)
+	}
+	defer func() { _ = shutdown(t.Context()) }()
+
+	handler.mu.Lock()
+	reconfigure := handler.webReconfigure
+	handler.mu.Unlock()
+	if reconfigure == nil {
+		t.Fatal("Web access reconfigure callback was not installed")
+	}
+
+	secondPort := availableTCPPort(t)
+	updated := store.securitySettings
+	updated.WebPort = secondPort
+	if err := reconfigure(updated); err != nil {
+		t.Fatalf("reconfigure Web port: %v", err)
+	}
+	response, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", secondPort))
+	if err != nil {
+		t.Fatalf("GET rebound Web listener: %v", err)
+	}
+	_ = response.Body.Close()
+
+	occupied, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("occupy conflict port: %v", err)
+	}
+	defer func() { _ = occupied.Close() }()
+	conflict := updated
+	conflict.WebPort = occupied.Addr().(*net.TCPAddr).Port
+	if err := reconfigure(conflict); err == nil || !strings.Contains(err.Error(), "Web access port conflict") {
+		t.Fatalf("conflicting reconfigure error = %v", err)
+	}
+	response, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/", secondPort))
+	if err != nil {
+		t.Fatalf("previous Web listener did not survive conflict: %v", err)
+	}
+	_ = response.Body.Close()
+}
+
+func TestWebAccessServerManagerCoversLiveReconfigurationLifecycle(t *testing.T) {
+	port := availableTCPPort(t)
+	handler := &lifecycleTestHandler{}
+	manager := newWebAccessServerManager(lifecycleDependencies(&lifecycleTestStore{}, handler, nil), handler)
+	settings := jfsettings.SecuritySettings{
+		WebAccessEnabled:   true,
+		PasswordConfigured: true,
+		PasswordHash:       "test-verifier",
+		WebPort:            port,
+	}
+	if err := manager.Reconfigure(settings); err != nil {
+		t.Fatalf("initial Reconfigure: %v", err)
+	}
+	if err := manager.Reconfigure(settings); err != nil {
+		t.Fatalf("same-bind Reconfigure: %v", err)
+	}
+	settings.PublicAccessEnabled = true
+	if err := manager.Reconfigure(settings); err != nil {
+		t.Fatalf("same-port host Reconfigure: %v", err)
+	}
+	settings.WebAccessEnabled = false
+	settings.PublicAccessEnabled = false
+	if err := manager.Reconfigure(settings); err != nil {
+		t.Fatalf("disable Reconfigure: %v", err)
+	}
+	if manager.server != nil || manager.bind != "" {
+		t.Fatalf("disabled manager = server:%v bind:%q", manager.server, manager.bind)
+	}
+	if err := manager.Shutdown(t.Context()); err != nil {
+		t.Fatalf("Shutdown disabled manager: %v", err)
+	}
+
+	var nilManager *webAccessServerManager
+	if err := nilManager.Reconfigure(settings); err != nil {
+		t.Fatalf("nil Reconfigure: %v", err)
+	}
+	if err := nilManager.Shutdown(t.Context()); err != nil {
+		t.Fatalf("nil Shutdown: %v", err)
+	}
+	if got := bindPort("invalid"); got != "" {
+		t.Fatalf("bindPort invalid = %q", got)
+	}
+	if got := loopbackBind("invalid"); got != "invalid" {
+		t.Fatalf("loopbackBind invalid = %q", got)
+	}
+}
+
+func TestWebAccessServerManagerRestoresOldBindAfterHostSwitchFailure(t *testing.T) {
+	port := availableTCPPort(t)
+	handler := &lifecycleTestHandler{}
+	manager := newWebAccessServerManager(lifecycleDependencies(&lifecycleTestStore{}, handler, nil), handler)
+	settings := jfsettings.SecuritySettings{
+		WebAccessEnabled:   true,
+		PasswordConfigured: true,
+		PasswordHash:       "test-verifier",
+		WebPort:            port,
+	}
+	if err := manager.Reconfigure(settings); err != nil {
+		t.Fatalf("initial Reconfigure: %v", err)
+	}
+	t.Cleanup(func() { _ = manager.Shutdown(t.Context()) })
+
+	wantErr := errors.New("injected public bind failure")
+	listenCalls := 0
+	manager.listen = func(network string, address string) (net.Listener, error) {
+		listenCalls++
+		if listenCalls == 1 {
+			return nil, wantErr
+		}
+		return net.Listen(network, address)
+	}
+	public := settings
+	public.PublicAccessEnabled = true
+	if err := manager.Reconfigure(public); !errors.Is(err, wantErr) {
+		t.Fatalf("host switch error = %v, want %v", err, wantErr)
+	}
+	if manager.bind != fmt.Sprintf("127.0.0.1:%d", port) || manager.server == nil {
+		t.Fatalf("old bind was not restored: bind=%q server=%v", manager.bind, manager.server)
+	}
+
+	restoreErr := errors.New("injected restore failure")
+	manager.listen = func(string, string) (net.Listener, error) { return nil, restoreErr }
+	if err := manager.Reconfigure(public); err == nil || !strings.Contains(err.Error(), "restoring") {
+		t.Fatalf("combined restore error = %v", err)
+	}
+	if manager.server != nil || manager.bind != "" {
+		t.Fatalf("failed restore left manager active: bind=%q server=%v", manager.bind, manager.server)
+	}
+	if err := manager.restoreLocked(""); err != nil {
+		t.Fatalf("restore empty bind: %v", err)
+	}
+}
+
+func TestStartForRunArgsStartsAPIOnlyAndShutsDown(t *testing.T) {
+	store := &lifecycleTestStore{
+		interfaceSettings: jfsettings.InterfaceSettings{APIBind: "127.0.0.1:0"},
+	}
+	handler := &lifecycleTestHandler{}
+	deps := lifecycleDependencies(store, handler, nil)
+	completeCalls := 0
+	deps.CompleteDatabaseRebuild = func(string, string) error {
+		completeCalls++
+		return nil
+	}
+
+	shutdown, err := StartForRunArgs(t.Context(), []string{"api"}, deps)
+	if err != nil {
+		t.Fatalf("StartForRunArgs API-only: %v", err)
+	}
+	if completeCalls != 1 {
+		t.Fatalf("CompleteDatabaseRebuild calls = %d, want 1", completeCalls)
+	}
+	handler.mu.Lock()
+	gotPort := handler.apiPort
+	gotOrigins := append([]string(nil), handler.authOrigins...)
+	handler.mu.Unlock()
+	if gotPort != 3000 {
+		t.Fatalf("API port = %d, want fallback 3000", gotPort)
+	}
+	if len(gotOrigins) != 1 || gotOrigins[0] != "http://127.0.0.1:0" {
+		t.Fatalf("auth origins = %#v", gotOrigins)
+	}
+	if err := shutdown(t.Context()); err != nil {
+		t.Fatalf("shutdown API-only: %v", err)
 	}
 	waitForClose(t, handler, 1)
 }
@@ -387,7 +662,7 @@ func TestRunAPIOnlyReturnsStartupErrorAndWaitsForCancellation(t *testing.T) {
 func TestOnceShutdownReturnsStableHandlerError(t *testing.T) {
 	wantErr := errors.New("handler close failed")
 	handler := &lifecycleTestHandler{closeErr: wantErr}
-	shutdown := onceShutdown(nil, handler)
+	shutdown := onceShutdown(nil, nil, handler)
 
 	if err := shutdown(t.Context()); !errors.Is(err, wantErr) {
 		t.Fatalf("first shutdown error = %v, want %v", err, wantErr)
@@ -439,4 +714,17 @@ func waitForClose(t *testing.T, handler *lifecycleTestHandler, want int) {
 	got := handler.closeCalls
 	handler.mu.Unlock()
 	t.Fatalf("handler closeCalls = %d, want %d", got, want)
+}
+
+func availableTCPPort(t *testing.T) int {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("allocate TCP port: %v", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	if err := listener.Close(); err != nil {
+		t.Fatalf("release TCP port: %v", err)
+	}
+	return port
 }

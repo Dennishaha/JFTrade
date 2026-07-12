@@ -22,17 +22,13 @@
 
 ## 常用诊断命令
 
+受保护接口不再适合用匿名 `curl -f` 判断进程是否存活。以下命令只看状态码：`200` 表示已获桌面信任或 Web 会话有效，`401` 表示需要 Web 登录，`403` 通常表示 Web 尚未开启或访问范围受限；这些响应都能证明对应 HTTP 服务正在工作。
+
 ```bash
-curl -fsS http://127.0.0.1:3000/api/v1/system/status
-curl -fsS http://127.0.0.1:6698/api/v1/system/status
-curl -fsS http://127.0.0.1:6688/api/v1/system/status
-curl -fsS http://127.0.0.1:6699/api/v1/system/status
-curl -fsS http://127.0.0.1:3000/api/v1/settings/brokers
-curl -fsS http://127.0.0.1:6688/api/v1/settings/brokers
-curl -fsS http://127.0.0.1:6699/api/v1/settings/brokers
-curl -fsS http://127.0.0.1:3000/api/v1/system/futu-opend
-curl -fsS http://127.0.0.1:6688/api/v1/system/futu-opend
-curl -fsS http://127.0.0.1:6699/api/v1/system/futu-opend
+curl -sS -o /dev/null -w '3000: %{http_code}\n' http://127.0.0.1:3000/api/v1/system/status
+curl -sS -o /dev/null -w '6698: %{http_code}\n' http://127.0.0.1:6698/api/v1/system/status
+curl -sS -o /dev/null -w '6688: %{http_code}\n' http://127.0.0.1:6688/api/v1/system/status
+curl -sS -o /dev/null -w '6699: %{http_code}\n' http://127.0.0.1:6699/api/v1/system/status
 
 lsof -nP -iTCP:3000 -sTCP:LISTEN
 lsof -nP -iTCP:6698 -sTCP:LISTEN
@@ -49,7 +45,7 @@ go test ./...
 - API sidecar：`go run ./cmd/jftrade-api`，启动 JFTrade 控制台后端
 - JFTrade Dev：Wails 开发通道，默认 sidecar `127.0.0.1:6698`，使用仓库 `var/jftrade-api`
 - JFTrade：Wails 正式通道，默认 sidecar `127.0.0.1:6699`，使用系统用户数据目录
-- 发布态 Web 服务：默认 `127.0.0.1:6688`，内嵌前端、`/api/v1/*`、SSE、WS 与 Swagger 的单一同源入口
+- 可选 Web 服务：默认 `127.0.0.1:6688`，端口可在桌面设置中修改；Wails 桌面 Web 关闭时不创建该监听器
 - OpenD API port：默认 `127.0.0.1:11110`，Go 原生 TCP API 使用
 - OpenD WebSocket port：默认 `127.0.0.1:11111`，FTWebSocket / JavaScript API 使用
 

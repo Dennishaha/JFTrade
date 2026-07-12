@@ -80,7 +80,16 @@ export interface components {
     nodeBinaryPath?: string;
   };
     "jftsettings.SecuritySettings": {
-    adminAuthRequired?: boolean;
+    passwordConfigured?: boolean;
+    publicAccessEnabled?: boolean;
+    webAccessEnabled?: boolean;
+    webPort?: number;
+  };
+    "jftsettings.SecuritySettingsUpdate": {
+    newPassword?: string;
+    publicAccessEnabled?: boolean;
+    webAccessEnabled?: boolean;
+    webPort?: number;
   };
     "jftsettings.SystemNotificationSettings": {
     categories?: Array<string>;
@@ -105,9 +114,6 @@ export interface components {
     "marketdata.SubscriptionRequest": {
     consumerId?: string;
     instruments?: Array<components["schemas"]["marketdata.SubscriptionInstrument"]>;
-  };
-    "servercore.adminLoginRequest": {
-    key?: string;
   };
     "servercore.brokerOrderCommandResponse": {
     accepted?: boolean;
@@ -174,6 +180,9 @@ export interface components {
     symbol?: string;
     timeInForce?: string;
     tradingEnvironment?: string;
+  };
+    "servercore.webLoginRequest": {
+    password?: string;
   };
     "settings.BrokerIntegrationSaveRequest": {
     config?: components["schemas"]["jftsettings.FutuIntegrationConfig"];
@@ -1289,7 +1298,7 @@ export interface paths {
     post: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["servercore.adminLoginRequest"];
+          "application/json": components["schemas"]["servercore.webLoginRequest"];
         };
       };
       responses: {
@@ -1337,18 +1346,6 @@ export interface paths {
       responses: {
         "200": {
           description: "OK";
-          content: {
-            "application/json": components["schemas"]["servercore.envelope"];
-          };
-        };
-      };
-    };
-  };
-  "/api/v1/auth/token": {
-    get: {
-      responses: {
-        "410": {
-          description: "Gone";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
           };
@@ -2833,7 +2830,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.SecuritySettings"];
+  };
           };
         };
       };
@@ -2841,14 +2840,16 @@ export interface paths {
     put: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["jftsettings.SecuritySettings"];
+          "application/json": components["schemas"]["jftsettings.SecuritySettingsUpdate"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.SecuritySettings"];
+  };
           };
         };
         "400": {

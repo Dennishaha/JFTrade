@@ -15,7 +15,6 @@ func TestAuthSkipsPublicPaths(t *testing.T) {
 		"/health",
 		"/api/v1/auth/login",
 		"/api/v1/auth/session",
-		"/api/v1/system/status",
 	} {
 		t.Run(path, func(t *testing.T) {
 			resp := performAuthRequest(http.MethodGet, path, nil, nil, nil, nil)
@@ -26,16 +25,66 @@ func TestAuthSkipsPublicPaths(t *testing.T) {
 	}
 }
 
-func TestAuthBearerWithoutBrowserOriginBypassesCSRFChecks(t *testing.T) {
-	auth := &stubAuthenticator{ok: true, bearer: true}
+func TestTrustedAndValidatedRequestContextHelpers(t *testing.T) {
+	if MarkRequestTrustedHost(nil) != nil {
+		t.Fatal("MarkRequestTrustedHost(nil) should return nil")
+	}
+	original := httptest.NewRequest(http.MethodGet, "/", nil)
+	if IsRequestTrustedHost(original) || IsRequestTrustedHost(nil) {
+		t.Fatal("ordinary request unexpectedly trusted")
+	}
+	trusted := MarkRequestTrustedHost(original)
+	if !IsRequestTrustedHost(trusted) || IsRequestTrustedHost(original) {
+		t.Fatal("trusted-host marker did not stay scoped to the derived request")
+	}
+
+	if IsRequestOriginValidated(original) || IsRequestOriginValidated(nil) {
+		t.Fatal("ordinary request unexpectedly has a validated origin")
+	}
+	markRequestOriginValidated(nil)
+	markRequestOriginValidated(original)
+	if !IsRequestOriginValidated(original) {
+		t.Fatal("validated-origin marker was not recorded")
+	}
+}
+
+func TestAuthProtectsLogout(t *testing.T) {
+	unauthenticated := performAuthRequest(http.MethodPost, "/api/v1/auth/logout", nil, nil, nil, nil)
+	if unauthenticated.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated logout status = %d, want 401", unauthenticated.Code)
+	}
+
+	auth := &stubAuthenticator{ok: true, session: "csrf"}
+	withoutOrigin := performAuthRequest(http.MethodPost, "/api/v1/auth/logout", nil, auth, &stubCSRFValidator{valid: true}, allowOrigins("http://localhost:5173"))
+	if withoutOrigin.Code != http.StatusForbidden {
+		t.Fatalf("logout without origin status = %d, want 403", withoutOrigin.Code)
+	}
+	allowed := performAuthRequest(http.MethodPost, "/api/v1/auth/logout", map[string]string{
+		"Origin":       "http://localhost:5173",
+		"X-CSRF-Token": "csrf",
+	}, auth, &stubCSRFValidator{valid: true}, allowOrigins("http://localhost:5173"))
+	if allowed.Code != http.StatusNoContent {
+		t.Fatalf("authorized logout status = %d, want 204", allowed.Code)
+	}
+}
+
+func TestAuthProtectsSystemStatus(t *testing.T) {
+	resp := performAuthRequest(http.MethodGet, "/api/v1/system/status", nil, nil, nil, nil)
+	if resp.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", resp.Code)
+	}
+}
+
+func TestAuthTrustedHostWithoutBrowserOriginBypassesCSRFChecks(t *testing.T) {
+	auth := &stubAuthenticator{ok: true, trusted: true}
 	resp := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", nil, auth, nil, nil)
 	if resp.Code != http.StatusNoContent {
 		t.Fatalf("status = %d", resp.Code)
 	}
 }
 
-func TestAuthBearerStillRequiresTrustedBrowserOrigin(t *testing.T) {
-	auth := &stubAuthenticator{ok: true, bearer: true}
+func TestAuthTrustedHostStillRequiresTrustedBrowserOrigin(t *testing.T) {
+	auth := &stubAuthenticator{ok: true, trusted: true}
 
 	denied := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
 		"Origin": "http://evil.example",
@@ -180,11 +229,11 @@ func performAuthRequest(method string, path string, headers map[string]string, a
 type stubAuthenticator struct {
 	session string
 	ok      bool
-	bearer  bool
+	trusted bool
 }
 
 func (a *stubAuthenticator) Authenticate(*http.Request) (string, bool, bool) {
-	return a.session, a.ok, a.bearer
+	return a.session, a.ok, a.trusted
 }
 
 type stubCSRFValidator struct {
@@ -205,7 +254,7 @@ func allowOrigins(origins ...string) originSet {
 	return result
 }
 
-func (s originSet) IsOriginAllowed(origin string) bool {
+func (s originSet) IsOriginAllowed(_ *http.Request, origin string) bool {
 	_, ok := s[origin]
 	return ok
 }

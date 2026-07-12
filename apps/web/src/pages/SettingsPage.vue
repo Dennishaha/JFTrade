@@ -14,7 +14,6 @@ import SettingsSystemNotificationsSection from "../components/SettingsSystemNoti
 import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
 import { readLocalStorage, writeLocalStorage } from "../composables/safeStorage";
 import { useConsoleData } from "../composables/useConsoleData";
-import { resolveDesktopMode } from "../runtimeConfig";
 
 const route = useRoute();
 const router = useRouter();
@@ -64,8 +63,8 @@ const allSettingsMenu = [
   },
   {
     index: "security",
-    label: "安全",
-    description: "配置管理员认证与访问保护。",
+    label: "Web 访问",
+    description: "按需开启浏览器访问并配置密码与网络范围。",
   },
   {
     index: "system-notifications",
@@ -92,10 +91,7 @@ const allSettingsMenu = [
 type MenuIndex = (typeof allSettingsMenu)[number]["index"];
 
 const DEFAULT_SECTION: MenuIndex = "runtime-dependencies";
-const isDesktopMode = computed(() => resolveDesktopMode());
-const settingsMenu = computed(() =>
-  allSettingsMenu.filter((entry) => !(isDesktopMode.value && entry.index === "security")),
-);
+const settingsMenu = computed(() => allSettingsMenu);
 
 function isKnownSettingsMenu(index: string | undefined | null): index is MenuIndex {
   return settingsMenu.value.some((entry) => entry.index === index);

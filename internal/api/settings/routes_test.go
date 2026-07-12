@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	apisettings "github.com/jftrade/jftrade-main/internal/api/settings"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	srvsettings "github.com/jftrade/jftrade-main/internal/settings"
@@ -389,8 +390,9 @@ func TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows(t *testing.T) {
 			}
 		}),
 		srvsettings.WithSideEffects(srvsettings.SideEffects{
-			OnSecurityChanged: func(settings jfsettings.SecuritySettings) {
+			OnSecurityChanged: func(settings jfsettings.SecuritySettings) error {
 				securitySideEffect = settings
+				return nil
 			},
 		}),
 	)
@@ -436,18 +438,22 @@ func TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows(t *testing.T) {
 
 	securityGetRec := httptest.NewRecorder()
 	router.ServeHTTP(securityGetRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/security", nil))
-	if securityGetRec.Code != http.StatusOK || !strings.Contains(securityGetRec.Body.String(), `"adminAuthRequired":false`) {
+	if securityGetRec.Code != http.StatusOK || !strings.Contains(securityGetRec.Body.String(), `"webAccessEnabled":false`) {
 		t.Fatalf("security get = %d %s", securityGetRec.Code, securityGetRec.Body.String())
 	}
 
 	securityPutRec := httptest.NewRecorder()
-	securityPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/security", strings.NewReader(`{"adminAuthRequired":true}`))
+	securityPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/security", strings.NewReader(`{"webAccessEnabled":true,"publicAccessEnabled":false,"newPassword":"a memorable Web passphrase"}`))
+	securityPutReq = middleware.MarkRequestTrustedHost(securityPutReq)
 	securityPutReq.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(securityPutRec, securityPutReq)
 	if securityPutRec.Code != http.StatusOK {
 		t.Fatalf("security put = %d %s", securityPutRec.Code, securityPutRec.Body.String())
 	}
-	if !store.security.AdminAuthRequired || !securitySideEffect.AdminAuthRequired {
+	if !store.security.WebAccessEnabled || !store.security.PasswordConfigured ||
+		!securitySideEffect.WebAccessEnabled || !securitySideEffect.PasswordConfigured ||
+		strings.Contains(securityPutRec.Body.String(), "passwordHash") ||
+		strings.Contains(securityPutRec.Body.String(), "a memorable Web passphrase") {
 		t.Fatalf("security store=%#v sideEffect=%#v", store.security, securitySideEffect)
 	}
 

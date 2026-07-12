@@ -153,7 +153,8 @@ $watchdogProcess = Start-Process -FilePath "powershell.exe" -WindowStyle hidden 
     $backendProcess.Id
 )
 
-Write-Host ("JFTrade frontend + API: http://$($env:JFTRADE_GUI_BIND)") -ForegroundColor Green
+Write-Host ("Optional Web address (disabled by default): http://$($env:JFTRADE_GUI_BIND)") -ForegroundColor Green
+Write-Host "Enable Web access and set its password in JFTrade Dev > Settings first / 请先在 JFTrade Dev 的设置中开启 Web 访问并设置密码" -ForegroundColor Yellow
 Write-Host ("`n=== Press Ctrl+C to stop all services / {0} ===" -f $cnStopAllServices) -ForegroundColor Yellow
 
 try {

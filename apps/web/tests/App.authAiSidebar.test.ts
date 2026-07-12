@@ -27,6 +27,7 @@ import {
   emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 
+
 import {
   MockWebSocket,
   createResponse,
@@ -76,6 +77,10 @@ function buildAuthWorkspaceFetchMock() {
         authenticated: true,
         csrfToken: "csrf-token",
       });
+    }
+    if (url.includes("/api/v1/auth/logout") && method === "POST") {
+      authenticated = false;
+      return createResponse({ authenticated: false });
     }
     if (url.includes("/api/v1/adk/agents")) {
       return createResponse({
@@ -382,6 +387,27 @@ function buildAuthWorkspaceFetchMock() {
 }
 
 describe("App auth and dock assistant integration", () => {
+  it("does not let a Web client bypass login through a standalone desktop route", async () => {
+    (
+      window as Window & {
+        __JFTRADE_RUNTIME_CONFIG__?: {
+          authRequired?: boolean;
+          desktopMode?: boolean;
+        };
+      }
+    ).__JFTRADE_RUNTIME_CONFIG__ = {
+      authRequired: true,
+      desktopMode: false,
+    };
+    vi.stubGlobal("fetch", buildAuthWorkspaceFetchMock());
+
+    const { wrapper } = await mountApp("/desktop-logs");
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("JFTrade Web 登录");
+    wrapper.unmount();
+  });
+
   it("authenticates into workspace and mounts the shared dock assistant path", async () => {
     (
       window as Window & {
@@ -403,14 +429,14 @@ describe("App auth and dock assistant integration", () => {
     const { router, wrapper } = await mountApp("/workspace");
     await flushRequests();
 
-    expect(wrapper.text()).toContain("管理员登录");
+    expect(wrapper.text()).toContain("JFTrade Web 登录");
 
-    await wrapper.get("#administrator-key").setValue("test-admin-key");
+    await wrapper.get("#web-access-password").setValue("test-web-password");
     await wrapper.get("form").trigger("submit");
     await flushRequests();
 
     expect(router.currentRoute.value.path).toBe("/workspace");
-    expect(wrapper.text()).not.toContain("管理员登录");
+    expect(wrapper.text()).not.toContain("JFTrade Web 登录");
     expect(
       wrapper.get('[data-testid="rightdock-tab-ai"]').classes(),
     ).toContain("is-active");
@@ -456,6 +482,10 @@ describe("App auth and dock assistant integration", () => {
         "/api/v1/adk/sessions",
       ]),
     );
+
+    await wrapper.get("[data-testid='web-logout']").trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("JFTrade Web 登录");
 
     wrapper.unmount();
   });

@@ -4,7 +4,14 @@ JFTrade 是一个面向 Futu OpenD 的交易研发控制台。它把行情查看
 
 ## 快速开始
 
-开发时通常开两个终端。
+日常使用和桌面联调优先启动 `JFTrade Dev`。它保持桌面免登录，也提供配置可选 Web 访问的可信设置入口：
+
+```bash
+npm install
+npm run desktop:dev
+```
+
+只有进行纯浏览器前端开发时，才需要另外开两个终端。先在 `JFTrade Dev` 的“设置 → Web 访问”中设置密码并主动开启；独立 API 默认不会开放浏览器控制台。
 
 终端 1：启动后端服务：
 
@@ -19,7 +26,7 @@ npm install
 npm run dev:web
 ```
 
-打开这些地址：
+Web 已开启后可打开这些地址：
 
 - 控制台：`http://127.0.0.1:5173/`
 - 文档：`http://127.0.0.1:5173/docs/`
@@ -27,14 +34,6 @@ npm run dev:web
 - Swagger JSON：`http://127.0.0.1:3000/swagger/doc.json`
 
 前端开发服务器在 `5173`，会把 `/api` 和 `/swagger` 转发到后端 `3000`。`cmd/jftrade-api` 是独立 API 入口；Wails 产品由 `cmd/jftrade-desktop` 启动同一套应用服务。
-
-桌面开发使用 Wails v3，一条命令同时启动 `JFTrade Dev`、Vite 和桌面内置 API sidecar：
-
-```bash
-npm run desktop:dev
-```
-
-桌面开发版默认使用 `127.0.0.1:6698`，仍读取仓库内的 `var/jftrade-api/`。它与正式产品拥有不同的应用 ID 和单实例 ID，可以和正式产品同时运行。
 
 ## 常用入口
 
@@ -47,7 +46,7 @@ npm run dev:docs
 
 VitePress 文档站默认在 `http://127.0.0.1:3001/`。
 
-本地按浏览器式发布包的方式验收：
+本地按可选 Web 发布包的方式验收：
 
 ```bash
 ./start.sh
@@ -59,7 +58,7 @@ Windows:
 start.cmd
 ```
 
-默认入口：
+Web 已在 `JFTrade Dev` 中开启后的入口：
 
 - 前端 + API：`http://127.0.0.1:6688/`
 
@@ -125,7 +124,6 @@ npm run generate:docs
 - `settings.json`：本地设置
 - `backtest.db`：回测和历史数据相关存储
 - `watchlists.db`：本地多分组自选、券商导入绑定与审计
-- `secrets/admin.key`：本地管理密钥
 
 配置优先级是：环境变量 > `settings.json` > 内置默认值。配置细节见 [docs/configuration.md](docs/configuration.md)，端口和启动排障见 [docs/troubleshooting/startup-ports.md](docs/troubleshooting/startup-ports.md)。
 
@@ -141,8 +139,8 @@ npm run generate:docs
 - `127.0.0.1:3000`：开发态后端服务
 - `127.0.0.1:3001`：文档开发服务器
 - `127.0.0.1:6698`：`JFTrade Dev` 桌面 sidecar
-- `127.0.0.1:6688`：发布态内嵌前端、API、SSE、WS、文档和 Swagger 的单一同源入口
-- `127.0.0.1:6699`：仅正式 Wails 产品 sidecar
+- `127.0.0.1:6688`：默认的可选 Web 入口；端口可在设置中修改，桌面 Web 关闭时不创建该监听器
+- `127.0.0.1:6699`：正式 Wails 产品 sidecar；始终仅限本机桌面 WebView，不作为浏览器入口
 - `127.0.0.1:11110`：Futu OpenD API
 - `127.0.0.1:11111`：Futu OpenD WebSocket
 
@@ -150,7 +148,7 @@ npm run generate:docs
 
 - 想确认当前版本状态、发布形态和验收基线：读 [docs/README.md](docs/README.md)
 - 想快速使用控制台：读 [docs/quick-start.md](docs/quick-start.md)
-- 想改启动、端口、配置或管理密钥：读 [docs/configuration.md](docs/configuration.md)
+- 想改启动、端口或可选 Web 访问：读 [docs/configuration.md](docs/configuration.md)
 - 想构建或排查 Wails 桌面产品：读 [docs/troubleshooting/desktop-release.md](docs/troubleshooting/desktop-release.md)
 - 启动失败、OpenD 连不上、实时行情异常：读 [docs/troubleshooting.md](docs/troubleshooting.md)
 - 想理解模块边界和数据流：读 [docs/architecture.md](docs/architecture.md)

@@ -1,8 +1,10 @@
 package settingsfile
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
@@ -61,7 +63,10 @@ func TestSettingsStoreReadsPersistedConfigurationBranches(t *testing.T) {
 	if _, err := store.SaveExecutionSettings(jfsettings.ExecutionSettings{DefaultTradingEnvironment: "REAL", SeenFillRetentionDays: 30}); err != nil {
 		t.Fatalf("SaveExecutionSettings: %v", err)
 	}
-	if _, err := store.SaveSecuritySettings(jfsettings.SecuritySettings{AdminAuthRequired: true}); err != nil {
+	if _, err := store.SaveSecuritySettings(jfsettings.SecuritySettings{
+		WebAccessEnabled: true,
+		PasswordHash:     "test-argon2-verifier",
+	}); err != nil {
 		t.Fatalf("SaveSecuritySettings: %v", err)
 	}
 
@@ -71,10 +76,90 @@ func TestSettingsStoreReadsPersistedConfigurationBranches(t *testing.T) {
 	if got := store.ExecutionSettings(); got.DefaultTradingEnvironment != "REAL" || got.SeenFillRetentionDays != 30 {
 		t.Fatalf("persisted execution settings = %#v", got)
 	}
-	if got := store.SecuritySettings(); !got.AdminAuthRequired {
+	if got := store.SecuritySettings(); !got.WebAccessEnabled || !got.PasswordConfigured {
 		t.Fatalf("persisted security settings = %#v", got)
 	}
-	if defaults := DefaultSecuritySettings(); !defaults.AdminAuthRequired {
-		t.Fatalf("default security settings must require administrator authentication: %#v", defaults)
+	if defaults := DefaultSecuritySettings(); defaults.WebAccessEnabled || defaults.PublicAccessEnabled || defaults.PasswordConfigured || defaults.WebPort != jfsettings.DefaultWebAccessPort {
+		t.Fatalf("default security settings must keep Web access disabled: %#v", defaults)
 	}
+}
+
+func TestLegacyAdminAuthSettingMigratesToDisabledWebAccess(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"security":{"adminAuthRequired":true}}`), 0o644); err != nil {
+		t.Fatalf("write legacy settings: %v", err)
+	}
+	store, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New legacy settings: %v", err)
+	}
+	if got := store.SecuritySettings(); got.WebAccessEnabled || got.PublicAccessEnabled || got.PasswordConfigured {
+		t.Fatalf("legacy setting enabled Web access: %#v", got)
+	}
+	persisted, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("read migrated settings: %v", err)
+	}
+	if strings.Contains(string(persisted), "adminAuthRequired") {
+		t.Fatalf("legacy admin auth field was not removed: %s", persisted)
+	}
+	if mode := fileMode(t, settingsPath); mode != 0o600 {
+		t.Fatalf("settings mode = %#o, want 0600", mode)
+	}
+}
+
+func TestFailedSecurityReplaceKeepsDiskAndRuntimeStateUnchanged(t *testing.T) {
+	directory := t.TempDir()
+	settingsPath := filepath.Join(directory, "settings.json")
+	store, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	original := jfsettings.SecuritySettings{
+		WebAccessEnabled: true,
+		PasswordHash:     "original-password-verifier",
+	}
+	if _, err := store.SaveSecuritySettings(original); err != nil {
+		t.Fatalf("save original security settings: %v", err)
+	}
+	before, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("read original settings: %v", err)
+	}
+	store.replaceFile = func(string, string) error { return errors.New("replace failed") }
+
+	updated := jfsettings.SecuritySettings{
+		WebAccessEnabled:    true,
+		PublicAccessEnabled: true,
+		PasswordHash:        "replacement-password-verifier",
+	}
+	if _, err := store.SaveSecuritySettings(updated); err == nil {
+		t.Fatal("SaveSecuritySettings error = nil")
+	}
+	after, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("read settings after failed replace: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("settings changed after failed replace:\nbefore=%s\nafter=%s", before, after)
+	}
+	if got := store.SecuritySettings(); got.PasswordHash != original.PasswordHash || got.PublicAccessEnabled {
+		t.Fatalf("runtime settings changed after failed replace: %#v", got)
+	}
+	temporaryFiles, err := filepath.Glob(filepath.Join(directory, ".settings-*.tmp"))
+	if err != nil {
+		t.Fatalf("glob temporary settings files: %v", err)
+	}
+	if len(temporaryFiles) != 0 {
+		t.Fatalf("temporary settings files were not cleaned up: %#v", temporaryFiles)
+	}
+}
+
+func fileMode(t *testing.T, path string) os.FileMode {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	return info.Mode().Perm()
 }

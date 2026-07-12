@@ -58,7 +58,7 @@ flowchart TB
         ProductData["正式桌面产品<br/>系统用户数据目录"]
         SettingsFile["settings.json"]
         BacktestDB["backtest.db"]
-        Secrets["secrets/admin.key"]
+        Secrets["secrets/adk-secrets.json<br/>Web 密码仅存 Argon2id 校验值"]
         Artifacts["策略 / 回测 / worker artifacts<br/>日志 / desktop-state.json"]
     end
 
@@ -208,7 +208,7 @@ flowchart TB
         DevWeb["npm run dev:web<br/>Vite 127.0.0.1:5173"]
         DevDocs["npm run dev:docs<br/>VitePress 127.0.0.1:3001"]
         Proxy["Vite proxy<br/>/api /swagger -> 3000<br/>/docs -> 3001"]
-        DesktopDev["npm run desktop:dev<br/>JFTrade Dev / API 6698<br/>仓库 var/jftrade-api"]
+        DesktopDev["npm run desktop:dev<br/>JFTrade Dev / sidecar 6698<br/>仓库 var/jftrade-api"]
     end
 
     subgraph Build["构建任务"]
@@ -223,7 +223,8 @@ flowchart TB
         Dist["dist/"]
         GUI["前端 + API 单一同源入口<br/>127.0.0.1:6688"]
         EmbeddedAssets["internal/frontendassets<br/>internal/pineworkerassets"]
-        DesktopProduct["JFTrade<br/>Wails / API 6699<br/>系统用户数据目录"]
+        DesktopProduct["JFTrade<br/>Wails sidecar 6699<br/>系统用户数据目录"]
+        OptionalWeb["用户主动开启的 Web 入口<br/>默认 127.0.0.1:6688 / 端口可设置"]
         MacDMG["macOS ARM64<br/>unsigned DMG"]
         WinNSIS["Windows x64 + ARM64 preview<br/>unsigned per-user NSIS"]
     end
@@ -239,6 +240,7 @@ flowchart TB
     BuildDesktop --> MacDMG
     BuildDesktop --> WinNSIS
     BuildDesktop --> DesktopProduct
+    DesktopProduct -. 用户开启后立即生效 .-> OptionalWeb
     EmbeddedAssets --> BuildAPI
 
     Dist --> GUI

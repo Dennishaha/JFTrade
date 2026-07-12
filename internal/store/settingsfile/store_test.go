@@ -51,9 +51,15 @@ func TestSettingsPersistenceAndNormalization(t *testing.T) {
 		t.Fatalf("execution normalization = %#v", got)
 	}
 
-	if got, err := store.SaveSecuritySettings(jfsettings.SecuritySettings{AdminAuthRequired: true}); err != nil {
+	securityInput := jfsettings.SecuritySettings{
+		WebAccessEnabled:    true,
+		PublicAccessEnabled: true,
+		WebPort:             7443,
+		PasswordHash:        "test-argon2-verifier",
+	}
+	if got, err := store.SaveSecuritySettings(securityInput); err != nil {
 		t.Fatalf("SaveSecuritySettings: %v", err)
-	} else if !got.AdminAuthRequired {
+	} else if !got.WebAccessEnabled || !got.PublicAccessEnabled || !got.PasswordConfigured {
 		t.Fatalf("security normalization = %#v", got)
 	}
 
@@ -70,7 +76,7 @@ func TestSettingsPersistenceAndNormalization(t *testing.T) {
 	if got := reloaded.ExecutionSettings(); got.DefaultTradingEnvironment != "REAL" || got.SeenFillRetentionDays != 3650 {
 		t.Fatalf("reloaded execution = %#v", got)
 	}
-	if got := reloaded.SecuritySettings(); !got.AdminAuthRequired {
+	if got := reloaded.SecuritySettings(); !got.WebAccessEnabled || !got.PublicAccessEnabled || got.WebPort != 7443 || got.PasswordHash != securityInput.PasswordHash {
 		t.Fatalf("reloaded security = %#v", got)
 	}
 }

@@ -109,6 +109,92 @@ func TestFrontendServerServesRuntimeConfigScript(t *testing.T) {
 	}
 }
 
+func TestFrontendRuntimeConfigMarksSeparateWebListenerAsBrowserMode(t *testing.T) {
+	frontend := newFrontendServerWithRuntimeConfig(os.DirFS(t.TempDir()), "")
+	frontend.setDesktopMode(true)
+	request := httptest.NewRequest(http.MethodGet, "/runtime-config.js", nil)
+	request = request.WithContext(context.WithValue(request.Context(), webAccessSurfaceContextKey{}, true))
+	recorder := httptest.NewRecorder()
+
+	frontend.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("runtime config status = %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), `"desktopMode":false`) {
+		t.Fatalf("runtime config body = %q", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"apiBaseUrl":"http://example.com"`) {
+		t.Fatalf("runtime config did not force Web same-origin API: %q", recorder.Body.String())
+	}
+}
+
+func TestFrontendServerProxiesDesktopDevelopmentUI(t *testing.T) {
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("vite:" + r.URL.Path))
+	}))
+	t.Cleanup(target.Close)
+	frontend := newFrontendServerWithOptions(nil, "", target.URL)
+	if frontend == nil {
+		t.Fatal("development frontend proxy was not created")
+	}
+
+	recorder := httptest.NewRecorder()
+	frontend.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/assets/app.ts", nil))
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "vite:/assets/app.ts" {
+		t.Fatalf("proxied response = %d %q", recorder.Code, recorder.Body.String())
+	}
+
+	runtimeRequest := httptest.NewRequest(http.MethodGet, "/runtime-config.js", nil)
+	runtimeRequest = runtimeRequest.WithContext(context.WithValue(runtimeRequest.Context(), webAccessSurfaceContextKey{}, true))
+	runtimeRecorder := httptest.NewRecorder()
+	frontend.ServeHTTP(runtimeRecorder, runtimeRequest)
+	if !strings.Contains(runtimeRecorder.Body.String(), `"desktopMode":false`) {
+		t.Fatalf("runtime config was not served as browser mode: %q", runtimeRecorder.Body.String())
+	}
+	if !strings.Contains(runtimeRecorder.Body.String(), `"apiBaseUrl":"http://example.com"`) {
+		t.Fatalf("runtime config did not override the development API target: %q", runtimeRecorder.Body.String())
+	}
+}
+
+func TestFrontendDevelopmentProxyRejectsNonLoopbackTarget(t *testing.T) {
+	if frontend := newFrontendServerWithOptions(nil, "", "http://192.0.2.10:5173"); frontend != nil {
+		t.Fatal("non-loopback frontend development proxy should be rejected")
+	}
+}
+
+func TestDesktopWebAccessHandlerServesProxiedDevelopmentUIAtRoot(t *testing.T) {
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			_, _ = w.Write([]byte("JFTrade Vite UI"))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(target.Close)
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	security := webSecuritySettings(t, true)
+	if _, err := store.SaveSecuritySettings(security); err != nil {
+		t.Fatalf("SaveSecuritySettings: %v", err)
+	}
+	handler := NewSidecarHandlerWithOptions(store, SidecarOptions{
+		FrontendDevURL:  target.URL,
+		DesktopMode:     true,
+		DesktopAPIToken: "desktop-token",
+	})
+	t.Cleanup(func() { _ = handler.Close() })
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("Accept", "text/html")
+	handler.WebAccessHandler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "JFTrade Vite UI" {
+		t.Fatalf("Web root response = %d %q", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestFrontendServerBoundaryHelpers(t *testing.T) {
 	expectedFS, available, err := frontendassets.FileSystem()
 	if err != nil {
@@ -250,7 +336,7 @@ func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {
 	}
 }
 
-func TestStartForRunArgsUsesInterfaceSettingsForAPIBind(t *testing.T) {
+func TestStartForRunArgsUsesInterfaceSettingsForAPIBindWhileWebIsDisabled(t *testing.T) {
 	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
@@ -288,10 +374,10 @@ func TestStartForRunArgsUsesInterfaceSettingsForAPIBind(t *testing.T) {
 	for {
 		resp, err := jftradeTestHTTPGet(t, statusURL)
 		if err == nil {
-			if resp.StatusCode != http.StatusOK {
+			if resp.StatusCode != http.StatusForbidden {
 				jftradeErr2 := resp.Body.Close()
 				jftradeCheckTestError(t, jftradeErr2)
-				t.Fatalf("GET status code = %d", resp.StatusCode)
+				t.Fatalf("GET status code = %d, want 403 while Web access is disabled", resp.StatusCode)
 			}
 			jftradeErr3 := resp.Body.Close()
 			jftradeCheckTestError(t, jftradeErr3)

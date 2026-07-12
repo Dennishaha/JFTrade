@@ -373,7 +373,7 @@ describe("Settings page", () => {
       "账户发现",
       "界面外观",
       "交易所日历",
-      "安全",
+      "Web 访问",
       "系统通知",
       "PineTS Worker",
       "智能体",
@@ -878,7 +878,12 @@ describe("Settings page", () => {
     wrapper.unmount();
   });
 
-  it("renders and persists administrator authentication settings", async () => {
+  it("renders and explicitly saves Web access settings", async () => {
+    (
+      window as Window & {
+        __JFTRADE_RUNTIME_CONFIG__?: { desktopMode?: boolean };
+      }
+    ).__JFTRADE_RUNTIME_CONFIG__ = { desktopMode: true };
     const fetchMock = vi.fn(
       (input: string | URL | Request, init?: RequestInit) => {
         const url = String(input);
@@ -891,13 +896,21 @@ describe("Settings page", () => {
           url.includes("/api/v1/settings/security") &&
           (init?.method ?? "GET") === "GET"
         ) {
-          return Promise.resolve(createResponse({ adminAuthRequired: false }));
+          return Promise.resolve(createResponse({
+            webAccessEnabled: false,
+            publicAccessEnabled: false,
+            passwordConfigured: false,
+          }));
         }
         if (
           url.includes("/api/v1/settings/security") &&
           init?.method === "PUT"
         ) {
-          return Promise.resolve(createResponse({ adminAuthRequired: true }));
+          return Promise.resolve(createResponse({
+            webAccessEnabled: true,
+            publicAccessEnabled: false,
+            passwordConfigured: true,
+          }));
         }
         if (url.includes("/api/v1/system/status")) {
           return Promise.resolve(createResponse(emptySystemStatus));
@@ -961,13 +974,22 @@ describe("Settings page", () => {
     const { wrapper } = await mountApp("/settings/security");
     await flushRequests();
 
-    expect(wrapper.text()).toContain("安全");
-    expect(wrapper.text()).toContain("管理员认证");
-    expect(wrapper.text()).toContain("已关闭");
+    expect(wrapper.text()).toContain("Web 访问");
+    expect(wrapper.text()).toContain("默认仅使用桌面应用，无需密码");
+    expect(wrapper.text()).toContain("未开启");
 
-    const checkbox = wrapper.find("[data-testid='admin-auth-required-toggle']");
+    const checkbox = wrapper.find("[data-testid='web-access-enabled-toggle']");
     expect(checkbox.exists()).toBe(true);
     await checkbox.setValue(true);
+    await wrapper
+      .get("[data-testid='web-access-new-password']")
+      .setValue("browser-web-passphrase");
+    await wrapper
+      .get("[data-testid='web-access-confirm-password']")
+      .setValue("browser-web-passphrase");
+    await wrapper
+      .get("[data-testid='web-access-settings-form']")
+      .trigger("submit");
     await flushRequests();
 
     const putCall = fetchMock.mock.calls.find(
@@ -977,14 +999,17 @@ describe("Settings page", () => {
     );
     expect(putCall).toBeTruthy();
     expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({
-      adminAuthRequired: true,
+      webAccessEnabled: true,
+      publicAccessEnabled: false,
+      webPort: 6688,
+      newPassword: "browser-web-passphrase",
     });
-    expect(wrapper.text()).toContain("已开启");
+    expect(wrapper.text()).toContain("已开启 · 仅本机");
 
     wrapper.unmount();
   });
 
-  it("hides administrator authentication settings in desktop mode", async () => {
+  it("shows Web access settings in desktop mode", async () => {
     (
       window as Window & {
         __JFTRADE_RUNTIME_CONFIG__?: { desktopMode?: boolean };
@@ -998,7 +1023,11 @@ describe("Settings page", () => {
           return Promise.resolve(dependencyResponse);
         }
         if (url.includes("/api/v1/settings/security")) {
-          throw new Error("security settings should be hidden in desktop mode");
+          return Promise.resolve(createResponse({
+            webAccessEnabled: false,
+            publicAccessEnabled: false,
+            passwordConfigured: false,
+          }));
         }
         if (url.includes("/api/v1/system/status")) {
           return Promise.resolve(createResponse(emptySystemStatus));
@@ -1061,9 +1090,9 @@ describe("Settings page", () => {
     const mobileSelector = wrapper.get(".settings-page__mobile-selector select");
     expect(
       mobileSelector.findAll("option").map((option) => option.text()),
-    ).not.toContain("安全");
-    expect(wrapper.text()).toContain("依赖项管理");
-    expect(wrapper.text()).not.toContain("管理员认证");
+    ).toContain("Web 访问");
+    expect(wrapper.text()).toContain("默认仅使用桌面应用，无需密码");
+    expect(wrapper.find("[data-testid='web-access-enabled-toggle']").exists()).toBe(true);
 
     wrapper.unmount();
   });

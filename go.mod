@@ -28,7 +28,9 @@ require (
 	github.com/wailsapp/wails/v3 v3.0.0-alpha2.117
 	github.com/wcharczuk/go-chart/v2 v2.1.2
 	go.uber.org/mock v0.6.0
+	golang.org/x/crypto v0.53.0
 	golang.org/x/mod v0.38.0
+	golang.org/x/sys v0.46.0
 	golang.org/x/time v0.15.0
 	gonum.org/v1/gonum v0.17.0
 	google.golang.org/adk/v2 v2.0.0
@@ -230,12 +232,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.28.0 // indirect
-	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/image v0.43.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/term v0.44.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/tools v0.47.0 // indirect

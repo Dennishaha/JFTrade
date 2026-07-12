@@ -10,9 +10,9 @@ import (
 )
 
 // Authenticator 验证请求是否已认证。
-// 返回 session token、是否认证成功、是否通过 Bearer token 认证。
+// 返回 session token、是否认证成功、是否通过可信宿主能力认证。
 type Authenticator interface {
-	Authenticate(r *http.Request) (session string, ok bool, isBearer bool)
+	Authenticate(r *http.Request) (session string, ok bool, trustedHost bool)
 }
 
 // CSRFValidator 验证 CSRF token 是否有效。
@@ -27,9 +27,24 @@ type WriteMethodDetector interface {
 }
 
 type validatedOriginContextKey struct{}
+type trustedHostContextKey struct{}
+
+// MarkRequestTrustedHost marks a request authenticated by an embedded host
+// capability, such as the per-process Wails desktop token.
+func MarkRequestTrustedHost(r *http.Request) *http.Request {
+	if r == nil {
+		return nil
+	}
+	return r.WithContext(context.WithValue(r.Context(), trustedHostContextKey{}, true))
+}
+
+// IsRequestTrustedHost reports whether the embedded host authenticated r.
+func IsRequestTrustedHost(r *http.Request) bool {
+	return r != nil && r.Context().Value(trustedHostContextKey{}) == true
+}
 
 // Auth 返回 Gin 鉴权中间件。
-// 跳过 /api/v1/auth/* 和 /api/v1/system/status 路径。
+// 仅跳过建立或探测 Web 会话所需的 login/session 路径。
 func Auth(auth Authenticator, csrf CSRFValidator, writeDetector WriteMethodDetector, originChecker OriginChecker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		r := c.Request
@@ -50,13 +65,16 @@ func requiresAuthentication(r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
+	if strings.HasPrefix(path, "/swagger") {
+		return true
+	}
 	if !strings.HasPrefix(path, "/api/") {
 		return false
 	}
-	if strings.HasPrefix(path, "/api/v1/auth/") {
+	if path == "/api/v1/auth/login" || path == "/api/v1/auth/session" {
 		return false
 	}
-	return path != "/api/v1/system/status"
+	return true
 }
 
 // authorizeRequest 执行请求鉴权。返回 true 表示通过。
@@ -64,7 +82,7 @@ func authorizeRequest(c *gin.Context, auth Authenticator, csrf CSRFValidator, wr
 	r := c.Request
 	origin := requestOrigin(r)
 	if requestOriginProvided(r) {
-		if origin == "" || originChecker == nil || !originChecker.IsOriginAllowed(origin) {
+		if origin == "" || originChecker == nil || !originChecker.IsOriginAllowed(r, origin) {
 			writeAuthError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
 			return false
 		}
@@ -72,15 +90,15 @@ func authorizeRequest(c *gin.Context, auth Authenticator, csrf CSRFValidator, wr
 	}
 
 	if auth == nil {
-		writeAuthError(c, http.StatusUnauthorized, "UNAUTHORIZED", "administrator authentication is required")
+		writeAuthError(c, http.StatusUnauthorized, "WEB_AUTH_REQUIRED", "Web password authentication is required")
 		return false
 	}
-	session, ok, bearer := auth.Authenticate(r)
+	session, ok, trustedHost := auth.Authenticate(r)
 	if !ok {
-		writeAuthError(c, http.StatusUnauthorized, "UNAUTHORIZED", "administrator authentication is required")
+		writeAuthError(c, http.StatusUnauthorized, "WEB_AUTH_REQUIRED", "Web password authentication is required")
 		return false
 	}
-	if bearer {
+	if trustedHost {
 		return true
 	}
 	if !isWriteMethod(writeDetector, r) {

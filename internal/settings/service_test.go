@@ -2,10 +2,14 @@ package settings
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
@@ -139,8 +143,9 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 		OnExecutionChanged: func(settings jfsettings.ExecutionSettings) {
 			gotExecution = settings
 		},
-		OnSecurityChanged: func(settings jfsettings.SecuritySettings) {
+		OnSecurityChanged: func(settings jfsettings.SecuritySettings) error {
 			gotSecurity = settings
+			return nil
 		},
 		OnExchangeCalendarsChanged: func(settings jfsettings.ExchangeCalendarSettings) {
 			gotCalendars = settings
@@ -161,9 +166,19 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 		t.Fatalf("execution side effect = %#v, want %#v", gotExecution, execution)
 	}
 
-	security := jfsettings.SecuritySettings{AdminAuthRequired: true}
-	if _, err := svc.SaveSecuritySettings(security); err != nil {
+	securityUpdate := jfsettings.SecuritySettingsUpdate{
+		WebAccessEnabled: true,
+		NewPassword:      "a memorable Web passphrase",
+	}
+	security, err := svc.SaveSecuritySettings(securityUpdate)
+	if err != nil {
 		t.Fatalf("SaveSecuritySettings: %v", err)
+	}
+	if !security.WebAccessEnabled || !security.PasswordConfigured ||
+		security.WebPort != jfsettings.DefaultWebAccessPort ||
+		!strings.HasPrefix(security.PasswordHash, "$argon2id$") ||
+		strings.Contains(security.PasswordHash, securityUpdate.NewPassword) {
+		t.Fatalf("security result = %#v", security)
 	}
 	if !reflect.DeepEqual(gotSecurity, security) {
 		t.Fatalf("security side effect = %#v, want %#v", gotSecurity, security)
@@ -191,6 +206,116 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 	}
 	if !reflect.DeepEqual(gotPineWorker, pineWorker) {
 		t.Fatalf("pine worker side effect = %#v, want %#v", gotPineWorker, pineWorker)
+	}
+}
+
+func TestSaveSecuritySettingsRejectsInvalidWebPort(t *testing.T) {
+	store := &fakeStore{}
+	svc := NewService(store)
+
+	_, err := svc.SaveSecuritySettings(jfsettings.SecuritySettingsUpdate{WebPort: 80})
+	if !errors.Is(err, ErrWebAccessPortInvalid) {
+		t.Fatalf("SaveSecuritySettings error = %v, want %v", err, ErrWebAccessPortInvalid)
+	}
+}
+
+func TestSaveSecuritySettingsRollsBackWhenRuntimeListenerUpdateFails(t *testing.T) {
+	current := jfsettings.SecuritySettings{
+		WebAccessEnabled:   true,
+		PasswordConfigured: true,
+		PasswordHash:       "stored-hash",
+		WebPort:            6688,
+	}
+	store := &fakeStore{security: current}
+	svc := NewService(store, WithSideEffects(SideEffects{
+		OnSecurityChanged: func(jfsettings.SecuritySettings) error {
+			return errors.New("port occupied")
+		},
+	}))
+
+	result, err := svc.SaveSecuritySettings(jfsettings.SecuritySettingsUpdate{
+		WebAccessEnabled: true,
+		WebPort:          7443,
+	})
+	if !errors.Is(err, ErrWebAccessRuntimeUpdate) {
+		t.Fatalf("SaveSecuritySettings error = %v", err)
+	}
+	if !reflect.DeepEqual(result, current) || !reflect.DeepEqual(store.security, current) {
+		t.Fatalf("runtime failure did not restore settings: result=%#v stored=%#v", result, store.security)
+	}
+}
+
+func TestConcurrentSecuritySavesPreserveNewestPasswordAndCallbackOrder(t *testing.T) {
+	store := &fakeStore{security: jfsettings.SecuritySettings{
+		WebAccessEnabled:   true,
+		PasswordConfigured: true,
+		PasswordHash:       "old-hash",
+	}}
+	hashStarted := make(chan struct{})
+	continueHash := make(chan struct{})
+	var callbacksMu sync.Mutex
+	callbacks := make([]jfsettings.SecuritySettings, 0, 2)
+	svc := NewService(store, WithSideEffects(SideEffects{
+		OnSecurityChanged: func(settings jfsettings.SecuritySettings) error {
+			callbacksMu.Lock()
+			callbacks = append(callbacks, settings)
+			callbacksMu.Unlock()
+			return nil
+		},
+	}))
+	svc.hashPassword = func(string) (string, error) {
+		close(hashStarted)
+		<-continueHash
+		return "new-hash", nil
+	}
+
+	type saveResult struct {
+		settings jfsettings.SecuritySettings
+		err      error
+	}
+	firstResult := make(chan saveResult, 1)
+	secondResult := make(chan saveResult, 1)
+	go func() {
+		settings, err := svc.SaveSecuritySettings(jfsettings.SecuritySettingsUpdate{
+			WebAccessEnabled: true,
+			NewPassword:      "replacement browser password",
+		})
+		firstResult <- saveResult{settings: settings, err: err}
+	}()
+	select {
+	case <-hashStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("first password hash did not start")
+	}
+	go func() {
+		settings, err := svc.SaveSecuritySettings(jfsettings.SecuritySettingsUpdate{
+			WebAccessEnabled:    true,
+			PublicAccessEnabled: true,
+		})
+		secondResult <- saveResult{settings: settings, err: err}
+	}()
+	select {
+	case result := <-secondResult:
+		t.Fatalf("second save bypassed the security lock: %#v", result)
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(continueHash)
+
+	first := <-firstResult
+	second := <-secondResult
+	if first.err != nil || second.err != nil {
+		t.Fatalf("save errors = %v, %v", first.err, second.err)
+	}
+	if second.settings.PasswordHash != "new-hash" || !second.settings.PublicAccessEnabled {
+		t.Fatalf("final save = %#v", second.settings)
+	}
+	if store.security.PasswordHash != "new-hash" || !store.security.PublicAccessEnabled {
+		t.Fatalf("stored security = %#v", store.security)
+	}
+	callbacksMu.Lock()
+	defer callbacksMu.Unlock()
+	if len(callbacks) != 2 || callbacks[0].PasswordHash != "new-hash" || callbacks[0].PublicAccessEnabled || !callbacks[1].PublicAccessEnabled {
+		t.Fatalf("security callbacks = %#v", callbacks)
 	}
 }
 
@@ -243,7 +368,11 @@ func TestServiceDelegatesGettersAndSimpleSavers(t *testing.T) {
 			DefaultTradingEnvironment: "REAL",
 			SeenFillRetentionDays:     30,
 		},
-		security:      jfsettings.SecuritySettings{AdminAuthRequired: true},
+		security: jfsettings.SecuritySettings{
+			WebAccessEnabled:   true,
+			PasswordConfigured: true,
+			PasswordHash:       "stored-verifier",
+		},
 		adk:           jfsettings.ADKRuntimeSettings{RunTimeoutMs: 15000, StreamIdleTimeoutMs: 5000},
 		pineWorker:    jfsettings.PineWorkerSettings{BacktestWorkerLimit: 2, InstanceWorkerLimit: 10},
 		calendars:     jfsettings.ExchangeCalendarSettings{AutoRefreshEnabled: true, RefreshIntervalHours: 8},

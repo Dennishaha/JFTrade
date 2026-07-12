@@ -48,6 +48,7 @@ type ProxyEventEmitter = {
 function createProxyEntry(target: string) {
   return {
     changeOrigin: true,
+    headers: { Origin: target },
     target,
     ws: true,
     configure: (...args: unknown[]) => {

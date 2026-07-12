@@ -2,6 +2,7 @@ package settings
 
 import (
 	"errors"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
+	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	srv "github.com/jftrade/jftrade-main/internal/settings"
 
@@ -354,7 +356,7 @@ func handleSaveExecutionSettings(svc *srv.Service) gin.HandlerFunc {
 // @Summary 读取安全设置
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.SecuritySettings}
 // @Router /api/v1/settings/security [get]
 func handleSecuritySettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -367,19 +369,37 @@ func handleSecuritySettings(svc *srv.Service) gin.HandlerFunc {
 // @Tags settings
 // @Accept json
 // @Produce json
-// @Param request body jfsettings.SecuritySettings true "安全设置"
-// @Success 200 {object} httpserver.Envelope
+// @Param request body jfsettings.SecuritySettingsUpdate true "Web 访问设置（新密码仅写入）"
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.SecuritySettings}
 // @Failure 400 {object} httpserver.Envelope
 // @Router /api/v1/settings/security [put]
 func handleSaveSecuritySettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input jfsettings.SecuritySettings
+		if !middleware.IsRequestTrustedHost(c.Request) {
+			httpserver.WriteError(c, 403, "WEB_ACCESS_SETTINGS_DESKTOP_ONLY", "Web access settings can only be changed from the JFTrade desktop app")
+			return
+		}
+		var input jfsettings.SecuritySettingsUpdate
 		if err := c.ShouldBindJSON(&input); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid security payload")
 			return
 		}
 		result, err := svc.SaveSecuritySettings(input)
 		if err != nil {
+			if errors.Is(err, srv.ErrWebAccessRuntimeUpdate) {
+				httpserver.WriteError(c, http.StatusConflict, "WEB_ACCESS_LISTENER_UPDATE_FAILED", err.Error())
+				return
+			}
+			if errors.Is(err, srv.ErrWebAccessPortInvalid) {
+				httpserver.WriteError(c, 400, "INVALID_WEB_ACCESS_PORT", err.Error())
+				return
+			}
+			if errors.Is(err, srv.ErrWebAccessPasswordRequired) ||
+				errors.Is(err, srv.ErrWebAccessPasswordTooShort) ||
+				errors.Is(err, srv.ErrWebAccessPasswordTooLong) {
+				httpserver.WriteError(c, 400, "INVALID_WEB_ACCESS_PASSWORD", err.Error())
+				return
+			}
 			httpserver.WriteError(c, 500, "SETTINGS_SAVE_FAILED", err.Error())
 			return
 		}

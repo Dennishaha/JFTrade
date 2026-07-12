@@ -171,6 +171,7 @@ func TestOpenAPIDocumentsWritableRequestBodies(t *testing.T) {
 		{path: "/api/v1/market-data/subscriptions/heartbeat", method: "post", refSuffix: "marketdata.SubscriptionHeartbeatRequest", properties: []string{"consumerId"}},
 		{path: "/api/v1/settings/adk", method: "put", refSuffix: "jftsettings.ADKRuntimeSettings", properties: []string{"runTimeoutMs", "streamIdleTimeoutMs"}},
 		{path: "/api/v1/settings/pine-worker", method: "put", refSuffix: "jftsettings.PineWorkerSettings", properties: []string{"backtestWorkerLimit", "instanceWorkerLimit", "nodeBinaryPath"}},
+		{path: "/api/v1/settings/security", method: "put", refSuffix: "jftsettings.SecuritySettingsUpdate", properties: []string{"newPassword", "publicAccessEnabled", "webAccessEnabled", "webPort"}, forbidden: []string{"passwordConfigured", "passwordHash"}},
 		{path: "/api/v1/settings/brokers/{brokerId}/integration", method: "put", refSuffix: "settings.BrokerIntegrationSaveRequest", properties: []string{"enabled", "config"}, forbidden: []string{"brokerId", "createdAt", "updatedAt"}},
 		{path: "/api/v1/settings/broker-accounts", method: "post", refSuffix: "settings.ManagedBrokerAccountWriteRequest", properties: []string{"brokerId", "accountId", "enabled"}, forbidden: []string{"id", "createdAt", "updatedAt"}},
 		{path: "/api/v1/settings/broker-accounts/{accountRecordId}", method: "put", refSuffix: "settings.ManagedBrokerAccountWriteRequest", properties: []string{"brokerId", "accountId", "enabled"}, forbidden: []string{"id", "createdAt", "updatedAt"}},
@@ -253,10 +254,7 @@ func openAPIPathFromGinPath(path string) string {
 	return strings.Join(parts, "/")
 }
 
-func isOpenAPIRouteCoverageException(method string, path string) bool {
-	if path == "/api/v1/auth/token" && method != http.MethodGet {
-		return true
-	}
+func isOpenAPIRouteCoverageException(_ string, path string) bool {
 	// Broker read/write endpoints dispatch through a resource wildcard while
 	// OpenAPI documents the concrete broker resources handled underneath.
 	if path == "/api/v1/brokers/{brokerId}/{resource}" {

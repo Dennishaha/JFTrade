@@ -80,7 +80,7 @@ type Server struct {
 	assistantSvc             *asst.Service
 	frontend                 *frontendServer
 	apiPort                  int
-	auth                     *adminAuth
+	auth                     *webAuth
 	router                   *gin.Engine
 	desktopMode              bool
 	exchangeCalendars        *exchangecalendar.Manager
@@ -101,21 +101,25 @@ type Server struct {
 	instancePineWorkerRunner pineWorkerRunner
 	observability            *observability.Recorder
 	desktopAPIToken          string
+	webAccessReconfigure     func(SecuritySettings) error
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
 type SidecarHandler interface {
 	http.Handler
+	WebAccessHandler() http.Handler
 	Close() error
 	SetAPIPort(int)
 	ConfigureAuthOrigins(...string)
 	SetFrontendFS(fs.FS, string)
 	ApplySecuritySettings(SecuritySettings)
+	SetWebAccessReconfigure(func(SecuritySettings) error)
 }
 
 // SidecarOptions customizes API sidecar assembly for embedded hosts.
 type SidecarOptions struct {
 	FrontendFS        fs.FS
+	FrontendDevURL    string
 	RuntimeAPIBaseURL string
 	NotificationSink  func(live.Event) live.NotificationDelivery
 	DesktopMode       bool
@@ -162,16 +166,14 @@ func NewSidecarHandlerWithStore(store SidecarSettingsStore, frontendFS fs.FS, ru
 
 // NewSidecarHandlerWithOptions creates the HTTP handler from an abstract settings store.
 func NewSidecarHandlerWithOptions(store SidecarSettingsStore, options SidecarOptions) SidecarHandler {
-	server := newServerWithFrontend(store, newFrontendServerWithRuntimeConfig(options.FrontendFS, options.RuntimeAPIBaseURL))
+	server := newServerWithFrontend(store, newFrontendServerWithOptions(options.FrontendFS, options.RuntimeAPIBaseURL, options.FrontendDevURL))
 	server.liveNotificationSink = options.NotificationSink
 	server.desktopMode = options.DesktopMode
 	server.desktopAPIToken = strings.TrimSpace(options.DesktopAPIToken)
-	if server.frontend != nil {
-		server.frontend.setDesktopMode(options.DesktopMode)
+	if server.auth != nil {
+		server.auth.enforceAccess = !options.DesktopMode || server.desktopAPIToken != ""
 	}
-	if options.DesktopMode {
-		server.applySecuritySettings(store.SecuritySettings())
-	}
+	server.applySecuritySettings(store.SecuritySettings())
 	return server
 }
 
@@ -199,10 +201,19 @@ func (s *Server) SetFrontendFS(frontendFS fs.FS, runtimeAPIBaseURL string) {
 	}
 }
 
-// ApplySecuritySettings applies administrator auth settings to API and frontend.
+// ApplySecuritySettings applies optional Web access settings to API and frontend.
 func (s *Server) ApplySecuritySettings(settings SecuritySettings) {
 	if s != nil {
 		s.applySecuritySettings(settings)
+	}
+}
+
+// SetWebAccessReconfigure installs the desktop lifecycle callback that owns
+// the optional browser listener. Non-desktop servers keep applying settings
+// directly without a separate listener.
+func (s *Server) SetWebAccessReconfigure(reconfigure func(SecuritySettings) error) {
+	if s != nil {
+		s.webAccessReconfigure = reconfigure
 	}
 }
 
@@ -220,7 +231,7 @@ type serverPersistentState struct {
 	backtestRunStore    *backtestRunStore
 	executionOrderStore *executionOrderStore
 	watchlistStore      *watchliststore.Store
-	auth                *adminAuth
+	auth                *webAuth
 }
 
 func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer) *Server {
@@ -238,6 +249,7 @@ func newServerBootstrap(store SidecarSettingsStore) serverBootstrap {
 		backtestDBPath:       deriveBacktestDBPath(),
 		unavailableDatabases: make(map[string]error),
 	}
+	removeLegacyAdminKey(bootstrap.settingsPath)
 	bootstrap.dataMigration = datamigration.NewManager(bootstrap.settingsPath, bootstrap.backtestDBPath)
 	if err := ensureRuntimeLayout(bootstrap.settingsPath, bootstrap.backtestDBPath); err != nil {
 		log.Printf("JFTrade runtime layout unavailable: %v", err)
@@ -273,7 +285,7 @@ func (b serverBootstrap) loadPersistentState(store SidecarSettingsStore) serverP
 		backtestRunStore:    b.loadBacktestRunStore(),
 		executionOrderStore: b.loadExecutionOrderStore(store.ExecutionSettings()),
 		watchlistStore:      b.loadWatchlistStore(),
-		auth:                b.loadAdminAuth(),
+		auth:                newWebAuth(store.SecuritySettings()),
 	}
 	if state.strategyStore != nil {
 		state.runtimeStore = state.strategyStore.runtimeStore
@@ -330,22 +342,6 @@ func (b *serverBootstrap) loadExecutionOrderStore(settings ExecutionSettings) *e
 	return store
 }
 
-func (b serverBootstrap) loadAdminAuth() *adminAuth {
-	auth, err := newAdminAuth(b.settingsPath)
-	if err == nil {
-		return auth
-	}
-	log.Printf("JFTrade administrator authentication unavailable: %v", err)
-	return &adminAuth{
-		enabled:        true,
-		unavailable:    true,
-		allowedOrigins: map[string]struct{}{},
-		sessions:       map[string]adminSession{},
-		attempts:       map[string]loginAttempt{},
-		now:            time.Now,
-	}
-}
-
 func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bootstrap serverBootstrap, state serverPersistentState) *Server {
 	minimumImportance := observability.NormalizeMinimumImportance(os.Getenv(observabilityMinImportanceEnv))
 	observability.SetMinimumImportance(minimumImportance)
@@ -380,7 +376,6 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 }
 
 func (s *Server) initializeSecurityAndCalendars(store SidecarSettingsStore, settingsPath string) {
-	s.configureAuthOrigins()
 	s.applySecuritySettings(store.SecuritySettings())
 	s.exchangeCalendars = exchangecalendar.NewManager(
 		exchangecalendarstore.New(apiruntime.DeriveExchangeCalendarDir(settingsPath)),
@@ -393,30 +388,6 @@ func (s *Server) initializeSecurityAndCalendars(store SidecarSettingsStore, sett
 	)
 	s.previousCalendarResolver = marketpkg.SwapCalendarResolver(s.exchangeCalendars)
 	s.exchangeCalendars.Start()
-}
-
-func (s *Server) configureAuthOrigins() {
-	if s == nil || s.auth == nil {
-		return
-	}
-	s.auth.configureOrigins(
-		apiBaseURLForBind(defaultDevelopmentAPIBind),
-		apiBaseURLForBind(defaultReleaseAPIBind),
-		"http://"+defaultReleaseGUIBind,
-		"http://127.0.0.1:5173",
-		"http://127.0.0.1:5174",
-		"http://localhost:5173",
-		"http://localhost:5174",
-		"wails://127.0.0.1",
-		"wails://127.0.0.1:5173",
-		"wails://127.0.0.1:5174",
-		"wails://localhost",
-		"wails://localhost:5173",
-		"wails://localhost:5174",
-		"http://wails.localhost",
-		"https://wails.localhost",
-	)
-	log.Printf("JFTrade administrator key file: %s", s.auth.keyPath)
 }
 
 func (s *Server) initializeADKRuntime(bootstrap serverBootstrap) {
@@ -711,8 +682,12 @@ func (s *Server) settingsSideEffects() settings.SideEffects {
 				s.executionOrders.configureSeenFillRetention(exec.SeenFillRetentionDays)
 			}
 		},
-		OnSecurityChanged: func(sec SecuritySettings) {
+		OnSecurityChanged: func(sec SecuritySettings) error {
+			if s.webAccessReconfigure != nil {
+				return s.webAccessReconfigure(sec)
+			}
 			s.applySecuritySettings(sec)
+			return nil
 		},
 		OnExchangeCalendarsChanged: func(settings ExchangeCalendarSettings) {
 			if s.exchangeCalendars != nil {

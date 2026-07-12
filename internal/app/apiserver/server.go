@@ -110,6 +110,7 @@ func StartDesktop(ctx context.Context, sink func(live.Event) live.NotificationDe
 // resolved once by the desktop bootstrap.
 func StartDesktopWithConfig(ctx context.Context, runtimeConfig DesktopRuntimeConfig, sink func(live.Event) live.NotificationDelivery) (func(context.Context) error, error) {
 	deps := dependencies()
+	deps.SeparateWebListener = true
 	deps.LoadFrontendFS = func() fs.FS { return nil }
 	deps.ResolveLaunchDefaults = func(bool) jfsettings.LaunchDefaults {
 		return runtimeConfig.Defaults
@@ -133,6 +134,8 @@ func StartDesktopWithConfig(ctx context.Context, runtimeConfig DesktopRuntimeCon
 			return nil, fmt.Errorf("unexpected settings store type %T", store)
 		}
 		handler := servercore.NewSidecarHandlerWithOptions(settingsStore, servercore.SidecarOptions{
+			FrontendFS:       loadFrontendFS(),
+			FrontendDevURL:   desktopFrontendDevURL(),
 			NotificationSink: sink,
 			DesktopMode:      true,
 			DesktopAPIToken:  runtimeConfig.APIToken,
@@ -152,6 +155,16 @@ func StartDesktopWithConfig(ctx context.Context, runtimeConfig DesktopRuntimeCon
 		return nil, err
 	}
 	return shutdown, nil
+}
+
+func desktopFrontendDevURL() string {
+	if loadFrontendFS() != nil {
+		return ""
+	}
+	if strings.TrimSpace(os.Getenv("JFTRADE_DESKTOP_MODE")) != "1" {
+		return ""
+	}
+	return envOrDefault("FRONTEND_DEVSERVER_URL", "http://127.0.0.1:5173")
 }
 
 func desktopTrustedOrigins() []string {

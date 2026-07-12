@@ -2,9 +2,27 @@ package settings
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
+	"sync"
+	"unicode/utf8"
 
+	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+)
+
+const (
+	minWebAccessPasswordChars = 15
+	maxWebAccessPasswordBytes = 1024
+)
+
+var (
+	ErrWebAccessPasswordRequired = errors.New("a Web access password is required before Web access can be enabled")
+	ErrWebAccessPasswordTooShort = errors.New("web access password must contain at least 15 characters")
+	ErrWebAccessPasswordTooLong  = errors.New("web access password must contain at most 1024 bytes")
+	ErrWebAccessPortInvalid      = errors.New("web access port must be between 1024 and 65535")
+	ErrWebAccessRuntimeUpdate    = errors.New("could not apply Web access listener settings")
 )
 
 // Store 是 settings 持久化层接口，由应用装配层注入具体实现。
@@ -51,7 +69,7 @@ type SideEffects struct {
 	// OnExecutionChanged 在执行设置变更时调用（→ 更新订单保留策略）。
 	OnExecutionChanged func(jfsettings.ExecutionSettings)
 	// OnSecurityChanged 在安全设置变更时调用（→ 更新 auth/frontend）。
-	OnSecurityChanged func(jfsettings.SecuritySettings)
+	OnSecurityChanged func(jfsettings.SecuritySettings) error
 	// OnExchangeCalendarsChanged 在交易所日历设置变更时调用（→ 刷新 manager 配置）。
 	OnExchangeCalendarsChanged func(jfsettings.ExchangeCalendarSettings)
 	// OnPineWorkerChanged 在 PineTS worker 设置变更时调用。
@@ -60,8 +78,10 @@ type SideEffects struct {
 
 // Service 提供 settings 业务逻辑：读取、持久化、副作用编排。
 type Service struct {
-	store       Store
-	sideEffects SideEffects
+	store        Store
+	sideEffects  SideEffects
+	securityMu   sync.Mutex
+	hashPassword func(string) (string, error)
 
 	// 来自 Server 的委托（不在 Store 中的聚合信息）
 	brokerDescriptor  func() map[string]any
@@ -72,7 +92,7 @@ type Service struct {
 
 // NewService 创建 settings 服务。
 func NewService(store Store, opts ...Option) *Service {
-	s := &Service{store: store}
+	s := &Service{store: store, hashPassword: passwordhash.Hash}
 	for _, o := range opts {
 		o(s)
 	}
@@ -165,16 +185,74 @@ func (s *Service) GetSecuritySettings() jfsettings.SecuritySettings {
 	return s.store.SecuritySettings()
 }
 
-// SaveSecuritySettings 保存安全设置并触发副作用。
-func (s *Service) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfsettings.SecuritySettings, error) {
-	result, err := s.store.SaveSecuritySettings(input)
+// SaveSecuritySettings stores a one-way password hash and triggers runtime
+// access-policy updates. The plaintext password never reaches the Store.
+func (s *Service) SaveSecuritySettings(input jfsettings.SecuritySettingsUpdate) (jfsettings.SecuritySettings, error) {
+	s.securityMu.Lock()
+	defer s.securityMu.Unlock()
+
+	current := s.store.SecuritySettings()
+	webPort := input.WebPort
+	if webPort == 0 {
+		webPort = current.WebPort
+	}
+	if webPort == 0 {
+		webPort = jfsettings.DefaultWebAccessPort
+	}
+	next := jfsettings.SecuritySettings{
+		WebAccessEnabled:    input.WebAccessEnabled,
+		PublicAccessEnabled: input.PublicAccessEnabled,
+		WebPort:             webPort,
+		PasswordHash:        current.PasswordHash,
+	}
+	if next.WebPort < jfsettings.MinWebAccessPort || next.WebPort > jfsettings.MaxWebAccessPort {
+		return current, ErrWebAccessPortInvalid
+	}
+	if input.NewPassword != "" {
+		if err := validateWebAccessPassword(input.NewPassword); err != nil {
+			return current, err
+		}
+		hashPassword := s.hashPassword
+		if hashPassword == nil {
+			hashPassword = passwordhash.Hash
+		}
+		hash, err := hashPassword(input.NewPassword)
+		if err != nil {
+			return current, err
+		}
+		next.PasswordHash = hash
+	}
+	if next.WebAccessEnabled && next.PasswordHash == "" {
+		return current, ErrWebAccessPasswordRequired
+	}
+	next.PasswordConfigured = next.PasswordHash != ""
+	if !next.WebAccessEnabled {
+		next.PublicAccessEnabled = false
+	}
+
+	result, err := s.store.SaveSecuritySettings(next)
 	if err != nil {
 		return result, err
 	}
 	if s.sideEffects.OnSecurityChanged != nil {
-		s.sideEffects.OnSecurityChanged(result)
+		if err := s.sideEffects.OnSecurityChanged(result); err != nil {
+			if _, rollbackErr := s.store.SaveSecuritySettings(current); rollbackErr != nil {
+				return current, fmt.Errorf("%w: %v; settings rollback failed: %v", ErrWebAccessRuntimeUpdate, err, rollbackErr)
+			}
+			return current, fmt.Errorf("%w: %v", ErrWebAccessRuntimeUpdate, err)
+		}
 	}
 	return result, nil
+}
+
+func validateWebAccessPassword(password string) error {
+	if strings.TrimSpace(password) == "" || utf8.RuneCountInString(password) < minWebAccessPasswordChars {
+		return ErrWebAccessPasswordTooShort
+	}
+	if len([]byte(password)) > maxWebAccessPasswordBytes {
+		return ErrWebAccessPasswordTooLong
+	}
+	return nil
 }
 
 // ── System Notifications ──

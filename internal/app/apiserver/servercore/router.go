@@ -27,6 +27,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(s.corsMiddleware())
 	router.Use(s.desktopTokenMiddleware())
+	router.Use(s.webAccessMiddleware())
 	router.Use(s.authMiddleware())
 	router.Use(s.databaseAvailabilityMiddleware())
 
@@ -94,7 +95,6 @@ func (s *Server) registerAuthRoutes(api *gin.RouterGroup) {
 	auth.POST("/login", s.auth.login)
 	auth.POST("/logout", s.handleAuthLogout)
 	auth.GET("/session", s.auth.status)
-	auth.Any("/token", s.handleAuthTokenDeprecated)
 }
 
 // registerMarketRoutes godoc
@@ -180,21 +180,7 @@ func (s *Server) registerExecutionRoutes(api *gin.RouterGroup) {
 }
 
 func (s *Server) handleAuthLogout(c *gin.Context) {
-	if !s.authorizeRequest(c) {
-		return
-	}
 	s.auth.logout(c)
-}
-
-// handleAuthTokenDeprecated godoc
-// @Summary 旧令牌入口（已退役）
-// @Description 始终返回 410 Gone；CLI 请直接使用管理员密钥作为 Bearer token。
-// @Tags auth
-// @Produce json
-// @Failure 410 {object} envelope
-// @Router /api/v1/auth/token [get]
-func (s *Server) handleAuthTokenDeprecated(c *gin.Context) {
-	s.writeError(c, http.StatusGone, "AUTH_TOKEN_REMOVED", "use administrator login or a Bearer administrator key")
 }
 
 func (s *Server) handleNoRoute(c *gin.Context) {

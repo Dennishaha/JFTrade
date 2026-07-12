@@ -29,7 +29,12 @@ func (s *Store) SecuritySettings() jfsettings.SecuritySettings {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.data.Security != nil {
-		return NormalizeSecuritySettings(*s.data.Security)
+		return NormalizeSecuritySettings(jfsettings.SecuritySettings{
+			WebAccessEnabled:    s.data.Security.WebAccessEnabled,
+			PublicAccessEnabled: s.data.Security.PublicAccessEnabled,
+			WebPort:             s.data.Security.WebPort,
+			PasswordHash:        s.data.Security.PasswordHash,
+		})
 	}
 	return DefaultSecuritySettings()
 }
@@ -38,8 +43,17 @@ func (s *Store) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfsetti
 	normalized := NormalizeSecuritySettings(input)
 
 	s.mu.Lock()
-	s.data.Security = securitySettingsPointer(normalized)
+	previous := s.data.Security
+	s.data.Security = &storedSecuritySettings{
+		WebAccessEnabled:    normalized.WebAccessEnabled,
+		PublicAccessEnabled: normalized.PublicAccessEnabled,
+		WebPort:             normalized.WebPort,
+		PasswordHash:        normalized.PasswordHash,
+	}
 	err := s.persistLocked()
+	if err != nil {
+		s.data.Security = previous
+	}
 	s.mu.Unlock()
 	return normalized, err
 }
@@ -145,19 +159,25 @@ func executionSettingsPointer(value jfsettings.ExecutionSettings) *jfsettings.Ex
 }
 
 func DefaultSecuritySettings() jfsettings.SecuritySettings {
-	return jfsettings.SecuritySettings{
-		AdminAuthRequired: true,
-	}
+	return jfsettings.SecuritySettings{WebPort: jfsettings.DefaultWebAccessPort}
 }
 
 func NormalizeSecuritySettings(input jfsettings.SecuritySettings) jfsettings.SecuritySettings {
-	return jfsettings.SecuritySettings{
-		AdminAuthRequired: input.AdminAuthRequired,
+	settings := jfsettings.SecuritySettings{
+		WebAccessEnabled:    input.WebAccessEnabled,
+		PublicAccessEnabled: input.PublicAccessEnabled,
+		WebPort:             input.WebPort,
+		PasswordHash:        strings.TrimSpace(input.PasswordHash),
 	}
-}
-
-func securitySettingsPointer(value jfsettings.SecuritySettings) *jfsettings.SecuritySettings {
-	return new(value)
+	if settings.WebPort == 0 {
+		settings.WebPort = jfsettings.DefaultWebAccessPort
+	}
+	settings.PasswordConfigured = settings.PasswordHash != ""
+	if !settings.WebAccessEnabled || !settings.PasswordConfigured {
+		settings.WebAccessEnabled = false
+		settings.PublicAccessEnabled = false
+	}
+	return settings
 }
 
 func DefaultSystemNotificationSettings() jfsettings.SystemNotificationSettings {

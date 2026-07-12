@@ -28,6 +28,9 @@ func (s *Server) collectCloseError() error {
 }
 
 func (s *Server) closeCoreServices(errs *[]error) {
+	if s.auth != nil {
+		s.auth.close()
+	}
 	s.appendCloseError(errs, "trading order updates close", s.stopTradingOrderUpdates)
 	s.appendCloseError(errs, "liveWebSocket close", s.closeLiveWebSocket)
 	s.appendCloseError(errs, "marketdata close", s.closeMarketdataService)

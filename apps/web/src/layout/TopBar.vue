@@ -10,6 +10,8 @@ import { useCommandPalette } from "../composables/useCommandPalette";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
 import { useTheme } from "../composables/useTheme";
+import { webLogout } from "../composables/apiClient";
+import { resolveDesktopMode } from "../runtimeConfig";
 import {
   useWorkspaceTradingPrefs,
   useWorkspaceViewState,
@@ -31,7 +33,8 @@ const {
   selectedBrokerAccount,
   systemStatus, } = useConsoleData();
 const { theme, toggle: toggleTheme } = useTheme();
-const { unreadCount } = useNotifications();
+const notifications = useNotifications();
+const { unreadCount } = notifications;
 const { prefs, update } = useWorkspaceTradingPrefs();
 const { update: updateViewState } = useWorkspaceViewState();
 const palette = useCommandPalette();
@@ -47,6 +50,8 @@ const tradingEnvironmentFilter = ref<"REAL" | "SIMULATE">("SIMULATE");
 const tradingEnvironmentFilterPinned = ref(false);
 const brokerAccountFilterQuery = ref("");
 const brokerAccountPickerOpen = ref(false);
+const desktopMode = resolveDesktopMode();
+const loggingOut = ref(false);
 
 const tradingEnvironmentFilterLabel = computed(() =>
   tradingEnvironmentFilter.value === "REAL" ? "实盘" : "模拟盘",
@@ -299,6 +304,24 @@ function onTradingEnvironmentSwitch(value: "REAL" | "SIMULATE" | null): void {
   applyPreferredBrokerAccountSelection(value);
 }
 
+async function logoutWebSession(): Promise<void> {
+  if (desktopMode || loggingOut.value) return;
+  loggingOut.value = true;
+  try {
+    await webLogout();
+  } catch (error) {
+    notifications.push({
+      level: "error",
+      title: "退出 Web 登录失败",
+      message: error instanceof Error ? error.message : "请稍后重试。",
+      source: "web-auth",
+      category: "system.auth",
+    });
+  } finally {
+    loggingOut.value = false;
+  }
+}
+
 onMounted(() => {
   void loadMarketProfiles();
 });
@@ -509,6 +532,18 @@ onMounted(() => {
 
     <button type="button" class="tv-icon-btn" title="AI 助手" @click="openRightDock('ai')">
       ✦
+    </button>
+
+    <button
+      v-if="!desktopMode"
+      type="button"
+      class="tv-btn tv-btn-ghost"
+      data-testid="web-logout"
+      :disabled="loggingOut"
+      title="退出当前 Web 登录"
+      @click="logoutWebSession"
+    >
+      {{ loggingOut ? "退出中…" : "退出 Web" }}
     </button>
     </div>
   </header>

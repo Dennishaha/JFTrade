@@ -7,10 +7,7 @@ package main
 // @description JFTrade sidecar API 的调试文档。Swagger UI 主要覆盖当前常用的 HTTP 调试入口，并展示实时接口的请求方式。
 // @BasePath /
 // @schemes http https
-// @securityDefinitions.apikey AdministratorBearer
-// @in header
-// @name Authorization
-// @description Bearer <JFTrade administrator key>
-// @securityDefinitions.apikey AdministratorSession
+// @securityDefinitions.apikey WebSession
 // @in cookie
-// @name jftrade_admin_session
+// @name jftrade_web_session
+// @description 开启 Web 访问后，通过 Web 访问密码登录获得的浏览器会话。桌面应用不需要用户凭证。

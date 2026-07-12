@@ -7,11 +7,13 @@ export function buildApiUrl(path: string): string {
   return buildRuntimeApiUrl(path);
 }
 
-export interface AdministratorSession {
+export interface WebSession {
   authenticated: boolean;
   csrfToken?: string;
   expiresAt?: string;
 }
+
+export const WEB_AUTH_REQUIRED_EVENT = "jftrade:web-auth-required";
 
 let csrfToken = "";
 
@@ -90,11 +92,13 @@ async function parseEnvelope<T>(response: Response): Promise<T> {
 
   if (!response.ok) {
     if (body != null && !body.ok) {
-      throw new ApiClientError(
+      const error = new ApiClientError(
         body.error.message,
         body.error.code,
         response.status,
       );
+      notifyWebAuthRequired(error);
+      throw error;
     }
     throw new Error(`${response.status} ${response.statusText}`);
   }
@@ -104,34 +108,62 @@ async function parseEnvelope<T>(response: Response): Promise<T> {
   }
 
   if (!body.ok) {
-    throw new ApiClientError(
+    const error = new ApiClientError(
       body.error.message || "Unknown API error",
       body.error.code,
       response.status,
     );
+    notifyWebAuthRequired(error);
+    throw error;
   }
 
   return body.data;
 }
 
-export async function administratorSession(): Promise<AdministratorSession> {
+function notifyWebAuthRequired(error: ApiClientError): void {
+  const webAccessBoundary =
+    error.code === "WEB_AUTH_REQUIRED" ||
+    error.code === "WEB_ACCESS_DISABLED" ||
+    error.code === "REMOTE_WEB_ACCESS_DISABLED";
+  if (!webAccessBoundary || resolveDesktopApiToken() != null) {
+    return;
+  }
+  csrfToken = "";
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(WEB_AUTH_REQUIRED_EVENT));
+  }
+}
+
+export async function webSession(): Promise<WebSession> {
   const response = await fetch(buildApiUrl("/api/v1/auth/session"), {
     credentials: "include",
     headers: authHeaders("GET"),
   });
-  return parseEnvelope<AdministratorSession>(response);
+  return parseEnvelope<WebSession>(response);
 }
 
-export async function administratorLogin(
-  key: string,
-): Promise<AdministratorSession> {
+export async function webLogin(password: string): Promise<WebSession> {
   const response = await fetch(buildApiUrl("/api/v1/auth/login"), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json", ...authHeaders("POST") },
-    body: JSON.stringify({ key }),
+    body: JSON.stringify({ password }),
   });
-  return parseEnvelope<AdministratorSession>(response);
+  return parseEnvelope<WebSession>(response);
+}
+
+export async function webLogout(): Promise<WebSession> {
+  const response = await fetch(buildApiUrl("/api/v1/auth/logout"), {
+    method: "POST",
+    credentials: "include",
+    headers: authHeaders("POST"),
+  });
+  const session = await parseEnvelope<WebSession>(response);
+  csrfToken = "";
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(WEB_AUTH_REQUIRED_EVENT));
+  }
+  return session;
 }
 
 export async function fetchEnvelope<T>(path: string): Promise<T> {

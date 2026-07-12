@@ -53,5 +53,6 @@ echo "Building embedded PineTS worker assets / 构建内嵌 PineTS worker 资源
 npm run build:pineworker
 
 echo "Starting JFTrade service / 启动 JFTrade 服务..."
-echo "JFTrade frontend + API / 前端 + API 地址: http://${JFTRADE_GUI_BIND}"
+echo "Optional Web address (disabled by default) / 可选 Web 地址（默认关闭）: http://${JFTRADE_GUI_BIND}"
+echo "Enable Web access and set its password in JFTrade Dev > Settings first / 请先在 JFTrade Dev 的设置中开启 Web 访问并设置密码"
 go run -tags release_assets ./cmd/jftrade-api

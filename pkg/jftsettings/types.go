@@ -4,6 +4,12 @@ package jftsettings
 
 import "encoding/json"
 
+const (
+	DefaultWebAccessPort = 6688
+	MinWebAccessPort     = 1024
+	MaxWebAccessPort     = 65535
+)
+
 // FutuIntegrationConfig holds Futu OpenD connection parameters.
 type FutuIntegrationConfig struct {
 	Type                    string `json:"type"`
@@ -68,9 +74,23 @@ type ExecutionSettings struct {
 	SeenFillRetentionDays          int    `json:"seenFillRetentionDays"`
 }
 
-// SecuritySettings controls admin auth behaviour.
+// SecuritySettings controls the optional browser-facing Web access surface.
+// PasswordHash is persisted locally but is never serialized into API responses.
 type SecuritySettings struct {
-	AdminAuthRequired bool `json:"adminAuthRequired"`
+	WebAccessEnabled    bool   `json:"webAccessEnabled"`
+	PublicAccessEnabled bool   `json:"publicAccessEnabled"`
+	WebPort             int    `json:"webPort"`
+	PasswordConfigured  bool   `json:"passwordConfigured"`
+	PasswordHash        string `json:"-"`
+}
+
+// SecuritySettingsUpdate is the write-only Web access settings contract.
+// NewPassword is optional when a password has already been configured.
+type SecuritySettingsUpdate struct {
+	WebAccessEnabled    bool   `json:"webAccessEnabled"`
+	PublicAccessEnabled bool   `json:"publicAccessEnabled"`
+	WebPort             int    `json:"webPort"`
+	NewPassword         string `json:"newPassword,omitempty"`
 }
 
 // SystemNotificationSettings controls which live notifications are forwarded

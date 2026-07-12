@@ -6,7 +6,10 @@ import (
 	"io/fs"
 	"log"
 	"mime"
+	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -16,6 +19,7 @@ import (
 
 type frontendServer struct {
 	files             fs.FS
+	devProxy          *httputil.ReverseProxy
 	runtimeAPIBaseURL string
 	authRequired      bool
 	desktopMode       bool
@@ -38,13 +42,39 @@ func newFrontendServer(frontendFS fs.FS) *frontendServer {
 }
 
 func newFrontendServerWithRuntimeConfig(frontendFS fs.FS, runtimeAPIBaseURL string) *frontendServer {
-	if frontendFS == nil {
+	return newFrontendServerWithOptions(frontendFS, runtimeAPIBaseURL, "")
+}
+
+func newFrontendServerWithOptions(frontendFS fs.FS, runtimeAPIBaseURL string, frontendDevURL string) *frontendServer {
+	devProxy := newFrontendDevProxy(frontendDevURL)
+	if frontendFS == nil && devProxy == nil {
 		return nil
 	}
 	return &frontendServer{
 		files:             frontendFS,
+		devProxy:          devProxy,
 		runtimeAPIBaseURL: strings.TrimRight(strings.TrimSpace(runtimeAPIBaseURL), "/"),
 	}
+}
+
+func newFrontendDevProxy(rawURL string) *httputil.ReverseProxy {
+	target, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || target.Hostname() == "" || (target.Scheme != "http" && target.Scheme != "https") {
+		return nil
+	}
+	host := strings.Trim(strings.TrimSpace(target.Hostname()), "[]")
+	if !strings.EqualFold(host, "localhost") {
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			return nil
+		}
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, proxyErr error) {
+		log.Printf("JFTrade frontend development proxy unavailable: %v", proxyErr)
+		http.Error(w, "JFTrade development UI is not available; start the Vite development server", http.StatusBadGateway)
+	}
+	return proxy
 }
 
 func (f *frontendServer) setAuthRequired(required bool) {
@@ -80,6 +110,10 @@ func (f *frontendServer) serveRequest(w http.ResponseWriter, r *http.Request) bo
 		f.serveRuntimeConfig(w, r)
 		return true
 	}
+	if f.files == nil && f.devProxy != nil {
+		f.devProxy.ServeHTTP(w, r)
+		return true
+	}
 
 	if f.hasFile(assetPath) {
 		f.serveFile(w, r, "/"+assetPath)
@@ -95,10 +129,18 @@ func (f *frontendServer) serveRequest(w http.ResponseWriter, r *http.Request) bo
 }
 
 func (f *frontendServer) serveRuntimeConfig(w http.ResponseWriter, r *http.Request) {
+	desktopMode := f.desktopMode
+	apiBaseURL := f.runtimeAPIBaseURL
+	if isWebAccessSurfaceRequest(r) {
+		desktopMode = false
+		if strings.TrimSpace(r.Host) != "" {
+			apiBaseURL = requestScheme(r) + "://" + r.Host
+		}
+	}
 	config := map[string]any{
-		"apiBaseUrl":   f.runtimeAPIBaseURL,
+		"apiBaseUrl":   apiBaseURL,
 		"authRequired": f.authRequired,
-		"desktopMode":  f.desktopMode,
+		"desktopMode":  desktopMode,
 	}
 	payload, err := json.Marshal(config)
 	if err != nil {

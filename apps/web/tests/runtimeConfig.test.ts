@@ -5,9 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildRuntimeApiUrl,
   buildRuntimeLiveSocketUrl,
-  resolveDesktopMode,
-  resolveDesktopApiToken,
   resolveApiBaseUrl,
+  resolveAuthRequired,
+  resolveDesktopApiToken,
+  resolveDesktopMode,
 } from "../src/runtimeConfig";
 
 afterEach(() => {
@@ -43,5 +44,13 @@ describe("runtimeConfig", () => {
   it("treats missing desktop mode as web mode", () => {
     expect(resolveDesktopMode()).toBe(false);
     expect(resolveDesktopApiToken()).toBeNull();
+  });
+
+  it("keeps the injected authRequired flag compatible for Web clients", () => {
+    window.__JFTRADE_RUNTIME_CONFIG__ = { authRequired: true };
+    expect(resolveAuthRequired()).toBe(true);
+
+    window.__JFTRADE_RUNTIME_CONFIG__ = { authRequired: false };
+    expect(resolveAuthRequired()).toBe(false);
   });
 });

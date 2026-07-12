@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
@@ -79,7 +80,7 @@ func TestStartForRunArgsDisabledReturnsNoop(t *testing.T) {
 	}
 }
 
-func TestStartDesktopDoesNotPersistentlyDisableAdminAuth(t *testing.T) {
+func TestStartDesktopDoesNotMutatePersistedWebAccessSettings(t *testing.T) {
 	apiBind := freeTCPAddr(t)
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
 	backtestDBPath := filepath.Join(t.TempDir(), "backtest.db")
@@ -91,11 +92,24 @@ func TestStartDesktopDoesNotPersistentlyDisableAdminAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("settingsfile.New: %v", err)
 	}
-	if _, err := store.SaveSecuritySettings(jfsettings.SecuritySettings{AdminAuthRequired: true}); err != nil {
+	passwordHash, err := passwordhash.Hash("a memorable Web passphrase")
+	if err != nil {
+		t.Fatalf("passwordhash.Hash: %v", err)
+	}
+	if _, err := store.SaveSecuritySettings(jfsettings.SecuritySettings{
+		WebAccessEnabled: true,
+		WebPort:          freeTCPPort(t),
+		PasswordHash:     passwordHash,
+	}); err != nil {
 		t.Fatalf("SaveSecuritySettings: %v", err)
 	}
 
-	shutdown, err := StartDesktop(t.Context(), nil)
+	runtimeConfig, err := ResolveDesktopRuntimeConfig()
+	if err != nil {
+		t.Fatalf("ResolveDesktopRuntimeConfig: %v", err)
+	}
+	runtimeConfig.APIToken = "ephemeral-desktop-test-token"
+	shutdown, err := StartDesktopWithConfig(t.Context(), runtimeConfig, nil)
 	if err != nil {
 		t.Fatalf("StartDesktop: %v", err)
 	}
@@ -105,24 +119,29 @@ func TestStartDesktopDoesNotPersistentlyDisableAdminAuth(t *testing.T) {
 		}
 	}()
 
-	resp, err := http.Get("http://" + apiBind + "/api/v1/settings/security")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+apiBind+"/api/v1/settings/security", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+runtimeConfig.APIToken)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("GET desktop security settings: %v", err)
 	}
 	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("desktop security settings status = %d, want 200 without login", resp.StatusCode)
+		t.Fatalf("desktop security settings status = %d, want 200 via embedded capability", resp.StatusCode)
 	}
 
-	if got := store.SecuritySettings(); !got.AdminAuthRequired {
-		t.Fatalf("in-memory desktop security settings mutated to %#v, want persisted admin auth required", got)
+	if got := store.SecuritySettings(); !got.WebAccessEnabled || !got.PasswordConfigured || got.PasswordHash != passwordHash {
+		t.Fatalf("in-memory desktop Web access settings mutated: %#v", got)
 	}
 	reloaded, err := settingsfile.New(settingsPath)
 	if err != nil {
 		t.Fatalf("settingsfile.New reload: %v", err)
 	}
-	if got := reloaded.SecuritySettings(); !got.AdminAuthRequired {
-		t.Fatalf("reloaded desktop security settings = %#v, want persisted admin auth required", got)
+	if got := reloaded.SecuritySettings(); !got.WebAccessEnabled || !got.PasswordConfigured || got.PasswordHash != passwordHash {
+		t.Fatalf("reloaded desktop Web access settings = %#v", got)
 	}
 }
 
@@ -351,6 +370,15 @@ func freeTCPAddr(t *testing.T) string {
 		t.Fatalf("Close listener: %v", err)
 	}
 	return addr
+}
+
+func freeTCPPort(t *testing.T) int {
+	t.Helper()
+	addr, err := net.ResolveTCPAddr("tcp", freeTCPAddr(t))
+	if err != nil {
+		t.Fatalf("ResolveTCPAddr: %v", err)
+	}
+	return addr.Port
 }
 
 func waitForHTTPStatus(t *testing.T, url string, wantStatus int) {
