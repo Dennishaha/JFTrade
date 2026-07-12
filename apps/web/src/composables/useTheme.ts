@@ -73,3 +73,7 @@ export function useTheme(): ThemeStore {
   }
   return store;
 }
+
+export function useOptionalTheme(): ThemeStore | undefined {
+  return inject(themeKey, undefined);
+}

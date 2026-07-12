@@ -43,8 +43,11 @@ describe("ADKToolsPanel", () => {
           "v-card-text": { template: "<div><slot /></div>" },
           "v-chip": { template: "<span><slot /></span>" },
           "v-dialog": dialogStub,
+          "v-form": passthroughStub,
           "v-select": selectStub,
+          "v-table": passthroughStub,
           "v-text-field": inputStub,
+          "v-theme-provider": passthroughStub,
         },
       },
     });
@@ -53,12 +56,14 @@ describe("ADKToolsPanel", () => {
     const selects = wrapper.findAll("select");
     await selects[0]!.setValue("system");
     await selects[1]!.setValue("low");
-    await wrapper.find(".adk-tool-card").trigger("click");
+    await wrapper.find(".adk-tool-row").trigger("click");
 
     expect(wrapper.emitted("update:toolSearchQuery")?.[0]).toEqual(["状态"]);
     expect(wrapper.emitted("update:toolCategoryFilter")?.[0]).toEqual(["system"]);
     expect(wrapper.emitted("update:toolRiskFilter")?.[0]).toEqual(["low"]);
     expect(openToolDetail).toHaveBeenCalledWith("system.status");
+    expect(wrapper.text()).toContain("内部读取");
+    expect(wrapper.text()).not.toContain("read_internal");
   });
 
   it("renders the tool definition dialog with fallbacks", () => {
@@ -101,13 +106,18 @@ describe("ADKToolsPanel", () => {
           "v-card-text": { template: "<div><slot /></div>" },
           "v-chip": { template: "<span><slot /></span>" },
           "v-dialog": dialogStub,
+          "v-form": passthroughStub,
           "v-select": selectStub,
+          "v-table": passthroughStub,
           "v-text-field": inputStub,
+          "v-theme-provider": passthroughStub,
         },
       },
     });
 
     expect(wrapper.text()).toContain("系统状态");
+    expect(wrapper.text()).toContain("内部读取");
+    expect(wrapper.text()).not.toContain("read_internal");
     expect(wrapper.text()).toContain("审批制");
     expect(wrapper.text()).toContain("沙盒自动");
     expect(wrapper.text()).toContain("高度自动");

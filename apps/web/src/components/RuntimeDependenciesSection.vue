@@ -220,15 +220,10 @@ function dependencySourceLabel(value: string): string {
 
     <div class="runtime-summary">
       <div class="runtime-summary__content">
-        <span
-          class="runtime-summary__indicator"
-          :class="
-            runtimeDependencies.allRequiredSatisfied
-              ? 'runtime-summary__indicator--ok'
-              : 'runtime-summary__indicator--warning'
-          "
-          aria-hidden="true"
-        />
+        <span class="runtime-summary__indicator" :class="runtimeDependencies.allRequiredSatisfied
+            ? 'runtime-summary__indicator--ok'
+            : 'runtime-summary__indicator--warning'
+          " aria-hidden="true" />
         <div>
           <div class="runtime-summary__title">
             {{
@@ -240,21 +235,13 @@ function dependencySourceLabel(value: string): string {
           <div class="runtime-summary__meta">检查时间：{{ checkedAtLabel }}</div>
         </div>
       </div>
-      <button
-        data-testid="runtime-dependencies-refresh"
-        type="button"
-        class="secondary-button"
-        :disabled="loading || refreshing || saving"
-        @click="refreshDependencies"
-      >
+      <button data-testid="runtime-dependencies-refresh" type="button" class="secondary-button"
+        :disabled="loading || refreshing || saving" @click="refreshDependencies">
         {{ refreshing ? "检查中" : "重新检查" }}
       </button>
     </div>
 
-    <div
-      v-if="props.mode === 'oobe' && !runtimeDependencies.allRequiredSatisfied"
-      class="runtime-warning"
-    >
+    <div v-if="props.mode === 'oobe' && !runtimeDependencies.allRequiredSatisfied" class="runtime-warning">
       Node.js 缺失或版本过低时，策略回测与运行实例无法启动。可以继续配置券商，
       但在修复依赖前策略系统仍不可用。
     </div>
@@ -262,13 +249,9 @@ function dependencySourceLabel(value: string): string {
     <div v-if="loading" class="runtime-empty">正在读取运行时依赖...</div>
 
     <div v-else class="runtime-dependency-list">
-      <article
-        v-for="dependency in runtimeDependencies.dependencies"
-        :key="dependency.id"
-        class="runtime-dependency-card"
-        :class="dependencyStatusClass(dependency.status)"
-        :data-testid="`runtime-dependency-${dependency.id}`"
-      >
+      <article v-for="dependency in runtimeDependencies.dependencies" :key="dependency.id"
+        class="runtime-dependency-card" :class="dependencyStatusClass(dependency.status)"
+        :data-testid="`runtime-dependency-${dependency.id}`">
         <div class="dependency-card__header">
           <div>
             <div class="dependency-card__title">
@@ -281,10 +264,7 @@ function dependencySourceLabel(value: string): string {
               {{ dependency.message || "尚未返回检查结果。" }}
             </p>
           </div>
-          <span
-            class="dependency-status"
-            :class="dependencyStatusClass(dependency.status)"
-          >
+          <span class="dependency-status" :class="dependencyStatusClass(dependency.status)">
             {{ dependencyStatusLabel(dependency.status) }}
           </span>
         </div>
@@ -313,13 +293,8 @@ function dependencySourceLabel(value: string): string {
         </dl>
 
         <div class="dependency-actions">
-          <a
-            v-if="dependency.homepageUrl"
-            :href="dependency.homepageUrl"
-            target="_blank"
-            rel="noreferrer"
-            @click="handleExternalLinkClick($event, dependency.homepageUrl)"
-          >
+          <a v-if="dependency.homepageUrl" :href="dependency.homepageUrl" target="_blank" rel="noreferrer"
+            @click="handleExternalLinkClick($event, dependency.homepageUrl)">
             打开 {{ dependency.displayName }} 网站
           </a>
         </div>
@@ -327,31 +302,18 @@ function dependencySourceLabel(value: string): string {
         <div v-if="dependency.id === 'node'" class="dependency-path-editor">
           <label for="node-binary-path">自定义 Node.js 二进制路径</label>
           <div class="dependency-path-editor__row">
-            <input
-              id="node-binary-path"
-              v-model="nodeBinaryPathInput"
-              data-testid="runtime-dependency-node-path-input"
-              type="text"
-              placeholder="留空自动检测，例如 /opt/node/bin/node 或 C:\Program Files\nodejs\node.exe"
-              :disabled="loading || saving"
-            />
-            <button
-              data-testid="runtime-dependency-node-path-save"
-              type="button"
-              class="primary-button"
-              :disabled="loading || saving"
-              @click="saveNodeBinaryPath"
-            >
+            <input id="node-binary-path" v-model="nodeBinaryPathInput" data-testid="runtime-dependency-node-path-input"
+              type="text" placeholder="留空自动检测，例如 /opt/node/bin/node 或 C:\Program Files\nodejs\node.exe"
+              :disabled="loading || saving" />
+            <button data-testid="runtime-dependency-node-path-save" type="button" class="primary-button"
+              :disabled="loading || saving" @click="saveNodeBinaryPath">
               {{ saving ? "保存中" : "保存路径并检查" }}
             </button>
           </div>
         </div>
       </article>
 
-      <div
-        v-if="runtimeDependencies.dependencies.length === 0"
-        class="runtime-empty"
-      >
+      <div v-if="runtimeDependencies.dependencies.length === 0" class="runtime-empty">
         当前没有需要检查的运行时依赖。
       </div>
     </div>
@@ -365,11 +327,9 @@ function dependencySourceLabel(value: string): string {
 .runtime-dependencies-panel {
   border: 1px solid var(--card-border);
   background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card-surface) 96%, var(--card-active-surface) 4%) 0%,
-      var(--card-surface) 100%
-    );
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--card-surface) 96%, var(--tv-accent) 4%) 0%,
+      var(--card-surface) 100%);
   border-radius: 8px;
   padding: 20px 24px;
   color: var(--card-text-1);
@@ -413,11 +373,11 @@ function dependencySourceLabel(value: string): string {
 }
 
 .runtime-summary__indicator--ok {
-  background: var(--card-active-text);
+  background: var(--tv-accent);
 }
 
 .runtime-summary__indicator--ok::after {
-  background: color-mix(in srgb, var(--card-active-text) 18%, transparent);
+  background: color-mix(in srgb, var(--tv-accent) 18%, transparent);
 }
 
 .runtime-summary__indicator--warning {
@@ -463,11 +423,9 @@ function dependencySourceLabel(value: string): string {
   border: 1px solid var(--card-border);
   border-radius: 8px;
   background:
-    linear-gradient(
-      180deg,
+    linear-gradient(180deg,
       color-mix(in srgb, var(--card-surface-raised) 86%, transparent) 0%,
-      color-mix(in srgb, var(--card-surface) 96%, transparent) 100%
-    );
+      color-mix(in srgb, var(--card-surface) 96%, transparent) 100%);
   padding: 16px;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
@@ -481,7 +439,7 @@ function dependencySourceLabel(value: string): string {
 }
 
 .runtime-dependency-card.status-ok::before {
-  background: var(--card-active-text);
+  background: var(--tv-accent);
 }
 
 .runtime-dependency-card.status-warning::before {
@@ -529,7 +487,7 @@ function dependencySourceLabel(value: string): string {
 }
 
 .runtime-dependency-card.status-ok {
-  border-color: color-mix(in srgb, var(--card-active-border) 58%, var(--card-border));
+  border-color: color-mix(in srgb, var(--tv-accent) 58%, var(--card-border));
 }
 
 .runtime-dependency-card.status-warning {
@@ -541,9 +499,9 @@ function dependencySourceLabel(value: string): string {
 }
 
 .dependency-status.status-ok {
-  border-color: var(--card-active-border);
-  background: var(--card-active-surface);
-  color: var(--card-active-text);
+  border-color: color-mix(in srgb, var(--tv-accent) 54%, var(--card-border));
+  background: color-mix(in srgb, var(--tv-accent) 12%, transparent);
+  color: var(--tv-accent);
 }
 
 .dependency-status.status-warning {
@@ -602,19 +560,19 @@ function dependencySourceLabel(value: string): string {
 .dependency-actions a {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--card-sky-border);
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 42%, var(--card-border));
   border-radius: 8px;
-  background: var(--card-sky-surface);
+  background: color-mix(in srgb, var(--tv-accent) 10%, transparent);
   padding: 7px 10px;
-  color: var(--card-sky-text);
+  color: var(--tv-accent);
   font-weight: 700;
   text-decoration: none;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .dependency-actions a:hover {
-  border-color: color-mix(in srgb, var(--card-sky-text) 55%, var(--card-sky-border));
-  background: color-mix(in srgb, var(--card-sky-surface) 78%, var(--card-sky-text) 10%);
+  border-color: color-mix(in srgb, var(--tv-accent) 62%, var(--card-border));
+  background: color-mix(in srgb, var(--tv-accent) 16%, transparent);
 }
 
 .dependency-path-editor {
@@ -654,8 +612,8 @@ function dependencySourceLabel(value: string): string {
 }
 
 .dependency-path-editor input:focus {
-  border-color: var(--card-active-border);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-active-border) 28%, transparent);
+  border-color: var(--tv-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tv-accent) 28%, transparent);
 }
 
 .primary-button,
@@ -668,9 +626,9 @@ function dependencySourceLabel(value: string): string {
 }
 
 .primary-button {
-  border: 1px solid var(--card-teal-btn-bg);
-  background: var(--card-teal-btn-bg);
-  color: var(--card-teal-btn-text);
+  border: 1px solid var(--tv-accent);
+  background: var(--tv-accent);
+  color: #fff;
 }
 
 .secondary-button {
@@ -685,14 +643,14 @@ function dependencySourceLabel(value: string): string {
 }
 
 .primary-button:not(:disabled):hover {
-  border-color: var(--card-teal-text);
-  background: color-mix(in srgb, var(--card-teal-btn-bg) 86%, var(--card-teal-text));
+  border-color: var(--tv-accent-strong);
+  background: var(--tv-accent-strong);
 }
 
 .secondary-button:not(:disabled):hover {
-  border-color: var(--card-active-border);
-  background: var(--card-active-surface);
-  color: var(--card-active-text);
+  border-color: var(--tv-accent);
+  background: color-mix(in srgb, var(--tv-accent) 12%, transparent);
+  color: var(--tv-accent);
 }
 
 .primary-button:disabled,
@@ -714,11 +672,11 @@ function dependencySourceLabel(value: string): string {
 }
 
 .runtime-notice {
-  border: 1px solid var(--card-active-border);
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 54%, var(--card-border));
   border-radius: 8px;
-  background: var(--card-active-surface);
+  background: color-mix(in srgb, var(--tv-accent) 12%, transparent);
   padding: 10px 12px;
-  color: var(--card-active-text);
+  color: var(--tv-accent);
   font-weight: 700;
 }
 
@@ -732,6 +690,7 @@ function dependencySourceLabel(value: string): string {
 }
 
 @media (max-width: 720px) {
+
   .runtime-summary,
   .dependency-card__header,
   .dependency-path-editor__row {

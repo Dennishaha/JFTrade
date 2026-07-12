@@ -442,7 +442,7 @@ describe("SettingsADKSection", () => {
     await flushRequests();
 
     expect(router.currentRoute.value.query).toEqual({ tab: "tools" });
-    expect(wrapper.text()).toContain("工具目录");
+    expect(wrapper.text()).toContain("1/1 个工具");
     expect(wrapper.text()).toContain("system.status");
     expect(wrapper.text()).toContain("读取系统状态摘要。");
   });
