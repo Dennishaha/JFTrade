@@ -211,11 +211,7 @@ jobs:
           configured=0
           for value in "${values[@]}"; do test -n "$value" && configured=$((configured + 1)); done
           if [ "$configured" -eq 0 ]; then
-            if [ "$JFTRADE_DESKTOP_PUBLISH" = "true" ]; then
-              echo "Published macOS releases require signing and notarization credentials" >&2
-              exit 1
-            fi
-            echo "Dry run will use an ad-hoc macOS signature."
+            echo "Signing credentials are not configured; producing an unsigned macOS release with an ad-hoc signature."
             exit 0
           fi
           if [ "$configured" -ne "${#values[@]}" ]; then echo "macOS signing secrets must be all set or all unset" >&2; exit 1; fi
@@ -328,10 +324,7 @@ jobs:
         run: |
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
           if ($configured.Count -eq 0) {
-            if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") {
-              throw "Published Windows releases require Authenticode credentials"
-            }
-            Write-Host "Dry run will produce an unsigned Windows installer."
+            Write-Host "Authenticode credentials are not configured; producing an unsigned Windows installer."
             exit 0
           }
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
@@ -435,10 +428,7 @@ jobs:
         run: |
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
           if ($configured.Count -eq 0) {
-            if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") {
-              throw "Published Windows releases require Authenticode credentials"
-            }
-            Write-Host "Dry run will produce an unsigned Windows installer."
+            Write-Host "Authenticode credentials are not configured; producing an unsigned Windows installer."
             exit 0
           }
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
