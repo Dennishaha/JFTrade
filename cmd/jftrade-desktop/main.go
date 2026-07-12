@@ -529,7 +529,7 @@ func (s *desktopNotificationSink) Notify(event live.Event) live.NotificationDeli
 		Body:              strings.TrimSpace(event.Message),
 		ThreadID:          desktopapp.NotificationThreadID(event),
 		InterruptionLevel: desktopapp.NotificationInterruptionLevel(event.Level),
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"sequence": event.Sequence,
 			"category": event.Category,
 			"source":   event.Source,

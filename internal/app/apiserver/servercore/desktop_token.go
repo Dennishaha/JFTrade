@@ -57,7 +57,7 @@ func desktopTokenFromRequest(r *http.Request) string {
 	if !strings.EqualFold(strings.TrimSpace(r.Header.Get("Upgrade")), "websocket") {
 		return ""
 	}
-	for _, protocol := range strings.Split(r.Header.Get("Sec-WebSocket-Protocol"), ",") {
+	for protocol := range strings.SplitSeq(r.Header.Get("Sec-WebSocket-Protocol"), ",") {
 		protocol = strings.TrimSpace(protocol)
 		if protocol != "" && protocol != desktopWebSocketProtocol {
 			return protocol

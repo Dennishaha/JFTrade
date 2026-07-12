@@ -212,7 +212,7 @@ func TestWebPasswordSessionSupportsReadAndCSRFProtectedWrite(t *testing.T) {
 func TestWebLoginRejectsWrongPasswordAndRateLimits(t *testing.T) {
 	_, srv := newAuthenticatedSecurityServer(t)
 	client := newCookieClient(t)
-	for attempt := 0; attempt < maxLoginFailures; attempt++ {
+	for attempt := range maxLoginFailures {
 		resp := requestWebLogin(t, client, srv.URL, "wrong password")
 		jftradeCheckTestError(t, resp.Body.Close())
 		if resp.StatusCode != http.StatusUnauthorized {
@@ -392,7 +392,7 @@ func TestWebAuthStateMapsStayBounded(t *testing.T) {
 	auth := newWebAuth(SecuritySettings{})
 	now := time.Now()
 	auth.now = func() time.Time { return now }
-	for index := 0; index < maxLoginAttempts+20; index++ {
+	for index := range maxLoginAttempts + 20 {
 		auth.recordLoginFailure(fmt.Sprintf("192.0.2.%d", index))
 	}
 	auth.mu.Lock()
@@ -400,7 +400,7 @@ func TestWebAuthStateMapsStayBounded(t *testing.T) {
 	if len(auth.attempts) > maxLoginAttempts {
 		t.Fatalf("login attempts = %d, max %d", len(auth.attempts), maxLoginAttempts)
 	}
-	for index := 0; index < maxWebSessions+20; index++ {
+	for index := range maxWebSessions + 20 {
 		auth.sessions[fmt.Sprintf("session-%d", index)] = webSession{ExpiresAt: now.Add(time.Duration(index+1) * time.Minute)}
 	}
 	auth.pruneSessionsLocked(now)

@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"slices"
 	"testing"
 )
 
@@ -63,13 +64,7 @@ func assertWorkflowSchemaRequired(t *testing.T, name string, fields ...string) {
 		t.Fatalf("%s required = %#v", name, schema["required"])
 	}
 	for _, field := range fields {
-		found := false
-		for _, value := range required {
-			if value == field {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(required, field)
 		if !found {
 			t.Fatalf("%s required = %#v, missing %q", name, required, field)
 		}

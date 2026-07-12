@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -303,9 +304,7 @@ func (s *futuWatchlistSnapshotSource) BatchSnapshots(ctx context.Context, instru
 		for start := 0; start < len(ids); start += batchSize {
 			end := min(start+batchSize, len(ids))
 			batchItems, batchErrors := queryFutuSnapshotBatch(ctx, source, ids[start:end], s.allowSnapshotCall)
-			for instrumentID, item := range batchItems {
-				items[instrumentID] = item
-			}
+			maps.Copy(items, batchItems)
 			itemErrors = append(itemErrors, batchErrors...)
 		}
 	}

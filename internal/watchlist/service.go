@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -218,9 +219,7 @@ func (s *Service) ListSources(ctx context.Context) ([]Source, error) {
 	}
 	s.mu.RLock()
 	readers := make(map[string]WatchlistSourceReader, len(s.readers))
-	for id, reader := range s.readers {
-		readers[id] = reader
-	}
+	maps.Copy(readers, s.readers)
 	s.mu.RUnlock()
 	for id, reader := range readers {
 		source, err := reader.Source(ctx)

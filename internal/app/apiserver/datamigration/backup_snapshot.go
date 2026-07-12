@@ -18,10 +18,7 @@ func (m *Manager) createBackupSnapshot(ctx context.Context, descriptor Descripto
 	if err := os.Chmod(backupDir, 0o700); err != nil {
 		return BackupResult{}, fmt.Errorf("secure database backup directory: %w", err)
 	}
-	sourceBytes := inspectStorage(ctx, DatabaseStatus{Descriptor: descriptor, Status: status}).TotalBytes
-	if sourceBytes < 1 {
-		sourceBytes = 1
-	}
+	sourceBytes := max(inspectStorage(ctx, DatabaseStatus{Descriptor: descriptor, Status: status}).TotalBytes, 1)
 	quotaBytes := m.backupQuotaBytes(ctx)
 	if err := m.prepareBackupCapacity(backupDir, descriptor.ID, sourceBytes, quotaBytes); err != nil {
 		return BackupResult{}, err
