@@ -117,6 +117,15 @@ npm run generate:docs
 
 `docs/swagger/*` 和 `docs/reference/generated/*` 是生成产物，不要手工改。
 
+Protobuf Go 代码生成使用跨平台 Go 命令，并要求本机安装 `protoc 34.1`：
+
+```bash
+go run ./cmd/generate-futu-proto -source /path/to/FTAPIProtoFiles_10.5.6508
+go run ./cmd/generate-pineworker-proto
+```
+
+命令会校验并按需安装固定版本的 Go Protobuf 插件；生成失败时不会替换仓库内已有产物。
+
 ## 运行时文件
 
 浏览器开发、独立 API 入口和 `JFTrade Dev` 默认把运行时文件放在仓库内的 `var/jftrade-api/`。首次启动后通常会看到：

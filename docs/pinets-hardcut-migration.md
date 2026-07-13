@@ -218,19 +218,19 @@ Hard-cut means:
 | 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
 | 2026-06-29 | Temp `protoc --go_out --go-grpc_out pkg/strategy/pineworker/proto/pineworker.proto` before split | Blocked for commit: generated `pineworker.pb.go` was 1267 lines, above the 1200-line file guardrail |
 | 2026-06-29 | Split proto temp codegen with `pineworker.proto`, `pineworker_types.proto`, and `pineworker_common.proto` | Pass for guardrail; generated files were 78, 197, 639, and 699 lines |
-| 2026-06-29 | `scripts/gen-pineworker-proto.sh` | Pass; generated Go protobuf/gRPC files and enforced 1200-line limit |
+| 2026-06-29 | `go run ./cmd/generate-pineworker-proto` | Pass; generated Go protobuf/gRPC files and enforced 1200-line limit |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 87.6% statement coverage after gRPC transport and mapping tests |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.15 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker/pineworkerpb` | Pass |
 | 2026-06-29 | `npm run test:pineworker` | Pass, 14 tests cover worker validation, adapter normalization, PineTS constructor integration, proto mapping, and Bun gRPC server boundary |
 | 2026-06-29 | `npm run typecheck:pineworker` | Pass |
 | 2026-06-29 | `wc -l workers/pineworker/package.json workers/pineworker/tsconfig.json workers/pineworker/src/*.ts` | Largest worker file 192 lines, below 1200 |
-| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover && go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, 87.6% statement coverage and ~6.29 ns/op; run after codegen because `scripts/gen-pineworker-proto.sh` recreates `pineworkerpb` |
+| 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover && go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, 87.6% statement coverage and ~6.29 ns/op; run after codegen because `go run ./cmd/generate-pineworker-proto` recreates `pineworkerpb` |
 | 2026-06-29 | `go test ./internal/app/apiserver/servercore -run 'TestNormalizeStrategyRuntimeUsesPineTSAndMigratesLegacy\|TestStrategyRuntimeFromParamsMigratesLegacyRuntime\|TestStrategyCatalogNormalizeStrategyMigratesLegacyRuntime\|TestStrategyCatalogNormalizeStrategyAppliesDefaults\|TestStrategyDefinitionEndpoints'` | Pass |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 88.5% statement coverage after WorkerManager lifecycle tests |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~5.98 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |
-| 2026-06-29 | `scripts/gen-pineworker-proto.sh` | Pass; run before Go tests when generated files may be absent or stale |
+| 2026-06-29 | `go run ./cmd/generate-pineworker-proto` | Pass; run before Go tests when generated files may be absent or stale |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -run Test -cover` | Pass, 86.1% statement coverage after binary launcher and gRPC dialer tests |
 | 2026-06-29 | `go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem` | Pass, ~6.07 ns/op, 0 B/op, 0 allocs/op |
 | 2026-06-29 | `npm run test:pineworker && npm run typecheck:pineworker` | Pass |

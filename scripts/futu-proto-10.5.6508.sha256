@@ -1,4 +1,4 @@
-# Futu OpenAPI 10.5.6508 proto inputs used by gen-futu-proto.sh.
+# Futu OpenAPI 10.5.6508 proto inputs used by cmd/generate-futu-proto.
 9f07c3ee22bb767987aa608f8909990a3d265792ab8dee42a2d5f307dea430db  Common.proto
 abb21ecf8432c6142cac835929f59a60b0d6c1e460495aa80ff1f827efc5965b  GetGlobalState.proto
 4f546c646dc13f12d24a765feef63de3ecfd09d77dd8f0689aa9d8b37a7eec80  InitConnect.proto

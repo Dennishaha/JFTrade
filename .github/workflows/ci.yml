@@ -138,11 +138,26 @@ jobs:
       - name: Architecture dependency check
         run: bash scripts/check-arch-deps.sh
 
-      - name: Futu proto generation test
-        run: npm run test:futu-proto-generation
+  proto-generation:
+    name: Proto Generation (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - name: Pineworker proto generation test
-        run: npm run test:pineworker-proto-generation
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Test cross-platform proto generators
+        run: go test ./cmd/generate-futu-proto ./cmd/generate-pineworker-proto ./cmd/internal/protogen -count=1 -timeout 120s
 
   go-coverage:
     name: Go Coverage
@@ -484,20 +499,22 @@ jobs:
   build-and-test:
     name: Build & Test
     if: ${{ always() }}
-    needs: [go-quality, go-coverage, web, pine, desktop-build]
+    needs: [go-quality, proto-generation, go-coverage, web, pine, desktop-build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require all CI lanes
         env:
           GO_QUALITY_RESULT: ${{ needs.go-quality.result }}
+          PROTO_GENERATION_RESULT: ${{ needs.proto-generation.result }}
           GO_COVERAGE_RESULT: ${{ needs.go-coverage.result }}
           WEB_RESULT: ${{ needs.web.result }}
           PINE_RESULT: ${{ needs.pine.result }}
           DESKTOP_BUILD_RESULT: ${{ needs.desktop-build.result }}
         run: |
-          if [[ "$GO_QUALITY_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" || "$DESKTOP_BUILD_RESULT" != "success" ]]; then
+          if [[ "$GO_QUALITY_RESULT" != "success" || "$PROTO_GENERATION_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" || "$DESKTOP_BUILD_RESULT" != "success" ]]; then
             echo "Go Quality & Contracts: $GO_QUALITY_RESULT"
+            echo "Proto Generation: $PROTO_GENERATION_RESULT"
             echo "Go Coverage: $GO_COVERAGE_RESULT"
             echo "Web: $WEB_RESULT"
             echo "Pine & Workers: $PINE_RESULT"

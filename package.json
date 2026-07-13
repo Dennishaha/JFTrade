@@ -80,8 +80,6 @@
     "test:desktop-signing": "node scripts/sign-desktop-release.test.mjs",
     "test:desktop-linux-package-config": "node scripts/prepare-linux-package-config.test.mjs",
     "test:api-release-scripts": "node scripts/api-release-scripts.test.mjs",
-    "test:futu-proto-generation": "node scripts/gen-futu-proto.test.mjs",
-    "test:pineworker-proto-generation": "node scripts/gen-pineworker-proto.test.mjs",
     "test:desktop": "npm run prepare:desktop-release && npm run check:wails-bindings && npm run test:desktop-release-metadata && npm run test:desktop-release-inputs && npm run test:desktop-wails-tasks && npm run test:desktop-signing && npm run test:desktop-linux-package-config && node scripts/dev-desktop.test.mjs && go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1",
     "check:desktop": "npm run desktop:doctor && npm run test:desktop",
     "stage:docs": "node scripts/stage-docs.mjs",
