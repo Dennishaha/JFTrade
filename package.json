@@ -5,17 +5,24 @@
     "node": ">=22",
     "npm": ">=10"
   },
-  "packageManager": "npm@10.9.7",
+  "packageManager": "npm@11.16.0",
   "version": "0.0.0",
   "workspaces": [
     "apps/web",
     "workers/pineworker"
   ],
   "overrides": {
+    "@vue/test-utils": {
+      "js-beautify": "2.0.3"
+    },
     "monaco-editor@0.55.1": {
       "dompurify": "3.4.11"
     },
     "vue": "3.5.39"
+  },
+  "allowScripts": {
+    "protobufjs@7.6.5": true,
+    "vue-demi@0.14.10": true
   },
   "scripts": {
     "audit:dependencies": "npm audit --package-lock-only --audit-level=moderate",

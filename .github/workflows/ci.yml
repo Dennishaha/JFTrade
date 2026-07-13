@@ -183,7 +183,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Use declared npm version
-        run: npm install --global npm@10.9.7 --no-audit --no-fund
+        run: npm install --global npm@11.16.0 --no-audit --no-fund
 
       - name: Install PineTS integration dependency
         run: npm ci --workspace @jftrade/pineworker --include-workspace-root=false --omit=dev --no-audit --no-fund
@@ -216,7 +216,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Use declared npm version
-        run: npm install --global npm@10.9.7 --no-audit --no-fund
+        run: npm install --global npm@11.16.0 --no-audit --no-fund
 
       - name: Install frontend dependencies
         run: npm ci --workspace @jftrade/web --include-workspace-root=true --no-audit --no-fund
@@ -275,7 +275,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Use declared npm version
-        run: npm install --global npm@10.9.7 --no-audit --no-fund
+        run: npm install --global npm@11.16.0 --no-audit --no-fund
 
       - name: Install Pine dependencies
         run: npm ci --workspace @jftrade/pineworker --include-workspace-root=false --no-audit --no-fund

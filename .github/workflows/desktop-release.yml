@@ -105,7 +105,7 @@ jobs:
         run: bash scripts/install-linux-desktop-dependencies.sh
 
       - name: Use declared npm version
-        run: npm install --global npm@10.9.7 --no-audit --no-fund
+        run: npm install --global npm@11.16.0 --no-audit --no-fund
 
       - name: Install frontend dependencies
         run: npm ci --no-audit --no-fund
