@@ -68,7 +68,15 @@ describe("JFTrade domain components", () => {
     await wrapper.get("button").trigger("click");
     expect(wrapper.emitted("select")).toEqual([["strategy-1"]]);
     expect(wrapper.text()).toContain("均线策略");
-    expect(wrapper.text()).toContain("HK.00700");
+    expect(wrapper.text()).toContain("600519");
+    expect(wrapper.text()).toContain("上证");
+    expect(wrapper.text()).toContain("000001");
+    expect(wrapper.text()).toContain("深证");
+    expect(wrapper.text()).not.toContain("SH.600519");
+    expect(wrapper.text()).not.toContain("SZ.000001");
+    expect(wrapper.get('[data-instrument-id="SH.600519"]').attributes("title")).toBe(
+      "SH.600519",
+    );
 
     await wrapper.setProps({ model: buildStrategyCardModel({ disabled: true }) });
     await wrapper.get("button").trigger("click");
@@ -88,7 +96,7 @@ function buildStrategyCardModel(
     selected: true,
     definitionStale: false,
     definitionSyncSummary: "",
-    symbols: "HK.00700",
+    symbols: "SH.600519, SZ.000001",
     interval: "1m",
     brokerAccountSummary: "富途模拟账户",
     currentBrokerAccount: true,

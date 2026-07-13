@@ -203,6 +203,25 @@ describe("PositionsPanel", () => {
     expect(wrapper.findAll("td.tv-num.tv-down")).toHaveLength(1);
   });
 
+  it("renders A-share positions with a bare code, exchange tag, and parent market", () => {
+    setRefValue(consoleDataState.portfolioPositions, {
+      positions: [
+        makePosition({
+          market: "SH",
+          symbol: "SH.600519",
+        }),
+      ],
+    });
+
+    const { wrapper } = mountPositionsPanel();
+    const cells = wrapper.findAll("tbody tr")[0]!.findAll("td");
+
+    expect(cells[0]!.text()).toContain("600519");
+    expect(cells[0]!.text()).toContain("上证");
+    expect(cells[0]!.text()).not.toContain("SH.600519");
+    expect(cells[1]!.text()).toBe("沪深");
+  });
+
   it("keeps tab counts hidden while broker data is loading and then falls back to empty states", async () => {
     setRefValue(consoleDataState.isLoadingBrokerOrders, true);
 
@@ -365,13 +384,14 @@ describe("PositionsPanel", () => {
       brokerId: "futu",
       accountId: "REAL-001",
       tradingEnvironment: "REAL",
-      market: "US",
+      market: "SH",
     });
     setRefValue(consoleDataState.activeExecutionOrders, {
       orders: [
         makeExecutionOrder({
           internalOrderId: "cancel-me",
-          symbol: "US.AAPL",
+          market: "SH",
+          symbol: "SH.600519",
         }),
       ],
     });
@@ -405,7 +425,7 @@ describe("PositionsPanel", () => {
     expect(mocks.pushNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         level: "success",
-        title: "已提交撤单 US.AAPL",
+        title: "已提交撤单 600519（上证）",
         message: "撤单请求已转交券商处理",
         source: "positions-panel",
       }),

@@ -19,8 +19,10 @@ import {
   formatStrategyRuntimeRiskSummary,
   formatStrategySymbols,
   normalizeBindingInstruments,
+  normalizeStrategyInstrumentIds,
   normalizeStrategyRuntimeRiskSettings,
   normalizeText,
+  parseStrategyInstrumentIdsText,
   readStrategyBinding,
   resolveBrokerAccountOption,
   resolveBrokerAccountSelectionKey,
@@ -99,6 +101,12 @@ describe("strategyRuntimeInstanceBinding", () => {
       "US.TSLA",
     ]);
     expect(
+      normalizeStrategyInstrumentIds([" sh:600519 ", "SH.600519", "sz.000001"]),
+    ).toEqual(["SH.600519", "SZ.000001"]);
+    expect(
+      parseStrategyInstrumentIdsText("SH.600519, SZ:000001, 未绑定交易代码"),
+    ).toEqual(["SH.600519", "SZ.000001"]);
+    expect(
       formatRuntimeObservationSymbols([
         " hk.00700 ",
         "HK:00700",
@@ -167,7 +175,7 @@ describe("strategyRuntimeInstanceBinding", () => {
     expect(formatStrategySymbols(strategy)).toBe("HK.00700");
     expect(formatStrategyInterval(strategy)).toBe("15m");
     expect(formatBrokerAccountSummary(binding.brokerAccount)).toBe(
-      "FUTU / 实盘 / 123456 / HK",
+      "FUTU / 实盘 / 123456 / 港股",
     );
     expect(formatStrategyRuntimeRiskSummary(binding.runtimeRisk)).toContain(
       "观察",
@@ -289,7 +297,7 @@ describe("strategyRuntimeInstanceBinding", () => {
     ];
 
     expect(brokerAccountOptionSubtitle(options[1])).toBe(
-      "FUTU / 模拟盘 / SIM-002 / US",
+      "FUTU / 模拟盘 / SIM-002 / 美股",
     );
     expect(filterBrokerAccountOptions(options, "")).toEqual(options);
     expect(filterBrokerAccountOptions(options, "paper")).toEqual([options[1]]);
@@ -307,6 +315,32 @@ describe("strategyRuntimeInstanceBinding", () => {
       options[0],
     );
     expect(resolveBrokerAccountOption(options, "missing")).toBeNull();
+  });
+
+  it("collapses SH and SZ broker-account markets to the user-facing A-share category", () => {
+    const sh = createBrokerAccountOption({
+      brokerId: "futu",
+      accountId: "CN-001",
+      tradingEnvironment: "REAL",
+      market: "SH",
+    });
+    const sz = createBrokerAccountOption({
+      brokerId: "futu",
+      accountId: "CN-002",
+      tradingEnvironment: "SIMULATE",
+      market: "SZ",
+    });
+
+    expect(formatBrokerAccountSummary({
+      brokerId: "futu",
+      accountId: "CN-001",
+      tradingEnvironment: "REAL",
+      market: "SH",
+    })).toBe("FUTU / 实盘 / CN-001 / 沪深");
+    expect(brokerAccountOptionSubtitle(sz)).toBe(
+      "FUTU / 模拟盘 / CN-002 / 沪深",
+    );
+    expect(filterBrokerAccountOptions([sh, sz], "SH")).toEqual([sh]);
   });
 
   it("builds strategy binding payloads from selected or fallback broker accounts", () => {

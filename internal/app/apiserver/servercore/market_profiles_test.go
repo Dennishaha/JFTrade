@@ -50,8 +50,26 @@ func TestMarketProfilesEndpoint(t *testing.T) {
 	if byCode["HK"].SupportsExtendedHours || byCode["HK"].Precision.Price != 3 {
 		t.Fatalf("HK profile = %#v", byCode["HK"])
 	}
-	if !byCode["CN"].RequiresExchangePrefix {
+	if byCode["CN"].DisplayName != "沪深" || !byCode["CN"].RequiresExchangePrefix {
 		t.Fatalf("CN profile = %#v", byCode["CN"])
+	}
+	if _, exposed := byCode["SH"]; exposed {
+		t.Fatalf("user market directory unexpectedly exposes SH: %#v", envelope.Data.Markets)
+	}
+	if _, exposed := byCode["SZ"]; exposed {
+		t.Fatalf("user market directory unexpectedly exposes SZ: %#v", envelope.Data.Markets)
+	}
+
+	descriptor, err := marketdataProviderDescriptor(t.Context())
+	if err != nil {
+		t.Fatalf("marketdataProviderDescriptor: %v", err)
+	}
+	technicalMarkets := make(map[string]bool, len(descriptor.SupportedMarkets))
+	for _, marketCode := range descriptor.SupportedMarkets {
+		technicalMarkets[marketCode] = true
+	}
+	if !technicalMarkets["CN"] || !technicalMarkets["SH"] || !technicalMarkets["SZ"] {
+		t.Fatalf("provider diagnostics lost technical subset markets: %#v", descriptor.SupportedMarkets)
 	}
 }
 

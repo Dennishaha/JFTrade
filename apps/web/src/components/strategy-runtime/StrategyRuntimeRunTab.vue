@@ -8,7 +8,9 @@ import type {
 } from "@/contracts";
 
 import RuntimeHealthBadge from "../domain/runtime/RuntimeHealthBadge.vue";
+import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import RuntimeWorkbenchAlert from "./RuntimeWorkbenchAlert.vue";
+import { normalizeStrategyInstrumentIds } from "./strategyRuntimeInstanceBinding";
 
 const props = defineProps<{
     selectedStrategy: StrategyInstanceItem;
@@ -46,6 +48,11 @@ const visibleRuntimeLastError = computed(
 
 const visibleDetailsError = computed(
     () => props.detailsError.trim() !== "" && dismissedDetailsError.value !== props.detailsError,
+);
+const activeInstrumentIds = computed(() =>
+    normalizeStrategyInstrumentIds(
+        props.selectedStrategyRuntimeObservation?.activeSymbols,
+    ),
 );
 
 watch(
@@ -133,8 +140,18 @@ function closeDetailsError(): void {
                 </div>
                 <div>
                     <div class="runtime-workbench-field-label">活跃标的</div>
-                    <div class="runtime-workbench-field-value">
-                        {{ formatRuntimeObservationSymbols(selectedStrategyRuntimeObservation.activeSymbols) }}
+                    <div class="runtime-workbench-field-value flex flex-wrap items-center gap-1.5">
+                        <template v-if="activeInstrumentIds.length > 0">
+                            <InstrumentIdentity
+                                v-for="symbol in activeInstrumentIds"
+                                :key="symbol"
+                                :instrument-id="symbol"
+                                compact
+                            />
+                        </template>
+                        <template v-else>
+                            {{ formatRuntimeObservationSymbols(selectedStrategyRuntimeObservation.activeSymbols) }}
+                        </template>
                     </div>
                 </div>
                 <div>

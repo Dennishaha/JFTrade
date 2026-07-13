@@ -13,9 +13,11 @@ import {
 } from "../../composables/consoleDataFormatting";
 import { useMarketProfiles } from "../../composables/marketProfiles";
 import { formatMarketSessionLabel } from "../../composables/marketSessionDisplay";
+import { formatInstrumentIdentityText } from "../../composables/instrumentPresentation";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import RealTradeConfirmationDialog from "./RealTradeConfirmationDialog.vue";
 
 const {
@@ -427,13 +429,20 @@ function formatInitialMargin(value: number | null | undefined): string {
 function resolveOrderRequestTitle(): string {
   const market = activeMarket.value.trim();
   const symbol = prefs.value.symbol.trim();
-  const instrumentLabel = market && symbol ? `${market}:${symbol}` : symbol || "当前标的";
+  const instrumentLabel =
+    market !== "" || symbol !== ""
+      ? formatInstrumentIdentityText({ market, code: symbol })
+      : "当前标的";
   return `${formatOrderSideLabel(side.value)} ${quantity.value} ${instrumentLabel}`;
 }
 
 function resolvePendingOrderSummary(payload: ExecutionOrderPayload): string {
   const parts = [
-    `${formatOrderSideLabel(payload.side)} ${payload.quantity} ${payload.symbol}`,
+    `${formatOrderSideLabel(payload.side)} ${payload.quantity} ${formatInstrumentIdentityText({
+      market: payload.market,
+      code: payload.code,
+      instrumentId: payload.symbol,
+    })}`,
     formatOrderTypeLabel(payload.orderType),
     formatTimeInForceLabel(payload.timeInForce),
   ];
@@ -847,7 +856,12 @@ onUnmounted(() => {
   <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">下单</span>
-      <span style="color: var(--tv-text); font-weight: 600">{{ prefs.market }}:{{ prefs.symbol }}</span>
+      <InstrumentIdentity
+        :market="activeMarket"
+        :code="prefs.symbol"
+        :instrument-id="activeInstrument?.instrumentId"
+        compact
+      />
       <div style="flex: 1"></div>
       <span
         v-if="isRealMode"

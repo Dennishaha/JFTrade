@@ -49,13 +49,27 @@ describe("TradingScopeBar", () => {
       "trading-scope-bar--real",
     );
   });
+
+  it("shows A shares as the parent market with the concrete exchange tag", async () => {
+    const { wrapper } = mountTradingScopeBar("SZ", "000001");
+
+    await nextTick();
+
+    expect(wrapper.get('[data-testid="trading-scope-market"]').text()).toContain(
+      "沪深",
+    );
+    const instrument = wrapper.get('[data-testid="trading-scope-symbol"]').text();
+    expect(instrument).toContain("000001");
+    expect(instrument).toContain("深证");
+    expect(instrument).not.toContain("SZ.000001");
+  });
 });
 
-function mountTradingScopeBar() {
+function mountTradingScopeBar(market = "US", symbol = "AAPL") {
   const Host = defineComponent({
     setup() {
       const workspaceLayout = provideWorkspaceTradingPreferencesStore();
-      workspaceLayout.update({ market: "US", symbol: "AAPL" });
+      workspaceLayout.update({ market, symbol });
       const store = provideConsoleDataStore(workspaceLayout);
       store.systemStatus.value = {
         ...emptySystemStatus,
@@ -81,7 +95,7 @@ function mountTradingScopeBar() {
             accountType: "MARGIN",
             accountRole: "TRADING",
             securityFirm: "FUTU",
-            marketAuthorities: ["US"],
+            marketAuthorities: [market],
             simulatedAccountType: null,
           },
         ],
@@ -95,7 +109,7 @@ function mountTradingScopeBar() {
             accountId: "real-us-1",
             displayName: "Futu Real US",
             tradingEnvironment: "REAL",
-            market: "US",
+            market,
             securityFirm: "FUTU",
             enabled: true,
             updatedAt: "2026-07-04T00:00:00Z",

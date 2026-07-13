@@ -374,7 +374,9 @@ describe("StrategyRuntimePanel business workflows", () => {
     await waitForSelector(wrapper, '[data-testid="strategy-runtime-observation"]');
 
     expect(wrapper.text()).toContain("2 个 hook / 2 项依赖");
-    expect(wrapper.text()).toContain("HK.00700, US.AAPL");
+    const observation = wrapper.get('[data-testid="strategy-runtime-observation"]');
+    expect(observation.text()).toContain("HK.00700");
+    expect(observation.text()).toContain("US.AAPL");
     expect(wrapper.text()).toContain("invalid-time");
     expect(wrapper.text()).toContain("broker rejected order");
     expect(wrapper.get('[data-testid="strategy-definition-sync-badge"]').text()).toContain("待刷新 v0.1.0 -> v0.2.0");

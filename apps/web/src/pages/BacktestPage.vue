@@ -4,11 +4,22 @@ import { computed, onMounted, ref, watch } from "vue";
 
 import { KLINE_PERIODS } from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
+import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
 import SplitPane from "../components/shared/SplitPane.vue";
 import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
-import type { BacktestFeeRulePayload } from "../contracts";
+import type {
+  BacktestFeeRulePayload,
+  InstrumentResolutionCandidate,
+} from "../contracts";
 import { apiGet, fetchEnvelope } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
+import {
+  categoryMarketForUser,
+  formatInstrumentExchangeTag,
+  formatUserMarketLabel,
+  presentInstrument,
+} from "../composables/instrumentPresentation";
+import { useInstrumentResolver } from "../composables/instrumentResolver";
 import { useMarketProfiles } from "../composables/marketProfiles";
 import { queryClient, queryKeys } from "../composables/serverState";
 import {
@@ -141,21 +152,29 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
       const normalized = normalizeBacktestDateLabel(typeof value === "string" ? value : "");
       return normalized === "" ? fallback : normalized;
     };
+    const storedMarket =
+      typeof parsed.selectedMarket === "string" &&
+      parsed.selectedMarket.trim() !== ""
+        ? parsed.selectedMarket.trim().toUpperCase()
+        : defaults.selectedMarket;
+    let storedCode =
+      typeof parsed.codeInput === "string" && parsed.codeInput.trim() !== ""
+        ? parsed.codeInput.trim().toUpperCase().replace(":", ".")
+        : defaults.codeInput;
+    if (
+      (storedMarket === "SH" || storedMarket === "SZ") &&
+      !storedCode.includes(".")
+    ) {
+      storedCode = `${storedMarket}.${storedCode}`;
+    }
 
     return {
       selectedDefinitionId:
         typeof parsed.selectedDefinitionId === "string"
           ? parsed.selectedDefinitionId.trim()
           : defaults.selectedDefinitionId,
-      selectedMarket:
-        typeof parsed.selectedMarket === "string" &&
-          parsed.selectedMarket.trim() !== ""
-          ? parsed.selectedMarket.trim().toUpperCase()
-          : defaults.selectedMarket,
-      codeInput:
-        typeof parsed.codeInput === "string" && parsed.codeInput.trim() !== ""
-          ? parsed.codeInput.trim().toUpperCase()
-          : defaults.codeInput,
+      selectedMarket: categoryMarketForUser(storedMarket),
+      codeInput: storedCode,
       interval:
         typeof parsed.interval === "string" &&
           validIntervals.has(parsed.interval.trim())
@@ -256,16 +275,30 @@ const selectedDefinition = computed(() =>
 );
 
 const codeSuggestions = computed(() => {
-  const market = selectedMarket.value.trim().toUpperCase();
+  const market = categoryMarketForUser(selectedMarket.value);
   return marketInstrumentSearchOptions.value
-    .filter((option) => option.market === market)
-    .map((option) => ({
-      value: option.symbol,
-      title:
-        option.name == null
-          ? option.instrumentId
-          : `${option.symbol} · ${option.name}`,
-    }));
+    .filter((option) => categoryMarketForUser(option.market) === market)
+    .map((option) => {
+      const presentation = presentInstrument({
+        market: option.market,
+        code: option.symbol,
+        instrumentId: option.instrumentId,
+      });
+      const displayCode =
+        market === "CN" ? presentation.displayCode : option.symbol;
+      const exchangeSuffix =
+        market === "CN" && presentation.exchangeTag != null
+          ? ` · ${presentation.exchangeTag}`
+          : "";
+      return {
+        key: option.instrumentId,
+        value: displayCode,
+        title:
+          option.name == null
+            ? `${displayCode}${exchangeSuffix}`
+            : `${displayCode}${exchangeSuffix} · ${option.name}`,
+      };
+    });
 });
 
 const displayInstrumentId = computed(() => {
@@ -279,6 +312,36 @@ const displayInstrumentId = computed(() => {
   }
   return market === "" ? code : `${market}.${code}`;
 });
+
+function handleResolvedBacktestInstrument(
+  candidate: InstrumentResolutionCandidate,
+): void {
+  selectedMarket.value = categoryMarketForUser(candidate.market);
+  codeInput.value = candidate.instrumentId;
+}
+
+const {
+  loading: backtestInstrumentResolving,
+  panelOpen: backtestInstrumentResolutionOpen,
+  candidates: backtestInstrumentCandidates,
+  failures: backtestInstrumentFailures,
+  resolutionStatus: backtestInstrumentResolutionStatus,
+  resolutionError: backtestInstrumentResolutionError,
+  statusMessage: backtestInstrumentResolutionMessage,
+  activeCandidateIndex: activeBacktestInstrumentIndex,
+  resolve: resolveBacktestInstrument,
+  closePanel: closeBacktestInstrumentResolution,
+  selectCandidate: selectBacktestInstrumentCandidate,
+  handleKeydown: handleBacktestInstrumentKeydown,
+} = useInstrumentResolver({
+  market: selectedMarket,
+  query: codeInput,
+  onResolved: handleResolvedBacktestInstrument,
+});
+
+function backtestFailureMarketLabel(market: string): string {
+  return formatInstrumentExchangeTag(market) ?? formatUserMarketLabel(market);
+}
 
 const periodLabel = computed(
   () =>
@@ -878,7 +941,9 @@ watch(
 
 // ── Loaders ──
 function ensureSelectedMarketProfile() {
-  if (findMarketProfile(selectedMarket.value) != null) {
+  const categoryMarket = categoryMarketForUser(selectedMarket.value);
+  if (findMarketProfile(categoryMarket) != null) {
+    selectedMarket.value = categoryMarket;
     return;
   }
   selectedMarket.value = defaultMarket.value.trim().toUpperCase() || "HK";
@@ -1250,7 +1315,12 @@ watch(
               <div class="flex items-center justify-between gap-2">
                 <div class="text-sm font-semibold bt-text-strong">策略与标的</div>
                 <div class="truncate text-xs bt-text-muted">
-                  {{ displayInstrumentId || "等待标的" }}
+                  <InstrumentIdentity
+                    v-if="displayInstrumentId"
+                    :instrument-id="displayInstrumentId"
+                    compact
+                  />
+                  <template v-else>等待标的</template>
                 </div>
               </div>
               <div class="grid gap-0.5">
@@ -1266,8 +1336,84 @@ watch(
                 </div>
                 <div class="grid gap-0.5">
                   <label class="text-xs font-semibold bt-text-strong">代码</label>
-                  <v-combobox v-model="codeInput" :items="codeSuggestions" item-title="title" item-value="value"
-                    density="compact" variant="outlined" placeholder="00700" clearable />
+                  <div class="relative min-w-0">
+                    <v-combobox
+                      v-model="codeInput"
+                      :items="codeSuggestions"
+                      item-title="title"
+                      item-value="value"
+                      density="compact"
+                      variant="outlined"
+                      placeholder="00700"
+                      clearable
+                      data-testid="backtest-instrument-code"
+                      @keydown="handleBacktestInstrumentKeydown"
+                    />
+                    <div
+                      v-if="backtestInstrumentResolutionOpen"
+                      class="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-lg border bt-border bt-bg-surface shadow-xl"
+                      :class="{ 'border-amber-500': backtestInstrumentResolutionStatus === 'incomplete' }"
+                    >
+                      <div
+                        v-if="backtestInstrumentResolutionMessage"
+                        class="px-3 py-2 text-xs bt-text-muted"
+                        role="status"
+                      >
+                        {{ backtestInstrumentResolutionMessage }}
+                      </div>
+                      <div
+                        v-if="backtestInstrumentFailures.length"
+                        class="space-y-1 px-3 pb-2 text-xs text-amber-600"
+                      >
+                        <div
+                          v-for="failure in backtestInstrumentFailures"
+                          :key="`${failure.market}:${failure.code}`"
+                        >
+                          {{ backtestFailureMarketLabel(failure.market) }}：{{ failure.message }}
+                        </div>
+                      </div>
+                      <button
+                        v-for="(candidate, index) in backtestInstrumentCandidates"
+                        :key="candidate.instrumentId"
+                        type="button"
+                        role="option"
+                        class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-t bt-border px-3 py-2 text-left text-xs transition hover:bg-slate-500/10"
+                        :class="{ 'bg-slate-500/10': index === activeBacktestInstrumentIndex }"
+                        :aria-selected="index === activeBacktestInstrumentIndex"
+                        @mouseenter="activeBacktestInstrumentIndex = index"
+                        @keydown="handleBacktestInstrumentKeydown"
+                        @click="selectBacktestInstrumentCandidate(candidate)"
+                      >
+                        <span class="bt-text-dim">{{ formatUserMarketLabel(candidate.market) }}</span>
+                        <InstrumentIdentity
+                          :market="candidate.market"
+                          :code="candidate.code"
+                          :instrument-id="candidate.instrumentId"
+                          :name="candidate.name"
+                          compact
+                        />
+                        <span class="bt-text-dim">{{ candidate.securityType || "类型未知" }}</span>
+                      </button>
+                      <div class="flex justify-end gap-2 border-t bt-border px-2 py-1.5">
+                        <button
+                          v-if="backtestInstrumentResolutionStatus === 'incomplete' || backtestInstrumentResolutionStatus === 'not_found' || backtestInstrumentResolutionError"
+                          type="button"
+                          class="rounded border bt-border px-2 py-1 text-xs bt-text-muted"
+                          :disabled="backtestInstrumentResolving"
+                          @click="resolveBacktestInstrument"
+                        >
+                          重试
+                        </button>
+                        <button
+                          type="button"
+                          class="rounded border bt-border px-2 py-1 text-xs bt-text-muted"
+                          @click="closeBacktestInstrumentResolution"
+                        >
+                          关闭
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="grid gap-0.5">
@@ -1443,7 +1589,8 @@ watch(
                       </v-chip>
                       <div class="min-w-0 flex-1">
                         <div class="truncate text-sm font-semibold bt-text-strong">
-                          {{ resolveStrategyName(run.request.definitionId) }} · {{ run.request.symbol }}
+                          {{ resolveStrategyName(run.request.definitionId) }} ·
+                          <InstrumentIdentity :instrument-id="run.request.symbol" compact />
                         </div>
                         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs bt-text-muted">
                           <span>{{ run.id }}</span>
@@ -1500,7 +1647,8 @@ watch(
                   <div class="min-w-0">
                     <div class="text-xs uppercase tracking-[0.16em] bt-text-muted">回测报告</div>
                     <div class="mt-1 text-lg font-semibold bt-text-strong">
-                      {{ resolveStrategyName(focusedRun.request.definitionId) }} · {{ focusedRun.request.symbol }}
+                      {{ resolveStrategyName(focusedRun.request.definitionId) }} ·
+                      <InstrumentIdentity :instrument-id="focusedRun.request.symbol" compact />
                     </div>
                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs bt-text-muted">
                       <span>{{ focusedRun.id }}</span>

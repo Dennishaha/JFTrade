@@ -9,13 +9,17 @@ import {
   formatDateTime,
   formatExecutionEventTypeLabel,
   formatExecutionOrderStatusLabel,
-  formatMarketLabel,
   formatOrderSideLabel,
   formatTradingEnvironment,
   isFinalExecutionOrderStatus,
 } from "../../composables/consoleDataFormatting";
+import {
+  formatInstrumentIdentityText,
+  formatUserMarketLabel,
+} from "../../composables/instrumentPresentation";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
+import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 
 type Tab = "positions" | "active" | "historical" | "fills";
 
@@ -182,7 +186,14 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
     );
     notifications.push({
       level: "success",
-      title: `已提交撤单 ${order.symbol ?? order.internalOrderId}`,
+      title: `已提交撤单 ${
+        order.symbol
+          ? formatInstrumentIdentityText({
+              market: order.market,
+              instrumentId: order.symbol,
+            })
+          : order.internalOrderId
+      }`,
       message: result.message,
       source: "positions-panel",
     });
@@ -193,7 +204,14 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         : "撤单请求失败。";
     notifications.push({
       level: "error",
-      title: `撤单失败 ${order.symbol ?? order.internalOrderId}`,
+      title: `撤单失败 ${
+        order.symbol
+          ? formatInstrumentIdentityText({
+              market: order.market,
+              instrumentId: order.symbol,
+            })
+          : order.internalOrderId
+      }`,
       message,
       source: "positions-panel",
     });
@@ -227,8 +245,10 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         </thead>
         <tbody>
           <tr v-for="p in positions" :key="`${p.brokerId}-${p.accountId}-${p.market}-${p.symbol}`">
-            <td style="font-weight: 600">{{ p.symbol }}</td>
-            <td>{{ formatMarketLabel(p.market) }}</td>
+            <td style="font-weight: 600">
+              <InstrumentIdentity :market="p.market" :instrument-id="p.symbol" compact />
+            </td>
+            <td>{{ formatUserMarketLabel(p.market) }}</td>
             <td style="color: var(--tv-text-muted)">{{ p.accountId }}</td>
             <td>{{ formatTradingEnvironment(p.tradingEnvironment) }}</td>
             <td class="tv-num" :class="p.quantity >= 0 ? 'tv-up' : 'tv-down'">{{ p.quantity }}</td>
@@ -255,7 +275,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         <tbody>
           <tr v-for="o in pendingExecs" :key="o.internalOrderId">
             <td style="font-family: monospace; font-size: 11px">{{ o.internalOrderId }}</td>
-            <td>{{ o.market }}:{{ o.symbol }}</td>
+            <td><InstrumentIdentity :market="o.market" :instrument-id="o.symbol" compact /></td>
             <td :class="sideClass(o.side)" style="font-weight: 600">{{ formatOrderSideLabel(o.side) }}</td>
             <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
             <td class="tv-num">{{ o.requestedQuantity ?? "—" }}</td>
@@ -305,7 +325,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
           <tbody>
             <tr v-for="o in completedExecs" :key="o.internalOrderId">
               <td style="font-family: monospace; font-size: 11px">{{ o.internalOrderId }}</td>
-              <td>{{ o.market }}:{{ o.symbol }}</td>
+              <td><InstrumentIdentity :market="o.market" :instrument-id="o.symbol" compact /></td>
               <td :class="sideClass(o.side)" style="font-weight: 600">{{ formatOrderSideLabel(o.side) }}</td>
               <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
               <td class="tv-num">{{ o.requestedQuantity ?? "—" }}</td>

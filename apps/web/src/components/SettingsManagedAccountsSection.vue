@@ -3,9 +3,9 @@ import type { BrokerSettingsResponse } from "@/contracts";
 
 import {
   formatGenericStatusLabel,
-  formatMarketLabel,
   formatTradingEnvironment,
 } from "../composables/consoleDataFormatting";
+import { formatUserMarketLabel } from "../composables/instrumentPresentation";
 import type { SettingsManagedAccountForm } from "../composables/settingsManagedAccounts";
 import SectionHeader from "./SectionHeader.vue";
 
@@ -45,7 +45,7 @@ defineProps<{
               <div>
                 <div class="text-base font-semibold text-slate-900">{{ account.displayName }}</div>
                 <div class="mt-1 text-xs text-slate-500">
-                  {{ account.brokerId }} / {{ account.accountId }} / {{ formatTradingEnvironment(account.tradingEnvironment) }} / {{ formatMarketLabel(account.market) }}
+                  {{ account.brokerId }} / {{ account.accountId }} / {{ formatTradingEnvironment(account.tradingEnvironment) }} / {{ formatUserMarketLabel(account.market) }}
                 </div>
               </div>
               <div class="flex items-center gap-2">

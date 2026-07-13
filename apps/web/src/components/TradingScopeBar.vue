@@ -3,11 +3,12 @@ import { computed } from "vue";
 
 import {
   formatConnectivityLabel,
-  formatMarketLabel,
   formatTradingEnvironment,
 } from "../composables/consoleDataFormatting";
+import { formatUserMarketLabel } from "../composables/instrumentPresentation";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../composables/useWorkspaceLayout";
+import InstrumentIdentity from "./domain/market-data/InstrumentIdentity.vue";
 
 const { brokerRuntime, selectedBrokerAccount, systemStatus } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
@@ -42,17 +43,6 @@ const brokerLabel = computed(
     systemStatus.value.defaultBroker,
 );
 const connectivity = computed(() => brokerRuntime.value.session.connectivity);
-const symbolLabel = computed(() => {
-  const symbol = prefs.value.symbol.trim().toUpperCase();
-  const marketCode = market.value.trim().toUpperCase();
-  if (symbol === "") {
-    return "未设置";
-  }
-  if (marketCode === "") {
-    return symbol;
-  }
-  return `${marketCode}.${symbol}`;
-});
 const realTradingStatus = computed(() => {
   if (!isRealTradingEnvironment.value) {
     return "非实盘";
@@ -98,11 +88,19 @@ const realTradingStatus = computed(() => {
       </div>
       <div class="trading-scope-bar__item" data-testid="trading-scope-market">
         <dt>市场</dt>
-        <dd>{{ formatMarketLabel(market) }}</dd>
+        <dd>{{ formatUserMarketLabel(market) }}</dd>
       </div>
       <div class="trading-scope-bar__item" data-testid="trading-scope-symbol">
         <dt>标的</dt>
-        <dd>{{ symbolLabel }}</dd>
+        <dd>
+          <InstrumentIdentity
+            v-if="prefs.symbol.trim() !== ''"
+            :market="market"
+            :code="prefs.symbol"
+            compact
+          />
+          <span v-else>未设置</span>
+        </dd>
       </div>
       <div class="trading-scope-bar__item" data-testid="trading-scope-broker">
         <dt>券商</dt>

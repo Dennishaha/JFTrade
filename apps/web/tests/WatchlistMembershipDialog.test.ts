@@ -57,6 +57,25 @@ afterEach(() => {
 });
 
 describe("WatchlistMembershipDialog", () => {
+  it("renders an A-share title with a bare code and exchange tag", () => {
+    const wrapper = mount(WatchlistMembershipDialog, {
+      props: {
+        modelValue: true,
+        market: "SH",
+        symbol: "600519",
+        name: "贵州茅台",
+      },
+      global: { stubs: { "v-dialog": DialogStub } },
+    });
+
+    const identity = wrapper.get("h2 .instrument-identity");
+    expect(identity.text()).toContain("600519");
+    expect(identity.text()).toContain("上证");
+    expect(identity.text()).toContain("贵州茅台");
+    expect(identity.text()).not.toContain("SH.600519");
+    expect(identity.attributes("title")).toBe("SH.600519");
+  });
+
   it("keeps multi-group and new-group choices across a 409 and requires confirmation again", async () => {
     watchlistMocks.membershipRefetch.mockImplementation(async () => {
       watchlistMocks.membershipData.value = {
@@ -80,7 +99,7 @@ describe("WatchlistMembershipDialog", () => {
         modelValue: true,
         market: "US",
         symbol: "AAPL",
-        title: "US.AAPL · Apple",
+        name: "Apple",
       },
       global: { stubs: { "v-dialog": DialogStub } },
     });

@@ -203,6 +203,29 @@ describe("strategy runtime instance editor", () => {
     expect(editor.activeSymbolTags.value).toEqual(["HK.00700", "HK.MSFT"]);
   });
 
+  it("stores the actual A-share exchange after an explicit resolver selection", () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+
+    editor.acceptActiveResolvedInstrument({
+      market: "SZ",
+      resolvedMarket: "CN",
+      instrumentId: "SZ.000001",
+      code: "000001",
+      symbol: "000001",
+      name: "平安银行",
+      securityType: "STOCK",
+      lotSize: 100,
+      source: "test-static",
+    });
+
+    expect(editor.activeSymbolDraftMarket.value).toBe("CN");
+    expect(editor.createBindingInstruments.value).toEqual([
+      { market: "SZ", code: "000001" },
+    ]);
+    expect(editor.activeSymbolTags.value).toEqual(["SZ.000001"]);
+  });
+
   it("handles keyboard and paste editing semantics", async () => {
     const { editor } = createEditor();
     editor.openCreateInstanceForm();

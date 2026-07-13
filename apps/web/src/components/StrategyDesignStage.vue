@@ -10,11 +10,13 @@ import type { components } from "@/generated/openapi";
 
 import { apiGet, apiPost, apiPutPath, fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import { queryClient, queryKeys } from "../composables/serverState";
+import InstrumentIdentity from "./domain/market-data/InstrumentIdentity.vue";
 import { buildPineStrategyDefinitionPayload } from "./strategy-runtime/strategyDefinitionPayload";
 import {
   formatStrategyInterval,
   formatStrategyRuntimeRiskSummary,
   formatStrategySymbols,
+  parseStrategyInstrumentIdsText,
   readStrategyBinding,
 } from "./strategy-runtime/strategyRuntimeInstanceBinding";
 import PineSourceCodePane from "./PineSourceCodePane.vue";
@@ -525,6 +527,10 @@ function statusClass(status: string): string {
       return "strategy-native-status--stopped";
   }
 }
+
+function strategyInstrumentIds(strategy: StrategyInstanceItem): string[] {
+  return parseStrategyInstrumentIdsText(formatStrategySymbols(strategy));
+}
 </script>
 
 <template>
@@ -777,7 +783,21 @@ function statusClass(status: string): string {
                           <strong>{{ strategy.definition.name }}</strong>
                           <span :class="['strategy-native-status', statusClass(strategy.status)]">{{ statusLabel(strategy.status) }}</span>
                         </div>
-                        <div>{{ formatStrategySymbols(strategy) }} / {{ formatStrategyInterval(strategy) }}</div>
+                        <div
+                          class="flex flex-wrap items-center gap-1.5"
+                          :data-testid="`strategy-design-instance-symbols-${strategy.id}`"
+                        >
+                          <template v-if="strategyInstrumentIds(strategy).length > 0">
+                            <InstrumentIdentity
+                              v-for="symbol in strategyInstrumentIds(strategy)"
+                              :key="symbol"
+                              :instrument-id="symbol"
+                              compact
+                            />
+                          </template>
+                          <span v-else>{{ formatStrategySymbols(strategy) }}</span>
+                          <span>/ {{ formatStrategyInterval(strategy) }}</span>
+                        </div>
                         <div>{{ formatStrategyRuntimeRiskSummary(readStrategyBinding(strategy).runtimeRisk) }}</div>
                       </section>
                     </div>

@@ -244,6 +244,39 @@ export interface NormalizeInstrumentResponse {
   resolvedMarket: string;
 }
 
+export type InstrumentResolutionStatus =
+  | "resolved"
+  | "ambiguous"
+  | "not_found"
+  | "incomplete";
+
+export interface InstrumentResolutionFailure {
+  market: string;
+  code: string;
+  message: string;
+}
+
+export interface InstrumentResolutionCandidate {
+  market: string;
+  resolvedMarket: string;
+  instrumentId: string;
+  code: string;
+  symbol: string;
+  name: string | null;
+  securityType: string | null;
+  lotSize: number | null;
+  source: string;
+}
+
+export interface InstrumentResolutionResponse {
+  requestedMarket: string;
+  query: string;
+  resolutionStatus: InstrumentResolutionStatus;
+  totalReturned: number;
+  entries: InstrumentResolutionCandidate[];
+  failures: InstrumentResolutionFailure[];
+}
+
 export type ADKPermissionMode = "approval" | "less_approval" | "all";
 export type ADKWorkMode = "chat" | "loop";
 

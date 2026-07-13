@@ -161,8 +161,6 @@ onBeforeUnmount(() => {
             <option value="HK">港股</option>
             <option value="US">美股</option>
             <option value="CN">A 股</option>
-            <option value="SH">沪市</option>
-            <option value="SZ">深市</option>
             <option value="SG">新加坡</option>
             <option value="JP">日本</option>
             <option value="AU">澳大利亚</option>
@@ -204,7 +202,7 @@ onBeforeUnmount(() => {
       v-model="membershipDialogOpen"
       :market="membershipTarget.market"
       :symbol="membershipTarget.symbol"
-      :title="membershipTarget.name ? `${membershipTarget.instrumentId} · ${membershipTarget.name}` : membershipTarget.instrumentId"
+      :name="membershipTarget.name"
     />
   </div>
 </template>

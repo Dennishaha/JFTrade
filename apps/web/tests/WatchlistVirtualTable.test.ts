@@ -85,6 +85,67 @@ describe("WatchlistVirtualTable", () => {
     expect(wrapper.text()).toContain("SecurityType_Eqty");
   });
 
+  it("groups Shanghai instruments under A shares while keeping the exchange tag", () => {
+    const wrapper = mount(WatchlistVirtualTable, {
+      props: {
+        items: [
+          {
+            instrumentId: "SH.600519",
+            market: "SH",
+            symbol: "600519",
+            name: "贵州茅台",
+            securityType: "EQUITY",
+          },
+        ],
+      },
+      global: {
+        stubs: { "v-icon": { template: "<span><slot /></span>" } },
+      },
+    });
+
+    expect(wrapper.text()).toContain("贵州茅台");
+    expect(wrapper.text()).toContain("600519");
+    expect(wrapper.text()).toContain("上证");
+    expect(wrapper.text()).toContain("沪深 · EQUITY");
+    expect(wrapper.text()).not.toContain("SH.600519");
+    const identity = wrapper.get(".instrument-identity--stacked");
+    expect(identity.get(".instrument-identity__primary").text()).toContain(
+      "上证贵州茅台",
+    );
+    expect(identity.get(".instrument-identity__secondary").text()).toBe(
+      "600519",
+    );
+  });
+
+  it("shows a leaf-market tag, name, and bare trading code on two lines", () => {
+    const wrapper = mount(WatchlistVirtualTable, {
+      props: {
+        items: [
+          {
+            instrumentId: "US.AAPL",
+            market: "US",
+            symbol: "AAPL",
+            name: "Apple",
+            securityType: "EQUITY",
+          },
+        ],
+      },
+      global: {
+        stubs: { "v-icon": { template: "<span><slot /></span>" } },
+      },
+    });
+
+    const identity = wrapper.get(".instrument-identity--stacked");
+    expect(identity.get(".instrument-identity__exchange-tag").text()).toBe(
+      "美股",
+    );
+    expect(identity.get(".instrument-identity__title").text()).toBe("Apple");
+    expect(identity.get(".instrument-identity__secondary").text()).toBe(
+      "AAPL",
+    );
+    expect(identity.attributes("title")).toBe("US.AAPL");
+  });
+
   it("keeps the header aligned during horizontal scrolling and exposes grid semantics", async () => {
     const wrapper = mount(WatchlistVirtualTable, {
       props: { items: [item(1)] },

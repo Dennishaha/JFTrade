@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 
 import StrategyRuntimeInstanceEditorDialog from "../src/components/strategy-runtime/StrategyRuntimeInstanceEditorDialog.vue";
+import { createResponse } from "./helpers";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 const dialogStub = defineComponent({
   props: {
@@ -61,12 +66,37 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
     await wrapper.findComponent(dialogStub).vm.$emit("update:model-value", false);
 
     expect(wrapper.emitted("update:open")).toEqual([[false], [false]]);
-    expect(wrapper.emitted("commit-symbol-draft")).toHaveLength(2);
-    expect(wrapper.emitted("symbol-draft-keydown")).toHaveLength(1);
+    expect(wrapper.emitted("commit-symbol-draft")).toBeUndefined();
+    expect(wrapper.emitted("symbol-draft-keydown")).toBeUndefined();
     expect(wrapper.emitted("symbol-draft-paste")).toHaveLength(1);
   });
 
   it("renders edit-mode helpers and emits binding, broker, and runtime-risk interactions", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        createResponse({
+          requestedMarket: "US",
+          query: "AAPL",
+          resolutionStatus: "resolved",
+          totalReturned: 1,
+          entries: [
+            {
+              market: "US",
+              resolvedMarket: "US",
+              instrumentId: "US.AAPL",
+              code: "AAPL",
+              symbol: "AAPL",
+              name: "Apple",
+              securityType: "STOCK",
+              lotSize: 1,
+              source: "test-static",
+            },
+          ],
+          failures: [],
+        }),
+      ),
+    );
     const wrapper = mount(StrategyRuntimeInstanceEditorDialog, {
       props: buildProps({
         mode: "edit",
@@ -75,9 +105,9 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
           definition: { name: "Mean Revert", version: "0.1.0" },
           status: "RUNNING",
         },
-        symbolTags: ["HK.00700"],
-        selectedBrokerAccountKey: "futu|REAL|ACC-1|HK",
-        currentBrokerAccountSelectionKey: "futu|REAL|ACC-1|HK",
+        symbolTags: ["SH.600519", "SZ.000001"],
+        selectedBrokerAccountKey: "futu|REAL|ACC-1|SH",
+        currentBrokerAccountSelectionKey: "futu|REAL|ACC-1|SH",
         selectedBrokerAccountOption: buildBrokerOption(),
         filteredBrokerAccountOptions: [buildBrokerOption()],
         isBrokerAccountPickerOpen: true,
@@ -101,6 +131,15 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
     expect(wrapper.get('[data-testid="strategy-edit-account-current-tag"]').text()).toContain("当前");
     expect(wrapper.text()).toContain("仅通知模式会发送准备下单提示");
     expect(wrapper.text()).toContain("当前实例不是 STOPPED");
+    expect(wrapper.text()).toContain("600519");
+    expect(wrapper.text()).toContain("上证");
+    expect(wrapper.text()).toContain("000001");
+    expect(wrapper.text()).toContain("深证");
+    expect(wrapper.text()).toContain("沪深");
+    expect(wrapper.text()).not.toContain("SH.600519");
+    expect(wrapper.get('[data-instrument-id="SH.600519"]').attributes("title")).toBe(
+      "SH.600519",
+    );
 
     await wrapper.get('[data-testid="strategy-edit-symbol-market"]').setValue("US");
     await wrapper.get('[data-testid="strategy-edit-symbols"]').setValue("AAPL");
@@ -108,6 +147,7 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
     await wrapper.get('[data-testid="strategy-edit-symbols"]').trigger("blur");
     await wrapper.get('[data-testid="strategy-edit-symbols"]').trigger("keydown", { key: "Tab" });
     await wrapper.get('[data-testid="strategy-edit-symbol-add"]').trigger("click");
+    await flushPromises();
     await wrapper.get(".strategy-tag-chip").trigger("click");
     await wrapper.get('[data-testid="strategy-edit-interval"]').setValue("15m");
     await wrapper.get('[data-testid="strategy-edit-execution-mode"]').setValue("live");
@@ -123,17 +163,22 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
     await wrapper.get('[data-testid="strategy-runtime-risk-daily-max-orders"]').setValue("11");
 
     expect(wrapper.emitted("update:symbol-market")).toEqual([["US"]]);
-    expect(wrapper.emitted("update:symbol-draft")).toEqual([["AAPL"]]);
+    expect(wrapper.emitted("update:symbol-draft")).toEqual([["AAPL"], [""]]);
     expect(wrapper.emitted("symbol-draft-paste")).toHaveLength(1);
-    expect(wrapper.emitted("commit-symbol-draft")).toHaveLength(2);
+    expect(wrapper.emitted("commit-symbol-draft")).toBeUndefined();
     expect(wrapper.emitted("symbol-draft-keydown")).toHaveLength(1);
-    expect(wrapper.emitted("remove-symbol")).toEqual([["HK.00700"]]);
+    expect(wrapper.emitted("resolve-symbol")?.[0]?.[0]).toMatchObject({
+      market: "US",
+      code: "AAPL",
+      instrumentId: "US.AAPL",
+    });
+    expect(wrapper.emitted("remove-symbol")).toEqual([["SH.600519"]]);
     expect(wrapper.emitted("update:interval")).toEqual([["15m"]]);
     expect(wrapper.emitted("update:execution-mode")).toEqual([["live"]]);
     expect(wrapper.emitted("toggle-broker-picker")).toHaveLength(1);
     expect(wrapper.emitted("update:broker-query")).toEqual([["REAL"]]);
     expect(wrapper.emitted("clear-broker-selection")).toHaveLength(1);
-    expect(wrapper.emitted("select-broker-selection")).toEqual([["futu|REAL|ACC-1|HK"]]);
+    expect(wrapper.emitted("select-broker-selection")).toEqual([["futu|REAL|ACC-1|SH"]]);
     expect(wrapper.emitted("update:runtime-risk-mode")).toEqual([["monitor"]]);
     expect(wrapper.emitted("update:runtime-risk-close-only")).toEqual([[false]]);
     expect(wrapper.emitted("update:runtime-risk-pause-on-reject")).toEqual([[true]]);
@@ -236,13 +281,13 @@ function buildProps(overrides: Record<string, unknown> = {}) {
 
 function buildBrokerOption() {
   return {
-    selectionKey: "futu|REAL|ACC-1|HK",
+    selectionKey: "futu|REAL|ACC-1|SH",
     source: "managed" as const,
     brokerId: "futu",
     accountId: "ACC-1",
     displayName: "主交易账号",
     tradingEnvironment: "REAL",
-    market: "HK",
+    market: "SH",
     securityFirm: null,
   };
 }

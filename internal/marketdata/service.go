@@ -29,6 +29,7 @@ type Provider interface {
 	// ── 快照查询 ──
 	GetMarkets(ctx context.Context) ([]MarketProfile, error)
 	GetSecurityDetails(ctx context.Context, market, symbol string) (SecurityDetails, error)
+	LookupInstrument(ctx context.Context, market, code string) ([]InstrumentCandidate, error)
 	QuerySnapshot(ctx context.Context, instrumentID string) (*Tick, error)
 	QueryTicker(ctx context.Context, instrumentID string) (*Tick, error)
 	GetHistoricalCandles(ctx context.Context, market, symbol, period string, limit int, fromTime, toTime string) (CandlesResponse, error)
@@ -141,6 +142,7 @@ type ProviderStatusResponse struct {
 // Service 行情业务门面。
 type Service struct {
 	provider      Provider
+	resolver      *MarketSubsetInstrumentResolver
 	cache         *Cache
 	subscriptions *subscriptionRegistry
 	collector     *Collector
@@ -150,6 +152,7 @@ type Service struct {
 func NewService(provider Provider) *Service {
 	return &Service{
 		provider:      provider,
+		resolver:      NewMarketSubsetInstrumentResolver(provider),
 		cache:         NewCache(),
 		subscriptions: newSubscriptionRegistry(),
 	}
@@ -229,6 +232,15 @@ func (s *Service) GetMarkets(ctx context.Context) ([]MarketProfile, error) {
 // GetSecurityDetails 返回证券详情。
 func (s *Service) GetSecurityDetails(ctx context.Context, market, symbol string) (SecurityDetails, error) {
 	return s.provider.GetSecurityDetails(ctx, market, symbol)
+}
+
+// ResolveInstrument performs an exact instrument lookup, expanding configured
+// top-level market subsets such as CN into their exchange leaves.
+func (s *Service) ResolveInstrument(ctx context.Context, requestedMarket, query string) (InstrumentResolution, error) {
+	if s == nil || s.resolver == nil {
+		return InstrumentResolution{}, fmt.Errorf("market-data instrument resolver is unavailable")
+	}
+	return s.resolver.Resolve(ctx, requestedMarket, query)
 }
 
 // GetSnapshot 返回最新行情快照。

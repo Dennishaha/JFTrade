@@ -3,11 +3,13 @@ import { reactive } from "vue";
 
 import type { RealTradeHardStopsResponse } from "@/contracts";
 import {
-  formatMarketLabel,
-  formatRealTradeHardStopScope,
   formatTradingEnvironment,
   resolveRealTradeHardStopScopeTagType,
 } from "@/composables/consoleDataFormatting";
+import {
+  formatInstrumentIdentityText,
+  formatUserMarketLabel,
+} from "@/composables/instrumentPresentation";
 
 defineProps<{
   entries: RealTradeHardStopsResponse["entries"];
@@ -38,6 +40,23 @@ const form = reactive({
   operatorId: "local",
   reason: "",
 });
+
+function formatUserHardStopScope(
+  item: RealTradeHardStopsResponse["entries"][number],
+): string {
+  const scope =
+    item.symbol != null ? "SYMBOL" : item.market != null ? "MARKET" : "ACCOUNT";
+  if (scope === "SYMBOL") {
+    return `标的 / ${formatUserMarketLabel(item.market)} / ${formatInstrumentIdentityText({
+      market: item.market,
+      instrumentId: item.symbol,
+    })}`;
+  }
+  if (scope === "MARKET") {
+    return `市场 / ${formatUserMarketLabel(item.market)}`;
+  }
+  return "账户";
+}
 
 function activate() {
   emit("activate", {
@@ -125,11 +144,11 @@ function activate() {
               variant="outlined"
               size="small"
             >
-              {{ formatRealTradeHardStopScope(item) }}
+              {{ formatUserHardStopScope(item) }}
             </v-chip>
           </div>
           <div class="mt-1 text-xs text-slate-500">
-            {{ formatTradingEnvironment(item.tradingEnvironment) }} / {{ formatMarketLabel(item.market ?? "") }} / 操作员 {{ item.operatorId }}
+            {{ formatTradingEnvironment(item.tradingEnvironment) }} / {{ formatUserMarketLabel(item.market ?? "") }} / 操作员 {{ item.operatorId }}
           </div>
           <div class="mt-1 text-xs text-slate-700">{{ item.reason || "未填写原因" }}</div>
           <div class="mt-2">

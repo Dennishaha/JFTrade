@@ -63,6 +63,38 @@ describe("Backtest page", () => {
     wrapper.unmount();
   });
 
+  it("migrates legacy SH/SZ bare-code preferences to CN with a qualified instrument", async () => {
+    window.localStorage.setItem(
+      backtestFormStorageKey,
+      JSON.stringify({
+        selectedDefinitionId: "",
+        selectedMarket: "SH",
+        codeInput: "600519",
+        interval: "5m",
+        startDate: "2026-01-01",
+        endDate: "2026-01-02",
+        initialBalance: 1_000_000,
+        instrumentType: "stock",
+        rehabType: "forward",
+        useExtendedHours: false,
+      }),
+    );
+
+    installBacktestPageFetch({ runs: [] });
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+
+    const stored = JSON.parse(
+      window.localStorage.getItem(backtestFormStorageKey) ?? "{}",
+    ) as { selectedMarket?: string; codeInput?: string };
+    expect(stored).toMatchObject({
+      selectedMarket: "CN",
+      codeInput: "SH.600519",
+    });
+
+    wrapper.unmount();
+  });
+
   it("keeps many backtest results bounded to the active page", async () => {
     installBacktestPageFetch({
       runs: Array.from({ length: 30 }, (_, index) => buildBacktestRun(index + 1)),
@@ -231,13 +263,46 @@ describe("Backtest page", () => {
     })).toBe("");
 
     expect(readSetupValue(setup.selectedDefinition)).toMatchObject({ id: "strategy-1" });
+    call("handleResolvedBacktestInstrument", {
+      market: "SH",
+      resolvedMarket: "CN",
+      instrumentId: "SH.600519",
+      code: "600519",
+      symbol: "600519",
+      name: "贵州茅台",
+      securityType: "STOCK",
+      lotSize: 100,
+      source: "test-static",
+    });
+    expect(readSetupValue<string>(setup.selectedMarket)).toBe("CN");
+    expect(readSetupValue<string>(setup.codeInput)).toBe("SH.600519");
+    expect(readSetupValue<Record<string, unknown>>(setup.backtestFormState)).toMatchObject({
+      market: "CN",
+      code: "SH.600519",
+      instrumentId: "SH.600519",
+    });
     writeSetupValue(setup, "selectedMarket", "US");
     writeSetupValue(setup, "codeInput", "");
     await nextTick();
     expect(readSetupValue<string>(setup.displayInstrumentId)).toBe("");
     expect(readSetupValue<unknown[]>(setup.codeSuggestions)).toEqual([
-      { value: "AAPL", title: "AAPL · Apple" },
+      { key: "US.AAPL", value: "AAPL", title: "AAPL · Apple" },
     ]);
+    writeSetupValue(setup, "selectedMarket", "CN");
+    await nextTick();
+    expect(readSetupValue<unknown[]>(setup.codeSuggestions)).toEqual([
+      {
+        key: "SH.600519",
+        value: "600519",
+        title: "600519 · 上证 · 贵州茅台",
+      },
+      {
+        key: "SZ.600519",
+        value: "600519",
+        title: "600519 · 深证 · 深市同码标的",
+      },
+    ]);
+    writeSetupValue(setup, "selectedMarket", "US");
     writeSetupValue(setup, "codeInput", "US:AAPL");
     expect(readSetupValue<string>(setup.displayInstrumentId)).toBe("US.AAPL");
     writeSetupValue(setup, "codeInput", "AAPL");
@@ -460,6 +525,22 @@ function installBacktestPageFetch(options: { runs: unknown[]; definitions?: unkn
               name: "Apple",
               brokerMappings: [],
             },
+            {
+              market: "SH",
+              code: "600519",
+              symbol: "600519",
+              instrumentId: "SH.600519",
+              name: "贵州茅台",
+              brokerMappings: [],
+            },
+            {
+              market: "SZ",
+              code: "600519",
+              symbol: "600519",
+              instrumentId: "SZ.600519",
+              name: "深市同码标的",
+              brokerMappings: [],
+            },
           ],
         });
       }
@@ -498,6 +579,19 @@ function installBacktestPageFetch(options: { runs: unknown[]; definitions?: unkn
               supportsExtendedHours: true,
               requiresExchangePrefix: false,
               aliases: ["NYSE", "NASDAQ"],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+            {
+              code: "CN",
+              resolvedMarket: "CN",
+              preferredPrefix: "",
+              displayName: "沪深",
+              quoteCurrency: "CNY",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: true,
+              aliases: ["SH", "SZ", "CNSH", "CNSZ"],
               regularSessions: [],
               precision: { price: 2, quote: 2 },
               tickSize: 0.01,

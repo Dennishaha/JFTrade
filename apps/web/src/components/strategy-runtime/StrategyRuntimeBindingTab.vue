@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type {
     StrategyBrokerAccountBinding,
     StrategyDefinitionSyncStatus,
@@ -8,7 +9,10 @@ import type {
     StrategyRuntimeRiskSettings,
 } from "@/contracts";
 
-defineProps<{
+import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
+import { parseStrategyInstrumentIdsText } from "./strategyRuntimeInstanceBinding";
+
+const props = defineProps<{
     selectedStrategy: StrategyInstanceItem;
     selectedStrategyBinding: StrategyInstanceBindingDocument | null;
     selectedStrategyDefinitionSync: StrategyDefinitionSyncStatus | null;
@@ -24,6 +28,10 @@ defineProps<{
     formatBrokerAccountSummary: (brokerAccount: StrategyBrokerAccountBinding | null | undefined) => string;
     isCurrentBrokerAccountBinding: (brokerAccount: StrategyBrokerAccountBinding | null | undefined) => boolean;
 }>();
+
+const strategyInstrumentIds = computed(() =>
+    parseStrategyInstrumentIdsText(props.formatStrategySymbols(props.selectedStrategy)),
+);
 
 const emit = defineEmits<{
     "open-edit": [];
@@ -112,8 +120,16 @@ function handleRuntimeRiskCloseOnlyChange(event: Event): void {
                 </div>
                 <div class="strategy-binding-summary__detail strategy-binding-summary__detail--wide">
                     <div class="runtime-workbench-field-label">交易代码</div>
-                    <div class="runtime-workbench-field-value">
-                        {{ formatStrategySymbols(selectedStrategy) }}
+                    <div class="runtime-workbench-field-value flex flex-wrap items-center gap-1.5">
+                        <template v-if="strategyInstrumentIds.length > 0">
+                            <InstrumentIdentity
+                                v-for="symbol in strategyInstrumentIds"
+                                :key="symbol"
+                                :instrument-id="symbol"
+                                compact
+                            />
+                        </template>
+                        <template v-else>{{ formatStrategySymbols(selectedStrategy) }}</template>
                     </div>
                 </div>
                 <div class="strategy-binding-summary__detail">

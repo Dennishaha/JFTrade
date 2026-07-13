@@ -154,13 +154,20 @@ describe("Strategy runtime workbench components", () => {
         canStartSelectedStrategy: true,
         canPauseSelectedStrategy: true,
         canStopSelectedStrategy: true,
-        formatStrategySymbols: () => "HK.00700",
+        formatStrategySymbols: () => "SH.600519, SZ.000001",
         formatStrategyInterval: () => "5m",
       },
     });
 
     expect(wrapper.text()).toContain("Mean Revert");
-    expect(wrapper.text()).toContain("HK.00700");
+    expect(wrapper.text()).toContain("600519");
+    expect(wrapper.text()).toContain("上证");
+    expect(wrapper.text()).toContain("000001");
+    expect(wrapper.text()).toContain("深证");
+    expect(wrapper.text()).not.toContain("SH.600519");
+    expect(wrapper.get('[data-instrument-id="SH.600519"]').attributes("title")).toBe(
+      "SH.600519",
+    );
     expect(wrapper.get('[data-testid="strategy-start"]').attributes("disabled")).toBeUndefined();
 
     await wrapper.get('[data-testid="strategy-refresh-content"]').trigger("click");
@@ -178,7 +185,12 @@ describe("Strategy runtime workbench components", () => {
     });
 
     expect(wrapper.get('[data-testid="strategy-runtime-start-hint"]').text()).toContain("可启动");
-    expect(wrapper.get('[data-testid="strategy-runtime-observation"]').text()).toContain("HK.00700");
+    const observation = wrapper.get('[data-testid="strategy-runtime-observation"]');
+    expect(observation.text()).toContain("600519");
+    expect(observation.text()).toContain("上证");
+    expect(observation.text()).toContain("000001");
+    expect(observation.text()).toContain("深证");
+    expect(observation.text()).not.toContain("SH.600519");
     expect(wrapper.text()).toContain("broker rejected order");
     expect(wrapper.text()).toContain("运行日志读取失败");
 
@@ -219,6 +231,11 @@ describe("Strategy runtime workbench components", () => {
     expect(wrapper.text()).toContain("待刷新 v0.1.0 -> v0.2.0");
     expect(wrapper.text()).toContain("当前绑定摘要");
     expect(wrapper.text()).toContain("富途模拟账户");
+    expect(wrapper.text()).toContain("600519");
+    expect(wrapper.text()).toContain("上证");
+    expect(wrapper.text()).toContain("000001");
+    expect(wrapper.text()).toContain("深证");
+    expect(wrapper.text()).not.toContain("SH.600519");
 
     await wrapper.get('[data-testid="strategy-refresh-definition"]').trigger("click");
     await wrapper.get('[data-testid="strategy-runtime-risk-quick-mode"]').setValue("monitor");
@@ -293,7 +310,7 @@ function buildBinding() {
 function buildRuntimeObservation() {
   return {
     actualStatus: "RUNNING",
-    activeSymbols: ["HK.00700"],
+    activeSymbols: ["SH.600519", "SZ.000001"],
     lastClosedKlineAt: "2026-07-03T01:00:00.000Z",
     lastSignalAt: "2026-07-03T01:05:00.000Z",
     lastOrderAt: "2026-07-03T01:06:00.000Z",
@@ -338,7 +355,7 @@ function buildBindingTabProps() {
     selectedStrategyDefinitionRefreshHint: "可刷新到最新设计 v0.2.0。",
     isUpdatingStrategyRuntimeRisk: false,
     formatStrategyDefinitionSyncSummary: () => "待刷新 v0.1.0 -> v0.2.0",
-    formatStrategySymbols: () => "HK.00700",
+    formatStrategySymbols: () => "SH.600519, SZ.000001",
     formatStrategyInterval: () => "5m",
     formatStrategyExecutionMode: () => "确认执行",
     formatStrategyRuntimeRiskSummary: () => "关闭",

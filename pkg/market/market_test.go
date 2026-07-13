@@ -130,12 +130,44 @@ func TestMarketDescriptorsExposeFrontendMetadata(t *testing.T) {
 		t.Fatalf("HK descriptor = %#v", hk)
 	}
 	cn := byCode["CN"]
-	if !cn.RequiresExchangePrefix || cn.PreferredPrefix != "" || !contains(strings.Join(cn.Aliases, ","), "SH") {
+	if cn.DisplayName != "沪深" || !cn.RequiresExchangePrefix || cn.PreferredPrefix != "" || !contains(strings.Join(cn.Aliases, ","), "SH") || len(cn.RegularSessions) != 2 {
 		t.Fatalf("CN descriptor = %#v", cn)
 	}
 	sh := byCode["SH"]
 	if sh.ResolvedMarket != "CN" || sh.PreferredPrefix != "SH" || sh.QuoteCurrency != "CNY" {
 		t.Fatalf("SH descriptor = %#v", sh)
+	}
+}
+
+func TestUserMarketDescriptorsKeepChinaExchangesAsCNSubset(t *testing.T) {
+	children := MarketSubsetChildren(" cn ")
+	if len(children) != 2 || children[0] != "SH" || children[1] != "SZ" {
+		t.Fatalf("MarketSubsetChildren(CN) = %#v, want [SH SZ]", children)
+	}
+	children[0] = "mutated"
+	if got := MarketSubsetChildren("CN"); len(got) != 2 || got[0] != "SH" {
+		t.Fatalf("MarketSubsetChildren returned shared storage: %#v", got)
+	}
+	if !IsMarketSubsetChild("sh") || !IsMarketSubsetChild(" SZ ") || IsMarketSubsetChild("CN") || IsMarketSubsetChild("HK") {
+		t.Fatal("IsMarketSubsetChild returned an inconsistent parent/child classification")
+	}
+
+	userDescriptors := UserMarketDescriptors()
+	byCode := make(map[string]MarketDescriptor, len(userDescriptors))
+	for _, descriptor := range userDescriptors {
+		byCode[descriptor.Code] = descriptor
+	}
+	if _, ok := byCode["CN"]; !ok {
+		t.Fatalf("UserMarketDescriptors missing CN: %#v", userDescriptors)
+	}
+	if _, ok := byCode["SH"]; ok {
+		t.Fatalf("UserMarketDescriptors unexpectedly exposes SH: %#v", userDescriptors)
+	}
+	if _, ok := byCode["SZ"]; ok {
+		t.Fatalf("UserMarketDescriptors unexpectedly exposes SZ: %#v", userDescriptors)
+	}
+	if len(MarketDescriptors()) <= len(userDescriptors) {
+		t.Fatalf("technical descriptors should retain subset leaves: all=%d user=%d", len(MarketDescriptors()), len(userDescriptors))
 	}
 }
 

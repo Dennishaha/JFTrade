@@ -153,6 +153,30 @@ afterEach(() => {
 });
 
 describe("LightweightChart", () => {
+  it("shows A-share chart targets as bare codes with an exchange tag", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.marketInstrumentSearchOptions.value = [
+      { instrumentId: "SH.600519", name: "贵州茅台" },
+    ];
+    stores.workspace = createWorkspaceState();
+    stores.workspace.prefs.value = {
+      market: "SH",
+      symbol: "600519",
+      period: "1m",
+    };
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const wrapper = mountChart();
+    await flushUi();
+
+    const identity = wrapper.get(".lightweight-chart-head__instrument .instrument-identity");
+    expect(identity.text()).toContain("600519");
+    expect(identity.text()).toContain("上证");
+    expect(identity.text()).not.toContain("SH.600519");
+    expect(identity.attributes("title")).toBe("SH.600519");
+    wrapper.unmount();
+  });
+
   it("loads the current workspace instrument, manages subscriptions, and releases keepalive subscriptions on unmount", async () => {
     vi.useFakeTimers();
     stores.consoleData = createConsoleDataState();
@@ -180,7 +204,12 @@ describe("LightweightChart", () => {
       "workspace-chart:1",
     );
     expect(stores.consoleData.loadMarketDataQuery).toHaveBeenCalledWith({});
-    expect(wrapper.text()).toContain("US.AAPL · Apple Inc.");
+    expect(wrapper.get(".lightweight-chart-head__instrument").text()).toContain(
+      "US.AAPL",
+    );
+    expect(wrapper.get(".lightweight-chart-head__instrument").text()).toContain(
+      "Apple Inc.",
+    );
     expect(wrapper.text()).toContain("盘前/盘后K线");
     expect(wrapper.html()).toContain("扩展时段");
 

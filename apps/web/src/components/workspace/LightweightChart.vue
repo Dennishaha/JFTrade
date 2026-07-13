@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import KlineChart from "../KlineChart.vue";
+import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import {
   KLINE_PERIODS,
@@ -77,14 +78,12 @@ const chartCandles = computed<KlineCandle[]>(() =>
     marketDataQueryPeriod.value,
   ),
 );
-const chartInstrumentTitle = computed(() => {
+const chartInstrumentName = computed(() => {
   const instrumentId = chartTarget.value.instrumentId;
   const option = marketInstrumentSearchOptions.value.find(
     (candidate) => candidate.instrumentId === instrumentId,
   );
-  return option?.name == null || option.name === ""
-    ? instrumentId
-    : `${instrumentId} · ${option.name}`;
+  return option?.name?.trim() ?? "";
 });
 const chartSessionBadge = computed(() => {
   const snapshotSession = marketDataSnapshot.value?.snapshot?.session;
@@ -333,7 +332,15 @@ watch(
   <section class="tv-panel">
     <div class="tv-panel-head lightweight-chart-head">
       <span class="tv-panel-title">图表</span>
-      <span class="lightweight-chart-head__instrument">{{ chartInstrumentTitle }}</span>
+      <span class="lightweight-chart-head__instrument">
+        <InstrumentIdentity
+          :market="chartTarget.market"
+          :code="chartTarget.symbol"
+          :instrument-id="chartTarget.instrumentId"
+          compact
+        />
+        <span v-if="chartInstrumentName">· {{ chartInstrumentName }}</span>
+      </span>
       <div class="tv-seg lightweight-chart-head__periods">
         <button
           v-for="p in periods"
@@ -378,7 +385,10 @@ watch(
 
 <style scoped>
 .lightweight-chart-head__instrument {
+  display: inline-flex;
   min-width: 0;
+  align-items: center;
+  gap: 0.3rem;
   overflow: hidden;
   color: var(--tv-text);
   font-weight: 600;

@@ -13,6 +13,7 @@ import {
 } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import OrderBookDepthTable from "../domain/market-data/OrderBookDepthTable.vue";
 
@@ -365,7 +366,12 @@ watch(
   <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">盘口</span>
-      <span style="color: var(--tv-text); font-weight: 600">{{ prefs.market }}:{{ prefs.symbol }}</span>
+      <InstrumentIdentity
+        :market="prefs.market"
+        :code="prefs.symbol"
+        :instrument-id="currentInstrumentId"
+        compact
+      />
       <div style="flex: 1"></div>
       <MarketFeedStatus
         :connection-state="depthConnectionState"

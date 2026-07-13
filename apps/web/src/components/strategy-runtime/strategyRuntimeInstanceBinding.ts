@@ -12,6 +12,7 @@ import {
     buildBrokerAccountSelectionKey,
     type BrokerAccountSelectionOption,
 } from "../../composables/consoleDataBrokerAccountSelection";
+import { formatUserMarketLabel } from "../../composables/instrumentPresentation";
 
 export function normalizeText(value: unknown): string {
     return typeof value === "string" ? value.trim() : "";
@@ -28,7 +29,12 @@ function normalizeInstrumentId(value: string): string {
     return normalized;
 }
 
-function normalizeSymbols(values: string[]): string[] {
+export function normalizeStrategyInstrumentIds(
+    values: readonly string[] | null | undefined,
+): string[] {
+    if (!Array.isArray(values)) {
+        return [];
+    }
     const seen = new Set<string>();
     const result: string[] = [];
     for (const value of values) {
@@ -69,7 +75,7 @@ export function normalizeBindingInstruments(values: StrategyBindingInstrumentDoc
 }
 
 export function bindingInstrumentsToSymbols(values: StrategyBindingInstrumentDocument[]): string[] {
-    return normalizeSymbols(values.map((value) => `${value.market}.${value.code}`));
+    return normalizeStrategyInstrumentIds(values.map((value) => `${value.market}.${value.code}`));
 }
 
 export function splitSymbolsText(value: string): string[] {
@@ -77,6 +83,12 @@ export function splitSymbolsText(value: string): string[] {
     .split(/[\n\r\t,，;；]+/)
         .map((segment) => segment.trim())
         .filter((segment) => segment !== "");
+}
+
+export function parseStrategyInstrumentIdsText(value: string): string[] {
+    return normalizeStrategyInstrumentIds(splitSymbolsText(value)).filter(
+        (symbol) => bindingInstrumentFromSymbol(symbol) !== null,
+    );
 }
 
 function formatTradingEnvironment(value: unknown): string {
@@ -130,7 +142,7 @@ function readStrategySymbolsFromParams(params: Record<string, unknown> | null): 
         return bindingInstrumentsToSymbols(instruments);
     }
     if (Array.isArray(params.symbols)) {
-        return normalizeSymbols(
+        return normalizeStrategyInstrumentIds(
             params.symbols.filter((entry): entry is string => typeof entry === "string"),
         );
     }
@@ -273,7 +285,7 @@ export function readStrategyBinding(strategy: StrategyInstanceItem): StrategyIns
     const bindingSymbols = bindingInstruments.length > 0
         ? bindingInstrumentsToSymbols(bindingInstruments)
         : Array.isArray(strategy.binding?.symbols)
-            ? normalizeSymbols(strategy.binding.symbols)
+            ? normalizeStrategyInstrumentIds(strategy.binding.symbols)
             : readStrategySymbolsFromParams(params);
     const executionModeSource =
         normalizeText(strategy.binding?.executionMode)
@@ -296,7 +308,7 @@ export function formatBrokerAccountSummary(
     if (normalized == null) {
         return "未绑定账号";
     }
-    return `${normalized.brokerId.toUpperCase()} / ${formatTradingEnvironment(normalized.tradingEnvironment)} / ${normalized.accountId} / ${normalized.market}`;
+    return `${normalized.brokerId.toUpperCase()} / ${formatTradingEnvironment(normalized.tradingEnvironment)} / ${normalized.accountId} / ${formatUserMarketLabel(normalized.market)}`;
 }
 
 export function formatStrategySymbols(strategy: StrategyInstanceItem): string {
@@ -312,16 +324,16 @@ export function formatRuntimeObservationSymbols(symbols: string[] | null | undef
     if (!Array.isArray(symbols)) {
         return "暂无";
     }
-    const normalized = normalizeSymbols(symbols);
+    const normalized = normalizeStrategyInstrumentIds(symbols);
     return normalized.length > 0 ? normalized.join(", ") : "暂无";
 }
 
 function formatBrokerAccountOption(option: BrokerAccountSelectionOption): string {
-    return `${option.brokerId.toUpperCase()} / ${formatTradingEnvironment(option.tradingEnvironment)} / ${option.accountId} / ${option.market}`;
+    return `${option.brokerId.toUpperCase()} / ${formatTradingEnvironment(option.tradingEnvironment)} / ${option.accountId} / ${formatUserMarketLabel(option.market)}`;
 }
 
 export function brokerAccountOptionSubtitle(option: BrokerAccountSelectionOption): string {
-    return `${option.brokerId.toUpperCase()} / ${formatTradingEnvironment(option.tradingEnvironment)} / ${option.accountId} / ${option.market}`;
+    return `${option.brokerId.toUpperCase()} / ${formatTradingEnvironment(option.tradingEnvironment)} / ${option.accountId} / ${formatUserMarketLabel(option.market)}`;
 }
 
 export function filterBrokerAccountOptions(

@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 
+import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
+
+import { formatTradingEnvironment } from "../composables/consoleDataFormatting";
 import {
-  formatMarketLabel,
-  formatTradingEnvironment,
-} from "../composables/consoleDataFormatting";
+  categoryMarketForUser,
+  formatInstrumentExchangeTag,
+  formatUserMarketLabel,
+} from "../composables/instrumentPresentation";
+import { useInstrumentResolver } from "../composables/instrumentResolver";
 import { useMarketProfiles } from "../composables/marketProfiles";
 import { useCommandPalette } from "../composables/useCommandPalette";
 import { useConsoleData } from "../composables/useConsoleData";
@@ -41,10 +46,9 @@ const palette = useCommandPalette();
 const {
   marketOptions: topbarMarketOptions,
   loadMarketProfiles,
-  normalizeInstrumentRefWithMarketApi,
 } = useMarketProfiles();
 
-const selectedMarket = ref(prefs.value.market);
+const selectedMarket = ref(categoryMarketForUser(prefs.value.market));
 const codeInput = ref("");
 const tradingEnvironmentFilter = ref<"REAL" | "SIMULATE">("SIMULATE");
 const tradingEnvironmentFilterPinned = ref(false);
@@ -151,7 +155,7 @@ const brokerAccountLabel = computed(() => {
     return `请选择${tradingEnvironmentFilterLabel.value}账户`;
   }
 
-  return `${selectedBrokerAccount.value.securityFirm ?? "未知券商"} / ${selectedBrokerAccount.value.brokerId.toUpperCase()} / ${selectedBrokerAccount.value.displayName} / ${formatMarketLabel(selectedBrokerAccount.value.market)}`;
+  return `${selectedBrokerAccount.value.securityFirm ?? "未知券商"} / ${selectedBrokerAccount.value.brokerId.toUpperCase()} / ${selectedBrokerAccount.value.displayName} / ${formatUserMarketLabel(selectedBrokerAccount.value.market)}`;
 });
 
 const compactBrokerAccountLabel = computed(() => {
@@ -168,9 +172,10 @@ const compactBrokerAccountLabel = computed(() => {
 });
 
 const codeSuggestions = computed(() => {
-  const market = selectedMarket.value.trim().toUpperCase();
+  const market = categoryMarketForUser(selectedMarket.value);
   return marketInstrumentSearchOptions.value.filter(
-    (option) => market === "" || option.market === market,
+    (option) =>
+      market === "" || categoryMarketForUser(option.market) === market,
   );
 });
 
@@ -181,7 +186,7 @@ watch(
     if (normalized === "") {
       return;
     }
-    selectedMarket.value = normalized;
+    selectedMarket.value = categoryMarketForUser(normalized);
   },
   { immediate: true },
 );
@@ -215,30 +220,40 @@ function openRightDock(tab: "notifications" | "ai"): void {
   updateViewState({ rightDockOpen: true, rightDockTab: tab });
 }
 
-async function submitSymbol(): Promise<void> {
-  const rawCode = codeInput.value.trim().toUpperCase();
-  if (rawCode === "") {
-    return;
-  }
-  const request =
-    rawCode.includes(".") || rawCode.includes(":")
-      ? { instrumentId: rawCode }
-      : {
-          market: selectedMarket.value,
-          code: rawCode,
-        };
-  let parsed: { prefix: string; code: string } | null = null;
-  try {
-    parsed = await normalizeInstrumentRefWithMarketApi(request);
-  } catch {
-    return;
-  }
-  if (parsed == null || parsed.prefix === "" || parsed.code === "") {
-    return;
-  }
-  selectWorkspaceInstrument({ market: parsed.prefix, symbol: parsed.code });
-  selectedMarket.value = parsed.prefix;
+function handleResolvedInstrument(candidate: {
+  market: string;
+  code: string;
+}): void {
+  selectWorkspaceInstrument({ market: candidate.market, symbol: candidate.code });
+  selectedMarket.value = categoryMarketForUser(candidate.market);
   codeInput.value = "";
+}
+
+const {
+  loading: instrumentResolving,
+  panelOpen: instrumentResolutionOpen,
+  candidates: instrumentCandidates,
+  failures: instrumentFailures,
+  resolutionStatus: instrumentResolutionStatus,
+  resolutionError: instrumentResolutionError,
+  statusMessage: instrumentResolutionMessage,
+  activeCandidateIndex,
+  resolve: resolveInstrument,
+  closePanel: closeInstrumentResolution,
+  selectCandidate: selectInstrumentCandidate,
+  handleKeydown: handleInstrumentKeydown,
+} = useInstrumentResolver({
+  market: selectedMarket,
+  query: codeInput,
+  onResolved: handleResolvedInstrument,
+});
+
+function submitSymbol(): void {
+  void resolveInstrument();
+}
+
+function failureMarketLabel(market: string): string {
+  return formatInstrumentExchangeTag(market) ?? formatUserMarketLabel(market);
 }
 
 function onBrokerAccountChange(event: Event): void {
@@ -360,18 +375,81 @@ onMounted(() => {
         autocomplete="off"
         enterkeyhint="search"
         type="search"
+        role="combobox"
+        :aria-expanded="instrumentResolutionOpen"
         data-testid="topbar-instrument-code"
-        @keydown.enter.prevent="submitSymbol"
+        @keydown="handleInstrumentKeydown"
       />
       <datalist id="jftrade-symbol-search">
         <option v-for="option in codeSuggestions" :key="option.instrumentId" :value="option.symbol"
           :label="option.label" />
       </datalist>
       <span style="font-size: 10px; color: var(--tv-text-dim)"
-        :title="`${codeSuggestions.length} 个可搜索代码，当前市场 ${formatMarketLabel(selectedMarket)}；来源于订阅、持仓、订单和查询缓存`">
+        :title="`${codeSuggestions.length} 个可搜索代码，当前市场 ${formatUserMarketLabel(selectedMarket)}；来源于订阅、持仓、订单和查询缓存`">
         {{ codeSuggestions.length }}
       </span>
-      <span style="font-size: 10px; color: var(--tv-text-dim)">⏎</span>
+      <button
+        type="button"
+        class="tv-topbar-symbol__submit"
+        :disabled="instrumentResolving"
+        :aria-label="instrumentResolving ? '正在查询标的' : '查询标的'"
+        data-testid="topbar-instrument-submit"
+        @click="submitSymbol"
+      >
+        <span class="tv-topbar-symbol__submit-shortcut" aria-hidden="true">
+          {{ instrumentResolving ? "···" : "⏎" }}
+        </span>
+        <span class="tv-topbar-symbol__submit-label">
+          {{ instrumentResolving ? "查询中" : "查询" }}
+        </span>
+      </button>
+      <div
+        v-if="instrumentResolutionOpen"
+        class="tv-topbar-symbol__resolution-panel"
+        :class="{ 'tv-topbar-symbol__resolution-panel--warning': instrumentResolutionStatus === 'incomplete' }"
+      >
+        <div v-if="instrumentResolutionMessage" class="tv-topbar-symbol__resolution-message" role="status">
+          {{ instrumentResolutionMessage }}
+        </div>
+        <div v-if="instrumentFailures.length" class="tv-topbar-symbol__resolution-failures">
+          <div v-for="failure in instrumentFailures" :key="`${failure.market}:${failure.code}`">
+            {{ failureMarketLabel(failure.market) }}：{{ failure.message }}
+          </div>
+        </div>
+        <button
+          v-for="(candidate, index) in instrumentCandidates"
+          :key="candidate.instrumentId"
+          type="button"
+          role="option"
+          class="tv-topbar-symbol__resolution-option"
+          :class="{ 'tv-topbar-symbol__resolution-option--active': index === activeCandidateIndex }"
+          :aria-selected="index === activeCandidateIndex"
+          @mouseenter="activeCandidateIndex = index"
+          @keydown="handleInstrumentKeydown"
+          @click="selectInstrumentCandidate(candidate)"
+        >
+          <span>{{ formatUserMarketLabel(candidate.market) }}</span>
+          <InstrumentIdentity
+            :market="candidate.market"
+            :code="candidate.code"
+            :instrument-id="candidate.instrumentId"
+            :name="candidate.name"
+            compact
+          />
+          <span>{{ candidate.securityType || "类型未知" }}</span>
+        </button>
+        <div class="tv-topbar-symbol__resolution-actions">
+          <button
+            v-if="instrumentResolutionStatus === 'incomplete' || instrumentResolutionStatus === 'not_found' || instrumentResolutionError"
+            type="button"
+            :disabled="instrumentResolving"
+            @click="submitSymbol"
+          >
+            重试
+          </button>
+          <button type="button" @click="closeInstrumentResolution">关闭</button>
+        </div>
+      </div>
     </form>
 
     <button type="button" class="tv-btn tv-btn-ghost tv-topbar-command"
@@ -501,7 +579,7 @@ onMounted(() => {
                   {{ `${account.securityFirm ?? "未知券商"} / ${account.brokerId.toUpperCase()} / ${account.displayName}` }}
                 </span>
                 <span class="tv-topbar-account-picker__item-sub-line">
-                  {{ `${account.accountId} / ${formatTradingEnvironment(account.tradingEnvironment)} / ${formatMarketLabel(account.market)}` }}
+                  {{ `${account.accountId} / ${formatTradingEnvironment(account.tradingEnvironment)} / ${formatUserMarketLabel(account.market)}` }}
                 </span>
               </button>
 
@@ -622,6 +700,133 @@ onMounted(() => {
 .tv-topbar-symbol__market option {
   color: var(--tv-text);
   background: var(--tv-bg-surface);
+}
+
+:global(.tv-topbar-symbol) {
+  position: relative;
+}
+
+.tv-topbar-symbol__submit {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 22px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tv-text-dim);
+  padding: 0 5px;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.tv-topbar-symbol__submit-label {
+  display: none;
+}
+
+.tv-topbar-symbol__submit:hover,
+.tv-topbar-symbol__submit:focus-visible {
+  border-color: var(--tv-border-strong);
+  background: var(--tv-bg-hover);
+  color: var(--tv-text);
+  outline: none;
+}
+
+.tv-topbar-symbol__submit:hover .tv-topbar-symbol__submit-shortcut,
+.tv-topbar-symbol__submit:focus-visible .tv-topbar-symbol__submit-shortcut {
+  display: none;
+}
+
+.tv-topbar-symbol__submit:hover .tv-topbar-symbol__submit-label,
+.tv-topbar-symbol__submit:focus-visible .tv-topbar-symbol__submit-label {
+  display: inline;
+}
+
+.tv-topbar-symbol__submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.tv-topbar-symbol__resolution-panel {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  background: var(--tv-bg-surface);
+  box-shadow: var(--tv-shadow-lg);
+  color: var(--tv-text);
+}
+
+.tv-topbar-symbol__resolution-panel--warning {
+  border-color: var(--tv-warn);
+}
+
+.tv-topbar-symbol__resolution-message,
+.tv-topbar-symbol__resolution-failures {
+  padding: 7px 10px;
+  color: var(--tv-text-muted);
+  font-size: 11px;
+}
+
+.tv-topbar-symbol__resolution-failures {
+  padding-top: 0;
+  color: var(--tv-warn);
+}
+
+.tv-topbar-symbol__resolution-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--tv-border);
+  background: transparent;
+  color: inherit;
+  padding: 7px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tv-topbar-symbol__resolution-option > span:first-child,
+.tv-topbar-symbol__resolution-option > span:last-child {
+  color: var(--tv-text-dim);
+  font-size: 10px;
+}
+
+.tv-topbar-symbol__resolution-option--active,
+.tv-topbar-symbol__resolution-option:hover {
+  background: var(--tv-bg-hover);
+}
+
+.tv-topbar-symbol__resolution-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  border-top: 1px solid var(--tv-border);
+  padding: 6px 8px;
+}
+
+.tv-topbar-symbol__resolution-actions button {
+  border: 1px solid var(--tv-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tv-text-muted);
+  padding: 2px 7px;
+  font-size: 10px;
+  cursor: pointer;
 }
 
 .tv-topbar-account-picker {
@@ -768,7 +973,7 @@ onMounted(() => {
     width: 100%;
     max-width: 100vw;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
     padding: 5px 6px;
   }
 

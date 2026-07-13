@@ -53,7 +53,7 @@ export interface MarketInstrumentReference {
   status: string | null;
   source: string;
   updatedAt: string;
-  brokerMappings: Array<{
+  brokerMappings?: Array<{
     brokerId: string;
     brokerMarket: string;
     brokerSymbol: string;

@@ -140,7 +140,7 @@ watch(groups, (next) => {
       v-model="membershipDialogOpen"
       :market="membershipTarget.market"
       :symbol="membershipTarget.symbol"
-      :title="membershipTarget.name ? `${membershipTarget.instrumentId} · ${membershipTarget.name}` : membershipTarget.instrumentId"
+      :name="membershipTarget.name"
     />
   </aside>
 </template>

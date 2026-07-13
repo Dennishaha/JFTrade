@@ -2,10 +2,12 @@ package servercore
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -19,6 +21,7 @@ func newMarketdataProvider(s *Server) mdsrv.Provider {
 		getSecurityDetails: func(ctx context.Context, market, symbol string) (mdsrv.SecurityDetails, error) {
 			return s.marketSecurityDetailsResponseForInstrument(ctx, market, symbol)
 		},
+		lookupInstrument: s.marketdataProviderLookupInstrument,
 
 		querySnapshot: func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
 			return s.marketdataRuntime.QuerySnapshot(ctx, instrumentID)
@@ -81,7 +84,7 @@ func marketdataProviderDescriptor(context.Context) (mdsrv.ProviderDescriptor, er
 }
 
 func marketdataProviderMarkets(context.Context) ([]mdsrv.MarketProfile, error) {
-	dtos := marketProfileDTOs()
+	dtos := userMarketProfileDTOs()
 	profiles := make([]mdsrv.MarketProfile, 0, len(dtos))
 	for _, d := range dtos {
 		profiles = append(profiles, mdsrv.MarketProfile{
@@ -100,6 +103,58 @@ func marketdataProviderMarkets(context.Context) ([]mdsrv.MarketProfile, error) {
 		})
 	}
 	return profiles, nil
+}
+
+func (s *Server) marketdataProviderLookupInstrument(ctx context.Context, marketCode, code string) ([]mdsrv.InstrumentCandidate, error) {
+	instrument, err := market.ParseInstrument(market.InstrumentInput{Market: marketCode, Code: code})
+	if err != nil {
+		return nil, err
+	}
+	b, err := s.futuBrokerOrError()
+	if err != nil {
+		return nil, err
+	}
+	reader := b.MarketData()
+	if reader == nil {
+		return nil, fmt.Errorf("broker market data not available")
+	}
+	staticInfo, err := reader.QuerySecurityInfo(ctx, broker.SecurityInfoQuery{
+		ReadQuery: brokerReadQuery(instrument.Symbol),
+		Symbols:   []string{instrument.Symbol},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if staticInfo == nil {
+		return []mdsrv.InstrumentCandidate{}, nil
+	}
+
+	candidates := make([]mdsrv.InstrumentCandidate, 0, len(staticInfo.Securities))
+	for _, security := range staticInfo.Securities {
+		parsed, parseErr := market.ParseQualifiedInstrumentSymbol(security.Symbol)
+		if parseErr != nil || parsed.Prefix != instrument.Prefix || !strings.EqualFold(parsed.Code, instrument.Code) {
+			continue
+		}
+		candidate := mdsrv.InstrumentCandidate{
+			Market:         parsed.Prefix,
+			ResolvedMarket: parsed.Market,
+			InstrumentID:   parsed.Symbol,
+			Code:           parsed.Code,
+			Symbol:         parsed.Code,
+			Source:         "bbgo:futu",
+		}
+		if security.Name != nil {
+			candidate.Name = strings.TrimSpace(*security.Name)
+		}
+		if security.SecurityType != nil {
+			candidate.SecurityType = strings.TrimSpace(*security.SecurityType)
+		}
+		if security.LotSize != nil && *security.LotSize > 0 {
+			candidate.LotSize = *security.LotSize
+		}
+		candidates = append(candidates, candidate)
+	}
+	return candidates, nil
 }
 
 func marketdataProviderNormalizeInstrument(_ context.Context, input map[string]any) (map[string]any, error) {
@@ -175,6 +230,7 @@ type marketdataProvider struct {
 	getMarkets           func(context.Context) ([]mdsrv.MarketProfile, error)
 	normalizeInstrument  func(context.Context, map[string]any) (map[string]any, error)
 	getSecurityDetails   func(context.Context, string, string) (mdsrv.SecurityDetails, error)
+	lookupInstrument     func(context.Context, string, string) ([]mdsrv.InstrumentCandidate, error)
 	querySnapshot        func(context.Context, string) (*mdsrv.Tick, error)
 	queryTicker          func(context.Context, string) (*mdsrv.Tick, error)
 	getHistoricalCandles func(context.Context, string, string, string, int, string, string) (mdsrv.CandlesResponse, error)
@@ -199,6 +255,13 @@ func (p *marketdataProvider) NormalizeInstrument(ctx context.Context, input map[
 
 func (p *marketdataProvider) GetSecurityDetails(ctx context.Context, market, symbol string) (mdsrv.SecurityDetails, error) {
 	return p.getSecurityDetails(ctx, market, symbol)
+}
+
+func (p *marketdataProvider) LookupInstrument(ctx context.Context, market, code string) ([]mdsrv.InstrumentCandidate, error) {
+	if p.lookupInstrument == nil {
+		return nil, fmt.Errorf("market-data exact instrument lookup is unavailable")
+	}
+	return p.lookupInstrument(ctx, market, code)
 }
 
 func (p *marketdataProvider) QuerySnapshot(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {

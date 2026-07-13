@@ -412,20 +412,23 @@ func handleHeartbeat(svc *srv.Service) gin.HandlerFunc {
 }
 
 // handleInstrumentSearch godoc
-// @Summary 搜索行情标的
+// @Summary 精确解析行情标的
 // @Tags market-data
 // @Produce json
-// @Param query query string false "搜索关键字"
-// @Success 200 {object} httpserver.Envelope
+// @Param market query string false "市场或市场分类"
+// @Param query query string false "精确证券代码或完整标的 ID"
+// @Success 200 {object} httpserver.Envelope{data=marketdata.InstrumentResolution}
+// @Failure 400 {object} httpserver.Envelope
 // @Router /api/v1/market-data/instruments [get]
 func handleInstrumentSearch(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		query := c.Query("query")
-		httpserver.WriteOK(c, map[string]any{
-			"query":         query,
-			"totalReturned": 0,
-			"entries":       []any{},
-		})
+		result, err := svc.ResolveInstrument(c.Request.Context(), c.Query("market"), query)
+		if err != nil {
+			httpserver.WriteError(c, 400, "MARKET_INSTRUMENT_INVALID", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
 	}
 }
 

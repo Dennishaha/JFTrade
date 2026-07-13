@@ -207,11 +207,10 @@ const {
     instanceEditorPreviewDefinitionLabel,
     instanceEditorTitle,
     instanceEditorHint,
-    commitSymbolDraft,
+    acceptActiveResolvedInstrument,
     removeActiveSymbol,
     updateActiveSymbolDraft,
     updateActiveSymbolDraftMarket,
-    commitActiveSymbolDraft,
     handleActiveSymbolDraftKeydown,
     handleActiveSymbolDraftPaste,
     updateActiveIntervalValue,
@@ -398,9 +397,9 @@ const instanceEditorDialogListeners = {
         createDefinitionId.value = value;
     },
     "remove-symbol": removeActiveSymbol,
+    "resolve-symbol": acceptActiveResolvedInstrument,
     "update:symbol-market": updateActiveSymbolDraftMarket,
     "update:symbol-draft": updateActiveSymbolDraft,
-    "commit-symbol-draft": commitActiveSymbolDraft,
     "symbol-draft-keydown": handleActiveSymbolDraftKeydown,
     "symbol-draft-paste": handleActiveSymbolDraftPaste,
     "update:interval": updateActiveIntervalValue,
@@ -800,8 +799,8 @@ async function createStrategyInstance(): Promise<void> {
         instanceMutationError.value = createSymbolValidationMessage.value;
         return;
     }
-    if (!await commitSymbolDraft("create")) {
-        instanceMutationError.value = createSymbolValidationMessage.value;
+    if (normalizeText(activeSymbolDraft.value) !== "") {
+        instanceMutationError.value = "请先解析并确认待添加的交易代码。";
         return;
     }
 
@@ -876,8 +875,8 @@ async function updateSelectedStrategyBinding(): Promise<void> {
         instanceMutationError.value = editSymbolValidationMessage.value;
         return;
     }
-    if (!await commitSymbolDraft("edit")) {
-        instanceMutationError.value = editSymbolValidationMessage.value;
+    if (normalizeText(activeSymbolDraft.value) !== "") {
+        instanceMutationError.value = "请先解析并确认待添加的交易代码。";
         return;
     }
 

@@ -8,15 +8,16 @@ import {
   useWatchlistGroups,
   useWatchlistMembership,
 } from "../../../composables/useWatchlist";
+import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
 
 const props = withDefaults(
   defineProps<{
     modelValue: boolean;
     market: string;
     symbol: string;
-    title?: string;
+    name?: string | undefined;
   }>(),
-  { title: "" },
+  { name: "" },
 );
 
 const emit = defineEmits<{
@@ -38,7 +39,6 @@ const initializedFor = ref("");
 const instrumentId = computed(
   () => `${props.market.trim().toUpperCase()}.${props.symbol.trim().toUpperCase()}`,
 );
-const dialogTitle = computed(() => props.title.trim() || instrumentId.value);
 const groups = computed(() => groupsQuery.data.value ?? []);
 const loading = computed(
   () => groupsQuery.isLoading.value || membershipQuery.isLoading.value,
@@ -148,7 +148,14 @@ watch(
       <header class="watchlist-membership-dialog__header">
         <div>
           <span class="watchlist-membership-dialog__eyebrow">自选分组</span>
-          <h2>{{ dialogTitle }}</h2>
+          <h2>
+            <InstrumentIdentity
+              :market="market"
+              :code="symbol"
+              :instrument-id="instrumentId"
+              :name="name"
+            />
+          </h2>
         </div>
         <button type="button" class="watchlist-membership-dialog__close" aria-label="关闭" @click="close">×</button>
       </header>

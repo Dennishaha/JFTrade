@@ -7,6 +7,7 @@ import {
 } from "@/contracts";
 
 import { formatDateTime } from "../../composables/consoleDataFormatting";
+import { formatInstrumentIdentityText } from "../../composables/instrumentPresentation";
 import type { MarketSecurityDetails } from "../../composables/marketDataRealtime";
 import { fetchEnvelope } from "../../composables/apiClient";
 import { resolveBrokerQuery } from "../../composables/consoleDataBrokerAccountSelection";
@@ -17,6 +18,7 @@ import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWatchlistMembership } from "../../composables/useWatchlist";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import DenseMetricStrip from "../domain/shared/DenseMetricStrip.vue";
 import WatchlistMembershipDialog from "../domain/watchlist/WatchlistMembershipDialog.vue";
@@ -45,14 +47,11 @@ void loadMarketDataProviderStatus();
 const snapshot = computed(() => marketDataSnapshot.value?.snapshot ?? null);
 const security = computed(() => marketSecurityDetails.value?.security ?? null);
 const instrumentId = computed(() => `${prefs.value.market}.${prefs.value.symbol}`);
-const instrumentTitle = computed(() => {
+const instrumentName = computed(() => {
   const option = marketInstrumentSearchOptions.value.find(
     (candidate) => candidate.instrumentId === instrumentId.value,
   );
-  const resolvedName = option?.name ?? security.value?.name ?? "";
-  return resolvedName === ""
-    ? instrumentId.value
-    : `${instrumentId.value} · ${resolvedName}`;
+  return option?.name ?? security.value?.name ?? "";
 });
 const { query: watchlistMembershipQuery } = useWatchlistMembership(
   () => prefs.value.market,
@@ -369,7 +368,9 @@ function formatPercentValue(value: number | null | undefined): string {
 }
 
 function formatOwner(owner: { instrumentId: string } | null | undefined): string {
-  return owner?.instrumentId ?? "—";
+  return owner == null
+    ? "—"
+    : formatInstrumentIdentityText({ instrumentId: owner.instrumentId });
 }
 
 function formatSecurityStatus(item: MarketSecurityDetails): string {
@@ -389,7 +390,13 @@ function formatPercent(value: number | null | undefined): string {
   <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">行情</span>
-      <span style="font-weight: 600">{{ instrumentTitle }}</span>
+      <InstrumentIdentity
+        :market="prefs.market"
+        :code="prefs.symbol"
+        :instrument-id="instrumentId"
+        :name="instrumentName"
+        compact
+      />
       <div style="flex: 1"></div>
       <MarketFeedStatus
         :connection-state="quoteConnectionState"
@@ -563,7 +570,7 @@ function formatPercent(value: number | null | undefined): string {
       v-model="membershipDialogOpen"
       :market="prefs.market"
       :symbol="prefs.symbol"
-      :title="instrumentTitle"
+      :name="instrumentName"
     />
   </section>
 </template>

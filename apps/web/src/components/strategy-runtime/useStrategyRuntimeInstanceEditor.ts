@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from "vue";
 
 import type {
+    InstrumentResolutionCandidate,
     NormalizeInstrumentRequest,
     NormalizeInstrumentResponse,
     StrategyBindingInstrumentDocument,
@@ -12,6 +13,7 @@ import type {
 } from "@/contracts";
 
 import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
+import { categoryMarketForUser } from "../../composables/instrumentPresentation";
 import {
     bindingInstrumentsToSymbols,
     brokerAccountOptionSubtitle,
@@ -220,7 +222,9 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
                 return;
             }
             editBindingInstruments.value = normalizeBindingInstruments(binding.instruments ?? []);
-            editSymbolDraftMarket.value = binding.instruments?.[0]?.market ?? defaultSymbolDraftMarket("edit");
+            editSymbolDraftMarket.value = categoryMarketForUser(
+                binding.instruments?.[0]?.market ?? defaultSymbolDraftMarket("edit"),
+            );
             editSymbolDraft.value = "";
             editSymbolValidationMessage.value = "";
             editInterval.value = binding.interval;
@@ -245,16 +249,16 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         if (mode === "edit") {
             const bindingMarket = options.selectedStrategyBinding.value?.instruments?.[0]?.market;
             if (normalizeText(bindingMarket) !== "") {
-                return normalizeText(bindingMarket).toUpperCase();
+                return categoryMarketForUser(bindingMarket);
             }
         }
         const optionMarket = selectedBrokerAccountOptionFor(mode)?.market;
         if (normalizeText(optionMarket) !== "") {
-            return normalizeText(optionMarket).toUpperCase();
+            return categoryMarketForUser(optionMarket);
         }
         const selectedMarket = options.selectedBrokerAccount.value?.market;
         if (normalizeText(selectedMarket) !== "") {
-            return normalizeText(selectedMarket).toUpperCase();
+            return categoryMarketForUser(selectedMarket);
         }
         return "HK";
     }
@@ -264,7 +268,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     }
 
     function setSymbolDraftMarket(mode: StrategySymbolEditorMode, value: string): void {
-        const normalized = normalizeText(value).toUpperCase();
+        const normalized = categoryMarketForUser(value);
         if (mode === "create") {
             createSymbolDraftMarket.value = normalized || defaultSymbolDraftMarket(mode);
             return;
@@ -350,7 +354,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
                 setBindingInstruments(mode, [...bindingInstrumentsFor(mode), ...parsed]);
                 const last = parsed[parsed.length - 1];
                 if (last != null) {
-                    setSymbolDraftMarket(mode, last.market);
+                    setSymbolDraftMarket(mode, categoryMarketForUser(last.market));
                 }
             }
             if (invalidSymbols.length > 0) {
@@ -529,16 +533,36 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         removeSymbolTag(activeInstanceEditorMode.value, symbol);
     }
 
+    function acceptResolvedInstrument(
+        mode: StrategySymbolEditorMode,
+        candidate: InstrumentResolutionCandidate,
+    ): void {
+        const market = normalizeText(candidate.market).toUpperCase();
+        const code = normalizeText(candidate.code || candidate.symbol).toUpperCase();
+        if (market === "" || code === "") {
+            setSymbolValidationMessage(mode, "解析结果缺少市场或代码，请重新选择标的。");
+            return;
+        }
+        setBindingInstruments(mode, [
+            ...bindingInstrumentsFor(mode),
+            { market, code },
+        ]);
+        setSymbolDraftMarket(mode, categoryMarketForUser(market));
+        setSymbolValidationMessage(mode, "");
+    }
+
+    function acceptActiveResolvedInstrument(
+        candidate: InstrumentResolutionCandidate,
+    ): void {
+        acceptResolvedInstrument(activeInstanceEditorMode.value, candidate);
+    }
+
     function updateActiveSymbolDraft(value: string): void {
         setSymbolDraft(activeInstanceEditorMode.value, value);
     }
 
     function updateActiveSymbolDraftMarket(value: string): void {
         setSymbolDraftMarket(activeInstanceEditorMode.value, value);
-    }
-
-    function commitActiveSymbolDraft(): void {
-        void commitSymbolDraft(activeInstanceEditorMode.value);
     }
 
     function handleActiveSymbolDraftKeydown(event: KeyboardEvent): void {
@@ -662,10 +686,11 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         instanceEditorTitle,
         instanceEditorHint,
         commitSymbolDraft,
+        acceptResolvedInstrument,
         removeActiveSymbol,
+        acceptActiveResolvedInstrument,
         updateActiveSymbolDraft,
         updateActiveSymbolDraftMarket,
-        commitActiveSymbolDraft,
         handleActiveSymbolDraftKeydown,
         handleActiveSymbolDraftPaste,
         updateActiveIntervalValue,

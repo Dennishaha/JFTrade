@@ -9,6 +9,7 @@ import {
 } from "@/contracts";
 
 import type { MarketInstrumentReference } from "./consoleDataSystemState";
+import { formatInstrumentIdentityText } from "./instrumentPresentation";
 
 interface MarketInstrumentInput {
   market?: string | null;
@@ -106,7 +107,7 @@ export function createConsoleDataMarketInstrumentsController(
 
       for (const reference of options.marketInstrumentReferences.value) {
         addInstrument(reference, "reference");
-        for (const mapping of reference.brokerMappings) {
+        for (const mapping of reference.brokerMappings ?? []) {
           addInstrument(
             {
               market: mapping.brokerMarket,
@@ -137,12 +138,17 @@ export function createConsoleDataMarketInstrumentsController(
         .map(([instrumentId, item]) => {
           const sources = [...item.sources].sort();
           const nameSuffix = item.name == null ? "" : ` · ${item.name}`;
+          const displayIdentity = formatInstrumentIdentityText({
+            market: item.market,
+            code: item.symbol,
+            instrumentId,
+          });
           return {
             market: item.market,
             symbol: item.symbol,
             instrumentId,
             name: item.name,
-            label: `${instrumentId}${nameSuffix} · ${sources.join(", ")}`,
+            label: `${displayIdentity}${nameSuffix} · ${sources.join(", ")}`,
             sources,
           };
         })

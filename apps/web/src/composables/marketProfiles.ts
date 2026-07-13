@@ -9,6 +9,7 @@ import type {
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 import { formatMarketLabel } from "./consoleDataFormatting";
+import { formatUserMarketLabel } from "./instrumentPresentation";
 
 const marketProfiles = ref<MarketProfileDto[]>([]);
 const defaultMarket = ref("HK");
@@ -35,8 +36,72 @@ function profileMatchesMarket(profile: MarketProfileDto, market: string): boolea
     .some((candidate) => candidate === normalized);
 }
 
+function selectableProfiles(profiles: MarketProfileDto[]): MarketProfileDto[] {
+  const result: MarketProfileDto[] = [];
+  const indexByCode = new Map<string, number>();
+
+  for (const profile of profiles) {
+    const code = normalizeMarketCode(profile.code);
+    const resolvedMarket =
+      normalizeMarketCode(profile.resolvedMarket) || code;
+    if (code === "" || resolvedMarket === "") {
+      continue;
+    }
+
+    if (code === resolvedMarket) {
+      const existingIndex = indexByCode.get(code);
+      if (existingIndex == null) {
+        indexByCode.set(code, result.length);
+        result.push(profile);
+      } else {
+        const synthesized = result[existingIndex];
+        result[existingIndex] = {
+          ...profile,
+          aliases: Array.from(
+            new Set([
+              ...(profile.aliases ?? []),
+              ...(synthesized?.aliases ?? []),
+            ]),
+          ),
+        };
+      }
+      continue;
+    }
+
+    const existingIndex = indexByCode.get(resolvedMarket);
+    const childAliases = [code, ...(profile.aliases ?? [])];
+    if (existingIndex != null) {
+      const existing = result[existingIndex];
+      if (existing != null) {
+        result[existingIndex] = {
+          ...existing,
+          aliases: Array.from(
+            new Set([...(existing.aliases ?? []), ...childAliases]),
+          ),
+        };
+      }
+      continue;
+    }
+
+    indexByCode.set(resolvedMarket, result.length);
+    result.push({
+      ...profile,
+      code: resolvedMarket,
+      resolvedMarket,
+      preferredPrefix: "",
+      displayName: resolvedMarket === "CN" ? "沪深" : profile.displayName,
+      aliases: Array.from(new Set(childAliases)),
+    });
+  }
+
+  return result;
+}
+
 function marketOptionTitle(profile: MarketProfileDto): string {
   const code = normalizeMarketCode(profile.code);
+  if (code === "CN") {
+    return formatUserMarketLabel(code);
+  }
   const localized = formatMarketLabel(code);
   if (localized !== "" && localized !== code) {
     return `${localized} ${code}`;
@@ -113,7 +178,7 @@ export async function normalizeInstrumentRefWithMarketApi(
 
 export function useMarketProfiles() {
   const marketOptions = computed(() =>
-    marketProfiles.value.map((profile) => ({
+    selectableProfiles(marketProfiles.value).map((profile) => ({
       value: profile.code,
       title: marketOptionTitle(profile),
     })),

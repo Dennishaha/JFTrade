@@ -106,6 +106,9 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 		getSecurityDetails: func(context.Context, string, string) (mdsrv.SecurityDetails, error) {
 			return nil, expectedErr
 		},
+		lookupInstrument: func(_ context.Context, market, code string) ([]mdsrv.InstrumentCandidate, error) {
+			return []mdsrv.InstrumentCandidate{{Market: market, Code: code, InstrumentID: market + "." + code}}, nil
+		},
 		querySnapshot: func(context.Context, string) (*mdsrv.Tick, error) {
 			return &mdsrv.Tick{InstrumentID: "US.AAPL", Kind: mdsrv.TickKindTrade}, nil
 		},
@@ -135,6 +138,9 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 	}
 	if _, err := provider.GetSecurityDetails(ctx, "US", "AAPL"); !errors.Is(err, expectedErr) {
 		t.Fatalf("GetSecurityDetails() err=%v, want %v", err, expectedErr)
+	}
+	if candidates, err := provider.LookupInstrument(ctx, "US", "AAPL"); err != nil || len(candidates) != 1 || candidates[0].InstrumentID != "US.AAPL" {
+		t.Fatalf("LookupInstrument() = %#v err=%v", candidates, err)
 	}
 	if tick, err := provider.QuerySnapshot(ctx, "US.AAPL"); err != nil || tick.InstrumentID != "US.AAPL" {
 		t.Fatalf("QuerySnapshot() = %#v err=%v", tick, err)

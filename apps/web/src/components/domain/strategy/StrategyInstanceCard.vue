@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import { parseStrategyInstrumentIdsText } from "../../strategy-runtime/strategyRuntimeInstanceBinding";
+import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
 import RuntimeHealthBadge from "../runtime/RuntimeHealthBadge.vue";
 import type { StrategyInstanceCardModel } from "./strategyInstanceCard";
 
@@ -19,6 +21,9 @@ const statusToneClass = computed(() => {
     default: return "strategy-instance-card--stopped";
   }
 });
+const symbolInstrumentIds = computed(() =>
+  parseStrategyInstrumentIdsText(props.model.symbols),
+);
 
 function selectStrategy(): void {
   if (!props.model.disabled) {
@@ -58,7 +63,18 @@ function selectStrategy(): void {
     <div v-if="model.definitionStale" class="mt-2 text-sm text-amber-700">
       {{ model.definitionSyncSummary }}
     </div>
-    <div class="mt-2 text-sm text-slate-500">标的 {{ model.symbols }}</div>
+    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-slate-500">
+      <span>标的</span>
+      <template v-if="symbolInstrumentIds.length > 0">
+        <InstrumentIdentity
+          v-for="symbol in symbolInstrumentIds"
+          :key="symbol"
+          :instrument-id="symbol"
+          compact
+        />
+      </template>
+      <span v-else>{{ model.symbols }}</span>
+    </div>
     <div class="mt-1 text-sm text-slate-500">周期 {{ model.interval }}</div>
     <div class="mt-1 break-all text-sm text-slate-500">{{ model.brokerAccountSummary }}</div>
     <div

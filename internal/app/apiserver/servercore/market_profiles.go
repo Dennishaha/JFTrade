@@ -42,7 +42,14 @@ type normalizeMarketInstrumentResponse struct {
 }
 
 func marketProfileDTOs() []marketProfileDTO {
-	descriptors := market.MarketDescriptors()
+	return marketProfileDTOsFromDescriptors(market.MarketDescriptors())
+}
+
+func userMarketProfileDTOs() []marketProfileDTO {
+	return marketProfileDTOsFromDescriptors(market.UserMarketDescriptors())
+}
+
+func marketProfileDTOsFromDescriptors(descriptors []market.MarketDescriptor) []marketProfileDTO {
 	result := make([]marketProfileDTO, 0, len(descriptors))
 	for _, descriptor := range descriptors {
 		sessions := make([]marketTradingWindowDTO, 0, len(descriptor.RegularSessions))

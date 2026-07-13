@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { StrategyInstanceItem } from "@/contracts";
 
+import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import RuntimeHealthBadge from "../domain/runtime/RuntimeHealthBadge.vue";
+import { parseStrategyInstrumentIdsText } from "./strategyRuntimeInstanceBinding";
 
 type StrategyAction = "start" | "pause" | "stop";
 
-defineProps<{
+const props = defineProps<{
     selectedStrategy: StrategyInstanceItem;
     selectedRuntimeStatus: StrategyInstanceItem["status"] | string;
     selectedRuntimeStatusLabel: string;
@@ -17,6 +20,10 @@ defineProps<{
     formatStrategySymbols: (strategy: StrategyInstanceItem) => string;
     formatStrategyInterval: (strategy: StrategyInstanceItem) => string;
 }>();
+
+const strategyInstrumentIds = computed(() =>
+    parseStrategyInstrumentIdsText(props.formatStrategySymbols(props.selectedStrategy)),
+);
 
 const emit = defineEmits<{
     "refresh-content": [];
@@ -34,7 +41,17 @@ const emit = defineEmits<{
                 </div>
                 <div class="mt-1 flex flex-wrap items-center gap-2 text-xs runtime-workbench-text-muted">
                     <span>{{ selectedStrategy.id }}</span>
-                    <span>{{ formatStrategySymbols(selectedStrategy) }}</span>
+                    <span class="inline-flex flex-wrap items-center gap-1">
+                        <template v-if="strategyInstrumentIds.length > 0">
+                            <InstrumentIdentity
+                                v-for="symbol in strategyInstrumentIds"
+                                :key="symbol"
+                                :instrument-id="symbol"
+                                compact
+                            />
+                        </template>
+                        <template v-else>{{ formatStrategySymbols(selectedStrategy) }}</template>
+                    </span>
                     <span>{{ formatStrategyInterval(selectedStrategy) }}</span>
                     <span>{{ selectedStrategyRuntimeLabel }}</span>
                 </div>

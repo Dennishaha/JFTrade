@@ -353,6 +353,10 @@ func (p *dataProviderStub) GetSecurityDetails(_ context.Context, market, symbol 
 	return p.details, p.detailsErr
 }
 
+func (*dataProviderStub) LookupInstrument(context.Context, string, string) ([]InstrumentCandidate, error) {
+	return nil, nil
+}
+
 func (p *dataProviderStub) QuerySnapshot(_ context.Context, instrumentID string) (*Tick, error) {
 	p.snapshotCalls++
 	p.snapshotID = instrumentID

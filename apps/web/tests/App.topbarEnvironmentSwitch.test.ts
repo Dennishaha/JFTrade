@@ -418,7 +418,6 @@ describe("TopBar trading environment switch", () => {
           resolvedMarket: market,
         });
       }
-
       throw new Error(`Unexpected request: ${url}`);
     });
 
@@ -744,7 +743,6 @@ describe("TopBar trading environment switch", () => {
           resolvedMarket: market,
         });
       }
-
       throw new Error(`Unexpected request: ${url}`);
     });
 
@@ -798,7 +796,7 @@ describe("TopBar trading environment switch", () => {
     wrapper.unmount();
   });
 
-  it("submits the instrument code when pressing Enter in the topbar input", async () => {
+  it("resolves an A-share category input and persists the actual exchange", async () => {
     window.sessionStorage.removeItem("jftrade.workspace.layout.v1");
 
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
@@ -887,6 +885,32 @@ describe("TopBar trading environment switch", () => {
               precision: { price: 3, quote: 3 },
               tickSize: 0.001,
             },
+            {
+              code: "US",
+              resolvedMarket: "US",
+              preferredPrefix: "US",
+              displayName: "United States",
+              quoteCurrency: "USD",
+              supportsExtendedHours: true,
+              requiresExchangePrefix: false,
+              aliases: [],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+            {
+              code: "CN",
+              resolvedMarket: "CN",
+              preferredPrefix: "",
+              displayName: "沪深",
+              quoteCurrency: "CNY",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: true,
+              aliases: ["SH", "SZ", "CNSH", "CNSZ"],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
           ],
         });
       }
@@ -914,6 +938,41 @@ describe("TopBar trading environment switch", () => {
           resolvedMarket: market,
         });
       }
+      if (url.includes("/api/v1/market-data/instruments?")) {
+        const requestURL = new URL(url, "http://localhost");
+        const requestedMarket = (requestURL.searchParams.get("market") ?? "HK")
+          .trim()
+          .toUpperCase();
+        const rawQuery = (requestURL.searchParams.get("query") ?? "")
+          .trim()
+          .toUpperCase()
+          .replace(":", ".");
+        if (rawQuery === "") {
+          return createResponse({ query: "", totalReturned: 0, entries: [] });
+        }
+        const embedded = rawQuery.includes(".") ? rawQuery.split(".", 2) : null;
+        const market =
+          embedded?.[0] ?? (requestedMarket === "CN" ? "SH" : requestedMarket);
+        const code = embedded?.[1] ?? rawQuery;
+        return createResponse({
+          requestedMarket,
+          query: rawQuery,
+          resolutionStatus: "resolved",
+          totalReturned: 1,
+          entries: [{
+            market,
+            resolvedMarket: market === "SH" || market === "SZ" ? "CN" : market,
+            instrumentId: `${market}.${code}`,
+            code,
+            symbol: code,
+            name: null,
+            securityType: "STOCK",
+            lotSize: 1,
+            source: "test-static",
+          }],
+          failures: [],
+        });
+      }
 
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -931,16 +990,59 @@ describe("TopBar trading environment switch", () => {
       '[data-testid="topbar-instrument-code"]',
     );
 
-    await codeInput.setValue("aapl");
-    await wrapper.get('[data-testid="topbar-instrument-form"]').trigger("submit");
+    const marketSelect = wrapper.get('[data-testid="topbar-instrument-market"]');
+    expect(
+      marketSelect.findAll("option").map((option) => option.element.value),
+    ).toEqual(["HK", "US", "CN"]);
+    expect(codeInput.element.tagName).toBe("INPUT");
+    expect(wrapper.find(".instrument-resolver__submit").exists()).toBe(false);
+    await marketSelect.setValue("CN");
+    await codeInput.setValue("600519");
+    await codeInput.trigger("keydown", { key: "Enter" });
     await flushRequests();
 
     const storedPrefs = JSON.parse(
       window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
     ) as { market?: string; symbol?: string };
 
-    expect(storedPrefs.market).toBe("HK");
-    expect(storedPrefs.symbol).toBe("AAPL");
+    expect(storedPrefs.market).toBe("SH");
+    expect(storedPrefs.symbol).toBe("600519");
+
+    await marketSelect.setValue("US");
+    await codeInput.setValue("AAPL");
+    await codeInput.trigger("keydown", { key: "Enter" });
+    await flushRequests();
+
+    const usPrefs = JSON.parse(
+      window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+    ) as { market?: string; symbol?: string };
+    expect(usPrefs).toMatchObject({ market: "US", symbol: "AAPL" });
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes(
+          "/api/v1/market-data/instruments?market=US&query=AAPL",
+        ),
+      ),
+    ).toBe(false);
+
+    const submitButton = wrapper.get(
+      '[data-testid="topbar-instrument-submit"]',
+    );
+    expect(submitButton.get(".tv-topbar-symbol__submit-shortcut").text()).toBe(
+      "⏎",
+    );
+    expect(submitButton.get(".tv-topbar-symbol__submit-label").text()).toBe(
+      "查询",
+    );
+
+    await codeInput.setValue("MSFT");
+    await submitButton.trigger("click");
+    await flushRequests();
+    expect(
+      JSON.parse(
+        window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+      ),
+    ).toMatchObject({ market: "US", symbol: "MSFT" });
 
     wrapper.unmount();
   });

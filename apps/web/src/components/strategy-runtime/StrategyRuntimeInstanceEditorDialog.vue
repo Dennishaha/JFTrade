@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type {
+    InstrumentResolutionCandidate,
     StrategyDefinitionDocument,
     StrategyExecutionMode,
     StrategyInstanceItem,
@@ -8,6 +9,12 @@ import type {
 } from "@/contracts";
 
 import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
+import {
+    formatInstrumentExchangeTag,
+    formatUserMarketLabel,
+} from "../../composables/instrumentPresentation";
+import { useInstrumentResolver } from "../../composables/instrumentResolver";
+import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import { brokerAccountOptionSubtitle } from "./strategyRuntimeInstanceBinding";
 
 type StrategyRuntimeInstanceEditorMode = "create" | "edit";
@@ -56,7 +63,7 @@ const emit = defineEmits<{
     "remove-symbol": [symbol: string];
     "update:symbol-market": [value: string];
     "update:symbol-draft": [value: string];
-    "commit-symbol-draft": [];
+    "resolve-symbol": [candidate: InstrumentResolutionCandidate];
     "symbol-draft-keydown": [event: KeyboardEvent];
     "symbol-draft-paste": [event: ClipboardEvent];
     "update:interval": [value: string];
@@ -76,6 +83,8 @@ const emit = defineEmits<{
 
 const isCreate = computed(() => props.mode === "create");
 const isEdit = computed(() => props.mode === "edit");
+const symbolMarketInput = ref(props.symbolMarket);
+const symbolDraftInput = ref(props.symbolDraft);
 const closeTestId = computed(() =>
     isCreate.value ? "strategy-create-instance-close" : "strategy-edit-instance-close",
 );
@@ -118,8 +127,8 @@ const currentTagTestId = computed(() =>
 const previewHeading = computed(() => (isCreate.value ? "创建预览" : "绑定预览"));
 const symbolHelperText = computed(() =>
     isCreate.value
-    ? "先选市场，再输入代码；按 Enter、Tab、逗号可添加，也支持直接粘贴 US.TME、HK.00700 或多行列表。"
-    : "为空时表示暂未绑定交易代码；先选市场再输入代码，按 Backspace 可快速删除最后一个标签。",
+    ? "先选市场，再输入代码；按 Enter 或点击解析。多结果与部分查询失败时需要显式选择，也支持粘贴多行完整标的列表。"
+    : "为空时表示暂未绑定交易代码；解析成功后追加实际交易所标的，空输入时按 Backspace 可快速删除最后一个标签。",
 );
 const notifyOnlyNotice = computed(() =>
     isCreate.value
@@ -164,20 +173,83 @@ function handleDefinitionChange(event: Event): void {
     emit("update:create-definition-id", (event.target as HTMLSelectElement).value);
 }
 
-function handleSymbolDraftInput(event: Event): void {
-    emit("update:symbol-draft", (event.target as HTMLInputElement).value);
+function handleSymbolMarketChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    symbolMarketInput.value = value;
+    emit("update:symbol-market", value);
 }
 
-function handleSymbolMarketChange(event: Event): void {
-    emit("update:symbol-market", (event.target as HTMLSelectElement).value);
+function handleSymbolDraftInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    symbolDraftInput.value = value;
+    emit("update:symbol-draft", value);
 }
 
 function handleSymbolDraftKeydown(event: KeyboardEvent): void {
-    emit("symbol-draft-keydown", event);
+    if (event.isComposing) {
+        return;
+    }
+    if (handleInstrumentKeydown(event)) {
+        return;
+    }
+    if (event.key === "," || event.key === "Tab") {
+        emit("symbol-draft-keydown", event);
+        return;
+    }
+    if (event.key === "Backspace" && symbolDraftInput.value.trim() === "") {
+        emit("symbol-draft-keydown", event);
+    }
 }
 
 function handleSymbolDraftPaste(event: ClipboardEvent): void {
     emit("symbol-draft-paste", event);
+}
+
+function resolveSymbolDraft(): void {
+    void resolveInstrument();
+}
+
+function handleResolvedInstrument(candidate: InstrumentResolutionCandidate): void {
+    symbolDraftInput.value = "";
+    emit("update:symbol-draft", "");
+    emit("resolve-symbol", candidate);
+}
+
+const {
+    loading: instrumentResolving,
+    panelOpen: instrumentResolutionOpen,
+    candidates: instrumentCandidates,
+    failures: instrumentFailures,
+    resolutionStatus: instrumentResolutionStatus,
+    resolutionError: instrumentResolutionError,
+    statusMessage: instrumentResolutionMessage,
+    activeCandidateIndex,
+    resolve: resolveInstrument,
+    closePanel: closeInstrumentResolution,
+    selectCandidate: selectInstrumentCandidate,
+    handleKeydown: handleInstrumentKeydown,
+} = useInstrumentResolver({
+    market: symbolMarketInput,
+    query: symbolDraftInput,
+    onResolved: handleResolvedInstrument,
+});
+
+watch(
+    () => props.symbolMarket,
+    (value) => {
+        symbolMarketInput.value = value;
+    },
+);
+
+watch(
+    () => props.symbolDraft,
+    (value) => {
+        symbolDraftInput.value = value;
+    },
+);
+
+function failureMarketLabel(market: string): string {
+    return formatInstrumentExchangeTag(market) ?? formatUserMarketLabel(market);
 }
 
 function handleIntervalInput(event: Event): void {
@@ -290,7 +362,7 @@ function handleBrokerQueryInput(event: Event): void {
                         <div class="grid gap-2">
                             <div class="grid gap-2 md:grid-cols-[9rem_minmax(0,1fr)_auto]">
                                 <select
-                                    :value="symbolMarket"
+                                    :value="symbolMarketInput"
                                     :data-testid="symbolMarketTestId"
                                     class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
                                     @change="handleSymbolMarketChange"
@@ -300,13 +372,14 @@ function handleBrokerQueryInput(event: Event): void {
                                     </option>
                                 </select>
                                 <input
-                                    :value="symbolDraft"
+                                    :value="symbolDraftInput"
                                     :data-testid="symbolInputTestId"
                                     class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
                                     placeholder="输入代码，例如 TME"
                                     type="text"
+                                    role="combobox"
+                                    :aria-expanded="instrumentResolutionOpen"
                                     @input="handleSymbolDraftInput"
-                                    @blur="emit('commit-symbol-draft')"
                                     @keydown="handleSymbolDraftKeydown"
                                     @paste="handleSymbolDraftPaste"
                                 >
@@ -315,10 +388,71 @@ function handleBrokerQueryInput(event: Event): void {
                                     :data-testid="symbolAddTestId"
                                     type="button"
                                     @mousedown.prevent
-                                    @click="emit('commit-symbol-draft')"
+                                    @click="resolveSymbolDraft"
                                 >
                                     添加
                                 </button>
+                            </div>
+                            <div
+                                v-if="instrumentResolutionOpen"
+                                class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg"
+                                :class="{ 'border-amber-400': instrumentResolutionStatus === 'incomplete' }"
+                            >
+                                <div
+                                    v-if="instrumentResolutionMessage"
+                                    class="px-3 py-2 text-xs text-slate-600"
+                                    role="status"
+                                >
+                                    {{ instrumentResolutionMessage }}
+                                </div>
+                                <div v-if="instrumentFailures.length" class="space-y-1 px-3 pb-2 text-xs text-amber-700">
+                                    <div
+                                        v-for="failure in instrumentFailures"
+                                        :key="`${failure.market}:${failure.code}`"
+                                    >
+                                        {{ failureMarketLabel(failure.market) }}：{{ failure.message }}
+                                    </div>
+                                </div>
+                                <button
+                                    v-for="(candidate, index) in instrumentCandidates"
+                                    :key="candidate.instrumentId"
+                                    type="button"
+                                    role="option"
+                                    class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 px-3 py-2 text-left text-xs text-slate-700 transition hover:bg-slate-50"
+                                    :class="{ 'bg-slate-50': index === activeCandidateIndex }"
+                                    :aria-selected="index === activeCandidateIndex"
+                                    @mouseenter="activeCandidateIndex = index"
+                                    @keydown="handleInstrumentKeydown"
+                                    @click="selectInstrumentCandidate(candidate)"
+                                >
+                                    <span class="text-slate-400">{{ formatUserMarketLabel(candidate.market) }}</span>
+                                    <InstrumentIdentity
+                                        :market="candidate.market"
+                                        :code="candidate.code"
+                                        :instrument-id="candidate.instrumentId"
+                                        :name="candidate.name"
+                                        compact
+                                    />
+                                    <span class="text-slate-400">{{ candidate.securityType || "类型未知" }}</span>
+                                </button>
+                                <div class="flex justify-end gap-2 border-t border-slate-100 px-3 py-2">
+                                    <button
+                                        v-if="instrumentResolutionStatus === 'incomplete' || instrumentResolutionStatus === 'not_found' || instrumentResolutionError"
+                                        type="button"
+                                        class="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-600"
+                                        :disabled="instrumentResolving"
+                                        @click="resolveSymbolDraft"
+                                    >
+                                        重试
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-600"
+                                        @click="closeInstrumentResolution"
+                                    >
+                                        关闭
+                                    </button>
+                                </div>
                             </div>
                             <div class="strategy-tag-input" :class="{ 'strategy-tag-input--invalid': symbolValidationMessage !== '' }">
                                 <button
@@ -328,7 +462,7 @@ function handleBrokerQueryInput(event: Event): void {
                                     type="button"
                                     @click="emit('remove-symbol', symbol)"
                                 >
-                                    <span>{{ symbol }}</span>
+                                    <InstrumentIdentity :instrument-id="symbol" compact />
                                     <span class="strategy-tag-chip__remove">x</span>
                                 </button>
                                 <span v-if="symbolTags.length === 0" class="text-xs text-slate-400">
@@ -563,8 +697,16 @@ function handleBrokerQueryInput(event: Event): void {
                         </div>
                         <div>
                             <div class="text-xs uppercase tracking-[0.16em] text-slate-400">交易代码</div>
-                            <div class="mt-1 break-words font-medium text-slate-900">
-                                {{ symbolsSummary }}
+                            <div class="mt-1 flex flex-wrap items-center gap-1.5 break-words font-medium text-slate-900">
+                                <template v-if="symbolTags.length > 0">
+                                    <InstrumentIdentity
+                                        v-for="symbol in symbolTags"
+                                        :key="`preview-${symbol}`"
+                                        :instrument-id="symbol"
+                                        compact
+                                    />
+                                </template>
+                                <template v-else>{{ symbolsSummary }}</template>
                             </div>
                         </div>
                         <div>

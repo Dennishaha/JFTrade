@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 
 import type { ExecutionOrdersResponse } from "@/contracts";
 
+import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
 import PageHeader from "../components/PageHeader.vue";
 import SectionHeader from "../components/SectionHeader.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
@@ -14,12 +15,15 @@ import {
   formatExecutionEventTypeLabel,
   formatExecutionOrderStatusLabel,
   formatExecutionOrderSourceLabel,
-  formatMarketLabel,
   formatOrderSideLabel,
   formatOrderTypeLabel,
   formatTradingEnvironment,
   isFinalExecutionOrderStatus,
 } from "../composables/consoleDataFormatting";
+import {
+  formatInstrumentIdentityText,
+  formatUserMarketLabel,
+} from "../composables/instrumentPresentation";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
 
@@ -120,7 +124,7 @@ const accountTitle = computed(() => {
 const accountSubtitle = computed(() => {
   const selected = selectedBrokerAccount.value;
   if (selected != null) {
-    return `${selected.brokerId.toUpperCase()} / ${selected.accountId} / ${formatTradingEnvironment(selected.tradingEnvironment)} / ${formatMarketLabel(selected.market)}`;
+    return `${selected.brokerId.toUpperCase()} / ${selected.accountId} / ${formatTradingEnvironment(selected.tradingEnvironment)} / ${formatUserMarketLabel(selected.market)}`;
   }
 
   const runtimeAccount = selectedRuntimeAccount.value;
@@ -325,7 +329,7 @@ const accountFacts = computed(() => {
     },
     {
       label: "市场",
-      value: formatMarketLabel(selected?.market ?? runtimeAccount?.marketAuthorities[0]),
+      value: formatUserMarketLabel(selected?.market ?? runtimeAccount?.marketAuthorities[0]),
     },
     {
       label: "账户类型",
@@ -625,7 +629,14 @@ async function cancelOrder(order: AccountExecutionOrder): Promise<void> {
 
     notifications.push({
       level: "success",
-      title: `已提交撤单 ${order.symbol ?? order.internalOrderId}`,
+      title: `已提交撤单 ${
+        order.symbol
+          ? formatInstrumentIdentityText({
+              market: order.market,
+              instrumentId: order.symbol,
+            })
+          : order.internalOrderId
+      }`,
       message: result.message,
       source: "account-page",
     });
@@ -635,7 +646,14 @@ async function cancelOrder(order: AccountExecutionOrder): Promise<void> {
       : "撤单请求失败。";
     notifications.push({
       level: "error",
-      title: `撤单失败 ${order.symbol ?? order.internalOrderId}`,
+      title: `撤单失败 ${
+        order.symbol
+          ? formatInstrumentIdentityText({
+              market: order.market,
+              instrumentId: order.symbol,
+            })
+          : order.internalOrderId
+      }`,
       message,
       source: "account-page",
     });
@@ -819,10 +837,13 @@ if (requestedExecutionOrderId !== "") {
                         class="border-b border-slate-100 last:border-0"
                       >
                         <td class="px-4 py-3">
-                          <div class="font-medium text-slate-900">{{ position.symbol }}</div>
-                          <div v-if="position.name" class="mt-1 text-xs text-slate-500">{{ position.name }}</div>
+                          <InstrumentIdentity
+                            :market="position.market"
+                            :instrument-id="position.symbol"
+                            :name="position.name"
+                          />
                         </td>
-                        <td class="px-4 py-3">{{ formatMarketLabel(position.market) }}</td>
+                        <td class="px-4 py-3">{{ formatUserMarketLabel(position.market) }}</td>
                         <td class="px-4 py-3 text-right">{{ formatNumber(position.quantity) }}</td>
                         <td class="px-4 py-3 text-right">{{ formatNumber(position.averagePrice) }}</td>
                         <td class="px-4 py-3 text-right">{{ formatMoney(position.marketValue, position.currency) }}</td>
@@ -1021,7 +1042,13 @@ if (requestedExecutionOrderId !== "") {
                       :key="ratio.symbol"
                       class="border-b border-slate-100 last:border-0"
                     >
-                      <td class="px-4 py-3 font-medium text-slate-900">{{ ratio.symbol }}</td>
+                      <td class="px-4 py-3 font-medium text-slate-900">
+                        <InstrumentIdentity
+                          :market="ratio.market"
+                          :instrument-id="ratio.symbol"
+                          compact
+                        />
+                      </td>
                       <td class="px-4 py-3">
                         {{ formatBooleanLabel(ratio.isLongPermit) }} / {{ formatBooleanLabel(ratio.isShortPermit) }}
                       </td>
@@ -1079,7 +1106,13 @@ if (requestedExecutionOrderId !== "") {
                     :class="isSelectedOrder(order.internalOrderId) ? 'bg-teal-50/50' : ''"
                   >
                     <td class="px-4 py-3">
-                      <div class="font-medium text-slate-900">{{ order.symbol ?? '未知标的' }}</div>
+                      <InstrumentIdentity
+                        v-if="order.symbol"
+                        :market="order.market"
+                        :instrument-id="order.symbol"
+                        compact
+                      />
+                      <div v-else class="font-medium text-slate-900">未知标的</div>
                       <div class="mt-1 text-xs text-slate-500">{{ order.internalOrderId }}</div>
                     </td>
                     <td class="px-4 py-3">{{ formatOrderSideLabel(order.side) }}</td>
@@ -1161,7 +1194,13 @@ if (requestedExecutionOrderId !== "") {
                 >
                   <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div class="font-semibold text-slate-900">{{ order.symbol ?? '未知标的' }}</div>
+                      <InstrumentIdentity
+                        v-if="order.symbol"
+                        :market="order.market"
+                        :instrument-id="order.symbol"
+                        compact
+                      />
+                      <div v-else class="font-semibold text-slate-900">未知标的</div>
                       <div class="mt-1 text-xs text-slate-500">{{ order.internalOrderId }}</div>
                     </div>
                     <v-chip :color="resolveOrderChipColor(order.status)" variant="outlined" size="small">
@@ -1327,8 +1366,11 @@ if (requestedExecutionOrderId !== "") {
                         >
                           <td class="px-4 py-3 font-mono text-xs">{{ fill.brokerFillIdEx ?? fill.brokerFillId }}</td>
                           <td class="px-4 py-3">
-                            <div class="font-medium text-slate-900">{{ fill.symbol }}</div>
-                            <div v-if="fill.symbolName" class="mt-1 text-xs text-slate-500">{{ fill.symbolName }}</div>
+                            <InstrumentIdentity
+                              :market="fill.market"
+                              :instrument-id="fill.symbol"
+                              :name="fill.symbolName"
+                            />
                           </td>
                           <td class="px-4 py-3">{{ formatOrderSideLabel(fill.side) }}</td>
                           <td class="px-4 py-3 text-right">{{ formatNumber(fill.filledQuantity) }}</td>

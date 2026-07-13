@@ -8,7 +8,9 @@ import type {
 } from "@/contracts";
 
 import { formatDateTime } from "../../../composables/consoleDataFormatting";
+import { formatUserMarketLabel } from "../../../composables/instrumentPresentation";
 import { formatMarketSessionLabel } from "../../../composables/marketSessionDisplay";
+import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -83,7 +85,7 @@ function quoteFor(item: WatchlistItem): WatchlistQuote | undefined {
 }
 
 function itemName(item: WatchlistItem): string {
-  return item.name || quoteFor(item)?.name || item.symbol;
+  return item.name || quoteFor(item)?.name || "未命名标的";
 }
 
 function itemType(item: WatchlistItem): string {
@@ -251,11 +253,17 @@ onBeforeUnmount(() => {
           @keydown.space.prevent="emit('select', row.item)"
         >
           <span class="watchlist-table__instrument" role="gridcell">
-            <strong>{{ itemName(row.item) }}</strong>
-            <small>{{ row.item.instrumentId }}</small>
+            <InstrumentIdentity
+              :market="row.item.market"
+              :code="row.item.symbol"
+              :instrument-id="row.item.instrumentId"
+              :name="itemName(row.item)"
+              :compact="compact"
+              layout="stacked"
+            />
           </span>
           <span v-if="!compact" class="watchlist-table__muted" role="gridcell">
-            {{ row.item.market }} · {{ itemType(row.item) }}
+            {{ formatUserMarketLabel(row.item.market) }} · {{ itemType(row.item) }}
           </span>
           <span class="watchlist-table__price is-numeric" role="gridcell">
             <span v-if="quoteErrorFor(row.item)" class="watchlist-table__quote-error" :title="quoteErrorFor(row.item)?.message">不可用</span>

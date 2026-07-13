@@ -108,9 +108,28 @@ describe("WatchlistPage", () => {
     const marketOptions = wrapper
       .findAll(".watchlist-page__market-filter option")
       .map((option) => option.attributes("value"));
-    expect(marketOptions).toEqual(
-      expect.arrayContaining(["HK", "US", "SH", "SZ", "SG", "JP", "AU", "MY", "CA"]),
-    );
+    expect(marketOptions).toEqual([
+      "",
+      "HK",
+      "US",
+      "CN",
+      "SG",
+      "JP",
+      "AU",
+      "MY",
+      "CA",
+    ]);
+    await wrapper.get(".watchlist-page__market-filter select").setValue("CN");
+    await flushPromises();
+    expect(
+      fetchMock.mock.calls.some(([request]) => {
+        const url = new URL(String(request), "http://localhost");
+        return (
+          url.pathname === "/api/v1/watchlist/items" &&
+          url.searchParams.get("market") === "CN"
+        );
+      }),
+    ).toBe(true);
     await wrapper
       .get(".watchlist-page__header-actions button")
       .trigger("click");

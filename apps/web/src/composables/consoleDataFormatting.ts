@@ -16,7 +16,7 @@ type RealTradeHardStopScope = "ACCOUNT" | "MARKET" | "SYMBOL";
 const MARKET_LABELS: Record<string, string> = {
   HK: "港股",
   US: "美股",
-  CN: "A股",
+  CN: "沪深",
   SH: "上交所",
   SZ: "深交所",
   SG: "新加坡",

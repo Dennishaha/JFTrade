@@ -244,6 +244,31 @@ describe("AccountPage business flows", () => {
     expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("order-query");
   });
 
+  it("renders A-share positions with the parent market and exchange identity", () => {
+    readSetupValue<{ positions: unknown[] }>(
+      consoleDataState.portfolioPositions,
+    ).positions = [
+      {
+        brokerId: "futu",
+        accountId: "REAL-001",
+        tradingEnvironment: "REAL",
+        market: "SH",
+        symbol: "SH.600519",
+        quantity: 10,
+        averagePrice: 1500,
+        marketValue: 15000,
+        updatedAt: "2026-06-01T09:31:00Z",
+      },
+    ];
+
+    const { wrapper } = mountAccountPage();
+
+    expect(wrapper.text()).toContain("600519");
+    expect(wrapper.text()).toContain("上证");
+    expect(wrapper.text()).toContain("沪深");
+    expect(wrapper.text()).not.toContain("SH.600519");
+  });
+
   it("falls back to runtime-scoped projected data and dedupes visible orders", async () => {
     const pendingReal = makeExecutionOrder();
     const duplicatePendingReal = makeExecutionOrder({

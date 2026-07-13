@@ -165,6 +165,17 @@ describe("OrderBookPanel", () => {
     document.body.innerHTML = "";
   });
 
+  it("shows A-share code with the concrete exchange tag in the panel header", () => {
+    const wrapper = mountOrderBookPanel({ market: "SH", symbol: "600519" });
+
+    const header = wrapper.get(".tv-panel-head").text();
+    expect(header).toContain("600519");
+    expect(header).toContain("上证");
+    expect(header).not.toContain("SH.600519");
+
+    wrapper.unmount();
+  });
+
   it("subscribes depth updates over the shared websocket", async () => {
     const hub = getSharedLiveSocketHub();
     const wrapper = mountOrderBookPanel();

@@ -86,9 +86,9 @@ describe("WatchlistImportDialog", () => {
       previewId: "preview-1",
       sourceId: "futu:default",
       remoteGroupName: "全部",
-      added: [{ instrumentId: "HK.00700" }],
+      added: [{ instrumentId: "SH.600519", name: "贵州茅台" }],
       unchanged: [],
-      localOnly: [{ instrumentId: "HK.00005", name: "汇丰控股" }],
+      localOnly: [{ instrumentId: "SZ.000001", name: "平安银行" }],
     });
     importMocks.commit.mockResolvedValue({
       id: "run-1",
@@ -114,6 +114,13 @@ describe("WatchlistImportDialog", () => {
 
     await wrapper.get(".watchlist-import-dialog__primary").trigger("click");
     await flushPromises();
+    expect(wrapper.text()).toContain("贵州茅台");
+    expect(wrapper.text()).toContain("600519");
+    expect(wrapper.text()).toContain("上证");
+    expect(wrapper.text()).toContain("平安银行");
+    expect(wrapper.text()).toContain("深证");
+    expect(wrapper.text()).not.toContain("SH.600519");
+    expect(wrapper.text()).not.toContain("SZ.000001");
     const localOnlyCheckbox = wrapper.get(
       ".watchlist-import-dialog__local-only input",
     ).element as HTMLInputElement;

@@ -214,6 +214,10 @@ func (p stubProvider) GetSecurityDetails(context.Context, string, string) (Secur
 	return nil, nil
 }
 
+func (p stubProvider) LookupInstrument(context.Context, string, string) ([]InstrumentCandidate, error) {
+	return nil, nil
+}
+
 func (p stubProvider) QuerySnapshot(context.Context, string) (*Tick, error) {
 	return nil, nil
 }

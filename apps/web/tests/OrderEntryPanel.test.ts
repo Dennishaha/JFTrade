@@ -45,6 +45,20 @@ afterEach(() => {
 });
 
 describe("OrderEntryPanel", () => {
+  it("shows A-share code with the concrete exchange tag in the panel header", () => {
+    const { wrapper } = mountOrderEntryPanel({
+      snapshotPrice: 12.34,
+      priceSpread: 0.01,
+      market: "SZ",
+      symbol: "000001",
+    });
+
+    const header = wrapper.get(".tv-panel-head").text();
+    expect(header).toContain("000001");
+    expect(header).toContain("深证");
+    expect(header).not.toContain("SZ.000001");
+  });
+
   it("defaults and syncs limit price from market data using the security price spread", async () => {
     const { wrapper, store } = mountOrderEntryPanel({
       snapshotPrice: 321.234,
@@ -143,6 +157,8 @@ describe("OrderEntryPanel", () => {
     const { wrapper, store } = mountOrderEntryPanel({
       snapshotPrice: 321.234,
       priceSpread: 0.01,
+      market: "SH",
+      symbol: "600519",
     });
     store.systemStatus.value = {
       ...store.systemStatus.value,
@@ -162,6 +178,12 @@ describe("OrderEntryPanel", () => {
     await nextTick();
 
     expect(wrapper.text()).toContain("确认实盘下单");
+    expect(wrapper.get(".tv-real-confirmation__summary").text()).toContain(
+      "600519（上证）",
+    );
+    expect(wrapper.get(".tv-real-confirmation__summary").text()).not.toContain(
+      "SH.600519",
+    );
     expect(
       fetchMock.mock.calls.some(([request]) =>
         String(request).includes("/api/v1/execution/orders"),
@@ -811,6 +833,8 @@ describe("OrderEntryPanel", () => {
 function mountOrderEntryPanel(options: {
   snapshotPrice: number;
   priceSpread: number;
+  market?: string;
+  symbol?: string;
   maxTradeQuantity?: BrokerMaxTradeQuantityResponse;
   colors?: { upColor: string; downColor: string };
 }) {
@@ -822,17 +846,24 @@ function mountOrderEntryPanel(options: {
 
   const Host = defineComponent({
     setup() {
+      const market = options.market ?? "HK";
+      const symbol = options.symbol ?? "00700";
       workspaceLayout = provideWorkspaceTradingPreferencesStore();
-      workspaceLayout.update({ market: "HK", symbol: "00700" });
+      workspaceLayout.update({ market, symbol });
       notifications = provideNotificationsStore();
       const colorStore = provideUIColorPreferencesStore();
       if (options.colors != null) {
         colorStore.update(options.colors);
       }
       store = provideConsoleDataStore(workspaceLayout);
-      store.marketDataSnapshot.value = createSnapshotResult("HK", "00700", options.snapshotPrice);
+      store.marketDataSnapshot.value = createSnapshotResult(market, symbol, options.snapshotPrice);
       store.marketSecurityDetails.value = createSecurityResult(
-        createSecurityDetails({ priceSpread: options.priceSpread }),
+        createSecurityDetails({
+          instrumentId: `${market}.${symbol}`,
+          market,
+          symbol,
+          priceSpread: options.priceSpread,
+        }),
       );
       if (options.maxTradeQuantity != null) {
         store.brokerMaxTradeQuantity.value = options.maxTradeQuantity;

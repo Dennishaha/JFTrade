@@ -83,6 +83,69 @@ describe("marketProfiles", () => {
     expect(profiles.supportsExtendedHoursForMarket("US")).toBe(false);
   });
 
+  it("collapses exchange-level China profiles into one A-share option", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        createResponse({
+          defaultMarket: "HK",
+          updatedAt: "2026-07-13T00:00:00.000Z",
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+            {
+              code: "SH",
+              resolvedMarket: "CN",
+              preferredPrefix: "SH",
+              displayName: "Shanghai",
+              quoteCurrency: "CNY",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: true,
+              aliases: ["CNSH"],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+            {
+              code: "SZ",
+              resolvedMarket: "CN",
+              preferredPrefix: "SZ",
+              displayName: "Shenzhen",
+              quoteCurrency: "CNY",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: true,
+              aliases: ["CNSZ"],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+          ],
+        }),
+      ),
+    );
+
+    const module = await loadFreshMarketProfilesModule();
+    const profiles = module.useMarketProfiles();
+    await profiles.loadMarketProfiles();
+
+    expect(profiles.marketOptions.value).toEqual([
+      { value: "HK", title: "港股 HK" },
+      { value: "CN", title: "沪深" },
+    ]);
+    expect(profiles.quoteCurrencyForMarket("SH")).toBe("CNY");
+  });
+
   it("normalizes instruments through the backend API", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
       expect(init?.method).toBe("POST");

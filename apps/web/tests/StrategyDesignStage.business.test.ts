@@ -135,7 +135,7 @@ describe("StrategyDesignStage business flows", () => {
             version: "0.1.0",
           },
           binding: {
-            symbols: ["HK.00700"],
+            symbols: ["SH.600519", "SZ.000001"],
             interval: "5m",
             executionMode: "live",
           },
@@ -306,6 +306,17 @@ describe("StrategyDesignStage business flows", () => {
     expect(findButtonByLabels(wrapper, ["保存"]).exists()).toBe(true);
 
     expect(strategyFetchCount).toBeGreaterThanOrEqual(1);
+    const instanceSymbols = wrapper.get(
+      '[data-testid="strategy-design-instance-symbols-alpha-instance"]',
+    );
+    expect(instanceSymbols.text()).toContain("600519");
+    expect(instanceSymbols.text()).toContain("上证");
+    expect(instanceSymbols.text()).toContain("000001");
+    expect(instanceSymbols.text()).toContain("深证");
+    expect(instanceSymbols.text()).not.toContain("SH.600519");
+    expect(instanceSymbols.get('[data-instrument-id="SH.600519"]').attributes("title")).toBe(
+      "SH.600519",
+    );
     await wrapper.get('button[aria-label="刷新策略实例"]').trigger("click");
     await settleWithFakeTimers();
     expect(strategyFetchCount).toBeGreaterThanOrEqual(2);

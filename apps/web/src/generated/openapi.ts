@@ -107,6 +107,31 @@ export interface components {
     downColor?: string;
     upColor?: string;
   };
+    "marketdata.InstrumentCandidate": {
+    code?: string;
+    instrumentId?: string;
+    lotSize?: number;
+    market?: string;
+    name?: string;
+    resolvedMarket?: string;
+    securityType?: string;
+    source?: string;
+    symbol?: string;
+  };
+    "marketdata.InstrumentResolution": {
+    entries?: Array<components["schemas"]["marketdata.InstrumentCandidate"]>;
+    failures?: Array<components["schemas"]["marketdata.InstrumentResolutionFailure"]>;
+    query?: string;
+    requestedMarket?: string;
+    resolutionStatus?: components["schemas"]["marketdata.InstrumentResolutionStatus"];
+    totalReturned?: number;
+  };
+    "marketdata.InstrumentResolutionFailure": {
+    code?: string;
+    market?: string;
+    message?: string;
+  };
+    "marketdata.InstrumentResolutionStatus": "resolved" | "ambiguous" | "not_found" | "incomplete";
     "marketdata.SubscriptionHeartbeatRequest": {
     consumerId?: string;
   };
@@ -2087,12 +2112,21 @@ export interface paths {
     get: {
       parameters: {
         query: {
+        market?: string;
         query?: string;
       };
       };
       responses: {
         "200": {
           description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["marketdata.InstrumentResolution"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };

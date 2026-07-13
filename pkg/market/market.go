@@ -147,6 +147,10 @@ var profiles = map[string]Profile{
 
 var marketDescriptorOrder = []string{"HK", "US", "CN", "SH", "SZ"}
 
+var marketSubsets = map[string][]string{
+	string(MarketCN): {string(MarketSH), string(MarketSZ)},
+}
+
 func convertWindowPairs(windows [][2]int) []TradingWindow {
 	result := make([]TradingWindow, 0, len(windows))
 	for _, window := range windows {
@@ -270,7 +274,7 @@ func MarketDescriptors() []MarketDescriptor {
 			result = append(result, MarketDescriptor{
 				Code:                   "CN",
 				ResolvedMarket:         "CN",
-				DisplayName:            "China A Shares",
+				DisplayName:            "沪深",
 				QuoteCurrency:          "CNY",
 				Timezone:               sh.LocationName,
 				PricePrecision:         2,
@@ -278,6 +282,7 @@ func MarketDescriptors() []MarketDescriptor {
 				TickSize:               0.01,
 				RequiresExchangePrefix: true,
 				Aliases:                []string{"SH", "SZ", "CNSH", "CNSZ"},
+				RegularSessions:        convertWindowPairs(sh.RegularWindows),
 			})
 			continue
 		}
@@ -286,6 +291,43 @@ func MarketDescriptors() []MarketDescriptor {
 		}
 	}
 	return result
+}
+
+// UserMarketDescriptors returns the top-level market categories exposed to
+// user-facing selectors. Exchange-level children remain available through
+// MarketDescriptors for routing, capabilities, calendars, and diagnostics.
+func UserMarketDescriptors() []MarketDescriptor {
+	descriptors := MarketDescriptors()
+	result := make([]MarketDescriptor, 0, len(descriptors))
+	for _, descriptor := range descriptors {
+		if IsMarketSubsetChild(descriptor.Code) {
+			continue
+		}
+		result = append(result, descriptor)
+	}
+	return result
+}
+
+// MarketSubsetChildren returns the configured leaf markets for a top-level
+// market category in stable lookup order. The returned slice is independent
+// from the package configuration and may be modified by the caller.
+func MarketSubsetChildren(parent string) []string {
+	children := marketSubsets[strings.ToUpper(strings.TrimSpace(parent))]
+	return append([]string(nil), children...)
+}
+
+// IsMarketSubsetChild reports whether marketCode is a leaf of any configured
+// top-level market category.
+func IsMarketSubsetChild(marketCode string) bool {
+	normalized := strings.ToUpper(strings.TrimSpace(marketCode))
+	for _, children := range marketSubsets {
+		for _, child := range children {
+			if child == normalized {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func descriptorFromProfile(profile Profile) MarketDescriptor {

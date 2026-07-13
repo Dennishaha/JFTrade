@@ -575,6 +575,35 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
         updatedAt: "2026-06-12T00:00:00Z",
       })
     }
+    if (url.includes("/api/v1/market-data/instruments?")) {
+      const requestURL = new URL(url, "http://localhost")
+      const requestedMarket = (requestURL.searchParams.get("market") ?? "HK").trim().toUpperCase()
+      const rawQuery = (requestURL.searchParams.get("query") ?? "").trim().toUpperCase().replace(":", ".")
+      if (rawQuery === "") {
+        return createResponse({ query: "", totalReturned: 0, entries: [] })
+      }
+      const embedded = rawQuery.includes(".") ? rawQuery.split(".", 2) : null
+      const market = embedded?.[0] ?? requestedMarket
+      const code = embedded?.[1] ?? rawQuery
+      return createResponse({
+        requestedMarket,
+        query: rawQuery,
+        resolutionStatus: "resolved",
+        totalReturned: 1,
+        entries: [{
+          market,
+          resolvedMarket: market === "SH" || market === "SZ" ? "CN" : market,
+          instrumentId: `${market}.${code}`,
+          code,
+          symbol: code,
+          name: null,
+          securityType: "STOCK",
+          lotSize: 1,
+          source: "test-static",
+        }],
+        failures: [],
+      })
+    }
     if (url.includes("/api/v1/market-data/instruments/normalize")) {
       const payload = await readJsonBody(init, request)
       const normalized = normalizeMarketInstrumentRequest(payload)

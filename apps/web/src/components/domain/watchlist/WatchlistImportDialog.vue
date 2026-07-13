@@ -8,6 +8,7 @@ import type {
 
 import { useWatchlistGroups } from "../../../composables/useWatchlist";
 import { useWatchlistImport } from "../../../composables/useWatchlistImport";
+import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{
@@ -306,7 +307,13 @@ watch(
           <section v-if="preview.added?.length">
             <h3>将新增</h3>
             <div class="watchlist-import-dialog__tokens">
-              <span v-for="item in preview.added" :key="item.instrumentId" class="tv-status--success tv-status-surface">{{ item.instrumentId }}</span>
+              <span v-for="item in preview.added" :key="item.instrumentId" class="tv-status--success tv-status-surface">
+                <InstrumentIdentity
+                  :instrument-id="item.instrumentId"
+                  :name="item.name"
+                  compact
+                />
+              </span>
             </div>
           </section>
           <section v-if="preview.localOnly?.length">
@@ -315,8 +322,11 @@ watch(
             <div class="watchlist-import-dialog__local-only">
               <label v-for="item in preview.localOnly" :key="item.instrumentId">
                 <input v-model="deleteLocalOnlyIds" type="checkbox" :value="item.instrumentId" />
-                <span>{{ item.name || item.instrumentId }}</span>
-                <small>{{ item.instrumentId }}</small>
+                <InstrumentIdentity
+                  :instrument-id="item.instrumentId"
+                  :name="item.name"
+                  compact
+                />
               </label>
             </div>
           </section>
@@ -379,9 +389,9 @@ watch(
 .watchlist-import-dialog__preview section > p,
 .watchlist-import-dialog__expiry { margin: 0; color: var(--tv-text-dim); font-size: 10px; }
 .watchlist-import-dialog__tokens { display: flex; max-height: 90px; flex-wrap: wrap; gap: 5px; overflow: auto; }
-.watchlist-import-dialog__tokens span { padding: 3px 7px; border-radius: 4px; font-size: 10px; }
+.watchlist-import-dialog__tokens > span { padding: 3px 7px; border-radius: 4px; font-size: 10px; }
 .watchlist-import-dialog__local-only { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; max-height: 150px; overflow: auto; }
-.watchlist-import-dialog__local-only label { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 5px; padding: 6px 8px; border: 1px solid var(--tv-border); border-radius: 5px; font-size: 11px; }
+.watchlist-import-dialog__local-only label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 5px; padding: 6px 8px; border: 1px solid var(--tv-border); border-radius: 5px; font-size: 11px; }
 .watchlist-import-dialog__local-only small { color: var(--tv-text-dim); font-size: 9px; }
 .watchlist-import-dialog > footer { justify-content: flex-end; border-top: 1px solid var(--tv-border); border-bottom: 0; }
 .watchlist-import-dialog__primary { border-color: var(--tv-accent); background: var(--tv-accent); color: #fff; }
