@@ -557,7 +557,7 @@ func assertCIExercisesPineTSWorker(t *testing.T, root string) {
 	}
 	text := string(data)
 	for _, required := range []string{
-		"actions/setup-node",
+		"uses: ./.github/actions/setup-pnpm",
 		"pnpm run test:pineworker",
 		"pnpm run typecheck:pineworker",
 		"pnpm run build:frontend-assets",
@@ -571,6 +571,28 @@ func assertCIExercisesPineTSWorker(t *testing.T, root string) {
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("%s does not exercise PineTS worker gate %q", rel, required)
+		}
+	}
+	if containsAny(text, "Bun", "setup-bun", "run-bun", "JFTRADE_BUN") {
+		t.Fatalf("%s must not install or invoke Bun", rel)
+	}
+	assertCISetupActionUsesNode(t, root)
+}
+
+func assertCISetupActionUsesNode(t *testing.T, root string) {
+	t.Helper()
+	rel := ".github/actions/setup-pnpm/action.yml"
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", rel, err)
+	}
+	text := string(data)
+	for _, required := range []string{
+		"actions/setup-node",
+		"node-version-file: .nvmrc",
+	} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("%s does not provide CI Node setup %q", rel, required)
 		}
 	}
 	if containsAny(text, "Bun", "setup-bun", "run-bun", "JFTRADE_BUN") {
