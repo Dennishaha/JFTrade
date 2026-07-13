@@ -150,7 +150,6 @@ jobs:
     timeout-minutes: 15
     env:
       CGO_ENABLED: "0"
-      GO_COVERAGE_PACKAGES: ./internal/... ./pkg/... ./scripts
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -178,7 +177,7 @@ jobs:
         run: npm run generate:openapi
 
       - name: Go coverage gate
-        run: npm run test:coverage:go
+        run: npm run test:coverage:go -- -package ./internal/... -package ./pkg/... -package ./scripts
 
   web:
     name: Web

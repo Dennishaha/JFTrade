@@ -63,7 +63,7 @@
     "test:web:ci": "npm -w @jftrade/web run test:ci",
     "test:web:watch": "npm -w @jftrade/web run test:watch",
     "test:coverage": "npm run test:coverage:go && npm run test:coverage:web",
-    "test:coverage:go": "bash scripts/check-go-coverage.sh",
+    "test:coverage:go": "go run ./cmd/check-go-coverage",
     "test:coverage:web": "npm -w @jftrade/web run test -- --coverage",
     "test:pineworker": "npm -w @jftrade/pineworker run test",
     "typecheck:web": "npm -w @jftrade/web run typecheck",
