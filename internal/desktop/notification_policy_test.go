@@ -24,6 +24,12 @@ func TestShouldForwardSystemNotification(t *testing.T) {
 	if ShouldForwardSystemNotification(jfsettings.SystemNotificationSettings{Enabled: true, Mode: "custom", Levels: []string{"error"}}, live.Event{Level: "info", Category: "market.quota"}) {
 		t.Fatal("custom settings forwarded unmatched notification")
 	}
+	if ShouldForwardSystemNotification(jfsettings.SystemNotificationSettings{Enabled: true, Mode: "unknown"}, event) {
+		t.Fatal("unknown mode forwarded notification")
+	}
+	if !ShouldForwardSystemNotification(jfsettings.SystemNotificationSettings{Enabled: true, Mode: "custom", Levels: []string{" warn "}}, event) {
+		t.Fatal("trimmed custom level did not match")
+	}
 }
 
 func TestNotificationMetadata(t *testing.T) {

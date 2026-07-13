@@ -18,12 +18,16 @@ var RegularWindows = [][2]int{
 }
 
 var location = sync.OnceValue(func() *time.Location {
-	loc, err := time.LoadLocation(LocationName)
+	return loadLocation(LocationName)
+})
+
+func loadLocation(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
 	if err != nil {
 		return time.UTC
 	}
 	return loc
-})
+}
 
 func Location() *time.Location {
 	return location()

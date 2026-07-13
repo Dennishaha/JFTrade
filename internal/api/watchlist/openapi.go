@@ -91,7 +91,7 @@ func documentListGroups() { _ = httpserver.Envelope{} }
 // @Failure 409 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/groups [post]
-func documentCreateGroup() {}
+func documentCreateGroup() { _ = httpserver.Envelope{} }
 
 // documentUpdateGroup godoc
 // @Summary 修改本地自选分组
@@ -106,7 +106,7 @@ func documentCreateGroup() {}
 // @Failure 409 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/groups/{groupId} [patch]
-func documentUpdateGroup() {}
+func documentUpdateGroup() { _ = httpserver.Envelope{} }
 
 // documentDeleteGroup godoc
 // @Summary 删除本地自选分组
@@ -118,7 +118,7 @@ func documentUpdateGroup() {}
 // @Failure 409 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/groups/{groupId} [delete]
-func documentDeleteGroup() {}
+func documentDeleteGroup() { _ = httpserver.Envelope{} }
 
 // documentListItems godoc
 // @Summary 分页查询自选标的
@@ -133,7 +133,7 @@ func documentDeleteGroup() {}
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/items [get]
-func documentListItems() {}
+func documentListItems() { _ = httpserver.Envelope{} }
 
 // documentGetMemberships godoc
 // @Summary 查询标的自选分组归属
@@ -145,7 +145,7 @@ func documentListItems() {}
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/instruments/{market}/{symbol}/memberships [get]
-func documentGetMemberships() {}
+func documentGetMemberships() { _ = httpserver.Envelope{} }
 
 // documentReplaceMemberships godoc
 // @Summary 原子替换标的多分组归属
@@ -161,7 +161,7 @@ func documentGetMemberships() {}
 // @Failure 409 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/instruments/{market}/{symbol}/memberships [put]
-func documentReplaceMemberships() {}
+func documentReplaceMemberships() { _ = httpserver.Envelope{} }
 
 // documentBatchQuotes godoc
 // @Summary 批量读取自选行情快照
@@ -173,7 +173,7 @@ func documentReplaceMemberships() {}
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/quotes/batch [post]
-func documentBatchQuotes() {}
+func documentBatchQuotes() { _ = httpserver.Envelope{} }
 
 // documentListSources godoc
 // @Summary 查询可用自选导入来源
@@ -182,7 +182,7 @@ func documentBatchQuotes() {}
 // @Success 200 {object} httpserver.Envelope{data=WatchlistSourcesData}
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/sources [get]
-func documentListSources() {}
+func documentListSources() { _ = httpserver.Envelope{} }
 
 // documentListSourceGroups godoc
 // @Summary 发现券商自选分组
@@ -193,7 +193,7 @@ func documentListSources() {}
 // @Failure 404 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/sources/{sourceId}/groups [get]
-func documentListSourceGroups() {}
+func documentListSourceGroups() { _ = httpserver.Envelope{} }
 
 // documentListBindings godoc
 // @Summary 查询券商分组绑定
@@ -203,7 +203,7 @@ func documentListSourceGroups() {}
 // @Success 200 {object} httpserver.Envelope{data=WatchlistBindingsData}
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/bindings [get]
-func documentListBindings() {}
+func documentListBindings() { _ = httpserver.Envelope{} }
 
 // documentDeleteBinding godoc
 // @Summary 解除券商分组绑定
@@ -214,7 +214,7 @@ func documentListBindings() {}
 // @Failure 404 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/bindings [delete]
-func documentDeleteBinding() {}
+func documentDeleteBinding() { _ = httpserver.Envelope{} }
 
 // documentPreviewImport godoc
 // @Summary 预览券商自选导入差异
@@ -228,7 +228,7 @@ func documentDeleteBinding() {}
 // @Failure 409 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/imports/preview [post]
-func documentPreviewImport() {}
+func documentPreviewImport() { _ = httpserver.Envelope{} }
 
 // documentCommitImport godoc
 // @Summary 提交已校验的券商自选导入
@@ -243,7 +243,7 @@ func documentPreviewImport() {}
 // @Failure 409 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/imports/{previewId}/commit [post]
-func documentCommitImport() {}
+func documentCommitImport() { _ = httpserver.Envelope{} }
 
 // documentListImportRuns godoc
 // @Summary 查询自选导入审计记录
@@ -256,4 +256,4 @@ func documentCommitImport() {}
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 503 {object} httpserver.Envelope
 // @Router /api/v1/watchlist/import-runs [get]
-func documentListImportRuns() {}
+func documentListImportRuns() { _ = httpserver.Envelope{} }

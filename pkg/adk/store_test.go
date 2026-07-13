@@ -26,12 +26,19 @@ func newTestRuntime(t *testing.T) *Runtime {
 	if err != nil {
 		t.Fatalf("NewSessionService: %v", err)
 	}
-	t.Cleanup(func() { jftradeErr5 := CloseSessionService(sessionService); jftradeCheckTestError(t, jftradeErr5) })
-	t.Cleanup(func() { jftradeErr3 := store.Close(); jftradeCheckTestError(t, jftradeErr3) })
 	if err := ValidateSQLiteSessionService(sessionService); err != nil {
+		jftradeCheckTestError(t, CloseSessionService(sessionService))
+		jftradeCheckTestError(t, store.Close())
 		t.Fatalf("ValidateSQLiteSessionService: %v", err)
 	}
 	runtime := NewRuntimeWithSessionService(store, NewToolRegistry(), sessionService)
+	artifactService := runtime.artifactService
+	t.Cleanup(func() {
+		jftradeCheckTestError(t, CloseArtifactService(artifactService))
+		jftradeCheckTestError(t, CloseSessionService(sessionService))
+		jftradeCheckTestError(t, store.Close())
+	})
+	t.Cleanup(func() { jftradeCheckTestError(t, runtime.Close()) })
 	ensureTestProvider(t, runtime)
 	return runtime
 }
@@ -334,11 +341,17 @@ func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) 
 	if err != nil {
 		t.Fatalf("NewSessionService: %v", err)
 	}
-	t.Cleanup(func() { jftradeErr4 := CloseSessionService(sessionService); jftradeCheckTestError(t, jftradeErr4) })
 	if err := ValidateSQLiteSessionService(sessionService); err != nil {
+		jftradeCheckTestError(t, CloseSessionService(sessionService))
 		t.Fatalf("ValidateSQLiteSessionService: %v", err)
 	}
 	runtime := NewRuntimeWithSessionService(store, registry, sessionService)
+	artifactService := runtime.artifactService
+	t.Cleanup(func() {
+		jftradeCheckTestError(t, CloseArtifactService(artifactService))
+		jftradeCheckTestError(t, CloseSessionService(sessionService))
+	})
+	t.Cleanup(func() { jftradeCheckTestError(t, runtime.Close()) })
 	ensureTestProvider(t, runtime)
 	return runtime
 }

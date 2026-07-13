@@ -187,24 +187,33 @@ func evaluateCoverage(analysis coverageAnalysis, cfg config) []string {
 	return violations
 }
 
-func printCoverageReport(writer io.Writer, analysis coverageAnalysis, cfg config) {
-	fmt.Fprintf(writer, "Go coverage: raw=%.2f%% (%d/%d statements) business=%.2f%% (%d/%d statements) threshold=%.2f%%\n",
+func printCoverageReport(writer io.Writer, analysis coverageAnalysis, cfg config) error {
+	if _, err := fmt.Fprintf(writer, "Go coverage: raw=%.2f%% (%d/%d statements) business=%.2f%% (%d/%d statements) threshold=%.2f%%\n",
 		analysis.raw.percentage(), analysis.raw.covered, analysis.raw.total,
 		analysis.business.percentage(), analysis.business.covered, analysis.business.total,
 		cfg.businessThreshold,
-	)
+	); err != nil {
+		return fmt.Errorf("write coverage summary: %w", err)
+	}
 	for _, scope := range analysis.critical {
 		if scope.total == 0 {
-			fmt.Fprintf(writer, "Critical Go coverage: %-42s n/a (0/0)\n", scope.scope)
+			if _, err := fmt.Fprintf(writer, "Critical Go coverage: %-42s n/a (0/0)\n", scope.scope); err != nil {
+				return fmt.Errorf("write critical coverage: %w", err)
+			}
 			continue
 		}
-		fmt.Fprintf(writer, "Critical Go coverage: %-42s %.2f%% (%d/%d)\n",
+		if _, err := fmt.Fprintf(writer, "Critical Go coverage: %-42s %.2f%% (%d/%d)\n",
 			scope.scope, scope.percentage(), scope.covered, scope.total,
-		)
+		); err != nil {
+			return fmt.Errorf("write critical coverage: %w", err)
+		}
 	}
 	for _, scope := range analysis.ordinary {
-		fmt.Fprintf(writer, "Ordinary Go coverage: %-42s %.2f%% (%d/%d)\n",
+		if _, err := fmt.Fprintf(writer, "Ordinary Go coverage: %-42s %.2f%% (%d/%d)\n",
 			scope.scope, scope.percentage(), scope.covered, scope.total,
-		)
+		); err != nil {
+			return fmt.Errorf("write ordinary coverage: %w", err)
+		}
 	}
+	return nil
 }

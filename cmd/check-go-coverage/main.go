@@ -57,21 +57,21 @@ func runCLI(args []string, stdout, stderr io.Writer) int {
 
 	workDir, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintf(stderr, "get working directory: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "get working directory: %v\n", err)
 		return 1
 	}
 	violations, err := executeCoverageCheck(cfg, workDir, stdout, stderr, execGoRunner{})
 	if err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
 	if len(violations) == 0 {
 		return 0
 	}
 
-	fmt.Fprintln(stderr, "Coverage gate failed:")
+	_, _ = fmt.Fprintln(stderr, "Coverage gate failed:")
 	for _, violation := range violations {
-		fmt.Fprintf(stderr, "- %s\n", violation)
+		_, _ = fmt.Fprintf(stderr, "- %s\n", violation)
 	}
 	return 1
 }
@@ -95,7 +95,7 @@ func parseConfig(args []string, stderr io.Writer) (config, error) {
 		cfg.packages = packageList{"./..."}
 	}
 	if err := validateConfig(cfg); err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return config{}, err
 	}
 	return cfg, nil

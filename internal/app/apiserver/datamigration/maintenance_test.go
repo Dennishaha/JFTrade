@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -112,7 +114,7 @@ func TestDatabaseBackupCreatesVerifiedPrivateSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Fatalf("backup permissions = %v", info.Mode().Perm())
 	}
 	backupDB, err := sql.Open("sqlite", result.BackupPath)
@@ -305,6 +307,41 @@ func TestOverviewCleanableCategoriesADKPreviewAndCompact(t *testing.T) {
 	}
 	if _, err := manager.Compact(t.Context(), DatabaseStrategy, CompactRequest{Confirmation: "wrong"}); err == nil {
 		t.Fatal("wrong compact confirmation succeeded")
+	}
+}
+
+func TestCleanupAndCompactRejectInvalidOrUnavailableOperations(t *testing.T) {
+	root := t.TempDir()
+	manager := NewManager(filepath.Join(root, "settings.json"), filepath.Join(root, "backtest.db"))
+
+	previewCases := []CleanupPreviewRequest{
+		{Kind: CleanupBacktestHistory, DatabaseID: DatabaseStrategy},
+		{Kind: CleanupBacktestHistory, DatabaseID: DatabaseBacktestRuns, OlderThanDays: 3651, KeepLatest: 1},
+		{Kind: CleanupBacktestHistory, DatabaseID: DatabaseBacktestRuns, OlderThanDays: 1, KeepLatest: 10001},
+		{Kind: CleanupSoftDeleted, DatabaseID: DatabaseWatchlist},
+		{Kind: "unsupported", DatabaseID: DatabaseStrategy},
+	}
+	for _, request := range previewCases {
+		if _, err := manager.PreviewCleanup(t.Context(), request); err == nil {
+			t.Errorf("PreviewCleanup(%+v) succeeded", request)
+		}
+	}
+
+	if _, err := manager.ExecuteCleanup(t.Context(), CleanupExecuteRequest{PreviewID: "missing"}); !errors.Is(err, ErrPreviewNotFound) {
+		t.Fatalf("missing preview error = %v", err)
+	}
+
+	createDeletedStrategyForMaintenanceTest(t, manager.descriptorMap()[DatabaseStrategy].Path)
+	preview, err := manager.PreviewCleanup(t.Context(), CleanupPreviewRequest{Kind: CleanupSoftDeleted, DatabaseID: DatabaseStrategy})
+	if err != nil {
+		t.Fatalf("PreviewCleanup: %v", err)
+	}
+	if _, err := manager.ExecuteCleanup(t.Context(), CleanupExecuteRequest{PreviewID: preview.PreviewID, Confirmation: preview.ConfirmationText}); err == nil || !strings.Contains(err.Error(), "unavailable") {
+		t.Fatalf("cleanup without purge hook error = %v", err)
+	}
+
+	if _, err := manager.Compact(t.Context(), DatabaseStrategy, CompactRequest{Confirmation: "COMPACT strategy"}); err == nil || !strings.Contains(err.Error(), "unavailable") {
+		t.Fatalf("compact without hook error = %v", err)
 	}
 }
 

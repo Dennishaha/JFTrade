@@ -196,15 +196,17 @@ func TestStoreInputAndMissingObservationBoundaries(t *testing.T) {
 }
 
 func TestStorePathPaginationAndClosedDatabaseBoundaries(t *testing.T) {
-	t.Setenv("JFTRADE_STRATEGY_RUNTIME_DB", "/tmp/strategy-runtime-override.db")
-	if got := DeriveDBPath("/var/jftrade/settings.json"); got != "/tmp/strategy-runtime-override.db" {
+	overridePath := filepath.Join(t.TempDir(), "strategy-runtime-override.db")
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	t.Setenv("JFTRADE_STRATEGY_RUNTIME_DB", overridePath)
+	if got := DeriveDBPath(settingsPath); got != overridePath {
 		t.Fatalf("env DB path = %q", got)
 	}
 	t.Setenv("JFTRADE_STRATEGY_RUNTIME_DB", "")
 	if got := DeriveDBPath("settings.json"); got != DefaultDBFilename {
 		t.Fatalf("default DB path = %q", got)
 	}
-	if got := DeriveDBPath("/var/jftrade/settings.json"); got != "/var/jftrade/"+DefaultDBFilename {
+	if got, want := DeriveDBPath(settingsPath), filepath.Join(filepath.Dir(settingsPath), DefaultDBFilename); got != want {
 		t.Fatalf("derived DB path = %q", got)
 	}
 	if NormalizePageSize(0) != DefaultPageSize || NormalizePageSize(MaxPageSize+1) != MaxPageSize || NormalizePageSize(17) != 17 {

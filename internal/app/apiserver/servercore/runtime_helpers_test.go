@@ -262,9 +262,13 @@ func (e *strategyRuntimeStubExchange) lastPlacedOrder() (bbgotypes.SubmitOrder, 
 }
 
 func instantiateStrategyRuntimeTestInstance(t *testing.T, server *Server, binding strategyInstanceBinding) string {
+	return instantiateStrategyRuntimeTestInstanceWithDefinitionID(t, server, "runtime-test", binding)
+}
+
+func instantiateStrategyRuntimeTestInstanceWithDefinitionID(t *testing.T, server *Server, definitionID string, binding strategyInstanceBinding) string {
 	t.Helper()
 	definition := strategyDesignDefinition{
-		ID:           "runtime-test",
+		ID:           definitionID,
 		Name:         "Runtime Test",
 		Version:      "0.1.0",
 		Runtime:      strategyRuntimePinePlan,

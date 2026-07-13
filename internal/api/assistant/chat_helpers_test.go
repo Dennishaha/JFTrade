@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
@@ -160,4 +161,130 @@ func TestStreamHelpersRunIDAndBestEffortLogging(t *testing.T) {
 		t.Fatalf("streamEventRunID(explicit) = %q", got)
 	}
 	jftradeLogError(nil, errors.New("expected best-effort test log"))
+}
+
+func TestChatStreamExecutionPublishesDeltaAndFinalVariants(t *testing.T) {
+	hub := newADKChatStreamHub()
+	record := hub.create()
+	execution := newADKChatStreamExecution(&Handler{streams: hub}, record, jfadk.ChatRequest{})
+
+	if execution.publishTimelineDelta(jfadk.ChatDelta{}) {
+		t.Fatal("empty delta reported as timeline-only")
+	}
+	timeline := jfadk.TimelineEntry{RunID: "run-1", Kind: jfadk.TimelineKindAssistantMessage, Text: "timeline"}
+	if !execution.publishTimelineDelta(jfadk.ChatDelta{Timeline: &timeline}) {
+		t.Fatal("timeline-only delta was not consumed")
+	}
+	if execution.publishTimelineDelta(jfadk.ChatDelta{Timeline: &timeline, Reply: "reply"}) {
+		t.Fatal("mixed timeline delta was reported as timeline-only")
+	}
+	if execution.publishRunDelta(&jfadk.ChatDelta{}) {
+		t.Fatal("delta without run reported as run delta")
+	}
+	run := jfadk.Run{ID: "run-1", SessionID: "session-1", ToolCalls: []jfadk.ToolCall{{ID: "tool-1"}}}
+	if !execution.publishRunDelta(&jfadk.ChatDelta{Run: &run}) {
+		t.Fatal("run delta was not published")
+	}
+
+	execution.publishContextDelta(nil)
+	snapshot := &jfadk.SessionContextSnapshot{SessionID: "session-1"}
+	execution.publishContextDelta(snapshot)
+	execution.publishSession(jfadk.Session{ID: "session-1"})
+	execution.ensureSessionAndContext()
+	execution.publishNarrativeDeltas(jfadk.ChatDelta{Run: &run, ReasoningContent: "reason", Reply: "answer"})
+
+	response := jfadk.ChatResponse{
+		Reply:   "done",
+		Session: jfadk.Session{ID: "session-1"},
+		Run: jfadk.Run{ID: "run-1", ToolCalls: []jfadk.ToolCall{{
+			ID: "tool-1", Output: map[string]any{"large": true},
+		}}},
+		Context: snapshot,
+	}
+	execution.publishFinal(response)
+	events, terminal, _ := record.snapshot(0)
+	if !terminal || len(events) == 0 || events[len(events)-1].Type != "final" {
+		t.Fatalf("final stream = events=%#v terminal=%v", events, terminal)
+	}
+	final := events[len(events)-1].Response
+	if final == nil || len(final.Run.ToolCalls) != 1 || final.Run.ToolCalls[0].Output != nil {
+		t.Fatalf("trimmed final response = %#v", final)
+	}
+}
+
+func TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest(t *testing.T) {
+	runtime, _ := newAssistantTestRouter(t)
+	agent, err := runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+		ID: "preview-agent", Name: "Preview Agent", ProviderID: "test-provider", Status: jfadk.AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	session, err := runtime.Store().CreateSession(t.Context(), agent.ID, "Preview Session")
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	handler := &Handler{
+		service: assistantservice.NewService(runtime),
+		streams: newADKChatStreamHub(),
+	}
+	record := handler.streams.create()
+	handler.executeADKChatStream(record, jfadk.ChatRequest{})
+
+	events, terminal, _ := record.snapshot(0)
+	if !terminal || len(events) == 0 {
+		t.Fatalf("invalid request stream = events=%#v terminal=%v", events, terminal)
+	}
+	last := events[len(events)-1]
+	if last.Type != "error" || last.Message == "" {
+		t.Fatalf("terminal event = %#v", last)
+	}
+
+	previewRecord := handler.streams.create()
+	previewExecution := newADKChatStreamExecution(handler, previewRecord, jfadk.ChatRequest{SessionID: session.ID, Message: "preview"})
+	previewExecution.ensureSessionAndContext()
+	if !previewExecution.sessionSent {
+		t.Fatal("ensureSessionAndContext did not publish a preview session")
+	}
+
+	missingRecord := handler.streams.create()
+	missingExecution := newADKChatStreamExecution(handler, missingRecord, jfadk.ChatRequest{AgentID: "missing-agent", Message: "preview"})
+	missingExecution.previewSession()
+	missingEvents, _, _ := missingRecord.snapshot(0)
+	if len(missingEvents) != 0 {
+		t.Fatalf("missing-agent preview events = %#v", missingEvents)
+	}
+}
+
+func TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs(t *testing.T) {
+	for _, test := range []struct {
+		header string
+		want   string
+	}{
+		{header: "", want: ""},
+		{header: "Basic token", want: ""},
+		{header: "bearer secret", want: "secret"},
+		{header: "  Bearer   ", want: ""},
+	} {
+		if got := bearerToken(test.header); got != test.want {
+			t.Errorf("bearerToken(%q) = %q, want %q", test.header, got, test.want)
+		}
+	}
+
+	for _, err := range []error{
+		errors.New("invalid agent configuration"),
+		jfadk.ErrBuiltinAgentProtected,
+		errors.New("provider not found"),
+		errors.New("provider is disabled"),
+		errors.New("provider API key is not configured"),
+		errors.New("unknown ADK tool"),
+		errors.New("unknown ADK skill"),
+	} {
+		if !isADKAgentValidationError(err) {
+			t.Errorf("isADKAgentValidationError(%v) = false", err)
+		}
+	}
+	if isADKAgentValidationError(nil) || isADKAgentValidationError(errors.New("database unavailable")) {
+		t.Fatal("non-validation error was classified as validation error")
+	}
 }

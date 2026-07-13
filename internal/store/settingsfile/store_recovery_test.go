@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -103,7 +104,7 @@ func TestLegacyAdminAuthSettingMigratesToDisabledWebAccess(t *testing.T) {
 	if strings.Contains(string(persisted), "adminAuthRequired") {
 		t.Fatalf("legacy admin auth field was not removed: %s", persisted)
 	}
-	if mode := fileMode(t, settingsPath); mode != 0o600 {
+	if mode := fileMode(t, settingsPath); runtime.GOOS != "windows" && mode != 0o600 {
 		t.Fatalf("settings mode = %#o, want 0600", mode)
 	}
 }

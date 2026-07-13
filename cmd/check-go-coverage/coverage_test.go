@@ -106,7 +106,7 @@ func TestPrintCoverageReportIncludesMissingAndSortedScopes(t *testing.T) {
 		},
 	}
 	var output bytes.Buffer
-	printCoverageReport(&output, analysis, config{businessThreshold: 90})
+	require.NoError(t, printCoverageReport(&output, analysis, config{businessThreshold: 90}))
 	assert.Contains(t, output.String(), "raw=90.00%")
 	assert.Contains(t, output.String(), "internal/missing                           n/a (0/0)")
 	assert.Less(t, strings.Index(output.String(), "internal/a"), strings.Index(output.String(), "internal/z"))

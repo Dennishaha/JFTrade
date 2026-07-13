@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +31,7 @@ func executeCoverageCheck(
 	stdout io.Writer,
 	stderr io.Writer,
 	runner goRunner,
-) ([]string, error) {
+) (violations []string, returnErr error) {
 	repoRoot, err := findRepoRoot(workDir)
 	if err != nil {
 		return nil, err
@@ -44,7 +45,11 @@ func executeCoverageCheck(
 		_ = os.Remove(profilePath)
 		return nil, fmt.Errorf("close coverage profile: %w", err)
 	}
-	defer os.Remove(profilePath)
+	defer func() {
+		if err := os.Remove(profilePath); err != nil && !errors.Is(err, os.ErrNotExist) && returnErr == nil {
+			returnErr = fmt.Errorf("remove coverage profile: %w", err)
+		}
+	}()
 
 	args := []string{
 		"test",
@@ -65,7 +70,9 @@ func executeCoverageCheck(
 	if err != nil {
 		return nil, err
 	}
-	printCoverageReport(stdout, analysis, cfg)
+	if err := printCoverageReport(stdout, analysis, cfg); err != nil {
+		return nil, err
+	}
 	return evaluateCoverage(analysis, cfg), nil
 }
 

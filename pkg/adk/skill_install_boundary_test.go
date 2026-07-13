@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -51,22 +52,24 @@ func TestSkillInstallAdditionalBoundaryBranches(t *testing.T) {
 	})
 
 	t.Run("rewriteArchiveSkillDocument and installed archive loading surface read write and lookup errors", func(t *testing.T) {
-		readRoot := t.TempDir()
-		if err := os.Symlink(filepath.Join(readRoot, "missing-skill"), filepath.Join(readRoot, "SKILL.md")); err != nil {
-			t.Fatalf("Symlink unreadable SKILL.md: %v", err)
-		}
-		if _, _, err := rewriteArchiveSkillDocument(readRoot, "https://example.com/read-error"); err == nil {
-			t.Fatal("rewriteArchiveSkillDocument accepted unreadable SKILL.md symlink")
-		}
+		if runtime.GOOS != "windows" {
+			readRoot := t.TempDir()
+			if err := os.Symlink(filepath.Join(readRoot, "missing-skill"), filepath.Join(readRoot, "SKILL.md")); err != nil {
+				t.Fatalf("Symlink unreadable SKILL.md: %v", err)
+			}
+			if _, _, err := rewriteArchiveSkillDocument(readRoot, "https://example.com/read-error"); err == nil {
+				t.Fatal("rewriteArchiveSkillDocument accepted unreadable SKILL.md symlink")
+			}
 
-		writeRoot := t.TempDir()
-		writeSkillDocument(t, writeRoot, "writable", "---\nname: writable\ndescription: Writable\n---\nBody.")
-		docPath := filepath.Join(writeRoot, "writable", "SKILL.md")
-		if err := os.Chmod(docPath, 0o444); err != nil {
-			t.Fatalf("Chmod readonly SKILL.md: %v", err)
-		}
-		if _, _, err := rewriteArchiveSkillDocument(filepath.Join(writeRoot, "writable"), "https://example.com/write-error"); err == nil {
-			t.Fatal("rewriteArchiveSkillDocument accepted readonly SKILL.md")
+			writeRoot := t.TempDir()
+			writeSkillDocument(t, writeRoot, "writable", "---\nname: writable\ndescription: Writable\n---\nBody.")
+			docPath := filepath.Join(writeRoot, "writable", "SKILL.md")
+			if err := os.Chmod(docPath, 0o444); err != nil {
+				t.Fatalf("Chmod readonly SKILL.md: %v", err)
+			}
+			if _, _, err := rewriteArchiveSkillDocument(filepath.Join(writeRoot, "writable"), "https://example.com/write-error"); err == nil {
+				t.Fatal("rewriteArchiveSkillDocument accepted readonly SKILL.md")
+			}
 		}
 
 		registry := &SkillRegistry{skillsPath: t.TempDir()}
@@ -104,31 +107,35 @@ func TestSkillInstallAdditionalBoundaryBranches(t *testing.T) {
 			t.Fatal("copyDirectoryContents accepted missing target root for file copy")
 		}
 
-		bundleRoot := t.TempDir()
-		if err := os.Symlink(filepath.Join(bundleRoot, "missing"), filepath.Join(bundleRoot, "broken.md")); err != nil {
-			t.Fatalf("Symlink broken bundle file: %v", err)
-		}
-		if directoryMatchesBundle(bundleRoot, map[string]string{"broken.md": "body"}) {
-			t.Fatal("directoryMatchesBundle accepted broken symlink file entry")
+		if runtime.GOOS != "windows" {
+			bundleRoot := t.TempDir()
+			if err := os.Symlink(filepath.Join(bundleRoot, "missing"), filepath.Join(bundleRoot, "broken.md")); err != nil {
+				t.Fatalf("Symlink broken bundle file: %v", err)
+			}
+			if directoryMatchesBundle(bundleRoot, map[string]string{"broken.md": "body"}) {
+				t.Fatal("directoryMatchesBundle accepted broken symlink file entry")
+			}
 		}
 	})
 
 	t.Run("replaceDirectoryWithBundle surfaces tempdir stat and bundle conflict errors", func(t *testing.T) {
-		noWriteRoot := filepath.Join(t.TempDir(), "no-write")
-		if err := os.MkdirAll(noWriteRoot, 0o500); err != nil {
-			t.Fatalf("MkdirAll no-write root: %v", err)
-		}
-		if err := replaceDirectoryWithBundle(filepath.Join(noWriteRoot, "skill"), map[string]string{"SKILL.md": "body"}); err == nil {
-			t.Fatal("replaceDirectoryWithBundle accepted non-writable parent directory")
-		}
+		if runtime.GOOS != "windows" {
+			noWriteRoot := filepath.Join(t.TempDir(), "no-write")
+			if err := os.MkdirAll(noWriteRoot, 0o500); err != nil {
+				t.Fatalf("MkdirAll no-write root: %v", err)
+			}
+			if err := replaceDirectoryWithBundle(filepath.Join(noWriteRoot, "skill"), map[string]string{"SKILL.md": "body"}); err == nil {
+				t.Fatal("replaceDirectoryWithBundle accepted non-writable parent directory")
+			}
 
-		loopRoot := t.TempDir()
-		loopPath := filepath.Join(loopRoot, "loop")
-		if err := os.Symlink("loop", loopPath); err != nil {
-			t.Fatalf("Symlink loop path: %v", err)
-		}
-		if err := replaceDirectoryWithBundle(loopPath, map[string]string{"SKILL.md": "body"}); err == nil {
-			t.Fatal("replaceDirectoryWithBundle accepted symlink loop target")
+			loopRoot := t.TempDir()
+			loopPath := filepath.Join(loopRoot, "loop")
+			if err := os.Symlink("loop", loopPath); err != nil {
+				t.Fatalf("Symlink loop path: %v", err)
+			}
+			if err := replaceDirectoryWithBundle(loopPath, map[string]string{"SKILL.md": "body"}); err == nil {
+				t.Fatal("replaceDirectoryWithBundle accepted symlink loop target")
+			}
 		}
 
 		if err := replaceDirectoryWithBundle(filepath.Join(t.TempDir(), "conflict-skill"), map[string]string{

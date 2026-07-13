@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -113,15 +114,17 @@ func TestSkillRegistryAdditionalFilesystemAndArchiveBranches(t *testing.T) {
 	t.Run("copy and bundle helpers surface open read and conflict errors", func(t *testing.T) {
 		root := t.TempDir()
 
-		openSource := filepath.Join(root, "open-source")
-		if err := os.MkdirAll(openSource, 0o755); err != nil {
-			t.Fatalf("MkdirAll open-source: %v", err)
-		}
-		if err := os.Symlink(filepath.Join(root, "missing-target"), filepath.Join(openSource, "broken-link")); err != nil {
-			t.Fatalf("Symlink broken-link: %v", err)
-		}
-		if err := copyDirectoryContents(openSource, filepath.Join(root, "open-target")); err == nil {
-			t.Fatal("copyDirectoryContents accepted broken symlink source")
+		if runtime.GOOS != "windows" {
+			openSource := filepath.Join(root, "open-source")
+			if err := os.MkdirAll(openSource, 0o755); err != nil {
+				t.Fatalf("MkdirAll open-source: %v", err)
+			}
+			if err := os.Symlink(filepath.Join(root, "missing-target"), filepath.Join(openSource, "broken-link")); err != nil {
+				t.Fatalf("Symlink broken-link: %v", err)
+			}
+			if err := copyDirectoryContents(openSource, filepath.Join(root, "open-target")); err == nil {
+				t.Fatal("copyDirectoryContents accepted broken symlink source")
+			}
 		}
 
 		targetConflictSource := filepath.Join(root, "target-conflict-source")
@@ -139,30 +142,32 @@ func TestSkillRegistryAdditionalFilesystemAndArchiveBranches(t *testing.T) {
 			t.Fatal("copyDirectoryContents accepted output path that is already a directory")
 		}
 
-		readConflictSource := filepath.Join(root, "read-conflict-source")
-		realDir := filepath.Join(root, "real-dir")
-		if err := os.MkdirAll(realDir, 0o755); err != nil {
-			t.Fatalf("MkdirAll real-dir: %v", err)
-		}
-		if err := os.MkdirAll(readConflictSource, 0o755); err != nil {
-			t.Fatalf("MkdirAll read-conflict-source: %v", err)
-		}
-		if err := os.Symlink(realDir, filepath.Join(readConflictSource, "dir-link")); err != nil {
-			t.Fatalf("Symlink dir-link: %v", err)
-		}
-		if err := copyDirectoryContents(readConflictSource, filepath.Join(root, "read-conflict-target")); err == nil {
-			t.Fatal("copyDirectoryContents accepted symlink-to-directory file copy")
-		}
+		if runtime.GOOS != "windows" {
+			readConflictSource := filepath.Join(root, "read-conflict-source")
+			realDir := filepath.Join(root, "real-dir")
+			if err := os.MkdirAll(realDir, 0o755); err != nil {
+				t.Fatalf("MkdirAll real-dir: %v", err)
+			}
+			if err := os.MkdirAll(readConflictSource, 0o755); err != nil {
+				t.Fatalf("MkdirAll read-conflict-source: %v", err)
+			}
+			if err := os.Symlink(realDir, filepath.Join(readConflictSource, "dir-link")); err != nil {
+				t.Fatalf("Symlink dir-link: %v", err)
+			}
+			if err := copyDirectoryContents(readConflictSource, filepath.Join(root, "read-conflict-target")); err == nil {
+				t.Fatal("copyDirectoryContents accepted symlink-to-directory file copy")
+			}
 
-		bundleRoot := filepath.Join(root, "bundle-root")
-		if err := os.MkdirAll(bundleRoot, 0o755); err != nil {
-			t.Fatalf("MkdirAll bundle-root: %v", err)
-		}
-		if err := os.Symlink(realDir, filepath.Join(bundleRoot, "dir-link")); err != nil {
-			t.Fatalf("Symlink bundle dir-link: %v", err)
-		}
-		if directoryMatchesBundle(bundleRoot, map[string]string{"dir-link": "x"}) {
-			t.Fatal("directoryMatchesBundle accepted unreadable symlinked directory entry")
+			bundleRoot := filepath.Join(root, "bundle-root")
+			if err := os.MkdirAll(bundleRoot, 0o755); err != nil {
+				t.Fatalf("MkdirAll bundle-root: %v", err)
+			}
+			if err := os.Symlink(realDir, filepath.Join(bundleRoot, "dir-link")); err != nil {
+				t.Fatalf("Symlink bundle dir-link: %v", err)
+			}
+			if directoryMatchesBundle(bundleRoot, map[string]string{"dir-link": "x"}) {
+				t.Fatal("directoryMatchesBundle accepted unreadable symlinked directory entry")
+			}
 		}
 	})
 

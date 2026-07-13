@@ -2,6 +2,8 @@ package settings
 
 import (
 	"errors"
+	"reflect"
+	"strings"
 	"testing"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
@@ -26,6 +28,56 @@ func TestServiceCreateManagedAccountNormalizesClientFields(t *testing.T) {
 	}
 	if len(store.managedAccounts) != 1 || store.managedAccounts[0].AccountID != "acc-1" {
 		t.Fatalf("stored accounts = %#v", store.managedAccounts)
+	}
+}
+
+func TestServiceNotificationAndMCPStatusAccessors(t *testing.T) {
+	store := &fakeStore{
+		systemNotifications: jfsettings.SystemNotificationSettings{Enabled: true, Mode: "all"},
+		mcpServer: jfsettings.MCPServerSettings{
+			Enabled: true, Port: 7788, AuthMode: "none",
+		},
+	}
+	status := jfsettings.MCPServerStatus{Running: true, Endpoint: "http://127.0.0.1:7788/mcp"}
+	svc := NewService(store, WithMCPServerStatus(func() jfsettings.MCPServerStatus { return status }))
+
+	if got := svc.GetSystemNotificationSettings(); !reflect.DeepEqual(got, store.systemNotifications) {
+		t.Fatalf("GetSystemNotificationSettings = %#v", got)
+	}
+	updated := jfsettings.SystemNotificationSettings{Enabled: true, Mode: "custom", Levels: []string{"error"}}
+	if got, err := svc.SaveSystemNotificationSettings(updated); err != nil || got.Mode != "custom" {
+		t.Fatalf("SaveSystemNotificationSettings = %#v, %v", got, err)
+	}
+	snapshot := svc.GetMCPServerSettingsSnapshot()
+	if snapshot.Settings.Port != 7788 || snapshot.Status != status {
+		t.Fatalf("MCP snapshot = %#v", snapshot)
+	}
+}
+
+func TestServiceDefaultMCPStatusAndTokenGeneration(t *testing.T) {
+	store := &fakeStore{mcpServer: jfsettings.MCPServerSettings{Port: 7799, AuthMode: "none"}}
+	snapshot := NewService(store).GetMCPServerSettingsSnapshot()
+	if snapshot.Status.Endpoint != "http://127.0.0.1:7799/mcp" {
+		t.Fatalf("default MCP endpoint = %q", snapshot.Status.Endpoint)
+	}
+	token, err := newMCPServerToken()
+	if err != nil {
+		t.Fatalf("newMCPServerToken: %v", err)
+	}
+	if !strings.HasPrefix(token, "jft_mcp_") || len(token) <= len("jft_mcp_") {
+		t.Fatalf("generated MCP token = %q", token)
+	}
+}
+
+func TestValidateWebAccessPasswordBoundaries(t *testing.T) {
+	if !errors.Is(validateWebAccessPassword("short"), ErrWebAccessPasswordTooShort) {
+		t.Fatal("short password was accepted")
+	}
+	if !errors.Is(validateWebAccessPassword(strings.Repeat("界", 400)), ErrWebAccessPasswordTooLong) {
+		t.Fatal("oversized password was accepted")
+	}
+	if err := validateWebAccessPassword("123456789012345"); err != nil {
+		t.Fatalf("minimum-length password rejected: %v", err)
 	}
 }
 

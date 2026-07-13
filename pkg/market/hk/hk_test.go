@@ -1,6 +1,9 @@
 package hk
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestHKProfileUsesHongKongTimezoneAndSplitSessions(t *testing.T) {
 	if got := Location().String(); got != LocationName {
@@ -11,5 +14,11 @@ func TestHKProfileUsesHongKongTimezoneAndSplitSessions(t *testing.T) {
 	}
 	if RegularWindows[0] != [2]int{9*60 + 30, 12 * 60} || RegularWindows[1] != [2]int{13 * 60, 16 * 60} {
 		t.Fatalf("RegularWindows = %#v", RegularWindows)
+	}
+}
+
+func TestLoadLocationFallsBackToUTC(t *testing.T) {
+	if got := loadLocation("Invalid/Timezone"); got != time.UTC {
+		t.Fatalf("loadLocation fallback = %v", got)
 	}
 }

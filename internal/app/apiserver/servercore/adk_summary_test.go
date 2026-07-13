@@ -21,7 +21,7 @@ func TestADKStrategyInstanceSummariesIncludeFallbackDefinitionAndRuntimeState(t 
 			BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US",
 		},
 	})
-	plainID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	plainID := instantiateStrategyRuntimeTestInstanceWithDefinitionID(t, server, "runtime-test-plain", strategyInstanceBinding{
 		Symbols:       []string{"HK.00700"},
 		Interval:      "15m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
