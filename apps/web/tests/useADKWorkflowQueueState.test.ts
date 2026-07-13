@@ -138,6 +138,28 @@ describe("useADKWorkflowQueueState", () => {
         text: "child detail",
       }),
       buildTimelineEntry({
+        id: "entry-child-input",
+        kind: "input_request",
+        sequence: 3,
+        runId: "child-2",
+        inputRequest: {
+          id: "input-child",
+          runId: "child-2",
+          agentId: "agent-1",
+          functionCallId: "call-input-child",
+          status: "PENDING",
+          questions: [{
+            id: "q1",
+            question: "Choose",
+            allowOther: true,
+            options: [{ id: "q1-o1", label: "A" }, { id: "q1-o2", label: "B" }],
+          }],
+          answers: [],
+          createdAt: "2026-07-03T10:00:00.000Z",
+          updatedAt: "2026-07-03T10:00:00.000Z",
+        },
+      }),
+      buildTimelineEntry({
         id: "entry-tools",
         kind: "tool_group",
         sequence: 3,
@@ -231,6 +253,9 @@ describe("useADKWorkflowQueueState", () => {
       state.parentTimelineEntries.value.some((entry) => entry.id === "entry-child"),
     ).toBe(false);
     expect(
+      state.parentTimelineEntries.value.some((entry) => entry.id === "entry-child-input"),
+    ).toBe(true);
+    expect(
       state.parentTimelineEntries.value.find((entry) => entry.id === "entry-tools")
         ?.toolCalls,
     ).toEqual([expect.objectContaining({ id: "tool-parent" })]);
@@ -263,7 +288,9 @@ describe("useADKWorkflowQueueState", () => {
       runId: "child-2",
       message: "submit a limit order",
     });
-    expect(state.childTimelineEntries.value).toEqual([]);
+    expect(state.childTimelineEntries.value).toEqual([
+      expect.objectContaining({ id: "entry-child-input", kind: "input_request" }),
+    ]);
 
     state.setActiveChildRunId("missing-child");
     expect(state.activeChildRunId.value).toBe("");

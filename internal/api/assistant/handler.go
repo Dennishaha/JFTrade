@@ -109,6 +109,7 @@ func (h *Handler) registerChatAndRunRoutes(adk *gin.RouterGroup) {
 	adk.PATCH("/runs/:runId/objective", h.handleADKUpdateRunObjective)
 	adk.POST("/runs/:runId/pause", h.handleADKPauseRun)
 	adk.POST("/runs/:runId/resume", h.handleADKResumeRun)
+	adk.POST("/runs/:runId/input-response", h.handleADKInputResponse)
 	adk.POST("/runs/:runId/cancel", h.handleADKCancelRun)
 }
 

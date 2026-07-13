@@ -123,6 +123,47 @@ describe("ADKChatThread", () => {
     expect(wrapper.text()).not.toContain("启动子智能体");
   });
 
+  it("keeps a pending input request as a compact timeline status", () => {
+    const wrapper = mountThread([
+      {
+        id: "input-request-entry",
+        sessionId: "session-1",
+        runId: "run-1",
+        kind: "input_request",
+        createdAt: "2026-07-12T00:00:00Z",
+        status: "final",
+        inputRequest: {
+          id: "input-1",
+          runId: "run-1",
+          agentId: "agent-1",
+          functionCallId: "call-1",
+          title: "选择执行方式",
+          status: "PENDING",
+          questions: [
+            {
+              id: "q1",
+              question: "如何继续？",
+              allowOther: false,
+              options: [
+                { id: "q1-o1", label: "稳妥" },
+                { id: "q1-o2", label: "快速" },
+              ],
+            },
+          ],
+          answers: [],
+          createdAt: "2026-07-12T00:00:00Z",
+          updatedAt: "2026-07-12T00:00:00Z",
+        },
+      },
+    ]);
+
+    const notice = wrapper.get(".adk-input-request-notice");
+    expect(notice.classes()).toContain("is-pending");
+    expect(notice.text()).toContain("选择执行方式");
+    expect(notice.text()).toContain("正在等待你的回答");
+    expect(wrapper.find(".adk-input-card").exists()).toBe(false);
+  });
+
   it("shows original user prompt by default and toggles processed prompt", async () => {
     const wrapper = mountThread([
       {

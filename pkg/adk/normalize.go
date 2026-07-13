@@ -61,6 +61,14 @@ func NormalizeRun(run Run) Run {
 	}
 	run.ToolCalls = normalizeToolCalls(run.ToolCalls)
 	run.PendingApprovals = normalizeApprovals(run.PendingApprovals)
+	run.InputRequests = normalizeInputRequests(run.InputRequests)
+	run.InputRequest = normalizeInputRequest(run.InputRequest)
+	if run.InputRequest != nil {
+		run.InputRequests = appendInputRequestIfMissing(run.InputRequests, *run.InputRequest)
+	}
+	if latest := latestInputRequest(run.InputRequests); latest != nil {
+		run.InputRequest = latest
+	}
 	run.WorkflowPlan = normalizeWorkflowPlan(run.WorkflowPlan)
 	if len(run.ToolSummaries) == 0 {
 		run.ToolSummaries = []string{}
@@ -91,14 +99,57 @@ func NormalizeAgent(agent Agent) Agent {
 func NormalizeTimelineEntry(entry TimelineEntry) TimelineEntry {
 	entry.ToolCalls = normalizeToolCalls(entry.ToolCalls)
 	entry.Approvals = normalizeApprovals(entry.Approvals)
+	entry.InputRequest = normalizeInputRequest(entry.InputRequest)
 	return entry
 }
 
 func NormalizeChatResponse(response ChatResponse) ChatResponse {
 	response.Run = NormalizeRun(response.Run)
 	response.PendingApprovals = normalizeApprovals(response.PendingApprovals)
+	response.InputRequest = normalizeInputRequest(response.InputRequest)
 	response.Timeline = normalizeTimelineEntries(response.Timeline)
 	return response
+}
+
+func normalizeInputRequest(request *InputRequest) *InputRequest {
+	if request == nil {
+		return nil
+	}
+	result := *request
+	result.Questions = append([]InputQuestion(nil), request.Questions...)
+	for index := range result.Questions {
+		result.Questions[index].Options = append([]InputOption(nil), result.Questions[index].Options...)
+	}
+	result.Answers = append([]InputAnswer(nil), request.Answers...)
+	return &result
+}
+
+func normalizeInputRequests(requests []InputRequest) []InputRequest {
+	if len(requests) == 0 {
+		return []InputRequest{}
+	}
+	result := make([]InputRequest, 0, len(requests))
+	for index := range requests {
+		result = append(result, *normalizeInputRequest(&requests[index]))
+	}
+	return result
+}
+
+func appendInputRequestIfMissing(requests []InputRequest, request InputRequest) []InputRequest {
+	for index := range requests {
+		if requests[index].ID == request.ID || (request.FunctionCallID != "" && requests[index].FunctionCallID == request.FunctionCallID) {
+			requests[index] = *normalizeInputRequest(&request)
+			return requests
+		}
+	}
+	return append(requests, *normalizeInputRequest(&request))
+}
+
+func latestInputRequest(requests []InputRequest) *InputRequest {
+	if len(requests) == 0 {
+		return nil
+	}
+	return normalizeInputRequest(&requests[len(requests)-1])
 }
 
 func NormalizeWorkflowDefinition(workflow WorkflowDefinition) WorkflowDefinition {

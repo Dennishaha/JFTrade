@@ -117,7 +117,7 @@ func normalizeDesktopDocsURL(rawLink string) (string, error) {
 		return "", fmt.Errorf("docs link path is empty")
 	}
 
-	for _, segment := range strings.Split(parsed.Path, "/") {
+	for segment := range strings.SplitSeq(parsed.Path, "/") {
 		if segment == ".." {
 			return "", fmt.Errorf("docs link must not contain parent traversal")
 		}

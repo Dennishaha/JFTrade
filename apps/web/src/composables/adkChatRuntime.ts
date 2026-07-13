@@ -612,6 +612,14 @@ export function buildRunObservationSignature(run: ADKRun | undefined): string {
       status: approval.status,
       updatedAt: approval.updatedAt ?? "",
     })),
+    inputRequest: run.inputRequest
+      ? { id: run.inputRequest.id, status: run.inputRequest.status, updatedAt: run.inputRequest.updatedAt }
+      : null,
+    inputRequests: (run.inputRequests ?? []).map((request) => ({
+      id: request.id,
+      status: request.status,
+      updatedAt: request.updatedAt,
+    })),
   });
 }
 

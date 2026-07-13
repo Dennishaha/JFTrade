@@ -40,14 +40,15 @@ const (
 	WorkflowTriggerLogStatusCancelled       = "CANCELLED"
 	WorkflowTriggerLogStatusSkipped         = "SKIPPED"
 
-	RunStatusRunning   = "RUNNING"
-	RunStatusCompleted = "COMPLETED"
-	RunStatusPending   = "PENDING_APPROVAL"
-	RunStatusFailed    = "FAILED"
-	RunStatusDenied    = "DENIED"
-	RunStatusCancelled = "CANCELLED"
-	RunStatusTimedOut  = "TIMED_OUT"
-	RunStatusPaused    = "PAUSED"
+	RunStatusRunning      = "RUNNING"
+	RunStatusCompleted    = "COMPLETED"
+	RunStatusPending      = "PENDING_APPROVAL"
+	RunStatusPendingInput = "PENDING_INPUT"
+	RunStatusFailed       = "FAILED"
+	RunStatusDenied       = "DENIED"
+	RunStatusCancelled    = "CANCELLED"
+	RunStatusTimedOut     = "TIMED_OUT"
+	RunStatusPaused       = "PAUSED"
 
 	ApprovalStatusPending  = "PENDING"
 	ApprovalStatusApproved = "APPROVED"
@@ -174,6 +175,7 @@ const (
 	TimelineKindAssistantReasoning = "assistant_reasoning"
 	TimelineKindToolGroup          = "tool_group"
 	TimelineKindApprovalGroup      = "approval_group"
+	TimelineKindInputRequest       = "input_request"
 	TimelineKindContextNotice      = "context_notice"
 
 	TimelineStatusStreaming = "streaming"
@@ -195,19 +197,20 @@ type TranscriptEntry struct {
 type Message = TranscriptEntry
 
 type TimelineEntry struct {
-	ID            string     `json:"id"`
-	SessionID     string     `json:"sessionId"`
-	RunID         string     `json:"runId,omitempty"`
-	Kind          string     `json:"kind"`
-	CreatedAt     string     `json:"createdAt"`
-	UpdatedAt     string     `json:"updatedAt,omitempty"`
-	Sequence      int        `json:"sequence"`
-	Status        string     `json:"status,omitempty"`
-	Text          string     `json:"text,omitempty"`
-	OriginalText  string     `json:"originalText,omitempty"`
-	ProcessedText string     `json:"processedText,omitempty"`
-	ToolCalls     []ToolCall `json:"toolCalls,omitempty"`
-	Approvals     []Approval `json:"approvals,omitempty"`
+	ID            string        `json:"id"`
+	SessionID     string        `json:"sessionId"`
+	RunID         string        `json:"runId,omitempty"`
+	Kind          string        `json:"kind"`
+	CreatedAt     string        `json:"createdAt"`
+	UpdatedAt     string        `json:"updatedAt,omitempty"`
+	Sequence      int           `json:"sequence"`
+	Status        string        `json:"status,omitempty"`
+	Text          string        `json:"text,omitempty"`
+	OriginalText  string        `json:"originalText,omitempty"`
+	ProcessedText string        `json:"processedText,omitempty"`
+	ToolCalls     []ToolCall    `json:"toolCalls,omitempty"`
+	Approvals     []Approval    `json:"approvals,omitempty"`
+	InputRequest  *InputRequest `json:"inputRequest,omitempty"`
 }
 
 type Run struct {
@@ -240,6 +243,8 @@ type Run struct {
 	WorkflowPlan       []WorkflowStepState `json:"workflowPlan,omitempty"`
 	ToolCalls          []ToolCall          `json:"toolCalls"`
 	PendingApprovals   []Approval          `json:"pendingApprovals"`
+	InputRequest       *InputRequest       `json:"inputRequest,omitempty"`
+	InputRequests      []InputRequest      `json:"inputRequests,omitempty"`
 	ResumeState        string              `json:"resumeState,omitempty"`
 	PauseRequestedAt   *string             `json:"pauseRequestedAt,omitempty"`
 	PausedAt           *string             `json:"pausedAt,omitempty"`
@@ -526,6 +531,7 @@ type ChatResponse struct {
 	Session          Session                 `json:"session"`
 	Run              Run                     `json:"run"`
 	PendingApprovals []Approval              `json:"pendingApprovals"`
+	InputRequest     *InputRequest           `json:"inputRequest,omitempty"`
 	Timeline         []TimelineEntry         `json:"timeline"`
 	Context          *SessionContextSnapshot `json:"context,omitempty"`
 }

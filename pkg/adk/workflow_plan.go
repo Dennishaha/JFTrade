@@ -395,6 +395,7 @@ func pauseParentForChild(parent Run, child Run, cursor int) Run {
 	parent.Status = child.Status
 	parent.Message = child.Message
 	parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
+	parent.InputRequest = normalizeInputRequest(child.InputRequest)
 	parent.WorkflowStatus = workflowStatusPaused
 	parent.WorkflowCursor = cursor
 	parent = updateWorkflowPlanForChildAt(parent, child, cursor)
@@ -424,6 +425,9 @@ func approvalsForRun(approvals []Approval, runID string) []Approval {
 }
 
 func workflowPendingReply(parent Run) string {
+	if parent.Status == RunStatusPendingInput {
+		return "工作流正在等待用户回答。"
+	}
 	if parent.Status != RunStatusPending {
 		if strings.TrimSpace(parent.FailureReason) != "" {
 			return parent.FailureReason
@@ -495,7 +499,7 @@ func applyWorkflowChildState(step *WorkflowStepState, child Run) {
 	case RunStatusCompleted:
 		step.Status = "DONE"
 		step.ResultSummary = strings.TrimSpace(child.Message)
-	case RunStatusPending:
+	case RunStatusPending, RunStatusPendingInput:
 		step.Status = "BLOCKED"
 	case RunStatusRunning:
 		step.Status = "IN_PROGRESS"
@@ -580,7 +584,7 @@ func errADKMissingFinalReply() error {
 
 func isWorkflowBlockingStatus(status string) bool {
 	switch status {
-	case RunStatusPending, RunStatusFailed, RunStatusTimedOut, RunStatusCancelled, RunStatusDenied:
+	case RunStatusPending, RunStatusPendingInput, RunStatusFailed, RunStatusTimedOut, RunStatusCancelled, RunStatusDenied:
 		return true
 	default:
 		return false

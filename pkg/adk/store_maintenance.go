@@ -99,7 +99,7 @@ func (s *Store) HasDatabaseActivity(ctx context.Context) (bool, error) {
 	}
 	var count int
 	err := s.db.QueryRowContext(ctx, `SELECT
-		(SELECT COUNT(*) FROM `+tableRuns+` WHERE UPPER(status) IN ('PENDING', 'RUNNING', 'PAUSED')) +
+		(SELECT COUNT(*) FROM `+tableRuns+` WHERE UPPER(status) IN ('PENDING', 'PENDING_APPROVAL', 'PENDING_INPUT', 'RUNNING', 'PAUSED')) +
 		(SELECT COUNT(*) FROM `+tableOptimizations+` WHERE UPPER(COALESCE(json_extract(payload_json, '$.status'), '')) IN ('QUEUED', 'RUNNING'))`).Scan(&count)
 	return count > 0, err
 }

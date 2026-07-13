@@ -372,3 +372,31 @@ func (h *Handler) handleADKApproval(c *gin.Context, approved bool) {
 	}
 	h.writeOK(c, jfadk.NormalizeApprovalResolution(resolution))
 }
+
+func (h *Handler) handleADKInputResponse(c *gin.Context) {
+	var uri runURI
+	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
+		return
+	}
+	var payload jfadk.InputResponseRequest
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "input response payload is invalid")
+		return
+	}
+	resolution, err := h.service.ResolveInputAsync(context.WithoutCancel(c.Request.Context()), uri.RunID, payload)
+	if err != nil {
+		switch jfadk.InputRequestErrorKind(err) {
+		case "invalid":
+			h.writeError(c, http.StatusBadRequest, "ADK_INPUT_RESPONSE_INVALID", err.Error())
+		case "not_found":
+			h.writeError(c, http.StatusNotFound, "NOT_FOUND", err.Error())
+		case "conflict":
+			h.writeError(c, http.StatusConflict, "ADK_INPUT_RESPONSE_CONFLICT", err.Error())
+		default:
+			h.writeError(c, http.StatusInternalServerError, "ADK_INPUT_RESPONSE_FAILED", err.Error())
+		}
+		return
+	}
+	h.writeOK(c, resolution)
+}

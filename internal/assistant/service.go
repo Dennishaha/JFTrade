@@ -332,6 +332,13 @@ func (s *Service) ResolveApprovalAsync(ctx context.Context, approvalID string, a
 	return s.runtime.ResolveApprovalAsync(ctx, approvalID, approved)
 }
 
+func (s *Service) ResolveInputAsync(ctx context.Context, runID string, payload jfadk.InputResponseRequest) (jfadk.InputResolution, error) {
+	if s == nil || s.runtime == nil {
+		return jfadk.InputResolution{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	return s.runtime.ResolveInputAsync(ctx, runID, payload)
+}
+
 // ReconcileResolvedApprovals 核对已解决的审批并触发后续 run。
 func (s *Service) ReconcileResolvedApprovals(ctx context.Context) {
 	if s.runtime != nil {

@@ -14,6 +14,7 @@ import ADKApprovalQueuePanel from "./ADKApprovalQueuePanel.vue";
 import ADKChatComposer from "./ADKChatComposer.vue";
 import ADKChatThread from "./ADKChatThread.vue";
 import ADKChildRunQueuePanel from "./ADKChildRunQueuePanel.vue";
+import ADKInputRequestCard from "./ADKInputRequestCard.vue";
 import ADKSessionSidebar from "./ADKSessionSidebar.vue";
 import ADKWorkflowPlanPanel from "./ADKWorkflowPlanPanel.vue";
 import SplitPane from "../shared/SplitPane.vue";
@@ -59,6 +60,7 @@ const {
   agentOptions,
   approvalTool,
   approvalsBusy,
+  inputRequestBusy,
   canInterruptChat,
   canSendChat,
   childRunItems,
@@ -92,6 +94,7 @@ const {
   interruptingRunId,
   loading,
   openProviderSettings,
+  pendingInputRequest,
   pauseGoalRun,
   preview,
   providerOptions,
@@ -104,6 +107,7 @@ const {
   renameSession,
   resolveApprovalGroup,
   resolveApproval,
+  submitInputResponse,
   savingProviderSelection,
   selectedAgent,
   selectedApprovalQueue,
@@ -575,7 +579,22 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
           />
           <ADKWorkflowPlanPanel :run="visibleWorkflowPlanRun" />
 
+          <div
+            v-if="pendingInputRequest"
+            class="adk-composer adk-input-composer"
+            :class="{ 'adk-composer--mobile': effectiveLayout === 'mobile' }"
+          >
+            <div class="adk-composer-card">
+              <ADKInputRequestCard
+                :request="pendingInputRequest"
+                :busy="inputRequestBusy(pendingInputRequest.id)"
+                :submit="submitInputResponse"
+              />
+            </div>
+          </div>
+
           <ADKChatComposer
+            v-else
             :layout="effectiveLayout"
             :active-run-id="activeRunId"
             :active-run-status="activeRunStatus"
@@ -651,6 +670,18 @@ function handleWorkspacePaneResized(payload: SplitpanesResizedPayload): void {
 .adk-main {
   position: relative;
   height: 100%;
+}
+
+.adk-input-composer .adk-composer-card {
+  overflow: hidden;
+}
+
+.adk-input-composer :deep(.adk-input-card) {
+  width: 100%;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .adk-shell__split {

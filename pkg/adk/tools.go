@@ -128,6 +128,7 @@ type ToolRegistry struct {
 
 func NewToolRegistry() *ToolRegistry {
 	registry := &ToolRegistry{tools: map[string]RegisteredTool{}}
+	registerInputRequestTool(registry)
 	registry.Register(ToolDescriptor{
 		Name:               "workflow.wait",
 		DisplayName:        "等待",
@@ -205,6 +206,12 @@ func NewToolRegistry() *ToolRegistry {
 		return map[string]any{"query": query, "category": category, "tools": matches, "totalReturned": len(matches)}, nil
 	})
 	return registry
+}
+
+func registerInputRequestTool(registry *ToolRegistry) {
+	registry.Register(inputRequestToolDescriptor(), func(context.Context, map[string]any) (any, error) {
+		return nil, fmt.Errorf("%s is only available from an ADK agent run", interactionRequestUserTool)
+	})
 }
 
 func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {

@@ -96,6 +96,41 @@ func TestAgentSaveErrorClassification(t *testing.T) {
 	}
 }
 
+func TestRunInputResponseContract(t *testing.T) {
+	runtime, router := newAssistantTestRouter(t)
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	run := jfadk.Run{
+		ID: "run-input-contract", SessionID: "session-input-contract", AgentID: "agent-input-contract",
+		Status: jfadk.RunStatusPendingInput, ResumeState: "waiting_input", CreatedAt: now, UpdatedAt: now,
+		ToolCalls: []jfadk.ToolCall{}, PendingApprovals: []jfadk.Approval{},
+		InputRequest: &jfadk.InputRequest{
+			ID: "input-contract", RunID: "run-input-contract", AgentID: "agent-input-contract", FunctionCallID: "call-input-contract",
+			Status: jfadk.InputRequestStatusPending, CreatedAt: now, UpdatedAt: now,
+			Questions: []jfadk.InputQuestion{{
+				ID: "q1", Question: "Choose", AllowOther: true,
+				Options: []jfadk.InputOption{{ID: "q1-o1", Label: "A"}, {ID: "q1-o2", Label: "B"}},
+			}},
+		},
+	}
+	if err := runtime.Store().SaveRun(t.Context(), run); err != nil {
+		t.Fatalf("SaveRun: %v", err)
+	}
+
+	invalid := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/runs/"+run.ID+"/input-response", []byte(`{"requestId":"input-contract","answers":[{"questionId":"q1","optionId":"missing"}]}`))
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid status=%d body=%s", invalid.Code, invalid.Body.String())
+	}
+	valid := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/runs/"+run.ID+"/input-response", []byte(`{"requestId":"input-contract","answers":[{"questionId":"q1","optionId":"q1-o2"}]}`))
+	if valid.Code != http.StatusOK {
+		t.Fatalf("valid status=%d body=%s", valid.Code, valid.Body.String())
+	}
+	assertOKEnvelope(t, valid)
+	conflict := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/runs/"+run.ID+"/input-response", []byte(`{"requestId":"input-contract","answers":[{"questionId":"q1","otherText":"different"}]}`))
+	if conflict.Code != http.StatusConflict {
+		t.Fatalf("conflict status=%d body=%s", conflict.Code, conflict.Body.String())
+	}
+}
+
 func TestChatStreamHubReplayAndCleanupBoundaries(t *testing.T) {
 	hub := newADKChatStreamHub()
 	record := hub.create()

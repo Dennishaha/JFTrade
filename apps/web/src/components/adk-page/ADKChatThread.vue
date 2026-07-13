@@ -378,6 +378,29 @@ function showLatestTimeline(): void {
 
       <template v-else-if="entry.kind === 'approval_group'" />
 
+      <div v-else-if="entry.kind === 'input_request' && entry.inputRequest" class="adk-msg adk-msg--assistant">
+        <div
+          class="adk-input-request-notice"
+          :class="{ 'is-pending': entry.inputRequest.status === 'PENDING' }"
+        >
+          <v-icon size="13">fa-regular fa-circle-question</v-icon>
+          <div>
+            <strong>{{ entry.inputRequest.title || "Agent 需要你的选择" }}</strong>
+            <span>
+              {{
+                entry.inputRequest.status === "PENDING"
+                  ? entry.inputRequest.questions.length > 1
+                    ? `正在等待你的回答 · ${entry.inputRequest.questions.length} 个问题`
+                    : "正在等待你的回答"
+                  : entry.inputRequest.status === "ANSWERED"
+                    ? "已收到你的回答，继续执行中"
+                    : "该提问已取消"
+              }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div v-else class="adk-msg adk-msg--assistant">
         <div
           v-if="(entry.text ?? '').trim() !== ''"

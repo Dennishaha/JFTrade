@@ -322,6 +322,29 @@ func testProviderToolCalls(req openAIChatRequest) []openAIToolCall {
 	}
 	rawText := testProviderConversationText(req.Messages)
 	text := strings.ToLower(rawText)
+	if strings.Contains(text, "@input.approval") && containsTool(toolNames, interactionRequestUserTool) && containsTool(toolNames, "approval.required") {
+		inputCalls := testProviderToolCallCount(req.Messages, interactionRequestUserTool)
+		inputAnswers := testProviderInputAnswerCount(req.Messages)
+		approvalCalls := testProviderToolCallCount(req.Messages, "approval.required")
+		switch {
+		case inputCalls == 0:
+			return testProviderInputCalls("call-input-before-approval", "Proceed to approval?")
+		case inputAnswers == 1 && approvalCalls == 0:
+			return []openAIToolCall{testProviderToolCall("call-approval-after-input", "approval.required", map[string]any{})}
+		}
+	}
+	if strings.Contains(text, "@input.twice") && containsTool(toolNames, interactionRequestUserTool) {
+		callCount := testProviderToolCallCount(req.Messages, interactionRequestUserTool)
+		answerCount := testProviderInputAnswerCount(req.Messages)
+		switch {
+		case callCount == 0:
+			return testProviderInputCalls("call-input-first", "First choice?")
+		case callCount == 1 && answerCount == 1:
+			return testProviderInputCalls("call-input-second", "Second choice?")
+		default:
+			return nil
+		}
+	}
 	switch {
 	case containsTool(toolNames, workflowPlanFinishTool):
 		return testProviderWorkflowPlanCalls(req, text)
@@ -341,6 +364,41 @@ func testProviderToolCalls(req openAIChatRequest) []openAIToolCall {
 		}
 		return testProviderBusinessToolCalls(toolNames, rawText)
 	}
+}
+
+func testProviderInputCalls(callID string, question string) []openAIToolCall {
+	return []openAIToolCall{testProviderToolCall(callID, interactionRequestUserTool, map[string]any{
+		"title": question,
+		"questions": []any{map[string]any{
+			"question": question, "allowOther": true,
+			"options": []any{map[string]any{"label": "A"}, map[string]any{"label": "B"}},
+		}},
+	})}
+}
+
+func testProviderToolCallCount(messages []openAIChatMessage, name string) int {
+	count := 0
+	for _, message := range messages {
+		for _, call := range message.ToolCalls {
+			if restoreToolNameFromOpenAI(call.Function.Name) == name {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func testProviderInputAnswerCount(messages []openAIChatMessage) int {
+	count := 0
+	for _, message := range messages {
+		if message.Role != "tool" || restoreToolNameFromOpenAI(message.Name) != interactionRequestUserTool {
+			continue
+		}
+		if strings.Contains(message.Content, `"requestId"`) && strings.Contains(message.Content, `"answers"`) {
+			count++
+		}
+	}
+	return count
 }
 
 func testProviderWorkflowPlanCalls(req openAIChatRequest, text string) []openAIToolCall {
@@ -416,6 +474,24 @@ func testProviderToolNames(req openAIChatRequest) []string {
 }
 
 func testProviderBusinessToolCalls(toolNames []string, text string) []openAIToolCall {
+	if strings.Contains(strings.ToLower(text), "@input.required") && containsTool(toolNames, interactionRequestUserTool) {
+		return []openAIToolCall{testProviderToolCall("call-input-required", interactionRequestUserTool, map[string]any{
+			"title": "Choose settings",
+			"questions": []any{
+				map[string]any{
+					"question": "Mode?", "allowOther": true,
+					"options": []any{
+						map[string]any{"label": "Safe", "recommended": true},
+						map[string]any{"label": "Fast", "description": "Less validation"},
+					},
+				},
+				map[string]any{
+					"question": "Format?", "allowOther": false,
+					"options": []any{map[string]any{"label": "Markdown"}, map[string]any{"label": "JSON"}},
+				},
+			},
+		})}
+	}
 	if calls := testProviderExecuteToolCalls(toolNames, text); len(calls) > 0 {
 		return calls
 	}

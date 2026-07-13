@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { computed, defineComponent, h, nextTick, ref } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 
-import type { ADKAgent, ADKProvider, ADKTimelineEntry } from "@/contracts";
+import type { ADKAgent, ADKInputRequest, ADKProvider, ADKTimelineEntry } from "@/contracts";
 
 import ADKWorkspaceShell from "../src/components/adk-page/ADKWorkspaceShell.vue";
 import { flushRequests } from "./helpers";
@@ -302,6 +302,45 @@ describe("ADKWorkspaceShell", () => {
     wrapper.unmount();
     expect(removeEventListener).toHaveBeenCalled();
   });
+
+  it("replaces the composer with a pending input request while the timeline remains visible", async () => {
+    currentControllerState = buildControllerState({
+      pendingInputRequest: {
+        id: "input-1",
+        runId: "run-1",
+        agentId: "agent-1",
+        functionCallId: "call-1",
+        title: "选择执行方式",
+        status: "PENDING",
+        questions: [
+          {
+            id: "q1",
+            question: "如何继续？",
+            allowOther: false,
+            options: [
+              { id: "q1-o1", label: "稳妥" },
+              { id: "q1-o2", label: "快速" },
+            ],
+          },
+        ],
+        answers: [],
+        createdAt: "2026-07-12T00:00:00Z",
+        updatedAt: "2026-07-12T00:00:00Z",
+      },
+    });
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList);
+
+    const wrapper = await mountShell();
+
+    expect(wrapper.find(".adk-input-composer").exists()).toBe(true);
+    expect(wrapper.find(".adk-input-composer .adk-input-card").text()).toContain("选择执行方式");
+    expect(wrapper.find(".composer-stub").exists()).toBe(false);
+    expect(wrapper.find(".adk-chat-thread--desktop").exists()).toBe(true);
+  });
 });
 
 async function mountShell() {
@@ -334,6 +373,7 @@ function buildControllerState(
     selectedSessionId: string;
     selectedAgentId: string;
     childViewContext: { runId: string; title: string; message: string } | null;
+    pendingInputRequest: ADKInputRequest | null;
     visibleTimelineEntries: ADKTimelineEntry[];
     sessions: Array<{ id: string; title: string }>;
   }> = {},
@@ -397,6 +437,7 @@ function buildControllerState(
     agentOptions: ref([{ title: "交易助手", value: "agent-1" }]),
     approvalTool: computed(() => null),
     approvalsBusy: ref(false),
+    inputRequestBusy: () => false,
     canInterruptChat: ref(false),
     canSendChat: ref(true),
     childRunItems: ref([]),
@@ -432,6 +473,7 @@ function buildControllerState(
     interruptingRunId: ref(""),
     loading: ref(false),
     openProviderSettings: vi.fn(),
+    pendingInputRequest: ref(overrides.pendingInputRequest ?? null),
     pauseGoalRun: vi.fn(),
     preview: (value: unknown) => JSON.stringify(value),
     providerOptions: ref([{ title: "OpenAI", value: "provider-1" }]),
@@ -461,6 +503,7 @@ function buildControllerState(
     composerPlaceholder: ref("输入问题或任务..."),
     emptyStateHint: ref("选择会话开始"),
     slashCommands: ref([]),
+    submitInputResponse: vi.fn(),
     selectSession: vi.fn(async (sessionId: string) => {
       selectedSessionId.value = sessionId;
     }),

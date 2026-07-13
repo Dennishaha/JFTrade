@@ -484,7 +484,7 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 		return parent, openAIChatResult{Reply: parent.FailureReason}, true, ""
 	}
 	if child, index, ok := e.firstBlockingTaskChild(ctx, parent); ok {
-		if child.Status == RunStatusPending || child.Status == RunStatusRunning {
+		if child.Status == RunStatusPending || child.Status == RunStatusPendingInput || child.Status == RunStatusRunning {
 			parent = pauseParentForChild(parent, child, index)
 			parent.Iteration = iteration
 			parent, jftradeErr26 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
@@ -574,7 +574,7 @@ func (e *WorkflowExecutor) firstBlockingTaskChild(ctx context.Context, parent Ru
 			continue
 		}
 		switch child.Status {
-		case RunStatusPending, RunStatusRunning, RunStatusFailed, RunStatusDenied, RunStatusCancelled, RunStatusTimedOut:
+		case RunStatusPending, RunStatusPendingInput, RunStatusRunning, RunStatusFailed, RunStatusDenied, RunStatusCancelled, RunStatusTimedOut:
 			return child, index, true
 		}
 	}

@@ -873,6 +873,18 @@ export interface paths {
       };
     };
   };
+  "/api/v1/adk/runs/{runId}/input-response": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/adk/runs/{runId}/objective": {
     patch: {
       responses: {

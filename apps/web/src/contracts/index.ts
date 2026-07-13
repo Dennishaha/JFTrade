@@ -412,6 +412,40 @@ export interface ADKApproval {
   updatedAt: string;
 }
 
+export interface ADKInputOption {
+  id: string;
+  label: string;
+  description?: string;
+  recommended?: boolean;
+}
+
+export interface ADKInputQuestion {
+  id: string;
+  question: string;
+  options: ADKInputOption[];
+  allowOther: boolean;
+}
+
+export interface ADKInputAnswer {
+  questionId: string;
+  optionId?: string;
+  otherText?: string;
+}
+
+export interface ADKInputRequest {
+  id: string;
+  runId: string;
+  agentId: string;
+  functionCallId: string;
+  title?: string;
+  status: "PENDING" | "ANSWERED" | "CANCELLED" | string;
+  questions: ADKInputQuestion[];
+  answers?: ADKInputAnswer[];
+  createdAt: string;
+  updatedAt: string;
+  answeredAt?: string;
+}
+
 export interface ADKSession {
   id: string;
   agentId: string;
@@ -506,6 +540,7 @@ export type ADKTimelineEntryKind =
   | "assistant_reasoning"
   | "tool_group"
   | "approval_group"
+  | "input_request"
   | "context_notice"
   | "assistant_message";
 
@@ -525,6 +560,7 @@ export interface ADKTimelineEntry {
   processedText?: string;
   toolCalls?: ADKToolCall[];
   approvals?: ADKApproval[];
+  inputRequest?: ADKInputRequest;
 }
 
 export interface ADKRunUsage {
@@ -565,6 +601,8 @@ export interface ADKRun {
   workflowPlan?: ADKWorkflowStepState[];
   toolCalls: ADKToolCall[];
   pendingApprovals: ADKApproval[];
+  inputRequest?: ADKInputRequest;
+  inputRequests?: ADKInputRequest[];
   resumeState?: string;
   pauseRequestedAt?: string;
   pausedAt?: string;
@@ -761,6 +799,7 @@ export interface ADKChatResponse {
   session: ADKSession;
   run: ADKRun;
   pendingApprovals: ADKApproval[];
+  inputRequest?: ADKInputRequest;
   timeline: ADKTimelineEntry[];
   context?: ADKSessionContextSnapshot;
 }
@@ -779,6 +818,13 @@ export interface ADKWorkflowInvocationResult {
 
 export interface ADKApprovalResolution {
   approval: ADKApproval;
+  run?: ADKRun;
+  parentRun?: ADKRun;
+  message?: ADKMessage;
+}
+
+export interface ADKInputResolution {
+  request: ADKInputRequest;
   run?: ADKRun;
   parentRun?: ADKRun;
   message?: ADKMessage;

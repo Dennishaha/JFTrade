@@ -5,6 +5,9 @@ import type {
   ADKApproval,
   ADKApprovalResolution,
   ADKChatResponse,
+  ADKInputAnswer,
+  ADKInputRequest,
+  ADKInputResolution,
   ADKProvider,
   ADKRun,
   ADKSession,
@@ -120,6 +123,7 @@ export function useADKPageChatState(
   const interruptingRunId = ref("");
   const approvalsBusy = ref(false);
   const resolvingApprovalIds = ref<Set<string>>(new Set());
+  const resolvingInputIds = ref<Set<string>>(new Set());
   const contextBusy = ref(false);
   const contextDetailsOpen = ref(false);
   const sessionContext = ref<ADKSessionContextSnapshot | null>(null);
@@ -208,6 +212,10 @@ export function useADKPageChatState(
       workflowRun: workflowQueues.parentWorkflowPlanRun.value,
     }),
   );
+  const pendingInputRequest = computed<ADKInputRequest | null>(() => {
+    const request = primaryRootRun.value?.inputRequest;
+    return request?.status === "PENDING" ? request : null;
+  });
   const selectedAgentDefaultWorkMode = computed(() => {
     const agent = sessionState.agents.value.find(
       (candidate) => candidate.id === sessionState.selectedAgentId.value,
@@ -845,6 +853,38 @@ export function useADKPageChatState(
     await resolveApprovalsBatch(approvals, "deny");
   }
 
+  function inputRequestBusy(requestId: string): boolean {
+    return resolvingInputIds.value.has(requestId);
+  }
+
+  async function submitInputResponse(request: ADKInputRequest, answers: ADKInputAnswer[]): Promise<void> {
+    if (inputRequestBusy(request.id)) return;
+    resolvingInputIds.value = new Set([...resolvingInputIds.value, request.id]);
+    try {
+      const resolution = await fetchEnvelopeWithInit<ADKInputResolution>(
+        `/api/v1/adk/runs/${encodeURIComponent(request.runId)}/input-response`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestId: request.id, answers }),
+        },
+      );
+      const run = resolution.parentRun ?? resolution.run;
+      if (resolution.run) void workflowQueues.syncWorkflowRun(resolution.run);
+      if (resolution.parentRun) void workflowQueues.syncWorkflowRun(resolution.parentRun);
+      if (run) syncActiveRun(normalizeADKRun(run), true);
+      await sessionState.refreshAll();
+      await reloadSessionTimeline(sessionState.selectedSessionId.value);
+      if (run) void waitForRunContinuation(normalizeADKRun(run));
+    } catch (error) {
+      sessionState.errorMessage.value = error instanceof Error ? error.message : "提交回答失败";
+    } finally {
+      const next = new Set(resolvingInputIds.value);
+      next.delete(request.id);
+      resolvingInputIds.value = next;
+    }
+  }
+
   function revokeQueuedMessage(messageId: string): void {
     queuedChatMessages.value = queuedChatMessages.value.filter(
       (message) => message.id !== messageId,
@@ -934,6 +974,8 @@ export function useADKPageChatState(
     denyApproval,
     resolveAllApprovals,
     resolveApproval,
+    inputRequestBusy,
+    submitInputResponse,
     selectSession,
     sendChat,
     sendingChat,
@@ -943,6 +985,7 @@ export function useADKPageChatState(
     updateGoalObjectiveDraft,
     workModeOverride,
     permissionModeOverride,
+    pendingInputRequest,
   };
 
   async function executeChatMessage(

@@ -380,6 +380,19 @@ func (e *googleADKExecution) markCallPending(functionCallID string) {
 	e.emitRunSnapshotLocked()
 }
 
+func (e *googleADKExecution) markCallWaitingForInput(functionCallID string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for index := range e.calls {
+		if e.calls[index].IdempotencyKey == functionCallID {
+			e.calls[index].Status = RunStatusPendingInput
+			e.calls[index].RequiresUser = true
+			e.calls[index].UpdatedAt = nowString()
+		}
+	}
+	e.emitRunSnapshotLocked()
+}
+
 func (e *googleADKExecution) toolContext() toolExecutionContext {
 	return e.toolContextForRun("")
 }
@@ -402,9 +415,30 @@ func (e *googleADKExecution) toolContextForRun(runID string) toolExecutionContex
 	if runID == "" {
 		summaries = append([]string(nil), e.summaries...)
 	}
-	return toolExecutionContext{
-		calls: calls, summaries: summaries,
+	var inputRequest *InputRequest
+	requestRunID := runID
+	if requestRunID == "" {
+		requestRunID = e.runID
 	}
+	if base, ok := e.runSnapshotBaseByID[requestRunID]; ok {
+		inputRequest = normalizeInputRequest(base.InputRequest)
+	}
+	return toolExecutionContext{calls: calls, summaries: summaries, inputRequest: inputRequest}
+}
+
+func (e *googleADKExecution) setInputRequests(requests map[string]*InputRequest) {
+	if e == nil || len(requests) == 0 {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for runID, request := range requests {
+		base := e.runBaseLocked(runID)
+		base.InputRequest = normalizeInputRequest(request)
+		base.InputRequests = appendInputRequestIfMissing(base.InputRequests, *request)
+		e.runSnapshotBaseByID[runID] = base
+	}
+	e.emitRunSnapshotLocked()
 }
 
 func (e *googleADKExecution) result() openAIChatResult {

@@ -83,13 +83,19 @@ func (r *Runtime) executeGoogleADK(
 		preToolContent, preToolReasoning := execution.preToolState()
 		return execution.toolContext(), nil, execution.result(), preToolContent, preToolReasoning, err
 	}
-	if len(approvals) > 0 {
+	inputRequests, err := r.pendingInputRequests(ctx, execution)
+	if err != nil {
+		preToolContent, preToolReasoning := execution.preToolState()
+		return execution.toolContext(), nil, execution.result(), preToolContent, preToolReasoning, err
+	}
+	execution.setInputRequests(inputRequests)
+	if len(approvals) > 0 || len(inputRequests) > 0 {
 		execution.detachDeltaSink()
 		r.adkMu.Lock()
 		r.adkRuns[runID] = execution
 		r.adkMu.Unlock()
 	}
-	if len(approvals) == 0 {
+	if len(approvals) == 0 && len(inputRequests) == 0 {
 		if err := r.ensureGoogleADKFinalReply(ctx, agent, session, execution, runID, text); err != nil {
 			preToolContent, preToolReasoning := execution.preToolState()
 			return execution.toolContext(), nil, execution.result(), preToolContent, preToolReasoning, err
@@ -124,6 +130,9 @@ func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*go
 		}})
 	}
 	if len(parts) == 0 {
+		if run.InputRequest != nil && strings.TrimSpace(run.InputRequest.FunctionCallID) != "" {
+			return execution, nil
+		}
 		return nil, nil
 	}
 	return execution, nil
@@ -318,6 +327,11 @@ func (r *Runtime) newGoogleADKExecution(
 			return r.persistRunActivitySnapshot(context.Background(), snapshot)
 		},
 	}
+	if r.store != nil {
+		if storedRun, ok, loadErr := r.store.Run(ctx, runID); loadErr == nil && ok {
+			execution.runSnapshotBaseByID[runID] = storedRun
+		}
+	}
 	adkAgent, err := r.newGoogleADKLLMAgent(ctx, googleADKAgentName(definition.ID), definition.Name, definition, llm, execution)
 	if err != nil {
 		return nil, fmt.Errorf("create GO-ADK agent: %w", err)
@@ -371,7 +385,7 @@ func (r *Runtime) newGoogleADKWorkflowExecutionState(
 	if strings.TrimSpace(parent.WorkflowEngine) == "" {
 		parent.WorkflowEngine = WorkflowEngineADK2Loop
 	}
-	return &googleADKExecution{
+	execution := &googleADKExecution{
 		sessionID:       productSession.ID,
 		appName:         googleADKAppName(definition.ID),
 		artifactService: r.artifactService,
@@ -398,6 +412,7 @@ func (r *Runtime) newGoogleADKWorkflowExecutionState(
 		loadRun:                  r.googleADKExecutionRunLoader(),
 		persistRunSnapshot:       r.googleADKExecutionSnapshotPersister(),
 	}
+	return execution
 }
 
 func (r *Runtime) googleADKExecutionRunLoader() func(context.Context, string) (Run, bool, error) {

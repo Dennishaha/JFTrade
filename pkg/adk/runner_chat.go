@@ -108,6 +108,9 @@ func (r *Runtime) completeChatRun(
 	adkErr error,
 ) (ChatResponse, error) {
 	ctx = adkRunObservabilityContext(ctx, run)
+	if toolContext.inputRequest != nil {
+		return r.finishPendingInputRun(ctx, session, run, toolContext.inputRequest)
+	}
 	if len(approvals) > 0 {
 		return r.finishPendingApprovalRun(ctx, session, run, approvals)
 	}
@@ -197,10 +200,26 @@ func hydrateRunExecutionResult(
 	run.PreToolReasoning = preToolReasoning
 	run.OptimizationTaskID = optimizationTaskID(toolContext.calls)
 	run.PendingApprovals = approvals
+	run.InputRequest = normalizeInputRequest(toolContext.inputRequest)
 	if run.Usage != nil {
 		run.Usage.ToolCallsTotal = len(toolContext.calls)
 	}
 	return run
+}
+
+func (r *Runtime) finishPendingInputRun(ctx context.Context, session Session, run Run, request *InputRequest) (ChatResponse, error) {
+	run.InputRequest = normalizeInputRequest(request)
+	run.InputRequests = appendInputRequestIfMissing(run.InputRequests, *request)
+	run.Status = RunStatusPendingInput
+	run.ResumeState = "waiting_input"
+	run.Message = "等待用户回答后继续执行。"
+	if err := r.store.SaveRun(ctx, run); err != nil {
+		return ChatResponse{}, err
+	}
+	r.audit(ctx, "run.awaiting_input", run.ID, "Agent run is waiting for user input.", map[string]any{
+		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "requestId": request.ID,
+	})
+	return r.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: "我需要你确认几个选择，回答后会继续执行。"}), nil
 }
 
 func markFailedChatRun(ctx context.Context, run Run, adkErr error) Run {
@@ -422,6 +441,7 @@ func (r *Runtime) projectedChatResponse(
 		Session:          session,
 		Run:              run,
 		PendingApprovals: pendingApprovalsOnly(run.PendingApprovals),
+		InputRequest:     normalizeInputRequest(run.InputRequest),
 		Timeline:         []TimelineEntry{},
 		Context:          r.contextSnapshotForRunOrNil(ctx, session, run),
 	}

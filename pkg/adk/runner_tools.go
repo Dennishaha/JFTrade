@@ -244,6 +244,14 @@ func (r *Runtime) googleADKProductToolset(definition Agent) (adktool.Toolset, er
 	}
 	tools := make([]adktool.Tool, 0, len(descriptors))
 	for _, descriptor := range descriptors {
+		if descriptor.Name == interactionRequestUserTool {
+			tool, err := newGoogleADKInputTool()
+			if err != nil {
+				return nil, err
+			}
+			tools = append(tools, tool)
+			continue
+		}
 		registered, _ := r.tools.Get(descriptor.Name)
 		tool, err := newGoogleADKTool(descriptor, registered)
 		if err != nil {

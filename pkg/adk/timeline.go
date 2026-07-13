@@ -21,6 +21,7 @@ type timelinePrimitive struct {
 	processedText string
 	toolCall      *ToolCall
 	approval      *Approval
+	inputRequest  *InputRequest
 }
 
 func (s *Store) SessionTimeline(ctx context.Context, sessionID string) ([]TimelineEntry, bool, error) {
@@ -284,7 +285,7 @@ func matchWorkflowPromptRun(prompt workflowUserPrompt, runs []Run) (Run, bool) {
 }
 
 func timelinePrimitivesForRunMessage(sessionID string, run Run, message TranscriptEntry) []timelinePrimitive {
-	primitives := make([]timelinePrimitive, 0, len(run.ToolCalls)+len(run.PendingApprovals)+4)
+	primitives := make([]timelinePrimitive, 0, len(run.ToolCalls)+len(run.PendingApprovals)+5)
 	preTextTime := runTextAnchor(run, message.CreatedAt)
 	if preReasoning := strings.TrimSpace(run.PreToolReasoning); preReasoning != "" {
 		primitives = append(primitives, timelinePrimitive{
@@ -365,7 +366,7 @@ func timelinePrimitivesForLooseAssistantMessage(sessionID string, message Transc
 }
 
 func timelinePrimitivesForOrphanRun(sessionID string, run Run) []timelinePrimitive {
-	primitives := make([]timelinePrimitive, 0, len(run.ToolCalls)+len(run.PendingApprovals)+2)
+	primitives := make([]timelinePrimitive, 0, len(run.ToolCalls)+len(run.PendingApprovals)+3)
 	preTextTime := runTextAnchor(run, run.UpdatedAt)
 	if preReasoning := strings.TrimSpace(run.PreToolReasoning); preReasoning != "" {
 		primitives = append(primitives, timelinePrimitive{
@@ -400,6 +401,9 @@ func timelinePrimitivesForRunActivity(sessionID string, run Run) []timelinePrimi
 		return compareTimelineKeys(toolCalls[i].CreatedAt, 40, toolCalls[i].ID, toolCalls[j].CreatedAt, 40, toolCalls[j].ID)
 	})
 	for _, toolCall := range toolCalls {
+		if toolCall.ToolName == interactionRequestUserTool {
+			continue
+		}
 		call := toolCall
 		primitives = append(primitives, timelinePrimitive{
 			id:        "tool:" + call.ID,
@@ -409,6 +413,21 @@ func timelinePrimitivesForRunActivity(sessionID string, run Run) []timelinePrimi
 			createdAt: firstNonEmpty(call.CreatedAt, call.UpdatedAt, run.UpdatedAt, run.CreatedAt),
 			order:     40,
 			toolCall:  &call,
+		})
+	}
+	inputRequests := normalizeInputRequests(run.InputRequests)
+	if run.InputRequest != nil {
+		inputRequests = appendInputRequestIfMissing(inputRequests, *run.InputRequest)
+	}
+	for requestIndex := range inputRequests {
+		if strings.TrimSpace(inputRequests[requestIndex].RunID) != strings.TrimSpace(run.ID) {
+			continue
+		}
+		item := *normalizeInputRequest(&inputRequests[requestIndex])
+		primitives = append(primitives, timelinePrimitive{
+			id: "input:" + item.ID, sessionID: sessionID, runID: item.RunID,
+			kind: TimelineKindInputRequest, createdAt: firstNonEmpty(item.CreatedAt, item.UpdatedAt, run.UpdatedAt, run.CreatedAt),
+			updatedAt: item.UpdatedAt, order: 50, inputRequest: &item,
 		})
 	}
 	approvals = append([]Approval(nil), approvals...)
@@ -469,6 +488,12 @@ func groupTimelinePrimitives(primitives []timelinePrimitive) []TimelineEntry {
 				Status:    TimelineStatusFinal,
 				Approvals: []Approval{*primitive.approval},
 			})
+		case primitive.inputRequest != nil:
+			result = append(result, TimelineEntry{
+				ID: primitive.id, SessionID: primitive.sessionID, RunID: primitive.runID,
+				Kind: TimelineKindInputRequest, CreatedAt: primitive.createdAt, UpdatedAt: primitive.updatedAt,
+				Status: TimelineStatusFinal, InputRequest: normalizeInputRequest(primitive.inputRequest),
+			})
 		default:
 			if strings.TrimSpace(primitive.text) == "" {
 				continue
@@ -494,7 +519,13 @@ func groupTimelinePrimitives(primitives []timelinePrimitive) []TimelineEntry {
 }
 
 func runTextAnchor(run Run, preferredTime string) string {
-	candidates := []string{firstRunToolTime(run), firstRunApprovalTime(run), preferredTime, run.UpdatedAt, run.CreatedAt}
+	inputTime := ""
+	if len(run.InputRequests) > 0 {
+		inputTime = firstNonEmpty(run.InputRequests[0].CreatedAt, run.InputRequests[0].UpdatedAt)
+	} else if run.InputRequest != nil {
+		inputTime = firstNonEmpty(run.InputRequest.CreatedAt, run.InputRequest.UpdatedAt)
+	}
+	candidates := []string{firstRunToolTime(run), firstRunApprovalTime(run), inputTime, preferredTime, run.UpdatedAt, run.CreatedAt}
 	for _, candidate := range candidates {
 		if strings.TrimSpace(candidate) != "" {
 			return candidate

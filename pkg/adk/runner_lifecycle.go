@@ -59,6 +59,9 @@ func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecu
 	if run.Status == RunStatusPending && runHasRecoverableApprovalContext(run) {
 		return
 	}
+	if run.Status == RunStatusPendingInput && run.InputRequest != nil && run.InputRequest.Status == InputRequestStatusPending {
+		return
+	}
 	if run.Status == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run) {
 		return
 	}
@@ -110,7 +113,7 @@ func (r *Runtime) reconcileTerminalStaleRun(ctx context.Context, executor *Workf
 }
 
 func isRecoverableReconcileStatus(status string) bool {
-	return status == RunStatusRunning || status == RunStatusPending || status == RunStatusPaused
+	return status == RunStatusRunning || status == RunStatusPending || status == RunStatusPendingInput || status == RunStatusPaused
 }
 
 func (r *Runtime) cancelChildOfTerminalParent(ctx context.Context, run Run) bool {
@@ -249,8 +252,9 @@ func workflowParentReferencesChild(parent Run, childRunID string) bool {
 }
 
 type toolExecutionContext struct {
-	calls     []ToolCall
-	summaries []string
+	calls        []ToolCall
+	summaries    []string
+	inputRequest *InputRequest
 }
 
 type runStartOptions struct {
@@ -339,14 +343,14 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 	if !ok {
 		return Run{}, fmt.Errorf("run not found")
 	}
-	if run.Status != RunStatusRunning && run.Status != RunStatusPending && run.Status != RunStatusPaused {
+	if run.Status != RunStatusRunning && run.Status != RunStatusPending && run.Status != RunStatusPendingInput && run.Status != RunStatusPaused {
 		return run, nil
 	}
 	return r.cancelRunTree(ctx, run, "run was cancelled by user", "RUN_CANCELLED", "cancelled", "run.cancelled")
 }
 
 func (r *Runtime) cancelRunTree(ctx context.Context, run Run, reason string, errorCode string, message string, auditKind string) (Run, error) {
-	if run.Status != RunStatusRunning && run.Status != RunStatusPending && run.Status != RunStatusPaused {
+	if run.Status != RunStatusRunning && run.Status != RunStatusPending && run.Status != RunStatusPendingInput && run.Status != RunStatusPaused {
 		return run, nil
 	}
 	r.activeMu.Lock()
@@ -371,10 +375,14 @@ func (r *Runtime) cancelRunTree(ctx context.Context, run Run, reason string, err
 		}
 	}
 	run.PendingApprovals = nil
+	if run.InputRequest != nil && run.InputRequest.Status == InputRequestStatusPending {
+		run.InputRequest.Status = InputRequestStatusCancelled
+		run.InputRequest.UpdatedAt = cancelledAt
+	}
 	for index := range run.ToolCalls {
 		call := &run.ToolCalls[index]
 		switch call.Status {
-		case "RUNNING", "PENDING", "PENDING_APPROVAL":
+		case "RUNNING", "PENDING", "PENDING_APPROVAL", RunStatusPendingInput:
 			call.Status = "CANCELLED"
 			call.RequiresUser = false
 			finishToolCall(call)

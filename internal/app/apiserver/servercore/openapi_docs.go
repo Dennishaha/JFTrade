@@ -134,6 +134,7 @@ func documentAssistantSessionRunRoutes() {}
 // @Router /api/v1/adk/approvals [get]
 // @Router /api/v1/adk/approvals/{approvalId}/approve [post]
 // @Router /api/v1/adk/approvals/{approvalId}/deny [post]
+// @Router /api/v1/adk/runs/{runId}/input-response [post]
 // @Router /api/v1/adk/skills [get]
 // @Router /api/v1/adk/skills [post]
 // @Router /api/v1/adk/skills/{skillId} [put]

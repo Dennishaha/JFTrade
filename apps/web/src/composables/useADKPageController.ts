@@ -60,6 +60,9 @@ export function useADKPageController(
     if (chatState.activeChildRunId.value) {
       return "子智能体视图仅支持观察和审批，请返回父对话后继续发送消息。";
     }
+    if (chatState.activeRunStatus.value === "PENDING_INPUT") {
+      return "请先完成 Agent 提问，提交后将自动继续执行。";
+    }
     return composerBlockMessage.value;
   });
   const effectiveCanSendChat = computed(
@@ -133,6 +136,7 @@ export function useADKPageController(
     interruptingRunId: chatState.interruptingRunId,
     loading: sessionState.loading,
     openProviderSettings: sessionState.openProviderSettings,
+    pendingInputRequest: chatState.pendingInputRequest,
     pauseGoalRun: chatState.pauseGoalRun,
     parentApprovalQueue: chatState.parentApprovalQueue,
     preview,
@@ -152,6 +156,8 @@ export function useADKPageController(
       approved
         ? chatState.resolveApproval(approval)
         : chatState.denyApproval(approval),
+    inputRequestBusy: chatState.inputRequestBusy,
+    submitInputResponse: chatState.submitInputResponse,
     selectedAgent,
     selectedApprovalQueue: chatState.selectedApprovalQueue,
     selectedAgentId: sessionState.selectedAgentId,

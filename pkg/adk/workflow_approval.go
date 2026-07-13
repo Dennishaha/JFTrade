@@ -23,6 +23,7 @@ func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*
 	parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
 	parent = updateWorkflowPlanForChild(parent, child)
 	parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
+	parent.InputRequest = normalizeInputRequest(child.InputRequest)
 	if userPausedGoalParent(parent) {
 		if _, err := r.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
 			return nil, err
@@ -30,6 +31,10 @@ func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*
 		return &parent, nil
 	}
 	switch child.Status {
+	case RunStatusPendingInput:
+		parent.Status = RunStatusPendingInput
+		parent.WorkflowStatus = workflowStatusPaused
+		parent.Message = child.Message
 	case RunStatusPending:
 		parent.Status = RunStatusPending
 		parent.WorkflowStatus = workflowStatusPaused
@@ -46,7 +51,7 @@ func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*
 			}
 			return &parent, nil
 		}
-		if parent.Status == RunStatusPending || parent.Status == RunStatusRunning {
+		if parent.Status == RunStatusPending || parent.Status == RunStatusPendingInput || parent.Status == RunStatusRunning {
 			parent.Status = RunStatusRunning
 			parent.WorkflowStatus = workflowStatusRunning
 			parent.Message = "workflow resumed"
@@ -70,7 +75,7 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 		}
 		return &paused, nil
 	}
-	if child.Status == RunStatusPending || child.Status == RunStatusRunning {
+	if child.Status == RunStatusPending || child.Status == RunStatusPendingInput || child.Status == RunStatusRunning {
 		return parent, nil
 	}
 	if userPauseRequestedGoalParent(*parent) {
@@ -232,11 +237,12 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 				jftradeLogError(jftradeErr2)
 			}
 			continue
-		case RunStatusPending:
-			parent.Status = RunStatusPending
+		case RunStatusPending, RunStatusPendingInput:
+			parent.Status = child.Status
 			parent.WorkflowStatus = workflowStatusPaused
 			parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
-			parent.Message = defaultString(child.Message, "工作流正在等待审批。")
+			parent.InputRequest = normalizeInputRequest(child.InputRequest)
+			parent.Message = defaultString(child.Message, workflowPendingReply(parent))
 			if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
 				return Run{}, false, saveErr
 			}

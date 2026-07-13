@@ -30,6 +30,26 @@ export function normalizeADKRun(run: ADKRun): ADKRun {
       run.pendingApprovals as ADKApproval[] | null,
     ),
   };
+  if (run.inputRequest) {
+    normalized.inputRequest = {
+      ...run.inputRequest,
+      questions: (run.inputRequest.questions ?? []).map((question) => ({
+        ...question,
+        options: [...(question.options ?? [])],
+      })),
+      answers: [...(run.inputRequest.answers ?? [])],
+    };
+  }
+  if (run.inputRequests !== undefined) {
+    normalized.inputRequests = (run.inputRequests ?? []).map((request) => ({
+      ...request,
+      questions: (request.questions ?? []).map((question) => ({
+        ...question,
+        options: [...(question.options ?? [])],
+      })),
+      answers: [...(request.answers ?? [])],
+    }));
+  }
   if (run.childRunIds !== undefined) {
     normalized.childRunIds = [...ensureArray(run.childRunIds as string[] | null)];
   }
@@ -58,6 +78,16 @@ export function normalizeADKTimelineEntry(
     normalized.approvals = normalizeApprovals(
       entry.approvals as ADKApproval[] | null,
     );
+  }
+  if (entry.inputRequest) {
+    normalized.inputRequest = {
+      ...entry.inputRequest,
+      questions: (entry.inputRequest.questions ?? []).map((question) => ({
+        ...question,
+        options: [...(question.options ?? [])],
+      })),
+      answers: [...(entry.inputRequest.answers ?? [])],
+    };
   }
   return normalized;
 }

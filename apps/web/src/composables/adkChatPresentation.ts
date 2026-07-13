@@ -14,7 +14,8 @@ export function isActiveRunStatus(status: string | undefined): boolean {
   return (
     status === "RUNNING" ||
     status === "PENDING" ||
-    status === "PENDING_APPROVAL"
+    status === "PENDING_APPROVAL" ||
+    status === "PENDING_INPUT"
   );
 }
 
@@ -50,6 +51,7 @@ export function runStatusTone(status: string | undefined): string {
     case "DENIED":
       return "error";
     case "PENDING_APPROVAL":
+    case "PENDING_INPUT":
     case "PAUSED":
       return "warning";
     case "RUNNING":

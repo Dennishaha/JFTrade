@@ -231,11 +231,12 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 		if childErr != nil {
 			return nil, childErr
 		}
-		if ok && isDirectWorkflowChild(parent, child) && (child.Status == RunStatusPending || child.Status == RunStatusRunning || child.Status == RunStatusCompleted) {
+		if ok && isDirectWorkflowChild(parent, child) && (child.Status == RunStatusPending || child.Status == RunStatusPendingInput || child.Status == RunStatusRunning || child.Status == RunStatusCompleted) {
 			return map[string]any{
 				"success": true, "taskId": task.ID, "childRunId": child.ID, "status": child.Status,
 				"pendingApproval": child.Status == RunStatusPending, "result": strings.TrimSpace(child.Message),
-				"reused": true,
+				"pendingInput": child.Status == RunStatusPendingInput,
+				"reused":       true,
 			}, nil
 		}
 	}
@@ -268,7 +269,7 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 		return nil, fmt.Errorf("parent run not found")
 	}
 	parent = t.executor.mergeTaskChildProjectionAt(context.Background(), parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
-	if result.Response.Run.Status == RunStatusPending {
+	if result.Response.Run.Status == RunStatusPending || result.Response.Run.Status == RunStatusPendingInput {
 		parent = pauseParentForChild(parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
 		_, jftradeErr30 := t.executor.runtime.saveRunPreservingUserGoalPause(context.Background(), parent)
 		jftradeLogError(jftradeErr30)
@@ -277,6 +278,7 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	return map[string]any{
 		"success": true, "taskId": task.ID, "childRunId": result.Response.Run.ID, "status": result.Response.Run.Status,
 		"pendingApproval": result.Response.Run.Status == RunStatusPending, "result": strings.TrimSpace(result.Response.Reply),
+		"pendingInput": result.Response.Run.Status == RunStatusPendingInput,
 	}, nil
 }
 
@@ -440,9 +442,10 @@ func (e *WorkflowExecutor) mergeTaskChildProjectionAt(ctx context.Context, paren
 		parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
 	}
 	parent = updateWorkflowPlanForChildAt(parent, child, index)
-	if child.Status == RunStatusPending {
-		parent.Status = RunStatusPending
+	if child.Status == RunStatusPending || child.Status == RunStatusPendingInput {
+		parent.Status = child.Status
 		parent.PendingApprovals = append([]Approval(nil), child.PendingApprovals...)
+		parent.InputRequest = normalizeInputRequest(child.InputRequest)
 	}
 	parent, jftradeErr28 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
 	jftradeLogError(jftradeErr28)

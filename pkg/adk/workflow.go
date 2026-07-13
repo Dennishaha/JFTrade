@@ -247,8 +247,9 @@ func (e *WorkflowExecutor) persistWorkflowTasks(ctx context.Context, parent Run,
 }
 
 type workflowExecutionResult struct {
-	execution *googleADKExecution
-	approvals []Approval
+	execution     *googleADKExecution
+	approvals     []Approval
+	inputRequests map[string]*InputRequest
 }
 
 func (e *WorkflowExecutor) runNativeTaskGraphWorkflow(ctx context.Context, req workflowRequest, parent Run, steps []workflowStep, tasks []Task) (ChatResponse, error) {
@@ -268,6 +269,9 @@ func (e *WorkflowExecutor) runNativeTaskGraphWorkflow(ctx context.Context, req w
 	executionResult, parent, err := e.executeStartedWorkflowGraph(ctx, req, parent, childRuns, steps, execution)
 	if err != nil {
 		return e.failedWorkflowResponse(ctx, req, parent, err), nil
+	}
+	if len(executionResult.inputRequests) > 0 {
+		return e.finishWorkflowPendingInputs(ctx, req, parent, tasks, childRuns, executionResult), nil
 	}
 	if err := e.ensureWorkflowChildrenFinalReplies(ctx, req, executionResult.execution, childRuns, steps, executionResult.approvals); err != nil {
 		return e.failedWorkflowResponse(ctx, req, parent, err), nil
@@ -292,6 +296,9 @@ func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req 
 	executionResult, parent, err := e.runWorkflowExecution(ctx, req, parent, childRuns, steps)
 	if err != nil {
 		return e.failedWorkflowResponse(ctx, req, parent, err), nil
+	}
+	if len(executionResult.inputRequests) > 0 {
+		return e.finishWorkflowPendingInputs(ctx, req, parent, tasks, childRuns, executionResult), nil
 	}
 	if err := e.ensureWorkflowChildrenFinalReplies(ctx, req, executionResult.execution, childRuns, steps, executionResult.approvals); err != nil {
 		return e.failedWorkflowResponse(ctx, req, parent, err), nil
@@ -342,28 +349,52 @@ func (e *WorkflowExecutor) runWorkflowExecution(ctx context.Context, req workflo
 }
 
 func (e *WorkflowExecutor) executeStartedWorkflowGraph(ctx context.Context, req workflowRequest, parent Run, childRuns []Run, steps []workflowStep, execution *googleADKExecution) (workflowExecutionResult, Run, error) {
-	approvals, err := e.executeWorkflowRun(ctx, req.Message, parent, childRuns, execution)
+	approvals, inputRequests, err := e.executeWorkflowRun(ctx, req.Message, parent, childRuns, execution)
 	if err != nil {
 		return workflowExecutionResult{}, parent, err
 	}
-	return workflowExecutionResult{execution: execution, approvals: approvals}, parent, nil
+	return workflowExecutionResult{execution: execution, approvals: approvals, inputRequests: inputRequests}, parent, nil
 }
 
-func (e *WorkflowExecutor) executeWorkflowRun(ctx context.Context, message string, parent Run, childRuns []Run, execution *googleADKExecution) ([]Approval, error) {
+func (e *WorkflowExecutor) executeWorkflowRun(ctx context.Context, message string, parent Run, childRuns []Run, execution *googleADKExecution) ([]Approval, map[string]*InputRequest, error) {
 	e.runtime.workflowChildMu.Lock()
 	adkErr := execution.run(ctx, genai.NewContentFromText(message, genai.RoleUser))
 	var approvals []Approval
 	if adkErr == nil {
 		approvals, adkErr = execution.pendingApprovals(ctx, e.runtime.store)
 	}
+	var inputRequests map[string]*InputRequest
+	if adkErr == nil {
+		inputRequests, adkErr = e.runtime.pendingInputRequests(ctx, execution)
+		execution.setInputRequests(inputRequests)
+	}
 	e.runtime.workflowChildMu.Unlock()
 	if adkErr != nil {
-		return nil, adkErr
+		return nil, nil, adkErr
 	}
-	if len(approvals) > 0 {
+	if len(approvals) > 0 || len(inputRequests) > 0 {
 		e.registerWorkflowExecution(parent, childRuns, execution)
 	}
-	return approvals, nil
+	return approvals, inputRequests, nil
+}
+
+func (e *WorkflowExecutor) finishWorkflowPendingInputs(ctx context.Context, req workflowRequest, parent Run, tasks []Task, childRuns []Run, result workflowExecutionResult) ChatResponse {
+	responses := make([]ChatResponse, 0, len(childRuns))
+	for _, child := range childRuns {
+		request := result.inputRequests[child.ID]
+		if request == nil {
+			responses = append(responses, e.workflowResponse(ctx, req.Session, child, openAIChatResult{}))
+			continue
+		}
+		toolContext := result.execution.toolContextForRun(child.ID)
+		child = hydrateRunExecutionResult(child, toolContext, nil, child.PreToolContent, child.PreToolReasoning)
+		response, err := e.runtime.finishPendingInputRun(ctx, req.Session, child, request)
+		if err != nil {
+			return e.failedWorkflowResponse(ctx, req, parent, err)
+		}
+		responses = append(responses, response)
+	}
+	return e.finalizePlannedWorkflow(ctx, req, parent, tasks, responses, nil)
 }
 
 func (e *WorkflowExecutor) registerWorkflowExecution(parent Run, childRuns []Run, execution *googleADKExecution) {
@@ -476,7 +507,8 @@ func finalizeBlockedWorkflowParent(parent Run, child Run, approvals []Approval) 
 	parent.Message = child.Message
 	parent.WorkflowStatus = workflowStatusPaused
 	parent.PendingApprovals = pendingApprovalsOnly(approvals)
-	if parent.Status != RunStatusPending {
+	parent.InputRequest = normalizeInputRequest(child.InputRequest)
+	if parent.Status != RunStatusPending && parent.Status != RunStatusPendingInput {
 		parent.WorkflowStatus = workflowStatusFailed
 		parent.FailureReason = child.FailureReason
 		parent.ErrorCode = child.ErrorCode

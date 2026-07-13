@@ -586,6 +586,9 @@ function projectParentTimelineEntry(
 ): ADKTimelineEntryState | null {
   const runId = String(entry.runId ?? "").trim();
   if (runId !== "" && childRunIds.has(runId)) {
+    if (entry.kind === "input_request" && entry.inputRequest) {
+      return entry;
+    }
     return null;
   }
   if (entry.kind === "tool_group" && entry.toolCalls) {
