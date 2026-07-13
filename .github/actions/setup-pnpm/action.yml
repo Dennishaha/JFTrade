@@ -1,0 +1,67 @@
+name: Setup pinned pnpm
+description: Setup Node.js, install the pnpm version pinned by the root manifest, and optionally cache its store
+
+inputs:
+  cache:
+    description: Whether to cache the pnpm store
+    required: false
+    default: "false"
+  cache-dependency-path:
+    description: Lockfile used to key the pnpm store cache
+    required: false
+    default: pnpm-lock.yaml
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: .nvmrc
+        package-manager-cache: false
+
+    - name: Install pinned pnpm
+      id: install
+      shell: bash
+      run: |
+        set -euo pipefail
+        package_manager="$(node --print "require('./package.json').packageManager")"
+        if [[ ! "$package_manager" =~ ^pnpm@([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          echo "package.json must pin an exact pnpm version, got: $package_manager" >&2
+          exit 1
+        fi
+
+        expected_version="${BASH_REMATCH[1]}"
+        install_dir="$RUNNER_TEMP/setup-pnpm-$expected_version"
+        rm -rf "$install_dir"
+        npm install \
+          --prefix "$install_dir" \
+          --no-save \
+          --ignore-scripts \
+          --no-audit \
+          --no-fund \
+          "$package_manager"
+
+        actual_version="$("$install_dir/node_modules/.bin/pnpm" --version)"
+        if [[ "$actual_version" != "$expected_version" ]]; then
+          echo "Expected pnpm $expected_version, got $actual_version" >&2
+          exit 1
+        fi
+
+        echo "$install_dir/node_modules/.bin" >> "$GITHUB_PATH"
+        echo "version=$actual_version" >> "$GITHUB_OUTPUT"
+
+    - name: Resolve pnpm store path
+      if: ${{ inputs.cache == 'true' }}
+      id: store
+      shell: bash
+      run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore pnpm store cache
+      if: ${{ inputs.cache == 'true' }}
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.store.outputs.path }}
+        key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ steps.install.outputs.version }}-${{ hashFiles(inputs.cache-dependency-path) }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ steps.install.outputs.version }}-

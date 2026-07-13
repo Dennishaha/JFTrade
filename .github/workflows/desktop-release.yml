@@ -94,14 +94,10 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
         with:
-          node-version-file: .nvmrc
-          cache: pnpm
+          cache: true
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Linux desktop dependencies
@@ -180,14 +176,8 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-          package-manager-cache: false
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -298,14 +288,8 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-          package-manager-cache: false
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -400,14 +384,8 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-          package-manager-cache: false
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
@@ -507,14 +485,8 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-          package-manager-cache: false
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Download prepared release inputs
         uses: actions/download-artifact@v8
