@@ -23,6 +23,10 @@ assert(
   "desktop dev did not identify the Vite runtime as desktop mode",
 );
 assert(
+  defaults.stdout.includes("FRONTEND_DEVSERVER_URL=http://127.0.0.1:3003"),
+  "desktop dev did not default to the Vite development port",
+);
+assert(
   defaults.stdout.includes(
     `JFTRADE_SETTINGS_PATH=${path.join(desktopRuntimeDir, "settings.json")}`,
   ),
@@ -35,7 +39,7 @@ assert(
   "desktop dev did not default to the desktop backtest DB path",
 );
 assert(
-  defaults.stdout.includes("JFTRADE_API_BIND=127.0.0.1:6698"),
+  defaults.stdout.includes("JFTRADE_API_BIND=127.0.0.1:3008"),
   "desktop dev did not default to the desktop API bind",
 );
 assert(
@@ -43,11 +47,11 @@ assert(
   "desktop dev did not disable the markets cache by default",
 );
 assert(
-  defaults.stdout.includes("VITE_API_BASE_URL=http://127.0.0.1:6698"),
+  defaults.stdout.includes("VITE_API_BASE_URL=http://127.0.0.1:3008"),
   "desktop dev did not inject the desktop API base URL into the frontend",
 );
 assert(
-  defaults.stdout.includes("VITE_DEV_API_TARGET=http://127.0.0.1:6698"),
+  defaults.stdout.includes("VITE_DEV_API_TARGET=http://127.0.0.1:3008"),
   "desktop dev did not point the Vite proxy at the desktop API",
 );
 

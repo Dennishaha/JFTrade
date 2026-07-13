@@ -28,7 +28,7 @@ func TestAuthenticationBoundaryDecisions(t *testing.T) {
 
 	t.Run("session origin requires checker", func(t *testing.T) {
 		response := performAuthRequest(http.MethodGet, "/api/v1/settings/ui", map[string]string{
-			"Origin": "http://localhost:5173",
+			"Origin": "http://localhost:3003",
 		}, &stubAuthenticator{ok: true}, nil, nil)
 		if response.Code != http.StatusForbidden {
 			t.Fatalf("status = %d", response.Code)
@@ -121,7 +121,7 @@ func TestCanonicalOriginRejectsMalformedAndUnsupportedValues(t *testing.T) {
 	if got := canonicalOrigin("HTTP://EXAMPLE.COM"); got != "http://example.com" {
 		t.Fatalf("canonical origin = %q", got)
 	}
-	if got := canonicalOrigin("wails://LOCALHOST:5173/app"); got != "wails://localhost:5173" {
+	if got := canonicalOrigin("wails://LOCALHOST:3003/app"); got != "wails://localhost:3003" {
 		t.Fatalf("wails canonical origin = %q", got)
 	}
 	if got := canonicalOrigin("wails://LOCALHOST/app"); got != "wails://localhost" {

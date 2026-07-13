@@ -28,7 +28,7 @@
 
 ## 常用环境变量
 
-- `JFTRADE_API_BIND`：独立 API/Wails sidecar 监听地址。开发 API 默认 `127.0.0.1:3000`，`JFTrade Dev` 默认 `127.0.0.1:6698`，正式桌面产品默认 `127.0.0.1:6699`。
+- `JFTRADE_API_BIND`：独立 API/Wails sidecar 监听地址。开发 API 默认 `127.0.0.1:3000`，`JFTrade Dev` 默认 `127.0.0.1:3008`，正式桌面产品默认 `127.0.0.1:6699`。
 - `JFTRADE_GUI_BIND`：带内嵌前端的生产 HTTP 服务监听地址，默认 `127.0.0.1:6688`；该端口同时提供前端、API、SSE、WS 和 Swagger。
 - `JFTRADE_GUI_API_BASE_URL`：历史兼容字段；单端口生产服务始终使用同源 API，不再依赖该覆盖。
 - `JFTRADE_SETTINGS_PATH`：运行时配置文件路径。
@@ -107,7 +107,7 @@ JFTrade 默认仅供 Wails 桌面应用使用，普通用户不需要密码、Ke
 
 Web 关闭时，Wails 桌面产品不会创建浏览器监听器。开启后默认监听 `127.0.0.1:<webPort>`，仅供本机浏览器访问；打开“允许局域网/其他设备访问”后立即改为 `0.0.0.0:<webPort>`。当前内置服务只提供 HTTP，因此该选项仅适合可信局域网。通过互联网访问必须自行配置全程 HTTPS 反向代理，不能直接暴露 JFTrade 端口；同机代理应转发 `X-Forwarded-Proto: https` 和 `X-Forwarded-For`，JFTrade 只信任来自 loopback 的这些声明，并据此签发 `Secure` 会话 Cookie，以及执行访问范围和登录限速判断。
 
-正式产品从内嵌前端资源提供 Web UI；`JFTrade Dev` 没有内嵌资源，因此可选 Web 监听器会代理同一开发命令启动的本机 Vite 服务（默认 `127.0.0.1:5173`）。`/runtime-config.js` 仍由 Gin 生成浏览器配置，不会把浏览器引向 Wails sidecar。开发代理只接受 loopback 目标。
+正式产品从内嵌前端资源提供 Web UI；`JFTrade Dev` 没有内嵌资源，因此可选 Web 监听器会代理同一开发命令启动的本机 Vite 服务（默认 `127.0.0.1:3003`）。`/runtime-config.js` 仍由 Gin 生成浏览器配置，不会把浏览器引向 Wails sidecar。开发代理只接受 loopback 目标。
 
 Web 访问的启停、端口、改密和网络范围只能从可信桌面应用修改；浏览器设置页仅展示状态。旧版 `adminAuthRequired` 和 `secrets/admin.key` 不会迁移成 Web 密码，升级后 Web 保持关闭，应用会清理自己运行目录中的旧密钥文件。
 

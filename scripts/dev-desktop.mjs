@@ -8,12 +8,12 @@ const npmCommand = process.env.npm_execpath
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const desktopRuntimeDir = path.join(rootDir, "var", "jftrade-api");
-const apiBind = process.env.JFTRADE_API_BIND || "127.0.0.1:6698";
+const apiBind = process.env.JFTRADE_API_BIND || "127.0.0.1:3008";
 const apiBaseUrl = apiBaseURLForBind(apiBind);
 const devEnv = {
   JFTRADE_DESKTOP_MODE: "1",
   FRONTEND_DEVSERVER_URL:
-    process.env.FRONTEND_DEVSERVER_URL || "http://127.0.0.1:5173",
+    process.env.FRONTEND_DEVSERVER_URL || "http://127.0.0.1:3003",
   JFTRADE_SETTINGS_PATH:
     process.env.JFTRADE_SETTINGS_PATH ||
     path.join(desktopRuntimeDir, "settings.json"),
@@ -72,7 +72,11 @@ const commands = [
 const children = commands.map(([command, args, extraEnv]) =>
   spawn(command, args, {
     stdio: "inherit",
-    shell: process.platform === "win32" && command !== desktopCommand,
+    // Native executables (including process.execPath) must not go through
+    // cmd.exe: unquoted paths such as C:\Program Files\... are split at the
+    // space. Only the Windows npm fallback needs a command shell.
+    shell:
+      process.platform === "win32" && /\.(?:cmd|bat)$/i.test(command),
     env: { ...process.env, ...extraEnv },
     cwd: rootDir,
   }),

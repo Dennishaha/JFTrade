@@ -36,7 +36,7 @@ func TestEnsureBootstrapFileRepairsExistingSettingsWithoutAppearance(t *testing.
 	if store.HasAppearance() {
 		t.Fatal("appearance unexpectedly present before bootstrap repair")
 	}
-	defaults := jfsettings.LaunchDefaults{APIBind: "127.0.0.1:3000", GUIBind: "127.0.0.1:5173"}
+	defaults := jfsettings.LaunchDefaults{APIBind: "127.0.0.1:3000", GUIBind: "127.0.0.1:3003"}
 	if err := store.EnsureBootstrapFile(defaults); err != nil {
 		t.Fatalf("EnsureBootstrapFile repair: %v", err)
 	}

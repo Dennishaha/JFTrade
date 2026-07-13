@@ -60,7 +60,6 @@ func main() {
 		logManager.bindApp(app)
 	}
 	window := newDesktopMainWindow(app, state, bootstrap)
-	configureDesktopApplicationMenu(app, window, linkService, updateService, state, bootstrap.Profile)
 	configureDesktopSystemTray(app, window, linkService, updateService, state, bootstrap.Profile)
 	startDesktopAPI(ctx, state, notificationSink, bootstrap.Runtime)
 	startDesktopUpdateChecks(ctx, app, updateService)
@@ -259,7 +258,7 @@ func mainWindowOptions(profile desktopBuildProfile) application.WebviewWindowOpt
 		MinHeight:          700,
 		InitialPosition:    application.WindowCentered,
 		Zoom:               desktopWebviewZoom,
-		UseApplicationMenu: true,
+		UseApplicationMenu: false,
 	}
 }
 

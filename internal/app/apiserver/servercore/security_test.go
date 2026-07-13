@@ -365,7 +365,7 @@ func TestProductionWebDoesNotTrustDevelopmentOrigin(t *testing.T) {
 	request, err := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/auth/login", bytes.NewReader(payload))
 	jftradeCheckTestError(t, err)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Origin", "http://localhost:5173")
+	request.Header.Set("Origin", "http://localhost:3003")
 	response, err := http.DefaultClient.Do(request)
 	jftradeCheckTestError(t, err)
 	defer func() { jftradeCheckTestError(t, response.Body.Close()) }()

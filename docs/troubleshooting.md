@@ -11,8 +11,8 @@
 
 | 症状                                                 | 去看哪里                                                                               | 快速验证                                                                                                             |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 后端起不来、端口不对、启动后马上退出                 | [troubleshooting/startup-ports.md](troubleshooting/startup-ports.md)                   | 浏览器开发查 `3000`、桌面开发查 `6698`、浏览器式发布查 `6688`、正式桌面查 `6699`                                     |
-| `JFTrade Dev` 与正式产品互相影响、重复启动或端口冲突 | [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)               | 开发版查 `6698`，正式产品查 `6699`；确认两者应用 ID 和数据目录不同                                                   |
+| 后端起不来、端口不对、启动后马上退出                 | [troubleshooting/startup-ports.md](troubleshooting/startup-ports.md)                   | 浏览器开发查 `3000`、桌面开发查 `3008`、浏览器式发布查 `6688`、正式桌面查 `6699`                                     |
+| `JFTrade Dev` 与正式产品互相影响、重复启动或端口冲突 | [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)               | 开发版查 `3008`，正式产品查 `6699`；确认两者应用 ID 和数据目录不同                                                   |
 | 前端显示实时通道断开或没有心跳                       | [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md) | `go test ./internal/app/apiserver/servercore -run TestLiveSSESendsHeartbeat`                                         |
 | OpenD 连不上、设置保存了但运行时没生效               | [troubleshooting/opend-configuration.md](troubleshooting/opend-configuration.md)       | 开发态查 `http://127.0.0.1:3000/api/v1/system/futu-opend`，发布态查 `http://127.0.0.1:6688/api/v1/system/futu-opend` |
 | 美股盘前盘后或夜盘显示异常                           | [troubleshooting/us-extended-hours.md](troubleshooting/us-extended-hours.md)           | 检查 snapshot 是否带 `lastClosePrice` 和扩展行情块                                                                   |
@@ -26,12 +26,12 @@
 
 ```bash
 curl -sS -o /dev/null -w '3000: %{http_code}\n' http://127.0.0.1:3000/api/v1/system/status
-curl -sS -o /dev/null -w '6698: %{http_code}\n' http://127.0.0.1:6698/api/v1/system/status
+curl -sS -o /dev/null -w '3008: %{http_code}\n' http://127.0.0.1:3008/api/v1/system/status
 curl -sS -o /dev/null -w '6688: %{http_code}\n' http://127.0.0.1:6688/api/v1/system/status
 curl -sS -o /dev/null -w '6699: %{http_code}\n' http://127.0.0.1:6699/api/v1/system/status
 
 lsof -nP -iTCP:3000 -sTCP:LISTEN
-lsof -nP -iTCP:6698 -sTCP:LISTEN
+lsof -nP -iTCP:3008 -sTCP:LISTEN
 lsof -nP -iTCP:6688 -sTCP:LISTEN
 lsof -nP -iTCP:6699 -sTCP:LISTEN
 lsof -nP -iTCP:11110 -sTCP:LISTEN
@@ -43,7 +43,7 @@ go test ./...
 ## 术语统一
 
 - API sidecar：`go run ./cmd/jftrade-api`，启动 JFTrade 控制台后端
-- JFTrade Dev：Wails 开发通道，默认 sidecar `127.0.0.1:6698`，使用仓库 `var/jftrade-api`
+- JFTrade Dev：Wails 开发通道，默认 sidecar `127.0.0.1:3008`，使用仓库 `var/jftrade-api`
 - JFTrade：Wails 正式通道，默认 sidecar `127.0.0.1:6699`，使用系统用户数据目录
 - 可选 Web 服务：默认 `127.0.0.1:6688`，端口可在桌面设置中修改；Wails 桌面 Web 关闭时不创建该监听器
 - OpenD API port：默认 `127.0.0.1:11110`，Go 原生 TCP API 使用

@@ -44,7 +44,7 @@ flowchart LR
 | 模式           | 入口                       | 主要用途                                         | 核心组件                                                                                      |
 | -------------- | -------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | API 后端服务   | `go run ./cmd/jftrade-api` | 前端开发、配置调试、行情、策略运行控制与通知调试 | `cmd/jftrade-api` -> `internal/app/apiserver` -> `internal/api/*` -> services -> integrations |
-| Wails 桌面开发 | `npm run desktop:dev`      | 桌面联调，同时保留仓库开发数据                   | `JFTrade Dev` -> Vite -> loopback sidecar `6698`；可选 Web 监听器使用用户端口                  |
+| Wails 桌面开发 | `npm run desktop:dev`      | 桌面联调，同时保留仓库开发数据                   | `JFTrade Dev` -> Vite -> loopback sidecar `3008`；可选 Web 监听器使用用户端口                  |
 | Wails 正式产品 | `release_assets` 构建      | 独立安装的桌面产品                               | `JFTrade` -> embedded frontend -> loopback sidecar `6699`；可选 Web 默认 `6688`                |
 
 当前默认按下面理解：

@@ -20,9 +20,9 @@
 
 | 组件                                      | 默认地址          | 用途                                               |
 | ----------------------------------------- | ----------------- | -------------------------------------------------- |
-| 开发态 Web GUI                            | `127.0.0.1:5173`  | Vite dev server                                    |
+| 开发态 Web GUI                            | `127.0.0.1:3003`  | Vite dev server                                    |
 | 开发态 JFTrade sidecar                    | `127.0.0.1:3000`  | 前端 `/api/v1/*`、SSE、WS                          |
-| `JFTrade Dev` sidecar                     | `127.0.0.1:6698`  | Wails 开发窗口直接访问 `/api/v1/*`、SSE、WS        |
+| `JFTrade Dev` sidecar                     | `127.0.0.1:3008`  | Wails 开发窗口直接访问 `/api/v1/*`、SSE、WS        |
 | 可选 Web 访问监听器                        | `127.0.0.1:6688`  | 端口可在设置中修改；桌面 Web 关闭时不创建，开启后提供前端、API、SSE、WS 和 Swagger |
 | 正式 Wails 桌面 sidecar                    | `127.0.0.1:6699`  | 仅供正式 Wails WebView 无感访问，始终保持 loopback               |
 | Futu OpenD API                            | `127.0.0.1:11110` | Go 原生 TCP/protobuf 查询与探针                    |
@@ -42,20 +42,20 @@
 
 Wails 桌面的可选 Web 端口不使用 `interfaces.apiBind` 或 sidecar 端口，而由“设置 → Web 访问”的 `security.webPort` 控制。它允许 `1024`–`65535`，默认 `6688`，保存后立即切换。若提示 `WEB_ACCESS_LISTENER_UPDATE_FAILED` 或日志出现 `Web access port conflict`，原端口仍会继续服务；用 `lsof` 查占用进程或换一个空闲端口。
 
-在 `JFTrade Dev` 中访问该端口时，UI 由 Gin 安全代理本机 Vite `5173`。如果返回 `502` 和“development UI is not available”，确认是用 `npm run desktop:dev` 启动，并检查 Vite 是否仍在监听；正式产品使用内嵌资源，不依赖 `5173`。
+在 `JFTrade Dev` 中访问该端口时，UI 由 Gin 安全代理本机 Vite `3003`。如果返回 `502` 和“development UI is not available”，确认是用 `npm run desktop:dev` 启动，并检查 Vite 是否仍在监听；正式产品使用内嵌资源，不依赖 `3003`。
 
 ## 快速检查
 
-端口是否在监听与 Web 是否已登录是两件事。桌面 Web 关闭时，`6688`（或用户端口）应直接连接失败；开启后，`401` 表示监听器已立即创建且需要 Web 登录。直接请求 `6698/6699` 不会降级为浏览器密码入口，没有桌面临时凭证时会返回 `403`。
+端口是否在监听与 Web 是否已登录是两件事。桌面 Web 关闭时，`6688`（或用户端口）应直接连接失败；开启后，`401` 表示监听器已立即创建且需要 Web 登录。直接请求 `3008/6699` 不会降级为浏览器密码入口，没有桌面临时凭证时会返回 `403`。
 
 ```bash
 curl -sS -o /dev/null -w '3000: %{http_code}\n' http://127.0.0.1:3000/api/v1/system/status
-curl -sS -o /dev/null -w '6698: %{http_code}\n' http://127.0.0.1:6698/api/v1/system/status
+curl -sS -o /dev/null -w '3008: %{http_code}\n' http://127.0.0.1:3008/api/v1/system/status
 curl -sS -o /dev/null -w '6688: %{http_code}\n' http://127.0.0.1:6688/api/v1/system/status
 # 仅在排查正式 Wails 桌面产品时检查 6699
 curl -sS -o /dev/null -w '6699: %{http_code}\n' http://127.0.0.1:6699/api/v1/system/status
 lsof -nP -iTCP:3000 -sTCP:LISTEN
-lsof -nP -iTCP:6698 -sTCP:LISTEN
+lsof -nP -iTCP:3008 -sTCP:LISTEN
 lsof -nP -iTCP:6699 -sTCP:LISTEN
 lsof -nP -iTCP:6688 -sTCP:LISTEN
 lsof -nP -iTCP:11110 -sTCP:LISTEN
@@ -86,6 +86,6 @@ echo "$JFTRADE_FUTU_API_PORT"
 ## 需要避免的旧表述
 
 - 不要写“bbgo server 起不来，所以前端断开”，应写清到底是开发态 sidecar 3000 消失，还是发布态同源服务 6688 消失
-- 桌面问题还要区分 `JFTrade Dev` 的 6698 和正式 `JFTrade` 的 6699；不要把同通道单实例误判成两个通道互斥
+- 桌面问题还要区分 `JFTrade Dev` 的 3008 和正式 `JFTrade` 的 6699；不要把同通道单实例误判成两个通道互斥
 - 不要把 `/api/v1/*` 说成 bbgo 自带接口
 - 不要把 `start.sh` 的默认行为等同于所有运行方式；独立 API 入口在 [../../cmd/jftrade-api/main.go](../../cmd/jftrade-api/main.go)，桌面入口在 [../../cmd/jftrade-desktop](../../cmd/jftrade-desktop)

@@ -28,8 +28,8 @@ func TestMainWindowOptionsUseWebZoom(t *testing.T) {
 	if options.CSS != "" {
 		t.Fatalf("window CSS = %q, want no desktop scale override", options.CSS)
 	}
-	if !options.UseApplicationMenu {
-		t.Fatal("main window should use the native application menu")
+	if options.UseApplicationMenu {
+		t.Fatal("main window should hide the native application menu")
 	}
 }
 

@@ -30,8 +30,8 @@ func TestRuntimeDefaultsAndLayoutBoundaries(t *testing.T) {
 	if got := APIBaseURLForBind(":3000"); got != "http://127.0.0.1:3000" {
 		t.Fatalf("APIBaseURLForBind(:3000) = %q", got)
 	}
-	if got := PortFromBind("127.0.0.1:5173", 3000); got != 5173 {
-		t.Fatalf("PortFromBind = %d, want 5173", got)
+	if got := PortFromBind("127.0.0.1:3003", 3000); got != 3003 {
+		t.Fatalf("PortFromBind = %d, want 3003", got)
 	}
 	if got := PortFromBind("invalid", 3000); got != 3000 {
 		t.Fatalf("PortFromBind invalid = %d, want default", got)
@@ -394,7 +394,7 @@ func (t *servercoreFakeBrokerTrading) CancelOrders(context.Context, broker.ReadQ
 func TestServerSidecarBoundaryMethodsAreNilSafe(t *testing.T) {
 	var server *Server
 	server.SetAPIPort(3001)
-	server.ConfigureAuthOrigins("http://127.0.0.1:5173")
+	server.ConfigureAuthOrigins("http://127.0.0.1:3003")
 	server.SetFrontendFS(os.DirFS(t.TempDir()), "http://127.0.0.1:3000")
 	server.ApplySecuritySettings(SecuritySettings{WebAccessEnabled: true})
 	if err := server.Close(); err != nil {

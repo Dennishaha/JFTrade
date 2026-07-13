@@ -219,7 +219,7 @@ export default defineConfig({
     },
     environmentOptions: {
       jsdom: {
-        url: "http://localhost:5173/",
+        url: "http://localhost:3003/",
       },
     },
     fileParallelism: false,
@@ -227,7 +227,11 @@ export default defineConfig({
     setupFiles: ["./tests/setup.ts"],
   },
   server: {
-    port: 5173,
+    port: 3003,
+    // Wails loads FRONTEND_DEVSERVER_URL on this exact port. Silently moving
+    // to 3004 when an old Vite process still owns 3003 makes the desktop load
+    // the stale frontend and proxy API requests to the wrong backend.
+    strictPort: true,
     proxy: {
       ...Object.fromEntries(
         apiProxyTargets.map((path) => [

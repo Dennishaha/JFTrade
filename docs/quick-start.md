@@ -9,11 +9,11 @@ npm install
 npm run desktop:dev
 ```
 
-该命令同时启动 Vite 和 Wails `JFTrade Dev`。桌面 sidecar 默认监听 `127.0.0.1:6698`，数据仍写入仓库内 `var/jftrade-api/`。桌面始终免登录；开发版与正式 `JFTrade` 的应用 ID、单实例 ID、窗口标题和端口相互隔离，可以同时运行。
+该命令同时启动 Vite 和 Wails `JFTrade Dev`。桌面 sidecar 默认监听 `127.0.0.1:3008`，数据仍写入仓库内 `var/jftrade-api/`。桌面始终免登录；开发版与正式 `JFTrade` 的应用 ID、单实例 ID、窗口标题和端口相互隔离，可以同时运行。
 
 ## 可选：浏览器前端 + sidecar
 
-这条路径仅用于纯浏览器前端开发。先在 `JFTrade Dev` 的“设置 → Web 访问”中设置密码并主动开启；前端开发服务器在 `5173`，默认把 `/api` 和 `/swagger` 代理到 `3000`。
+这条路径仅用于纯浏览器前端开发。先在 `JFTrade Dev` 的“设置 → Web 访问”中设置密码并主动开启；前端开发服务器在 `3003`，默认把 `/api` 和 `/swagger` 代理到 `3000`。
 
 终端 1：
 
@@ -30,7 +30,7 @@ npm run dev:web
 
 Web 已开启后的访问入口：
 
-- 控制台：`http://127.0.0.1:5173/`
+- 控制台：`http://127.0.0.1:3003/`
 - Swagger UI：`http://127.0.0.1:3000/swagger/`
 
 ## 开发态：只看文档站
@@ -41,7 +41,7 @@ npm run generate:docs
 npm run dev:docs
 ```
 
-VitePress 文档站默认在 `http://127.0.0.1:3001/`。如果前端开发服务器也在运行，则 `http://127.0.0.1:5173/docs/` 会代理到这个文档站。
+VitePress 文档站默认在 `http://127.0.0.1:3001/`。如果前端开发服务器也在运行，则 `http://127.0.0.1:3003/docs/` 会代理到这个文档站。
 
 ## 本地一键验收
 

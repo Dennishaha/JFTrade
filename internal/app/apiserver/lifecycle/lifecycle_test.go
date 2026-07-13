@@ -130,7 +130,7 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 		ShouldStartForArgs: func([]string) bool { return true },
 		LoadFrontendFS:     func() fs.FS { return fstest.MapFS{"index.html": {Data: []byte("ok")}} },
 		ResolveLaunchDefaults: func(bool) jfsettings.LaunchDefaults {
-			return jfsettings.LaunchDefaults{APIBind: "127.0.0.1:3000", GUIBind: "127.0.0.1:5173", SettingsPath: "settings.json", BacktestDBPath: "backtest.db"}
+			return jfsettings.LaunchDefaults{APIBind: "127.0.0.1:3000", GUIBind: "127.0.0.1:3003", SettingsPath: "settings.json", BacktestDBPath: "backtest.db"}
 		},
 		EnvOrDefault:        func(_ string, value string) string { return value },
 		EnsureRuntimeLayout: func(string, string) error { return nil },
@@ -684,7 +684,7 @@ func lifecycleDependencies(store SettingsStore, handler Handler, frontendFS fs.F
 		ResolveLaunchDefaults: func(bool) jfsettings.LaunchDefaults {
 			return jfsettings.LaunchDefaults{
 				APIBind:        "127.0.0.1:3000",
-				GUIBind:        "127.0.0.1:5173",
+				GUIBind:        "127.0.0.1:3003",
 				SettingsPath:   "settings.json",
 				BacktestDBPath: "backtest.db",
 			}

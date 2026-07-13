@@ -154,7 +154,7 @@ func TestResolveDesktopRuntimeConfigUsesProfileBindInsteadOfPersistedInterfaceBi
 	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
 	t.Setenv("JFTRADE_API_BIND", "")
 	defaults := jfsettings.LaunchDefaults{
-		APIBind:        "127.0.0.1:6698",
+		APIBind:        "127.0.0.1:3008",
 		SettingsPath:   settingsPath,
 		BacktestDBPath: filepath.Join(t.TempDir(), "backtest.db"),
 	}
@@ -282,7 +282,8 @@ func TestStartDesktopAllowsWailsDevOrigin(t *testing.T) {
 	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
 	t.Setenv("JFTRADE_BACKTEST_DB", backtestDBPath)
 	t.Setenv("JFTRADE_API_BIND", apiBind)
-	t.Setenv("FRONTEND_DEVSERVER_URL", "http://127.0.0.1:5173")
+	t.Setenv("JFTRADE_DESKTOP_MODE", "1")
+	t.Setenv("FRONTEND_DEVSERVER_URL", "http://127.0.0.1:3003")
 
 	shutdown, err := StartDesktop(t.Context(), nil)
 	if err != nil {
@@ -295,8 +296,34 @@ func TestStartDesktopAllowsWailsDevOrigin(t *testing.T) {
 	}()
 
 	client := &http.Client{Timeout: 500 * time.Millisecond}
-	assertWailsCORS(t, client, http.MethodGet, "http://"+apiBind+"/api/v1/settings/ui", "wails://localhost:5173")
-	assertWailsCORS(t, client, http.MethodOptions, "http://"+apiBind+"/api/v1/settings/ui", "wails://localhost:5173")
+	for _, origin := range []string{
+		"wails://localhost:3003",
+		"http://wails.localhost:3003",
+	} {
+		assertWailsCORS(t, client, http.MethodGet, "http://"+apiBind+"/api/v1/settings/ui", origin)
+		assertWailsCORS(t, client, http.MethodOptions, "http://"+apiBind+"/api/v1/settings/ui", origin)
+	}
+}
+
+func TestDesktopTrustedOriginsDeriveDevelopmentPort(t *testing.T) {
+	t.Setenv("JFTRADE_DESKTOP_MODE", "")
+	t.Setenv("FRONTEND_DEVSERVER_URL", "http://127.0.0.1:4317")
+	if origins := desktopTrustedOrigins(); containsString(origins, "http://wails.localhost:4317") {
+		t.Fatalf("packaged desktop origins unexpectedly trust development port: %#v", origins)
+	}
+
+	t.Setenv("JFTRADE_DESKTOP_MODE", "1")
+	origins := desktopTrustedOrigins()
+	for _, expected := range []string{
+		"wails://127.0.0.1:4317",
+		"wails://localhost:4317",
+		"http://wails.localhost:4317",
+		"https://wails.localhost:4317",
+	} {
+		if !containsString(origins, expected) {
+			t.Fatalf("desktop development origins %#v do not include %q", origins, expected)
+		}
+	}
 }
 
 func TestStartDesktopAllowsPackagedWailsOrigins(t *testing.T) {

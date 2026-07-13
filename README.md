@@ -28,12 +28,12 @@ npm run dev:web
 
 Web 已开启后可打开这些地址：
 
-- 控制台：`http://127.0.0.1:5173/`
-- 文档：`http://127.0.0.1:5173/docs/`
+- 控制台：`http://127.0.0.1:3003/`
+- 文档：`http://127.0.0.1:3003/docs/`
 - Swagger UI：`http://127.0.0.1:3000/swagger/`
 - Swagger JSON：`http://127.0.0.1:3000/swagger/doc.json`
 
-前端开发服务器在 `5173`，会把 `/api` 和 `/swagger` 转发到后端 `3000`。`cmd/jftrade-api` 是独立 API 入口；Wails 产品由 `cmd/jftrade-desktop` 启动同一套应用服务。
+前端开发服务器在 `3003`，会把 `/api` 和 `/swagger` 转发到后端 `3000`。`cmd/jftrade-api` 是独立 API 入口；Wails 产品由 `cmd/jftrade-desktop` 启动同一套应用服务。
 
 ## 常用入口
 
@@ -135,10 +135,10 @@ npm run generate:docs
 
 常见端口：
 
-- `127.0.0.1:5173`：前端开发服务器
+- `127.0.0.1:3003`：前端开发服务器
 - `127.0.0.1:3000`：开发态后端服务
 - `127.0.0.1:3001`：文档开发服务器
-- `127.0.0.1:6698`：`JFTrade Dev` 桌面 sidecar
+- `127.0.0.1:3008`：`JFTrade Dev` 桌面 sidecar
 - `127.0.0.1:6688`：默认的可选 Web 入口；端口可在设置中修改，桌面 Web 关闭时不创建该监听器
 - `127.0.0.1:6699`：正式 Wails 产品 sidecar；始终仅限本机桌面 WebView，不作为浏览器入口
 - `127.0.0.1:11110`：Futu OpenD API

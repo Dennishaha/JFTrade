@@ -13,7 +13,7 @@ import (
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
-const desktopDevelopmentAPIBind = "127.0.0.1:6698"
+const desktopDevelopmentAPIBind = "127.0.0.1:3008"
 
 func developmentDesktopBuildProfile() desktopBuildProfile {
 	return desktopBuildProfile{

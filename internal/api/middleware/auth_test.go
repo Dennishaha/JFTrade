@@ -55,14 +55,14 @@ func TestAuthProtectsLogout(t *testing.T) {
 	}
 
 	auth := &stubAuthenticator{ok: true, session: "csrf"}
-	withoutOrigin := performAuthRequest(http.MethodPost, "/api/v1/auth/logout", nil, auth, &stubCSRFValidator{valid: true}, allowOrigins("http://localhost:5173"))
+	withoutOrigin := performAuthRequest(http.MethodPost, "/api/v1/auth/logout", nil, auth, &stubCSRFValidator{valid: true}, allowOrigins("http://localhost:3003"))
 	if withoutOrigin.Code != http.StatusForbidden {
 		t.Fatalf("logout without origin status = %d, want 403", withoutOrigin.Code)
 	}
 	allowed := performAuthRequest(http.MethodPost, "/api/v1/auth/logout", map[string]string{
-		"Origin":       "http://localhost:5173",
+		"Origin":       "http://localhost:3003",
 		"X-CSRF-Token": "csrf",
-	}, auth, &stubCSRFValidator{valid: true}, allowOrigins("http://localhost:5173"))
+	}, auth, &stubCSRFValidator{valid: true}, allowOrigins("http://localhost:3003"))
 	if allowed.Code != http.StatusNoContent {
 		t.Fatalf("authorized logout status = %d, want 204", allowed.Code)
 	}
@@ -88,22 +88,22 @@ func TestAuthTrustedHostStillRequiresTrustedBrowserOrigin(t *testing.T) {
 
 	denied := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
 		"Origin": "http://evil.example",
-	}, auth, nil, allowOrigins("http://localhost:5173"))
+	}, auth, nil, allowOrigins("http://localhost:3003"))
 	if denied.Code != http.StatusForbidden {
 		t.Fatalf("untrusted origin status = %d", denied.Code)
 	}
 
 	malformed := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
 		"Origin":  "null",
-		"Referer": "http://localhost:5173/app",
-	}, auth, nil, allowOrigins("http://localhost:5173"))
+		"Referer": "http://localhost:3003/app",
+	}, auth, nil, allowOrigins("http://localhost:3003"))
 	if malformed.Code != http.StatusForbidden {
 		t.Fatalf("malformed origin status = %d", malformed.Code)
 	}
 
 	allowed := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
-		"Origin": "http://localhost:5173",
-	}, auth, nil, allowOrigins("http://localhost:5173"))
+		"Origin": "http://localhost:3003",
+	}, auth, nil, allowOrigins("http://localhost:3003"))
 	if allowed.Code != http.StatusNoContent {
 		t.Fatalf("trusted origin status = %d", allowed.Code)
 	}
@@ -119,7 +119,7 @@ func TestAuthRejectsNilAuthenticator(t *testing.T) {
 func TestAuthRejectsUntrustedOrigin(t *testing.T) {
 	resp := performAuthRequest(http.MethodGet, "/api/v1/settings/ui", map[string]string{
 		"Origin": "http://evil.example",
-	}, &stubAuthenticator{ok: true, session: "csrf"}, nil, allowOrigins("http://localhost:5173"))
+	}, &stubAuthenticator{ok: true, session: "csrf"}, nil, allowOrigins("http://localhost:3003"))
 	if resp.Code != http.StatusForbidden {
 		t.Fatalf("status = %d", resp.Code)
 	}
@@ -127,7 +127,7 @@ func TestAuthRejectsUntrustedOrigin(t *testing.T) {
 
 func TestAuthRequiresOriginAndCSRFForSessionWrites(t *testing.T) {
 	auth := &stubAuthenticator{ok: true, session: "csrf"}
-	origins := allowOrigins("http://localhost:5173")
+	origins := allowOrigins("http://localhost:3003")
 
 	noOrigin := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", nil, auth, &stubCSRFValidator{valid: true}, origins)
 	if noOrigin.Code != http.StatusForbidden {
@@ -135,14 +135,14 @@ func TestAuthRequiresOriginAndCSRFForSessionWrites(t *testing.T) {
 	}
 
 	badCSRF := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
-		"Origin": "http://localhost:5173",
+		"Origin": "http://localhost:3003",
 	}, auth, &stubCSRFValidator{valid: false}, origins)
 	if badCSRF.Code != http.StatusForbidden {
 		t.Fatalf("bad csrf status = %d", badCSRF.Code)
 	}
 
 	ok := performAuthRequest(http.MethodPost, "/api/v1/settings/ui", map[string]string{
-		"Origin":       "http://localhost:5173",
+		"Origin":       "http://localhost:3003",
 		"X-CSRF-Token": "csrf",
 	}, auth, &stubCSRFValidator{valid: true}, origins)
 	if ok.Code != http.StatusNoContent {
@@ -152,17 +152,17 @@ func TestAuthRequiresOriginAndCSRFForSessionWrites(t *testing.T) {
 
 func TestAuthTreatsPatchAsSessionWrite(t *testing.T) {
 	auth := &stubAuthenticator{ok: true, session: "csrf"}
-	origins := allowOrigins("http://localhost:5173")
+	origins := allowOrigins("http://localhost:3003")
 
 	missingCSRF := performAuthRequest(http.MethodPatch, "/api/v1/adk/sessions/one", map[string]string{
-		"Origin": "http://localhost:5173",
+		"Origin": "http://localhost:3003",
 	}, auth, &stubCSRFValidator{valid: true}, origins)
 	if missingCSRF.Code != http.StatusForbidden {
 		t.Fatalf("missing csrf status = %d", missingCSRF.Code)
 	}
 
 	allowed := performAuthRequest(http.MethodPatch, "/api/v1/adk/sessions/one", map[string]string{
-		"Origin":       "http://localhost:5173",
+		"Origin":       "http://localhost:3003",
 		"X-CSRF-Token": "csrf",
 	}, auth, &stubCSRFValidator{valid: true}, origins)
 	if allowed.Code != http.StatusNoContent {
@@ -173,15 +173,15 @@ func TestAuthTreatsPatchAsSessionWrite(t *testing.T) {
 func TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(CORS(allowOrigins("http://localhost:5173")))
+	router.Use(CORS(allowOrigins("http://localhost:3003")))
 	router.GET("/*path", func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	router.OPTIONS("/*path", func(c *gin.Context) { c.Status(http.StatusNoContent) })
 
 	allowedReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/ui", nil)
-	allowedReq.Header.Set("Origin", "http://localhost:5173")
+	allowedReq.Header.Set("Origin", "http://localhost:3003")
 	allowedResp := httptest.NewRecorder()
 	router.ServeHTTP(allowedResp, allowedReq)
-	if allowedResp.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
+	if allowedResp.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3003" {
 		t.Fatalf("allow origin header = %q", allowedResp.Header().Get("Access-Control-Allow-Origin"))
 	}
 	if got := allowedResp.Header().Get("Access-Control-Expose-Headers"); !strings.Contains(got, "X-Request-ID") {
@@ -203,7 +203,7 @@ func TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight(t *testing.T) {
 
 	malformedReq := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/settings/ui", nil)
 	malformedReq.Header.Set("Origin", "null")
-	malformedReq.Header.Set("Referer", "http://localhost:5173/app")
+	malformedReq.Header.Set("Referer", "http://localhost:3003/app")
 	malformedResp := httptest.NewRecorder()
 	router.ServeHTTP(malformedResp, malformedReq)
 	if malformedResp.Code != http.StatusForbidden {

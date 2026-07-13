@@ -157,7 +157,7 @@ func TestFrontendServerProxiesDesktopDevelopmentUI(t *testing.T) {
 }
 
 func TestFrontendDevelopmentProxyRejectsNonLoopbackTarget(t *testing.T) {
-	if frontend := newFrontendServerWithOptions(nil, "", "http://192.0.2.10:5173"); frontend != nil {
+	if frontend := newFrontendServerWithOptions(nil, "", "http://192.0.2.10:3003"); frontend != nil {
 		t.Fatal("non-loopback frontend development proxy should be rejected")
 	}
 }

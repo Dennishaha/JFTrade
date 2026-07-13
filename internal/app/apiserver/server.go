@@ -164,19 +164,17 @@ func desktopFrontendDevURL() string {
 	if strings.TrimSpace(os.Getenv("JFTRADE_DESKTOP_MODE")) != "1" {
 		return ""
 	}
-	return envOrDefault("FRONTEND_DEVSERVER_URL", "http://127.0.0.1:5173")
+	return envOrDefault("FRONTEND_DEVSERVER_URL", "http://127.0.0.1:3003")
 }
 
 func desktopTrustedOrigins() []string {
 	origins := []string{
 		"wails://localhost",
 		"wails://127.0.0.1",
-		"wails://localhost:5173",
-		"wails://127.0.0.1:5173",
 		"http://wails.localhost",
 		"https://wails.localhost",
 	}
-	for _, origin := range wailsOriginsForDevServer(os.Getenv("FRONTEND_DEVSERVER_URL")) {
+	for _, origin := range wailsOriginsForDevServer(desktopFrontendDevURL()) {
 		if !containsString(origins, origin) {
 			origins = append(origins, origin)
 		}
@@ -203,11 +201,19 @@ func wailsOriginsForDevServer(rawURL string) []string {
 			hosts = append(hosts, net.JoinHostPort("127.0.0.1", port))
 		}
 	}
-	origins := make([]string, 0, len(hosts))
+	origins := make([]string, 0, len(hosts)+2)
 	for _, host := range hosts {
 		if host = strings.TrimSpace(host); host != "" {
 			origins = append(origins, "wails://"+host)
 		}
+	}
+	if _, port, err := net.SplitHostPort(parsed.Host); err == nil && port != "" {
+		wailsDevHost := net.JoinHostPort("wails.localhost", port)
+		origins = append(
+			origins,
+			"http://"+wailsDevHost,
+			"https://"+wailsDevHost,
+		)
 	}
 	return origins
 }

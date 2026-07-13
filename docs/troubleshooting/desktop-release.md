@@ -8,13 +8,13 @@
 
 ## 开发版与产品版
 
-`npm run desktop:dev` 是 `JFTrade Dev`，默认使用 `127.0.0.1:6698` 和仓库内 `var/jftrade-api`。正式 `release_assets` 产品是 `JFTrade`，默认使用 `127.0.0.1:6699` 和系统用户数据目录。两者的 bundle/product ID 与 SingleInstance ID 不同，可以同时运行；同一通道重复启动只恢复已有窗口。
+`npm run desktop:dev` 是 `JFTrade Dev`，默认使用 `127.0.0.1:3008` 和仓库内 `var/jftrade-api`。正式 `release_assets` 产品是 `JFTrade`，默认使用 `127.0.0.1:6699` 和系统用户数据目录。两者的 bundle/product ID 与 SingleInstance ID 不同，可以同时运行；同一通道重复启动只恢复已有窗口。
 
 | 属性                        | `JFTrade Dev`             | 正式 `JFTrade`                   |
 | --------------------------- | ------------------------- | -------------------------------- |
 | 编译条件                    | 默认构建                  | `production,release_assets`      |
 | Product / SingleInstance ID | `com.jftrade.desktop.dev` | `com.jftrade.desktop`            |
-| 默认 API                    | `127.0.0.1:6698`          | `127.0.0.1:6699`                 |
+| 默认 API                    | `127.0.0.1:3008`          | `127.0.0.1:6699`                 |
 | 可选 Web 入口               | 用户设置，默认 `127.0.0.1:6688` | 用户设置，默认 `127.0.0.1:6688` |
 | 数据目录                    | 仓库 `var/jftrade-api`    | 系统用户数据目录                 |
 | 更新检查                    | 禁用                      | 每日后台一次，并支持菜单手动检查 |
@@ -107,7 +107,7 @@ DMG 使用标准拖拽安装布局：左侧为 `JFTrade.app`，右侧为指向 `
 
 ## 验收要点
 
-- 同时运行 `npm run desktop:dev` 和正式产品：6698、6699、窗口、托盘、日志和退出生命周期互不影响。
+- 同时运行 `npm run desktop:dev` 和正式产品：3008、6699、窗口、托盘、日志和退出生命周期互不影响。
 - 分别二次启动两个通道：只聚焦同通道已有窗口，不启动第二个 sidecar。
 - 开发版继续读取仓库数据；正式产品只读取系统用户数据目录。
 - 退出任意一方，另一方继续运行。
