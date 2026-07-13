@@ -688,6 +688,52 @@ describe("StrategyRuntimePanel business workflows", () => {
 
     wrapper.unmount();
   });
+
+  it("supports legacy media-query listeners and preserves a valid responsive workspace", async () => {
+    const listeners: Array<(event: { matches: boolean }) => void> = [];
+    const removeListener = vi.fn();
+    vi.stubGlobal("matchMedia", vi.fn((query: string) => ({
+      matches: query.includes("1180px"),
+      media: query,
+      addListener: (listener: (event: { matches: boolean }) => void) => listeners.push(listener),
+      removeListener,
+    })));
+    vi.stubGlobal("fetch", buildFetchMock({
+      definitions: [buildDefinition()],
+      strategies: [buildStrategy("STOPPED")],
+    }));
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { wrapper } = await mountStrategyPage("/strategy/runtime");
+    const setup = wrapper.getComponent(StrategyRuntimePanel).vm.$.setupState as Record<string, unknown>;
+    expect(readSetupValue<boolean>(setup.isCompactStrategyRuntime)).toBe(true);
+    expect(readSetupValue<boolean>(setup.isMobileStrategyRuntime)).toBe(false);
+
+    (setup.selectStrategyRuntimeMobileSection as (section: string) => void)("workbench");
+    expect(readSetupText(setup.strategyRuntimeMobileSection)).toBe("workbench");
+    listeners[0]?.({ matches: false });
+    listeners[1]?.({ matches: true });
+    expect(readSetupValue<boolean>(setup.isCompactStrategyRuntime)).toBe(false);
+    expect(readSetupValue<boolean>(setup.isMobileStrategyRuntime)).toBe(true);
+    listeners[1]?.({ matches: false });
+    expect(readSetupText(setup.strategyRuntimeMobileSection)).toBe("instances");
+
+    (setup.handleRuntimePaneResized as (payload: unknown) => void)({ panes: [{ size: 35 }, { size: 65 }] });
+    expect(readSetupValue<[number, number]>(setup.runtimePaneSizes)).toEqual([35, 65]);
+    (setup.handleRuntimePaneResized as (payload: unknown) => void)({ panes: [{ size: Number.NaN }] });
+    expect(readSetupValue<[number, number]>(setup.runtimePaneSizes)).toEqual([35, 65]);
+
+    writeSetupValue(setup, "instanceMutationNotice", "saved");
+    writeSetupValue(setup, "instanceMutationError", "failed");
+    (setup.closeInstanceMutationNotice as () => void)();
+    (setup.closeInstanceMutationError as () => void)();
+    expect(readSetupText(setup.instanceMutationNotice)).toBe("");
+    expect(readSetupText(setup.instanceMutationError)).toBe("");
+    expect((setup.formatStrategyStatus as (status: string) => string)("CUSTOM")).toBe("CUSTOM");
+
+    wrapper.unmount();
+    expect(removeListener).toHaveBeenCalledTimes(2);
+  });
 });
 
 function buildDefinition(version = "0.1.0"): StrategyDefinitionDocument {
@@ -791,6 +837,13 @@ function readSetupText(value: unknown): string {
     return String((value as { value: unknown }).value);
   }
   return String(value ?? "");
+}
+
+function readSetupValue<T>(value: unknown): T {
+  if (value !== null && typeof value === "object" && "value" in value) {
+    return (value as { value: T }).value;
+  }
+  return value as T;
 }
 
 function writeSetupValue(setup: Record<string, unknown>, key: string, value: unknown): void {

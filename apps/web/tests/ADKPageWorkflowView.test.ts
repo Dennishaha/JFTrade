@@ -547,6 +547,47 @@ describe("ADKPage workflow view", () => {
     expect(readSetupValue(setup.errorMessage)).toBe("trigger-delete failed");
 
   });
+
+  it("adds and edits an agent node without mutating unrelated workflow nodes", async () => {
+    stubWorkflowFetch();
+    const wrapper = mount(ADKWorkflowStudio, {
+      props: {
+        agents: [buildAgent()],
+        providers: [buildProvider()],
+        formatDateTime: (value: string) => value,
+        viewMode: "workflows",
+      },
+      global: { stubs: workflowVuetifyStubs() },
+    });
+    await flushRequests();
+    await flushRequests();
+    const setup = setupStateOf(wrapper);
+    const before = [...(readSetupValue(setup.flowNodes) as Array<{ id: string; type: string; data?: Record<string, unknown> }>)];
+
+    (setup.addAgentNode as () => void)();
+    const afterAdd = readSetupValue(setup.flowNodes) as Array<{ id: string; type: string; data?: Record<string, unknown> }>;
+    const added = afterAdd.find((node) => node.id === readSetupValue(setup.selectedNodeId));
+    expect(added).toMatchObject({ type: "agent", data: { title: "智能体" } });
+    expect(afterAdd.slice(0, before.length)).toEqual(before);
+    expect(readSetupValue(setup.inspectorKind)).toBe("agent");
+
+    (setup.updateSelectedAgentNodeData as (payload: { key: string; value: unknown }) => void)({
+      key: " model ",
+      value: "gpt-test",
+    });
+    let edited = (readSetupValue(setup.flowNodes) as typeof afterAdd).find((node) => node.id === added?.id);
+    expect(edited?.data?.model).toBe("gpt-test");
+    (setup.updateSelectedAgentNodeData as (payload: { key: string; value: unknown }) => void)({
+      key: "model",
+      value: "  ",
+    });
+    edited = (readSetupValue(setup.flowNodes) as typeof afterAdd).find((node) => node.id === added?.id);
+    expect(edited?.data).not.toHaveProperty("model");
+    (setup.updateSelectedAgentNodeData as (payload: { key: string; value: unknown }) => void)({ key: " ", value: "ignored" });
+    expect((readSetupValue(setup.flowNodes) as typeof afterAdd).find((node) => node.id === added?.id)?.data).not.toHaveProperty("ignored");
+
+    wrapper.unmount();
+  });
 });
 
 function readSetupValue(value: unknown): unknown {

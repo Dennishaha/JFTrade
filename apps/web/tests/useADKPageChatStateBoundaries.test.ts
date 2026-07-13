@@ -8,6 +8,8 @@ import type {
   ADKAgent,
   ADKApproval,
   ADKChatResponse,
+  ADKInputAnswer,
+  ADKInputRequest,
   ADKProvider,
   ADKRun,
   ADKSession,
@@ -805,6 +807,62 @@ describe("useADKPageChatState boundaries", () => {
       sessionId: PROVISIONAL_SESSION_KEY,
       message: "follow-up on placeholder session",
     });
+    harness.unmount();
+  });
+
+  it("submits input answers once, refreshes authoritative state and clears busy state", async () => {
+    const run = buildRun({ id: "run-input", status: "RUNNING" });
+    vi.mocked(fetchEnvelopeWithInit).mockResolvedValueOnce({ run });
+    const harness = mountHarness();
+    const request: ADKInputRequest = {
+      id: "request/1",
+      runId: run.id,
+      agentId: "agent-1",
+      functionCallId: "call-1",
+      status: "PENDING",
+      questions: [],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    const answers: ADKInputAnswer[] = [{ questionId: "risk", optionId: "low" }];
+
+    const submitting = harness.state.submitInputResponse(request, answers);
+    expect(harness.state.inputRequestBusy(request.id)).toBe(true);
+    await harness.state.submitInputResponse(request, answers);
+    await submitting;
+    await flushAsync();
+
+    expect(fetchEnvelopeWithInit).toHaveBeenCalledTimes(1);
+    expect(fetchEnvelopeWithInit).toHaveBeenCalledWith(
+      "/api/v1/adk/runs/run-input/input-response",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ requestId: request.id, answers }),
+      }),
+    );
+    expect(harness.state.inputRequestBusy(request.id)).toBe(false);
+    expect(loadSessionChatHistory).toHaveBeenCalledWith("session-1");
+    harness.unmount();
+  });
+
+  it("surfaces non-Error input submission failures and always releases the request lock", async () => {
+    vi.mocked(fetchEnvelopeWithInit).mockRejectedValueOnce("offline");
+    const harness = mountHarness();
+    const request: ADKInputRequest = {
+      id: "request-2",
+      runId: "run-2",
+      agentId: "agent-1",
+      functionCallId: "call-2",
+      status: "PENDING",
+      questions: [],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+
+    await harness.state.submitInputResponse(request, []);
+
+    expect(harness.errorMessage.value).toBe("提交回答失败");
+    expect(harness.state.inputRequestBusy(request.id)).toBe(false);
     harness.unmount();
   });
 });

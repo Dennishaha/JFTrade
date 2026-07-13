@@ -157,6 +157,10 @@ describe("Backtest page", () => {
     expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("report");
     await wrapper.get('[data-testid="backtest-mobile-section-setup"]').trigger("click");
     expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("setup");
+    const firstHistoryRun = page.get(".bt-history-run");
+    await firstHistoryRun.trigger("click");
+    await firstHistoryRun.trigger("keydown", { key: "Enter" });
+    await firstHistoryRun.trigger("keydown", { key: " " });
     call("selectFocusedRun", "run-002");
     await nextTick();
     expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("report");
@@ -190,6 +194,12 @@ describe("Backtest page", () => {
     expect(wrapper.text()).toContain("运行");
     expect(wrapper.text()).toContain("同步K线");
     expect(wrapper.text()).toContain("开始回测");
+    const syncButton = page.findAll("button").find((button) => button.text().includes("同步K线"));
+    const runButton = page.findAll("button").find((button) => button.text().includes("开始回测"));
+    expect(syncButton).toBeDefined();
+    expect(runButton).toBeDefined();
+    await runButton!.trigger("click");
+    await flushRequests();
 
     expect(call("formatBacktestRehabType", "none")).toBe("不复权");
     expect(call("formatBacktestRehabType", "backward")).toBe("后复权");
@@ -265,6 +275,10 @@ describe("Backtest page", () => {
       code: "AAPL",
       brokerFeeRules: [{ name: "commission", rate: 0.001 }],
     });
+    await call<Promise<void>>("startBacktest");
+    writeSetupValue(setup, "codeInput", "US:AAPL");
+    await call<Promise<void>>("startBacktest");
+    expect(readSetupValue<boolean>(setup.running)).toBe(false);
 
     const formSelects = page.findAll("select");
     expect(formSelects.length).toBeGreaterThanOrEqual(9);
@@ -353,6 +367,16 @@ describe("Backtest page", () => {
     expect(call("runtimeErrorRepeatCount", richRun.result, "other")).toBe(1);
     expect(call("runtimeErrorSummary", richRun.result)).toBe("运行时错误 150 次，仅显示 125 条样本");
     expect(call("runtimeErrorSummary", { runtimeErrors: ["one"] })).toBe("运行时错误 (1)");
+    expect(call("warningTotal", { warningTotal: 8, warnings: ["one"] })).toBe(8);
+    expect(call("warningTotal", { warnings: ["one", "two"] })).toBe(2);
+    expect(call("warningSummary", { warnings: ["one"], warningTotal: 3, warningsTruncated: true })).toBe(
+      "回测警告 (3)，仅显示 1 条样本",
+    );
+    expect(call("warningSummary", { warnings: ["one"], ignoredOrders: 2 })).toBe(
+      "回测警告 1 条，忽略订单 2 笔",
+    );
+    expect(call("visibleBacktestWarnings", richRun)).toHaveLength(120);
+    expect(call("hiddenBacktestWarningCount", richRun)).toBe(5);
     expect(call("visibleBacktestOrderBook", richRun)).toHaveLength(200);
     expect(call("hiddenBacktestOrderBookCount", richRun)).toBe(5);
     expect(call("visibleBacktestRuntimeErrors", richRun)).toHaveLength(120);
@@ -385,6 +409,8 @@ describe("Backtest page", () => {
     expect(readSetupValue<unknown[]>(setup.filteredRuns)).toHaveLength(0);
     expect(readSetupValue<string>(setup.emptyResultsMessage)).toContain("没有匹配");
     expect(readSetupValue<boolean>(setup.showNewBacktestForm)).toBe(false);
+    call("selectBacktestMobileSection", "report");
+    expect(readSetupValue<string>(setup.backtestMobileSection)).toBe("setup");
     call("resetResultsFilters");
     await nextTick();
     expect(readSetupValue<string>(setup.resultsSearchQuery)).toBe("");
@@ -435,6 +461,14 @@ function installBacktestPageFetch(options: { runs: unknown[]; definitions?: unkn
               brokerMappings: [],
             },
           ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/instruments/normalize")) {
+        return createResponse({
+          market: "US",
+          prefix: "US",
+          code: "AAPL",
+          instrumentId: "US.AAPL",
         });
       }
       if (url.includes("/api/v1/market-data/markets")) {
@@ -557,6 +591,10 @@ function buildDetailedBacktestRun(): any {
     runtimeErrorsTruncated: true,
     runtimeErrors: Array.from({ length: 125 }, (_, index) => (index === 0 ? "timeout" : `error-${index}`)),
     runtimeErrorCounts: { timeout: 50 },
+    warningTotal: 130,
+    warningsTruncated: true,
+    ignoredOrders: 2,
+    warnings: Array.from({ length: 125 }, (_, index) => `warning-${index}`),
     logs: Array.from({ length: 205 }, (_, index) => `log-${index}`),
     orderBook: Array.from({ length: 205 }, (_, index) => ({
       id: `order-${index}`,

@@ -165,8 +165,8 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**/*.{ts,vue}"],
       thresholds: {
-        statements: 85,
-        lines: 85,
+        statements: 90,
+        lines: 90,
         "src/components/BacktestChart.vue": {
           statements: 95,
           lines: 95,
