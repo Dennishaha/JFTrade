@@ -81,7 +81,7 @@ func newFutuFixture(t *testing.T) futuFixture {
 	source := filepath.Join(root, "source")
 	for _, directory := range []string{
 		source,
-		filepath.Join(root, "scripts", "futu-proto-overlays"),
+		filepath.Join(root, "scripts"),
 		filepath.Join(root, "pkg", "futu", "proto"),
 		filepath.Join(root, "pkg", "futu", "pb"),
 	} {
@@ -95,14 +95,8 @@ func newFutuFixture(t *testing.T) futuFixture {
 		digest := sha256.Sum256(content)
 		_, _ = fmt.Fprintf(&manifest, "%x  %s\n", digest, filename)
 	}
-	for _, filename := range futuOverlayFiles {
-		content := []byte("syntax = \"proto3\";\npackage Common;\n")
-		require.NoError(t, os.WriteFile(
-			filepath.Join(root, "scripts", "futu-proto-overlays", filename), content, 0o600,
-		))
-	}
 	require.NoError(t, os.WriteFile(
-		filepath.Join(root, "scripts", "futu-proto-10.5.6508.sha256"), []byte(manifest.String()), 0o600,
+		filepath.Join(root, "scripts", "futu-proto-10.8.6808.sha256"), []byte(manifest.String()), 0o600,
 	))
 	require.NoError(t, os.WriteFile(
 		filepath.Join(root, "pkg", "futu", "proto", "existing.proto"), []byte("existing proto"), 0o600,

@@ -197,9 +197,11 @@ func TestLiveNotificationFromFutuResponseMapsConnectionProgramEventAndRights(t *
 		RetType: servercoreInt32(0),
 		S2C: &notifypb.S2C{
 			Type: servercoreInt32(int32(notifypb.NotifyType_NotifyType_ProgramStatus)),
-			ProgramStatus: &commonpb.ProgramStatus{
-				Type:       &programType,
-				StrExtDesc: &desc,
+			ProgramStatus: &notifypb.ProgramStatus{
+				ProgramStatus: &commonpb.ProgramStatus{
+					Type:       &programType,
+					StrExtDesc: &desc,
+				},
 			},
 		},
 	})
@@ -213,8 +215,8 @@ func TestLiveNotificationFromFutuResponseMapsConnectionProgramEventAndRights(t *
 		S2C: &notifypb.S2C{
 			Type: servercoreInt32(int32(notifypb.NotifyType_NotifyType_GtwEvent)),
 			Event: &notifypb.GtwEvent{
-				Type: servercoreInt32(int32(notifypb.GtwEventType_GtwEventType_KickedOut)),
-				Desc: &eventDesc,
+				EventType: servercoreInt32(int32(notifypb.GtwEventType_GtwEventType_KickedOut)),
+				Desc:      &eventDesc,
 			},
 		},
 	})
@@ -224,6 +226,7 @@ func TestLiveNotificationFromFutuResponseMapsConnectionProgramEventAndRights(t *
 
 	hkRight := int32(qotcommonpb.QotRight_QotRight_No)
 	usRight := int32(qotcommonpb.QotRight_QotRight_Level2)
+	cnRight := int32(qotcommonpb.QotRight_QotRight_No)
 	rightNote := liveNotificationFromFutuResponse(&notifypb.Response{
 		RetType: servercoreInt32(0),
 		S2C: &notifypb.S2C{
@@ -231,6 +234,7 @@ func TestLiveNotificationFromFutuResponseMapsConnectionProgramEventAndRights(t *
 			QotRight: &notifypb.QotRight{
 				HkQotRight: &hkRight,
 				UsQotRight: &usRight,
+				CnQotRight: &cnRight,
 			},
 		},
 	})
@@ -253,19 +257,18 @@ func TestLiveNotificationFromFutuResponseMapsAPIQuota(t *testing.T) {
 		S2C: &notifypb.S2C{
 			Type: new(int32(notifypb.NotifyType_NotifyType_APIQuota)),
 			ApiQuota: &notifypb.APIQuota{
-				Remain:    new(int32(5)),
-				OwnUsed:   new(int32(3)),
-				TotalUsed: new(int32(8)),
+				SubQuota:       new(int32(1000)),
+				HistoryKLQuota: new(int32(300)),
 			},
 		},
 	})
 	if note == nil {
 		t.Fatal("expected note")
 	}
-	if note.Title != "Futu API 订阅额度更新" {
+	if note.Title != "Futu API 额度更新" {
 		t.Fatalf("title = %q", note.Title)
 	}
-	if note.Level != "warn" {
+	if note.Level != "info" {
 		t.Fatalf("level = %q", note.Level)
 	}
 	if note.Source != "futu-opend" {
@@ -277,7 +280,7 @@ func TestLiveNotificationFromFutuResponseMapsAPIQuota(t *testing.T) {
 	if note.Category != "broker.quota" {
 		t.Fatalf("category = %q", note.Category)
 	}
-	if note.Message != "剩余 5，当前连接已用 3，总已用 8。" {
+	if note.Message != "订阅额度 1000，历史 K 线额度 300。" {
 		t.Fatalf("message = %q", note.Message)
 	}
 	if strings.TrimSpace(note.At) == "" {
@@ -287,7 +290,7 @@ func TestLiveNotificationFromFutuResponseMapsAPIQuota(t *testing.T) {
 
 func TestFutuNotificationStatusLabelMatrices(t *testing.T) {
 	if connStatusNotification(nil) != nil || programStatusNotification(nil) != nil || gtwEventNotification(nil) != nil ||
-		qotRightNotification(nil) != nil || apiQuotaNotification(nil) != nil {
+		qotRightNotification(nil) != nil || apiQuotaNotification(nil) != nil || usedQuotaNotification(nil) != nil {
 		t.Fatal("nil Futu notification payloads should be ignored")
 	}
 
@@ -377,6 +380,7 @@ func TestFutuNotificationStatusLabelMatrices(t *testing.T) {
 		{notifypb.NotifyType_NotifyType_ConnStatus, "连接状态"},
 		{notifypb.NotifyType_NotifyType_QotRight, "行情权限"},
 		{notifypb.NotifyType_NotifyType_APIQuota, "API 额度"},
+		{notifypb.NotifyType_NotifyType_UsedQuota, "已使用额度"},
 		{notifypb.NotifyType(9999), "系统通知"},
 	} {
 		if got := notifyTypeLabel(tt.value); got != tt.label {
@@ -404,17 +408,11 @@ func TestFutuNotificationStatusLabelMatrices(t *testing.T) {
 		t.Fatalf("empty qot right note = %+v", note)
 	}
 
-	for _, tt := range []struct {
-		remain int32
-		level  string
-	}{
-		{0, "error"},
-		{10, "warn"},
-		{11, "info"},
-	} {
-		if note := apiQuotaNotification(&notifypb.APIQuota{Remain: new(tt.remain)}); note == nil || note.Level != tt.level {
-			t.Fatalf("quota remain=%d note=%+v, want level %s", tt.remain, note, tt.level)
-		}
+	if note := apiQuotaNotification(&notifypb.APIQuota{}); note == nil || note.Level != "info" {
+		t.Fatalf("quota note=%+v, want info", note)
+	}
+	if note := usedQuotaNotification(&notifypb.UsedQuota{}); note == nil || note.Level != "info" {
+		t.Fatalf("used quota note=%+v, want info", note)
 	}
 }
 

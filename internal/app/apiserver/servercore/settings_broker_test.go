@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 )
 
 func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
@@ -331,6 +335,49 @@ func TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD(t *testing.T) {
 	}
 	if healthRuntime["websocketKeyConfigured"] != true || healthRuntime["marketDataTransport"] != liveQuoteTransportMode {
 		t.Fatalf("health runtime = %#v", healthRuntime)
+	}
+}
+
+func TestFutuOpenDHealthRejectsOldBuildAndGuidesUpgrade(t *testing.T) {
+	opendServer := startBrokerRouteOpenDServer(t)
+	opendServer.setServerVersion(1008, 6708)
+	defer opendServer.stop()
+	host, portText, err := net.SplitHostPort(opendServer.addr)
+	if err != nil {
+		t.Fatalf("SplitHostPort: %v", err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatalf("Atoi port: %v", err)
+	}
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	if _, err := store.SaveIntegration(BrokerIntegration{
+		Enabled: true,
+		Config:  normalizeFutuConfig(FutuIntegrationConfig{Host: host, APIPort: port}),
+	}); err != nil {
+		t.Fatalf("SaveIntegration: %v", err)
+	}
+	api := newTestServer(t, store)
+
+	health := api.futuOpenDHealth(t.Context())
+	diagnosis := health["diagnosis"].(map[string]any)
+	runtime := health["runtime"].(map[string]any)
+	if health["status"] != "degraded" || diagnosis["code"] != "OPEND_VERSION_UNSUPPORTED" {
+		t.Fatalf("health = %#v", health)
+	}
+	if diagnosis["manualRetryRequired"] != true || diagnosis["restartOpenDRecommended"] != false {
+		t.Fatalf("diagnosis = %#v", diagnosis)
+	}
+	serverVersion, ok := runtime["serverVersion"].(*string)
+	if !ok || serverVersion == nil || *serverVersion != "10.8.6708" || runtime["minimumVersion"] != opend.MinimumOpenDVersion {
+		t.Fatalf("runtime = %#v", runtime)
+	}
+	if summary, _ := diagnosis["summary"].(string); !strings.Contains(summary, opend.MinimumOpenDVersion) {
+		t.Fatalf("summary = %q", summary)
 	}
 }
 

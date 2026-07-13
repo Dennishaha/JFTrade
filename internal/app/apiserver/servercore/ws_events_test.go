@@ -53,9 +53,11 @@ func TestLiveWebSocketSendsSystemNotification(t *testing.T) {
 		RetType: new(int32(0)),
 		S2C: &notifypb.S2C{
 			Type: new(int32(notifypb.NotifyType_NotifyType_ProgramStatus)),
-			ProgramStatus: &commonpb.ProgramStatus{
-				Type:       commonpb.ProgramStatusType_ProgramStatusType_Ready.Enum(),
-				StrExtDesc: new("OpenD ready for requests"),
+			ProgramStatus: &notifypb.ProgramStatus{
+				ProgramStatus: &commonpb.ProgramStatus{
+					Type:       commonpb.ProgramStatusType_ProgramStatusType_Ready.Enum(),
+					StrExtDesc: new("OpenD ready for requests"),
+				},
 			},
 		},
 	})

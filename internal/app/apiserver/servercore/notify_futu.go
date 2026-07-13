@@ -20,13 +20,15 @@ func liveNotificationFromFutuResponse(response *notifypb.Response) *liveNotifica
 	case notifypb.NotifyType_NotifyType_GtwEvent:
 		return gtwEventNotification(s2c.GetEvent())
 	case notifypb.NotifyType_NotifyType_ProgramStatus:
-		return programStatusNotification(s2c.GetProgramStatus())
+		return programStatusNotification(s2c.GetProgramStatus().GetProgramStatus())
 	case notifypb.NotifyType_NotifyType_ConnStatus:
 		return connStatusNotification(s2c.GetConnectStatus())
 	case notifypb.NotifyType_NotifyType_QotRight:
 		return qotRightNotification(s2c.GetQotRight())
 	case notifypb.NotifyType_NotifyType_APIQuota:
 		return apiQuotaNotification(s2c.GetApiQuota())
+	case notifypb.NotifyType_NotifyType_UsedQuota:
+		return usedQuotaNotification(s2c.GetUsedQuota())
 	default:
 		note := baseFutuNotification("broker.system")
 		note.Level = "info"
@@ -87,7 +89,7 @@ func gtwEventNotification(event *notifypb.GtwEvent) *liveNotification {
 	if event == nil {
 		return nil
 	}
-	eventType := notifypb.GtwEventType(event.GetType())
+	eventType := notifypb.GtwEventType(event.GetEventType())
 	note := baseFutuNotification("broker.event")
 	note.Level = gtwEventLevel(eventType)
 	note.Title = gtwEventTitle(eventType)
@@ -121,16 +123,20 @@ func apiQuotaNotification(quota *notifypb.APIQuota) *liveNotification {
 		return nil
 	}
 	note := baseFutuNotification("broker.quota")
-	switch {
-	case quota.GetRemain() <= 0:
-		note.Level = "error"
-	case quota.GetRemain() <= 10:
-		note.Level = "warn"
-	default:
-		note.Level = "info"
+	note.Level = "info"
+	note.Title = "Futu API 额度更新"
+	note.Message = fmt.Sprintf("订阅额度 %d，历史 K 线额度 %d。", quota.GetSubQuota(), quota.GetHistoryKLQuota())
+	return &note
+}
+
+func usedQuotaNotification(quota *notifypb.UsedQuota) *liveNotification {
+	if quota == nil {
+		return nil
 	}
-	note.Title = "Futu API 订阅额度更新"
-	note.Message = fmt.Sprintf("剩余 %d，当前连接已用 %d，总已用 %d。", quota.GetRemain(), quota.GetOwnUsed(), quota.GetTotalUsed())
+	note := baseFutuNotification("broker.quota")
+	note.Level = "info"
+	note.Title = "Futu API 已使用额度更新"
+	note.Message = fmt.Sprintf("已使用订阅额度 %d，已使用历史 K 线额度 %d。", quota.GetUsedSubQuota(), quota.GetUsedKLineQuota())
 	return &note
 }
 
@@ -153,6 +159,8 @@ func notifyTypeLabel(value notifypb.NotifyType) string {
 		return "行情权限"
 	case notifypb.NotifyType_NotifyType_APIQuota:
 		return "API 额度"
+	case notifypb.NotifyType_NotifyType_UsedQuota:
+		return "已使用额度"
 	default:
 		return "系统通知"
 	}
@@ -315,14 +323,20 @@ func formatQotRightSummary(right *notifypb.QotRight) string {
 	appendRight("US Option", right.UsOptionQotRight)
 	appendRight("CN", right.CnQotRight)
 	appendRight("US Index", right.UsIndexQotRight)
-	appendRight("US OTC", right.UsOTCQotRight)
+	appendRight("US OTC", right.UsOtcQotRight)
 	appendRight("SG Future", right.SgFutureQotRight)
 	appendRight("JP Future", right.JpFutureQotRight)
-	appendRight("CME", right.UsFutureQotRightCME)
-	appendRight("CBOT", right.UsFutureQotRightCBOT)
-	appendRight("NYMEX", right.UsFutureQotRightNYMEX)
-	appendRight("COMEX", right.UsFutureQotRightCOMEX)
-	appendRight("CBOE", right.UsFutureQotRightCBOE)
+	appendRight("CME", right.UsCMEFutureQotRight)
+	appendRight("CBOT", right.UsCBOTFutureQotRight)
+	appendRight("NYMEX", right.UsNYMEXFutureQotRight)
+	appendRight("COMEX", right.UsCOMEXFutureQotRight)
+	appendRight("CBOE", right.UsCBOEFutureQotRight)
+	appendRight("SH", right.ShQotRight)
+	appendRight("SZ", right.SzQotRight)
+	appendRight("Crypto", right.CcQotRight)
+	appendRight("SG", right.SgStockQotRight)
+	appendRight("MY", right.MyStockQotRight)
+	appendRight("JP", right.JpStockQotRight)
 	return strings.Join(parts, "；")
 }
 

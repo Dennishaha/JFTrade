@@ -6,10 +6,14 @@ import {
   formatDateTime,
   formatFutuProgramStatusLabel,
 } from "../composables/consoleDataFormatting";
+import { useExternalLink } from "../composables/externalLink";
 import SectionHeader from "./SectionHeader.vue";
 import { useConsoleData } from "../composables/useConsoleData";
 
 type StatusTagType = "success" | "warning" | "danger" | "info";
+
+const futuOpenDDownloadURL = "https://www.futunn.com/download/OpenAPI";
+const { handleExternalLinkClick } = useExternalLink();
 
 const props = withDefaults(
   defineProps<{
@@ -107,6 +111,20 @@ const futuTradeLoginLabel = computed(() => {
   return loggedIn == null ? "未知" : loggedIn ? "已登录" : "未登录";
 });
 
+const minimumOpenDVersion = computed(
+  () => futuOpenDHealth.value.runtime?.minimumVersion ?? "10.8.6808",
+);
+
+const futuOpenDVersionLabel = computed(() => {
+  if (!showRuntimeState.value) {
+    return `最低 ${minimumOpenDVersion.value}`;
+  }
+  const version = futuOpenDHealth.value.runtime?.serverVersion;
+  return version == null || version === ""
+    ? `待检测（最低 ${minimumOpenDVersion.value}）`
+    : `${version}（最低 ${minimumOpenDVersion.value}）`;
+});
+
 const integrationForm = reactive({
   enabled: false,
   host: "127.0.0.1",
@@ -118,12 +136,6 @@ const integrationForm = reactive({
   securityFirm: "FUTUSECURITIES",
 });
 
-const websocketPasswordFormStatus = computed(() =>
-  integrationForm.websocketKey.trim().length > 0
-    ? "当前表单已填写，保存后生效"
-    : "当前表单未填写；仅当 OpenD 启用 WebSocket 密码时需要填写",
-);
-
 const futuOpenDManualRetryRequired = computed(
   () =>
     showRuntimeState.value &&
@@ -134,6 +146,12 @@ const futuOpenDRestartRecommended = computed(
   () =>
     showRuntimeState.value &&
     futuOpenDHealth.value.diagnosis.restartOpenDRecommended,
+);
+
+const futuOpenDVersionUnsupported = computed(
+  () =>
+    showRuntimeState.value &&
+    futuOpenDHealth.value.diagnosis.code === "OPEND_VERSION_UNSUPPORTED",
 );
 
 const futuOpenDTopClientSummary = computed(() =>
@@ -337,10 +355,19 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
             </div>
           </div>
           <div class="rounded-xl bg-slate-50 px-3 py-3">
-            <div class="text-xs text-slate-500">密码 / 密钥</div>
+            <div class="text-xs text-slate-500">OpenD 版本</div>
             <div class="mt-1 text-sm font-semibold text-slate-900">
-              {{ websocketPasswordFormStatus }}
+              {{ futuOpenDVersionLabel }}
             </div>
+            <a
+              :href="futuOpenDDownloadURL"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mt-1 inline-flex text-xs font-medium text-blue-600 hover:text-blue-700"
+              @click="handleExternalLinkClick($event, futuOpenDDownloadURL)"
+            >
+              下载或升级 OpenD
+            </a>
           </div>
         </div>
 
@@ -360,13 +387,23 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
           class="mt-4"
           type="error"
           :closable="false"
-          title="OpenD 自动重试已暂停"
+          :title="
+            futuOpenDVersionUnsupported
+              ? 'OpenD 版本不受支持'
+              : 'OpenD 自动重试已暂停'
+          "
         >
           <p class="leading-6">
             {{ futuOpenDHealth.diagnosis.summary }}
           </p>
           <p class="mt-2 leading-6">
-            建议先检查并重启 OpenD，再点击上方“手动重试 OpenD”。
+            <template v-if="futuOpenDVersionUnsupported">
+              请升级至 OpenD {{ minimumOpenDVersion }} 或更高版本，重新启动 OpenD
+              后再点击上方“手动重试 OpenD”。
+            </template>
+            <template v-else>
+              建议先检查并重启 OpenD，再点击上方“手动重试 OpenD”。
+            </template>
           </p>
           <p
             v-if="

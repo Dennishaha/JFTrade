@@ -136,6 +136,7 @@ type opendProbe struct {
 	CheckedAt        string
 	Connectivity     string
 	Status           string
+	IssueCode        string
 	LastError        *string
 	QuoteLoggedIn    *bool
 	TradeLoggedIn    *bool

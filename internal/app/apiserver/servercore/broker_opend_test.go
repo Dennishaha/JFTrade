@@ -13,6 +13,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
@@ -53,6 +54,8 @@ type brokerRouteOpenDServer struct {
 	lastPlaceOrder    *trdplaceorderpb.C2S
 	lastModifyOrder   *trdmodifyorderpb.C2S
 	lastMaxTrdQtys    *trdgetmaxtrdqtyspb.C2S
+	serverVer         int32
+	serverBuildNo     int32
 	placeOrderCalls   int
 	modifyOrderCalls  int
 	subAccPushCalls   int
@@ -68,9 +71,18 @@ func startBrokerRouteOpenDServer(t *testing.T) *brokerRouteOpenDServer {
 		addr:              listener.Addr().String(),
 		listener:          listener,
 		shutdownCompleted: make(chan struct{}),
+		serverVer:         1008,
+		serverBuildNo:     6808,
 	}
 	go server.acceptLoop()
 	return server
+}
+
+func (s *brokerRouteOpenDServer) setServerVersion(serverVer, serverBuildNo int32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.serverVer = serverVer
+	s.serverBuildNo = serverBuildNo
 }
 
 func (s *brokerRouteOpenDServer) stop() {
@@ -234,13 +246,15 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		return &initpb.Response{
 			RetType: new(int32(0)),
 			S2C: &initpb.S2C{
-				ServerVer:         new(int32(700)),
+				ServerVer:         new(s.serverVer),
 				LoginUserID:       new(uint64(1)),
 				ConnID:            new(uint64(42)),
 				ConnAESKey:        new("0123456789abcdef"),
 				KeepAliveInterval: new(int32(10)),
 			},
 		}
+	case opend.ProtoGetGlobalState:
+		return brokerRouteGlobalStateResponse(s.serverVer, s.serverBuildNo)
 	case opend.ProtoTrdGetAccList:
 		return &trdgetacclistpb.Response{
 			RetType: new(int32(0)),
@@ -456,5 +470,24 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		return &trdsubaccpushpb.Response{RetType: new(int32(0))}
 	default:
 		return &initpb.Response{RetType: new(int32(1)), RetMsg: new("unsupported proto")}
+	}
+}
+
+func brokerRouteGlobalStateResponse(serverVer, serverBuildNo int32) *globalpb.Response {
+	zero := int32(0)
+	return &globalpb.Response{
+		RetType: new(int32(0)),
+		S2C: &globalpb.S2C{
+			MarketHK:       &zero,
+			MarketUS:       &zero,
+			MarketSH:       &zero,
+			MarketSZ:       &zero,
+			MarketHKFuture: &zero,
+			QotLogined:     new(true),
+			TrdLogined:     new(true),
+			ServerVer:      &serverVer,
+			ServerBuildNo:  &serverBuildNo,
+			Time:           new(int64(0)),
+		},
 	}
 }

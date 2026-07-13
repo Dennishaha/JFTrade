@@ -7,6 +7,7 @@
 package qotupdateorderbook
 
 import (
+	_ "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	qotcommon "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -23,15 +24,18 @@ const (
 )
 
 type S2C struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Security         *qotcommon.Security    `protobuf:"bytes,1,req,name=security" json:"security,omitempty"`                 //股票
-	Name             *string                `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`                         //股票名称
-	SvrRecvTimeBid   *string                `protobuf:"bytes,3,opt,name=svrRecvTimeBid" json:"svrRecvTimeBid,omitempty"`     //富途服务器从交易所收到买盘数据的时间
-	SvrRecvTimeAsk   *string                `protobuf:"bytes,4,opt,name=svrRecvTimeAsk" json:"svrRecvTimeAsk,omitempty"`     //富途服务器从交易所收到卖盘数据的时间
-	OrderBookAskList []*qotcommon.OrderBook `protobuf:"bytes,5,rep,name=orderBookAskList" json:"orderBookAskList,omitempty"` //卖盘
-	OrderBookBidList []*qotcommon.OrderBook `protobuf:"bytes,6,rep,name=orderBookBidList" json:"orderBookBidList,omitempty"` //买盘
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Security                *qotcommon.Security    `protobuf:"bytes,1,req,name=security" json:"security,omitempty"`                                 //股票
+	Name                    *string                `protobuf:"bytes,8,opt,name=name" json:"name,omitempty"`                                         //股票名称
+	OrderBookAskList        []*qotcommon.OrderBook `protobuf:"bytes,2,rep,name=orderBookAskList" json:"orderBookAskList,omitempty"`                 //卖盘
+	OrderBookBidList        []*qotcommon.OrderBook `protobuf:"bytes,3,rep,name=orderBookBidList" json:"orderBookBidList,omitempty"`                 //买盘
+	SvrRecvTimeBid          *string                `protobuf:"bytes,4,opt,name=svrRecvTimeBid" json:"svrRecvTimeBid,omitempty"`                     // 富途服务器从交易所收到数据的时间(for bid)部分数据的接收时间为零，例如服务器重启或第一次推送的缓存数据。该字段暂时只支持港股。
+	SvrRecvTimeBidTimestamp *float64               `protobuf:"fixed64,5,opt,name=svrRecvTimeBidTimestamp" json:"svrRecvTimeBidTimestamp,omitempty"` // 富途服务器从交易所收到数据的时间戳(for bid)
+	SvrRecvTimeAsk          *string                `protobuf:"bytes,6,opt,name=svrRecvTimeAsk" json:"svrRecvTimeAsk,omitempty"`                     // 富途服务器从交易所收到数据的时间(for ask)
+	SvrRecvTimeAskTimestamp *float64               `protobuf:"fixed64,7,opt,name=svrRecvTimeAskTimestamp" json:"svrRecvTimeAskTimestamp,omitempty"` // 富途服务器从交易所收到数据的时间戳(for ask)
+	OrderBookType           *int32                 `protobuf:"varint,9,opt,name=orderBookType" json:"orderBookType,omitempty"`                      //Qot_Common.OrderBookType, 摆盘类型
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *S2C) Reset() {
@@ -78,20 +82,6 @@ func (x *S2C) GetName() string {
 	return ""
 }
 
-func (x *S2C) GetSvrRecvTimeBid() string {
-	if x != nil && x.SvrRecvTimeBid != nil {
-		return *x.SvrRecvTimeBid
-	}
-	return ""
-}
-
-func (x *S2C) GetSvrRecvTimeAsk() string {
-	if x != nil && x.SvrRecvTimeAsk != nil {
-		return *x.SvrRecvTimeAsk
-	}
-	return ""
-}
-
 func (x *S2C) GetOrderBookAskList() []*qotcommon.OrderBook {
 	if x != nil {
 		return x.OrderBookAskList
@@ -104,6 +94,41 @@ func (x *S2C) GetOrderBookBidList() []*qotcommon.OrderBook {
 		return x.OrderBookBidList
 	}
 	return nil
+}
+
+func (x *S2C) GetSvrRecvTimeBid() string {
+	if x != nil && x.SvrRecvTimeBid != nil {
+		return *x.SvrRecvTimeBid
+	}
+	return ""
+}
+
+func (x *S2C) GetSvrRecvTimeBidTimestamp() float64 {
+	if x != nil && x.SvrRecvTimeBidTimestamp != nil {
+		return *x.SvrRecvTimeBidTimestamp
+	}
+	return 0
+}
+
+func (x *S2C) GetSvrRecvTimeAsk() string {
+	if x != nil && x.SvrRecvTimeAsk != nil {
+		return *x.SvrRecvTimeAsk
+	}
+	return ""
+}
+
+func (x *S2C) GetSvrRecvTimeAskTimestamp() float64 {
+	if x != nil && x.SvrRecvTimeAskTimestamp != nil {
+		return *x.SvrRecvTimeAskTimestamp
+	}
+	return 0
+}
+
+func (x *S2C) GetOrderBookType() int32 {
+	if x != nil && x.OrderBookType != nil {
+		return *x.OrderBookType
+	}
+	return 0
 }
 
 type Response struct {
@@ -183,14 +208,17 @@ var File_Qot_UpdateOrderBook_proto protoreflect.FileDescriptor
 
 const file_Qot_UpdateOrderBook_proto_rawDesc = "" +
 	"\n" +
-	"\x19Qot_UpdateOrderBook.proto\x12\x13Qot_UpdateOrderBook\x1a\x10Qot_Common.proto\"\xa1\x02\n" +
+	"\x19Qot_UpdateOrderBook.proto\x12\x13Qot_UpdateOrderBook\x1a\fCommon.proto\x1a\x10Qot_Common.proto\"\xbb\x03\n" +
 	"\x03S2C\x120\n" +
 	"\bsecurity\x18\x01 \x02(\v2\x14.Qot_Common.SecurityR\bsecurity\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12&\n" +
-	"\x0esvrRecvTimeBid\x18\x03 \x01(\tR\x0esvrRecvTimeBid\x12&\n" +
-	"\x0esvrRecvTimeAsk\x18\x04 \x01(\tR\x0esvrRecvTimeAsk\x12A\n" +
-	"\x10orderBookAskList\x18\x05 \x03(\v2\x15.Qot_Common.OrderBookR\x10orderBookAskList\x12A\n" +
-	"\x10orderBookBidList\x18\x06 \x03(\v2\x15.Qot_Common.OrderBookR\x10orderBookBidList\"\x88\x01\n" +
+	"\x04name\x18\b \x01(\tR\x04name\x12A\n" +
+	"\x10orderBookAskList\x18\x02 \x03(\v2\x15.Qot_Common.OrderBookR\x10orderBookAskList\x12A\n" +
+	"\x10orderBookBidList\x18\x03 \x03(\v2\x15.Qot_Common.OrderBookR\x10orderBookBidList\x12&\n" +
+	"\x0esvrRecvTimeBid\x18\x04 \x01(\tR\x0esvrRecvTimeBid\x128\n" +
+	"\x17svrRecvTimeBidTimestamp\x18\x05 \x01(\x01R\x17svrRecvTimeBidTimestamp\x12&\n" +
+	"\x0esvrRecvTimeAsk\x18\x06 \x01(\tR\x0esvrRecvTimeAsk\x128\n" +
+	"\x17svrRecvTimeAskTimestamp\x18\a \x01(\x01R\x17svrRecvTimeAskTimestamp\x12$\n" +
+	"\rorderBookType\x18\t \x01(\x05R\rorderBookType\"\x88\x01\n" +
 	"\bResponse\x12\x1e\n" +
 	"\aretType\x18\x01 \x02(\x05:\x04-400R\aretType\x12\x16\n" +
 	"\x06retMsg\x18\x02 \x01(\tR\x06retMsg\x12\x18\n" +

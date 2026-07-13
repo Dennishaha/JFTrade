@@ -27,7 +27,7 @@ type C2S struct {
 	state            protoimpl.MessageState         `protogen:"open.v1"`
 	Header           *trdcommon.TrdHeader           `protobuf:"bytes,1,req,name=header" json:"header,omitempty"`                     //交易公共参数头
 	FilterConditions *trdcommon.TrdFilterConditions `protobuf:"bytes,2,opt,name=filterConditions" json:"filterConditions,omitempty"` //过滤条件
-	RefreshCache     *bool                          `protobuf:"varint,3,opt,name=refreshCache" json:"refreshCache,omitempty"`        //立即刷新OpenD缓存的此数据
+	RefreshCache     *bool                          `protobuf:"varint,3,opt,name=refreshCache" json:"refreshCache,omitempty"`        //立即刷新OpenD缓存的此数据，默认不填。true向服务器获取最新数据更新缓存并返回；flase或没填则返回OpenD缓存的数据，不会向服务器请求。
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }

@@ -14,7 +14,7 @@ func TestRewriteGoPackageReplacesOrInsertsOption(t *testing.T) {
 		name    string
 		content string
 	}{
-		{"replace", "syntax = \"proto3\";\r\npackage Qot_Common;\r\noption go_package = \"old\";\r\n"},
+		{"replace", "syntax = \"proto3\"; \t\r\npackage Qot_Common;\r\noption go_package = \"old\";\r\n"},
 		{"insert", "syntax = \"proto3\";\npackage Qot_Common;\nmessage Item {}\n"},
 	}
 	for _, test := range tests {
@@ -27,6 +27,7 @@ func TestRewriteGoPackageReplacesOrInsertsOption(t *testing.T) {
 			assert.Contains(t, string(content), `option go_package = "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon;qotcommon";`)
 			assert.NotContains(t, string(content), `go_package = "old"`)
 			assert.NotContains(t, string(content), "\r")
+			assert.NotContains(t, string(content), " \t\n")
 		})
 	}
 }

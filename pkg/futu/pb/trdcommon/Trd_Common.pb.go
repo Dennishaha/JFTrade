@@ -8,6 +8,7 @@ package trdcommon
 
 import (
 	_ "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
+	qotcommon "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1213,6 +1214,7 @@ const (
 	TimeInForce_TimeInForce_DAY TimeInForce = 0 // 当日有效
 	TimeInForce_TimeInForce_GTC TimeInForce = 1 // 撤单前有效，最多持续90自然日。
 	TimeInForce_TimeInForce_IOC TimeInForce = 2 // 立即执行，否则取消
+	TimeInForce_TimeInForce_GTD TimeInForce = 3 // 指定日期前有效
 )
 
 // Enum value maps for TimeInForce.
@@ -1221,11 +1223,13 @@ var (
 		0: "TimeInForce_DAY",
 		1: "TimeInForce_GTC",
 		2: "TimeInForce_IOC",
+		3: "TimeInForce_GTD",
 	}
 	TimeInForce_value = map[string]int32{
 		"TimeInForce_DAY": 0,
 		"TimeInForce_GTC": 1,
 		"TimeInForce_IOC": 2,
+		"TimeInForce_GTD": 3,
 	}
 )
 
@@ -1275,6 +1279,7 @@ const (
 	SimAccType_SimAccType_Option         SimAccType = 2 //期权模拟账户（仅用于交易期权，不支持交易股票证券类产品）
 	SimAccType_SimAccType_Futures        SimAccType = 3 //期货模拟账户
 	SimAccType_SimAccType_StockAndOption SimAccType = 4 //股票和期权模拟账户（支持交易股票和期权）
+	SimAccType_SimAccType_Competition    SimAccType = 5 // 比赛账户
 )
 
 // Enum value maps for SimAccType.
@@ -1285,6 +1290,7 @@ var (
 		2: "SimAccType_Option",
 		3: "SimAccType_Futures",
 		4: "SimAccType_StockAndOption",
+		5: "SimAccType_Competition",
 	}
 	SimAccType_value = map[string]int32{
 		"SimAccType_Unknown":        0,
@@ -1292,6 +1298,7 @@ var (
 		"SimAccType_Option":         2,
 		"SimAccType_Futures":        3,
 		"SimAccType_StockAndOption": 4,
+		"SimAccType_Competition":    5,
 	}
 )
 
@@ -1714,6 +1721,65 @@ func (ExposureLevel) EnumDescriptor() ([]byte, []int) {
 	return file_Trd_Common_proto_rawDescGZIP(), []int{22}
 }
 
+type PositionType int32
+
+const (
+	PositionType_PositionType_Unknown  PositionType = 0 //未知
+	PositionType_PositionType_Combined PositionType = 1 //组合汇总持仓
+	PositionType_PositionType_Leg      PositionType = 2 //单腿持仓
+)
+
+// Enum value maps for PositionType.
+var (
+	PositionType_name = map[int32]string{
+		0: "PositionType_Unknown",
+		1: "PositionType_Combined",
+		2: "PositionType_Leg",
+	}
+	PositionType_value = map[string]int32{
+		"PositionType_Unknown":  0,
+		"PositionType_Combined": 1,
+		"PositionType_Leg":      2,
+	}
+)
+
+func (x PositionType) Enum() *PositionType {
+	p := new(PositionType)
+	*p = x
+	return p
+}
+
+func (x PositionType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PositionType) Descriptor() protoreflect.EnumDescriptor {
+	return file_Trd_Common_proto_enumTypes[23].Descriptor()
+}
+
+func (PositionType) Type() protoreflect.EnumType {
+	return &file_Trd_Common_proto_enumTypes[23]
+}
+
+func (x PositionType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Do not use.
+func (x *PositionType) UnmarshalJSON(b []byte) error {
+	num, err := protoimpl.X.UnmarshalJSONEnum(x.Descriptor(), b)
+	if err != nil {
+		return err
+	}
+	*x = PositionType(num)
+	return nil
+}
+
+// Deprecated: Use PositionType.Descriptor instead.
+func (PositionType) EnumDescriptor() ([]byte, []int) {
+	return file_Trd_Common_proto_rawDescGZIP(), []int{23}
+}
+
 // 券商
 type SecurityFirm int32
 
@@ -1763,11 +1829,11 @@ func (x SecurityFirm) String() string {
 }
 
 func (SecurityFirm) Descriptor() protoreflect.EnumDescriptor {
-	return file_Trd_Common_proto_enumTypes[23].Descriptor()
+	return file_Trd_Common_proto_enumTypes[24].Descriptor()
 }
 
 func (SecurityFirm) Type() protoreflect.EnumType {
-	return &file_Trd_Common_proto_enumTypes[23]
+	return &file_Trd_Common_proto_enumTypes[24]
 }
 
 func (x SecurityFirm) Number() protoreflect.EnumNumber {
@@ -1786,7 +1852,7 @@ func (x *SecurityFirm) UnmarshalJSON(b []byte) error {
 
 // Deprecated: Use SecurityFirm.Descriptor instead.
 func (SecurityFirm) EnumDescriptor() ([]byte, []int) {
-	return file_Trd_Common_proto_rawDescGZIP(), []int{23}
+	return file_Trd_Common_proto_rawDescGZIP(), []int{24}
 }
 
 // 账户现金信息，目前仅用于期货账户
@@ -1982,20 +2048,21 @@ func (x *TrdHeader) GetJpAccType() int32 {
 
 // 交易业务账户结构
 type TrdAcc struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TrdEnv            *int32                 `protobuf:"varint,1,req,name=trdEnv" json:"trdEnv,omitempty"`                       //交易环境，参见TrdEnv的枚举定义
-	AccID             *uint64                `protobuf:"varint,2,req,name=accID" json:"accID,omitempty"`                         //业务账号
-	TrdMarketAuthList []int32                `protobuf:"varint,3,rep,name=trdMarketAuthList" json:"trdMarketAuthList,omitempty"` //业务账户支持的交易市场权限，即此账户能交易那些市场, 可拥有多个交易市场权限，目前仅单个，取值参见TrdMarket的枚举定义
-	AccType           *int32                 `protobuf:"varint,4,opt,name=accType" json:"accType,omitempty"`                     //账户类型，取值见TrdAccType
-	CardNum           *string                `protobuf:"bytes,5,opt,name=cardNum" json:"cardNum,omitempty"`                      //卡号
-	SecurityFirm      *int32                 `protobuf:"varint,6,opt,name=securityFirm" json:"securityFirm,omitempty"`           //所属券商，取值见Trd_Common.SecurityFirm
-	SimAccType        *int32                 `protobuf:"varint,7,opt,name=simAccType" json:"simAccType,omitempty"`               //模拟交易账号类型，取值见SimAccType
-	UniCardNum        *string                `protobuf:"bytes,8,opt,name=uniCardNum" json:"uniCardNum,omitempty"`                //所属综合账户卡号
-	AccStatus         *int32                 `protobuf:"varint,9,opt,name=accStatus" json:"accStatus,omitempty"`                 //账号状态，取值见TrdAccStatus
-	AccRole           *int32                 `protobuf:"varint,10,opt,name=accRole" json:"accRole,omitempty"`                    //账号分类，是不是主账号，取值见TrdAccRole
-	JpAccType         []int32                `protobuf:"varint,11,rep,name=jpAccType" json:"jpAccType,omitempty"`                //JP子账户类型，取值见 TrdSubAccType
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TrdEnv             *int32                 `protobuf:"varint,1,req,name=trdEnv" json:"trdEnv,omitempty"`                         //交易环境，参见TrdEnv的枚举定义
+	AccID              *uint64                `protobuf:"varint,2,req,name=accID" json:"accID,omitempty"`                           //业务账号
+	TrdMarketAuthList  []int32                `protobuf:"varint,3,rep,name=trdMarketAuthList" json:"trdMarketAuthList,omitempty"`   //业务账户支持的交易市场权限，即此账户能交易那些市场, 可拥有多个交易市场权限，目前仅单个，取值参见TrdMarket的枚举定义
+	AccType            *int32                 `protobuf:"varint,4,opt,name=accType" json:"accType,omitempty"`                       //账户类型，取值见TrdAccType
+	CardNum            *string                `protobuf:"bytes,5,opt,name=cardNum" json:"cardNum,omitempty"`                        //卡号
+	SecurityFirm       *int32                 `protobuf:"varint,6,opt,name=securityFirm" json:"securityFirm,omitempty"`             //所属券商，取值见Trd_Common.SecurityFirm
+	SimAccType         *int32                 `protobuf:"varint,7,opt,name=simAccType" json:"simAccType,omitempty"`                 //模拟交易账号类型，取值见SimAccType
+	UniCardNum         *string                `protobuf:"bytes,8,opt,name=uniCardNum" json:"uniCardNum,omitempty"`                  //所属综合账户卡号
+	AccStatus          *int32                 `protobuf:"varint,9,opt,name=accStatus" json:"accStatus,omitempty"`                   //账号状态，取值见TrdAccStatus
+	AccRole            *int32                 `protobuf:"varint,10,opt,name=accRole" json:"accRole,omitempty"`                      //账号分类，是不是主账号，取值见TrdAccRole
+	JpAccType          []int32                `protobuf:"varint,11,rep,name=jpAccType" json:"jpAccType,omitempty"`                  //JP子账户类型，取值见 TrdSubAccType
+	CompetitionAccName *string                `protobuf:"bytes,12,opt,name=competitionAccName" json:"competitionAccName,omitempty"` // 比赛账户名称
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *TrdAcc) Reset() {
@@ -2103,6 +2170,13 @@ func (x *TrdAcc) GetJpAccType() []int32 {
 		return x.JpAccType
 	}
 	return nil
+}
+
+func (x *TrdAcc) GetCompetitionAccName() string {
+	if x != nil && x.CompetitionAccName != nil {
+		return *x.CompetitionAccName
+	}
+	return ""
 }
 
 // 账户资金结构
@@ -2475,6 +2549,11 @@ type Position struct {
 	DilutedCostPrice *float64 `protobuf:"fixed64,32,opt,name=dilutedCostPrice" json:"dilutedCostPrice,omitempty"`    //摊薄成本价，仅支持证券账户使用
 	AverageCostPrice *float64 `protobuf:"fixed64,33,opt,name=averageCostPrice" json:"averageCostPrice,omitempty"`    //平均成本价，模拟交易证券账户不适用
 	AveragePlRatio   *float64 `protobuf:"fixed64,34,opt,name=averagePlRatio" json:"averagePlRatio,omitempty"`        //平均成本价的盈亏百分比(如plRatio等于8.8代表涨8.8%)，无精度限制，如果没传，代表此时此值无效
+	ComboID          *uint64  `protobuf:"varint,35,opt,name=comboID" json:"comboID,omitempty"`                       // 期权策略组合ID
+	StrategyType     *int32   `protobuf:"varint,36,opt,name=strategyType" json:"strategyType,omitempty"`             // 期权策略类型，参见Qot_Common.OptionStrategyType的枚举定义
+	PositionType     *int32   `protobuf:"varint,37,opt,name=positionType" json:"positionType,omitempty"`             // 期权组合持仓类型，参见PositionType的枚举定义
+	AccID            *uint64  `protobuf:"varint,38,opt,name=accID" json:"accID,omitempty"`                           // 交易账户ID
+	JpAccType        *int32   `protobuf:"varint,39,opt,name=jpAccType" json:"jpAccType,omitempty"`                   // JP子账户类型，取值见 TrdSubAccType
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -2684,6 +2763,41 @@ func (x *Position) GetAveragePlRatio() float64 {
 	return 0
 }
 
+func (x *Position) GetComboID() uint64 {
+	if x != nil && x.ComboID != nil {
+		return *x.ComboID
+	}
+	return 0
+}
+
+func (x *Position) GetStrategyType() int32 {
+	if x != nil && x.StrategyType != nil {
+		return *x.StrategyType
+	}
+	return 0
+}
+
+func (x *Position) GetPositionType() int32 {
+	if x != nil && x.PositionType != nil {
+		return *x.PositionType
+	}
+	return 0
+}
+
+func (x *Position) GetAccID() uint64 {
+	if x != nil && x.AccID != nil {
+		return *x.AccID
+	}
+	return 0
+}
+
+func (x *Position) GetJpAccType() int32 {
+	if x != nil && x.JpAccType != nil {
+		return *x.JpAccType
+	}
+	return 0
+}
+
 // 订单结构
 type Order struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -2715,6 +2829,10 @@ type Order struct {
 	TrdMarket       *int32                 `protobuf:"varint,26,opt,name=trdMarket" json:"trdMarket,omitempty"`              //交易市场, 参见TrdMarket的枚举定义
 	Session         *int32                 `protobuf:"varint,27,opt,name=session" json:"session,omitempty"`                  //美股订单时段, 参见Common.Session的枚举定义
 	JpAccType       *int32                 `protobuf:"varint,28,opt,name=jpAccType" json:"jpAccType,omitempty"`              //JP子账户类型，取值见 TrdSubAccType
+	ExpireTime      *string                `protobuf:"bytes,29,opt,name=expireTime" json:"expireTime,omitempty"`             //timeInForce为GTD时，表示订单到期时间
+	OrderAmount     *float64               `protobuf:"fixed64,30,opt,name=orderAmount" json:"orderAmount,omitempty"`         // 订单金额
+	StrategyType    *int32                 `protobuf:"varint,31,opt,name=strategyType" json:"strategyType,omitempty"`        // 期权策略类型，参见Qot_Common.OptionStrategyType的枚举定义
+	ComboLegs       []*qotcommon.ComboLeg  `protobuf:"bytes,32,rep,name=comboLegs" json:"comboLegs,omitempty"`               //组合期权各腿数据
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2943,6 +3061,34 @@ func (x *Order) GetJpAccType() int32 {
 		return *x.JpAccType
 	}
 	return 0
+}
+
+func (x *Order) GetExpireTime() string {
+	if x != nil && x.ExpireTime != nil {
+		return *x.ExpireTime
+	}
+	return ""
+}
+
+func (x *Order) GetOrderAmount() float64 {
+	if x != nil && x.OrderAmount != nil {
+		return *x.OrderAmount
+	}
+	return 0
+}
+
+func (x *Order) GetStrategyType() int32 {
+	if x != nil && x.StrategyType != nil {
+		return *x.StrategyType
+	}
+	return 0
+}
+
+func (x *Order) GetComboLegs() []*qotcommon.ComboLeg {
+	if x != nil {
+		return x.ComboLegs
+	}
+	return nil
 }
 
 type OrderFeeItem struct {
@@ -3340,6 +3486,91 @@ func (x *MaxTrdQtys) GetSession() int32 {
 	return 0
 }
 
+// 组合期权最大可买卖相关字段
+type ComboMaxTrdQtys struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	NlvChange               *float64               `protobuf:"fixed64,1,opt,name=nlvChange" json:"nlvChange,omitempty"`                             //综合净资产
+	InitialMarginChange     *float64               `protobuf:"fixed64,2,opt,name=initialMarginChange" json:"initialMarginChange,omitempty"`         //初始保证金
+	MaintenanceMarginChange *float64               `protobuf:"fixed64,3,opt,name=maintenanceMarginChange" json:"maintenanceMarginChange,omitempty"` //维持保证金
+	OptionBuyPower          *float64               `protobuf:"fixed64,4,opt,name=optionBuyPower" json:"optionBuyPower,omitempty"`                   //期权购买力
+	MaxWithDrawChange       *float64               `protobuf:"fixed64,5,opt,name=maxWithDrawChange" json:"maxWithDrawChange,omitempty"`             //最大可提
+	BuyPowerDecrease        *float64               `protobuf:"fixed64,6,opt,name=buyPowerDecrease" json:"buyPowerDecrease,omitempty"`               //消耗购买力
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *ComboMaxTrdQtys) Reset() {
+	*x = ComboMaxTrdQtys{}
+	mi := &file_Trd_Common_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ComboMaxTrdQtys) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ComboMaxTrdQtys) ProtoMessage() {}
+
+func (x *ComboMaxTrdQtys) ProtoReflect() protoreflect.Message {
+	mi := &file_Trd_Common_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ComboMaxTrdQtys.ProtoReflect.Descriptor instead.
+func (*ComboMaxTrdQtys) Descriptor() ([]byte, []int) {
+	return file_Trd_Common_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ComboMaxTrdQtys) GetNlvChange() float64 {
+	if x != nil && x.NlvChange != nil {
+		return *x.NlvChange
+	}
+	return 0
+}
+
+func (x *ComboMaxTrdQtys) GetInitialMarginChange() float64 {
+	if x != nil && x.InitialMarginChange != nil {
+		return *x.InitialMarginChange
+	}
+	return 0
+}
+
+func (x *ComboMaxTrdQtys) GetMaintenanceMarginChange() float64 {
+	if x != nil && x.MaintenanceMarginChange != nil {
+		return *x.MaintenanceMarginChange
+	}
+	return 0
+}
+
+func (x *ComboMaxTrdQtys) GetOptionBuyPower() float64 {
+	if x != nil && x.OptionBuyPower != nil {
+		return *x.OptionBuyPower
+	}
+	return 0
+}
+
+func (x *ComboMaxTrdQtys) GetMaxWithDrawChange() float64 {
+	if x != nil && x.MaxWithDrawChange != nil {
+		return *x.MaxWithDrawChange
+	}
+	return 0
+}
+
+func (x *ComboMaxTrdQtys) GetBuyPowerDecrease() float64 {
+	if x != nil && x.BuyPowerDecrease != nil {
+		return *x.BuyPowerDecrease
+	}
+	return 0
+}
+
 // 过滤条件，条件组合是"与"不是"或"，用于获取订单、成交、持仓等时二次过滤
 type TrdFilterConditions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -3355,7 +3586,7 @@ type TrdFilterConditions struct {
 
 func (x *TrdFilterConditions) Reset() {
 	*x = TrdFilterConditions{}
-	mi := &file_Trd_Common_proto_msgTypes[11]
+	mi := &file_Trd_Common_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3367,7 +3598,7 @@ func (x *TrdFilterConditions) String() string {
 func (*TrdFilterConditions) ProtoMessage() {}
 
 func (x *TrdFilterConditions) ProtoReflect() protoreflect.Message {
-	mi := &file_Trd_Common_proto_msgTypes[11]
+	mi := &file_Trd_Common_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3380,7 +3611,7 @@ func (x *TrdFilterConditions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrdFilterConditions.ProtoReflect.Descriptor instead.
 func (*TrdFilterConditions) Descriptor() ([]byte, []int) {
-	return file_Trd_Common_proto_rawDescGZIP(), []int{11}
+	return file_Trd_Common_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *TrdFilterConditions) GetCodeList() []string {
@@ -3430,7 +3661,7 @@ var File_Trd_Common_proto protoreflect.FileDescriptor
 const file_Trd_Common_proto_rawDesc = "" +
 	"\n" +
 	"\x10Trd_Common.proto\x12\n" +
-	"Trd_Common\x1a\fCommon.proto\"\x8d\x01\n" +
+	"Trd_Common\x1a\fCommon.proto\x1a\x10Qot_Common.proto\"\x8d\x01\n" +
 	"\vAccCashInfo\x12\x1a\n" +
 	"\bcurrency\x18\x01 \x01(\x05R\bcurrency\x12\x12\n" +
 	"\x04cash\x18\x02 \x01(\x01R\x04cash\x12*\n" +
@@ -3443,7 +3674,7 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\x06trdEnv\x18\x01 \x02(\x05R\x06trdEnv\x12\x14\n" +
 	"\x05accID\x18\x02 \x02(\x04R\x05accID\x12\x1c\n" +
 	"\ttrdMarket\x18\x03 \x02(\x05R\ttrdMarket\x12\x1c\n" +
-	"\tjpAccType\x18\x04 \x01(\x05R\tjpAccType\"\xd2\x02\n" +
+	"\tjpAccType\x18\x04 \x01(\x05R\tjpAccType\"\x82\x03\n" +
 	"\x06TrdAcc\x12\x16\n" +
 	"\x06trdEnv\x18\x01 \x02(\x05R\x06trdEnv\x12\x14\n" +
 	"\x05accID\x18\x02 \x02(\x04R\x05accID\x12,\n" +
@@ -3460,7 +3691,8 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\taccStatus\x18\t \x01(\x05R\taccStatus\x12\x18\n" +
 	"\aaccRole\x18\n" +
 	" \x01(\x05R\aaccRole\x12\x1c\n" +
-	"\tjpAccType\x18\v \x03(\x05R\tjpAccType\"\xbb\n" +
+	"\tjpAccType\x18\v \x03(\x05R\tjpAccType\x12.\n" +
+	"\x12competitionAccName\x18\f \x01(\tR\x12competitionAccName\"\xbb\n" +
 	"\n" +
 	"\x05Funds\x12\x14\n" +
 	"\x05power\x18\x01 \x02(\x01R\x05power\x12 \n" +
@@ -3511,7 +3743,7 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\rexposureLevel\x18# \x01(\x05R\rexposureLevel\x12$\n" +
 	"\rexposureLimit\x18$ \x01(\x01R\rexposureLimit\x12\x1c\n" +
 	"\tusedLimit\x18% \x01(\x01R\tusedLimit\x12&\n" +
-	"\x0eremainingLimit\x18& \x01(\x01R\x0eremainingLimit\"\xea\x05\n" +
+	"\x0eremainingLimit\x18& \x01(\x01R\x0eremainingLimit\"\x80\a\n" +
 	"\bPosition\x12\x1e\n" +
 	"\n" +
 	"positionID\x18\x01 \x02(\x04R\n" +
@@ -3546,7 +3778,12 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\ttrdMarket\x18\x1f \x01(\x05R\ttrdMarket\x12*\n" +
 	"\x10dilutedCostPrice\x18  \x01(\x01R\x10dilutedCostPrice\x12*\n" +
 	"\x10averageCostPrice\x18! \x01(\x01R\x10averageCostPrice\x12&\n" +
-	"\x0eaveragePlRatio\x18\" \x01(\x01R\x0eaveragePlRatio\"\xc9\x06\n" +
+	"\x0eaveragePlRatio\x18\" \x01(\x01R\x0eaveragePlRatio\x12\x18\n" +
+	"\acomboID\x18# \x01(\x04R\acomboID\x12\"\n" +
+	"\fstrategyType\x18$ \x01(\x05R\fstrategyType\x12\"\n" +
+	"\fpositionType\x18% \x01(\x05R\fpositionType\x12\x14\n" +
+	"\x05accID\x18& \x01(\x04R\x05accID\x12\x1c\n" +
+	"\tjpAccType\x18' \x01(\x05R\tjpAccType\"\xe3\a\n" +
 	"\x05Order\x12\x18\n" +
 	"\atrdSide\x18\x01 \x02(\x05R\atrdSide\x12\x1c\n" +
 	"\torderType\x18\x02 \x02(\x05R\torderType\x12 \n" +
@@ -3584,7 +3821,13 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\bcurrency\x18\x19 \x01(\x05R\bcurrency\x12\x1c\n" +
 	"\ttrdMarket\x18\x1a \x01(\x05R\ttrdMarket\x12\x18\n" +
 	"\asession\x18\x1b \x01(\x05R\asession\x12\x1c\n" +
-	"\tjpAccType\x18\x1c \x01(\x05R\tjpAccType\":\n" +
+	"\tjpAccType\x18\x1c \x01(\x05R\tjpAccType\x12\x1e\n" +
+	"\n" +
+	"expireTime\x18\x1d \x01(\tR\n" +
+	"expireTime\x12 \n" +
+	"\vorderAmount\x18\x1e \x01(\x01R\vorderAmount\x12\"\n" +
+	"\fstrategyType\x18\x1f \x01(\x05R\fstrategyType\x122\n" +
+	"\tcomboLegs\x18  \x03(\v2\x14.Qot_Common.ComboLegR\tcomboLegs\":\n" +
 	"\fOrderFeeItem\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x01R\x05value\"z\n" +
@@ -3627,7 +3870,14 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"maxBuyBack\x12&\n" +
 	"\x0elongRequiredIM\x18\x06 \x01(\x01R\x0elongRequiredIM\x12(\n" +
 	"\x0fshortRequiredIM\x18\a \x01(\x01R\x0fshortRequiredIM\x12\x18\n" +
-	"\asession\x18\b \x01(\x05R\asession\"\xcb\x01\n" +
+	"\asession\x18\b \x01(\x05R\asession\"\x9d\x02\n" +
+	"\x0fComboMaxTrdQtys\x12\x1c\n" +
+	"\tnlvChange\x18\x01 \x01(\x01R\tnlvChange\x120\n" +
+	"\x13initialMarginChange\x18\x02 \x01(\x01R\x13initialMarginChange\x128\n" +
+	"\x17maintenanceMarginChange\x18\x03 \x01(\x01R\x17maintenanceMarginChange\x12&\n" +
+	"\x0eoptionBuyPower\x18\x04 \x01(\x01R\x0eoptionBuyPower\x12,\n" +
+	"\x11maxWithDrawChange\x18\x05 \x01(\x01R\x11maxWithDrawChange\x12*\n" +
+	"\x10buyPowerDecrease\x18\x06 \x01(\x01R\x10buyPowerDecrease\"\xcb\x01\n" +
 	"\x13TrdFilterConditions\x12\x1a\n" +
 	"\bcodeList\x18\x01 \x03(\tR\bcodeList\x12\x16\n" +
 	"\x06idList\x18\x02 \x03(\x04R\x06idList\x12\x1c\n" +
@@ -3777,18 +4027,20 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\x14CltRiskLevel_Warning\x10\x01\x12\x17\n" +
 	"\x13CltRiskLevel_Danger\x10\x02\x12\x1d\n" +
 	"\x19CltRiskLevel_AbsoluteSafe\x10\x03\x12\x1a\n" +
-	"\x16CltRiskLevel_OptDanger\x10\x04*L\n" +
+	"\x16CltRiskLevel_OptDanger\x10\x04*a\n" +
 	"\vTimeInForce\x12\x13\n" +
 	"\x0fTimeInForce_DAY\x10\x00\x12\x13\n" +
 	"\x0fTimeInForce_GTC\x10\x01\x12\x13\n" +
-	"\x0fTimeInForce_IOC\x10\x02*\x88\x01\n" +
+	"\x0fTimeInForce_IOC\x10\x02\x12\x13\n" +
+	"\x0fTimeInForce_GTD\x10\x03*\xa4\x01\n" +
 	"\n" +
 	"SimAccType\x12\x16\n" +
 	"\x12SimAccType_Unknown\x10\x00\x12\x14\n" +
 	"\x10SimAccType_Stock\x10\x01\x12\x15\n" +
 	"\x11SimAccType_Option\x10\x02\x12\x16\n" +
 	"\x12SimAccType_Futures\x10\x03\x12\x1d\n" +
-	"\x19SimAccType_StockAndOption\x10\x04*\x94\x02\n" +
+	"\x19SimAccType_StockAndOption\x10\x04\x12\x1a\n" +
+	"\x16SimAccType_Competition\x10\x05*\x94\x02\n" +
 	"\rCltRiskStatus\x12\x19\n" +
 	"\x15CltRiskStatus_Unknown\x10\x00\x12\x18\n" +
 	"\x14CltRiskStatus_Level1\x10\x01\x12\x18\n" +
@@ -3836,7 +4088,11 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\x12ExposureLevel_Safe\x10\x04\x12\x1a\n" +
 	"\x16ExposureLevel_Moderate\x10\x05\x12\x19\n" +
 	"\x15ExposureLevel_Warning\x10\x06\x12\x1c\n" +
-	"\x18ExposureLevel_MarginCall\x10\a*\xe0\x01\n" +
+	"\x18ExposureLevel_MarginCall\x10\a*Y\n" +
+	"\fPositionType\x12\x18\n" +
+	"\x14PositionType_Unknown\x10\x00\x12\x19\n" +
+	"\x15PositionType_Combined\x10\x01\x12\x14\n" +
+	"\x10PositionType_Leg\x10\x02*\xe0\x01\n" +
 	"\fSecurityFirm\x12\x18\n" +
 	"\x14SecurityFirm_Unknown\x10\x00\x12\x1f\n" +
 	"\x1bSecurityFirm_FutuSecurities\x10\x01\x12\x18\n" +
@@ -3860,8 +4116,8 @@ func file_Trd_Common_proto_rawDescGZIP() []byte {
 	return file_Trd_Common_proto_rawDescData
 }
 
-var file_Trd_Common_proto_enumTypes = make([]protoimpl.EnumInfo, 24)
-var file_Trd_Common_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_Trd_Common_proto_enumTypes = make([]protoimpl.EnumInfo, 25)
+var file_Trd_Common_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_Trd_Common_proto_goTypes = []any{
 	(TrdEnv)(0),                 // 0: Trd_Common.TrdEnv
 	(TrdCategory)(0),            // 1: Trd_Common.TrdCategory
@@ -3886,29 +4142,33 @@ var file_Trd_Common_proto_goTypes = []any{
 	(TrdSubAccType)(0),          // 20: Trd_Common.TrdSubAccType
 	(TrdAssetCategory)(0),       // 21: Trd_Common.TrdAssetCategory
 	(ExposureLevel)(0),          // 22: Trd_Common.ExposureLevel
-	(SecurityFirm)(0),           // 23: Trd_Common.SecurityFirm
-	(*AccCashInfo)(nil),         // 24: Trd_Common.AccCashInfo
-	(*AccMarketInfo)(nil),       // 25: Trd_Common.AccMarketInfo
-	(*TrdHeader)(nil),           // 26: Trd_Common.TrdHeader
-	(*TrdAcc)(nil),              // 27: Trd_Common.TrdAcc
-	(*Funds)(nil),               // 28: Trd_Common.Funds
-	(*Position)(nil),            // 29: Trd_Common.Position
-	(*Order)(nil),               // 30: Trd_Common.Order
-	(*OrderFeeItem)(nil),        // 31: Trd_Common.OrderFeeItem
-	(*OrderFee)(nil),            // 32: Trd_Common.OrderFee
-	(*OrderFill)(nil),           // 33: Trd_Common.OrderFill
-	(*MaxTrdQtys)(nil),          // 34: Trd_Common.MaxTrdQtys
-	(*TrdFilterConditions)(nil), // 35: Trd_Common.TrdFilterConditions
+	(PositionType)(0),           // 23: Trd_Common.PositionType
+	(SecurityFirm)(0),           // 24: Trd_Common.SecurityFirm
+	(*AccCashInfo)(nil),         // 25: Trd_Common.AccCashInfo
+	(*AccMarketInfo)(nil),       // 26: Trd_Common.AccMarketInfo
+	(*TrdHeader)(nil),           // 27: Trd_Common.TrdHeader
+	(*TrdAcc)(nil),              // 28: Trd_Common.TrdAcc
+	(*Funds)(nil),               // 29: Trd_Common.Funds
+	(*Position)(nil),            // 30: Trd_Common.Position
+	(*Order)(nil),               // 31: Trd_Common.Order
+	(*OrderFeeItem)(nil),        // 32: Trd_Common.OrderFeeItem
+	(*OrderFee)(nil),            // 33: Trd_Common.OrderFee
+	(*OrderFill)(nil),           // 34: Trd_Common.OrderFill
+	(*MaxTrdQtys)(nil),          // 35: Trd_Common.MaxTrdQtys
+	(*ComboMaxTrdQtys)(nil),     // 36: Trd_Common.ComboMaxTrdQtys
+	(*TrdFilterConditions)(nil), // 37: Trd_Common.TrdFilterConditions
+	(*qotcommon.ComboLeg)(nil),  // 38: Qot_Common.ComboLeg
 }
 var file_Trd_Common_proto_depIdxs = []int32{
-	24, // 0: Trd_Common.Funds.cashInfoList:type_name -> Trd_Common.AccCashInfo
-	25, // 1: Trd_Common.Funds.marketInfoList:type_name -> Trd_Common.AccMarketInfo
-	31, // 2: Trd_Common.OrderFee.feeList:type_name -> Trd_Common.OrderFeeItem
-	3,  // [3:3] is the sub-list for method output_type
-	3,  // [3:3] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	25, // 0: Trd_Common.Funds.cashInfoList:type_name -> Trd_Common.AccCashInfo
+	26, // 1: Trd_Common.Funds.marketInfoList:type_name -> Trd_Common.AccMarketInfo
+	38, // 2: Trd_Common.Order.comboLegs:type_name -> Qot_Common.ComboLeg
+	32, // 3: Trd_Common.OrderFee.feeList:type_name -> Trd_Common.OrderFeeItem
+	4,  // [4:4] is the sub-list for method output_type
+	4,  // [4:4] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_Trd_Common_proto_init() }
@@ -3921,8 +4181,8 @@ func file_Trd_Common_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_Trd_Common_proto_rawDesc), len(file_Trd_Common_proto_rawDesc)),
-			NumEnums:      24,
-			NumMessages:   12,
+			NumEnums:      25,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

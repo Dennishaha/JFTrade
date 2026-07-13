@@ -4,6 +4,7 @@ option java_package = "com.futu.openapi.pb";
 option go_package = "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon;trdcommon";
 
 import "Common.proto";
+import "Qot_Common.proto";
 
 //交易环境
 enum TrdEnv
@@ -81,7 +82,7 @@ enum OrderType
 	OrderType_Unknown = 0; //未知类型
 	OrderType_Normal = 1; //普通订单(港股的增强限价单、港股期权的限价单，A股限价委托、美股的限价单，港股期货的限价单，CME期货的限价单)。目前港股期权只能指定此订单类型。
 	OrderType_Market = 2; //市价订单(目前支持美股、港股正股、涡轮、牛熊、界内证)
-	
+
 	OrderType_AbsoluteLimit = 5; //绝对限价订单(目前仅港股)，只有价格完全匹配才成交，否则下单失败，比如你下价格为5元的买单，卖单价格必须也要是5元才能成交，低于5元也不能成交，下单失败。卖出同理
 	OrderType_Auction = 6; //竞价订单(目前仅港股)，仅港股早盘竞价和收盘竞价有效，A股的早盘竞价订单类型不变还是OrderType_Normal
 	OrderType_AuctionLimit = 7; //竞价限价订单(目前仅港股)，仅早盘竞价和收盘竞价有效，参与竞价，且要求满足指定价格才会成交
@@ -93,9 +94,9 @@ enum OrderType
     OrderType_LimitifTouched = 13; // 触及限价单（止盈）
     OrderType_TrailingStop = 14; // 跟踪止损市价单
     OrderType_TrailingStopLimit = 15; // 跟踪止损限价单
-	OrderType_TWAP_MARKET = 16; // TWAP 市价单 
-	OrderType_TWAP_LIMIT = 17;  // TWAP 限订单 
-	OrderType_VWAP_MARKET = 18; // VWAP 市价单 
+	OrderType_TWAP_MARKET = 16; // TWAP 市价单
+	OrderType_TWAP_LIMIT = 17;  // TWAP 限订单
+	OrderType_VWAP_MARKET = 18; // VWAP 市价单
 	OrderType_VWAP_LIMIT = 19;  // VWAP 限订单
 }
 
@@ -216,6 +217,7 @@ enum TimeInForce
 	TimeInForce_DAY = 0;       // 当日有效
 	TimeInForce_GTC = 1;       // 撤单前有效，最多持续90自然日。
 	TimeInForce_IOC = 2;       // 立即执行，否则取消
+	TimeInForce_GTD = 3;       // 指定日期前有效
 }
 
 //模拟交易账户类型
@@ -226,6 +228,7 @@ enum SimAccType
 	SimAccType_Option = 2;      //期权模拟账户（仅用于交易期权，不支持交易股票证券类产品）
     SimAccType_Futures = 3;     //期货模拟账户
     SimAccType_StockAndOption = 4;  //股票和期权模拟账户（支持交易股票和期权）
+	SimAccType_Competition = 5; // 比赛账户
 }
 
 //风险状态，共分 9 个等级，LEVEL1是最安全，LEVEL9是最危险
@@ -298,6 +301,13 @@ enum ExposureLevel
 	ExposureLevel_MarginCall = 7;   // 危险
 }
 
+enum PositionType
+{
+	PositionType_Unknown = 0;  //未知
+	PositionType_Combined = 1; //组合汇总持仓
+	PositionType_Leg = 2;      //单腿持仓
+}
+
 //账户现金信息，目前仅用于期货账户
 message AccCashInfo
 {
@@ -337,6 +347,7 @@ message TrdAcc
     optional int32 accStatus = 9; //账号状态，取值见TrdAccStatus
 	optional int32 accRole = 10; //账号分类，是不是主账号，取值见TrdAccRole
 	repeated int32 jpAccType = 11; //JP子账户类型，取值见 TrdSubAccType
+	optional string competitionAccName = 12; // 比赛账户名称
 }
 
 //账户资金结构
@@ -348,7 +359,7 @@ message Funds
 	required double marketVal = 4; //证券市值, 仅证券账户适用
 	required double frozenCash = 5; //冻结资金
 	required double debtCash = 6; //计息金额
-	required double avlWithdrawalCash = 7; //现金可提，仅证券账户适用 
+	required double avlWithdrawalCash = 7; //现金可提，仅证券账户适用
 
 	optional int32 currency = 8;            //币种，本结构体资金相关的货币类型，取值参见 Currency，期货适用
     optional double availableFunds = 9;     //可用资金，期货适用
@@ -367,20 +378,20 @@ message Funds
 	optional double maxWithdrawal = 21;          //融资可提，仅证券账户适用
 	optional int32 riskStatus = 22;              //风险状态，参见 [CltRiskStatus]，证券账户适用，共分 9 个等级，LEVEL1是最安全，LEVEL9是最危险
 	optional double marginCallMargin = 23;       //	Margin Call 保证金
-	
+
 	optional bool isPdt = 24;				//是否PDT账户，仅富途证券（美国）账户适用
 	optional string pdtSeq = 25;			//剩余日内交易次数
 	optional double beginningDTBP = 26;		//初始日内交易购买力
 	optional double remainingDTBP = 27;		//剩余日内交易购买力
 	optional double dtCallAmount = 28;		//日内交易待缴金额
 	optional int32 dtStatus = 29;				//日内交易限制情况，取值见 DTStatus
-	
+
 	optional double securitiesAssets = 30; // 证券资产净值
 	optional double fundAssets = 31; // 基金资产净值
 	optional double bondAssets = 32; // 债券资产净值
-    
+
     repeated AccMarketInfo marketInfoList = 33; //分市场资产信息
-	
+
 	optional double cryptoMv = 34; //加密货币市值
 	optional int32	exposureLevel = 35; //取值见ExposureLevel
 	optional double exposureLimit = 36; //持仓限额
@@ -403,7 +414,7 @@ message Position
     required double plVal = 10;         //盈亏金额，3位精度，期货为2位精度
     optional double plRatio = 11;       //摊薄成本价的盈亏百分比(如plRatio等于8.8代表涨8.8%)，无精度限制，如果没传，代表此时此值无效
     optional int32 secMarket = 12;      //证券所属市场，参见TrdSecMarket的枚举定义
-    
+
 	//以下是此持仓今日统计
     optional double td_plVal = 21;      //今日盈亏金额，3位精度，下同, 期货为2位精度
     optional double td_trdVal = 22;     //今日交易额，期货不适用
@@ -416,10 +427,16 @@ message Position
     optional double realizedPL = 29;         //已实现盈亏，期货适用
 	optional int32 currency = 30;        // 货币类型，取值参考 Currency
 	optional int32 trdMarket = 31;  //交易市场, 参见TrdMarket的枚举定义
-	
+
     optional double dilutedCostPrice = 32;      //摊薄成本价，仅支持证券账户使用
     optional double averageCostPrice = 33;      //平均成本价，模拟交易证券账户不适用
     optional double averagePlRatio = 34;        //平均成本价的盈亏百分比(如plRatio等于8.8代表涨8.8%)，无精度限制，如果没传，代表此时此值无效
+
+	optional uint64 comboID = 35;       // 期权策略组合ID
+	optional int32 strategyType = 36;   // 期权策略类型，参见Qot_Common.OptionStrategyType的枚举定义
+	optional int32 positionType = 37;   // 期权组合持仓类型，参见PositionType的枚举定义
+	optional uint64 accID = 38;         // 交易账户ID
+	optional int32 jpAccType = 39;      // JP子账户类型，取值见 TrdSubAccType
 }
 
 //订单结构
@@ -453,7 +470,10 @@ message Order
 	optional int32 trdMarket = 26;  //交易市场, 参见TrdMarket的枚举定义
 	optional int32 session = 27; //美股订单时段, 参见Common.Session的枚举定义
 	optional int32 jpAccType = 28; //JP子账户类型，取值见 TrdSubAccType
-	
+	optional string expireTime = 29;  //timeInForce为GTD时，表示订单到期时间
+	optional double orderAmount = 30;  // 订单金额
+	optional int32 strategyType = 31;  // 期权策略类型，参见Qot_Common.OptionStrategyType的枚举定义
+	repeated Qot_Common.ComboLeg comboLegs = 32; //组合期权各腿数据
 }
 
 message OrderFeeItem
@@ -504,6 +524,17 @@ message MaxTrdQtys
 	optional double longRequiredIM = 6;         //开多仓每张合约初始保证金。当前仅期货和期权适用（最低 FutuOpenD 版本要求：5.0.1310）
 	optional double shortRequiredIM = 7;        //开空仓每张合约初始保证金。当前仅期货和期权适用（最低 FutuOpenD 版本要求：5.0.1310）
 	optional int32 session = 8;                 //美股订单时段, 参见Common.Session的枚举定义（最低 FutuOpenD 版本要求：9.4.5408）
+}
+
+//组合期权最大可买卖相关字段
+message ComboMaxTrdQtys
+{
+    optional double nlvChange = 1;    //综合净资产
+    optional double initialMarginChange = 2;    //初始保证金
+    optional double maintenanceMarginChange = 3;    //维持保证金
+    optional double optionBuyPower = 4;    //期权购买力
+    optional double maxWithDrawChange = 5;    //最大可提
+    optional double buyPowerDecrease = 6;    //消耗购买力
 }
 
 //过滤条件，条件组合是"与"不是"或"，用于获取订单、成交、持仓等时二次过滤

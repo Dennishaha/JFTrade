@@ -22,6 +22,80 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type NotifyType int32
+
+const (
+	NotifyType_NotifyType_None          NotifyType = 0 //无
+	NotifyType_NotifyType_GtwEvent      NotifyType = 1 //OpenD运行事件通知
+	NotifyType_NotifyType_ProgramStatus NotifyType = 2 //程序状态
+	NotifyType_NotifyType_ConnStatus    NotifyType = 3 //连接状态
+	NotifyType_NotifyType_QotRight      NotifyType = 4 //行情权限
+	NotifyType_NotifyType_APILevel      NotifyType = 5 //用户等级，已在2.10版本之后废弃
+	NotifyType_NotifyType_APIQuota      NotifyType = 6 //API额度
+	NotifyType_NotifyType_UsedQuota     NotifyType = 7 // 已使用额度
+)
+
+// Enum value maps for NotifyType.
+var (
+	NotifyType_name = map[int32]string{
+		0: "NotifyType_None",
+		1: "NotifyType_GtwEvent",
+		2: "NotifyType_ProgramStatus",
+		3: "NotifyType_ConnStatus",
+		4: "NotifyType_QotRight",
+		5: "NotifyType_APILevel",
+		6: "NotifyType_APIQuota",
+		7: "NotifyType_UsedQuota",
+	}
+	NotifyType_value = map[string]int32{
+		"NotifyType_None":          0,
+		"NotifyType_GtwEvent":      1,
+		"NotifyType_ProgramStatus": 2,
+		"NotifyType_ConnStatus":    3,
+		"NotifyType_QotRight":      4,
+		"NotifyType_APILevel":      5,
+		"NotifyType_APIQuota":      6,
+		"NotifyType_UsedQuota":     7,
+	}
+)
+
+func (x NotifyType) Enum() *NotifyType {
+	p := new(NotifyType)
+	*p = x
+	return p
+}
+
+func (x NotifyType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NotifyType) Descriptor() protoreflect.EnumDescriptor {
+	return file_Notify_proto_enumTypes[0].Descriptor()
+}
+
+func (NotifyType) Type() protoreflect.EnumType {
+	return &file_Notify_proto_enumTypes[0]
+}
+
+func (x NotifyType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Do not use.
+func (x *NotifyType) UnmarshalJSON(b []byte) error {
+	num, err := protoimpl.X.UnmarshalJSONEnum(x.Descriptor(), b)
+	if err != nil {
+		return err
+	}
+	*x = NotifyType(num)
+	return nil
+}
+
+// Deprecated: Use NotifyType.Descriptor instead.
+func (NotifyType) EnumDescriptor() ([]byte, []int) {
+	return file_Notify_proto_rawDescGZIP(), []int{0}
+}
+
 type GtwEventType int32
 
 const (
@@ -31,7 +105,7 @@ const (
 	GtwEventType_GtwEventType_ForceUpdate         GtwEventType = 3  //客户端版本过低
 	GtwEventType_GtwEventType_LoginFailed         GtwEventType = 4  //登录失败
 	GtwEventType_GtwEventType_UnAgreeDisclaimer   GtwEventType = 5  //未同意免责声明
-	GtwEventType_GtwEventType_NetCfgMissing       GtwEventType = 6  //缺少必要网络配置信息
+	GtwEventType_GtwEventType_NetCfgMissing       GtwEventType = 6  //缺少必要网络配置信息;例如控制订阅额度 //已优化，不会再出现该情况
 	GtwEventType_GtwEventType_KickedOut           GtwEventType = 7  //牛牛帐号在别处登录
 	GtwEventType_GtwEventType_LoginPwdChanged     GtwEventType = 8  //登录密码被修改
 	GtwEventType_GtwEventType_BanLogin            GtwEventType = 9  //用户被禁止登录
@@ -94,11 +168,11 @@ func (x GtwEventType) String() string {
 }
 
 func (GtwEventType) Descriptor() protoreflect.EnumDescriptor {
-	return file_Notify_proto_enumTypes[0].Descriptor()
+	return file_Notify_proto_enumTypes[1].Descriptor()
 }
 
 func (GtwEventType) Type() protoreflect.EnumType {
-	return &file_Notify_proto_enumTypes[0]
+	return &file_Notify_proto_enumTypes[1]
 }
 
 func (x GtwEventType) Number() protoreflect.EnumNumber {
@@ -117,137 +191,13 @@ func (x *GtwEventType) UnmarshalJSON(b []byte) error {
 
 // Deprecated: Use GtwEventType.Descriptor instead.
 func (GtwEventType) EnumDescriptor() ([]byte, []int) {
-	return file_Notify_proto_rawDescGZIP(), []int{0}
-}
-
-type NotifyType int32
-
-const (
-	NotifyType_NotifyType_None          NotifyType = 0 //无
-	NotifyType_NotifyType_GtwEvent      NotifyType = 1 //OpenD 运行事件通知
-	NotifyType_NotifyType_ProgramStatus NotifyType = 2 //程序状态
-	NotifyType_NotifyType_ConnStatus    NotifyType = 3 //连接状态
-	NotifyType_NotifyType_QotRight      NotifyType = 4 //行情权限
-	NotifyType_NotifyType_APILevel      NotifyType = 5 //用户等级，已在2.10版本之后废弃
-	NotifyType_NotifyType_APIQuota      NotifyType = 6 //API 额度
-)
-
-// Enum value maps for NotifyType.
-var (
-	NotifyType_name = map[int32]string{
-		0: "NotifyType_None",
-		1: "NotifyType_GtwEvent",
-		2: "NotifyType_ProgramStatus",
-		3: "NotifyType_ConnStatus",
-		4: "NotifyType_QotRight",
-		5: "NotifyType_APILevel",
-		6: "NotifyType_APIQuota",
-	}
-	NotifyType_value = map[string]int32{
-		"NotifyType_None":          0,
-		"NotifyType_GtwEvent":      1,
-		"NotifyType_ProgramStatus": 2,
-		"NotifyType_ConnStatus":    3,
-		"NotifyType_QotRight":      4,
-		"NotifyType_APILevel":      5,
-		"NotifyType_APIQuota":      6,
-	}
-)
-
-func (x NotifyType) Enum() *NotifyType {
-	p := new(NotifyType)
-	*p = x
-	return p
-}
-
-func (x NotifyType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (NotifyType) Descriptor() protoreflect.EnumDescriptor {
-	return file_Notify_proto_enumTypes[1].Descriptor()
-}
-
-func (NotifyType) Type() protoreflect.EnumType {
-	return &file_Notify_proto_enumTypes[1]
-}
-
-func (x NotifyType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Do not use.
-func (x *NotifyType) UnmarshalJSON(b []byte) error {
-	num, err := protoimpl.X.UnmarshalJSONEnum(x.Descriptor(), b)
-	if err != nil {
-		return err
-	}
-	*x = NotifyType(num)
-	return nil
-}
-
-// Deprecated: Use NotifyType.Descriptor instead.
-func (NotifyType) EnumDescriptor() ([]byte, []int) {
 	return file_Notify_proto_rawDescGZIP(), []int{1}
-}
-
-type APILevel int32
-
-const (
-	APILevel_APILevel_None APILevel = 0 //已废弃
-)
-
-// Enum value maps for APILevel.
-var (
-	APILevel_name = map[int32]string{
-		0: "APILevel_None",
-	}
-	APILevel_value = map[string]int32{
-		"APILevel_None": 0,
-	}
-)
-
-func (x APILevel) Enum() *APILevel {
-	p := new(APILevel)
-	*p = x
-	return p
-}
-
-func (x APILevel) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (APILevel) Descriptor() protoreflect.EnumDescriptor {
-	return file_Notify_proto_enumTypes[2].Descriptor()
-}
-
-func (APILevel) Type() protoreflect.EnumType {
-	return &file_Notify_proto_enumTypes[2]
-}
-
-func (x APILevel) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Do not use.
-func (x *APILevel) UnmarshalJSON(b []byte) error {
-	num, err := protoimpl.X.UnmarshalJSONEnum(x.Descriptor(), b)
-	if err != nil {
-		return err
-	}
-	*x = APILevel(num)
-	return nil
-}
-
-// Deprecated: Use APILevel.Descriptor instead.
-func (APILevel) EnumDescriptor() ([]byte, []int) {
-	return file_Notify_proto_rawDescGZIP(), []int{2}
 }
 
 type GtwEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          *int32                 `protobuf:"varint,1,req,name=type" json:"type,omitempty"` //GtwEventType, OpenD 运行事件类型
-	Desc          *string                `protobuf:"bytes,2,opt,name=desc" json:"desc,omitempty"`  //事件描述
+	EventType     *int32                 `protobuf:"varint,1,req,name=eventType" json:"eventType,omitempty"` //GtwEventType,事件类型
+	Desc          *string                `protobuf:"bytes,2,req,name=desc" json:"desc,omitempty"`            //事件描述
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -282,9 +232,9 @@ func (*GtwEvent) Descriptor() ([]byte, []int) {
 	return file_Notify_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GtwEvent) GetType() int32 {
-	if x != nil && x.Type != nil {
-		return *x.Type
+func (x *GtwEvent) GetEventType() int32 {
+	if x != nil && x.EventType != nil {
+		return *x.EventType
 	}
 	return 0
 }
@@ -296,17 +246,61 @@ func (x *GtwEvent) GetDesc() string {
 	return ""
 }
 
+type ProgramStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProgramStatus *common.ProgramStatus  `protobuf:"bytes,1,req,name=programStatus" json:"programStatus,omitempty"` //当前程序状态
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProgramStatus) Reset() {
+	*x = ProgramStatus{}
+	mi := &file_Notify_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProgramStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProgramStatus) ProtoMessage() {}
+
+func (x *ProgramStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_Notify_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProgramStatus.ProtoReflect.Descriptor instead.
+func (*ProgramStatus) Descriptor() ([]byte, []int) {
+	return file_Notify_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ProgramStatus) GetProgramStatus() *common.ProgramStatus {
+	if x != nil {
+		return x.ProgramStatus
+	}
+	return nil
+}
+
 type ConnectStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	QotLogined    *bool                  `protobuf:"varint,1,req,name=qotLogined" json:"qotLogined,omitempty"` //是否登录行情服务器
-	TrdLogined    *bool                  `protobuf:"varint,2,req,name=trdLogined" json:"trdLogined,omitempty"` //是否登录交易服务器
+	QotLogined    *bool                  `protobuf:"varint,1,req,name=qotLogined" json:"qotLogined,omitempty"` //是否登陆行情服务器
+	TrdLogined    *bool                  `protobuf:"varint,2,req,name=trdLogined" json:"trdLogined,omitempty"` //是否登陆交易服务器
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ConnectStatus) Reset() {
 	*x = ConnectStatus{}
-	mi := &file_Notify_proto_msgTypes[1]
+	mi := &file_Notify_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -318,7 +312,7 @@ func (x *ConnectStatus) String() string {
 func (*ConnectStatus) ProtoMessage() {}
 
 func (x *ConnectStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_Notify_proto_msgTypes[1]
+	mi := &file_Notify_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -331,7 +325,7 @@ func (x *ConnectStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectStatus.ProtoReflect.Descriptor instead.
 func (*ConnectStatus) Descriptor() ([]byte, []int) {
-	return file_Notify_proto_rawDescGZIP(), []int{1}
+	return file_Notify_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ConnectStatus) GetQotLogined() bool {
@@ -350,29 +344,36 @@ func (x *ConnectStatus) GetTrdLogined() bool {
 
 type QotRight struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
-	HkQotRight            *int32                 `protobuf:"varint,1,opt,name=hkQotRight" json:"hkQotRight,omitempty"`                        //Qot_Common.QotRight, 港股权限
-	HkOptionQotRight      *int32                 `protobuf:"varint,2,opt,name=hkOptionQotRight" json:"hkOptionQotRight,omitempty"`            //Qot_Common.QotRight, 港股期权权限
-	HkFutureQotRight      *int32                 `protobuf:"varint,3,opt,name=hkFutureQotRight" json:"hkFutureQotRight,omitempty"`            //Qot_Common.QotRight, 港股期货权限
-	UsQotRight            *int32                 `protobuf:"varint,4,opt,name=usQotRight" json:"usQotRight,omitempty"`                        //Qot_Common.QotRight, 美股权限
-	UsOptionQotRight      *int32                 `protobuf:"varint,5,opt,name=usOptionQotRight" json:"usOptionQotRight,omitempty"`            //Qot_Common.QotRight, 美股期权权限
-	UsFutureQotRight      *int32                 `protobuf:"varint,6,opt,name=usFutureQotRight" json:"usFutureQotRight,omitempty"`            //Qot_Common.QotRight, 美股期货权限（已废弃）
-	CnQotRight            *int32                 `protobuf:"varint,7,opt,name=cnQotRight" json:"cnQotRight,omitempty"`                        //Qot_Common.QotRight, A 股权限
-	UsIndexQotRight       *int32                 `protobuf:"varint,8,opt,name=usIndexQotRight" json:"usIndexQotRight,omitempty"`              //Qot_Common.QotRight, 美股指数权限
-	UsOTCQotRight         *int32                 `protobuf:"varint,9,opt,name=usOTCQotRight" json:"usOTCQotRight,omitempty"`                  //Qot_Common.QotRight, 美股 OTC 权限
-	SgFutureQotRight      *int32                 `protobuf:"varint,10,opt,name=sgFutureQotRight" json:"sgFutureQotRight,omitempty"`           //Qot_Common.QotRight, 新加坡期货权限
-	JpFutureQotRight      *int32                 `protobuf:"varint,11,opt,name=jpFutureQotRight" json:"jpFutureQotRight,omitempty"`           //Qot_Common.QotRight, 日本期货权限
-	UsFutureQotRightCME   *int32                 `protobuf:"varint,12,opt,name=usFutureQotRightCME" json:"usFutureQotRightCME,omitempty"`     //Qot_Common.QotRight, CME 期货权限
-	UsFutureQotRightCBOT  *int32                 `protobuf:"varint,13,opt,name=usFutureQotRightCBOT" json:"usFutureQotRightCBOT,omitempty"`   //Qot_Common.QotRight, CBOT 期货权限
-	UsFutureQotRightNYMEX *int32                 `protobuf:"varint,14,opt,name=usFutureQotRightNYMEX" json:"usFutureQotRightNYMEX,omitempty"` //Qot_Common.QotRight, NYMEX 期货权限
-	UsFutureQotRightCOMEX *int32                 `protobuf:"varint,15,opt,name=usFutureQotRightCOMEX" json:"usFutureQotRightCOMEX,omitempty"` //Qot_Common.QotRight, COMEX 期货权限
-	UsFutureQotRightCBOE  *int32                 `protobuf:"varint,16,opt,name=usFutureQotRightCBOE" json:"usFutureQotRightCBOE,omitempty"`   //Qot_Common.QotRight, CBOE 期货权限
+	HkQotRight            *int32                 `protobuf:"varint,4,req,name=hkQotRight" json:"hkQotRight,omitempty"`                        //港股行情权限, Qot_Common.QotRight
+	UsQotRight            *int32                 `protobuf:"varint,5,req,name=usQotRight" json:"usQotRight,omitempty"`                        //美股行情权限, Qot_Common.QotRight
+	CnQotRight            *int32                 `protobuf:"varint,6,req,name=cnQotRight" json:"cnQotRight,omitempty"`                        //A股行情权限, Qot_Common.QotRight // (已废弃)，使用shQotRight和szQotRight
+	HkOptionQotRight      *int32                 `protobuf:"varint,7,opt,name=hkOptionQotRight" json:"hkOptionQotRight,omitempty"`            //港股期权行情权限, Qot_Common.QotRight
+	HasUSOptionQotRight   *bool                  `protobuf:"varint,8,opt,name=hasUSOptionQotRight" json:"hasUSOptionQotRight,omitempty"`      //是否有美股期权行情权限
+	HkFutureQotRight      *int32                 `protobuf:"varint,9,opt,name=hkFutureQotRight" json:"hkFutureQotRight,omitempty"`            //港股期货行情权限, Qot_Common.QotRight
+	UsFutureQotRight      *int32                 `protobuf:"varint,10,opt,name=usFutureQotRight" json:"usFutureQotRight,omitempty"`           //美股期货行情权限, Qot_Common.QotRight(已废弃)
+	UsOptionQotRight      *int32                 `protobuf:"varint,11,opt,name=usOptionQotRight" json:"usOptionQotRight,omitempty"`           //美股期权行情权限, Qot_Common.QotRight
+	UsIndexQotRight       *int32                 `protobuf:"varint,12,opt,name=usIndexQotRight" json:"usIndexQotRight,omitempty"`             //美股指数行情权限, Qot_Common.QotRight
+	UsOtcQotRight         *int32                 `protobuf:"varint,13,opt,name=usOtcQotRight" json:"usOtcQotRight,omitempty"`                 //美股OTC市场行情权限, Qot_Common.QotRight
+	SgFutureQotRight      *int32                 `protobuf:"varint,14,opt,name=sgFutureQotRight" json:"sgFutureQotRight,omitempty"`           //新加坡市场期货行情权限, Qot_Common.QotRight
+	JpFutureQotRight      *int32                 `protobuf:"varint,15,opt,name=jpFutureQotRight" json:"jpFutureQotRight,omitempty"`           //日本市场期货行情权限, Qot_Common.QotRight
+	UsCMEFutureQotRight   *int32                 `protobuf:"varint,16,opt,name=usCMEFutureQotRight" json:"usCMEFutureQotRight,omitempty"`     //美股CME期货行情权限, Qot_Common.QotRight
+	UsCBOTFutureQotRight  *int32                 `protobuf:"varint,17,opt,name=usCBOTFutureQotRight" json:"usCBOTFutureQotRight,omitempty"`   //美股CBOT期货行情权限, Qot_Common.QotRight
+	UsNYMEXFutureQotRight *int32                 `protobuf:"varint,18,opt,name=usNYMEXFutureQotRight" json:"usNYMEXFutureQotRight,omitempty"` //美股NYMEX期货行情权限, Qot_Common.QotRight
+	UsCOMEXFutureQotRight *int32                 `protobuf:"varint,19,opt,name=usCOMEXFutureQotRight" json:"usCOMEXFutureQotRight,omitempty"` //美股COMEX期货行情权限, Qot_Common.QotRight
+	UsCBOEFutureQotRight  *int32                 `protobuf:"varint,20,opt,name=usCBOEFutureQotRight" json:"usCBOEFutureQotRight,omitempty"`   //美股CBOE期货行情权限, Qot_Common.QotRight
+	ShQotRight            *int32                 `protobuf:"varint,21,opt,name=shQotRight" json:"shQotRight,omitempty"`                       //上海A股行情权限, Qot_Common.QotRight
+	SzQotRight            *int32                 `protobuf:"varint,22,opt,name=szQotRight" json:"szQotRight,omitempty"`                       //深圳A股行情权限, Qot_Common.QotRight
+	CcQotRight            *int32                 `protobuf:"varint,23,opt,name=ccQotRight" json:"ccQotRight,omitempty"`                       //加密货币市场行情权限, Qot_Common.QotRight
+	SgStockQotRight       *int32                 `protobuf:"varint,24,opt,name=sgStockQotRight" json:"sgStockQotRight,omitempty"`             //新加坡股票行情权限, Qot_Common.QotRight
+	MyStockQotRight       *int32                 `protobuf:"varint,25,opt,name=myStockQotRight" json:"myStockQotRight,omitempty"`             //马来西亚股票行情权限, Qot_Common.QotRight
+	JpStockQotRight       *int32                 `protobuf:"varint,26,opt,name=jpStockQotRight" json:"jpStockQotRight,omitempty"`             //日本市场股票行情权限, Qot_Common.QotRight
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
 
 func (x *QotRight) Reset() {
 	*x = QotRight{}
-	mi := &file_Notify_proto_msgTypes[2]
+	mi := &file_Notify_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -384,7 +385,7 @@ func (x *QotRight) String() string {
 func (*QotRight) ProtoMessage() {}
 
 func (x *QotRight) ProtoReflect() protoreflect.Message {
-	mi := &file_Notify_proto_msgTypes[2]
+	mi := &file_Notify_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -397,26 +398,12 @@ func (x *QotRight) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QotRight.ProtoReflect.Descriptor instead.
 func (*QotRight) Descriptor() ([]byte, []int) {
-	return file_Notify_proto_rawDescGZIP(), []int{2}
+	return file_Notify_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *QotRight) GetHkQotRight() int32 {
 	if x != nil && x.HkQotRight != nil {
 		return *x.HkQotRight
-	}
-	return 0
-}
-
-func (x *QotRight) GetHkOptionQotRight() int32 {
-	if x != nil && x.HkOptionQotRight != nil {
-		return *x.HkOptionQotRight
-	}
-	return 0
-}
-
-func (x *QotRight) GetHkFutureQotRight() int32 {
-	if x != nil && x.HkFutureQotRight != nil {
-		return *x.HkFutureQotRight
 	}
 	return 0
 }
@@ -428,9 +415,30 @@ func (x *QotRight) GetUsQotRight() int32 {
 	return 0
 }
 
-func (x *QotRight) GetUsOptionQotRight() int32 {
-	if x != nil && x.UsOptionQotRight != nil {
-		return *x.UsOptionQotRight
+func (x *QotRight) GetCnQotRight() int32 {
+	if x != nil && x.CnQotRight != nil {
+		return *x.CnQotRight
+	}
+	return 0
+}
+
+func (x *QotRight) GetHkOptionQotRight() int32 {
+	if x != nil && x.HkOptionQotRight != nil {
+		return *x.HkOptionQotRight
+	}
+	return 0
+}
+
+func (x *QotRight) GetHasUSOptionQotRight() bool {
+	if x != nil && x.HasUSOptionQotRight != nil {
+		return *x.HasUSOptionQotRight
+	}
+	return false
+}
+
+func (x *QotRight) GetHkFutureQotRight() int32 {
+	if x != nil && x.HkFutureQotRight != nil {
+		return *x.HkFutureQotRight
 	}
 	return 0
 }
@@ -442,9 +450,9 @@ func (x *QotRight) GetUsFutureQotRight() int32 {
 	return 0
 }
 
-func (x *QotRight) GetCnQotRight() int32 {
-	if x != nil && x.CnQotRight != nil {
-		return *x.CnQotRight
+func (x *QotRight) GetUsOptionQotRight() int32 {
+	if x != nil && x.UsOptionQotRight != nil {
+		return *x.UsOptionQotRight
 	}
 	return 0
 }
@@ -456,9 +464,9 @@ func (x *QotRight) GetUsIndexQotRight() int32 {
 	return 0
 }
 
-func (x *QotRight) GetUsOTCQotRight() int32 {
-	if x != nil && x.UsOTCQotRight != nil {
-		return *x.UsOTCQotRight
+func (x *QotRight) GetUsOtcQotRight() int32 {
+	if x != nil && x.UsOtcQotRight != nil {
+		return *x.UsOtcQotRight
 	}
 	return 0
 }
@@ -477,53 +485,138 @@ func (x *QotRight) GetJpFutureQotRight() int32 {
 	return 0
 }
 
-func (x *QotRight) GetUsFutureQotRightCME() int32 {
-	if x != nil && x.UsFutureQotRightCME != nil {
-		return *x.UsFutureQotRightCME
+func (x *QotRight) GetUsCMEFutureQotRight() int32 {
+	if x != nil && x.UsCMEFutureQotRight != nil {
+		return *x.UsCMEFutureQotRight
 	}
 	return 0
 }
 
-func (x *QotRight) GetUsFutureQotRightCBOT() int32 {
-	if x != nil && x.UsFutureQotRightCBOT != nil {
-		return *x.UsFutureQotRightCBOT
+func (x *QotRight) GetUsCBOTFutureQotRight() int32 {
+	if x != nil && x.UsCBOTFutureQotRight != nil {
+		return *x.UsCBOTFutureQotRight
 	}
 	return 0
 }
 
-func (x *QotRight) GetUsFutureQotRightNYMEX() int32 {
-	if x != nil && x.UsFutureQotRightNYMEX != nil {
-		return *x.UsFutureQotRightNYMEX
+func (x *QotRight) GetUsNYMEXFutureQotRight() int32 {
+	if x != nil && x.UsNYMEXFutureQotRight != nil {
+		return *x.UsNYMEXFutureQotRight
 	}
 	return 0
 }
 
-func (x *QotRight) GetUsFutureQotRightCOMEX() int32 {
-	if x != nil && x.UsFutureQotRightCOMEX != nil {
-		return *x.UsFutureQotRightCOMEX
+func (x *QotRight) GetUsCOMEXFutureQotRight() int32 {
+	if x != nil && x.UsCOMEXFutureQotRight != nil {
+		return *x.UsCOMEXFutureQotRight
 	}
 	return 0
 }
 
-func (x *QotRight) GetUsFutureQotRightCBOE() int32 {
-	if x != nil && x.UsFutureQotRightCBOE != nil {
-		return *x.UsFutureQotRightCBOE
+func (x *QotRight) GetUsCBOEFutureQotRight() int32 {
+	if x != nil && x.UsCBOEFutureQotRight != nil {
+		return *x.UsCBOEFutureQotRight
 	}
 	return 0
 }
 
-type APIQuota struct {
+func (x *QotRight) GetShQotRight() int32 {
+	if x != nil && x.ShQotRight != nil {
+		return *x.ShQotRight
+	}
+	return 0
+}
+
+func (x *QotRight) GetSzQotRight() int32 {
+	if x != nil && x.SzQotRight != nil {
+		return *x.SzQotRight
+	}
+	return 0
+}
+
+func (x *QotRight) GetCcQotRight() int32 {
+	if x != nil && x.CcQotRight != nil {
+		return *x.CcQotRight
+	}
+	return 0
+}
+
+func (x *QotRight) GetSgStockQotRight() int32 {
+	if x != nil && x.SgStockQotRight != nil {
+		return *x.SgStockQotRight
+	}
+	return 0
+}
+
+func (x *QotRight) GetMyStockQotRight() int32 {
+	if x != nil && x.MyStockQotRight != nil {
+		return *x.MyStockQotRight
+	}
+	return 0
+}
+
+func (x *QotRight) GetJpStockQotRight() int32 {
+	if x != nil && x.JpStockQotRight != nil {
+		return *x.JpStockQotRight
+	}
+	return 0
+}
+
+type APILevel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TotalUsed     *int32                 `protobuf:"varint,1,opt,name=totalUsed" json:"totalUsed,omitempty"` //所有连接已使用的订阅额度
-	OwnUsed       *int32                 `protobuf:"varint,2,opt,name=ownUsed" json:"ownUsed,omitempty"`     //当前连接已使用的订阅额度
-	Remain        *int32                 `protobuf:"varint,3,opt,name=remain" json:"remain,omitempty"`       //剩余订阅额度
+	ApiLevel      *string                `protobuf:"bytes,3,req,name=apiLevel" json:"apiLevel,omitempty"` //api用户等级描述，已在2.10版本之后废弃
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *APILevel) Reset() {
+	*x = APILevel{}
+	mi := &file_Notify_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *APILevel) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*APILevel) ProtoMessage() {}
+
+func (x *APILevel) ProtoReflect() protoreflect.Message {
+	mi := &file_Notify_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use APILevel.ProtoReflect.Descriptor instead.
+func (*APILevel) Descriptor() ([]byte, []int) {
+	return file_Notify_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *APILevel) GetApiLevel() string {
+	if x != nil && x.ApiLevel != nil {
+		return *x.ApiLevel
+	}
+	return ""
+}
+
+type APIQuota struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	SubQuota       *int32                 `protobuf:"varint,1,req,name=subQuota" json:"subQuota,omitempty"`             //订阅额度
+	HistoryKLQuota *int32                 `protobuf:"varint,2,req,name=historyKLQuota" json:"historyKLQuota,omitempty"` //历史K线额度
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
 func (x *APIQuota) Reset() {
 	*x = APIQuota{}
-	mi := &file_Notify_proto_msgTypes[3]
+	mi := &file_Notify_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -535,7 +628,7 @@ func (x *APIQuota) String() string {
 func (*APIQuota) ProtoMessage() {}
 
 func (x *APIQuota) ProtoReflect() protoreflect.Message {
-	mi := &file_Notify_proto_msgTypes[3]
+	mi := &file_Notify_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -548,47 +641,92 @@ func (x *APIQuota) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use APIQuota.ProtoReflect.Descriptor instead.
 func (*APIQuota) Descriptor() ([]byte, []int) {
-	return file_Notify_proto_rawDescGZIP(), []int{3}
+	return file_Notify_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *APIQuota) GetTotalUsed() int32 {
-	if x != nil && x.TotalUsed != nil {
-		return *x.TotalUsed
+func (x *APIQuota) GetSubQuota() int32 {
+	if x != nil && x.SubQuota != nil {
+		return *x.SubQuota
 	}
 	return 0
 }
 
-func (x *APIQuota) GetOwnUsed() int32 {
-	if x != nil && x.OwnUsed != nil {
-		return *x.OwnUsed
+func (x *APIQuota) GetHistoryKLQuota() int32 {
+	if x != nil && x.HistoryKLQuota != nil {
+		return *x.HistoryKLQuota
 	}
 	return 0
 }
 
-func (x *APIQuota) GetRemain() int32 {
-	if x != nil && x.Remain != nil {
-		return *x.Remain
+type UsedQuota struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UsedSubQuota   *int32                 `protobuf:"varint,1,opt,name=usedSubQuota" json:"usedSubQuota,omitempty"`     // 已使用订阅额度
+	UsedKLineQuota *int32                 `protobuf:"varint,2,opt,name=usedKLineQuota" json:"usedKLineQuota,omitempty"` // 已使用历史 K 线额度
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UsedQuota) Reset() {
+	*x = UsedQuota{}
+	mi := &file_Notify_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsedQuota) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsedQuota) ProtoMessage() {}
+
+func (x *UsedQuota) ProtoReflect() protoreflect.Message {
+	mi := &file_Notify_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsedQuota.ProtoReflect.Descriptor instead.
+func (*UsedQuota) Descriptor() ([]byte, []int) {
+	return file_Notify_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *UsedQuota) GetUsedSubQuota() int32 {
+	if x != nil && x.UsedSubQuota != nil {
+		return *x.UsedSubQuota
 	}
 	return 0
 }
 
-// 推送协议，无 C2S 和 Request 结构，retType 始终是 RetType_Succeed。
+func (x *UsedQuota) GetUsedKLineQuota() int32 {
+	if x != nil && x.UsedKLineQuota != nil {
+		return *x.UsedKLineQuota
+	}
+	return 0
+}
+
 type S2C struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          *int32                 `protobuf:"varint,1,req,name=type" json:"type,omitempty"`                              //NotifyType, 通知类型
-	Event         *GtwEvent              `protobuf:"bytes,2,opt,name=event" json:"event,omitempty"`                             //事件信息
-	ProgramStatus *common.ProgramStatus  `protobuf:"bytes,3,opt,name=programStatus" json:"programStatus,omitempty"`             //程序状态
-	ConnectStatus *ConnectStatus         `protobuf:"bytes,4,opt,name=connectStatus" json:"connectStatus,omitempty"`             //连接状态
-	QotRight      *QotRight              `protobuf:"bytes,5,opt,name=qotRight" json:"qotRight,omitempty"`                       //行情权限
-	ApiLevel      *APILevel              `protobuf:"varint,6,opt,name=apiLevel,enum=Notify.APILevel" json:"apiLevel,omitempty"` //用户等级，已在 2.10 版本之后废弃
-	ApiQuota      *APIQuota              `protobuf:"bytes,7,opt,name=apiQuota" json:"apiQuota,omitempty"`                       //API 额度
+	Type          *int32                 `protobuf:"varint,1,req,name=type" json:"type,omitempty"`                  //通知类型
+	Event         *GtwEvent              `protobuf:"bytes,2,opt,name=event" json:"event,omitempty"`                 //事件通息
+	ProgramStatus *ProgramStatus         `protobuf:"bytes,3,opt,name=programStatus" json:"programStatus,omitempty"` //程序状态
+	ConnectStatus *ConnectStatus         `protobuf:"bytes,4,opt,name=connectStatus" json:"connectStatus,omitempty"` //连接状态
+	QotRight      *QotRight              `protobuf:"bytes,5,opt,name=qotRight" json:"qotRight,omitempty"`           //行情权限
+	ApiLevel      *APILevel              `protobuf:"bytes,6,opt,name=apiLevel" json:"apiLevel,omitempty"`           //用户等级，已在2.10版本之后废弃
+	ApiQuota      *APIQuota              `protobuf:"bytes,7,opt,name=apiQuota" json:"apiQuota,omitempty"`           //API额度
+	UsedQuota     *UsedQuota             `protobuf:"bytes,8,opt,name=usedQuota" json:"usedQuota,omitempty"`         // 已使用额度
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *S2C) Reset() {
 	*x = S2C{}
-	mi := &file_Notify_proto_msgTypes[4]
+	mi := &file_Notify_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -600,7 +738,7 @@ func (x *S2C) String() string {
 func (*S2C) ProtoMessage() {}
 
 func (x *S2C) ProtoReflect() protoreflect.Message {
-	mi := &file_Notify_proto_msgTypes[4]
+	mi := &file_Notify_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -613,7 +751,7 @@ func (x *S2C) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use S2C.ProtoReflect.Descriptor instead.
 func (*S2C) Descriptor() ([]byte, []int) {
-	return file_Notify_proto_rawDescGZIP(), []int{4}
+	return file_Notify_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *S2C) GetType() int32 {
@@ -630,7 +768,7 @@ func (x *S2C) GetEvent() *GtwEvent {
 	return nil
 }
 
-func (x *S2C) GetProgramStatus() *common.ProgramStatus {
+func (x *S2C) GetProgramStatus() *ProgramStatus {
 	if x != nil {
 		return x.ProgramStatus
 	}
@@ -651,11 +789,11 @@ func (x *S2C) GetQotRight() *QotRight {
 	return nil
 }
 
-func (x *S2C) GetApiLevel() APILevel {
-	if x != nil && x.ApiLevel != nil {
-		return *x.ApiLevel
+func (x *S2C) GetApiLevel() *APILevel {
+	if x != nil {
+		return x.ApiLevel
 	}
-	return APILevel_APILevel_None
+	return nil
 }
 
 func (x *S2C) GetApiQuota() *APIQuota {
@@ -665,13 +803,19 @@ func (x *S2C) GetApiQuota() *APIQuota {
 	return nil
 }
 
+func (x *S2C) GetUsedQuota() *UsedQuota {
+	if x != nil {
+		return x.UsedQuota
+	}
+	return nil
+}
+
 type Response struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// 以下 3 个字段每条协议都有，注释说明在 InitConnect.proto 中。
-	RetType       *int32  `protobuf:"varint,1,req,name=retType,def=-400" json:"retType,omitempty"`
-	RetMsg        *string `protobuf:"bytes,2,opt,name=retMsg" json:"retMsg,omitempty"`
-	ErrCode       *int32  `protobuf:"varint,3,opt,name=errCode" json:"errCode,omitempty"`
-	S2C           *S2C    `protobuf:"bytes,4,opt,name=s2c" json:"s2c,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RetType       *int32                 `protobuf:"varint,1,req,name=retType,def=-400" json:"retType,omitempty"` //RetType,返回结果
+	RetMsg        *string                `protobuf:"bytes,2,opt,name=retMsg" json:"retMsg,omitempty"`
+	ErrCode       *int32                 `protobuf:"varint,3,opt,name=errCode" json:"errCode,omitempty"`
+	S2C           *S2C                   `protobuf:"bytes,4,opt,name=s2c" json:"s2c,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -683,7 +827,7 @@ const (
 
 func (x *Response) Reset() {
 	*x = Response{}
-	mi := &file_Notify_proto_msgTypes[5]
+	mi := &file_Notify_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -695,7 +839,7 @@ func (x *Response) String() string {
 func (*Response) ProtoMessage() {}
 
 func (x *Response) ProtoReflect() protoreflect.Message {
-	mi := &file_Notify_proto_msgTypes[5]
+	mi := &file_Notify_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,7 +852,7 @@ func (x *Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Response.ProtoReflect.Descriptor instead.
 func (*Response) Descriptor() ([]byte, []int) {
-	return file_Notify_proto_rawDescGZIP(), []int{5}
+	return file_Notify_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Response) GetRetType() int32 {
@@ -743,58 +887,88 @@ var File_Notify_proto protoreflect.FileDescriptor
 
 const file_Notify_proto_rawDesc = "" +
 	"\n" +
-	"\fNotify.proto\x12\x06Notify\x1a\fCommon.proto\"2\n" +
-	"\bGtwEvent\x12\x12\n" +
-	"\x04type\x18\x01 \x02(\x05R\x04type\x12\x12\n" +
-	"\x04desc\x18\x02 \x01(\tR\x04desc\"O\n" +
+	"\fNotify.proto\x12\x06Notify\x1a\fCommon.proto\"<\n" +
+	"\bGtwEvent\x12\x1c\n" +
+	"\teventType\x18\x01 \x02(\x05R\teventType\x12\x12\n" +
+	"\x04desc\x18\x02 \x02(\tR\x04desc\"L\n" +
+	"\rProgramStatus\x12;\n" +
+	"\rprogramStatus\x18\x01 \x02(\v2\x15.Common.ProgramStatusR\rprogramStatus\"O\n" +
 	"\rConnectStatus\x12\x1e\n" +
 	"\n" +
 	"qotLogined\x18\x01 \x02(\bR\n" +
 	"qotLogined\x12\x1e\n" +
 	"\n" +
 	"trdLogined\x18\x02 \x02(\bR\n" +
-	"trdLogined\"\xc8\x05\n" +
+	"trdLogined\"\xd8\a\n" +
 	"\bQotRight\x12\x1e\n" +
 	"\n" +
-	"hkQotRight\x18\x01 \x01(\x05R\n" +
-	"hkQotRight\x12*\n" +
-	"\x10hkOptionQotRight\x18\x02 \x01(\x05R\x10hkOptionQotRight\x12*\n" +
-	"\x10hkFutureQotRight\x18\x03 \x01(\x05R\x10hkFutureQotRight\x12\x1e\n" +
+	"hkQotRight\x18\x04 \x02(\x05R\n" +
+	"hkQotRight\x12\x1e\n" +
 	"\n" +
-	"usQotRight\x18\x04 \x01(\x05R\n" +
-	"usQotRight\x12*\n" +
-	"\x10usOptionQotRight\x18\x05 \x01(\x05R\x10usOptionQotRight\x12*\n" +
-	"\x10usFutureQotRight\x18\x06 \x01(\x05R\x10usFutureQotRight\x12\x1e\n" +
+	"usQotRight\x18\x05 \x02(\x05R\n" +
+	"usQotRight\x12\x1e\n" +
 	"\n" +
-	"cnQotRight\x18\a \x01(\x05R\n" +
-	"cnQotRight\x12(\n" +
-	"\x0fusIndexQotRight\x18\b \x01(\x05R\x0fusIndexQotRight\x12$\n" +
-	"\rusOTCQotRight\x18\t \x01(\x05R\rusOTCQotRight\x12*\n" +
-	"\x10sgFutureQotRight\x18\n" +
-	" \x01(\x05R\x10sgFutureQotRight\x12*\n" +
-	"\x10jpFutureQotRight\x18\v \x01(\x05R\x10jpFutureQotRight\x120\n" +
-	"\x13usFutureQotRightCME\x18\f \x01(\x05R\x13usFutureQotRightCME\x122\n" +
-	"\x14usFutureQotRightCBOT\x18\r \x01(\x05R\x14usFutureQotRightCBOT\x124\n" +
-	"\x15usFutureQotRightNYMEX\x18\x0e \x01(\x05R\x15usFutureQotRightNYMEX\x124\n" +
-	"\x15usFutureQotRightCOMEX\x18\x0f \x01(\x05R\x15usFutureQotRightCOMEX\x122\n" +
-	"\x14usFutureQotRightCBOE\x18\x10 \x01(\x05R\x14usFutureQotRightCBOE\"Z\n" +
-	"\bAPIQuota\x12\x1c\n" +
-	"\ttotalUsed\x18\x01 \x01(\x05R\ttotalUsed\x12\x18\n" +
-	"\aownUsed\x18\x02 \x01(\x05R\aownUsed\x12\x16\n" +
-	"\x06remain\x18\x03 \x01(\x05R\x06remain\"\xc5\x02\n" +
+	"cnQotRight\x18\x06 \x02(\x05R\n" +
+	"cnQotRight\x12*\n" +
+	"\x10hkOptionQotRight\x18\a \x01(\x05R\x10hkOptionQotRight\x120\n" +
+	"\x13hasUSOptionQotRight\x18\b \x01(\bR\x13hasUSOptionQotRight\x12*\n" +
+	"\x10hkFutureQotRight\x18\t \x01(\x05R\x10hkFutureQotRight\x12*\n" +
+	"\x10usFutureQotRight\x18\n" +
+	" \x01(\x05R\x10usFutureQotRight\x12*\n" +
+	"\x10usOptionQotRight\x18\v \x01(\x05R\x10usOptionQotRight\x12(\n" +
+	"\x0fusIndexQotRight\x18\f \x01(\x05R\x0fusIndexQotRight\x12$\n" +
+	"\rusOtcQotRight\x18\r \x01(\x05R\rusOtcQotRight\x12*\n" +
+	"\x10sgFutureQotRight\x18\x0e \x01(\x05R\x10sgFutureQotRight\x12*\n" +
+	"\x10jpFutureQotRight\x18\x0f \x01(\x05R\x10jpFutureQotRight\x120\n" +
+	"\x13usCMEFutureQotRight\x18\x10 \x01(\x05R\x13usCMEFutureQotRight\x122\n" +
+	"\x14usCBOTFutureQotRight\x18\x11 \x01(\x05R\x14usCBOTFutureQotRight\x124\n" +
+	"\x15usNYMEXFutureQotRight\x18\x12 \x01(\x05R\x15usNYMEXFutureQotRight\x124\n" +
+	"\x15usCOMEXFutureQotRight\x18\x13 \x01(\x05R\x15usCOMEXFutureQotRight\x122\n" +
+	"\x14usCBOEFutureQotRight\x18\x14 \x01(\x05R\x14usCBOEFutureQotRight\x12\x1e\n" +
+	"\n" +
+	"shQotRight\x18\x15 \x01(\x05R\n" +
+	"shQotRight\x12\x1e\n" +
+	"\n" +
+	"szQotRight\x18\x16 \x01(\x05R\n" +
+	"szQotRight\x12\x1e\n" +
+	"\n" +
+	"ccQotRight\x18\x17 \x01(\x05R\n" +
+	"ccQotRight\x12(\n" +
+	"\x0fsgStockQotRight\x18\x18 \x01(\x05R\x0fsgStockQotRight\x12(\n" +
+	"\x0fmyStockQotRight\x18\x19 \x01(\x05R\x0fmyStockQotRight\x12(\n" +
+	"\x0fjpStockQotRight\x18\x1a \x01(\x05R\x0fjpStockQotRight\"&\n" +
+	"\bAPILevel\x12\x1a\n" +
+	"\bapiLevel\x18\x03 \x02(\tR\bapiLevel\"N\n" +
+	"\bAPIQuota\x12\x1a\n" +
+	"\bsubQuota\x18\x01 \x02(\x05R\bsubQuota\x12&\n" +
+	"\x0ehistoryKLQuota\x18\x02 \x02(\x05R\x0ehistoryKLQuota\"W\n" +
+	"\tUsedQuota\x12\"\n" +
+	"\fusedSubQuota\x18\x01 \x01(\x05R\fusedSubQuota\x12&\n" +
+	"\x0eusedKLineQuota\x18\x02 \x01(\x05R\x0eusedKLineQuota\"\xf6\x02\n" +
 	"\x03S2C\x12\x12\n" +
 	"\x04type\x18\x01 \x02(\x05R\x04type\x12&\n" +
 	"\x05event\x18\x02 \x01(\v2\x10.Notify.GtwEventR\x05event\x12;\n" +
-	"\rprogramStatus\x18\x03 \x01(\v2\x15.Common.ProgramStatusR\rprogramStatus\x12;\n" +
+	"\rprogramStatus\x18\x03 \x01(\v2\x15.Notify.ProgramStatusR\rprogramStatus\x12;\n" +
 	"\rconnectStatus\x18\x04 \x01(\v2\x15.Notify.ConnectStatusR\rconnectStatus\x12,\n" +
 	"\bqotRight\x18\x05 \x01(\v2\x10.Notify.QotRightR\bqotRight\x12,\n" +
-	"\bapiLevel\x18\x06 \x01(\x0e2\x10.Notify.APILevelR\bapiLevel\x12,\n" +
-	"\bapiQuota\x18\a \x01(\v2\x10.Notify.APIQuotaR\bapiQuota\"{\n" +
+	"\bapiLevel\x18\x06 \x01(\v2\x10.Notify.APILevelR\bapiLevel\x12,\n" +
+	"\bapiQuota\x18\a \x01(\v2\x10.Notify.APIQuotaR\bapiQuota\x12/\n" +
+	"\tusedQuota\x18\b \x01(\v2\x11.Notify.UsedQuotaR\tusedQuota\"{\n" +
 	"\bResponse\x12\x1e\n" +
 	"\aretType\x18\x01 \x02(\x05:\x04-400R\aretType\x12\x16\n" +
 	"\x06retMsg\x18\x02 \x01(\tR\x06retMsg\x12\x18\n" +
 	"\aerrCode\x18\x03 \x01(\x05R\aerrCode\x12\x1d\n" +
-	"\x03s2c\x18\x04 \x01(\v2\v.Notify.S2CR\x03s2c*\x9b\x04\n" +
+	"\x03s2c\x18\x04 \x01(\v2\v.Notify.S2CR\x03s2c*\xd8\x01\n" +
+	"\n" +
+	"NotifyType\x12\x13\n" +
+	"\x0fNotifyType_None\x10\x00\x12\x17\n" +
+	"\x13NotifyType_GtwEvent\x10\x01\x12\x1c\n" +
+	"\x18NotifyType_ProgramStatus\x10\x02\x12\x19\n" +
+	"\x15NotifyType_ConnStatus\x10\x03\x12\x17\n" +
+	"\x13NotifyType_QotRight\x10\x04\x12\x17\n" +
+	"\x13NotifyType_APILevel\x10\x05\x12\x17\n" +
+	"\x13NotifyType_APIQuota\x10\x06\x12\x18\n" +
+	"\x14NotifyType_UsedQuota\x10\a*\x9b\x04\n" +
 	"\fGtwEventType\x12\x15\n" +
 	"\x11GtwEventType_None\x10\x00\x12#\n" +
 	"\x1fGtwEventType_LocalCfgLoadFailed\x10\x01\x12 \n" +
@@ -812,18 +986,7 @@ const file_Notify_proto_rawDesc = "" +
 	"\x1cGtwEventType_AppDataNotExist\x10\f\x12#\n" +
 	"\x1fGtwEventType_NessaryDataMissing\x10\r\x12 \n" +
 	"\x1cGtwEventType_TradePwdChanged\x10\x0e\x12!\n" +
-	"\x1dGtwEventType_EnableDeviceLock\x10\x0f*\xbe\x01\n" +
-	"\n" +
-	"NotifyType\x12\x13\n" +
-	"\x0fNotifyType_None\x10\x00\x12\x17\n" +
-	"\x13NotifyType_GtwEvent\x10\x01\x12\x1c\n" +
-	"\x18NotifyType_ProgramStatus\x10\x02\x12\x19\n" +
-	"\x15NotifyType_ConnStatus\x10\x03\x12\x17\n" +
-	"\x13NotifyType_QotRight\x10\x04\x12\x17\n" +
-	"\x13NotifyType_APILevel\x10\x05\x12\x17\n" +
-	"\x13NotifyType_APIQuota\x10\x06*\x1d\n" +
-	"\bAPILevel\x12\x11\n" +
-	"\rAPILevel_None\x10\x00BP\n" +
+	"\x1dGtwEventType_EnableDeviceLock\x10\x0fBP\n" +
 	"\x13com.futu.openapi.pbZ9github.com/jftrade/jftrade-main/pkg/futu/pb/notify;notify"
 
 var (
@@ -838,33 +1001,37 @@ func file_Notify_proto_rawDescGZIP() []byte {
 	return file_Notify_proto_rawDescData
 }
 
-var file_Notify_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_Notify_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_Notify_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_Notify_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_Notify_proto_goTypes = []any{
-	(GtwEventType)(0),            // 0: Notify.GtwEventType
-	(NotifyType)(0),              // 1: Notify.NotifyType
-	(APILevel)(0),                // 2: Notify.APILevel
-	(*GtwEvent)(nil),             // 3: Notify.GtwEvent
+	(NotifyType)(0),              // 0: Notify.NotifyType
+	(GtwEventType)(0),            // 1: Notify.GtwEventType
+	(*GtwEvent)(nil),             // 2: Notify.GtwEvent
+	(*ProgramStatus)(nil),        // 3: Notify.ProgramStatus
 	(*ConnectStatus)(nil),        // 4: Notify.ConnectStatus
 	(*QotRight)(nil),             // 5: Notify.QotRight
-	(*APIQuota)(nil),             // 6: Notify.APIQuota
-	(*S2C)(nil),                  // 7: Notify.S2C
-	(*Response)(nil),             // 8: Notify.Response
-	(*common.ProgramStatus)(nil), // 9: Common.ProgramStatus
+	(*APILevel)(nil),             // 6: Notify.APILevel
+	(*APIQuota)(nil),             // 7: Notify.APIQuota
+	(*UsedQuota)(nil),            // 8: Notify.UsedQuota
+	(*S2C)(nil),                  // 9: Notify.S2C
+	(*Response)(nil),             // 10: Notify.Response
+	(*common.ProgramStatus)(nil), // 11: Common.ProgramStatus
 }
 var file_Notify_proto_depIdxs = []int32{
-	3, // 0: Notify.S2C.event:type_name -> Notify.GtwEvent
-	9, // 1: Notify.S2C.programStatus:type_name -> Common.ProgramStatus
-	4, // 2: Notify.S2C.connectStatus:type_name -> Notify.ConnectStatus
-	5, // 3: Notify.S2C.qotRight:type_name -> Notify.QotRight
-	2, // 4: Notify.S2C.apiLevel:type_name -> Notify.APILevel
-	6, // 5: Notify.S2C.apiQuota:type_name -> Notify.APIQuota
-	7, // 6: Notify.Response.s2c:type_name -> Notify.S2C
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	11, // 0: Notify.ProgramStatus.programStatus:type_name -> Common.ProgramStatus
+	2,  // 1: Notify.S2C.event:type_name -> Notify.GtwEvent
+	3,  // 2: Notify.S2C.programStatus:type_name -> Notify.ProgramStatus
+	4,  // 3: Notify.S2C.connectStatus:type_name -> Notify.ConnectStatus
+	5,  // 4: Notify.S2C.qotRight:type_name -> Notify.QotRight
+	6,  // 5: Notify.S2C.apiLevel:type_name -> Notify.APILevel
+	7,  // 6: Notify.S2C.apiQuota:type_name -> Notify.APIQuota
+	8,  // 7: Notify.S2C.usedQuota:type_name -> Notify.UsedQuota
+	9,  // 8: Notify.Response.s2c:type_name -> Notify.S2C
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_Notify_proto_init() }
@@ -877,8 +1044,8 @@ func file_Notify_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_Notify_proto_rawDesc), len(file_Notify_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   6,
+			NumEnums:      2,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -70,7 +70,12 @@ func rewriteGoPackage(path string) error {
 
 func normalizeNewlines(content []byte) []byte {
 	normalized := strings.ReplaceAll(string(content), "\r\n", "\n")
-	return []byte(strings.ReplaceAll(normalized, "\r", "\n"))
+	normalized = strings.ReplaceAll(normalized, "\r", "\n")
+	lines := strings.Split(normalized, "\n")
+	for index := range lines {
+		lines[index] = strings.TrimRight(lines[index], " \t")
+	}
+	return []byte(strings.Join(lines, "\n"))
 }
 
 func replaceRange(content []byte, start, end int, replacement []byte) []byte {

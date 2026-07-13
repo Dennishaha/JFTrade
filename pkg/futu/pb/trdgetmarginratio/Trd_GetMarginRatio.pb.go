@@ -218,7 +218,7 @@ func (x *C2S) GetSecurityList() []*qotcommon.Security {
 type S2C struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Header              *trdcommon.TrdHeader   `protobuf:"bytes,1,req,name=header" json:"header,omitempty"`                           //交易公共参数头
-	MarginRatioInfoList []*MarginRatioInfo     `protobuf:"bytes,2,rep,name=marginRatioInfoList" json:"marginRatioInfoList,omitempty"` //融资融券数据
+	MarginRatioInfoList []*MarginRatioInfo     `protobuf:"bytes,2,rep,name=marginRatioInfoList" json:"marginRatioInfoList,omitempty"` //账户资金
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }

@@ -9,8 +9,8 @@ import "Qot_Common.proto";
 message MarginRatioInfo
 {
 	required Qot_Common.Security security = 1; //股票
-	optional bool isLongPermit = 2; //是否允许融资
-	optional bool isShortPermit = 3; //是否允许融券
+	optional bool   isLongPermit = 2; //是否允许融资
+	optional bool   isShortPermit = 3; //是否允许融券
 	optional double shortPoolRemain = 4; //卖空池剩余量
 	optional double shortFeeRate = 5; //融券参考利率
 	optional double alertLongRatio = 6; //融资预警比率
@@ -32,7 +32,7 @@ message C2S
 message S2C
 {
 	required Trd_Common.TrdHeader header = 1; //交易公共参数头
-	repeated MarginRatioInfo marginRatioInfoList = 2; //融资融券数据
+	repeated MarginRatioInfo marginRatioInfoList = 2; //账户资金
 }
 
 message Request

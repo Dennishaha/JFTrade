@@ -126,6 +126,10 @@ describe("FutuIntegrationSection", () => {
     expect(wrapper.text()).toContain("填写并保存富途接入配置后");
     expect(wrapper.text()).toContain("先填写连接信息并保存");
     expect(wrapper.text()).toContain("保存并检测 OpenD");
+    expect(wrapper.text()).toContain("最低 10.8.6808");
+    expect(
+      wrapper.get('a[href="https://www.futunn.com/download/OpenAPI"]').text(),
+    ).toBe("下载或升级 OpenD");
 
     const inputs = wrapper.findAll("input");
     await inputs[1]?.setValue("192.168.0.8");
@@ -220,6 +224,53 @@ describe("FutuIntegrationSection", () => {
     });
     expect(stores.consoleData.requestFutuOpenDManualRetry).toHaveBeenCalled();
     expect(stores.consoleData.unsubscribeAllMarketData).toHaveBeenCalled();
+  });
+
+  it("shows the detected build and explicit upgrade guidance for unsupported OpenD", () => {
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.brokerSettings.value.brokers[0] = {
+      ...stores.consoleData.brokerSettings.value.brokers[0],
+      integration: {
+        enabled: true,
+        config: {
+          host: "127.0.0.1",
+          apiPort: 11110,
+          websocketPort: 11111,
+          maxWebSocketConnections: 20,
+          websocketKey: "",
+          tradeMarket: "HK",
+          securityFirm: "FUTUSECURITIES",
+        },
+      },
+    };
+    stores.consoleData.brokerRuntime.value.session = {
+      connectivity: "degraded",
+      checkedAt: "2026-07-13T12:00:00.000Z",
+      lastError: "OpenD 版本 10.8.6708 低于最低支持版本 10.8.6808",
+      globalState: null,
+    };
+    stores.consoleData.futuOpenDHealth.value = {
+      runtime: {
+        serverVersion: "10.8.6708",
+        minimumVersion: "10.8.6808",
+      },
+      diagnosis: {
+        code: "OPEND_VERSION_UNSUPPORTED",
+        manualRetryRequired: true,
+        restartOpenDRecommended: false,
+        summary: "OpenD 版本 10.8.6708 低于最低支持版本 10.8.6808",
+      },
+      localSocketDiagnostics: {
+        websocketEstablishedConnections: 0,
+        topClientProcesses: [],
+      },
+    };
+
+    const wrapper = mountSection("settings");
+
+    expect(wrapper.text()).toContain("OpenD 版本不受支持");
+    expect(wrapper.text()).toContain("10.8.6708（最低 10.8.6808）");
+    expect(wrapper.text()).toContain("请升级至 OpenD 10.8.6808 或更高版本");
   });
 
   it("switches between disabled, warning, error, and success runtime messaging", async () => {

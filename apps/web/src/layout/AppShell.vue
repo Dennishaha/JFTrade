@@ -326,9 +326,12 @@ const stopFutuOpenDMessages = watch(
     lastSeenFutuOpenDIssueFingerprint = fingerprint;
     notifications.push({
       level: diagnosis.manualRetryRequired ? "error" : "warn",
-      title: diagnosis.manualRetryRequired
-        ? "OpenD 自动重试已暂停"
-        : "OpenD 连接需要处理",
+      title:
+        diagnosis.code === "OPEND_VERSION_UNSUPPORTED"
+          ? "OpenD 版本不受支持"
+          : diagnosis.manualRetryRequired
+            ? "OpenD 自动重试已暂停"
+            : "OpenD 连接需要处理",
       message:
         diagnosis.summary ??
         "请检查 OpenD 状态；如已重启 OpenD，请到设置 / 富途接入中手动重试。",

@@ -1573,6 +1573,7 @@ export interface FutuOpenDInstallGuideResponse {
     maxWebSocketConnections: number;
     useEncryption: boolean;
     websocketKeyRequired: boolean;
+    minimumVersion: string;
   };
 }
 
@@ -1583,6 +1584,7 @@ export type FutuOpenDIssueCode =
   | "PROTOCOL_PARSE_ERROR"
   | "WS_POOL_EXHAUSTED"
   | "WEBSOCKET_AUTH"
+  | "OPEND_VERSION_UNSUPPORTED"
   | "OPEND_API_CONNECTIVITY";
 
 export interface FutuOpenDHealthResponse {
@@ -1598,6 +1600,7 @@ export interface FutuOpenDHealthResponse {
     tradeLoggedIn: boolean | null;
     programStatus: string | null;
     serverVersion: string | null;
+    minimumVersion: string;
     lastError: string | null;
   };
   diagnosis: {
@@ -3066,6 +3069,7 @@ export const emptyFutuOpenDInstallGuide: FutuOpenDInstallGuideResponse = {
     maxWebSocketConnections: 20,
     useEncryption: false,
     websocketKeyRequired: false,
+    minimumVersion: "10.8.6808",
   },
 };
 
@@ -3082,6 +3086,7 @@ export const emptyFutuOpenDHealth: FutuOpenDHealthResponse = {
     tradeLoggedIn: null,
     programStatus: null,
     serverVersion: null,
+    minimumVersion: "10.8.6808",
     lastError: null,
   },
   diagnosis: {

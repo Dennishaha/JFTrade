@@ -13,6 +13,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
@@ -115,13 +116,15 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 			response = &initpb.Response{
 				RetType: new(int32(0)),
 				S2C: &initpb.S2C{
-					ServerVer:         new(int32(700)),
+					ServerVer:         new(int32(1008)),
 					LoginUserID:       new(uint64(1)),
 					ConnID:            new(uint64(42)),
 					ConnAESKey:        new("0123456789abcdef"),
 					KeepAliveInterval: new(int32(10)),
 				},
 			}
+		case opend.ProtoGetGlobalState:
+			response = marketDataGlobalStateResponse()
 		case opend.ProtoQotSub:
 			response = &qotsubpb.Response{RetType: new(int32(0))}
 		case opend.ProtoGetBasicQot:
@@ -160,6 +163,25 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 		if _, err := conn.Write(packet); err != nil {
 			return
 		}
+	}
+}
+
+func marketDataGlobalStateResponse() *globalpb.Response {
+	zero := int32(0)
+	return &globalpb.Response{
+		RetType: new(int32(0)),
+		S2C: &globalpb.S2C{
+			MarketHK:       &zero,
+			MarketUS:       &zero,
+			MarketSH:       &zero,
+			MarketSZ:       &zero,
+			MarketHKFuture: &zero,
+			QotLogined:     new(true),
+			TrdLogined:     new(true),
+			ServerVer:      new(int32(1008)),
+			ServerBuildNo:  new(int32(6808)),
+			Time:           new(int64(0)),
+		},
 	}
 }
 

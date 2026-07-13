@@ -24,18 +24,19 @@ const (
 )
 
 type C2S struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Header             *trdcommon.TrdHeader   `protobuf:"bytes,1,req,name=header" json:"header,omitempty"`                           //交易公共参数头
-	OrderType          *int32                 `protobuf:"varint,2,req,name=orderType" json:"orderType,omitempty"`                    //订单类型, 参见Trd_Common.OrderType的枚举定义
-	Code               *string                `protobuf:"bytes,3,req,name=code" json:"code,omitempty"`                               //代码，港股必须是5位数字，A股必须是6位数字，美股没限制
-	Price              *float64               `protobuf:"fixed64,4,req,name=price" json:"price,omitempty"`                           //价格，如果是竞价、市价单，请也填入一个当前价格，服务器才好计算
-	OrderID            *uint64                `protobuf:"varint,5,opt,name=orderID" json:"orderID,omitempty"`                        //订单号，新下订单不需要，改单时需要带上
-	AdjustPrice        *bool                  `protobuf:"varint,6,opt,name=adjustPrice" json:"adjustPrice,omitempty"`                //是否调整价格，如果价格不合法，是否调整到合法价位
-	AdjustSideAndLimit *float64               `protobuf:"fixed64,7,opt,name=adjustSideAndLimit" json:"adjustSideAndLimit,omitempty"` //调整方向和调整幅度百分比限制
-	SecMarket          *int32                 `protobuf:"varint,8,opt,name=secMarket" json:"secMarket,omitempty"`                    //证券所属市场，参见Trd_Common.TrdSecMarket的枚举定义
-	OrderIDEx          *string                `protobuf:"bytes,9,opt,name=orderIDEx" json:"orderIDEx,omitempty"`                     //表示服务器订单id，可以用来代替orderID，和orderID二选一
-	Session            *int32                 `protobuf:"varint,10,opt,name=session" json:"session,omitempty"`                       //美股订单时段, 参见Common.Session的枚举定义
-	PositionID         *uint64                `protobuf:"varint,11,opt,name=positionID" json:"positionID,omitempty"`                 //持仓ID，JP券商查询平仓数量时使用
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Header    *trdcommon.TrdHeader   `protobuf:"bytes,1,req,name=header" json:"header,omitempty"`        //交易公共参数头
+	OrderType *int32                 `protobuf:"varint,2,req,name=orderType" json:"orderType,omitempty"` //订单类型, 参见Trd_Common.OrderType的枚举定义
+	Code      *string                `protobuf:"bytes,3,req,name=code" json:"code,omitempty"`            //代码，港股必须是5位数字，A股必须是6位数字，美股没限制
+	Price     *float64               `protobuf:"fixed64,4,req,name=price" json:"price,omitempty"`        //价格，（证券账户精确到小数点后 3 位，期货账户精确到小数点后 9 位，超出部分会被舍弃）。如果是竞价、市价单，请也填入一个当前价格，服务器才好计算
+	OrderID   *uint64                `protobuf:"varint,5,opt,name=orderID" json:"orderID,omitempty"`     //订单号，新下订单不需要，如果是修改订单就需要把原订单号带上才行，因为改单的最大买卖数量会包含原订单数量。
+	// 为保证与下单的价格同步，也提供调整价格选项，以下2个为调整价格使用，对港、A股有意义，因为港股有价位，A股2位精度，美股可不传
+	AdjustPrice        *bool    `protobuf:"varint,6,opt,name=adjustPrice" json:"adjustPrice,omitempty"`                //是否调整价格，如果价格不合法，是否调整到合法价位，true调整，false不调整
+	AdjustSideAndLimit *float64 `protobuf:"fixed64,7,opt,name=adjustSideAndLimit" json:"adjustSideAndLimit,omitempty"` //调整方向和调整幅度百分比限制，正数代表向上调整，负数代表向下调整，具体值代表调整幅度限制，如：0.015代表向上调整且幅度不超过1.5%；-0.01代表向下调整且幅度不超过1%
+	SecMarket          *int32   `protobuf:"varint,8,opt,name=secMarket" json:"secMarket,omitempty"`                    //证券所属市场，参见TrdSecMarket的枚举定义
+	OrderIDEx          *string  `protobuf:"bytes,9,opt,name=orderIDEx" json:"orderIDEx,omitempty"`                     //表示服务器订单id，可以用来代替orderID，和orderID二选一
+	Session            *int32   `protobuf:"varint,10,opt,name=session" json:"session,omitempty"`                       //美股订单时段, 参见Common.Session的枚举定义
+	PositionID         *uint64  `protobuf:"varint,11,opt,name=positionID" json:"positionID,omitempty"`                 //持仓ID，JP券商查询平仓数量时使用
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }

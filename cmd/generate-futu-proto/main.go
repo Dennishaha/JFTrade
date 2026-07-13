@@ -11,7 +11,7 @@ import (
 	"github.com/jftrade/jftrade-main/cmd/internal/protogen"
 )
 
-const defaultFutuSourceDirectory = "FTAPIProtoFiles_10.5.6508"
+const defaultFutuSourceDirectory = "FTAPIProtoFiles_10.8.6808"
 
 type cliConfig struct {
 	source string
@@ -59,7 +59,7 @@ func parseCLIConfig(args []string, defaultSource string, stderr io.Writer) (cliC
 	cfg := cliConfig{}
 	flags := flag.NewFlagSet("generate-futu-proto", flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	flags.StringVar(&cfg.source, "source", defaultSource, "directory containing Futu OpenAPI 10.5.6508 proto files")
+	flags.StringVar(&cfg.source, "source", defaultSource, "directory containing Futu OpenAPI 10.8.6808 proto files")
 	if err := flags.Parse(args); err != nil {
 		return cliConfig{}, err
 	}

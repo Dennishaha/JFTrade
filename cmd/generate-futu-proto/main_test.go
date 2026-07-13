@@ -13,9 +13,9 @@ import (
 
 func TestParseCLIConfig(t *testing.T) {
 	var stderr bytes.Buffer
-	cfg, err := parseCLIConfig(nil, `C:\Users\test\Downloads\FTAPIProtoFiles_10.5.6508`, &stderr)
+	cfg, err := parseCLIConfig(nil, `C:\Users\test\Downloads\FTAPIProtoFiles_10.8.6808`, &stderr)
 	require.NoError(t, err)
-	assert.Equal(t, `C:\Users\test\Downloads\FTAPIProtoFiles_10.5.6508`, cfg.source)
+	assert.Equal(t, `C:\Users\test\Downloads\FTAPIProtoFiles_10.8.6808`, cfg.source)
 
 	cfg, err = parseCLIConfig([]string{"-source", "/tmp/futu"}, "unused", &stderr)
 	require.NoError(t, err)

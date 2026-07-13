@@ -92,31 +92,17 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	connectElapsed := time.Since(connectStart)
 
 	initStart := time.Now()
-	initReq := &initpb.Request{C2S: &initpb.C2S{
-		ClientVer:           new(int32(101)),
-		ClientID:            new("jftrade-bbgo"),
-		RecvNotify:          new(true),
-		ProgrammingLanguage: new("Go"),
-	}}
-	var initResp initpb.Response
-	if err := e.client.Call(ctx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
-		jftradeErr3 := e.invalidateClientLocked()
-		jftradeLogError(jftradeErr3)
-		log.Printf("futu OpenD InitConnect to %s failed after %v (connect=%v): %v",
-			e.addr, time.Since(initStart), connectElapsed, err)
-		return nil, err
-	}
-	if initResp.GetRetType() != 0 {
-		err := fmt.Errorf("opend InitConnect retType=%d errCode=%d retMsg=%s", initResp.GetRetType(), initResp.GetErrCode(), initResp.GetRetMsg())
-		log.Printf("futu OpenD InitConnect error: %v", err)
+	initState, err := e.initializeOpenDSessionLocked(ctx, connectElapsed)
+	if err != nil {
 		jftradeErr1 := e.invalidateClientLocked()
 		jftradeLogError(jftradeErr1)
+		log.Printf("futu OpenD session initialization to %s failed after %v (connect=%v): %v",
+			e.addr, time.Since(initStart), connectElapsed, err)
 		return nil, err
 	}
 
 	e.ready = true
-	e.client.SetConnID(initResp.GetS2C().GetConnID())
-	if keepAliveInterval := initResp.GetS2C().GetKeepAliveInterval(); keepAliveInterval > 0 {
+	if keepAliveInterval := initState.GetKeepAliveInterval(); keepAliveInterval > 0 {
 		e.client.StartKeepAlive(time.Duration(keepAliveInterval) * time.Second)
 	}
 	e.subscriptions.ensure()
@@ -134,10 +120,49 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	return e.client, nil
 }
 
+func (e *Exchange) initializeOpenDSessionLocked(ctx context.Context, connectElapsed time.Duration) (*initpb.S2C, error) {
+	initReq := &initpb.Request{C2S: &initpb.C2S{
+		ClientVer:           new(int32(101)),
+		ClientID:            new("jftrade-bbgo"),
+		RecvNotify:          new(true),
+		ProgrammingLanguage: new("Go"),
+	}}
+	var initResp initpb.Response
+	if err := e.client.Call(ctx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
+		return nil, fmt.Errorf("opend InitConnect failed after TCP connect %v: %w", connectElapsed, err)
+	}
+	if initResp.GetRetType() != 0 {
+		return nil, fmt.Errorf("opend InitConnect retType=%d errCode=%d retMsg=%s", initResp.GetRetType(), initResp.GetErrCode(), initResp.GetRetMsg())
+	}
+	initState := initResp.GetS2C()
+	if initState == nil {
+		return nil, fmt.Errorf("opend InitConnect returned no server state")
+	}
+	if err := opend.ValidateMinimumVersion(initState.GetServerVer(), nil); err != nil {
+		return nil, err
+	}
+	e.client.SetConnID(initState.GetConnID())
+	// OpenD may push initial status notifications immediately after InitConnect,
+	// before the version-bearing GetGlobalState response arrives.
+	e.bindSystemNotifyLocked(e.client)
+	globalState, err := e.client.GetGlobalState(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("opend GetGlobalState during session setup: %w", err)
+	}
+	serverBuildNo := globalState.ServerBuildNo
+	if err := opend.ValidateMinimumVersion(globalState.ServerVer, &serverBuildNo); err != nil {
+		return nil, err
+	}
+	return initState, nil
+}
+
 // --- Notification binding & dispatch ---
 
 func (e *Exchange) bindOrderBookNotifyLocked(client *opend.Client) {
-	if client == nil || len(e.orderBookNotifyHandlers) == 0 || e.orderBookNotifyClient == client {
+	e.handlerMu.RLock()
+	hasHandlers := len(e.orderBookNotifyHandlers) > 0
+	e.handlerMu.RUnlock()
+	if client == nil || !hasHandlers || e.orderBookNotifyClient == client {
 		return
 	}
 	client.SubscribeOrderBook(e.dispatchOrderBookNotify)
@@ -153,12 +178,12 @@ func (e *Exchange) dispatchOrderBookNotify(update *qotupdateorderbookpb.S2C) {
 		return
 	}
 
-	e.mu.Lock()
+	e.handlerMu.RLock()
 	handlers := make([]func(string), 0, len(e.orderBookNotifyHandlers))
 	for _, handler := range e.orderBookNotifyHandlers {
 		handlers = append(handlers, handler)
 	}
-	e.mu.Unlock()
+	e.handlerMu.RUnlock()
 
 	for _, handler := range handlers {
 		handler(symbol)
@@ -166,7 +191,10 @@ func (e *Exchange) dispatchOrderBookNotify(update *qotupdateorderbookpb.S2C) {
 }
 
 func (e *Exchange) bindSystemNotifyLocked(client *opend.Client) {
-	if client == nil || len(e.systemNotifyHandlers) == 0 || e.systemNotifyClient == client {
+	e.handlerMu.RLock()
+	hasHandlers := len(e.systemNotifyHandlers) > 0
+	e.handlerMu.RUnlock()
+	if client == nil || !hasHandlers || e.systemNotifyClient == client {
 		return
 	}
 	client.SubscribeNotify(e.dispatchSystemNotify)
@@ -174,9 +202,9 @@ func (e *Exchange) bindSystemNotifyLocked(client *opend.Client) {
 }
 
 func (e *Exchange) dispatchSystemNotify(response *notifypb.Response) {
-	e.mu.Lock()
+	e.handlerMu.RLock()
 	handlers := append([]func(*notifypb.Response){}, e.systemNotifyHandlers...)
-	e.mu.Unlock()
+	e.handlerMu.RUnlock()
 	for _, handler := range handlers {
 		handler(response)
 	}
@@ -186,7 +214,10 @@ func (e *Exchange) bindTradeUpdateNotifyLocked(client *opend.Client) {
 	if client == nil || e.orderUpdateNotifyClient == client {
 		return
 	}
-	if len(e.orderUpdateHandlers) == 0 && len(e.orderFillUpdateHandlers) == 0 {
+	e.handlerMu.RLock()
+	hasHandlers := len(e.orderUpdateHandlers) > 0 || len(e.orderFillUpdateHandlers) > 0
+	e.handlerMu.RUnlock()
+	if !hasHandlers {
 		return
 	}
 	client.SubscribeOrderUpdate(e.dispatchOrderUpdateNotify)
@@ -195,24 +226,24 @@ func (e *Exchange) bindTradeUpdateNotifyLocked(client *opend.Client) {
 }
 
 func (e *Exchange) dispatchOrderUpdateNotify(header *trdcommonpb.TrdHeader, order *trdcommonpb.Order) {
-	e.mu.Lock()
+	e.handlerMu.RLock()
 	handlers := make([]func(*trdcommonpb.TrdHeader, *trdcommonpb.Order), 0, len(e.orderUpdateHandlers))
 	for _, handler := range e.orderUpdateHandlers {
 		handlers = append(handlers, handler)
 	}
-	e.mu.Unlock()
+	e.handlerMu.RUnlock()
 	for _, handler := range handlers {
 		handler(header, order)
 	}
 }
 
 func (e *Exchange) dispatchOrderFillUpdateNotify(header *trdcommonpb.TrdHeader, fill *trdcommonpb.OrderFill) {
-	e.mu.Lock()
+	e.handlerMu.RLock()
 	handlers := make([]func(*trdcommonpb.TrdHeader, *trdcommonpb.OrderFill), 0, len(e.orderFillUpdateHandlers))
 	for _, handler := range e.orderFillUpdateHandlers {
 		handlers = append(handlers, handler)
 	}
-	e.mu.Unlock()
+	e.handlerMu.RUnlock()
 	for _, handler := range handlers {
 		handler(header, fill)
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -37,6 +38,8 @@ type quoteOpenDServer struct {
 	addr                  string
 	accepts               atomic.Int32
 	initRecvNotify        atomic.Bool
+	serverVer             atomic.Int32
+	serverBuildNo         atomic.Int32
 	accountListCalls      atomic.Int32
 	fundsCalls            atomic.Int32
 	positionListCalls     atomic.Int32
@@ -246,6 +249,8 @@ func startQuoteOpenDServer(t *testing.T) *quoteOpenDServer {
 		listener:          listener,
 		shutdownCompleted: make(chan struct{}),
 	}
+	server.serverVer.Store(1008)
+	server.serverBuildNo.Store(6808)
 	go server.acceptLoop()
 	return server
 }
@@ -300,13 +305,15 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			response = &initpb.Response{
 				RetType: new(int32(0)),
 				S2C: &initpb.S2C{
-					ServerVer:         new(int32(700)),
+					ServerVer:         new(s.serverVer.Load()),
 					LoginUserID:       new(uint64(1)),
 					ConnID:            new(uint64(42)),
 					ConnAESKey:        new("0123456789abcdef"),
 					KeepAliveInterval: new(int32(10)),
 				},
 			}
+		case opend.ProtoGetGlobalState:
+			response = testGlobalStateResponse(s.serverVer.Load(), s.serverBuildNo.Load())
 		case opend.ProtoQotSub:
 			s.qotSubCalls.Add(1)
 			request := &qotsubpb.Request{}
@@ -426,6 +433,25 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 				}
 			}
 		}
+	}
+}
+
+func testGlobalStateResponse(serverVer, serverBuildNo int32) *globalpb.Response {
+	zero := int32(0)
+	return &globalpb.Response{
+		RetType: new(int32(0)),
+		S2C: &globalpb.S2C{
+			MarketHK:       &zero,
+			MarketUS:       &zero,
+			MarketSH:       &zero,
+			MarketSZ:       &zero,
+			MarketHKFuture: &zero,
+			QotLogined:     new(true),
+			TrdLogined:     new(true),
+			ServerVer:      &serverVer,
+			ServerBuildNo:  &serverBuildNo,
+			Time:           new(time.Now().Unix()),
+		},
 	}
 }
 

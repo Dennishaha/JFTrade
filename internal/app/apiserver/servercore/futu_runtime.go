@@ -120,6 +120,7 @@ func (s *Server) futuOpenDInstallGuide() map[string]any {
 		"description": "Configure Futu OpenD. Current market data reaches OpenD through the bbgo exchange adapter and the native API port; WebSocket settings remain available for compatibility and future push-stream support.",
 		"options":     []any{},
 		"nextSteps": []string{
+			"安装或升级至 Futu OpenD " + opend.MinimumOpenDVersion + " 或更高版本。",
 			"确认 OpenD 已登录，并先保证 API Port 可从本机访问。",
 			"保存 Host 和 API Port；WebSocket Port / Key 目前主要用于兼容配置与诊断。",
 			"保存后刷新 OpenD 健康状态，确认 API 侧连接正常。",
@@ -129,6 +130,7 @@ func (s *Server) futuOpenDInstallGuide() map[string]any {
 			"maxWebSocketConnections": config.MaxWebSocketConnections, "useEncryption": config.UseEncryption,
 			"websocketKeyRequired": strings.TrimSpace(config.WebSocketKey) != "",
 			"marketDataTransport":  liveQuoteTransportMode,
+			"minimumVersion":       opend.MinimumOpenDVersion,
 		},
 	}
 }
@@ -167,7 +169,7 @@ func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
 		}
 	}
 	globalState := any(nil)
-	if probe.QuoteLoggedIn != nil || probe.TradeLoggedIn != nil || probe.ProgramStatus != nil {
+	if probe.QuoteLoggedIn != nil || probe.TradeLoggedIn != nil || probe.ProgramStatus != nil || probe.ServerVersion != nil {
 		globalState = map[string]any{
 			"quoteLoggedIn": boolValue(probe.QuoteLoggedIn),
 			"tradeLoggedIn": boolValue(probe.TradeLoggedIn),
@@ -223,7 +225,11 @@ func (s *Server) futuOpenDHealth(ctx context.Context) map[string]any {
 		code = "OPEND_API_CONNECTIVITY"
 		manualRetry = true
 		lower := strings.ToLower(*probe.LastError)
-		restartOpenDRecommended = strings.Contains(lower, "dial") || strings.Contains(lower, "connection refused")
+		if probe.IssueCode != "" {
+			code = probe.IssueCode
+		} else {
+			restartOpenDRecommended = strings.Contains(lower, "dial") || strings.Contains(lower, "connection refused")
+		}
 	}
 	return map[string]any{
 		"checkedAt": probe.CheckedAt,
@@ -240,6 +246,7 @@ func (s *Server) futuOpenDHealth(ctx context.Context) map[string]any {
 			"tradeLoggedIn":          probe.TradeLoggedIn,
 			"programStatus":          probe.ProgramStatus,
 			"serverVersion":          probe.ServerVersion,
+			"minimumVersion":         opend.MinimumOpenDVersion,
 			"lastError":              probe.LastError,
 		},
 		"diagnosis": map[string]any{
@@ -366,14 +373,30 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: &message}
 	}
 
-	s2c := globalResp.GetS2C()
+	return openDProbeFromGlobalState(checkedAt, globalResp.GetS2C())
+}
+
+func openDProbeFromGlobalState(checkedAt string, s2c *globalpb.S2C) opendProbe {
+	if s2c == nil {
+		message := "GetGlobalState returned no server state"
+		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: &message}
+	}
+	serverVersion := opend.FormatVersion(s2c.GetServerVer(), s2c.GetServerBuildNo())
+	serverBuildNo := s2c.GetServerBuildNo()
+	if err := opend.ValidateMinimumVersion(s2c.GetServerVer(), &serverBuildNo); err != nil {
+		message := err.Error()
+		return opendProbe{
+			CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded",
+			IssueCode: "OPEND_VERSION_UNSUPPORTED", LastError: &message, ServerVersion: &serverVersion,
+		}
+	}
 	return opendProbe{
 		CheckedAt:        checkedAt,
 		Connectivity:     "connected",
 		Status:           "healthy",
 		QuoteLoggedIn:    new(s2c.GetQotLogined()),
 		TradeLoggedIn:    new(s2c.GetTrdLogined()),
-		ServerVersion:    new(fmt.Sprintf("%d.%d", s2c.GetServerVer(), s2c.GetServerBuildNo())),
+		ServerVersion:    &serverVersion,
 		ProgramStatus:    new(programStatusString(s2c.GetProgramStatus())),
 		ProgramTimestamp: new(time.Unix(s2c.GetTime(), 0).UTC().Format(time.RFC3339Nano)),
 		Markets: []map[string]any{
@@ -424,6 +447,7 @@ func (s *Server) emptyFutuOpenDHealth(config FutuIntegrationConfig) map[string]a
 			"tradeLoggedIn":          nil,
 			"programStatus":          nil,
 			"serverVersion":          nil,
+			"minimumVersion":         opend.MinimumOpenDVersion,
 			"lastError":              nil,
 		},
 		"diagnosis": map[string]any{

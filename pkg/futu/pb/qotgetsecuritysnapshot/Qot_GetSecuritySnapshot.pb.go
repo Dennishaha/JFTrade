@@ -23,31 +23,84 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type C2S struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecurityList  []*qotcommon.Security  `protobuf:"bytes,1,rep,name=securityList" json:"securityList,omitempty"` //股票
+	Header        *qotcommon.QotHeader   `protobuf:"bytes,100,opt,name=header" json:"header,omitempty"`           //行情公共参数头
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *C2S) Reset() {
+	*x = C2S{}
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *C2S) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*C2S) ProtoMessage() {}
+
+func (x *C2S) ProtoReflect() protoreflect.Message {
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use C2S.ProtoReflect.Descriptor instead.
+func (*C2S) Descriptor() ([]byte, []int) {
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *C2S) GetSecurityList() []*qotcommon.Security {
+	if x != nil {
+		return x.SecurityList
+	}
+	return nil
+}
+
+func (x *C2S) GetHeader() *qotcommon.QotHeader {
+	if x != nil {
+		return x.Header
+	}
+	return nil
+}
+
+// 正股类型额外数据
 type EquitySnapshotExData struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
-	IssuedShares         *int64                 `protobuf:"varint,1,req,name=issuedShares" json:"issuedShares,omitempty"`
-	IssuedMarketVal      *float64               `protobuf:"fixed64,2,req,name=issuedMarketVal" json:"issuedMarketVal,omitempty"`
-	NetAsset             *float64               `protobuf:"fixed64,3,req,name=netAsset" json:"netAsset,omitempty"`
-	NetProfit            *float64               `protobuf:"fixed64,4,req,name=netProfit" json:"netProfit,omitempty"`
-	EarningsPershare     *float64               `protobuf:"fixed64,5,req,name=earningsPershare" json:"earningsPershare,omitempty"`
-	OutstandingShares    *int64                 `protobuf:"varint,6,req,name=outstandingShares" json:"outstandingShares,omitempty"`
-	OutstandingMarketVal *float64               `protobuf:"fixed64,7,req,name=outstandingMarketVal" json:"outstandingMarketVal,omitempty"`
-	NetAssetPershare     *float64               `protobuf:"fixed64,8,req,name=netAssetPershare" json:"netAssetPershare,omitempty"`
-	EyRate               *float64               `protobuf:"fixed64,9,req,name=eyRate" json:"eyRate,omitempty"`
-	PeRate               *float64               `protobuf:"fixed64,10,req,name=peRate" json:"peRate,omitempty"`
-	PbRate               *float64               `protobuf:"fixed64,11,req,name=pbRate" json:"pbRate,omitempty"`
-	PeTTMRate            *float64               `protobuf:"fixed64,12,req,name=peTTMRate" json:"peTTMRate,omitempty"`
-	DividendTTM          *float64               `protobuf:"fixed64,13,opt,name=dividendTTM" json:"dividendTTM,omitempty"`
-	DividendRatioTTM     *float64               `protobuf:"fixed64,14,opt,name=dividendRatioTTM" json:"dividendRatioTTM,omitempty"`
-	DividendLFY          *float64               `protobuf:"fixed64,15,opt,name=dividendLFY" json:"dividendLFY,omitempty"`
-	DividendLFYRatio     *float64               `protobuf:"fixed64,16,opt,name=dividendLFYRatio" json:"dividendLFYRatio,omitempty"`
+	IssuedShares         *int64                 `protobuf:"varint,1,req,name=issuedShares" json:"issuedShares,omitempty"`                  // 发行股本,即总股本
+	IssuedMarketVal      *float64               `protobuf:"fixed64,2,req,name=issuedMarketVal" json:"issuedMarketVal,omitempty"`           // 总市值 =总股本*当前价格（单位：元）
+	NetAsset             *float64               `protobuf:"fixed64,3,req,name=netAsset" json:"netAsset,omitempty"`                         // 资产净值
+	NetProfit            *float64               `protobuf:"fixed64,4,req,name=netProfit" json:"netProfit,omitempty"`                       // 盈利（亏损）
+	EarningsPershare     *float64               `protobuf:"fixed64,5,req,name=earningsPershare" json:"earningsPershare,omitempty"`         // 每股盈利
+	OutstandingShares    *int64                 `protobuf:"varint,6,req,name=outstandingShares" json:"outstandingShares,omitempty"`        // 流通股本
+	OutstandingMarketVal *float64               `protobuf:"fixed64,7,req,name=outstandingMarketVal" json:"outstandingMarketVal,omitempty"` // 流通市值 =流通股本*当前价格（单位：元）
+	NetAssetPershare     *float64               `protobuf:"fixed64,8,req,name=netAssetPershare" json:"netAssetPershare,omitempty"`         // 每股净资产
+	EyRate               *float64               `protobuf:"fixed64,9,req,name=eyRate" json:"eyRate,omitempty"`                             // 收益率（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	PeRate               *float64               `protobuf:"fixed64,10,req,name=peRate" json:"peRate,omitempty"`                            // 市盈率
+	PbRate               *float64               `protobuf:"fixed64,11,req,name=pbRate" json:"pbRate,omitempty"`                            // 市净率
+	PeTTMRate            *float64               `protobuf:"fixed64,12,req,name=peTTMRate" json:"peTTMRate,omitempty"`                      // 市盈率TTM
+	DividendTTM          *float64               `protobuf:"fixed64,13,opt,name=dividendTTM" json:"dividendTTM,omitempty"`                  // 股息TTM，派息
+	DividendRatioTTM     *float64               `protobuf:"fixed64,14,opt,name=dividendRatioTTM" json:"dividendRatioTTM,omitempty"`        // 股息率TTM（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	DividendLFY          *float64               `protobuf:"fixed64,15,opt,name=dividendLFY" json:"dividendLFY,omitempty"`                  // 股息LFY，上一年度派息
+	DividendLFYRatio     *float64               `protobuf:"fixed64,16,opt,name=dividendLFYRatio" json:"dividendLFYRatio,omitempty"`        // 股息率LFY（该字段为百分比字段，默认不展示%，如20实际对应20%）
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
 
 func (x *EquitySnapshotExData) Reset() {
 	*x = EquitySnapshotExData{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[0]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -59,7 +112,7 @@ func (x *EquitySnapshotExData) String() string {
 func (*EquitySnapshotExData) ProtoMessage() {}
 
 func (x *EquitySnapshotExData) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[0]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -72,7 +125,7 @@ func (x *EquitySnapshotExData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EquitySnapshotExData.ProtoReflect.Descriptor instead.
 func (*EquitySnapshotExData) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{0}
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *EquitySnapshotExData) GetIssuedShares() int64 {
@@ -187,40 +240,41 @@ func (x *EquitySnapshotExData) GetDividendLFYRatio() float64 {
 	return 0
 }
 
+// 窝轮类型额外数据
 type WarrantSnapshotExData struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	ConversionRate     *float64               `protobuf:"fixed64,1,req,name=conversionRate" json:"conversionRate,omitempty"`
-	WarrantType        *int32                 `protobuf:"varint,2,req,name=warrantType" json:"warrantType,omitempty"`
-	StrikePrice        *float64               `protobuf:"fixed64,3,req,name=strikePrice" json:"strikePrice,omitempty"`
-	MaturityTime       *string                `protobuf:"bytes,4,req,name=maturityTime" json:"maturityTime,omitempty"`
-	EndTradeTime       *string                `protobuf:"bytes,5,req,name=endTradeTime" json:"endTradeTime,omitempty"`
-	Owner              *qotcommon.Security    `protobuf:"bytes,6,req,name=owner" json:"owner,omitempty"`
-	RecoveryPrice      *float64               `protobuf:"fixed64,7,req,name=recoveryPrice" json:"recoveryPrice,omitempty"`
-	StreetVolumn       *int64                 `protobuf:"varint,8,req,name=streetVolumn" json:"streetVolumn,omitempty"`
-	IssueVolumn        *int64                 `protobuf:"varint,9,req,name=issueVolumn" json:"issueVolumn,omitempty"`
-	StreetRate         *float64               `protobuf:"fixed64,10,req,name=streetRate" json:"streetRate,omitempty"`
-	Delta              *float64               `protobuf:"fixed64,11,req,name=delta" json:"delta,omitempty"`
-	ImpliedVolatility  *float64               `protobuf:"fixed64,12,req,name=impliedVolatility" json:"impliedVolatility,omitempty"`
-	Premium            *float64               `protobuf:"fixed64,13,req,name=premium" json:"premium,omitempty"`
-	MaturityTimestamp  *float64               `protobuf:"fixed64,14,opt,name=maturityTimestamp" json:"maturityTimestamp,omitempty"`
-	EndTradeTimestamp  *float64               `protobuf:"fixed64,15,opt,name=endTradeTimestamp" json:"endTradeTimestamp,omitempty"`
-	Leverage           *float64               `protobuf:"fixed64,16,opt,name=leverage" json:"leverage,omitempty"`
-	Ipop               *float64               `protobuf:"fixed64,17,opt,name=ipop" json:"ipop,omitempty"`
-	BreakEvenPoint     *float64               `protobuf:"fixed64,18,opt,name=breakEvenPoint" json:"breakEvenPoint,omitempty"`
-	ConversionPrice    *float64               `protobuf:"fixed64,19,opt,name=conversionPrice" json:"conversionPrice,omitempty"`
-	PriceRecoveryRatio *float64               `protobuf:"fixed64,20,opt,name=priceRecoveryRatio" json:"priceRecoveryRatio,omitempty"`
-	Score              *float64               `protobuf:"fixed64,21,opt,name=score" json:"score,omitempty"`
-	UpperStrikePrice   *float64               `protobuf:"fixed64,22,opt,name=upperStrikePrice" json:"upperStrikePrice,omitempty"`
-	LowerStrikePrice   *float64               `protobuf:"fixed64,23,opt,name=lowerStrikePrice" json:"lowerStrikePrice,omitempty"`
-	InLinePriceStatus  *int32                 `protobuf:"varint,24,opt,name=inLinePriceStatus" json:"inLinePriceStatus,omitempty"`
-	IssuerCode         *string                `protobuf:"bytes,25,opt,name=issuerCode" json:"issuerCode,omitempty"`
+	ConversionRate     *float64               `protobuf:"fixed64,1,req,name=conversionRate" json:"conversionRate,omitempty"`          //换股比率
+	WarrantType        *int32                 `protobuf:"varint,2,req,name=warrantType" json:"warrantType,omitempty"`                 //Qot_Common.WarrantType,窝轮类型
+	StrikePrice        *float64               `protobuf:"fixed64,3,req,name=strikePrice" json:"strikePrice,omitempty"`                //行使价
+	MaturityTime       *string                `protobuf:"bytes,4,req,name=maturityTime" json:"maturityTime,omitempty"`                //到期日时间字符串
+	EndTradeTime       *string                `protobuf:"bytes,5,req,name=endTradeTime" json:"endTradeTime,omitempty"`                //最后交易日时间字符串
+	Owner              *qotcommon.Security    `protobuf:"bytes,6,req,name=owner" json:"owner,omitempty"`                              //所属正股
+	RecoveryPrice      *float64               `protobuf:"fixed64,7,req,name=recoveryPrice" json:"recoveryPrice,omitempty"`            //收回价,仅牛熊证支持该字段
+	StreetVolumn       *int64                 `protobuf:"varint,8,req,name=streetVolumn" json:"streetVolumn,omitempty"`               //街货量
+	IssueVolumn        *int64                 `protobuf:"varint,9,req,name=issueVolumn" json:"issueVolumn,omitempty"`                 //发行量
+	StreetRate         *float64               `protobuf:"fixed64,10,req,name=streetRate" json:"streetRate,omitempty"`                 //街货占比（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	Delta              *float64               `protobuf:"fixed64,11,req,name=delta" json:"delta,omitempty"`                           //对冲值,仅认购认沽支持该字段
+	ImpliedVolatility  *float64               `protobuf:"fixed64,12,req,name=impliedVolatility" json:"impliedVolatility,omitempty"`   //引申波幅,仅认购认沽支持该字段
+	Premium            *float64               `protobuf:"fixed64,13,req,name=premium" json:"premium,omitempty"`                       //溢价（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	MaturityTimestamp  *float64               `protobuf:"fixed64,14,opt,name=maturityTimestamp" json:"maturityTimestamp,omitempty"`   //到期日时间戳
+	EndTradeTimestamp  *float64               `protobuf:"fixed64,15,opt,name=endTradeTimestamp" json:"endTradeTimestamp,omitempty"`   //最后交易日时间戳
+	Leverage           *float64               `protobuf:"fixed64,16,opt,name=leverage" json:"leverage,omitempty"`                     // 杠杆比率（倍）
+	Ipop               *float64               `protobuf:"fixed64,17,opt,name=ipop" json:"ipop,omitempty"`                             // 价内/价外（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	BreakEvenPoint     *float64               `protobuf:"fixed64,18,opt,name=breakEvenPoint" json:"breakEvenPoint,omitempty"`         // 打和点
+	ConversionPrice    *float64               `protobuf:"fixed64,19,opt,name=conversionPrice" json:"conversionPrice,omitempty"`       // 换股价
+	PriceRecoveryRatio *float64               `protobuf:"fixed64,20,opt,name=priceRecoveryRatio" json:"priceRecoveryRatio,omitempty"` // 正股距收回价（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	Score              *float64               `protobuf:"fixed64,21,opt,name=score" json:"score,omitempty"`                           // 综合评分
+	UpperStrikePrice   *float64               `protobuf:"fixed64,22,opt,name=upperStrikePrice" json:"upperStrikePrice,omitempty"`     //上限价，仅界内证支持该字段
+	LowerStrikePrice   *float64               `protobuf:"fixed64,23,opt,name=lowerStrikePrice" json:"lowerStrikePrice,omitempty"`     //下限价，仅界内证支持该字段
+	InLinePriceStatus  *int32                 `protobuf:"varint,24,opt,name=inLinePriceStatus" json:"inLinePriceStatus,omitempty"`    //Qot_Common.PriceType, 界内界外，仅界内证支持该字段
+	IssuerCode         *string                `protobuf:"bytes,25,opt,name=issuerCode" json:"issuerCode,omitempty"`                   //发行人代码
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *WarrantSnapshotExData) Reset() {
 	*x = WarrantSnapshotExData{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[1]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -232,7 +286,7 @@ func (x *WarrantSnapshotExData) String() string {
 func (*WarrantSnapshotExData) ProtoMessage() {}
 
 func (x *WarrantSnapshotExData) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[1]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -245,7 +299,7 @@ func (x *WarrantSnapshotExData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WarrantSnapshotExData.ProtoReflect.Descriptor instead.
 func (*WarrantSnapshotExData) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{1}
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *WarrantSnapshotExData) GetConversionRate() float64 {
@@ -423,37 +477,38 @@ func (x *WarrantSnapshotExData) GetIssuerCode() string {
 	return ""
 }
 
+// 期权类型额外数据
 type OptionSnapshotExData struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
-	Type                 *int32                 `protobuf:"varint,1,req,name=type" json:"type,omitempty"`
-	Owner                *qotcommon.Security    `protobuf:"bytes,2,req,name=owner" json:"owner,omitempty"`
-	StrikeTime           *string                `protobuf:"bytes,3,req,name=strikeTime" json:"strikeTime,omitempty"`
-	StrikePrice          *float64               `protobuf:"fixed64,4,req,name=strikePrice" json:"strikePrice,omitempty"`
-	ContractSize         *int32                 `protobuf:"varint,5,req,name=contractSize" json:"contractSize,omitempty"`
-	ContractSizeFloat    *float64               `protobuf:"fixed64,22,opt,name=contractSizeFloat" json:"contractSizeFloat,omitempty"`
-	OpenInterest         *int32                 `protobuf:"varint,6,req,name=openInterest" json:"openInterest,omitempty"`
-	ImpliedVolatility    *float64               `protobuf:"fixed64,7,req,name=impliedVolatility" json:"impliedVolatility,omitempty"`
-	Premium              *float64               `protobuf:"fixed64,8,req,name=premium" json:"premium,omitempty"`
-	Delta                *float64               `protobuf:"fixed64,9,req,name=delta" json:"delta,omitempty"`
-	Gamma                *float64               `protobuf:"fixed64,10,req,name=gamma" json:"gamma,omitempty"`
-	Vega                 *float64               `protobuf:"fixed64,11,req,name=vega" json:"vega,omitempty"`
-	Theta                *float64               `protobuf:"fixed64,12,req,name=theta" json:"theta,omitempty"`
-	Rho                  *float64               `protobuf:"fixed64,13,req,name=rho" json:"rho,omitempty"`
-	StrikeTimestamp      *float64               `protobuf:"fixed64,14,opt,name=strikeTimestamp" json:"strikeTimestamp,omitempty"`
-	IndexOptionType      *int32                 `protobuf:"varint,15,opt,name=indexOptionType" json:"indexOptionType,omitempty"`
-	NetOpenInterest      *int32                 `protobuf:"varint,16,opt,name=netOpenInterest" json:"netOpenInterest,omitempty"`
-	ExpiryDateDistance   *int32                 `protobuf:"varint,17,opt,name=expiryDateDistance" json:"expiryDateDistance,omitempty"`
-	ContractNominalValue *float64               `protobuf:"fixed64,18,opt,name=contractNominalValue" json:"contractNominalValue,omitempty"`
-	OwnerLotMultiplier   *float64               `protobuf:"fixed64,19,opt,name=ownerLotMultiplier" json:"ownerLotMultiplier,omitempty"`
-	OptionAreaType       *int32                 `protobuf:"varint,20,opt,name=optionAreaType" json:"optionAreaType,omitempty"`
-	ContractMultiplier   *float64               `protobuf:"fixed64,21,opt,name=contractMultiplier" json:"contractMultiplier,omitempty"`
+	Type                 *int32                 `protobuf:"varint,1,req,name=type" json:"type,omitempty"`                                   //Qot_Common.OptionType,期权
+	Owner                *qotcommon.Security    `protobuf:"bytes,2,req,name=owner" json:"owner,omitempty"`                                  //标的股
+	StrikeTime           *string                `protobuf:"bytes,3,req,name=strikeTime" json:"strikeTime,omitempty"`                        //行权日
+	StrikePrice          *float64               `protobuf:"fixed64,4,req,name=strikePrice" json:"strikePrice,omitempty"`                    //行权价
+	ContractSize         *int32                 `protobuf:"varint,5,req,name=contractSize" json:"contractSize,omitempty"`                   //每份合约数(整型数据)
+	ContractSizeFloat    *float64               `protobuf:"fixed64,22,opt,name=contractSizeFloat" json:"contractSizeFloat,omitempty"`       //每份合约数（浮点型数据）
+	OpenInterest         *int32                 `protobuf:"varint,6,req,name=openInterest" json:"openInterest,omitempty"`                   //未平仓合约数
+	ImpliedVolatility    *float64               `protobuf:"fixed64,7,req,name=impliedVolatility" json:"impliedVolatility,omitempty"`        //隐含波动率（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	Premium              *float64               `protobuf:"fixed64,8,req,name=premium" json:"premium,omitempty"`                            //溢价（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	Delta                *float64               `protobuf:"fixed64,9,req,name=delta" json:"delta,omitempty"`                                //希腊值 Delta
+	Gamma                *float64               `protobuf:"fixed64,10,req,name=gamma" json:"gamma,omitempty"`                               //希腊值 Gamma
+	Vega                 *float64               `protobuf:"fixed64,11,req,name=vega" json:"vega,omitempty"`                                 //希腊值 Vega
+	Theta                *float64               `protobuf:"fixed64,12,req,name=theta" json:"theta,omitempty"`                               //希腊值 Theta
+	Rho                  *float64               `protobuf:"fixed64,13,req,name=rho" json:"rho,omitempty"`                                   //希腊值 Rho
+	StrikeTimestamp      *float64               `protobuf:"fixed64,14,opt,name=strikeTimestamp" json:"strikeTimestamp,omitempty"`           //行权日时间戳
+	IndexOptionType      *int32                 `protobuf:"varint,15,opt,name=indexOptionType" json:"indexOptionType,omitempty"`            //Qot_Common.IndexOptionType，指数期权类型
+	NetOpenInterest      *int32                 `protobuf:"varint,16,opt,name=netOpenInterest" json:"netOpenInterest,omitempty"`            //净未平仓合约数，仅港股期权适用
+	ExpiryDateDistance   *int32                 `protobuf:"varint,17,opt,name=expiryDateDistance" json:"expiryDateDistance,omitempty"`      //距离到期日天数，负数表示已过期
+	ContractNominalValue *float64               `protobuf:"fixed64,18,opt,name=contractNominalValue" json:"contractNominalValue,omitempty"` //合约名义金额，仅港股期权适用
+	OwnerLotMultiplier   *float64               `protobuf:"fixed64,19,opt,name=ownerLotMultiplier" json:"ownerLotMultiplier,omitempty"`     //相等正股手数，指数期权无该字段，仅港股期权适用
+	OptionAreaType       *int32                 `protobuf:"varint,20,opt,name=optionAreaType" json:"optionAreaType,omitempty"`              //Qot_Common.OptionAreaType，期权类型（按行权时间）
+	ContractMultiplier   *float64               `protobuf:"fixed64,21,opt,name=contractMultiplier" json:"contractMultiplier,omitempty"`     //合约乘数
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
 
 func (x *OptionSnapshotExData) Reset() {
 	*x = OptionSnapshotExData{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[2]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -465,7 +520,7 @@ func (x *OptionSnapshotExData) String() string {
 func (*OptionSnapshotExData) ProtoMessage() {}
 
 func (x *OptionSnapshotExData) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[2]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -478,7 +533,7 @@ func (x *OptionSnapshotExData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OptionSnapshotExData.ProtoReflect.Descriptor instead.
 func (*OptionSnapshotExData) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{2}
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *OptionSnapshotExData) GetType() int32 {
@@ -635,18 +690,19 @@ func (x *OptionSnapshotExData) GetContractMultiplier() float64 {
 	return 0
 }
 
+// 指数类型额外数据
 type IndexSnapshotExData struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RaiseCount    *int32                 `protobuf:"varint,1,req,name=raiseCount" json:"raiseCount,omitempty"`
-	FallCount     *int32                 `protobuf:"varint,2,req,name=fallCount" json:"fallCount,omitempty"`
-	EqualCount    *int32                 `protobuf:"varint,3,req,name=equalCount" json:"equalCount,omitempty"`
+	RaiseCount    *int32                 `protobuf:"varint,1,req,name=raiseCount" json:"raiseCount,omitempty"` // 上涨支数
+	FallCount     *int32                 `protobuf:"varint,2,req,name=fallCount" json:"fallCount,omitempty"`   // 下跌支数
+	EqualCount    *int32                 `protobuf:"varint,3,req,name=equalCount" json:"equalCount,omitempty"` // 平盘支数
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IndexSnapshotExData) Reset() {
 	*x = IndexSnapshotExData{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[3]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -658,7 +714,7 @@ func (x *IndexSnapshotExData) String() string {
 func (*IndexSnapshotExData) ProtoMessage() {}
 
 func (x *IndexSnapshotExData) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[3]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -671,7 +727,7 @@ func (x *IndexSnapshotExData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IndexSnapshotExData.ProtoReflect.Descriptor instead.
 func (*IndexSnapshotExData) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{3}
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *IndexSnapshotExData) GetRaiseCount() int32 {
@@ -695,18 +751,19 @@ func (x *IndexSnapshotExData) GetEqualCount() int32 {
 	return 0
 }
 
+// 板块类型额外数据
 type PlateSnapshotExData struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RaiseCount    *int32                 `protobuf:"varint,1,req,name=raiseCount" json:"raiseCount,omitempty"`
-	FallCount     *int32                 `protobuf:"varint,2,req,name=fallCount" json:"fallCount,omitempty"`
-	EqualCount    *int32                 `protobuf:"varint,3,req,name=equalCount" json:"equalCount,omitempty"`
+	RaiseCount    *int32                 `protobuf:"varint,1,req,name=raiseCount" json:"raiseCount,omitempty"` // 上涨支数
+	FallCount     *int32                 `protobuf:"varint,2,req,name=fallCount" json:"fallCount,omitempty"`   // 下跌支数
+	EqualCount    *int32                 `protobuf:"varint,3,req,name=equalCount" json:"equalCount,omitempty"` // 平盘支数
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PlateSnapshotExData) Reset() {
 	*x = PlateSnapshotExData{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[4]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -718,7 +775,7 @@ func (x *PlateSnapshotExData) String() string {
 func (*PlateSnapshotExData) ProtoMessage() {}
 
 func (x *PlateSnapshotExData) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[4]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -731,7 +788,7 @@ func (x *PlateSnapshotExData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlateSnapshotExData.ProtoReflect.Descriptor instead.
 func (*PlateSnapshotExData) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{4}
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PlateSnapshotExData) GetRaiseCount() int32 {
@@ -755,21 +812,22 @@ func (x *PlateSnapshotExData) GetEqualCount() int32 {
 	return 0
 }
 
+// 期货类型额外数据
 type FutureSnapshotExData struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	LastSettlePrice    *float64               `protobuf:"fixed64,1,req,name=lastSettlePrice" json:"lastSettlePrice,omitempty"`
-	Position           *int32                 `protobuf:"varint,2,req,name=position" json:"position,omitempty"`
-	PositionChange     *int32                 `protobuf:"varint,3,req,name=positionChange" json:"positionChange,omitempty"`
-	LastTradeTime      *string                `protobuf:"bytes,4,req,name=lastTradeTime" json:"lastTradeTime,omitempty"`
-	LastTradeTimestamp *float64               `protobuf:"fixed64,5,opt,name=lastTradeTimestamp" json:"lastTradeTimestamp,omitempty"`
-	IsMainContract     *bool                  `protobuf:"varint,6,req,name=isMainContract" json:"isMainContract,omitempty"`
+	LastSettlePrice    *float64               `protobuf:"fixed64,1,req,name=lastSettlePrice" json:"lastSettlePrice,omitempty"`       //昨结
+	Position           *int32                 `protobuf:"varint,2,req,name=position" json:"position,omitempty"`                      //持仓量
+	PositionChange     *int32                 `protobuf:"varint,3,req,name=positionChange" json:"positionChange,omitempty"`          //日增仓
+	LastTradeTime      *string                `protobuf:"bytes,4,req,name=lastTradeTime" json:"lastTradeTime,omitempty"`             //最后交易日，只有非主连期货合约才有该字段
+	LastTradeTimestamp *float64               `protobuf:"fixed64,5,opt,name=lastTradeTimestamp" json:"lastTradeTimestamp,omitempty"` //最后交易日时间戳，只有非主连期货合约才有该字段
+	IsMainContract     *bool                  `protobuf:"varint,6,req,name=isMainContract" json:"isMainContract,omitempty"`          //是否主连合约
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *FutureSnapshotExData) Reset() {
 	*x = FutureSnapshotExData{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[5]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -781,7 +839,7 @@ func (x *FutureSnapshotExData) String() string {
 func (*FutureSnapshotExData) ProtoMessage() {}
 
 func (x *FutureSnapshotExData) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[5]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -794,7 +852,7 @@ func (x *FutureSnapshotExData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FutureSnapshotExData.ProtoReflect.Descriptor instead.
 func (*FutureSnapshotExData) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{5}
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FutureSnapshotExData) GetLastSettlePrice() float64 {
@@ -839,21 +897,22 @@ func (x *FutureSnapshotExData) GetIsMainContract() bool {
 	return false
 }
 
+// 基金类型额外数据
 type TrustSnapshotExData struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	DividendYield    *float64               `protobuf:"fixed64,1,req,name=dividendYield" json:"dividendYield,omitempty"`
-	Aum              *float64               `protobuf:"fixed64,2,req,name=aum" json:"aum,omitempty"`
-	OutstandingUnits *int64                 `protobuf:"varint,3,req,name=outstandingUnits" json:"outstandingUnits,omitempty"`
-	NetAssetValue    *float64               `protobuf:"fixed64,4,req,name=netAssetValue" json:"netAssetValue,omitempty"`
-	Premium          *float64               `protobuf:"fixed64,5,req,name=premium" json:"premium,omitempty"`
-	AssetClass       *int32                 `protobuf:"varint,6,req,name=assetClass" json:"assetClass,omitempty"`
+	DividendYield    *float64               `protobuf:"fixed64,1,req,name=dividendYield" json:"dividendYield,omitempty"`      //股息率（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	Aum              *float64               `protobuf:"fixed64,2,req,name=aum" json:"aum,omitempty"`                          //资产规模（单位：元）
+	OutstandingUnits *int64                 `protobuf:"varint,3,req,name=outstandingUnits" json:"outstandingUnits,omitempty"` //总发行量
+	NetAssetValue    *float64               `protobuf:"fixed64,4,req,name=netAssetValue" json:"netAssetValue,omitempty"`      //单位净值
+	Premium          *float64               `protobuf:"fixed64,5,req,name=premium" json:"premium,omitempty"`                  //溢价（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	AssetClass       *int32                 `protobuf:"varint,6,req,name=assetClass" json:"assetClass,omitempty"`             //Qot_Common.AssetClass，资产类别
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *TrustSnapshotExData) Reset() {
 	*x = TrustSnapshotExData{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[6]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -865,7 +924,7 @@ func (x *TrustSnapshotExData) String() string {
 func (*TrustSnapshotExData) ProtoMessage() {}
 
 func (x *TrustSnapshotExData) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[6]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -878,7 +937,7 @@ func (x *TrustSnapshotExData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrustSnapshotExData.ProtoReflect.Descriptor instead.
 func (*TrustSnapshotExData) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{6}
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TrustSnapshotExData) GetDividendYield() float64 {
@@ -923,60 +982,61 @@ func (x *TrustSnapshotExData) GetAssetClass() int32 {
 	return 0
 }
 
+// 基本快照数据
 type SnapshotBasicData struct {
 	state                   protoimpl.MessageState        `protogen:"open.v1"`
-	Security                *qotcommon.Security           `protobuf:"bytes,1,req,name=security" json:"security,omitempty"`
-	Name                    *string                       `protobuf:"bytes,41,opt,name=name" json:"name,omitempty"`
-	Type                    *int32                        `protobuf:"varint,2,req,name=type" json:"type,omitempty"`
-	IsSuspend               *bool                         `protobuf:"varint,3,req,name=isSuspend" json:"isSuspend,omitempty"`
-	ListTime                *string                       `protobuf:"bytes,4,req,name=listTime" json:"listTime,omitempty"`
-	LotSize                 *int32                        `protobuf:"varint,5,req,name=lotSize" json:"lotSize,omitempty"`
-	PriceSpread             *float64                      `protobuf:"fixed64,6,req,name=priceSpread" json:"priceSpread,omitempty"`
-	UpdateTime              *string                       `protobuf:"bytes,7,req,name=updateTime" json:"updateTime,omitempty"`
-	HighPrice               *float64                      `protobuf:"fixed64,8,req,name=highPrice" json:"highPrice,omitempty"`
-	OpenPrice               *float64                      `protobuf:"fixed64,9,req,name=openPrice" json:"openPrice,omitempty"`
-	LowPrice                *float64                      `protobuf:"fixed64,10,req,name=lowPrice" json:"lowPrice,omitempty"`
-	LastClosePrice          *float64                      `protobuf:"fixed64,11,req,name=lastClosePrice" json:"lastClosePrice,omitempty"`
-	CurPrice                *float64                      `protobuf:"fixed64,12,req,name=curPrice" json:"curPrice,omitempty"`
-	Volume                  *int64                        `protobuf:"varint,13,req,name=volume" json:"volume,omitempty"`
-	Turnover                *float64                      `protobuf:"fixed64,14,req,name=turnover" json:"turnover,omitempty"`
-	TurnoverRate            *float64                      `protobuf:"fixed64,15,req,name=turnoverRate" json:"turnoverRate,omitempty"`
-	ListTimestamp           *float64                      `protobuf:"fixed64,16,opt,name=listTimestamp" json:"listTimestamp,omitempty"`
-	UpdateTimestamp         *float64                      `protobuf:"fixed64,17,opt,name=updateTimestamp" json:"updateTimestamp,omitempty"`
-	AskPrice                *float64                      `protobuf:"fixed64,18,opt,name=askPrice" json:"askPrice,omitempty"`
-	BidPrice                *float64                      `protobuf:"fixed64,19,opt,name=bidPrice" json:"bidPrice,omitempty"`
-	AskVol                  *int64                        `protobuf:"varint,20,opt,name=askVol" json:"askVol,omitempty"`
-	BidVol                  *int64                        `protobuf:"varint,21,opt,name=bidVol" json:"bidVol,omitempty"`
-	EnableMargin            *bool                         `protobuf:"varint,22,opt,name=enableMargin" json:"enableMargin,omitempty"`
-	MortgageRatio           *float64                      `protobuf:"fixed64,23,opt,name=mortgageRatio" json:"mortgageRatio,omitempty"`
-	LongMarginInitialRatio  *float64                      `protobuf:"fixed64,24,opt,name=longMarginInitialRatio" json:"longMarginInitialRatio,omitempty"`
-	EnableShortSell         *bool                         `protobuf:"varint,25,opt,name=enableShortSell" json:"enableShortSell,omitempty"`
-	ShortSellRate           *float64                      `protobuf:"fixed64,26,opt,name=shortSellRate" json:"shortSellRate,omitempty"`
-	ShortAvailableVolume    *int64                        `protobuf:"varint,27,opt,name=shortAvailableVolume" json:"shortAvailableVolume,omitempty"`
-	ShortMarginInitialRatio *float64                      `protobuf:"fixed64,28,opt,name=shortMarginInitialRatio" json:"shortMarginInitialRatio,omitempty"`
-	Amplitude               *float64                      `protobuf:"fixed64,29,opt,name=amplitude" json:"amplitude,omitempty"`
-	AvgPrice                *float64                      `protobuf:"fixed64,30,opt,name=avgPrice" json:"avgPrice,omitempty"`
-	BidAskRatio             *float64                      `protobuf:"fixed64,31,opt,name=bidAskRatio" json:"bidAskRatio,omitempty"`
-	VolumeRatio             *float64                      `protobuf:"fixed64,32,opt,name=volumeRatio" json:"volumeRatio,omitempty"`
-	Highest52WeeksPrice     *float64                      `protobuf:"fixed64,33,opt,name=highest52WeeksPrice" json:"highest52WeeksPrice,omitempty"`
-	Lowest52WeeksPrice      *float64                      `protobuf:"fixed64,34,opt,name=lowest52WeeksPrice" json:"lowest52WeeksPrice,omitempty"`
-	HighestHistoryPrice     *float64                      `protobuf:"fixed64,35,opt,name=highestHistoryPrice" json:"highestHistoryPrice,omitempty"`
-	LowestHistoryPrice      *float64                      `protobuf:"fixed64,36,opt,name=lowestHistoryPrice" json:"lowestHistoryPrice,omitempty"`
-	PreMarket               *qotcommon.PreAfterMarketData `protobuf:"bytes,37,opt,name=preMarket" json:"preMarket,omitempty"`
-	AfterMarket             *qotcommon.PreAfterMarketData `protobuf:"bytes,38,opt,name=afterMarket" json:"afterMarket,omitempty"`
-	Overnight               *qotcommon.PreAfterMarketData `protobuf:"bytes,42,opt,name=overnight" json:"overnight,omitempty"`
-	SecStatus               *int32                        `protobuf:"varint,39,opt,name=secStatus" json:"secStatus,omitempty"`
-	ClosePrice5Minute       *float64                      `protobuf:"fixed64,40,opt,name=closePrice5Minute" json:"closePrice5Minute,omitempty"`
-	HpVolume                *float64                      `protobuf:"fixed64,43,opt,name=hpVolume" json:"hpVolume,omitempty"`
-	HpAskVol                *float64                      `protobuf:"fixed64,44,opt,name=hpAskVol" json:"hpAskVol,omitempty"`
-	HpBidVol                *float64                      `protobuf:"fixed64,45,opt,name=hpBidVol" json:"hpBidVol,omitempty"`
+	Security                *qotcommon.Security           `protobuf:"bytes,1,req,name=security" json:"security,omitempty"`                                  //股票
+	Name                    *string                       `protobuf:"bytes,41,opt,name=name" json:"name,omitempty"`                                         //股票名称
+	Type                    *int32                        `protobuf:"varint,2,req,name=type" json:"type,omitempty"`                                         //Qot_Common.SecurityType,股票类型
+	IsSuspend               *bool                         `protobuf:"varint,3,req,name=isSuspend" json:"isSuspend,omitempty"`                               //是否停牌
+	ListTime                *string                       `protobuf:"bytes,4,req,name=listTime" json:"listTime,omitempty"`                                  //上市时间字符串
+	LotSize                 *int32                        `protobuf:"varint,5,req,name=lotSize" json:"lotSize,omitempty"`                                   //每手数量
+	PriceSpread             *float64                      `protobuf:"fixed64,6,req,name=priceSpread" json:"priceSpread,omitempty"`                          //价差
+	UpdateTime              *string                       `protobuf:"bytes,7,req,name=updateTime" json:"updateTime,omitempty"`                              //更新时间字符串
+	HighPrice               *float64                      `protobuf:"fixed64,8,req,name=highPrice" json:"highPrice,omitempty"`                              //最高价
+	OpenPrice               *float64                      `protobuf:"fixed64,9,req,name=openPrice" json:"openPrice,omitempty"`                              //开盘价
+	LowPrice                *float64                      `protobuf:"fixed64,10,req,name=lowPrice" json:"lowPrice,omitempty"`                               //最低价
+	LastClosePrice          *float64                      `protobuf:"fixed64,11,req,name=lastClosePrice" json:"lastClosePrice,omitempty"`                   //昨收价
+	CurPrice                *float64                      `protobuf:"fixed64,12,req,name=curPrice" json:"curPrice,omitempty"`                               //最新价
+	Volume                  *int64                        `protobuf:"varint,13,req,name=volume" json:"volume,omitempty"`                                    //成交量
+	Turnover                *float64                      `protobuf:"fixed64,14,req,name=turnover" json:"turnover,omitempty"`                               //成交额
+	TurnoverRate            *float64                      `protobuf:"fixed64,15,req,name=turnoverRate" json:"turnoverRate,omitempty"`                       //换手率（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	ListTimestamp           *float64                      `protobuf:"fixed64,16,opt,name=listTimestamp" json:"listTimestamp,omitempty"`                     //上市时间戳
+	UpdateTimestamp         *float64                      `protobuf:"fixed64,17,opt,name=updateTimestamp" json:"updateTimestamp,omitempty"`                 //更新时间戳
+	AskPrice                *float64                      `protobuf:"fixed64,18,opt,name=askPrice" json:"askPrice,omitempty"`                               //卖价
+	BidPrice                *float64                      `protobuf:"fixed64,19,opt,name=bidPrice" json:"bidPrice,omitempty"`                               //买价
+	AskVol                  *int64                        `protobuf:"varint,20,opt,name=askVol" json:"askVol,omitempty"`                                    //卖量
+	BidVol                  *int64                        `protobuf:"varint,21,opt,name=bidVol" json:"bidVol,omitempty"`                                    //买量
+	EnableMargin            *bool                         `protobuf:"varint,22,opt,name=enableMargin" json:"enableMargin,omitempty"`                        // 是否可融资，如果为true，后两个字段才有意义
+	MortgageRatio           *float64                      `protobuf:"fixed64,23,opt,name=mortgageRatio" json:"mortgageRatio,omitempty"`                     // 股票抵押率（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	LongMarginInitialRatio  *float64                      `protobuf:"fixed64,24,opt,name=longMarginInitialRatio" json:"longMarginInitialRatio,omitempty"`   // 融资初始保证金率（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	EnableShortSell         *bool                         `protobuf:"varint,25,opt,name=enableShortSell" json:"enableShortSell,omitempty"`                  // 是否可卖空，如果为true，后三个字段才有意义
+	ShortSellRate           *float64                      `protobuf:"fixed64,26,opt,name=shortSellRate" json:"shortSellRate,omitempty"`                     // 卖空参考利率（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	ShortAvailableVolume    *int64                        `protobuf:"varint,27,opt,name=shortAvailableVolume" json:"shortAvailableVolume,omitempty"`        // 剩余可卖空数量（股）
+	ShortMarginInitialRatio *float64                      `protobuf:"fixed64,28,opt,name=shortMarginInitialRatio" json:"shortMarginInitialRatio,omitempty"` // 卖空（融券）初始保证金率（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	Amplitude               *float64                      `protobuf:"fixed64,29,opt,name=amplitude" json:"amplitude,omitempty"`                             // 振幅（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	AvgPrice                *float64                      `protobuf:"fixed64,30,opt,name=avgPrice" json:"avgPrice,omitempty"`                               // 平均价
+	BidAskRatio             *float64                      `protobuf:"fixed64,31,opt,name=bidAskRatio" json:"bidAskRatio,omitempty"`                         // 委比（该字段为百分比字段，默认不展示%，如20实际对应20%）
+	VolumeRatio             *float64                      `protobuf:"fixed64,32,opt,name=volumeRatio" json:"volumeRatio,omitempty"`                         // 量比
+	Highest52WeeksPrice     *float64                      `protobuf:"fixed64,33,opt,name=highest52WeeksPrice" json:"highest52WeeksPrice,omitempty"`         // 52周最高价
+	Lowest52WeeksPrice      *float64                      `protobuf:"fixed64,34,opt,name=lowest52WeeksPrice" json:"lowest52WeeksPrice,omitempty"`           // 52周最低价
+	HighestHistoryPrice     *float64                      `protobuf:"fixed64,35,opt,name=highestHistoryPrice" json:"highestHistoryPrice,omitempty"`         // 历史最高价
+	LowestHistoryPrice      *float64                      `protobuf:"fixed64,36,opt,name=lowestHistoryPrice" json:"lowestHistoryPrice,omitempty"`           // 历史最低价
+	PreMarket               *qotcommon.PreAfterMarketData `protobuf:"bytes,37,opt,name=preMarket" json:"preMarket,omitempty"`                               //Qot_Common::PreAfterMarketData 盘前数据
+	AfterMarket             *qotcommon.PreAfterMarketData `protobuf:"bytes,38,opt,name=afterMarket" json:"afterMarket,omitempty"`                           //Qot_Common::PreAfterMarketData 盘后数据
+	SecStatus               *int32                        `protobuf:"varint,39,opt,name=secStatus" json:"secStatus,omitempty"`                              //Qot_Common::SecurityStatus 股票状态
+	ClosePrice5Minute       *float64                      `protobuf:"fixed64,40,opt,name=closePrice5Minute" json:"closePrice5Minute,omitempty"`             //5分钟收盘价
+	Overnight               *qotcommon.PreAfterMarketData `protobuf:"bytes,42,opt,name=overnight" json:"overnight,omitempty"`                               //Qot_Common::PreAfterMarketData 夜盘数据
+	HpVolume                *float64                      `protobuf:"fixed64,43,opt,name=hpVolume" json:"hpVolume,omitempty"`                               //高精度成交量
+	HpAskVol                *float64                      `protobuf:"fixed64,44,opt,name=hpAskVol" json:"hpAskVol,omitempty"`                               //高精度卖量
+	HpBidVol                *float64                      `protobuf:"fixed64,45,opt,name=hpBidVol" json:"hpBidVol,omitempty"`                               //高精度买量
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
 
 func (x *SnapshotBasicData) Reset() {
 	*x = SnapshotBasicData{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[7]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -988,7 +1048,7 @@ func (x *SnapshotBasicData) String() string {
 func (*SnapshotBasicData) ProtoMessage() {}
 
 func (x *SnapshotBasicData) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[7]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1001,7 +1061,7 @@ func (x *SnapshotBasicData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnapshotBasicData.ProtoReflect.Descriptor instead.
 func (*SnapshotBasicData) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{7}
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SnapshotBasicData) GetSecurity() *qotcommon.Security {
@@ -1277,13 +1337,6 @@ func (x *SnapshotBasicData) GetAfterMarket() *qotcommon.PreAfterMarketData {
 	return nil
 }
 
-func (x *SnapshotBasicData) GetOvernight() *qotcommon.PreAfterMarketData {
-	if x != nil {
-		return x.Overnight
-	}
-	return nil
-}
-
 func (x *SnapshotBasicData) GetSecStatus() int32 {
 	if x != nil && x.SecStatus != nil {
 		return *x.SecStatus
@@ -1296,6 +1349,13 @@ func (x *SnapshotBasicData) GetClosePrice5Minute() float64 {
 		return *x.ClosePrice5Minute
 	}
 	return 0
+}
+
+func (x *SnapshotBasicData) GetOvernight() *qotcommon.PreAfterMarketData {
+	if x != nil {
+		return x.Overnight
+	}
+	return nil
 }
 
 func (x *SnapshotBasicData) GetHpVolume() float64 {
@@ -1321,21 +1381,21 @@ func (x *SnapshotBasicData) GetHpBidVol() float64 {
 
 type Snapshot struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Basic         *SnapshotBasicData     `protobuf:"bytes,1,req,name=basic" json:"basic,omitempty"`
-	EquityExData  *EquitySnapshotExData  `protobuf:"bytes,2,opt,name=equityExData" json:"equityExData,omitempty"`
-	WarrantExData *WarrantSnapshotExData `protobuf:"bytes,3,opt,name=warrantExData" json:"warrantExData,omitempty"`
-	OptionExData  *OptionSnapshotExData  `protobuf:"bytes,4,opt,name=optionExData" json:"optionExData,omitempty"`
-	IndexExData   *IndexSnapshotExData   `protobuf:"bytes,5,opt,name=indexExData" json:"indexExData,omitempty"`
-	PlateExData   *PlateSnapshotExData   `protobuf:"bytes,6,opt,name=plateExData" json:"plateExData,omitempty"`
-	FutureExData  *FutureSnapshotExData  `protobuf:"bytes,7,opt,name=futureExData" json:"futureExData,omitempty"`
-	TrustExData   *TrustSnapshotExData   `protobuf:"bytes,8,opt,name=trustExData" json:"trustExData,omitempty"`
+	Basic         *SnapshotBasicData     `protobuf:"bytes,1,req,name=basic" json:"basic,omitempty"`                 //快照基本数据
+	EquityExData  *EquitySnapshotExData  `protobuf:"bytes,2,opt,name=equityExData" json:"equityExData,omitempty"`   //正股快照额外数据
+	WarrantExData *WarrantSnapshotExData `protobuf:"bytes,3,opt,name=warrantExData" json:"warrantExData,omitempty"` //窝轮快照额外数据
+	OptionExData  *OptionSnapshotExData  `protobuf:"bytes,4,opt,name=optionExData" json:"optionExData,omitempty"`   //期权快照额外数据
+	IndexExData   *IndexSnapshotExData   `protobuf:"bytes,5,opt,name=indexExData" json:"indexExData,omitempty"`     //指数快照额外数据
+	PlateExData   *PlateSnapshotExData   `protobuf:"bytes,6,opt,name=plateExData" json:"plateExData,omitempty"`     //板块快照额外数据
+	FutureExData  *FutureSnapshotExData  `protobuf:"bytes,7,opt,name=futureExData" json:"futureExData,omitempty"`   //期货类型额外数据
+	TrustExData   *TrustSnapshotExData   `protobuf:"bytes,8,opt,name=trustExData" json:"trustExData,omitempty"`     //基金类型额外数据
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[8]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1347,7 +1407,7 @@ func (x *Snapshot) String() string {
 func (*Snapshot) ProtoMessage() {}
 
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[8]
+	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1360,7 +1420,7 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
 func (*Snapshot) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{8}
+	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Snapshot) GetBasic() *SnapshotBasicData {
@@ -1419,61 +1479,9 @@ func (x *Snapshot) GetTrustExData() *TrustSnapshotExData {
 	return nil
 }
 
-type C2S struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecurityList  []*qotcommon.Security  `protobuf:"bytes,1,rep,name=securityList" json:"securityList,omitempty"`
-	Header        *qotcommon.QotHeader   `protobuf:"bytes,100,opt,name=header" json:"header,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *C2S) Reset() {
-	*x = C2S{}
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *C2S) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*C2S) ProtoMessage() {}
-
-func (x *C2S) ProtoReflect() protoreflect.Message {
-	mi := &file_Qot_GetSecuritySnapshot_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use C2S.ProtoReflect.Descriptor instead.
-func (*C2S) Descriptor() ([]byte, []int) {
-	return file_Qot_GetSecuritySnapshot_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *C2S) GetSecurityList() []*qotcommon.Security {
-	if x != nil {
-		return x.SecurityList
-	}
-	return nil
-}
-
-func (x *C2S) GetHeader() *qotcommon.QotHeader {
-	if x != nil {
-		return x.Header
-	}
-	return nil
-}
-
 type S2C struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SnapshotList  []*Snapshot            `protobuf:"bytes,1,rep,name=snapshotList" json:"snapshotList,omitempty"`
+	SnapshotList  []*Snapshot            `protobuf:"bytes,1,rep,name=snapshotList" json:"snapshotList,omitempty"` //股票快照
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1561,7 +1569,7 @@ func (x *Request) GetC2S() *C2S {
 
 type Response struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RetType       *int32                 `protobuf:"varint,1,req,name=retType,def=-400" json:"retType,omitempty"`
+	RetType       *int32                 `protobuf:"varint,1,req,name=retType,def=-400" json:"retType,omitempty"` //RetType,返回结果
 	RetMsg        *string                `protobuf:"bytes,2,opt,name=retMsg" json:"retMsg,omitempty"`
 	ErrCode       *int32                 `protobuf:"varint,3,opt,name=errCode" json:"errCode,omitempty"`
 	S2C           *S2C                   `protobuf:"bytes,4,opt,name=s2c" json:"s2c,omitempty"`
@@ -1636,7 +1644,10 @@ var File_Qot_GetSecuritySnapshot_proto protoreflect.FileDescriptor
 
 const file_Qot_GetSecuritySnapshot_proto_rawDesc = "" +
 	"\n" +
-	"\x1dQot_GetSecuritySnapshot.proto\x12\x17Qot_GetSecuritySnapshot\x1a\fCommon.proto\x1a\x10Qot_Common.proto\"\xda\x04\n" +
+	"\x1dQot_GetSecuritySnapshot.proto\x12\x17Qot_GetSecuritySnapshot\x1a\fCommon.proto\x1a\x10Qot_Common.proto\"n\n" +
+	"\x03C2S\x128\n" +
+	"\fsecurityList\x18\x01 \x03(\v2\x14.Qot_Common.SecurityR\fsecurityList\x12-\n" +
+	"\x06header\x18d \x01(\v2\x15.Qot_Common.QotHeaderR\x06header\"\xda\x04\n" +
 	"\x14EquitySnapshotExData\x12\"\n" +
 	"\fissuedShares\x18\x01 \x02(\x03R\fissuedShares\x12(\n" +
 	"\x0fissuedMarketVal\x18\x02 \x02(\x01R\x0fissuedMarketVal\x12\x1a\n" +
@@ -1786,10 +1797,10 @@ const file_Qot_GetSecuritySnapshot_proto_rawDesc = "" +
 	"\x13highestHistoryPrice\x18# \x01(\x01R\x13highestHistoryPrice\x12.\n" +
 	"\x12lowestHistoryPrice\x18$ \x01(\x01R\x12lowestHistoryPrice\x12<\n" +
 	"\tpreMarket\x18% \x01(\v2\x1e.Qot_Common.PreAfterMarketDataR\tpreMarket\x12@\n" +
-	"\vafterMarket\x18& \x01(\v2\x1e.Qot_Common.PreAfterMarketDataR\vafterMarket\x12<\n" +
-	"\tovernight\x18* \x01(\v2\x1e.Qot_Common.PreAfterMarketDataR\tovernight\x12\x1c\n" +
+	"\vafterMarket\x18& \x01(\v2\x1e.Qot_Common.PreAfterMarketDataR\vafterMarket\x12\x1c\n" +
 	"\tsecStatus\x18' \x01(\x05R\tsecStatus\x12,\n" +
-	"\x11closePrice5Minute\x18( \x01(\x01R\x11closePrice5Minute\x12\x1a\n" +
+	"\x11closePrice5Minute\x18( \x01(\x01R\x11closePrice5Minute\x12<\n" +
+	"\tovernight\x18* \x01(\v2\x1e.Qot_Common.PreAfterMarketDataR\tovernight\x12\x1a\n" +
 	"\bhpVolume\x18+ \x01(\x01R\bhpVolume\x12\x1a\n" +
 	"\bhpAskVol\x18, \x01(\x01R\bhpAskVol\x12\x1a\n" +
 	"\bhpBidVol\x18- \x01(\x01R\bhpBidVol\"\x8b\x05\n" +
@@ -1801,10 +1812,7 @@ const file_Qot_GetSecuritySnapshot_proto_rawDesc = "" +
 	"\vindexExData\x18\x05 \x01(\v2,.Qot_GetSecuritySnapshot.IndexSnapshotExDataR\vindexExData\x12N\n" +
 	"\vplateExData\x18\x06 \x01(\v2,.Qot_GetSecuritySnapshot.PlateSnapshotExDataR\vplateExData\x12Q\n" +
 	"\ffutureExData\x18\a \x01(\v2-.Qot_GetSecuritySnapshot.FutureSnapshotExDataR\ffutureExData\x12N\n" +
-	"\vtrustExData\x18\b \x01(\v2,.Qot_GetSecuritySnapshot.TrustSnapshotExDataR\vtrustExData\"n\n" +
-	"\x03C2S\x128\n" +
-	"\fsecurityList\x18\x01 \x03(\v2\x14.Qot_Common.SecurityR\fsecurityList\x12-\n" +
-	"\x06header\x18d \x01(\v2\x15.Qot_Common.QotHeaderR\x06header\"L\n" +
+	"\vtrustExData\x18\b \x01(\v2,.Qot_GetSecuritySnapshot.TrustSnapshotExDataR\vtrustExData\"L\n" +
 	"\x03S2C\x12E\n" +
 	"\fsnapshotList\x18\x01 \x03(\v2!.Qot_GetSecuritySnapshot.SnapshotR\fsnapshotList\"9\n" +
 	"\aRequest\x12.\n" +
@@ -1830,42 +1838,42 @@ func file_Qot_GetSecuritySnapshot_proto_rawDescGZIP() []byte {
 
 var file_Qot_GetSecuritySnapshot_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_Qot_GetSecuritySnapshot_proto_goTypes = []any{
-	(*EquitySnapshotExData)(nil),         // 0: Qot_GetSecuritySnapshot.EquitySnapshotExData
-	(*WarrantSnapshotExData)(nil),        // 1: Qot_GetSecuritySnapshot.WarrantSnapshotExData
-	(*OptionSnapshotExData)(nil),         // 2: Qot_GetSecuritySnapshot.OptionSnapshotExData
-	(*IndexSnapshotExData)(nil),          // 3: Qot_GetSecuritySnapshot.IndexSnapshotExData
-	(*PlateSnapshotExData)(nil),          // 4: Qot_GetSecuritySnapshot.PlateSnapshotExData
-	(*FutureSnapshotExData)(nil),         // 5: Qot_GetSecuritySnapshot.FutureSnapshotExData
-	(*TrustSnapshotExData)(nil),          // 6: Qot_GetSecuritySnapshot.TrustSnapshotExData
-	(*SnapshotBasicData)(nil),            // 7: Qot_GetSecuritySnapshot.SnapshotBasicData
-	(*Snapshot)(nil),                     // 8: Qot_GetSecuritySnapshot.Snapshot
-	(*C2S)(nil),                          // 9: Qot_GetSecuritySnapshot.C2S
+	(*C2S)(nil),                          // 0: Qot_GetSecuritySnapshot.C2S
+	(*EquitySnapshotExData)(nil),         // 1: Qot_GetSecuritySnapshot.EquitySnapshotExData
+	(*WarrantSnapshotExData)(nil),        // 2: Qot_GetSecuritySnapshot.WarrantSnapshotExData
+	(*OptionSnapshotExData)(nil),         // 3: Qot_GetSecuritySnapshot.OptionSnapshotExData
+	(*IndexSnapshotExData)(nil),          // 4: Qot_GetSecuritySnapshot.IndexSnapshotExData
+	(*PlateSnapshotExData)(nil),          // 5: Qot_GetSecuritySnapshot.PlateSnapshotExData
+	(*FutureSnapshotExData)(nil),         // 6: Qot_GetSecuritySnapshot.FutureSnapshotExData
+	(*TrustSnapshotExData)(nil),          // 7: Qot_GetSecuritySnapshot.TrustSnapshotExData
+	(*SnapshotBasicData)(nil),            // 8: Qot_GetSecuritySnapshot.SnapshotBasicData
+	(*Snapshot)(nil),                     // 9: Qot_GetSecuritySnapshot.Snapshot
 	(*S2C)(nil),                          // 10: Qot_GetSecuritySnapshot.S2C
 	(*Request)(nil),                      // 11: Qot_GetSecuritySnapshot.Request
 	(*Response)(nil),                     // 12: Qot_GetSecuritySnapshot.Response
 	(*qotcommon.Security)(nil),           // 13: Qot_Common.Security
-	(*qotcommon.PreAfterMarketData)(nil), // 14: Qot_Common.PreAfterMarketData
-	(*qotcommon.QotHeader)(nil),          // 15: Qot_Common.QotHeader
+	(*qotcommon.QotHeader)(nil),          // 14: Qot_Common.QotHeader
+	(*qotcommon.PreAfterMarketData)(nil), // 15: Qot_Common.PreAfterMarketData
 }
 var file_Qot_GetSecuritySnapshot_proto_depIdxs = []int32{
-	13, // 0: Qot_GetSecuritySnapshot.WarrantSnapshotExData.owner:type_name -> Qot_Common.Security
-	13, // 1: Qot_GetSecuritySnapshot.OptionSnapshotExData.owner:type_name -> Qot_Common.Security
-	13, // 2: Qot_GetSecuritySnapshot.SnapshotBasicData.security:type_name -> Qot_Common.Security
-	14, // 3: Qot_GetSecuritySnapshot.SnapshotBasicData.preMarket:type_name -> Qot_Common.PreAfterMarketData
-	14, // 4: Qot_GetSecuritySnapshot.SnapshotBasicData.afterMarket:type_name -> Qot_Common.PreAfterMarketData
-	14, // 5: Qot_GetSecuritySnapshot.SnapshotBasicData.overnight:type_name -> Qot_Common.PreAfterMarketData
-	7,  // 6: Qot_GetSecuritySnapshot.Snapshot.basic:type_name -> Qot_GetSecuritySnapshot.SnapshotBasicData
-	0,  // 7: Qot_GetSecuritySnapshot.Snapshot.equityExData:type_name -> Qot_GetSecuritySnapshot.EquitySnapshotExData
-	1,  // 8: Qot_GetSecuritySnapshot.Snapshot.warrantExData:type_name -> Qot_GetSecuritySnapshot.WarrantSnapshotExData
-	2,  // 9: Qot_GetSecuritySnapshot.Snapshot.optionExData:type_name -> Qot_GetSecuritySnapshot.OptionSnapshotExData
-	3,  // 10: Qot_GetSecuritySnapshot.Snapshot.indexExData:type_name -> Qot_GetSecuritySnapshot.IndexSnapshotExData
-	4,  // 11: Qot_GetSecuritySnapshot.Snapshot.plateExData:type_name -> Qot_GetSecuritySnapshot.PlateSnapshotExData
-	5,  // 12: Qot_GetSecuritySnapshot.Snapshot.futureExData:type_name -> Qot_GetSecuritySnapshot.FutureSnapshotExData
-	6,  // 13: Qot_GetSecuritySnapshot.Snapshot.trustExData:type_name -> Qot_GetSecuritySnapshot.TrustSnapshotExData
-	13, // 14: Qot_GetSecuritySnapshot.C2S.securityList:type_name -> Qot_Common.Security
-	15, // 15: Qot_GetSecuritySnapshot.C2S.header:type_name -> Qot_Common.QotHeader
-	8,  // 16: Qot_GetSecuritySnapshot.S2C.snapshotList:type_name -> Qot_GetSecuritySnapshot.Snapshot
-	9,  // 17: Qot_GetSecuritySnapshot.Request.c2s:type_name -> Qot_GetSecuritySnapshot.C2S
+	13, // 0: Qot_GetSecuritySnapshot.C2S.securityList:type_name -> Qot_Common.Security
+	14, // 1: Qot_GetSecuritySnapshot.C2S.header:type_name -> Qot_Common.QotHeader
+	13, // 2: Qot_GetSecuritySnapshot.WarrantSnapshotExData.owner:type_name -> Qot_Common.Security
+	13, // 3: Qot_GetSecuritySnapshot.OptionSnapshotExData.owner:type_name -> Qot_Common.Security
+	13, // 4: Qot_GetSecuritySnapshot.SnapshotBasicData.security:type_name -> Qot_Common.Security
+	15, // 5: Qot_GetSecuritySnapshot.SnapshotBasicData.preMarket:type_name -> Qot_Common.PreAfterMarketData
+	15, // 6: Qot_GetSecuritySnapshot.SnapshotBasicData.afterMarket:type_name -> Qot_Common.PreAfterMarketData
+	15, // 7: Qot_GetSecuritySnapshot.SnapshotBasicData.overnight:type_name -> Qot_Common.PreAfterMarketData
+	8,  // 8: Qot_GetSecuritySnapshot.Snapshot.basic:type_name -> Qot_GetSecuritySnapshot.SnapshotBasicData
+	1,  // 9: Qot_GetSecuritySnapshot.Snapshot.equityExData:type_name -> Qot_GetSecuritySnapshot.EquitySnapshotExData
+	2,  // 10: Qot_GetSecuritySnapshot.Snapshot.warrantExData:type_name -> Qot_GetSecuritySnapshot.WarrantSnapshotExData
+	3,  // 11: Qot_GetSecuritySnapshot.Snapshot.optionExData:type_name -> Qot_GetSecuritySnapshot.OptionSnapshotExData
+	4,  // 12: Qot_GetSecuritySnapshot.Snapshot.indexExData:type_name -> Qot_GetSecuritySnapshot.IndexSnapshotExData
+	5,  // 13: Qot_GetSecuritySnapshot.Snapshot.plateExData:type_name -> Qot_GetSecuritySnapshot.PlateSnapshotExData
+	6,  // 14: Qot_GetSecuritySnapshot.Snapshot.futureExData:type_name -> Qot_GetSecuritySnapshot.FutureSnapshotExData
+	7,  // 15: Qot_GetSecuritySnapshot.Snapshot.trustExData:type_name -> Qot_GetSecuritySnapshot.TrustSnapshotExData
+	9,  // 16: Qot_GetSecuritySnapshot.S2C.snapshotList:type_name -> Qot_GetSecuritySnapshot.Snapshot
+	0,  // 17: Qot_GetSecuritySnapshot.Request.c2s:type_name -> Qot_GetSecuritySnapshot.C2S
 	10, // 18: Qot_GetSecuritySnapshot.Response.s2c:type_name -> Qot_GetSecuritySnapshot.S2C
 	19, // [19:19] is the sub-list for method output_type
 	19, // [19:19] is the sub-list for method input_type

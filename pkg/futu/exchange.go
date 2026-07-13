@@ -57,6 +57,7 @@ type Exchange struct {
 	webSocketKey string
 
 	mu                       sync.Mutex
+	handlerMu                sync.RWMutex
 	sessionMu                sync.RWMutex
 	client                   *opend.Client
 	ready                    bool
@@ -119,7 +120,9 @@ func (e *Exchange) OnSystemNotify(fn func(*notifypb.Response)) {
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.handlerMu.Lock()
 	e.systemNotifyHandlers = append(e.systemNotifyHandlers, fn)
+	e.handlerMu.Unlock()
 	e.bindSystemNotifyLocked(e.client)
 }
 
@@ -131,18 +134,22 @@ func (e *Exchange) OnOrderBookUpdate(fn func(string)) func() {
 	}
 
 	e.mu.Lock()
+	e.handlerMu.Lock()
 	if e.orderBookNotifyHandlers == nil {
 		e.orderBookNotifyHandlers = make(map[uint64]func(string))
 	}
 	e.nextOrderBookHandlerID++
 	handlerID := e.nextOrderBookHandlerID
 	e.orderBookNotifyHandlers[handlerID] = fn
+	e.handlerMu.Unlock()
 	e.bindOrderBookNotifyLocked(e.client)
 	e.mu.Unlock()
 
 	return func() {
 		e.mu.Lock()
 		defer e.mu.Unlock()
+		e.handlerMu.Lock()
+		defer e.handlerMu.Unlock()
 		delete(e.orderBookNotifyHandlers, handlerID)
 	}
 }
@@ -153,17 +160,21 @@ func (e *Exchange) OnOrderUpdate(fn func(*trdcommonpb.TrdHeader, *trdcommonpb.Or
 		return func() {}
 	}
 	e.mu.Lock()
+	e.handlerMu.Lock()
 	if e.orderUpdateHandlers == nil {
 		e.orderUpdateHandlers = make(map[uint64]func(*trdcommonpb.TrdHeader, *trdcommonpb.Order))
 	}
 	e.nextTradeUpdateHandlerID++
 	id := e.nextTradeUpdateHandlerID
 	e.orderUpdateHandlers[id] = fn
+	e.handlerMu.Unlock()
 	e.bindTradeUpdateNotifyLocked(e.client)
 	e.mu.Unlock()
 	return func() {
 		e.mu.Lock()
+		e.handlerMu.Lock()
 		delete(e.orderUpdateHandlers, id)
+		e.handlerMu.Unlock()
 		e.mu.Unlock()
 	}
 }
@@ -174,17 +185,21 @@ func (e *Exchange) OnOrderFillUpdate(fn func(*trdcommonpb.TrdHeader, *trdcommonp
 		return func() {}
 	}
 	e.mu.Lock()
+	e.handlerMu.Lock()
 	if e.orderFillUpdateHandlers == nil {
 		e.orderFillUpdateHandlers = make(map[uint64]func(*trdcommonpb.TrdHeader, *trdcommonpb.OrderFill))
 	}
 	e.nextTradeUpdateHandlerID++
 	id := e.nextTradeUpdateHandlerID
 	e.orderFillUpdateHandlers[id] = fn
+	e.handlerMu.Unlock()
 	e.bindTradeUpdateNotifyLocked(e.client)
 	e.mu.Unlock()
 	return func() {
 		e.mu.Lock()
+		e.handlerMu.Lock()
 		delete(e.orderFillUpdateHandlers, id)
+		e.handlerMu.Unlock()
 		e.mu.Unlock()
 	}
 }
