@@ -48,8 +48,8 @@
 ### 验收
 
 - `go test ./pkg/backtest ./internal/backtest ./internal/app/apiserver/servercore -count=1 -timeout 300s`
-- `npm --workspace @jftrade/web run test -- backtestRequestPayload`
-- `npm --workspace @jftrade/web run typecheck`
+- `pnpm --filter @jftrade/web run test backtestRequestPayload`
+- `pnpm --filter @jftrade/web run typecheck`
 
 ## Slice 2：券商适配验收套件
 

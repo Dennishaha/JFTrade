@@ -30,7 +30,7 @@ tasks:
   desktop:doctor:
     desc: Verify the pinned Wails v3 CLI and host desktop prerequisites
     cmds:
-      - npm run desktop:doctor
+      - pnpm run desktop:doctor
 
   desktop:build:
     desc: Build the Wails v3 desktop artifact for the current platform

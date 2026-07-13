@@ -2,32 +2,14 @@
   "name": "@jftrade/root",
   "private": true,
   "engines": {
-    "node": ">=22",
-    "npm": ">=10"
+    "node": ">=22.13"
   },
-  "packageManager": "npm@11.16.0",
+  "packageManager": "pnpm@11.12.0",
   "version": "0.0.0",
-  "workspaces": [
-    "apps/web",
-    "workers/pineworker"
-  ],
-  "overrides": {
-    "@vue/test-utils": {
-      "js-beautify": "2.0.3"
-    },
-    "monaco-editor@0.55.1": {
-      "dompurify": "3.4.11"
-    },
-    "vue": "3.5.39"
-  },
-  "allowScripts": {
-    "protobufjs@7.6.5": true,
-    "vue-demi@0.14.10": true
-  },
   "scripts": {
-    "audit:dependencies": "npm audit --package-lock-only --audit-level=moderate",
-    "dev:web": "npm -w @jftrade/web run dev",
-    "dev:docs": "npm -w @jftrade/web run docs:dev",
+    "audit:dependencies": "pnpm audit --audit-level=moderate",
+    "dev:web": "pnpm --filter @jftrade/web run dev",
+    "dev:docs": "pnpm --filter @jftrade/web run docs:dev",
     "dev:all": "node scripts/dev-all.mjs",
     "desktop:dev": "node scripts/wails3.mjs task desktop:dev",
     "desktop:doctor": "node scripts/wails3.mjs doctor",
@@ -46,11 +28,11 @@
     "desktop:package:linux-deb": "node scripts/wails3.mjs task desktop:package:linux-deb",
     "desktop:package:linux-rpm": "node scripts/wails3.mjs task desktop:package:linux-rpm",
     "desktop:package:linux-arch": "node scripts/wails3.mjs task desktop:package:linux-arch",
-    "build": "npm run build:web && npm run build:docs && npm run build:backend",
-    "build:web": "npm -w @jftrade/web run build",
-    "build:docs": "npm run generate:docs && npm -w @jftrade/web run docs:build",
+    "build": "pnpm run build:web && pnpm run build:docs && pnpm run build:backend",
+    "build:web": "pnpm --filter @jftrade/web run build",
+    "build:docs": "pnpm run generate:docs && pnpm --filter @jftrade/web run docs:build",
     "build:backend": "go build -tags=embed_zoneinfo -o dist/jftrade-dev ./cmd/jftrade-api",
-    "prepare:desktop-release": "npm run generate:docs && npm run build:frontend-assets",
+    "prepare:desktop-release": "pnpm run generate:docs && pnpm run build:frontend-assets",
     "build:frontend-assets": "node scripts/build-frontend-assets.mjs",
     "build:pineworker": "node scripts/build-pineworker-assets.mjs",
     "build:pineworker:dev": "node scripts/build-pineworker-dev.mjs",
@@ -66,18 +48,18 @@
     "vet:go": "go vet ./...",
     "test:go": "go test ./... -count=1 -timeout 300s",
     "test:servercore": "go test ./internal/app/apiserver/servercore -count=1 -timeout 120s",
-    "test:web": "npm -w @jftrade/web run test",
-    "test:web:ci": "npm -w @jftrade/web run test:ci",
-    "test:web:watch": "npm -w @jftrade/web run test:watch",
-    "test:coverage": "npm run test:coverage:go && npm run test:coverage:web",
+    "test:web": "pnpm --filter @jftrade/web run test",
+    "test:web:ci": "pnpm --filter @jftrade/web run test:ci",
+    "test:web:watch": "pnpm --filter @jftrade/web run test:watch",
+    "test:coverage": "pnpm run test:coverage:go && pnpm run test:coverage:web",
     "test:coverage:go": "go run ./cmd/check-go-coverage",
-    "test:coverage:web": "npm -w @jftrade/web run test -- --coverage",
-    "test:pineworker": "npm -w @jftrade/pineworker run test",
-    "typecheck:web": "npm -w @jftrade/web run typecheck",
-    "typecheck:pineworker": "npm -w @jftrade/pineworker run typecheck",
+    "test:coverage:web": "pnpm --filter @jftrade/web run test --coverage",
+    "test:pineworker": "pnpm --filter @jftrade/pineworker run test",
+    "typecheck:web": "pnpm --filter @jftrade/web run typecheck",
+    "typecheck:pineworker": "pnpm --filter @jftrade/pineworker run typecheck",
     "generate:openapi": "go generate ./cmd/jftrade-api",
     "generate:reference": "node scripts/generate-docs.mjs",
-    "generate:docs": "npm run generate:openapi && npm run generate:reference",
+    "generate:docs": "pnpm run generate:openapi && pnpm run generate:reference",
     "generate:api-types": "node scripts/generate-api-types.mjs",
     "generate:wails-bindings": "node scripts/wails3.mjs generate bindings -ts -i -noevents -d apps/web/src/wails ./cmd/jftrade-desktop",
     "check:wails-bindings": "node scripts/check-wails-bindings.mjs",
@@ -87,15 +69,17 @@
     "test:desktop-signing": "node scripts/sign-desktop-release.test.mjs",
     "test:desktop-linux-package-config": "node scripts/prepare-linux-package-config.test.mjs",
     "test:api-release-scripts": "node scripts/api-release-scripts.test.mjs",
-    "test:desktop": "npm run prepare:desktop-release && npm run check:wails-bindings && npm run test:desktop-release-metadata && npm run test:desktop-release-inputs && npm run test:desktop-wails-tasks && npm run test:desktop-signing && npm run test:desktop-linux-package-config && node scripts/dev-desktop.test.mjs && go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1",
-    "check:desktop": "npm run desktop:doctor && npm run test:desktop",
+    "test:desktop": "pnpm run prepare:desktop-release && pnpm run check:wails-bindings && pnpm run test:desktop-release-metadata && pnpm run test:desktop-release-inputs && pnpm run test:desktop-wails-tasks && pnpm run test:desktop-signing && pnpm run test:desktop-linux-package-config && node scripts/dev-desktop.test.mjs && go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1",
+    "check:desktop": "pnpm run desktop:doctor && pnpm run test:desktop",
     "stage:docs": "node scripts/stage-docs.mjs",
     "check:pinets-compliance": "node scripts/check-pinets-compliance.mjs",
     "check:pinets-license": "node scripts/check-pinets-license.mjs",
-    "typecheck": "npm run typecheck:web && npm run typecheck:pineworker"
+    "typecheck": "pnpm run typecheck:web && pnpm run typecheck:pineworker"
   },
   "devDependencies": {
+    "mermaid": "^11.16.0",
+    "typescript": "^6.0.3",
     "vitepress": "2.0.0-alpha.18",
-    "vue": "3.5.39"
+    "vue": "catalog:"
   }
 }

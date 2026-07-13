@@ -74,10 +74,10 @@
 
 ### 验收标准
 
-- `npm run generate:docs` 后可以稳定生成 Swagger。
-- `npm run generate:api-types` 可以从当前 Swagger 生成前端类型。
+- `pnpm run generate:docs` 后可以稳定生成 Swagger。
+- `pnpm run generate:api-types` 可以从当前 Swagger 生成前端类型。
 - 至少 2 个前端模块不再手写响应 DTO。
-- `npm --workspace @jftrade/web run typecheck` 通过。
+- `pnpm --filter @jftrade/web run typecheck` 通过。
 - OpenAPI snapshot 测试仍能捕获破坏性 API 变更。
 
 ### 不做
@@ -129,7 +129,7 @@
 - 保存 settings 后能定向 invalidate 对应 query。
 - 启动 backtest 后 backtest runs 列表能通过 query invalidation 或 cache patch 更新。
 - Pinia 中不再保存可由服务端查询恢复的大型列表。
-- `npm --workspace @jftrade/web run test` 和 typecheck 通过。
+- `pnpm --filter @jftrade/web run test` 和 typecheck 通过。
 
 ### 不做
 
@@ -445,18 +445,18 @@ apps/web/src/components/
 每个 milestone 合并前至少执行：
 
 ```bash
-npm run generate:docs
-npm --workspace @jftrade/web run typecheck
-npm --workspace @jftrade/web run test
+pnpm run generate:docs
+pnpm --filter @jftrade/web run typecheck
+pnpm --filter @jftrade/web run test
 go test ./... -count=1 -timeout 300s
 ```
 
 如果改到 PineTS worker 或 release asset，还需要执行：
 
 ```bash
-npm run typecheck:pineworker
-npm run test:pineworker
-npm run check:pinets-release
+pnpm run typecheck:pineworker
+pnpm run test:pineworker
+pnpm run check:pinets-release
 ```
 
 如果改到架构依赖边界，还需要执行：

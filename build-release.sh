@@ -48,22 +48,22 @@ resolve_commit() {
 }
 
 install_frontend_dependencies() {
-  if [[ "${JFTRADE_RELEASE_SKIP_NPM_INSTALL:-}" == "1" ]]; then
-    echo "Skipping npm install because JFTRADE_RELEASE_SKIP_NPM_INSTALL=1"
+  if [[ "${JFTRADE_RELEASE_SKIP_PNPM_INSTALL:-}" == "1" ]]; then
+    echo "Skipping pnpm install because JFTRADE_RELEASE_SKIP_PNPM_INSTALL=1"
     return
   fi
 
-  if [[ ! -f "$ROOT_DIR/package-lock.json" ]]; then
-    echo "package-lock.json is required for release builds" >&2
+  if [[ ! -f "$ROOT_DIR/pnpm-lock.yaml" ]]; then
+    echo "pnpm-lock.yaml is required for release builds" >&2
     exit 1
   fi
 
-  npm ci --workspaces --include-workspace-root --no-audit --no-fund
+  pnpm install --frozen-lockfile
 }
 
 require_command go
 require_command node
-require_command npm
+require_command pnpm
 
 VERSION="$(resolve_version)"
 COMMIT="$(resolve_commit)"
@@ -77,14 +77,14 @@ echo "Installing frontend dependencies..."
 install_frontend_dependencies
 
 echo "Auditing locked frontend dependencies..."
-npm run audit:dependencies
+pnpm run audit:dependencies
 
 echo "Building frontend bundle..."
-npm run build:web
+pnpm run build:web
 
 echo "Building documentation bundle..."
-npm run build:docs
-npm run stage:docs
+pnpm run build:docs
+pnpm run stage:docs
 
 echo "Staging embedded frontend assets..."
 rm -rf "$EMBED_DIR" "$EMBED_ARCHIVE" "$OUTPUT_DIR"
@@ -93,7 +93,7 @@ cp -R "$WEB_DIST_DIR" "$EMBED_DIR"
 go run ./scripts/archive_frontend_assets.go -src "$WEB_DIST_DIR" -dst "$EMBED_ARCHIVE"
 
 echo "Building embedded PineTS worker assets..."
-npm run build:pineworker
+pnpm run build:pineworker
 
 echo "Running tests..."
 go test ./... -count=1 -timeout 300s || { echo "Tests failed"; exit 1; }

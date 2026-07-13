@@ -2,13 +2,15 @@
 
 JFTrade 是一个面向 Futu OpenD 的交易研发控制台。它把行情查看、历史数据同步、策略编写、回测、运行时设置和 ADK 助手放在同一个本地工作台里。
 
+前端与构建工具要求 Node.js `>=22.13` 和仓库固定的 pnpm `11.12.0`；依赖安装统一使用根目录 `pnpm-lock.yaml`。
+
 ## 快速开始
 
 日常使用和桌面联调优先启动 `JFTrade Dev`。它保持桌面免登录，也提供配置可选 Web 访问的可信设置入口：
 
 ```bash
-npm install
-npm run desktop:dev
+pnpm install --frozen-lockfile
+pnpm run desktop:dev
 ```
 
 只有进行纯浏览器前端开发时，才需要另外开两个终端。先在 `JFTrade Dev` 的“设置 → Web 访问”中设置密码并主动开启；独立 API 默认不会开放浏览器控制台。
@@ -22,8 +24,8 @@ go run ./cmd/jftrade-api
 终端 2：启动前端：
 
 ```bash
-npm install
-npm run dev:web
+pnpm install --frozen-lockfile
+pnpm run dev:web
 ```
 
 Web 已开启后可打开这些地址：
@@ -40,8 +42,8 @@ Web 已开启后可打开这些地址：
 只看文档站：
 
 ```bash
-npm run generate:docs
-npm run dev:docs
+pnpm run generate:docs
+pnpm run dev:docs
 ```
 
 VitePress 文档站默认在 `http://127.0.0.1:3001/`。
@@ -79,10 +81,10 @@ Windows PowerShell:
 Wails 正式产品使用 `vX.Y.Z` tag 作为唯一版本源。macOS 只发布 Apple Silicon ARM64 无签名 DMG：
 
 ```bash
-JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 npm run desktop:release:darwin
+JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run desktop:release:darwin
 ```
 
-Windows x64 无签名 NSIS 安装器使用 `npm run desktop:release:windows`；tag CI 还会在原生 ARM64 runner 上生成 Windows ARM64 preview 无签名 NSIS 安装器。完整发布约束见 [桌面发布与通道隔离](docs/troubleshooting/desktop-release.md)。
+Windows x64 无签名 NSIS 安装器使用 `pnpm run desktop:release:windows`；tag CI 还会在原生 ARM64 runner 上生成 Windows ARM64 preview 无签名 NSIS 安装器。完整发布约束见 [桌面发布与通道隔离](docs/troubleshooting/desktop-release.md)。
 
 推送正式桌面 tag 会自动触发 GitHub Actions，在全部平台构建通过后创建或更新同名 GitHub Release，并上传可下载二进制、SBOM 和 `SHA256SUMS`：
 
@@ -95,18 +97,18 @@ git push origin v1.2.3
 
 ```bash
 go test ./...
-npm run test:web
-npm run typecheck:web
-npm run build:web
-npm run build:docs
+pnpm run test:web
+pnpm run typecheck:web
+pnpm run build:web
+pnpm run build:docs
 ```
 
 文档和接口说明生成：
 
 ```bash
-npm run generate:openapi
-npm run generate:reference
-npm run generate:docs
+pnpm run generate:openapi
+pnpm run generate:reference
+pnpm run generate:docs
 ```
 
 其中：

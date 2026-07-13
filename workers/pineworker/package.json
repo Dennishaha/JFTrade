@@ -2,8 +2,7 @@
   "name": "@jftrade/pineworker",
   "private": true,
   "engines": {
-    "node": ">=22",
-    "npm": ">=10"
+    "node": ">=22.13"
   },
   "type": "module",
   "scripts": {
@@ -16,7 +15,7 @@
   "devDependencies": {
     "rolldown": "^1.1.5",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.14.4",

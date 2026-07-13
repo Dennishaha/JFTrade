@@ -3,8 +3,9 @@
   "tasks": [
     {
       "label": "dev:web",
-      "type": "npm",
-      "script": "dev:web",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "dev:web"],
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -15,8 +16,9 @@
     },
     {
       "label": "dev:docs",
-      "type": "npm",
-      "script": "dev:docs",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "dev:docs"],
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -27,8 +29,9 @@
     },
     {
       "label": "desktop:dev",
-      "type": "npm",
-      "script": "desktop:dev",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "desktop:dev"],
       "problemMatcher": [
         "$go"
       ],
@@ -41,15 +44,17 @@
     },
     {
       "label": "desktop:doctor",
-      "type": "npm",
-      "script": "desktop:doctor",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "desktop:doctor"],
       "group": "test",
       "problemMatcher": []
     },
     {
       "label": "test:desktop",
-      "type": "npm",
-      "script": "test:desktop",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "test:desktop"],
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -57,8 +62,9 @@
     },
     {
       "label": "check:desktop",
-      "type": "npm",
-      "script": "check:desktop",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "check:desktop"],
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -66,8 +72,9 @@
     },
     {
       "label": "generate:docs",
-      "type": "npm",
-      "script": "generate:docs",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "generate:docs"],
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -78,8 +85,9 @@
     },
     {
       "label": "generate:api-types",
-      "type": "npm",
-      "script": "generate:api-types",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "generate:api-types"],
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -109,8 +117,9 @@
     },
     {
       "label": "go:vet",
-      "type": "npm",
-      "script": "vet:go",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "vet:go"],
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -124,8 +133,9 @@
     },
     {
       "label": "go:test",
-      "type": "npm",
-      "script": "test:go",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "test:go"],
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -139,8 +149,9 @@
     },
     {
       "label": "go:test:servercore",
-      "type": "npm",
-      "script": "test:servercore",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "test:servercore"],
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -154,8 +165,9 @@
     },
     {
       "label": "go:lint",
-      "type": "npm",
-      "script": "lint:go",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "lint:go"],
       "group": "test",
       "problemMatcher": [
         "$go"
@@ -169,57 +181,65 @@
     },
     {
       "label": "test:web",
-      "type": "npm",
-      "script": "test:web",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "test:web"],
       "group": "test",
       "problemMatcher": []
     },
     {
       "label": "test:pineworker",
-      "type": "npm",
-      "script": "test:pineworker",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "test:pineworker"],
       "group": "test",
       "problemMatcher": []
     },
     {
       "label": "typecheck:web",
-      "type": "npm",
-      "script": "typecheck:web",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "typecheck:web"],
       "group": "test",
       "problemMatcher": []
     },
     {
       "label": "typecheck:pineworker",
-      "type": "npm",
-      "script": "typecheck:pineworker",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "typecheck:pineworker"],
       "group": "test",
       "problemMatcher": []
     },
     {
       "label": "check:arch-deps",
-      "type": "npm",
-      "script": "check:arch-deps",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "check:arch-deps"],
       "group": "test",
       "problemMatcher": []
     },
     {
       "label": "build:web",
-      "type": "npm",
-      "script": "build:web",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "build:web"],
       "group": "build",
       "problemMatcher": []
     },
     {
       "label": "build:docs",
-      "type": "npm",
-      "script": "build:docs",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "build:docs"],
       "group": "build",
       "problemMatcher": []
     },
     {
       "label": "build:backend",
-      "type": "npm",
-      "script": "build:backend",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "build:backend"],
       "group": "build",
       "problemMatcher": [
         "$go"
@@ -227,15 +247,16 @@
     },
     {
       "label": "build:pineworker",
-      "type": "npm",
-      "script": "build:pineworker",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "build:pineworker"],
       "group": "build",
       "problemMatcher": []
     },
     {
       "label": "build:pineworker:dev",
       "type": "shell",
-      "command": "npm",
+      "command": "pnpm",
       "args": [
         "run",
         "build:pineworker:dev"
@@ -256,8 +277,9 @@
     },
     {
       "label": "desktop:build",
-      "type": "npm",
-      "script": "desktop:build",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "desktop:build"],
       "group": "build",
       "problemMatcher": [
         "$go"
@@ -271,8 +293,9 @@
     },
     {
       "label": "desktop:release:darwin",
-      "type": "npm",
-      "script": "desktop:release:darwin",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "desktop:release:darwin"],
       "group": "build",
       "problemMatcher": [
         "$go"
@@ -286,8 +309,9 @@
     },
     {
       "label": "desktop:release:windows",
-      "type": "npm",
-      "script": "desktop:release:windows",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "desktop:release:windows"],
       "group": "build",
       "problemMatcher": [
         "$go"
@@ -295,8 +319,9 @@
     },
     {
       "label": "desktop:release:windows-arm64",
-      "type": "npm",
-      "script": "desktop:release:windows-arm64",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "desktop:release:windows-arm64"],
       "group": "build",
       "problemMatcher": [
         "$go"
@@ -304,8 +329,9 @@
     },
     {
       "label": "build",
-      "type": "npm",
-      "script": "build",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "build"],
       "group": {
         "kind": "build",
         "isDefault": true

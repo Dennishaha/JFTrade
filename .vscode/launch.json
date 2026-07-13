@@ -9,7 +9,7 @@
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "command": "npm run dev:web",
+            "command": "pnpm run dev:web",
             "serverReadyAction": {
                 "action": "openExternally",
                 "pattern": "Local:\\s+(https?://[^\\s]+)",
@@ -21,7 +21,7 @@
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "command": "npm run dev:docs",
+            "command": "pnpm run dev:docs",
             "serverReadyAction": {
                 "action": "openExternally",
                 "pattern": "Local:\\s+(https?://[^\\s]+)",
@@ -71,14 +71,14 @@
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "command": "npm run dev:api:pineworker"
+            "command": "pnpm run dev:api:pineworker"
         },
         {
             "name": "Dev Desktop (Wails)",
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "command": "npm run desktop:dev"
+            "command": "pnpm run desktop:dev"
         }
     ]
 }

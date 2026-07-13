@@ -211,10 +211,10 @@ BBGO 继续负责行情、账户、交易和 stream 公共能力。它的实时 
 
 ```bash
 go test ./internal/watchlist ./internal/store/watchlist ./internal/api/watchlist ./pkg/futu ./pkg/futu/opend ./internal/app/apiserver/servercore -count=1
-npm --workspace @jftrade/web run typecheck
-npm --workspace @jftrade/web run test:ci
-npm run generate:docs
-npm run generate:api-types
+pnpm --filter @jftrade/web run typecheck
+pnpm --filter @jftrade/web run test:ci
+pnpm run generate:docs
+pnpm run generate:api-types
 bash scripts/check-arch-deps.sh
 ```
 

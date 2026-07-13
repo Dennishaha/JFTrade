@@ -96,7 +96,7 @@ func (s *Server) startPineWorkerManagers() (pineWorkerRunner, pineWorkerRunner) 
 		return nil, nil
 	}
 	if !enabled {
-		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `npm run dev:api:pineworker` or set %s=/absolute/path/to/worker.mjs", envPineWorkerBundle, envPineWorkerBundle)
+		log.Printf("JFTrade PineTS worker manager not started: %s is not configured and no embedded worker asset is available; run `pnpm run dev:api:pineworker` or set %s=/absolute/path/to/worker.mjs", envPineWorkerBundle, envPineWorkerBundle)
 		return nil, nil
 	}
 

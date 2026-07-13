@@ -28,7 +28,7 @@ if (generateStatus !== 0) process.exit(generateStatus);
 const after = snapshotDirectory(bindingsDir);
 if (!snapshotsEqual(before, after)) {
   console.error(
-    "Wails bindings are stale. Run npm run generate:wails-bindings.",
+    "Wails bindings are stale. Run pnpm run generate:wails-bindings.",
   );
   process.exit(1);
 }

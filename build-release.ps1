@@ -50,18 +50,18 @@ function Resolve-GitValue {
 }
 
 function Install-FrontendDependencies {
-    if ($env:JFTRADE_RELEASE_SKIP_NPM_INSTALL -eq "1") {
-        Write-Host "Skipping npm install because JFTRADE_RELEASE_SKIP_NPM_INSTALL=1" -ForegroundColor Yellow
+    if ($env:JFTRADE_RELEASE_SKIP_PNPM_INSTALL -eq "1") {
+        Write-Host "Skipping pnpm install because JFTRADE_RELEASE_SKIP_PNPM_INSTALL=1" -ForegroundColor Yellow
         return
     }
 
-    if (-not (Test-Path (Join-Path $PSScriptRoot "package-lock.json"))) {
-        throw "package-lock.json is required for release builds"
+    if (-not (Test-Path (Join-Path $PSScriptRoot "pnpm-lock.yaml"))) {
+        throw "pnpm-lock.yaml is required for release builds"
     }
 
-    npm ci --workspaces --include-workspace-root --no-audit --no-fund
+    pnpm install --frozen-lockfile
     if ($LASTEXITCODE -ne 0) {
-        throw "npm ci failed. Close processes that may hold node_modules, then retry. To use an intentionally preinstalled dependency tree, set JFTRADE_RELEASE_SKIP_NPM_INSTALL=1."
+        throw "pnpm install failed. Close processes that may hold node_modules, then retry. To use an intentionally preinstalled dependency tree, set JFTRADE_RELEASE_SKIP_PNPM_INSTALL=1."
     }
 }
 
@@ -114,7 +114,8 @@ function Invoke-GoReleaseBuild {
 }
 
 Require-Command go
-Require-Command npm
+Require-Command node
+Require-Command pnpm
 
 $version = if ([string]::IsNullOrWhiteSpace($env:JFTRADE_VERSION)) {
     Resolve-GitValue -Arguments @("describe", "--tags", "--always", "--dirty") -Fallback "dev"
@@ -136,23 +137,23 @@ Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
 Install-FrontendDependencies
 
 Write-Host "Auditing locked frontend dependencies..." -ForegroundColor Cyan
-npm run audit:dependencies
+pnpm run audit:dependencies
 if ($LASTEXITCODE -ne 0) {
-    throw "npm dependency audit failed"
+    throw "pnpm dependency audit failed"
 }
 
 Write-Host "Building frontend bundle..." -ForegroundColor Cyan
-npm run build:web
+pnpm run build:web
 if ($LASTEXITCODE -ne 0) {
     throw "frontend build failed"
 }
 
 Write-Host "Building documentation bundle..." -ForegroundColor Cyan
-npm run build:docs
+pnpm run build:docs
 if ($LASTEXITCODE -ne 0) {
     throw "documentation build failed"
 }
-npm run stage:docs
+pnpm run stage:docs
 if ($LASTEXITCODE -ne 0) {
     throw "documentation staging failed"
 }
@@ -176,7 +177,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Building embedded PineTS worker assets..." -ForegroundColor Cyan
-npm run build:pineworker
+pnpm run build:pineworker
 if ($LASTEXITCODE -ne 0) {
     throw "PineTS worker asset build failed"
 }

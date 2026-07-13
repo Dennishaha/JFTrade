@@ -205,16 +205,16 @@ flowchart LR
 flowchart TB
     subgraph Dev["开发态"]
         DevAPI["go run ./cmd/jftrade-api<br/>127.0.0.1:3000"]
-        DevWeb["npm run dev:web<br/>Vite 127.0.0.1:3003"]
-        DevDocs["npm run dev:docs<br/>VitePress 127.0.0.1:3001"]
+        DevWeb["pnpm run dev:web<br/>Vite 127.0.0.1:3003"]
+        DevDocs["pnpm run dev:docs<br/>VitePress 127.0.0.1:3001"]
         Proxy["Vite proxy<br/>/api /swagger -> 3000<br/>/docs -> 3001"]
-        DesktopDev["npm run desktop:dev<br/>JFTrade Dev / sidecar 3008<br/>仓库 var/jftrade-api"]
+        DesktopDev["pnpm run desktop:dev<br/>JFTrade Dev / sidecar 3008<br/>仓库 var/jftrade-api"]
     end
 
     subgraph Build["构建任务"]
-        BuildWeb["npm run build:web"]
-        BuildDocs["npm run build:docs<br/>generate OpenAPI + reference"]
-        BuildWorker["npm run build:pineworker"]
+        BuildWeb["pnpm run build:web"]
+        BuildDocs["pnpm run build:docs<br/>generate OpenAPI + reference"]
+        BuildWorker["pnpm run build:pineworker"]
         BuildAPI["go build ./cmd/jftrade-api"]
         BuildDesktop["release_assets<br/>cmd/jftrade-desktop"]
     end

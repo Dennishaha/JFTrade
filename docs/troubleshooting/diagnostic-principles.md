@@ -18,7 +18,7 @@
 | 术语                 | 当前含义                                                                            |
 | -------------------- | ----------------------------------------------------------------------------------- |
 | API sidecar          | `go run ./cmd/jftrade-api`，用于前端开发和控制平面调试                              |
-| JFTrade Dev          | `npm run desktop:dev` 启动的 Wails 开发通道，默认 API `3008`，使用仓库数据目录      |
+| JFTrade Dev          | `pnpm run desktop:dev` 启动的 Wails 开发通道，默认 API `3008`，使用仓库数据目录      |
 | JFTrade              | `release_assets` 构建的正式桌面通道，内部 sidecar `6699`，可选 Web 默认 `6688`      |
 | sidecar              | `internal/app/apiserver` 装配、`internal/api/*` 提供 transport 的前端适配与控制平面 |
 | `/api/v1/*`          | JFTrade 自有 API 契约                                                               |

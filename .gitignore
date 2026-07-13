@@ -7,7 +7,6 @@ coverage.txt
 
 # Node
 node_modules/
-.npm
 .pnpm-store/
 .vite/
 .vite-cache/

@@ -2,9 +2,9 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 
-const npmCommand = process.env.npm_execpath
+const packageManagerCommand = process.env.npm_execpath
   ? [process.execPath, [process.env.npm_execpath]]
-  : [process.platform === "win32" ? "npm.cmd" : "npm", []];
+  : [process.platform === "win32" ? "pnpm.cmd" : "pnpm", []];
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const desktopRuntimeDir = path.join(rootDir, "var", "jftrade-api");
@@ -65,7 +65,7 @@ if (process.platform === "darwin") {
 }
 
 const commands = [
-  [npmCommand[0], [...npmCommand[1], "run", "dev:web"], devEnv],
+  [packageManagerCommand[0], [...packageManagerCommand[1], "run", "dev:web"], devEnv],
   [desktopCommand, desktopArgs, devEnv],
 ];
 
@@ -74,7 +74,7 @@ const children = commands.map(([command, args, extraEnv]) =>
     stdio: "inherit",
     // Native executables (including process.execPath) must not go through
     // cmd.exe: unquoted paths such as C:\Program Files\... are split at the
-    // space. Only the Windows npm fallback needs a command shell.
+    // space. Only the Windows package-manager fallback needs a command shell.
     shell:
       process.platform === "win32" && /\.(?:cmd|bat)$/i.test(command),
     env: { ...process.env, ...extraEnv },

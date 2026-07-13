@@ -11,7 +11,7 @@
 | 模式           | 命令                       | 适用场景                                   | 关键差异                                                      |
 | -------------- | -------------------------- | ------------------------------------------ | ------------------------------------------------------------- |
 | API sidecar    | `go run ./cmd/jftrade-api` | 前端开发、设置调试、行情调试、策略运行控制 | 启动 JFTrade `/api/v1/*` 控制台后端                           |
-| Wails 桌面开发 | `npm run desktop:dev`      | 桌面壳、菜单、bindings、窗口与产品联调     | 启动 `JFTrade Dev`、Vite 和内置 sidecar，保留仓库数据路径     |
+| Wails 桌面开发 | `pnpm run desktop:dev`      | 桌面壳、菜单、bindings、窗口与产品联调     | 启动 `JFTrade Dev`、Vite 和内置 sidecar，保留仓库数据路径     |
 | Wails 正式产品 | `release_assets` 构建产物  | 日常桌面使用                               | `JFTrade` 独立单实例，使用系统用户数据目录和临时桌面 API 凭证 |
 
 [cmd/jftrade-api/main.go](../../cmd/jftrade-api/main.go) 在进程入口会默认写入 `DISABLE_MARKETS_CACHE=1`，避免旧 market cache 影响 Futu market metadata。
@@ -42,7 +42,7 @@
 
 Wails 桌面的可选 Web 端口不使用 `interfaces.apiBind` 或 sidecar 端口，而由“设置 → Web 访问”的 `security.webPort` 控制。它允许 `1024`–`65535`，默认 `6688`，保存后立即切换。若提示 `WEB_ACCESS_LISTENER_UPDATE_FAILED` 或日志出现 `Web access port conflict`，原端口仍会继续服务；用 `lsof` 查占用进程或换一个空闲端口。
 
-在 `JFTrade Dev` 中访问该端口时，UI 由 Gin 安全代理本机 Vite `3003`。如果返回 `502` 和“development UI is not available”，确认是用 `npm run desktop:dev` 启动，并检查 Vite 是否仍在监听；正式产品使用内嵌资源，不依赖 `3003`。
+在 `JFTrade Dev` 中访问该端口时，UI 由 Gin 安全代理本机 Vite `3003`。如果返回 `502` 和“development UI is not available”，确认是用 `pnpm run desktop:dev` 启动，并检查 Vite 是否仍在监听；正式产品使用内嵌资源，不依赖 `3003`。
 
 ## 快速检查
 

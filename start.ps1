@@ -17,7 +17,7 @@ function Join-CharCodes {
 }
 
 $cnGoNotInstalled = Join-CharCodes 0x672a,0x5b89,0x88c5,0x6216,0x4e0d,0x5728,0x20,0x50,0x41,0x54,0x48,0x20,0x4e2d
-$cnNpmNotInstalled = Join-CharCodes 0x672a,0x5b89,0x88c5,0x6216,0x4e0d,0x5728,0x20,0x50,0x41,0x54,0x48,0x20,0x4e2d
+$cnPnpmNotInstalled = Join-CharCodes 0x672a,0x5b89,0x88c5,0x6216,0x4e0d,0x5728,0x20,0x50,0x41,0x54,0x48,0x20,0x4e2d
 $cnInstallFrontend = Join-CharCodes 0x5b89,0x88c5,0x524d,0x7aef,0x4f9d,0x8d56
 $cnDependencyFailed = Join-CharCodes 0x4f9d,0x8d56,0x5b89,0x88c5,0x5931,0x8d25
 $cnRunTypecheck = Join-CharCodes 0x8fd0,0x884c,0x524d,0x7aef,0x7c7b,0x578b,0x68c0,0x67e5
@@ -57,14 +57,14 @@ if (-not (Get-Command "go" -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-if (-not (Get-Command "npm" -ErrorAction SilentlyContinue)) {
-    Write-Host ("npm is not installed or not on PATH / {0}" -f $cnNpmNotInstalled) -ForegroundColor Red
+if (-not (Get-Command "pnpm" -ErrorAction SilentlyContinue)) {
+    Write-Host ("pnpm is not installed or not on PATH / {0}" -f $cnPnpmNotInstalled) -ForegroundColor Red
     pause
     exit 1
 }
 
 Write-Host ("`n=== Installing frontend dependencies / {0} ===" -f $cnInstallFrontend) -ForegroundColor Cyan
-npm install
+pnpm install --frozen-lockfile
 if ($LASTEXITCODE -ne 0) {
     Write-Host ("Dependency installation failed / {0}" -f $cnDependencyFailed) -ForegroundColor Red
     pause
@@ -72,7 +72,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n=== Generating Swagger docs / 生成 Swagger 文档 ===" -ForegroundColor Cyan
-npm run generate:openapi
+pnpm run generate:openapi
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Swagger generation failed / Swagger 文档生成失败" -ForegroundColor Red
     pause
@@ -80,7 +80,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ("`n=== Running frontend typecheck / {0} ===" -f $cnRunTypecheck) -ForegroundColor Cyan
-npm run typecheck
+pnpm run typecheck
 if ($LASTEXITCODE -ne 0) {
     Write-Host ("Typecheck failed / {0}" -f $cnTypecheckFailed) -ForegroundColor Red
     pause
@@ -88,7 +88,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ("`n=== Building frontend / {0} ===" -f $cnBuildFrontend) -ForegroundColor Cyan
-npm run build:web
+pnpm run build:web
 if ($LASTEXITCODE -ne 0) {
     Write-Host ("Frontend build failed / {0}" -f $cnFrontendBuildFailed) -ForegroundColor Red
     pause
@@ -112,7 +112,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n=== Building embedded PineTS worker assets ===" -ForegroundColor Cyan
-npm run build:pineworker
+pnpm run build:pineworker
 if ($LASTEXITCODE -ne 0) {
     Write-Host "PineTS worker asset build failed" -ForegroundColor Red
     pause

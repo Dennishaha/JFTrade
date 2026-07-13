@@ -28,12 +28,12 @@ try {
   });
   assert(blocked.status === 0, `blocked release check failed: ${blocked.stderr}`);
   const blockedLog = readFileSync(runLog, "utf8");
-  assert(!blockedLog.includes("npm run build:pineworker"), "blocked release check should skip release asset build");
+  assert(!blockedLog.includes("pnpm run build:pineworker"), "blocked release check should skip release asset build");
   assert(blockedLog.includes("go test ./pkg/strategy/pineworker -run Test -cover"), "blocked release check did not run focused Pine worker coverage gate");
-  assert(blockedLog.includes("npm run check:pinets-compliance"), "blocked release check did not run PineTS compliance gate");
-  assert(blockedLog.includes("npm run test:web"), "blocked release check did not run frontend test gate");
-  assert(blockedLog.includes("npm run typecheck:web"), "blocked release check did not run frontend typecheck gate");
-  assert(blockedLog.includes("npm run build:frontend-assets"), "blocked release check did not rebuild frontend release assets");
+  assert(blockedLog.includes("pnpm run check:pinets-compliance"), "blocked release check did not run PineTS compliance gate");
+  assert(blockedLog.includes("pnpm run test:web"), "blocked release check did not run frontend test gate");
+  assert(blockedLog.includes("pnpm run typecheck:web"), "blocked release check did not run frontend typecheck gate");
+  assert(blockedLog.includes("pnpm run build:frontend-assets"), "blocked release check did not rebuild frontend release assets");
   assert(blockedLog.includes("git diff --check"), "blocked release check did not run git diff whitespace gate");
 
   const pass = runCheck([], {
@@ -47,7 +47,7 @@ try {
   assert(pass.stdout.includes("pinets package license: AGPL-3.0-only"), "unblocked release check did not report pinets package license");
   const passLog = readFileSync(runLog, "utf8");
   assert(passLog.includes("JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v"), "unblocked release check did not run real PineTS process smoke");
-  assert(passLog.includes("npm run build:pineworker"), "unblocked release check did not build worker assets");
+  assert(passLog.includes("pnpm run build:pineworker"), "unblocked release check did not build worker assets");
   assert(passLog.includes(`go build -tags release_assets -o ${releaseOut} ./cmd/jftrade-api`), "unblocked release check did not build release_assets API binary");
   assert(existsSync(releaseOut), "unblocked release check did not leave an artifact");
 

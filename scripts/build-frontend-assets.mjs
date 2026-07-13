@@ -8,9 +8,9 @@ const srcDir = join(rootDir, "apps/web/dist");
 const dstDir = join(rootDir, "internal/frontendassets/dist");
 const zipPath = join(rootDir, "internal/frontendassets/dist.zip");
 
-run("npm", ["run", "build:web"]);
-run("npm", ["-w", "@jftrade/web", "run", "docs:build"]);
-run("npm", ["run", "stage:docs"]);
+run("pnpm", ["run", "build:web"]);
+run("pnpm", ["--filter", "@jftrade/web", "run", "docs:build"]);
+run("pnpm", ["run", "stage:docs"]);
 rmSync(dstDir, { recursive: true, force: true });
 cpSync(srcDir, dstDir, { recursive: true });
 run("go", ["run", "./scripts/archive_frontend_assets.go", "-src", "internal/frontendassets/dist", "-dst", "internal/frontendassets/dist.zip"]);

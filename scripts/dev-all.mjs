@@ -2,19 +2,19 @@ import { spawn } from "node:child_process";
 
 // Combined development entry point; individual services remain available via package scripts.
 
-const npmCommand = process.env.npm_execpath
+const packageManagerCommand = process.env.npm_execpath
   ? [process.execPath, [process.env.npm_execpath]]
-  : [process.platform === "win32" ? "npm.cmd" : "npm", []];
+  : [process.platform === "win32" ? "pnpm.cmd" : "pnpm", []];
 
 const docsArgs = [
-  ...npmCommand[1],
+  ...packageManagerCommand[1],
   "run",
   "dev:docs",
 ];
 
 const commands = [
-  [npmCommand[0], docsArgs],
-  [npmCommand[0], [...npmCommand[1], "run", "dev:web"]],
+  [packageManagerCommand[0], docsArgs],
+  [packageManagerCommand[0], [...packageManagerCommand[1], "run", "dev:web"]],
 ];
 
 const children = commands.map(([command, args]) =>

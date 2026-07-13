@@ -113,9 +113,9 @@ Goal: make "completion" reproducible.
 Recommended gates:
 
 - Go: `go test ./pkg/strategy/indicatorbinding ./pkg/strategy/ir ./pkg/strategy/pine ./pkg/strategy/pineworker ./pkg/strategy/indicatorruntime ./pkg/strategy/pinespec`
-- Web: `npm -w @jftrade/web run test -- strategyVisualBuilderPine StrategyStageOverlayDeck strategyAuthoringDocs`
-- Typecheck: `npm -w @jftrade/web run typecheck`
-- Full CI before score bumps: `go test ./...`, `npm run test:web`, `npm run build:web`, `git diff --check`
+- Web: `pnpm --filter @jftrade/web run test strategyVisualBuilderPine StrategyStageOverlayDeck strategyAuthoringDocs`
+- Typecheck: `pnpm --filter @jftrade/web run typecheck`
+- Full CI before score bumps: `go test ./...`, `pnpm run test:web`, `pnpm run build:web`, `git diff --check`
 - Benchmarks: targeted `go test -bench` suites for any new runtime family.
 
 ## Proposed Milestones

@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
 
-const require = createRequire(import.meta.url);
+const require = createRequire(new URL("../workers/pineworker/package.json", import.meta.url));
 const entry = require.resolve("pinets");
 const pkg = JSON.parse(readFileSync(join(dirname(dirname(entry)), "package.json"), "utf8"));
 

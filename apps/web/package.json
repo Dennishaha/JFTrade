@@ -2,10 +2,8 @@
   "name": "@jftrade/web",
   "private": true,
   "engines": {
-    "node": ">=22",
-    "npm": ">=10"
+    "node": ">=22.13"
   },
-  "packageManager": "npm@11.16.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3003",
@@ -33,7 +31,7 @@
     "monaco-editor": "^0.55.1",
     "pinia": "^3.0.4",
     "splitpanes": "^4.1.2",
-    "vue": "^3.5.39",
+    "vue": "catalog:",
     "vue-router": "^5.1.0",
     "vuetify": "4.1.4"
   },
@@ -49,7 +47,7 @@
     "typescript": "^6.0.3",
     "vite": "8.1.4",
     "vite-plugin-vue-devtools": "^8.1.5",
-    "vitest": "^4.1.10",
+    "vitest": "catalog:",
     "vue-tsc": "^3.3.7"
   },
   "version": "0.0.0"

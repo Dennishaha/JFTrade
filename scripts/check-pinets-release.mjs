@@ -20,7 +20,7 @@ const releaseOut = process.env.JFTRADE_PINETS_RELEASE_OUT || "dist/trading-engin
 const dryRun = process.env.JFTRADE_PINETS_RELEASE_DRY_RUN === "1";
 
 let blocked = false;
-if (!checkPinetsPackageAndLicense({ dryRun, verifyNpmVisible: true })) {
+if (!checkPinetsPackageAndLicense({ dryRun, verifyWorkspaceVisible: true })) {
   blocked = true;
 }
 
@@ -28,12 +28,12 @@ run("go", ["test", "./internal/app/apiserver/servercore", "-run", "TestResolvePi
 run("go", ["test", "./pkg/strategy/pineworker", "-run", "TestPineTSHardCutDoesNotExposeGoPineRuntime", "-v"]);
 run("go", ["test", "./pkg/strategy/pineworker", "-run", "Test", "-cover"]);
 run("go", ["test", "./pkg/strategy/pineworker", "-bench", "BenchmarkCheckPerformanceGate", "-run", "^$", "-benchmem"]);
-run("npm", ["run", "test:pineworker"]);
-run("npm", ["run", "typecheck:pineworker"]);
-run("npm", ["run", "check:pinets-compliance"]);
-run("npm", ["run", "test:web"]);
-run("npm", ["run", "typecheck:web"]);
-run("npm", ["run", "build:frontend-assets"]);
+run("pnpm", ["run", "test:pineworker"]);
+run("pnpm", ["run", "typecheck:pineworker"]);
+run("pnpm", ["run", "check:pinets-compliance"]);
+run("pnpm", ["run", "test:web"]);
+run("pnpm", ["run", "typecheck:web"]);
+run("pnpm", ["run", "build:frontend-assets"]);
 run("go", ["test", "-tags", "release_assets", "./internal/frontendassets", "-run", "TestFileSystem"]);
 run("git", ["diff", "--check"]);
 
@@ -41,7 +41,7 @@ if (!blocked) {
   run("go", ["test", "./pkg/strategy/pineworker", "-run", "TestWorkerManagerRealPineTSProcessSmoke", "-v"], {
     JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE: "1",
   });
-  run("npm", ["run", "build:pineworker"]);
+  run("pnpm", ["run", "build:pineworker"]);
   run("go", ["test", "-tags", "release_assets", "./internal/pineworkerassets", "-run", "Test"]);
   prepareReleaseArtifactPath();
   run("go", ["build", "-tags", "release_assets", "-o", releaseOut, "./cmd/jftrade-api"]);

@@ -94,51 +94,51 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Linux desktop dependencies
         run: bash scripts/install-linux-desktop-dependencies.sh
 
-      - name: Use declared npm version
-        run: npm install --global npm@11.16.0 --no-audit --no-fund
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Install frontend dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Audit locked npm dependencies
-        run: npm run audit:dependencies
+      - name: Audit locked pnpm dependencies
+        run: pnpm run audit:dependencies
 
       - name: Verify Wails host
         env:
           GOFLAGS: "-tags=gtk3"
-        run: npm run desktop:doctor
+        run: pnpm run desktop:doctor
 
       - name: Generate release inputs
         run: |
-          npm run generate:docs
-          npm run build:frontend-assets
-          npm run build:pineworker
+          pnpm run generate:docs
+          pnpm run build:frontend-assets
+          pnpm run build:pineworker
           git diff --exit-code -- docs/reference/generated/pine-v6-support.md
 
       - name: Verify PineTS release acceptance
-        run: npm run check:pinets-release
+        run: pnpm run check:pinets-release
 
       - name: Verify shared desktop source
         env:
           GOFLAGS: "-tags=gtk3"
         run: |
-          npm run check:wails-bindings
-          npm run typecheck:web
-          npm run test:desktop-release-metadata
-          npm run test:desktop-release-inputs
-          npm run test:desktop-wails-tasks
-          npm run test:desktop-signing
-          npm run test:desktop-linux-package-config
+          pnpm run check:wails-bindings
+          pnpm run typecheck:web
+          pnpm run test:desktop-release-metadata
+          pnpm run test:desktop-release-inputs
+          pnpm run test:desktop-wails-tasks
+          pnpm run test:desktop-signing
+          pnpm run test:desktop-linux-package-config
           node scripts/dev-desktop.test.mjs
 
       - name: Verify embedded release inputs
@@ -179,6 +179,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -230,7 +233,7 @@ jobs:
           echo "JFTRADE_MACOS_NOTARY_PROFILE=jftrade-ci" >> "$GITHUB_ENV"
 
       - name: Build ARM64 DMG
-        run: npm run desktop:release:darwin
+        run: pnpm run desktop:release:darwin
 
       - name: Locate macOS artifact
         id: artifact
@@ -295,6 +298,9 @@ jobs:
           go-version-file: go.mod
           cache: false
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -337,7 +343,7 @@ jobs:
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build per-user NSIS installer
-        run: npm run desktop:release:windows
+        run: pnpm run desktop:release:windows
 
       - name: Locate Windows artifact
         id: artifact
@@ -394,6 +400,9 @@ jobs:
           go-version-file: go.mod
           cache: false
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -441,7 +450,7 @@ jobs:
         run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build ARM64 preview NSIS installer
-        run: npm run desktop:release:windows-arm64
+        run: pnpm run desktop:release:windows-arm64
 
       - name: Locate Windows ARM64 artifact
         id: artifact
@@ -498,6 +507,9 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -517,7 +529,7 @@ jobs:
         run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build Linux x64 release binary
-        run: npm run desktop:release:linux
+        run: pnpm run desktop:release:linux
 
       - name: Verify Linux x64 release binary
         id: artifact

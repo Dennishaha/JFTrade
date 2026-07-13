@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 
-const require = createRequire(import.meta.url);
+const require = createRequire(new URL("../workers/pineworker/package.json", import.meta.url));
 const pinetsEntry = require.resolve("pinets");
 const pinetsPackage = JSON.parse(readFileSync(join(dirname(dirname(pinetsEntry)), "package.json"), "utf8"));
 const notice = readFileSync("docs/legal/third-party-notices.md", "utf8");
@@ -18,8 +18,8 @@ const requiredNoticeText = [
   "scripts/pinets-worker.mjs",
   "scripts/build-pineworker-assets.mjs",
   "scripts/build-pineworker-dev.mjs",
-  "npm run build:pineworker",
-  "npm run check:pinets-release",
+  "pnpm run build:pineworker",
+  "pnpm run check:pinets-release",
   "corresponding source",
   "network users",
 ];

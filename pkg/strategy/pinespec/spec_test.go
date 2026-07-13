@@ -278,7 +278,7 @@ func TestGeneratedPineSupportSnapshotIsCurrent(t *testing.T) {
 		t.Fatalf("read generated Pine support snapshot: %v", err)
 	}
 	if got, want := string(raw), BuildSupportSnapshotMarkdown(); got != want {
-		t.Fatalf("%s is stale; run npm run generate:reference", path)
+		t.Fatalf("%s is stale; run pnpm run generate:reference", path)
 	}
 }
 

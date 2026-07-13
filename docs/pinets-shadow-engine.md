@@ -35,7 +35,7 @@ outside this stdio report path.
 Run the real-K-line shadow corpus report with:
 
 ```bash
-npm run test:pinets-shadow-corpus
+pnpm run test:pinets-shadow-corpus
 ```
 
 This wraps `go test ./pkg/backtest -run TestPinetsShadowCorpusReport -count=1 -v`.

@@ -13,9 +13,9 @@ if (usesPreparedDesktopReleaseInputs()) {
 }
 
 for (const [command, args] of [
-  ["npm", ["run", "prepare:desktop-release"]],
-  ["npm", ["run", "generate:wails-bindings"]],
-  ["npm", ["run", "build:pineworker"]],
+  ["pnpm", ["run", "prepare:desktop-release"]],
+  ["pnpm", ["run", "generate:wails-bindings"]],
+  ["pnpm", ["run", "build:pineworker"]],
 ]) {
   const status = spawnChecked(command, args, { cwd: process.cwd() });
   if (status !== 0) process.exit(status);

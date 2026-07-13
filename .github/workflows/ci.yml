@@ -24,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -47,10 +50,10 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Wails doctor
-        run: npm run desktop:doctor
+        run: pnpm run desktop:doctor
 
       - name: Generate OpenAPI contract
-        run: npm run generate:openapi
+        run: pnpm run generate:openapi
 
       - name: Lint
         uses: golangci/golangci-lint-action@v9
@@ -133,7 +136,7 @@ jobs:
         run: go test ./cmd/... -count=1 -timeout 300s
 
       - name: Wails bindings are current
-        run: npm run check:wails-bindings
+        run: pnpm run check:wails-bindings
 
       - name: Architecture dependency check
         run: bash scripts/check-arch-deps.sh
@@ -150,6 +153,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -158,6 +170,9 @@ jobs:
 
       - name: Test cross-platform proto generators
         run: go test ./cmd/generate-futu-proto ./cmd/generate-pineworker-proto ./cmd/internal/protogen -count=1 -timeout 120s
+
+      - name: Validate cross-platform pnpm lockfile
+        run: pnpm install --lockfile-only --frozen-lockfile
 
   go-coverage:
     name: Go Coverage
@@ -169,6 +184,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -179,20 +197,17 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Use declared npm version
-        run: npm install --global npm@11.16.0 --no-audit --no-fund
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install PineTS integration dependency
-        run: npm ci --workspace @jftrade/pineworker --include-workspace-root=false --omit=dev --no-audit --no-fund
+        run: pnpm --filter @jftrade/pineworker install --prod --frozen-lockfile
 
       - name: Generate OpenAPI test dependency
-        run: npm run generate:openapi
+        run: pnpm run generate:openapi
 
       - name: Go coverage gate
-        run: npm run test:coverage:go -- -package ./internal/... -package ./pkg/... -package ./scripts
+        run: pnpm run test:coverage:go -package ./internal/... -package ./pkg/... -package ./scripts
 
   web:
     name: Web
@@ -201,6 +216,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -212,37 +230,34 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Use declared npm version
-        run: npm install --global npm@11.16.0 --no-audit --no-fund
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Install frontend dependencies
-        run: npm ci --workspace @jftrade/web --include-workspace-root=true --no-audit --no-fund
-
-      - name: Audit locked npm dependencies
-        run: npm run audit:dependencies
+      - name: Audit locked pnpm dependencies
+        run: pnpm run audit:dependencies
 
       - name: Frontend test
-        run: npm run test:web:ci
+        run: pnpm run test:web:ci
 
       - name: Frontend typecheck
-        run: npm run typecheck:web
+        run: pnpm run typecheck:web
 
       - name: Frontend embedded asset build
-        run: npm run build:frontend-assets
+        run: pnpm run build:frontend-assets
 
       - name: Frontend release asset test
         run: go test -tags release_assets ./internal/frontendassets -run TestFileSystem
 
       - name: Desktop release script tests
         run: |
-          npm run test:desktop-release-metadata
-          npm run test:desktop-release-inputs
-          npm run test:desktop-wails-tasks
-          npm run test:desktop-signing
-          npm run test:desktop-linux-package-config
+          pnpm run test:desktop-release-metadata
+          pnpm run test:desktop-release-inputs
+          pnpm run test:desktop-wails-tasks
+          pnpm run test:desktop-signing
+          pnpm run test:desktop-linux-package-config
           node scripts/dev-desktop.test.mjs
 
       - name: Upload frontend build input
@@ -261,6 +276,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -271,20 +289,17 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Use declared npm version
-        run: npm install --global npm@11.16.0 --no-audit --no-fund
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Pine dependencies
-        run: npm ci --workspace @jftrade/pineworker --include-workspace-root=false --no-audit --no-fund
+        run: pnpm --filter @jftrade/pineworker install --frozen-lockfile
 
       - name: PineTS worker test
-        run: npm run test:pineworker
+        run: pnpm run test:pineworker
 
       - name: PineTS worker typecheck
-        run: npm run typecheck:pineworker
+        run: pnpm run typecheck:pineworker
 
       - name: Generate Pine contract
         run: |
@@ -292,17 +307,17 @@ jobs:
           git diff --exit-code -- docs/reference/generated/pine-v6-support.md
 
       - name: PineTS release check script test
-        run: npm run test:pinets-release-check
+        run: pnpm run test:pinets-release-check
 
       - name: PineTS compliance notice check
-        run: npm run check:pinets-compliance
+        run: pnpm run check:pinets-compliance
 
       - name: PineTS shadow corpus report
         env:
           JFTRADE_PINETS_SHADOW_REPORT_PATH: ${{ github.workspace }}/artifacts/pinets-shadow/report.json
         run: |
           mkdir -p artifacts/pinets-shadow
-          npm run test:pinets-shadow-corpus
+          pnpm run test:pinets-shadow-corpus
 
       - name: Upload PineTS shadow corpus report
         if: ${{ always() && hashFiles('artifacts/pinets-shadow/report.json') != '' }}
@@ -313,10 +328,10 @@ jobs:
           if-no-files-found: warn
 
       - name: PineTS worker asset build script test
-        run: npm run test:pineworker-asset-build
+        run: pnpm run test:pineworker-asset-build
 
       - name: Build PineTS worker input
-        run: npm run build:pineworker
+        run: pnpm run build:pineworker
 
       - name: Verify embedded PineTS worker input
         run: go test -tags release_assets ./internal/pineworkerassets -count=1
@@ -365,6 +380,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -406,13 +424,13 @@ jobs:
           }
 
       - name: Generate OpenAPI build input
-        run: npm run generate:openapi
+        run: pnpm run generate:openapi
 
       - name: Test desktop release profile
         run: go test -tags "${{ matrix.test_tags }}" ./cmd/jftrade-desktop ./internal/desktop -count=1
 
       - name: Build desktop application
-        run: npm run ${{ matrix.build_script }}
+        run: pnpm run ${{ matrix.build_script }}
 
       - name: Verify Linux desktop binary
         if: ${{ matrix.platform == 'linux' }}

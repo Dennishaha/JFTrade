@@ -8,10 +8,10 @@ const scripts = [
 
 for (const script of scripts) {
   const source = fs.readFileSync(script.path, "utf8");
-  const installIndex = source.indexOf("npm ci --workspaces --include-workspace-root");
-  const auditIndex = source.indexOf("npm run audit:dependencies");
-  const frontendIndex = source.indexOf("npm run build:web");
-  const workerIndex = source.indexOf("npm run build:pineworker");
+  const installIndex = source.indexOf("pnpm install --frozen-lockfile");
+  const auditIndex = source.indexOf("pnpm run audit:dependencies");
+  const frontendIndex = source.indexOf("pnpm run build:web");
+  const workerIndex = source.indexOf("pnpm run build:pineworker");
   const testIndex = source.indexOf("go test ./... -count=1 -timeout 300s");
   const buildIndex = source.indexOf(script.buildMarker);
 

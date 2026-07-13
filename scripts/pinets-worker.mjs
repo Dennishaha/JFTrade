@@ -3,10 +3,11 @@ import { createInterface } from "node:readline";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { PineTS } from "pinets";
+import { pathToFileURL } from "node:url";
 
-const require = createRequire(import.meta.url);
+const require = createRequire(new URL("../workers/pineworker/package.json", import.meta.url));
 const pinetsEntry = require.resolve("pinets");
+const { PineTS } = await import(pathToFileURL(pinetsEntry).href);
 const pinetsPackage = JSON.parse(readFileSync(join(dirname(dirname(pinetsEntry)), "package.json"), "utf8"));
 
 const DEFAULT_TIMEOUT_MS = 10_000;

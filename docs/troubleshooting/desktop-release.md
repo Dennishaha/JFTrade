@@ -4,11 +4,11 @@
 
 桌面构建的事实来源是根 `Taskfile.yml`、`build/config.yml` 和三个平台 Taskfile。Node 入口只校验 tag、解析 Version/Commit/BuildTime 并调用 Wails task；平台资源、production flags、应用 bundle、NSIS、AppImage 和 Linux 包均由 Wails task/tool 生成。
 
-`go tool wails3 build`、`go tool wails3 package` 和 `go tool wails3 task desktop:*` 都通过同一套任务工作；仓库继续保留 npm 别名作为日常入口。
+`go tool wails3 build`、`go tool wails3 package` 和 `go tool wails3 task desktop:*` 都通过同一套任务工作；仓库继续保留 pnpm 脚本作为日常入口。
 
 ## 开发版与产品版
 
-`npm run desktop:dev` 是 `JFTrade Dev`，默认使用 `127.0.0.1:3008` 和仓库内 `var/jftrade-api`。正式 `release_assets` 产品是 `JFTrade`，默认使用 `127.0.0.1:6699` 和系统用户数据目录。两者的 bundle/product ID 与 SingleInstance ID 不同，可以同时运行；同一通道重复启动只恢复已有窗口。
+`pnpm run desktop:dev` 是 `JFTrade Dev`，默认使用 `127.0.0.1:3008` 和仓库内 `var/jftrade-api`。正式 `release_assets` 产品是 `JFTrade`，默认使用 `127.0.0.1:6699` 和系统用户数据目录。两者的 bundle/product ID 与 SingleInstance ID 不同，可以同时运行；同一通道重复启动只恢复已有窗口。
 
 | 属性                        | `JFTrade Dev`             | 正式 `JFTrade`                   |
 | --------------------------- | ------------------------- | -------------------------------- |
@@ -36,7 +36,7 @@
 正式发布只接受 `vX.Y.Z`：
 
 ```bash
-JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 npm run desktop:release:darwin
+JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run desktop:release:darwin
 ```
 
 `dev`、`v0.0.0`、分支名和其他 tag 都会被 release 脚本拒绝。版本、提交号和构建时间会同时注入 Go buildinfo、macOS Info.plist 和 Windows version resource。
@@ -53,27 +53,27 @@ git push origin v1.2.3
 开发构建与 bindings：
 
 ```bash
-npm run desktop:dev
-npm run generate:wails-bindings
-npm run check:wails-bindings
+pnpm run desktop:dev
+pnpm run generate:wails-bindings
+pnpm run check:wails-bindings
 ```
 
 常用验证命令：
 
 ```bash
-npm run desktop:doctor
-npm run check:desktop
-npm run typecheck:web
+pnpm run desktop:doctor
+pnpm run check:desktop
+pnpm run typecheck:web
 ```
 
 扩展平台包按需生成，不进入默认 GitHub Release：
 
 ```bash
-npm run desktop:package:windows-msix
-npm run desktop:package:linux-appimage
-npm run desktop:package:linux-deb
-npm run desktop:package:linux-rpm
-npm run desktop:package:linux-arch
+pnpm run desktop:package:windows-msix
+pnpm run desktop:package:linux-appimage
+pnpm run desktop:package:linux-deb
+pnpm run desktop:package:linux-rpm
+pnpm run desktop:package:linux-arch
 ```
 
 ## CI 发布与可选签名
@@ -107,7 +107,7 @@ DMG 使用标准拖拽安装布局：左侧为 `JFTrade.app`，右侧为指向 `
 
 ## 验收要点
 
-- 同时运行 `npm run desktop:dev` 和正式产品：3008、6699、窗口、托盘、日志和退出生命周期互不影响。
+- 同时运行 `pnpm run desktop:dev` 和正式产品：3008、6699、窗口、托盘、日志和退出生命周期互不影响。
 - 分别二次启动两个通道：只聚焦同通道已有窗口，不启动第二个 sidecar。
 - 开发版继续读取仓库数据；正式产品只读取系统用户数据目录。
 - 退出任意一方，另一方继续运行。

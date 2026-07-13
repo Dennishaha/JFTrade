@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-const windowsCommandExtensions = new Set(["npm", "npx"]);
+const windowsCommandExtensions = new Set(["pnpm", "pnpx"]);
 
 export function spawnChecked(command, args, options = {}) {
   const resolved = resolveCommand(command, args);

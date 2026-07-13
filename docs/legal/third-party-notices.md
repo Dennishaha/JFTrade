@@ -37,8 +37,8 @@ contains:
 
 Release and build commands for this integration include:
 
-- `npm run build:pineworker`
-- `npm run check:pinets-release`
+- `pnpm run build:pineworker`
+- `pnpm run check:pinets-release`
 
 Publish deployments should expose this source location, build instructions, and
 license/about page from the product documentation or an equivalent in-product

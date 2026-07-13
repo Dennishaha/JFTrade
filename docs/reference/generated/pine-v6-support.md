@@ -235,7 +235,7 @@
 | v3.1 native public surface diagnostics | yes | yes | yes | yes | yes | 用户输入 ma/security_source/bollinger/history/ifelse/cross_over/cross_under/notify 等 JFTrade 内部 helper 或 ta.adx shortcut 时，AnalyzeScript 返回稳定分码诊断并提示 Pine v6 native 替代写法；Monaco 不暴露这些 internal helper 作为 public completion/hover。 |
 | v3.2 MTF diagnostics and lower-timeframe preflight | yes | yes | yes | yes | no | request.security 固定 timeframe requirements 会在 warmup、indicator engine 和 backtest replay 前与策略原生 interval 比较；低于原生周期或不能整除的 intraday timeframe 返回明确错误，不进入 runtime 执行。AnalyzeScript 对 tuple assignment、tuple width、alias mismatch 和无法 lower 的纯表达式返回稳定分码诊断。 |
 | v3.3 advanced language boundary diagnostics | yes | yes | yes | yes | yes | AnalyzeScript 对递归 UDF、嵌套 UDF、UDF 签名问题、循环嵌套/迭代上限和循环变量只读返回稳定分码诊断；动态 for/while、collection for、break/continue 和 loop runtime 上限继续作为闭盘可执行子集的受控边界。 |
-| v3.4 generated support snapshot | yes | yes | yes | yes | yes | npm run generate:reference 生成 docs/reference/generated/pine-v6-support.md，将 ProductVersion、score model、compatibility dimensions、capability registry、support matrix 和 unsupported patterns 固化为可 diff 快照；pinespec 测试会拒绝过期快照。 |
+| v3.4 generated support snapshot | yes | yes | yes | yes | yes | pnpm run generate:reference 生成 docs/reference/generated/pine-v6-support.md，将 ProductVersion、score model、compatibility dimensions、capability registry、support matrix 和 unsupported patterns 固化为可 diff 快照；pinespec 测试会拒绝过期快照。 |
 | v4.0 broker emulator boundary decision | yes | yes | yes | yes | yes | 完整 TradingView broker emulator、OCA、partial fill、intrabar tick recalculation 和多标的组合撮合正式作为单独 trading-runtime parity track，排除在 JFTrade executable Pine v6 completion score 之外；brokerBoundary payload 与生成快照列出 scoreTreatment 和稳定诊断码。 |
 
 ## Broker Boundary

@@ -25,22 +25,22 @@ if ! command -v go >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v npm >/dev/null 2>&1; then
-  echo "npm is not installed or not on PATH / npm 未安装或不在 PATH 中" >&2
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "pnpm is not installed or not on PATH / pnpm 未安装或不在 PATH 中" >&2
   exit 1
 fi
 
 echo "Installing frontend dependencies / 安装前端依赖..."
-npm install
+pnpm install --frozen-lockfile
 
 echo "Generating Swagger docs / 生成 Swagger 文档..."
-npm run generate:openapi
+pnpm run generate:openapi
 
 echo "Running frontend typecheck / 运行前端类型检查..."
-npm run typecheck
+pnpm run typecheck
 
 echo "Building frontend / 构建前端..."
-npm run build:web
+pnpm run build:web
 
 echo "Staging embedded frontend assets / 暂存内嵌前端资源..."
 rm -rf "$ROOT_DIR/internal/frontendassets/dist" "$ROOT_DIR/internal/frontendassets/dist.zip"
@@ -50,7 +50,7 @@ go run ./scripts/archive_frontend_assets.go \
   -dst "$ROOT_DIR/internal/frontendassets/dist.zip"
 
 echo "Building embedded PineTS worker assets / 构建内嵌 PineTS worker 资源..."
-npm run build:pineworker
+pnpm run build:pineworker
 
 echo "Starting JFTrade service / 启动 JFTrade 服务..."
 echo "Optional Web address (disabled by default) / 可选 Web 地址（默认关闭）: http://${JFTRADE_GUI_BIND}"

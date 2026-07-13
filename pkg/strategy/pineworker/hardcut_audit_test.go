@@ -477,7 +477,7 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"JFTRADE_PINEWORKER_INSTANCE_WORKERS",
 		},
 		"internal/app/apiserver/servercore/pineworker_runtime.go": {
-			"npm run dev:api:pineworker",
+			"pnpm run dev:api:pineworker",
 			"JFTRADE_PINEWORKER_BUNDLE",
 			"JFTRADE_PINEWORKER_RUNTIME",
 			"/absolute/path/to/worker.mjs",
@@ -558,16 +558,16 @@ func assertCIExercisesPineTSWorker(t *testing.T, root string) {
 	text := string(data)
 	for _, required := range []string{
 		"actions/setup-node",
-		"npm run test:pineworker",
-		"npm run typecheck:pineworker",
-		"npm run build:frontend-assets",
+		"pnpm run test:pineworker",
+		"pnpm run typecheck:pineworker",
+		"pnpm run build:frontend-assets",
 		"go test -tags release_assets ./internal/frontendassets -run TestFileSystem",
-		"npm run test:pinets-release-check",
-		"npm run check:pinets-compliance",
-		"npm run test:pinets-shadow-corpus",
+		"pnpm run test:pinets-release-check",
+		"pnpm run check:pinets-compliance",
+		"pnpm run test:pinets-shadow-corpus",
 		"JFTRADE_PINETS_SHADOW_REPORT_PATH",
 		"actions/upload-artifact",
-		"npm run test:pineworker-asset-build",
+		"pnpm run test:pineworker-asset-build",
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("%s does not exercise PineTS worker gate %q", rel, required)
