@@ -13,7 +13,6 @@ import type {
 } from "@/contracts";
 
 import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
-import { categoryMarketForUser } from "../../composables/instrumentPresentation";
 import {
     bindingInstrumentsToSymbols,
     brokerAccountOptionSubtitle,
@@ -28,6 +27,30 @@ import {
 } from "./strategyRuntimeInstanceBinding";
 
 export type StrategySymbolEditorMode = "create" | "edit";
+
+const QUALIFIED_INSTRUMENT_MARKETS = new Set([
+    "HK",
+    "US",
+    "SH",
+    "SZ",
+    "CNSH",
+    "CNSZ",
+    "SG",
+    "JP",
+    "AU",
+    "MY",
+    "CA",
+    "FX",
+    "CRYPTO",
+    "HK_FUTURE",
+]);
+const SELECTABLE_INSTRUMENT_MARKETS = new Set(["HK", "US", "SH", "SZ"]);
+
+function hasQualifiedInstrumentMarketPrefix(value: string): boolean {
+    const normalized = value.trim().toUpperCase().replace(":", ".");
+    const separator = normalized.indexOf(".");
+    return separator > 0 && QUALIFIED_INSTRUMENT_MARKETS.has(normalized.slice(0, separator));
+}
 
 interface StrategyRuntimeInstanceEditorOptions {
     strategyDefinitions: Ref<StrategyDefinitionDocument[]>;
@@ -47,7 +70,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     const instanceEditorMode = ref<StrategySymbolEditorMode | null>(null);
     const createDefinitionId = ref("");
     const createBindingInstruments = ref<StrategyBindingInstrumentDocument[]>([]);
-    const createSymbolDraftMarket = ref("HK");
+    const createSymbolDraftMarket = ref("");
     const createSymbolDraft = ref("");
     const createSymbolValidationMessage = ref("");
     const createInterval = ref("5m");
@@ -56,7 +79,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     const createBrokerAccountKey = ref("");
     const createBrokerAccountQuery = ref("");
     const editBindingInstruments = ref<StrategyBindingInstrumentDocument[]>([]);
-    const editSymbolDraftMarket = ref("HK");
+    const editSymbolDraftMarket = ref("");
     const editSymbolDraft = ref("");
     const editSymbolValidationMessage = ref("");
     const editInterval = ref("5m");
@@ -197,17 +220,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     );
 
     watch(
-        [options.selectedBrokerAccount, createSelectedBrokerAccountOption],
-        () => {
-            if (normalizeText(createSymbolDraftMarket.value) !== "") {
-                return;
-            }
-            createSymbolDraftMarket.value = defaultSymbolDraftMarket("create");
-        },
-        { immediate: true },
-    );
-
-    watch(
         options.selectedStrategyBinding,
         (binding) => {
             if (binding === null) {
@@ -222,9 +234,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
                 return;
             }
             editBindingInstruments.value = normalizeBindingInstruments(binding.instruments ?? []);
-            editSymbolDraftMarket.value = categoryMarketForUser(
-                binding.instruments?.[0]?.market ?? defaultSymbolDraftMarket("edit"),
-            );
+            editSymbolDraftMarket.value = defaultSymbolDraftMarket("edit");
             editSymbolDraft.value = "";
             editSymbolValidationMessage.value = "";
             editInterval.value = binding.interval;
@@ -245,22 +255,8 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         return bindingInstrumentsToSymbols(bindingInstrumentsFor(mode));
     }
 
-    function defaultSymbolDraftMarket(mode: StrategySymbolEditorMode): string {
-        if (mode === "edit") {
-            const bindingMarket = options.selectedStrategyBinding.value?.instruments?.[0]?.market;
-            if (normalizeText(bindingMarket) !== "") {
-                return categoryMarketForUser(bindingMarket);
-            }
-        }
-        const optionMarket = selectedBrokerAccountOptionFor(mode)?.market;
-        if (normalizeText(optionMarket) !== "") {
-            return categoryMarketForUser(optionMarket);
-        }
-        const selectedMarket = options.selectedBrokerAccount.value?.market;
-        if (normalizeText(selectedMarket) !== "") {
-            return categoryMarketForUser(selectedMarket);
-        }
-        return "HK";
+    function defaultSymbolDraftMarket(_mode: StrategySymbolEditorMode): string {
+        return "";
     }
 
     function symbolDraftMarketFor(mode: StrategySymbolEditorMode): string {
@@ -268,12 +264,12 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     }
 
     function setSymbolDraftMarket(mode: StrategySymbolEditorMode, value: string): void {
-        const normalized = categoryMarketForUser(value);
+        const normalized = normalizeText(value).toUpperCase();
         if (mode === "create") {
-            createSymbolDraftMarket.value = normalized || defaultSymbolDraftMarket(mode);
+            createSymbolDraftMarket.value = normalized;
             return;
         }
-        editSymbolDraftMarket.value = normalized || defaultSymbolDraftMarket(mode);
+        editSymbolDraftMarket.value = normalized;
     }
 
     function symbolDraftFor(mode: StrategySymbolEditorMode): string {
@@ -332,14 +328,14 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
                     continue;
                 }
                 const request =
-                    raw.includes(".") || raw.includes(":")
+                    hasQualifiedInstrumentMarketPrefix(raw)
                         ? { instrumentId: raw }
                         : { market: fallbackMarket, code: raw };
                 try {
                     const normalized = await options.normalizeInstrumentRefWithMarketApi(request);
                     const market = normalized.prefix.trim().toUpperCase();
                     const code = normalized.code.trim().toUpperCase();
-                    if (market === "" || code === "") {
+                    if (market === "" || code === "" || !SELECTABLE_INSTRUMENT_MARKETS.has(market)) {
                         invalidSymbols.push(raw.toUpperCase());
                         continue;
                     }
@@ -352,10 +348,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
                 setSymbolDraft(mode, "");
             } else {
                 setBindingInstruments(mode, [...bindingInstrumentsFor(mode), ...parsed]);
-                const last = parsed[parsed.length - 1];
-                if (last != null) {
-                    setSymbolDraftMarket(mode, categoryMarketForUser(last.market));
-                }
             }
             if (invalidSymbols.length > 0) {
                 setSymbolValidationMessage(
@@ -537,6 +529,10 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         mode: StrategySymbolEditorMode,
         candidate: InstrumentResolutionCandidate,
     ): void {
+        if (!candidate.selectable) {
+            setSymbolValidationMessage(mode, candidate.unavailableReason ?? "当前市场暂不支持交易代码绑定。");
+            return;
+        }
         const market = normalizeText(candidate.market).toUpperCase();
         const code = normalizeText(candidate.code || candidate.symbol).toUpperCase();
         if (market === "" || code === "") {
@@ -547,7 +543,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
             ...bindingInstrumentsFor(mode),
             { market, code },
         ]);
-        setSymbolDraftMarket(mode, categoryMarketForUser(market));
         setSymbolValidationMessage(mode, "");
     }
 

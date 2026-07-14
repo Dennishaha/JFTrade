@@ -10,12 +10,16 @@
 - `1003` Notify
 - `1004` KeepAlive
 - `3001` Qot_Sub
+- `3003` Qot_GetSubInfo（只读订阅状态诊断）
 - `3004` GetBasicQot
 - `3005` Qot_UpdateBasicQot
 - `3006` GetKL
 - `3012` Qot_GetOrderBook（盘口深度拉取）
 - `3013` Qot_UpdateOrderBook（盘口实时推送）
 - `3103` RequestHistoryKL
+- `3202` Qot_GetStaticInfo（完整 `MARKET.CODE` 精确查询）
+- `3203` Qot_GetSecuritySnapshot
+- `3262` Qot_GetSearchQuote（代码/名称跨市场搜索）
 
 交易相关协议则按 bbgo/sidecar 需求逐步扩展。
 
@@ -40,6 +44,8 @@
 - 原生 TCP 客户端不依赖 WebSocket key 完成 API 探针和原生 RPC
 - OpenD settings 中的 key 仍会保留，用于与 FTWebSocket 相关的设置和诊断保持一致
 - sidecar 与 bbgo 共用 `pkg/futu`，但不是同一条调用链
+- 无市场前缀的代码或名称统一调用 `3262`，单次从 OpenD 读取最多 100 条；服务端再做市场筛选、去重和返回数量限制
+- `3262` 与 `3003` 都是只读调用，不申请行情订阅；搜索成功结果在服务进程内缓存 30 秒，并合并相同关键词的并发请求
 
 ## 继续阅读
 

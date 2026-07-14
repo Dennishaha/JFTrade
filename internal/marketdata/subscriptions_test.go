@@ -218,6 +218,10 @@ func (p stubProvider) LookupInstrument(context.Context, string, string) ([]Instr
 	return nil, nil
 }
 
+func (p stubProvider) SearchInstruments(context.Context, string, int) ([]InstrumentCandidate, error) {
+	return nil, nil
+}
+
 func (p stubProvider) QuerySnapshot(context.Context, string) (*Tick, error) {
 	return nil, nil
 }

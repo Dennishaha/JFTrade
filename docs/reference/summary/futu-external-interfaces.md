@@ -32,10 +32,14 @@
 | 协议 ID | 接口 | 当前用途 | 本项目落点 | 原始文档位置 |
 | --- | --- | --- | --- | --- |
 | `3001` | `Qot_Sub` | 订阅 BasicQot 实时推送 | [../../../pkg/futu/stream.go](../../../pkg/futu/stream.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “订阅反订阅” |
+| `3003` | `Qot_GetSubInfo` | 只读查询当前连接订阅状态，用于验证搜索等读操作没有产生订阅副作用 | [../../../pkg/futu/opend/subscription_info.go](../../../pkg/futu/opend/subscription_info.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取订阅状态” |
 | `3004` | `Qot_GetBasicQot` | 拉取基础报价与快照字段 | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取实时报价” |
 | `3005` | `Qot_UpdateBasicQot` | 接收 BasicQot push，并转成 bbgo `BookTicker` / `Trade` | [../../../pkg/futu/stream.go](../../../pkg/futu/stream.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “实时报价回调” |
 | `3006` | `Qot_GetKL` | 拉取当前窗口内 K 线与当前未收盘桶 | [../../../pkg/futu/exchange_kline.go](../../../pkg/futu/exchange_kline.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取实时 K 线” |
 | `3103` | `Qot_RequestHistoryKL` | 拉取较长时间范围历史 K 线 | [../../../pkg/futu/opend/client.go](../../../pkg/futu/opend/client.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取历史 K 线” |
+| `3202` | `Qot_GetStaticInfo` | 对完整 `MARKET.CODE` 做精确静态信息查询 | [../../../pkg/futu/opend/security_info.go](../../../pkg/futu/opend/security_info.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取股票基本信息” |
+| `3203` | `Qot_GetSecuritySnapshot` | 拉取证券快照及扩展字段 | [../../../pkg/futu/opend/security_info.go](../../../pkg/futu/opend/security_info.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取快照” |
+| `3262` | `Qot_GetSearchQuote` | 按代码或名称返回跨市场候选；不申请行情订阅 | [../../../pkg/futu/opend/search_quote.go](../../../pkg/futu/opend/search_quote.go) | [富途官方搜索接口](https://openapi.futunn.com/futu-api-doc/en/quote/get-search-quote.html) |
 
 ## 3. 当前项目会参考，但未直接接入的行情接口
 
@@ -43,7 +47,6 @@
 
 | 接口族 | 当前状态 | 原始文档位置 |
 | --- | --- | --- |
-| 获取快照 | 作为背景参考；当前项目主要从 BasicQot 组合出自己的 snapshot 语义 | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取快照” |
 | 获取实时摆盘 | 未接入 | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取实时摆盘” |
 | 获取实时分时 | 未接入 | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取实时分时” |
 | 获取实时逐笔 | 未接入 | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取实时逐笔” |

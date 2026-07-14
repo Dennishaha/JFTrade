@@ -225,6 +225,17 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
 
 const storedBacktestFormPreferences = readStoredBacktestFormPreferences();
 
+function canonicalBacktestInstrumentInput(market: string, code: string): string {
+  const normalizedMarket = market.trim().toUpperCase();
+  const normalizedCode = code.trim().toUpperCase().replace(":", ".");
+  if (normalizedCode === "" || normalizedCode.includes(".")) {
+    return normalizedCode;
+  }
+  return normalizedMarket === ""
+    ? normalizedCode
+    : `${normalizedMarket}.${normalizedCode}`;
+}
+
 // ── Reactive state ──
 const definitions = ref<StrategyDefinition[]>([]);
 const warmupPreviewBars = ref<number | null>(null);
@@ -242,6 +253,13 @@ const selectedDefinitionId = ref(
 );
 const selectedMarket = ref(storedBacktestFormPreferences.selectedMarket);
 const codeInput = ref(storedBacktestFormPreferences.codeInput);
+const instrumentSearchMarket = ref("");
+const instrumentSearchQuery = ref(
+  canonicalBacktestInstrumentInput(
+    storedBacktestFormPreferences.selectedMarket,
+    storedBacktestFormPreferences.codeInput,
+  ),
+);
 const interval = ref(storedBacktestFormPreferences.interval);
 const startDate = ref(storedBacktestFormPreferences.startDate);
 const endDate = ref(storedBacktestFormPreferences.endDate);
@@ -274,10 +292,18 @@ const selectedDefinition = computed(() =>
   definitions.value.find((d) => d.id === selectedDefinitionId.value),
 );
 
+const backtestSearchMarketOptions = computed(() => [
+  { value: "", title: "全部市场" },
+  ...backtestMarketOptions.value,
+]);
+
 const codeSuggestions = computed(() => {
-  const market = categoryMarketForUser(selectedMarket.value);
+  const market = categoryMarketForUser(instrumentSearchMarket.value);
   return marketInstrumentSearchOptions.value
-    .filter((option) => categoryMarketForUser(option.market) === market)
+    .filter(
+      (option) =>
+        market === "" || categoryMarketForUser(option.market) === market,
+    )
     .map((option) => {
       const presentation = presentInstrument({
         market: option.market,
@@ -285,7 +311,11 @@ const codeSuggestions = computed(() => {
         instrumentId: option.instrumentId,
       });
       const displayCode =
-        market === "CN" ? presentation.displayCode : option.symbol;
+        market === "CN"
+          ? presentation.displayCode
+          : market === ""
+            ? presentation.instrumentId
+            : option.symbol;
       const exchangeSuffix =
         market === "CN" && presentation.exchangeTag != null
           ? ` · ${presentation.exchangeTag}`
@@ -313,11 +343,41 @@ const displayInstrumentId = computed(() => {
   return market === "" ? code : `${market}.${code}`;
 });
 
+const instrumentSelectionResolved = computed(() => {
+  const draft = instrumentSearchQuery.value
+    .trim()
+    .toUpperCase()
+    .replace(":", ".");
+  if (draft === "" || displayInstrumentId.value === "") {
+    return false;
+  }
+  const resolved = displayInstrumentId.value
+    .trim()
+    .toUpperCase()
+    .replace(":", ".");
+  return draft === resolved;
+});
+
+function updateBacktestInstrumentSearchQuery(value: unknown): void {
+  if (typeof value === "string") {
+    instrumentSearchQuery.value = value;
+    return;
+  }
+  if (value != null && typeof value === "object" && "value" in value) {
+    const candidate = (value as { value?: unknown }).value;
+    instrumentSearchQuery.value =
+      typeof candidate === "string" ? candidate : "";
+    return;
+  }
+  instrumentSearchQuery.value = "";
+}
+
 function handleResolvedBacktestInstrument(
   candidate: InstrumentResolutionCandidate,
 ): void {
   selectedMarket.value = categoryMarketForUser(candidate.market);
   codeInput.value = candidate.instrumentId;
+  instrumentSearchQuery.value = candidate.instrumentId;
 }
 
 const {
@@ -334,8 +394,8 @@ const {
   selectCandidate: selectBacktestInstrumentCandidate,
   handleKeydown: handleBacktestInstrumentKeydown,
 } = useInstrumentResolver({
-  market: selectedMarket,
-  query: codeInput,
+  market: instrumentSearchMarket,
+  query: instrumentSearchQuery,
   onResolved: handleResolvedBacktestInstrument,
 });
 
@@ -542,9 +602,12 @@ const backtestFormState = computed<BacktestFormState>(() => ({
   definitionId: selectedDefinitionId.value,
   definitionVersion: selectedDefinition.value?.version?.trim() ?? "",
   market: selectedMarket.value.trim().toUpperCase(),
-  code: codeInput.value.trim().toUpperCase(),
+  code: instrumentSelectionResolved.value
+    ? codeInput.value.trim().toUpperCase()
+    : "",
   instrumentId:
-    codeInput.value.includes(".") || codeInput.value.includes(":")
+    instrumentSelectionResolved.value &&
+    (codeInput.value.includes(".") || codeInput.value.includes(":"))
       ? codeInput.value.trim().toUpperCase()
       : "",
   instrumentType: instrumentType.value,
@@ -1296,13 +1359,13 @@ watch(
                 <div class="text-xs bt-text-muted">{{ resultsPageSummary || "回测结果由服务端提供。" }}</div>
               </div>
               <v-btn class="bt-accent-action bt-sidebar-create-action" size="small" variant="tonal" @click="toggleNewBacktestForm">
-                <v-icon size="13" class="mr-1">fa-solid fa-plus</v-icon>
+                <v-icon size="14" class="mr-1">fa-solid fa-plus</v-icon>
                 新建回测
               </v-btn>
             </div>
 
             <div class="min-h-0 flex-1 overflow-auto p-3">
-              <div v-if="showNewBacktestForm" class="space-y-4 rounded-lg border bt-border bt-bg-muted p-3">
+              <div v-if="showNewBacktestForm" class="bt-new-backtest-form space-y-4 rounded-lg border bt-border bt-bg-muted p-3">
                 <div class="flex items-center justify-between gap-3">
                   <div>
                     <div class="text-sm font-semibold bt-text-strong">新建回测</div>
@@ -1326,32 +1389,58 @@ watch(
               <div class="grid gap-0.5">
                 <label class="text-xs font-semibold bt-text-strong">策略定义</label>
                 <v-select v-model="selectedDefinitionId" :items="definitions" item-title="name" item-value="id"
-                  density="compact" variant="outlined" placeholder="选择策略" />
+                  density="compact" variant="outlined" placeholder="选择策略"
+                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
               </div>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="bt-instrument-search-grid relative grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
                 <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold bt-text-strong">市场</label>
-                  <v-select v-model="selectedMarket" :items="backtestMarketOptions" item-title="title"
-                    item-value="value" density="compact" variant="outlined" />
+                  <label class="text-xs font-semibold bt-text-strong">搜索市场</label>
+                  <v-select v-model="instrumentSearchMarket" :items="backtestSearchMarketOptions" item-title="title"
+                    item-value="value" density="compact" variant="outlined" hide-details
+                    :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
                 </div>
                 <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold bt-text-strong">代码</label>
-                  <div class="relative min-w-0">
+                  <label class="text-xs font-semibold bt-text-strong">代码或名称</label>
+                  <div class="min-w-0">
                     <v-combobox
-                      v-model="codeInput"
+                      :model-value="instrumentSearchQuery"
                       :items="codeSuggestions"
                       item-title="title"
                       item-value="value"
                       density="compact"
                       variant="outlined"
-                      placeholder="00700"
+                      hide-details
+                      menu-icon=""
+                      placeholder="输入代码或名称"
                       clearable
+                      :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }"
                       data-testid="backtest-instrument-code"
+                      @update:model-value="updateBacktestInstrumentSearchQuery"
                       @keydown="handleBacktestInstrumentKeydown"
-                    />
+                    >
+                      <template #append-inner>
+                        <button
+                          type="button"
+                          class="inline-flex h-6 w-7 shrink-0 items-center justify-center border-l bt-border text-xs bt-text-muted transition hover:bt-text-strong disabled:cursor-not-allowed disabled:opacity-50"
+                          :disabled="backtestInstrumentResolving"
+                          :aria-label="backtestInstrumentResolving ? '正在查询标的' : '查询标的'"
+                          :title="backtestInstrumentResolving ? '正在查询标的' : '查询标的'"
+                          data-testid="backtest-instrument-submit"
+                          @mousedown.prevent.stop
+                          @click.stop="resolveBacktestInstrument"
+                        >
+                          <span
+                            aria-hidden="true"
+                            :class="backtestInstrumentResolving
+                              ? 'fa-solid fa-spinner fa-spin'
+                              : 'fa-solid fa-magnifying-glass'"
+                          />
+                        </button>
+                      </template>
+                    </v-combobox>
                     <div
                       v-if="backtestInstrumentResolutionOpen"
-                      class="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-lg border bt-border bt-bg-surface shadow-xl"
+                      class="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-lg border bt-border bt-bg-surface shadow-xl"
                       :class="{ 'border-amber-500': backtestInstrumentResolutionStatus === 'incomplete' }"
                     >
                       <div
@@ -1378,9 +1467,14 @@ watch(
                         type="button"
                         role="option"
                         class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-t bt-border px-3 py-2 text-left text-xs transition hover:bg-slate-500/10"
-                        :class="{ 'bg-slate-500/10': index === activeBacktestInstrumentIndex }"
+                        :class="{
+                          'bg-slate-500/10': index === activeBacktestInstrumentIndex,
+                          'cursor-not-allowed opacity-50': !candidate.selectable,
+                        }"
+                        :disabled="!candidate.selectable"
+                        :title="candidate.unavailableReason || undefined"
                         :aria-selected="index === activeBacktestInstrumentIndex"
-                        @mouseenter="activeBacktestInstrumentIndex = index"
+                        @mouseenter="candidate.selectable && (activeBacktestInstrumentIndex = index)"
                         @keydown="handleBacktestInstrumentKeydown"
                         @click="selectBacktestInstrumentCandidate(candidate)"
                       >
@@ -1392,7 +1486,12 @@ watch(
                           :name="candidate.name"
                           compact
                         />
-                        <span class="bt-text-dim">{{ candidate.securityType || "类型未知" }}</span>
+                        <span class="text-right bt-text-dim">
+                          <span class="block">{{ candidate.securityType || "类型未知" }}</span>
+                          <span v-if="candidate.unavailableReason" class="block text-[10px] text-amber-600">
+                            {{ candidate.unavailableReason }}
+                          </span>
+                        </span>
                       </button>
                       <div class="flex justify-end gap-2 border-t bt-border px-2 py-1.5">
                         <button
@@ -1416,10 +1515,18 @@ watch(
                   </div>
                 </div>
               </div>
+              <div
+                v-if="!instrumentSelectionResolved"
+                class="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-600"
+                data-testid="backtest-instrument-unresolved"
+              >
+                当前输入尚未解析。请查询并选择标的后再同步或运行；未解析内容不会覆盖已保存标的。
+              </div>
               <div class="grid gap-0.5">
                 <label class="text-xs font-semibold bt-text-strong">标的类型</label>
                 <v-select v-model="instrumentType" :items="BACKTEST_INSTRUMENT_TYPE_OPTIONS" item-title="title"
-                  item-value="value" density="compact" variant="outlined" />
+                  item-value="value" density="compact" variant="outlined"
+                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
               </div>
             </section>
 
@@ -1428,7 +1535,8 @@ watch(
               <div class="grid gap-0.5">
                 <label class="text-xs font-semibold bt-text-strong">K线周期</label>
                 <v-select v-model="interval" :items="KLINE_PERIODS" item-title="label" item-value="value"
-                  density="compact" variant="outlined" />
+                  density="compact" variant="outlined"
+                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <div class="grid gap-0.5">
@@ -1446,10 +1554,12 @@ watch(
                   { value: 'forward', title: '前复权' },
                   { value: 'backward', title: '后复权' },
                   { value: 'none', title: '不复权' },
-                ]" item-title="title" item-value="value" density="compact" variant="outlined" />
+                ]" item-title="title" item-value="value" density="compact" variant="outlined"
+                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
               </div>
-              <div v-if="extendedHoursSupported" class="flex items-start gap-3 rounded-lg border bt-border px-3 py-2">
-                <v-switch v-model="useExtendedHours" color="teal" density="compact" hide-details class="self-center" />
+              <div v-if="extendedHoursSupported" class="bt-extended-hours flex items-start gap-3 rounded-lg border bt-border px-3 py-2">
+                <v-switch v-model="useExtendedHours" color="teal" density="compact" hide-details
+                  class="bt-extended-hours__switch self-center" />
                 <div class="min-w-0 flex-1">
                   <div class="text-xs font-semibold bt-text-strong">扩展交易时段</div>
                   <div class="text-xs bt-text-dim">{{ extendedHoursHint }}</div>
@@ -1479,12 +1589,14 @@ watch(
                 <div class="grid gap-0.5">
                   <label class="text-xs font-semibold bt-text-strong">券商费用</label>
                   <v-select v-model="brokerFeeMode" :items="BACKTEST_BROKER_FEE_MODE_OPTIONS" item-title="title"
-                    item-value="value" density="compact" variant="outlined" />
+                    item-value="value" density="compact" variant="outlined"
+                    :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
                 </div>
                 <div class="grid gap-0.5">
                   <label class="text-xs font-semibold bt-text-strong">市场费用</label>
                   <v-select v-model="marketFeeMode" :items="BACKTEST_MARKET_FEE_MODE_OPTIONS" item-title="title"
-                    item-value="value" density="compact" variant="outlined" />
+                    item-value="value" density="compact" variant="outlined"
+                    :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
                 </div>
               </div>
               <v-textarea v-if="brokerFeeMode === 'custom'" v-model="brokerFeeRulesText" label="券商费用规则 JSON"
@@ -1536,7 +1648,7 @@ watch(
             <!-- Sync button -->
             <button v-else
               class="flex w-full items-center justify-center gap-2 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 shadow-sm transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="running" type="button" @click="syncKlines">
+              :disabled="running || !instrumentSelectionResolved" type="button" @click="syncKlines">
               <v-icon size="13">fa-solid fa-cloud-arrow-down</v-icon>
               同步K线
             </button>
@@ -1544,8 +1656,8 @@ watch(
             <!-- Run button -->
             <button
               class="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed"
-              :class="{ 'bt-disabled-bg': running || !selectedDefinitionId }"
-              :disabled="running || !selectedDefinitionId" type="button" @click="startBacktest">
+              :class="{ 'bt-disabled-bg': running || !selectedDefinitionId || !instrumentSelectionResolved }"
+              :disabled="running || !selectedDefinitionId || !instrumentSelectionResolved" type="button" @click="startBacktest">
               <v-progress-circular v-if="running" indeterminate :size="16" :width="2" color="white" />
               <v-icon v-else size="13">fa-solid fa-play</v-icon>
               {{ running ? "启动中..." : "开始回测" }}
@@ -1555,14 +1667,16 @@ watch(
               </div>
 
               <section class="mt-3 grid gap-3">
-                <div class="grid gap-2">
+                <div class="bt-backtest-results-filters grid gap-2">
                   <v-text-field v-model="resultsSearchQuery" density="compact" variant="outlined" hide-details clearable
                     placeholder="搜索策略、标的、回测 ID" />
                   <div class="grid grid-cols-2 gap-2">
                     <v-select v-model="resultsStatusFilter" :items="BACKTEST_RESULT_STATUS_OPTIONS" item-title="title"
-                      item-value="value" density="compact" variant="outlined" hide-details />
+                      item-value="value" density="compact" variant="outlined" hide-details
+                      :menu-props="{ contentClass: 'bt-backtest-field-menu' }" />
                     <v-select v-model="resultsStrategyFilter" :items="resultStrategyOptions" item-title="title"
-                      item-value="value" density="compact" variant="outlined" hide-details />
+                      item-value="value" density="compact" variant="outlined" hide-details
+                      :menu-props="{ contentClass: 'bt-backtest-field-menu' }" />
                   </div>
                   <div class="flex justify-end">
                     <v-btn variant="text" density="comfortable" :disabled="!hasResultsFilters" @click="resetResultsFilters">
@@ -2023,6 +2137,34 @@ watch(
   min-width: 0;
 }
 
+.bt-new-backtest-form :deep(.v-field__input),
+.bt-new-backtest-form :deep(.v-select__selection-text),
+.bt-new-backtest-form :deep(input),
+.bt-new-backtest-form :deep(textarea) {
+  font-size: 0.875rem;
+}
+
+.bt-backtest-results-filters :deep(.v-field__input),
+.bt-backtest-results-filters :deep(.v-select__selection-text),
+.bt-backtest-results-filters :deep(input) {
+  font-size: 0.875rem;
+}
+
+:global(.bt-new-backtest-field-menu .v-list-item-title),
+:global(.bt-backtest-field-menu .v-list-item-title) {
+  font-size: 0.875rem;
+}
+
+.bt-extended-hours__switch {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: none !important;
+}
+
+.bt-extended-hours__switch :deep(.v-input__control) {
+  width: auto;
+}
+
 .bt-sidebar-header {
   min-width: 0;
 }
@@ -2116,7 +2258,8 @@ watch(
 }
 
 @container (max-width: 360px) {
-  .backtest-page__pane--sidebar .grid-cols-2 {
+  .backtest-page__pane--sidebar .grid-cols-2,
+  .backtest-page__pane--sidebar .bt-instrument-search-grid {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 

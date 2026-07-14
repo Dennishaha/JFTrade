@@ -30,6 +30,7 @@ type Provider interface {
 	GetMarkets(ctx context.Context) ([]MarketProfile, error)
 	GetSecurityDetails(ctx context.Context, market, symbol string) (SecurityDetails, error)
 	LookupInstrument(ctx context.Context, market, code string) ([]InstrumentCandidate, error)
+	SearchInstruments(ctx context.Context, query string, limit int) ([]InstrumentCandidate, error)
 	QuerySnapshot(ctx context.Context, instrumentID string) (*Tick, error)
 	QueryTicker(ctx context.Context, instrumentID string) (*Tick, error)
 	GetHistoricalCandles(ctx context.Context, market, symbol, period string, limit int, fromTime, toTime string) (CandlesResponse, error)
@@ -234,13 +235,13 @@ func (s *Service) GetSecurityDetails(ctx context.Context, market, symbol string)
 	return s.provider.GetSecurityDetails(ctx, market, symbol)
 }
 
-// ResolveInstrument performs an exact instrument lookup, expanding configured
-// top-level market subsets such as CN into their exchange leaves.
-func (s *Service) ResolveInstrument(ctx context.Context, requestedMarket, query string) (InstrumentResolution, error) {
+// ResolveInstrument performs a qualified exact lookup or an unqualified
+// cross-market code/name search.
+func (s *Service) ResolveInstrument(ctx context.Context, requestedMarket, query string, limit int) (InstrumentResolution, error) {
 	if s == nil || s.resolver == nil {
 		return InstrumentResolution{}, fmt.Errorf("market-data instrument resolver is unavailable")
 	}
-	return s.resolver.Resolve(ctx, requestedMarket, query)
+	return s.resolver.Resolve(ctx, requestedMarket, query, limit)
 }
 
 // GetSnapshot 返回最新行情快照。

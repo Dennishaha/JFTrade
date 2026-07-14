@@ -9,11 +9,14 @@
 - 历史 K 线：`/api/v1/market-data/candles/*`
 - 快照：`/api/v1/market-data/snapshots/*`
 - 证券基础信息 / typed security details：`/api/v1/market-data/securities/*`
+- 标的搜索：`GET /api/v1/market-data/instruments?query=...&market=...&limit=...`
 - 盘口深度：`/api/v1/market-data/depth/*`（`num` 参数控制档数，1-50，默认 10；同一路由同时支持 JSON 和 `text/event-stream`）
 - 实时 tick：`/api/v1/stream/live`
 - 融资融券参数：`/api/v1/brokers/{brokerId}/margin-ratios`
 
 这些接口都由 sidecar 提供，不是 bbgo 原生 `/api/*`。
+
+标的搜索的 `query` 必填，`market` 可省略以搜索全部市场，`limit` 默认为 20、范围为 1 到 100。无前缀代码和名称统一交给 OpenD 跨市场搜索；完整 `MARKET.CODE` 保留精确静态信息查询。结果会展示富途返回的全部证券类型和市场，但仅港股、美股、沪深候选可进入工作区、回测或策略实例，其他候选通过 `selectable=false` 与 `unavailableReason` 显示为不可选。
 
 盘口深度现在有两条返回路径：
 

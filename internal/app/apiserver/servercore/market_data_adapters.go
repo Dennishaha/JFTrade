@@ -21,7 +21,8 @@ func newMarketdataProvider(s *Server) mdsrv.Provider {
 		getSecurityDetails: func(ctx context.Context, market, symbol string) (mdsrv.SecurityDetails, error) {
 			return s.marketSecurityDetailsResponseForInstrument(ctx, market, symbol)
 		},
-		lookupInstrument: s.marketdataProviderLookupInstrument,
+		lookupInstrument:  s.marketdataProviderLookupInstrument,
+		searchInstruments: s.marketdataProviderSearchInstruments,
 
 		querySnapshot: func(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {
 			return s.marketdataRuntime.QuerySnapshot(ctx, instrumentID)
@@ -142,6 +143,7 @@ func (s *Server) marketdataProviderLookupInstrument(ctx context.Context, marketC
 			Code:           parsed.Code,
 			Symbol:         parsed.Code,
 			Source:         "bbgo:futu",
+			Selectable:     isSelectableInstrumentMarketCode(parsed.Prefix),
 		}
 		if security.Name != nil {
 			candidate.Name = strings.TrimSpace(*security.Name)
@@ -155,6 +157,99 @@ func (s *Server) marketdataProviderLookupInstrument(ctx context.Context, marketC
 		candidates = append(candidates, candidate)
 	}
 	return candidates, nil
+}
+
+func (s *Server) marketdataProviderSearchInstruments(ctx context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error) {
+	b, err := s.futuBrokerOrError()
+	if err != nil {
+		return nil, err
+	}
+	reader := b.MarketData()
+	if reader == nil {
+		return nil, fmt.Errorf("broker market data not available")
+	}
+	snapshot, err := reader.QuerySecuritySearch(ctx, broker.SecuritySearchQuery{
+		Keyword: strings.TrimSpace(query),
+		Limit:   int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if snapshot == nil {
+		return []mdsrv.InstrumentCandidate{}, nil
+	}
+
+	candidates := make([]mdsrv.InstrumentCandidate, 0, len(snapshot.Entries))
+	for _, entry := range snapshot.Entries {
+		marketCode := strings.ToUpper(strings.TrimSpace(entry.Market))
+		symbol := strings.ToUpper(strings.TrimSpace(entry.Symbol))
+		marketCode, code := brokerSearchInstrumentParts(marketCode, symbol)
+		if marketCode == "" || code == "" {
+			continue
+		}
+		resolvedMarket := marketCode
+		if marketCode == "SH" || marketCode == "SZ" {
+			resolvedMarket = "CN"
+		}
+		selectable := isSelectableInstrumentMarketCode(marketCode)
+		candidate := mdsrv.InstrumentCandidate{
+			Market:         marketCode,
+			ResolvedMarket: resolvedMarket,
+			InstrumentID:   marketCode + "." + code,
+			Code:           code,
+			Symbol:         code,
+			Name:           strings.TrimSpace(entry.Name),
+			SecurityType:   strings.TrimSpace(entry.SecurityType),
+			Source:         "bbgo:futu-search",
+			IsWatched:      entry.IsWatched,
+			Selectable:     selectable,
+		}
+		if !selectable {
+			candidate.UnavailableReason = fmt.Sprintf("当前版本暂不支持 %s 市场", marketCode)
+		}
+		candidates = append(candidates, candidate)
+	}
+	return candidates, nil
+}
+
+func brokerSearchInstrumentParts(marketCode, symbol string) (string, string) {
+	if separator := strings.Index(symbol, "."); separator > 0 {
+		prefix := canonicalBrokerSearchMarketPrefix(symbol[:separator])
+		if marketCode == "" {
+			marketCode = prefix
+		}
+		if prefix != "" && prefix == marketCode {
+			return marketCode, strings.TrimSpace(symbol[separator+1:])
+		}
+	}
+	return marketCode, symbol
+}
+
+func canonicalBrokerSearchMarketPrefix(value string) string {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	switch normalized {
+	case "CNSH":
+		return "SH"
+	case "CNSZ":
+		return "SZ"
+	case "HKFUTURE", "HK_FUTURES":
+		return "HK_FUTURE"
+	case "CC":
+		return "CRYPTO"
+	case "HK", "US", "SH", "SZ", "SG", "JP", "AU", "MY", "CA", "FX", "CRYPTO", "HK_FUTURE", "UNKNOWN":
+		return normalized
+	default:
+		return ""
+	}
+}
+
+func isSelectableInstrumentMarketCode(marketCode string) bool {
+	switch strings.ToUpper(strings.TrimSpace(marketCode)) {
+	case "HK", "US", "SH", "SZ":
+		return true
+	default:
+		return false
+	}
 }
 
 func marketdataProviderNormalizeInstrument(_ context.Context, input map[string]any) (map[string]any, error) {
@@ -231,6 +326,7 @@ type marketdataProvider struct {
 	normalizeInstrument  func(context.Context, map[string]any) (map[string]any, error)
 	getSecurityDetails   func(context.Context, string, string) (mdsrv.SecurityDetails, error)
 	lookupInstrument     func(context.Context, string, string) ([]mdsrv.InstrumentCandidate, error)
+	searchInstruments    func(context.Context, string, int) ([]mdsrv.InstrumentCandidate, error)
 	querySnapshot        func(context.Context, string) (*mdsrv.Tick, error)
 	queryTicker          func(context.Context, string) (*mdsrv.Tick, error)
 	getHistoricalCandles func(context.Context, string, string, string, int, string, string) (mdsrv.CandlesResponse, error)
@@ -262,6 +358,13 @@ func (p *marketdataProvider) LookupInstrument(ctx context.Context, market, code 
 		return nil, fmt.Errorf("market-data exact instrument lookup is unavailable")
 	}
 	return p.lookupInstrument(ctx, market, code)
+}
+
+func (p *marketdataProvider) SearchInstruments(ctx context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error) {
+	if p.searchInstruments == nil {
+		return nil, fmt.Errorf("market-data instrument search is unavailable")
+	}
+	return p.searchInstruments(ctx, query, limit)
 }
 
 func (p *marketdataProvider) QuerySnapshot(ctx context.Context, instrumentID string) (*mdsrv.Tick, error) {

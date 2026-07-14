@@ -54,6 +54,14 @@ function instrumentIdFromBindingInstrument(value: StrategyBindingInstrumentDocum
     return market === "" || code === "" ? "" : `${market}.${code}`;
 }
 
+function splitQualifiedInstrumentId(value: string): [market: string, code: string] | null {
+    const separator = value.indexOf(".");
+    if (separator <= 0 || separator === value.length - 1) {
+        return null;
+    }
+    return [value.slice(0, separator), value.slice(separator + 1)];
+}
+
 export function normalizeBindingInstruments(values: StrategyBindingInstrumentDocument[]): StrategyBindingInstrumentDocument[] {
     const seen = new Set<string>();
     const result: StrategyBindingInstrumentDocument[] = [];
@@ -63,12 +71,11 @@ export function normalizeBindingInstruments(values: StrategyBindingInstrumentDoc
             continue;
         }
         seen.add(instrumentId);
-        const [market, code] = instrumentId.split(".", 2);
-        const resolvedMarket = market ?? "";
-        const resolvedCode = code ?? "";
-        if (resolvedMarket === "" || resolvedCode === "") {
+        const qualifiedInstrument = splitQualifiedInstrumentId(instrumentId);
+        if (qualifiedInstrument === null) {
             continue;
         }
+        const [resolvedMarket, resolvedCode] = qualifiedInstrument;
         result.push({ market: resolvedMarket, code: resolvedCode });
     }
     return result;
@@ -167,13 +174,14 @@ function readStrategyInstrumentsFromParams(params: Record<string, unknown> | nul
 
 function bindingInstrumentFromSymbol(symbol: string): StrategyBindingInstrumentDocument | null {
     const normalized = normalizeInstrumentId(symbol);
-    const [market, code] = normalized.split(".", 2);
-    if ((market ?? "") === "" || (code ?? "") === "") {
+    const qualifiedInstrument = splitQualifiedInstrumentId(normalized);
+    if (qualifiedInstrument === null) {
         return null;
     }
+    const [market, code] = qualifiedInstrument;
     return {
-        market: market ?? "",
-        code: code ?? "",
+        market,
+        code,
     };
 }
 

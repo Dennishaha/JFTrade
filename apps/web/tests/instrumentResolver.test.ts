@@ -8,7 +8,6 @@ import type {
   InstrumentResolutionResponse,
 } from "../src/contracts";
 import {
-  resolveDirectInstrumentCandidate,
   resolveMarketInstrumentCandidates,
   useInstrumentResolver,
 } from "../src/composables/instrumentResolver";
@@ -19,20 +18,25 @@ afterEach(() => {
 });
 
 function candidate(
-  market: "SH" | "SZ" | "US" = "SH",
+  market: string = "SH",
   patch: Partial<InstrumentResolutionCandidate> = {},
 ): InstrumentResolutionCandidate {
-  const code = market === "SH" ? "600519" : market === "SZ" ? "000001" : "AAPL";
+  const code = market === "SH" ? "600519" : market === "SZ" ? "000001" : market === "US" ? "AAPL" : "7203";
   return {
     market,
     resolvedMarket: market === "SH" || market === "SZ" ? "CN" : market,
     instrumentId: `${market}.${code}`,
     code,
     symbol: code,
-    name: market === "SH" ? "贵州茅台" : market === "SZ" ? "平安银行" : "Apple",
-    securityType: "STOCK",
+    name: market === "SH" ? "贵州茅台" : market === "SZ" ? "平安银行" : market === "US" ? "Apple" : "Toyota",
+    securityType: "Eqty",
     lotSize: market === "US" ? 1 : 100,
-    source: "test-static",
+    source: "test-search",
+    isWatched: false,
+    selectable: ["HK", "US", "SH", "SZ"].includes(market),
+    unavailableReason: ["HK", "US", "SH", "SZ"].includes(market)
+      ? null
+      : `当前版本暂不支持 ${market} 市场`,
     ...patch,
   };
 }
@@ -52,12 +56,12 @@ function resolution(
 }
 
 describe("resolveMarketInstrumentCandidates", () => {
-  it("keeps a US bare ticker as US.AAPL", async () => {
+  it("submits every code or name to the backend and supports all markets", async () => {
     const fetchMock = vi.fn(async () =>
       createResponse(
         resolution({
-          requestedMarket: "US",
-          query: "AAPL",
+          requestedMarket: "",
+          query: "Apple",
           entries: [candidate("US")],
         }),
       ),
@@ -65,19 +69,58 @@ describe("resolveMarketInstrumentCandidates", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      resolveMarketInstrumentCandidates({ market: "us", query: " AAPL " }),
+      resolveMarketInstrumentCandidates({ market: "", query: " Apple " }),
     ).resolves.toMatchObject({
-      requestedMarket: "US",
+      requestedMarket: "",
       resolutionStatus: "resolved",
-      entries: [{ market: "US", code: "AAPL", instrumentId: "US.AAPL" }],
+      entries: [{ market: "US", instrumentId: "US.AAPL", selectable: true }],
     });
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/market-data/instruments?market=US&query=AAPL",
+      "/api/v1/market-data/instruments?query=Apple&limit=20",
       expect.objectContaining({ method: "GET" }),
     );
   });
 
-  it("normalizes and de-duplicates parent-market candidates", async () => {
+  it("sends an optional market filter and normalizes disabled candidates", async () => {
+    const fetchMock = vi.fn(async () =>
+      createResponse({
+        requestedMarket: "JP",
+        query: "Toyota",
+        resolutionStatus: "unavailable",
+        entries: [
+          {
+            market: "jp",
+            symbol: "7203",
+            instrumentId: "jp.7203",
+            name: "Toyota",
+            securityType: "Eqty",
+            selectable: false,
+            unavailableReason: "当前版本暂不支持 JP 市场",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      resolveMarketInstrumentCandidates({ market: "jp", query: "Toyota", limit: 5 }),
+    ).resolves.toMatchObject({
+      resolutionStatus: "unavailable",
+      entries: [
+        {
+          instrumentId: "JP.7203",
+          selectable: false,
+          unavailableReason: "当前版本暂不支持 JP 市场",
+        },
+      ],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/market-data/instruments?query=Toyota&limit=5&market=JP",
+      expect.any(Object),
+    );
+  });
+
+  it("normalizes and de-duplicates server candidates", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -90,11 +133,13 @@ describe("resolveMarketInstrumentCandidates", () => {
               instrumentId: "sz.000001",
               name: "平安银行",
               lotSize: 100,
+              selectable: true,
             },
             {
               market: "SZ",
               code: "000001",
               instrumentId: "SZ.000001",
+              selectable: true,
             },
           ],
         }),
@@ -111,47 +156,17 @@ describe("resolveMarketInstrumentCandidates", () => {
   });
 });
 
-describe("resolveDirectInstrumentCandidate", () => {
-  it("directly resolves leaf markets and qualified instruments", () => {
-    expect(resolveDirectInstrumentCandidate("US", "AAPL")).toMatchObject({
-      market: "US",
-      code: "AAPL",
-      instrumentId: "US.AAPL",
-      source: "direct-input",
-    });
-    expect(resolveDirectInstrumentCandidate("CN", "SZ.000001")).toMatchObject({
-      market: "SZ",
-      resolvedMarket: "CN",
-      instrumentId: "SZ.000001",
-    });
-    expect(resolveDirectInstrumentCandidate("CN", "CNSH.600519")).toMatchObject({
-      market: "SH",
-      resolvedMarket: "CN",
-      instrumentId: "SH.600519",
-    });
-    expect(resolveDirectInstrumentCandidate("US", "BRK.B")).toMatchObject({
-      market: "US",
-      code: "BRK.B",
-      instrumentId: "US.BRK.B",
-    });
-  });
-
-  it("keeps a bare parent-market code for subset lookup", () => {
-    expect(resolveDirectInstrumentCandidate("CN", "000001")).toBeNull();
-  });
-
-  it("does not bypass server validation for invalid or mismatched market prefixes", () => {
-    expect(resolveDirectInstrumentCandidate("CN", "CN.600519")).toBeNull();
-    expect(resolveDirectInstrumentCandidate("CN", "US.AAPL")).toBeNull();
-    expect(resolveDirectInstrumentCandidate("US", "HK.00700")).toBeNull();
-    expect(resolveDirectInstrumentCandidate("US", "US.")).toBeNull();
-    expect(resolveDirectInstrumentCandidate("", "MARS.123")).toBeNull();
-  });
-});
-
 describe("useInstrumentResolver", () => {
-  it("resolves a unique US ticker without opening candidate UI", async () => {
-    const fetchMock = vi.fn();
+  it("resolves a unique result through the backend without opening candidate UI", async () => {
+    const fetchMock = vi.fn(async () =>
+      createResponse(
+        resolution({
+          requestedMarket: "US",
+          query: "AAPL",
+          entries: [candidate("US")],
+        }),
+      ),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const market = ref("US");
     const query = ref("AAPL");
@@ -163,42 +178,27 @@ describe("useInstrumentResolver", () => {
 
     await resolver.resolve();
 
-    expect(onResolved).toHaveBeenCalledWith(
-      candidate("US", {
-        name: null,
-        securityType: null,
-        lotSize: null,
-        source: "direct-input",
-      }),
-    );
+    expect(onResolved).toHaveBeenCalledWith(candidate("US"));
     expect(resolver.panelOpen.value).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     scope.stop();
   });
 
-  it("keeps ambiguous and incomplete candidates explicit", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
+  it("skips disabled candidates during keyboard navigation and selection", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
         createResponse(
           resolution({
+            requestedMarket: "",
             resolutionStatus: "ambiguous",
-            totalReturned: 2,
-            entries: [candidate("SH"), candidate("SZ")],
+            totalReturned: 3,
+            entries: [candidate("JP"), candidate("SH"), candidate("SZ")],
           }),
         ),
-      )
-      .mockResolvedValueOnce(
-        createResponse(
-          resolution({
-            resolutionStatus: "incomplete",
-            entries: [candidate("SH")],
-            failures: [{ market: "SZ", code: "600519", message: "查询超时" }],
-          }),
-        ),
-      );
-    vi.stubGlobal("fetch", fetchMock);
-    const market = ref("CN");
+      ),
+    );
+    const market = ref("");
     const query = ref("000001");
     const onResolved = vi.fn();
     const scope = effectScope();
@@ -208,21 +208,42 @@ describe("useInstrumentResolver", () => {
 
     await resolver.resolve();
     expect(resolver.panelOpen.value).toBe(true);
-    expect(resolver.candidates.value).toHaveLength(2);
-    expect(onResolved).not.toHaveBeenCalled();
+    expect(resolver.activeCandidateIndex.value).toBe(1);
+    resolver.moveActiveCandidate(1);
+    expect(resolver.activeCandidateIndex.value).toBe(2);
     resolver.moveActiveCandidate(1);
     expect(resolver.activeCandidateIndex.value).toBe(1);
+    resolver.selectCandidate(candidate("JP"));
+    expect(onResolved).not.toHaveBeenCalled();
     expect(resolver.selectActiveCandidate()).toBe(true);
-    expect(onResolved).toHaveBeenCalledWith(candidate("SZ"));
+    expect(onResolved).toHaveBeenCalledWith(candidate("SH"));
+    scope.stop();
+  });
 
-    query.value = "600519";
-    await nextTick();
+  it("shows unavailable results without allowing automatic resolution", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        createResponse(
+          resolution({
+            requestedMarket: "",
+            resolutionStatus: "unavailable",
+            entries: [candidate("JP")],
+          }),
+        ),
+      ),
+    );
+    const onResolved = vi.fn();
+    const scope = effectScope();
+    const resolver = scope.run(() =>
+      useInstrumentResolver({ market: ref(""), query: ref("Toyota"), onResolved }),
+    )!;
+
     await resolver.resolve();
-    expect(resolver.resolutionStatus.value).toBe("incomplete");
-    expect(resolver.failures.value).toEqual([
-      { market: "SZ", code: "600519", message: "查询超时" },
-    ]);
-    expect(onResolved).toHaveBeenCalledTimes(1);
+    expect(resolver.statusMessage.value).toContain("暂未开放");
+    expect(resolver.activeCandidateIndex.value).toBe(-1);
+    expect(resolver.selectActiveCandidate()).toBe(false);
+    expect(onResolved).not.toHaveBeenCalled();
     scope.stop();
   });
 
@@ -238,14 +259,14 @@ describe("useInstrumentResolver", () => {
         createResponse(
           resolution({
             requestedMarket: "US",
-            query: "AAPL",
+            query: "Apple",
             entries: [candidate("US")],
           }),
         ),
       );
     vi.stubGlobal("fetch", fetchMock);
-    const market = ref("CN");
-    const query = ref("600519");
+    const market = ref("");
+    const query = ref("苹果");
     const onResolved = vi.fn();
     const scope = effectScope();
     const resolver = scope.run(() =>
@@ -255,7 +276,7 @@ describe("useInstrumentResolver", () => {
     const first = resolver.resolve();
     const firstSignal = (fetchMock.mock.calls[0]?.[1] as RequestInit).signal;
     market.value = "US";
-    query.value = "AAPL";
+    query.value = "Apple";
     await nextTick();
     expect(firstSignal?.aborted).toBe(true);
     await resolver.resolve();
@@ -263,14 +284,7 @@ describe("useInstrumentResolver", () => {
     await first;
 
     expect(onResolved).toHaveBeenCalledTimes(1);
-    expect(onResolved).toHaveBeenCalledWith(
-      candidate("US", {
-        name: null,
-        securityType: null,
-        lotSize: null,
-        source: "direct-input",
-      }),
-    );
+    expect(onResolved).toHaveBeenCalledWith(candidate("US"));
     scope.stop();
   });
 });

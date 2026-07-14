@@ -18,6 +18,7 @@ import (
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
 	qotgetorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetorderbook"
+	qotgetsearchquotepb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsearchquote"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	qotgetstaticinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetstaticinfo"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
@@ -31,6 +32,8 @@ type marketDataQuoteOpenDServer struct {
 	basicQotCalls         atomic.Int32
 	securitySnapshotCalls atomic.Int32
 	staticInfoCalls       atomic.Int32
+	searchQuoteCalls      atomic.Int32
+	qotSubCalls           atomic.Int32
 	orderBookCalls        atomic.Int32
 	lastOrderBookNum      atomic.Int32
 	historyMu             sync.Mutex
@@ -80,6 +83,14 @@ func (s *marketDataQuoteOpenDServer) staticInfoCallCount() int {
 	return int(s.staticInfoCalls.Load())
 }
 
+func (s *marketDataQuoteOpenDServer) searchQuoteCallCount() int {
+	return int(s.searchQuoteCalls.Load())
+}
+
+func (s *marketDataQuoteOpenDServer) qotSubCallCount() int {
+	return int(s.qotSubCalls.Load())
+}
+
 func (s *marketDataQuoteOpenDServer) acceptLoop() {
 	defer close(s.shutdownCompleted)
 	for {
@@ -126,6 +137,7 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoGetGlobalState:
 			response = marketDataGlobalStateResponse()
 		case opend.ProtoQotSub:
+			s.qotSubCalls.Add(1)
 			response = &qotsubpb.Response{RetType: new(int32(0))}
 		case opend.ProtoGetBasicQot:
 			s.basicQotCalls.Add(1)
@@ -136,6 +148,9 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoGetStaticInfo:
 			s.staticInfoCalls.Add(1)
 			response = s.staticInfoResponse(frame.Body)
+		case opend.ProtoGetSearchQuote:
+			s.searchQuoteCalls.Add(1)
+			response = s.searchQuoteResponse(frame.Body)
 		case opend.ProtoRequestHistoryKL:
 			response = s.historyKLResponse(frame.Body)
 		case opend.ProtoGetKL:
@@ -163,6 +178,24 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 		if _, err := conn.Write(packet); err != nil {
 			return
 		}
+	}
+}
+
+func (s *marketDataQuoteOpenDServer) searchQuoteResponse(body []byte) *qotgetsearchquotepb.Response {
+	request := &qotgetsearchquotepb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &qotgetsearchquotepb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
+	}
+	if request.GetC2S().GetKeyword() == "" || request.GetC2S().GetMaxCount() != 100 {
+		return &qotgetsearchquotepb.Response{RetType: new(int32(1)), RetMsg: new("invalid search request")}
+	}
+	return &qotgetsearchquotepb.Response{
+		RetType: new(int32(0)),
+		S2C: &qotgetsearchquotepb.S2C{SearchQuoteList: []*qotgetsearchquotepb.SearchQuote{
+			{Market: new(int32(qotcommonpb.QotMarket_QotMarket_CNSH_Security)), Code: new("000001"), Name: new("Shanghai Index"), SecType: new(int32(qotcommonpb.SecurityType_SecurityType_Index))},
+			{Market: new(int32(qotcommonpb.QotMarket_QotMarket_CNSZ_Security)), Code: new("000001"), Name: new("Ping An Bank"), SecType: new(int32(qotcommonpb.SecurityType_SecurityType_Eqty))},
+			{Market: new(int32(qotcommonpb.QotMarket_QotMarket_JP_Security)), Code: new("7203"), Name: new("Toyota"), SecType: new(int32(qotcommonpb.SecurityType_SecurityType_Eqty))},
+		}},
 	}
 }
 

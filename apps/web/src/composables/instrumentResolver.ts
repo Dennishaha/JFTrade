@@ -32,6 +32,7 @@ export type {
 export interface ResolveMarketInstrumentInput {
   market: string;
   query: string;
+  limit?: number;
   signal?: AbortSignal;
 }
 
@@ -52,6 +53,9 @@ interface RawInstrumentResolutionCandidate {
   securityType?: string | null;
   lotSize?: number | null;
   source?: string | null;
+  isWatched?: boolean | null;
+  selectable?: boolean | null;
+  unavailableReason?: string | null;
 }
 
 interface RawInstrumentResolutionResponse {
@@ -72,108 +76,11 @@ const RESOLUTION_STATUSES = new Set<InstrumentResolutionStatus>([
   "ambiguous",
   "not_found",
   "incomplete",
+  "unavailable",
 ]);
-
-const MARKET_SUBSET_CHILDREN: Readonly<Record<string, readonly string[]>> = {
-  CN: ["SH", "SZ"],
-};
-
-const CANONICAL_LEAF_MARKETS: Readonly<Record<string, string>> = {
-  US: "US",
-  HK: "HK",
-  SH: "SH",
-  SZ: "SZ",
-  CNSH: "SH",
-  CNSZ: "SZ",
-  SG: "SG",
-  JP: "JP",
-  AU: "AU",
-  MY: "MY",
-  CA: "CA",
-};
 
 function normalizedText(value: string | null | undefined): string {
   return (value ?? "").trim();
-}
-
-function isMarketSubset(market: string): boolean {
-  return MARKET_SUBSET_CHILDREN[normalizeInstrumentMarket(market)] != null;
-}
-
-function canonicalLeafMarket(market: string): string | null {
-  return CANONICAL_LEAF_MARKETS[normalizeInstrumentMarket(market)] ?? null;
-}
-
-function requestedMarketMatchesLeaf(
-  requestedMarket: string,
-  leafMarket: string,
-): boolean {
-  const normalizedRequestedMarket = normalizeInstrumentMarket(requestedMarket);
-  if (normalizedRequestedMarket === "") {
-    return true;
-  }
-  const subsetChildren = MARKET_SUBSET_CHILDREN[normalizedRequestedMarket];
-  if (subsetChildren != null) {
-    return subsetChildren.includes(leafMarket);
-  }
-  return canonicalLeafMarket(normalizedRequestedMarket) === leafMarket;
-}
-
-export function resolveDirectInstrumentCandidate(
-  market: string,
-  query: string,
-): InstrumentResolutionCandidate | null {
-  const requestedMarket = normalizeInstrumentMarket(market);
-  const normalizedQuery = query.trim().toUpperCase().replace(":", ".");
-  const qualified = parseInstrumentId(normalizedQuery);
-  const querySeparator = normalizedQuery.indexOf(".");
-  const queryPrefix =
-    querySeparator < 0 ? "" : normalizedQuery.slice(0, querySeparator);
-  if (
-    qualified == null &&
-    (canonicalLeafMarket(queryPrefix) != null ||
-      isMarketSubset(queryPrefix))
-  ) {
-    return null;
-  }
-  const qualifiedLeafMarket =
-    qualified == null ? null : canonicalLeafMarket(qualified.market);
-  const qualifiedUsesRecognizedMarket =
-    qualifiedLeafMarket != null ||
-    (qualified != null && isMarketSubset(qualified.market));
-
-  if (
-    qualifiedUsesRecognizedMarket &&
-    (qualifiedLeafMarket == null ||
-      !requestedMarketMatchesLeaf(requestedMarket, qualifiedLeafMarket))
-  ) {
-    return null;
-  }
-
-  const actualMarket =
-    qualifiedLeafMarket ?? canonicalLeafMarket(requestedMarket) ?? "";
-  const code = normalizedText(
-    qualifiedLeafMarket == null ? normalizedQuery : qualified?.code,
-  ).toUpperCase();
-  if (
-    actualMarket === "" ||
-    code === "" ||
-    (!qualifiedUsesRecognizedMarket && isMarketSubset(requestedMarket))
-  ) {
-    return null;
-  }
-
-  return {
-    market: actualMarket,
-    resolvedMarket: categoryMarketForUser(actualMarket),
-    instrumentId: `${actualMarket}.${code}`,
-    code,
-    symbol: code,
-    name: null,
-    securityType: null,
-    lotSize: null,
-    source: "direct-input",
-  };
 }
 
 function normalizeCandidate(
@@ -210,6 +117,9 @@ function normalizeCandidate(
         ? entry.lotSize
         : null,
     source: normalizedText(entry.source),
+    isWatched: entry.isWatched === true,
+    selectable: entry.selectable !== false,
+    unavailableReason: normalizedText(entry.unavailableReason) || null,
   };
 }
 
@@ -237,13 +147,22 @@ function inferResolutionStatus(
   ) {
     return normalizedStatus as InstrumentResolutionStatus;
   }
+  if (
+    entries.length > 0 &&
+    entries.every((candidate) => !candidate.selectable)
+  ) {
+    return "unavailable";
+  }
   if (entries.length > 1) {
     return "ambiguous";
   }
   if (failures.length > 0) {
     return "incomplete";
   }
-  return entries.length === 1 ? "resolved" : "not_found";
+  if (entries.length === 1) {
+    return entries[0]?.selectable === false ? "unavailable" : "resolved";
+  }
+  return "not_found";
 }
 
 export async function resolveMarketInstrumentCandidates(
@@ -251,7 +170,13 @@ export async function resolveMarketInstrumentCandidates(
 ): Promise<InstrumentResolutionResponse> {
   const requestedMarket = normalizeInstrumentMarket(input.market);
   const query = input.query.trim();
-  const params = new URLSearchParams({ market: requestedMarket, query });
+  const params = new URLSearchParams({
+    query,
+    limit: String(input.limit ?? 20),
+  });
+  if (requestedMarket !== "") {
+    params.set("market", requestedMarket);
+  }
   const init: RequestInit = { method: "GET" };
   if (input.signal != null) {
     init.signal = input.signal;
@@ -306,7 +231,9 @@ export function useInstrumentResolver(options: UseInstrumentResolverOptions) {
       case "incomplete":
         return "部分市场查询失败，无法安全确认唯一标的。请确认候选、重试或输入完整市场前缀。";
       case "not_found":
-        return "未找到匹配标的，请检查代码或输入完整市场前缀。";
+        return "未找到匹配标的，请检查代码或名称。";
+      case "unavailable":
+        return "找到匹配结果，但所属市场暂未开放。";
       default:
         return "";
     }
@@ -339,13 +266,16 @@ export function useInstrumentResolver(options: UseInstrumentResolverOptions) {
   }
 
   function selectCandidate(candidate: InstrumentResolutionCandidate): void {
+    if (!candidate.selectable) {
+      return;
+    }
     closePanel();
     options.onResolved(candidate);
   }
 
   function selectActiveCandidate(): boolean {
     const candidate = candidates.value[activeCandidateIndex.value];
-    if (candidate == null) {
+    if (candidate == null || !candidate.selectable) {
       return false;
     }
     selectCandidate(candidate);
@@ -375,21 +305,13 @@ export function useInstrumentResolver(options: UseInstrumentResolverOptions) {
     const market = toValue(options.market).trim();
     const query = toValue(options.query).trim();
     if (query === "") {
-      reportError(new Error("请输入标的代码。"));
+      reportError(new Error("请输入标的代码或名称。"));
       return null;
     }
 
     activeController?.abort();
     const currentRequest = ++requestVersion;
     clearResolutionState();
-
-    const directCandidate = resolveDirectInstrumentCandidate(market, query);
-    if (directCandidate != null) {
-      candidates.value = [directCandidate];
-      resolutionStatus.value = "resolved";
-      selectCandidate(directCandidate);
-      return directCandidate;
-    }
 
     const controller = new AbortController();
     activeController = controller;
@@ -411,7 +333,8 @@ export function useInstrumentResolver(options: UseInstrumentResolverOptions) {
 
       if (
         response.resolutionStatus === "resolved" &&
-        response.entries.length === 1
+        response.entries.length === 1 &&
+        response.entries[0]?.selectable === true
       ) {
         const candidate = response.entries[0] ?? null;
         if (candidate != null) {
@@ -425,7 +348,9 @@ export function useInstrumentResolver(options: UseInstrumentResolverOptions) {
       }
 
       panelOpen.value = true;
-      activeCandidateIndex.value = response.entries.length > 0 ? 0 : -1;
+      activeCandidateIndex.value = response.entries.findIndex(
+        (candidate) => candidate.selectable,
+      );
       return null;
     } catch (cause) {
       if (currentRequest !== requestVersion || isAbortError(cause)) {
@@ -446,12 +371,18 @@ export function useInstrumentResolver(options: UseInstrumentResolverOptions) {
   }
 
   function moveActiveCandidate(offset: -1 | 1): void {
-    if (!panelOpen.value || candidates.value.length === 0) {
+    const selectableIndexes = candidates.value
+      .map((candidate, index) => (candidate.selectable ? index : -1))
+      .filter((index) => index >= 0);
+    if (!panelOpen.value || selectableIndexes.length === 0) {
       return;
     }
-    activeCandidateIndex.value =
-      (activeCandidateIndex.value + offset + candidates.value.length) %
-      candidates.value.length;
+    const currentPosition = selectableIndexes.indexOf(activeCandidateIndex.value);
+    const basePosition = currentPosition < 0 ? (offset > 0 ? -1 : 0) : currentPosition;
+    const nextPosition =
+      (basePosition + offset + selectableIndexes.length) %
+      selectableIndexes.length;
+    activeCandidateIndex.value = selectableIndexes[nextPosition] ?? -1;
   }
 
   function handleKeydown(event: KeyboardEvent): boolean {

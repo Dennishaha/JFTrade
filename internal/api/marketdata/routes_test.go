@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -395,6 +396,28 @@ func TestReadRoutesMapProviderAndRequestFailures(t *testing.T) {
 func TestInstrumentSearchRouteReturnsSubsetResolutionContract(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{}
+	provider.searchInstruments = func(_ context.Context, query string, limit int) ([]srv.InstrumentCandidate, error) {
+		if limit != 100 {
+			t.Fatalf("SearchInstruments(%q, %d), want limit 100", query, limit)
+		}
+		entries := []srv.InstrumentCandidate{
+			{Market: "US", InstrumentID: "US.000001", Code: "000001", Name: "US Product", SecurityType: "Warrant"},
+			{Market: "SH", InstrumentID: "SH.000001", Code: "000001", Name: "SSE Composite", SecurityType: "Index"},
+			{Market: "SZ", InstrumentID: "SZ.000001", Code: "000001", Name: "Ping An Bank", SecurityType: "Eqty"},
+			{Market: "JP", InstrumentID: "JP.000001", Code: "000001", Name: "JP Product", SecurityType: "Plate"},
+		}
+		if query == "all-types" {
+			for index := range entries {
+				entries[index].Code = fmt.Sprintf("TYPE%d", index)
+				entries[index].InstrumentID = entries[index].Market + "." + entries[index].Code
+			}
+			return entries, nil
+		}
+		if query != "000001" {
+			t.Fatalf("unexpected query %q", query)
+		}
+		return entries, nil
+	}
 	provider.lookupInstrument = func(_ context.Context, market, code string) ([]srv.InstrumentCandidate, error) {
 		return []srv.InstrumentCandidate{{
 			Market:       market,
@@ -411,7 +434,7 @@ func TestInstrumentSearchRouteReturnsSubsetResolutionContract(t *testing.T) {
 	RegisterRoutes(router.Group("/api/v1"), service)
 
 	response := httptest.NewRecorder()
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/instruments?market=CN&query=000001", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/instruments?market=CN&query=000001&limit=20", nil)
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("GET instruments status = %d body=%s", response.Code, response.Body.String())
@@ -424,15 +447,34 @@ func TestInstrumentSearchRouteReturnsSubsetResolutionContract(t *testing.T) {
 	first := jftradeCheckedTypeAssertion[map[string]any](entries[0])
 	second := jftradeCheckedTypeAssertion[map[string]any](entries[1])
 	if first["instrumentId"] != "SH.000001" || first["resolvedMarket"] != "CN" || first["symbol"] != "000001" ||
-		second["instrumentId"] != "SZ.000001" {
+		first["securityType"] != "Index" || first["selectable"] != true || second["instrumentId"] != "SZ.000001" {
 		t.Fatalf("stable candidate entries = %#v", entries)
 	}
-	provider.lookupMu.Lock()
-	calls := append([]string(nil), provider.lookupCalls...)
-	provider.lookupMu.Unlock()
-	slices.Sort(calls)
-	if !slices.Equal(calls, []string{"SH.000001", "SZ.000001"}) {
-		t.Fatalf("lookup calls = %#v", calls)
+	provider.searchMu.Lock()
+	searchCalls := append([]string(nil), provider.searchCalls...)
+	provider.searchMu.Unlock()
+	if !slices.Equal(searchCalls, []string{"000001:100"}) {
+		t.Fatalf("search calls = %#v", searchCalls)
+	}
+
+	response = httptest.NewRecorder()
+	request = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/instruments?query=all-types", nil)
+	router.ServeHTTP(response, request)
+	allMarketData := decodeRouteData(t, response)
+	allMarketEntries := jftradeCheckedTypeAssertion[[]any](allMarketData["entries"])
+	if len(allMarketEntries) != 4 {
+		t.Fatalf("all-market entries = %#v", allMarketEntries)
+	}
+	wantTypes := []string{"Warrant", "Index", "Eqty", "Plate"}
+	for index, rawEntry := range allMarketEntries {
+		entry := jftradeCheckedTypeAssertion[map[string]any](rawEntry)
+		if entry["securityType"] != wantTypes[index] {
+			t.Fatalf("security type[%d] = %#v, want %s", index, entry, wantTypes[index])
+		}
+	}
+	last := jftradeCheckedTypeAssertion[map[string]any](allMarketEntries[3])
+	if last["market"] != "JP" || last["selectable"] != false || last["unavailableReason"] == "" {
+		t.Fatalf("unsupported all-market candidate = %#v", last)
 	}
 
 	// A qualified query bypasses parent expansion and only looks up its leaf.
@@ -451,89 +493,66 @@ func TestInstrumentSearchRouteReturnsSubsetResolutionContract(t *testing.T) {
 	}
 }
 
-func TestInstrumentSearchRoutePreservesEmptyAndPartialResults(t *testing.T) {
+func TestInstrumentSearchRouteValidatesInputAndMapsProviderFailures(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{}
-	provider.lookupInstrument = func(_ context.Context, market, code string) ([]srv.InstrumentCandidate, error) {
-		if code == "600000" {
-			if market == "SH" {
-				return []srv.InstrumentCandidate{{Market: market, InstrumentID: market + "." + code, Code: code}}, nil
-			}
-			return nil, nil
+	provider.searchInstruments = func(_ context.Context, query string, _ int) ([]srv.InstrumentCandidate, error) {
+		switch query {
+		case "missing":
+			return []srv.InstrumentCandidate{}, nil
+		case "Toyota":
+			return []srv.InstrumentCandidate{{Market: "JP", InstrumentID: "JP.7203", Code: "7203", Name: "Toyota", SecurityType: "Eqty"}}, nil
+		case "Apple":
+			return []srv.InstrumentCandidate{{Market: "US", InstrumentID: "US.AAPL", Code: "AAPL", Name: "Apple Inc.", SecurityType: "Eqty"}}, nil
+		default:
+			return nil, errors.New("OpenD search failed")
 		}
-		if code == "999999" {
-			return nil, nil
-		}
-		if market == "SZ" {
-			return nil, errors.New("Shenzhen static-info request failed")
-		}
-		return []srv.InstrumentCandidate{{Market: market, InstrumentID: market + "." + code, Code: code}}, nil
 	}
 	service := srv.NewService(provider)
 	router := gin.New()
 	RegisterRoutes(router.Group("/api/v1"), service)
 
-	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/instruments?market=CN&query=600519", nil))
-	data := decodeRouteData(t, response)
-	if data["resolutionStatus"] != "incomplete" || data["totalReturned"] != float64(1) {
-		t.Fatalf("partial resolution = %#v", data)
-	}
-	failures := jftradeCheckedTypeAssertion[[]any](data["failures"])
-	failure := jftradeCheckedTypeAssertion[map[string]any](failures[0])
-	if failure["market"] != "SZ" || failure["code"] != "600519" {
-		t.Fatalf("partial failure = %#v", failure)
-	}
-
 	for query, wantStatus := range map[string]string{
-		"600000": "resolved",
-		"999999": "not_found",
+		"Apple":   "resolved",
+		"Toyota":  "unavailable",
+		"missing": "not_found",
 	} {
-		response = httptest.NewRecorder()
-		path := "/api/v1/market-data/instruments?market=CN&query=" + query
+		response := httptest.NewRecorder()
+		path := "/api/v1/market-data/instruments?query=" + query
 		router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
-		data = decodeRouteData(t, response)
+		if response.Code != http.StatusOK {
+			t.Fatalf("status for %s = %d body=%s", query, response.Code, response.Body.String())
+		}
+		data := decodeRouteData(t, response)
 		if data["resolutionStatus"] != wantStatus {
 			t.Fatalf("resolution status for %s = %#v, want %s", query, data, wantStatus)
 		}
+		if query == "Toyota" {
+			entry := jftradeCheckedTypeAssertion[map[string]any](jftradeCheckedTypeAssertion[[]any](data["entries"])[0])
+			if entry["selectable"] != false || entry["unavailableReason"] == "" {
+				t.Fatalf("unavailable candidate = %#v", entry)
+			}
+		}
 	}
 
-	provider.lookupMu.Lock()
-	callCount := len(provider.lookupCalls)
-	provider.lookupMu.Unlock()
-	response = httptest.NewRecorder()
-	emptyPath := "/api/v1/market-data/instruments?market=CN"
-	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, emptyPath, nil))
-	data = decodeRouteData(t, response)
-	if data["resolutionStatus"] != "not_found" || data["totalReturned"] != float64(0) {
-		t.Fatalf("empty compatibility response for %s = %#v", emptyPath, data)
-	}
-	provider.lookupMu.Lock()
-	if len(provider.lookupCalls) != callCount {
-		t.Fatalf("empty request unexpectedly called provider: %#v", provider.lookupCalls)
-	}
-	provider.lookupMu.Unlock()
-
-	response = httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/instruments?query=legacy", nil))
-	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "market is required") {
-		t.Fatalf("market-less bare query = %d %s", response.Code, response.Body.String())
+	for _, path := range []string{
+		"/api/v1/market-data/instruments",
+		"/api/v1/market-data/instruments?query=Apple&limit=0",
+		"/api/v1/market-data/instruments?query=Apple&limit=101",
+		"/api/v1/market-data/instruments?query=Apple&limit=bad",
+		"/api/v1/market-data/instruments?market=JP&query=Toyota",
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("invalid request %s status = %d body=%s", path, response.Code, response.Body.String())
+		}
 	}
 
-	response = httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/instruments?query=SH.600519", nil))
-	if response.Code != http.StatusOK {
-		t.Fatalf("market-less qualified query = %d %s", response.Code, response.Body.String())
-	}
-	data = decodeRouteData(t, response)
-	if data["resolutionStatus"] != "resolved" || data["totalReturned"] != float64(1) {
-		t.Fatalf("market-less qualified resolution = %#v", data)
-	}
-
-	response = httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/instruments?market=CN&query=US.AAPL", nil))
-	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "MARKET_INSTRUMENT_INVALID") {
-		t.Fatalf("mismatched qualified request = %d %s", response.Code, response.Body.String())
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/instruments?query=provider-error", nil))
+	if response.Code != http.StatusBadGateway || !strings.Contains(response.Body.String(), "MARKET_INSTRUMENT_SEARCH_FAILED") {
+		t.Fatalf("provider error status = %d body=%s", response.Code, response.Body.String())
 	}
 }
 
@@ -650,6 +669,9 @@ type routeTestProvider struct {
 	lookupMu             sync.Mutex
 	lookupCalls          []string
 	lookupInstrument     func(context.Context, string, string) ([]srv.InstrumentCandidate, error)
+	searchMu             sync.Mutex
+	searchCalls          []string
+	searchInstruments    func(context.Context, string, int) ([]srv.InstrumentCandidate, error)
 }
 
 func (p *routeTestProvider) Descriptor(context.Context) (srv.ProviderDescriptor, error) {
@@ -679,6 +701,16 @@ func (p *routeTestProvider) LookupInstrument(ctx context.Context, market, code s
 		return nil, nil
 	}
 	return p.lookupInstrument(ctx, market, code)
+}
+
+func (p *routeTestProvider) SearchInstruments(ctx context.Context, query string, limit int) ([]srv.InstrumentCandidate, error) {
+	p.searchMu.Lock()
+	p.searchCalls = append(p.searchCalls, fmt.Sprintf("%s:%d", query, limit))
+	p.searchMu.Unlock()
+	if p.searchInstruments == nil {
+		return nil, nil
+	}
+	return p.searchInstruments(ctx, query, limit)
 }
 
 func (p *routeTestProvider) QuerySnapshot(_ context.Context, instrumentID string) (*srv.Tick, error) {

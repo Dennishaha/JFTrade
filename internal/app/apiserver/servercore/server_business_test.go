@@ -109,6 +109,9 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 		lookupInstrument: func(_ context.Context, market, code string) ([]mdsrv.InstrumentCandidate, error) {
 			return []mdsrv.InstrumentCandidate{{Market: market, Code: code, InstrumentID: market + "." + code}}, nil
 		},
+		searchInstruments: func(_ context.Context, query string, limit int) ([]mdsrv.InstrumentCandidate, error) {
+			return []mdsrv.InstrumentCandidate{{Market: "US", Code: "AAPL", InstrumentID: "US.AAPL", Name: query, Selectable: true, LotSize: int32(limit)}}, nil
+		},
 		querySnapshot: func(context.Context, string) (*mdsrv.Tick, error) {
 			return &mdsrv.Tick{InstrumentID: "US.AAPL", Kind: mdsrv.TickKindTrade}, nil
 		},
@@ -141,6 +144,9 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 	}
 	if candidates, err := provider.LookupInstrument(ctx, "US", "AAPL"); err != nil || len(candidates) != 1 || candidates[0].InstrumentID != "US.AAPL" {
 		t.Fatalf("LookupInstrument() = %#v err=%v", candidates, err)
+	}
+	if candidates, err := provider.SearchInstruments(ctx, "Apple", 100); err != nil || len(candidates) != 1 || candidates[0].Name != "Apple" || candidates[0].LotSize != 100 {
+		t.Fatalf("SearchInstruments() = %#v err=%v", candidates, err)
 	}
 	if tick, err := provider.QuerySnapshot(ctx, "US.AAPL"); err != nil || tick.InstrumentID != "US.AAPL" {
 		t.Fatalf("QuerySnapshot() = %#v err=%v", tick, err)
@@ -372,6 +378,10 @@ func (r *servercoreFakeBrokerReader) QueryKLines(context.Context, broker.KLineQu
 }
 
 func (r *servercoreFakeBrokerReader) QuerySecurityInfo(context.Context, broker.SecurityInfoQuery) (*broker.SecurityInfoSnapshot, error) {
+	return nil, nil
+}
+
+func (r *servercoreFakeBrokerReader) QuerySecuritySearch(context.Context, broker.SecuritySearchQuery) (*broker.SecuritySearchSnapshot, error) {
 	return nil, nil
 }
 

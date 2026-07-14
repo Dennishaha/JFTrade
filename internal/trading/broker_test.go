@@ -119,6 +119,10 @@ func (s *stubMarketDataReader) QuerySecurityInfo(ctx context.Context, query brok
 	return nil, nil
 }
 
+func (s *stubMarketDataReader) QuerySecuritySearch(context.Context, broker.SecuritySearchQuery) (*broker.SecuritySearchSnapshot, error) {
+	return nil, nil
+}
+
 func (s *stubMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query broker.SecuritySnapshotQuery) (*broker.SecuritySnapshotResult, error) {
 	if s.querySecuritySnapshot != nil {
 		return s.querySecuritySnapshot(ctx, query)

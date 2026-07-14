@@ -52,6 +52,10 @@ type MarketDataReader interface {
 	// QuerySecurityInfo retrieves static info for the given securities.
 	QuerySecurityInfo(ctx context.Context, query SecurityInfoQuery) (*SecurityInfoSnapshot, error)
 
+	// QuerySecuritySearch searches the broker's cross-market security catalog.
+	// Implementations must not create quote subscriptions as a side effect.
+	QuerySecuritySearch(ctx context.Context, query SecuritySearchQuery) (*SecuritySearchSnapshot, error)
+
 	// QuerySecuritySnapshot retrieves full snapshots (basic + extended data).
 	QuerySecuritySnapshot(ctx context.Context, query SecuritySnapshotQuery) (*SecuritySnapshotResult, error)
 

@@ -273,22 +273,35 @@ describe("Backtest page", () => {
       securityType: "STOCK",
       lotSize: 100,
       source: "test-static",
+      isWatched: false,
+      selectable: true,
+      unavailableReason: null,
     });
     expect(readSetupValue<string>(setup.selectedMarket)).toBe("CN");
+    expect(readSetupValue<string>(setup.instrumentSearchMarket)).toBe("");
     expect(readSetupValue<string>(setup.codeInput)).toBe("SH.600519");
     expect(readSetupValue<Record<string, unknown>>(setup.backtestFormState)).toMatchObject({
       market: "CN",
       code: "SH.600519",
       instrumentId: "SH.600519",
     });
-    writeSetupValue(setup, "selectedMarket", "US");
+    writeSetupValue(setup, "instrumentSearchQuery", "贵州茅台");
+    await nextTick();
+    expect(readSetupValue<boolean>(setup.instrumentSelectionResolved)).toBe(false);
+    expect(readSetupValue<string>(setup.codeInput)).toBe("SH.600519");
+    expect(readSetupValue<Record<string, unknown>>(setup.backtestFormState)).toMatchObject({
+      market: "CN",
+      code: "",
+      instrumentId: "",
+    });
+    writeSetupValue(setup, "instrumentSearchMarket", "US");
     writeSetupValue(setup, "codeInput", "");
     await nextTick();
     expect(readSetupValue<string>(setup.displayInstrumentId)).toBe("");
     expect(readSetupValue<unknown[]>(setup.codeSuggestions)).toEqual([
       { key: "US.AAPL", value: "AAPL", title: "AAPL · Apple" },
     ]);
-    writeSetupValue(setup, "selectedMarket", "CN");
+    writeSetupValue(setup, "instrumentSearchMarket", "CN");
     await nextTick();
     expect(readSetupValue<unknown[]>(setup.codeSuggestions)).toEqual([
       {
@@ -302,10 +315,12 @@ describe("Backtest page", () => {
         title: "600519 · 深证 · 深市同码标的",
       },
     ]);
+    writeSetupValue(setup, "instrumentSearchMarket", "US");
     writeSetupValue(setup, "selectedMarket", "US");
     writeSetupValue(setup, "codeInput", "US:AAPL");
     expect(readSetupValue<string>(setup.displayInstrumentId)).toBe("US.AAPL");
     writeSetupValue(setup, "codeInput", "AAPL");
+    writeSetupValue(setup, "instrumentSearchQuery", "US.AAPL");
     expect(readSetupValue<string>(setup.displayInstrumentId)).toBe("US.AAPL");
     writeSetupValue(setup, "interval", "custom");
     expect(readSetupValue<string>(setup.periodLabel)).toBe("custom");
@@ -361,7 +376,7 @@ describe("Backtest page", () => {
     await formTextareas[1]!.setValue('[{"name":"market","rate":0.001}]');
 
     const codeField = page.findAll("input").find((input) =>
-      input.attributes("placeholder") === "00700",
+      input.attributes("placeholder") === "输入代码或名称",
     );
     expect(codeField).toBeDefined();
     await codeField!.setValue("00388");

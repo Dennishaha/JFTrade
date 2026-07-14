@@ -11,9 +11,9 @@ import (
 
 var futuProtoFiles = []string{
 	"Common.proto", "GetGlobalState.proto", "InitConnect.proto", "KeepAlive.proto", "Notify.proto",
-	"Qot_Common.proto", "Qot_Sub.proto", "Qot_GetBasicQot.proto", "Qot_UpdateBasicQot.proto",
+	"Qot_Common.proto", "Qot_Sub.proto", "Qot_GetSubInfo.proto", "Qot_GetBasicQot.proto", "Qot_UpdateBasicQot.proto",
 	"Qot_GetKL.proto", "Qot_UpdateKL.proto", "Qot_GetOrderBook.proto", "Qot_GetSecuritySnapshot.proto",
-	"Qot_RequestHistoryKL.proto", "Qot_GetStaticInfo.proto",
+	"Qot_RequestHistoryKL.proto", "Qot_GetStaticInfo.proto", "Qot_GetSearchQuote.proto",
 	"Qot_GetUserSecurity.proto", "Qot_GetUserSecurityGroup.proto", "Trd_Common.proto",
 	"Qot_UpdateOrderBook.proto",
 	"Trd_GetAccList.proto", "Trd_GetFunds.proto", "Trd_GetPositionList.proto",

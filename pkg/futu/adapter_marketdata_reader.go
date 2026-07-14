@@ -164,6 +164,100 @@ func (r *futuMarketDataReader) QuerySecurityInfo(ctx context.Context, query brok
 	return result, nil
 }
 
+func (r *futuMarketDataReader) QuerySecuritySearch(ctx context.Context, query broker.SecuritySearchQuery) (*broker.SecuritySearchSnapshot, error) {
+	keyword := strings.TrimSpace(query.Keyword)
+	if keyword == "" {
+		return nil, fmt.Errorf("futu: QuerySecuritySearch requires a keyword")
+	}
+	limit := query.Limit
+	if limit == 0 {
+		limit = 100
+	}
+	if limit < 1 || limit > 100 {
+		return nil, fmt.Errorf("futu: QuerySecuritySearch limit must be between 1 and 100")
+	}
+
+	var result *broker.SecuritySearchSnapshot
+	if err := r.exchange.withClient(ctx, func(client *opend.Client) error {
+		matches, err := client.GetSearchQuote(ctx, keyword, limit)
+		if err != nil {
+			return err
+		}
+		snapshot := &broker.SecuritySearchSnapshot{AccountID: query.AccountID}
+		for _, match := range matches {
+			if match == nil {
+				continue
+			}
+			marketCode := futuSearchMarketCode(qotcommonpb.QotMarket(match.GetMarket()))
+			symbol := canonicalSearchQuoteSymbol(marketCode, match.GetCode())
+			if symbol == "" {
+				continue
+			}
+			snapshot.Entries = append(snapshot.Entries, broker.SecuritySearchItem{
+				Market:       marketCode,
+				Symbol:       symbol,
+				Name:         strings.TrimSpace(match.GetName()),
+				SecurityType: enumName(match.GetSecType(), qotcommonpb.SecurityType_name),
+				IsWatched:    match.GetIsWatched(),
+			})
+		}
+		result = snapshot
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func futuSearchMarketCode(value qotcommonpb.QotMarket) string {
+	if marketCode, err := futuMarketCodeFromQotMarket(value); err == nil {
+		return marketCode
+	}
+	switch value {
+	case qotcommonpb.QotMarket_QotMarket_HK_Future:
+		return "HK_FUTURE"
+	case qotcommonpb.QotMarket_QotMarket_FX_Security:
+		return "FX"
+	case qotcommonpb.QotMarket_QotMarket_CC_Security:
+		return "CRYPTO"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+func canonicalSearchQuoteSymbol(marketCode, rawCode string) string {
+	marketCode = strings.ToUpper(strings.TrimSpace(marketCode))
+	code := strings.ToUpper(strings.TrimSpace(rawCode))
+	code = strings.ReplaceAll(code, ":", ".")
+	if marketCode == "" || code == "" {
+		return ""
+	}
+	if separator := strings.Index(code, "."); separator > 0 {
+		prefix := strings.TrimSpace(code[:separator])
+		bareCode := strings.TrimSpace(code[separator+1:])
+		if canonicalSearchQuoteMarketPrefix(prefix) == marketCode && bareCode != "" {
+			return marketCode + "." + bareCode
+		}
+	}
+	return marketCode + "." + code
+}
+
+func canonicalSearchQuoteMarketPrefix(value string) string {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	switch normalized {
+	case "CNSH":
+		return "SH"
+	case "CNSZ":
+		return "SZ"
+	case "HKFUTURE", "HK_FUTURES":
+		return "HK_FUTURE"
+	case "CC":
+		return "CRYPTO"
+	default:
+		return normalized
+	}
+}
+
 func (r *futuMarketDataReader) QueryMarketRules(ctx context.Context, query broker.MarketRuleQuery) (*broker.MarketRuleSnapshot, error) {
 	if len(query.Symbols) == 0 {
 		return nil, fmt.Errorf("futu: QueryMarketRules requires at least one symbol")

@@ -110,13 +110,16 @@ export interface components {
     "marketdata.InstrumentCandidate": {
     code?: string;
     instrumentId?: string;
+    isWatched?: boolean;
     lotSize?: number;
     market?: string;
     name?: string;
     resolvedMarket?: string;
     securityType?: string;
+    selectable?: boolean;
     source?: string;
     symbol?: string;
+    unavailableReason?: string;
   };
     "marketdata.InstrumentResolution": {
     entries?: Array<components["schemas"]["marketdata.InstrumentCandidate"]>;
@@ -131,7 +134,7 @@ export interface components {
     market?: string;
     message?: string;
   };
-    "marketdata.InstrumentResolutionStatus": "resolved" | "ambiguous" | "not_found" | "incomplete";
+    "marketdata.InstrumentResolutionStatus": "resolved" | "ambiguous" | "not_found" | "incomplete" | "unavailable";
     "marketdata.SubscriptionHeartbeatRequest": {
     consumerId?: string;
   };
@@ -2113,7 +2116,8 @@ export interface paths {
       parameters: {
         query: {
         market?: string;
-        query?: string;
+        query: string;
+        limit?: number;
       };
       };
       responses: {
@@ -2127,6 +2131,12 @@ export interface paths {
         };
         "400": {
           description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };

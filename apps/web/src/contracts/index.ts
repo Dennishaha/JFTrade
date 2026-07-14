@@ -248,7 +248,8 @@ export type InstrumentResolutionStatus =
   | "resolved"
   | "ambiguous"
   | "not_found"
-  | "incomplete";
+  | "incomplete"
+  | "unavailable";
 
 export interface InstrumentResolutionFailure {
   market: string;
@@ -266,6 +267,9 @@ export interface InstrumentResolutionCandidate {
   securityType: string | null;
   lotSize: number | null;
   source: string;
+  isWatched: boolean;
+  selectable: boolean;
+  unavailableReason: string | null;
 }
 
 export interface InstrumentResolutionResponse {

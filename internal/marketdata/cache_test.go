@@ -357,6 +357,10 @@ func (*dataProviderStub) LookupInstrument(context.Context, string, string) ([]In
 	return nil, nil
 }
 
+func (*dataProviderStub) SearchInstruments(context.Context, string, int) ([]InstrumentCandidate, error) {
+	return nil, nil
+}
+
 func (p *dataProviderStub) QuerySnapshot(_ context.Context, instrumentID string) (*Tick, error) {
 	p.snapshotCalls++
 	p.snapshotID = instrumentID

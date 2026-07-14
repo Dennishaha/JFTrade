@@ -433,7 +433,7 @@ describe("TopBar trading environment switch", () => {
 
     expect(
       wrapper.get('[data-testid="topbar-instrument-market"]').findAll("option"),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
 
     liveStream?.emitMessage(
       createLiveEnvelope(
@@ -993,7 +993,7 @@ describe("TopBar trading environment switch", () => {
     const marketSelect = wrapper.get('[data-testid="topbar-instrument-market"]');
     expect(
       marketSelect.findAll("option").map((option) => option.element.value),
-    ).toEqual(["HK", "US", "CN"]);
+    ).toEqual(["", "HK", "US", "CN"]);
     expect(codeInput.element.tagName).toBe("INPUT");
     expect(wrapper.find(".instrument-resolver__submit").exists()).toBe(false);
     await marketSelect.setValue("CN");
@@ -1007,6 +1007,7 @@ describe("TopBar trading environment switch", () => {
 
     expect(storedPrefs.market).toBe("SH");
     expect(storedPrefs.symbol).toBe("600519");
+    expect((marketSelect.element as HTMLSelectElement).value).toBe("CN");
 
     await marketSelect.setValue("US");
     await codeInput.setValue("AAPL");
@@ -1020,10 +1021,10 @@ describe("TopBar trading environment switch", () => {
     expect(
       fetchMock.mock.calls.some(([input]) =>
         String(input).includes(
-          "/api/v1/market-data/instruments?market=US&query=AAPL",
+          "/api/v1/market-data/instruments?query=AAPL&limit=20&market=US",
         ),
       ),
-    ).toBe(false);
+    ).toBe(true);
 
     const submitButton = wrapper.get(
       '[data-testid="topbar-instrument-submit"]',

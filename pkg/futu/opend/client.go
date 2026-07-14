@@ -30,6 +30,7 @@ const (
 	ProtoNotify               uint32 = 1003
 	ProtoKeepAlive            uint32 = 1004
 	ProtoQotSub               uint32 = 3001
+	ProtoGetSubInfo           uint32 = 3003
 	ProtoGetBasicQot          uint32 = 3004
 	ProtoQotUpdateBasicQot    uint32 = 3005
 	ProtoGetKL                uint32 = 3006
@@ -41,6 +42,7 @@ const (
 	ProtoGetSecuritySnapshot  uint32 = 3203
 	ProtoGetUserSecurity      uint32 = 3213
 	ProtoGetUserSecurityGroup uint32 = 3222
+	ProtoGetSearchQuote       uint32 = 3262
 
 	ProtoTrdGetAccList              uint32 = 2001
 	ProtoTrdUnlockTrade             uint32 = 2005

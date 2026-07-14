@@ -127,8 +127,8 @@ const currentTagTestId = computed(() =>
 const previewHeading = computed(() => (isCreate.value ? "创建预览" : "绑定预览"));
 const symbolHelperText = computed(() =>
     isCreate.value
-    ? "先选市场，再输入代码；按 Enter 或点击解析。多结果与部分查询失败时需要显式选择，也支持粘贴多行完整标的列表。"
-    : "为空时表示暂未绑定交易代码；解析成功后追加实际交易所标的，空输入时按 Backspace 可快速删除最后一个标签。",
+    ? "输入代码或名称后按 Enter 或点击查询。全部市场下批量粘贴必须使用 MARKET.CODE 完整格式；选择具体市场后可粘贴裸代码。"
+    : "解析成功后追加实际交易所标的；全部市场下批量粘贴必须使用 MARKET.CODE 完整格式。空输入时按 Backspace 可删除最后一个标签。",
 );
 const notifyOnlyNotice = computed(() =>
     isCreate.value
@@ -367,6 +367,7 @@ function handleBrokerQueryInput(event: Event): void {
                                     class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
                                     @change="handleSymbolMarketChange"
                                 >
+                                    <option value="">全部市场</option>
                                     <option v-for="option in marketOptions" :key="option.value" :value="option.value">
                                         {{ option.title }}
                                     </option>
@@ -375,7 +376,7 @@ function handleBrokerQueryInput(event: Event): void {
                                     :value="symbolDraftInput"
                                     :data-testid="symbolInputTestId"
                                     class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-                                    placeholder="输入代码，例如 TME"
+                                    placeholder="输入代码或名称"
                                     type="text"
                                     role="combobox"
                                     :aria-expanded="instrumentResolutionOpen"
@@ -387,6 +388,7 @@ function handleBrokerQueryInput(event: Event): void {
                                     class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
                                     :data-testid="symbolAddTestId"
                                     type="button"
+                                    :disabled="instrumentResolving"
                                     @mousedown.prevent
                                     @click="resolveSymbolDraft"
                                 >
@@ -419,9 +421,14 @@ function handleBrokerQueryInput(event: Event): void {
                                     type="button"
                                     role="option"
                                     class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 px-3 py-2 text-left text-xs text-slate-700 transition hover:bg-slate-50"
-                                    :class="{ 'bg-slate-50': index === activeCandidateIndex }"
+                                    :class="{
+                                        'bg-slate-50': index === activeCandidateIndex,
+                                        'cursor-not-allowed opacity-50': !candidate.selectable,
+                                    }"
+                                    :disabled="!candidate.selectable"
+                                    :title="candidate.unavailableReason || undefined"
                                     :aria-selected="index === activeCandidateIndex"
-                                    @mouseenter="activeCandidateIndex = index"
+                                    @mouseenter="candidate.selectable && (activeCandidateIndex = index)"
                                     @keydown="handleInstrumentKeydown"
                                     @click="selectInstrumentCandidate(candidate)"
                                 >
@@ -433,7 +440,12 @@ function handleBrokerQueryInput(event: Event): void {
                                         :name="candidate.name"
                                         compact
                                     />
-                                    <span class="text-slate-400">{{ candidate.securityType || "类型未知" }}</span>
+                                    <span class="text-right text-slate-400">
+                                        <span class="block">{{ candidate.securityType || "类型未知" }}</span>
+                                        <span v-if="candidate.unavailableReason" class="block text-[10px] text-amber-600">
+                                            {{ candidate.unavailableReason }}
+                                        </span>
+                                    </span>
                                 </button>
                                 <div class="flex justify-end gap-2 border-t border-slate-100 px-3 py-2">
                                     <button

@@ -123,8 +123,10 @@ function createEditor(input: {
   const resolver = vi.fn(input.resolver ?? (async (request: NormalizeInstrumentRequest) => {
     const raw = String(request.instrumentId ?? request.code ?? "").trim().toUpperCase();
     if (raw === "BAD" || raw === "US.BAD") throw new Error("unknown instrument");
-    const [qualifiedMarket, qualifiedCode] = raw.includes(".") ? raw.split(".", 2) : [];
-    const prefix = qualifiedMarket || String(request.market ?? "HK").trim().toUpperCase();
+    const explicitMarket = String(request.market ?? "").trim().toUpperCase();
+    const [qualifiedMarket, qualifiedCode] =
+      explicitMarket === "" && raw.includes(".") ? raw.split(".", 2) : [];
+    const prefix = explicitMarket || qualifiedMarket || "";
     const code = qualifiedCode || raw;
     return {
       market: prefix,
@@ -178,7 +180,7 @@ describe("strategy runtime instance editor", () => {
     editor.instanceEditorOpen.value = false;
     expect(editor.instanceEditorMode.value).toBeNull();
     editor.openCreateInstanceForm();
-    expect(editor.activeSymbolDraftMarket.value).toBe("US");
+    expect(editor.activeSymbolDraftMarket.value).toBe("");
   });
 
   it("normalizes mixed symbol drafts and reports only invalid instruments", async () => {
@@ -191,7 +193,7 @@ describe("strategy runtime instance editor", () => {
 
     expect(editor.activeSymbolTags.value).toEqual(["US.AAPL", "HK.00700"]);
     expect(editor.activeSymbolDraft.value).toBe("");
-    expect(editor.activeSymbolDraftMarket.value).toBe("HK");
+    expect(editor.activeSymbolDraftMarket.value).toBe("US");
     expect(editor.activeSymbolValidationMessage.value).toContain("BAD");
     expect(resolver).toHaveBeenCalledTimes(3);
 
@@ -200,7 +202,7 @@ describe("strategy runtime instance editor", () => {
     editor.updateActiveSymbolDraft("MSFT");
     await expect(editor.commitSymbolDraft("create")).resolves.toBe(true);
     expect(editor.activeSymbolValidationMessage.value).toBe("");
-    expect(editor.activeSymbolTags.value).toEqual(["HK.00700", "HK.MSFT"]);
+    expect(editor.activeSymbolTags.value).toEqual(["HK.00700", "US.MSFT"]);
   });
 
   it("stores the actual A-share exchange after an explicit resolver selection", () => {
@@ -217,13 +219,42 @@ describe("strategy runtime instance editor", () => {
       securityType: "STOCK",
       lotSize: 100,
       source: "test-static",
+      isWatched: false,
+      selectable: true,
+      unavailableReason: null,
     });
 
-    expect(editor.activeSymbolDraftMarket.value).toBe("CN");
+    expect(editor.activeSymbolDraftMarket.value).toBe("");
     expect(editor.createBindingInstruments.value).toEqual([
       { market: "SZ", code: "000001" },
     ]);
     expect(editor.activeSymbolTags.value).toEqual(["SZ.000001"]);
+  });
+
+  it("requires qualified symbols for batch input when all markets is selected", async () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+    expect(editor.activeSymbolDraftMarket.value).toBe("");
+
+    editor.updateActiveSymbolDraft("AAPL, HK.00700, JP.7203");
+    await expect(editor.commitSymbolDraft("create")).resolves.toBe(false);
+
+    expect(editor.activeSymbolTags.value).toEqual(["HK.00700"]);
+    expect(editor.activeSymbolDraftMarket.value).toBe("");
+    expect(editor.activeSymbolValidationMessage.value).toContain("AAPL");
+    expect(editor.activeSymbolValidationMessage.value).toContain("JP.7203");
+    expect(editor.activeSymbolValidationMessage.value).toContain("完整格式");
+  });
+
+  it("treats dotted tickers as bare codes when a leaf market is selected", async () => {
+    const { editor, resolver } = createEditor();
+    editor.openCreateInstanceForm();
+    editor.updateActiveSymbolDraftMarket("US");
+    editor.updateActiveSymbolDraft("BRK.B");
+
+    await expect(editor.commitSymbolDraft("create")).resolves.toBe(true);
+    expect(editor.activeSymbolTags.value).toEqual(["US.BRK.B"]);
+    expect(resolver).toHaveBeenCalledWith({ market: "US", code: "BRK.B" });
   });
 
   it("handles keyboard and paste editing semantics", async () => {

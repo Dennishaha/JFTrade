@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
@@ -15,7 +17,7 @@ func TestLiveOpenDProto108Contract(t *testing.T) {
 		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")
 	}
 
-	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 	exchange := NewExchange(DefaultOpenDAddr)
 	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
@@ -32,6 +34,74 @@ func TestLiveOpenDProto108Contract(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("OpenD version=%s quoteLoggedIn=%v tradeLoggedIn=%v", opend.FormatVersion(state.ServerVer, state.ServerBuildNo), state.QotLogined, state.TrdLogined)
+
+	beforeSearch, err := client.GetSubInfo(ctx, false)
+	if err != nil {
+		t.Fatalf("GetSubInfo before search: %v", err)
+	}
+	aaplResults, err := client.GetSearchQuote(ctx, "AAPL", 100)
+	if err != nil {
+		t.Fatalf("GetSearchQuote AAPL: %v", err)
+	}
+	for index, candidate := range aaplResults {
+		if index >= 5 {
+			break
+		}
+		t.Logf("AAPL candidate[%d] market=%s(%d) code=%q name=%q type=%s",
+			index,
+			qotcommonpb.QotMarket(candidate.GetMarket()).String(),
+			candidate.GetMarket(),
+			candidate.GetCode(),
+			candidate.GetName(),
+			qotcommonpb.SecurityType(candidate.GetSecType()).String(),
+		)
+	}
+	foundNamedAAPL := false
+	for _, candidate := range aaplResults {
+		if qotcommonpb.QotMarket(candidate.GetMarket()) == qotcommonpb.QotMarket_QotMarket_US_Security &&
+			canonicalSearchQuoteSymbol("US", candidate.GetCode()) == "US.AAPL" && candidate.GetName() != "" {
+			foundNamedAAPL = true
+			break
+		}
+	}
+	if !foundNamedAAPL {
+		t.Fatalf("GetSearchQuote AAPL returned no named US.AAPL candidate: %#v", aaplResults)
+	}
+	chineseResults, err := client.GetSearchQuote(ctx, "腾讯", 100)
+	if err != nil {
+		t.Fatalf("GetSearchQuote Chinese name: %v", err)
+	}
+	foundNamedChineseResult := false
+	for _, candidate := range chineseResults {
+		if candidate.GetName() != "" {
+			foundNamedChineseResult = true
+			break
+		}
+	}
+	if !foundNamedChineseResult {
+		t.Fatalf("GetSearchQuote Chinese name returned no named candidates: %#v", chineseResults)
+	}
+	afterSearch, err := client.GetSubInfo(ctx, false)
+	if err != nil {
+		t.Fatalf("GetSubInfo after search: %v", err)
+	}
+	if len(beforeSearch.GetConnSubInfoList()) != len(afterSearch.GetConnSubInfoList()) {
+		t.Fatalf("search changed current-connection subscription count: before=%d after=%d",
+			len(beforeSearch.GetConnSubInfoList()), len(afterSearch.GetConnSubInfoList()))
+	}
+	for index := range beforeSearch.GetConnSubInfoList() {
+		if !proto.Equal(beforeSearch.GetConnSubInfoList()[index], afterSearch.GetConnSubInfoList()[index]) {
+			t.Fatalf("search changed current-connection subscription state: before=%v after=%v",
+				beforeSearch.GetConnSubInfoList(), afterSearch.GetConnSubInfoList())
+		}
+	}
+	t.Logf("search AAPL=%d Chinese=%d currentConnectionSubscriptions=%d usedQuota=%d remainQuota=%d",
+		len(aaplResults),
+		len(chineseResults),
+		liveCurrentConnectionSubscriptionCount(afterSearch),
+		afterSearch.GetTotalUsedQuota(),
+		afterSearch.GetRemainQuota(),
+	)
 
 	security := &qotcommonpb.Security{
 		Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
@@ -50,4 +120,16 @@ func TestLiveOpenDProto108Contract(t *testing.T) {
 		t.Fatalf("QueryOrderBook returned no HK.00700 levels: %#v", book)
 	}
 	t.Logf("HK.00700 snapshotPrice=%v orderBookBids=%d asks=%d", snapshots[0].GetBasic().GetCurPrice(), len(book.BidList), len(book.AskList))
+}
+
+func liveCurrentConnectionSubscriptionCount(info interface {
+	GetConnSubInfoList() []*qotcommonpb.ConnSubInfo
+}) int {
+	total := 0
+	for _, connection := range info.GetConnSubInfoList() {
+		if connection != nil && connection.GetIsOwnConnData() {
+			total += len(connection.GetSubInfoList())
+		}
+	}
+	return total
 }

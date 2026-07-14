@@ -2,6 +2,7 @@ package marketdata
 
 import (
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -412,20 +413,39 @@ func handleHeartbeat(svc *srv.Service) gin.HandlerFunc {
 }
 
 // handleInstrumentSearch godoc
-// @Summary 精确解析行情标的
+// @Summary 按代码或名称搜索行情标的
 // @Tags market-data
 // @Produce json
-// @Param market query string false "市场或市场分类"
-// @Param query query string false "精确证券代码或完整标的 ID"
+// @Param market query string false "市场筛选：HK、US、CN、SH 或 SZ；省略时搜索全部市场"
+// @Param query query string true "证券代码、名称或完整 MARKET.CODE"
+// @Param limit query int false "返回数量，默认 20，范围 1..100"
 // @Success 200 {object} httpserver.Envelope{data=marketdata.InstrumentResolution}
 // @Failure 400 {object} httpserver.Envelope
+// @Failure 502 {object} httpserver.Envelope
 // @Router /api/v1/market-data/instruments [get]
 func handleInstrumentSearch(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		query := c.Query("query")
-		result, err := svc.ResolveInstrument(c.Request.Context(), c.Query("market"), query)
+		query := strings.TrimSpace(c.Query("query"))
+		if query == "" {
+			httpserver.WriteError(c, 400, "MARKET_INSTRUMENT_INVALID", "query is required")
+			return
+		}
+		limit := 20
+		if rawLimit := strings.TrimSpace(c.Query("limit")); rawLimit != "" {
+			parsed, err := strconv.Atoi(rawLimit)
+			if err != nil || parsed < 1 || parsed > 100 {
+				httpserver.WriteError(c, 400, "MARKET_INSTRUMENT_INVALID", "limit must be between 1 and 100")
+				return
+			}
+			limit = parsed
+		}
+		result, err := svc.ResolveInstrument(c.Request.Context(), c.Query("market"), query, limit)
 		if err != nil {
-			httpserver.WriteError(c, 400, "MARKET_INSTRUMENT_INVALID", err.Error())
+			if srv.IsInstrumentSearchInputError(err) {
+				httpserver.WriteError(c, 400, "MARKET_INSTRUMENT_INVALID", err.Error())
+				return
+			}
+			httpserver.WriteError(c, 502, "MARKET_INSTRUMENT_SEARCH_FAILED", err.Error())
 			return
 		}
 		httpserver.WriteOK(c, result)

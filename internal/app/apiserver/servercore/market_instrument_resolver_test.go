@@ -4,12 +4,30 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
 
-func TestMarketInstrumentResolverEndpointUsesStaticInfoWithoutQuoteSubscription(t *testing.T) {
+func TestBrokerSearchInstrumentPartsPreservesDottedCodes(t *testing.T) {
+	for _, test := range []struct {
+		market string
+		symbol string
+		want   []string
+	}{
+		{market: "US", symbol: "US.BRK.B", want: []string{"US", "BRK.B"}},
+		{market: "US", symbol: "BRK.B", want: []string{"US", "BRK.B"}},
+		{market: "SH", symbol: "CNSH.600519", want: []string{"SH", "600519"}},
+	} {
+		marketCode, code := brokerSearchInstrumentParts(test.market, test.symbol)
+		if got := []string{marketCode, code}; !slices.Equal(got, test.want) {
+			t.Errorf("brokerSearchInstrumentParts(%q, %q) = %#v, want %#v", test.market, test.symbol, got, test.want)
+		}
+	}
+}
+
+func TestMarketInstrumentResolverEndpointUsesSearchWithoutQuoteSubscription(t *testing.T) {
 	quoteServer := startMarketDataQuoteOpenDServer(t)
 	defer quoteServer.stop()
 
@@ -40,18 +58,24 @@ func TestMarketInstrumentResolverEndpointUsesStaticInfoWithoutQuoteSubscription(
 		t.Fatalf("instrument candidates = %+v", envelope.Data.Entries)
 	}
 	for _, entry := range envelope.Data.Entries {
-		if entry.Name != "Tencent Holdings" || entry.SecurityType != "Eqty" || entry.LotSize != 100 || entry.Source != "bbgo:futu" {
-			t.Fatalf("static-info candidate = %+v", entry)
+		if entry.Name == "" || entry.SecurityType == "" || entry.Source != "bbgo:futu-search" || !entry.Selectable {
+			t.Fatalf("search candidate = %+v", entry)
 		}
 	}
-	if got := quoteServer.staticInfoCallCount(); got != 2 {
-		t.Fatalf("GetStaticInfo calls = %d, want one per CN leaf", got)
+	if got := quoteServer.searchQuoteCallCount(); got != 1 {
+		t.Fatalf("GetSearchQuote calls = %d, want 1", got)
+	}
+	if got := quoteServer.staticInfoCallCount(); got != 0 {
+		t.Fatalf("GetStaticInfo calls = %d, unqualified input must use search", got)
+	}
+	if got := quoteServer.qotSubCallCount(); got != 0 {
+		t.Fatalf("QotSub calls = %d, search must not request a subscription", got)
 	}
 	if got := quoteServer.basicQotCallCount(); got != 0 {
-		t.Fatalf("GetBasicQot calls = %d, exact lookup must not request subscribed quotes", got)
+		t.Fatalf("GetBasicQot calls = %d, search must not request quote data", got)
 	}
 	if got := quoteServer.securitySnapshotCallCount(); got != 0 {
-		t.Fatalf("GetSecuritySnapshot calls = %d, exact lookup should use static info", got)
+		t.Fatalf("GetSecuritySnapshot calls = %d, search must not request snapshots", got)
 	}
 }
 
@@ -60,7 +84,7 @@ func TestMarketInstrumentResolverQualifiedInputOnlyQueriesSelectedLeaf(t *testin
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
-	result, err := server.marketdataSvc.ResolveInstrument(t.Context(), "CN", "SH.600519")
+	result, err := server.marketdataSvc.ResolveInstrument(t.Context(), "CN", "SH.600519", 20)
 	if err != nil {
 		t.Fatalf("ResolveInstrument: %v", err)
 	}
@@ -69,6 +93,9 @@ func TestMarketInstrumentResolverQualifiedInputOnlyQueriesSelectedLeaf(t *testin
 	}
 	if got := quoteServer.staticInfoCallCount(); got != 1 {
 		t.Fatalf("GetStaticInfo calls = %d, want one qualified leaf lookup", got)
+	}
+	if quoteServer.searchQuoteCallCount() != 0 || quoteServer.qotSubCallCount() != 0 {
+		t.Fatal("qualified static lookup unexpectedly used search or quote subscription APIs")
 	}
 	if quoteServer.basicQotCallCount() != 0 || quoteServer.securitySnapshotCallCount() != 0 {
 		t.Fatal("qualified static lookup unexpectedly used a quote or snapshot API")

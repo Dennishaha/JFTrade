@@ -48,7 +48,7 @@ const {
   loadMarketProfiles,
 } = useMarketProfiles();
 
-const selectedMarket = ref(categoryMarketForUser(prefs.value.market));
+const selectedMarket = ref("");
 const codeInput = ref("");
 const tradingEnvironmentFilter = ref<"REAL" | "SIMULATE">("SIMULATE");
 const tradingEnvironmentFilterPinned = ref(false);
@@ -180,18 +180,6 @@ const codeSuggestions = computed(() => {
 });
 
 watch(
-  () => prefs.value.market,
-  (market) => {
-    const normalized = market.trim().toUpperCase();
-    if (normalized === "") {
-      return;
-    }
-    selectedMarket.value = categoryMarketForUser(normalized);
-  },
-  { immediate: true },
-);
-
-watch(
   () => selectedBrokerAccount.value?.tradingEnvironment,
   (tradingEnvironment) => {
     if (tradingEnvironmentFilterPinned.value) {
@@ -225,7 +213,6 @@ function handleResolvedInstrument(candidate: {
   code: string;
 }): void {
   selectWorkspaceInstrument({ market: candidate.market, symbol: candidate.code });
-  selectedMarket.value = categoryMarketForUser(candidate.market);
   codeInput.value = "";
 }
 
@@ -363,13 +350,14 @@ onMounted(() => {
     <form class="tv-topbar-symbol" data-testid="topbar-instrument-form" @submit.prevent="submitSymbol">
       <span style="color: var(--tv-text-muted); font-size: 11px">⌕</span>
       <select v-model="selectedMarket" class="tv-topbar-symbol__market" data-testid="topbar-instrument-market">
+        <option value="">全部市场</option>
         <option v-for="option in topbarMarketOptions" :key="option.value" :value="option.value">
           {{ option.title }}
         </option>
       </select>
       <input
         v-model="codeInput"
-        :placeholder="prefs.symbol"
+        placeholder="输入代码或名称"
         list="jftrade-symbol-search"
         spellcheck="false"
         autocomplete="off"
@@ -385,7 +373,7 @@ onMounted(() => {
           :label="option.label" />
       </datalist>
       <span style="font-size: 10px; color: var(--tv-text-dim)"
-        :title="`${codeSuggestions.length} 个可搜索代码，当前市场 ${formatUserMarketLabel(selectedMarket)}；来源于订阅、持仓、订单和查询缓存`">
+        :title="`${codeSuggestions.length} 个本地提示，当前范围 ${selectedMarket === '' ? '全部市场' : formatUserMarketLabel(selectedMarket)}；来源于订阅、持仓、订单和查询缓存`">
         {{ codeSuggestions.length }}
       </span>
       <button
@@ -422,9 +410,14 @@ onMounted(() => {
           type="button"
           role="option"
           class="tv-topbar-symbol__resolution-option"
-          :class="{ 'tv-topbar-symbol__resolution-option--active': index === activeCandidateIndex }"
+          :class="{
+            'tv-topbar-symbol__resolution-option--active': index === activeCandidateIndex,
+            'tv-topbar-symbol__resolution-option--disabled': !candidate.selectable,
+          }"
+          :disabled="!candidate.selectable"
+          :title="candidate.unavailableReason || undefined"
           :aria-selected="index === activeCandidateIndex"
-          @mouseenter="activeCandidateIndex = index"
+          @mouseenter="candidate.selectable && (activeCandidateIndex = index)"
           @keydown="handleInstrumentKeydown"
           @click="selectInstrumentCandidate(candidate)"
         >
@@ -436,7 +429,10 @@ onMounted(() => {
             :name="candidate.name"
             compact
           />
-          <span>{{ candidate.securityType || "类型未知" }}</span>
+          <span class="tv-topbar-symbol__resolution-meta">
+            <span>{{ candidate.securityType || "类型未知" }}</span>
+            <span v-if="candidate.unavailableReason">{{ candidate.unavailableReason }}</span>
+          </span>
         </button>
         <div class="tv-topbar-symbol__resolution-actions">
           <button
@@ -809,6 +805,18 @@ onMounted(() => {
 .tv-topbar-symbol__resolution-option--active,
 .tv-topbar-symbol__resolution-option:hover {
   background: var(--tv-bg-hover);
+}
+
+.tv-topbar-symbol__resolution-option--disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tv-topbar-symbol__resolution-meta {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
 }
 
 .tv-topbar-symbol__resolution-actions {
