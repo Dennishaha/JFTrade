@@ -19,8 +19,10 @@ import (
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
 	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
 	qotgetorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetorderbook"
+	qotgetsearchquotepb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsearchquote"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	qotgetstaticinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetstaticinfo"
+	qotgetusersecuritygrouppb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetusersecuritygroup"
 	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 	qotupdatebasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdatebasicqot"
@@ -60,6 +62,9 @@ type quoteOpenDServer struct {
 	staticInfoCalls       atomic.Int32
 	securitySnapshotCalls atomic.Int32
 	orderBookCalls        atomic.Int32
+	searchQuoteCalls      atomic.Int32
+	userSecCalls          atomic.Int32
+	userGroupCalls        atomic.Int32
 	accountMu             sync.Mutex
 	accounts              []*trdcommonpb.TrdAcc
 	tradeMu               sync.Mutex
@@ -71,6 +76,7 @@ type quoteOpenDServer struct {
 	historyFills          []*trdcommonpb.OrderFill
 	orderFees             []*trdcommonpb.OrderFee
 	marginRatios          []*trdgetmarginratiopb.MarginRatioInfo
+	marginRatioError      *trdgetmarginratiopb.Response
 	strictMarginRatios    bool
 	cashFlows             []*trdflowsummarypb.FlowSummaryInfo
 	maxTrdQtys            *trdcommonpb.MaxTrdQtys
@@ -95,10 +101,21 @@ type quoteOpenDServer struct {
 	historyRouteCallCount map[int32]int
 	currentKLines         []*qotcommonpb.KLine
 	basicQuotes           []*qotcommonpb.BasicQot
+	basicQuotesConfigured bool
+	basicQotError         *qotgetbasicqotpb.Response
 	staticInfos           []*qotcommonpb.SecurityStaticInfo
 	staticInfoError       *qotgetstaticinfopb.Response
 	securitySnapshots     []*qotgetsecuritysnapshotpb.Snapshot
+	securitySnapshotError *qotgetsecuritysnapshotpb.Response
 	orderBookSnapshot     *qotgetorderbookpb.S2C
+	searchQuotes          []*qotgetsearchquotepb.SearchQuote
+	searchQuoteError      *qotgetsearchquotepb.Response
+	lastSearchKeyword     string
+	lastSearchMaxCount    int32
+	watchlistGroups       []*qotgetusersecuritygrouppb.GroupData
+	watchlistSecurities   []*qotcommonpb.SecurityStaticInfo
+	lastGroupType         int32
+	lastGroupName         string
 	notifyMu              sync.Mutex
 	notifyAfterInit       *notifypb.Response
 	listener              net.Listener
@@ -210,6 +227,17 @@ func (s *quoteOpenDServer) setMarginRatios(ratios []*trdgetmarginratiopb.MarginR
 	s.tradeMu.Lock()
 	defer s.tradeMu.Unlock()
 	s.marginRatios = append([]*trdgetmarginratiopb.MarginRatioInfo(nil), ratios...)
+	s.marginRatioError = nil
+}
+
+func (s *quoteOpenDServer) setMarginRatioError(retType int32, errCode int32, retMsg string) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.marginRatioError = &trdgetmarginratiopb.Response{
+		RetType: new(retType),
+		ErrCode: new(errCode),
+		RetMsg:  new(retMsg),
+	}
 }
 
 func (s *quoteOpenDServer) setStrictMarginRatios(enabled bool) {
@@ -391,6 +419,15 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			if err != nil {
 				return
 			}
+		case opend.ProtoGetSearchQuote:
+			s.searchQuoteCalls.Add(1)
+			response = s.searchQuoteResponse(frame.Body)
+		case opend.ProtoGetUserSecurityGroup:
+			s.userGroupCalls.Add(1)
+			response = s.userSecurityGroupResponse(frame.Body)
+		case opend.ProtoGetUserSecurity:
+			s.userSecCalls.Add(1)
+			response = s.userSecurityResponse(frame.Body)
 		case opend.ProtoGetKL:
 			s.currentKLCalls.Add(1)
 			response = s.currentKLResponse(frame.Body)
@@ -646,6 +683,14 @@ func (s *quoteOpenDServer) basicQotResponse(body []byte) *qotgetbasicqotpb.Respo
 	if err := proto.Unmarshal(body, request); err != nil {
 		return &qotgetbasicqotpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
+
+	s.tradeMu.Lock()
+	if s.basicQotError != nil {
+		response := jftradeCheckedTypeAssertion[*qotgetbasicqotpb.Response](proto.Clone(s.basicQotError))
+		s.tradeMu.Unlock()
+		return response
+	}
+	s.tradeMu.Unlock()
 
 	quotes := s.basicQotResponseForSecurities(request.GetC2S().GetSecurityList())
 

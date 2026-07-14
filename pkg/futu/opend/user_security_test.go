@@ -122,6 +122,29 @@ func TestUserSecurityMethodsPropagateBusinessErrorsAndEmptyResults(t *testing.T)
 	}
 }
 
+func TestUserSecurityMethodsNormalizeMissingGroupsAndReportSecurityErrors(t *testing.T) {
+	client, _, ctx := clientWithServer(t, map[uint32]protoHandler{
+		ProtoGetUserSecurityGroup: func(codec.Frame) (proto.Message, error) {
+			return &qotgetusersecuritygrouppb.Response{RetType: new(int32(0))}, nil
+		},
+		ProtoGetUserSecurity: func(codec.Frame) (proto.Message, error) {
+			return &qotgetusersecuritypb.Response{
+				RetType: new(int32(-1)),
+				ErrCode: new(int32(403)),
+				RetMsg:  new("watchlist access denied"),
+			}, nil
+		},
+	})
+
+	groups, err := client.GetUserSecurityGroups(ctx, qotgetusersecuritygrouppb.GroupType_GroupType_Custom)
+	if err != nil || groups == nil || len(groups) != 0 {
+		t.Fatalf("missing groups = (%#v, %v), want non-nil empty", groups, err)
+	}
+	if _, err := client.GetUserSecurities(ctx, "Long Term"); err == nil || !strings.Contains(err.Error(), "retType=-1 errCode=403 retMsg=watchlist access denied") {
+		t.Fatalf("GetUserSecurities business error = %v", err)
+	}
+}
+
 func TestUserSecurityProtocolIDs(t *testing.T) {
 	if ProtoGetUserSecurity != 3213 {
 		t.Fatalf("ProtoGetUserSecurity = %d, want 3213", ProtoGetUserSecurity)

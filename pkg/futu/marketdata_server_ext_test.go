@@ -7,9 +7,13 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
 	qotgetorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetorderbook"
+	qotgetsearchquotepb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsearchquote"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	qotgetstaticinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetstaticinfo"
+	qotgetusersecuritypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetusersecurity"
+	qotgetusersecuritygrouppb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetusersecuritygroup"
 	tradeunlockpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdunlocktrade"
 )
 
@@ -34,12 +38,74 @@ func (s *quoteOpenDServer) setBasicQuotes(quotes []*qotcommonpb.BasicQot) {
 	s.tradeMu.Lock()
 	defer s.tradeMu.Unlock()
 	s.basicQuotes = append([]*qotcommonpb.BasicQot(nil), quotes...)
+	s.basicQuotesConfigured = true
+	s.basicQotError = nil
+}
+
+func (s *quoteOpenDServer) setBasicQotError(retType int32, errCode int32, retMsg string) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.basicQotError = &qotgetbasicqotpb.Response{
+		RetType: new(retType),
+		ErrCode: new(errCode),
+		RetMsg:  new(retMsg),
+	}
+}
+
+func (s *quoteOpenDServer) clearBasicQotError() {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.basicQotError = nil
 }
 
 func (s *quoteOpenDServer) setSecuritySnapshots(snapshots []*qotgetsecuritysnapshotpb.Snapshot) {
 	s.tradeMu.Lock()
 	defer s.tradeMu.Unlock()
 	s.securitySnapshots = append([]*qotgetsecuritysnapshotpb.Snapshot(nil), snapshots...)
+	s.securitySnapshotError = nil
+}
+
+func (s *quoteOpenDServer) setSecuritySnapshotError(retType int32, errCode int32, retMsg string) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.securitySnapshotError = &qotgetsecuritysnapshotpb.Response{
+		RetType: new(retType),
+		ErrCode: new(errCode),
+		RetMsg:  new(retMsg),
+	}
+}
+
+func (s *quoteOpenDServer) setSearchQuotes(quotes []*qotgetsearchquotepb.SearchQuote) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.searchQuotes = append([]*qotgetsearchquotepb.SearchQuote(nil), quotes...)
+	s.searchQuoteError = nil
+}
+
+func (s *quoteOpenDServer) setSearchQuoteError(retType int32, errCode int32, retMsg string) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.searchQuoteError = &qotgetsearchquotepb.Response{
+		RetType: new(retType),
+		ErrCode: new(errCode),
+		RetMsg:  new(retMsg),
+	}
+}
+
+func (s *quoteOpenDServer) setWatchlistData(
+	groups []*qotgetusersecuritygrouppb.GroupData,
+	securities []*qotcommonpb.SecurityStaticInfo,
+) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.watchlistGroups = append([]*qotgetusersecuritygrouppb.GroupData(nil), groups...)
+	s.watchlistSecurities = append([]*qotcommonpb.SecurityStaticInfo(nil), securities...)
+}
+
+func (s *quoteOpenDServer) lastSearchQuoteRequest() (keyword string, maxCount int32) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	return s.lastSearchKeyword, s.lastSearchMaxCount
 }
 
 func (s *quoteOpenDServer) setOrderBookSnapshot(snapshot *qotgetorderbookpb.S2C) {
@@ -79,6 +145,11 @@ func (s *quoteOpenDServer) securitySnapshotResponse(body []byte) *qotgetsecurity
 		return &qotgetsecuritysnapshotpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
+	if s.securitySnapshotError != nil {
+		response := jftradeCheckedTypeAssertion[*qotgetsecuritysnapshotpb.Response](proto.Clone(s.securitySnapshotError))
+		s.tradeMu.Unlock()
+		return response
+	}
 	snapshots := append([]*qotgetsecuritysnapshotpb.Snapshot(nil), s.securitySnapshots...)
 	s.tradeMu.Unlock()
 	return &qotgetsecuritysnapshotpb.Response{
@@ -86,6 +157,57 @@ func (s *quoteOpenDServer) securitySnapshotResponse(body []byte) *qotgetsecurity
 		S2C: &qotgetsecuritysnapshotpb.S2C{
 			SnapshotList: snapshots,
 		},
+	}
+}
+
+func (s *quoteOpenDServer) searchQuoteResponse(body []byte) *qotgetsearchquotepb.Response {
+	request := &qotgetsearchquotepb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &qotgetsearchquotepb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
+	}
+	s.tradeMu.Lock()
+	if s.searchQuoteError != nil {
+		response := jftradeCheckedTypeAssertion[*qotgetsearchquotepb.Response](proto.Clone(s.searchQuoteError))
+		s.tradeMu.Unlock()
+		return response
+	}
+	s.lastSearchKeyword = request.GetC2S().GetKeyword()
+	s.lastSearchMaxCount = request.GetC2S().GetMaxCount()
+	quotes := append([]*qotgetsearchquotepb.SearchQuote(nil), s.searchQuotes...)
+	s.tradeMu.Unlock()
+	return &qotgetsearchquotepb.Response{
+		RetType: new(int32(0)),
+		S2C:     &qotgetsearchquotepb.S2C{SearchQuoteList: quotes},
+	}
+}
+
+func (s *quoteOpenDServer) userSecurityGroupResponse(body []byte) *qotgetusersecuritygrouppb.Response {
+	request := &qotgetusersecuritygrouppb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &qotgetusersecuritygrouppb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
+	}
+	s.tradeMu.Lock()
+	s.lastGroupType = request.GetC2S().GetGroupType()
+	groups := append([]*qotgetusersecuritygrouppb.GroupData(nil), s.watchlistGroups...)
+	s.tradeMu.Unlock()
+	return &qotgetusersecuritygrouppb.Response{
+		RetType: new(int32(0)),
+		S2C:     &qotgetusersecuritygrouppb.S2C{GroupList: groups},
+	}
+}
+
+func (s *quoteOpenDServer) userSecurityResponse(body []byte) *qotgetusersecuritypb.Response {
+	request := &qotgetusersecuritypb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &qotgetusersecuritypb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
+	}
+	s.tradeMu.Lock()
+	s.lastGroupName = request.GetC2S().GetGroupName()
+	securities := append([]*qotcommonpb.SecurityStaticInfo(nil), s.watchlistSecurities...)
+	s.tradeMu.Unlock()
+	return &qotgetusersecuritypb.Response{
+		RetType: new(int32(0)),
+		S2C:     &qotgetusersecuritypb.S2C{StaticInfoList: securities},
 	}
 }
 
@@ -165,8 +287,9 @@ func (s *quoteOpenDServer) unlockTradeResponse(body []byte) *tradeunlockpb.Respo
 func (s *quoteOpenDServer) basicQotResponseForSecurities(securities []*qotcommonpb.Security) []*qotcommonpb.BasicQot {
 	s.tradeMu.Lock()
 	overrides := append([]*qotcommonpb.BasicQot(nil), s.basicQuotes...)
+	configured := s.basicQuotesConfigured
 	s.tradeMu.Unlock()
-	if len(overrides) == 0 {
+	if !configured {
 		return basicQotListForSecurities(securities)
 	}
 
@@ -193,6 +316,9 @@ func (s *quoteOpenDServer) basicQotResponseForSecurities(securities []*qotcommon
 		}
 	}
 	if len(quotes) > 0 {
+		return quotes
+	}
+	if configured {
 		return quotes
 	}
 	return basicQotListForSecurities(securities)

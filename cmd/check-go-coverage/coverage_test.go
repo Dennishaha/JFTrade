@@ -95,6 +95,29 @@ func TestEvaluateCoverageAllowsExactThresholds(t *testing.T) {
 	}))
 }
 
+func TestEvaluateCoverageAppliesFutuModuleThresholdOverride(t *testing.T) {
+	analysis := coverageAnalysis{
+		business: coverageStats{covered: 100, total: 100},
+		ordinary: []scopeCoverage{
+			{scope: "pkg/futu", coverageStats: coverageStats{covered: 89, total: 100}},
+			{scope: "internal/ordinary", coverageStats: coverageStats{covered: 85, total: 100}},
+		},
+	}
+	violations := evaluateCoverage(analysis, config{
+		businessThreshold: 90,
+		criticalThreshold: 95,
+		moduleThreshold:   85,
+	})
+	require.Equal(t, []string{"ordinary Go coverage for pkg/futu is 89.00%, below 90.00%"}, violations)
+
+	analysis.ordinary[0].covered = 90
+	assert.Empty(t, evaluateCoverage(analysis, config{
+		businessThreshold: 90,
+		criticalThreshold: 95,
+		moduleThreshold:   85,
+	}))
+}
+
 func TestPrintCoverageReportIncludesMissingAndSortedScopes(t *testing.T) {
 	analysis := coverageAnalysis{
 		raw:      coverageStats{covered: 9, total: 10},

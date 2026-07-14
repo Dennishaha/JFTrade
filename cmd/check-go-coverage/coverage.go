@@ -25,6 +25,10 @@ var criticalScopes = []string{
 	"pkg/strategy/pineworker",
 }
 
+var moduleThresholdOverrides = map[string]float64{
+	"pkg/futu": 90.0,
+}
+
 var excludedScopes = []string{
 	"cmd",
 	"docs/swagger",
@@ -177,10 +181,14 @@ func evaluateCoverage(analysis coverageAnalysis, cfg config) []string {
 		}
 	}
 	for _, scope := range analysis.ordinary {
-		if actual := scope.percentage(); actual < cfg.moduleThreshold {
+		threshold := cfg.moduleThreshold
+		if override, ok := moduleThresholdOverrides[scope.scope]; ok {
+			threshold = override
+		}
+		if actual := scope.percentage(); actual < threshold {
 			violations = append(violations, fmt.Sprintf(
 				"ordinary Go coverage for %s is %.2f%%, below %.2f%%",
-				scope.scope, actual, cfg.moduleThreshold,
+				scope.scope, actual, threshold,
 			))
 		}
 	}

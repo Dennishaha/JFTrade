@@ -73,3 +73,16 @@ func TestGetSearchQuoteValidatesInputAndPreservesOpenDErrors(t *testing.T) {
 		t.Fatalf("GetSearchQuote OpenD error = %v", err)
 	}
 }
+
+func TestGetSearchQuoteNormalizesMissingPayload(t *testing.T) {
+	client, _, ctx := clientWithServer(t, map[uint32]protoHandler{
+		ProtoGetSearchQuote: func(codec.Frame) (proto.Message, error) {
+			return &qotgetsearchquotepb.Response{RetType: new(int32(0))}, nil
+		},
+	})
+
+	results, err := client.GetSearchQuote(ctx, "AAPL", 10)
+	if err != nil || results == nil || len(results) != 0 {
+		t.Fatalf("GetSearchQuote missing payload = (%#v, %v), want non-nil empty", results, err)
+	}
+}

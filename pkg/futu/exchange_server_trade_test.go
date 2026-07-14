@@ -207,6 +207,11 @@ func (s *quoteOpenDServer) marginRatioResponse(body []byte) *trdgetmarginratiopb
 		return &trdgetmarginratiopb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
+	if s.marginRatioError != nil {
+		response := jftradeCheckedTypeAssertion[*trdgetmarginratiopb.Response](proto.Clone(s.marginRatioError))
+		s.tradeMu.Unlock()
+		return response
+	}
 	ratios := append([]*trdgetmarginratiopb.MarginRatioInfo(nil), s.marginRatios...)
 	strict := s.strictMarginRatios
 	s.tradeMu.Unlock()
