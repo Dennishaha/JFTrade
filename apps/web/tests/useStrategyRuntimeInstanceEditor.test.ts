@@ -124,8 +124,11 @@ function createEditor(input: {
     const raw = String(request.instrumentId ?? request.code ?? "").trim().toUpperCase();
     if (raw === "BAD" || raw === "US.BAD") throw new Error("unknown instrument");
     const explicitMarket = String(request.market ?? "").trim().toUpperCase();
-    const [qualifiedMarket, qualifiedCode] =
-      explicitMarket === "" && raw.includes(".") ? raw.split(".", 2) : [];
+    const separator = raw.indexOf(".");
+    const qualifiedMarket =
+      explicitMarket === "" && separator > 0 ? raw.slice(0, separator) : "";
+    const qualifiedCode =
+      explicitMarket === "" && separator > 0 ? raw.slice(separator + 1) : "";
     const prefix = explicitMarket || qualifiedMarket || "";
     const code = qualifiedCode || raw;
     return {
@@ -180,26 +183,24 @@ describe("strategy runtime instance editor", () => {
     editor.instanceEditorOpen.value = false;
     expect(editor.instanceEditorMode.value).toBeNull();
     editor.openCreateInstanceForm();
-    expect(editor.activeSymbolDraftMarket.value).toBe("");
+    expect(editor.activeSymbolDraft.value).toBe("");
   });
 
   it("normalizes mixed symbol drafts and reports only invalid instruments", async () => {
     const { editor, resolver } = createEditor();
     editor.openCreateInstanceForm();
-    editor.updateActiveSymbolDraftMarket(" us ");
-    editor.updateActiveSymbolDraft("AAPL, bad; HK.00700");
+    editor.updateActiveSymbolDraft("US.AAPL, US.BAD; HK.00700");
 
     await expect(editor.commitSymbolDraft("create")).resolves.toBe(false);
 
     expect(editor.activeSymbolTags.value).toEqual(["US.AAPL", "HK.00700"]);
     expect(editor.activeSymbolDraft.value).toBe("");
-    expect(editor.activeSymbolDraftMarket.value).toBe("US");
     expect(editor.activeSymbolValidationMessage.value).toContain("BAD");
     expect(resolver).toHaveBeenCalledTimes(3);
 
     editor.removeActiveSymbol("US.AAPL");
     expect(editor.activeSymbolTags.value).toEqual(["HK.00700"]);
-    editor.updateActiveSymbolDraft("MSFT");
+    editor.updateActiveSymbolDraft("US.MSFT");
     await expect(editor.commitSymbolDraft("create")).resolves.toBe(true);
     expect(editor.activeSymbolValidationMessage.value).toBe("");
     expect(editor.activeSymbolTags.value).toEqual(["HK.00700", "US.MSFT"]);
@@ -224,7 +225,6 @@ describe("strategy runtime instance editor", () => {
       unavailableReason: null,
     });
 
-    expect(editor.activeSymbolDraftMarket.value).toBe("");
     expect(editor.createBindingInstruments.value).toEqual([
       { market: "SZ", code: "000001" },
     ]);
@@ -234,34 +234,30 @@ describe("strategy runtime instance editor", () => {
   it("requires qualified symbols for batch input when all markets is selected", async () => {
     const { editor } = createEditor();
     editor.openCreateInstanceForm();
-    expect(editor.activeSymbolDraftMarket.value).toBe("");
 
     editor.updateActiveSymbolDraft("AAPL, HK.00700, JP.7203");
     await expect(editor.commitSymbolDraft("create")).resolves.toBe(false);
 
     expect(editor.activeSymbolTags.value).toEqual(["HK.00700"]);
-    expect(editor.activeSymbolDraftMarket.value).toBe("");
     expect(editor.activeSymbolValidationMessage.value).toContain("AAPL");
     expect(editor.activeSymbolValidationMessage.value).toContain("JP.7203");
     expect(editor.activeSymbolValidationMessage.value).toContain("完整格式");
   });
 
-  it("treats dotted tickers as bare codes when a leaf market is selected", async () => {
+  it("preserves dotted tickers when a qualified market prefix is present", async () => {
     const { editor, resolver } = createEditor();
     editor.openCreateInstanceForm();
-    editor.updateActiveSymbolDraftMarket("US");
-    editor.updateActiveSymbolDraft("BRK.B");
+    editor.updateActiveSymbolDraft("US.BRK.B");
 
     await expect(editor.commitSymbolDraft("create")).resolves.toBe(true);
     expect(editor.activeSymbolTags.value).toEqual(["US.BRK.B"]);
-    expect(resolver).toHaveBeenCalledWith({ market: "US", code: "BRK.B" });
+    expect(resolver).toHaveBeenCalledWith({ instrumentId: "US.BRK.B" });
   });
 
   it("handles keyboard and paste editing semantics", async () => {
     const { editor } = createEditor();
     editor.openCreateInstanceForm();
-    editor.updateActiveSymbolDraftMarket("US");
-    editor.updateActiveSymbolDraft("AAPL");
+    editor.updateActiveSymbolDraft("US.AAPL");
 
     const composingPrevent = vi.fn();
     editor.handleActiveSymbolDraftKeydown({ isComposing: true, key: "Enter", preventDefault: composingPrevent } as unknown as KeyboardEvent);
@@ -280,7 +276,7 @@ describe("strategy runtime instance editor", () => {
 
     const pastePrevent = vi.fn();
     editor.handleActiveSymbolDraftPaste({
-      clipboardData: { getData: () => "AAPL\nMSFT" },
+      clipboardData: { getData: () => "US.AAPL\nUS.MSFT" },
       preventDefault: pastePrevent,
     } as unknown as ClipboardEvent);
     expect(pastePrevent).toHaveBeenCalledOnce();
@@ -345,7 +341,6 @@ describe("strategy runtime instance editor", () => {
     expect(editor.activeExecutionMode.value).toBe("notify_only");
     expect(editor.activeSelectedBrokerAccountKey.value).toBe(accounts[1]?.selectionKey);
 
-    editor.updateActiveSymbolDraftMarket("");
     editor.updateActiveSymbolDraft("US.AAPL");
     await expect(editor.commitSymbolDraft("edit")).resolves.toBe(true);
     editor.updateActiveIntervalValue("30m");

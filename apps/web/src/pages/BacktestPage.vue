@@ -5,6 +5,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { KLINE_PERIODS } from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
 import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
+import InstrumentSearchBox from "../components/domain/market-data/InstrumentSearchBox.vue";
 import SplitPane from "../components/shared/SplitPane.vue";
 import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import type {
@@ -14,19 +15,15 @@ import type {
 import { apiGet, fetchEnvelope } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
 import {
+  backtestInstrumentTypeForSecurityType,
   categoryMarketForUser,
-  formatInstrumentExchangeTag,
-  formatUserMarketLabel,
-  presentInstrument,
 } from "../composables/instrumentPresentation";
-import { useInstrumentResolver } from "../composables/instrumentResolver";
 import { useMarketProfiles } from "../composables/marketProfiles";
 import { queryClient, queryKeys } from "../composables/serverState";
 import {
   useBacktestRuns,
   type BacktestFormState,
 } from "../composables/useBacktestRuns";
-import { useConsoleData } from "../composables/useConsoleData";
 import { formatLocalDateTime } from "../utils/dateTime";
 import { normalizeBacktestDateLabel } from "./backtestTimeWindow";
 import dayjs from "dayjs";
@@ -47,11 +44,6 @@ const BACKTEST_RESULT_STATUS_OPTIONS = [
   { value: "cancelled", title: "已取消" },
 ];
 
-const BACKTEST_INSTRUMENT_TYPE_OPTIONS = [
-  { value: "stock", title: "股票" },
-  { value: "etf", title: "ETF" },
-];
-
 const BACKTEST_BROKER_FEE_MODE_OPTIONS = [
   { value: "market_preset", title: "市场预设" },
   { value: "script", title: "脚本" },
@@ -65,11 +57,7 @@ const BACKTEST_MARKET_FEE_MODE_OPTIONS = [
   { value: "none", title: "关闭" },
 ];
 
-// ── Console data (reuse existing symbol search infrastructure) ──
-const { loadMarketInstrumentReferences, marketInstrumentSearchOptions } =
-  useConsoleData();
 const {
-  marketOptions: backtestMarketOptions,
   defaultMarket,
   loadMarketProfiles,
   findMarketProfile,
@@ -253,7 +241,6 @@ const selectedDefinitionId = ref(
 );
 const selectedMarket = ref(storedBacktestFormPreferences.selectedMarket);
 const codeInput = ref(storedBacktestFormPreferences.codeInput);
-const instrumentSearchMarket = ref("");
 const instrumentSearchQuery = ref(
   canonicalBacktestInstrumentInput(
     storedBacktestFormPreferences.selectedMarket,
@@ -292,45 +279,6 @@ const selectedDefinition = computed(() =>
   definitions.value.find((d) => d.id === selectedDefinitionId.value),
 );
 
-const backtestSearchMarketOptions = computed(() => [
-  { value: "", title: "全部市场" },
-  ...backtestMarketOptions.value,
-]);
-
-const codeSuggestions = computed(() => {
-  const market = categoryMarketForUser(instrumentSearchMarket.value);
-  return marketInstrumentSearchOptions.value
-    .filter(
-      (option) =>
-        market === "" || categoryMarketForUser(option.market) === market,
-    )
-    .map((option) => {
-      const presentation = presentInstrument({
-        market: option.market,
-        code: option.symbol,
-        instrumentId: option.instrumentId,
-      });
-      const displayCode =
-        market === "CN"
-          ? presentation.displayCode
-          : market === ""
-            ? presentation.instrumentId
-            : option.symbol;
-      const exchangeSuffix =
-        market === "CN" && presentation.exchangeTag != null
-          ? ` · ${presentation.exchangeTag}`
-          : "";
-      return {
-        key: option.instrumentId,
-        value: displayCode,
-        title:
-          option.name == null
-            ? `${displayCode}${exchangeSuffix}`
-            : `${displayCode}${exchangeSuffix} · ${option.name}`,
-      };
-    });
-});
-
 const displayInstrumentId = computed(() => {
   const market = selectedMarket.value.trim().toUpperCase();
   const code = codeInput.value.trim().toUpperCase();
@@ -358,49 +306,15 @@ const instrumentSelectionResolved = computed(() => {
   return draft === resolved;
 });
 
-function updateBacktestInstrumentSearchQuery(value: unknown): void {
-  if (typeof value === "string") {
-    instrumentSearchQuery.value = value;
-    return;
-  }
-  if (value != null && typeof value === "object" && "value" in value) {
-    const candidate = (value as { value?: unknown }).value;
-    instrumentSearchQuery.value =
-      typeof candidate === "string" ? candidate : "";
-    return;
-  }
-  instrumentSearchQuery.value = "";
-}
-
 function handleResolvedBacktestInstrument(
   candidate: InstrumentResolutionCandidate,
 ): void {
   selectedMarket.value = categoryMarketForUser(candidate.market);
   codeInput.value = candidate.instrumentId;
   instrumentSearchQuery.value = candidate.instrumentId;
-}
-
-const {
-  loading: backtestInstrumentResolving,
-  panelOpen: backtestInstrumentResolutionOpen,
-  candidates: backtestInstrumentCandidates,
-  failures: backtestInstrumentFailures,
-  resolutionStatus: backtestInstrumentResolutionStatus,
-  resolutionError: backtestInstrumentResolutionError,
-  statusMessage: backtestInstrumentResolutionMessage,
-  activeCandidateIndex: activeBacktestInstrumentIndex,
-  resolve: resolveBacktestInstrument,
-  closePanel: closeBacktestInstrumentResolution,
-  selectCandidate: selectBacktestInstrumentCandidate,
-  handleKeydown: handleBacktestInstrumentKeydown,
-} = useInstrumentResolver({
-  market: instrumentSearchMarket,
-  query: instrumentSearchQuery,
-  onResolved: handleResolvedBacktestInstrument,
-});
-
-function backtestFailureMarketLabel(market: string): string {
-  return formatInstrumentExchangeTag(market) ?? formatUserMarketLabel(market);
+  instrumentType.value = backtestInstrumentTypeForSecurityType(
+    candidate.securityType,
+  );
 }
 
 const periodLabel = computed(
@@ -1017,7 +931,6 @@ onMounted(async () => {
     loadMarketProfiles(),
     loadDefinitions(),
     loadRuns(),
-    loadMarketInstrumentReferences(),
   ]);
   ensureSelectedMarketProfile();
 });
@@ -1392,128 +1305,18 @@ watch(
                   density="compact" variant="outlined" placeholder="选择策略"
                   :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
               </div>
-              <div class="bt-instrument-search-grid relative grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
-                <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold bt-text-strong">搜索市场</label>
-                  <v-select v-model="instrumentSearchMarket" :items="backtestSearchMarketOptions" item-title="title"
-                    item-value="value" density="compact" variant="outlined" hide-details
-                    :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
-                </div>
-                <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold bt-text-strong">代码或名称</label>
-                  <div class="min-w-0">
-                    <v-combobox
-                      :model-value="instrumentSearchQuery"
-                      :items="codeSuggestions"
-                      item-title="title"
-                      item-value="value"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      menu-icon=""
-                      placeholder="输入代码或名称"
-                      clearable
-                      :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }"
-                      data-testid="backtest-instrument-code"
-                      @update:model-value="updateBacktestInstrumentSearchQuery"
-                      @keydown="handleBacktestInstrumentKeydown"
-                    >
-                      <template #append-inner>
-                        <button
-                          type="button"
-                          class="inline-flex h-6 w-7 shrink-0 items-center justify-center border-l bt-border text-xs bt-text-muted transition hover:bt-text-strong disabled:cursor-not-allowed disabled:opacity-50"
-                          :disabled="backtestInstrumentResolving"
-                          :aria-label="backtestInstrumentResolving ? '正在查询标的' : '查询标的'"
-                          :title="backtestInstrumentResolving ? '正在查询标的' : '查询标的'"
-                          data-testid="backtest-instrument-submit"
-                          @mousedown.prevent.stop
-                          @click.stop="resolveBacktestInstrument"
-                        >
-                          <span
-                            aria-hidden="true"
-                            :class="backtestInstrumentResolving
-                              ? 'fa-solid fa-spinner fa-spin'
-                              : 'fa-solid fa-magnifying-glass'"
-                          />
-                        </button>
-                      </template>
-                    </v-combobox>
-                    <div
-                      v-if="backtestInstrumentResolutionOpen"
-                      class="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-lg border bt-border bt-bg-surface shadow-xl"
-                      :class="{ 'border-amber-500': backtestInstrumentResolutionStatus === 'incomplete' }"
-                    >
-                      <div
-                        v-if="backtestInstrumentResolutionMessage"
-                        class="px-3 py-2 text-xs bt-text-muted"
-                        role="status"
-                      >
-                        {{ backtestInstrumentResolutionMessage }}
-                      </div>
-                      <div
-                        v-if="backtestInstrumentFailures.length"
-                        class="space-y-1 px-3 pb-2 text-xs text-amber-600"
-                      >
-                        <div
-                          v-for="failure in backtestInstrumentFailures"
-                          :key="`${failure.market}:${failure.code}`"
-                        >
-                          {{ backtestFailureMarketLabel(failure.market) }}：{{ failure.message }}
-                        </div>
-                      </div>
-                      <button
-                        v-for="(candidate, index) in backtestInstrumentCandidates"
-                        :key="candidate.instrumentId"
-                        type="button"
-                        role="option"
-                        class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-t bt-border px-3 py-2 text-left text-xs transition hover:bg-slate-500/10"
-                        :class="{
-                          'bg-slate-500/10': index === activeBacktestInstrumentIndex,
-                          'cursor-not-allowed opacity-50': !candidate.selectable,
-                        }"
-                        :disabled="!candidate.selectable"
-                        :title="candidate.unavailableReason || undefined"
-                        :aria-selected="index === activeBacktestInstrumentIndex"
-                        @mouseenter="candidate.selectable && (activeBacktestInstrumentIndex = index)"
-                        @keydown="handleBacktestInstrumentKeydown"
-                        @click="selectBacktestInstrumentCandidate(candidate)"
-                      >
-                        <span class="bt-text-dim">{{ formatUserMarketLabel(candidate.market) }}</span>
-                        <InstrumentIdentity
-                          :market="candidate.market"
-                          :code="candidate.code"
-                          :instrument-id="candidate.instrumentId"
-                          :name="candidate.name"
-                          compact
-                        />
-                        <span class="text-right bt-text-dim">
-                          <span class="block">{{ candidate.securityType || "类型未知" }}</span>
-                          <span v-if="candidate.unavailableReason" class="block text-[10px] text-amber-600">
-                            {{ candidate.unavailableReason }}
-                          </span>
-                        </span>
-                      </button>
-                      <div class="flex justify-end gap-2 border-t bt-border px-2 py-1.5">
-                        <button
-                          v-if="backtestInstrumentResolutionStatus === 'incomplete' || backtestInstrumentResolutionStatus === 'not_found' || backtestInstrumentResolutionError"
-                          type="button"
-                          class="rounded border bt-border px-2 py-1 text-xs bt-text-muted"
-                          :disabled="backtestInstrumentResolving"
-                          @click="resolveBacktestInstrument"
-                        >
-                          重试
-                        </button>
-                        <button
-                          type="button"
-                          class="rounded border bt-border px-2 py-1 text-xs bt-text-muted"
-                          @click="closeBacktestInstrumentResolution"
-                        >
-                          关闭
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div class="grid gap-0.5">
+                <label class="text-xs font-semibold bt-text-strong">代码或名称</label>
+                <InstrumentSearchBox
+                  v-model="instrumentSearchQuery"
+                  action-label="查询"
+                  input-test-id="backtest-instrument-code"
+                  placeholder="输入代码或名称"
+                  root-test-id="backtest-instrument-search"
+                  submit-test-id="backtest-instrument-submit"
+                  variant="backtest"
+                  @select="handleResolvedBacktestInstrument"
+                />
               </div>
               <div
                 v-if="!instrumentSelectionResolved"
@@ -1521,12 +1324,6 @@ watch(
                 data-testid="backtest-instrument-unresolved"
               >
                 当前输入尚未解析。请查询并选择标的后再同步或运行；未解析内容不会覆盖已保存标的。
-              </div>
-              <div class="grid gap-0.5">
-                <label class="text-xs font-semibold bt-text-strong">标的类型</label>
-                <v-select v-model="instrumentType" :items="BACKTEST_INSTRUMENT_TYPE_OPTIONS" item-title="title"
-                  item-value="value" density="compact" variant="outlined"
-                  :menu-props="{ contentClass: 'bt-new-backtest-field-menu' }" />
               </div>
             </section>
 
@@ -2258,8 +2055,7 @@ watch(
 }
 
 @container (max-width: 360px) {
-  .backtest-page__pane--sidebar .grid-cols-2,
-  .backtest-page__pane--sidebar .bt-instrument-search-grid {
+  .backtest-page__pane--sidebar .grid-cols-2 {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
@@ -2443,7 +2239,6 @@ watch(
 }
 
 .backtest-page :deep(.v-select .v-field__input),
-.backtest-page :deep(.v-combobox .v-field__input),
 .backtest-page :deep(.v-text-field .v-field__input) {
   color: var(--tv-text);
 }

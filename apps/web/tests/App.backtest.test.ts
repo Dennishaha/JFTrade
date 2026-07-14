@@ -95,6 +95,55 @@ describe("Backtest page", () => {
     wrapper.unmount();
   });
 
+  it("uses one all-market search and derives the backtest fee type from the selected result", async () => {
+    installBacktestPageFetch({ runs: [] });
+    const { wrapper } = await mountApp("/backtest");
+    await flushRequests();
+
+    const search = wrapper.get('[data-testid="backtest-instrument-search"]');
+    const input = search.get('[data-testid="backtest-instrument-code"]');
+    expect(search.find("select").exists()).toBe(false);
+    expect(search.find(".v-combobox").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("标的类型");
+
+    await input.setValue("Apple");
+    await search.get('[data-testid="backtest-instrument-submit"]').trigger("click");
+    await flushRequests();
+    const usOption = Array.from(
+      document.body.querySelectorAll<HTMLElement>(".instrument-search-box__option"),
+    ).find((option) => option.textContent?.includes("Apple"));
+    expect(usOption).toBeDefined();
+    usOption!.click();
+    await nextTick();
+
+    const page = wrapper.getComponent(BacktestPage);
+    const setup = page.vm.$.setupState as Record<string, unknown>;
+    expect(readSetupValue<string>(setup.instrumentType)).toBe("etf");
+    expect(readSetupValue<string>(setup.codeInput)).toBe("US.AAPL");
+
+    await input.setValue("贵州茅台");
+    await search.get('[data-testid="backtest-instrument-submit"]').trigger("click");
+    await flushRequests();
+    const shOption = Array.from(
+      document.body.querySelectorAll<HTMLElement>(".instrument-search-box__option"),
+    ).find((option) => option.textContent?.includes("600519"));
+    expect(shOption).toBeDefined();
+    shOption!.click();
+    await nextTick();
+    expect(readSetupValue<string>(setup.instrumentType)).toBe("stock");
+    expect(readSetupValue<string>(setup.codeInput)).toBe("SH.600519");
+
+    const stored = JSON.parse(
+      window.localStorage.getItem(backtestFormStorageKey) ?? "{}",
+    ) as { instrumentType?: string; codeInput?: string };
+    expect(stored).toMatchObject({
+      instrumentType: "stock",
+      codeInput: "SH.600519",
+    });
+
+    wrapper.unmount();
+  });
+
   it("keeps many backtest results bounded to the active page", async () => {
     installBacktestPageFetch({
       runs: Array.from({ length: 30 }, (_, index) => buildBacktestRun(index + 1)),
@@ -278,7 +327,6 @@ describe("Backtest page", () => {
       unavailableReason: null,
     });
     expect(readSetupValue<string>(setup.selectedMarket)).toBe("CN");
-    expect(readSetupValue<string>(setup.instrumentSearchMarket)).toBe("");
     expect(readSetupValue<string>(setup.codeInput)).toBe("SH.600519");
     expect(readSetupValue<Record<string, unknown>>(setup.backtestFormState)).toMatchObject({
       market: "CN",
@@ -294,28 +342,9 @@ describe("Backtest page", () => {
       code: "",
       instrumentId: "",
     });
-    writeSetupValue(setup, "instrumentSearchMarket", "US");
     writeSetupValue(setup, "codeInput", "");
     await nextTick();
     expect(readSetupValue<string>(setup.displayInstrumentId)).toBe("");
-    expect(readSetupValue<unknown[]>(setup.codeSuggestions)).toEqual([
-      { key: "US.AAPL", value: "AAPL", title: "AAPL · Apple" },
-    ]);
-    writeSetupValue(setup, "instrumentSearchMarket", "CN");
-    await nextTick();
-    expect(readSetupValue<unknown[]>(setup.codeSuggestions)).toEqual([
-      {
-        key: "SH.600519",
-        value: "600519",
-        title: "600519 · 上证 · 贵州茅台",
-      },
-      {
-        key: "SZ.600519",
-        value: "600519",
-        title: "600519 · 深证 · 深市同码标的",
-      },
-    ]);
-    writeSetupValue(setup, "instrumentSearchMarket", "US");
     writeSetupValue(setup, "selectedMarket", "US");
     writeSetupValue(setup, "codeInput", "US:AAPL");
     expect(readSetupValue<string>(setup.displayInstrumentId)).toBe("US.AAPL");
@@ -361,14 +390,12 @@ describe("Backtest page", () => {
     expect(readSetupValue<boolean>(setup.running)).toBe(false);
 
     const formSelects = page.findAll("select");
-    expect(formSelects.length).toBeGreaterThanOrEqual(9);
+    expect(formSelects.length).toBeGreaterThanOrEqual(7);
     await formSelects[0]!.setValue("strategy-1");
-    await formSelects[1]!.setValue("HK");
-    await formSelects[2]!.setValue("etf");
-    await formSelects[3]!.setValue("1d");
-    await formSelects[4]!.setValue("backward");
-    await formSelects[5]!.setValue("custom");
-    await formSelects[6]!.setValue("custom");
+    await formSelects[1]!.setValue("1d");
+    await formSelects[2]!.setValue("backward");
+    await formSelects[3]!.setValue("custom");
+    await formSelects[4]!.setValue("custom");
     await nextTick();
     const formTextareas = page.findAll("textarea");
     expect(formTextareas).toHaveLength(2);
@@ -403,8 +430,8 @@ describe("Backtest page", () => {
     );
     expect(resultSearch).toBeDefined();
     await resultSearch!.setValue("US.AAPL");
-    await formSelects[7]!.setValue("completed");
-    await formSelects[8]!.setValue("strategy-1");
+    await formSelects[5]!.setValue("completed");
+    await formSelects[6]!.setValue("strategy-1");
 
     expect(call("statusChip", "completed")).toMatchObject({ color: "success" });
     expect(call("statusChip", "failed")).toMatchObject({ color: "error" });
@@ -538,6 +565,7 @@ function installBacktestPageFetch(options: { runs: unknown[]; definitions?: unkn
               symbol: "AAPL",
               instrumentId: "US.AAPL",
               name: "Apple",
+              securityType: "Trust",
               brokerMappings: [],
             },
             {
@@ -546,6 +574,7 @@ function installBacktestPageFetch(options: { runs: unknown[]; definitions?: unkn
               symbol: "600519",
               instrumentId: "SH.600519",
               name: "贵州茅台",
+              securityType: "Eqty",
               brokerMappings: [],
             },
             {
@@ -554,6 +583,7 @@ function installBacktestPageFetch(options: { runs: unknown[]; definitions?: unkn
               symbol: "600519",
               instrumentId: "SZ.600519",
               name: "深市同码标的",
+              securityType: "Eqty",
               brokerMappings: [],
             },
           ],

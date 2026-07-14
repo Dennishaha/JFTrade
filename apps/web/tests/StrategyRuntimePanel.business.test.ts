@@ -193,8 +193,8 @@ describe("StrategyRuntimePanel business workflows", () => {
     await openCreateInstancePanel(wrapper);
 
     await wrapper.get('[data-testid="strategy-instance-definition"]').setValue("mean-revert");
-    await wrapper.get('[data-testid="strategy-instance-symbol-market"]').setValue("HK");
-    await wrapper.get('[data-testid="strategy-instance-symbols"]').setValue("00700");
+    expect(wrapper.find('[data-testid="strategy-instance-symbol-market"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="strategy-instance-symbols"]').setValue("HK.00700");
     await wrapper.get('[data-testid="strategy-instance-symbols"]').trigger("keydown", { key: "Enter" });
     await settleStrategyWorkspace();
     await wrapper.get('[data-testid="strategy-instance-interval"]').setValue("15m");

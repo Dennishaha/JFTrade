@@ -1,15 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 
-import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
+import InstrumentSearchBox from "../components/domain/market-data/InstrumentSearchBox.vue";
 
 import { formatTradingEnvironment } from "../composables/consoleDataFormatting";
-import {
-  categoryMarketForUser,
-  formatInstrumentExchangeTag,
-  formatUserMarketLabel,
-} from "../composables/instrumentPresentation";
-import { useInstrumentResolver } from "../composables/instrumentResolver";
+import { formatUserMarketLabel } from "../composables/instrumentPresentation";
 import { useMarketProfiles } from "../composables/marketProfiles";
 import { useCommandPalette } from "../composables/useCommandPalette";
 import { useConsoleData } from "../composables/useConsoleData";
@@ -32,23 +27,17 @@ defineEmits<{
 
 const {
   availableBrokerAccounts,
-  marketInstrumentSearchOptions,
   selectWorkspaceInstrument,
   selectBrokerAccount,
   selectedBrokerAccount,
   systemStatus, } = useConsoleData();
 const { theme, toggle: toggleTheme } = useTheme();
+const { loadMarketProfiles } = useMarketProfiles();
 const notifications = useNotifications();
 const { unreadCount } = notifications;
 const { prefs, update } = useWorkspaceTradingPrefs();
 const { update: updateViewState } = useWorkspaceViewState();
 const palette = useCommandPalette();
-const {
-  marketOptions: topbarMarketOptions,
-  loadMarketProfiles,
-} = useMarketProfiles();
-
-const selectedMarket = ref("");
 const codeInput = ref("");
 const tradingEnvironmentFilter = ref<"REAL" | "SIMULATE">("SIMULATE");
 const tradingEnvironmentFilterPinned = ref(false);
@@ -171,14 +160,6 @@ const compactBrokerAccountLabel = computed(() => {
   return `${environmentLabel} · ${selectedBrokerAccount.value.brokerId.toUpperCase()} / ${selectedBrokerAccount.value.accountId}`;
 });
 
-const codeSuggestions = computed(() => {
-  const market = categoryMarketForUser(selectedMarket.value);
-  return marketInstrumentSearchOptions.value.filter(
-    (option) =>
-      market === "" || categoryMarketForUser(option.market) === market,
-  );
-});
-
 watch(
   () => selectedBrokerAccount.value?.tradingEnvironment,
   (tradingEnvironment) => {
@@ -214,33 +195,6 @@ function handleResolvedInstrument(candidate: {
 }): void {
   selectWorkspaceInstrument({ market: candidate.market, symbol: candidate.code });
   codeInput.value = "";
-}
-
-const {
-  loading: instrumentResolving,
-  panelOpen: instrumentResolutionOpen,
-  candidates: instrumentCandidates,
-  failures: instrumentFailures,
-  resolutionStatus: instrumentResolutionStatus,
-  resolutionError: instrumentResolutionError,
-  statusMessage: instrumentResolutionMessage,
-  activeCandidateIndex,
-  resolve: resolveInstrument,
-  closePanel: closeInstrumentResolution,
-  selectCandidate: selectInstrumentCandidate,
-  handleKeydown: handleInstrumentKeydown,
-} = useInstrumentResolver({
-  market: selectedMarket,
-  query: codeInput,
-  onResolved: handleResolvedInstrument,
-});
-
-function submitSymbol(): void {
-  void resolveInstrument();
-}
-
-function failureMarketLabel(market: string): string {
-  return formatInstrumentExchangeTag(market) ?? formatUserMarketLabel(market);
 }
 
 function onBrokerAccountChange(event: Event): void {
@@ -327,6 +281,7 @@ async function logoutWebSession(): Promise<void> {
 onMounted(() => {
   void loadMarketProfiles();
 });
+
 </script>
 
 <template>
@@ -347,106 +302,16 @@ onMounted(() => {
       JFTRADE
     </div>
 
-    <form class="tv-topbar-symbol" data-testid="topbar-instrument-form" @submit.prevent="submitSymbol">
-      <span style="color: var(--tv-text-muted); font-size: 11px">⌕</span>
-      <select v-model="selectedMarket" class="tv-topbar-symbol__market" data-testid="topbar-instrument-market">
-        <option value="">全部市场</option>
-        <option v-for="option in topbarMarketOptions" :key="option.value" :value="option.value">
-          {{ option.title }}
-        </option>
-      </select>
-      <input
-        v-model="codeInput"
-        placeholder="输入代码或名称"
-        list="jftrade-symbol-search"
-        spellcheck="false"
-        autocomplete="off"
-        enterkeyhint="search"
-        type="search"
-        role="combobox"
-        :aria-expanded="instrumentResolutionOpen"
-        data-testid="topbar-instrument-code"
-        @keydown="handleInstrumentKeydown"
-      />
-      <datalist id="jftrade-symbol-search">
-        <option v-for="option in codeSuggestions" :key="option.instrumentId" :value="option.symbol"
-          :label="option.label" />
-      </datalist>
-      <span style="font-size: 10px; color: var(--tv-text-dim)"
-        :title="`${codeSuggestions.length} 个本地提示，当前范围 ${selectedMarket === '' ? '全部市场' : formatUserMarketLabel(selectedMarket)}；来源于订阅、持仓、订单和查询缓存`">
-        {{ codeSuggestions.length }}
-      </span>
-      <button
-        type="button"
-        class="tv-topbar-symbol__submit"
-        :disabled="instrumentResolving"
-        :aria-label="instrumentResolving ? '正在查询标的' : '查询标的'"
-        data-testid="topbar-instrument-submit"
-        @click="submitSymbol"
-      >
-        <span class="tv-topbar-symbol__submit-shortcut" aria-hidden="true">
-          {{ instrumentResolving ? "···" : "⏎" }}
-        </span>
-        <span class="tv-topbar-symbol__submit-label">
-          {{ instrumentResolving ? "查询中" : "查询" }}
-        </span>
-      </button>
-      <div
-        v-if="instrumentResolutionOpen"
-        class="tv-topbar-symbol__resolution-panel"
-        :class="{ 'tv-topbar-symbol__resolution-panel--warning': instrumentResolutionStatus === 'incomplete' }"
-      >
-        <div v-if="instrumentResolutionMessage" class="tv-topbar-symbol__resolution-message" role="status">
-          {{ instrumentResolutionMessage }}
-        </div>
-        <div v-if="instrumentFailures.length" class="tv-topbar-symbol__resolution-failures">
-          <div v-for="failure in instrumentFailures" :key="`${failure.market}:${failure.code}`">
-            {{ failureMarketLabel(failure.market) }}：{{ failure.message }}
-          </div>
-        </div>
-        <button
-          v-for="(candidate, index) in instrumentCandidates"
-          :key="candidate.instrumentId"
-          type="button"
-          role="option"
-          class="tv-topbar-symbol__resolution-option"
-          :class="{
-            'tv-topbar-symbol__resolution-option--active': index === activeCandidateIndex,
-            'tv-topbar-symbol__resolution-option--disabled': !candidate.selectable,
-          }"
-          :disabled="!candidate.selectable"
-          :title="candidate.unavailableReason || undefined"
-          :aria-selected="index === activeCandidateIndex"
-          @mouseenter="candidate.selectable && (activeCandidateIndex = index)"
-          @keydown="handleInstrumentKeydown"
-          @click="selectInstrumentCandidate(candidate)"
-        >
-          <span>{{ formatUserMarketLabel(candidate.market) }}</span>
-          <InstrumentIdentity
-            :market="candidate.market"
-            :code="candidate.code"
-            :instrument-id="candidate.instrumentId"
-            :name="candidate.name"
-            compact
-          />
-          <span class="tv-topbar-symbol__resolution-meta">
-            <span>{{ candidate.securityType || "类型未知" }}</span>
-            <span v-if="candidate.unavailableReason">{{ candidate.unavailableReason }}</span>
-          </span>
-        </button>
-        <div class="tv-topbar-symbol__resolution-actions">
-          <button
-            v-if="instrumentResolutionStatus === 'incomplete' || instrumentResolutionStatus === 'not_found' || instrumentResolutionError"
-            type="button"
-            :disabled="instrumentResolving"
-            @click="submitSymbol"
-          >
-            重试
-          </button>
-          <button type="button" @click="closeInstrumentResolution">关闭</button>
-        </div>
-      </div>
-    </form>
+    <InstrumentSearchBox
+      v-model="codeInput"
+      action-label="查询"
+      input-test-id="topbar-instrument-code"
+      placeholder="输入代码或名称"
+      root-test-id="topbar-instrument-form"
+      submit-test-id="topbar-instrument-submit"
+      variant="topbar"
+      @select="handleResolvedInstrument"
+    />
 
     <button type="button" class="tv-btn tv-btn-ghost tv-topbar-command"
       @click="palette.show()" title="命令面板（⌘K / Ctrl+K）">
@@ -656,6 +521,18 @@ onMounted(() => {
   min-width: 0;
 }
 
+.tv-topbar-env-control :deep(.tv-topbar-env-toggle) {
+  height: 26px;
+}
+
+.tv-topbar-env-control :deep(.tv-topbar-env-toggle .tv-topbar-env-btn) {
+  --v-btn-height: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding-inline: 10px;
+  font-size: 11px;
+}
+
 .tv-topbar-env-toggle {
   width: max-content;
 }
@@ -688,153 +565,8 @@ onMounted(() => {
   flex: 0 0 auto;
 }
 
-.tv-topbar-symbol__market {
-  color: var(--tv-text);
-  background: var(--tv-bg-surface-2);
-}
-
-.tv-topbar-symbol__market option {
-  color: var(--tv-text);
-  background: var(--tv-bg-surface);
-}
-
 :global(.tv-topbar-symbol) {
   position: relative;
-}
-
-.tv-topbar-symbol__submit {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  height: 22px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--tv-text-dim);
-  padding: 0 5px;
-  font: inherit;
-  font-size: 10px;
-  line-height: 1;
-  cursor: pointer;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.tv-topbar-symbol__submit-label {
-  display: none;
-}
-
-.tv-topbar-symbol__submit:hover,
-.tv-topbar-symbol__submit:focus-visible {
-  border-color: var(--tv-border-strong);
-  background: var(--tv-bg-hover);
-  color: var(--tv-text);
-  outline: none;
-}
-
-.tv-topbar-symbol__submit:hover .tv-topbar-symbol__submit-shortcut,
-.tv-topbar-symbol__submit:focus-visible .tv-topbar-symbol__submit-shortcut {
-  display: none;
-}
-
-.tv-topbar-symbol__submit:hover .tv-topbar-symbol__submit-label,
-.tv-topbar-symbol__submit:focus-visible .tv-topbar-symbol__submit-label {
-  display: inline;
-}
-
-.tv-topbar-symbol__submit:disabled {
-  cursor: wait;
-  opacity: 0.7;
-}
-
-.tv-topbar-symbol__resolution-panel {
-  position: absolute;
-  z-index: 80;
-  top: calc(100% + 6px);
-  right: 0;
-  left: 0;
-  overflow: hidden;
-  border: 1px solid var(--tv-border);
-  border-radius: 6px;
-  background: var(--tv-bg-surface);
-  box-shadow: var(--tv-shadow-lg);
-  color: var(--tv-text);
-}
-
-.tv-topbar-symbol__resolution-panel--warning {
-  border-color: var(--tv-warn);
-}
-
-.tv-topbar-symbol__resolution-message,
-.tv-topbar-symbol__resolution-failures {
-  padding: 7px 10px;
-  color: var(--tv-text-muted);
-  font-size: 11px;
-}
-
-.tv-topbar-symbol__resolution-failures {
-  padding-top: 0;
-  color: var(--tv-warn);
-}
-
-.tv-topbar-symbol__resolution-option {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  border: 0;
-  border-top: 1px solid var(--tv-border);
-  background: transparent;
-  color: inherit;
-  padding: 7px 10px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.tv-topbar-symbol__resolution-option > span:first-child,
-.tv-topbar-symbol__resolution-option > span:last-child {
-  color: var(--tv-text-dim);
-  font-size: 10px;
-}
-
-.tv-topbar-symbol__resolution-option--active,
-.tv-topbar-symbol__resolution-option:hover {
-  background: var(--tv-bg-hover);
-}
-
-.tv-topbar-symbol__resolution-option--disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.tv-topbar-symbol__resolution-meta {
-  display: grid;
-  justify-items: end;
-  gap: 2px;
-  text-align: right;
-}
-
-.tv-topbar-symbol__resolution-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  border-top: 1px solid var(--tv-border);
-  padding: 6px 8px;
-}
-
-.tv-topbar-symbol__resolution-actions button {
-  border: 1px solid var(--tv-border);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--tv-text-muted);
-  padding: 2px 7px;
-  font-size: 10px;
-  cursor: pointer;
 }
 
 .tv-topbar-account-picker {
@@ -1009,14 +741,6 @@ onMounted(() => {
     padding: 3px 6px;
   }
 
-  .tv-topbar--compact .tv-topbar-symbol__market {
-    flex: 0 1 74px;
-    width: 74px;
-    min-width: 74px;
-    max-width: 86px;
-  }
-
-  .tv-topbar--compact :global(.tv-topbar-symbol select),
   .tv-topbar--compact :global(.tv-topbar-symbol input) {
     min-width: 0;
   }

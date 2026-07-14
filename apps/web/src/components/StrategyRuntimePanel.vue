@@ -77,7 +77,6 @@ const emit = defineEmits<{
 
 const { systemStatus, availableBrokerAccounts, selectedBrokerAccount } = useConsoleData();
 const {
-    marketOptions: strategyInstrumentMarketOptions,
     loadMarketProfiles,
     normalizeInstrumentRefWithMarketApi,
 } = useMarketProfiles();
@@ -191,7 +190,6 @@ const {
     activeInstanceEditorMode,
     instanceEditorOpen,
     activeSymbolTags,
-    activeSymbolDraftMarket,
     activeSymbolDraft,
     activeSymbolValidationMessage,
     activeIntervalValue,
@@ -210,7 +208,6 @@ const {
     acceptActiveResolvedInstrument,
     removeActiveSymbol,
     updateActiveSymbolDraft,
-    updateActiveSymbolDraftMarket,
     handleActiveSymbolDraftKeydown,
     handleActiveSymbolDraftPaste,
     updateActiveIntervalValue,
@@ -364,10 +361,8 @@ const instanceEditorDialogProps = computed(() => ({
     createDefinition: createDefinition.value,
     selectedStrategy: selectedStrategy.value,
     symbolTags: activeSymbolTags.value,
-    symbolMarket: activeSymbolDraftMarket.value,
     symbolDraft: activeSymbolDraft.value,
     symbolValidationMessage: activeSymbolValidationMessage.value,
-    marketOptions: strategyInstrumentMarketOptions.value,
     intervalValue: activeIntervalValue.value,
     executionMode: activeExecutionMode.value,
     runtimeRisk: activeRuntimeRisk.value,
@@ -398,7 +393,6 @@ const instanceEditorDialogListeners = {
     },
     "remove-symbol": removeActiveSymbol,
     "resolve-symbol": acceptActiveResolvedInstrument,
-    "update:symbol-market": updateActiveSymbolDraftMarket,
     "update:symbol-draft": updateActiveSymbolDraft,
     "symbol-draft-keydown": handleActiveSymbolDraftKeydown,
     "symbol-draft-paste": handleActiveSymbolDraftPaste,

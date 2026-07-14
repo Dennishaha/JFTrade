@@ -6,8 +6,10 @@ import { describe, expect, it, vi } from "vitest";
 import InstrumentIdentity from "../src/components/domain/market-data/InstrumentIdentity.vue";
 import { formatMarketLabel } from "../src/composables/consoleDataFormatting";
 import {
+  backtestInstrumentTypeForSecurityType,
   bareInstrumentCode,
   categoryMarketForUser,
+  formatInstrumentSecurityTypeLabel,
   formatInstrumentIdentityText,
   formatInstrumentExchangeTag,
   formatUserMarketLabel,
@@ -67,6 +69,21 @@ describe("instrumentPresentation", () => {
     expect(formatInstrumentIdentityText({ market: "US", code: "AAPL" })).toBe(
       "US.AAPL",
     );
+  });
+
+  it("labels provider security types and maps backtest fee categories", () => {
+    expect(formatInstrumentSecurityTypeLabel("SecurityType_Eqty")).toBe("股票");
+    expect(formatInstrumentSecurityTypeLabel("Trust")).toBe("基金/信托");
+    expect(formatInstrumentSecurityTypeLabel("Drvt")).toBe("期权");
+    expect(formatInstrumentSecurityTypeLabel("CustomType")).toBe("CustomType");
+    expect(formatInstrumentSecurityTypeLabel(null)).toBe("类型未知");
+
+    for (const value of ["Trust", "Fund", "ETF", " SecurityType_Trust "]) {
+      expect(backtestInstrumentTypeForSecurityType(value)).toBe("etf");
+    }
+    for (const value of ["Eqty", "Stock", "Index", "Future", null]) {
+      expect(backtestInstrumentTypeForSecurityType(value)).toBe("stock");
+    }
   });
 });
 

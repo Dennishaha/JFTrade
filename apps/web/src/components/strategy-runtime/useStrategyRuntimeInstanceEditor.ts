@@ -70,7 +70,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     const instanceEditorMode = ref<StrategySymbolEditorMode | null>(null);
     const createDefinitionId = ref("");
     const createBindingInstruments = ref<StrategyBindingInstrumentDocument[]>([]);
-    const createSymbolDraftMarket = ref("");
     const createSymbolDraft = ref("");
     const createSymbolValidationMessage = ref("");
     const createInterval = ref("5m");
@@ -79,7 +78,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     const createBrokerAccountKey = ref("");
     const createBrokerAccountQuery = ref("");
     const editBindingInstruments = ref<StrategyBindingInstrumentDocument[]>([]);
-    const editSymbolDraftMarket = ref("");
     const editSymbolDraft = ref("");
     const editSymbolValidationMessage = ref("");
     const editInterval = ref("5m");
@@ -110,7 +108,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
     });
     const isCreateInstanceEditor = computed(() => instanceEditorMode.value === "create");
     const activeSymbolTags = computed(() => symbolTagsFor(activeInstanceEditorMode.value));
-    const activeSymbolDraftMarket = computed(() => symbolDraftMarketFor(activeInstanceEditorMode.value));
     const activeSymbolDraft = computed(() => symbolDraftFor(activeInstanceEditorMode.value));
     const activeSymbolValidationMessage = computed(() => symbolValidationMessageFor(activeInstanceEditorMode.value));
     const activeIntervalValue = computed(() => intervalValueFor(activeInstanceEditorMode.value));
@@ -224,7 +221,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         (binding) => {
             if (binding === null) {
                 editBindingInstruments.value = [];
-                editSymbolDraftMarket.value = defaultSymbolDraftMarket("edit");
                 editSymbolDraft.value = "";
                 editSymbolValidationMessage.value = "";
                 editInterval.value = "5m";
@@ -234,7 +230,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
                 return;
             }
             editBindingInstruments.value = normalizeBindingInstruments(binding.instruments ?? []);
-            editSymbolDraftMarket.value = defaultSymbolDraftMarket("edit");
             editSymbolDraft.value = "";
             editSymbolValidationMessage.value = "";
             editInterval.value = binding.interval;
@@ -253,23 +248,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
 
     function symbolTagsFor(mode: StrategySymbolEditorMode): string[] {
         return bindingInstrumentsToSymbols(bindingInstrumentsFor(mode));
-    }
-
-    function defaultSymbolDraftMarket(_mode: StrategySymbolEditorMode): string {
-        return "";
-    }
-
-    function symbolDraftMarketFor(mode: StrategySymbolEditorMode): string {
-        return mode === "create" ? createSymbolDraftMarket.value : editSymbolDraftMarket.value;
-    }
-
-    function setSymbolDraftMarket(mode: StrategySymbolEditorMode, value: string): void {
-        const normalized = normalizeText(value).toUpperCase();
-        if (mode === "create") {
-            createSymbolDraftMarket.value = normalized;
-            return;
-        }
-        editSymbolDraftMarket.value = normalized;
     }
 
     function symbolDraftFor(mode: StrategySymbolEditorMode): string {
@@ -321,18 +299,17 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
             const draftSegments = splitSymbolsText(draft);
             const parsed: StrategyBindingInstrumentDocument[] = [];
             const invalidSymbols: string[] = [];
-            const fallbackMarket = symbolDraftMarketFor(mode).trim().toUpperCase();
             for (const segment of draftSegments) {
                 const raw = normalizeText(segment);
                 if (raw === "") {
                     continue;
                 }
-                const request =
-                    hasQualifiedInstrumentMarketPrefix(raw)
-                        ? { instrumentId: raw }
-                        : { market: fallbackMarket, code: raw };
+                if (!hasQualifiedInstrumentMarketPrefix(raw)) {
+                    invalidSymbols.push(raw.toUpperCase());
+                    continue;
+                }
                 try {
-                    const normalized = await options.normalizeInstrumentRefWithMarketApi(request);
+                    const normalized = await options.normalizeInstrumentRefWithMarketApi({ instrumentId: raw });
                     const market = normalized.prefix.trim().toUpperCase();
                     const code = normalized.code.trim().toUpperCase();
                     if (market === "" || code === "" || !SELECTABLE_INSTRUMENT_MARKETS.has(market)) {
@@ -352,7 +329,7 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
             if (invalidSymbols.length > 0) {
                 setSymbolValidationMessage(
                     mode,
-                    `已忽略无效交易代码：${invalidSymbols.join("、")}。请选择市场后输入代码，或直接使用 US.TME、HK.00700 这类完整格式。`,
+                    `已忽略无效交易代码：${invalidSymbols.join("、")}。批量输入请使用 US.TME、HK.00700 这类完整格式。`,
                 );
                 return false;
             }
@@ -556,10 +533,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         setSymbolDraft(activeInstanceEditorMode.value, value);
     }
 
-    function updateActiveSymbolDraftMarket(value: string): void {
-        setSymbolDraftMarket(activeInstanceEditorMode.value, value);
-    }
-
     function handleActiveSymbolDraftKeydown(event: KeyboardEvent): void {
         handleSymbolDraftKeydown(event, activeInstanceEditorMode.value);
     }
@@ -618,7 +591,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
 
     function openCreateInstanceForm(): void {
         instanceEditorMode.value = "create";
-        createSymbolDraftMarket.value = defaultSymbolDraftMarket("create");
         createSymbolDraft.value = "";
         createSymbolValidationMessage.value = "";
         createRuntimeRisk.value = defaultStrategyRuntimeRiskSettings();
@@ -664,7 +636,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         activeInstanceEditorMode,
         instanceEditorOpen,
         activeSymbolTags,
-        activeSymbolDraftMarket,
         activeSymbolDraft,
         activeSymbolValidationMessage,
         activeIntervalValue,
@@ -685,7 +656,6 @@ export function useStrategyRuntimeInstanceEditor(options: StrategyRuntimeInstanc
         removeActiveSymbol,
         acceptActiveResolvedInstrument,
         updateActiveSymbolDraft,
-        updateActiveSymbolDraftMarket,
         handleActiveSymbolDraftKeydown,
         handleActiveSymbolDraftPaste,
         updateActiveIntervalValue,

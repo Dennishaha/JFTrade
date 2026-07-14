@@ -141,7 +141,7 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
       "SH.600519",
     );
 
-    await wrapper.get('[data-testid="strategy-edit-symbol-market"]').setValue("US");
+    expect(wrapper.find('[data-testid="strategy-edit-symbol-market"]').exists()).toBe(false);
     await wrapper.get('[data-testid="strategy-edit-symbols"]').setValue("AAPL");
     await wrapper.get('[data-testid="strategy-edit-symbols"]').trigger("paste");
     await wrapper.get('[data-testid="strategy-edit-symbols"]').trigger("blur");
@@ -162,7 +162,6 @@ describe("StrategyRuntimeInstanceEditorDialog", () => {
     await wrapper.get('[data-testid="strategy-runtime-risk-max-notional"]').setValue("30000");
     await wrapper.get('[data-testid="strategy-runtime-risk-daily-max-orders"]').setValue("11");
 
-    expect(wrapper.emitted("update:symbol-market")).toEqual([["US"]]);
     expect(wrapper.emitted("update:symbol-draft")).toEqual([["AAPL"], [""]]);
     expect(wrapper.emitted("symbol-draft-paste")).toHaveLength(1);
     expect(wrapper.emitted("commit-symbol-draft")).toBeUndefined();
@@ -243,13 +242,8 @@ function buildProps(overrides: Record<string, unknown> = {}) {
     },
     selectedStrategy: null,
     symbolTags: [],
-    symbolMarket: "HK",
     symbolDraft: "",
     symbolValidationMessage: "",
-    marketOptions: [
-      { value: "HK", title: "港股" },
-      { value: "US", title: "美股" },
-    ],
     intervalValue: "5m",
     executionMode: "live",
     runtimeRisk: {

@@ -431,9 +431,7 @@ describe("TopBar trading environment switch", () => {
     await waitForShellData();
     const liveStream = findLiveEventStream();
 
-    expect(
-      wrapper.get('[data-testid="topbar-instrument-market"]').findAll("option"),
-    ).toHaveLength(2);
+    expect(wrapper.find('[data-testid="topbar-instrument-market"]').exists()).toBe(false);
 
     liveStream?.emitMessage(
       createLiveEnvelope(
@@ -940,7 +938,7 @@ describe("TopBar trading environment switch", () => {
       }
       if (url.includes("/api/v1/market-data/instruments?")) {
         const requestURL = new URL(url, "http://localhost");
-        const requestedMarket = (requestURL.searchParams.get("market") ?? "HK")
+        const requestedMarket = (requestURL.searchParams.get("market") ?? "")
           .trim()
           .toUpperCase();
         const rawQuery = (requestURL.searchParams.get("query") ?? "")
@@ -951,8 +949,7 @@ describe("TopBar trading environment switch", () => {
           return createResponse({ query: "", totalReturned: 0, entries: [] });
         }
         const embedded = rawQuery.includes(".") ? rawQuery.split(".", 2) : null;
-        const market =
-          embedded?.[0] ?? (requestedMarket === "CN" ? "SH" : requestedMarket);
+        const market = embedded?.[0] ?? (rawQuery === "600519" ? "SH" : "US");
         const code = embedded?.[1] ?? rawQuery;
         return createResponse({
           requestedMarket,
@@ -990,13 +987,9 @@ describe("TopBar trading environment switch", () => {
       '[data-testid="topbar-instrument-code"]',
     );
 
-    const marketSelect = wrapper.get('[data-testid="topbar-instrument-market"]');
-    expect(
-      marketSelect.findAll("option").map((option) => option.element.value),
-    ).toEqual(["", "HK", "US", "CN"]);
+    expect(wrapper.find('[data-testid="topbar-instrument-market"]').exists()).toBe(false);
     expect(codeInput.element.tagName).toBe("INPUT");
     expect(wrapper.find(".instrument-resolver__submit").exists()).toBe(false);
-    await marketSelect.setValue("CN");
     await codeInput.setValue("600519");
     await codeInput.trigger("keydown", { key: "Enter" });
     await flushRequests();
@@ -1007,9 +1000,7 @@ describe("TopBar trading environment switch", () => {
 
     expect(storedPrefs.market).toBe("SH");
     expect(storedPrefs.symbol).toBe("600519");
-    expect((marketSelect.element as HTMLSelectElement).value).toBe("CN");
 
-    await marketSelect.setValue("US");
     await codeInput.setValue("AAPL");
     await codeInput.trigger("keydown", { key: "Enter" });
     await flushRequests();
@@ -1021,7 +1012,7 @@ describe("TopBar trading environment switch", () => {
     expect(
       fetchMock.mock.calls.some(([input]) =>
         String(input).includes(
-          "/api/v1/market-data/instruments?query=AAPL&limit=20&market=US",
+          "/api/v1/market-data/instruments?query=AAPL&limit=20",
         ),
       ),
     ).toBe(true);
@@ -1029,10 +1020,10 @@ describe("TopBar trading environment switch", () => {
     const submitButton = wrapper.get(
       '[data-testid="topbar-instrument-submit"]',
     );
-    expect(submitButton.get(".tv-topbar-symbol__submit-shortcut").text()).toBe(
+    expect(submitButton.get(".instrument-search-box__submit-shortcut").text()).toBe(
       "⏎",
     );
-    expect(submitButton.get(".tv-topbar-symbol__submit-label").text()).toBe(
+    expect(submitButton.get(".instrument-search-box__submit-label").text()).toBe(
       "查询",
     );
 

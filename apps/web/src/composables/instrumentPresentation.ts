@@ -9,6 +9,26 @@ const A_SHARE_EXCHANGE_TAGS: Record<string, string> = {
   CNSZ: "深证",
 };
 
+const SECURITY_TYPE_LABELS: Readonly<Record<string, string>> = {
+  BOND: "债券",
+  BWRT: "一揽子权证",
+  CRYPTO: "数字货币",
+  DRVT: "期权",
+  EQTY: "股票",
+  EQUITY: "股票",
+  ETF: "ETF",
+  FOREX: "外汇",
+  FUND: "基金",
+  FUTURE: "期货",
+  INDEX: "指数",
+  PLATE: "板块",
+  PLATESET: "板块集",
+  STOCK: "股票",
+  TRUST: "基金/信托",
+  UNKNOWN: "类型未知",
+  WARRANT: "窝轮",
+};
+
 export interface InstrumentPresentationInput {
   market?: string | null | undefined;
   code?: string | null | undefined;
@@ -71,6 +91,35 @@ export function formatInstrumentExchangeTag(
   market: string | null | undefined,
 ): string | null {
   return A_SHARE_EXCHANGE_TAGS[normalizeInstrumentMarket(market)] ?? null;
+}
+
+export function normalizeInstrumentSecurityType(
+  securityType: string | null | undefined,
+): string {
+  return (securityType ?? "")
+    .trim()
+    .replace(/^SecurityType_/i, "")
+    .replace(/[\s_-]+/g, "")
+    .toUpperCase();
+}
+
+export function formatInstrumentSecurityTypeLabel(
+  securityType: string | null | undefined,
+): string {
+  const normalized = normalizeInstrumentSecurityType(securityType);
+  if (normalized === "") {
+    return "类型未知";
+  }
+  return SECURITY_TYPE_LABELS[normalized] ?? securityType?.trim() ?? "类型未知";
+}
+
+export function backtestInstrumentTypeForSecurityType(
+  securityType: string | null | undefined,
+): "stock" | "etf" {
+  const normalized = normalizeInstrumentSecurityType(securityType);
+  return normalized === "ETF" || normalized === "FUND" || normalized === "TRUST"
+    ? "etf"
+    : "stock";
 }
 
 export function bareInstrumentCode(
