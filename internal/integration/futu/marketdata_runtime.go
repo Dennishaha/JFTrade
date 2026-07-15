@@ -47,14 +47,15 @@ type MarketDataRuntime struct {
 	onExchange   func(*pkgfutu.Exchange)
 	now          func() time.Time
 
-	mu         sync.Mutex
-	exchange   *pkgfutu.Exchange
-	key        string
-	generation uint64
-	closed     bool
-	creating   bool
-	createDone chan struct{}
-	wg         sync.WaitGroup
+	mu                     sync.Mutex
+	exchange               *pkgfutu.Exchange
+	key                    string
+	generation             uint64
+	closed                 bool
+	creating               bool
+	createDone             chan struct{}
+	wg                     sync.WaitGroup
+	subscriptionReconciler *marketDataSubscriptionReconciler
 }
 
 func NewMarketDataRuntime(options MarketDataRuntimeOptions) *MarketDataRuntime {
@@ -77,6 +78,13 @@ func NewMarketDataRuntime(options MarketDataRuntimeOptions) *MarketDataRuntime {
 	if r.now == nil {
 		r.now = time.Now
 	}
+	r.subscriptionReconciler = newMarketDataSubscriptionReconciler(func() physicalSubscriptionExchange {
+		exchange := r.Ensure()
+		if exchange == nil {
+			return nil
+		}
+		return exchange
+	}, r.now)
 	return r
 }
 
@@ -170,6 +178,9 @@ func (r *MarketDataRuntime) Reset() {
 		jftradeErr3 := exchange.Close()
 		jftradeLogError(jftradeErr3)
 	}
+	if r.subscriptionReconciler != nil {
+		r.subscriptionReconciler.ResetPhysicalSubscriptions()
+	}
 }
 
 func (r *MarketDataRuntime) Close() error {
@@ -192,7 +203,24 @@ func (r *MarketDataRuntime) Close() error {
 		jftradeLogError(jftradeErr1)
 	}
 	r.wg.Wait()
+	if r.subscriptionReconciler != nil {
+		r.subscriptionReconciler.ResetPhysicalSubscriptions()
+	}
 	return nil
+}
+
+func (r *MarketDataRuntime) ReconcileSubscriptions(ctx context.Context, desired []marketdata.InstrumentRef) error {
+	if r == nil || r.subscriptionReconciler == nil {
+		return nil
+	}
+	return r.subscriptionReconciler.ReconcileSubscriptions(ctx, desired)
+}
+
+func (r *MarketDataRuntime) SubscriptionState() map[string]any {
+	if r == nil || r.subscriptionReconciler == nil {
+		return nil
+	}
+	return r.subscriptionReconciler.SubscriptionState()
 }
 
 func (r *MarketDataRuntime) QueryTickers(ctx context.Context, instrumentIDs []string) (map[string]marketdata.Tick, error) {

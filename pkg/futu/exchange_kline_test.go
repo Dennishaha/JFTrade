@@ -30,8 +30,8 @@ func TestQueryTickersBatchesBasicQotRequests(t *testing.T) {
 	if got := server.acceptCount(); got != 1 {
 		t.Fatalf("expected one OpenD TCP session, got %d", got)
 	}
-	if got := server.subCallCount(); got != 1 {
-		t.Fatalf("expected one batched Qot_Sub call, got %d", got)
+	if got := server.subCallCount(); got != 0 {
+		t.Fatalf("batched ticker queries must not create subscriptions, got %d Qot_Sub calls", got)
 	}
 	if got := server.basicQotCallCount(); got != 1 {
 		t.Fatalf("expected one batched GetBasicQot call, got %d", got)
@@ -315,6 +315,9 @@ func TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL(t *testing.T) {
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer func() { jftradeCheckTestError(t, ex.Close()) }()
+	if err := ex.SubscribeKLine(t.Context(), "HK.00700", types.Interval1m); err != nil {
+		t.Fatalf("SubscribeKLine: %v", err)
+	}
 
 	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: new(historyLabelAt.Add(-time.Hour)), EndTime: new(currentLabelAt.Add(time.Hour))})
 	if err != nil {

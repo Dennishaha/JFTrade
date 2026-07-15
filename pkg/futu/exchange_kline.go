@@ -196,6 +196,9 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 		subscription.extendedTime = true
 		subscription.session = commonpb.Session_Session_ALL
 	}
+	if !e.hasKLineSubscription(subscription) {
+		return nil, nil
+	}
 
 	request := &qotgetklpb.Request{C2S: &qotgetklpb.C2S{
 		RehabType: new(int32(qotcommonpb.RehabType_RehabType_None)),
@@ -206,9 +209,6 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 
 	var response qotgetklpb.Response
 	if err := e.withClient(ctx, func(client *opend.Client) error {
-		if err := e.ensureKLineSubscription(ctx, client, subscription); err != nil {
-			return err
-		}
 		return client.Call(ctx, opend.ProtoGetKL, request, &response)
 	}); err != nil {
 		return nil, err
@@ -227,6 +227,66 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 		klines = append(klines, kline)
 	}
 	return klines, nil
+}
+
+func (e *Exchange) hasKLineSubscription(request klineSubscriptionRequest) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.subscriptions.hasKLine(request.cacheKey())
+}
+
+// SubscribeKLine establishes the exact real-time K-line subscription required
+// by GetKL. Repeated calls are idempotent for the active OpenD connection.
+func (e *Exchange) SubscribeKLine(ctx context.Context, symbol string, interval types.Interval) error {
+	request, err := e.klineSubscriptionRequest(symbol, interval)
+	if err != nil {
+		return err
+	}
+	return e.withClient(ctx, func(client *opend.Client) error {
+		return e.ensureKLineSubscription(ctx, client, request)
+	})
+}
+
+// UnsubscribeKLine releases an exact K-line subscription from the active
+// OpenD connection. Missing subscriptions are treated as already released.
+func (e *Exchange) UnsubscribeKLine(ctx context.Context, symbol string, interval types.Interval) error {
+	request, err := e.klineSubscriptionRequest(symbol, interval)
+	if err != nil {
+		return err
+	}
+	cacheKey := request.cacheKey()
+	e.mu.Lock()
+	exists := e.subscriptions.hasKLine(cacheKey)
+	e.mu.Unlock()
+	if !exists {
+		return nil
+	}
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		return setKLineSubscription(ctx, client, request, false)
+	}); err != nil {
+		return err
+	}
+	e.mu.Lock()
+	e.subscriptions.unmarkKLine(cacheKey)
+	e.mu.Unlock()
+	return nil
+}
+
+func (e *Exchange) klineSubscriptionRequest(symbol string, interval types.Interval) (klineSubscriptionRequest, error) {
+	security, canonical, err := futuSecurityFromSymbol(symbol)
+	if err != nil {
+		return klineSubscriptionRequest{}, err
+	}
+	subType, err := futuSubTypeFromInterval(interval)
+	if err != nil {
+		return klineSubscriptionRequest{}, err
+	}
+	request := klineSubscriptionRequest{canonical: canonical, security: security, subType: subType}
+	if shouldRequestExtendedKLines(canonical, interval) {
+		request.extendedTime = true
+		request.session = commonpb.Session_Session_ALL
+	}
+	return request, nil
 }
 
 func (e *Exchange) ensureKLineSubscription(ctx context.Context, client *opend.Client, request klineSubscriptionRequest) error {
@@ -250,10 +310,14 @@ func (e *Exchange) ensureKLineSubscription(ctx context.Context, client *opend.Cl
 }
 
 func subscribeKLine(ctx context.Context, client *opend.Client, request klineSubscriptionRequest) error {
+	return setKLineSubscription(ctx, client, request, true)
+}
+
+func setKLineSubscription(ctx context.Context, client *opend.Client, request klineSubscriptionRequest, subscribe bool) error {
 	subscription := &qotsubpb.Request{C2S: &qotsubpb.C2S{
 		SecurityList:     []*qotcommonpb.Security{request.security},
 		SubTypeList:      []int32{int32(request.subType)},
-		IsSubOrUnSub:     new(true),
+		IsSubOrUnSub:     new(subscribe),
 		IsRegOrUnRegPush: new(false),
 	}}
 	if request.extendedTime {
@@ -353,8 +417,5 @@ func futuKLineQueryWindow(interval types.Interval, options types.KLineQueryOptio
 
 func shouldQueryCurrentKLine(interval types.Interval, endAt time.Time) bool {
 	duration := interval.Duration()
-	if duration <= 0 {
-		return false
-	}
 	return !endAt.Before(time.Now().UTC().Add(-duration))
 }

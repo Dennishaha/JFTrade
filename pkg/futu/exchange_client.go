@@ -52,10 +52,7 @@ func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error)
 		}
 		return nil
 	}
-	if lastErr != nil {
-		return lastErr
-	}
-	return fmt.Errorf("opend: unavailable client")
+	return lastErr
 }
 
 func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
@@ -131,14 +128,8 @@ func (e *Exchange) initializeOpenDSessionLocked(ctx context.Context, connectElap
 	if err := e.client.Call(ctx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
 		return nil, fmt.Errorf("opend InitConnect failed after TCP connect %v: %w", connectElapsed, err)
 	}
-	if initResp.GetRetType() != 0 {
-		return nil, fmt.Errorf("opend InitConnect retType=%d errCode=%d retMsg=%s", initResp.GetRetType(), initResp.GetErrCode(), initResp.GetRetMsg())
-	}
-	initState := initResp.GetS2C()
-	if initState == nil {
-		return nil, fmt.Errorf("opend InitConnect returned no server state")
-	}
-	if err := opend.ValidateMinimumVersion(initState.GetServerVer(), nil); err != nil {
+	initState, err := validateInitConnectResponse(&initResp)
+	if err != nil {
 		return nil, err
 	}
 	e.client.SetConnID(initState.GetConnID())
@@ -151,6 +142,20 @@ func (e *Exchange) initializeOpenDSessionLocked(ctx context.Context, connectElap
 	}
 	serverBuildNo := globalState.ServerBuildNo
 	if err := opend.ValidateMinimumVersion(globalState.ServerVer, &serverBuildNo); err != nil {
+		return nil, err
+	}
+	return initState, nil
+}
+
+func validateInitConnectResponse(initResp *initpb.Response) (*initpb.S2C, error) {
+	if initResp.GetRetType() != 0 {
+		return nil, fmt.Errorf("opend InitConnect retType=%d errCode=%d retMsg=%s", initResp.GetRetType(), initResp.GetErrCode(), initResp.GetRetMsg())
+	}
+	initState := initResp.GetS2C()
+	if initState == nil {
+		return nil, fmt.Errorf("opend InitConnect returned no server state")
+	}
+	if err := opend.ValidateMinimumVersion(initState.GetServerVer(), nil); err != nil {
 		return nil, err
 	}
 	return initState, nil

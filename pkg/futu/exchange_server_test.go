@@ -22,6 +22,7 @@ import (
 	qotgetsearchquotepb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsearchquote"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	qotgetstaticinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetstaticinfo"
+	qotgetsubinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsubinfo"
 	qotgetusersecuritygrouppb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetusersecuritygroup"
 	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
@@ -42,6 +43,7 @@ type quoteOpenDServer struct {
 	initRecvNotify        atomic.Bool
 	serverVer             atomic.Int32
 	serverBuildNo         atomic.Int32
+	dropProto             atomic.Uint32
 	accountListCalls      atomic.Int32
 	fundsCalls            atomic.Int32
 	positionListCalls     atomic.Int32
@@ -57,6 +59,10 @@ type quoteOpenDServer struct {
 	unlockTradeCalls      atomic.Int32
 	tradeAccPushCalls     atomic.Int32
 	qotSubCalls           atomic.Int32
+	qotSubMu              sync.Mutex
+	qotSubRequests        []*qotsubpb.C2S
+	qotSubResponses       []*qotsubpb.Response
+	subInfoResponse       *qotgetsubinfopb.Response
 	pushSubCalls          atomic.Int32
 	basicQotCalls         atomic.Int32
 	staticInfoCalls       atomic.Int32
@@ -100,6 +106,7 @@ type quoteOpenDServer struct {
 	historySessionCallLog []int32
 	historyRouteCallCount map[int32]int
 	currentKLines         []*qotcommonpb.KLine
+	currentKLError        *qotgetklpb.Response
 	basicQuotes           []*qotcommonpb.BasicQot
 	basicQuotesConfigured bool
 	basicQotError         *qotgetbasicqotpb.Response
@@ -181,10 +188,20 @@ func (s *quoteOpenDServer) setCurrentKLines(klines []*qotcommonpb.KLine) {
 	s.currentKLines = klines
 }
 
+func (s *quoteOpenDServer) setCurrentKLineError(retType int32, retMsg string) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	s.currentKLError = &qotgetklpb.Response{RetType: new(retType), RetMsg: new(retMsg)}
+}
+
 func (s *quoteOpenDServer) setNotifyAfterInit(response *notifypb.Response) {
 	s.notifyMu.Lock()
 	defer s.notifyMu.Unlock()
 	s.notifyAfterInit = response
+}
+
+func (s *quoteOpenDServer) setDropProto(protoID uint32) {
+	s.dropProto.Store(protoID)
 }
 
 func (s *quoteOpenDServer) setAccounts(accounts []*trdcommonpb.TrdAcc) {
@@ -321,6 +338,9 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		if err != nil {
 			return
 		}
+		if s.dropProto.Load() == frame.Header.ProtoID {
+			return
+		}
 
 		var response proto.Message
 		var responseBody []byte
@@ -351,7 +371,22 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			if isPushSub {
 				s.pushSubCalls.Add(1)
 			}
-			response = &qotsubpb.Response{RetType: new(int32(0))}
+			s.qotSubMu.Lock()
+			s.qotSubRequests = append(s.qotSubRequests, proto.Clone(request.GetC2S()).(*qotsubpb.C2S))
+			if len(s.qotSubResponses) > 0 {
+				response = s.qotSubResponses[0]
+				s.qotSubResponses = s.qotSubResponses[1:]
+			} else {
+				response = &qotsubpb.Response{RetType: new(int32(0))}
+			}
+			s.qotSubMu.Unlock()
+		case opend.ProtoGetSubInfo:
+			s.qotSubMu.Lock()
+			response = s.subInfoResponse
+			if response == nil {
+				response = &qotgetsubinfopb.Response{RetType: new(int32(0)), S2C: &qotgetsubinfopb.S2C{TotalUsedQuota: new(int32(0)), RemainQuota: new(int32(0))}}
+			}
+			s.qotSubMu.Unlock()
 		case opend.ProtoTrdGetAccList:
 			s.accountListCalls.Add(1)
 			response = s.accountListResponse()
@@ -623,6 +658,9 @@ func (s *quoteOpenDServer) currentKLResponse(body []byte) *qotgetklpb.Response {
 	}
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
+	if s.currentKLError != nil {
+		return proto.Clone(s.currentKLError).(*qotgetklpb.Response)
+	}
 	response := &qotgetklpb.Response{
 		RetType: new(int32(0)),
 		S2C: &qotgetklpb.S2C{

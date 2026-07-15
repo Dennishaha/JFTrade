@@ -8,6 +8,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	qotgetsubinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsubinfo"
+	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
 	trdgetacclistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetacclist"
@@ -380,6 +382,28 @@ func (s *quoteOpenDServer) lastInitRecvNotify() bool {
 
 func (s *quoteOpenDServer) subCallCount() int {
 	return int(s.qotSubCalls.Load())
+}
+
+func (s *quoteOpenDServer) capturedQotSubRequests() []*qotsubpb.C2S {
+	s.qotSubMu.Lock()
+	defer s.qotSubMu.Unlock()
+	requests := make([]*qotsubpb.C2S, 0, len(s.qotSubRequests))
+	for _, request := range s.qotSubRequests {
+		requests = append(requests, proto.Clone(request).(*qotsubpb.C2S))
+	}
+	return requests
+}
+
+func (s *quoteOpenDServer) setQotSubResponses(responses ...*qotsubpb.Response) {
+	s.qotSubMu.Lock()
+	s.qotSubResponses = append([]*qotsubpb.Response(nil), responses...)
+	s.qotSubMu.Unlock()
+}
+
+func (s *quoteOpenDServer) setSubInfoResponse(response *qotgetsubinfopb.Response) {
+	s.qotSubMu.Lock()
+	s.subInfoResponse = response
+	s.qotSubMu.Unlock()
 }
 
 func (s *quoteOpenDServer) accountListCallCount() int {

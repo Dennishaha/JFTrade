@@ -27,6 +27,8 @@ type strategyRuntimeStubExchange struct {
 	nextOrderID       uint64
 	queryFundsErr     error
 	queryPositionsErr error
+	queryMarketsErr   error
+	queryKLinesErr    error
 	panicOnPlaceOrder bool
 }
 
@@ -89,6 +91,9 @@ func (e *strategyRuntimeStubExchange) NewStream() bbgotypes.Stream {
 func (e *strategyRuntimeStubExchange) QueryMarkets(context.Context) (bbgotypes.MarketMap, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.queryMarketsErr != nil {
+		return nil, e.queryMarketsErr
+	}
 	result := make(bbgotypes.MarketMap, len(e.markets))
 	maps.Copy(result, e.markets)
 	return result, nil
@@ -150,6 +155,9 @@ func (e *strategyRuntimeStubExchange) QueryTickers(_ context.Context, symbols ..
 func (e *strategyRuntimeStubExchange) QueryKLines(_ context.Context, symbol string, interval bbgotypes.Interval, options bbgotypes.KLineQueryOptions) ([]bbgotypes.KLine, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.queryKLinesErr != nil {
+		return nil, e.queryKLinesErr
+	}
 	history := append([]bbgotypes.KLine(nil), e.history[strings.ToUpper(strings.TrimSpace(symbol))]...)
 	for index := range history {
 		history[index].Interval = interval

@@ -26,7 +26,11 @@ var criticalScopes = []string{
 }
 
 var moduleThresholdOverrides = map[string]float64{
-	"pkg/futu": 90.0,
+	"internal/marketdata":               100.0,
+	"internal/integration/futu":         100.0,
+	"pkg/futu":                          100.0,
+	"internal/api/marketdata":           100.0,
+	"internal/app/apiserver/servercore": 95.0,
 }
 
 var excludedScopes = []string{

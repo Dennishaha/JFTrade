@@ -136,12 +136,6 @@ func (a *strategyCatalogStoreAdapter) RefreshInstanceDefinition(instanceID strin
 		return stratsrv.InstanceView{}, stratsrv.NotFoundError("strategy instance not found")
 	}
 	definitionID := strings.TrimSpace(instance.Definition.StrategyID)
-	if definitionID == "" {
-		definitionID = strategyDefinitionIDFromParams(instance.Params)
-	}
-	if definitionID == "" {
-		return stratsrv.InstanceView{}, stratsrv.BadRequestError("strategy instance is not linked to a saved definition")
-	}
 	def, exists, err := a.designStore.definition(definitionID)
 	if err != nil {
 		return stratsrv.InstanceView{}, fmt.Errorf("get definition %s: %w", definitionID, err)

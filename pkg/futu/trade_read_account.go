@@ -45,22 +45,23 @@ func (e *Exchange) resolveTradeAccountWithClient(ctx context.Context, client *op
 		}
 	}
 
+	sortResolvedTradeAccounts(candidates)
+
+	return candidates[0], nil
+}
+
+func sortResolvedTradeAccounts(candidates []resolvedTradeAccount) {
 	sort.Slice(candidates, func(i, j int) bool {
 		leftPriority := resolvedTradeAccountPriority(candidates[i])
 		rightPriority := resolvedTradeAccountPriority(candidates[j])
 		if leftPriority != rightPriority {
 			return leftPriority < rightPriority
 		}
-		if candidates[i].TradingEnvironment != candidates[j].TradingEnvironment {
-			return candidates[i].TradingEnvironment < candidates[j].TradingEnvironment
-		}
 		if candidates[i].AccountID != candidates[j].AccountID {
 			return candidates[i].AccountID < candidates[j].AccountID
 		}
 		return candidates[i].Market < candidates[j].Market
 	})
-
-	return candidates[0], nil
 }
 
 func candidateTradeAccountFromProto(account *trdcommonpb.TrdAcc, query BrokerReadQuery) (resolvedTradeAccount, bool, error) {

@@ -1,6 +1,7 @@
 package marketdata
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,21 @@ import (
 
 	srv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
+
+type cancellingSubscriptionReconciler struct {
+	cancel context.CancelFunc
+}
+
+func (r *cancellingSubscriptionReconciler) ReconcileSubscriptions(context.Context, []srv.InstrumentRef) error {
+	if r.cancel != nil {
+		r.cancel()
+	}
+	return nil
+}
+
+func (*cancellingSubscriptionReconciler) SubscriptionState() map[string]any {
+	return nil
+}
 
 func TestInstrumentHandlersRejectMissingURIParameters(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -90,9 +106,13 @@ func TestSubscriptionRoutesRejectMalformedAndIncompleteRequests(t *testing.T) {
 		{name: "acquire missing consumer", path: "/api/v1/market-data/subscriptions", body: `{"instruments":[{"market":"US","symbol":"AAPL"}]}`, detail: "consumerId and instruments are required"},
 		{name: "acquire missing instruments", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart"}`, detail: "consumerId and instruments are required"},
 		{name: "acquire drops incomplete instruments", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US"},{"symbol":"AAPL"}]}`, detail: "consumerId and instruments are required"},
+		{name: "acquire rejects invalid channel", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"NEWS"}]}`, detail: "unsupported subscription channel"},
+		{name: "acquire rejects KLINE without interval", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"KLINE"}]}`, detail: "unsupported KLINE subscription interval"},
 		{name: "release malformed JSON", path: "/api/v1/market-data/subscriptions/release", body: `{`, detail: "invalid release request"},
 		{name: "release missing consumer", path: "/api/v1/market-data/subscriptions/release", body: `{}`, detail: "consumerId is required"},
 		{name: "release incomplete target", path: "/api/v1/market-data/subscriptions/release", body: `{"consumerId":"chart","instruments":[{"market":"US"}]}`, detail: "release target market and symbol are required"},
+		{name: "release rejects invalid interval", path: "/api/v1/market-data/subscriptions/release", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"KLINE","interval":"2m"}]}`, detail: "unsupported KLINE subscription interval"},
+		{name: "heartbeat requires consumer", path: "/api/v1/market-data/subscriptions/heartbeat", body: `{}`, detail: "consumerId is required"},
 	}
 
 	for _, test := range tests {
@@ -127,6 +147,68 @@ func TestSubscriptionRequestHelpersPreserveOnlyValidTargets(t *testing.T) {
 		Instruments: []srv.InstrumentRef{{Market: "US"}},
 	}); target != (srv.InstrumentRef{}) || hasTarget || validTarget {
 		t.Fatalf("invalid release target = %#v, %t, %t", target, hasTarget, validTarget)
+	}
+}
+
+func TestSubscriptionHandlersMapCanceledServiceOperations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{name: "get", method: http.MethodGet, path: "/api/v1/market-data/subscriptions"},
+		{name: "acquire", method: http.MethodPost, path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL"}]}`},
+		{name: "release", method: http.MethodPost, path: "/api/v1/market-data/subscriptions/release", body: `{"consumerId":"chart"}`},
+		{name: "clear", method: http.MethodDelete, path: "/api/v1/market-data/subscriptions"},
+		{name: "heartbeat", method: http.MethodPost, path: "/api/v1/market-data/subscriptions/heartbeat", body: `{"consumerId":"chart"}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := srv.NewService(&routeTestProvider{})
+			router := gin.New()
+			RegisterRoutes(router.Group("/api/v1"), service)
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			request := httptest.NewRequestWithContext(ctx, test.method, test.path, strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != http.StatusInternalServerError || !strings.Contains(response.Body.String(), `"code":"SUBSCRIPTION_FAILED"`) {
+				t.Fatalf("response = %d %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestReleaseAndClearMapSnapshotCancellationAfterLogicalCleanup(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, test := range []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{name: "release", method: http.MethodPost, path: "/api/v1/market-data/subscriptions/release", body: `{"consumerId":"chart"}`},
+		{name: "clear", method: http.MethodDelete, path: "/api/v1/market-data/subscriptions"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			service := srv.NewService(&routeTestProvider{})
+			ctx, cancel := context.WithCancel(t.Context())
+			reconciler := &cancellingSubscriptionReconciler{}
+			service.SetSubscriptionReconciler(reconciler)
+			reconciler.cancel = cancel
+			router := gin.New()
+			RegisterRoutes(router.Group("/api/v1"), service)
+			request := httptest.NewRequestWithContext(ctx, test.method, test.path, strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != http.StatusInternalServerError || !strings.Contains(response.Body.String(), `"code":"SUBSCRIPTION_FAILED"`) {
+				t.Fatalf("response = %d %s", response.Code, response.Body.String())
+			}
+		})
 	}
 }
 

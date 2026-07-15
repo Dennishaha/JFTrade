@@ -183,14 +183,8 @@ func (e *Exchange) QuerySecuritySnapshot(ctx context.Context, symbol string) (*S
 	if err != nil {
 		return nil, err
 	}
-	canonical, err := futuSymbolFromSecurity(snapshot.GetBasic().GetSecurity())
-	if err != nil {
-		canonical = strings.TrimSpace(strings.ToUpper(symbol))
-	}
+	canonical, _ := futuSymbolFromSecurity(snapshot.GetBasic().GetSecurity())
 	details := securityDetailsFromSnapshot(snapshot, canonical)
-	if details == nil {
-		return nil, fmt.Errorf("opend GetSecuritySnapshot returned no usable snapshot for %s", symbol)
-	}
 	staticInfo, err := e.queryStaticInfo(ctx, symbol)
 	if err == nil {
 		mergeStaticInfoIntoSecurityDetails(details, staticInfo)

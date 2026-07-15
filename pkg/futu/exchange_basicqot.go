@@ -53,10 +53,7 @@ func (e *Exchange) QueryQuoteSnapshot(ctx context.Context, symbol string) (*Quot
 	if err != nil {
 		return nil, err
 	}
-	canonical, err := futuSymbolFromSecurity(basicQot.GetSecurity())
-	if err != nil {
-		canonical = strings.TrimSpace(strings.ToUpper(symbol))
-	}
+	canonical, _ := futuSymbolFromSecurity(basicQot.GetSecurity())
 	snapshot := quoteSnapshotFromBasicQot(basicQot, canonical)
 	if snapshot != nil {
 		e.RecordMarketSessionSample(canonical, snapshot.Session, snapshot.QuoteAt)
@@ -69,6 +66,10 @@ func (e *Exchange) queryBasicQot(ctx context.Context, symbol string) (*qotcommon
 	if err != nil {
 		return nil, err
 	}
+	return basicQotForSymbol(quotes, symbol)
+}
+
+func basicQotForSymbol(quotes map[string]*qotcommonpb.BasicQot, symbol string) (*qotcommonpb.BasicQot, error) {
 	canonical := strings.TrimSpace(strings.ToUpper(symbol))
 	quote := quotes[canonical]
 	if quote == nil {
@@ -101,20 +102,14 @@ func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map
 	request := &qotgetbasicqotpb.Request{C2S: &qotgetbasicqotpb.C2S{SecurityList: securityList}}
 	var response qotgetbasicqotpb.Response
 	if err := e.withClient(ctx, func(client *opend.Client) error {
-		subStart := time.Now()
-		if err := e.ensureBasicQotSubscriptions(ctx, client, requests); err != nil {
-			return err
-		}
-		subElapsed := time.Since(subStart)
-
 		callStart := time.Now()
 		if err := client.Call(ctx, opend.ProtoGetBasicQot, request, &response); err != nil {
 			return err
 		}
 		callElapsed := time.Since(callStart)
 
-		log.Printf("futu GetBasicQot symbols=%d sub=%v rpc=%v total=%v",
-			len(requests), subElapsed, callElapsed, time.Since(reqStart))
+		log.Printf("futu GetBasicQot symbols=%d rpc=%v total=%v",
+			len(requests), callElapsed, time.Since(reqStart))
 		return nil
 	}); err != nil {
 		log.Printf("futu GetBasicQot symbols=%d failed after %v: %v",
@@ -125,18 +120,23 @@ func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map
 		return nil, fmt.Errorf("opend GetBasicQot retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
 	}
 
-	quotes := make(map[string]*qotcommonpb.BasicQot, len(response.GetS2C().GetBasicQotList()))
-	for _, quote := range response.GetS2C().GetBasicQotList() {
+	quotes := basicQotMapFromProto(response.GetS2C().GetBasicQotList())
+	if len(quotes) == 0 {
+		return nil, fmt.Errorf("opend GetBasicQot returned no quotes")
+	}
+	return quotes, nil
+}
+
+func basicQotMapFromProto(protoQuotes []*qotcommonpb.BasicQot) map[string]*qotcommonpb.BasicQot {
+	quotes := make(map[string]*qotcommonpb.BasicQot, len(protoQuotes))
+	for _, quote := range protoQuotes {
 		canonical, err := futuSymbolFromSecurity(quote.GetSecurity())
 		if err != nil {
 			continue
 		}
 		quotes[canonical] = quote
 	}
-	if len(quotes) == 0 {
-		return nil, fmt.Errorf("opend GetBasicQot returned no quotes")
-	}
-	return quotes, nil
+	return quotes
 }
 
 func (e *Exchange) ensureBasicQotSubscriptions(ctx context.Context, client *opend.Client, requests []basicQotRequest) error {
@@ -169,16 +169,63 @@ func (e *Exchange) ensureBasicQotSubscriptions(ctx context.Context, client *open
 	return nil
 }
 
+// SubscribeBasicQuote establishes the Basic quote subscription used by live
+// K-line aggregation. When push is true it also registers quote pushes on the
+// current OpenD connection.
+func (e *Exchange) SubscribeBasicQuote(ctx context.Context, symbol string, push bool) error {
+	security, canonical, err := futuSecurityFromSymbol(symbol)
+	if err != nil {
+		return err
+	}
+	request := basicQotRequest{canonical: canonical, security: security}
+	return e.withClient(ctx, func(client *opend.Client) error {
+		if push {
+			return e.ensureBasicQotPushSubscriptions(ctx, client, []basicQotRequest{request})
+		}
+		return e.ensureBasicQotSubscriptions(ctx, client, []basicQotRequest{request})
+	})
+}
+
+// UnsubscribeBasicQuote unregisters pushes and releases the Basic quote
+// subscription owned by this Exchange connection.
+func (e *Exchange) UnsubscribeBasicQuote(ctx context.Context, symbol string) error {
+	security, canonical, err := futuSecurityFromSymbol(symbol)
+	if err != nil {
+		return err
+	}
+	e.mu.Lock()
+	exists := e.subscriptions.hasBasicQot(canonical) || e.subscriptions.hasBasicQotPush(canonical)
+	e.mu.Unlock()
+	if !exists {
+		return nil
+	}
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		return setBasicQotSubscription(ctx, client, []*qotcommonpb.Security{security}, false, new(false))
+	}); err != nil {
+		return err
+	}
+	e.mu.Lock()
+	e.subscriptions.unmarkBasicQot(canonical)
+	e.subscriptions.unmarkBasicQotPush(canonical)
+	e.mu.Unlock()
+	return nil
+}
+
 func subscribeBasicQot(ctx context.Context, client *opend.Client, securities []*qotcommonpb.Security) error {
 	// Intentionally omit IsRegOrUnRegPush: per Qot_Sub.proto, "该参数不指定不做
 	// 注册反注册操作" — leaving it unset preserves any push registration the
 	// stream layer has already installed on this OpenD connection. Sending
 	// `false` here would explicitly toggle push state and could silently
 	// unregister Qot_UpdateBasicQot pushes for these securities.
+	return setBasicQotSubscription(ctx, client, securities, true, nil)
+}
+
+func setBasicQotSubscription(ctx context.Context, client *opend.Client, securities []*qotcommonpb.Security, subscribe bool, registerPush *bool) error {
 	request := &qotsubpb.Request{C2S: &qotsubpb.C2S{
-		SecurityList: securities,
-		SubTypeList:  []int32{int32(qotcommonpb.SubType_SubType_Basic)},
-		IsSubOrUnSub: new(true),
+		SecurityList:     securities,
+		SubTypeList:      []int32{int32(qotcommonpb.SubType_SubType_Basic)},
+		IsSubOrUnSub:     new(subscribe),
+		IsRegOrUnRegPush: registerPush,
 	}}
 	var response qotsubpb.Response
 	if err := client.Call(ctx, opend.ProtoQotSub, request, &response); err != nil {

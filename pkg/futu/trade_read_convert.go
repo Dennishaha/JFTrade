@@ -33,9 +33,6 @@ func balanceMapFromBrokerFunds(snapshot *BrokerFundsSnapshot) types.BalanceMap {
 	if snapshot.Currency != nil && *snapshot.Currency != "" {
 		currency = *snapshot.Currency
 	}
-	if currency == "" {
-		currency = "HKD"
-	}
 	balances[currency] = types.Balance{
 		Currency:          currency,
 		Available:         fixedpointFromPtr(snapshot.AvailableWithdrawalCash, snapshot.Cash),

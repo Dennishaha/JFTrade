@@ -38,6 +38,10 @@ func (e *Exchange) DiscoverAccounts(ctx context.Context) ([]RuntimeAccount, erro
 		return nil, err
 	}
 
+	return runtimeAccountsFromProto(protoAccounts), nil
+}
+
+func runtimeAccountsFromProto(protoAccounts []*trdcommonpb.TrdAcc) []RuntimeAccount {
 	accounts := make([]RuntimeAccount, 0, len(protoAccounts))
 	seen := make(map[string]struct{}, len(protoAccounts))
 	for _, account := range protoAccounts {
@@ -59,7 +63,7 @@ func (e *Exchange) DiscoverAccounts(ctx context.Context) ([]RuntimeAccount, erro
 		}
 		return accounts[i].AccountID < accounts[j].AccountID
 	})
-	return accounts, nil
+	return accounts
 }
 
 func runtimeAccountFromProto(account *trdcommonpb.TrdAcc) RuntimeAccount {

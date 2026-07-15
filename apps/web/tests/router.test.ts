@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createMemoryHistory } from "vue-router";
+
+vi.mock("../src/pages/WorkspacePage.vue", () => ({
+  default: { template: "<div />" },
+}));
 
 import { createConsoleRouter } from "../src/router";
 

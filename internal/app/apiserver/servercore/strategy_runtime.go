@@ -11,6 +11,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
@@ -57,6 +58,7 @@ type strategyRuntimeManagerDeps struct {
 	cancelExecutionOrder    func(context.Context, string) (trdsrv.ExecutionOrder, error)
 	countRuntimeAudit       func(context.Context, runtimeactivity.AuditQuery) (int, error)
 	upsertObservation       func(context.Context, runtimeactivity.ObservationSnapshot) error
+	acquireMarketDataLease  func(context.Context, string, []mdsrv.InstrumentRef) (*mdsrv.ManagedSubscription, error)
 }
 
 type strategyRuntimeNotification struct {
@@ -81,6 +83,7 @@ type managedStrategyRuntime struct {
 	lastErrorAt       time.Time
 	lastError         string
 	updatedAt         time.Time
+	subscriptionLease *mdsrv.ManagedSubscription
 }
 
 type strategySymbolRuntime struct {
@@ -219,6 +222,12 @@ func newStrategyRuntimeManagerDeps(server *Server) strategyRuntimeManagerDeps {
 				return nil
 			}
 			return server.strategyRuntimeStore.UpsertObservation(ctx, snapshot)
+		},
+		acquireMarketDataLease: func(ctx context.Context, consumerID string, refs []mdsrv.InstrumentRef) (*mdsrv.ManagedSubscription, error) {
+			if server.marketdataSvc == nil {
+				return nil, fmt.Errorf("market-data service is unavailable")
+			}
+			return server.marketdataSvc.AcquireManagedSubscription(ctx, consumerID, refs)
 		},
 	}
 }
@@ -389,10 +398,19 @@ func (m *strategyRuntimeManager) buildManagedStrategyRuntime(ctx context.Context
 		symbols:    make(map[string]*strategySymbolRuntime, len(instance.Binding.Symbols)),
 		updatedAt:  time.Now().UTC(),
 	}
+	if m.deps.acquireMarketDataLease != nil {
+		lease, err := m.deps.acquireMarketDataLease(ctx, "strategy-runtime:"+instance.ID, strategyKLineSubscriptionRefs(instance.Binding.Symbols, interval))
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("acquire strategy market-data subscriptions: %w", err)
+		}
+		managed.subscriptionLease = lease
+	}
 	for _, symbol := range instance.Binding.Symbols {
 		runner, err := m.buildSymbolRuntime(ctx, runtimeCtx, exchange, markets, funds, positions, instance, script, symbol, interval)
 		if err != nil {
 			cancel()
+			managed.subscriptionLease.Release()
 			return nil, err
 		}
 		managed.symbols[symbol] = runner
@@ -405,6 +423,7 @@ func (m *strategyRuntimeManager) activateStrategyRuntime(instanceID string, mana
 	defer m.mu.Unlock()
 	if _, exists := m.runtimes[instanceID]; exists {
 		managed.cancel()
+		managed.subscriptionLease.Release()
 		return fmt.Errorf("strategy instance is already running")
 	}
 	m.runtimes[instanceID] = managed
@@ -454,8 +473,49 @@ func (m *strategyRuntimeManager) stopStrategy(instanceID string) {
 		runtime.cancel()
 	}
 	if exists {
+		runtime.subscriptionLease.Release()
+	}
+	if exists {
 		m.wakeMarketDataCollector()
 	}
+}
+
+func (m *strategyRuntimeManager) close() {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	runtimes := make([]*managedStrategyRuntime, 0, len(m.runtimes))
+	for instanceID, runtime := range m.runtimes {
+		delete(m.runtimes, instanceID)
+		runtimes = append(runtimes, runtime)
+	}
+	m.starting = map[string]struct{}{}
+	m.mu.Unlock()
+	for _, runtime := range runtimes {
+		m.persistObservationSnapshot(runtime.snapshot(strategyStatusStopped))
+		if runtime.cancel != nil {
+			runtime.cancel()
+		}
+		runtime.subscriptionLease.Release()
+	}
+	if len(runtimes) > 0 {
+		m.wakeMarketDataCollector()
+	}
+}
+
+func strategyKLineSubscriptionRefs(symbols []string, interval bbgotypes.Interval) []mdsrv.InstrumentRef {
+	refs := make([]mdsrv.InstrumentRef, 0, len(symbols))
+	for _, raw := range symbols {
+		parts := strings.SplitN(strings.ToUpper(strings.TrimSpace(raw)), ".", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			continue
+		}
+		refs = append(refs, mdsrv.InstrumentRef{
+			Channel: "KLINE", Market: parts[0], Symbol: parts[1], Interval: string(interval),
+		})
+	}
+	return refs
 }
 
 func (m *strategyRuntimeManager) handleMarketTrade(trade bbgotypes.Trade) {

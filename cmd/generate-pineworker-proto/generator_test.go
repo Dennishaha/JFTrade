@@ -183,8 +183,8 @@ func portablePineCommandName(command string) string {
 
 func pineArgumentValue(arguments []string, prefix string) string {
 	for _, argument := range arguments {
-		if strings.HasPrefix(argument, prefix) {
-			return strings.TrimPrefix(argument, prefix)
+		if after, ok := strings.CutPrefix(argument, prefix); ok {
+			return after
 		}
 	}
 	return ""

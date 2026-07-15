@@ -19,6 +19,9 @@ func newTestServer(t *testing.T, store *SettingsStore) *Server {
 	t.Helper()
 	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
+	if server.marketdataSvc != nil {
+		server.marketdataSvc.SetSubscriptionReconciler(nil)
+	}
 	if server.auth != nil {
 		server.auth.enabled = false
 	}
@@ -42,6 +45,9 @@ func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 	t.Helper()
 	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
+	if server.marketdataSvc != nil {
+		server.marketdataSvc.SetSubscriptionReconciler(nil)
+	}
 	if server.auth != nil {
 		server.auth.enabled = false
 	}

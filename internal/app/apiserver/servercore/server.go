@@ -626,12 +626,12 @@ func (s *Server) analyzePineScript(input stratsrv.PineAnalyzeInput) (stratsrv.Pi
 
 func (s *Server) initializeMarketdataService() {
 	s.marketdataSvc = mdsrv.NewService(newMarketdataProvider(s))
+	s.marketdataSvc.SetSubscriptionReconciler(s.marketdataRuntime)
 	s.marketdataSvc.StartCollector(
 		s.marketdataRuntime,
 		s.marketdataRuntime,
 		s.handlePushMarketdataTick,
 		mdsrv.DemandSourceFunc(s.liveWebSocketDemand),
-		mdsrv.DemandSourceFunc(s.strategyRuntimeDemand),
 		mdsrv.DemandSourceFunc(func() []string { return s.workflowWatchedInstruments() }),
 	)
 }

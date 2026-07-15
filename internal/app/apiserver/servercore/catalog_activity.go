@@ -91,7 +91,7 @@ func (s *strategyCatalogStore) strategyAuditPage(instanceID string, query strate
 	return strategyAuditResponse{InstanceID: instanceID, Entries: entries, Page: strategyActivityPage{Limit: limit, Offset: offset, Total: total, Returned: len(entries), HasMore: offset+len(entries) < total}}, true
 }
 
-func (s *strategyCatalogStore) recordStrategyEventsLocked(strategy *managedStrategyInstance, at time.Time, logMessage string, logLevel string, logSource string, kind string, detail string) bool {
+func (s *strategyCatalogStore) recordStrategyEventsLocked(strategy *managedStrategyInstance, at time.Time, logMessage string, logLevel string, logSource string, kind string, detail string) {
 	rawLog := buildStrategyRuntimeLogEntry(at, logMessage)
 	if rawLog != "" {
 		if s.runtimeStore != nil {
@@ -127,5 +127,4 @@ func (s *strategyCatalogStore) recordStrategyEventsLocked(strategy *managedStrat
 		}
 	}
 
-	return false
 }

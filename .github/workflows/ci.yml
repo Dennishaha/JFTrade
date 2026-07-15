@@ -190,7 +190,9 @@ jobs:
         run: pnpm run generate:openapi
 
       - name: Go coverage gate
-        run: pnpm run test:coverage:go -package ./internal/... -package ./pkg/... -package ./scripts
+        run: |
+          pnpm run test:coverage:go -package ./internal/... -package ./pkg/... -package ./scripts
+          go test ./internal/marketdata ./internal/integration/futu -run Concurrent -count=20 -timeout=120s
 
   web:
     name: Web
@@ -217,8 +219,8 @@ jobs:
       - name: Audit locked pnpm dependencies
         run: pnpm run audit:dependencies
 
-      - name: Frontend test
-        run: pnpm run test:web:ci
+      - name: Frontend test and coverage gate
+        run: pnpm run test:coverage:web
 
       - name: Frontend typecheck
         run: pnpm run typecheck:web

@@ -7,9 +7,16 @@ import { defineComponent, nextTick, ref } from "vue";
 const stores = vi.hoisted(() => ({
   consoleData: null as ReturnType<typeof createConsoleDataState> | null,
 }));
+const externalLinks = vi.hoisted(() => ({
+  handleExternalLinkClick: vi.fn(),
+}));
 
 vi.mock("../src/composables/useConsoleData", () => ({
   useConsoleData: () => stores.consoleData,
+}));
+
+vi.mock("../src/composables/externalLink", () => ({
+  useExternalLink: () => externalLinks,
 }));
 
 import FutuIntegrationSection from "../src/components/FutuIntegrationSection.vue";
@@ -130,6 +137,13 @@ describe("FutuIntegrationSection", () => {
     expect(
       wrapper.get('a[href="https://www.futunn.com/download/OpenAPI"]').text(),
     ).toBe("下载或升级 OpenD");
+    await wrapper
+      .get('a[href="https://www.futunn.com/download/OpenAPI"]')
+      .trigger("click");
+    expect(externalLinks.handleExternalLinkClick).toHaveBeenCalledWith(
+      expect.anything(),
+      "https://www.futunn.com/download/OpenAPI",
+    );
 
     const inputs = wrapper.findAll("input");
     await inputs[1]?.setValue("192.168.0.8");
@@ -212,7 +226,7 @@ describe("FutuIntegrationSection", () => {
     expect(wrapper.text()).toContain("已登录");
     expect(wrapper.text()).toContain("交易登录");
     expect(wrapper.text()).toContain("未登录");
-    expect(wrapper.text()).toContain("取消全部实时行情订阅");
+    expect(wrapper.text()).toContain("清理闲置网页订阅");
 
     const buttons = wrapper.findAll("button");
     await buttons[0]?.trigger("click");
@@ -357,5 +371,89 @@ describe("FutuIntegrationSection", () => {
     await nextTick();
 
     expect(wrapper.text()).toContain("OpenD 已连接");
+  });
+
+  it("uses settings copy before setup and keeps form defaults when no Futu broker exists", () => {
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.brokerSettings.value.brokers = [];
+
+    const wrapper = mountSection("settings");
+
+    expect(wrapper.text()).toContain("当前还没有已保存的富途接入配置");
+    expect(wrapper.text()).toContain(
+      "填写并保存富途接入配置后，这里会显示 OpenD 连接状态与诊断信息",
+    );
+    expect(wrapper.text()).toContain("保存富途配置");
+    wrapper.unmount();
+  });
+
+  it("covers disconnected and unknown runtime states plus numeric form fallbacks", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.brokerSettings.value.brokers[0] = {
+      ...stores.consoleData.brokerSettings.value.brokers[0],
+      integration: {
+        enabled: true,
+        config: {
+          host: "localhost",
+          websocketKey: "",
+          tradeMarket: "US",
+          securityFirm: "FUTUSECURITIES",
+        } as never,
+      },
+    };
+    stores.consoleData.brokerRuntime.value.session = {
+      connectivity: "disconnected",
+      checkedAt: "",
+      lastError: null,
+      globalState: {
+        quoteLoggedIn: false,
+        tradeLoggedIn: true,
+        programStatus: "READY",
+      },
+    };
+    stores.consoleData.futuOpenDHealth.value = {
+      runtime: { serverVersion: "" },
+      diagnosis: {
+        manualRetryRequired: true,
+        restartOpenDRecommended: false,
+        summary: "retry required",
+      },
+      localSocketDiagnostics: {
+        websocketEstablishedConnections: 1,
+        topClientProcesses: [],
+      },
+    };
+
+    const wrapper = mountSection("settings");
+    expect(wrapper.text()).toContain("尚未检测");
+    expect(wrapper.text()).toContain("未登录");
+    expect(wrapper.text()).toContain("已登录");
+    expect(wrapper.text()).toContain("待检测（最低 10.8.6808）");
+    expect(wrapper.text()).toContain("1 条本地已建立 WebSocket 连接");
+
+    const inputs = wrapper.findAll("input");
+    expect((inputs[2]?.element as HTMLInputElement).value).toBe("11110");
+    expect((inputs[3]?.element as HTMLInputElement).value).toBe("11111");
+    expect((inputs[4]?.element as HTMLInputElement).value).toBe("20");
+    await inputs[2]?.setValue("12000");
+    await inputs[3]?.setValue("12001");
+    await inputs[4]?.setValue("12");
+    await wrapper.findAll("button").at(-1)?.trigger("click");
+
+    expect(stores.consoleData.saveBrokerIntegration).toHaveBeenCalledWith(
+      "futu",
+      expect.objectContaining({
+        config: expect.objectContaining({
+          apiPort: 12000,
+          websocketPort: 12001,
+          maxWebSocketConnections: 12,
+        }),
+      }),
+    );
+
+    stores.consoleData.brokerRuntime.value.session.connectivity = "connecting" as never;
+    await nextTick();
+    expect(wrapper.find(".chip-stub").exists()).toBe(true);
+    wrapper.unmount();
   });
 });

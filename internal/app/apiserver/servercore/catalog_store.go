@@ -349,7 +349,13 @@ func (s *strategyCatalogStore) persistLocked() error {
 	if strings.TrimSpace(s.data.TargetDir) == "" {
 		s.data.TargetDir = s.targetDir
 	}
-	tx, err := s.db.BeginWrite(context.Background(), nil)
+	beginPersist := s.beginPersist
+	if beginPersist == nil {
+		beginPersist = func(ctx context.Context, opts *sql.TxOptions) (executionMigrationTx, error) {
+			return s.db.BeginWrite(ctx, opts)
+		}
+	}
+	tx, err := beginPersist(context.Background(), nil)
 	if err != nil {
 		return err
 	}
@@ -375,10 +381,15 @@ func (s *strategyCatalogStore) persistLocked() error {
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	marshalJSON := s.marshalJSON
+	if marshalJSON == nil {
+		marshalJSON = json.Marshal
+	}
 	for _, plugin := range s.data.Plugins {
-		payload, marshalErr := json.Marshal(s.normalizePlugin(plugin))
+		payload, marshalErr := marshalJSON(s.normalizePlugin(plugin))
 		if marshalErr != nil {
-			return marshalErr
+			err = marshalErr
+			return err
 		}
 		if _, err = tx.ExecContext(context.Background(), `INSERT INTO `+strategyCatalogPluginTable+` (id, payload_json, updated_at) VALUES (?, ?, ?)`, strings.TrimSpace(plugin.Descriptor.ID), string(payload), now); err != nil {
 			return err
@@ -388,18 +399,20 @@ func (s *strategyCatalogStore) persistLocked() error {
 		stored := s.normalizeStrategy(strategy)
 		stored.Logs = nil
 		stored.AuditEntries = nil
-		payload, marshalErr := json.Marshal(stored)
+		payload, marshalErr := marshalJSON(stored)
 		if marshalErr != nil {
-			return marshalErr
+			err = marshalErr
+			return err
 		}
 		if _, err = tx.ExecContext(context.Background(), `INSERT INTO `+strategyCatalogStrategyTable+` (id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?)`, strings.TrimSpace(stored.ID), string(payload), strings.TrimSpace(stored.CreatedAt), now); err != nil {
 			return err
 		}
 	}
 	for _, operation := range s.data.Operations {
-		payload, marshalErr := json.Marshal(operation)
+		payload, marshalErr := marshalJSON(operation)
 		if marshalErr != nil {
-			return marshalErr
+			err = marshalErr
+			return err
 		}
 		if _, err = tx.ExecContext(context.Background(), `INSERT INTO `+strategyCatalogOperationTable+` (operation_id, plugin_id, status, updated_at, payload_json) VALUES (?, ?, ?, ?, ?)`, strings.TrimSpace(operation.OperationID), strings.TrimSpace(operation.PluginID), strings.TrimSpace(operation.Status), strings.TrimSpace(operation.UpdatedAt), string(payload)); err != nil {
 			return err

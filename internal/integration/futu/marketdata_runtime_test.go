@@ -2,6 +2,8 @@ package futu
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -35,6 +37,9 @@ func TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive(t *testing.T) {
 	ensureDone := make(chan *pkgfutu.Exchange, 1)
 	go func() { ensureDone <- runtime.Ensure() }()
 	<-started
+	waitingEnsure := make(chan *pkgfutu.Exchange, 1)
+	go func() { waitingEnsure <- runtime.Ensure() }()
+	time.Sleep(10 * time.Millisecond)
 	closeDone := make(chan struct{})
 	go func() {
 		func() {
@@ -51,6 +56,9 @@ func TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive(t *testing.T) {
 	close(release)
 	if exchange := <-ensureDone; exchange != nil {
 		t.Fatal("stale Ensure result revived runtime after Close")
+	}
+	if exchange := <-waitingEnsure; exchange != nil {
+		t.Fatal("waiting Ensure result revived runtime after Close")
 	}
 	<-closeDone
 
@@ -358,6 +366,10 @@ func TestMarketDataRuntimeExchangeResetAndStreamLifecycle(t *testing.T) {
 	if subs[0].Symbol != "HK.00700" || subs[1].Symbol != "US.AAPL" {
 		t.Fatalf("subscription symbols = %#v", subs)
 	}
+	futuStream.EmitMarketTrade(bbgotypes.Trade{
+		Symbol: "HK.00700",
+		Price:  fixedpointValue(t, "1"),
+	})
 
 	pushTicks := make(chan marketdata.Tick, 1)
 	stream, err = runtime.NewStream([]string{"HK.00700"}, func(tick marketdata.Tick) {
@@ -396,6 +408,28 @@ func TestMarketDataRuntimeExchangeResetAndStreamLifecycle(t *testing.T) {
 	}
 }
 
+func TestMarketDataRuntimeReplacesAnExchangeWhenItsConfigKeyChanges(t *testing.T) {
+	var port atomic.Int64
+	port.Store(11110)
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
+		ConfigSource: func() MarketDataConfig {
+			return MarketDataConfig{Enabled: true, Host: "127.0.0.1", APIPort: int(port.Load())}
+		},
+		NewExchange: func(config MarketDataConfig) *pkgfutu.Exchange {
+			return pkgfutu.NewExchange("127.0.0.1:" + fmt.Sprint(config.APIPort))
+		},
+	})
+	first := runtime.Ensure()
+	port.Store(11111)
+	second := runtime.Ensure()
+	if first == nil || second == nil || first == second {
+		t.Fatalf("exchange replacement = %p -> %p", first, second)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatalf("Close() = %v", err)
+	}
+}
+
 func TestMarketDataRuntimeUnavailableQueryHelpers(t *testing.T) {
 	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
 		ConfigSource: func() MarketDataConfig { return MarketDataConfig{} },
@@ -413,6 +447,10 @@ func TestMarketDataRuntimeUnavailableQueryHelpers(t *testing.T) {
 	if _, err := runtime.NewStream([]string{"HK.00700"}, func(marketdata.Tick) {}); err == nil {
 		t.Fatal("NewStream() error = nil when config disabled")
 	}
+	if err := runtime.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{Market: "US", Symbol: "AAPL"}}); err == nil {
+		t.Fatal("ReconcileSubscriptions() error = nil when config disabled")
+	}
+	jftradeLogError(nil, errors.New("expected best-effort test error"))
 }
 
 func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {

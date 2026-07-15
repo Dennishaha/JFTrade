@@ -313,9 +313,6 @@ func marketdataProviderOptionalTime(value string) optionalTimeValue {
 	if t, err := time.Parse(time.RFC3339Nano, value); err == nil {
 		return optionalTimeValue{Time: t}
 	}
-	if t, err := time.Parse(time.RFC3339, value); err == nil {
-		return optionalTimeValue{Time: t}
-	}
 	return optionalTimeValue{}
 }
 

@@ -1,6 +1,8 @@
 package servercore
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"sync"
 
@@ -96,6 +98,8 @@ type strategyCatalogStore struct {
 	db           *sqliteconn.DB
 	targetDir    string
 	runtimeStore *strategyRuntimeStore
+	beginPersist func(context.Context, *sql.TxOptions) (executionMigrationTx, error)
+	marshalJSON  func(any) ([]byte, error)
 	mu           sync.RWMutex
 	data         strategyCatalogFile
 }

@@ -71,6 +71,12 @@ func TestNewKLineSyncerUsesDefaultExchangeFactoryAndPropagatesStoreErrors(t *tes
 	if impl.exchange == nil || impl.store == nil || impl.syncFn == nil || impl.closeFn == nil {
 		t.Fatalf("constructed syncer = %#v", impl)
 	}
+	canceled, cancel := context.WithCancel(t.Context())
+	cancel()
+	_ = impl.Sync(canceled, backtestservice.KLineSyncParams{
+		Symbol:    "US.AAPL",
+		Intervals: []bbgotypes.Interval{bbgotypes.Interval1m},
+	}, &backteststore.SyncProgress{})
 	if err := impl.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}

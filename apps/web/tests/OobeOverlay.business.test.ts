@@ -48,6 +48,12 @@ vi.mock("../src/composables/settingsManagedAccounts", () => ({
   }),
 }));
 
+vi.mock("../src/components/FutuIntegrationSection.vue", () => ({
+  default: defineComponent({
+    template: "<div data-testid='futu-integration'>futu integration</div>",
+  }),
+}));
+
 import OobeOverlay from "../src/components/OobeOverlay.vue";
 
 type SetupState = Record<string, unknown>;
@@ -120,9 +126,6 @@ function mountOobeOverlay() {
           emits: ["status-change"],
           template: "<div data-testid='runtime-deps'></div>",
         }),
-        FutuIntegrationSection: {
-          template: "<div data-testid='futu-integration'>futu integration</div>",
-        },
         SettingsAccountDiscoverySection: {
           props: ["accounts", "unavailableMessage"],
           template:

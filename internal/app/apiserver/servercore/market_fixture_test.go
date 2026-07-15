@@ -21,6 +21,7 @@ import (
 	qotgetsearchquotepb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsearchquote"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	qotgetstaticinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetstaticinfo"
+	qotgetsubinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsubinfo"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 )
 
@@ -139,6 +140,14 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoQotSub:
 			s.qotSubCalls.Add(1)
 			response = &qotsubpb.Response{RetType: new(int32(0))}
+		case opend.ProtoGetSubInfo:
+			response = &qotgetsubinfopb.Response{
+				RetType: new(int32(0)),
+				S2C: &qotgetsubinfopb.S2C{
+					TotalUsedQuota: new(int32(2)),
+					RemainQuota:    new(int32(98)),
+				},
+			}
 		case opend.ProtoGetBasicQot:
 			s.basicQotCalls.Add(1)
 			response = s.basicQotResponse(frame.Body)

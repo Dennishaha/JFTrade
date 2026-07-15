@@ -196,8 +196,22 @@ export default defineConfig({
           lines: 95,
         },
         "src/composables/consoleDataMarketSubscriptions.ts": {
-          statements: 95,
-          lines: 95,
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/components/workspace/LightweightChart.vue": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/components/FutuIntegrationSection.vue": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
         },
         "src/composables/settingsManagedAccounts.ts": {
           statements: 95,

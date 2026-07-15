@@ -51,6 +51,11 @@ func (r *subscriptionRegistry) markBasicQot(key string) {
 	r.basicQot[key] = struct{}{}
 }
 
+func (r *subscriptionRegistry) unmarkBasicQot(key string) {
+	r.ensure()
+	delete(r.basicQot, key)
+}
+
 func (r *subscriptionRegistry) hasBasicQotPush(key string) bool {
 	r.ensure()
 	_, exists := r.basicQotPush[key]
@@ -62,6 +67,11 @@ func (r *subscriptionRegistry) markBasicQotPush(key string) {
 	r.basicQotPush[key] = struct{}{}
 }
 
+func (r *subscriptionRegistry) unmarkBasicQotPush(key string) {
+	r.ensure()
+	delete(r.basicQotPush, key)
+}
+
 func (r *subscriptionRegistry) hasKLine(key string) bool {
 	r.ensure()
 	_, exists := r.kline[key]
@@ -71,6 +81,11 @@ func (r *subscriptionRegistry) hasKLine(key string) bool {
 func (r *subscriptionRegistry) markKLine(key string) {
 	r.ensure()
 	r.kline[key] = struct{}{}
+}
+
+func (r *subscriptionRegistry) unmarkKLine(key string) {
+	r.ensure()
+	delete(r.kline, key)
 }
 
 func (r *subscriptionRegistry) hasOrderBook(key string) bool {

@@ -22,10 +22,9 @@ import (
 // request when OpenD explicitly rejects a session-routed call.
 
 var usEasternLocation = func() *time.Location {
-	profile, ok := market.ProfileForSymbol("US.AAPL")
-	if !ok {
-		return time.UTC
-	}
+	// US.AAPL is a built-in market profile; absence is a registry programming
+	// error rather than a runtime condition that can be recovered as UTC.
+	profile, _ := market.ProfileForSymbol("US.AAPL")
 	return profile.Location
 }()
 
@@ -55,9 +54,6 @@ func buildHistoricalKLineRequestPlans(symbol string, interval types.Interval) []
 			{extendedTime: true, session: new(commonpb.Session_Session_ETH), keepSessions: []market.Session{market.SessionPre, market.SessionAfter}},
 			{extendedTime: true, session: new(commonpb.Session_Session_ALL), keepSessions: []market.Session{market.SessionOvernight}},
 		}
-	}
-	if shouldRequestExtendedKLines(symbol, interval) {
-		return []historicalKLineRequestPlan{{extendedTime: true, session: new(commonpb.Session_Session_ALL)}}
 	}
 	return []historicalKLineRequestPlan{{}}
 }
@@ -181,9 +177,6 @@ func futuKLineFromProto(candle *qotcommonpb.KLine, symbol string, interval types
 	labelAt := futuQuoteTime(candle.GetTimestamp(), candle.GetTime(), symbol)
 	startAt := futuHistoryKLineStartTime(labelAt, interval)
 	endAt := startAt.Add(interval.Duration()).Add(-time.Millisecond)
-	if endAt.Before(startAt) {
-		endAt = startAt
-	}
 	return types.KLine{
 		Exchange:    Name,
 		Symbol:      symbol,
@@ -202,7 +195,7 @@ func futuKLineFromProto(candle *qotcommonpb.KLine, symbol string, interval types
 
 func futuHistoryKLineStartTime(labelAt time.Time, interval types.Interval) time.Time {
 	duration := interval.Duration()
-	if duration <= 0 || duration >= 24*time.Hour {
+	if duration >= 24*time.Hour {
 		return labelAt
 	}
 

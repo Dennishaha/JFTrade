@@ -24,8 +24,22 @@ const (
 )
 
 type executionOrderSQLiteStore struct {
-	db   *sqliteconn.DB
-	path string
+	db             *sqliteconn.DB
+	path           string
+	beginMigration func(context.Context, *sql.TxOptions) (executionMigrationTx, error)
+}
+
+type executionMigrationTx interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	Commit() error
+	Rollback() error
+}
+
+type executionSchemaRows interface {
+	Next() bool
+	Scan(...any) error
+	Err() error
+	Close() error
 }
 
 type executionOrderSummaryRow struct {
@@ -92,6 +106,10 @@ func newExecutionOrderStoreWithDB(dbPath string) (*executionOrderStore, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newExecutionOrderStoreWithPersistence(persistence)
+}
+
+func newExecutionOrderStoreWithPersistence(persistence *executionOrderSQLiteStore) (*executionOrderStore, error) {
 	store := newExecutionOrderStore()
 	store.persistence = persistence
 	if err := store.loadFromDB(); err != nil {
@@ -104,6 +122,14 @@ func newExecutionOrderStoreWithDB(dbPath string) (*executionOrderStore, error) {
 }
 
 func newExecutionOrderSQLiteStore(dbPath string) (*executionOrderSQLiteStore, error) {
+	return newExecutionOrderSQLiteStoreWithDeps(dbPath, os.Stat, sqliteconn.OpenX)
+}
+
+func newExecutionOrderSQLiteStoreWithDeps(
+	dbPath string,
+	stat func(string) (os.FileInfo, error),
+	open func(string, ...sqliteconn.Option) (*sqliteconn.DB, error),
+) (*executionOrderSQLiteStore, error) {
 	trimmedPath := strings.TrimSpace(dbPath)
 	if trimmedPath == "" {
 		return nil, fmt.Errorf("execution order db path is required")
@@ -115,13 +141,13 @@ func newExecutionOrderSQLiteStore(dbPath string) (*executionOrderSQLiteStore, er
 		}
 	}
 	newDatabase := true
-	if info, statErr := os.Stat(trimmedPath); statErr == nil {
+	if info, statErr := stat(trimmedPath); statErr == nil {
 		newDatabase = info.Size() == 0
 	} else if !errors.Is(statErr, os.ErrNotExist) {
 		return nil, fmt.Errorf("inspect execution order sqlite store: %w", statErr)
 	}
 
-	db, err := sqliteconn.OpenX(trimmedPath)
+	db, err := open(trimmedPath)
 	if err != nil {
 		return nil, fmt.Errorf("open execution order sqlite store: %w", err)
 	}
@@ -159,14 +185,23 @@ func (s *executionOrderSQLiteStore) migrateSchemaV1ToV2() error {
 		`SELECT version FROM `+sqliteschema.MetadataTable+` WHERE component_id = ? LIMIT 1`,
 		"execution-orders",
 	).Scan(&version)
-	if errors.Is(err, sql.ErrNoRows) || version != 1 {
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
-	if err != nil {
-		return err
+	if version != 1 {
+		return nil
 	}
 
-	tx, err := s.db.BeginWrite(context.Background(), nil)
+	beginMigration := s.beginMigration
+	if beginMigration == nil {
+		beginMigration = func(ctx context.Context, opts *sql.TxOptions) (executionMigrationTx, error) {
+			return s.db.BeginWrite(ctx, opts)
+		}
+	}
+	tx, err := beginMigration(context.Background(), nil)
 	if err != nil {
 		return err
 	}
@@ -338,6 +373,10 @@ func (s *executionOrderSQLiteStore) ensureSchema(tableName string, want []string
 	if err != nil {
 		return fmt.Errorf("inspect %s schema: %w", tableName, err)
 	}
+	return inspectExecutionSchemaRows(tableName, want, rows)
+}
+
+func inspectExecutionSchemaRows(tableName string, want []string, rows executionSchemaRows) error {
 	defer func() { jftradeLogError(rows.Close()) }()
 
 	got := make([]string, 0, len(want))

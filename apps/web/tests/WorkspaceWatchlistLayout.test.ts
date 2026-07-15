@@ -4,6 +4,10 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick } from "vue";
 
+vi.mock("../src/components/workspace/LightweightChart.vue", () => ({
+  default: defineComponent({ template: "<div />" }),
+}));
+
 import WorkspacePage from "../src/pages/WorkspacePage.vue";
 import {
   provideWorkspaceLayoutStore,
@@ -48,7 +52,6 @@ describe("Workspace watchlist layout", () => {
             template:
               "<button data-testid='sidebar-select' @click=\"$emit('selected', { instrumentId: 'US.AAPL' })\">select</button>",
           },
-          LightweightChart: { template: "<div />" },
           PositionsPanel: { template: "<div />" },
           OrderEntryPanel: { template: "<div />" },
           InstrumentOverviewPanel: { template: "<div />" },
@@ -95,7 +98,6 @@ describe("Workspace watchlist layout", () => {
       global: {
         stubs: {
           WorkspaceWatchlistSidebar: { template: "<div />" },
-          LightweightChart: { template: "<div />" },
           PositionsPanel: { template: "<div />" },
           OrderEntryPanel: { template: "<div />" },
           InstrumentOverviewPanel: { template: "<div />" },

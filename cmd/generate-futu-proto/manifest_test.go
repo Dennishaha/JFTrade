@@ -60,7 +60,7 @@ func TestVerifyFutuInputsRejectsMissingAndMismatchedFiles(t *testing.T) {
 	require.NoError(t, os.Mkdir(source, 0o755))
 	manifest := filepath.Join(directory, "manifest.sha256")
 	digest := sha256.Sum256([]byte("expected"))
-	require.NoError(t, os.WriteFile(manifest, []byte(fmt.Sprintf("%x  Common.proto\n", digest)), 0o600))
+	require.NoError(t, os.WriteFile(manifest, fmt.Appendf(nil, "%x  Common.proto\n", digest), 0o600))
 
 	err := verifyFutuInputs(source, manifest, []string{"Common.proto"})
 	require.ErrorContains(t, err, "missing proto file")

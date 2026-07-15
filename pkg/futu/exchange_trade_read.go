@@ -11,6 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
 	trdgetmaxtrdqtyspb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmaxtrdqtys"
 )
 
@@ -99,19 +100,7 @@ func (e *Exchange) QueryBrokerPositions(ctx context.Context, query BrokerReadQue
 		if err != nil {
 			return err
 		}
-		snapshots = make([]BrokerPositionSnapshot, 0, len(positions))
-		for _, position := range positions {
-			if position == nil {
-				continue
-			}
-			snapshots = append(snapshots, brokerPositionSnapshotFromProto(resolved, position))
-		}
-		sort.Slice(snapshots, func(i, j int) bool {
-			if snapshots[i].Market != snapshots[j].Market {
-				return snapshots[i].Market < snapshots[j].Market
-			}
-			return snapshots[i].Symbol < snapshots[j].Symbol
-		})
+		snapshots = brokerPositionSnapshotsFromProto(resolved, positions)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -140,25 +129,7 @@ func (e *Exchange) QueryBrokerOrders(ctx context.Context, query BrokerReadQuery,
 			return err
 		}
 
-		snapshots = make([]BrokerOrderSnapshot, 0, len(orders))
-		for _, order := range orders {
-			if order == nil || !brokerOrderIsWorking(order.GetOrderStatus()) {
-				continue
-			}
-			if canonicalSymbol != "" && !strings.EqualFold(strings.TrimSpace(order.GetCode()), canonicalSymbol) {
-				continue
-			}
-			snapshots = append(snapshots, brokerOrderSnapshotFromProto(resolved, order))
-		}
-
-		sort.Slice(snapshots, func(i, j int) bool {
-			left := brokerOrderSortKey(snapshots[i])
-			right := brokerOrderSortKey(snapshots[j])
-			if !left.Equal(right) {
-				return left.After(right)
-			}
-			return snapshots[i].BrokerOrderID > snapshots[j].BrokerOrderID
-		})
+		snapshots = brokerOrderSnapshotsFromProto(resolved, orders, canonicalSymbol, true)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -181,26 +152,8 @@ func (e *Exchange) QueryBrokerHistoryOrders(ctx context.Context, query BrokerOrd
 			return err
 		}
 
-		snapshots = make([]BrokerOrderSnapshot, 0, len(orders))
 		canonicalSymbol := strings.TrimSpace(strings.ToUpper(query.Symbol))
-		for _, order := range orders {
-			if order == nil {
-				continue
-			}
-			if canonicalSymbol != "" && !strings.EqualFold(strings.TrimSpace(order.GetCode()), canonicalSymbol) {
-				continue
-			}
-			snapshots = append(snapshots, brokerOrderSnapshotFromProto(resolved, order))
-		}
-
-		sort.Slice(snapshots, func(i, j int) bool {
-			left := brokerOrderSortKey(snapshots[i])
-			right := brokerOrderSortKey(snapshots[j])
-			if !left.Equal(right) {
-				return left.After(right)
-			}
-			return snapshots[i].BrokerOrderID > snapshots[j].BrokerOrderID
-		})
+		snapshots = brokerOrderSnapshotsFromProto(resolved, orders, canonicalSymbol, false)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -223,26 +176,8 @@ func (e *Exchange) QueryBrokerHistoryOrderFills(ctx context.Context, query Broke
 			return err
 		}
 
-		snapshots = make([]BrokerOrderFillSnapshot, 0, len(fills))
 		canonicalSymbol := strings.TrimSpace(strings.ToUpper(query.Symbol))
-		for _, fill := range fills {
-			if fill == nil {
-				continue
-			}
-			if canonicalSymbol != "" && !strings.EqualFold(strings.TrimSpace(fill.GetCode()), canonicalSymbol) {
-				continue
-			}
-			snapshots = append(snapshots, brokerOrderFillSnapshotFromProto(resolved, fill))
-		}
-
-		sort.Slice(snapshots, func(i, j int) bool {
-			left := brokerOrderFillSortKey(snapshots[i])
-			right := brokerOrderFillSortKey(snapshots[j])
-			if !left.Equal(right) {
-				return left.After(right)
-			}
-			return snapshots[i].BrokerFillID > snapshots[j].BrokerFillID
-		})
+		snapshots = brokerOrderFillSnapshotsFromProto(resolved, fills, canonicalSymbol)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -265,26 +200,8 @@ func (e *Exchange) QueryBrokerOrderFills(ctx context.Context, query BrokerOrderF
 			return err
 		}
 
-		snapshots = make([]BrokerOrderFillSnapshot, 0, len(fills))
 		canonicalSymbol := strings.TrimSpace(strings.ToUpper(query.Symbol))
-		for _, fill := range fills {
-			if fill == nil {
-				continue
-			}
-			if canonicalSymbol != "" && !strings.EqualFold(strings.TrimSpace(fill.GetCode()), canonicalSymbol) {
-				continue
-			}
-			snapshots = append(snapshots, brokerOrderFillSnapshotFromProto(resolved, fill))
-		}
-
-		sort.Slice(snapshots, func(i, j int) bool {
-			left := brokerOrderFillSortKey(snapshots[i])
-			right := brokerOrderFillSortKey(snapshots[j])
-			if !left.Equal(right) {
-				return left.After(right)
-			}
-			return snapshots[i].BrokerFillID > snapshots[j].BrokerFillID
-		})
+		snapshots = brokerOrderFillSnapshotsFromProto(resolved, fills, canonicalSymbol)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -307,17 +224,7 @@ func (e *Exchange) QueryBrokerOrderFees(ctx context.Context, query BrokerOrderFe
 			return err
 		}
 
-		snapshots = make([]BrokerOrderFeeSnapshot, 0, len(fees))
-		for _, fee := range fees {
-			if fee == nil {
-				continue
-			}
-			snapshots = append(snapshots, brokerOrderFeeSnapshotFromProto(resolved, fee))
-		}
-
-		sort.Slice(snapshots, func(i, j int) bool {
-			return snapshots[i].BrokerOrderIDEx < snapshots[j].BrokerOrderIDEx
-		})
+		snapshots = brokerOrderFeeSnapshotsFromProto(resolved, fees)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -339,26 +246,98 @@ func (e *Exchange) QueryBrokerCashFlows(ctx context.Context, query BrokerCashFlo
 			return err
 		}
 
-		snapshots = make([]BrokerCashFlowSnapshot, 0, len(flows))
-		for _, flow := range flows {
-			if flow == nil {
-				continue
-			}
-			snapshots = append(snapshots, brokerCashFlowSnapshotFromProto(resolved, flow))
-		}
-		sort.Slice(snapshots, func(i, j int) bool {
-			left := optionalStringValue(snapshots[i].ClearingDate)
-			right := optionalStringValue(snapshots[j].ClearingDate)
-			if left != right {
-				return left > right
-			}
-			return optionalStringValue(snapshots[i].CashFlowID) > optionalStringValue(snapshots[j].CashFlowID)
-		})
+		snapshots = brokerCashFlowSnapshotsFromProto(resolved, flows)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	return snapshots, nil
+}
+
+func brokerPositionSnapshotsFromProto(account resolvedTradeAccount, positions []*trdcommonpb.Position) []BrokerPositionSnapshot {
+	snapshots := make([]BrokerPositionSnapshot, 0, len(positions))
+	for _, position := range positions {
+		if position != nil {
+			snapshots = append(snapshots, brokerPositionSnapshotFromProto(account, position))
+		}
+	}
+	sort.Slice(snapshots, func(i, j int) bool {
+		if snapshots[i].Market != snapshots[j].Market {
+			return snapshots[i].Market < snapshots[j].Market
+		}
+		return snapshots[i].Symbol < snapshots[j].Symbol
+	})
+	return snapshots
+}
+
+func brokerOrderSnapshotsFromProto(account resolvedTradeAccount, orders []*trdcommonpb.Order, canonicalSymbol string, workingOnly bool) []BrokerOrderSnapshot {
+	snapshots := make([]BrokerOrderSnapshot, 0, len(orders))
+	for _, order := range orders {
+		if order == nil || (workingOnly && !brokerOrderIsWorking(order.GetOrderStatus())) {
+			continue
+		}
+		if canonicalSymbol != "" && !strings.EqualFold(strings.TrimSpace(order.GetCode()), canonicalSymbol) {
+			continue
+		}
+		snapshots = append(snapshots, brokerOrderSnapshotFromProto(account, order))
+	}
+	sort.Slice(snapshots, func(i, j int) bool {
+		left, right := brokerOrderSortKey(snapshots[i]), brokerOrderSortKey(snapshots[j])
+		if !left.Equal(right) {
+			return left.After(right)
+		}
+		return snapshots[i].BrokerOrderID > snapshots[j].BrokerOrderID
+	})
+	return snapshots
+}
+
+func brokerOrderFillSnapshotsFromProto(account resolvedTradeAccount, fills []*trdcommonpb.OrderFill, canonicalSymbol string) []BrokerOrderFillSnapshot {
+	snapshots := make([]BrokerOrderFillSnapshot, 0, len(fills))
+	for _, fill := range fills {
+		if fill == nil {
+			continue
+		}
+		if canonicalSymbol != "" && !strings.EqualFold(strings.TrimSpace(fill.GetCode()), canonicalSymbol) {
+			continue
+		}
+		snapshots = append(snapshots, brokerOrderFillSnapshotFromProto(account, fill))
+	}
+	sort.Slice(snapshots, func(i, j int) bool {
+		left, right := brokerOrderFillSortKey(snapshots[i]), brokerOrderFillSortKey(snapshots[j])
+		if !left.Equal(right) {
+			return left.After(right)
+		}
+		return snapshots[i].BrokerFillID > snapshots[j].BrokerFillID
+	})
+	return snapshots
+}
+
+func brokerOrderFeeSnapshotsFromProto(account resolvedTradeAccount, fees []*trdcommonpb.OrderFee) []BrokerOrderFeeSnapshot {
+	snapshots := make([]BrokerOrderFeeSnapshot, 0, len(fees))
+	for _, fee := range fees {
+		if fee != nil {
+			snapshots = append(snapshots, brokerOrderFeeSnapshotFromProto(account, fee))
+		}
+	}
+	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].BrokerOrderIDEx < snapshots[j].BrokerOrderIDEx })
+	return snapshots
+}
+
+func brokerCashFlowSnapshotsFromProto(account resolvedTradeAccount, flows []*trdflowsummarypb.FlowSummaryInfo) []BrokerCashFlowSnapshot {
+	snapshots := make([]BrokerCashFlowSnapshot, 0, len(flows))
+	for _, flow := range flows {
+		if flow != nil {
+			snapshots = append(snapshots, brokerCashFlowSnapshotFromProto(account, flow))
+		}
+	}
+	sort.Slice(snapshots, func(i, j int) bool {
+		left, right := optionalStringValue(snapshots[i].ClearingDate), optionalStringValue(snapshots[j].ClearingDate)
+		if left != right {
+			return left > right
+		}
+		return optionalStringValue(snapshots[i].CashFlowID) > optionalStringValue(snapshots[j].CashFlowID)
+	})
+	return snapshots
 }
 
 // QueryBrokerMaxTradeQuantity returns the maximum tradable quantity snapshot

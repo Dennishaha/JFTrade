@@ -9,6 +9,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	qotgetsearchquotepb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsearchquote"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
@@ -29,40 +30,43 @@ func (r *futuMarketDataReader) QueryQuote(ctx context.Context, query broker.Quot
 		if err != nil {
 			return err
 		}
-		snapshot := &broker.QuoteSnapshot{AccountID: query.AccountID}
-		for _, qot := range qots {
-			if qot == nil {
-				continue
-			}
-			sym := securitySymbol(qot.GetSecurity())
-			item := broker.QuoteItem{
-				Symbol:     sym,
-				SymbolName: cloneStringPtr(qot.Name),
-				LastPrice:  qot.GetCurPrice(),
-				OpenPrice:  cloneFloat64Ptr(qot.OpenPrice),
-				HighPrice:  cloneFloat64Ptr(qot.HighPrice),
-				LowPrice:   cloneFloat64Ptr(qot.LowPrice),
-				Volume:     float64(qot.GetVolume()),
-				Turnover:   cloneFloat64Ptr(qot.Turnover),
-			}
-			if snapshot.Symbol == "" {
-				snapshot.Symbol = item.Symbol
-				snapshot.SymbolName = item.SymbolName
-				snapshot.LastPrice = item.LastPrice
-				snapshot.OpenPrice = item.OpenPrice
-				snapshot.HighPrice = item.HighPrice
-				snapshot.LowPrice = item.LowPrice
-				snapshot.Volume = item.Volume
-				snapshot.Turnover = item.Turnover
-			}
-			snapshot.Quotes = append(snapshot.Quotes, item)
-		}
-		result = snapshot
+		result = quoteSnapshotFromProtoList(query.AccountID, qots)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	return result, nil
+}
+
+func quoteSnapshotFromProtoList(accountID string, qots []*qotcommonpb.BasicQot) *broker.QuoteSnapshot {
+	snapshot := &broker.QuoteSnapshot{AccountID: accountID}
+	for _, qot := range qots {
+		if qot == nil {
+			continue
+		}
+		item := broker.QuoteItem{
+			Symbol:     securitySymbol(qot.GetSecurity()),
+			SymbolName: cloneStringPtr(qot.Name),
+			LastPrice:  qot.GetCurPrice(),
+			OpenPrice:  cloneFloat64Ptr(qot.OpenPrice),
+			HighPrice:  cloneFloat64Ptr(qot.HighPrice),
+			LowPrice:   cloneFloat64Ptr(qot.LowPrice),
+			Volume:     float64(qot.GetVolume()),
+			Turnover:   cloneFloat64Ptr(qot.Turnover),
+		}
+		if snapshot.Symbol == "" {
+			snapshot.Symbol = item.Symbol
+			snapshot.SymbolName = item.SymbolName
+			snapshot.LastPrice = item.LastPrice
+			snapshot.OpenPrice = item.OpenPrice
+			snapshot.HighPrice = item.HighPrice
+			snapshot.LowPrice = item.LowPrice
+			snapshot.Volume = item.Volume
+			snapshot.Turnover = item.Turnover
+		}
+		snapshot.Quotes = append(snapshot.Quotes, item)
+	}
+	return snapshot
 }
 
 func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLineQuery) (*broker.KLineSnapshot, error) {
@@ -140,28 +144,31 @@ func (r *futuMarketDataReader) QuerySecurityInfo(ctx context.Context, query brok
 		if err != nil {
 			return err
 		}
-		snapshot := &broker.SecurityInfoSnapshot{AccountID: query.AccountID}
-		for _, info := range staticInfos {
-			if info == nil || info.GetBasic() == nil {
-				continue
-			}
-			basic := info.GetBasic()
-			item := broker.SecurityInfoItem{
-				Symbol:       securitySymbol(basic.GetSecurity()),
-				Name:         cloneStringPtr(basic.Name),
-				SecurityType: new(enumName(basic.GetSecType(), qotcommonpb.SecurityType_name)),
-				LotSize:      cloneInt32Ptr(basic.LotSize),
-				ListTime:     cloneStringPtr(basic.ListTime),
-				IsDelisted:   cloneBoolPtr(basic.Delisting),
-			}
-			snapshot.Securities = append(snapshot.Securities, item)
-		}
-		result = snapshot
+		result = securityInfoSnapshotFromProtoList(query.AccountID, staticInfos)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	return result, nil
+}
+
+func securityInfoSnapshotFromProtoList(accountID string, staticInfos []*qotcommonpb.SecurityStaticInfo) *broker.SecurityInfoSnapshot {
+	snapshot := &broker.SecurityInfoSnapshot{AccountID: accountID}
+	for _, info := range staticInfos {
+		if info == nil || info.GetBasic() == nil {
+			continue
+		}
+		basic := info.GetBasic()
+		snapshot.Securities = append(snapshot.Securities, broker.SecurityInfoItem{
+			Symbol:       securitySymbol(basic.GetSecurity()),
+			Name:         cloneStringPtr(basic.Name),
+			SecurityType: new(enumName(basic.GetSecType(), qotcommonpb.SecurityType_name)),
+			LotSize:      cloneInt32Ptr(basic.LotSize),
+			ListTime:     cloneStringPtr(basic.ListTime),
+			IsDelisted:   cloneBoolPtr(basic.Delisting),
+		})
+	}
+	return snapshot
 }
 
 func (r *futuMarketDataReader) QuerySecuritySearch(ctx context.Context, query broker.SecuritySearchQuery) (*broker.SecuritySearchSnapshot, error) {
@@ -183,30 +190,34 @@ func (r *futuMarketDataReader) QuerySecuritySearch(ctx context.Context, query br
 		if err != nil {
 			return err
 		}
-		snapshot := &broker.SecuritySearchSnapshot{AccountID: query.AccountID}
-		for _, match := range matches {
-			if match == nil {
-				continue
-			}
-			marketCode := futuSearchMarketCode(qotcommonpb.QotMarket(match.GetMarket()))
-			symbol := canonicalSearchQuoteSymbol(marketCode, match.GetCode())
-			if symbol == "" {
-				continue
-			}
-			snapshot.Entries = append(snapshot.Entries, broker.SecuritySearchItem{
-				Market:       marketCode,
-				Symbol:       symbol,
-				Name:         strings.TrimSpace(match.GetName()),
-				SecurityType: enumName(match.GetSecType(), qotcommonpb.SecurityType_name),
-				IsWatched:    match.GetIsWatched(),
-			})
-		}
-		result = snapshot
+		result = securitySearchSnapshotFromProtoList(query.AccountID, matches)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	return result, nil
+}
+
+func securitySearchSnapshotFromProtoList(accountID string, matches []*qotgetsearchquotepb.SearchQuote) *broker.SecuritySearchSnapshot {
+	snapshot := &broker.SecuritySearchSnapshot{AccountID: accountID}
+	for _, match := range matches {
+		if match == nil {
+			continue
+		}
+		marketCode := futuSearchMarketCode(qotcommonpb.QotMarket(match.GetMarket()))
+		symbol := canonicalSearchQuoteSymbol(marketCode, match.GetCode())
+		if symbol == "" {
+			continue
+		}
+		snapshot.Entries = append(snapshot.Entries, broker.SecuritySearchItem{
+			Market:       marketCode,
+			Symbol:       symbol,
+			Name:         strings.TrimSpace(match.GetName()),
+			SecurityType: enumName(match.GetSecType(), qotcommonpb.SecurityType_name),
+			IsWatched:    match.GetIsWatched(),
+		})
+	}
+	return snapshot
 }
 
 func futuSearchMarketCode(value qotcommonpb.QotMarket) string {
@@ -344,21 +355,24 @@ func (r *futuMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query 
 		if err != nil {
 			return err
 		}
-		res := &broker.SecuritySnapshotResult{AccountID: query.AccountID}
-		observedAt := time.Now().UTC()
-		for _, snap := range snapshots {
-			item, ok := securitySnapshotItemFromProto(snap, observedAt)
-			if !ok {
-				continue
-			}
-			res.Snapshots = append(res.Snapshots, item)
-		}
-		result = res
+		result = securitySnapshotResultFromProtoList(query.AccountID, snapshots, time.Now().UTC())
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	return result, nil
+}
+
+func securitySnapshotResultFromProtoList(accountID string, snapshots []*qotgetsecuritysnapshotpb.Snapshot, observedAt time.Time) *broker.SecuritySnapshotResult {
+	result := &broker.SecuritySnapshotResult{AccountID: accountID}
+	for _, snapshot := range snapshots {
+		item, ok := securitySnapshotItemFromProto(snapshot, observedAt)
+		if !ok {
+			continue
+		}
+		result.Snapshots = append(result.Snapshots, item)
+	}
+	return result
 }
 
 func securitySnapshotItemFromProto(snap *qotgetsecuritysnapshotpb.Snapshot, observedAt time.Time) (broker.SecuritySnapshotItem, bool) {

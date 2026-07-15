@@ -33,11 +33,18 @@ func (s *Server) closeCoreServices(errs *[]error) {
 	}
 	s.appendCloseError(errs, "trading order updates close", s.stopTradingOrderUpdates)
 	s.appendCloseError(errs, "liveWebSocket close", s.closeLiveWebSocket)
+	s.closeStrategyRuntimes()
 	s.appendCloseError(errs, "marketdata close", s.closeMarketdataService)
 	s.appendCloseError(errs, "liveNotifications close", s.closeLiveNotifications)
 	s.appendCloseError(errs, "backtestSvc close", s.closeBacktestService)
 	s.closePineWorkerRunner(errs, "backtestPineWorkerRunner", s.backtestPineWorkerRunner)
 	s.closePineWorkerRunner(errs, "instancePineWorkerRunner", s.instancePineWorkerRunner)
+}
+
+func (s *Server) closeStrategyRuntimes() {
+	if s.strategyRuntimeManager != nil {
+		s.strategyRuntimeManager.close()
+	}
 }
 
 func (s *Server) closePersistentStores(errs *[]error) {

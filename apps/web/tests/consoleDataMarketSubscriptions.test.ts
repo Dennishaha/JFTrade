@@ -15,6 +15,18 @@ afterEach(() => {
 });
 
 describe("createStableWebConsumerId", () => {
+	it("uses an in-memory identity when the browser session is unavailable", async () => {
+		vi.stubGlobal("window", undefined);
+		vi.stubGlobal("crypto", { randomUUID: vi.fn(() => "fallback") });
+		const module = await import(
+			"../src/composables/consoleDataMarketSubscriptions"
+		);
+
+		expect(module.createStableWebConsumerId("server-render")).toBe(
+			"web:server-render:fallback:window:fallback",
+		);
+	});
+
   it("keeps cloned sessionStorage bases but separates browser windows", async () => {
     window.sessionStorage.setItem(storageKey, "web:market-page:cloned");
 
@@ -131,11 +143,11 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
       marketDataError: ref(""),
     });
 
-    await controller.acquireMarketDataSubscription({
+    expect(await controller.acquireMarketDataSubscription({
       consumerId: "web:chart",
       channel: "KLINE",
       interval: "k_60m",
-    });
+    })).toBe(true);
     await controller.releaseMarketDataSubscription({
       consumerId: "web:chart",
       channel: "KLINE",
@@ -202,6 +214,24 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     );
   });
 
+	it("uses the default market and omits an empty instrument search query", async () => {
+		const fetchMock = vi.fn(async () =>
+			successResponse({ entries: [], total: 0 }),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+		const module = await import(
+			"../src/composables/consoleDataMarketSubscriptions"
+		);
+		const harness = createControllerHarness(module, { market: " " });
+
+		await harness.controller.loadMarketInstrumentReferences("   ");
+
+		expect(fetchMock.mock.calls[0]?.[0]).toContain(
+			"/api/v1/market-data/instruments?limit=50&market=HK",
+		);
+		expect(fetchMock.mock.calls[0]?.[0]).not.toContain("query=");
+	});
+
   it("validates acquire and release inputs before touching subscription quota", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -210,7 +240,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     );
     const harness = createControllerHarness(module, { market: " ", symbol: " " });
 
-    await harness.controller.acquireMarketDataSubscription({ consumerId: "web:chart" });
+    expect(await harness.controller.acquireMarketDataSubscription({ consumerId: "web:chart" })).toBe(false);
     expect(harness.marketDataError.value).toBe("申请实时订阅前请填写市场和标的。");
     await harness.controller.releaseMarketDataSubscription({ consumerId: "web:chart" });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -299,7 +329,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     );
     const harness = createControllerHarness(module);
 
-    await harness.controller.acquireMarketDataSubscription({ consumerId: "web:chart" });
+    expect(await harness.controller.acquireMarketDataSubscription({ consumerId: "web:chart" })).toBe(false);
     expect(harness.marketDataError.value).toBe("subscription backend failed");
     await harness.controller.releaseMarketDataSubscription({ consumerId: "web:chart" });
     expect(harness.marketDataError.value).toBe("subscription backend failed");
@@ -309,6 +339,35 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     expect(harness.marketDataError.value).toBe("subscription backend failed");
     expect(harness.isLoadingMarketData.value).toBe(false);
   });
+
+	it("uses fallback messages for non-Error transport failures", async () => {
+		const fetchMock = vi.fn(async () => {
+			throw "offline";
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		const module = await import(
+			"../src/composables/consoleDataMarketSubscriptions"
+		);
+		const harness = createControllerHarness(module);
+
+		await harness.controller.loadMarketDataSubscriptions();
+		expect(harness.marketDataError.value).toBe("行情订阅加载失败。");
+		expect(
+			await harness.controller.acquireMarketDataSubscription({
+				consumerId: "web:chart",
+			}),
+		).toBe(false);
+		expect(harness.marketDataError.value).toBe("行情订阅申请失败。");
+		await harness.controller.releaseMarketDataSubscription({
+			consumerId: "web:chart",
+		});
+		expect(harness.marketDataError.value).toBe("行情订阅释放失败。");
+		await harness.controller.heartbeatMarketDataConsumer("web:chart");
+		expect(harness.marketDataError.value).toBe("行情订阅心跳失败。");
+		await harness.controller.unsubscribeAllMarketData();
+		expect(harness.marketDataError.value).toBe("清理闲置网页订阅失败。");
+		expect(harness.isLoadingMarketData.value).toBe(false);
+	});
 });
 
 function emptySubscriptions(): MarketDataSubscriptionsResponse {

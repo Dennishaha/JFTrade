@@ -127,6 +127,34 @@ func TestSubscriptionReleaseConsumerOnlyClearsConsumer(t *testing.T) {
 	}
 }
 
+func TestClearSubscriptionRoutePreservesRunningStrategyLease(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := srv.NewService(&routeTestProvider{})
+	lease, err := service.AcquireManagedSubscription(t.Context(), "strategy-runtime:one", []srv.InstrumentRef{{
+		Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "5m",
+	}})
+	if err != nil {
+		t.Fatalf("AcquireManagedSubscription: %v", err)
+	}
+	defer lease.Release()
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), service)
+
+	postSubscriptionJSON(t, router, "/api/v1/market-data/subscriptions", map[string]any{
+		"consumerId":  "chart-main",
+		"instruments": []any{map[string]any{"market": "HK", "symbol": "00700"}},
+	})
+	cleared := deleteSubscriptionJSON(t, router, "/api/v1/market-data/subscriptions")
+	if cleared["totalActiveSubscriptions"] != float64(1) {
+		t.Fatalf("web cleanup removed strategy lease: %#v", cleared)
+	}
+	entry := singleRouteEntry(t, cleared)
+	consumers := jftradeCheckedTypeAssertion[[]any](entry["consumers"])
+	if entry["key"] != "KLINE:US:AAPL:5m" || len(consumers) != 1 || consumers[0] != "strategy-runtime:one" {
+		t.Fatalf("remaining managed entry = %#v", entry)
+	}
+}
+
 func TestCandlesRoutePreservesLegacyQueryParsing(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{}

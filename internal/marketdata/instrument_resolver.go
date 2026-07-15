@@ -163,12 +163,12 @@ func (r *MarketSubsetInstrumentResolver) Resolve(ctx context.Context, requestedM
 
 	normalizedQuery := strings.ToUpper(strings.ReplaceAll(trimmedQuery, ":", "."))
 	if hasRecognizedMarketPrefix(normalizedQuery) {
-		return r.resolveQualified(ctx, result, normalizedQuery, limit)
+		return r.resolveQualified(ctx, result, normalizedQuery)
 	}
 	return r.resolveSearch(ctx, result, trimmedQuery, normalizedQuery, limit)
 }
 
-func (r *MarketSubsetInstrumentResolver) resolveQualified(ctx context.Context, result InstrumentResolution, query string, limit int) (InstrumentResolution, error) {
+func (r *MarketSubsetInstrumentResolver) resolveQualified(ctx context.Context, result InstrumentResolution, query string) (InstrumentResolution, error) {
 	leaves, code, err := resolutionLookupTargets(result.RequestedMarket, query)
 	if err != nil {
 		return InstrumentResolution{}, instrumentSearchInputErrorf("%v", err)
@@ -177,14 +177,10 @@ func (r *MarketSubsetInstrumentResolver) resolveQualified(ctx context.Context, r
 	if err != nil {
 		return InstrumentResolution{}, err
 	}
-	allEntries := entries
-	if len(entries) > limit {
-		entries = entries[:limit]
-	}
 	result.Entries = entries
 	result.Failures = failures
 	result.TotalReturned = len(entries)
-	result.ResolutionStatus = classifyInstrumentResolution(allEntries, len(failures))
+	result.ResolutionStatus = classifyInstrumentResolution(entries, len(failures))
 	return result, nil
 }
 
@@ -223,9 +219,6 @@ func (r *MarketSubsetInstrumentResolver) search(ctx context.Context, query strin
 	}
 
 	resultCh := r.searchGroup.DoChan(key, func() (any, error) {
-		if cached, ok := r.cachedSearch(key); ok {
-			return cached, nil
-		}
 		sharedCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), instrumentSearchTimeout)
 		defer cancel()
 		entries, err := r.searchProvider.SearchInstruments(sharedCtx, strings.TrimSpace(query), maxInstrumentSearchLimit)
@@ -254,10 +247,7 @@ func (r *MarketSubsetInstrumentResolver) search(ctx context.Context, query strin
 		if searchResult.Err != nil {
 			return nil, searchResult.Err
 		}
-		entries, ok := searchResult.Val.([]InstrumentCandidate)
-		if !ok {
-			return nil, fmt.Errorf("market-data instrument search returned an invalid result")
-		}
+		entries := searchResult.Val.([]InstrumentCandidate)
 		return append([]InstrumentCandidate(nil), entries...), nil
 	}
 }
@@ -279,7 +269,6 @@ func (r *MarketSubsetInstrumentResolver) cachedSearch(key string) ([]InstrumentC
 func (r *MarketSubsetInstrumentResolver) lookupLeaves(ctx context.Context, leaves []string, code string) ([]InstrumentCandidate, []InstrumentResolutionFailure, error) {
 	responses := make(chan instrumentLeafLookupResult, len(leaves))
 	for index, leaf := range leaves {
-		index, leaf := index, leaf
 		go func() {
 			candidates, lookupErr := r.provider.LookupInstrument(ctx, leaf, code)
 			responses <- instrumentLeafLookupResult{index: index, market: leaf, candidates: candidates, err: lookupErr}
@@ -287,7 +276,7 @@ func (r *MarketSubsetInstrumentResolver) lookupLeaves(ctx context.Context, leave
 	}
 
 	slots := make([]instrumentLeafLookupResult, len(leaves))
-	for received := 0; received < len(leaves); received++ {
+	for range leaves {
 		select {
 		case <-ctx.Done():
 			return nil, nil, ctx.Err()
@@ -406,9 +395,6 @@ func normalizeSearchInstrumentCandidate(candidate InstrumentCandidate) (Instrume
 	}
 	if prefix, bareCode, ok := splitStableSearchInstrument(code); ok && prefix == marketCode {
 		code = bareCode
-	}
-	if marketCode == "" {
-		marketCode = "UNKNOWN"
 	}
 	if code == "" {
 		return InstrumentCandidate{}, false

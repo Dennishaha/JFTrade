@@ -47,7 +47,6 @@ const futuBroker = computed(
 );
 
 const savedIntegration = computed(() => futuBroker.value?.integration ?? null);
-const integrationDefaults = computed(() => futuBroker.value?.defaults ?? null);
 const hasSavedIntegration = computed(() => savedIntegration.value != null);
 const isSavedEnabled = computed(() => savedIntegration.value?.enabled === true);
 const isPendingSetup = computed(() => !hasSavedIntegration.value);
@@ -199,8 +198,7 @@ watch(
   (broker) => {
     const source =
       broker?.integration?.config ??
-      broker?.defaults ??
-      integrationDefaults.value;
+      broker?.defaults;
     if (source == null) {
       return;
     }
@@ -602,7 +600,7 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
             color="error"
             @click="cancelAllMarketDataSubscriptions"
           >
-            取消全部实时行情订阅
+            清理闲置网页订阅
           </v-btn>
           <v-btn
             :loading="savingIntegration"

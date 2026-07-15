@@ -276,6 +276,10 @@ func handleAcquireSubscription(svc *srv.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "consumerId and instruments are required")
 			return
 		}
+		if err := srv.ValidateSubscriptionRefs(instruments); err != nil {
+			httpserver.WriteError(c, 400, "BAD_REQUEST", err.Error())
+			return
+		}
 		result, err := svc.AcquireSubscription(c.Request.Context(), consumerID, instruments)
 		if err != nil {
 			httpserver.WriteError(c, 500, "SUBSCRIPTION_FAILED", err.Error())
@@ -315,6 +319,12 @@ func handleReleaseSubscription(svc *srv.Service) gin.HandlerFunc {
 		if !validTarget {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "release target market and symbol are required")
 			return
+		}
+		if hasTarget {
+			if err := srv.ValidateSubscriptionRefs([]srv.InstrumentRef{target}); err != nil {
+				httpserver.WriteError(c, 400, "BAD_REQUEST", err.Error())
+				return
+			}
 		}
 		var err error
 		if hasTarget {
@@ -401,6 +411,10 @@ func handleHeartbeat(svc *srv.Service) gin.HandlerFunc {
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid heartbeat request")
+			return
+		}
+		if strings.TrimSpace(req.ConsumerID) == "" {
+			httpserver.WriteError(c, 400, "BAD_REQUEST", "consumerId is required")
 			return
 		}
 		result, err := svc.Heartbeat(c.Request.Context(), req.ConsumerID)

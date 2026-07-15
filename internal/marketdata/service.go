@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -142,11 +143,14 @@ type ProviderStatusResponse struct {
 
 // Service 行情业务门面。
 type Service struct {
-	provider      Provider
-	resolver      *MarketSubsetInstrumentResolver
-	cache         *Cache
-	subscriptions *subscriptionRegistry
-	collector     *Collector
+	provider          Provider
+	resolver          *MarketSubsetInstrumentResolver
+	cache             *Cache
+	subscriptions     *subscriptionRegistry
+	collector         *Collector
+	subscriptionMu    sync.RWMutex
+	reconciler        SubscriptionReconciler
+	additionalDemands []DemandSource
 }
 
 // NewService 创建行情服务。
@@ -169,11 +173,15 @@ func (s *Service) ProviderStatus(ctx context.Context) (ProviderStatusResponse, e
 	if err != nil {
 		return ProviderStatusResponse{}, err
 	}
+	subscriptions, err := s.GetSubscriptions(ctx)
+	if err != nil {
+		return ProviderStatusResponse{}, err
+	}
 	return ProviderStatusResponse{
 		Descriptor:    descriptor,
 		Health:        health,
 		Runtime:       s.RuntimeState(),
-		Subscriptions: s.subscriptions.snapshot(),
+		Subscriptions: subscriptions,
 		CheckedAt:     time.Now().UTC().Format(time.RFC3339Nano),
 	}, nil
 }
@@ -190,7 +198,30 @@ func (s *Service) StartCollector(quotes QuoteSource, push PushSource, handler Pu
 	s.collector = NewCollector(s.cache, quotes, push, handler, CollectorOptions{})
 	allDemands := []DemandSource{DemandSourceFunc(s.subscriptions.activeInstruments)}
 	allDemands = append(allDemands, demands...)
+	s.subscriptionMu.Lock()
+	s.additionalDemands = append([]DemandSource(nil), demands...)
+	s.subscriptionMu.Unlock()
 	s.collector.SetDemandSources(allDemands...)
+	s.subscriptionMu.RLock()
+	reconciler := s.reconciler
+	s.subscriptionMu.RUnlock()
+	if reconciler != nil {
+		s.collector.SetSubscriptionReconciler(SubscriptionDemandSourceFunc(s.activeSubscriptionDemand), reconciler)
+	}
+}
+
+// SetSubscriptionReconciler installs the broker-specific physical subscription
+// driver while keeping desired ownership in the broker-neutral service.
+func (s *Service) SetSubscriptionReconciler(reconciler SubscriptionReconciler) {
+	if s == nil {
+		return
+	}
+	s.subscriptionMu.Lock()
+	s.reconciler = reconciler
+	s.subscriptionMu.Unlock()
+	if s.collector != nil {
+		s.collector.SetSubscriptionReconciler(SubscriptionDemandSourceFunc(s.activeSubscriptionDemand), reconciler)
+	}
 }
 
 func (s *Service) WakeCollector() {
@@ -219,7 +250,13 @@ func (s *Service) RuntimeState() RuntimeState {
 }
 
 func (s *Service) Close() error {
-	if s == nil || s.collector == nil {
+	if s == nil {
+		return nil
+	}
+	if err := s.reconcileDesired(context.Background(), nil); err != nil {
+		log.Printf("marketdata final subscription reconciliation failed: %v", err)
+	}
+	if s.collector == nil {
 		return nil
 	}
 	return s.collector.Close()
@@ -315,17 +352,66 @@ func (s *Service) GetDepth(ctx context.Context, market, symbol string, num int) 
 
 // AcquireSubscription 申请行情订阅。
 func (s *Service) AcquireSubscription(ctx context.Context, consumerID string, instruments []InstrumentRef) (SubscriptionResult, error) {
-	result := s.subscriptions.acquire(consumerID, instruments)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := validateSubscriptionRefs(instruments); err != nil {
+		return nil, err
+	}
+	s.subscriptions.acquire(consumerID, instruments)
+	if err := s.reconcileSubscriptions(ctx); err != nil {
+		for _, instrument := range instruments {
+			s.subscriptions.release(consumerID, instrument)
+		}
+		_ = s.reconcileSubscriptions(context.Background())
+		return nil, err
+	}
 	s.WakeCollector()
-	return result, nil
+	snapshot, _ := s.GetSubscriptions(ctx)
+	return SubscriptionResult(snapshot), nil
+}
+
+// AcquireManagedSubscription creates a non-expiring lease for an in-process
+// consumer such as a running strategy. The lease is rolled back if the broker
+// cannot establish the requested subscriptions.
+func (s *Service) AcquireManagedSubscription(ctx context.Context, consumerID string, instruments []InstrumentRef) (*ManagedSubscription, error) {
+	if s == nil {
+		return nil, fmt.Errorf("market-data service is unavailable")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := validateSubscriptionRefs(instruments); err != nil {
+		return nil, err
+	}
+	s.subscriptions.acquireManaged(consumerID, instruments)
+	if err := s.reconcileSubscriptions(ctx); err != nil {
+		s.subscriptions.clear(consumerID)
+		_ = s.reconcileSubscriptions(context.Background())
+		return nil, err
+	}
+	s.WakeCollector()
+	return newManagedSubscription(func() {
+		s.subscriptions.clear(consumerID)
+		if err := s.reconcileSubscriptions(context.Background()); err != nil {
+			log.Printf("marketdata managed subscription release reconciliation failed: %v", err)
+		}
+		s.WakeCollector()
+	}), nil
 }
 
 // ReleaseSubscription 释放行情订阅。
 func (s *Service) ReleaseSubscription(ctx context.Context, consumerID string, target ...InstrumentRef) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(target) > 0 {
 		s.subscriptions.release(consumerID, target[0])
 	} else {
 		s.subscriptions.clear(consumerID)
+	}
+	if err := s.reconcileSubscriptions(ctx); err != nil {
+		log.Printf("marketdata subscription release reconciliation deferred: %v", err)
 	}
 	s.WakeCollector()
 	return nil
@@ -333,28 +419,87 @@ func (s *Service) ReleaseSubscription(ctx context.Context, consumerID string, ta
 
 // Heartbeat 刷新订阅心跳。
 func (s *Service) Heartbeat(ctx context.Context, consumerID string) (HeartbeatResult, error) {
-	return s.subscriptions.heartbeat(consumerID), nil
+	s.subscriptions.heartbeat(consumerID)
+	if err := s.reconcileSubscriptions(ctx); err != nil {
+		log.Printf("marketdata subscription heartbeat reconciliation deferred: %v", err)
+	}
+	snapshot, err := s.GetSubscriptions(ctx)
+	return HeartbeatResult(snapshot), err
 }
 
 // ClearSubscriptions 清空订阅。
 func (s *Service) ClearSubscriptions(ctx context.Context, consumerID ...string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	rawConsumerID := ""
 	if len(consumerID) > 0 {
 		rawConsumerID = consumerID[0]
 	}
 	s.subscriptions.clear(rawConsumerID)
+	if err := s.reconcileSubscriptions(ctx); err != nil {
+		log.Printf("marketdata subscription clear reconciliation deferred: %v", err)
+	}
 	s.WakeCollector()
 	return nil
 }
 
 // GetSubscriptions 返回当前订阅快照。
 func (s *Service) GetSubscriptions(ctx context.Context) (SubscriptionsSnapshot, error) {
-	return s.subscriptions.snapshot(), nil
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	snapshot := s.subscriptions.snapshot()
+	s.subscriptionMu.RLock()
+	reconciler := s.reconciler
+	s.subscriptionMu.RUnlock()
+	var broker map[string]any
+	if reconciler != nil {
+		broker = reconciler.SubscriptionState()
+	}
+	return decorateSubscriptionSnapshot(snapshot, broker), nil
 }
 
 // GetActiveInstruments 返回当前活跃标的列表。
 func (s *Service) GetActiveInstruments(ctx context.Context) ([]string, error) {
 	return s.subscriptions.activeInstruments(), nil
+}
+
+func (s *Service) reconcileSubscriptions(ctx context.Context) error {
+	return s.reconcileDesired(ctx, s.activeSubscriptionDemand())
+}
+
+func (s *Service) activeSubscriptionDemand() []InstrumentRef {
+	refs := s.subscriptions.activeSubscriptions()
+	s.subscriptionMu.RLock()
+	demands := append([]DemandSource(nil), s.additionalDemands...)
+	s.subscriptionMu.RUnlock()
+	for _, demand := range demands {
+		if demand == nil {
+			continue
+		}
+		for _, instrumentID := range demand.ActiveInstruments() {
+			market, symbol := normalizeSubscriptionInstrument("", instrumentID)
+			if market == "" || symbol == "" {
+				continue
+			}
+			refs = append(refs, InstrumentRef{Channel: "SNAPSHOT", Market: market, Symbol: symbol})
+		}
+	}
+	return refs
+}
+
+func (s *Service) reconcileDesired(ctx context.Context, desired []InstrumentRef) error {
+	if s == nil {
+		return nil
+	}
+	s.subscriptionMu.RLock()
+	reconciler := s.reconciler
+	s.subscriptionMu.RUnlock()
+	if reconciler == nil {
+		return nil
+	}
+	return reconciler.ReconcileSubscriptions(ctx, desired)
 }
 
 // GetLatestTicks 批量返回最新 Tick 数据。

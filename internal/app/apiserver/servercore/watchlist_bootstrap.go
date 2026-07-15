@@ -52,7 +52,10 @@ func (s *Server) initializeWatchlistService() {
 }
 
 func (s *Server) probeFutuWatchlistSource(ctx context.Context) error {
-	probe := s.probeOpenD(ctx)
+	return futuWatchlistProbeError(s.probeOpenD(ctx))
+}
+
+func futuWatchlistProbeError(probe opendProbe) error {
 	if probe.Connectivity != "connected" {
 		if probe.LastError != nil && *probe.LastError != "" {
 			return fmt.Errorf("%w: %s", watchlist.ErrUnavailable, *probe.LastError)
@@ -100,9 +103,5 @@ func (s *Server) futuWatchlistBatchSnapshotSource() (broker.BatchSnapshotSource,
 	if reader == nil {
 		return nil, fmt.Errorf("%w: Futu SecuritySnapshot is unavailable", watchlist.ErrUnavailable)
 	}
-	source, ok := reader.(broker.BatchSnapshotSource)
-	if !ok {
-		return nil, fmt.Errorf("%w: Futu SecuritySnapshot is unsupported", watchlist.ErrUnavailable)
-	}
-	return source, nil
+	return reader, nil
 }

@@ -219,8 +219,8 @@ func TestQueryTickerReusesSingleOpenDConnection(t *testing.T) {
 	if !server.lastInitRecvNotify() {
 		t.Fatal("expected InitConnect to request OpenD notifications")
 	}
-	if got := server.subCallCount(); got != 1 {
-		t.Fatalf("expected one Qot_Sub call, got %d", got)
+	if got := server.subCallCount(); got != 0 {
+		t.Fatalf("snapshot ticker queries must not create subscriptions, got %d Qot_Sub calls", got)
 	}
 	if got := server.basicQotCallCount(); got != 2 {
 		t.Fatalf("expected two GetBasicQot calls, got %d", got)

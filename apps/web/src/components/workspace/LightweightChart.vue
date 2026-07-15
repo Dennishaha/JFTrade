@@ -52,7 +52,7 @@ let heldChartSubscription: {
   channel: "KLINE" | "TICK";
   interval: string;
 } | null = null;
-let heartbeatTimer: number | null = null;
+let heartbeatTimer = 0;
 let reloadInFlight: { key: string; promise: Promise<void> } | null = null;
 let chartReloadSeq = 0;
 
@@ -181,14 +181,15 @@ function handleChartVisibilityChange(): void {
   // Wait for the WebSocket reconnect (triggered by AppShell) before deciding
   // the recovery path, so we don't trigger a full reload while reconnecting.
   void liveHub.waitForConnection(3_000).then((connected) => {
-    // Smart recovery: if SSE is connected and data is fresh, only send heartbeat
+    // A background tab can outlive the server-side lease. Re-acquire the exact
+    // target whenever the page becomes visible, even if cached data is fresh.
     if (
       connected &&
       isLiveStreamConnected.value &&
       !isMarketDataStale(30_000) &&
       hasLoadedCurrentTarget
     ) {
-      void heartbeatMarketDataConsumer(chartConsumerId);
+      void syncChartSubscription(target);
       return;
     }
 
@@ -203,9 +204,10 @@ function handleChartVisibilityChange(): void {
       return;
     }
 
-    // SSE disconnected or data very stale → full reload
+    // SSE disconnected or data very stale → preserve the visible chart while
+    // re-confirming its lease and refreshing transport state.
     if (hasLoadedCurrentTarget) {
-      void heartbeatMarketDataConsumer(chartConsumerId);
+      void reload({ preserveExisting: true });
       return;
     }
 
@@ -244,13 +246,16 @@ async function syncChartSubscription(
     return;
   }
 
-  await acquireMarketDataSubscription({
+  const acquired = await acquireMarketDataSubscription({
     consumerId: chartConsumerId,
     market: next.market,
     symbol: next.symbol,
     channel: next.channel,
     ...(next.channel === "KLINE" ? { interval: next.interval } : {}),
   });
+  if (!acquired) {
+    return;
+  }
   if (requestSeq !== chartReloadSeq) {
     await releaseMarketDataSubscription({
       consumerId: chartConsumerId,
@@ -283,12 +288,8 @@ function setPeriod(p: string): void {
 
 onMounted(() => {
   void loadMarketDataProviderStatus();
-  if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", handleChartVisibilityChange);
-  }
-  if (typeof window !== "undefined") {
-    window.addEventListener("online", handleChartOnline);
-  }
+  document.addEventListener("visibilitychange", handleChartVisibilityChange);
+  window.addEventListener("online", handleChartOnline);
   void reload();
   heartbeatTimer = window.setInterval(() => {
     void heartbeatMarketDataConsumer(chartConsumerId);
@@ -296,16 +297,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  if (typeof document !== "undefined") {
-    document.removeEventListener("visibilitychange", handleChartVisibilityChange);
-  }
-  if (typeof window !== "undefined") {
-    window.removeEventListener("online", handleChartOnline);
-  }
-  if (heartbeatTimer != null) {
-    window.clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
-  }
+  document.removeEventListener("visibilitychange", handleChartVisibilityChange);
+  window.removeEventListener("online", handleChartOnline);
+  window.clearInterval(heartbeatTimer);
   if (heldChartSubscription != null) {
     void releaseMarketDataSubscription({
       consumerId: chartConsumerId,

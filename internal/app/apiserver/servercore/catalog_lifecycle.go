@@ -31,11 +31,7 @@ func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefi
 	if err := s.saveStrategy(instance); err != nil {
 		return strategyListItem{}, err
 	}
-	stored, ok := s.strategy(instance.ID)
-	if !ok {
-		return strategyListItem{}, os.ErrNotExist
-	}
-	return strategyToListItem(stored), nil
+	return strategyToListItem(s.normalizeStrategy(instance)), nil
 }
 
 func (s *strategyCatalogStore) updateStrategyBinding(instanceID string, binding strategyInstanceBinding) (strategyListItem, error) {
@@ -145,14 +141,7 @@ func (s *strategyCatalogStore) applyDefinitionToLinkedStrategies(definition stra
 			result.AlreadyLatest = append(result.AlreadyLatest, strategy.ID)
 			continue
 		}
-		changed, refreshErr := s.refreshStrategyDefinitionLocked(&strategy, definition, params, now)
-		if refreshErr != nil {
-			return strategyApplyLinkedInstancesResponse{}, refreshErr
-		}
-		if !changed {
-			result.AlreadyLatest = append(result.AlreadyLatest, strategy.ID)
-			continue
-		}
+		_, _ = s.refreshStrategyDefinitionLocked(&strategy, definition, params, now)
 		s.data.Strategies[index] = strategy
 		persistChanged = true
 		result.Applied = append(result.Applied, strategy.ID)
@@ -219,11 +208,7 @@ func (s *strategyCatalogStore) appendStrategyRuntimeEvent(instanceID string, log
 		if strategy.ID != instanceID {
 			continue
 		}
-		legacyWritten := s.recordStrategyEventsLocked(&strategy, now, logMessage, strategyLogLevelForKind(kind, logMessage), "runtime", kind, detail)
-		if legacyWritten {
-			s.data.Strategies[index] = strategy
-			return s.persistLocked()
-		}
+		s.recordStrategyEventsLocked(&strategy, now, logMessage, strategyLogLevelForKind(kind, logMessage), "runtime", kind, detail)
 		return nil
 	}
 

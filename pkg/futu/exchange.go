@@ -515,13 +515,7 @@ func futuSecurityFromSymbol(symbol string) (*qotcommonpb.Security, string, error
 		}
 		return nil, "", err
 	}
-	if instrument.Symbol == "" || instrument.Prefix == "" || instrument.Code == "" {
-		return nil, "", fmt.Errorf("futu exchange: symbol is required")
-	}
-	qotMarket, err := futuQotMarketForCode(instrument.Prefix)
-	if err != nil {
-		return nil, "", err
-	}
+	qotMarket, _ := futuQotMarketForCode(instrument.Prefix)
 	return &qotcommonpb.Security{Market: new(int32(qotMarket)), Code: new(instrument.Code)}, instrument.Symbol, nil
 }
 

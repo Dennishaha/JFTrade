@@ -61,16 +61,7 @@ func (e *Exchange) QueryBrokerMarginRatios(ctx context.Context, query BrokerMarg
 			return err
 		}
 
-		snapshots = make([]BrokerMarginRatioSnapshot, 0, len(infoList))
-		for _, info := range infoList {
-			if info == nil {
-				continue
-			}
-			snapshots = append(snapshots, brokerMarginRatioSnapshotFromProto(resolved, info))
-		}
-		sort.Slice(snapshots, func(i, j int) bool {
-			return snapshots[i].Symbol < snapshots[j].Symbol
-		})
+		snapshots = brokerMarginRatioSnapshotsFromProto(resolved, infoList)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -101,21 +92,36 @@ func marginRatioInfoListWithUnknownStockRecovery(
 		if !ok {
 			return nil, err
 		}
-		next := make([]*qotcommonpb.Security, 0, len(remaining))
-		for _, security := range remaining {
-			if security == nil {
-				continue
-			}
-			if strings.EqualFold(strings.TrimSpace(security.GetCode()), unknownCode) {
-				continue
-			}
-			next = append(next, security)
-		}
-		if len(next) == len(remaining) {
+		next, removed := removeUnknownMarginSecurity(remaining, unknownCode)
+		if !removed {
 			return nil, err
 		}
 		remaining = next
 	}
+}
+
+func brokerMarginRatioSnapshotsFromProto(account resolvedTradeAccount, infos []*trdgetmarginratiopb.MarginRatioInfo) []BrokerMarginRatioSnapshot {
+	snapshots := make([]BrokerMarginRatioSnapshot, 0, len(infos))
+	for _, info := range infos {
+		if info != nil {
+			snapshots = append(snapshots, brokerMarginRatioSnapshotFromProto(account, info))
+		}
+	}
+	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].Symbol < snapshots[j].Symbol })
+	return snapshots
+}
+
+func removeUnknownMarginSecurity(securities []*qotcommonpb.Security, unknownCode string) ([]*qotcommonpb.Security, bool) {
+	next := make([]*qotcommonpb.Security, 0, len(securities))
+	removed := false
+	for _, security := range securities {
+		if security == nil || strings.EqualFold(strings.TrimSpace(security.GetCode()), unknownCode) {
+			removed = true
+			continue
+		}
+		next = append(next, security)
+	}
+	return next, removed
 }
 
 func isUnknownStockError(err error) bool {

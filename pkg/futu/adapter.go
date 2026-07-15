@@ -114,21 +114,21 @@ func (s *futuTradingService) PlaceOrder(ctx context.Context, query broker.PlaceO
 		return nil, err
 	}
 
-	// Use OriginalStatus for the broker-facing status string since it carries
-	// the Futu-specific submission status ("SUBMITTED"). Fall back to
-	// OrderStatus if OriginalStatus is empty.
-	status := strings.TrimSpace(result.Order.OriginalStatus)
-	if status == "" {
-		status = string(result.Order.Status)
-	}
 	return &broker.PlaceOrderResult{
 		AccountID:          result.AccountID,
 		TradingEnvironment: result.TradingEnvironment,
 		Market:             result.Market,
 		BrokerOrderID:      formatOrderID(result.Order.OrderID),
 		BrokerOrderIDEx:    result.BrokerOrderIDEx,
-		Status:             status,
+		Status:             brokerOrderStatus(result.Order),
 	}, nil
+}
+
+func brokerOrderStatus(order bbgotypes.Order) string {
+	if status := strings.TrimSpace(order.OriginalStatus); status != "" {
+		return status
+	}
+	return string(order.Status)
 }
 
 func (s *futuTradingService) CancelOrders(ctx context.Context, query broker.ReadQuery, orders ...broker.CancelOrder) error {

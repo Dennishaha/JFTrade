@@ -25,6 +25,8 @@ var (
 	newPineWorkerLauncher = defaultNewPineWorkerLauncher
 	newPineWorkerDialer   = defaultNewPineWorkerDialer
 	selectPineWorkerAsset = pineworkerassets.Select
+	pineWorkerGetwd       = os.Getwd
+	pineWorkerAbs         = filepath.Abs
 )
 
 const (
@@ -294,10 +296,7 @@ func freePineWorkerPort(ctx context.Context, host string) (int, error) {
 	defer func() {
 		_ = listener.Close()
 	}()
-	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
-	if !ok {
-		return 0, fmt.Errorf("allocate pine worker port: unexpected address %s", listener.Addr())
-	}
+	tcpAddr := listener.Addr().(*net.TCPAddr)
 	return tcpAddr.Port, nil
 }
 
@@ -493,7 +492,7 @@ func resolvePineWorkerRuntime(settings jftsettings.PineWorkerSettings) string {
 }
 
 func resolvePineWorkerWorkDir(bundlePath string) string {
-	wd, err := os.Getwd()
+	wd, err := pineWorkerGetwd()
 	if err == nil {
 		if root := findPineWorkerRepoRoot(wd); root != "" {
 			return root
@@ -539,7 +538,7 @@ func resolvePineWorkerRuntimePath(value string, base string) string {
 	if base != "" {
 		return filepath.Join(base, value)
 	}
-	absolute, err := filepath.Abs(value)
+	absolute, err := pineWorkerAbs(value)
 	if err != nil {
 		return filepath.Clean(value)
 	}

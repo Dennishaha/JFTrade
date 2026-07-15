@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, defineAsyncComponent, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import type { RuntimeDependenciesResponse } from "@/contracts";
-import FutuIntegrationSection from "./FutuIntegrationSection.vue";
 import RuntimeDependenciesSection from "./RuntimeDependenciesSection.vue";
 import SettingsAccountDiscoverySection from "./SettingsAccountDiscoverySection.vue";
 import SettingsManagedAccountsSection from "./SettingsManagedAccountsSection.vue";
 import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
 import { useConsoleData } from "../composables/useConsoleData";
+
+const FutuIntegrationSection = defineAsyncComponent(
+  () =>
+    import("./FutuIntegrationSection.vue").then(
+      ({ default: component }) => component,
+    ),
+);
 
 const console_ = useConsoleData();
 const router = useRouter();

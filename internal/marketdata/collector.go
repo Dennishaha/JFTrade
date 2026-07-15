@@ -40,6 +40,21 @@ func (f DemandSourceFunc) ActiveInstruments() []string {
 	return f()
 }
 
+// SubscriptionDemandSource reports the exact broker-neutral subscriptions
+// currently required, including channel and K-line interval.
+type SubscriptionDemandSource interface {
+	ActiveSubscriptions() []InstrumentRef
+}
+
+type SubscriptionDemandSourceFunc func() []InstrumentRef
+
+func (f SubscriptionDemandSourceFunc) ActiveSubscriptions() []InstrumentRef {
+	if f == nil {
+		return nil
+	}
+	return f()
+}
+
 // QuoteSource supplies polling fallback ticks.
 type QuoteSource interface {
 	QueryTickers(context.Context, []string) (map[string]Tick, error)
@@ -87,18 +102,20 @@ type Collector struct {
 	push        PushSource
 	pushHandler PushTickHandler
 
-	mu            sync.Mutex
-	demandSources []DemandSource
-	state         RuntimeState
-	key           string
-	stream        PushStream
-	streamCancel  context.CancelFunc
-	ctx           context.Context
-	cancel        context.CancelFunc
-	wg            sync.WaitGroup
-	closeOnce     sync.Once
-	wake          chan struct{}
-	paused        bool
+	mu                     sync.Mutex
+	demandSources          []DemandSource
+	subscriptionDemand     SubscriptionDemandSource
+	subscriptionReconciler SubscriptionReconciler
+	state                  RuntimeState
+	key                    string
+	stream                 PushStream
+	streamCancel           context.CancelFunc
+	ctx                    context.Context
+	cancel                 context.CancelFunc
+	wg                     sync.WaitGroup
+	closeOnce              sync.Once
+	wake                   chan struct{}
+	paused                 bool
 
 	pollInterval   time.Duration
 	queryTimeout   time.Duration
@@ -138,6 +155,19 @@ func (c *Collector) SetDemandSources(sources ...DemandSource) {
 	c.mu.Lock()
 	if !c.state.Closed {
 		c.demandSources = append([]DemandSource(nil), sources...)
+	}
+	c.mu.Unlock()
+	c.Wake()
+}
+
+func (c *Collector) SetSubscriptionReconciler(source SubscriptionDemandSource, reconciler SubscriptionReconciler) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	if !c.state.Closed {
+		c.subscriptionDemand = source
+		c.subscriptionReconciler = reconciler
 	}
 	c.mu.Unlock()
 	c.Wake()
@@ -244,6 +274,7 @@ func (c *Collector) run() {
 }
 
 func (c *Collector) reconcile() {
+	c.reconcileSubscriptions()
 	instruments := c.activeInstruments()
 	key := strings.Join(instruments, ",")
 
@@ -276,6 +307,25 @@ func (c *Collector) reconcile() {
 		return
 	}
 	c.startStream(generation, instruments)
+}
+
+func (c *Collector) reconcileSubscriptions() {
+	c.mu.Lock()
+	source := c.subscriptionDemand
+	reconciler := c.subscriptionReconciler
+	closed := c.state.Closed
+	c.mu.Unlock()
+	if closed || source == nil || reconciler == nil {
+		return
+	}
+	if err := reconciler.ReconcileSubscriptions(c.ctx, source.ActiveSubscriptions()); err != nil && c.ctx.Err() == nil {
+		observability.ErrorWithImportance(
+			observability.WithFields(c.ctx, observability.Fields{Source: "market-data"}),
+			observability.ImportanceHigh,
+			"marketdata subscription reconciliation failed",
+			err,
+		)
+	}
 }
 
 func (c *Collector) startStream(generation uint64, instruments []string) {

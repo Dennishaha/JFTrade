@@ -141,7 +141,7 @@ export function createConsoleDataMarketSubscriptionsController(
     symbol?: string;
     channel?: MarketDataChannel;
     interval?: string;
-  }): Promise<void> {
+  }): Promise<boolean> {
     const market = (input.market ?? options.marketDataQueryMarket.value)
       .trim()
       .toUpperCase();
@@ -154,7 +154,7 @@ export function createConsoleDataMarketSubscriptionsController(
     if (market === "" || symbol === "") {
       options.marketDataError.value =
         "申请实时订阅前请填写市场和标的。";
-      return;
+      return false;
     }
 
     options.isLoadingMarketData.value = true;
@@ -181,11 +181,13 @@ export function createConsoleDataMarketSubscriptionsController(
             }),
           },
         );
+      return true;
     } catch (error) {
       options.marketDataError.value =
         error instanceof Error
           ? error.message
           : "行情订阅申请失败。";
+      return false;
     } finally {
       options.isLoadingMarketData.value = false;
     }
@@ -290,7 +292,7 @@ export function createConsoleDataMarketSubscriptionsController(
       options.marketDataError.value =
         error instanceof Error
           ? error.message
-          : "取消行情订阅失败。";
+          : "清理闲置网页订阅失败。";
     } finally {
       options.isLoadingMarketData.value = false;
     }

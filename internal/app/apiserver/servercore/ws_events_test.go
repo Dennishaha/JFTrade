@@ -124,6 +124,7 @@ func TestLiveWebSocketHeartbeatReportsStaleMarketData(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
+	server.marketdataSvc.SetSubscriptionReconciler(nil)
 	if _, err := server.marketdataSvc.AcquireSubscription(context.Background(), "test-live-heartbeat", []mdsrv.InstrumentRef{
 		{Market: "HK", Symbol: "00700"},
 	}); err != nil {

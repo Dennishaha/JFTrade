@@ -95,22 +95,38 @@ func TestEvaluateCoverageAllowsExactThresholds(t *testing.T) {
 	}))
 }
 
-func TestEvaluateCoverageAppliesFutuModuleThresholdOverride(t *testing.T) {
+func TestEvaluateCoverageAppliesExactLifecyclePackageThresholdOverrides(t *testing.T) {
+	strict := []string{
+		"internal/marketdata",
+		"internal/integration/futu",
+		"pkg/futu",
+		"internal/api/marketdata",
+	}
+	ordinary := make([]scopeCoverage, 0, len(strict)+2)
+	for _, scope := range strict {
+		ordinary = append(ordinary, scopeCoverage{scope: scope, coverageStats: coverageStats{covered: 99, total: 100}})
+	}
+	ordinary = append(ordinary, scopeCoverage{scope: "internal/app/apiserver/servercore", coverageStats: coverageStats{covered: 94, total: 100}})
+	ordinary = append(ordinary, scopeCoverage{scope: "internal/ordinary", coverageStats: coverageStats{covered: 85, total: 100}})
 	analysis := coverageAnalysis{
 		business: coverageStats{covered: 100, total: 100},
-		ordinary: []scopeCoverage{
-			{scope: "pkg/futu", coverageStats: coverageStats{covered: 89, total: 100}},
-			{scope: "internal/ordinary", coverageStats: coverageStats{covered: 85, total: 100}},
-		},
+		ordinary: ordinary,
 	}
 	violations := evaluateCoverage(analysis, config{
 		businessThreshold: 90,
 		criticalThreshold: 95,
 		moduleThreshold:   85,
 	})
-	require.Equal(t, []string{"ordinary Go coverage for pkg/futu is 89.00%, below 90.00%"}, violations)
+	require.Len(t, violations, len(strict)+1)
+	for _, scope := range strict {
+		assert.Contains(t, strings.Join(violations, "\n"), "ordinary Go coverage for "+scope+" is 99.00%, below 100.00%")
+	}
+	assert.Contains(t, strings.Join(violations, "\n"), "ordinary Go coverage for internal/app/apiserver/servercore is 94.00%, below 95.00%")
 
-	analysis.ordinary[0].covered = 90
+	for index := range strict {
+		analysis.ordinary[index].covered = 100
+	}
+	analysis.ordinary[len(strict)].covered = 95
 	assert.Empty(t, evaluateCoverage(analysis, config{
 		businessThreshold: 90,
 		criticalThreshold: 95,

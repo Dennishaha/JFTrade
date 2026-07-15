@@ -6,6 +6,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/market/sh"
 	"github.com/jftrade/jftrade-main/pkg/market/sz"
 	"github.com/jftrade/jftrade-main/pkg/market/us"
+	"slices"
 	"strings"
 	"time"
 )
@@ -321,10 +322,8 @@ func MarketSubsetChildren(parent string) []string {
 func IsMarketSubsetChild(marketCode string) bool {
 	normalized := strings.ToUpper(strings.TrimSpace(marketCode))
 	for _, children := range marketSubsets {
-		for _, child := range children {
-			if child == normalized {
-				return true
-			}
+		if slices.Contains(children, normalized) {
+			return true
 		}
 	}
 	return false

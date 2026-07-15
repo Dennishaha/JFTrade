@@ -1,9 +1,11 @@
 package servercore
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"path/filepath"
 	"testing"
@@ -49,7 +51,30 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	srv := newHTTPTestServer(t, store)
+	disableTestExchangeCalendarAutoRefresh(t, store)
+	server := NewServer(store)
+	if server.auth != nil {
+		server.auth.enabled = false
+	}
+	t.Cleanup(func() {
+		jftradeCheckTestError(t, server.Close())
+	})
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	acquireResp, err := jftradeTestHTTPPost(
+		t,
+		srv.URL+"/api/v1/market-data/subscriptions",
+		"application/json",
+		bytes.NewBufferString(`{"consumerId":"chart-realtime","instruments":[{"channel":"KLINE","market":"HK","symbol":"00700","interval":"1m"}]}`),
+	)
+	if err != nil {
+		t.Fatalf("POST market subscription: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, acquireResp.Body.Close()) }()
+	if acquireResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST market subscription status = %d", acquireResp.StatusCode)
+	}
 
 	requestURL := fmt.Sprintf(
 		"%s/api/v1/market-data/candles/HK/00700?period=1m&limit=2&fromTime=%s&toTime=%s",

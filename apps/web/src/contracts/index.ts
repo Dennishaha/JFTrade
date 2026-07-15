@@ -2887,6 +2887,10 @@ export interface MarketDataSubscriptionEntryDto {
   refCount: number;
   createdAt: string;
   updatedAt: string;
+  brokerState?: "active" | "pending_subscribe" | "pending_unsubscribe" | "retrying" | "unmanaged";
+  subscribedAt?: string | null;
+  unsubscribeEligibleAt?: string | null;
+  lastError?: string | null;
 }
 
 export interface MarketDataSubscriptionQuotaBucketDto {
@@ -2898,6 +2902,11 @@ export interface MarketDataSubscriptionQuotaBucketDto {
 
 export interface MarketDataSubscriptionsResponse {
   totalActiveSubscriptions: number;
+  desiredCount?: number;
+  ownActiveCount?: number;
+  pendingReleaseCount?: number;
+  totalUsedQuota?: number | null;
+  remainQuota?: number | null;
   quota: {
     totalUsed: number;
     totalLimit: number | null;
@@ -2905,6 +2914,27 @@ export interface MarketDataSubscriptionsResponse {
     byMarket: MarketDataSubscriptionQuotaBucketDto[];
   };
   entries: MarketDataSubscriptionEntryDto[];
+  brokerState?: {
+    desiredCount: number;
+    ownActiveCount: number;
+    pendingReleaseCount: number;
+    totalUsedQuota: number | null;
+    remainQuota: number | null;
+    ownUsedQuota?: number;
+    checkedAt?: string | null;
+    reconciledAt?: string | null;
+    lastError?: string | null;
+    entries: Array<{
+      key: string;
+      kind: string;
+      instrumentId: string;
+      interval: string | null;
+      brokerState: string;
+      subscribedAt: string | null;
+      unsubscribeEligibleAt: string | null;
+      lastError: string | null;
+    }>;
+  };
 }
 
 export const architectureCards: ArchitectureCard[] = [

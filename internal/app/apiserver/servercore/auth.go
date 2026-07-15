@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -78,6 +79,7 @@ type webAuth struct {
 	attempts            map[string]loginAttempt
 	now                 func() time.Time
 	verifyPassword      func(encoded string, password string) (bool, error)
+	generateSecret      func(int) (string, error)
 	accessContext       context.Context
 	cancelAccess        context.CancelFunc
 }
@@ -90,6 +92,7 @@ func newWebAuth(settings SecuritySettings) *webAuth {
 		attempts:       map[string]loginAttempt{},
 		now:            time.Now,
 		verifyPassword: passwordhash.Verify,
+		generateSecret: randomSecret,
 		accessContext:  accessContext,
 		cancelAccess:   cancelAccess,
 	}
@@ -482,11 +485,15 @@ func (a *webAuth) checkPasswordForLogin(ctx context.Context, encoded string, pas
 }
 
 func (a *webAuth) createSession(generation uint64, passwordHash string) (string, webSession, error) {
-	sessionID, err := randomSecret(32)
+	generateSecret := a.generateSecret
+	if generateSecret == nil {
+		generateSecret = randomSecret
+	}
+	sessionID, err := generateSecret(32)
 	if err != nil {
 		return "", webSession{}, err
 	}
-	csrf, err := randomSecret(24)
+	csrf, err := generateSecret(24)
 	if err != nil {
 		return "", webSession{}, err
 	}
@@ -632,8 +639,12 @@ func (a *webAuth) clearLoginFailures(remote string) {
 }
 
 func randomSecret(size int) (string, error) {
+	return randomSecretFrom(rand.Reader, size)
+}
+
+func randomSecretFrom(reader io.Reader, size int) (string, error) {
 	raw := make([]byte, size)
-	if _, err := rand.Read(raw); err != nil {
+	if _, err := io.ReadFull(reader, raw); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(raw), nil

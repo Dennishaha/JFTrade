@@ -7,7 +7,11 @@ import { nextTick, ref } from "vue";
 const stores = vi.hoisted(() => ({
   consoleData: null as ReturnType<typeof createConsoleDataState> | null,
   workspace: null as ReturnType<typeof createWorkspaceState> | null,
-  liveHub: null as { waitForConnection: ReturnType<typeof vi.fn> } | null,
+  liveHub: null as {
+    waitForConnection: ReturnType<typeof vi.fn>;
+    connectionState?: ReturnType<typeof ref>;
+    lastHeartbeatEvent?: ReturnType<typeof ref>;
+  } | null,
 }));
 
 vi.mock("../src/composables/useConsoleData", () => ({
@@ -99,7 +103,7 @@ function createConsoleDataState() {
     isLoadingMarketDataQuery: ref(false),
     loadMarketDataQuery: vi.fn().mockResolvedValue(undefined),
     selectWorkspaceInstrument: vi.fn(),
-    acquireMarketDataSubscription: vi.fn().mockResolvedValue(undefined),
+    acquireMarketDataSubscription: vi.fn().mockResolvedValue(true),
     createStableWebConsumerId: vi.fn(() => "workspace-chart:1"),
     heartbeatMarketDataConsumer: vi.fn().mockResolvedValue(undefined),
     releaseMarketDataSubscription: vi.fn().mockResolvedValue(undefined),
@@ -144,6 +148,14 @@ async function flushUi(): Promise<void> {
   await nextTick();
   await Promise.resolve();
   await nextTick();
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
 }
 
 afterEach(() => {
@@ -251,7 +263,7 @@ describe("LightweightChart", () => {
     });
   });
 
-  it("uses heartbeat-only recovery when live data is fresh and preserves existing data when it is only slightly stale", async () => {
+  it("reconfirms the lease when live data is fresh and preserves existing data when it is only slightly stale", async () => {
     stores.consoleData = createConsoleDataState();
     stores.workspace = createWorkspaceState();
     stores.liveHub = {
@@ -276,6 +288,7 @@ describe("LightweightChart", () => {
     await flushUi();
 
     expect(stores.liveHub.waitForConnection).toHaveBeenCalledWith(3_000);
+		expect(stores.consoleData.acquireMarketDataSubscription).toHaveBeenCalled();
     expect(stores.consoleData.heartbeatMarketDataConsumer).toHaveBeenCalledTimes(1);
     expect(stores.consoleData.loadMarketDataQuery).not.toHaveBeenCalled();
 
@@ -338,5 +351,250 @@ describe("LightweightChart", () => {
       period: "1m",
     });
     expect(stores.consoleData.loadMarketDataQuery).toHaveBeenCalledWith({});
+  });
+
+  it("reconfirms a loaded target after a disconnected visibility recovery and reloads on online and refresh events", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = {
+      waitForConnection: vi.fn().mockResolvedValue(false),
+      connectionState: ref("reconnecting"),
+      lastHeartbeatEvent: ref({ transport: { mode: "poll" } }),
+    };
+    stores.consoleData.isLiveStreamConnected.value = false;
+
+    const wrapper = mountChart();
+    await flushUi();
+    stores.consoleData.loadMarketDataQuery.mockClear();
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushUi();
+    expect(stores.consoleData.loadMarketDataQuery).toHaveBeenCalledWith({
+      preserveExisting: true,
+    });
+
+    window.dispatchEvent(new Event("online"));
+    await flushUi();
+    await wrapper.get("button[title='刷新']").trigger("click");
+    await flushUi();
+    expect(stores.consoleData.loadMarketDataQuery.mock.calls.length).toBeGreaterThanOrEqual(2);
+    wrapper.unmount();
+  });
+
+  it("does not hold or release a failed subscription and handles an empty chart target", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.acquireMarketDataSubscription.mockResolvedValue(false);
+    stores.consoleData.marketInstrumentSearchOptions.value = [];
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const failedWrapper = mountChart();
+    await flushUi();
+    expect(stores.consoleData.heartbeatMarketDataConsumer).not.toHaveBeenCalled();
+    stores.consoleData.releaseMarketDataSubscription.mockClear();
+    failedWrapper.unmount();
+    expect(stores.consoleData.releaseMarketDataSubscription).not.toHaveBeenCalled();
+
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.marketInstrumentSearchOptions.value = [];
+    stores.workspace = createWorkspaceState();
+    stores.workspace.prefs.value = { market: "", symbol: "", period: "1m" };
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+    const emptyWrapper = mountChart();
+    await flushUi();
+    expect(stores.consoleData.acquireMarketDataSubscription).not.toHaveBeenCalled();
+    expect(emptyWrapper.get(".lightweight-chart-head__instrument").text()).not.toContain(
+      "Apple Inc.",
+    );
+    emptyWrapper.unmount();
+  });
+
+  it("releases a held tick subscription without an interval when switching back to K-line", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.workspace.prefs.value.period = "tick";
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const wrapper = mountChart();
+    await flushUi();
+    stores.consoleData.releaseMarketDataSubscription.mockClear();
+    stores.workspace.update({ period: "1m" });
+    await flushUi();
+
+    expect(stores.consoleData.releaseMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "workspace-chart:1",
+      market: "US",
+      symbol: "AAPL",
+      channel: "TICK",
+    });
+    wrapper.unmount();
+  });
+
+  it("drops an out-of-order acquire and keeps the newest chart target", async () => {
+    const firstAcquire = deferred<boolean>();
+    const secondAcquire = deferred<boolean>();
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.acquireMarketDataSubscription
+      .mockImplementationOnce(() => firstAcquire.promise)
+      .mockImplementationOnce(() => secondAcquire.promise);
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const wrapper = mountChart();
+    await nextTick();
+    window.dispatchEvent(new Event("online"));
+    await nextTick();
+    expect(stores.consoleData.acquireMarketDataSubscription).toHaveBeenCalledTimes(1);
+
+    stores.workspace.update({ symbol: "MSFT" });
+    await flushUi();
+    expect(stores.consoleData.acquireMarketDataSubscription).toHaveBeenCalledTimes(2);
+    firstAcquire.resolve(true);
+    await flushUi();
+    expect(stores.consoleData.releaseMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "workspace-chart:1",
+      market: "US",
+      symbol: "AAPL",
+      channel: "KLINE",
+      interval: "1m",
+    });
+    secondAcquire.resolve(true);
+    await flushUi();
+    wrapper.unmount();
+  });
+
+  it("drops an acquire that becomes stale while its heartbeat is pending", async () => {
+    const firstHeartbeat = deferred<void>();
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.heartbeatMarketDataConsumer
+      .mockImplementationOnce(() => firstHeartbeat.promise)
+      .mockResolvedValue(undefined);
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const wrapper = mountChart();
+    await flushUi();
+    stores.workspace.update({ symbol: "MSFT" });
+    await flushUi();
+    firstHeartbeat.resolve();
+    await flushUi();
+
+    expect(stores.consoleData.releaseMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "workspace-chart:1",
+      market: "US",
+      symbol: "AAPL",
+      channel: "KLINE",
+      interval: "1m",
+    });
+    wrapper.unmount();
+  });
+
+  it("releases stale Tick acquires and heartbeats without adding a K-line interval", async () => {
+    const acquire = deferred<boolean>();
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.acquireMarketDataSubscription
+      .mockImplementationOnce(() => acquire.promise)
+      .mockResolvedValue(true);
+    stores.workspace = createWorkspaceState();
+    stores.workspace.prefs.value.period = "tick";
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const acquireWrapper = mountChart();
+    await nextTick();
+    stores.workspace.update({ symbol: "MSFT" });
+    await flushUi();
+    acquire.resolve(true);
+    await flushUi();
+    expect(stores.consoleData.releaseMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "workspace-chart:1",
+      market: "US",
+      symbol: "AAPL",
+      channel: "TICK",
+    });
+    acquireWrapper.unmount();
+
+    const heartbeat = deferred<void>();
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.heartbeatMarketDataConsumer
+      .mockImplementationOnce(() => heartbeat.promise)
+      .mockResolvedValue(undefined);
+    stores.workspace = createWorkspaceState();
+    stores.workspace.prefs.value.period = "tick";
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const heartbeatWrapper = mountChart();
+    await flushUi();
+    stores.workspace.update({ symbol: "MSFT" });
+    await flushUi();
+    heartbeat.resolve();
+    await flushUi();
+    expect(stores.consoleData.releaseMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "workspace-chart:1",
+      market: "US",
+      symbol: "AAPL",
+      channel: "TICK",
+    });
+    heartbeatWrapper.unmount();
+  });
+
+  it("renders snapshot and candle metadata fallbacks used by the feed status", async () => {
+    stores.consoleData = createConsoleDataState();
+    const snapshot = createSnapshotResult(200, "regular");
+    delete snapshot.snapshot.observedAt;
+    stores.consoleData.currentMarketDataSnapshot.value = snapshot;
+    stores.consoleData.currentMarketDataCandles.value = createCandlesResult(
+      "regular",
+      false,
+    );
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const wrapper = mountChart();
+    await flushUi();
+    expect(wrapper.text()).toContain("盘中");
+
+    stores.consoleData.currentMarketDataSnapshot.value = null;
+    stores.consoleData.currentMarketDataCandles.value.meta.fromCache = true;
+    await nextTick();
+    expect(wrapper.get(".kline-chart-stub").text()).toContain("1 candles");
+
+    stores.consoleData.currentMarketDataCandles.value.candles[0] = {
+      ...stores.consoleData.currentMarketDataCandles.value.candles[0],
+      displayAt: "2026-07-03 20:00:00",
+    };
+    await nextTick();
+    expect(wrapper.get(".kline-chart-stub").text()).toContain("1 candles");
+
+    stores.consoleData.currentMarketDataCandles.value = {
+      ...createCandlesResult("", false),
+      candles: [],
+    };
+    await nextTick();
+    expect(wrapper.get(".kline-chart-stub").text()).toContain("0 candles");
+
+    stores.consoleData.currentMarketDataCandles.value = null;
+    await nextTick();
+    expect(wrapper.get(".kline-chart-stub").text()).toContain("0 candles");
+    wrapper.unmount();
+  });
+
+  it("renders regular-session candle fallbacks without extended-hours metadata", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.consoleData.currentMarketDataSnapshot.value = createSnapshotResult();
+    delete stores.consoleData.currentMarketDataSnapshot.value.snapshot.session;
+    stores.consoleData.currentMarketDataCandles.value = createCandlesResult("regular", false);
+    stores.consoleData.isLiveStreamConnected.value = false;
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const wrapper = mountChart();
+    await flushUi();
+    expect(wrapper.text()).toContain("盘中");
+    expect(wrapper.html()).toContain("常规交易时段数据");
+    wrapper.unmount();
   });
 });

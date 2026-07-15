@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"google.golang.org/protobuf/proto"
@@ -215,9 +214,6 @@ func (s *Stream) emitBasicQot(basicQot *qotcommonpb.BasicQot) {
 	})
 
 	tradeTime := ticker.Time
-	if tradeTime.IsZero() {
-		tradeTime = time.Now().UTC()
-	}
 	s.EmitMarketTrade(types.Trade{
 		Exchange: Name,
 		Symbol:   canonical,
@@ -252,6 +248,7 @@ func (e *Exchange) ensureBasicQotPushSubscriptions(ctx context.Context, client *
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, request := range missing {
+		e.subscriptions.markBasicQot(request.canonical)
 		e.subscriptions.markBasicQotPush(request.canonical)
 	}
 	return nil

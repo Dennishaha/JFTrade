@@ -143,3 +143,43 @@ func TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests(t *testing.T) {
 		t.Fatal("QueryQuoteSnapshot(empty OpenD response) error = nil")
 	}
 }
+
+func TestMarginRatioUncachedRecoveryAndConversionBoundaries(t *testing.T) {
+	server, exchange := coverageMarginExchange(t)
+	server.setAccounts([]*trdcommonpb.TrdAcc{testRealHKMarginAccount()})
+	server.setMarginRatioError(1, 1, "broker unavailable")
+	if _, err := exchange.QueryBrokerMarginRatios(t.Context(), BrokerMarginRatioQuery{Symbols: []string{"HK.00700"}}); err == nil {
+		t.Fatal("uncached generic margin-ratio error = nil")
+	}
+	client, err := exchange.ensureClient(t.Context())
+	if err != nil {
+		t.Fatalf("ensureClient() error = %v", err)
+	}
+	server.setMarginRatioError(1, 1, "unknown stock")
+	header := (resolvedTradeAccount{protoAccountID: 1001, protoTrdEnv: int32(trdcommonpb.TrdEnv_TrdEnv_Real), protoTrdMarket: int32(trdcommonpb.TrdMarket_TrdMarket_HK)}).header()
+	if _, err := marginRatioInfoListWithUnknownStockRecovery(t.Context(), client, header, []*qotcommonpb.Security{testHKSecurity("00700")}); err == nil {
+		t.Fatal("unknown-stock error without code = nil")
+	}
+	server.setMarginRatioError(1, 1, "unknown stock MISSING")
+	if _, err := marginRatioInfoListWithUnknownStockRecovery(t.Context(), client, header, []*qotcommonpb.Security{testHKSecurity("00700")}); err == nil {
+		t.Fatal("unmatched unknown-stock error = nil")
+	}
+
+	infos := []*trdgetmarginratiopb.MarginRatioInfo{
+		nil,
+		{Security: testHKSecurity("00700")},
+		{Security: &qotcommonpb.Security{Market: new(int32(qotcommonpb.QotMarket_QotMarket_US_Security)), Code: new("AAPL")}},
+	}
+	snapshots := brokerMarginRatioSnapshotsFromProto(resolvedTradeAccount{}, infos)
+	if len(snapshots) != 2 || snapshots[0].Symbol != "HK.00700" || snapshots[1].Symbol != "US.AAPL" {
+		t.Fatalf("sorted margin-ratio snapshots = %#v", snapshots)
+	}
+	remaining, removed := removeUnknownMarginSecurity([]*qotcommonpb.Security{nil, testHKSecurity("00700")}, "MISSING")
+	if !removed || len(remaining) != 1 {
+		t.Fatalf("nil margin security removal = %#v/%v", remaining, removed)
+	}
+	if key := marginRatioCacheKey(BrokerReadQuery{}, []string{" ", "US.AAPL"}); key == "" {
+		t.Fatal("margin cache key unexpectedly empty")
+	}
+	exchange.setMarginRatioCache("", snapshots)
+}

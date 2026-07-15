@@ -82,7 +82,7 @@ func TestKLineSessionRegistryPruningAndSampleResolutionBoundaries(t *testing.T) 
 		marketSessionSample{at: now.Add(-marketSessionSampleTTL - time.Minute), session: market.SessionPre},
 		marketSessionSample{at: now, session: market.SessionUnknown},
 	)
-	for index := 0; index < maxMarketSessionSamplesEach+1; index++ {
+	for index := range maxMarketSessionSamplesEach + 1 {
 		samples = append(samples, marketSessionSample{at: now.Add(time.Duration(index) * time.Second), session: market.SessionRegular})
 	}
 	pruned := pruneMarketSessionSamples(samples, now)
