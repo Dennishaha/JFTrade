@@ -1,7 +1,9 @@
 package marketdata
 
 import (
+	"errors"
 	"log"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -105,6 +107,7 @@ func handleSecurityDetails(svc *srv.Service) gin.HandlerFunc {
 // @Param refresh query bool false "是否绕过缓存强制刷新"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 400 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
 // @Failure 502 {object} httpserver.Envelope
 // @Router /api/v1/market-data/snapshots/{market}/{symbol} [get]
 func handleSnapshot(svc *srv.Service) gin.HandlerFunc {
@@ -126,7 +129,7 @@ func handleSnapshot(svc *srv.Service) gin.HandlerFunc {
 
 		snapshot, err := svc.GetSnapshot(c.Request.Context(), uri.Market, uri.Symbol, refresh)
 		if err != nil {
-			httpserver.WriteError(c, 502, "MARKET_SNAPSHOT_FAILED", err.Error())
+			writeMarketDataReadError(c, "MARKET_SNAPSHOT_FAILED", err)
 			return
 		}
 		httpserver.WriteOK(c, snapshot)
@@ -144,6 +147,7 @@ func handleSnapshot(svc *srv.Service) gin.HandlerFunc {
 // @Param fromTime query string false "起始时间"
 // @Param toTime query string false "结束时间"
 // @Success 200 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
 // @Router /api/v1/market-data/candles/{market}/{symbol} [get]
 func handleCandles(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -184,11 +188,19 @@ func handleCandles(svc *srv.Service) gin.HandlerFunc {
 
 		result, err := svc.GetCandles(c.Request.Context(), uri.Market, uri.Symbol, period, limit, fromTime, toTime)
 		if err != nil {
-			httpserver.WriteError(c, 502, "OPEND_CANDLES_FAILED", err.Error())
+			writeMarketDataReadError(c, "OPEND_CANDLES_FAILED", err)
 			return
 		}
 		httpserver.WriteOK(c, result)
 	}
+}
+
+func writeMarketDataReadError(c *gin.Context, fallbackCode string, err error) {
+	if errors.Is(err, srv.ErrSubscriptionRequired) {
+		httpserver.WriteError(c, http.StatusConflict, "MARKET_DATA_SUBSCRIPTION_REQUIRED", err.Error())
+		return
+	}
+	httpserver.WriteError(c, http.StatusBadGateway, fallbackCode, err.Error())
 }
 
 func normalizeOptionalQueryTime(value string) string {

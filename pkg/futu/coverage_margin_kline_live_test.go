@@ -24,14 +24,14 @@ func TestKLineHistoryAndSubscriptionBoundaryPaths(t *testing.T) {
 		t.Fatal("queryCurrentKLines(invalid interval) error = nil")
 	}
 
-	if err := subscribeKLine(t.Context(), client, klineSubscriptionRequest{
+	if err := exchange.ensureKLineSubscription(t.Context(), client, klineSubscriptionRequest{
 		canonical:    canonical,
 		security:     security,
 		subType:      qotcommonpb.SubType_SubType_KL_5Min,
 		extendedTime: true,
 		session:      commonpb.Session_Session_ALL,
 	}); err != nil {
-		t.Fatalf("subscribeKLine(extended) error = %v", err)
+		t.Fatalf("ensureKLineSubscription(extended) error = %v", err)
 	}
 
 	start := time.Date(2026, time.June, 22, 13, 30, 0, 0, time.UTC)

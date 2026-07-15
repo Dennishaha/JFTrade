@@ -78,9 +78,8 @@ func basicQotForSymbol(quotes map[string]*qotcommonpb.BasicQot, symbol string) (
 	return quote, nil
 }
 
-func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map[string]*qotcommonpb.BasicQot, error) {
+func basicQotRequestsFromSymbols(symbols []string) ([]basicQotRequest, error) {
 	requests := make([]basicQotRequest, 0, len(symbols))
-	securityList := make([]*qotcommonpb.Security, 0, len(symbols))
 	seen := make(map[string]struct{}, len(symbols))
 	for _, symbol := range symbols {
 		security, canonical, err := futuSecurityFromSymbol(symbol)
@@ -92,16 +91,33 @@ func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map
 		}
 		seen[canonical] = struct{}{}
 		requests = append(requests, basicQotRequest{canonical: canonical, security: security})
-		securityList = append(securityList, security)
+	}
+	return requests, nil
+}
+
+func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map[string]*qotcommonpb.BasicQot, error) {
+	requests, err := basicQotRequestsFromSymbols(symbols)
+	if err != nil {
+		return nil, err
 	}
 	if len(requests) == 0 {
 		return map[string]*qotcommonpb.BasicQot{}, nil
 	}
+	if err := e.requireBasicQotSubscriptions(requests); err != nil {
+		return nil, err
+	}
 
 	reqStart := time.Now()
+	securityList := make([]*qotcommonpb.Security, 0, len(requests))
+	for _, request := range requests {
+		securityList = append(securityList, request.security)
+	}
 	request := &qotgetbasicqotpb.Request{C2S: &qotgetbasicqotpb.C2S{SecurityList: securityList}}
 	var response qotgetbasicqotpb.Response
 	if err := e.withClient(ctx, func(client *opend.Client) error {
+		if err := e.requireBasicQotSubscriptions(requests); err != nil {
+			return err
+		}
 		callStart := time.Now()
 		if err := client.Call(ctx, opend.ProtoGetBasicQot, request, &response); err != nil {
 			return err
@@ -125,6 +141,18 @@ func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map
 		return nil, fmt.Errorf("opend GetBasicQot returned no quotes")
 	}
 	return quotes, nil
+}
+
+func (e *Exchange) requireBasicQotSubscriptions(requests []basicQotRequest) error {
+	e.ConnectionGeneration()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, request := range requests {
+		if !e.subscriptions.hasBasicQot(request.canonical) {
+			return &SubscriptionRequiredError{Channel: "BASIC", Symbol: request.canonical}
+		}
+	}
+	return nil
 }
 
 func basicQotMapFromProto(protoQuotes []*qotcommonpb.BasicQot) map[string]*qotcommonpb.BasicQot {

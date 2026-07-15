@@ -1,6 +1,7 @@
 package futu
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,15 @@ func TestMarketDataReaderSurfacesTransportAndPayloadBoundaries(t *testing.T) {
 	if _, err := reader.QueryQuote(ctx, broker.QuoteQuery{Symbols: []string{"BAD"}}); err == nil {
 		t.Fatal("QueryQuote(invalid symbol) error = nil")
 	}
+	if _, err := reader.QueryQuote(ctx, broker.QuoteQuery{Symbols: []string{"HK.00700"}}); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("QueryQuote(missing lease) error = %v", err)
+	}
+	if server.basicQotCallCount() != 0 {
+		t.Fatalf("missing quote lease reached GetBasicQot %d times", server.basicQotCallCount())
+	}
+	if err := reader.exchange.SubscribeBasicQuote(ctx, "HK.00700", false); err != nil {
+		t.Fatalf("SubscribeBasicQuote: %v", err)
+	}
 	server.setBasicQotError(1, 10, "quote entitlement denied")
 	if _, err := reader.QueryQuote(ctx, broker.QuoteQuery{Symbols: []string{"HK.00700"}}); err == nil {
 		t.Fatal("QueryQuote(OpenD error) error = nil")
@@ -27,6 +37,13 @@ func TestMarketDataReaderSurfacesTransportAndPayloadBoundaries(t *testing.T) {
 	quote, err := reader.QueryQuote(ctx, broker.QuoteQuery{Symbols: []string{"HK.00700"}})
 	if err != nil || quote == nil || len(quote.Quotes) != 1 || quote.Quotes[0].Symbol != "HK.00700" {
 		t.Fatalf("QueryQuote(fallback quote) = %#v, %v; want generated HK quote", quote, err)
+	}
+	if err := reader.exchange.SubscribeBasicQuote(ctx, "US.NVDA", false); err != nil {
+		t.Fatalf("SubscribeBasicQuote(US.NVDA): %v", err)
+	}
+	server.setBasicQuotes(basicQotListForSecurities([]*qotcommonpb.Security{testHKSecurity("00700")}))
+	if _, err := reader.QueryQuote(ctx, broker.QuoteQuery{Symbols: []string{"HK.00700", "US.NVDA"}}); err == nil || !strings.Contains(err.Error(), "US.NVDA") {
+		t.Fatalf("QueryQuote(partial payload) error = %v", err)
 	}
 
 	if _, err := reader.QueryKLines(ctx, broker.KLineQuery{Symbol: "BAD", Period: "5m"}); err == nil {

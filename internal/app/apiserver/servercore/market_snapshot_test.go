@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/shopspring/decimal"
 )
 
@@ -64,6 +65,7 @@ func TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	acquireMarketDataTestSubscription(t, server, mdsrv.InstrumentRef{Channel: "SNAPSHOT", Market: "HK", Symbol: "00700"})
 	response, err := server.marketSnapshotResponse(
 		t.Context(),
 		"/api/v1/market-data/snapshots/HK/00700",
@@ -87,6 +89,7 @@ func TestMarketSnapshotResponseForceRefreshBypassesCache(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	acquireMarketDataTestSubscription(t, server, mdsrv.InstrumentRef{Channel: "SNAPSHOT", Market: "HK", Symbol: "00700"})
 	seedCachedTickSample(server, marketTickSample{
 		InstrumentID: "HK.00700",
 		Market:       "HK",
@@ -162,6 +165,7 @@ func TestMarketCandlesTickResponseQueriesTickerOnCacheMiss(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	acquireMarketDataTestSubscription(t, server, mdsrv.InstrumentRef{Channel: "TICK", Market: "HK", Symbol: "00700"})
 	response, err := server.marketCandlesResponse(
 		t.Context(),
 		"/api/v1/market-data/candles/HK/00700",
@@ -177,6 +181,20 @@ func TestMarketCandlesTickResponseQueriesTickerOnCacheMiss(t *testing.T) {
 	}
 	if got := jftradeCheckedTypeAssertion[[]map[string]any](response["candles"])[0]["period"]; got != "tick" {
 		t.Fatalf("tick candle period = %v", got)
+	}
+}
+
+func acquireMarketDataTestSubscription(t *testing.T, server *Server, ref mdsrv.InstrumentRef) {
+	t.Helper()
+	_, err := server.marketdataSvc.AcquireSubscription(t.Context(), "market-snapshot-test", []mdsrv.InstrumentRef{ref})
+	if err != nil {
+		t.Fatalf("AcquireSubscription(%#v): %v", ref, err)
+	}
+	if err := server.marketdataRuntime.ReconcileSubscriptions(t.Context(), []mdsrv.InstrumentRef{ref}); err != nil {
+		t.Fatalf("ReconcileSubscriptions(%#v): %v", ref, err)
+	}
+	if state := server.marketdataRuntime.SubscriptionState(); state["ownActiveCount"] != 1 {
+		t.Fatalf("ReconcileSubscriptions(%#v) did not establish the physical lease: %#v", ref, state)
 	}
 }
 

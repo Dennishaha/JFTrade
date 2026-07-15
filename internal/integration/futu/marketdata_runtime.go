@@ -2,6 +2,7 @@ package futu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -230,7 +231,7 @@ func (r *MarketDataRuntime) QueryTickers(ctx context.Context, instrumentIDs []st
 	}
 	tickers, err := exchange.QueryTickers(ctx, instrumentIDs...)
 	if err != nil {
-		return nil, err
+		return nil, translateSubscriptionRequiredError(err, "TICK", "")
 	}
 	result := make(map[string]marketdata.Tick, len(tickers))
 	for instrumentID, ticker := range tickers {
@@ -260,9 +261,28 @@ func (r *MarketDataRuntime) QuerySnapshot(ctx context.Context, instrumentID stri
 	}
 	snapshot, err := exchange.QueryQuoteSnapshot(ctx, instrumentID)
 	if err != nil {
-		return nil, err
+		return nil, translateSubscriptionRequiredError(err, "SNAPSHOT", "")
 	}
 	return tickFromSnapshot(instrumentID, snapshot, r.now().UTC()), nil
+}
+
+func translateSubscriptionRequiredError(err error, channel, interval string) error {
+	if !errors.Is(err, pkgfutu.ErrSubscriptionRequired) {
+		return err
+	}
+	var required *pkgfutu.SubscriptionRequiredError
+	if errors.As(err, &required) {
+		if required.Symbol != "" {
+			_, market, symbol, ok := marketdata.NormalizeInstrumentID(required.Symbol)
+			if ok {
+				return marketdata.NewSubscriptionRequiredError(channel, market, symbol, interval)
+			}
+		}
+		if interval == "" {
+			interval = required.Interval
+		}
+	}
+	return marketdata.NewSubscriptionRequiredError(channel, "", "", interval)
 }
 
 func (r *MarketDataRuntime) NewStream(instrumentIDs []string, handler marketdata.PushTickHandler) (marketdata.PushStream, error) {

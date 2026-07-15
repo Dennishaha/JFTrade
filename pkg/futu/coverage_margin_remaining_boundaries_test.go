@@ -1,6 +1,7 @@
 package futu
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -77,7 +78,7 @@ func TestCurrentKLineExtendedErrorBlankAndInvalidRequestBoundaries(t *testing.T)
 	server, exchange := coverageMarginExchange(t)
 	security, canonical, _ := futuSecurityFromSymbol("US.AAPL")
 	klines, err := exchange.queryCurrentKLines(t.Context(), security, canonical, types.Interval5m, qotcommonpb.KLType_KLType_5Min)
-	if err != nil || klines != nil {
+	if !errors.Is(err, ErrSubscriptionRequired) || klines != nil {
 		t.Fatalf("unsubscribed extended current K-lines = %#v, %v", klines, err)
 	}
 	if _, err := exchange.klineSubscriptionRequest("BAD", types.Interval5m); err == nil {
@@ -89,7 +90,7 @@ func TestCurrentKLineExtendedErrorBlankAndInvalidRequestBoundaries(t *testing.T)
 	}
 	hkSecurity, hkCanonical, _ := futuSecurityFromSymbol("HK.00700")
 	server.setCurrentKLineError(1, "current denied")
-	if _, err := exchange.queryCurrentKLines(t.Context(), hkSecurity, hkCanonical, types.Interval5m, qotcommonpb.KLType_KLType_5Min); err == nil {
+	if _, err := exchange.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{}); err == nil {
 		t.Fatal("current K-line protocol error = nil")
 	}
 

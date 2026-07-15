@@ -22,7 +22,7 @@ func (s pineWorkerLauncherFailureStub) Start(context.Context, pineworker.WorkerS
 type pineWorkerStopFailureLauncher struct{ err error }
 
 func (s pineWorkerStopFailureLauncher) Start(context.Context, pineworker.WorkerSpec) (pineworker.WorkerProcess, error) {
-	return pineWorkerStopFailureProcess{err: s.err}, nil
+	return pineWorkerStopFailureProcess(s), nil
 }
 
 type pineWorkerStopFailureProcess struct{ err error }

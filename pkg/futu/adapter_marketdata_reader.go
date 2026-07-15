@@ -20,22 +20,19 @@ func (r *futuMarketDataReader) QueryQuote(ctx context.Context, query broker.Quot
 	if len(query.Symbols) == 0 {
 		return nil, fmt.Errorf("futu: QueryQuote requires at least one symbol")
 	}
-	var result *broker.QuoteSnapshot
-	if err := r.exchange.withClient(ctx, func(client *opend.Client) error {
-		securities, err := securitiesFromSymbols(query.Symbols)
-		if err != nil {
-			return err
-		}
-		qots, err := client.GetBasicQot(ctx, securities)
-		if err != nil {
-			return err
-		}
-		result = quoteSnapshotFromProtoList(query.AccountID, qots)
-		return nil
-	}); err != nil {
+	quotes, err := r.exchange.queryBasicQotList(ctx, query.Symbols)
+	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	ordered := make([]*qotcommonpb.BasicQot, 0, len(query.Symbols))
+	for _, symbol := range query.Symbols {
+		quote, err := basicQotForSymbol(quotes, symbol)
+		if err != nil {
+			return nil, err
+		}
+		ordered = append(ordered, quote)
+	}
+	return quoteSnapshotFromProtoList(query.AccountID, ordered), nil
 }
 
 func quoteSnapshotFromProtoList(accountID string, qots []*qotcommonpb.BasicQot) *broker.QuoteSnapshot {

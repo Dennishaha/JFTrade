@@ -158,16 +158,16 @@ func TestMarketDataProviderSearchFailureAndNormalizationBoundaries(t *testing.T)
 
 func TestMarketDataProviderCandleParsingRemainingBoundaries(t *testing.T) {
 	query := marketdataProviderCandlesQuery("", 0, "", "invalid")
-	if query.Period != "" || query.Limit.Set || !query.FromTime.Time.IsZero() || !query.ToTime.Time.IsZero() {
+	if query.Period != "" || query.Limit.Set || !query.FromTime.IsZero() || !query.ToTime.IsZero() {
 		t.Fatalf("empty/invalid candle query = %#v", query)
 	}
 	valid := marketdataProviderOptionalTime("2026-07-15T01:02:03.123456789Z")
-	if valid.Time.IsZero() {
+	if valid.IsZero() {
 		t.Fatal("nanosecond timestamp was not parsed")
 	}
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, "127.0.0.1:1")
-	if _, err := server.marketdataProviderHistoricalCandles(context.Background(), "US", "AAPL", "tick", 1, "", ""); err == nil {
-		t.Fatal("expected unavailable tick candle transport error")
+	if _, err := server.marketdataProviderHistoricalCandles(context.Background(), "US", "AAPL", "tick", 1, "", ""); !errors.Is(err, mdsrv.ErrSubscriptionRequired) {
+		t.Fatalf("current K-line without lease error = %v", err)
 	}
 }

@@ -33,6 +33,18 @@ type subscriptionRegistry struct {
 	externalTTL   time.Duration
 }
 
+type subscriptionRollbackEntry struct {
+	key             string
+	hadConsumer     bool
+	consumer        subscriptionConsumer
+	previousUpdated time.Time
+}
+
+type subscriptionRollback struct {
+	consumerID string
+	entries    []subscriptionRollbackEntry
+}
+
 func newSubscriptionRegistry() *subscriptionRegistry {
 	return &subscriptionRegistry{
 		subscriptions: map[string]*subscription{},
@@ -42,16 +54,20 @@ func newSubscriptionRegistry() *subscriptionRegistry {
 }
 
 func (r *subscriptionRegistry) acquire(consumerID string, instruments []InstrumentRef) SubscriptionResult {
-	return r.acquireWithMode(consumerID, instruments, false)
+	result, _ := r.acquireWithMode(consumerID, instruments, false)
+	return result
 }
 
 func (r *subscriptionRegistry) acquireManaged(consumerID string, instruments []InstrumentRef) SubscriptionResult {
-	return r.acquireWithMode(consumerID, instruments, true)
+	result, _ := r.acquireWithMode(consumerID, instruments, true)
+	return result
 }
 
-func (r *subscriptionRegistry) acquireWithMode(consumerID string, instruments []InstrumentRef, managed bool) SubscriptionResult {
+func (r *subscriptionRegistry) acquireWithMode(consumerID string, instruments []InstrumentRef, managed bool) (SubscriptionResult, subscriptionRollback) {
 	consumerID = normalizeConsumerID(consumerID)
 	now := r.now().UTC()
+	rollback := subscriptionRollback{consumerID: consumerID, entries: make([]subscriptionRollbackEntry, 0, len(instruments))}
+	captured := make(map[string]struct{}, len(instruments))
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -59,6 +75,15 @@ func (r *subscriptionRegistry) acquireWithMode(consumerID string, instruments []
 	for _, instrument := range instruments {
 		channel, market, symbol, interval, key := normalizeSubscription(instrument)
 		entry := r.subscriptions[key]
+		if _, exists := captured[key]; !exists {
+			state := subscriptionRollbackEntry{key: key}
+			if entry != nil {
+				state.previousUpdated = entry.updatedAt
+				state.consumer, state.hadConsumer = entry.consumers[consumerID]
+			}
+			rollback.entries = append(rollback.entries, state)
+			captured[key] = struct{}{}
+		}
 		if entry == nil {
 			entry = &subscription{
 				key:          key,
@@ -76,7 +101,30 @@ func (r *subscriptionRegistry) acquireWithMode(consumerID string, instruments []
 		entry.updatedAt = now
 	}
 
-	return SubscriptionResult(r.snapshotLocked())
+	return SubscriptionResult(r.snapshotLocked()), rollback
+}
+
+func (r *subscriptionRegistry) restore(rollback subscriptionRollback) {
+	if len(rollback.entries) == 0 {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, state := range rollback.entries {
+		entry := r.subscriptions[state.key]
+		if entry == nil {
+			continue
+		}
+		if state.hadConsumer {
+			entry.consumers[rollback.consumerID] = state.consumer
+		} else {
+			delete(entry.consumers, rollback.consumerID)
+		}
+		entry.updatedAt = state.previousUpdated
+		if len(entry.consumers) == 0 {
+			delete(r.subscriptions, state.key)
+		}
+	}
 }
 
 func (r *subscriptionRegistry) release(consumerID string, instrument InstrumentRef) {

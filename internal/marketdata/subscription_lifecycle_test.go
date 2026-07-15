@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -236,7 +237,6 @@ func TestSubscriptionValidationAndSnapshotDecorationBoundaries(t *testing.T) {
 	valid := []InstrumentRef{
 		{Market: "HK", Symbol: "00700"},
 		{Channel: "TICK", Market: "US", Symbol: "AAPL"},
-		{Channel: "ORDER_BOOK", Market: "US", Symbol: "MSFT"},
 	}
 	for _, interval := range []string{"1m", "3m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"} {
 		valid = append(valid, InstrumentRef{Channel: "KLINE", Market: "US", Symbol: "NVDA", Interval: interval})
@@ -249,6 +249,7 @@ func TestSubscriptionValidationAndSnapshotDecorationBoundaries(t *testing.T) {
 		{{Market: "", Symbol: "AAPL"}},
 		{{Market: "US", Symbol: "AAPL", Channel: "SNAPSHOT", Interval: "1m"}},
 		{{Market: "US", Symbol: "AAPL", Channel: "KLINE", Interval: "2m"}},
+		{{Market: "US", Symbol: "AAPL", Channel: "ORDER_BOOK"}},
 		{{Market: "US", Symbol: "AAPL", Channel: "NEWS"}},
 	}
 	for index, refs := range invalid {
@@ -277,6 +278,117 @@ func TestSubscriptionValidationAndSnapshotDecorationBoundaries(t *testing.T) {
 	if released != 1 {
 		t.Fatalf("managed release count = %d", released)
 	}
+}
+
+func TestFailedAcquireRestoresOnlyTheAttemptedConsumerState(t *testing.T) {
+	physicalErr := errors.New("physical subscribe failed")
+	reconciler := &fakeSubscriptionReconciler{}
+	service := NewService(stubProvider{})
+	service.SetSubscriptionReconciler(reconciler)
+	retained := InstrumentRef{Channel: "SNAPSHOT", Market: "US", Symbol: "AAPL"}
+	newRef := InstrumentRef{Channel: "KLINE", Market: "US", Symbol: "MSFT", Interval: "1m"}
+
+	if _, err := service.AcquireSubscription(context.Background(), "chart", []InstrumentRef{retained}); err != nil {
+		t.Fatalf("seed subscription: %v", err)
+	}
+	reconciler.errors = []error{physicalErr, nil}
+	if _, err := service.AcquireSubscription(context.Background(), "chart", []InstrumentRef{retained, newRef}); !errors.Is(err, physicalErr) {
+		t.Fatalf("failed extension error = %v", err)
+	}
+	snapshot, err := service.GetSubscriptions(context.Background())
+	if err != nil {
+		t.Fatalf("GetSubscriptions: %v", err)
+	}
+	entry := singleSubscriptionEntry(t, snapshot)
+	if entry["key"] != "SNAPSHOT:US:AAPL" || !reflect.DeepEqual(entry["consumers"], []string{"chart"}) {
+		t.Fatalf("failed extension damaged prior ownership: %#v", snapshot)
+	}
+
+	reconciler.errors = []error{physicalErr, nil}
+	if lease, err := service.AcquireManagedSubscription(context.Background(), "chart", []InstrumentRef{retained, newRef}); lease != nil || !errors.Is(err, physicalErr) {
+		t.Fatalf("failed managed extension = %#v, %v", lease, err)
+	}
+	snapshot, _ = service.GetSubscriptions(context.Background())
+	entry = singleSubscriptionEntry(t, snapshot)
+	if entry["key"] != "SNAPSHOT:US:AAPL" || !reflect.DeepEqual(entry["consumers"], []string{"chart"}) {
+		t.Fatalf("failed managed extension damaged prior ownership: %#v", snapshot)
+	}
+}
+
+func TestManagedLeaseReleaseRestoresPreexistingConsumerOwnership(t *testing.T) {
+	service := NewService(stubProvider{})
+	retained := InstrumentRef{Channel: "SNAPSHOT", Market: "US", Symbol: "AAPL"}
+	managedOnly := InstrumentRef{Channel: "KLINE", Market: "US", Symbol: "MSFT", Interval: "1m"}
+	if _, err := service.AcquireSubscription(context.Background(), "shared", []InstrumentRef{retained}); err != nil {
+		t.Fatalf("seed subscription: %v", err)
+	}
+	lease, err := service.AcquireManagedSubscription(context.Background(), "shared", []InstrumentRef{retained, managedOnly})
+	if err != nil {
+		t.Fatalf("managed acquire: %v", err)
+	}
+	lease.Release()
+	snapshot, _ := service.GetSubscriptions(context.Background())
+	entry := singleSubscriptionEntry(t, snapshot)
+	if entry["key"] != "SNAPSHOT:US:AAPL" || !reflect.DeepEqual(entry["consumers"], []string{"shared"}) {
+		t.Fatalf("managed release did not restore prior ownership: %#v", snapshot)
+	}
+}
+
+func TestSubscriptionRequiredErrorsAndManagedReadDemandBoundaries(t *testing.T) {
+	var nilService *Service
+	if err := nilService.requireBasicSubscriptionDemand("US", "AAPL", "TICK"); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("nil service demand error = %v", err)
+	}
+
+	service := NewService(stubProvider{})
+	service.SetSubscriptionReconciler(&fakeSubscriptionReconciler{})
+	if _, err := service.GetSnapshot(context.Background(), "US", "AAPL", false); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("snapshot without demand error = %v", err)
+	}
+	if _, err := service.GetCandles(context.Background(), "US", "AAPL", "tick", 1, "", ""); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("tick candles without demand error = %v", err)
+	}
+
+	if _, err := service.AcquireSubscription(context.Background(), "other", []InstrumentRef{{Channel: "SNAPSHOT", Market: "HK", Symbol: "00700"}}); err != nil {
+		t.Fatalf("seed mismatched demand: %v", err)
+	}
+	if err := service.requireBasicSubscriptionDemand("US", "AAPL", "SNAPSHOT"); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("mismatched demand error = %v", err)
+	}
+	if _, err := service.AcquireSubscription(context.Background(), "chart", []InstrumentRef{{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"}}); err != nil {
+		t.Fatalf("seed matching demand: %v", err)
+	}
+	if err := service.requireBasicSubscriptionDemand(" us ", "us.aapl", "TICK"); err != nil {
+		t.Fatalf("matching K-line demand should authorize Basic read: %v", err)
+	}
+
+	required := NewSubscriptionRequiredError(" kline ", " hk ", " 00700 ", " 1M ")
+	if required.Channel != "KLINE" || required.Market != "HK" || required.Symbol != "00700" || required.Interval != "1m" {
+		t.Fatalf("normalized subscription error = %#v", required)
+	}
+	if !errors.Is(required, ErrSubscriptionRequired) || !strings.Contains(required.Error(), "HK.00700:1m") {
+		t.Fatalf("typed subscription error = %v", required)
+	}
+	if got := (&SubscriptionRequiredError{}).Error(); !strings.Contains(got, "acquire a SNAPSHOT lease") {
+		t.Fatalf("default subscription error = %q", got)
+	}
+	if got := (&SubscriptionRequiredError{Channel: "TICK"}).Error(); !strings.Contains(got, "before reading live data") {
+		t.Fatalf("instrument-free subscription error = %q", got)
+	}
+	if got := (&SubscriptionRequiredError{Channel: "TICK", Market: "US", Symbol: "AAPL"}).Error(); !strings.Contains(got, "US.AAPL before") {
+		t.Fatalf("interval-free subscription error = %q", got)
+	}
+	var nilRequired *SubscriptionRequiredError
+	if got := nilRequired.Error(); got != ErrSubscriptionRequired.Error() {
+		t.Fatalf("nil subscription error = %q", got)
+	}
+
+	registry := newSubscriptionRegistry()
+	registry.restore(subscriptionRollback{})
+	registry.restore(subscriptionRollback{
+		consumerID: "missing",
+		entries:    []subscriptionRollbackEntry{{key: "SNAPSHOT:US:MISSING"}},
+	})
 }
 
 func TestServiceMergesAdditionalDemandIntoExactReconciliation(t *testing.T) {

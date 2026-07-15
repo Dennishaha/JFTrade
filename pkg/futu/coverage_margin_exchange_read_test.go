@@ -52,6 +52,9 @@ func TestQueryAllKLinesReturnsCompleteSortedHistoricalSeries(t *testing.T) {
 
 func TestExchangeReadAPIsPropagateOpenDQuoteAndSnapshotFailures(t *testing.T) {
 	server, exchange := coverageMarginExchange(t)
+	if err := exchange.SubscribeBasicQuote(t.Context(), "HK.00700", false); err != nil {
+		t.Fatalf("SubscribeBasicQuote() error = %v", err)
+	}
 	server.setBasicQotError(1, 7, "quote entitlement denied")
 
 	if _, err := exchange.QueryTicker(t.Context(), "HK.00700"); err == nil {

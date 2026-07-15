@@ -17,6 +17,7 @@ import (
 const (
 	minimumFutuSubscriptionAge = time.Minute
 	subscriptionQuotaRefresh   = time.Minute
+	maxGenerationReconcileRuns = 3
 )
 
 var subscriptionRetryDelays = [...]time.Duration{
@@ -27,6 +28,7 @@ var subscriptionRetryDelays = [...]time.Duration{
 }
 
 type physicalSubscriptionExchange interface {
+	ConnectionGeneration() uint64
 	SubscribeBasicQuote(context.Context, string, bool) error
 	UnsubscribeBasicQuote(context.Context, string) error
 	SubscribeKLine(context.Context, string, bbgotypes.Interval) error
@@ -55,14 +57,15 @@ type marketDataSubscriptionReconciler struct {
 	exchange    func() physicalSubscriptionExchange
 	now         func() time.Time
 
-	current          physicalSubscriptionExchange
-	records          map[string]*physicalSubscriptionRecord
-	desiredKeys      map[string]struct{}
-	desiredCount     int
-	quota            pkgfutu.SubscriptionQuota
-	quotaCheckedAt   time.Time
-	quotaLastError   string
-	lastReconciledAt time.Time
+	current              physicalSubscriptionExchange
+	connectionGeneration uint64
+	records              map[string]*physicalSubscriptionRecord
+	desiredKeys          map[string]struct{}
+	desiredCount         int
+	quota                pkgfutu.SubscriptionQuota
+	quotaCheckedAt       time.Time
+	quotaLastError       string
+	lastReconciledAt     time.Time
 }
 
 func newMarketDataSubscriptionReconciler(exchange func() physicalSubscriptionExchange, now func() time.Time) *marketDataSubscriptionReconciler {
@@ -89,16 +92,7 @@ func (r *marketDataSubscriptionReconciler) ReconcileSubscriptions(ctx context.Co
 
 	now := r.now().UTC()
 	physical, logicalCount := desiredPhysicalSubscriptions(desired)
-	r.mu.Lock()
-	r.desiredCount = logicalCount
-	r.desiredKeys = make(map[string]struct{}, len(physical))
-	for key := range physical {
-		r.desiredKeys[key] = struct{}{}
-	}
-	r.lastReconciledAt = now
-	noPhysicalWork := len(physical) == 0 && len(r.records) == 0
-	r.mu.Unlock()
-	if noPhysicalWork {
+	if r.updateDesiredSubscriptions(physical, logicalCount, now) {
 		return nil
 	}
 
@@ -108,11 +102,6 @@ func (r *marketDataSubscriptionReconciler) ReconcileSubscriptions(ctx context.Co
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if exchange != r.current {
-		r.current = exchange
-		r.records = map[string]*physicalSubscriptionRecord{}
-		r.quotaCheckedAt = time.Time{}
-	}
 	if exchange == nil {
 		if len(physical) == 0 {
 			return nil
@@ -120,6 +109,55 @@ func (r *marketDataSubscriptionReconciler) ReconcileSubscriptions(ctx context.Co
 		return fmt.Errorf("futu subscription exchange is unavailable")
 	}
 
+	for attempt := 0; attempt < maxGenerationReconcileRuns; attempt++ {
+		generation := exchange.ConnectionGeneration()
+		if exchange != r.current || generation != r.connectionGeneration {
+			r.resetConnectionStateLocked(exchange, generation)
+		}
+
+		reconcileErrors := r.subscribeDesiredLocked(ctx, exchange, physical, now)
+		reconcileErrors = append(reconcileErrors, r.unsubscribeUndesiredLocked(ctx, exchange, physical, now)...)
+		r.refreshQuota(ctx, exchange, now)
+		observedGeneration := exchange.ConnectionGeneration()
+		if observedGeneration == r.connectionGeneration {
+			return errors.Join(reconcileErrors...)
+		}
+		r.resetConnectionStateLocked(exchange, observedGeneration)
+	}
+	return fmt.Errorf("futu OpenD connection changed during %d consecutive subscription reconciliation attempts", maxGenerationReconcileRuns)
+}
+
+func (r *marketDataSubscriptionReconciler) resetConnectionStateLocked(exchange physicalSubscriptionExchange, generation uint64) {
+	r.current = exchange
+	r.connectionGeneration = generation
+	r.records = map[string]*physicalSubscriptionRecord{}
+	r.quota = pkgfutu.SubscriptionQuota{}
+	r.quotaCheckedAt = time.Time{}
+	r.quotaLastError = ""
+}
+
+func (r *marketDataSubscriptionReconciler) updateDesiredSubscriptions(
+	physical map[string]physicalSubscriptionRef,
+	logicalCount int,
+	now time.Time,
+) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.desiredCount = logicalCount
+	r.desiredKeys = make(map[string]struct{}, len(physical))
+	for key := range physical {
+		r.desiredKeys[key] = struct{}{}
+	}
+	r.lastReconciledAt = now
+	return len(physical) == 0 && len(r.records) == 0
+}
+
+func (r *marketDataSubscriptionReconciler) subscribeDesiredLocked(
+	ctx context.Context,
+	exchange physicalSubscriptionExchange,
+	physical map[string]physicalSubscriptionRef,
+	now time.Time,
+) []error {
 	var reconcileErrors []error
 	keys := sortedPhysicalKeys(physical)
 	for _, key := range keys {
@@ -148,7 +186,16 @@ func (r *marketDataSubscriptionReconciler) ReconcileSubscriptions(ctx context.Co
 		record.failures = 0
 		record.lastError = ""
 	}
+	return reconcileErrors
+}
 
+func (r *marketDataSubscriptionReconciler) unsubscribeUndesiredLocked(
+	ctx context.Context,
+	exchange physicalSubscriptionExchange,
+	physical map[string]physicalSubscriptionRef,
+	now time.Time,
+) []error {
+	var reconcileErrors []error
 	for _, key := range sortedRecordKeys(r.records) {
 		if _, wanted := physical[key]; wanted {
 			continue
@@ -168,9 +215,7 @@ func (r *marketDataSubscriptionReconciler) ReconcileSubscriptions(ctx context.Co
 		}
 		delete(r.records, key)
 	}
-
-	r.refreshQuota(ctx, exchange, now)
-	return errors.Join(reconcileErrors...)
+	return reconcileErrors
 }
 
 func (r *marketDataSubscriptionReconciler) SubscriptionState() map[string]any {
@@ -179,6 +224,12 @@ func (r *marketDataSubscriptionReconciler) SubscriptionState() map[string]any {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	observedGeneration := r.connectionGeneration
+	connectionChanged := false
+	if r.current != nil {
+		observedGeneration = r.current.ConnectionGeneration()
+		connectionChanged = observedGeneration != r.connectionGeneration
+	}
 	entries := make([]map[string]any, 0, len(r.records))
 	pending := 0
 	active := 0
@@ -187,7 +238,7 @@ func (r *marketDataSubscriptionReconciler) SubscriptionState() map[string]any {
 		state := "retrying"
 		var subscribedAt any
 		var eligibleAt any
-		if !record.subscribedAt.IsZero() {
+		if !record.subscribedAt.IsZero() && !connectionChanged {
 			active++
 			subscribedAt = record.subscribedAt.Format(time.RFC3339Nano)
 			eligible := record.subscribedAt.Add(minimumFutuSubscriptionAge)
@@ -198,6 +249,8 @@ func (r *marketDataSubscriptionReconciler) SubscriptionState() map[string]any {
 				state = "pending_unsubscribe"
 				pending++
 			}
+		} else if connectionChanged {
+			state = "pending_reconnect"
 		}
 		entry := map[string]any{
 			"key": record.ref.key, "kind": record.ref.kind, "instrumentId": record.ref.instrument,
@@ -213,6 +266,7 @@ func (r *marketDataSubscriptionReconciler) SubscriptionState() map[string]any {
 	}
 	return map[string]any{
 		"desiredCount": r.desiredCount, "ownActiveCount": active, "pendingReleaseCount": pending,
+		"connectionGeneration": r.connectionGeneration, "observedConnectionGeneration": observedGeneration,
 		"totalUsedQuota": r.quota.TotalUsed, "remainQuota": r.quota.Remaining, "ownUsedQuota": r.quota.OwnUsed,
 		"checkedAt": nullableTime(r.quotaCheckedAt), "lastError": nullableString(r.quotaLastError),
 		"reconciledAt": nullableTime(r.lastReconciledAt), "entries": entries,
@@ -225,6 +279,7 @@ func (r *marketDataSubscriptionReconciler) ResetPhysicalSubscriptions() {
 	}
 	r.mu.Lock()
 	r.current = nil
+	r.connectionGeneration = 0
 	r.records = map[string]*physicalSubscriptionRecord{}
 	r.desiredKeys = map[string]struct{}{}
 	r.quota = pkgfutu.SubscriptionQuota{}
@@ -247,6 +302,15 @@ func desiredPhysicalSubscriptions(desired []marketdata.InstrumentRef) (map[strin
 			channel = "SNAPSHOT"
 		}
 		interval := bbgotypes.Interval(strings.ToLower(strings.TrimSpace(raw.Interval)))
+		switch channel {
+		case "SNAPSHOT", "TICK":
+		case "KLINE":
+			if interval == "" {
+				continue
+			}
+		default:
+			continue
+		}
 		logicalKey := channel + ":" + instrument
 		if interval != "" {
 			logicalKey += ":" + string(interval)
@@ -254,7 +318,7 @@ func desiredPhysicalSubscriptions(desired []marketdata.InstrumentRef) (map[strin
 		logical[logicalKey] = struct{}{}
 		basicKey := "BASIC:" + instrument
 		physical[basicKey] = physicalSubscriptionRef{key: basicKey, kind: "BASIC", instrument: instrument}
-		if channel == "KLINE" && interval != "" {
+		if channel == "KLINE" {
 			klineKey := "KLINE:" + instrument + ":" + string(interval)
 			physical[klineKey] = physicalSubscriptionRef{key: klineKey, kind: "KLINE", instrument: instrument, interval: interval}
 		}

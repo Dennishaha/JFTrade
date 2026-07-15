@@ -61,6 +61,7 @@ type Exchange struct {
 	sessionMu                sync.RWMutex
 	client                   *opend.Client
 	ready                    bool
+	connectionGeneration     uint64
 	subscriptions            subscriptionRegistry
 	systemNotifyClient       *opend.Client
 	systemNotifyHandlers     []func(*notifypb.Response)
@@ -108,6 +109,26 @@ func (e *Exchange) Client() *opend.Client {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.client
+}
+
+// ConnectionGeneration returns a monotonic token for the current OpenD
+// connection lifecycle. It changes whenever a session is established or
+// invalidated, allowing external subscription reconcilers to detect that
+// OpenD discarded connection-scoped subscriptions.
+func (e *Exchange) ConnectionGeneration() uint64 {
+	if e == nil {
+		return 0
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.ready && e.client != nil {
+		select {
+		case <-e.client.Done():
+			jftradeLogError(e.invalidateClientLocked())
+		default:
+		}
+	}
+	return e.connectionGeneration
 }
 
 // OnSystemNotify registers a handler for OpenD system notifications (protocol

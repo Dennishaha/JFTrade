@@ -2,12 +2,14 @@ package servercore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -288,6 +290,9 @@ func (s *Server) marketdataProviderHistoricalCandles(ctx context.Context, market
 	instrumentID := resolvedMarket + "." + resolvedSymbol
 	resp, err := s.buildKLineCandlesResponse(ctx, resolvedMarket, resolvedSymbol, instrumentID, normalizedPeriod, query.limitOrDefault(200, 1000), query)
 	if err != nil {
+		if errors.Is(err, futu.ErrSubscriptionRequired) {
+			return nil, mdsrv.NewSubscriptionRequiredError("KLINE", resolvedMarket, resolvedSymbol, normalizedPeriod)
+		}
 		return nil, err
 	}
 	return mdsrv.CandlesResponse(resp), nil

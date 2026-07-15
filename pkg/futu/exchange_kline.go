@@ -36,20 +36,28 @@ func (e *Exchange) QueryKLines(ctx context.Context, symbol string, interval type
 	if err != nil {
 		return nil, err
 	}
-	klType, err := futuKLTypeFromInterval(interval)
+	klType, subType, err := futuKLineTypesFromInterval(interval)
 	if err != nil {
 		return nil, err
 	}
 	beginAt, endAt, limit := futuKLineQueryWindow(interval, options)
+	queryCurrent := shouldQueryCurrentKLine(interval, endAt)
+	if queryCurrent {
+		subscription := makeKLineSubscriptionRequest(security, canonicalSymbol, interval, subType)
+		if err := e.requireKLineSubscription(subscription, interval); err != nil {
+			return nil, err
+		}
+	}
 	klines, err := e.queryHistoricalKLines(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, limit)
 	if err != nil {
 		return nil, err
 	}
-	if shouldQueryCurrentKLine(interval, endAt) {
+	if queryCurrent {
 		currentKLines, err := e.queryCurrentKLines(ctx, security, canonicalSymbol, interval, klType)
-		if err == nil {
-			klines = mergeKLinesByStartTime(klines, filterKLinesByWindow(currentKLines, beginAt, endAt))
+		if err != nil {
+			return nil, err
 		}
+		klines = mergeKLinesByStartTime(klines, filterKLinesByWindow(currentKLines, beginAt, endAt))
 	}
 	sort.Slice(klines, func(i, j int) bool {
 		return klines[i].StartTime.Time().Before(klines[j].StartTime.Time())
@@ -196,8 +204,8 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 		subscription.extendedTime = true
 		subscription.session = commonpb.Session_Session_ALL
 	}
-	if !e.hasKLineSubscription(subscription) {
-		return nil, nil
+	if err := e.requireKLineSubscription(subscription, interval); err != nil {
+		return nil, err
 	}
 
 	request := &qotgetklpb.Request{C2S: &qotgetklpb.C2S{
@@ -209,6 +217,9 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 
 	var response qotgetklpb.Response
 	if err := e.withClient(ctx, func(client *opend.Client) error {
+		if err := e.requireKLineSubscription(subscription, interval); err != nil {
+			return err
+		}
 		return client.Call(ctx, opend.ProtoGetKL, request, &response)
 	}); err != nil {
 		return nil, err
@@ -227,6 +238,14 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 		klines = append(klines, kline)
 	}
 	return klines, nil
+}
+
+func (e *Exchange) requireKLineSubscription(request klineSubscriptionRequest, interval types.Interval) error {
+	e.ConnectionGeneration()
+	if !e.hasKLineSubscription(request) {
+		return &SubscriptionRequiredError{Channel: "KLINE", Symbol: request.canonical, Interval: string(interval)}
+	}
+	return nil
 }
 
 func (e *Exchange) hasKLineSubscription(request klineSubscriptionRequest) bool {
@@ -281,12 +300,16 @@ func (e *Exchange) klineSubscriptionRequest(symbol string, interval types.Interv
 	if err != nil {
 		return klineSubscriptionRequest{}, err
 	}
+	return makeKLineSubscriptionRequest(security, canonical, interval, subType), nil
+}
+
+func makeKLineSubscriptionRequest(security *qotcommonpb.Security, canonical string, interval types.Interval, subType qotcommonpb.SubType) klineSubscriptionRequest {
 	request := klineSubscriptionRequest{canonical: canonical, security: security, subType: subType}
 	if shouldRequestExtendedKLines(canonical, interval) {
 		request.extendedTime = true
 		request.session = commonpb.Session_Session_ALL
 	}
-	return request, nil
+	return request
 }
 
 func (e *Exchange) ensureKLineSubscription(ctx context.Context, client *opend.Client, request klineSubscriptionRequest) error {
@@ -335,54 +358,39 @@ func setKLineSubscription(ctx context.Context, client *opend.Client, request kli
 	return nil
 }
 
-func futuKLTypeFromInterval(interval types.Interval) (qotcommonpb.KLType, error) {
+func futuKLineTypesFromInterval(interval types.Interval) (qotcommonpb.KLType, qotcommonpb.SubType, error) {
 	switch interval {
 	case types.Interval1m:
-		return qotcommonpb.KLType_KLType_1Min, nil
+		return qotcommonpb.KLType_KLType_1Min, qotcommonpb.SubType_SubType_KL_1Min, nil
 	case types.Interval3m:
-		return qotcommonpb.KLType_KLType_3Min, nil
+		return qotcommonpb.KLType_KLType_3Min, qotcommonpb.SubType_SubType_KL_3Min, nil
 	case types.Interval5m:
-		return qotcommonpb.KLType_KLType_5Min, nil
+		return qotcommonpb.KLType_KLType_5Min, qotcommonpb.SubType_SubType_KL_5Min, nil
 	case types.Interval15m:
-		return qotcommonpb.KLType_KLType_15Min, nil
+		return qotcommonpb.KLType_KLType_15Min, qotcommonpb.SubType_SubType_KL_15Min, nil
 	case types.Interval30m:
-		return qotcommonpb.KLType_KLType_30Min, nil
+		return qotcommonpb.KLType_KLType_30Min, qotcommonpb.SubType_SubType_KL_30Min, nil
 	case types.Interval1h:
-		return qotcommonpb.KLType_KLType_60Min, nil
+		return qotcommonpb.KLType_KLType_60Min, qotcommonpb.SubType_SubType_KL_60Min, nil
 	case types.Interval1d:
-		return qotcommonpb.KLType_KLType_Day, nil
+		return qotcommonpb.KLType_KLType_Day, qotcommonpb.SubType_SubType_KL_Day, nil
 	case types.Interval1w:
-		return qotcommonpb.KLType_KLType_Week, nil
+		return qotcommonpb.KLType_KLType_Week, qotcommonpb.SubType_SubType_KL_Week, nil
 	case types.Interval1mo:
-		return qotcommonpb.KLType_KLType_Month, nil
+		return qotcommonpb.KLType_KLType_Month, qotcommonpb.SubType_SubType_KL_Month, nil
 	default:
-		return qotcommonpb.KLType_KLType_Unknown, fmt.Errorf("futu exchange: unsupported interval %q", interval)
+		return qotcommonpb.KLType_KLType_Unknown, qotcommonpb.SubType_SubType_None, fmt.Errorf("futu exchange: unsupported interval %q", interval)
 	}
 }
 
+func futuKLTypeFromInterval(interval types.Interval) (qotcommonpb.KLType, error) {
+	klType, _, err := futuKLineTypesFromInterval(interval)
+	return klType, err
+}
+
 func futuSubTypeFromInterval(interval types.Interval) (qotcommonpb.SubType, error) {
-	switch interval {
-	case types.Interval1m:
-		return qotcommonpb.SubType_SubType_KL_1Min, nil
-	case types.Interval3m:
-		return qotcommonpb.SubType_SubType_KL_3Min, nil
-	case types.Interval5m:
-		return qotcommonpb.SubType_SubType_KL_5Min, nil
-	case types.Interval15m:
-		return qotcommonpb.SubType_SubType_KL_15Min, nil
-	case types.Interval30m:
-		return qotcommonpb.SubType_SubType_KL_30Min, nil
-	case types.Interval1h:
-		return qotcommonpb.SubType_SubType_KL_60Min, nil
-	case types.Interval1d:
-		return qotcommonpb.SubType_SubType_KL_Day, nil
-	case types.Interval1w:
-		return qotcommonpb.SubType_SubType_KL_Week, nil
-	case types.Interval1mo:
-		return qotcommonpb.SubType_SubType_KL_Month, nil
-	default:
-		return qotcommonpb.SubType_SubType_None, fmt.Errorf("futu exchange: unsupported interval %q", interval)
-	}
+	_, subType, err := futuKLineTypesFromInterval(interval)
+	return subType, err
 }
 
 func futuKLineQueryWindow(interval types.Interval, options types.KLineQueryOptions) (time.Time, time.Time, int) {

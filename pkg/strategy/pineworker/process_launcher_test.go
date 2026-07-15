@@ -41,10 +41,10 @@ func TestNodeWorkerLauncherMaterializesBundleWithArgs(t *testing.T) {
 		t.Fatalf("Start error = %v", err)
 	}
 	waitForFile(t, logPath)
-	diagnostics := process.(*OSWorkerProcess).Diagnostics()
 	if err := process.Stop(context.Background()); err != nil {
 		t.Fatalf("Stop error = %v", err)
 	}
+	diagnostics := process.(*OSWorkerProcess).Diagnostics()
 	rawCWD, err := os.ReadFile(cwdPath)
 	if err != nil {
 		t.Fatalf("read cwd log: %v", err)

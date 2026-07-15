@@ -1,6 +1,7 @@
 package futu
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -115,7 +116,7 @@ func TestExchangeSubscriptionCacheUpdatesOnlyAfterOpenDConfirmation(t *testing.T
 	}
 }
 
-func TestQueryKLinesWithoutLeaseReturnsHistoryWithoutRealtimeSubscription(t *testing.T) {
+func TestQueryKLinesWithoutLeaseReturnsExplicitErrorBeforeRealtimeRead(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	defer server.stop()
 	labelAt := time.Now().UTC().Add(2 * time.Hour).Truncate(time.Minute)
@@ -126,11 +127,94 @@ func TestQueryKLinesWithoutLeaseReturnsHistoryWithoutRealtimeSubscription(t *tes
 	klines, err := exchange.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{
 		Limit: 2, StartTime: new(labelAt.Add(-time.Hour)), EndTime: new(labelAt.Add(time.Hour)),
 	})
-	if err != nil || len(klines) != 1 {
-		t.Fatalf("QueryKLines historical-only = %#v, %v", klines, err)
+	if !errors.Is(err, ErrSubscriptionRequired) || klines != nil {
+		t.Fatalf("QueryKLines missing-lease result = %#v, %v", klines, err)
 	}
-	if server.subCallCount() != 0 || server.currentKLCallCount() != 0 {
-		t.Fatalf("historical query leaked realtime calls: sub=%d current=%d", server.subCallCount(), server.currentKLCallCount())
+	if server.subCallCount() != 0 || server.historyKLCallCount() != 0 || server.currentKLCallCount() != 0 {
+		t.Fatalf("missing lease leaked broker calls: sub=%d history=%d current=%d", server.subCallCount(), server.historyKLCallCount(), server.currentKLCallCount())
+	}
+}
+
+func TestBasicQuoteReadRequiresExplicitLeaseAndNeverLeaksRawOpenDError(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+	exchange := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
+
+	if _, err := exchange.QueryTicker(t.Context(), "US.AAPL"); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("QueryTicker missing-lease error = %v", err)
+	}
+	if server.basicQotCallCount() != 0 {
+		t.Fatalf("missing lease reached GetBasicQot %d times", server.basicQotCallCount())
+	}
+	if err := exchange.SubscribeBasicQuote(t.Context(), "US.AAPL", false); err != nil {
+		t.Fatalf("SubscribeBasicQuote: %v", err)
+	}
+	if _, err := exchange.QueryTicker(t.Context(), "US.AAPL"); err != nil {
+		t.Fatalf("leased QueryTicker: %v", err)
+	}
+}
+
+func TestConnectionGenerationInvalidatesClosedSessionAndItsSubscriptions(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+	exchange := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
+
+	if err := exchange.SubscribeBasicQuote(t.Context(), "HK.00700", false); err != nil {
+		t.Fatalf("SubscribeBasicQuote: %v", err)
+	}
+	initialGeneration := exchange.ConnectionGeneration()
+	client := exchange.Client()
+	if client == nil {
+		t.Fatal("connected client is nil")
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("close active client: %v", err)
+	}
+	invalidatedGeneration := exchange.ConnectionGeneration()
+	if invalidatedGeneration <= initialGeneration {
+		t.Fatalf("generation did not advance after session close: %d -> %d", initialGeneration, invalidatedGeneration)
+	}
+	if _, err := exchange.QueryTicker(t.Context(), "HK.00700"); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("closed-session quote retained a stale lease: %v", err)
+	}
+	if err := exchange.SubscribeBasicQuote(t.Context(), "HK.00700", false); err != nil {
+		t.Fatalf("resubscribe on new session: %v", err)
+	}
+	if exchange.ConnectionGeneration() <= invalidatedGeneration {
+		t.Fatalf("generation did not advance for replacement session: %d", exchange.ConnectionGeneration())
+	}
+}
+
+func TestSubscriptionRequiredErrorFormattingAndNilConnectionGeneration(t *testing.T) {
+	var nilExchange *Exchange
+	if generation := nilExchange.ConnectionGeneration(); generation != 0 {
+		t.Fatalf("nil exchange generation = %d", generation)
+	}
+
+	var nilRequired *SubscriptionRequiredError
+	if got := nilRequired.Error(); got != ErrSubscriptionRequired.Error() {
+		t.Fatalf("nil subscription error = %q", got)
+	}
+	if got := (&SubscriptionRequiredError{}).Error(); !strings.Contains(got, "acquire a market-data lease") {
+		t.Fatalf("empty subscription error = %q", got)
+	}
+	if got := (&SubscriptionRequiredError{Channel: " basic "}).Error(); !strings.Contains(got, "acquire a BASIC lease") {
+		t.Fatalf("channel-only subscription error = %q", got)
+	}
+	if got := (&SubscriptionRequiredError{Channel: "KLINE", Interval: "1m"}).Error(); !strings.Contains(got, ":1m") {
+		t.Fatalf("interval subscription error = %q", got)
+	}
+}
+
+func TestFailedConnectionDoesNotAdvanceEstablishedSessionGeneration(t *testing.T) {
+	exchange := NewExchangeWithConfig(opend.Config{Addr: "127.0.0.1:1", RequestTimeout: 30 * time.Millisecond})
+	if err := exchange.Connect(t.Context()); err == nil {
+		t.Fatal("unavailable OpenD connection error = nil")
+	}
+	if generation := exchange.ConnectionGeneration(); generation != 0 {
+		t.Fatalf("failed connection generation = %d, want 0", generation)
 	}
 }
 

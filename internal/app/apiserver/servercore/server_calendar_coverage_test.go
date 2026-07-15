@@ -9,6 +9,7 @@ import (
 )
 
 func TestServerCalendarOptionsAndOperationsRemainingBoundaries(t *testing.T) {
+	//nolint:staticcheck // Exercise the helper's explicit nil-parent fallback.
 	ctx, cancel := exchangeCalendarOperationContext(nil)
 	if ctx == nil {
 		t.Fatal("nil parent did not produce operation context")

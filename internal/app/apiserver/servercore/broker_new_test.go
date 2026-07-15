@@ -116,17 +116,20 @@ func TestBrokerFundsIncludesMarginFields(t *testing.T) {
 	}
 }
 
-// --- Test: quote endpoint without broker returns disconnected ---
+// --- Test: quote endpoint without a market-data lease fails before OpenD I/O ---
 
-func TestBrokerQuoteDisconnected(t *testing.T) {
+func TestBrokerQuoteWithoutLeaseIsDegraded(t *testing.T) {
 	srv, _ := testServer(t)
 
 	status, data := getEnvelope(t, srv.URL+"/api/v1/brokers/futu/quote?symbol=HK.00700")
 	if status != http.StatusOK {
 		t.Fatalf("unexpected status %d", status)
 	}
-	if data["connectivity"] != "disconnected" {
-		t.Errorf("expected disconnected, got %v", data["connectivity"])
+	if data["connectivity"] != "degraded" {
+		t.Errorf("expected degraded, got %v", data["connectivity"])
+	}
+	if lastError, _ := data["lastError"].(string); !strings.Contains(lastError, "subscription required") {
+		t.Fatalf("missing-lease lastError = %q", lastError)
 	}
 }
 
@@ -229,20 +232,23 @@ func TestBrokerReadRoutesRejectInvalidQueryShape(t *testing.T) {
 func TestBrokerReadRoutesKeepValidDisconnectedShape(t *testing.T) {
 	srv, _ := testServer(t)
 
-	tests := []string{
-		"/api/v1/brokers/futu/quote?symbol=HK.00700,US.NVDA",
-		"/api/v1/brokers/futu/securities?symbol=HK.00700&symbol=US.NVDA",
-		"/api/v1/brokers/futu/klines?symbol=HK.00700",
+	tests := []struct {
+		path         string
+		connectivity string
+	}{
+		{path: "/api/v1/brokers/futu/quote?symbol=HK.00700,US.NVDA", connectivity: "degraded"},
+		{path: "/api/v1/brokers/futu/securities?symbol=HK.00700&symbol=US.NVDA", connectivity: "disconnected"},
+		{path: "/api/v1/brokers/futu/klines?symbol=HK.00700", connectivity: "disconnected"},
 	}
 
-	for _, path := range tests {
-		t.Run(path, func(t *testing.T) {
-			status, data := getEnvelope(t, srv.URL+path)
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			status, data := getEnvelope(t, srv.URL+tt.path)
 			if status != http.StatusOK {
 				t.Fatalf("status = %d, want 200", status)
 			}
-			if data["connectivity"] != "disconnected" {
-				t.Fatalf("connectivity = %v, want disconnected", data["connectivity"])
+			if data["connectivity"] != tt.connectivity {
+				t.Fatalf("connectivity = %v, want %s", data["connectivity"], tt.connectivity)
 			}
 		})
 	}

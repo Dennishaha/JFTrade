@@ -201,6 +201,9 @@ func TestQueryTickerReusesSingleOpenDConnection(t *testing.T) {
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer func() { jftradeCheckTestError(t, ex.Close()) }()
+	if err := ex.SubscribeBasicQuote(t.Context(), "HK.00700", false); err != nil {
+		t.Fatalf("SubscribeBasicQuote: %v", err)
+	}
 
 	firstTicker, err := ex.QueryTicker(t.Context(), "HK.00700")
 	if err != nil {
@@ -219,8 +222,8 @@ func TestQueryTickerReusesSingleOpenDConnection(t *testing.T) {
 	if !server.lastInitRecvNotify() {
 		t.Fatal("expected InitConnect to request OpenD notifications")
 	}
-	if got := server.subCallCount(); got != 0 {
-		t.Fatalf("snapshot ticker queries must not create subscriptions, got %d Qot_Sub calls", got)
+	if got := server.subCallCount(); got != 1 {
+		t.Fatalf("explicit lease should create one Qot_Sub call, got %d", got)
 	}
 	if got := server.basicQotCallCount(); got != 2 {
 		t.Fatalf("expected two GetBasicQot calls, got %d", got)

@@ -42,7 +42,9 @@ func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error)
 		}
 		if err := fn(client); err != nil {
 			if !isRecoverableOpenDErr(err) {
-				observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "opend query failed", err)
+				if !errors.Is(err, ErrSubscriptionRequired) {
+					observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "opend query failed", err)
+				}
 				return err
 			}
 			lastErr = err
@@ -98,7 +100,6 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 		return nil, err
 	}
 
-	e.ready = true
 	if keepAliveInterval := initState.GetKeepAliveInterval(); keepAliveInterval > 0 {
 		e.client.StartKeepAlive(time.Duration(keepAliveInterval) * time.Second)
 	}
@@ -112,6 +113,8 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 		log.Printf("futu OpenD trade account push resubscribe failed after reconnect: %v", err)
 		return nil, err
 	}
+	e.ready = true
+	e.connectionGeneration++
 	log.Printf("futu OpenD session established to %s (connect=%v init=%v total=%v)",
 		e.addr, connectElapsed, time.Since(initStart), time.Since(connectStart))
 	return e.client, nil
@@ -287,6 +290,9 @@ func (e *Exchange) invalidateClient() {
 
 func (e *Exchange) invalidateClientLocked() error {
 	client := e.client
+	if e.ready {
+		e.connectionGeneration++
+	}
 	e.client = nil
 	e.ready = false
 	e.subscriptions.reset()

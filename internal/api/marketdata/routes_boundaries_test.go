@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 
 	srv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
@@ -90,6 +91,39 @@ func TestCandlesAndDepthRoutesMapProviderFailures(t *testing.T) {
 	}
 }
 
+func TestLiveReadRoutesReturnConflictForMissingSubscriptionLease(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{
+		snapshot:   &srv.Tick{InstrumentID: "US.AAPL", Market: "US", Symbol: "AAPL", Price: decimal.NewFromInt(1), ObservedAt: "2026-07-16T00:00:00Z"},
+		candlesErr: srv.NewSubscriptionRequiredError("KLINE", "US", "AAPL", "1m"),
+	}
+	service := srv.NewService(provider)
+	service.SetSubscriptionReconciler(&cancellingSubscriptionReconciler{})
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), service)
+
+	for _, path := range []string{
+		"/api/v1/market-data/snapshots/US/AAPL",
+		"/api/v1/market-data/candles/US/AAPL?period=1m",
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
+		if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), `"code":"MARKET_DATA_SUBSCRIPTION_REQUIRED"`) {
+			t.Fatalf("missing lease %s response = %d %s", path, response.Code, response.Body.String())
+		}
+	}
+
+	postSubscriptionJSON(t, router, "/api/v1/market-data/subscriptions", map[string]any{
+		"consumerId":  "chart",
+		"instruments": []any{map[string]any{"channel": "SNAPSHOT", "market": "US", "symbol": "AAPL"}},
+	})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/snapshots/US/AAPL", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("leased snapshot response = %d %s", response.Code, response.Body.String())
+	}
+}
+
 func TestSubscriptionRoutesRejectMalformedAndIncompleteRequests(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	service := srv.NewService(&routeTestProvider{})
@@ -107,6 +141,7 @@ func TestSubscriptionRoutesRejectMalformedAndIncompleteRequests(t *testing.T) {
 		{name: "acquire missing instruments", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart"}`, detail: "consumerId and instruments are required"},
 		{name: "acquire drops incomplete instruments", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US"},{"symbol":"AAPL"}]}`, detail: "consumerId and instruments are required"},
 		{name: "acquire rejects invalid channel", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"NEWS"}]}`, detail: "unsupported subscription channel"},
+		{name: "acquire rejects unmanaged order book", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"ORDER_BOOK"}]}`, detail: "unsupported subscription channel"},
 		{name: "acquire rejects KLINE without interval", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"KLINE"}]}`, detail: "unsupported KLINE subscription interval"},
 		{name: "release malformed JSON", path: "/api/v1/market-data/subscriptions/release", body: `{`, detail: "invalid release request"},
 		{name: "release missing consumer", path: "/api/v1/market-data/subscriptions/release", body: `{}`, detail: "consumerId is required"},

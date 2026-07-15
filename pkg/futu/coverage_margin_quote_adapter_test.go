@@ -29,6 +29,10 @@ func TestQuoteSnapshotUsesCompleteActiveExtendedBlock(t *testing.T) {
 		snapshot.LowPrice.String() != "198" || snapshot.Volume != 20 || snapshot.Turnover.String() != "2000" {
 		t.Fatalf("complete after-hours snapshot = %#v", snapshot)
 	}
+	preMarket := &ExtendedMarketQuote{}
+	if got := activeExtendedQuoteForSession(market.SessionPre, preMarket, nil, nil); got != preMarket {
+		t.Fatalf("pre-market active quote = %#v", got)
+	}
 	if got := activeExtendedQuoteForSession(market.SessionOvernight, nil, nil, snapshot.AfterMarket); got != snapshot.AfterMarket {
 		t.Fatalf("overnight active quote = %#v", got)
 	}

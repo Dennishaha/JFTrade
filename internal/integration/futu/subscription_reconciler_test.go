@@ -15,15 +15,21 @@ import (
 )
 
 type fakePhysicalSubscriptionExchange struct {
-	calls       []string
-	failures    map[string][]error
-	quota       pkgfutu.SubscriptionQuota
-	quotaCalls  int
-	quotaErrors []error
+	calls             []string
+	failures          map[string][]error
+	generation        uint64
+	generationChanges map[string][]uint64
+	quota             pkgfutu.SubscriptionQuota
+	quotaCalls        int
+	quotaErrors       []error
 }
 
 func (f *fakePhysicalSubscriptionExchange) call(name string) error {
 	f.calls = append(f.calls, name)
+	if changes := f.generationChanges[name]; len(changes) > 0 {
+		f.generation = changes[0]
+		f.generationChanges[name] = changes[1:]
+	}
 	queued := f.failures[name]
 	if len(queued) == 0 {
 		return nil
@@ -31,6 +37,10 @@ func (f *fakePhysicalSubscriptionExchange) call(name string) error {
 	err := queued[0]
 	f.failures[name] = queued[1:]
 	return err
+}
+
+func (f *fakePhysicalSubscriptionExchange) ConnectionGeneration() uint64 {
+	return f.generation
 }
 
 func (f *fakePhysicalSubscriptionExchange) SubscribeBasicQuote(_ context.Context, symbol string, push bool) error {
@@ -89,6 +99,7 @@ func TestSubscriptionReconcilerSharesExactPhysicalSubscriptionsAndDefersFinalRel
 	}
 
 	exchange.calls = nil
+	//nolint:staticcheck // Exercise the reconciler's explicit nil-context fallback.
 	if err := reconciler.ReconcileSubscriptions(nil, nil); err != nil {
 		t.Fatalf("early release reconcile: %v", err)
 	}
@@ -158,6 +169,79 @@ func TestSubscriptionReconcilerConcurrentReconcileIsIdempotent(t *testing.T) {
 	state := reconciler.SubscriptionState()
 	if state["desiredCount"] != 0 || state["ownActiveCount"] != 0 || state["pendingReleaseCount"] != 0 {
 		t.Fatalf("concurrent final state = %#v", state)
+	}
+}
+
+func TestSubscriptionReconcilerReplaysAllDesiredSubscriptionsWhenConnectionGenerationChanges(t *testing.T) {
+	now := time.Date(2026, time.July, 15, 5, 30, 0, 0, time.UTC)
+	exchange := &fakePhysicalSubscriptionExchange{
+		generation: 1,
+		generationChanges: map[string][]uint64{
+			"subscribe-kline:US.AAPL:1m": {2},
+		},
+	}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	desired := []marketdata.InstrumentRef{{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"}}
+
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("reconcile across connection change: %v", err)
+	}
+	want := []string{
+		"subscribe-basic:US.AAPL:push",
+		"subscribe-kline:US.AAPL:1m",
+		"subscribe-basic:US.AAPL:push",
+		"subscribe-kline:US.AAPL:1m",
+	}
+	if !reflect.DeepEqual(exchange.calls, want) {
+		t.Fatalf("connection-generation replay calls = %#v, want %#v", exchange.calls, want)
+	}
+	state := reconciler.SubscriptionState()
+	if state["connectionGeneration"] != uint64(2) || state["ownActiveCount"] != 2 {
+		t.Fatalf("replayed state = %#v", state)
+	}
+
+	exchange.generation = 3
+	state = reconciler.SubscriptionState()
+	if state["ownActiveCount"] != 0 || state["entries"].([]map[string]any)[0]["brokerState"] != "pending_reconnect" {
+		t.Fatalf("stale generation must not report active subscriptions: %#v", state)
+	}
+	exchange.calls = nil
+	if err := reconciler.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("out-of-band generation replay: %v", err)
+	}
+	if !reflect.DeepEqual(exchange.calls, want[:2]) {
+		t.Fatalf("out-of-band replay calls = %#v", exchange.calls)
+	}
+}
+
+func TestSubscriptionReconcilerFailsWhenConnectionKeepsChanging(t *testing.T) {
+	exchange := &fakePhysicalSubscriptionExchange{
+		generation: 1,
+		generationChanges: map[string][]uint64{
+			"subscribe-basic:US.AAPL:push": {2, 3, 4},
+		},
+	}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return time.Date(2026, time.July, 15, 6, 0, 0, 0, time.UTC) },
+	)
+	err := reconciler.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{
+		Channel: "SNAPSHOT",
+		Market:  "US",
+		Symbol:  "AAPL",
+	}})
+	if err == nil || !strings.Contains(err.Error(), "changed during 3 consecutive") {
+		t.Fatalf("unstable connection reconcile error = %v", err)
+	}
+	if want := []string{
+		"subscribe-basic:US.AAPL:push",
+		"subscribe-basic:US.AAPL:push",
+		"subscribe-basic:US.AAPL:push",
+	}; !reflect.DeepEqual(exchange.calls, want) {
+		t.Fatalf("unstable connection calls = %#v, want %#v", exchange.calls, want)
 	}
 }
 
@@ -287,7 +371,7 @@ func TestSubscriptionReconcilerHandlesQuotaExchangeReplacementResetAndNilBoundar
 	}
 
 	var nilReconciler *marketDataSubscriptionReconciler
-	if err := nilReconciler.ReconcileSubscriptions(nil, desired); err != nil || nilReconciler.SubscriptionState() != nil {
+	if err := nilReconciler.ReconcileSubscriptions(context.Background(), desired); err != nil || nilReconciler.SubscriptionState() != nil {
 		t.Fatalf("nil reconciler boundary = state %#v err %v", nilReconciler.SubscriptionState(), err)
 	}
 	nilReconciler.ResetPhysicalSubscriptions()
@@ -322,8 +406,9 @@ func TestDesiredPhysicalSubscriptionsRejectsIncompleteRefsAndNormalizesSymbols(t
 		{},
 		{Channel: "ORDER_BOOK", Symbol: "us.nvda"},
 		{Channel: "KLINE", Market: "US", Symbol: "NVDA"},
+		{Channel: "SNAPSHOT", Symbol: "us.nvda"},
 	})
-	if logical != 2 || len(physical) != 1 || physical["BASIC:US.NVDA"].instrument != "US.NVDA" {
+	if logical != 1 || len(physical) != 1 || physical["BASIC:US.NVDA"].instrument != "US.NVDA" {
 		t.Fatalf("desired physical = %#v logical=%d", physical, logical)
 	}
 	if market, symbol := normalizedInstrument("", "bad"); market != "" || symbol != "BAD" {

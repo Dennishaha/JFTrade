@@ -121,6 +121,7 @@ func TestRuntimeDependencyRemainingPureBoundaries(t *testing.T) {
 		func(path string) (string, error) { return path, nil },
 		func(context.Context, string, ...string) ([]byte, error) { return []byte("v22.0.0"), nil },
 	)
+	//nolint:staticcheck // Exercise the helper's explicit nil-context fallback.
 	if got := checkNodeRuntimeDependency(nil, PineWorkerSettings{}); got["status"] != runtimeDependencyStatusOK {
 		t.Fatalf("nil-context dependency = %#v", got)
 	}

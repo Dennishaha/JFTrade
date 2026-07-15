@@ -19,6 +19,11 @@ func TestQueryTickersBatchesBasicQotRequests(t *testing.T) {
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer func() { jftradeCheckTestError(t, ex.Close()) }()
+	for _, symbol := range []string{"HK.00700", "US.NVDA"} {
+		if err := ex.SubscribeBasicQuote(t.Context(), symbol, false); err != nil {
+			t.Fatalf("SubscribeBasicQuote(%s): %v", symbol, err)
+		}
+	}
 
 	tickers, err := ex.QueryTickers(t.Context(), "HK.00700", "US.NVDA")
 	if err != nil {
@@ -30,8 +35,8 @@ func TestQueryTickersBatchesBasicQotRequests(t *testing.T) {
 	if got := server.acceptCount(); got != 1 {
 		t.Fatalf("expected one OpenD TCP session, got %d", got)
 	}
-	if got := server.subCallCount(); got != 0 {
-		t.Fatalf("batched ticker queries must not create subscriptions, got %d Qot_Sub calls", got)
+	if got := server.subCallCount(); got != 2 {
+		t.Fatalf("explicit leases should create two Qot_Sub calls, got %d", got)
 	}
 	if got := server.basicQotCallCount(); got != 1 {
 		t.Fatalf("expected one batched GetBasicQot call, got %d", got)
@@ -401,6 +406,9 @@ func TestStreamConnectRebuildsClosedCachedOpenDClient(t *testing.T) {
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer func() { jftradeCheckTestError(t, ex.Close()) }()
+	if err := ex.SubscribeBasicQuote(t.Context(), "HK.00700", false); err != nil {
+		t.Fatalf("SubscribeBasicQuote: %v", err)
+	}
 
 	if _, err := ex.QueryTicker(t.Context(), "HK.00700"); err != nil {
 		t.Fatalf("QueryTicker: %v", err)

@@ -2,6 +2,8 @@ package futu
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -13,6 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
+	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
@@ -153,6 +156,10 @@ func TestMarketDataRuntimeQueryAndSubscriptionWrappers(t *testing.T) {
 		Now: func() time.Time { return now },
 	})
 	t.Cleanup(func() { _ = runtime.Close() })
+	desired := []marketdata.InstrumentRef{{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"}}
+	if err := runtime.ReconcileSubscriptions(context.Background(), desired); err != nil {
+		t.Fatalf("ReconcileSubscriptions: %v", err)
+	}
 
 	ticks, err := runtime.QueryTickers(context.Background(), []string{"US.AAPL"})
 	if err != nil || ticks["US.AAPL"].InstrumentID != "US.AAPL" {
@@ -181,19 +188,62 @@ func TestMarketDataRuntimeQueryAndSubscriptionWrappers(t *testing.T) {
 	}
 	server.empty.Store(false)
 
-	desired := []marketdata.InstrumentRef{{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"}}
-	if err := runtime.ReconcileSubscriptions(context.Background(), desired); err != nil {
-		t.Fatalf("ReconcileSubscriptions: %v", err)
-	}
 	if state := runtime.SubscriptionState(); state == nil || state["desiredCount"] != 1 {
 		t.Fatalf("SubscriptionState = %#v", state)
 	}
 
 	var nilRuntime *MarketDataRuntime
-	if err := nilRuntime.ReconcileSubscriptions(nil, nil); err != nil {
+	if err := nilRuntime.ReconcileSubscriptions(context.Background(), nil); err != nil {
 		t.Fatalf("nil ReconcileSubscriptions = %v", err)
 	}
 	if state := nilRuntime.SubscriptionState(); state != nil {
 		t.Fatalf("nil SubscriptionState = %#v", state)
+	}
+}
+
+func TestTranslateSubscriptionRequiredErrorPreservesBrokerNeutralLeaseDetails(t *testing.T) {
+	original := errors.New("provider failed")
+	if got := translateSubscriptionRequiredError(original, "TICK", ""); !errors.Is(got, original) {
+		t.Fatalf("unrelated error = %v", got)
+	}
+
+	translated := translateSubscriptionRequiredError(
+		&pkgfutu.SubscriptionRequiredError{Channel: "BASIC", Symbol: "us.aapl"},
+		"TICK",
+		"",
+	)
+	var required *marketdata.SubscriptionRequiredError
+	if !errors.As(translated, &required) || required.Channel != "TICK" || required.Market != "US" || required.Symbol != "AAPL" {
+		t.Fatalf("translated symbol error = %#v, %v", required, translated)
+	}
+
+	translated = translateSubscriptionRequiredError(
+		&pkgfutu.SubscriptionRequiredError{Channel: "KLINE", Symbol: "invalid", Interval: "5m"},
+		"KLINE",
+		"",
+	)
+	required = nil
+	if !errors.As(translated, &required) || required.Market != "" || required.Symbol != "" || required.Interval != "5m" {
+		t.Fatalf("translated fallback interval error = %#v, %v", required, translated)
+	}
+
+	translated = translateSubscriptionRequiredError(
+		&pkgfutu.SubscriptionRequiredError{Channel: "KLINE", Interval: "5m"},
+		"KLINE",
+		"1m",
+	)
+	required = nil
+	if !errors.As(translated, &required) || required.Interval != "1m" {
+		t.Fatalf("explicit interval translation = %#v, %v", required, translated)
+	}
+
+	translated = translateSubscriptionRequiredError(
+		fmt.Errorf("missing lease: %w", pkgfutu.ErrSubscriptionRequired),
+		"SNAPSHOT",
+		"",
+	)
+	required = nil
+	if !errors.As(translated, &required) || required.Channel != "SNAPSHOT" {
+		t.Fatalf("sentinel-only translation = %#v, %v", required, translated)
 	}
 }

@@ -382,10 +382,11 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			s.qotSubMu.Unlock()
 		case opend.ProtoGetSubInfo:
 			s.qotSubMu.Lock()
-			response = s.subInfoResponse
-			if response == nil {
-				response = &qotgetsubinfopb.Response{RetType: new(int32(0)), S2C: &qotgetsubinfopb.S2C{TotalUsedQuota: new(int32(0)), RemainQuota: new(int32(0))}}
+			subInfoResponse := s.subInfoResponse
+			if subInfoResponse == nil {
+				subInfoResponse = &qotgetsubinfopb.Response{RetType: new(int32(0)), S2C: &qotgetsubinfopb.S2C{TotalUsedQuota: new(int32(0)), RemainQuota: new(int32(0))}}
 			}
+			response = subInfoResponse
 			s.qotSubMu.Unlock()
 		case opend.ProtoTrdGetAccList:
 			s.accountListCalls.Add(1)

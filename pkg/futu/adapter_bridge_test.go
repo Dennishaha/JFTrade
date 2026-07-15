@@ -607,6 +607,16 @@ func TestBrokerAdapterQuoteKLinesSubscriptionsAndValidation(t *testing.T) {
 	reader := adapter.MarketData()
 	ctx := t.Context()
 
+	quoteSubscriber, ok := adapter.(broker.QuoteSubscriber)
+	if !ok {
+		t.Fatal("expected adapter to implement broker.QuoteSubscriber")
+	}
+	if err := quoteSubscriber.SubscribeQuotes(ctx, broker.QuoteSubscribeRequest{
+		Symbols: []string{"HK.00700", "US.NVDA"},
+	}); err != nil {
+		t.Fatalf("SubscribeQuotes: %v", err)
+	}
+
 	quote, err := reader.QueryQuote(ctx, broker.QuoteQuery{
 		ReadQuery: broker.ReadQuery{AccountID: "1001"},
 		Symbols:   []string{"HK.00700", "US.NVDA"},
@@ -652,10 +662,6 @@ func TestBrokerAdapterQuoteKLinesSubscriptionsAndValidation(t *testing.T) {
 		t.Fatalf("KLine volume = %#v, want 1000", klines.KLines[0].Volume)
 	}
 
-	quoteSubscriber, ok := adapter.(broker.QuoteSubscriber)
-	if !ok {
-		t.Fatal("expected adapter to implement broker.QuoteSubscriber")
-	}
 	if err := quoteSubscriber.SubscribeQuotes(ctx, broker.QuoteSubscribeRequest{
 		Symbols: []string{"HK.00700"},
 	}); err != nil {

@@ -129,6 +129,9 @@ func TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests(t *testing.T) {
 	if _, err := exchange.QueryTicker(t.Context(), "BAD"); err == nil {
 		t.Fatal("QueryTicker(invalid symbol) error = nil")
 	}
+	if err := exchange.SubscribeBasicQuote(t.Context(), "HK.00700", false); err != nil {
+		t.Fatalf("SubscribeBasicQuote() error = %v", err)
+	}
 
 	tickers, err := exchange.QueryTickers(t.Context(), "HK.00700", " hk.00700 ")
 	if err != nil || len(tickers) != 1 {

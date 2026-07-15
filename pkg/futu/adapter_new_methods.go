@@ -13,17 +13,12 @@ import (
 // --- broker.QuoteSubscriber implementation ---
 
 func (a *futuAdapter) SubscribeQuotes(ctx context.Context, req broker.QuoteSubscribeRequest) error {
+	requests, err := basicQotRequestsFromSymbols(req.Symbols)
+	if err != nil {
+		return err
+	}
 	return a.exchange.withClient(ctx, func(client *opend.Client) error {
-		securities, err := securitiesFromSymbols(req.Symbols)
-		if err != nil {
-			return err
-		}
-		return client.SubscribeQuotes(ctx, opend.QuoteSubRequest{
-			Securities:  securities,
-			SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_Basic},
-			IsSubscribe: true,
-			IsRegPush:   new(true),
-		})
+		return a.exchange.ensureBasicQotPushSubscriptions(ctx, client, requests)
 	})
 }
 

@@ -317,6 +317,7 @@ func TestInstrumentResolverRemainingLifecycleBoundaries(t *testing.T) {
 		return []InstrumentCandidate{resolverCandidate("US", "AAPL", "Apple")}, nil
 	}}
 	resolver := NewMarketSubsetInstrumentResolver(provider)
+	//nolint:staticcheck // Exercise the resolver's explicit nil-context fallback.
 	if result, err := resolver.Resolve(nil, "", "Apple", 0); err != nil || result.TotalReturned != 1 {
 		t.Fatalf("nil-context default-limit Resolve = %+v, %v", result, err)
 	}

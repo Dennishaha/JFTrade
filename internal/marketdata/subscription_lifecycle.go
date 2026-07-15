@@ -102,7 +102,7 @@ func validateSubscriptionRefs(refs []InstrumentRef) error {
 			channel = "SNAPSHOT"
 		}
 		switch channel {
-		case "SNAPSHOT", "TICK", "ORDER_BOOK":
+		case "SNAPSHOT", "TICK":
 			if strings.TrimSpace(ref.Interval) != "" {
 				return fmt.Errorf("subscription interval is only valid for KLINE")
 			}

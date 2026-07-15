@@ -33,6 +33,9 @@ func TestExchangeQueryQuoteSnapshotUsesBasicQotPayload(t *testing.T) {
 	t.Cleanup(func() {
 		jftradeCheckTestError(t, ex.Close())
 	})
+	if err := ex.SubscribeBasicQuote(t.Context(), "HK.00700", false); err != nil {
+		t.Fatalf("SubscribeBasicQuote: %v", err)
+	}
 
 	snapshot, err := ex.QueryQuoteSnapshot(t.Context(), "HK.00700")
 	if err != nil {

@@ -146,6 +146,18 @@ func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 	return manager
 }
 
+func (s *Server) recordStrategyRuntimeNotification(note strategyRuntimeNotification) {
+	s.recordLiveNotification(liveNotification{
+		At:       note.At,
+		Level:    note.Level,
+		Title:    note.Title,
+		Message:  note.Message,
+		Source:   note.Source,
+		BrokerID: note.BrokerID,
+		Category: note.Category,
+	})
+}
+
 func newStrategyRuntimeManagerDeps(server *Server) strategyRuntimeManagerDeps {
 	return strategyRuntimeManagerDeps{
 		pineWorkerLimit: func() int {
@@ -181,17 +193,7 @@ func newStrategyRuntimeManagerDeps(server *Server) strategyRuntimeManagerDeps {
 			}
 			return server.strategyStore.reconcileStrategyRuntimeFailure(instanceID, detail)
 		},
-		recordNotification: func(note strategyRuntimeNotification) {
-			server.recordLiveNotification(liveNotification{
-				At:       note.At,
-				Level:    note.Level,
-				Title:    note.Title,
-				Message:  note.Message,
-				Source:   note.Source,
-				BrokerID: note.BrokerID,
-				Category: note.Category,
-			})
-		},
+		recordNotification: server.recordStrategyRuntimeNotification,
 		placeExecutionOrder: func(ctx context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
 			if server.tradingSvc == nil {
 				return trdsrv.ExecutionOrder{}, fmt.Errorf("trading service is unavailable")

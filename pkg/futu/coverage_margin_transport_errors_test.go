@@ -69,6 +69,9 @@ func TestTradeReadMethodsPropagateTargetProtocolDisconnects(t *testing.T) {
 func TestQuoteKLineAndOrderBookPropagateTargetDisconnects(t *testing.T) {
 	t.Run("basic quote", func(t *testing.T) {
 		server, exchange := coverageMarginExchange(t)
+		if err := exchange.SubscribeBasicQuote(t.Context(), "HK.00700", false); err != nil {
+			t.Fatalf("SubscribeBasicQuote() error = %v", err)
+		}
 		server.setDropProto(opend.ProtoGetBasicQot)
 		if _, err := exchange.QueryTicker(t.Context(), "HK.00700"); err == nil {
 			t.Fatal("basic quote disconnect error = nil")
@@ -76,6 +79,9 @@ func TestQuoteKLineAndOrderBookPropagateTargetDisconnects(t *testing.T) {
 	})
 	t.Run("history kline", func(t *testing.T) {
 		server, exchange := coverageMarginExchange(t)
+		if err := exchange.SubscribeKLine(t.Context(), "HK.00700", types.Interval5m); err != nil {
+			t.Fatalf("SubscribeKLine() error = %v", err)
+		}
 		server.setDropProto(opend.ProtoRequestHistoryKL)
 		if _, err := exchange.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{}); err == nil {
 			t.Fatal("history K-line disconnect error = nil")
