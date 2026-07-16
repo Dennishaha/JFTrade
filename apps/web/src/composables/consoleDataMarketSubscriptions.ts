@@ -12,7 +12,7 @@ import type {
   MarketInstrumentReferenceResponse,
 } from "./consoleDataSystemState";
 
-type MarketDataChannel = "SNAPSHOT" | "KLINE" | "TICK";
+type MarketDataChannel = "SNAPSHOT" | "KLINE" | "TICK" | "ORDER_BOOK";
 
 function createMarketDataSubscriptionInstrument(
   market: string,

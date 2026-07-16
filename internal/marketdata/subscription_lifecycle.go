@@ -67,10 +67,13 @@ func decorateSubscriptionSnapshot(snapshot SubscriptionsSnapshot, broker map[str
 			instrumentID, _ := entry["instrumentId"].(string)
 			channel, _ := entry["channel"].(string)
 			physicalKey := "BASIC:" + instrumentID
-			if channel == "KLINE" {
+			switch channel {
+			case "KLINE":
 				if interval, ok := entry["interval"].(string); ok && interval != "" {
 					physicalKey = "KLINE:" + instrumentID + ":" + interval
 				}
+			case "ORDER_BOOK":
+				physicalKey = "ORDER_BOOK:" + instrumentID
 			}
 			physical := physicalEntries[physicalKey]
 			entry["brokerState"] = defaultEntryState
@@ -102,7 +105,7 @@ func validateSubscriptionRefs(refs []InstrumentRef) error {
 			channel = "SNAPSHOT"
 		}
 		switch channel {
-		case "SNAPSHOT", "TICK":
+		case "SNAPSHOT", "TICK", "ORDER_BOOK":
 			if strings.TrimSpace(ref.Interval) != "" {
 				return fmt.Errorf("subscription interval is only valid for KLINE")
 			}

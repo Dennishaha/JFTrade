@@ -20,12 +20,12 @@ func (e *Exchange) QueryOrderBook(ctx context.Context, symbol string, num int32)
 	if err != nil {
 		return nil, err
 	}
+	if err := e.requireOrderBookSubscription(canonical); err != nil {
+		return nil, err
+	}
 
 	var result *opend.OrderBookResult
 	if err := e.withClient(ctx, func(client *opend.Client) error {
-		if err := e.ensureOrderBookSubscriptions(ctx, client, []orderBookRequest{{canonical: canonical, security: security}}); err != nil {
-			return err
-		}
 		res, err := client.GetOrderBook(ctx, opend.OrderBookRequest{
 			Security: security,
 			Num:      num,
@@ -41,8 +41,70 @@ func (e *Exchange) QueryOrderBook(ctx context.Context, symbol string, num int32)
 	return result, nil
 }
 
+func (e *Exchange) requireOrderBookSubscription(canonical string) error {
+	e.ConnectionGeneration()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if !e.subscriptions.hasOrderBook(canonical) {
+		return &SubscriptionRequiredError{Channel: "ORDER_BOOK", Symbol: canonical}
+	}
+	return nil
+}
+
+// SubscribeOrderBook establishes the order-book subscription required by
+// QueryOrderBook. When push is true it also registers order-book pushes on the
+// current OpenD connection.
+func (e *Exchange) SubscribeOrderBook(ctx context.Context, symbol string, push bool) error {
+	security, canonical, err := futuSecurityFromSymbol(symbol)
+	if err != nil {
+		return err
+	}
+	request := orderBookRequest{canonical: canonical, security: security}
+	return e.withClient(ctx, func(client *opend.Client) error {
+		if push {
+			return e.ensureOrderBookPushSubscriptions(ctx, client, []orderBookRequest{request})
+		}
+		return e.ensureOrderBookSubscriptions(ctx, client, []orderBookRequest{request})
+	})
+}
+
+// UnsubscribeOrderBook unregisters pushes and releases the order-book
+// subscription owned by this Exchange connection. Missing subscriptions are
+// treated as already released.
+func (e *Exchange) UnsubscribeOrderBook(ctx context.Context, symbol string) error {
+	security, canonical, err := futuSecurityFromSymbol(symbol)
+	if err != nil {
+		return err
+	}
+	e.mu.Lock()
+	exists := e.subscriptions.hasOrderBook(canonical) || e.subscriptions.hasOrderBookPush(canonical)
+	e.mu.Unlock()
+	if !exists {
+		return nil
+	}
+	request := opend.QuoteSubRequest{
+		Securities:  []*qotcommonpb.Security{security},
+		SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_OrderBook},
+		IsSubscribe: false,
+		IsRegPush:   new(false),
+	}
+	if security.GetMarket() == int32(qotcommonpb.QotMarket_QotMarket_HK_Security) {
+		request.IsSubOrderBookDetail = new(true)
+	}
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		return client.SubscribeQuotes(ctx, request)
+	}); err != nil {
+		return err
+	}
+	e.mu.Lock()
+	e.subscriptions.unmarkOrderBook(canonical)
+	e.subscriptions.unmarkOrderBookPush(canonical)
+	e.mu.Unlock()
+	return nil
+}
+
 // ensureOrderBookSubscriptions ensures the given securities are subscribed
-// for order book (non-push). Used before QueryOrderBook REST calls.
+// for order book without registering push delivery.
 func (e *Exchange) ensureOrderBookSubscriptions(ctx context.Context, client *opend.Client, requests []orderBookRequest) error {
 	e.mu.Lock()
 	missing := make([]orderBookRequest, 0, len(requests))

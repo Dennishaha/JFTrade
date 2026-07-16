@@ -39,7 +39,6 @@ type Backend interface {
 	NotificationsAfter(uint64) []livecore.Event
 	EnsureNotificationBridge(context.Context)
 	SecurityDetails(context.Context, string, string) (map[string]any, error)
-	SubscribeDepth(context.Context, string, int32)
 	Depth(context.Context, string, string, int32) (map[string]any, error)
 	SubscribeDepthUpdates(func(string)) func()
 }

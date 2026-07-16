@@ -19,6 +19,9 @@ let workspacePrefs: ReturnType<
 
 const fetchEnvelopeMock = vi.fn();
 const fetchEnvelopeWithInitMock = vi.fn();
+const acquireMarketDataSubscriptionMock = vi.fn();
+const heartbeatMarketDataConsumerMock = vi.fn();
+const releaseMarketDataSubscriptionMock = vi.fn();
 
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelope: (...args: unknown[]) => fetchEnvelopeMock(...args),
@@ -29,6 +32,13 @@ vi.mock("../src/composables/useConsoleData", () => ({
   useConsoleData: () => ({
     currentMarketDataSnapshot: marketDataSnapshot,
     currentMarketSecurityDetails: marketSecurityDetails,
+    acquireMarketDataSubscription: (...args: unknown[]) =>
+      acquireMarketDataSubscriptionMock(...args),
+    createStableWebConsumerId: () => "web:workspace-depth:window:test",
+    heartbeatMarketDataConsumer: (...args: unknown[]) =>
+      heartbeatMarketDataConsumerMock(...args),
+    releaseMarketDataSubscription: (...args: unknown[]) =>
+      releaseMarketDataSubscriptionMock(...args),
   }),
 }));
 
@@ -114,6 +124,12 @@ describe("OrderBookPanel", () => {
     MockWebSocket.instances = [];
     fetchEnvelopeMock.mockReset();
     fetchEnvelopeWithInitMock.mockReset();
+    acquireMarketDataSubscriptionMock.mockReset();
+    heartbeatMarketDataConsumerMock.mockReset();
+    releaseMarketDataSubscriptionMock.mockReset();
+    acquireMarketDataSubscriptionMock.mockResolvedValue(true);
+    heartbeatMarketDataConsumerMock.mockResolvedValue(undefined);
+    releaseMarketDataSubscriptionMock.mockResolvedValue(undefined);
     fetchEnvelopeMock.mockResolvedValue({
       descriptor: {
         capabilities: [
@@ -180,10 +196,15 @@ describe("OrderBookPanel", () => {
     const hub = getSharedLiveSocketHub();
     const wrapper = mountOrderBookPanel();
 
-    await Promise.resolve();
-    await nextTick();
+    await flushOrderBook();
 
     expect(fetchEnvelopeMock).toHaveBeenCalledWith("/api/v1/brokers/futu/runtime");
+    expect(acquireMarketDataSubscriptionMock).toHaveBeenCalledWith({
+      consumerId: "web:workspace-depth:window:test",
+      market: "US",
+      symbol: "TME",
+      channel: "ORDER_BOOK",
+    });
     expect(fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
       "/api/v1/market-data/depth/US/TME?num=10",
       expect.objectContaining({
@@ -235,6 +256,13 @@ describe("OrderBookPanel", () => {
     expect(wrapper.get("[data-testid='depth-ask-size-col']").text()).toContain("180");
 
     wrapper.unmount();
+    expect(releaseMarketDataSubscriptionMock).toHaveBeenCalledWith({
+      consumerId: "web:workspace-depth:window:test",
+      market: "US",
+      symbol: "TME",
+      channel: "ORDER_BOOK",
+      keepalive: true,
+    });
   });
 
   it("keeps one websocket connection when the page becomes visible again", async () => {
@@ -324,6 +352,24 @@ describe("OrderBookPanel", () => {
     };
     marketDataSnapshot.value = null;
     await nextTick();
+    await flushOrderBook();
+
+    expect(releaseMarketDataSubscriptionMock).toHaveBeenCalledWith({
+      consumerId: "web:workspace-depth:window:test",
+      market: "US",
+      symbol: "TME",
+      channel: "ORDER_BOOK",
+      keepalive: false,
+    });
+    expect(acquireMarketDataSubscriptionMock).toHaveBeenLastCalledWith({
+      consumerId: "web:workspace-depth:window:test",
+      market: "US",
+      symbol: "AAPL",
+      channel: "ORDER_BOOK",
+    });
+    expect(
+      releaseMarketDataSubscriptionMock.mock.invocationCallOrder[0]!,
+    ).toBeLessThan(acquireMarketDataSubscriptionMock.mock.invocationCallOrder[1]!);
 
     expect(wrapper.text()).not.toContain("18.52");
     expect(hub.snapshotSubscriptions().depth).toContainEqual({
@@ -394,6 +440,8 @@ describe("OrderBookPanel", () => {
     await nextTick();
 
     expect(wrapper.text()).toContain("18.52");
+    expect(acquireMarketDataSubscriptionMock).toHaveBeenCalledTimes(1);
+    expect(releaseMarketDataSubscriptionMock).not.toHaveBeenCalled();
     expect(MockWebSocket.instances).toHaveLength(1);
 
     workspacePrefs!.value = {
@@ -486,6 +534,7 @@ describe("OrderBookPanel", () => {
     await flushOrderBook();
 
     expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
+    expect(acquireMarketDataSubscriptionMock).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("盘口不可用");
     expect(hub.snapshotSubscriptions().depth).toEqual([]);
     expect(callSetup<string | null>(wrapper, "buildDepthUrl")).toBeNull();
@@ -704,6 +753,8 @@ describe("OrderBookPanel", () => {
     await flushOrderBook();
 
     expect(fetchEnvelopeWithInitMock).toHaveBeenCalledTimes(2);
+    expect(acquireMarketDataSubscriptionMock).toHaveBeenCalledTimes(1);
+    expect(releaseMarketDataSubscriptionMock).not.toHaveBeenCalled();
     expect(wrapper.get("[data-testid='depth-ask-price-col']").text()).toContain(
       "18.60",
     );
@@ -864,6 +915,65 @@ describe("OrderBookPanel", () => {
     expect(wrapper.get("[data-testid='depth-ask-price-col']").text()).toContain(
       "18.60",
     );
+
+    wrapper.unmount();
+  });
+
+  it("does not open the depth stream when the order-book lease cannot be acquired", async () => {
+    acquireMarketDataSubscriptionMock.mockResolvedValueOnce(false);
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
+    expect(getSharedLiveSocketHub().snapshotSubscriptions().depth).toEqual([]);
+    expect(wrapper.find("[data-state='error']").text()).toContain(
+      "盘口订阅申请失败",
+    );
+
+    wrapper.unmount();
+    expect(releaseMarketDataSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("releases a stale subscription acquired after a rapid instrument switch", async () => {
+    const firstAcquire = deferred<boolean>();
+    acquireMarketDataSubscriptionMock
+      .mockImplementationOnce(() => firstAcquire.promise)
+      .mockResolvedValueOnce(true);
+
+    const wrapper = mountOrderBookPanel();
+    await Promise.resolve();
+    await nextTick();
+
+    workspacePrefs!.value = {
+      ...workspacePrefs!.value,
+      market: "US",
+      symbol: "AAPL",
+    };
+    await nextTick();
+
+    firstAcquire.resolve(true);
+    await flushOrderBook();
+
+    expect(releaseMarketDataSubscriptionMock).toHaveBeenCalledWith({
+      consumerId: "web:workspace-depth:window:test",
+      market: "US",
+      symbol: "TME",
+      channel: "ORDER_BOOK",
+      keepalive: false,
+    });
+    expect(acquireMarketDataSubscriptionMock).toHaveBeenLastCalledWith({
+      consumerId: "web:workspace-depth:window:test",
+      market: "US",
+      symbol: "AAPL",
+      channel: "ORDER_BOOK",
+    });
+    expect(getSharedLiveSocketHub().snapshotSubscriptions().depth).toContainEqual({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+      num: 10,
+    });
 
     wrapper.unmount();
   });

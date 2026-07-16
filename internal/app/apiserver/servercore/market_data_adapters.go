@@ -382,7 +382,14 @@ func (p *marketdataProvider) GetHistoricalCandles(ctx context.Context, market, s
 }
 
 func (p *marketdataProvider) GetDepth(ctx context.Context, market, symbol string, num int) (mdsrv.DepthResponse, error) {
-	return p.getDepth(ctx, market, symbol, num)
+	result, err := p.getDepth(ctx, market, symbol, num)
+	if err != nil {
+		if errors.Is(err, futu.ErrSubscriptionRequired) {
+			return nil, mdsrv.NewSubscriptionRequiredError("ORDER_BOOK", market, symbol, "")
+		}
+		return nil, err
+	}
+	return result, nil
 }
 
 func (p *marketdataProvider) Health(ctx context.Context) (mdsrv.HealthStatus, error) {

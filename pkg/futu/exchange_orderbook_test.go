@@ -2,6 +2,7 @@ package futu
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -103,6 +104,11 @@ func TestSubscriptionRegistryOrderBook(t *testing.T) {
 	r.markOrderBookPush(key)
 	if !r.hasOrderBookPush(key) {
 		t.Error("expected true after markOrderBookPush")
+	}
+	r.unmarkOrderBook(key)
+	r.unmarkOrderBookPush(key)
+	if r.hasOrderBook(key) || r.hasOrderBookPush(key) {
+		t.Fatal("order-book marks remained after unmark")
 	}
 }
 
@@ -255,6 +261,88 @@ func TestEnsureOrderBookPushSubscriptionsSplitsDetailsAndDeduplicates(t *testing
 	}
 	if got := server.pushSubCallCount(); got != 2 {
 		t.Fatalf("deduplicated push subscription call count = %d, want 2", got)
+	}
+}
+
+func TestOrderBookSubscriptionLifecycleRequiresLeaseAndUnsubscribes(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	exchange := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	if result, err := exchange.QueryOrderBook(ctx, "US.AAPL", 5); result != nil || !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("query without lease = %#v, %v", result, err)
+	}
+	if got := server.subCallCount(); got != 0 {
+		t.Fatalf("query without lease sent %d subscription calls", got)
+	}
+	if err := exchange.SubscribeOrderBook(ctx, "BAD", false); err == nil {
+		t.Fatal("SubscribeOrderBook invalid symbol error = nil")
+	}
+	if err := exchange.UnsubscribeOrderBook(ctx, "BAD"); err == nil {
+		t.Fatal("UnsubscribeOrderBook invalid symbol error = nil")
+	}
+
+	if err := exchange.SubscribeOrderBook(ctx, "US.AAPL", false); err != nil {
+		t.Fatalf("SubscribeOrderBook: %v", err)
+	}
+	if err := exchange.SubscribeOrderBook(ctx, "us.aapl", false); err != nil {
+		t.Fatalf("duplicate SubscribeOrderBook: %v", err)
+	}
+	requests := server.capturedQotSubRequests()
+	if len(requests) != 1 || !requests[0].GetIsSubOrUnSub() || requests[0].GetIsRegOrUnRegPush() {
+		t.Fatalf("subscribe requests = %#v", requests)
+	}
+	if got := requests[0].GetSubTypeList(); len(got) != 1 || got[0] != int32(qotcommonpb.SubType_SubType_OrderBook) {
+		t.Fatalf("subscribe subtype = %#v", got)
+	}
+	if err := exchange.SubscribeOrderBook(ctx, "US.AAPL", true); err != nil {
+		t.Fatalf("SubscribeOrderBook push upgrade: %v", err)
+	}
+	if err := exchange.SubscribeOrderBook(ctx, "us.aapl", true); err != nil {
+		t.Fatalf("duplicate SubscribeOrderBook push upgrade: %v", err)
+	}
+	requests = server.capturedQotSubRequests()
+	if len(requests) != 2 || !requests[1].GetIsSubOrUnSub() || !requests[1].GetIsRegOrUnRegPush() {
+		t.Fatalf("push subscribe requests = %#v", requests)
+	}
+
+	if err := exchange.UnsubscribeOrderBook(ctx, "US.AAPL"); err != nil {
+		t.Fatalf("UnsubscribeOrderBook: %v", err)
+	}
+	if err := exchange.UnsubscribeOrderBook(ctx, "US.AAPL"); err != nil {
+		t.Fatalf("duplicate UnsubscribeOrderBook: %v", err)
+	}
+	requests = server.capturedQotSubRequests()
+	if len(requests) != 3 || requests[2].GetIsSubOrUnSub() || requests[2].GetIsRegOrUnRegPush() {
+		t.Fatalf("unsubscribe requests = %#v", requests)
+	}
+	if exchange.subscriptions.hasOrderBook("US.AAPL") || exchange.subscriptions.hasOrderBookPush("US.AAPL") {
+		t.Fatalf("registry retained released order book: %#v", exchange.subscriptions)
+	}
+	if result, err := exchange.QueryOrderBook(ctx, "US.AAPL", 5); result != nil || !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("query after release = %#v, %v", result, err)
+	}
+
+	if err := exchange.SubscribeOrderBook(ctx, "HK.00700", true); err != nil {
+		t.Fatalf("SubscribeOrderBook HK: %v", err)
+	}
+	if err := exchange.UnsubscribeOrderBook(ctx, "HK.00700"); err != nil {
+		t.Fatalf("UnsubscribeOrderBook HK: %v", err)
+	}
+	requests = server.capturedQotSubRequests()
+	if len(requests) != 5 || !requests[4].GetIsSubOrderBookDetail() {
+		t.Fatalf("HK unsubscribe detail request = %#v", requests)
+	}
+
+	if err := exchange.SubscribeOrderBook(ctx, "US.AAPL", false); err != nil {
+		t.Fatalf("SubscribeOrderBook before disconnect: %v", err)
+	}
+	server.setDropProto(opend.ProtoQotSub)
+	if err := exchange.UnsubscribeOrderBook(ctx, "US.AAPL"); err == nil {
+		t.Fatal("UnsubscribeOrderBook disconnect error = nil")
 	}
 }
 

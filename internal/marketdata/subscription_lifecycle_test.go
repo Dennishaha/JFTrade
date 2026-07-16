@@ -237,6 +237,7 @@ func TestSubscriptionValidationAndSnapshotDecorationBoundaries(t *testing.T) {
 	valid := []InstrumentRef{
 		{Market: "HK", Symbol: "00700"},
 		{Channel: "TICK", Market: "US", Symbol: "AAPL"},
+		{Channel: "ORDER_BOOK", Market: "US", Symbol: "AAPL"},
 	}
 	for _, interval := range []string{"1m", "3m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"} {
 		valid = append(valid, InstrumentRef{Channel: "KLINE", Market: "US", Symbol: "NVDA", Interval: interval})
@@ -249,7 +250,7 @@ func TestSubscriptionValidationAndSnapshotDecorationBoundaries(t *testing.T) {
 		{{Market: "", Symbol: "AAPL"}},
 		{{Market: "US", Symbol: "AAPL", Channel: "SNAPSHOT", Interval: "1m"}},
 		{{Market: "US", Symbol: "AAPL", Channel: "KLINE", Interval: "2m"}},
-		{{Market: "US", Symbol: "AAPL", Channel: "ORDER_BOOK"}},
+		{{Market: "US", Symbol: "AAPL", Channel: "ORDER_BOOK", Interval: "1m"}},
 		{{Market: "US", Symbol: "AAPL", Channel: "NEWS"}},
 	}
 	for index, refs := range invalid {
@@ -266,6 +267,24 @@ func TestSubscriptionValidationAndSnapshotDecorationBoundaries(t *testing.T) {
 	entry := decorated["entries"].([]map[string]any)[0]
 	if decorated["desiredCount"] != 1 || entry["brokerState"] != "unmanaged" || decorated["brokerState"] == nil {
 		t.Fatalf("default decoration = %#v", decorated)
+	}
+	orderBookSnapshot := SubscriptionsSnapshot{
+		"totalActiveSubscriptions": 1,
+		"entries": []map[string]any{{
+			"channel": "ORDER_BOOK", "instrumentId": "US.AAPL", "interval": nil,
+		}},
+	}
+	orderBookBrokerEntry := map[string]any{
+		"key": "ORDER_BOOK:US.AAPL", "brokerState": "active", "subscribedAt": "now",
+		"unsubscribeEligibleAt": "later", "lastError": nil,
+	}
+	decorated = decorateSubscriptionSnapshot(orderBookSnapshot, map[string]any{
+		"desiredCount": 1, "ownActiveCount": 1, "pendingReleaseCount": 0,
+		"totalUsedQuota": 3, "remainQuota": 297, "entries": []map[string]any{orderBookBrokerEntry},
+	})
+	entry = decorated["entries"].([]map[string]any)[0]
+	if entry["brokerState"] != "active" || entry["unsubscribeEligibleAt"] != "later" {
+		t.Fatalf("order-book decoration = %#v", decorated)
 	}
 
 	var nilLease *ManagedSubscription
@@ -339,6 +358,9 @@ func TestSubscriptionRequiredErrorsAndManagedReadDemandBoundaries(t *testing.T) 
 	if err := nilService.requireBasicSubscriptionDemand("US", "AAPL", "TICK"); !errors.Is(err, ErrSubscriptionRequired) {
 		t.Fatalf("nil service demand error = %v", err)
 	}
+	if err := nilService.requireOrderBookSubscriptionDemand("US", "AAPL"); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("nil service order-book demand error = %v", err)
+	}
 
 	service := NewService(stubProvider{})
 	service.SetSubscriptionReconciler(&fakeSubscriptionReconciler{})
@@ -347,6 +369,9 @@ func TestSubscriptionRequiredErrorsAndManagedReadDemandBoundaries(t *testing.T) 
 	}
 	if _, err := service.GetCandles(context.Background(), "US", "AAPL", "tick", 1, "", ""); !errors.Is(err, ErrSubscriptionRequired) {
 		t.Fatalf("tick candles without demand error = %v", err)
+	}
+	if _, err := service.GetDepth(context.Background(), "US", "AAPL", 10); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("depth without order-book demand error = %v", err)
 	}
 
 	if _, err := service.AcquireSubscription(context.Background(), "other", []InstrumentRef{{Channel: "SNAPSHOT", Market: "HK", Symbol: "00700"}}); err != nil {
@@ -360,6 +385,15 @@ func TestSubscriptionRequiredErrorsAndManagedReadDemandBoundaries(t *testing.T) 
 	}
 	if err := service.requireBasicSubscriptionDemand(" us ", "us.aapl", "TICK"); err != nil {
 		t.Fatalf("matching K-line demand should authorize Basic read: %v", err)
+	}
+	if _, err := service.GetDepth(context.Background(), "US", "AAPL", 10); !errors.Is(err, ErrSubscriptionRequired) {
+		t.Fatalf("K-line demand must not authorize order-book reads: %v", err)
+	}
+	if _, err := service.AcquireSubscription(context.Background(), "depth", []InstrumentRef{{Channel: "ORDER_BOOK", Market: "US", Symbol: "AAPL"}}); err != nil {
+		t.Fatalf("seed order-book demand: %v", err)
+	}
+	if _, err := service.GetDepth(context.Background(), " us ", "us.aapl", 10); err != nil {
+		t.Fatalf("matching order-book demand should authorize depth read: %v", err)
 	}
 
 	required := NewSubscriptionRequiredError(" kline ", " hk ", " 00700 ", " 1M ")

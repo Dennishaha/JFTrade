@@ -378,7 +378,30 @@ func (s *Service) requireBasicSubscriptionDemand(market, symbol, readChannel str
 
 // GetDepth 返回盘口深度数据。
 func (s *Service) GetDepth(ctx context.Context, market, symbol string, num int) (DepthResponse, error) {
+	if err := s.requireOrderBookSubscriptionDemand(market, symbol); err != nil {
+		return nil, err
+	}
 	return s.provider.GetDepth(ctx, market, symbol, num)
+}
+
+func (s *Service) requireOrderBookSubscriptionDemand(market, symbol string) error {
+	if s == nil {
+		return NewSubscriptionRequiredError("ORDER_BOOK", market, symbol, "")
+	}
+	s.subscriptionMu.RLock()
+	managed := s.reconciler != nil
+	s.subscriptionMu.RUnlock()
+	if !managed {
+		return nil
+	}
+	market, symbol = normalizeSubscriptionInstrument(market, symbol)
+	for _, ref := range s.activeSubscriptionDemand() {
+		refMarket, refSymbol := normalizeSubscriptionInstrument(ref.Market, ref.Symbol)
+		if refMarket == market && refSymbol == symbol && strings.EqualFold(strings.TrimSpace(ref.Channel), "ORDER_BOOK") {
+			return nil
+		}
+	}
+	return NewSubscriptionRequiredError("ORDER_BOOK", market, symbol, "")
 }
 
 // AcquireSubscription 申请行情订阅。

@@ -252,7 +252,6 @@ func (d *dispatcher) writeSecurityDetailsEvents(force bool) error {
 
 func (d *dispatcher) writeDepthEvents(force bool) error {
 	for _, subscription := range d.client.Snapshot().Depth {
-		d.handler.backend.SubscribeDepth(d.requestCtx, subscription.InstrumentID, subscription.Num)
 		response, err := d.handler.backend.Depth(
 			d.requestCtx, subscription.Market, subscription.Symbol, subscription.Num,
 		)

@@ -20,6 +20,10 @@ import OrderBookDepthTable from "../domain/market-data/OrderBookDepthTable.vue";
 const {
   currentMarketDataSnapshot: marketDataSnapshot,
   currentMarketSecurityDetails: marketSecurityDetails,
+  acquireMarketDataSubscription,
+  createStableWebConsumerId,
+  heartbeatMarketDataConsumer,
+  releaseMarketDataSubscription,
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
 const {
@@ -40,6 +44,15 @@ const depthError = ref("");
 let depthRequestSeq = 0;
 let depthAbortController: AbortController | null = null;
 let lastDepthDataRefreshedAt = 0;
+let depthLifecycleSeq = 0;
+let heartbeatTimer = 0;
+let isUnmounted = false;
+const depthConsumerId = createStableWebConsumerId("workspace-depth");
+let heldDepthSubscription: {
+  market: string;
+  symbol: string;
+  instrumentId: string;
+} | null = null;
 const liveHub = getSharedLiveSocketHub();
 const depthSubscriptionOwnerId = liveHub.createOwnerId("order-book-depth");
 const removeDepthListener = liveHub.addEventListener((event) => {
@@ -107,6 +120,23 @@ const currentInstrumentId = computed(() => {
   const symbol = prefs.value?.symbol?.trim().toUpperCase() ?? "";
   return market === "" || symbol === "" ? "" : `${market}.${symbol}`;
 });
+
+function resolveDepthSubscriptionTarget() {
+  const market = prefs.value?.market?.trim().toUpperCase() ?? "";
+  const symbol = prefs.value?.symbol?.trim().toUpperCase() ?? "";
+  return {
+    market,
+    symbol,
+    instrumentId: market === "" || symbol === "" ? "" : `${market}.${symbol}`,
+  };
+}
+
+function isSameDepthSubscription(
+  left: ReturnType<typeof resolveDepthSubscriptionTarget>,
+  right: ReturnType<typeof resolveDepthSubscriptionTarget>,
+): boolean {
+  return left.market === right.market && left.symbol === right.symbol;
+}
 
 const bidPrice = computed(() => security.value?.bidPrice ?? snapshot.value?.bid ?? null);
 const askPrice = computed(() => security.value?.askPrice ?? snapshot.value?.ask ?? null);
@@ -259,12 +289,88 @@ function clearDepthData(): void {
   lastDepthDataRefreshedAt = 0;
 }
 
-function connectDepthStream(preserveData = false): void {
-  const market = prefs.value?.market?.trim().toUpperCase() ?? "";
-  const symbol = prefs.value?.symbol?.trim().toUpperCase() ?? "";
-  if (market === "" || symbol === "") {
+async function releaseDepthSubscription(
+  target: ReturnType<typeof resolveDepthSubscriptionTarget>,
+  keepalive = false,
+): Promise<void> {
+  await releaseMarketDataSubscription({
+    consumerId: depthConsumerId,
+    market: target.market,
+    symbol: target.symbol,
+    channel: "ORDER_BOOK",
+    keepalive,
+  });
+}
+
+async function syncDepthSubscription(
+  target: ReturnType<typeof resolveDepthSubscriptionTarget>,
+  lifecycleSeq: number,
+  forceAcquire = false,
+): Promise<boolean> {
+  if (heldDepthSubscription != null && !isSameDepthSubscription(heldDepthSubscription, target)) {
+    const previous = heldDepthSubscription;
+    heldDepthSubscription = null;
+    await releaseDepthSubscription(previous);
+  }
+  if (isUnmounted || lifecycleSeq !== depthLifecycleSeq) {
+    return false;
+  }
+
+  if (heldDepthSubscription != null && !forceAcquire) {
+    void heartbeatMarketDataConsumer(depthConsumerId);
+    return !isUnmounted && lifecycleSeq === depthLifecycleSeq;
+  }
+
+  let acquired = false;
+  try {
+    acquired = await acquireMarketDataSubscription({
+      consumerId: depthConsumerId,
+      market: target.market,
+      symbol: target.symbol,
+      channel: "ORDER_BOOK",
+    });
+  } catch (error) {
+    depthError.value = error instanceof Error ? error.message : "盘口订阅申请失败";
+  }
+  if (!acquired) {
+    if (depthError.value === "") {
+      depthError.value = "盘口订阅申请失败";
+    }
+    isLoadingDepth.value = false;
+    return false;
+  }
+
+  if (
+    isUnmounted ||
+    lifecycleSeq !== depthLifecycleSeq ||
+    !isSameDepthSubscription(target, resolveDepthSubscriptionTarget())
+  ) {
+    await releaseDepthSubscription(target, isUnmounted);
+    return false;
+  }
+
+  heldDepthSubscription = target;
+  void heartbeatMarketDataConsumer(depthConsumerId);
+  return true;
+}
+
+async function connectDepthStream(
+  preserveData = false,
+  forceAcquire = false,
+): Promise<void> {
+  if (isUnmounted) {
+    return;
+  }
+  const lifecycleSeq = ++depthLifecycleSeq;
+  const target = resolveDepthSubscriptionTarget();
+  if (target.instrumentId === "") {
     closeDepthStream();
     clearDepthData();
+    if (heldDepthSubscription != null) {
+      const previous = heldDepthSubscription;
+      heldDepthSubscription = null;
+      await releaseDepthSubscription(previous);
+    }
     return;
   }
 
@@ -274,13 +380,19 @@ function connectDepthStream(preserveData = false): void {
   }
   isLoadingDepth.value = true;
   depthError.value = "";
+  if (!await syncDepthSubscription(target, lifecycleSeq, forceAcquire)) {
+    return;
+  }
+  if (isUnmounted || lifecycleSeq !== depthLifecycleSeq) {
+    return;
+  }
   liveHub.setDepthTarget(depthSubscriptionOwnerId, {
-    market,
-    symbol,
-    instrumentId: `${market}.${symbol}`,
+    market: target.market,
+    symbol: target.symbol,
+    instrumentId: target.instrumentId,
     num: depthNum.value,
   });
-  void fetchDepth();
+  await fetchDepth();
 }
 
 function isDepthDataStale(maxAgeMs = 30_000): boolean {
@@ -310,20 +422,18 @@ function handleDepthVisibilityChange(): void {
       return;
     }
     // SSE still disconnected or depth data stale → reconnect
-    closeDepthStream();
-    connectDepthStream(true);
+    void connectDepthStream(true, true);
   });
 }
 
 function handleDepthOnline(): void {
-  closeDepthStream();
-  connectDepthStream();
+  void connectDepthStream(false, true);
 }
 
 function setDepthNum(num: number): void {
   if (depthNum.value === num) return;
   depthNum.value = num;
-  connectDepthStream();
+  void connectDepthStream();
 }
 
 // --- Lifecycle ---
@@ -336,9 +446,16 @@ onMounted(() => {
     window.addEventListener("online", handleDepthOnline);
   }
   loadBrokerCapability().then(() => connectDepthStream());
+  heartbeatTimer = window.setInterval(() => {
+    if (heldDepthSubscription != null) {
+      void heartbeatMarketDataConsumer(depthConsumerId);
+    }
+  }, 15_000);
 });
 
 onUnmounted(() => {
+  isUnmounted = true;
+  depthLifecycleSeq += 1;
   if (typeof document !== "undefined") {
     document.removeEventListener("visibilitychange", handleDepthVisibilityChange);
   }
@@ -347,6 +464,15 @@ onUnmounted(() => {
   }
   closeDepthStream();
   removeDepthListener();
+  if (heartbeatTimer !== 0) {
+    window.clearInterval(heartbeatTimer);
+    heartbeatTimer = 0;
+  }
+  if (heldDepthSubscription != null) {
+    const previous = heldDepthSubscription;
+    heldDepthSubscription = null;
+    void releaseDepthSubscription(previous, true);
+  }
   depthAbortController?.abort();
   depthAbortController = null;
 });
@@ -357,7 +483,7 @@ watch(
   () => currentInstrumentId.value,
   () => {
     clearDepthData();
-    connectDepthStream();
+    void connectDepthStream();
   },
 );
 </script>

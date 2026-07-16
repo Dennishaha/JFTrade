@@ -7,7 +7,6 @@ import (
 
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	livecore "github.com/jftrade/jftrade-main/internal/live"
-	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 type liveWebSocketBackend struct {
@@ -59,17 +58,6 @@ func (b liveWebSocketBackend) EnsureNotificationBridge(ctx context.Context) {
 
 func (b liveWebSocketBackend) SecurityDetails(ctx context.Context, market, symbol string) (map[string]any, error) {
 	return b.server.marketSecurityDetailsResponseForInstrument(ctx, market, symbol)
-}
-
-func (b liveWebSocketBackend) SubscribeDepth(ctx context.Context, instrumentID string, num int32) {
-	if subscriber, ok := b.server.futuBroker().(broker.OrderBookSubscriber); ok {
-		jftradeErr1 := subscriber.SubscribeOrderBook(ctx, broker.OrderBookSubscribeRequest{
-			ReadQuery: brokerReadQuery(instrumentID),
-			Symbols:   []string{instrumentID},
-			Num:       num,
-		})
-		jftradeLogError(jftradeErr1)
-	}
 }
 
 func (b liveWebSocketBackend) Depth(ctx context.Context, market, symbol string, num int32) (map[string]any, error) {

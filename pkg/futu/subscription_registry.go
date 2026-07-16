@@ -99,6 +99,11 @@ func (r *subscriptionRegistry) markOrderBook(key string) {
 	r.orderBook[key] = struct{}{}
 }
 
+func (r *subscriptionRegistry) unmarkOrderBook(key string) {
+	r.ensure()
+	delete(r.orderBook, key)
+}
+
 func (r *subscriptionRegistry) hasOrderBookPush(key string) bool {
 	r.ensure()
 	_, exists := r.orderBookPush[key]
@@ -108,4 +113,9 @@ func (r *subscriptionRegistry) hasOrderBookPush(key string) bool {
 func (r *subscriptionRegistry) markOrderBookPush(key string) {
 	r.ensure()
 	r.orderBookPush[key] = struct{}{}
+}
+
+func (r *subscriptionRegistry) unmarkOrderBookPush(key string) {
+	r.ensure()
+	delete(r.orderBookPush, key)
 }

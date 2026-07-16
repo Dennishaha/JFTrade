@@ -114,7 +114,8 @@ func TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge(t *testing.T) {
 	server.setOrderBookSnapshot(testTencentOrderBookSnapshot())
 	defer server.stop()
 
-	reader := newTestBrokerAdapter(t, server).MarketData()
+	adapter := newTestBrokerAdapter(t, server)
+	reader := adapter.MarketData()
 	ctx := t.Context()
 
 	info, err := reader.QuerySecurityInfo(ctx, broker.SecurityInfoQuery{
@@ -190,6 +191,13 @@ func TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge(t *testing.T) {
 		t.Fatalf("watchlist-style snapshot must not call 3001 Qot_Sub, got %d", got)
 	}
 
+	orderBookSubscriber, ok := adapter.(broker.OrderBookSubscriber)
+	if !ok {
+		t.Fatal("broker adapter does not support order-book subscriptions")
+	}
+	if err := orderBookSubscriber.SubscribeOrderBook(ctx, broker.OrderBookSubscribeRequest{Symbols: []string{"HK.00700"}}); err != nil {
+		t.Fatalf("SubscribeOrderBook: %v", err)
+	}
 	orderBook, err := reader.QueryOrderBook(ctx, broker.OrderBookQuery{
 		ReadQuery: broker.ReadQuery{AccountID: "1001"},
 		Symbol:    "HK.00700",
@@ -225,7 +233,7 @@ func TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge(t *testing.T) {
 		t.Fatalf("expected one order-book call, got %d", got)
 	}
 	if got := server.qotSubCalls.Load(); got != 1 {
-		t.Fatalf("expected one non-push Qot_Sub call for order-book subscription, got %d", got)
+		t.Fatalf("expected one managed Qot_Sub call for order-book subscription, got %d", got)
 	}
 	if server.lastOrderBook == nil || server.lastOrderBook.GetNum() != 10 {
 		t.Fatalf("order-book request = %#v, want default num=10", server.lastOrderBook)

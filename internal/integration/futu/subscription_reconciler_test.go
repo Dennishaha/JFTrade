@@ -59,6 +59,14 @@ func (f *fakePhysicalSubscriptionExchange) UnsubscribeKLine(_ context.Context, s
 	return f.call("unsubscribe-kline:" + symbol + ":" + string(interval))
 }
 
+func (f *fakePhysicalSubscriptionExchange) SubscribeOrderBook(_ context.Context, symbol string, push bool) error {
+	return f.call("subscribe-order-book:" + symbol + ":" + map[bool]string{true: "push", false: "no-push"}[push])
+}
+
+func (f *fakePhysicalSubscriptionExchange) UnsubscribeOrderBook(_ context.Context, symbol string) error {
+	return f.call("unsubscribe-order-book:" + symbol)
+}
+
 func (f *fakePhysicalSubscriptionExchange) QuerySubscriptionQuota(context.Context) (pkgfutu.SubscriptionQuota, error) {
 	f.quotaCalls++
 	if len(f.quotaErrors) > 0 {
@@ -404,14 +412,91 @@ func TestSubscriptionReconcilerDropsFailedRecordsReleasedBeforeRetry(t *testing.
 func TestDesiredPhysicalSubscriptionsRejectsIncompleteRefsAndNormalizesSymbols(t *testing.T) {
 	physical, logical := desiredPhysicalSubscriptions([]marketdata.InstrumentRef{
 		{},
-		{Channel: "ORDER_BOOK", Symbol: "us.nvda"},
+		{Channel: "ORDER_BOOK", Market: "US", Symbol: "NVDA"},
 		{Channel: "KLINE", Market: "US", Symbol: "NVDA"},
 		{Channel: "SNAPSHOT", Symbol: "us.nvda"},
+		{Channel: "NEWS", Market: "US", Symbol: "TSLA"},
 	})
-	if logical != 1 || len(physical) != 1 || physical["BASIC:US.NVDA"].instrument != "US.NVDA" {
+	if logical != 2 || len(physical) != 2 || physical["BASIC:US.NVDA"].instrument != "US.NVDA" || physical["ORDER_BOOK:US.NVDA"].kind != "ORDER_BOOK" {
 		t.Fatalf("desired physical = %#v logical=%d", physical, logical)
 	}
 	if market, symbol := normalizedInstrument("", "bad"); market != "" || symbol != "BAD" {
 		t.Fatalf("unqualified normalization = %q/%q", market, symbol)
+	}
+}
+
+func TestSubscriptionReconcilerKeepsThreeViewerCapabilitiesAndReleasesOnlyOldOrderBook(t *testing.T) {
+	now := time.Date(2026, time.July, 16, 1, 0, 0, 0, time.UTC)
+	exchange := &fakePhysicalSubscriptionExchange{}
+	reconciler := newMarketDataSubscriptionReconciler(
+		func() physicalSubscriptionExchange { return exchange },
+		func() time.Time { return now },
+	)
+	viewerA := []marketdata.InstrumentRef{
+		{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"},
+		{Channel: "ORDER_BOOK", Market: "US", Symbol: "AAPL"},
+	}
+	if err := reconciler.ReconcileSubscriptions(context.Background(), viewerA); err != nil {
+		t.Fatalf("subscribe viewer A: %v", err)
+	}
+	if want := []string{
+		"subscribe-basic:US.AAPL:push",
+		"subscribe-kline:US.AAPL:1m",
+		"subscribe-order-book:US.AAPL:push",
+	}; !reflect.DeepEqual(exchange.calls, want) {
+		t.Fatalf("viewer A calls = %#v, want %#v", exchange.calls, want)
+	}
+
+	exchange.calls = nil
+	strategyAViewerB := []marketdata.InstrumentRef{
+		{Channel: "KLINE", Market: "US", Symbol: "AAPL", Interval: "1m"},
+		{Channel: "KLINE", Market: "US", Symbol: "MSFT", Interval: "1m"},
+		{Channel: "ORDER_BOOK", Market: "US", Symbol: "MSFT"},
+	}
+	if err := reconciler.ReconcileSubscriptions(context.Background(), strategyAViewerB); err != nil {
+		t.Fatalf("switch viewer to B: %v", err)
+	}
+	if want := []string{
+		"subscribe-basic:US.MSFT:push",
+		"subscribe-kline:US.MSFT:1m",
+		"subscribe-order-book:US.MSFT:push",
+	}; !reflect.DeepEqual(exchange.calls, want) {
+		t.Fatalf("viewer B subscribe calls = %#v, want %#v", exchange.calls, want)
+	}
+	if state := reconciler.SubscriptionState(); state["pendingReleaseCount"] != 1 {
+		t.Fatalf("old order book should be pending while strategy data remains: %#v", state)
+	}
+
+	exchange.calls = nil
+	if err := reconciler.ReconcileSubscriptions(context.Background(), viewerA); err != nil {
+		t.Fatalf("reselect viewer A before eligibility: %v", err)
+	}
+	if len(exchange.calls) != 0 {
+		t.Fatalf("reselected order book should reuse the pending subscription: %#v", exchange.calls)
+	}
+	if state := reconciler.SubscriptionState(); state["pendingReleaseCount"] != 3 {
+		t.Fatalf("viewer B capabilities should be pending after switching back to A: %#v", state)
+	}
+	if err := reconciler.ReconcileSubscriptions(context.Background(), strategyAViewerB); err != nil {
+		t.Fatalf("switch viewer back to B before eligibility: %v", err)
+	}
+	if len(exchange.calls) != 0 {
+		t.Fatalf("viewer B should also reuse pending subscriptions: %#v", exchange.calls)
+	}
+
+	now = now.Add(minimumFutuSubscriptionAge)
+	exchange.calls = nil
+	if err := reconciler.ReconcileSubscriptions(context.Background(), strategyAViewerB); err != nil {
+		t.Fatalf("release old order book: %v", err)
+	}
+	if want := []string{"unsubscribe-order-book:US.AAPL"}; !reflect.DeepEqual(exchange.calls, want) {
+		t.Fatalf("old viewer release calls = %#v, want %#v", exchange.calls, want)
+	}
+	state := reconciler.SubscriptionState()
+	entries := state["entries"].([]map[string]any)
+	for _, entry := range entries {
+		if entry["instrumentId"] == "US.AAPL" && entry["kind"] == "ORDER_BOOK" {
+			t.Fatalf("old order book remained after eligibility: %#v", state)
+		}
 	}
 }

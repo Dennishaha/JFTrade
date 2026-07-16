@@ -105,6 +105,7 @@ func TestLiveReadRoutesReturnConflictForMissingSubscriptionLease(t *testing.T) {
 	for _, path := range []string{
 		"/api/v1/market-data/snapshots/US/AAPL",
 		"/api/v1/market-data/candles/US/AAPL?period=1m",
+		"/api/v1/market-data/depth/US/AAPL?num=10",
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
@@ -141,7 +142,7 @@ func TestSubscriptionRoutesRejectMalformedAndIncompleteRequests(t *testing.T) {
 		{name: "acquire missing instruments", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart"}`, detail: "consumerId and instruments are required"},
 		{name: "acquire drops incomplete instruments", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US"},{"symbol":"AAPL"}]}`, detail: "consumerId and instruments are required"},
 		{name: "acquire rejects invalid channel", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"NEWS"}]}`, detail: "unsupported subscription channel"},
-		{name: "acquire rejects unmanaged order book", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"ORDER_BOOK"}]}`, detail: "unsupported subscription channel"},
+		{name: "acquire rejects order book interval", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"ORDER_BOOK","interval":"1m"}]}`, detail: "subscription interval is only valid for KLINE"},
 		{name: "acquire rejects KLINE without interval", path: "/api/v1/market-data/subscriptions", body: `{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL","channel":"KLINE"}]}`, detail: "unsupported KLINE subscription interval"},
 		{name: "release malformed JSON", path: "/api/v1/market-data/subscriptions/release", body: `{`, detail: "invalid release request"},
 		{name: "release missing consumer", path: "/api/v1/market-data/subscriptions/release", body: `{}`, detail: "consumerId is required"},

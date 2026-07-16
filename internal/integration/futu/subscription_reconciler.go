@@ -33,6 +33,8 @@ type physicalSubscriptionExchange interface {
 	UnsubscribeBasicQuote(context.Context, string) error
 	SubscribeKLine(context.Context, string, bbgotypes.Interval) error
 	UnsubscribeKLine(context.Context, string, bbgotypes.Interval) error
+	SubscribeOrderBook(context.Context, string, bool) error
+	UnsubscribeOrderBook(context.Context, string) error
 	QuerySubscriptionQuota(context.Context) (pkgfutu.SubscriptionQuota, error)
 }
 
@@ -308,6 +310,7 @@ func desiredPhysicalSubscriptions(desired []marketdata.InstrumentRef) (map[strin
 			if interval == "" {
 				continue
 			}
+		case "ORDER_BOOK":
 		default:
 			continue
 		}
@@ -316,6 +319,11 @@ func desiredPhysicalSubscriptions(desired []marketdata.InstrumentRef) (map[strin
 			logicalKey += ":" + string(interval)
 		}
 		logical[logicalKey] = struct{}{}
+		if channel == "ORDER_BOOK" {
+			orderBookKey := "ORDER_BOOK:" + instrument
+			physical[orderBookKey] = physicalSubscriptionRef{key: orderBookKey, kind: "ORDER_BOOK", instrument: instrument}
+			continue
+		}
 		basicKey := "BASIC:" + instrument
 		physical[basicKey] = physicalSubscriptionRef{key: basicKey, kind: "BASIC", instrument: instrument}
 		if channel == "KLINE" {
@@ -339,17 +347,25 @@ func normalizedInstrument(market, symbol string) (string, string) {
 }
 
 func subscribePhysical(ctx context.Context, exchange physicalSubscriptionExchange, ref physicalSubscriptionRef) error {
-	if ref.kind == "KLINE" {
+	switch ref.kind {
+	case "KLINE":
 		return exchange.SubscribeKLine(ctx, ref.instrument, ref.interval)
+	case "ORDER_BOOK":
+		return exchange.SubscribeOrderBook(ctx, ref.instrument, true)
+	default:
+		return exchange.SubscribeBasicQuote(ctx, ref.instrument, true)
 	}
-	return exchange.SubscribeBasicQuote(ctx, ref.instrument, true)
 }
 
 func unsubscribePhysical(ctx context.Context, exchange physicalSubscriptionExchange, ref physicalSubscriptionRef) error {
-	if ref.kind == "KLINE" {
+	switch ref.kind {
+	case "KLINE":
 		return exchange.UnsubscribeKLine(ctx, ref.instrument, ref.interval)
+	case "ORDER_BOOK":
+		return exchange.UnsubscribeOrderBook(ctx, ref.instrument)
+	default:
+		return exchange.UnsubscribeBasicQuote(ctx, ref.instrument)
 	}
-	return exchange.UnsubscribeBasicQuote(ctx, ref.instrument)
 }
 
 func recordSubscriptionFailure(record *physicalSubscriptionRecord, now time.Time, err error) {

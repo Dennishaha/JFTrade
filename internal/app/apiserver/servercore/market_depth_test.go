@@ -8,8 +8,21 @@ import (
 	"path/filepath"
 	"testing"
 
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
+
+func acquireTestDepthSubscription(t *testing.T, server *Server, market, symbol string) {
+	t.Helper()
+	server.marketdataSvc.SetSubscriptionReconciler(server.marketdataRuntime)
+	if _, err := server.marketdataSvc.AcquireSubscription(t.Context(), "test-depth", []mdsrv.InstrumentRef{{
+		Channel: "ORDER_BOOK",
+		Market:  market,
+		Symbol:  symbol,
+	}}); err != nil {
+		t.Fatalf("acquire depth subscription: %v", err)
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Depth endpoint routing & HTTP-level behaviour
@@ -34,7 +47,6 @@ func TestMarketDepthEndpointRouting(t *testing.T) {
 	if resp.StatusCode == http.StatusNotFound {
 		t.Fatal("depth endpoint returned 404 — route not registered")
 	}
-	// 502 means the route matched but OpenD is unreachable.
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Fatalf("depth endpoint returned %d, want 502 without OpenD", resp.StatusCode)
 	}
@@ -126,6 +138,7 @@ func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
 	store.mu.Unlock()
 
 	server := newTestServer(t, store)
+	acquireTestDepthSubscription(t, server, "US", "NVDA")
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -263,6 +276,7 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 	store.mu.Unlock()
 
 	server := newTestServer(t, store)
+	acquireTestDepthSubscription(t, server, "US", "TME")
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -344,6 +358,7 @@ func TestMarketDepthNumClamping(t *testing.T) {
 	store.mu.Unlock()
 
 	server := newTestServer(t, store)
+	acquireTestDepthSubscription(t, server, "HK", "00700")
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -439,6 +454,7 @@ func TestMarketDepthSymbolCasing(t *testing.T) {
 	store.mu.Unlock()
 
 	server := newTestServer(t, store)
+	acquireTestDepthSubscription(t, server, "US", "NVDA")
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -521,6 +537,7 @@ func TestMarketDepthHKMarket(t *testing.T) {
 	store.mu.Unlock()
 
 	server := newTestServer(t, store)
+	acquireTestDepthSubscription(t, server, "HK", "00700")
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -608,6 +625,7 @@ func TestMarketDepthEmptyOrderBook(t *testing.T) {
 	store.mu.Unlock()
 
 	server := newTestServer(t, store)
+	acquireTestDepthSubscription(t, server, "US", "AAPL")
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -680,6 +698,7 @@ func TestMarketDepthOpenDError(t *testing.T) {
 	store.mu.Unlock()
 
 	server := newTestServer(t, store)
+	acquireTestDepthSubscription(t, server, "US", "NVDA")
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 

@@ -220,6 +220,7 @@ func normalizeOptionalQueryTime(value string) string {
 // @Param num query int false "档数，默认 10，最大 50"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 400 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
 // @Failure 502 {object} httpserver.Envelope
 // @Router /api/v1/market-data/depth/{market}/{symbol} [get]
 func handleDepth(svc *srv.Service) gin.HandlerFunc {
@@ -243,7 +244,7 @@ func handleDepth(svc *srv.Service) gin.HandlerFunc {
 		}
 		result, err := svc.GetDepth(c.Request.Context(), uri.Market, uri.Symbol, num)
 		if err != nil {
-			httpserver.WriteError(c, 502, "OPEND_DEPTH_FAILED", err.Error())
+			writeMarketDataReadError(c, "OPEND_DEPTH_FAILED", err)
 			return
 		}
 		httpserver.WriteOK(c, result)

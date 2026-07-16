@@ -70,8 +70,16 @@ func TestManagerBackgroundRefreshFollowsSettingsReload(t *testing.T) {
 	}
 
 refreshed:
-	if schedule, ok := manager.Schedule("US", now); !ok || schedule.SourceID != "reload-source" || schedule.Reason != "reload test" {
-		t.Fatalf("schedule after background refresh = %#v, %v", schedule, ok)
+	refreshDeadline := time.Now().Add(2 * time.Second)
+	for {
+		schedule, ok := manager.Schedule("US", now)
+		if ok && schedule.SourceID == "reload-source" && schedule.Reason == "reload test" {
+			break
+		}
+		if time.Now().After(refreshDeadline) {
+			t.Fatalf("schedule after background refresh = %#v, %v", schedule, ok)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 

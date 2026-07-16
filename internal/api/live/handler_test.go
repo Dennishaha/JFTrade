@@ -72,13 +72,10 @@ func (b *fakeBackend) SecurityDetails(_ context.Context, market, symbol string) 
 	}, nil
 }
 
-func (b *fakeBackend) SubscribeDepth(_ context.Context, _ string, num int32) {
+func (b *fakeBackend) Depth(_ context.Context, market, symbol string, num int32) (map[string]any, error) {
 	b.mu.Lock()
 	b.depthNum = num
 	b.mu.Unlock()
-}
-
-func (b *fakeBackend) Depth(_ context.Context, market, symbol string, num int32) (map[string]any, error) {
 	if b.depthErr != nil {
 		return nil, b.depthErr
 	}
