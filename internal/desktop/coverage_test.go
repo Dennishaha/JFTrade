@@ -4,8 +4,9 @@ import "testing"
 
 func TestProductDataDirReportsMissingHome(t *testing.T) {
 	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
 	if _, err := ProductDataDir(); err == nil {
-		t.Fatal("ProductDataDir() error = nil with HOME unset")
+		t.Fatal("ProductDataDir() error = nil with user home environment unset")
 	}
 }
 
