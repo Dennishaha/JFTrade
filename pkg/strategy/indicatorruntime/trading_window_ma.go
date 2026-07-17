@@ -27,17 +27,10 @@ func movingAverageSnapshotForSymbol(values, volumes []float64, endTimes []time.T
 }
 
 func buildMovingAverageSnapshotForTradingWindow(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) any {
-	if current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotOnlineWithCache(values, volumes, endTimes, config, symbol, includeExtendedHours, cache); handled {
-		if !currentOK {
-			return nil
-		}
-		return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
-	}
-	current, currentOK := calculateTradingWindowMovingAverageCurrentValue(values, volumes, endTimes, config, symbol, len(values), includeExtendedHours, cache)
+	current, previous, currentOK, previousOK, _ := calculateTradingWindowMovingAverageSnapshotOnlineWithCache(values, volumes, endTimes, config, symbol, includeExtendedHours, cache)
 	if !currentOK {
 		return nil
 	}
-	previous, previousOK := calculateTradingWindowMovingAverageCurrentValue(values, volumes, endTimes, config, symbol, max(len(values)-1, 0), includeExtendedHours, cache)
 	return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
 }
 
@@ -52,10 +45,7 @@ func calculateTradingWindowMovingAverageSnapshotOnlineWithCache(values, volumes 
 		previous, previousOK, _ := calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, max(len(values)-1, 0))
 		return current, previous, currentOK, previousOK, true
 	}
-	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
-	if !handled {
-		return 0, 0, false, false, false
-	}
+	aggregator, _ := newTradingWindowMovingAverageAggregator(config)
 	if len(values) == 0 || len(values) != len(endTimes) {
 		return 0, 0, false, false, true
 	}
@@ -99,14 +89,8 @@ func calculateMovingAverageCurrentValue(values, volumes []float64, config moving
 }
 
 func calculateTradingWindowMovingAverageCurrentValue(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, bool) {
-	if current, currentOK, handled := calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes, endTimes, config, symbol, upperBound, includeExtendedHours, cache); handled {
-		return current, currentOK
-	}
-	selected := selectTradingWindowIndicesWithCache(endTimes, config.period, config.timeUnit, symbol, upperBound, includeExtendedHours, cache)
-	if len(selected) == 0 {
-		return 0, false
-	}
-	return calculateMovingAverageCurrentValueFromSelected(values, volumes, selected, config, cache)
+	current, currentOK, _ := calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes, endTimes, config, symbol, upperBound, includeExtendedHours, cache)
+	return current, currentOK
 }
 
 func calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, bool, bool) {
@@ -115,10 +99,7 @@ func calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volu
 		labelKeys := cache.getTradingPeriodLabels(endTimes, symbol, config.timeUnit, includeExtendedHours)
 		return calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, upperBound)
 	}
-	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
-	if !handled {
-		return 0, false, false
-	}
+	aggregator, _ := newTradingWindowMovingAverageAggregator(config)
 	if len(values) == 0 || len(values) != len(endTimes) || upperBound <= 0 {
 		return 0, false, true
 	}
@@ -154,17 +135,11 @@ func calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volu
 func calculateTradingWindowMovingAverageSnapshotFromKeys(values, volumes []float64, labelKeys []int64, config movingAverageConfig) (float64, float64, bool, bool, bool) {
 	normalizedType := normalizeMovingAverageType(config.averageType)
 	if normalizedType == "EMA" || normalizedType == "EXPMA" || normalizedType == "SMMA" || normalizedType == "TMA" || normalizedType == "HMA" {
-		current, currentOK, handled := calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, len(values))
-		if !handled {
-			return 0, 0, false, false, false
-		}
+		current, currentOK, _ := calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, len(values))
 		previous, previousOK, _ := calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, max(len(values)-1, 0))
 		return current, previous, currentOK, previousOK, true
 	}
-	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
-	if !handled {
-		return 0, 0, false, false, false
-	}
+	aggregator, _ := newTradingWindowMovingAverageAggregator(config)
 	if len(values) == 0 || len(values) != len(labelKeys) {
 		return 0, 0, false, false, true
 	}

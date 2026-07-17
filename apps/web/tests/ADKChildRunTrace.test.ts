@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import { describe, expect, it } from "vitest";
 
 import type { ADKRun } from "@/contracts";
@@ -107,6 +108,46 @@ describe("ADKChildRunTrace", () => {
     await wrapper.get(".adk-workspace-queue-button").trigger("click");
 
     expect(wrapper.emitted("select")?.[0]).toEqual(["child-select"]);
+    expect(wrapper.find(".adk-run-trace-detail").exists()).toBe(false);
+  });
+
+  it("renders usage details and supports keyboard-only expansion", async () => {
+    const wrapper = mount(ADKChildRunTrace, {
+      props: {
+        item: buildItem({
+          updatedAt: "not-a-date",
+          run: buildRun({
+            providerName: "OpenAI",
+            model: "gpt-test",
+            usage: {
+              modelCalls: 2,
+              toolCallsTotal: 3,
+              tokensIn: 120,
+              tokensOut: 45,
+              durationMs: 250,
+            },
+          }),
+        }),
+      },
+    });
+    const card = wrapper.get(".adk-child-run-trace__card");
+
+    await card.trigger("keydown", { key: "Escape" });
+    expect(wrapper.find(".adk-run-trace-detail").exists()).toBe(false);
+    await card.trigger("keydown", { key: "Enter" });
+    expect(wrapper.text()).toContain("not-a-date");
+    expect(wrapper.text()).toContain("模型 2 · 工具 3 · 输入 120 · 输出 45 · 耗时 250 ms");
+    expect(wrapper.text()).toContain("OpenAI");
+    expect(wrapper.text()).toContain("gpt-test");
+
+    await wrapper.setProps({
+      item: buildItem({
+        run: buildRun({ usage: { durationMs: 12_000 } }),
+      }),
+    });
+    await nextTick();
+    expect(wrapper.text()).toContain("耗时 12 s");
+    await card.trigger("keydown", { key: " " });
     expect(wrapper.find(".adk-run-trace-detail").exists()).toBe(false);
   });
 });

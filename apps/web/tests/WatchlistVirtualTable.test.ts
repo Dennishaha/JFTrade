@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 
 import type { WatchlistItem, WatchlistQuote } from "../src/contracts";
 import WatchlistVirtualTable from "../src/components/domain/watchlist/WatchlistVirtualTable.vue";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function item(index: number): WatchlistItem {
   const symbol = String(index).padStart(5, "0");
@@ -164,5 +168,76 @@ describe("WatchlistVirtualTable", () => {
       "translateX(-120px)",
     );
     expect(wrapper.get(".watchlist-table__row").attributes("role")).toBe("row");
+  });
+
+  it("supports compact keyboard selection, membership editing, and near-end paging", async () => {
+    const observed: HTMLElement[] = [];
+    const disconnect = vi.fn();
+    vi.stubGlobal("ResizeObserver", class {
+      observe(element: HTMLElement) { observed.push(element); }
+      disconnect = disconnect;
+    });
+    const watched = {
+      ...item(7),
+      sources: [
+        { sourceId: "primary", sourceName: "行情主源" },
+        { sourceId: "fallback", sourceName: "行情主源" },
+        { sourceId: "backup", sourceName: "备用源" },
+      ],
+    };
+    const wrapper = mount(WatchlistVirtualTable, {
+      props: {
+        items: [watched],
+        compact: true,
+        activeInstrumentId: watched.instrumentId,
+        hasMore: true,
+        quotes: new Map([
+          [
+            watched.instrumentId,
+            {
+              instrumentId: watched.instrumentId,
+              price: 1000,
+              previousClose: 0.1,
+              change: -0.01,
+              changePercent: -0.1,
+              session: "REGULAR",
+              updateTime: "2026-07-16T01:02:03Z",
+            },
+          ],
+        ]),
+      },
+      global: { stubs: { "v-icon": { template: "<span><slot /></span>" } } },
+    });
+    await nextTick();
+
+    const row = wrapper.get(".watchlist-table__row");
+    expect(row.classes()).toContain("is-active");
+    expect(row.attributes("style")).toContain("46px");
+    expect(wrapper.text()).toContain("1000.00");
+    expect(wrapper.text()).toContain("-0.10%");
+    await row.trigger("click");
+    await row.trigger("keydown", { key: "Enter" });
+    await row.trigger("keydown", { key: " " });
+    await wrapper.get(".watchlist-table__star").trigger("click");
+    expect(wrapper.emitted("select")).toHaveLength(3);
+    expect(wrapper.emitted("edit-membership")?.[0]).toEqual([watched]);
+    expect(wrapper.emitted("end-reached")).toHaveLength(1);
+    expect(observed).toHaveLength(1);
+    wrapper.unmount();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("distinguishes the loading and empty states while preserving a loading-more marker", async () => {
+    const wrapper = mount(WatchlistVirtualTable, {
+      props: { items: [], loading: true, emptyText: "没有收藏" },
+      global: { stubs: { "v-icon": { template: "<span><slot /></span>" } } },
+    });
+    expect(wrapper.find(".watchlist-table__spinner").exists()).toBe(true);
+    expect(wrapper.text()).toContain("正在加载自选股");
+
+    await wrapper.setProps({ loading: false, loadingMore: true });
+    expect(wrapper.text()).toContain("没有收藏");
+    expect(wrapper.text()).toContain("点击图表标题旁的星号即可加入分组");
+    expect(wrapper.text()).toContain("加载更多");
   });
 });

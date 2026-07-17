@@ -193,6 +193,63 @@ strategy.exit("Close", "Long")`),
     });
   });
 
+  it("maps annotated close conditions to decision diamonds and keeps both control branches", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Annotated Decisions", overlay=true)
+// @jftradeFlowNodeId take-profit-check
+// @jftradeFlowBlockKind ifCloseAbove
+// @jftradeFlowNodeText 达到止盈价
+if close > 120
+    alert("take profit")
+else
+    log.info("hold")
+// @jftradeFlowNodeId stop-loss-check
+// @jftradeFlowBlockKind ifCloseBelow
+if close < 90
+    alert("stop loss")`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const takeProfit = parsed.model.nodes.find((node) => node.id === "take-profit-check");
+    const stopLoss = parsed.model.nodes.find((node) => node.id === "stop-loss-check");
+    expect(takeProfit).toMatchObject({
+      type: "diamond",
+      text: "达到止盈价",
+      properties: { blockKind: "ifCloseAbove", threshold: 120 },
+    });
+    expect(stopLoss).toMatchObject({
+      type: "diamond",
+      properties: { blockKind: "ifCloseBelow", threshold: 90 },
+    });
+    expect(
+      parsed.model.edges.filter((edge) => edge.sourceNodeId === "take-profit-check"),
+    ).toEqual(expect.arrayContaining([
+      expect.objectContaining({ properties: expect.objectContaining({ branch: "true" }) }),
+      expect.objectContaining({ properties: expect.objectContaining({ branch: "false" }) }),
+    ]));
+  });
+
+  it("rejects a malformed expanded KDJ compatibility block instead of silently assigning aliases", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Broken KDJ", overlay=true)
+kdj_highest = ta.highest(high, 9)
+kdj_lowest = ta.lowest(low, 9)
+kdj_rsv = kdj_highest == kdj_lowest ? 50 : ((close - kdj_lowest) / (kdj_highest - kdj_lowest)) * 100
+var kdj_k = 50.0
+var kdj_d = 50.0
+kdj_k := ((2) * nz(kdj_k[1], 50) + kdj_rsv) / 3
+kdj_d := ((2) * nz(kdj_d[1], 50) + kdj_k) / 4
+kdj_j = 3 * kdj_k - 2 * kdj_d`);
+
+    expect(parsed).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("kdj_rsv = kdj_highest"),
+    });
+  });
+
   it("rejects unsupported Pine forms with explicit, business-facing parser errors", () => {
     const cases = [
       {

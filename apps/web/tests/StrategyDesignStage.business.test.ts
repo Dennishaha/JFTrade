@@ -8,6 +8,7 @@ import {
   createDefaultPineV6Workflow,
 } from "../src/features/pineV6Workflow";
 import { queryClient } from "../src/composables/serverState";
+import StrategyDesignStage from "../src/components/StrategyDesignStage.vue";
 import {
   MockWebSocket,
   buildFetchMock,
@@ -406,5 +407,59 @@ describe("StrategyDesignStage business flows", () => {
     await findButtonByLabels(wrapper, ["保存", "保存中", "已保存"]).trigger("click");
     await settleStrategyWorkspace();
     expect(wrapper.text()).toContain("保存策略定义失败: save offline");
+  });
+
+  it("guards source-editing no-ops and preserves a recoverable analyzer failure", async () => {
+    const baseFetch = buildFetchMock({ definitions: [], strategies: [] });
+    vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).includes("/api/v1/strategy-pine/analyze")) {
+        throw new Error("analyzer transport unavailable");
+      }
+      return baseFetch(input, init);
+    });
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const { wrapper } = await mountStrategyPage("/strategy/design");
+    await settleStrategyWorkspace();
+    const stage = wrapper.getComponent(StrategyDesignStage);
+    const setup = stage.vm.$.setupState as Record<string, unknown>;
+    const call = <T>(name: string, ...args: unknown[]) =>
+      (setup[name] as (...values: unknown[]) => T)(...args);
+    const read = <T>(value: unknown): T =>
+      value !== null && typeof value === "object" && "value" in value
+        ? (value as { value: T }).value
+        : value as T;
+
+    expect(call<string>("statusLabel", "RUNNING")).toBe("运行中");
+    expect(call<string>("statusLabel", "PAUSED")).toBe("已暂停");
+    expect(call<string>("statusLabel", "STOPPED")).toBe("已停止");
+    expect(call<string>("statusClass", "PAUSED")).toBe(
+      "strategy-native-status--paused",
+    );
+
+    const before = read<string>(setup.activeScript);
+    call<void>("addSourceBlock", "not-a-pine-block");
+    call<void>("changeSourceBlockKind", { id: "missing" }, "not-a-pine-block");
+    call<void>("applySourceEdit", { source: before, changed: false });
+    call<void>("commitSourceChange", before);
+    call<void>("undoSourceChange");
+    call<void>("redoSourceChange");
+    call<void>("updateSourceBlockField", { match: { type: "raw" } }, "title", "ignored");
+    expect(read<string>(setup.activeScript)).toBe(before);
+
+    await wrapper.get('[data-testid="strategy-mobile-section-code"]').trigger("click");
+    expect(read<string>(setup.strategyMobileSection)).toBe("code");
+    expect(read<string>(setup.strategyDisplayMode)).toBe("code");
+    await wrapper.get('[data-testid="strategy-mobile-section-instruction"]').trigger("click");
+    expect(read<string>(setup.strategyMobileSection)).toBe("instruction");
+    expect(read<string>(setup.strategyDisplayMode)).toBe("instruction");
+
+    await expect(call<Promise<boolean>>("analyzeCurrentScript")).resolves.toBe(false);
+    expect(read<string>(setup.error)).toContain("Pine v6 分析失败: analyzer transport unavailable");
+    expect(read<{ diagnostics: Array<{ message: string }> } | null>(setup.analyzeResult))
+      .toMatchObject({ diagnostics: [{ message: "analyzer transport unavailable" }] });
+    await expect(
+      call<Promise<unknown>>("saveDefinition", { requireAnalysis: true }),
+    ).resolves.toBeNull();
   });
 });

@@ -92,6 +92,12 @@ func TestTradingReadHandlersValidateAndNormalizeBusinessQueries(t *testing.T) {
 		if missingRec.Code != http.StatusBadRequest {
 			t.Fatalf("missing symbol status=%d body=%s", missingRec.Code, missingRec.Body.String())
 		}
+		invalidRec := httptest.NewRecorder()
+		invalidReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/brokers/futu/margin-ratios?market=US&symbol=HK.00700", nil)
+		router.ServeHTTP(invalidRec, invalidReq)
+		if invalidRec.Code != http.StatusBadRequest || !strings.Contains(invalidRec.Body.String(), "symbol") {
+			t.Fatalf("invalid symbol status=%d body=%s", invalidRec.Code, invalidRec.Body.String())
+		}
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/brokers/futu/margin-ratios?market=US&symbol=AAPL&symbols=MSFT,AAPL", nil)
@@ -145,6 +151,15 @@ func TestTradingReadHandlersValidateAndNormalizeBusinessQueries(t *testing.T) {
 		}
 		if !strings.Contains(rec.Body.String(), `"securities"`) {
 			t.Fatalf("securities body=%s", rec.Body.String())
+		}
+	})
+
+	t.Run("unknown broker resource remains an explicit not-found response", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/brokers/futu/unsupported-resource", nil)
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 		}
 	})
 }

@@ -358,6 +358,51 @@ func TestPineWorkerCommandExecutorAutoCloseCoversShortPosition(t *testing.T) {
 	}
 }
 
+func TestPineWorkerCommandExecutorHonorsExplicitShortCloseAndOptionalWarnings(t *testing.T) {
+	t.Run("explicit short close buys back the open short", func(t *testing.T) {
+		account := types.NewAccount()
+		sizer := newPineWorkerReplaySizer("US.AAPL", "USD", account)
+		sizer.onOrderUpdate(types.Order{
+			SubmitOrder: types.SubmitOrder{
+				Symbol: "US.AAPL", Side: types.SideTypeSell, Quantity: fixedpoint.NewFromFloat(2),
+			},
+			Status: types.OrderStatusFilled, ExecutedQuantity: fixedpoint.NewFromFloat(2),
+		})
+		orders := &fakeWorkerOrderExecutor{}
+		executor := validPineWorkerCommandExecutor(orders)
+		executor.PositionSizer = sizer
+
+		if err := executor.Execute(context.Background(), WorkerOrderCommand{
+			Kind: "close", ID: "close-known-short", Direction: "short", Quantity: 1,
+		}); err != nil {
+			t.Fatalf("Execute explicit short close: %v", err)
+		}
+		if len(orders.submitted) != 1 || orders.submitted[0].Side != types.SideTypeBuy || orders.submitted[0].Tag != pineWorkerShortReplayOrderTag {
+			t.Fatalf("explicit short close order = %#v", orders.submitted)
+		}
+	})
+
+	t.Run("missing warning collector never converts an ignored close into a replay failure", func(t *testing.T) {
+		executor := validPineWorkerCommandExecutor(&fakeWorkerOrderExecutor{})
+		executor.PositionSizer = newPineWorkerReplaySizer("US.AAPL", "USD", types.NewAccount())
+		if err := executor.Execute(context.Background(), WorkerOrderCommand{
+			Kind: "close", ID: "no-open-position", Direction: "long", Quantity: 1,
+		}); err != nil {
+			t.Fatalf("ignored close without warning sink: %v", err)
+		}
+	})
+
+	t.Run("default full-close sizing surfaces an unavailable position", func(t *testing.T) {
+		executor := validPineWorkerCommandExecutor(&fakeWorkerOrderExecutor{})
+		executor.PositionSizer = newPineWorkerReplaySizer("US.AAPL", "USD", types.NewAccount())
+		if _, err := executor.SubmitOrderFromCommand(WorkerOrderCommand{
+			Kind: "close", ID: "full-close-without-position", Side: types.SideTypeSell,
+		}); err == nil || !strings.Contains(err.Error(), "requires an open position") {
+			t.Fatalf("full close sizing error = %v", err)
+		}
+	})
+}
+
 func TestPineWorkerCommandExecutorCancelsTrackedOrders(t *testing.T) {
 	orderExecutor := &fakeWorkerOrderExecutor{}
 	commandExecutor := validPineWorkerCommandExecutor(orderExecutor)

@@ -27,7 +27,7 @@ import (
 // @Router /api/v1/adk/sessions [get]
 func (h *Handler) handleADKSessions(c *gin.Context) {
 	var query adkSessionsQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := bindADKQuery(c, &query); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid sessions query")
 		return
 	}
@@ -221,7 +221,7 @@ func (h *Handler) handleADKRuns(c *gin.Context) {
 	h.service.ReconcileExpiredRuns(c.Request.Context())
 	h.service.ReconcileResolvedApprovals(context.WithoutCancel(c.Request.Context()))
 	var query adkRunsQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := bindADKQuery(c, &query); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid runs query")
 		return
 	}
@@ -341,7 +341,7 @@ func (h *Handler) handleADKRun(c *gin.Context) {
 func (h *Handler) handleADKApprovals(c *gin.Context) {
 	h.service.ReconcileResolvedApprovals(context.WithoutCancel(c.Request.Context()))
 	var query adkApprovalsQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := bindADKQuery(c, &query); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid approvals query")
 		return
 	}

@@ -55,11 +55,15 @@ func executeCoverageCheck(
 		"test",
 		"-count=1",
 		"-timeout", cfg.testTimeout.String(),
+		"-coverpkg=./...",
 		"-coverprofile", profilePath,
 	}
 	args = append(args, cfg.packages...)
 	if err := runner.Run(repoRoot, args, stdout, stderr); err != nil {
 		return nil, fmt.Errorf("go test failed: %w", err)
+	}
+	if err := mergeCoverageProfile(profilePath); err != nil {
+		return nil, fmt.Errorf("merge coverage profile: %w", err)
 	}
 
 	profiles, err := cover.ParseProfiles(profilePath)

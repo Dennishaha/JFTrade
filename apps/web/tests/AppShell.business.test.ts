@@ -447,4 +447,38 @@ describe("AppShell business flows", () => {
     expect(wrapper.find("[data-testid='oobe-route']").exists()).toBe(true);
     expect(testState.consoleStore?.initialize).toHaveBeenCalledTimes(1);
   });
+
+  it("runs command-palette navigation, documentation, and refresh actions against the live shell stores", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    const { router, setup, wrapper } = await mountAppShell();
+    const actions = setup.palette.actions.value as Array<{
+      id: string;
+      run: () => void;
+    }>;
+
+    actions.find((action) => action.id === "nav.docs")!.run();
+    actions.find((action) => action.id === "action.refresh")!.run();
+    actions.find((action) => action.id === "nav.system")!.run();
+    await flushPromises();
+
+    expect(testState.docsLink?.openDocs).toHaveBeenCalledOnce();
+    expect(testState.consoleStore?.loadSystemState).toHaveBeenCalledOnce();
+    expect(router.currentRoute.value.path).toBe("/system");
+    expect(document.title).toBe("系统 - JFTrade Console");
+
+    setup.syncCompactAppShell({ matches: true });
+    setup.toggleCompactNav();
+    await nextTick();
+    expect(wrapper.find("[data-testid='compact-nav-drawer']").exists()).toBe(true);
+    setup.syncCompactAppShell({ matches: false });
+    await nextTick();
+    expect(wrapper.find("[data-testid='compact-nav-drawer']").exists()).toBe(false);
+  });
 });

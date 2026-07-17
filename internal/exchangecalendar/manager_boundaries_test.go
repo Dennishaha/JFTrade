@@ -245,6 +245,45 @@ func TestManagerValidateCachedSnapshotUsesRegisteredSourceValidator(t *testing.T
 	}
 }
 
+func TestManagerCachedSnapshotMainlandFallbackAndFreshnessBoundaries(t *testing.T) {
+	now := time.Date(2026, time.October, 1, 8, 0, 0, 0, time.UTC)
+	registry := NewSourceRegistry()
+	registry.Register(stubSource{id: "mainland-cache", markets: []string{"CN"}})
+	settings := jfsettings.ExchangeCalendarSettings{SourcePolicies: []jfsettings.ExchangeCalendarSourcePolicy{{
+		Market: "CN", EnabledSourceIDs: []string{"mainland-cache"}, PreferredSourceIDs: []string{"mainland-cache"}, StaleAfterHours: 24,
+	}}}
+	manager := NewManager(nil, func() jfsettings.ExchangeCalendarSettings { return settings }, WithRegistry(registry), WithClock(func() time.Time { return now }))
+
+	// Cached CN data is allowed to validate and serve the SH/SZ templates, so a
+	// persisted shared mainland source remains usable after a restart.
+	snapshot := marketcalendar.CalendarSnapshot{
+		SourceID: "mainland-cache", MarketCode: "SH",
+		From: now.AddDate(0, -1, 0), To: now.AddDate(0, 1, 0),
+		FetchedAt: now.Add(-time.Hour), ValidUntil: now.Add(time.Hour),
+		Schedules: []marketcalendar.TradingDaySchedule{{
+			MarketCode: "SH", Date: now, Status: marketcalendar.TradingDayClosed, Reason: "national_day",
+		}},
+	}
+	if err := manager.validateCachedSnapshot(snapshot); err != nil {
+		t.Fatalf("shared mainland snapshot rejected: %v", err)
+	}
+	manager.cacheSnapshot(snapshot)
+	if sourceID, ok := manager.coverageSource("SH", now); !ok || sourceID != "mainland-cache" {
+		t.Fatalf("coverageSource(SH) = %q/%v, want mainland-cache/true", sourceID, ok)
+	}
+	if schedule, sourceID, ok := manager.overrideSchedule("SH", now); !ok || sourceID != "mainland-cache" || schedule.Status != marketcalendar.TradingDayClosed {
+		t.Fatalf("overrideSchedule(SH) = %#v/%q/%v", schedule, sourceID, ok)
+	}
+
+	// An expired remote snapshot must never remain an effective coverage source.
+	if snapshotFresh(marketcalendar.CalendarSnapshot{FetchedAt: now.Add(-25 * time.Hour)}, jfsettings.ExchangeCalendarSourcePolicy{StaleAfterHours: 24}, now) {
+		t.Fatal("stale snapshot reported fresh")
+	}
+	if _, ok := manager.coverageSource("MARS", now); ok {
+		t.Fatal("unknown market unexpectedly has remote coverage")
+	}
+}
+
 func TestSourceRegistryNilDuplicateAndMarketNormalizationBoundaries(t *testing.T) {
 	var nilRegistry *SourceRegistry
 	if source, ok := nilRegistry.Source("anything"); ok || source != nil {

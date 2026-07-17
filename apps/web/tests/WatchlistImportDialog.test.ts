@@ -245,4 +245,88 @@ describe("WatchlistImportDialog", () => {
     await flushPromises();
     expect(importMocks.deleteBinding).toHaveBeenCalledWith("binding-1");
   });
+
+  it("keeps the dialog open and reports preview, commit, and unlink failures", async () => {
+    importMocks.listSources.mockResolvedValue([
+      { id: "futu:default", displayName: "富途 OpenD", available: true },
+    ]);
+    importMocks.listSourceGroups.mockResolvedValue([
+      { remoteGroupId: "remote-tech", name: "科技", type: "CUSTOM", ambiguous: false },
+    ]);
+    importMocks.listBindings.mockResolvedValue([
+      {
+        id: "binding-1",
+        sourceId: "futu:default",
+        remoteGroupId: "remote-tech",
+        remoteGroupName: "科技",
+        localGroupId: "g-tech",
+      },
+    ]);
+    importMocks.preview
+      .mockRejectedValueOnce(new Error("预览服务暂不可用"))
+      .mockResolvedValueOnce({
+        id: "preview-error",
+        sourceId: "futu:default",
+        remoteGroupName: "科技",
+        added: [],
+        unchanged: [],
+        localOnly: [{ instrumentId: "US.AAPL", name: "Apple" }],
+      });
+    importMocks.commit.mockRejectedValueOnce(new Error("导入任务被拒绝"));
+    importMocks.deleteBinding.mockRejectedValueOnce(new Error("解除绑定被拒绝"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
+    const wrapper = mount(WatchlistImportDialog, {
+      props: { modelValue: true },
+      global: { stubs: { "v-dialog": DialogStub } },
+    });
+    await flushPromises();
+
+    await wrapper.get(".watchlist-import-dialog__primary").trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("预览服务暂不可用");
+    await wrapper.get(".watchlist-import-dialog__primary").trigger("click");
+    await flushPromises();
+    const localOnly = wrapper.get(".watchlist-import-dialog__local-only input");
+    await localOnly.setValue(true);
+    await wrapper.get(".watchlist-import-dialog__primary").trigger("click");
+    await flushPromises();
+    expect(importMocks.commit).toHaveBeenCalledWith("preview-error", {
+      deleteLocalOnlyInstrumentIds: ["US.AAPL"],
+    });
+    expect(wrapper.text()).toContain("导入任务被拒绝");
+
+    await wrapper.get(".watchlist-import-dialog__bindings button").trigger("click");
+    expect(importMocks.deleteBinding).not.toHaveBeenCalled();
+    await wrapper.get(".watchlist-import-dialog__bindings button").trigger("click");
+    await flushPromises();
+    expect(confirmSpy).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).toContain("解除绑定被拒绝");
+    await wrapper.get("button[aria-label='关闭']").trigger("click");
+    expect(wrapper.emitted("update:modelValue")).toEqual([[false]]);
+  });
+
+  it("refreshes sources, groups, and bindings whenever a closed import dialog reopens", async () => {
+    importMocks.listSources.mockResolvedValue([
+      { id: "futu:default", displayName: "富途 OpenD", available: true },
+    ]);
+    importMocks.listSourceGroups.mockResolvedValue([
+      { remoteGroupId: "remote-tech", name: "科技", type: "CUSTOM", ambiguous: false },
+    ]);
+    importMocks.listBindings.mockResolvedValue([]);
+    const wrapper = mount(WatchlistImportDialog, {
+      props: { modelValue: false },
+      global: { stubs: { "v-dialog": DialogStub } },
+    });
+
+    await wrapper.setProps({ modelValue: true });
+    await flushPromises();
+    await wrapper.setProps({ modelValue: false });
+    await wrapper.setProps({ modelValue: true });
+    await flushPromises();
+
+    expect(importMocks.listSources).toHaveBeenCalled();
+    expect(importMocks.listSourceGroups).toHaveBeenCalled();
+    expect(importMocks.listBindings).toHaveBeenCalled();
+    expect(wrapper.get(".watchlist-import-dialog").exists()).toBe(true);
+  });
 });

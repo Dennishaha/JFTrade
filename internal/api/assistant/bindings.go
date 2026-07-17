@@ -79,12 +79,16 @@ type adkApprovalsQuery struct {
 }
 
 type adkAgentsQuery struct {
-	Status string `form:"status"`
+	Status string                      `form:"status"`
+	Limit  httpserver.OptionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
+	Offset httpserver.OptionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
 }
 
 type adkAuditQuery struct {
-	Kind      string `form:"kind"`
-	SubjectID string `form:"subjectId"`
+	Kind      string                      `form:"kind"`
+	SubjectID string                      `form:"subjectId"`
+	Limit     httpserver.OptionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
+	Offset    httpserver.OptionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
 }
 
 type adkTasksQuery struct {

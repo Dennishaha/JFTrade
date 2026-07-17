@@ -7,6 +7,7 @@ import { createResponse } from "./helpers";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 function createController() {
@@ -89,5 +90,65 @@ describe("console plugin operations", () => {
     fail = true;
     await expect(controller.loadPluginUninstallGuidance("demo")).resolves.toBeNull();
     expect(state.pluginError.value).toBe("插件卸载指引加载失败。");
+  });
+
+  it("keeps the install lock while a backend operation is still running", async () => {
+    vi.useFakeTimers();
+    let operationPolls = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/plugins/wait/install")) {
+        return createResponse({ operation: { operationId: "wait-op" } });
+      }
+      if (url.endsWith("/operations/wait-op")) {
+        operationPolls += 1;
+        return createResponse({
+          operationId: "wait-op",
+          status: operationPolls === 1 ? "RUNNING" : "SUCCEEDED",
+          message: "installing",
+        });
+      }
+      if (url.endsWith("/api/v1/plugins")) {
+        return createResponse(emptyPluginCatalog);
+      }
+      throw new Error(`unexpected ${url}`);
+    }));
+    const { controller, state } = createController();
+
+    const install = controller.installPlugin("wait");
+    await vi.advanceTimersByTimeAsync(500);
+    await install;
+
+    expect(operationPolls).toBe(2);
+    expect(state.installingPluginIds.value).toEqual([]);
+    expect(state.pluginError.value).toBe("");
+  });
+
+  it("reports a bounded polling timeout and non-Error uninstall failures", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/plugins/slow/install")) {
+        return createResponse({ operation: { operationId: "slow-op" } });
+      }
+      if (url.endsWith("/operations/slow-op")) {
+        return createResponse({ operationId: "slow-op", status: "RUNNING", message: "still working" });
+      }
+      if (url.endsWith("/api/v1/plugins/broken/uninstall")) {
+        throw "broker offline";
+      }
+      throw new Error(`unexpected ${url}`);
+    }));
+    const { controller, state } = createController();
+
+    const install = controller.installPlugin("slow");
+    await vi.runAllTimersAsync();
+    await install;
+    expect(state.pluginError.value).toBe("插件操作未在预期时间内完成。");
+    expect(state.installingPluginIds.value).toEqual([]);
+
+    await controller.uninstallPlugin("broken");
+    expect(state.pluginError.value).toBe("插件卸载失败。");
+    expect(state.uninstallingPluginIds.value).toEqual([]);
   });
 });

@@ -36,10 +36,13 @@ vi.mock("../src/composables/useADKPageController", () => ({
 
 const sessionSidebarStub = defineComponent({
   props: ["createNewSession", "selectSession"],
+  emits: ["update:session-search", "update:session-agent-filter"],
   template: `
     <div class="adk-sidebar">
       <button type="button" class="sidebar-create" @click="void createNewSession()">create</button>
       <button type="button" class="adk-session-item" @click="void selectSession('session-2')">session</button>
+      <button type="button" class="sidebar-search" @click="$emit('update:session-search', 'risk review')">search</button>
+      <button type="button" class="sidebar-agent-filter" @click="$emit('update:session-agent-filter', 'agent-2')">filter</button>
     </div>
   `,
 });
@@ -55,13 +58,14 @@ const chatThreadStub = defineComponent({
     "errorMessage",
     "clearErrorMessage",
   ],
-  emits: ["show-older-timeline", "show-newer-timeline", "show-latest-timeline"],
+  emits: ["show-older-timeline", "show-newer-timeline", "show-latest-timeline", "update:chat-draft"],
   template: `
     <div :class="layout === 'mobile' ? 'adk-chat-thread--mobile' : 'adk-chat-thread--desktop'">
       <div class="timeline-window">{{ timelineWindowStart }}-{{ timelineWindowEnd }} / {{ timelineTotal }} / {{ timelineAtLatest ? 'latest' : 'older' }}</div>
       <button type="button" class="older-window" @click="$emit('show-older-timeline')">older</button>
       <button type="button" class="newer-window" @click="$emit('show-newer-timeline')">newer</button>
       <button type="button" class="latest-window" @click="$emit('show-latest-timeline')">latest</button>
+      <button type="button" class="thread-draft" @click="$emit('update:chat-draft', 'timeline draft')">thread draft</button>
       <button type="button" class="clear-error" @click="clearErrorMessage()">clear</button>
       <div class="error-message">{{ errorMessage }}</div>
       <div
@@ -119,6 +123,11 @@ const splitPaneStub = defineComponent({
         class="resize-workspace"
         @click="$emit('resized', { panes: [{ size: 31 }, { size: 69 }] })"
       >resize</button>
+      <button
+        type="button"
+        class="resize-workspace-invalid"
+        @click="$emit('resized', { panes: [{ size: 0 }] })"
+      >invalid resize</button>
       <slot />
     </div>
   `,
@@ -170,6 +179,42 @@ describe("ADKWorkspaceShell", () => {
         .findAll(".split-pane-item-stub")
         .map((pane) => pane.attributes("data-size")),
     ).toEqual(["31", "69"]);
+
+    await wrapper.find(".resize-workspace-invalid").trigger("click");
+    expect(
+      wrapper
+        .findAll(".split-pane-item-stub")
+        .map((pane) => pane.attributes("data-size")),
+    ).toEqual(["31", "69"]);
+  });
+
+  it("keeps the conversation usable when Mermaid rendering rejects", async () => {
+    currentControllerState = buildControllerState({
+      visibleTimelineEntries: buildTimelineEntries(1),
+    });
+    window.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      callback(16);
+      return 1;
+    });
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList);
+    mermaidRunMock.mockRejectedValueOnce(new Error("diagram syntax rejected"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const wrapper = await mountShell();
+    await flushRequests();
+
+    expect(mermaidInitializeMock).toHaveBeenCalled();
+    expect(mermaidRunMock).toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "Failed to render mermaid diagrams",
+      expect.objectContaining({ message: "diagram syntax rejected" }),
+    );
+    expect(wrapper.find(".composer-stub").exists()).toBe(true);
+    warn.mockRestore();
   });
 
   it("renders mermaid timelines, paginates windows, clears errors, and leaves child views", async () => {
@@ -301,6 +346,38 @@ describe("ADKWorkspaceShell", () => {
 
     wrapper.unmount();
     expect(removeEventListener).toHaveBeenCalled();
+  });
+
+  it("keeps legacy viewport listeners and mobile/sidebar bindings functional", async () => {
+    const addListener = vi.fn();
+    const removeListener = vi.fn();
+    currentControllerState = buildControllerState({
+      selectedAgentId: "agent-1",
+      selectedSessionId: "session-1",
+    });
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: true,
+      addListener,
+      removeListener,
+    } as unknown as MediaQueryList);
+
+    const wrapper = await mountShell();
+    expect(addListener).toHaveBeenCalledWith(expect.any(Function));
+
+    await wrapper.findAll(".adk-mobile-toolbar__button")[1]!.trigger("click");
+    expect(currentControllerState.createNewSession).toHaveBeenCalledTimes(1);
+
+    await wrapper.find("[data-testid='adk-mobile-sessions-toggle']").trigger("click");
+    await wrapper.find(".sidebar-search").trigger("click");
+    await wrapper.find(".sidebar-agent-filter").trigger("click");
+    expect(currentControllerState.sessionSearch.value).toBe("risk review");
+    expect(currentControllerState.sessionAgentFilter.value).toBe("agent-2");
+
+    await wrapper.find(".thread-draft").trigger("click");
+    expect(currentControllerState.chatDraft.value).toBe("timeline draft");
+
+    wrapper.unmount();
+    expect(removeListener).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it("replaces the composer with a pending input request while the timeline remains visible", async () => {

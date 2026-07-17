@@ -90,8 +90,12 @@ func (s *Store) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings
 	normalized := NormalizeADKRuntimeSettings(input)
 
 	s.mu.Lock()
+	previous := s.data.ADK
 	s.data.ADK = adkRuntimeSettingsPointer(normalized)
 	err := s.persistLocked()
+	if err != nil {
+		s.data.ADK = previous
+	}
 	s.mu.Unlock()
 	return normalized, err
 }

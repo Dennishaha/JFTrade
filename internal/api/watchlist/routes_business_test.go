@@ -155,6 +155,21 @@ func TestWatchlistRoutesCompleteImportAndGroupLifecycle(t *testing.T) {
 	service.RegisterSourceReader("futu:default", reader)
 	service.RegisterBatchSnapshotSource(apiWatchlistQuotes{})
 
+	groupsResponse := performWatchlistRequest(t, router, http.MethodGet, "/api/v1/watchlist/groups", nil)
+	if groupsResponse.Code != http.StatusOK {
+		t.Fatalf("list groups status=%d body=%s", groupsResponse.Code, groupsResponse.Body.String())
+	}
+	var groupsEnvelope struct {
+		httpserver.Envelope
+		Data struct {
+			Groups []domain.Group `json:"groups"`
+		} `json:"data"`
+	}
+	decodeWatchlistResponse(t, groupsResponse, &groupsEnvelope)
+	if !groupsEnvelope.OK || len(groupsEnvelope.Data.Groups) != 1 || !groupsEnvelope.Data.Groups[0].IsDefault {
+		t.Fatalf("list groups envelope=%#v", groupsEnvelope)
+	}
+
 	createdResponse := performWatchlistRequest(t, router, http.MethodPost, "/api/v1/watchlist/groups", map[string]any{"name": "Imported"})
 	if createdResponse.Code != http.StatusOK {
 		t.Fatalf("create group status=%d body=%s", createdResponse.Code, createdResponse.Body.String())

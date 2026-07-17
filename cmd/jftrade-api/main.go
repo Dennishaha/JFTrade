@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -21,35 +22,67 @@ import (
 	_ "time/tzdata"
 )
 
+type apiOnlyRunner func(context.Context) error
+
+type signalContextFunc func(context.Context, ...os.Signal) (context.Context, context.CancelFunc)
+
+type apiCommandRunner func(
+	[]string,
+	io.Writer,
+	func(string) string,
+	func(string, string) error,
+	apiOnlyRunner,
+	signalContextFunc,
+) error
+
+var executeAPICommand apiCommandRunner = runAPICommand
+
 func main() {
-	args := os.Args[1:]
+	reportFatal(executeAPICommand(
+		os.Args[1:],
+		os.Stdout,
+		os.Getenv,
+		os.Setenv,
+		apiserver.RunAPIOnly,
+		signal.NotifyContext,
+	), log.Fatalf)
+}
+
+func runAPICommand(
+	args []string,
+	stdout io.Writer,
+	getenv func(string) string,
+	setenv func(string, string) error,
+	runAPI apiOnlyRunner,
+	notifyContext signalContextFunc,
+) error {
 	if isHelpArgs(args) {
-		printUsage()
-		return
+		printUsage(stdout)
+		return nil
 	}
 	if err := validateArgs(args); err != nil {
-		log.Fatalf("%v", err)
+		return err
 	}
 
-	if os.Getenv("DISABLE_MARKETS_CACHE") == "" {
-		jftradeErr1 := os.Setenv("DISABLE_MARKETS_CACHE", "1")
-		jftradeLogError(jftradeErr1)
+	if getenv("DISABLE_MARKETS_CACHE") == "" {
+		jftradeLogError(setenv("DISABLE_MARKETS_CACHE", "1"))
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := notifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := apiserver.RunAPIOnly(ctx); err != nil {
-		log.Fatalf("JFTrade API-only server failed: %v", err)
+	if err := runAPI(ctx); err != nil {
+		return fmt.Errorf("JFTrade API-only server failed: %w", err)
 	}
+	return nil
 }
 
 func isHelpArgs(args []string) bool {
 	return len(args) == 1 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h")
 }
 
-func printUsage() {
-	_, _ = fmt.Fprintln(os.Stdout, "Usage: jftrade-api")
+func printUsage(writer io.Writer) {
+	_, _ = fmt.Fprintln(writer, "Usage: jftrade-api")
 }
 
 func validateArgs(args []string) error {
@@ -64,5 +97,11 @@ func jftradeLogError(values ...any) {
 		if err, ok := value.(error); ok && err != nil {
 			log.Printf("best-effort operation failed: %v", err)
 		}
+	}
+}
+
+func reportFatal(err error, fatalf func(string, ...any)) {
+	if err != nil {
+		fatalf("%v", err)
 	}
 }

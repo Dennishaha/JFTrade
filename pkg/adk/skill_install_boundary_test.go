@@ -51,6 +51,33 @@ func TestSkillInstallAdditionalBoundaryBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("installArchive rejects a zip whose payload was corrupted after download", func(t *testing.T) {
+		archive := zipArchiveWithDirectories(t, map[string]string{
+			"corrupt-skill/SKILL.md": "---\nname: corrupt-skill\n---\nThis body must fail checksum validation.",
+		})
+		reader, err := zip.NewReader(bytes.NewReader(archive), int64(len(archive)))
+		if err != nil {
+			t.Fatalf("zip.NewReader: %v", err)
+		}
+		offset, err := reader.File[0].DataOffset()
+		if err != nil {
+			t.Fatalf("zip data offset: %v", err)
+		}
+		if offset < 0 || offset >= int64(len(archive)) {
+			t.Fatalf("zip data offset = %d, archive len = %d", offset, len(archive))
+		}
+		corrupted := append([]byte(nil), archive...)
+		corrupted[offset] ^= 0xff
+
+		registry := &SkillRegistry{skillsPath: t.TempDir()}
+		if _, err := registry.installArchive(ctx, "https://example.com/corrupt-skill.zip", corrupted); err == nil {
+			t.Fatal("installArchive accepted a zip whose extracted payload fails integrity verification")
+		}
+		if _, err := os.Stat(filepath.Join(registry.skillsPath, "corrupt-skill")); !os.IsNotExist(err) {
+			t.Fatalf("corrupt archive left an installed skill behind, stat err=%v", err)
+		}
+	})
+
 	t.Run("rewriteArchiveSkillDocument and installed archive loading surface read write and lookup errors", func(t *testing.T) {
 		if runtime.GOOS != "windows" {
 			readRoot := t.TempDir()

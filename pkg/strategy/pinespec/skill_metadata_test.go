@@ -65,3 +65,30 @@ func TestPineSpecSkillMetadataAndResources(t *testing.T) {
 		t.Fatal("SaveDraftUsageHint should include the Pine skeleton")
 	}
 }
+
+func TestPineSpecRejectsUnknownSectionsAndKeepsFallbackFormattingStable(t *testing.T) {
+	if _, err := BuildToolPayload("unknown-section", false); err == nil || !strings.Contains(err.Error(), "不支持 section") {
+		t.Fatalf("unknown section error = %v", err)
+	}
+	if isKnownSection("unknown-section") {
+		t.Fatal("unknown section was accepted")
+	}
+	if title := sectionTitle("unknown-section"); title != "unknown-section" {
+		t.Fatalf("unknown section title = %q", title)
+	}
+	if summary := sectionSummary("unknown-section"); summary != "" {
+		t.Fatalf("unknown section summary = %q", summary)
+	}
+	if details := sectionDetails("unknown-section"); details != nil {
+		t.Fatalf("unknown section details = %#v", details)
+	}
+
+	items := []map[string]any{
+		{"name": "plain", "notes": "from notes"},
+		{"name": "bare"},
+	}
+	flattened := flattenNamedItems(items)
+	if len(flattened) != 2 || flattened[0] != "plain: from notes" || flattened[1] != "bare" {
+		t.Fatalf("flattened named items = %#v", flattened)
+	}
+}

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import { describe, expect, it } from "vitest";
 
 import type { ADKRun } from "@/contracts";
@@ -451,6 +452,108 @@ describe("ADKRunTrace", () => {
     await wrapper.get(".adk-run-trace-card--tool").trigger("click");
     expect(wrapper.props("expandedToolCallIds")).toEqual([]);
     expect(wrapper.find(".adk-run-trace-detail").exists()).toBe(false);
+  });
+
+  it("keeps meaningful progress and terminal workflow details visible across trace updates", async () => {
+    const progressOnly = mount(ADKRunTrace, {
+      props: {
+        toolProgress: "正在等待模型输出",
+        busy: true,
+      },
+    });
+    expect(progressOnly.text()).toContain("正在等待模型输出");
+
+    const terminalWorkflow = mount(ADKRunTrace, {
+      props: {
+        run: buildRun(
+          [buildToolCall("tool-a", "market.snapshot"), buildToolCall("tool-b", "risk.check")],
+          "FAILED",
+          "工作流在审批前终止",
+          {
+            workMode: "task_graph",
+            workflowStatus: "FAILED",
+            iteration: 2,
+            childRunIds: ["child-a"],
+          },
+        ),
+        summaryExpanded: false,
+      },
+    });
+    expect(terminalWorkflow.text()).toContain("工作流");
+    expect(terminalWorkflow.text()).toContain("工作流在审批前终止");
+    expect(terminalWorkflow.text()).toContain("第 2 轮");
+
+    const toolCalls = Array.from({ length: 81 }, (_, index) =>
+      buildToolCall(
+        `tool-${index + 1}`,
+        `trace.tool.${index + 1}`,
+        index === 0 ? "FAILED" : "SUCCEEDED",
+        { index },
+        index === 0 ? "upstream rejected request" : undefined,
+      ),
+    );
+    toolCalls[0]!.durationMs = Number.NaN;
+    const changingTrace = mount(ADKRunTrace, {
+      props: {
+        run: buildRun(toolCalls),
+        summaryExpanded: true,
+        expandedToolCallIds: ["tool-1"],
+      },
+    });
+    expect(changingTrace.text()).toContain("upstream rejected request");
+    expect(changingTrace.text()).not.toContain("NaN");
+    await changingTrace.get(".adk-run-trace-window button:last-child").trigger("click");
+    await changingTrace.setProps({
+      run: buildRun([buildToolCall("new-tool", "strategy.health")]),
+      expandedToolCallIds: [],
+    });
+    await nextTick();
+    expect(changingTrace.text()).toContain("strategy.health");
+    expect(changingTrace.find(".adk-run-trace-window").exists()).toBe(false);
+  });
+
+  it("shows expanded tool errors while leaving calls without output as input-only details", async () => {
+    const inputOnly = {
+      ...buildToolCall("tool-input", "strategy.validate", "FAILED"),
+      output: undefined,
+      error: "validation rejected the submitted parameters",
+    };
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun([inputOnly], "FAILED", inputOnly.error),
+        summaryExpanded: true,
+        expandedToolCallIds: ["tool-input"],
+        "onUpdate:expandedToolCallIds": (value: string[]) => {
+          void wrapper.setProps({ expandedToolCallIds: value });
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain('"query": "strategy.validate"');
+    expect(wrapper.text()).toContain("Error");
+    expect(wrapper.text()).toContain("validation rejected the submitted parameters");
+    expect(wrapper.text()).not.toContain("Output");
+
+    await wrapper.get(".adk-run-trace-card--tool").trigger("click");
+    expect(wrapper.find(".adk-run-trace-detail").exists()).toBe(false);
+  });
+
+  it("does not build a tool visualization until that call is expanded", () => {
+    const toolCall = buildToolCall("tool-lazy", "portfolio.summary", "SUCCEEDED", {
+      brokerStatus: "connected",
+    });
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun([toolCall]),
+        summaryExpanded: true,
+        expandedToolCallIds: [],
+      },
+    });
+    const setup = wrapper.vm.$.setupState as Record<string, unknown>;
+
+    expect(
+      (setup.toolVisualization as (call: ADKRun["toolCalls"][number]) => unknown)(toolCall),
+    ).toBeNull();
   });
 });
 

@@ -160,6 +160,76 @@ describe("monitorADKRunContinuation", () => {
     expect(onTerminal).not.toHaveBeenCalled();
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  it("does not poll absent, terminal, or intentionally user-paused runs", async () => {
+    const completed = buildRun("COMPLETED");
+    const paused = buildRun("PAUSED", defaultToolCalls(), "", {
+      workMode: "loop",
+      pausedReason: "user",
+      pausedAt: "2026-06-10T00:00:02Z",
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await monitorADKRunContinuation(undefined)).toBeUndefined();
+    expect(await monitorADKRunContinuation(completed)).toBe(completed);
+    expect(await monitorADKRunContinuation(paused)).toBe(paused);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("stops during polling when the server reaches a terminal or user-paused state", async () => {
+    vi.useFakeTimers();
+    const failed = buildRun("FAILED", defaultToolCalls(), "provider unavailable");
+    vi.stubGlobal("fetch", vi.fn(async () => createEnvelopeResponse(failed)));
+    const onTerminal = vi.fn();
+    const terminalPromise = monitorADKRunContinuation(buildRun(), {
+      pollIntervalMs: 10,
+      timeoutMs: 100,
+      onTerminal,
+    });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await terminalPromise).toEqual(failed);
+    expect(onTerminal).toHaveBeenCalledWith(failed);
+
+    const paused = buildRun("PAUSED", defaultToolCalls(), "", {
+      workMode: "loop",
+      pausedReason: "user",
+      pausedAt: "2026-06-10T00:00:03Z",
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => createEnvelopeResponse(paused)));
+    const pausedPromise = monitorADKRunContinuation(buildRun(), {
+      pollIntervalMs: 10,
+      timeoutMs: 100,
+    });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await pausedPromise).toEqual(paused);
+  });
+
+  it("handles final timeout snapshots that are pending, paused, or unchanged", async () => {
+    const pending = buildRun("PENDING_APPROVAL", defaultToolCalls(), "", {
+      pendingApprovals: [buildApproval("approval-final")],
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => createEnvelopeResponse(pending)));
+    expect(
+      await monitorADKRunContinuation(buildRun(), { timeoutMs: 0 }),
+    ).toEqual(pending);
+
+    const paused = buildRun("PAUSED", defaultToolCalls(), "", {
+      workMode: "loop",
+      pausedReason: "user",
+      pausedAt: "2026-06-10T00:00:04Z",
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => createEnvelopeResponse(paused)));
+    expect(
+      await monitorADKRunContinuation(buildRun(), { timeoutMs: 0 }),
+    ).toEqual(paused);
+
+    const original = buildRun();
+    vi.stubGlobal("fetch", vi.fn(async () => createEnvelopeResponse(buildRun())));
+    expect(
+      await monitorADKRunContinuation(original, { timeoutMs: 0 }),
+    ).toBe(original);
+  });
 });
 
 function buildRun(

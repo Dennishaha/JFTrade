@@ -37,4 +37,34 @@ describe("IconRail", () => {
       "noopener,noreferrer",
     );
   });
+
+  it("marks the ADK section active and delegates internal navigation to the router", async () => {
+    const routes = [
+      "/workspace",
+      "/watchlist",
+      "/adk/agents",
+      "/strategy/runtime",
+      "/strategy/design",
+      "/backtest",
+      "/account",
+      "/risk",
+      "/system",
+      "/settings",
+    ].map((path) => ({ path, component: { template: "<div />" } }));
+    const router = createRouter({ history: createMemoryHistory(), routes });
+    await router.push("/adk/agents");
+    await router.isReady();
+    const push = vi.spyOn(router, "push");
+    const wrapper = mount(IconRail, {
+      global: {
+        plugins: [router],
+        stubs: { "v-icon": { template: "<span><slot /></span>" } },
+      },
+    });
+
+    expect(wrapper.get('button[title="智能体"]').classes()).toContain("is-active");
+    await wrapper.get('button[title="交易"]').trigger("click");
+    expect(push).toHaveBeenCalledWith("/workspace");
+    expect(wrapper.findAll(".tv-iconrail-btn")).toHaveLength(11);
+  });
 });

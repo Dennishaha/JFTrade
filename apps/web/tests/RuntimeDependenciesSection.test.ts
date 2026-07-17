@@ -190,4 +190,32 @@ describe("RuntimeDependenciesSection", () => {
 
     expect(wrapper.text()).toContain("save denied");
   });
+
+  it("shows stable fallback messages when initial or manual dependency probes reject non-Error values", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/v1/settings/pine-worker")) {
+        return createResponse({
+          backtestWorkerLimit: 2,
+          instanceWorkerLimit: 10,
+          nodeBinaryPath: "",
+        });
+      }
+      if (url.includes("/api/v1/system/runtime-dependencies")) {
+        throw "runtime probe socket closed";
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(RuntimeDependenciesSection, { props: { mode: "oobe" } });
+    await flushRequests();
+    expect(wrapper.text()).toContain("检查运行时依赖失败");
+    expect(wrapper.text()).toContain("策略系统仍不可用");
+
+    await wrapper.get("[data-testid='runtime-dependencies-refresh']").trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("检查运行时依赖失败");
+  });
+
 });

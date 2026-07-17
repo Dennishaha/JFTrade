@@ -52,6 +52,27 @@ describe("liveEventBus", () => {
     });
   });
 
+  it("rejects malformed envelopes before they can affect live reducers", () => {
+    expect(parseLiveEventEnvelope(null)).toBeNull();
+    expect(parseLiveEventEnvelope({})).toBeNull();
+    expect(parseLiveEventEnvelope({ type: "market-data.tick" })).toBeNull();
+    expect(parseLiveEventEnvelope({
+      eventId: "missing-payload",
+      type: "market-data.tick",
+      source: "market-data",
+      entityId: "US.AAPL",
+      serverTime: "2026-07-16T00:00:00Z",
+    })).toBeNull();
+    expect(parseLiveEventEnvelope({
+      eventId: "invalid-source",
+      type: "market-data.tick",
+      source: "unknown",
+      entityId: "US.AAPL",
+      serverTime: "2026-07-16T00:00:00Z",
+      payload: {},
+    })).toBeNull();
+  });
+
   it("drops duplicate event ids before notifying reducers", () => {
     const bus = getLiveEventBus();
     const events: string[] = [];
@@ -103,5 +124,28 @@ describe("liveEventBus", () => {
     });
 
     expect(versions).toEqual([2]);
+  });
+
+  it("bounds the duplicate-event cache so an old event can be observed after eviction", () => {
+    const bus = getLiveEventBus();
+    for (let index = 0; index <= 500; index += 1) {
+      expect(bus.publish({
+        eventId: `event-${index}`,
+        type: "system.notification",
+        source: "system",
+        entityId: "console",
+        serverTime: "2026-07-16T00:00:00Z",
+        payload: { index },
+      })).toBe(true);
+    }
+
+    expect(bus.publish({
+      eventId: "event-0",
+      type: "system.notification",
+      source: "system",
+      entityId: "console",
+      serverTime: "2026-07-16T00:00:01Z",
+      payload: { replayedAfterRetentionWindow: true },
+    })).toBe(true);
   });
 });

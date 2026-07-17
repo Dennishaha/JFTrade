@@ -165,4 +165,44 @@ describe("PineSourceStructureBlockList", () => {
     expect(wrapper.text()).toContain("全部平仓，立即执行 true");
     expect(wrapper.text()).toContain("自定义块标题");
   });
+
+  it("describes executable source blocks across series, orders, cancellation, and risk", () => {
+    const instructions = [
+      ["series", "series_assign", { name: "fast", expression: "ta.ema(close, 8)" }, "fast 设为 ta.ema(close, 8)"],
+      ["state", "var_state", { name: "armed", initial: false }, "持久变量 armed 初始为 false"],
+      ["if", "if", { condition: "close > fast" }, "当 close > fast 成立时执行分支"],
+      ["security", "request_security", { symbol: "NASDAQ:AAPL", timeframe: "60", expression: "close" }, "读取 NASDAQ:AAPL 60 的 close"],
+      ["array", "array_op", { name: "prices", mode: "push" }, "prices 执行 push"],
+      ["entry", "strategy_entry", { direction: "strategy.long", id: "L" }, "按 strategy.long 开仓，订单 L"],
+      ["order", "strategy_order", { direction: "strategy.short", id: "S" }, "提交 strategy.short 订单 S"],
+      ["exit", "strategy_exit", { from_entry: "L", id: "XL" }, "从 L 退出，退出单 XL"],
+      ["close", "strategy_close", { id: "L", when: "close < fast" }, "平仓 L，条件 close < fast"],
+      ["cancel", "strategy_cancel", { id: "L" }, "撤销订单 L"],
+      ["cancel-all", "strategy_cancel_all", {}, "撤销全部未成交订单"],
+      ["allow-entry", "strategy_risk_allow_entry_in", { direction: "strategy.direction.long" }, "允许入场方向 strategy.direction.long"],
+      ["drawdown", "strategy_risk_max_drawdown", { value: 12, type: "strategy.percent_of_equity" }, "最大回撤 12，类型 strategy.percent_of_equity"],
+      ["intraday-loss", "strategy_risk_max_intraday_loss", { value: 5, type: "strategy.cash" }, "日内最大亏损 5，类型 strategy.cash"],
+      ["filled-orders", "strategy_risk_max_intraday_filled_orders", { count: 4 }, "日内最多成交 4 笔"],
+      ["risk", "strategy_risk_max_position_size", { contracts: 3 }, "最大持仓 3"],
+      ["loss-days", "strategy_risk_max_cons_loss_days", { count: 2 }, "连续亏损 2 天后限制交易"],
+      ["alert", "alertcondition", { condition: "close > fast" }, "当 close > fast 成立时触发提醒"],
+      ["log", "log", { message: "risk guard armed" }, "记录日志：risk guard armed"],
+    ] as const;
+    const nodes = instructions.map(([id, kind, params], index) =>
+      buildNode({
+        id,
+        kind: "instruction",
+        label: id,
+        lineRange: { start: index + 10, end: index + 10 },
+        match: { type: "instruction", block: { kind, title: "", params } },
+      }),
+    );
+    const wrapper = mount(PineSourceStructureBlockList, {
+      props: { nodes, selectedId: "", expandedId: null },
+    });
+
+    for (const [, , , description] of instructions) {
+      expect(wrapper.text()).toContain(description);
+    }
+  });
 });

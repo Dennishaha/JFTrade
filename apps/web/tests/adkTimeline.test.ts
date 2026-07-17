@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { ADKRun, ADKTimelineEntry } from "../src/contracts";
+import type { ADKApproval, ADKRun, ADKTimelineEntry } from "../src/contracts";
 import {
+  applyApprovalResolutions,
   buildTimelineRun,
   replaceTimelineEntries,
+  sortTimelineEntries,
   upsertTimelineEntry,
 } from "../src/composables/adkTimeline";
 
@@ -95,4 +97,123 @@ describe("adkTimeline", () => {
     expect(timeline[0]?.processedText).toContain("请推进这个目标");
     expect(timeline[0]?.userPromptVariant).toBe("original");
   });
+
+  it("uses stable fallback ordering and derives every visible tool-group terminal state", () => {
+    const sorted = sortTimelineEntries([
+      timelineEntry({ id: "later", createdAt: "z-not-a-date", sequence: 3 }),
+      timelineEntry({ id: "earlier", createdAt: "a-not-a-date", sequence: 3 }),
+    ]);
+    expect(sorted.map((entry) => entry.id)).toEqual(["earlier", "later"]);
+
+    const cases = [
+      ["PENDING_APPROVAL", "PENDING_APPROVAL"],
+      ["RUNNING", "RUNNING"],
+      ["FAILED", "FAILED"],
+      ["DENIED", "DENIED"],
+      ["CANCELLED", "CANCELLED"],
+    ] as const;
+    for (const [toolStatus, expectedRunStatus] of cases) {
+      const run = buildTimelineRun({
+        ...timelineEntry({ id: `tool-${toolStatus}` }),
+        kind: "tool_group",
+        toolCalls: [toolCall(toolStatus)],
+      });
+      expect(run.status).toBe(expectedRunStatus);
+      expect(run.toolCalls).toHaveLength(1);
+    }
+  });
+
+  it("preserves historical snapshots on partial events and reconciles parent workflow approvals", () => {
+    const persistedRun: ADKRun = {
+      id: "parent-run",
+      sessionId: "session-1",
+      agentId: "agent-1",
+      status: "RUNNING",
+      message: "waiting",
+      toolCalls: [toolCall("RUNNING")],
+      pendingApprovals: [approval("approval-keep", "parent-run")],
+      createdAt: "2026-06-18T00:00:00Z",
+      updatedAt: "2026-06-18T00:00:01Z",
+    };
+    const base = {
+      ...timelineEntry({ id: "tool-state", runId: persistedRun.id, kind: "tool_group" }),
+      toolCalls: [toolCall("RUNNING")],
+      approvals: [approval("approval-keep", persistedRun.id)],
+    };
+    const [history] = replaceTimelineEntries([base], [], new Map([[persistedRun.id, persistedRun]]));
+    const merged = upsertTimelineEntry([history!], {
+      ...timelineEntry({ id: "tool-state", runId: persistedRun.id, kind: "tool_group" }),
+      status: "final",
+    });
+    expect(merged[0]?.run).toBe(persistedRun);
+    expect(merged[0]?.toolCalls).toEqual(base.toolCalls);
+    expect(merged[0]?.approvals).toEqual(base.approvals);
+
+    const childApproval = approval("approval-child", "child-run");
+    const blankIdApproval = approval("", "parent-run");
+    const approvalEntries = [
+      {
+        ...timelineEntry({ id: "child-copy", runId: "child-run", kind: "approval_group" }),
+        approvals: [childApproval],
+      },
+      {
+        ...timelineEntry({ id: "parent-copy", runId: "parent-run", kind: "approval_group" }),
+        approvals: [childApproval, blankIdApproval],
+      },
+    ];
+    const deduped = replaceTimelineEntries(approvalEntries);
+    expect(deduped.map((entry) => entry.id)).toEqual(["parent-copy"]);
+    expect(deduped[0]?.approvals).toEqual([childApproval, blankIdApproval]);
+
+    const unchanged = applyApprovalResolutions(deduped, []);
+    expect(unchanged).toBe(deduped);
+    const reconciled = applyApprovalResolutions(deduped, [
+      {
+        approval: childApproval,
+        parentRun: {
+          ...persistedRun,
+          pendingApprovals: [blankIdApproval],
+        },
+      },
+    ]);
+    expect(reconciled).toHaveLength(1);
+    expect(reconciled[0]?.approvals).toEqual([blankIdApproval]);
+  });
 });
+
+function timelineEntry(overrides: Partial<ADKTimelineEntry> = {}): ADKTimelineEntry {
+  return {
+    id: "entry-1",
+    sessionId: "session-1",
+    kind: "assistant_message",
+    createdAt: "2026-06-18T00:00:00Z",
+    sequence: 1,
+    ...overrides,
+  };
+}
+
+function toolCall(status: string) {
+  return {
+    id: `tool-${status}`,
+    runId: "run-1",
+    toolName: "portfolio.summary",
+    permission: "read",
+    status,
+    requiresUser: false,
+    createdAt: "2026-06-18T00:00:00Z",
+    updatedAt: "2026-06-18T00:00:00Z",
+  };
+}
+
+function approval(id: string, runId: string): ADKApproval {
+  return {
+    id,
+    runId,
+    agentId: "agent-1",
+    toolName: "strategy.save_definition",
+    status: "PENDING",
+    reason: "writes strategy state",
+    createdAt: "2026-06-18T00:00:00Z",
+    updatedAt: "2026-06-18T00:00:00Z",
+  };
+}

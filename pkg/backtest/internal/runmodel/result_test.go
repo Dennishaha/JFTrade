@@ -208,3 +208,28 @@ func TestRunResultGroupsRepeatedIgnoredOrderWarnings(t *testing.T) {
 		t.Fatalf("second group warning = %q", result.Warnings[2])
 	}
 }
+
+func TestRunResultWarningAndRuntimeErrorBoundaryAccounting(t *testing.T) {
+	runtimeErrors := &RunResult{RuntimeErrors: []string{"already visible"}}
+	runtimeErrors.AddRuntimeError("already visible")
+	if runtimeErrors.RuntimeErrorCounts["already visible"] != 1 || len(runtimeErrors.RuntimeErrors) != 1 {
+		t.Fatalf("preloaded runtime error accounting = %+v", runtimeErrors)
+	}
+
+	grouped := &RunResult{}
+	grouped.AddIgnoredOrderWarningGroup(" ", "ungrouped ignored order")
+	if grouped.IgnoredOrders != 1 || grouped.WarningTotal != 1 || grouped.Warnings[0] != "ungrouped ignored order" {
+		t.Fatalf("blank warning group = %+v", grouped)
+	}
+	for index := range 100 {
+		grouped.AddWarning(fmt.Sprintf("sample-%03d", index))
+	}
+	grouped.AddIgnoredOrderWarningGroup("capped-group", "this group cannot be sampled")
+	grouped.AddIgnoredOrderWarningGroup("capped-group", "later occurrence")
+	if !grouped.WarningsTruncated || grouped.WarningTotal != 102 || grouped.IgnoredOrders != 3 || len(grouped.Warnings) != 100 {
+		t.Fatalf("capped warning group = %+v", grouped)
+	}
+	if got := groupedWarningMessage("first", 1); got != "first" {
+		t.Fatalf("single grouped warning = %q", got)
+	}
+}

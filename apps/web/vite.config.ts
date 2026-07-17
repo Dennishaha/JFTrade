@@ -165,8 +165,43 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**/*.{ts,vue}"],
       thresholds: {
-        statements: 90,
-        lines: 90,
+        // The global gate covers all executable frontend source. The module
+        // gates below protect the independently owned business runtime areas;
+        // nested view folders remain part of their owning top-level module.
+        statements: 98,
+        lines: 98,
+        "src/{App.vue,main.ts,router.ts,runtimeConfig.ts}": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/charting/**": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/components/**": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/composables/**": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/features/**": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/layout/**": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/pages/**": {
+          statements: 95,
+          lines: 95,
+        },
+        "src/utils/**": {
+          statements: 95,
+          lines: 95,
+        },
         "src/components/BacktestChart.vue": {
           statements: 95,
           lines: 95,

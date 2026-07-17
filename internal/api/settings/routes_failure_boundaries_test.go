@@ -161,6 +161,70 @@ func TestDataMigrationStatusMapsCallbackFailure(t *testing.T) {
 	}
 }
 
+func TestSettingsAndDataManagementRoutesExposeOperationalFailureContracts(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("security rejects an invalid port and reports listener rollback failures", func(t *testing.T) {
+		store := &routeStore{}
+		service := srvsettings.NewService(store, srvsettings.WithSideEffects(srvsettings.SideEffects{
+			OnSecurityChanged: func(jfsettings.SecuritySettings) error {
+				return errors.New("listener is busy")
+			},
+		}))
+		router := gin.New()
+		apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+
+		invalidPort := performSettingsRequest(t, router, http.MethodPut, "/api/v1/settings/security", `{"webPort":80}`)
+		if invalidPort.Code != http.StatusBadRequest || !strings.Contains(invalidPort.Body.String(), `"code":"INVALID_WEB_ACCESS_PORT"`) {
+			t.Fatalf("invalid security port response = %d %s", invalidPort.Code, invalidPort.Body.String())
+		}
+
+		listenerFailure := performSettingsRequest(t, router, http.MethodPut, "/api/v1/settings/security", `{}`)
+		if listenerFailure.Code != http.StatusConflict || !strings.Contains(listenerFailure.Body.String(), `"code":"WEB_ACCESS_LISTENER_UPDATE_FAILED"`) {
+			t.Fatalf("security listener failure response = %d %s", listenerFailure.Code, listenerFailure.Body.String())
+		}
+
+		untrustedRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/security", strings.NewReader(`{}`))
+		untrustedRequest.Header.Set("Content-Type", "application/json")
+		untrustedResponse := httptest.NewRecorder()
+		router.ServeHTTP(untrustedResponse, untrustedRequest)
+		if untrustedResponse.Code != http.StatusForbidden || !strings.Contains(untrustedResponse.Body.String(), `"code":"WEB_ACCESS_SETTINGS_DESKTOP_ONLY"`) {
+			t.Fatalf("untrusted security response = %d %s", untrustedResponse.Code, untrustedResponse.Body.String())
+		}
+
+		invalidPassword := performSettingsRequest(t, router, http.MethodPut, "/api/v1/settings/security", `{"webAccessEnabled":true,"newPassword":"too-short"}`)
+		if invalidPassword.Code != http.StatusBadRequest || !strings.Contains(invalidPassword.Body.String(), `"code":"INVALID_WEB_ACCESS_PASSWORD"`) {
+			t.Fatalf("invalid security password response = %d %s", invalidPassword.Code, invalidPassword.Body.String())
+		}
+	})
+
+	t.Run("MCP validation and token persistence errors stay distinguishable", func(t *testing.T) {
+		router := settingsRouter(&routeStore{saveErr: errors.New("settings file is read-only")})
+
+		malformed := performSettingsRequest(t, router, http.MethodPut, "/api/v1/settings/adk/mcp", `{`)
+		if malformed.Code != http.StatusBadRequest || !strings.Contains(malformed.Body.String(), `"code":"BAD_REQUEST"`) {
+			t.Fatalf("malformed MCP response = %d %s", malformed.Code, malformed.Body.String())
+		}
+
+		reset := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/adk/mcp/token/reset", "")
+		if reset.Code != http.StatusInternalServerError || !strings.Contains(reset.Body.String(), `"code":"MCP_SERVER_TOKEN_RESET_FAILED"`) {
+			t.Fatalf("MCP token persistence response = %d %s", reset.Code, reset.Body.String())
+		}
+	})
+
+	t.Run("cleanup preview returns a rejection when the data service cannot inspect storage", func(t *testing.T) {
+		service := srvsettings.NewService(&routeStore{})
+		dataManagementSvc := dmsrv.NewService(routeDataManagementBackend{})
+		router := gin.New()
+		apisettings.RegisterRoutes(router.Group("/api/v1"), service, dataManagementSvc)
+
+		response := performSettingsRequest(t, router, http.MethodPost, "/api/v1/settings/data-management/cleanup/preview", `{"kind":"backtest-history","databaseId":"backtest-runs","olderThanDays":30,"keepLatest":20}`)
+		if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"DATABASE_CLEANUP_PREVIEW_REJECTED"`) {
+			t.Fatalf("cleanup preview failure response = %d %s", response.Code, response.Body.String())
+		}
+	})
+}
+
 func settingsRouter(store *routeStore) *gin.Engine {
 	router := gin.New()
 	apisettings.RegisterRoutes(router.Group("/api/v1"), srvsettings.NewService(store))

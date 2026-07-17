@@ -294,6 +294,65 @@ describe("streamADKChat", () => {
       "not-json",
     );
   });
+
+  it("normalizes timeline updates and recovers a terminal run from a trailing frame", async () => {
+    const run = {
+      id: "run-trailing", sessionId: "session-1", agentId: "agent-1", status: "FAILED",
+      message: "provider stopped", toolCalls: [], pendingApprovals: [],
+      createdAt: "2026-06-08T00:00:00Z", updatedAt: "2026-06-08T00:00:01Z",
+    };
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: "timeline",
+          timeline: { id: "timeline-1", sessionId: "session-1", kind: "assistant_message", sequence: 1, status: "final", text: "working", createdAt: "2026-06-08T00:00:00Z" },
+        })}\n\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "session", session: buildSession("Recovered") })}\n\ndata: ${JSON.stringify({ type: "run", run })}`));
+        controller.close();
+      },
+    });
+    const onEvent = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(body)));
+
+    const result = await streamADKChat({ message: "resume" }, onEvent);
+
+    expect(onEvent.mock.calls[0]?.[0]).toMatchObject({
+      type: "timeline", timeline: { id: "timeline-1", status: "final" },
+    });
+    expect(result).toMatchObject({ reply: "Recovered", run: { id: "run-trailing", status: "FAILED" } });
+  });
+
+  it("cancels a stream that stays idle beyond the server-provided timeout", async () => {
+    vi.useFakeTimers();
+    let finishRead: ((result: { done: boolean; value?: Uint8Array }) => void) | undefined;
+    const reader = {
+      read: vi.fn(() => new Promise<{ done: boolean; value?: Uint8Array }>((resolve) => {
+        finishRead = resolve;
+      })),
+      cancel: vi.fn(() => {
+        finishRead?.({ done: true });
+        return Promise.resolve();
+      }),
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      body: { getReader: () => reader },
+      headers: new Headers({ "X-ADK-Stream-Idle-Timeout-Ms": "5" }),
+    } as Response)));
+
+    const operation = streamADKChat({ message: "wait" }, vi.fn());
+    const rejection = expect(operation).rejects.toThrow("流式连接未返回有效数据。");
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(5);
+
+    await rejection;
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      "[ADK SSE] Idle timeout - no data for", 5, "ms, aborting stream",
+    );
+  });
 });
 
 function finalFrame(reply: string, terminated = true): string {

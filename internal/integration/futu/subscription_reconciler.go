@@ -111,7 +111,7 @@ func (r *marketDataSubscriptionReconciler) ReconcileSubscriptions(ctx context.Co
 		return fmt.Errorf("futu subscription exchange is unavailable")
 	}
 
-	for attempt := 0; attempt < maxGenerationReconcileRuns; attempt++ {
+	for range maxGenerationReconcileRuns {
 		generation := exchange.ConnectionGeneration()
 		if exchange != r.current || generation != r.connectionGeneration {
 			r.resetConnectionStateLocked(exchange, generation)

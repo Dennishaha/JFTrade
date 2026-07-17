@@ -263,6 +263,59 @@ describe("SettingsExchangeCalendarSection", () => {
     await flushRequests();
     expect(wrapper.text()).toContain("刷新交易所日历失败");
   });
+
+  it("keeps source-less reload states inert and preserves human-readable fallback diagnostics", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/v1/settings/exchange-calendars")) {
+        return createResponse({ exchangeCalendars: buildSettings() });
+      }
+      if (url.includes("/api/v1/system/exchange-calendars/status")) {
+        return createResponse(buildStatus());
+      }
+      throw new Error(`unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(SettingsExchangeCalendarSection);
+    await flushRequests();
+    const setup = (wrapper.vm as unknown as { $: { setupState: Record<string, unknown> } }).$.setupState;
+    const read = <T>(value: unknown): T =>
+      value !== null && typeof value === "object" && "value" in value
+        ? (value as { value: T }).value
+        : value as T;
+    const write = (key: string, value: unknown) => {
+      const current = setup[key];
+      if (current !== null && typeof current === "object" && "value" in current) {
+        (current as { value: unknown }).value = value;
+        return;
+      }
+      setup[key] = value;
+    };
+
+    write("status", {
+      ...read<Record<string, unknown>>(setup.status),
+      sources: [],
+    });
+    write("selectedSourceId", "removed-source");
+    expect(read<unknown[]>(setup.selectedProbeResults)).toEqual([]);
+    expect(read<unknown[]>(setup.selectedRefreshResults)).toEqual([]);
+    const requestCount = fetchMock.mock.calls.length;
+    await (setup.probeSelectedSource as () => Promise<void>)();
+    await (setup.refreshSelectedSource as () => Promise<void>)();
+    await (setup.updateErrorNotifications as (event: Event) => Promise<void>)({ target: null } as unknown as Event);
+    expect(fetchMock).toHaveBeenCalledTimes(requestCount);
+
+    const describe = setup.marketModeDescription as (market: {
+      effectiveMode: string;
+      effectiveReason: string;
+    }) => string;
+    expect(describe({ effectiveMode: "remote_override", effectiveReason: "ignored" })).toContain("特殊交易安排");
+    expect(describe({ effectiveMode: "manual_override", effectiveReason: "ignored" })).toContain("人工覆盖");
+    expect(describe({ effectiveMode: "unknown", effectiveReason: "provider outage" })).toBe("provider outage");
+    expect((setup.formatDateTime as (value?: string) => string)("not-a-date")).toBe("not-a-date");
+    expect((setup.formatDate as (value?: string) => string)(undefined)).toBe("未记录");
+  });
 });
 
 function buildSettings() {

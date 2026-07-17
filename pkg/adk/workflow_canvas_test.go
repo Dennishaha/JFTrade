@@ -1,6 +1,9 @@
 package adk
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -123,6 +126,125 @@ func TestWorkflowCanvasCompilerRejectsInvalidGraphs(t *testing.T) {
 				t.Fatalf("compileWorkflowCanvasSteps err = %v, want containing %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestRunCanvasWorkflowExecutesAReachableAgentGraph(t *testing.T) {
+	runtime := newTestRuntime(t)
+	ensureTestProvider(t, runtime)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "canvas-run-agent", Name: "Canvas Run Agent", Status: AgentStatusEnabled,
+		WorkMode: WorkModeChat, PermissionMode: PermissionModeLessApproval,
+	})
+
+	response, err := runtime.RunCanvasWorkflow(context.Background(), WorkflowCanvasRunRequest{
+		Workflow: WorkflowDefinition{
+			ID: "run-canvas", Name: "Run Canvas", AgentID: agent.ID,
+			CanvasGraph: &WorkflowCanvasGraph{
+				Nodes: []WorkflowCanvasNode{
+					canvasNode("start", "start", nil),
+					canvasNode("research", "agent", map[string]any{"title": "Research", "message": "Summarize the requested market signal."}),
+				},
+				Edges: []WorkflowCanvasEdge{{ID: "start-research", Source: "start", Target: "research"}},
+			},
+		},
+		Message:   "研究一个市场信号",
+		Objective: "给出研究结论",
+	})
+	if err != nil {
+		t.Fatalf("RunCanvasWorkflow: %v", err)
+	}
+	if response.Run.Status != RunStatusCompleted || response.Run.WorkflowStatus != workflowStatusComplete || response.Run.WorkflowEngine != WorkflowEngineADK2Canvas {
+		t.Fatalf("canvas run = %+v", response.Run)
+	}
+	if len(response.Run.WorkflowPlan) != 1 || response.Run.WorkflowPlan[0].PlanSource != workflowPlanSourceCanvas || response.Run.WorkflowPlan[0].Status != "DONE" {
+		t.Fatalf("canvas plan = %+v", response.Run.WorkflowPlan)
+	}
+	if len(response.Run.ChildRunIDs) != 1 || strings.TrimSpace(response.Reply) == "" {
+		t.Fatalf("canvas response = %+v", response)
+	}
+}
+
+func TestRunCanvasWorkflowPausesForAChildInputRequest(t *testing.T) {
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "canvas-input-agent", Name: "Canvas Input Agent", Status: AgentStatusEnabled,
+		WorkMode: WorkModeChat, PermissionMode: PermissionModeAll,
+	})
+
+	response, err := runtime.RunCanvasWorkflow(t.Context(), WorkflowCanvasRunRequest{
+		Workflow: WorkflowDefinition{
+			ID: "canvas-input", Name: "Canvas Input", AgentID: agent.ID,
+			CanvasGraph: &WorkflowCanvasGraph{
+				Nodes: []WorkflowCanvasNode{
+					canvasNode("start", "start", nil),
+					canvasNode("ask", "agent", map[string]any{
+						"title": "Collect user choice", "message": "@input.required choose a risk profile",
+					}),
+				},
+				Edges: []WorkflowCanvasEdge{{ID: "start-ask", Source: "start", Target: "ask"}},
+			},
+		},
+		Message:   "Collect a user choice before continuing.",
+		Objective: "Capture the user's risk profile.",
+	})
+	if err != nil {
+		t.Fatalf("RunCanvasWorkflow: %v", err)
+	}
+	if response.Run.Status != RunStatusPendingInput || response.Run.WorkflowStatus != workflowStatusPaused || response.InputRequest == nil {
+		t.Fatalf("pending canvas response = %+v", response)
+	}
+	if len(response.Run.ChildRunIDs) != 1 || len(response.Run.WorkflowPlan) != 1 || response.Run.WorkflowPlan[0].Status != "BLOCKED" {
+		t.Fatalf("pending canvas plan = %+v", response.Run)
+	}
+	childID := response.Run.ChildRunIDs[0]
+	child, ok, err := runtime.Store().Run(t.Context(), childID)
+	if err != nil || !ok || child.Status != RunStatusPendingInput || child.InputRequest == nil || child.InputRequest.ID != response.InputRequest.ID {
+		t.Fatalf("persisted input child = %+v ok=%v err=%v", child, ok, err)
+	}
+	if runtime.adkRuns[response.Run.ID] == nil || runtime.adkRuns[childID] == nil {
+		t.Fatalf("paused canvas execution must remain resumable: parent=%p child=%p", runtime.adkRuns[response.Run.ID], runtime.adkRuns[childID])
+	}
+}
+
+func TestRunCanvasWorkflowFailsClosedWhenTheChildProviderIsUnavailable(t *testing.T) {
+	runtime := newTestRuntime(t)
+	unavailable := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "provider temporarily unavailable", http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(unavailable.Close)
+	providerID := "canvas-unavailable-provider"
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID: providerID, DisplayName: "Unavailable canvas provider", BaseURL: unavailable.URL,
+		Model: "test-model", APIKey: "sk-test", Enabled: true,
+	})
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "canvas-unavailable-agent", Name: "Canvas Unavailable Agent", ProviderID: providerID,
+		Status: AgentStatusEnabled, WorkMode: WorkModeChat, PermissionMode: PermissionModeLessApproval,
+	})
+
+	response, err := runtime.RunCanvasWorkflow(t.Context(), WorkflowCanvasRunRequest{
+		Workflow: WorkflowDefinition{
+			ID: "canvas-unavailable", Name: "Canvas Unavailable", AgentID: agent.ID,
+			CanvasGraph: &WorkflowCanvasGraph{
+				Nodes: []WorkflowCanvasNode{
+					canvasNode("start", "start", nil),
+					canvasNode("research", "agent", map[string]any{"title": "Research", "message": "Fetch the current market summary."}),
+				},
+				Edges: []WorkflowCanvasEdge{{ID: "start-research", Source: "start", Target: "research"}},
+			},
+		},
+		Message: "Fetch the current market summary.",
+	})
+	if err != nil {
+		t.Fatalf("RunCanvasWorkflow must project provider failure into the run state: %v", err)
+	}
+	if response.Run.Status != RunStatusFailed || response.Run.WorkflowStatus != workflowStatusFailed || response.Run.FailureReason == "" {
+		t.Fatalf("provider outage response = %+v", response)
+	}
+	stored, ok, err := runtime.Store().Run(t.Context(), response.Run.ID)
+	if err != nil || !ok || stored.Status != RunStatusFailed || stored.WorkflowStatus != workflowStatusFailed {
+		t.Fatalf("stored provider outage run = %+v ok=%v err=%v", stored, ok, err)
 	}
 }
 

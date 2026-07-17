@@ -258,8 +258,11 @@ export const windowItemStub = defineComponent({
 });
 
 export const iconStub = defineComponent({
-  setup() {
-    return () => h("span", { class: "v-icon-stub", "aria-hidden": "true" });
+  setup(_, { slots }) {
+    // Vuetify renders the icon's default slot. Keeping that behavior in the
+    // shared stub lets page tests exercise the configured icon payloads too,
+    // rather than silently dropping a rendered part of each user action.
+    return () => h("span", { class: "v-icon-stub", "aria-hidden": "true" }, slots.default?.());
   },
 });
 

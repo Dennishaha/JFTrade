@@ -185,4 +185,33 @@ describe("marketSessionDisplay", () => {
       },
     ]);
   });
+
+  it("keeps incomplete market snapshots from showing a fabricated percentage", () => {
+    expect(resolveMarketSnapshotDisplay(null, true)).toMatchObject({
+      mainDisplayPrice: null,
+      mainChangePercent: null,
+      extendedCards: [],
+    });
+
+    const afterHoursWithoutComparableCloses = resolveMarketSnapshotDisplay(
+      {
+        price: 201,
+        previousClosePrice: 200,
+        lastClosePrice: 200,
+        session: "after",
+      },
+      true,
+    );
+    expect(afterHoursWithoutComparableCloses.mainChangePercent).toBeNull();
+
+    const regularWithMissingReference = resolveMarketSnapshotDisplay(
+      {
+        price: 201,
+        previousClosePrice: 0,
+        session: "regular",
+      },
+      false,
+    );
+    expect(regularWithMissingReference.mainChangePercent).toBeNull();
+  });
 });

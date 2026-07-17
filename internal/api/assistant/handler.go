@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 
@@ -142,6 +143,18 @@ func (h *Handler) writeOK(c *gin.Context, data any) {
 
 func (h *Handler) writeError(c *gin.Context, status int, code string, message string) {
 	httpserver.WriteError(c, status, code, message)
+}
+
+// bindADKQuery validates the raw query before Gin binds its values. net/url's
+// URL.Query method deliberately drops malformed percent-escape errors, which
+// otherwise lets a corrupted client query look like an empty request.
+func bindADKQuery(c *gin.Context, target any) error {
+	if c != nil && c.Request != nil && c.Request.URL != nil {
+		if _, err := url.ParseQuery(c.Request.URL.RawQuery); err != nil {
+			return err
+		}
+	}
+	return c.ShouldBindQuery(target)
 }
 
 func (h *Handler) handleADKSkillUpdateRemoved(c *gin.Context) {

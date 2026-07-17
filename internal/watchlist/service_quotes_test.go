@@ -15,6 +15,16 @@ type blockingSnapshotSource struct {
 	err     error
 }
 
+type quoteResultSource struct {
+	quotes []Quote
+	errors []QuoteError
+	err    error
+}
+
+func (source quoteResultSource) BatchSnapshots(context.Context, []string) ([]Quote, []QuoteError, error) {
+	return source.quotes, source.errors, source.err
+}
+
 func (source *blockingSnapshotSource) BatchSnapshots(_ context.Context, instrumentIDs []string) ([]Quote, []QuoteError, error) {
 	source.calls.Add(1)
 	select {
@@ -86,5 +96,43 @@ func TestBatchQuotesTurnsBatchFailureIntoPerItemErrors(t *testing.T) {
 		if itemError.Code != "SNAPSHOT_FAILED" || itemError.Message != "provider down" {
 			t.Fatalf("item error = %#v", itemError)
 		}
+	}
+}
+
+func TestBatchQuotesPreservesPartialResultsAndUpdatesKnownMetadata(t *testing.T) {
+	var received []InstrumentMetadata
+	repository := &serviceTestRepository{updateMetadata: func(_ context.Context, metadata []InstrumentMetadata) error {
+		received = append([]InstrumentMetadata(nil), metadata...)
+		return nil
+	}}
+	service := NewService(repository, WithBatchSnapshotSource(quoteResultSource{
+		quotes: []Quote{{InstrumentID: "US.AAPL", Name: " Apple Inc. ", Type: "equity"}},
+		errors: []QuoteError{{InstrumentID: "HK.00700", Code: "DELAYED", Message: "delayed quote"}},
+	}))
+
+	result, err := service.BatchQuotes(t.Context(), []string{"US.AAPL", "HK.00700", "US.MSFT", "US.AAPL"})
+	if err != nil {
+		t.Fatalf("BatchQuotes: %v", err)
+	}
+	if len(result.Quotes) != 1 || result.Quotes[0].InstrumentID != "US.AAPL" {
+		t.Fatalf("quotes = %#v", result.Quotes)
+	}
+	if len(result.Errors) != 2 || result.Errors[0].InstrumentID != "HK.00700" || result.Errors[1].Code != "NO_SNAPSHOT" || result.Errors[1].InstrumentID != "US.MSFT" {
+		t.Fatalf("errors = %#v", result.Errors)
+	}
+	if len(received) != 1 || received[0] != (InstrumentMetadata{InstrumentID: "US.AAPL", Name: "Apple Inc.", Type: "equity"}) {
+		t.Fatalf("metadata = %#v", received)
+	}
+	if result.ObservedAt.IsZero() {
+		t.Fatal("missing observation timestamp")
+	}
+}
+
+func TestQuoteResultHelpersReturnEmptySlicesForNilValues(t *testing.T) {
+	if values := nonNilQuotes(nil); values == nil || len(values) != 0 {
+		t.Fatalf("nonNilQuotes(nil) = %#v", values)
+	}
+	if values := nonNilQuoteErrors(nil); values == nil || len(values) != 0 {
+		t.Fatalf("nonNilQuoteErrors(nil) = %#v", values)
 	}
 }

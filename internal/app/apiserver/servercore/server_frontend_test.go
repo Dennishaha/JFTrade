@@ -336,6 +336,54 @@ func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {
 	}
 }
 
+func TestCoverage98RunAPIOnlyStopsAfterCallerCancellation(t *testing.T) {
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve API port: %v", err)
+	}
+	apiBind := listener.Addr().String()
+	if err := listener.Close(); err != nil {
+		t.Fatalf("release reserved API port: %v", err)
+	}
+
+	runtimeDir := filepath.Join(t.TempDir(), "var", "jftrade-api")
+	t.Setenv("JFTRADE_SETTINGS_PATH", filepath.Join(runtimeDir, "settings.json"))
+	t.Setenv("JFTRADE_BACKTEST_DB", filepath.Join(runtimeDir, "backtest.db"))
+	t.Setenv("JFTRADE_API_BIND", apiBind)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	finished := make(chan error, 1)
+	go func() {
+		finished <- RunAPIOnly(ctx)
+	}()
+
+	statusURL := "http://" + apiBind + "/api/v1/system/status"
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		response, requestErr := jftradeTestHTTPGet(t, statusURL)
+		if requestErr == nil {
+			jftradeErr1 := response.Body.Close()
+			jftradeCheckTestError(t, jftradeErr1)
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("API-only server did not become reachable at %s: %v", statusURL, requestErr)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	cancel()
+	select {
+	case err := <-finished:
+		if err != nil {
+			t.Fatalf("RunAPIOnly returned shutdown error: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("RunAPIOnly did not return after caller cancellation")
+	}
+}
+
 func TestStartForRunArgsUsesInterfaceSettingsForAPIBindWhileWebIsDisabled(t *testing.T) {
 	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {

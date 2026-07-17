@@ -228,4 +228,199 @@ describe("strategyVisualBuilderPine additional business boundaries", () => {
     expect(script).toContain("if false");
     expect(script).toContain('alert("cross ready")');
   });
+
+  it("renders executable advanced indicator, order, and protection policies without silently relaxing them", () => {
+    const model: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        node("root", "onKLineClosed", "K 线收盘", {}, "circle"),
+        node("alma", "getTechnicalIndicator", "ALMA", {
+          indicatorType: "alma",
+          source: "ohlc4",
+          period: 34,
+          offset: 0.9,
+          sigma: 5,
+          timeframe: "D",
+          variableName: "alma_daily",
+        }),
+        node("dmi", "getTechnicalIndicator", "DMI", {
+          indicatorType: "dmi",
+          period: 10,
+          adxSmoothing: 7,
+          timeframe: "D",
+          variableName: "dmi_signal",
+        }),
+        node("kdj", "getTechnicalIndicator", "KDJ", {
+          indicatorType: "kdj",
+          variableName: "kdj_fast",
+          period: 7,
+          m1: 2,
+          m2: 4,
+        }),
+        node("kdj-threshold", "technicalIndicatorCondition", "KDJ 超买", {
+          indicatorType: "kdj",
+          conditionMode: "numeric",
+          operator: ">",
+          threshold: 68,
+          inputPrimaryNodeId: "kdj",
+        }, "diamond"),
+        node("recent-pullback", "seriesCondition", "最近回撤", {
+          mode: "valuewhen",
+          eventSource: "high",
+          eventOperator: "<",
+          eventThreshold: 120,
+          valueSource: "low",
+          occurrence: 2,
+          operator: ">=",
+          threshold: 4,
+        }, "diamond"),
+        node("flatten", "placeOrder", "收盘", {
+          orderAction: "closeAll",
+          immediately: true,
+          comment: " risk-off\nflatten ",
+          alert_message: "flattened",
+          disable_alert: "false",
+        }),
+        node("cancel", "placeOrder", "取消挂单", {
+          orderAction: "cancel",
+          orderId: "  staged long  ",
+        }),
+        node("risk", "riskRule", "连续亏损", {
+          riskRuleType: "maxConsLossDays",
+          riskCount: 2,
+          alert_message: "pause strategy",
+        }),
+        node("windowed-protect", "stopLoss", "时段止损", {
+          mode: "stopLoss",
+          windowPolicy: "marketSession",
+          timeUnit: "day",
+          timeValue: 1,
+        }),
+      ],
+      edges: [
+        { id: "root-alma", type: "polyline", sourceNodeId: "root", targetNodeId: "alma" },
+        { id: "alma-dmi", type: "polyline", sourceNodeId: "alma", targetNodeId: "dmi" },
+        { id: "dmi-kdj", type: "polyline", sourceNodeId: "dmi", targetNodeId: "kdj" },
+        { id: "kdj-condition", type: "polyline", sourceNodeId: "kdj", targetNodeId: "kdj-threshold" },
+        {
+          id: "kdj-data",
+          type: "polyline",
+          sourceNodeId: "kdj",
+          targetNodeId: "kdj-threshold",
+          properties: { role: "data", slot: "primary" },
+        },
+        {
+          id: "condition-true",
+          type: "polyline",
+          sourceNodeId: "kdj-threshold",
+          targetNodeId: "recent-pullback",
+          properties: { branch: "true" },
+        },
+        {
+          id: "condition-false",
+          type: "polyline",
+          sourceNodeId: "kdj-threshold",
+          targetNodeId: "cancel",
+          properties: { branch: "false" },
+        },
+        {
+          id: "pullback-true",
+          type: "polyline",
+          sourceNodeId: "recent-pullback",
+          targetNodeId: "flatten",
+          properties: { branch: "true" },
+        },
+        {
+          id: "flatten-risk",
+          type: "polyline",
+          sourceNodeId: "flatten",
+          targetNodeId: "risk",
+        },
+        {
+          id: "risk-protect",
+          type: "polyline",
+          sourceNodeId: "risk",
+          targetNodeId: "windowed-protect",
+        },
+      ],
+    };
+
+    const script = buildStrategyPineFromVisualModel(model, { name: "Advanced Policy" });
+
+    expect(script).toContain('alma_daily = request.security(syminfo.tickerid, "D", ta.alma(ohlc4, 34, 0.9, 5))');
+    expect(script).toContain("dmi_signal = ta.dmi(10, 7)");
+    expect(script).not.toContain('request.security(syminfo.tickerid, "D", ta.dmi');
+    expect(script).toContain("kdj_fast_j = 3 * kdj_fast_k - 2 * kdj_fast_d");
+    expect(script).toContain("if kdj_fast_j > 68");
+    expect(script).toContain("ta.valuewhen(high < 120, low, 2) > 4");
+    expect(script).toContain('strategy.close_all(immediately=true, comment="risk-off flatten", alert_message="flattened", disable_alert=false)');
+    expect(script).toContain('strategy.cancel("staged long")');
+    expect(script).toContain('strategy.risk.max_cons_loss_days(2, alert_message="pause strategy")');
+    expect(script).toContain('runtime.error("JFTrade Pine 暂不支持带时间窗口或交易时段感知的自动退出图块")');
+
+    const legacyModel: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        node("legacy-root", "onKLineClosed", "K 线收盘", {}, "circle"),
+        node("legacy-code", "codeBlock", "遗留代码", {}),
+      ],
+      edges: [{ id: "legacy-edge", type: "polyline", sourceNodeId: "legacy-root", targetNodeId: "legacy-code" }],
+    };
+    expect(() => buildStrategyPineFromVisualModel(legacyModel, { name: "Legacy" })).toThrow(
+      "旧流程图块 codeBlock 不再支持",
+    );
+  });
+
+  it("keeps malformed persisted wiring inert while still rendering valid reachable actions once", () => {
+    const model: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        node("root", "onKLineClosed", "K 线收盘", {}, "circle"),
+        node("cycle-log", "log", "循环日志", { message: "only once" }),
+        node("rsi", "getTechnicalIndicator", "RSI", {
+          indicatorType: "rsi",
+          period: 14,
+          variableName: "rsi_14",
+        }),
+        node("unbound-check", "technicalIndicatorCondition", "缺少指标引用", {
+          indicatorType: "rsi",
+          conditionMode: "numeric",
+          operator: ">",
+          threshold: 70,
+          inputPrimaryNodeId: "missing-indicator",
+        }, "diamond"),
+        node("notify", "notify", "风险提示", { message: "review exposure" }),
+      ],
+      edges: [
+        { id: "root-cycle", type: "polyline", sourceNodeId: "root", targetNodeId: "cycle-log" },
+        { id: "cycle-root", type: "polyline", sourceNodeId: "cycle-log", targetNodeId: "root" },
+        { id: "root-rsi", type: "polyline", sourceNodeId: "root", targetNodeId: "rsi" },
+        { id: "rsi-check", type: "polyline", sourceNodeId: "rsi", targetNodeId: "unbound-check" },
+        {
+          id: "root-invalid-data",
+          type: "polyline",
+          sourceNodeId: "root",
+          targetNodeId: "unbound-check",
+          properties: { role: "data", slot: "primary" },
+        },
+        {
+          id: "check-notify",
+          type: "polyline",
+          sourceNodeId: "unbound-check",
+          targetNodeId: "notify",
+          properties: { branch: "true" },
+        },
+      ],
+    };
+
+    const script = buildStrategyPineFromVisualModel(model, { name: "Persisted Graph Repair" });
+
+    expect(script.match(/log\.info\("only once"\)/g)).toHaveLength(1);
+    expect(script).toContain("rsi_14 = ta.rsi(close, 14)");
+    expect(script).toContain("if false");
+    expect(script).toContain('alert("review exposure")');
+  });
 });

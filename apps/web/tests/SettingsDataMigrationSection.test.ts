@@ -245,6 +245,318 @@ describe("SettingsDataMigrationSection", () => {
     expect(wrapper.text()).toContain("已备份 watchlist（4.0 KiB）");
     expect(wrapper.text()).toContain("/var/jftrade-api/backups/watchlist-20260711.db");
   });
+
+  it("keeps summary and per-database load failures visible instead of hiding partial storage state", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("汇总数据库状态不可用");
+    }));
+    const summaryFailure = mount(SettingsDataMigrationSection, {
+      global: { stubs: expansionPanelStubs },
+    });
+    await flushRequests();
+    expect(summaryFailure.text()).toContain("汇总数据库状态不可用");
+
+    const statuses = buildStatuses();
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.searchParams.get("summaryOnly") === "true") {
+        return createResponse({ databases: buildSummaryStatuses(statuses) });
+      }
+      if (url.searchParams.get("databaseId") === "strategy") {
+        throw new Error("策略库统计超时");
+      }
+      const databaseId = url.searchParams.get("databaseId");
+      const database = statuses.find((item) => item.id === databaseId);
+      return createResponse({ databases: database == null ? [] : [database] });
+    }));
+    const partialFailure = mount(SettingsDataMigrationSection, {
+      global: { stubs: expansionPanelStubs },
+    });
+    await flushRequests();
+    await flushRequests();
+    expect(partialFailure.text()).toContain("策略库统计超时");
+    expect(partialFailure.text()).toContain("adk：已删除项目");
+  });
+
+  it("previews bounded history cleanup and handles compact success, refusal, and failure paths", async () => {
+    const statuses = buildStatuses();
+    let compactAttempts = 0;
+    const fetchMock = buildDataManagementFetch(statuses, async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/cleanup/preview")) {
+        expect(JSON.parse(String(init?.body))).toEqual({
+          kind: "backtest-history",
+          databaseId: "backtest-runs",
+          olderThanDays: 90,
+          keepLatest: 50,
+        });
+        return createResponse({
+          previewId: "empty-history",
+          expiresAt: "2026-07-16T12:00:00Z",
+          kind: "backtest-history",
+          databaseId: "backtest-runs",
+          candidateCount: 0,
+          estimatedBytes: 0,
+          items: [],
+          confirmationText: "CLEANUP backtest-runs 0",
+          willCompact: false,
+        });
+      }
+      if (url.endsWith("/databases/strategy/compact")) {
+        compactAttempts += 1;
+        if (compactAttempts === 1) {
+          return createResponse({ databaseId: "strategy", reclaimedBytes: 2048, compacted: true });
+        }
+        throw new Error("策略库仍有写入任务");
+      }
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const confirmMock = vi.fn(() => false);
+    vi.stubGlobal("confirm", confirmMock);
+    const wrapper = mount(SettingsDataMigrationSection, {
+      global: { stubs: expansionPanelStubs },
+    });
+    await flushRequests();
+    await flushRequests();
+
+    await wrapper.get("[data-testid='cleanup-older-than-days']").setValue("90");
+    await wrapper.get("[data-testid='cleanup-keep-latest']").setValue("50");
+    await wrapper.get("[data-testid='preview-backtest-history']").trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("当前规则下没有可清理项目。");
+
+    await wrapper.get("[data-testid='cleanup-tab-database']").trigger("click");
+    (wrapper.vm as unknown as { expandedDatabaseIDs: string[] }).expandedDatabaseIDs = ["strategy", "watchlist"];
+    await nextTick();
+    await wrapper.get("[data-testid='backup-watchlist']").trigger("click");
+    expect(confirmMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).endsWith("/databases/watchlist/backup"))).toBe(false);
+
+    await wrapper.get("[data-testid='compact-strategy']").trigger("click");
+    await wrapper.get("[data-testid='database-compact-confirmation']").setValue("COMPACT strategy");
+    await wrapper.get("[data-testid='confirm-database-compact']").trigger("submit");
+    await flushRequests();
+    expect(wrapper.text()).toContain("数据库整理完成，释放 2.0 KiB。");
+
+    await wrapper.get("[data-testid='compact-strategy']").trigger("click");
+    await wrapper.get("[data-testid='database-compact-confirmation']").setValue("COMPACT strategy");
+    await wrapper.get("[data-testid='confirm-database-compact']").trigger("submit");
+    await flushRequests();
+    expect(wrapper.text()).toContain("策略库仍有写入任务");
+  });
+
+  it("keeps the newest refresh authoritative when an older database detail returns late", async () => {
+    const staleStatuses = buildStatuses();
+    staleStatuses[2].description = "stale strategy detail";
+    const freshStatuses = buildStatuses();
+    freshStatuses[2].description = "fresh strategy detail";
+    let strategyRequests = 0;
+    let resolveStaleStrategy: ((response: Response) => void) | null = null;
+    let summaryRequests = 0;
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.searchParams.get("summaryOnly") === "true") {
+        summaryRequests += 1;
+        return createResponse({
+          databases: buildSummaryStatuses(summaryRequests === 1 ? staleStatuses : freshStatuses),
+        });
+      }
+      const databaseId = url.searchParams.get("databaseId");
+      if (databaseId === "strategy") {
+        strategyRequests += 1;
+        if (strategyRequests === 1) {
+          return new Promise<Response>((resolve) => { resolveStaleStrategy = resolve; });
+        }
+      }
+      const statuses = summaryRequests === 1 ? staleStatuses : freshStatuses;
+      const database = statuses.find((item) => item.id === databaseId);
+      return createResponse({ databases: database == null ? [] : [database] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(SettingsDataMigrationSection, {
+      global: { stubs: expansionPanelStubs },
+    });
+    await flushRequests();
+    expect(strategyRequests).toBe(1);
+
+    await (wrapper.vm as unknown as { loadStatuses: () => Promise<void> }).loadStatuses();
+    await flushRequests();
+
+    resolveStaleStrategy?.(createResponse({ databases: [staleStatuses[2]] }));
+    await flushRequests();
+    await wrapper.get("[data-testid='cleanup-tab-database']").trigger("click");
+    (wrapper.vm as unknown as { expandedDatabaseIDs: string[] }).expandedDatabaseIDs = ["strategy"];
+    await nextTick();
+
+    expect(wrapper.text()).toContain("fresh strategy detail");
+    expect(wrapper.text()).not.toContain("stale strategy detail");
+  });
+
+  it("keeps destructive maintenance errors actionable when the service rejects non-Error values", async () => {
+    const statuses = buildStatuses();
+    statuses[2].cleanable = [{ kind: "soft-deleted", label: "已删除策略", count: 2, estimatedBytes: 2048 }];
+    let previewAttempts = 0;
+    const fetchMock = buildDataManagementFetch(statuses, async (input) => {
+      const path = String(input);
+      if (path.endsWith("/databases/rebuild")) throw "rebuild unavailable";
+      if (path.endsWith("/cleanup/preview")) {
+        previewAttempts += 1;
+        if (previewAttempts === 1) throw "preview unavailable";
+        return createResponse({
+          previewId: "preview-failure",
+          expiresAt: "2026-07-16T12:00:00Z",
+          kind: "soft-deleted",
+          databaseId: "strategy",
+          candidateCount: 2,
+          estimatedBytes: 2048,
+          items: [],
+          confirmationText: "CLEANUP strategy 2",
+          willCompact: true,
+        });
+      }
+      if (path.endsWith("/cleanup/execute")) throw "cleanup unavailable";
+      if (path.endsWith("/databases/strategy/compact")) throw "compact unavailable";
+      if (path.endsWith("/databases/watchlist/backup")) throw "backup unavailable";
+      return undefined;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    const wrapper = mount(SettingsDataMigrationSection, {
+      global: { stubs: expansionPanelStubs },
+    });
+    await flushRequests();
+    await flushRequests();
+
+    await wrapper.get("[data-testid='rebuild-incompatible']").trigger("click");
+    await wrapper.get("[data-testid='database-rebuild-confirmation']").setValue("REBUILD INCOMPATIBLE DATABASES");
+    await wrapper.get("[data-testid='confirm-database-rebuild']").trigger("submit");
+    await flushRequests();
+    expect(wrapper.text()).toContain("安排数据库重建失败");
+
+    await wrapper.get("[data-testid='preview-soft-deleted-strategy']").trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("生成清理预览失败");
+
+    await wrapper.get("[data-testid='preview-soft-deleted-strategy']").trigger("click");
+    await flushRequests();
+    await wrapper.get("[data-testid='database-cleanup-confirmation']").setValue("CLEANUP strategy 2");
+    await wrapper.get("[data-testid='confirm-database-cleanup']").trigger("submit");
+    await flushRequests();
+    expect(wrapper.text()).toContain("清理数据库失败");
+
+    await wrapper.get("[data-testid='cleanup-tab-database']").trigger("click");
+    (wrapper.vm as unknown as { expandedDatabaseIDs: string[] }).expandedDatabaseIDs = ["strategy", "watchlist"];
+    await nextTick();
+    await wrapper.get("[data-testid='compact-strategy']").trigger("click");
+    await wrapper.get("[data-testid='database-compact-confirmation']").setValue("COMPACT strategy");
+    await wrapper.get("[data-testid='confirm-database-compact']").trigger("submit");
+    await flushRequests();
+    expect(wrapper.text()).toContain("整理数据库失败");
+
+    await wrapper.get("[data-testid='backup-watchlist']").trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("备份数据库失败");
+  });
+
+  it("keeps unconfirmed maintenance commands inert and incorporates a newly reported database", async () => {
+    const statuses = buildStatuses();
+    const fetchMock = buildDataManagementFetch(statuses);
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(SettingsDataMigrationSection, {
+      global: { stubs: expansionPanelStubs },
+    });
+    await flushRequests();
+    await flushRequests();
+
+    const state = (wrapper.vm as unknown as {
+      $: {
+        setupState: {
+          databases: { value: ReturnType<typeof buildStatuses> };
+          executeCleanup: () => Promise<void>;
+          executeCompact: () => Promise<void>;
+          formatBytes: (value: number) => string;
+          previewCleanableItem: (
+            database: ReturnType<typeof buildStatuses>[number],
+            item: { kind: string; label: string; count: number; estimatedBytes: number },
+          ) => void;
+          replaceDatabase: (database: ReturnType<typeof buildStatuses>[number]) => void;
+          submitRebuild: () => Promise<void>;
+        };
+      };
+    }).$.setupState;
+    const requestCount = fetchMock.mock.calls.length;
+
+    state.previewCleanableItem(statuses[2], {
+      kind: "temporary-index",
+      label: "临时索引",
+      count: 4,
+      estimatedBytes: 1024,
+    });
+    await state.submitRebuild();
+    await state.executeCleanup();
+    await state.executeCompact();
+
+    expect(fetchMock).toHaveBeenCalledTimes(requestCount);
+    expect(state.formatBytes(Number.NaN)).toBe("0 B");
+    expect(state.formatBytes(10 * 1024)).toBe("10 KiB");
+
+    state.replaceDatabase({
+      ...statuses[0],
+      id: "imported-history",
+      name: "导入历史",
+      description: "由服务端新发现的存档库",
+      confirmationText: "REBUILD imported-history",
+    });
+    await wrapper.get("[data-testid='cleanup-tab-database']").trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='database-card-imported-history']").text()).toContain("导入历史");
+    expect((state.databases as unknown as { value?: unknown }).value ?? state.databases).toHaveLength(8);
+  });
+
+  it("keeps empty load progress honest, uses native dialog controls, and does not overlap backups", async () => {
+    const statuses = buildStatuses();
+    const fetchMock = buildDataManagementFetch(statuses);
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(SettingsDataMigrationSection, {
+      attachTo: document.body,
+      global: { stubs: expansionPanelStubs },
+    });
+    await flushRequests();
+    await flushRequests();
+
+    const state = (wrapper.vm as unknown as { $: { setupState: Record<string, unknown> } }).$.setupState;
+    const read = <T>(value: unknown): T =>
+      value !== null && typeof value === "object" && "value" in value
+        ? (value as { value: T }).value
+        : value as T;
+    const write = (key: string, value: unknown) => {
+      const current = state[key];
+      if (current !== null && typeof current === "object" && "value" in current) {
+        (current as { value: unknown }).value = value;
+        return;
+      }
+      state[key] = value;
+    };
+
+    write("databases", []);
+    expect(read<number>(state.loadProgressPercent)).toBe(0);
+    write("databases", statuses);
+
+    const dialog = document.getElementById("database-rebuild-dialog") as HTMLDialogElement;
+    const showModal = vi.fn();
+    const close = vi.fn();
+    Object.assign(dialog, { showModal, close });
+    (state.showDialog as (id: string) => void)("database-rebuild-dialog");
+    (state.closeDialog as (id: string) => void)("database-rebuild-dialog");
+    expect(showModal).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+
+    const requestCount = fetchMock.mock.calls.length;
+    write("submitting", true);
+    await (state.backupDatabase as (database: ReturnType<typeof buildStatuses>[number]) => Promise<void>)(statuses[0]!);
+    expect(fetchMock).toHaveBeenCalledTimes(requestCount);
+  });
 });
 
 const expansionPanelStubs = {

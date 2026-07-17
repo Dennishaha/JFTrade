@@ -81,4 +81,38 @@ describe("createMarketDataSnapshotRefresher", () => {
     refresher.stopMarketSnapshotBackgroundRefresh();
     expect(hub.snapshotSubscriptions().securityDetails).toEqual([]);
   });
+
+  it("keeps the active detail intact for incomplete targets and other instruments", async () => {
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+    const hub = getSharedLiveSocketHub();
+    const marketSecurityDetails = ref<any>(
+      createSecurityDetails(" ", "00700", "Incomplete request"),
+    );
+    const refresher = createMarketDataSnapshotRefresher({
+      marketSecurityDetails,
+    });
+
+    // A partially resolved instrument must not leave a stale websocket
+    // subscription alive while the security page is changing targets.
+    refresher.scheduleMarketSnapshotBackgroundRefresh();
+    expect(hub.snapshotSubscriptions().securityDetails).toEqual([]);
+
+    marketSecurityDetails.value = createSecurityDetails("HK", "00700", "Tencent");
+    refresher.scheduleMarketSnapshotBackgroundRefresh();
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+    await Promise.resolve();
+
+    const otherInstrument = {
+      ...createSecurityDetails("HK", "00941", "China Mobile"),
+      type: "market.security-details",
+      at: "2026-06-02T00:00:00Z",
+    };
+    MockWebSocket.instances[0]?.emitMessage(createLiveEnvelope(otherInstrument, {
+      source: "market-data",
+      entityId: "HK.00941",
+    }));
+
+    expect(marketSecurityDetails.value.security.name).toBe("Tencent");
+    refresher.stopMarketSnapshotBackgroundRefresh();
+  });
 });

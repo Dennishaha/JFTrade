@@ -385,4 +385,91 @@ describe("strategy runtime instance editor", () => {
     state.editor.closeInstanceEditorDialog();
     expect(state.editor.instanceEditorMode.value).toBeNull();
   });
+
+  it("keeps an existing editor stable while a duplicate symbol commit is in flight", async () => {
+    let resolveLookup: ((value: {
+      market: string;
+      prefix: string;
+      code: string;
+      symbol: string;
+      instrumentId: string;
+      resolvedMarket: string;
+    }) => void) | null = null;
+    const state = createEditor({
+      resolver: () => new Promise((resolve) => {
+        resolveLookup = resolve;
+      }),
+    });
+    state.editor.openCreateInstanceForm();
+    state.editor.updateActiveSymbolDraft("US.NVDA");
+
+    const firstCommit = state.editor.commitSymbolDraft("create");
+    const duplicateCommit = state.editor.commitSymbolDraft("create");
+    resolveLookup?.({
+      market: "US",
+      prefix: "US",
+      code: "NVDA",
+      symbol: "US.NVDA",
+      instrumentId: "US.NVDA",
+      resolvedMarket: "US",
+    });
+
+    await expect(firstCommit).resolves.toBe(true);
+    await expect(duplicateCommit).resolves.toBe(true);
+    expect(state.resolver).toHaveBeenCalledOnce();
+    expect(state.editor.activeSymbolTags.value).toEqual(["US.NVDA"]);
+  });
+
+  it("preserves editor safety when an instrument result is unavailable or incomplete", () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+
+    editor.acceptActiveResolvedInstrument({
+      market: "US",
+      resolvedMarket: "US",
+      instrumentId: "US.AAPL",
+      code: "AAPL",
+      symbol: "AAPL",
+      name: "Apple",
+      securityType: "STOCK",
+      lotSize: 1,
+      source: "test",
+      isWatched: false,
+      selectable: false,
+      unavailableReason: "该市场暂不支持策略实例。",
+    });
+    expect(editor.activeSymbolTags.value).toEqual([]);
+    expect(editor.activeSymbolValidationMessage.value).toBe("该市场暂不支持策略实例。");
+
+    editor.acceptActiveResolvedInstrument({
+      market: "",
+      resolvedMarket: "",
+      instrumentId: "",
+      code: "",
+      symbol: "",
+      name: "Unknown",
+      securityType: "STOCK",
+      lotSize: 1,
+      source: "test",
+      isWatched: false,
+      selectable: true,
+      unavailableReason: null,
+    });
+    expect(editor.activeSymbolTags.value).toEqual([]);
+    expect(editor.activeSymbolValidationMessage.value).toContain("缺少市场或代码");
+  });
+
+  it("closes an active broker picker and declines edit mode when no strategy is selected", () => {
+    const { editor } = createEditor();
+    editor.openCreateInstanceForm();
+    editor.toggleActiveBrokerAccountPicker();
+    editor.updateActiveBrokerAccountQuery("paper");
+    editor.toggleActiveBrokerAccountPicker();
+    expect(editor.activeIsBrokerAccountPickerOpen.value).toBe(false);
+    expect(editor.activeBrokerAccountQuery.value).toBe("");
+
+    editor.closeInstanceEditorDialog();
+    editor.openEditInstanceForm();
+    expect(editor.instanceEditorMode.value).toBeNull();
+  });
 });

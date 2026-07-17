@@ -1,9 +1,11 @@
 package servercore
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
@@ -207,4 +209,78 @@ func TestADKToolDepsAuditAndBasicClosures(t *testing.T) {
 	_, _ = deps.MarketDepth(t.Context(), "US", "AAPL", 1)
 	_ = deps.RiskEvents()
 	deps.CancelBacktest("missing")
+}
+
+func TestCoverage98ADKAdaptersExecuteValidDownstreamContracts(t *testing.T) {
+	t.Setenv("JFTRADE_BACKTEST_DB", filepath.Join(t.TempDir(), "backtest-data.db"))
+	t.Setenv("JFTRADE_BACKTEST_RUN_DB", filepath.Join(t.TempDir(), "backtest-runs.db"))
+
+	settings, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, settings)
+	ctx := t.Context()
+
+	if _, err := server.adkBrokerOrders(ctx, BrokerReadInput{Scope: "CURRENT", Market: "US", Symbol: " US.AAPL "}); err != nil {
+		t.Fatalf("adkBrokerOrders current query: %v", err)
+	}
+	if _, err := server.adkBrokerFills(ctx, BrokerReadInput{Scope: "HISTORY", Market: "US", Symbol: " US.AAPL "}); err != nil {
+		t.Fatalf("adkBrokerFills history query: %v", err)
+	}
+	events, ok := server.adkExecutionOrderEvents("missing-order").(trdsrv.ExecutionOrderEvents)
+	if !ok || events.InternalOrderID != "missing-order" {
+		t.Fatalf("adkExecutionOrderEvents fallback = %#v", events)
+	}
+	if _, err := server.adkWatchlistList(ctx, WatchlistListInput{Group: "missing-group"}); err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("adkWatchlistList missing group error = %v", err)
+	}
+
+	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
+		ID:           "coverage98-adk-adapter-backtest",
+		Name:         "Coverage Adapter Backtest",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: SourceFormatPineV6(),
+		Symbol:       "US.AAPL",
+		Interval:     "1m",
+		Script: `//@version=6
+strategy("Coverage Adapter Backtest", overlay=true)
+strategy.entry("Long", strategy.long, qty=1)`,
+	})
+	if err != nil {
+		t.Fatalf("saveDefinition: %v", err)
+	}
+	startTime := "2026-06-01T13:30:00Z"
+	endTime := "2026-06-01T13:31:00Z"
+	queued, err := server.adkEnqueueBacktest(BacktestStartInput{
+		DefinitionID: definition.ID, Market: "US", Symbol: "US.AAPL", Code: "AAPL", Interval: "1m",
+		StartTime: startTime, EndTime: endTime, InitialBalance: 10000, RehabType: "forward",
+	})
+	if err != nil || queued.ID == "" || queued.Status != "queued" {
+		t.Fatalf("adkEnqueueBacktest = %+v err=%v", queued, err)
+	}
+	server.backtestSvc.Cancel(queued.ID)
+
+	research, err := server.adkStartResearchBacktest(ResearchBacktestInput{
+		Script: `//@version=6
+strategy("Coverage Research", overlay=true)
+strategy.entry("Long", strategy.long, qty=1)`,
+		Market: "US", Symbol: "US.AAPL", Code: "AAPL", Interval: "1m",
+		StartTime: startTime, EndTime: endTime, InitialBalance: 10000, RehabType: "forward",
+	})
+	if err != nil || research.ID == "" || research.Status != "queued" {
+		t.Fatalf("adkStartResearchBacktest = %+v err=%v", research, err)
+	}
+	server.backtestSvc.Cancel(research.ID)
+
+	server.backtestRuns.mu.Lock()
+	server.backtestRuns.runs["coverage98-corrupt-nil-run"] = nil
+	server.backtestRuns.mu.Unlock()
+	for _, run := range server.adkBacktestRunSummaries() {
+		if run.ID == "coverage98-corrupt-nil-run" {
+			t.Fatalf("adkBacktestRunSummaries leaked a nil run: %+v", run)
+		}
+	}
+
 }

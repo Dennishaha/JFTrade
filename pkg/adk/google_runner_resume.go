@@ -180,6 +180,7 @@ func (r *Runtime) completeResumedExecution(ctx context.Context, run Run, executi
 	if err != nil {
 		return run, nil, true, err
 	}
+	run.FinalMessageID = message.ID
 	r.auditResumedRun(ctx, run)
 	r.deleteADKRun(run.ID)
 	return run, message, true, nil
@@ -193,6 +194,7 @@ func (r *Runtime) completeDirectResumedExecution(ctx context.Context, run Run, e
 	if err != nil {
 		return run, nil, true, err
 	}
+	run.FinalMessageID = message.ID
 	r.auditResumedRun(ctx, run)
 	r.deleteADKRun(run.ID)
 	return run, message, true, nil

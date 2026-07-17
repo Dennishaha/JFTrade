@@ -6,8 +6,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +49,48 @@ func TestShadowPayloadReportsWorkerStartupFailure(t *testing.T) {
 	}
 	if len(payload.Diagnostics) != 1 || !strings.Contains(payload.Diagnostics[0].Message, "pinets worker script unavailable") {
 		t.Fatalf("Diagnostics = %#v", payload.Diagnostics)
+	}
+}
+
+func TestShadowPayloadRunsConfiguredWorkerAndReturnsExternalResult(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skipf("node unavailable: %v", err)
+	}
+	t.Setenv("JFTRADE_PINETS_MODE", ModeShadow)
+	t.Setenv("JFTRADE_PINETS_WORKER_PATH", "")
+	payload := ShadowPayloadForScript(`//@version=6
+indicator("Shadow payload")
+plot(close)`)
+	if !payload.Enabled || !payload.OK || payload.Mode != ModeShadow || payload.Status != "shadow_ok" {
+		t.Fatalf("shadow payload = %#v", payload)
+	}
+	if payload.Repository != "https://github.com/LuxAlgo/PineTS" || payload.DifferenceSummary["plots"] == 0 {
+		t.Fatalf("shadow payload metadata/result = %#v", payload)
+	}
+}
+
+func TestCommunityAGPLModeBlocksExecutionWhenNoticeCannotBeFound(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime caller did not expose the package source path")
+	}
+	notice := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "docs", "legal", "third-party-notices.md"))
+	hiddenNotice := notice + ".coverage-test-hidden"
+	if err := os.Rename(notice, hiddenNotice); err != nil {
+		t.Fatalf("temporarily hide third-party notice: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Rename(hiddenNotice, notice); err != nil {
+			t.Fatalf("restore third-party notice: %v", err)
+		}
+	})
+	t.Setenv("JFTRADE_PINETS_MODE", ModeCommunityAGPL)
+	payload := ShadowPayloadForScript("plot(close)")
+	if !payload.Enabled || payload.OK || payload.Mode != ModeCommunityAGPL || payload.Status != "compliance_error" {
+		t.Fatalf("community notice failure payload = %#v", payload)
+	}
+	if len(payload.Diagnostics) != 1 || payload.Diagnostics[0].Code != "PINETS_AGPL_NOTICE_MISSING" {
+		t.Fatalf("community notice diagnostics = %#v", payload.Diagnostics)
 	}
 }
 

@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiClientError,
   WEB_AUTH_REQUIRED_EVENT,
+  apiDelete,
+  fetchEnvelope,
   fetchEnvelopeWithInit,
   webLogin,
   webLogout,
@@ -177,5 +179,85 @@ describe("apiClient", () => {
     expect(listener).toHaveBeenCalledTimes(1);
 
     window.removeEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
+  });
+
+  it("distinguishes malformed successful responses from an empty response body", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("not-json", {
+        status: 200,
+        statusText: "OK",
+      }))
+      .mockResolvedValueOnce(new Response("", {
+        status: 200,
+        statusText: "OK",
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchEnvelope("/api/v1/system/status")).rejects.toThrow(
+      "API response is not valid JSON",
+    );
+    await expect(fetchEnvelope("/api/v1/system/status")).rejects.toThrow(
+      "API response body is empty",
+    );
+  });
+
+  it("keeps generic HTTP failures meaningful when the server sends no API envelope", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", {
+        status: 503,
+        statusText: "Service Unavailable",
+      })),
+    );
+
+    await expect(fetchEnvelope("/api/v1/system/status")).rejects.toThrow(
+      "503 Service Unavailable",
+    );
+  });
+
+  it("honors failed API envelopes even when an intermediary returns HTTP 200", async () => {
+    const listener = vi.fn();
+    window.addEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(
+        JSON.stringify({
+          ok: false,
+          error: {
+            code: "WEB_ACCESS_DISABLED",
+            message: "Remote Web access is disabled",
+          },
+          timestamp: "2026-07-16T00:00:00Z",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      )),
+    );
+
+    await expect(fetchEnvelope("/api/v1/system/status")).rejects.toMatchObject({
+      name: "ApiClientError",
+      code: "WEB_ACCESS_DISABLED",
+      status: 200,
+    } satisfies Partial<ApiClientError>);
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener(WEB_AUTH_REQUIRED_EVENT, listener);
+  });
+
+  it("uses the common authenticated pipeline for DELETE requests", async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ ok: true, data: { deleted: true } }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      apiDelete<unknown, "/api/v1/adk/sessions/{sessionId}">(
+        "/api/v1/adk/sessions/session-1" as "/api/v1/adk/sessions/{sessionId}",
+      ),
+    ).resolves.toEqual({ deleted: true });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/adk/sessions/session-1",
+      expect.objectContaining({ method: "DELETE", credentials: "include" }),
+    );
   });
 });

@@ -2,7 +2,7 @@
 
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { defineComponent, h } from "vue";
+import { defineComponent, h, nextTick } from "vue";
 
 import ADKAgentsPanel from "../src/components/adk-settings/ADKAgentsPanel.vue";
 import type { ADKAgent, ADKToolDescriptor } from "../src/contracts";
@@ -371,6 +371,90 @@ describe("ADKAgentsPanel business flows", () => {
     expect(closeButton).toBeDefined();
     await closeButton!.trigger("click");
     expect(wrapper.find(".v-dialog-stub").exists()).toBe(false);
+  });
+
+  it("keeps the default agent first while duplicating, deleting, and narrowing available tools", async () => {
+    const duplicateAgent = vi.fn();
+    const deleteAgent = vi.fn(async () => {});
+    const wrapper = mountAgentsPanel({
+      agents: [
+        buildAgent({ id: "research-agent", name: "研究助手", tools: ["system.status"] }),
+        buildAgent({ id: "jftrade-default", name: "默认助手", builtin: true }),
+      ],
+      tools: [
+        buildTool({ name: "system.status", category: "system", riskLevel: "low" }),
+        buildTool({ name: "trading.submit_order", category: "trading", riskLevel: "high" }),
+        buildTool({ name: "research.screen", category: "research", riskLevel: "medium" }),
+      ],
+      agentForm: buildAgentForm({ id: "research-agent", tools: ["system.status"] }),
+      duplicateAgent,
+      deleteAgent,
+    });
+
+    const names = wrapper
+      .findAll(".font-semibold.text-slate-900")
+      .map((node) => node.text());
+    expect(names.slice(-2)).toEqual(["默认助手", "研究助手"]);
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "复制")!
+      .trigger("click");
+    expect(duplicateAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "jftrade-default" }),
+    );
+    expect(wrapper.text()).toContain("编辑智能体");
+
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "删除")!
+      .trigger("click");
+    expect(deleteAgent).toHaveBeenCalledWith("research-agent");
+
+    await wrapper.setProps({ toolCategoryFilter: "trading", toolRiskFilter: "high" });
+    expect(wrapper.text()).toContain("可用运行时工具");
+    expect(wrapper.text()).toContain("trading.submit_order");
+    expect(wrapper.text()).not.toContain("research.screen");
+  });
+
+  it("removes stale checked tool selections when the persisted agent or runtime filters change", async () => {
+    const agentForm = buildAgentForm({
+      id: "risk-agent",
+      tools: ["system.status", "trading.submit_order"],
+    });
+    const wrapper = mountAgentsPanel({
+      agentForm,
+      tools: [
+        buildTool({ name: "system.status", category: "system", riskLevel: "low" }),
+        buildTool({ name: "trading.submit_order", category: "trading", riskLevel: "high" }),
+        buildTool({ name: "research.screen", category: "research", riskLevel: "medium" }),
+      ],
+    });
+    const setup = wrapper.vm.$.setupState as Record<string, unknown>;
+    const write = (key: string, value: unknown) => {
+      const current = setup[key];
+      if (current !== null && typeof current === "object" && "value" in current) {
+        (current as { value: unknown }).value = value;
+        return;
+      }
+      setup[key] = value;
+    };
+    const read = <T>(value: unknown): T =>
+      value !== null && typeof value === "object" && "value" in value
+        ? (value as { value: T }).value
+        : value as T;
+
+    write("checkedAvailableTools", ["research.screen", "trading.submit_order"]);
+    write("checkedEnabledTools", ["system.status", "trading.submit_order"]);
+    await wrapper.setProps({
+      agentForm: { ...agentForm, tools: ["system.status"] },
+      toolCategoryFilter: "research",
+      toolRiskFilter: "medium",
+    });
+    await nextTick();
+
+    expect(read<string[]>(setup.checkedAvailableTools)).toEqual(["research.screen"]);
+    expect(read<string[]>(setup.checkedEnabledTools)).toEqual(["system.status"]);
   });
 });
 

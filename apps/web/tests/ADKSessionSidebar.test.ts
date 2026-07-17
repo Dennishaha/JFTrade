@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ADKSession } from "@/contracts";
 import type { ADKSessionGroup } from "@/composables/useADKPageSessionState";
@@ -11,6 +11,7 @@ import ADKSessionSidebar from "../src/components/adk-page/ADKSessionSidebar.vue"
 interface SidebarOverrides {
   visibleSessionGroups?: ADKSessionGroup[];
   showSessionGroups?: boolean;
+  [key: string]: unknown;
 }
 
 describe("ADKSessionSidebar", () => {
@@ -116,6 +117,46 @@ describe("ADKSessionSidebar", () => {
     expect(wrapper.text()).toContain("工作流对话");
     expect(wrapper.findAll(".adk-session-item")).toHaveLength(2);
   });
+
+  it("keeps grouped-session selection, filters, session actions, and the active-agent footer interactive", async () => {
+    const session = buildSession({ title: "盘前复盘" });
+    const createNewSession = vi.fn();
+    const selectSession = vi.fn();
+    const renameSession = vi.fn();
+    const deleteSession = vi.fn();
+    const wrapper = mountSidebar([session], {
+      selectedSessionId: session.id,
+      selectedAgent: { name: "投研 Agent", permissionMode: "approval" },
+      sessionSearch: "盘前",
+      sessionAgentFilter: "agent-1",
+      agentOptions: [{ title: "投研 Agent", value: "agent-1" }],
+      showSessionGroups: true,
+      visibleSessionGroups: [{ id: "workflow-1", title: "每日复盘", sessions: [session], isDefault: false }],
+      createNewSession,
+      selectSession,
+      renameSession,
+      deleteSession,
+    });
+
+    const filters = wrapper.findAll("input, select");
+    await filters[0]!.setValue("收盘");
+    await filters[1]!.setValue("");
+    expect(wrapper.emitted("update:sessionSearch")?.[0]).toEqual(["收盘"]);
+    expect(wrapper.emitted("update:sessionAgentFilter")?.[0]).toEqual([""]);
+
+    await wrapper.find("button[title='新建会话']").trigger("click");
+    await wrapper.find(".adk-session-item").trigger("click");
+    await wrapper.find("[title='重命名会话']").trigger("click");
+    await wrapper.find("[title='关闭会话']").trigger("click");
+
+    expect(createNewSession).toHaveBeenCalledOnce();
+    expect(selectSession).toHaveBeenCalledWith(session.id);
+    expect(renameSession).toHaveBeenCalledWith(session);
+    expect(deleteSession).toHaveBeenCalledWith(session.id);
+    expect(wrapper.find(".adk-session-item").classes()).toContain("adk-session-item--active");
+    expect(wrapper.find(".adk-sidebar-footer").text()).toContain("投研 Agent");
+    expect(wrapper.find(".adk-sidebar-footer").text()).toContain("approval");
+  });
 });
 
 function mountSidebar(
@@ -156,8 +197,16 @@ function mountSidebar(
         "v-btn": { template: "<button><slot /></button>" },
         "v-chip": { template: "<span><slot /></span>" },
         "v-icon": { template: "<span><slot /></span>" },
-        "v-select": { template: "<select />" },
-        "v-text-field": { template: "<input />" },
+        "v-select": {
+          props: ["modelValue", "items"],
+          emits: ["update:modelValue"],
+          template: "<select :value='modelValue' @change='$emit(\"update:modelValue\", $event.target.value)' />",
+        },
+        "v-text-field": {
+          props: ["modelValue"],
+          emits: ["update:modelValue"],
+          template: "<input :value='modelValue' @input='$emit(\"update:modelValue\", $event.target.value)' />",
+        },
       },
     },
   });

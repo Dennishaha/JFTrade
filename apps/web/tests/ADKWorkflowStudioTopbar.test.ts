@@ -36,7 +36,7 @@ const listItemTitleStub = defineComponent({
 });
 
 const iconStub = defineComponent({
-  template: "<i aria-hidden='true'></i>",
+  template: "<i aria-hidden='true'><slot /></i>",
 });
 
 function mountTopbar() {
@@ -74,7 +74,7 @@ describe("ADKWorkflowStudioTopbar", () => {
     expect(wrapper.get('[data-testid="adk-workflow-mobile-more"]').text()).toBe("更多");
 
     const moreItems = wrapper.findAll(".v-list-item");
-    expect(moreItems.map((item) => item.text())).toEqual([
+    expect(moreItems.map((item) => item.text().replace(/^fa-solid fa-[a-z-]+/, ""))).toEqual([
       "刷新",
       "显示右栏",
       "添加触发器",
@@ -91,5 +91,98 @@ describe("ADKWorkflowStudioTopbar", () => {
 
     expect(wrapper.emitted("addAgent")).toHaveLength(1);
     expect(wrapper.emitted("remove")).toHaveLength(1);
+  });
+
+  it("forwards every available desktop and overflow action", async () => {
+    const wrapper = mountTopbar();
+
+    const desktopActions = [
+      ["刷新", "refresh"],
+      ["显示右栏", "showInspector"],
+      ["添加触发器", "addTrigger"],
+      ["添加智能体", "addAgent"],
+      ["触发日志", "openLogs"],
+      ["运行", "run"],
+      ["调试", "debug"],
+      ["复制", "duplicate"],
+      ["存为模板", "saveTemplate"],
+      ["删除工作流", "remove"],
+      ["保存", "save"],
+    ] as const;
+    for (const [label] of desktopActions) {
+      const button = wrapper.findAll("button").find((candidate) =>
+        candidate.text() === label,
+      );
+      expect(button, `missing ${label}`).toBeDefined();
+      await button?.trigger("click");
+    }
+
+    for (const [, event] of desktopActions) {
+      expect(wrapper.emitted(event)).toHaveLength(1);
+    }
+
+    const overflowItems = wrapper.findAll(".v-list-item");
+    for (const item of overflowItems) {
+      await item.trigger("click");
+    }
+    for (const event of [
+      "refresh",
+      "showInspector",
+      "addTrigger",
+      "addAgent",
+      "openLogs",
+      "debug",
+      "duplicate",
+      "saveTemplate",
+      "remove",
+    ]) {
+      expect(wrapper.emitted(event)).toHaveLength(2);
+    }
+  });
+
+  it("uses draft copy and disables workflow-dependent actions while saving", async () => {
+    const wrapper = mountTopbar();
+    await wrapper.setProps({
+      title: "",
+      description: "",
+      saving: true,
+      hasWorkflow: false,
+    });
+
+    expect(wrapper.text()).toContain("新的工作流");
+    expect(wrapper.text()).toContain("开始 -> 智能体 -> 监控");
+    expect(wrapper.findAll("button").some((button) => button.text() === "删除工作流")).toBe(false);
+    for (const label of ["复制", "存为模板", "运行", "调试"]) {
+      const button = wrapper.findAll("button").find((candidate) =>
+        candidate.text() === label,
+      );
+      expect(button, `missing ${label}`).toBeDefined();
+      expect(button?.attributes("disabled")).toBeDefined();
+    }
+  });
+
+  it("forwards every enabled mobile-overflow command through Vuetify list-item events", async () => {
+    const wrapper = mountTopbar();
+    const items = wrapper.findAllComponents(listItemStub);
+
+    expect(items).toHaveLength(9);
+    for (const item of items) {
+      item.vm.$emit("click");
+    }
+    await wrapper.vm.$nextTick();
+
+    for (const event of [
+      "refresh",
+      "showInspector",
+      "addTrigger",
+      "addAgent",
+      "openLogs",
+      "debug",
+      "duplicate",
+      "saveTemplate",
+      "remove",
+    ]) {
+      expect(wrapper.emitted(event)).toHaveLength(1);
+    }
   });
 });

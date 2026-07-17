@@ -31,6 +31,7 @@ var (
 	ErrPreviewStale        = errors.New("cleanup preview is stale")
 	ErrBackupRateLimited   = errors.New("database backup rate limit exceeded")
 	ErrBackupQuotaExceeded = errors.New("database backup storage quota exceeded")
+	readPreviewRandom      = rand.Read
 )
 
 type StorageStats struct {
@@ -628,7 +629,7 @@ func (m *Manager) currentDatabaseStatus(ctx context.Context, databaseID string) 
 
 func newPreviewID() (string, error) {
 	buffer := make([]byte, 16)
-	if _, err := rand.Read(buffer); err != nil {
+	if _, err := readPreviewRandom(buffer); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(buffer), nil

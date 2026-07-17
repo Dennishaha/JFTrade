@@ -459,4 +459,72 @@ describe("BacktestChart", () => {
     expect(disconnectResizeObserver).toHaveBeenCalled();
     expect(chartMocks.markerApi.detach).toHaveBeenCalled();
   });
+
+  it("uses equity or drawdown timestamps when candle history is absent and safely ignores palette changes after a failed chart build", async () => {
+    const equityOnly = mountChart({
+      candles: [],
+      trades: [],
+      pnlCurve: [{ time: "2026-06-01T01:30:00.000Z", equity: 100_200 }],
+      drawdownCurve: [],
+    });
+    await nextTick();
+    expect(chartMocks.series[2]!.setData).toHaveBeenLastCalledWith([
+      { time: 1780277400, value: 100_200 },
+    ]);
+    equityOnly.wrapper.unmount();
+
+    chartMocks.chart.addSeries.mockClear();
+    const drawdownOnly = mountChart({
+      candles: [],
+      trades: [],
+      pnlCurve: [],
+      drawdownCurve: [{ time: "2026-06-01T01:30:00.000Z", drawdown: 0.2 }],
+    });
+    await nextTick();
+    expect(chartMocks.series[4]!.setData).toHaveBeenLastCalledWith([
+      { time: 1780277400, value: 0.8 },
+    ]);
+    const baselineOptions = chartMocks.chart.addSeries.mock.calls[5]?.[1] as {
+      autoscaleInfoProvider: () => unknown;
+    };
+    expect(baselineOptions.autoscaleInfoProvider()).toEqual({
+      priceRange: { minValue: 0, maxValue: 1 },
+    });
+    drawdownOnly.wrapper.unmount();
+
+    chartMocks.createChart.mockImplementationOnce(() => {
+      throw new Error("theme switch should not rebuild a failed chart");
+    });
+    const failed = mountChart();
+    await nextTick();
+    failed.themeStore().set("light");
+    await nextTick();
+    expect(failed.wrapper.text()).toContain("图表初始化失败");
+    failed.wrapper.unmount();
+  });
+
+  it("treats callbacks that outlive chart disposal as no-ops", async () => {
+    const { wrapper } = mountChart();
+    await nextTick();
+    const setup = wrapper.findComponent(BacktestChart).vm.$.setupState as Record<string, unknown>;
+
+    wrapper.unmount();
+
+    expect(() => {
+      (setup.setVisibleLogicalRange as (range: { from: number; to: number }) => void)({ from: 0, to: 5 });
+      (setup.applyCurrentWindow as () => void)();
+      (setup.expandWindow as (range: { from: number; to: number }) => void)({ from: 0, to: 5 });
+      (setup.applyPaneHeights as (height: number) => void)(480);
+      (setup.buildChart as () => void)();
+    }).not.toThrow();
+
+    let scheduled: FrameRequestCallback | null = null;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      scheduled = callback;
+      return 7;
+    });
+    (setup.handleResize as () => void)();
+    (setup.handleResize as () => void)();
+    expect(scheduled).not.toBeNull();
+  });
 });

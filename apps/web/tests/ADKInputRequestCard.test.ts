@@ -129,4 +129,39 @@ describe("ADKInputRequestCard", () => {
     await actionButtons.at(-1)!.trigger("click");
     expect(submit).not.toHaveBeenCalled();
   });
+
+  it("clamps changed question sets and ignores stale interactions after cancellation", async () => {
+    const submit = vi.fn().mockResolvedValue(undefined);
+    const wrapper = mount(ADKInputRequestCard, { props: { request: request(), submit } });
+
+    await wrapper.get('[aria-label="第 2 个问题"]').trigger("click");
+    expect(wrapper.get("legend").text()).toBe("Format?");
+    const reduced = request();
+    reduced.questions = [reduced.questions[0]!];
+    await wrapper.setProps({ request: reduced });
+    expect(wrapper.get("legend").text()).toBe("Mode?");
+
+    await wrapper.get("textarea").trigger("focus");
+    await wrapper.get("textarea").setValue("fallback answer");
+    expect(wrapper.find(".adk-input-other").classes()).toContain("is-selected");
+
+    const cancelled = request("CANCELLED");
+    await wrapper.setProps({ request: cancelled });
+    const setup = (wrapper.vm as unknown as {
+      $: {
+        setupState: {
+          chooseOption: (questionId: string, optionId: string) => void;
+          chooseOther: (questionId: string) => void;
+          submitAnswers: () => Promise<void>;
+        };
+      };
+    }).$.setupState;
+    setup.chooseOption("q1", "q1-o1");
+    setup.chooseOther("q1");
+    await setup.submitAnswers();
+
+    expect(wrapper.text()).toContain("已取消");
+    expect(wrapper.find("footer").exists()).toBe(false);
+    expect(submit).not.toHaveBeenCalled();
+  });
 });

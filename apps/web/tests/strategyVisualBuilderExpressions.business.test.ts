@@ -93,6 +93,10 @@ describe("strategyVisualBuilderExpressions business boundaries", () => {
       left: { kind: "source", source: "close" },
       right: { kind: "source", source: "open" },
     });
+    expect(parsePineExpressionToVisualExpression("(\"wrapped signal\")")).toEqual({
+      kind: "literal",
+      value: "wrapped signal",
+    });
     expect(parsePineExpressionToVisualExpression("barssince(close > 1) > 3")).toEqual({
       kind: "binary",
       operator: ">",

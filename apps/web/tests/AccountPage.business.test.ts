@@ -732,4 +732,53 @@ describe("AccountPage business flows", () => {
       "warning",
     );
   });
+
+  it("keeps account-scoped diagnostics visible and does not query history without a scope", async () => {
+    mocks.supportsBrokerReadFeature.mockImplementation((feature: string) =>
+      feature === "cashFlows" || feature === "marginRatios",
+    );
+    setRefValue(consoleDataState.brokerCashFlows, {
+      connectivity: "connected",
+      cashFlows: [],
+      lastError: "现金流水服务暂不可用",
+    });
+    setRefValue(consoleDataState.brokerMarginRatios, {
+      connectivity: "connected",
+      marginRatios: [],
+      lastError: "融资融券服务暂不可用",
+    });
+    setRefValue(consoleDataState.brokerPositions, {
+      checkedAt: "2026-07-16T09:30:00Z",
+      positions: [{
+        accountId: "REAL-001",
+        tradingEnvironment: "REAL",
+        market: "US",
+        symbol: "US.AAPL",
+        symbolName: "Apple",
+        quantity: 1,
+        costPrice: 100,
+        averageCostPrice: 100,
+        marketValue: 120,
+        unrealizedPnl: 20,
+        currency: "USD",
+      }],
+    });
+
+    const { wrapper, call } = mountAccountPage();
+    await nextTick();
+    expect(wrapper.text()).toContain("现金流水服务暂不可用");
+    expect(wrapper.text()).toContain("融资融券服务暂不可用");
+
+    setRefValue(consoleDataState.brokerRuntime, {
+      descriptor: { id: "futu", displayName: "Futu", capabilities: [] },
+      session: { connectivity: "disconnected" },
+      accounts: [],
+    });
+    setRefValue(consoleDataState.systemStatus, {});
+    await nextTick();
+    expect(call<boolean>("orderMatchesTradingEnvironment", "REAL")).toBe(false);
+    mocks.loadHistoricalExecutionOrders.mockClear();
+    call<void>("ensureHistoricalOrdersLoaded");
+    expect(mocks.loadHistoricalExecutionOrders).not.toHaveBeenCalled();
+  });
 });

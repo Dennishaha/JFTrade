@@ -366,18 +366,12 @@ func extractTextLines(body string) []string {
 	rowPattern := regexp.MustCompile(`(?is)<tr[^>]*>(.*?)</tr>`)
 	rowMatches := rowPattern.FindAllStringSubmatch(body, -1)
 	for _, match := range rowMatches {
-		if len(match) < 2 {
-			continue
-		}
 		appendLine(stripHTML(match[1], " "))
 	}
 
 	blockPattern := regexp.MustCompile(`(?is)<(li|p|div|section|article)[^>]*>(.*?)</(li|p|div|section|article)>`)
 	blockMatches := blockPattern.FindAllStringSubmatch(body, -1)
 	for _, match := range blockMatches {
-		if len(match) < 3 {
-			continue
-		}
 		appendLine(stripHTML(match[2], " "))
 	}
 
@@ -395,18 +389,12 @@ func extractHTMLTableRows(body string) [][]string {
 	matches := rowPattern.FindAllStringSubmatch(body, -1)
 	rows := make([][]string, 0, len(matches))
 	for _, match := range matches {
-		if len(match) < 2 {
-			continue
-		}
 		cellMatches := cellPattern.FindAllStringSubmatch(match[1], -1)
 		if len(cellMatches) == 0 {
 			continue
 		}
 		row := make([]string, 0, len(cellMatches))
 		for _, cell := range cellMatches {
-			if len(cell) < 2 {
-				continue
-			}
 			row = append(row, cell[1])
 		}
 		if len(row) > 0 {
@@ -532,9 +520,6 @@ func resolveParseTemplate(market string, defaultMarket string) (string, marketca
 	}
 	builtin := marketcalendar.NewBuiltinResolver()
 	template, ok := builtin.Template(targetMarket)
-	if !ok && (targetMarket == "SH" || targetMarket == "SZ") {
-		template, ok = builtin.Template("CN")
-	}
 	return targetMarket, template, builtin, ok
 }
 
@@ -591,10 +576,7 @@ func parseStandaloneYear(line string) (int, bool) {
 		return 0, false
 	}
 	year, err := strconv.Atoi(trimmed)
-	if err != nil {
-		return 0, false
-	}
-	return year, true
+	return year, err == nil
 }
 
 func containsMonthName(line string) bool {
@@ -619,9 +601,6 @@ func extractSSEDateSpans(line string, year int, template marketcalendar.MarketTe
 	matches := rangePattern.FindAllStringSubmatch(truncated, -1)
 	spans := make([][2]time.Time, 0, len(matches))
 	for _, match := range matches {
-		if len(match) < 6 {
-			continue
-		}
 		startYear := year
 		if strings.TrimSpace(match[3]) != "" {
 			if parsedYear, err := strconv.Atoi(strings.TrimSpace(match[3])); err == nil {

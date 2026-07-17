@@ -233,4 +233,56 @@ describe("DesktopLogsPage", () => {
       "第 2 / 3 页 · 共 402 行",
     );
   });
+
+  it("paginates, debounces keyword filters, and reports desktop folder failures", async () => {
+    vi.useFakeTimers();
+    const wrapper = await mountPage(
+      pageResult({
+        items: Array.from({ length: 200 }, (_, index) => line(`INFO ${index + 1}`)),
+        offset: 0,
+        total: 401,
+      }),
+    );
+    testState.readPage.mockResolvedValue(
+      pageResult({ items: [line("WARN page two", "WARN")], offset: 200, total: 401 }),
+    );
+
+    const pager = wrapper.findAll(".desktop-logs__pager button");
+    expect(pager[0]!.attributes("disabled")).toBeDefined();
+    expect(pager[1]!.attributes("disabled")).toBeUndefined();
+    await pager[1]!.trigger("click");
+    await flushPromises();
+    expect(testState.readPage).toHaveBeenLastCalledWith(selectedDay, "ALL", "", 200, 200);
+    await wrapper.findAll(".desktop-logs__pager button")[0]!.trigger("click");
+    await flushPromises();
+    expect(testState.readPage).toHaveBeenLastCalledWith(selectedDay, "ALL", "", 0, 200);
+
+    await wrapper.get('input[type="search"]').setValue("warn");
+    await vi.advanceTimersByTimeAsync(200);
+    await flushPromises();
+    expect(testState.readPage).toHaveBeenLastCalledWith(selectedDay, "ALL", "warn", -1, 200);
+
+    testState.openFolder.mockRejectedValueOnce(new Error("Finder 不可用"));
+    await wrapper.get(".desktop-logs__toolbar button").trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("Finder 不可用");
+    const callsBeforeIgnoredAppend = testState.readPage.mock.calls.length;
+    await emitAppend(line("WARN another", "WARN"), "2026-07-12");
+    expect(testState.readPage).toHaveBeenCalledTimes(callsBeforeIgnoredAppend);
+  });
+
+  it("leaves an empty log reader usable when no days exist and exposes startup errors", async () => {
+    testState.listDays.mockResolvedValueOnce([]);
+    const emptyWrapper = mount(DesktopLogsPage);
+    wrappers.push(emptyWrapper);
+    await flushPromises();
+    expect(testState.readPage).not.toHaveBeenCalled();
+    expect(emptyWrapper.text()).toContain("没有匹配的日志");
+
+    testState.listDays.mockRejectedValueOnce(new Error("桌面日志服务断开"));
+    const failedWrapper = mount(DesktopLogsPage);
+    wrappers.push(failedWrapper);
+    await flushPromises();
+    expect(failedWrapper.text()).toContain("桌面日志服务断开");
+  });
 });

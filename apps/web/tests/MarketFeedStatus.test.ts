@@ -62,4 +62,28 @@ describe("MarketFeedStatus", () => {
     expect(wrapper.get("[data-state='error']").text()).toContain("网络断开");
     wrapper.unmount();
   });
+
+  it("keeps degraded transport vocabulary explicit for unavailable push feeds", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-04T00:00:00Z"));
+    const unsupported = mount(MarketFeedStatus, {
+      props: {
+        connectionState: "unsupported",
+        observedAt: "2026-07-04T00:00:00Z",
+        transportMode: "idle",
+      },
+    });
+
+    expect(unsupported.get("[data-state='live']").text()).toContain("新鲜 刚刚");
+    expect(unsupported.text()).toContain("无推送");
+    expect(unsupported.text()).toContain("空闲");
+
+    await unsupported.setProps({
+      connectionState: "error",
+      transportMode: "unrecognized-transport",
+    });
+    expect(unsupported.text()).toContain("流异常");
+    expect(unsupported.text()).toContain("快照");
+    unsupported.unmount();
+  });
 });

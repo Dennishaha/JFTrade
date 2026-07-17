@@ -20,8 +20,12 @@ type Asset struct {
 }
 
 func Select() (Asset, bool, error) {
+	return selectFromFS(assetFS())
+}
+
+func selectFromFS(files fs.FS) (Asset, bool, error) {
 	name := BundleName()
-	data, err := fs.ReadFile(assetFS(), filepath.ToSlash(filepath.Join(binDir, name)))
+	data, err := fs.ReadFile(files, filepath.ToSlash(filepath.Join(binDir, name)))
 	if err != nil {
 		if isMissingAsset(err) {
 			return Asset{}, false, nil

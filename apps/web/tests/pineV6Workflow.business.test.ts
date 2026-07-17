@@ -82,6 +82,18 @@ describe("pineV6Workflow business boundaries", () => {
     });
   });
 
+  it("restores default inputs when a persisted workflow has a malformed input list", () => {
+    const fallback = createDefaultPineV6Workflow("Fallback inputs");
+    const normalized = normalizePineV6Workflow({ ...fallback, inputs: null } as unknown);
+
+    expect(normalized.inputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "fastLen", defaultValue: "12" }),
+        expect.objectContaining({ name: "slowLen", defaultValue: "26" }),
+      ]),
+    );
+  });
+
   it("renders every supported workflow block family with runtime-safe defaults", () => {
     const workflow = createDefaultPineV6Workflow();
     workflow.inputs = [

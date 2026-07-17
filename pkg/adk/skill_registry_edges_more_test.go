@@ -3,6 +3,7 @@ package adk
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -139,6 +140,21 @@ func TestSkillRegistryHTTPAndSourceAdditionalBranches(t *testing.T) {
 		}
 		if skill.ID != "installed-edge" || skill.Source != validServer.URL+"/SKILL.md" {
 			t.Fatalf("installed skill = %+v, want installed-edge with source URL", skill)
+		}
+
+		truncatedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			connection, buffered, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				t.Errorf("hijack truncated skill response: %v", err)
+				return
+			}
+			defer func() { jftradeLogError(connection.Close()) }()
+			_, _ = fmt.Fprint(buffered, "HTTP/1.1 200 OK\r\nContent-Length: 256\r\nConnection: close\r\n\r\n---\nname: partial")
+			jftradeLogError(buffered.Flush())
+		}))
+		defer truncatedServer.Close()
+		if _, err := registry.InstallURL(ctx, truncatedServer.URL+"/SKILL.md"); err == nil {
+			t.Fatal("InstallURL accepted an interrupted skill download")
 		}
 	})
 

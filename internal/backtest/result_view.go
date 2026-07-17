@@ -47,9 +47,9 @@ func normalizeResultView(req ResultViewRequest) (normalizedResultView, error) {
 		view = "summary"
 	}
 	switch view {
-	case "summary", "chart", "orders", "logs", "errors":
+	case "summary", "chart", "orders", "logs", "warnings", "errors":
 	default:
-		return normalizedResultView{}, requestErrorf("view must be one of summary, chart, orders, logs, errors")
+		return normalizedResultView{}, requestErrorf("view must be one of summary, chart, orders, logs, warnings, errors")
 	}
 	limit := normalizeResultViewLimit(req.Limit)
 	offset, err := parseResultViewCursor(req.Cursor)

@@ -50,7 +50,7 @@ func (h *Handler) handleADKTools(c *gin.Context) {
 
 func (h *Handler) handleADKTasks(c *gin.Context) {
 	var query adkTasksQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := bindADKQuery(c, &query); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid tasks query")
 		return
 	}
@@ -148,7 +148,7 @@ func (h *Handler) handleADKDeleteTask(c *gin.Context) {
 
 func (h *Handler) handleADKMemory(c *gin.Context) {
 	var query adkMemoryQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := bindADKQuery(c, &query); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid memory query")
 		return
 	}
@@ -269,7 +269,7 @@ func (h *Handler) handleADKDeleteProvider(c *gin.Context) {
 // @Router /api/v1/adk/agents [get]
 func (h *Handler) handleADKAgents(c *gin.Context) {
 	var query adkAgentsQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := bindADKQuery(c, &query); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid agents query")
 		return
 	}
@@ -278,10 +278,7 @@ func (h *Handler) handleADKAgents(c *gin.Context) {
 		h.writeError(c, http.StatusInternalServerError, "ADK_AGENT_LIST_FAILED", err.Error())
 		return
 	}
-	var pageQuery adkPageQuery
-	jftradeErr1 := c.ShouldBindQuery(&pageQuery)
-	jftradeLogError(jftradeErr1)
-	limit, offset := adkPageBounds(pageQuery)
+	limit, offset := adkPageBounds(adkPageQuery{Limit: query.Limit, Offset: query.Offset})
 	total := len(agents)
 	if offset > total {
 		offset = total

@@ -98,6 +98,36 @@ func TestParseIndicatorBindingRejectsInvalidBusinessParameters(t *testing.T) {
 	}
 }
 
+func TestAdvancedIndicatorBindingsRejectTrailingTimeframeArguments(t *testing.T) {
+	// Every advanced indicator accepts at most one optional timeframe. Keeping
+	// this check at the binding boundary prevents a trailing expression from
+	// silently changing the requirement that the runtime will warm up.
+	for _, tc := range []struct {
+		name     string
+		function string
+		args     []string
+	}{
+		{name: "bbw", function: "bbw", args: []string{"close", "20", "2", "day", "extra"}},
+		{name: "tsi", function: "tsi", args: []string{"close", "13", "25", "day", "extra"}},
+		{name: "correlation", function: "correlation", args: []string{"close", "open", "20", "day", "extra"}},
+		{name: "percentile", function: "percentile_linear_interpolation", args: []string{"close", "20", "80", "day", "extra"}},
+		{name: "linreg", function: "linreg", args: []string{"close", "20", "1", "day", "extra"}},
+		{name: "pivot", function: "pivothigh", args: []string{"high", "2", "2", "day", "extra"}},
+		{name: "keltner", function: "kc", args: []string{"close", "20", "1.5", "true", "day", "extra"}},
+		{name: "alma", function: "alma", args: []string{"close", "9", "0.85", "6", "day", "extra"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, recognized, err := parseAdvancedIndicatorBinding(41, "signal", tc.function, tc.args); err == nil || recognized || !strings.Contains(err.Error(), "invalid argument count") {
+				t.Fatalf("%s binding = recognized:%v err:%v", tc.name, recognized, err)
+			}
+		})
+	}
+
+	if binding, recognized, err := parseAdvancedIndicatorBinding(42, "plain", "not_an_indicator", []string{"close"}); err != nil || recognized || binding.Alias != "" || binding.Kind != "" || binding.Key != "" || len(binding.Args) != 0 {
+		t.Fatalf("unknown advanced binding = %#v recognized:%v err:%v", binding, recognized, err)
+	}
+}
+
 func TestCollectExpressionRequirementsCoversCompoundIndicatorExpressions(t *testing.T) {
 	requirements, err := collectExpressionRequirements(40, strings.Join([]string{
 		"rsi(close, 14, day)",

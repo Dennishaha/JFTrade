@@ -116,6 +116,8 @@ func TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose(t *testing.T) {
 		status int
 	}{
 		{"snapshot", http.MethodGet, "/api/v1/adk", nil, http.StatusInternalServerError},
+		{"audit", http.MethodGet, "/api/v1/adk/audit", nil, http.StatusInternalServerError},
+		{"metrics", http.MethodGet, "/api/v1/adk/metrics", nil, http.StatusInternalServerError},
 		{"workflows", http.MethodGet, "/api/v1/adk/workflows", nil, http.StatusInternalServerError},
 		{"workflow", http.MethodGet, "/api/v1/adk/workflows/workflow-1", nil, http.StatusBadRequest},
 		{"save workflow", http.MethodPost, "/api/v1/adk/workflows", []byte(`{"name":"Closed Store Workflow"}`), http.StatusBadRequest},
@@ -143,6 +145,8 @@ func TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose(t *testing.T) {
 		{"sessions", http.MethodGet, "/api/v1/adk/sessions", nil, http.StatusInternalServerError},
 		{"create session", http.MethodPost, "/api/v1/adk/sessions", []byte(`{"agentId":"agent-1"}`), http.StatusBadRequest},
 		{"session", http.MethodGet, "/api/v1/adk/sessions/session-1", nil, http.StatusInternalServerError},
+		{"session context", http.MethodGet, "/api/v1/adk/sessions/session-1/context", nil, http.StatusInternalServerError},
+		{"compact session context", http.MethodPost, "/api/v1/adk/sessions/session-1/context/compact", []byte(`{"mode":"normal"}`), http.StatusInternalServerError},
 		{"rename session", http.MethodPut, "/api/v1/adk/sessions/session-1", []byte(`{"title":"Renamed"}`), http.StatusBadRequest},
 		{"delete session", http.MethodDelete, "/api/v1/adk/sessions/session-1", nil, http.StatusInternalServerError},
 		{"runs", http.MethodGet, "/api/v1/adk/runs", nil, http.StatusInternalServerError},
@@ -154,6 +158,9 @@ func TestAssistantRoutesSurfaceStoreFailuresAfterRuntimeClose(t *testing.T) {
 		{"input response", http.MethodPost, "/api/v1/adk/runs/run-1/input-response", []byte(`{"requestId":"input-1","answers":[]}`), http.StatusInternalServerError},
 		{"approvals", http.MethodGet, "/api/v1/adk/approvals", nil, http.StatusInternalServerError},
 		{"approve", http.MethodPost, "/api/v1/adk/approvals/approval-1/approve", nil, http.StatusInternalServerError},
+		{"optimization tasks", http.MethodGet, "/api/v1/adk/optimization-tasks", nil, http.StatusInternalServerError},
+		{"optimization task", http.MethodGet, "/api/v1/adk/optimization-tasks/task-1", nil, http.StatusInternalServerError},
+		{"cancel optimization task", http.MethodPost, "/api/v1/adk/optimization-tasks/task-1/cancel", nil, http.StatusInternalServerError},
 		{"skills", http.MethodGet, "/api/v1/adk/skills", nil, http.StatusOK},
 		{"delete skill", http.MethodDelete, "/api/v1/adk/skills/skill-1", nil, http.StatusInternalServerError},
 	}

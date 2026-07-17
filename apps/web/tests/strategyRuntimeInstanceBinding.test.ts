@@ -425,4 +425,51 @@ describe("strategyRuntimeInstanceBinding", () => {
       runtimeRisk: normalizeStrategyRuntimeRiskSettings(null),
     });
   });
+
+  it("keeps persisted malformed bindings from becoming executable instruments or accounts", () => {
+    expect(normalizeStrategyInstrumentIds(null)).toEqual([]);
+    expect(
+      normalizeBindingInstruments([
+        { market: ".", code: "AAPL" },
+        { market: "US", code: "AAPL" },
+      ]),
+    ).toEqual([{ market: "US", code: "AAPL" }]);
+
+    const blankAccountStrategy = createStrategy({
+      binding: {
+        brokerAccount: {
+          brokerId: " ",
+          accountId: " ",
+          tradingEnvironment: " ",
+          market: " ",
+        },
+      },
+    });
+    expect(readStrategyBinding(blankAccountStrategy).brokerAccount).toBeNull();
+
+    const malformedParamsStrategy = createStrategy({
+      params: null as unknown as Record<string, unknown>,
+      binding: {
+        brokerAccount: {
+          brokerId: "demo",
+          accountId: "A-1",
+          tradingEnvironment: "sandbox",
+          market: "OTC",
+        },
+      },
+    });
+    expect(readStrategyBinding(malformedParamsStrategy)).toMatchObject({
+      instruments: [],
+      symbols: [],
+      brokerAccount: {
+        brokerId: "demo",
+        accountId: "A-1",
+        tradingEnvironment: "SANDBOX",
+        market: "OTC",
+      },
+    });
+    expect(
+      formatBrokerAccountSummary(readStrategyBinding(malformedParamsStrategy).brokerAccount),
+    ).toBe("DEMO / SANDBOX / A-1 / OTC");
+  });
 });

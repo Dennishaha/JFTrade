@@ -170,6 +170,10 @@ export function createMarketDataQueryController(
     if (instrumentChanged || periodChanged) {
       marketDataQueryRequestId += 1;
       activeMarketDataQuery = null;
+      // Any in-flight request now belongs to a different query target. Its
+      // finally block intentionally cannot clear this flag, so release the
+      // stale loading state as part of the target switch.
+      isLoadingMarketDataQuery.value = false;
     }
 
     if (instrumentChanged) {

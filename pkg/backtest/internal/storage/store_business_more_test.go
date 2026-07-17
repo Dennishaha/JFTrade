@@ -114,6 +114,30 @@ func TestQueryKLinesForwardAndBackwardAggregateWeeklyTradingPeriods(t *testing.T
 	}
 	assertAggregatedBar(t, backward[0], types.Interval1w, "US.AAPL", weekOne, time.Date(2026, time.June, 21, 23, 59, 59, int(999*time.Millisecond), time.UTC), 200, 206, 198, 205, 210)
 	assertAggregatedBar(t, backward[1], types.Interval1w, "US.AAPL", weekTwo, time.Date(2026, time.June, 28, 23, 59, 59, int(999*time.Millisecond), time.UTC), 206, 210, 205, 209, 250)
+
+	// A backward query inside an unfinished week must return the most recent
+	// fully closed week, rather than producing a partial period.
+	insideCurrentWeek, err := store.QueryKLinesBackward(nil, "US.AAPL", types.Interval1w, weekTwo.AddDate(0, 0, 8).Add(12*time.Hour), 1)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward inside current week: %v", err)
+	}
+	if len(insideCurrentWeek) != 1 {
+		t.Fatalf("inside-current-week backward len = %d, want 1", len(insideCurrentWeek))
+	}
+	assertAggregatedBar(t, insideCurrentWeek[0], types.Interval1w, "US.AAPL", weekTwo, time.Date(2026, time.June, 28, 23, 59, 59, int(999*time.Millisecond), time.UTC), 206, 210, 205, 209, 250)
+
+	// K-line timestamps have nanosecond precision while a canonical trading
+	// period closes at millisecond precision. A request just after that close
+	// belongs to the following period.
+	afterFirstWeekClose := time.Date(2026, time.June, 21, 23, 59, 59, 999_999_999, time.UTC)
+	forwardAfterClose, err := store.QueryKLinesForward(nil, "US.AAPL", types.Interval1w, afterFirstWeekClose, 1)
+	if err != nil {
+		t.Fatalf("QueryKLinesForward after weekly close: %v", err)
+	}
+	if len(forwardAfterClose) != 1 {
+		t.Fatalf("after-close forward len = %d, want 1", len(forwardAfterClose))
+	}
+	assertAggregatedBar(t, forwardAfterClose[0], types.Interval1w, "US.AAPL", weekTwo, time.Date(2026, time.June, 28, 23, 59, 59, int(999*time.Millisecond), time.UTC), 206, 210, 205, 209, 250)
 }
 
 func TestQueryDailyKLinesInRangeAggregatesUSExtendedHoursFromHourlyBars(t *testing.T) {

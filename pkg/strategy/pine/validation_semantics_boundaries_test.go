@@ -83,6 +83,16 @@ func TestStrategyDeclarationInvalidConstantsFallBackWithWarnings(t *testing.T) {
 	}
 }
 
+func TestStrategyDeclarationWithoutArgumentsUsesBusinessDefaults(t *testing.T) {
+	metadata, warnings := parseStrategyDeclaration(`strategy()`)
+	if metadata != defaultStrategyMetadata() {
+		t.Fatalf("default metadata = %#v, want %#v", metadata, defaultStrategyMetadata())
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("warnings = %#v, want none", warnings)
+	}
+}
+
 func TestExpressionAndHistoryValidationRejectsInvalidBoundaries(t *testing.T) {
 	if err := validateExpression(9, "entry condition", "close >"); err == nil || !strings.Contains(err.Error(), "pine line 9") {
 		t.Fatalf("invalid expression error = %v", err)

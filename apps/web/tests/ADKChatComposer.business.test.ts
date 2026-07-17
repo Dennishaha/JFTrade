@@ -2,7 +2,7 @@
 
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { defineComponent, h } from "vue";
+import { defineComponent, h, nextTick } from "vue";
 
 import ADKChatComposer from "../src/components/adk-page/ADKChatComposer.vue";
 import type { ADKProvider } from "../src/contracts";
@@ -468,6 +468,141 @@ describe("ADKChatComposer business flows", () => {
     expect(wrapper.emitted("update:contextDetailsOpen")?.at(-1)).toEqual([
       false,
     ]);
+  });
+
+  it("executes the selected slash command from Enter while leaving disabled commands inert", async () => {
+    const runSlashCommand = vi.fn();
+    const sendChat = vi.fn();
+    const wrapper = mountComposer({
+      canSendChat: true,
+      chatDraft: "/context",
+      slashCommands: [
+        { id: "context", command: "context", title: "上下文", description: "查看上下文" },
+      ],
+      runSlashCommand,
+      sendChat,
+    });
+
+    await wrapper.get("textarea").trigger("keydown", { key: "Enter" });
+    expect(runSlashCommand).toHaveBeenCalledWith("context");
+    expect(wrapper.emitted("update:chatDraft")?.at(-1)).toEqual([""]);
+    expect(sendChat).not.toHaveBeenCalled();
+
+    await wrapper.setProps({
+      chatDraft: "/disabled",
+      slashCommands: [
+        { id: "disabled", command: "disabled", title: "不可用", description: "", disabled: true },
+      ],
+    });
+    await wrapper.get("textarea").trigger("keydown", { key: "Enter" });
+    expect(runSlashCommand).toHaveBeenCalledTimes(1);
+    expect(sendChat).not.toHaveBeenCalled();
+  });
+
+  it("opens an errored goal editor and resumes a timed-out objective", async () => {
+    const resumeGoalRun = vi.fn();
+    const wrapper = mountComposer({
+      canSendChat: true,
+      chatDraft: "",
+      showGoalObjectiveEditor: true,
+      goalObjectiveDraft: "完成开盘前检查",
+      goalObjectiveError: "",
+      goalTimedOut: false,
+      canResumeGoal: true,
+      resumeGoalRun,
+      sendChat: async () => {},
+    });
+
+    await wrapper.setProps({ goalObjectiveError: "保存失败", goalObjectiveSaving: true });
+    await nextTick();
+    expect(wrapper.get(".adk-goal-editor__summary-button").attributes("aria-expanded")).toBe("true");
+    expect(wrapper.text()).toContain("保存中");
+
+    await wrapper.setProps({ goalObjectiveError: "", goalObjectiveSaving: false, goalTimedOut: true });
+    expect(wrapper.text()).toContain("已超时");
+    const lifecycleButton = wrapper.get("[title='继续目标']");
+    await lifecycleButton.trigger("click");
+    expect(resumeGoalRun).toHaveBeenCalledOnce();
+
+    await wrapper.get(".adk-goal-editor__summary-button").trigger("click");
+    expect(wrapper.get(".adk-goal-editor__summary-button").attributes("aria-expanded")).toBe("false");
+  });
+
+  it("runs exact slash commands after dismissing the list and reports context edge states", async () => {
+    const runSlashCommand = vi.fn();
+    const wrapper = mountComposer({
+      canSendChat: true,
+      chatDraft: "/compact",
+      slashCommands: [
+        {
+          id: "compact",
+          command: "/compact",
+          title: "压缩",
+          description: "压缩当前会话",
+        },
+      ],
+      runSlashCommand,
+      contextSnapshot: {
+        sessionId: "session-1",
+        currentInputTokens: 1_000,
+        projectedNextTurnTokens: 1_200,
+        rawCurrentInputTokens: 1_000,
+        rawProjectedNextTurnTokens: 1_200,
+        contextWindowTokens: 4_000,
+        usageRatio: 0.25,
+        status: "near_limit",
+        recentUserWindow: 2,
+        retainedRecentUserCount: 1,
+        activeHandoffCount: 0,
+        rawEventCount: 3,
+        compactedEventCount: 1,
+        summaryBoundaryEventIndex: 0,
+        breakdown: undefined,
+        rawBreakdown: undefined,
+        trimmedToolResponseCount: 1,
+        latestHandoffPreview: "",
+        summaryPreview: "",
+        lastCompactionMode: "auto",
+        autoCompacted: true,
+        degradedSummary: false,
+      },
+      sendChat: async () => {},
+    });
+
+    await wrapper.get("textarea").trigger("keydown", { key: "Escape" });
+    await wrapper.get(".adk-composer-send").trigger("click");
+    expect(runSlashCommand).toHaveBeenCalledWith("compact");
+    expect(wrapper.text()).toContain("接近上限");
+    expect(wrapper.text()).toContain("原始会话当前估算");
+    expect(wrapper.text()).not.toContain("原始会话诊断 Token 构成");
+
+    await wrapper.setProps({
+      chatDraft: "普通问题",
+      contextSnapshot: {
+        sessionId: "session-1",
+        currentInputTokens: 0,
+        projectedNextTurnTokens: 0,
+        rawCurrentInputTokens: 0,
+        rawProjectedNextTurnTokens: 0,
+        contextWindowTokens: 0,
+        usageRatio: 0,
+        status: "unknown",
+        recentUserWindow: 0,
+        retainedRecentUserCount: 0,
+        activeHandoffCount: 0,
+        rawEventCount: 0,
+        compactedEventCount: 0,
+        summaryBoundaryEventIndex: 0,
+        breakdown: undefined,
+        rawBreakdown: undefined,
+        latestHandoffPreview: "",
+        summaryPreview: "",
+        lastCompactionMode: "manual",
+        autoCompacted: false,
+        degradedSummary: false,
+      },
+    });
+    expect(wrapper.text()).toContain("未知");
   });
 });
 

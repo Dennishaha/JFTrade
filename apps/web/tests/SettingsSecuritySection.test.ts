@@ -238,4 +238,124 @@ describe("SettingsSecuritySection", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(wrapper.text()).toContain("Web 访问已关闭");
   });
+
+  it("rejects invalid ports and incomplete password changes before issuing a request", async () => {
+    const fetchMock = vi.fn(async () =>
+      createResponse({
+        webAccessEnabled: true,
+        publicAccessEnabled: false,
+        webPort: 6688,
+        passwordConfigured: true,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(SettingsSecuritySection);
+    await flushRequests();
+    const form = wrapper.get("[data-testid='web-access-settings-form']");
+
+    await wrapper.get("[data-testid='web-access-port']").setValue(80);
+    await form.trigger("submit");
+    expect(wrapper.text()).toContain("1024–65535");
+
+    await wrapper.get("[data-testid='web-access-port']").setValue(6688);
+    await wrapper.get("[data-testid='web-access-confirm-password']").setValue("unpaired password");
+    await form.trigger("submit");
+    expect(wrapper.text()).toContain("请先输入新的 Web 访问密码");
+
+    await wrapper.get("[data-testid='web-access-new-password']").setValue("                ");
+    await wrapper.get("[data-testid='web-access-confirm-password']").setValue("                ");
+    await form.trigger("submit");
+    expect(wrapper.text()).toContain("不能只包含空格");
+
+    const oversized = "密".repeat(400);
+    await wrapper.get("[data-testid='web-access-new-password']").setValue(oversized);
+    await wrapper.get("[data-testid='web-access-confirm-password']").setValue(oversized);
+    await form.trigger("submit");
+    expect(wrapper.text()).toContain("不能超过 1024 个 UTF-8 字节");
+
+    await wrapper.get("[data-testid='web-access-new-password']").setValue("a sufficiently long password");
+    await wrapper.get("[data-testid='web-access-confirm-password']").setValue("a different long password");
+    await form.trigger("submit");
+    expect(wrapper.text()).toContain("两次输入的 Web 访问密码不一致");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await wrapper.get("button[type='button']").trigger("click");
+    expect((wrapper.get("[data-testid='web-access-port']").element as HTMLInputElement).value).toBe("6688");
+    expect(wrapper.text()).not.toContain("两次输入的 Web 访问密码不一致");
+  });
+
+  it("distinguishes a password-only update from a failed save", async () => {
+    let failSave = false;
+    const fetchMock = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        if (init?.method === "PUT") {
+          if (failSave) throw new Error("save unavailable");
+          return createResponse({
+            webAccessEnabled: true,
+            publicAccessEnabled: false,
+            webPort: 6688,
+            passwordConfigured: true,
+          });
+        }
+        return createResponse({
+          webAccessEnabled: true,
+          publicAccessEnabled: false,
+          webPort: 6688,
+          passwordConfigured: true,
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(SettingsSecuritySection);
+    await flushRequests();
+
+    await wrapper.get("[data-testid='web-access-new-password']").setValue("a sufficiently long password");
+    await wrapper.get("[data-testid='web-access-confirm-password']").setValue("a sufficiently long password");
+    await wrapper.get("[data-testid='web-access-settings-form']").trigger("submit");
+    await flushRequests();
+    expect(wrapper.text()).toContain("Web 访问密码已更新");
+
+    failSave = true;
+    await wrapper.get("[data-testid='web-access-new-password']").setValue("another sufficiently long password");
+    await wrapper.get("[data-testid='web-access-confirm-password']").setValue("another sufficiently long password");
+    await wrapper.get("[data-testid='web-access-settings-form']").trigger("submit");
+    await flushRequests();
+    expect(wrapper.text()).toContain("save unavailable");
+  });
+
+  it("does not submit during the initial load and treats an unchanged form as an explicit save", async () => {
+    let resolveInitial: (() => void) | null = null;
+    const delayedFetch = vi.fn(() => new Promise<Response>((resolve) => {
+      resolveInitial = () => resolve(createResponse({
+        webAccessEnabled: true,
+        publicAccessEnabled: false,
+        webPort: 6688,
+        passwordConfigured: true,
+      }));
+    }));
+    vi.stubGlobal("fetch", delayedFetch);
+    const loadingWrapper = mount(SettingsSecuritySection);
+    await loadingWrapper.get("[data-testid='web-access-settings-form']").trigger("submit");
+    expect(delayedFetch).toHaveBeenCalledTimes(1);
+    resolveInitial?.();
+    await flushRequests();
+
+    const fetchMock = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) =>
+        createResponse({
+          webAccessEnabled: true,
+          publicAccessEnabled: false,
+          webPort: 6688,
+          passwordConfigured: true,
+          savedBy: init?.method === "PUT",
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(SettingsSecuritySection);
+    await flushRequests();
+    await wrapper.get("[data-testid='web-access-settings-form']").trigger("submit");
+    await flushRequests();
+    expect(wrapper.text()).toContain("Web 访问设置已保存");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -19,32 +19,14 @@ func (s *parseState) rejectUnsupported(line parsedLine) error {
 		if _, _, ok := supportedRequestSecurityTupleAssignmentLine(line.trimmed); ok {
 			return nil
 		}
-		lowered := replaceSupportedRequestSecurity(line.trimmed)
 		if match := assignmentPattern.FindStringSubmatch(line.trimmed); match != nil {
-			lowered = s.normalizeExpression(strings.TrimSpace(match[4]))
+			s.normalizeExpression(strings.TrimSpace(match[4]))
 			if err := s.takeNormalizationErr(line.number); err != nil {
 				return err
 			}
 		}
-		if strings.Contains(strings.ToLower(lowered), "request.security(") {
-			if requestSecurityUsesTimeframeAlias(line.trimmed) {
-				return nil
-			}
-			switch {
-			case strings.Contains(lower, "barmerge.lookahead_on"):
-				return fmt.Errorf("pine line %d: request.security() lookahead_on is not supported by JFTrade; use default lookahead_off", line.number)
-			case strings.Contains(lower, "barmerge.gaps_on"):
-				return fmt.Errorf("pine line %d: request.security() gaps_on is not supported by JFTrade; use default gaps_off", line.number)
-			default:
-				return fmt.Errorf("pine line %d: request.security() is supported only for syminfo.tickerid with OHLCV/hl2/hlc3/ohlc4 sources, source history, source-aware moving averages, supported static intraday advanced indicators, pure expressions, tuple whitelists, and v2.3 pure collection/object expressions without side effects", line.number)
-			}
-		}
 	case strings.HasPrefix(lower, "runtime.error("):
 		return fmt.Errorf("pine line %d: %s", line.number, firstStringArgument(line.trimmed))
-	case strings.HasPrefix(lower, "import "):
-		return fmt.Errorf("pine line %d: Pine libraries/imports are not supported by JFTrade yet", line.number)
-	case (strings.Contains(lower, "array.") || strings.Contains(lower, "matrix.") || strings.Contains(lower, "map.")) && !supportedExecutableCollectionLine(line.trimmed):
-		return fmt.Errorf("pine line %d: Pine collection namespaces array/matrix/map are not supported by JFTrade yet", line.number)
 	default:
 		return nil
 	}
@@ -61,20 +43,7 @@ func supportedRequestSecurityTupleAssignmentLine(line string) ([]string, []strin
 			}
 		}
 	}
-	match := tupleAssignmentPattern.FindStringSubmatch(line)
-	if match == nil {
-		return nil, nil, false
-	}
-	args, ok := requestSecurityCallArgs(strings.TrimSpace(match[5]))
-	if !ok {
-		return nil, nil, false
-	}
-	lowered, ok := lowerSupportedRequestSecurityTuple(args)
-	if !ok {
-		return nil, nil, false
-	}
-	aliases := tupleAssignmentAliases(match)
-	return aliases, lowered, len(aliases) == len(lowered)
+	return nil, nil, false
 }
 
 func unsupportedSyntaxDiagnostic(line parsedLine) (Diagnostic, bool) {
@@ -88,9 +57,6 @@ func unsupportedSyntaxDiagnostic(line parsedLine) (Diagnostic, bool) {
 			return diagnostic, true
 		}
 		return Diagnostic{}, false
-	case unsupportedTAFunctionName(lower) != "":
-		name := unsupportedTAFunctionName(lower)
-		return diagnosticForLine(DiagnosticSeverityError, "PINE_TA_FUNCTION_UNSUPPORTED", fmt.Sprintf("ta.%s() is not supported by JFTrade yet", name), line), true
 	case strings.HasPrefix(lower, "import "), strings.HasPrefix(lower, "library("):
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_DECLARATION_UNSUPPORTED", "Pine declarations, libraries, and methods are not executable in this JFTrade Pine v6 version", line), true
 	case (strings.Contains(lower, "array.") || strings.Contains(lower, "matrix.") || strings.Contains(lower, "map.") || typedAssignmentPattern.MatchString(line.trimmed)) && !supportedExecutableCollectionLine(line.trimmed):
@@ -181,9 +147,6 @@ func requestSecurityTupleAliasesFromLine(line string) ([]string, bool) {
 		}
 		return aliases, true
 	}
-	if match := tupleAssignmentPattern.FindStringSubmatch(line); match != nil {
-		return tupleAssignmentAliases(match), true
-	}
 	return nil, false
 }
 
@@ -223,9 +186,6 @@ func requestSecurityArgsFromLine(line string) ([]string, bool) {
 	if match := generalTuplePattern.FindStringSubmatch(line); match != nil {
 		return requestSecurityCallArgs(strings.TrimSpace(match[3]))
 	}
-	if match := tupleAssignmentPattern.FindStringSubmatch(line); match != nil {
-		return requestSecurityCallArgs(strings.TrimSpace(match[5]))
-	}
 	start := strings.Index(strings.ToLower(line), "request.security(")
 	if start < 0 {
 		return nil, false
@@ -263,10 +223,6 @@ func requestSecurityExpressionHasSideEffect(expression string) bool {
 		}
 	}
 	return false
-}
-
-func unsupportedTAFunctionName(lower string) string {
-	return ""
 }
 
 func historyDiagnosticMessage(expression string) string {

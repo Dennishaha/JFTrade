@@ -219,26 +219,8 @@ func (r *MarketSubsetInstrumentResolver) search(ctx context.Context, query strin
 	}
 
 	resultCh := r.searchGroup.DoChan(key, func() (any, error) {
-		sharedCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), instrumentSearchTimeout)
-		defer cancel()
-		entries, err := r.searchProvider.SearchInstruments(sharedCtx, strings.TrimSpace(query), maxInstrumentSearchLimit)
-		if err != nil {
-			return nil, err
-		}
-		entries = append([]InstrumentCandidate(nil), entries...)
-		now := r.now()
-		r.cacheMu.Lock()
-		for cachedKey, cached := range r.searchCache {
-			if !now.Before(cached.expiresAt) {
-				delete(r.searchCache, cachedKey)
-			}
-		}
-		r.searchCache[key] = cachedInstrumentSearch{
-			expiresAt: now.Add(instrumentSearchCacheTTL),
-			entries:   entries,
-		}
-		r.cacheMu.Unlock()
-		return entries, nil
+		entries, err := r.loadAndCacheSearch(ctx, key, query)
+		return entries, err
 	})
 	select {
 	case <-ctx.Done():
@@ -250,6 +232,36 @@ func (r *MarketSubsetInstrumentResolver) search(ctx context.Context, query strin
 		entries := searchResult.Val.([]InstrumentCandidate)
 		return append([]InstrumentCandidate(nil), entries...), nil
 	}
+}
+
+func (r *MarketSubsetInstrumentResolver) loadAndCacheSearch(ctx context.Context, key, query string) ([]InstrumentCandidate, error) {
+	// A caller can miss the cache, get descheduled before entering
+	// singleflight, then resume after the previous flight has populated the
+	// cache. Recheck here so that race does not issue a duplicate provider
+	// search.
+	if cached, ok := r.cachedSearch(key); ok {
+		return cached, nil
+	}
+	sharedCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), instrumentSearchTimeout)
+	defer cancel()
+	entries, err := r.searchProvider.SearchInstruments(sharedCtx, strings.TrimSpace(query), maxInstrumentSearchLimit)
+	if err != nil {
+		return nil, err
+	}
+	entries = append([]InstrumentCandidate(nil), entries...)
+	now := r.now()
+	r.cacheMu.Lock()
+	for cachedKey, cached := range r.searchCache {
+		if !now.Before(cached.expiresAt) {
+			delete(r.searchCache, cachedKey)
+		}
+	}
+	r.searchCache[key] = cachedInstrumentSearch{
+		expiresAt: now.Add(instrumentSearchCacheTTL),
+		entries:   entries,
+	}
+	r.cacheMu.Unlock()
+	return entries, nil
 }
 
 func (r *MarketSubsetInstrumentResolver) cachedSearch(key string) ([]InstrumentCandidate, bool) {

@@ -147,6 +147,43 @@ describe("useKlineSyncTask", () => {
     await expect(task.cancelSync()).resolves.toBeUndefined();
     expect(task.syncing.value).toBe(false);
   });
+
+  it("does not start an empty poll and retries a transient progress read before completion", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(envelope({ taskId: "sync-retry", message: "queued" }))
+      .mockRejectedValueOnce(new Error("temporary stream gap"))
+      .mockResolvedValueOnce(envelope({ ...progress("completed"), taskId: "sync-retry" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const task = useKlineSyncTask();
+    task.startSyncPolling("");
+    const result = task.startSync({
+      market: "HK",
+      code: "00700",
+      symbol: "HK.00700",
+      intervals: ["5m"],
+      startDate: "2026-06-01",
+      endDate: "2026-06-25",
+      rehabType: "forward",
+      sessionScope: "regular",
+    });
+
+    await vi.runOnlyPendingTimersAsync();
+    await expect(result).resolves.toMatchObject({
+      taskId: "sync-retry",
+      status: "completed",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("leaves the UI idle when cancellation is requested before a task exists", async () => {
+    const task = useKlineSyncTask();
+
+    await expect(task.cancelSync()).resolves.toBeUndefined();
+    expect(task.syncing.value).toBe(false);
+    expect(task.syncTaskId.value).toBe("");
+  });
 });
 
 function envelope(data: unknown): Response {

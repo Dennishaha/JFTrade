@@ -112,6 +112,17 @@ func TestSupertrendHelpersCaptureTrendDirectionAndInvalidInput(t *testing.T) {
 		t.Fatalf("calculateSupertrendValues(downtrend) line = %v, want above latest close %v", line, downCloses[len(downCloses)-1])
 	}
 
+	// A sharp recovery after a confirmed downtrend must move the active
+	// supertrend band back below price, rather than leaving the old short band
+	// active. This is the executable reversal that produces a new long signal.
+	recoveryHighs := append(append([]float64{}, downHighs...), 30)
+	recoveryLows := append(append([]float64{}, downLows...), 29)
+	recoveryCloses := append(append([]float64{}, downCloses...), 29.5)
+	line, direction, ok = calculateSupertrendValues(recoveryHighs, recoveryLows, recoveryCloses, config)
+	if !ok || direction != 1 || line >= recoveryCloses[len(recoveryCloses)-1] {
+		t.Fatalf("calculateSupertrendValues(recovery) = line:%v direction:%v ok:%v", line, direction, ok)
+	}
+
 	if snapshot := calculateSupertrendSnapshot(upHighs[:2], upLows[:2], upCloses[:2], supertrendConfig{}); snapshot != nil {
 		t.Fatalf("calculateSupertrendSnapshot(invalid) = %#v, want nil", snapshot)
 	}

@@ -229,14 +229,10 @@ func (r *indicatorRuntime) fixedTimeframeOHLC(timeUnit string) ([]float64, []flo
 	if !ok {
 		return nil, nil, nil, false
 	}
-	lows, _, ok := r.fixedTimeframeSeries(timeUnit, "low")
-	if !ok {
-		return nil, nil, nil, false
-	}
-	closes, _, ok := r.fixedTimeframeSeries(timeUnit, "close")
-	if !ok {
-		return nil, nil, nil, false
-	}
+	// fixedTimeframeSeries has the same completeness predicate for the three
+	// canonical OHLC sources. Once high is available, low and close are too.
+	lows, _, _ := r.fixedTimeframeSeries(timeUnit, "low")
+	closes, _, _ := r.fixedTimeframeSeries(timeUnit, "close")
 	return highs, lows, closes, true
 }
 
@@ -274,9 +270,6 @@ func calculateTSI(values []float64, shortPeriod, longPeriod int) (float64, bool)
 	}
 	smoothed := calculateEMASequence(calculateEMASequence(momentum, shortPeriod), longPeriod)
 	absSmoothed := calculateEMASequence(calculateEMASequence(absMomentum, shortPeriod), longPeriod)
-	if len(smoothed) == 0 || len(absSmoothed) == 0 {
-		return 0, false
-	}
 	denominator := absSmoothed[len(absSmoothed)-1]
 	if denominator == 0 {
 		return 0, true
@@ -490,26 +483,17 @@ func (r *indicatorRuntime) calculateKeltnerSnapshot(config advancedIndicatorConf
 		if !ok {
 			return nil
 		}
-		highs, _, ok = r.fixedTimeframeSeries(config.timeUnit, "high")
-		if !ok {
-			return nil
-		}
-		lows, _, ok = r.fixedTimeframeSeries(config.timeUnit, "low")
-		if !ok {
-			return nil
-		}
-		closes, _, ok = r.fixedTimeframeSeries(config.timeUnit, "close")
-		if !ok {
-			return nil
-		}
+		// Fixed-timeframe OHLC sources share one completeness predicate. A
+		// successful configured source therefore guarantees the canonical
+		// high/low/close series below are available as well.
+		highs, _, _ = r.fixedTimeframeSeries(config.timeUnit, "high")
+		lows, _, _ = r.fixedTimeframeSeries(config.timeUnit, "low")
+		closes, _, _ = r.fixedTimeframeSeries(config.timeUnit, "close")
 	}
 	if len(values) < config.period || config.period <= 0 {
 		return nil
 	}
 	basisSeries := calculateEMASequence(values, config.period)
-	if len(basisSeries) == 0 {
-		return nil
-	}
 	ranges := make([]float64, len(closes))
 	for index := range ranges {
 		if config.useTR {
@@ -523,9 +507,6 @@ func (r *indicatorRuntime) calculateKeltnerSnapshot(config advancedIndicatorConf
 		}
 	}
 	rangeSeries := calculateEMASequence(ranges, config.period)
-	if len(rangeSeries) == 0 {
-		return nil
-	}
 	basis := basisSeries[len(basisSeries)-1]
 	band := rangeSeries[len(rangeSeries)-1] * config.multiplier
 	width := 0.0

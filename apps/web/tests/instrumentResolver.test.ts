@@ -154,6 +154,52 @@ describe("resolveMarketInstrumentCandidates", () => {
       entries: [{ instrumentId: "SZ.000001" }],
     });
   });
+
+  it("rejects malformed rows and derives useful statuses from entries and partial failures", async () => {
+    const responses = [
+      {
+        requestedMarket: "",
+        query: " 0700 ",
+        entries: [
+          { market: "", code: "", instrumentId: "", name: "broken" },
+          { market: "hk", code: "00700", name: "腾讯控股", lotSize: Number.POSITIVE_INFINITY, source: null },
+          { market: "HK", code: "00700", selectable: true },
+        ],
+        failures: [{ market: "us", code: "aapl", message: "" }],
+      },
+      {
+        entries: [
+          { market: "jp", code: "7203", selectable: false },
+          { market: "kr", code: "005930", selectable: false },
+        ],
+      },
+      { entries: [], failures: [{ market: "US", code: "TSLA", message: "timeout" }] },
+      { entries: [] },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => createResponse(responses.shift() ?? { entries: [] })),
+    );
+
+    await expect(
+      resolveMarketInstrumentCandidates({ market: "", query: " 0700 " }),
+    ).resolves.toMatchObject({
+      requestedMarket: "",
+      query: "0700",
+      resolutionStatus: "incomplete",
+      entries: [{ instrumentId: "HK.00700", lotSize: null, source: "", selectable: true }],
+      failures: [{ market: "US", code: "AAPL", message: "查询失败" }],
+    });
+    await expect(
+      resolveMarketInstrumentCandidates({ market: "", query: "Asia" }),
+    ).resolves.toMatchObject({ resolutionStatus: "unavailable", totalReturned: 2 });
+    await expect(
+      resolveMarketInstrumentCandidates({ market: "", query: "TSLA" }),
+    ).resolves.toMatchObject({ resolutionStatus: "incomplete" });
+    await expect(
+      resolveMarketInstrumentCandidates({ market: "", query: "missing" }),
+    ).resolves.toMatchObject({ resolutionStatus: "not_found" });
+  });
 });
 
 describe("useInstrumentResolver", () => {
@@ -285,6 +331,115 @@ describe("useInstrumentResolver", () => {
 
     expect(onResolved).toHaveBeenCalledTimes(1);
     expect(onResolved).toHaveBeenCalledWith(candidate("US"));
+    scope.stop();
+  });
+
+  it("ignores an AbortError reported by the browser transport", async () => {
+    let rejectFirst: ((reason?: unknown) => void) | null = null;
+    const firstResponse = new Promise<Response>((_resolve, reject) => {
+      rejectFirst = reject;
+    });
+    vi.stubGlobal("fetch", vi.fn(() => firstResponse));
+    const scope = effectScope();
+    const resolver = scope.run(() =>
+      useInstrumentResolver({ market: ref("US"), query: ref("AAPL"), onResolved: vi.fn() }),
+    )!;
+
+    const request = resolver.resolve();
+    rejectFirst?.(new DOMException("cancelled", "AbortError"));
+
+    await expect(request).resolves.toBeNull();
+    expect(resolver.resolutionError.value).toBe("");
+    scope.stop();
+  });
+
+  it("reports input, malformed resolved results, and non-Error transport failures", async () => {
+    const inputScope = effectScope();
+    const onInputError = vi.fn();
+    const emptyResolver = inputScope.run(() =>
+      useInstrumentResolver({ market: ref("US"), query: ref("   "), onResolved: vi.fn(), onError: onInputError }),
+    )!;
+    await expect(emptyResolver.resolve()).resolves.toBeNull();
+    expect(emptyResolver.resolutionError.value).toBe("请输入标的代码或名称。");
+    expect(emptyResolver.panelOpen.value).toBe(true);
+    expect(onInputError).toHaveBeenCalledWith(expect.any(Error));
+    emptyResolver.closePanel();
+    expect(emptyResolver.panelOpen.value).toBe(false);
+    inputScope.stop();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(createResponse({ resolutionStatus: "resolved", entries: [] }))
+        .mockRejectedValueOnce("offline"),
+    );
+    const scope = effectScope();
+    const resolver = scope.run(() =>
+      useInstrumentResolver({ market: ref("US"), query: ref("AAPL"), onResolved: vi.fn() }),
+    )!;
+    await resolver.resolve();
+    expect(resolver.resolutionError.value).toBe("标的解析响应缺少唯一候选。");
+    await resolver.resolve();
+    expect(resolver.resolutionError.value).toBe("标的查询失败，请稍后重试。");
+    scope.stop();
+  });
+
+  it("handles keyboard navigation, selection, cancellation, and composition safely", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => createResponse(resolution({
+        resolutionStatus: "ambiguous",
+        entries: [candidate("JP"), candidate("SH"), candidate("SZ")],
+      }))),
+    );
+    const onResolved = vi.fn();
+    const scope = effectScope();
+    const resolver = scope.run(() =>
+      useInstrumentResolver({ market: ref(""), query: ref("000001"), onResolved }),
+    )!;
+    await resolver.resolve();
+
+    const arrowDown = new KeyboardEvent("keydown", { key: "ArrowDown", cancelable: true });
+    expect(resolver.handleKeydown(arrowDown)).toBe(true);
+    expect(arrowDown.defaultPrevented).toBe(true);
+    const arrowUp = new KeyboardEvent("keydown", { key: "ArrowUp", cancelable: true });
+    expect(resolver.handleKeydown(arrowUp)).toBe(true);
+    const composing = new KeyboardEvent("keydown", { key: "Enter", isComposing: true });
+    expect(resolver.handleKeydown(composing)).toBe(false);
+
+    const enter = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+    expect(resolver.handleKeydown(enter)).toBe(true);
+    expect(onResolved).toHaveBeenCalledWith(candidate("SH"));
+    expect(resolver.panelOpen.value).toBe(false);
+
+    await resolver.resolve();
+    const escape = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+    expect(resolver.handleKeydown(escape)).toBe(true);
+    expect(resolver.panelOpen.value).toBe(false);
+    resolver.moveActiveCandidate(1);
+    expect(resolver.handleKeydown(new KeyboardEvent("keydown", { key: "z" }))).toBe(false);
+    scope.stop();
+  });
+
+  it("uses Enter to start a fresh resolution when no candidate menu is open", async () => {
+    const fetchMock = vi.fn(async () =>
+      createResponse(
+        resolution({ requestedMarket: "US", query: "AAPL", entries: [candidate("US")] }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const onResolved = vi.fn();
+    const scope = effectScope();
+    const resolver = scope.run(() =>
+      useInstrumentResolver({ market: ref("US"), query: ref("AAPL"), onResolved }),
+    )!;
+
+    expect(resolver.statusMessage.value).toBe("");
+    const enter = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+    expect(resolver.handleKeydown(enter)).toBe(true);
+    expect(enter.defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(onResolved).toHaveBeenCalledWith(candidate("US")));
+    expect(fetchMock).toHaveBeenCalledOnce();
     scope.stop();
   });
 });

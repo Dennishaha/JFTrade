@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildRuntimeApiUrl,
@@ -52,5 +52,20 @@ describe("runtimeConfig", () => {
 
     window.__JFTRADE_RUNTIME_CONFIG__ = { authRequired: false };
     expect(resolveAuthRequired()).toBe(false);
+  });
+
+  it("keeps desktop-only settings disabled during server-side rendering", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", undefined);
+    try {
+      const serverRuntimeConfig = await import("../src/runtimeConfig");
+      expect(serverRuntimeConfig.resolveDesktopMode()).toBe(false);
+      expect(serverRuntimeConfig.resolveDesktopApiToken()).toBeNull();
+      expect(serverRuntimeConfig.buildRuntimeLiveSocketUrl("/api/v1/ws/live")).toBe(
+        "ws://127.0.0.1/api/v1/ws/live",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

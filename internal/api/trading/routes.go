@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -474,6 +475,15 @@ func bindURI(c *gin.Context) (resourceURI, bool) {
 }
 
 func bindQuery(c *gin.Context, target any, message string) bool {
+	// url.URL.Query intentionally discards parsing errors. Validate the raw
+	// query first so malformed percent-escapes cannot silently become a
+	// partially bound broker request.
+	if c != nil && c.Request != nil && c.Request.URL != nil {
+		if _, err := url.ParseQuery(c.Request.URL.RawQuery); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", message)
+			return false
+		}
+	}
 	if err := c.ShouldBindQuery(target); err != nil {
 		httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", message)
 		return false

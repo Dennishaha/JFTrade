@@ -88,9 +88,6 @@ func (e *WorkflowExecutor) Run(ctx context.Context, req workflowRequest) (ChatRe
 	if mode == WorkModeChat {
 		return ChatResponse{}, fmt.Errorf("workflow mode is required")
 	}
-	if mode != WorkModeLoop {
-		return ChatResponse{}, fmt.Errorf("unsupported workflow mode %q", req.Mode)
-	}
 	objective := strings.TrimSpace(req.Objective)
 	if objective == "" {
 		objective = req.Message

@@ -88,7 +88,7 @@ func TestSubscriptionRegistryConcurrentAcquireHeartbeatAndRelease(t *testing.T) 
 	start := make(chan struct{})
 	var acquired sync.WaitGroup
 	acquired.Add(consumers)
-	for index := 0; index < consumers; index++ {
+	for index := range consumers {
 		consumerID := "chart-" + strconv.Itoa(index)
 		go func() {
 			defer acquired.Done()
@@ -108,7 +108,7 @@ func TestSubscriptionRegistryConcurrentAcquireHeartbeatAndRelease(t *testing.T) 
 	start = make(chan struct{})
 	var released sync.WaitGroup
 	released.Add(consumers)
-	for index := 0; index < consumers; index++ {
+	for index := range consumers {
 		consumerID := "chart-" + strconv.Itoa(index)
 		go func() {
 			defer released.Done()

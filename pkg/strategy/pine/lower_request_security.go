@@ -373,9 +373,6 @@ func maskPureRequestSecuritySourceHistory(expression string, timeUnit string, ad
 	result := rewriteOutsideStringLiterals(expression, func(segment string) string {
 		return historyReferencePattern.ReplaceAllStringFunc(segment, func(match string) string {
 			parts := historyReferencePattern.FindStringSubmatch(match)
-			if len(parts) != 3 {
-				return match
-			}
 			source, sourceOK := supportedRequestSecuritySource(parts[1])
 			lookback, err := strconv.Atoi(strings.TrimSpace(parts[2]))
 			if !sourceOK {

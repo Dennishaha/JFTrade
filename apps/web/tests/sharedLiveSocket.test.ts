@@ -306,4 +306,60 @@ describe("SharedLiveSocketHub", () => {
     expect(MockWebSocket.instances).toHaveLength(2);
     expect(hub.connectionState.value).toBe("disconnected");
   });
+
+  it("isolates stale socket failures, orders subscription targets, and reconnects a closed live channel", async () => {
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const hub = getSharedLiveSocketHub();
+    const firstSocket = hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+    await Promise.resolve();
+
+    (firstSocket as unknown as {
+      dispatchEvent: (type: string, event: MessageEvent<string>) => void;
+    }).dispatchEvent("message", { data: "{not valid json" } as MessageEvent<string>);
+    expect(hub.connectionState.value).toBe("error");
+
+    const currentSocket = hub.connect("ws://127.0.0.1:3001/api/v1/ws/live");
+    (firstSocket as unknown as MockWebSocket).emitError();
+    await Promise.resolve();
+    expect(hub.connectionState.value).toBe("connected");
+
+    hub.setSecurityDetailsTarget(hub.createOwnerId("detail"), {
+      market: "US",
+      symbol: "MSFT",
+      instrumentId: "US.MSFT",
+    });
+    hub.setSecurityDetailsTarget(hub.createOwnerId("detail"), {
+      market: "HK",
+      symbol: "00700",
+      instrumentId: "HK.00700",
+    });
+    hub.setDepthTarget(hub.createOwnerId("depth"), {
+      market: "US",
+      symbol: "MSFT",
+      instrumentId: "US.MSFT",
+      num: 5,
+    });
+    hub.setDepthTarget(hub.createOwnerId("depth"), {
+      market: "HK",
+      symbol: "00700",
+      instrumentId: "HK.00700",
+      num: 5,
+    });
+    expect(hub.snapshotSubscriptions()).toMatchObject({
+      securityDetails: [
+        { instrumentId: "HK.00700" },
+        { instrumentId: "US.MSFT" },
+      ],
+      depth: [
+        { instrumentId: "HK.00700" },
+        { instrumentId: "US.MSFT" },
+      ],
+    });
+
+    (currentSocket as unknown as MockWebSocket).close();
+    const reconnected = hub.reconnect();
+    expect(reconnected).not.toBeNull();
+    expect(MockWebSocket.instances).toHaveLength(3);
+  });
 });

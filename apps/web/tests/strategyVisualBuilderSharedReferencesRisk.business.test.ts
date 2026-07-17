@@ -170,14 +170,22 @@ describe("strategy visual builder shared/reference/risk boundaries", () => {
       operator: ">",
       threshold: 50,
     });
+    const audit = createNode("audit-log", "log", "审计", { message: "keep visible edges only" });
 
     const model: StrategyVisualModelDocument = {
       engine: "logic-flow",
       version: 1,
-      nodes: [fast, slow, rsi, movingAverageCondition, rsiCondition],
+      nodes: [fast, slow, rsi, movingAverageCondition, rsiCondition, audit],
       edges: [
         createEdge("edge-fast-existing", "fast-ma", "ma-condition", { role: "data", slot: "fast" }),
         createEdge("edge-rsi-fallback", "rsi-node", "ma-condition", { role: "data", slot: "primary" }),
+        createEdge("edge-audit-data", "fast-ma", "audit-log", { role: "data", slot: "primary" }),
+        {
+          type: "polyline",
+          sourceNodeId: "fast-ma",
+          targetNodeId: "rsi-condition",
+          properties: { role: "data", slot: "primary" },
+        },
         createEdge("edge-rsi-primary", "rsi-node", "rsi-condition", { role: "data", slot: "primary" }),
         createEdge("edge-control", "fast-ma", "rsi-condition"),
         { id: "edge-invalid", type: "polyline", sourceNodeId: "", targetNodeId: "rsi-condition" },
@@ -190,6 +198,11 @@ describe("strategy visual builder shared/reference/risk boundaries", () => {
     expect(suggestStrategyIndicatorVariableName({ indicatorType: "bollinger", period: 20, multiplier: 2 })).toBe("BOLL20x2");
     expect(suggestStrategyIndicatorVariableName({ indicatorType: "atr", period: 14 })).toBe("ATR14");
     expect(resolveStrategyIndicatorGetterLabel(rsi)).toContain("rsi_14");
+    expect(listStrategyIndicatorGetterOptions(model).map((option) => option.value)).toEqual([
+      "fast-ma",
+      "slow-ma",
+      "rsi-node",
+    ]);
     expect(listStrategyIndicatorGetterOptions(model, "movingAverage").map((option) => option.value)).toEqual(["fast-ma", "slow-ma"]);
     expect(listStrategyIndicatorGetterOptions(null)).toEqual([]);
     expect(readTechnicalIndicatorConditionInputBindings({

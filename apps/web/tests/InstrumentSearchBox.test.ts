@@ -236,4 +236,58 @@ describe("InstrumentSearchBox", () => {
     expect(document.body.textContent).toContain("未找到匹配标的");
     expect(document.body.textContent).toContain("重试");
   });
+
+  it("handles incomplete result filters, keyboard dismissal, pointer selection, and input passthrough events", async () => {
+    const incompleteResponse = {
+      requestedMarket: "",
+      query: "mixed",
+      resolutionStatus: "incomplete",
+      totalReturned: 2,
+      entries: [
+        candidate("SH", "600000", "Eqty"),
+        candidate("US", "AAPL", "Trust"),
+      ],
+      failures: [{ market: "HK", code: "00700", message: "连接超时" }],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(createResponse(incompleteResponse))
+        .mockResolvedValueOnce(createResponse(incompleteResponse)),
+    );
+    const wrapper = mountSearch();
+    const input = wrapper.get('[data-testid="search-input"]');
+    await input.setValue("mixed");
+    await wrapper.get('[data-testid="search-submit"]').trigger("click");
+    await flushPromises();
+    expect(document.body.textContent).toContain("部分市场查询失败");
+    expect(document.body.textContent).toContain("港股：连接超时");
+
+    await bodyGet('[data-filter-value="CN"]').trigger("click");
+    await bodyGet('[data-filter-value="TRUST"]').trigger("click");
+    expect(bodyGet(".instrument-search-box__empty").text()).toContain("当前筛选下暂无结果");
+    await input.trigger("keydown", { key: "ArrowDown" });
+    await input.trigger("keydown", { key: "ArrowUp" });
+    await input.trigger("keydown", { key: "Escape" });
+    expect(document.body.querySelector(".instrument-search-box__panel")).toBeNull();
+
+    await input.trigger("keydown", { key: "Enter" });
+    await flushPromises();
+    await bodyGet('[data-testid="instrument-search-market-filters"] button').trigger("click");
+    await bodyGet('[data-testid="instrument-search-type-filters"] button').trigger("click");
+    const usOption = bodyFindAll('[role="option"]').find((option) => option.text().includes("AAPL"))!;
+    await usOption.trigger("mouseenter");
+    await usOption.trigger("click");
+    expect(wrapper.emitted("select")?.at(-1)?.[0]).toMatchObject({ instrumentId: "US.AAPL" });
+
+    await input.setValue("");
+    await input.trigger("keydown", { key: "," });
+    await input.trigger("keydown", { key: "Tab" });
+    await input.trigger("keydown", { key: "Backspace" });
+    await input.trigger("paste");
+    await input.trigger("blur");
+    expect(wrapper.emitted("delimiter-keydown")).toHaveLength(3);
+    expect(wrapper.emitted("paste")).toHaveLength(1);
+    expect(wrapper.emitted("blur")).toHaveLength(1);
+  });
 });

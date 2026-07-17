@@ -33,16 +33,37 @@ var moduleThresholdOverrides = map[string]float64{
 	"internal/app/apiserver/servercore": 95.0,
 }
 
-var excludedScopes = []string{
-	"cmd",
-	"docs/swagger",
-	"scripts",
-	"internal/buildinfo",
-	"internal/frontendassets",
-	"internal/pineworkerassets",
-	"pkg/bbgo",
-	"pkg/futu/pb",
-	"pkg/strategy/pineworker/pineworkerpb",
+type exclusionCategory string
+
+const (
+	exclusionGenerated exclusionCategory = "generated"
+	exclusionVendored  exclusionCategory = "vendored"
+	exclusionTooling   exclusionCategory = "tooling"
+	exclusionDesktop   exclusionCategory = "desktop"
+)
+
+type exclusionRule struct {
+	scope    string
+	category exclusionCategory
+	reason   string
+}
+
+// exclusionRules intentionally name only code that is not owned backend
+// behavior. Product-owned internal packages and the API command are covered.
+// Keeping these rules explicit prevents a broad directory prefix from quietly
+// removing new production code from the coverage gate.
+var exclusionRules = []exclusionRule{
+	{scope: "docs/swagger", category: exclusionGenerated, reason: "generated Swagger document"},
+	{scope: "pkg/futu/pb", category: exclusionGenerated, reason: "generated Futu OpenD protobuf bindings"},
+	{scope: "pkg/strategy/pineworker/pineworkerpb", category: exclusionGenerated, reason: "generated Pine worker protobuf bindings"},
+	{scope: "pkg/bbgo", category: exclusionVendored, reason: "vendored upstream bbgo components"},
+	{scope: "cmd/check-go-coverage", category: exclusionTooling, reason: "coverage gate implementation"},
+	{scope: "cmd/generate-futu-proto", category: exclusionTooling, reason: "protobuf generator"},
+	{scope: "cmd/generate-pine-spec-docs", category: exclusionTooling, reason: "documentation generator"},
+	{scope: "cmd/generate-pineworker-proto", category: exclusionTooling, reason: "protobuf generator"},
+	{scope: "cmd/internal/protogen", category: exclusionTooling, reason: "protobuf generator support"},
+	{scope: "scripts", category: exclusionTooling, reason: "repository maintenance scripts"},
+	{scope: "cmd/jftrade-desktop", category: exclusionDesktop, reason: "desktop client delivery adapter"},
 }
 
 type coverageStats struct {
@@ -67,11 +88,17 @@ type scopeCoverage struct {
 	coverageStats
 }
 
+type excludedScopeCoverage struct {
+	rule exclusionRule
+	coverageStats
+}
+
 type coverageAnalysis struct {
 	raw      coverageStats
 	business coverageStats
 	critical []scopeCoverage
 	ordinary []scopeCoverage
+	excluded []excludedScopeCoverage
 }
 
 func analyzeProfiles(profiles []*cover.Profile) (coverageAnalysis, error) {
@@ -86,13 +113,18 @@ func analyzeProfiles(profiles []*cover.Profile) (coverageAnalysis, error) {
 		critical[index].scope = scope
 	}
 	ordinary := make(map[string]coverageStats)
-	analysis := coverageAnalysis{critical: critical}
+	excluded := make([]excludedScopeCoverage, len(exclusionRules))
+	for index, rule := range exclusionRules {
+		excluded[index].rule = rule
+	}
+	analysis := coverageAnalysis{critical: critical, excluded: excluded}
 
 	for _, profile := range profiles {
 		stats := profileCoverage(profile)
 		analysis.raw.add(stats)
 		fileName := normalizeProfilePath(profile.FileName)
-		if isExcluded(fileName) {
+		if index, excluded := exclusionIndex(fileName); excluded {
+			analysis.excluded[index].add(stats)
 			continue
 		}
 		analysis.business.add(stats)
@@ -139,13 +171,13 @@ func normalizeProfilePath(fileName string) string {
 	return strings.Trim(strings.ReplaceAll(fileName, "\\", "/"), "/")
 }
 
-func isExcluded(fileName string) bool {
-	for _, scope := range excludedScopes {
-		if containsScope(fileName, scope) {
-			return true
+func exclusionIndex(fileName string) (int, bool) {
+	for index, rule := range exclusionRules {
+		if containsScope(fileName, rule.scope) {
+			return index, true
 		}
 	}
-	return false
+	return 0, false
 }
 
 func containsScope(fileName, scope string) bool {
@@ -153,7 +185,7 @@ func containsScope(fileName, scope string) bool {
 }
 
 func packageScope(fileName string) (string, bool) {
-	for _, root := range []string{"internal", "pkg"} {
+	for _, root := range []string{"cmd", "internal", "pkg"} {
 		marker := "/" + root + "/"
 		if strings.HasPrefix(fileName, root+"/") {
 			return path.Dir(fileName), true
@@ -206,6 +238,21 @@ func printCoverageReport(writer io.Writer, analysis coverageAnalysis, cfg config
 		cfg.businessThreshold,
 	); err != nil {
 		return fmt.Errorf("write coverage summary: %w", err)
+	}
+	for _, scope := range analysis.excluded {
+		if scope.total == 0 {
+			continue
+		}
+		if _, err := fmt.Fprintf(writer, "Excluded Go coverage: %-10s %-42s %.2f%% (%d/%d) %s\n",
+			scope.rule.category,
+			scope.rule.scope,
+			scope.percentage(),
+			scope.covered,
+			scope.total,
+			scope.rule.reason,
+		); err != nil {
+			return fmt.Errorf("write excluded coverage: %w", err)
+		}
 	}
 	for _, scope := range analysis.critical {
 		if scope.total == 0 {

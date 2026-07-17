@@ -174,6 +174,16 @@ function createController() {
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
+
 afterEach(() => {
   mocks.scheduleMarketSnapshotBackgroundRefresh.mockReset();
   vi.useRealTimers();
@@ -483,5 +493,107 @@ describe("createMarketDataQueryController", () => {
     });
     expect(state.lastDataRefreshedAt.value).toBe(1783081800000);
     expect(mocks.scheduleMarketSnapshotBackgroundRefresh).toHaveBeenCalledTimes(3);
+  });
+
+  it("ignores invalid selections and prevents an old rejected request from overwriting a newer symbol", async () => {
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataQueryLimit.value = 2;
+
+    controller.selectInstrument({ market: " ", symbol: " ", period: "5m" });
+    expect(state.marketDataQueryMarket.value).toBe("US");
+    expect(state.marketDataQueryPeriod.value).toBe("1m");
+
+    const snapshot = createDeferred<MarketDataSnapshotQueryResult>();
+    const security = createDeferred<MarketSecurityDetailsQueryResult>();
+    const candles = createDeferred<MarketDataCandlesQueryResult>();
+    fetchEnvelope
+      .mockReturnValueOnce(snapshot.promise)
+      .mockReturnValueOnce(security.promise)
+      .mockReturnValueOnce(candles.promise);
+
+    const oldRequest = controller.loadQuery();
+    controller.selectInstrument({ market: "HK", symbol: "00700", period: "1m" });
+    snapshot.reject(new Error("old US snapshot failed"));
+    security.resolve(createSecurityDetailsResult("US", "AAPL"));
+    candles.resolve(createCandlesResult("US", "AAPL", "1m", []));
+    await oldRequest;
+
+    expect(state.activeMarketDataInstrumentId.value).toBe("HK.00700");
+    expect(state.marketDataSnapshot.value).toBeNull();
+    expect(state.marketDataQueryError.value).toBe("");
+  });
+
+  it("keeps refresh timers single-flight and discards background data after a query target changes", async () => {
+    vi.useFakeTimers();
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataQueryLimit.value = 2;
+    state.activeMarketDataInstrumentId.value = "US.AAPL";
+    state.marketDataCandles.value = createCandlesResult("US", "AAPL", "1m", []);
+
+    fetchEnvelope
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 200))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
+      .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1m", []))
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 201))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
+      .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1m", []));
+
+    await controller.loadQuery();
+    await controller.loadQuery({ preserveExisting: true });
+    expect(fetchEnvelope).toHaveBeenCalledTimes(6);
+
+    state.activeMarketDataInstrumentId.value = "HK.00700";
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetchEnvelope).toHaveBeenCalledTimes(6);
+
+    const backgroundSnapshot = createDeferred<MarketDataSnapshotQueryResult>();
+    const backgroundSecurity = createDeferred<MarketSecurityDetailsQueryResult>();
+    fetchEnvelope
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 202))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
+      .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1m", []))
+      .mockReturnValueOnce(backgroundSnapshot.promise)
+      .mockReturnValueOnce(backgroundSecurity.promise);
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.activeMarketDataInstrumentId.value = "US.AAPL";
+    await controller.loadQuery();
+    vi.advanceTimersByTime(1000);
+    await Promise.resolve();
+
+    state.activeMarketDataInstrumentId.value = "HK.00700";
+    backgroundSnapshot.resolve(createSnapshotResult("US", "AAPL", 999));
+    backgroundSecurity.resolve(createSecurityDetailsResult("US", "AAPL"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(state.marketDataSnapshot.value?.snapshot?.price).not.toBe(999);
+    expect(state.activeMarketDataInstrumentId.value).toBe("HK.00700");
+  });
+
+  it("does not surface a synchronous setup failure after the user has already switched instruments", async () => {
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataQueryLimit.value = 2;
+
+    fetchEnvelope.mockImplementation(() => {
+      controller.selectInstrument({ market: "HK", symbol: "00700", period: "5m" });
+      throw new Error("obsolete request setup failed");
+    });
+
+    await controller.loadQuery();
+
+    expect(state.activeMarketDataInstrumentId.value).toBe("HK.00700");
+    expect(state.marketDataQueryError.value).toBe("");
+    expect(state.isLoadingMarketDataQuery.value).toBe(false);
   });
 });

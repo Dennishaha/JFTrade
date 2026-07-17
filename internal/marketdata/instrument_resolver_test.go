@@ -311,6 +311,33 @@ func TestMarketSubsetInstrumentResolverCachesAndCoalescesNormalizedKeyword(t *te
 	}
 }
 
+func TestMarketSubsetInstrumentResolverRechecksCacheInsideSingleflightWork(t *testing.T) {
+	var providerCalls atomic.Int32
+	resolver := NewMarketSubsetInstrumentResolver(&resolverProviderStub{
+		search: func(context.Context, string, int) ([]InstrumentCandidate, error) {
+			providerCalls.Add(1)
+			return nil, errors.New("provider should not be called after cache refill")
+		},
+	})
+	now := time.Now()
+	resolver.now = func() time.Time { return now }
+	entries := []InstrumentCandidate{resolverCandidate("US", "AAPL", "Apple")}
+	resolver.cacheMu.Lock()
+	resolver.searchCache["APPLE"] = cachedInstrumentSearch{
+		expiresAt: now.Add(instrumentSearchCacheTTL),
+		entries:   entries,
+	}
+	resolver.cacheMu.Unlock()
+
+	got, err := resolver.loadAndCacheSearch(t.Context(), "APPLE", " apple ")
+	if err != nil {
+		t.Fatalf("loadAndCacheSearch() error = %v", err)
+	}
+	if providerCalls.Load() != 0 || len(got) != 1 || got[0].InstrumentID != entries[0].InstrumentID {
+		t.Fatalf("loadAndCacheSearch() entries=%+v providerCalls=%d", got, providerCalls.Load())
+	}
+}
+
 func TestMarketSubsetInstrumentResolverDoesNotCacheSearchErrors(t *testing.T) {
 	var calls int
 	wantErr := errors.New("OpenD search failed")

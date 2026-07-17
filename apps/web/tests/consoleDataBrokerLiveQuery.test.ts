@@ -736,4 +736,63 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
     expect(failing.state.isLoadingBrokerFills.value).toBe(false);
     expect(failing.state.isLoadingBrokerMarginRatios.value).toBe(false);
   });
+
+  it("keeps newer quantity and history results when stale requests fail later", async () => {
+    const { controller, state } = createController();
+    const staleQuantity = deferred<BrokerMaxTradeQuantityResponse>();
+    const freshQuantity = deferred<BrokerMaxTradeQuantityResponse>();
+    mocks.fetchEnvelope
+      .mockReturnValueOnce(staleQuantity.promise)
+      .mockReturnValueOnce(freshQuantity.promise);
+    const staleQuantityLoad = controller.loadBrokerMaxTradeQuantity({
+      brokerId: "futu", tradingEnvironment: "REAL", accountId: "ACC-1",
+      market: "HK", symbol: "00700", orderType: "LIMIT", price: 480,
+    });
+    const freshQuantityLoad = controller.loadBrokerMaxTradeQuantity({
+      brokerId: "futu", tradingEnvironment: "REAL", accountId: "ACC-1",
+      market: "HK", symbol: "00700", orderType: "LIMIT", price: 481,
+    });
+    freshQuantity.resolve(createMaxTradeQuantity());
+    await freshQuantityLoad;
+    staleQuantity.reject(new Error("stale quantity failure"));
+    await staleQuantityLoad;
+    expect(state.brokerMaxTradeQuantity.value.connectivity).toBe("connected");
+
+    const staleHistory = deferred<ExecutionOrdersResponse>();
+    const freshHistory = deferred<ExecutionOrdersResponse>();
+    mocks.fetchEnvelope.mockReset();
+    mocks.fetchEnvelope
+      .mockReturnValueOnce(staleHistory.promise)
+      .mockReturnValueOnce(freshHistory.promise);
+    const staleHistoryLoad = controller.loadHistoricalExecutionOrders({ brokerId: "futu", brokerQuery: "market=US" });
+    const freshHistoryLoad = controller.loadHistoricalExecutionOrders({ brokerId: "futu", brokerQuery: "market=HK" });
+    freshHistory.resolve(createExecutionOrders("fresh-history", "HK.00700"));
+    await freshHistoryLoad;
+    staleHistory.reject(new Error("stale history failure"));
+    await staleHistoryLoad;
+    expect(state.historicalExecutionOrders.value.orders[0]?.internalOrderId).toBe("fresh-history");
+    expect(state.historicalOrdersError.value).toBe("");
+  });
+
+  it("skips undated cash-flow reads and clears the loading state when primary data fails", async () => {
+    const { controller, state } = createController();
+    mocks.fetchEnvelope.mockImplementation(async (url: string) =>
+      url.includes("/funds") ? createFunds({ checkedAt: "" }) :
+        url.includes("/positions") ? createPositions([]) :
+          url.includes("/orders") ? createBrokerOrders() :
+            url.includes("/execution/orders") ? createExecutionOrders("no-date") : undefined,
+    );
+    await controller.loadBrokerLiveData({
+      brokerId: "futu", brokerQuery: "market=US", futuBrokerReadsPaused: false,
+    });
+    expect(requestedUrls().some((url) => url.includes("/cash-flows"))).toBe(false);
+    mocks.fetchEnvelope.mockImplementation(async (url: string) => {
+      if (url.includes("/funds")) throw new Error("broker offline");
+      return url.includes("/execution/orders") ? createExecutionOrders("offline") : undefined;
+    });
+    await controller.loadBrokerLiveData({
+      brokerId: "futu", brokerQuery: "market=US", futuBrokerReadsPaused: false,
+    });
+    expect(state.isLoadingBrokerOrders.value).toBe(false);
+  });
 });

@@ -50,6 +50,8 @@ func TestUnavailableServiceExercisesAllRouteErrorBranches(t *testing.T) {
 		{http.MethodGet, "/api/v1/watchlist/sources", "", http.StatusServiceUnavailable},
 		{http.MethodGet, "/api/v1/watchlist/sources/missing/groups", "", http.StatusServiceUnavailable},
 		{http.MethodGet, "/api/v1/watchlist/bindings", "", http.StatusServiceUnavailable},
+		{http.MethodDelete, "/api/v1/watchlist/bindings?bindingId=binding-1", "", http.StatusServiceUnavailable},
+		{http.MethodPost, "/api/v1/watchlist/quotes/batch", `{"instrumentIds":["US.AAPL"]}`, http.StatusServiceUnavailable},
 		{http.MethodPost, "/api/v1/watchlist/imports/preview", `{"sourceId":"missing","remoteGroupId":"group"}`, http.StatusServiceUnavailable},
 		{http.MethodPost, "/api/v1/watchlist/imports/preview-1/commit", `{}`, http.StatusServiceUnavailable},
 		{http.MethodGet, "/api/v1/watchlist/import-runs", "", http.StatusServiceUnavailable},
@@ -76,5 +78,35 @@ func TestInvalidListLimitReturns400(t *testing.T) {
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestWatchlistRoutesRejectMissingURIValuesBeforeExecutingBusinessOperations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	// Route matching normally supplies these parameters. Clearing them in a
+	// middleware models a malformed route hand-off and verifies that each
+	// state-changing/read handler rejects the request before it reaches the
+	// watchlist service.
+	router.Use(func(context *gin.Context) { context.Params = nil })
+	RegisterRoutes(router.Group("/api/v1"), nil)
+
+	for _, test := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPatch, "/api/v1/watchlist/groups/group-1"},
+		{http.MethodDelete, "/api/v1/watchlist/groups/group-1"},
+		{http.MethodGet, "/api/v1/watchlist/instruments/US/AAPL/memberships"},
+		{http.MethodPut, "/api/v1/watchlist/instruments/US/AAPL/memberships"},
+		{http.MethodGet, "/api/v1/watchlist/sources/futu:default/groups"},
+		{http.MethodPost, "/api/v1/watchlist/imports/preview-1/commit"},
+	} {
+		request := httptest.NewRequest(test.method, test.path, nil)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest {
+			t.Errorf("%s %s status=%d body=%s", test.method, test.path, response.Code, response.Body.String())
+		}
 	}
 }

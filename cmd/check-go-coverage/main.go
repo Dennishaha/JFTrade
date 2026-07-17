@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	defaultBusinessThreshold = 90.0
+	defaultBusinessThreshold = 98.0
 	defaultCriticalThreshold = 95.0
-	defaultModuleThreshold   = 85.0
+	defaultModuleThreshold   = 95.0
 	defaultTestTimeout       = 300 * time.Second
 )
 
@@ -29,6 +29,8 @@ type config struct {
 
 type packageList []string
 
+type coverageCheckFunc func(config, string, io.Writer, io.Writer, goRunner) ([]string, error)
+
 func (p *packageList) String() string {
 	return fmt.Sprint([]string(*p))
 }
@@ -42,11 +44,27 @@ func (p *packageList) Set(value string) error {
 	return nil
 }
 
+var (
+	exitProcess    = os.Exit
+	runCoverageCLI = runCLI
+)
+
 func main() {
-	os.Exit(runCLI(os.Args[1:], os.Stdout, os.Stderr))
+	exitProcess(runCoverageCLI(os.Args[1:], os.Stdout, os.Stderr))
 }
 
 func runCLI(args []string, stdout, stderr io.Writer) int {
+	return runCLIWith(args, stdout, stderr, os.Getwd, executeCoverageCheck, execGoRunner{})
+}
+
+func runCLIWith(
+	args []string,
+	stdout io.Writer,
+	stderr io.Writer,
+	getwd func() (string, error),
+	execute coverageCheckFunc,
+	runner goRunner,
+) int {
 	cfg, err := parseConfig(args, stderr)
 	if errors.Is(err, flag.ErrHelp) {
 		return 0
@@ -55,12 +73,12 @@ func runCLI(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	workDir, err := os.Getwd()
+	workDir, err := getwd()
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "get working directory: %v\n", err)
 		return 1
 	}
-	violations, err := executeCoverageCheck(cfg, workDir, stdout, stderr, execGoRunner{})
+	violations, err := execute(cfg, workDir, stdout, stderr, runner)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1

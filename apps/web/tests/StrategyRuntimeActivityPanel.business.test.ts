@@ -182,4 +182,39 @@ describe("StrategyRuntimeActivityPanel", () => {
     expect(detail.text()).toContain("instanceId: instance-1");
     expect(detail.text()).toContain("detail: risk rejected oversized order");
   });
+
+  it("filters informational audit lifecycle entries without losing untimestamped events", async () => {
+    const wrapper = mountPanel({
+      strategyAuditEntries: [
+        {
+          instanceId: "instance-2",
+          kind: "created",
+          detail: "instance accepted",
+          at: "",
+        },
+        {
+          instanceId: "instance-2",
+          kind: "running",
+          detail: "first bar processed",
+          at: "2026-07-03T02:00:00.000Z",
+        },
+        {
+          instanceId: "instance-2",
+          kind: "risk_monitor",
+          detail: "exposure monitored",
+          at: "2026-07-03T03:00:00.000Z",
+        },
+      ],
+    });
+
+    await wrapper.get('[data-testid="strategy-activity-tab-audit"]').trigger("click");
+    await wrapper.get('[data-testid="strategy-activity-filter-info"]').trigger("click");
+
+    const entries = wrapper.findAll('[data-testid^="strategy-audit-entry-"]');
+    expect(entries).toHaveLength(3);
+    expect(entries[0]?.text()).toContain("风控观察");
+    expect(entries[1]?.text()).toContain("运行中");
+    expect(entries[2]?.text()).toContain("已创建");
+    expect(entries[2]?.text()).toContain("暂无");
+  });
 });

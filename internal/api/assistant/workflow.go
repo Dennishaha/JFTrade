@@ -16,7 +16,7 @@ import (
 
 func (h *Handler) handleADKWorkflows(c *gin.Context) {
 	var query adkWorkflowsQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := bindADKQuery(c, &query); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid workflows query")
 		return
 	}
@@ -177,7 +177,7 @@ func (h *Handler) handleADKRunWorkflowTrigger(c *gin.Context) {
 
 func (h *Handler) handleADKWorkflowTriggerLogs(c *gin.Context) {
 	var query adkWorkflowTriggerLogsQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := bindADKQuery(c, &query); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid workflow trigger logs query")
 		return
 	}

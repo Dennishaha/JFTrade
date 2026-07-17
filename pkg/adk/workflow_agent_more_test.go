@@ -236,6 +236,17 @@ func TestGoogleADKWorkflowHelperCoverageBranches(t *testing.T) {
 			t.Fatalf("googleADKWorkflowRunNode err = %v, want runner failed", err)
 		}
 
+		// A client may disconnect while the workflow adapter is forwarding an
+		// event. Propagate that write failure so the caller can stop the run
+		// rather than continuing with an invisible node result.
+		sinkErr := errors.New("workflow event sink disconnected")
+		emittingRunner := &googleADKWorkflowNodeRunnerErrorDouble{
+			events: []*adksession.Event{adksession.NewEvent(context.Background(), "node-emits")},
+		}
+		if _, err := googleADKWorkflowRunNode(emittingRunner, testCtx, "input", false, func(*adksession.Event) error { return sinkErr }); !errors.Is(err, sinkErr) {
+			t.Fatalf("googleADKWorkflowRunNode sink error = %v, want %v", err, sinkErr)
+		}
+
 		nilEventAgent, err := adkagent.New(adkagent.Config{
 			Name: "workflow_generic_nil",
 			Run: func(adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
@@ -264,6 +275,21 @@ func TestGoogleADKWorkflowHelperCoverageBranches(t *testing.T) {
 		}
 		if _, err := googleADKWorkflowRunGenericAgent(errorAgent, testCtx, "input", false, func(*adksession.Event) error { return nil }); err == nil || err.Error() != "generic failed" {
 			t.Fatalf("googleADKWorkflowRunGenericAgent err = %v, want generic failed", err)
+		}
+
+		emittingAgent, err := adkagent.New(adkagent.Config{
+			Name: "workflow_generic_sink_error",
+			Run: func(adkagent.InvocationContext) iter.Seq2[*adksession.Event, error] {
+				return func(yield func(*adksession.Event, error) bool) {
+					yield(adksession.NewEvent(context.Background(), "generic-emits"), nil)
+				}
+			},
+		})
+		if err != nil {
+			t.Fatalf("agent.New emitting generic: %v", err)
+		}
+		if _, err := googleADKWorkflowRunGenericAgent(emittingAgent, testCtx, "input", false, func(*adksession.Event) error { return sinkErr }); !errors.Is(err, sinkErr) {
+			t.Fatalf("googleADKWorkflowRunGenericAgent sink error = %v, want %v", err, sinkErr)
 		}
 	})
 

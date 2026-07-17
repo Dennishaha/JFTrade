@@ -12,7 +12,7 @@ import (
 
 func (h *Handler) handleADKAudit(c *gin.Context) {
 	var query adkAuditQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := bindADKQuery(c, &query); err != nil {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid audit query")
 		return
 	}
@@ -23,10 +23,7 @@ func (h *Handler) handleADKAudit(c *gin.Context) {
 		h.writeError(c, http.StatusInternalServerError, "ADK_AUDIT_LIST_FAILED", err.Error())
 		return
 	}
-	var pageQuery adkPageQuery
-	jftradeErr2 := c.ShouldBindQuery(&pageQuery)
-	jftradeLogError(jftradeErr2)
-	limit, offset := adkPageBounds(pageQuery)
+	limit, offset := adkPageBounds(adkPageQuery{Limit: query.Limit, Offset: query.Offset})
 	total := len(events)
 	if offset > total {
 		offset = total
@@ -54,8 +51,10 @@ func (h *Handler) handleADKOptimizationTasks(c *gin.Context) {
 		return
 	}
 	var pageQuery adkPageQuery
-	jftradeErr1 := c.ShouldBindQuery(&pageQuery)
-	jftradeLogError(jftradeErr1)
+	if err := bindADKQuery(c, &pageQuery); err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid optimization tasks query")
+		return
+	}
 	limit, offset := adkPageBounds(pageQuery)
 	tasks := result.Tasks
 	total := len(tasks)

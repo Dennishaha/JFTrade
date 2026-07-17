@@ -670,4 +670,84 @@ describe("useADKWorkflowQueueState", () => {
         .map((entry) => entry.childRunItem?.id),
     ).toEqual(["child-older", "child-newer"]);
   });
+
+  it("reconciles stale child selection, session visibility, and projected tool expansion", async () => {
+    const selectedSessionId = ref("session-1");
+    const timelineEntries = ref([
+      buildTimelineEntry({
+        id: "mixed-tools",
+        kind: "tool_group",
+        sequence: 1,
+        runId: "run-parent",
+        toolCalls: [
+          buildToolCall({ id: "tool-parent", runId: "run-parent" }),
+          buildToolCall({ id: "tool-child", runId: "child-a" }),
+        ],
+      }),
+    ]);
+    timelineEntries.value[0]!.expandedToolCallIds = [
+      "tool-parent",
+      "tool-child",
+    ];
+    const state = useADKWorkflowQueueState({
+      timelineEntries,
+      selectedSessionId,
+    });
+    mocks.fetchEnvelope.mockImplementation(async (url: string) =>
+      buildRun({
+        id: url.endsWith("child-b") ? "child-b" : "child-a",
+        parentRunId: "run-parent",
+        status: "RUNNING",
+      }),
+    );
+
+    await state.syncWorkflowRun(
+      buildRun({
+        id: "run-parent",
+        workMode: "loop",
+        childRunIds: ["child-a"],
+        workflowPlan: [
+          buildWorkflowStep({
+            title: "旧子任务",
+            status: "TODO",
+            childRunId: "child-a",
+          }),
+        ],
+      }),
+    );
+    state.setActiveChildRunId("child-a");
+    expect(state.activeChildRunId.value).toBe("child-a");
+    expect(
+      state.parentTimelineEntries.value.find((entry) => entry.id === "mixed-tools")
+        ?.expandedToolCallIds,
+    ).toEqual(["tool-parent"]);
+
+    await state.syncWorkflowRun(
+      buildRun({
+        id: "run-parent",
+        workMode: "loop",
+        status: "COMPLETED",
+        workflowStatus: "COMPLETED",
+        childRunIds: ["child-b"],
+        workflowPlan: [
+          buildWorkflowStep({
+            title: "新子任务",
+            status: "TODO",
+            childRunId: "child-b",
+          }),
+        ],
+      }),
+    );
+
+    expect(state.activeChildRunId.value).toBe("");
+    expect(state.childTimelineEntries.value).toBe(timelineEntries.value);
+    expect(state.parentChildRunItems.value[0]).toMatchObject({
+      id: "child-b",
+      status: "COMPLETED",
+    });
+
+    selectedSessionId.value = "another-session";
+    expect(state.parentWorkflowPlanRun.value).toBeNull();
+    expect(workflowQueueTone("QUEUED_EXTERNALLY")).toBe("muted");
+  });
 });

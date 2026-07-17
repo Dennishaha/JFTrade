@@ -29,6 +29,8 @@ func (s *fakeDesignStore) DeleteDefinition(id string) (Definition, error) {
 type fakeCatalogStore struct {
 	closed         bool
 	startableErr   error
+	instanceFound  *bool
+	transitionErr  error
 	pluginCatalog  PluginCatalog
 	pluginOp       PluginOperation
 	pluginOpFound  bool
@@ -40,6 +42,9 @@ func (s *fakeCatalogStore) ListInstances() []InstanceView {
 	return []InstanceView{{ID: "instance-a"}}
 }
 func (s *fakeCatalogStore) GetInstance(id string) (ManagedInstance, bool) {
+	if s.instanceFound != nil && !*s.instanceFound {
+		return ManagedInstance{}, false
+	}
 	return ManagedInstance{ID: id}, true
 }
 func (s *fakeCatalogStore) ValidateStartable(instance ManagedInstance) error {
@@ -58,6 +63,9 @@ func (s *fakeCatalogStore) DeleteInstance(id string) (InstanceView, error) {
 	return InstanceView{ID: id}, nil
 }
 func (s *fakeCatalogStore) TransitionInstance(id string, status string) (InstanceView, error) {
+	if s.transitionErr != nil {
+		return InstanceView{}, s.transitionErr
+	}
 	return InstanceView{ID: id, Status: status}, nil
 }
 func (s *fakeCatalogStore) RefreshDefinition(id string, def Definition) (InstanceView, error) {
@@ -209,6 +217,25 @@ func TestServiceStartInstanceMapsPineWorkerCapacityToBusyError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "运行实例 Worker 最大值") {
 		t.Fatalf("StartInstance() error = %q, want settings guidance", err.Error())
+	}
+}
+
+func TestServiceStartInstancePreservesLookupRuntimeAndTransitionFailures(t *testing.T) {
+	notFound := false
+	if _, err := NewService(&fakeDesignStore{}, &fakeCatalogStore{instanceFound: &notFound}, &fakeRuntimeManager{}).StartInstance(t.Context(), "missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing StartInstance error = %v, want ErrNotFound", err)
+	}
+
+	runtimeFailure := errors.New("runtime unavailable")
+	runtime := &fakeRuntimeManager{startErr: runtimeFailure}
+	if _, err := NewService(&fakeDesignStore{}, &fakeCatalogStore{}, runtime).StartInstance(t.Context(), "instance-a"); !errors.Is(err, runtimeFailure) || runtime.stopped != "" {
+		t.Fatalf("runtime StartInstance error=%v stopped=%q", err, runtime.stopped)
+	}
+
+	transitionFailure := errors.New("state persistence failed")
+	runtime = &fakeRuntimeManager{}
+	if _, err := NewService(&fakeDesignStore{}, &fakeCatalogStore{transitionErr: transitionFailure}, runtime).StartInstance(t.Context(), "instance-a"); !errors.Is(err, transitionFailure) || runtime.stopped != "instance-a" {
+		t.Fatalf("transition StartInstance error=%v stopped=%q", err, runtime.stopped)
 	}
 }
 

@@ -457,9 +457,6 @@ func (s *parseState) nextObjectHistoryMethodCall(expression string) (int, string
 	bestClose := -1
 	bestOpen := -1
 	for _, match := range objectHistoryMethodPattern.FindAllStringSubmatchIndex(expression, -1) {
-		if len(match) < 8 {
-			continue
-		}
 		target := strings.TrimSpace(expression[match[2]:match[3]])
 		typeName := s.objectTypes[strings.ToLower(target)]
 		if typeName == "" {
@@ -597,9 +594,6 @@ func (s *parseState) nextObjectMethodCall(expression string) (int, string, []str
 	bestClose := -1
 	bestOpen := -1
 	for _, match := range objectCallPattern.FindAllStringSubmatchIndex(expression, -1) {
-		if len(match) < 6 {
-			continue
-		}
 		target := strings.TrimSpace(expression[match[2]:match[3]])
 		typeName := s.objectTypes[strings.ToLower(target)]
 		if typeName == "" {

@@ -4,7 +4,12 @@ import type {
   MarketDataCandlesQueryResult,
   MarketDataTickLiveEvent,
 } from "../src/composables/marketDataRealtime";
-import { createMarketDataRealtimeController } from "../src/composables/marketDataRealtime";
+import {
+  createMarketDataRealtimeController,
+  normalizeMarketDataCandlesQueryResult,
+  normalizeMarketDataSnapshotQueryResult,
+  normalizeMarketDataTickLiveEvent,
+} from "../src/composables/marketDataRealtime";
 
 function buildTickEvent(
   overrides: Partial<MarketDataTickLiveEvent> = {},
@@ -65,6 +70,38 @@ function buildCandles(
 }
 
 describe("marketDataRealtime", () => {
+  it("normalizes numeric upstream payloads without inventing values for invalid fields", () => {
+    const snapshot = normalizeMarketDataSnapshotQueryResult({
+      request: { market: "US", symbol: "AAPL", instrumentId: "US.AAPL" },
+      snapshot: {
+        price: " 201.5 ",
+        bid: "",
+        ask: "not-a-number",
+        volume: "1500",
+        extended: {
+          preMarket: { price: "199.25", volume: "12" },
+          afterMarket: null,
+          overnight: "invalid",
+        },
+      } as never,
+    });
+    const candles = normalizeMarketDataCandlesQueryResult({
+      ...buildCandles("1m", []),
+      candles: [
+        { period: "1m", at: "2026-07-16T00:00:00Z", open: "200", high: "201.5", low: "199.5", close: "201", volume: "50" },
+        null as never,
+        { period: "1m", at: "2026-07-16T00:01:00Z", open: "bad", high: 202, low: 200, close: 201, volume: Number.POSITIVE_INFINITY },
+      ],
+    });
+
+    expect(snapshot.snapshot).toMatchObject({ price: 201.5, bid: "", ask: "not-a-number", volume: 1500 });
+    expect(snapshot.snapshot?.extended?.preMarket).toMatchObject({ price: 199.25, volume: 12 });
+    expect(snapshot.snapshot?.extended?.overnight).toBeNull();
+    expect(candles.candles).toHaveLength(2);
+    expect(candles.candles[0]).toMatchObject({ open: 200, high: 201.5, low: 199.5, close: 201, volume: 50 });
+    expect(candles.candles[1]).toMatchObject({ open: "bad", high: 202, volume: Number.POSITIVE_INFINITY });
+  });
+
   it("ignores invalid or foreign tick events", () => {
     const controller = createMarketDataRealtimeController();
 
@@ -91,6 +128,42 @@ describe("marketDataRealtime", () => {
         candles: null,
         period: "1m",
         limit: 50,
+      }),
+    ).toBeNull();
+  });
+
+  it("retains nullable fields and rejects tick envelopes without a usable snapshot", () => {
+    const normalized = normalizeMarketDataSnapshotQueryResult({
+      request: { market: "US", symbol: "AAPL", instrumentId: "US.AAPL" },
+      snapshot: {
+        price: 201.5,
+        bid: 201.4,
+        ask: 201.6,
+        volume: 1_500,
+        turnover: 300_000,
+        at: "2026-07-03T12:00:30.000Z",
+        barOpen: null,
+        barHigh: false as never,
+      },
+      meta: {
+        instrumentId: "US.AAPL",
+        source: "test",
+        resolvedAt: "2026-07-03T12:00:30.000Z",
+        fromCache: false,
+      },
+    });
+    expect(normalized.snapshot).toMatchObject({ barOpen: null, barHigh: false });
+
+    expect(
+      normalizeMarketDataSnapshotQueryResult({
+        ...normalized,
+        snapshot: null,
+      }).snapshot,
+    ).toBeNull();
+    expect(
+      normalizeMarketDataTickLiveEvent({
+        ...buildTickEvent(),
+        snapshot: null,
       }),
     ).toBeNull();
   });

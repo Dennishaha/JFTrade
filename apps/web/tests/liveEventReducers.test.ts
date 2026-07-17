@@ -272,4 +272,27 @@ describe("live event reducers", () => {
     );
     expect(formatLiveEventTypeLabel("custom.event")).toBe("custom.event");
   });
+
+  it("labels every visible event family and rejects malformed backtest stream messages", () => {
+    expect(formatLiveEventTypeLabel("market-data.tick")).toBe("行情推送");
+    expect(formatLiveEventTypeLabel("system.notification")).toBe("系统通知");
+    expect(formatLiveEventTypeLabel("console.refresh")).toBe("控制台刷新");
+    expect(formatLiveEventTypeLabel("market.security-details")).toBe("证券详情");
+    expect(formatLiveEventTypeLabel("market.depth")).toBe("盘口");
+
+    const applyProgress = vi.fn();
+    const reducer = createBacktestLiveReducer({
+      activeTaskId: () => "sync-1",
+      applyProgress,
+    });
+    expect(reducer.handle({
+      eventId: "malformed-backtest-event",
+      type: "backtest.kline-sync.progress",
+      source: "backtest",
+      entityId: "sync-1",
+      serverTime: "2026-07-16T00:00:00Z",
+      payload: null,
+    })).toBe(false);
+    expect(applyProgress).not.toHaveBeenCalled();
+  });
 });

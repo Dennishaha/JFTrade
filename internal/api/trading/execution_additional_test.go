@@ -234,3 +234,49 @@ func TestExecutionHandlersRejectMissingInternalOrderIDAndTrimWhitespace(t *testi
 		}
 	})
 }
+
+func TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name    string
+		service *srv.Service
+		status  int
+		code    string
+	}{
+		{
+			name: "missing order is distinct from a failed lookup",
+			service: srv.NewService(srv.WithListOrders(func(context.Context, srv.ExecutionOrderFilter) (srv.ExecutionOrders, error) {
+				return srv.ExecutionOrders{}, nil
+			})),
+			status: http.StatusNotFound,
+			code:   "ORDER_NOT_FOUND",
+		},
+		{
+			name: "order store failure is internal error",
+			service: srv.NewService(srv.WithListOrders(func(context.Context, srv.ExecutionOrderFilter) (srv.ExecutionOrders, error) {
+				return srv.ExecutionOrders{}, context.DeadlineExceeded
+			})),
+			status: http.StatusInternalServerError,
+			code:   "GET_ORDER_FAILED",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := gin.New()
+			RegisterExecutionRoutes(router.Group("/api/v1"), test.service)
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/execution/orders/order-1", nil))
+			if recorder.Code != test.status || !strings.Contains(recorder.Body.String(), test.code) {
+				t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/execution/orders//", nil)
+	handleExecutionOrderDetails(srv.NewService())(ctx)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("missing internal order id status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+}

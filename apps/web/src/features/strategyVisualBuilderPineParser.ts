@@ -168,6 +168,7 @@ function parseBlock(
       return;
     }
     if (isElseLine(entry.trimmed)) {
+      state.error = `第 ${entry.lineNumber} 行无法同步为流程图：缺少对应的 if 条件`;
       return;
     }
 

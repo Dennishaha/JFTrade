@@ -90,6 +90,85 @@ func TestStoreDataAdditionalCoverageBranches(t *testing.T) {
 			t.Fatalf("SaveMemory agent lookup err = %v, want %s failure", err, tableAgents)
 		}
 	})
+
+	t.Run("task patches validate status and normalize child execution metadata", func(t *testing.T) {
+		store := newBusinessStore(t)
+		task, err := store.SaveTask(ctx, TaskWriteRequest{ID: "coverage-task-patch", Title: "Patch child execution"})
+		if err != nil {
+			t.Fatalf("SaveTask: %v", err)
+		}
+		invalidStatus := "waiting-for-human"
+		if _, err := store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: &invalidStatus}); err == nil || !strings.Contains(err.Error(), "invalid task status") {
+			t.Fatalf("invalid task status error = %v", err)
+		}
+		childAgent := " child-reviewer "
+		childMode := " approval "
+		updated, err := store.UpdateTask(ctx, task.ID, TaskPatchRequest{
+			ChildAgentID:        &childAgent,
+			ChildPermissionMode: &childMode,
+		})
+		if err != nil || updated.ChildAgentID != "child-reviewer" || updated.ChildPermissionMode != "approval" {
+			t.Fatalf("normalized child task metadata = %+v/%v", updated, err)
+		}
+	})
+
+	t.Run("approval resolution and terminal denial surface conditional write failures", func(t *testing.T) {
+		store := newBusinessStore(t)
+		approval := Approval{ID: "coverage-approval-update", RunID: "coverage-run", AgentID: "agent", Status: ApprovalStatusPending, CreatedAt: nowString(), UpdatedAt: nowString()}
+		if err := store.SaveApproval(ctx, approval); err != nil {
+			t.Fatalf("SaveApproval: %v", err)
+		}
+		if _, err := store.db.ExecContext(ctx, `CREATE TRIGGER coverage98_reject_approval_resolution BEFORE UPDATE ON `+tableApprovals+` WHEN NEW.id = '`+approval.ID+`' BEGIN SELECT RAISE(FAIL, 'approval resolution write rejected'); END`); err != nil {
+			t.Fatalf("create approval update trigger: %v", err)
+		}
+		if _, _, err := store.ResolvePendingApproval(ctx, approval.ID, ApprovalStatusApproved); err == nil || !strings.Contains(err.Error(), "approval resolution write rejected") {
+			t.Fatalf("ResolvePendingApproval write error = %v", err)
+		}
+
+		store = newBusinessStore(t)
+		approval = Approval{ID: "coverage-deny-update", RunID: "coverage-deny-run", AgentID: "agent", Status: ApprovalStatusPending, CreatedAt: nowString(), UpdatedAt: nowString()}
+		if err := store.SaveApproval(ctx, approval); err != nil {
+			t.Fatalf("SaveApproval terminal denial: %v", err)
+		}
+		if _, err := store.db.ExecContext(ctx, `CREATE TRIGGER coverage98_reject_terminal_denial BEFORE UPDATE ON `+tableApprovals+` WHEN NEW.id = '`+approval.ID+`' BEGIN SELECT RAISE(FAIL, 'terminal denial approval write rejected'); END`); err != nil {
+			t.Fatalf("create terminal denial trigger: %v", err)
+		}
+		if err := store.SaveRunAndDenyPendingApprovals(ctx, Run{ID: approval.RunID, SessionID: "session", AgentID: approval.AgentID, Status: RunStatusFailed}); err == nil || !strings.Contains(err.Error(), "terminal denial approval write rejected") {
+			t.Fatalf("SaveRunAndDenyPendingApprovals update error = %v", err)
+		}
+		stored, ok, err := store.Approval(ctx, approval.ID)
+		if err != nil || !ok || stored.Status != ApprovalStatusPending {
+			t.Fatalf("terminal denial rollback approval = %+v/%v/%v", stored, ok, err)
+		}
+	})
+
+	t.Run("a conditional approval update that loses its race returns the stored record", func(t *testing.T) {
+		store := newBusinessStore(t)
+		approval := Approval{ID: "coverage-approval-race", RunID: "coverage-race-run", AgentID: "agent", Status: ApprovalStatusPending, CreatedAt: nowString(), UpdatedAt: nowString()}
+		if err := store.SaveApproval(ctx, approval); err != nil {
+			t.Fatalf("SaveApproval: %v", err)
+		}
+		// SQLite RAISE(IGNORE) mirrors the observable result of a concurrent
+		// resolver winning the conditional UPDATE: this call must not claim a
+		// state transition that the database did not persist.
+		if _, err := store.db.ExecContext(ctx, `CREATE TRIGGER coverage98_ignore_approval_race BEFORE UPDATE ON `+tableApprovals+` WHEN NEW.id = '`+approval.ID+`' BEGIN SELECT RAISE(IGNORE); END`); err != nil {
+			t.Fatalf("create approval race trigger: %v", err)
+		}
+		current, changed, err := store.ResolvePendingApproval(ctx, approval.ID, ApprovalStatusApproved)
+		if err != nil || changed || current.ID != approval.ID || current.Status != ApprovalStatusPending {
+			t.Fatalf("lost conditional approval update = %+v/%v/%v", current, changed, err)
+		}
+	})
+
+	t.Run("root workflow terminal denial propagates preparation read failures", func(t *testing.T) {
+		store := newBusinessStore(t)
+		if _, err := store.db.ExecContext(ctx, `DROP TABLE `+tableRuns); err != nil {
+			t.Fatalf("drop runs table: %v", err)
+		}
+		if err := store.SaveRunAndDenyPendingApprovals(ctx, Run{ID: "coverage-root-deny", WorkMode: WorkModeLoop, Status: RunStatusFailed}); err == nil || !strings.Contains(err.Error(), tableRuns) {
+			t.Fatalf("root workflow preparation error = %v", err)
+		}
+	})
 }
 
 func TestStoreEntityAdditionalCoverageBranches(t *testing.T) {

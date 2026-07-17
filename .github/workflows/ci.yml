@@ -191,7 +191,7 @@ jobs:
 
       - name: Go coverage gate
         run: |
-          pnpm run test:coverage:go -package ./internal/... -package ./pkg/... -package ./scripts
+          pnpm run test:coverage:go -package ./cmd/jftrade-api -package ./internal/... -package ./pkg/... -package ./scripts
           go test ./internal/marketdata ./internal/integration/futu -run Concurrent -count=20 -timeout=120s
 
   web:

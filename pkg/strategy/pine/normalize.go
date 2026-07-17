@@ -196,9 +196,6 @@ func (s *parseState) expandUDFCalls(expression string, depth int, stack map[stri
 				return result, fmt.Errorf("invalid call to user-defined function %q", name)
 			}
 			args := splitArguments(result[open+1 : close])
-			if len(args) == 1 && strings.TrimSpace(args[0]) == "" {
-				args = nil
-			}
 			if len(args) != len(udf.Args) {
 				return result, fmt.Errorf("user-defined function %q expects %d arguments, got %d", name, len(udf.Args), len(args))
 			}

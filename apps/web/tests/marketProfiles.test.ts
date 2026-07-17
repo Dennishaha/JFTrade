@@ -177,4 +177,135 @@ describe("marketProfiles", () => {
       instrumentId: "SH.600519",
     });
   });
+
+  it("deduplicates canonical profiles, keeps aliases, and falls back for unknown markets", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        createResponse({
+          defaultMarket: " ",
+          updatedAt: "2026-07-16T00:00:00.000Z",
+          markets: [
+            {
+              code: "US",
+              resolvedMarket: "US",
+              preferredPrefix: "US",
+              displayName: "",
+              quoteCurrency: "USD",
+              supportsExtendedHours: true,
+              requiresExchangePrefix: false,
+              aliases: ["NASDAQ"],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+            {
+              code: "US",
+              resolvedMarket: "US",
+              preferredPrefix: "US",
+              displayName: "United States",
+              quoteCurrency: "USD",
+              supportsExtendedHours: true,
+              requiresExchangePrefix: false,
+              aliases: ["NYSE"],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+            {
+              code: "",
+              resolvedMarket: "",
+              preferredPrefix: "",
+              displayName: "invalid",
+              quoteCurrency: "",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: [],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+          ],
+        }),
+      ),
+    );
+
+    const module = await loadFreshMarketProfilesModule();
+    const profiles = module.useMarketProfiles();
+    await profiles.loadMarketProfiles();
+
+    expect(profiles.defaultMarket.value).toBe("HK");
+    expect(profiles.marketOptions.value).toEqual([{ value: "US", title: "美股 US" }]);
+    expect(profiles.findMarketProfile(" nyse ")?.quoteCurrency).toBe("USD");
+    expect(profiles.findMarketProfile(" ")).toBeNull();
+    expect(profiles.quoteCurrencyForMarket("missing")).toBe("HKD");
+  });
+
+  it("shares an in-flight profile request instead of issuing duplicate market metadata calls", async () => {
+    let resolveResponse: ((value: Response) => void) | undefined;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const module = await loadFreshMarketProfilesModule();
+    const profiles = module.useMarketProfiles();
+    const first = profiles.loadMarketProfiles();
+    const second = profiles.loadMarketProfiles();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    resolveResponse!(createResponse({ defaultMarket: "US", markets: [] }));
+    await Promise.all([first, second]);
+    expect(profiles.defaultMarket.value).toBe("US");
+    expect(profiles.isLoadingMarketProfiles.value).toBe(false);
+  });
+
+  it("keeps unfamiliar market names intelligible without hiding their exchange code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => createResponse({
+        defaultMarket: "OTC",
+        markets: [
+          {
+            code: "OTC",
+            resolvedMarket: "OTC",
+            preferredPrefix: "OTC",
+            displayName: "Over The Counter",
+            quoteCurrency: "USD",
+            supportsExtendedHours: false,
+            requiresExchangePrefix: false,
+            aliases: [],
+            regularSessions: [],
+            precision: { price: 4, quote: 4 },
+            tickSize: 0.0001,
+          },
+          {
+            code: "X",
+            resolvedMarket: "X",
+            preferredPrefix: "X",
+            displayName: " ",
+            quoteCurrency: "USD",
+            supportsExtendedHours: false,
+            requiresExchangePrefix: false,
+            aliases: [],
+            regularSessions: [],
+            precision: { price: 4, quote: 4 },
+            tickSize: 0.0001,
+          },
+        ],
+      })),
+    );
+
+    const module = await loadFreshMarketProfilesModule();
+    const profiles = module.useMarketProfiles();
+    await profiles.loadMarketProfiles();
+
+    expect(profiles.marketOptions.value).toEqual([
+      { value: "OTC", title: "Over The Counter OTC" },
+      { value: "X", title: "X" },
+    ]);
+  });
 });

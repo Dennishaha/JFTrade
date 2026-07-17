@@ -133,5 +133,18 @@ describe("marketDataRealtimeSnapshot", () => {
         barVolumeState: null,
       }),
     ).toBe(current);
+
+    const malformedTimestamp = {
+      ...current,
+      snapshot: { ...current.snapshot, at: "not-a-timestamp", observedAt: "also-invalid" },
+    };
+    expect(
+      mergeMarketDataSnapshot({
+        current: malformedTimestamp,
+        context: { candles: null, period: "1m" },
+        barPriceState: null,
+        barVolumeState: null,
+      }),
+    ).toBe(malformedTimestamp);
   });
 });

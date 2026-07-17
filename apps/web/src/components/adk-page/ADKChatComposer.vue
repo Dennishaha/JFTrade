@@ -597,7 +597,7 @@ async function handleCancelGoalObjective(): Promise<void> {
 
 async function handleGoalLifecycleAction(): Promise<void> {
   if (props.goalLifecycleBusy || props.goalPauseRequested) return;
-  if (props.goalPaused) {
+  if (props.goalPaused || props.goalTimedOut) {
     await props.resumeGoalRun?.();
     return;
   }

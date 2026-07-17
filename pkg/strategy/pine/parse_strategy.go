@@ -200,7 +200,9 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 	if hasTrail {
 		return s.parseStrategyTrailingExit(line, exitID, fromEntry, direction, orderArgs, quantityMode, quantityExpr)
 	}
-	return nil, fmt.Errorf("pine line %d: strategy.exit advanced exit semantics are not supported by JFTrade yet", line.number)
+	// validateStrategyExitTriggers guarantees every valid non-trailing exit has
+	// at least one bracket trigger, so it always belongs to the bracket path.
+	return s.parseStrategyBracketExit(line, exitID, fromEntry, direction, orderArgs, quantityMode, quantityExpr, stopExpr, limitExpr, profitExpr, lossExpr)
 }
 
 func (s *parseState) parseWhenExpression(lineNumber int, functionName string, args []string) (string, error) {

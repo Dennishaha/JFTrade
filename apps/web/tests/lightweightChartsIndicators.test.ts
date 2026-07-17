@@ -149,4 +149,33 @@ describe("lightweightChartsIndicators", () => {
 
     expectIndicatorValues(computeWilliamsR(candles, 3), [-25, -25]);
   });
+
+  it("expires extrema and typical prices as indicator windows advance", () => {
+    const kdjCandles = Array.from({ length: 10 }, (_, index) =>
+      buildCandle({
+        at: `2026-05-17T01:${String(30 + index).padStart(2, "0")}:00.000Z`,
+        open: 100 - index,
+        high: 110 - index,
+        low: 90 + index,
+        close: index === 9 ? 101 : 100,
+      }),
+    );
+    const kdj = computeKdj(kdjCandles);
+    expect(kdj.k).toHaveLength(10);
+    expect(kdj.k[9]?.value).toBeGreaterThan(50);
+
+    const cci = computeCci(
+      [100, 101, 103, 106].map((close, index) =>
+        buildCandle({
+          at: `2026-05-17T02:${String(index).padStart(2, "0")}:00.000Z`,
+          high: close + 1,
+          low: close - 1,
+          close,
+        }),
+      ),
+      3,
+    );
+    expect(cci).toHaveLength(2);
+    expect(cci[1]?.value).toBeGreaterThan(0);
+  });
 });

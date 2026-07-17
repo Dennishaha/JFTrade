@@ -81,4 +81,23 @@ describe("NotificationCenter", () => {
     expect(wrapper.text()).not.toContain("OpenD 连接状态变化");
     expect(wrapper.text()).not.toContain("Strategy risk warning");
   });
+
+  it("marks unread notifications read, removes individual entries, and clears the list", async () => {
+    const wrapper = mount(NotificationCenterHarness);
+    const buttons = () => wrapper.findAll("button");
+
+    await buttons().find((button) => button.text() === "未读")!.trigger("click");
+    expect(wrapper.text()).toContain("OpenD 连接状态变化");
+    await buttons().find((button) => button.text() === "全部标记已读")!.trigger("click");
+    await nextTick();
+    expect(wrapper.text()).toContain("当前筛选条件下暂无通知");
+
+    await buttons().find((button) => button.text() === "全部")!.trigger("click");
+    await nextTick();
+    await buttons().find((button) => button.text() === "×")!.trigger("click");
+    expect(wrapper.findAll(".tv-noti-item")).toHaveLength(3);
+    await buttons().find((button) => button.text() === "清空")!.trigger("click");
+    await nextTick();
+    expect(wrapper.text()).toContain("暂无通知");
+  });
 });
