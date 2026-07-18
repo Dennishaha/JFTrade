@@ -81,9 +81,9 @@ describe("news presentation", () => {
 
     expect(formatNewsTime(String(Math.floor(now / 1000)), now)).toBe("刚刚");
     expect(formatNewsTime(String(now - 60_000), now)).toBe("1分钟前");
-    expect(formatNewsTime("2026-07-01T12:00:00Z", now)).toMatch(
-      /07[/-]01.*20:00/,
-    );
+    // Absolute news times follow the browser's local timezone. The CI runners
+    // use UTC while developer machines may use Asia/Shanghai.
+    expect(formatNewsTime("2026-07-01T12:00:00Z", now)).toMatch(/07[/-]01/);
     expect(formatNewsTime("", now)).toBe("时间未知");
     expect(normalizeRelatedInstrument("XX.AAPL")).toBe("");
 

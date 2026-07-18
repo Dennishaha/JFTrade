@@ -2,3 +2,8 @@ docs/reference/generated/*.md text eol=lf
 # Wails always generates TypeScript bindings with LF. Keep checkout output
 # identical on Windows so the bindings freshness check is platform-neutral.
 apps/web/src/wails/** text eol=lf
+
+# Repository verification hashes the checked-in Futu protocol inputs and
+# generated outputs byte-for-byte. Keep them LF-stable on Windows as well.
+pkg/futu/proto/** text eol=lf
+pkg/futu/pb/** text eol=lf
