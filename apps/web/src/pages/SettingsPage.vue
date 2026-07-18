@@ -8,6 +8,7 @@ import SettingsAccountDiscoverySection from "../components/SettingsAccountDiscov
 import SettingsAppearanceSection from "../components/SettingsAppearanceSection.vue";
 import SettingsExchangeCalendarSection from "../components/SettingsExchangeCalendarSection.vue";
 import SettingsManagedAccountsSection from "../components/SettingsManagedAccountsSection.vue";
+import SettingsOpenSourceSection from "../components/SettingsOpenSourceSection.vue";
 import SettingsPineWorkerSection from "../components/SettingsPineWorkerSection.vue";
 import SettingsSecuritySection from "../components/SettingsSecuritySection.vue";
 import SettingsSystemNotificationsSection from "../components/SettingsSystemNotificationsSection.vue";
@@ -25,6 +26,7 @@ const SETTINGS_LAST_KEY = "jft.settings.section";
 const {
   brokerRuntime,
   brokerSettings,
+  systemStatus,
   createManagedBrokerAccount,
   deleteManagedBrokerAccount,
   updateManagedBrokerAccount,
@@ -85,6 +87,11 @@ const allSettingsMenu = [
     index: "data-management",
     label: "数据管理",
     description: "统计数据库占用，清理历史数据并管理数据库重建。",
+  },
+  {
+    index: "open-source",
+    label: "开源许可",
+    description: "查看 JFTrade 许可证、第三方声明与对应源码。",
   },
 ] as const;
 
@@ -248,6 +255,11 @@ const {
         <SettingsADKSection v-show="activeMenu === 'adk'" />
 
         <SettingsDataManagementSection v-if="activeMenu === 'data-management'" />
+
+        <SettingsOpenSourceSection
+          v-if="activeMenu === 'open-source'"
+          :build="systemStatus.build"
+        />
       </div>
     </section>
   </div>

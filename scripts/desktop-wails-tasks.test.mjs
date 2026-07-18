@@ -10,6 +10,8 @@ const common = read("build/Taskfile.yml");
 const darwin = read("build/darwin/Taskfile.yml");
 const windows = read("build/windows/Taskfile.yml");
 const linux = read("build/linux/Taskfile.yml");
+const nsisProject = read("build/windows/nsis/project.nsi");
+const releaseWorkflow = read(".github/workflows/desktop-release.yml");
 
 for (const standardTask of ["build:", "package:", "dev:"]) {
   assert(
@@ -83,6 +85,19 @@ assert(
 assert(
   nsisInvocation.args.some(
     (argument) =>
+      argument.startsWith("/DJFTRADE_LICENSE_FILE=") &&
+      argument.endsWith("LICENSE"),
+  ) &&
+    nsisInvocation.args.some(
+      (argument) =>
+        argument.startsWith("/DJFTRADE_THIRD_PARTY_NOTICES_FILE=") &&
+        argument.endsWith("third-party-notices.md"),
+    ),
+  "Windows NSIS wrapper does not pass legal notice inputs",
+);
+assert(
+  nsisInvocation.args.some(
+    (argument) =>
       argument.startsWith("/DOUTPUT_EXE=") &&
       argument.endsWith(
         "JFTrade-0.2.2-windows-arm64-preview-unsigned-setup.exe",
@@ -93,6 +108,17 @@ assert(
 assert(
   darwin.includes("codesign --verify --deep --strict"),
   "macOS bundle sealing is not verified",
+);
+assert(
+  darwin.includes("Contents/Resources/licenses/LICENSE") &&
+    darwin.includes("Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"),
+  "macOS bundles do not carry the project license and third-party notices",
+);
+assert(
+  nsisProject.includes("$INSTDIR\\licenses") &&
+    nsisProject.includes("/oname=LICENSE") &&
+    nsisProject.includes("/oname=THIRD-PARTY-NOTICES.md"),
+  "Windows installer does not carry the project license and third-party notices",
 );
 assert(
   darwin.includes("package-dmg.sh") && darwin.includes("verify-dmg.sh"),
@@ -131,6 +157,21 @@ assert(
   common.includes("update build-assets") && common.includes("generate icons"),
   "common task does not use Wails build asset generation",
 );
+assert(
+  common.includes("Copyright (C) 2026 JFTrade Contributors"),
+  "desktop metadata does not use the project copyright notice",
+);
+assert(
+  releaseWorkflow.includes("release/LICENSE") &&
+    releaseWorkflow.includes("release/THIRD-PARTY-NOTICES.md"),
+  "GitHub Release does not publish the legal notice files",
+);
+assert(
+  releaseWorkflow.includes("sha256sum > SHA256SUMS") &&
+    releaseWorkflow.includes("gh release upload") &&
+    releaseWorkflow.includes("release/*"),
+  "GitHub Release does not checksum and upload every legal notice asset",
+);
 
 const nfpm = read("build/linux/nfpm.yaml");
 assert(nfpm.includes("name: jftrade"), "Linux package name is not lowercase");
@@ -143,8 +184,14 @@ assert(
   "Linux package homepage does not match the source repository",
 );
 assert(
-  nfpm.includes("AGPL-3.0-only") && !nfpm.includes("license: Proprietary"),
-  "Linux package metadata omits the bundled AGPL component",
+  nfpm.includes("license: AGPL-3.0-only") &&
+    !nfpm.includes("LicenseRef-Proprietary"),
+  "Linux package metadata is not AGPL-3.0-only",
+);
+assert(
+  nfpm.includes("/usr/share/licenses/jftrade/LICENSE") &&
+    nfpm.includes("/usr/share/licenses/jftrade/THIRD-PARTY-NOTICES.md"),
+  "Linux package does not carry the project license and third-party notices",
 );
 assert(
   nfpm.includes("libgtk-3-0") && nfpm.includes("libwebkit2gtk-4.1-0"),

@@ -135,6 +135,8 @@ tasks:
         {{.ROOT_DIR}}/dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}}
         {{.ROOT_DIR}}/dist/desktop-release/linux-{{.ARCH}}/JFTrade.desktop
         {{.ROOT_DIR}}/build/desktop/appicon.png
+        {{.ROOT_DIR}}/LICENSE
+        {{.ROOT_DIR}}/docs/legal/third-party-notices.md
       - >-
         go tool wails3 tool package -name jftrade -format {{.FORMAT}}
         -config dist/desktop-release/linux-{{.ARCH}}/nfpm.yaml

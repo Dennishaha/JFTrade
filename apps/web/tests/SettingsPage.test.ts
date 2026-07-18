@@ -11,12 +11,24 @@ const consoleState = vi.hoisted(() => ({
   brokerSettings: {
     value: { accounts: [], brokers: [] },
   },
+  systemStatus: {
+    value: {
+      build: {
+        version: "dev",
+        commit: "unknown",
+        buildTime: "dev",
+        goos: "",
+        goarch: "",
+      },
+    },
+  },
 }));
 
 vi.mock("../src/composables/useConsoleData", () => ({
   useConsoleData: () => ({
     brokerRuntime: consoleState.brokerRuntime,
     brokerSettings: consoleState.brokerSettings,
+    systemStatus: consoleState.systemStatus,
     createManagedBrokerAccount: vi.fn(),
     deleteManagedBrokerAccount: vi.fn(),
     updateManagedBrokerAccount: vi.fn(),
@@ -74,6 +86,7 @@ function mountSettings(path: string) {
           SettingsPineWorkerSection: sectionStub("pine-worker"),
           SettingsADKSection: sectionStub("adk"),
           SettingsDataManagementSection: sectionStub("data-management"),
+          SettingsOpenSourceSection: sectionStub("open-source"),
         },
       },
     });
@@ -101,6 +114,15 @@ describe("SettingsPage", () => {
     await flushPromises();
     expect(router.currentRoute.value.path).toBe("/settings/pine-worker");
     expect(window.localStorage.getItem("jft.settings.section")).toBe("pine-worker");
+
+    const openSource = wrapper.findAll("button").find((button) =>
+      button.text() === "开源许可",
+    );
+    if (openSource == null) throw new Error("missing open-source menu item");
+    await openSource.trigger("click");
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe("/settings/open-source");
+    expect(wrapper.get("[data-section='open-source']").exists()).toBe(true);
   });
 
   it("normalizes legacy, missing, and unknown sections before rendering settings", async () => {

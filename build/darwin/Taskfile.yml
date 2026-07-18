@@ -19,6 +19,9 @@ tasks:
       - go build -buildvcs=false -o "dist/dev/JFTrade Dev.app/Contents/MacOS/JFTrade Dev" ./cmd/jftrade-desktop
       - cp build/darwin/Info.dev.plist "dist/dev/JFTrade Dev.app/Contents/Info.plist"
       - cp "{{.GENERATED_DIR}}/darwin/icons.icns" "dist/dev/JFTrade Dev.app/Contents/Resources/icons.icns"
+      - mkdir -p "dist/dev/JFTrade Dev.app/Contents/Resources/licenses"
+      - cp LICENSE "dist/dev/JFTrade Dev.app/Contents/Resources/licenses/LICENSE"
+      - cp docs/legal/third-party-notices.md "dist/dev/JFTrade Dev.app/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"
       - codesign --force --deep --sign - "dist/dev/JFTrade Dev.app"
 
   build:
@@ -74,6 +77,9 @@ tasks:
       - /usr/libexec/PlistBuddy -c "Add :JFTradeCommit string {{.COMMIT}}" "{{.APP}}/Contents/Info.plist"
       - /usr/libexec/PlistBuddy -c "Add :JFTradeBuildTime string {{.BUILD_TIME}}" "{{.APP}}/Contents/Info.plist"
       - cp "{{.GENERATED_DIR}}/darwin/icons.icns" "{{.APP}}/Contents/Resources/icons.icns"
+      - mkdir -p "{{.APP}}/Contents/Resources/licenses"
+      - cp LICENSE "{{.APP}}/Contents/Resources/licenses/LICENSE"
+      - cp docs/legal/third-party-notices.md "{{.APP}}/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"
       - codesign --force --deep --sign - "{{.APP}}"
       - codesign --verify --deep --strict --verbose=2 "{{.APP}}"
     vars:

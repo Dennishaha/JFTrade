@@ -4,6 +4,12 @@ Unicode true
 !ifndef OUTPUT_EXE
   !error "OUTPUT_EXE is required"
 !endif
+!ifndef JFTRADE_LICENSE_FILE
+  !error "JFTRADE_LICENSE_FILE is required"
+!endif
+!ifndef JFTRADE_THIRD_PARTY_NOTICES_FILE
+  !error "JFTRADE_THIRD_PARTY_NOTICES_FILE is required"
+!endif
 
 VIProductVersion "${INFO_PRODUCTVERSION}.0"
 VIFileVersion "${INFO_PRODUCTVERSION}.0"
@@ -40,6 +46,10 @@ Section
   !insertmacro wails.webview2runtime
   SetOutPath $INSTDIR
   !insertmacro wails.files
+  SetOutPath "$INSTDIR\licenses"
+  File /oname=LICENSE "${JFTRADE_LICENSE_FILE}"
+  File /oname=THIRD-PARTY-NOTICES.md "${JFTRADE_THIRD_PARTY_NOTICES_FILE}"
+  SetOutPath $INSTDIR
   CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
   CreateShortcut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
   !insertmacro wails.writeUninstaller

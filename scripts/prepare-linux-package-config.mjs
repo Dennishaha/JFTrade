@@ -2,15 +2,32 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-const [templatePath, outputPath, version, arch, binary, desktopFile, icon] =
-  process.argv.slice(2);
+const [
+  templatePath,
+  outputPath,
+  version,
+  arch,
+  binary,
+  desktopFile,
+  icon,
+  license,
+  thirdPartyNotices,
+] = process.argv.slice(2);
 if (
-  ![templatePath, outputPath, version, arch, binary, desktopFile, icon].every(
-    Boolean,
-  )
+  ![
+    templatePath,
+    outputPath,
+    version,
+    arch,
+    binary,
+    desktopFile,
+    icon,
+    license,
+    thirdPartyNotices,
+  ].every(Boolean)
 ) {
   fail(
-    "Usage: prepare-linux-package-config.mjs <template> <output> <version> <arch> <binary> <desktop> <icon>",
+    "Usage: prepare-linux-package-config.mjs <template> <output> <version> <arch> <binary> <desktop> <icon> <license> <third-party-notices>",
   );
 }
 if (!/^\d+\.\d+\.\d+$/.test(version))
@@ -25,6 +42,8 @@ for (const [token, value] of Object.entries({
   __BINARY__: path.resolve(binary),
   __DESKTOP_FILE__: path.resolve(desktopFile),
   __ICON__: path.resolve(icon),
+  __LICENSE__: path.resolve(license),
+  __THIRD_PARTY_NOTICES__: path.resolve(thirdPartyNotices),
 })) {
   config = config.replaceAll(token, value);
 }

@@ -166,6 +166,10 @@ function normalizeSystemStatus(
   const requests = response.observability?.requests ?? fallback;
   return {
     ...response,
+    build: {
+      ...emptySystemStatus.build,
+      ...response.build,
+    },
     observability: {
       ...response.observability,
       requests: {

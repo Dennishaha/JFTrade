@@ -125,6 +125,11 @@ const navTargets = [
   { id: "nav.risk", label: "打开风控", to: "/risk" },
   { id: "nav.system", label: "打开系统", to: "/system" },
   { id: "nav.settings", label: "打开设置", to: "/settings" },
+  {
+    id: "nav.open-source",
+    label: "打开开源许可",
+    to: "/settings/open-source",
+  },
 ];
 const rightDockOpen = computed(() => workspaceLayout.prefs.value.rightDockOpen);
 const rightDockSize = computed(() => workspaceLayout.prefs.value.rightDockSize);

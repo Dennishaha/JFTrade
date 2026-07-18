@@ -26,6 +26,13 @@ export function resolveWindowsNSISInvocation({
     `windows-${arch}`,
     `jftrade-desktop-windows-${arch}.exe`,
   );
+  const license = path.resolve(rootDir, "LICENSE");
+  const thirdPartyNotices = path.resolve(
+    rootDir,
+    "docs",
+    "legal",
+    "third-party-notices.md",
+  );
 
   return {
     command: String(makensis || "makensis").trim() || "makensis",
@@ -33,6 +40,8 @@ export function resolveWindowsNSISInvocation({
       "/DWAILS_INSTALL_SCOPE=user",
       "/DREQUEST_EXECUTION_LEVEL=user",
       `/DARG_WAILS_${arch === "amd64" ? "AMD64" : "ARM64"}_BINARY=${binary}`,
+      `/DJFTRADE_LICENSE_FILE=${license}`,
+      `/DJFTRADE_THIRD_PARTY_NOTICES_FILE=${thirdPartyNotices}`,
       `/DOUTPUT_EXE=${path.join(releaseDir, installer)}`,
       "project.nsi",
     ],

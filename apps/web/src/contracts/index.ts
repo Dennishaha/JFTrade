@@ -1071,9 +1071,18 @@ export interface RequestObservabilitySummary {
   };
 }
 
+export interface SystemBuildInformation {
+  version: string;
+  commit: string;
+  buildTime: string;
+  goos: string;
+  goarch: string;
+}
+
 export interface SystemStatusResponse {
   name: string;
   apiPort: number;
+  build: SystemBuildInformation;
   defaultBroker: string;
   defaultTradingEnvironment: string;
   realTradingEnabled: boolean;
@@ -3076,6 +3085,13 @@ export const consolePanels: ConsolePanel[] = [
 export const emptySystemStatus: SystemStatusResponse = {
   name: "JFTrade",
   apiPort: 3000,
+  build: {
+    version: "dev",
+    commit: "unknown",
+    buildTime: "dev",
+    goos: "",
+    goarch: "",
+  },
   defaultBroker: "futu",
   defaultTradingEnvironment: "SIMULATE",
   realTradingEnabled: false,

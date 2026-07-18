@@ -5,7 +5,7 @@ info:
   productName: JFTrade
   productIdentifier: com.jftrade.desktop
   description: JFTrade desktop application
-  copyright: (c) JFTrade
+  copyright: Copyright (C) 2026 JFTrade Contributors
   comments: Wails v3 desktop shell for JFTrade
   version: 0.0.0
 

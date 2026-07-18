@@ -221,6 +221,9 @@ jobs:
       - name: Audit locked pnpm dependencies
         run: pnpm run audit:dependencies
 
+      - name: OSS license compliance
+        run: pnpm run check:oss-license
+
       - name: Frontend test and coverage gate
         run: pnpm run test:coverage:web
 

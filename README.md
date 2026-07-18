@@ -188,3 +188,11 @@ docs/                      用户文档、维护者导航与参考资料
 scripts/                   文档生成、打包和辅助脚本
 build/                     Wails 配置、平台 Taskfile 与桌面资源
 ```
+
+## 开源许可
+
+Copyright (C) 2026 JFTrade Contributors
+
+JFTrade 原创代码仅按 [GNU Affero General Public License version 3](LICENSE)（SPDX：`AGPL-3.0-only`）授权，不自动授权未来版本。你可以依照该许可证使用、修改和再分发本项目；本项目不提供任何明示或默示担保。
+
+通过网络向用户提供修改后的 JFTrade 时，必须依照 AGPLv3 向这些用户提供对应源码。完整许可证见 [LICENSE](LICENSE)，第三方组件及其独立版权和许可证见 [Third-Party Notices](docs/legal/third-party-notices.md)。

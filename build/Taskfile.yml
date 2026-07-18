@@ -25,7 +25,7 @@ tasks:
         -productname JFTrade -productidentifier com.jftrade.desktop
         -productcompany JFTrade -productdescription "JFTrade desktop application"
         -productcomments "Wails v3 desktop shell for JFTrade; commit {{.COMMIT}}; built {{.BUILD_TIME}}"
-        -productcopyright "(c) JFTrade"
+        -productcopyright "Copyright (C) 2026 JFTrade Contributors"
         -productversion {{.VERSION}} -silent
       - >-
         go tool wails3 generate icons

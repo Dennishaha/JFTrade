@@ -378,6 +378,7 @@ describe("Settings page", () => {
       "PineTS Worker",
       "智能体",
       "数据管理",
+      "开源许可",
     ]);
     expect((mobileSelector.element as HTMLSelectElement).value).toBe(
       "runtime-dependencies",

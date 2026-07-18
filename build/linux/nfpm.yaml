@@ -8,7 +8,7 @@ maintainer: JFTrade Maintainers <38273998+Dennishaha@users.noreply.github.com>
 description: JFTrade desktop application
 vendor: JFTrade
 homepage: https://github.com/Dennishaha/jftrade
-license: LicenseRef-Proprietary AND AGPL-3.0-only
+license: AGPL-3.0-only
 contents:
   - src: __BINARY__
     dst: /usr/bin/jftrade-desktop
@@ -16,6 +16,10 @@ contents:
     dst: /usr/share/icons/hicolor/512x512/apps/JFTrade.png
   - src: __DESKTOP_FILE__
     dst: /usr/share/applications/JFTrade.desktop
+  - src: __LICENSE__
+    dst: /usr/share/licenses/jftrade/LICENSE
+  - src: __THIRD_PARTY_NOTICES__
+    dst: /usr/share/licenses/jftrade/THIRD-PARTY-NOTICES.md
 depends:
   - libgtk-3-0
   - libwebkit2gtk-4.1-0

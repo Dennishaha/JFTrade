@@ -569,6 +569,11 @@ jobs:
       contents: write
       id-token: write
     steps:
+      - name: Checkout release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
+
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
@@ -580,8 +585,10 @@ jobs:
         run: |
           mkdir release
           find incoming -type f -exec cp {} release/ \;
-          # Linux contributes a raw binary, AppImage, deb and SBOM; other platforms contribute installer and SBOM.
-          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 8
+          cp LICENSE release/LICENSE
+          cp docs/legal/third-party-notices.md release/THIRD-PARTY-NOTICES.md
+          # Linux contributes a raw binary, AppImage, deb and SBOM; all platforms share the legal notice assets.
+          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 10
 
       - name: Generate SHA256SUMS
         working-directory: release

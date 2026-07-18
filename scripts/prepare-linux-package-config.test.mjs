@@ -17,6 +17,8 @@ const result = spawnSync(
     path.join(directory, "JFTrade"),
     path.join(directory, "JFTrade.desktop"),
     path.join(directory, "JFTrade.png"),
+    path.join(directory, "LICENSE"),
+    path.join(directory, "THIRD-PARTY-NOTICES.md"),
   ],
   { encoding: "utf8" },
 );
@@ -31,8 +33,9 @@ assert(
   ),
 );
 assert(config.includes("homepage: https://github.com/Dennishaha/jftrade"));
-assert(
-  config.includes("license: LicenseRef-Proprietary AND AGPL-3.0-only"),
-);
+assert(config.includes("license: AGPL-3.0-only"));
+assert(!config.includes("LicenseRef-Proprietary"));
+assert(config.includes(path.join(directory, "LICENSE")));
+assert(config.includes(path.join(directory, "THIRD-PARTY-NOTICES.md")));
 assert(!config.includes("__"));
 fs.rmSync(directory, { recursive: true, force: true });

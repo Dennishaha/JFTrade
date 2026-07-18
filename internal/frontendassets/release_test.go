@@ -56,6 +56,7 @@ func TestFileSystemEmbedsDocumentationAndLegalNotices(t *testing.T) {
 	}
 	for _, path := range []string{
 		"docs/index.html",
+		"docs/legal/license.html",
 		"docs/legal/third-party-notices.html",
 	} {
 		info, err := fs.Stat(frontendFS, path)
@@ -64,6 +65,30 @@ func TestFileSystemEmbedsDocumentationAndLegalNotices(t *testing.T) {
 		}
 		if !info.Mode().IsRegular() || info.Size() == 0 {
 			t.Fatalf("embedded documentation %s is empty or invalid", path)
+		}
+	}
+
+	for path, required := range map[string][]string{
+		"docs/legal/license.html": {
+			"AGPL-3.0-only",
+			"GNU AFFERO GENERAL PUBLIC LICENSE",
+			"Copyright (C) 2026 JFTrade Contributors",
+		},
+		"docs/legal/third-party-notices.html": {
+			"pinets",
+			"github.com/c9s/bbgo@v1.64.2",
+			"Copyright Suneido Software Corp.",
+			"Apache License",
+		},
+	} {
+		data, err := fs.ReadFile(frontendFS, path)
+		if err != nil {
+			t.Fatalf("read embedded documentation %s: %v", path, err)
+		}
+		for _, needle := range required {
+			if !strings.Contains(string(data), needle) {
+				t.Fatalf("embedded documentation %s is missing %q", path, needle)
+			}
 		}
 	}
 }

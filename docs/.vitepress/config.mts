@@ -38,6 +38,7 @@ export default defineConfig({
       { text: "使用指南", link: "/usage" },
       { text: "自选", link: "/watchlist" },
       { text: "排障", link: "/troubleshooting" },
+      { text: "开源许可", link: "/legal/license" },
       { text: "参考", link: "/reference/generated/api" },
     ],
     sidebar: [
@@ -50,6 +51,8 @@ export default defineConfig({
           { text: "使用指南", link: "/usage" },
           { text: "自选系统", link: "/watchlist" },
           { text: "排障", link: "/troubleshooting" },
+          { text: "开源许可", link: "/legal/license" },
+          { text: "第三方许可证", link: "/legal/third-party-notices" },
         ],
       },
       {
