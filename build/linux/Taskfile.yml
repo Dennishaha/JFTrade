@@ -45,16 +45,16 @@ tasks:
     internal: true
     run: once
     cmds:
-      - mkdir -p dist/desktop-release/linux-{{.ARCH}}
+      - mkdir -p dist/desktop-release/.staging/linux-{{.ARCH}}
       - >-
         go tool wails3 generate .desktop -name JFTrade -exec jftrade-desktop
-        -icon JFTrade -outputfile dist/desktop-release/linux-{{.ARCH}}/JFTrade.desktop
+        -icon JFTrade -outputfile dist/desktop-release/.staging/linux-{{.ARCH}}/JFTrade.desktop
         -categories "Finance;Development;"
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
 
   package:
-    desc: Build raw, AppImage and deb Linux release assets
+    desc: Build AppImage, deb and rpm Linux release assets
     deps:
       - task: build
         vars:
@@ -64,10 +64,8 @@ tasks:
             COMMIT: "{{.COMMIT}}",
             BUILD_TIME: "{{.BUILD_TIME}}",
           }
-      - task: generate:desktop
-        vars: { ARCH: "{{.ARCH}}" }
     cmds:
-      - cp dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}} dist/desktop-release/linux-{{.ARCH}}/
+      - rm -rf dist/desktop-release/linux-{{.ARCH}} dist/desktop-release/.staging/linux-{{.ARCH}}
       - task: package:appimage
         vars:
           {
@@ -85,6 +83,18 @@ tasks:
             BUILD_TIME: "{{.BUILD_TIME}}",
             FORMAT: deb,
           }
+      - task: package:linux
+        vars:
+          {
+            ARCH: "{{.ARCH}}",
+            VERSION: "{{.VERSION}}",
+            COMMIT: "{{.COMMIT}}",
+            BUILD_TIME: "{{.BUILD_TIME}}",
+            FORMAT: rpm,
+          }
+      - >-
+        node scripts/manage-linux-release-artifacts.mjs verify
+        {{.VERSION}} {{.ARCH}} dist/desktop-release/linux-{{.ARCH}}
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
 
@@ -102,20 +112,26 @@ tasks:
       - task: generate:desktop
         vars: { ARCH: "{{.ARCH}}" }
     cmds:
-      - mkdir -p dist/desktop-release/linux-{{.ARCH}}/appimage
-      - cp build/desktop/appicon.png dist/desktop-release/linux-{{.ARCH}}/appimage/JFTrade.png
+      - rm -rf dist/desktop-release/.staging/linux-{{.ARCH}}/appimage
+      - mkdir -p dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/output
+      - cp build/desktop/appicon.png dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/JFTrade.png
       - >-
-        go tool wails3 generate appimage
+        LDAI_COMP=xz go tool wails3 generate appimage
         -binary dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}}
-        -icon dist/desktop-release/linux-{{.ARCH}}/appimage/JFTrade.png
-        -desktopfile dist/desktop-release/linux-{{.ARCH}}/JFTrade.desktop
-        -outputdir dist/desktop-release/linux-{{.ARCH}}
-        -builddir dist/desktop-release/linux-{{.ARCH}}/appimage/build
+        -icon dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/JFTrade.png
+        -desktopfile dist/desktop-release/.staging/linux-{{.ARCH}}/JFTrade.desktop
+        -outputdir dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/output
+        -builddir dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/build
+      - >-
+        node scripts/manage-linux-release-artifacts.mjs finalize
+        appimage {{.VERSION}} {{.ARCH}}
+        dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/output
+        dist/desktop-release/linux-{{.ARCH}}
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
 
   package:linux:
-    desc: Build deb, rpm or Arch package with the Wails packager
+    desc: Build a deb or rpm package with the Wails packager
     deps:
       - task: build
         vars:
@@ -128,19 +144,29 @@ tasks:
       - task: generate:desktop
         vars: { ARCH: "{{.ARCH}}" }
     cmds:
+      - rm -rf dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}
+      - mkdir -p dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}
       - >-
         node scripts/prepare-linux-package-config.mjs
-        build/linux/nfpm.yaml dist/desktop-release/linux-{{.ARCH}}/nfpm.yaml
+        build/linux/nfpm.yaml dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}/nfpm.yaml
         {{.VERSION}} {{.ARCH}}
         {{.ROOT_DIR}}/dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}}
-        {{.ROOT_DIR}}/dist/desktop-release/linux-{{.ARCH}}/JFTrade.desktop
+        {{.ROOT_DIR}}/dist/desktop-release/.staging/linux-{{.ARCH}}/JFTrade.desktop
         {{.ROOT_DIR}}/build/desktop/appicon.png
         {{.ROOT_DIR}}/LICENSE
         {{.ROOT_DIR}}/docs/legal/third-party-notices.md
       - >-
         go tool wails3 tool package -name jftrade -format {{.FORMAT}}
-        -config dist/desktop-release/linux-{{.ARCH}}/nfpm.yaml
-        -out dist/desktop-release/linux-{{.ARCH}}
+        -config dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}/nfpm.yaml
+        -out dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}
+      - >-
+        node scripts/manage-linux-release-artifacts.mjs finalize
+        {{.FORMAT}} {{.VERSION}} {{.ARCH}}
+        dist/desktop-release/.staging/linux-{{.ARCH}}/{{.FORMAT}}
+        dist/desktop-release/linux-{{.ARCH}}
+    preconditions:
+      - sh: test "{{.FORMAT}}" = "deb" || test "{{.FORMAT}}" = "rpm"
+        msg: FORMAT must be deb or rpm
     vars:
       ARCH: '{{.ARCH | default "amd64"}}'
       FORMAT: '{{.FORMAT | default "deb"}}'

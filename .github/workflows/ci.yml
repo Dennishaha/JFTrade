@@ -239,6 +239,8 @@ jobs:
       - name: Desktop release script tests
         run: |
           pnpm run test:desktop-release-metadata
+          pnpm run test:desktop-release-artifacts
+          pnpm run test:desktop-linux-artifacts
           pnpm run test:desktop-release-inputs
           pnpm run test:desktop-wails-tasks
           pnpm run test:desktop-signing

@@ -48,7 +48,7 @@ git tag v1.2.3
 git push origin v1.2.3
 ```
 
-也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径默认与 tag 推送一样发布 Release。勾选 `dry_run` 时仍会完成四个平台构建并保留 workflow artifacts，但不会写入 provenance 或修改 GitHub Release。相同 tag 的发布会串行执行，重跑时使用本次构建结果覆盖同名 assets，无论 Release 当前是 draft 还是已发布状态。直接在 Releases 页面创建或发布 Release 不会触发构建。
+也可以从 Actions 的 `Desktop Release` 工作流手动输入已有的 `vX.Y.Z` tag；手动路径默认与 tag 推送一样发布 Release。勾选 `dry_run` 时仍会完成四个平台构建并保留 workflow artifacts，但不会写入 provenance 或修改 GitHub Release。相同 tag 的发布会串行执行，重跑时使用本次构建结果覆盖同名 assets，并清理旧命名 Linux 包、裸二进制和 Arch 包，无论 Release 当前是 draft 还是已发布状态。直接在 Releases 页面创建或发布 Release 不会触发构建。
 
 开发构建与 bindings：
 
@@ -66,14 +66,13 @@ pnpm run check:desktop
 pnpm run typecheck:web
 ```
 
-扩展平台包按需生成，不进入默认 GitHub Release：
+各安装包也可以按需单独生成。Windows MSIX 不进入默认 GitHub Release；三个 Linux 命令对应默认 Release 中的 AppImage、deb 和 rpm：
 
 ```bash
 pnpm run desktop:package:windows-msix
 pnpm run desktop:package:linux-appimage
 pnpm run desktop:package:linux-deb
 pnpm run desktop:package:linux-rpm
-pnpm run desktop:package:linux-arch
 ```
 
 ## CI 发布与可选签名
@@ -82,7 +81,7 @@ pnpm run desktop:package:linux-arch
 
 - macOS：固定使用 `macos-15` ARM64 runner。无证书时仍执行 ad-hoc bundle sealing 和严格 codesign 校验；完整配置 secrets 时通过 Wails sign tool 执行 Developer ID 签名与公证。
 - Windows：生成带 WebView2 bootstrapper 的 x64 per-user Wails NSIS；完整配置 secrets 时通过 Wails sign tool 对应用和安装器执行 Authenticode。
-- Linux x64：使用 GTK3/WebKitGTK 4.1，默认同时生成裸二进制、AppImage 和 deb。
+- Linux x64：使用 GTK3/WebKitGTK 4.1，默认生成 AppImage、deb 和 rpm；AppImage 的 SquashFS 使用 XZ 压缩，裸二进制只保留在内部构建目录，不进入 GitHub Release。
 
 平台 job 通过内部环境变量 `JFTRADE_DESKTOP_PREPARED=1` 使用共享输入，并会在编译前拒绝缺失或空的 Swagger、前端压缩包和 Pineworker bundle。该变量只供 CI 使用；本地 `desktop:build` / `desktop:release:*` 仍会完整准备所需资产。
 
@@ -97,9 +96,9 @@ Windows ARM64 会在原生 `windows-11-arm` runner 上生成带 `preview` 标记
 - macOS：`JFTrade-X.Y.Z-macos-arm64-unsigned.dmg`
 - Windows：`JFTrade-X.Y.Z-windows-x64-unsigned-setup.exe`
 - Windows ARM64 预览：`JFTrade-X.Y.Z-windows-arm64-preview-unsigned-setup.exe`
-- Linux：`jftrade-desktop-linux-amd64`、AppImage 和 deb
+- Linux：`JFTrade-X.Y.Z-linux-x64.AppImage`、`JFTrade-X.Y.Z-linux-x64.deb`、`JFTrade-X.Y.Z-linux-x64.rpm`
 
-证书启用后 macOS/Windows 文件名中的 `unsigned` 变为 `signed`。Windows MSIX 与 Linux rpm/Arch 包只提供显式 Wails task。
+证书启用后 macOS/Windows 文件名中的 `unsigned` 变为 `signed`。Windows MSIX 只提供显式 Wails task；Linux 的 AppImage、deb、rpm 均由默认 Linux release task 生成。
 
 macOS DMG 只包含 ARM64 `JFTrade.app`，不包含 Rosetta/x86_64 slice。CI 固定运行在 `macos-15` ARM64 runner，并在构建前检查 runner 架构。
 
@@ -112,5 +111,5 @@ DMG 使用标准拖拽安装布局：左侧为 `JFTrade.app`，右侧为指向 `
 - 开发版继续读取仓库数据；正式产品只读取系统用户数据目录。
 - 退出任意一方，另一方继续运行。
 - macOS 用 `file`/`lipo` 确认仅 ARM64；Windows 确认 x64 与 ARM64 per-user NSIS 都可安装覆盖。
-- macOS 必须通过 `codesign --verify --deep --strict`；Windows PE subsystem 必须为 GUI；Linux AppImage 必须可解包，deb 必须声明 GTK3/WebKitGTK 4.1 依赖。
+- macOS 必须通过 `codesign --verify --deep --strict`；Windows PE subsystem 必须为 GUI；Linux AppImage 必须可解包且使用 XZ，deb/rpm 必须声明对应的 GTK3/WebKitGTK 依赖。
 - 未签名包出现 Gatekeeper 或 SmartScreen 提示属于当前发布策略的预期行为。

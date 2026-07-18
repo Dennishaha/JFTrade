@@ -6,6 +6,7 @@ import { resolveWindowsNSISInvocation } from "./lib/windows-nsis.mjs";
 
 const read = (file) => fs.readFileSync(file, "utf8");
 const root = read("Taskfile.yml");
+const packageJson = read("package.json");
 const common = read("build/Taskfile.yml");
 const darwin = read("build/darwin/Taskfile.yml");
 const windows = read("build/windows/Taskfile.yml");
@@ -150,6 +151,29 @@ assert(
   "Linux does not use Wails packaging tools",
 );
 assert(
+  linux.includes("LDAI_COMP=xz") &&
+    linux.includes("FORMAT: deb") &&
+    linux.includes("FORMAT: rpm"),
+  "Linux release does not build XZ AppImage, deb and rpm artifacts",
+);
+assert(
+  linux.includes("manage-linux-release-artifacts.mjs verify") &&
+    linux.includes("dist/desktop-release/.staging/linux-{{.ARCH}}"),
+  "Linux release does not isolate staging or verify its final artifact set",
+);
+assert(
+  !linux.includes("archlinux") &&
+    !root.includes("desktop:package:linux-arch") &&
+    !packageJson.includes("desktop:package:linux-arch"),
+  "Arch Linux packaging entrypoints must not remain",
+);
+assert(
+  !linux.includes(
+    "cp dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}} dist/desktop-release",
+  ),
+  "Linux raw binary must not be copied into the release directory",
+);
+assert(
   linux.includes("tool package -name jftrade"),
   "Linux package name must remain lowercase for Debian compatibility",
 );
@@ -169,8 +193,25 @@ assert(
 assert(
   releaseWorkflow.includes("sha256sum > SHA256SUMS") &&
     releaseWorkflow.includes("gh release upload") &&
+    releaseWorkflow.includes("gh release delete-asset") &&
     releaseWorkflow.includes("release/*"),
-  "GitHub Release does not checksum and upload every legal notice asset",
+  "GitHub Release does not clean legacy assets, checksum and upload every release asset",
+);
+assert(
+  releaseWorkflow.includes('base="JFTrade-${version}-linux-x64"') &&
+    releaseWorkflow.includes("outputs.rpm") &&
+    releaseWorkflow.includes("sudo apt-get install -y rpm squashfs-tools") &&
+    releaseWorkflow.includes("unsquashfs -s -offset") &&
+    releaseWorkflow.includes('rpm -qpR "$rpm"'),
+  "GitHub Release does not verify the canonical Linux package set and XZ AppImage",
+);
+assert(
+  !releaseWorkflow.includes("linux-amd64/*.AppImage") &&
+    !releaseWorkflow.includes("linux-amd64/*.deb") &&
+    !releaseWorkflow.includes(
+      "dist/desktop-release/linux-amd64/jftrade-desktop-linux-amd64",
+    ),
+  "GitHub Release must use exact Linux package paths without a raw binary",
 );
 
 const nfpm = read("build/linux/nfpm.yaml");
@@ -196,4 +237,8 @@ assert(
 assert(
   nfpm.includes("libgtk-3-0") && nfpm.includes("libwebkit2gtk-4.1-0"),
   "Linux package dependencies do not match GTK3 build",
+);
+assert(
+  !nfpm.includes("archlinux"),
+  "Linux package metadata must not retain an Arch override",
 );

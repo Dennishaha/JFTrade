@@ -65,5 +65,3 @@ tasks:
     cmds: [node scripts/release-desktop.mjs linux-amd64 deb]
   desktop:package:linux-rpm:
     cmds: [node scripts/release-desktop.mjs linux-amd64 rpm]
-  desktop:package:linux-arch:
-    cmds: [node scripts/release-desktop.mjs linux-amd64 archlinux]

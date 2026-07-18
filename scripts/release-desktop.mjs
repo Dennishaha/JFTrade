@@ -7,6 +7,7 @@ import {
   requireDesktopReleaseMetadata,
   resolveDesktopBuildMetadata,
 } from "./lib/desktop-release-metadata.mjs";
+import { linuxReleaseArtifactPaths } from "./lib/desktop-release-artifacts.mjs";
 
 const aliases = {
   darwin: "darwin",
@@ -19,6 +20,8 @@ const host = aliases[process.platform] || process.platform;
 const spec = parseSpec(process.argv[2] || host);
 const format = String(process.argv[3] || "").toLowerCase();
 if (!spec.target) fail(`Unknown desktop release target: ${process.argv[2]}`);
+if (format && !supportedFormats(spec.target).includes(format))
+  fail(`Unsupported ${spec.target} desktop package format: ${format}`);
 if (spec.target !== host)
   fail(
     `Desktop releases run on their native OS (${spec.target} requested on ${host}).`,
@@ -38,7 +41,7 @@ const args = [
   `BUILD_TIME=${metadata.buildTime}`,
   `QUALIFIER=${qualifier}`,
 ];
-if (format === "rpm" || format === "archlinux" || format === "deb")
+if (format === "rpm" || format === "deb")
   args.push(`FORMAT=${format}`);
 const status = spawnChecked(process.execPath, args, { cwd: process.cwd() });
 if (status !== 0) process.exit(status);
@@ -63,10 +66,16 @@ function resolveTask(target, selectedFormat) {
     return "linux:package:appimage";
   if (
     target === "linux" &&
-    ["deb", "rpm", "archlinux"].includes(selectedFormat)
+    ["deb", "rpm"].includes(selectedFormat)
   )
     return "linux:package:linux";
   return `${target}:package`;
+}
+
+function supportedFormats(target) {
+  if (target === "linux") return ["appimage", "deb", "rpm"];
+  if (target === "windows") return ["msix"];
+  return [];
 }
 
 function expectedArtifacts(target, arch, version, selectedFormat, qualifier) {
@@ -86,26 +95,12 @@ function expectedArtifacts(target, arch, version, selectedFormat, qualifier) {
           : `JFTrade-${version}-windows-arm64-preview-${qualifier}-setup.exe`,
       ),
     ];
-  if (selectedFormat === "appimage") return findBySuffix(dir, ".AppImage");
-  if (["deb", "rpm", "archlinux"].includes(selectedFormat))
-    return findBySuffix(
-      dir,
-      selectedFormat === "archlinux" ? ".pkg.tar.zst" : `.${selectedFormat}`,
-    );
-  return [
-    path.join(dir, `jftrade-desktop-linux-${arch}`),
-    ...findBySuffix(dir, ".AppImage"),
-    ...findBySuffix(dir, ".deb"),
-  ];
-}
-
-function findBySuffix(dir, suffix) {
-  if (!fs.existsSync(dir)) return [path.join(dir, `missing${suffix}`)];
-  const matches = fs
-    .readdirSync(dir)
-    .filter((entry) => entry.endsWith(suffix))
-    .map((entry) => path.join(dir, entry));
-  return matches.length ? matches : [path.join(dir, `missing${suffix}`)];
+  return linuxReleaseArtifactPaths(
+    dir,
+    version,
+    arch,
+    selectedFormat || "",
+  );
 }
 
 function parseSpec(value) {

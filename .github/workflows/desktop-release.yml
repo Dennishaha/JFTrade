@@ -131,6 +131,8 @@ jobs:
           pnpm run check:wails-bindings
           pnpm run typecheck:web
           pnpm run test:desktop-release-metadata
+          pnpm run test:desktop-release-artifacts
+          pnpm run test:desktop-linux-artifacts
           pnpm run test:desktop-release-inputs
           pnpm run test:desktop-wails-tasks
           pnpm run test:desktop-signing
@@ -497,38 +499,67 @@ jobs:
       - name: Install Linux desktop dependencies
         run: bash scripts/install-linux-desktop-dependencies.sh
 
+      - name: Install Linux package verification tools
+        run: sudo apt-get install -y rpm squashfs-tools
+
       - name: Test Linux release profile
         run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
 
-      - name: Build Linux x64 release binary
+      - name: Resolve Linux release artifact names
+        id: linux_artifacts
+        run: |
+          version="${JFTRADE_DESKTOP_RELEASE_TAG#v}"
+          base="JFTrade-${version}-linux-x64"
+          dir="dist/desktop-release/linux-amd64"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "appimage=$dir/$base.AppImage" >> "$GITHUB_OUTPUT"
+          echo "deb=$dir/$base.deb" >> "$GITHUB_OUTPUT"
+          echo "rpm=$dir/$base.rpm" >> "$GITHUB_OUTPUT"
+          echo "sbom=dist/desktop-release/$base.spdx.json" >> "$GITHUB_OUTPUT"
+
+      - name: Build Linux x64 release packages
         run: pnpm run desktop:release:linux
 
-      - name: Verify Linux x64 release binary
+      - name: Verify Linux x64 release packages
         id: artifact
         run: |
-          artifact="dist/desktop-release/linux-amd64/jftrade-desktop-linux-amd64"
-          test -x "$artifact"
+          artifact="dist/desktop/linux-amd64/jftrade-desktop-linux-amd64"
+          appimage="$(realpath '${{ steps.linux_artifacts.outputs.appimage }}')"
+          deb="${{ steps.linux_artifacts.outputs.deb }}"
+          rpm="${{ steps.linux_artifacts.outputs.rpm }}"
+          node scripts/manage-linux-release-artifacts.mjs verify \
+            "${{ steps.linux_artifacts.outputs.version }}" amd64 \
+            dist/desktop-release/linux-amd64
+          test -x "$artifact" && test -x "$appimage"
+          test -s "$deb" && test -s "$rpm"
           file "$artifact" | grep -q 'ELF 64-bit'
           go version -m "$artifact" | tee /tmp/jftrade-linux-buildinfo.txt
           grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-linux-buildinfo.txt
           ldd "$artifact" | tee /tmp/jftrade-linux-ldd.txt
           ! grep -q 'not found' /tmp/jftrade-linux-ldd.txt
           echo "path=$artifact" >> "$GITHUB_OUTPUT"
-          appimage="$(find dist/desktop-release/linux-amd64 -maxdepth 1 -name '*.AppImage' -print -quit)"
-          deb="$(find dist/desktop-release/linux-amd64 -maxdepth 1 -name '*.deb' -print -quit)"
-          test -x "$appimage"
-          test -s "$deb"
-          "$appimage" --appimage-extract >/dev/null
+          appimage_offset="$("$appimage" --appimage-offset)"
+          test "$appimage_offset" -gt 0
+          unsquashfs -s -offset "$appimage_offset" "$appimage" | tee /tmp/jftrade-appimage-squashfs.txt
+          grep -Eq '^Compression[[:space:]]+xz$' /tmp/jftrade-appimage-squashfs.txt
+          extract_dir="$RUNNER_TEMP/jftrade-appimage-extract"
+          mkdir -p "$extract_dir"
+          (cd "$extract_dir" && "$appimage" --appimage-extract >/dev/null)
+          test -x "$extract_dir/squashfs-root/AppRun"
           dpkg-deb --info "$deb" | tee /tmp/jftrade-deb-info.txt
           grep -q 'libgtk-3-0' /tmp/jftrade-deb-info.txt
           grep -q 'libwebkit2gtk-4.1-0' /tmp/jftrade-deb-info.txt
+          rpm -qpi "$rpm" | tee /tmp/jftrade-rpm-info.txt
+          rpm -qpR "$rpm" | tee /tmp/jftrade-rpm-requires.txt
+          grep -qx 'gtk3' /tmp/jftrade-rpm-requires.txt
+          grep -qx 'webkit2gtk4.1' /tmp/jftrade-rpm-requires.txt
 
       - name: Generate Linux x64 SBOM
         uses: anchore/sbom-action@v0
         with:
           file: ${{ steps.artifact.outputs.path }}
           format: spdx-json
-          output-file: dist/desktop-release/JFTrade-linux-x64.spdx.json
+          output-file: ${{ steps.linux_artifacts.outputs.sbom }}
           upload-artifact: false
           upload-release-assets: false
 
@@ -537,19 +568,19 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-path: |
-            dist/desktop-release/linux-amd64/jftrade-desktop-linux-amd64
-            dist/desktop-release/linux-amd64/*.AppImage
-            dist/desktop-release/linux-amd64/*.deb
+            ${{ steps.linux_artifacts.outputs.appimage }}
+            ${{ steps.linux_artifacts.outputs.deb }}
+            ${{ steps.linux_artifacts.outputs.rpm }}
 
       - name: Upload Linux x64 release files
         uses: actions/upload-artifact@v7
         with:
           name: desktop-release-linux
           path: |
-            dist/desktop-release/linux-amd64/jftrade-desktop-linux-amd64
-            dist/desktop-release/linux-amd64/*.AppImage
-            dist/desktop-release/linux-amd64/*.deb
-            dist/desktop-release/JFTrade-linux-x64.spdx.json
+            ${{ steps.linux_artifacts.outputs.appimage }}
+            ${{ steps.linux_artifacts.outputs.deb }}
+            ${{ steps.linux_artifacts.outputs.rpm }}
+            ${{ steps.linux_artifacts.outputs.sbom }}
           if-no-files-found: error
 
   publish:
@@ -587,7 +618,15 @@ jobs:
           find incoming -type f -exec cp {} release/ \;
           cp LICENSE release/LICENSE
           cp docs/legal/third-party-notices.md release/THIRD-PARTY-NOTICES.md
-          # Linux contributes a raw binary, AppImage, deb and SBOM; all platforms share the legal notice assets.
+          version="${JFTRADE_DESKTOP_RELEASE_TAG#v}"
+          base="JFTrade-${version}-linux-x64"
+          test -s "release/$base.AppImage"
+          test -s "release/$base.deb"
+          test -s "release/$base.rpm"
+          test -s "release/$base.spdx.json"
+          test ! -e release/jftrade-desktop-linux-amd64
+          test -z "$(find release -maxdepth 1 -type f -name '*.pkg.tar.zst' -print -quit)"
+          # Linux contributes AppImage, deb, rpm and SBOM; all platforms share the legal notice assets.
           test "$(find release -maxdepth 1 -type f | wc -l)" -ge 10
 
       - name: Generate SHA256SUMS
@@ -608,6 +647,13 @@ jobs:
           set -euo pipefail
           if gh release view "$JFTRADE_DESKTOP_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             is_draft="$(gh release view "$JFTRADE_DESKTOP_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+            while IFS= read -r asset; do
+              case "$asset" in
+                jftrade-desktop-linux-*|jftrade.deb|jftrade.rpm|*.pkg.tar.zst|JFTrade-linux-x64.spdx.json)
+                  gh release delete-asset "$JFTRADE_DESKTOP_RELEASE_TAG" "$asset" --yes --repo "$GITHUB_REPOSITORY"
+                  ;;
+              esac
+            done < <(gh release view "$JFTRADE_DESKTOP_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
             gh release upload "$JFTRADE_DESKTOP_RELEASE_TAG" release/* --clobber --repo "$GITHUB_REPOSITORY"
           else
             is_draft="true"

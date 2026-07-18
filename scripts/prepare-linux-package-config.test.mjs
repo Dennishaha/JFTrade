@@ -35,6 +35,7 @@ assert(
 assert(config.includes("homepage: https://github.com/Dennishaha/jftrade"));
 assert(config.includes("license: AGPL-3.0-only"));
 assert(!config.includes("LicenseRef-Proprietary"));
+assert(!config.includes("archlinux"));
 assert(config.includes(path.join(directory, "LICENSE")));
 assert(config.includes(path.join(directory, "THIRD-PARTY-NOTICES.md")));
 assert(!config.includes("__"));
