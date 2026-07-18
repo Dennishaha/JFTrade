@@ -249,6 +249,10 @@ const accountPositions = computed(() => {
       marketValue: position.marketValue,
       unrealizedPnl: position.unrealizedPnl,
       currency: position.currency,
+      productClass: position.productClass,
+      strategyType: position.strategyType,
+      positionType: position.positionType,
+      payoutIfWin: position.payoutIfWin,
       source: "券商",
       updatedAt: brokerPositions.value.checkedAt,
     }));
@@ -263,6 +267,10 @@ const accountPositions = computed(() => {
     marketValue: position.marketValue,
     unrealizedPnl: null,
     currency: null,
+    productClass: "equity",
+    strategyType: null,
+    positionType: null,
+    payoutIfWin: null,
     source: "投影",
     updatedAt: position.updatedAt,
   }));
@@ -479,6 +487,34 @@ function formatNumber(value: number | null | undefined): string {
   }).format(value);
 }
 
+function formatOrderKind(order: AccountExecutionOrder): string {
+  switch (order.orderKind) {
+    case "option_combo":
+      return "期权组合";
+    case "event_single":
+      return "预测单腿";
+    case "event_parlay":
+      return "预测 Parlay";
+    default:
+      return formatOrderTypeLabel(order.orderType);
+  }
+}
+
+function formatPositionProduct(value: string | null | undefined): string {
+  switch (value) {
+    case "option":
+      return "期权";
+    case "future":
+      return "期货";
+    case "event_contract":
+      return "预测合约";
+    case "fund":
+      return "基金/信托";
+    default:
+      return "证券";
+  }
+}
+
 function formatMoney(
   value: number | null | undefined,
   currency?: string | null,
@@ -617,8 +653,12 @@ async function cancelOrder(order: AccountExecutionOrder): Promise<void> {
   cancellingOrderIds.value = nextCancelling;
 
   try {
+    const cancelPath =
+      order.orderKind === "option_combo" || order.orderKind === "event_parlay"
+        ? `/api/v1/execution/combos/${encodeURIComponent(order.internalOrderId)}/cancel`
+        : `/api/v1/execution/orders/${encodeURIComponent(order.internalOrderId)}/cancel`;
     const result = await fetchEnvelopeWithInit<ExecutionOrderCommandResult>(
-      `/api/v1/execution/orders/${encodeURIComponent(order.internalOrderId)}/cancel`,
+      cancelPath,
       {
         method: "POST",
       },
@@ -827,6 +867,8 @@ if (requestedExecutionOrderId !== "") {
                         <th class="px-4 py-3 text-right">成本价</th>
                         <th class="px-4 py-3 text-right">市值</th>
                         <th class="px-4 py-3 text-right">未实现盈亏</th>
+                        <th class="px-4 py-3 text-left">产品/组合</th>
+                        <th class="px-4 py-3 text-right">猜中赔付</th>
                         <th class="px-4 py-3 text-left">来源</th>
                       </tr>
                     </thead>
@@ -848,6 +890,12 @@ if (requestedExecutionOrderId !== "") {
                         <td class="px-4 py-3 text-right">{{ formatNumber(position.averagePrice) }}</td>
                         <td class="px-4 py-3 text-right">{{ formatMoney(position.marketValue, position.currency) }}</td>
                         <td class="px-4 py-3 text-right">{{ formatMoney(position.unrealizedPnl, position.currency) }}</td>
+                        <td class="px-4 py-3">
+                          {{ formatPositionProduct(position.productClass) }}
+                          <span v-if="position.strategyType"> · {{ position.strategyType }}</span>
+                          <span v-if="position.positionType"> · {{ position.positionType }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-right">{{ formatMoney(position.payoutIfWin, position.currency) }}</td>
                         <td class="px-4 py-3">{{ position.source }}</td>
                       </tr>
                     </tbody>
@@ -1116,7 +1164,7 @@ if (requestedExecutionOrderId !== "") {
                       <div class="mt-1 text-xs text-slate-500">{{ order.internalOrderId }}</div>
                     </td>
                     <td class="px-4 py-3">{{ formatOrderSideLabel(order.side) }}</td>
-                    <td class="px-4 py-3">{{ formatOrderTypeLabel(order.orderType) }}</td>
+                    <td class="px-4 py-3">{{ formatOrderKind(order) }}</td>
                     <td class="px-4 py-3">
                       <v-chip variant="outlined" size="small">
                         {{ formatExecutionOrderSourceLabel(order.source, order.sourceDetail) }}
@@ -1209,7 +1257,7 @@ if (requestedExecutionOrderId !== "") {
                   </div>
                   <div class="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-5">
                     <span>{{ formatOrderSideLabel(order.side) }}</span>
-                    <span>{{ formatOrderTypeLabel(order.orderType) }}</span>
+                    <span>{{ formatOrderKind(order) }}</span>
                     <span>{{ formatExecutionOrderSourceLabel(order.source, order.sourceDetail) }}</span>
                     <span>数量 {{ formatNumber(order.requestedQuantity) }}</span>
                     <span>成交 {{ formatNumber(order.filledQuantity) }}</span>
@@ -1249,6 +1297,33 @@ if (requestedExecutionOrderId !== "") {
               <v-chip variant="outlined" size="small">{{ executionOrderEvents.events.length }} 条事件</v-chip>
             </div>
             <v-card-text>
+              <div
+                v-if="selectedExecutionOrder && ((selectedExecutionOrder.legs?.length ?? 0) > 0 || selectedExecutionOrder.requestedAmount != null || selectedExecutionOrder.payout != null)"
+                class="mb-4 grid gap-3"
+              >
+                <div class="flex flex-wrap gap-2 text-sm">
+                  <v-chip size="small" variant="tonal">{{ formatOrderKind(selectedExecutionOrder) }}</v-chip>
+                  <v-chip v-if="selectedExecutionOrder.requestedAmount != null" size="small" variant="outlined">
+                    投入 {{ formatNumber(selectedExecutionOrder.requestedAmount) }}
+                  </v-chip>
+                  <v-chip v-if="selectedExecutionOrder.payout != null" size="small" color="success" variant="outlined">
+                    Payout {{ formatNumber(selectedExecutionOrder.payout) }}
+                  </v-chip>
+                </div>
+                <div
+                  v-for="leg in selectedExecutionOrder.legs ?? []"
+                  :key="leg.id"
+                  class="grid gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm sm:grid-cols-[minmax(180px,1fr)_80px_70px_100px_100px]"
+                >
+                  <span class="font-medium text-slate-900">{{ leg.instrumentId }}</span>
+                  <span>{{ formatOrderSideLabel(leg.side) }}</span>
+                  <span>× {{ leg.ratio }}</span>
+                  <span>{{ leg.predictionSide || formatNumber(leg.requestedQuantity) }}</span>
+                  <v-chip :color="resolveOrderChipColor(leg.status)" size="x-small" variant="outlined">
+                    {{ formatExecutionOrderStatusLabel(leg.status) }}
+                  </v-chip>
+                </div>
+              </div>
               <div v-if="isLoadingExecutionEvents" class="text-sm text-slate-500">正在加载订单事件...</div>
               <v-alert
                 v-else-if="executionEventsError"

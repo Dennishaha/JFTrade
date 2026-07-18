@@ -17,6 +17,44 @@ type failingTradingAdapterExchange struct {
 	cancelErr error
 }
 
+type tradingAdapterCoverageBroker struct {
+	exchange *failingTradingAdapterExchange
+}
+
+func (b *tradingAdapterCoverageBroker) ID() string { return "futu" }
+
+func (b *tradingAdapterCoverageBroker) Descriptor() broker.Descriptor {
+	return broker.Descriptor{ID: b.ID()}
+}
+
+func (b *tradingAdapterCoverageBroker) DiscoverAccounts(context.Context) ([]broker.Account, error) {
+	return nil, nil
+}
+
+func (b *tradingAdapterCoverageBroker) MarketData() broker.MarketDataReader { return nil }
+
+func (b *tradingAdapterCoverageBroker) Trading() broker.TradingService { return b }
+
+func (b *tradingAdapterCoverageBroker) PlaceOrder(
+	ctx context.Context,
+	query broker.PlaceOrderQuery,
+) (*broker.PlaceOrderResult, error) {
+	return b.exchange.PlaceBrokerOrder(ctx, query)
+}
+
+func (b *tradingAdapterCoverageBroker) CancelOrders(
+	ctx context.Context,
+	query broker.ReadQuery,
+	orders ...broker.CancelOrder,
+) error {
+	for _, order := range orders {
+		if err := b.exchange.CancelBrokerOrder(ctx, query, order); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (e *failingTradingAdapterExchange) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error) {
 	if e.placeErr != nil {
 		return nil, e.placeErr
@@ -97,6 +135,7 @@ func TestCoverage98TradingAdapterPropagatesBrokerFailuresAndPersistsAcceptedCanc
 	backendFailure := errors.New("broker transport unavailable")
 	failing := &failingTradingAdapterExchange{strategyRuntimeStubExchange: newStrategyRuntimeStubExchange(), placeErr: backendFailure}
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return failing }
+	server.brokers.Replace(&tradingAdapterCoverageBroker{exchange: failing})
 
 	if _, err := server.placeExecutionOrder(t.Context(), trdsrv.ExecutionOrderCommand{
 		Symbol: "US.AAPL",

@@ -249,14 +249,14 @@ func TestConnectRejectsOpenDBelowMinimumVersion(t *testing.T) {
 
 func TestConnectRejectsOpenDBelowMinimumBuild(t *testing.T) {
 	server := startQuoteOpenDServer(t)
-	server.serverBuildNo.Store(6708)
+	server.serverBuildNo.Store(6808)
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	err := ex.Connect(t.Context())
-	if err == nil || !strings.Contains(err.Error(), "10.8.6708") || !strings.Contains(err.Error(), opend.MinimumOpenDVersion) {
+	if err == nil || !strings.Contains(err.Error(), "10.9.6808") || !strings.Contains(err.Error(), opend.MinimumOpenDVersion) {
 		t.Fatalf("Connect error = %v", err)
 	}
 }

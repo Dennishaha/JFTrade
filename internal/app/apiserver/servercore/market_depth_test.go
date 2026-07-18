@@ -297,8 +297,7 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 		t.Fatalf("subscribe depth websocket: %v", err)
 	}
 
-	_ = readLiveWebSocketEvent(t, conn)
-	event := readLiveWebSocketEvent(t, conn)
+	event := readLiveWebSocketEventOfType(t, conn, "market.depth")
 	if event["type"] != "market.depth" {
 		t.Fatalf("unexpected websocket event: %+v", event)
 	}

@@ -172,7 +172,7 @@ func (p *RealTradeControlPlane) ActivateKillSwitch(_ context.Context, command Re
 		ID:                 nextRealTradeControlID("rtks-event"),
 		EventType:          "activated",
 		Action:             "KILL_SWITCH_ACTIVATE",
-		BrokerID:           "futu",
+		BrokerID:           "*",
 		TradingEnvironment: new(env),
 		KillSwitchSource:   &source,
 		OperatorID:         new(entry.OperatorID),
@@ -211,7 +211,7 @@ func (p *RealTradeControlPlane) ReleaseKillSwitch(_ context.Context, command Rea
 		ID:                 nextRealTradeControlID("rtks-event"),
 		EventType:          "released",
 		Action:             "KILL_SWITCH_RELEASE",
-		BrokerID:           "futu",
+		BrokerID:           "*",
 		TradingEnvironment: new(env),
 		KillSwitchSource:   &source,
 		OperatorID:         new(operatorID),
@@ -267,7 +267,7 @@ func (p *RealTradeControlPlane) UpdateRuntimeRiskConfig(_ context.Context, comma
 		ID:                         nextRealTradeControlID("rtrc-event"),
 		EventType:                  "updated",
 		Action:                     "RISK_CONFIG_UPDATED",
-		BrokerID:                   "futu",
+		BrokerID:                   "*",
 		TradingEnvironment:         new(env),
 		OperatorID:                 new(operatorID),
 		Reason:                     nullableString(reason),
@@ -308,7 +308,7 @@ func (p *RealTradeControlPlane) DisableRuntimeRiskConfig(_ context.Context, comm
 		ID:                 nextRealTradeControlID("rtrc-event"),
 		EventType:          "disabled",
 		Action:             "RISK_CONFIG_DISABLED",
-		BrokerID:           "futu",
+		BrokerID:           "*",
 		TradingEnvironment: new(env),
 		OperatorID:         new(operatorID),
 		Reason:             nullableString(reason),
@@ -572,7 +572,7 @@ func normalizeRealTradeEnvironment(value string) string {
 func normalizeBrokerID(value string) string {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	if normalized == "" {
-		return "futu"
+		return "*"
 	}
 	return normalized
 }

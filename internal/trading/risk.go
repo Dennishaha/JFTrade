@@ -156,7 +156,7 @@ func matchHardStop(config PreTradeRiskConfig, command ExecutionOrderCommand) *Re
 }
 
 func hardStopMatches(entry RealTradeHardStopEntry, command ExecutionOrderCommand) bool {
-	if value := strings.TrimSpace(entry.BrokerID); value != "" && !strings.EqualFold(value, command.BrokerID) {
+	if value := strings.TrimSpace(entry.BrokerID); value != "" && value != "*" && !strings.EqualFold(value, command.BrokerID) {
 		return false
 	}
 	if value := strings.TrimSpace(entry.TradingEnvironment); value != "" && !strings.EqualFold(value, command.Query.TradingEnvironment) {

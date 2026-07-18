@@ -677,8 +677,8 @@ func TestServiceBrokerWriteAndTimeoutBehaviors(t *testing.T) {
 	})).UnlockTrade(t.Context(), broker.UnlockTradeRequest{ReadQuery: broker.ReadQuery{BrokerID: "futu"}}); !errors.Is(err, ErrUnlockUnsupported) {
 		t.Fatalf("UnlockTrade unsupported err=%v", err)
 	}
-	if _, err := NewService().Runtime(t.Context(), "ib"); !errors.Is(err, ErrBrokerNotFound) {
-		t.Fatalf("Runtime wrong broker err=%v", err)
+	if runtime, err := NewService().Runtime(t.Context(), "ib"); err != nil || len(runtime) != 0 {
+		t.Fatalf("Runtime without any configured broker = %#v, err=%v", runtime, err)
 	}
 	if _, err := NewService(WithActiveBroker(func() broker.Broker {
 		return &stubBroker{id: "futu"}

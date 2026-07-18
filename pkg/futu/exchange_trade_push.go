@@ -2,7 +2,6 @@ package futu
 
 import (
 	"strconv"
-	"strings"
 
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
@@ -22,6 +21,7 @@ type BrokerOrderFillSnapshot struct {
 	FillPrice          *float64
 	FilledAt           string
 	Status             *string
+	Payout             *float64
 }
 
 func BrokerOrderSnapshotFromPush(header *trdcommonpb.TrdHeader, order *trdcommonpb.Order) BrokerOrderSnapshot {
@@ -31,24 +31,7 @@ func BrokerOrderSnapshotFromPush(header *trdcommonpb.TrdHeader, order *trdcommon
 
 func BrokerOrderFillSnapshotFromPush(header *trdcommonpb.TrdHeader, fill *trdcommonpb.OrderFill) BrokerOrderFillSnapshot {
 	account := resolvedTradeAccountFromHeader(header, marketFromSymbol(fill.GetCode(), ""))
-	market := resolveBrokerOrderMarket(fill.GetTrdMarket(), fill.GetCode(), account.Market)
-	timeSymbol := brokerOrderTimeSymbol(market, fill.GetCode())
-	return BrokerOrderFillSnapshot{
-		AccountID:          account.AccountID,
-		TradingEnvironment: account.TradingEnvironment,
-		Market:             market,
-		BrokerOrderID:      strconv.FormatUint(fill.GetOrderID(), 10),
-		BrokerOrderIDEx:    optionalNonEmptyString(fill.GetOrderIDEx()),
-		BrokerFillID:       strconv.FormatUint(fill.GetFillID(), 10),
-		BrokerFillIDEx:     optionalNonEmptyString(fill.GetFillIDEx()),
-		Symbol:             strings.TrimSpace(strings.ToUpper(fill.GetCode())),
-		SymbolName:         optionalNonEmptyString(fill.GetName()),
-		Side:               normalizeRuntimeEnum(enumName(fill.GetTrdSide(), trdcommonpb.TrdSide_name)),
-		FilledQuantity:     fill.GetQty(),
-		FillPrice:          cloneFloat64Ptr(fill.Price),
-		FilledAt:           formatBrokerOrderTime(fill.CreateTimestamp, fill.GetCreateTime(), timeSymbol),
-		Status:             optionalEnumStringPtr(fill.Status, trdcommonpb.OrderFillStatus_name),
-	}
+	return brokerOrderFillSnapshotFromProto(account, fill)
 }
 
 func resolvedTradeAccountFromHeader(header *trdcommonpb.TrdHeader, fallbackMarket string) resolvedTradeAccount {

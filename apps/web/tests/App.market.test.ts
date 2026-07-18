@@ -471,12 +471,22 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
 
 describe("Workspace market behavior", () => {
   it("sets the workspace browser title from the active instrument name", async () => {
-    vi.stubGlobal("fetch", buildStandardFetchMock());
+    const fetchMock = buildStandardFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
 
     const { wrapper } = await mountApp("/workspace");
     await flushRequests();
 
     expect(document.title).toBe("HK.00700-Tencent Holdings - JFTrade Console");
+    expect(
+      fetchMock.mock.calls.some(([input]) => {
+        const url = new URL(String(input), "http://127.0.0.1:3000");
+        return (
+          url.pathname === "/api/v1/market-data/instruments" &&
+          url.searchParams.get("query") === "HK.00700"
+        );
+      }),
+    ).toBe(true);
 
     wrapper.unmount();
   });

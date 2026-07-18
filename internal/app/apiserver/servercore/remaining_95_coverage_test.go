@@ -22,7 +22,7 @@ func TestExecutionNotificationRemainingBoundaries(t *testing.T) {
 	if !ok || partial.Level != "info" || partial.Category != "broker.order.fill" {
 		t.Fatalf("partial fill notification = %#v, %v", partial, ok)
 	}
-	if note := baseExecutionNotification(executionOrderSummaryResponse{}, "category"); note.BrokerID != "futu" {
+	if note := baseExecutionNotification(executionOrderSummaryResponse{}, "category"); note.BrokerID != "unknown" {
 		t.Fatalf("default notification broker = %#v", note)
 	}
 	if got := executionOrderNotificationMessage(executionOrderSummaryResponse{InternalOrderID: "exec-empty"}); got != "exec-empty" {

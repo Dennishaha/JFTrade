@@ -5,7 +5,6 @@ import type { ExecutionOrdersResponse } from "@/contracts";
 
 import { fetchEnvelopeWithInit } from "../../composables/apiClient";
 import {
-  formatConnectivityLabel,
   formatDateTime,
   formatExecutionEventTypeLabel,
   formatExecutionOrderStatusLabel,
@@ -20,6 +19,8 @@ import {
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
+import MarketStatusBadge from "../domain/market-data/MarketStatusBadge.vue";
+import OptionComboConfirmDialog from "../product/OptionComboConfirmDialog.vue";
 
 type Tab = "positions" | "active" | "historical" | "fills";
 
@@ -36,6 +37,13 @@ interface ExecutionOrderCommandResult {
   message: string;
   checkedAt: string;
 }
+
+const props = defineProps<{
+  view?: Tab;
+  hideHeader?: boolean;
+  orderKindFilter?: string;
+  focusOrderId?: string;
+}>();
 
 const {
   brokerOrders,
@@ -55,6 +63,9 @@ const notifications = useNotifications();
 const tab = ref<Tab>("positions");
 const cancellingOrderIds = ref<Set<string>>(new Set());
 const hasLoadedHistoricalOrders = ref(false);
+const expandedOrderIds = ref<Set<string>>(new Set());
+const pendingCancelOrder = ref<ExecutionOrder | null>(null);
+const activeTab = computed<Tab>(() => props.view ?? tab.value);
 
 const positions = computed(() => portfolioPositions.value.positions);
 const activeOrderScope = computed(() => {
@@ -68,10 +79,14 @@ const activeOrderScope = computed(() => {
   };
 });
 const activeExecs = computed(() =>
-  activeExecutionOrders.value.orders.filter((order) => orderMatchesActiveScope(order)),
+  activeExecutionOrders.value.orders.filter(
+    (order) => orderMatchesActiveScope(order) && orderMatchesKind(order),
+  ),
 );
 const historicalExecs = computed(() =>
-  historicalExecutionOrders.value.orders.filter((order) => orderMatchesActiveScope(order)),
+  historicalExecutionOrders.value.orders.filter(
+    (order) => orderMatchesActiveScope(order) && orderMatchesKind(order),
+  ),
 );
 const pendingExecs = computed(() =>
   activeExecs.value.filter((order) => !isFinalExecutionOrderStatus(order.status)),
@@ -92,6 +107,25 @@ const isPositionsLoaded = computed(() => !isLoadingBrokerOrders.value);
 const isActiveOrdersLoaded = computed(() => !isLoadingBrokerOrders.value);
 const isHistoricalOrdersLoaded = computed(() => hasLoadedHistoricalOrders.value && !isLoadingHistoricalOrders.value);
 const isEventsLoaded = computed(() => !isLoadingBrokerOrders.value);
+const orderConnectivityIssue = computed(() => {
+  const connectivity = brokerOrders.value.connectivity?.trim().toLowerCase() ?? "";
+  if (connectivity === "connected") return null;
+  if (connectivity === "disconnected") {
+    return {
+      state: "error" as const,
+      label: "订单连接中断",
+      title: "券商订单连接已中断，持仓与订单可能无法及时更新",
+    };
+  }
+  if (connectivity === "degraded") {
+    return {
+      state: "stale" as const,
+      label: "订单连接降级",
+      title: "券商订单连接已降级，持仓与订单可能存在延迟",
+    };
+  }
+  return null;
+});
 
 function formatTabCount(count: number, loaded: boolean): string {
   return loaded ? `（${count}）` : "";
@@ -113,11 +147,22 @@ function ensureHistoricalOrdersLoaded(): void {
   });
 }
 
-watch(tab, (newTab) => {
+watch(activeTab, (newTab) => {
   if (newTab === "historical") {
     ensureHistoricalOrdersLoaded();
   }
-});
+}, { immediate: true });
+watch(
+  () => props.focusOrderId,
+  (internalOrderId) => {
+    if (!internalOrderId) return;
+    expandedOrderIds.value = new Set([
+      ...expandedOrderIds.value,
+      internalOrderId,
+    ]);
+  },
+  { immediate: true },
+);
 
 function sideClass(side: string | null | undefined): string {
   if (!side) return "";
@@ -146,6 +191,38 @@ function orderMatchesActiveScope(order: {
     return false;
   }
   return true;
+}
+
+function orderMatchesKind(order: { orderKind?: string }): boolean {
+  return (
+    !props.orderKindFilter ||
+    order.orderKind === props.orderKindFilter
+  );
+}
+
+function isExpanded(internalOrderId: string): boolean {
+  return expandedOrderIds.value.has(internalOrderId);
+}
+
+function toggleExpanded(internalOrderId: string): void {
+  const next = new Set(expandedOrderIds.value);
+  if (next.has(internalOrderId)) next.delete(internalOrderId);
+  else next.add(internalOrderId);
+  expandedOrderIds.value = next;
+}
+
+function requestCancelOrder(order: ExecutionOrder): void {
+  if (order.orderKind === "option_combo") {
+    pendingCancelOrder.value = order;
+    return;
+  }
+  void cancelOrder(order);
+}
+
+function confirmCancelOrder(): void {
+  const order = pendingCancelOrder.value;
+  pendingCancelOrder.value = null;
+  if (order != null) void cancelOrder(order);
 }
 
 function isCancellingOrder(internalOrderId: string): boolean {
@@ -180,8 +257,12 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
   cancellingOrderIds.value = nextCancelling;
 
   try {
+    const cancelPath =
+      order.orderKind === "option_combo"
+        ? `/api/v1/execution/combos/${encodeURIComponent(order.internalOrderId)}/cancel`
+        : `/api/v1/execution/orders/${encodeURIComponent(order.internalOrderId)}/cancel`;
     const result = await fetchEnvelopeWithInit<ExecutionOrderCommandResult>(
-      `/api/v1/execution/orders/${encodeURIComponent(order.internalOrderId)}/cancel`,
+      cancelPath,
       { method: "POST" },
     );
     notifications.push({
@@ -225,18 +306,24 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
 
 <template>
   <section class="tv-panel">
-    <div class="tv-panel-head">
+    <div v-if="!hideHeader" class="tv-panel-head">
       <div class="tv-seg">
-        <button :class="{ 'is-active': tab === 'positions' }" @click="tab = 'positions'">持仓{{ formatTabCount(positions.length, isPositionsLoaded) }}</button>
-        <button :class="{ 'is-active': tab === 'active' }" @click="tab = 'active'">近期订单{{ formatTabCount(pendingExecs.length, isActiveOrdersLoaded) }}</button>
-        <button :class="{ 'is-active': tab === 'historical' }" @click="tab = 'historical'">历史订单{{ formatTabCount(completedExecs.length, isHistoricalOrdersLoaded) }}</button>
-        <button :class="{ 'is-active': tab === 'fills' }" @click="tab = 'fills'">事件{{ formatTabCount(events.length, isEventsLoaded) }}</button>
+        <button :class="{ 'is-active': activeTab === 'positions' }" @click="tab = 'positions'">持仓{{ formatTabCount(positions.length, isPositionsLoaded) }}</button>
+        <button :class="{ 'is-active': activeTab === 'active' }" @click="tab = 'active'">近期订单{{ formatTabCount(pendingExecs.length, isActiveOrdersLoaded) }}</button>
+        <button :class="{ 'is-active': activeTab === 'historical' }" @click="tab = 'historical'">历史订单{{ formatTabCount(completedExecs.length, isHistoricalOrdersLoaded) }}</button>
+        <button :class="{ 'is-active': activeTab === 'fills' }" @click="tab = 'fills'">事件{{ formatTabCount(events.length, isEventsLoaded) }}</button>
       </div>
       <div style="flex: 1"></div>
-      <span style="color: var(--tv-text-dim); font-size: 11px">{{ formatConnectivityLabel(brokerOrders.connectivity) }}</span>
+      <MarketStatusBadge
+        v-if="orderConnectivityIssue"
+        data-testid="order-connectivity-issue"
+        :state="orderConnectivityIssue.state"
+        :label="orderConnectivityIssue.label"
+        :title="orderConnectivityIssue.title"
+      />
     </div>
     <div class="tv-panel-body is-flush">
-      <table v-if="tab === 'positions'" class="tv-table">
+      <table v-if="activeTab === 'positions'" class="tv-table">
         <thead>
           <tr>
             <th>标的</th><th>市场</th><th>账户</th><th>环境</th>
@@ -265,7 +352,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         </tbody>
       </table>
 
-      <table v-else-if="tab === 'active'" class="tv-table">
+      <table v-else-if="activeTab === 'active'" class="tv-table">
         <thead>
           <tr>
             <th>内部编号</th><th>标的</th><th>方向</th><th>状态</th>
@@ -273,8 +360,17 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="o in pendingExecs" :key="o.internalOrderId">
-            <td style="font-family: monospace; font-size: 11px">{{ o.internalOrderId }}</td>
+          <template v-for="o in pendingExecs" :key="o.internalOrderId">
+          <tr :class="{ 'is-focused-order': o.internalOrderId === focusOrderId }">
+            <td style="font-family: monospace; font-size: 11px">
+              <button
+                v-if="o.legs?.length"
+                class="tv-order-expand"
+                :aria-label="`${isExpanded(o.internalOrderId) ? '收起' : '展开'}组合腿`"
+                @click="toggleExpanded(o.internalOrderId)"
+              >{{ isExpanded(o.internalOrderId) ? "▾" : "▸" }}</button>
+              {{ o.internalOrderId }}
+            </td>
             <td><InstrumentIdentity :market="o.market" :instrument-id="o.symbol" compact /></td>
             <td :class="sideClass(o.side)" style="font-weight: 600">{{ formatOrderSideLabel(o.side) }}</td>
             <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
@@ -287,12 +383,26 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
                 v-if="canCancelOrder(o)"
                 class="tv-btn-cancel"
                 :disabled="isCancellingOrder(o.internalOrderId)"
-                @click="cancelOrder(o)"
+                @click="requestCancelOrder(o)"
               >
                 {{ isCancellingOrder(o.internalOrderId) ? '撤单中...' : '撤单' }}
               </button>
             </td>
           </tr>
+          <tr v-if="isExpanded(o.internalOrderId)" class="tv-order-legs">
+            <td colspan="9">
+              <div v-for="leg in o.legs ?? []" :key="leg.id">
+                <span>#{{ leg.index + 1 }}</span>
+                <strong :class="sideClass(leg.side)">{{ formatOrderSideLabel(leg.side) }} {{ leg.ratio }}</strong>
+                <code>{{ leg.instrumentId }}</code>
+                <span>{{ formatExecutionOrderStatusLabel(leg.status) }}</span>
+                <span>成交 {{ leg.filledQuantity ?? 0 }} / {{ leg.requestedQuantity ?? "—" }}</span>
+                <span>均价 {{ leg.averagePrice ?? "—" }}</span>
+                <span>费用 {{ leg.fees ?? "—" }}</span>
+              </div>
+            </td>
+          </tr>
+          </template>
           <tr v-if="!isActiveOrdersLoaded">
             <td colspan="9" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">正在加载近期订单...</td>
           </tr>
@@ -302,7 +412,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         </tbody>
       </table>
 
-      <template v-else-if="tab === 'historical'">
+      <template v-else-if="activeTab === 'historical'">
         <div v-if="isLoadingHistoricalOrders && !hasLoadedHistoricalOrders" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">
           正在加载历史订单...
         </div>
@@ -323,8 +433,17 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="o in completedExecs" :key="o.internalOrderId">
-              <td style="font-family: monospace; font-size: 11px">{{ o.internalOrderId }}</td>
+            <template v-for="o in completedExecs" :key="o.internalOrderId">
+            <tr :class="{ 'is-focused-order': o.internalOrderId === focusOrderId }">
+              <td style="font-family: monospace; font-size: 11px">
+                <button
+                  v-if="o.legs?.length"
+                  class="tv-order-expand"
+                  :aria-label="`${isExpanded(o.internalOrderId) ? '收起' : '展开'}组合腿`"
+                  @click="toggleExpanded(o.internalOrderId)"
+                >{{ isExpanded(o.internalOrderId) ? "▾" : "▸" }}</button>
+                {{ o.internalOrderId }}
+              </td>
               <td><InstrumentIdentity :market="o.market" :instrument-id="o.symbol" compact /></td>
               <td :class="sideClass(o.side)" style="font-weight: 600">{{ formatOrderSideLabel(o.side) }}</td>
               <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
@@ -333,6 +452,20 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
               <td class="tv-num">{{ o.filledAveragePrice ?? "—" }}</td>
               <td style="color: var(--tv-text-dim); font-size: 11px">{{ formatDateTime(o.updatedAt) }}</td>
             </tr>
+            <tr v-if="isExpanded(o.internalOrderId)" class="tv-order-legs">
+              <td colspan="8">
+                <div v-for="leg in o.legs ?? []" :key="leg.id">
+                  <span>#{{ leg.index + 1 }}</span>
+                  <strong :class="sideClass(leg.side)">{{ formatOrderSideLabel(leg.side) }} {{ leg.ratio }}</strong>
+                  <code>{{ leg.instrumentId }}</code>
+                  <span>{{ formatExecutionOrderStatusLabel(leg.status) }}</span>
+                  <span>成交 {{ leg.filledQuantity ?? 0 }} / {{ leg.requestedQuantity ?? "—" }}</span>
+                  <span>均价 {{ leg.averagePrice ?? "—" }}</span>
+                  <span>费用 {{ leg.fees ?? "—" }}</span>
+                </div>
+              </td>
+            </tr>
+            </template>
             <tr v-if="isLoadingHistoricalOrders">
               <td colspan="8" style="text-align: center; padding: 24px; color: var(--tv-text-dim)">正在加载历史订单...</td>
             </tr>
@@ -364,6 +497,20 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         </tbody>
       </table>
     </div>
+    <OptionComboConfirmDialog
+      :open="pendingCancelOrder != null"
+      mode="cancel"
+      :account-label="pendingCancelOrder?.accountId ?? ''"
+      :environment="pendingCancelOrder?.tradingEnvironment ?? ''"
+      strategy-label="组合期权订单"
+      :legs="[]"
+      :price="pendingCancelOrder?.requestedPrice ?? 0"
+      :quantity="pendingCancelOrder?.requestedQuantity ?? 0"
+      :real-confirmation-required="false"
+      required-confirmation-text=""
+      @close="pendingCancelOrder = null"
+      @confirm="confirmCancelOrder"
+    />
   </section>
 </template>
 
@@ -385,5 +532,39 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
 .tv-btn-cancel:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.tv-order-expand {
+  width: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tv-text-dim);
+  cursor: pointer;
+}
+
+.is-focused-order td {
+  background: color-mix(in srgb, var(--tv-accent) 9%, transparent);
+}
+
+.tv-order-legs td {
+  padding: 5px 12px 7px 28px;
+  background: color-mix(in srgb, var(--tv-bg-surface-2) 82%, transparent);
+}
+
+.tv-order-legs div {
+  display: grid;
+  grid-template-columns: 30px 70px minmax(160px, 1fr) 100px 120px 90px 80px;
+  min-height: 27px;
+  align-items: center;
+  gap: 8px;
+  color: var(--tv-text-muted);
+  font-size: 10px;
+}
+
+.tv-order-legs code {
+  overflow: hidden;
+  color: var(--tv-text);
+  text-overflow: ellipsis;
 }
 </style>

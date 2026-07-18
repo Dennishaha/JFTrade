@@ -449,7 +449,7 @@ func (s *syncHistoryOpenDServer) handleConn(conn net.Conn) {
 			response = &initpb.Response{
 				RetType: new(int32(0)),
 				S2C: &initpb.S2C{
-					ServerVer:         new(int32(1008)),
+					ServerVer:         new(int32(1009)),
 					LoginUserID:       new(uint64(1)),
 					ConnID:            new(uint64(42)),
 					ConnAESKey:        new("0123456789abcdef"),
@@ -490,8 +490,8 @@ func syncHistoryGlobalStateResponse() *globalpb.Response {
 			MarketHKFuture: &zero,
 			QotLogined:     new(true),
 			TrdLogined:     new(true),
-			ServerVer:      new(int32(1008)),
-			ServerBuildNo:  new(int32(6808)),
+			ServerVer:      new(int32(1009)),
+			ServerBuildNo:  new(int32(6908)),
 			Time:           new(int64(0)),
 		},
 	}

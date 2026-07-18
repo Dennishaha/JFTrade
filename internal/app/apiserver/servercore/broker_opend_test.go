@@ -71,8 +71,8 @@ func startBrokerRouteOpenDServer(t *testing.T) *brokerRouteOpenDServer {
 		addr:              listener.Addr().String(),
 		listener:          listener,
 		shutdownCompleted: make(chan struct{}),
-		serverVer:         1008,
-		serverBuildNo:     6808,
+		serverVer:         1009,
+		serverBuildNo:     6908,
 	}
 	go server.acceptLoop()
 	return server

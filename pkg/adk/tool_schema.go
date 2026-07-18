@@ -307,9 +307,10 @@ func executionOrderEventsInputSchema() map[string]any {
 
 func marketReadInputSchema(name string) map[string]any {
 	properties := map[string]any{
-		"query":  map[string]any{"type": "string", "description": "原始用户请求，可包含类似 HK.00700 或 US.AAPL 的标的。"},
-		"market": map[string]any{"type": "string", "enum": []string{"HK", "US", "SH", "SZ", "CN", "JP", "SG"}},
-		"symbol": map[string]any{"type": "string"},
+		"query":    map[string]any{"type": "string", "description": "原始用户请求，可包含类似 HK.00700 或 US.AAPL 的标的。"},
+		"market":   map[string]any{"type": "string", "enum": []string{"HK", "US", "SH", "SZ"}},
+		"symbol":   map[string]any{"type": "string"},
+		"brokerId": map[string]any{"type": "string"},
 	}
 	if name == "market.candles" {
 		properties["period"] = map[string]any{"type": "string", "description": "K 线周期，例如 1m、5m、1d。"}

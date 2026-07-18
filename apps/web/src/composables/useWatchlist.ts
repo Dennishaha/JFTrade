@@ -159,14 +159,25 @@ export function useWatchlistQuotes(
     },
     queryClient,
   );
-  const quotesByInstrument = computed<Map<string, WatchlistQuote>>(
-    () =>
-      new Map(
-        (query.data.value?.quotes ?? []).map((quote) => [
-          quote.instrumentId.toUpperCase(),
-          quote,
-        ]),
-      ),
+  const quotesByInstrument = ref<Map<string, WatchlistQuote>>(new Map());
+  watch(
+    [settledIds, () => query.data.value?.quotes],
+    ([activeIds, quotes]) => {
+      const active = new Set(activeIds);
+      const next = new Map(
+        [...quotesByInstrument.value].filter(([instrumentId]) =>
+          active.has(instrumentId),
+        ),
+      );
+      for (const quote of quotes ?? []) {
+        const instrumentId = quote.instrumentId.trim().toUpperCase();
+        if (active.has(instrumentId)) {
+          next.set(instrumentId, quote);
+        }
+      }
+      quotesByInstrument.value = next;
+    },
+    { immediate: true },
   );
   const errorsByInstrument = computed<Map<string, WatchlistQuoteError>>(
     () =>

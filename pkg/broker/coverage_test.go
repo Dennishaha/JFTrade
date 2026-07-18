@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
@@ -56,5 +57,20 @@ func TestSymbolScopedSnapshotError(t *testing.T) {
 	}
 	if broker.IsSymbolScopedSnapshotError(cause) {
 		t.Fatal("plain error reported as symbol-scoped")
+	}
+}
+
+func TestSnapshotRateLimitErrorCarriesRetryDelay(t *testing.T) {
+	err := broker.NewSnapshotRateLimitError(2500*time.Millisecond, errors.New("quota exhausted"))
+	if !errors.Is(err, broker.ErrSnapshotRateLimited) || err.Error() != "quota exhausted" {
+		t.Fatalf("rate limit error = %v", err)
+	}
+	retryAfter, ok := broker.SnapshotRetryAfter(fmt.Errorf("wrapped: %w", err))
+	if !ok || retryAfter != 2500*time.Millisecond {
+		t.Fatalf("retryAfter = %v, %t", retryAfter, ok)
+	}
+	defaultDelay, ok := broker.SnapshotRetryAfter(broker.NewSnapshotRateLimitError(0, nil))
+	if !ok || defaultDelay != time.Second {
+		t.Fatalf("default retryAfter = %v, %t", defaultDelay, ok)
 	}
 }

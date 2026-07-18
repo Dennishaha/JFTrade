@@ -3,6 +3,8 @@ package servercore
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/jftrade/jftrade-main/internal/trading"
 )
 
 func executionBrokerLookupKey(brokerID string, tradingEnvironment string, accountID string, market string, brokerOrderID string) string {
@@ -48,6 +50,10 @@ func marshalExecutionPayload(payload any) string {
 }
 
 func cloneExecutionOrderSummary(in executionOrderSummaryResponse) executionOrderSummaryResponse {
+	legs := make([]trading.ExecutionOrderLeg, len(in.Legs))
+	for index, leg := range in.Legs {
+		legs[index] = cloneExecutionOrderLeg(leg)
+	}
 	return executionOrderSummaryResponse{
 		InternalOrderID:    in.InternalOrderID,
 		BrokerID:           in.BrokerID,
@@ -74,7 +80,30 @@ func cloneExecutionOrderSummary(in executionOrderSummaryResponse) executionOrder
 		SubmittedAt:        cloneStringPointer(in.SubmittedAt),
 		UpdatedAt:          in.UpdatedAt,
 		CreatedAt:          in.CreatedAt,
+		OrderKind:          in.OrderKind,
+		ProductClass:       in.ProductClass,
+		QuantityMode:       in.QuantityMode,
+		ClientOrderID:      cloneStringPointer(in.ClientOrderID),
+		PreviewID:          cloneStringPointer(in.PreviewID),
+		NormalizedRequest:  in.NormalizedRequest,
+		RequestedAmount:    cloneFloat64Pointer(in.RequestedAmount),
+		Fees:               cloneFloat64Pointer(in.Fees),
+		Payout:             cloneFloat64Pointer(in.Payout),
+		Legs:               legs,
 	}
+}
+
+func cloneExecutionOrderLeg(in trading.ExecutionOrderLeg) trading.ExecutionOrderLeg {
+	in.BrokerLegID = cloneStringPointer(in.BrokerLegID)
+	in.RequestedQuantity = cloneFloat64Pointer(in.RequestedQuantity)
+	in.RequestedAmount = cloneFloat64Pointer(in.RequestedAmount)
+	in.RequestedPrice = cloneFloat64Pointer(in.RequestedPrice)
+	in.FilledQuantity = cloneFloat64Pointer(in.FilledQuantity)
+	in.FilledAmount = cloneFloat64Pointer(in.FilledAmount)
+	in.AveragePrice = cloneFloat64Pointer(in.AveragePrice)
+	in.Fees = cloneFloat64Pointer(in.Fees)
+	in.Payout = cloneFloat64Pointer(in.Payout)
+	return in
 }
 
 func cloneExecutionOrderEvent(in executionOrderEventResponse) executionOrderEventResponse {

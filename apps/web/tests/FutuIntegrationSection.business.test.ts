@@ -133,7 +133,7 @@ describe("FutuIntegrationSection", () => {
     expect(wrapper.text()).toContain("填写并保存富途接入配置后");
     expect(wrapper.text()).toContain("先填写连接信息并保存");
     expect(wrapper.text()).toContain("保存并检测 OpenD");
-    expect(wrapper.text()).toContain("最低 10.8.6808");
+    expect(wrapper.text()).toContain("最低 10.9.6908");
     expect(
       wrapper.get('a[href="https://www.futunn.com/download/OpenAPI"]').text(),
     ).toBe("下载或升级 OpenD");
@@ -260,19 +260,19 @@ describe("FutuIntegrationSection", () => {
     stores.consoleData.brokerRuntime.value.session = {
       connectivity: "degraded",
       checkedAt: "2026-07-13T12:00:00.000Z",
-      lastError: "OpenD 版本 10.8.6708 低于最低支持版本 10.8.6808",
+      lastError: "OpenD 版本 10.8.6708 低于最低支持版本 10.9.6908",
       globalState: null,
     };
     stores.consoleData.futuOpenDHealth.value = {
       runtime: {
         serverVersion: "10.8.6708",
-        minimumVersion: "10.8.6808",
+        minimumVersion: "10.9.6908",
       },
       diagnosis: {
         code: "OPEND_VERSION_UNSUPPORTED",
         manualRetryRequired: true,
         restartOpenDRecommended: false,
-        summary: "OpenD 版本 10.8.6708 低于最低支持版本 10.8.6808",
+        summary: "OpenD 版本 10.8.6708 低于最低支持版本 10.9.6908",
       },
       localSocketDiagnostics: {
         websocketEstablishedConnections: 0,
@@ -283,8 +283,8 @@ describe("FutuIntegrationSection", () => {
     const wrapper = mountSection("settings");
 
     expect(wrapper.text()).toContain("OpenD 版本不受支持");
-    expect(wrapper.text()).toContain("10.8.6708（最低 10.8.6808）");
-    expect(wrapper.text()).toContain("请升级至 OpenD 10.8.6808 或更高版本");
+    expect(wrapper.text()).toContain("10.8.6708（最低 10.9.6908）");
+    expect(wrapper.text()).toContain("请升级至 OpenD 10.9.6908 或更高版本");
   });
 
   it("switches between disabled, warning, error, and success runtime messaging", async () => {
@@ -428,7 +428,7 @@ describe("FutuIntegrationSection", () => {
     expect(wrapper.text()).toContain("尚未检测");
     expect(wrapper.text()).toContain("未登录");
     expect(wrapper.text()).toContain("已登录");
-    expect(wrapper.text()).toContain("待检测（最低 10.8.6808）");
+    expect(wrapper.text()).toContain("待检测（最低 10.9.6908）");
     expect(wrapper.text()).toContain("1 条本地已建立 WebSocket 连接");
 
     const inputs = wrapper.findAll("input");

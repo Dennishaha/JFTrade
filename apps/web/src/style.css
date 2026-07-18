@@ -3,7 +3,7 @@
 :root {
   color-scheme: dark;
   font-family: "Avenir Next", "IBM Plex Sans", "PingFang SC", sans-serif;
-  background-color: #07111f;
+  background-color: #0a0a0a;
 }
 
 html,
@@ -15,18 +15,7 @@ body {
 
 body {
   margin: 0;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(34, 211, 238, 0.16),
-      transparent 22%
-    ),
-    radial-gradient(
-      circle at top right,
-      rgba(59, 130, 246, 0.12),
-      transparent 18%
-    ),
-    linear-gradient(180deg, #07111f 0%, #0d1729 45%, #0b1323 100%);
+  background: linear-gradient(180deg, #0a0a0a 0%, #121212 45%, #0d0d0d 100%);
 }
 
 #app {
@@ -122,8 +111,8 @@ body {
   border: 1px solid rgba(148, 163, 184, 0.16);
   background: linear-gradient(
     180deg,
-    rgba(15, 23, 42, 0.92) 0%,
-    rgba(15, 23, 42, 0.82) 100%
+    rgba(20, 20, 20, 0.92) 0%,
+    rgba(20, 20, 20, 0.82) 100%
   );
   box-shadow: 0 28px 120px rgba(2, 6, 23, 0.4);
   backdrop-filter: blur(24px);
@@ -254,11 +243,11 @@ body {
 /* ---------- Theme tokens (TradingView-style workspace) ---------- */
 :root,
 [data-theme="dark"] {
-  --tv-bg-app: #0b1220;
-  --tv-bg-surface: #111827;
-  --tv-bg-surface-2: #0f172a;
-  --tv-bg-elevated: #1e293b;
-  --tv-bg-hover: #1e293b;
+  --tv-bg-app: #0a0a0a;
+  --tv-bg-surface: #141414;
+  --tv-bg-surface-2: #1a1a1a;
+  --tv-bg-elevated: #242424;
+  --tv-bg-hover: #242424;
   --tv-border: rgba(148, 163, 184, 0.18);
   --tv-border-strong: rgba(148, 163, 184, 0.32);
   --tv-text: #e2e8f0;
@@ -266,8 +255,6 @@ body {
   --tv-text-dim: #64748b;
   --tv-accent: #22d3ee;
   --tv-accent-strong: #06b6d4;
-  --tv-up: #16c784;
-  --tv-down: #ea3943;
   --tv-warn: #f59e0b;
   --tv-status-success-fg: #2dd4bf;
   --tv-status-success-bg: rgba(13, 148, 136, 0.12);
@@ -283,8 +270,8 @@ body {
   --tv-status-info-border: rgba(125, 211, 252, 0.28);
 
   /* Card-content semantic tokens (page body inside .card-shell) */
-  --card-surface: rgba(17, 24, 39, 0.90);
-  --card-surface-raised: rgba(30, 41, 59, 0.70);
+  --card-surface: rgba(20, 20, 20, 0.90);
+  --card-surface-raised: rgba(36, 36, 36, 0.70);
   --card-text-1: #e2e8f0;
   --card-text-2: #94a3b8;
   --card-text-3: #64748b;
@@ -325,8 +312,6 @@ body {
   --tv-text-dim: #64748b;
   --tv-accent: #0891b2;
   --tv-accent-strong: #0e7490;
-  --tv-up: #15803d;
-  --tv-down: #b91c1c;
   --tv-warn: #b45309;
   --tv-status-success-fg: #0f766e;
   --tv-status-success-bg: #f0fdfa;
@@ -633,6 +618,16 @@ body {
   margin-right: 6px;
 }
 
+.tv-statusbar__provider {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.tv-statusbar__provider:empty {
+  display: none;
+}
+
 .tv-dot-ok {
   background: var(--tv-accent);
 }
@@ -687,7 +682,7 @@ body {
   width: 32px;
   height: 32px;
   font-size: large;
-  border-radius: 6px;
+  border-radius: 15px;
   color: var(--tv-text-muted);
   background: transparent;
   border: 0;
@@ -909,10 +904,10 @@ body {
   text-align: right;
 }
 .tv-up {
-  color: var(--tv-up);
+  color: var(--tv-price-up);
 }
 .tv-down {
-  color: var(--tv-down);
+  color: var(--tv-price-down);
 }
 
 /* Forms (order entry) */
@@ -968,13 +963,13 @@ body {
 }
 
 .tv-btn-buy {
-  background: var(--tv-up);
-  border-color: var(--tv-up);
+  background: var(--tv-price-up);
+  border-color: var(--tv-price-up);
   color: #fff;
 }
 .tv-btn-sell {
-  background: var(--tv-down);
-  border-color: var(--tv-down);
+  background: var(--tv-price-down);
+  border-color: var(--tv-price-down);
   color: #fff;
 }
 .tv-btn-ghost {
@@ -1000,12 +995,12 @@ body {
   color: var(--tv-text);
 }
 .tv-order-side-seg button.is-active.is-buy {
-  background: color-mix(in srgb, var(--tv-up) 18%, var(--tv-bg-elevated));
-  color: var(--tv-up);
+  background: color-mix(in srgb, var(--tv-price-up) 18%, var(--tv-bg-elevated));
+  color: var(--tv-price-up);
 }
 .tv-order-side-seg button.is-active.is-sell {
-  background: color-mix(in srgb, var(--tv-down) 18%, var(--tv-bg-elevated));
-  color: var(--tv-down);
+  background: color-mix(in srgb, var(--tv-price-down) 18%, var(--tv-bg-elevated));
+  color: var(--tv-price-down);
 }
 
 /* Command palette */
@@ -1678,7 +1673,8 @@ body {
 .tv-panel-body::-webkit-scrollbar,
 .tv-dock-body::-webkit-scrollbar,
 .tv-ob-depth-table-wrap::-webkit-scrollbar,
-.tv-iconrail::-webkit-scrollbar {
+.tv-iconrail::-webkit-scrollbar,
+.tv-scrollbar::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
@@ -1687,7 +1683,8 @@ body {
 .tv-panel-body::-webkit-scrollbar-track,
 .tv-dock-body::-webkit-scrollbar-track,
 .tv-ob-depth-table-wrap::-webkit-scrollbar-track,
-.tv-iconrail::-webkit-scrollbar-track {
+.tv-iconrail::-webkit-scrollbar-track,
+.tv-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -1695,7 +1692,8 @@ body {
 .tv-panel-body::-webkit-scrollbar-thumb,
 .tv-dock-body::-webkit-scrollbar-thumb,
 .tv-ob-depth-table-wrap::-webkit-scrollbar-thumb,
-.tv-iconrail::-webkit-scrollbar-thumb {
+.tv-iconrail::-webkit-scrollbar-thumb,
+.tv-scrollbar::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
   background: color-mix(in srgb, var(--tv-text-dim) 60%, transparent);
@@ -1706,7 +1704,8 @@ body {
 .tv-panel-body,
 .tv-dock-body,
 .tv-ob-depth-table-wrap,
-.tv-iconrail {
+.tv-iconrail,
+.tv-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--tv-text-dim) 60%, transparent)
     transparent;
@@ -2659,7 +2658,7 @@ body {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: #07111f;
+  background: #0a0a0a;
   color: #e8eef8;
 }
 
@@ -2668,7 +2667,7 @@ body {
   padding: 32px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 16px;
-  background: #0d1729;
+  background: #141414;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
 }
 
@@ -2697,7 +2696,7 @@ body {
   padding: 12px;
   border: 1px solid #334155;
   border-radius: 8px;
-  background: #07111f;
+  background: #0a0a0a;
   color: inherit;
 }
 

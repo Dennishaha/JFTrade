@@ -54,7 +54,7 @@ describe("useUIColorPreferences", () => {
       upColor: "#15803d",
       downColor: "#b91c1c",
     });
-    expect(document.documentElement.style.getPropertyValue("--tv-up")).toBe("#15803d");
+    expect(document.documentElement.style.getPropertyValue("--tv-price-up")).toBe("#15803d");
     expect(fetchMock).toHaveBeenLastCalledWith(
       "/api/v1/settings/ui",
       expect.objectContaining({

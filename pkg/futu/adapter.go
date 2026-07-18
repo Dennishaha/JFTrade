@@ -3,58 +3,191 @@ package futu
 import (
 	"context"
 	"strings"
+	"sync"
+	"time"
 
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 )
 
 // futuAdapter implements broker.Broker by delegating to a Futu Exchange.
 type futuAdapter struct {
 	exchange  *Exchange
 	watchlist *futuWatchlistReader
+
+	capabilityMu                sync.RWMutex
+	lastConnectStatus           *futuConnectCapabilityStatus
+	lastQuoteRights             *futuQuoteCapabilityRights
+	capabilityAccounts          []broker.Account
+	capabilityAccountsExpiresAt time.Time
+
+	predictionStreamMu        sync.Mutex
+	predictionStreamClients   map[*opend.Client]struct{}
+	predictionStreamListeners map[uint64]func(broker.PredictionMarketUpdate)
+	predictionSubscriptions   map[string]broker.PredictionSubscription
+	predictionStreamNextID    uint64
 }
 
 // NewBrokerAdapter wraps a Futu Exchange as a broker.Broker.
 func NewBrokerAdapter(exchange *Exchange) broker.Broker {
-	return &futuAdapter{
-		exchange:  exchange,
-		watchlist: newFutuWatchlistReader(exchange),
+	adapter := &futuAdapter{
+		exchange:                  exchange,
+		watchlist:                 newFutuWatchlistReader(exchange),
+		predictionStreamClients:   make(map[*opend.Client]struct{}),
+		predictionStreamListeners: make(map[uint64]func(broker.PredictionMarketUpdate)),
+		predictionSubscriptions:   make(map[string]broker.PredictionSubscription),
 	}
+	if exchange != nil {
+		exchange.OnSystemNotify(adapter.captureCapabilityNotification)
+	}
+	return adapter
 }
 
 func (a *futuAdapter) ID() string { return string(Name) }
 
 func (a *futuAdapter) Descriptor() broker.Descriptor {
 	return broker.Descriptor{
-		ID:           string(Name),
-		DisplayName:  "Futu OpenAPI via OpenD",
-		Environments: []string{"SIMULATE", "REAL"},
-		Capabilities: []broker.MarketCapability{{
-			Market:        "HK",
-			SupportsQuote: true,
-			SupportsTrade: true,
-			ReadFeatures: map[string]any{
-				"funds":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}},
-				"positions":        map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}},
-				"orders":           map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "supportsHistory": true},
-				"fills":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "supportsHistory": true},
-				"cashFlows":        map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresClearingDate": true},
-				"orderFees":        map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresOrderIdEx": true},
-				"marginRatios":     map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresSymbols": true},
-				"maxTradeQuantity": map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresPrice": true},
-				"quote":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
-				"klines":           map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbol": true},
-				"securityInfo":     map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
-				"securitySnapshot": map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
-				"unlockTrade":      map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresPassword": true},
-				"orderBook":        map[string]any{"defaultNum": 10, "minNum": 1, "maxNum": 50, "numPresets": []int32{5, 10, 20, 50}, "supportsRealTimePush": true},
-			},
-		}},
-		Notes: []string{
-			"Market data is exposed to the frontend through the bbgo exchange boundary.",
-			"OpenD WebSocket settings are retained for compatibility and diagnostics.",
+		ID:                string(Name),
+		DisplayName:       "Futu OpenAPI via OpenD",
+		SecurityFirm:      "Futu/Moomoo via OpenD",
+		CapabilityVersion: broker.BuiltinCapabilityCatalog.Version,
+		Environments:      []string{"SIMULATE", "REAL"},
+		Capabilities: []broker.MarketCapability{
+			futuMarketCapability("HK"),
+			futuMarketCapability("US"),
+			futuMarketCapability("SH"),
+			futuMarketCapability("SZ"),
 		},
+		Notes: []string{
+			"OpenD 10.9.6908 product and research protocols are broker-neutral above the adapter boundary.",
+			"Prediction-market availability is determined at runtime and currently requires an eligible Moomoo US environment.",
+			"Snapshot polling does not consume Basic Quote subscriptions; streaming is restricted to visible instruments.",
+		},
+	}
+}
+
+func futuMarketCapability(market string) broker.MarketCapability {
+	return broker.MarketCapability{
+		Market:        market,
+		SupportsQuote: true,
+		SupportsTrade: true,
+		ReadFeatures: map[string]any{
+			"funds":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}},
+			"positions":        map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}},
+			"orders":           map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "supportsHistory": true},
+			"fills":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "supportsHistory": true},
+			"cashFlows":        map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresClearingDate": true},
+			"orderFees":        map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresOrderIdEx": true},
+			"marginRatios":     map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresSymbols": true},
+			"maxTradeQuantity": map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresPrice": true},
+			"quote":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
+			"klines":           map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbol": true},
+			"securityInfo":     map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
+			"securitySnapshot": map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
+			"unlockTrade":      map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresPassword": true},
+			"orderBook":        map[string]any{"defaultNum": 10, "minNum": 1, "maxNum": 50, "numPresets": []int32{5, 10, 20, 50}, "supportsRealTimePush": true},
+		},
+		Features: futuFeatureCapabilities(market),
+	}
+}
+
+func futuFeatureCapabilities(market string) []broker.FeatureCapability {
+	features := make([]broker.FeatureCapability, 0, len(broker.BuiltinCapabilityCatalog.Features))
+	for _, definition := range broker.BuiltinCapabilityCatalog.Features {
+		if !futuFeatureSupportsMarket(definition.ID, market) {
+			continue
+		}
+		state := broker.CapabilityAvailable
+		reasonCode := ""
+		reason := ""
+		requiresQuoteRight := definition.Access == broker.FeatureAccessRead
+		requiresAccount := definition.Access != broker.FeatureAccessRead
+		if strings.HasPrefix(string(definition.ID), "prediction.") {
+			state = broker.CapabilityDegraded
+			reasonCode = "RUNTIME_ELIGIBILITY_REQUIRED"
+			reason = "Prediction markets require an eligible Moomoo US environment."
+			requiresAccount = true
+		}
+		features = append(features, broker.FeatureCapability{
+			ID:                 definition.ID,
+			Markets:            []string{market},
+			ProductClasses:     futuFeatureProducts(definition.ID),
+			MarketSegments:     futuFeatureSegments(definition.ID),
+			Access:             definition.Access,
+			State:              state,
+			ReasonCode:         reasonCode,
+			Reason:             reason,
+			RequiresConnection: true,
+			RequiresAccount:    requiresAccount,
+			RequiresQuoteRight: requiresQuoteRight,
+		})
+	}
+	return features
+}
+
+func futuFeatureSupportsMarket(id broker.FeatureID, market string) bool {
+	value := string(id)
+	if strings.HasPrefix(value, "prediction.") {
+		return market == "US"
+	}
+	if id == broker.FeatureWarrants {
+		return market == "HK"
+	}
+	if id == broker.FeatureFutures {
+		return market == "HK" || market == "US"
+	}
+	if strings.HasPrefix(value, "derivatives.option") || strings.Contains(value, "option_event") ||
+		strings.HasPrefix(value, "execution.combo") {
+		return market == "HK" || market == "US"
+	}
+	return true
+}
+
+func futuFeatureProducts(id broker.FeatureID) []broker.ProductClass {
+	value := string(id)
+	switch {
+	case strings.HasPrefix(value, "prediction."):
+		return []broker.ProductClass{broker.ProductClassEventContract}
+	case strings.HasPrefix(value, "execution.combo"):
+		return []broker.ProductClass{broker.ProductClassOption, broker.ProductClassEventContract}
+	case strings.HasPrefix(value, "execution.order"), id == broker.FeatureExecutionBuyingPower:
+		return []broker.ProductClass{
+			broker.ProductClassEquity, broker.ProductClassFund, broker.ProductClassOption,
+			broker.ProductClassWarrant, broker.ProductClassCBBC, broker.ProductClassFuture,
+			broker.ProductClassEventContract,
+		}
+	case strings.Contains(value, "option"):
+		return []broker.ProductClass{broker.ProductClassOption}
+	case id == broker.FeatureWarrants:
+		return []broker.ProductClass{broker.ProductClassWarrant, broker.ProductClassCBBC}
+	case id == broker.FeatureFutures:
+		return []broker.ProductClass{broker.ProductClassFuture}
+	default:
+		return []broker.ProductClass{
+			broker.ProductClassEquity,
+			broker.ProductClassFund,
+			broker.ProductClassIndex,
+			broker.ProductClassBond,
+			broker.ProductClassPlate,
+		}
+	}
+}
+
+func futuFeatureSegments(id broker.FeatureID) []broker.MarketSegment {
+	value := string(id)
+	switch {
+	case strings.HasPrefix(value, "prediction."):
+		return []broker.MarketSegment{broker.MarketSegmentPrediction}
+	case strings.HasPrefix(value, "execution."):
+		return []broker.MarketSegment{
+			broker.MarketSegmentSecurities, broker.MarketSegmentDerivatives, broker.MarketSegmentPrediction,
+		}
+	case strings.HasPrefix(value, "derivatives."):
+		return []broker.MarketSegment{broker.MarketSegmentDerivatives}
+	default:
+		return []broker.MarketSegment{broker.MarketSegmentSecurities}
 	}
 }
 
@@ -87,6 +220,13 @@ func (a *futuAdapter) MarketData() broker.MarketDataReader {
 	return &futuMarketDataReader{exchange: a.exchange}
 }
 
+func (a *futuAdapter) QuerySecuritySnapshot(
+	ctx context.Context,
+	query broker.SecuritySnapshotQuery,
+) (*broker.SecuritySnapshotResult, error) {
+	return a.MarketData().QuerySecuritySnapshot(ctx, query)
+}
+
 func (a *futuAdapter) QueryMarketRules(ctx context.Context, query broker.MarketRuleQuery) (*broker.MarketRuleSnapshot, error) {
 	return (&futuMarketDataReader{exchange: a.exchange}).QueryMarketRules(ctx, query)
 }
@@ -106,6 +246,8 @@ func (s *futuTradingService) PlaceOrder(ctx context.Context, query broker.PlaceO
 		},
 		Session:        query.Session,
 		FillOutsideRTH: query.FillOutsideRTH,
+		Amount:         query.Amount,
+		PredictionSide: query.PredictionSide,
 	}
 
 	submitOrder := bbgoSubmitOrderFromBrokerPlaceOrder(query)

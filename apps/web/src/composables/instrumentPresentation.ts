@@ -26,7 +26,7 @@ const SECURITY_TYPE_LABELS: Readonly<Record<string, string>> = {
   STOCK: "股票",
   TRUST: "基金/信托",
   UNKNOWN: "类型未知",
-  WARRANT: "窝轮",
+  WARRANT: "轮证",
 };
 
 export interface InstrumentPresentationInput {
@@ -64,9 +64,6 @@ export function parseInstrumentId(
   }
   const market = normalized.slice(0, separator).trim();
   const code = normalized.slice(separator + 1).trim();
-  if (market === "" || code === "") {
-    return null;
-  }
   return { market, code };
 }
 

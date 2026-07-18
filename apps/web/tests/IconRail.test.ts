@@ -41,6 +41,7 @@ describe("IconRail", () => {
   it("marks the ADK section active and delegates internal navigation to the router", async () => {
     const routes = [
       "/workspace",
+      "/research",
       "/watchlist",
       "/adk/agents",
       "/strategy/runtime",
@@ -65,6 +66,6 @@ describe("IconRail", () => {
     expect(wrapper.get('button[title="智能体"]').classes()).toContain("is-active");
     await wrapper.get('button[title="交易"]').trigger("click");
     expect(push).toHaveBeenCalledWith("/workspace");
-    expect(wrapper.findAll(".tv-iconrail-btn")).toHaveLength(11);
+    expect(wrapper.findAll(".tv-iconrail-btn")).toHaveLength(12);
   });
 });

@@ -52,6 +52,7 @@ export type ConsoleRefreshLiveStreamEvent = {
 export type LiveHeartbeatEvent = {
   type: "heartbeat";
   at: string;
+  providerBrokerId?: string;
   stale?: boolean;
   staleReasons?: string[];
   transport?: {
@@ -75,11 +76,13 @@ export type MarketSecurityDetailsLiveStreamEvent =
   MarketSecurityDetailsQueryResult & {
     type: "market.security-details";
     at: string;
+    brokerId?: string;
   };
 
 export type MarketDepthLiveStreamEvent = {
   type: "market.depth";
   at: string;
+  brokerId?: string;
   request: {
     market: string;
     symbol: string;
@@ -90,6 +93,7 @@ export type MarketDepthLiveStreamEvent = {
   meta: {
     instrumentId: string;
     source: string | null;
+    brokerId?: string | null;
     resolvedAt: string;
     fromCache: boolean;
   };
@@ -108,6 +112,7 @@ export type LiveStreamEvent =
     };
 
 export interface LiveSocketSubscriptionSnapshot {
+  providerBrokerId?: string;
   activeInstruments: string[];
   securityDetails: Array<{
     market: string;
@@ -178,6 +183,7 @@ class SharedLiveSocketHub {
     { market: string; symbol: string; instrumentId: string; num: number }
   >();
   private consoleRefreshOwners = new Set<string>();
+  private providerBrokerOwners = new Map<string, string>();
   private ownerSeq = 0;
 
   connect(
@@ -226,6 +232,9 @@ class SharedLiveSocketHub {
         const payload = liveStreamPayloadFromEnvelope(envelope);
         if (payload == null) {
           this.connectionState.value = "error";
+          return;
+        }
+        if (!this.acceptsProviderEvent(payload)) {
           return;
         }
         this.events.value = [
@@ -290,6 +299,7 @@ class SharedLiveSocketHub {
     this.securityDetailsOwners.clear();
     this.depthOwners.clear();
     this.consoleRefreshOwners.clear();
+    this.providerBrokerOwners.clear();
   }
 
   reconnect(): WebSocket | null {
@@ -373,6 +383,16 @@ class SharedLiveSocketHub {
     this.sendSubscriptionSnapshot();
   }
 
+  setProviderBrokerId(ownerId: string, brokerId: string | null): void {
+    const normalized = brokerId?.trim().toLowerCase() ?? "";
+    if (normalized === "") {
+      this.providerBrokerOwners.delete(ownerId);
+    } else {
+      this.providerBrokerOwners.set(ownerId, normalized);
+    }
+    this.sendSubscriptionSnapshot();
+  }
+
   snapshotSubscriptions(): LiveSocketSubscriptionSnapshot {
     const activeInstruments = Array.from(
       new Set(this.activeInstrumentOwners.values()),
@@ -391,12 +411,39 @@ class SharedLiveSocketHub {
       return left.instrumentId.localeCompare(right.instrumentId);
     });
 
+    const providerBrokerId = Array.from(
+      new Set(this.providerBrokerOwners.values()),
+    ).sort()[0];
+
     return {
+      ...(providerBrokerId ? { providerBrokerId } : {}),
       activeInstruments,
       securityDetails,
       depth,
       consoleRefresh: this.consoleRefreshOwners.size > 0,
     };
+  }
+
+  private acceptsProviderEvent(payload: LiveStreamEvent): boolean {
+    if (
+      payload.type !== "market-data.tick" &&
+      payload.type !== "market.security-details" &&
+      payload.type !== "market.depth" &&
+      payload.type !== "heartbeat"
+    ) {
+      return true;
+    }
+    const expected = this.snapshotSubscriptions().providerBrokerId;
+    const actual =
+      payload.type === "heartbeat"
+        ? "providerBrokerId" in payload &&
+          typeof payload.providerBrokerId === "string"
+          ? payload.providerBrokerId.trim().toLowerCase()
+          : ""
+        : "brokerId" in payload && typeof payload.brokerId === "string"
+          ? payload.brokerId.trim().toLowerCase()
+          : "";
+    return !expected || !actual || expected === actual;
   }
 
   /**
@@ -527,5 +574,6 @@ export type SharedLiveSocketHubStore = {
     } | null,
   ) => void;
   setConsoleRefreshEnabled: (ownerId: string, enabled: boolean) => void;
+  setProviderBrokerId: (ownerId: string, brokerId: string | null) => void;
   snapshotSubscriptions: () => LiveSocketSubscriptionSnapshot;
 };

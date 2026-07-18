@@ -59,4 +59,54 @@ describe("useWatchlistQuotes", () => {
       }
     }
   });
+
+  it("retains the latest successful quote when the next batch only returns an error", async () => {
+    let requestCount = 0;
+    const fetchMock = vi.fn(async () => {
+      requestCount += 1;
+      const data = requestCount === 1
+        ? {
+            quotes: [{ instrumentId: "US.AAPL", price: 220 }],
+            errors: [],
+            observedAt: "2026-07-11T00:00:00Z",
+          }
+        : {
+            quotes: [],
+            errors: [{
+              instrumentId: "US.AAPL",
+              code: "SNAPSHOT_RATE_LIMITED",
+              message: "行情额度暂时不足",
+            }],
+            observedAt: "2026-07-11T00:00:03Z",
+          };
+      return new Response(
+        JSON.stringify({ ok: true, data, timestamp: data.observedAt }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    let query!: ReturnType<typeof useWatchlistQuotes>;
+    const Host = defineComponent({
+      setup() {
+        query = useWatchlistQuotes(ref(["US.AAPL"]), true);
+        return () => h("div");
+      },
+    });
+    const wrapper = mount(Host);
+    try {
+      await flushPromises();
+      expect(query.quotesByInstrument.value.get("US.AAPL")?.price).toBe(220);
+
+      await query.refetch();
+      await flushPromises();
+
+      expect(query.quotesByInstrument.value.get("US.AAPL")?.price).toBe(220);
+      expect(query.errorsByInstrument.value.get("US.AAPL")?.code).toBe(
+        "SNAPSHOT_RATE_LIMITED",
+      );
+    } finally {
+      wrapper.unmount();
+    }
+  });
 });

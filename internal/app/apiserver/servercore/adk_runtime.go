@@ -59,6 +59,8 @@ type ToolDeps struct {
 	BacktestResultView         func(BacktestResultViewInput) (any, error)
 	CancelBacktest             func(string)
 	RecordAudit                func(context.Context, string, string, string, map[string]any)
+	ProductTool                func(context.Context, string, map[string]any) (any, error)
+	ExecutionTool              func(context.Context, string, map[string]any) (any, error)
 }
 
 // WatchlistListInput is the broker-neutral query surface exposed to the
@@ -260,6 +262,7 @@ func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, d
 	})
 	registerJFTradeADKWorkflowTools(store, registry, deps)
 	registerJFTradeADKReadTools(registry, deps)
+	registerJFTradeProductTools(registry, deps)
 	registerJFTradeADKStrategyTools(store, registry, deps)
 }
 

@@ -1,6 +1,8 @@
 package live
 
 import (
+	"context"
+	"crypto/tls"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -210,6 +212,90 @@ func TestDispatcherEnvelopeDefaultsAndMapFallback(t *testing.T) {
 	if got := mapString(map[string]any{"type": 42}, "type", "fallback"); got != "fallback" {
 		t.Fatalf("mapString fallback = %q", got)
 	}
+}
+
+func TestProviderAwareBackendHelpersRetainExplicitBrokerSelection(t *testing.T) {
+	backend := &providerAwareFakeBackend{fakeBackend: &fakeBackend{}}
+	stats := ClientStats{Connected: 1, Limit: 2}
+	if heartbeat := providerHeartbeat(backend, time.Second, stats, []string{"US.AAPL"}, "alpha"); heartbeat["brokerId"] != "alpha" {
+		t.Fatalf("provider heartbeat = %#v", heartbeat)
+	}
+	if _, err := providerMarketTicks(backend, t.Context(), "alpha", []string{"US.AAPL"}, ""); err != nil {
+		t.Fatalf("provider market ticks: %v", err)
+	}
+	if _, err := providerSecurityDetails(backend, t.Context(), "alpha", "US", "AAPL"); err != nil {
+		t.Fatalf("provider security details: %v", err)
+	}
+	if _, err := providerDepth(backend, t.Context(), "alpha", "US", "AAPL", 10); err != nil {
+		t.Fatalf("provider depth: %v", err)
+	}
+	if backend.providerCalls != 4 {
+		t.Fatalf("provider-aware calls = %d, want 4", backend.providerCalls)
+	}
+	if checkWebSocketOrigin(nil) {
+		t.Fatal("nil websocket request origin was accepted")
+	}
+	httpsRequest := httptest.NewRequest(http.MethodGet, "https://example.test/ws/live", nil)
+	httpsRequest.Host = "example.test"
+	httpsRequest.Header.Set("Origin", "https://example.test")
+	httpsRequest.TLS = &tls.ConnectionState{}
+	if !checkWebSocketOrigin(httpsRequest) {
+		t.Fatal("same-origin HTTPS websocket request was rejected")
+	}
+	t.Run("checked type assertion rejects unexpected values", func(t *testing.T) {
+		defer func() {
+			if recover() == nil {
+				t.Fatal("checked type assertion did not panic")
+			}
+		}()
+		_ = jftradeCheckedTypeAssertion[int]("not an integer")
+	})
+}
+
+type providerAwareFakeBackend struct {
+	*fakeBackend
+	providerCalls int
+}
+
+func (b *providerAwareFakeBackend) HeartbeatForProvider(
+	time.Duration,
+	ClientStats,
+	[]string,
+	string,
+) map[string]any {
+	b.providerCalls++
+	return map[string]any{"brokerId": "alpha"}
+}
+
+func (b *providerAwareFakeBackend) MarketTicksForProvider(
+	context.Context,
+	string,
+	[]string,
+	string,
+) ([]TickEvent, error) {
+	b.providerCalls++
+	return nil, nil
+}
+
+func (b *providerAwareFakeBackend) SecurityDetailsForProvider(
+	context.Context,
+	string,
+	string,
+	string,
+) (map[string]any, error) {
+	b.providerCalls++
+	return map[string]any{}, nil
+}
+
+func (b *providerAwareFakeBackend) DepthForProvider(
+	context.Context,
+	string,
+	string,
+	string,
+	int32,
+) (map[string]any, error) {
+	b.providerCalls++
+	return map[string]any{}, nil
 }
 
 func TestHandlerNilAndClosedLifecycleBoundaries(t *testing.T) {

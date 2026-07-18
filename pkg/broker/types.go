@@ -88,46 +88,57 @@ type MarketAssetSnapshot struct {
 // --- Positions ---
 
 type PositionSnapshot struct {
-	AccountID          string   `json:"accountId"`
-	TradingEnvironment string   `json:"tradingEnvironment"`
-	Market             string   `json:"market"`
-	Symbol             string   `json:"symbol"`
-	SymbolName         *string  `json:"symbolName,omitempty"`
-	Quantity           float64  `json:"quantity"`
-	SellableQuantity   float64  `json:"sellableQuantity"`
-	LastPrice          float64  `json:"lastPrice"`
-	CostPrice          *float64 `json:"costPrice,omitempty"`
-	AverageCostPrice   *float64 `json:"averageCostPrice,omitempty"`
-	MarketValue        float64  `json:"marketValue"`
-	UnrealizedPnl      *float64 `json:"unrealizedPnl,omitempty"`
-	RealizedPnl        *float64 `json:"realizedPnl,omitempty"`
-	PnlRatio           *float64 `json:"pnlRatio,omitempty"`
-	Currency           *string  `json:"currency,omitempty"`
+	AccountID          string        `json:"accountId"`
+	TradingEnvironment string        `json:"tradingEnvironment"`
+	Market             string        `json:"market"`
+	Symbol             string        `json:"symbol"`
+	SymbolName         *string       `json:"symbolName,omitempty"`
+	ProductClass       ProductClass  `json:"productClass,omitempty"`
+	MarketSegment      MarketSegment `json:"marketSegment,omitempty"`
+	Quantity           float64       `json:"quantity"`
+	SellableQuantity   float64       `json:"sellableQuantity"`
+	LastPrice          float64       `json:"lastPrice"`
+	CostPrice          *float64      `json:"costPrice,omitempty"`
+	AverageCostPrice   *float64      `json:"averageCostPrice,omitempty"`
+	MarketValue        float64       `json:"marketValue"`
+	UnrealizedPnl      *float64      `json:"unrealizedPnl,omitempty"`
+	RealizedPnl        *float64      `json:"realizedPnl,omitempty"`
+	PnlRatio           *float64      `json:"pnlRatio,omitempty"`
+	Currency           *string       `json:"currency,omitempty"`
+	ComboID            *uint64       `json:"comboId,omitempty"`
+	StrategyType       *string       `json:"strategyType,omitempty"`
+	PositionType       *string       `json:"positionType,omitempty"`
+	PayoutIfWin        *float64      `json:"payoutIfWin,omitempty"`
 }
 
 // --- Orders ---
 
 type OrderSnapshot struct {
-	AccountID          string   `json:"accountId"`
-	TradingEnvironment string   `json:"tradingEnvironment"`
-	Market             string   `json:"market"`
-	BrokerOrderID      string   `json:"brokerOrderId"`
-	BrokerOrderIDEx    *string  `json:"brokerOrderIdEx,omitempty"`
-	Symbol             string   `json:"symbol"`
-	SymbolName         *string  `json:"symbolName,omitempty"`
-	Side               string   `json:"side"`
-	OrderType          string   `json:"orderType"`
-	Status             string   `json:"status"`
-	Quantity           float64  `json:"quantity"`
-	FilledQuantity     *float64 `json:"filledQuantity,omitempty"`
-	Price              *float64 `json:"price,omitempty"`
-	FilledAveragePrice *float64 `json:"filledAveragePrice,omitempty"`
-	SubmittedAt        string   `json:"submittedAt,omitempty"`
-	UpdatedAt          string   `json:"updatedAt,omitempty"`
-	Remark             *string  `json:"remark,omitempty"`
-	LastError          *string  `json:"lastError,omitempty"`
-	TimeInForce        *string  `json:"timeInForce,omitempty"`
-	Currency           *string  `json:"currency,omitempty"`
+	AccountID          string             `json:"accountId"`
+	TradingEnvironment string             `json:"tradingEnvironment"`
+	Market             string             `json:"market"`
+	OrderKind          OrderKind          `json:"orderKind,omitempty"`
+	ProductClass       ProductClass       `json:"productClass,omitempty"`
+	QuantityMode       QuantityMode       `json:"quantityMode,omitempty"`
+	BrokerOrderID      string             `json:"brokerOrderId"`
+	BrokerOrderIDEx    *string            `json:"brokerOrderIdEx,omitempty"`
+	Symbol             string             `json:"symbol"`
+	SymbolName         *string            `json:"symbolName,omitempty"`
+	Side               string             `json:"side"`
+	OrderType          string             `json:"orderType"`
+	Status             string             `json:"status"`
+	Quantity           float64            `json:"quantity"`
+	Amount             *float64           `json:"amount,omitempty"`
+	Legs               []OrderLegSnapshot `json:"legs,omitempty"`
+	FilledQuantity     *float64           `json:"filledQuantity,omitempty"`
+	Price              *float64           `json:"price,omitempty"`
+	FilledAveragePrice *float64           `json:"filledAveragePrice,omitempty"`
+	SubmittedAt        string             `json:"submittedAt,omitempty"`
+	UpdatedAt          string             `json:"updatedAt,omitempty"`
+	Remark             *string            `json:"remark,omitempty"`
+	LastError          *string            `json:"lastError,omitempty"`
+	TimeInForce        *string            `json:"timeInForce,omitempty"`
+	Currency           *string            `json:"currency,omitempty"`
 }
 
 type OrderHistoryQuery struct {
@@ -155,6 +166,7 @@ type OrderFillSnapshot struct {
 	FillPrice          *float64 `json:"fillPrice,omitempty"`
 	FilledAt           string   `json:"filledAt,omitempty"`
 	Status             *string  `json:"status,omitempty"`
+	Payout             *float64 `json:"payout,omitempty"`
 }
 
 type OrderFillQuery struct {
@@ -275,17 +287,21 @@ type MaxTradeQuantitySnapshot struct {
 
 type PlaceOrderQuery struct {
 	ReadQuery
-	Symbol         string   `json:"symbol"`
-	Side           string   `json:"side"`
-	OrderType      string   `json:"orderType"`
-	Price          *float64 `json:"price,omitempty"`
-	StopPrice      *float64 `json:"stopPrice,omitempty"`
-	Quantity       float64  `json:"quantity"`
-	TimeInForce    *string  `json:"timeInForce,omitempty"`
-	ClientOrderID  string   `json:"clientOrderId,omitempty"`
-	Remark         *string  `json:"remark,omitempty"`
-	Session        *string  `json:"session,omitempty"`
-	FillOutsideRTH *bool    `json:"fillOutsideRTH,omitempty"`
+	Symbol         string       `json:"symbol"`
+	ProductClass   ProductClass `json:"productClass,omitempty"`
+	QuantityMode   QuantityMode `json:"quantityMode,omitempty"`
+	Side           string       `json:"side"`
+	OrderType      string       `json:"orderType"`
+	Price          *float64     `json:"price,omitempty"`
+	StopPrice      *float64     `json:"stopPrice,omitempty"`
+	Quantity       float64      `json:"quantity"`
+	Amount         *float64     `json:"amount,omitempty"`
+	PredictionSide string       `json:"predictionSide,omitempty"`
+	TimeInForce    *string      `json:"timeInForce,omitempty"`
+	ClientOrderID  string       `json:"clientOrderId,omitempty"`
+	Remark         *string      `json:"remark,omitempty"`
+	Session        *string      `json:"session,omitempty"`
+	FillOutsideRTH *bool        `json:"fillOutsideRTH,omitempty"`
 }
 
 type PlaceOrderResult struct {
@@ -452,8 +468,12 @@ type SecuritySnapshotItem struct {
 	Symbol        string                   `json:"symbol"`
 	Name          *string                  `json:"name,omitempty"`
 	SecurityType  *string                  `json:"securityType,omitempty"`
+	ProductClass  ProductClass             `json:"productClass,omitempty"`
+	MarketSegment MarketSegment            `json:"marketSegment,omitempty"`
 	IsSuspended   *bool                    `json:"isSuspended,omitempty"`
 	LastPrice     *float64                 `json:"lastPrice,omitempty"`
+	BidPrice      *float64                 `json:"bidPrice,omitempty"`
+	AskPrice      *float64                 `json:"askPrice,omitempty"`
 	PreviousClose *float64                 `json:"previousClose,omitempty"`
 	OpenPrice     *float64                 `json:"openPrice,omitempty"`
 	HighPrice     *float64                 `json:"highPrice,omitempty"`
@@ -469,6 +489,71 @@ type SecuritySnapshotItem struct {
 	PreMarket     *ExtendedSessionSnapshot `json:"preMarket,omitempty"`
 	AfterMarket   *ExtendedSessionSnapshot `json:"afterMarket,omitempty"`
 	Overnight     *ExtendedSessionSnapshot `json:"overnight,omitempty"`
+	Option        *OptionSnapshotData      `json:"option,omitempty"`
+	Warrant       *WarrantSnapshotData     `json:"warrant,omitempty"`
+	Future        *FutureSnapshotData      `json:"future,omitempty"`
+	Fund          *FundSnapshotData        `json:"fund,omitempty"`
+}
+
+// OptionSnapshotData is the broker-neutral derivative payload returned by a
+// non-streaming batch snapshot. It deliberately carries strings instead of
+// broker enum numbers.
+type OptionSnapshotData struct {
+	OptionType           string   `json:"optionType,omitempty"`
+	UnderlyingCode       string   `json:"underlyingCode,omitempty"`
+	ExpiryDate           string   `json:"expiryDate,omitempty"`
+	StrikePrice          float64  `json:"strikePrice"`
+	ContractSize         float64  `json:"contractSize"`
+	ContractMultiplier   *float64 `json:"contractMultiplier,omitempty"`
+	OpenInterest         int32    `json:"openInterest"`
+	NetOpenInterest      *int32   `json:"netOpenInterest,omitempty"`
+	ImpliedVolatility    float64  `json:"impliedVolatility"`
+	Premium              float64  `json:"premium"`
+	Delta                float64  `json:"delta"`
+	Gamma                float64  `json:"gamma"`
+	Vega                 float64  `json:"vega"`
+	Theta                float64  `json:"theta"`
+	Rho                  float64  `json:"rho"`
+	DaysToExpiry         *int32   `json:"daysToExpiry,omitempty"`
+	ContractNominalValue *float64 `json:"contractNominalValue,omitempty"`
+}
+
+type WarrantSnapshotData struct {
+	WarrantType        string   `json:"warrantType,omitempty"`
+	UnderlyingCode     string   `json:"underlyingCode,omitempty"`
+	IssuerCode         *string  `json:"issuerCode,omitempty"`
+	MaturityDate       string   `json:"maturityDate,omitempty"`
+	LastTradeDate      string   `json:"lastTradeDate,omitempty"`
+	StrikePrice        float64  `json:"strikePrice"`
+	RecoveryPrice      float64  `json:"recoveryPrice"`
+	ConversionRate     float64  `json:"conversionRate"`
+	StreetVolume       int64    `json:"streetVolume"`
+	IssueVolume        int64    `json:"issueVolume"`
+	StreetRate         float64  `json:"streetRate"`
+	ImpliedVolatility  float64  `json:"impliedVolatility"`
+	Premium            float64  `json:"premium"`
+	Delta              float64  `json:"delta"`
+	Leverage           *float64 `json:"leverage,omitempty"`
+	BreakEvenPoint     *float64 `json:"breakEvenPoint,omitempty"`
+	PriceRecoveryRatio *float64 `json:"priceRecoveryRatio,omitempty"`
+}
+
+type FutureSnapshotData struct {
+	LastSettlementPrice float64  `json:"lastSettlementPrice"`
+	OpenInterest        int32    `json:"openInterest"`
+	OpenInterestChange  int32    `json:"openInterestChange"`
+	LastTradeDate       string   `json:"lastTradeDate,omitempty"`
+	LastTradeTimestamp  *float64 `json:"lastTradeTimestamp,omitempty"`
+	IsMainContract      bool     `json:"isMainContract"`
+}
+
+type FundSnapshotData struct {
+	DividendYield         float64 `json:"dividendYield"`
+	AssetsUnderManagement float64 `json:"assetsUnderManagement"`
+	OutstandingUnits      int64   `json:"outstandingUnits"`
+	NetAssetValue         float64 `json:"netAssetValue"`
+	Premium               float64 `json:"premium"`
+	AssetClass            string  `json:"assetClass,omitempty"`
 }
 
 // ExtendedSessionSnapshot carries the optional pre-market, after-hours, or

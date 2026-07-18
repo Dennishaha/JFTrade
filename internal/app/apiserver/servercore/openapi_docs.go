@@ -15,7 +15,7 @@ type databaseRebuildRequest = datamanagement.RebuildRequest
 // @Success 200 {object} envelope
 // @Router /api/v1/settings/data-migration/databases [get]
 // @Router /api/v1/settings/data-migration/databases/rebuild [post]
-func documentDataMigrationRoutes() {}
+func documentDataMigrationRoutes() string { return "data-migration" }
 
 // documentDataManagementOverview godoc
 // @Summary Database storage usage and cleanup opportunities
@@ -25,7 +25,7 @@ func documentDataMigrationRoutes() {}
 // @Param databaseId query string false "Return one database overview for incremental loading"
 // @Success 200 {object} envelope
 // @Router /api/v1/settings/data-management/databases [get]
-func documentDataManagementOverview() {}
+func documentDataManagementOverview() string { return "data-management-overview" }
 
 // documentDataCleanupPreview godoc
 // @Summary Preview an exact database cleanup candidate set
@@ -35,7 +35,7 @@ func documentDataManagementOverview() {}
 // @Param request body dataCleanupPreviewRequest true "Cleanup preview request"
 // @Success 200 {object} envelope
 // @Router /api/v1/settings/data-management/cleanup/preview [post]
-func documentDataCleanupPreview() {}
+func documentDataCleanupPreview() string { return "data-cleanup-preview" }
 
 // documentDataCleanupExecute godoc
 // @Summary Execute a previously previewed database cleanup
@@ -45,7 +45,7 @@ func documentDataCleanupPreview() {}
 // @Param request body dataCleanupExecuteRequest true "Cleanup execution request"
 // @Success 200 {object} envelope
 // @Router /api/v1/settings/data-management/cleanup/execute [post]
-func documentDataCleanupExecute() {}
+func documentDataCleanupExecute() string { return "data-cleanup-execute" }
 
 // documentDatabaseCompact godoc
 // @Summary Checkpoint and compact one database
@@ -56,7 +56,7 @@ func documentDataCleanupExecute() {}
 // @Param request body databaseCompactRequest true "Compaction confirmation"
 // @Success 200 {object} envelope
 // @Router /api/v1/settings/data-management/databases/{databaseId}/compact [post]
-func documentDatabaseCompact() {}
+func documentDatabaseCompact() string { return "database-compact" }
 
 // documentDatabaseRebuild godoc
 // @Summary Schedule a database rebuild on next startup
@@ -66,7 +66,7 @@ func documentDatabaseCompact() {}
 // @Param request body databaseRebuildRequest true "Database rebuild request"
 // @Success 200 {object} envelope
 // @Router /api/v1/settings/data-management/databases/rebuild [post]
-func documentDatabaseRebuild() {}
+func documentDatabaseRebuild() string { return "database-rebuild" }
 
 // documentAssistantCatalogRoutes godoc
 // @Summary ADK catalog and provider management routes
@@ -85,7 +85,7 @@ func documentDatabaseRebuild() {}
 // @Router /api/v1/adk/agents [post]
 // @Router /api/v1/adk/agents/{agentId} [put]
 // @Router /api/v1/adk/agents/{agentId} [delete]
-func documentAssistantCatalogRoutes() {}
+func documentAssistantCatalogRoutes() string { return "assistant-catalog" }
 
 // documentAssistantTaskMemoryRoutes godoc
 // @Summary ADK task and memory routes
@@ -101,7 +101,7 @@ func documentAssistantCatalogRoutes() {}
 // @Router /api/v1/adk/memory [get]
 // @Router /api/v1/adk/memory [post]
 // @Router /api/v1/adk/memory/{memoryId} [delete]
-func documentAssistantTaskMemoryRoutes() {}
+func documentAssistantTaskMemoryRoutes() string { return "assistant-task-memory" }
 
 // documentAssistantSessionRunRoutes godoc
 // @Summary ADK session and run routes
@@ -122,7 +122,7 @@ func documentAssistantTaskMemoryRoutes() {}
 // @Router /api/v1/adk/runs/{runId}/resume [post]
 // @Router /api/v1/adk/runs/{runId}/objective [patch]
 // @Router /api/v1/adk/streams/{streamId} [get]
-func documentAssistantSessionRunRoutes() {}
+func documentAssistantSessionRunRoutes() string { return "assistant-session-run" }
 
 // documentAssistantChatApprovalSkillRoutes godoc
 // @Summary ADK chat, approval, and skill routes
@@ -139,7 +139,7 @@ func documentAssistantSessionRunRoutes() {}
 // @Router /api/v1/adk/skills [post]
 // @Router /api/v1/adk/skills/{skillId} [put]
 // @Router /api/v1/adk/skills/{skillId} [delete]
-func documentAssistantChatApprovalSkillRoutes() {}
+func documentAssistantChatApprovalSkillRoutes() string { return "assistant-chat-approval-skill" }
 
 // documentAssistantOptimizationRoutes godoc
 // @Summary ADK optimization task routes
@@ -149,7 +149,7 @@ func documentAssistantChatApprovalSkillRoutes() {}
 // @Router /api/v1/adk/optimization-tasks [get]
 // @Router /api/v1/adk/optimization-tasks/{taskId} [get]
 // @Router /api/v1/adk/optimization-tasks/{taskId}/cancel [post]
-func documentAssistantOptimizationRoutes() {}
+func documentAssistantOptimizationRoutes() string { return "assistant-optimization" }
 
 // documentAssistantWorkflowRoutes godoc
 // @Summary ADK workflow definition, trigger, and trigger log routes
@@ -169,7 +169,7 @@ func documentAssistantOptimizationRoutes() {}
 // @Router /api/v1/adk/workflow-triggers/{triggerId}/run [post]
 // @Router /api/v1/adk/workflow-trigger-logs [get]
 // @Router /api/v1/adk/workflow-webhooks/{triggerId} [post]
-func documentAssistantWorkflowRoutes() {}
+func documentAssistantWorkflowRoutes() string { return "assistant-workflow" }
 
 // documentBacktestSyncTaskRoutes godoc
 // @Summary Backtest historical data sync task routes
@@ -178,7 +178,7 @@ func documentAssistantWorkflowRoutes() {}
 // @Success 200 {object} envelope
 // @Router /api/v1/backtests/sync/{taskId} [get]
 // @Router /api/v1/backtests/sync/{taskId} [delete]
-func documentBacktestSyncTaskRoutes() {}
+func documentBacktestSyncTaskRoutes() string { return "backtest-sync-task" }
 
 // documentMarketUtilityRoutes godoc
 // @Summary Market data utility routes
@@ -188,7 +188,7 @@ func documentBacktestSyncTaskRoutes() {}
 // @Router /api/v1/market-data/markets [get]
 // @Router /api/v1/market-data/subscriptions [get]
 // @Router /api/v1/market-data/instruments/normalize [post]
-func documentMarketUtilityRoutes() {}
+func documentMarketUtilityRoutes() string { return "market-utility" }
 
 // documentPluginRoutes godoc
 // @Summary Plugin catalog and operation routes
@@ -200,7 +200,7 @@ func documentMarketUtilityRoutes() {}
 // @Router /api/v1/plugins/{pluginId}/install [post]
 // @Router /api/v1/plugins/{pluginId}/uninstall [post]
 // @Router /api/v1/plugins/{pluginId}/uninstall-guidance [get]
-func documentPluginRoutes() {}
+func documentPluginRoutes() string { return "plugin" }
 
 // documentPortfolioRoutes godoc
 // @Summary Portfolio routes
@@ -211,7 +211,7 @@ func documentPluginRoutes() {}
 // @Router /api/v1/portfolio/{brokerId}/positions [get]
 // @Router /api/v1/portfolio/{brokerId}/cash-reconciliation [get]
 // @Router /api/v1/portfolio/{brokerId}/reconciliation [get]
-func documentPortfolioRoutes() {}
+func documentPortfolioRoutes() string { return "portfolio" }
 
 // documentBrokerFundsRoute godoc
 // @Summary 读取券商资金
@@ -224,7 +224,7 @@ func documentPortfolioRoutes() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/funds [get]
-func documentBrokerFundsRoute() {}
+func documentBrokerFundsRoute() string { return "broker-funds" }
 
 // documentBrokerPositionsRoute godoc
 // @Summary 读取券商持仓
@@ -237,7 +237,7 @@ func documentBrokerFundsRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/positions [get]
-func documentBrokerPositionsRoute() {}
+func documentBrokerPositionsRoute() string { return "broker-positions" }
 
 // documentBrokerOrdersRoute godoc
 // @Summary 读取券商订单
@@ -256,7 +256,7 @@ func documentBrokerPositionsRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/orders [get]
-func documentBrokerOrdersRoute() {}
+func documentBrokerOrdersRoute() string { return "broker-orders" }
 
 // documentBrokerFillsRoute godoc
 // @Summary 读取券商成交
@@ -273,7 +273,7 @@ func documentBrokerOrdersRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/fills [get]
-func documentBrokerFillsRoute() {}
+func documentBrokerFillsRoute() string { return "broker-fills" }
 
 // documentBrokerCashFlowsRoute godoc
 // @Summary 读取券商资金流水
@@ -288,7 +288,7 @@ func documentBrokerFillsRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/cash-flows [get]
-func documentBrokerCashFlowsRoute() {}
+func documentBrokerCashFlowsRoute() string { return "broker-cash-flows" }
 
 // documentBrokerOrderFeesRoute godoc
 // @Summary 读取券商订单费用
@@ -303,7 +303,7 @@ func documentBrokerCashFlowsRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/order-fees [get]
-func documentBrokerOrderFeesRoute() {}
+func documentBrokerOrderFeesRoute() string { return "broker-order-fees" }
 
 // documentBrokerMarginRatiosRoute godoc
 // @Summary 读取券商融资融券比例
@@ -318,7 +318,7 @@ func documentBrokerOrderFeesRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/margin-ratios [get]
-func documentBrokerMarginRatiosRoute() {}
+func documentBrokerMarginRatiosRoute() string { return "broker-margin-ratios" }
 
 // documentBrokerMaxTradeQuantityRoute godoc
 // @Summary 读取券商最大可交易数量
@@ -338,7 +338,7 @@ func documentBrokerMarginRatiosRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/max-trade-qtys [get]
-func documentBrokerMaxTradeQuantityRoute() {}
+func documentBrokerMaxTradeQuantityRoute() string { return "broker-max-trade-quantity" }
 
 // documentBrokerQuoteRoute godoc
 // @Summary 读取券商行情
@@ -353,7 +353,7 @@ func documentBrokerMaxTradeQuantityRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/quote [get]
-func documentBrokerQuoteRoute() {}
+func documentBrokerQuoteRoute() string { return "broker-quote" }
 
 // documentBrokerKLinesRoute godoc
 // @Summary 读取券商 K 线
@@ -371,7 +371,7 @@ func documentBrokerQuoteRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/klines [get]
-func documentBrokerKLinesRoute() {}
+func documentBrokerKLinesRoute() string { return "broker-klines" }
 
 // documentBrokerSecuritiesRoute godoc
 // @Summary 读取券商证券快照
@@ -386,7 +386,7 @@ func documentBrokerKLinesRoute() {}
 // @Success 200 {object} envelope
 // @Failure 400 {object} envelope
 // @Router /api/v1/brokers/{brokerId}/securities [get]
-func documentBrokerSecuritiesRoute() {}
+func documentBrokerSecuritiesRoute() string { return "broker-securities" }
 
 // documentExecutionOrdersRoute godoc
 // @Summary 读取执行订单
@@ -400,7 +400,7 @@ func documentBrokerSecuritiesRoute() {}
 // @Success 200 {object} envelope{data=executionOrdersResponse}
 // @Failure 400 {object} envelope
 // @Router /api/v1/execution/orders [get]
-func documentExecutionOrdersRoute() {}
+func documentExecutionOrdersRoute() string { return "execution-orders" }
 
 // documentExecutionOrderDetailsRoute godoc
 // @Summary 读取单笔执行订单及最近事件
@@ -410,7 +410,7 @@ func documentExecutionOrdersRoute() {}
 // @Success 200 {object} envelope{data=executionOrderDetailsResponse}
 // @Failure 404 {object} envelope
 // @Router /api/v1/execution/orders/{internalOrderId} [get]
-func documentExecutionOrderDetailsRoute() {}
+func documentExecutionOrderDetailsRoute() string { return "execution-order-details" }
 
 // documentExecutionPlaceRoute godoc
 // @Summary 提交执行订单
@@ -423,7 +423,7 @@ func documentExecutionOrderDetailsRoute() {}
 // @Failure 409 {object} envelope
 // @Failure 500 {object} envelope
 // @Router /api/v1/execution/orders [post]
-func documentExecutionPlaceRoute() {}
+func documentExecutionPlaceRoute() string { return "execution-place" }
 
 // documentExecutionCancelRoute godoc
 // @Summary 取消执行订单
@@ -434,7 +434,7 @@ func documentExecutionPlaceRoute() {}
 // @Failure 400 {object} envelope
 // @Failure 404 {object} envelope
 // @Router /api/v1/execution/orders/{internalOrderId}/cancel [post]
-func documentExecutionCancelRoute() {}
+func documentExecutionCancelRoute() string { return "execution-cancel" }
 
 // documentExecutionEventsRoute godoc
 // @Summary 读取执行订单事件
@@ -444,7 +444,7 @@ func documentExecutionCancelRoute() {}
 // @Success 200 {object} envelope{data=executionOrderEventsResponse}
 // @Failure 400 {object} envelope
 // @Router /api/v1/execution/orders/{internalOrderId}/events [get]
-func documentExecutionEventsRoute() {}
+func documentExecutionEventsRoute() string { return "execution-events" }
 
 // documentSystemOperationalRoutes godoc
 // @Summary System operational routes
@@ -466,7 +466,7 @@ func documentExecutionEventsRoute() {}
 // @Router /api/v1/system/real-trade-risk-limits [delete]
 // @Router /api/v1/system/real-trade-risk-events [get]
 // @Router /api/v1/system/worker/broker-order-updates [get]
-func documentSystemOperationalRoutes() {}
+func documentSystemOperationalRoutes() string { return "system-operational" }
 
 // documentExecutionPreviewRoute godoc
 // @Summary 预览执行订单但不提交
@@ -475,4 +475,4 @@ func documentSystemOperationalRoutes() {}
 // @Produce json
 // @Success 200 {object} envelope
 // @Router /api/v1/execution/orders/preview [post]
-func documentExecutionPreviewRoute() {}
+func documentExecutionPreviewRoute() string { return "execution-preview" }

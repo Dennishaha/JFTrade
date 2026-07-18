@@ -138,10 +138,13 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	if !eventsEnvelope.OK {
 		t.Fatal("expected events ok=true")
 	}
-	if len(eventsEnvelope.Data.Events) != 1 {
-		t.Fatalf("expected one execution event, got %#v", eventsEnvelope.Data.Events)
+	if len(eventsEnvelope.Data.Events) != 2 {
+		t.Fatalf("expected prepared and accepted execution events, got %#v", eventsEnvelope.Data.Events)
 	}
-	if got := eventsEnvelope.Data.Events[0].EventType; got != "COMMAND_PLACE_ACCEPTED" {
+	if got := eventsEnvelope.Data.Events[0].EventType; got != "COMMAND_SUBMISSION_PREPARED" {
+		t.Fatalf("eventType = %q, want COMMAND_SUBMISSION_PREPARED", got)
+	}
+	if got := eventsEnvelope.Data.Events[1].EventType; got != "COMMAND_PLACE_ACCEPTED" {
 		t.Fatalf("eventType = %q, want COMMAND_PLACE_ACCEPTED", got)
 	}
 
@@ -188,10 +191,10 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	if err := json.NewDecoder(updatedEventsResp.Body).Decode(&updatedEventsEnvelope); err != nil {
 		t.Fatalf("decode updated execution events: %v", err)
 	}
-	if len(updatedEventsEnvelope.Data.Events) != 2 {
-		t.Fatalf("expected two execution events after cancel, got %#v", updatedEventsEnvelope.Data.Events)
+	if len(updatedEventsEnvelope.Data.Events) != 3 {
+		t.Fatalf("expected prepared, placed, and cancelled execution events, got %#v", updatedEventsEnvelope.Data.Events)
 	}
-	if got := updatedEventsEnvelope.Data.Events[1].EventType; got != "COMMAND_CANCEL_ACCEPTED" {
-		t.Fatalf("second eventType = %q, want COMMAND_CANCEL_ACCEPTED", got)
+	if got := updatedEventsEnvelope.Data.Events[2].EventType; got != "COMMAND_CANCEL_ACCEPTED" {
+		t.Fatalf("third eventType = %q, want COMMAND_CANCEL_ACCEPTED", got)
 	}
 }

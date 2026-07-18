@@ -3,9 +3,9 @@ package opend
 import "fmt"
 
 const (
-	minimumOpenDServerVer int32 = 1008
-	minimumOpenDBuildNo   int32 = 6808
-	MinimumOpenDVersion         = "10.8.6808"
+	minimumOpenDServerVer int32 = 1009
+	minimumOpenDBuildNo   int32 = 6908
+	MinimumOpenDVersion         = "10.9.6908"
 )
 
 // FormatVersion converts OpenD's encoded server version and build number into

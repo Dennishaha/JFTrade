@@ -111,13 +111,19 @@ export function createConsoleDataMarketSubscriptionsController(
   async function loadMarketInstrumentReferences(
     query = "",
   ): Promise<MarketInstrumentReferenceResponse> {
+    const normalizedQuery = query.trim();
+    if (normalizedQuery === "") {
+      return {
+        query: "",
+        totalReturned: options.marketInstrumentReferences.value.length,
+        entries: [...options.marketInstrumentReferences.value],
+      };
+    }
     const params = new URLSearchParams({
       limit: "50",
       market: options.marketDataQueryMarket.value.trim().toUpperCase() || "HK",
     });
-    if (query.trim() !== "") {
-      params.set("query", query.trim());
-    }
+    params.set("query", normalizedQuery);
 
     const response = await fetchEnvelope<MarketInstrumentReferenceResponse>(
       `/api/v1/market-data/instruments?${params.toString()}`,
@@ -137,6 +143,7 @@ export function createConsoleDataMarketSubscriptionsController(
 
   async function acquireMarketDataSubscription(input: {
     consumerId: string;
+    brokerId?: string;
     market?: string;
     symbol?: string;
     channel?: MarketDataChannel;
@@ -170,6 +177,7 @@ export function createConsoleDataMarketSubscriptionsController(
             },
             body: JSON.stringify({
               consumerId: input.consumerId,
+              providerBrokerId: input.brokerId?.trim().toLowerCase() || undefined,
               instruments: [
                 createMarketDataSubscriptionInstrument(
                   market,
@@ -195,6 +203,7 @@ export function createConsoleDataMarketSubscriptionsController(
 
   async function releaseMarketDataSubscription(input: {
     consumerId: string;
+    brokerId?: string;
     market?: string;
     symbol?: string;
     channel?: MarketDataChannel;
@@ -223,6 +232,7 @@ export function createConsoleDataMarketSubscriptionsController(
             },
             body: JSON.stringify({
               consumerId: input.consumerId,
+              providerBrokerId: input.brokerId?.trim().toLowerCase() || undefined,
               instruments: [
                 createMarketDataSubscriptionInstrument(
                   market,
@@ -245,6 +255,7 @@ export function createConsoleDataMarketSubscriptionsController(
 
   async function heartbeatMarketDataConsumer(
     consumerId: string,
+    brokerId = "",
   ): Promise<void> {
     if (consumerId.trim() === "") {
       return;
@@ -259,7 +270,10 @@ export function createConsoleDataMarketSubscriptionsController(
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ consumerId }),
+            body: JSON.stringify({
+              consumerId,
+              providerBrokerId: brokerId.trim().toLowerCase() || undefined,
+            }),
           },
         );
     } catch (error) {

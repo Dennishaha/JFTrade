@@ -358,10 +358,18 @@ func (executor *PineWorkerCommandExecutor) trackCreatedOrders(command WorkerOrde
 }
 
 func (executor *PineWorkerCommandExecutor) clientOrderID(command WorkerOrderCommand) string {
-	if trimmed := strings.TrimSpace(command.ID); trimmed != "" {
-		return trimmed
-	}
 	prefix := strings.TrimSpace(executor.ClientOrderIDPrefix)
+	commandID := strings.TrimSpace(command.ID)
+	if commandID != "" {
+		if prefix == "" {
+			return commandID
+		}
+		// A Pine order ID identifies the logical order across the strategy
+		// lifetime, not one broker submission. Include the closed bar when a
+		// live-runtime prefix is configured so retries of the same bar remain
+		// idempotent without collapsing later bars into the first order.
+		return fmt.Sprintf("%s-%s-%d", prefix, commandID, command.BarIndex)
+	}
 	if prefix == "" {
 		prefix = "pine-worker"
 	}

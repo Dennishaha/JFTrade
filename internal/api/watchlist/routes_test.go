@@ -81,6 +81,29 @@ func TestInvalidListLimitReturns400(t *testing.T) {
 	}
 }
 
+func TestWatchlistListAndBindingRoutesRejectMalformedQueryEncoding(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), nil)
+	for _, test := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/api/v1/watchlist/items"},
+		{http.MethodGet, "/api/v1/watchlist/bindings"},
+		{http.MethodDelete, "/api/v1/watchlist/bindings"},
+		{http.MethodGet, "/api/v1/watchlist/import-runs"},
+	} {
+		request := httptest.NewRequest(test.method, test.path, nil)
+		request.URL.RawQuery = "%zz"
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest {
+			t.Errorf("%s %s status=%d body=%s", test.method, test.path, response.Code, response.Body.String())
+		}
+	}
+}
+
 func TestWatchlistRoutesRejectMissingURIValuesBeforeExecutingBusinessOperations(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

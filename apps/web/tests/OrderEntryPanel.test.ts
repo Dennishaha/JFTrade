@@ -56,6 +56,7 @@ describe("OrderEntryPanel", () => {
     const header = wrapper.get(".tv-panel-head").text();
     expect(header).toContain("000001");
     expect(header).toContain("深证");
+    expect(header).toContain("Tencent");
     expect(header).not.toContain("SZ.000001");
   });
 
@@ -467,8 +468,8 @@ describe("OrderEntryPanel", () => {
     const style = wrapper.find("section").attributes("style") ?? "";
     expect(style).not.toContain("--market-up");
     expect(style).not.toContain("--market-down");
-    expect(document.documentElement.style.getPropertyValue("--tv-up")).toBe("#0055aa");
-    expect(document.documentElement.style.getPropertyValue("--tv-down")).toBe("#aa2200");
+    expect(document.documentElement.style.getPropertyValue("--tv-price-up")).toBe("#0055aa");
+    expect(document.documentElement.style.getPropertyValue("--tv-price-down")).toBe("#aa2200");
     expect(wrapper.find(".tv-order-side-seg .is-buy").classes()).toContain("is-active");
   });
 
@@ -549,7 +550,7 @@ describe("OrderEntryPanel", () => {
         instrumentId: "US.PENNY",
         market: "US",
         symbol: "PENNY",
-        securityType: "OPTION",
+        securityType: "STOCK",
         priceSpread: 0,
         currentPrice: 0,
         bidPrice: 0.85,
@@ -609,8 +610,8 @@ describe("OrderEntryPanel", () => {
     expect(maxTradeUrl).toContain("price=0.8765");
     expect(maxTradeUrl).toContain("session=OVERNIGHT");
     expect(wrapper.text()).toContain("买入上限");
-    expect(wrapper.text()).toContain("250 张");
-    expect(wrapper.text()).toContain("单位：张");
+    expect(wrapper.text()).toContain("250 股");
+    expect(wrapper.text()).toContain("单位：股");
   });
 
   it("falls back to security prices and resets stale price when the instrument changes", async () => {

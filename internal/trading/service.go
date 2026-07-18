@@ -24,6 +24,9 @@ type Service struct {
 	preTradeRisk              PreTradeRiskGateway
 	orderStore                OrderStore
 	orderGateway              OrderGateway
+	comboGateway              ComboOrderGateway
+	previewStore              ExecutionPreviewStore
+	predictionQuotes          broker.PredictionQuoteStore
 }
 
 // NewService 创建交易服务。
@@ -32,6 +35,7 @@ func NewService(opts ...Option) *Service {
 		brokerRuntime: &brokerRuntimeFunctions{},
 		orderStore:    &orderStoreFunctions{},
 		orderGateway:  &orderGatewayFunctions{},
+		comboGateway:  &comboOrderGatewayFunctions{},
 	}
 	for _, o := range opts {
 		o(s)
@@ -99,6 +103,18 @@ func WithOrderStore(store OrderStore) Option {
 
 func WithOrderGateway(gateway OrderGateway) Option {
 	return func(s *Service) { s.orderGateway = gateway }
+}
+
+func WithComboOrderGateway(gateway ComboOrderGateway) Option {
+	return func(s *Service) { s.comboGateway = gateway }
+}
+
+func WithExecutionPreviewStore(store ExecutionPreviewStore) Option {
+	return func(s *Service) { s.previewStore = store }
+}
+
+func WithPredictionQuoteStore(store broker.PredictionQuoteStore) Option {
+	return func(s *Service) { s.predictionQuotes = store }
 }
 
 func ensureOrderStoreFunctions(s *Service) *orderStoreFunctions {

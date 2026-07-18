@@ -32,6 +32,55 @@ type strategyRuntimeStubExchange struct {
 	panicOnPlaceOrder bool
 }
 
+type strategyRuntimeTestBroker struct {
+	exchange *strategyRuntimeStubExchange
+}
+
+func (b *strategyRuntimeTestBroker) ID() string { return "futu" }
+
+func (b *strategyRuntimeTestBroker) Descriptor() broker.Descriptor {
+	return broker.Descriptor{
+		ID: "futu", DisplayName: "Strategy runtime test broker",
+		CapabilityVersion: broker.BuiltinCapabilityCatalog.Version,
+		Environments:      []string{"SIMULATE", "REAL"},
+	}
+}
+
+func (b *strategyRuntimeTestBroker) DiscoverAccounts(context.Context) ([]broker.Account, error) {
+	return []broker.Account{{
+		ID: "123456", BrokerID: b.ID(), TradingEnvironment: "SIMULATE", Market: "US",
+	}}, nil
+}
+
+func (b *strategyRuntimeTestBroker) Trading() broker.TradingService { return b }
+
+func (b *strategyRuntimeTestBroker) MarketData() broker.MarketDataReader { return nil }
+
+func (b *strategyRuntimeTestBroker) PlaceOrder(
+	ctx context.Context,
+	query broker.PlaceOrderQuery,
+) (*broker.PlaceOrderResult, error) {
+	return b.exchange.PlaceBrokerOrder(ctx, query)
+}
+
+func (b *strategyRuntimeTestBroker) CancelOrders(
+	ctx context.Context,
+	query broker.ReadQuery,
+	orders ...broker.CancelOrder,
+) error {
+	for _, order := range orders {
+		if err := b.exchange.CancelBrokerOrder(ctx, query, order); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func installStrategyRuntimeTestExchange(server *Server, exchange *strategyRuntimeStubExchange) {
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return exchange }
+	server.brokers.Replace(&strategyRuntimeTestBroker{exchange: exchange})
+}
+
 func newStrategyRuntimeStubExchange() *strategyRuntimeStubExchange {
 	markets := bbgotypes.MarketMap{
 		"US.AAPL": {

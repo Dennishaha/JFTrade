@@ -97,6 +97,8 @@ func securityDetailsMap(details *futu.SecurityDetails) map[string]any {
 		"securityId":          optionalInt64(details.SecurityID),
 		"name":                details.Name,
 		"securityType":        details.SecurityType,
+		"productClass":        details.ProductClass,
+		"marketSegment":       details.MarketSegment,
 		"exchangeType":        details.ExchangeType,
 		"listTime":            details.ListTime,
 		"listTimestamp":       optionalFloat64JSON(details.ListTimestamp),

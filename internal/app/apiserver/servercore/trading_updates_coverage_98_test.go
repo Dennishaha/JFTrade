@@ -39,6 +39,8 @@ func TestCoverage98OrderUpdateSourceDegradesCleanlyWithoutActiveFutuRuntime(t *t
 
 func TestCoverage98OrderUpdateMappingsRetainBrokerLifecycleFields(t *testing.T) {
 	price := 101.25
+	amount := 250.0
+	payout := 75.0
 	filledQuantity := 1.0
 	externalID := "ORD-EXT-1"
 	fillsID := "FILL-EXT-1"
@@ -46,14 +48,34 @@ func TestCoverage98OrderUpdateMappingsRetainBrokerLifecycleFields(t *testing.T) 
 		AccountID: "SIM-001", TradingEnvironment: "SIMULATE", Market: "US",
 		BrokerOrderID: "101", BrokerOrderIDEx: &externalID, Symbol: "US.AAPL", SymbolName: stringPointerOrNil("Apple"),
 		Side: "BUY", OrderType: "LIMIT", Status: "SUBMITTED", Quantity: 2, FilledQuantity: &filledQuantity,
+		OrderKind: broker.OrderKindEventParlay, ProductClass: broker.ProductClassEventContract,
+		QuantityMode: broker.QuantityModeAmount, Amount: &amount,
+		Legs: []broker.OrderLegSnapshot{{
+			BrokerLegID: "LEG-1", InstrumentID: "US.EVENT.ONE",
+			ProductClass: broker.ProductClassEventContract, PredictionSide: "YES",
+			Status: "SUBMITTED", RequestedAmount: amount,
+		}},
 		Price: &price, FilledAveragePrice: &price, SubmittedAt: "2026-07-01T10:00:00Z", UpdatedAt: "2026-07-01T10:01:00Z",
 		Remark: stringPointerOrNil("coverage"), LastError: stringPointerOrNil("none"), TimeInForce: stringPointerOrNil("DAY"), Currency: stringPointerOrNil("USD"),
 	}
-	mapped := tradingOrdersFromBroker([]broker.OrderSnapshot{fromBroker})
+	mapped := tradingOrdersFromBroker("futu", []broker.OrderSnapshot{fromBroker})
 	if len(mapped) != 1 || mapped[0].BrokerOrderIDEx == nil || *mapped[0].BrokerOrderIDEx != externalID || mapped[0].Price == nil || *mapped[0].Price != price {
 		t.Fatalf("broker order mapping = %#v", mapped)
 	}
-	if back := brokerOrderFromTrading(mapped[0]); back.BrokerOrderID != fromBroker.BrokerOrderID || back.BrokerOrderIDEx == nil || *back.BrokerOrderIDEx != externalID || back.TimeInForce == nil || *back.TimeInForce != "DAY" {
+	if mapped[0].BrokerID != "futu" ||
+		mapped[0].OrderKind != broker.OrderKindEventParlay ||
+		mapped[0].ProductClass != broker.ProductClassEventContract ||
+		mapped[0].QuantityMode != broker.QuantityModeAmount ||
+		mapped[0].Amount == nil || *mapped[0].Amount != amount ||
+		len(mapped[0].Legs) != 1 {
+		t.Fatalf("broker-neutral lifecycle fields were lost = %#v", mapped[0])
+	}
+	if back := brokerOrderFromTrading(mapped[0]); back.BrokerOrderID != fromBroker.BrokerOrderID ||
+		back.BrokerOrderIDEx == nil || *back.BrokerOrderIDEx != externalID ||
+		back.TimeInForce == nil || *back.TimeInForce != "DAY" ||
+		back.OrderKind != broker.OrderKindEventParlay ||
+		back.Amount == nil || *back.Amount != amount ||
+		len(back.Legs) != 1 {
 		t.Fatalf("trading order round trip = %#v", back)
 	}
 
@@ -61,8 +83,12 @@ func TestCoverage98OrderUpdateMappingsRetainBrokerLifecycleFields(t *testing.T) 
 		AccountID: "SIM-001", TradingEnvironment: "SIMULATE", Market: "US", BrokerOrderID: "101", BrokerOrderIDEx: &externalID,
 		BrokerFillID: "900", BrokerFillIDEx: &fillsID, Symbol: "US.AAPL", SymbolName: stringPointerOrNil("Apple"), Side: "BUY",
 		FilledQuantity: 1, FillPrice: &price, FilledAt: "2026-07-01T10:01:00Z", Status: stringPointerOrNil("FILLED"),
+		Payout: &payout,
 	}
-	if mappedFill := brokerFillFromTrading(fill); mappedFill.BrokerFillIDEx == nil || *mappedFill.BrokerFillIDEx != fillsID || mappedFill.FillPrice == nil || *mappedFill.FillPrice != price {
+	if mappedFill := brokerFillFromTrading(fill); mappedFill.BrokerFillIDEx == nil ||
+		*mappedFill.BrokerFillIDEx != fillsID ||
+		mappedFill.FillPrice == nil || *mappedFill.FillPrice != price ||
+		mappedFill.Payout == nil || *mappedFill.Payout != payout {
 		t.Fatalf("broker fill mapping = %#v", mappedFill)
 	}
 
@@ -83,6 +109,10 @@ func TestCoverage98OrderUpdateMappingsRetainBrokerLifecycleFields(t *testing.T) 
 	}
 	updates.ApplyFill(t.Context(), "futu", fill)
 	updates.ApplyFill(t.Context(), "futu", fill)
+	updated, ok := server.executionOrders.order(orders[0].InternalOrderID)
+	if !ok || updated.Payout == nil || *updated.Payout != payout {
+		t.Fatalf("prediction payout was not persisted on parent order = %#v", updated)
+	}
 	if events := server.executionOrders.orderEvents(orders[0].InternalOrderID).Events; len(events) != 2 {
 		t.Fatalf("duplicate broker fill push events = %#v", events)
 	}

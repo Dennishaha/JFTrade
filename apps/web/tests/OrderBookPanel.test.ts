@@ -8,6 +8,10 @@ import {
   getSharedLiveSocketHub,
   resetSharedLiveSocketHubForTests,
 } from "../src/composables/sharedLiveSocket";
+import {
+  resetBrokerProviderSelectionForTests,
+  useBrokerProviderSelection,
+} from "../src/composables/brokerProviderSelection";
 import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
 import { createLiveEnvelope, MockWebSocket } from "./helpers";
 
@@ -120,6 +124,7 @@ function createDepthEnvelope<TPayload extends {
 
 describe("OrderBookPanel", () => {
   beforeEach(() => {
+    resetBrokerProviderSelectionForTests();
     resetSharedLiveSocketHubForTests();
     MockWebSocket.instances = [];
     fetchEnvelopeMock.mockReset();
@@ -176,17 +181,19 @@ describe("OrderBookPanel", () => {
   });
 
   afterEach(() => {
+    resetBrokerProviderSelectionForTests();
     resetSharedLiveSocketHubForTests();
     vi.unstubAllGlobals();
     document.body.innerHTML = "";
   });
 
-  it("shows A-share code with the concrete exchange tag in the panel header", () => {
+  it("keeps the order-book header semantic without repeating the instrument", () => {
     const wrapper = mountOrderBookPanel({ market: "SH", symbol: "600519" });
 
     const header = wrapper.get(".tv-panel-head").text();
-    expect(header).toContain("600519");
-    expect(header).toContain("上证");
+    expect(header).toContain("盘口");
+    expect(header).not.toContain("600519");
+    expect(header).not.toContain("上证");
     expect(header).not.toContain("SH.600519");
 
     wrapper.unmount();
@@ -198,7 +205,7 @@ describe("OrderBookPanel", () => {
 
     await flushOrderBook();
 
-    expect(fetchEnvelopeMock).toHaveBeenCalledWith("/api/v1/brokers/futu/runtime");
+    expect(fetchEnvelopeMock).not.toHaveBeenCalled();
     expect(acquireMarketDataSubscriptionMock).toHaveBeenCalledWith({
       consumerId: "web:workspace-depth:window:test",
       market: "US",
@@ -408,6 +415,26 @@ describe("OrderBookPanel", () => {
     wrapper.unmount();
   });
 
+  it("routes depth reads and leases through the selected provider", async () => {
+    useBrokerProviderSelection().selectBrokerProvider("alpha");
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(acquireMarketDataSubscriptionMock).toHaveBeenCalledWith({
+      consumerId: "web:workspace-depth:window:test",
+      brokerId: "alpha",
+      market: "US",
+      symbol: "TME",
+      channel: "ORDER_BOOK",
+    });
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+      "/api/v1/market-data/depth/US/TME?num=10&brokerId=alpha",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+
+    wrapper.unmount();
+  });
+
   it("keeps the shared depth subscription when only the chart period changes", async () => {
     const hub = getSharedLiveSocketHub();
     const wrapper = mountOrderBookPanel();
@@ -462,21 +489,7 @@ describe("OrderBookPanel", () => {
     wrapper.unmount();
   });
 
-  it("uses broker defaults, computes ratio cards, and keeps helper formatting aligned with market data", async () => {
-    fetchEnvelopeMock.mockResolvedValueOnce({
-      descriptor: {
-        capabilities: [
-          {
-            readFeatures: {
-              orderBook: {
-                defaultNum: 20,
-                numPresets: [5, 10, 20, 50],
-              },
-            },
-          },
-        ],
-      },
-    });
+  it("uses the stable default preset and keeps ratio helpers aligned with market data", async () => {
     marketSecurityDetails.value = {
       security: {
         instrumentId: "US.TME",
@@ -493,7 +506,7 @@ describe("OrderBookPanel", () => {
     await flushOrderBook();
 
     expect(fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
-      "/api/v1/market-data/depth/US/TME?num=20",
+      "/api/v1/market-data/depth/US/TME?num=10",
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       }),
@@ -517,10 +530,6 @@ describe("OrderBookPanel", () => {
     expect(callSetup<string>(wrapper, "fmtSize", 1_500)).toBe("1.5K");
     expect(callSetup<string>(wrapper, "fmtSize", 1_500_000)).toBe("1.50M");
     expect(callSetup<string>(wrapper, "fmtSize", 1_500_000_000)).toBe("1.50B");
-    expect(callSetup<string>(wrapper, "sideClass", null)).toBe("");
-    expect(callSetup<string>(wrapper, "sideClass", 1)).toBe("tv-up");
-    expect(callSetup<string>(wrapper, "sideClass", -1)).toBe("tv-down");
-
     wrapper.unmount();
   });
 
@@ -543,9 +552,7 @@ describe("OrderBookPanel", () => {
     wrapper.unmount();
   });
 
-  it("falls back to the default preset when broker capability discovery fails", async () => {
-    fetchEnvelopeMock.mockRejectedValueOnce(new Error("runtime unavailable"));
-
+  it("uses the default preset without a provider-specific capability request", async () => {
     const wrapper = mountOrderBookPanel();
     await flushOrderBook();
 
@@ -561,6 +568,7 @@ describe("OrderBookPanel", () => {
         .find((button) => button.text() === "10")
         ?.classes(),
     ).toContain("is-active");
+    expect(fetchEnvelopeMock).not.toHaveBeenCalled();
 
     wrapper.unmount();
   });
@@ -673,7 +681,10 @@ describe("OrderBookPanel", () => {
     const wrapper = mountOrderBookPanel();
     await flushOrderBook();
 
-    expect(wrapper.find("[data-state='error']").text()).toContain("网络断开");
+    expect(wrapper.get(".market-feed-issue-badge").text()).toContain("行情异常");
+    expect(wrapper.get(".market-feed-issue-badge").attributes("title")).toContain("网络断开");
+    expect(wrapper.get(".tv-ob-depth-placeholder[data-state='error']").text()).toContain("网络断开");
+    expect(wrapper.find(".tv-ob-preset-error").exists()).toBe(false);
 
     fetchEnvelopeWithInitMock.mockRejectedValueOnce({});
     await wrapper
@@ -682,7 +693,7 @@ describe("OrderBookPanel", () => {
       ?.trigger("click");
     await flushOrderBook();
 
-    expect(wrapper.find("[data-state='error']").text()).toContain(
+    expect(wrapper.get(".tv-ob-depth-placeholder[data-state='error']").text()).toContain(
       "获取盘口深度失败",
     );
 
@@ -911,7 +922,7 @@ describe("OrderBookPanel", () => {
     });
     await flushOrderBook();
 
-    expect(wrapper.find("[data-state='error']").exists()).toBe(false);
+    expect(wrapper.find(".tv-ob-depth-placeholder[data-state='error']").exists()).toBe(false);
     expect(wrapper.get("[data-testid='depth-ask-price-col']").text()).toContain(
       "18.60",
     );
@@ -927,7 +938,7 @@ describe("OrderBookPanel", () => {
 
     expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
     expect(getSharedLiveSocketHub().snapshotSubscriptions().depth).toEqual([]);
-    expect(wrapper.find("[data-state='error']").text()).toContain(
+    expect(wrapper.get(".tv-ob-depth-placeholder[data-state='error']").text()).toContain(
       "盘口订阅申请失败",
     );
 

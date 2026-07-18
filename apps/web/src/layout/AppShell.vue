@@ -15,6 +15,7 @@ import {
 } from "../composables/liveEventReducers";
 import { getLiveEventBus } from "../composables/liveEventBus";
 import { provideNotificationsStore } from "../composables/useNotifications";
+import { provideOptionComboDraftStore } from "../composables/optionComboDraft";
 import { provideLiveStreamStore } from "../composables/useSharedLiveStream";
 import { provideThemeStore } from "../composables/useTheme";
 import { provideUIColorPreferencesStore } from "../composables/useUIColorPreferences";
@@ -29,6 +30,7 @@ import TopBar from "./TopBar.vue";
 const themeStore = provideThemeStore();
 provideUIColorPreferencesStore(themeStore.theme);
 const notifications = provideNotificationsStore();
+provideOptionComboDraftStore();
 const workspaceLayout = provideWorkspaceLayoutStore();
 const workspaceTradingPrefs = workspaceLayout;
 const palette = provideCommandPaletteStore();

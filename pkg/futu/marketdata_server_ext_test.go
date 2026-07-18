@@ -187,6 +187,13 @@ func (s *quoteOpenDServer) userSecurityGroupResponse(body []byte) *qotgetusersec
 		return &qotgetusersecuritygrouppb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
+	if s.watchlistGroupError != nil {
+		response := jftradeCheckedTypeAssertion[*qotgetusersecuritygrouppb.Response](
+			proto.Clone(s.watchlistGroupError),
+		)
+		s.tradeMu.Unlock()
+		return response
+	}
 	s.lastGroupType = request.GetC2S().GetGroupType()
 	groups := append([]*qotgetusersecuritygrouppb.GroupData(nil), s.watchlistGroups...)
 	s.tradeMu.Unlock()

@@ -16,7 +16,7 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 
 	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
 		Symbols:       []string{"US.AAPL"},
@@ -117,7 +117,7 @@ func TestStrategyRuntimeObservationPersistsAcrossServerRestart(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 
 	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
 		Symbols:       []string{"US.AAPL"},
@@ -178,7 +178,7 @@ func TestStrategyRuntimePanicAutoReconcilesToStopped(t *testing.T) {
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	stub.panicOnPlaceOrder = true
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 
 	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
 		Symbols:       []string{"US.AAPL"},

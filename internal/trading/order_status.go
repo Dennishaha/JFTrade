@@ -6,18 +6,19 @@ import (
 )
 
 const (
-	OrderStatusCreated         = "CREATED"
-	OrderStatusPrecheckReject  = "PRECHECK_REJECTED"
-	OrderStatusSubmitting      = "SUBMITTING"
-	OrderStatusSubmitted       = "SUBMITTED"
-	OrderStatusBrokerAccepted  = "BROKER_ACCEPTED"
-	OrderStatusPartiallyFilled = "PARTIALLY_FILLED"
-	OrderStatusFilled          = "FILLED"
-	OrderStatusCancelRequested = "CANCEL_REQUESTED"
-	OrderStatusCancelled       = "CANCELLED"
-	OrderStatusRejected        = "REJECTED"
-	OrderStatusExpired         = "EXPIRED"
-	OrderStatusUnknown         = "UNKNOWN"
+	OrderStatusCreated           = "CREATED"
+	OrderStatusPrecheckReject    = "PRECHECK_REJECTED"
+	OrderStatusSubmitting        = "SUBMITTING"
+	OrderStatusSubmissionUnknown = "SUBMISSION_UNKNOWN"
+	OrderStatusSubmitted         = "SUBMITTED"
+	OrderStatusBrokerAccepted    = "BROKER_ACCEPTED"
+	OrderStatusPartiallyFilled   = "PARTIALLY_FILLED"
+	OrderStatusFilled            = "FILLED"
+	OrderStatusCancelRequested   = "CANCEL_REQUESTED"
+	OrderStatusCancelled         = "CANCELLED"
+	OrderStatusRejected          = "REJECTED"
+	OrderStatusExpired           = "EXPIRED"
+	OrderStatusUnknown           = "UNKNOWN"
 )
 
 // CanonicalBrokerOrderStatus maps broker-specific lifecycle values to the
@@ -60,6 +61,8 @@ func CanonicalStoredOrderStatus(status string) string {
 		return OrderStatusPrecheckReject
 	case "SUBMITTING":
 		return OrderStatusSubmitting
+	case "SUBMISSION_UNKNOWN":
+		return OrderStatusSubmissionUnknown
 	case "SUBMITTED":
 		return OrderStatusSubmitted
 	case "BROKER_ACCEPTED":
@@ -122,6 +125,11 @@ var canonicalOrderStatusTransitions = map[string][]string{
 		OrderStatusCancelled, OrderStatusRejected, OrderStatusExpired,
 	},
 	OrderStatusSubmitting: {
+		OrderStatusSubmitted, OrderStatusBrokerAccepted, OrderStatusPartiallyFilled,
+		OrderStatusFilled, OrderStatusCancelRequested, OrderStatusCancelled,
+		OrderStatusRejected, OrderStatusExpired,
+	},
+	OrderStatusSubmissionUnknown: {
 		OrderStatusSubmitted, OrderStatusBrokerAccepted, OrderStatusPartiallyFilled,
 		OrderStatusFilled, OrderStatusCancelRequested, OrderStatusCancelled,
 		OrderStatusRejected, OrderStatusExpired,

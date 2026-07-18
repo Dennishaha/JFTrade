@@ -2019,6 +2019,8 @@ export interface BrokerPositionsResponse {
     market: string;
     symbol: string;
     symbolName: string | null;
+    productClass?: string;
+    marketSegment?: string;
     quantity: number;
     sellableQuantity: number;
     lastPrice: number;
@@ -2029,6 +2031,10 @@ export interface BrokerPositionsResponse {
     realizedPnl: number | null;
     pnlRatio: number | null;
     currency: string | null;
+    comboId?: number | null;
+    strategyType?: string | null;
+    positionType?: string | null;
+    payoutIfWin?: number | null;
   }>;
 }
 
@@ -2438,6 +2444,14 @@ export interface ExecutionOrderSummaryResponse {
   tradingEnvironment: string;
   accountId: string;
   market: string;
+  orderKind?: "single" | "option_combo" | "event_single" | "event_parlay";
+  productClass?: string;
+  quantityMode?: "units" | "contracts" | "amount";
+  clientOrderId?: string | null;
+  previewId?: string | null;
+  requestedAmount?: number | null;
+  payout?: number | null;
+  legs?: ExecutionOrderLegResponse[];
   symbol: string | null;
   side: string | null;
   orderType: string | null;
@@ -2452,6 +2466,29 @@ export interface ExecutionOrderSummaryResponse {
   lastErrorCode: string | null;
   lastErrorSource: ExecutionOrderErrorSource | null;
   submittedAt: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface ExecutionOrderLegResponse {
+  id: string;
+  internalOrderId: string;
+  index: number;
+  brokerLegId?: string | null;
+  instrumentId: string;
+  productClass: string;
+  side: string;
+  ratio: number;
+  predictionSide?: string;
+  requestedQuantity?: number | null;
+  requestedAmount?: number | null;
+  requestedPrice?: number | null;
+  status: string;
+  filledQuantity?: number | null;
+  filledAmount?: number | null;
+  averagePrice?: number | null;
+  fees?: number | null;
+  payout?: number | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2544,6 +2581,7 @@ export interface MarketDataTradeTickDto {
 export interface MarketDataQueryMetaDto {
   instrumentId: string;
   source: string | null;
+  brokerId?: string | null;
   resolvedAt: string;
   fromCache: boolean;
 }
@@ -2681,6 +2719,8 @@ export interface MarketSecurityDetails {
   securityId?: number | null;
   name: string;
   securityType: string;
+  productClass: string;
+  marketSegment: string;
   exchangeType: string;
   listTime: string;
   listTimestamp?: number | null;
@@ -2902,6 +2942,18 @@ export interface MarketDataSubscriptionQuotaBucketDto {
 
 export interface MarketDataSubscriptionsResponse {
   totalActiveSubscriptions: number;
+  consumerId?: string;
+  providerBrokerId?: string;
+  action?: "acquired" | "released" | "heartbeat" | string;
+  instruments?: Array<{
+    channel?: string;
+    market: string;
+    symbol: string;
+    interval?: string;
+  }>;
+  transport?: {
+    mode: string;
+  };
   desiredCount?: number;
   ownActiveCount?: number;
   pendingReleaseCount?: number;
@@ -3136,7 +3188,7 @@ export const emptyFutuOpenDInstallGuide: FutuOpenDInstallGuideResponse = {
     maxWebSocketConnections: 20,
     useEncryption: false,
     websocketKeyRequired: false,
-    minimumVersion: "10.8.6808",
+    minimumVersion: "10.9.6908",
   },
 };
 
@@ -3153,7 +3205,7 @@ export const emptyFutuOpenDHealth: FutuOpenDHealthResponse = {
     tradeLoggedIn: null,
     programStatus: null,
     serverVersion: null,
-    minimumVersion: "10.8.6808",
+    minimumVersion: "10.9.6908",
     lastError: null,
   },
   diagnosis: {

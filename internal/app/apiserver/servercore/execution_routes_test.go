@@ -175,6 +175,22 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 		Status:             "SUBMITTED",
 		RequestedQuantity:  100,
 		EventType:          "COMMAND_PLACE_ACCEPTED",
+		OrderKind:          broker.OrderKindOptionCombo,
+		ProductClass:       broker.ProductClassOption,
+		QuantityMode:       broker.QuantityModeContracts,
+		ClientOrderID:      "combo-client-7001",
+		PreviewID:          "preview-7001",
+		NormalizedRequest:  `{"orderKind":"option_combo"}`,
+		Legs: []broker.OrderLegIntent{
+			{
+				InstrumentID: "US.AAPL260717C00200000", ProductClass: broker.ProductClassOption,
+				Side: "BUY", Ratio: 1, Quantity: new(1.0),
+			},
+			{
+				InstrumentID: "US.AAPL260717C00210000", ProductClass: broker.ProductClassOption,
+				Side: "SELL", Ratio: 1, Quantity: new(1.0),
+			},
+		},
 	})
 	fillIDEx := "FILL-7001"
 	store.recordBrokerOrderFill("futu", broker.OrderFillSnapshot{
@@ -206,6 +222,12 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 	}
 	if reloadedOrder.Source != "system" || reloadedOrder.SourceDetail != "command.place" {
 		t.Fatalf("source = %s/%s, want system/command.place", reloadedOrder.Source, reloadedOrder.SourceDetail)
+	}
+	if reloadedOrder.OrderKind != broker.OrderKindOptionCombo ||
+		reloadedOrder.ProductClass != broker.ProductClassOption ||
+		len(reloadedOrder.Legs) != 2 ||
+		reloadedOrder.Legs[1].InstrumentID != "US.AAPL260717C00210000" {
+		t.Fatalf("persisted combo parent/legs = %#v", reloadedOrder)
 	}
 	events := reloaded.orderEvents(order.InternalOrderID)
 	if len(events.Events) != 2 {
@@ -375,13 +397,13 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	}
 	found := false
 	for _, note := range notifications {
-		if note.Title == "Futu 订单已提交" {
+		if note.Title == "FUTU 订单已提交" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("expected Futu 订单已提交 notification, got %#v", notifications)
+		t.Fatalf("expected broker order submitted notification, got %#v", notifications)
 	}
 }
 

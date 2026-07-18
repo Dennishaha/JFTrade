@@ -1,0 +1,298 @@
+.option-combo-ticket {
+  container-name: option-combo-ticket;
+  container-type: inline-size;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text);
+}
+
+.option-combo-ticket__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(260px, 34%, 340px);
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.option-combo-ticket__left,
+.option-combo-ticket__order {
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: auto;
+}
+
+.option-combo-ticket__left {
+  display: grid;
+  grid-template-rows: max-content max-content;
+  align-content: start;
+}
+
+.option-combo-ticket__toolbar,
+.option-combo-ticket__legs {
+  min-width: 0;
+  min-height: 0;
+}
+
+.option-combo-ticket__toolbar {
+  grid-row: 1;
+}
+
+.option-combo-ticket__legs {
+  grid-row: 2;
+  overflow: hidden;
+}
+
+.option-combo-ticket__order {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  border-left: 1px solid var(--tv-border);
+}
+
+.option-combo-ticket__scope,
+.option-combo-ticket__primary-actions,
+.option-combo-ticket__execution {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.option-combo-ticket__toolbar {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding-block: 1px;
+  margin-bottom: 5px;
+}
+
+.option-combo-ticket__heading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.option-combo-ticket__heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-combo-ticket__tools {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.option-combo-ticket__tools select {
+  width: 106px;
+}
+
+.option-combo-ticket__tools button[aria-label] {
+  width: 30px;
+  padding: 0;
+}
+
+.option-combo-ticket small,
+.option-combo-ticket label,
+.option-combo-ticket__scope span {
+  color: var(--tv-text-dim);
+  font-size: 9px;
+}
+
+.option-combo-ticket select,
+.option-combo-ticket button,
+.option-combo-ticket input {
+  height: 30px;
+  border: 1px solid var(--tv-border);
+  border-radius: 4px;
+  background: var(--tv-bg-surface-2);
+  color: var(--tv-text-muted);
+  font: inherit;
+}
+
+.option-combo-ticket select,
+.option-combo-ticket input {
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+.option-combo-ticket button {
+  padding: 0 8px;
+  cursor: pointer;
+  font-size: 9px;
+}
+
+.option-combo-ticket button:hover:not(:disabled),
+.option-combo-ticket button:focus-visible,
+.option-combo-ticket button.is-active {
+  border-color: var(--tv-accent);
+  color: var(--tv-text);
+  outline: none;
+}
+
+.option-combo-ticket button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.option-combo-ticket__scope {
+  justify-content: space-between;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--tv-border);
+}
+
+.option-combo-ticket__scope span.is-real {
+  color: var(--tv-status-warning-fg);
+}
+
+.option-combo-ticket label {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+.option-combo-ticket label > strong {
+  color: var(--tv-text);
+  font-size: 10px;
+}
+
+.option-combo-ticket__anchors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.option-combo-ticket__anchors button {
+  display: flex;
+  height: 42px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--tv-text-dim);
+}
+
+.option-combo-ticket__anchors strong {
+  color: var(--tv-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.option-combo-ticket__stepper {
+  display: grid;
+  grid-template-columns: 30px 1fr 30px;
+}
+
+.option-combo-ticket__stepper button,
+.option-combo-ticket__stepper input {
+  border-radius: 0;
+  text-align: center;
+}
+
+.option-combo-ticket__primary-actions button {
+  min-width: 0;
+  flex: 1;
+}
+
+.option-combo-ticket button.is-primary {
+  border-color: var(--tv-accent);
+  background: var(--tv-accent);
+  color: var(--tv-bg);
+  font-weight: 750;
+}
+
+.option-combo-ticket__message {
+  margin: 0;
+  padding: 5px 10px;
+  background: color-mix(in srgb, var(--tv-warn) 7%, transparent);
+  color: var(--tv-warn);
+  font-size: 9px;
+}
+
+.option-combo-ticket__message.is-error {
+  background: var(--tv-status-error-bg);
+  color: var(--tv-status-error-fg);
+}
+
+.option-combo-ticket__execution {
+  min-height: 32px;
+  justify-content: space-between;
+  padding: 0 10px;
+  border-top: 1px solid var(--tv-border);
+  color: var(--tv-text-muted);
+  font-size: 9px;
+}
+
+@container option-combo-ticket (max-width: 940px) {
+  .option-combo-ticket__main {
+    grid-template-columns: minmax(0, 1fr) clamp(230px, 40%, 300px);
+  }
+
+  .option-combo-ticket__toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .option-combo-ticket__heading {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .option-combo-ticket__tools {
+    justify-content: flex-start;
+  }
+}
+
+@container option-combo-ticket (max-width: 720px) {
+  .option-combo-ticket__main {
+    grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+  }
+
+  .option-combo-ticket__left,
+  .option-combo-ticket__order {
+    padding: 7px 8px;
+  }
+
+  .option-combo-ticket label {
+    grid-template-columns: 62px minmax(0, 1fr);
+  }
+}
+
+@container option-combo-ticket (max-width: 480px) {
+  .option-combo-ticket__tools select {
+    width: min(100%, 120px);
+  }
+
+  .option-combo-ticket__scope {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .option-combo-ticket label {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+
+  .option-combo-ticket__anchors {
+    gap: 2px;
+  }
+
+  .option-combo-ticket__anchors button {
+    padding: 0 3px;
+  }
+}

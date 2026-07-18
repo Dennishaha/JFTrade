@@ -144,17 +144,20 @@ func TestFutuSnapshotRemainingProviderRateLimitAndSplitPaths(t *testing.T) {
 		t.Fatalf("snapshot provider error = %v", err)
 	}
 
-	items, itemErrors := queryFutuSnapshotBatch(t.Context(), nilSnapshotSource{}, []string{"US.AAPL", "US.MSFT"}, func() bool { return false })
+	rateLimited := brokerSnapshotSourceFunc(func(context.Context, broker.SecuritySnapshotQuery) (*broker.SecuritySnapshotResult, error) {
+		return nil, broker.NewSnapshotRateLimitError(12*time.Second, nil)
+	})
+	items, itemErrors := queryFutuSnapshotBatch(t.Context(), rateLimited, []string{"US.AAPL", "US.MSFT"})
 	if items != nil || len(itemErrors) != 2 || itemErrors[0].Code != "SNAPSHOT_RATE_LIMITED" {
 		t.Fatalf("rate limited snapshot = %#v, %#v", items, itemErrors)
 	}
-	items, itemErrors = queryFutuSnapshotBatch(t.Context(), nilSnapshotSource{}, []string{"US.AAPL"}, nil)
+	items, itemErrors = queryFutuSnapshotBatch(t.Context(), nilSnapshotSource{}, []string{"US.AAPL"})
 	if len(items) != 0 || len(itemErrors) != 1 || itemErrors[0].Code != "SNAPSHOT_NOT_RETURNED" {
 		t.Fatalf("nil result snapshot = %#v, %#v", items, itemErrors)
 	}
 
 	fake := &recordingBatchSnapshotSource{failID: "US.BAD"}
-	items, itemErrors = queryFutuSnapshotBatch(t.Context(), fake, []string{"US.BAD", "US.GOOD"}, nil)
+	items, itemErrors = queryFutuSnapshotBatch(t.Context(), fake, []string{"US.BAD", "US.GOOD"})
 	if _, ok := items["US.GOOD"]; !ok || len(itemErrors) != 1 || itemErrors[0].InstrumentID != "US.BAD" {
 		t.Fatalf("split snapshot = %#v, %#v", items, itemErrors)
 	}
@@ -162,20 +165,11 @@ func TestFutuSnapshotRemainingProviderRateLimitAndSplitPaths(t *testing.T) {
 	invalidResult := brokerSnapshotSourceFunc(func(context.Context, broker.SecuritySnapshotQuery) (*broker.SecuritySnapshotResult, error) {
 		return &broker.SecuritySnapshotResult{Snapshots: []broker.SecuritySnapshotItem{{Symbol: "invalid"}}}, nil
 	})
-	items, itemErrors = queryFutuSnapshotBatch(t.Context(), invalidResult, []string{"US.AAPL"}, nil)
+	items, itemErrors = queryFutuSnapshotBatch(t.Context(), invalidResult, []string{"US.AAPL"})
 	if len(items) != 0 || len(itemErrors) != 1 {
 		t.Fatalf("invalid symbol snapshot = %#v, %#v", items, itemErrors)
 	}
 
-	var nilGate *fixedWindowCallGate
-	if nilGate.allow(time.Now()) {
-		t.Fatal("nil gate allowed call")
-	}
-	for _, gate := range []*fixedWindowCallGate{{limit: 0, window: time.Second}, {limit: 1, window: 0}} {
-		if gate.allow(time.Now()) {
-			t.Fatalf("invalid gate allowed call: %#v", gate)
-		}
-	}
 }
 
 type brokerSnapshotSourceFunc func(context.Context, broker.SecuritySnapshotQuery) (*broker.SecuritySnapshotResult, error)

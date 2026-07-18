@@ -55,7 +55,7 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 
 	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
 		Symbols:       []string{"US.AAPL"},
@@ -98,7 +98,7 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	notifications := server.liveNotificationsAfter(0)
 	found := false
 	for _, note := range notifications {
-		if note.Title == "Futu 订单已提交" {
+		if note.Title == "FUTU 订单已提交" {
 			found = true
 			break
 		}
@@ -129,7 +129,7 @@ func TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 
 	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
 		Symbols:       []string{"US.AAPL"},
@@ -255,7 +255,7 @@ func TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
@@ -313,7 +313,7 @@ func TestStrategyRuntimeLiveUsesExplicitQuantityBeforeQuantityPct(t *testing.T) 
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
@@ -360,7 +360,7 @@ func TestStrategyRuntimeLiveSizesCloseQuantityPctFromPosition(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
@@ -408,7 +408,7 @@ func TestStrategyRuntimeLiveDefaultsCloseToFullPosition(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
@@ -460,7 +460,7 @@ func TestStrategyRuntimeLiveIgnoredOrderRecordsRuntimeEvidence(t *testing.T) {
 	market.MinQuantity = fixedpoint.NewFromFloat(100)
 	market.StepSize = fixedpoint.NewFromFloat(100)
 	stub.markets["US.AAPL"] = market
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
@@ -517,7 +517,7 @@ func TestStrategyRuntimeLiveCancelsTrackedOrderFromWorkerCommand(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
@@ -677,7 +677,7 @@ func TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent(t *testing.T) {
 		Quantity:         1,
 		SellableQuantity: 1,
 	}}
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
@@ -746,7 +746,7 @@ func TestStrategyRuntimeSkipsWhenWorkerReturnsNoCurrentBarIntent(t *testing.T) {
 		Quantity:         1,
 		SellableQuantity: 1,
 	}}
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
@@ -800,7 +800,7 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 	}
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 	worker := newFakeStrategyRuntimePineWorker()
 	worker.response = func(request pineworker.RunScriptRequest) pineworker.RunScriptResponse {
 		lastIndex := len(request.Candles) - 1
@@ -893,7 +893,7 @@ func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) 
 		Quantity:         1,
 		SellableQuantity: 1,
 	}}
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 
 	definition := strategyDesignDefinition{
 		ID:           "runtime-disconnected-refresh-test",

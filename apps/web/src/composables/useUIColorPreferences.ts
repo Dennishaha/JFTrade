@@ -68,8 +68,8 @@ function normalizeHexColor(value: unknown, fallback: string): string {
 
 function applyDirectionalColorVariables(colors: UIColorPreferences): void {
   if (typeof document === "undefined") return;
-  document.documentElement.style.setProperty("--tv-up", colors.upColor);
-  document.documentElement.style.setProperty("--tv-down", colors.downColor);
+  document.documentElement.style.setProperty("--tv-price-up", colors.upColor);
+  document.documentElement.style.setProperty("--tv-price-down", colors.downColor);
 }
 
 export function provideUIColorPreferencesStore(

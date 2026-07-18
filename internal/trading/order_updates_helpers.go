@@ -5,9 +5,11 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-func BuildOrderUpdateQueries(accounts []Account, fallbackMarket string) []OrderQuery {
+func BuildOrderUpdateQueries(accounts []Account, brokerID, fallbackMarket string) []OrderQuery {
 	queries := make([]OrderQuery, 0, len(accounts))
 	seen := make(map[string]struct{})
 	for _, account := range accounts {
@@ -28,8 +30,11 @@ func BuildOrderUpdateQueries(accounts []Account, fallbackMarket string) []OrderQ
 			queries = append(queries, query)
 		}
 	}
-	if len(queries) == 0 && strings.TrimSpace(fallbackMarket) != "" {
-		queries = append(queries, OrderQuery{BrokerID: "futu", TradingEnvironment: "SIMULATE", Market: strings.ToUpper(strings.TrimSpace(fallbackMarket))})
+	if len(queries) == 0 && strings.TrimSpace(brokerID) != "" && strings.TrimSpace(fallbackMarket) != "" {
+		queries = append(queries, OrderQuery{
+			BrokerID: strings.TrimSpace(brokerID), TradingEnvironment: "SIMULATE",
+			Market: strings.ToUpper(strings.TrimSpace(fallbackMarket)),
+		})
 	}
 	sort.Slice(queries, func(i, j int) bool {
 		return OrderUpdateSubscriptionKey(queries[i]) < OrderUpdateSubscriptionKey(queries[j])
@@ -113,6 +118,8 @@ func cloneOrders(orders []Order) []Order {
 func cloneOrder(order Order) Order {
 	order.BrokerOrderIDEx = cloneString(order.BrokerOrderIDEx)
 	order.SymbolName = cloneString(order.SymbolName)
+	order.Amount = cloneFloat(order.Amount)
+	order.Legs = append([]broker.OrderLegSnapshot(nil), order.Legs...)
 	order.FilledQuantity = cloneFloat(order.FilledQuantity)
 	order.Price = cloneFloat(order.Price)
 	order.FilledAveragePrice = cloneFloat(order.FilledAveragePrice)
@@ -129,6 +136,7 @@ func cloneFill(fill Fill) Fill {
 	fill.SymbolName = cloneString(fill.SymbolName)
 	fill.FillPrice = cloneFloat(fill.FillPrice)
 	fill.Status = cloneString(fill.Status)
+	fill.Payout = cloneFloat(fill.Payout)
 	return fill
 }
 

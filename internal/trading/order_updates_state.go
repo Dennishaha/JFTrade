@@ -19,7 +19,11 @@ func (w *OrderUpdatesWorker) shouldSync(force bool) bool {
 
 func (w *OrderUpdatesWorker) applyOrders(ctx context.Context, brokerID string, orders []Order, metadata OrderWriteMetadata) {
 	for _, order := range orders {
-		w.execution.ApplyOrder(ctx, brokerID, cloneOrder(order), metadata)
+		actualBrokerID := strings.TrimSpace(order.BrokerID)
+		if actualBrokerID == "" {
+			actualBrokerID = brokerID
+		}
+		w.execution.ApplyOrder(ctx, actualBrokerID, cloneOrder(order), metadata)
 	}
 }
 

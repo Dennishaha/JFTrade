@@ -419,10 +419,10 @@ func TestStrategySkillsSupportAuthorizedToolSubset(t *testing.T) {
 	registry.Register(ToolDescriptor{Name: "test.live", Permission: "live_trading"}, func(context.Context, map[string]any) (any, error) {
 		return nil, nil
 	})
-	if builtinSkillAllowedForAgentSubset(&adkskill.Frontmatter{
+	if !builtinSkillAllowedForAgentSubset(&adkskill.Frontmatter{
 		Name: strategypinespec.ResearchBuiltinSkillName, AllowedTools: []string{"test.live"},
 	}, map[string]struct{}{"test.live": {}}, registry, PermissionModeApproval) {
-		t.Fatal("builtin skill should not be allowed when its tool is unavailable in the permission mode")
+		t.Fatal("live trading tool should remain available behind per-call approval")
 	}
 }
 

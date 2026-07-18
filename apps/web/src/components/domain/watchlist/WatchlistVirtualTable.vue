@@ -266,8 +266,21 @@ onBeforeUnmount(() => {
             {{ formatUserMarketLabel(row.item.market) }} · {{ itemType(row.item) }}
           </span>
           <span class="watchlist-table__price is-numeric" role="gridcell">
-            <span v-if="quoteErrorFor(row.item)" class="watchlist-table__quote-error" :title="quoteErrorFor(row.item)?.message">不可用</span>
-            <template v-else>{{ formatPrice(quoteFor(row.item)?.price) }}</template>
+            <template v-if="quoteFor(row.item)">
+              {{ formatPrice(quoteFor(row.item)?.price) }}
+              <span
+                v-if="quoteErrorFor(row.item)"
+                class="watchlist-table__quote-stale"
+                :title="`数据暂未更新：${quoteErrorFor(row.item)?.message ?? ''}`"
+                aria-label="数据暂未更新"
+              >!</span>
+            </template>
+            <span
+              v-else-if="quoteErrorFor(row.item)"
+              class="watchlist-table__quote-error"
+              :title="quoteErrorFor(row.item)?.message"
+            >不可用</span>
+            <template v-else>—</template>
           </span>
           <span class="is-numeric" role="gridcell" :class="changeClass(quoteFor(row.item))">
             {{ formatChange(quoteFor(row.item)) }}
@@ -357,7 +370,6 @@ onBeforeUnmount(() => {
   min-height: 0;
   flex: 1;
   overflow: auto;
-  scrollbar-gutter: stable;
 }
 
 .watchlist-table__spacer {
@@ -441,8 +453,8 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.is-up { color: var(--tv-up); }
-.is-down { color: var(--tv-down); }
+.is-up { color: var(--tv-price-up); }
+.is-down { color: var(--tv-price-down); }
 
 .watchlist-table__session {
   color: var(--tv-text-muted);
@@ -452,6 +464,21 @@ onBeforeUnmount(() => {
 .watchlist-table__quote-error {
   color: var(--tv-warning, #d97706);
   font-size: 10px;
+}
+
+.watchlist-table__quote-stale {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: var(--tv-warning, #d97706);
+  font-size: 8px;
+  line-height: 1;
+  vertical-align: 1px;
 }
 
 .watchlist-table__star {

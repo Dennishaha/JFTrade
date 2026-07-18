@@ -93,6 +93,115 @@ func TestSubscriptionRoutesUseInstrumentRequestContract(t *testing.T) {
 	}
 }
 
+func TestSubscriptionRoutesUseBrokerNeutralPollingWithoutFutuLease(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := srv.NewService(&routeTestProvider{})
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), service)
+
+	acquired := postSubscriptionJSON(t, router, "/api/v1/market-data/subscriptions", map[string]any{
+		"consumerId":       "chart-alpha",
+		"providerBrokerId": " Alpha ",
+		"instruments": []any{
+			map[string]any{"market": "US", "symbol": "AAPL", "channel": "KLINE", "interval": "1m"},
+		},
+	})
+	if acquired["providerBrokerId"] != "alpha" || acquired["action"] != "acquired" {
+		t.Fatalf("broker polling acquire = %#v", acquired)
+	}
+	if acquired["totalActiveSubscriptions"] != float64(0) {
+		t.Fatalf("broker polling subscription shape = %#v", acquired)
+	}
+	quota := jftradeCheckedTypeAssertion[map[string]any](acquired["quota"])
+	if quota["totalUsed"] != float64(0) {
+		t.Fatalf("broker polling quota = %#v", quota)
+	}
+	transport := jftradeCheckedTypeAssertion[map[string]any](acquired["transport"])
+	if transport["mode"] != "snapshot-poll-fallback" {
+		t.Fatalf("broker polling transport = %#v", transport)
+	}
+	snapshot := getSubscriptionJSON(t, router, "/api/v1/market-data/subscriptions")
+	if snapshot["totalActiveSubscriptions"] != float64(0) {
+		t.Fatalf("non-Futu polling consumed a Futu lease: %#v", snapshot)
+	}
+
+	heartbeat := postSubscriptionJSON(t, router, "/api/v1/market-data/subscriptions/heartbeat", map[string]any{
+		"consumerId":       "chart-alpha",
+		"providerBrokerId": "alpha",
+	})
+	if heartbeat["action"] != "heartbeat" {
+		t.Fatalf("broker polling heartbeat = %#v", heartbeat)
+	}
+	released := postSubscriptionJSON(t, router, "/api/v1/market-data/subscriptions/release", map[string]any{
+		"consumerId":       "chart-alpha",
+		"providerBrokerId": "alpha",
+		"instruments": []any{
+			map[string]any{"market": "US", "symbol": "AAPL", "channel": "KLINE", "interval": "1m"},
+		},
+	})
+	if released["action"] != "released" {
+		t.Fatalf("broker polling release = %#v", released)
+	}
+}
+
+func TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	legacy := &routeTestProvider{}
+	reader := &routeBrokerReader{}
+	router := gin.New()
+	RegisterRoutes(
+		router.Group("/api/v1"),
+		srv.NewService(legacy),
+		reader,
+	)
+
+	for _, path := range []string{
+		"/api/v1/market-data/securities/us/aapl?brokerId=alpha",
+		"/api/v1/market-data/snapshots/us/aapl?brokerId=alpha&refresh=true",
+		"/api/v1/market-data/candles/us/aapl?brokerId=alpha&period=5m&limit=20",
+		"/api/v1/market-data/depth/us/aapl?brokerId=alpha&num=12",
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(
+			response,
+			httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil),
+		)
+		if response.Code != http.StatusOK {
+			t.Fatalf("GET %s status = %d, body = %s", path, response.Code, response.Body.String())
+		}
+	}
+	if got, want := reader.calls, []string{
+		"security:alpha:us:aapl",
+		"snapshot:alpha:us:aapl:true",
+		"candles:alpha:us:aapl:5m:20",
+		"depth:alpha:us:aapl:12",
+	}; !slices.Equal(got, want) {
+		t.Fatalf("broker reader calls = %#v, want %#v", got, want)
+	}
+	if legacy.securityMarket != "" || legacy.snapshotInstrumentID != "" ||
+		legacy.candlesCalled || legacy.depthCalled {
+		t.Fatalf("explicit broker fell back to legacy provider: %#v", legacy)
+	}
+
+	withoutReader := gin.New()
+	RegisterRoutes(withoutReader.Group("/api/v1"), srv.NewService(&routeTestProvider{}))
+	for _, path := range []string{
+		"/api/v1/market-data/securities/US/AAPL?brokerId=alpha",
+		"/api/v1/market-data/snapshots/US/AAPL?brokerId=alpha",
+		"/api/v1/market-data/candles/US/AAPL?brokerId=alpha",
+		"/api/v1/market-data/depth/US/AAPL?brokerId=alpha",
+	} {
+		response := httptest.NewRecorder()
+		withoutReader.ServeHTTP(
+			response,
+			httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil),
+		)
+		if response.Code != http.StatusConflict {
+			t.Fatalf("GET %s status = %d, want 409; body = %s", path, response.Code, response.Body.String())
+		}
+	}
+}
+
 func TestSubscriptionReleaseConsumerOnlyClearsConsumer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	service := srv.NewService(&routeTestProvider{})
@@ -700,6 +809,56 @@ type routeTestProvider struct {
 	searchMu             sync.Mutex
 	searchCalls          []string
 	searchInstruments    func(context.Context, string, int) ([]srv.InstrumentCandidate, error)
+}
+
+type routeBrokerReader struct {
+	calls []string
+}
+
+func (r *routeBrokerReader) ReadMarketSnapshot(
+	_ context.Context,
+	brokerID string,
+	market string,
+	symbol string,
+	refresh bool,
+) (map[string]any, error) {
+	r.calls = append(r.calls, fmt.Sprintf("snapshot:%s:%s:%s:%t", brokerID, market, symbol, refresh))
+	return map[string]any{"meta": map[string]any{"brokerId": brokerID}}, nil
+}
+
+func (r *routeBrokerReader) ReadMarketSecurityDetails(
+	_ context.Context,
+	brokerID string,
+	market string,
+	symbol string,
+) (map[string]any, error) {
+	r.calls = append(r.calls, fmt.Sprintf("security:%s:%s:%s", brokerID, market, symbol))
+	return map[string]any{"meta": map[string]any{"brokerId": brokerID}}, nil
+}
+
+func (r *routeBrokerReader) ReadMarketCandles(
+	_ context.Context,
+	brokerID string,
+	market string,
+	symbol string,
+	period string,
+	limit int,
+	_ string,
+	_ string,
+) (map[string]any, error) {
+	r.calls = append(r.calls, fmt.Sprintf("candles:%s:%s:%s:%s:%d", brokerID, market, symbol, period, limit))
+	return map[string]any{"meta": map[string]any{"brokerId": brokerID}}, nil
+}
+
+func (r *routeBrokerReader) ReadMarketDepth(
+	_ context.Context,
+	brokerID string,
+	market string,
+	symbol string,
+	num int,
+) (map[string]any, error) {
+	r.calls = append(r.calls, fmt.Sprintf("depth:%s:%s:%s:%d", brokerID, market, symbol, num))
+	return map[string]any{"meta": map[string]any{"brokerId": brokerID}}, nil
 }
 
 func (p *routeTestProvider) Descriptor(context.Context) (srv.ProviderDescriptor, error) {

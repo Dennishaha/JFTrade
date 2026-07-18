@@ -151,6 +151,7 @@ func TestFutuWatchlistSnapshotUsesTwentyAndFourHundredChunksWithPerItemErrors(t 
 	for index := 1; index <= 21; index++ {
 		ids = append(ids, fmt.Sprintf("HK.%05d", index))
 	}
+	ids = append(ids, "SH.600519", "SZ.000001")
 	for index := 1; index <= 401; index++ {
 		ids = append(ids, fmt.Sprintf("US.TEST%d", index))
 	}
@@ -166,6 +167,7 @@ func TestFutuWatchlistSnapshotUsesTwentyAndFourHundredChunksWithPerItemErrors(t 
 	if len(quotes) != len(ids)-1 || len(itemErrors) != 1 || itemErrors[0].InstrumentID != "US.BAD" {
 		t.Fatalf("quotes=%d errors=%#v", len(quotes), itemErrors)
 	}
+	mixedNonHKBatch := false
 	for _, batch := range fake.batches {
 		if len(batch) == 0 {
 			t.Fatal("empty snapshot batch")
@@ -177,6 +179,12 @@ func TestFutuWatchlistSnapshotUsesTwentyAndFourHundredChunksWithPerItemErrors(t 
 		if market != "HK" && len(batch) > futuSnapshotBatch {
 			t.Fatalf("non-HK batch size = %d, want <= %d", len(batch), futuSnapshotBatch)
 		}
+		if slices.Contains(batch, "SH.600519") && slices.Contains(batch, "SZ.000001") && slices.Contains(batch, "US.TEST1") {
+			mixedNonHKBatch = true
+		}
+	}
+	if !mixedNonHKBatch {
+		t.Fatalf("non-HK markets were not combined: %#v", fake.batches)
 	}
 	if quotes[0].Change == nil || *quotes[0].Change != 1 || quotes[0].ChangePercent == nil || *quotes[0].ChangePercent != 1 {
 		t.Fatalf("quote change calculation = %#v", quotes[0])
@@ -260,16 +268,5 @@ func TestFutuWatchlistSourceReportsFailedOpenDProbe(t *testing.T) {
 	source, err := reader.Source(t.Context())
 	if err != nil || source.Status != "unavailable" || source.Error != "connection refused" {
 		t.Fatalf("source = %#v err=%v", source, err)
-	}
-}
-
-func TestWatchlistSnapshotFixedWindowGateDoesNotExceedOpenDQuota(t *testing.T) {
-	now := time.Date(2026, 7, 11, 12, 0, 0, 0, time.UTC)
-	gate := fixedWindowCallGate{limit: 2, window: 30 * time.Second}
-	if !gate.allow(now) || !gate.allow(now.Add(time.Second)) || gate.allow(now.Add(2*time.Second)) {
-		t.Fatal("fixed-window snapshot gate did not enforce its call limit")
-	}
-	if !gate.allow(now.Add(31 * time.Second)) {
-		t.Fatal("fixed-window snapshot gate did not release expired calls")
 	}
 }

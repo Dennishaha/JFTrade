@@ -111,7 +111,7 @@ const futuTradeLoginLabel = computed(() => {
 });
 
 const minimumOpenDVersion = computed(
-  () => futuOpenDHealth.value.runtime?.minimumVersion ?? "10.8.6808",
+  () => futuOpenDHealth.value.runtime?.minimumVersion ?? "10.9.6908",
 );
 
 const futuOpenDVersionLabel = computed(() => {

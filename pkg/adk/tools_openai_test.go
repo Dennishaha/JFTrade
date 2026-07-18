@@ -32,8 +32,8 @@ func TestToolOpenAIAndWorkflowHelperAdditionalBoundaries(t *testing.T) {
 			return "ok", nil
 		})
 		live, ok := registry.Get("live.trade")
-		if !ok || len(live.Descriptor.AllowedModes) != 1 || live.Descriptor.AllowedModes[0] != PermissionModeAll {
-			t.Fatalf("live.trade descriptor = %+v, want all-mode only", live.Descriptor)
+		if !ok || len(live.Descriptor.AllowedModes) != 3 {
+			t.Fatalf("live.trade descriptor = %+v, want all modes behind approval", live.Descriptor)
 		}
 		if !ToolRequiresApproval(ToolDescriptor{Name: "instance.create", Permission: "create_strategy_instance"}, PermissionModeLessApproval) {
 			t.Fatal("create_strategy_instance should require approval outside all mode")
@@ -41,8 +41,8 @@ func TestToolOpenAIAndWorkflowHelperAdditionalBoundaries(t *testing.T) {
 		if ToolRequiresApproval(ToolDescriptor{Name: "instance.create", Permission: "create_strategy_instance"}, PermissionModeAll) {
 			t.Fatal("create_strategy_instance should not require approval in all mode")
 		}
-		if ToolRequiresApproval(ToolDescriptor{Name: "live.trade", Permission: "live_trading"}, PermissionModeApproval) {
-			t.Fatal("live_trading should not require approval here")
+		if !ToolRequiresApproval(ToolDescriptor{Name: "live.trade", Permission: "live_trading"}, PermissionModeApproval) {
+			t.Fatal("live_trading should always require approval")
 		}
 		if got := defaultToolRiskLevel("mystery"); got != "medium" {
 			t.Fatalf("defaultToolRiskLevel(default) = %q, want medium", got)

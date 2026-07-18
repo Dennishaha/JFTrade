@@ -428,7 +428,7 @@ describe("console data realtime kline overlay", () => {
     expect(store.marketSecurityDetails.value?.security?.equity?.peRate).toBe(16.7);
   });
 
-  it("refreshes US snapshots in the background so session flips without a live tick", async () => {
+  it("does not repeat REST snapshots while the live channel owns refresh", async () => {
     vi.useFakeTimers();
 
     const store = createConsoleStore();
@@ -577,19 +577,19 @@ describe("console data realtime kline overlay", () => {
     expect(store.marketDataSnapshot.value?.snapshot?.session).toBe("pre");
     expect(store.marketSecurityDetails.value?.security?.name).toBe("Apple Inc.");
 
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(10_000);
 
-    expect(snapshotCalls).toBe(2);
-    expect(securityDetailsCalls).toBe(2);
-    expect(store.marketDataSnapshot.value?.snapshot?.session).toBe("regular");
-    expect(store.marketDataSnapshot.value?.snapshot?.extendedHours).toBe(false);
-    expect(store.marketSecurityDetails.value?.security?.name).toBe("Apple Inc. Refreshed");
-    expect(store.marketSecurityDetails.value?.security?.sessionStatus).toBe("Regular");
+    expect(snapshotCalls).toBe(1);
+    expect(securityDetailsCalls).toBe(1);
+    expect(store.marketDataSnapshot.value?.snapshot?.session).toBe("pre");
+    expect(store.marketDataSnapshot.value?.snapshot?.extendedHours).toBe(true);
+    expect(store.marketSecurityDetails.value?.security?.name).toBe("Apple Inc.");
+    expect(store.marketSecurityDetails.value?.security?.sessionStatus).toBe("PreMarket");
 
     vi.useRealTimers();
   });
 
-  it("keeps background refresh cadence when live ticks keep arriving", async () => {
+  it("does not restart REST polling when live ticks keep arriving", async () => {
     vi.useFakeTimers();
 
     const store = createConsoleStore();
@@ -760,8 +760,8 @@ describe("console data realtime kline overlay", () => {
 
     await vi.advanceTimersByTimeAsync(200);
 
-    expect(snapshotCalls).toBe(2);
-    expect(securityDetailsCalls).toBe(2);
+    expect(snapshotCalls).toBe(1);
+    expect(securityDetailsCalls).toBe(1);
 
     vi.useRealTimers();
   });

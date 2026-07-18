@@ -1,23 +1,39 @@
 <script setup lang="ts">
 import type { SplitpanesResizedPayload } from "splitpanes";
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
+import PredictionContractWorkspacePanel from "../components/product/PredictionContractWorkspacePanel.vue";
+import OptionTradingDock from "../components/product/OptionTradingDock.vue";
 import WorkspaceWatchlistSidebar from "../components/domain/watchlist/WorkspaceWatchlistSidebar.vue";
-import LightweightChart from "../components/workspace/LightweightChart.vue";
+import WorkspaceProductPane from "../components/workspace/WorkspaceProductPane.vue";
 import OrderBookPanel from "../components/workspace/OrderBookPanel.vue";
 import OrderEntryPanel from "../components/workspace/OrderEntryPanel.vue";
 import PositionsPanel from "../components/workspace/PositionsPanel.vue";
 import SplitPane from "../components/shared/SplitPane.vue";
 import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import InstrumentOverviewPanel from "../components/workspace/InstrumentOverviewPanel.vue";
+import { useOptionComboDraftStore } from "../composables/optionComboDraft";
 import {
+  useWorkspaceTradingPrefs,
   useWorkspaceViewState,
   type WorkspacePaneSizeKey,
 } from "../composables/useWorkspaceLayout";
 
 const { prefs, update } = useWorkspaceViewState();
+const { prefs: tradingPrefs } = useWorkspaceTradingPrefs();
+const optionComboDraft = useOptionComboDraftStore();
+const isPrediction = computed(
+  () => tradingPrefs.value.marketSegment === "prediction",
+);
+const isOptionWorkspace = computed(
+  () => optionComboDraft.workspaceActive.value && !isPrediction.value,
+);
+const predictionInstrumentId = computed(
+  () => `${tradingPrefs.value.market}.${tradingPrefs.value.symbol}`,
+);
 const WORKSPACE_COMPACT_MEDIA_QUERY = "(max-width: 1180px)";
 const isCompactWorkspace = ref(false);
+const optionDockCollapsed = ref(false);
 let compactWorkspaceMediaQuery: MediaQueryList | null = null;
 let watchlistResizeStart: {
   pointerId: number;
@@ -155,7 +171,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="tv-workspace tv-workspace--scoped">
+  <div class="tv-workspace tv-workspace--scoped" data-capability-surface="workspace.root">
     <button
       v-if="!prefs.watchlistSidebarOpen"
       type="button"
@@ -189,19 +205,43 @@ onUnmounted(() => {
 
     <div v-if="isCompactWorkspace" class="tv-workspace__compact-stack">
       <section class="tv-workspace__compact-panel tv-workspace__compact-panel--chart">
-        <LightweightChart />
+        <WorkspaceProductPane />
       </section>
-      <section class="tv-workspace__compact-panel">
+      <section
+        v-if="isOptionWorkspace"
+        class="tv-workspace__compact-panel tv-workspace__compact-panel--option-dock"
+        :class="{ 'is-option-dock-collapsed': optionDockCollapsed }"
+        data-capability-surface="workspace.order"
+      >
+        <OptionTradingDock v-model:collapsed="optionDockCollapsed" />
+      </section>
+      <section
+        v-else
+        class="tv-workspace__compact-panel"
+        data-capability-surface="workspace.order"
+      >
         <PositionsPanel />
       </section>
-      <section class="tv-workspace__compact-panel">
+      <section v-if="!isOptionWorkspace" class="tv-workspace__compact-panel">
         <OrderEntryPanel />
       </section>
-      <section class="tv-workspace__compact-panel">
+      <section v-if="!isPrediction" class="tv-workspace__compact-panel">
         <InstrumentOverviewPanel />
       </section>
-      <section class="tv-workspace__compact-panel">
+      <section v-else class="tv-workspace__compact-panel">
+        <PredictionContractWorkspacePanel
+          :instrument-id="predictionInstrumentId"
+          view="contract"
+        />
+      </section>
+      <section v-if="!isPrediction" class="tv-workspace__compact-panel">
         <OrderBookPanel />
+      </section>
+      <section v-else class="tv-workspace__compact-panel">
+        <PredictionContractWorkspacePanel
+          :instrument-id="predictionInstrumentId"
+          view="depth"
+        />
       </section>
     </div>
 
@@ -232,16 +272,29 @@ onUnmounted(() => {
       <div class="tv-workspace__body">
         <SplitPane :pane-min-size="10" @resized="handlePaneResized('main', $event)">
         <SplitPaneItem :size="prefs.paneSizes.main[0]">
-          <SplitPane horizontal :pane-min-size="10" @resized="handlePaneResized('leftColumn', $event)">
+          <SplitPane
+            horizontal
+            class="tv-workspace__left-split"
+            :class="{
+              'is-option-dock-collapsed':
+                isOptionWorkspace && optionDockCollapsed,
+            }"
+            :pane-min-size="10"
+            @resized="handlePaneResized('leftColumn', $event)"
+          >
             <SplitPaneItem :size="prefs.paneSizes.leftColumn[0]">
-              <LightweightChart />
+              <WorkspaceProductPane />
             </SplitPaneItem>
             <SplitPaneItem :size="prefs.paneSizes.leftColumn[1]" :min-size="15">
-              <SplitPane :pane-min-size="10" @resized="handlePaneResized('bottom', $event)">
+              <OptionTradingDock
+                v-if="isOptionWorkspace"
+                v-model:collapsed="optionDockCollapsed"
+              />
+              <SplitPane v-else :pane-min-size="10" @resized="handlePaneResized('bottom', $event)">
                 <SplitPaneItem :size="prefs.paneSizes.bottom[0]" :min-size="15">
                   <PositionsPanel />
                 </SplitPaneItem>
-                <SplitPaneItem :size="prefs.paneSizes.bottom[1]" :min-size="18">
+                <SplitPaneItem :size="prefs.paneSizes.bottom[1]" :min-size="18" data-capability-surface="workspace.order">
                   <OrderEntryPanel />
                 </SplitPaneItem>
               </SplitPane>
@@ -253,10 +306,20 @@ onUnmounted(() => {
         <SplitPaneItem :size="prefs.paneSizes.main[1]" :min-size="15">
           <SplitPane horizontal :pane-min-size="10" @resized="handlePaneResized('rightColumn', $event)">
             <SplitPaneItem :size="prefs.paneSizes.rightColumn[0]" :min-size="12">
-              <InstrumentOverviewPanel />
+              <InstrumentOverviewPanel v-if="!isPrediction" />
+              <PredictionContractWorkspacePanel
+                v-else
+                :instrument-id="predictionInstrumentId"
+                view="contract"
+              />
             </SplitPaneItem>
             <SplitPaneItem :size="prefs.paneSizes.rightColumn[1]" :min-size="15">
-              <OrderBookPanel />
+              <OrderBookPanel v-if="!isPrediction" />
+              <PredictionContractWorkspacePanel
+                v-else
+                :instrument-id="predictionInstrumentId"
+                view="depth"
+              />
             </SplitPaneItem>
           </SplitPane>
         </SplitPaneItem>
@@ -357,6 +420,30 @@ onUnmounted(() => {
   min-height: 380px;
 }
 
+.tv-workspace__compact-panel--option-dock {
+  min-height: 420px;
+}
+
+.tv-workspace__compact-panel--option-dock.is-option-dock-collapsed {
+  height: 36px;
+  min-height: 36px;
+}
+
+.tv-workspace__left-split.is-option-dock-collapsed
+  > :deep(.splitpanes__pane:first-child) {
+  height: calc(100% - 36px) !important;
+}
+
+.tv-workspace__left-split.is-option-dock-collapsed
+  > :deep(.splitpanes__splitter) {
+  display: none;
+}
+
+.tv-workspace__left-split.is-option-dock-collapsed
+  > :deep(.splitpanes__pane:last-child) {
+  height: 36px !important;
+}
+
 @media (max-width: 768px) {
   .tv-workspace.tv-workspace--scoped {
     scrollbar-gutter: auto;
@@ -374,6 +461,11 @@ onUnmounted(() => {
 
   .tv-workspace__compact-panel--chart {
     min-height: 340px;
+  }
+
+  .tv-workspace__compact-panel--option-dock.is-option-dock-collapsed {
+    height: 36px;
+    min-height: 36px;
   }
 }
 </style>

@@ -25,24 +25,29 @@ import (
 
 // Protocol IDs (selected — see Futu OpenAPI docs for the full list).
 const (
-	ProtoInitConnect          uint32 = 1001
-	ProtoGetGlobalState       uint32 = 1002
-	ProtoNotify               uint32 = 1003
-	ProtoKeepAlive            uint32 = 1004
-	ProtoQotSub               uint32 = 3001
-	ProtoGetSubInfo           uint32 = 3003
-	ProtoGetBasicQot          uint32 = 3004
-	ProtoQotUpdateBasicQot    uint32 = 3005
-	ProtoGetKL                uint32 = 3006
-	ProtoQotUpdateKL          uint32 = 3007
-	ProtoGetOrderBook         uint32 = 3012
-	ProtoQotUpdateOrderBook   uint32 = 3013
-	ProtoRequestHistoryKL     uint32 = 3103
-	ProtoGetStaticInfo        uint32 = 3202
-	ProtoGetSecuritySnapshot  uint32 = 3203
-	ProtoGetUserSecurity      uint32 = 3213
-	ProtoGetUserSecurityGroup uint32 = 3222
-	ProtoGetSearchQuote       uint32 = 3262
+	ProtoInitConnect                      uint32 = 1001
+	ProtoGetGlobalState                   uint32 = 1002
+	ProtoNotify                           uint32 = 1003
+	ProtoKeepAlive                        uint32 = 1004
+	ProtoQotSub                           uint32 = 3001
+	ProtoGetSubInfo                       uint32 = 3003
+	ProtoGetBasicQot                      uint32 = 3004
+	ProtoQotUpdateBasicQot                uint32 = 3005
+	ProtoGetKL                            uint32 = 3006
+	ProtoQotUpdateKL                      uint32 = 3007
+	ProtoGetOrderBook                     uint32 = 3012
+	ProtoQotUpdateOrderBook               uint32 = 3013
+	ProtoRequestHistoryKL                 uint32 = 3103
+	ProtoGetStaticInfo                    uint32 = 3202
+	ProtoGetSecuritySnapshot              uint32 = 3203
+	ProtoGetUserSecurity                  uint32 = 3213
+	ProtoGetUserSecurityGroup             uint32 = 3222
+	ProtoGetSearchQuote                   uint32 = 3262
+	ProtoQotUpdateEventContractOrderBook  uint32 = 3450
+	ProtoQotUpdateEventContractKline      uint32 = 3451
+	ProtoQotUpdateEventContractTicker     uint32 = 3452
+	ProtoQotSubEventContract              uint32 = 3455
+	ProtoQotRequestHistoryEventContractKL uint32 = 3456
 
 	ProtoTrdGetAccList              uint32 = 2001
 	ProtoTrdUnlockTrade             uint32 = 2005
@@ -50,6 +55,7 @@ const (
 	ProtoTrdGetFunds                uint32 = 2101
 	ProtoTrdGetPositionList         uint32 = 2102
 	ProtoTrdGetMaxTrdQtys           uint32 = 2111
+	ProtoTrdGetComboMaxTrdQtys      uint32 = 2112
 	ProtoTrdGetOrderList            uint32 = 2201
 	ProtoTrdPlaceOrder              uint32 = 2202
 	ProtoTrdModifyOrder             uint32 = 2205
@@ -59,6 +65,7 @@ const (
 	ProtoTrdGetMarginRatio          uint32 = 2223
 	ProtoTrdGetOrderFee             uint32 = 2225
 	ProtoTrdFlowSummary             uint32 = 2226
+	ProtoTrdPlaceComboOrder         uint32 = 2227
 	ProtoTrdUpdateOrder             uint32 = 2208
 	ProtoTrdUpdateOrderFill         uint32 = 2218
 )

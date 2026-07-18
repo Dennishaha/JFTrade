@@ -188,6 +188,7 @@ function createConsoleDataStore(
     "disconnected",
   );
   const liveStreamCheckedAt = ref("");
+  const consoleRefreshError = ref("");
 
   const {
     applyMarketDataTickEvent,
@@ -195,6 +196,7 @@ function createConsoleDataStore(
     currentMarketDataCandles,
     currentMarketDataSnapshot,
     currentMarketSecurityDetails,
+    disposeMarketDataQuery,
     isMarketDataStale,
     isLoadingMarketDataQuery,
     isMarketDataSwitching,
@@ -453,7 +455,7 @@ function createConsoleDataStore(
     marketInstrumentReferences,
     isLoading,
     loadError,
-    liveStreamStatus,
+    consoleRefreshError,
     fetchPluginCatalog,
     resolveActiveBrokerId,
     resolveBrokerAccountOptions,
@@ -493,7 +495,12 @@ function createConsoleDataStore(
     liveStreamCheckedAt,
     reloadSystemState,
   });
-  const { dispose, initialize } = consoleStreamController;
+  const { dispose: disposeConsoleStream, initialize } = consoleStreamController;
+
+  function dispose(): void {
+    disposeMarketDataQuery();
+    disposeConsoleStream();
+  }
 
   watch(
     activeMarketDataInstrumentId,
@@ -519,6 +526,8 @@ function createConsoleDataStore(
       market: marketDataQueryMarket.value,
       symbol: marketDataQuerySymbol.value,
       period,
+      marketSegment: "securities",
+      productClass: "unknown",
     });
   }
 
@@ -565,6 +574,7 @@ function createConsoleDataStore(
     isLoadingMarketDataQuery,
     isMarketDataSwitching,
     isLoadingOrderFees,
+    consoleRefreshError,
     liveStreamCheckedAt,
     liveStreamStatus,
     loadError,

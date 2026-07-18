@@ -22,6 +22,19 @@ func TestParseChecksumManifest(t *testing.T) {
 	assert.Equal(t, map[string]string{"Common.proto": digest}, actual)
 }
 
+func TestManifestFileNamesReturnsSortedInputs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "manifest.sha256")
+	digest := strings.Repeat("a", sha256.Size*2)
+	require.NoError(t, os.WriteFile(
+		path,
+		[]byte(digest+"  Z.proto\n"+digest+"  A.proto\n"),
+		0o600,
+	))
+	files, err := manifestFileNames(path)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"A.proto", "Z.proto"}, files)
+}
+
 func TestParseChecksumManifestRejectsInvalidEntries(t *testing.T) {
 	digest := strings.Repeat("a", 64)
 	tests := []struct {

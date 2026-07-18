@@ -24,6 +24,7 @@ type executionPlacedOrderRecord = trdsrv.ExecutionPlacedOrderRecord
 
 type executionOrderStore struct {
 	mu                    sync.RWMutex
+	submissionMu          sync.Mutex
 	persistenceMu         sync.Mutex
 	persistence           *executionOrderSQLiteStore
 	persistenceQueue      chan executionPersistenceItem

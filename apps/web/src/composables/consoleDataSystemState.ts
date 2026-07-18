@@ -210,7 +210,7 @@ interface CreateConsoleDataSystemStateControllerOptions {
   marketInstrumentReferences: Ref<MarketInstrumentReference[]>;
   isLoading: Ref<boolean>;
   loadError: Ref<string>;
-  liveStreamStatus: Ref<"disconnected" | "connected" | "degraded">;
+  consoleRefreshError: Ref<string>;
   fetchPluginCatalog: () => Promise<PluginCatalogResponse>;
   resolveActiveBrokerId: (options?: {
     settings?: BrokerSettingsResponse;
@@ -287,6 +287,13 @@ export function createConsoleDataSystemStateController(
     }
 
     try {
+      const referenceMarket = options.prefs.value.market.trim().toUpperCase();
+      const referenceSymbol = options.prefs.value.symbol.trim().toUpperCase();
+      const referenceParams = new URLSearchParams({
+        query: `${referenceMarket}.${referenceSymbol}`,
+        market: referenceMarket,
+        limit: "5",
+      });
       const [
         onboarding,
         statusPayload,
@@ -341,9 +348,9 @@ export function createConsoleDataSystemStateController(
           "/api/v1/system/futu-opend/install-guide",
         ).catch(() => emptyFutuOpenDInstallGuide),
         fetchEnvelope<MarketInstrumentReferenceResponse>(
-          "/api/v1/market-data/instruments?limit=50",
+          `/api/v1/market-data/instruments?${referenceParams.toString()}`,
         ).catch(() => ({
-          query: "",
+          query: `${referenceMarket}.${referenceSymbol}`,
           totalReturned: 0,
           entries: [],
         })),
@@ -450,9 +457,13 @@ export function createConsoleDataSystemStateController(
       }
       options.selectedExecutionOrderId.value =
         executionSelection.nextSelectedExecutionOrderId;
+      if (background) {
+        options.consoleRefreshError.value = "";
+      }
     } catch (error) {
       if (background) {
-        options.liveStreamStatus.value = "degraded";
+        options.consoleRefreshError.value =
+          error instanceof Error ? error.message : "控制台后台刷新失败。";
       } else {
         options.loadError.value =
           error instanceof Error ? error.message : "系统状态加载失败。";

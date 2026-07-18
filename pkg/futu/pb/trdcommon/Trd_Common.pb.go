@@ -161,6 +161,7 @@ const (
 	TrdMarket_TrdMarket_Futures_Simulate_SG TrdMarket = 12
 	TrdMarket_TrdMarket_Futures_Simulate_JP TrdMarket = 13
 	TrdMarket_TrdMarket_JP                  TrdMarket = 15
+	TrdMarket_TrdMarket_Prediction          TrdMarket = 17
 	TrdMarket_TrdMarket_MY                  TrdMarket = 111
 	TrdMarket_TrdMarket_CA                  TrdMarket = 112
 	TrdMarket_TrdMarket_HK_Fund             TrdMarket = 113 //香港基金市场
@@ -187,6 +188,7 @@ var (
 		12:  "TrdMarket_Futures_Simulate_SG",
 		13:  "TrdMarket_Futures_Simulate_JP",
 		15:  "TrdMarket_JP",
+		17:  "TrdMarket_Prediction",
 		111: "TrdMarket_MY",
 		112: "TrdMarket_CA",
 		113: "TrdMarket_HK_Fund",
@@ -210,6 +212,7 @@ var (
 		"TrdMarket_Futures_Simulate_SG": 12,
 		"TrdMarket_Futures_Simulate_JP": 13,
 		"TrdMarket_JP":                  15,
+		"TrdMarket_Prediction":          17,
 		"TrdMarket_MY":                  111,
 		"TrdMarket_CA":                  112,
 		"TrdMarket_HK_Fund":             113,
@@ -273,6 +276,7 @@ const (
 	TrdSecMarket_TrdSecMarket_CA      TrdSecMarket = 81  // 加拿大
 	TrdSecMarket_TrdSecMarket_FX      TrdSecMarket = 91  // 外汇
 	TrdSecMarket_TrdSecMarket_CC      TrdSecMarket = 101 // 加密货币市场
+	TrdSecMarket_TrdSecMarket_EC      TrdSecMarket = 111 // 事件合约 Event Contract
 )
 
 // Enum value maps for TrdSecMarket.
@@ -290,6 +294,7 @@ var (
 		81:  "TrdSecMarket_CA",
 		91:  "TrdSecMarket_FX",
 		101: "TrdSecMarket_CC",
+		111: "TrdSecMarket_EC",
 	}
 	TrdSecMarket_value = map[string]int32{
 		"TrdSecMarket_Unknown": 0,
@@ -304,6 +309,7 @@ var (
 		"TrdSecMarket_CA":      81,
 		"TrdSecMarket_FX":      91,
 		"TrdSecMarket_CC":      101,
+		"TrdSecMarket_EC":      111,
 	}
 )
 
@@ -685,6 +691,7 @@ const (
 	OrderFillStatus_OrderFillStatus_OK        OrderFillStatus = 0 //正常
 	OrderFillStatus_OrderFillStatus_Cancelled OrderFillStatus = 1 //成交被取消
 	OrderFillStatus_OrderFillStatus_Changed   OrderFillStatus = 2 //成交被更改
+	OrderFillStatus_OrderFillStatus_Payout    OrderFillStatus = 3 //赔付（仅事件合约）
 )
 
 // Enum value maps for OrderFillStatus.
@@ -693,11 +700,13 @@ var (
 		0: "OrderFillStatus_OK",
 		1: "OrderFillStatus_Cancelled",
 		2: "OrderFillStatus_Changed",
+		3: "OrderFillStatus_Payout",
 	}
 	OrderFillStatus_value = map[string]int32{
 		"OrderFillStatus_OK":        0,
 		"OrderFillStatus_Cancelled": 1,
 		"OrderFillStatus_Changed":   2,
+		"OrderFillStatus_Payout":    3,
 	}
 )
 
@@ -1073,6 +1082,7 @@ const (
 	Currency_Currency_AUD     Currency = 6 // 澳元
 	Currency_Currency_CAD     Currency = 7 // 加拿大元
 	Currency_Currency_MYR     Currency = 8 // 马来西亚林吉特
+	Currency_Currency_NZD     Currency = 9 // 新西兰元
 )
 
 // Enum value maps for Currency.
@@ -1087,6 +1097,7 @@ var (
 		6: "Currency_AUD",
 		7: "Currency_CAD",
 		8: "Currency_MYR",
+		9: "Currency_NZD",
 	}
 	Currency_value = map[string]int32{
 		"Currency_Unknown": 0,
@@ -1098,6 +1109,7 @@ var (
 		"Currency_AUD":     6,
 		"Currency_CAD":     7,
 		"Currency_MYR":     8,
+		"Currency_NZD":     9,
 	}
 )
 
@@ -2554,6 +2566,7 @@ type Position struct {
 	PositionType     *int32   `protobuf:"varint,37,opt,name=positionType" json:"positionType,omitempty"`             // 期权组合持仓类型，参见PositionType的枚举定义
 	AccID            *uint64  `protobuf:"varint,38,opt,name=accID" json:"accID,omitempty"`                           // 交易账户ID
 	JpAccType        *int32   `protobuf:"varint,39,opt,name=jpAccType" json:"jpAccType,omitempty"`                   // JP子账户类型，取值见 TrdSubAccType
+	PayoutIfWin      *float64 `protobuf:"fixed64,40,opt,name=payoutIfWin" json:"payoutIfWin,omitempty"`              // 事件合约猜中后的赔付金额，等于持仓数量*1.0，仅事件合约持仓返回
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -2794,6 +2807,13 @@ func (x *Position) GetAccID() uint64 {
 func (x *Position) GetJpAccType() int32 {
 	if x != nil && x.JpAccType != nil {
 		return *x.JpAccType
+	}
+	return 0
+}
+
+func (x *Position) GetPayoutIfWin() float64 {
+	if x != nil && x.PayoutIfWin != nil {
+		return *x.PayoutIfWin
 	}
 	return 0
 }
@@ -3743,7 +3763,7 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\rexposureLevel\x18# \x01(\x05R\rexposureLevel\x12$\n" +
 	"\rexposureLimit\x18$ \x01(\x01R\rexposureLimit\x12\x1c\n" +
 	"\tusedLimit\x18% \x01(\x01R\tusedLimit\x12&\n" +
-	"\x0eremainingLimit\x18& \x01(\x01R\x0eremainingLimit\"\x80\a\n" +
+	"\x0eremainingLimit\x18& \x01(\x01R\x0eremainingLimit\"\xa2\a\n" +
 	"\bPosition\x12\x1e\n" +
 	"\n" +
 	"positionID\x18\x01 \x02(\x04R\n" +
@@ -3783,7 +3803,8 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\fstrategyType\x18$ \x01(\x05R\fstrategyType\x12\"\n" +
 	"\fpositionType\x18% \x01(\x05R\fpositionType\x12\x14\n" +
 	"\x05accID\x18& \x01(\x04R\x05accID\x12\x1c\n" +
-	"\tjpAccType\x18' \x01(\x05R\tjpAccType\"\xe3\a\n" +
+	"\tjpAccType\x18' \x01(\x05R\tjpAccType\x12 \n" +
+	"\vpayoutIfWin\x18( \x01(\x01R\vpayoutIfWin\"\xe3\a\n" +
 	"\x05Order\x12\x18\n" +
 	"\atrdSide\x18\x01 \x02(\x05R\atrdSide\x12\x1c\n" +
 	"\torderType\x18\x02 \x02(\x05R\torderType\x12 \n" +
@@ -3892,7 +3913,7 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\x13TrdCategory_Unknown\x10\x00\x12\x18\n" +
 	"\x14TrdCategory_Security\x10\x01\x12\x16\n" +
 	"\x12TrdCategory_Future\x10\x02\x12\x16\n" +
-	"\x12TrdCategory_Crypto\x10\x03*\xf2\x03\n" +
+	"\x12TrdCategory_Crypto\x10\x03*\x8c\x04\n" +
 	"\tTrdMarket\x12\x15\n" +
 	"\x11TrdMarket_Unknown\x10\x00\x12\x10\n" +
 	"\fTrdMarket_HK\x10\x01\x12\x10\n" +
@@ -3908,14 +3929,15 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\x1dTrdMarket_Futures_Simulate_US\x10\v\x12!\n" +
 	"\x1dTrdMarket_Futures_Simulate_SG\x10\f\x12!\n" +
 	"\x1dTrdMarket_Futures_Simulate_JP\x10\r\x12\x10\n" +
-	"\fTrdMarket_JP\x10\x0f\x12\x10\n" +
+	"\fTrdMarket_JP\x10\x0f\x12\x18\n" +
+	"\x14TrdMarket_Prediction\x10\x11\x12\x10\n" +
 	"\fTrdMarket_MY\x10o\x12\x10\n" +
 	"\fTrdMarket_CA\x10p\x12\x15\n" +
 	"\x11TrdMarket_HK_Fund\x10q\x12\x15\n" +
 	"\x11TrdMarket_US_Fund\x10{\x12\x15\n" +
 	"\x11TrdMarket_SG_Fund\x10|\x12\x15\n" +
 	"\x11TrdMarket_MY_Fund\x10}\x12\x15\n" +
-	"\x11TrdMarket_JP_Fund\x10~*\x95\x02\n" +
+	"\x11TrdMarket_JP_Fund\x10~*\xaa\x02\n" +
 	"\fTrdSecMarket\x12\x18\n" +
 	"\x14TrdSecMarket_Unknown\x10\x00\x12\x13\n" +
 	"\x0fTrdSecMarket_HK\x10\x01\x12\x13\n" +
@@ -3928,7 +3950,8 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\x0fTrdSecMarket_MY\x10G\x12\x13\n" +
 	"\x0fTrdSecMarket_CA\x10Q\x12\x13\n" +
 	"\x0fTrdSecMarket_FX\x10[\x12\x13\n" +
-	"\x0fTrdSecMarket_CC\x10e*m\n" +
+	"\x0fTrdSecMarket_CC\x10e\x12\x13\n" +
+	"\x0fTrdSecMarket_EC\x10o*m\n" +
 	"\aTrdSide\x12\x13\n" +
 	"\x0fTrdSide_Unknown\x10\x00\x12\x0f\n" +
 	"\vTrdSide_Buy\x10\x01\x12\x10\n" +
@@ -3977,11 +4000,12 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\x12OrderStatus_Failed\x10\x15\x12\x18\n" +
 	"\x14OrderStatus_Disabled\x10\x16\x12\x17\n" +
 	"\x13OrderStatus_Deleted\x10\x17\x12\x1d\n" +
-	"\x19OrderStatus_FillCancelled\x10\x18*e\n" +
+	"\x19OrderStatus_FillCancelled\x10\x18*\x81\x01\n" +
 	"\x0fOrderFillStatus\x12\x16\n" +
 	"\x12OrderFillStatus_OK\x10\x00\x12\x1d\n" +
 	"\x19OrderFillStatus_Cancelled\x10\x01\x12\x1b\n" +
-	"\x17OrderFillStatus_Changed\x10\x02*`\n" +
+	"\x17OrderFillStatus_Changed\x10\x02\x12\x1a\n" +
+	"\x16OrderFillStatus_Payout\x10\x03*`\n" +
 	"\fPositionSide\x12\x15\n" +
 	"\x11PositionSide_Long\x10\x00\x12!\n" +
 	"\x14PositionSide_Unknown\x10\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12\x16\n" +
@@ -4010,7 +4034,7 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\x12TrdAccRole_Unknown\x10\x00\x12\x15\n" +
 	"\x11TrdAccRole_Normal\x10\x01\x12\x15\n" +
 	"\x11TrdAccRole_Master\x10\x02\x12\x12\n" +
-	"\x0eTrdAccRole_IPO\x10\x03*\xb0\x01\n" +
+	"\x0eTrdAccRole_IPO\x10\x03*\xc2\x01\n" +
 	"\bCurrency\x12\x14\n" +
 	"\x10Currency_Unknown\x10\x00\x12\x10\n" +
 	"\fCurrency_HKD\x10\x01\x12\x10\n" +
@@ -4020,7 +4044,8 @@ const file_Trd_Common_proto_rawDesc = "" +
 	"\fCurrency_SGD\x10\x05\x12\x10\n" +
 	"\fCurrency_AUD\x10\x06\x12\x10\n" +
 	"\fCurrency_CAD\x10\a\x12\x10\n" +
-	"\fCurrency_MYR\x10\b*\xb6\x01\n" +
+	"\fCurrency_MYR\x10\b\x12\x10\n" +
+	"\fCurrency_NZD\x10\t*\xb6\x01\n" +
 	"\fCltRiskLevel\x12!\n" +
 	"\x14CltRiskLevel_Unknown\x10\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12\x15\n" +
 	"\x11CltRiskLevel_Safe\x10\x00\x12\x18\n" +

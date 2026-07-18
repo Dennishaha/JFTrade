@@ -12,7 +12,7 @@ import (
 func (s *Server) notifyExecutionOrderPlaced(order executionOrderSummaryResponse) {
 	note := baseExecutionNotification(order, "broker.order.place")
 	note.Level = "success"
-	note.Title = "Futu 订单已提交"
+	note.Title = executionBrokerLabel(order) + " 订单已提交"
 	note.Message = executionOrderNotificationMessage(order)
 	s.emitExecutionNotification(note)
 }
@@ -42,25 +42,25 @@ func executionNotificationForStatus(order executionOrderSummaryResponse, event *
 		}
 		note := baseExecutionNotification(order, "broker.order.place")
 		note.Level = "success"
-		note.Title = "Futu 订单已提交"
+		note.Title = executionBrokerLabel(order) + " 订单已提交"
 		note.Message = executionOrderNotificationMessage(order)
 		return note, true
 	case trdsrv.OrderStatusCancelled:
 		note := baseExecutionNotification(order, "broker.order.cancel")
 		note.Level = "success"
-		note.Title = "Futu 撤单成功"
+		note.Title = executionBrokerLabel(order) + " 撤单成功"
 		note.Message = executionOrderNotificationMessage(order)
 		return note, true
 	case trdsrv.OrderStatusFilled:
 		note := baseExecutionNotification(order, "broker.order.fill")
 		note.Level = "success"
-		note.Title = "Futu 成交成功"
+		note.Title = executionBrokerLabel(order) + " 成交成功"
 		note.Message = executionOrderNotificationMessage(order)
 		return note, true
 	case trdsrv.OrderStatusPartiallyFilled:
 		note := baseExecutionNotification(order, "broker.order.fill")
 		note.Level = "info"
-		note.Title = "Futu 订单部分成交"
+		note.Title = executionBrokerLabel(order) + " 订单部分成交"
 		note.Message = executionOrderNotificationMessage(order)
 		return note, true
 	default:
@@ -71,7 +71,7 @@ func executionNotificationForStatus(order executionOrderSummaryResponse, event *
 func baseExecutionNotification(order executionOrderSummaryResponse, category string) liveNotification {
 	brokerID := order.BrokerID
 	if strings.TrimSpace(brokerID) == "" {
-		brokerID = "futu"
+		brokerID = "unknown"
 	}
 	return liveNotification{
 		At:       time.Now().UTC().Format(time.RFC3339Nano),
@@ -79,6 +79,14 @@ func baseExecutionNotification(order executionOrderSummaryResponse, category str
 		BrokerID: brokerID,
 		Category: category,
 	}
+}
+
+func executionBrokerLabel(order executionOrderSummaryResponse) string {
+	brokerID := strings.TrimSpace(order.BrokerID)
+	if brokerID == "" {
+		return "券商"
+	}
+	return strings.ToUpper(brokerID)
 }
 
 func executionOrderNotificationMessage(order executionOrderSummaryResponse) string {

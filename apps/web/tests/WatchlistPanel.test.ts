@@ -246,7 +246,7 @@ describe("WatchlistPanel", () => {
       snapshot: createSnapshotResult("HK", "21164", 0.118),
     });
 
-    expect(wrapper.text()).toContain("窝轮信息");
+    expect(wrapper.text()).toContain("轮证信息");
     expect(wrapper.text()).toContain("Bull");
     expect(wrapper.text()).toContain("HK.00700");
     expect(wrapper.text()).toContain("SG");

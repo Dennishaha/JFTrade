@@ -47,7 +47,7 @@ func TestExecutionCommandErrorMapsRequestAndBrokerFailures(t *testing.T) {
 func TestHandleExecutionPlaceReturnsRiskRejectionEnvelope(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	service := srv.NewService(
+	service := newExecutionRouteTestService(
 		srv.WithPreTradeRiskGateway(srv.NewStaticPreTradeRiskGateway(func() srv.PreTradeRiskConfig {
 			return srv.PreTradeRiskConfig{}
 		})),
@@ -174,7 +174,7 @@ func TestTradingQueryHelpersNormalizeAndValidate(t *testing.T) {
 func TestExecutionPlacePreviewAndEventsRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	service := srv.NewService(
+	service := newExecutionRouteTestService(
 		srv.WithPlaceOrder(func(context.Context, srv.ExecutionOrderCommand) (srv.ExecutionOrder, error) {
 			return srv.ExecutionOrder{InternalOrderID: "internal-1", Status: "SUBMITTED"}, nil
 		}),

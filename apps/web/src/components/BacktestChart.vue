@@ -106,7 +106,7 @@ const palette = computed(() =>
         sellMarker: "#ea3943",
       }
     : {
-        bg: "#0f172a",
+        bg: "#1a1a1a",
         text: "#cbd5e1",
         grid: "rgba(148, 163, 184, 0.08)",
         border: "rgba(148, 163, 184, 0.16)",

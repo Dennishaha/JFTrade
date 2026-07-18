@@ -43,6 +43,13 @@ type Backend interface {
 	SubscribeDepthUpdates(func(string)) func()
 }
 
+type ProviderAwareBackend interface {
+	HeartbeatForProvider(time.Duration, ClientStats, []string, string) map[string]any
+	MarketTicksForProvider(context.Context, string, []string, string) ([]TickEvent, error)
+	SecurityDetailsForProvider(context.Context, string, string, string) (map[string]any, error)
+	DepthForProvider(context.Context, string, string, string, int32) (map[string]any, error)
+}
+
 type Options struct {
 	HeartbeatInterval       time.Duration
 	DataInterval            time.Duration

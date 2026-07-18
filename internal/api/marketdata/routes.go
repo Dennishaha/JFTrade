@@ -1,6 +1,7 @@
 package marketdata
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -12,16 +13,37 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	srv "github.com/jftrade/jftrade-main/internal/marketdata"
+	productfeatures "github.com/jftrade/jftrade-main/internal/productfeatures"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 type subscriptionRequest struct {
-	ConsumerID  string              `json:"consumerId"`
-	Instruments []srv.InstrumentRef `json:"instruments"`
+	ConsumerID       string              `json:"consumerId"`
+	ProviderBrokerID string              `json:"providerBrokerId,omitempty"`
+	Instruments      []srv.InstrumentRef `json:"instruments"`
+}
+
+type BrokerMarketDataReader interface {
+	ReadMarketSnapshot(context.Context, string, string, string, bool) (map[string]any, error)
+	ReadMarketSecurityDetails(context.Context, string, string, string) (map[string]any, error)
+	ReadMarketCandles(context.Context, string, string, string, string, int, string, string) (map[string]any, error)
+	ReadMarketDepth(context.Context, string, string, string, int) (map[string]any, error)
+}
+
+func firstBrokerMarketDataReader(readers []BrokerMarketDataReader) BrokerMarketDataReader {
+	if len(readers) == 0 {
+		return nil
+	}
+	return readers[0]
 }
 
 // RegisterRoutes 注册所有 /api/v1 下的行情路由。
 // WebSocket /ws/live 由应用装配层单独注册。
-func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
+func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, brokerReaders ...BrokerMarketDataReader) {
+	var brokerReader BrokerMarketDataReader
+	if len(brokerReaders) > 0 {
+		brokerReader = brokerReaders[0]
+	}
 	market := api.Group("/market-data")
 	market.GET("/provider", handleProvider(svc))
 	market.GET("/markets", handleMarkets(svc))
@@ -32,10 +54,10 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	market.DELETE("/subscriptions", handleClearSubscriptions(svc))
 	market.POST("/subscriptions/release", handleReleaseSubscription(svc))
 	market.POST("/subscriptions/heartbeat", handleHeartbeat(svc))
-	market.GET("/securities/:market/:symbol", handleSecurityDetails(svc))
-	market.GET("/snapshots/:market/:symbol", handleSnapshot(svc))
-	market.GET("/candles/:market/:symbol", handleCandles(svc))
-	market.GET("/depth/:market/:symbol", handleDepth(svc))
+	market.GET("/securities/:market/:symbol", handleSecurityDetails(svc, brokerReader))
+	market.GET("/snapshots/:market/:symbol", handleSnapshot(svc, brokerReader))
+	market.GET("/candles/:market/:symbol", handleCandles(svc, brokerReader))
+	market.GET("/depth/:market/:symbol", handleDepth(svc, brokerReader))
 }
 
 // handleProvider godoc
@@ -77,9 +99,13 @@ func handleMarkets(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param market path string true "市场"
 // @Param symbol path string true "标的"
+// @Param brokerId query string false "行情提供者；省略时使用服务端默认"
 // @Success 200 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
+// @Failure 429 {object} httpserver.Envelope
 // @Router /api/v1/market-data/securities/{market}/{symbol} [get]
-func handleSecurityDetails(svc *srv.Service) gin.HandlerFunc {
+func handleSecurityDetails(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
+	brokerReader := firstBrokerMarketDataReader(brokerReaders)
 	return func(c *gin.Context) {
 		var uri struct {
 			Market string `uri:"market" binding:"required"`
@@ -89,9 +115,21 @@ func handleSecurityDetails(svc *srv.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid instrument")
 			return
 		}
-		details, err := svc.GetSecurityDetails(c.Request.Context(), uri.Market, uri.Symbol)
+		var details map[string]any
+		var err error
+		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
+			if brokerReader == nil {
+				err = productfeatures.ErrCapabilityUnavailable
+			} else {
+				details, err = brokerReader.ReadMarketSecurityDetails(
+					c.Request.Context(), brokerID, uri.Market, uri.Symbol,
+				)
+			}
+		} else {
+			details, err = svc.GetSecurityDetails(c.Request.Context(), uri.Market, uri.Symbol)
+		}
 		if err != nil {
-			httpserver.WriteError(c, 502, "MARKET_SECURITY_DETAILS_FAILED", err.Error())
+			writeBrokerMarketDataReadError(c, "MARKET_SECURITY_DETAILS_FAILED", err)
 			return
 		}
 		httpserver.WriteOK(c, details)
@@ -105,12 +143,14 @@ func handleSecurityDetails(svc *srv.Service) gin.HandlerFunc {
 // @Param market path string true "市场代码"
 // @Param symbol path string true "证券代码"
 // @Param refresh query bool false "是否绕过缓存强制刷新"
+// @Param brokerId query string false "行情提供者；省略时使用服务端默认"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 409 {object} httpserver.Envelope
 // @Failure 502 {object} httpserver.Envelope
 // @Router /api/v1/market-data/snapshots/{market}/{symbol} [get]
-func handleSnapshot(svc *srv.Service) gin.HandlerFunc {
+func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
+	brokerReader := firstBrokerMarketDataReader(brokerReaders)
 	return func(c *gin.Context) {
 		var uri struct {
 			Market string `uri:"market" binding:"required"`
@@ -127,9 +167,21 @@ func handleSnapshot(svc *srv.Service) gin.HandlerFunc {
 		}
 		refresh := refreshValue.Bool()
 
-		snapshot, err := svc.GetSnapshot(c.Request.Context(), uri.Market, uri.Symbol, refresh)
+		var snapshot map[string]any
+		var err error
+		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
+			if brokerReader == nil {
+				err = productfeatures.ErrCapabilityUnavailable
+			} else {
+				snapshot, err = brokerReader.ReadMarketSnapshot(
+					c.Request.Context(), brokerID, uri.Market, uri.Symbol, refresh,
+				)
+			}
+		} else {
+			snapshot, err = svc.GetSnapshot(c.Request.Context(), uri.Market, uri.Symbol, refresh)
+		}
 		if err != nil {
-			writeMarketDataReadError(c, "MARKET_SNAPSHOT_FAILED", err)
+			writeBrokerMarketDataReadError(c, "MARKET_SNAPSHOT_FAILED", err)
 			return
 		}
 		httpserver.WriteOK(c, snapshot)
@@ -146,10 +198,12 @@ func handleSnapshot(svc *srv.Service) gin.HandlerFunc {
 // @Param limit query int false "数量"
 // @Param fromTime query string false "起始时间"
 // @Param toTime query string false "结束时间"
+// @Param brokerId query string false "行情提供者；省略时使用服务端默认"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 409 {object} httpserver.Envelope
 // @Router /api/v1/market-data/candles/{market}/{symbol} [get]
-func handleCandles(svc *srv.Service) gin.HandlerFunc {
+func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
+	brokerReader := firstBrokerMarketDataReader(brokerReaders)
 	return func(c *gin.Context) {
 		var uri struct {
 			Market string `uri:"market" binding:"required"`
@@ -186,9 +240,24 @@ func handleCandles(svc *srv.Service) gin.HandlerFunc {
 			toTime = normalizeOptionalQueryTime(c.Query("to"))
 		}
 
-		result, err := svc.GetCandles(c.Request.Context(), uri.Market, uri.Symbol, period, limit, fromTime, toTime)
+		var result map[string]any
+		var err error
+		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
+			if brokerReader == nil {
+				err = productfeatures.ErrCapabilityUnavailable
+			} else {
+				result, err = brokerReader.ReadMarketCandles(
+					c.Request.Context(), brokerID, uri.Market, uri.Symbol,
+					period, limit, fromTime, toTime,
+				)
+			}
+		} else {
+			result, err = svc.GetCandles(
+				c.Request.Context(), uri.Market, uri.Symbol, period, limit, fromTime, toTime,
+			)
+		}
 		if err != nil {
-			writeMarketDataReadError(c, "OPEND_CANDLES_FAILED", err)
+			writeBrokerMarketDataReadError(c, "OPEND_CANDLES_FAILED", err)
 			return
 		}
 		httpserver.WriteOK(c, result)
@@ -201,6 +270,25 @@ func writeMarketDataReadError(c *gin.Context, fallbackCode string, err error) {
 		return
 	}
 	httpserver.WriteError(c, http.StatusBadGateway, fallbackCode, err.Error())
+}
+
+func writeBrokerMarketDataReadError(c *gin.Context, fallbackCode string, err error) {
+	switch {
+	case errors.Is(err, broker.ErrSnapshotRateLimited):
+		retryAfter, ok := broker.SnapshotRetryAfter(err)
+		if !ok {
+			retryAfter = time.Second
+		}
+		seconds := max(int64((retryAfter+time.Second-1)/time.Second), 1)
+		c.Header("Retry-After", strconv.FormatInt(seconds, 10))
+		httpserver.WriteError(c, http.StatusTooManyRequests, "MARKET_SNAPSHOT_RATE_LIMITED", err.Error())
+	case errors.Is(err, productfeatures.ErrInvalidQuery):
+		httpserver.WriteError(c, http.StatusBadRequest, "MARKET_DATA_QUERY_INVALID", err.Error())
+	case errors.Is(err, productfeatures.ErrCapabilityUnavailable):
+		httpserver.WriteError(c, http.StatusConflict, "BROKER_CAPABILITY_UNAVAILABLE", err.Error())
+	default:
+		writeMarketDataReadError(c, fallbackCode, err)
+	}
 }
 
 func normalizeOptionalQueryTime(value string) string {
@@ -218,12 +306,14 @@ func normalizeOptionalQueryTime(value string) string {
 // @Param market path string true "市场代码"
 // @Param symbol path string true "证券代码"
 // @Param num query int false "档数，默认 10，最大 50"
+// @Param brokerId query string false "行情提供者；省略时使用服务端默认"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 409 {object} httpserver.Envelope
 // @Failure 502 {object} httpserver.Envelope
 // @Router /api/v1/market-data/depth/{market}/{symbol} [get]
-func handleDepth(svc *srv.Service) gin.HandlerFunc {
+func handleDepth(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.HandlerFunc {
+	brokerReader := firstBrokerMarketDataReader(brokerReaders)
 	return func(c *gin.Context) {
 		var uri struct {
 			Market string `uri:"market" binding:"required"`
@@ -242,9 +332,21 @@ func handleDepth(svc *srv.Service) gin.HandlerFunc {
 				num = parsed.Int()
 			}
 		}
-		result, err := svc.GetDepth(c.Request.Context(), uri.Market, uri.Symbol, num)
+		var result map[string]any
+		var err error
+		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
+			if brokerReader == nil {
+				err = productfeatures.ErrCapabilityUnavailable
+			} else {
+				result, err = brokerReader.ReadMarketDepth(
+					c.Request.Context(), brokerID, uri.Market, uri.Symbol, num,
+				)
+			}
+		} else {
+			result, err = svc.GetDepth(c.Request.Context(), uri.Market, uri.Symbol, num)
+		}
 		if err != nil {
-			writeMarketDataReadError(c, "OPEND_DEPTH_FAILED", err)
+			writeBrokerMarketDataReadError(c, "OPEND_DEPTH_FAILED", err)
 			return
 		}
 		httpserver.WriteOK(c, result)
@@ -293,6 +395,12 @@ func handleAcquireSubscription(svc *srv.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", err.Error())
 			return
 		}
+		if usesBrokerPolling(req.ProviderBrokerID) {
+			httpserver.WriteOK(c, brokerPollingSubscriptionResponse(
+				req.ConsumerID, req.ProviderBrokerID, instruments, "acquired",
+			))
+			return
+		}
 		result, err := svc.AcquireSubscription(c.Request.Context(), consumerID, instruments)
 		if err != nil {
 			httpserver.WriteError(c, 500, "SUBSCRIPTION_FAILED", err.Error())
@@ -338,6 +446,12 @@ func handleReleaseSubscription(svc *srv.Service) gin.HandlerFunc {
 				httpserver.WriteError(c, 400, "BAD_REQUEST", err.Error())
 				return
 			}
+		}
+		if usesBrokerPolling(req.ProviderBrokerID) {
+			httpserver.WriteOK(c, brokerPollingSubscriptionResponse(
+				req.ConsumerID, req.ProviderBrokerID, req.Instruments, "released",
+			))
+			return
 		}
 		var err error
 		if hasTarget {
@@ -420,7 +534,8 @@ func subscriptionReleaseTarget(req subscriptionRequest) (srv.InstrumentRef, bool
 func handleHeartbeat(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
-			ConsumerID string `json:"consumerId"`
+			ConsumerID       string `json:"consumerId"`
+			ProviderBrokerID string `json:"providerBrokerId,omitempty"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid heartbeat request")
@@ -430,12 +545,51 @@ func handleHeartbeat(svc *srv.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "consumerId is required")
 			return
 		}
+		if usesBrokerPolling(req.ProviderBrokerID) {
+			httpserver.WriteOK(c, brokerPollingSubscriptionResponse(
+				req.ConsumerID, req.ProviderBrokerID, nil, "heartbeat",
+			))
+			return
+		}
 		result, err := svc.Heartbeat(c.Request.Context(), req.ConsumerID)
 		if err != nil {
 			httpserver.WriteError(c, 500, "SUBSCRIPTION_FAILED", err.Error())
 			return
 		}
 		httpserver.WriteOK(c, result)
+	}
+}
+
+func usesBrokerPolling(brokerID string) bool {
+	brokerID = strings.TrimSpace(brokerID)
+	return brokerID != "" && !strings.EqualFold(brokerID, "futu")
+}
+
+func brokerPollingSubscriptionResponse(
+	consumerID string,
+	brokerID string,
+	instruments []srv.InstrumentRef,
+	action string,
+) map[string]any {
+	return map[string]any{
+		"consumerId":               consumerID,
+		"providerBrokerId":         strings.ToLower(strings.TrimSpace(brokerID)),
+		"instruments":              instruments,
+		"action":                   action,
+		"totalActiveSubscriptions": 0,
+		"desiredCount":             0,
+		"ownActiveCount":           0,
+		"pendingReleaseCount":      0,
+		"entries":                  []any{},
+		"quota": map[string]any{
+			"totalUsed":      0,
+			"totalLimit":     nil,
+			"totalRemaining": nil,
+			"byMarket":       []any{},
+		},
+		"transport": map[string]any{
+			"mode": "snapshot-poll-fallback",
+		},
 	}
 }
 

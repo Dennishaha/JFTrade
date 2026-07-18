@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 import {
   fetchEnvelope,
@@ -6,6 +6,7 @@ import {
 import {
   normalizeInstrumentParts,
 } from "./consoleDataMarketInstruments";
+import { useBrokerProviderSelection } from "./brokerProviderSelection";
 import {
   createMarketDataQueryController,
   type LoadMarketDataQueryOptions,
@@ -17,6 +18,7 @@ import {
 } from "./marketDataRealtime";
 
 export function createConsoleDataMarketDataQuerySlice() {
+  const { selectedBrokerId } = useBrokerProviderSelection();
   const marketDataQueryMarket = ref("HK");
   const marketDataQuerySymbol = ref("00700");
   const marketDataQueryPeriod = ref("1m");
@@ -52,6 +54,10 @@ export function createConsoleDataMarketDataQuerySlice() {
     },
     fetchEnvelope,
     normalizeInstrumentParts,
+    resolveBrokerId: () => selectedBrokerId.value,
+  });
+  watch(selectedBrokerId, () => {
+    marketDataQueryController.invalidateProviderSelection();
   });
 
   const currentMarketDataSnapshot = computed(() =>
@@ -99,6 +105,7 @@ export function createConsoleDataMarketDataQuerySlice() {
     currentMarketDataCandles,
     currentMarketDataSnapshot,
     currentMarketSecurityDetails,
+    disposeMarketDataQuery: marketDataQueryController.dispose,
     isMarketDataStale,
     isLoadingMarketDataQuery,
     isMarketDataSwitching,

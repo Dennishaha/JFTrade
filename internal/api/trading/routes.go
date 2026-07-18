@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -498,6 +499,16 @@ func readQuery(svc *srv.Service, brokerID string, query baseReadQuery) broker.Re
 func writeReadResult(c *gin.Context, result any, err error) {
 	if errors.Is(err, srv.ErrBrokerNotFound) {
 		httpserver.WriteNotFound(c)
+		return
+	}
+	if errors.Is(err, broker.ErrSnapshotRateLimited) {
+		retryAfter, ok := broker.SnapshotRetryAfter(err)
+		if !ok {
+			retryAfter = time.Second
+		}
+		seconds := max(int64((retryAfter+time.Second-1)/time.Second), 1)
+		c.Header("Retry-After", strconv.FormatInt(seconds, 10))
+		httpserver.WriteError(c, http.StatusTooManyRequests, "MARKET_SNAPSHOT_RATE_LIMITED", err.Error())
 		return
 	}
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 
 func TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates(t *testing.T) {
 	harness := newFakeBrokerConformanceHarness()
-	service := NewService(WithOrderStore(harness), WithOrderGateway(harness))
+	service := newExecutionTestService(WithOrderStore(harness), WithOrderGateway(harness))
 	price := 100.0
 
 	created, err := service.CreateExecutionOrder(t.Context(), ExecutionPlaceRequest{
@@ -57,7 +57,7 @@ func TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates(t *testing
 
 func TestFakeBrokerConformanceCancelAcceptedAndCancelRejected(t *testing.T) {
 	harness := newFakeBrokerConformanceHarness()
-	service := NewService(WithOrderStore(harness), WithOrderGateway(harness))
+	service := newExecutionTestService(WithOrderStore(harness), WithOrderGateway(harness))
 	price := 88.0
 
 	first, err := service.CreateExecutionOrder(t.Context(), ExecutionPlaceRequest{
@@ -106,7 +106,7 @@ func TestFakeBrokerConformanceCancelAcceptedAndCancelRejected(t *testing.T) {
 
 func TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability(t *testing.T) {
 	harness := newFakeBrokerConformanceHarness()
-	service := NewService(WithOrderStore(harness), WithOrderGateway(harness))
+	service := newExecutionTestService(WithOrderStore(harness), WithOrderGateway(harness))
 	price := 55.0
 
 	harness.nextPlaceStatus = "SUBMIT_FAILED"

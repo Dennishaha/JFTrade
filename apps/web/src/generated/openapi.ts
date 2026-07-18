@@ -5,6 +5,103 @@
 
 export interface components {
   schemas: {
+    "broker.EventProduct": {
+    categoryId?: string;
+    closeAt?: string;
+    competitionId?: string;
+    contractId?: string;
+    eventId?: string;
+    seriesId?: string;
+    settlementAt?: string;
+    settlementSide?: string;
+    status?: string;
+  };
+    "broker.FeatureID": "market.search" | "market.instrument_profile" | "market.snapshot" | "market.snapshots" | "market.candles" | "market.intraday" | "market.ticks" | "market.depth" | "market.broker_queue" | "market.capital_flow" | "derivatives.option_chain" | "derivatives.option_screen" | "derivatives.option_analysis" | "derivatives.option_events" | "derivatives.warrants" | "derivatives.futures" | "research.instrument" | "research.financials" | "research.valuation" | "research.analyst" | "research.ownership" | "research.corporate_actions" | "research.short_interest" | "research.news" | "research.screen" | "research.calendar" | "research.macro" | "research.rankings" | "research.institutions" | "research.industry" | "research.technical_indicators" | "prediction.discover" | "prediction.snapshot" | "prediction.depth" | "prediction.history" | "prediction.combo_eligible" | "prediction.combo_quote" | "execution.order_preview" | "execution.order_place" | "execution.order_cancel" | "execution.combo_preview" | "execution.combo_place" | "execution.combo_cancel" | "execution.buying_power" | "alerts.price.list" | "alerts.price.set" | "alerts.option_event.list" | "alerts.option_event.set" | "watchlist.remote.list" | "watchlist.remote.modify";
+    "broker.Instrument": {
+    code?: string;
+    contractSize?: number;
+    currency?: string;
+    event?: components["schemas"]["broker.EventProduct"];
+    expiryDate?: string;
+    instrumentId?: string;
+    marketSegment?: components["schemas"]["broker.MarketSegment"];
+    name?: string;
+    optionType?: string;
+    priceTick?: number;
+    productClass?: components["schemas"]["broker.ProductClass"];
+    quantityMode?: components["schemas"]["broker.QuantityMode"];
+    quoteMarket?: string;
+    strikePrice?: number;
+    tradeMarket?: string;
+    underlyingCode?: string;
+    venue?: string;
+  };
+    "broker.MarketSegment": "securities" | "derivatives" | "prediction";
+    "broker.OptionComboAccountImpact": {
+    buyingPowerDecrease?: number;
+    initialMarginChange?: number;
+    maintenanceMarginChange?: number;
+    maxWithdrawalChange?: number;
+    nlvChange?: number;
+    optionBuyingPower?: number;
+  };
+    "broker.OptionComboAnalysis": {
+    ask?: number;
+    bid?: number;
+    breakevenPoints?: Array<number>;
+    delta?: number;
+    maxLoss?: number;
+    maxLossUnlimited?: boolean;
+    maxProfit?: number;
+    maxProfitUnlimited?: boolean;
+    probability?: number;
+    strategy?: string;
+    theta?: number;
+  };
+    "broker.OptionZeroDteChainLocator": {
+    contractSize?: number;
+    expirationType?: number;
+    multiplier?: number;
+    productCode?: string;
+  };
+    "broker.OrderKind": "single" | "option_combo" | "event_single" | "event_parlay";
+    "broker.OrderLegIntent": {
+    amount?: number;
+    instrumentId?: string;
+    predictionSide?: string;
+    price?: number;
+    productClass?: components["schemas"]["broker.ProductClass"];
+    quantity?: number;
+    ratio?: number;
+    side?: string;
+  };
+    "broker.ProductClass": "equity" | "fund" | "option" | "warrant" | "cbbc" | "future" | "event_contract" | "index" | "bond" | "plate" | "unknown";
+    "broker.ProductRuleQuery": {
+    accountId?: string;
+    amount?: number;
+    brokerId?: string;
+    featureId?: components["schemas"]["broker.FeatureID"];
+    instrument?: components["schemas"]["broker.Instrument"];
+    legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
+    market?: string;
+    orderKind?: components["schemas"]["broker.OrderKind"];
+    orderType?: string;
+    price?: number;
+    quantity?: number;
+    session?: string;
+    tradingEnvironment?: string;
+  };
+    "broker.ProductRuleResult": {
+    accountImpact?: components["schemas"]["broker.OptionComboAccountImpact"];
+    allowed?: boolean;
+    buyingPowerImpact?: number;
+    normalizedRequest?: Array<number>;
+    optionAnalysis?: components["schemas"]["broker.OptionComboAnalysis"];
+    reason?: string;
+    reasonCode?: string;
+    warnings?: Array<string>;
+  };
+    "broker.QuantityMode": "units" | "contracts" | "amount";
     "datamanagement.BackupRequest": {
     confirmation?: string;
     databaseId?: string;
@@ -137,6 +234,7 @@ export interface components {
     "marketdata.InstrumentResolutionStatus": "resolved" | "ambiguous" | "not_found" | "incomplete" | "unavailable";
     "marketdata.SubscriptionHeartbeatRequest": {
     consumerId?: string;
+    providerBrokerId?: string;
   };
     "marketdata.SubscriptionInstrument": {
     channel?: string;
@@ -147,6 +245,26 @@ export interface components {
     "marketdata.SubscriptionRequest": {
     consumerId?: string;
     instruments?: Array<components["schemas"]["marketdata.SubscriptionInstrument"]>;
+    providerBrokerId?: string;
+  };
+    "productfeatures.batchSnapshotsRequest": {
+    instrumentIds?: Array<string>;
+    symbols?: Array<string>;
+  };
+    "productfeatures.predictionSubscriptionRequest": {
+    dataTypes?: Array<string>;
+  };
+    "productfeatures.zeroDteContractsRequest": {
+    accountId?: string;
+    brokerId?: string;
+    chain: components["schemas"]["broker.OptionZeroDteChainLocator"];
+    expiryTimestamp: number;
+    market: "US";
+    optionType?: "all" | "call" | "put";
+    sort?: "volume" | "open_interest" | "iv" | "delta";
+    tradingEnvironment?: string;
+    underlyingInstrumentId: string;
+    underlyingProductClass?: components["schemas"]["broker.ProductClass"];
   };
     "servercore.brokerOrderCommandResponse": {
     accepted?: boolean;
@@ -198,15 +316,24 @@ export interface components {
   };
     "servercore.executionPlaceOrderRequest": {
     accountId?: string;
+    amount?: number;
     brokerId?: string;
     clientOrderId?: string;
     code?: string;
     env?: string;
+    legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
     market?: string;
+    orderKind?: components["schemas"]["broker.OrderKind"];
     orderType?: string;
+    predictionSide?: string;
+    previewId?: string;
     price?: number;
+    productClass?: components["schemas"]["broker.ProductClass"];
     quantity?: number;
+    quantityMode?: components["schemas"]["broker.QuantityMode"];
+    quoteExpiresAt?: string;
     remark?: string;
+    rfqId?: string;
     session?: string;
     side?: string;
     stopPrice?: number;
@@ -308,22 +435,82 @@ export interface components {
     x?: number;
     y?: number;
   };
+    "trading.ExecutionComboPreview": {
+    accountId?: string;
+    accountImpact?: components["schemas"]["broker.OptionComboAccountImpact"];
+    allowed?: boolean;
+    brokerId?: string;
+    buyingPowerImpact?: number;
+    capabilityVersion?: string;
+    expiresAt?: string;
+    legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
+    market?: string;
+    optionAnalysis?: components["schemas"]["broker.OptionComboAnalysis"];
+    orderKind?: components["schemas"]["broker.OrderKind"];
+    previewAt?: string;
+    previewId?: string;
+    productClass?: components["schemas"]["broker.ProductClass"];
+    requestHash?: string;
+    warnings?: Array<string>;
+  };
+    "trading.ExecutionComboRequest": {
+    accountId?: string;
+    amount?: number;
+    brokerId?: string;
+    clientOrderId?: string;
+    farExpiry?: string;
+    legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
+    market?: string;
+    mvc?: string;
+    nearExpiry?: string;
+    optionStrategy?: string;
+    orderKind?: components["schemas"]["broker.OrderKind"];
+    previewId?: string;
+    price?: number;
+    productClass?: components["schemas"]["broker.ProductClass"];
+    quoteExpiresAt?: string;
+    rfqId?: string;
+    spread?: number;
+    tradingEnvironment?: string;
+    underlyingInstrumentId?: string;
+  };
+    "trading.ExecutionCommandResponse": {
+    accepted?: boolean;
+    brokerErrorCode?: string;
+    brokerOrderId?: string;
+    brokerOrderIdEx?: string;
+    checkedAt?: string;
+    internalOrderId?: string;
+    message?: string;
+    operation?: string;
+    orderStatus?: string;
+  };
     "trading.ExecutionOrder": {
     accountId?: string;
     brokerId?: string;
     brokerOrderId?: string;
     brokerOrderIdEx?: string;
+    clientOrderId?: string;
     createdAt?: string;
+    fees?: number;
     filledAveragePrice?: number;
     filledQuantity?: number;
     internalOrderId?: string;
     lastError?: string;
     lastErrorCode?: string;
     lastErrorSource?: string;
+    legs?: Array<components["schemas"]["trading.ExecutionOrderLeg"]>;
     market?: string;
+    normalizedRequest?: string;
+    orderKind?: components["schemas"]["broker.OrderKind"];
     orderType?: string;
+    payout?: number;
+    previewId?: string;
+    productClass?: components["schemas"]["broker.ProductClass"];
+    quantityMode?: components["schemas"]["broker.QuantityMode"];
     rawBrokerStatus?: string;
     remark?: string;
+    requestedAmount?: number;
     requestedPrice?: number;
     requestedQuantity?: number;
     side?: string;
@@ -343,6 +530,28 @@ export interface components {
     nextStatus?: string;
     payloadJson?: string;
     previousStatus?: string;
+  };
+    "trading.ExecutionOrderLeg": {
+    averagePrice?: number;
+    brokerLegId?: string;
+    createdAt?: string;
+    fees?: number;
+    filledAmount?: number;
+    filledQuantity?: number;
+    id?: string;
+    index?: number;
+    instrumentId?: string;
+    internalOrderId?: string;
+    payout?: number;
+    predictionSide?: string;
+    productClass?: components["schemas"]["broker.ProductClass"];
+    ratio?: number;
+    requestedAmount?: number;
+    requestedPrice?: number;
+    requestedQuantity?: number;
+    side?: string;
+    status?: string;
+    updatedAt?: string;
   };
     "watchlist.CommitImportInput": {
     deleteInstrumentIds?: Array<string>;
@@ -1339,6 +1548,98 @@ export interface paths {
       };
     };
   };
+  "/api/v1/alerts/option-events": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/alerts/price": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/auth/login": {
     post: {
       requestBody: {
@@ -1897,6 +2198,166 @@ export interface paths {
       };
     };
   };
+  "/api/v1/brokers/capabilities": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/execution/buying-power": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["broker.ProductRuleQuery"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["broker.ProductRuleResult"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/execution/combos": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["trading.ExecutionComboRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["trading.ExecutionCommandResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/execution/combos/{internalOrderId}/cancel": {
+    post: {
+      parameters: {
+        path: {
+        internalOrderId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["trading.ExecutionCommandResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/execution/combos/previews": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["trading.ExecutionComboRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["trading.ExecutionComboPreview"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/execution/orders": {
     get: {
       parameters: {
@@ -2054,6 +2515,60 @@ export interface paths {
       };
     };
   };
+  "/api/v1/execution/previews": {
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/broker-queue/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/market-data/candles/{market}/{symbol}": {
     get: {
       parameters: {
@@ -2066,11 +2581,42 @@ export interface paths {
         limit?: number;
         fromTime?: string;
         toTime?: string;
+        brokerId?: string;
       };
       };
       responses: {
         "200": {
           description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/capital-flow/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };
@@ -2087,6 +2633,7 @@ export interface paths {
       };
         query: {
         num?: number;
+        brokerId?: string;
       };
       };
       responses: {
@@ -2098,6 +2645,36 @@ export interface paths {
         };
         "400": {
           description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/futures": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };
@@ -2144,6 +2721,30 @@ export interface paths {
       };
     };
   };
+  "/api/v1/market-data/instruments/{instrumentId}/profile": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/market-data/instruments/normalize": {
     post: {
       responses: {
@@ -2156,6 +2757,30 @@ export interface paths {
       };
     };
   };
+  "/api/v1/market-data/intraday/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/market-data/markets": {
     get: {
       responses: {
@@ -2163,6 +2788,654 @@ export interface paths {
           description: "OK";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/news": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/options/analysis/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/options/chains/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/options/events": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/options/events/zero-dte-contracts": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["productfeatures.zeroDteContractsRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "422": {
+          description: "Unprocessable Entity";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/options/expirations/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/options/screens": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/categories": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/combos/eligible-events": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/combos/quotes": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": Record<string, unknown>;
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/competitions": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/contracts/{code}/candles": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/contracts/{code}/candles/history": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/contracts/{code}/milestones": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/contracts/{code}/order-book": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/contracts/{code}/snapshot": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/contracts/{code}/subscriptions": {
+    post: {
+      parameters: {
+        path: {
+        code: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["productfeatures.predictionSubscriptionRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId}": {
+    delete: {
+      parameters: {
+        path: {
+        code: string;
+        leaseId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/contracts/{code}/ticks": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/events": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/events/{eventId}/contracts": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/prediction/series": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "403": {
+          description: "Forbidden";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2193,10 +3466,66 @@ export interface paths {
         market: string;
         symbol: string;
       };
+        query: {
+        brokerId?: string;
+      };
       };
       responses: {
         "200": {
           description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "429": {
+          description: "Too Many Requests";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/snapshots": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["productfeatures.batchSnapshotsRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "429": {
+          description: "Too Many Requests";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };
@@ -2213,6 +3542,7 @@ export interface paths {
       };
         query: {
         refresh?: boolean;
+        brokerId?: string;
       };
       };
       responses: {
@@ -2224,6 +3554,12 @@ export interface paths {
         };
         "400": {
           description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };
@@ -2337,6 +3673,54 @@ export interface paths {
       };
     };
   };
+  "/api/v1/market-data/ticks/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/market-data/warrants": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
   "/api/v1/plugins": {
     get: {
       responses: {
@@ -2440,6 +3824,342 @@ export interface paths {
           description: "OK";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/analyst/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/calendars": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/corporate-actions/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/financials/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/industries": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/institutions": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/instruments/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/macro": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/ownership/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/rankings": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/screens": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/short-interest/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/technical-indicators/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/valuation/{instrumentId}": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -4385,6 +6105,52 @@ export interface paths {
         };
         "503": {
           description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/watchlists/remote": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };

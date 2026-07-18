@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"testing"
 )
@@ -84,8 +85,7 @@ func TestMarketSecurityDetailsWebSocketSendsInitialPayload(t *testing.T) {
 		t.Fatalf("subscribe security details websocket: %v", err)
 	}
 
-	_ = readLiveWebSocketEvent(t, conn)
-	event := readLiveWebSocketEvent(t, conn)
+	event := readLiveWebSocketEventOfType(t, conn, "market.security-details")
 	if event["type"] != "market.security-details" {
 		t.Fatalf("unexpected websocket event: %+v", event)
 	}
@@ -112,6 +112,7 @@ func TestMarketSecurityDetailsWebSocketSendsInitialPayload(t *testing.T) {
 func TestMarketSecurityDetailsResponseIncludesWarrantBlock(t *testing.T) {
 	security := marketSecurityDetailsResponseForPath(t, "/api/v1/market-data/securities/HK/21164")
 	warrant := assertSecurityTypedBlock(t, security, "warrant")
+	assertSecurityProductIdentity(t, security, "cbbc", "derivatives")
 	if got := security["securityType"]; got != "Warrant" {
 		t.Fatalf("securityType = %v", got)
 	}
@@ -133,6 +134,7 @@ func TestMarketSecurityDetailsResponseIncludesWarrantBlock(t *testing.T) {
 func TestMarketSecurityDetailsResponseIncludesOptionBlock(t *testing.T) {
 	security := marketSecurityDetailsResponseForPath(t, "/api/v1/market-data/securities/US/AAPL250117C00200000")
 	option := assertSecurityTypedBlock(t, security, "option")
+	assertSecurityProductIdentity(t, security, "option", "derivatives")
 	if got := security["securityType"]; got != "Drvt" {
 		t.Fatalf("securityType = %v", got)
 	}
@@ -154,6 +156,7 @@ func TestMarketSecurityDetailsResponseIncludesOptionBlock(t *testing.T) {
 func TestMarketSecurityDetailsResponseIncludesFutureBlock(t *testing.T) {
 	security := marketSecurityDetailsResponseForPath(t, "/api/v1/market-data/securities/HK/HSIMAIN")
 	future := assertSecurityTypedBlock(t, security, "future")
+	assertSecurityProductIdentity(t, security, "future", "derivatives")
 	if got := security["securityType"]; got != "Future" {
 		t.Fatalf("securityType = %v", got)
 	}
@@ -168,6 +171,7 @@ func TestMarketSecurityDetailsResponseIncludesFutureBlock(t *testing.T) {
 func TestMarketSecurityDetailsResponseIncludesTrustBlock(t *testing.T) {
 	security := marketSecurityDetailsResponseForPath(t, "/api/v1/market-data/securities/US/SPY")
 	trust := assertSecurityTypedBlock(t, security, "trust")
+	assertSecurityProductIdentity(t, security, "fund", "securities")
 	if got := security["securityType"]; got != "Trust" {
 		t.Fatalf("securityType = %v", got)
 	}
@@ -182,6 +186,7 @@ func TestMarketSecurityDetailsResponseIncludesTrustBlock(t *testing.T) {
 func TestMarketSecurityDetailsResponseIncludesIndexBlock(t *testing.T) {
 	security := marketSecurityDetailsResponseForPath(t, "/api/v1/market-data/securities/HK/HSI")
 	index := assertSecurityTypedBlock(t, security, "index")
+	assertSecurityProductIdentity(t, security, "index", "securities")
 	if got := security["securityType"]; got != "Index" {
 		t.Fatalf("securityType = %v", got)
 	}
@@ -196,6 +201,7 @@ func TestMarketSecurityDetailsResponseIncludesIndexBlock(t *testing.T) {
 func TestMarketSecurityDetailsResponseIncludesPlateBlock(t *testing.T) {
 	security := marketSecurityDetailsResponseForPath(t, "/api/v1/market-data/securities/HK/TECH")
 	plate := assertSecurityTypedBlock(t, security, "plate")
+	assertSecurityProductIdentity(t, security, "plate", "securities")
 	if got := security["securityType"]; got != "Plate" {
 		t.Fatalf("securityType = %v", got)
 	}
@@ -204,6 +210,21 @@ func TestMarketSecurityDetailsResponseIncludesPlateBlock(t *testing.T) {
 	}
 	if got := plate["equalCount"]; got != int32(5) {
 		t.Fatalf("equalCount = %v", got)
+	}
+}
+
+func assertSecurityProductIdentity(
+	t *testing.T,
+	security map[string]any,
+	productClass string,
+	marketSegment string,
+) {
+	t.Helper()
+	if got := fmt.Sprint(security["productClass"]); got != productClass {
+		t.Fatalf("productClass = %v, want %s", got, productClass)
+	}
+	if got := fmt.Sprint(security["marketSegment"]); got != marketSegment {
+		t.Fatalf("marketSegment = %v, want %s", got, marketSegment)
 	}
 }
 

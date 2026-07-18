@@ -225,6 +225,7 @@ function copyCanonicalInstrumentId(event: ClipboardEvent): void {
 
 .instrument-identity__name {
   min-width: 0;
+  font-weight: 700;
   overflow: hidden;
   color: inherit;
   text-overflow: ellipsis;

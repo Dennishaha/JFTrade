@@ -2,17 +2,21 @@ package futu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	qotgetstaticinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetstaticinfo"
 )
+
+var errNoSecuritySnapshots = errors.New("opend GetSecuritySnapshot returned no snapshots")
 
 type SecurityRef struct {
 	InstrumentID string
@@ -129,6 +133,8 @@ type SecurityDetails struct {
 	SecurityID          *int64
 	Name                string
 	SecurityType        string
+	ProductClass        broker.ProductClass
+	MarketSegment       broker.MarketSegment
 	ExchangeType        string
 	ListTime            string
 	ListTimestamp       *float64
@@ -212,6 +218,14 @@ func (e *Exchange) querySecuritySnapshot(ctx context.Context, symbol string) (*q
 }
 
 func (e *Exchange) querySecuritySnapshotList(ctx context.Context, symbols []string) (map[string]*qotgetsecuritysnapshotpb.Snapshot, error) {
+	coordinator := e.snapshotCoordinator()
+	if coordinator == nil {
+		return nil, fmt.Errorf("futu security snapshot coordinator is unavailable")
+	}
+	return coordinator.query(ctx, symbols, e.querySecuritySnapshotListDirect)
+}
+
+func (e *Exchange) querySecuritySnapshotListDirect(ctx context.Context, symbols []string) (map[string]*qotgetsecuritysnapshotpb.Snapshot, error) {
 	securityList := make([]*qotcommonpb.Security, 0, len(symbols))
 	seen := make(map[string]struct{}, len(symbols))
 	for _, symbol := range symbols {
@@ -247,7 +261,7 @@ func (e *Exchange) querySecuritySnapshotList(ctx context.Context, symbols []stri
 		snapshots[canonical] = snapshot
 	}
 	if len(snapshots) == 0 {
-		return nil, fmt.Errorf("opend GetSecuritySnapshot returned no snapshots")
+		return nil, errNoSecuritySnapshots
 	}
 	return snapshots, nil
 }
@@ -319,6 +333,7 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 	applyPlateSnapshotDetails(details, snapshot.GetPlateExData())
 	applyFutureSnapshotDetails(details, snapshot.GetFutureExData())
 	applyTrustSnapshotDetails(details, snapshot.GetTrustExData())
+	refreshSecurityDetailsProductIdentity(details)
 	return details
 }
 
@@ -328,12 +343,15 @@ func baseSecurityDetailsFromSnapshot(basic *qotgetsecuritysnapshotpb.SnapshotBas
 		ref = securityRefFromCanonical(canonical)
 	}
 	quoteTime := futuQuoteTime(basic.GetUpdateTimestamp(), basic.GetUpdateTime(), canonical).Format(time.RFC3339Nano)
+	productClass := productClassFromSecurityType(basic.GetType())
 	return &SecurityDetails{
 		InstrumentID:        ref.InstrumentID,
 		Market:              ref.Market,
 		Symbol:              ref.Symbol,
 		Name:                basic.GetName(),
 		SecurityType:        enumName(basic.GetType(), qotcommonpb.SecurityType_name),
+		ProductClass:        productClass,
+		MarketSegment:       marketSegmentFromProductClass(productClass),
 		ListTime:            basic.GetListTime(),
 		ListTimestamp:       cloneFloat64(basic.ListTimestamp),
 		LotSize:             basic.GetLotSize(),
@@ -577,6 +595,48 @@ func mergeStaticInfoIntoSecurityDetails(details *SecurityDetails, info *qotcommo
 			details.Future.LastTradeTimestamp = cloneFloat64(future.LastTradeTimestamp)
 		}
 		details.Future.IsMainContract = future.GetIsMainContract()
+	}
+	refreshSecurityDetailsProductIdentity(details)
+}
+
+func refreshSecurityDetailsProductIdentity(details *SecurityDetails) {
+	if details == nil {
+		return
+	}
+	if details.ProductClass == "" || details.ProductClass == broker.ProductClassUnknown {
+		details.ProductClass = productClassFromSecurityTypeName(details.SecurityType)
+	}
+	if details.ProductClass == broker.ProductClassWarrant && details.Warrant != nil {
+		switch strings.ToUpper(strings.TrimSpace(details.Warrant.WarrantType)) {
+		case "BULL", "BEAR":
+			details.ProductClass = broker.ProductClassCBBC
+		}
+	}
+	details.MarketSegment = marketSegmentFromProductClass(details.ProductClass)
+}
+
+func productClassFromSecurityTypeName(value string) broker.ProductClass {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	normalized = strings.TrimPrefix(normalized, "SECURITYTYPE_")
+	switch normalized {
+	case "BOND":
+		return broker.ProductClassBond
+	case "EQTY", "EQUITY", "STOCK":
+		return broker.ProductClassEquity
+	case "TRUST", "FUND", "ETF":
+		return broker.ProductClassFund
+	case "WARRANT", "BWRT":
+		return broker.ProductClassWarrant
+	case "INDEX":
+		return broker.ProductClassIndex
+	case "PLATE", "PLATESET":
+		return broker.ProductClassPlate
+	case "DRVT", "OPTION":
+		return broker.ProductClassOption
+	case "FUTURE":
+		return broker.ProductClassFuture
+	default:
+		return broker.ProductClassUnknown
 	}
 }
 

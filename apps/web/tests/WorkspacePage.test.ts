@@ -9,13 +9,18 @@ const workspaceMocks = vi.hoisted(() => ({
     prefs: ReturnType<typeof ref>;
     update: (patch: Record<string, unknown>) => void;
   },
+  tradingPrefs: null as null | ReturnType<typeof ref>,
 }));
 
 vi.mock("../src/composables/useWorkspaceLayout", () => ({
   useWorkspaceViewState: () => workspaceMocks.store,
+  useWorkspaceTradingPrefs: () => ({
+    prefs: workspaceMocks.tradingPrefs,
+  }),
 }));
 
 import WorkspacePage from "../src/pages/WorkspacePage.vue";
+import { setupState } from "./productTestUtils";
 
 const sidebarStub = defineComponent({
   props: { compact: Boolean },
@@ -47,6 +52,12 @@ const stubs = {
   PositionsPanel: { template: "<div class='positions-stub' />" },
   SplitPane: splitPaneStub,
   SplitPaneItem: { template: "<div class='split-pane-item-stub'><slot /></div>" },
+  WorkspaceProductPane: { template: "<div class='product-pane-stub' />" },
+  PredictionContractWorkspacePanel: {
+    props: ["instrumentId", "view"],
+    template:
+      "<div class='prediction-contract-stub' :data-instrument='instrumentId' :data-view='view' />",
+  },
   WorkspaceWatchlistSidebar: sidebarStub,
   "v-icon": { template: "<span><slot /></span>" },
 };
@@ -103,6 +114,12 @@ function createWorkspaceStore(open = true) {
 
 beforeEach(() => {
   workspaceMocks.store = createWorkspaceStore();
+  workspaceMocks.tradingPrefs = ref({
+    market: "HK",
+    symbol: "00700",
+    marketSegment: "securities",
+    productClass: "equity",
+  });
 });
 
 afterEach(() => {
@@ -116,7 +133,9 @@ describe("WorkspacePage", () => {
     const wrapper = mount(WorkspacePage, { global: { stubs } });
 
     expect(wrapper.find(".tv-workspace__desktop-shell").exists()).toBe(true);
-    await wrapper.find(".valid-resize").trigger("click");
+    for (const button of wrapper.findAll(".valid-resize")) {
+      await button.trigger("click");
+    }
     expect(store.update).toHaveBeenCalledWith({ paneSizes: { main: [61, 39] } });
     const callsAfterValidResize = store.update.mock.calls.length;
     await wrapper.find(".invalid-resize").trigger("click");
@@ -155,9 +174,18 @@ describe("WorkspacePage", () => {
     const store = workspaceMocks.store!;
     const wrapper = mount(WorkspacePage, { global: { stubs } });
     await wrapper.vm.$nextTick();
+    const state = setupState<{
+      startWatchlistResize: (event: PointerEvent) => void;
+      handleWatchlistResizeMove: (event: PointerEvent) => void;
+    }>(wrapper);
 
     expect(wrapper.find(".tv-workspace__compact-stack").exists()).toBe(true);
     expect(wrapper.find(".sidebar-stub").attributes("data-compact")).toBe("yes");
+    state.startWatchlistResize(new PointerEvent("pointerdown"));
+    state.handleWatchlistResizeMove(new PointerEvent("pointermove"));
+    await wrapper.find(".sidebar-close").trigger("click");
+    expect(store.prefs.value.watchlistSidebarOpen).toBe(false);
+    await wrapper.get("button[aria-label='显示自选栏']").trigger("click");
     await wrapper.find(".sidebar-selected").trigger("click");
     expect(store.prefs.value.watchlistSidebarOpen).toBe(false);
     await wrapper.get("button[aria-label='显示自选栏']").trigger("click");
@@ -170,6 +198,28 @@ describe("WorkspacePage", () => {
     expect(wrapper.find(".tv-workspace__desktop-shell").exists()).toBe(true);
     wrapper.unmount();
     expect(controller.listeners).toHaveLength(0);
+  });
+
+  it("renders prediction contract identity in place of stock overview and book", async () => {
+    installMatchMedia(false);
+    workspaceMocks.tradingPrefs!.value = {
+      market: "US",
+      symbol: "EC.HOME",
+      marketSegment: "prediction",
+      productClass: "event_contract",
+    };
+    const wrapper = mount(WorkspacePage, { global: { stubs } });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find(".overview-stub").exists()).toBe(false);
+    expect(wrapper.find(".book-stub").exists()).toBe(false);
+    const panels = wrapper.findAll(".prediction-contract-stub");
+    expect(panels).toHaveLength(2);
+    expect(panels[0]?.attributes("data-instrument")).toBe("US.EC.HOME");
+    expect(panels.map((panel) => panel.attributes("data-view"))).toEqual([
+      "contract",
+      "depth",
+    ]);
   });
 
   it("keeps a drag active across unrelated pointer-up events and unregisters modern listeners on unmount", async () => {

@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -15,44 +16,60 @@ type tradingOrderUpdateSource struct {
 }
 
 var _ trdsrv.OrderUpdateSource = (*tradingOrderUpdateSource)(nil)
+var _ trdsrv.OrderFeeSource = (*tradingOrderUpdateSource)(nil)
 
 func (s *tradingOrderUpdateSource) DiscoverAccounts(ctx context.Context) ([]trdsrv.Account, error) {
-	active := s.server.activeBroker()
-	if active == nil {
+	brokers := s.server.brokers.All()
+	if len(brokers) == 0 {
+		_ = s.server.activeBroker()
+		brokers = s.server.brokers.All()
+	}
+	if len(brokers) == 0 {
 		return nil, trdsrv.ErrOrderUpdateSourceInactive
 	}
-	accounts, err := active.DiscoverAccounts(ctx)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]trdsrv.Account, len(accounts))
-	for i, account := range accounts {
-		result[i] = trdsrv.Account{
-			ID: account.ID, BrokerID: account.BrokerID, TradingEnvironment: account.TradingEnvironment,
-			MarketAuthorities: append([]string(nil), account.MarketAuthorities...),
+	var result []trdsrv.Account
+	var discoveryErrors []error
+	for _, selected := range brokers {
+		accounts, err := selected.DiscoverAccounts(ctx)
+		if err != nil {
+			discoveryErrors = append(discoveryErrors, err)
+			continue
 		}
+		for _, account := range accounts {
+			brokerID := strings.TrimSpace(account.BrokerID)
+			if brokerID == "" {
+				brokerID = selected.ID()
+			}
+			result = append(result, trdsrv.Account{
+				ID: account.ID, BrokerID: brokerID, TradingEnvironment: account.TradingEnvironment,
+				MarketAuthorities: append([]string(nil), account.MarketAuthorities...),
+			})
+		}
+	}
+	if len(result) == 0 && len(discoveryErrors) > 0 {
+		return nil, errors.Join(discoveryErrors...)
 	}
 	return result, nil
 }
 
 func (s *tradingOrderUpdateSource) CurrentOrders(ctx context.Context, query trdsrv.OrderQuery) ([]trdsrv.Order, error) {
-	active := s.server.activeBroker()
-	if active == nil || active.MarketData() == nil {
+	selected := s.server.resolveBroker(query.BrokerID)
+	if selected == nil || selected.MarketData() == nil {
 		return nil, nil
 	}
-	orders, err := active.MarketData().QueryOrders(ctx, brokerOrderQuery(query), "")
+	orders, err := selected.MarketData().QueryOrders(ctx, brokerOrderQuery(query), "")
 	if err != nil {
 		return nil, err
 	}
-	return tradingOrdersFromBroker(orders), nil
+	return tradingOrdersFromBroker(query.BrokerID, orders), nil
 }
 
 func (s *tradingOrderUpdateSource) HistoryOrders(ctx context.Context, query trdsrv.OrderQuery, start, end time.Time) ([]trdsrv.Order, error) {
-	active := s.server.activeBroker()
-	if active == nil || active.MarketData() == nil {
+	selected := s.server.resolveBroker(query.BrokerID)
+	if selected == nil || selected.MarketData() == nil {
 		return nil, nil
 	}
-	orders, err := active.MarketData().QueryHistoryOrders(ctx, broker.OrderHistoryQuery{
+	orders, err := selected.MarketData().QueryHistoryOrders(ctx, broker.OrderHistoryQuery{
 		ReadQuery: brokerOrderQuery(query),
 		StartTime: start.UTC().Format(time.RFC3339Nano),
 		EndTime:   end.UTC().Format(time.RFC3339Nano),
@@ -60,15 +77,39 @@ func (s *tradingOrderUpdateSource) HistoryOrders(ctx context.Context, query trds
 	if err != nil {
 		return nil, err
 	}
-	return tradingOrdersFromBroker(orders), nil
+	return tradingOrdersFromBroker(query.BrokerID, orders), nil
+}
+
+func (s *tradingOrderUpdateSource) OrderFees(
+	ctx context.Context,
+	query trdsrv.OrderQuery,
+	orderIDs []string,
+) ([]broker.OrderFeeSnapshot, error) {
+	selected := s.server.resolveBroker(query.BrokerID)
+	if selected == nil || selected.MarketData() == nil {
+		return nil, nil
+	}
+	return selected.MarketData().QueryOrderFees(ctx, broker.OrderFeeQuery{
+		ReadQuery:     brokerOrderQuery(query),
+		OrderIDExList: append([]string(nil), orderIDs...),
+	})
 }
 
 func (s *tradingOrderUpdateSource) Subscribe(ctx context.Context, accounts []trdsrv.Account, _ []trdsrv.OrderQuery, handler trdsrv.OrderUpdateHandler) (trdsrv.OrderUpdateSubscription, error) {
+	futuAccounts := make([]trdsrv.Account, 0, len(accounts))
+	for _, account := range accounts {
+		if strings.EqualFold(account.BrokerID, "futu") {
+			futuAccounts = append(futuAccounts, account)
+		}
+	}
+	if len(futuAccounts) == 0 {
+		return noOpTradingOrderUpdateSubscription{}, nil
+	}
 	exchange := s.server.futuExchange()
 	if exchange == nil {
 		return noOpTradingOrderUpdateSubscription{}, nil
 	}
-	return futuintegration.NewOrderUpdatesAdapter(exchange).Subscribe(ctx, accounts, handler)
+	return futuintegration.NewOrderUpdatesAdapter(exchange).Subscribe(ctx, futuAccounts, handler)
 }
 
 type noOpTradingOrderUpdateSubscription struct{}
@@ -80,6 +121,7 @@ type tradingExecutionOrderUpdates struct {
 }
 
 var _ trdsrv.ExecutionOrderUpdates = (*tradingExecutionOrderUpdates)(nil)
+var _ trdsrv.ExecutionOrderFeeUpdates = (*tradingExecutionOrderUpdates)(nil)
 
 func (a *tradingExecutionOrderUpdates) ApplyOrder(ctx context.Context, brokerID string, order trdsrv.Order, metadata trdsrv.OrderWriteMetadata) {
 	if a == nil || a.server == nil || a.server.executionOrders == nil {
@@ -104,6 +146,19 @@ func (a *tradingExecutionOrderUpdates) ApplyFill(ctx context.Context, brokerID s
 	}
 }
 
+func (a *tradingExecutionOrderUpdates) ApplyFees(
+	_ context.Context,
+	brokerID string,
+	fees []broker.OrderFeeSnapshot,
+) {
+	if a == nil || a.server == nil || a.server.executionOrders == nil {
+		return
+	}
+	for _, fee := range fees {
+		a.server.executionOrders.recordBrokerOrderFee(brokerID, fee)
+	}
+}
+
 func brokerOrderQuery(query trdsrv.OrderQuery) broker.ReadQuery {
 	return broker.ReadQuery{
 		BrokerID: strings.TrimSpace(query.BrokerID), AccountID: strings.TrimSpace(query.AccountID),
@@ -111,14 +166,18 @@ func brokerOrderQuery(query trdsrv.OrderQuery) broker.ReadQuery {
 	}
 }
 
-func tradingOrdersFromBroker(orders []broker.OrderSnapshot) []trdsrv.Order {
+func tradingOrdersFromBroker(brokerID string, orders []broker.OrderSnapshot) []trdsrv.Order {
 	result := make([]trdsrv.Order, len(orders))
 	for i, order := range orders {
 		result[i] = trdsrv.Order{
+			BrokerID:  brokerID,
 			AccountID: order.AccountID, TradingEnvironment: order.TradingEnvironment, Market: order.Market,
+			OrderKind: order.OrderKind, ProductClass: order.ProductClass, QuantityMode: order.QuantityMode,
 			BrokerOrderID: order.BrokerOrderID, BrokerOrderIDEx: order.BrokerOrderIDEx,
 			Symbol: order.Symbol, SymbolName: order.SymbolName, Side: order.Side, OrderType: order.OrderType,
-			Status: order.Status, Quantity: order.Quantity, FilledQuantity: order.FilledQuantity, Price: order.Price,
+			Status: order.Status, Quantity: order.Quantity, Amount: order.Amount,
+			Legs:           append([]broker.OrderLegSnapshot(nil), order.Legs...),
+			FilledQuantity: order.FilledQuantity, Price: order.Price,
 			FilledAveragePrice: order.FilledAveragePrice, SubmittedAt: order.SubmittedAt, UpdatedAt: order.UpdatedAt,
 			Remark: order.Remark, LastError: order.LastError, TimeInForce: order.TimeInForce, Currency: order.Currency,
 		}
@@ -129,9 +188,12 @@ func tradingOrdersFromBroker(orders []broker.OrderSnapshot) []trdsrv.Order {
 func brokerOrderFromTrading(order trdsrv.Order) broker.OrderSnapshot {
 	return broker.OrderSnapshot{
 		AccountID: order.AccountID, TradingEnvironment: order.TradingEnvironment, Market: order.Market,
+		OrderKind: order.OrderKind, ProductClass: order.ProductClass, QuantityMode: order.QuantityMode,
 		BrokerOrderID: order.BrokerOrderID, BrokerOrderIDEx: order.BrokerOrderIDEx,
 		Symbol: order.Symbol, SymbolName: order.SymbolName, Side: order.Side, OrderType: order.OrderType,
-		Status: order.Status, Quantity: order.Quantity, FilledQuantity: order.FilledQuantity, Price: order.Price,
+		Status: order.Status, Quantity: order.Quantity, Amount: order.Amount,
+		Legs:           append([]broker.OrderLegSnapshot(nil), order.Legs...),
+		FilledQuantity: order.FilledQuantity, Price: order.Price,
 		FilledAveragePrice: order.FilledAveragePrice, SubmittedAt: order.SubmittedAt, UpdatedAt: order.UpdatedAt,
 		Remark: order.Remark, LastError: order.LastError, TimeInForce: order.TimeInForce, Currency: order.Currency,
 	}
@@ -143,6 +205,7 @@ func brokerFillFromTrading(fill trdsrv.Fill) broker.OrderFillSnapshot {
 		BrokerOrderID: fill.BrokerOrderID, BrokerOrderIDEx: fill.BrokerOrderIDEx,
 		BrokerFillID: fill.BrokerFillID, BrokerFillIDEx: fill.BrokerFillIDEx,
 		Symbol: fill.Symbol, SymbolName: fill.SymbolName, Side: fill.Side,
-		FilledQuantity: fill.FilledQuantity, FillPrice: fill.FillPrice, FilledAt: fill.FilledAt, Status: fill.Status,
+		FilledQuantity: fill.FilledQuantity, FillPrice: fill.FillPrice, FilledAt: fill.FilledAt,
+		Status: fill.Status, Payout: fill.Payout,
 	}
 }

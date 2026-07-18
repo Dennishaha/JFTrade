@@ -540,18 +540,41 @@ func (s *Service) marketDataReader(brokerID string) (broker.MarketDataReader, er
 
 func (s *Service) resolveBroker(brokerID string, required bool) (broker.Broker, error) {
 	brokerID = strings.TrimSpace(brokerID)
-	var active broker.Broker
-	if s.brokerRuntime != nil {
-		active = s.brokerRuntime.ActiveBroker()
+	if s.brokerRuntime == nil {
+		if required {
+			return nil, ErrNoBroker
+		}
+		return nil, nil
 	}
-	if active != nil {
-		if brokerID != "" && active.ID() != brokerID {
+
+	if brokerID != "" {
+		if resolver, ok := s.brokerRuntime.(interface {
+			ResolveBroker(string) broker.Broker
+		}); ok {
+			if selected := resolver.ResolveBroker(brokerID); selected != nil {
+				return selected, nil
+			}
+			if s.brokerRuntime.ActiveBroker() == nil && !required {
+				return nil, nil
+			}
+			return nil, ErrBrokerNotFound
+		}
+		active := s.brokerRuntime.ActiveBroker()
+		if active == nil {
+			if !required {
+				return nil, nil
+			}
+			return nil, ErrNoBroker
+		}
+		if !strings.EqualFold(active.ID(), brokerID) {
 			return nil, ErrBrokerNotFound
 		}
 		return active, nil
 	}
-	if brokerID != "" && brokerID != "futu" {
-		return nil, ErrBrokerNotFound
+
+	active := s.brokerRuntime.ActiveBroker()
+	if active != nil {
+		return active, nil
 	}
 	if required {
 		return nil, ErrNoBroker

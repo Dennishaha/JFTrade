@@ -3,10 +3,6 @@ import { openExternalUrl } from "./externalLink";
 const docsBaseUrl = "/docs/";
 
 export function resolveDocsHref(path = ""): string {
-  if (docsBaseUrl.startsWith("http")) {
-    return new URL(path, docsBaseUrl).toString();
-  }
-
   return `${docsBaseUrl}${path}`;
 }
 

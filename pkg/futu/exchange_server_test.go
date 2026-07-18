@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
@@ -69,6 +71,7 @@ type quoteOpenDServer struct {
 	securitySnapshotCalls atomic.Int32
 	orderBookCalls        atomic.Int32
 	searchQuoteCalls      atomic.Int32
+	predictionSubCalls    atomic.Int32
 	userSecCalls          atomic.Int32
 	userGroupCalls        atomic.Int32
 	accountMu             sync.Mutex
@@ -117,12 +120,15 @@ type quoteOpenDServer struct {
 	orderBookSnapshot     *qotgetorderbookpb.S2C
 	searchQuotes          []*qotgetsearchquotepb.SearchQuote
 	searchQuoteError      *qotgetsearchquotepb.Response
+	watchlistGroupError   *qotgetusersecuritygrouppb.Response
 	lastSearchKeyword     string
 	lastSearchMaxCount    int32
 	watchlistGroups       []*qotgetusersecuritygrouppb.GroupData
 	watchlistSecurities   []*qotcommonpb.SecurityStaticInfo
 	lastGroupType         int32
 	lastGroupName         string
+	advancedMu            sync.Mutex
+	advancedResponses     map[uint32]proto.Message
 	notifyMu              sync.Mutex
 	notifyAfterInit       *notifypb.Response
 	listener              net.Listener
@@ -202,6 +208,25 @@ func (s *quoteOpenDServer) setNotifyAfterInit(response *notifypb.Response) {
 
 func (s *quoteOpenDServer) setDropProto(protoID uint32) {
 	s.dropProto.Store(protoID)
+}
+
+func (s *quoteOpenDServer) setAdvancedResponse(protoID uint32, response proto.Message) {
+	s.advancedMu.Lock()
+	defer s.advancedMu.Unlock()
+	if s.advancedResponses == nil {
+		s.advancedResponses = make(map[uint32]proto.Message)
+	}
+	s.advancedResponses[protoID] = response
+}
+
+func (s *quoteOpenDServer) setWatchlistGroupError(retType int32, errCode int32, retMsg string) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.watchlistGroupError = &qotgetusersecuritygrouppb.Response{
+		RetType: new(retType),
+		ErrCode: new(errCode),
+		RetMsg:  new(retMsg),
+	}
 }
 
 func (s *quoteOpenDServer) setAccounts(accounts []*trdcommonpb.TrdAcc) {
@@ -294,8 +319,8 @@ func startQuoteOpenDServer(t *testing.T) *quoteOpenDServer {
 		listener:          listener,
 		shutdownCompleted: make(chan struct{}),
 	}
-	server.serverVer.Store(1008)
-	server.serverBuildNo.Store(6808)
+	server.serverVer.Store(1009)
+	server.serverBuildNo.Store(6908)
 	go server.acceptLoop()
 	return server
 }
@@ -470,8 +495,14 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoRequestHistoryKL:
 			s.historyKLCalls.Add(1)
 			response = s.historyKLResponse(frame.Body)
+		case 3455:
+			s.predictionSubCalls.Add(1)
+			response = s.genericAdvancedResponse(frame.Header.ProtoID)
 		default:
-			return
+			response = s.genericAdvancedResponse(frame.Header.ProtoID)
+			if response == nil {
+				return
+			}
 		}
 
 		var body []byte
@@ -507,6 +538,33 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			}
 		}
 	}
+}
+
+func (s *quoteOpenDServer) genericAdvancedResponse(protoID uint32) proto.Message {
+	s.advancedMu.Lock()
+	configured := s.advancedResponses[protoID]
+	s.advancedMu.Unlock()
+	if configured != nil {
+		return proto.Clone(configured)
+	}
+	for _, protocol := range opend.AdvancedProtocols {
+		if protocol.ID != protoID {
+			continue
+		}
+		messageType, err := protoregistry.GlobalTypes.FindMessageByName(
+			protoreflect.FullName(protocol.Package + ".Response"),
+		)
+		if err != nil {
+			return nil
+		}
+		response := messageType.New()
+		fields := response.Descriptor().Fields()
+		if field := fields.ByName("retType"); field != nil {
+			response.Set(field, protoreflect.ValueOfInt32(0))
+		}
+		return response.Interface()
+	}
+	return nil
 }
 
 func testGlobalStateResponse(serverVer, serverBuildNo int32) *globalpb.Response {

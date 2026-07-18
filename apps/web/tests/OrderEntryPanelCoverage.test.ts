@@ -44,7 +44,7 @@ describe("OrderEntryPanel business coverage", () => {
       symbol: "AAPL",
       price: 190,
       session: "pre",
-      security: { priceSpread: 0.01, securityType: "OPTION" },
+      security: { priceSpread: 0.01, securityType: "STOCK" },
     });
 
     await nextTick();
@@ -390,6 +390,83 @@ describe("OrderEntryPanel business coverage", () => {
     const requestCountBefore = fetchMock.mock.calls.length;
     await call<Promise<void>>("loadMaxTradeQuantity");
     expect(fetchMock).toHaveBeenCalledTimes(requestCountBefore);
+
+    wrapper.unmount();
+  });
+
+  it("previews prediction orders and preserves product-specific quantity semantics", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/v1/execution/previews")) {
+        return envelope({ previewId: "preview-event-1" });
+      }
+      if (url.includes("/api/v1/execution/orders")) {
+        return envelope({
+          accepted: true,
+          internalOrderId: "io-event-1",
+          brokerOrderId: "broker-event-1",
+          orderStatus: "BROKER_ACCEPTED",
+        });
+      }
+      return envelope({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { wrapper, store } = mountOrderEntry({
+      market: "US",
+      symbol: "PREDTEST",
+      price: 0.55,
+      session: "regular",
+      security: { priceSpread: 0.01, securityType: "EVENT_CONTRACT" },
+    });
+    const panel = wrapper.getComponent(OrderEntryPanel);
+    const setup = panel.vm.$.setupState as Record<string, unknown>;
+    const read = <T>(value: unknown): T =>
+      value !== null && typeof value === "object" && "value" in value
+        ? (value as { value: T }).value
+        : value as T;
+
+    await nextTick();
+    expect(store.marketSecurityDetails.value?.security.securityType).toBe("EVENT_CONTRACT");
+    expect(read<string>(setup.productClass)).toBe("event_contract");
+    expect(read<string>(setup.tradeQuantityUnit)).toBe("金额");
+    await findSelectWithOption(wrapper, "NO").setValue("NO");
+    await wrapper.get('input[type="number"][min="1"]').setValue("25");
+    await findSubmitButton(wrapper).trigger("click");
+    await vi.waitFor(() => expect(wrapper.text()).toContain("io-event-1"));
+
+    const previewRequest = fetchMock.mock.calls.find(([input]) =>
+      String(input).includes("/api/v1/execution/previews"),
+    );
+    const orderRequest = fetchMock.mock.calls.find(([input]) =>
+      String(input).includes("/api/v1/execution/orders"),
+    );
+    expect(previewRequest).toBeDefined();
+    expect(JSON.parse(String((orderRequest?.[1] as RequestInit).body))).toMatchObject({
+      productClass: "event_contract",
+      quantityMode: "amount",
+      orderKind: "event_single",
+      amount: 25,
+      predictionSide: "NO",
+      previewId: "preview-event-1",
+    });
+
+    const productCases = [
+      ["OPTION", "option", "张"],
+      ["FUTURE", "future", "张"],
+      ["CBBC", "cbbc", "单位"],
+      ["WARRANT", "warrant", "单位"],
+      ["ETF", "fund", "股"],
+    ] as const;
+    for (const [securityType, productClass, quantityUnit] of productCases) {
+      const details = store.marketSecurityDetails.value!;
+      store.marketSecurityDetails.value = {
+        ...details,
+        security: { ...details.security, securityType },
+      };
+      await nextTick();
+      expect(read<string>(setup.productClass)).toBe(productClass);
+      expect(read<string>(setup.tradeQuantityUnit)).toBe(quantityUnit);
+    }
 
     wrapper.unmount();
   });

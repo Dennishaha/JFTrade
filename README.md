@@ -122,13 +122,13 @@ pnpm run generate:docs
 Protobuf Go 代码生成使用跨平台 Go 命令，并要求本机安装 `protoc 34.1`：
 
 ```bash
-go run ./cmd/generate-futu-proto -source /path/to/FTAPIProtoFiles_10.8.6808
+go run ./cmd/generate-futu-proto -source /path/to/FTAPIProtoFiles_10.9.6908
 go run ./cmd/generate-pineworker-proto
 ```
 
 命令会校验并按需安装固定版本的 Go Protobuf 插件；生成失败时不会替换仓库内已有产物。
 
-Futu 接入要求 OpenD `10.8.6808` 或更高版本。低于该版本时 JFTrade 会拒绝建立业务会话，并在设置页提示升级；安装包请从 [Futu OpenAPI 下载页](https://www.futunn.com/download/OpenAPI) 获取。
+Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade 会拒绝建立业务会话，并在设置页提示升级；安装包请从 [Futu OpenAPI 下载页](https://www.futunn.com/download/OpenAPI) 获取。
 
 ## 运行时文件
 

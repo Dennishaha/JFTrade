@@ -65,11 +65,11 @@ withDefaults(defineProps<{
 }
 
 .dense-metric-strip__value--positive {
-  color: var(--tv-up);
+  color: var(--tv-price-up);
 }
 
 .dense-metric-strip__value--negative {
-  color: var(--tv-down);
+  color: var(--tv-price-down);
 }
 
 .dense-metric-strip__value--warning {

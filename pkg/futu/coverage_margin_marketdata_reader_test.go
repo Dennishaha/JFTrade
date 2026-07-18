@@ -89,6 +89,15 @@ func TestMarketDataReaderSurfacesTransportAndPayloadBoundaries(t *testing.T) {
 	if err != nil || snapshots == nil || len(snapshots.Snapshots) != 1 || snapshots.Snapshots[0].Symbol != "HK.00700" {
 		t.Fatalf("QuerySecuritySnapshot(valid entry) = %#v, %v", snapshots, err)
 	}
+	server.setSecuritySnapshots(nil)
+	resetSecuritySnapshotCoordinator(reader.exchange)
+	emptySnapshots, err := reader.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{
+		ReadQuery: broker.ReadQuery{AccountID: "account-1"},
+		Symbols:   []string{"HK.00700"},
+	})
+	if err != nil || emptySnapshots == nil || emptySnapshots.AccountID != "account-1" || len(emptySnapshots.Snapshots) != 0 {
+		t.Fatalf("QuerySecuritySnapshot(empty payload) = %#v, %v", emptySnapshots, err)
+	}
 
 	if _, err := reader.QueryOrderBook(ctx, broker.OrderBookQuery{Symbol: "BAD", Num: 5}); err == nil {
 		t.Fatal("QueryOrderBook(invalid symbol) error = nil")
@@ -116,12 +125,14 @@ func TestMarketRuleFallbacksExplainTheirSourceAndFailures(t *testing.T) {
 
 	server.setStaticInfoError(1, 1, "static metadata unavailable")
 	server.setSecuritySnapshots(nil)
+	resetSecuritySnapshotCoordinator(reader.exchange)
 	if _, err := reader.QueryMarketRules(ctx, query); err == nil || !strings.Contains(err.Error(), "returned no market rules") {
 		t.Fatalf("failed fallback error = %v", err)
 	}
 
 	server.setStaticInfos(nil)
 	server.setSecuritySnapshots(nil)
+	resetSecuritySnapshotCoordinator(reader.exchange)
 	if _, err := reader.QueryMarketRules(ctx, query); err == nil || !strings.Contains(err.Error(), "returned no market rules") {
 		t.Fatalf("empty primary and fallback error = %v", err)
 	}

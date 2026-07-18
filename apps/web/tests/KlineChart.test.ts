@@ -28,6 +28,7 @@ const chartMocks = vi.hoisted(() => {
     ]),
   ) as Record<string, ReturnType<typeof vi.fn>>;
   const resize = vi.fn();
+  const chartApplyOptions = vi.fn();
   const fitContent = vi.fn();
   const setVisibleLogicalRange = vi.fn();
   const getVisibleLogicalRange = vi.fn(() => ({ from: 2, to: 3 }));
@@ -130,7 +131,7 @@ const chartMocks = vi.hoisted(() => {
       panes: vi.fn(() => [...panesArray]),
       removePane,
       removeSeries,
-      applyOptions: vi.fn(),
+      applyOptions: chartApplyOptions,
       resize,
       remove: vi.fn(),
       timeScale: vi.fn(() => ({
@@ -154,6 +155,7 @@ const chartMocks = vi.hoisted(() => {
     kdjDSetData,
     kdjJSetData,
     overlayLineSetDataByTitle,
+    chartApplyOptions,
     resize,
     fitContent,
     getVisibleLogicalRange,
@@ -206,6 +208,7 @@ afterEach(() => {
   chartMocks.kdjDSetData.mockClear();
   chartMocks.kdjJSetData.mockClear();
   Object.values(chartMocks.overlayLineSetDataByTitle).forEach((spy) => spy.mockClear());
+  chartMocks.chartApplyOptions.mockClear();
   chartMocks.resize.mockClear();
   chartMocks.fitContent.mockClear();
   chartMocks.getVisibleLogicalRange.mockClear();
@@ -326,16 +329,17 @@ describe("KlineChart", () => {
       },
     ]);
 
+    let themeStore: ReturnType<typeof provideThemeStore> | null = null;
     const Host = defineComponent({
       components: { KlineChart },
       setup() {
-        provideThemeStore();
+        themeStore = provideThemeStore();
         return { candles };
       },
       template: '<KlineChart :candles="candles" :min-height="320" />',
     });
 
-    mount(Host);
+    const wrapper = mount(Host);
     await nextTick();
     await nextTick();
 
@@ -344,6 +348,9 @@ describe("KlineChart", () => {
       expect.objectContaining({
         width: 640,
         height: 320,
+        layout: expect.objectContaining({
+          background: { type: "solid", color: "#1a1a1a" },
+        }),
       }),
     );
     expect(chartMocks.candlestickSetData).toHaveBeenLastCalledWith([
@@ -372,6 +379,21 @@ describe("KlineChart", () => {
       to: 10,
     });
     expect(chartMocks.fitContent).not.toHaveBeenCalled();
+
+    themeStore?.set("light");
+    await nextTick();
+    await nextTick();
+
+    expect(chartMocks.chartApplyOptions).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        layout: expect.objectContaining({
+          background: { type: "solid", color: "#ffffff" },
+        }),
+      }),
+    );
+    themeStore?.set("dark");
+    await nextTick();
+    wrapper.unmount();
   });
 
   it("emits load-more near the left edge and anchors the viewport after prepending candles", async () => {

@@ -214,23 +214,49 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     );
   });
 
-	it("uses the default market and omits an empty instrument search query", async () => {
-		const fetchMock = vi.fn(async () =>
-			successResponse({ entries: [], total: 0 }),
-		);
-		vi.stubGlobal("fetch", fetchMock);
-		const module = await import(
-			"../src/composables/consoleDataMarketSubscriptions"
-		);
-		const harness = createControllerHarness(module, { market: " " });
+  it("does not send an invalid instrument search when the query is empty", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const module = await import(
+      "../src/composables/consoleDataMarketSubscriptions"
+    );
+    const harness = createControllerHarness(module, { market: " " });
+    harness.marketInstrumentReferences.value = [
+      {
+        instrumentId: "HK.00700",
+        market: "HK",
+        symbol: "00700",
+        name: "Tencent",
+      },
+    ] as MarketInstrumentReference[];
 
-		await harness.controller.loadMarketInstrumentReferences("   ");
+    const response =
+      await harness.controller.loadMarketInstrumentReferences("   ");
 
-		expect(fetchMock.mock.calls[0]?.[0]).toContain(
-			"/api/v1/market-data/instruments?limit=50&market=HK",
-		);
-		expect(fetchMock.mock.calls[0]?.[0]).not.toContain("query=");
-	});
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.entries).toEqual(
+      harness.marketInstrumentReferences.value,
+    );
+    expect(response.totalReturned).toBe(1);
+  });
+
+  it("uses HK as the default market for a non-empty instrument search", async () => {
+    const fetchMock = vi.fn(async () =>
+      successResponse({ query: "00700", entries: [], totalReturned: 0 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const module = await import(
+      "../src/composables/consoleDataMarketSubscriptions"
+    );
+    const harness = createControllerHarness(module, { market: " " });
+
+    await harness.controller.loadMarketInstrumentReferences("00700");
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      "/api/v1/market-data/instruments?limit=50&market=HK&query=00700",
+    );
+  });
 
   it("validates acquire and release inputs before touching subscription quota", async () => {
     const fetchMock = vi.fn();

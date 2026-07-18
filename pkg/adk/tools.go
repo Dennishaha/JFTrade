@@ -224,7 +224,7 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 	descriptor.RequiredSkills = normalizeStringSlice(descriptor.RequiredSkills)
 	if len(descriptor.AllowedModes) == 0 {
 		if descriptor.Permission == "live_trading" {
-			descriptor.AllowedModes = []string{PermissionModeAll}
+			descriptor.AllowedModes = []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll}
 		} else {
 			descriptor.AllowedModes = []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll}
 		}
@@ -344,7 +344,7 @@ func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 	case "create_strategy_instance":
 		return mode != PermissionModeAll
 	case "live_trading":
-		return false
+		return true
 	default:
 		return false
 	}
@@ -370,9 +370,6 @@ func toolExplicitlySkipsApproval(name string) bool {
 
 func ToolAllowedInMode(descriptor ToolDescriptor, mode string) bool {
 	mode = normalizePermissionMode(mode)
-	if descriptor.Permission == "live_trading" {
-		return mode == PermissionModeAll
-	}
 	return slices.Contains(descriptor.AllowedModes, mode)
 }
 

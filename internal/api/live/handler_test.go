@@ -349,6 +349,47 @@ func TestDispatcherDeduplicatesTickObservedAt(t *testing.T) {
 	if writer.events[0]["source"] != "market-data" || payload["source"] != "bbgo:futu" {
 		t.Fatalf("source fields were not preserved: envelope=%#v payload=%#v", writer.events[0], payload)
 	}
+	if payload["brokerId"] != "futu" {
+		t.Fatalf("default tick provider = %#v, want futu", payload["brokerId"])
+	}
+}
+
+func TestDispatcherProviderSwitchTagsAndDoesNotDeduplicateNewProvider(t *testing.T) {
+	backend := &fakeBackend{ticks: []TickEvent{{
+		InstrumentID: "US.AAPL",
+		ObservedAt:   "2026-06-14T00:00:00Z",
+		Payload:      map[string]any{"type": "market-data.tick", "at": "2026-06-14T00:00:00Z"},
+	}}}
+	client := (&livecore.ClientRegistry{}).Register()
+	client.SetSubscriptions(livecore.Subscriptions{
+		ProviderBrokerID:  "alpha",
+		ActiveInstruments: []string{"US.AAPL"},
+	})
+	writer := &recordingWriter{}
+	d := &dispatcher{
+		handler: NewHandler(backend, Options{}), requestCtx: t.Context(),
+		writer: writer, client: client, lastSentByInstrument: map[string]string{},
+		lastSecurityResolvedAt: map[string]string{}, lastDepthResolvedAt: map[string]string{},
+	}
+	if err := d.writeLiveData(); err != nil {
+		t.Fatalf("alpha writeLiveData: %v", err)
+	}
+	client.SetSubscriptions(livecore.Subscriptions{
+		ProviderBrokerID:  "futu",
+		ActiveInstruments: []string{"US.AAPL"},
+	})
+	if err := d.writeLiveData(); err != nil {
+		t.Fatalf("futu writeLiveData: %v", err)
+	}
+	if got := writer.countType("market-data.tick"); got != 2 {
+		t.Fatalf("tick count across provider switch = %d, want 2", got)
+	}
+	if got := liveEnvelopePayload(t, writer.events[0], "market-data.tick")["brokerId"]; got != "alpha" {
+		t.Fatalf("first tick brokerId = %#v", got)
+	}
+	if got := liveEnvelopePayload(t, writer.events[1], "market-data.tick")["brokerId"]; got != "futu" {
+		t.Fatalf("second tick brokerId = %#v", got)
+	}
 }
 
 type recordingWriter struct {

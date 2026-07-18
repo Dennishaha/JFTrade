@@ -329,8 +329,8 @@ describe("System page", () => {
     expect(wrapper.text()).toContain("实盘 / REAL-001");
     expect(wrapper.text()).toContain("OpenD unavailable");
     expect(wrapper.text()).toContain("network down (code 1006)");
-    expect(wrapper.text()).toContain("实时通道");
-    expect(wrapper.text()).toContain(formatLocalDateTime("2026-05-16T00:30:00.000Z"));
+    expect(wrapper.text()).not.toContain("实时通道");
+    expect(wrapper.text()).not.toContain(formatLocalDateTime("2026-05-16T00:30:00.000Z"));
 
     wrapper.unmount();
   });

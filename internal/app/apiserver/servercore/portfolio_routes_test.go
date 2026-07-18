@@ -98,7 +98,7 @@ func TestPortfolioReconciliationEndpointsReturnConnectivityEnvelope(t *testing.T
 	}
 }
 
-func TestPortfolioRoutesRejectUnknownBroker(t *testing.T) {
+func TestPortfolioRoutesReturnDegradedEmptyStateWithoutConfiguredBroker(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -110,24 +110,23 @@ func TestPortfolioRoutesRejectUnknownBroker(t *testing.T) {
 		t.Fatalf("GET portfolio cash balances: %v", err)
 	}
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
-	if resp.StatusCode != http.StatusNotFound {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET portfolio cash balances status = %d", resp.StatusCode)
 	}
 
 	var envelope struct {
-		OK    bool `json:"ok"`
-		Error *struct {
-			Code    string `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
+		OK   bool `json:"ok"`
+		Data struct {
+			Balances []any `json:"balances"`
+		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-		t.Fatalf("decode portfolio error: %v", err)
+		t.Fatalf("decode portfolio degraded response: %v", err)
 	}
-	if envelope.OK {
-		t.Fatal("expected ok=false")
+	if !envelope.OK {
+		t.Fatal("expected ok=true")
 	}
-	if envelope.Error == nil || envelope.Error.Code != "NOT_FOUND" {
-		t.Fatalf("error = %#v", envelope.Error)
+	if len(envelope.Data.Balances) != 0 {
+		t.Fatalf("degraded balances = %+v, want empty", envelope.Data.Balances)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
@@ -106,10 +107,13 @@ func accountPushIDs(accounts []trading.Account) []uint64 {
 func orderFromPush(header *trdcommonpb.TrdHeader, order *trdcommonpb.Order) trading.Order {
 	snapshot := pkgfutu.BrokerOrderSnapshotFromPush(header, order)
 	return trading.Order{
+		BrokerID:  string(pkgfutu.Name),
 		AccountID: snapshot.AccountID, TradingEnvironment: snapshot.TradingEnvironment, Market: snapshot.Market,
+		OrderKind: snapshot.OrderKind, ProductClass: snapshot.ProductClass, QuantityMode: snapshot.QuantityMode,
 		BrokerOrderID: snapshot.BrokerOrderID, BrokerOrderIDEx: snapshot.BrokerOrderIDEx,
 		Symbol: snapshot.Symbol, SymbolName: snapshot.SymbolName, Side: snapshot.Side, OrderType: snapshot.OrderType,
-		Status: snapshot.Status, Quantity: snapshot.Quantity, FilledQuantity: snapshot.FilledQuantity,
+		Status: snapshot.Status, Quantity: snapshot.Quantity, Amount: snapshot.Amount,
+		Legs: append([]broker.OrderLegSnapshot(nil), snapshot.Legs...), FilledQuantity: snapshot.FilledQuantity,
 		Price: snapshot.Price, FilledAveragePrice: snapshot.FilledAveragePrice, SubmittedAt: snapshot.SubmittedAt,
 		UpdatedAt: snapshot.UpdatedAt, Remark: snapshot.Remark, LastError: snapshot.LastError,
 		TimeInForce: snapshot.TimeInForce, Currency: snapshot.Currency,
@@ -119,12 +123,13 @@ func orderFromPush(header *trdcommonpb.TrdHeader, order *trdcommonpb.Order) trad
 func fillFromPush(header *trdcommonpb.TrdHeader, fill *trdcommonpb.OrderFill) trading.Fill {
 	snapshot := pkgfutu.BrokerOrderFillSnapshotFromPush(header, fill)
 	return trading.Fill{
+		BrokerID:  string(pkgfutu.Name),
 		AccountID: snapshot.AccountID, TradingEnvironment: snapshot.TradingEnvironment, Market: snapshot.Market,
 		BrokerOrderID: snapshot.BrokerOrderID, BrokerOrderIDEx: snapshot.BrokerOrderIDEx,
 		BrokerFillID: snapshot.BrokerFillID, BrokerFillIDEx: snapshot.BrokerFillIDEx,
 		Symbol: snapshot.Symbol, SymbolName: snapshot.SymbolName, Side: snapshot.Side,
 		FilledQuantity: snapshot.FilledQuantity, FillPrice: snapshot.FillPrice, FilledAt: snapshot.FilledAt,
-		Status: snapshot.Status,
+		Status: snapshot.Status, Payout: snapshot.Payout,
 	}
 }
 

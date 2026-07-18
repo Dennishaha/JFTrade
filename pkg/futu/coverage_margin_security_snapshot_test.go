@@ -32,6 +32,7 @@ func TestSecuritySnapshotReadersHandleDuplicateMissingAndTransportBoundaries(t *
 	}
 
 	server.setSecuritySnapshots(nil)
+	resetSecuritySnapshotCoordinator(exchange)
 	if _, err := exchange.querySecuritySnapshotList(t.Context(), []string{"HK.00700"}); err == nil || !strings.Contains(err.Error(), "no snapshots") {
 		t.Fatalf("querySecuritySnapshotList(empty response) error = %v", err)
 	}

@@ -61,7 +61,7 @@ func TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries(t *testing
 	}
 }
 
-func TestExecutionOrderStorePlacedOrderDefaultsBrokerAndRepairsSparseSummary(t *testing.T) {
+func TestExecutionOrderStorePlacedOrderPreservesMissingBrokerAndRepairsSparseSummary(t *testing.T) {
 	store := newExecutionOrderStore()
 
 	defaulted := store.recordPlacedOrder(executionPlacedOrderRecord{
@@ -76,8 +76,8 @@ func TestExecutionOrderStorePlacedOrderDefaultsBrokerAndRepairsSparseSummary(t *
 		RequestedQuantity:  1,
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
-	if defaulted.BrokerID != "futu" || defaulted.Status != "SUBMITTED" {
-		t.Fatalf("defaulted placed order = %#v", defaulted)
+	if defaulted.BrokerID != "" || defaulted.Status != "SUBMITTED" {
+		t.Fatalf("placed order with missing broker = %#v", defaulted)
 	}
 
 	legacyRequestedQuantity := 100.0
@@ -146,7 +146,7 @@ func TestExecutionOrderStorePlacedOrderDefaultsBrokerAndRepairsSparseSummary(t *
 	}
 }
 
-func TestExecutionOrderStoreBrokerSyncDefaultsAndRepairsIncompleteSummary(t *testing.T) {
+func TestExecutionOrderStoreBrokerSyncPreservesMissingBrokerAndRepairsIncompleteSummary(t *testing.T) {
 	store := newExecutionOrderStore()
 
 	discovered, event, changed := store.upsertBrokerOrderWithSource(" \t ", broker.OrderSnapshot{
@@ -163,7 +163,7 @@ func TestExecutionOrderStoreBrokerSyncDefaultsAndRepairsIncompleteSummary(t *tes
 	if !changed || event == nil {
 		t.Fatalf("discovered broker order changed=%v event=%#v", changed, event)
 	}
-	if discovered.BrokerID != "futu" || discovered.Source != "broker" || discovered.SourceDetail != "broker.current" {
+	if discovered.BrokerID != "" || discovered.Source != "broker" || discovered.SourceDetail != "broker.current" {
 		t.Fatalf("discovered broker order = %#v", discovered)
 	}
 

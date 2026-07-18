@@ -37,6 +37,9 @@ func TestNilClientAndPublisherBoundaries(t *testing.T) {
 
 func TestReplayPublisherStartErrorAndNilSourceAreNoops(t *testing.T) {
 	publisher := NewReplayPublisher()
+	if events := publisher.After(0); events != nil {
+		t.Fatalf("empty publisher events = %#v", events)
+	}
 	if err := publisher.Start(nil); err != nil {
 		t.Fatalf("Start nil source: %v", err)
 	}
@@ -46,6 +49,11 @@ func TestReplayPublisherStartErrorAndNilSourceAreNoops(t *testing.T) {
 	}))
 	if !errors.Is(err, upstream) {
 		t.Fatalf("Start source error = %v, want upstream", err)
+	}
+	if err := publisher.Start(SourceFunc(func(PublishFunc) (StopFunc, error) {
+		return nil, nil
+	})); err != nil {
+		t.Fatalf("Start source with nil stop: %v", err)
 	}
 	if err := publisher.Close(); err != nil {
 		t.Fatalf("Close after failed source: %v", err)

@@ -73,8 +73,8 @@ func TestExchangeSecuritySnapshotMergesStaticInfo(t *testing.T) {
 	if got := server.staticInfoCalls.Load(); got != 2 {
 		t.Fatalf("expected two static-info calls, got %d", got)
 	}
-	if got := server.securitySnapshotCalls.Load(); got != 2 {
-		t.Fatalf("expected two snapshot calls, got %d", got)
+	if got := server.securitySnapshotCalls.Load(); got != 1 {
+		t.Fatalf("expected the shared snapshot cache to reuse one call, got %d", got)
 	}
 }
 

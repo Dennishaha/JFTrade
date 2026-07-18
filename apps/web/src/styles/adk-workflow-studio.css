@@ -10,13 +10,13 @@
   --adk-workflow-status-muted-fg: var(--adk-muted-fg);
   --adk-workflow-status-muted-bg: var(--adk-muted-bg);
   --adk-workflow-canvas-bg:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(11, 18, 32, 0.96));
-  --adk-workflow-minimap-bg: rgba(15, 23, 42, 0.94);
+    linear-gradient(180deg, rgba(20, 20, 20, 0.96), rgba(10, 10, 10, 0.96));
+  --adk-workflow-minimap-bg: rgba(20, 20, 20, 0.94);
   --adk-workflow-minimap-border: rgba(148, 163, 184, 0.26);
   --adk-workflow-minimap-node: rgba(103, 232, 249, 0.48);
   --adk-workflow-minimap-node-stroke: rgba(103, 232, 249, 0.8);
-  --adk-workflow-minimap-mask: rgba(2, 6, 23, 0.46);
-  --adk-workflow-control-bg: rgba(15, 23, 42, 0.92);
+  --adk-workflow-minimap-mask: rgba(0, 0, 0, 0.46);
+  --adk-workflow-control-bg: rgba(20, 20, 20, 0.92);
   --adk-workflow-control-fg: #e2e8f0;
   --adk-workflow-control-border: rgba(148, 163, 184, 0.22);
 }
@@ -856,7 +856,7 @@
 .adk-workflow-secret {
   overflow-x: auto;
   border-radius: 6px;
-  background: rgb(15 23 42);
+  background: rgb(20 20 20);
   color: white;
   padding: 12px;
 }

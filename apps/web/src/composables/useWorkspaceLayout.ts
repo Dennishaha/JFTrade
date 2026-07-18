@@ -43,6 +43,19 @@ export type WorkspaceViewStatePatch = Partial<
 export interface WorkspaceTradingPreferences {
   symbol: string;
   market: string;
+  marketSegment: "securities" | "derivatives" | "prediction";
+  productClass:
+    | "equity"
+    | "fund"
+    | "option"
+    | "warrant"
+    | "cbbc"
+    | "future"
+    | "event_contract"
+    | "index"
+    | "bond"
+    | "plate"
+    | "unknown";
   period: string;
   selectedBrokerAccountKey: string | null;
   favoriteBrokerAccountKeys: string[];
@@ -71,6 +84,8 @@ const defaultViewState: WorkspaceViewState = {
 const defaultTradingPreferences: WorkspaceTradingPreferences = {
   symbol: "00700",
   market: "HK",
+  marketSegment: "securities",
+  productClass: "unknown",
   period: "1m",
   selectedBrokerAccountKey: null,
   favoriteBrokerAccountKeys: [],
@@ -215,6 +230,25 @@ function normalizeTradingPreferences(
   return {
     market: merged.market.trim().toUpperCase(),
     symbol: merged.symbol.trim().toUpperCase(),
+    marketSegment:
+      merged.marketSegment === "prediction" ||
+      merged.marketSegment === "derivatives"
+        ? merged.marketSegment
+        : "securities",
+    productClass: [
+      "equity",
+      "fund",
+      "option",
+      "warrant",
+      "cbbc",
+      "future",
+      "event_contract",
+      "index",
+      "bond",
+      "plate",
+    ].includes(merged.productClass)
+      ? merged.productClass
+      : "unknown",
     period: normalizeKlinePeriod(merged.period),
     selectedBrokerAccountKey:
       typeof merged.selectedBrokerAccountKey === "string" &&

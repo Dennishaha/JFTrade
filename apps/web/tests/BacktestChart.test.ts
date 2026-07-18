@@ -246,7 +246,13 @@ describe("BacktestChart", () => {
     expect(wrapper.text()).toContain("基准 HKD 100,000.00");
     expect(chartMocks.createChart).toHaveBeenCalledWith(
       expect.any(HTMLElement),
-      expect.objectContaining({ width: 720, height: 480 }),
+      expect.objectContaining({
+        width: 720,
+        height: 480,
+        layout: expect.objectContaining({
+          background: { type: "solid", color: "#1a1a1a" },
+        }),
+      }),
     );
     expect(chartMocks.panes.map((pane) => pane.setHeight.mock.calls.at(-1)?.[0])).toEqual([
       251,

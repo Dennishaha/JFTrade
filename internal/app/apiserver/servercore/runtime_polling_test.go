@@ -23,7 +23,7 @@ func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
 		Quantity:         3,
 		SellableQuantity: 3,
 	}}
-	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+	installStrategyRuntimeTestExchange(server, stub)
 
 	originalInterval := strategyRuntimeClosedKLineSyncInterval
 	strategyRuntimeClosedKLineSyncInterval = 10 * time.Millisecond

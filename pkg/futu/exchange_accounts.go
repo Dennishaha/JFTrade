@@ -149,7 +149,8 @@ func runtimeMarketAuthority(value int32) string {
 		return "HK"
 	case trdcommonpb.TrdMarket_TrdMarket_US,
 		trdcommonpb.TrdMarket_TrdMarket_US_Fund,
-		trdcommonpb.TrdMarket_TrdMarket_Futures_Simulate_US:
+		trdcommonpb.TrdMarket_TrdMarket_Futures_Simulate_US,
+		trdcommonpb.TrdMarket_TrdMarket_Prediction:
 		return "US"
 	case trdcommonpb.TrdMarket_TrdMarket_CN:
 		return "CN"

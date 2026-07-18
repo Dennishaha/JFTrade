@@ -13,6 +13,7 @@ import (
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	apimd "github.com/jftrade/jftrade-main/internal/api/marketdata"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
+	apiproducts "github.com/jftrade/jftrade-main/internal/api/productfeatures"
 	apiset "github.com/jftrade/jftrade-main/internal/api/settings"
 	apistrat "github.com/jftrade/jftrade-main/internal/api/strategy"
 	apiroutes "github.com/jftrade/jftrade-main/internal/api/system"
@@ -37,6 +38,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	api := router.Group("/api/v1")
 	s.registerAuthRoutes(api)
 	s.registerMarketRoutes(api)
+	s.registerProductFeatureRoutes(api)
 	s.registerSettingsRoutes(api)
 	s.registerSystemRoutes(api)
 	s.registerADKRoutes(api)
@@ -50,6 +52,10 @@ func (s *Server) buildRouter() *gin.Engine {
 
 	router.NoRoute(s.handleNoRoute)
 	return router
+}
+
+func (s *Server) registerProductFeatureRoutes(api *gin.RouterGroup) {
+	apiproducts.RegisterRoutes(api, s.productFeaturesSvc)
 }
 
 func (s *Server) databaseAvailabilityMiddleware() gin.HandlerFunc {
@@ -107,7 +113,7 @@ func (s *Server) registerMarketRoutes(api *gin.RouterGroup) {
 	api.GET("/ws/live", gin.WrapH(liveHandlerOrNotFound(s.liveWebSocket)))
 
 	// HTTP market data — 委托到 marketdata Service
-	apimd.RegisterRoutes(api, s.marketdataSvc)
+	apimd.RegisterRoutes(api, s.marketdataSvc, s.productFeaturesSvc)
 }
 
 func liveHandlerOrNotFound(handler *apilive.Handler) http.Handler {

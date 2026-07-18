@@ -647,7 +647,7 @@ func TestAccountOrdersWithSlowPortfolioSummary(t *testing.T) {
 	}
 }
 
-func TestLiveTradingToolsAreAvailableOnlyInAllMode(t *testing.T) {
+func TestLiveTradingToolsAreAvailableInAllModesWithApproval(t *testing.T) {
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
 		Name:       "orders.place",
@@ -659,17 +659,17 @@ func TestLiveTradingToolsAreAvailableOnlyInAllMode(t *testing.T) {
 	if !ok {
 		t.Fatal("live trading tool was not registered")
 	}
-	if ToolAllowedInMode(registered.Descriptor, PermissionModeApproval) {
-		t.Fatal("live trading tool must not be allowed in approval mode")
+	if !ToolAllowedInMode(registered.Descriptor, PermissionModeApproval) {
+		t.Fatal("live trading tool must be available in approval mode")
 	}
-	if ToolAllowedInMode(registered.Descriptor, PermissionModeLessApproval) {
-		t.Fatal("live trading tool must not be allowed in less_approval mode")
+	if !ToolAllowedInMode(registered.Descriptor, PermissionModeLessApproval) {
+		t.Fatal("live trading tool must be available in less_approval mode")
 	}
 	if !ToolAllowedInMode(registered.Descriptor, PermissionModeAll) {
 		t.Fatal("live trading tool must be allowed in all mode")
 	}
-	if ToolRequiresApproval(registered.Descriptor, PermissionModeAll) {
-		t.Fatal("live trading tool must execute without ADK approval in all mode")
+	if !ToolRequiresApproval(registered.Descriptor, PermissionModeAll) {
+		t.Fatal("live trading tool must require approval even in all mode")
 	}
 }
 

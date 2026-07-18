@@ -35,6 +35,8 @@ func TestGenerateFutuProtoReplacesOutputsAfterSuccess(t *testing.T) {
 	assert.Equal(t, "--go_opt=paths=source_relative", protocArgs[2])
 	_, err = os.Stat(filepath.Join(fixture.root, "pkg", "futu", "pb", "common", "Common.pb.go"))
 	require.NoError(t, err)
+	registration := readTestFile(t, filepath.Join(fixture.root, "pkg", "futu", "pb", "registerall", "register_all.go"))
+	assert.Contains(t, registration, `_ "github.com/jftrade/jftrade-main/pkg/futu/pb/common"`)
 	staged, err := os.ReadFile(filepath.Join(fixture.root, "pkg", "futu", "proto", "Common.proto"))
 	require.NoError(t, err)
 	assert.Contains(t, string(staged), `option go_package = "github.com/jftrade/jftrade-main/pkg/futu/pb/common;common";`)
@@ -75,6 +77,8 @@ type futuFixture struct {
 	goPath string
 }
 
+var fixtureProtoFiles = []string{"Common.proto"}
+
 func newFutuFixture(t *testing.T) futuFixture {
 	t.Helper()
 	root := t.TempDir()
@@ -89,14 +93,14 @@ func newFutuFixture(t *testing.T) futuFixture {
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/test\n"), 0o600))
 	var manifest strings.Builder
-	for _, filename := range futuProtoFiles {
+	for _, filename := range fixtureProtoFiles {
 		content := []byte("syntax = \"proto3\";\npackage Common;\n")
 		require.NoError(t, os.WriteFile(filepath.Join(source, filename), content, 0o600))
 		digest := sha256.Sum256(content)
 		_, _ = fmt.Fprintf(&manifest, "%x  %s\n", digest, filename)
 	}
 	require.NoError(t, os.WriteFile(
-		filepath.Join(root, "scripts", "futu-proto-10.8.6808.sha256"), []byte(manifest.String()), 0o600,
+		filepath.Join(root, "scripts", "futu-proto-10.9.6908.sha256"), []byte(manifest.String()), 0o600,
 	))
 	require.NoError(t, os.WriteFile(
 		filepath.Join(root, "pkg", "futu", "proto", "existing.proto"), []byte("existing proto"), 0o600,

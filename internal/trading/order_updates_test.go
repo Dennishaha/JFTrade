@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 type fakeOrderUpdateSource struct {
@@ -24,6 +26,10 @@ type fakeOrderUpdateSource struct {
 	handler        OrderUpdateHandler
 	subscription   *fakeOrderUpdateSubscription
 	subscriptions  []*fakeOrderUpdateSubscription
+	fees           []broker.OrderFeeSnapshot
+	feeErr         error
+	feeCalls       int
+	feeOrderIDs    [][]string
 }
 
 func (f *fakeOrderUpdateSource) DiscoverAccounts(context.Context) ([]Account, error) {
@@ -53,6 +59,18 @@ func (f *fakeOrderUpdateSource) Subscribe(_ context.Context, _ []Account, _ []Or
 	f.subscription = &fakeOrderUpdateSubscription{}
 	f.subscriptions = append(f.subscriptions, f.subscription)
 	return f.subscription, f.subscribeErr
+}
+
+func (f *fakeOrderUpdateSource) OrderFees(
+	_ context.Context,
+	_ OrderQuery,
+	orderIDs []string,
+) ([]broker.OrderFeeSnapshot, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.feeCalls++
+	f.feeOrderIDs = append(f.feeOrderIDs, append([]string(nil), orderIDs...))
+	return append([]broker.OrderFeeSnapshot(nil), f.fees...), f.feeErr
 }
 
 type fakeOrderUpdateSubscription struct {
@@ -110,6 +128,7 @@ type fakeExecutionOrderUpdates struct {
 	mu     sync.Mutex
 	orders []appliedOrder
 	fills  []Fill
+	fees   []broker.OrderFeeSnapshot
 }
 
 func (f *fakeExecutionOrderUpdates) ApplyOrder(_ context.Context, _ string, order Order, metadata OrderWriteMetadata) {
@@ -122,6 +141,16 @@ func (f *fakeExecutionOrderUpdates) ApplyFill(_ context.Context, _ string, fill 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.fills = append(f.fills, cloneFill(fill))
+}
+
+func (f *fakeExecutionOrderUpdates) ApplyFees(
+	_ context.Context,
+	_ string,
+	fees []broker.OrderFeeSnapshot,
+) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.fees = append(f.fees, fees...)
 }
 
 func TestOrderUpdatesWorkerThrottleForceAndSubscribeOnce(t *testing.T) {
@@ -249,9 +278,12 @@ func TestOrderUpdatesWorkerForcedActiveSyncBypassesCache(t *testing.T) {
 func TestOrderUpdatesWorkerSyncExecutionOrderHistoryUsesOrderScope(t *testing.T) {
 	now := time.Date(2026, 7, 4, 10, 0, 0, 0, time.UTC)
 	source := &fakeOrderUpdateSource{
+		fees: []broker.OrderFeeSnapshot{{
+			BrokerOrderIDEx: "broker-ex-1", FeeAmount: new(2.5),
+		}},
 		history: []Order{{
 			AccountID: "ACC-1", TradingEnvironment: "SIMULATE", Market: "US",
-			BrokerOrderID: "broker-1", Status: "FILLED_ALL",
+			BrokerOrderID: "broker-1", BrokerOrderIDEx: new("broker-ex-1"), Status: "FILLED_ALL",
 		}},
 	}
 	execution := &fakeExecutionOrderUpdates{}
@@ -276,6 +308,12 @@ func TestOrderUpdatesWorkerSyncExecutionOrderHistoryUsesOrderScope(t *testing.T)
 	}
 	if got := execution.orders[0].metadata; got.SourceDetail != "broker.history" || got.UpdatedEventType != "BROKER_HISTORY_UPDATED" {
 		t.Fatalf("history metadata = %#v", got)
+	}
+	if source.feeCalls != 1 || len(source.feeOrderIDs) != 1 ||
+		len(source.feeOrderIDs[0]) != 1 || source.feeOrderIDs[0][0] != "broker-ex-1" ||
+		len(execution.fees) != 1 || execution.fees[0].FeeAmount == nil ||
+		*execution.fees[0].FeeAmount != 2.5 {
+		t.Fatalf("terminal fee reconciliation source=%#v sink=%#v", source.feeOrderIDs, execution.fees)
 	}
 }
 
@@ -492,7 +530,7 @@ func TestOrderUpdatesWorkerHelperBoundariesCoverNilAndReplacementPaths(t *testin
 		t.Fatalf("cached after remove = %#v ok=%v", cached, ok)
 	}
 
-	queries := BuildOrderUpdateQueries(nil, " hk ")
+	queries := BuildOrderUpdateQueries(nil, "futu", " hk ")
 	if len(queries) != 1 || queries[0].Market != "HK" || queries[0].TradingEnvironment != "SIMULATE" {
 		t.Fatalf("fallback queries = %#v", queries)
 	}

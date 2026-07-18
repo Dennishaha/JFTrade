@@ -6,10 +6,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	srv "github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 func TestTradingRouteHelpersWriteHTTPBoundaryErrors(t *testing.T) {
@@ -61,6 +63,42 @@ func TestTradingRouteHelpersWriteHTTPBoundaryErrors(t *testing.T) {
 		writeReadResult(ctx, nil, errors.New("backend unavailable"))
 		if recorder.Code != http.StatusInternalServerError || !strings.Contains(recorder.Body.String(), "BROKER_READ_FAILED") {
 			t.Fatalf("writeReadResult status=%d body=%s", recorder.Code, recorder.Body.String())
+		}
+	})
+
+	t.Run("read result preserves broker and snapshot retry semantics", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			err        error
+			statusCode int
+			retryAfter string
+		}{
+			{name: "unknown broker", err: srv.ErrBrokerNotFound, statusCode: http.StatusNotFound},
+			{
+				name:       "snapshot retry metadata",
+				err:        broker.NewSnapshotRateLimitError(1500*time.Millisecond, errors.New("quota exhausted")),
+				statusCode: http.StatusTooManyRequests,
+				retryAfter: "2",
+			},
+			{
+				name:       "snapshot retry default",
+				err:        broker.ErrSnapshotRateLimited,
+				statusCode: http.StatusTooManyRequests,
+				retryAfter: "1",
+			},
+		}
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				recorder := httptest.NewRecorder()
+				ctx, _ := gin.CreateTestContext(recorder)
+				ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/brokers/futu/quote", nil)
+
+				writeReadResult(ctx, nil, test.err)
+
+				if recorder.Code != test.statusCode || recorder.Header().Get("Retry-After") != test.retryAfter {
+					t.Fatalf("status=%d retry=%q body=%s", recorder.Code, recorder.Header().Get("Retry-After"), recorder.Body.String())
+				}
+			})
 		}
 	})
 }

@@ -157,7 +157,9 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Test cross-platform proto generators
-        run: go test ./cmd/generate-futu-proto ./cmd/generate-pineworker-proto ./cmd/internal/protogen -count=1 -timeout 120s
+        run: |
+          go test ./cmd/generate-futu-proto ./cmd/generate-pineworker-proto ./cmd/internal/protogen -count=1 -timeout 120s
+          go run ./cmd/generate-futu-proto -verify-repository
 
       - name: Validate cross-platform pnpm lockfile
         run: pnpm install --lockfile-only --frozen-lockfile

@@ -8,14 +8,23 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
 const mocks = vi.hoisted(() => ({
+  fallbackRefresh: vi.fn(),
   scheduleMarketSnapshotBackgroundRefresh: vi.fn(),
+  stopMarketSnapshotBackgroundRefresh: vi.fn(),
 }));
 
 vi.mock("../src/composables/marketDataSnapshotRefresh", () => ({
-  createMarketDataSnapshotRefresher: () => ({
-    scheduleMarketSnapshotBackgroundRefresh:
-      mocks.scheduleMarketSnapshotBackgroundRefresh,
-  }),
+  createMarketDataSnapshotRefresher: (options: {
+    fallbackRefresh: (...args: unknown[]) => Promise<unknown>;
+  }) => {
+    mocks.fallbackRefresh.mockImplementation(options.fallbackRefresh);
+    return {
+      scheduleMarketSnapshotBackgroundRefresh:
+        mocks.scheduleMarketSnapshotBackgroundRefresh,
+      stopMarketSnapshotBackgroundRefresh:
+        mocks.stopMarketSnapshotBackgroundRefresh,
+    };
+  },
 }));
 
 import { createMarketDataQueryController } from "../src/composables/marketDataQuery";
@@ -140,7 +149,7 @@ function createCandlesResult(
   };
 }
 
-function createController() {
+function createController(resolveBrokerId: () => string = () => "") {
   const state = {
     marketDataQueryMarket: ref(""),
     marketDataQuerySymbol: ref(""),
@@ -165,6 +174,7 @@ function createController() {
       const symbol = (input.symbol ?? "").trim().toUpperCase();
       return market === "" || symbol === "" ? null : { market, symbol };
     },
+    resolveBrokerId,
   });
 
   return {
@@ -185,7 +195,9 @@ function createDeferred<T>() {
 }
 
 afterEach(() => {
+  mocks.fallbackRefresh.mockReset();
   mocks.scheduleMarketSnapshotBackgroundRefresh.mockReset();
+  mocks.stopMarketSnapshotBackgroundRefresh.mockReset();
   vi.useRealTimers();
 });
 
@@ -297,10 +309,15 @@ describe("createMarketDataQueryController", () => {
     expect(state.marketSecurityDetails.value).toBeNull();
     expect(state.marketDataCandles.value).toBeNull();
     expect(state.isLoadingMarketDataQuery.value).toBe(false);
-    expect(mocks.scheduleMarketSnapshotBackgroundRefresh).toHaveBeenCalledTimes(1);
+    expect(mocks.scheduleMarketSnapshotBackgroundRefresh).toHaveBeenCalledTimes(2);
+    expect(mocks.scheduleMarketSnapshotBackgroundRefresh).toHaveBeenLastCalledWith({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+    });
   });
 
-  it("deduplicates identical tick queries, applies tick defaults, and runs the background refresh timer", async () => {
+  it("deduplicates identical tick queries and leaves background refresh to the live channel", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-03T12:00:00.000Z"));
     const { controller, state, fetchEnvelope } = createController();
@@ -325,9 +342,7 @@ describe("createMarketDataQueryController", () => {
             at: "2026-07-03T11:59:59.000Z",
           },
         ]),
-      )
-      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 201))
-      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"));
+      );
 
     const first = controller.loadQuery();
     const second = controller.loadQuery();
@@ -347,13 +362,13 @@ describe("createMarketDataQueryController", () => {
     expect(state.marketDataQueryError.value).toBe("security lagging");
     expect(state.isLoadingMarketDataQuery.value).toBe(false);
 
-    await vi.advanceTimersByTimeAsync(1000);
-
-    expect(fetchEnvelope).toHaveBeenCalledTimes(5);
-    expect(state.marketDataSnapshot.value?.snapshot?.price).toBe(201);
-    expect(state.marketSecurityDetails.value?.request.instrumentId).toBe(
-      "US.AAPL",
-    );
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetchEnvelope).toHaveBeenCalledTimes(3);
+    expect(mocks.scheduleMarketSnapshotBackgroundRefresh).toHaveBeenLastCalledWith({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+    });
   });
 
   it("preserves existing results when appending older history and updates matching tick events", async () => {
@@ -526,7 +541,7 @@ describe("createMarketDataQueryController", () => {
     expect(state.marketDataQueryError.value).toBe("");
   });
 
-  it("keeps refresh timers single-flight and discards background data after a query target changes", async () => {
+  it("discards a disconnected-channel fallback response after the query target changes", async () => {
     vi.useFakeTimers();
     const { controller, state, fetchEnvelope } = createController();
     state.marketDataQueryMarket.value = "US";
@@ -539,43 +554,127 @@ describe("createMarketDataQueryController", () => {
     fetchEnvelope
       .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 200))
       .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
-      .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1m", []))
-      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 201))
-      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
       .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1m", []));
 
     await controller.loadQuery();
-    await controller.loadQuery({ preserveExisting: true });
-    expect(fetchEnvelope).toHaveBeenCalledTimes(6);
-
-    state.activeMarketDataInstrumentId.value = "HK.00700";
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(fetchEnvelope).toHaveBeenCalledTimes(6);
+    expect(fetchEnvelope).toHaveBeenCalledTimes(3);
 
     const backgroundSnapshot = createDeferred<MarketDataSnapshotQueryResult>();
     const backgroundSecurity = createDeferred<MarketSecurityDetailsQueryResult>();
     fetchEnvelope
-      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 202))
-      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
-      .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1m", []))
       .mockReturnValueOnce(backgroundSnapshot.promise)
       .mockReturnValueOnce(backgroundSecurity.promise);
-    state.marketDataQueryMarket.value = "US";
-    state.marketDataQuerySymbol.value = "AAPL";
-    state.marketDataQueryPeriod.value = "1m";
-    state.activeMarketDataInstrumentId.value = "US.AAPL";
-    await controller.loadQuery();
-    vi.advanceTimersByTime(1000);
-    await Promise.resolve();
+    const fallback = mocks.fallbackRefresh({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+    });
 
     state.activeMarketDataInstrumentId.value = "HK.00700";
     backgroundSnapshot.resolve(createSnapshotResult("US", "AAPL", 999));
     backgroundSecurity.resolve(createSecurityDetailsResult("US", "AAPL"));
-    await Promise.resolve();
-    await Promise.resolve();
+    await fallback;
 
     expect(state.marketDataSnapshot.value?.snapshot?.price).not.toBe(999);
     expect(state.activeMarketDataInstrumentId.value).toBe("HK.00700");
+    controller.dispose();
+    expect(mocks.stopMarketSnapshotBackgroundRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("refreshes snapshots and security details through the disconnected-channel fallback", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-03T12:30:00.000Z"));
+    const { state, fetchEnvelope } = createController(() => "futu");
+    state.activeMarketDataInstrumentId.value = "US.AAPL";
+    fetchEnvelope
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 205))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"));
+
+    await expect(
+      mocks.fallbackRefresh({
+        market: "US",
+        symbol: "AAPL",
+        instrumentId: "US.AAPL",
+      }),
+    ).resolves.toEqual({});
+
+    expect(fetchEnvelope.mock.calls.map(([path]) => path)).toEqual([
+      "/api/v1/market-data/snapshots/US/AAPL?refresh=true&brokerId=futu",
+      "/api/v1/market-data/securities/US/AAPL?brokerId=futu",
+    ]);
+    expect(state.marketDataSnapshot.value?.snapshot?.price).toBe(205);
+    expect(state.marketSecurityDetails.value?.request.instrumentId).toBe(
+      "US.AAPL",
+    );
+    expect(state.lastDataRefreshedAt.value).toBe(1783081800000);
+  });
+
+  it("propagates the longest valid fallback retry delay", async () => {
+    const { state, fetchEnvelope } = createController();
+    state.activeMarketDataInstrumentId.value = "US.AAPL";
+    fetchEnvelope
+      .mockRejectedValueOnce({ retryAfterMs: 2_500 })
+      .mockRejectedValueOnce({ retryAfterMs: Number.NaN });
+
+    await expect(
+      mocks.fallbackRefresh({
+        market: "US",
+        symbol: "AAPL",
+        instrumentId: "US.AAPL",
+      }),
+    ).resolves.toEqual({ retryAfterMs: 2_500 });
+    expect(state.marketDataSnapshot.value).toBeNull();
+    expect(state.marketSecurityDetails.value).toBeNull();
+  });
+
+  it("updates a matching live tick without scheduling an incomplete refresh target", () => {
+    const { controller, state } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.activeMarketDataInstrumentId.value = "";
+
+    controller.applyTickEvent({
+      type: "market-data.tick",
+      at: "2026-07-03T12:30:03.000Z",
+      brokerId: "futu",
+      instrument: {
+        market: "US",
+        symbol: "AAPL",
+        instrumentId: "US.AAPL",
+      },
+      snapshot: {
+        price: 203,
+        bid: 202.9,
+        ask: 203.1,
+        volume: 1030,
+        turnover: 387000,
+        at: "2026-07-03T12:30:03.000Z",
+      },
+      source: "test",
+    });
+
+    expect(state.marketDataSnapshot.value?.snapshot?.price).toBe(203);
+    expect(mocks.scheduleMarketSnapshotBackgroundRefresh).toHaveBeenCalledWith(
+      null,
+    );
+  });
+
+  it("skips fallback reads when the provider changes before dispatch", async () => {
+    let providerRead = 0;
+    const { state, fetchEnvelope } = createController(() =>
+      providerRead++ === 0 ? "alpha" : "beta",
+    );
+    state.activeMarketDataInstrumentId.value = "US.AAPL";
+
+    await expect(
+      mocks.fallbackRefresh({
+        market: "US",
+        symbol: "AAPL",
+        instrumentId: "US.AAPL",
+      }),
+    ).resolves.toEqual({});
+    expect(fetchEnvelope).not.toHaveBeenCalled();
   });
 
   it("does not surface a synchronous setup failure after the user has already switched instruments", async () => {
@@ -595,5 +694,51 @@ describe("createMarketDataQueryController", () => {
     expect(state.activeMarketDataInstrumentId.value).toBe("HK.00700");
     expect(state.marketDataQueryError.value).toBe("");
     expect(state.isLoadingMarketDataQuery.value).toBe(false);
+  });
+
+  it("routes all workspace reads through the selected broker and invalidates old provider data", async () => {
+    let brokerId = "alpha";
+    const { controller, state, fetchEnvelope } = createController(
+      () => brokerId,
+    );
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataQueryLimit.value = 2;
+    fetchEnvelope
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 200))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
+      .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1m", []))
+      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 201))
+      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"))
+      .mockResolvedValueOnce(createCandlesResult("US", "AAPL", "1m", []));
+
+    await controller.loadQuery();
+    expect(fetchEnvelope.mock.calls.slice(0, 3).map(([path]) => path)).toEqual(
+      expect.arrayContaining([
+        "/api/v1/market-data/snapshots/US/AAPL?refresh=true&brokerId=alpha",
+        "/api/v1/market-data/securities/US/AAPL?brokerId=alpha",
+        expect.stringContaining(
+          "/api/v1/market-data/candles/US/AAPL?period=1m",
+        ),
+      ]),
+    );
+    expect(
+      String(fetchEnvelope.mock.calls[2]?.[0]),
+    ).toContain("brokerId=alpha");
+
+    brokerId = "beta";
+    controller.invalidateProviderSelection();
+    expect(state.marketDataSnapshot.value).toBeNull();
+    expect(state.marketSecurityDetails.value).toBeNull();
+    expect(state.marketDataCandles.value).toBeNull();
+    expect(state.lastDataRefreshedAt.value).toBe(0);
+    await controller.loadQuery();
+    expect(
+      fetchEnvelope.mock.calls.slice(3).every(([path]) =>
+        String(path).includes("brokerId=beta"),
+      ),
+    ).toBe(true);
+    expect(state.marketDataSnapshot.value?.snapshot?.price).toBe(201);
   });
 });

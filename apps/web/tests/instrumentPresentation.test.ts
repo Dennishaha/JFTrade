@@ -69,6 +69,7 @@ describe("instrumentPresentation", () => {
     expect(formatInstrumentIdentityText({ market: "US", code: "AAPL" })).toBe(
       "US.AAPL",
     );
+    expect(formatInstrumentIdentityText({})).toBe("未设置");
   });
 
   it("labels provider security types and maps backtest fee categories", () => {

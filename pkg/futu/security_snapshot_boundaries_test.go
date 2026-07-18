@@ -5,6 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 )
@@ -103,6 +104,10 @@ func TestSecurityDetailsFromSnapshotMapsDerivativeAndMarketExtensionData(t *test
 	if details.SecurityType != "Drvt" || details.SessionStatus != "Normal" || details.CurrentPrice.String() != "101.5" {
 		t.Fatalf("basic mapped fields = %#v", details)
 	}
+	if details.ProductClass != broker.ProductClassOption ||
+		details.MarketSegment != broker.MarketSegmentDerivatives {
+		t.Fatalf("product identity = %s/%s", details.ProductClass, details.MarketSegment)
+	}
 	if details.AfterMarket == nil || details.AfterMarket.Volume == nil || *details.AfterMarket.Volume != 500 || !details.AfterMarket.Price.Equal(decimal.NewFromFloat(102.0)) {
 		t.Fatalf("after-market quote = %#v", details.AfterMarket)
 	}
@@ -149,6 +154,10 @@ func TestSecurityDetailsFromSnapshotHandlesMissingBasicAndUnknownEnums(t *testin
 	}
 	if details.SecurityType != "" || details.SessionStatus != "" {
 		t.Fatalf("unknown enum names = securityType %q status %q", details.SecurityType, details.SessionStatus)
+	}
+	if details.ProductClass != broker.ProductClassUnknown ||
+		details.MarketSegment != broker.MarketSegmentSecurities {
+		t.Fatalf("unknown product identity = %s/%s", details.ProductClass, details.MarketSegment)
 	}
 }
 

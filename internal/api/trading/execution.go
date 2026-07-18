@@ -25,12 +25,89 @@ type internalOrderURI struct {
 }
 
 func RegisterExecutionRoutes(api *gin.RouterGroup, service *srv.Service) {
+	executionProductRoutesDocs()
+	executionComboPreviewDocs()
+	executionComboPlaceDocs()
+	executionComboCancelDocs()
+	executionBuyingPowerDocs()
 	api.GET("/execution/orders", handleExecutionOrders(service))
 	api.POST("/execution/orders", handleExecutionPlace(service))
 	api.POST("/execution/orders/preview", handleExecutionPreview(service))
+	api.POST("/execution/previews", handleExecutionPreview(service))
+	api.POST("/execution/combos/previews", handleExecutionComboPreview(service))
+	api.POST("/execution/combos", handleExecutionComboPlace(service))
+	api.POST("/execution/combos/:internalOrderId/cancel", handleExecutionComboCancel(service))
+	api.POST("/execution/buying-power", handleExecutionBuyingPower(service))
 	api.GET("/execution/orders/:internalOrderId", handleExecutionOrderDetails(service))
 	api.GET("/execution/orders/:internalOrderId/events", handleExecutionEvents(service))
 	api.POST("/execution/orders/:internalOrderId/cancel", handleExecutionCancel(service))
+}
+
+func handleExecutionBuyingPower(service *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var request broker.ProductRuleQuery
+		if err := c.ShouldBindJSON(&request); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid buying-power request")
+			return
+		}
+		result, err := service.PreviewExecutionBuyingPower(c.Request.Context(), request)
+		if err != nil {
+			status, code := executionCommandError(err)
+			httpserver.WriteError(c, status, code, err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+func handleExecutionComboPreview(service *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var request srv.ExecutionComboRequest
+		if err := c.ShouldBindJSON(&request); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid combo preview payload")
+			return
+		}
+		result, err := service.PreviewExecutionCombo(c.Request.Context(), request)
+		if err != nil {
+			status, code := executionCommandError(err)
+			httpserver.WriteError(c, status, code, err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+func handleExecutionComboPlace(service *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var request srv.ExecutionComboRequest
+		if err := c.ShouldBindJSON(&request); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid combo order payload")
+			return
+		}
+		result, err := service.CreateExecutionCombo(c.Request.Context(), request)
+		if err != nil {
+			status, code := executionCommandError(err)
+			httpserver.WriteError(c, status, code, err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+func handleExecutionComboCancel(service *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, ok := bindInternalOrderID(c)
+		if !ok {
+			return
+		}
+		result, err := service.CancelExecutionCombo(c.Request.Context(), id)
+		if err != nil {
+			status, code := executionCommandError(err)
+			httpserver.WriteError(c, status, code, err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
 }
 
 func handleExecutionOrderDetails(service *srv.Service) gin.HandlerFunc {
@@ -113,7 +190,7 @@ func handleExecutionPreview(service *srv.Service) gin.HandlerFunc {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid execution order payload")
 			return
 		}
-		result, err := service.PreviewExecutionOrder(request)
+		result, err := service.PreviewExecutionOrderContext(c.Request.Context(), request)
 		if err != nil {
 			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 			return
@@ -174,3 +251,68 @@ func executionCommandError(err error) (int, string) {
 	}
 	return http.StatusBadGateway, "BROKER_COMMAND_FAILED"
 }
+
+// executionProductRoutesDocs godoc
+// @Summary 全产品组合交易、预检和购买力
+// @Tags execution
+// @Accept json
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
+// @Failure 502 {object} httpserver.Envelope
+// @Router /api/v1/execution/previews [post]
+func executionProductRoutesDocs() {}
+
+// executionComboPreviewDocs godoc
+// @Summary 预检组合订单
+// @Description 锁定券商、账户、组合腿和能力版本，返回组合风险与账户购买力影响，不提交订单。
+// @Tags execution
+// @Accept json
+// @Produce json
+// @Param request body srv.ExecutionComboRequest true "组合预检请求"
+// @Success 200 {object} httpserver.Envelope{data=srv.ExecutionComboPreview}
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
+// @Failure 502 {object} httpserver.Envelope
+// @Router /api/v1/execution/combos/previews [post]
+func executionComboPreviewDocs() {}
+
+// executionComboPlaceDocs godoc
+// @Summary 提交已预检的组合订单
+// @Description 仅接受未过期且与当前请求完全匹配的 preview，使用稳定 clientOrderId 保证幂等。
+// @Tags execution
+// @Accept json
+// @Produce json
+// @Param request body srv.ExecutionComboRequest true "组合下单请求"
+// @Success 200 {object} httpserver.Envelope{data=srv.ExecutionCommandResponse}
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
+// @Failure 502 {object} httpserver.Envelope
+// @Router /api/v1/execution/combos [post]
+func executionComboPlaceDocs() {}
+
+// executionComboCancelDocs godoc
+// @Summary 撤销组合订单
+// @Tags execution
+// @Produce json
+// @Param internalOrderId path string true "父组合订单内部编号"
+// @Success 200 {object} httpserver.Envelope{data=srv.ExecutionCommandResponse}
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
+// @Failure 502 {object} httpserver.Envelope
+// @Router /api/v1/execution/combos/{internalOrderId}/cancel [post]
+func executionComboCancelDocs() {}
+
+// executionBuyingPowerDocs godoc
+// @Summary 查询产品订单购买力
+// @Tags execution
+// @Accept json
+// @Produce json
+// @Param request body broker.ProductRuleQuery true "购买力查询"
+// @Success 200 {object} httpserver.Envelope{data=broker.ProductRuleResult}
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 409 {object} httpserver.Envelope
+// @Failure 502 {object} httpserver.Envelope
+// @Router /api/v1/execution/buying-power [post]
+func executionBuyingPowerDocs() {}

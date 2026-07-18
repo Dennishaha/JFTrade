@@ -1,0 +1,22 @@
+{
+  "workspace.root": { "route": "/workspace" },
+  "workspace.chart": { "route": "/workspace", "tab": "chart" },
+  "workspace.options": { "route": "/workspace", "tab": "options" },
+  "workspace.warrants": { "route": "/workspace", "tab": "warrants" },
+  "workspace.news": { "route": "/workspace", "tab": "news" },
+  "workspace.company": { "route": "/workspace", "tab": "company" },
+  "workspace.contract": { "route": "/workspace", "tab": "contract" },
+  "workspace.depth": { "route": "/workspace", "tab": "depth" },
+  "workspace.ticks": { "route": "/workspace", "tab": "ticks" },
+  "workspace.rules": { "route": "/workspace", "tab": "rules" },
+  "workspace.order": { "route": "/workspace", "region": "order-entry" },
+  "research.market": { "route": "/research", "section": "market" },
+  "research.screens": { "route": "/research", "section": "screens" },
+  "research.options": { "route": "/research", "section": "options" },
+  "research.calendar": { "route": "/research", "section": "calendar" },
+  "research.macro": { "route": "/research", "section": "macro" },
+  "research.institutions": { "route": "/research", "section": "institutions" },
+  "research.industries": { "route": "/research", "section": "industries" },
+  "research.prediction": { "route": "/research", "section": "prediction" },
+  "watchlist.root": { "route": "/watchlist" }
+}

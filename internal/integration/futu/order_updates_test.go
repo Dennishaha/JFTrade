@@ -77,12 +77,17 @@ func TestOrderUpdatesAdapterConvertsPushesAndStopsOnce(t *testing.T) {
 	})
 	exchange.fillHandler(header, &trdcommonpb.OrderFill{
 		OrderID: new(uint64(9)), FillID: new(uint64(10)), Code: new("HK.00700"), Qty: new(float64(5)),
+		Price: new(float64(2)), Status: new(int32(trdcommonpb.OrderFillStatus_OrderFillStatus_Payout)),
 		TrdMarket: new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 	})
 	if len(capture.orders) != 1 || capture.orders[0].BrokerOrderID != "9" || capture.orders[0].Market != "HK" {
 		t.Fatalf("orders = %#v", capture.orders)
 	}
-	if len(capture.fills) != 1 || capture.fills[0].BrokerFillID != "10" {
+	if len(capture.fills) != 1 ||
+		capture.fills[0].BrokerID != "futu" ||
+		capture.fills[0].BrokerFillID != "10" ||
+		capture.fills[0].Payout == nil ||
+		*capture.fills[0].Payout != 10 {
 		t.Fatalf("fills = %#v", capture.fills)
 	}
 	if exchange.connectCalls != 1 || exchange.subscribeCalls != 1 || len(exchange.accountIDs) != 1 || exchange.accountIDs[0] != 1001 {

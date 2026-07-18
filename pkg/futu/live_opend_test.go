@@ -3,11 +3,13 @@ package futu
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
@@ -120,6 +122,140 @@ func TestLiveOpenDProto108Contract(t *testing.T) {
 		t.Fatalf("QueryOrderBook returned no HK.00700 levels: %#v", book)
 	}
 	t.Logf("HK.00700 snapshotPrice=%v orderBookBids=%d asks=%d", snapshots[0].GetBasic().GetCurPrice(), len(book.BidList), len(book.AskList))
+}
+
+func TestLiveOpenDOptionBABAReadClosure(t *testing.T) {
+	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
+		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	defer cancel()
+	exchange := NewExchange(DefaultOpenDAddr)
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
+	adapter := NewBrokerAdapter(exchange).(*futuAdapter)
+
+	snapshot, err := adapter.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{
+		Symbols: []string{"US.BABA"},
+	})
+	if err != nil || snapshot == nil || len(snapshot.Snapshots) != 1 {
+		t.Fatalf("BABA root batch snapshot = %#v, %v", snapshot, err)
+	}
+	chain, err := adapter.QueryDerivativeCatalog(ctx, broker.FeatureQuery{
+		Market: "US", InstrumentID: "US.BABA",
+		FeatureID: broker.FeatureOptionChain,
+		Params:    map[string]any{"operation": "chain"},
+	})
+	if err != nil || len(chain.Entries) == 0 {
+		t.Fatalf("BABA option chain = %#v, %v", chain, err)
+	}
+	contractID := firstLiveOptionInstrumentID(chain.Entries)
+	if contractID == "" {
+		t.Fatalf("BABA option chain returned no contract: %#v", chain.Entries[0])
+	}
+
+	for _, operation := range []string{
+		"underlying_overview", "historical_volatility",
+	} {
+		result, queryErr := adapter.QueryOptionAnalytics(ctx, broker.FeatureQuery{
+			Market: "US", InstrumentID: "US.BABA",
+			FeatureID: broker.FeatureOptionAnalysis,
+			Params:    map[string]any{"operation": operation},
+		})
+		if queryErr != nil || result == nil {
+			t.Fatalf("BABA underlying %s = %#v, %v", operation, result, queryErr)
+		}
+	}
+	for _, operation := range []string{"quote", "volatility", "exercise_probability"} {
+		result, queryErr := adapter.QueryOptionAnalytics(ctx, broker.FeatureQuery{
+			Market: "US", InstrumentID: contractID,
+			FeatureID: broker.FeatureOptionAnalysis,
+			Params:    map[string]any{"operation": operation},
+		})
+		if queryErr != nil || result == nil {
+			t.Fatalf("BABA contract %s %s = %#v, %v", contractID, operation, result, queryErr)
+		}
+	}
+
+	eventResults := make(map[string]*broker.FeatureResult)
+	for _, operation := range []string{"unusual", "zero_dte", "earnings"} {
+		result, queryErr := adapter.QueryOptionAnalytics(ctx, broker.FeatureQuery{
+			Market: "US", InstrumentID: "US.BABA",
+			FeatureID: broker.FeatureOptionEvents,
+			Params: map[string]any{
+				"operation": operation, "underlyingProductClass": "equity",
+			},
+		})
+		if queryErr != nil || result == nil {
+			t.Fatalf("BABA event %s = %#v, %v", operation, result, queryErr)
+		}
+		eventResults[operation] = result
+	}
+	for _, strategy := range []string{"covered_call", "cash_secured_put"} {
+		result, queryErr := adapter.QueryOptionAnalytics(ctx, broker.FeatureQuery{
+			Market: "US", InstrumentID: "US.BABA",
+			FeatureID: broker.FeatureOptionEvents,
+			Params: map[string]any{
+				"operation": "seller", "sellerStrategy": strategy,
+				"underlyingProductClass": "equity",
+			},
+		})
+		if queryErr != nil || result == nil {
+			t.Fatalf("BABA seller %s = %#v, %v", strategy, result, queryErr)
+		}
+	}
+
+	zeroDte := eventResults["zero_dte"]
+	if zeroDte != nil && len(zeroDte.Entries) > 0 {
+		contextValue, ok := zeroDte.Entries[0]["drilldownContext"].(map[string]any)
+		if !ok {
+			t.Fatalf("BABA 0DTE context = %#v", zeroDte.Entries[0])
+		}
+		result, queryErr := adapter.QueryOptionAnalytics(ctx, broker.FeatureQuery{
+			Market: "US", InstrumentID: "US.BABA",
+			FeatureID: broker.FeatureOptionEvents,
+			Params: map[string]any{
+				"operation":       "zero_dte_contract",
+				"expiryTimestamp": contextValue["expiryTimestamp"],
+				"chainLocator":    contextValue["chain"],
+				"sort":            "volume",
+				"optionType":      "all",
+			},
+		})
+		if queryErr != nil || result == nil {
+			t.Fatalf("BABA 0DTE contracts = %#v, %v", result, queryErr)
+		}
+	}
+	t.Logf(
+		"BABA snapshot=%d expiries=%d contract=%s unusual=%d zeroDTE=%d earnings=%d",
+		len(snapshot.Snapshots), len(chain.Entries), contractID,
+		len(eventResults["unusual"].Entries), len(eventResults["zero_dte"].Entries),
+		len(eventResults["earnings"].Entries),
+	)
+}
+
+func firstLiveOptionInstrumentID(entries []map[string]any) string {
+	for _, expiry := range entries {
+		rows, ok := expiry["option"].([]any)
+		if !ok {
+			continue
+		}
+		for _, rawRow := range rows {
+			row, ok := rawRow.(map[string]any)
+			if !ok {
+				continue
+			}
+			for _, sideName := range []string{"call", "put"} {
+				side, _ := row[sideName].(map[string]any)
+				basic, _ := side["basic"].(map[string]any)
+				security, _ := basic["security"].(map[string]any)
+				instrumentID := strings.ToUpper(stringValue(security["instrumentId"]))
+				if strings.HasPrefix(instrumentID, "US.") {
+					return instrumentID
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func liveCurrentConnectionSubscriptionCount(info interface {

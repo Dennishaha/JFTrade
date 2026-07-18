@@ -100,6 +100,38 @@ describe("apiClient", () => {
     } satisfies Partial<ApiClientError>);
   });
 
+  it("exposes Retry-After on rate-limited API errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(
+        JSON.stringify({
+          ok: false,
+          error: {
+            code: "MARKET_SNAPSHOT_RATE_LIMITED",
+            message: "行情快照请求过于频繁",
+          },
+          timestamp: "2026-07-18T00:00:00Z",
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": "4.25",
+          },
+        },
+      )),
+    );
+
+    await expect(
+      fetchEnvelope("/api/v1/market-data/snapshots/US/AAPL"),
+    ).rejects.toMatchObject({
+      name: "ApiClientError",
+      code: "MARKET_SNAPSHOT_RATE_LIMITED",
+      status: 429,
+      retryAfterMs: 4_250,
+    } satisfies Partial<ApiClientError>);
+  });
+
   it("logs browser users in with a Web password payload", async () => {
     const fetchMock = vi.fn(
       async () =>

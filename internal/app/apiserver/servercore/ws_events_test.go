@@ -196,8 +196,7 @@ func TestLiveWebSocketInitialMarketTickRefreshesObservedAt(t *testing.T) {
 		t.Fatalf("subscribe live websocket: %v", err)
 	}
 
-	_ = readLiveWebSocketEvent(t, conn)
-	event := readLiveWebSocketEvent(t, conn)
+	event := readLiveWebSocketEventOfType(t, conn, "market-data.tick")
 	payload := liveWebSocketPayload(t, event, "market-data.tick")
 	if event["source"] != "market-data" {
 		t.Fatalf("unexpected event type: %+v", event)
@@ -239,8 +238,7 @@ func TestLiveWebSocketSendsConsoleRefresh(t *testing.T) {
 		t.Fatalf("subscribe live websocket: %v", err)
 	}
 
-	_ = readLiveWebSocketEvent(t, conn)
-	event := readLiveWebSocketEvent(t, conn)
+	event := readLiveWebSocketEventOfType(t, conn, "console.refresh")
 	payload := liveWebSocketPayload(t, event, "console.refresh")
 	if event["source"] != "system" {
 		t.Fatalf("unexpected console refresh event: %+v", event)
@@ -272,6 +270,22 @@ func readLiveWebSocketEvent(t *testing.T, conn *websocket.Conn) map[string]any {
 		t.Fatalf("ReadJSON: %v", err)
 	}
 	return event
+}
+
+func readLiveWebSocketEventOfType(
+	t *testing.T,
+	conn *websocket.Conn,
+	eventType string,
+) map[string]any {
+	t.Helper()
+	for range 4 {
+		event := readLiveWebSocketEvent(t, conn)
+		if event["type"] == eventType {
+			return event
+		}
+	}
+	t.Fatalf("live websocket did not emit %s", eventType)
+	return nil
 }
 
 func liveWebSocketPayload(t testing.TB, event map[string]any, eventType string) map[string]any {

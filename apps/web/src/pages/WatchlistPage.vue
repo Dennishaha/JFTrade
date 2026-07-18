@@ -115,7 +115,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="watchlist-page">
+  <div class="watchlist-page" data-capability-surface="watchlist.root">
     <header class="watchlist-page__header">
       <div>
         <span class="watchlist-page__eyebrow">JFTrade Watchlist</span>

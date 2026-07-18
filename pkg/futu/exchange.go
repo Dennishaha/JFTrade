@@ -84,6 +84,9 @@ type Exchange struct {
 
 	marginRatioCacheMu sync.RWMutex
 	marginRatioCache   map[string]marginRatioCacheEntry
+
+	securitySnapshotCoordinatorMu sync.Mutex
+	securitySnapshots             *securitySnapshotCoordinator
 }
 
 // NewExchange constructs an Exchange. It does not dial OpenD: bbgo expects
@@ -97,11 +100,24 @@ func NewExchange(addr string) *Exchange {
 // configuration.
 func NewExchangeWithConfig(cfg opend.Config) *Exchange {
 	return &Exchange{
-		addr:             cfg.Addr,
-		webSocketKey:     cfg.WebSocketKey,
-		subscriptions:    newSubscriptionRegistry(),
-		marginRatioCache: make(map[string]marginRatioCacheEntry),
+		addr:              cfg.Addr,
+		webSocketKey:      cfg.WebSocketKey,
+		subscriptions:     newSubscriptionRegistry(),
+		marginRatioCache:  make(map[string]marginRatioCacheEntry),
+		securitySnapshots: newSecuritySnapshotCoordinator(),
 	}
+}
+
+func (e *Exchange) snapshotCoordinator() *securitySnapshotCoordinator {
+	if e == nil {
+		return nil
+	}
+	e.securitySnapshotCoordinatorMu.Lock()
+	defer e.securitySnapshotCoordinatorMu.Unlock()
+	if e.securitySnapshots == nil {
+		e.securitySnapshots = newSecuritySnapshotCoordinator()
+	}
+	return e.securitySnapshots
 }
 
 // Client exposes the underlying OpenD client for advanced (non-bbgo) callers.

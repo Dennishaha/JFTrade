@@ -43,8 +43,8 @@ describe("SettingsAppearanceSection", () => {
       [{ downColor: "#ff0000" }],
       [{ downColor: "#992211" }],
     ]);
-    expect(wrapper.get(".mt-5.grid.gap-3").attributes("style")).toContain("--tv-up: #15803d");
-    expect(wrapper.get(".mt-5.grid.gap-3").attributes("style")).toContain("--tv-down: #b91c1c");
+    expect(wrapper.get(".mt-5.grid.gap-3").attributes("style")).toContain("--tv-price-up: #15803d");
+    expect(wrapper.get(".mt-5.grid.gap-3").attributes("style")).toContain("--tv-price-down: #b91c1c");
   });
 
   it("resets preferences and ignores malformed input events without a field target", async () => {

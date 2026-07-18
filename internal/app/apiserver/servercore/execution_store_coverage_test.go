@@ -51,7 +51,7 @@ func TestExecutionStoreRemainingSnapshotIdentityAndFillDefaults(t *testing.T) {
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	fromFill := brokerOrderSummaryFromFill("exec-fill", "", broker.OrderFillSnapshot{}, now)
-	if fromFill.BrokerID != "futu" || fromFill.Status != trdsrv.OrderStatusPartiallyFilled {
+	if fromFill.BrokerID != "" || fromFill.Status != trdsrv.OrderStatusPartiallyFilled {
 		t.Fatalf("fill defaults = %#v", fromFill)
 	}
 
@@ -67,6 +67,64 @@ func TestExecutionStoreRemainingSnapshotIdentityAndFillDefaults(t *testing.T) {
 	applyBrokerOrderFill(&fillTarget, fill, now)
 	if fillTarget.BrokerOrderIDEx == nil || *fillTarget.BrokerOrderIDEx != ex || fillTarget.SubmittedAt == nil || fillTarget.Source != "broker" || fillTarget.SourceDetail != "broker.fill" {
 		t.Fatalf("applied fill defaults = %#v", fillTarget)
+	}
+}
+
+func TestExecutionStorePersistsParentBrokerFeesWithoutInventingLegAllocation(t *testing.T) {
+	store := newExecutionOrderStore()
+	order := store.recordPlacedOrder(executionPlacedOrderRecord{
+		BrokerID: "coverage", BrokerOrderID: "101", BrokerOrderIDEx: "ORDER-EX-101",
+		TradingEnvironment: "SIMULATE", AccountID: "account", Market: "US",
+		Status: "FILLED_ALL", OrderKind: broker.OrderKindOptionCombo,
+		ProductClass: broker.ProductClassOption,
+		Legs: []broker.OrderLegIntent{{
+			InstrumentID: "US.AAPL260717C00200000",
+			ProductClass: broker.ProductClassOption,
+			Side:         "BUY", Ratio: 1,
+		}},
+	})
+	updated, event, changed := store.recordBrokerOrderFee("coverage", broker.OrderFeeSnapshot{
+		AccountID: "account", TradingEnvironment: "SIMULATE", Market: "US",
+		BrokerOrderIDEx: "ORDER-EX-101",
+		FeeItems: []broker.OrderFeeItemSnapshot{
+			{Title: "commission", Value: 1.25},
+			{Title: "platform", Value: 0.75},
+		},
+	})
+	if !changed || event == nil || event.EventType != "BROKER_ORDER_FEES_UPDATED" ||
+		updated.InternalOrderID != order.InternalOrderID ||
+		updated.Fees == nil || *updated.Fees != 2 {
+		t.Fatalf("parent fee update = %#v event=%#v changed=%v", updated, event, changed)
+	}
+	if len(updated.Legs) != 1 || updated.Legs[0].Fees != nil {
+		t.Fatalf("broker parent fee was incorrectly allocated to legs = %#v", updated.Legs)
+	}
+	if _, duplicateEvent, duplicateChanged := store.recordBrokerOrderFee("coverage", broker.OrderFeeSnapshot{
+		AccountID: "account", TradingEnvironment: "SIMULATE", Market: "US",
+		BrokerOrderIDEx: "ORDER-EX-101", FeeAmount: new(2.0),
+	}); duplicateChanged || duplicateEvent != nil {
+		t.Fatalf("duplicate fee update changed=%v event=%#v", duplicateChanged, duplicateEvent)
+	}
+}
+
+func TestBrokerSnapshotDoesNotDowngradePreviewLockedProduct(t *testing.T) {
+	summary := executionOrderSummaryResponse{
+		OrderKind:    broker.OrderKindSingle,
+		ProductClass: broker.ProductClassOption,
+		QuantityMode: broker.QuantityModeContracts,
+	}
+	changed := applyBrokerOrderSnapshotIdentity(&summary, broker.OrderSnapshot{
+		OrderKind:    broker.OrderKindSingle,
+		ProductClass: broker.ProductClassUnknown,
+		QuantityMode: broker.QuantityModeUnits,
+		Market:       "US",
+	})
+	if !changed {
+		t.Fatal("market update should still be applied")
+	}
+	if summary.ProductClass != broker.ProductClassOption ||
+		summary.QuantityMode != broker.QuantityModeContracts {
+		t.Fatalf("preview-locked product was downgraded: %#v", summary)
 	}
 }
 

@@ -94,7 +94,7 @@ const palette = computed(() =>
         macdNegative: hexToRgba(directionalColors.value.downColor, 0.65),
       }
     : {
-        bg: "#0f172a",
+        bg: "#1a1a1a",
         text: "#cbd5e1",
         grid: "rgba(148, 163, 184, 0.08)",
         border: "rgba(148, 163, 184, 0.16)",

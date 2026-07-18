@@ -60,13 +60,13 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 	}
 	fillNotificationFound := false
 	for _, note := range server.liveNotificationsAfter(0) {
-		if note.Title == "Futu 成交成功" {
+		if note.Title == "FUTU 成交成功" {
 			fillNotificationFound = true
 			break
 		}
 	}
 	if !fillNotificationFound {
-		t.Fatalf("expected Futu 成交成功 notification, got %#v", server.liveNotificationsAfter(0))
+		t.Fatalf("expected broker fill notification, got %#v", server.liveNotificationsAfter(0))
 	}
 
 	placedCancel := server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
@@ -114,13 +114,13 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 	}
 	cancelNotificationFound := false
 	for _, note := range server.liveNotificationsAfter(0) {
-		if note.Title == "Futu 撤单成功" {
+		if note.Title == "FUTU 撤单成功" {
 			cancelNotificationFound = true
 			break
 		}
 	}
 	if !cancelNotificationFound {
-		t.Fatalf("expected Futu 撤单成功 notification, got %#v", server.liveNotificationsAfter(0))
+		t.Fatalf("expected broker cancel notification, got %#v", server.liveNotificationsAfter(0))
 	}
 }
 

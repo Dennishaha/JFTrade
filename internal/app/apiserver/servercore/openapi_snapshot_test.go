@@ -7,9 +7,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 const openapiBaselinePath = "../../../../tests/fixtures/openapi-baseline.json"
@@ -131,6 +134,32 @@ func TestOpenAPICoversRegisteredAPIRoutes(t *testing.T) {
 	sort.Strings(undocumented)
 	if len(undocumented) > 0 {
 		t.Fatalf("registered API routes missing from OpenAPI:\n%s", strings.Join(undocumented, "\n"))
+	}
+}
+
+func TestCapabilityCatalogAPISurfacesAreRegistered(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	registered := make(map[string]struct{}, len(server.router.Routes()))
+	for _, route := range server.router.Routes() {
+		registered[route.Path] = struct{}{}
+	}
+
+	placeholder := regexp.MustCompile(`\{([^{}]+)\}`)
+	missing := make([]string, 0)
+	for _, capability := range broker.BuiltinCapabilityCatalog.Features {
+		path := strings.SplitN(capability.Surface.API, "?", 2)[0]
+		path = placeholder.ReplaceAllString(path, `:$1`)
+		if _, ok := registered[path]; !ok {
+			missing = append(missing, string(capability.ID)+" -> "+capability.Surface.API)
+		}
+	}
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		t.Fatalf("CapabilityCatalog API surfaces are not registered:\n%s", strings.Join(missing, "\n"))
 	}
 }
 

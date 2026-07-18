@@ -30,6 +30,11 @@ export function createConsoleRouter(
         meta: { title: "自选股" },
       },
       {
+        path: "/research",
+        component: () => import("./pages/ResearchPage.vue"),
+        meta: { title: "研究" },
+      },
+      {
         path: "/system",
         component: () => import("./pages/SystemPage.vue"),
         meta: { title: "系统" },

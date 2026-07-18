@@ -80,7 +80,7 @@ func (s *marketDataRuntimeOpenDServer) handle(conn net.Conn) {
 		switch frame.Header.ProtoID {
 		case opend.ProtoInitConnect:
 			response = &initpb.Response{RetType: new(int32(0)), S2C: &initpb.S2C{
-				ServerVer: new(int32(1008)), LoginUserID: new(uint64(1)), ConnID: new(uint64(42)),
+				ServerVer: new(int32(1009)), LoginUserID: new(uint64(1)), ConnID: new(uint64(42)),
 				ConnAESKey: new("0123456789abcdef"), KeepAliveInterval: new(int32(10)),
 			}}
 		case opend.ProtoGetGlobalState:
@@ -88,7 +88,7 @@ func (s *marketDataRuntimeOpenDServer) handle(conn net.Conn) {
 			response = &globalpb.Response{RetType: new(int32(0)), S2C: &globalpb.S2C{
 				MarketHK: &zero, MarketUS: &zero, MarketSH: &zero, MarketSZ: &zero,
 				MarketHKFuture: &zero, QotLogined: new(true), TrdLogined: new(true),
-				ServerVer: new(int32(1008)), ServerBuildNo: new(int32(6808)), Time: new(int64(0)),
+				ServerVer: new(int32(1009)), ServerBuildNo: new(int32(6908)), Time: new(int64(0)),
 			}}
 		case opend.ProtoGetBasicQot:
 			var request qotgetbasicqotpb.Request

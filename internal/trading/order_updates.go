@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 const (
@@ -31,9 +33,13 @@ type OrderQuery struct {
 }
 
 type Order struct {
+	BrokerID           string
 	AccountID          string
 	TradingEnvironment string
 	Market             string
+	OrderKind          broker.OrderKind
+	ProductClass       broker.ProductClass
+	QuantityMode       broker.QuantityMode
 	BrokerOrderID      string
 	BrokerOrderIDEx    *string
 	Symbol             string
@@ -42,6 +48,8 @@ type Order struct {
 	OrderType          string
 	Status             string
 	Quantity           float64
+	Amount             *float64
+	Legs               []broker.OrderLegSnapshot
 	FilledQuantity     *float64
 	Price              *float64
 	FilledAveragePrice *float64
@@ -54,6 +62,7 @@ type Order struct {
 }
 
 type Fill struct {
+	BrokerID           string
 	AccountID          string
 	TradingEnvironment string
 	Market             string
@@ -68,6 +77,7 @@ type Fill struct {
 	FillPrice          *float64
 	FilledAt           string
 	Status             *string
+	Payout             *float64
 }
 
 type OrderWriteMetadata struct {
@@ -97,9 +107,17 @@ type OrderUpdateSource interface {
 	Subscribe(context.Context, []Account, []OrderQuery, OrderUpdateHandler) (OrderUpdateSubscription, error)
 }
 
+type OrderFeeSource interface {
+	OrderFees(context.Context, OrderQuery, []string) ([]broker.OrderFeeSnapshot, error)
+}
+
 type ExecutionOrderUpdates interface {
 	ApplyOrder(context.Context, string, Order, OrderWriteMetadata)
 	ApplyFill(context.Context, string, Fill)
+}
+
+type ExecutionOrderFeeUpdates interface {
+	ApplyFees(context.Context, string, []broker.OrderFeeSnapshot)
 }
 
 type OrderUpdatesConfig struct {
@@ -179,9 +197,7 @@ type orderUpdateSubscriptionAttempt struct {
 }
 
 func NewOrderUpdatesWorker(source OrderUpdateSource, execution ExecutionOrderUpdates, config OrderUpdatesConfig) *OrderUpdatesWorker {
-	if config.BrokerID == "" {
-		config.BrokerID = "futu"
-	}
+	config.BrokerID = strings.TrimSpace(config.BrokerID)
 	if config.FallbackMarket == "" {
 		config.FallbackMarket = "HK"
 	}
@@ -226,7 +242,10 @@ func (w *OrderUpdatesWorker) Sync(ctx context.Context, force bool, activeOnly bo
 		w.markSubscriptions([]OrderQuery{query}, "inactive", "discover-accounts", err)
 		return
 	}
-	queries := BuildOrderUpdateQueries(accounts, w.config.FallbackMarket)
+	if w.config.BrokerID == "" && len(accounts) > 0 {
+		w.config.BrokerID = strings.TrimSpace(accounts[0].BrokerID)
+	}
+	queries := BuildOrderUpdateQueries(accounts, w.config.BrokerID, w.config.FallbackMarket)
 	w.markDiscoveredAccounts(len(accounts), "connected")
 	if err := w.ensureSubscribed(ctx, accounts, queries); err != nil {
 		w.markSubscriptions(queries, "inactive", "bind-push", err)
@@ -259,6 +278,7 @@ func (w *OrderUpdatesWorker) Sync(ctx context.Context, force bool, activeOnly bo
 			Source:              "broker",
 			SourceDetail:        "broker.current",
 		})
+		w.syncOrderFees(ctx, query, orders)
 		if activeOnly {
 			continue
 		}
@@ -280,6 +300,7 @@ func (w *OrderUpdatesWorker) Sync(ctx context.Context, force bool, activeOnly bo
 			Source:              "broker",
 			SourceDetail:        "broker.history",
 		})
+		w.syncOrderFees(ctx, query, history)
 	}
 }
 
@@ -316,13 +337,18 @@ func (w *OrderUpdatesWorker) SyncExecutionOrderHistory(ctx context.Context, orde
 		Source:              "broker",
 		SourceDetail:        "broker.history",
 	})
+	w.syncOrderFees(ctx, query, history)
 }
 
 func (w *OrderUpdatesWorker) HandleOrderUpdate(order Order) {
 	if w == nil || w.execution == nil {
 		return
 	}
-	query := queryForOrder(w.config.BrokerID, order.AccountID, order.TradingEnvironment, order.Market)
+	brokerID := strings.TrimSpace(order.BrokerID)
+	if brokerID == "" {
+		brokerID = w.config.BrokerID
+	}
+	query := queryForOrder(brokerID, order.AccountID, order.TradingEnvironment, order.Market)
 	key := OrderUpdateSubscriptionKey(query)
 	w.markSubscriptions([]OrderQuery{query}, "active", "push-order", nil)
 	if IsTerminalOrderStatus(order.Status) {
@@ -336,13 +362,56 @@ func (w *OrderUpdatesWorker) HandleOrderUpdate(order Order) {
 		Source:              "broker",
 		SourceDetail:        "broker.push",
 	})
+	if IsTerminalOrderStatus(order.Status) {
+		w.syncOrderFees(context.Background(), query, []Order{order})
+	}
+}
+
+func (w *OrderUpdatesWorker) syncOrderFees(ctx context.Context, query OrderQuery, orders []Order) {
+	source, ok := w.source.(OrderFeeSource)
+	if !ok {
+		return
+	}
+	sink, ok := w.execution.(ExecutionOrderFeeUpdates)
+	if !ok {
+		return
+	}
+	orderIDs := make([]string, 0, len(orders))
+	seen := make(map[string]struct{}, len(orders))
+	for _, order := range orders {
+		if !IsTerminalOrderStatus(order.Status) || order.BrokerOrderIDEx == nil {
+			continue
+		}
+		orderID := strings.TrimSpace(*order.BrokerOrderIDEx)
+		if orderID == "" {
+			continue
+		}
+		if _, exists := seen[orderID]; exists {
+			continue
+		}
+		seen[orderID] = struct{}{}
+		orderIDs = append(orderIDs, orderID)
+	}
+	if len(orderIDs) == 0 {
+		return
+	}
+	fees, err := source.OrderFees(ctx, query, orderIDs)
+	if err != nil {
+		w.markSubscriptions([]OrderQuery{query}, "inactive", "sync-order-fees", err)
+		return
+	}
+	sink.ApplyFees(ctx, query.BrokerID, fees)
 }
 
 func (w *OrderUpdatesWorker) HandleFillUpdate(fill Fill) {
 	if w == nil || w.execution == nil {
 		return
 	}
-	query := queryForOrder(w.config.BrokerID, fill.AccountID, fill.TradingEnvironment, fill.Market)
+	brokerID := strings.TrimSpace(fill.BrokerID)
+	if brokerID == "" {
+		brokerID = w.config.BrokerID
+	}
+	query := queryForOrder(brokerID, fill.AccountID, fill.TradingEnvironment, fill.Market)
 	w.markSubscriptions([]OrderQuery{query}, "active", "push-fill", nil)
 	w.execution.ApplyFill(context.Background(), query.BrokerID, cloneFill(fill))
 }

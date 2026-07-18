@@ -80,7 +80,7 @@ func TestServiceUsesExplicitTradingPorts(t *testing.T) {
 }
 
 func TestServiceDefaultTradingPortsFailExplicitly(t *testing.T) {
-	service := NewService()
+	service := newExecutionTestService()
 	if _, err := service.ListExecutionOrders(t.Context(), ExecutionOrderFilter{}, false); !errors.Is(err, ErrOrderStoreUnavailable) {
 		t.Fatalf("ListExecutionOrders error = %v", err)
 	}

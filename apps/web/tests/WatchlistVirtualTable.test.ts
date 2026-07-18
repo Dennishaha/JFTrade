@@ -65,6 +65,38 @@ describe("WatchlistVirtualTable", () => {
     expect(wrapper.find('[title="无行情权限"]').exists()).toBe(true);
   });
 
+  it("keeps the latest successful quote visible when a refresh is temporarily unavailable", () => {
+    const watched = item(1);
+    const wrapper = mount(WatchlistVirtualTable, {
+      props: {
+        items: [watched],
+        quotes: new Map([
+          [watched.instrumentId, {
+            instrumentId: watched.instrumentId,
+            price: 12.3,
+            previousClose: 12,
+          }],
+        ]),
+        quoteErrors: new Map([
+          [watched.instrumentId, {
+            instrumentId: watched.instrumentId,
+            code: "SNAPSHOT_RATE_LIMITED",
+            message: "行情额度暂时不足",
+          }],
+        ]),
+      },
+      global: {
+        stubs: { "v-icon": { template: "<span><slot /></span>" } },
+      },
+    });
+
+    expect(wrapper.text()).toContain("12.300");
+    expect(wrapper.text()).not.toContain("不可用");
+    expect(wrapper.get(".watchlist-table__quote-stale").attributes("title")).toBe(
+      "数据暂未更新：行情额度暂时不足",
+    );
+  });
+
   it("uses snapshot metadata while a locally starred instrument is being enriched", () => {
     const localOnly = { ...item(3), name: undefined, securityType: undefined };
     const quotes = new Map<string, WatchlistQuote>([

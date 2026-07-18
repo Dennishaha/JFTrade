@@ -14,7 +14,7 @@ import (
 )
 
 func TestNormalizeExecutionOrderDefaultsUSLimitOrder(t *testing.T) {
-	service := NewService(WithDefaultTradingEnvironment(func() string { return "simulate" }))
+	service := newExecutionTestService(WithDefaultTradingEnvironment(func() string { return "simulate" }))
 	price := 123.45
 
 	command, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
@@ -27,7 +27,7 @@ func TestNormalizeExecutionOrderDefaultsUSLimitOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalizeExecutionOrder: %v", err)
 	}
-	if command.BrokerID != "futu" || command.Symbol != "US.AAPL" || command.Side != "BUY" || command.OrderType != "LIMIT" {
+	if command.BrokerID != "test-broker" || command.Symbol != "US.AAPL" || command.Side != "BUY" || command.OrderType != "LIMIT" {
 		t.Fatalf("command = %#v", command)
 	}
 	if command.Query.TradingEnvironment != "SIMULATE" || command.Query.Market != "US" {
@@ -45,7 +45,7 @@ func TestNormalizeExecutionOrderDefaultsUSLimitOrder(t *testing.T) {
 }
 
 func TestNormalizeExecutionOrderSupportsExtendedUSLimitSessions(t *testing.T) {
-	service := NewService()
+	service := newExecutionTestService()
 	price := 88.0
 
 	command, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
@@ -69,7 +69,7 @@ func TestNormalizeExecutionOrderSupportsExtendedUSLimitSessions(t *testing.T) {
 }
 
 func TestNormalizeExecutionOrderSupportsStopAndMarketOrders(t *testing.T) {
-	service := NewService()
+	service := newExecutionTestService()
 	stopPrice := 97.5
 
 	stopCommand, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
@@ -94,7 +94,7 @@ func TestNormalizeExecutionOrderSupportsStopAndMarketOrders(t *testing.T) {
 }
 
 func TestNormalizeExecutionOrderRejectsBusinessRuleViolations(t *testing.T) {
-	service := NewService()
+	service := newExecutionTestService()
 	price := 10.0
 	stopPrice := 9.0
 
@@ -103,13 +103,6 @@ func TestNormalizeExecutionOrderRejectsBusinessRuleViolations(t *testing.T) {
 		payload ExecutionPlaceRequest
 		want    string
 	}{
-		{
-			name: "unsupported broker",
-			payload: ExecutionPlaceRequest{
-				BrokerID: "ib", Market: "US", Symbol: "AAPL", Side: "BUY", Quantity: 1, Price: &price,
-			},
-			want: "brokerId=futu only",
-		},
 		{
 			name: "missing price for limit order",
 			payload: ExecutionPlaceRequest{
@@ -163,6 +156,20 @@ func TestNormalizeExecutionOrderRejectsBusinessRuleViolations(t *testing.T) {
 	}
 }
 
+func TestNormalizeExecutionOrderPreservesBrokerAbstraction(t *testing.T) {
+	service := NewService(WithActiveBroker(func() broker.Broker { return &stubBroker{id: "ib"} }))
+	price := 10.0
+	command, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
+		BrokerID: "ib", Market: "US", Symbol: "AAPL", Side: "BUY", Quantity: 1, Price: &price,
+	})
+	if err != nil {
+		t.Fatalf("normalizeExecutionOrder() error = %v", err)
+	}
+	if command.BrokerID != "ib" || command.Query.BrokerID != "ib" {
+		t.Fatalf("broker selection = %#v", command)
+	}
+}
+
 func TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands(t *testing.T) {
 	ctx := context.Background()
 	price := 101.25
@@ -171,7 +178,7 @@ func TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands(t *testi
 	var canceledID string
 	var eventsID string
 
-	service := NewService(
+	service := newExecutionTestService(
 		WithDefaultTradingEnvironment(func() string { return "real" }),
 		WithListOrders(func(_ context.Context, filter ExecutionOrderFilter) (ExecutionOrders, error) {
 			listedFilter = filter
@@ -238,7 +245,7 @@ func TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands(t *testi
 	if err != nil {
 		t.Fatalf("PreviewExecutionOrder: %v", err)
 	}
-	if !preview.PreviewValid || preview.BrokerID != "futu" || preview.Symbol != "US.AAPL" || preview.Price == nil || *preview.Price != price {
+	if !preview.PreviewValid || preview.BrokerID != "test-broker" || preview.Symbol != "US.AAPL" || preview.Price == nil || *preview.Price != price {
 		t.Fatalf("preview = %#v", preview)
 	}
 
@@ -276,7 +283,7 @@ func TestExecutionOrderServiceFacadeReturnsBusinessErrors(t *testing.T) {
 	ctx := context.Background()
 	price := 9.75
 	upstream := errors.New("broker rejected order")
-	service := NewService(
+	service := newExecutionTestService(
 		WithListOrders(func(context.Context, ExecutionOrderFilter) (ExecutionOrders, error) {
 			return ExecutionOrders{}, upstream
 		}),
@@ -316,7 +323,7 @@ func TestExecutionOrderServiceFacadeReturnsBusinessErrors(t *testing.T) {
 
 func TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall(t *testing.T) {
 	price := 9.75
-	service := NewService(WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
+	service := newExecutionTestService(WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
 		t.Fatal("placeOrder should not be called for invalid payloads")
 		return ExecutionOrder{}, nil
 	}))
@@ -331,7 +338,7 @@ func TestCreateExecutionOrderRejectsInvalidPayloadBeforeBrokerCall(t *testing.T)
 
 func TestCreateExecutionOrderRunsPreTradeRiskBeforeBrokerCall(t *testing.T) {
 	price := 9.75
-	service := NewService(
+	service := newExecutionTestService(
 		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
 			return PreTradeRiskConfig{}
 		})),
@@ -358,7 +365,7 @@ func TestCreateExecutionOrderAllowsRuntimeEnabledRealTradeBeforeBrokerCall(t *te
 	price := 100.0
 	maxNotional := 500.0
 	placed := false
-	service := NewService(
+	service := newExecutionTestService(
 		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
 			return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderNotional: &maxNotional}
 		})),
@@ -387,7 +394,7 @@ func TestCreateExecutionOrderAllowsRuntimeEnabledRealTradeBeforeBrokerCall(t *te
 func TestCreateExecutionOrderAllowsSimulateWhenRealTradingIsDisabled(t *testing.T) {
 	price := 9.75
 	placed := false
-	service := NewService(
+	service := newExecutionTestService(
 		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
 			return PreTradeRiskConfig{}
 		})),
@@ -747,7 +754,7 @@ func TestRealTradeControlPlaneFailsClosedWhenPersistedStateCannotLoad(t *testing
 }
 
 func TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions(t *testing.T) {
-	service := NewService()
+	service := newExecutionTestService()
 
 	command, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{
 		Env:       "real",
@@ -779,7 +786,7 @@ func TestExecutionNormalizationHelpersRejectUnsupportedInputs(t *testing.T) {
 }
 
 func TestNormalizeExecutionOrderRejectsInvalidInstrumentAndUnsupportedOrderType(t *testing.T) {
-	service := NewService()
+	service := newExecutionTestService()
 	price := 10.0
 
 	if _, err := service.normalizeExecutionOrder(ExecutionPlaceRequest{

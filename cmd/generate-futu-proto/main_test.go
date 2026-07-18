@@ -13,13 +13,17 @@ import (
 
 func TestParseCLIConfig(t *testing.T) {
 	var stderr bytes.Buffer
-	cfg, err := parseCLIConfig(nil, `C:\Users\test\Downloads\FTAPIProtoFiles_10.8.6808`, &stderr)
+	cfg, err := parseCLIConfig(nil, `C:\Users\test\Downloads\FTAPIProtoFiles_10.9.6908`, &stderr)
 	require.NoError(t, err)
-	assert.Equal(t, `C:\Users\test\Downloads\FTAPIProtoFiles_10.8.6808`, cfg.source)
+	assert.Equal(t, `C:\Users\test\Downloads\FTAPIProtoFiles_10.9.6908`, cfg.source)
 
 	cfg, err = parseCLIConfig([]string{"-source", "/tmp/futu"}, "unused", &stderr)
 	require.NoError(t, err)
 	assert.Equal(t, "/tmp/futu", cfg.source)
+
+	cfg, err = parseCLIConfig([]string{"-verify-repository", "-source="}, "unused", &stderr)
+	require.NoError(t, err)
+	assert.True(t, cfg.verifyRepository)
 }
 
 func TestParseCLIConfigRejectsInvalidArguments(t *testing.T) {

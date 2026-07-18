@@ -7,11 +7,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 
 	srv "github.com/jftrade/jftrade-main/internal/marketdata"
+	"github.com/jftrade/jftrade-main/internal/productfeatures"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 type cancellingSubscriptionReconciler struct {
@@ -88,6 +91,60 @@ func TestCandlesAndDepthRoutesMapProviderFailures(t *testing.T) {
 	}
 	if provider.depthNum != 25 {
 		t.Fatalf("depth num = %d, want 25", provider.depthNum)
+	}
+}
+
+func TestBrokerMarketDataReadErrorsPreserveClientActionability(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name       string
+		err        error
+		statusCode int
+		code       string
+		retryAfter string
+	}{
+		{
+			name:       "rate limit with retry delay",
+			err:        broker.NewSnapshotRateLimitError(1500*time.Millisecond, errors.New("snapshot quota exhausted")),
+			statusCode: http.StatusTooManyRequests,
+			code:       "MARKET_SNAPSHOT_RATE_LIMITED",
+			retryAfter: "2",
+		},
+		{
+			name:       "rate limit without retry metadata",
+			err:        broker.ErrSnapshotRateLimited,
+			statusCode: http.StatusTooManyRequests,
+			code:       "MARKET_SNAPSHOT_RATE_LIMITED",
+			retryAfter: "1",
+		},
+		{
+			name:       "invalid feature query",
+			err:        productfeatures.ErrInvalidQuery,
+			statusCode: http.StatusBadRequest,
+			code:       "MARKET_DATA_QUERY_INVALID",
+		},
+		{
+			name:       "unavailable broker capability",
+			err:        productfeatures.ErrCapabilityUnavailable,
+			statusCode: http.StatusConflict,
+			code:       "BROKER_CAPABILITY_UNAVAILABLE",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(response)
+
+			writeBrokerMarketDataReadError(context, "MARKET_DATA_FAILED", test.err)
+
+			if response.Code != test.statusCode || !strings.Contains(response.Body.String(), `"code":"`+test.code+`"`) {
+				t.Fatalf("response = %d %s", response.Code, response.Body.String())
+			}
+			if got := response.Header().Get("Retry-After"); got != test.retryAfter {
+				t.Fatalf("Retry-After = %q, want %q", got, test.retryAfter)
+			}
+		})
 	}
 }
 

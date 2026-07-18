@@ -20,12 +20,19 @@ let csrfToken = "";
 export class ApiClientError extends Error {
   readonly code: string;
   readonly status: number;
+  readonly retryAfterMs: number | undefined;
 
-  constructor(message: string, code: string, status: number) {
+  constructor(
+    message: string,
+    code: string,
+    status: number,
+    retryAfterMs?: number,
+  ) {
     super(message);
     this.name = "ApiClientError";
     this.code = code;
     this.status = status;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -96,6 +103,7 @@ async function parseEnvelope<T>(response: Response): Promise<T> {
         body.error.message,
         body.error.code,
         response.status,
+        responseRetryAfterMs(response),
       );
       notifyWebAuthRequired(error);
       throw error;
@@ -112,12 +120,25 @@ async function parseEnvelope<T>(response: Response): Promise<T> {
       body.error.message || "Unknown API error",
       body.error.code,
       response.status,
+      responseRetryAfterMs(response),
     );
     notifyWebAuthRequired(error);
     throw error;
   }
 
   return body.data;
+}
+
+function responseRetryAfterMs(response: Response): number | undefined {
+  const raw = response.headers?.get?.("Retry-After")?.trim();
+  if (!raw) return undefined;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.ceil(seconds * 1000);
+  }
+  const retryAt = Date.parse(raw);
+  if (!Number.isFinite(retryAt)) return undefined;
+  return Math.max(0, retryAt - Date.now());
 }
 
 function notifyWebAuthRequired(error: ApiClientError): void {

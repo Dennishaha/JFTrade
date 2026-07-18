@@ -40,6 +40,22 @@ func verifyFutuInputs(sourceDirectory, manifestPath string, expectedFiles []stri
 	return nil
 }
 
+func manifestFileNames(path string) ([]string, error) {
+	checksums, err := parseChecksumManifest(path)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]string, 0, len(checksums))
+	for filename := range checksums {
+		files = append(files, filename)
+	}
+	sort.Strings(files)
+	if len(files) == 0 {
+		return nil, fmt.Errorf("futu proto checksum manifest contains no inputs: %s", path)
+	}
+	return files, nil
+}
+
 func parseChecksumManifest(path string) (map[string]string, error) {
 	file, err := os.Open(path)
 	if err != nil {

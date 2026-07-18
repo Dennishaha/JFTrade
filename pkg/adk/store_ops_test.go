@@ -55,6 +55,58 @@ func TestStoreBuiltinSkillsSplitStrategySkillAndRemoveLegacyRecord(t *testing.T)
 	}
 }
 
+func TestBuiltinSkillStoreMetadataComesFromBundleRegistry(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	store := runtime.Store()
+	requiredProductSkills := map[string]bool{
+		"jftrade-market":      false,
+		"jftrade-derivatives": false,
+		"jftrade-research":    false,
+		"jftrade-prediction":  false,
+		"jftrade-trading":     false,
+	}
+
+	for _, spec := range builtinSkillSpecs {
+		want, err := builtinSkillMetadata(spec)
+		if err != nil {
+			t.Fatalf("builtinSkillMetadata(%s): %v", spec.Name, err)
+		}
+		got, ok, err := store.Skill(ctx, spec.Name)
+		if err != nil || !ok {
+			t.Fatalf("store.Skill(%s) ok=%v err=%v", spec.Name, ok, err)
+		}
+		if got.DisplayName != want.DisplayName ||
+			got.Description != want.Description ||
+			got.Source != want.Source ||
+			got.Builtin != want.Builtin ||
+			got.Version != want.Version ||
+			got.ContentHash != want.ContentHash ||
+			!slices.Equal(got.Tools, want.Tools) {
+			t.Fatalf("store metadata for %s = %+v, want bundle metadata %+v", spec.Name, got, want)
+		}
+		if !strings.HasSuffix(got.InstallPath, filepath.Join(spec.Name, "SKILL.md")) {
+			t.Fatalf("store install path for %s = %q", spec.Name, got.InstallPath)
+		}
+		if _, required := requiredProductSkills[spec.Name]; required {
+			requiredProductSkills[spec.Name] = true
+		}
+	}
+	for name, found := range requiredProductSkills {
+		if !found {
+			t.Fatalf("required product skill %s is not registered", name)
+		}
+	}
+
+	research, _, err := store.Skill(ctx, "jftrade-research")
+	if err != nil {
+		t.Fatalf("load research skill: %v", err)
+	}
+	if !slices.Contains(research.Tools, "research.technical_indicators") {
+		t.Fatalf("research skill store tools = %+v, want research.technical_indicators from bundle", research.Tools)
+	}
+}
+
 func TestBuiltinStrategySkillRefreshesOutdatedBundle(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)

@@ -72,7 +72,7 @@ func TestCoverage98ConcurrentSubscriptionWaitHonorsCallerCancellation(t *testing
 	}
 	worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{})
 	accounts := []Account{{ID: "ACC-1", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"US"}}}
-	queries := BuildOrderUpdateQueries(accounts, "US")
+	queries := BuildOrderUpdateQueries(accounts, "futu", "US")
 
 	firstDone := make(chan error, 1)
 	go func() { firstDone <- worker.ensureSubscribed(context.Background(), accounts, queries) }()

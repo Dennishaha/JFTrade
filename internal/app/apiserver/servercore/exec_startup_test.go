@@ -29,23 +29,21 @@ func TestExecutionOrderDatabasePathResolution(t *testing.T) {
 
 func TestExecutionOrderPersistenceMigratesV1StatusWithoutDataLoss(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "execution-v1.db")
-	persistence, err := newExecutionOrderSQLiteStore(dbPath)
-	if err != nil {
-		t.Fatalf("initialize v2 store: %v", err)
-	}
-	if err := persistence.Close(); err != nil {
-		t.Fatalf("close v2 seed: %v", err)
-	}
-
 	db, err := sqliteconn.OpenX(dbPath)
 	if err != nil {
-		t.Fatalf("open v2 seed: %v", err)
+		t.Fatalf("open v1 seed: %v", err)
 	}
-	if _, err := db.Exec(`ALTER TABLE execution_orders DROP COLUMN raw_broker_status`); err != nil {
-		t.Fatalf("downgrade execution schema: %v", err)
-	}
-	if _, err := db.Exec(`UPDATE ` + sqliteschema.MetadataTable + ` SET version = 1 WHERE component_id = 'execution-orders'`); err != nil {
-		t.Fatalf("downgrade schema metadata: %v", err)
+	for _, statement := range []string{
+		`CREATE TABLE execution_orders (internal_order_id TEXT PRIMARY KEY, broker_id TEXT NOT NULL DEFAULT '', broker_order_id TEXT, broker_order_id_ex TEXT, source TEXT NOT NULL DEFAULT '', source_detail TEXT NOT NULL DEFAULT '', trading_environment TEXT NOT NULL DEFAULT '', account_id TEXT NOT NULL DEFAULT '', market TEXT NOT NULL DEFAULT '', symbol TEXT, side TEXT, order_type TEXT, status TEXT NOT NULL DEFAULT '', requested_quantity REAL, requested_price REAL, filled_quantity REAL, filled_average_price REAL, remark TEXT, last_error TEXT, last_error_code TEXT, last_error_source TEXT, submitted_at TEXT, updated_at TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE execution_order_events (id TEXT PRIMARY KEY, internal_order_id TEXT NOT NULL, event_type TEXT NOT NULL DEFAULT '', previous_status TEXT, next_status TEXT NOT NULL DEFAULT '', payload_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE execution_seen_fills (fill_key TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE execution_sequences (name TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)`,
+		`CREATE TABLE ` + sqliteschema.MetadataTable + ` (component_id TEXT PRIMARY KEY, version INTEGER NOT NULL, created_at TEXT NOT NULL)`,
+		`INSERT INTO ` + sqliteschema.MetadataTable + ` VALUES ('execution-orders', 1, '2026-07-03T00:00:00Z')`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatalf("seed v1 schema: %v", err)
+		}
 	}
 	if _, err := db.Exec(`INSERT INTO execution_orders (internal_order_id, status, updated_at, created_at) VALUES ('exec-v1', 'FILLED_PART', '2026-07-03T00:00:00Z', '2026-07-03T00:00:00Z')`); err != nil {
 		t.Fatalf("insert v1 order: %v", err)
@@ -140,8 +138,8 @@ func TestExecutionOrderPersistenceRejectsWrongColumnLayout(t *testing.T) {
 		t.Fatalf("reopen wrong column schema: %v", err)
 	}
 	persistence := &executionOrderSQLiteStore{db: db, path: dbPath}
-	if err := persistence.ensureExistingSchemaCanBeOpened(); err != nil {
-		t.Fatalf("all expected table names should be present: %v", err)
+	if err := persistence.ensureExistingSchemaCanBeOpened(); err == nil || !strings.Contains(err.Error(), "schema is obsolete") {
+		t.Fatalf("missing v3 tables should be rejected: %v", err)
 	}
 	if err := persistence.ensureSchema(executionOrderTable, expectedExecutionOrderColumns()); err == nil || !strings.Contains(err.Error(), "schema is obsolete") {
 		t.Fatalf("wrong column validation err = %v", err)

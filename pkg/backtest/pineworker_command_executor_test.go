@@ -524,6 +524,15 @@ func TestPineWorkerCommandExecutorGeneratedOrderIDStopsAndTrackingFallbacks(t *t
 	if !strings.HasPrefix(order.ClientOrderID, "run-42-") {
 		t.Fatalf("generated ClientOrderID = %q", order.ClientOrderID)
 	}
+	namedOrder, err := commandExecutor.SubmitOrderFromCommand(WorkerOrderCommand{
+		Kind: "entry", ID: "Long", Side: types.SideTypeBuy, Quantity: 1, BarIndex: 43,
+	})
+	if err != nil {
+		t.Fatalf("SubmitOrderFromCommand(named) error = %v", err)
+	}
+	if namedOrder.ClientOrderID != "run-Long-43" {
+		t.Fatalf("named live ClientOrderID = %q", namedOrder.ClientOrderID)
+	}
 	if order.Type != types.OrderTypeMarket || order.StopPrice.Float64() != 95.25 {
 		t.Fatalf("generated market stop order = %#v", order)
 	}

@@ -249,6 +249,7 @@ export interface MarketDataSnapshotQueryResult {
   meta: {
     instrumentId: string;
     source: string | null;
+    brokerId?: string | null;
     resolvedAt: string;
     fromCache: boolean;
   };
@@ -279,6 +280,7 @@ export interface MarketDataCandlesQueryResult {
   meta: {
     instrumentId: string;
     source: string | null;
+    brokerId?: string | null;
     resolvedAt: string;
     fromCache: boolean;
     extendedHours?: boolean | null;

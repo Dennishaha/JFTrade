@@ -17,21 +17,12 @@ const mocks = vi.hoisted(() => ({
   fetchEnvelope: vi.fn(),
   fetchEnvelopeWithInit: vi.fn(),
   heartbeat: vi.fn(),
-  loadProviderStatus: vi.fn(),
   release: vi.fn(),
 }));
 
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelope: (...args: unknown[]) => mocks.fetchEnvelope(...args),
   fetchEnvelopeWithInit: (...args: unknown[]) => mocks.fetchEnvelopeWithInit(...args),
-}));
-
-vi.mock("../src/composables/marketDataProviderStatus", () => ({
-  useMarketDataProviderStatus: () => ({
-    loadMarketDataProviderStatus: (...args: unknown[]) => mocks.loadProviderStatus(...args),
-    providerCapabilitySummary: "",
-    providerDisplayName: "Futu",
-  }),
 }));
 
 vi.mock("../src/composables/useConsoleData", () => ({
@@ -103,7 +94,6 @@ describe("OrderBookPanel subscription lifecycle boundaries", () => {
     mocks.acquire.mockResolvedValue(true);
     mocks.heartbeat.mockResolvedValue(undefined);
     mocks.release.mockResolvedValue(undefined);
-    mocks.loadProviderStatus.mockResolvedValue(undefined);
     mocks.fetchEnvelope.mockResolvedValue({
       descriptor: { capabilities: [{ readFeatures: { orderBook: { defaultNum: 10 } } }] },
     });

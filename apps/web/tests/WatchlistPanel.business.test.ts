@@ -179,8 +179,13 @@ describe("WatchlistPanel business flows", () => {
 
     const favorite = wrapper.get('[data-testid="instrument-overview-favorite"]');
     expect(favorite.attributes("title")).toBe("加入自选");
-    expect(favorite.element.parentElement?.classList).toContain(
-      "instrument-overview__quote-card",
+    expect(favorite.element.closest(".instrument-overview__quote-card")).not.toBeNull();
+    expect(wrapper.get(".tv-panel-title").text()).toBe("行情");
+    expect(wrapper.find(".tv-panel-head .instrument-identity").exists()).toBe(
+      false,
+    );
+    expect(wrapper.get(".instrument-overview__identity-row").text()).toContain(
+      "US.AAPL · Apple",
     );
   });
 

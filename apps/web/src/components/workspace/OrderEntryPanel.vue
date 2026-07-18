@@ -68,6 +68,20 @@ interface ExecutionOrderPayload {
   timeInForce: TIF;
   session?: OrderSession;
   quantity: number;
+  productClass:
+    | "equity"
+    | "fund"
+    | "option"
+    | "warrant"
+    | "cbbc"
+    | "future"
+    | "event_contract";
+  quantityMode: "units" | "contracts" | "amount";
+  orderKind: "single" | "event_single";
+  clientOrderId: string;
+  previewId?: string;
+  amount?: number;
+  predictionSide?: "YES" | "NO";
   price?: number;
   stopPrice?: number;
   env: string;
@@ -86,6 +100,7 @@ const orderSession = ref<OrderSession>("RTH");
 const quantity = ref<number>(100);
 const price = ref<number>(0);
 const stopPrice = ref<number>(0);
+const predictionSide = ref<"YES" | "NO">("YES");
 const hasEditedPrice = ref(false);
 const submitting = ref(false);
 const lastOrderFeedback = ref<OrderFeedback | null>(null);
@@ -93,6 +108,7 @@ const isRefreshingOrderFeedback = ref(false);
 const realTradeConfirmationOpen = ref(false);
 const realTradeConfirmationText = ref("");
 const pendingRealTradeSubmission = ref<PendingRealTradeSubmission | null>(null);
+const draftClientOrderId = ref("");
 let maxTradeQuantityTimer: ReturnType<typeof setTimeout> | null = null;
 let orderFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 let orderFeedbackPollCount = 0;
@@ -122,6 +138,37 @@ const isLimit = computed(
   () => orderType.value === "LIMIT" || orderType.value === "STOP_LIMIT",
 );
 const security = computed(() => marketSecurityDetails.value?.security ?? null);
+const productClass = computed<ExecutionOrderPayload["productClass"]>(() => {
+  if (
+    prefs.value.marketSegment === "prediction" ||
+    prefs.value.productClass === "event_contract"
+  ) {
+    return "event_contract";
+  }
+  if (prefs.value.productClass === "option") return "option";
+  if (prefs.value.productClass === "future") return "future";
+  if (prefs.value.productClass === "cbbc") return "cbbc";
+  if (prefs.value.productClass === "warrant") return "warrant";
+  if (prefs.value.productClass === "fund") return "fund";
+  const securityType = security.value?.securityType.trim().toUpperCase() ?? "";
+  const symbol = prefs.value.symbol.trim().toUpperCase();
+  if (securityType.includes("EVENT") || symbol.startsWith("EC.")) {
+    return "event_contract";
+  }
+  if (securityType.includes("OPTION")) return "option";
+  if (securityType.includes("FUTURE")) return "future";
+  if (securityType.includes("CBBC")) return "cbbc";
+  if (securityType.includes("WARRANT")) return "warrant";
+  if (
+    securityType.includes("ETF") ||
+    securityType.includes("FUND") ||
+    securityType.includes("TRUST")
+  ) {
+    return "fund";
+  }
+  return "equity";
+});
+const isEventContract = computed(() => productClass.value === "event_contract");
 const latestSnapshot = computed(() => {
   const snapshotResult = marketDataSnapshot.value;
   const currentInstrumentId = activeInstrument.value?.instrumentId ?? "";
@@ -154,6 +201,7 @@ const limitPriceStep = computed(() => resolveOrderPriceStep(price.value));
 const stopPriceStep = computed(() => resolveOrderPriceStep(stopPrice.value));
 const tradeQuantityUnit = computed(() => {
   const securityType = security.value?.securityType.trim().toUpperCase() ?? "";
+  if (isEventContract.value) return "金额";
   if (securityType.includes("FUTURE") || securityType.includes("OPTION")) {
     return "张";
   }
@@ -209,7 +257,11 @@ const activeInstrument = computed(() => {
     instrumentId: `${market}.${symbol}`,
   };
 });
-const supportsOrderSessionSelection = computed(() => supportsExtendedHoursForMarket(activeMarket.value));
+const supportsOrderSessionSelection = computed(
+  () =>
+    ["equity", "fund", "warrant", "cbbc"].includes(productClass.value) &&
+    supportsExtendedHoursForMarket(activeMarket.value),
+);
 const supportsBrokerMaxTradeQuantity = computed(() =>
   supportsBrokerReadFeature("maxTradeQuantity", {
     market: activeMarket.value,
@@ -434,6 +486,21 @@ function resolveOrderRequestTitle(): string {
       ? formatInstrumentIdentityText({ market, code: symbol })
       : "当前标的";
   return `${formatOrderSideLabel(side.value)} ${quantity.value} ${instrumentLabel}`;
+}
+
+function createClientOrderId(): string {
+  const suffix =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `jftrade-${suffix}`;
+}
+
+function currentClientOrderId(): string {
+  if (draftClientOrderId.value === "") {
+    draftClientOrderId.value = createClientOrderId();
+  }
+  return draftClientOrderId.value;
 }
 
 function resolvePendingOrderSummary(payload: ExecutionOrderPayload): string {
@@ -661,8 +728,20 @@ function validateAndBuildExecutionPayload(): ExecutionOrderPayload | null {
     orderType: orderType.value,
     timeInForce: tif.value,
     quantity: quantity.value,
+    productClass: productClass.value,
+    quantityMode: isEventContract.value
+      ? "amount"
+      : ["option", "future"].includes(productClass.value)
+        ? "contracts"
+        : "units",
+    orderKind: isEventContract.value ? "event_single" : "single",
+    clientOrderId: currentClientOrderId(),
     env: activeTradingEnvironment.value,
   };
+  if (isEventContract.value) {
+    payload.amount = quantity.value;
+    payload.predictionSide = predictionSide.value;
+  }
   if (supportsOrderSessionSelection.value) {
     payload.session = orderSession.value;
   }
@@ -727,6 +806,20 @@ async function executeOrderSubmission(
     let feedbackLevel: OrderFeedbackLevel = "success";
     let feedbackMessage = `下单成功：已提交订单（${formatOrderTypeLabel(orderType.value)}，${formatTimeInForceLabel(tif.value)}${supportsOrderSessionSelection.value ? `，${formatOrderSession(orderSession.value)}` : ""}）`;
     try {
+      if (["option", "future", "event_contract"].includes(payload.productClass)) {
+        const preview = await fetchEnvelopeWithInit<{ previewId: string }>(
+          "/api/v1/execution/previews",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+        if (!preview.previewId) {
+          throw new Error("订单预检未返回 previewId");
+        }
+        payload.previewId = preview.previewId;
+      }
       const body = await fetchEnvelopeWithInit<{
         accepted?: boolean;
         internalOrderId?: string | null;
@@ -770,6 +863,9 @@ async function executeOrderSubmission(
       if (feedbackLevel === "success" && internalOrderId != null && !isFinalExecutionOrderStatus(body.orderStatus)) {
         startOrderFeedbackPolling(internalOrderId);
       }
+      if (feedbackLevel === "success") {
+        draftClientOrderId.value = "";
+      }
     } catch (error) {
       feedbackLevel = "error";
       feedbackMessage = `下单失败：${resolveOrderFailureReason(error)}`;
@@ -807,8 +903,20 @@ watch(
   () => {
     hasEditedPrice.value = false;
     price.value = 0;
+    draftClientOrderId.value = "";
   },
 );
+
+watch(
+  [side, orderType, tif, orderSession, quantity, price, stopPrice, predictionSide],
+  () => {
+    if (!submitting.value) draftClientOrderId.value = "";
+  },
+);
+
+watch(isEventContract, (eventContract) => {
+  if (eventContract) orderType.value = "LIMIT";
+});
 
 watch(
   [latestMarketPrice, limitPriceStep, isLimit],
@@ -857,9 +965,11 @@ onUnmounted(() => {
     <div class="tv-panel-head">
       <span class="tv-panel-title">下单</span>
       <InstrumentIdentity
+        class="order-entry__identity"
         :market="activeMarket"
         :code="prefs.symbol"
         :instrument-id="activeInstrument?.instrumentId"
+        :name="security?.name"
         compact
       />
       <div style="flex: 1"></div>
@@ -880,15 +990,23 @@ onUnmounted(() => {
         <label>类型</label>
         <select v-model="orderType" class="tv-select">
           <option value="LIMIT">限价</option>
-          <option value="MARKET">市价</option>
-          <option value="STOP">止损</option>
-          <option value="STOP_LIMIT">止损限价</option>
+          <option v-if="!isEventContract" value="MARKET">市价</option>
+          <option v-if="!isEventContract" value="STOP">止损</option>
+          <option v-if="!isEventContract" value="STOP_LIMIT">止损限价</option>
         </select>
       </div>
 
       <div class="tv-form-row">
-        <label>数量</label>
+        <label>{{ isEventContract ? "投入金额" : "数量" }}</label>
         <input v-model.number="quantity" type="number" min="1" class="tv-input" />
+      </div>
+
+      <div v-if="isEventContract" class="tv-form-row">
+        <label>预测方向</label>
+        <select v-model="predictionSide" class="tv-select">
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+        </select>
       </div>
 
       <div v-if="isLimit" class="tv-form-row">
@@ -1081,6 +1199,12 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.order-entry__identity {
+  max-width: 60%;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .tv-order-feedback {
   margin-top: 10px;
   border: 1px solid var(--tv-border);

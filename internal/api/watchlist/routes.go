@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -117,8 +118,7 @@ func registerGroupRoutes(routes *gin.RouterGroup, service *domain.Service) {
 func registerItemRoutes(routes *gin.RouterGroup, service *domain.Service) {
 	routes.GET("/items", func(c *gin.Context) {
 		var query itemPageQuery
-		if err := c.ShouldBindQuery(&query); err != nil {
-			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid watchlist items query")
+		if !bindQuery(c, &query, "invalid watchlist items query") {
 			return
 		}
 		limit, err := boundLimit(query.Limit)
@@ -208,8 +208,7 @@ func registerSourceRoutes(routes *gin.RouterGroup, service *domain.Service) {
 	})
 	routes.GET("/bindings", func(c *gin.Context) {
 		var query bindingQuery
-		if err := c.ShouldBindQuery(&query); err != nil {
-			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid watchlist binding query")
+		if !bindQuery(c, &query, "invalid watchlist binding query") {
 			return
 		}
 		bindings, err := service.ListBindings(c.Request.Context(), query.SourceID)
@@ -221,8 +220,7 @@ func registerSourceRoutes(routes *gin.RouterGroup, service *domain.Service) {
 	})
 	routes.DELETE("/bindings", func(c *gin.Context) {
 		var query bindingQuery
-		if err := c.ShouldBindQuery(&query); err != nil {
-			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid watchlist binding query")
+		if !bindQuery(c, &query, "invalid watchlist binding query") {
 			return
 		}
 		deleteBinding(c, service, query.BindingID)
@@ -263,8 +261,7 @@ func registerImportRoutes(routes *gin.RouterGroup, service *domain.Service) {
 	})
 	routes.GET("/import-runs", func(c *gin.Context) {
 		var query importRunPageQuery
-		if err := c.ShouldBindQuery(&query); err != nil {
-			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid watchlist import runs query")
+		if !bindQuery(c, &query, "invalid watchlist import runs query") {
 			return
 		}
 		limit, err := boundLimit(query.Limit)
@@ -295,6 +292,20 @@ func boundLimit(value httpserver.OptionalIntValue) (int, error) {
 
 func bindURI(c *gin.Context, target any, message string) bool {
 	if err := httpserver.BindURI(c, target); err != nil {
+		httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", message)
+		return false
+	}
+	return true
+}
+
+func bindQuery(c *gin.Context, target any, message string) bool {
+	if c != nil && c.Request != nil && c.Request.URL != nil {
+		if _, err := url.ParseQuery(c.Request.URL.RawQuery); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", message)
+			return false
+		}
+	}
+	if err := c.ShouldBindQuery(target); err != nil {
 		httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", message)
 		return false
 	}

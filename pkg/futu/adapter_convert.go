@@ -92,6 +92,8 @@ func convertPositionSnapshot(s BrokerPositionSnapshot) broker.PositionSnapshot {
 		Market:             s.Market,
 		Symbol:             s.Symbol,
 		SymbolName:         s.SymbolName,
+		ProductClass:       s.ProductClass,
+		MarketSegment:      s.MarketSegment,
 		Quantity:           s.Quantity,
 		SellableQuantity:   s.SellableQuantity,
 		LastPrice:          s.LastPrice,
@@ -102,6 +104,10 @@ func convertPositionSnapshot(s BrokerPositionSnapshot) broker.PositionSnapshot {
 		RealizedPnl:        s.RealizedPnl,
 		PnlRatio:           s.PnlRatio,
 		Currency:           s.Currency,
+		ComboID:            s.ComboID,
+		StrategyType:       s.StrategyType,
+		PositionType:       s.PositionType,
+		PayoutIfWin:        s.PayoutIfWin,
 	}
 }
 
@@ -110,6 +116,9 @@ func convertOrderSnapshot(s BrokerOrderSnapshot) broker.OrderSnapshot {
 		AccountID:          s.AccountID,
 		TradingEnvironment: s.TradingEnvironment,
 		Market:             s.Market,
+		OrderKind:          s.OrderKind,
+		ProductClass:       s.ProductClass,
+		QuantityMode:       s.QuantityMode,
 		BrokerOrderID:      s.BrokerOrderID,
 		BrokerOrderIDEx:    s.BrokerOrderIDEx,
 		Symbol:             s.Symbol,
@@ -118,6 +127,8 @@ func convertOrderSnapshot(s BrokerOrderSnapshot) broker.OrderSnapshot {
 		OrderType:          s.OrderType,
 		Status:             s.Status,
 		Quantity:           s.Quantity,
+		Amount:             s.Amount,
+		Legs:               append([]broker.OrderLegSnapshot(nil), s.Legs...),
 		FilledQuantity:     s.FilledQuantity,
 		Price:              s.Price,
 		FilledAveragePrice: s.FilledAveragePrice,
@@ -146,6 +157,7 @@ func convertOrderFillSnapshot(s BrokerOrderFillSnapshot) broker.OrderFillSnapsho
 		FillPrice:          s.FillPrice,
 		FilledAt:           s.FilledAt,
 		Status:             s.Status,
+		Payout:             s.Payout,
 	}
 }
 
@@ -308,6 +320,7 @@ func orderBookLevelFromPb(pb *qotcommonpb.OrderBook) broker.OrderBookLevel {
 // Verify interface compliance at compile time.
 var (
 	_ broker.Broker              = (*futuAdapter)(nil)
+	_ broker.BatchSnapshotSource = (*futuAdapter)(nil)
 	_ broker.TradingService      = (*futuTradingService)(nil)
 	_ broker.MarketDataReader    = (*futuMarketDataReader)(nil)
 	_ broker.BatchSnapshotSource = (*futuMarketDataReader)(nil)

@@ -2331,6 +2331,6 @@ watch(
 }
 
 .backtest-page .bt-metric-negative {
-  color: var(--tv-down);
+  color: var(--tv-price-down);
 }
 </style>

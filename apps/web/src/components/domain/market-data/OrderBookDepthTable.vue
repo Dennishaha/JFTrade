@@ -124,7 +124,7 @@ function barWidth(max: number, value: number): string {
 
 .tv-ob-depth-row-bid {
   justify-content: flex-end;
-  color: var(--tv-up);
+  color: var(--tv-price-up);
 }
 
 .tv-ob-depth-row-bid .tv-ob-depth-bar {
@@ -133,12 +133,12 @@ function barWidth(max: number, value: number): string {
   right: 0;
   bottom: 2px;
   border-radius: 0 2px 2px 0;
-  background: color-mix(in srgb, var(--tv-up) 12%, transparent);
+  background: color-mix(in srgb, var(--tv-price-up) 12%, transparent);
 }
 
 .tv-ob-depth-row-ask {
   justify-content: flex-start;
-  color: var(--tv-down);
+  color: var(--tv-price-down);
 }
 
 .tv-ob-depth-row-ask .tv-ob-depth-bar {
@@ -147,7 +147,7 @@ function barWidth(max: number, value: number): string {
   bottom: 2px;
   left: 0;
   border-radius: 2px 0 0 2px;
-  background: color-mix(in srgb, var(--tv-down) 10%, transparent);
+  background: color-mix(in srgb, var(--tv-price-down) 10%, transparent);
 }
 
 .tv-ob-depth-price {

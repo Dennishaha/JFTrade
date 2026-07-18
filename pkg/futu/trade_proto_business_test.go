@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
@@ -149,6 +150,119 @@ func TestBrokerReadProtoSnapshotsNormalizePositionMarginAndQuantityDetails(t *te
 	emptyMaxQty := brokerMaxTradeQuantitySnapshotFromProto(account, "HK.00700", "MARKET", 0, nil)
 	if emptyMaxQty == nil || emptyMaxQty.MaxCashBuy != 0 || emptyMaxQty.MaxPositionSell != 0 {
 		t.Fatalf("nil max quantity snapshot = %#v, want zero-valued but present", emptyMaxQty)
+	}
+}
+
+func TestBrokerReadProtoMapsEventAndOptionComboLifecycle(t *testing.T) {
+	account := resolvedTradeAccount{
+		AccountID:          "ACC-PRODUCTS",
+		TradingEnvironment: "REAL",
+		Market:             "US",
+	}
+
+	eventPosition := brokerPositionSnapshotFromProto(account, &trdcommonpb.Position{
+		Code:        futuTestPtr("EVENT-2026"),
+		Qty:         futuTestPtr(25.0),
+		PayoutIfWin: futuTestPtr(25.0),
+		TrdMarket:   futuTestPtr(int32(trdcommonpb.TrdMarket_TrdMarket_Prediction)),
+	})
+	if eventPosition.Market != "US" ||
+		eventPosition.ProductClass != broker.ProductClassEventContract ||
+		eventPosition.MarketSegment != broker.MarketSegmentPrediction ||
+		ptrFloat64Value(eventPosition.PayoutIfWin) != 25 {
+		t.Fatalf("event position = %#v", eventPosition)
+	}
+
+	optionOrder := brokerOrderSnapshotFromProto(account, &trdcommonpb.Order{
+		OrderID:      futuTestPtr(uint64(7001)),
+		Code:         futuTestPtr("AAPL-COMBO"),
+		Qty:          futuTestPtr(2.0),
+		FillQty:      futuTestPtr(1.0),
+		FillAvgPrice: futuTestPtr(1.25),
+		OrderStatus:  futuTestPtr(int32(trdcommonpb.OrderStatus_OrderStatus_Filled_Part)),
+		StrategyType: futuTestPtr(int32(qotcommonpb.OptionStrategyType_OptionStrategyType_Spread)),
+		ComboLegs: []*qotcommonpb.ComboLeg{
+			{
+				Security: &qotcommonpb.Security{
+					Market: futuTestPtr(int32(qotcommonpb.QotMarket_QotMarket_US_Security)),
+					Code:   futuTestPtr("AAPL260717C00200000"),
+				},
+				Side:     futuTestPtr(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+				QtyRatio: futuTestPtr(1.0),
+			},
+			{
+				Security: &qotcommonpb.Security{
+					Market: futuTestPtr(int32(qotcommonpb.QotMarket_QotMarket_US_Security)),
+					Code:   futuTestPtr("AAPL260717C00210000"),
+				},
+				Side:     futuTestPtr(int32(trdcommonpb.TrdSide_TrdSide_Sell)),
+				QtyRatio: futuTestPtr(2.0),
+			},
+		},
+	})
+	if optionOrder.OrderKind != broker.OrderKindOptionCombo ||
+		optionOrder.ProductClass != broker.ProductClassOption ||
+		optionOrder.QuantityMode != broker.QuantityModeContracts ||
+		len(optionOrder.Legs) != 2 {
+		t.Fatalf("option combo order = %#v", optionOrder)
+	}
+	if optionOrder.Legs[1].InstrumentID != "US.AAPL260717C00210000" ||
+		optionOrder.Legs[1].Side != "SELL" ||
+		optionOrder.Legs[1].Ratio != 2 ||
+		optionOrder.Legs[1].RequestedQuantity != 4 ||
+		optionOrder.Legs[1].FilledQuantity != 2 {
+		t.Fatalf("option combo second leg = %#v", optionOrder.Legs[1])
+	}
+
+	eventOrder := brokerOrderSnapshotFromProto(account, &trdcommonpb.Order{
+		OrderID:     futuTestPtr(uint64(8001)),
+		Code:        futuTestPtr("PARLAY-1"),
+		Qty:         futuTestPtr(1.0),
+		OrderAmount: futuTestPtr(50.0),
+		TrdMarket:   futuTestPtr(int32(trdcommonpb.TrdMarket_TrdMarket_Prediction)),
+		ComboLegs: []*qotcommonpb.ComboLeg{
+			{
+				Security: &qotcommonpb.Security{
+					Market: futuTestPtr(int32(qotcommonpb.QotMarket_QotMarket_EventContract)),
+					Code:   futuTestPtr("EVENT-A"),
+				},
+				PredSide: futuTestPtr(int32(commonpb.PredSide_PredSide_Yes)),
+				QtyRatio: futuTestPtr(1.0),
+			},
+			{
+				Security: &qotcommonpb.Security{
+					Market: futuTestPtr(int32(qotcommonpb.QotMarket_QotMarket_EventContract)),
+					Code:   futuTestPtr("EVENT-B"),
+				},
+				PredSide: futuTestPtr(int32(commonpb.PredSide_PredSide_No)),
+				QtyRatio: futuTestPtr(1.0),
+			},
+		},
+	})
+	if eventOrder.Market != "US" ||
+		eventOrder.OrderKind != broker.OrderKindEventParlay ||
+		eventOrder.ProductClass != broker.ProductClassEventContract ||
+		eventOrder.QuantityMode != broker.QuantityModeAmount ||
+		ptrFloat64Value(eventOrder.Amount) != 50 ||
+		len(eventOrder.Legs) != 2 {
+		t.Fatalf("event parlay order = %#v", eventOrder)
+	}
+	if eventOrder.Legs[0].PredictionSide != "YES" ||
+		eventOrder.Legs[1].PredictionSide != "NO" {
+		t.Fatalf("event parlay prediction sides = %#v", eventOrder.Legs)
+	}
+
+	payoutFill := brokerOrderFillSnapshotFromProto(account, &trdcommonpb.OrderFill{
+		OrderID:   futuTestPtr(uint64(8001)),
+		FillID:    futuTestPtr(uint64(9001)),
+		Code:      futuTestPtr("EVENT-A"),
+		Qty:       futuTestPtr(20.0),
+		Price:     futuTestPtr(1.0),
+		Status:    futuTestPtr(int32(trdcommonpb.OrderFillStatus_OrderFillStatus_Payout)),
+		TrdMarket: futuTestPtr(int32(trdcommonpb.TrdMarket_TrdMarket_Prediction)),
+	})
+	if payoutFill.Market != "US" || ptrFloat64Value(payoutFill.Payout) != 20 {
+		t.Fatalf("event payout fill = %#v", payoutFill)
 	}
 }
 

@@ -27,6 +27,8 @@ type BrokerPlaceOrderQuery struct {
 	BrokerReadQuery
 	Session        *string
 	FillOutsideRTH *bool
+	Amount         *float64
+	PredictionSide string
 }
 
 func (e *Exchange) submitOrder(ctx context.Context, order types.SubmitOrder) (*types.Order, error) {
@@ -44,7 +46,7 @@ func (e *Exchange) cancelOrders(ctx context.Context, orders ...types.Order) erro
 }
 
 func (e *Exchange) PlaceBrokerOrder(ctx context.Context, query BrokerPlaceOrderQuery, submitOrder types.SubmitOrder) (*BrokerPlaceOrderResult, error) {
-	if market, err := e.EnsureMarketWithContext(ctx, submitOrder.Symbol); err == nil {
+	if market, err := e.EnsureMarketWithContext(ctx, submitOrder.Symbol); err == nil && query.Amount == nil {
 		submitOrder.Market = market
 		if err := validateSubmitOrderQuantityAgainstMarket(submitOrder, market); err != nil {
 			return nil, err
@@ -161,6 +163,17 @@ func placeOrderRequestFromSubmitOrder(account resolvedTradeAccount, submitOrder 
 		Qty:       new(submitOrder.Quantity.Float64()),
 		SecMarket: new(int32(secMarket)),
 	}
+	if query.Amount != nil {
+		if *query.Amount <= 0 {
+			return nil, fmt.Errorf("futu exchange: event-contract amount must be positive")
+		}
+		request.Amount = new(*query.Amount)
+		predSide, err := predictionSideValue(query.PredictionSide)
+		if err != nil {
+			return nil, err
+		}
+		request.PredSide = new(predSide)
+	}
 	normalizedPrice := normalizeSubmitOrderPrice(submitOrder.Symbol, submitOrder.Price)
 	if normalizedPrice.Sign() > 0 {
 		request.Price = new(normalizedPrice.Float64())
@@ -200,6 +213,17 @@ func placeOrderRequestFromSubmitOrder(account resolvedTradeAccount, submitOrder 
 		}
 	}
 	return request, nil
+}
+
+func predictionSideValue(value string) (int32, error) {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "YES":
+		return 1, nil
+	case "NO":
+		return 2, nil
+	default:
+		return 0, fmt.Errorf("futu exchange: predictionSide must be YES or NO")
+	}
 }
 
 func placedOrderFromSubmitOrder(submitOrder types.SubmitOrder, orderID uint64) types.Order {

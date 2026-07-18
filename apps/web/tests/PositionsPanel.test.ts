@@ -112,8 +112,14 @@ function createConsoleDataState() {
   };
 }
 
-function mountPositionsPanel() {
+function mountPositionsPanel(props: {
+  view?: "positions" | "active" | "historical" | "fills";
+  hideHeader?: boolean;
+  orderKindFilter?: string;
+  focusOrderId?: string;
+} = {}) {
   const wrapper = mount(PositionsPanel, {
+    props,
     global: {
       stubs: {
         "v-alert": {
@@ -179,7 +185,73 @@ afterEach(() => {
 });
 
 describe("PositionsPanel", () => {
-  it("renders loaded positions with counts, connectivity, and directional classes", () => {
+  it("renders the option-combo order view with expandable leg lifecycle details", async () => {
+    setRefValue(consoleDataState.selectedBrokerAccount, {
+      brokerId: "futu",
+      accountId: "REAL-001",
+      tradingEnvironment: "REAL",
+      market: "US",
+    });
+    setRefValue(consoleDataState.activeExecutionOrders, {
+      orders: [
+        makeExecutionOrder({
+          internalOrderId: "combo-1",
+          orderKind: "option_combo",
+          legs: [
+            {
+              id: "leg-1",
+              internalOrderId: "combo-1",
+              index: 0,
+              instrumentId: "US.BABA-C100",
+              productClass: "option",
+              side: "BUY",
+              ratio: 1,
+              status: "PARTIALLY_FILLED",
+              requestedQuantity: 2,
+              filledQuantity: 1,
+              averagePrice: 4.2,
+              fees: 1.1,
+            },
+          ],
+        }),
+        makeExecutionOrder({
+          internalOrderId: "single-1",
+          orderKind: "single",
+        }),
+      ],
+    });
+
+    const { wrapper } = mountPositionsPanel({
+      view: "active",
+      hideHeader: true,
+      orderKindFilter: "option_combo",
+      focusOrderId: "combo-1",
+    });
+
+    expect(wrapper.find(".tv-panel-head").exists()).toBe(false);
+    expect(wrapper.text()).toContain("combo-1");
+    expect(wrapper.text()).not.toContain("single-1");
+    expect(wrapper.find("tr.is-focused-order").exists()).toBe(true);
+    await wrapper.get('button[aria-label="收起组合腿"]').trigger("click");
+    expect(wrapper.text()).not.toContain("US.BABA-C100");
+    await wrapper.get('button[aria-label="展开组合腿"]').trigger("click");
+    expect(wrapper.text()).toContain("US.BABA-C100");
+    expect(wrapper.text()).toContain("费用 1.1");
+
+    await wrapper.get(".tv-btn-cancel").trigger("click");
+    expect(wrapper.text()).toContain("确认撤销组合订单");
+    const confirm = wrapper
+      .findAll(".combo-confirm button")
+      .find((button) => button.text() === "确认撤单");
+    await confirm!.trigger("click");
+    await flushUi();
+    expect(mocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
+      "/api/v1/execution/combos/combo-1/cancel",
+      { method: "POST" },
+    );
+  });
+
+  it("renders loaded positions and hides healthy connectivity from the header", () => {
     setRefValue(consoleDataState.portfolioPositions, {
       positions: [
         makePosition(),
@@ -196,11 +268,31 @@ describe("PositionsPanel", () => {
     const { wrapper } = mountPositionsPanel();
 
     expect(tabButton(wrapper, "持仓").text()).toBe("持仓（2）");
-    expect(wrapper.text()).toContain("已连接");
+    expect(wrapper.find('[data-testid="order-connectivity-issue"]').exists()).toBe(false);
     expect(wrapper.text()).toContain("US.AAPL");
     expect(wrapper.text()).toContain("US.TSLA");
     expect(wrapper.findAll("td.tv-num.tv-up")).toHaveLength(1);
     expect(wrapper.findAll("td.tv-num.tv-down")).toHaveLength(1);
+  });
+
+  it("shows order connectivity only when it is degraded or disconnected", async () => {
+    const { wrapper } = mountPositionsPanel();
+
+    setRefValue(consoleDataState.brokerOrders, { connectivity: "unknown" });
+    await nextTick();
+    expect(wrapper.find('[data-testid="order-connectivity-issue"]').exists()).toBe(false);
+
+    setRefValue(consoleDataState.brokerOrders, { connectivity: "degraded" });
+    await nextTick();
+    let issue = wrapper.get('[data-testid="order-connectivity-issue"]');
+    expect(issue.text()).toContain("订单连接降级");
+    expect(issue.attributes("title")).toContain("可能存在延迟");
+
+    setRefValue(consoleDataState.brokerOrders, { connectivity: "disconnected" });
+    await nextTick();
+    issue = wrapper.get('[data-testid="order-connectivity-issue"]');
+    expect(issue.text()).toContain("订单连接中断");
+    expect(issue.attributes("title")).toContain("无法及时更新");
   });
 
   it("renders A-share positions with a bare code, exchange tag, and parent market", () => {

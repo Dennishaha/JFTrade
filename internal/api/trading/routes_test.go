@@ -79,8 +79,14 @@ func TestBrokerRoutesPreserveFallbackSemanticsAndRequestValidation(t *testing.T)
 
 	notFoundRec := httptest.NewRecorder()
 	router.ServeHTTP(notFoundRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/brokers/ib/runtime", nil))
-	if notFoundRec.Code != http.StatusNotFound {
+	if notFoundRec.Code != http.StatusOK {
 		t.Fatalf("runtime status=%d body=%s", notFoundRec.Code, notFoundRec.Body.String())
+	}
+	if err := json.Unmarshal(notFoundRec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("unmarshal runtime envelope: %v", err)
+	}
+	if runtimeData, ok := envelope.Data.(map[string]any); !ok || len(runtimeData) != 0 {
+		t.Fatalf("runtime data=%#v, want broker-neutral degraded empty state", envelope.Data)
 	}
 }
 

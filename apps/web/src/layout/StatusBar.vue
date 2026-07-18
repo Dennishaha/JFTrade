@@ -2,10 +2,10 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
 import {
-  formatConnectivityLabel,
   formatGenericStatusLabel,
   formatTradingEnvironment,
 } from "../composables/consoleDataFormatting";
+import MarketStatusBadge from "../components/domain/market-data/MarketStatusBadge.vue";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useSharedLiveStream } from "../composables/useSharedLiveStream";
 import { formatLocalDateTime } from "../utils/dateTime";
@@ -13,8 +13,8 @@ import { formatLocalDateTime } from "../utils/dateTime";
 const {
   selectedBrokerAccount,
   systemStatus,
-  liveStreamStatus,
   liveStreamCheckedAt,
+  consoleRefreshError,
   realTradeKillSwitchState,
 } = useConsoleData();
 const { connectionState, lastHeartbeat } = useSharedLiveStream();
@@ -42,20 +42,30 @@ const clock = computed(() => localClockFormatter.format(now.value));
 const killActive = computed(
   () => realTradeKillSwitchState.value.killSwitchActive,
 );
+const consoleRefreshIssue = computed(
+  () =>
+    connectionState.value === "connected" &&
+    consoleRefreshError.value.trim() !== "",
+);
+const consoleRefreshIssueTitle = computed(() =>
+  [
+    "实时通道已连接，但控制台后台刷新失败",
+    `错误：${consoleRefreshError.value.trim()}`,
+    `最近控制台刷新：${formatLocalDateTime(liveStreamCheckedAt.value, "—")}`,
+    `最近实时心跳：${formatLocalDateTime(lastHeartbeat.value, "—")}`,
+  ].join("\n"),
+);
 </script>
 
 <template>
   <footer class="tv-statusbar">
-    <span>
-      <span class="tv-status-dot" :class="liveStreamStatus === 'connected' ? 'tv-dot-ok' : 'tv-dot-idle'"></span>
-      事件流 {{ formatConnectivityLabel(liveStreamStatus) }}
-    </span>
-    <span style="color: var(--tv-text-dim)">{{ formatLocalDateTime(liveStreamCheckedAt, "—") }}</span>
-    <span>
-      <span class="tv-status-dot" :class="connectionState === 'connected' ? 'tv-dot-ok' : connectionState === 'error' ? 'tv-dot-err' : 'tv-dot-idle'"></span>
-      实时通道 {{ formatConnectivityLabel(connectionState) }}
-    </span>
-    <span style="color: var(--tv-text-dim)">{{ formatLocalDateTime(lastHeartbeat, "—") }}</span>
+    <MarketStatusBadge
+      v-if="consoleRefreshIssue"
+      data-testid="console-refresh-issue"
+      state="stale"
+      label="控制台刷新异常"
+      :title="consoleRefreshIssueTitle"
+    />
     <span>
       <span class="tv-status-dot" :class="killActive ? 'tv-dot-err' : 'tv-dot-ok'"></span>
       风控状态 {{ killActive ? "已激活" : "正常" }}
@@ -71,5 +81,10 @@ const killActive = computed(
       }}
     </span>
     <span style="font-variant-numeric: tabular-nums">{{ clock }} 本地时间</span>
+    <span
+      id="workspace-provider-statusbar"
+      class="tv-statusbar__provider"
+      aria-label="行情提供者"
+    />
   </footer>
 </template>

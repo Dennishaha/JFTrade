@@ -6,7 +6,7 @@ import (
 )
 
 func TestFormatVersion(t *testing.T) {
-	if got := FormatVersion(1008, 6808); got != "10.8.6808" {
+	if got := FormatVersion(1009, 6908); got != "10.9.6908" {
 		t.Fatalf("FormatVersion = %q", got)
 	}
 	if got := FormatVersion(504, 0); got != "5.4" {
@@ -15,9 +15,9 @@ func TestFormatVersion(t *testing.T) {
 }
 
 func TestValidateMinimumVersion(t *testing.T) {
-	currentBuild := int32(6808)
-	newerBuild := int32(6900)
-	oldBuild := int32(6708)
+	currentBuild := int32(6908)
+	newerBuild := int32(7000)
+	oldBuild := int32(6808)
 
 	for _, test := range []struct {
 		name      string
@@ -25,12 +25,12 @@ func TestValidateMinimumVersion(t *testing.T) {
 		buildNo   *int32
 		wantError bool
 	}{
-		{name: "current exact", serverVer: 1008, buildNo: &currentBuild},
-		{name: "newer build", serverVer: 1008, buildNo: &newerBuild},
-		{name: "newer minor", serverVer: 1009, buildNo: &currentBuild},
-		{name: "init connect current line", serverVer: 1008},
-		{name: "old build", serverVer: 1008, buildNo: &oldBuild, wantError: true},
-		{name: "old minor", serverVer: 1007, buildNo: &newerBuild, wantError: true},
+		{name: "current exact", serverVer: 1009, buildNo: &currentBuild},
+		{name: "newer build", serverVer: 1009, buildNo: &newerBuild},
+		{name: "newer minor", serverVer: 1010, buildNo: &currentBuild},
+		{name: "init connect current line", serverVer: 1009},
+		{name: "old build", serverVer: 1009, buildNo: &oldBuild, wantError: true},
+		{name: "old minor", serverVer: 1008, buildNo: &newerBuild, wantError: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			err := ValidateMinimumVersion(test.serverVer, test.buildNo)

@@ -24,6 +24,29 @@ type OrderGateway interface {
 	CancelOrder(context.Context, string) (ExecutionOrder, error)
 }
 
+type ComboOrderGateway interface {
+	PlaceCombo(context.Context, broker.ComboOrderIntent) (ExecutionOrder, error)
+	CancelCombo(context.Context, string) (ExecutionOrder, error)
+}
+
+type ExecutionPreviewRecord struct {
+	PreviewID         string
+	RequestHash       string
+	BrokerID          string
+	CapabilityVersion string
+	AccountID         string
+	ExpiresAt         string
+	QuoteExpiresAt    string
+	RFQID             string
+	NormalizedRequest string
+	CreatedAt         string
+}
+
+type ExecutionPreviewStore interface {
+	SavePreview(ExecutionPreviewRecord) error
+	ConsumePreview(previewID, brokerID, accountID, requestHash, clientOrderID string) error
+}
+
 // BrokerRuntimeProvider resolves the active broker and its runtime state.
 type BrokerRuntimeProvider interface {
 	ActiveBroker() broker.Broker
@@ -54,6 +77,11 @@ type orderGatewayFunctions struct {
 	cancel func(context.Context, string) (ExecutionOrder, error)
 }
 
+type comboOrderGatewayFunctions struct {
+	place  func(context.Context, broker.ComboOrderIntent) (ExecutionOrder, error)
+	cancel func(context.Context, string) (ExecutionOrder, error)
+}
+
 func (f *orderGatewayFunctions) PlaceOrder(ctx context.Context, command ExecutionOrderCommand) (ExecutionOrder, error) {
 	if f == nil || f.place == nil {
 		return ExecutionOrder{}, ErrOrderGatewayUnavailable
@@ -62,6 +90,20 @@ func (f *orderGatewayFunctions) PlaceOrder(ctx context.Context, command Executio
 }
 
 func (f *orderGatewayFunctions) CancelOrder(ctx context.Context, id string) (ExecutionOrder, error) {
+	if f == nil || f.cancel == nil {
+		return ExecutionOrder{}, ErrOrderGatewayUnavailable
+	}
+	return f.cancel(ctx, id)
+}
+
+func (f *comboOrderGatewayFunctions) PlaceCombo(ctx context.Context, intent broker.ComboOrderIntent) (ExecutionOrder, error) {
+	if f == nil || f.place == nil {
+		return ExecutionOrder{}, ErrOrderGatewayUnavailable
+	}
+	return f.place(ctx, intent)
+}
+
+func (f *comboOrderGatewayFunctions) CancelCombo(ctx context.Context, id string) (ExecutionOrder, error) {
 	if f == nil || f.cancel == nil {
 		return ExecutionOrder{}, ErrOrderGatewayUnavailable
 	}

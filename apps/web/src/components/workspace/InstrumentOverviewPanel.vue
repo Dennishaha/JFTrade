@@ -11,7 +11,6 @@ import { formatInstrumentIdentityText } from "../../composables/instrumentPresen
 import type { MarketSecurityDetails } from "../../composables/marketDataRealtime";
 import { fetchEnvelope } from "../../composables/apiClient";
 import { resolveBrokerQuery } from "../../composables/consoleDataBrokerAccountSelection";
-import { useMarketDataProviderStatus } from "../../composables/marketDataProviderStatus";
 import { useMarketProfiles } from "../../composables/marketProfiles";
 import { resolveMarketSnapshotDisplay } from "../../composables/marketSessionDisplay";
 import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
@@ -26,7 +25,9 @@ import WatchlistMembershipDialog from "../domain/watchlist/WatchlistMembershipDi
 const {
   currentMarketDataSnapshot: marketDataSnapshot,
   currentMarketSecurityDetails: marketSecurityDetails,
+  isLoadingMarketDataQuery,
   marketInstrumentSearchOptions,
+  marketDataQueryError,
   selectedBrokerAccount,
   brokerRuntime,
   systemStatus,
@@ -34,15 +35,8 @@ const {
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
 const { supportsExtendedHoursForMarket } = useMarketProfiles();
-const {
-  loadMarketDataProviderStatus,
-  providerCapabilitySummary,
-  providerDisplayName,
-} = useMarketDataProviderStatus();
 const liveHub = getSharedLiveSocketHub();
 const membershipDialogOpen = ref(false);
-
-void loadMarketDataProviderStatus();
 
 const snapshot = computed(() => marketDataSnapshot.value?.snapshot ?? null);
 const security = computed(() => marketSecurityDetails.value?.security ?? null);
@@ -271,7 +265,7 @@ const typedDetailSections = computed<DetailSection[]>(() => {
   }
   if (item.warrant) {
     sections.push({
-      title: "窝轮信息",
+      title: "轮证信息",
       rows: [
         { label: "类型", value: item.warrant.warrantType || "—" },
         { label: "正股", value: formatOwner(item.warrant.owner) },
@@ -390,44 +384,45 @@ function formatPercent(value: number | null | undefined): string {
   <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">行情</span>
-      <InstrumentIdentity
-        :market="prefs.market"
-        :code="prefs.symbol"
-        :instrument-id="instrumentId"
-        :name="instrumentName"
-        compact
-      />
       <div style="flex: 1"></div>
       <MarketFeedStatus
         :connection-state="quoteConnectionState"
         :observed-at="quoteObservedAt"
         :transport-mode="quoteTransportMode"
-        :session="snapshot?.session ?? null"
         :source="marketDataSnapshot?.meta.source ?? null"
-        :provider-name="providerDisplayName"
-        :provider-capabilities="providerCapabilitySummary"
         :from-cache="marketDataSnapshot?.meta.fromCache ?? false"
+        :loading="isLoadingMarketDataQuery"
+        :error="marketDataQueryError"
       />
     </div>
     <div class="tv-panel-body">
       <div v-if="snapshot" style="display: flex; flex-direction: column; gap: 12px; min-height: 100%">
         <div class="instrument-overview__quote-card">
-          <button
-            type="button"
-            class="instrument-overview__favorite"
-            :class="{ 'is-active': isWatchlisted }"
-            :title="isWatchlisted ? '管理自选分组' : '加入自选'"
-            :aria-label="isWatchlisted ? '管理自选分组' : '加入自选'"
-            data-testid="instrument-overview-favorite"
-            @click="membershipDialogOpen = true"
-          >
-            {{ isWatchlisted ? "★" : "☆" }}
-          </button>
+          <div class="instrument-overview__identity-row">
+            <InstrumentIdentity
+              :market="prefs.market"
+              :code="prefs.symbol"
+              :instrument-id="instrumentId"
+              :name="instrumentName"
+              compact
+            />
+            <button
+              type="button"
+              class="instrument-overview__favorite"
+              :class="{ 'is-active': isWatchlisted }"
+              :title="isWatchlisted ? '管理自选分组' : '加入自选'"
+              :aria-label="isWatchlisted ? '管理自选分组' : '加入自选'"
+              data-testid="instrument-overview-favorite"
+              @click="membershipDialogOpen = true"
+            >
+              {{ isWatchlisted ? "★" : "☆" }}
+            </button>
+          </div>
           <div style="font-size: 11px; color: var(--tv-text-dim); text-transform: uppercase; letter-spacing: 0.08em">
             {{ mainPriceLabel }}
           </div>
           <div style="display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 8px">
-            <div style="font-size: 42px; line-height: 1; font-weight: 700; color: var(--tv-text)">
+            <div style="font-size: 38px; line-height: 1; font-weight: 650; color: var(--tv-text)">
               {{ formatPrice(mainDisplayPrice) }}
             </div>
             <div v-if="mainChangePercent != null" :class="mainChangeClass"
@@ -447,10 +442,10 @@ function formatPercent(value: number | null | undefined): string {
               @mouseleave="marginHovered = false">
               <span v-if="hasLongPermit"
                 style="font-size: 11px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; cursor: default"
-                :style="{ color: 'var(--tv-up, #22c55e)', border: '1px solid var(--tv-up, #22c55e)', background: 'color-mix(in srgb, var(--tv-up, #22c55e) 12%, var(--tv-bg-surface-2))' }">融</span>
+                :style="{ color: 'var(--tv-price-up)', border: '1px solid var(--tv-price-up)', background: 'color-mix(in srgb, var(--tv-price-up) 12%, var(--tv-bg-surface-2))' }">融</span>
               <span v-if="hasShortPermit"
                 style="font-size: 11px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; cursor: default"
-                :style="{ color: 'var(--tv-down, #ef4444)', border: '1px solid var(--tv-down, #ef4444)', background: 'color-mix(in srgb, var(--tv-down, #ef4444) 12%, var(--tv-bg-surface-2))' }">沽</span>
+                :style="{ color: 'var(--tv-price-down)', border: '1px solid var(--tv-price-down)', background: 'color-mix(in srgb, var(--tv-price-down) 12%, var(--tv-bg-surface-2))' }">沽</span>
               <!-- 悬浮面板 -->
               <Teleport to="body">
                 <div v-if="marginHovered && marginRatioEntry" :style="{
@@ -474,7 +469,7 @@ function formatPercent(value: number | null | undefined): string {
                     融资融券信息
                   </div>
                   <div v-if="hasLongPermit" style="margin-bottom: 8px">
-                    <div style="font-weight: 600; color: var(--tv-up, #22c55e); margin-bottom: 4px">融资（做多）</div>
+                    <div style="font-weight: 600; color: var(--tv-price-up); margin-bottom: 4px">融资（做多）</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px">
                       <span style="color: var(--tv-text-dim)">初始保证金率</span>
                       <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.initialMarginLongRatio)
@@ -490,7 +485,7 @@ function formatPercent(value: number | null | undefined): string {
                     </div>
                   </div>
                   <div v-if="hasShortPermit">
-                    <div style="font-weight: 600; color: var(--tv-down, #ef4444); margin-bottom: 4px">融券（做空）</div>
+                    <div style="font-weight: 600; color: var(--tv-price-down); margin-bottom: 4px">融券（做空）</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px">
                       <span style="color: var(--tv-text-dim)">融券利率</span>
                       <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.shortFeeRate) }}</span>
@@ -578,16 +573,34 @@ function formatPercent(value: number | null | undefined): string {
 <style scoped>
 .instrument-overview__quote-card {
   position: relative;
-  padding: 6px 36px 2px 4px;
+  padding: 6px 4px 2px;
+}
+
+.instrument-overview__identity-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.instrument-overview__identity-row :deep(.instrument-identity) {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.instrument-overview__identity-row :deep(.instrument-identity__name) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .instrument-overview__favorite {
-  position: absolute;
-  top: 2px;
-  right: 2px;
   display: grid;
   width: 28px;
   height: 28px;
+  flex: 0 0 28px;
   place-items: center;
   border: 0;
   border-radius: 5px;

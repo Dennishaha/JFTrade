@@ -105,6 +105,9 @@ describe("WorkspaceWatchlistSidebar", () => {
     await nextTick();
     await flushPromises();
 
+    const header = wrapper.get(".workspace-watchlist__header");
+    expect(header.text()).toContain("自选股");
+    expect(header.text()).not.toContain("可见行情实时刷新");
     expect(quoteRequestBodies.length).toBeGreaterThan(0);
     expect(quoteRequestBodies[0]!.instrumentIds.length).toBeGreaterThan(0);
     expect(quoteRequestBodies[0]!.instrumentIds.length).toBeLessThan(30);

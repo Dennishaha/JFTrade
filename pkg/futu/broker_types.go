@@ -1,5 +1,7 @@
 package futu
 
+import "github.com/jftrade/jftrade-main/pkg/broker"
+
 // BrokerReadQuery selects a specific Futu trading account context for read-side
 // account, position, and order queries.
 type BrokerReadQuery struct {
@@ -76,6 +78,8 @@ type BrokerPositionSnapshot struct {
 	Market             string
 	Symbol             string
 	SymbolName         *string
+	ProductClass       broker.ProductClass
+	MarketSegment      broker.MarketSegment
 	Quantity           float64
 	SellableQuantity   float64
 	LastPrice          float64
@@ -86,12 +90,19 @@ type BrokerPositionSnapshot struct {
 	RealizedPnl        *float64
 	PnlRatio           *float64
 	Currency           *string
+	ComboID            *uint64
+	StrategyType       *string
+	PositionType       *string
+	PayoutIfWin        *float64
 }
 
 type BrokerOrderSnapshot struct {
 	AccountID          string
 	TradingEnvironment string
 	Market             string
+	OrderKind          broker.OrderKind
+	ProductClass       broker.ProductClass
+	QuantityMode       broker.QuantityMode
 	BrokerOrderID      string
 	BrokerOrderIDEx    *string
 	Symbol             string
@@ -100,6 +111,8 @@ type BrokerOrderSnapshot struct {
 	OrderType          string
 	Status             string
 	Quantity           float64
+	Amount             *float64
+	Legs               []broker.OrderLegSnapshot
 	FilledQuantity     *float64
 	Price              *float64
 	FilledAveragePrice *float64

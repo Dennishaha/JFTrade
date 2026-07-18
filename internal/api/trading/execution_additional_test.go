@@ -89,7 +89,7 @@ func TestExecutionRoutesValidatePayloadsAndMapHandlerErrors(t *testing.T) {
 
 	t.Run("place maps broker timeout and request validation failures", func(t *testing.T) {
 		router := gin.New()
-		service := srv.NewService(
+		service := newExecutionRouteTestService(
 			srv.WithPlaceOrder(func(context.Context, srv.ExecutionOrderCommand) (srv.ExecutionOrder, error) {
 				return srv.ExecutionOrder{}, broker.NewBrokerError("futu", broker.ErrCodeTimeout, "timed out")
 			}),

@@ -2,36 +2,27 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import KlineChart from "../KlineChart.vue";
-import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import {
   KLINE_PERIODS,
-  formatKlinePeriodLabel,
   normalizeKlinePeriod,
   overlayRealtimeTickCandle,
   type KlineCandle,
 } from "../../charting/kline";
-import { formatMarketSessionLabel } from "../../composables/marketSessionDisplay";
-import { useMarketDataProviderStatus } from "../../composables/marketDataProviderStatus";
+import { useBrokerProviderSelection } from "../../composables/brokerProviderSelection";
 import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 
 const { prefs, update } = useWorkspaceTradingPrefs();
-const {
-  loadMarketDataProviderStatus,
-  providerCapabilitySummary,
-  providerDisplayName,
-} = useMarketDataProviderStatus();
+const { selectedBrokerId } = useBrokerProviderSelection();
 const {
   currentMarketDataCandles: marketDataCandles,
   currentMarketDataSnapshot: marketDataSnapshot,
   marketDataQueryMarket,
   marketDataQuerySymbol,
   marketDataQueryPeriod,
-  marketDataQueryLimit,
   marketDataQueryError,
-  marketInstrumentSearchOptions,
   isLoadingMarketDataQuery,
   loadMarketDataQuery,
   selectWorkspaceInstrument,
@@ -47,6 +38,7 @@ const {
 const chartConsumerId = createStableWebConsumerId("workspace-chart");
 const liveHub = getSharedLiveSocketHub();
 let heldChartSubscription: {
+  brokerId: string;
   market: string;
   symbol: string;
   channel: "KLINE" | "TICK";
@@ -60,6 +52,7 @@ const periods = KLINE_PERIODS;
 const chartTarget = computed(() => {
   const period = normalizeKlinePeriod(prefs.value.period);
   return {
+    brokerId: selectedBrokerId.value,
     market: prefs.value.market.trim().toUpperCase(),
     symbol: prefs.value.symbol.trim().toUpperCase(),
     period,
@@ -78,32 +71,6 @@ const chartCandles = computed<KlineCandle[]>(() =>
     marketDataQueryPeriod.value,
   ),
 );
-const chartInstrumentName = computed(() => {
-  const instrumentId = chartTarget.value.instrumentId;
-  const option = marketInstrumentSearchOptions.value.find(
-    (candidate) => candidate.instrumentId === instrumentId,
-  );
-  return option?.name?.trim() ?? "";
-});
-const chartSessionBadge = computed(() => {
-  const snapshotSession = marketDataSnapshot.value?.snapshot?.session;
-  if (typeof snapshotSession === "string" && snapshotSession !== "") {
-    return formatMarketSessionLabel(snapshotSession);
-  }
-  const candleSession = marketDataCandles.value?.meta?.session;
-  if (typeof candleSession === "string" && candleSession !== "") {
-    return candleSession === "all" ? "盘前/盘后K线" : formatMarketSessionLabel(candleSession);
-  }
-  return "";
-});
-const chartSessionTitle = computed(() => {
-  const extendedHours =
-    marketDataSnapshot.value?.snapshot?.extendedHours === true ||
-    marketDataCandles.value?.meta?.extendedHours === true;
-  return extendedHours
-    ? "美股扩展时段数据：历史K线请求盘前/盘后，实时快照含盘前/盘后/夜盘字段"
-    : "常规交易时段数据";
-});
 const chartObservedAt = computed(() => {
   const snapshot = marketDataSnapshot.value?.snapshot;
   if (snapshot?.observedAt || snapshot?.at) return snapshot.observedAt ?? snapshot.at;
@@ -226,12 +193,16 @@ async function syncChartSubscription(
   if (
     heldChartSubscription != null &&
     (heldChartSubscription.market !== next.market ||
+      heldChartSubscription.brokerId !== next.brokerId ||
       heldChartSubscription.symbol !== next.symbol ||
       heldChartSubscription.channel !== next.channel ||
       heldChartSubscription.interval !== next.interval)
   ) {
     await releaseMarketDataSubscription({
       consumerId: chartConsumerId,
+      ...(heldChartSubscription.brokerId
+        ? { brokerId: heldChartSubscription.brokerId }
+        : {}),
       market: heldChartSubscription.market,
       symbol: heldChartSubscription.symbol,
       channel: heldChartSubscription.channel,
@@ -248,6 +219,7 @@ async function syncChartSubscription(
 
   const acquired = await acquireMarketDataSubscription({
     consumerId: chartConsumerId,
+    ...(next.brokerId ? { brokerId: next.brokerId } : {}),
     market: next.market,
     symbol: next.symbol,
     channel: next.channel,
@@ -259,6 +231,7 @@ async function syncChartSubscription(
   if (requestSeq !== chartReloadSeq) {
     await releaseMarketDataSubscription({
       consumerId: chartConsumerId,
+      ...(next.brokerId ? { brokerId: next.brokerId } : {}),
       market: next.market,
       symbol: next.symbol,
       channel: next.channel,
@@ -267,10 +240,11 @@ async function syncChartSubscription(
     return;
   }
 
-  await heartbeatMarketDataConsumer(chartConsumerId);
+  await heartbeatChartSubscription(next.brokerId);
   if (requestSeq !== chartReloadSeq) {
     await releaseMarketDataSubscription({
       consumerId: chartConsumerId,
+      ...(next.brokerId ? { brokerId: next.brokerId } : {}),
       market: next.market,
       symbol: next.symbol,
       channel: next.channel,
@@ -282,17 +256,22 @@ async function syncChartSubscription(
   heldChartSubscription = next;
 }
 
+function heartbeatChartSubscription(brokerId: string): Promise<void> {
+  return brokerId
+    ? heartbeatMarketDataConsumer(chartConsumerId, brokerId)
+    : heartbeatMarketDataConsumer(chartConsumerId);
+}
+
 function setPeriod(p: string): void {
   update({ period: normalizeKlinePeriod(p) });
 }
 
 onMounted(() => {
-  void loadMarketDataProviderStatus();
   document.addEventListener("visibilitychange", handleChartVisibilityChange);
   window.addEventListener("online", handleChartOnline);
   void reload();
   heartbeatTimer = window.setInterval(() => {
-    void heartbeatMarketDataConsumer(chartConsumerId);
+    void heartbeatChartSubscription(selectedBrokerId.value);
   }, 15_000);
 });
 
@@ -303,6 +282,9 @@ onBeforeUnmount(() => {
   if (heldChartSubscription != null) {
     void releaseMarketDataSubscription({
       consumerId: chartConsumerId,
+      ...(heldChartSubscription.brokerId
+        ? { brokerId: heldChartSubscription.brokerId }
+        : {}),
       market: heldChartSubscription.market,
       symbol: heldChartSubscription.symbol,
       channel: heldChartSubscription.channel,
@@ -325,16 +307,6 @@ watch(
 <template>
   <section class="tv-panel">
     <div class="tv-panel-head lightweight-chart-head">
-      <span class="tv-panel-title">图表</span>
-      <span class="lightweight-chart-head__instrument">
-        <InstrumentIdentity
-          :market="chartTarget.market"
-          :code="chartTarget.symbol"
-          :instrument-id="chartTarget.instrumentId"
-          compact
-        />
-        <span v-if="chartInstrumentName">· {{ chartInstrumentName }}</span>
-      </span>
       <div class="tv-seg lightweight-chart-head__periods">
         <button
           v-for="p in periods"
@@ -350,16 +322,11 @@ watch(
         :connection-state="chartConnectionState"
         :observed-at="chartObservedAt"
         :transport-mode="chartTransportMode"
-        :session="chartSessionBadge"
-        :context-title="chartSessionTitle"
         :source="chartSource"
-        :provider-name="providerDisplayName"
-        :provider-capabilities="providerCapabilitySummary"
         :from-cache="chartFromCache"
         :loading="isLoadingMarketDataQuery"
         :error="marketDataQueryError"
       />
-      <span class="lightweight-chart-head__meta">{{ marketDataCandles?.totalReturned ?? 0 }} 根 · {{ formatKlinePeriodLabel(prefs.period) }} · 上限 {{ marketDataQueryLimit }}</span>
       <button class="tv-icon-btn" title="刷新" @click="() => reload()">↻</button>
     </div>
     <div class="tv-panel-body is-flush">
@@ -378,31 +345,8 @@ watch(
 </template>
 
 <style scoped>
-.lightweight-chart-head__instrument {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.3rem;
-  overflow: hidden;
-  color: var(--tv-text);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .lightweight-chart-head__periods {
-  margin-left: 12px;
   flex: 0 0 auto;
-}
-
-.lightweight-chart-head__meta {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--tv-text-dim);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tv-panel-body.is-flush {
@@ -431,11 +375,7 @@ watch(
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    padding: 6px 8px;
-  }
-
-  .lightweight-chart-head__instrument {
-    flex: 1 1 140px;
+    padding-inline: 6px;
   }
 
   .lightweight-chart-head__periods {
@@ -446,8 +386,5 @@ watch(
     overflow-x: auto;
   }
 
-  .lightweight-chart-head__meta {
-    flex: 1 1 160px;
-  }
 }
 </style>

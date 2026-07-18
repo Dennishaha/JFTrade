@@ -27,6 +27,10 @@ vi.mock("../src/composables/sharedLiveSocket", () => ({
 }));
 
 import LightweightChart from "../src/components/workspace/LightweightChart.vue";
+import {
+  resetBrokerProviderSelectionForTests,
+  useBrokerProviderSelection,
+} from "../src/composables/brokerProviderSelection";
 
 function createCandlesResult(session = "all", extendedHours = true) {
   return {
@@ -159,13 +163,14 @@ function deferred<T>() {
 }
 
 afterEach(() => {
+  resetBrokerProviderSelectionForTests();
   vi.useRealTimers();
   vi.restoreAllMocks();
   document.body.innerHTML = "";
 });
 
 describe("LightweightChart", () => {
-  it("shows A-share chart targets as bare codes with an exchange tag", async () => {
+  it("keeps only chart controls and issues in the internal header", async () => {
     stores.consoleData = createConsoleDataState();
     stores.consoleData.marketInstrumentSearchOptions.value = [
       { instrumentId: "SH.600519", name: "贵州茅台" },
@@ -181,11 +186,15 @@ describe("LightweightChart", () => {
     const wrapper = mountChart();
     await flushUi();
 
-    const identity = wrapper.get(".lightweight-chart-head__instrument .instrument-identity");
-    expect(identity.text()).toContain("600519");
-    expect(identity.text()).toContain("上证");
-    expect(identity.text()).not.toContain("SH.600519");
-    expect(identity.attributes("title")).toBe("SH.600519");
+    const header = wrapper.get(".lightweight-chart-head");
+    expect(header.text()).not.toContain("图表");
+    expect(header.text()).not.toContain("600519");
+    expect(header.text()).not.toContain("贵州茅台");
+    expect(header.text()).not.toContain("根");
+    expect(header.text()).not.toContain("上限");
+    expect(header.findAll(".lightweight-chart-head__periods button").length).toBeGreaterThan(0);
+    expect(header.get('button[title="刷新"]').exists()).toBe(true);
+    expect(header.find(".instrument-identity").exists()).toBe(false);
     wrapper.unmount();
   });
 
@@ -216,14 +225,10 @@ describe("LightweightChart", () => {
       "workspace-chart:1",
     );
     expect(stores.consoleData.loadMarketDataQuery).toHaveBeenCalledWith({});
-    expect(wrapper.get(".lightweight-chart-head__instrument").text()).toContain(
-      "US.AAPL",
-    );
-    expect(wrapper.get(".lightweight-chart-head__instrument").text()).toContain(
-      "Apple Inc.",
-    );
-    expect(wrapper.text()).toContain("盘前/盘后K线");
-    expect(wrapper.html()).toContain("扩展时段");
+    expect(wrapper.get(".lightweight-chart-head").text()).not.toContain("US.AAPL");
+    expect(wrapper.get(".lightweight-chart-head").text()).not.toContain("Apple Inc.");
+    expect(wrapper.text()).not.toContain("盘前/盘后K线");
+    expect(wrapper.html()).not.toContain("扩展时段");
 
     stores.consoleData.heartbeatMarketDataConsumer.mockClear();
     await vi.advanceTimersByTimeAsync(15_000);
@@ -385,6 +390,31 @@ describe("LightweightChart", () => {
     wrapper.unmount();
   });
 
+  it("releases and reacquires the chart lease for the selected provider", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+    useBrokerProviderSelection().selectBrokerProvider("alpha");
+
+    const wrapper = mountChart();
+    await flushUi();
+
+    expect(stores.consoleData.acquireMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "workspace-chart:1",
+      brokerId: "alpha",
+      market: "US",
+      symbol: "AAPL",
+      channel: "KLINE",
+      interval: "1m",
+    });
+    expect(stores.consoleData.heartbeatMarketDataConsumer).toHaveBeenCalledWith(
+      "workspace-chart:1",
+      "alpha",
+    );
+
+    wrapper.unmount();
+  });
+
   it("does not hold or release a failed subscription and handles an empty chart target", async () => {
     stores.consoleData = createConsoleDataState();
     stores.consoleData.acquireMarketDataSubscription.mockResolvedValue(false);
@@ -407,9 +437,7 @@ describe("LightweightChart", () => {
     const emptyWrapper = mountChart();
     await flushUi();
     expect(stores.consoleData.acquireMarketDataSubscription).not.toHaveBeenCalled();
-    expect(emptyWrapper.get(".lightweight-chart-head__instrument").text()).not.toContain(
-      "Apple Inc.",
-    );
+    expect(emptyWrapper.get(".lightweight-chart-head").text()).not.toContain("Apple Inc.");
     emptyWrapper.unmount();
   });
 
@@ -443,6 +471,7 @@ describe("LightweightChart", () => {
       .mockImplementationOnce(() => secondAcquire.promise);
     stores.workspace = createWorkspaceState();
     stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+    useBrokerProviderSelection().selectBrokerProvider("alpha");
 
     const wrapper = mountChart();
     await nextTick();
@@ -461,6 +490,7 @@ describe("LightweightChart", () => {
       symbol: "AAPL",
       channel: "KLINE",
       interval: "1m",
+      brokerId: "alpha",
     });
     secondAcquire.resolve(true);
     await flushUi();
@@ -475,6 +505,7 @@ describe("LightweightChart", () => {
       .mockResolvedValue(undefined);
     stores.workspace = createWorkspaceState();
     stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+    useBrokerProviderSelection().selectBrokerProvider("alpha");
 
     const wrapper = mountChart();
     await flushUi();
@@ -489,6 +520,7 @@ describe("LightweightChart", () => {
       symbol: "AAPL",
       channel: "KLINE",
       interval: "1m",
+      brokerId: "alpha",
     });
     wrapper.unmount();
   });
@@ -541,7 +573,7 @@ describe("LightweightChart", () => {
     heartbeatWrapper.unmount();
   });
 
-  it("renders snapshot and candle metadata fallbacks used by the feed status", async () => {
+  it("keeps snapshot and candle fallbacks out of the compact header", async () => {
     stores.consoleData = createConsoleDataState();
     const snapshot = createSnapshotResult(200, "regular");
     delete snapshot.snapshot.observedAt;
@@ -555,7 +587,7 @@ describe("LightweightChart", () => {
 
     const wrapper = mountChart();
     await flushUi();
-    expect(wrapper.text()).toContain("盘中");
+    expect(wrapper.text()).not.toContain("盘中");
 
     stores.consoleData.currentMarketDataSnapshot.value = null;
     stores.consoleData.currentMarketDataCandles.value.meta.fromCache = true;
@@ -582,7 +614,7 @@ describe("LightweightChart", () => {
     wrapper.unmount();
   });
 
-  it("renders regular-session candle fallbacks without extended-hours metadata", async () => {
+  it("does not expose regular-session diagnostics in the compact header", async () => {
     stores.consoleData = createConsoleDataState();
     stores.consoleData.currentMarketDataSnapshot.value = createSnapshotResult();
     delete stores.consoleData.currentMarketDataSnapshot.value.snapshot.session;
@@ -593,8 +625,8 @@ describe("LightweightChart", () => {
 
     const wrapper = mountChart();
     await flushUi();
-    expect(wrapper.text()).toContain("盘中");
-    expect(wrapper.html()).toContain("常规交易时段数据");
+    expect(wrapper.text()).not.toContain("盘中");
+    expect(wrapper.html()).not.toContain("常规交易时段数据");
     wrapper.unmount();
   });
 });

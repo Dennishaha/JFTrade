@@ -7,13 +7,17 @@ import (
 
 func TestNormalizeSubscriptions(t *testing.T) {
 	got := NormalizeSubscriptions(Subscriptions{
+		ProviderBrokerID:  " Alpha ",
 		ActiveInstruments: []string{" us.aapl ", "HK.00700", "US.AAPL", ""},
 		SecurityDetails: []SecurityDetailsSubscription{
 			{Market: " hk ", Symbol: " 00700 ", InstrumentID: " hk.00700 "},
+			{Market: "us", Symbol: "MSFT", InstrumentID: "US.MSFT"},
 			{Market: "HK", Symbol: "IGNORED", InstrumentID: "HK.00700"},
 			{Market: "", Symbol: "AAPL", InstrumentID: "US.AAPL"},
 		},
 		Depth: []DepthSubscription{
+			{Market: "", Symbol: "AAPL", InstrumentID: "US.AAPL", Num: 10},
+			{Market: "HK", Symbol: "00700", InstrumentID: "HK.00700", Num: 10},
 			{Market: " us ", Symbol: " tme ", InstrumentID: " us.tme ", Num: 0},
 			{Market: "US", Symbol: "TME", InstrumentID: "US.TME", Num: 100},
 			{Market: "US", Symbol: "TME", InstrumentID: "US.TME", Num: 50},
@@ -22,11 +26,14 @@ func TestNormalizeSubscriptions(t *testing.T) {
 	})
 
 	want := Subscriptions{
+		ProviderBrokerID:  "alpha",
 		ActiveInstruments: []string{"HK.00700", "US.AAPL"},
 		SecurityDetails: []SecurityDetailsSubscription{
 			{Market: "HK", Symbol: "00700", InstrumentID: "HK.00700"},
+			{Market: "US", Symbol: "MSFT", InstrumentID: "US.MSFT"},
 		},
 		Depth: []DepthSubscription{
+			{Market: "HK", Symbol: "00700", InstrumentID: "HK.00700", Num: 10},
 			{Market: "US", Symbol: "TME", InstrumentID: "US.TME", Num: 1},
 			{Market: "US", Symbol: "TME", InstrumentID: "US.TME", Num: 50},
 		},

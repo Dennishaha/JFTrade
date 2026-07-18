@@ -5,15 +5,17 @@ import type {
   MarketDataDepthResponse,
 } from "@/contracts";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
-import { useMarketDataProviderStatus } from "../../composables/marketDataProviderStatus";
+import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import {
+  useBrokerProviderSelection,
+  withBrokerProvider,
+} from "../../composables/brokerProviderSelection";
 import {
   getSharedLiveSocketHub,
   type MarketDepthLiveStreamEvent,
 } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
-import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import OrderBookDepthTable from "../domain/market-data/OrderBookDepthTable.vue";
 
@@ -26,11 +28,7 @@ const {
   releaseMarketDataSubscription,
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
-const {
-  loadMarketDataProviderStatus,
-  providerCapabilitySummary,
-  providerDisplayName,
-} = useMarketDataProviderStatus();
+const { selectedBrokerId } = useBrokerProviderSelection();
 
 // --- Depth presets ---
 const DEPTH_PRESETS = [5, 10, 20, 50] as const;
@@ -49,6 +47,7 @@ let heartbeatTimer = 0;
 let isUnmounted = false;
 const depthConsumerId = createStableWebConsumerId("workspace-depth");
 let heldDepthSubscription: {
+  brokerId: string;
   market: string;
   symbol: string;
   instrumentId: string;
@@ -125,6 +124,7 @@ function resolveDepthSubscriptionTarget() {
   const market = prefs.value?.market?.trim().toUpperCase() ?? "";
   const symbol = prefs.value?.symbol?.trim().toUpperCase() ?? "";
   return {
+    brokerId: selectedBrokerId.value,
     market,
     symbol,
     instrumentId: market === "" || symbol === "" ? "" : `${market}.${symbol}`,
@@ -135,7 +135,11 @@ function isSameDepthSubscription(
   left: ReturnType<typeof resolveDepthSubscriptionTarget>,
   right: ReturnType<typeof resolveDepthSubscriptionTarget>,
 ): boolean {
-  return left.market === right.market && left.symbol === right.symbol;
+  return (
+    left.brokerId === right.brokerId &&
+    left.market === right.market &&
+    left.symbol === right.symbol
+  );
 }
 
 const bidPrice = computed(() => security.value?.bidPrice ?? snapshot.value?.bid ?? null);
@@ -144,12 +148,6 @@ const bidVolume = computed(() => security.value?.bidVolume ?? null);
 const askVolume = computed(() => security.value?.askVolume ?? null);
 const lastPrice = computed(() => security.value?.currentPrice ?? snapshot.value?.price ?? null);
 const depthObservedAt = computed(() => depthData.value?.meta.resolvedAt ?? null);
-const snapshotObservedAt = computed(() =>
-  marketDataSnapshot.value?.snapshot?.observedAt ??
-  marketDataSnapshot.value?.snapshot?.at ??
-  marketDataSnapshot.value?.meta?.resolvedAt ??
-  null,
-);
 const depthConnectionState = computed(() => liveHub.connectionState?.value ?? "idle");
 const depthTransportMode = computed(() => liveHub.lastHeartbeatEvent?.value?.transport?.mode ?? null);
 
@@ -187,11 +185,6 @@ const askRatioPercent = computed(() => {
   return ((1 - r) * 100).toFixed(2);
 });
 
-const sideClass = (val: number | null): string => {
-  if (val == null) return "";
-  return val >= 0 ? "tv-up" : "tv-down";
-};
-
 function fmtPrice(v: number | null): string {
   if (v == null) return "--";
   return v.toFixed(v < 1 ? 4 : v < 10 ? 3 : 2);
@@ -211,25 +204,10 @@ function buildDepthUrl(): string | null {
   const market = prefs.value?.market;
   const symbol = prefs.value?.symbol;
   if (!market || !symbol) return null;
-  return `/api/v1/market-data/depth/${market}/${symbol}?num=${depthNum.value}`;
-}
-
-async function loadBrokerCapability(): Promise<void> {
-  try {
-    const runtime = await fetchEnvelope<any>("/api/v1/brokers/futu/runtime");
-    const caps = runtime?.descriptor?.capabilities;
-    if (caps && caps.length > 0) {
-      const orderBook = caps[0]?.readFeatures?.orderBook;
-      if (orderBook?.numPresets) {
-        // Use broker default if available
-        if (orderBook.defaultNum && DEPTH_PRESETS.includes(orderBook.defaultNum as typeof DEPTH_PRESETS[number])) {
-          depthNum.value = orderBook.defaultNum;
-        }
-      }
-    }
-  } catch {
-    // Silently fall back to defaults
-  }
+  return withBrokerProvider(
+    `/api/v1/market-data/depth/${market}/${symbol}?num=${depthNum.value}`,
+    selectedBrokerId.value,
+  );
 }
 
 async function fetchDepth(): Promise<void> {
@@ -295,6 +273,7 @@ async function releaseDepthSubscription(
 ): Promise<void> {
   await releaseMarketDataSubscription({
     consumerId: depthConsumerId,
+    ...(target.brokerId ? { brokerId: target.brokerId } : {}),
     market: target.market,
     symbol: target.symbol,
     channel: "ORDER_BOOK",
@@ -317,7 +296,7 @@ async function syncDepthSubscription(
   }
 
   if (heldDepthSubscription != null && !forceAcquire) {
-    void heartbeatMarketDataConsumer(depthConsumerId);
+    void heartbeatDepthSubscription(target.brokerId);
     return !isUnmounted && lifecycleSeq === depthLifecycleSeq;
   }
 
@@ -325,6 +304,7 @@ async function syncDepthSubscription(
   try {
     acquired = await acquireMarketDataSubscription({
       consumerId: depthConsumerId,
+      ...(target.brokerId ? { brokerId: target.brokerId } : {}),
       market: target.market,
       symbol: target.symbol,
       channel: "ORDER_BOOK",
@@ -350,8 +330,14 @@ async function syncDepthSubscription(
   }
 
   heldDepthSubscription = target;
-  void heartbeatMarketDataConsumer(depthConsumerId);
+  void heartbeatDepthSubscription(target.brokerId);
   return true;
+}
+
+function heartbeatDepthSubscription(brokerId: string): Promise<void> {
+  return brokerId
+    ? heartbeatMarketDataConsumer(depthConsumerId, brokerId)
+    : heartbeatMarketDataConsumer(depthConsumerId);
 }
 
 async function connectDepthStream(
@@ -438,17 +424,16 @@ function setDepthNum(num: number): void {
 
 // --- Lifecycle ---
 onMounted(() => {
-  void loadMarketDataProviderStatus();
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", handleDepthVisibilityChange);
   }
   if (typeof window !== "undefined") {
     window.addEventListener("online", handleDepthOnline);
   }
-  loadBrokerCapability().then(() => connectDepthStream());
+  void connectDepthStream();
   heartbeatTimer = window.setInterval(() => {
     if (heldDepthSubscription != null) {
-      void heartbeatMarketDataConsumer(depthConsumerId);
+      void heartbeatDepthSubscription(heldDepthSubscription.brokerId);
     }
   }, 15_000);
 });
@@ -480,7 +465,7 @@ onUnmounted(() => {
 // Re-fetch only when the instrument changes. Period changes update workspace
 // prefs too, but depth data is independent from the chart interval.
 watch(
-  () => currentInstrumentId.value,
+  () => `${selectedBrokerId.value}|${currentInstrumentId.value}`,
   () => {
     clearDepthData();
     void connectDepthStream();
@@ -492,24 +477,12 @@ watch(
   <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">盘口</span>
-      <InstrumentIdentity
-        :market="prefs.market"
-        :code="prefs.symbol"
-        :instrument-id="currentInstrumentId"
-        compact
-      />
       <div style="flex: 1"></div>
       <MarketFeedStatus
         :connection-state="depthConnectionState"
         :observed-at="depthObservedAt"
-        :comparison-observed-at="snapshotObservedAt"
-        comparison-label="快照"
-        empty-label="暂无深度数据"
         :transport-mode="depthTransportMode"
-        :session="snapshot?.session ?? null"
         :source="depthData?.meta.source ?? null"
-        :provider-name="providerDisplayName"
-        :provider-capabilities="providerCapabilitySummary"
         :from-cache="depthData?.meta.fromCache ?? false"
         :loading="isLoadingDepth"
         :error="depthError"
@@ -524,9 +497,6 @@ watch(
           {{ preset }}
         </button>
         <span v-if="isLoadingDepth" class="tv-ob-preset-spinner fa-solid fa-spinner fa-spin"></span>
-        <span v-if="depthError" class="tv-ob-preset-error" :title="depthError">
-          <span class="fa-solid fa-triangle-exclamation"></span>
-        </span>
       </div>
 
       <!-- BBO ratio bar -->
@@ -611,13 +581,6 @@ watch(
   margin-left: 4px;
 }
 
-.tv-ob-preset-error {
-  font-size: 11px;
-  color: var(--tv-down);
-  margin-left: 4px;
-  cursor: help;
-}
-
 /* ---------- Ratio bar ---------- */
 .tv-ob-ratio-bar {
   display: flex;
@@ -629,8 +592,8 @@ watch(
 }
 
 .tv-ob-ratio-bid {
-  background: color-mix(in srgb, var(--tv-up) 18%, transparent);
-  color: var(--tv-up);
+  background: color-mix(in srgb, var(--tv-price-up) 18%, transparent);
+  color: var(--tv-price-up);
   text-align: left;
   padding-left: 6px;
   min-width: 0;
@@ -640,8 +603,8 @@ watch(
 }
 
 .tv-ob-ratio-ask {
-  background: color-mix(in srgb, var(--tv-down) 18%, transparent);
-  color: var(--tv-down);
+  background: color-mix(in srgb, var(--tv-price-down) 18%, transparent);
+  color: var(--tv-price-down);
   text-align: right;
   padding-right: 6px;
   min-width: 0;

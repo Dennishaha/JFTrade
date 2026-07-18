@@ -417,8 +417,11 @@ func TestToolRegistryAliasesModesAndNumericInputs(t *testing.T) {
 	if live.Descriptor.RiskLevel != "critical" {
 		t.Fatalf("live trading risk = %q, want critical", live.Descriptor.RiskLevel)
 	}
-	if ToolAllowedInMode(live.Descriptor, PermissionModeApproval) || !ToolAllowedInMode(live.Descriptor, PermissionModeAll) {
+	if !ToolAllowedInMode(live.Descriptor, PermissionModeApproval) || !ToolAllowedInMode(live.Descriptor, PermissionModeAll) {
 		t.Fatalf("live trading allowed modes not enforced: %+v", live.Descriptor)
+	}
+	if !ToolRequiresApproval(live.Descriptor, PermissionModeAll) {
+		t.Fatalf("live trading must require approval in all modes: %+v", live.Descriptor)
 	}
 
 	input := map[string]any{

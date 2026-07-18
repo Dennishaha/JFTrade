@@ -13,6 +13,7 @@ import { fontAwesomeIcons } from "./fontAwesomeIcons";
 import { queryClient } from "./composables/serverState";
 import { createConsoleRouter } from "./router";
 import "./styles/adk-tokens.css";
+import "./styles/product-controls.css";
 import "./style.css";
 
 const vuetify = createVuetify({
@@ -32,8 +33,8 @@ const vuetify = createVuetify({
       dark: {
         dark: true,
         colors: {
-          background: "#07111f",
-          surface: "#0d1729",
+          background: "#0a0a0a",
+          surface: "#141414",
         },
       },
     },

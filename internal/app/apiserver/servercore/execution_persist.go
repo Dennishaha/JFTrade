@@ -8,17 +8,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
-	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 )
 
 const (
 	defaultExecutionOrderDBFilename = "execution-orders.db"
 	executionOrderTable             = "execution_orders"
 	executionOrderEventTable        = "execution_order_events"
+	executionOrderLegTable          = "execution_order_legs"
+	executionOrderPreviewTable      = "execution_order_previews"
+	executionPredictionQuoteTable   = "execution_prediction_quotes"
 	executionSeenFillTable          = "execution_seen_fills"
 	executionSequenceTable          = "execution_sequences"
 )
@@ -68,6 +69,71 @@ type executionOrderSummaryRow struct {
 	SubmittedAt        sql.NullString  `db:"submitted_at"`
 	UpdatedAt          string          `db:"updated_at"`
 	CreatedAt          string          `db:"created_at"`
+	OrderKind          string          `db:"order_kind"`
+	ProductClass       string          `db:"product_class"`
+	QuantityMode       string          `db:"quantity_mode"`
+	ClientOrderID      sql.NullString  `db:"client_order_id"`
+	PreviewID          sql.NullString  `db:"preview_id"`
+	NormalizedRequest  string          `db:"normalized_request"`
+	RequestedAmount    sql.NullFloat64 `db:"requested_amount"`
+	Payout             sql.NullFloat64 `db:"payout"`
+	Fees               sql.NullFloat64 `db:"fees"`
+}
+
+type executionOrderLegRow struct {
+	ID                string          `db:"id"`
+	InternalOrderID   string          `db:"internal_order_id"`
+	LegIndex          int             `db:"leg_index"`
+	BrokerLegID       sql.NullString  `db:"broker_leg_id"`
+	InstrumentID      string          `db:"instrument_id"`
+	ProductClass      string          `db:"product_class"`
+	Side              string          `db:"side"`
+	Ratio             int             `db:"ratio"`
+	PredictionSide    string          `db:"prediction_side"`
+	RequestedQuantity sql.NullFloat64 `db:"requested_quantity"`
+	RequestedAmount   sql.NullFloat64 `db:"requested_amount"`
+	RequestedPrice    sql.NullFloat64 `db:"requested_price"`
+	Status            string          `db:"status"`
+	FilledQuantity    sql.NullFloat64 `db:"filled_quantity"`
+	FilledAmount      sql.NullFloat64 `db:"filled_amount"`
+	AveragePrice      sql.NullFloat64 `db:"average_price"`
+	Fees              sql.NullFloat64 `db:"fees"`
+	Payout            sql.NullFloat64 `db:"payout"`
+	UpdatedAt         string          `db:"updated_at"`
+	CreatedAt         string          `db:"created_at"`
+}
+
+type executionOrderPreviewRow struct {
+	PreviewID         string         `db:"preview_id"`
+	RequestHash       string         `db:"request_hash"`
+	BrokerID          string         `db:"broker_id"`
+	CapabilityVersion string         `db:"capability_version"`
+	AccountID         string         `db:"account_id"`
+	ExpiresAt         string         `db:"expires_at"`
+	QuoteExpiresAt    sql.NullString `db:"quote_expires_at"`
+	RFQID             sql.NullString `db:"rfq_id"`
+	NormalizedRequest string         `db:"normalized_request"`
+	CreatedAt         string         `db:"created_at"`
+	ConsumedAt        sql.NullString `db:"consumed_at"`
+}
+
+type executionPredictionQuoteRow struct {
+	QuoteID            string          `db:"quote_id"`
+	BrokerID           string          `db:"broker_id"`
+	AccountID          string          `db:"account_id"`
+	TradingEnvironment string          `db:"trading_environment"`
+	MVC                string          `db:"mvc"`
+	LegsHash           string          `db:"legs_hash"`
+	BidPrice           sql.NullFloat64 `db:"bid_price"`
+	AskPrice           sql.NullFloat64 `db:"ask_price"`
+	ShouldRetry        bool            `db:"should_retry"`
+	ReceivedAt         string          `db:"received_at"`
+	ExpiresAt          string          `db:"expires_at"`
+	ExpirySource       string          `db:"expiry_source"`
+	Status             string          `db:"status"`
+	ConsumedAt         sql.NullString  `db:"consumed_at"`
+	ConsumedPreviewID  sql.NullString  `db:"consumed_preview_id"`
+	ConsumedClientID   sql.NullString  `db:"consumed_client_order_id"`
 }
 
 type executionOrderEventRow struct {
@@ -153,7 +219,7 @@ func newExecutionOrderSQLiteStoreWithDeps(
 	}
 	store := &executionOrderSQLiteStore{db: db, path: trimmedPath}
 	if !newDatabase {
-		if err := store.migrateSchemaV1ToV2(); err != nil {
+		if err := store.migrateLegacySchema(); err != nil {
 			jftradeErr1 := db.Close()
 			jftradeLogError(jftradeErr1)
 			return nil, fmt.Errorf("migrate execution order sqlite store: %w", err)
@@ -165,6 +231,19 @@ func newExecutionOrderSQLiteStoreWithDeps(
 		return nil, fmt.Errorf("migrate execution order sqlite store: %w", err)
 	}
 	return store, nil
+}
+
+func (s *executionOrderSQLiteStore) migrateLegacySchema() error {
+	if err := s.migrateSchemaV1ToV2(); err != nil {
+		return err
+	}
+	if err := s.migrateSchemaV2ToV3(); err != nil {
+		return err
+	}
+	if err := s.migrateSchemaV3ToV4(); err != nil {
+		return err
+	}
+	return s.migrateSchemaV4ToV5()
 }
 
 func (s *executionOrderSQLiteStore) migrateSchemaV1ToV2() error {
@@ -234,6 +313,178 @@ func (s *executionOrderSQLiteStore) migrateSchemaV1ToV2() error {
 	return nil
 }
 
+func (s *executionOrderSQLiteStore) migrateSchemaV2ToV3() error {
+	version, exists, err := s.executionSchemaVersion()
+	if err != nil || !exists || version != 2 {
+		return err
+	}
+	existingColumns := []string{}
+	if err := s.db.Select(&existingColumns, `SELECT name FROM pragma_table_info(?)`, executionOrderTable); err != nil {
+		return err
+	}
+	return s.executeSchemaV3Migration(executionSchemaV3Statements(existingColumns))
+}
+
+func (s *executionOrderSQLiteStore) executionSchemaVersion() (int, bool, error) {
+	var metadataTable string
+	err := s.db.QueryRowxContext(context.Background(),
+		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
+		sqliteschema.MetadataTable,
+	).Scan(&metadataTable)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	var version int
+	err = s.db.QueryRowxContext(context.Background(),
+		`SELECT version FROM `+sqliteschema.MetadataTable+` WHERE component_id = ? LIMIT 1`,
+		"execution-orders",
+	).Scan(&version)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	return version, true, nil
+}
+
+func (s *executionOrderSQLiteStore) migrateSchemaV3ToV4() error {
+	version, exists, err := s.executionSchemaVersion()
+	if err != nil || !exists || version != 3 {
+		return err
+	}
+	tx, err := s.db.BeginWrite(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	rollback := true
+	defer func() {
+		if rollback {
+			_ = tx.Rollback()
+		}
+	}()
+	if _, err := tx.ExecContext(context.Background(), executionPredictionQuoteSchemaStatement()); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(context.Background(),
+		`CREATE INDEX IF NOT EXISTS idx_execution_prediction_quotes_expiry ON `+
+			executionPredictionQuoteTable+` (status, expires_at)`,
+	); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(context.Background(),
+		`UPDATE `+sqliteschema.MetadataTable+` SET version = 4 WHERE component_id = ?`,
+		"execution-orders",
+	); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	rollback = false
+	return nil
+}
+
+func (s *executionOrderSQLiteStore) migrateSchemaV4ToV5() error {
+	version, exists, err := s.executionSchemaVersion()
+	if err != nil || !exists || version != 4 {
+		return err
+	}
+	tx, err := s.db.BeginWrite(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	rollback := true
+	defer func() {
+		if rollback {
+			_ = tx.Rollback()
+		}
+	}()
+	if _, err := tx.ExecContext(context.Background(),
+		`ALTER TABLE `+executionOrderTable+` ADD COLUMN fees REAL`,
+	); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(context.Background(),
+		`UPDATE `+sqliteschema.MetadataTable+` SET version = 5 WHERE component_id = ?`,
+		"execution-orders",
+	); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	rollback = false
+	return nil
+}
+
+func executionSchemaV3Statements(existingColumns []string) []string {
+	existingSet := make(map[string]struct{}, len(existingColumns))
+	for _, column := range existingColumns {
+		existingSet[column] = struct{}{}
+	}
+	columnStatements := []struct{ name, statement string }{
+		{"order_kind", `ALTER TABLE ` + executionOrderTable + ` ADD COLUMN order_kind TEXT NOT NULL DEFAULT 'single'`},
+		{"product_class", `ALTER TABLE ` + executionOrderTable + ` ADD COLUMN product_class TEXT NOT NULL DEFAULT 'unknown'`},
+		{"quantity_mode", `ALTER TABLE ` + executionOrderTable + ` ADD COLUMN quantity_mode TEXT NOT NULL DEFAULT 'units'`},
+		{"client_order_id", `ALTER TABLE ` + executionOrderTable + ` ADD COLUMN client_order_id TEXT`},
+		{"preview_id", `ALTER TABLE ` + executionOrderTable + ` ADD COLUMN preview_id TEXT`},
+		{"normalized_request", `ALTER TABLE ` + executionOrderTable + ` ADD COLUMN normalized_request TEXT NOT NULL DEFAULT '{}'`},
+		{"requested_amount", `ALTER TABLE ` + executionOrderTable + ` ADD COLUMN requested_amount REAL`},
+		{"payout", `ALTER TABLE ` + executionOrderTable + ` ADD COLUMN payout REAL`},
+	}
+	statements := make([]string, 0, len(columnStatements)+4)
+	for _, column := range columnStatements {
+		if _, ok := existingSet[column.name]; !ok {
+			statements = append(statements, column.statement)
+		}
+	}
+	statements = append(statements,
+		executionOrderLegSchemaStatement(), executionOrderPreviewSchemaStatement(),
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_orders_client_id ON `+executionOrderTable+` (broker_id, trading_environment, account_id, client_order_id) WHERE client_order_id IS NOT NULL AND TRIM(client_order_id) <> ''`,
+		`CREATE INDEX IF NOT EXISTS idx_execution_order_legs_order ON `+executionOrderLegTable+` (internal_order_id, leg_index ASC)`,
+	)
+	return statements
+}
+
+func (s *executionOrderSQLiteStore) executeSchemaV3Migration(statements []string) error {
+	beginMigration := s.beginMigration
+	if beginMigration == nil {
+		beginMigration = func(ctx context.Context, opts *sql.TxOptions) (executionMigrationTx, error) {
+			return s.db.BeginWrite(ctx, opts)
+		}
+	}
+	tx, err := beginMigration(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	rollback := true
+	defer func() {
+		if rollback {
+			_ = tx.Rollback()
+		}
+	}()
+	for _, statement := range statements {
+		if _, err := tx.ExecContext(context.Background(), statement); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(context.Background(),
+		`UPDATE `+sqliteschema.MetadataTable+` SET version = 3 WHERE component_id = ?`,
+		"execution-orders",
+	); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	rollback = false
+	return nil
+}
+
 func (s *executionOrderSQLiteStore) Close() error {
 	if s == nil || s.db == nil {
 		return nil
@@ -247,7 +498,7 @@ func (s *executionOrderSQLiteStore) initializeOrValidateSchema() error {
 		s.db,
 		s.path,
 		"execution-orders",
-		2,
+		5,
 		executionSchemaStatements(),
 		func(ctx context.Context, _ sqliteschema.Database) error {
 			return s.validateExecutionSchemas(ctx)
@@ -283,9 +534,21 @@ func executionSchemaStatements() []string {
 			`  submitted_at         TEXT,`,
 			`  updated_at           TEXT NOT NULL DEFAULT '',`,
 			`  created_at           TEXT NOT NULL DEFAULT '',`,
-			`  raw_broker_status    TEXT`,
+			`  raw_broker_status    TEXT,`,
+			`  order_kind           TEXT NOT NULL DEFAULT 'single',`,
+			`  product_class        TEXT NOT NULL DEFAULT 'unknown',`,
+			`  quantity_mode        TEXT NOT NULL DEFAULT 'units',`,
+			`  client_order_id      TEXT,`,
+			`  preview_id           TEXT,`,
+			`  normalized_request   TEXT NOT NULL DEFAULT '{}',`,
+			`  requested_amount     REAL,`,
+			`  payout               REAL,`,
+			`  fees                 REAL`,
 			`)`,
 		}, " "),
+		executionOrderLegSchemaStatement(),
+		executionOrderPreviewSchemaStatement(),
+		executionPredictionQuoteSchemaStatement(),
 		strings.Join([]string{
 			`CREATE TABLE IF NOT EXISTS ` + executionOrderEventTable + ` (`,
 			`  id                TEXT PRIMARY KEY,`,
@@ -313,7 +576,78 @@ func executionSchemaStatements() []string {
 		`CREATE INDEX IF NOT EXISTS idx_execution_orders_broker_order ON ` + executionOrderTable + ` (broker_id, trading_environment, account_id, market, broker_order_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_execution_orders_broker_order_ex ON ` + executionOrderTable + ` (broker_id, trading_environment, account_id, market, broker_order_id_ex)`,
 		`CREATE INDEX IF NOT EXISTS idx_execution_order_events_order ON ` + executionOrderEventTable + ` (internal_order_id, created_at ASC, id ASC)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_orders_client_id ON ` + executionOrderTable + ` (broker_id, trading_environment, account_id, client_order_id) WHERE client_order_id IS NOT NULL AND TRIM(client_order_id) <> ''`,
+		`CREATE INDEX IF NOT EXISTS idx_execution_order_legs_order ON ` + executionOrderLegTable + ` (internal_order_id, leg_index ASC)`,
+		`CREATE INDEX IF NOT EXISTS idx_execution_prediction_quotes_expiry ON ` + executionPredictionQuoteTable + ` (status, expires_at)`,
 	}
+}
+
+func executionOrderLegSchemaStatement() string {
+	return strings.Join([]string{
+		`CREATE TABLE IF NOT EXISTS ` + executionOrderLegTable + ` (`,
+		`  id                 TEXT PRIMARY KEY,`,
+		`  internal_order_id  TEXT NOT NULL,`,
+		`  leg_index          INTEGER NOT NULL,`,
+		`  broker_leg_id      TEXT,`,
+		`  instrument_id      TEXT NOT NULL,`,
+		`  product_class      TEXT NOT NULL DEFAULT 'unknown',`,
+		`  side               TEXT NOT NULL DEFAULT '',`,
+		`  ratio              INTEGER NOT NULL DEFAULT 1,`,
+		`  prediction_side    TEXT NOT NULL DEFAULT '',`,
+		`  requested_quantity REAL,`,
+		`  requested_amount   REAL,`,
+		`  requested_price    REAL,`,
+		`  status             TEXT NOT NULL DEFAULT '',`,
+		`  filled_quantity    REAL,`,
+		`  filled_amount      REAL,`,
+		`  average_price      REAL,`,
+		`  fees               REAL,`,
+		`  payout             REAL,`,
+		`  updated_at         TEXT NOT NULL DEFAULT '',`,
+		`  created_at         TEXT NOT NULL DEFAULT ''`,
+		`)`,
+	}, " ")
+}
+
+func executionPredictionQuoteSchemaStatement() string {
+	return strings.Join([]string{
+		`CREATE TABLE IF NOT EXISTS ` + executionPredictionQuoteTable + ` (`,
+		`  quote_id                 TEXT PRIMARY KEY,`,
+		`  broker_id                TEXT NOT NULL,`,
+		`  account_id               TEXT NOT NULL,`,
+		`  trading_environment      TEXT NOT NULL,`,
+		`  mvc                      TEXT NOT NULL,`,
+		`  legs_hash                TEXT NOT NULL,`,
+		`  bid_price                REAL,`,
+		`  ask_price                REAL,`,
+		`  should_retry             INTEGER NOT NULL DEFAULT 0,`,
+		`  received_at              TEXT NOT NULL,`,
+		`  expires_at               TEXT NOT NULL,`,
+		`  expiry_source            TEXT NOT NULL DEFAULT 'jftrade_policy',`,
+		`  status                   TEXT NOT NULL DEFAULT 'active',`,
+		`  consumed_at              TEXT,`,
+		`  consumed_preview_id      TEXT,`,
+		`  consumed_client_order_id TEXT`,
+		`)`,
+	}, " ")
+}
+
+func executionOrderPreviewSchemaStatement() string {
+	return strings.Join([]string{
+		`CREATE TABLE IF NOT EXISTS ` + executionOrderPreviewTable + ` (`,
+		`  preview_id         TEXT PRIMARY KEY,`,
+		`  request_hash       TEXT NOT NULL,`,
+		`  broker_id          TEXT NOT NULL,`,
+		`  capability_version TEXT NOT NULL,`,
+		`  account_id         TEXT NOT NULL,`,
+		`  expires_at         TEXT NOT NULL,`,
+		`  quote_expires_at   TEXT,`,
+		`  rfq_id             TEXT,`,
+		`  normalized_request TEXT NOT NULL,`,
+		`  created_at         TEXT NOT NULL,`,
+		`  consumed_at        TEXT`,
+		`)`,
+	}, " ")
 }
 
 func (s *executionOrderSQLiteStore) validateExecutionSchemas(context.Context) error {
@@ -337,6 +671,9 @@ func expectedExecutionSchemas() []struct {
 		columns []string
 	}{
 		{table: executionOrderTable, columns: expectedExecutionOrderColumns()},
+		{table: executionOrderLegTable, columns: expectedExecutionOrderLegColumns()},
+		{table: executionOrderPreviewTable, columns: expectedExecutionOrderPreviewColumns()},
+		{table: executionPredictionQuoteTable, columns: expectedExecutionPredictionQuoteColumns()},
 		{table: executionOrderEventTable, columns: expectedExecutionOrderEventColumns()},
 		{table: executionSeenFillTable, columns: expectedExecutionSeenFillColumns()},
 		{table: executionSequenceTable, columns: expectedExecutionSequenceColumns()},
@@ -345,8 +682,11 @@ func expectedExecutionSchemas() []struct {
 
 func (s *executionOrderSQLiteStore) ensureExistingSchemaCanBeOpened() error {
 	rows := []string{}
-	if err := s.db.Select(&rows, `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (?, ?, ?, ?)`,
+	if err := s.db.Select(&rows, `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (?, ?, ?, ?, ?, ?, ?)`,
 		executionOrderTable,
+		executionOrderLegTable,
+		executionOrderPreviewTable,
+		executionPredictionQuoteTable,
 		executionOrderEventTable,
 		executionSeenFillTable,
 		executionSequenceTable,
@@ -360,7 +700,11 @@ func (s *executionOrderSQLiteStore) ensureExistingSchemaCanBeOpened() error {
 	for _, row := range rows {
 		existing[row] = struct{}{}
 	}
-	for _, tableName := range []string{executionOrderTable, executionOrderEventTable, executionSeenFillTable, executionSequenceTable} {
+	for _, tableName := range []string{
+		executionOrderTable, executionOrderLegTable, executionOrderPreviewTable,
+		executionPredictionQuoteTable,
+		executionOrderEventTable, executionSeenFillTable, executionSequenceTable,
+	} {
 		if _, ok := existing[tableName]; !ok {
 			return fmt.Errorf("%s schema is obsolete; rebuild the execution order database", tableName)
 		}
@@ -401,317 +745,4 @@ func inspectExecutionSchemaRows(tableName string, want []string, rows executionS
 		}
 	}
 	return nil
-}
-
-func expectedExecutionOrderColumns() []string {
-	return []string{
-		"internal_order_id:TEXT:1", "broker_id:TEXT:0", "broker_order_id:TEXT:0", "broker_order_id_ex:TEXT:0",
-		"source:TEXT:0", "source_detail:TEXT:0", "trading_environment:TEXT:0", "account_id:TEXT:0", "market:TEXT:0",
-		"symbol:TEXT:0", "side:TEXT:0", "order_type:TEXT:0", "status:TEXT:0", "requested_quantity:REAL:0",
-		"requested_price:REAL:0", "filled_quantity:REAL:0", "filled_average_price:REAL:0", "remark:TEXT:0",
-		"last_error:TEXT:0", "last_error_code:TEXT:0", "last_error_source:TEXT:0", "submitted_at:TEXT:0",
-		"updated_at:TEXT:0", "created_at:TEXT:0",
-		"raw_broker_status:TEXT:0",
-	}
-}
-
-func expectedExecutionOrderEventColumns() []string {
-	return []string{
-		"id:TEXT:1", "internal_order_id:TEXT:0", "event_type:TEXT:0", "previous_status:TEXT:0",
-		"next_status:TEXT:0", "payload_json:TEXT:0", "created_at:TEXT:0",
-	}
-}
-
-func expectedExecutionSeenFillColumns() []string {
-	return []string{"fill_key:TEXT:1", "created_at:TEXT:0"}
-}
-
-func expectedExecutionSequenceColumns() []string {
-	return []string{"name:TEXT:1", "value:INTEGER:0"}
-}
-
-func (s *executionOrderStore) loadFromDB() error {
-	if s == nil || s.persistence == nil {
-		return nil
-	}
-	orders, err := s.persistence.loadOrders()
-	if err != nil {
-		return err
-	}
-	events, err := s.persistence.loadEvents()
-	if err != nil {
-		return err
-	}
-	fillKeys, err := s.persistence.loadSeenFillKeys()
-	if err != nil {
-		return err
-	}
-	sequences, err := s.persistence.loadSequences()
-	if err != nil {
-		return err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, order := range orders {
-		s.orders[order.InternalOrderID] = order
-		s.linkBrokerOrderLocked(order)
-		if seq := executionSequenceSuffix(order.InternalOrderID, "exec-"); seq > s.nextOrderSeq {
-			s.nextOrderSeq = seq
-		}
-	}
-	for _, event := range events {
-		s.events[event.InternalOrderID] = append(s.events[event.InternalOrderID], event)
-		if seq := executionSequenceSuffix(event.ID, "evt-"); seq > s.nextEventSeq {
-			s.nextEventSeq = seq
-		}
-	}
-	for _, row := range fillKeys {
-		s.seenFillKeys[row.FillKey] = row.CreatedAt
-	}
-	if seq := sequences["orders"]; seq > s.nextOrderSeq {
-		s.nextOrderSeq = seq
-	}
-	if seq := sequences["events"]; seq > s.nextEventSeq {
-		s.nextEventSeq = seq
-	}
-	return nil
-}
-
-func (s *executionOrderSQLiteStore) loadOrders() ([]executionOrderSummaryResponse, error) {
-	rows := []executionOrderSummaryRow{}
-	if err := s.db.Select(&rows,
-		`SELECT internal_order_id, broker_id, broker_order_id, broker_order_id_ex, source, source_detail, trading_environment, account_id, market, symbol, side, order_type, status, raw_broker_status, requested_quantity, requested_price, filled_quantity, filled_average_price, remark, last_error, last_error_code, last_error_source, submitted_at, updated_at, created_at FROM `+
-			executionOrderTable); err != nil {
-		return nil, err
-	}
-	orders := make([]executionOrderSummaryResponse, 0, len(rows))
-	for _, row := range rows {
-		orders = append(orders, executionOrderSummaryFromRow(row))
-	}
-	return orders, nil
-}
-
-func (s *executionOrderSQLiteStore) loadEvents() ([]executionOrderEventResponse, error) {
-	rows := []executionOrderEventRow{}
-	if err := s.db.Select(&rows,
-		`SELECT id, internal_order_id, event_type, previous_status, next_status, payload_json, created_at FROM `+
-			executionOrderEventTable+` ORDER BY created_at ASC, id ASC`); err != nil {
-		return nil, err
-	}
-	events := make([]executionOrderEventResponse, 0, len(rows))
-	for _, row := range rows {
-		events = append(events, executionOrderEventFromRow(row))
-	}
-	return events, nil
-}
-
-func (s *executionOrderSQLiteStore) loadSeenFillKeys() ([]executionSeenFillRow, error) {
-	keys := []executionSeenFillRow{}
-	if err := s.db.Select(&keys, `SELECT fill_key, created_at FROM `+executionSeenFillTable); err != nil {
-		return nil, err
-	}
-	return keys, nil
-}
-
-func (s *executionOrderSQLiteStore) loadSequences() (map[string]uint64, error) {
-	rows := []executionSequenceRow{}
-	if err := s.db.Select(&rows, `SELECT name, value FROM `+executionSequenceTable); err != nil {
-		return nil, err
-	}
-	result := make(map[string]uint64, len(rows))
-	for _, row := range rows {
-		result[row.Name] = row.Value
-	}
-	return result, nil
-}
-
-func (s *executionOrderSQLiteStore) persistOrder(order executionOrderSummaryResponse) error {
-	row := executionOrderSummaryToRow(order)
-	_, err := s.db.NamedExec(
-		`INSERT INTO `+executionOrderTable+` (internal_order_id, broker_id, broker_order_id, broker_order_id_ex, source, source_detail, trading_environment, account_id, market, symbol, side, order_type, status, raw_broker_status, requested_quantity, requested_price, filled_quantity, filled_average_price, remark, last_error, last_error_code, last_error_source, submitted_at, updated_at, created_at) `+
-			`VALUES (:internal_order_id, :broker_id, :broker_order_id, :broker_order_id_ex, :source, :source_detail, :trading_environment, :account_id, :market, :symbol, :side, :order_type, :status, :raw_broker_status, :requested_quantity, :requested_price, :filled_quantity, :filled_average_price, :remark, :last_error, :last_error_code, :last_error_source, :submitted_at, :updated_at, :created_at) `+
-			`ON CONFLICT(internal_order_id) DO UPDATE SET broker_id = excluded.broker_id, broker_order_id = excluded.broker_order_id, broker_order_id_ex = excluded.broker_order_id_ex, source = excluded.source, source_detail = excluded.source_detail, trading_environment = excluded.trading_environment, account_id = excluded.account_id, market = excluded.market, symbol = excluded.symbol, side = excluded.side, order_type = excluded.order_type, status = excluded.status, raw_broker_status = excluded.raw_broker_status, requested_quantity = excluded.requested_quantity, requested_price = excluded.requested_price, filled_quantity = excluded.filled_quantity, filled_average_price = excluded.filled_average_price, remark = excluded.remark, last_error = excluded.last_error, last_error_code = excluded.last_error_code, last_error_source = excluded.last_error_source, submitted_at = excluded.submitted_at, updated_at = excluded.updated_at, created_at = excluded.created_at`,
-		row,
-	)
-	return err
-}
-
-func (s *executionOrderSQLiteStore) persistEvent(event executionOrderEventResponse) error {
-	row := executionOrderEventToRow(event)
-	_, err := s.db.NamedExec(
-		`INSERT INTO `+executionOrderEventTable+` (id, internal_order_id, event_type, previous_status, next_status, payload_json, created_at) `+
-			`VALUES (:id, :internal_order_id, :event_type, :previous_status, :next_status, :payload_json, :created_at) `+
-			`ON CONFLICT(id) DO UPDATE SET internal_order_id = excluded.internal_order_id, event_type = excluded.event_type, previous_status = excluded.previous_status, next_status = excluded.next_status, payload_json = excluded.payload_json, created_at = excluded.created_at`,
-		row,
-	)
-	return err
-}
-
-func (s *executionOrderSQLiteStore) persistSeenFillKey(fillKey string, createdAt string) error {
-	if strings.TrimSpace(fillKey) == "" {
-		return nil
-	}
-	_, err := s.db.ExecContext(context.Background(), `INSERT OR IGNORE INTO `+executionSeenFillTable+` (fill_key, created_at) VALUES (?, ?)`, fillKey, createdAt)
-	return err
-}
-
-func (s *executionOrderSQLiteStore) persistSequence(name string, value uint64) error {
-	if strings.TrimSpace(name) == "" {
-		return nil
-	}
-	_, err := s.db.ExecContext(context.Background(),
-		`INSERT INTO `+executionSequenceTable+` (name, value) VALUES (?, ?) `+
-			`ON CONFLICT(name) DO UPDATE SET value = excluded.value`,
-		name,
-		value,
-	)
-	return err
-}
-
-func (s *executionOrderSQLiteStore) deleteSeenFillKeysBefore(cutoff time.Time) error {
-	if cutoff.IsZero() {
-		return nil
-	}
-	_, err := s.db.ExecContext(context.Background(), `DELETE FROM `+executionSeenFillTable+` WHERE created_at < ?`, cutoff.UTC().Format(time.RFC3339Nano))
-	return err
-}
-
-func executionOrderSummaryFromRow(row executionOrderSummaryRow) executionOrderSummaryResponse {
-	return executionOrderSummaryResponse{
-		InternalOrderID:    row.InternalOrderID,
-		BrokerID:           row.BrokerID,
-		BrokerOrderID:      nullStringPointer(row.BrokerOrderID),
-		BrokerOrderIDEx:    nullStringPointer(row.BrokerOrderIDEx),
-		Source:             row.Source,
-		SourceDetail:       row.SourceDetail,
-		TradingEnvironment: row.TradingEnvironment,
-		AccountID:          row.AccountID,
-		Market:             row.Market,
-		Symbol:             nullStringPointer(row.Symbol),
-		Side:               nullStringPointer(row.Side),
-		OrderType:          nullStringPointer(row.OrderType),
-		Status:             trdsrv.CanonicalStoredOrderStatus(row.Status),
-		RawBrokerStatus:    nullStringPointer(row.RawBrokerStatus),
-		RequestedQuantity:  nullFloat64Pointer(row.RequestedQuantity),
-		RequestedPrice:     nullFloat64Pointer(row.RequestedPrice),
-		FilledQuantity:     nullFloat64Pointer(row.FilledQuantity),
-		FilledAveragePrice: nullFloat64Pointer(row.FilledAveragePrice),
-		Remark:             nullStringPointer(row.Remark),
-		LastError:          nullStringPointer(row.LastError),
-		LastErrorCode:      nullStringPointer(row.LastErrorCode),
-		LastErrorSource:    nullStringPointer(row.LastErrorSource),
-		SubmittedAt:        nullStringPointer(row.SubmittedAt),
-		UpdatedAt:          row.UpdatedAt,
-		CreatedAt:          row.CreatedAt,
-	}
-}
-
-func executionOrderSummaryToRow(order executionOrderSummaryResponse) executionOrderSummaryRow {
-	return executionOrderSummaryRow{
-		InternalOrderID:    order.InternalOrderID,
-		BrokerID:           order.BrokerID,
-		BrokerOrderID:      stringPointerNull(order.BrokerOrderID),
-		BrokerOrderIDEx:    stringPointerNull(order.BrokerOrderIDEx),
-		Source:             order.Source,
-		SourceDetail:       order.SourceDetail,
-		TradingEnvironment: order.TradingEnvironment,
-		AccountID:          order.AccountID,
-		Market:             order.Market,
-		Symbol:             stringPointerNull(order.Symbol),
-		Side:               stringPointerNull(order.Side),
-		OrderType:          stringPointerNull(order.OrderType),
-		Status:             order.Status,
-		RawBrokerStatus:    stringPointerNull(order.RawBrokerStatus),
-		RequestedQuantity:  float64PointerNull(order.RequestedQuantity),
-		RequestedPrice:     float64PointerNull(order.RequestedPrice),
-		FilledQuantity:     float64PointerNull(order.FilledQuantity),
-		FilledAveragePrice: float64PointerNull(order.FilledAveragePrice),
-		Remark:             stringPointerNull(order.Remark),
-		LastError:          stringPointerNull(order.LastError),
-		LastErrorCode:      stringPointerNull(order.LastErrorCode),
-		LastErrorSource:    stringPointerNull(order.LastErrorSource),
-		SubmittedAt:        stringPointerNull(order.SubmittedAt),
-		UpdatedAt:          order.UpdatedAt,
-		CreatedAt:          order.CreatedAt,
-	}
-}
-
-func executionOrderEventFromRow(row executionOrderEventRow) executionOrderEventResponse {
-	return executionOrderEventResponse{
-		ID:              row.ID,
-		InternalOrderID: row.InternalOrderID,
-		EventType:       row.EventType,
-		PreviousStatus:  canonicalPersistedEventStatusPointer(row.EventType, nullStringPointer(row.PreviousStatus)),
-		NextStatus:      canonicalPersistedEventStatus(row.EventType, row.NextStatus),
-		PayloadJSON:     row.PayloadJSON,
-		CreatedAt:       row.CreatedAt,
-	}
-}
-
-func canonicalPersistedEventStatus(eventType, status string) string {
-	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(eventType)), "BROKER_") {
-		return trdsrv.CanonicalBrokerOrderStatus(status)
-	}
-	return trdsrv.CanonicalStoredOrderStatus(status)
-}
-
-func canonicalPersistedEventStatusPointer(eventType string, status *string) *string {
-	if status == nil {
-		return nil
-	}
-	canonical := canonicalPersistedEventStatus(eventType, *status)
-	return &canonical
-}
-
-func executionOrderEventToRow(event executionOrderEventResponse) executionOrderEventRow {
-	return executionOrderEventRow{
-		ID:              event.ID,
-		InternalOrderID: event.InternalOrderID,
-		EventType:       event.EventType,
-		PreviousStatus:  stringPointerNull(event.PreviousStatus),
-		NextStatus:      event.NextStatus,
-		PayloadJSON:     event.PayloadJSON,
-		CreatedAt:       event.CreatedAt,
-	}
-}
-
-func nullStringPointer(value sql.NullString) *string {
-	if !value.Valid {
-		return nil
-	}
-	return &value.String
-}
-
-func stringPointerNull(value *string) sql.NullString {
-	if value == nil {
-		return sql.NullString{}
-	}
-	return sql.NullString{String: *value, Valid: true}
-}
-
-func nullFloat64Pointer(value sql.NullFloat64) *float64 {
-	if !value.Valid {
-		return nil
-	}
-	return &value.Float64
-}
-
-func float64PointerNull(value *float64) sql.NullFloat64 {
-	if value == nil {
-		return sql.NullFloat64{}
-	}
-	return sql.NullFloat64{Float64: *value, Valid: true}
-}
-
-func executionSequenceSuffix(value string, prefix string) uint64 {
-	trimmed := strings.TrimPrefix(strings.TrimSpace(value), prefix)
-	if trimmed == value {
-		return 0
-	}
-	var seq uint64
-	if _, err := fmt.Sscanf(trimmed, "%d", &seq); err != nil {
-		return 0
-	}
-	return seq
 }

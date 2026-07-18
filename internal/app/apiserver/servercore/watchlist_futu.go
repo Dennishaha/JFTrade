@@ -3,9 +3,9 @@ package servercore
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"maps"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,8 +21,6 @@ const (
 	futuWatchlistCacheTTL = 3 * time.Second
 	futuHKSnapshotBatch   = 20
 	futuSnapshotBatch     = 400
-	futuSnapshotReadLimit = 60
-	futuSnapshotWindow    = 30 * time.Second
 )
 
 type watchlistGroupReaderProvider func() (broker.WatchlistGroupReader, error)
@@ -266,14 +264,10 @@ type batchSnapshotProvider func() (broker.BatchSnapshotSource, error)
 type futuWatchlistSnapshotSource struct {
 	source batchSnapshotProvider
 	now    func() time.Time
-	gate   fixedWindowCallGate
 }
 
 func newFutuWatchlistSnapshotSource(provider batchSnapshotProvider) *futuWatchlistSnapshotSource {
-	return &futuWatchlistSnapshotSource{
-		source: provider, now: time.Now,
-		gate: fixedWindowCallGate{limit: futuSnapshotReadLimit, window: futuSnapshotWindow},
-	}
+	return &futuWatchlistSnapshotSource{source: provider, now: time.Now}
 }
 
 func (s *futuWatchlistSnapshotSource) BatchSnapshots(ctx context.Context, instrumentIDs []string) ([]watchlist.Quote, []watchlist.QuoteError, error) {
@@ -284,30 +278,27 @@ func (s *futuWatchlistSnapshotSource) BatchSnapshots(ctx context.Context, instru
 	if err != nil {
 		return nil, nil, err
 	}
-	byMarket := make(map[string][]string)
+	hkIDs := make([]string, 0, len(instrumentIDs))
+	otherIDs := make([]string, 0, len(instrumentIDs))
 	for _, instrumentID := range instrumentIDs {
-		byMarket[marketpkg.SymbolMarket(instrumentID)] = append(byMarket[marketpkg.SymbolMarket(instrumentID)], instrumentID)
+		if marketpkg.SymbolMarket(instrumentID) == "HK" {
+			hkIDs = append(hkIDs, instrumentID)
+		} else {
+			otherIDs = append(otherIDs, instrumentID)
+		}
 	}
-	markets := make([]string, 0, len(byMarket))
-	for market := range byMarket {
-		markets = append(markets, market)
-	}
-	sort.Strings(markets)
 	items := make(map[string]broker.SecuritySnapshotItem, len(instrumentIDs))
 	itemErrors := make([]watchlist.QuoteError, 0)
-	for _, market := range markets {
-		batchSize := futuSnapshotBatch
-		if market == "HK" {
-			batchSize = futuHKSnapshotBatch
-		}
-		ids := byMarket[market]
+	queryBatches := func(ids []string, batchSize int) {
 		for start := 0; start < len(ids); start += batchSize {
 			end := min(start+batchSize, len(ids))
-			batchItems, batchErrors := queryFutuSnapshotBatch(ctx, source, ids[start:end], s.allowSnapshotCall)
+			batchItems, batchErrors := queryFutuSnapshotBatch(ctx, source, ids[start:end])
 			maps.Copy(items, batchItems)
 			itemErrors = append(itemErrors, batchErrors...)
 		}
 	}
+	queryBatches(hkIDs, futuHKSnapshotBatch)
+	queryBatches(otherIDs, futuSnapshotBatch)
 	now := time.Now().UTC()
 	if s.now != nil {
 		now = s.now().UTC()
@@ -323,38 +314,22 @@ func (s *futuWatchlistSnapshotSource) BatchSnapshots(ctx context.Context, instru
 	return quotes, itemErrors, nil
 }
 
-func (s *futuWatchlistSnapshotSource) allowSnapshotCall() bool {
-	now := time.Now()
-	if s != nil && s.now != nil {
-		now = s.now()
-	}
-	return s.gate.allow(now)
-}
-
-func queryFutuSnapshotBatch(ctx context.Context, source broker.BatchSnapshotSource, instrumentIDs []string, allow func() bool) (map[string]broker.SecuritySnapshotItem, []watchlist.QuoteError) {
-	if allow != nil && !allow() {
-		itemErrors := make([]watchlist.QuoteError, 0, len(instrumentIDs))
-		for _, instrumentID := range instrumentIDs {
-			itemErrors = append(itemErrors, watchlist.QuoteError{
-				InstrumentID: instrumentID, Code: "SNAPSHOT_RATE_LIMITED", Message: "Futu SecuritySnapshot rate limit is exhausted; retry after 30 seconds",
-			})
-		}
-		return nil, itemErrors
-	}
+func queryFutuSnapshotBatch(ctx context.Context, source broker.BatchSnapshotSource, instrumentIDs []string) (map[string]broker.SecuritySnapshotItem, []watchlist.QuoteError) {
 	result, err := source.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{Symbols: instrumentIDs})
 	if err != nil {
 		if len(instrumentIDs) == 1 || ctx.Err() != nil || !broker.IsSymbolScopedSnapshotError(err) {
+			code := watchlistSnapshotErrorCode(err)
 			itemErrors := make([]watchlist.QuoteError, 0, len(instrumentIDs))
 			for _, instrumentID := range instrumentIDs {
 				itemErrors = append(itemErrors, watchlist.QuoteError{
-					InstrumentID: instrumentID, Code: "SNAPSHOT_UNAVAILABLE", Message: err.Error(),
+					InstrumentID: instrumentID, Code: code, Message: err.Error(),
 				})
 			}
 			return nil, itemErrors
 		}
 		middle := len(instrumentIDs) / 2
-		leftItems, leftErrors := queryFutuSnapshotBatch(ctx, source, instrumentIDs[:middle], allow)
-		rightItems, rightErrors := queryFutuSnapshotBatch(ctx, source, instrumentIDs[middle:], allow)
+		leftItems, leftErrors := queryFutuSnapshotBatch(ctx, source, instrumentIDs[:middle])
+		rightItems, rightErrors := queryFutuSnapshotBatch(ctx, source, instrumentIDs[middle:])
 		for id, item := range rightItems {
 			if leftItems == nil {
 				leftItems = make(map[string]broker.SecuritySnapshotItem)
@@ -381,32 +356,23 @@ func queryFutuSnapshotBatch(ctx context.Context, source broker.BatchSnapshotSour
 	return items, errorsByID
 }
 
-type fixedWindowCallGate struct {
-	mu     sync.Mutex
-	calls  []time.Time
-	limit  int
-	window time.Duration
-}
-
-func (g *fixedWindowCallGate) allow(now time.Time) bool {
-	if g == nil {
-		return false
+func watchlistSnapshotErrorCode(err error) string {
+	switch {
+	case errors.Is(err, broker.ErrSnapshotRateLimited):
+		return "SNAPSHOT_RATE_LIMITED"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "SNAPSHOT_TIMEOUT"
+	case errors.Is(err, context.Canceled):
+		return "SNAPSHOT_CANCELED"
 	}
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	cutoff := now.Add(-g.window)
-	first := 0
-	for first < len(g.calls) && !g.calls[first].After(cutoff) {
-		first++
+	message := strings.ToLower(err.Error())
+	if strings.Contains(message, "client closed") ||
+		strings.Contains(message, "connection refused") ||
+		strings.Contains(message, "broken pipe") ||
+		strings.Contains(message, "connection reset") {
+		return "SNAPSHOT_CONNECTION_UNAVAILABLE"
 	}
-	if first > 0 {
-		g.calls = append(g.calls[:0], g.calls[first:]...)
-	}
-	if g.limit <= 0 || g.window <= 0 || len(g.calls) >= g.limit {
-		return false
-	}
-	g.calls = append(g.calls, now)
-	return true
+	return "SNAPSHOT_UNAVAILABLE"
 }
 
 func watchlistQuoteFromBrokerSnapshot(instrumentID string, item broker.SecuritySnapshotItem, fallbackObservedAt time.Time) watchlist.Quote {

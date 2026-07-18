@@ -141,7 +141,9 @@ describe("SharedLiveSocketHub", () => {
     const depthOwnerA = hub.createOwnerId("depth");
     const depthOwnerB = hub.createOwnerId("depth");
     const refreshOwner = hub.createOwnerId("console");
+    const providerOwner = hub.createOwnerId("provider");
 
+    hub.setProviderBrokerId(providerOwner, " alpha ");
     hub.setActiveInstrument(activeOwnerA, " us.aapl ");
     hub.setActiveInstrument(activeOwnerB, "US.AAPL");
     hub.setSecurityDetailsTarget(securityOwner, {
@@ -164,6 +166,7 @@ describe("SharedLiveSocketHub", () => {
     hub.setConsoleRefreshEnabled(refreshOwner, true);
 
     expect(hub.snapshotSubscriptions()).toEqual({
+      providerBrokerId: "alpha",
       activeInstruments: ["US.AAPL"],
       securityDetails: [
         {
@@ -211,6 +214,7 @@ describe("SharedLiveSocketHub", () => {
     expect(JSON.parse(socket?.sentMessages.at(-1) ?? "{}")).toEqual({
       type: "subscribe",
       subscriptions: {
+        providerBrokerId: "alpha",
         activeInstruments: ["US.AAPL"],
         securityDetails: [],
         depth: [
@@ -224,6 +228,66 @@ describe("SharedLiveSocketHub", () => {
         consoleRefresh: true,
       },
     });
+  });
+
+  it("filters late market events from the previous provider", async () => {
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+    const hub = getSharedLiveSocketHub();
+    const listener = vi.fn();
+    hub.addEventListener(listener);
+    hub.setProviderBrokerId(hub.createOwnerId("provider"), "alpha");
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+    await Promise.resolve();
+
+    const heartbeat = (providerBrokerId: string) =>
+      createLiveEnvelope(
+        {
+          type: "heartbeat",
+          at: "2026-07-18T00:00:00Z",
+          providerBrokerId,
+          transport: { mode: "snapshot-poll-fallback" },
+        },
+        {
+          source: "system",
+          entityId: "live-websocket",
+        },
+      );
+    MockWebSocket.instances[0]?.emitMessage(heartbeat("futu"));
+    expect(hub.lastHeartbeatEvent.value).toBeNull();
+    MockWebSocket.instances[0]?.emitMessage(heartbeat("alpha"));
+    expect(hub.lastHeartbeatEvent.value?.providerBrokerId).toBe("alpha");
+    listener.mockClear();
+
+    const event = (brokerId: string) =>
+      createLiveEnvelope(
+        {
+          type: "market.depth",
+          at: "2026-07-18T00:00:00Z",
+          brokerId,
+          request: {
+            market: "US",
+            symbol: "AAPL",
+            instrumentId: "US.AAPL",
+            num: 10,
+          },
+          depth: { bids: [], asks: [] },
+          meta: {
+            instrumentId: "US.AAPL",
+            source: brokerId,
+            resolvedAt: "2026-07-18T00:00:00Z",
+            fromCache: false,
+          },
+        },
+        {
+          source: "market-data",
+          entityId: "US.AAPL|10",
+        },
+      );
+
+    MockWebSocket.instances[0]?.emitMessage(event("futu"));
+    expect(listener).not.toHaveBeenCalled();
+    MockWebSocket.instances[0]?.emitMessage(event("alpha"));
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it("waits for connection immediately, after async connects, and on timeouts", async () => {

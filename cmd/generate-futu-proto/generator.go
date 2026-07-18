@@ -5,25 +5,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/jftrade/jftrade-main/cmd/internal/protogen"
 )
-
-var futuProtoFiles = []string{
-	"Common.proto", "GetGlobalState.proto", "InitConnect.proto", "KeepAlive.proto", "Notify.proto",
-	"Qot_Common.proto", "Qot_Sub.proto", "Qot_GetSubInfo.proto", "Qot_GetBasicQot.proto", "Qot_UpdateBasicQot.proto",
-	"Qot_GetKL.proto", "Qot_UpdateKL.proto", "Qot_GetOrderBook.proto", "Qot_GetSecuritySnapshot.proto",
-	"Qot_RequestHistoryKL.proto", "Qot_GetStaticInfo.proto", "Qot_GetSearchQuote.proto",
-	"Qot_GetUserSecurity.proto", "Qot_GetUserSecurityGroup.proto", "Trd_Common.proto",
-	"Qot_UpdateOrderBook.proto",
-	"Trd_GetAccList.proto", "Trd_GetFunds.proto", "Trd_GetPositionList.proto",
-	"Trd_GetMaxTrdQtys.proto", "Trd_GetOrderList.proto", "Trd_GetOrderFillList.proto",
-	"Trd_GetHistoryOrderList.proto", "Trd_GetHistoryOrderFillList.proto",
-	"Trd_GetMarginRatio.proto", "Trd_GetOrderFee.proto", "Trd_FlowSummary.proto",
-	"Trd_PlaceOrder.proto", "Trd_ModifyOrder.proto", "Trd_Notify.proto",
-	"Trd_UpdateOrder.proto", "Trd_UpdateOrderFill.proto", "Trd_UnlockTrade.proto",
-	"Trd_SubAccPush.proto",
-}
 
 type generatorConfig struct {
 	repoRoot        string
@@ -34,11 +19,15 @@ type generatorConfig struct {
 }
 
 func generateFutuProto(cfg generatorConfig) error {
-	manifestPath := filepath.Join(cfg.repoRoot, "scripts", "futu-proto-10.8.6808.sha256")
-	if err := verifyFutuInputs(cfg.sourceDirectory, manifestPath, futuProtoFiles); err != nil {
+	manifestPath := filepath.Join(cfg.repoRoot, "scripts", "futu-proto-10.9.6908.sha256")
+	protoFiles, err := manifestFileNames(manifestPath)
+	if err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(cfg.stdout, "[generate-futu-proto] verified Futu OpenAPI 10.8.6808 inputs (%d files)\n", len(futuProtoFiles)); err != nil {
+	if err := verifyFutuInputs(cfg.sourceDirectory, manifestPath, protoFiles); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(cfg.stdout, "[generate-futu-proto] verified Futu OpenAPI 10.9.6908 inputs (%d files)\n", len(protoFiles)); err != nil {
 		return fmt.Errorf("write verification status: %w", err)
 	}
 	environment, err := protogen.PrepareToolchain(protogen.ToolchainConfig{
@@ -61,7 +50,7 @@ func generateFutuProto(cfg generatorConfig) error {
 	if err := os.MkdirAll(outputDirectory, 0o755); err != nil {
 		return fmt.Errorf("create generated output directory: %w", err)
 	}
-	if err := stageFutuInputs(cfg.sourceDirectory, stageDirectory); err != nil {
+	if err := stageFutuInputs(cfg.sourceDirectory, stageDirectory, protoFiles); err != nil {
 		return err
 	}
 	rewritten, err := rewriteGoPackages(stageDirectory)
@@ -71,10 +60,13 @@ func generateFutuProto(cfg generatorConfig) error {
 	if _, err := fmt.Fprintf(cfg.stdout, "[generate-futu-proto] rewrote go_package in %d files\n", rewritten); err != nil {
 		return fmt.Errorf("write rewrite status: %w", err)
 	}
-	if err := runFutuProtoc(cfg, environment, stageDirectory, outputDirectory); err != nil {
+	if err := runFutuProtoc(cfg, environment, stageDirectory, outputDirectory, protoFiles); err != nil {
 		return err
 	}
 	if _, err := organizeGeneratedFiles(outputDirectory); err != nil {
+		return err
+	}
+	if err := writeProtoRegistrationPackage(outputDirectory); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintln(cfg.stdout, "[generate-futu-proto] reorganized files into per-package directories"); err != nil {
@@ -86,14 +78,60 @@ func generateFutuProto(cfg generatorConfig) error {
 	}); err != nil {
 		return err
 	}
+	digest, err := inspectFutuRepository(cfg.repoRoot)
+	if err != nil {
+		return err
+	}
+	if err := writeFutuRepositoryDigest(cfg.repoRoot, digest); err != nil {
+		return err
+	}
 	if _, err := fmt.Fprintf(cfg.stdout, "Done. Generated under %s\n", filepath.Join(cfg.repoRoot, "pkg", "futu", "pb")); err != nil {
 		return fmt.Errorf("write completion status: %w", err)
 	}
 	return nil
 }
 
-func stageFutuInputs(sourceDirectory, stageDirectory string) error {
-	for _, filename := range futuProtoFiles {
+// writeProtoRegistrationPackage emits blank imports for every generated
+// package. The advanced OpenD dispatcher uses protobuf reflection so it can
+// cover the complete, version-locked protocol set without a handwritten
+// request/response factory per package.
+func writeProtoRegistrationPackage(outputDirectory string) error {
+	entries, err := os.ReadDir(outputDirectory)
+	if err != nil {
+		return fmt.Errorf("read generated package directories: %w", err)
+	}
+	var packages []string
+	for _, entry := range entries {
+		if !entry.IsDir() || entry.Name() == "registerall" {
+			continue
+		}
+		packages = append(packages, entry.Name())
+	}
+	if len(packages) == 0 {
+		return fmt.Errorf("no generated protobuf packages found in %s", outputDirectory)
+	}
+	registrationDirectory := filepath.Join(outputDirectory, "registerall")
+	if err := os.MkdirAll(registrationDirectory, 0o755); err != nil {
+		return fmt.Errorf("create protobuf registration package: %w", err)
+	}
+	var source strings.Builder
+	source.WriteString("// Code generated by cmd/generate-futu-proto. DO NOT EDIT.\n\n")
+	source.WriteString("// Package registerall registers every version-locked Futu protobuf descriptor.\n")
+	source.WriteString("package registerall\n\n")
+	source.WriteString("import (\n")
+	for _, packageName := range packages {
+		fmt.Fprintf(&source, "\t_ %q\n", "github.com/jftrade/jftrade-main/pkg/futu/pb/"+packageName)
+	}
+	source.WriteString(")\n")
+	path := filepath.Join(registrationDirectory, "register_all.go")
+	if err := os.WriteFile(path, []byte(source.String()), 0o644); err != nil {
+		return fmt.Errorf("write protobuf registration package: %w", err)
+	}
+	return nil
+}
+
+func stageFutuInputs(sourceDirectory, stageDirectory string, protoFiles []string) error {
+	for _, filename := range protoFiles {
 		if err := protogen.CopyFile(
 			filepath.Join(sourceDirectory, filename), filepath.Join(stageDirectory, filename),
 		); err != nil {
@@ -103,13 +141,19 @@ func stageFutuInputs(sourceDirectory, stageDirectory string) error {
 	return nil
 }
 
-func runFutuProtoc(cfg generatorConfig, environment []string, stageDirectory, outputDirectory string) error {
+func runFutuProtoc(
+	cfg generatorConfig,
+	environment []string,
+	stageDirectory string,
+	outputDirectory string,
+	protoFiles []string,
+) error {
 	args := []string{
 		"--proto_path=" + stageDirectory,
 		"--go_out=" + outputDirectory,
 		"--go_opt=paths=source_relative",
 	}
-	for _, filename := range futuProtoFiles {
+	for _, filename := range protoFiles {
 		args = append(args, filepath.Join(stageDirectory, filename))
 	}
 	if err := cfg.runner.Run(protogen.Command{

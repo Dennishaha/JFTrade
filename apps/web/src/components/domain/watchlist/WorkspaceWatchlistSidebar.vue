@@ -87,10 +87,7 @@ watch(groups, (next) => {
 <template>
   <aside class="workspace-watchlist" :class="{ 'workspace-watchlist--compact': compact }">
     <header class="workspace-watchlist__header">
-      <div>
-        <span>自选股</span>
-        <small>可见行情实时刷新</small>
-      </div>
+      <span>自选股</span>
       <button type="button" title="隐藏自选栏" aria-label="隐藏自选栏" @click="emit('close')">
         <v-icon>{{ compact ? "fa-solid fa-xmark" : "fa-solid fa-chevron-left" }}</v-icon>
       </button>
@@ -148,9 +145,7 @@ watch(groups, (next) => {
 <style scoped>
 .workspace-watchlist { display: flex; width: 100%; height: 100%; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border-right: 1px solid var(--tv-border); background: var(--tv-bg-surface); color: var(--tv-text); }
 .workspace-watchlist__header { display: flex; height: 45px; flex: 0 0 auto; align-items: center; justify-content: space-between; padding: 0 8px 0 11px; border-bottom: 1px solid var(--tv-border); background: var(--tv-bg-surface-2); }
-.workspace-watchlist__header > div { display: flex; min-width: 0; flex-direction: column; }
 .workspace-watchlist__header span { font-size: 12px; font-weight: 700; }
-.workspace-watchlist__header small { color: var(--tv-text-dim); font-size: 9px; }
 .workspace-watchlist__header button,
 .workspace-watchlist__group-row button { width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: var(--tv-text-muted); }
 .workspace-watchlist__header button:hover,

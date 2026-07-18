@@ -92,6 +92,29 @@ func TestExchangeCalendarRefreshRouteCallsRefresh(t *testing.T) {
 	if refreshedMarket != "US" {
 		t.Fatalf("refreshedMarket = %q", refreshedMarket)
 	}
+	resp = performSystemRouteRequest(router, http.MethodPost, "/api/v1/system/exchange-calendars/refresh")
+	if resp.Code != http.StatusOK || refreshedMarket != "" {
+		t.Fatalf("global refresh status=%d market=%q body=%s", resp.Code, refreshedMarket, resp.Body.String())
+	}
+}
+
+func TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodDelete, "/api/v1/system/real-trade-hard-stops/", nil)
+	handleReleaseRealTradeHardStop(sysservice.NewService())(ctx)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("missing hard-stop id status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	zero := 0.0
+	if err := validateRealTradeRuntimeRiskCommand(sysservice.RealTradeRuntimeRiskCommand{MaxOrderQuantity: &zero}); err == nil {
+		t.Fatal("zero max order quantity succeeded")
+	}
+	if err := validateRealTradeRuntimeRiskCommand(sysservice.RealTradeRuntimeRiskCommand{MaxOrderNotional: &zero}); err == nil {
+		t.Fatal("zero max order notional succeeded")
+	}
 }
 
 func TestExchangeCalendarProbeRouteCallsProbe(t *testing.T) {

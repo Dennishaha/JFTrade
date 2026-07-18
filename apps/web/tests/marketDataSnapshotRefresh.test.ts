@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 
 import {
   getSharedLiveSocketHub,
@@ -34,6 +34,7 @@ function createSecurityDetails(market: string, symbol: string, name: string) {
 
 afterEach(() => {
   resetSharedLiveSocketHubForTests();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   MockWebSocket.instances = [];
 });
@@ -115,4 +116,120 @@ describe("createMarketDataSnapshotRefresher", () => {
     expect(marketSecurityDetails.value.security.name).toBe("Tencent");
     refresher.stopMarketSnapshotBackgroundRefresh();
   });
+
+  it("falls back serially every three seconds, honors Retry-After, and stops after reconnecting", async () => {
+    vi.useFakeTimers();
+    const hub = getSharedLiveSocketHub();
+    const firstRefresh = createDeferred<{ retryAfterMs: number }>();
+    const fallbackRefresh = vi
+      .fn()
+      .mockReturnValueOnce(firstRefresh.promise)
+      .mockResolvedValue(undefined);
+    const refresher = createMarketDataSnapshotRefresher({
+      marketSecurityDetails: ref(null),
+      fallbackIntervalMs: 3_000,
+      fallbackRefresh,
+    });
+
+    refresher.scheduleMarketSnapshotBackgroundRefresh({
+      market: "us",
+      symbol: "aapl",
+      instrumentId: "us.aapl",
+    });
+    hub.connectionState.value = "disconnected";
+    await nextTick();
+
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(fallbackRefresh).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fallbackRefresh).toHaveBeenCalledOnce();
+    expect(fallbackRefresh).toHaveBeenLastCalledWith({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+    });
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fallbackRefresh).toHaveBeenCalledOnce();
+
+    firstRefresh.resolve({ retryAfterMs: 7_000 });
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(6_999);
+    expect(fallbackRefresh).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fallbackRefresh).toHaveBeenCalledTimes(2);
+
+    hub.connectionState.value = "connected";
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fallbackRefresh).toHaveBeenCalledTimes(2);
+
+    refresher.stopMarketSnapshotBackgroundRefresh();
+  });
+
+  it("does not start REST fallback while the websocket is healthy", async () => {
+    vi.useFakeTimers();
+    const hub = getSharedLiveSocketHub();
+    const fallbackRefresh = vi.fn().mockResolvedValue(undefined);
+    const refresher = createMarketDataSnapshotRefresher({
+      marketSecurityDetails: ref(null),
+      fallbackRefresh,
+    });
+
+    hub.connectionState.value = "connected";
+    refresher.scheduleMarketSnapshotBackgroundRefresh({
+      market: "HK",
+      symbol: "00700",
+      instrumentId: "HK.00700",
+    });
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(fallbackRefresh).not.toHaveBeenCalled();
+    refresher.stopMarketSnapshotBackgroundRefresh();
+  });
+
+  it("honors a retry delay carried by a rejected fallback request", async () => {
+    vi.useFakeTimers();
+    const hub = getSharedLiveSocketHub();
+    const fallbackRefresh = vi
+      .fn()
+      .mockRejectedValueOnce({ retryAfterMs: 7_000 })
+      .mockResolvedValue(undefined);
+    const refresher = createMarketDataSnapshotRefresher({
+      marketSecurityDetails: ref(null),
+      fallbackIntervalMs: 3_000,
+      fallbackRefresh,
+    });
+
+    refresher.scheduleMarketSnapshotBackgroundRefresh({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+    });
+    hub.connectionState.value = "disconnected";
+    await nextTick();
+    refresher.scheduleMarketSnapshotBackgroundRefresh({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+    });
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(fallbackRefresh).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(6_999);
+    expect(fallbackRefresh).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fallbackRefresh).toHaveBeenCalledTimes(2);
+
+    refresher.stopMarketSnapshotBackgroundRefresh();
+  });
 });
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}

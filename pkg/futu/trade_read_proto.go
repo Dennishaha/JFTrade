@@ -4,7 +4,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
+	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
 	trdgetmarginratiopb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmarginratio"
@@ -118,12 +120,26 @@ func brokerPositionSnapshotFromProto(account resolvedTradeAccount, position *trd
 		market = marketFromSymbol(position.GetCode(), account.Market)
 	}
 
-	return BrokerPositionSnapshot{
+	productClass := broker.ProductClassEquity
+	segment := broker.MarketSegmentSecurities
+	if position.PayoutIfWin != nil {
+		productClass = broker.ProductClassEventContract
+		segment = broker.MarketSegmentPrediction
+	} else if position.ComboID != nil || position.StrategyType != nil {
+		productClass = broker.ProductClassOption
+		segment = broker.MarketSegmentDerivatives
+	} else if account.Market == "FUTURES" {
+		productClass = broker.ProductClassFuture
+		segment = broker.MarketSegmentDerivatives
+	}
+	snapshot := BrokerPositionSnapshot{
 		AccountID:          account.AccountID,
 		TradingEnvironment: account.TradingEnvironment,
 		Market:             market,
 		Symbol:             strings.TrimSpace(strings.ToUpper(position.GetCode())),
 		SymbolName:         optionalNonEmptyString(position.GetName()),
+		ProductClass:       productClass,
+		MarketSegment:      segment,
 		Quantity:           position.GetQty(),
 		SellableQuantity:   position.GetCanSellQty(),
 		LastPrice:          position.GetPrice(),
@@ -134,17 +150,28 @@ func brokerPositionSnapshotFromProto(account resolvedTradeAccount, position *trd
 		RealizedPnl:        cloneFloat64Ptr(position.RealizedPL),
 		PnlRatio:           preferredFloat64Ptr(position.AveragePlRatio, position.PlRatio),
 		Currency:           optionalEnumStringPtr(position.Currency, trdcommonpb.Currency_name),
+		StrategyType:       optionalEnumStringPtr(position.StrategyType, qotcommonpb.OptionStrategyType_name),
+		PositionType:       optionalEnumStringPtr(position.PositionType, trdcommonpb.PositionType_name),
+		PayoutIfWin:        cloneFloat64Ptr(position.PayoutIfWin),
 	}
+	if position.ComboID != nil {
+		snapshot.ComboID = new(position.GetComboID())
+	}
+	return snapshot
 }
 
 func brokerOrderSnapshotFromProto(account resolvedTradeAccount, order *trdcommonpb.Order) BrokerOrderSnapshot {
 	market := resolveBrokerOrderMarket(order.GetTrdMarket(), order.GetCode(), account.Market)
 	timeSymbol := brokerOrderTimeSymbol(market, order.GetCode())
 
+	kind, productClass, quantityMode := brokerOrderProduct(order)
 	return BrokerOrderSnapshot{
 		AccountID:          account.AccountID,
 		TradingEnvironment: account.TradingEnvironment,
 		Market:             market,
+		OrderKind:          kind,
+		ProductClass:       productClass,
+		QuantityMode:       quantityMode,
 		BrokerOrderID:      strconv.FormatUint(order.GetOrderID(), 10),
 		BrokerOrderIDEx:    optionalNonEmptyString(order.GetOrderIDEx()),
 		Symbol:             strings.TrimSpace(strings.ToUpper(order.GetCode())),
@@ -153,6 +180,8 @@ func brokerOrderSnapshotFromProto(account resolvedTradeAccount, order *trdcommon
 		OrderType:          normalizeRuntimeEnum(enumName(order.GetOrderType(), trdcommonpb.OrderType_name)),
 		Status:             normalizeRuntimeEnum(enumName(order.GetOrderStatus(), trdcommonpb.OrderStatus_name)),
 		Quantity:           order.GetQty(),
+		Amount:             cloneFloat64Ptr(order.OrderAmount),
+		Legs:               brokerOrderLegSnapshots(order, productClass),
 		FilledQuantity:     cloneFloat64Ptr(order.FillQty),
 		Price:              cloneFloat64Ptr(order.Price),
 		FilledAveragePrice: cloneFloat64Ptr(order.FillAvgPrice),
@@ -165,11 +194,60 @@ func brokerOrderSnapshotFromProto(account resolvedTradeAccount, order *trdcommon
 	}
 }
 
+func brokerOrderProduct(order *trdcommonpb.Order) (broker.OrderKind, broker.ProductClass, broker.QuantityMode) {
+	if order.OrderAmount != nil {
+		if len(order.GetComboLegs()) > 0 {
+			return broker.OrderKindEventParlay, broker.ProductClassEventContract, broker.QuantityModeAmount
+		}
+		return broker.OrderKindEventSingle, broker.ProductClassEventContract, broker.QuantityModeAmount
+	}
+	if len(order.GetComboLegs()) > 0 || order.StrategyType != nil {
+		return broker.OrderKindOptionCombo, broker.ProductClassOption, broker.QuantityModeContracts
+	}
+	return broker.OrderKindSingle, broker.ProductClassUnknown, broker.QuantityModeUnits
+}
+
+func brokerOrderLegSnapshots(order *trdcommonpb.Order, productClass broker.ProductClass) []broker.OrderLegSnapshot {
+	result := make([]broker.OrderLegSnapshot, 0, len(order.GetComboLegs()))
+	for _, leg := range order.GetComboLegs() {
+		if leg == nil || leg.GetSecurity() == nil {
+			continue
+		}
+		instrumentID, err := futuSymbolFromSecurity(leg.GetSecurity())
+		if err != nil && qotcommonpb.QotMarket(leg.GetSecurity().GetMarket()) == qotcommonpb.QotMarket_QotMarket_EventContract {
+			code := strings.ToUpper(strings.TrimSpace(leg.GetSecurity().GetCode()))
+			if code != "" {
+				instrumentID = "US." + code
+				err = nil
+			}
+		}
+		if err != nil {
+			continue
+		}
+		ratio := max(1, int(leg.GetQtyRatio()))
+		snapshot := broker.OrderLegSnapshot{
+			InstrumentID:      instrumentID,
+			ProductClass:      productClass,
+			Side:              normalizeRuntimeEnum(enumName(leg.GetSide(), trdcommonpb.TrdSide_name)),
+			Ratio:             ratio,
+			RequestedQuantity: order.GetQty() * float64(ratio),
+			Status:            normalizeRuntimeEnum(enumName(order.GetOrderStatus(), trdcommonpb.OrderStatus_name)),
+			FilledQuantity:    order.GetFillQty() * float64(ratio),
+			AveragePrice:      order.GetFillAvgPrice(),
+		}
+		if leg.PredSide != nil {
+			snapshot.PredictionSide = normalizeRuntimeEnum(enumName(leg.GetPredSide(), commonpb.PredSide_name))
+		}
+		result = append(result, snapshot)
+	}
+	return result
+}
+
 func brokerOrderFillSnapshotFromProto(account resolvedTradeAccount, fill *trdcommonpb.OrderFill) BrokerOrderFillSnapshot {
 	market := resolveBrokerOrderMarket(fill.GetTrdMarket(), fill.GetCode(), account.Market)
 	timeSymbol := brokerOrderTimeSymbol(market, fill.GetCode())
 
-	return BrokerOrderFillSnapshot{
+	snapshot := BrokerOrderFillSnapshot{
 		AccountID:          account.AccountID,
 		TradingEnvironment: account.TradingEnvironment,
 		Market:             market,
@@ -185,6 +263,14 @@ func brokerOrderFillSnapshotFromProto(account resolvedTradeAccount, fill *trdcom
 		FilledAt:           formatBrokerOrderTime(fill.CreateTimestamp, fill.GetCreateTime(), timeSymbol),
 		Status:             optionalEnumStringPtr(fill.Status, trdcommonpb.OrderFillStatus_name),
 	}
+	if fill.GetStatus() == int32(trdcommonpb.OrderFillStatus_OrderFillStatus_Payout) {
+		payout := fill.GetQty()
+		if fill.Price != nil {
+			payout *= fill.GetPrice()
+		}
+		snapshot.Payout = &payout
+	}
+	return snapshot
 }
 
 func brokerOrderFeeSnapshotFromProto(account resolvedTradeAccount, fee *trdcommonpb.OrderFee) BrokerOrderFeeSnapshot {

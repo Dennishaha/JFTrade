@@ -10,11 +10,13 @@ type SubscriptionInstrument struct {
 
 // SubscriptionRequest documents the market-data subscription payload.
 type SubscriptionRequest struct {
-	ConsumerID  string                   `json:"consumerId"`
-	Instruments []SubscriptionInstrument `json:"instruments,omitempty"`
+	ConsumerID       string                   `json:"consumerId"`
+	ProviderBrokerID string                   `json:"providerBrokerId,omitempty"`
+	Instruments      []SubscriptionInstrument `json:"instruments,omitempty"`
 }
 
 // SubscriptionHeartbeatRequest documents the subscription heartbeat payload.
 type SubscriptionHeartbeatRequest struct {
-	ConsumerID string `json:"consumerId"`
+	ConsumerID       string `json:"consumerId"`
+	ProviderBrokerID string `json:"providerBrokerId,omitempty"`
 }

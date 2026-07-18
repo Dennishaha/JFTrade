@@ -197,8 +197,10 @@ func (s *Server) baseADKToolDeps() ToolDeps {
 		MarketDepth: func(ctx context.Context, market string, symbol string, num int) (any, error) {
 			return s.marketDepthResponseForInstrument(ctx, market, symbol, marketDepthQuery{Num: newOptionalIntValue(num)})
 		},
-		RiskState:  s.adkRiskState,
-		RiskEvents: func() any { return s.sysSvc.RealTradeRiskEvents() },
+		RiskState:     s.adkRiskState,
+		RiskEvents:    func() any { return s.sysSvc.RealTradeRiskEvents() },
+		ProductTool:   s.invokeADKProductTool,
+		ExecutionTool: s.invokeADKExecutionTool,
 	}
 }
 

@@ -21,6 +21,7 @@ type DepthSubscription struct {
 }
 
 type Subscriptions struct {
+	ProviderBrokerID  string                        `json:"providerBrokerId,omitempty"`
 	ActiveInstruments []string                      `json:"activeInstruments,omitempty"`
 	SecurityDetails   []SecurityDetailsSubscription `json:"securityDetails,omitempty"`
 	Depth             []DepthSubscription           `json:"depth,omitempty"`
@@ -182,6 +183,7 @@ func NormalizeSubscriptions(input Subscriptions) Subscriptions {
 	})
 
 	return Subscriptions{
+		ProviderBrokerID:  strings.ToLower(strings.TrimSpace(input.ProviderBrokerID)),
 		ActiveInstruments: activeInstruments,
 		SecurityDetails:   securityDetails,
 		Depth:             depth,

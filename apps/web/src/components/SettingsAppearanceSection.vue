@@ -6,8 +6,8 @@ import { useUIColorPreferences } from "../composables/useUIColorPreferences";
 const { prefs, resolved, reset, update } = useUIColorPreferences();
 
 const previewVars = computed<CSSProperties>(() => ({
-  "--tv-up": resolved.value.upColor,
-  "--tv-down": resolved.value.downColor,
+  "--tv-price-up": resolved.value.upColor,
+  "--tv-price-down": resolved.value.downColor,
 }) as CSSProperties);
 
 function updateUpColor(event: Event): void {
@@ -60,8 +60,8 @@ function updateDownColor(event: Event): void {
         <span class="text-slate-500">状态色不跟随这里变化</span>
       </div>
       <div class="grid gap-2 sm:grid-cols-4">
-        <div class="rounded border px-3 py-2 text-sm font-semibold text-white" style="border-color: var(--tv-up); background: var(--tv-up)">买入按钮</div>
-        <div class="rounded border px-3 py-2 text-sm font-semibold text-white" style="border-color: var(--tv-down); background: var(--tv-down)">卖出按钮</div>
+        <div class="rounded border px-3 py-2 text-sm font-semibold text-white" style="border-color: var(--tv-price-up); background: var(--tv-price-up)">买入按钮</div>
+        <div class="rounded border px-3 py-2 text-sm font-semibold text-white" style="border-color: var(--tv-price-down); background: var(--tv-price-down)">卖出按钮</div>
       </div>
     </div>
   </section>

@@ -26,7 +26,7 @@ const (
 	DatabaseWatchlist       = "watchlist"
 	RebuildMarkerFilename   = "database-rebuild.json"
 	SchemaVersion           = 1
-	ExecutionSchemaVersion  = 2
+	ExecutionSchemaVersion  = 5
 	ADKSessionSchemaVersion = 3
 	WatchlistSchemaVersion  = 1
 	BatchConfirmationText   = "REBUILD INCOMPATIBLE DATABASES"
