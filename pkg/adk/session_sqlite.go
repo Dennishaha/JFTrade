@@ -11,6 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adksession "google.golang.org/adk/v2/session"
 	adksessiondb "google.golang.org/adk/v2/session/database"
 	"gorm.io/gorm"
@@ -51,12 +52,12 @@ func openSQLiteSessionService(path string) (*SQLiteSessionService, error) {
 	}, &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		jftradeErr1 := db.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return nil, err
 	}
 	if err := prepareSQLiteSessionSchema(context.Background(), db, service, path); err != nil {
 		jftradeErr1 := db.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return nil, err
 	}
 	return &SQLiteSessionService{Service: service, db: db, path: strings.TrimSpace(path)}, nil

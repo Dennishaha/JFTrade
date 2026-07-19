@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 type adkChatStreamEvent struct {
@@ -69,7 +69,7 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 			return
 		}
 		jftradeErr1 := writer.WriteEvent(adkChatStreamEvent{Type: "error", Message: "invalid chat payload: " + err.Error()})
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return
 	}
 	writer, ok := httpserver.PrepareSSEWriter(c.Writer)
@@ -299,12 +299,4 @@ func firstTimelineToolTime(toolCalls []jfadk.ToolCall, currentTime string) strin
 
 func streamTimelineNow() string {
 	return time.Now().UTC().Format(time.RFC3339Nano)
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

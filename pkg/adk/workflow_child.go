@@ -3,6 +3,8 @@ package adk
 import (
 	"context"
 	"strings"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func finishWorkflowChildren(finishes []func()) {
@@ -17,7 +19,7 @@ func (e *WorkflowExecutor) startWorkflowChildRuns(ctx context.Context, req workf
 	for index, step := range steps {
 		if index < len(tasks) {
 			_, jftradeErr11 := e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: new("IN_PROGRESS")})
-			jftradeLogError(jftradeErr11)
+			besteffort.LogError(jftradeErr11)
 		}
 		childAgent, err := e.runtime.workflowChildAgentForStep(ctx, req.Agent, step)
 		if err != nil {
@@ -49,7 +51,7 @@ func (e *WorkflowExecutor) startWorkflowChildRuns(ctx context.Context, req workf
 		finishes = append(finishes, finishChild)
 		if index < len(tasks) {
 			_, jftradeErr10 := e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{RunID: &child.ID})
-			jftradeLogError(jftradeErr10)
+			besteffort.LogError(jftradeErr10)
 		}
 	}
 	return childRuns, finishes, nil
@@ -139,7 +141,7 @@ func (e *WorkflowExecutor) failWorkflowChildAfterMissingFinal(
 	child = hydrateRunExecutionResult(child, toolContext, nil, "", "")
 	child = markFailedChatRun(ctx, child, cause)
 	jftradeErr6 := e.runtime.persistRunTerminalState(context.Background(), child)
-	jftradeLogError(jftradeErr6)
+	besteffort.LogError(jftradeErr6)
 	return cause
 }
 
@@ -154,7 +156,7 @@ func (e *WorkflowExecutor) blockedWorkflowChildResult(
 	reason string,
 ) workflowChildResult {
 	_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID), ResultSummary: &reason})
-	jftradeLogError(jftradeErr13)
+	besteffort.LogError(jftradeErr13)
 	agentID := strings.TrimSpace(childAgent.ID)
 	if agentID == "" {
 		agentID = strings.TrimSpace(fallbackAgentID)
@@ -181,7 +183,7 @@ func (e *WorkflowExecutor) blockedWorkflowChildResult(
 
 func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, parent Run, step workflowStep, task Task, iteration int) workflowChildResult {
 	_, jftradeErr14 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("IN_PROGRESS"), Executor: new(workflowTaskExecutorChild)})
-	jftradeLogError(jftradeErr14)
+	besteffort.LogError(jftradeErr14)
 	childAgent, err := e.runtime.workflowChildAgentForStep(ctx, req.Agent, step)
 	if err != nil {
 		return e.blockedWorkflowChildResult(ctx, req, parent, task, iteration, Agent{}, step.ChildAgentID, err.Error())
@@ -198,12 +200,12 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 	})
 	if err != nil {
 		_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID)})
-		jftradeLogError(jftradeErr13)
+		besteffort.LogError(jftradeErr13)
 		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Err: err}
 	}
 	defer finishChild()
 	_, jftradeErr8 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{RunID: &child.ID})
-	jftradeLogError(jftradeErr8)
+	besteffort.LogError(jftradeErr8)
 	parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
 	parent = updateWorkflowPlanForChildAt(parent, child, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
 	if err := e.runtime.store.SaveRun(ctx, parent); err != nil {
@@ -227,7 +229,7 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 	e.runtime.workflowChildMu.Unlock()
 	if err != nil {
 		_, jftradeErr9 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED")})
-		jftradeLogError(jftradeErr9)
+		besteffort.LogError(jftradeErr9)
 		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: response, Err: err}
 	}
 	status := "DONE"
@@ -240,7 +242,7 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 		Executor:      new(workflowTaskExecutorChild),
 		ResultSummary: new(strings.TrimSpace(response.Reply)),
 	})
-	jftradeLogError(jftradeErr15)
+	besteffort.LogError(jftradeErr15)
 	return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: response}
 }
 

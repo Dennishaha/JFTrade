@@ -57,17 +57,6 @@ type Tick struct {
 	Kind               TickKind
 }
 
-type Candle struct {
-	Period  string  `json:"period"`
-	Open    string  `json:"open"`
-	High    string  `json:"high"`
-	Low     string  `json:"low"`
-	Close   string  `json:"close"`
-	Volume  float64 `json:"volume"`
-	At      string  `json:"at"`
-	Session string  `json:"session"`
-}
-
 func NormalizeInstrumentID(instrumentID string) (string, string, string, bool) {
 	instrumentID = strings.ToUpper(strings.TrimSpace(instrumentID))
 	parts := strings.SplitN(instrumentID, ".", 2)

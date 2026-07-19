@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 type openAIClient struct {
@@ -483,7 +485,7 @@ func (c openAIClient) selectTools(
 	if err != nil {
 		return nil, err
 	}
-	defer func() { jftradeLogError(resp.Body.Close()) }()
+	defer func() { besteffort.LogError(resp.Body.Close()) }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
 		return nil, err
@@ -543,7 +545,7 @@ func (c openAIClient) chatStream(
 	if err != nil {
 		return openAIChatResult{}, err
 	}
-	defer func() { jftradeLogError(resp.Body.Close()) }()
+	defer func() { besteffort.LogError(resp.Body.Close()) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 		if readErr != nil {

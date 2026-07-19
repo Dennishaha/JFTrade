@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
@@ -401,7 +402,7 @@ func estimateToolDeclarationTokens(agent Agent, tools *ToolRegistry) int {
 			"description": descriptor.Description,
 			"schema":      descriptor.InputSchema,
 		})
-		jftradeLogError(jftradeErr4)
+		besteffort.LogError(jftradeErr4)
 		total += estimateTextTokens(string(payload))
 	}
 	return total

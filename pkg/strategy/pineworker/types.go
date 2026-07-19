@@ -52,14 +52,32 @@ func SupportsRuntime(value string) bool {
 	return NormalizeRuntime(value) == RuntimeID
 }
 
+// Candle is the canonical numeric K-line of the Pine worker wire protocol
+// (RunScriptRequest.Candles). All producers build it from bbgo K-lines via the
+// single shared converter backtest.CandleFromKLine; do not grow ad-hoc copies.
+//
+// Semantics:
+//   - OpenTime and CloseTime are epoch milliseconds in UTC.
+//   - OpenTime is the bar's inclusive open. CloseTime is the bar's inclusive
+//     close timestamp (the bbgo "binance rule": typically OpenTime + interval - 1ms,
+//     never overlapping the next bar's open). CloseTime may be 0 when unknown;
+//     the TypeScript worker treats it as optional.
+//   - OHLCV are float64 approximations of the source fixed-point values: fine
+//     for indicator math and plotting, not decimal-exact.
+//
+// The production transport is gRPC with a binary candle batch (see
+// proto_mapping.go), so these JSON tags are not on that wire. They exist
+// because JSON-RPC peers — the PineTS shadow worker (scripts/pinets-worker.mjs)
+// via pineengine.RunIndicatorRequest — consume this same struct shape with
+// camelCase field names; keep the tags stable.
 type Candle struct {
-	OpenTime  int64
-	CloseTime int64
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
-	Volume    float64
+	OpenTime  int64   `json:"openTime"`
+	CloseTime int64   `json:"closeTime"`
+	Open      float64 `json:"open"`
+	High      float64 `json:"high"`
+	Low       float64 `json:"low"`
+	Close     float64 `json:"close"`
+	Volume    float64 `json:"volume"`
 }
 
 type RunScriptRequest struct {

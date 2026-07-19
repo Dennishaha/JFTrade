@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -73,7 +74,7 @@ func (s *Store) SaveRunAndDenyPendingApprovals(ctx context.Context, run Run) err
 	defer func() {
 		if tx != nil {
 			jftradeErr := tx.Rollback()
-			jftradeLogError(jftradeErr)
+			besteffort.LogError(jftradeErr)
 		}
 	}()
 	rows := []struct {

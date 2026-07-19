@@ -1,3 +1,5 @@
+import type { components } from "@/generated/openapi";
+
 export interface ArchitectureCard {
   title: string;
   owner: string;
@@ -1835,436 +1837,77 @@ export interface RealTradeApprovalsResponse {
   }>;
 }
 
-export interface RealTradeRiskEventsResponse {
-  realTradingEnabled: boolean;
-  riskEnabled: boolean;
-  runtimeRiskConfigured: boolean;
-  runtimeConfiguredMaxOrderQuantity: number | null;
-  runtimeConfiguredMaxOrderNotional: number | null;
-  effectiveMaxOrderQuantity: number | null;
-  effectiveMaxOrderNotional: number | null;
-  maxOrderQuantity: number | null;
-  maxOrderNotional: number | null;
-  entries: Array<{
-    id: string;
-    eventType: "activated" | "released" | "rejected" | "updated" | "disabled";
-    action: string;
-    brokerId: string;
-    operation: string | null;
-    tradingEnvironment: string | null;
-    accountId: string | null;
-    market: string | null;
-    symbol: string | null;
-    orderId: string | null;
-    quantity: number | null;
-    price: number | null;
-    operatorId: string | null;
-    reason: string | null;
-    errorCode: string | null;
-    realTradingEnabled?: boolean | null;
-    configuredMaxOrderQuantity: number | null;
-    configuredMaxOrderNotional: number | null;
-    activatedAt: string | null;
-    createdAt: string;
-  }>;
-}
+// 以下实盘风控（real-trade）响应类型直接引用 swagger 生成的 DTO schema
+//（来源：internal/system/real_trade.go 与 internal/trading/real_trade_snapshot.go），
+// 保持前后端契约单一事实源。审批响应保留上方手写契约：entries 元素形状是
+// 审批工作流的前瞻定义，后端当前恒返回空数组，生成类型无法表达。
+export type RealTradeRiskEventsResponse =
+  components["schemas"]["system.RealTradeRiskEventsResponse"];
 
-export interface RealTradeRiskStateResponse {
-  realTradingEnabled: boolean;
-  riskEnabled: boolean;
-  runtimeRiskConfigured: boolean;
-  runtimeConfiguredMaxOrderQuantity: number | null;
-  runtimeConfiguredMaxOrderNotional: number | null;
-  effectiveMaxOrderQuantity: number | null;
-  effectiveMaxOrderNotional: number | null;
-  entry: {
-    id: string;
-    tradingEnvironment: string;
-    realTradingEnabled: boolean;
-    maxOrderQuantity: number | null;
-    maxOrderNotional: number | null;
-    operatorId: string;
-    reason: string;
-    activatedAt: string;
-    updatedAt: string;
-  } | null;
-}
+export type RealTradeRiskStateResponse =
+  components["schemas"]["system.RealTradeRiskLimitsResponse"];
 
-export interface RealTradeKillSwitchEventsResponse {
-  realTradingEnabled: boolean;
-  killSwitchActive: boolean;
-  runtimeActive: boolean;
-  blockedOperations: string[];
-  allowsCancel: boolean;
-  entries: Array<{
-    id: string;
-    eventType: "activated" | "released" | "rejected";
-    action: string;
-    brokerId: string;
-    operation: string | null;
-    tradingEnvironment: string | null;
-    accountId: string | null;
-    market: string | null;
-    symbol: string | null;
-    orderId: string | null;
-    quantity: number | null;
-    price: number | null;
-    killSwitchSource: "RUNTIME" | null;
-    operatorId: string | null;
-    reason: string | null;
-    errorCode: string | null;
-    activatedAt: string | null;
-    createdAt: string;
-  }>;
-}
+export type RealTradeKillSwitchEventsResponse =
+  components["schemas"]["system.RealTradeKillSwitchEventsResponse"];
 
-export interface RealTradeKillSwitchStateResponse {
-  realTradingEnabled: boolean;
-  runtimeActive: boolean;
-  killSwitchActive: boolean;
-  killSwitchSource: "RUNTIME" | null;
-  blockedOperations: string[];
-  allowsCancel: boolean;
-  entry: {
-    id: string;
-    tradingEnvironment: string;
-    operatorId: string;
-    reason: string;
-    activatedAt: string;
-    updatedAt: string;
-  } | null;
-}
+export type RealTradeKillSwitchStateResponse =
+  components["schemas"]["system.RealTradeKillSwitchStateResponse"];
 
-export interface RealTradeHardStopsResponse {
-  blockedOperations: string[];
-  allowsCancel: boolean;
-  entries: Array<{
-    id: string;
-    brokerId: string;
-    tradingEnvironment: string;
-    accountId: string;
-    market: string | null;
-    symbol: string | null;
-    operatorId: string;
-    reason: string;
-    activatedAt: string;
-    updatedAt: string;
-  }>;
-}
+export type RealTradeHardStopsResponse =
+  components["schemas"]["system.RealTradeHardStopsResponse"];
 
-export interface RealTradeHardStopEventsResponse {
-  realTradingEnabled: boolean;
-  blockedOperations: string[];
-  allowsCancel: boolean;
-  entries: Array<{
-    id: string;
-    eventType: "activated" | "released" | "rejected";
-    action: string;
-    brokerId: string;
-    operation: string | null;
-    tradingEnvironment: string | null;
-    accountId: string | null;
-    market: string | null;
-    symbol: string | null;
-    orderId: string | null;
-    quantity: number | null;
-    price: number | null;
-    hardStopScope: "ACCOUNT" | "MARKET" | "SYMBOL" | null;
-    operatorId: string | null;
-    reason: string | null;
-    errorCode: string | null;
-    hardStopId: string | null;
-    activatedAt: string | null;
-    createdAt: string;
-  }>;
-}
+export type RealTradeHardStopEventsResponse =
+  components["schemas"]["system.RealTradeHardStopEventsResponse"];
 
-export interface BrokerRuntimeResponse {
-  descriptor: BrokerDescriptor;
-  session: {
-    brokerId: string;
-    displayName: string;
-    connection: {
-      host: string;
-      apiPort: number;
-      websocketPort: number;
-      port: number;
-      useEncryption: boolean;
-    };
-    connectivity: string;
-    checkedAt: string;
-    lastError: string | null;
-    globalState: {
-      quoteLoggedIn: boolean;
-      tradeLoggedIn: boolean;
-      serverVersion: string | null;
-      programStatus: string | null;
-      timestamp: string | null;
-      markets: Array<{
-        market: string;
-        state: string;
-      }>;
-    } | null;
-    accountsDiscovered: number;
-  };
-  accounts: Array<{
-    accountId: string;
-    tradingEnvironment: string;
-    accountType: string;
-    accountRole: string | null;
-    securityFirm: string | null;
-    marketAuthorities: string[];
-    simulatedAccountType: string | null;
-  }>;
-}
+// RealTradeRiskSnapshot 是实盘风控写命令（熔断/硬停止/运行时限额）
+// 返回的完整控制面快照。
+export type RealTradeRiskSnapshot =
+  components["schemas"]["trading.RealTradeRiskSnapshot"];
 
-export interface BrokerPositionsResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  positions: Array<{
-    accountId: string;
-    tradingEnvironment: string;
-    market: string;
-    symbol: string;
-    symbolName: string | null;
-    productClass?: string;
-    marketSegment?: string;
-    quantity: number;
-    sellableQuantity: number;
-    lastPrice: number;
-    costPrice: number | null;
-    averageCostPrice: number | null;
-    marketValue: number;
-    unrealizedPnl: number | null;
-    realizedPnl: number | null;
-    pnlRatio: number | null;
-    currency: string | null;
-    comboId?: number | null;
-    strategyType?: string | null;
-    positionType?: string | null;
-    payoutIfWin?: number | null;
-  }>;
-}
+// 实盘风控命令请求体（对应 internal/system 命令 struct）。
+export type RealTradeKillSwitchCommandPayload =
+  components["schemas"]["system.RealTradeKillSwitchCommand"];
 
-export interface BrokerFundsResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  summary: {
-    accountId: string;
-    tradingEnvironment: string;
-    market: string;
-    currency: string | null;
-    totalAssets: number | null;
-    securitiesAssets: number | null;
-    fundAssets: number | null;
-    bondAssets: number | null;
-    cash: number | null;
-    marketValue: number | null;
-    longMarketValue: number | null;
-    shortMarketValue: number | null;
-    purchasingPower: number | null;
-    shortSellingPower: number | null;
-    netCashPower: number | null;
-    availableWithdrawalCash: number | null;
-    maxWithdrawal: number | null;
-    availableFunds: number | null;
-    frozenCash: number | null;
-    pendingAsset: number | null;
-    unrealizedPnl: number | null;
-    realizedPnl: number | null;
-    initialMargin: number | null;
-    maintenanceMargin: number | null;
-    marginCallMargin: number | null;
-    riskStatus: string | null;
-    // Margin & Financing 融资融券
-    debtCash: number | null;
-    isPdt: boolean | null;
-    pdtSeq: string | null;
-    beginningDTBP: number | null;
-    remainingDTBP: number | null;
-    dtCallAmount: number | null;
-    dtStatus: string | null;
-    exposureLevel: string | null;
-    exposureLimit: number | null;
-    usedLimit: number | null;
-    remainingLimit: number | null;
-  } | null;
-  currencyBalances: Array<{
-    accountId: string;
-    tradingEnvironment: string;
-    currency: string;
-    cash: number | null;
-    availableWithdrawalCash: number | null;
-    netCashPower: number | null;
-  }>;
-  marketAssets: Array<{
-    accountId: string;
-    tradingEnvironment: string;
-    market: string;
-    assets: number | null;
-  }>;
-}
+export type RealTradeHardStopCommandPayload =
+  components["schemas"]["system.RealTradeHardStopCommand"];
 
-export interface BrokerCashFlowsResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  cashFlows: Array<{
-    accountId: string;
-    tradingEnvironment: string;
-    market: string;
-    cashFlowId: string | null;
-    clearingDate: string | null;
-    settlementDate: string | null;
-    currency: string | null;
-    cashFlowType: string | null;
-    cashFlowDirection: string | null;
-    cashFlowAmount: number | null;
-    cashFlowRemark: string | null;
-  }>;
-}
+export type RealTradeRuntimeRiskCommandPayload =
+  components["schemas"]["system.RealTradeRuntimeRiskCommand"];
 
-export interface BrokerOrderFeesResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  fees: Array<{
-    accountId: string;
-    tradingEnvironment: string;
-    market: string;
-    brokerOrderIdEx: string;
-    feeAmount: number | null;
-    feeItems: Array<{
-      title: string;
-      value: number;
-    }>;
-  }>;
-}
+export type BrokerRuntimeResponse =
+  components["schemas"]["trading.BrokerRuntimeResponse"];
 
-export interface BrokerFillsResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  fills: Array<{
-    accountId: string;
-    tradingEnvironment: string;
-    market: string;
-    brokerOrderId: string;
-    brokerOrderIdEx: string | null;
-    brokerFillId: string;
-    brokerFillIdEx: string | null;
-    symbol: string;
-    symbolName: string | null;
-    side: string;
-    filledQuantity: number;
-    fillPrice: number | null;
-    filledAt: string;
-    status: string | null;
-  }>;
-}
+// 以下券商/portfolio 读取响应类型直接引用 swagger 生成的 DTO schema
+// （来源：internal/trading/responses.go），保持前后端契约单一事实源。
+export type BrokerPositionsResponse =
+  components["schemas"]["trading.BrokerPositionsResponse"];
 
-export interface BrokerMarginRatiosResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  marginRatios: Array<{
-    accountId: string;
-    tradingEnvironment: string;
-    market: string;
-    symbol: string;
-    isLongPermit: boolean | null;
-    isShortPermit: boolean | null;
-    shortPoolRemain: number | null;
-    shortFeeRate: number | null;
-    alertLongRatio: number | null;
-    alertShortRatio: number | null;
-    initialMarginLongRatio: number | null;
-    initialMarginShortRatio: number | null;
-    marginCallLongRatio: number | null;
-    marginCallShortRatio: number | null;
-    maintenanceLongRatio: number | null;
-    maintenanceShortRatio: number | null;
-  }>;
-}
+export type BrokerFundsResponse =
+  components["schemas"]["trading.BrokerFundsResponse"];
 
-export interface BrokerMaxTradeQuantityResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  maxTradeQuantity: {
-    accountId: string;
-    tradingEnvironment: string;
-    market: string;
-    symbol: string;
-    orderType: string;
-    price: number;
-    maxCashBuy: number;
-    maxCashAndMarginBuy: number | null;
-    maxPositionSell: number;
-    maxSellShort: number | null;
-    maxBuyBack: number | null;
-    longRequiredIM: number | null;
-    shortRequiredIM: number | null;
-    session: string | null;
-  } | null;
-}
+export type BrokerCashFlowsResponse =
+  components["schemas"]["trading.BrokerCashFlowsResponse"];
 
-export interface BrokerOrdersResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  orders: Array<{
-    accountId: string;
-    tradingEnvironment: string;
-    market: string;
-    brokerOrderId: string;
-    brokerOrderIdEx: string | null;
-    symbol: string;
-    symbolName: string | null;
-    side: string;
-    orderType: string;
-    status: string;
-    quantity: number;
-    filledQuantity: number | null;
-    price: number | null;
-    filledAveragePrice: number | null;
-    submittedAt: string;
-    updatedAt: string;
-    remark: string | null;
-    lastError: string | null;
-    timeInForce: string | null;
-    currency: string | null;
-  }>;
-}
+export type BrokerOrderFeesResponse =
+  components["schemas"]["trading.BrokerOrderFeesResponse"];
 
-export interface PortfolioPositionsResponse {
-  positions: Array<{
-    brokerId: string;
-    tradingEnvironment: string;
-    accountId: string;
-    market: string;
-    symbol: string;
-    quantity: number;
-    averagePrice: number;
-    marketValue: number;
-    updatedAt: string;
-    createdAt: string;
-  }>;
-}
+export type BrokerFillsResponse =
+  components["schemas"]["trading.BrokerFillsResponse"];
 
-export interface PortfolioCashBalancesResponse {
-  balances: Array<{
-    brokerId: string;
-    tradingEnvironment: string;
-    accountId: string;
-    currency: string;
-    cashBalance: number;
-    updatedAt: string;
-    createdAt: string;
-  }>;
-}
+export type BrokerMarginRatiosResponse =
+  components["schemas"]["trading.BrokerMarginRatiosResponse"];
+
+export type BrokerMaxTradeQuantityResponse =
+  components["schemas"]["trading.BrokerMaxTradeQuantityResponse"];
+
+export type BrokerOrdersResponse =
+  components["schemas"]["trading.BrokerOrdersResponse"];
+
+export type PortfolioPositionsResponse =
+  components["schemas"]["trading.PortfolioPositionsResponse"];
+
+export type PortfolioCashBalancesResponse =
+  components["schemas"]["trading.PortfolioCashBalancesResponse"];
 
 export type PortfolioReconciliationStatus =
   | "matched"
@@ -2272,49 +1915,11 @@ export type PortfolioReconciliationStatus =
   | "missing-in-projection"
   | "missing-at-broker";
 
-export interface PortfolioReconciliationResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  positions: Array<{
-    brokerId: string;
-    tradingEnvironment: string;
-    accountId: string;
-    market: string;
-    symbol: string;
-    symbolName: string | null;
-    status: PortfolioReconciliationStatus;
-    projectedQuantity: number | null;
-    brokerQuantity: number | null;
-    quantityDelta: number;
-    projectedAveragePrice: number | null;
-    brokerAverageCostPrice: number | null;
-    averagePriceDelta: number | null;
-    projectedRealizedPnl: number | null;
-    brokerRealizedPnl: number | null;
-    realizedPnlDelta: number | null;
-    projectedUpdatedAt: string | null;
-  }>;
-}
+export type PortfolioReconciliationResponse =
+  components["schemas"]["trading.PortfolioReconciliationResponse"];
 
-export interface PortfolioCashReconciliationResponse {
-  checkedAt: string;
-  connectivity: string;
-  lastError: string | null;
-  balances: Array<{
-    brokerId: string;
-    tradingEnvironment: string;
-    accountId: string;
-    currency: string;
-    status: PortfolioReconciliationStatus;
-    projectedCashBalance: number | null;
-    brokerCash: number | null;
-    cashDelta: number;
-    brokerAvailableWithdrawalCash: number | null;
-    brokerNetCashPower: number | null;
-    projectedUpdatedAt: string | null;
-  }>;
-}
+export type PortfolioCashReconciliationResponse =
+  components["schemas"]["trading.PortfolioCashReconciliationResponse"];
 
 export interface BrokerPlaceOrderRequestPayload {
   tradingEnvironment: string;
@@ -3287,12 +2892,6 @@ export const emptyRealTradeRiskEvents: RealTradeRiskEventsResponse = {
   realTradingEnabled: false,
   riskEnabled: false,
   runtimeRiskConfigured: false,
-  runtimeConfiguredMaxOrderQuantity: null,
-  runtimeConfiguredMaxOrderNotional: null,
-  effectiveMaxOrderQuantity: null,
-  effectiveMaxOrderNotional: null,
-  maxOrderQuantity: null,
-  maxOrderNotional: null,
   entries: [],
 };
 
@@ -3300,11 +2899,6 @@ export const emptyRealTradeRiskState: RealTradeRiskStateResponse = {
   realTradingEnabled: false,
   riskEnabled: false,
   runtimeRiskConfigured: false,
-  runtimeConfiguredMaxOrderQuantity: null,
-  runtimeConfiguredMaxOrderNotional: null,
-  effectiveMaxOrderQuantity: null,
-  effectiveMaxOrderNotional: null,
-  entry: null,
 };
 
 export const emptyRealTradeKillSwitchEvents: RealTradeKillSwitchEventsResponse =
@@ -3321,10 +2915,8 @@ export const emptyRealTradeKillSwitchState: RealTradeKillSwitchStateResponse = {
   realTradingEnabled: false,
   runtimeActive: false,
   killSwitchActive: false,
-  killSwitchSource: null,
   blockedOperations: ["PLACE", "MODIFY"],
   allowsCancel: true,
-  entry: null,
 };
 
 export const emptyRealTradeHardStops: RealTradeHardStopsResponse = {
@@ -3357,12 +2949,18 @@ export const emptyBrokerRuntime: BrokerRuntimeResponse = {
       websocketPort: 11111,
       port: 11110,
       useEncryption: false,
+      marketDataTransport: "bbgo-opend-tcp-api",
     },
     connectivity: "disconnected",
     checkedAt: "",
     lastError: null,
     globalState: null,
     accountsDiscovered: 0,
+    liveWebSocketClients: {
+      connected: 0,
+      limit: 20,
+      atLimit: false,
+    },
   },
   accounts: [],
 };
@@ -3370,15 +2968,12 @@ export const emptyBrokerRuntime: BrokerRuntimeResponse = {
 export const emptyBrokerPositions: BrokerPositionsResponse = {
   checkedAt: new Date(0).toISOString(),
   connectivity: "disconnected",
-  lastError: null,
   positions: [],
 };
 
 export const emptyBrokerFunds: BrokerFundsResponse = {
   checkedAt: new Date(0).toISOString(),
   connectivity: "disconnected",
-  lastError: null,
-  summary: null,
   currencyBalances: [],
   marketAssets: [],
 };
@@ -3386,42 +2981,35 @@ export const emptyBrokerFunds: BrokerFundsResponse = {
 export const emptyBrokerCashFlows: BrokerCashFlowsResponse = {
   checkedAt: new Date(0).toISOString(),
   connectivity: "disconnected",
-  lastError: null,
   cashFlows: [],
 };
 
 export const emptyBrokerOrderFees: BrokerOrderFeesResponse = {
   checkedAt: new Date(0).toISOString(),
   connectivity: "disconnected",
-  lastError: null,
   fees: [],
 };
 
 export const emptyBrokerFills: BrokerFillsResponse = {
   checkedAt: new Date(0).toISOString(),
   connectivity: "disconnected",
-  lastError: null,
   fills: [],
 };
 
 export const emptyBrokerMarginRatios: BrokerMarginRatiosResponse = {
   checkedAt: new Date(0).toISOString(),
   connectivity: "disconnected",
-  lastError: null,
   marginRatios: [],
 };
 
 export const emptyBrokerMaxTradeQuantity: BrokerMaxTradeQuantityResponse = {
   checkedAt: new Date(0).toISOString(),
   connectivity: "disconnected",
-  lastError: null,
-  maxTradeQuantity: null,
 };
 
 export const emptyBrokerOrders: BrokerOrdersResponse = {
   checkedAt: new Date(0).toISOString(),
   connectivity: "disconnected",
-  lastError: null,
   orders: [],
 };
 
@@ -3436,7 +3024,6 @@ export const emptyPortfolioCashBalances: PortfolioCashBalancesResponse = {
 export const emptyPortfolioReconciliation: PortfolioReconciliationResponse = {
   checkedAt: new Date(0).toISOString(),
   connectivity: "disconnected",
-  lastError: null,
   positions: [],
 };
 
@@ -3444,7 +3031,6 @@ export const emptyPortfolioCashReconciliation: PortfolioCashReconciliationRespon
   {
     checkedAt: new Date(0).toISOString(),
     connectivity: "disconnected",
-    lastError: null,
     balances: [],
   };
 

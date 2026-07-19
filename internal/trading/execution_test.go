@@ -465,17 +465,14 @@ func TestPreTradeRiskSnapshotUsesNonNilEmptySlices(t *testing.T) {
 		return PreTradeRiskConfig{}
 	}).Snapshot()
 
-	hardStops, ok := snapshot["hardStopEntries"].([]RealTradeHardStopEntry)
-	if !ok || hardStops == nil || len(hardStops) != 0 {
-		t.Fatalf("hardStopEntries = %#v, want non-nil empty slice", snapshot["hardStopEntries"])
+	if snapshot.HardStopEntries == nil || len(snapshot.HardStopEntries) != 0 {
+		t.Fatalf("hardStopEntries = %#v, want non-nil empty slice", snapshot.HardStopEntries)
 	}
-	hardStopEvents, ok := snapshot["hardStopEvents"].([]RealTradeControlEvent)
-	if !ok || hardStopEvents == nil || len(hardStopEvents) != 0 {
-		t.Fatalf("hardStopEvents = %#v, want non-nil empty slice", snapshot["hardStopEvents"])
+	if snapshot.HardStopEvents == nil || len(snapshot.HardStopEvents) != 0 {
+		t.Fatalf("hardStopEvents = %#v, want non-nil empty slice", snapshot.HardStopEvents)
 	}
-	killSwitchEvents, ok := snapshot["killSwitchEvents"].([]RealTradeControlEvent)
-	if !ok || killSwitchEvents == nil || len(killSwitchEvents) != 0 {
-		t.Fatalf("killSwitchEvents = %#v, want non-nil empty slice", snapshot["killSwitchEvents"])
+	if snapshot.KillSwitchEvents == nil || len(snapshot.KillSwitchEvents) != 0 {
+		t.Fatalf("killSwitchEvents = %#v, want non-nil empty slice", snapshot.KillSwitchEvents)
 	}
 }
 
@@ -506,23 +503,12 @@ func TestRealTradeEnvVariablesDoNotConfigurePreTradeRisk(t *testing.T) {
 		t.Fatalf("NewRealTradeControlPlane: %v", err)
 	}
 	snapshot := plane.Snapshot()
-	if snapshot["realTradingEnabled"] != false || snapshot["killSwitchActive"] != false {
+	if snapshot.RealTradingEnabled || snapshot.KillSwitchActive {
 		t.Fatalf("env should not configure runtime gates: %#v", snapshot)
 	}
-	if limitValue(snapshot["effectiveMaxOrderQuantity"]) != nil || limitValue(snapshot["effectiveMaxOrderNotional"]) != nil {
+	if snapshot.EffectiveMaxOrderQuantity != nil || snapshot.EffectiveMaxOrderNotional != nil {
 		t.Fatalf("env should not configure runtime limits: %#v", snapshot)
 	}
-	if _, ok := snapshot["riskConfigSource"]; ok {
-		t.Fatalf("snapshot should not expose env/control-plane risk source: %#v", snapshot)
-	}
-}
-
-func limitValue(value any) *float64 {
-	limit, ok := value.(*float64)
-	if !ok {
-		return nil
-	}
-	return limit
 }
 
 func TestRealTradeControlPlanePersistsKillSwitchAndHardStop(t *testing.T) {
@@ -539,7 +525,7 @@ func TestRealTradeControlPlanePersistsKillSwitchAndHardStop(t *testing.T) {
 		t.Fatalf("ActivateKillSwitch: %v", err)
 	}
 	snapshot := plane.Snapshot()
-	if snapshot["killSwitchActive"] != true || snapshot["killSwitchSource"] != "RUNTIME" {
+	if !snapshot.KillSwitchActive || snapshot.KillSwitchSource == nil || *snapshot.KillSwitchSource != "RUNTIME" {
 		t.Fatalf("kill switch snapshot = %#v", snapshot)
 	}
 
@@ -547,13 +533,13 @@ func TestRealTradeControlPlanePersistsKillSwitchAndHardStop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reload control plane: %v", err)
 	}
-	if reloaded.Snapshot()["killSwitchActive"] != true {
+	if !reloaded.Snapshot().KillSwitchActive {
 		t.Fatalf("reloaded snapshot = %#v", reloaded.Snapshot())
 	}
 	if _, err := reloaded.ReleaseKillSwitch(context.Background(), RealTradeKillSwitchCommand{OperatorID: "tester"}); err != nil {
 		t.Fatalf("ReleaseKillSwitch: %v", err)
 	}
-	if reloaded.Snapshot()["killSwitchActive"] != false {
+	if reloaded.Snapshot().KillSwitchActive {
 		t.Fatalf("released snapshot = %#v", reloaded.Snapshot())
 	}
 	maxQty := 10.0
@@ -594,7 +580,7 @@ func TestRealTradeControlPlanePersistsKillSwitchAndHardStop(t *testing.T) {
 	if decision.Allows() || decision.ReasonCode != "REAL_TRADE_HARD_STOP_ACTIVE" {
 		t.Fatalf("hard stop decision = %#v", decision)
 	}
-	events := reloaded.Snapshot()["hardStopEvents"].([]RealTradeControlEvent)
+	events := reloaded.Snapshot().HardStopEvents
 	if len(events) == 0 || events[0].EventType != "rejected" {
 		t.Fatalf("hard stop events = %#v", events)
 	}
@@ -628,14 +614,14 @@ func TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents(t *tes
 	if err != nil {
 		t.Fatalf("UpdateRuntimeRiskConfig: %v", err)
 	}
-	if snapshot["realTradingEnabled"] != true || snapshot["runtimeRiskConfigured"] != true {
+	if !snapshot.RealTradingEnabled || !snapshot.RuntimeRiskConfigured {
 		t.Fatalf("runtime risk snapshot = %#v", snapshot)
 	}
-	entry, ok := snapshot["riskEntry"].(*RealTradeRuntimeRiskEntry)
-	if !ok || entry == nil || entry.OperatorID != "tester" || entry.TradingEnvironment != "REAL" {
-		t.Fatalf("runtime risk entry = %#v", snapshot["riskEntry"])
+	entry := snapshot.RiskEntry
+	if entry == nil || entry.OperatorID != "tester" || entry.TradingEnvironment != "REAL" {
+		t.Fatalf("runtime risk entry = %#v", snapshot.RiskEntry)
 	}
-	events := snapshot["riskEvents"].([]RealTradeControlEvent)
+	events := snapshot.RiskEvents
 	if len(events) != 1 || events[0].Action != "RISK_CONFIG_UPDATED" || events[0].RealTradingEnabled == nil || !*events[0].RealTradingEnabled {
 		t.Fatalf("risk update events = %#v", events)
 	}
@@ -644,11 +630,10 @@ func TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents(t *tes
 	if err != nil {
 		t.Fatalf("DisableRuntimeRiskConfig: %v", err)
 	}
-	disabledEntry, _ := disabled["riskEntry"].(*RealTradeRuntimeRiskEntry)
-	if disabled["realTradingEnabled"] != false || disabled["runtimeRiskConfigured"] != false || disabledEntry != nil {
+	if disabled.RealTradingEnabled || disabled.RuntimeRiskConfigured || disabled.RiskEntry != nil {
 		t.Fatalf("disabled runtime risk snapshot = %#v", disabled)
 	}
-	events = disabled["riskEvents"].([]RealTradeControlEvent)
+	events = disabled.RiskEvents
 	if len(events) < 2 || events[0].Action != "RISK_CONFIG_DISABLED" || events[0].RealTradingEnabled == nil || *events[0].RealTradingEnabled {
 		t.Fatalf("risk disable events = %#v", events)
 	}
@@ -657,7 +642,7 @@ func TestRealTradeControlPlaneRuntimeRiskConfigValidationAndDisableEvents(t *tes
 	if err != nil {
 		t.Fatalf("reload control plane: %v", err)
 	}
-	if got := reloaded.Snapshot(); got["runtimeRiskConfigured"] != false || len(got["riskEvents"].([]RealTradeControlEvent)) != len(events) {
+	if got := reloaded.Snapshot(); got.RuntimeRiskConfigured || len(got.RiskEvents) != len(events) {
 		t.Fatalf("reloaded disabled runtime risk snapshot = %#v", got)
 	}
 }
@@ -681,10 +666,10 @@ func TestRealTradeControlPlaneRollsBackFailedPersistence(t *testing.T) {
 		t.Fatal("ReleaseKillSwitch should fail when state cannot be persisted")
 	}
 	after := plane.Snapshot()
-	if after["killSwitchActive"] != true {
+	if !after.KillSwitchActive {
 		t.Fatalf("failed release opened kill switch: %#v", after)
 	}
-	if len(after["killSwitchEvents"].([]RealTradeControlEvent)) != len(before["killSwitchEvents"].([]RealTradeControlEvent)) {
+	if len(after.KillSwitchEvents) != len(before.KillSwitchEvents) {
 		t.Fatalf("failed release changed audit events: before=%#v after=%#v", before, after)
 	}
 
@@ -696,12 +681,12 @@ func TestRealTradeControlPlaneRollsBackFailedPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ActivateHardStop: %v", err)
 	}
-	entries := result["hardStopEntries"].([]RealTradeHardStopEntry)
+	entries := result.HardStopEntries
 	plane.path = filepath.Join(parentFile, "real-trade-control.json")
 	if _, err := plane.ReleaseHardStop(t.Context(), entries[0].ID, RealTradeHardStopCommand{}); err == nil {
 		t.Fatal("ReleaseHardStop should fail when state cannot be persisted")
 	}
-	if got := plane.Snapshot()["hardStopEntries"].([]RealTradeHardStopEntry); len(got) != 1 || got[0].ID != entries[0].ID {
+	if got := plane.Snapshot().HardStopEntries; len(got) != 1 || got[0].ID != entries[0].ID {
 		t.Fatalf("failed hard-stop release changed active entries: %#v", got)
 	}
 
@@ -716,13 +701,13 @@ func TestRealTradeControlPlaneRollsBackFailedPersistence(t *testing.T) {
 	if _, err := plane.UpdateRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{RealTradingEnabled: true, MaxOrderQuantity: &updatedMaxQty}); err == nil {
 		t.Fatal("UpdateRuntimeRiskConfig should fail when state cannot be persisted")
 	}
-	if got := plane.Snapshot(); *got["effectiveMaxOrderQuantity"].(*float64) != *beforeRuntimeRisk["effectiveMaxOrderQuantity"].(*float64) {
+	if got := plane.Snapshot(); got.EffectiveMaxOrderQuantity == nil || *got.EffectiveMaxOrderQuantity != *beforeRuntimeRisk.EffectiveMaxOrderQuantity {
 		t.Fatalf("failed runtime-risk update changed active limit: before=%#v after=%#v", beforeRuntimeRisk, got)
 	}
 	if _, err := plane.DisableRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{}); err == nil {
 		t.Fatal("DisableRuntimeRiskConfig should fail when state cannot be persisted")
 	}
-	if got := plane.Snapshot(); got["runtimeRiskConfigured"] != true {
+	if got := plane.Snapshot(); !got.RuntimeRiskConfigured {
 		t.Fatalf("failed runtime-risk disable removed active config: %#v", got)
 	}
 }
@@ -745,7 +730,7 @@ func TestRealTradeControlPlaneFailsClosedWhenPersistedStateCannotLoad(t *testing
 	if decision.ReasonCode != "REAL_TRADE_KILL_SWITCH_ACTIVE" || decision.Allows() {
 		t.Fatalf("fail-closed decision = %#v", decision)
 	}
-	if snapshot := plane.Snapshot(); snapshot["controlPlaneAvailable"] != false || snapshot["controlPlaneError"] == nil {
+	if snapshot := plane.Snapshot(); snapshot.ControlPlaneAvailable || snapshot.ControlPlaneError == nil {
 		t.Fatalf("fail-closed snapshot = %#v", snapshot)
 	}
 	if _, err := plane.ReleaseKillSwitch(t.Context(), RealTradeKillSwitchCommand{}); err == nil {

@@ -38,7 +38,7 @@ func TestADKWatchlistListReturnsRealDataWithoutImplicitQuoteCalls(t *testing.T) 
 	}); err != nil {
 		t.Fatal(err)
 	}
-	server := &Server{watchlistSvc: service}
+	server := &Server{serverFacades: serverFacades{watchlistSvc: service}}
 
 	summaryValue, err := server.adkWatchlistList(t.Context(), WatchlistListInput{})
 	if err != nil {

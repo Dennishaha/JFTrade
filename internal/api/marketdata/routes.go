@@ -3,7 +3,6 @@ package marketdata
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	srv "github.com/jftrade/jftrade-main/internal/marketdata"
 	productfeatures "github.com/jftrade/jftrade-main/internal/productfeatures"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -163,7 +163,7 @@ func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) g
 		var refreshValue httpserver.OptionalBoolValue
 		if raw := c.Query("refresh"); raw != "" {
 			jftradeErr3 := refreshValue.UnmarshalText([]byte(raw))
-			jftradeLogError(jftradeErr3)
+			besteffort.LogError(jftradeErr3)
 		}
 		refresh := refreshValue.Bool()
 
@@ -226,7 +226,7 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 		if l := c.Query("limit"); l != "" {
 			parsed := httpserver.OptionalIntValue{}
 			jftradeErr2 := parsed.UnmarshalText([]byte(l))
-			jftradeLogError(jftradeErr2)
+			besteffort.LogError(jftradeErr2)
 			if parsed.Valid {
 				limit = parsed.Int()
 			}
@@ -327,7 +327,7 @@ func handleDepth(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gin.
 		if n := c.Query("num"); n != "" {
 			parsed := httpserver.OptionalIntValue{}
 			jftradeErr1 := parsed.UnmarshalText([]byte(n))
-			jftradeLogError(jftradeErr1)
+			besteffort.LogError(jftradeErr1)
 			if parsed.Valid {
 				num = parsed.Int()
 			}
@@ -647,13 +647,5 @@ func handleNormalizeInstrument(svc *srv.Service) gin.HandlerFunc {
 			return
 		}
 		httpserver.WriteOK(c, result)
-	}
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
 	}
 }

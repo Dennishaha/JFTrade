@@ -29,6 +29,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/frontendassets"
 	"github.com/jftrade/jftrade-main/internal/live"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 
 	// Embed IANA timezone database for desktop builds on minimal systems.
@@ -72,7 +73,7 @@ func main() {
 
 func configureDesktopEnvironment() {
 	if os.Getenv("DISABLE_MARKETS_CACHE") == "" {
-		jftradeLogError(os.Setenv("DISABLE_MARKETS_CACHE", "1"))
+		besteffort.LogError(os.Setenv("DISABLE_MARKETS_CACHE", "1"))
 	}
 }
 
@@ -104,11 +105,11 @@ func (state *desktopAppState) shutdownApp() {
 		state.stopSignals()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		jftradeLogError(state.shutdown(shutdownCtx))
+		besteffort.LogError(state.shutdown(shutdownCtx))
 		if state.logManager != nil {
-			jftradeLogError(state.logManager.close())
+			besteffort.LogError(state.logManager.close())
 		}
-		jftradeLogError(state.windowState.close())
+		besteffort.LogError(state.windowState.close())
 	})
 }
 
@@ -393,26 +394,9 @@ func shouldServeDesktopIndex(r *http.Request, cleanPath string) bool {
 		return false
 	}
 
-	for _, route := range []string{
-		"/oobe",
-		"/workspace",
-		"/system",
-		"/settings",
-		"/account",
-		"/risk",
-		"/broker",
-		"/portfolio",
-		"/execution",
-		"/strategy",
-		"/adk",
-		"/backtest",
-		"/desktop-logs",
-	} {
-		if cleanPath == route || strings.HasPrefix(cleanPath, route+"/") {
-			return true
-		}
-	}
-	return false
+	// 通用 SPA fallback：排除静态资源与 API/文档前缀后，其余 GET/HEAD 路径都
+	// 视为前端路由，由客户端路由表处理；新增前端页面无需再同步后端清单。
+	return true
 }
 
 func serveDesktopIndex(w http.ResponseWriter, r *http.Request, frontendFS fs.FS) bool {
@@ -574,12 +558,4 @@ func (s *desktopNotificationSink) ensureAuthorized() bool {
 		s.authorized.Store(authorized)
 	}
 	return authorized
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

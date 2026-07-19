@@ -56,7 +56,7 @@ func (p *serverTradingBrokerRuntimeProvider) ResolveBroker(id string) broker.Bro
 	return p.server.resolveBroker(id)
 }
 
-func (p *serverTradingBrokerRuntimeProvider) Runtime(ctx context.Context) map[string]any {
+func (p *serverTradingBrokerRuntimeProvider) Runtime(ctx context.Context) *trdsrv.BrokerRuntimeResponse {
 	return p.server.brokerRuntime(ctx)
 }
 

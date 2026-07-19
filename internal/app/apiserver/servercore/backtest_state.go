@@ -15,6 +15,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 const (
@@ -90,12 +91,12 @@ func newBacktestRunStoreWithDB(dbPath string) (*backtestRunStore, error) {
 	}
 	if err := store.initializeOrValidateSchema(); err != nil {
 		jftradeErr2 := db.Close()
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 		return nil, fmt.Errorf("migrate backtest run sqlite store: %w", err)
 	}
 	if err := store.loadFromDB(); err != nil {
 		jftradeErr1 := db.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return nil, fmt.Errorf("load backtest run sqlite store: %w", err)
 	}
 	return store, nil

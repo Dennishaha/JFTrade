@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func (r *Runtime) ResolveApproval(ctx context.Context, approvalID string, approved bool) (ApprovalResolution, error) {
@@ -213,14 +215,14 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 	run.CompletedAt = new(nowString())
 	finalizeRunUsage(&run)
 	jftradeErr3 := r.store.SaveRun(ctx, run)
-	jftradeLogError(jftradeErr3)
+	besteffort.LogError(jftradeErr3)
 	_, jftradeErr4 := r.continueParentWorkflowAfterChild(ctx, run)
-	jftradeLogError(jftradeErr4)
+	besteffort.LogError(jftradeErr4)
 	replyResult := openAIChatResult{Reply: run.FailureReason}
 	if saved, msgErr := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, replyResult); msgErr == nil {
 		run.FinalMessageID = saved.ID
 		jftradeErr1 := r.store.SaveRun(ctx, run)
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}
 	r.audit(ctx, "run.failed", run.ID, "Agent approval continuation failed.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState, "failureReason": run.FailureReason,
@@ -287,7 +289,7 @@ func (r *Runtime) continueResolvedApproval(ctx context.Context, approval Approva
 		}
 		if hasPending {
 			jftradeErr2 := r.store.SaveRun(ctx, run)
-			jftradeLogError(jftradeErr2)
+			besteffort.LogError(jftradeErr2)
 			updatedRun = &run
 			return ApprovalResolution{Approval: approval, Run: updatedRun}, nil
 		}
@@ -360,7 +362,7 @@ func (r *Runtime) ReconcileResolvedApprovals(ctx context.Context) {
 				continue
 			}
 			_, jftradeErr7 := r.ResolveApprovalAsync(ctx, approval.ID, approval.Status == ApprovalStatusApproved)
-			jftradeLogError(jftradeErr7)
+			besteffort.LogError(jftradeErr7)
 			break
 		}
 		if !hasPending && len(run.PendingApprovals) > 0 {
@@ -409,7 +411,7 @@ func (r *Runtime) reconcileWorkflowParent(ctx context.Context, parent Run) {
 				approval, ok, err := r.store.Approval(ctx, embedded.ID)
 				if err == nil && ok && approval.Status != ApprovalStatusPending {
 					_, jftradeErr6 := r.ResolveApprovalAsync(ctx, approval.ID, approval.Status == ApprovalStatusApproved)
-					jftradeLogError(jftradeErr6)
+					besteffort.LogError(jftradeErr6)
 					return
 				}
 			}
@@ -417,7 +419,7 @@ func (r *Runtime) reconcileWorkflowParent(ctx context.Context, parent Run) {
 		}
 		if child.Status != RunStatusRunning {
 			_, jftradeErr5 := r.continueParentWorkflowAfterChild(ctx, child)
-			jftradeLogError(jftradeErr5)
+			besteffort.LogError(jftradeErr5)
 			return
 		}
 	}

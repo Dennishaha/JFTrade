@@ -438,8 +438,10 @@ func TestServerCloseAggregatesPineWorkerRunnerErrorsOnce(t *testing.T) {
 	backtestRunner := &errorClosingPineWorkerRunner{err: backtestErr}
 	instanceRunner := &errorClosingPineWorkerRunner{err: instanceErr}
 	server := &Server{
-		backtestPineWorkerRunner: backtestRunner,
-		instancePineWorkerRunner: instanceRunner,
+		serverRuntimes: serverRuntimes{
+			backtestPineWorkerRunner: backtestRunner,
+			instancePineWorkerRunner: instanceRunner,
+		},
 	}
 
 	err := server.Close()
@@ -504,7 +506,7 @@ func TestBrokerExecutionExchangePrefersRuntimeProviderAndRespectsDisabledIntegra
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := &Server{store: store}
+	server := &Server{serverStores: serverStores{store: store}}
 	if got := server.brokerExecutionExchange(); got != nil {
 		t.Fatalf("brokerExecutionExchange disabled integration = %#v, want nil", got)
 	}

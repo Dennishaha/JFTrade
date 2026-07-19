@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
 const riskMocks = vi.hoisted(() => ({
+  apiPost: vi.fn(),
+  apiPostPath: vi.fn(),
   disableRuntimeRiskConfig: vi.fn(),
   fetchEnvelope: vi.fn(),
   fetchEnvelopeWithInit: vi.fn(),
@@ -13,6 +15,8 @@ const riskMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/composables/apiClient", () => ({
+  apiPost: (...args: unknown[]) => riskMocks.apiPost(...args),
+  apiPostPath: (...args: unknown[]) => riskMocks.apiPostPath(...args),
   fetchEnvelope: (...args: unknown[]) => riskMocks.fetchEnvelope(...args),
   fetchEnvelopeWithInit: (...args: unknown[]) => riskMocks.fetchEnvelopeWithInit(...args),
 }));
@@ -118,6 +122,8 @@ function strategyInstance() {
 
 beforeEach(() => {
   riskMocks.store = createStore();
+  riskMocks.apiPost.mockResolvedValue({});
+  riskMocks.apiPostPath.mockResolvedValue({});
   riskMocks.disableRuntimeRiskConfig.mockResolvedValue(undefined);
   riskMocks.saveRuntimeRiskConfig.mockResolvedValue(undefined);
   riskMocks.fetchEnvelope.mockResolvedValue([strategyInstance()]);
@@ -159,7 +165,7 @@ describe("RiskPage control actions", () => {
     await wrapper.find(".release-kill-switch").trigger("click");
     await wrapper.find(".activate-hard-stop").trigger("click");
     expect(wrapper.text()).toContain("确认创建实盘硬停止");
-    expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalledWith(
+    expect(riskMocks.apiPost).not.toHaveBeenCalledWith(
       "/api/v1/system/real-trade-hard-stops",
       expect.anything(),
     );
@@ -175,13 +181,22 @@ describe("RiskPage control actions", () => {
     expect(confirmSpy).toHaveBeenCalledWith("确认保存这次实盘运行时风控配置吗？");
     expect(confirmSpy).toHaveBeenCalledWith("确认激活实盘熔断吗？");
     expect(confirmSpy).toHaveBeenCalledWith("确认解除实盘熔断吗？");
-    expect(riskMocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
+    expect(riskMocks.apiPost).toHaveBeenCalledWith(
       "/api/v1/system/real-trade-kill-switch/activate",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({ operatorId: "local" }),
     );
-    expect(riskMocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
+    expect(riskMocks.apiPost).toHaveBeenCalledWith(
+      "/api/v1/system/real-trade-kill-switch/release",
+      expect.objectContaining({ operatorId: "local" }),
+    );
+    expect(riskMocks.apiPost).toHaveBeenCalledWith(
+      "/api/v1/system/real-trade-hard-stops",
+      expect.objectContaining({ accountId: "ACC-1" }),
+    );
+    expect(riskMocks.apiPostPath).toHaveBeenCalledWith(
+      "/api/v1/system/real-trade-hard-stops/{hardStopId}/release",
       "/api/v1/system/real-trade-hard-stops/stop%2Fa/release",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({ operatorId: "local" }),
     );
     expect(riskMocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
       "/api/v1/strategies/strategy%2Fa/runtime-risk",
@@ -198,6 +213,8 @@ describe("RiskPage control actions", () => {
     await wrapper.find(".activate-kill-switch").trigger("click");
     await wrapper.find(".release-kill-switch").trigger("click");
     expect(riskMocks.saveRuntimeRiskConfig).not.toHaveBeenCalled();
+    expect(riskMocks.apiPost).not.toHaveBeenCalled();
+    expect(riskMocks.apiPostPath).not.toHaveBeenCalled();
     expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
 
     await wrapper.find(".activate-hard-stop").trigger("click");
@@ -205,13 +222,13 @@ describe("RiskPage control actions", () => {
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
 
     riskMocks.saveRuntimeRiskConfig.mockRejectedValueOnce(new Error("风控设置写入失败"));
-    riskMocks.fetchEnvelopeWithInit.mockRejectedValueOnce(new Error("硬停止接口失败"));
+    riskMocks.apiPost.mockRejectedValueOnce(new Error("硬停止接口失败"));
     confirmSpy.mockReturnValue(true);
     await wrapper.find(".save-risk-config").trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("风控设置写入失败");
     await wrapper.find(".activate-hard-stop").trigger("click");
-    expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
+    expect(riskMocks.apiPost).not.toHaveBeenCalled();
     await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("硬停止接口失败");
@@ -224,6 +241,8 @@ describe("RiskPage control actions", () => {
     await (
       wrapper.vm as unknown as { confirmHardStopAction: () => Promise<void> }
     ).confirmHardStopAction();
+    expect(riskMocks.apiPost).not.toHaveBeenCalled();
+    expect(riskMocks.apiPostPath).not.toHaveBeenCalled();
     expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
   });
 

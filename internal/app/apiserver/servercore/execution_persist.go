@@ -11,6 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 const (
@@ -180,7 +181,7 @@ func newExecutionOrderStoreWithPersistence(persistence *executionOrderSQLiteStor
 	store.persistence = persistence
 	if err := store.loadFromDB(); err != nil {
 		jftradeErr2 := persistence.Close()
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 		return nil, err
 	}
 	store.startPersistenceWorker()
@@ -221,13 +222,13 @@ func newExecutionOrderSQLiteStoreWithDeps(
 	if !newDatabase {
 		if err := store.migrateLegacySchema(); err != nil {
 			jftradeErr1 := db.Close()
-			jftradeLogError(jftradeErr1)
+			besteffort.LogError(jftradeErr1)
 			return nil, fmt.Errorf("migrate execution order sqlite store: %w", err)
 		}
 	}
 	if err := store.initializeOrValidateSchema(); err != nil {
 		jftradeErr1 := db.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return nil, fmt.Errorf("migrate execution order sqlite store: %w", err)
 	}
 	return store, nil
@@ -721,7 +722,7 @@ func (s *executionOrderSQLiteStore) ensureSchema(tableName string, want []string
 }
 
 func inspectExecutionSchemaRows(tableName string, want []string, rows executionSchemaRows) error {
-	defer func() { jftradeLogError(rows.Close()) }()
+	defer func() { besteffort.LogError(rows.Close()) }()
 
 	got := make([]string, 0, len(want))
 	for rows.Next() {

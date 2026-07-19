@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	apiOrigin "github.com/jftrade/jftrade-main/internal/api/origin"
 	livecore "github.com/jftrade/jftrade-main/internal/live"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 const defaultConnectionLimit = 20
@@ -138,7 +138,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		h.release(conn)
 		jftradeErr2 := conn.Close()
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 	}()
 
 	h.backend.EnsureNotificationBridge(r.Context())
@@ -164,7 +164,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jftradeErr3 := dispatcher.run()
-	jftradeLogError(jftradeErr3)
+	besteffort.LogError(jftradeErr3)
 }
 
 func (h *Handler) Stats() ClientStats {
@@ -199,7 +199,7 @@ func (h *Handler) Close() error {
 		h.mu.Unlock()
 		for _, conn := range connections {
 			jftradeErr1 := conn.Close()
-			jftradeLogError(jftradeErr1)
+			besteffort.LogError(jftradeErr1)
 		}
 		h.active.Wait()
 	})
@@ -302,7 +302,7 @@ func writeLimitError(w http.ResponseWriter, limit int) {
 		},
 		"timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 	})
-	jftradeLogError(jftradeErr4)
+	besteffort.LogError(jftradeErr4)
 }
 
 func normalizeOptions(options Options) Options {
@@ -322,12 +322,4 @@ func normalizeOptions(options Options) Options {
 		options.DepthRefreshInterval = 15 * time.Second
 	}
 	return options
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

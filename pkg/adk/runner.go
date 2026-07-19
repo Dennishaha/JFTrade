@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkartifact "google.golang.org/adk/v2/artifact"
 	adkmemory "google.golang.org/adk/v2/memory"
 	adksession "google.golang.org/adk/v2/session"
@@ -57,7 +58,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	}
 	artifactService, err := newGoogleADKArtifactService(deriveGoogleADKArtifactPathFromSessionService(sessionService))
 	if err != nil {
-		jftradeLogError(err)
+		besteffort.LogError(err)
 		artifactService = adkartifact.InMemoryService()
 	}
 	r := &Runtime{
@@ -553,7 +554,7 @@ func (r *Runtime) audit(ctx context.Context, kind string, subjectID string, deta
 	jftradeErr1 := r.store.AddAuditEvent(ctx, AuditEvent{
 		Kind: kind, SubjectID: subjectID, Detail: detail, Metadata: metadata,
 	})
-	jftradeLogError(jftradeErr1)
+	besteffort.LogError(jftradeErr1)
 }
 
 func (r *Runtime) RecordAudit(ctx context.Context, kind string, subjectID string, detail string, metadata map[string]any) {

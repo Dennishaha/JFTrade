@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -15,6 +14,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
@@ -139,7 +139,7 @@ func (c *Client) Connect(ctx context.Context) error {
 	if c.closed {
 		c.mu.Unlock()
 		jftradeErr3 := conn.Close()
-		jftradeLogError(jftradeErr3)
+		besteffort.LogError(jftradeErr3)
 		return ErrClosed
 	}
 	c.conn = conn
@@ -215,7 +215,7 @@ func (c *Client) keepAliveLoop(interval time.Duration) {
 			cancel()
 			if err != nil || response.GetRetType() != 0 {
 				jftradeErr1 := c.Close()
-				jftradeLogError(jftradeErr1)
+				besteffort.LogError(jftradeErr1)
 				return
 			}
 		}
@@ -243,7 +243,7 @@ func (c *Client) closeConn(closeNetwork bool) error {
 			return conn.Close()
 		}
 		jftradeErr2 := conn.Close()
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 	}
 	return nil
 }
@@ -393,13 +393,5 @@ func (c *Client) dispatch(f codec.Frame) {
 
 func (c *Client) fanoutClose() {
 	jftradeErr4 := c.closeConn(true)
-	jftradeLogError(jftradeErr4)
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
+	besteffort.LogError(jftradeErr4)
 }

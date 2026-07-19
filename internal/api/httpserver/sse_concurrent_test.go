@@ -1,4 +1,4 @@
-package servercore
+package httpserver
 
 import (
 	"net/http"
@@ -41,9 +41,9 @@ func (w *concurrentDetectingResponseWriter) Flush() {}
 
 func TestSSEWriterSerializesConcurrentWrites(t *testing.T) {
 	resp := &concurrentDetectingResponseWriter{}
-	writer, ok := prepareSSEWriter(resp)
+	writer, ok := PrepareSSEWriter(resp)
 	if !ok {
-		t.Fatal("prepareSSEWriter returned ok=false")
+		t.Fatal("PrepareSSEWriter returned ok=false")
 	}
 
 	var wg sync.WaitGroup

@@ -16,6 +16,7 @@ import (
 
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
@@ -285,9 +286,9 @@ func NewSkillRegistry(skillsPath string) *SkillRegistry {
 	registry := &SkillRegistry{skillsPath: strings.TrimSpace(skillsPath)}
 	if registry.skillsPath != "" {
 		jftradeErr13 := os.MkdirAll(registry.skillsPath, 0o755)
-		jftradeLogError(jftradeErr13)
+		besteffort.LogError(jftradeErr13)
 		jftradeErr11 := registry.ensureBuiltins()
-		jftradeLogError(jftradeErr11)
+		besteffort.LogError(jftradeErr11)
 	}
 	return registry
 }
@@ -391,7 +392,7 @@ func (r *SkillRegistry) InstallURL(ctx context.Context, rawURL string) (Skill, e
 	if err != nil {
 		return Skill{}, err
 	}
-	defer func() { jftradeLogError(resp.Body.Close()) }()
+	defer func() { besteffort.LogError(resp.Body.Close()) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return Skill{}, fmt.Errorf("skill URL returned %d", resp.StatusCode)
 	}

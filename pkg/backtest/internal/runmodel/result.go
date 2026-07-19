@@ -53,7 +53,12 @@ type DrawdownPoint struct {
 	Drawdown float64 `json:"drawdown"`
 }
 
-// Candle is a single OHLCV bar for chart rendering.
+// Candle is a single OHLCV bar for chart rendering in backtest results.
+// Presentation DTO, not a numeric model: OHLCV are decimal-exact strings
+// (fixed-point .String()) and Time is the bar's close timestamp (bbgo
+// EndTime) formatted as RFC3339Nano UTC. It is built in exactly one place —
+// the backtest result collector from bbgo K-lines — and persisted as part of
+// RunResult. Worker runtimes use the numeric pineworker.Candle wire type.
 type Candle struct {
 	Time   string `json:"time"`
 	Open   string `json:"open"`

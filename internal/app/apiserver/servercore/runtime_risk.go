@@ -9,6 +9,7 @@ import (
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 type strategyRuntimeRiskDecision = runtimecontrol.RiskDecision
@@ -70,17 +71,17 @@ func (e *strategyLiveOrderExecutor) recordRuntimeRiskDecision(decision strategyR
 		message := fmt.Sprintf("runtime risk rejected %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.Reason)
 		e.manager.recordError(e.instance.ID, message, time.Now().UTC())
 		jftradeErr2 := e.manager.appendRuntimeEvent(e.instance.ID, message, "risk_rejected", decision.Detail)
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 		if decision.PauseOnReject {
 			e.manager.stopStrategy(e.instance.ID)
 			jftradeErr3 := e.manager.transitionInstance(e.instance.ID, strategyStatusPaused, "paused", "runtime risk rejected order with pauseOnReject")
-			jftradeLogError(jftradeErr3)
+			besteffort.LogError(jftradeErr3)
 		}
 		return
 	}
 	message := fmt.Sprintf("runtime risk monitor matched %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.Reason)
 	jftradeErr1 := e.manager.appendRuntimeEvent(e.instance.ID, message, "risk_monitor", decision.Detail)
-	jftradeLogError(jftradeErr1)
+	besteffort.LogError(jftradeErr1)
 }
 
 func (r *strategySymbolRuntime) sellableQuantity(symbol string) float64 {

@@ -1124,8 +1124,8 @@ onUnmounted(() => {
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 11px; color: var(--tv-text-muted)">
-            <span title="多头初始保证金；股票通常不返回该字段">多头初始保证金 {{ formatInitialMargin(brokerMaxTradeQuantity.maxTradeQuantity.longRequiredIM) }}</span>
-            <span title="空头初始保证金；股票通常不返回该字段">空头初始保证金 {{ formatInitialMargin(brokerMaxTradeQuantity.maxTradeQuantity.shortRequiredIM) }}</span>
+            <span title="多头初始保证金；股票通常不返回该字段">多头初始保证金 {{ formatInitialMargin(brokerMaxTradeQuantity.maxTradeQuantity.longRequiredIm) }}</span>
+            <span title="空头初始保证金；股票通常不返回该字段">空头初始保证金 {{ formatInitialMargin(brokerMaxTradeQuantity.maxTradeQuantity.shortRequiredIm) }}</span>
           </div>
         </template>
         <div v-else style="margin-top: 6px; font-size: 11px; color: var(--tv-text-muted)">

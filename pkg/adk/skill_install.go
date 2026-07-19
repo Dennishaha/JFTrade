@@ -18,6 +18,7 @@ import (
 
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
@@ -26,7 +27,7 @@ func (r *SkillRegistry) installArchive(ctx context.Context, sourceURL string, bo
 	if err != nil {
 		return Skill{}, err
 	}
-	defer func() { jftradeLogError(os.RemoveAll(tempDir)) }()
+	defer func() { besteffort.LogError(os.RemoveAll(tempDir)) }()
 
 	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	if err != nil {
@@ -75,7 +76,7 @@ func copySkillArchiveFile(file *zip.File, targetPath string) error {
 	if err != nil {
 		return err
 	}
-	defer func() { jftradeLogError(in.Close()) }()
+	defer func() { besteffort.LogError(in.Close()) }()
 	out, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
@@ -300,9 +301,9 @@ func (r *SkillRegistry) installSkillDocument(name string, raw []byte) (string, b
 	}
 	if err := os.Rename(tempPath, installPath); err != nil {
 		jftradeErr7 := os.Remove(tempPath)
-		jftradeLogError(jftradeErr7)
+		besteffort.LogError(jftradeErr7)
 		jftradeErr10 := os.RemoveAll(installDir)
-		jftradeLogError(jftradeErr10)
+		besteffort.LogError(jftradeErr10)
 		return "", false, err
 	}
 	return installPath, false, nil
@@ -328,7 +329,7 @@ func (r *SkillRegistry) installSkillDirectory(name string, sourceDir string) (st
 	}
 	if err := copyDirectoryContents(sourceDir, installDir); err != nil {
 		jftradeErr9 := os.RemoveAll(installDir)
-		jftradeLogError(jftradeErr9)
+		besteffort.LogError(jftradeErr9)
 		return "", false, err
 	}
 	return filepath.Join(installDir, "SKILL.md"), false, nil
@@ -516,19 +517,19 @@ func copyDirectoryContents(sourceDir string, targetDir string) error {
 		output, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
 		if err != nil {
 			jftradeErr3 := input.Close()
-			jftradeLogError(jftradeErr3)
+			besteffort.LogError(jftradeErr3)
 			return err
 		}
 		if _, err := io.Copy(output, input); err != nil {
 			jftradeErr4 := input.Close()
-			jftradeLogError(jftradeErr4)
+			besteffort.LogError(jftradeErr4)
 			jftradeErr5 := output.Close()
-			jftradeLogError(jftradeErr5)
+			besteffort.LogError(jftradeErr5)
 			return err
 		}
 		if err := input.Close(); err != nil {
 			jftradeErr6 := output.Close()
-			jftradeLogError(jftradeErr6)
+			besteffort.LogError(jftradeErr6)
 			return err
 		}
 		return output.Close()
@@ -580,7 +581,7 @@ func replaceDirectoryWithBundle(targetDir string, bundle map[string]string) erro
 	if err != nil {
 		return err
 	}
-	defer func() { jftradeLogError(os.RemoveAll(tempDir)) }()
+	defer func() { besteffort.LogError(os.RemoveAll(tempDir)) }()
 
 	for relativePath, content := range bundle {
 		cleanPath := filepath.Clean(relativePath)
@@ -605,13 +606,13 @@ func replaceDirectoryWithBundle(targetDir string, bundle map[string]string) erro
 
 	backupDir := targetDir + ".bak"
 	jftradeErr8 := os.RemoveAll(backupDir)
-	jftradeLogError(jftradeErr8)
+	besteffort.LogError(jftradeErr8)
 	if err := os.Rename(targetDir, backupDir); err != nil {
 		return err
 	}
 	if err := os.Rename(tempDir, targetDir); err != nil {
 		jftradeErr12 := os.Rename(backupDir, targetDir)
-		jftradeLogError(jftradeErr12)
+		besteffort.LogError(jftradeErr12)
 		return err
 	}
 	return os.RemoveAll(backupDir)

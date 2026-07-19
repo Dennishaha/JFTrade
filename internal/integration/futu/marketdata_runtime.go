@@ -11,6 +11,7 @@ import (
 	"time"
 
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
@@ -145,13 +146,13 @@ func (r *MarketDataRuntime) Ensure() *pkgfutu.Exchange {
 		if !valid {
 			if candidate != nil {
 				jftradeErr4 := candidate.Close()
-				jftradeLogError(jftradeErr4)
+				besteffort.LogError(jftradeErr4)
 			}
 			return nil
 		}
 		if previous != nil && previous != candidate {
 			jftradeErr2 := previous.Close()
-			jftradeLogError(jftradeErr2)
+			besteffort.LogError(jftradeErr2)
 		}
 		return candidate
 	}
@@ -177,7 +178,7 @@ func (r *MarketDataRuntime) Reset() {
 	r.mu.Unlock()
 	if exchange != nil {
 		jftradeErr3 := exchange.Close()
-		jftradeLogError(jftradeErr3)
+		besteffort.LogError(jftradeErr3)
 	}
 	if r.subscriptionReconciler != nil {
 		r.subscriptionReconciler.ResetPhysicalSubscriptions()
@@ -201,7 +202,7 @@ func (r *MarketDataRuntime) Close() error {
 	r.mu.Unlock()
 	if exchange != nil {
 		jftradeErr1 := exchange.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}
 	r.wg.Wait()
 	if r.subscriptionReconciler != nil {

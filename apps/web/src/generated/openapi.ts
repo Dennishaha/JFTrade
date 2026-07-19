@@ -5,6 +5,19 @@
 
 export interface components {
   schemas: {
+    "broker.CashFlowSnapshot": {
+    accountId?: string;
+    cashFlowAmount?: number;
+    cashFlowDirection?: string;
+    cashFlowId?: string;
+    cashFlowRemark?: string;
+    cashFlowType?: string;
+    clearingDate?: string;
+    currency?: string;
+    market?: string;
+    settlementDate?: string;
+    tradingEnvironment?: string;
+  };
     "broker.EventProduct": {
     categoryId?: string;
     closeAt?: string;
@@ -36,7 +49,41 @@ export interface components {
     underlyingCode?: string;
     venue?: string;
   };
+    "broker.MarginRatioSnapshot": {
+    accountId?: string;
+    alertLongRatio?: number;
+    alertShortRatio?: number;
+    initialMarginLongRatio?: number;
+    initialMarginShortRatio?: number;
+    isLongPermit?: boolean;
+    isShortPermit?: boolean;
+    maintenanceLongRatio?: number;
+    maintenanceShortRatio?: number;
+    marginCallLongRatio?: number;
+    marginCallShortRatio?: number;
+    market?: string;
+    shortFeeRate?: number;
+    shortPoolRemain?: number;
+    symbol?: string;
+    tradingEnvironment?: string;
+  };
     "broker.MarketSegment": "securities" | "derivatives" | "prediction";
+    "broker.MaxTradeQuantitySnapshot": {
+    accountId?: string;
+    longRequiredIm?: number;
+    market?: string;
+    maxBuyBack?: number;
+    maxCashAndMarginBuy?: number;
+    maxCashBuy?: number;
+    maxPositionSell?: number;
+    maxSellShort?: number;
+    orderType?: string;
+    price?: number;
+    session?: string;
+    shortRequiredIm?: number;
+    symbol?: string;
+    tradingEnvironment?: string;
+  };
     "broker.OptionComboAccountImpact": {
     buyingPowerDecrease?: number;
     initialMarginChange?: number;
@@ -64,6 +111,18 @@ export interface components {
     multiplier?: number;
     productCode?: string;
   };
+    "broker.OrderFeeItemSnapshot": {
+    title?: string;
+    value?: number;
+  };
+    "broker.OrderFeeSnapshot": {
+    accountId?: string;
+    brokerOrderIdEx?: string;
+    feeAmount?: number;
+    feeItems?: Array<components["schemas"]["broker.OrderFeeItemSnapshot"]>;
+    market?: string;
+    tradingEnvironment?: string;
+  };
     "broker.OrderKind": "single" | "option_combo" | "event_single" | "event_parlay";
     "broker.OrderLegIntent": {
     amount?: number;
@@ -74,6 +133,14 @@ export interface components {
     quantity?: number;
     ratio?: number;
     side?: string;
+  };
+    "broker.PlaceOrderResult": {
+    accountId?: string;
+    brokerOrderId?: string;
+    brokerOrderIdEx?: string;
+    market?: string;
+    status?: string;
+    tradingEnvironment?: string;
   };
     "broker.ProductClass": "equity" | "fund" | "option" | "warrant" | "cbbc" | "future" | "event_contract" | "index" | "bond" | "plate" | "unknown";
     "broker.ProductRuleQuery": {
@@ -102,6 +169,30 @@ export interface components {
     warnings?: Array<string>;
   };
     "broker.QuantityMode": "units" | "contracts" | "amount";
+    "broker.QuoteItem": {
+    highPrice?: number;
+    lastPrice?: number;
+    lowPrice?: number;
+    openPrice?: number;
+    symbol?: string;
+    symbolName?: string;
+    turnover?: number;
+    volume?: number;
+  };
+    "broker.QuoteSnapshot": {
+    accountId?: string;
+    highPrice?: number;
+    lastClose?: number;
+    lastPrice?: number;
+    lowPrice?: number;
+    openPrice?: number;
+    quoteAt?: string;
+    quotes?: Array<components["schemas"]["broker.QuoteItem"]>;
+    symbol?: string;
+    symbolName?: string;
+    turnover?: number;
+    volume?: number;
+  };
     "datamanagement.BackupRequest": {
     confirmation?: string;
     databaseId?: string;
@@ -435,6 +526,369 @@ export interface components {
     x?: number;
     y?: number;
   };
+    "system.RealTradeApprovalPolicy": {
+    approvalMode: string;
+    approvalWorkflowAvailable: boolean;
+    approverAllowlistEnabled: boolean;
+    approverCount: number;
+    largeOrderNotional?: number;
+  };
+    "system.RealTradeApprovalsResponse": {
+    approvalPolicy: components["schemas"]["system.RealTradeApprovalPolicy"];
+    approvalWorkflowAvailable: boolean;
+    approvalWorkflowMessage: string;
+    approvalWorkflowStatus: string;
+    entries: Array<unknown>;
+    maxApprovalAgeMs: number;
+    realTradingEnabled: boolean;
+    requiredConfirmationText: string;
+  };
+    "system.RealTradeHardStopCommand": {
+    accountId?: string;
+    brokerId?: string;
+    hardStopScope?: string;
+    market?: string;
+    operatorId?: string;
+    reason?: string;
+    symbol?: string;
+    tradingEnvironment?: string;
+  };
+    "system.RealTradeHardStopEventsResponse": {
+    allowsCancel: boolean;
+    blockedOperations: Array<string>;
+    entries: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
+    realTradingEnabled: boolean;
+  };
+    "system.RealTradeHardStopsResponse": {
+    allowsCancel: boolean;
+    blockedOperations: Array<string>;
+    entries: Array<components["schemas"]["trading.RealTradeHardStopEntry"]>;
+  };
+    "system.RealTradeKillSwitchCommand": {
+    operatorId?: string;
+    reason?: string;
+    tradingEnvironment?: string;
+  };
+    "system.RealTradeKillSwitchEventsResponse": {
+    allowsCancel: boolean;
+    blockedOperations: Array<string>;
+    entries: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
+    killSwitchActive: boolean;
+    realTradingEnabled: boolean;
+    runtimeActive: boolean;
+  };
+    "system.RealTradeKillSwitchStateResponse": {
+    allowsCancel: boolean;
+    blockedOperations: Array<string>;
+    entry?: components["schemas"]["trading.RealTradeKillSwitchEntry"];
+    killSwitchActive: boolean;
+    killSwitchSource?: string;
+    realTradingEnabled: boolean;
+    runtimeActive: boolean;
+  };
+    "system.RealTradeRiskEventsResponse": {
+    effectiveMaxOrderNotional?: number;
+    effectiveMaxOrderQuantity?: number;
+    entries: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
+    maxOrderNotional?: number;
+    maxOrderQuantity?: number;
+    realTradingEnabled: boolean;
+    riskEnabled: boolean;
+    runtimeConfiguredMaxOrderNotional?: number;
+    runtimeConfiguredMaxOrderQuantity?: number;
+    runtimeRiskConfigured: boolean;
+  };
+    "system.RealTradeRiskLimitsResponse": {
+    effectiveMaxOrderNotional?: number;
+    effectiveMaxOrderQuantity?: number;
+    entry?: components["schemas"]["trading.RealTradeRuntimeRiskEntry"];
+    realTradingEnabled: boolean;
+    riskEnabled: boolean;
+    runtimeConfiguredMaxOrderNotional?: number;
+    runtimeConfiguredMaxOrderQuantity?: number;
+    runtimeRiskConfigured: boolean;
+  };
+    "system.RealTradeRuntimeRiskCommand": {
+    maxOrderNotional?: number;
+    maxOrderQuantity?: number;
+    operatorId?: string;
+    realTradingEnabled?: boolean;
+    reason?: string;
+    tradingEnvironment?: string;
+  };
+    "trading.BrokerCancelOrdersResponse": {
+    cancelled: number;
+    cancelledAt: string;
+  };
+    "trading.BrokerCashFlowsResponse": {
+    cashFlows: Array<components["schemas"]["broker.CashFlowSnapshot"]>;
+    checkedAt: string;
+    connectivity: string;
+    lastError?: string;
+  };
+    "trading.BrokerCurrencyBalance": {
+    accountId: string;
+    availableWithdrawalCash?: number;
+    cash?: number;
+    currency: string;
+    netCashPower?: number;
+    tradingEnvironment: string;
+  };
+    "trading.BrokerFill": {
+    accountId: string;
+    brokerFillId: string;
+    brokerFillIdEx?: string;
+    brokerOrderId: string;
+    brokerOrderIdEx?: string;
+    fillPrice?: number;
+    filledAt: string;
+    filledQuantity: number;
+    market: string;
+    side: string;
+    status?: string;
+    symbol: string;
+    symbolName?: string;
+    tradingEnvironment: string;
+  };
+    "trading.BrokerFillsResponse": {
+    checkedAt: string;
+    connectivity: string;
+    fills: Array<components["schemas"]["trading.BrokerFill"]>;
+    lastError?: string;
+  };
+    "trading.BrokerFundsResponse": {
+    checkedAt: string;
+    connectivity: string;
+    currencyBalances: Array<components["schemas"]["trading.BrokerCurrencyBalance"]>;
+    lastError?: string;
+    marketAssets: Array<components["schemas"]["trading.BrokerMarketAsset"]>;
+    summary?: components["schemas"]["trading.BrokerFundsSummary"];
+  };
+    "trading.BrokerFundsSummary": {
+    accountId: string;
+    availableFunds?: number;
+    availableWithdrawalCash?: number;
+    beginningDTBP?: number;
+    bondAssets?: number;
+    cash?: number;
+    currency?: string;
+    debtCash?: number;
+    dtCallAmount?: number;
+    dtStatus?: string;
+    exposureLevel?: string;
+    exposureLimit?: number;
+    frozenCash?: number;
+    fundAssets?: number;
+    initialMargin?: number;
+    isPdt?: boolean;
+    longMarketValue?: number;
+    maintenanceMargin?: number;
+    marginCallMargin?: number;
+    market: string;
+    marketValue?: number;
+    maxWithdrawal?: number;
+    netCashPower?: number;
+    pdtSeq?: string;
+    pendingAsset?: number;
+    purchasingPower?: number;
+    realizedPnl?: number;
+    remainingDTBP?: number;
+    remainingLimit?: number;
+    riskStatus?: string;
+    securitiesAssets?: number;
+    shortMarketValue?: number;
+    shortSellingPower?: number;
+    totalAssets?: number;
+    tradingEnvironment: string;
+    unrealizedPnl?: number;
+    usedLimit?: number;
+  };
+    "trading.BrokerKLinesResponse": {
+    checkedAt: string;
+    connectivity: string;
+    klines: unknown;
+    lastError?: string;
+  };
+    "trading.BrokerMarginRatiosResponse": {
+    checkedAt: string;
+    connectivity: string;
+    lastError?: string;
+    marginRatios: Array<components["schemas"]["broker.MarginRatioSnapshot"]>;
+  };
+    "trading.BrokerMarketAsset": {
+    accountId: string;
+    assets?: number;
+    market: string;
+    tradingEnvironment: string;
+  };
+    "trading.BrokerMarketCapability": {
+    market: string;
+    readFeatures: Record<string, components["schemas"]["trading.BrokerReadFeatureCapability"]>;
+    supportsQuote: boolean;
+    supportsTrade: boolean;
+  };
+    "trading.BrokerMaxTradeQuantityResponse": {
+    checkedAt: string;
+    connectivity: string;
+    lastError?: string;
+    maxTradeQuantity?: components["schemas"]["broker.MaxTradeQuantitySnapshot"];
+  };
+    "trading.BrokerOrder": {
+    accountId: string;
+    brokerOrderId: string;
+    brokerOrderIdEx?: string;
+    currency?: string;
+    filledAveragePrice?: number;
+    filledQuantity?: number;
+    lastError?: string;
+    market: string;
+    orderType: string;
+    price?: number;
+    quantity: number;
+    remark?: string;
+    side: string;
+    status: string;
+    submittedAt: string;
+    symbol: string;
+    symbolName?: string;
+    timeInForce?: string;
+    tradingEnvironment: string;
+    updatedAt: string;
+  };
+    "trading.BrokerOrderFeesResponse": {
+    checkedAt: string;
+    connectivity: string;
+    fees: Array<components["schemas"]["broker.OrderFeeSnapshot"]>;
+    lastError?: string;
+  };
+    "trading.BrokerOrdersResponse": {
+    checkedAt: string;
+    connectivity: string;
+    lastError?: string;
+    orders: Array<components["schemas"]["trading.BrokerOrder"]>;
+  };
+    "trading.BrokerPlaceOrderResponse": {
+    order: components["schemas"]["broker.PlaceOrderResult"];
+    placedAt: string;
+  };
+    "trading.BrokerPosition": {
+    accountId: string;
+    averageCostPrice?: number;
+    costPrice?: number;
+    currency?: string;
+    lastPrice: number;
+    market: string;
+    marketValue: number;
+    pnlRatio?: number;
+    quantity: number;
+    realizedPnl?: number;
+    sellableQuantity: number;
+    symbol: string;
+    symbolName?: string;
+    tradingEnvironment: string;
+    unrealizedPnl?: number;
+  };
+    "trading.BrokerPositionsResponse": {
+    checkedAt: string;
+    connectivity: string;
+    lastError?: string;
+    positions: Array<components["schemas"]["trading.BrokerPosition"]>;
+  };
+    "trading.BrokerQuoteResponse": {
+    checkedAt: string;
+    connectivity: string;
+    lastError?: string;
+    quote?: components["schemas"]["broker.QuoteSnapshot"];
+    quotes?: unknown;
+  };
+    "trading.BrokerReadFeatureCapability": {
+    defaultNum?: number;
+    maxNum?: number;
+    minNum?: number;
+    numPresets?: Array<number>;
+    requiresClearingDate?: boolean;
+    requiresOrderIdEx?: boolean;
+    requiresPrice?: boolean;
+    requiresSymbols?: boolean;
+    supportedEnvironments: Array<string>;
+    supportsHistory?: boolean;
+    supportsRealTimePush?: boolean;
+  };
+    "trading.BrokerRuntimeAccount": {
+    accountId: string;
+    accountRole: string | null;
+    accountType: string;
+    marketAuthorities: Array<string>;
+    securityFirm: string | null;
+    simulatedAccountType: string | null;
+    tradingEnvironment: string;
+  };
+    "trading.BrokerRuntimeConnection": {
+    apiPort: number;
+    host: string;
+    marketDataTransport: string;
+    port: number;
+    useEncryption: boolean;
+    websocketPort: number;
+  };
+    "trading.BrokerRuntimeDescriptor": {
+    capabilities: Array<components["schemas"]["trading.BrokerMarketCapability"]>;
+    displayName: string;
+    environments: Array<string>;
+    id: string;
+    notes: Array<string>;
+  };
+    "trading.BrokerRuntimeGlobalState": {
+    markets: Array<components["schemas"]["trading.BrokerRuntimeMarketState"]>;
+    programStatus: string | null;
+    quoteLoggedIn: boolean;
+    serverVersion: string | null;
+    timestamp: string | null;
+    tradeLoggedIn: boolean;
+  };
+    "trading.BrokerRuntimeLiveClients": {
+    atLimit: boolean;
+    connected: number;
+    limit: number;
+  };
+    "trading.BrokerRuntimeMarketState": {
+    market: string;
+    state: string;
+  };
+    "trading.BrokerRuntimeResponse": {
+    accounts: Array<components["schemas"]["trading.BrokerRuntimeAccount"]>;
+    descriptor: components["schemas"]["trading.BrokerRuntimeDescriptor"];
+    session: components["schemas"]["trading.BrokerRuntimeSession"];
+  };
+    "trading.BrokerRuntimeSession": {
+    accountsDiscovered: number;
+    brokerId: string;
+    checkedAt: string;
+    connection: components["schemas"]["trading.BrokerRuntimeConnection"];
+    connectivity: string;
+    displayName: string;
+    globalState: components["schemas"]["trading.BrokerRuntimeGlobalState"] | null;
+    lastError: string | null;
+    liveWebSocketClients: components["schemas"]["trading.BrokerRuntimeLiveClients"];
+  };
+    "trading.BrokerSecuritiesResponse": {
+    checkedAt: string;
+    connectivity: string;
+    lastError?: string;
+    securities: unknown;
+  };
+    "trading.BrokerUnlockTradeResponse": {
+    unlocked: boolean;
+    unlockedAt: string;
+  };
+    "trading.CancelOrderItem": {
+    brokerOrderId?: string;
+    orderId?: number;
+    symbol?: string;
+  };
+    "trading.CancelOrdersRequest": {
+    orders?: Array<components["schemas"]["trading.CancelOrderItem"]>;
+  };
     "trading.ExecutionComboPreview": {
     accountId?: string;
     accountImpact?: components["schemas"]["broker.OptionComboAccountImpact"];
@@ -552,6 +1006,175 @@ export interface components {
     side?: string;
     status?: string;
     updatedAt?: string;
+  };
+    "trading.PlaceOrderRequest": {
+    clientOrderId?: string;
+    fillOutsideRTH?: boolean;
+    orderType?: string;
+    price?: number;
+    quantity?: number;
+    remark?: string;
+    session?: string;
+    side?: string;
+    stopPrice?: number;
+    symbol?: string;
+    timeInForce?: string;
+  };
+    "trading.PortfolioCashBalance": {
+    accountId: string;
+    brokerId: string;
+    cashBalance: number;
+    createdAt: string;
+    currency: string;
+    tradingEnvironment: string;
+    updatedAt: string;
+  };
+    "trading.PortfolioCashBalancesResponse": {
+    balances: Array<components["schemas"]["trading.PortfolioCashBalance"]>;
+  };
+    "trading.PortfolioCashReconciliationBalance": {
+    accountId: string;
+    brokerAvailableWithdrawalCash?: number;
+    brokerCash?: number;
+    brokerId: string;
+    brokerNetCashPower?: number;
+    cashDelta: number;
+    currency: string;
+    projectedCashBalance?: number;
+    projectedUpdatedAt?: string;
+    status: string;
+    tradingEnvironment: string;
+  };
+    "trading.PortfolioCashReconciliationResponse": {
+    balances: Array<components["schemas"]["trading.PortfolioCashReconciliationBalance"]>;
+    checkedAt: string;
+    connectivity: string;
+    lastError?: string;
+  };
+    "trading.PortfolioPosition": {
+    accountId: string;
+    averagePrice: number;
+    brokerId: string;
+    createdAt: string;
+    market: string;
+    marketValue: number;
+    quantity: number;
+    symbol: string;
+    tradingEnvironment: string;
+    updatedAt: string;
+  };
+    "trading.PortfolioPositionsResponse": {
+    positions: Array<components["schemas"]["trading.PortfolioPosition"]>;
+  };
+    "trading.PortfolioReconciliationPosition": {
+    accountId: string;
+    averagePriceDelta?: number;
+    brokerAverageCostPrice?: number;
+    brokerId: string;
+    brokerQuantity: number;
+    brokerRealizedPnl?: number;
+    market: string;
+    projectedAveragePrice?: number;
+    projectedQuantity?: number;
+    projectedRealizedPnl?: number;
+    projectedUpdatedAt?: string;
+    quantityDelta: number;
+    realizedPnlDelta?: number;
+    status: string;
+    symbol: string;
+    symbolName?: string;
+    tradingEnvironment: string;
+  };
+    "trading.PortfolioReconciliationResponse": {
+    checkedAt: string;
+    connectivity: string;
+    lastError?: string;
+    positions: Array<components["schemas"]["trading.PortfolioReconciliationPosition"]>;
+  };
+    "trading.RealTradeControlEvent": {
+    accountId?: string;
+    action: string;
+    activatedAt?: string;
+    brokerId: string;
+    configuredMaxOrderNotional?: number;
+    configuredMaxOrderQuantity?: number;
+    createdAt: string;
+    errorCode?: string;
+    eventType: string;
+    hardStopId?: string;
+    hardStopScope?: string;
+    id: string;
+    killSwitchSource?: string;
+    market?: string;
+    operation?: string;
+    operatorId?: string;
+    orderId?: string;
+    price?: number;
+    quantity?: number;
+    realTradingEnabled?: boolean;
+    reason?: string;
+    symbol?: string;
+    tradingEnvironment?: string;
+  };
+    "trading.RealTradeHardStopEntry": {
+    accountId: string;
+    activatedAt: string;
+    brokerId: string;
+    hardStopScope: string;
+    id: string;
+    market?: string;
+    operatorId: string;
+    reason: string;
+    symbol?: string;
+    tradingEnvironment: string;
+    updatedAt: string;
+  };
+    "trading.RealTradeKillSwitchEntry": {
+    activatedAt: string;
+    id: string;
+    operatorId: string;
+    reason: string;
+    tradingEnvironment: string;
+    updatedAt: string;
+  };
+    "trading.RealTradeRiskSnapshot": {
+    allowsCancel: boolean;
+    blockedOperations: Array<string>;
+    controlPlaneAvailable: boolean;
+    controlPlaneError?: string;
+    effectiveMaxOrderNotional?: number;
+    effectiveMaxOrderQuantity?: number;
+    hardStopEntries: Array<components["schemas"]["trading.RealTradeHardStopEntry"]>;
+    hardStopEvents: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
+    hardStopsActive: boolean;
+    killSwitchActive: boolean;
+    killSwitchEntry?: components["schemas"]["trading.RealTradeKillSwitchEntry"];
+    killSwitchEvents: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
+    killSwitchSource?: string;
+    matchedHardStop?: components["schemas"]["trading.RealTradeHardStopEntry"];
+    realTradingEnabled: boolean;
+    riskEnabled: boolean;
+    riskEntry?: components["schemas"]["trading.RealTradeRuntimeRiskEntry"];
+    riskEvents: Array<components["schemas"]["trading.RealTradeControlEvent"]>;
+    runtimeConfiguredMaxOrderNotional?: number;
+    runtimeConfiguredMaxOrderQuantity?: number;
+    runtimeKillSwitchActive: boolean;
+    runtimeRiskConfigured: boolean;
+  };
+    "trading.RealTradeRuntimeRiskEntry": {
+    activatedAt: string;
+    id: string;
+    maxOrderNotional?: number;
+    maxOrderQuantity?: number;
+    operatorId: string;
+    realTradingEnabled: boolean;
+    reason: string;
+    tradingEnvironment: string;
+    updatedAt: string;
+  };
+    "trading.UnlockTradeRequest": {
+    passwordMd5?: string;
+    unlock?: boolean;
   };
     "watchlist.CommitImportInput": {
     deleteInstrumentIds?: Array<string>;
@@ -1305,8 +1928,8 @@ export interface paths {
   "/api/v1/adk/skills/{skillId}": {
     put: {
       responses: {
-        "200": {
-          description: "OK";
+        "410": {
+          description: "Gone";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
           };
@@ -1876,7 +2499,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerCashFlowsResponse"];
+  };
           };
         };
         "400": {
@@ -1908,7 +2533,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerFillsResponse"];
+  };
           };
         };
         "400": {
@@ -1936,7 +2563,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerFundsResponse"];
+  };
           };
         };
         "400": {
@@ -1969,7 +2598,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerKLinesResponse"];
+  };
           };
         };
         "400": {
@@ -1999,7 +2630,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerMarginRatiosResponse"];
+  };
           };
         };
         "400": {
@@ -2034,7 +2667,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerMaxTradeQuantityResponse"];
+  };
           };
         };
         "400": {
@@ -2064,7 +2699,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerOrderFeesResponse"];
+  };
           };
         };
         "400": {
@@ -2098,7 +2735,75 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerOrdersResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
             "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      parameters: {
+        path: {
+        brokerId: string;
+      };
+        query: {
+        tradingEnvironment?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["trading.PlaceOrderRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerPlaceOrderResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        path: {
+        brokerId: string;
+      };
+        query: {
+        tradingEnvironment?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["trading.CancelOrdersRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerCancelOrdersResponse"];
+  };
           };
         };
         "400": {
@@ -2126,7 +2831,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerPositionsResponse"];
+  };
           };
         };
         "400": {
@@ -2156,11 +2863,38 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerQuoteResponse"];
+  };
           };
         };
         "400": {
           description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/brokers/{brokerId}/runtime": {
+    get: {
+      parameters: {
+        path: {
+        brokerId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerRuntimeResponse"];
+  };
+          };
+        };
+        "404": {
+          description: "Not Found";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
           };
@@ -2186,7 +2920,44 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerSecuritiesResponse"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
             "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/brokers/{brokerId}/unlock": {
+    post: {
+      parameters: {
+        path: {
+        brokerId: string;
+      };
+        query: {
+        tradingEnvironment?: string;
+        accountId?: string;
+        market?: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["trading.UnlockTradeRequest"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.BrokerUnlockTradeResponse"];
+  };
           };
         };
         "400": {
@@ -3783,11 +4554,18 @@ export interface paths {
   };
   "/api/v1/portfolio/{brokerId}/cash-balances": {
     get: {
+      parameters: {
+        path: {
+        brokerId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.PortfolioCashBalancesResponse"];
+  };
           };
         };
       };
@@ -3795,11 +4573,18 @@ export interface paths {
   };
   "/api/v1/portfolio/{brokerId}/cash-reconciliation": {
     get: {
+      parameters: {
+        path: {
+        brokerId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.PortfolioCashReconciliationResponse"];
+  };
           };
         };
       };
@@ -3807,11 +4592,18 @@ export interface paths {
   };
   "/api/v1/portfolio/{brokerId}/positions": {
     get: {
+      parameters: {
+        path: {
+        brokerId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.PortfolioPositionsResponse"];
+  };
           };
         };
       };
@@ -3819,11 +4611,18 @@ export interface paths {
   };
   "/api/v1/portfolio/{brokerId}/reconciliation": {
     get: {
+      parameters: {
+        path: {
+        brokerId: string;
+      };
+      };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.PortfolioReconciliationResponse"];
+  };
           };
         };
       };
@@ -5408,7 +6207,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["system.RealTradeApprovalsResponse"];
+  };
           };
         };
       };
@@ -5420,7 +6221,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["system.RealTradeHardStopEventsResponse"];
+  };
           };
         };
       };
@@ -5432,15 +6235,36 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["system.RealTradeHardStopsResponse"];
+  };
           };
         };
       };
     };
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["system.RealTradeHardStopCommand"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
           };
@@ -5450,9 +6274,33 @@ export interface paths {
   };
   "/api/v1/system/real-trade-hard-stops/{hardStopId}/release": {
     post: {
+      parameters: {
+        path: {
+        hardStopId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["system.RealTradeHardStopCommand"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
           };
@@ -5466,7 +6314,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["system.RealTradeKillSwitchStateResponse"];
+  };
           };
         };
       };
@@ -5478,7 +6328,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["system.RealTradeKillSwitchEventsResponse"];
+  };
           };
         };
       };
@@ -5486,9 +6338,28 @@ export interface paths {
   };
   "/api/v1/system/real-trade-kill-switch/activate": {
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["system.RealTradeKillSwitchCommand"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
           };
@@ -5498,9 +6369,28 @@ export interface paths {
   };
   "/api/v1/system/real-trade-kill-switch/release": {
     post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["system.RealTradeKillSwitchCommand"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
           };
@@ -5514,7 +6404,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["system.RealTradeRiskEventsResponse"];
+  };
           };
         };
       };
@@ -5526,15 +6418,36 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["system.RealTradeRiskLimitsResponse"];
+  };
           };
         };
       };
     };
     put: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["system.RealTradeRuntimeRiskCommand"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
           };
@@ -5542,9 +6455,22 @@ export interface paths {
       };
     };
     delete: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["system.RealTradeRuntimeRiskCommand"];
+        };
+      };
       responses: {
         "200": {
           description: "OK";
+          content: {
+            "application/json": components["schemas"]["servercore.envelope"] & {
+    data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
+  };
+          };
+        };
+        "409": {
+          description: "Conflict";
           content: {
             "application/json": components["schemas"]["servercore.envelope"];
           };

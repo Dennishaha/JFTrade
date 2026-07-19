@@ -15,7 +15,7 @@ func (s *Server) systemRiskOptions() []system.Option {
 	}
 }
 
-func (s *Server) updateRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+func (s *Server) updateRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 	return s.realTradeControlPlane.UpdateRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
 		TradingEnvironment: command.TradingEnvironment,
 		RealTradingEnabled: command.RealTradingEnabled,
@@ -26,7 +26,7 @@ func (s *Server) updateRuntimeRiskConfig(ctx context.Context, command system.Rea
 	})
 }
 
-func (s *Server) disableRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+func (s *Server) disableRuntimeRiskConfig(ctx context.Context, command system.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 	return s.realTradeControlPlane.DisableRuntimeRiskConfig(ctx, trdsrv.RealTradeRuntimeRiskCommand{
 		TradingEnvironment: command.TradingEnvironment,
 		OperatorID:         command.OperatorID,
@@ -34,7 +34,7 @@ func (s *Server) disableRuntimeRiskConfig(ctx context.Context, command system.Re
 	})
 }
 
-func (s *Server) activateKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (map[string]any, error) {
+func (s *Server) activateKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 	return s.realTradeControlPlane.ActivateKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
 		TradingEnvironment: command.TradingEnvironment,
 		OperatorID:         command.OperatorID,
@@ -42,7 +42,7 @@ func (s *Server) activateKillSwitch(ctx context.Context, command system.RealTrad
 	})
 }
 
-func (s *Server) releaseKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (map[string]any, error) {
+func (s *Server) releaseKillSwitch(ctx context.Context, command system.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 	return s.realTradeControlPlane.ReleaseKillSwitch(ctx, trdsrv.RealTradeKillSwitchCommand{
 		TradingEnvironment: command.TradingEnvironment,
 		OperatorID:         command.OperatorID,
@@ -50,7 +50,7 @@ func (s *Server) releaseKillSwitch(ctx context.Context, command system.RealTrade
 	})
 }
 
-func (s *Server) activateHardStop(ctx context.Context, command system.RealTradeHardStopCommand) (map[string]any, error) {
+func (s *Server) activateHardStop(ctx context.Context, command system.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 	return s.realTradeControlPlane.ActivateHardStop(ctx, trdsrv.RealTradeHardStopCommand{
 		BrokerID:           command.BrokerID,
 		TradingEnvironment: command.TradingEnvironment,
@@ -63,7 +63,7 @@ func (s *Server) activateHardStop(ctx context.Context, command system.RealTradeH
 	})
 }
 
-func (s *Server) releaseHardStop(ctx context.Context, id string, command system.RealTradeHardStopCommand) (map[string]any, error) {
+func (s *Server) releaseHardStop(ctx context.Context, id string, command system.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 	return s.realTradeControlPlane.ReleaseHardStop(ctx, id, trdsrv.RealTradeHardStopCommand{
 		OperatorID: command.OperatorID,
 		Reason:     command.Reason,

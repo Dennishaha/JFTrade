@@ -281,7 +281,7 @@ func loadPinetsShadowDataSet(t *testing.T) pinetsShadowDataSet {
 	if len(klines) == 0 {
 		t.Fatalf("stream pinets shadow K lines returned no rows for %s %s %s..%s", symbol, interval, since.Format(time.RFC3339Nano), until.Format(time.RFC3339Nano))
 	}
-	candles := pinetsShadowCandlesFromKLines(klines)
+	candles := CandlesFromKLines(klines)
 	return pinetsShadowDataSet{
 		Source: pinetsShadowDataSource{
 			Kind:       kind,
@@ -296,22 +296,6 @@ func loadPinetsShadowDataSet(t *testing.T) pinetsShadowDataSet {
 		KLines:  klines,
 		Candles: candles,
 	}
-}
-
-func pinetsShadowCandlesFromKLines(klines []types.KLine) []pineengine.Candle {
-	candles := make([]pineengine.Candle, 0, len(klines))
-	for _, kline := range klines {
-		candles = append(candles, pineengine.Candle{
-			OpenTime:  kline.StartTime.Time().UnixMilli(),
-			CloseTime: kline.EndTime.Time().UnixMilli(),
-			Open:      kline.Open.Float64(),
-			High:      kline.High.Float64(),
-			Low:       kline.Low.Float64(),
-			Close:     kline.Close.Float64(),
-			Volume:    kline.Volume.Float64(),
-		})
-	}
-	return candles
 }
 
 func pinetsShadowCorpusCases() []pinetsShadowCorpusCase {

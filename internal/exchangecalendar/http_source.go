@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"regexp"
 	"sort"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 )
 
@@ -55,7 +55,7 @@ func (s *HTTPCalendarSource) Fetch(ctx context.Context, market string, from time
 	if err != nil {
 		return marketcalendar.CalendarSnapshot{}, err
 	}
-	defer func() { jftradeLogError(response.Body.Close()) }()
+	defer func() { besteffort.LogError(response.Body.Close()) }()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return marketcalendar.CalendarSnapshot{}, fmt.Errorf("%s returned status %d", s.id, response.StatusCode)
 	}
@@ -683,13 +683,5 @@ func minimumAnchorYearSchedulesValidator(minimumPerYear int) ValidateFunc {
 			return fmt.Errorf("%s parsed too few anchor-year schedules for %d: got %d, want at least %d", normalizeMarket(market), anchorYear, count, minimumPerYear)
 		}
 		return nil
-	}
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
 	}
 }

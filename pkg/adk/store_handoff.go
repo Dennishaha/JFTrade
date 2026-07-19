@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -101,7 +102,7 @@ func (s *Store) ReplaceActiveHandoffSegments(ctx context.Context, sessionID stri
 	defer func() {
 		if tx != nil {
 			jftradeErr1 := tx.Rollback()
-			jftradeLogError(jftradeErr1)
+			besteffort.LogError(jftradeErr1)
 		}
 	}()
 	next, err = s.saveHandoffSegmentTx(ctx, tx, next)

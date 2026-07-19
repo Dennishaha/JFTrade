@@ -2,12 +2,12 @@ package futu
 
 import (
 	"context"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
@@ -41,7 +41,7 @@ func (a *OrderUpdatesAdapter) Subscribe(ctx context.Context, accounts []trading.
 	stop := &orderUpdateSubscription{exchange: a.exchange, stopOrder: stopOrder, stopFill: stopFill}
 	if err := stop.Refresh(ctx, accounts, nil); err != nil {
 		jftradeErr1 := stop.Stop()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return nil, err
 	}
 	return stop, nil
@@ -130,13 +130,5 @@ func fillFromPush(header *trdcommonpb.TrdHeader, fill *trdcommonpb.OrderFill) tr
 		Symbol: snapshot.Symbol, SymbolName: snapshot.SymbolName, Side: snapshot.Side,
 		FilledQuantity: snapshot.FilledQuantity, FillPrice: snapshot.FillPrice, FilledAt: snapshot.FilledAt,
 		Status: snapshot.Status, Payout: snapshot.Payout,
-	}
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
 	}
 }

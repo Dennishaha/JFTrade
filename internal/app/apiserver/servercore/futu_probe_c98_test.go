@@ -12,7 +12,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
@@ -38,23 +37,18 @@ func TestCoverage98FutuRuntimeReturnsLiveDiscoveredAccounts(t *testing.T) {
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, opendServer.addr)
 	runtime := server.brokerRuntime(t.Context())
-	session, ok := runtime["session"].(map[string]any)
-	if !ok {
-		t.Fatalf("broker runtime session = %#v", runtime)
-	}
-	if got := session["connectivity"]; got != "connected" {
+	if got := runtime.Session.Connectivity; got != "connected" {
 		t.Fatalf("broker runtime connectivity = %v, want connected", got)
 	}
-	if got := session["accountsDiscovered"]; got != 2 {
+	if got := runtime.Session.AccountsDiscovered; got != 2 {
 		t.Fatalf("accountsDiscovered = %v, want 2", got)
 	}
-	accounts, ok := runtime["accounts"].([]any)
-	if !ok || len(accounts) != 2 {
-		t.Fatalf("discovered accounts = %#v", runtime["accounts"])
+	if len(runtime.Accounts) != 2 {
+		t.Fatalf("discovered accounts = %#v", runtime.Accounts)
 	}
-	first, ok := accounts[0].(futu.RuntimeAccount)
-	if !ok || first.AccountID != "2001" || first.TradingEnvironment != "REAL" {
-		t.Fatalf("first normalized discovered account = %#v", accounts[0])
+	first := runtime.Accounts[0]
+	if first.AccountID != "2001" || first.TradingEnvironment != "REAL" {
+		t.Fatalf("first normalized discovered account = %#v", first)
 	}
 }
 
@@ -71,12 +65,11 @@ func TestCoverage98FutuRuntimeFallsBackWhenConnectedProbeHasNoExchange(t *testin
 	t.Cleanup(func() { _ = marketdataRuntime.Close() })
 
 	runtime := server.brokerRuntime(t.Context())
-	session, ok := runtime["session"].(map[string]any)
-	if !ok || session["connectivity"] != "disconnected" || session["accountsDiscovered"] != 0 {
+	if runtime.Session.Connectivity != "disconnected" || runtime.Session.AccountsDiscovered != 0 {
 		t.Fatalf("runtime without exchange must stay safely empty: %#v", runtime)
 	}
-	if accounts, ok := runtime["accounts"].([]any); !ok || len(accounts) != 0 {
-		t.Fatalf("runtime without exchange accounts = %#v", runtime["accounts"])
+	if len(runtime.Accounts) != 0 {
+		t.Fatalf("runtime without exchange accounts = %#v", runtime.Accounts)
 	}
 }
 

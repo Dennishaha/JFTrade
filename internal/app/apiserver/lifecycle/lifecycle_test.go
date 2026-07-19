@@ -13,6 +13,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -674,7 +675,7 @@ func TestOnceShutdownReturnsStableHandlerError(t *testing.T) {
 }
 
 func TestBestEffortLoggingIgnoresNonErrors(t *testing.T) {
-	jftradeLogError("ignored", nil, errors.New("expected close error"))
+	besteffort.LogError(errors.New("expected close error"))
 }
 
 func lifecycleDependencies(store SettingsStore, handler Handler, frontendFS fs.FS) Dependencies {

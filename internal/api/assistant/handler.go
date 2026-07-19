@@ -123,7 +123,7 @@ func (h *Handler) registerApprovalRoutes(adk *gin.RouterGroup) {
 func (h *Handler) registerSkillRoutes(adk *gin.RouterGroup) {
 	adk.GET("/skills", h.handleADKSkills)
 	adk.POST("/skills", h.handleADKInstallSkill)
-	adk.PUT("/skills/:skillId", h.handleADKSkillUpdateRemoved)
+	adk.PUT("/skills/:skillId", httpserver.Deprecated("", h.handleADKSkillUpdateRemoved))
 	adk.DELETE("/skills/:skillId", h.handleADKDeleteSkill)
 }
 

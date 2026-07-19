@@ -1,5 +1,5 @@
-// Package retry provides a thin exponential-backoff retry helper built on
-// github.com/cenkalti/backoff/v7.  It preserves shouldRetry / notifyRetry
+// Package retry provides a thin exponential-backoff retry helper implemented
+// with the standard library only. It preserves shouldRetry / notifyRetry
 // hooks so callers retain control over which errors are retryable and how
 // progress is reported.
 package retry
@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/cenkalti/backoff/v7"
 )
 
 // ShouldRetryFunc decides whether err should trigger a retry.
@@ -43,11 +41,11 @@ type Config struct {
 
 // Do executes operation with up to cfg.MaxRetries+1 total attempts.
 //
-// Exponential-backoff delays are derived from backoff/v7 with deterministic
-// doubling. A zero BaseDelay is valid and disables sleeps, which keeps tests
-// fast while production callers can still opt into real waiting explicitly.
-// cfg.ShouldRetry is consulted after each failure; if it returns false
-// the error is returned immediately without further retries.
+// Exponential-backoff delays double deterministically from BaseDelay and are
+// capped at MaxDelay. A zero BaseDelay is valid and disables sleeps, which
+// keeps tests fast while production callers can still opt into real waiting
+// explicitly. cfg.ShouldRetry is consulted after each failure; if it returns
+// false the error is returned immediately without further retries.
 // cfg.Notify is called before each retry sleep (not on the initial
 // attempt) so callers can record progress (e.g. IncrementRetries).
 func Do(operation func() error, cfg Config) error {
@@ -58,19 +56,15 @@ func Do(operation func() error, cfg Config) error {
 		cfg.MaxRetries = 0
 	}
 
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = cfg.BaseDelay
-	b.MaxInterval = cfg.MaxDelay
-	b.Multiplier = 2
-	b.RandomizationFactor = 0
-	b.Reset()
-
 	var lastErr error
 	for attempt := 0; attempt <= cfg.MaxRetries; attempt++ {
 		if attempt > 0 {
 			delay := time.Duration(0)
 			if cfg.BaseDelay > 0 {
-				delay = b.NextBackOff()
+				delay = cfg.BaseDelay << (attempt - 1)
+				if delay > cfg.MaxDelay || delay < cfg.BaseDelay {
+					delay = cfg.MaxDelay
+				}
 			}
 			if cfg.Notify != nil {
 				cfg.Notify(attempt, lastErr, delay)

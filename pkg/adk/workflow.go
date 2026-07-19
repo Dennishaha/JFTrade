@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"google.golang.org/genai"
 )
 
@@ -113,8 +114,10 @@ func (e *WorkflowExecutor) Run(ctx context.Context, req workflowRequest) (ChatRe
 		return e.workflowResponse(parentCtx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 	}
 	parent.WorkflowPlan = workflowPlanFromTasks([]Task{task}, parent.WorkflowPlan)
-	parent, jftradeErr7 := e.runtime.saveRunPreservingUserGoalPause(parentCtx, parent)
-	jftradeLogError(jftradeErr7)
+	parent, err = e.runtime.saveRunPreservingUserGoalPause(parentCtx, parent)
+	if err != nil {
+		return ChatResponse{}, fmt.Errorf("persist initial goal workflow state: %w", err)
+	}
 	return e.runADKGoalWorkflow(parentCtx, req, parent, []Task{task})
 }
 
@@ -413,7 +416,7 @@ func (e *WorkflowExecutor) finalizePlannedWorkflow(ctx context.Context, req work
 		parent = e.failParent(ctx, parent, fmt.Errorf("workflow task scheduler incomplete"))
 		parent.ErrorCode = workflowTaskIncompleteErr
 		jftradeErr := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr)
+		besteffort.LogError(jftradeErr)
 		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason})
 	}
 	parent.Status = RunStatusCompleted
@@ -430,7 +433,7 @@ func (e *WorkflowExecutor) finalizePlannedWorkflow(ctx context.Context, req work
 		parent = saved
 	} else {
 		jftradeErr1 := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}
 	return e.workflowResponse(ctx, req.Session, parent, replyResult)
 }
@@ -468,7 +471,7 @@ func (e *WorkflowExecutor) applyWorkflowChildResponses(ctx context.Context, pare
 	if blockingChild != nil {
 		parent = finalizeBlockedWorkflowParent(parent, *blockingChild, pendingApprovals)
 		jftradeErr2 := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 	}
 	return replies, blockingChild, parent
 }
@@ -490,7 +493,7 @@ func (e *WorkflowExecutor) updateWorkflowTaskResult(ctx context.Context, tasks [
 	}
 	summary := strings.TrimSpace(reply)
 	_, jftradeErr := e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: &status, RunID: &child.ID, ResultSummary: &summary})
-	jftradeLogError(jftradeErr)
+	besteffort.LogError(jftradeErr)
 }
 
 func finalizeBlockedWorkflowParent(parent Run, child Run, approvals []Approval) Run {
@@ -533,7 +536,7 @@ func (e *WorkflowExecutor) failParent(ctx context.Context, parent Run, cause err
 	}
 	finalizeRunUsage(&parent)
 	if err := e.runtime.store.SaveRunAndDenyPendingApprovals(context.Background(), parent); err != nil {
-		jftradeLogError(err)
+		besteffort.LogError(err)
 	} else {
 		e.runtime.cancelUnfinishedWorkflowChildren(context.Background(), parent)
 	}

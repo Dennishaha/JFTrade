@@ -6,6 +6,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func workflowPlanFromTasks(tasks []Task, existing []WorkflowStepState) []WorkflowStepState {
@@ -302,7 +304,7 @@ func (e *WorkflowExecutor) addRuntimeWorkflowTask(ctx context.Context, parent Ru
 	tasks = append(tasks, task)
 	if workflowTasksHaveCycle(tasks) {
 		jftradeErr3 := e.runtime.store.DeleteTask(ctx, task.ID)
-		jftradeLogError(jftradeErr3)
+		besteffort.LogError(jftradeErr3)
 		return Task{}, fmt.Errorf("runtime task dependencies contain a cycle")
 	}
 	return task, nil

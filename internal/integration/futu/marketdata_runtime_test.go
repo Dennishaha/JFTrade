@@ -10,6 +10,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
@@ -450,7 +451,7 @@ func TestMarketDataRuntimeUnavailableQueryHelpers(t *testing.T) {
 	if err := runtime.ReconcileSubscriptions(context.Background(), []marketdata.InstrumentRef{{Market: "US", Symbol: "AAPL"}}); err == nil {
 		t.Fatal("ReconcileSubscriptions() error = nil when config disabled")
 	}
-	jftradeLogError(nil, errors.New("expected best-effort test error"))
+	besteffort.LogError(errors.New("expected best-effort test error"))
 }
 
 func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {

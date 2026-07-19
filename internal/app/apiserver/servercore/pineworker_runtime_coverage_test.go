@@ -35,7 +35,7 @@ func TestPineWorkerRuntimeApplyAndMinimumConcurrencyBoundaries(t *testing.T) {
 
 	t.Setenv(envPineWorkerDisabled, "true")
 	service := btsrv.NewService()
-	server := &Server{backtestSvc: service}
+	server := &Server{serverFacades: serverFacades{backtestSvc: service}}
 	server.applyPineWorkerSettings(PineWorkerSettings{})
 
 	launcher := &fakeServerPineWorkerLauncher{}

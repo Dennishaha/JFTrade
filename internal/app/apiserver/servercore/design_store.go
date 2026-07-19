@@ -11,6 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
@@ -58,7 +59,7 @@ func NewStrategyDesignStore(path string) (*strategyDesignStore, error) {
 	}
 	if err := store.load(); err != nil {
 		jftradeErr1 := store.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return nil, err
 	}
 	return store, nil

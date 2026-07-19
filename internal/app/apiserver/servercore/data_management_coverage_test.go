@@ -60,18 +60,18 @@ func TestDataManagementBackendRemainingOperations(t *testing.T) {
 func TestDatabaseMaintenanceRemainingBusyReasons(t *testing.T) {
 	syncTasks := newBacktestSyncTaskStore()
 	syncTasks.cancels["sync"] = func() {}
-	if reason := (&Server{backtestSyncTasks: syncTasks}).databaseMaintenanceBusyReason(datamigration.DatabaseBacktest); !strings.Contains(reason, "行情同步") {
+	if reason := (&Server{serverStores: serverStores{backtestSyncTasks: syncTasks}}).databaseMaintenanceBusyReason(datamigration.DatabaseBacktest); !strings.Contains(reason, "行情同步") {
 		t.Fatalf("sync busy reason = %q", reason)
 	}
 
 	runtimes := &strategyRuntimeManager{runtimes: map[string]*managedStrategyRuntime{"runtime": {}}, starting: map[string]struct{}{}}
-	if reason := (&Server{strategyRuntimeManager: runtimes}).databaseMaintenanceBusyReason(datamigration.DatabaseStrategy); !strings.Contains(reason, "活动策略") {
+	if reason := (&Server{serverRuntimes: serverRuntimes{strategyRuntimeManager: runtimes}}).databaseMaintenanceBusyReason(datamigration.DatabaseStrategy); !strings.Contains(reason, "活动策略") {
 		t.Fatalf("strategy busy reason = %q", reason)
 	}
 
 	orders := newExecutionOrderStore()
 	orders.orders["order"] = trdsrv.ExecutionOrder{InternalOrderID: "order", Status: "submitted"}
-	if reason := (&Server{executionOrders: orders}).databaseMaintenanceBusyReason(datamigration.DatabaseExecution); !strings.Contains(reason, "非终态") {
+	if reason := (&Server{serverStores: serverStores{executionOrders: orders}}).databaseMaintenanceBusyReason(datamigration.DatabaseExecution); !strings.Contains(reason, "非终态") {
 		t.Fatalf("execution busy reason = %q", reason)
 	}
 

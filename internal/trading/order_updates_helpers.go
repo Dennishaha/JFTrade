@@ -1,7 +1,6 @@
 package trading
 
 import (
-	"log"
 	"sort"
 	"strings"
 	"time"
@@ -162,12 +161,4 @@ func stringPointer(value string) *string {
 		return nil
 	}
 	return &value
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

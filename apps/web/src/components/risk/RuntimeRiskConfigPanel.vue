@@ -91,7 +91,7 @@ function parseNullableNumber(value: string): number | null {
   return parsed;
 }
 
-function formatCurrentLimit(value: number | null): string {
+function formatCurrentLimit(value: number | null | undefined): string {
   return value == null ? "未设置" : String(value);
 }
 

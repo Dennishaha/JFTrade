@@ -14,14 +14,14 @@ const (
 
 type PreTradeRiskGateway interface {
 	EvaluatePlaceOrder(context.Context, ExecutionOrderCommand) PreTradeRiskDecision
-	Snapshot() map[string]any
+	Snapshot() RealTradeRiskSnapshot
 }
 
 type PreTradeRiskDecision struct {
-	Decision      string         `json:"decision"`
-	ReasonCode    string         `json:"reasonCode,omitempty"`
-	ReasonMessage string         `json:"reasonMessage,omitempty"`
-	Snapshot      map[string]any `json:"riskSnapshot,omitempty"`
+	Decision      string                 `json:"decision"`
+	ReasonCode    string                 `json:"reasonCode,omitempty"`
+	ReasonMessage string                 `json:"reasonMessage,omitempty"`
+	Snapshot      *RealTradeRiskSnapshot `json:"riskSnapshot,omitempty"`
 }
 
 func (d PreTradeRiskDecision) Allows() bool {
@@ -74,23 +74,23 @@ func NewStaticPreTradeRiskGateway(config func() PreTradeRiskConfig) *StaticPreTr
 func (g *StaticPreTradeRiskGateway) EvaluatePlaceOrder(_ context.Context, command ExecutionOrderCommand) PreTradeRiskDecision {
 	snapshot := g.Snapshot()
 	if !strings.EqualFold(strings.TrimSpace(command.Query.TradingEnvironment), "REAL") {
-		return PreTradeRiskDecision{Decision: RiskDecisionAllow, Snapshot: snapshot}
+		return PreTradeRiskDecision{Decision: RiskDecisionAllow, Snapshot: &snapshot}
 	}
-	if enabled, _ := snapshot["realTradingEnabled"].(bool); !enabled {
+	if !snapshot.RealTradingEnabled {
 		return riskRejected("REAL_TRADING_DISABLED", "real trading is disabled; enable runtime real-trade risk config before placing REAL orders", snapshot)
 	}
-	if active, _ := snapshot["killSwitchActive"].(bool); active {
+	if snapshot.KillSwitchActive {
 		return riskRejected("REAL_TRADE_KILL_SWITCH_ACTIVE", "real-trade kill switch is active; PLACE orders are blocked", snapshot)
 	}
-	if matched := matchHardStop(configFromSnapshot(snapshot), command); matched != nil {
-		snapshot["matchedHardStop"] = *matched
+	if matched := matchHardStop(PreTradeRiskConfig{RuntimeHardStops: snapshot.HardStopEntries}, command); matched != nil {
+		snapshot.MatchedHardStop = matched
 		return riskRejected("REAL_TRADE_HARD_STOP_ACTIVE", "real-trade hard stop is active for this order scope; PLACE orders are blocked", snapshot)
 	}
-	if limit, ok := snapshot["effectiveMaxOrderQuantity"].(*float64); ok && limit != nil && command.Query.Quantity > *limit {
+	if limit := snapshot.EffectiveMaxOrderQuantity; limit != nil && command.Query.Quantity > *limit {
 		return riskRejected("MAX_ORDER_QUANTITY_EXCEEDED", "order quantity exceeds the configured real-trade limit", snapshot)
 	}
 	riskPrice := commandRiskPrice(command)
-	if limit, ok := snapshot["effectiveMaxOrderNotional"].(*float64); ok && limit != nil {
+	if limit := snapshot.EffectiveMaxOrderNotional; limit != nil {
 		if riskPrice == nil {
 			return riskRejected("RISK_PRICE_UNAVAILABLE", "order price is required to enforce the configured real-trade notional limit", snapshot)
 		}
@@ -98,50 +98,15 @@ func (g *StaticPreTradeRiskGateway) EvaluatePlaceOrder(_ context.Context, comman
 			return riskRejected("MAX_ORDER_NOTIONAL_EXCEEDED", "order notional exceeds the configured real-trade limit", snapshot)
 		}
 	}
-	return PreTradeRiskDecision{Decision: RiskDecisionAllow, Snapshot: snapshot}
+	return PreTradeRiskDecision{Decision: RiskDecisionAllow, Snapshot: &snapshot}
 }
 
-func (g *StaticPreTradeRiskGateway) Snapshot() map[string]any {
+func (g *StaticPreTradeRiskGateway) Snapshot() RealTradeRiskSnapshot {
 	config := PreTradeRiskConfig{}
 	if g != nil && g.config != nil {
 		config = g.config()
 	}
-	killSwitchActive := config.RuntimeKillSwitch
-	maxQty := positiveFloat(config.RuntimeMaxOrderQty)
-	maxNotional := positiveFloat(config.RuntimeMaxOrderNotional)
-	hardStops := append([]RealTradeHardStopEntry{}, config.RuntimeHardStops...)
-	events := append([]RealTradeControlEvent{}, config.RuntimeEvents...)
-	return map[string]any{
-		"realTradingEnabled":                config.RealTradingEnabled,
-		"killSwitchActive":                  killSwitchActive,
-		"killSwitchSource":                  runtimeSwitchSource(config),
-		"runtimeKillSwitchActive":           config.RuntimeKillSwitch,
-		"controlPlaneAvailable":             strings.TrimSpace(config.RuntimeError) == "",
-		"controlPlaneError":                 nullableString(config.RuntimeError),
-		"killSwitchEntry":                   cloneKillSwitchEntry(config.KillSwitchEntry),
-		"killSwitchEvents":                  filterRealTradeControlEvents(events, "KILL_SWITCH_"),
-		"blockedOperations":                 []string{"PLACE", "MODIFY"},
-		"allowsCancel":                      true,
-		"hardStopsActive":                   len(hardStops) > 0,
-		"hardStopEntries":                   hardStops,
-		"hardStopEvents":                    filterRealTradeControlEvents(events, "HARD_STOP_"),
-		"riskEnabled":                       maxQty != nil || maxNotional != nil,
-		"runtimeRiskConfigured":             config.RuntimeRiskEntry != nil,
-		"runtimeConfiguredMaxOrderQuantity": maxQty,
-		"runtimeConfiguredMaxOrderNotional": maxNotional,
-		"effectiveMaxOrderQuantity":         maxQty,
-		"effectiveMaxOrderNotional":         maxNotional,
-		"riskEntry":                         cloneRuntimeRiskEntry(config.RuntimeRiskEntry),
-		"riskEvents":                        filterRealTradeRiskEvents(events),
-	}
-}
-
-func configFromSnapshot(snapshot map[string]any) PreTradeRiskConfig {
-	config := PreTradeRiskConfig{}
-	if entries, ok := snapshot["hardStopEntries"].([]RealTradeHardStopEntry); ok {
-		config.RuntimeHardStops = entries
-	}
-	return config
+	return realTradeRiskSnapshotFromConfig(config)
 }
 
 func matchHardStop(config PreTradeRiskConfig, command ExecutionOrderCommand) *RealTradeHardStopEntry {
@@ -221,12 +186,12 @@ func commandRiskPrice(command ExecutionOrderCommand) *float64 {
 	return command.Query.StopPrice
 }
 
-func riskRejected(code, message string, snapshot map[string]any) PreTradeRiskDecision {
+func riskRejected(code, message string, snapshot RealTradeRiskSnapshot) PreTradeRiskDecision {
 	return PreTradeRiskDecision{
 		Decision:      RiskDecisionReject,
 		ReasonCode:    code,
 		ReasonMessage: message,
-		Snapshot:      snapshot,
+		Snapshot:      &snapshot,
 	}
 }
 
@@ -238,9 +203,10 @@ func positiveFloat(value *float64) *float64 {
 	return &copyValue
 }
 
-func runtimeSwitchSource(config PreTradeRiskConfig) any {
+func runtimeSwitchSource(config PreTradeRiskConfig) *string {
 	if config.RuntimeKillSwitch {
-		return "RUNTIME"
+		source := "RUNTIME"
+		return &source
 	}
 	return nil
 }

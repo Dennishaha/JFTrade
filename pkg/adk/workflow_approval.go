@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*Run, error) {
@@ -163,7 +165,7 @@ func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent R
 	}
 	finalizeRunUsage(&parent)
 	if err := r.store.SaveRunAndDenyPendingApprovals(ctx, parent); err != nil {
-		jftradeLogError(err)
+		besteffort.LogError(err)
 	} else {
 		r.cancelUnfinishedWorkflowChildren(context.Background(), parent)
 	}
@@ -234,7 +236,7 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 					Executor:      new(workflowTaskExecutorChild),
 					ResultSummary: new(strings.TrimSpace(child.Message)),
 				})
-				jftradeLogError(jftradeErr2)
+				besteffort.LogError(jftradeErr2)
 			}
 			continue
 		case RunStatusPending, RunStatusPendingInput:

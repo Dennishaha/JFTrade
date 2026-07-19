@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -125,7 +126,7 @@ func (s *desktopWindowStateStore) schedule() {
 		s.timer.Stop()
 	}
 	s.timer = time.AfterFunc(desktopStateWriteDebounce, func() {
-		jftradeLogError(s.flush())
+		besteffort.LogError(s.flush())
 	})
 }
 

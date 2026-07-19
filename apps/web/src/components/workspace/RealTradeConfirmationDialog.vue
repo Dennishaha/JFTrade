@@ -3,8 +3,8 @@ const props = defineProps<{
   accountId: string;
   confirmationMatches: boolean;
   confirmationText: string;
-  maxOrderNotional: number | null;
-  maxOrderQuantity: number | null;
+  maxOrderNotional: number | null | undefined;
+  maxOrderQuantity: number | null | undefined;
   modelValue: boolean;
   orderSummary: string | null | undefined;
   realTradingEnabled: boolean;

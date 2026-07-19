@@ -2,6 +2,7 @@ package trading
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -309,14 +310,14 @@ func TestServiceBrokerReadOperationsMapSnapshotsAndQueries(t *testing.T) {
 		WithActiveBroker(func() broker.Broker {
 			return &stubBroker{id: "futu", data: reader}
 		}),
-		WithBrokerRuntime(func(context.Context) map[string]any {
-			return map[string]any{"state": "ready"}
+		WithBrokerRuntime(func(context.Context) *BrokerRuntimeResponse {
+			return &BrokerRuntimeResponse{Session: BrokerRuntimeSession{Connectivity: "connected"}}
 		}),
 	)
 	query := broker.ReadQuery{BrokerID: "futu", AccountID: "acc-1", TradingEnvironment: "REAL", Market: "US"}
 
 	runtimeResp, err := service.Runtime(t.Context(), "futu")
-	if err != nil || runtimeResp["state"] != "ready" {
+	if err != nil || runtimeResp.Session.Connectivity != "connected" {
 		t.Fatalf("Runtime = %#v, %v", runtimeResp, err)
 	}
 
@@ -324,19 +325,19 @@ func TestServiceBrokerReadOperationsMapSnapshotsAndQueries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Funds: %v", err)
 	}
-	if fundsResp["connectivity"] != "connected" {
-		t.Fatalf("Funds connectivity=%v", fundsResp["connectivity"])
+	if fundsResp.Connectivity != "connected" {
+		t.Fatalf("Funds connectivity=%v", fundsResp.Connectivity)
 	}
-	if len(fundsResp["currencyBalances"].([]any)) != 1 {
-		t.Fatalf("Funds currencyBalances=%#v", fundsResp["currencyBalances"])
+	if len(fundsResp.CurrencyBalances) != 1 {
+		t.Fatalf("Funds currencyBalances=%#v", fundsResp.CurrencyBalances)
 	}
 
 	positionsResp, err := service.Positions(t.Context(), query)
 	if err != nil {
 		t.Fatalf("Positions: %v", err)
 	}
-	positions := positionsResp["positions"].([]any)
-	if len(positions) != 1 || positions[0].(map[string]any)["symbol"] != "US.AAPL" {
+	positions := positionsResp.Positions
+	if len(positions) != 1 || positions[0].Symbol != "US.AAPL" {
 		t.Fatalf("Positions response=%#v", positionsResp)
 	}
 
@@ -354,9 +355,9 @@ func TestServiceBrokerReadOperationsMapSnapshotsAndQueries(t *testing.T) {
 	if gotHistoryOrders.Symbol != "US.AAPL" || len(gotHistoryOrders.Statuses) != 1 || gotHistoryOrders.Statuses[0] != "FILLED" {
 		t.Fatalf("QueryHistoryOrders=%#v", gotHistoryOrders)
 	}
-	historyOrders := historyOrdersResp["orders"].([]any)
-	historyOrder := historyOrders[0].(map[string]any)
-	if historyOrder["accountId"] != "acc-1" || historyOrder["tradingEnvironment"] != "REAL" || historyOrder["market"] != "US" {
+	historyOrders := historyOrdersResp.Orders
+	historyOrder := historyOrders[0]
+	if historyOrder.AccountID != "acc-1" || historyOrder.TradingEnvironment != "REAL" || historyOrder.Market != "US" {
 		t.Fatalf("history order fallback=%#v", historyOrder)
 	}
 
@@ -367,7 +368,7 @@ func TestServiceBrokerReadOperationsMapSnapshotsAndQueries(t *testing.T) {
 	if gotOrdersQuery.AccountID != "acc-1" {
 		t.Fatalf("QueryOrders query=%#v", gotOrdersQuery)
 	}
-	if len(currentOrdersResp["orders"].([]any)) != 1 {
+	if len(currentOrdersResp.Orders) != 1 {
 		t.Fatalf("current orders=%#v", currentOrdersResp)
 	}
 
@@ -378,7 +379,7 @@ func TestServiceBrokerReadOperationsMapSnapshotsAndQueries(t *testing.T) {
 	if gotFillsQuery.Symbol != "US.AAPL" {
 		t.Fatalf("QueryOrderFills=%#v", gotFillsQuery)
 	}
-	if len(currentFillsResp["fills"].([]any)) != 1 {
+	if len(currentFillsResp.Fills) != 1 {
 		t.Fatalf("current fills=%#v", currentFillsResp)
 	}
 
@@ -395,7 +396,7 @@ func TestServiceBrokerReadOperationsMapSnapshotsAndQueries(t *testing.T) {
 	if gotHistoryFills.Symbol != "US.AAPL" || gotHistoryFills.StartTime != "2025-01-01" {
 		t.Fatalf("QueryHistoryOrderFills=%#v", gotHistoryFills)
 	}
-	if len(historyFillsResp["fills"].([]any)) != 1 {
+	if len(historyFillsResp.Fills) != 1 {
 		t.Fatalf("history fills=%#v", historyFillsResp)
 	}
 
@@ -482,15 +483,15 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PortfolioCashBalances: %v", err)
 	}
-	balances := cashBalances["balances"].([]any)
+	balances := cashBalances.Balances
 	if len(balances) != 1 {
 		t.Fatalf("balances=%#v", cashBalances)
 	}
-	balance := balances[0].(map[string]any)
-	if balance["currency"] != "USD" || balance["cashBalance"] != 2500.0 {
+	balance := balances[0]
+	if balance.Currency != "USD" || balance.CashBalance != 2500.0 {
 		t.Fatalf("balance=%#v", balance)
 	}
-	if balance["updatedAt"] == "" || balance["createdAt"] == "" {
+	if balance.UpdatedAt == "" || balance.CreatedAt == "" {
 		t.Fatalf("balance timestamps=%#v", balance)
 	}
 
@@ -498,8 +499,8 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PortfolioPositions: %v", err)
 	}
-	position := portfolioPositions["positions"].([]any)[0].(map[string]any)
-	if position["averagePrice"] != 98.0 || position["symbol"] != "US.NVDA" {
+	position := portfolioPositions.Positions[0]
+	if position.AveragePrice != 98.0 || position.Symbol != "US.NVDA" {
 		t.Fatalf("portfolio position=%#v", position)
 	}
 
@@ -507,8 +508,8 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PortfolioReconciliation: %v", err)
 	}
-	recPosition := reconciliation["positions"].([]any)[0].(map[string]any)
-	if recPosition["status"] != "missing-in-projection" || recPosition["quantityDelta"] != 3.0 {
+	recPosition := reconciliation.Positions[0]
+	if recPosition.Status != "missing-in-projection" || recPosition.QuantityDelta != 3.0 {
 		t.Fatalf("reconciliation=%#v", recPosition)
 	}
 
@@ -516,7 +517,7 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PortfolioCashReconciliation: %v", err)
 	}
-	recBalance := cashReconciliation["balances"].([]any)
+	recBalance := cashReconciliation.Balances
 	if len(recBalance) != 0 {
 		t.Fatalf("cash reconciliation=%#v", cashReconciliation)
 	}
@@ -526,7 +527,7 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Funds without broker: %v", err)
 	}
-	if fundsResp["connectivity"] != "degraded" || fundsResp["lastError"] == nil {
+	if fundsResp.Connectivity != "degraded" || fundsResp.LastError == nil {
 		t.Fatalf("Funds fallback=%#v", fundsResp)
 	}
 
@@ -551,12 +552,12 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PortfolioCashReconciliation: %v", err)
 	}
-	recBalances := cashReconciliationResp["balances"].([]any)
+	recBalances := cashReconciliationResp.Balances
 	if len(recBalances) != 1 {
 		t.Fatalf("cash reconciliation=%#v", cashReconciliationResp)
 	}
-	recBalanceEntry := recBalances[0].(map[string]any)
-	if recBalanceEntry["status"] != "missing-in-projection" || recBalanceEntry["cashDelta"] != 500.0 {
+	recBalanceEntry := recBalances[0]
+	if recBalanceEntry.Status != "missing-in-projection" || recBalanceEntry.CashDelta != 500.0 {
 		t.Fatalf("cash reconciliation entry=%#v", recBalanceEntry)
 	}
 
@@ -572,7 +573,7 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Quote fallback: %v", err)
 	}
-	if quoteResp["connectivity"] != "disconnected" {
+	if quoteResp.Connectivity != "disconnected" {
 		t.Fatalf("Quote connectivity=%#v", quoteResp)
 	}
 }
@@ -624,10 +625,10 @@ func TestServiceBrokerWriteAndTimeoutBehaviors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PlaceBrokerOrder: %v", err)
 	}
-	if gotPlacedQuery.Symbol != "US.AAPL" || placeResp["order"].(*broker.PlaceOrderResult).BrokerOrderID != "placed-1" {
+	if gotPlacedQuery.Symbol != "US.AAPL" || placeResp.Order.BrokerOrderID != "placed-1" {
 		t.Fatalf("place response=%#v query=%#v", placeResp, gotPlacedQuery)
 	}
-	if placeResp["placedAt"] == "" {
+	if placeResp.PlacedAt == "" {
 		t.Fatalf("place timestamp=%#v", placeResp)
 	}
 
@@ -638,7 +639,7 @@ func TestServiceBrokerWriteAndTimeoutBehaviors(t *testing.T) {
 	if gotCancelQuery.AccountID != "acc-1" || len(gotCancelOrders) != 1 || gotCancelOrders[0].BrokerOrderID != "order-1" {
 		t.Fatalf("cancel query=%#v orders=%#v", gotCancelQuery, gotCancelOrders)
 	}
-	if cancelResp["cancelled"] != 1 {
+	if cancelResp.Cancelled != 1 {
 		t.Fatalf("cancel response=%#v", cancelResp)
 	}
 
@@ -650,17 +651,17 @@ func TestServiceBrokerWriteAndTimeoutBehaviors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UnlockTrade: %v", err)
 	}
-	if !unlockResp["unlocked"].(bool) || gotUnlockRequest.PasswordMD5 != "abc" {
+	if !unlockResp.Unlocked || gotUnlockRequest.PasswordMD5 != "abc" {
 		t.Fatalf("unlock response=%#v req=%#v", unlockResp, gotUnlockRequest)
 	}
 
 	timeoutResp := service.FundsWithTimeout(t.Context(), query, time.Millisecond)
-	if !strings.Contains(timeoutResp["lastError"].(string), "timed out after") {
+	if timeoutResp.LastError == nil || !strings.Contains(*timeoutResp.LastError, "timed out after") {
 		t.Fatalf("FundsWithTimeout=%#v", timeoutResp)
 	}
 
 	positionsResp := service.PositionsWithTimeout(t.Context(), query, time.Second)
-	if positionsResp["connectivity"] != "connected" || len(positionsResp["positions"].([]any)) != 1 {
+	if positionsResp.Connectivity != "connected" || len(positionsResp.Positions) != 1 {
 		t.Fatalf("PositionsWithTimeout=%#v", positionsResp)
 	}
 
@@ -677,7 +678,7 @@ func TestServiceBrokerWriteAndTimeoutBehaviors(t *testing.T) {
 	})).UnlockTrade(t.Context(), broker.UnlockTradeRequest{ReadQuery: broker.ReadQuery{BrokerID: "futu"}}); !errors.Is(err, ErrUnlockUnsupported) {
 		t.Fatalf("UnlockTrade unsupported err=%v", err)
 	}
-	if runtime, err := NewService().Runtime(t.Context(), "ib"); err != nil || len(runtime) != 0 {
+	if runtime, err := NewService().Runtime(t.Context(), "ib"); err != nil || runtime == nil || runtime.Session.Connectivity != "" {
 		t.Fatalf("Runtime without any configured broker = %#v, err=%v", runtime, err)
 	}
 	if _, err := NewService(WithActiveBroker(func() broker.Broker {
@@ -713,11 +714,25 @@ func TestNormalizeSymbolsAndRuntimeDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Runtime default: %v", err)
 	}
-	if len(runtimeResp) != 0 {
+	if runtimeResp == nil || runtimeResp.Session.Connectivity != "" || len(runtimeResp.Accounts) != 0 {
 		t.Fatalf("Runtime default response=%#v", runtimeResp)
 	}
 }
 
 func queryToQuote(query broker.ReadQuery, symbol string) broker.QuoteQuery {
 	return broker.QuoteQuery{ReadQuery: query, Symbols: []string{symbol}}
+}
+
+// responseJSONKeys 将 typed 响应序列化回 map，用于断言 JSON 键与历史 map 响应一致。
+func responseJSONKeys(t *testing.T, response any) map[string]any {
+	t.Helper()
+	data, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("marshal response: %v", err)
+	}
+	var keys map[string]any
+	if err := json.Unmarshal(data, &keys); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	return keys
 }

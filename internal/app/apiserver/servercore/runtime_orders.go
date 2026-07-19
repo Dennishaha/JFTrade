@@ -7,6 +7,7 @@ import (
 	"time"
 
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 )
@@ -31,7 +32,7 @@ func (e *strategyNotifyOnlyOrderExecutor) SubmitOrders(_ context.Context, orders
 			"signal_notified",
 			message,
 		)
-		jftradeLogError(jftradeErr4)
+		besteffort.LogError(jftradeErr4)
 		createdOrders = append(createdOrders, bbgotypes.Order{SubmitOrder: order})
 	}
 	return createdOrders, nil
@@ -104,7 +105,7 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 				"order_submit_failed",
 				err.Error(),
 			)
-			jftradeLogError(jftradeErr5)
+			besteffort.LogError(jftradeErr5)
 			return placedOrders, err
 		}
 		e.manager.recordOrder(e.instance.ID, time.Now().UTC())
@@ -114,7 +115,7 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 			"order_submitted",
 			fmt.Sprintf("internalOrderId=%s", placed.InternalOrderID),
 		)
-		jftradeLogError(jftradeErr6)
+		besteffort.LogError(jftradeErr6)
 		e.trackOrder(order.ClientOrderID, placed.InternalOrderID)
 		placedOrders = append(placedOrders, bbgotypes.Order{SubmitOrder: order})
 	}
@@ -140,7 +141,7 @@ func (e *strategyLiveOrderExecutor) CancelOrders(ctx context.Context, orders ...
 				"order_cancel_failed",
 				err.Error(),
 			)
-			jftradeLogError(jftradeErr)
+			besteffort.LogError(jftradeErr)
 			return err
 		}
 		e.untrackOrder(clientOrderID)
@@ -150,7 +151,7 @@ func (e *strategyLiveOrderExecutor) CancelOrders(ctx context.Context, orders ...
 			"order_cancel_requested",
 			fmt.Sprintf("internalOrderId=%s", cancelled.InternalOrderID),
 		)
-		jftradeLogError(jftradeErr)
+		besteffort.LogError(jftradeErr)
 	}
 	return nil
 }

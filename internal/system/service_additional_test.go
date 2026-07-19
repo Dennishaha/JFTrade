@@ -129,19 +129,19 @@ func TestStorageAndRealTradeDefaultsExposeFrontendShape(t *testing.T) {
 	assertSystemEmptyAnySlice(t, storage, "recentAuditLogs")
 	assertSystemEmptyAnySlice(t, storage, "recentExecutionCommands")
 
-	hardStops := svc.RealTradeHardStops()
+	hardStops := realTradeJSONMap(t, svc.RealTradeHardStops())
 	if hardStops["allowsCancel"] != true {
 		t.Fatalf("RealTradeHardStops = %#v", hardStops)
 	}
 	assertSystemEmptyAnySlice(t, hardStops, "entries")
 
-	hardStopEvents := svc.RealTradeHardStopEvents()
+	hardStopEvents := realTradeJSONMap(t, svc.RealTradeHardStopEvents())
 	if hardStopEvents["realTradingEnabled"] != false || hardStopEvents["allowsCancel"] != true {
 		t.Fatalf("RealTradeHardStopEvents = %#v", hardStopEvents)
 	}
 	assertSystemEmptyAnySlice(t, hardStopEvents, "entries")
 
-	killSwitchEvents := svc.RealTradeKillSwitchEvents()
+	killSwitchEvents := realTradeJSONMap(t, svc.RealTradeKillSwitchEvents())
 	if killSwitchEvents["killSwitchActive"] != false || killSwitchEvents["allowsCancel"] != true {
 		t.Fatalf("RealTradeKillSwitchEvents = %#v", killSwitchEvents)
 	}

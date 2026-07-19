@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func TestCompactDatabasePreservesUsableStoreAndReportsUnavailableStore(t *testing.T) {
@@ -428,7 +429,7 @@ func TestAggregatedReadersDistinguishDirectSeriesCorruptBaseDataAndUnavailableSt
 }
 
 func TestStorageInvariantHelpersReportUnexpectedValuesAndRetainTimeContracts(t *testing.T) {
-	jftradeLogError(errors.New("best-effort close failure"))
+	besteffort.LogError(errors.New("best-effort close failure"))
 	defer func() {
 		if recovered := recover(); recovered == nil {
 			t.Fatal("jftradeCheckedTypeAssertion did not reject an unexpected cached value")

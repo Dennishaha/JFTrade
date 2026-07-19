@@ -3,12 +3,12 @@ package storage
 import (
 	"context"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func (s *FutuKLineStore) QueryKLine(
@@ -328,7 +328,7 @@ func (s *FutuKLineStore) queryStoredKLinesForwardFromTable(tableName string, sym
 	if err != nil {
 		return nil, err
 	}
-	defer func() { jftradeLogError(rows.Close()) }()
+	defer func() { besteffort.LogError(rows.Close()) }()
 	return scanKLinesWithCapacity(rows, symbol, interval, limit)
 }
 
@@ -372,7 +372,7 @@ func (s *FutuKLineStore) queryStoredKLinesBackwardFromTable(tableName string, sy
 	if err != nil {
 		return nil, err
 	}
-	defer func() { jftradeLogError(rows.Close()) }()
+	defer func() { besteffort.LogError(rows.Close()) }()
 
 	klines, err := scanKLinesWithCapacity(rows, symbol, interval, limit)
 	if err != nil {
@@ -415,7 +415,7 @@ func (s *FutuKLineStore) queryStoredKLinesInRangeFromTable(tableName string, sym
 	if err != nil {
 		return nil, err
 	}
-	defer func() { jftradeLogError(rows.Close()) }()
+	defer func() { besteffort.LogError(rows.Close()) }()
 	return scanKLines(rows, symbol, interval)
 }
 
@@ -429,7 +429,7 @@ func (s *FutuKLineStore) streamStoredKLinesInRangeFromTable(tableName string, sy
 	if err != nil {
 		return err
 	}
-	defer func() { jftradeLogError(rows.Close()) }()
+	defer func() { besteffort.LogError(rows.Close()) }()
 	return streamKLines(rows, symbol, interval, emit)
 }
 
@@ -438,12 +438,4 @@ func klineQueryChannelBufferSize(symbols []string, intervals []types.Interval) i
 		return 256
 	}
 	return 512
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

@@ -37,13 +37,13 @@ var candleJSONFields = struct {
 	Close     int
 	Volume    int
 }{
-	OpenTime:  jsonFieldNameBytes("OpenTime"),
-	CloseTime: jsonFieldNameBytes("CloseTime"),
-	Open:      jsonFieldNameBytes("Open"),
-	High:      jsonFieldNameBytes("High"),
-	Low:       jsonFieldNameBytes("Low"),
-	Close:     jsonFieldNameBytes("Close"),
-	Volume:    jsonFieldNameBytes("Volume"),
+	OpenTime:  jsonFieldNameBytes("openTime"),
+	CloseTime: jsonFieldNameBytes("closeTime"),
+	Open:      jsonFieldNameBytes("open"),
+	High:      jsonFieldNameBytes("high"),
+	Low:       jsonFieldNameBytes("low"),
+	Close:     jsonFieldNameBytes("close"),
+	Volume:    jsonFieldNameBytes("volume"),
 }
 
 func jsonSize(value any) (int, error) {

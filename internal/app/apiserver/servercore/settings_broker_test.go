@@ -315,13 +315,12 @@ func TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD(t *testing.T) {
 	}
 
 	runtime := api.brokerRuntime(context.Background())
-	session := runtime["session"].(map[string]any)
-	connection := session["connection"].(map[string]any)
-	if session["connectivity"] != "disconnected" || session["accountsDiscovered"] != 0 || connection["apiPort"] != 1 {
+	session := runtime.Session
+	if session.Connectivity != "disconnected" || session.AccountsDiscovered != 0 || session.Connection.APIPort != 1 {
 		t.Fatalf("runtime session = %#v", session)
 	}
-	if session["globalState"] != nil {
-		t.Fatalf("unreachable runtime globalState = %#v", session["globalState"])
+	if session.GlobalState != nil {
+		t.Fatalf("unreachable runtime globalState = %#v", session.GlobalState)
 	}
 
 	health := api.futuOpenDHealth(context.Background())

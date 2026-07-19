@@ -10,6 +10,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 // FutuKLineStore implements service.BackTestable for Futu data stored in
@@ -40,7 +41,7 @@ func NewFutuKLineStore(dbPath string) (*FutuKLineStore, error) {
 	store.writeSessionScope.Store(klineSessionScopeLegacy)
 	if err := sqliteschema.InitializeOrValidate(context.Background(), db, dbPath, "backtest", 1, nil, nil); err != nil {
 		jftradeErr1 := db.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return nil, fmt.Errorf("validate sqlite backtest store: %w", err)
 	}
 	return store, nil

@@ -3,6 +3,8 @@ package servercore
 import (
 	"strings"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func pathTail(path string, prefix string) (string, string) {
@@ -18,7 +20,7 @@ func decodeMarketSnapshotQuery(values map[string][]string) marketSnapshotQuery {
 	var query marketSnapshotQuery
 	if raw, ok := firstQueryValue(values, "refresh"); ok && raw != "" {
 		jftradeErr5 := query.Refresh.UnmarshalText([]byte(raw))
-		jftradeLogError(jftradeErr5)
+		besteffort.LogError(jftradeErr5)
 	}
 	return query
 }
@@ -32,23 +34,23 @@ func decodeMarketCandlesQuery(values map[string][]string) (marketCandlesQuery, e
 	}
 	if raw, ok := firstQueryValue(values, "limit"); ok && raw != "" {
 		jftradeErr3 := query.Limit.UnmarshalText([]byte(raw))
-		jftradeLogError(jftradeErr3)
+		besteffort.LogError(jftradeErr3)
 	}
 	if raw, ok := firstQueryValue(values, "fromTime"); ok && raw != "" {
 		jftradeErr6 := query.FromTime.UnmarshalText([]byte(raw))
-		jftradeLogError(jftradeErr6)
+		besteffort.LogError(jftradeErr6)
 	}
 	if raw, ok := firstQueryValue(values, "toTime"); ok && raw != "" {
 		jftradeErr4 := query.ToTime.UnmarshalText([]byte(raw))
-		jftradeLogError(jftradeErr4)
+		besteffort.LogError(jftradeErr4)
 	}
 	if raw, ok := firstQueryValue(values, "from"); ok && raw != "" {
 		jftradeErr2 := query.From.UnmarshalText([]byte(raw))
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 	}
 	if raw, ok := firstQueryValue(values, "to"); ok && raw != "" {
 		jftradeErr1 := query.To.UnmarshalText([]byte(raw))
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}
 	return query, nil
 }

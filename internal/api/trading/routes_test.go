@@ -85,8 +85,10 @@ func TestBrokerRoutesPreserveFallbackSemanticsAndRequestValidation(t *testing.T)
 	if err := json.Unmarshal(notFoundRec.Body.Bytes(), &envelope); err != nil {
 		t.Fatalf("unmarshal runtime envelope: %v", err)
 	}
-	if runtimeData, ok := envelope.Data.(map[string]any); !ok || len(runtimeData) != 0 {
-		t.Fatalf("runtime data=%#v, want broker-neutral degraded empty state", envelope.Data)
+	runtimeData, ok := envelope.Data.(map[string]any)
+	accounts, accountsOK := runtimeData["accounts"].([]any)
+	if !ok || runtimeData["descriptor"] == nil || runtimeData["session"] == nil || !accountsOK || len(accounts) != 0 {
+		t.Fatalf("runtime data=%#v, want typed broker-neutral empty state", envelope.Data)
 	}
 }
 

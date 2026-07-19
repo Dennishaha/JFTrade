@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func NewStrategyCatalogStore(path string, targetDir string) (*strategyCatalogStore, error) {
@@ -24,7 +26,7 @@ func NewStrategyCatalogStore(path string, targetDir string) (*strategyCatalogSto
 	}
 	if err := store.load(); err != nil {
 		jftradeErr2 := runtimeStore.Close()
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 		return nil, err
 	}
 	return store, nil
@@ -362,7 +364,7 @@ func (s *strategyCatalogStore) persistLocked() error {
 	defer func() {
 		if err != nil {
 			jftradeErr1 := tx.Rollback()
-			jftradeLogError(jftradeErr1)
+			besteffort.LogError(jftradeErr1)
 		}
 	}()
 	if _, err = tx.ExecContext(context.Background(), `DELETE FROM `+strategyCatalogMetaTable); err != nil {

@@ -92,14 +92,14 @@ func (live *strategyRuntimePineWorkerLive) loadWarmup(ctx context.Context, excha
 func (live *strategyRuntimePineWorkerLive) recordWarmupClosed(closed bbgotypes.KLine) {
 	live.mu.Lock()
 	defer live.mu.Unlock()
-	live.candles = append(live.candles, strategyRuntimePineWorkerCandle(closed))
+	live.candles = append(live.candles, bt.CandleFromKLine(closed))
 	live.sizer.onKLineClosed(closed)
 }
 
 func (live *strategyRuntimePineWorkerLive) onClosedKLine(ctx context.Context, closed bbgotypes.KLine) error {
 	live.mu.Lock()
 	defer live.mu.Unlock()
-	live.candles = append(live.candles, strategyRuntimePineWorkerCandle(closed))
+	live.candles = append(live.candles, bt.CandleFromKLine(closed))
 	live.sizer.onKLineClosed(closed)
 	request := live.requestLocked()
 	response, err := live.runner.RunScript(ctx, request)
@@ -265,18 +265,6 @@ func (sink strategyRuntimeLiveWarningSink) AddIgnoredOrderWarningGroup(_ string,
 
 func normalizeStrategyRuntimeWorkerIntentKind(kind string) string {
 	return strings.ToLower(strings.TrimSpace(kind))
-}
-
-func strategyRuntimePineWorkerCandle(kline bbgotypes.KLine) pineworker.Candle {
-	return pineworker.Candle{
-		OpenTime:  kline.StartTime.Time().UnixMilli(),
-		CloseTime: kline.EndTime.Time().UnixMilli(),
-		Open:      kline.Open.Float64(),
-		High:      kline.High.Float64(),
-		Low:       kline.Low.Float64(),
-		Close:     kline.Close.Float64(),
-		Volume:    kline.Volume.Float64(),
-	}
 }
 
 func strategyRuntimeCurrentBarIntents(intents []pineworker.OrderIntent, barIndex int, openTime time.Time) []pineworker.OrderIntent {

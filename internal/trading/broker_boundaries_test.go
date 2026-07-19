@@ -16,36 +16,36 @@ func TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable(t *t
 
 	cases := []struct {
 		name string
-		call func() (map[string]any, error)
+		call func() (any, error)
 		key  string
 	}{
-		{"funds", func() (map[string]any, error) { return service.Funds(t.Context(), query) }, "summary"},
-		{"positions", func() (map[string]any, error) { return service.Positions(t.Context(), query) }, "positions"},
-		{"orders", func() (map[string]any, error) { return service.Orders(t.Context(), OrdersQuery{ReadQuery: query}) }, "orders"},
-		{"fills", func() (map[string]any, error) { return service.Fills(t.Context(), FillsQuery{ReadQuery: query}) }, "fills"},
-		{"cash flows", func() (map[string]any, error) {
+		{"funds", func() (any, error) { return service.Funds(t.Context(), query) }, "summary"},
+		{"positions", func() (any, error) { return service.Positions(t.Context(), query) }, "positions"},
+		{"orders", func() (any, error) { return service.Orders(t.Context(), OrdersQuery{ReadQuery: query}) }, "orders"},
+		{"fills", func() (any, error) { return service.Fills(t.Context(), FillsQuery{ReadQuery: query}) }, "fills"},
+		{"cash flows", func() (any, error) {
 			return service.CashFlows(t.Context(), broker.CashFlowQuery{ReadQuery: query})
 		}, "cashFlows"},
-		{"fees", func() (map[string]any, error) {
+		{"fees", func() (any, error) {
 			return service.OrderFees(t.Context(), broker.OrderFeeQuery{ReadQuery: query})
 		}, "fees"},
-		{"margin ratios", func() (map[string]any, error) {
+		{"margin ratios", func() (any, error) {
 			return service.MarginRatios(t.Context(), broker.MarginRatioQuery{ReadQuery: query})
 		}, "marginRatios"},
-		{"max quantity", func() (map[string]any, error) {
+		{"max quantity", func() (any, error) {
 			return service.MaxTradeQuantity(t.Context(), broker.MaxTradeQuantityQuery{ReadQuery: query})
 		}, "maxTradeQuantity"},
-		{"quote", func() (map[string]any, error) { return service.Quote(t.Context(), broker.QuoteQuery{ReadQuery: query}) }, "quotes"},
-		{"klines", func() (map[string]any, error) {
+		{"quote", func() (any, error) { return service.Quote(t.Context(), broker.QuoteQuery{ReadQuery: query}) }, "quotes"},
+		{"klines", func() (any, error) {
 			return service.KLines(t.Context(), broker.KLineQuery{ReadQuery: query})
 		}, "klines"},
-		{"securities", func() (map[string]any, error) {
+		{"securities", func() (any, error) {
 			return service.Securities(t.Context(), broker.SecuritySnapshotQuery{ReadQuery: query})
 		}, "securities"},
-		{"portfolio cash", func() (map[string]any, error) { return service.PortfolioCashBalances(t.Context(), query) }, "balances"},
-		{"portfolio positions", func() (map[string]any, error) { return service.PortfolioPositions(t.Context(), query) }, "positions"},
-		{"portfolio reconciliation", func() (map[string]any, error) { return service.PortfolioReconciliation(t.Context(), query) }, "positions"},
-		{"portfolio cash reconciliation", func() (map[string]any, error) { return service.PortfolioCashReconciliation(t.Context(), query) }, "balances"},
+		{"portfolio cash", func() (any, error) { return service.PortfolioCashBalances(t.Context(), query) }, "balances"},
+		{"portfolio positions", func() (any, error) { return service.PortfolioPositions(t.Context(), query) }, "positions"},
+		{"portfolio reconciliation", func() (any, error) { return service.PortfolioReconciliation(t.Context(), query) }, "positions"},
+		{"portfolio cash reconciliation", func() (any, error) { return service.PortfolioCashReconciliation(t.Context(), query) }, "balances"},
 	}
 
 	for _, tc := range cases {
@@ -54,7 +54,7 @@ func TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable(t *t
 			if err != nil {
 				t.Fatalf("call: %v", err)
 			}
-			if _, ok := resp[tc.key]; !ok {
+			if _, ok := responseJSONKeys(t, resp)[tc.key]; !ok {
 				t.Fatalf("response missing %q: %#v", tc.key, resp)
 			}
 		})
@@ -87,19 +87,19 @@ func TestServiceBrokerReadOperationsClassifyUpstreamFailures(t *testing.T) {
 
 	cases := []struct {
 		name string
-		call func() (map[string]any, error)
+		call func() (any, error)
 	}{
-		{"max quantity", func() (map[string]any, error) {
+		{"max quantity", func() (any, error) {
 			return service.MaxTradeQuantity(t.Context(), broker.MaxTradeQuantityQuery{ReadQuery: query})
 		}},
-		{"klines", func() (map[string]any, error) {
+		{"klines", func() (any, error) {
 			return service.KLines(t.Context(), broker.KLineQuery{ReadQuery: query})
 		}},
-		{"securities", func() (map[string]any, error) {
+		{"securities", func() (any, error) {
 			return service.Securities(t.Context(), broker.SecuritySnapshotQuery{ReadQuery: query})
 		}},
-		{"portfolio cash", func() (map[string]any, error) { return service.PortfolioCashBalances(t.Context(), query) }},
-		{"portfolio positions", func() (map[string]any, error) { return service.PortfolioPositions(t.Context(), query) }},
+		{"portfolio cash", func() (any, error) { return service.PortfolioCashBalances(t.Context(), query) }},
+		{"portfolio positions", func() (any, error) { return service.PortfolioPositions(t.Context(), query) }},
 	}
 
 	for _, tc := range cases {
@@ -108,7 +108,7 @@ func TestServiceBrokerReadOperationsClassifyUpstreamFailures(t *testing.T) {
 			if err != nil {
 				t.Fatalf("call: %v", err)
 			}
-			if resp["connectivity"] == "connected" {
+			if responseJSONKeys(t, resp)["connectivity"] == "connected" {
 				t.Fatalf("response should not report connected: %#v", resp)
 			}
 		})

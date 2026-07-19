@@ -227,8 +227,8 @@ func newCompleteADKProductServer(t *testing.T) (*Server, *completeADKProductBrok
 	registry := broker.NewRegistry()
 	registry.Register(adapter)
 	server := &Server{
-		brokers:         registry,
-		executionOrders: newExecutionOrderStore(),
+		serverRuntimes: serverRuntimes{brokers: registry},
+		serverStores:   serverStores{executionOrders: newExecutionOrderStore()},
 	}
 	server.productFeaturesSvc = productsrv.NewService(registry, adapter.id, nil, nil)
 	runtime := &serverTradingBrokerRuntimeProvider{server: server}
@@ -414,7 +414,8 @@ func TestServerComboGatewayFailureAndCancelBoundaries(t *testing.T) {
 	unsupportedRegistry := broker.NewRegistry()
 	unsupportedRegistry.Register(servercoreFakeBroker{})
 	unsupported := &serverTradingOrderGateway{server: &Server{
-		brokers: unsupportedRegistry, executionOrders: newExecutionOrderStore(),
+		serverRuntimes: serverRuntimes{brokers: unsupportedRegistry},
+		serverStores:   serverStores{executionOrders: newExecutionOrderStore()},
 	}}
 	intent.BrokerID = "fake"
 	intent.ClientOrderID = "unsupported-combo"
@@ -511,12 +512,16 @@ func TestProductToolRegistryHandlersAndSwaggerMarkersStayLinked(t *testing.T) {
 		documentAssistantTaskMemoryRoutes,
 		documentAssistantSessionRunRoutes,
 		documentAssistantChatApprovalSkillRoutes,
+		documentAssistantSkillUpdateRemovedRoute,
 		documentAssistantOptimizationRoutes,
 		documentAssistantWorkflowRoutes,
 		documentBacktestSyncTaskRoutes,
 		documentMarketUtilityRoutes,
 		documentPluginRoutes,
-		documentPortfolioRoutes,
+		documentPortfolioCashBalancesRoute,
+		documentPortfolioPositionsRoute,
+		documentPortfolioCashReconciliationRoute,
+		documentPortfolioReconciliationRoute,
 		documentBrokerFundsRoute,
 		documentBrokerPositionsRoute,
 		documentBrokerOrdersRoute,
@@ -528,6 +533,10 @@ func TestProductToolRegistryHandlersAndSwaggerMarkersStayLinked(t *testing.T) {
 		documentBrokerQuoteRoute,
 		documentBrokerKLinesRoute,
 		documentBrokerSecuritiesRoute,
+		documentBrokerRuntimeRoute,
+		documentBrokerPlaceOrderRoute,
+		documentBrokerCancelOrdersRoute,
+		documentBrokerUnlockTradeRoute,
 		documentExecutionOrdersRoute,
 		documentExecutionOrderDetailsRoute,
 		documentExecutionPlaceRoute,

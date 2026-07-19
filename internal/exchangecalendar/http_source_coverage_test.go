@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 )
@@ -172,7 +173,7 @@ func TestCalendarAuthorityValidatorHandlesMissingAnchorsAndSparseYears(t *testin
 	if err := minimumAnchorYearSchedulesValidator(1)("US", schedules, zeroYear, time.Time{}); err != nil {
 		t.Fatalf("fallback schedule anchor validator error=%v", err)
 	}
-	jftradeLogError(errors.New("best effort calendar cleanup"), nil, "not an error")
+	besteffort.LogError(errors.New("best effort calendar cleanup"))
 }
 
 func TestCalendarParsersDiscardIncompleteOrOutOfRangeAuthorityRows(t *testing.T) {

@@ -18,6 +18,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	adksession "google.golang.org/adk/v2/session"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
@@ -74,12 +75,12 @@ func NewStore(dbPath string, secretsPath string, skillsPath string) (*Store, err
 	store := &Store{db: db, dbPath: dbPath, secrets: secretStore{path: secretsPath}, skillsPath: skillsPath}
 	if err := store.initializeOrValidateSchema(); err != nil {
 		jftradeErr2 := db.Close()
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 		return nil, err
 	}
 	if err := store.ensureBuiltins(context.Background()); err != nil {
 		jftradeErr1 := db.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return nil, err
 	}
 	return store, nil
@@ -334,7 +335,7 @@ func (s secretStore) write(data map[string]string) error {
 
 func (s secretStore) has(id string) bool {
 	value, ok, jftradeErr4 := s.get(id)
-	jftradeLogError(jftradeErr4)
+	besteffort.LogError(jftradeErr4)
 	return ok && strings.TrimSpace(value) != ""
 }
 

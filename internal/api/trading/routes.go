@@ -17,11 +17,6 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-type resourceURI struct {
-	BrokerID string `uri:"brokerId" binding:"required"`
-	Resource string `uri:"resource" binding:"required"`
-}
-
 type brokerURI struct {
 	BrokerID string `uri:"brokerId" binding:"required"`
 }
@@ -88,7 +83,8 @@ type kLinesReadQuery struct {
 	Limit    string `form:"limit"`
 }
 
-type placeOrderRequest struct {
+// PlaceOrderRequest 是券商下单请求体。
+type PlaceOrderRequest struct {
 	Symbol         string   `json:"symbol"`
 	Side           string   `json:"side"`
 	OrderType      string   `json:"orderType"`
@@ -102,23 +98,48 @@ type placeOrderRequest struct {
 	FillOutsideRTH *bool    `json:"fillOutsideRTH,omitempty"`
 }
 
-type cancelOrdersRequest struct {
-	Orders []struct {
-		OrderID       uint64 `json:"orderId"`
-		BrokerOrderID string `json:"brokerOrderId"`
-		Symbol        string `json:"symbol"`
-	} `json:"orders"`
+// CancelOrderItem 描述一笔待撤销的订单。
+type CancelOrderItem struct {
+	OrderID       uint64 `json:"orderId"`
+	BrokerOrderID string `json:"brokerOrderId"`
+	Symbol        string `json:"symbol"`
 }
 
-type unlockTradeRequest struct {
+// CancelOrdersRequest 是券商批量撤单请求体。
+type CancelOrdersRequest struct {
+	Orders []CancelOrderItem `json:"orders"`
+}
+
+// UnlockTradeRequest 是券商交易解锁请求体。
+type UnlockTradeRequest struct {
 	Unlock      bool   `json:"unlock"`
 	PasswordMD5 string `json:"passwordMd5,omitempty"`
 }
 
+// brokerReadResources 列出所有券商只读资源。每个资源注册为显式路由，
+// 保证 OpenAPI 契约与路由表一一对应、可被测试完整覆盖。
+var brokerReadResources = []string{
+	"runtime",
+	"funds",
+	"positions",
+	"orders",
+	"fills",
+	"cash-flows",
+	"order-fees",
+	"margin-ratios",
+	"max-trade-qtys",
+	"quote",
+	"klines",
+	"securities",
+}
+
 func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
-	api.GET("/brokers/:brokerId/:resource", handleRead(svc))
-	api.POST("/brokers/:brokerId/:resource", handleWrite(svc))
-	api.DELETE("/brokers/:brokerId/:resource", handleWrite(svc))
+	for _, resource := range brokerReadResources {
+		api.GET("/brokers/:brokerId/"+resource, handleRead(svc, resource))
+	}
+	api.POST("/brokers/:brokerId/orders", handlePlaceOrder(svc))
+	api.DELETE("/brokers/:brokerId/orders", handleCancelOrders(svc))
+	api.POST("/brokers/:brokerId/unlock", handleUnlockTrade(svc))
 }
 
 func RegisterPortfolioRoutes(api *gin.RouterGroup, svc *srv.Service) {
@@ -141,7 +162,7 @@ func handlePortfolioRead(svc *srv.Service, resource string) gin.HandlerFunc {
 		}
 		query := readQuery(svc, uri.BrokerID, base)
 		var (
-			result map[string]any
+			result any
 			err    error
 			code   string
 		)
@@ -174,108 +195,126 @@ func handlePortfolioRead(svc *srv.Service, resource string) gin.HandlerFunc {
 	}
 }
 
-func handleRead(svc *srv.Service) gin.HandlerFunc {
+func handleRead(svc *srv.Service, resource string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uri, ok := bindURI(c)
+		brokerID, ok := bindBrokerURI(c)
 		if !ok {
 			return
 		}
 		ctx := c.Request.Context()
-		switch uri.Resource {
+		switch resource {
 		case "runtime":
-			result, err := svc.Runtime(ctx, uri.BrokerID)
+			result, err := svc.Runtime(ctx, brokerID)
 			writeReadResult(c, result, err)
 		case "funds":
 			var query baseReadQuery
 			if !bindQuery(c, &query, "invalid broker funds query") {
 				return
 			}
-			result, err := svc.Funds(ctx, readQuery(svc, uri.BrokerID, query))
+			result, err := svc.Funds(ctx, readQuery(svc, brokerID, query))
 			writeReadResult(c, result, err)
 		case "positions":
 			var query baseReadQuery
 			if !bindQuery(c, &query, "invalid broker positions query") {
 				return
 			}
-			result, err := svc.Positions(ctx, readQuery(svc, uri.BrokerID, query))
+			result, err := svc.Positions(ctx, readQuery(svc, brokerID, query))
 			writeReadResult(c, result, err)
 		case "orders":
-			handleOrders(c, svc, uri.BrokerID)
+			handleOrders(c, svc, brokerID)
 		case "fills":
-			handleFills(c, svc, uri.BrokerID)
+			handleFills(c, svc, brokerID)
 		case "cash-flows":
-			handleCashFlows(c, svc, uri.BrokerID)
+			handleCashFlows(c, svc, brokerID)
 		case "order-fees":
-			handleOrderFees(c, svc, uri.BrokerID)
+			handleOrderFees(c, svc, brokerID)
 		case "margin-ratios":
-			handleMarginRatios(c, svc, uri.BrokerID)
+			handleMarginRatios(c, svc, brokerID)
 		case "max-trade-qtys":
-			handleMaxTradeQuantity(c, svc, uri.BrokerID)
+			handleMaxTradeQuantity(c, svc, brokerID)
 		case "quote":
-			handleQuote(c, svc, uri.BrokerID)
+			handleQuote(c, svc, brokerID)
 		case "klines":
-			handleKLines(c, svc, uri.BrokerID)
+			handleKLines(c, svc, brokerID)
 		case "securities":
-			handleSecurities(c, svc, uri.BrokerID)
+			handleSecurities(c, svc, brokerID)
 		default:
 			httpserver.WriteNotFound(c)
 		}
 	}
 }
 
-func handleWrite(svc *srv.Service) gin.HandlerFunc {
+func handlePlaceOrder(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uri, ok := bindURI(c)
+		query, ok := bindWriteQuery(c, svc)
 		if !ok {
 			return
 		}
-		var base baseReadQuery
-		if !bindQuery(c, &base, "invalid broker write query") {
+		var body PlaceOrderRequest
+		if err := c.ShouldBindJSON(&body); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid request body: "+err.Error())
 			return
 		}
-		query := readQuery(svc, uri.BrokerID, base)
-		switch {
-		case uri.Resource == "orders" && c.Request.Method == http.MethodPost:
-			var body placeOrderRequest
-			if err := c.ShouldBindJSON(&body); err != nil {
-				httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid request body: "+err.Error())
-				return
-			}
-			result, err := svc.PlaceBrokerOrder(c.Request.Context(), broker.PlaceOrderQuery{
-				ReadQuery: query, Symbol: body.Symbol, Side: body.Side, OrderType: body.OrderType,
-				Price: body.Price, StopPrice: body.StopPrice, Quantity: body.Quantity, TimeInForce: body.TimeInForce,
-				ClientOrderID: body.ClientOrderID, Remark: body.Remark, Session: body.Session,
-				FillOutsideRTH: body.FillOutsideRTH,
-			})
-			writeOperationResult(c, result, err, "PLACE_ORDER_FAILED")
-		case uri.Resource == "orders" && c.Request.Method == http.MethodDelete:
-			var body cancelOrdersRequest
-			if err := c.ShouldBindJSON(&body); err != nil {
-				httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid request body: "+err.Error())
-				return
-			}
-			orders := make([]broker.CancelOrder, len(body.Orders))
-			for i, order := range body.Orders {
-				orders[i] = broker.CancelOrder{
-					OrderID: order.OrderID, BrokerOrderID: order.BrokerOrderID, Symbol: order.Symbol,
-				}
-			}
-			result, err := svc.CancelBrokerOrders(c.Request.Context(), query, orders)
-			writeOperationResult(c, result, err, "CANCEL_FAILED")
-		case uri.Resource == "unlock" && c.Request.Method == http.MethodPost:
-			var body unlockTradeRequest
-			if err := c.ShouldBindJSON(&body); err != nil {
-				httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid request body: "+err.Error())
-				return
-			}
-			result, err := svc.UnlockTrade(c.Request.Context(), broker.UnlockTradeRequest{
-				ReadQuery: query, Unlock: body.Unlock, PasswordMD5: body.PasswordMD5,
-			})
-			writeOperationResult(c, result, err, "UNLOCK_FAILED")
-		default:
-			httpserver.WriteNotFound(c)
-		}
+		result, err := svc.PlaceBrokerOrder(c.Request.Context(), broker.PlaceOrderQuery{
+			ReadQuery: query, Symbol: body.Symbol, Side: body.Side, OrderType: body.OrderType,
+			Price: body.Price, StopPrice: body.StopPrice, Quantity: body.Quantity, TimeInForce: body.TimeInForce,
+			ClientOrderID: body.ClientOrderID, Remark: body.Remark, Session: body.Session,
+			FillOutsideRTH: body.FillOutsideRTH,
+		})
+		writeOperationResult(c, result, err, "PLACE_ORDER_FAILED")
 	}
+}
+
+func handleCancelOrders(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		query, ok := bindWriteQuery(c, svc)
+		if !ok {
+			return
+		}
+		var body CancelOrdersRequest
+		if err := c.ShouldBindJSON(&body); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid request body: "+err.Error())
+			return
+		}
+		orders := make([]broker.CancelOrder, len(body.Orders))
+		for i, order := range body.Orders {
+			orders[i] = broker.CancelOrder{
+				OrderID: order.OrderID, BrokerOrderID: order.BrokerOrderID, Symbol: order.Symbol,
+			}
+		}
+		result, err := svc.CancelBrokerOrders(c.Request.Context(), query, orders)
+		writeOperationResult(c, result, err, "CANCEL_FAILED")
+	}
+}
+
+func handleUnlockTrade(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		query, ok := bindWriteQuery(c, svc)
+		if !ok {
+			return
+		}
+		var body UnlockTradeRequest
+		if err := c.ShouldBindJSON(&body); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid request body: "+err.Error())
+			return
+		}
+		result, err := svc.UnlockTrade(c.Request.Context(), broker.UnlockTradeRequest{
+			ReadQuery: query, Unlock: body.Unlock, PasswordMD5: body.PasswordMD5,
+		})
+		writeOperationResult(c, result, err, "UNLOCK_FAILED")
+	}
+}
+
+func bindWriteQuery(c *gin.Context, svc *srv.Service) (broker.ReadQuery, bool) {
+	brokerID, ok := bindBrokerURI(c)
+	if !ok {
+		return broker.ReadQuery{}, false
+	}
+	var base baseReadQuery
+	if !bindQuery(c, &base, "invalid broker write query") {
+		return broker.ReadQuery{}, false
+	}
+	return readQuery(svc, brokerID, base), true
 }
 
 func handleOrders(c *gin.Context, svc *srv.Service, brokerID string) {
@@ -465,14 +504,13 @@ func handleSecurities(c *gin.Context, svc *srv.Service, brokerID string) {
 	writeReadResult(c, result, err)
 }
 
-func bindURI(c *gin.Context) (resourceURI, bool) {
-	var uri resourceURI
-	if err := httpserver.BindURI(c, &uri); err != nil ||
-		strings.TrimSpace(uri.BrokerID) == "" || strings.TrimSpace(uri.Resource) == "" {
+func bindBrokerURI(c *gin.Context) (string, bool) {
+	var uri brokerURI
+	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.BrokerID) == "" {
 		httpserver.WriteNotFound(c)
-		return resourceURI{}, false
+		return "", false
 	}
-	return uri, true
+	return uri.BrokerID, true
 }
 
 func bindQuery(c *gin.Context, target any, message string) bool {

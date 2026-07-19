@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func (s *Store) ListProviders(ctx context.Context) ([]Provider, error) {
@@ -208,7 +209,7 @@ func (s *Store) DeleteProvider(ctx context.Context, id string) error {
 		return err
 	}
 	jftradeErr3 := s.secrets.delete(id)
-	jftradeLogError(jftradeErr3)
+	besteffort.LogError(jftradeErr3)
 	if deletedOK && deletedProvider.Default {
 		if _, err := s.ensureDefaultProvider(ctx); err != nil {
 			return err

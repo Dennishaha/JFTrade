@@ -43,3 +43,15 @@ func WriteError(c *gin.Context, status int, code string, message string) {
 func WriteNotFound(c *gin.Context) {
 	WriteError(c, http.StatusNotFound, "NOT_FOUND", "resource not found")
 }
+
+// Deprecated 包装已废弃端点的 handler：响应附加 Deprecation 与 Sunset 提示头，
+// 端点本身在兼容窗口内继续可用。删除前请以请求观测数据确认无活跃调用方。
+func Deprecated(replacement string, next gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Deprecation", "true")
+		if replacement != "" {
+			c.Writer.Header().Set("Link", `<`+replacement+`>; rel="successor-version"`)
+		}
+		next(c)
+	}
+}

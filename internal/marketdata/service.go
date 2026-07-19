@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -194,7 +196,7 @@ func (s *Service) StartCollector(quotes QuoteSource, push PushSource, handler Pu
 	}
 	if s.collector != nil {
 		jftradeErr1 := s.collector.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}
 	s.collector = NewCollector(s.cache, quotes, push, handler, CollectorOptions{})
 	allDemands := []DemandSource{DemandSourceFunc(s.subscriptions.activeInstruments)}
@@ -653,12 +655,4 @@ func tickCandlesResponse(market, symbol, instrumentID, period string, limit int,
 		ExtendedHours:  includeSession,
 		IncludeSession: includeSession,
 	}.JSON()
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

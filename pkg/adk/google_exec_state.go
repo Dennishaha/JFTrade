@@ -3,6 +3,8 @@ package adk
 import (
 	"fmt"
 	"strings"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func (e *googleADKExecution) markToolResponseSeenLocked(runID string) {
@@ -69,7 +71,7 @@ func (e *googleADKExecution) emitRunSnapshotLocked() {
 		if e.onDelta != nil {
 			snapshot = NormalizeRun(snapshot)
 			jftradeErr3 := e.onDelta(ChatDelta{Run: &snapshot})
-			jftradeLogError(jftradeErr3)
+			besteffort.LogError(jftradeErr3)
 		}
 	}
 }

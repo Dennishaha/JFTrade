@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
@@ -20,7 +21,7 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 	}
 
 	requirements, jftradeErr1 := parseIndicatorRequirementKeys(keys, false)
-	jftradeLogError(jftradeErr1)
+	besteffort.LogError(jftradeErr1)
 	return requirements
 }
 

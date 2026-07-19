@@ -119,9 +119,6 @@ func TestOpenAPICoversRegisteredAPIRoutes(t *testing.T) {
 			continue
 		}
 		path := openAPIPathFromGinPath(route.Path)
-		if isOpenAPIRouteCoverageException(route.Method, path) {
-			continue
-		}
 		methods, ok := spec.Paths[path]
 		if !ok {
 			undocumented = append(undocumented, route.Method+" "+path)
@@ -204,6 +201,9 @@ func TestOpenAPIDocumentsWritableRequestBodies(t *testing.T) {
 		{path: "/api/v1/settings/brokers/{brokerId}/integration", method: "put", refSuffix: "settings.BrokerIntegrationSaveRequest", properties: []string{"enabled", "config"}, forbidden: []string{"brokerId", "createdAt", "updatedAt"}},
 		{path: "/api/v1/settings/broker-accounts", method: "post", refSuffix: "settings.ManagedBrokerAccountWriteRequest", properties: []string{"brokerId", "accountId", "enabled"}, forbidden: []string{"id", "createdAt", "updatedAt"}},
 		{path: "/api/v1/settings/broker-accounts/{accountRecordId}", method: "put", refSuffix: "settings.ManagedBrokerAccountWriteRequest", properties: []string{"brokerId", "accountId", "enabled"}, forbidden: []string{"id", "createdAt", "updatedAt"}},
+		{path: "/api/v1/brokers/{brokerId}/orders", method: "post", refSuffix: "trading.PlaceOrderRequest", properties: []string{"symbol", "side", "orderType", "quantity"}, forbidden: []string{"brokerId", "tradingEnvironment", "accountId", "market"}},
+		{path: "/api/v1/brokers/{brokerId}/orders", method: "delete", refSuffix: "trading.CancelOrdersRequest", properties: []string{"orders"}},
+		{path: "/api/v1/brokers/{brokerId}/unlock", method: "post", refSuffix: "trading.UnlockTradeRequest", properties: []string{"unlock"}},
 	}
 	for _, tc := range cases {
 		ref := openAPIRequestBodyRef(t, spec, tc.path, tc.method)
@@ -228,13 +228,66 @@ func TestOpenAPIDocumentsWritableRequestBodies(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDocumentsTypedBrokerRuntimeResponse(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/swagger/doc.json")
+	if err != nil {
+		t.Fatalf("GET /swagger/doc.json: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
+	var spec openAPIContractSpec
+	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+		t.Fatalf("parse /swagger/doc.json: %v", err)
+	}
+
+	operation := spec.Paths["/api/v1/brokers/{brokerId}/runtime"]["get"]
+	success, ok := operation.Responses["200"]
+	if !ok {
+		t.Fatal("broker runtime OpenAPI response 200 is missing")
+	}
+	dataRef := ""
+	for _, schema := range success.Schema.AllOf {
+		if data, found := schema.Properties["data"]; found {
+			dataRef = data.Ref
+			break
+		}
+	}
+	if !strings.HasSuffix(dataRef, "trading.BrokerRuntimeResponse") {
+		t.Fatalf("broker runtime response data ref = %q", dataRef)
+	}
+	definition := spec.Definitions[strings.TrimPrefix(dataRef, "#/definitions/")]
+	for _, property := range []string{"descriptor", "session", "accounts"} {
+		if _, ok := definition.Properties[property]; !ok {
+			t.Fatalf("broker runtime response definition missing property %q", property)
+		}
+	}
+}
+
 type openAPIContractSpec struct {
 	Paths       map[string]map[string]openAPIOperation `json:"paths"`
 	Definitions map[string]openAPIContractDefinition   `json:"definitions"`
 }
 
 type openAPIOperation struct {
-	Parameters []openAPIParameter `json:"parameters"`
+	Parameters []openAPIParameter         `json:"parameters"`
+	Responses  map[string]openAPIResponse `json:"responses"`
+}
+
+type openAPIResponse struct {
+	Schema openAPIResponseSchema `json:"schema"`
+}
+
+type openAPIResponseSchema struct {
+	Ref        string                           `json:"$ref"`
+	AllOf      []openAPIResponseSchema          `json:"allOf"`
+	Properties map[string]openAPIResponseSchema `json:"properties"`
 }
 
 type openAPIParameter struct {
@@ -281,13 +334,4 @@ func openAPIPathFromGinPath(path string) string {
 		}
 	}
 	return strings.Join(parts, "/")
-}
-
-func isOpenAPIRouteCoverageException(_ string, path string) bool {
-	// Broker read/write endpoints dispatch through a resource wildcard while
-	// OpenAPI documents the concrete broker resources handled underneath.
-	if path == "/api/v1/brokers/{brokerId}/{resource}" {
-		return true
-	}
-	return false
 }

@@ -61,7 +61,7 @@ func WithDefaultTradingEnvironment(fn func() string) Option {
 }
 
 // WithBrokerRuntime 注入券商运行态读取函数。
-func WithBrokerRuntime(fn func(context.Context) map[string]any) Option {
+func WithBrokerRuntime(fn func(context.Context) *BrokerRuntimeResponse) Option {
 	return func(s *Service) { ensureBrokerRuntimeFunctions(s).runtime = fn }
 }
 

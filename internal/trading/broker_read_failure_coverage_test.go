@@ -41,29 +41,29 @@ func TestCoverage98BrokerReadFailuresRemainVisibleAcrossAccountDataViews(t *test
 	cases := []struct {
 		name string
 		key  string
-		call func() (map[string]any, error)
+		call func() (any, error)
 	}{
-		{name: "funds", key: "summary", call: func() (map[string]any, error) { return service.Funds(t.Context(), read) }},
-		{name: "positions", key: "positions", call: func() (map[string]any, error) { return service.Positions(t.Context(), read) }},
-		{name: "current orders", key: "orders", call: func() (map[string]any, error) {
+		{name: "funds", key: "summary", call: func() (any, error) { return service.Funds(t.Context(), read) }},
+		{name: "positions", key: "positions", call: func() (any, error) { return service.Positions(t.Context(), read) }},
+		{name: "current orders", key: "orders", call: func() (any, error) {
 			return service.Orders(t.Context(), OrdersQuery{ReadQuery: read, Symbol: "US.AAPL"})
 		}},
-		{name: "current fills", key: "fills", call: func() (map[string]any, error) {
+		{name: "current fills", key: "fills", call: func() (any, error) {
 			return service.Fills(t.Context(), FillsQuery{ReadQuery: read, Symbol: "US.AAPL"})
 		}},
-		{name: "cash flows", key: "cashFlows", call: func() (map[string]any, error) {
+		{name: "cash flows", key: "cashFlows", call: func() (any, error) {
 			return service.CashFlows(t.Context(), broker.CashFlowQuery{ReadQuery: read, ClearingDate: "2026-07-17"})
 		}},
-		{name: "order fees", key: "fees", call: func() (map[string]any, error) {
+		{name: "order fees", key: "fees", call: func() (any, error) {
 			return service.OrderFees(t.Context(), broker.OrderFeeQuery{ReadQuery: read, OrderIDExList: []string{"order-1"}})
 		}},
-		{name: "margin ratios", key: "marginRatios", call: func() (map[string]any, error) {
+		{name: "margin ratios", key: "marginRatios", call: func() (any, error) {
 			return service.MarginRatios(t.Context(), broker.MarginRatioQuery{ReadQuery: read, Symbols: []string{"US.AAPL"}})
 		}},
-		{name: "portfolio reconciliation", key: "positions", call: func() (map[string]any, error) {
+		{name: "portfolio reconciliation", key: "positions", call: func() (any, error) {
 			return service.PortfolioReconciliation(t.Context(), read)
 		}},
-		{name: "cash reconciliation", key: "balances", call: func() (map[string]any, error) {
+		{name: "cash reconciliation", key: "balances", call: func() (any, error) {
 			return service.PortfolioCashReconciliation(t.Context(), read)
 		}},
 	}
@@ -73,10 +73,11 @@ func TestCoverage98BrokerReadFailuresRemainVisibleAcrossAccountDataViews(t *test
 			if err != nil {
 				t.Fatalf("read failure returned transport error: %v", err)
 			}
-			if response["connectivity"] != "disconnected" || response["lastError"] != backendErr.Error() {
+			keys := responseJSONKeys(t, response)
+			if keys["connectivity"] != "disconnected" || keys["lastError"] != backendErr.Error() {
 				t.Fatalf("failure response = %#v", response)
 			}
-			if _, ok := response[tc.key]; !ok {
+			if _, ok := keys[tc.key]; !ok {
 				t.Fatalf("failure response omitted %q: %#v", tc.key, response)
 			}
 		})
@@ -100,12 +101,12 @@ func TestCoverage98FundsMapsMarketAssetsAlongsideCashBalances(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Funds: %v", err)
 	}
-	assets, ok := response["marketAssets"].([]any)
-	if !ok || len(assets) != 1 {
-		t.Fatalf("market assets = %#v", response["marketAssets"])
+	assets := response.MarketAssets
+	if len(assets) != 1 {
+		t.Fatalf("market assets = %#v", response.MarketAssets)
 	}
-	asset := assets[0].(map[string]any)
-	if asset["market"] != "US" || asset["assets"] != &available {
+	asset := assets[0]
+	if asset.Market != "US" || asset.Assets != &available {
 		t.Fatalf("market asset = %#v", asset)
 	}
 
@@ -113,11 +114,11 @@ func TestCoverage98FundsMapsMarketAssetsAlongsideCashBalances(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PortfolioCashBalances: %v", err)
 	}
-	portfolioBalances, ok := balances["balances"].([]any)
-	if !ok || len(portfolioBalances) != 1 {
+	portfolioBalances := balances.Balances
+	if len(portfolioBalances) != 1 {
 		t.Fatalf("portfolio balances = %#v", balances)
 	}
-	if got := portfolioBalances[0].(map[string]any); got["currency"] != "USD" || got["cashBalance"] != available {
+	if got := portfolioBalances[0]; got.Currency != "USD" || got.CashBalance != available {
 		t.Fatalf("portfolio balance = %#v", got)
 	}
 

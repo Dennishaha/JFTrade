@@ -130,5 +130,10 @@ func TestFutuWatchlistBrokerRemainingAvailabilityAndCapabilities(t *testing.T) {
 func TestInitializeWatchlistServiceNilBoundaries(t *testing.T) {
 	var nilServer *Server
 	nilServer.initializeWatchlistService()
-	(&Server{}).initializeWatchlistService()
+
+	server := &Server{}
+	server.initializeWatchlistService()
+	if server.watchlistSvc != nil {
+		t.Fatalf("initializeWatchlistService without watchlistStore created service = %#v", server.watchlistSvc)
+	}
 }

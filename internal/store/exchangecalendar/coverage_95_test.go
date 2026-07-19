@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func TestLoadSnapshotsReportsWalkAndReadFailures(t *testing.T) {
@@ -23,5 +25,5 @@ func TestLoadSnapshotsReportsWalkAndReadFailures(t *testing.T) {
 	}
 
 	// Logging a best-effort error must not change the caller-visible result.
-	jftradeLogError(errors.New("calendar cache unavailable"), "not-an-error", nil)
+	besteffort.LogError(errors.New("calendar cache unavailable"))
 }

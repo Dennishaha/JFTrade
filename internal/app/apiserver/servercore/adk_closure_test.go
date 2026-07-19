@@ -10,6 +10,7 @@ import (
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -106,12 +107,12 @@ func TestADKToolDepsCoreClosuresCoverDisconnectedAndCachedFlows(t *testing.T) {
 		t.Fatal("DefaultTradeMarket() = empty, want configured default market")
 	}
 
-	funds := deps.BrokerFunds(context.Background(), broker.ReadQuery{BrokerID: "futu"}, time.Second).(map[string]any)
-	if funds["lastError"] == nil {
+	funds := deps.BrokerFunds(context.Background(), broker.ReadQuery{BrokerID: "futu"}, time.Second).(*trdsrv.BrokerFundsResponse)
+	if funds.LastError == nil {
 		t.Fatalf("BrokerFunds = %#v, want disconnected/degraded fallback payload", funds)
 	}
-	positions := deps.BrokerPositions(context.Background(), broker.ReadQuery{BrokerID: "futu"}, time.Second).(map[string]any)
-	if positions["lastError"] == nil {
+	positions := deps.BrokerPositions(context.Background(), broker.ReadQuery{BrokerID: "futu"}, time.Second).(*trdsrv.BrokerPositionsResponse)
+	if positions.LastError == nil {
 		t.Fatalf("BrokerPositions = %#v, want disconnected/degraded fallback payload", positions)
 	}
 
@@ -140,7 +141,7 @@ func TestADKToolDepsCoreClosuresCoverDisconnectedAndCachedFlows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BrokerCashFlows(valid): %v", err)
 	}
-	if cashFlows.(map[string]any)["lastError"] == nil {
+	if cashFlows.(*trdsrv.BrokerCashFlowsResponse).LastError == nil {
 		t.Fatalf("BrokerCashFlows(valid) = %#v, want disconnected/degraded backend fallback payload", cashFlows)
 	}
 	if _, err := deps.BrokerFees(context.Background(), BrokerReadInput{}); err == nil || !strings.Contains(err.Error(), "orderIdEx") {
@@ -154,7 +155,7 @@ func TestADKToolDepsCoreClosuresCoverDisconnectedAndCachedFlows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BrokerFees(valid): %v", err)
 	}
-	if fees.(map[string]any)["lastError"] == nil {
+	if fees.(*trdsrv.BrokerOrderFeesResponse).LastError == nil {
 		t.Fatalf("BrokerFees(valid) = %#v, want backend fallback payload", fees)
 	}
 	if _, err := deps.BrokerMarginRatios(context.Background(), BrokerReadInput{Market: "US"}); err == nil || !strings.Contains(err.Error(), "symbol") {
@@ -167,7 +168,7 @@ func TestADKToolDepsCoreClosuresCoverDisconnectedAndCachedFlows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BrokerMarginRatios(valid): %v", err)
 	}
-	if marginRatios.(map[string]any)["lastError"] == nil {
+	if marginRatios.(*trdsrv.BrokerMarginRatiosResponse).LastError == nil {
 		t.Fatalf("BrokerMarginRatios(valid) = %#v, want backend fallback payload", marginRatios)
 	}
 	if _, err := deps.MarketDepth(context.Background(), "US", "AAPL", 10); err == nil {
@@ -175,17 +176,16 @@ func TestADKToolDepsCoreClosuresCoverDisconnectedAndCachedFlows(t *testing.T) {
 	}
 
 	riskState := deps.RiskState().(map[string]any)
-	killSwitch := riskState["killSwitch"].(map[string]any)
-	if killSwitch["killSwitchActive"] != false {
-		t.Fatalf("RiskState killSwitch = %#v, want inactive default kill switch", killSwitch)
+	killSwitch, ok := riskState["killSwitch"].(system.RealTradeKillSwitchStateResponse)
+	if !ok || killSwitch.KillSwitchActive {
+		t.Fatalf("RiskState killSwitch = %#v, want inactive default kill switch", riskState["killSwitch"])
 	}
 	if _, parseErr := time.Parse(time.RFC3339Nano, riskState["checkedAt"].(string)); parseErr != nil {
 		t.Fatalf("RiskState checkedAt parse error: %v", parseErr)
 	}
-	riskEvents := deps.RiskEvents().(map[string]any)
-	entries := riskEvents["entries"].([]any)
-	if len(entries) != 0 {
-		t.Fatalf("RiskEvents entries = %#v, want empty default risk events", entries)
+	riskEvents := deps.RiskEvents().(system.RealTradeRiskEventsResponse)
+	if len(riskEvents.Entries) != 0 {
+		t.Fatalf("RiskEvents entries = %#v, want empty default risk events", riskEvents.Entries)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
@@ -85,9 +86,9 @@ func (s *Stream) reconnectLoop(ctx context.Context) {
 			return
 		case <-s.ReconnectC:
 			jftradeErr1 := s.connectOpenDBasicQot(ctx)
-			jftradeLogError(jftradeErr1)
+			besteffort.LogError(jftradeErr1)
 			jftradeErr2 := s.connectOpenDOrderBook(ctx)
-			jftradeLogError(jftradeErr2)
+			besteffort.LogError(jftradeErr2)
 		}
 	}
 }

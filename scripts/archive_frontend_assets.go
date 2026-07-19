@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 var fixedArchiveTimestamp = time.Unix(0, 0).UTC()
@@ -36,13 +37,13 @@ func run() error {
 	}
 	defer func() {
 		jftradeErr2 := archiveFile.Close()
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 	}()
 
 	zipWriter := zip.NewWriter(archiveFile)
 	defer func() {
 		jftradeErr1 := zipWriter.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}()
 
 	if err := archiveFrontendAssets(srcDir, zipWriter); err != nil {
@@ -116,16 +117,8 @@ func copyArchiveFile(writer io.Writer, path string) error {
 		return err
 	}
 	if _, err := io.Copy(writer, file); err != nil {
-		jftradeLogError(file.Close())
+		besteffort.LogError(file.Close())
 		return err
 	}
 	return file.Close()
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

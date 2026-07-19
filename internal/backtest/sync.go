@@ -8,6 +8,7 @@ import (
 	"time"
 
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/observability"
@@ -25,7 +26,7 @@ func (s *Service) Sync(ctx context.Context, req SyncRequest) (*SyncStarted, erro
 	}
 	taskID, progress, syncCtx, syncCancel, err := s.startSyncTask(ctx, prepared.request.Symbol, len(prepared.intervals))
 	if err != nil {
-		jftradeLogError(syncer.Close())
+		besteffort.LogError(syncer.Close())
 		return nil, err
 	}
 	go s.runSyncTask(syncCtx, syncer, taskID, progress, syncCancel, prepared)
@@ -137,7 +138,7 @@ func (s *Service) runSyncTask(
 	prepared preparedSync,
 ) {
 	defer s.finishTask(syncCancel)
-	defer func() { jftradeLogError(syncer.Close()) }()
+	defer func() { besteffort.LogError(syncer.Close()) }()
 	defer s.syncTasks.Finish(taskID)
 
 	params := KLineSyncParams{

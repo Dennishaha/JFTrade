@@ -1,5 +1,5 @@
 import type {
-  PortfolioReconciliationResponse,
+  PortfolioReconciliationStatus,
   RealTradeApprovalsResponse,
   RealTradeHardStopEventsResponse,
   RealTradeHardStopsResponse,
@@ -442,7 +442,7 @@ export function formatFutuProgramStatusLabel(
 }
 
 export function resolvePortfolioReconciliationStatusLabel(
-  status: PortfolioReconciliationResponse["positions"][number]["status"],
+  status: PortfolioReconciliationStatus,
 ): string {
   switch (status) {
     case "matched":
@@ -457,7 +457,7 @@ export function resolvePortfolioReconciliationStatusLabel(
 }
 
 export function resolvePortfolioReconciliationTagType(
-  status: PortfolioReconciliationResponse["positions"][number]["status"],
+  status: PortfolioReconciliationStatus,
 ): "success" | "warning" | "danger" | "info" {
   switch (status) {
     case "matched":
@@ -472,12 +472,15 @@ export function resolvePortfolioReconciliationTagType(
 }
 
 function resolveRealTradeHardStopScope(entry: {
-  market: string | null;
-  symbol: string | null;
-  hardStopScope?: RealTradeHardStopScope | null;
+  market?: string | null;
+  symbol?: string | null;
+  hardStopScope?: string | null;
 }): RealTradeHardStopScope {
-  if (entry.hardStopScope != null) {
-    return entry.hardStopScope;
+  switch (entry.hardStopScope) {
+    case "ACCOUNT":
+    case "MARKET":
+    case "SYMBOL":
+      return entry.hardStopScope;
   }
 
   if (entry.symbol != null) {
@@ -492,9 +495,9 @@ function resolveRealTradeHardStopScope(entry: {
 }
 
 export function formatRealTradeHardStopScope(entry: {
-  market: string | null;
-  symbol: string | null;
-  hardStopScope?: RealTradeHardStopScope | null;
+  market?: string | null;
+  symbol?: string | null;
+  hardStopScope?: string | null;
 }): string {
   const scope = resolveRealTradeHardStopScope(entry);
 
@@ -509,9 +512,9 @@ export function formatRealTradeHardStopScope(entry: {
 }
 
 export function resolveRealTradeHardStopScopeTagType(entry: {
-  market: string | null;
-  symbol: string | null;
-  hardStopScope?: RealTradeHardStopScope | null;
+  market?: string | null;
+  symbol?: string | null;
+  hardStopScope?: string | null;
 }): "info" | "warning" | "danger" {
   switch (resolveRealTradeHardStopScope(entry)) {
     case "ACCOUNT":

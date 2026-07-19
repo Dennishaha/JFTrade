@@ -94,6 +94,8 @@ func TestExclusionRulesAreExplicitAndDoNotHideBackendEntrypoints(t *testing.T) {
 		{name: "vendored bbgo", fileName: "github.com/jftrade/jftrade-main/pkg/bbgo/types/order.go", category: exclusionVendored, excluded: true},
 		{name: "generator tooling", fileName: "github.com/jftrade/jftrade-main/cmd/generate-futu-proto/main.go", category: exclusionTooling, excluded: true},
 		{name: "desktop adapter", fileName: "github.com/jftrade/jftrade-main/cmd/jftrade-desktop/main.go", category: exclusionDesktop, excluded: true},
+		{name: "declarative OpenAPI routes", fileName: "github.com/jftrade/jftrade-main/internal/api/watchlist/openapi.go", category: exclusionContract, excluded: true},
+		{name: "watchlist handlers", fileName: "github.com/jftrade/jftrade-main/internal/api/watchlist/routes.go"},
 		{name: "api entrypoint", fileName: "github.com/jftrade/jftrade-main/cmd/jftrade-api/main.go"},
 		{name: "build metadata", fileName: "github.com/jftrade/jftrade-main/internal/buildinfo/buildinfo.go"},
 		{name: "frontend asset wrapper", fileName: "github.com/jftrade/jftrade-main/internal/frontendassets/dev.go"},

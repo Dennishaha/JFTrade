@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
@@ -81,7 +81,7 @@ func (m *openAICompatibleADKModel) generateStream(
 	if err != nil {
 		return err
 	}
-	defer func() { jftradeLogError(resp.Body.Close()) }()
+	defer func() { besteffort.LogError(resp.Body.Close()) }()
 	if err := providerResponseError(resp); err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func (m *openAICompatibleADKModel) doGenerate(ctx context.Context, payload openA
 	if err != nil {
 		return nil, err
 	}
-	defer func() { jftradeLogError(resp.Body.Close()) }()
+	defer func() { besteffort.LogError(resp.Body.Close()) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 		if readErr != nil {
@@ -434,7 +434,7 @@ func openAIMessagesFromGenAI(content *genai.Content) []openAIChatMessage {
 		}
 		if part.FunctionCall != nil {
 			rawArgs, jftradeErr2 := json.Marshal(part.FunctionCall.Args)
-			jftradeLogError(jftradeErr2)
+			besteffort.LogError(jftradeErr2)
 			call := openAIToolCall{ID: part.FunctionCall.ID, Type: "function"}
 			call.Function.Name = part.FunctionCall.Name
 			call.Function.Arguments = string(rawArgs)
@@ -442,7 +442,7 @@ func openAIMessagesFromGenAI(content *genai.Content) []openAIChatMessage {
 		}
 		if part.FunctionResponse != nil {
 			rawResponse, jftradeErr4 := json.Marshal(part.FunctionResponse.Response)
-			jftradeLogError(jftradeErr4)
+			besteffort.LogError(jftradeErr4)
 			messages = append(messages, openAIChatMessage{
 				Role:       "tool",
 				Content:    string(rawResponse),
@@ -472,9 +472,9 @@ func openAIToolsFromGenAIConfig(config *genai.GenerateContentConfig) []openAIToo
 			parameters := jftradeOptionalTypeAssertion[map[string]any](declaration.ParametersJsonSchema)
 			if parameters == nil {
 				raw, jftradeErr3 := json.Marshal(declaration.ParametersJsonSchema)
-				jftradeLogError(jftradeErr3)
+				besteffort.LogError(jftradeErr3)
 				jftradeErr1 := json.Unmarshal(raw, &parameters)
-				jftradeLogError(jftradeErr1)
+				besteffort.LogError(jftradeErr1)
 			}
 			parameters = sanitizeSchemaForOpenAI(parameters)
 			result = append(result, openAITool{
@@ -542,12 +542,4 @@ func sanitizeSchemaForOpenAI(schema map[string]any) map[string]any {
 		}
 	}
 	return out
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

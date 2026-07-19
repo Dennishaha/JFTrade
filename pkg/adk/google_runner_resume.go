@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adktool "google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/toolconfirmation"
 	adkworkflow "google.golang.org/adk/v2/workflow"
@@ -37,7 +38,7 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 	}
 	if !runHasDeniedApproval(run.PendingApprovals) && len(run.PendingApprovals) > 0 {
 		jftradeErr := execution.appendVisibleTextForRun(run.ID, approvalResolutionSummary(run, run.PendingApprovals[0], true), "")
-		jftradeLogError(jftradeErr)
+		besteffort.LogError(jftradeErr)
 	}
 	return r.completeResumedExecution(ctx, run, execution)
 }

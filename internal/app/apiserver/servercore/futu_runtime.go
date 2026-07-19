@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
@@ -18,27 +20,37 @@ import (
 const liveQuoteTransportMode = "bbgo-opend-tcp-api"
 
 func (s *Server) descriptor() map[string]any {
+	descriptor := futuBrokerRuntimeDescriptor()
 	return map[string]any{
-		"id":           "futu",
-		"displayName":  "Futu OpenAPI via OpenD",
-		"environments": []string{"SIMULATE", "REAL"},
-		"capabilities": []map[string]any{{
-			"market":        "HK",
-			"supportsQuote": true,
-			"supportsTrade": true,
-			"readFeatures": map[string]any{
-				"funds":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}},
-				"positions":        map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}},
-				"orders":           map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "supportsHistory": true},
-				"fills":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "supportsHistory": true},
-				"cashFlows":        map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresClearingDate": true},
-				"orderFees":        map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresOrderIdEx": true},
-				"marginRatios":     map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresSymbols": true},
-				"maxTradeQuantity": map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresPrice": true},
-				"orderBook":        map[string]any{"defaultNum": 10, "minNum": 1, "maxNum": 50, "numPresets": []int32{5, 10, 20, 50}, "supportsRealTimePush": true},
+		"id": descriptor.ID, "displayName": descriptor.DisplayName,
+		"environments": descriptor.Environments, "capabilities": descriptor.Capabilities,
+		"notes": descriptor.Notes,
+	}
+}
+
+func futuBrokerRuntimeDescriptor() trdsrv.BrokerRuntimeDescriptor {
+	environments := []string{"SIMULATE", "REAL"}
+	return trdsrv.BrokerRuntimeDescriptor{
+		ID: "futu", DisplayName: "Futu OpenAPI via OpenD", Environments: environments,
+		Capabilities: []trdsrv.BrokerMarketCapability{{
+			Market: "HK", SupportsQuote: true, SupportsTrade: true,
+			ReadFeatures: map[string]trdsrv.BrokerReadFeatureCapability{
+				"funds":            {SupportedEnvironments: environments},
+				"positions":        {SupportedEnvironments: environments},
+				"orders":           {SupportedEnvironments: environments, SupportsHistory: true},
+				"fills":            {SupportedEnvironments: environments, SupportsHistory: true},
+				"cashFlows":        {SupportedEnvironments: []string{"REAL"}, RequiresClearingDate: true},
+				"orderFees":        {SupportedEnvironments: []string{"REAL"}, RequiresOrderIDEx: true},
+				"marginRatios":     {SupportedEnvironments: []string{"REAL"}, RequiresSymbols: true},
+				"maxTradeQuantity": {SupportedEnvironments: environments, RequiresPrice: true},
+				"orderBook": {
+					SupportedEnvironments: environments,
+					DefaultNum:            10, MinNum: 1, MaxNum: 50, NumPresets: []int32{5, 10, 20, 50},
+					SupportsRealTimePush: true,
+				},
 			},
 		}},
-		"notes": []string{
+		Notes: []string{
 			"Market data is exposed to the frontend through the bbgo exchange boundary.",
 			"OpenD WebSocket settings are retained for compatibility and diagnostics; the current hot path uses the native API port.",
 		},
@@ -135,7 +147,7 @@ func (s *Server) futuOpenDInstallGuide() map[string]any {
 	}
 }
 
-func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
+func (s *Server) brokerRuntime(ctx context.Context) *trdsrv.BrokerRuntimeResponse {
 	integration := s.store.SavedIntegration()
 	config := defaultFutuConfig()
 	if integration != nil {
@@ -146,7 +158,7 @@ func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
 	}
 
 	probe := s.probeOpenD(ctx)
-	accounts := []any{}
+	accounts := []trdsrv.BrokerRuntimeAccount{}
 	if probe.Connectivity != "disconnected" {
 		exchange := s.futuExchange()
 		if exchange == nil {
@@ -162,42 +174,39 @@ func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
 				probe.Status = "degraded"
 			}
 		} else {
-			accounts = make([]any, 0, len(discoveredAccounts))
+			accounts = make([]trdsrv.BrokerRuntimeAccount, 0, len(discoveredAccounts))
 			for _, account := range discoveredAccounts {
-				accounts = append(accounts, account)
+				accounts = append(accounts, trdsrv.BrokerRuntimeAccount{
+					AccountID: account.AccountID, TradingEnvironment: account.TradingEnvironment,
+					AccountType: account.AccountType, AccountRole: account.AccountRole,
+					SecurityFirm: account.SecurityFirm, MarketAuthorities: account.MarketAuthorities,
+					SimulatedAccountType: account.SimulatedAccountType,
+				})
 			}
 		}
 	}
-	globalState := any(nil)
+	var globalState *trdsrv.BrokerRuntimeGlobalState
 	if probe.QuoteLoggedIn != nil || probe.TradeLoggedIn != nil || probe.ProgramStatus != nil || probe.ServerVersion != nil {
-		globalState = map[string]any{
-			"quoteLoggedIn": boolValue(probe.QuoteLoggedIn),
-			"tradeLoggedIn": boolValue(probe.TradeLoggedIn),
-			"serverVersion": probe.ServerVersion,
-			"programStatus": probe.ProgramStatus,
-			"timestamp":     probe.ProgramTimestamp,
-			"markets":       probe.Markets,
+		globalState = &trdsrv.BrokerRuntimeGlobalState{
+			QuoteLoggedIn: boolValue(probe.QuoteLoggedIn), TradeLoggedIn: boolValue(probe.TradeLoggedIn),
+			ServerVersion: probe.ServerVersion, ProgramStatus: probe.ProgramStatus,
+			Timestamp: probe.ProgramTimestamp, Markets: probe.Markets,
 		}
 	}
 	count, limit, atLimit := s.liveStreamStats()
-	return map[string]any{
-		"descriptor": s.descriptor(),
-		"session": map[string]any{
-			"brokerId":           "futu",
-			"displayName":        "Futu OpenAPI via OpenD",
-			"connection":         map[string]any{"host": config.Host, "apiPort": config.APIPort, "websocketPort": config.WebSocketPort, "port": config.APIPort, "useEncryption": config.UseEncryption, "marketDataTransport": liveQuoteTransportMode},
-			"connectivity":       probe.Connectivity,
-			"checkedAt":          probe.CheckedAt,
-			"lastError":          probe.LastError,
-			"globalState":        globalState,
-			"accountsDiscovered": len(accounts),
-			"liveWebSocketClients": map[string]any{
-				"connected": count,
-				"limit":     limit,
-				"atLimit":   atLimit,
+	return &trdsrv.BrokerRuntimeResponse{
+		Descriptor: futuBrokerRuntimeDescriptor(),
+		Session: trdsrv.BrokerRuntimeSession{
+			BrokerID: "futu", DisplayName: "Futu OpenAPI via OpenD",
+			Connection: trdsrv.BrokerRuntimeConnection{
+				Host: config.Host, APIPort: config.APIPort, WebSocketPort: config.WebSocketPort,
+				Port: config.APIPort, UseEncryption: config.UseEncryption, MarketDataTransport: liveQuoteTransportMode,
 			},
+			Connectivity: probe.Connectivity, CheckedAt: probe.CheckedAt, LastError: probe.LastError,
+			GlobalState: globalState, AccountsDiscovered: len(accounts),
+			LiveWebSocketClients: trdsrv.BrokerRuntimeLiveClients{Connected: count, Limit: limit, AtLimit: atLimit},
 		},
-		"accounts": accounts,
+		Accounts: accounts,
 	}
 }
 
@@ -308,7 +317,7 @@ func retryState(retryAfter time.Time) (any, bool) {
 func (s *Server) resetFutuRuntime() {
 	if s.tradingSvc != nil {
 		jftradeErr1 := s.tradingSvc.StopOrderUpdates()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}
 	if s.marketdataSvc != nil {
 		s.marketdataSvc.ResetCollector()
@@ -337,7 +346,7 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 		HandshakeTimeout: 2 * time.Second,
 		RequestTimeout:   3 * time.Second,
 	})
-	defer func() { jftradeLogError(client.Close()) }()
+	defer func() { besteffort.LogError(client.Close()) }()
 	if err := client.Connect(probeCtx); err != nil {
 		return opendProbe{CheckedAt: checkedAt, Connectivity: "disconnected", Status: "offline", LastError: new(err.Error())}
 	}
@@ -399,35 +408,29 @@ func openDProbeFromGlobalState(checkedAt string, s2c *globalpb.S2C) opendProbe {
 		ServerVersion:    &serverVersion,
 		ProgramStatus:    new(programStatusString(s2c.GetProgramStatus())),
 		ProgramTimestamp: new(time.Unix(s2c.GetTime(), 0).UTC().Format(time.RFC3339Nano)),
-		Markets: []map[string]any{
-			{"market": "HK", "state": strconv.Itoa(int(s2c.GetMarketHK()))},
-			{"market": "US", "state": strconv.Itoa(int(s2c.GetMarketUS()))},
-			{"market": "SH", "state": strconv.Itoa(int(s2c.GetMarketSH()))},
-			{"market": "SZ", "state": strconv.Itoa(int(s2c.GetMarketSZ()))},
+		Markets: []trdsrv.BrokerRuntimeMarketState{
+			{Market: "HK", State: strconv.Itoa(int(s2c.GetMarketHK()))},
+			{Market: "US", State: strconv.Itoa(int(s2c.GetMarketUS()))},
+			{Market: "SH", State: strconv.Itoa(int(s2c.GetMarketSH()))},
+			{Market: "SZ", State: strconv.Itoa(int(s2c.GetMarketSZ()))},
 		},
 	}
 }
 
-func (s *Server) emptyBrokerRuntime(config FutuIntegrationConfig) map[string]any {
+func (s *Server) emptyBrokerRuntime(config FutuIntegrationConfig) *trdsrv.BrokerRuntimeResponse {
 	count, limit, atLimit := s.liveStreamStats()
-	return map[string]any{
-		"descriptor": s.descriptor(),
-		"session": map[string]any{
-			"brokerId":           "futu",
-			"displayName":        "Futu OpenAPI via OpenD",
-			"connection":         map[string]any{"host": config.Host, "apiPort": config.APIPort, "websocketPort": config.WebSocketPort, "port": config.APIPort, "useEncryption": config.UseEncryption, "marketDataTransport": liveQuoteTransportMode},
-			"connectivity":       "disconnected",
-			"checkedAt":          "",
-			"lastError":          nil,
-			"globalState":        nil,
-			"accountsDiscovered": 0,
-			"liveWebSocketClients": map[string]any{
-				"connected": count,
-				"limit":     limit,
-				"atLimit":   atLimit,
+	return &trdsrv.BrokerRuntimeResponse{
+		Descriptor: futuBrokerRuntimeDescriptor(),
+		Session: trdsrv.BrokerRuntimeSession{
+			BrokerID: "futu", DisplayName: "Futu OpenAPI via OpenD",
+			Connection: trdsrv.BrokerRuntimeConnection{
+				Host: config.Host, APIPort: config.APIPort, WebSocketPort: config.WebSocketPort,
+				Port: config.APIPort, UseEncryption: config.UseEncryption, MarketDataTransport: liveQuoteTransportMode,
 			},
+			Connectivity: "disconnected", CheckedAt: "", AccountsDiscovered: 0,
+			LiveWebSocketClients: trdsrv.BrokerRuntimeLiveClients{Connected: count, Limit: limit, AtLimit: atLimit},
 		},
-		"accounts": []any{},
+		Accounts: []trdsrv.BrokerRuntimeAccount{},
 	}
 }
 

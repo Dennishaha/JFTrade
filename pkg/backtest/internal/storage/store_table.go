@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func (s *FutuKLineStore) ensureKLineTable(tableName string) error {
@@ -34,7 +35,7 @@ func (s *FutuKLineStore) ensureCompactSchema(tableName string) error {
 	if err != nil {
 		return fmt.Errorf("inspect %s schema: %w", tableName, err)
 	}
-	defer func() { jftradeLogError(rows.Close()) }()
+	defer func() { besteffort.LogError(rows.Close()) }()
 
 	got := make([]string, 0, len(expectedKLineSchemaColumns()))
 	for rows.Next() {

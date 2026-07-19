@@ -2,7 +2,6 @@ package backtest
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -120,12 +119,4 @@ func jftradeCheckedTypeAssertion[T any](value any) T {
 		panic("unexpected dynamic type")
 	}
 	return typed
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

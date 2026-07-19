@@ -20,7 +20,7 @@ func TestServerRuntimeRiskControlsDelegateToControlPlane(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRealTradeControlPlane: %v", err)
 	}
-	server := &Server{realTradeControlPlane: plane}
+	server := &Server{serverRuntimes: serverRuntimes{realTradeControlPlane: plane}}
 	if got := len(server.systemRiskOptions()); got != 3 {
 		t.Fatalf("systemRiskOptions len = %d, want 3", got)
 	}
@@ -38,12 +38,12 @@ func TestServerRuntimeRiskControlsDelegateToControlPlane(t *testing.T) {
 	if err != nil {
 		t.Fatalf("updateRuntimeRiskConfig: %v", err)
 	}
-	if got := riskSnapshot["realTradingEnabled"]; got != true {
+	if got := riskSnapshot.RealTradingEnabled; got != true {
 		t.Fatalf("realTradingEnabled = %#v, want true", got)
 	}
-	riskEntry, ok := riskSnapshot["riskEntry"].(*trdsrv.RealTradeRuntimeRiskEntry)
-	if !ok || riskEntry == nil || riskEntry.OperatorID != "risk-operator" || riskEntry.MaxOrderQuantity == nil || *riskEntry.MaxOrderQuantity != maxQty {
-		t.Fatalf("riskEntry = %#v", riskSnapshot["riskEntry"])
+	riskEntry := riskSnapshot.RiskEntry
+	if riskEntry == nil || riskEntry.OperatorID != "risk-operator" || riskEntry.MaxOrderQuantity == nil || *riskEntry.MaxOrderQuantity != maxQty {
+		t.Fatalf("riskEntry = %#v", riskSnapshot.RiskEntry)
 	}
 
 	killSnapshot, err := server.activateKillSwitch(t.Context(), system.RealTradeKillSwitchCommand{
@@ -54,7 +54,7 @@ func TestServerRuntimeRiskControlsDelegateToControlPlane(t *testing.T) {
 	if err != nil {
 		t.Fatalf("activateKillSwitch: %v", err)
 	}
-	if got := killSnapshot["killSwitchActive"]; got != true {
+	if got := killSnapshot.KillSwitchActive; got != true {
 		t.Fatalf("killSwitchActive = %#v, want true", got)
 	}
 
@@ -71,9 +71,9 @@ func TestServerRuntimeRiskControlsDelegateToControlPlane(t *testing.T) {
 	if err != nil {
 		t.Fatalf("activateHardStop: %v", err)
 	}
-	entries, ok := hardStopSnapshot["hardStopEntries"].([]trdsrv.RealTradeHardStopEntry)
-	if !ok || len(entries) != 1 || entries[0].BrokerID != "futu" || entries[0].AccountID != "acct-1" {
-		t.Fatalf("hardStopEntries = %#v", hardStopSnapshot["hardStopEntries"])
+	entries := hardStopSnapshot.HardStopEntries
+	if len(entries) != 1 || entries[0].BrokerID != "futu" || entries[0].AccountID != "acct-1" {
+		t.Fatalf("hardStopEntries = %#v", hardStopSnapshot.HardStopEntries)
 	}
 
 	releasedHardStop, err := server.releaseHardStop(t.Context(), entries[0].ID, system.RealTradeHardStopCommand{
@@ -83,8 +83,8 @@ func TestServerRuntimeRiskControlsDelegateToControlPlane(t *testing.T) {
 	if err != nil {
 		t.Fatalf("releaseHardStop: %v", err)
 	}
-	if releasedEntries, ok := releasedHardStop["hardStopEntries"].([]trdsrv.RealTradeHardStopEntry); !ok || len(releasedEntries) != 0 {
-		t.Fatalf("released hardStopEntries = %#v, want empty", releasedHardStop["hardStopEntries"])
+	if releasedEntries := releasedHardStop.HardStopEntries; len(releasedEntries) != 0 {
+		t.Fatalf("released hardStopEntries = %#v, want empty", releasedHardStop.HardStopEntries)
 	}
 
 	releasedKill, err := server.releaseKillSwitch(t.Context(), system.RealTradeKillSwitchCommand{
@@ -94,7 +94,7 @@ func TestServerRuntimeRiskControlsDelegateToControlPlane(t *testing.T) {
 	if err != nil {
 		t.Fatalf("releaseKillSwitch: %v", err)
 	}
-	if got := releasedKill["killSwitchActive"]; got != false {
+	if got := releasedKill.KillSwitchActive; got != false {
 		t.Fatalf("released killSwitchActive = %#v, want false", got)
 	}
 
@@ -105,7 +105,7 @@ func TestServerRuntimeRiskControlsDelegateToControlPlane(t *testing.T) {
 	if err != nil {
 		t.Fatalf("disableRuntimeRiskConfig: %v", err)
 	}
-	if got := disabledRisk["runtimeRiskConfigured"]; got != false {
+	if got := disabledRisk.RuntimeRiskConfigured; got != false {
 		t.Fatalf("runtimeRiskConfigured after disable = %#v, want false", got)
 	}
 }
@@ -121,12 +121,16 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 	backtestRunner := &closeTrackingPineWorkerRunner{}
 	instanceRunner := &closeTrackingPineWorkerRunner{}
 	server := &Server{
-		auth:                     newWebAuth(SecuritySettings{}),
-		frontend:                 newFrontendServerWithRuntimeConfig(os.DirFS(frontendDir), "http://127.0.0.1:3000"),
-		executionOrders:          newExecutionOrderStore(),
-		backtestPineWorkerRunner: backtestRunner,
-		instancePineWorkerRunner: instanceRunner,
-		strategyRuntimeManager:   &strategyRuntimeManager{},
+		auth:     newWebAuth(SecuritySettings{}),
+		frontend: newFrontendServerWithRuntimeConfig(os.DirFS(frontendDir), "http://127.0.0.1:3000"),
+		serverStores: serverStores{
+			executionOrders: newExecutionOrderStore(),
+		},
+		serverRuntimes: serverRuntimes{
+			backtestPineWorkerRunner: backtestRunner,
+			instancePineWorkerRunner: instanceRunner,
+			strategyRuntimeManager:   &strategyRuntimeManager{},
+		},
 	}
 
 	sideEffects := server.settingsSideEffects()

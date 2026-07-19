@@ -40,6 +40,7 @@ const (
 	exclusionVendored  exclusionCategory = "vendored"
 	exclusionTooling   exclusionCategory = "tooling"
 	exclusionDesktop   exclusionCategory = "desktop"
+	exclusionContract  exclusionCategory = "contract"
 )
 
 type exclusionRule struct {
@@ -64,6 +65,10 @@ var exclusionRules = []exclusionRule{
 	{scope: "cmd/internal/protogen", category: exclusionTooling, reason: "protobuf generator support"},
 	{scope: "scripts", category: exclusionTooling, reason: "repository maintenance scripts"},
 	{scope: "cmd/jftrade-desktop", category: exclusionDesktop, reason: "desktop client delivery adapter"},
+	{
+		scope: "internal/api/watchlist/openapi.go", category: exclusionContract,
+		reason: "declarative Swaggo-only route documentation",
+	},
 }
 
 type coverageStats struct {

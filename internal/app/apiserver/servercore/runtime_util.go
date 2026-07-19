@@ -1,7 +1,6 @@
 package servercore
 
 import (
-	"log"
 	"sort"
 	"strings"
 	"time"
@@ -285,12 +284,4 @@ func strategyRuntimeSortedSymbols(symbols map[string]*strategySymbolRuntime) []s
 
 func strategyRuntimeMaxTime(left time.Time, right time.Time) time.Time {
 	return runtimecontrol.MaxTime(left, right)
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

@@ -28,45 +28,45 @@ type realTradeControlState struct {
 }
 
 type RealTradeRuntimeRiskEntry struct {
-	ID                 string   `json:"id"`
-	TradingEnvironment string   `json:"tradingEnvironment"`
-	RealTradingEnabled bool     `json:"realTradingEnabled"`
+	ID                 string   `json:"id" binding:"required"`
+	TradingEnvironment string   `json:"tradingEnvironment" binding:"required"`
+	RealTradingEnabled bool     `json:"realTradingEnabled" binding:"required"`
 	MaxOrderQuantity   *float64 `json:"maxOrderQuantity"`
 	MaxOrderNotional   *float64 `json:"maxOrderNotional"`
-	OperatorID         string   `json:"operatorId"`
-	Reason             string   `json:"reason"`
-	ActivatedAt        string   `json:"activatedAt"`
-	UpdatedAt          string   `json:"updatedAt"`
+	OperatorID         string   `json:"operatorId" binding:"required"`
+	Reason             string   `json:"reason" binding:"required"`
+	ActivatedAt        string   `json:"activatedAt" binding:"required"`
+	UpdatedAt          string   `json:"updatedAt" binding:"required"`
 }
 
 type RealTradeKillSwitchEntry struct {
-	ID                 string `json:"id"`
-	TradingEnvironment string `json:"tradingEnvironment"`
-	OperatorID         string `json:"operatorId"`
-	Reason             string `json:"reason"`
-	ActivatedAt        string `json:"activatedAt"`
-	UpdatedAt          string `json:"updatedAt"`
+	ID                 string `json:"id" binding:"required"`
+	TradingEnvironment string `json:"tradingEnvironment" binding:"required"`
+	OperatorID         string `json:"operatorId" binding:"required"`
+	Reason             string `json:"reason" binding:"required"`
+	ActivatedAt        string `json:"activatedAt" binding:"required"`
+	UpdatedAt          string `json:"updatedAt" binding:"required"`
 }
 
 type RealTradeHardStopEntry struct {
-	ID                 string  `json:"id"`
-	BrokerID           string  `json:"brokerId"`
-	TradingEnvironment string  `json:"tradingEnvironment"`
-	AccountID          string  `json:"accountId"`
+	ID                 string  `json:"id" binding:"required"`
+	BrokerID           string  `json:"brokerId" binding:"required"`
+	TradingEnvironment string  `json:"tradingEnvironment" binding:"required"`
+	AccountID          string  `json:"accountId" binding:"required"`
 	Market             *string `json:"market"`
 	Symbol             *string `json:"symbol"`
-	HardStopScope      string  `json:"hardStopScope"`
-	OperatorID         string  `json:"operatorId"`
-	Reason             string  `json:"reason"`
-	ActivatedAt        string  `json:"activatedAt"`
-	UpdatedAt          string  `json:"updatedAt"`
+	HardStopScope      string  `json:"hardStopScope" binding:"required"`
+	OperatorID         string  `json:"operatorId" binding:"required"`
+	Reason             string  `json:"reason" binding:"required"`
+	ActivatedAt        string  `json:"activatedAt" binding:"required"`
+	UpdatedAt          string  `json:"updatedAt" binding:"required"`
 }
 
 type RealTradeControlEvent struct {
-	ID                         string   `json:"id"`
-	EventType                  string   `json:"eventType"`
-	Action                     string   `json:"action"`
-	BrokerID                   string   `json:"brokerId"`
+	ID                         string   `json:"id" binding:"required"`
+	EventType                  string   `json:"eventType" binding:"required"`
+	Action                     string   `json:"action" binding:"required"`
+	BrokerID                   string   `json:"brokerId" binding:"required"`
 	Operation                  *string  `json:"operation"`
 	TradingEnvironment         *string  `json:"tradingEnvironment"`
 	AccountID                  *string  `json:"accountId"`
@@ -85,7 +85,7 @@ type RealTradeControlEvent struct {
 	ConfiguredMaxOrderQuantity *float64 `json:"configuredMaxOrderQuantity"`
 	ConfiguredMaxOrderNotional *float64 `json:"configuredMaxOrderNotional"`
 	ActivatedAt                *string  `json:"activatedAt"`
-	CreatedAt                  string   `json:"createdAt"`
+	CreatedAt                  string   `json:"createdAt" binding:"required"`
 }
 
 type RealTradeKillSwitchCommand struct {
@@ -139,17 +139,17 @@ func (p *RealTradeControlPlane) EvaluatePlaceOrder(_ context.Context, command Ex
 	return decision
 }
 
-func (p *RealTradeControlPlane) Snapshot() map[string]any {
+func (p *RealTradeControlPlane) Snapshot() RealTradeRiskSnapshot {
 	return NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
 		return p.config()
 	}).Snapshot()
 }
 
-func (p *RealTradeControlPlane) ActivateKillSwitch(_ context.Context, command RealTradeKillSwitchCommand) (map[string]any, error) {
+func (p *RealTradeControlPlane) ActivateKillSwitch(_ context.Context, command RealTradeKillSwitchCommand) (RealTradeRiskSnapshot, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	previousState := cloneRealTradeControlState(p.state)
 
@@ -182,16 +182,16 @@ func (p *RealTradeControlPlane) ActivateKillSwitch(_ context.Context, command Re
 	})
 	if err := p.persistLocked(); err != nil {
 		p.state = previousState
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	return p.snapshotLocked(), nil
 }
 
-func (p *RealTradeControlPlane) ReleaseKillSwitch(_ context.Context, command RealTradeKillSwitchCommand) (map[string]any, error) {
+func (p *RealTradeControlPlane) ReleaseKillSwitch(_ context.Context, command RealTradeKillSwitchCommand) (RealTradeRiskSnapshot, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	previousState := cloneRealTradeControlState(p.state)
 
@@ -221,26 +221,26 @@ func (p *RealTradeControlPlane) ReleaseKillSwitch(_ context.Context, command Rea
 	})
 	if err := p.persistLocked(); err != nil {
 		p.state = previousState
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	return p.snapshotLocked(), nil
 }
 
-func (p *RealTradeControlPlane) UpdateRuntimeRiskConfig(_ context.Context, command RealTradeRuntimeRiskCommand) (map[string]any, error) {
+func (p *RealTradeControlPlane) UpdateRuntimeRiskConfig(_ context.Context, command RealTradeRuntimeRiskCommand) (RealTradeRiskSnapshot, error) {
 	if command.RealTradingEnabled && !hasPositiveLimit(command.MaxOrderQuantity) && !hasPositiveLimit(command.MaxOrderNotional) {
-		return nil, fmt.Errorf("at least one positive runtime risk limit is required before enabling real trading")
+		return RealTradeRiskSnapshot{}, fmt.Errorf("at least one positive runtime risk limit is required before enabling real trading")
 	}
 	if err := validateRuntimeRiskLimit(command.MaxOrderQuantity, "maxOrderQuantity"); err != nil {
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	if err := validateRuntimeRiskLimit(command.MaxOrderNotional, "maxOrderNotional"); err != nil {
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	previousState := cloneRealTradeControlState(p.state)
 
@@ -279,16 +279,16 @@ func (p *RealTradeControlPlane) UpdateRuntimeRiskConfig(_ context.Context, comma
 	})
 	if err := p.persistLocked(); err != nil {
 		p.state = previousState
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	return p.snapshotLocked(), nil
 }
 
-func (p *RealTradeControlPlane) DisableRuntimeRiskConfig(_ context.Context, command RealTradeRuntimeRiskCommand) (map[string]any, error) {
+func (p *RealTradeControlPlane) DisableRuntimeRiskConfig(_ context.Context, command RealTradeRuntimeRiskCommand) (RealTradeRiskSnapshot, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	previousState := cloneRealTradeControlState(p.state)
 
@@ -318,16 +318,16 @@ func (p *RealTradeControlPlane) DisableRuntimeRiskConfig(_ context.Context, comm
 	})
 	if err := p.persistLocked(); err != nil {
 		p.state = previousState
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	return p.snapshotLocked(), nil
 }
 
-func (p *RealTradeControlPlane) ActivateHardStop(_ context.Context, command RealTradeHardStopCommand) (map[string]any, error) {
+func (p *RealTradeControlPlane) ActivateHardStop(_ context.Context, command RealTradeHardStopCommand) (RealTradeRiskSnapshot, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	previousState := cloneRealTradeControlState(p.state)
 
@@ -364,16 +364,16 @@ func (p *RealTradeControlPlane) ActivateHardStop(_ context.Context, command Real
 	})
 	if err := p.persistLocked(); err != nil {
 		p.state = previousState
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	return p.snapshotLocked(), nil
 }
 
-func (p *RealTradeControlPlane) ReleaseHardStop(_ context.Context, id string, command RealTradeHardStopCommand) (map[string]any, error) {
+func (p *RealTradeControlPlane) ReleaseHardStop(_ context.Context, id string, command RealTradeHardStopCommand) (RealTradeRiskSnapshot, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	previousState := cloneRealTradeControlState(p.state)
 
@@ -392,7 +392,7 @@ func (p *RealTradeControlPlane) ReleaseHardStop(_ context.Context, id string, co
 		next = append(next, entry)
 	}
 	if released == nil {
-		return nil, fmt.Errorf("real-trade hard stop not found")
+		return RealTradeRiskSnapshot{}, fmt.Errorf("real-trade hard stop not found")
 	}
 	p.state.HardStops = next
 	p.appendEventLocked(RealTradeControlEvent{
@@ -413,7 +413,7 @@ func (p *RealTradeControlPlane) ReleaseHardStop(_ context.Context, id string, co
 	})
 	if err := p.persistLocked(); err != nil {
 		p.state = previousState
-		return nil, err
+		return RealTradeRiskSnapshot{}, err
 	}
 	return p.snapshotLocked(), nil
 }
@@ -424,7 +424,7 @@ func (p *RealTradeControlPlane) config() PreTradeRiskConfig {
 	return p.configLocked()
 }
 
-func (p *RealTradeControlPlane) snapshotLocked() map[string]any {
+func (p *RealTradeControlPlane) snapshotLocked() RealTradeRiskSnapshot {
 	config := p.configLocked()
 	return NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig { return config }).Snapshot()
 }
@@ -470,10 +470,12 @@ func (p *RealTradeControlPlane) recordRejectedHardStop(command ExecutionOrderCom
 		Reason:             nullableString(decision.ReasonMessage),
 		CreatedAt:          now,
 	}
-	if matched, ok := decision.Snapshot["matchedHardStop"].(RealTradeHardStopEntry); ok {
-		event.HardStopScope = new(matched.HardStopScope)
-		event.HardStopID = new(matched.ID)
-		event.ActivatedAt = new(matched.ActivatedAt)
+	if decision.Snapshot != nil {
+		if matched := decision.Snapshot.MatchedHardStop; matched != nil {
+			event.HardStopScope = new(matched.HardStopScope)
+			event.HardStopID = new(matched.ID)
+			event.ActivatedAt = new(matched.ActivatedAt)
+		}
 	}
 	p.appendEventLocked(event)
 	_ = p.persistLocked()

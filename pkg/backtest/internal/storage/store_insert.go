@@ -6,6 +6,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 // InsertKLine inserts a single K-line into the store. Duplicates (same
@@ -94,7 +95,7 @@ func (s *FutuKLineStore) insertKLinesLocked(klines []types.KLine, rehabType stri
 	defer func() {
 		for _, stmt := range stmts {
 			jftradeErr1 := stmt.Close()
-			jftradeLogError(jftradeErr1)
+			besteffort.LogError(jftradeErr1)
 		}
 	}()
 
@@ -105,7 +106,7 @@ func (s *FutuKLineStore) insertKLinesLocked(klines []types.KLine, rehabType stri
 			stmt, err = tx.Preparex(klineInsertStatement(tableName))
 			if err != nil {
 				jftradeErr4 := tx.Rollback()
-				jftradeLogError(jftradeErr4)
+				besteffort.LogError(jftradeErr4)
 				return err
 			}
 			stmts[tableName] = stmt
@@ -121,14 +122,14 @@ func (s *FutuKLineStore) insertKLinesLocked(klines []types.KLine, rehabType stri
 			k.Volume.String(),
 		); err != nil {
 			jftradeErr2 := tx.Rollback()
-			jftradeLogError(jftradeErr2)
+			besteffort.LogError(jftradeErr2)
 			return err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
 		jftradeErr3 := tx.Rollback()
-		jftradeLogError(jftradeErr3)
+		besteffort.LogError(jftradeErr3)
 		return err
 	}
 	return nil

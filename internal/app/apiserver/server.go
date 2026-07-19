@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -298,21 +297,13 @@ func newHandler(store lifecycle.SettingsStore) (lifecycle.Handler, error) {
 }
 
 func loadFrontendFS() fs.FS {
-	return loadFrontendFSWith(frontendassets.FileSystem)
+	return frontendassets.Load()
 }
 
 // loadFrontendFSWith keeps the embedded-asset failure policy independently
 // testable from the build-tag-selected asset provider.
 func loadFrontendFSWith(loader func() (fs.FS, bool, error)) fs.FS {
-	frontendFS, available, err := loader()
-	if err != nil {
-		log.Printf("JFTrade embedded frontend assets unavailable: %v", err)
-		return nil
-	}
-	if !available {
-		return nil
-	}
-	return frontendFS
+	return frontendassets.LoadWith(loader)
 }
 
 func shouldStartForArgs(args []string) bool {

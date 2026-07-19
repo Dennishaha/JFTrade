@@ -186,6 +186,28 @@ func TestDesktopAssetHandlerServesLogViewer(t *testing.T) {
 	}
 }
 
+func TestDesktopAssetHandlerFallsBackForUnknownClientRoute(t *testing.T) {
+	handler := newDesktopAssetHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.NotFound(w, nil)
+	}), fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<main>JFTrade</main>")}}, "http://127.0.0.1:6699", "")
+
+	for _, route := range []string{"/brand-new-page", "/workspace/future-panel/deep-link"} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, route, nil))
+		if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "<main>JFTrade</main>") {
+			t.Fatalf("%s: status = %d, body = %q; unknown client routes must use SPA fallback", route, recorder.Code, recorder.Body.String())
+		}
+	}
+
+	for _, path := range []string{"/api/v1/system/status", "/assets/app.js", "/swagger/index.html"} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("%s: status = %d; API and static paths must not use SPA fallback", path, recorder.Code)
+		}
+	}
+}
+
 func TestShouldUseExplicitTrayMenuClick(t *testing.T) {
 	tests := []struct {
 		goos string

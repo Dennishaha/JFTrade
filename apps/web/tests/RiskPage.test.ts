@@ -24,6 +24,8 @@ vi.mock("../src/composables/useConsoleData", () => ({
 }));
 
 vi.mock("../src/composables/apiClient", () => ({
+  apiPost: vi.fn(async () => ({})),
+  apiPostPath: vi.fn(async () => ({})),
   fetchEnvelope: (...args: unknown[]) => testState.fetchEnvelopeMock(...args),
   fetchEnvelopeWithInit: (...args: unknown[]) =>
     testState.fetchEnvelopeWithInitMock(...args),

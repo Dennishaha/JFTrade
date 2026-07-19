@@ -10,6 +10,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
@@ -604,7 +605,7 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 				"runtime_error",
 				fmt.Sprintf("%s: %s", symbol, message),
 			)
-			jftradeLogError(jftradeErr2)
+			besteffort.LogError(jftradeErr2)
 		},
 	}
 
@@ -615,7 +616,7 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 			"order_ignored",
 			message,
 		)
-		jftradeLogError(jftradeErr)
+		besteffort.LogError(jftradeErr)
 	}
 	live, err := newStrategyRuntimePineWorkerLive(m.pineWorkerRunner, instance, symbol, interval, script, m.newOrderExecutor(instance, runner), runner, recordIgnoredOrder)
 	if err != nil {

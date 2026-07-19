@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/shopspring/decimal"
 )
 
@@ -169,7 +170,7 @@ func TestServiceRemainingLifecycleBoundaries(t *testing.T) {
 	if err := closeService.Close(); err != nil {
 		t.Fatalf("Close without collector = %v", err)
 	}
-	jftradeLogError(nil, wantErr)
+	besteffort.LogError(wantErr)
 }
 
 type generationChangingPushSource struct {

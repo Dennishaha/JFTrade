@@ -21,7 +21,7 @@ import {
   emptyExecutionOrders,
 } from "@/contracts";
 
-import { fetchEnvelope } from "./apiClient";
+import { apiGetPath, fetchEnvelope } from "./apiClient";
 
 interface CreateConsoleDataBrokerLiveQueryControllerOptions {
   systemStatus: Ref<SystemStatusResponse>;
@@ -166,10 +166,10 @@ export function createConsoleDataBrokerLiveQueryController(
     }
 
     try {
-      options.brokerCashFlows.value =
-        await fetchEnvelope<BrokerCashFlowsResponse>(
-          `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/cash-flows?${params.toString()}`,
-        );
+      options.brokerCashFlows.value = await apiGetPath(
+        "/api/v1/brokers/{brokerId}/cash-flows",
+        `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/cash-flows?${params.toString()}`,
+      );
     } catch (error) {
       options.brokerCashFlows.value = {
         ...emptyBrokerCashFlows,
@@ -244,7 +244,8 @@ export function createConsoleDataBrokerLiveQueryController(
             fillParams.set("startTime", fillRange.startTime);
             fillParams.set("endTime", fillRange.endTime);
           }
-          return fetchEnvelope<BrokerFillsResponse>(
+          return apiGetPath(
+            "/api/v1/brokers/{brokerId}/fills",
             `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/fills?${fillParams.toString()}`,
           ).catch((error) => ({
             ...emptyBrokerFills,
@@ -263,7 +264,8 @@ export function createConsoleDataBrokerLiveQueryController(
               marginParams.append("symbol", symbol);
             }
           }
-          return fetchEnvelope<BrokerMarginRatiosResponse>(
+          return apiGetPath(
+            "/api/v1/brokers/{brokerId}/margin-ratios",
             `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/margin-ratios?${marginParams.toString()}`,
           ).catch((error) => ({
             ...emptyBrokerMarginRatios,
@@ -358,7 +360,8 @@ export function createConsoleDataBrokerLiveQueryController(
     }
 
     try {
-      const response = await fetchEnvelope<BrokerMaxTradeQuantityResponse>(
+      const response = await apiGetPath(
+        "/api/v1/brokers/{brokerId}/max-trade-qtys",
         `/api/v1/brokers/${encodeURIComponent(brokerId)}/max-trade-qtys?${params.toString()}`,
       );
       if (requestToken !== maxTradeQuantityRequestToken) {
@@ -444,13 +447,16 @@ export function createConsoleDataBrokerLiveQueryController(
             emptyBrokerOrders,
           ] as const)
         : Promise.all([
-            fetchEnvelope<BrokerFundsResponse>(
+            apiGetPath(
+              "/api/v1/brokers/{brokerId}/funds",
               `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/funds?${input.brokerQuery}`,
             ),
-            fetchEnvelope<BrokerPositionsResponse>(
+            apiGetPath(
+              "/api/v1/brokers/{brokerId}/positions",
               `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/positions?${input.brokerQuery}`,
             ),
-            fetchEnvelope<BrokerOrdersResponse>(
+            apiGetPath(
+              "/api/v1/brokers/{brokerId}/orders",
               `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/orders?${input.brokerQuery}`,
             ),
           ]).then(([nextFunds, nextPositions, orders]) => [nextFunds, nextPositions, orders] as const);

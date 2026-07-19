@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
@@ -39,7 +40,7 @@ func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecu
 	}
 	run = latest
 	if repaired, repairErr := r.repairWorkflowSelfReference(ctx, &run); repairErr != nil {
-		jftradeLogError(repairErr)
+		besteffort.LogError(repairErr)
 		return
 	} else if repaired {
 		return
@@ -74,7 +75,7 @@ func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecu
 func (r *Runtime) loadStaleRunForReconcile(ctx context.Context, runID string) (Run, bool) {
 	latest, ok, err := r.store.Run(ctx, runID)
 	if err != nil || !ok {
-		jftradeLogError(err)
+		besteffort.LogError(err)
 		return Run{}, false
 	}
 	return latest, true
@@ -85,7 +86,7 @@ func (r *Runtime) reconcileCompletedWorkflowParent(ctx context.Context, executor
 		return false
 	}
 	_, _, err := executor.reconcileWorkflowChildren(ctx, run)
-	jftradeLogError(err)
+	besteffort.LogError(err)
 	return true
 }
 
@@ -107,7 +108,7 @@ func (r *Runtime) reconcileTerminalStaleRun(ctx context.Context, executor *Workf
 	}
 	if changed {
 		jftradeErr := r.store.SaveRunAndDenyPendingApprovals(ctx, run)
-		jftradeLogError(jftradeErr)
+		besteffort.LogError(jftradeErr)
 	}
 	return true
 }
@@ -126,7 +127,7 @@ func (r *Runtime) cancelChildOfTerminalParent(ctx context.Context, run Run) bool
 		return false
 	}
 	_, terminateErr := r.cancelRunTree(ctx, run, "parent workflow "+parent.ID+" is already terminal", "PARENT_RUN_TERMINATED", "cancelled because parent workflow terminated", "run.parent_terminated")
-	jftradeLogError(terminateErr)
+	besteffort.LogError(terminateErr)
 	return true
 }
 
@@ -145,7 +146,7 @@ func (r *Runtime) failUnrecoverableStaleRun(ctx context.Context, run Run) {
 	}
 	finalizeRunUsage(&run)
 	jftradeErr := r.store.SaveRun(ctx, run)
-	jftradeLogError(jftradeErr)
+	besteffort.LogError(jftradeErr)
 	r.audit(ctx, "run.orphaned", run.ID, "Agent run became unrecoverable after server restart.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState,
 	})
@@ -201,7 +202,7 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
 		run.CompletedAt = new(nowString())
 		finalizeRunUsage(&run)
 		jftradeErr1 := r.store.SaveRun(ctx, run)
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		r.audit(ctx, "run.timed_out", run.ID, "Agent run timed out.", map[string]any{
 			"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "errorCode": run.ErrorCode, "failureReason": run.FailureReason,
 		})
@@ -405,7 +406,7 @@ func (r *Runtime) cancelRunTree(ctx context.Context, run Run, reason string, err
 			}
 		}
 	} else {
-		jftradeLogError(err)
+		besteffort.LogError(err)
 	}
 	for childRunID := range childRunIDs {
 		if strings.TrimSpace(childRunID) == "" || childRunID == run.ID {
@@ -413,12 +414,12 @@ func (r *Runtime) cancelRunTree(ctx context.Context, run Run, reason string, err
 		}
 		child, ok, childErr := r.store.Run(ctx, childRunID)
 		if childErr != nil {
-			jftradeLogError(childErr)
+			besteffort.LogError(childErr)
 			continue
 		}
 		if ok {
 			_, childErr = r.cancelRunTree(ctx, child, reason, errorCode, message, auditKind)
-			jftradeLogError(childErr)
+			besteffort.LogError(childErr)
 		}
 	}
 	r.audit(ctx, auditKind, run.ID, "Agent run cancelled.", map[string]any{
@@ -441,7 +442,7 @@ func (r *Runtime) cancelUnfinishedWorkflowChildren(ctx context.Context, parent R
 			}
 		}
 	} else {
-		jftradeLogError(err)
+		besteffort.LogError(err)
 	}
 	for childRunID := range childRunIDs {
 		childRunID = strings.TrimSpace(childRunID)
@@ -450,11 +451,11 @@ func (r *Runtime) cancelUnfinishedWorkflowChildren(ctx context.Context, parent R
 		}
 		child, ok, err := r.store.Run(ctx, childRunID)
 		if err != nil || !ok {
-			jftradeLogError(err)
+			besteffort.LogError(err)
 			continue
 		}
 		_, err = r.cancelRunTree(ctx, child, "parent workflow "+parent.ID+" terminated", "PARENT_RUN_TERMINATED", "cancelled because parent workflow terminated", "run.parent_terminated")
-		jftradeLogError(err)
+		besteffort.LogError(err)
 	}
 }
 

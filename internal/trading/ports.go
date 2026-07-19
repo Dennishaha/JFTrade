@@ -50,7 +50,7 @@ type ExecutionPreviewStore interface {
 // BrokerRuntimeProvider resolves the active broker and its runtime state.
 type BrokerRuntimeProvider interface {
 	ActiveBroker() broker.Broker
-	Runtime(context.Context) map[string]any
+	Runtime(context.Context) *BrokerRuntimeResponse
 }
 
 type orderStoreFunctions struct {
@@ -112,7 +112,7 @@ func (f *comboOrderGatewayFunctions) CancelCombo(ctx context.Context, id string)
 
 type brokerRuntimeFunctions struct {
 	active  func() broker.Broker
-	runtime func(context.Context) map[string]any
+	runtime func(context.Context) *BrokerRuntimeResponse
 }
 
 func (f *brokerRuntimeFunctions) ActiveBroker() broker.Broker {
@@ -122,9 +122,9 @@ func (f *brokerRuntimeFunctions) ActiveBroker() broker.Broker {
 	return f.active()
 }
 
-func (f *brokerRuntimeFunctions) Runtime(ctx context.Context) map[string]any {
+func (f *brokerRuntimeFunctions) Runtime(ctx context.Context) *BrokerRuntimeResponse {
 	if f == nil || f.runtime == nil {
-		return map[string]any{}
+		return emptyBrokerRuntimeResponse()
 	}
 	return f.runtime(ctx)
 }

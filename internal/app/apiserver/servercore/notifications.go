@@ -11,6 +11,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 
 	"github.com/jftrade/jftrade-main/internal/live"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
@@ -109,7 +110,7 @@ func (s *Server) ensureLiveNotificationBridge(ctx context.Context) {
 		bridgeCtx, cancel := context.WithTimeout(ctx, liveStreamConnectTimeout)
 		defer cancel()
 		jftradeErr1 := exchange.EnsureSystemNotifications(bridgeCtx)
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}()
 }
 

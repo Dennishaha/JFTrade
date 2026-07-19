@@ -176,7 +176,7 @@ func TestBrokerIdentityMismatchPropagatesAcrossReadAndWriteOperations(t *testing
 		})
 	}
 
-	if runtime, err := (&Service{}).Runtime(t.Context(), ""); err != nil || len(runtime) != 0 {
+	if runtime, err := (&Service{}).Runtime(t.Context(), ""); err != nil || runtime == nil || runtime.Session.Connectivity != "" {
 		t.Fatalf("nil runtime provider fallback = %#v, %v", runtime, err)
 	}
 	service = &Service{orderStore: &testOrderStorePort{}, orderGateway: &testOrderGatewayPort{}, brokerRuntime: testBrokerRuntimePort{}}
@@ -204,10 +204,10 @@ func TestLowLevelTradingFallbackHelpers(t *testing.T) {
 	if _, err := gateway.CancelOrder(t.Context(), "order"); !errors.Is(err, ErrOrderGatewayUnavailable) {
 		t.Fatalf("nil order gateway cancel error = %v", err)
 	}
-	response := (&Service{}).withTimeout(t.Context(), time.Second, "result", nil, nil, func(context.Context) (map[string]any, error) {
+	response := withTimeout(t.Context(), time.Second, "result", func(context.Context) (*BrokerPositionsResponse, error) {
 		return nil, errors.New("upstream failed")
-	})
-	if response["connectivity"] == "connected" {
+	}, positionsReadError)
+	if response.Connectivity == "connected" {
 		t.Fatalf("failed timeout wrapper response = %#v", response)
 	}
 }

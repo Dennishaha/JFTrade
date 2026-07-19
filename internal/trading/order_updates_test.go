@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -90,6 +91,7 @@ type fakeRefreshOrderUpdateSubscription struct {
 	mu           sync.Mutex
 	refreshCalls int
 	accountIDs   []string
+	refreshErr   error
 }
 
 func (s *fakeRefreshOrderUpdateSubscription) Refresh(_ context.Context, accounts []Account, _ []OrderQuery) error {
@@ -100,7 +102,7 @@ func (s *fakeRefreshOrderUpdateSubscription) Refresh(_ context.Context, accounts
 	for _, account := range accounts {
 		s.accountIDs = append(s.accountIDs, account.ID)
 	}
-	return nil
+	return s.refreshErr
 }
 
 type fakeRefreshOrderUpdateSource struct {
@@ -540,7 +542,7 @@ func TestOrderUpdatesWorkerHelperBoundariesCoverNilAndReplacementPaths(t *testin
 	if got := cloneString(nil); got != nil {
 		t.Fatalf("cloneString(nil) = %#v", got)
 	}
-	jftradeLogError("not an error", nil)
+	besteffort.LogError(nil)
 }
 
 func jftradeCheckedTypeAssertion[T any](value any) T {

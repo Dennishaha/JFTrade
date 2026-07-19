@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"strings"
 	"time"
 
@@ -67,103 +66,105 @@ func NormalizeSymbols(marketCode string, symbols []string) ([]string, error) {
 	return normalized, nil
 }
 
-func (s *Service) Runtime(ctx context.Context, brokerID string) (map[string]any, error) {
+// Runtime 返回券商运行时状态。
+func (s *Service) Runtime(ctx context.Context, brokerID string) (*BrokerRuntimeResponse, error) {
 	if _, err := s.resolveBroker(brokerID, false); err != nil {
 		return nil, err
 	}
 	if s.brokerRuntime == nil {
-		return map[string]any{}, nil
+		return emptyBrokerRuntimeResponse(), nil
 	}
 	return s.brokerRuntime.Runtime(ctx), nil
 }
 
-func (s *Service) Funds(ctx context.Context, query broker.ReadQuery) (map[string]any, error) {
+func (s *Service) Funds(ctx context.Context, query broker.ReadQuery) (*BrokerFundsResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("summary", nil, errors.New("broker market data not available"), "currencyBalances", "marketAssets"), nil
+		return fundsReadError(errors.New("broker market data not available")), nil
 	}
 	snapshot, readErr := reader.QueryFunds(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("summary", nil, readErr, "currencyBalances", "marketAssets"), nil
+		return fundsReadError(readErr), nil
 	}
 
-	currencyBalances := make([]any, 0, len(snapshot.CurrencyBalances))
+	currencyBalances := make([]BrokerCurrencyBalance, 0, len(snapshot.CurrencyBalances))
 	for _, balance := range snapshot.CurrencyBalances {
-		currencyBalances = append(currencyBalances, map[string]any{
-			"accountId": balance.AccountID, "tradingEnvironment": balance.TradingEnvironment,
-			"currency": balance.Currency, "cash": balance.Cash,
-			"availableWithdrawalCash": balance.AvailableWithdrawalCash, "netCashPower": balance.NetCashPower,
+		currencyBalances = append(currencyBalances, BrokerCurrencyBalance{
+			AccountID: balance.AccountID, TradingEnvironment: balance.TradingEnvironment,
+			Currency: balance.Currency, Cash: balance.Cash,
+			AvailableWithdrawalCash: balance.AvailableWithdrawalCash, NetCashPower: balance.NetCashPower,
 		})
 	}
-	marketAssets := make([]any, 0, len(snapshot.MarketAssets))
+	marketAssets := make([]BrokerMarketAsset, 0, len(snapshot.MarketAssets))
 	for _, asset := range snapshot.MarketAssets {
-		marketAssets = append(marketAssets, map[string]any{
-			"accountId": asset.AccountID, "tradingEnvironment": asset.TradingEnvironment,
-			"market": asset.Market, "assets": asset.Assets,
+		marketAssets = append(marketAssets, BrokerMarketAsset{
+			AccountID: asset.AccountID, TradingEnvironment: asset.TradingEnvironment,
+			Market: asset.Market, Assets: asset.Assets,
 		})
 	}
-	return connectedResponse(map[string]any{
-		"summary": map[string]any{
-			"accountId": snapshot.AccountID, "tradingEnvironment": snapshot.TradingEnvironment,
-			"market": snapshot.Market, "currency": snapshot.Currency, "totalAssets": snapshot.TotalAssets,
-			"securitiesAssets": snapshot.SecuritiesAssets, "fundAssets": snapshot.FundAssets,
-			"bondAssets": snapshot.BondAssets, "cash": snapshot.Cash, "marketValue": snapshot.MarketValue,
-			"longMarketValue": snapshot.LongMarketValue, "shortMarketValue": snapshot.ShortMarketValue,
-			"purchasingPower": snapshot.PurchasingPower, "shortSellingPower": snapshot.ShortSellingPower,
-			"netCashPower": snapshot.NetCashPower, "availableWithdrawalCash": snapshot.AvailableWithdrawalCash,
-			"maxWithdrawal": snapshot.MaxWithdrawal, "availableFunds": snapshot.AvailableFunds,
-			"frozenCash": snapshot.FrozenCash, "pendingAsset": snapshot.PendingAsset,
-			"unrealizedPnl": snapshot.UnrealizedPnl, "realizedPnl": snapshot.RealizedPnl,
-			"initialMargin": snapshot.InitialMargin, "maintenanceMargin": snapshot.MaintenanceMargin,
-			"marginCallMargin": snapshot.MarginCallMargin, "riskStatus": snapshot.RiskStatus,
-			"debtCash": snapshot.DebtCash, "isPdt": snapshot.IsPDT, "pdtSeq": snapshot.PDTSeq,
-			"beginningDTBP": snapshot.BeginningDTBP, "remainingDTBP": snapshot.RemainingDTBP,
-			"dtCallAmount": snapshot.DTCallAmount, "dtStatus": snapshot.DTStatus,
-			"exposureLevel": snapshot.ExposureLevel, "exposureLimit": snapshot.ExposureLimit,
-			"usedLimit": snapshot.UsedLimit, "remainingLimit": snapshot.RemainingLimit,
+	return &BrokerFundsResponse{
+		BrokerReadStatus: connectedReadStatus(),
+		Summary: &BrokerFundsSummary{
+			AccountID: snapshot.AccountID, TradingEnvironment: snapshot.TradingEnvironment,
+			Market: snapshot.Market, Currency: snapshot.Currency, TotalAssets: snapshot.TotalAssets,
+			SecuritiesAssets: snapshot.SecuritiesAssets, FundAssets: snapshot.FundAssets,
+			BondAssets: snapshot.BondAssets, Cash: snapshot.Cash, MarketValue: snapshot.MarketValue,
+			LongMarketValue: snapshot.LongMarketValue, ShortMarketValue: snapshot.ShortMarketValue,
+			PurchasingPower: snapshot.PurchasingPower, ShortSellingPower: snapshot.ShortSellingPower,
+			NetCashPower: snapshot.NetCashPower, AvailableWithdrawalCash: snapshot.AvailableWithdrawalCash,
+			MaxWithdrawal: snapshot.MaxWithdrawal, AvailableFunds: snapshot.AvailableFunds,
+			FrozenCash: snapshot.FrozenCash, PendingAsset: snapshot.PendingAsset,
+			UnrealizedPnl: snapshot.UnrealizedPnl, RealizedPnl: snapshot.RealizedPnl,
+			InitialMargin: snapshot.InitialMargin, MaintenanceMargin: snapshot.MaintenanceMargin,
+			MarginCallMargin: snapshot.MarginCallMargin, RiskStatus: snapshot.RiskStatus,
+			DebtCash: snapshot.DebtCash, IsPDT: snapshot.IsPDT, PDTSeq: snapshot.PDTSeq,
+			BeginningDTBP: snapshot.BeginningDTBP, RemainingDTBP: snapshot.RemainingDTBP,
+			DTCallAmount: snapshot.DTCallAmount, DTStatus: snapshot.DTStatus,
+			ExposureLevel: snapshot.ExposureLevel, ExposureLimit: snapshot.ExposureLimit,
+			UsedLimit: snapshot.UsedLimit, RemainingLimit: snapshot.RemainingLimit,
 		},
-		"currencyBalances": currencyBalances,
-		"marketAssets":     marketAssets,
-	}), nil
+		CurrencyBalances: currencyBalances,
+		MarketAssets:     marketAssets,
+	}, nil
 }
 
-func (s *Service) Positions(ctx context.Context, query broker.ReadQuery) (map[string]any, error) {
+func (s *Service) Positions(ctx context.Context, query broker.ReadQuery) (*BrokerPositionsResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("positions", []any{}, errors.New("broker market data not available")), nil
+		return positionsReadError(errors.New("broker market data not available")), nil
 	}
 	positions, readErr := reader.QueryPositions(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("positions", []any{}, readErr), nil
+		return positionsReadError(readErr), nil
 	}
-	entries := make([]any, 0, len(positions))
+	entries := make([]BrokerPosition, 0, len(positions))
 	for _, position := range positions {
-		entries = append(entries, map[string]any{
-			"accountId": position.AccountID, "tradingEnvironment": position.TradingEnvironment,
-			"market": position.Market, "symbol": position.Symbol, "symbolName": position.SymbolName,
-			"quantity": position.Quantity, "sellableQuantity": position.SellableQuantity,
-			"lastPrice": position.LastPrice, "costPrice": position.CostPrice,
-			"averageCostPrice": position.AverageCostPrice, "marketValue": position.MarketValue,
-			"unrealizedPnl": position.UnrealizedPnl, "realizedPnl": position.RealizedPnl,
-			"pnlRatio": position.PnlRatio, "currency": position.Currency,
+		entries = append(entries, BrokerPosition{
+			AccountID: position.AccountID, TradingEnvironment: position.TradingEnvironment,
+			Market: position.Market, Symbol: position.Symbol, SymbolName: position.SymbolName,
+			Quantity: position.Quantity, SellableQuantity: position.SellableQuantity,
+			LastPrice: position.LastPrice, CostPrice: position.CostPrice,
+			AverageCostPrice: position.AverageCostPrice, MarketValue: position.MarketValue,
+			UnrealizedPnl: position.UnrealizedPnl, RealizedPnl: position.RealizedPnl,
+			PnlRatio: position.PnlRatio, Currency: position.Currency,
 		})
 	}
-	return connectedResponse(map[string]any{"positions": entries}), nil
+	return &BrokerPositionsResponse{BrokerReadStatus: connectedReadStatus(), Positions: entries}, nil
 }
 
-func (s *Service) Orders(ctx context.Context, query OrdersQuery) (map[string]any, error) {
+func (s *Service) Orders(ctx context.Context, query OrdersQuery) (*BrokerOrdersResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("orders", []any{}, errors.New("broker market data not available")), nil
+		return ordersReadError(errors.New("broker market data not available")), nil
 	}
 	var orders []broker.OrderSnapshot
 	if query.Scope == "HISTORY" {
@@ -175,32 +176,32 @@ func (s *Service) Orders(ctx context.Context, query OrdersQuery) (map[string]any
 		orders, err = reader.QueryOrders(ctx, query.ReadQuery, query.Symbol)
 	}
 	if err != nil {
-		return readErrorResponse("orders", []any{}, err), nil
+		return ordersReadError(err), nil
 	}
-	entries := make([]any, 0, len(orders))
+	entries := make([]BrokerOrder, 0, len(orders))
 	for _, order := range orders {
-		entries = append(entries, map[string]any{
-			"accountId":          firstNonEmpty(order.AccountID, query.AccountID),
-			"tradingEnvironment": firstNonEmpty(order.TradingEnvironment, query.TradingEnvironment),
-			"market":             firstNonEmpty(order.Market, query.Market), "brokerOrderId": order.BrokerOrderID,
-			"brokerOrderIdEx": order.BrokerOrderIDEx, "symbol": order.Symbol, "symbolName": order.SymbolName,
-			"side": order.Side, "orderType": order.OrderType, "status": order.Status,
-			"quantity": order.Quantity, "filledQuantity": order.FilledQuantity, "price": order.Price,
-			"filledAveragePrice": order.FilledAveragePrice, "submittedAt": order.SubmittedAt,
-			"updatedAt": order.UpdatedAt, "remark": order.Remark, "lastError": order.LastError,
-			"timeInForce": order.TimeInForce, "currency": order.Currency,
+		entries = append(entries, BrokerOrder{
+			AccountID:          firstNonEmpty(order.AccountID, query.AccountID),
+			TradingEnvironment: firstNonEmpty(order.TradingEnvironment, query.TradingEnvironment),
+			Market:             firstNonEmpty(order.Market, query.Market), BrokerOrderID: order.BrokerOrderID,
+			BrokerOrderIDEx: order.BrokerOrderIDEx, Symbol: order.Symbol, SymbolName: order.SymbolName,
+			Side: order.Side, OrderType: order.OrderType, Status: order.Status,
+			Quantity: order.Quantity, FilledQuantity: order.FilledQuantity, Price: order.Price,
+			FilledAveragePrice: order.FilledAveragePrice, SubmittedAt: order.SubmittedAt,
+			UpdatedAt: order.UpdatedAt, Remark: order.Remark, LastError: order.LastError,
+			TimeInForce: order.TimeInForce, Currency: order.Currency,
 		})
 	}
-	return connectedResponse(map[string]any{"orders": entries}), nil
+	return &BrokerOrdersResponse{BrokerReadStatus: connectedReadStatus(), Orders: entries}, nil
 }
 
-func (s *Service) Fills(ctx context.Context, query FillsQuery) (map[string]any, error) {
+func (s *Service) Fills(ctx context.Context, query FillsQuery) (*BrokerFillsResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("fills", []any{}, errors.New("broker market data not available")), nil
+		return fillsReadError(errors.New("broker market data not available")), nil
 	}
 	fillQuery := broker.OrderFillQuery{
 		ReadQuery: query.ReadQuery, Symbol: query.Symbol, StartTime: query.StartTime, EndTime: query.EndTime,
@@ -212,248 +213,239 @@ func (s *Service) Fills(ctx context.Context, query FillsQuery) (map[string]any, 
 		fills, err = reader.QueryOrderFills(ctx, fillQuery)
 	}
 	if err != nil {
-		return readErrorResponse("fills", []any{}, err), nil
+		return fillsReadError(err), nil
 	}
-	entries := make([]any, 0, len(fills))
+	entries := make([]BrokerFill, 0, len(fills))
 	for _, fill := range fills {
-		entries = append(entries, map[string]any{
-			"accountId": fill.AccountID, "tradingEnvironment": fill.TradingEnvironment,
-			"market": fill.Market, "brokerOrderId": fill.BrokerOrderID,
-			"brokerOrderIdEx": fill.BrokerOrderIDEx, "brokerFillId": fill.BrokerFillID,
-			"brokerFillIdEx": fill.BrokerFillIDEx, "symbol": fill.Symbol, "symbolName": fill.SymbolName,
-			"side": fill.Side, "filledQuantity": fill.FilledQuantity, "fillPrice": fill.FillPrice,
-			"filledAt": fill.FilledAt, "status": fill.Status,
+		entries = append(entries, BrokerFill{
+			AccountID: fill.AccountID, TradingEnvironment: fill.TradingEnvironment,
+			Market: fill.Market, BrokerOrderID: fill.BrokerOrderID,
+			BrokerOrderIDEx: fill.BrokerOrderIDEx, BrokerFillID: fill.BrokerFillID,
+			BrokerFillIDEx: fill.BrokerFillIDEx, Symbol: fill.Symbol, SymbolName: fill.SymbolName,
+			Side: fill.Side, FilledQuantity: fill.FilledQuantity, FillPrice: fill.FillPrice,
+			FilledAt: fill.FilledAt, Status: fill.Status,
 		})
 	}
-	return connectedResponse(map[string]any{"fills": entries}), nil
+	return &BrokerFillsResponse{BrokerReadStatus: connectedReadStatus(), Fills: entries}, nil
 }
 
-func (s *Service) CashFlows(ctx context.Context, query broker.CashFlowQuery) (map[string]any, error) {
+func (s *Service) CashFlows(ctx context.Context, query broker.CashFlowQuery) (*BrokerCashFlowsResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("cashFlows", []any{}, errors.New("broker market data not available")), nil
+		return cashFlowsReadError(errors.New("broker market data not available")), nil
 	}
 	flows, readErr := reader.QueryCashFlows(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("cashFlows", []any{}, readErr), nil
+		return cashFlowsReadError(readErr), nil
 	}
-	entries := make([]any, 0, len(flows))
-	for _, flow := range flows {
-		entries = append(entries, flow)
-	}
-	return connectedResponse(map[string]any{"cashFlows": entries}), nil
+	entries := append([]broker.CashFlowSnapshot(nil), flows...)
+	return &BrokerCashFlowsResponse{BrokerReadStatus: connectedReadStatus(), CashFlows: entries}, nil
 }
 
-func (s *Service) OrderFees(ctx context.Context, query broker.OrderFeeQuery) (map[string]any, error) {
+func (s *Service) OrderFees(ctx context.Context, query broker.OrderFeeQuery) (*BrokerOrderFeesResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("fees", []any{}, errors.New("broker market data not available")), nil
+		return orderFeesReadError(errors.New("broker market data not available")), nil
 	}
 	fees, readErr := reader.QueryOrderFees(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("fees", []any{}, readErr), nil
+		return orderFeesReadError(readErr), nil
 	}
-	entries := make([]any, 0, len(fees))
-	for _, fee := range fees {
-		entries = append(entries, fee)
-	}
-	return connectedResponse(map[string]any{"fees": entries}), nil
+	entries := append([]broker.OrderFeeSnapshot(nil), fees...)
+	return &BrokerOrderFeesResponse{BrokerReadStatus: connectedReadStatus(), Fees: entries}, nil
 }
 
-func (s *Service) MarginRatios(ctx context.Context, query broker.MarginRatioQuery) (map[string]any, error) {
+func (s *Service) MarginRatios(ctx context.Context, query broker.MarginRatioQuery) (*BrokerMarginRatiosResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("marginRatios", []any{}, errors.New("broker market data not available")), nil
+		return marginRatiosReadError(errors.New("broker market data not available")), nil
 	}
 	ratios, readErr := reader.QueryMarginRatios(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("marginRatios", []any{}, readErr), nil
+		return marginRatiosReadError(readErr), nil
 	}
-	entries := make([]any, 0, len(ratios))
-	for _, ratio := range ratios {
-		entries = append(entries, ratio)
-	}
-	return connectedResponse(map[string]any{"marginRatios": entries}), nil
+	entries := append([]broker.MarginRatioSnapshot(nil), ratios...)
+	return &BrokerMarginRatiosResponse{BrokerReadStatus: connectedReadStatus(), MarginRatios: entries}, nil
 }
 
-func (s *Service) MaxTradeQuantity(ctx context.Context, query broker.MaxTradeQuantityQuery) (map[string]any, error) {
+func (s *Service) MaxTradeQuantity(ctx context.Context, query broker.MaxTradeQuantityQuery) (*BrokerMaxTradeQuantityResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("maxTradeQuantity", nil, errors.New("broker market data not available")), nil
+		return maxTradeQuantityReadError(errors.New("broker market data not available")), nil
 	}
 	snapshot, readErr := reader.QueryMaxTradeQuantity(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("maxTradeQuantity", nil, readErr), nil
+		return maxTradeQuantityReadError(readErr), nil
 	}
-	return connectedResponse(map[string]any{"maxTradeQuantity": snapshot}), nil
+	return &BrokerMaxTradeQuantityResponse{BrokerReadStatus: connectedReadStatus(), MaxTradeQuantity: snapshot}, nil
 }
 
-func (s *Service) Quote(ctx context.Context, query broker.QuoteQuery) (map[string]any, error) {
+func (s *Service) Quote(ctx context.Context, query broker.QuoteQuery) (*BrokerQuoteResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("quotes", []any{}, errors.New("broker market data not available")), nil
+		return quoteReadError(errors.New("broker market data not available")), nil
 	}
 	quote, readErr := reader.QueryQuote(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("quotes", []any{}, readErr), nil
+		return quoteReadError(readErr), nil
 	}
-	return connectedResponse(map[string]any{"quote": quote}), nil
+	return &BrokerQuoteResponse{BrokerReadStatus: connectedReadStatus(), Quote: quote}, nil
 }
 
-func (s *Service) KLines(ctx context.Context, query broker.KLineQuery) (map[string]any, error) {
+func (s *Service) KLines(ctx context.Context, query broker.KLineQuery) (*BrokerKLinesResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("klines", []any{}, errors.New("broker market data not available")), nil
+		return klinesReadError(errors.New("broker market data not available")), nil
 	}
 	snapshot, readErr := reader.QueryKLines(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("klines", []any{}, readErr), nil
+		return klinesReadError(readErr), nil
 	}
-	return connectedResponse(map[string]any{"klines": snapshot}), nil
+	return &BrokerKLinesResponse{BrokerReadStatus: connectedReadStatus(), KLines: snapshot}, nil
 }
 
-func (s *Service) Securities(ctx context.Context, query broker.SecuritySnapshotQuery) (map[string]any, error) {
+func (s *Service) Securities(ctx context.Context, query broker.SecuritySnapshotQuery) (*BrokerSecuritiesResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("securities", []any{}, errors.New("broker market data not available")), nil
+		return securitiesReadError(errors.New("broker market data not available")), nil
 	}
 	result, readErr := reader.QuerySecuritySnapshot(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("securities", []any{}, readErr), nil
+		return securitiesReadError(readErr), nil
 	}
-	return connectedResponse(map[string]any{"securities": result}), nil
+	return &BrokerSecuritiesResponse{BrokerReadStatus: connectedReadStatus(), Securities: result}, nil
 }
 
-func (s *Service) PortfolioCashBalances(ctx context.Context, query broker.ReadQuery) (map[string]any, error) {
+func (s *Service) PortfolioCashBalances(ctx context.Context, query broker.ReadQuery) (*PortfolioCashBalancesResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return map[string]any{"balances": []any{}}, nil
+		return &PortfolioCashBalancesResponse{Balances: []PortfolioCashBalance{}}, nil
 	}
 	snapshot, err := reader.QueryFunds(ctx, query)
 	if err != nil {
-		return map[string]any{"balances": []any{}}, nil
+		return &PortfolioCashBalancesResponse{Balances: []PortfolioCashBalance{}}, nil
 	}
 	timestamp := now()
-	balances := make([]any, 0, len(snapshot.CurrencyBalances))
+	balances := make([]PortfolioCashBalance, 0, len(snapshot.CurrencyBalances))
 	for _, balance := range snapshot.CurrencyBalances {
-		balances = append(balances, map[string]any{
-			"brokerId": query.BrokerID, "tradingEnvironment": balance.TradingEnvironment,
-			"accountId": balance.AccountID, "currency": balance.Currency,
-			"cashBalance": floatValue(balance.Cash), "updatedAt": timestamp, "createdAt": timestamp,
+		balances = append(balances, PortfolioCashBalance{
+			BrokerID: query.BrokerID, TradingEnvironment: balance.TradingEnvironment,
+			AccountID: balance.AccountID, Currency: balance.Currency,
+			CashBalance: floatValue(balance.Cash), UpdatedAt: timestamp, CreatedAt: timestamp,
 		})
 	}
 	if len(balances) == 0 && snapshot.Currency != nil {
-		balances = append(balances, map[string]any{
-			"brokerId": query.BrokerID, "tradingEnvironment": snapshot.TradingEnvironment,
-			"accountId": snapshot.AccountID, "currency": *snapshot.Currency,
-			"cashBalance": floatValue(snapshot.Cash), "updatedAt": timestamp, "createdAt": timestamp,
+		balances = append(balances, PortfolioCashBalance{
+			BrokerID: query.BrokerID, TradingEnvironment: snapshot.TradingEnvironment,
+			AccountID: snapshot.AccountID, Currency: *snapshot.Currency,
+			CashBalance: floatValue(snapshot.Cash), UpdatedAt: timestamp, CreatedAt: timestamp,
 		})
 	}
-	return map[string]any{"balances": balances}, nil
+	return &PortfolioCashBalancesResponse{Balances: balances}, nil
 }
 
-func (s *Service) PortfolioPositions(ctx context.Context, query broker.ReadQuery) (map[string]any, error) {
+func (s *Service) PortfolioPositions(ctx context.Context, query broker.ReadQuery) (*PortfolioPositionsResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return map[string]any{"positions": []any{}}, nil
+		return &PortfolioPositionsResponse{Positions: []PortfolioPosition{}}, nil
 	}
 	snapshots, err := reader.QueryPositions(ctx, query)
 	if err != nil {
-		return map[string]any{"positions": []any{}}, nil
+		return &PortfolioPositionsResponse{Positions: []PortfolioPosition{}}, nil
 	}
 	timestamp := now()
-	positions := make([]any, 0, len(snapshots))
+	positions := make([]PortfolioPosition, 0, len(snapshots))
 	for _, position := range snapshots {
-		positions = append(positions, map[string]any{
-			"brokerId": query.BrokerID, "tradingEnvironment": position.TradingEnvironment,
-			"accountId": position.AccountID, "market": position.Market, "symbol": position.Symbol,
-			"quantity": position.Quantity, "averagePrice": firstFloat(position.AverageCostPrice, position.CostPrice),
-			"marketValue": position.MarketValue, "updatedAt": timestamp, "createdAt": timestamp,
+		positions = append(positions, PortfolioPosition{
+			BrokerID: query.BrokerID, TradingEnvironment: position.TradingEnvironment,
+			AccountID: position.AccountID, Market: position.Market, Symbol: position.Symbol,
+			Quantity: position.Quantity, AveragePrice: firstFloat(position.AverageCostPrice, position.CostPrice),
+			MarketValue: position.MarketValue, UpdatedAt: timestamp, CreatedAt: timestamp,
 		})
 	}
-	return map[string]any{"positions": positions}, nil
+	return &PortfolioPositionsResponse{Positions: positions}, nil
 }
 
-func (s *Service) PortfolioReconciliation(ctx context.Context, query broker.ReadQuery) (map[string]any, error) {
+func (s *Service) PortfolioReconciliation(ctx context.Context, query broker.ReadQuery) (*PortfolioReconciliationResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("positions", []any{}, errors.New("broker market data unavailable")), nil
+		return portfolioReconciliationReadError(errors.New("broker market data unavailable")), nil
 	}
 	snapshots, readErr := reader.QueryPositions(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("positions", []any{}, readErr), nil
+		return portfolioReconciliationReadError(readErr), nil
 	}
-	positions := make([]any, 0, len(snapshots))
+	positions := make([]PortfolioReconciliationPosition, 0, len(snapshots))
 	for _, position := range snapshots {
-		positions = append(positions, map[string]any{
-			"brokerId": query.BrokerID, "tradingEnvironment": position.TradingEnvironment,
-			"accountId": position.AccountID, "market": position.Market, "symbol": position.Symbol,
-			"symbolName": position.SymbolName, "status": "missing-in-projection",
-			"projectedQuantity": nil, "brokerQuantity": position.Quantity, "quantityDelta": position.Quantity,
-			"projectedAveragePrice": nil, "brokerAverageCostPrice": firstFloatPointer(position.AverageCostPrice, position.CostPrice),
-			"averagePriceDelta": nil, "projectedRealizedPnl": nil, "brokerRealizedPnl": position.RealizedPnl,
-			"realizedPnlDelta": nil, "projectedUpdatedAt": nil,
+		positions = append(positions, PortfolioReconciliationPosition{
+			BrokerID: query.BrokerID, TradingEnvironment: position.TradingEnvironment,
+			AccountID: position.AccountID, Market: position.Market, Symbol: position.Symbol,
+			SymbolName: position.SymbolName, Status: "missing-in-projection",
+			ProjectedQuantity: nil, BrokerQuantity: position.Quantity, QuantityDelta: position.Quantity,
+			ProjectedAveragePrice: nil, BrokerAverageCostPrice: firstFloatPointer(position.AverageCostPrice, position.CostPrice),
+			AveragePriceDelta: nil, ProjectedRealizedPnl: nil, BrokerRealizedPnl: position.RealizedPnl,
+			RealizedPnlDelta: nil, ProjectedUpdatedAt: nil,
 		})
 	}
-	return connectedResponse(map[string]any{"positions": positions}), nil
+	return &PortfolioReconciliationResponse{BrokerReadStatus: connectedReadStatus(), Positions: positions}, nil
 }
 
-func (s *Service) PortfolioCashReconciliation(ctx context.Context, query broker.ReadQuery) (map[string]any, error) {
+func (s *Service) PortfolioCashReconciliation(ctx context.Context, query broker.ReadQuery) (*PortfolioCashReconciliationResponse, error) {
 	reader, err := s.marketDataReader(query.BrokerID)
 	if err != nil {
 		return nil, err
 	}
 	if reader == nil {
-		return readErrorResponse("balances", []any{}, errors.New("broker market data unavailable")), nil
+		return portfolioCashReconciliationReadError(errors.New("broker market data unavailable")), nil
 	}
 	snapshot, readErr := reader.QueryFunds(ctx, query)
 	if readErr != nil {
-		return readErrorResponse("balances", []any{}, readErr), nil
+		return portfolioCashReconciliationReadError(readErr), nil
 	}
-	balances := make([]any, 0, len(snapshot.CurrencyBalances))
+	balances := make([]PortfolioCashReconciliationBalance, 0, len(snapshot.CurrencyBalances))
 	for _, balance := range snapshot.CurrencyBalances {
-		balances = append(balances, map[string]any{
-			"brokerId": query.BrokerID, "tradingEnvironment": balance.TradingEnvironment,
-			"accountId": balance.AccountID, "currency": balance.Currency, "status": "missing-in-projection",
-			"projectedCashBalance": nil, "brokerCash": balance.Cash, "cashDelta": floatValue(balance.Cash),
-			"brokerAvailableWithdrawalCash": balance.AvailableWithdrawalCash,
-			"brokerNetCashPower":            balance.NetCashPower, "projectedUpdatedAt": nil,
+		balances = append(balances, PortfolioCashReconciliationBalance{
+			BrokerID: query.BrokerID, TradingEnvironment: balance.TradingEnvironment,
+			AccountID: balance.AccountID, Currency: balance.Currency, Status: "missing-in-projection",
+			ProjectedCashBalance: nil, BrokerCash: balance.Cash, CashDelta: floatValue(balance.Cash),
+			BrokerAvailableWithdrawalCash: balance.AvailableWithdrawalCash,
+			BrokerNetCashPower:            balance.NetCashPower, ProjectedUpdatedAt: nil,
 		})
 	}
-	return connectedResponse(map[string]any{"balances": balances}), nil
+	return &PortfolioCashReconciliationResponse{BrokerReadStatus: connectedReadStatus(), Balances: balances}, nil
 }
 
-func (s *Service) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (map[string]any, error) {
+func (s *Service) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*BrokerPlaceOrderResponse, error) {
 	active, err := s.resolveBroker(query.BrokerID, true)
 	if err != nil {
 		return nil, err
@@ -466,10 +458,10 @@ func (s *Service) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQ
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"placedAt": now(), "order": result}, nil
+	return &BrokerPlaceOrderResponse{PlacedAt: now(), Order: result}, nil
 }
 
-func (s *Service) CancelBrokerOrders(ctx context.Context, query broker.ReadQuery, orders []broker.CancelOrder) (map[string]any, error) {
+func (s *Service) CancelBrokerOrders(ctx context.Context, query broker.ReadQuery, orders []broker.CancelOrder) (*BrokerCancelOrdersResponse, error) {
 	active, err := s.resolveBroker(query.BrokerID, true)
 	if err != nil {
 		return nil, err
@@ -481,10 +473,10 @@ func (s *Service) CancelBrokerOrders(ctx context.Context, query broker.ReadQuery
 	if err := trading.CancelOrders(ctx, query, orders...); err != nil {
 		return nil, err
 	}
-	return map[string]any{"cancelledAt": now(), "cancelled": len(orders)}, nil
+	return &BrokerCancelOrdersResponse{CancelledAt: now(), Cancelled: len(orders)}, nil
 }
 
-func (s *Service) UnlockTrade(ctx context.Context, req broker.UnlockTradeRequest) (map[string]any, error) {
+func (s *Service) UnlockTrade(ctx context.Context, req broker.UnlockTradeRequest) (*BrokerUnlockTradeResponse, error) {
 	active, err := s.resolveBroker(req.BrokerID, true)
 	if err != nil {
 		return nil, err
@@ -496,35 +488,35 @@ func (s *Service) UnlockTrade(ctx context.Context, req broker.UnlockTradeRequest
 	if err := unlocker.UnlockTrade(ctx, req); err != nil {
 		return nil, err
 	}
-	return map[string]any{"unlockedAt": now(), "unlocked": true}, nil
+	return &BrokerUnlockTradeResponse{UnlockedAt: now(), Unlocked: true}, nil
 }
 
-func (s *Service) FundsWithTimeout(ctx context.Context, query broker.ReadQuery, timeout time.Duration) map[string]any {
-	return s.withTimeout(ctx, timeout, "summary", nil, []string{"currencyBalances", "marketAssets"}, func(queryCtx context.Context) (map[string]any, error) {
+func (s *Service) FundsWithTimeout(ctx context.Context, query broker.ReadQuery, timeout time.Duration) *BrokerFundsResponse {
+	return withTimeout(ctx, timeout, "summary", func(queryCtx context.Context) (*BrokerFundsResponse, error) {
 		return s.Funds(queryCtx, query)
-	})
+	}, fundsReadError)
 }
 
-func (s *Service) PositionsWithTimeout(ctx context.Context, query broker.ReadQuery, timeout time.Duration) map[string]any {
-	return s.withTimeout(ctx, timeout, "positions", []any{}, nil, func(queryCtx context.Context) (map[string]any, error) {
+func (s *Service) PositionsWithTimeout(ctx context.Context, query broker.ReadQuery, timeout time.Duration) *BrokerPositionsResponse {
+	return withTimeout(ctx, timeout, "positions", func(queryCtx context.Context) (*BrokerPositionsResponse, error) {
 		return s.Positions(queryCtx, query)
-	})
+	}, positionsReadError)
 }
 
-func (s *Service) withTimeout(ctx context.Context, timeout time.Duration, key string, empty any, extra []string, fn func(context.Context) (map[string]any, error)) map[string]any {
+func withTimeout[T any](ctx context.Context, timeout time.Duration, key string, fn func(context.Context) (T, error), onError func(error) T) T {
 	queryCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	done := make(chan map[string]any, 1)
+	done := make(chan T, 1)
 	go func() {
 		value, err := fn(queryCtx)
 		if err != nil {
-			value = readErrorResponse(key, empty, err, extra...)
+			value = onError(err)
 		}
 		done <- value
 	}()
 	select {
 	case <-queryCtx.Done():
-		return readErrorResponse(key, empty, fmt.Errorf("%s query timed out after %s", key, timeout), extra...)
+		return onError(fmt.Errorf("%s query timed out after %s", key, timeout))
 	case value := <-done:
 		return value
 	}
@@ -580,22 +572,6 @@ func (s *Service) resolveBroker(brokerID string, required bool) (broker.Broker, 
 		return nil, ErrNoBroker
 	}
 	return nil, nil
-}
-
-func connectedResponse(values map[string]any) map[string]any {
-	result := map[string]any{"checkedAt": now(), "connectivity": "connected", "lastError": nil}
-	maps.Copy(result, values)
-	return result
-}
-
-func readErrorResponse(key string, value any, err error, extraKeys ...string) map[string]any {
-	result := map[string]any{
-		"checkedAt": now(), "connectivity": connectivity(err), "lastError": err.Error(), key: value,
-	}
-	for _, extraKey := range extraKeys {
-		result[extraKey] = []any{}
-	}
-	return result
 }
 
 func connectivity(err error) string {

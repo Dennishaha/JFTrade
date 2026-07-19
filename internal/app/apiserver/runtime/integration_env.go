@@ -1,12 +1,12 @@
 package runtime
 
 import (
-	"log"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -52,15 +52,15 @@ func IntegrationWithEnvDefaults(integration jfsettings.BrokerIntegration) jfsett
 func ApplyIntegrationEnv(integration jfsettings.BrokerIntegration) {
 	config := integration.Config
 	jftradeErr5 := os.Setenv(futuOpenDAddrEnv, net.JoinHostPort(config.Host, strconv.Itoa(config.APIPort)))
-	jftradeLogError(jftradeErr5)
+	besteffort.LogError(jftradeErr5)
 	jftradeErr1 := os.Setenv(futuOpenDWebSocketKeyEnv, config.WebSocketKey)
-	jftradeLogError(jftradeErr1)
+	besteffort.LogError(jftradeErr1)
 	jftradeErr2 := os.Setenv(jftradeFutuWebSocketKeyEnv, config.WebSocketKey)
-	jftradeLogError(jftradeErr2)
+	besteffort.LogError(jftradeErr2)
 	jftradeErr3 := os.Setenv(jftradeFutuAPIPortEnv, strconv.Itoa(config.APIPort))
-	jftradeLogError(jftradeErr3)
+	besteffort.LogError(jftradeErr3)
 	jftradeErr4 := os.Setenv(jftradeFutuWebSocketPortEnv, strconv.Itoa(config.WebSocketPort))
-	jftradeLogError(jftradeErr4)
+	besteffort.LogError(jftradeErr4)
 }
 
 func positiveIntEnv(key string, fallback int) int {
@@ -86,12 +86,4 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

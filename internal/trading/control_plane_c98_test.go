@@ -63,7 +63,7 @@ func TestCoverage98ControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents(t *
 			t.Fatalf("reconfirm kill switch #%d: %v", index, err)
 		}
 	}
-	events := plane.Snapshot()["killSwitchEvents"].([]RealTradeControlEvent)
+	events := plane.Snapshot().KillSwitchEvents
 	if len(events) != realTradeControlEventLimit {
 		t.Fatalf("bounded kill-switch events = %d, want %d", len(events), realTradeControlEventLimit)
 	}
@@ -81,7 +81,7 @@ func TestCoverage98ControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutat
 	if err != nil {
 		t.Fatalf("NewRealTradeControlPlane for blank state: %v", err)
 	}
-	if snapshot := emptyPlane.Snapshot(); snapshot["controlPlaneAvailable"] != true || snapshot["killSwitchActive"] != false {
+	if snapshot := emptyPlane.Snapshot(); !snapshot.ControlPlaneAvailable || snapshot.KillSwitchActive {
 		t.Fatalf("blank state snapshot = %#v", snapshot)
 	}
 
@@ -202,7 +202,7 @@ func TestCoverage98ControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete(t *
 	if err != nil {
 		t.Fatalf("ActivateHardStop market scope: %v", err)
 	}
-	marketStop := marketSnapshot["hardStopEntries"].([]RealTradeHardStopEntry)[0]
+	marketStop := marketSnapshot.HardStopEntries[0]
 	if marketStop.AccountID != "*" || marketStop.HardStopScope != "MARKET" {
 		t.Fatalf("market hard stop normalization = %#v", marketStop)
 	}
@@ -210,14 +210,14 @@ func TestCoverage98ControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete(t *
 	if err != nil {
 		t.Fatalf("ActivateHardStop account scope: %v", err)
 	}
-	entries := accountSnapshot["hardStopEntries"].([]RealTradeHardStopEntry)
+	entries := accountSnapshot.HardStopEntries
 	if len(entries) != 2 || entries[1].HardStopScope != "ACCOUNT" {
 		t.Fatalf("active hard-stop entries = %#v", entries)
 	}
 	if _, err := plane.ReleaseHardStop(t.Context(), marketStop.ID, RealTradeHardStopCommand{OperatorID: "tester", Reason: "market resumed"}); err != nil {
 		t.Fatalf("ReleaseHardStop market scope: %v", err)
 	}
-	remaining := plane.Snapshot()["hardStopEntries"].([]RealTradeHardStopEntry)
+	remaining := plane.Snapshot().HardStopEntries
 	if len(remaining) != 1 || remaining[0].ID != entries[1].ID {
 		t.Fatalf("remaining hard stops after release = %#v", remaining)
 	}

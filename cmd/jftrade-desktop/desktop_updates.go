@@ -12,6 +12,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	"github.com/jftrade/jftrade-main/internal/buildinfo"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 const (
@@ -170,7 +171,7 @@ func checkDesktopUpdateInteractively(window application.Window, app *application
 			return
 		}
 		if result.ReleaseURL != "" {
-			jftradeLogError(app.Browser.OpenURL(result.ReleaseURL))
+			besteffort.LogError(app.Browser.OpenURL(result.ReleaseURL))
 		}
 	}()
 }

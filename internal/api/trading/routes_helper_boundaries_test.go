@@ -22,13 +22,13 @@ func TestTradingRouteHelpersWriteHTTPBoundaryErrors(t *testing.T) {
 		ctx, _ := gin.CreateTestContext(recorder)
 		ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/brokers//funds", nil)
 
-		if uri, ok := bindURI(ctx); ok || uri.BrokerID != "" || recorder.Code != http.StatusNotFound {
-			t.Fatalf("bindURI uri=%+v ok=%v status=%d body=%s", uri, ok, recorder.Code, recorder.Body.String())
+		if brokerID, ok := bindBrokerURI(ctx); ok || brokerID != "" || recorder.Code != http.StatusNotFound {
+			t.Fatalf("bindBrokerURI brokerID=%q ok=%v status=%d body=%s", brokerID, ok, recorder.Code, recorder.Body.String())
 		}
 	})
 
 	t.Run("route handlers stop after an invalid route URI", func(t *testing.T) {
-		for _, handler := range []gin.HandlerFunc{handleRead(srv.NewService()), handleWrite(srv.NewService())} {
+		for _, handler := range []gin.HandlerFunc{handleRead(srv.NewService(), "funds"), handlePlaceOrder(srv.NewService())} {
 			recorder := httptest.NewRecorder()
 			ctx, _ := gin.CreateTestContext(recorder)
 			ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/brokers//funds", nil)

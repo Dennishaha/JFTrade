@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
@@ -526,7 +527,7 @@ func TestExecutionProductRemainingLifecycleAndUpdateHelpers(t *testing.T) {
 	if snapshot := (*OrderUpdatesWorker)(nil).SnapshotResponse(); len(snapshot) != 0 {
 		t.Fatalf("nil order update snapshot = %#v", snapshot)
 	}
-	jftradeLogError("ignored", errors.New("expected test log"))
+	besteffort.LogError(errors.New("expected test log"))
 }
 
 func TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches(t *testing.T) {
@@ -639,8 +640,8 @@ func (r *resolvingExecutionRuntime) ActiveBroker() broker.Broker { return r.acti
 
 func (r *resolvingExecutionRuntime) ResolveBroker(string) broker.Broker { return r.resolved }
 
-func (r *resolvingExecutionRuntime) Runtime(context.Context) map[string]any {
-	return map[string]any{"resolved": r.resolved != nil}
+func (r *resolvingExecutionRuntime) Runtime(context.Context) *BrokerRuntimeResponse {
+	return &BrokerRuntimeResponse{Session: BrokerRuntimeSession{Connectivity: "connected"}}
 }
 
 type completeComboBroker struct {
@@ -737,4 +738,4 @@ func (g *capturingRiskGateway) EvaluatePlaceOrder(
 	g.command = command
 	return g.decision
 }
-func (g *capturingRiskGateway) Snapshot() map[string]any { return map[string]any{} }
+func (g *capturingRiskGateway) Snapshot() RealTradeRiskSnapshot { return RealTradeRiskSnapshot{} }

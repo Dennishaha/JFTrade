@@ -30,6 +30,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../src/composables/apiClient", () => ({
   fetchEnvelope: (...args: unknown[]) => mocks.fetchEnvelope(...args),
+  apiGetPath: (_template: string, path: string, ...rest: unknown[]) =>
+    mocks.fetchEnvelope(path, ...rest),
 }));
 
 import { createConsoleDataBrokerLiveQueryController } from "../src/composables/consoleDataBrokerLiveQuery";

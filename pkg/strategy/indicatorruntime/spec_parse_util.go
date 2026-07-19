@@ -1,7 +1,6 @@
 package indicatorruntime
 
 import (
-	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -400,12 +399,4 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

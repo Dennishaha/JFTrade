@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -561,6 +562,6 @@ func (w *OrderUpdatesWorker) completeSubscriptionAttempt(attempt *orderUpdateSub
 
 func (w *OrderUpdatesWorker) stopSubscriptionSilently(subscription OrderUpdateSubscription) {
 	if subscription != nil {
-		jftradeLogError(subscription.Stop())
+		besteffort.LogError(subscription.Stop())
 	}
 }

@@ -20,7 +20,6 @@ import (
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
-	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	"github.com/jftrade/jftrade-main/internal/live"
@@ -32,13 +31,11 @@ import (
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
-	"github.com/jftrade/jftrade-main/internal/watchlist"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
-	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineengine"
@@ -60,51 +57,28 @@ type apiError = httpserver.APIError
 
 var errFutuIntegrationNotEnabled = errors.New("futu integration is not enabled")
 
+// Server is the API sidecar's root assembly. Its dependencies are organized
+// into four explicit groups: the embedded serverStores, serverRuntimes and
+// serverFacades (see server_assembly.go) plus the top-level infrastructure
+// fields below covering HTTP plumbing, security and lifecycle. Embedded field
+// promotion keeps existing s.field access intact.
 type Server struct {
-	store                    SidecarSettingsStore
-	strategyStore            *strategyCatalogStore
-	strategyRuntimeStore     *strategyRuntimeStore
-	strategyRuntimeManager   *strategyRuntimeManager
-	designStore              *strategyDesignStore
-	backtestRuns             *backtestRunStore
-	backtestSyncTasks        *backtestSyncTaskStore
-	executionOrders          *executionOrderStore
-	watchlistStore           *watchliststore.Store
-	liveWebSocket            *apilive.Handler
-	liveNotifications        *live.ReplayPublisher
-	liveNotificationSink     func(live.Event) live.NotificationDelivery
-	closeOnce                sync.Once
-	closeErr                 error
-	marketdataRuntime        *futuintegration.MarketDataRuntime
-	brokers                  *broker.Registry // Unified broker registry for multi-broker support
-	adkRuntime               *jfadk.Runtime
-	mcpServer                *mcpServerManager
-	assistantSvc             *asst.Service
-	frontend                 *frontendServer
-	apiPort                  int
-	auth                     *webAuth
-	router                   *gin.Engine
-	desktopMode              bool
-	exchangeCalendars        *exchangecalendar.Manager
-	previousCalendarResolver marketcalendar.Resolver
-	sysSvc                   *system.Service
-	settingsSvc              *settings.Service
-	dataManagementSvc        *dmsrv.Service
-	dataMigration            *datamigration.Manager
-	unavailableDatabases     map[string]error
-	backtestSvc              *btsrv.Service
-	strategySvc              *stratsrv.Service
-	marketdataSvc            *mdsrv.Service
-	productFeaturesSvc       *productsrv.Service
-	watchlistSvc             *watchlist.Service
-	tradingSvc               *trdsrv.Service
-	preTradeRiskGateway      trdsrv.PreTradeRiskGateway
-	realTradeControlPlane    *trdsrv.RealTradeControlPlane
-	backtestPineWorkerRunner pineWorkerRunner
-	instancePineWorkerRunner pineWorkerRunner
-	observability            *observability.Recorder
-	desktopAPIToken          string
-	webAccessReconfigure     func(SecuritySettings) error
+	serverStores
+	serverRuntimes
+	serverFacades
+
+	frontend             *frontendServer
+	apiPort              int
+	auth                 *webAuth
+	router               *gin.Engine
+	desktopMode          bool
+	dataMigration        *datamigration.Manager
+	unavailableDatabases map[string]error
+	observability        *observability.Recorder
+	desktopAPIToken      string
+	webAccessReconfigure func(SecuritySettings) error
+	closeOnce            sync.Once
+	closeErr             error
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
@@ -145,7 +119,7 @@ type opendProbe struct {
 	ServerVersion    *string
 	ProgramStatus    *string
 	ProgramTimestamp *string
-	Markets          []map[string]any
+	Markets          []trdsrv.BrokerRuntimeMarketState
 }
 
 // StartForRunArgs,
@@ -350,16 +324,20 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 	minimumImportance := observability.NormalizeMinimumImportance(os.Getenv(observabilityMinImportanceEnv))
 	observability.SetMinimumImportance(minimumImportance)
 	server := &Server{
-		store:                store,
-		strategyStore:        state.strategyStore,
-		strategyRuntimeStore: state.runtimeStore,
-		designStore:          state.designStore,
-		backtestRuns:         state.backtestRunStore,
-		backtestSyncTasks:    newBacktestSyncTaskStore(),
-		executionOrders:      state.executionOrderStore,
-		watchlistStore:       state.watchlistStore,
-		liveNotifications:    live.NewReplayPublisher(),
-		brokers:              broker.NewRegistry(),
+		serverStores: serverStores{
+			store:                store,
+			strategyStore:        state.strategyStore,
+			strategyRuntimeStore: state.runtimeStore,
+			designStore:          state.designStore,
+			backtestRuns:         state.backtestRunStore,
+			backtestSyncTasks:    newBacktestSyncTaskStore(),
+			executionOrders:      state.executionOrderStore,
+			watchlistStore:       state.watchlistStore,
+		},
+		serverRuntimes: serverRuntimes{
+			liveNotifications: live.NewReplayPublisher(),
+			brokers:           broker.NewRegistry(),
+		},
 		apiPort:              portFromBind(defaultDevelopmentAPIBind, 3000),
 		frontend:             frontend,
 		auth:                 state.auth,
@@ -553,11 +531,12 @@ func (s *Server) systemRuntimeOptions() []system.Option {
 		system.WithResetFutuRuntime(func() { s.resetFutuRuntime() }),
 		system.WithRuntimeDependencies(func(ctx context.Context) map[string]any { return s.runtimeDependencies(ctx) }),
 		system.WithRequestObservability(func() any { return s.observability.Snapshot() }),
-		system.WithRealTradeRiskState(func() map[string]any {
+		system.WithRealTradeRiskState(func() *trdsrv.RealTradeRiskSnapshot {
 			if s.preTradeRiskGateway == nil {
 				return nil
 			}
-			return s.preTradeRiskGateway.Snapshot()
+			snapshot := s.preTradeRiskGateway.Snapshot()
+			return &snapshot
 		}),
 	}
 }

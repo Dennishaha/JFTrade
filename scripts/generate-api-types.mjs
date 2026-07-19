@@ -27,6 +27,11 @@ function schemaToType(schema, context = "") {
   if (schema == null) {
     return "unknown";
   }
+  if (schema["x-nullable"] === true) {
+    const nonNullableSchema = { ...schema };
+    delete nonNullableSchema["x-nullable"];
+    return `${schemaToType(nonNullableSchema, context)} | null`;
+  }
   if (schema.$ref) {
     return `components["schemas"][${JSON.stringify(schemaRefName(schema.$ref))}]`;
   }

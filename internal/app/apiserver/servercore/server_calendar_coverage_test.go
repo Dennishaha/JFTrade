@@ -32,7 +32,7 @@ func TestServerCalendarOptionsAndOperationsRemainingBoundaries(t *testing.T) {
 	}
 
 	manager := exchangecalendar.NewManager(nil, func() ExchangeCalendarSettings { return ExchangeCalendarSettings{} }, exchangecalendar.WithRegistry(exchangecalendar.NewSourceRegistry()))
-	server := &Server{exchangeCalendars: manager}
+	server := &Server{serverRuntimes: serverRuntimes{exchangeCalendars: manager}}
 	service := system.NewService(server.systemCalendarOptions()...)
 	if got := service.ExchangeCalendarStatus(); got == nil {
 		t.Fatal("configured calendar status is nil")

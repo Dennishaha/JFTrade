@@ -89,6 +89,8 @@ func buildPineWorkerBacktestRequest(request PineWorkerReplayPlanRequest, candles
 	}, nil
 }
 
+// CandlesFromKLines converts bbgo K-lines to worker wire candles, one
+// CandleFromKLine per bar, preserving order.
 func CandlesFromKLines(klines []types.KLine) []pineworker.Candle {
 	candles := make([]pineworker.Candle, 0, len(klines))
 	for _, kline := range klines {
@@ -132,6 +134,12 @@ func planPineWorkerCompactReplay(
 	}, nil
 }
 
+// CandleFromKLine is the canonical bbgo KLine -> pineworker.Candle converter.
+// Every producer of worker wire candles (backtest replay here, the live
+// strategy runtime in servercore) must go through it so field mapping stays
+// identical: OpenTime/CloseTime are epoch milliseconds (UTC) taken from the
+// bar's StartTime/EndTime, and OHLCV are float64 approximations of the
+// fixed-point values.
 func CandleFromKLine(kline types.KLine) pineworker.Candle {
 	return pineworker.Candle{
 		OpenTime:  kline.StartTime.Time().UnixMilli(),

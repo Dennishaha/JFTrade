@@ -7,7 +7,7 @@ import type {
   PortfolioReconciliationResponse,
 } from "@/contracts";
 
-import { fetchEnvelope } from "./apiClient";
+import { apiGetPath } from "./apiClient";
 
 interface CreateConsoleDataPortfolioLiveQueryControllerOptions {
   portfolioCashBalances: Ref<PortfolioCashBalancesResponse>;
@@ -25,16 +25,20 @@ export function createConsoleDataPortfolioLiveQueryController(
   }): Promise<void> {
     const [cashBalances, positions, cashReconciliation, reconciliation] =
       await Promise.all([
-        fetchEnvelope<PortfolioCashBalancesResponse>(
+        apiGetPath(
+          "/api/v1/portfolio/{brokerId}/cash-balances",
           `/api/v1/portfolio/${encodeURIComponent(input.brokerId)}/cash-balances?${input.brokerQuery}`,
         ),
-        fetchEnvelope<PortfolioPositionsResponse>(
+        apiGetPath(
+          "/api/v1/portfolio/{brokerId}/positions",
           `/api/v1/portfolio/${encodeURIComponent(input.brokerId)}/positions?${input.brokerQuery}`,
         ),
-        fetchEnvelope<PortfolioCashReconciliationResponse>(
+        apiGetPath(
+          "/api/v1/portfolio/{brokerId}/cash-reconciliation",
           `/api/v1/portfolio/${encodeURIComponent(input.brokerId)}/cash-reconciliation?${input.brokerQuery}`,
         ),
-        fetchEnvelope<PortfolioReconciliationResponse>(
+        apiGetPath(
+          "/api/v1/portfolio/{brokerId}/reconciliation",
           `/api/v1/portfolio/${encodeURIComponent(input.brokerId)}/reconciliation?${input.brokerQuery}`,
         ),
       ]);

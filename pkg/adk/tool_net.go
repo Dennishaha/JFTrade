@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func httpFetchTool(ctx context.Context, input map[string]any) (any, error) {
@@ -52,7 +54,7 @@ func httpFetchTool(ctx context.Context, input map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { jftradeLogError(resp.Body.Close()) }()
+	defer func() { besteffort.LogError(resp.Body.Close()) }()
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
 	if contentType != "" && (!strings.Contains(contentType, "text/") && !strings.Contains(contentType, "json") && !strings.Contains(contentType, "xml") && !strings.Contains(contentType, "rss")) {
 		return nil, fmt.Errorf("unsupported content type %q", contentType)

@@ -7,6 +7,7 @@ import (
 
 	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func TestTimelineStreamStateTracksSessionRunAndToolTiming(t *testing.T) {
@@ -160,7 +161,7 @@ func TestStreamHelpersRunIDAndBestEffortLogging(t *testing.T) {
 	if got := streamEventRunID(adkChatStreamEvent{RunID: " explicit-run "}); got != "explicit-run" {
 		t.Fatalf("streamEventRunID(explicit) = %q", got)
 	}
-	jftradeLogError(nil, errors.New("expected best-effort test log"))
+	besteffort.LogError(errors.New("expected best-effort test log"))
 }
 
 func TestChatStreamExecutionPublishesDeltaAndFinalVariants(t *testing.T) {

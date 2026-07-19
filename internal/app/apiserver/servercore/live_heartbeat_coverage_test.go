@@ -11,7 +11,7 @@ import (
 func TestLiveHeartbeatSampleAndReasonBoundaries(t *testing.T) {
 	now := time.Now().UTC()
 	service := mdsrv.NewService(nil)
-	server := &Server{marketdataSvc: service}
+	server := &Server{serverFacades: serverFacades{marketdataSvc: service}}
 	service.Seed(mdsrv.Tick{InstrumentID: "US.FRESH", ObservedAt: now.Add(-time.Second).Format(time.RFC3339Nano)})
 	service.Seed(mdsrv.Tick{InstrumentID: "US.STALE", ObservedAt: now.Add(-(liveHeartbeatStaleThreshold + time.Second)).Format(time.RFC3339Nano)})
 	service.Seed(mdsrv.Tick{InstrumentID: "US.INVALID", ObservedAt: "invalid"})
@@ -57,7 +57,10 @@ func TestLiveHeartbeatActiveInstrumentDeduplicationBoundaries(t *testing.T) {
 			"HK.00700": {symbol: "HK.00700"},
 		}},
 	}}
-	server := &Server{marketdataSvc: service, strategyRuntimeManager: manager}
+	server := &Server{
+		serverFacades:  serverFacades{marketdataSvc: service},
+		serverRuntimes: serverRuntimes{strategyRuntimeManager: manager},
+	}
 	got := server.activeLiveStreamInstrumentIDs([]string{"US.AAPL", "HK.00700", "SH.600000", "SH.600000"})
 	if len(got) != 3 || got[0] != "HK.00700" || got[1] != "SH.600000" || got[2] != "US.AAPL" {
 		t.Fatalf("deduplicated active instruments = %#v", got)

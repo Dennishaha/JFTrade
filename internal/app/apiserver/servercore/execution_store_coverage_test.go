@@ -131,20 +131,49 @@ func TestBrokerSnapshotDoesNotDowngradePreviewLockedProduct(t *testing.T) {
 func TestExecutionStoreRemainingPersistenceLifecycleBoundaries(t *testing.T) {
 	var nilStore *executionOrderStore
 	nilStore.startPersistenceWorker()
-	nilStore.writePersistenceItem(executionPersistenceItem{})
+	nilStore.writePersistenceItem(executionPersistenceItem{kind: "order", order: executionOrderSummaryResponse{InternalOrderID: "exec-nil"}})
 	nilStore.configureSeenFillRetention(1)
 	if err := nilStore.Close(); err != nil {
-		t.Fatalf("nil Close: %v", err)
+		t.Fatalf("nil store Close: %v", err)
 	}
 
-	persistence, err := newExecutionOrderSQLiteStore(filepath.Join(t.TempDir(), "closed.db"))
+	store := newExecutionOrderStore()
+	store.startPersistenceWorker()
+	if store.persistenceQueue != nil {
+		t.Fatal("startPersistenceWorker without persistence should not create a queue")
+	}
+	store.writePersistenceItem(executionPersistenceItem{kind: "order", order: executionOrderSummaryResponse{InternalOrderID: "exec-no-persistence"}})
+	if len(store.orders) != 0 {
+		t.Fatalf("writePersistenceItem without persistence mutated orders = %#v", store.orders)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store Close: %v", err)
+	}
+	if !store.persistenceClosed {
+		t.Fatal("store Close should mark persistenceClosed")
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("second store Close: %v", err)
+	}
+
+	dbPath := filepath.Join(t.TempDir(), "closed.db")
+	persistence, err := newExecutionOrderSQLiteStore(dbPath)
 	if err != nil {
 		t.Fatalf("new persistence: %v", err)
 	}
 	if err := persistence.Close(); err != nil {
 		t.Fatalf("close persistence: %v", err)
 	}
-	store := newExecutionOrderStore()
-	store.persistence = persistence
-	store.writePersistenceItem(executionPersistenceItem{kind: "order", order: executionOrderSummaryResponse{InternalOrderID: "exec-fail"}})
+	closedStore := newExecutionOrderStore()
+	closedStore.persistence = persistence
+	closedStore.writePersistenceItem(executionPersistenceItem{kind: "order", order: executionOrderSummaryResponse{InternalOrderID: "exec-fail"}})
+
+	reloaded, err := newExecutionOrderStoreWithDB(dbPath)
+	if err != nil {
+		t.Fatalf("reload store: %v", err)
+	}
+	t.Cleanup(func() { _ = reloaded.Close() })
+	if orders := reloaded.listOrders(); len(orders.Orders) != 0 {
+		t.Fatalf("write to closed persistence was stored: %#v", orders.Orders)
+	}
 }

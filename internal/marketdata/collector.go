@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 )
 
@@ -538,7 +539,7 @@ func retryDelay(failures int) time.Duration {
 func closeStream(stream PushStream) {
 	if stream != nil {
 		jftradeErr1 := stream.Close()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}
 }
 

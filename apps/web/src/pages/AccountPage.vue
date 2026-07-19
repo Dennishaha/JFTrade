@@ -272,10 +272,10 @@ const accountPositions = computed(() => {
       marketValue: position.marketValue,
       unrealizedPnl: position.unrealizedPnl,
       currency: position.currency,
-      productClass: position.productClass,
-      strategyType: position.strategyType,
-      positionType: position.positionType,
-      payoutIfWin: position.payoutIfWin,
+      productClass: null,
+      strategyType: null,
+      positionType: null,
+      payoutIfWin: null,
       source: "券商",
       updatedAt: brokerPositions.value.checkedAt,
     }));
@@ -1418,7 +1418,7 @@ if (requestedExecutionOrderId !== "") {
                       <div class="font-medium text-slate-900">{{ fee.brokerOrderIdEx }}</div>
                       <div class="text-sm text-slate-700">{{ formatMoney(fee.feeAmount, brokerFunds.summary?.currency) }}</div>
                     </div>
-                    <div v-if="fee.feeItems.length" class="mt-3 flex flex-wrap gap-2">
+                    <div v-if="fee.feeItems?.length" class="mt-3 flex flex-wrap gap-2">
                       <span
                         v-for="detail in fee.feeItems"
                         :key="`${fee.brokerOrderIdEx}-${detail.title}`"

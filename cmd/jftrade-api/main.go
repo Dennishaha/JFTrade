@@ -16,6 +16,7 @@ import (
 	"syscall"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 
 	// Embed IANA timezone database so API-only releases still work in
 	// minimal environments that lack the system tz data.
@@ -65,7 +66,7 @@ func runAPICommand(
 	}
 
 	if getenv("DISABLE_MARKETS_CACHE") == "" {
-		jftradeLogError(setenv("DISABLE_MARKETS_CACHE", "1"))
+		besteffort.LogError(setenv("DISABLE_MARKETS_CACHE", "1"))
 	}
 
 	ctx, stop := notifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -90,14 +91,6 @@ func validateArgs(args []string) error {
 		return nil
 	}
 	return fmt.Errorf("unsupported command %q; run `jftrade-api` without subcommands", args[0])
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }
 
 func reportFatal(err error, fatalf func(string, ...any)) {

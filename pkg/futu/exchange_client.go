@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
@@ -69,7 +70,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 		case <-e.client.Done():
 			log.Printf("futu OpenD client done; reconnecting to %s", e.addr)
 			jftradeErr6 := e.invalidateClientLocked()
-			jftradeLogError(jftradeErr6)
+			besteffort.LogError(jftradeErr6)
 			e.client = e.newClient()
 		default:
 			e.bindOrderBookNotifyLocked(e.client)
@@ -84,7 +85,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	connectStart := time.Now()
 	if err := e.client.Connect(ctx); err != nil {
 		jftradeErr2 := e.invalidateClientLocked()
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 		log.Printf("futu OpenD connect to %s failed after %v: %v", e.addr, time.Since(connectStart), err)
 		return nil, err
 	}
@@ -94,7 +95,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	initState, err := e.initializeOpenDSessionLocked(ctx, connectElapsed)
 	if err != nil {
 		jftradeErr1 := e.invalidateClientLocked()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		log.Printf("futu OpenD session initialization to %s failed after %v (connect=%v): %v",
 			e.addr, time.Since(initStart), connectElapsed, err)
 		return nil, err
@@ -109,7 +110,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	e.bindTradeUpdateNotifyLocked(e.client)
 	if err := e.resubscribeTradeAccountPushLocked(ctx, e.client); err != nil {
 		jftradeErr5 := e.invalidateClientLocked()
-		jftradeLogError(jftradeErr5)
+		besteffort.LogError(jftradeErr5)
 		log.Printf("futu OpenD trade account push resubscribe failed after reconnect: %v", err)
 		return nil, err
 	}
@@ -285,7 +286,7 @@ func (e *Exchange) invalidateClient() {
 	defer e.mu.Unlock()
 	log.Printf("futu OpenD invalidateClient (public) addr=%s", e.addr)
 	jftradeErr4 := e.invalidateClientLocked()
-	jftradeLogError(jftradeErr4)
+	besteffort.LogError(jftradeErr4)
 }
 
 func (e *Exchange) invalidateClientLocked() error {
@@ -318,12 +319,4 @@ func isRecoverableOpenDErr(err error) bool {
 		strings.Contains(lower, "connection reset") ||
 		strings.Contains(lower, "eof") ||
 		strings.Contains(lower, "use of closed network connection")
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

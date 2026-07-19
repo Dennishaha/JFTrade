@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
 )
 
@@ -148,9 +149,9 @@ func TestSkillRegistryHTTPAndSourceAdditionalBranches(t *testing.T) {
 				t.Errorf("hijack truncated skill response: %v", err)
 				return
 			}
-			defer func() { jftradeLogError(connection.Close()) }()
+			defer func() { besteffort.LogError(connection.Close()) }()
 			_, _ = fmt.Fprint(buffered, "HTTP/1.1 200 OK\r\nContent-Length: 256\r\nConnection: close\r\n\r\n---\nname: partial")
-			jftradeLogError(buffered.Flush())
+			besteffort.LogError(buffered.Flush())
 		}))
 		defer truncatedServer.Close()
 		if _, err := registry.InstallURL(ctx, truncatedServer.URL+"/SKILL.md"); err == nil {

@@ -9,10 +9,16 @@ import RuntimeRiskConfigPanel from "../components/risk/RuntimeRiskConfigPanel.vu
 import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
 import StrategyRuntimeRiskSection from "../components/risk/StrategyRuntimeRiskSection.vue";
 import { normalizeStrategyRuntimeRiskSettings } from "../components/strategy-runtime/strategyRuntimeInstanceBinding";
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import {
+  apiPost,
+  apiPostPath,
+  fetchEnvelope,
+  fetchEnvelopeWithInit,
+} from "../composables/apiClient";
 import { useRuntimeRiskConfig } from "../composables/useRuntimeRiskConfig";
 import { useConsoleData } from "../composables/useConsoleData";
 import type {
+  RealTradeHardStopCommandPayload,
   RealTradeHardStopsResponse,
   StrategyInstanceItem,
   StrategyRuntimeRiskMode,
@@ -38,7 +44,7 @@ const updatingStrategyRuntimeRiskIds = ref<string[]>([]);
 const realTradeControlError = ref("");
 const updatingRealTradeControlAction = ref("");
 const pendingHardStopConfirmation = ref<
-  | { kind: "activate"; payload: Record<string, unknown> }
+  | { kind: "activate"; payload: RealTradeHardStopCommandPayload }
   | { kind: "release"; id: string }
   | null
 >(null);
@@ -155,8 +161,8 @@ function confirmDangerous(message: string): boolean {
 }
 
 function isLooseningLimit(
-  next: number | null,
-  current: number | null,
+  next: number | null | undefined,
+  current: number | null | undefined,
 ): boolean {
   if (next == null) return current != null;
   if (current == null) return true;
@@ -220,17 +226,12 @@ async function disableRuntimeRisk(payload: {
 
 async function runRealTradeControlAction(
   action: string,
-  path: string,
-  body: Record<string, unknown>,
+  request: () => Promise<unknown>,
 ): Promise<void> {
   realTradeControlError.value = "";
   updatingRealTradeControlAction.value = action;
   try {
-    await fetchEnvelopeWithInit(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    await request();
     await refreshRiskState();
   } catch (error) {
     realTradeControlError.value =
@@ -242,27 +243,23 @@ async function runRealTradeControlAction(
 
 function activateKillSwitch(): Promise<void> | void {
   if (!confirmDangerous("确认激活实盘熔断吗？")) return;
-  return runRealTradeControlAction(
-    "kill-switch.activate",
-    "/api/v1/system/real-trade-kill-switch/activate",
-    {
+  return runRealTradeControlAction("kill-switch.activate", () =>
+    apiPost("/api/v1/system/real-trade-kill-switch/activate", {
       tradingEnvironment: "REAL",
       operatorId: "local",
       reason: "manual activation from RiskPage",
-    },
+    }),
   );
 }
 
 function releaseKillSwitch(): Promise<void> | void {
   if (!confirmDangerous("确认解除实盘熔断吗？")) return;
-  return runRealTradeControlAction(
-    "kill-switch.release",
-    "/api/v1/system/real-trade-kill-switch/release",
-    {
+  return runRealTradeControlAction("kill-switch.release", () =>
+    apiPost("/api/v1/system/real-trade-kill-switch/release", {
       tradingEnvironment: "REAL",
       operatorId: "local",
       reason: "manual release from RiskPage",
-    },
+    }),
   );
 }
 
@@ -280,7 +277,7 @@ const hardStopConfirmationMessage = computed(() => {
   return `确认创建实盘硬停止（${target}）？生效后会立即阻断匹配范围内的新实盘订单。`;
 });
 
-function activateHardStop(payload: Record<string, unknown>): void {
+function activateHardStop(payload: RealTradeHardStopCommandPayload): void {
   pendingHardStopConfirmation.value = { kind: "activate", payload };
 }
 
@@ -292,19 +289,19 @@ async function confirmHardStopAction(): Promise<void> {
   const pending = pendingHardStopConfirmation.value;
   if (pending == null || updatingRealTradeControlAction.value !== "") return;
   if (pending.kind === "activate") {
-    await runRealTradeControlAction(
-      "hard-stop.activate",
-      "/api/v1/system/real-trade-hard-stops",
-      pending.payload,
+    await runRealTradeControlAction("hard-stop.activate", () =>
+      apiPost("/api/v1/system/real-trade-hard-stops", pending.payload),
     );
   } else {
-    await runRealTradeControlAction(
-      `hard-stop.release.${pending.id}`,
-      `/api/v1/system/real-trade-hard-stops/${encodeURIComponent(pending.id)}/release`,
-      {
-        operatorId: "local",
-        reason: "manual release from RiskPage",
-      },
+    await runRealTradeControlAction(`hard-stop.release.${pending.id}`, () =>
+      apiPostPath(
+        "/api/v1/system/real-trade-hard-stops/{hardStopId}/release",
+        `/api/v1/system/real-trade-hard-stops/${encodeURIComponent(pending.id)}/release`,
+        {
+          operatorId: "local",
+          reason: "manual release from RiskPage",
+        },
+      ),
     );
   }
   pendingHardStopConfirmation.value = null;

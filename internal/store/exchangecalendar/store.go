@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 )
 
@@ -82,7 +82,7 @@ func (s *Store) LoadSnapshots() ([]marketcalendar.CalendarSnapshot, []error) {
 		snapshots = append(snapshots, snapshot)
 		return nil
 	})
-	jftradeLogError(jftradeErr1)
+	besteffort.LogError(jftradeErr1)
 	return snapshots, errs
 }
 
@@ -115,13 +115,5 @@ func snapshotYear(snapshot marketcalendar.CalendarSnapshot) int {
 		return snapshot.Schedules[0].Date.Year()
 	default:
 		return 0
-	}
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
 	}
 }

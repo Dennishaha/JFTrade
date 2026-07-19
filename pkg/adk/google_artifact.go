@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkartifact "google.golang.org/adk/v2/artifact"
 	"google.golang.org/genai"
 )
@@ -49,7 +50,7 @@ func newGoogleADKArtifactService(path string) (adkartifact.Service, error) {
 	service := &googleADKArtifactService{db: db}
 	if err := service.init(context.Background()); err != nil {
 		jftradeErr := db.Close()
-		jftradeLogError(jftradeErr)
+		besteffort.LogError(jftradeErr)
 		return nil, err
 	}
 	return service, nil
@@ -179,7 +180,7 @@ func (s *googleADKArtifactService) List(ctx context.Context, req *adkartifact.Li
 	if err != nil {
 		return nil, err
 	}
-	defer func() { jftradeLogError(rows.Close()) }()
+	defer func() { besteffort.LogError(rows.Close()) }()
 	files := make([]string, 0)
 	for rows.Next() {
 		var fileName string
@@ -210,7 +211,7 @@ func (s *googleADKArtifactService) Versions(ctx context.Context, req *adkartifac
 	if err != nil {
 		return nil, err
 	}
-	defer func() { jftradeLogError(rows.Close()) }()
+	defer func() { besteffort.LogError(rows.Close()) }()
 	versions := make([]int64, 0)
 	for rows.Next() {
 		var version int64

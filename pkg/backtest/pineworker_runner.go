@@ -14,6 +14,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/service"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
@@ -56,7 +57,7 @@ func RunWithPineWorker(ctx context.Context, cfg RunConfig, runner PineWorkerRunn
 	if !ok {
 		return result
 	}
-	defer func() { jftradeLogError(store.Close()) }()
+	defer func() { besteffort.LogError(store.Close()) }()
 	preparation, ok := preparePineWorkerBacktest(ctx, cfg, result, store)
 	if !ok {
 		return result
@@ -398,7 +399,7 @@ func removeFutuMarketCache() {
 	if err != nil {
 		return
 	}
-	jftradeLogError(os.Remove(filepath.Join(home, ".bbgo", "cache", "futu-markets.json")))
+	besteffort.LogError(os.Remove(filepath.Join(home, ".bbgo", "cache", "futu-markets.json")))
 }
 
 func pineWorkerBacktestConfig(cfg RunConfig, quoteCurrency string, metadata strategyir.StrategyMetadata) *bbgo2.Backtest {

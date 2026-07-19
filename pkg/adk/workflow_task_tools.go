@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkagent "google.golang.org/adk/v2/agent"
 	adktool "google.golang.org/adk/v2/tool"
 )
@@ -79,7 +80,7 @@ func (t *workflowTaskToolset) list(map[string]any) (map[string]any, error) {
 		return nil, err
 	}
 	jftradeErr15 := t.saveParentPlan(context.Background(), parent, tasks)
-	jftradeLogError(jftradeErr15)
+	besteffort.LogError(jftradeErr15)
 	return map[string]any{"success": true, "tasks": taskToolTaskSummaries(tasks), "readyTasks": taskToolTaskSummaries(executableWorkflowTasks(tasks, parent.WorkMode))}, nil
 }
 
@@ -100,9 +101,9 @@ func (t *workflowTaskToolset) add(args map[string]any) (map[string]any, error) {
 		return nil, err
 	}
 	parent, tasks, jftradeErr22 := t.parentAndTasks(context.Background())
-	jftradeLogError(jftradeErr22)
+	besteffort.LogError(jftradeErr22)
 	jftradeErr13 := t.saveParentPlan(context.Background(), parent, tasks)
-	jftradeLogError(jftradeErr13)
+	besteffort.LogError(jftradeErr13)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(task)}, nil
 }
 
@@ -127,9 +128,9 @@ func (t *workflowTaskToolset) claim(args map[string]any) (map[string]any, error)
 	}
 	t.currentTaskID = updated.ID
 	parent, tasks, jftradeErr16 := t.parentAndTasks(context.Background())
-	jftradeLogError(jftradeErr16)
+	besteffort.LogError(jftradeErr16)
 	jftradeErr11 := t.saveParentPlan(context.Background(), parent, tasks)
-	jftradeLogError(jftradeErr11)
+	besteffort.LogError(jftradeErr11)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(updated)}, nil
 }
 
@@ -181,9 +182,9 @@ func (t *workflowTaskToolset) complete(args map[string]any) (map[string]any, err
 	}
 	t.currentTaskID = ""
 	parent, tasks, jftradeErr12 := t.parentAndTasks(context.Background())
-	jftradeLogError(jftradeErr12)
+	besteffort.LogError(jftradeErr12)
 	jftradeErr14 := t.saveParentPlan(context.Background(), parent, tasks)
-	jftradeLogError(jftradeErr14)
+	besteffort.LogError(jftradeErr14)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(updated)}, nil
 }
 
@@ -209,9 +210,9 @@ func (t *workflowTaskToolset) block(args map[string]any) (map[string]any, error)
 		return nil, err
 	}
 	parent, tasks, jftradeErr20 := t.parentAndTasks(context.Background())
-	jftradeLogError(jftradeErr20)
+	besteffort.LogError(jftradeErr20)
 	jftradeErr18 := t.saveParentPlan(context.Background(), parent, tasks)
-	jftradeLogError(jftradeErr18)
+	besteffort.LogError(jftradeErr18)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(updated)}, nil
 }
 
@@ -256,7 +257,7 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	_, jftradeErr31 := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{
 		Executor: new(workflowTaskExecutorChild), ChildProviderID: &step.ChildProviderID, ChildModel: &step.ChildModel,
 	})
-	jftradeLogError(jftradeErr31)
+	besteffort.LogError(jftradeErr31)
 	result := t.executor.runChild(context.Background(), t.req, parent, step, task, workflowTaskIteration(task))
 	if result.Err != nil {
 		return map[string]any{"success": false, "message": result.Err.Error()}, nil
@@ -272,7 +273,7 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	if result.Response.Run.Status == RunStatusPending || result.Response.Run.Status == RunStatusPendingInput {
 		parent = pauseParentForChild(parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
 		_, jftradeErr30 := t.executor.runtime.saveRunPreservingUserGoalPause(context.Background(), parent)
-		jftradeLogError(jftradeErr30)
+		besteffort.LogError(jftradeErr30)
 	}
 	t.currentTaskID = ""
 	return map[string]any{
@@ -303,7 +304,7 @@ func (t *workflowTaskToolset) goalComplete(args map[string]any) (map[string]any,
 	}
 	t.req.GoalDecision.setComplete(summary)
 	jftradeErr17 := t.saveParentPlan(context.Background(), parent, tasks)
-	jftradeLogError(jftradeErr17)
+	besteffort.LogError(jftradeErr17)
 	return map[string]any{"success": true, "status": "complete", "summary": summary}, nil
 }
 
@@ -374,9 +375,9 @@ func (t *workflowTaskToolset) goalContinue(args map[string]any) (map[string]any,
 	}
 	t.req.GoalDecision.setContinue(reason)
 	parent, tasks, jftradeErr21 := t.parentAndTasks(context.Background())
-	jftradeLogError(jftradeErr21)
+	besteffort.LogError(jftradeErr21)
 	jftradeErr19 := t.saveParentPlan(context.Background(), parent, tasks)
-	jftradeLogError(jftradeErr19)
+	besteffort.LogError(jftradeErr19)
 	return map[string]any{"success": true, "status": "continue", "reason": reason}, nil
 }
 
@@ -448,7 +449,7 @@ func (e *WorkflowExecutor) mergeTaskChildProjectionAt(ctx context.Context, paren
 		parent.InputRequest = normalizeInputRequest(child.InputRequest)
 	}
 	parent, jftradeErr28 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
-	jftradeLogError(jftradeErr28)
+	besteffort.LogError(jftradeErr28)
 	return parent
 }
 

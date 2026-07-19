@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	sysservice "github.com/jftrade/jftrade-main/internal/system"
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 )
 
 func TestSystemRoutesReturnEnvelopes(t *testing.T) {
@@ -146,61 +147,62 @@ func TestRealTradeControlRoutesDelegateStateChanges(t *testing.T) {
 	hardStopID := "hs-1"
 	maxQty := 0.0
 	svc := sysservice.NewService(
-		sysservice.WithRealTradeRiskState(func() map[string]any {
-			entries := []map[string]any{}
+		sysservice.WithRealTradeRiskState(func() *trdsrv.RealTradeRiskSnapshot {
+			entries := []trdsrv.RealTradeHardStopEntry{}
 			if hardStopActive {
-				entries = append(entries, map[string]any{
-					"id":                 hardStopID,
-					"brokerId":           "futu",
-					"tradingEnvironment": "REAL",
-					"accountId":          "ACC-1",
+				entries = append(entries, trdsrv.RealTradeHardStopEntry{
+					ID:                 hardStopID,
+					BrokerID:           "futu",
+					TradingEnvironment: "REAL",
+					AccountID:          "ACC-1",
 				})
 			}
-			return map[string]any{
-				"realTradingEnabled":                realTradingEnabled,
-				"killSwitchActive":                  killSwitchActive,
-				"runtimeKillSwitchActive":           killSwitchActive,
-				"killSwitchSource":                  "RUNTIME",
-				"riskEnabled":                       realTradingEnabled,
-				"runtimeRiskConfigured":             realTradingEnabled,
-				"runtimeConfiguredMaxOrderQuantity": &maxQty,
-				"effectiveMaxOrderQuantity":         &maxQty,
-				"hardStopEntries":                   entries,
+			killSwitchSource := "RUNTIME"
+			return &trdsrv.RealTradeRiskSnapshot{
+				RealTradingEnabled:                realTradingEnabled,
+				KillSwitchActive:                  killSwitchActive,
+				RuntimeKillSwitchActive:           killSwitchActive,
+				KillSwitchSource:                  &killSwitchSource,
+				RiskEnabled:                       realTradingEnabled,
+				RuntimeRiskConfigured:             realTradingEnabled,
+				RuntimeConfiguredMaxOrderQuantity: &maxQty,
+				EffectiveMaxOrderQuantity:         &maxQty,
+				HardStopEntries:                   entries,
 			}
 		}),
 		sysservice.WithRealTradeRuntimeRiskControls(
-			func(_ context.Context, command sysservice.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+			func(_ context.Context, command sysservice.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 				realTradingEnabled = command.RealTradingEnabled
 				if command.MaxOrderQuantity != nil {
 					maxQty = *command.MaxOrderQuantity
 				}
-				return map[string]any{"realTradingEnabled": realTradingEnabled, "runtimeConfiguredMaxOrderQuantity": maxQty}, nil
+				return trdsrv.RealTradeRiskSnapshot{RealTradingEnabled: realTradingEnabled, RuntimeConfiguredMaxOrderQuantity: &maxQty}, nil
 			},
-			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (map[string]any, error) {
+			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 				realTradingEnabled = false
-				return map[string]any{"realTradingEnabled": false}, nil
+				return trdsrv.RealTradeRiskSnapshot{RealTradingEnabled: false}, nil
 			},
 		),
 		sysservice.WithRealTradeKillSwitchControls(
-			func(context.Context, sysservice.RealTradeKillSwitchCommand) (map[string]any, error) {
+			func(context.Context, sysservice.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 				killSwitchActive = true
-				return map[string]any{"killSwitchActive": true}, nil
+				return trdsrv.RealTradeRiskSnapshot{KillSwitchActive: true}, nil
 			},
-			func(context.Context, sysservice.RealTradeKillSwitchCommand) (map[string]any, error) {
+			func(context.Context, sysservice.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 				killSwitchActive = false
-				return map[string]any{"killSwitchActive": false}, nil
+				return trdsrv.RealTradeRiskSnapshot{KillSwitchActive: false}, nil
 			},
 		),
 		sysservice.WithRealTradeHardStopControls(
-			func(context.Context, sysservice.RealTradeHardStopCommand) (map[string]any, error) {
+			func(context.Context, sysservice.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 				hardStopActive = true
-				return map[string]any{"entries": []any{map[string]any{"id": hardStopID}}}, nil
+				return trdsrv.RealTradeRiskSnapshot{HardStopEntries: []trdsrv.RealTradeHardStopEntry{{ID: hardStopID}}}, nil
 			},
-			func(_ context.Context, id string, _ sysservice.RealTradeHardStopCommand) (map[string]any, error) {
+			func(_ context.Context, id string, _ sysservice.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
 				if id == hardStopID {
 					hardStopActive = false
 				}
-				return map[string]any{"entries": []any{}}, nil
+				return trdsrv.RealTradeRiskSnapshot{HardStopEntries: []trdsrv.RealTradeHardStopEntry{}}, nil
 			},
 		),
 	)
@@ -266,27 +268,27 @@ func TestRealTradeControlRoutesMapValidationAndControlFailures(t *testing.T) {
 	gatewayErr := errors.New("control persistence unavailable")
 	svc := sysservice.NewService(
 		sysservice.WithRealTradeKillSwitchControls(
-			func(context.Context, sysservice.RealTradeKillSwitchCommand) (map[string]any, error) {
-				return nil, gatewayErr
+			func(context.Context, sysservice.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+				return trdsrv.RealTradeRiskSnapshot{}, gatewayErr
 			},
-			func(context.Context, sysservice.RealTradeKillSwitchCommand) (map[string]any, error) {
-				return nil, gatewayErr
+			func(context.Context, sysservice.RealTradeKillSwitchCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+				return trdsrv.RealTradeRiskSnapshot{}, gatewayErr
 			},
 		),
 		sysservice.WithRealTradeHardStopControls(
-			func(context.Context, sysservice.RealTradeHardStopCommand) (map[string]any, error) {
-				return nil, gatewayErr
+			func(context.Context, sysservice.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+				return trdsrv.RealTradeRiskSnapshot{}, gatewayErr
 			},
-			func(context.Context, string, sysservice.RealTradeHardStopCommand) (map[string]any, error) {
-				return nil, gatewayErr
+			func(context.Context, string, sysservice.RealTradeHardStopCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+				return trdsrv.RealTradeRiskSnapshot{}, gatewayErr
 			},
 		),
 		sysservice.WithRealTradeRuntimeRiskControls(
-			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (map[string]any, error) {
-				return nil, gatewayErr
+			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+				return trdsrv.RealTradeRiskSnapshot{}, gatewayErr
 			},
-			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (map[string]any, error) {
-				return nil, gatewayErr
+			func(context.Context, sysservice.RealTradeRuntimeRiskCommand) (trdsrv.RealTradeRiskSnapshot, error) {
+				return trdsrv.RealTradeRiskSnapshot{}, gatewayErr
 			},
 		),
 	)

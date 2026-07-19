@@ -243,8 +243,10 @@ func TestApplyPineWorkerSettingsRetiresExistingRunnersWhenDisabled(t *testing.T)
 	backtestRunner := &closeTrackingPineWorkerRunner{}
 	instanceRunner := &closeTrackingPineWorkerRunner{}
 	server := &Server{
-		backtestPineWorkerRunner: backtestRunner,
-		instancePineWorkerRunner: instanceRunner,
+		serverRuntimes: serverRuntimes{
+			backtestPineWorkerRunner: backtestRunner,
+			instancePineWorkerRunner: instanceRunner,
+		},
 	}
 
 	server.applyPineWorkerSettings(PineWorkerSettings{})

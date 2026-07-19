@@ -35,7 +35,7 @@ func TestServerSystemAndSettingsOptionCallbacks(t *testing.T) {
 	if got := service.RuntimeDependencies(context.Background()); got["allRequiredSatisfied"] == nil {
 		t.Fatalf("runtime dependencies = %#v", got)
 	}
-	if got := service.RealTradeApprovals(); got["realTradingEnabled"] != false {
+	if got := service.RealTradeApprovals(); got.RealTradingEnabled {
 		t.Fatalf("nil risk gateway state = %#v", got)
 	}
 
@@ -50,9 +50,9 @@ func TestServerSystemAndSettingsOptionCallbacks(t *testing.T) {
 }
 
 func TestServerStrategyDemandWithRuntimeManager(t *testing.T) {
-	server := &Server{strategyRuntimeManager: &strategyRuntimeManager{runtimes: map[string]*managedStrategyRuntime{
+	server := &Server{serverRuntimes: serverRuntimes{strategyRuntimeManager: &strategyRuntimeManager{runtimes: map[string]*managedStrategyRuntime{
 		"runtime": {symbols: map[string]*strategySymbolRuntime{"US.AAPL": {symbol: "US.AAPL"}}},
-	}}}
+	}}}}
 	if got := server.strategyRuntimeDemand(); len(got) != 1 || got[0] != "US.AAPL" {
 		t.Fatalf("strategy runtime demand = %#v", got)
 	}

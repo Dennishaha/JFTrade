@@ -11,11 +11,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 var ErrSessionTimelineFailed = errors.New("adk session timeline failed")
@@ -528,7 +528,7 @@ func (s *Service) optimizationTaskResponse(ctx context.Context, task jfadk.Optim
 	if task.Status != status {
 		task.Status = status
 		updatedTask, jftradeErr1 := s.runtime.Store().SaveOptimizationTask(ctx, task)
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		task = updatedTask
 	}
 	return map[string]any{
@@ -583,12 +583,4 @@ func approvalWaitDurationMs(approval jfadk.Approval, now time.Time) int64 {
 		return 0
 	}
 	return endedAt.Sub(startedAt).Milliseconds()
-}
-
-func jftradeLogError(values ...any) {
-	for _, value := range values {
-		if err, ok := value.(error); ok && err != nil {
-			log.Printf("best-effort operation failed: %v", err)
-		}
-	}
 }

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkagent "google.golang.org/adk/v2/agent"
 	adksession "google.golang.org/adk/v2/session"
 	adktool "google.golang.org/adk/v2/tool"
@@ -237,7 +238,7 @@ func (e *googleADKExecution) finishCall(callID string, output any, err error) {
 	e.mu.Unlock()
 	if changed {
 		jftradeErr1 := e.flushBufferedTextIfReady()
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 	}
 }
 
@@ -285,7 +286,7 @@ func (e *googleADKExecution) consumeFunctionResponse(response *genai.FunctionRes
 	e.mu.Unlock()
 	if changed {
 		jftradeErr2 := e.flushBufferedTextIfReady()
-		jftradeLogError(jftradeErr2)
+		besteffort.LogError(jftradeErr2)
 	}
 }
 
@@ -496,7 +497,7 @@ func (e *googleADKExecution) emitToolProgress(callID string, toolName string) {
 		return
 	}
 	jftradeErr4 := e.onDelta(ChatDelta{ToolProgress: projectedToolProgress(toolName)})
-	jftradeLogError(jftradeErr4)
+	besteffort.LogError(jftradeErr4)
 }
 
 func (e *googleADKExecution) appendVisibleTextForRun(runID string, reply string, reasoning string) error {

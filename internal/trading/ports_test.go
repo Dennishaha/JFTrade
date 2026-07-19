@@ -43,8 +43,8 @@ type testBrokerRuntimePort struct {
 }
 
 func (p testBrokerRuntimePort) ActiveBroker() broker.Broker { return p.active }
-func (p testBrokerRuntimePort) Runtime(context.Context) map[string]any {
-	return map[string]any{"connectivity": "connected"}
+func (p testBrokerRuntimePort) Runtime(context.Context) *BrokerRuntimeResponse {
+	return &BrokerRuntimeResponse{Session: BrokerRuntimeSession{Connectivity: "connected"}}
 }
 
 func TestServiceUsesExplicitTradingPorts(t *testing.T) {
@@ -74,7 +74,7 @@ func TestServiceUsesExplicitTradingPorts(t *testing.T) {
 		t.Fatalf("CancelExecutionOrder cancelled=%v err=%v", gateway.cancelled, err)
 	}
 	runtime, err := service.Runtime(t.Context(), "futu")
-	if err != nil || runtime["connectivity"] != "connected" {
+	if err != nil || runtime.Session.Connectivity != "connected" {
 		t.Fatalf("Runtime=%#v err=%v", runtime, err)
 	}
 }

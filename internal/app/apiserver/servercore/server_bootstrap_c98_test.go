@@ -53,7 +53,7 @@ func TestCoverage98ServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.
 func TestCoverage98ServerOptionCallbacksExposeNilRuntimeStatesSafely(t *testing.T) {
 	server := &Server{}
 	riskService := system.NewService(server.systemRuntimeOptions()...)
-	if limits := riskService.RealTradeRiskLimits(); limits["riskEnabled"] != false || limits["entry"] != nil {
+	if limits := riskService.RealTradeRiskLimits(); limits.RiskEnabled || limits.Entry != nil {
 		t.Fatalf("nil real-trade gateway limits = %#v", limits)
 	}
 

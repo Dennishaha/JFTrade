@@ -52,6 +52,19 @@ type JsonRequestBody<TPath extends ApiPath, TMethod extends HttpMethod> =
     ? TBody
     : never;
 
+// ResponseDataFor 从生成类型中推导某个路径 200 响应 envelope 的 data。
+// 未 typed 的端点（envelope.data 为 unknown）安全退化为 unknown。
+export type ResponseDataFor<TPath extends ApiPath, TMethod extends HttpMethod> =
+  OperationFor<TPath, TMethod> extends {
+    responses: { "200": { content: { "application/json": infer TBody } } };
+  }
+    ? TBody extends { data?: infer TData }
+      ? unknown extends TData
+        ? unknown
+        : TData
+      : unknown
+    : unknown;
+
 type ApiRequestOptions = Omit<RequestInit, "body" | "credentials" | "method">;
 
 export function setCSRFToken(value: string): void {
@@ -227,105 +240,170 @@ function withJsonBody<TBody>(
   };
 }
 
-export async function apiGet<TResponse, TPath extends PathWithMethod<"get">>(
+export function apiGet<TPath extends PathWithMethod<"get">>(
   path: TPath,
   init?: ApiRequestOptions,
-): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(path, { ...init, method: "GET" });
+): Promise<ResponseDataFor<TPath, "get">>;
+export function apiGet<TResponse, TPath extends PathWithMethod<"get">>(
+  path: TPath,
+  init?: ApiRequestOptions,
+): Promise<TResponse>;
+export async function apiGet(
+  path: string,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return fetchEnvelopeWithInit(path, { ...init, method: "GET" });
 }
 
-export async function apiPost<TResponse, TPath extends PathWithMethod<"post">>(
+export function apiPost<TPath extends PathWithMethod<"post">>(
   path: TPath,
   body: JsonRequestBody<TPath, "post">,
   init?: ApiRequestOptions,
-): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(
-    path,
-    withJsonBody("POST", body, init),
-  );
+): Promise<ResponseDataFor<TPath, "post">>;
+export function apiPost<TResponse, TPath extends PathWithMethod<"post">>(
+  path: TPath,
+  body: JsonRequestBody<TPath, "post">,
+  init?: ApiRequestOptions,
+): Promise<TResponse>;
+export async function apiPost(
+  path: string,
+  body: unknown,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return fetchEnvelopeWithInit(path, withJsonBody("POST", body, init));
 }
 
-export async function apiPut<TResponse, TPath extends PathWithMethod<"put">>(
+export function apiPut<TPath extends PathWithMethod<"put">>(
   path: TPath,
   body: JsonRequestBody<TPath, "put">,
   init?: ApiRequestOptions,
-): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(
-    path,
-    withJsonBody("PUT", body, init),
-  );
+): Promise<ResponseDataFor<TPath, "put">>;
+export function apiPut<TResponse, TPath extends PathWithMethod<"put">>(
+  path: TPath,
+  body: JsonRequestBody<TPath, "put">,
+  init?: ApiRequestOptions,
+): Promise<TResponse>;
+export async function apiPut(
+  path: string,
+  body: unknown,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return fetchEnvelopeWithInit(path, withJsonBody("PUT", body, init));
 }
 
-export async function apiDelete<
-  TResponse,
-  TPath extends PathWithMethod<"delete">,
->(path: TPath, init?: ApiRequestOptions): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(path, { ...init, method: "DELETE" });
+export function apiDelete<TPath extends PathWithMethod<"delete">>(
+  path: TPath,
+  init?: ApiRequestOptions,
+): Promise<ResponseDataFor<TPath, "delete">>;
+export function apiDelete<TResponse, TPath extends PathWithMethod<"delete">>(
+  path: TPath,
+  init?: ApiRequestOptions,
+): Promise<TResponse>;
+export async function apiDelete(
+  path: string,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return fetchEnvelopeWithInit(path, { ...init, method: "DELETE" });
 }
 
-export async function apiGetPath<
-  TResponse,
-  TPath extends PathWithMethod<"get">,
->(
+export function apiGetPath<TPath extends PathWithMethod<"get">>(
   _template: TPath,
   path: string,
   init?: ApiRequestOptions,
-): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(path, { ...init, method: "GET" });
+): Promise<ResponseDataFor<TPath, "get">>;
+export function apiGetPath<TResponse, TPath extends PathWithMethod<"get">>(
+  _template: TPath,
+  path: string,
+  init?: ApiRequestOptions,
+): Promise<TResponse>;
+export async function apiGetPath(
+  _template: string,
+  path: string,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return fetchEnvelopeWithInit(path, { ...init, method: "GET" });
 }
 
-export async function apiPutPath<
-  TResponse,
-  TPath extends PathWithMethod<"put">,
->(
+export function apiPutPath<TPath extends PathWithMethod<"put">>(
   _template: TPath,
   path: string,
   body: JsonRequestBody<TPath, "put">,
   init?: ApiRequestOptions,
-): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(
-    path,
-    withJsonBody("PUT", body, init),
-  );
+): Promise<ResponseDataFor<TPath, "put">>;
+export function apiPutPath<TResponse, TPath extends PathWithMethod<"put">>(
+  _template: TPath,
+  path: string,
+  body: JsonRequestBody<TPath, "put">,
+  init?: ApiRequestOptions,
+): Promise<TResponse>;
+export async function apiPutPath(
+  _template: string,
+  path: string,
+  body: unknown,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return fetchEnvelopeWithInit(path, withJsonBody("PUT", body, init));
 }
 
-export async function apiPostPath<
-  TResponse,
-  TPath extends PathWithMethod<"post">,
->(
+export function apiPostPath<TPath extends PathWithMethod<"post">>(
   _template: TPath,
   path: string,
   body: JsonRequestBody<TPath, "post">,
   init?: ApiRequestOptions,
-): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(
-    path,
-    withJsonBody("POST", body, init),
-  );
+): Promise<ResponseDataFor<TPath, "post">>;
+export function apiPostPath<TResponse, TPath extends PathWithMethod<"post">>(
+  _template: TPath,
+  path: string,
+  body: JsonRequestBody<TPath, "post">,
+  init?: ApiRequestOptions,
+): Promise<TResponse>;
+export async function apiPostPath(
+  _template: string,
+  path: string,
+  body: unknown,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return fetchEnvelopeWithInit(path, withJsonBody("POST", body, init));
 }
 
-export async function apiPatchPath<
-  TResponse,
-  TPath extends PathWithMethod<"patch">,
->(
+export function apiPatchPath<TPath extends PathWithMethod<"patch">>(
   _template: TPath,
   path: string,
   body: JsonRequestBody<TPath, "patch">,
   init?: ApiRequestOptions,
-): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(
-    path,
-    withJsonBody("PATCH", body, init),
-  );
+): Promise<ResponseDataFor<TPath, "patch">>;
+export function apiPatchPath<TResponse, TPath extends PathWithMethod<"patch">>(
+  _template: TPath,
+  path: string,
+  body: JsonRequestBody<TPath, "patch">,
+  init?: ApiRequestOptions,
+): Promise<TResponse>;
+export async function apiPatchPath(
+  _template: string,
+  path: string,
+  body: unknown,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return fetchEnvelopeWithInit(path, withJsonBody("PATCH", body, init));
 }
 
-export async function apiDeletePath<
+export function apiDeletePath<TPath extends PathWithMethod<"delete">>(
+  _template: TPath,
+  path: string,
+  init?: ApiRequestOptions,
+): Promise<ResponseDataFor<TPath, "delete">>;
+export function apiDeletePath<
   TResponse,
   TPath extends PathWithMethod<"delete">,
 >(
   _template: TPath,
   path: string,
   init?: ApiRequestOptions,
-): Promise<TResponse> {
-  return fetchEnvelopeWithInit<TResponse>(path, { ...init, method: "DELETE" });
+): Promise<TResponse>;
+export async function apiDeletePath(
+  _template: string,
+  path: string,
+  init?: ApiRequestOptions,
+): Promise<unknown> {
+  return fetchEnvelopeWithInit(path, { ...init, method: "DELETE" });
 }

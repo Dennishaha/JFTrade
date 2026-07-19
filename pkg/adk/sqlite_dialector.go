@@ -6,6 +6,7 @@ import (
 	"maps"
 	"strconv"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"gorm.io/gorm"
 	"gorm.io/gorm/callbacks"
 	"gorm.io/gorm/clause"
@@ -89,7 +90,7 @@ func (dialector sqliteDialector) DefaultValueOf(field *schema.Field) clause.Expr
 }
 
 func (dialector sqliteDialector) BindVarTo(writer clause.Writer, stmt *gorm.Statement, v any) {
-	jftradeLogError(writer.WriteByte('?'))
+	besteffort.LogError(writer.WriteByte('?'))
 }
 
 func (dialector sqliteDialector) QuoteTo(writer clause.Writer, str string) {
@@ -104,7 +105,7 @@ func (dialector sqliteDialector) QuoteTo(writer clause.Writer, str string) {
 		case '`':
 			continuousBacktick++
 			if continuousBacktick == 2 {
-				jftradeLogError(writer.WriteString("``"))
+				besteffort.LogResult(writer.WriteString("``"))
 				continuousBacktick = 0
 			}
 		case '.':
@@ -112,30 +113,30 @@ func (dialector sqliteDialector) QuoteTo(writer clause.Writer, str string) {
 				shiftDelimiter = 0
 				underQuoted = false
 				continuousBacktick = 0
-				jftradeLogError(writer.WriteString("`"))
+				besteffort.LogResult(writer.WriteString("`"))
 			}
-			jftradeLogError(writer.WriteByte(value))
+			besteffort.LogError(writer.WriteByte(value))
 			continue
 		default:
 			if shiftDelimiter-continuousBacktick <= 0 && !underQuoted {
-				jftradeLogError(writer.WriteString("`"))
+				besteffort.LogResult(writer.WriteString("`"))
 				underQuoted = true
 				if selfQuoted = continuousBacktick > 0; selfQuoted {
 					continuousBacktick--
 				}
 			}
 			for ; continuousBacktick > 0; continuousBacktick-- {
-				jftradeLogError(writer.WriteString("``"))
+				besteffort.LogResult(writer.WriteString("``"))
 			}
-			jftradeLogError(writer.WriteByte(value))
+			besteffort.LogError(writer.WriteByte(value))
 		}
 		shiftDelimiter++
 	}
 
 	if continuousBacktick > 0 && !selfQuoted {
-		jftradeLogError(writer.WriteString("``"))
+		besteffort.LogResult(writer.WriteString("``"))
 	}
-	jftradeLogError(writer.WriteString("`"))
+	besteffort.LogResult(writer.WriteString("`"))
 }
 
 func (dialector sqliteDialector) Explain(sql string, vars ...any) string {
@@ -147,12 +148,12 @@ func (dialector sqliteDialector) ClauseBuilders() map[string]clause.ClauseBuilde
 		"INSERT": func(c clause.Clause, builder clause.Builder) {
 			if insert, ok := c.Expression.(clause.Insert); ok {
 				if stmt, ok := builder.(*gorm.Statement); ok {
-					jftradeLogError(stmt.WriteString("INSERT "))
+					besteffort.LogResult(stmt.WriteString("INSERT "))
 					if insert.Modifier != "" {
-						jftradeLogError(stmt.WriteString(insert.Modifier))
-						jftradeLogError(stmt.WriteByte(' '))
+						besteffort.LogResult(stmt.WriteString(insert.Modifier))
+						besteffort.LogError(stmt.WriteByte(' '))
 					}
-					jftradeLogError(stmt.WriteString("INTO "))
+					besteffort.LogResult(stmt.WriteString("INTO "))
 					if insert.Table.Name == "" {
 						stmt.WriteQuoted(stmt.Table)
 					} else {
@@ -170,12 +171,12 @@ func (dialector sqliteDialector) ClauseBuilders() map[string]clause.ClauseBuilde
 					limitValue = *limit.Limit
 				}
 				if limitValue >= 0 || limit.Offset > 0 {
-					jftradeLogError(builder.WriteString("LIMIT "))
-					jftradeLogError(builder.WriteString(strconv.Itoa(limitValue)))
+					besteffort.LogResult(builder.WriteString("LIMIT "))
+					besteffort.LogResult(builder.WriteString(strconv.Itoa(limitValue)))
 				}
 				if limit.Offset > 0 {
-					jftradeLogError(builder.WriteString(" OFFSET "))
-					jftradeLogError(builder.WriteString(strconv.Itoa(limit.Offset)))
+					besteffort.LogResult(builder.WriteString(" OFFSET "))
+					besteffort.LogResult(builder.WriteString(strconv.Itoa(limit.Offset)))
 				}
 			}
 		},

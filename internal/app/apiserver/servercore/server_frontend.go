@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/frontendassets"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 type frontendServer struct {
@@ -26,15 +27,7 @@ type frontendServer struct {
 }
 
 func loadFrontendFS() fs.FS {
-	frontendFS, available, err := frontendassets.FileSystem()
-	if err != nil {
-		log.Printf("JFTrade embedded frontend assets unavailable: %v", err)
-		return nil
-	}
-	if !available {
-		return nil
-	}
-	return frontendFS
+	return frontendassets.Load()
 }
 
 func newFrontendServer(frontendFS fs.FS) *frontendServer {
@@ -154,11 +147,11 @@ func (f *frontendServer) serveRuntimeConfig(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	_, jftradeErr3 := w.Write([]byte("window.__JFTRADE_RUNTIME_CONFIG__ = Object.assign({}, window.__JFTRADE_RUNTIME_CONFIG__, "))
-	jftradeLogError(jftradeErr3)
+	besteffort.LogError(jftradeErr3)
 	_, jftradeErr1 := w.Write(payload)
-	jftradeLogError(jftradeErr1)
+	besteffort.LogError(jftradeErr1)
 	_, jftradeErr2 := w.Write([]byte(");\n"))
-	jftradeLogError(jftradeErr2)
+	besteffort.LogError(jftradeErr2)
 }
 
 func (f *frontendServer) hasFile(assetPath string) bool {

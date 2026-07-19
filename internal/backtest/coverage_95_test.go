@@ -8,6 +8,7 @@ import (
 	"time"
 
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func TestBacktestDateRangeRejectsIncompleteAndInvalidMarketInputs(t *testing.T) {
@@ -109,7 +110,7 @@ func TestBacktestDiagnosticHelpersRejectUnexpectedDynamicValues(t *testing.T) {
 			t.Fatal("jftradeCheckedTypeAssertion did not panic for an incompatible value")
 		}
 	}()
-	jftradeLogError(errors.New("best effort"), nil, "not an error")
+	besteffort.LogError(errors.New("best effort"))
 	_ = jftradeCheckedTypeAssertion[string](42)
 }
 

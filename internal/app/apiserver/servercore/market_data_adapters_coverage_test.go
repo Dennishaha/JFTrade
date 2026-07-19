@@ -49,7 +49,10 @@ func newMarketDataAdapterCoverageServer(t *testing.T, reader broker.MarketDataRe
 	}
 	registry := broker.NewRegistry()
 	registry.Register(marketDataCoverageBroker{reader: reader})
-	return &Server{store: settings, brokers: registry}
+	return &Server{
+		serverStores:   serverStores{store: settings},
+		serverRuntimes: serverRuntimes{brokers: registry},
+	}
 }
 
 func TestMarketDataProviderClosureAndOptionalCapabilityBoundaries(t *testing.T) {
@@ -57,7 +60,7 @@ func TestMarketDataProviderClosureAndOptionalCapabilityBoundaries(t *testing.T) 
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	provider := newMarketdataProvider(&Server{store: disabledSettings})
+	provider := newMarketdataProvider(&Server{serverStores: serverStores{store: disabledSettings}})
 	if _, err := provider.GetSecurityDetails(context.Background(), "US", "AAPL"); err == nil {
 		t.Fatal("expected security details integration error")
 	}
@@ -84,7 +87,7 @@ func TestMarketDataProviderLookupFailureAndFilteringBoundaries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	disabled := &Server{store: disabledSettings}
+	disabled := &Server{serverStores: serverStores{store: disabledSettings}}
 	if _, err := disabled.marketdataProviderLookupInstrument(context.Background(), "US", "AAPL"); err == nil {
 		t.Fatal("expected disabled broker error")
 	}

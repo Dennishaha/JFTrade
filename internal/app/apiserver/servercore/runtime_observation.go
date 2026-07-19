@@ -11,6 +11,7 @@ import (
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func (m *strategyRuntimeManager) runtimeObservation(instanceID string) (strategyRuntimeObservation, bool) {
@@ -110,7 +111,7 @@ func (m *strategyRuntimeManager) handleRuntimePanic(instanceID string, symbol st
 	m.recordError(instanceID, detail, time.Now().UTC())
 	m.stopStrategy(instanceID)
 	jftradeErr1 := m.reconcileRuntimeFailure(instanceID, detail)
-	jftradeLogError(jftradeErr1)
+	besteffort.LogError(jftradeErr1)
 	m.recordNotification(strategyRuntimeNotification{
 		At:       time.Now().UTC().Format(time.RFC3339Nano),
 		Level:    "error",

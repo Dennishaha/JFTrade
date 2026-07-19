@@ -6,6 +6,7 @@ import (
 	"time"
 
 	bbgoexchange "github.com/jftrade/jftrade-main/pkg/bbgo/exchange"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
@@ -39,7 +40,7 @@ func TestWithClientRetriesRecoverableErrorsAndReturnsLastError(t *testing.T) {
 	if isRecoverableOpenDErr(nil) || isRecoverableOpenDErr(errors.New("permission denied")) {
 		t.Fatal("non-recoverable OpenD error classified as recoverable")
 	}
-	jftradeLogError(nil, errors.New("best effort"), "ignored")
+	besteffort.LogError(errors.New("best effort"))
 }
 
 func TestExchangeReconnectsClosedReadyClientAndCoversHandlerBoundaries(t *testing.T) {

@@ -13,29 +13,6 @@ import (
 	domain "github.com/jftrade/jftrade-main/internal/watchlist"
 )
 
-func TestOpenAPIDocumentationFunctionsRemainCallable(t *testing.T) {
-	functions := []func(){
-		documentListGroups,
-		documentCreateGroup,
-		documentUpdateGroup,
-		documentDeleteGroup,
-		documentListItems,
-		documentGetMemberships,
-		documentReplaceMemberships,
-		documentBatchQuotes,
-		documentListSources,
-		documentListSourceGroups,
-		documentListBindings,
-		documentDeleteBinding,
-		documentPreviewImport,
-		documentCommitImport,
-		documentListImportRuns,
-	}
-	for _, function := range functions {
-		function()
-	}
-}
-
 func TestWriteErrorMapsAllDomainErrors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tests := []struct {
@@ -94,5 +71,32 @@ func TestRouteHelpersCoverBindingAndDeleteErrors(t *testing.T) {
 	deleteBinding(deleteContext, domain.NewService(nil), "binding-1")
 	if deleteRecorder.Code != http.StatusServiceUnavailable {
 		t.Fatalf("deleteBinding unavailable status = %d", deleteRecorder.Code)
+	}
+}
+
+func TestBindQueryRejectsMalformedAndInvalidValues(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name   string
+		target string
+	}{
+		{name: "malformed escape", target: "/watchlists?limit=%zz"},
+		{name: "invalid integer", target: "/watchlists?limit=not-a-number"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(recorder)
+			context.Request = httptest.NewRequest(http.MethodGet, test.target, nil)
+			var query struct {
+				Limit int `form:"limit"`
+			}
+			if bindQuery(context, &query, "invalid query") {
+				t.Fatal("bindQuery accepted invalid query")
+			}
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
+			}
+		})
 	}
 }

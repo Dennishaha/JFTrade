@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func TestRuntimeFallbacksAndEnvironmentOverridesRemainUsable(t *testing.T) {
@@ -52,7 +54,7 @@ func TestRuntimeFallbacksAndEnvironmentOverridesRemainUsable(t *testing.T) {
 	if got := firstNonEmpty(" ", ""); got != "" {
 		t.Fatalf("empty firstNonEmpty = %q", got)
 	}
-	jftradeLogError(errors.New("best effort failure"), "not an error")
+	besteffort.LogError(errors.New("best effort failure"))
 }
 
 func getenvForTest(t *testing.T, key string) string {

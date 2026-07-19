@@ -18,6 +18,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/exchange"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
@@ -140,7 +141,7 @@ func (e *Exchange) ConnectionGeneration() uint64 {
 	if e.ready && e.client != nil {
 		select {
 		case <-e.client.Done():
-			jftradeLogError(e.invalidateClientLocked())
+			besteffort.LogError(e.invalidateClientLocked())
 		default:
 		}
 	}

@@ -1,5 +1,7 @@
 package pineengine
 
+import "github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
+
 const (
 	GoPineEngineID       = "go-pine"
 	PinetsShadowEngineID = "pinets-shadow"
@@ -18,15 +20,13 @@ type EngineInfo struct {
 	Runtime       string `json:"runtime,omitempty"`
 }
 
-type Candle struct {
-	OpenTime  int64   `json:"openTime"`
-	CloseTime int64   `json:"closeTime"`
-	Open      float64 `json:"open"`
-	High      float64 `json:"high"`
-	Low       float64 `json:"low"`
-	Close     float64 `json:"close"`
-	Volume    float64 `json:"volume"`
-}
+// Candle is the candle element of RunIndicatorRequest, the JSON-RPC payload
+// sent to the PineTS shadow worker (scripts/pinets-worker.mjs), which reads the
+// camelCase openTime/closeTime fields. It aliases the canonical numeric wire
+// candle from pkg/strategy/pineworker; the JSON tags that define this
+// protocol's wire shape live on that shared type. Do not reintroduce a local
+// copy — extend pineworker.Candle instead.
+type Candle = pineworker.Candle
 
 type Diagnostic struct {
 	Severity  string `json:"severity"`

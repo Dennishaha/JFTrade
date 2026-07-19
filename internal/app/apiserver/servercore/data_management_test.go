@@ -41,7 +41,7 @@ func TestBacktestRunMaintenanceKeepsMemoryAndDatabaseInSync(t *testing.T) {
 	if _, err := store.purgeTerminalRuns(t.Context(), []string{running.ID}); !errors.Is(err, datamigration.ErrPreviewStale) {
 		t.Fatalf("running purge err = %v", err)
 	}
-	server := &Server{backtestRuns: store, backtestSyncTasks: newBacktestSyncTaskStore()}
+	server := &Server{serverStores: serverStores{backtestRuns: store, backtestSyncTasks: newBacktestSyncTaskStore()}}
 	if reason := server.databaseMaintenanceBusyReason(datamigration.DatabaseBacktestRuns); reason == "" {
 		t.Fatal("running backtest did not block maintenance")
 	}

@@ -34,7 +34,7 @@ import {
   emptySystemStatus,
 } from "@/contracts";
 
-import { fetchEnvelope } from "./apiClient";
+import { apiGet, apiGetPath, fetchEnvelope } from "./apiClient";
 import type { BrokerAccountSelectionOption } from "./consoleDataBrokerSettings";
 import {
   resolveConsoleDataBrokerLiveSelection,
@@ -326,24 +326,12 @@ export function createConsoleDataSystemStateController(
         fetchEnvelope<RealTradeApprovalsResponse>(
           "/api/v1/system/real-trade-approvals",
         ),
-        fetchEnvelope<RealTradeHardStopsResponse>(
-          "/api/v1/system/real-trade-hard-stops",
-        ),
-        fetchEnvelope<RealTradeHardStopEventsResponse>(
-          "/api/v1/system/real-trade-hard-stop-events",
-        ),
-        fetchEnvelope<RealTradeKillSwitchStateResponse>(
-          "/api/v1/system/real-trade-kill-switch",
-        ),
-        fetchEnvelope<RealTradeKillSwitchEventsResponse>(
-          "/api/v1/system/real-trade-kill-switch-events",
-        ),
-        fetchEnvelope<RealTradeRiskStateResponse>(
-          "/api/v1/system/real-trade-risk-limits",
-        ),
-        fetchEnvelope<RealTradeRiskEventsResponse>(
-          "/api/v1/system/real-trade-risk-events",
-        ),
+        apiGet("/api/v1/system/real-trade-hard-stops"),
+        apiGet("/api/v1/system/real-trade-hard-stop-events"),
+        apiGet("/api/v1/system/real-trade-kill-switch"),
+        apiGet("/api/v1/system/real-trade-kill-switch-events"),
+        apiGet("/api/v1/system/real-trade-risk-limits"),
+        apiGet("/api/v1/system/real-trade-risk-events"),
         fetchEnvelope<WorkerBrokerOrderUpdatesResponse>(
           "/api/v1/system/worker/broker-order-updates",
         ),
@@ -376,7 +364,8 @@ export function createConsoleDataSystemStateController(
         : emptyFutuOpenDHealth;
       const broker =
         shouldProbeFutu && activeBrokerId === "futu"
-          ? await fetchEnvelope<BrokerRuntimeResponse>(
+          ? await apiGetPath<BrokerRuntimeResponse, "/api/v1/brokers/{brokerId}/runtime">(
+              "/api/v1/brokers/{brokerId}/runtime",
               `/api/v1/brokers/${encodeURIComponent(activeBrokerId)}/runtime`,
             )
           : emptyBrokerRuntime;

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	adktool "google.golang.org/adk/v2/tool"
@@ -171,7 +172,9 @@ func (e *WorkflowExecutor) continueADKGoalWorkflow(
 	parent.Iteration = limit
 	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
 	parent, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
-	jftradeLogError(saveErr)
+	if saveErr != nil {
+		return ChatResponse{}, fmt.Errorf("persist goal iteration-limit pause: %w", saveErr)
+	}
 	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.Message}), nil
 }
 
@@ -194,7 +197,7 @@ func (e *WorkflowExecutor) pauseADKGoalWorkflowIfRequested(
 		if cleaned, changed := pruneInterruptedGoalWorkflowToolCalls(parent); changed {
 			parent = cleaned
 			updatedParent, jftradeErr29 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
-			jftradeLogError(jftradeErr29)
+			besteffort.LogError(jftradeErr29)
 			parent = updatedParent
 		}
 		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}), true
@@ -214,7 +217,7 @@ func (e *WorkflowExecutor) pauseADKGoalWorkflowIfRequested(
 	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
 	parent, _ = pruneInterruptedGoalWorkflowToolCalls(parent)
 	parent, jftradeErr25 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
-	jftradeLogError(jftradeErr25)
+	besteffort.LogError(jftradeErr25)
 	return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}), true
 }
 
@@ -401,7 +404,7 @@ func (e *WorkflowExecutor) finishCompleteGoalWorkflow(
 		parent = saved
 	} else {
 		jftradeErr6 := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr6)
+		besteffort.LogError(jftradeErr6)
 	}
 	return parent, e.workflowResponse(ctx, req.Session, parent, replyResult), true, ""
 }
@@ -421,7 +424,7 @@ func (e *WorkflowExecutor) completeGoalReply(
 		return visibleReply
 	}
 	tasks, jftradeErr10 := e.workflowTasks(ctx, parent, known)
-	jftradeLogError(jftradeErr10)
+	besteffort.LogError(jftradeErr10)
 	return workflowSummary(parent, workflowTaskResultSummaries(tasks))
 }
 
@@ -445,7 +448,7 @@ func (e *WorkflowExecutor) finishContinueGoalWorkflow(
 		return parent, response, true, ""
 	}
 	parent, jftradeErr24 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
-	jftradeLogError(jftradeErr24)
+	besteffort.LogError(jftradeErr24)
 	return parent, ChatResponse{}, false, goalOrchestratorContinueNudge(parent, snapshot.reason)
 }
 
@@ -488,7 +491,7 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 			parent = pauseParentForChild(parent, child, index)
 			parent.Iteration = iteration
 			parent, jftradeErr26 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
-			jftradeLogError(jftradeErr26)
+			besteffort.LogError(jftradeErr26)
 			return parent, openAIChatResult{Reply: workflowPendingReply(parent)}, true, ""
 		}
 		parent = e.runtime.terminateParentWorkflowFromChild(ctx, parent, child)
@@ -504,14 +507,14 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 		parent.CompletedAt = new(nowString())
 		finalizeRunUsage(&parent)
 		jftradeErr1 := e.runtime.store.SaveRun(ctx, parent)
-		jftradeLogError(jftradeErr1)
+		besteffort.LogError(jftradeErr1)
 		return parent, openAIChatResult{Reply: parent.FailureReason}, true, ""
 	}
 	parent.Status = RunStatusRunning
 	parent.WorkflowStatus = workflowStatusRunning
 	parent.Message = "goal running"
 	parent, jftradeErr27 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
-	jftradeLogError(jftradeErr27)
+	besteffort.LogError(jftradeErr27)
 	return parent, replyResult, false, ""
 }
 

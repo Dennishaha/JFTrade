@@ -32,7 +32,7 @@ func RegisterExecutionRoutes(api *gin.RouterGroup, service *srv.Service) {
 	executionBuyingPowerDocs()
 	api.GET("/execution/orders", handleExecutionOrders(service))
 	api.POST("/execution/orders", handleExecutionPlace(service))
-	api.POST("/execution/orders/preview", handleExecutionPreview(service))
+	api.POST("/execution/orders/preview", httpserver.Deprecated("/api/v1/execution/previews", handleExecutionPreview(service)))
 	api.POST("/execution/previews", handleExecutionPreview(service))
 	api.POST("/execution/combos/previews", handleExecutionComboPreview(service))
 	api.POST("/execution/combos", handleExecutionComboPlace(service))

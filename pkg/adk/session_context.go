@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adksession "google.golang.org/adk/v2/session"
 )
 
@@ -147,7 +148,7 @@ func (m *SessionContextManager) snapshotWithPending(ctx context.Context, session
 		return SessionContextSnapshot{}, err
 	}
 	jftradeErr2 := m.syncHandoffStateForSession(ctx, session)
-	jftradeLogError(jftradeErr2)
+	besteffort.LogError(jftradeErr2)
 	return data.projection.snapshot, nil
 }
 
@@ -168,7 +169,7 @@ func (m *SessionContextManager) Compact(ctx context.Context, session Session, ag
 		return SessionContextSnapshot{}, err
 	}
 	jftradeErr1 := m.syncHandoffStateForSession(ctx, session)
-	jftradeLogError(jftradeErr1)
+	besteffort.LogError(jftradeErr1)
 	return m.snapshotWithPending(ctx, session, agent, "")
 }
 
@@ -380,7 +381,7 @@ func (m *SessionContextManager) InstructionSuffix(ctx context.Context, sessionID
 		return "", nil
 	}
 	jftradeErr3 := m.syncHandoffStateForSessionID(ctx, sessionID, segments)
-	jftradeLogError(jftradeErr3)
+	besteffort.LogError(jftradeErr3)
 	return "Session handoff summaries:\n" + text, nil
 }
 

@@ -6,7 +6,6 @@ tool github.com/wailsapp/wails/v3/cmd/wails3
 
 require (
 	github.com/c9s/requestgen v1.6.0
-	github.com/cenkalti/backoff/v7 v7.0.0
 	github.com/expr-lang/expr v1.17.8
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/jsonschema-go v0.4.3
@@ -28,12 +27,10 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/wailsapp/wails/v3 v3.0.0-alpha2.117
 	github.com/wcharczuk/go-chart/v2 v2.1.2
-	go.uber.org/mock v0.6.0
 	golang.org/x/crypto v0.53.0
 	golang.org/x/mod v0.38.0
 	golang.org/x/sync v0.21.0
 	golang.org/x/sys v0.46.0
-	golang.org/x/time v0.15.0
 	golang.org/x/tools v0.47.0
 	gonum.org/v1/gonum v0.17.0
 	google.golang.org/adk/v2 v2.0.0

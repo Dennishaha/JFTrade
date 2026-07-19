@@ -41,8 +41,7 @@ func TestFutuRuntimeRemainingDisconnectedAndResetPaths(t *testing.T) {
 		t.Fatalf("closed-port probe = %#v", probe)
 	}
 	runtime := server.brokerRuntime(t.Context())
-	session, ok := runtime["session"].(map[string]any)
-	if !ok || session["connectivity"] != "disconnected" {
+	if runtime.Session.Connectivity != "disconnected" {
 		t.Fatalf("disconnected broker runtime = %#v", runtime)
 	}
 	health := server.futuOpenDHealth(t.Context())
@@ -93,7 +92,7 @@ func TestFutuRuntimeHealthyProbeAndGlobalStateBoundaries(t *testing.T) {
 		t.Fatalf("healthy OpenD probe = %#v", probe)
 	}
 	runtime := server.brokerRuntime(context.Background())
-	if runtime["session"] == nil {
+	if runtime.Session.BrokerID == "" || runtime.Session.GlobalState == nil {
 		t.Fatalf("broker runtime = %#v", runtime)
 	}
 
