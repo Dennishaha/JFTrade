@@ -21,6 +21,7 @@ import {
   fetchProductFeature,
   type ProductFeatureResult,
 } from "../../composables/productFeatures";
+import { usePolling } from "../../composables/usePolling";
 import OptionChainTable from "./OptionChainTable.vue";
 import OptionContractAnalysisDrawer from "./OptionContractAnalysisDrawer.vue";
 import OptionResearchPanel from "./OptionResearchPanel.vue";
@@ -61,8 +62,11 @@ let chainRequestToken = 0;
 let snapshotRequestToken = 0;
 let snapshotRequestInFlight = false;
 let snapshotRefreshPending = false;
-let snapshotTimer: ReturnType<typeof setInterval> | undefined;
 let disposed = false;
+const snapshotPolling = usePolling(
+  () => loadVisibleSnapshots(),
+  { intervalMs: 3_000 },
+);
 
 const today = new Date();
 const endDate = new Date(today.getTime() + 30 * 86400_000);
@@ -434,9 +438,7 @@ watch(
 
 onMounted(() => {
   comboDraft.setWorkspaceActive(true);
-  snapshotTimer = setInterval(() => {
-    if (!snapshotRequestInFlight) void loadVisibleSnapshots();
-  }, 3_000);
+  snapshotPolling.start();
 });
 onBeforeUnmount(() => {
   comboDraft.setWorkspaceActive(false);
@@ -445,7 +447,6 @@ onBeforeUnmount(() => {
   snapshotRequestToken += 1;
   snapshotRefreshPending = false;
   loading.value = false;
-  if (snapshotTimer != null) clearInterval(snapshotTimer);
 });
 </script>
 

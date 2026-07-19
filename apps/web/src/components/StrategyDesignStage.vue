@@ -9,6 +9,7 @@ import type {
 import type { components } from "@/generated/openapi";
 
 import { apiGet, apiPost, apiPutPath, fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import { usePolling } from "../composables/usePolling";
 import { queryClient, queryKeys } from "../composables/serverState";
 import InstrumentIdentity from "./domain/market-data/InstrumentIdentity.vue";
 import { buildPineStrategyDefinitionPayload } from "./strategy-runtime/strategyDefinitionPayload";
@@ -96,9 +97,12 @@ const analyzeResult = ref<StrategyPineAnalyzeResponse | null>(null);
 const selectedSourceNodeId = ref("");
 const expandedSourceNodeId = ref<string | null>(null);
 const sourceEditorRef = ref<InstanceType<typeof PineSourceCodePane> | null>(null);
-const runtimeRefreshTimer = ref<ReturnType<typeof setInterval> | null>(null);
 const actionFeedback = ref<"analyze" | "save" | "">("");
 const actionFeedbackTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+const runtimeRefreshPolling = usePolling(
+  () => loadStrategies(),
+  { intervalMs: 3_000 },
+);
 
 const workflow = ref<PineV6WorkflowDocument>(createDefaultPineV6Workflow());
 const definitionName = ref(workflow.value.declaration.title);
@@ -300,15 +304,10 @@ function compatibleWorkflowSnapshot(): PineV6WorkflowDocument {
 onMounted(() => {
   void loadStrategyDefinitions(selectedDefinitionId.value, { applyDefinition: props.entryMode !== "new" });
   void loadStrategies();
-  runtimeRefreshTimer.value = setInterval(() => {
-    void loadStrategies();
-  }, 3000);
+  runtimeRefreshPolling.start();
 });
 
 onBeforeUnmount(() => {
-  if (runtimeRefreshTimer.value !== null) {
-    clearInterval(runtimeRefreshTimer.value);
-  }
   if (actionFeedbackTimer.value !== null) {
     clearTimeout(actionFeedbackTimer.value);
   }

@@ -11,6 +11,7 @@ import {
   type ProductFeatureResult,
 } from "../../composables/productFeatures";
 import { useConsoleData } from "../../composables/useConsoleData";
+import { usePolling } from "../../composables/usePolling";
 import ProductFeaturePanel from "./ProductFeaturePanel.vue";
 
 type Entry = Record<string, unknown>;
@@ -84,9 +85,26 @@ const activeSubscription = ref<{
   dataType: string;
 } | null>(null);
 const contractRefresh = ref(0);
-let quoteTimer: ReturnType<typeof setInterval> | undefined;
-let contractRefreshTimer: ReturnType<typeof setInterval> | undefined;
 let subscriptionGeneration = 0;
+const quoteClockPolling = usePolling(
+  () => {
+    quoteClock.value = Date.now();
+  },
+  { intervalMs: 1_000 },
+);
+const contractRefreshPolling = usePolling(
+  () => {
+    if (
+      pageVisible.value &&
+      stage.value === "contract" &&
+      subscriptionReady.value &&
+      ["snapshot", "depth", "candles", "ticks"].includes(contractView.value)
+    ) {
+      contractRefresh.value += 1;
+    }
+  },
+  { intervalMs: 3_000 },
+);
 
 const stageLabels: Record<DiscoverStage, string> = {
   categories: "分类",
@@ -592,23 +610,10 @@ onMounted(() => {
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", handleVisibilityChange);
   }
-  quoteTimer = setInterval(() => {
-    quoteClock.value = Date.now();
-  }, 1000);
-  contractRefreshTimer = setInterval(() => {
-    if (
-      pageVisible.value &&
-      stage.value === "contract" &&
-      subscriptionReady.value &&
-      ["snapshot", "depth", "candles", "ticks"].includes(contractView.value)
-    ) {
-      contractRefresh.value++;
-    }
-  }, 3000);
+  quoteClockPolling.start();
+  contractRefreshPolling.start();
 });
 onUnmounted(() => {
-  if (quoteTimer != null) clearInterval(quoteTimer);
-  if (contractRefreshTimer != null) clearInterval(contractRefreshTimer);
   if (typeof document !== "undefined") {
     document.removeEventListener("visibilitychange", handleVisibilityChange);
   }

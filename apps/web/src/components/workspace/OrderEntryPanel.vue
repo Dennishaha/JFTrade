@@ -16,6 +16,7 @@ import { formatMarketSessionLabel } from "../../composables/marketSessionDisplay
 import { formatInstrumentIdentityText } from "../../composables/instrumentPresentation";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
+import { usePolling } from "../../composables/usePolling";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import RealTradeConfirmationDialog from "./RealTradeConfirmationDialog.vue";
@@ -110,11 +111,25 @@ const realTradeConfirmationText = ref("");
 const pendingRealTradeSubmission = ref<PendingRealTradeSubmission | null>(null);
 const draftClientOrderId = ref("");
 let maxTradeQuantityTimer: ReturnType<typeof setTimeout> | null = null;
-let orderFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
-let orderFeedbackPollCount = 0;
+let pollingOrderFeedbackId = "";
 
 const orderFeedbackPollIntervalMs = 2_000;
 const orderFeedbackMaxPolls = 60;
+const orderFeedbackPolling = usePolling(
+  async () => {
+    if (pollingOrderFeedbackId === "") return false;
+    const shouldContinue = await refreshOrderFeedbackOnce(
+      pollingOrderFeedbackId,
+      false,
+    );
+    if (!shouldContinue) pollingOrderFeedbackId = "";
+    return shouldContinue;
+  },
+  {
+    intervalMs: orderFeedbackPollIntervalMs,
+    maxRuns: orderFeedbackMaxPolls,
+  },
+);
 
 const isRealMode = computed(
   () =>
@@ -588,35 +603,32 @@ function formatFeedbackCheckedAt(value: string | null): string {
 }
 
 function stopOrderFeedbackPolling(): void {
-  if (orderFeedbackTimer != null) {
-    clearTimeout(orderFeedbackTimer);
-    orderFeedbackTimer = null;
-  }
+  pollingOrderFeedbackId = "";
+  orderFeedbackPolling.stop();
 }
 
-function scheduleOrderFeedbackRefresh(internalOrderId: string): void {
-  stopOrderFeedbackPolling();
-  if (orderFeedbackPollCount >= orderFeedbackMaxPolls) {
-    return;
-  }
-  orderFeedbackTimer = setTimeout(() => {
-    void refreshOrderFeedback(internalOrderId);
-  }, orderFeedbackPollIntervalMs);
+function scheduleOrderFeedbackRefresh(
+  internalOrderId: string,
+  resetRunCount = false,
+): void {
+  pollingOrderFeedbackId = internalOrderId;
+  orderFeedbackPolling.start({ resetRunCount });
 }
 
-async function refreshOrderFeedback(internalOrderId: string, manual = false): Promise<void> {
-  if (internalOrderId === "" || isRefreshingOrderFeedback.value) {
-    return;
-  }
+async function refreshOrderFeedbackOnce(
+  internalOrderId: string,
+  manual: boolean,
+): Promise<boolean> {
+  if (internalOrderId === "") return false;
+  if (isRefreshingOrderFeedback.value) return true;
   isRefreshingOrderFeedback.value = true;
-  orderFeedbackPollCount += 1;
   try {
     const details = await fetchEnvelope<ExecutionOrderDetailsResponse>(
       `/api/v1/execution/orders/${encodeURIComponent(internalOrderId)}`,
     );
     const feedback = lastOrderFeedback.value;
     if (feedback == null || feedback.internalOrderId !== internalOrderId) {
-      return;
+      return false;
     }
     feedback.brokerOrderId = normalizeOptionalText(details.order.brokerOrderId);
     feedback.brokerOrderIdEx = normalizeOptionalText(details.order.brokerOrderIdEx);
@@ -624,11 +636,7 @@ async function refreshOrderFeedback(internalOrderId: string, manual = false): Pr
     feedback.rawBrokerStatus = normalizeOptionalText(details.order.rawBrokerStatus);
     feedback.latestEvent = details.recentEvents.at(-1) ?? null;
     feedback.checkedAt = normalizeOptionalText(details.checkedAt);
-    if (isFinalExecutionOrderStatus(feedback.orderStatus)) {
-      stopOrderFeedbackPolling();
-    } else {
-      scheduleOrderFeedbackRefresh(internalOrderId);
-    }
+    return !isFinalExecutionOrderStatus(feedback.orderStatus);
   } catch (error) {
     if (manual) {
       notifications.push({
@@ -638,15 +646,26 @@ async function refreshOrderFeedback(internalOrderId: string, manual = false): Pr
         source: "order-entry",
       });
     }
-    scheduleOrderFeedbackRefresh(internalOrderId);
+    return true;
   } finally {
     isRefreshingOrderFeedback.value = false;
   }
 }
 
+async function refreshOrderFeedback(
+  internalOrderId: string,
+  manual = false,
+): Promise<void> {
+  const shouldContinue = await refreshOrderFeedbackOnce(internalOrderId, manual);
+  if (shouldContinue) {
+    scheduleOrderFeedbackRefresh(internalOrderId);
+  } else {
+    stopOrderFeedbackPolling();
+  }
+}
+
 function startOrderFeedbackPolling(internalOrderId: string): void {
-  orderFeedbackPollCount = 0;
-  scheduleOrderFeedbackRefresh(internalOrderId);
+  scheduleOrderFeedbackRefresh(internalOrderId, true);
 }
 
 async function loadMaxTradeQuantity(): Promise<void> {
