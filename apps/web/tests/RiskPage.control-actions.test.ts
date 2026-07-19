@@ -200,6 +200,10 @@ describe("RiskPage control actions", () => {
     expect(riskMocks.saveRuntimeRiskConfig).not.toHaveBeenCalled();
     expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
 
+    await wrapper.find(".activate-hard-stop").trigger("click");
+    await wrapper.get(".action-confirm__actions button").trigger("click");
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+
     riskMocks.saveRuntimeRiskConfig.mockRejectedValueOnce(new Error("风控设置写入失败"));
     riskMocks.fetchEnvelopeWithInit.mockRejectedValueOnce(new Error("硬停止接口失败"));
     confirmSpy.mockReturnValue(true);
@@ -211,6 +215,16 @@ describe("RiskPage control actions", () => {
     await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("硬停止接口失败");
+  });
+
+  it("ignores hard-stop confirmation when there is no pending action", async () => {
+    const wrapper = mount(RiskPage, { global: { stubs } });
+    await flushPromises();
+
+    await (
+      wrapper.vm as unknown as { confirmHardStopAction: () => Promise<void> }
+    ).confirmHardStopAction();
+    expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
   });
 
   it("shows strategy loading and update failures from the corresponding contract calls", async () => {

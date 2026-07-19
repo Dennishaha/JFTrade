@@ -8,6 +8,15 @@ afterEach(() => {
 });
 
 describe("usePolling", () => {
+  it("rejects invalid interval and run-limit options", () => {
+    expect(() => usePolling(vi.fn(), { intervalMs: 0 })).toThrow(
+      "usePolling intervalMs must be a positive finite number",
+    );
+    expect(() =>
+      usePolling(vi.fn(), { intervalMs: 100, maxRuns: Number.NaN }),
+    ).toThrow("usePolling maxRuns must be a positive finite number");
+  });
+
   it("waits for an async run to finish before scheduling the next one", async () => {
     vi.useFakeTimers();
     let finishFirstRun: (() => void) | undefined;
@@ -92,6 +101,35 @@ describe("usePolling", () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(onError).toHaveBeenCalledWith(cause);
     expect(polling?.isActive.value).toBe(false);
+    scope.stop();
+  });
+
+  it("serializes a restart requested while the current task is still running", async () => {
+    vi.useFakeTimers();
+    let finishFirstRun: (() => void) | undefined;
+    const task = vi.fn(() => {
+      if (task.mock.calls.length === 1) {
+        return new Promise<void>((resolve) => {
+          finishFirstRun = resolve;
+        });
+      }
+      return undefined;
+    });
+    const scope = effectScope();
+    const polling = scope.run(() =>
+      usePolling(task, { intervalMs: 100, immediate: true }),
+    );
+
+    polling?.start();
+    expect(polling?.isRunning.value).toBe(true);
+    polling?.start({ immediate: true });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(task).toHaveBeenCalledTimes(1);
+
+    finishFirstRun?.();
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(task).toHaveBeenCalledTimes(2);
     scope.stop();
   });
 });

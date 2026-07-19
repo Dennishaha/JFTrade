@@ -430,7 +430,7 @@ describe("PositionsPanel", () => {
   });
 
   it("applies cancelability rules to final and in-flight execution statuses", () => {
-    const { call } = mountPositionsPanel();
+    const { call, wrapper } = mountPositionsPanel();
 
     expect(
       call<boolean>("canCancelOrder", makeExecutionOrder({ status: "FILLED" })),
@@ -453,6 +453,8 @@ describe("PositionsPanel", () => {
     expect(
       call<boolean>("canCancelOrder", makeExecutionOrder({ status: "SUBMITTED" })),
     ).toBe(true);
+    call("requestCancelOrder", makeExecutionOrder({ status: "FILLED" }));
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
   });
 
   it("does not submit cancel requests for orders that are already final or cancelling", async () => {
@@ -499,6 +501,10 @@ describe("PositionsPanel", () => {
 
     expect(mocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("确认撤销订单");
+    await wrapper.get(".action-confirm__actions button").trigger("click");
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    expect(mocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
+    await cancelButton?.trigger("click");
     await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await nextTick();
 
@@ -583,6 +589,22 @@ describe("PositionsPanel", () => {
         makeExecutionOrder({
           internalOrderId: "filled-1",
           status: "FILLED",
+          legs: [
+            {
+              id: "historical-leg-1",
+              internalOrderId: "filled-1",
+              index: 0,
+              instrumentId: "US.AAPL-C200",
+              productClass: "option",
+              side: "BUY",
+              ratio: 1,
+              status: "FILLED",
+              requestedQuantity: 1,
+              filledQuantity: 1,
+              averagePrice: 3.25,
+              fees: 0.5,
+            },
+          ],
         }),
         makeExecutionOrder({
           internalOrderId: "cancelled-1",
@@ -616,6 +638,8 @@ describe("PositionsPanel", () => {
     expect(wrapper.text()).toContain("cancelled-1");
     expect(wrapper.text()).not.toContain("pending-1");
     expect(wrapper.text()).not.toContain("other-market-historical");
+    await wrapper.get('button[aria-label="展开组合腿"]').trigger("click");
+    expect(wrapper.text()).toContain("US.AAPL-C200");
 
     await switchTab(wrapper, "持仓");
     await switchTab(wrapper, "历史订单");

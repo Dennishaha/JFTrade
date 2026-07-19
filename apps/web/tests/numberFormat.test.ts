@@ -25,6 +25,7 @@ describe("number formatting contract", () => {
     expect(formatMarketPrice(12.3, { market: "HK" })).toBe("12.300");
     expect(formatMarketPrice(8.7654, { market: "SH" })).toBe("8.77");
     expect(formatMarketPrice(0.123456, { market: "UNKNOWN" })).toBe("0.12346");
+    expect(formatMarketPrice(1_234.5, { market: "UNKNOWN" })).toBe("1,234.50");
   });
 
   it("keeps compact, percent, and money outputs deterministic", () => {
