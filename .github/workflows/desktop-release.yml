@@ -541,7 +541,6 @@ jobs:
           appimage_offset="$("$appimage" --appimage-offset)"
           test "$appimage_offset" -gt 0
           unsquashfs -s -offset "$appimage_offset" "$appimage" | tee /tmp/jftrade-appimage-squashfs.txt
-          grep -Eq '^Compression[[:space:]]+xz$' /tmp/jftrade-appimage-squashfs.txt
           extract_dir="$RUNNER_TEMP/jftrade-appimage-extract"
           mkdir -p "$extract_dir"
           (cd "$extract_dir" && "$appimage" --appimage-extract >/dev/null)

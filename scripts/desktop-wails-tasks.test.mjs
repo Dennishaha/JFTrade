@@ -151,10 +151,10 @@ assert(
   "Linux does not use Wails packaging tools",
 );
 assert(
-  linux.includes("LDAI_COMP=xz") &&
+  !linux.includes("LDAI_COMP=") &&
     linux.includes("FORMAT: deb") &&
     linux.includes("FORMAT: rpm"),
-  "Linux release does not build XZ AppImage, deb and rpm artifacts",
+  "Linux release must use compatible AppImage defaults and build deb and rpm artifacts",
 );
 assert(
   linux.includes("manage-linux-release-artifacts.mjs verify") &&
@@ -203,7 +203,7 @@ assert(
     releaseWorkflow.includes("sudo apt-get install -y rpm squashfs-tools") &&
     releaseWorkflow.includes("unsquashfs -s -offset") &&
     releaseWorkflow.includes('rpm -qpR "$rpm"'),
-  "GitHub Release does not verify the canonical Linux package set and XZ AppImage",
+  "GitHub Release does not verify the canonical Linux package set and AppImage",
 );
 assert(
   !releaseWorkflow.includes("linux-amd64/*.AppImage") &&

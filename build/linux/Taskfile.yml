@@ -116,7 +116,7 @@ tasks:
       - mkdir -p dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/output
       - cp build/desktop/appicon.png dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/JFTrade.png
       - >-
-        LDAI_COMP=xz go tool wails3 generate appimage
+        go tool wails3 generate appimage
         -binary dist/desktop/linux-{{.ARCH}}/jftrade-desktop-linux-{{.ARCH}}
         -icon dist/desktop-release/.staging/linux-{{.ARCH}}/appimage/JFTrade.png
         -desktopfile dist/desktop-release/.staging/linux-{{.ARCH}}/JFTrade.desktop

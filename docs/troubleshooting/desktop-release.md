@@ -81,7 +81,7 @@ pnpm run desktop:package:linux-rpm
 
 - macOS：固定使用 `macos-15` ARM64 runner。无证书时仍执行 ad-hoc bundle sealing 和严格 codesign 校验；完整配置 secrets 时通过 Wails sign tool 执行 Developer ID 签名与公证。
 - Windows：生成带 WebView2 bootstrapper 的 x64 per-user Wails NSIS；完整配置 secrets 时通过 Wails sign tool 对应用和安装器执行 Authenticode。
-- Linux x64：使用 GTK3/WebKitGTK 4.1，默认生成 AppImage、deb 和 rpm；AppImage 的 SquashFS 使用 XZ 压缩，裸二进制只保留在内部构建目录，不进入 GitHub Release。
+- Linux x64：使用 GTK3/WebKitGTK 4.1，默认生成 AppImage、deb 和 rpm；AppImage 使用 Wails/linuxdeploy 的兼容默认压缩，裸二进制只保留在内部构建目录，不进入 GitHub Release。
 
 平台 job 通过内部环境变量 `JFTRADE_DESKTOP_PREPARED=1` 使用共享输入，并会在编译前拒绝缺失或空的 Swagger、前端压缩包和 Pineworker bundle。该变量只供 CI 使用；本地 `desktop:build` / `desktop:release:*` 仍会完整准备所需资产。
 
@@ -111,5 +111,5 @@ DMG 使用标准拖拽安装布局：左侧为 `JFTrade.app`，右侧为指向 `
 - 开发版继续读取仓库数据；正式产品只读取系统用户数据目录。
 - 退出任意一方，另一方继续运行。
 - macOS 用 `file`/`lipo` 确认仅 ARM64；Windows 确认 x64 与 ARM64 per-user NSIS 都可安装覆盖。
-- macOS 必须通过 `codesign --verify --deep --strict`；Windows PE subsystem 必须为 GUI；Linux AppImage 必须可解包且使用 XZ，deb/rpm 必须声明对应的 GTK3/WebKitGTK 依赖。
+- macOS 必须通过 `codesign --verify --deep --strict`；Windows PE subsystem 必须为 GUI；Linux AppImage 必须可读取 SquashFS 元数据并可解包，deb/rpm 必须声明对应的 GTK3/WebKitGTK 依赖。
 - 未签名包出现 Gatekeeper 或 SmartScreen 提示属于当前发布策略的预期行为。
