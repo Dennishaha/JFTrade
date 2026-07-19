@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import {
+  formatCompactNumber,
+  formatMarketPrice,
+  formatNumber,
+} from "../../../utils/numberFormat";
+
 interface OrderBookDepthLevel {
   bidPrice: number | null;
   askPrice: number | null;
@@ -13,31 +19,37 @@ const props = withDefaults(defineProps<{
   loading?: boolean;
   error?: string;
   disabled?: boolean;
+  market?: string;
+  pricePrecision?: number | null;
 }>(), {
   loading: false,
   error: "",
   disabled: false,
+  market: "",
+  pricePrecision: null,
 });
 
 const maxBidSize = computed(() => Math.max(...props.levels.map((level) => level.bidSize), 1));
 const maxAskSize = computed(() => Math.max(...props.levels.map((level) => level.askSize), 1));
 
 function formatPrice(value: number | null): string {
-  if (value == null) return "--";
-  return value.toFixed(value < 1 ? 4 : value < 10 ? 3 : 2);
+  return formatMarketPrice(value, {
+    market: props.market,
+    precision: props.pricePrecision,
+  });
 }
 
 function formatSize(value: number | null): string {
-  if (value == null) return "--";
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toFixed(0);
+  return formatCompactNumber(value);
 }
 
 function barWidth(max: number, value: number): string {
   if (max <= 0) return "0%";
-  return `${((value / max) * 100).toFixed(1)}%`;
+  return `${formatNumber((value / max) * 100, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+    useGrouping: false,
+  })}%`;
 }
 </script>
 

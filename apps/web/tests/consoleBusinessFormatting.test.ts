@@ -86,6 +86,9 @@ describe("console business formatting", () => {
     expect(formatting.formatDateTime(null)).toBe("暂无");
     expect(formatting.formatDateTime("invalid")).toBe("invalid");
     expect(formatting.formatDateTime("2026-07-01T00:00:00.000Z")).not.toBe("暂无");
+    expect(formatting.formatStrategyRuntimeStatus("RUNNING")).toBe("运行中");
+    expect(formatting.formatStrategyRuntimeStatus("PAUSED")).toBe("已暂停");
+    expect(formatting.formatStrategyRuntimeStatus("STOPPED")).toBe("已停止");
     expect(formatting.formatDurationMs(null)).toBe("暂无");
     expect(formatting.formatDurationMs(999)).toBe("999毫秒");
     expect(formatting.formatDurationMs(2_000)).toBe("2秒");

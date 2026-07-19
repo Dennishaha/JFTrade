@@ -30,6 +30,8 @@ vi.mock("../src/composables/consoleDataBrokerAccountSelection", () => ({
 vi.mock("../src/composables/marketProfiles", () => ({
   useMarketProfiles: () => ({
     marketProfiles: ref([]),
+    pricePrecisionForMarket: (market: string | null | undefined) =>
+      (market ?? "").trim().toUpperCase() === "HK" ? 3 : 2,
     supportsExtendedHoursForMarket: (market: string | null | undefined) =>
       marketProfilesState.extendedHoursMarkets.has(
         (market ?? "").trim().toUpperCase(),

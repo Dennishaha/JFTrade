@@ -9,6 +9,23 @@ function source(path: string): string {
 }
 
 describe("dark theme background contract", () => {
+  it("binds Tailwind dark variants to the explicit application theme", () => {
+    const styles = source("style.css");
+
+    expect(styles).toContain(
+      '@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));',
+    );
+    expect(styles).toContain(
+      ".tv-main .text-emerald-600 { color: var(--tv-status-success-fg); }",
+    );
+    expect(styles).toContain(
+      ".tv-main .text-red-600 { color: var(--tv-status-error-fg); }",
+    );
+    expect(styles).not.toContain(
+      ".tv-main .text-red-600 { color: var(--tv-accent); }",
+    );
+  });
+
   it("uses the standard neutral black-gray surface hierarchy", () => {
     const styles = source("style.css");
     const darkThemeStart = styles.indexOf(':root,\n[data-theme="dark"]');

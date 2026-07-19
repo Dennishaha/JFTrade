@@ -240,10 +240,7 @@ describe("PositionsPanel", () => {
 
     await wrapper.get(".tv-btn-cancel").trigger("click");
     expect(wrapper.text()).toContain("确认撤销组合订单");
-    const confirm = wrapper
-      .findAll(".combo-confirm button")
-      .find((button) => button.text() === "确认撤单");
-    await confirm!.trigger("click");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await flushUi();
     expect(mocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
       "/api/v1/execution/combos/combo-1/cancel",
@@ -498,6 +495,11 @@ describe("PositionsPanel", () => {
       .find((button) => button.text() === "撤单");
     expect(cancelButton).toBeTruthy();
     await cancelButton?.trigger("click");
+    await nextTick();
+
+    expect(mocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("确认撤销订单");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await nextTick();
 
     expect(mocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(

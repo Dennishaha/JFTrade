@@ -6,6 +6,7 @@ import type {
 } from "@/contracts";
 
 import { fetchEnvelopeWithInit } from "../../composables/apiClient";
+import { pricePrecisionForMarket } from "../../composables/marketProfiles";
 import {
   useBrokerProviderSelection,
   withBrokerProvider,
@@ -16,6 +17,11 @@ import {
 } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import {
+  formatCompactNumber,
+  formatMarketPrice,
+  formatNumber,
+} from "../../utils/numberFormat";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import OrderBookDepthTable from "../domain/market-data/OrderBookDepthTable.vue";
 
@@ -176,26 +182,35 @@ const bidAskRatio = computed(() => {
 
 const bidRatioPercent = computed(() => {
   const r = bidAskRatio.value;
-  return r != null ? (r * 100).toFixed(2) : null;
+  return r != null
+    ? formatNumber(r * 100, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: false,
+      })
+    : null;
 });
 
 const askRatioPercent = computed(() => {
   const r = bidAskRatio.value;
   if (r == null) return null;
-  return ((1 - r) * 100).toFixed(2);
+  return formatNumber((1 - r) * 100, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  });
 });
 
 function fmtPrice(v: number | null): string {
-  if (v == null) return "--";
-  return v.toFixed(v < 1 ? 4 : v < 10 ? 3 : 2);
+  const market = prefs.value?.market;
+  return formatMarketPrice(v, {
+    market,
+    precision: pricePrecisionForMarket(market),
+  });
 }
 
 function fmtSize(v: number | null): string {
-  if (v == null) return "--";
-  if (v >= 1_000_000_000) return (v / 1_000_000_000).toFixed(2) + "B";
-  if (v >= 1_000_000) return (v / 1_000_000).toFixed(2) + "M";
-  if (v >= 1_000) return (v / 1_000).toFixed(1) + "K";
-  return v.toFixed(0);
+  return formatCompactNumber(v);
 }
 
 // --- API calls ---
@@ -525,6 +540,8 @@ watch(
 
       <OrderBookDepthTable
         :levels="depthLevels"
+        :market="prefs?.market ?? ''"
+        :price-precision="pricePrecisionForMarket(prefs?.market)"
         :loading="isLoadingDepth"
         :error="depthError"
         :disabled="currentInstrumentId === ''"

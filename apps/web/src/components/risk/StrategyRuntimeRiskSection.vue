@@ -5,6 +5,7 @@ import type {
   StrategyRuntimeRiskSettings,
 } from "@/contracts";
 import { formatStrategyRuntimeRiskSummary } from "@/components/strategy-runtime/strategyRuntimeInstanceBinding";
+import { formatStrategyRuntimeStatus } from "@/composables/consoleDataFormatting";
 
 defineProps<{
   error: string;
@@ -18,18 +19,6 @@ const emit = defineEmits<{
   updateMode: [instanceId: string, mode: StrategyRuntimeRiskMode];
 }>();
 
-function formatStrategyRuntimeStatus(status: string): string {
-  switch (status) {
-    case "RUNNING":
-      return "运行中";
-    case "PAUSED":
-      return "已暂停";
-    case "STOPPED":
-      return "已停止";
-    default:
-      return status || "未知";
-  }
-}
 </script>
 
 <template>

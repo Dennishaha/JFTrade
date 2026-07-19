@@ -62,6 +62,7 @@ describe("marketProfiles", () => {
       { value: "HK", title: "港股 HK" },
     ]);
     expect(profiles.quoteCurrencyForMarket("US")).toBe("USD");
+    expect(profiles.pricePrecisionForMarket("US")).toBe(2);
     expect(profiles.supportsExtendedHoursForMarket("HK")).toBe(false);
   });
 
@@ -80,6 +81,7 @@ describe("marketProfiles", () => {
     expect(profiles.marketOptions.value).toEqual([]);
     expect(profiles.marketProfiles.value).toEqual([]);
     expect(profiles.marketProfilesError.value).toBe("offline");
+    expect(profiles.pricePrecisionForMarket("HK")).toBe(3);
     expect(profiles.supportsExtendedHoursForMarket("US")).toBe(false);
   });
 

@@ -10,6 +10,7 @@ import type {
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 import { formatMarketLabel } from "./consoleDataFormatting";
 import { formatUserMarketLabel } from "./instrumentPresentation";
+import { marketPricePrecision } from "../utils/numberFormat";
 
 const marketProfiles = ref<MarketProfileDto[]>([]);
 const defaultMarket = ref("HK");
@@ -157,6 +158,15 @@ export function quoteCurrencyForMarket(
   return findMarketProfile(market)?.quoteCurrency ?? "HKD";
 }
 
+export function pricePrecisionForMarket(
+  market: string | null | undefined,
+): number | null {
+  const precision = findMarketProfile(market)?.precision?.price;
+  return typeof precision === "number" && Number.isFinite(precision)
+    ? precision
+    : marketPricePrecision(market);
+}
+
 export function supportsExtendedHoursForMarket(
   market: string | null | undefined,
 ): boolean {
@@ -193,6 +203,7 @@ export function useMarketProfiles() {
     loadMarketProfiles,
     findMarketProfile,
     quoteCurrencyForMarket,
+    pricePrecisionForMarket,
     supportsExtendedHoursForMarket,
     normalizeInstrumentRefWithMarketApi,
   };

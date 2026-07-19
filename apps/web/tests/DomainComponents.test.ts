@@ -45,6 +45,7 @@ describe("JFTrade domain components", () => {
   it("renders normal order book levels with domain formatting", () => {
     const wrapper = mount(OrderBookDepthTable, {
       props: {
+        market: "US",
         levels: [{ bidPrice: 100.12, askPrice: 100.18, bidSize: 1_200, askSize: 2_500 }],
       },
     });

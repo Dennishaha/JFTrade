@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
+/* Tailwind dark utilities follow the application's explicit theme switch. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
+  --tv-z-dialog: 120;
+
   color-scheme: dark;
   font-family: "Avenir Next", "IBM Plex Sans", "PingFang SC", sans-serif;
   background-color: #0a0a0a;
@@ -94,10 +99,10 @@ body {
 .tv-main .hover\:border-teal-500:hover { border-color: var(--card-teal-border); }
 .tv-main .hover\:text-teal-700:hover { color: var(--card-teal-text); }
 /* Utility compatibility: generic red/green utility classes are status labels, not price direction. */
-.tv-main .text-emerald-600 { color: var(--tv-accent); }
-.tv-main .text-red-600 { color: var(--tv-accent); }
+.tv-main .text-emerald-600 { color: var(--tv-status-success-fg); }
+.tv-main .text-red-600 { color: var(--tv-status-error-fg); }
 .tv-main .text-rose-600,
-.tv-main .text-rose-700 { color: var(--tv-accent); }
+.tv-main .text-rose-700 { color: var(--tv-status-error-fg); }
 .tv-main .text-amber-600,
 .tv-main .text-amber-700,
 .tv-main .text-amber-800 { color: var(--card-amber-text); }

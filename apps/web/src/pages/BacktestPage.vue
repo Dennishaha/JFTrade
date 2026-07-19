@@ -6,6 +6,7 @@ import { KLINE_PERIODS } from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
 import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
 import InstrumentSearchBox from "../components/domain/market-data/InstrumentSearchBox.vue";
+import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
 import SplitPane from "../components/shared/SplitPane.vue";
 import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import type {
@@ -234,6 +235,8 @@ const resultsPage = ref(1);
 const resultsSearchQuery = ref("");
 const resultsStatusFilter = ref("all");
 const resultsStrategyFilter = ref("all");
+const pendingDeleteRunId = ref("");
+const deletingRunId = ref("");
 
 // Form state
 const selectedDefinitionId = ref(
@@ -692,6 +695,33 @@ const resultsPageSummary = computed(() => {
 });
 
 type BacktestRunView = (typeof sortedRuns.value)[number];
+
+const pendingDeleteRun = computed(() =>
+  sortedRuns.value.find((run) => run.id === pendingDeleteRunId.value),
+);
+const pendingDeleteMessage = computed(() => {
+  const run = pendingDeleteRun.value;
+  if (run == null) return "";
+  return `确认永久删除回测记录 ${run.id}（${resolveStrategyName(run.request.definitionId)} / ${run.request.symbol}）？此操作无法撤销。`;
+});
+
+function requestDeleteRun(runId: string): void {
+  const run = sortedRuns.value.find((candidate) => candidate.id === runId);
+  if (run == null || !isTerminalBacktestStatus(run.status)) return;
+  pendingDeleteRunId.value = run.id;
+}
+
+async function confirmDeleteRun(): Promise<void> {
+  const runId = pendingDeleteRunId.value;
+  if (runId === "" || deletingRunId.value !== "") return;
+  deletingRunId.value = runId;
+  try {
+    await deleteRun(runId);
+  } finally {
+    pendingDeleteRunId.value = "";
+    deletingRunId.value = "";
+  }
+}
 
 const focusedRun = computed<BacktestRunView | undefined>(() => {
   if (filteredRuns.value.length === 0) {
@@ -1524,7 +1554,7 @@ watch(
                       </div>
                       <v-btn v-if="isTerminalBacktestStatus(run.status)" icon="fa-solid fa-trash"
                         size="small" variant="text" color="error" title="删除回测结果"
-                        @click.stop="deleteRun(run.id)" />
+                        @click.stop="requestDeleteRun(run.id)" />
                     </div>
                   </div>
                 </div>
@@ -1575,7 +1605,7 @@ watch(
                     </v-chip>
                     <v-btn v-if="isTerminalBacktestStatus(focusedRun.status)" icon="fa-solid fa-trash"
                       size="small" variant="text" color="error" title="删除回测结果"
-                      @click="deleteRun(focusedRun.id)" />
+                      @click="requestDeleteRun(focusedRun.id)" />
                   </div>
                 </div>
                 <div v-if="focusedRun.status === 'running' || focusedRun.status === 'queued'"
@@ -1854,6 +1884,15 @@ watch(
         </main>
       </SplitPaneItem>
     </SplitPane>
+    <ActionConfirmDialog
+      :open="pendingDeleteRun != null"
+      title="删除回测记录"
+      :message="pendingDeleteMessage"
+      confirm-label="确认删除"
+      :busy="deletingRunId !== ''"
+      @close="pendingDeleteRunId = ''"
+      @confirm="confirmDeleteRun"
+    />
   </div>
 </template>
 

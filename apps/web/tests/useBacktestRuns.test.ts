@@ -298,7 +298,7 @@ describe("useBacktestRuns", () => {
     expect(fetchEnvelope).toHaveBeenCalledTimes(2);
   });
 
-  it("deletes terminal runs remotely and always removes local state", async () => {
+  it("removes terminal runs only after the server confirms deletion", async () => {
     const { state } = mountBacktestRuns();
     queryClient.setQueryData(queryKeys.backtestRuns(), [
       makeRun("done"),
@@ -308,16 +308,22 @@ describe("useBacktestRuns", () => {
     state.expandedRuns.done = true;
     fetchEnvelopeWithInit.mockResolvedValue({ deleted: true, id: "done" });
 
-    await state.deleteRun(" ");
-    await state.deleteRun("running");
+    await expect(state.deleteRun(" ")).resolves.toBe(false);
+    await expect(state.deleteRun("running")).resolves.toBe(false);
     expect(fetchEnvelopeWithInit).not.toHaveBeenCalled();
-    await state.deleteRun("done");
+    await expect(state.deleteRun("done")).resolves.toBe(true);
     expect(fetchEnvelopeWithInit).toHaveBeenCalledWith("/api/v1/backtests/done", { method: "DELETE" });
     expect(state.expandedRuns.done).toBeUndefined();
 
     fetchEnvelopeWithInit.mockRejectedValueOnce(new Error("delete unsupported"));
-    await expect(state.deleteRun("failed")).resolves.toBeUndefined();
-    expect(state.runs.value.map((run) => run.id)).toEqual([]);
+    await expect(state.deleteRun("failed")).resolves.toBe(false);
+    expect(state.runs.value.map((run) => run.id)).toEqual(["running", "failed"]);
+    expect(state.error.value).toContain("delete unsupported");
+
+    fetchEnvelopeWithInit.mockResolvedValueOnce({ deleted: false, id: "failed" });
+    await expect(state.deleteRun("failed")).resolves.toBe(false);
+    expect(state.runs.value.map((run) => run.id)).toEqual(["running", "failed"]);
+    expect(state.error.value).toContain("服务端未确认删除");
   });
 
   it("validates, starts, reports, and cancels K-line synchronization", async () => {

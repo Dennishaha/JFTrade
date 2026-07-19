@@ -48,7 +48,7 @@ function writeSetup(setup: Record<string, unknown>, key: string, value: unknown)
 
 function installBacktestFetch(): PendingWarmupRequest[] {
   const pending: PendingWarmupRequest[] = [];
-  const fetchMock = vi.fn((input: string | URL | Request) => {
+  const fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.includes("/api/v1/system/status")) return createResponse(emptySystemStatus);
     if (url.includes("/api/v1/system/storage/overview")) return createResponse(emptyStorageOverview);
@@ -88,6 +88,12 @@ function installBacktestFetch(): PendingWarmupRequest[] {
         symbol: "HK.00700",
         interval: "5m",
       }]);
+    }
+    if (
+      url.includes("/api/v1/backtests/run-delete") &&
+      init?.method === "DELETE"
+    ) {
+      return createResponse({ deleted: true, id: "run-delete" });
     }
     if (url.includes("/api/v1/backtests")) return createResponse({ runs: [] });
     if (url.includes("/api/v1/market-data/instruments/normalize")) {
@@ -331,11 +337,13 @@ describe("BacktestPage warmup preview race handling", () => {
       await nextTick();
 
       // Both the history row and report header expose the same terminal-result
-      // removal action. The shared Vuetify stub intentionally does not forward
-      // its native click event, so invoke the bound page action after asserting
-      // the two user entry points are present.
+      // removal action. Open the shared confirmation through the page action
+      // because the Vuetify button stub does not forward its native click event.
       expect(wrapper.findAll("button[title='删除回测结果']")).toHaveLength(2);
-      await (setup.deleteRun as (runID: string) => Promise<void>)("run-delete");
+      (setup.requestDeleteRun as (runID: string) => void)("run-delete");
+      await nextTick();
+      expect(wrapper.text()).toContain("确认永久删除回测记录 run-delete");
+      await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
       await flushRequests();
 
       expect(queryClient.getQueryData(queryKeys.backtestRuns())).toEqual([]);

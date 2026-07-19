@@ -194,6 +194,9 @@ describe("AccountPage coverage boundaries", () => {
     await cancelButton?.trigger("click");
 
     expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("order-1");
+    expect(mocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("确认撤销订单");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     expect(mocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
       "/api/v1/execution/orders/order-1/cancel",
       { method: "POST" },

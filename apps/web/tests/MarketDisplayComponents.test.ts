@@ -72,6 +72,7 @@ describe("market and runtime display components", () => {
   it("formats depth rows and distinguishes loading, failure, disabled, and empty states", () => {
     const normal = mount(OrderBookDepthTable, {
       props: {
+        market: "US",
         levels: [
           { bidPrice: 0.12345, askPrice: 12.3456, bidSize: 1_500, askSize: 2_000_000 },
           { bidPrice: null, askPrice: null, bidSize: 3, askSize: 4 },
@@ -79,11 +80,11 @@ describe("market and runtime display components", () => {
       },
     });
     expect(normal.attributes("data-state")).toBe("normal");
-    expect(normal.text()).toContain("0.1235");
+    expect(normal.text()).toContain("0.12");
     expect(normal.text()).toContain("12.35");
     expect(normal.text()).toContain("1.5K");
     expect(normal.text()).toContain("2.00M");
-    expect(normal.text()).toContain("--");
+    expect(normal.text()).toContain("—");
     expect(normal.find(".tv-ob-depth-bar").attributes("style")).toContain("width: 100%");
 
     const loading = mount(OrderBookDepthTable, { props: { levels: [], loading: true } });

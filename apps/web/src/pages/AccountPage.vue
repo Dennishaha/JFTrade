@@ -6,6 +6,7 @@ import type { ExecutionOrdersResponse } from "@/contracts";
 import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
 import PageHeader from "../components/PageHeader.vue";
 import SectionHeader from "../components/SectionHeader.vue";
+import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import {
   formatAccountTypeLabel,
@@ -24,8 +25,14 @@ import {
   formatInstrumentIdentityText,
   formatUserMarketLabel,
 } from "../composables/instrumentPresentation";
+import { pricePrecisionForMarket } from "../composables/marketProfiles";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
+import {
+  formatMarketPrice,
+  formatMoney as formatCurrencyAmount,
+  formatNumber as formatNumericValue,
+} from "../utils/numberFormat";
 
 const {
   brokerCashFlows,
@@ -67,6 +74,22 @@ const historicalOrdersDisplayLimit = ref(50);
 const hasLoadedHistoricalOrders = ref(false);
 
 type AccountExecutionOrder = ExecutionOrdersResponse["orders"][number];
+
+const pendingCancelOrder = ref<AccountExecutionOrder | null>(null);
+const pendingCancelMessage = computed(() => {
+  const order = pendingCancelOrder.value;
+  if (order == null) return "";
+  const instrument = order.symbol
+    ? formatInstrumentIdentityText({
+        market: order.market,
+        instrumentId: order.symbol,
+      })
+    : order.internalOrderId;
+  const kind = order.orderKind === "option_combo" || order.orderKind === "event_parlay"
+    ? "组合订单"
+    : "订单";
+  return `确认撤销${kind} ${instrument}？撤单请求提交后仍以券商最终处理结果为准。`;
+});
 
 interface ExecutionOrderCommandResult {
   accepted: boolean;
@@ -478,13 +501,7 @@ const supportsSelectedExecutionOrderFees = computed(() => {
 });
 
 function formatNumber(value: number | null | undefined): string {
-  if (value == null) {
-    return "暂无";
-  }
-
-  return new Intl.NumberFormat("zh-CN", {
-    maximumFractionDigits: 4,
-  }).format(value);
+  return formatNumericValue(value, { maximumFractionDigits: 4 });
 }
 
 function formatOrderKind(order: AccountExecutionOrder): string {
@@ -519,12 +536,17 @@ function formatMoney(
   value: number | null | undefined,
   currency?: string | null,
 ): string {
-  const formatted = formatNumber(value);
-  if (formatted === "暂无") {
-    return formatted;
-  }
+  return formatCurrencyAmount(value, currency, { maximumFractionDigits: 4 });
+}
 
-  return currency != null && currency !== "" ? `${formatted} ${currency}` : formatted;
+function formatPrice(
+  value: number | null | undefined,
+  market: string | null | undefined,
+): string {
+  return formatMarketPrice(value, {
+    market: market ?? null,
+    precision: pricePrecisionForMarket(market),
+  });
 }
 
 function executionOrderDisplayKey(order: AccountExecutionOrder): string {
@@ -702,6 +724,17 @@ async function cancelOrder(order: AccountExecutionOrder): Promise<void> {
     nextCancellingDone.delete(order.internalOrderId);
     cancellingOrderIds.value = nextCancellingDone;
   }
+}
+
+function requestCancelOrder(order: AccountExecutionOrder): void {
+  if (!canCancelOrder(order)) return;
+  pendingCancelOrder.value = order;
+}
+
+function confirmCancelOrder(): void {
+  const order = pendingCancelOrder.value;
+  pendingCancelOrder.value = null;
+  if (order != null) void cancelOrder(order);
 }
 
 function resolveOrderChipColor(status: string): string {
@@ -887,7 +920,7 @@ if (requestedExecutionOrderId !== "") {
                         </td>
                         <td class="px-4 py-3">{{ formatUserMarketLabel(position.market) }}</td>
                         <td class="px-4 py-3 text-right">{{ formatNumber(position.quantity) }}</td>
-                        <td class="px-4 py-3 text-right">{{ formatNumber(position.averagePrice) }}</td>
+                        <td class="px-4 py-3 text-right">{{ formatPrice(position.averagePrice, position.market) }}</td>
                         <td class="px-4 py-3 text-right">{{ formatMoney(position.marketValue, position.currency) }}</td>
                         <td class="px-4 py-3 text-right">{{ formatMoney(position.unrealizedPnl, position.currency) }}</td>
                         <td class="px-4 py-3">
@@ -1188,7 +1221,7 @@ if (requestedExecutionOrderId !== "") {
                           color="warning"
                           :disabled="!canCancelOrder(order)"
                           :loading="isCancellingOrder(order.internalOrderId)"
-                          @click="cancelOrder(order)"
+                          @click="requestCancelOrder(order)"
                         >
                           撤单
                         </v-btn>
@@ -1449,7 +1482,7 @@ if (requestedExecutionOrderId !== "") {
                           </td>
                           <td class="px-4 py-3">{{ formatOrderSideLabel(fill.side) }}</td>
                           <td class="px-4 py-3 text-right">{{ formatNumber(fill.filledQuantity) }}</td>
-                          <td class="px-4 py-3 text-right">{{ formatNumber(fill.fillPrice) }}</td>
+                          <td class="px-4 py-3 text-right">{{ formatPrice(fill.fillPrice, fill.market) }}</td>
                           <td class="px-4 py-3">{{ fill.status ?? '—' }}</td>
                           <td class="px-4 py-3">{{ formatDateTime(fill.filledAt) }}</td>
                         </tr>
@@ -1464,6 +1497,15 @@ if (requestedExecutionOrderId !== "") {
         </section>
       </v-window-item>
     </v-window>
+    <ActionConfirmDialog
+      :open="pendingCancelOrder != null"
+      title="确认撤单"
+      :message="pendingCancelMessage"
+      confirm-label="确认撤单"
+      :busy="pendingCancelOrder != null && isCancellingOrder(pendingCancelOrder.internalOrderId)"
+      @close="pendingCancelOrder = null"
+      @confirm="confirmCancelOrder"
+    />
   </div>
 </template>
 

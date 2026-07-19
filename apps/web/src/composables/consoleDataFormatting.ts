@@ -10,6 +10,7 @@ import type {
   WorkerBrokerOrderUpdateErrorContext,
   WorkerBrokerOrderUpdatesResponse,
 } from "@/contracts";
+import { formatDateTime as formatSharedDateTime } from "../utils/dateTime";
 
 type RealTradeHardStopScope = "ACCOUNT" | "MARKET" | "SYMBOL";
 
@@ -134,6 +135,12 @@ const CASH_FLOW_TYPE_LABELS: Record<string, string> = {
   DIVIDEND: "股息",
   INTEREST: "利息",
   FEE: "费用",
+};
+
+const STRATEGY_RUNTIME_STATUS_LABELS: Record<string, string> = {
+  RUNNING: "运行中",
+  PAUSED: "已暂停",
+  STOPPED: "已停止",
 };
 
 const BOOLEAN_LABELS: Record<string, string> = {
@@ -360,6 +367,12 @@ export function formatCashFlowTypeLabel(
   return resolveLabel(flowType, CASH_FLOW_TYPE_LABELS);
 }
 
+export function formatStrategyRuntimeStatus(
+  status: string | null | undefined,
+): string {
+  return resolveLabel(status, STRATEGY_RUNTIME_STATUS_LABELS, "未知");
+}
+
 export function formatBooleanLabel(
   value: boolean | null | undefined,
   truthy = "是",
@@ -567,25 +580,10 @@ export function resolveWorkerBrokerSubscriptionTagType(
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  if (value == null || value === "") {
-    return "暂无";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
+  return formatSharedDateTime(value, {
+    fallback: "暂无",
     timeZoneName: "short",
-  }).format(date);
+  });
 }
 
 export function formatDurationMs(value: number | null | undefined): string {

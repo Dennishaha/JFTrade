@@ -9,7 +9,9 @@ import type {
 
 import { formatDateTime } from "../../../composables/consoleDataFormatting";
 import { formatUserMarketLabel } from "../../../composables/instrumentPresentation";
+import { pricePrecisionForMarket } from "../../../composables/marketProfiles";
 import { formatMarketSessionLabel } from "../../../composables/marketSessionDisplay";
+import { formatMarketPrice, formatPercent } from "../../../utils/numberFormat";
 import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
 
 const props = withDefaults(
@@ -96,11 +98,11 @@ function quoteErrorFor(item: WatchlistItem): WatchlistQuoteError | undefined {
   return props.quoteErrors.get(item.instrumentId.toUpperCase());
 }
 
-function formatPrice(value: number | undefined): string {
-  if (value == null || !Number.isFinite(value)) return "—";
-  if (Math.abs(value) >= 1000) return value.toFixed(2);
-  if (Math.abs(value) >= 1) return value.toFixed(3);
-  return value.toFixed(5);
+function formatPrice(value: number | undefined, market?: string): string {
+  return formatMarketPrice(value, {
+    market: market ?? null,
+    precision: pricePrecisionForMarket(market),
+  });
 }
 
 function quoteChange(quote: WatchlistQuote | undefined): number | undefined {
@@ -123,16 +125,20 @@ function quoteChangePercent(
   return ((quote.price - quote.previousClose) / quote.previousClose) * 100;
 }
 
-function formatChange(quote: WatchlistQuote | undefined): string {
+function formatChange(quote: WatchlistQuote | undefined, market?: string): string {
   const change = quoteChange(quote);
   const percent = quoteChangePercent(quote);
   if (change == null && percent == null) return "—";
   const sign = (percent ?? change ?? 0) > 0 ? "+" : "";
   if (props.compact) {
-    return percent == null ? `${sign}${formatPrice(change)}` : `${sign}${percent.toFixed(2)}%`;
+    return percent == null
+      ? `${sign}${formatPrice(change, market)}`
+      : formatPercent(percent, { showPositiveSign: true });
   }
-  const changeLabel = change == null ? "" : `${sign}${formatPrice(change)}`;
-  const percentLabel = percent == null ? "" : `${sign}${percent.toFixed(2)}%`;
+  const changeLabel = change == null ? "" : `${sign}${formatPrice(change, market)}`;
+  const percentLabel = percent == null
+    ? ""
+    : formatPercent(percent, { showPositiveSign: true });
   return [changeLabel, percentLabel].filter(Boolean).join("  ");
 }
 
@@ -267,7 +273,7 @@ onBeforeUnmount(() => {
           </span>
           <span class="watchlist-table__price is-numeric" role="gridcell">
             <template v-if="quoteFor(row.item)">
-              {{ formatPrice(quoteFor(row.item)?.price) }}
+              {{ formatPrice(quoteFor(row.item)?.price, row.item.market) }}
               <span
                 v-if="quoteErrorFor(row.item)"
                 class="watchlist-table__quote-stale"
@@ -283,7 +289,7 @@ onBeforeUnmount(() => {
             <template v-else>—</template>
           </span>
           <span class="is-numeric" role="gridcell" :class="changeClass(quoteFor(row.item))">
-            {{ formatChange(quoteFor(row.item)) }}
+            {{ formatChange(quoteFor(row.item), row.item.market) }}
           </span>
           <span v-if="!compact" class="watchlist-table__session" role="gridcell">
             {{ formatMarketSessionLabel(quoteFor(row.item)?.session) || "—" }}

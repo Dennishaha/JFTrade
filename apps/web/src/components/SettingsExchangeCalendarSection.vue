@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
+import { formatDateTime as formatSharedDateTime } from "../utils/dateTime";
 
 type ExchangeCalendarSessionWindow = {
   kind: string;
@@ -368,9 +369,7 @@ function sourceMarketUsageText(market: CalendarMarketStatus, source: CalendarSou
 
 function formatDateTime(value?: string): string {
   if (value == null || value === "" || value.startsWith("0001-")) return "未记录";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("zh-CN", { hour12: false });
+  return formatSharedDateTime(value, { fallback: "未记录", locale: "zh-CN" });
 }
 
 function formatDate(value?: string): string {

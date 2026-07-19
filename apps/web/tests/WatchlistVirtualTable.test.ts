@@ -245,7 +245,7 @@ describe("WatchlistVirtualTable", () => {
     const row = wrapper.get(".watchlist-table__row");
     expect(row.classes()).toContain("is-active");
     expect(row.attributes("style")).toContain("46px");
-    expect(wrapper.text()).toContain("1000.00");
+    expect(wrapper.text()).toContain("1,000.000");
     expect(wrapper.text()).toContain("-0.10%");
     await row.trigger("click");
     await row.trigger("keydown", { key: "Enter" });

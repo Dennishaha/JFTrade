@@ -19,6 +19,7 @@ import {
   formatMarketDataChannelLabel,
   formatMarketLabel,
   formatRealTradeOperationLabel,
+  formatStrategyRuntimeStatus,
   formatTradingEnvironment,
   formatWorkerBrokerActionLabel,
   formatWorkerBrokerBackoffSourceLabel,
@@ -219,19 +220,6 @@ async function updateStrategyRuntimeRiskMode(
   } finally {
     updatingStrategyRuntimeRiskIds.value =
       updatingStrategyRuntimeRiskIds.value.filter((id) => id !== instanceId);
-  }
-}
-
-function formatStrategyRuntimeStatus(status: string): string {
-  switch (status) {
-    case "RUNNING":
-      return "运行中";
-    case "PAUSED":
-      return "已暂停";
-    case "STOPPED":
-      return "已停止";
-    default:
-      return status || "未知";
   }
 }
 

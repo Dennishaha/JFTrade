@@ -612,25 +612,32 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     }
   }
 
-  async function deleteRun(runId: string) {
+  async function deleteRun(runId: string): Promise<boolean> {
     const normalizedRunID = runId.trim();
     if (normalizedRunID === "") {
-      return;
+      return false;
     }
 
     const targetRun = runs.value.find((run) => run.id === normalizedRunID);
     const isTerminal = targetRun != null && isTerminalBacktestStatus(targetRun.status);
-    if (isTerminal) {
-      try {
-        await fetchEnvelopeWithInit<{ deleted: boolean; id: string }>(
-          `/api/v1/backtests/${encodeURIComponent(normalizedRunID)}`,
-          {
-            method: "DELETE",
-          },
-        );
-      } catch {
-        // Fallback: remove from local list if the server cannot delete this run.
+    if (!isTerminal) {
+      return false;
+    }
+
+    error.value = "";
+    try {
+      const result = await fetchEnvelopeWithInit<{ deleted: boolean; id: string }>(
+        `/api/v1/backtests/${encodeURIComponent(normalizedRunID)}`,
+        {
+          method: "DELETE",
+        },
+      );
+      if (!result.deleted) {
+        throw new Error("服务端未确认删除");
       }
+    } catch (cause) {
+      error.value = `删除回测记录失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+      return false;
     }
 
     delete expandedRuns[normalizedRunID];
@@ -638,6 +645,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
       backtestRunsQueryKey,
       (current) => (current ?? []).filter((run) => run.id !== normalizedRunID),
     );
+    return true;
   }
 
   async function syncKlines() {

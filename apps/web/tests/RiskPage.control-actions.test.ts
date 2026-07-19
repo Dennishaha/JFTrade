@@ -158,7 +158,16 @@ describe("RiskPage control actions", () => {
     await wrapper.find(".activate-kill-switch").trigger("click");
     await wrapper.find(".release-kill-switch").trigger("click");
     await wrapper.find(".activate-hard-stop").trigger("click");
+    expect(wrapper.text()).toContain("确认创建实盘硬停止");
+    expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalledWith(
+      "/api/v1/system/real-trade-hard-stops",
+      expect.anything(),
+    );
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+    await flushPromises();
     await wrapper.find(".release-hard-stop").trigger("click");
+    expect(wrapper.text()).toContain("确认解除实盘硬停止 stop/a");
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await wrapper.find(".update-strategy-risk").trigger("click");
     await wrapper.find(".refresh-strategy-risk").trigger("click");
     await flushPromises();
@@ -198,6 +207,8 @@ describe("RiskPage control actions", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("风控设置写入失败");
     await wrapper.find(".activate-hard-stop").trigger("click");
+    expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
+    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("硬停止接口失败");
   });

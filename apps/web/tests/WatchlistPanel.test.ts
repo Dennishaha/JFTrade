@@ -101,7 +101,7 @@ describe("WatchlistPanel", () => {
     expect(wrapper.text()).toContain("期权信息");
     expect(wrapper.text()).toContain("Call");
     expect(wrapper.text()).toContain("US.AAPL");
-    expect(wrapper.text()).toContain("200.000");
+    expect(wrapper.text()).toContain("200.00");
     expect(wrapper.text()).toContain("24.20%");
 
     wrapper.unmount();
@@ -323,7 +323,7 @@ describe("WatchlistPanel", () => {
     expect(wrapper.text()).toContain("基金信息");
     expect(wrapper.text()).toContain("Stock");
     expect(wrapper.text()).toContain("1.30%");
-    expect(wrapper.text()).toContain("589.800");
+    expect(wrapper.text()).toContain("589.80");
     expect(wrapper.text()).toContain("0.14%");
 
     wrapper.unmount();

@@ -17,6 +17,12 @@ import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWatchlistMembership } from "../../composables/useWatchlist";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+import {
+  formatCompactNumber as formatSharedCompactNumber,
+  formatMarketPrice,
+  formatNumber,
+  formatPercent as formatSharedPercent,
+} from "../../utils/numberFormat";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import DenseMetricStrip from "../domain/shared/DenseMetricStrip.vue";
@@ -34,7 +40,7 @@ const {
   supportsBrokerReadFeature,
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
-const { supportsExtendedHoursForMarket } = useMarketProfiles();
+const { pricePrecisionForMarket, supportsExtendedHoursForMarket } = useMarketProfiles();
 const liveHub = getSharedLiveSocketHub();
 const membershipDialogOpen = ref(false);
 
@@ -327,7 +333,11 @@ const typedDetailSections = computed<DetailSection[]>(() => {
 });
 
 function formatPrice(value: number | null | undefined): string {
-  return value == null ? "—" : value.toFixed(3);
+  const market = prefs.value.market;
+  return formatMarketPrice(value, {
+    market,
+    precision: pricePrecisionForMarket(market),
+  });
 }
 
 function formatMaybePrice(value: number | null | undefined): string {
@@ -335,30 +345,19 @@ function formatMaybePrice(value: number | null | undefined): string {
 }
 
 function formatPlainNumber(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return Number(value).toLocaleString("zh-CN", {
-    maximumFractionDigits: 2,
-  });
+  return formatNumber(value, { maximumFractionDigits: 2 });
 }
 
 function formatCompactNumber(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return Number(value).toLocaleString("zh-CN", {
-    notation: "compact",
-    maximumFractionDigits: 2,
-  });
+  return formatSharedCompactNumber(value);
 }
 
 function formatInteger(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return Number(value).toLocaleString("zh-CN", {
-    maximumFractionDigits: 0,
-  });
+  return formatNumber(value, { maximumFractionDigits: 0 });
 }
 
 function formatPercentValue(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return `${Number(value).toFixed(2)}%`;
+  return formatSharedPercent(value);
 }
 
 function formatOwner(owner: { instrumentId: string } | null | undefined): string {
@@ -374,9 +373,7 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
 }
 
 function formatPercent(value: number | null | undefined): string {
-  if (value == null) return "—";
-  const prefix = value > 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
+  return formatSharedPercent(value, { showPositiveSign: true });
 }
 </script>
 

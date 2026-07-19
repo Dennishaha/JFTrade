@@ -6,6 +6,7 @@ import HardStopControlPanel from "../components/risk/HardStopControlPanel.vue";
 import RealTradeEmergencyPanel from "../components/risk/RealTradeEmergencyPanel.vue";
 import RiskEventTimeline from "../components/risk/RiskEventTimeline.vue";
 import RuntimeRiskConfigPanel from "../components/risk/RuntimeRiskConfigPanel.vue";
+import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
 import StrategyRuntimeRiskSection from "../components/risk/StrategyRuntimeRiskSection.vue";
 import { normalizeStrategyRuntimeRiskSettings } from "../components/strategy-runtime/strategyRuntimeInstanceBinding";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
@@ -36,6 +37,11 @@ const strategyRuntimeRiskError = ref("");
 const updatingStrategyRuntimeRiskIds = ref<string[]>([]);
 const realTradeControlError = ref("");
 const updatingRealTradeControlAction = ref("");
+const pendingHardStopConfirmation = ref<
+  | { kind: "activate"; payload: Record<string, unknown> }
+  | { kind: "release"; id: string }
+  | null
+>(null);
 
 type RealTradeHardStopEntry = RealTradeHardStopsResponse["entries"][number];
 type RiskHeaderTone = "good" | "warn" | "danger";
@@ -260,23 +266,48 @@ function releaseKillSwitch(): Promise<void> | void {
   );
 }
 
-function activateHardStop(payload: Record<string, unknown>): Promise<void> {
-  return runRealTradeControlAction(
-    "hard-stop.activate",
-    "/api/v1/system/real-trade-hard-stops",
-    payload,
-  );
+const hardStopConfirmationMessage = computed(() => {
+  const pending = pendingHardStopConfirmation.value;
+  if (pending == null) return "";
+  if (pending.kind === "release") {
+    return `确认解除实盘硬停止 ${pending.id}？请仅在风险已处置且可以恢复下单时继续。`;
+  }
+  const accountId = String(pending.payload.accountId ?? "").trim() || "全部账户";
+  const scope = String(pending.payload.hardStopScope ?? "ACCOUNT").trim();
+  const market = String(pending.payload.market ?? "").trim();
+  const symbol = String(pending.payload.symbol ?? "").trim();
+  const target = [accountId, scope, market, symbol].filter(Boolean).join(" / ");
+  return `确认创建实盘硬停止（${target}）？生效后会立即阻断匹配范围内的新实盘订单。`;
+});
+
+function activateHardStop(payload: Record<string, unknown>): void {
+  pendingHardStopConfirmation.value = { kind: "activate", payload };
 }
 
-function releaseHardStop(id: string): Promise<void> {
-  return runRealTradeControlAction(
-    `hard-stop.release.${id}`,
-    `/api/v1/system/real-trade-hard-stops/${encodeURIComponent(id)}/release`,
-    {
-      operatorId: "local",
-      reason: "manual release from RiskPage",
-    },
-  );
+function releaseHardStop(id: string): void {
+  pendingHardStopConfirmation.value = { kind: "release", id };
+}
+
+async function confirmHardStopAction(): Promise<void> {
+  const pending = pendingHardStopConfirmation.value;
+  if (pending == null || updatingRealTradeControlAction.value !== "") return;
+  if (pending.kind === "activate") {
+    await runRealTradeControlAction(
+      "hard-stop.activate",
+      "/api/v1/system/real-trade-hard-stops",
+      pending.payload,
+    );
+  } else {
+    await runRealTradeControlAction(
+      `hard-stop.release.${pending.id}`,
+      `/api/v1/system/real-trade-hard-stops/${encodeURIComponent(pending.id)}/release`,
+      {
+        operatorId: "local",
+        reason: "manual release from RiskPage",
+      },
+    );
+  }
+  pendingHardStopConfirmation.value = null;
 }
 </script>
 
@@ -334,6 +365,15 @@ function releaseHardStop(id: string): Promise<void> {
       :runtime-risk-for-instance="runtimeRiskForInstance"
       @refresh="loadStrategyInstances"
       @update-mode="updateStrategyRuntimeRiskMode"
+    />
+    <ActionConfirmDialog
+      :open="pendingHardStopConfirmation != null"
+      :title="pendingHardStopConfirmation?.kind === 'release' ? '解除实盘硬停止' : '创建实盘硬停止'"
+      :message="hardStopConfirmationMessage"
+      :confirm-label="pendingHardStopConfirmation?.kind === 'release' ? '确认解除' : '确认创建'"
+      :busy="updatingRealTradeControlAction.startsWith('hard-stop.')"
+      @close="pendingHardStopConfirmation = null"
+      @confirm="confirmHardStopAction"
     />
   </div>
 </template>

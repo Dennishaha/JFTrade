@@ -16,11 +16,17 @@ import {
   formatInstrumentIdentityText,
   formatUserMarketLabel,
 } from "../../composables/instrumentPresentation";
+import { pricePrecisionForMarket } from "../../composables/marketProfiles";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
+import {
+  formatMarketPrice,
+  formatNumber,
+  formatQuantity,
+} from "../../utils/numberFormat";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import MarketStatusBadge from "../domain/market-data/MarketStatusBadge.vue";
-import OptionComboConfirmDialog from "../product/OptionComboConfirmDialog.vue";
+import ActionConfirmDialog from "../shared/ActionConfirmDialog.vue";
 
 type Tab = "positions" | "active" | "historical" | "fills";
 
@@ -91,6 +97,18 @@ const historicalExecs = computed(() =>
 const pendingExecs = computed(() =>
   activeExecs.value.filter((order) => !isFinalExecutionOrderStatus(order.status)),
 );
+const pendingCancelMessage = computed(() => {
+  const order = pendingCancelOrder.value;
+  if (order == null) return "";
+  const instrument = order.symbol
+    ? formatInstrumentIdentityText({
+        market: order.market,
+        instrumentId: order.symbol,
+      })
+    : order.internalOrderId;
+  const kind = order.orderKind === "option_combo" ? "组合订单" : "订单";
+  return `确认撤销${kind} ${instrument}？撤单请求提交后仍以券商最终处理结果为准。`;
+});
 const completedExecs = computed(() =>
   historicalExecs.value.filter((order) => isFinalExecutionOrderStatus(order.status)),
 );
@@ -129,6 +147,26 @@ const orderConnectivityIssue = computed(() => {
 
 function formatTabCount(count: number, loaded: boolean): string {
   return loaded ? `（${count}）` : "";
+}
+
+function formatPositionPrice(
+  value: number | null | undefined,
+  market: string,
+): string {
+  return formatMarketPrice(value, {
+    market,
+    precision: pricePrecisionForMarket(market),
+  });
+}
+
+function formatPositionValue(
+  value: number | null | undefined,
+  market: string,
+): string {
+  return formatMarketPrice(value, {
+    market,
+    precision: pricePrecisionForMarket(market),
+  });
 }
 
 function ensureHistoricalOrdersLoaded(): void {
@@ -212,11 +250,8 @@ function toggleExpanded(internalOrderId: string): void {
 }
 
 function requestCancelOrder(order: ExecutionOrder): void {
-  if (order.orderKind === "option_combo") {
-    pendingCancelOrder.value = order;
-    return;
-  }
-  void cancelOrder(order);
+  if (!canCancelOrder(order)) return;
+  pendingCancelOrder.value = order;
 }
 
 function confirmCancelOrder(): void {
@@ -338,9 +373,9 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
             <td>{{ formatUserMarketLabel(p.market) }}</td>
             <td style="color: var(--tv-text-muted)">{{ p.accountId }}</td>
             <td>{{ formatTradingEnvironment(p.tradingEnvironment) }}</td>
-            <td class="tv-num" :class="p.quantity >= 0 ? 'tv-up' : 'tv-down'">{{ p.quantity }}</td>
-            <td class="tv-num">{{ p.averagePrice }}</td>
-            <td class="tv-num">{{ p.marketValue }}</td>
+            <td class="tv-num" :class="p.quantity >= 0 ? 'tv-up' : 'tv-down'">{{ formatQuantity(p.quantity) }}</td>
+            <td class="tv-num">{{ formatPositionPrice(p.averagePrice, p.market) }}</td>
+            <td class="tv-num">{{ formatPositionValue(p.marketValue, p.market) }}</td>
             <td style="color: var(--tv-text-dim); font-size: 11px">{{ formatDateTime(p.updatedAt) }}</td>
           </tr>
           <tr v-if="!isPositionsLoaded">
@@ -374,9 +409,9 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
             <td><InstrumentIdentity :market="o.market" :instrument-id="o.symbol" compact /></td>
             <td :class="sideClass(o.side)" style="font-weight: 600">{{ formatOrderSideLabel(o.side) }}</td>
             <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
-            <td class="tv-num">{{ o.requestedQuantity ?? "—" }}</td>
-            <td class="tv-num">{{ o.filledQuantity ?? 0 }}</td>
-            <td class="tv-num">{{ o.filledAveragePrice ?? "—" }}</td>
+            <td class="tv-num">{{ formatQuantity(o.requestedQuantity) }}</td>
+            <td class="tv-num">{{ formatQuantity(o.filledQuantity ?? 0) }}</td>
+            <td class="tv-num">{{ formatPositionPrice(o.filledAveragePrice, o.market) }}</td>
             <td style="color: var(--tv-text-dim); font-size: 11px">{{ formatDateTime(o.updatedAt) }}</td>
             <td>
               <button
@@ -396,9 +431,9 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
                 <strong :class="sideClass(leg.side)">{{ formatOrderSideLabel(leg.side) }} {{ leg.ratio }}</strong>
                 <code>{{ leg.instrumentId }}</code>
                 <span>{{ formatExecutionOrderStatusLabel(leg.status) }}</span>
-                <span>成交 {{ leg.filledQuantity ?? 0 }} / {{ leg.requestedQuantity ?? "—" }}</span>
-                <span>均价 {{ leg.averagePrice ?? "—" }}</span>
-                <span>费用 {{ leg.fees ?? "—" }}</span>
+                <span>成交 {{ formatQuantity(leg.filledQuantity ?? 0) }} / {{ formatQuantity(leg.requestedQuantity) }}</span>
+                <span>均价 {{ formatPositionPrice(leg.averagePrice, o.market) }}</span>
+                <span>费用 {{ formatNumber(leg.fees) }}</span>
               </div>
             </td>
           </tr>
@@ -447,9 +482,9 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
               <td><InstrumentIdentity :market="o.market" :instrument-id="o.symbol" compact /></td>
               <td :class="sideClass(o.side)" style="font-weight: 600">{{ formatOrderSideLabel(o.side) }}</td>
               <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
-              <td class="tv-num">{{ o.requestedQuantity ?? "—" }}</td>
-              <td class="tv-num">{{ o.filledQuantity ?? 0 }}</td>
-              <td class="tv-num">{{ o.filledAveragePrice ?? "—" }}</td>
+              <td class="tv-num">{{ formatQuantity(o.requestedQuantity) }}</td>
+              <td class="tv-num">{{ formatQuantity(o.filledQuantity ?? 0) }}</td>
+              <td class="tv-num">{{ formatPositionPrice(o.filledAveragePrice, o.market) }}</td>
               <td style="color: var(--tv-text-dim); font-size: 11px">{{ formatDateTime(o.updatedAt) }}</td>
             </tr>
             <tr v-if="isExpanded(o.internalOrderId)" class="tv-order-legs">
@@ -459,9 +494,9 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
                   <strong :class="sideClass(leg.side)">{{ formatOrderSideLabel(leg.side) }} {{ leg.ratio }}</strong>
                   <code>{{ leg.instrumentId }}</code>
                   <span>{{ formatExecutionOrderStatusLabel(leg.status) }}</span>
-                  <span>成交 {{ leg.filledQuantity ?? 0 }} / {{ leg.requestedQuantity ?? "—" }}</span>
-                  <span>均价 {{ leg.averagePrice ?? "—" }}</span>
-                  <span>费用 {{ leg.fees ?? "—" }}</span>
+                  <span>成交 {{ formatQuantity(leg.filledQuantity ?? 0) }} / {{ formatQuantity(leg.requestedQuantity) }}</span>
+                  <span>均价 {{ formatPositionPrice(leg.averagePrice, o.market) }}</span>
+                  <span>费用 {{ formatNumber(leg.fees) }}</span>
                 </div>
               </td>
             </tr>
@@ -497,17 +532,12 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
         </tbody>
       </table>
     </div>
-    <OptionComboConfirmDialog
+    <ActionConfirmDialog
       :open="pendingCancelOrder != null"
-      mode="cancel"
-      :account-label="pendingCancelOrder?.accountId ?? ''"
-      :environment="pendingCancelOrder?.tradingEnvironment ?? ''"
-      strategy-label="组合期权订单"
-      :legs="[]"
-      :price="pendingCancelOrder?.requestedPrice ?? 0"
-      :quantity="pendingCancelOrder?.requestedQuantity ?? 0"
-      :real-confirmation-required="false"
-      required-confirmation-text=""
+      title="确认撤单"
+      :message="pendingCancelMessage"
+      confirm-label="确认撤单"
+      :busy="pendingCancelOrder != null && isCancellingOrder(pendingCancelOrder.internalOrderId)"
       @close="pendingCancelOrder = null"
       @confirm="confirmCancelOrder"
     />

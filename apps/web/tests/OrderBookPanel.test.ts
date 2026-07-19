@@ -521,11 +521,11 @@ describe("OrderBookPanel", () => {
     );
     expect(readSetupValue<string | null>(wrapper, "bidRatioPercent")).toBe("60.00");
     expect(readSetupValue<string | null>(wrapper, "askRatioPercent")).toBe("40.00");
-    expect(callSetup<string>(wrapper, "fmtPrice", null)).toBe("--");
-    expect(callSetup<string>(wrapper, "fmtPrice", 0.45678)).toBe("0.4568");
-    expect(callSetup<string>(wrapper, "fmtPrice", 8.7654)).toBe("8.765");
+    expect(callSetup<string>(wrapper, "fmtPrice", null)).toBe("—");
+    expect(callSetup<string>(wrapper, "fmtPrice", 0.45678)).toBe("0.46");
+    expect(callSetup<string>(wrapper, "fmtPrice", 8.7654)).toBe("8.77");
     expect(callSetup<string>(wrapper, "fmtPrice", 18.54)).toBe("18.54");
-    expect(callSetup<string>(wrapper, "fmtSize", null)).toBe("--");
+    expect(callSetup<string>(wrapper, "fmtSize", null)).toBe("—");
     expect(callSetup<string>(wrapper, "fmtSize", 900)).toBe("900");
     expect(callSetup<string>(wrapper, "fmtSize", 1_500)).toBe("1.5K");
     expect(callSetup<string>(wrapper, "fmtSize", 1_500_000)).toBe("1.50M");
