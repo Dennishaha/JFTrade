@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
@@ -15,6 +16,15 @@ func seedOutOfOrderPlacedOrder(store *executionOrderStore, brokerOrderID string)
 		OrderType: "LIMIT", Status: "SUBMITTED", RequestedQuantity: 10,
 		RequestedPrice: &price, SubmittedAt: "2026-07-10T01:00:00Z", EventType: "COMMAND_PLACE_ACCEPTED",
 	})
+}
+
+func executionTestTimestampAfter(t *testing.T, base string, offset time.Duration) string {
+	t.Helper()
+	parsed, err := time.Parse(time.RFC3339Nano, base)
+	if err != nil {
+		t.Fatalf("parse execution timestamp %q: %v", base, err)
+	}
+	return parsed.Add(offset).Format(time.RFC3339Nano)
 }
 
 func outOfOrderPushSnapshot(brokerOrderID, status string, filled float64, updatedAt string) broker.OrderSnapshot {
@@ -47,9 +57,11 @@ func TestExecutionOrderStoreIgnoresOutOfOrderRegressionPushAfterTerminalState(t 
 		t.Run(test.name, func(t *testing.T) {
 			store := newExecutionOrderStore()
 			seeded := seedOutOfOrderPlacedOrder(store, "ooo-1")
+			advancedAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 2*time.Minute)
+			regressedAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 3*time.Minute)
 
 			advanced, _, changed := store.upsertBrokerOrderWithSource("futu",
-				outOfOrderPushSnapshot("ooo-1", test.advanceStatus, test.advanceFilled, "2026-07-10T01:02:00Z"),
+				outOfOrderPushSnapshot("ooo-1", test.advanceStatus, test.advanceFilled, advancedAt),
 				"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 			if !changed || advanced.Status != test.wantStatus {
 				t.Fatalf("advance push status=%q changed=%v, want %q", advanced.Status, changed, test.wantStatus)
@@ -57,7 +69,7 @@ func TestExecutionOrderStoreIgnoresOutOfOrderRegressionPushAfterTerminalState(t 
 
 			// 延迟回报带着更新的时间戳到达，但状态机拒绝回退。
 			regressed, event, changed := store.upsertBrokerOrderWithSource("futu",
-				outOfOrderPushSnapshot("ooo-1", test.regressionStatus, test.regressionFilled, "2026-07-10T01:03:00Z"),
+				outOfOrderPushSnapshot("ooo-1", test.regressionStatus, test.regressionFilled, regressedAt),
 				"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 			if regressed.Status != test.wantStatus {
 				t.Fatalf("regression push status=%q, want %q", regressed.Status, test.wantStatus)
@@ -83,10 +95,12 @@ func TestExecutionOrderStoreIgnoresOutOfOrderRegressionPushAfterTerminalState(t 
 func TestExecutionOrderStoreAppliesFillProgressFromOlderSnapshot(t *testing.T) {
 	store := newExecutionOrderStore()
 	seeded := seedOutOfOrderPlacedOrder(store, "ooo-2")
+	partialAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 5*time.Minute)
+	olderProgressAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 3*time.Minute)
 
 	// 先在 01:05 确认部分成交 2 股。
 	partial, _, changed := store.upsertBrokerOrderWithSource("futu",
-		outOfOrderPushSnapshot("ooo-2", "FILLED_PART", 2, "2026-07-10T01:05:00Z"),
+		outOfOrderPushSnapshot("ooo-2", "FILLED_PART", 2, partialAt),
 		"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 	if !changed || partial.Status != "PARTIALLY_FILLED" {
 		t.Fatalf("partial push status=%q changed=%v", partial.Status, changed)
@@ -94,7 +108,7 @@ func TestExecutionOrderStoreAppliesFillProgressFromOlderSnapshot(t *testing.T) {
 
 	// 01:03 生成的快照晚到（时间戳落后），但成交量从 2 推进到 4，必须被采纳。
 	progressed, event, changed := store.upsertBrokerOrderWithSource("futu",
-		outOfOrderPushSnapshot("ooo-2", "FILLED_PART", 4, "2026-07-10T01:03:00Z"),
+		outOfOrderPushSnapshot("ooo-2", "FILLED_PART", 4, olderProgressAt),
 		"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 	if !changed || progressed.Status != "PARTIALLY_FILLED" {
 		t.Fatalf("progressed push status=%q changed=%v, want PARTIALLY_FILLED", progressed.Status, changed)
@@ -102,11 +116,58 @@ func TestExecutionOrderStoreAppliesFillProgressFromOlderSnapshot(t *testing.T) {
 	if progressed.FilledQuantity == nil || *progressed.FilledQuantity != 4 {
 		t.Fatalf("progressed filled=%v, want 4", progressed.FilledQuantity)
 	}
+	if progressed.UpdatedAt != partialAt {
+		t.Fatalf("progressed updatedAt=%q, want latest accepted timestamp", progressed.UpdatedAt)
+	}
 	if event == nil || event.PreviousStatus == nil || *event.PreviousStatus != "PARTIALLY_FILLED" || event.NextStatus != "PARTIALLY_FILLED" {
 		t.Fatalf("progress event = %#v", event)
 	}
+	if event.CreatedAt != progressed.UpdatedAt {
+		t.Fatalf("progress event createdAt=%q, want monotonic order timestamp %q", event.CreatedAt, progressed.UpdatedAt)
+	}
 	persisted, ok := store.order(seeded.InternalOrderID)
 	if !ok || persisted.Status != "PARTIALLY_FILLED" || persisted.FilledQuantity == nil || *persisted.FilledQuantity != 4 {
+		t.Fatalf("persisted order = %#v", persisted)
+	}
+	if persisted.UpdatedAt != progressed.UpdatedAt {
+		t.Fatalf("persisted updatedAt=%q, want %q", persisted.UpdatedAt, progressed.UpdatedAt)
+	}
+}
+
+// 独立成交回报可能比当前订单快照更晚到，但事件本身的发生时间更早。
+// 成交数量仍需累加，订单的最后更新时间则必须保持单调。
+func TestExecutionOrderStoreKeepsUpdatedAtMonotonicForOlderFill(t *testing.T) {
+	store := newExecutionOrderStore()
+	seeded := seedOutOfOrderPlacedOrder(store, "ooo-fill-time")
+	partialAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 5*time.Minute)
+	olderFillAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 3*time.Minute)
+
+	partial, _, changed := store.upsertBrokerOrderWithSource("futu",
+		outOfOrderPushSnapshot("ooo-fill-time", "FILLED_PART", 2, partialAt),
+		"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
+	if !changed || partial.UpdatedAt != partialAt {
+		t.Fatalf("partial order = %#v", partial)
+	}
+
+	status := "FILLED_PART"
+	fillPrice := 101.0
+	filled, event, changed := store.recordBrokerOrderFill("futu", broker.OrderFillSnapshot{
+		AccountID: "SIM-1", TradingEnvironment: "SIMULATE", Market: "US",
+		BrokerOrderID: "ooo-fill-time", BrokerFillID: "fill-older-time",
+		Symbol: "US.AAPL", Side: "BUY", Status: &status,
+		FilledQuantity: 1, FillPrice: &fillPrice, FilledAt: olderFillAt,
+	})
+	if !changed || filled.FilledQuantity == nil || *filled.FilledQuantity != 3 {
+		t.Fatalf("filled order = %#v changed=%v", filled, changed)
+	}
+	if filled.UpdatedAt != partial.UpdatedAt {
+		t.Fatalf("filled updatedAt=%q, want monotonic %q", filled.UpdatedAt, partial.UpdatedAt)
+	}
+	if event == nil || event.CreatedAt != partial.UpdatedAt {
+		t.Fatalf("fill event = %#v, want monotonic timestamp %q", event, partial.UpdatedAt)
+	}
+	persisted, ok := store.order(seeded.InternalOrderID)
+	if !ok || persisted.UpdatedAt != partial.UpdatedAt {
 		t.Fatalf("persisted order = %#v", persisted)
 	}
 }
@@ -116,17 +177,19 @@ func TestExecutionOrderStoreAppliesFillProgressFromOlderSnapshot(t *testing.T) {
 func TestExecutionOrderStoreResolvesCancelRequestRaceAgainstBrokerPush(t *testing.T) {
 	t.Run("fill wins over in-flight cancel", func(t *testing.T) {
 		store := newExecutionOrderStore()
-		seedOutOfOrderPlacedOrder(store, "ooo-3")
+		seeded := seedOutOfOrderPlacedOrder(store, "ooo-3")
+		cancelAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 2*time.Minute)
+		filledAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 3*time.Minute)
 
 		cancelRequested, _, changed := store.upsertBrokerOrderWithSource("futu",
-			outOfOrderPushSnapshot("ooo-3", "CANCELLING_ALL", 0, "2026-07-10T01:02:00Z"),
+			outOfOrderPushSnapshot("ooo-3", "CANCELLING_ALL", 0, cancelAt),
 			"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 		if !changed || cancelRequested.Status != "CANCEL_REQUESTED" {
 			t.Fatalf("cancel-requested push status=%q changed=%v", cancelRequested.Status, changed)
 		}
 
 		filled, event, changed := store.upsertBrokerOrderWithSource("futu",
-			outOfOrderPushSnapshot("ooo-3", "FILLED_ALL", 10, "2026-07-10T01:03:00Z"),
+			outOfOrderPushSnapshot("ooo-3", "FILLED_ALL", 10, filledAt),
 			"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 		if !changed || filled.Status != "FILLED" {
 			t.Fatalf("fill-during-cancel status=%q changed=%v, want FILLED", filled.Status, changed)
@@ -138,15 +201,17 @@ func TestExecutionOrderStoreResolvesCancelRequestRaceAgainstBrokerPush(t *testin
 
 	t.Run("cancel confirmed when no fill arrives", func(t *testing.T) {
 		store := newExecutionOrderStore()
-		seedOutOfOrderPlacedOrder(store, "ooo-4")
+		seeded := seedOutOfOrderPlacedOrder(store, "ooo-4")
+		cancelRequestAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 2*time.Minute)
+		cancelledAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 3*time.Minute)
 
 		if _, _, changed := store.upsertBrokerOrderWithSource("futu",
-			outOfOrderPushSnapshot("ooo-4", "CANCELLING_ALL", 0, "2026-07-10T01:02:00Z"),
+			outOfOrderPushSnapshot("ooo-4", "CANCELLING_ALL", 0, cancelRequestAt),
 			"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push"); !changed {
 			t.Fatal("cancel-requested push was not applied")
 		}
 		cancelled, event, changed := store.upsertBrokerOrderWithSource("futu",
-			outOfOrderPushSnapshot("ooo-4", "CANCELLED_ALL", 0, "2026-07-10T01:03:00Z"),
+			outOfOrderPushSnapshot("ooo-4", "CANCELLED_ALL", 0, cancelledAt),
 			"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 		if !changed || cancelled.Status != "CANCELLED" {
 			t.Fatalf("cancel-confirm status=%q changed=%v, want CANCELLED", cancelled.Status, changed)
@@ -161,9 +226,10 @@ func TestExecutionOrderStoreResolvesCancelRequestRaceAgainstBrokerPush(t *testin
 func TestExecutionOrderStoreDuplicateTerminalPushIsNoOp(t *testing.T) {
 	store := newExecutionOrderStore()
 	seeded := seedOutOfOrderPlacedOrder(store, "ooo-5")
+	filledAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 2*time.Minute)
 
 	filled, _, changed := store.upsertBrokerOrderWithSource("futu",
-		outOfOrderPushSnapshot("ooo-5", "FILLED_ALL", 10, "2026-07-10T01:02:00Z"),
+		outOfOrderPushSnapshot("ooo-5", "FILLED_ALL", 10, filledAt),
 		"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 	if !changed || filled.Status != "FILLED" {
 		t.Fatalf("fill push status=%q changed=%v", filled.Status, changed)
@@ -171,7 +237,7 @@ func TestExecutionOrderStoreDuplicateTerminalPushIsNoOp(t *testing.T) {
 	eventsBefore := len(store.orderEvents(seeded.InternalOrderID).Events)
 
 	_, duplicateEvent, duplicateChanged := store.upsertBrokerOrderWithSource("futu",
-		outOfOrderPushSnapshot("ooo-5", "FILLED_ALL", 10, "2026-07-10T01:02:00Z"),
+		outOfOrderPushSnapshot("ooo-5", "FILLED_ALL", 10, filledAt),
 		"BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 	if duplicateChanged || duplicateEvent != nil {
 		t.Fatalf("duplicate terminal push changed=%v event=%#v, want no-op", duplicateChanged, duplicateEvent)

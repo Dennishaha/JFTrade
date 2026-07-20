@@ -77,12 +77,18 @@ func (r *Runtime) RunCanvasWorkflow(ctx context.Context, req WorkflowCanvasRunRe
 	defer finishParent()
 	tasks, err := executor.persistWorkflowTasks(parentCtx, parent, agent, steps)
 	if err != nil {
-		parent = executor.failParent(parentCtx, parent, err)
+		parent, persistErr := executor.failParent(parentCtx, parent, err)
+		if persistErr != nil {
+			return ChatResponse{}, persistErr
+		}
 		return executor.workflowResponse(parentCtx, session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 	}
 	parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
 	if err := r.store.SaveRun(parentCtx, parent); err != nil {
-		parent = executor.failParent(parentCtx, parent, err)
+		parent, persistErr := executor.failParent(parentCtx, parent, err)
+		if persistErr != nil {
+			return ChatResponse{}, persistErr
+		}
 		return executor.workflowResponse(parentCtx, session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 	}
 	return executor.runPlannedGoogleADKWorkflow(parentCtx, workflowRequest{

@@ -11,7 +11,9 @@ func TestCoverage98LifecycleFailsClosedWhenStorageStopsDuringReconciliation(t *t
 
 	// Shutdown can race with the periodic reconciler. It must abandon the
 	// pass rather than treating an unreadable run list as an empty list.
-	runtime.reconcileStaleRuns(ctx)
+	if err := runtime.reconcileStaleRuns(ctx); err == nil {
+		t.Fatal("reconcileStaleRuns after store shutdown returned nil")
+	}
 
 	// A cancellation already in progress must surface the persistence failure
 	// instead of reporting a cancelled run that was never durably recorded.

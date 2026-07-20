@@ -958,7 +958,9 @@ func TestReconcileExpiredRunsMarksHungRunTimedOut(t *testing.T) {
 		t.Fatalf("SaveRun: %v", err)
 	}
 
-	runtime.ReconcileExpiredRuns(ctx)
+	if err := runtime.ReconcileExpiredRuns(ctx); err != nil {
+		t.Fatalf("ReconcileExpiredRuns: %v", err)
+	}
 
 	reloaded, ok, err := runtime.Store().Run(ctx, run.ID)
 	if err != nil {
@@ -1020,7 +1022,9 @@ func TestReconcileExpiredRunsUsesRunSpecificTimeout(t *testing.T) {
 		t.Fatalf("SaveRun longRun: %v", err)
 	}
 
-	runtime.ReconcileExpiredRuns(ctx)
+	if err := runtime.ReconcileExpiredRuns(ctx); err != nil {
+		t.Fatalf("ReconcileExpiredRuns: %v", err)
+	}
 
 	reloadedShort, ok, err := runtime.Store().Run(ctx, shortRun.ID)
 	if err != nil || !ok {

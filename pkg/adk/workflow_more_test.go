@@ -109,11 +109,14 @@ func TestWorkflowExecutorRunAndFinalizeAdditionalCoverage(t *testing.T) {
 		parent.WorkflowPlan = workflowPlanFromTasks([]Task{task}, nil)
 		mustSaveRun(t, runtime, parent)
 
-		response := executor.finalizePlannedWorkflow(ctx, workflowRequest{
+		response, err := executor.finalizePlannedWorkflow(ctx, workflowRequest{
 			Agent:   Agent{ID: parent.AgentID, Status: AgentStatusEnabled},
 			Session: session,
 			Mode:    WorkModeLoop,
 		}, parent, []Task{task}, nil, nil)
+		if err != nil {
+			t.Fatalf("finalizePlannedWorkflow: %v", err)
+		}
 		if response.Run.Status != RunStatusCompleted || response.Run.WorkflowStatus != workflowStatusComplete || response.Run.Iteration != 1 {
 			t.Fatalf("finalizePlannedWorkflow response = %+v", response)
 		}
@@ -193,7 +196,10 @@ func TestWorkflowExecutorAdditionalSaveAndCancelBranches(t *testing.T) {
 			UpdatedAt:      nowString(),
 			Usage:          &RunUsage{},
 		}
-		failed := executor.failParent(cancelledCtx, parent, errors.New("cancelled"))
+		failed, err := executor.failParent(cancelledCtx, parent, errors.New("cancelled"))
+		if err != nil {
+			t.Fatalf("failParent: %v", err)
+		}
 		if failed.Status != RunStatusCancelled || failed.CancelledAt == nil {
 			t.Fatalf("failParent(cancelled) = %+v", failed)
 		}
@@ -231,11 +237,11 @@ func TestWorkflowExecutorAdditionalSaveAndCancelBranches(t *testing.T) {
 		response, err := executor.runNativeTaskGraphWorkflow(ctx, workflowRequest{
 			Agent: agent, Session: session, Message: "run native workflow prepare failure",
 		}, prepareParent, []workflowStep{prepareStep}, []Task{prepareTask})
-		if err != nil {
-			t.Fatalf("runNativeTaskGraphWorkflow prepare err = %v", err)
+		if err == nil || !strings.Contains(err.Error(), "persist failed workflow state") {
+			t.Fatalf("runNativeTaskGraphWorkflow prepare err = %v, want durable failure-state error", err)
 		}
-		if response.Run.Status != RunStatusFailed || !strings.Contains(response.Reply, "unsupported type") {
-			t.Fatalf("prepare failure response = %+v", response)
+		if response.Run.ID != "" {
+			t.Fatalf("prepare failure response = %+v, want no successful response", response)
 		}
 
 		compileParent := Run{

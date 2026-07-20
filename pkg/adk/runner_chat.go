@@ -171,7 +171,9 @@ func (r *Runtime) prepareChatRequest(ctx context.Context, req ChatRequest) (stri
 	if r == nil || r.store == nil {
 		return "", fmt.Errorf("adk runtime is unavailable")
 	}
-	r.ReconcileExpiredRuns(ctx)
+	if err := r.ReconcileExpiredRuns(ctx); err != nil {
+		return "", err
+	}
 	text := strings.TrimSpace(req.Message)
 	if text == "" {
 		return "", fmt.Errorf("message is required")

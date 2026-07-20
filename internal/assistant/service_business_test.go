@@ -579,6 +579,8 @@ func TestServiceRunLifecycleAndApprovalWrappers(t *testing.T) {
 		t.Fatalf("async resolution = %+v", asyncResolution)
 	}
 
-	service.ReconcileExpiredRuns(ctx)
+	if err := service.ReconcileExpiredRuns(ctx); err != nil {
+		t.Fatalf("ReconcileExpiredRuns: %v", err)
+	}
 	service.ReconcileResolvedApprovals(ctx)
 }

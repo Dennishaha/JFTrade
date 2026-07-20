@@ -55,7 +55,10 @@ func TestCoverage98WorkflowTaskStorageFailuresFailClosed(t *testing.T) {
 			t.Fatal("workflowTasksFinished must fail closed when task storage cannot be queried")
 		}
 
-		response := executor.finalizePlannedWorkflow(ctx, workflowRequest{Agent: agent, Session: session, Mode: WorkModeLoop}, parent, []Task{knownDone}, nil, nil)
+		response, err := executor.finalizePlannedWorkflow(ctx, workflowRequest{Agent: agent, Session: session, Mode: WorkModeLoop}, parent, []Task{knownDone}, nil, nil)
+		if err != nil {
+			t.Fatalf("finalize planned workflow: %v", err)
+		}
 		if response.Run.Status != RunStatusFailed || response.Run.ErrorCode != workflowTaskIncompleteErr {
 			t.Fatalf("scheduler storage failure response = %+v", response.Run)
 		}

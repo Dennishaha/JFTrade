@@ -254,10 +254,11 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	if modelName := plannerStringArg(args, "childModel"); modelName != "" {
 		step.ChildModel = modelName
 	}
-	_, jftradeErr31 := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{
+	if _, err := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{
 		Executor: new(workflowTaskExecutorChild), ChildProviderID: &step.ChildProviderID, ChildModel: &step.ChildModel,
-	})
-	besteffort.LogError(jftradeErr31)
+	}); err != nil {
+		return nil, err
+	}
 	result := t.executor.runChild(context.Background(), t.req, parent, step, task, workflowTaskIteration(task))
 	if result.Err != nil {
 		return map[string]any{"success": false, "message": result.Err.Error()}, nil
@@ -269,11 +270,15 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	if !ok {
 		return nil, fmt.Errorf("parent run not found")
 	}
-	parent = t.executor.mergeTaskChildProjectionAt(context.Background(), parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
+	parent, err = t.executor.mergeTaskChildProjectionAt(context.Background(), parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
+	if err != nil {
+		return nil, err
+	}
 	if result.Response.Run.Status == RunStatusPending || result.Response.Run.Status == RunStatusPendingInput {
 		parent = pauseParentForChild(parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
-		_, jftradeErr30 := t.executor.runtime.saveRunPreservingUserGoalPause(context.Background(), parent)
-		besteffort.LogError(jftradeErr30)
+		if _, err := t.executor.runtime.saveRunPreservingUserGoalPause(context.Background(), parent); err != nil {
+			return nil, err
+		}
 	}
 	t.currentTaskID = ""
 	return map[string]any{
@@ -438,7 +443,7 @@ func (t *workflowTaskToolset) resolveTask(ctx context.Context, parent Run, tasks
 	return Task{}, fmt.Errorf("no executable workflow task")
 }
 
-func (e *WorkflowExecutor) mergeTaskChildProjectionAt(ctx context.Context, parent Run, child Run, index int) Run {
+func (e *WorkflowExecutor) mergeTaskChildProjectionAt(ctx context.Context, parent Run, child Run, index int) (Run, error) {
 	if strings.TrimSpace(child.ID) != "" {
 		parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
 	}
@@ -448,9 +453,11 @@ func (e *WorkflowExecutor) mergeTaskChildProjectionAt(ctx context.Context, paren
 		parent.PendingApprovals = append([]Approval(nil), child.PendingApprovals...)
 		parent.InputRequest = normalizeInputRequest(child.InputRequest)
 	}
-	parent, jftradeErr28 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
-	besteffort.LogError(jftradeErr28)
-	return parent
+	parent, err := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	if err != nil {
+		return Run{}, err
+	}
+	return parent, nil
 }
 
 var _ adktool.Toolset = (*workflowTaskToolset)(nil)

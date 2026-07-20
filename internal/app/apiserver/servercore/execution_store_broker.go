@@ -240,7 +240,7 @@ func applyBrokerOrderSnapshot(summary *executionOrderSummaryResponse, snapshot b
 		changed = true
 	}
 	if value := strings.TrimSpace(snapshot.UpdatedAt); value != "" {
-		if executionTimestampAdvances(summary.UpdatedAt, value) || (changed && summary.UpdatedAt != value) {
+		if executionTimestampAdvances(summary.UpdatedAt, value) {
 			summary.UpdatedAt = value
 			changed = true
 		}
@@ -469,7 +469,9 @@ func applyBrokerOrderFill(summary *executionOrderSummaryResponse, fill broker.Or
 			summary.RawBrokerStatus = stringPointerOrNil(rawBrokerStatus)
 		}
 	}
-	summary.UpdatedAt = firstNonEmptyString(fill.FilledAt, now)
+	if updatedAt := firstNonEmptyString(fill.FilledAt, now); executionTimestampAdvances(summary.UpdatedAt, updatedAt) {
+		summary.UpdatedAt = updatedAt
+	}
 	if summary.SubmittedAt == nil {
 		summary.SubmittedAt = stringPointerOrNil(firstNonEmptyString(fill.FilledAt, now))
 	}

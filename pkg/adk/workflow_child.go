@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
@@ -140,8 +141,9 @@ func (e *WorkflowExecutor) failWorkflowChildAfterMissingFinal(
 	toolContext := execution.toolContextForRun(child.ID)
 	child = hydrateRunExecutionResult(child, toolContext, nil, "", "")
 	child = markFailedChatRun(ctx, child, cause)
-	jftradeErr6 := e.runtime.persistRunTerminalState(context.Background(), child)
-	besteffort.LogError(jftradeErr6)
+	if err := e.runtime.persistRunTerminalState(context.Background(), child); err != nil {
+		return fmt.Errorf("persist failed workflow child state: %w", err)
+	}
 	return cause
 }
 

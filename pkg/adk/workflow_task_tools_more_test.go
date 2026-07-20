@@ -108,7 +108,10 @@ func TestWorkflowTaskToolsetAdditionalBusinessBranches(t *testing.T) {
 			ID: "task-tools-merge-child", Status: RunStatusPending,
 			PendingApprovals: []Approval{{ID: "task-tools-merge-approval", Status: ApprovalStatusPending}},
 		}
-		merged := runtime.workflowExecutor().mergeTaskChildProjectionAt(ctx, parent, child, 0)
+		merged, err := runtime.workflowExecutor().mergeTaskChildProjectionAt(ctx, parent, child, 0)
+		if err != nil {
+			t.Fatalf("merge task child projection: %v", err)
+		}
 		if merged.Status != RunStatusPending || len(merged.PendingApprovals) != 1 || merged.ChildRunIDs[0] != child.ID {
 			t.Fatalf("merged parent = %+v", merged)
 		}

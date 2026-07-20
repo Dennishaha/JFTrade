@@ -179,7 +179,9 @@ func TestServiceRuntimeUnavailableErrorBranches(t *testing.T) {
 		t.Fatalf("DeleteSkill err = %v, want unavailable", err)
 	}
 
-	service.ReconcileExpiredRuns(ctx)
+	if err := service.ReconcileExpiredRuns(ctx); err != nil {
+		t.Fatalf("ReconcileExpiredRuns: %v", err)
+	}
 	service.ReconcileResolvedApprovals(ctx)
 }
 

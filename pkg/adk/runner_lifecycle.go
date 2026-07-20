@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -19,80 +20,85 @@ func runTimeoutForRun(run Run) time.Duration {
 	}
 	return DefaultRunTimeout
 }
-func (r *Runtime) reconcileStaleRuns(ctx context.Context) {
+func (r *Runtime) reconcileStaleRuns(ctx context.Context) error {
 	if r == nil || r.store == nil {
-		return
+		return nil
 	}
 	runs, err := r.store.ListRuns(ctx)
 	if err != nil {
-		return
+		return err
 	}
 	executor := &WorkflowExecutor{runtime: r}
+	var reconcileErr error
 	for _, run := range runs {
-		r.reconcileStaleRun(ctx, executor, run)
+		reconcileErr = errors.Join(reconcileErr, r.reconcileStaleRun(ctx, executor, run))
 	}
+	return reconcileErr
 }
 
-func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecutor, run Run) {
-	latest, ok := r.loadStaleRunForReconcile(ctx, run.ID)
+func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecutor, run Run) error {
+	latest, ok, err := r.loadStaleRunForReconcile(ctx, run.ID)
+	if err != nil {
+		return err
+	}
 	if !ok {
-		return
+		return nil
 	}
 	run = latest
 	if repaired, repairErr := r.repairWorkflowSelfReference(ctx, &run); repairErr != nil {
-		besteffort.LogError(repairErr)
-		return
+		return repairErr
 	} else if repaired {
-		return
+		return nil
 	}
-	if r.reconcileCompletedWorkflowParent(ctx, executor, run) {
-		return
+	if handled, reconcileErr := r.reconcileCompletedWorkflowParent(ctx, executor, run); reconcileErr != nil || handled {
+		return reconcileErr
 	}
-	if r.reconcileTerminalStaleRun(ctx, executor, run) {
-		return
+	if handled, reconcileErr := r.reconcileTerminalStaleRun(ctx, executor, run); reconcileErr != nil || handled {
+		return reconcileErr
 	}
-	if !isRecoverableReconcileStatus(run.Status) || r.cancelChildOfTerminalParent(ctx, run) {
-		return
+	if !isRecoverableReconcileStatus(run.Status) {
+		return nil
+	}
+	if cancelled, cancelErr := r.cancelChildOfTerminalParent(ctx, run); cancelErr != nil || cancelled {
+		return cancelErr
 	}
 	if run.Status == RunStatusPaused || isWorkflowParentRun(run) {
-		return
+		return nil
 	}
 	if run.Status == RunStatusPending && runHasRecoverableApprovalContext(run) {
-		return
+		return nil
 	}
 	if run.Status == RunStatusPendingInput && run.InputRequest != nil && run.InputRequest.Status == InputRequestStatusPending {
-		return
+		return nil
 	}
 	if run.Status == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run) {
-		return
+		return nil
 	}
 	if r.isDormantWorkflowChildRun(ctx, run) {
-		return
+		return nil
 	}
-	r.failUnrecoverableStaleRun(ctx, run)
+	return r.failUnrecoverableStaleRun(ctx, run)
 }
 
-func (r *Runtime) loadStaleRunForReconcile(ctx context.Context, runID string) (Run, bool) {
+func (r *Runtime) loadStaleRunForReconcile(ctx context.Context, runID string) (Run, bool, error) {
 	latest, ok, err := r.store.Run(ctx, runID)
-	if err != nil || !ok {
-		besteffort.LogError(err)
-		return Run{}, false
+	if err != nil {
+		return Run{}, false, err
 	}
-	return latest, true
+	return latest, ok, nil
 }
 
-func (r *Runtime) reconcileCompletedWorkflowParent(ctx context.Context, executor *WorkflowExecutor, run Run) bool {
+func (r *Runtime) reconcileCompletedWorkflowParent(ctx context.Context, executor *WorkflowExecutor, run Run) (bool, error) {
 	if !isCompletedRunningWorkflowParent(run) {
-		return false
+		return false, nil
 	}
 	_, _, err := executor.reconcileWorkflowChildren(ctx, run)
-	besteffort.LogError(err)
-	return true
+	return true, err
 }
 
-func (r *Runtime) reconcileTerminalStaleRun(ctx context.Context, executor *WorkflowExecutor, run Run) bool {
+func (r *Runtime) reconcileTerminalStaleRun(ctx context.Context, executor *WorkflowExecutor, run Run) (bool, error) {
 	if !isTerminalLifecycleRunStatus(run.Status) {
-		return false
+		return false, nil
 	}
 	changed := len(run.PendingApprovals) > 0
 	run.PendingApprovals = nil
@@ -107,31 +113,34 @@ func (r *Runtime) reconcileTerminalStaleRun(ctx context.Context, executor *Workf
 		r.cancelUnfinishedWorkflowChildren(ctx, run)
 	}
 	if changed {
-		jftradeErr := r.store.SaveRunAndDenyPendingApprovals(ctx, run)
-		besteffort.LogError(jftradeErr)
+		if err := r.store.SaveRunAndDenyPendingApprovals(ctx, run); err != nil {
+			return true, fmt.Errorf("persist reconciled terminal run %s: %w", run.ID, err)
+		}
 	}
-	return true
+	return true, nil
 }
 
 func isRecoverableReconcileStatus(status string) bool {
 	return status == RunStatusRunning || status == RunStatusPending || status == RunStatusPendingInput || status == RunStatusPaused
 }
 
-func (r *Runtime) cancelChildOfTerminalParent(ctx context.Context, run Run) bool {
+func (r *Runtime) cancelChildOfTerminalParent(ctx context.Context, run Run) (bool, error) {
 	parentID := strings.TrimSpace(run.ParentRunID)
 	if parentID == "" {
-		return false
+		return false, nil
 	}
 	parent, ok, err := r.store.Run(ctx, parentID)
-	if err != nil || !ok || !isTerminalLifecycleRunStatus(parent.Status) || isCompletedRunningWorkflowParent(parent) {
-		return false
+	if err != nil {
+		return false, err
+	}
+	if !ok || !isTerminalLifecycleRunStatus(parent.Status) || isCompletedRunningWorkflowParent(parent) {
+		return false, nil
 	}
 	_, terminateErr := r.cancelRunTree(ctx, run, "parent workflow "+parent.ID+" is already terminal", "PARENT_RUN_TERMINATED", "cancelled because parent workflow terminated", "run.parent_terminated")
-	besteffort.LogError(terminateErr)
-	return true
+	return true, terminateErr
 }
 
-func (r *Runtime) failUnrecoverableStaleRun(ctx context.Context, run Run) {
+func (r *Runtime) failUnrecoverableStaleRun(ctx context.Context, run Run) error {
 	originalStatus := run.Status
 	run.Status = RunStatusFailed
 	run.ErrorCode = "RUN_ORPHANED"
@@ -145,21 +154,24 @@ func (r *Runtime) failUnrecoverableStaleRun(ctx context.Context, run Run) {
 		run.ResumeState = "approval_context_missing"
 	}
 	finalizeRunUsage(&run)
-	jftradeErr := r.store.SaveRun(ctx, run)
-	besteffort.LogError(jftradeErr)
+	if err := r.store.SaveRun(ctx, run); err != nil {
+		return fmt.Errorf("persist unrecoverable run %s: %w", run.ID, err)
+	}
 	r.audit(ctx, "run.orphaned", run.ID, "Agent run became unrecoverable after server restart.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState,
 	})
+	return nil
 }
 
-func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
+func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) error {
 	if r == nil || r.store == nil {
-		return
+		return nil
 	}
 	runs, err := r.store.ListRuns(ctx)
 	if err != nil {
-		return
+		return err
 	}
+	var reconcileErr error
 	now := time.Now().UTC()
 	for _, run := range runs {
 		if run.Status != RunStatusRunning {
@@ -201,12 +213,15 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
 		run.Degraded = true
 		run.CompletedAt = new(nowString())
 		finalizeRunUsage(&run)
-		jftradeErr1 := r.store.SaveRun(ctx, run)
-		besteffort.LogError(jftradeErr1)
+		if err := r.store.SaveRun(ctx, run); err != nil {
+			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("persist timed-out run %s: %w", run.ID, err))
+			continue
+		}
 		r.audit(ctx, "run.timed_out", run.ID, "Agent run timed out.", map[string]any{
 			"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "errorCode": run.ErrorCode, "failureReason": run.FailureReason,
 		})
 	}
+	return reconcileErr
 }
 
 func (r *Runtime) isDormantWorkflowChildRun(ctx context.Context, run Run) bool {
@@ -336,7 +351,9 @@ func (r *Runtime) runModelSnapshot(ctx context.Context, agent Agent) (string, st
 }
 
 func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
-	r.ReconcileExpiredRuns(ctx)
+	if err := r.ReconcileExpiredRuns(ctx); err != nil {
+		return Run{}, err
+	}
 	run, ok, err := r.store.Run(ctx, runID)
 	if err != nil {
 		return Run{}, err
@@ -686,12 +703,14 @@ func (r *Runtime) resumeUserPausedGoalRun(ctx context.Context, run Run) {
 		session, agent, err := r.workflowResumeContext(timeoutCtx, run)
 		executor := &WorkflowExecutor{runtime: r}
 		if err != nil {
-			_ = executor.failParent(timeoutCtx, run, err)
+			_, persistErr := executor.failParent(timeoutCtx, run, err)
+			besteffort.LogError(persistErr)
 			return
 		}
 		updated, err := executor.resumeADKGoalWorkflow(timeoutCtx, session, agent, run)
 		if err != nil {
-			_ = executor.failParent(timeoutCtx, run, err)
+			_, persistErr := executor.failParent(timeoutCtx, run, err)
+			besteffort.LogError(persistErr)
 			return
 		}
 		_ = updated

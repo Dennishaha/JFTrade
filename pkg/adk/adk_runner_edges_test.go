@@ -74,7 +74,10 @@ func TestWorkflowApprovalParentChildBoundaryBranches(t *testing.T) {
 	} {
 		parent := newParent("wf-terminal-"+tc.status, WorkModeLoop)
 		child := saveChild(parent, tc.status, "child "+tc.status)
-		terminated := runtime.terminateParentWorkflowFromChild(ctx, parent, child)
+		terminated, err := runtime.terminateParentWorkflowFromChild(ctx, parent, child)
+		if err != nil {
+			t.Fatalf("terminate %s parent: %v", tc.status, err)
+		}
 		if terminated.Status != tc.status || !strings.Contains(terminated.FailureReason, tc.wantReason) || terminated.CompletedAt == nil {
 			t.Fatalf("terminated %s = %+v", tc.status, terminated)
 		}
@@ -520,7 +523,9 @@ func TestRunnerApprovalStateMachineAdditionalBranches(t *testing.T) {
 		PendingApprovals: []Approval{{ID: "approval-continuation-failed-a", Status: ApprovalStatusApproved, FunctionCallID: "call", ConfirmationCallID: "confirmation"}},
 		CreatedAt:        now, UpdatedAt: now, Usage: &RunUsage{},
 	})
-	runtime.markApprovalContinuationFailed(ctx, failedRun.ID, errors.New("append event to SessionService: database is locked"))
+	if err := runtime.markApprovalContinuationFailed(ctx, failedRun.ID, errors.New("append event to SessionService: database is locked")); err != nil {
+		t.Fatalf("mark approval continuation failed: %v", err)
+	}
 	stored, ok, err = runtime.Store().Run(ctx, failedRun.ID)
 	if err != nil || !ok || stored.Status != RunStatusFailed || stored.FinalMessageID == "" || stored.ErrorCode != "APPROVAL_CONTINUATION_FAILED" {
 		t.Fatalf("continuation failed stored=%+v ok=%v err=%v", stored, ok, err)
@@ -531,7 +536,9 @@ func TestRunnerApprovalStateMachineAdditionalBranches(t *testing.T) {
 		PendingApprovals: []Approval{{ID: "still-pending", Status: ApprovalStatusPending, FunctionCallID: "call", ConfirmationCallID: "confirmation"}},
 		CreatedAt:        now, UpdatedAt: now, Usage: &RunUsage{},
 	})
-	runtime.markApprovalContinuationFailed(ctx, unchangedPending.ID, errors.New("ignored"))
+	if err := runtime.markApprovalContinuationFailed(ctx, unchangedPending.ID, errors.New("ignored")); err != nil {
+		t.Fatalf("ignore still-pending approval continuation: %v", err)
+	}
 	stored, ok, err = runtime.Store().Run(ctx, unchangedPending.ID)
 	if err != nil || !ok || stored.Status != RunStatusRunning {
 		t.Fatalf("still pending continuation stored=%+v ok=%v err=%v", stored, ok, err)

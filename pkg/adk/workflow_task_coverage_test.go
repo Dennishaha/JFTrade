@@ -73,7 +73,10 @@ func TestPauseGoalWorkflowPrunesInterruptedInternalToolCalls(t *testing.T) {
 	}
 	mustSaveRun(t, runtime, parent)
 
-	paused, response, didPause := executor.pauseADKGoalWorkflowIfRequested(ctx, workflowRequest{Session: Session{ID: parent.SessionID}}, parent, 2, "当前进度")
+	paused, response, didPause, err := executor.pauseADKGoalWorkflowIfRequested(ctx, workflowRequest{Session: Session{ID: parent.SessionID}}, parent, 2, "当前进度")
+	if err != nil {
+		t.Fatalf("pause goal workflow: %v", err)
+	}
 	if !didPause || paused.Status != RunStatusPaused || paused.PausedReason != "user" || paused.Iteration != 2 || response.Reply != "当前进度" {
 		t.Fatalf("paused goal = %+v response=%+v", paused, response)
 	}
@@ -112,7 +115,10 @@ func TestPrepareGoalWorkflowTurnHandlesPendingChildrenBlockedTasksAndErrors(t *t
 		CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 	})
 	pendingExecution := &googleADKExecution{runID: pendingParent.ID, runSnapshotBaseByID: map[string]Run{pendingParent.ID: pendingParent}}
-	updated, reply, done, _ := executor.prepareGoalWorkflowTurn(ctx, workflowRequest{Session: session}, pendingParent, []Task{pendingTask}, pendingExecution, nil, 1)
+	updated, reply, done, _, err := executor.prepareGoalWorkflowTurn(ctx, workflowRequest{Session: session}, pendingParent, []Task{pendingTask}, pendingExecution, nil, 1)
+	if err != nil {
+		t.Fatalf("prepare pending-child turn: %v", err)
+	}
 	if !done || updated.Status != RunStatusPendingInput || updated.WorkflowStatus != workflowStatusPaused || reply.Reply != "工作流正在等待用户回答。" {
 		t.Fatalf("pending-child turn = %+v reply=%+v", updated, reply)
 	}
@@ -128,14 +134,20 @@ func TestPrepareGoalWorkflowTurnHandlesPendingChildrenBlockedTasksAndErrors(t *t
 		t.Fatalf("SaveTask blocked: %v", err)
 	}
 	mustSaveRun(t, runtime, blockedParent)
-	updated, reply, done, _ = executor.prepareGoalWorkflowTurn(ctx, workflowRequest{Session: session}, blockedParent, []Task{blockedTask}, &googleADKExecution{runID: blockedParent.ID}, nil, 1)
+	updated, reply, done, _, err = executor.prepareGoalWorkflowTurn(ctx, workflowRequest{Session: session}, blockedParent, []Task{blockedTask}, &googleADKExecution{runID: blockedParent.ID}, nil, 1)
+	if err != nil {
+		t.Fatalf("prepare blocked-task turn: %v", err)
+	}
 	if !done || updated.Status != RunStatusFailed || updated.ErrorCode != "WORKFLOW_TASK_BLOCKED" || !strings.Contains(reply.Reply, "dependency unavailable") {
 		t.Fatalf("blocked-task turn = %+v reply=%+v", updated, reply)
 	}
 
 	errorParent := Run{ID: "goal-turn-parent-error", SessionID: session.ID, AgentID: session.AgentID, Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{}}
 	mustSaveRun(t, runtime, errorParent)
-	updated, _, done, _ = executor.prepareGoalWorkflowTurn(ctx, workflowRequest{Session: session}, errorParent, nil, &googleADKExecution{runID: errorParent.ID}, errors.New("model failed"), 1)
+	updated, _, done, _, err = executor.prepareGoalWorkflowTurn(ctx, workflowRequest{Session: session}, errorParent, nil, &googleADKExecution{runID: errorParent.ID}, errors.New("model failed"), 1)
+	if err != nil {
+		t.Fatalf("prepare failed-model turn: %v", err)
+	}
 	if !done || updated.Status != RunStatusFailed || updated.ErrorCode == "" {
 		t.Fatalf("error turn = %+v", updated)
 	}

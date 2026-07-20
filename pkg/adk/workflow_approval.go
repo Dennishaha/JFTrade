@@ -88,11 +88,19 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 		return &paused, nil
 	}
 	if child.Status != RunStatusCompleted {
-		return new(r.terminateParentWorkflowFromChild(ctx, *parent, child)), nil
+		terminated, terminateErr := r.terminateParentWorkflowFromChild(ctx, *parent, child)
+		if terminateErr != nil {
+			return nil, terminateErr
+		}
+		return &terminated, nil
 	}
 	session, _, err := r.workflowResumeContext(ctx, *parent)
 	if err != nil {
-		return new((&WorkflowExecutor{runtime: r}).failParent(ctx, *parent, err)), nil
+		failed, persistErr := (&WorkflowExecutor{runtime: r}).failParent(ctx, *parent, err)
+		if persistErr != nil {
+			return nil, persistErr
+		}
+		return &failed, nil
 	}
 	executor := &WorkflowExecutor{runtime: r}
 	var updated Run
@@ -103,7 +111,11 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 		updated = *parent
 	}
 	if err != nil {
-		return new(executor.failParent(ctx, *parent, err)), nil
+		failed, persistErr := executor.failParent(ctx, *parent, err)
+		if persistErr != nil {
+			return nil, persistErr
+		}
+		return &failed, nil
 	}
 	return &updated, nil
 }
@@ -131,7 +143,7 @@ func (r *Runtime) workflowResumeContext(ctx context.Context, parent Run) (Sessio
 	return session, agent, nil
 }
 
-func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent Run, child Run) Run {
+func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent Run, child Run) (Run, error) {
 	parent = updateWorkflowPlanForChild(parent, child)
 	parent.Status = child.Status
 	parent.Message = child.Message
@@ -165,11 +177,10 @@ func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent R
 	}
 	finalizeRunUsage(&parent)
 	if err := r.store.SaveRunAndDenyPendingApprovals(ctx, parent); err != nil {
-		besteffort.LogError(err)
-	} else {
-		r.cancelUnfinishedWorkflowChildren(context.Background(), parent)
+		return parent, fmt.Errorf("persist terminal parent workflow state: %w", err)
 	}
-	return parent
+	r.cancelUnfinishedWorkflowChildren(context.Background(), parent)
+	return parent, nil
 }
 
 func (e *WorkflowExecutor) resumeLoopWorkflow(ctx context.Context, session Session, parent Run) (Run, error) {
@@ -259,7 +270,8 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 			}
 			return parent, true, nil
 		default:
-			return e.runtime.terminateParentWorkflowFromChild(ctx, parent, child), true, nil
+			terminated, err := e.runtime.terminateParentWorkflowFromChild(ctx, parent, child)
+			return terminated, true, err
 		}
 	}
 	return parent, false, nil

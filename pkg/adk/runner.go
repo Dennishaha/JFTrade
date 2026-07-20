@@ -75,7 +75,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 		store.SetSessionService(sessionService)
 	}
 	r.registerModelCatalogTool()
-	r.reconcileStaleRuns(context.Background())
+	besteffort.LogError(r.reconcileStaleRuns(context.Background()))
 	return r
 }
 

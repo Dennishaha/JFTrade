@@ -111,7 +111,9 @@ func TestResumeGoalRunRejectsNonResumableStates(t *testing.T) {
 func TestReconcileExpiredRunsCancelsTimedOutRuns(t *testing.T) {
 	ctx := t.Context()
 	var nilRuntime *Runtime
-	nilRuntime.ReconcileExpiredRuns(ctx)
+	if err := nilRuntime.ReconcileExpiredRuns(ctx); err != nil {
+		t.Fatalf("nil runtime reconcile: %v", err)
+	}
 
 	runtime := newTestRuntime(t)
 	old := time.Now().UTC().Add(-2 * time.Hour).Format(time.RFC3339Nano)
@@ -141,7 +143,9 @@ func TestReconcileExpiredRunsCancelsTimedOutRuns(t *testing.T) {
 		Status: RunStatusRunning, WorkMode: WorkModeChat,
 		StartedAt: "not-time", CreatedAt: "also-not-time", UpdatedAt: recent, MaxDurationMs: 1,
 	})
-	runtime.ReconcileExpiredRuns(ctx)
+	if err := runtime.ReconcileExpiredRuns(ctx); err != nil {
+		t.Fatalf("ReconcileExpiredRuns: %v", err)
+	}
 	if !cancelled {
 		t.Fatal("expired active run was not cancelled")
 	}
@@ -162,7 +166,9 @@ func TestReconcileExpiredRunsCancelsTimedOutRuns(t *testing.T) {
 	}
 
 	closedStore := newClosedStoreForLifecycle(t)
-	(&Runtime{store: closedStore}).ReconcileExpiredRuns(ctx)
+	if err := (&Runtime{store: closedStore}).ReconcileExpiredRuns(ctx); err == nil {
+		t.Fatal("closed store reconciliation returned nil error")
+	}
 }
 
 func TestCancelRunTreeAndRunLifecycleHelpers(t *testing.T) {

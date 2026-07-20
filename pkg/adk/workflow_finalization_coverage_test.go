@@ -30,7 +30,10 @@ func TestWorkflowExecutorPersistsFinalizedAndIncompletePlans(t *testing.T) {
 		ID: "workflow-final-child", SessionID: session.ID, AgentID: agent.ID, ParentRunID: parent.ID, Iteration: 1,
 		Status: RunStatusCompleted, Message: "child complete", CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 	})
-	completed := executor.finalizePlannedWorkflow(ctx, workflowRequest{Session: session}, parent, []Task{doneTask}, []ChatResponse{{Reply: "verified conclusion", Run: child}}, nil)
+	completed, err := executor.finalizePlannedWorkflow(ctx, workflowRequest{Session: session}, parent, []Task{doneTask}, []ChatResponse{{Reply: "verified conclusion", Run: child}}, nil)
+	if err != nil {
+		t.Fatalf("finalize completed workflow: %v", err)
+	}
 	if completed.Run.Status != RunStatusCompleted || completed.Run.WorkflowStatus != workflowStatusComplete || completed.Run.Iteration != 1 || completed.Run.FinalMessageID == "" {
 		t.Fatalf("completed workflow response = %+v", completed)
 	}
@@ -50,7 +53,10 @@ func TestWorkflowExecutorPersistsFinalizedAndIncompletePlans(t *testing.T) {
 	}
 	incompleteParent.WorkflowPlan = workflowPlanFromTasks([]Task{incompleteTask}, nil)
 	mustSaveRun(t, runtime, incompleteParent)
-	incomplete := executor.finalizePlannedWorkflow(ctx, workflowRequest{Session: session}, incompleteParent, []Task{incompleteTask}, nil, nil)
+	incomplete, err := executor.finalizePlannedWorkflow(ctx, workflowRequest{Session: session}, incompleteParent, []Task{incompleteTask}, nil, nil)
+	if err != nil {
+		t.Fatalf("finalize incomplete workflow: %v", err)
+	}
 	if incomplete.Run.Status != RunStatusFailed || incomplete.Run.ErrorCode != workflowTaskIncompleteErr || !strings.Contains(incomplete.Run.FailureReason, "scheduler incomplete") {
 		t.Fatalf("incomplete workflow response = %+v", incomplete)
 	}
@@ -88,12 +94,15 @@ func TestWorkflowExecutorProjectsPendingInputAndRegistersLiveExecution(t *testin
 		t.Fatalf("registered workflow execution = root:%p awaiting:%p passive:%p", runtime.adkRuns[parent.ID], runtime.adkRuns[awaiting.ID], runtime.adkRuns[passive.ID])
 	}
 
-	response := executor.finishWorkflowPendingInputs(ctx, workflowRequest{Session: session}, parent, []Task{taskAwaitingInput, passiveTask}, []Run{awaiting, passive}, workflowExecutionResult{
+	response, err := executor.finishWorkflowPendingInputs(ctx, workflowRequest{Session: session}, parent, []Task{taskAwaitingInput, passiveTask}, []Run{awaiting, passive}, workflowExecutionResult{
 		execution: execution,
 		inputRequests: map[string]*InputRequest{
 			awaiting.ID: request,
 		},
 	})
+	if err != nil {
+		t.Fatalf("finish workflow pending inputs: %v", err)
+	}
 	if response.Run.Status != RunStatusPendingInput || response.Run.WorkflowStatus != workflowStatusPaused || response.Run.InputRequest == nil || response.Run.InputRequest.ID != request.ID {
 		t.Fatalf("pending-input workflow response = %+v", response)
 	}

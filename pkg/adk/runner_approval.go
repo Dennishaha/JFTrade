@@ -169,7 +169,7 @@ func (r *Runtime) enqueueResolvedApprovalContinuation(runID string) {
 			if ctx.Err() != nil {
 				return
 			}
-			r.markApprovalContinuationFailed(context.Background(), runID, err)
+			besteffort.LogError(r.markApprovalContinuationFailed(context.Background(), runID, err))
 		}
 	}()
 }
@@ -201,10 +201,13 @@ func (r *Runtime) continueResolvedApprovalRun(ctx context.Context, runID string)
 	return err
 }
 
-func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID string, cause error) {
+func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID string, cause error) error {
 	run, ok, err := r.store.Run(ctx, runID)
-	if err != nil || !ok || !runCanContinueResolvedApproval(run) || runHasPendingApproval(run.PendingApprovals) {
-		return
+	if err != nil {
+		return err
+	}
+	if !ok || !runCanContinueResolvedApproval(run) || runHasPendingApproval(run.PendingApprovals) {
+		return nil
 	}
 	run.Status = RunStatusFailed
 	run.ResumeState = "approval_continuation_failed"
@@ -214,19 +217,23 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 	run.Degraded = true
 	run.CompletedAt = new(nowString())
 	finalizeRunUsage(&run)
-	jftradeErr3 := r.store.SaveRun(ctx, run)
-	besteffort.LogError(jftradeErr3)
-	_, jftradeErr4 := r.continueParentWorkflowAfterChild(ctx, run)
-	besteffort.LogError(jftradeErr4)
+	if err := r.store.SaveRun(ctx, run); err != nil {
+		return fmt.Errorf("persist approval continuation failure: %w", err)
+	}
+	if _, err := r.continueParentWorkflowAfterChild(ctx, run); err != nil {
+		return err
+	}
 	replyResult := openAIChatResult{Reply: run.FailureReason}
 	if saved, msgErr := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, replyResult); msgErr == nil {
 		run.FinalMessageID = saved.ID
-		jftradeErr1 := r.store.SaveRun(ctx, run)
-		besteffort.LogError(jftradeErr1)
+		if err := r.store.SaveRun(ctx, run); err != nil {
+			return fmt.Errorf("persist approval failure message reference: %w", err)
+		}
 	}
 	r.audit(ctx, "run.failed", run.ID, "Agent approval continuation failed.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState, "failureReason": run.FailureReason,
 	})
+	return nil
 }
 
 func runHasPendingApproval(approvals []Approval) bool {
@@ -288,8 +295,9 @@ func (r *Runtime) continueResolvedApproval(ctx context.Context, approval Approva
 			}
 		}
 		if hasPending {
-			jftradeErr2 := r.store.SaveRun(ctx, run)
-			besteffort.LogError(jftradeErr2)
+			if err := r.store.SaveRun(ctx, run); err != nil {
+				return ApprovalResolution{}, err
+			}
 			updatedRun = &run
 			return ApprovalResolution{Approval: approval, Run: updatedRun}, nil
 		}

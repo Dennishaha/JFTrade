@@ -39,7 +39,9 @@ func TestReconcileStaleRunsPreservesRecoverableWorkflowStateAndFailsOrphans(t *t
 		Status: RunStatusRunning, WorkMode: WorkModeChat, CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 	})
 
-	runtime.reconcileStaleRuns(ctx)
+	if err := runtime.reconcileStaleRuns(ctx); err != nil {
+		t.Fatalf("reconcileStaleRuns: %v", err)
+	}
 	for _, expected := range []struct {
 		id     string
 		status string
@@ -81,7 +83,9 @@ func TestReconcileTerminalWorkflowCancelsChildrenAndClearsStaleApprovals(t *test
 		Status: RunStatusRunning, WorkMode: WorkModeChat, CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 	})
 
-	runtime.reconcileStaleRun(ctx, runtime.workflowExecutor(), parent)
+	if err := runtime.reconcileStaleRun(ctx, runtime.workflowExecutor(), parent); err != nil {
+		t.Fatalf("reconcile terminal parent: %v", err)
+	}
 	updatedParent, ok, err := runtime.Store().Run(ctx, parent.ID)
 	if err != nil || !ok || len(updatedParent.PendingApprovals) != 0 {
 		t.Fatalf("terminal parent reconciliation = %+v, ok=%v err=%v", updatedParent, ok, err)
@@ -90,7 +94,11 @@ func TestReconcileTerminalWorkflowCancelsChildrenAndClearsStaleApprovals(t *test
 	if err != nil || !ok || updatedChild.Status != RunStatusCancelled || updatedChild.ErrorCode != "PARENT_RUN_TERMINATED" {
 		t.Fatalf("terminal child reconciliation = %+v, ok=%v err=%v", updatedChild, ok, err)
 	}
-	if !runtime.cancelChildOfTerminalParent(ctx, Run{ID: "missing-child", ParentRunID: parent.ID, Status: RunStatusRunning}) {
+	cancelled, err := runtime.cancelChildOfTerminalParent(ctx, Run{ID: "missing-child", ParentRunID: parent.ID, Status: RunStatusRunning})
+	if err != nil {
+		t.Fatalf("cancel child of terminal parent: %v", err)
+	}
+	if !cancelled {
 		t.Fatal("child under a terminal workflow parent should be identified for cancellation")
 	}
 }

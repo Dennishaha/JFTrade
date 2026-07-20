@@ -21,7 +21,7 @@ func TestCoverage98GoalTurnPersistsUserPauseAndTerminatesFailedChildren(t *testi
 			CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 		})
 
-		paused, reply, done, prompt := executor.prepareGoalWorkflowTurn(
+		paused, reply, done, prompt, err := executor.prepareGoalWorkflowTurn(
 			ctx,
 			workflowRequest{Session: session},
 			parent,
@@ -30,6 +30,9 @@ func TestCoverage98GoalTurnPersistsUserPauseAndTerminatesFailedChildren(t *testi
 			errUserGoalPauseRequested,
 			3,
 		)
+		if err != nil {
+			t.Fatalf("prepare paused goal turn: %v", err)
+		}
 		if !done || prompt != "" || paused.Status != RunStatusPaused || paused.PausedReason != "user" || paused.Iteration != 3 {
 			t.Fatalf("paused goal turn = %+v reply=%+v done=%v prompt=%q", paused, reply, done, prompt)
 		}
@@ -57,7 +60,7 @@ func TestCoverage98GoalTurnPersistsUserPauseAndTerminatesFailedChildren(t *testi
 			CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 		})
 
-		terminated, reply, done, prompt := executor.prepareGoalWorkflowTurn(
+		terminated, reply, done, prompt, err := executor.prepareGoalWorkflowTurn(
 			ctx,
 			workflowRequest{Session: session},
 			parent,
@@ -66,6 +69,9 @@ func TestCoverage98GoalTurnPersistsUserPauseAndTerminatesFailedChildren(t *testi
 			nil,
 			2,
 		)
+		if err != nil {
+			t.Fatalf("prepare terminal-child goal turn: %v", err)
+		}
 		if !done || prompt != "" || terminated.Status != RunStatusFailed || terminated.ErrorCode != "CHILD_RETRY_EXHAUSTED" || !strings.Contains(reply.Reply, "retry budget") {
 			t.Fatalf("terminal child handling = %+v reply=%+v done=%v prompt=%q", terminated, reply, done, prompt)
 		}
@@ -86,7 +92,7 @@ func TestCoverage98GoalTurnFailsClosedWhenTaskStateCannotBeRead(t *testing.T) {
 		t.Fatalf("drop task table: %v", err)
 	}
 
-	failed, reply, done, prompt := executor.prepareGoalWorkflowTurn(
+	failed, reply, done, prompt, err := executor.prepareGoalWorkflowTurn(
 		ctx,
 		workflowRequest{Session: session},
 		parent,
@@ -95,6 +101,9 @@ func TestCoverage98GoalTurnFailsClosedWhenTaskStateCannotBeRead(t *testing.T) {
 		nil,
 		1,
 	)
+	if err != nil {
+		t.Fatalf("prepare task-store failure turn: %v", err)
+	}
 	if !done || prompt != "" || failed.Status != RunStatusFailed || !strings.Contains(failed.FailureReason, tableTasks) || !strings.Contains(reply.Reply, tableTasks) {
 		t.Fatalf("task-store failure = %+v reply=%+v done=%v prompt=%q", failed, reply, done, prompt)
 	}
@@ -115,10 +124,10 @@ func TestCoverage98GoalWorkflowSaveFailureReturnsFailedResponseWithoutRunningMod
 	}
 
 	response, err := executor.runADKGoalWorkflow(ctx, workflowRequest{Session: session, RunOptions: RunOptions{LoopMaxIterations: 1}}, parent, nil)
-	if err != nil {
-		t.Fatalf("runADKGoalWorkflow returned transport error: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "persist failed workflow state") {
+		t.Fatalf("runADKGoalWorkflow error = %v, want durable failure-state error", err)
 	}
-	if response.Run.Status != RunStatusFailed || !strings.Contains(response.Reply, "goal initial save failed") || !strings.Contains(response.Run.FailureReason, "goal initial save failed") {
-		t.Fatalf("initial save failure response = %+v", response)
+	if response.Run.ID != "" {
+		t.Fatalf("initial save failure response = %+v, want no successful response", response)
 	}
 }

@@ -14,13 +14,17 @@ func TestCoverage98StaleRunReconciliationCoversTerminalPlanAndSelfReferenceRecov
 
 	// A stale row can disappear between ListRuns and Run; recovery must simply
 	// skip it rather than turning an already-deleted run into an error.
-	runtime.reconcileStaleRun(ctx, executor, Run{ID: "deleted-before-reconcile"})
+	if err := runtime.reconcileStaleRun(ctx, executor, Run{ID: "deleted-before-reconcile"}); err != nil {
+		t.Fatalf("reconcile deleted run: %v", err)
+	}
 
 	unsupported := mustSaveRun(t, runtime, Run{
 		ID: "unsupported-stale-status", Status: "NOT_A_LIFECYCLE_STATE", WorkMode: WorkModeChat,
 		CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 	})
-	runtime.reconcileStaleRun(ctx, executor, unsupported)
+	if err := runtime.reconcileStaleRun(ctx, executor, unsupported); err != nil {
+		t.Fatalf("reconcile unsupported run: %v", err)
+	}
 	storedUnsupported, ok, err := runtime.Store().Run(ctx, unsupported.ID)
 	if err != nil || !ok || storedUnsupported.Status != unsupported.Status {
 		t.Fatalf("unsupported stale status = %+v, ok=%v err=%v", storedUnsupported, ok, err)
@@ -30,7 +34,9 @@ func TestCoverage98StaleRunReconciliationCoversTerminalPlanAndSelfReferenceRecov
 		ID: "pending-without-recoverable-context", SessionID: "reconcile-session", AgentID: "agent",
 		Status: RunStatusPending, WorkMode: WorkModeChat, CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 	})
-	runtime.reconcileStaleRun(ctx, executor, pending)
+	if err := runtime.reconcileStaleRun(ctx, executor, pending); err != nil {
+		t.Fatalf("reconcile pending run: %v", err)
+	}
 	failedPending, ok, err := runtime.Store().Run(ctx, pending.ID)
 	if err != nil || !ok || failedPending.Status != RunStatusFailed || failedPending.ResumeState != "approval_context_missing" {
 		t.Fatalf("unrecoverable pending run = %+v, ok=%v err=%v", failedPending, ok, err)
@@ -41,7 +47,11 @@ func TestCoverage98StaleRunReconciliationCoversTerminalPlanAndSelfReferenceRecov
 		Status: RunStatusCompleted, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 		CreatedAt: now, UpdatedAt: now, Usage: &RunUsage{},
 	})
-	if !runtime.reconcileCompletedWorkflowParent(ctx, executor, completedParent) {
+	handled, err := runtime.reconcileCompletedWorkflowParent(ctx, executor, completedParent)
+	if err != nil {
+		t.Fatalf("reconcile completed parent: %v", err)
+	}
+	if !handled {
 		t.Fatal("completed workflow parent should be consumed by child reconciliation")
 	}
 
@@ -57,7 +67,11 @@ func TestCoverage98StaleRunReconciliationCoversTerminalPlanAndSelfReferenceRecov
 		t.Fatalf("SaveTask terminal plan: %v", err)
 	}
 	mustSaveRun(t, runtime, terminalParent)
-	if !runtime.reconcileTerminalStaleRun(ctx, executor, terminalParent) {
+	handled, err = runtime.reconcileTerminalStaleRun(ctx, executor, terminalParent)
+	if err != nil {
+		t.Fatalf("reconcile terminal run: %v", err)
+	}
+	if !handled {
 		t.Fatal("terminal workflow run should be reconciled")
 	}
 	refreshedTerminal, ok, err := runtime.Store().Run(ctx, terminalParent.ID)

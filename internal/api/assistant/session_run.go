@@ -218,7 +218,10 @@ func (h *Handler) handleADKDeleteSession(c *gin.Context) {
 // @Failure 500 {object} httpserver.Envelope
 // @Router /api/v1/adk/runs [get]
 func (h *Handler) handleADKRuns(c *gin.Context) {
-	h.service.ReconcileExpiredRuns(c.Request.Context())
+	if err := h.service.ReconcileExpiredRuns(c.Request.Context()); err != nil {
+		h.writeError(c, http.StatusInternalServerError, "ADK_RUN_RECONCILE_FAILED", err.Error())
+		return
+	}
 	h.service.ReconcileResolvedApprovals(context.WithoutCancel(c.Request.Context()))
 	var query adkRunsQuery
 	if err := bindADKQuery(c, &query); err != nil {
@@ -319,7 +322,10 @@ func (h *Handler) handleADKUpdateRunObjective(c *gin.Context) {
 }
 
 func (h *Handler) handleADKRun(c *gin.Context) {
-	h.service.ReconcileExpiredRuns(c.Request.Context())
+	if err := h.service.ReconcileExpiredRuns(c.Request.Context()); err != nil {
+		h.writeError(c, http.StatusInternalServerError, "ADK_RUN_RECONCILE_FAILED", err.Error())
+		return
+	}
 	h.service.ReconcileResolvedApprovals(context.WithoutCancel(c.Request.Context()))
 	var uri runURI
 	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {

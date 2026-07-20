@@ -26,7 +26,9 @@ func TestRunnerLifecycleProtectsDormantChildrenAndObjectiveBoundaries(t *testing
 	if !runtime.isDormantWorkflowChildRun(ctx, dormant) {
 		t.Fatal("unstarted workflow child referenced by an active parent should be protected from expiry")
 	}
-	runtime.ReconcileExpiredRuns(ctx)
+	if err := runtime.ReconcileExpiredRuns(ctx); err != nil {
+		t.Fatalf("ReconcileExpiredRuns: %v", err)
+	}
 	storedDormant, ok, err := runtime.Store().Run(ctx, dormant.ID)
 	if err != nil || !ok || storedDormant.Status != RunStatusRunning {
 		t.Fatalf("dormant child after expiry reconciliation = %+v ok=%v err=%v", storedDormant, ok, err)

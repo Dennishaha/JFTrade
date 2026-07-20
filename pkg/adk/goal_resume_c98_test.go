@@ -81,8 +81,11 @@ func TestCoverage98GoalDecisionErrorsAndTerminalFallbacksStayObservable(t *testi
 		})
 		execution := newBareGoogleADKExecution(parent.ID)
 		execution.runBlocking = func(context.Context, *genai.Content) error { return errors.New("decision provider unavailable") }
-		updated, _, _, done, response, _ := runtime.workflowExecutor().runGoalWorkflowDecision(ctx, workflowRequest{Session: session}, parent, nil,
+		updated, _, _, done, response, _, err := runtime.workflowExecutor().runGoalWorkflowDecision(ctx, workflowRequest{Session: session}, parent, nil,
 			execution, &workflowGoalDecision{}, parent, "visible reply", 1, false)
+		if err != nil {
+			t.Fatalf("run goal decision: %v", err)
+		}
 		if !done || updated.Status != RunStatusFailed || response.Run.Status != RunStatusFailed || !strings.Contains(response.Reply, "decision provider unavailable") {
 			t.Fatalf("decision model failure = parent:%+v done:%v response:%+v", updated, done, response)
 		}
@@ -96,8 +99,11 @@ func TestCoverage98GoalDecisionErrorsAndTerminalFallbacksStayObservable(t *testi
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, PauseRequestedAt: &pauseRequestedAt,
 			CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
-		updated, response, done, prompt := runtime.workflowExecutor().finishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, nil,
+		updated, response, done, prompt, err := runtime.workflowExecutor().finishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, nil,
 			openAIChatResult{Reply: "complete reply"}, workflowGoalDecisionSnapshot{summary: "complete reply"}, "complete reply", 1)
+		if err != nil {
+			t.Fatalf("finish paused completion: %v", err)
+		}
 		if !done || prompt != "" || updated.Status != RunStatusPaused || response.Run.Status != RunStatusPaused {
 			t.Fatalf("completion pause = parent:%+v response:%+v done:%v prompt:%q", updated, response, done, prompt)
 		}
@@ -109,8 +115,11 @@ func TestCoverage98GoalDecisionErrorsAndTerminalFallbacksStayObservable(t *testi
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
 			CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
-		updated, response, done, prompt = runtime.workflowExecutor().finishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, nil,
+		updated, response, done, prompt, err = runtime.workflowExecutor().finishCompleteGoalWorkflow(ctx, workflowRequest{Session: session}, parent, nil,
 			openAIChatResult{Reply: "message fallback"}, workflowGoalDecisionSnapshot{summary: "message fallback"}, "message fallback", 1)
+		if err != nil {
+			t.Fatalf("finish completion fallback: %v", err)
+		}
 		if !done || prompt != "" || updated.Status != RunStatusCompleted || updated.FinalMessageID != "" || response.Run.FinalMessageID != "" {
 			t.Fatalf("completion message fallback = parent:%+v response:%+v done:%v prompt:%q", updated, response, done, prompt)
 		}

@@ -293,11 +293,12 @@ func (s *Service) UpdateRunObjective(ctx context.Context, runID string, objectiv
 	return s.runtime.UpdateRunObjective(ctx, runID, objective)
 }
 
-// ReconcileExpiredRuns 清理超时 run。
-func (s *Service) ReconcileExpiredRuns(ctx context.Context) {
+// ReconcileExpiredRuns 清理超时 run，并返回无法持久化终态的错误。
+func (s *Service) ReconcileExpiredRuns(ctx context.Context) error {
 	if s.runtime != nil {
-		s.runtime.ReconcileExpiredRuns(ctx)
+		return s.runtime.ReconcileExpiredRuns(ctx)
 	}
+	return nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

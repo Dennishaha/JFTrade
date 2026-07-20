@@ -72,8 +72,11 @@ func TestCoverage98GoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *te
 
 		executionWithoutPostToolReply := newBareGoogleADKExecution(parent.ID)
 		executionWithoutPostToolReply.calls = []ToolCall{{ID: "coverage98-finished-tool", RunID: parent.ID, ToolName: workflowTasksListTool, Status: "SUCCEEDED"}}
-		updated, _, snapshot, done, response, prompt := executor.resolveGoalWorkflowDecision(ctx, workflowRequest{Session: session}, parent, nil,
+		updated, _, snapshot, done, response, prompt, err := executor.resolveGoalWorkflowDecision(ctx, workflowRequest{Session: session}, parent, nil,
 			executionWithoutPostToolReply, &workflowGoalDecision{}, openAIChatResult{}, "visible progress", "", 1, false)
+		if err != nil {
+			t.Fatalf("resolve missing final reply: %v", err)
+		}
 		if done || snapshot.status != "" || response.Run.ID != "" || !strings.Contains(prompt, "最终可见答复") || updated.ID != parent.ID {
 			t.Fatalf("missing final reply resolution = parent:%+v decision:%+v done:%v response:%+v prompt:%q", updated, snapshot, done, response, prompt)
 		}
@@ -84,14 +87,20 @@ func TestCoverage98GoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *te
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, PauseRequestedAt: &pauseRequestedAt,
 			CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
-		updated, _, _, done, response, prompt = executor.resolveGoalWorkflowDecision(ctx, workflowRequest{Session: session}, pausedParent, nil,
+		updated, _, _, done, response, prompt, err = executor.resolveGoalWorkflowDecision(ctx, workflowRequest{Session: session}, pausedParent, nil,
 			newBareGoogleADKExecution(pausedParent.ID), &workflowGoalDecision{}, openAIChatResult{}, "progress before pause", "", 1, false)
+		if err != nil {
+			t.Fatalf("resolve pause-first decision: %v", err)
+		}
 		if !done || prompt != "" || updated.Status != RunStatusPaused || response.Run.Status != RunStatusPaused || response.Reply != "progress before pause" {
 			t.Fatalf("pause-first resolution = parent:%+v done:%v response:%+v prompt:%q", updated, done, response, prompt)
 		}
 
-		unchanged, replyResult, pauseDone, pauseResponse := executor.pauseAfterMissingGoalDecision(ctx, workflowRequest{Session: session}, parent,
+		unchanged, replyResult, pauseDone, pauseResponse, err := executor.pauseAfterMissingGoalDecision(ctx, workflowRequest{Session: session}, parent,
 			openAIChatResult{}, "visible fallback", workflowGoalDecisionSnapshot{}, 1)
+		if err != nil {
+			t.Fatalf("pause after missing decision: %v", err)
+		}
 		if pauseDone || pauseResponse.Run.ID != "" || replyResult.Reply != "" || unchanged.ID != parent.ID {
 			t.Fatalf("missing-decision fallback = parent:%+v reply:%+v done:%v response:%+v", unchanged, replyResult, pauseDone, pauseResponse)
 		}
@@ -111,8 +120,11 @@ func TestCoverage98GoalWorkflowStateBoundariesFailClosedAndRemainResumable(t *te
 			Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, PauseRequestedAt: &pauseRequestedAt,
 			CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
 		})
-		continued, response, paused, prompt := runtime.workflowExecutor().finishContinueGoalWorkflow(ctx, workflowRequest{Session: session}, parent,
+		continued, response, paused, prompt, err := runtime.workflowExecutor().finishContinueGoalWorkflow(ctx, workflowRequest{Session: session}, parent,
 			openAIChatResult{}, workflowGoalDecisionSnapshot{reason: "await review"}, "", 2)
+		if err != nil {
+			t.Fatalf("finish continued goal: %v", err)
+		}
 		if !paused || prompt != "" || continued.Status != RunStatusPaused || response.Run.Status != RunStatusPaused {
 			t.Fatalf("continue while pausing = parent:%+v response:%+v paused:%v prompt:%q", continued, response, paused, prompt)
 		}
@@ -179,7 +191,10 @@ func TestCoverage98WorkflowApprovalStateTransitionsPersistTheObservableOutcome(t
 		if _, err := runtime.Store().db.ExecContext(ctx, `CREATE TRIGGER coverage98_reject_terminal_parent BEFORE UPDATE ON `+tableRuns+` WHEN NEW.id = '`+terminalParent.ID+`' BEGIN SELECT RAISE(FAIL, 'terminal parent write rejected'); END`); err != nil {
 			t.Fatalf("create terminal failure trigger: %v", err)
 		}
-		terminated := runtime.terminateParentWorkflowFromChild(ctx, terminalParent, Run{ID: "coverage98-terminal-child", ParentRunID: terminalParent.ID, Status: RunStatusFailed, Message: "child failed"})
+		terminated, terminateErr := runtime.terminateParentWorkflowFromChild(ctx, terminalParent, Run{ID: "coverage98-terminal-child", ParentRunID: terminalParent.ID, Status: RunStatusFailed, Message: "child failed"})
+		if terminateErr == nil || !strings.Contains(terminateErr.Error(), "terminal parent write rejected") {
+			t.Fatalf("terminate parent error = %v, want persistence failure", terminateErr)
+		}
 		if terminated.Status != RunStatusFailed || terminated.WorkflowStatus != workflowStatusFailed {
 			t.Fatalf("terminal projection = %+v", terminated)
 		}

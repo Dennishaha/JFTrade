@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
@@ -103,12 +104,14 @@ func TestExecutionOrderStoreRejectsStaleBrokerSnapshotRegression(t *testing.T) {
 		OrderType: "LIMIT", Status: "SUBMITTED", RequestedQuantity: 10,
 		RequestedPrice: &price, SubmittedAt: "2026-07-05T01:00:00Z", EventType: "COMMAND_PLACE_ACCEPTED",
 	})
+	filledAt := executionTestTimestampAfter(t, order.UpdatedAt, 5*time.Minute)
+	staleAt := executionTestTimestampAfter(t, order.UpdatedAt, time.Minute)
 	filled, _, changed := store.upsertBrokerOrderWithSource("futu", broker.OrderSnapshot{
 		AccountID: "SIM-1", TradingEnvironment: "SIMULATE", Market: "US",
 		BrokerOrderID: "stale-1", Symbol: "US.AAPL", Side: "BUY", OrderType: "LIMIT",
 		Status: "FILLED_ALL", Quantity: 10, FilledQuantity: &filledQuantity,
 		Price: &price, FilledAveragePrice: &filledAverage,
-		SubmittedAt: "2026-07-05T01:00:00Z", UpdatedAt: "2026-07-05T01:05:00Z",
+		SubmittedAt: "2026-07-05T01:00:00Z", UpdatedAt: filledAt,
 	}, "BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 	if !changed || filled.Status != "FILLED" || filled.RawBrokerStatus == nil || *filled.RawBrokerStatus != "FILLED_ALL" {
 		t.Fatalf("filled update = %#v changed=%v", filled, changed)
@@ -119,13 +122,13 @@ func TestExecutionOrderStoreRejectsStaleBrokerSnapshotRegression(t *testing.T) {
 		AccountID: "SIM-1", TradingEnvironment: "SIMULATE", Market: "US",
 		BrokerOrderID: "stale-1", Symbol: "US.AAPL", Side: "BUY", OrderType: "LIMIT",
 		Status: "SUBMITTED", Quantity: 10, FilledQuantity: &zeroFilled,
-		Price: &price, SubmittedAt: "2026-07-05T01:00:00Z", UpdatedAt: "2026-07-05T01:01:00Z",
+		Price: &price, SubmittedAt: "2026-07-05T01:00:00Z", UpdatedAt: staleAt,
 	}, "BROKER_SYNC_DISCOVERED", "BROKER_SYNC_UPDATED", "broker", "broker.current")
 	if changed || staleEvent != nil {
 		t.Fatalf("stale snapshot changed=%v event=%#v", changed, staleEvent)
 	}
 	persisted, ok := store.order(order.InternalOrderID)
-	if !ok || persisted.Status != "FILLED" || persisted.FilledQuantity == nil || *persisted.FilledQuantity != 10 || persisted.UpdatedAt != "2026-07-05T01:05:00Z" {
+	if !ok || persisted.Status != "FILLED" || persisted.FilledQuantity == nil || *persisted.FilledQuantity != 10 || persisted.UpdatedAt != filledAt {
 		t.Fatalf("persisted order regressed: %#v", persisted)
 	}
 	if persisted.RawBrokerStatus == nil || *persisted.RawBrokerStatus != "FILLED_ALL" {
