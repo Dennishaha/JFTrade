@@ -178,6 +178,53 @@ func TestWorkspaceMarketDataReadsSurfaceProviderFailuresAndNormalizeFallbacks(t 
 	}
 }
 
+func TestWorkspaceSnapshotRestoresRegularCloseComparisonSemantics(t *testing.T) {
+	tests := []struct {
+		name              string
+		entry             map[string]any
+		wantPreviousClose any
+		wantLastClose     any
+	}{
+		{
+			name: "US regular compares latest price with prior close",
+			entry: map[string]any{
+				"symbol": "US.AAPL", "session": "regular",
+				"lastPrice": 195.50, "previousClose": 193.20,
+			},
+			wantPreviousClose: 193.20,
+			wantLastClose:     193.20,
+		},
+		{
+			name: "US after hours compares recent regular close with prior close",
+			entry: map[string]any{
+				"symbol": "US.AAPL", "session": "after",
+				"lastPrice": 195.50, "previousClose": 193.20,
+			},
+			wantPreviousClose: 195.50,
+			wantLastClose:     193.20,
+		},
+		{
+			name: "non-US unknown session keeps raw prior close",
+			entry: map[string]any{
+				"symbol": "SZ.000858", "session": "unknown",
+				"lastPrice": 74.10, "previousClose": 72.76,
+			},
+			wantPreviousClose: 72.76,
+			wantLastClose:     72.76,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snapshot := workspaceSnapshot(tt.entry, time.Time{})
+			if snapshot["previousClosePrice"] != tt.wantPreviousClose ||
+				snapshot["lastClosePrice"] != tt.wantLastClose {
+				t.Fatalf("workspace snapshot closes = %#v", snapshot)
+			}
+		})
+	}
+}
+
 type workspaceBoundaryBroker struct {
 	*featureBroker
 	err    error

@@ -223,6 +223,7 @@ export function createMarketDataQueryController(
     const result = marketDataRealtime.applyTickEvent({
       event,
       currentInstrumentId,
+      currentSnapshot: marketDataSnapshot.value,
       candles: marketDataCandles.value,
       period: marketDataQueryPeriod.value,
       limit: marketDataQueryLimit.value,

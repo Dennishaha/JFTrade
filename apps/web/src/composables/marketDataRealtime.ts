@@ -355,6 +355,7 @@ interface MarketDataRealtimeContext {
 interface ApplyMarketDataTickEventInput extends MarketDataRealtimeContext {
   event: unknown;
   currentInstrumentId: string;
+  currentSnapshot?: MarketDataSnapshotQueryResult | null;
   limit: number;
 }
 
@@ -544,10 +545,18 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
       event,
       nextInput,
     );
+    const currentSnapshot =
+      input.currentSnapshot?.request.instrumentId === event.instrument.instrumentId
+        ? input.currentSnapshot.snapshot
+        : null;
+    const eventSnapshot = mergeTickSnapshotContext(
+      event.snapshot,
+      currentSnapshot,
+    );
     const snapshot = {
       request: event.instrument,
       snapshot: {
-        ...event.snapshot,
+        ...eventSnapshot,
         observedAt,
         barVolume: currentBarVolume,
         barOpen: priceStateResult.priceState?.open ?? null,
@@ -602,5 +611,37 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
     mergeCandles,
     mergeSnapshot,
     applyTickEvent,
+  };
+}
+
+function mergeTickSnapshotContext(
+  incoming: NonNullable<MarketDataTickLiveEvent["snapshot"]>,
+  current: MarketDataSnapshotQueryResult["snapshot"],
+): NonNullable<MarketDataTickLiveEvent["snapshot"]> {
+  if (current == null) {
+    return incoming;
+  }
+  const incomingExtended = incoming.extended;
+  const currentExtended = current.extended;
+  return {
+    ...incoming,
+    openPrice: incoming.openPrice ?? current.openPrice ?? null,
+    highPrice: incoming.highPrice ?? current.highPrice ?? null,
+    lowPrice: incoming.lowPrice ?? current.lowPrice ?? null,
+    previousClosePrice:
+      incoming.previousClosePrice ?? current.previousClosePrice ?? null,
+    lastClosePrice:
+      incoming.lastClosePrice ?? current.lastClosePrice ?? null,
+    extended:
+      incomingExtended == null && currentExtended == null
+        ? null
+        : {
+            preMarket:
+              incomingExtended?.preMarket ?? currentExtended?.preMarket ?? null,
+            afterMarket:
+              incomingExtended?.afterMarket ?? currentExtended?.afterMarket ?? null,
+            overnight:
+              incomingExtended?.overnight ?? currentExtended?.overnight ?? null,
+          },
   };
 }

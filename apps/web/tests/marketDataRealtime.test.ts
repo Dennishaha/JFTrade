@@ -243,4 +243,60 @@ describe("marketDataRealtime", () => {
       close: 201.5,
     });
   });
+
+  it("preserves comparison prices when an incremental tick omits snapshot context", () => {
+    const controller = createMarketDataRealtimeController();
+    const currentSnapshot = normalizeMarketDataSnapshotQueryResult({
+      request: { market: "SZ", symbol: "000858", instrumentId: "SZ.000858" },
+      snapshot: {
+        price: 74.1,
+        bid: 74.09,
+        ask: 74.11,
+        previousClosePrice: 72.76,
+        lastClosePrice: 72.76,
+        volume: 9_000_000,
+        turnover: 660_000_000,
+        at: "2026-07-20T01:44:00.000Z",
+        session: "unknown",
+      },
+      meta: {
+        instrumentId: "SZ.000858",
+        source: "snapshot",
+        resolvedAt: "2026-07-20T01:44:00.000Z",
+        fromCache: false,
+      },
+    });
+
+    const result = controller.applyTickEvent({
+      event: buildTickEvent({
+        instrument: {
+          market: "SZ",
+          symbol: "000858",
+          instrumentId: "SZ.000858",
+        },
+        snapshot: {
+          price: 74.2,
+          bid: 74.19,
+          ask: 74.21,
+          previousClosePrice: null,
+          lastClosePrice: null,
+          volume: 9_100_000,
+          turnover: 670_000_000,
+          at: "2026-07-20T01:44:01.000Z",
+          session: "unknown",
+        },
+      }),
+      currentInstrumentId: "SZ.000858",
+      currentSnapshot,
+      candles: null,
+      period: "1m",
+      limit: 50,
+    });
+
+    expect(result?.snapshot.snapshot).toMatchObject({
+      price: 74.2,
+      previousClosePrice: 72.76,
+      lastClosePrice: 72.76,
+    });
+  });
 });

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 )
 
 // ReadMarketSnapshot adapts an explicitly selected broker snapshot to the
@@ -236,6 +237,17 @@ func workspaceSnapshot(entry map[string]any, fallback time.Time) map[string]any 
 	if observedAt == nil && !fallback.IsZero() {
 		observedAt = fallback.UTC().Format(time.RFC3339Nano)
 	}
+	previousClosePrice := entry["previousClose"]
+	lastClosePrice := entry["previousClose"]
+	if marketpkg.IsUSSymbol(stringValue(entry["symbol"])) &&
+		isOutsideRegularSession(stringValue(entry["session"])) {
+		// The broker-neutral snapshot keeps OpenD's raw LastClosePrice in
+		// previousClose and the latest regular close in lastPrice. Restore the
+		// workspace contract used by the legacy quote path: outside regular
+		// hours, previousClosePrice is the latest regular close while
+		// lastClosePrice remains the prior trading-day close.
+		previousClosePrice = entry["lastPrice"]
+	}
 	return map[string]any{
 		"price":              entry["lastPrice"],
 		"bid":                entry["bidPrice"],
@@ -243,8 +255,8 @@ func workspaceSnapshot(entry map[string]any, fallback time.Time) map[string]any 
 		"openPrice":          entry["openPrice"],
 		"highPrice":          entry["highPrice"],
 		"lowPrice":           entry["lowPrice"],
-		"previousClosePrice": entry["previousClose"],
-		"lastClosePrice":     entry["previousClose"],
+		"previousClosePrice": previousClosePrice,
+		"lastClosePrice":     lastClosePrice,
 		"volume":             entry["volume"],
 		"turnover":           entry["turnover"],
 		"at":                 observedAt,
@@ -257,4 +269,18 @@ func workspaceSnapshot(entry map[string]any, fallback time.Time) map[string]any 
 			"overnight":   entry["overnight"],
 		},
 	}
+}
+
+func isOutsideRegularSession(session string) bool {
+	switch strings.ToLower(strings.TrimSpace(session)) {
+	case "pre", "after", "overnight", "closed":
+		return true
+	default:
+		return false
+	}
+}
+
+func stringValue(value any) string {
+	text, _ := value.(string)
+	return strings.TrimSpace(text)
 }
