@@ -19,7 +19,9 @@ describe("marketSessionDisplay", () => {
 
     const afterHoursDisplay = resolveMarketSnapshotDisplay(
       {
-        price: 111.81,
+        // Broker snapshots can still expose the regular close at the top level.
+        // The active after-hours block remains authoritative for its card.
+        price: 111.14,
         previousClosePrice: 111.14,
         lastClosePrice: 108.98,
         session: "after",
@@ -113,7 +115,7 @@ describe("marketSessionDisplay", () => {
   it("keeps pre-market cards limited to active pre-market sessions", () => {
     const display = resolveMarketSnapshotDisplay(
       {
-        price: 191,
+        price: 190,
         previousClosePrice: 190,
         lastClosePrice: 188,
         session: "pre",
@@ -145,21 +147,21 @@ describe("marketSessionDisplay", () => {
   });
 
   it("shows active overnight pricing during overnight sessions", () => {
-    const display = resolveMarketSnapshotDisplay(
+    const initialDisplay = resolveMarketSnapshotDisplay(
       {
-        price: 193,
-        previousClosePrice: 190,
-        lastClosePrice: 188,
+        price: 114.97,
+        previousClosePrice: 114.97,
+        lastClosePrice: 117.49,
         session: "overnight",
         extended: {
           afterMarket: {
-            price: 192,
-            changeRate: 1.8,
+            price: 115.1768,
+            changeRate: 0.179,
             quoteTime: "2026-06-23T20:00:00.000Z",
           },
           overnight: {
-            price: 193,
-            changeRate: 2.3,
+            price: 119.1,
+            changeRate: 3.592,
             quoteTime: "2026-06-24T04:15:00.000Z",
           },
         },
@@ -167,23 +169,42 @@ describe("marketSessionDisplay", () => {
       true,
     );
 
-    expect(display.sessionLabel).toBe("夜盘");
-    expect(display.extendedCards).toEqual([
+    expect(initialDisplay.sessionLabel).toBe("夜盘");
+    expect(initialDisplay.extendedCards).toEqual([
       {
         key: "after",
         label: "最近盘后价格",
-        price: 192,
-        changeRate: 1.8,
+        price: 115.1768,
+        changeRate: 0.179,
         quoteTime: "2026-06-23T20:00:00.000Z",
       },
       {
         key: "overnight",
         label: "夜盘价格",
-        price: 193,
-        changeRate: 1.5789473684210527,
+        price: 119.1,
+        changeRate: ((119.1 - 114.97) / 114.97) * 100,
         quoteTime: "2026-06-24T04:15:00.000Z",
       },
     ]);
+
+    const liveDisplay = resolveMarketSnapshotDisplay(
+      {
+        price: 119.1,
+        previousClosePrice: 114.97,
+        lastClosePrice: 117.49,
+        session: "overnight",
+        extended: {
+          overnight: {
+            price: 119.1,
+            quoteTime: "2026-06-24T04:15:01.000Z",
+          },
+        },
+      },
+      true,
+    );
+    expect(liveDisplay.extendedCards[0]?.price).toBe(
+      initialDisplay.extendedCards[1]?.price,
+    );
   });
 
   it("keeps incomplete market snapshots from showing a fabricated percentage", () => {

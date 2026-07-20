@@ -248,6 +248,7 @@ func workspaceSnapshot(entry map[string]any, fallback time.Time) map[string]any 
 	if entry == nil {
 		return nil
 	}
+	session := strings.ToLower(stringValue(entry["session"]))
 	observedAt := entry["observedAt"]
 	if observedAt == nil {
 		observedAt = entry["updateTime"]
@@ -255,10 +256,22 @@ func workspaceSnapshot(entry map[string]any, fallback time.Time) map[string]any 
 	if observedAt == nil && !fallback.IsZero() {
 		observedAt = fallback.UTC().Format(time.RFC3339Nano)
 	}
+	price := entry["lastPrice"]
+	highPrice := entry["highPrice"]
+	lowPrice := entry["lowPrice"]
+	volume := entry["volume"]
+	turnover := entry["turnover"]
+	if active := workspaceActiveExtendedQuote(entry, session); workspacePositiveNumber(active["price"]) {
+		price = active["price"]
+		highPrice = workspaceExtendedValue(active, "highPrice", highPrice, false)
+		lowPrice = workspaceExtendedValue(active, "lowPrice", lowPrice, false)
+		volume = workspaceExtendedValue(active, "volume", volume, true)
+		turnover = workspaceExtendedValue(active, "turnover", turnover, true)
+	}
 	previousClosePrice := entry["previousClose"]
 	lastClosePrice := entry["previousClose"]
 	if marketpkg.IsUSSymbol(stringValue(entry["symbol"])) &&
-		isOutsideRegularSession(stringValue(entry["session"])) {
+		isOutsideRegularSession(session) {
 		// The broker-neutral snapshot keeps OpenD's raw LastClosePrice in
 		// previousClose and the latest regular close in lastPrice. Restore the
 		// workspace contract used by the legacy quote path: outside regular
@@ -267,25 +280,68 @@ func workspaceSnapshot(entry map[string]any, fallback time.Time) map[string]any 
 		previousClosePrice = entry["lastPrice"]
 	}
 	return map[string]any{
-		"price":              entry["lastPrice"],
+		"price":              price,
 		"bid":                entry["bidPrice"],
 		"ask":                entry["askPrice"],
 		"openPrice":          entry["openPrice"],
-		"highPrice":          entry["highPrice"],
-		"lowPrice":           entry["lowPrice"],
+		"highPrice":          highPrice,
+		"lowPrice":           lowPrice,
 		"previousClosePrice": previousClosePrice,
 		"lastClosePrice":     lastClosePrice,
-		"volume":             entry["volume"],
-		"turnover":           entry["turnover"],
+		"volume":             volume,
+		"turnover":           turnover,
 		"at":                 observedAt,
 		"observedAt":         observedAt,
 		"session":            entry["session"],
-		"extendedHours":      entry["preMarket"] != nil || entry["afterMarket"] != nil || entry["overnight"] != nil,
+		"extendedHours":      isExtendedSession(session),
 		"extended": map[string]any{
 			"preMarket":   entry["preMarket"],
 			"afterMarket": entry["afterMarket"],
 			"overnight":   entry["overnight"],
 		},
+	}
+}
+
+func workspaceActiveExtendedQuote(entry map[string]any, session string) map[string]any {
+	var key string
+	switch session {
+	case "pre":
+		key = "preMarket"
+	case "after":
+		key = "afterMarket"
+	case "overnight":
+		key = "overnight"
+	default:
+		return nil
+	}
+	active, _ := entry[key].(map[string]any)
+	return active
+}
+
+func workspaceExtendedValue(active map[string]any, key string, fallback any, allowZero bool) any {
+	value := active[key]
+	if workspacePositiveNumber(value) || allowZero && workspaceZero(value) {
+		return value
+	}
+	return fallback
+}
+
+func workspacePositiveNumber(value any) bool {
+	number, ok := value.(float64)
+	return ok && number > 0
+}
+
+func workspaceZero(value any) bool {
+	number, ok := value.(float64)
+	return ok && number == 0
+}
+
+func isExtendedSession(session string) bool {
+	switch strings.ToLower(strings.TrimSpace(session)) {
+	case "pre", "after", "overnight":
+		return true
+	default:
+		return false
 	}
 }
 

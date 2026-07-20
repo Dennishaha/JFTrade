@@ -114,16 +114,17 @@ function resolveExtendedCards(
   if (extended == null) {
     return [];
   }
-  const livePrice = positiveNumber(snapshot?.price) ? snapshot?.price ?? null : null;
-  const liveChangeRate = percentChange(snapshot?.price, snapshot?.previousClosePrice);
   const cards: MarketSnapshotDisplayCard[] = [];
 
   if (session === "pre" && positiveNumber(extended.preMarket?.price)) {
+    const price = extended.preMarket?.price as number;
     cards.push({
       key: "pre",
       label: "盘前价格",
-      price: livePrice ?? (extended.preMarket?.price as number),
-      changeRate: liveChangeRate ?? normalizeNullableNumber(extended.preMarket?.changeRate),
+      price,
+      changeRate:
+        percentChange(price, snapshot?.previousClosePrice) ??
+        normalizeNullableNumber(extended.preMarket?.changeRate),
       quoteTime: normalizeQuoteTime(extended.preMarket),
     });
   }
@@ -136,8 +137,10 @@ function resolveExtendedCards(
       cards.push({
         key: "after",
         label: "盘后价格",
-        price: livePrice ?? afterMarketPrice,
-        changeRate: liveChangeRate ?? normalizeNullableNumber(extended.afterMarket?.changeRate),
+        price: afterMarketPrice,
+        changeRate:
+          percentChange(afterMarketPrice, snapshot?.previousClosePrice) ??
+          normalizeNullableNumber(extended.afterMarket?.changeRate),
         quoteTime: normalizeQuoteTime(extended.afterMarket),
       });
     } else if (
@@ -155,11 +158,14 @@ function resolveExtendedCards(
   }
 
   if (session === "overnight" && positiveNumber(extended.overnight?.price)) {
+    const price = extended.overnight?.price as number;
     cards.push({
       key: "overnight",
       label: "夜盘价格",
-      price: livePrice ?? (extended.overnight?.price as number),
-      changeRate: liveChangeRate ?? normalizeNullableNumber(extended.overnight?.changeRate),
+      price,
+      changeRate:
+        percentChange(price, snapshot?.previousClosePrice) ??
+        normalizeNullableNumber(extended.overnight?.changeRate),
       quoteTime: normalizeQuoteTime(extended.overnight),
     });
   }

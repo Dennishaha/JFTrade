@@ -242,6 +242,115 @@ func TestWorkspaceSnapshotRestoresRegularCloseComparisonSemantics(t *testing.T) 
 	}
 }
 
+func TestWorkspaceSnapshotUsesActiveExtendedSessionFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		session    string
+		blockKey   string
+		blockPrice float64
+	}{
+		{name: "pre-market", session: "pre", blockKey: "preMarket", blockPrice: 116.25},
+		{name: "after-hours", session: "after", blockKey: "afterMarket", blockPrice: 118.40},
+		{name: "overnight", session: "overnight", blockKey: "overnight", blockPrice: 119.10},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entry := map[string]any{
+				"symbol":        "US.BABA",
+				"session":       tt.session,
+				"lastPrice":     114.97,
+				"previousClose": 117.49,
+				"highPrice":     115.70,
+				"lowPrice":      114.13,
+				"volume":        1_179_135.0,
+				"turnover":      135_465_382.564,
+				tt.blockKey: map[string]any{
+					"price":     tt.blockPrice,
+					"highPrice": 121.20,
+					"lowPrice":  115.50,
+					"volume":    567_216.0,
+					"turnover":  67_722_995.69,
+				},
+			}
+
+			snapshot := workspaceSnapshot(entry, time.Time{})
+			want := map[string]any{
+				"price":              tt.blockPrice,
+				"highPrice":          121.20,
+				"lowPrice":           115.50,
+				"volume":             567_216.0,
+				"turnover":           67_722_995.69,
+				"previousClosePrice": 114.97,
+				"lastClosePrice":     117.49,
+				"extendedHours":      true,
+			}
+			for key, value := range want {
+				if snapshot[key] != value {
+					t.Fatalf("workspace snapshot %s = %#v, want %#v; snapshot=%#v", key, snapshot[key], value, snapshot)
+				}
+			}
+		})
+	}
+}
+
+func TestWorkspaceSnapshotExtendedSessionFallbacksRemainStable(t *testing.T) {
+	staleOvernight := map[string]any{
+		"price": 119.10, "highPrice": 121.20, "lowPrice": 115.50,
+		"volume": 567_216.0, "turnover": 67_722_995.69,
+	}
+	tests := []struct {
+		name              string
+		session           string
+		overnight         map[string]any
+		wantExtendedHours bool
+	}{
+		{name: "regular ignores stale overnight", session: "regular", overnight: staleOvernight},
+		{name: "closed ignores stale overnight", session: "closed", overnight: staleOvernight},
+		{name: "active missing block falls back", session: "overnight", wantExtendedHours: true},
+		{name: "active zero price falls back", session: "overnight", overnight: map[string]any{
+			"price": 0.0, "highPrice": 121.20, "volume": 0.0,
+		}, wantExtendedHours: true},
+		{name: "active partial block keeps missing fields", session: "overnight", overnight: map[string]any{
+			"price": 119.10, "volume": 0.0,
+		}, wantExtendedHours: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snapshot := workspaceSnapshot(map[string]any{
+				"symbol":        "US.BABA",
+				"session":       tt.session,
+				"lastPrice":     114.97,
+				"previousClose": 117.49,
+				"highPrice":     115.70,
+				"lowPrice":      114.13,
+				"volume":        1_179_135.0,
+				"turnover":      135_465_382.564,
+				"overnight":     tt.overnight,
+			}, time.Time{})
+
+			wantPrice := 114.97
+			wantVolume := 1_179_135.0
+			if tt.session == "overnight" && tt.overnight != nil && tt.overnight["price"] == 119.10 {
+				wantPrice = 119.10
+				wantVolume = 0
+			}
+			if snapshot["price"] != wantPrice || snapshot["volume"] != wantVolume {
+				t.Fatalf("workspace snapshot fallback = %#v", snapshot)
+			}
+			if snapshot["extendedHours"] != tt.wantExtendedHours {
+				t.Fatalf("extendedHours = %#v, want %v", snapshot["extendedHours"], tt.wantExtendedHours)
+			}
+			if wantPrice == 119.10 &&
+				(snapshot["highPrice"] != 115.70 || snapshot["lowPrice"] != 114.13 ||
+					snapshot["turnover"] != 135_465_382.564) {
+				t.Fatalf("partial extended snapshot did not preserve fallback fields: %#v", snapshot)
+			}
+		})
+	}
+}
+
 type workspaceBoundaryBroker struct {
 	*featureBroker
 	err    error
