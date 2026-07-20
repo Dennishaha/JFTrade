@@ -5,6 +5,7 @@ import { defineComponent } from "vue";
 import { describe, expect, it } from "vitest";
 
 import HardStopControlPanel from "../src/components/risk/HardStopControlPanel.vue";
+import InstrumentSearchBox from "../src/components/domain/market-data/InstrumentSearchBox.vue";
 
 const card = defineComponent({ template: "<section><slot /></section>" });
 const cardText = defineComponent({ template: "<div><slot /></div>" });
@@ -32,11 +33,28 @@ describe("hard-stop control panel", () => {
   it("normalizes manual hard-stop commands before emitting an activation request", async () => {
     const wrapper = mountPanel();
     await wrapper.get("[aria-label='硬停止账户 ID']").setValue("  REAL-01 ");
-    await wrapper.get("[aria-label='硬停止范围']").setValue("SYMBOL");
+    await wrapper.get("[aria-label='硬停止范围']").setValue("MARKET");
     await wrapper.get("[aria-label='硬停止市场']").setValue(" us ");
-    await wrapper.get("[aria-label='硬停止标的']").setValue(" aapl ");
+    // 通过标的选择器选中标的：自动回填市场、标的与范围。
+    wrapper.findComponent(InstrumentSearchBox).vm.$emit("select", {
+      market: "US",
+      resolvedMarket: "US",
+      instrumentId: "US.AAPL",
+      code: "AAPL",
+      symbol: "AAPL",
+      name: "Apple Inc.",
+      securityType: "STK",
+      lotSize: 1,
+      source: "test",
+      isWatched: false,
+      selectable: true,
+      unavailableReason: null,
+    });
     await wrapper.get("[aria-label='硬停止原因']").setValue("  operator review  ");
-    await wrapper.get("button").trigger("click");
+    const createButton = wrapper
+      .findAll("button")
+      .find((candidate) => candidate.text() === "创建硬停止")!;
+    await createButton.trigger("click");
 
     expect(wrapper.emitted("activate")).toEqual([[
       {

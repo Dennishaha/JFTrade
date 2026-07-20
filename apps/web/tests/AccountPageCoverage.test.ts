@@ -1,19 +1,10 @@
 // @vitest-environment jsdom
 
-import { mount } from "@vue/test-utils";
+import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
 
 import AccountPage from "../src/pages/AccountPage.vue";
-import {
-  buttonStub,
-  emptyStub,
-  passthroughStub,
-  tabStub,
-  tabsStub,
-  windowItemStub,
-  windowStub,
-} from "./helpers";
 
 const mocks = vi.hoisted(() => ({
   fetchEnvelope: vi.fn(),
@@ -39,6 +30,8 @@ vi.mock("../src/composables/useConsoleData", () => ({
 vi.mock("../src/composables/useNotifications", () => ({
   useNotifications: () => ({ push: mocks.pushNotification }),
 }));
+
+const wrappers: VueWrapper[] = [];
 
 function createOrder(overrides: Record<string, unknown> = {}) {
   return {
@@ -100,6 +93,7 @@ function createConsoleDataState() {
     orderFeesError: ref(""),
     portfolioCashBalances: ref({ balances: [] }),
     portfolioPositions: ref({ positions: [] }),
+    portfolioReconciliation: ref({ positions: [] }),
     resolveBrokerReadFeatureQueryRequirements: mocks.resolveBrokerReadFeatureQueryRequirements,
     selectedBrokerAccount: ref(null),
     selectedExecutionOrder: ref(null),
@@ -110,26 +104,8 @@ function createConsoleDataState() {
 }
 
 function mountAccountPage() {
-  const wrapper = mount(AccountPage, {
-    global: {
-      stubs: {
-        PageHeader: { template: "<header><slot /></header>" },
-        SectionHeader: { template: "<section><slot /></section>" },
-        TradingScopeBar: true,
-        "v-card": passthroughStub,
-        "v-card-text": passthroughStub,
-        "v-chip": passthroughStub,
-        "v-btn": buttonStub,
-        "v-alert": passthroughStub,
-        "v-empty-state": emptyStub,
-        "v-progress-circular": passthroughStub,
-        "v-tabs": tabsStub,
-        "v-tab": tabStub,
-        "v-window": windowStub,
-        "v-window-item": windowItemStub,
-      },
-    },
-  });
+  const wrapper = mount(AccountPage);
+  wrappers.push(wrapper);
   return {
     wrapper,
     setup: wrapper.vm.$.setupState as Record<string, unknown>,
@@ -140,6 +116,15 @@ function read<T>(value: unknown): T {
   return value !== null && typeof value === "object" && "value" in value
     ? (value as { value: T }).value
     : value as T;
+}
+
+async function activateTab(wrapper: VueWrapper, label: string) {
+  const tab = wrapper
+    .findAll('button[role="tab"]')
+    .find((candidate) => candidate.text().includes(label));
+  expect(tab, `tab ${label}`).toBeDefined();
+  await tab!.trigger("click");
+  await nextTick();
 }
 
 beforeEach(() => {
@@ -154,12 +139,15 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const wrapper of wrappers.splice(0)) {
+    wrapper.unmount();
+  }
   window.history.pushState({}, "", "/");
 });
 
 describe("AccountPage coverage boundaries", () => {
   it("uses funds context when present and falls back to the active environment when it is absent", async () => {
-    const { setup, wrapper } = mountAccountPage();
+    const { setup } = mountAccountPage();
     read<{ summary: Record<string, unknown> | null }>(consoleDataState.brokerFunds).summary = {
       accountId: "SIM-9",
       tradingEnvironment: "SIMULATE",
@@ -176,8 +164,9 @@ describe("AccountPage coverage boundaries", () => {
     expect(mocks.fetchEnvelope).toHaveBeenLastCalledWith(
       expect.stringContaining("tradingEnvironment=REAL"),
     );
-    expect(read<boolean>(setup.supportsSelectedExecutionOrderFees)).toBe(false);
-    wrapper.unmount();
+    // 没有选中订单时，历史详情侧栏展示费用占位提示而不是费用能力错误。
+    await activateTab(wrappers[0]!, "历史");
+    expect(wrappers[0]!.text()).toContain("请选择一笔订单");
   });
 
   it("opens pending-order events and submits cancellation through the account-scoped refresh path", async () => {
@@ -186,14 +175,18 @@ describe("AccountPage coverage boundaries", () => {
     const { wrapper } = mountAccountPage();
     await nextTick();
 
+    await activateTab(wrapper, "订单");
     const eventButton = wrapper.findAll("button").find((button) => button.text() === "查看事件");
-    const cancelButton = wrapper.findAll("button").find((button) => button.text() === "撤单");
     expect(eventButton).toBeDefined();
-    expect(cancelButton).toBeDefined();
     await eventButton?.trigger("click");
+    expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("order-1");
+    expect(read<string>(wrapper.vm.$.setupState.activeTab)).toBe("history");
+
+    await activateTab(wrapper, "订单");
+    const cancelButton = wrapper.findAll("button").find((button) => button.text() === "撤单");
+    expect(cancelButton).toBeDefined();
     await cancelButton?.trigger("click");
 
-    expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("order-1");
     expect(mocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("确认撤销订单");
     await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
@@ -206,6 +199,5 @@ describe("AccountPage coverage boundaries", () => {
         expect.objectContaining({ title: expect.stringContaining("已提交撤单") }),
       ),
     );
-    wrapper.unmount();
   });
 });

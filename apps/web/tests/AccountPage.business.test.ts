@@ -3,17 +3,14 @@
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
+import { createMemoryHistory, createRouter } from "vue-router";
 
-import AccountPage from "../src/pages/AccountPage.vue";
 import {
-  buttonStub,
-  emptyStub,
-  passthroughStub,
-  tabStub,
-  tabsStub,
-  windowItemStub,
-  windowStub,
-} from "./helpers";
+  formatExecutionStatusTransition,
+  orderStatusClass,
+} from "../src/components/domain/account/executionOrderFormat";
+import { formatMoney } from "../src/utils/numberFormat";
+import AccountPage from "../src/pages/AccountPage.vue";
 
 const mocks = vi.hoisted(() => ({
   fetchEnvelope: vi.fn(),
@@ -140,6 +137,9 @@ function createConsoleDataState() {
     portfolioPositions: ref({
       positions: [],
     }),
+    portfolioReconciliation: ref({
+      positions: [],
+    }),
     resolveBrokerReadFeatureQueryRequirements:
       mocks.resolveBrokerReadFeatureQueryRequirements,
     selectedBrokerAccount: ref(null),
@@ -153,33 +153,7 @@ function createConsoleDataState() {
 }
 
 function mountAccountPage() {
-  const wrapper = mount(AccountPage, {
-    global: {
-      stubs: {
-        PageHeader: {
-          props: ["eyebrow", "title", "description", "stats"],
-          template:
-            "<section><div>{{ eyebrow }}</div><div>{{ title }}</div><div>{{ description }}</div><div v-for='stat in stats' :key='stat.label'>{{ stat.label }}:{{ String(stat.value) }}</div></section>",
-        },
-        SectionHeader: {
-          props: ["title", "description"],
-          template: "<header>{{ title }}{{ description }}</header>",
-        },
-        TradingScopeBar: true,
-        "v-card": passthroughStub,
-        "v-card-text": passthroughStub,
-        "v-chip": passthroughStub,
-        "v-btn": buttonStub,
-        "v-alert": passthroughStub,
-        "v-empty-state": emptyStub,
-        "v-progress-circular": passthroughStub,
-        "v-tabs": tabsStub,
-        "v-tab": tabStub,
-        "v-window": windowStub,
-        "v-window-item": windowItemStub,
-      },
-    },
-  });
+  const wrapper = mount(AccountPage);
   wrappers.push(wrapper);
   const setup = wrapper.vm.$.setupState as SetupState;
   const call = <T>(name: string, ...args: unknown[]) =>
@@ -194,21 +168,21 @@ function readSetupValue<T>(value: unknown): T {
   return value as T;
 }
 
-function writeSetupValue(
-  setup: SetupState,
-  key: string,
-  value: unknown,
-): void {
-  const current = setup[key];
-  if (current !== null && typeof current === "object" && "value" in current) {
-    (current as { value: unknown }).value = value;
-    return;
-  }
-  setup[key] = value;
-}
-
 function setRefValue<T>(target: unknown, value: T): void {
   (target as { value: T }).value = value;
+}
+
+function tabButtons(wrapper: VueWrapper) {
+  return wrapper.findAll('button[role="tab"]');
+}
+
+async function activateTab(wrapper: VueWrapper, label: string) {
+  const tab = tabButtons(wrapper).find((candidate) =>
+    candidate.text().includes(label),
+  );
+  expect(tab, `tab ${label}`).toBeDefined();
+  await tab!.trigger("click");
+  await nextTick();
 }
 
 beforeEach(() => {
@@ -263,10 +237,37 @@ describe("AccountPage business flows", () => {
 
     const { wrapper } = mountAccountPage();
 
+    const tabs = tabButtons(wrapper);
+    expect(tabs.map((tab) => tab.text())).toEqual([
+      "持仓",
+      "订单",
+      "历史",
+      "资金",
+    ]);
+    expect(tabs[0]?.classes()).toContain("is-active");
     expect(wrapper.text()).toContain("600519");
     expect(wrapper.text()).toContain("上证");
     expect(wrapper.text()).toContain("沪深");
     expect(wrapper.text()).not.toContain("SH.600519");
+  });
+
+  it("redirects the legacy ?tab=risk URL to the standalone risk page", async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: "/account", component: { template: "<div />" } },
+        { path: "/risk", component: { template: "<div />" } },
+      ],
+    });
+    await router.push("/account?tab=risk");
+    await router.isReady();
+    const replace = vi.spyOn(router, "replace");
+
+    const wrapper = mount(AccountPage, { global: { plugins: [router] } });
+    wrappers.push(wrapper);
+    await nextTick();
+
+    expect(replace).toHaveBeenCalledWith("/risk");
   });
 
   it("falls back to runtime-scoped projected data and dedupes visible orders", async () => {
@@ -352,22 +353,12 @@ describe("AccountPage business flows", () => {
     await nextTick();
 
     expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("order-1");
-    expect(readSetupValue<string>(setup.accountTitle)).toBe("REAL-001");
-    expect(readSetupValue<string>(setup.accountSubtitle)).toContain("REAL-001");
+    expect(wrapper.text()).toContain("REAL-001");
     expect(readSetupValue<Array<{ source: string }>>(setup.accountPositions)).toEqual([
       expect.objectContaining({ source: "投影", symbol: "US.AAPL" }),
       expect.objectContaining({ source: "投影", symbol: " US.AAPL " }),
       expect.objectContaining({ source: "投影", symbol: " " }),
     ]);
-    expect(readSetupValue<number>(setup.totalCash)).toBe(1200);
-    expect(readSetupValue<number>(setup.totalMarketValue)).toBe(331);
-    expect(readSetupValue<Array<{ label: string; tone?: string }>>(
-      setup.accountHeaderStats,
-    )).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ label: "在途订单", tone: "warn" }),
-      ]),
-    );
     expect(readSetupValue<{ brokerId: string; accountId: string; market: string }>(
       setup.activeBrokerReadContext,
     )).toEqual({
@@ -377,20 +368,24 @@ describe("AccountPage business flows", () => {
       market: "US",
     });
     expect(readSetupValue<string[]>(setup.marginRatioSymbols)).toEqual(["US.AAPL"]);
-    expect(readSetupValue<string>(setup.brokerFillsDescription)).toContain("当前刷新窗口");
     expect(readSetupValue<boolean>(setup.supportsBrokerCashFlows)).toBe(false);
     expect(readSetupValue<boolean>(setup.supportsBrokerMarginRatios)).toBe(false);
     expect(readSetupValue<Array<unknown>>(setup.pendingOrders)).toHaveLength(1);
     expect(readSetupValue<Array<unknown>>(setup.historicalOrders)).toHaveLength(1);
+    // 在途订单数量以徽标形式显示在「订单」tab 上。
+    expect(tabButtons(wrapper)[1]?.text()).toContain("1");
     expect(call<string>("executionOrdersUrl")).toContain(
       "brokerId=futu&tradingEnvironment=REAL&accountId=REAL-001&market=US",
     );
-    expect(call<string>("formatExecutionStatusTransition", "", "SUBMITTED")).toContain(
-      "首次发现",
-    );
-    expect(call<string>("resolveOrderChipColor", "REJECTED")).toBe("error");
-    expect(call<string>("resolveOrderChipColor", "FAILED_TO_ROUTE")).toBe("error");
-    expect(call<string>("formatMoney", 220, "USD")).toContain("USD");
+    expect(formatExecutionStatusTransition("", "SUBMITTED")).toContain("首次发现");
+    expect(orderStatusClass("REJECTED")).toBe("tv-status--error");
+    expect(orderStatusClass("FAILED_TO_ROUTE")).toBe("tv-status--error");
+    expect(formatMoney(220, "USD")).toContain("USD");
+
+    await activateTab(wrapper, "历史");
+    expect(wrapper.text()).toContain("当前刷新窗口");
+
+    await activateTab(wrapper, "资金");
     expect(wrapper.text()).toContain("当前券商未为该交易环境声明资金流水能力。");
     expect(wrapper.text()).toContain("当前券商未为该交易环境声明融资融券参数能力。");
   });
@@ -583,17 +578,16 @@ describe("AccountPage business flows", () => {
     await nextTick();
 
     expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("pending-hk");
-    expect(readSetupValue<string>(setup.accountTitle)).toBe("Margin Account");
-    expect(readSetupValue<string>(setup.accountSubtitle)).toContain("SIM-002");
+    expect(wrapper.text()).toContain("Margin Account");
+    expect(wrapper.text()).toContain("SIM-002");
     expect(readSetupValue<Array<{ source: string; averagePrice: number }>>(
       setup.accountPositions,
     )).toEqual([
       expect.objectContaining({ source: "券商", averagePrice: 300 }),
     ]);
-    expect(readSetupValue<number>(setup.totalCash)).toBe(9000);
-    expect(readSetupValue<boolean>(setup.supportsSelectedExecutionOrderFees)).toBe(
-      true,
-    );
+    // 资金摘要散落在 sidebar / 资产指标带中，均优先使用券商资金快照。
+    expect(wrapper.text()).toContain("9,000 HKD");
+    expect(wrapper.text()).toContain("15,000 HKD");
     expect(readSetupValue<{ brokerId: string; accountId: string; market: string }>(
       setup.activeBrokerReadContext,
     )).toEqual({
@@ -609,25 +603,23 @@ describe("AccountPage business flows", () => {
         makeExecutionOrder({ status: "PENDING_CANCEL" }),
       ),
     ).toBe(false);
-    expect(call<string>("formatExecutionStatusTransition", "NEW", "FILLED")).toContain(
-      "→",
-    );
-    expect(wrapper.text()).toContain("平台费");
-    expect(wrapper.text()).toContain("fill-1-ex");
-    expect(wrapper.text()).toContain("Dividend");
+    expect(formatExecutionStatusTransition("NEW", "FILLED")).toContain("→");
 
-    writeSetupValue(setup, "activeTab", "history");
-    await nextTick();
+    await activateTab(wrapper, "历史");
     expect(mocks.loadHistoricalExecutionOrders).toHaveBeenCalledWith({
       brokerId: "futu",
       brokerQuery:
         "brokerId=futu&tradingEnvironment=SIMULATE&accountId=SIM-002&market=HK",
     });
+    // 费用与成交随历史订单详情一起渲染；券商已声明费用能力，不出现能力缺失提示。
+    expect(wrapper.text()).toContain("平台费");
+    expect(wrapper.text()).toContain("fill-1-ex");
+    expect(wrapper.text()).not.toContain("当前券商未为该交易环境声明费用查询能力。");
 
     mocks.loadHistoricalExecutionOrders.mockClear();
     mocks.loadExecutionOrderDetails.mockClear();
 
-    call<void>("openOrderEvents", "hist-1");
+    call<void>("openOrderEvents", historicalOrders[0]);
     await nextTick();
     expect(readSetupValue<string>(setup.activeTab)).toBe("history");
     expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("hist-1");
@@ -641,8 +633,8 @@ describe("AccountPage business flows", () => {
 
     mocks.loadExecutionOrderDetails.mockClear();
     const historicalOrderButton = wrapper
-      .findAll("button")
-      .find((candidate) => candidate.text().includes("hist-1"));
+      .findAll(".order-history__item")
+      .find((candidate) => candidate.text().includes("00700"));
     expect(historicalOrderButton).toBeDefined();
     await historicalOrderButton!.trigger("click");
     expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("hist-1");
@@ -662,6 +654,9 @@ describe("AccountPage business flows", () => {
     expect(wrapper.text()).toContain("fills unavailable");
     expect(wrapper.text()).toContain("events unavailable");
     expect(wrapper.text()).toContain("fees unavailable");
+
+    await activateTab(wrapper, "资金");
+    expect(wrapper.text()).toContain("Dividend");
   });
 
   it("submits cancel commands, refreshes orders, and surfaces failures", async () => {
@@ -728,9 +723,7 @@ describe("AccountPage business flows", () => {
         message: "撤单请求失败。",
       }),
     );
-    expect(call<string>("resolveOrderChipColor", "CANCEL_REQUESTED")).toBe(
-      "warning",
-    );
+    expect(orderStatusClass("CANCEL_REQUESTED")).toBe("tv-status--warning");
   });
 
   it("keeps account-scoped diagnostics visible and does not query history without a scope", async () => {
@@ -766,6 +759,8 @@ describe("AccountPage business flows", () => {
 
     const { wrapper, call } = mountAccountPage();
     await nextTick();
+
+    await activateTab(wrapper, "资金");
     expect(wrapper.text()).toContain("现金流水服务暂不可用");
     expect(wrapper.text()).toContain("融资融券服务暂不可用");
 

@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { reactive } from "vue";
+import { reactive, ref, watch } from "vue";
 
-import type { RealTradeHardStopsResponse } from "@/contracts";
+import type {
+  InstrumentResolutionCandidate,
+  RealTradeHardStopsResponse,
+} from "@/contracts";
+import InstrumentSearchBox from "@/components/domain/market-data/InstrumentSearchBox.vue";
 import {
   formatTradingEnvironment,
   resolveRealTradeHardStopScopeTagType,
@@ -11,10 +15,18 @@ import {
   formatUserMarketLabel,
 } from "@/composables/instrumentPresentation";
 
-defineProps<{
-  entries: RealTradeHardStopsResponse["entries"];
-  loadingAction: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    entries: RealTradeHardStopsResponse["entries"];
+    loadingAction: string;
+    prefill?: {
+      brokerId: string;
+      accountId: string;
+      tradingEnvironment: string;
+    } | null;
+  }>(),
+  { prefill: null },
+);
 
 const emit = defineEmits<{
   activate: [payload: {
@@ -41,6 +53,28 @@ const form = reactive({
   reason: "",
 });
 
+const symbolQuery = ref("");
+
+function handleSymbolSelect(candidate: InstrumentResolutionCandidate): void {
+  form.market = candidate.market;
+  form.symbol = candidate.code;
+  form.hardStopScope = "SYMBOL";
+  symbolQuery.value = candidate.instrumentId;
+}
+
+watch(
+  () => props.prefill,
+  (prefill) => {
+    if (prefill == null) return;
+    form.brokerId = prefill.brokerId;
+    form.tradingEnvironment = prefill.tradingEnvironment;
+    if (form.accountId.trim() === "") {
+      form.accountId = prefill.accountId;
+    }
+  },
+  { immediate: true },
+);
+
 function formatUserHardStopScope(
   item: RealTradeHardStopsResponse["entries"][number],
 ): string {
@@ -58,6 +92,13 @@ function formatUserHardStopScope(
   return "账户";
 }
 
+function scopeClass(
+  item: RealTradeHardStopsResponse["entries"][number],
+): string {
+  const tag = resolveRealTradeHardStopScopeTagType(item);
+  return tag === "danger" ? "tv-status--error" : `tv-status--${tag}`;
+}
+
 function activate() {
   emit("activate", {
     ...form,
@@ -70,29 +111,30 @@ function activate() {
 </script>
 
 <template>
-  <v-card flat class="card-shell border-0">
-    <div class="flex items-center justify-between gap-3 px-4 pt-4">
-      <div>
-        <div class="text-xl font-semibold text-slate-900">硬停止</div>
-        <div class="mt-1 text-sm text-slate-500">按账户、市场或标的阻断实盘下单。</div>
-      </div>
-      <v-chip :color="entries.length ? 'error' : undefined" variant="outlined" size="small">
+  <section class="hardstop-panel" aria-label="硬停止">
+    <header class="hardstop-panel__head">
+      <span class="hardstop-panel__title">硬停止</span>
+      <span
+        class="hardstop-panel__state"
+        :class="entries.length ? 'tv-status--error' : 'tv-status--success'"
+      >
+        <i class="tv-state-dot"></i>
         {{ entries.length ? `${entries.length} 条生效` : "无硬停止" }}
-      </v-chip>
-    </div>
+      </span>
+    </header>
 
-    <v-card-text>
-      <div class="mb-3 grid gap-2 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm">
-        <div class="grid gap-2 sm:grid-cols-2">
+    <div class="hardstop-panel__body">
+      <div class="hardstop-panel__form">
+        <div class="hardstop-panel__form-grid">
           <input
             v-model="form.accountId"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none placeholder:text-slate-500"
+            class="tv-input"
             placeholder="账户 ID，空为全部"
             aria-label="硬停止账户 ID"
           />
           <select
             v-model="form.hardStopScope"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none"
+            class="tv-select"
             aria-label="硬停止范围"
           >
             <option value="ACCOUNT">账户</option>
@@ -101,69 +143,202 @@ function activate() {
           </select>
           <input
             v-model="form.market"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 uppercase outline-none placeholder:text-slate-500"
+            class="tv-input hardstop-panel__upper"
             placeholder="市场，如 US"
             aria-label="硬停止市场"
           />
-          <input
-            v-model="form.symbol"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 uppercase outline-none placeholder:text-slate-500"
-            placeholder="标的，如 AAPL"
-            aria-label="硬停止标的"
+          <InstrumentSearchBox
+            v-model="symbolQuery"
+            placeholder="搜索标的代码或名称"
+            action-label="选择"
+            variant="backtest"
+            root-test-id="hardstop-symbol-search"
+            input-test-id="hardstop-symbol-input"
+            @select="handleSymbolSelect"
           />
         </div>
         <input
           v-model="form.reason"
-          class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none placeholder:text-slate-500"
+          class="tv-input"
           placeholder="原因"
           aria-label="硬停止原因"
         />
         <div>
-          <v-btn
-            color="error"
-            size="small"
-            variant="outlined"
-            :loading="loadingAction === 'hard-stop.activate'"
+          <button
+            type="button"
+            class="tv-btn tv-btn-ghost hardstop-panel__create"
+            :disabled="loadingAction === 'hard-stop.activate'"
             @click="activate"
           >
-            创建硬停止
-          </v-btn>
+            {{ loadingAction === 'hard-stop.activate' ? "创建中..." : "创建硬停止" }}
+          </button>
         </div>
       </div>
 
-      <div v-if="entries.length" class="grid gap-2">
+      <div v-if="entries.length" class="hardstop-panel__entries">
         <div
           v-for="item in entries.slice(0, 5)"
           :key="item.id"
-          class="rounded-lg bg-slate-50 px-3 py-3"
+          class="hardstop-panel__entry"
         >
-          <div class="flex items-center justify-between gap-3">
-            <div class="font-medium text-slate-900">{{ item.brokerId }} / {{ item.accountId }}</div>
-            <v-chip
-              :color="resolveRealTradeHardStopScopeTagType(item) === 'danger' ? 'error' : resolveRealTradeHardStopScopeTagType(item)"
-              variant="outlined"
-              size="small"
+          <div class="hardstop-panel__entry-head">
+            <b>{{ item.brokerId }} / {{ item.accountId }}</b>
+            <span
+              class="hardstop-panel__scope tv-status-surface"
+              :class="scopeClass(item)"
             >
               {{ formatUserHardStopScope(item) }}
-            </v-chip>
+            </span>
           </div>
-          <div class="mt-1 text-xs text-slate-500">
+          <div class="hardstop-panel__entry-meta">
             {{ formatTradingEnvironment(item.tradingEnvironment) }} / {{ formatUserMarketLabel(item.market ?? "") }} / 操作员 {{ item.operatorId }}
           </div>
-          <div class="mt-1 text-xs text-slate-700">{{ item.reason || "未填写原因" }}</div>
-          <div class="mt-2">
-            <v-btn
-              size="small"
-              variant="outlined"
-              :loading="loadingAction === `hard-stop.release.${item.id}`"
+          <div class="hardstop-panel__entry-reason">{{ item.reason || "未填写原因" }}</div>
+          <div class="hardstop-panel__entry-actions">
+            <button
+              type="button"
+              class="tv-btn tv-btn-ghost"
+              :disabled="loadingAction === `hard-stop.release.${item.id}`"
               @click="emit('release', item.id)"
             >
-              解除硬停止
-            </v-btn>
+              {{ loadingAction === `hard-stop.release.${item.id}` ? "解除中..." : "解除硬停止" }}
+            </button>
           </div>
         </div>
       </div>
-      <div v-else class="text-sm text-slate-500">暂无活跃实盘硬停止。</div>
-    </v-card-text>
-  </v-card>
+      <div v-else class="hardstop-panel__empty">暂无活跃实盘硬停止。</div>
+    </div>
+  </section>
 </template>
+
+<style scoped>
+.hardstop-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: var(--tv-bg-surface);
+}
+
+.hardstop-panel__head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface-2);
+}
+
+.hardstop-panel__title {
+  color: var(--tv-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hardstop-panel__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tv-status-fg, var(--tv-text-muted));
+  font-size: 10px;
+}
+
+.hardstop-panel__body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.hardstop-panel__form {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  background: var(--tv-bg-surface-2);
+}
+
+.hardstop-panel__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hardstop-panel__upper {
+  text-transform: uppercase;
+}
+
+.hardstop-panel__create:not(:disabled) {
+  border-color: var(--tv-status-error-border);
+  color: var(--tv-status-error-fg);
+}
+
+.hardstop-panel__create:disabled,
+.hardstop-panel__entry-actions .tv-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.hardstop-panel__create,
+.hardstop-panel__entry-actions .tv-btn {
+  height: 28px;
+  font-size: 12px;
+}
+
+.hardstop-panel__entries {
+  display: grid;
+  gap: 8px;
+}
+
+.hardstop-panel__entry {
+  display: grid;
+  gap: 4px;
+  padding: 9px 11px;
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  background: var(--tv-bg-surface-2);
+}
+
+.hardstop-panel__entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hardstop-panel__entry-head b {
+  color: var(--tv-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hardstop-panel__scope {
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.hardstop-panel__entry-meta {
+  color: var(--tv-text-dim);
+  font-size: 10px;
+}
+
+.hardstop-panel__entry-reason {
+  color: var(--tv-text-muted);
+  font-size: 11px;
+}
+
+.hardstop-panel__empty {
+  padding: 8px 2px;
+  color: var(--tv-text-dim);
+  font-size: 11px;
+}
+</style>

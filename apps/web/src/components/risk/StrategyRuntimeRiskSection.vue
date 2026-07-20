@@ -19,58 +19,61 @@ const emit = defineEmits<{
   updateMode: [instanceId: string, mode: StrategyRuntimeRiskMode];
 }>();
 
+function statusClass(status: string): string {
+  if (status === "RUNNING") return "tv-status--success";
+  if (status === "PAUSED") return "tv-status--warning";
+  return "tv-status--info";
+}
 </script>
 
 <template>
-  <v-card flat class="card-shell border-0">
-    <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
-      <div>
-        <div class="text-xl font-semibold text-slate-900">策略实例动态风控</div>
-        <div class="mt-1 text-sm text-slate-500">切换观察或执行模式，不需要停止实例。</div>
-      </div>
-      <v-btn variant="text" color="primary" size="small" @click="emit('refresh')">
+  <section class="strategy-risk" aria-label="策略实例动态风控">
+    <header class="strategy-risk__head">
+      <span class="strategy-risk__title">策略实例动态风控</span>
+      <span class="strategy-risk__desc">切换观察或执行模式，不需要停止实例。</span>
+      <button
+        type="button"
+        class="tv-btn tv-btn-ghost strategy-risk__refresh"
+        @click="emit('refresh')"
+      >
         刷新
-      </v-btn>
-    </div>
+      </button>
+    </header>
 
-    <v-card-text>
-      <v-alert
+    <div class="strategy-risk__body">
+      <div
         v-if="error"
-        type="warning"
-        variant="tonal"
-        density="compact"
-        :closable="false"
-        class="mb-3"
+        class="strategy-risk__error tv-status--warning tv-status-surface"
+        role="alert"
       >
         {{ error }}
-      </v-alert>
+      </div>
 
-      <div v-if="instances.length" class="grid gap-3 lg:grid-cols-2">
+      <div v-if="instances.length" class="strategy-risk__grid">
         <div
           v-for="instance in instances"
           :key="instance.id"
-          class="grid gap-3 rounded-lg border border-slate-200 bg-white px-4 py-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-center"
+          class="strategy-risk__instance"
         >
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <div class="font-semibold text-slate-900">{{ instance.definition.name }}</div>
-              <v-chip
-                :color="instance.status === 'RUNNING' ? 'success' : instance.status === 'PAUSED' ? 'warning' : undefined"
-                variant="outlined"
-                size="small"
+          <div class="strategy-risk__instance-info">
+            <div class="strategy-risk__instance-head">
+              <b>{{ instance.definition.name }}</b>
+              <span
+                class="strategy-risk__status tv-status-surface"
+                :class="statusClass(instance.status)"
               >
                 {{ formatStrategyRuntimeStatus(instance.status) }}
-              </v-chip>
+              </span>
             </div>
-            <div class="mt-1 truncate text-xs text-slate-500">{{ instance.id }}</div>
-            <div class="mt-2 text-xs font-medium text-slate-700">
+            <div class="strategy-risk__instance-id">{{ instance.id }}</div>
+            <div class="strategy-risk__instance-summary">
               {{ formatStrategyRuntimeRiskSummary(runtimeRiskForInstance(instance.id)) }}
             </div>
           </div>
           <select
             :value="runtimeRiskForInstance(instance.id).mode"
             :disabled="isUpdating(instance.id)"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none disabled:cursor-wait disabled:opacity-60"
+            class="tv-select strategy-risk__mode"
             :aria-label="`${instance.definition.name} 动态风控模式`"
             @change="emit('updateMode', instance.id, (($event.target as HTMLSelectElement).value as StrategyRuntimeRiskMode))"
           >
@@ -80,7 +83,137 @@ const emit = defineEmits<{
           </select>
         </div>
       </div>
-      <v-empty-state v-else text="当前没有策略实例。创建策略实例后可在这里控制动态风控。" />
-    </v-card-text>
-  </v-card>
+      <div v-else class="strategy-risk__empty">
+        当前没有策略实例。创建策略实例后可在这里控制动态风控。
+      </div>
+    </div>
+  </section>
 </template>
+
+<style scoped>
+.strategy-risk {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: var(--tv-bg-surface);
+}
+
+.strategy-risk__head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface-2);
+}
+
+.strategy-risk__title {
+  color: var(--tv-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.strategy-risk__desc {
+  overflow: hidden;
+  flex: 1;
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strategy-risk__refresh {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.strategy-risk__body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.strategy-risk__error {
+  padding: 7px 10px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.strategy-risk__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.strategy-risk__instance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  background: var(--tv-bg-surface-2);
+}
+
+.strategy-risk__instance-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.strategy-risk__instance-head b {
+  color: var(--tv-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.strategy-risk__status {
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.strategy-risk__instance-id {
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strategy-risk__instance-summary {
+  margin-top: 4px;
+  color: var(--tv-text-muted);
+  font-size: 11px;
+}
+
+.strategy-risk__mode:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.strategy-risk__empty {
+  padding: 14px 2px;
+  color: var(--tv-text-dim);
+  font-size: 11px;
+}
+
+@media (max-width: 1180px) {
+  .strategy-risk__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>

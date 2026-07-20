@@ -242,11 +242,14 @@ describe("Account page broker route redirect", () => {
     const { wrapper } = await mountApp("/broker");
 
     expect(wrapper.text()).toContain("我的账户");
-    expect(wrapper.text()).toContain("账户信息");
-    expect(wrapper.text()).toContain("资金余额");
+    expect(wrapper.text()).toContain("REAL-001");
+    expect(wrapper.text()).toContain("总资产");
     expect(wrapper.text()).toContain("120,000 HKD");
-    expect(wrapper.text()).toContain("持仓概览");
-    expect(wrapper.text()).toContain("HK.00700");
+    // 默认持仓 tab：终端风表格含现价 / 盈亏比例列，标的按交易所身份渲染。
+    expect(wrapper.text()).toContain("现价");
+    expect(wrapper.text()).toContain("盈亏比例");
+    expect(wrapper.text()).toContain("00700");
+    expect(wrapper.text()).toContain("Tencent");
     expect(wrapper.text()).toContain("券商");
 
     wrapper.unmount();

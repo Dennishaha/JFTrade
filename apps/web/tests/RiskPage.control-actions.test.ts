@@ -78,12 +78,10 @@ const strategyRiskStub = {
 
 const stubs = {
   HardStopControlPanel: hardStopStub,
-  PageHeader: { template: "<header><slot /></header>" },
   RealTradeEmergencyPanel: emergencyStub,
   RiskEventTimeline: { template: "<div />" },
   RuntimeRiskConfigPanel: riskConfigStub,
   StrategyRuntimeRiskSection: strategyRiskStub,
-  "v-alert": { template: "<p><slot /></p>" },
 };
 
 function createStore() {
@@ -99,7 +97,7 @@ function createStore() {
       effectiveMaxOrderQuantity: 5,
       effectiveMaxOrderNotional: 1000,
     }),
-    systemStatus: ref({}),
+    selectedBrokerAccount: ref(null),
   };
 }
 
@@ -118,6 +116,16 @@ function strategyInstance() {
       },
     },
   };
+}
+
+async function confirmOpenDialog(wrapper: ReturnType<typeof mount>) {
+  await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+  await flushPromises();
+}
+
+async function cancelOpenDialog(wrapper: ReturnType<typeof mount>) {
+  await wrapper.get(".action-confirm__actions button").trigger("click");
+  await flushPromises();
 }
 
 beforeEach(() => {
@@ -143,15 +151,29 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+async function switchToTab(
+  wrapper: ReturnType<typeof mount>,
+  label: string,
+) {
+  await wrapper
+    .findAll(".risk-main__tabs button")
+    .find((button) => button.text().includes(label))!
+    .trigger("click");
+  await flushPromises();
+}
+
 describe("RiskPage control actions", () => {
   it("executes confirmed runtime, emergency, hard-stop, and per-strategy controls", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     const store = riskMocks.store as ReturnType<typeof createStore>;
     const wrapper = mount(RiskPage, { global: { stubs } });
     await flushPromises();
 
+    // 运行时限额：开放实盘需要经确认弹窗二次确认。
+    await switchToTab(wrapper, "运行时限额");
     await wrapper.find(".save-risk-config").trigger("click");
-    await flushPromises();
+    expect(wrapper.text()).toContain("保存运行时风控配置");
+    expect(riskMocks.saveRuntimeRiskConfig).not.toHaveBeenCalled();
+    await confirmOpenDialog(wrapper);
     expect(riskMocks.saveRuntimeRiskConfig).toHaveBeenCalledWith(expect.objectContaining({
       realTradingEnabled: true,
       maxOrderQuantity: 10,
@@ -161,33 +183,45 @@ describe("RiskPage control actions", () => {
     await wrapper.find(".disable-risk-config").trigger("click");
     expect(riskMocks.disableRuntimeRiskConfig).toHaveBeenCalledWith({ operatorId: "ops-a", reason: "pause" });
 
+    // 紧急熔断：激活与解除都走确认弹窗。
+    await switchToTab(wrapper, "紧急控制");
     await wrapper.find(".activate-kill-switch").trigger("click");
+    expect(wrapper.text()).toContain("激活实盘熔断");
+    await confirmOpenDialog(wrapper);
     await wrapper.find(".release-kill-switch").trigger("click");
+    expect(wrapper.text()).toContain("解除实盘熔断");
+    await confirmOpenDialog(wrapper);
+
+    // 硬停止：创建与解除都走确认弹窗。
     await wrapper.find(".activate-hard-stop").trigger("click");
     expect(wrapper.text()).toContain("确认创建实盘硬停止");
     expect(riskMocks.apiPost).not.toHaveBeenCalledWith(
       "/api/v1/system/real-trade-hard-stops",
       expect.anything(),
     );
-    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
-    await flushPromises();
+    await confirmOpenDialog(wrapper);
     await wrapper.find(".release-hard-stop").trigger("click");
     expect(wrapper.text()).toContain("确认解除实盘硬停止 stop/a");
-    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
+    await confirmOpenDialog(wrapper);
+
+    await switchToTab(wrapper, "策略实例");
     await wrapper.find(".update-strategy-risk").trigger("click");
     await wrapper.find(".refresh-strategy-risk").trigger("click");
     await flushPromises();
 
-    expect(confirmSpy).toHaveBeenCalledWith("确认保存这次实盘运行时风控配置吗？");
-    expect(confirmSpy).toHaveBeenCalledWith("确认激活实盘熔断吗？");
-    expect(confirmSpy).toHaveBeenCalledWith("确认解除实盘熔断吗？");
     expect(riskMocks.apiPost).toHaveBeenCalledWith(
       "/api/v1/system/real-trade-kill-switch/activate",
-      expect.objectContaining({ operatorId: "local" }),
+      expect.objectContaining({
+        operatorId: "local",
+        reason: "manual activation from risk page",
+      }),
     );
     expect(riskMocks.apiPost).toHaveBeenCalledWith(
       "/api/v1/system/real-trade-kill-switch/release",
-      expect.objectContaining({ operatorId: "local" }),
+      expect.objectContaining({
+        operatorId: "local",
+        reason: "manual release from risk page",
+      }),
     );
     expect(riskMocks.apiPost).toHaveBeenCalledWith(
       "/api/v1/system/real-trade-hard-stops",
@@ -196,7 +230,10 @@ describe("RiskPage control actions", () => {
     expect(riskMocks.apiPostPath).toHaveBeenCalledWith(
       "/api/v1/system/real-trade-hard-stops/{hardStopId}/release",
       "/api/v1/system/real-trade-hard-stops/stop%2Fa/release",
-      expect.objectContaining({ operatorId: "local" }),
+      expect.objectContaining({
+        operatorId: "local",
+        reason: "manual release from risk page",
+      }),
     );
     expect(riskMocks.fetchEnvelopeWithInit).toHaveBeenCalledWith(
       "/api/v1/strategies/strategy%2Fa/runtime-risk",
@@ -205,42 +242,50 @@ describe("RiskPage control actions", () => {
     expect(store.loadSystemState).toHaveBeenCalledWith({ bypassCooldown: true });
   });
 
-  it("does not execute declined dangerous actions and exposes operational failures", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("does not execute cancelled dangerous actions and exposes operational failures", async () => {
     const wrapper = mount(RiskPage, { global: { stubs } });
     await flushPromises();
+
+    // 取消确认弹窗：所有危险操作都不应落地。
+    await switchToTab(wrapper, "运行时限额");
     await wrapper.find(".save-risk-config").trigger("click");
+    await cancelOpenDialog(wrapper);
+    await switchToTab(wrapper, "紧急控制");
     await wrapper.find(".activate-kill-switch").trigger("click");
+    await cancelOpenDialog(wrapper);
     await wrapper.find(".release-kill-switch").trigger("click");
+    await cancelOpenDialog(wrapper);
     expect(riskMocks.saveRuntimeRiskConfig).not.toHaveBeenCalled();
     expect(riskMocks.apiPost).not.toHaveBeenCalled();
     expect(riskMocks.apiPostPath).not.toHaveBeenCalled();
     expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
 
     await wrapper.find(".activate-hard-stop").trigger("click");
-    await wrapper.get(".action-confirm__actions button").trigger("click");
+    await cancelOpenDialog(wrapper);
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    expect(riskMocks.apiPost).not.toHaveBeenCalled();
 
     riskMocks.saveRuntimeRiskConfig.mockRejectedValueOnce(new Error("风控设置写入失败"));
-    riskMocks.apiPost.mockRejectedValueOnce(new Error("硬停止接口失败"));
-    confirmSpy.mockReturnValue(true);
+    await switchToTab(wrapper, "运行时限额");
     await wrapper.find(".save-risk-config").trigger("click");
-    await flushPromises();
+    await confirmOpenDialog(wrapper);
     expect(wrapper.text()).toContain("风控设置写入失败");
+
+    riskMocks.apiPost.mockRejectedValueOnce(new Error("硬停止接口失败"));
+    await switchToTab(wrapper, "紧急控制");
     await wrapper.find(".activate-hard-stop").trigger("click");
     expect(riskMocks.apiPost).not.toHaveBeenCalled();
-    await wrapper.get('[data-testid="action-confirm-submit"]').trigger("click");
-    await flushPromises();
+    await confirmOpenDialog(wrapper);
     expect(wrapper.text()).toContain("硬停止接口失败");
   });
 
-  it("ignores hard-stop confirmation when there is no pending action", async () => {
+  it("ignores confirmation when there is no pending action", async () => {
     const wrapper = mount(RiskPage, { global: { stubs } });
     await flushPromises();
 
     await (
-      wrapper.vm as unknown as { confirmHardStopAction: () => Promise<void> }
-    ).confirmHardStopAction();
+      wrapper.vm as unknown as { confirmPendingAction: () => Promise<void> }
+    ).confirmPendingAction();
     expect(riskMocks.apiPost).not.toHaveBeenCalled();
     expect(riskMocks.apiPostPath).not.toHaveBeenCalled();
     expect(riskMocks.fetchEnvelopeWithInit).not.toHaveBeenCalled();
@@ -250,6 +295,7 @@ describe("RiskPage control actions", () => {
     riskMocks.fetchEnvelope.mockRejectedValueOnce(new Error("策略列表不可用"));
     const wrapper = mount(RiskPage, { global: { stubs } });
     await flushPromises();
+    await switchToTab(wrapper, "策略实例");
     expect(wrapper.find(".strategy-risk-error").text()).toContain("策略列表不可用");
 
     riskMocks.fetchEnvelope.mockResolvedValue([strategyInstance()]);

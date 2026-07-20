@@ -30,6 +30,7 @@ import {
   MockWebSocket,
   createResponse,
   enabledFutuBrokerSettings,
+  flushRequests,
   mountApp,
 } from "./helpers";
 
@@ -182,11 +183,18 @@ describe("Account page portfolio route redirect", () => {
     const { wrapper } = await mountApp("/portfolio");
 
     expect(wrapper.text()).toContain("我的账户");
-    expect(wrapper.text()).toContain("资金余额");
-    expect(wrapper.text()).toContain("55,981.5");
-    expect(wrapper.text()).toContain("持仓概览");
-    expect(wrapper.text()).toContain("HK.00700");
+    // 默认持仓 tab 展示投影持仓；多币种现金余额在「资金」tab。
+    expect(wrapper.text()).toContain("00700");
     expect(wrapper.text()).toContain("投影");
+
+    const fundsTab = wrapper
+      .findAll('button[role="tab"]')
+      .find((candidate) => candidate.text().includes("资金"));
+    expect(fundsTab).toBeDefined();
+    await fundsTab!.trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("多币种现金余额");
+    expect(wrapper.text()).toContain("55,981.5");
 
     wrapper.unmount();
   });

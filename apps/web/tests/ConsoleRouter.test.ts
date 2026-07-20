@@ -27,6 +27,8 @@ describe("console router", () => {
       standalone: true,
     });
     expect(router.resolve("/broker").matched.at(-1)?.redirect).toBe("/account");
+    expect(router.resolve("/risk").matched.at(-1)?.redirect).toBeUndefined();
+    expect(router.resolve("/risk").meta.title).toBe("风控");
     expect(router.resolve("/strategy").matched.at(-1)?.redirect).toBe("/strategy/runtime");
 
     const routes = router.getRoutes().filter((route) => typeof route.components?.default === "function");

@@ -1,79 +1,62 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 import type { ExecutionOrdersResponse } from "@/contracts";
 
-import InstrumentIdentity from "../components/domain/market-data/InstrumentIdentity.vue";
-import PageHeader from "../components/PageHeader.vue";
-import SectionHeader from "../components/SectionHeader.vue";
+import AccountAssetStrip from "../components/domain/account/AccountAssetStrip.vue";
+import AccountMoreSection from "../components/domain/account/AccountMoreSection.vue";
+import AccountSummarySidebar from "../components/domain/account/AccountSummarySidebar.vue";
+import ActiveOrdersTable, {
+  type AccountExecutionOrder,
+} from "../components/domain/account/ActiveOrdersTable.vue";
+import OrderHistoryPanel from "../components/domain/account/OrderHistoryPanel.vue";
+import PositionsTable, {
+  type AccountPositionRow,
+} from "../components/domain/account/PositionsTable.vue";
 import ActionConfirmDialog from "../components/shared/ActionConfirmDialog.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
-import {
-  formatAccountTypeLabel,
-  formatBooleanLabel,
-  formatConnectivityLabel,
-  formatDateTime,
-  formatExecutionEventTypeLabel,
-  formatExecutionOrderStatusLabel,
-  formatExecutionOrderSourceLabel,
-  formatOrderSideLabel,
-  formatOrderTypeLabel,
-  formatTradingEnvironment,
-  isFinalExecutionOrderStatus,
-} from "../composables/consoleDataFormatting";
-import {
-  formatInstrumentIdentityText,
-  formatUserMarketLabel,
-} from "../composables/instrumentPresentation";
-import { pricePrecisionForMarket } from "../composables/marketProfiles";
+import { isFinalExecutionOrderStatus } from "../composables/consoleDataFormatting";
+import { formatInstrumentIdentityText } from "../composables/instrumentPresentation";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
-import {
-  formatMarketPrice,
-  formatMoney as formatCurrencyAmount,
-  formatNumber as formatNumericValue,
-} from "../utils/numberFormat";
+
+type AccountTab = "positions" | "orders" | "history" | "funds";
+
+const ACCOUNT_TABS: ReadonlyArray<{ value: AccountTab; label: string }> = [
+  { value: "positions", label: "持仓" },
+  { value: "orders", label: "订单" },
+  { value: "history", label: "历史" },
+  { value: "funds", label: "资金" },
+];
 
 const {
-  brokerCashFlows,
-  brokerFills,
-  brokerFunds,
-  brokerMarginRatios,
-  brokerOrderFees,
-  brokerPositions,
-  brokerRuntime,
-  executionEventsError,
-  executionOrderEvents,
   activeExecutionOrders,
   historicalExecutionOrders,
-  isLoadingBrokerFills,
-  isLoadingBrokerMarginRatios,
-  isLoadingBrokerOrders,
-  isLoadingHistoricalOrders,
+  brokerFunds,
+  brokerPositions,
+  brokerRuntime,
+  executionOrderEvents,
   historicalOrdersError,
-  isLoadingExecutionEvents,
-  isLoadingOrderFees,
+  isLoadingHistoricalOrders,
   loadExecutionOrderDetails,
   loadHistoricalExecutionOrders,
-  orderFeesError,
-  portfolioCashBalances,
   portfolioPositions,
-  resolveBrokerReadFeatureQueryRequirements,
+  portfolioReconciliation,
   selectedBrokerAccount,
-  selectedExecutionOrder,
   selectedExecutionOrderId,
   supportsBrokerReadFeature,
   systemStatus,
 } = useConsoleData();
 const notifications = useNotifications();
+const route = useRoute();
+const router = useRouter();
 
 const requestedExecutionOrderId = initialExecutionOrderIdFromLocation();
-const activeTab = ref(initialAccountTabFromLocation(requestedExecutionOrderId));
+const activeTab = ref<AccountTab>(initialAccountTabFromLocation(requestedExecutionOrderId));
 const cancellingOrderIds = ref<Set<string>>(new Set());
 const historicalOrdersDisplayLimit = ref(50);
 const hasLoadedHistoricalOrders = ref(false);
-
-type AccountExecutionOrder = ExecutionOrdersResponse["orders"][number];
 
 const pendingCancelOrder = ref<AccountExecutionOrder | null>(null);
 const pendingCancelMessage = computed(() => {
@@ -110,15 +93,34 @@ function initialExecutionOrderIdFromLocation(): string {
   return new URLSearchParams(window.location.search).get("orderId")?.trim() ?? "";
 }
 
-function initialAccountTabFromLocation(orderId: string): string {
-  if (typeof window === "undefined") {
-    return "account";
+function normalizeAccountTab(raw: string | null | undefined): AccountTab | null {
+  switch (raw) {
+    case "positions":
+    case "orders":
+    case "history":
+    case "funds":
+      return raw;
+    // 兼容旧版 URL：/account?tab=account|pending
+    case "account":
+      return "positions";
+    case "pending":
+      return "orders";
+    default:
+      return null;
   }
-  const requestedTab = new URLSearchParams(window.location.search).get("tab")?.trim();
-  if (requestedTab === "pending" || requestedTab === "history" || requestedTab === "account") {
+}
+
+function initialAccountTabFromLocation(orderId: string): AccountTab {
+  if (typeof window === "undefined") {
+    return "positions";
+  }
+  const requestedTab = normalizeAccountTab(
+    new URLSearchParams(window.location.search).get("tab")?.trim(),
+  );
+  if (requestedTab != null) {
     return requestedTab;
   }
-  return orderId === "" ? "account" : "history";
+  return orderId === "" ? "positions" : "history";
 }
 
 const selectedRuntimeAccount = computed(() => {
@@ -134,28 +136,6 @@ const selectedRuntimeAccount = computed(() => {
         account.tradingEnvironment === selected.tradingEnvironment,
     ) ?? null
   );
-});
-
-const accountTitle = computed(() => {
-  if (selectedBrokerAccount.value != null) {
-    return selectedBrokerAccount.value.displayName;
-  }
-
-  return selectedRuntimeAccount.value?.accountId ?? "未选择账户";
-});
-
-const accountSubtitle = computed(() => {
-  const selected = selectedBrokerAccount.value;
-  if (selected != null) {
-    return `${selected.brokerId.toUpperCase()} / ${selected.accountId} / ${formatTradingEnvironment(selected.tradingEnvironment)} / ${formatUserMarketLabel(selected.market)}`;
-  }
-
-  const runtimeAccount = selectedRuntimeAccount.value;
-  if (runtimeAccount != null) {
-    return `${runtimeAccount.accountId} / ${formatTradingEnvironment(runtimeAccount.tradingEnvironment)}`;
-  }
-
-  return "请先在顶部账户范围中选择一个账户，或到设置页导入 OpenD 探测到的账户。";
 });
 
 const scopedActiveExecutionOrders = computed(() => {
@@ -212,22 +192,6 @@ const hasMoreHistoricalOrders = computed(
   () => historicalOrdersDisplayLimit.value < historicalOrders.value.length,
 );
 
-const accountCashBalances = computed(() => {
-  const selected = selectedBrokerAccount.value;
-  if (selected == null) {
-    return portfolioCashBalances.value.balances.filter((balance) =>
-      orderMatchesTradingEnvironment(balance.tradingEnvironment),
-    );
-  }
-
-  return portfolioCashBalances.value.balances.filter(
-    (balance) =>
-      balance.brokerId === selected.brokerId &&
-      balance.accountId === selected.accountId &&
-      balance.tradingEnvironment === selected.tradingEnvironment,
-  );
-});
-
 const accountProjectedPositions = computed(() => {
   const selected = selectedBrokerAccount.value;
   if (selected == null) {
@@ -261,16 +225,18 @@ const accountBrokerPositions = computed(() => {
   );
 });
 
-const accountPositions = computed(() => {
+const accountPositions = computed<AccountPositionRow[]>(() => {
   if (accountBrokerPositions.value.length > 0) {
     return accountBrokerPositions.value.map((position) => ({
       symbol: position.symbol,
-      name: position.symbolName,
+      name: position.symbolName ?? null,
       market: position.market,
       quantity: position.quantity,
-      averagePrice: position.averageCostPrice ?? position.costPrice,
+      averagePrice: position.averageCostPrice ?? position.costPrice ?? null,
+      lastPrice: position.lastPrice ?? null,
       marketValue: position.marketValue,
-      unrealizedPnl: position.unrealizedPnl,
+      unrealizedPnl: position.unrealizedPnl ?? null,
+      pnlRatio: position.pnlRatio ?? null,
       currency: position.currency,
       productClass: null,
       strategyType: null,
@@ -287,8 +253,10 @@ const accountPositions = computed(() => {
     market: position.market,
     quantity: position.quantity,
     averagePrice: position.averagePrice,
+    lastPrice: null,
     marketValue: position.marketValue,
     unrealizedPnl: null,
+    pnlRatio: null,
     currency: null,
     productClass: "equity",
     strategyType: null,
@@ -299,95 +267,22 @@ const accountPositions = computed(() => {
   }));
 });
 
-const totalCash = computed(() => {
-  if (brokerFunds.value.summary?.cash != null) {
-    return brokerFunds.value.summary.cash;
+const accountReconciliation = computed(() => {
+  const selected = selectedBrokerAccount.value;
+  const entries = portfolioReconciliation.value.positions;
+  if (selected == null) {
+    return entries.filter((entry) =>
+      orderMatchesTradingEnvironment(entry.tradingEnvironment),
+    );
   }
 
-  return accountCashBalances.value.reduce(
-    (sum, balance) => sum + (balance.cashBalance ?? 0),
-    0,
+  return entries.filter(
+    (entry) =>
+      entry.accountId === selected.accountId &&
+      entry.tradingEnvironment === selected.tradingEnvironment &&
+      entry.market === selected.market,
   );
 });
-
-const totalMarketValue = computed(() =>
-  accountPositions.value.reduce(
-    (sum, position) => sum + (position.marketValue ?? 0),
-    0,
-  ),
-);
-
-const accountHeaderStats = computed(() => [
-  {
-    label: "账户范围",
-    value: selectedBrokerAccount.value == null ? "自动" : "已选择",
-    hint: accountSubtitle.value,
-  },
-  {
-    label: "资金余额",
-    value: totalCash.value,
-    hint: brokerFunds.value.summary?.currency ?? accountCashBalances.value[0]?.currency ?? "币种未设置",
-  },
-  {
-    label: "持仓数量",
-    value: accountPositions.value.length,
-  },
-  {
-    label: "在途订单",
-    value: pendingOrders.value.length,
-    tone: pendingOrders.value.length > 0 ? ("warn" as const) : ("good" as const),
-  },
-]);
-
-const accountFacts = computed(() => {
-  const selected = selectedBrokerAccount.value;
-  const runtimeAccount = selectedRuntimeAccount.value;
-
-  return [
-    {
-      label: "券商",
-      value: selected?.brokerId.toUpperCase() ?? brokerRuntime.value.descriptor.displayName ?? "未设置",
-    },
-    {
-      label: "账户号",
-      value: selected?.accountId ?? runtimeAccount?.accountId ?? "未设置",
-    },
-    {
-      label: "交易环境",
-      value: formatTradingEnvironment(
-        selected?.tradingEnvironment ?? runtimeAccount?.tradingEnvironment,
-      ),
-    },
-    {
-      label: "市场",
-      value: formatUserMarketLabel(selected?.market ?? runtimeAccount?.marketAuthorities[0]),
-    },
-    {
-      label: "账户类型",
-      value: formatAccountTypeLabel(runtimeAccount?.accountType),
-    },
-    {
-      label: "券商机构",
-      value: runtimeAccount?.securityFirm ?? selected?.securityFirm ?? "未设置",
-    },
-  ];
-});
-
-const fundsSummaryRows = computed(() => [
-  { label: "总资产", value: brokerFunds.value.summary?.totalAssets },
-  { label: "现金", value: brokerFunds.value.summary?.cash ?? totalCash.value },
-  { label: "购买力", value: brokerFunds.value.summary?.purchasingPower },
-  { label: "可取现金", value: brokerFunds.value.summary?.availableWithdrawalCash },
-  { label: "证券市值", value: brokerFunds.value.summary?.marketValue ?? totalMarketValue.value },
-  { label: "冻结资金", value: brokerFunds.value.summary?.frozenCash },
-  // 融资融券资金字段
-  { label: "融资可提", value: brokerFunds.value.summary?.maxWithdrawal },
-  { label: "卖空购买力", value: brokerFunds.value.summary?.shortSellingPower },
-  { label: "现金购买力", value: brokerFunds.value.summary?.netCashPower },
-  { label: "多头市值", value: brokerFunds.value.summary?.longMarketValue },
-  { label: "空头市值", value: brokerFunds.value.summary?.shortMarketValue },
-  { label: "计息金额", value: brokerFunds.value.summary?.debtCash },
-]);
 
 const activeTradingEnvironment = computed(
   () =>
@@ -456,23 +351,6 @@ const marginRatioSymbols = computed(() =>
   ).slice(0, 24),
 );
 
-const recentBrokerCashFlows = computed(() =>
-  brokerCashFlows.value.cashFlows.slice(0, 8),
-);
-const recentBrokerFills = computed(() => brokerFills.value.fills.slice(0, 12));
-const brokerFillsRequirements = computed(() =>
-  resolveBrokerReadFeatureQueryRequirements("fills", {
-    market: activeBrokerReadContext.value?.market ?? null,
-    tradingEnvironment:
-      activeBrokerReadContext.value?.tradingEnvironment ?? activeTradingEnvironment.value,
-  }),
-);
-const brokerFillsDescription = computed(() =>
-  brokerFillsRequirements.value.supportsHistory
-    ? "展示当前账户最近 30 天的券商成交记录。"
-    : "当前券商未声明历史成交能力，展示当前刷新窗口内可见的成交记录。",
-);
-
 const supportsBrokerCashFlows = computed(() =>
   supportsBrokerReadFeature("cashFlows", {
     market: activeBrokerReadContext.value?.market ?? null,
@@ -488,66 +366,6 @@ const supportsBrokerMarginRatios = computed(() =>
       activeBrokerReadContext.value?.tradingEnvironment ?? activeTradingEnvironment.value,
   }),
 );
-
-const supportsSelectedExecutionOrderFees = computed(() => {
-  const order = selectedExecutionOrder.value;
-  if (order == null) {
-    return false;
-  }
-  return supportsBrokerReadFeature("orderFees", {
-    market: order.market,
-    tradingEnvironment: order.tradingEnvironment,
-  });
-});
-
-function formatNumber(value: number | null | undefined): string {
-  return formatNumericValue(value, { maximumFractionDigits: 4 });
-}
-
-function formatOrderKind(order: AccountExecutionOrder): string {
-  switch (order.orderKind) {
-    case "option_combo":
-      return "期权组合";
-    case "event_single":
-      return "预测单腿";
-    case "event_parlay":
-      return "预测 Parlay";
-    default:
-      return formatOrderTypeLabel(order.orderType);
-  }
-}
-
-function formatPositionProduct(value: string | null | undefined): string {
-  switch (value) {
-    case "option":
-      return "期权";
-    case "future":
-      return "期货";
-    case "event_contract":
-      return "预测合约";
-    case "fund":
-      return "基金/信托";
-    default:
-      return "证券";
-  }
-}
-
-function formatMoney(
-  value: number | null | undefined,
-  currency?: string | null,
-): string {
-  return formatCurrencyAmount(value, currency, { maximumFractionDigits: 4 });
-}
-
-function formatPrice(
-  value: number | null | undefined,
-  market: string | null | undefined,
-): string {
-  return formatMarketPrice(value, {
-    market: market ?? null,
-    precision: pricePrecisionForMarket(market),
-  });
-}
 
 function executionOrderDisplayKey(order: AccountExecutionOrder): string {
   const brokerOrderIdentity =
@@ -583,9 +401,9 @@ function selectOrder(internalOrderId: string): void {
   void loadExecutionOrderDetails(internalOrderId);
 }
 
-function openOrderEvents(internalOrderId: string): void {
-  activeTab.value = "history";
-  void loadExecutionOrderDetails(internalOrderId);
+function openOrderEvents(order: AccountExecutionOrder): void {
+  setActiveTab("history");
+  void loadExecutionOrderDetails(order.internalOrderId);
   ensureHistoricalOrdersLoaded();
 }
 
@@ -611,17 +429,6 @@ function canCancelOrder(order: AccountExecutionOrder): boolean {
   }
 
   return true;
-}
-
-function formatExecutionStatusTransition(
-  previousStatus: string | null | undefined,
-  nextStatus: string | null | undefined,
-): string {
-  const nextLabel = formatExecutionOrderStatusLabel(nextStatus);
-  if ((previousStatus ?? "").trim() === "") {
-    return `首次发现，当前状态：${nextLabel}`;
-  }
-  return `${formatExecutionOrderStatusLabel(previousStatus)} → ${nextLabel}`;
 }
 
 function executionOrdersUrl(): string {
@@ -737,31 +544,44 @@ function confirmCancelOrder(): void {
   if (order != null) void cancelOrder(order);
 }
 
-function resolveOrderChipColor(status: string): string {
-  const normalized = status.toUpperCase();
-  if (normalized.includes("REJECT") || normalized.includes("FAIL")) {
-    return "error";
-  }
-
-  if (isFinalExecutionOrderStatus(status)) {
-    return normalized === "FILLED" ? "success" : normalized === "EXPIRED" ? "warning" : "info";
-  }
-
-  if (normalized.includes("CANCEL")) {
-    return "warning";
-  }
-
-  return "primary";
+function setActiveTab(tab: AccountTab): void {
+  if (activeTab.value === tab) return;
+  activeTab.value = tab;
 }
 
-function isSelectedOrder(internalOrderId: string): boolean {
-  return selectedExecutionOrderId.value === internalOrderId;
-}
+// Tab 与 URL 双向同步：入口带 ?tab= 跳转时切换视图。
+// 旧版 /account?tab=risk 链接重定向到独立风控页 /risk。
+// 测试环境可能未安装路由，route/router 需要可缺省。
+watch(
+  () => route?.query.tab,
+  (raw) => {
+    if (raw === "risk") {
+      void router?.replace("/risk");
+      return;
+    }
+    const normalized = normalizeAccountTab(
+      typeof raw === "string" ? raw : null,
+    );
+    if (normalized != null && normalized !== activeTab.value) {
+      activeTab.value = normalized;
+    }
+  },
+  { immediate: true },
+);
 
-// When switching to history tab, lazy-load historical orders
 watch(activeTab, (tab) => {
   if (tab === "history") {
     ensureHistoricalOrdersLoaded();
+  }
+  if (route == null || router == null) return;
+  const currentQueryTab = normalizeAccountTab(
+    typeof route.query.tab === "string" ? route.query.tab : null,
+  );
+  if (currentQueryTab !== tab) {
+    void router.replace({
+      path: route.path,
+      query: { ...route.query, tab },
+    });
   }
 });
 
@@ -800,719 +620,176 @@ if (requestedExecutionOrderId !== "") {
 </script>
 
 <template>
-  <div class="account-page grid min-w-0 gap-6">
-    <PageHeader
-      eyebrow="我的账户"
-      :title="accountTitle"
-      description="账户页聚合基础资料、资金余额、持仓和订单流水。连接诊断与 OpenD 参数维护已经收敛到设置页。"
-      :stats="accountHeaderStats"
-    />
+  <div class="account-page">
+    <AccountSummarySidebar />
 
-    <v-tabs v-model="activeTab" bg-color="transparent" class="tv-page-tabs">
-      <v-tab value="account">账户信息</v-tab>
-      <v-tab value="pending">在途订单</v-tab>
-      <v-tab value="history">历史订单</v-tab>
-    </v-tabs>
+    <section class="account-page__main">
+      <AccountAssetStrip />
 
-    <v-window v-model="activeTab">
-      <v-window-item value="account">
-        <div class="grid gap-5">
-          <v-card flat class="card-shell border-0">
-            <div class="flex flex-wrap items-start justify-between gap-3 px-4 pt-4">
-              <div>
-                <div class="text-xl font-semibold text-slate-900">账户资料</div>
-                <div class="mt-1 text-sm text-slate-500">{{ accountSubtitle }}</div>
-              </div>
-              <v-chip variant="outlined" size="small">
-                {{ formatConnectivityLabel(brokerRuntime.session.connectivity) }}
-              </v-chip>
-            </div>
-            <v-card-text>
-              <div class="grid gap-3 sm:grid-cols-4 xl:grid-cols-6">
-                <div
-                  v-for="fact in accountFacts"
-                  :key="fact.label"
-                  class="rounded-lg border border-slate-200 bg-white px-4 py-3"
-                >
-                  <div class="text-xs text-slate-500">{{ fact.label }}</div>
-                  <div class="mt-2 text-base font-semibold text-slate-900">{{ fact.value }}</div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <section class="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-            <v-card flat class="card-shell border-0">
-              <div class="px-4 pt-4">
-                <SectionHeader title="资金余额" description="按账户范围展示现金、购买力与可用资金。" />
-              </div>
-              <v-card-text>
-                <div class="grid gap-3 sm:grid-cols-4">
-                  <div
-                    v-for="row in fundsSummaryRows"
-                    :key="row.label"
-                    class="rounded-lg bg-slate-50 px-4 py-3"
-                  >
-                    <div class="text-xs text-slate-500">{{ row.label }}</div>
-                    <div class="mt-2 text-lg font-semibold text-slate-900">
-                      {{ formatMoney(row.value, brokerFunds.summary?.currency) }}
-                    </div>
-                  </div>
-                </div>
-
-                <div v-if="accountCashBalances.length" class="mt-5 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-                  <table class="w-full text-sm">
-                    <thead class="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
-                      <tr>
-                        <th class="px-4 py-3 text-left">币种</th>
-                        <th class="px-4 py-3 text-right">现金余额</th>
-                        <th class="px-4 py-3 text-left">更新时间</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-for="balance in accountCashBalances"
-                        :key="`${balance.accountId}-${balance.currency}`"
-                        class="border-b border-slate-100 last:border-0"
-                      >
-                        <td class="px-4 py-3">{{ balance.currency }}</td>
-                        <td class="px-4 py-3 text-right">{{ formatMoney(balance.cashBalance, balance.currency) }}</td>
-                        <td class="px-4 py-3">{{ formatDateTime(balance.updatedAt) }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </v-card-text>
-            </v-card>
-
-            <v-card flat class="card-shell border-0">
-              <div class="px-4 pt-4">
-                <SectionHeader title="持仓概览" description="优先展示券商持仓；暂无券商数据时展示内部投影持仓。" />
-              </div>
-              <v-card-text>
-                <div v-if="accountPositions.length" class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-                  <table class="w-full text-sm">
-                    <thead class="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
-                      <tr>
-                        <th class="px-4 py-3 text-left">标的</th>
-                        <th class="px-4 py-3 text-left">市场</th>
-                        <th class="px-4 py-3 text-right">数量</th>
-                        <th class="px-4 py-3 text-right">成本价</th>
-                        <th class="px-4 py-3 text-right">市值</th>
-                        <th class="px-4 py-3 text-right">未实现盈亏</th>
-                        <th class="px-4 py-3 text-left">产品/组合</th>
-                        <th class="px-4 py-3 text-right">猜中赔付</th>
-                        <th class="px-4 py-3 text-left">来源</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-for="position in accountPositions"
-                        :key="`${position.source}-${position.market}-${position.symbol}`"
-                        class="border-b border-slate-100 last:border-0"
-                      >
-                        <td class="px-4 py-3">
-                          <InstrumentIdentity
-                            :market="position.market"
-                            :instrument-id="position.symbol"
-                            :name="position.name"
-                          />
-                        </td>
-                        <td class="px-4 py-3">{{ formatUserMarketLabel(position.market) }}</td>
-                        <td class="px-4 py-3 text-right">{{ formatNumber(position.quantity) }}</td>
-                        <td class="px-4 py-3 text-right">{{ formatPrice(position.averagePrice, position.market) }}</td>
-                        <td class="px-4 py-3 text-right">{{ formatMoney(position.marketValue, position.currency) }}</td>
-                        <td class="px-4 py-3 text-right">{{ formatMoney(position.unrealizedPnl, position.currency) }}</td>
-                        <td class="px-4 py-3">
-                          {{ formatPositionProduct(position.productClass) }}
-                          <span v-if="position.strategyType"> · {{ position.strategyType }}</span>
-                          <span v-if="position.positionType"> · {{ position.positionType }}</span>
-                        </td>
-                        <td class="px-4 py-3 text-right">{{ formatMoney(position.payoutIfWin, position.currency) }}</td>
-                        <td class="px-4 py-3">{{ position.source }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <v-empty-state v-else text="当前账户暂无持仓。" />
-              </v-card-text>
-            </v-card>
-          </section>
-
-          <v-card v-if="brokerFunds.summary?.initialMargin != null || brokerFunds.summary?.riskStatus != null" flat class="card-shell border-0">
-            <div class="px-4 pt-4">
-              <SectionHeader title="保证金与风控" description="展示当前账户的保证金额度、风险等级与持仓限额信息。" />
-            </div>
-            <v-card-text>
-              <div class="grid gap-3 sm:grid-cols-4 xl:grid-cols-3">
-                <div v-if="brokerFunds.summary?.riskStatus" class="rounded-lg border border-slate-200 bg-white px-4 py-3">
-                  <div class="text-xs text-slate-500">风险等级</div>
-                  <div class="mt-2 text-base font-semibold text-slate-900">{{ brokerFunds.summary.riskStatus }}</div>
-                </div>
-                <div v-if="brokerFunds.summary?.initialMargin != null" class="rounded-lg bg-slate-50 px-4 py-3">
-                  <div class="text-xs text-slate-500">初始保证金</div>
-                  <div class="mt-2 text-lg font-semibold text-slate-900">
-                    {{ formatMoney(brokerFunds.summary.initialMargin, brokerFunds.summary?.currency) }}
-                  </div>
-                </div>
-                <div v-if="brokerFunds.summary?.maintenanceMargin != null" class="rounded-lg bg-slate-50 px-4 py-3">
-                  <div class="text-xs text-slate-500">维持保证金</div>
-                  <div class="mt-2 text-lg font-semibold text-slate-900">
-                    {{ formatMoney(brokerFunds.summary.maintenanceMargin, brokerFunds.summary?.currency) }}
-                  </div>
-                </div>
-                <div v-if="brokerFunds.summary?.marginCallMargin != null" class="rounded-lg bg-slate-50 px-4 py-3">
-                  <div class="text-xs text-slate-500">Margin Call 保证金</div>
-                  <div class="mt-2 text-lg font-semibold text-slate-900">
-                    {{ formatMoney(brokerFunds.summary.marginCallMargin, brokerFunds.summary?.currency) }}
-                  </div>
-                </div>
-              </div>
-              <!-- 持仓限额 -->
-              <div v-if="brokerFunds.summary?.exposureLevel != null" class="mt-4 grid gap-3 sm:grid-cols-3">
-                <div class="rounded-lg bg-slate-50 px-4 py-3">
-                  <div class="text-xs text-slate-500">限额等级</div>
-                  <div class="mt-2 text-base font-semibold text-slate-900">{{ brokerFunds.summary.exposureLevel }}</div>
-                </div>
-                <div v-if="brokerFunds.summary?.exposureLimit != null" class="rounded-lg bg-slate-50 px-4 py-3">
-                  <div class="text-xs text-slate-500">持仓限额</div>
-                  <div class="mt-2 text-base font-semibold text-slate-900">{{ formatMoney(brokerFunds.summary.exposureLimit, brokerFunds.summary?.currency) }}</div>
-                </div>
-                <div v-if="brokerFunds.summary?.remainingLimit != null" class="rounded-lg bg-slate-50 px-4 py-3">
-                  <div class="text-xs text-slate-500">剩余限额</div>
-                  <div class="mt-2 text-base font-semibold text-slate-900">{{ formatMoney(brokerFunds.summary.remainingLimit, brokerFunds.summary?.currency) }}</div>
-                </div>
-              </div>
-              <!-- PDT 日内交易（美股专用） -->
-              <div v-if="brokerFunds.summary?.isPdt != null || brokerFunds.summary?.dtStatus != null" class="mt-4 rounded-lg border border-amber-200 bg-amber-50/30 px-4 py-3">
-                <div class="text-xs font-semibold text-amber-700 uppercase tracking-wide">美股 PDT / 日内交易</div>
-                <div class="mt-2 grid gap-2 sm:grid-cols-4">
-                  <div v-if="brokerFunds.summary?.isPdt != null" class="text-sm">
-                    <span class="text-slate-500">PDT 账户：</span>
-                    <span class="font-medium text-slate-900">{{ brokerFunds.summary.isPdt ? '是' : '否' }}</span>
-                  </div>
-                  <div v-if="brokerFunds.summary?.pdtSeq != null" class="text-sm">
-                    <span class="text-slate-500">日内交易次数：</span>
-                    <span class="font-medium text-slate-900">{{ brokerFunds.summary.pdtSeq }}</span>
-                  </div>
-                  <div v-if="brokerFunds.summary?.remainingDTBP != null" class="text-sm">
-                    <span class="text-slate-500">剩余日内购买力：</span>
-                    <span class="font-medium text-slate-900">{{ formatMoney(brokerFunds.summary.remainingDTBP) }}</span>
-                  </div>
-                  <div v-if="brokerFunds.summary?.dtStatus != null" class="text-sm">
-                    <span class="text-slate-500">限制状态：</span>
-                    <span class="font-medium text-slate-900">{{ brokerFunds.summary.dtStatus }}</span>
-                  </div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <v-card flat class="card-shell border-0">
-            <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
-              <div>
-                <div class="text-xl font-semibold text-slate-900">最近资金流水</div>
-                <div class="mt-1 text-sm text-slate-500">展示当前账户最近一次刷新拿到的券商现金流水，用于核对股息、入金和费用扣款。</div>
-              </div>
-              <v-chip variant="outlined" size="small">
-                {{ formatConnectivityLabel(brokerCashFlows.connectivity) }}
-              </v-chip>
-            </div>
-            <v-card-text>
-              <v-empty-state
-                v-if="!supportsBrokerCashFlows"
-                text="当前券商未为该交易环境声明资金流水能力。"
-              />
-              <v-alert
-                v-else-if="brokerCashFlows.lastError"
-                type="warning"
-                :closable="false"
-                title="资金流水提示"
-              >
-                {{ brokerCashFlows.lastError }}
-              </v-alert>
-              <div
-                v-else-if="recentBrokerCashFlows.length"
-                class="overflow-x-auto rounded-lg border border-slate-200 bg-white"
-              >
-                <table class="w-full text-sm">
-                  <thead class="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
-                    <tr>
-                      <th class="px-4 py-3 text-left">流水号</th>
-                      <th class="px-4 py-3 text-left">清算日</th>
-                      <th class="px-4 py-3 text-left">交收日</th>
-                      <th class="px-4 py-3 text-left">类型 / 方向</th>
-                      <th class="px-4 py-3 text-right">金额</th>
-                      <th class="px-4 py-3 text-left">备注</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="flow in recentBrokerCashFlows"
-                      :key="flow.cashFlowId ?? `${flow.clearingDate ?? 'na'}-${flow.cashFlowType ?? 'na'}-${flow.cashFlowAmount ?? 'na'}`"
-                      class="border-b border-slate-100 last:border-0"
-                    >
-                      <td class="px-4 py-3 font-mono text-xs">{{ flow.cashFlowId ?? '—' }}</td>
-                      <td class="px-4 py-3">{{ flow.clearingDate ?? '—' }}</td>
-                      <td class="px-4 py-3">{{ flow.settlementDate ?? '—' }}</td>
-                      <td class="px-4 py-3">
-                        <div class="font-medium text-slate-900">{{ flow.cashFlowType ?? '未分类' }}</div>
-                        <div class="mt-1 text-xs text-slate-500">{{ flow.cashFlowDirection ?? '方向未标注' }}</div>
-                      </td>
-                      <td class="px-4 py-3 text-right">
-                        {{ formatMoney(flow.cashFlowAmount, flow.currency ?? brokerFunds.summary?.currency) }}
-                      </td>
-                      <td class="px-4 py-3 text-slate-600">{{ flow.cashFlowRemark ?? '—' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <v-empty-state v-else text="当前账户暂无券商资金流水。" />
-            </v-card-text>
-          </v-card>
-
-          <v-card flat class="card-shell border-0">
-            <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
-              <div>
-                <div class="text-xl font-semibold text-slate-900">融资融券参数</div>
-                <div class="mt-1 text-sm text-slate-500">按当前账户持仓标的查询融资许可、卖空券源和保证金阈值。</div>
-              </div>
-              <v-chip variant="outlined" size="small">
-                {{ formatConnectivityLabel(brokerMarginRatios.connectivity) }}
-              </v-chip>
-            </div>
-            <v-card-text>
-              <v-empty-state
-                v-if="!supportsBrokerMarginRatios"
-                text="当前券商未为该交易环境声明融资融券参数能力。"
-              />
-              <v-empty-state
-                v-else-if="marginRatioSymbols.length === 0"
-                text="当前账户暂无持仓标的，融资融券参数按持仓标的查询；账户级保证金与风控信息见上方卡片。"
-              />
-              <div v-else-if="isLoadingBrokerMarginRatios" class="text-sm text-slate-500">
-                正在加载融资融券参数...
-              </div>
-              <v-alert
-                v-else-if="brokerMarginRatios.lastError"
-                type="warning"
-                :closable="false"
-                title="融资融券提示"
-              >
-                {{ brokerMarginRatios.lastError }}
-              </v-alert>
-              <div
-                v-else-if="brokerMarginRatios.marginRatios.length"
-                class="overflow-x-auto rounded-lg border border-slate-200 bg-white"
-              >
-                <table class="w-full text-sm">
-                  <thead class="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
-                    <tr>
-                      <th class="px-4 py-3 text-left">标的</th>
-                      <th class="px-4 py-3 text-left">融资 / 融券</th>
-                      <th class="px-4 py-3 text-right">券源余量</th>
-                      <th class="px-4 py-3 text-right">融券费率</th>
-                      <th class="px-4 py-3 text-right">预警比率</th>
-                      <th class="px-4 py-3 text-right">初始保证金</th>
-                      <th class="px-4 py-3 text-right">维持保证金</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="ratio in brokerMarginRatios.marginRatios"
-                      :key="ratio.symbol"
-                      class="border-b border-slate-100 last:border-0"
-                    >
-                      <td class="px-4 py-3 font-medium text-slate-900">
-                        <InstrumentIdentity
-                          :market="ratio.market"
-                          :instrument-id="ratio.symbol"
-                          compact
-                        />
-                      </td>
-                      <td class="px-4 py-3">
-                        {{ formatBooleanLabel(ratio.isLongPermit) }} / {{ formatBooleanLabel(ratio.isShortPermit) }}
-                      </td>
-                      <td class="px-4 py-3 text-right">{{ formatNumber(ratio.shortPoolRemain) }}</td>
-                      <td class="px-4 py-3 text-right">{{ formatNumber(ratio.shortFeeRate) }}</td>
-                      <td class="px-4 py-3 text-right">
-                        {{ formatNumber(ratio.alertLongRatio) }} / {{ formatNumber(ratio.alertShortRatio) }}
-                      </td>
-                      <td class="px-4 py-3 text-right">
-                        {{ formatNumber(ratio.initialMarginLongRatio) }} / {{ formatNumber(ratio.initialMarginShortRatio) }}
-                      </td>
-                      <td class="px-4 py-3 text-right">
-                        {{ formatNumber(ratio.maintenanceLongRatio) }} / {{ formatNumber(ratio.maintenanceShortRatio) }}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <v-empty-state v-else text="当前账户暂无融资融券参数。" />
-            </v-card-text>
-          </v-card>
+      <div class="account-page__tabs-row">
+        <div class="account-page__tabs" role="tablist" aria-label="账户视图">
+          <button
+            v-for="tab in ACCOUNT_TABS"
+            :key="tab.value"
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === tab.value"
+            :class="{ 'is-active': activeTab === tab.value }"
+            @click="setActiveTab(tab.value)"
+          >
+            {{ tab.label }}
+            <span v-if="tab.value === 'orders' && pendingOrders.length">
+              {{ pendingOrders.length }}
+            </span>
+          </button>
         </div>
-      </v-window-item>
+      </div>
 
-      <v-window-item value="pending">
-        <v-card flat class="card-shell border-0">
-          <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
-            <div>
-              <div class="text-xl font-semibold text-slate-900">在途订单</div>
-              <div class="mt-1 text-sm text-slate-500">尚未进入最终状态的订单，适合快速查看成交进度和最新状态。</div>
-            </div>
-            <v-chip variant="outlined" size="small">{{ pendingOrders.length }} 笔</v-chip>
-          </div>
-          <v-card-text>
-            <div v-if="pendingOrders.length" class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-              <table class="w-full text-sm">
-                <thead class="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
-                  <tr>
-                    <th class="px-4 py-3 text-left">标的</th>
-                    <th class="px-4 py-3 text-left">方向</th>
-                    <th class="px-4 py-3 text-left">类型</th>
-                    <th class="px-4 py-3 text-left">来源</th>
-                    <th class="px-4 py-3 text-right">数量</th>
-                    <th class="px-4 py-3 text-right">已成交</th>
-                    <th class="px-4 py-3 text-left">状态</th>
-                    <th class="px-4 py-3 text-left">更新时间</th>
-                    <th class="px-4 py-3 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="order in pendingOrders"
-                    :key="order.internalOrderId"
-                    class="border-b border-slate-100 last:border-0"
-                    :class="isSelectedOrder(order.internalOrderId) ? 'bg-teal-50/50' : ''"
-                  >
-                    <td class="px-4 py-3">
-                      <InstrumentIdentity
-                        v-if="order.symbol"
-                        :market="order.market"
-                        :instrument-id="order.symbol"
-                        compact
-                      />
-                      <div v-else class="font-medium text-slate-900">未知标的</div>
-                      <div class="mt-1 text-xs text-slate-500">{{ order.internalOrderId }}</div>
-                    </td>
-                    <td class="px-4 py-3">{{ formatOrderSideLabel(order.side) }}</td>
-                    <td class="px-4 py-3">{{ formatOrderKind(order) }}</td>
-                    <td class="px-4 py-3">
-                      <v-chip variant="outlined" size="small">
-                        {{ formatExecutionOrderSourceLabel(order.source, order.sourceDetail) }}
-                      </v-chip>
-                    </td>
-                    <td class="px-4 py-3 text-right">{{ formatNumber(order.requestedQuantity) }}</td>
-                    <td class="px-4 py-3 text-right">{{ formatNumber(order.filledQuantity) }}</td>
-                    <td class="px-4 py-3">
-                      <v-chip :color="resolveOrderChipColor(order.status)" variant="outlined" size="small">
-                        {{ formatExecutionOrderStatusLabel(order.status) }}
-                      </v-chip>
-                    </td>
-                    <td class="px-4 py-3">{{ formatDateTime(order.updatedAt) }}</td>
-                    <td class="px-4 py-3 text-right">
-                      <div class="flex justify-end gap-2">
-                        <v-btn variant="text" color="primary" @click="openOrderEvents(order.internalOrderId)">
-                          查看事件
-                        </v-btn>
-                        <v-btn
-                          variant="text"
-                          color="warning"
-                          :disabled="!canCancelOrder(order)"
-                          :loading="isCancellingOrder(order.internalOrderId)"
-                          @click="requestCancelOrder(order)"
-                        >
-                          撤单
-                        </v-btn>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <v-empty-state v-else text="当前账户没有在途订单。" />
-          </v-card-text>
-        </v-card>
-      </v-window-item>
+      <div class="account-page__content">
+        <PositionsTable
+          v-if="activeTab === 'positions'"
+          :positions="accountPositions"
+          :reconciliation="accountReconciliation"
+        />
+        <ActiveOrdersTable
+          v-else-if="activeTab === 'orders'"
+          :orders="pendingOrders"
+          :selected-order-id="selectedExecutionOrderId"
+          :can-cancel="canCancelOrder"
+          :is-cancelling="isCancellingOrder"
+          @cancel="requestCancelOrder"
+          @view-events="openOrderEvents"
+        />
+        <OrderHistoryPanel
+          v-else-if="activeTab === 'history'"
+          :orders="displayedHistoricalOrders"
+          :total-count="historicalOrders.length"
+          :is-loading="isLoadingHistoricalOrders"
+          :error="historicalOrdersError"
+          :has-more="hasMoreHistoricalOrders"
+          :selected-order-id="selectedExecutionOrderId"
+          @select="selectOrder"
+          @load-more="loadMoreHistoricalOrders"
+        />
+        <AccountMoreSection
+          v-else-if="activeTab === 'funds'"
+          :margin-ratio-symbols="marginRatioSymbols"
+          :supports-cash-flows="supportsBrokerCashFlows"
+          :supports-margin-ratios="supportsBrokerMarginRatios"
+          :matches-trading-environment="orderMatchesTradingEnvironment"
+        />
+      </div>
 
-      <v-window-item value="history">
-        <section class="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-          <v-card flat class="card-shell border-0">
-            <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
-              <div>
-                <div class="text-xl font-semibold text-slate-900">历史订单</div>
-                <div class="mt-1 text-sm text-slate-500">已成交、已撤单、失败或过期的订单记录。</div>
-              </div>
-              <v-chip variant="outlined" size="small">{{ historicalOrders.length }} 笔</v-chip>
-            </div>
-            <v-card-text>
-              <!-- Loading state -->
-              <div v-if="isLoadingHistoricalOrders && !hasLoadedHistoricalOrders" class="flex items-center justify-center gap-3 py-8">
-                <v-progress-circular indeterminate size="24" />
-                <span class="text-sm text-slate-500">正在加载历史订单...</span>
-              </div>
-
-              <!-- Error state -->
-              <v-alert
-                v-else-if="historicalOrdersError"
-                type="warning"
-                :closable="false"
-                title="历史订单加载提示"
-              >
-                {{ historicalOrdersError }}
-              </v-alert>
-
-              <!-- Data display -->
-              <div v-else-if="displayedHistoricalOrders.length" class="grid gap-3">
-                <button
-                  v-for="order in displayedHistoricalOrders"
-                  :key="order.internalOrderId"
-                  type="button"
-                  class="rounded-lg border px-4 py-3 text-left transition hover:border-teal-400"
-                  :class="isSelectedOrder(order.internalOrderId) ? 'border-teal-400 bg-teal-50/70' : 'border-slate-200 bg-white'"
-                  @click="selectOrder(order.internalOrderId)"
-                >
-                  <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <InstrumentIdentity
-                        v-if="order.symbol"
-                        :market="order.market"
-                        :instrument-id="order.symbol"
-                        compact
-                      />
-                      <div v-else class="font-semibold text-slate-900">未知标的</div>
-                      <div class="mt-1 text-xs text-slate-500">{{ order.internalOrderId }}</div>
-                    </div>
-                    <v-chip :color="resolveOrderChipColor(order.status)" variant="outlined" size="small">
-                      {{ formatExecutionOrderStatusLabel(order.status) }}
-                    </v-chip>
-                  </div>
-                  <div class="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-5">
-                    <span>{{ formatOrderSideLabel(order.side) }}</span>
-                    <span>{{ formatOrderKind(order) }}</span>
-                    <span>{{ formatExecutionOrderSourceLabel(order.source, order.sourceDetail) }}</span>
-                    <span>数量 {{ formatNumber(order.requestedQuantity) }}</span>
-                    <span>成交 {{ formatNumber(order.filledQuantity) }}</span>
-                  </div>
-                  <div class="mt-2 text-xs text-slate-500">{{ formatDateTime(order.updatedAt) }}</div>
-                </button>
-
-                <!-- Load more button -->
-                <div v-if="hasMoreHistoricalOrders" class="flex justify-center pt-2">
-                  <v-btn variant="outlined" size="small" @click="loadMoreHistoricalOrders">
-                    加载更多（已显示 {{ displayedHistoricalOrders.length }} / {{ historicalOrders.length }}）
-                  </v-btn>
-                </div>
-              </div>
-
-              <!-- Loading more indicator -->
-              <div v-else-if="isLoadingHistoricalOrders" class="flex items-center justify-center gap-3 py-8">
-                <v-progress-circular indeterminate size="24" />
-                <span class="text-sm text-slate-500">正在加载历史订单...</span>
-              </div>
-
-              <v-empty-state v-else text="当前账户暂无历史订单。" />
-            </v-card-text>
-          </v-card>
-
-          <v-card flat class="card-shell border-0">
-            <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
-              <div>
-                <div class="text-xl font-semibold text-slate-900">订单事件与费用</div>
-                <div class="mt-1 text-sm text-slate-500">
-                  {{ selectedExecutionOrder?.internalOrderId ?? '请选择一笔订单' }}
-                </div>
-                <div v-if="selectedExecutionOrder?.rawBrokerStatus" class="mt-1 text-xs text-slate-500">
-                  券商原始状态：{{ selectedExecutionOrder.rawBrokerStatus }}
-                </div>
-              </div>
-              <v-chip variant="outlined" size="small">{{ executionOrderEvents.events.length }} 条事件</v-chip>
-            </div>
-            <v-card-text>
-              <div
-                v-if="selectedExecutionOrder && ((selectedExecutionOrder.legs?.length ?? 0) > 0 || selectedExecutionOrder.requestedAmount != null || selectedExecutionOrder.payout != null)"
-                class="mb-4 grid gap-3"
-              >
-                <div class="flex flex-wrap gap-2 text-sm">
-                  <v-chip size="small" variant="tonal">{{ formatOrderKind(selectedExecutionOrder) }}</v-chip>
-                  <v-chip v-if="selectedExecutionOrder.requestedAmount != null" size="small" variant="outlined">
-                    投入 {{ formatNumber(selectedExecutionOrder.requestedAmount) }}
-                  </v-chip>
-                  <v-chip v-if="selectedExecutionOrder.payout != null" size="small" color="success" variant="outlined">
-                    Payout {{ formatNumber(selectedExecutionOrder.payout) }}
-                  </v-chip>
-                </div>
-                <div
-                  v-for="leg in selectedExecutionOrder.legs ?? []"
-                  :key="leg.id"
-                  class="grid gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm sm:grid-cols-[minmax(180px,1fr)_80px_70px_100px_100px]"
-                >
-                  <span class="font-medium text-slate-900">{{ leg.instrumentId }}</span>
-                  <span>{{ formatOrderSideLabel(leg.side) }}</span>
-                  <span>× {{ leg.ratio }}</span>
-                  <span>{{ leg.predictionSide || formatNumber(leg.requestedQuantity) }}</span>
-                  <v-chip :color="resolveOrderChipColor(leg.status)" size="x-small" variant="outlined">
-                    {{ formatExecutionOrderStatusLabel(leg.status) }}
-                  </v-chip>
-                </div>
-              </div>
-              <div v-if="isLoadingExecutionEvents" class="text-sm text-slate-500">正在加载订单事件...</div>
-              <v-alert
-                v-else-if="executionEventsError"
-                type="warning"
-                :closable="false"
-                title="订单事件提示"
-              >
-                {{ executionEventsError }}
-              </v-alert>
-
-              <div v-else-if="executionOrderEvents.events.length" class="grid gap-3">
-                <div
-                  v-for="event in executionOrderEvents.events"
-                  :key="event.id"
-                  class="rounded-lg bg-slate-50 px-4 py-3"
-                >
-                  <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="font-medium text-slate-900">{{ formatExecutionEventTypeLabel(event.eventType) }}</div>
-                    <div class="text-xs text-slate-500">{{ formatDateTime(event.createdAt) }}</div>
-                  </div>
-                  <div class="mt-2 text-sm text-slate-600">
-                    {{ formatExecutionStatusTransition(event.previousStatus, event.nextStatus) }}
-                  </div>
-                </div>
-              </div>
-              <v-empty-state v-else text="当前订单暂无事件。" />
-
-              <div class="mt-5 border-t border-slate-200 pt-4">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div class="font-semibold text-slate-900">券商费用</div>
-                    <div class="mt-1 text-xs text-slate-500">{{ selectedExecutionOrder?.brokerOrderIdEx ?? selectedExecutionOrder?.brokerOrderId ?? '暂无券商订单号' }}</div>
-                  </div>
-                  <v-chip variant="outlined" size="small">{{ brokerOrderFees.fees.length }} 条</v-chip>
-                </div>
-
-                <v-empty-state
-                  v-if="selectedExecutionOrder != null && !supportsSelectedExecutionOrderFees"
-                  text="当前券商未为该交易环境声明费用查询能力。"
-                  class="mt-3"
-                />
-                <div v-else-if="isLoadingOrderFees" class="mt-3 text-sm text-slate-500">正在加载券商费用...</div>
-                <v-alert
-                  v-else-if="orderFeesError"
-                  class="mt-3"
-                  type="warning"
-                  :closable="false"
-                  title="费用查询提示"
-                >
-                  {{ orderFeesError }}
-                </v-alert>
-                <div v-else-if="brokerOrderFees.fees.length" class="mt-3 grid gap-3">
-                  <div
-                    v-for="fee in brokerOrderFees.fees"
-                    :key="fee.brokerOrderIdEx"
-                    class="rounded-lg bg-slate-50 px-4 py-3"
-                  >
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                      <div class="font-medium text-slate-900">{{ fee.brokerOrderIdEx }}</div>
-                      <div class="text-sm text-slate-700">{{ formatMoney(fee.feeAmount, brokerFunds.summary?.currency) }}</div>
-                    </div>
-                    <div v-if="fee.feeItems?.length" class="mt-3 flex flex-wrap gap-2">
-                      <span
-                        v-for="detail in fee.feeItems"
-                        :key="`${fee.brokerOrderIdEx}-${detail.title}`"
-                        class="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-                      >
-                        {{ detail.title }}：{{ formatMoney(detail.value, brokerFunds.summary?.currency) }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <v-empty-state v-else text="当前订单暂无券商费用。" class="mt-3" />
-
-                <div class="mt-5 border-t border-slate-200 pt-4">
-                  <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div class="font-semibold text-slate-900">最近成交</div>
-                        <div class="mt-1 text-xs text-slate-500">{{ brokerFillsDescription }}</div>
-                    </div>
-                    <v-chip variant="outlined" size="small">{{ recentBrokerFills.length }} 条</v-chip>
-                  </div>
-
-                  <div v-if="isLoadingBrokerFills" class="mt-3 text-sm text-slate-500">正在加载券商成交...</div>
-                  <v-alert
-                    v-else-if="brokerFills.lastError"
-                    class="mt-3"
-                    type="warning"
-                    :closable="false"
-                    title="成交查询提示"
-                  >
-                    {{ brokerFills.lastError }}
-                  </v-alert>
-                  <div
-                    v-else-if="recentBrokerFills.length"
-                    class="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white"
-                  >
-                    <table class="w-full text-sm">
-                      <thead class="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
-                        <tr>
-                          <th class="px-4 py-3 text-left">成交号</th>
-                          <th class="px-4 py-3 text-left">标的</th>
-                          <th class="px-4 py-3 text-left">方向</th>
-                          <th class="px-4 py-3 text-right">数量</th>
-                          <th class="px-4 py-3 text-right">价格</th>
-                          <th class="px-4 py-3 text-left">状态</th>
-                          <th class="px-4 py-3 text-left">成交时间</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr
-                          v-for="fill in recentBrokerFills"
-                          :key="fill.brokerFillId"
-                          class="border-b border-slate-100 last:border-0"
-                        >
-                          <td class="px-4 py-3 font-mono text-xs">{{ fill.brokerFillIdEx ?? fill.brokerFillId }}</td>
-                          <td class="px-4 py-3">
-                            <InstrumentIdentity
-                              :market="fill.market"
-                              :instrument-id="fill.symbol"
-                              :name="fill.symbolName"
-                            />
-                          </td>
-                          <td class="px-4 py-3">{{ formatOrderSideLabel(fill.side) }}</td>
-                          <td class="px-4 py-3 text-right">{{ formatNumber(fill.filledQuantity) }}</td>
-                          <td class="px-4 py-3 text-right">{{ formatPrice(fill.fillPrice, fill.market) }}</td>
-                          <td class="px-4 py-3">{{ fill.status ?? '—' }}</td>
-                          <td class="px-4 py-3">{{ formatDateTime(fill.filledAt) }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <v-empty-state v-else text="当前账户暂无券商成交。" class="mt-3" />
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-        </section>
-      </v-window-item>
-    </v-window>
-    <ActionConfirmDialog
-      :open="pendingCancelOrder != null"
-      title="确认撤单"
-      :message="pendingCancelMessage"
-      confirm-label="确认撤单"
-      :busy="pendingCancelOrder != null && isCancellingOrder(pendingCancelOrder.internalOrderId)"
-      @close="pendingCancelOrder = null"
-      @confirm="confirmCancelOrder"
-    />
+      <ActionConfirmDialog
+        :open="pendingCancelOrder != null"
+        title="确认撤单"
+        :message="pendingCancelMessage"
+        confirm-label="确认撤单"
+        :busy="pendingCancelOrder != null && isCancellingOrder(pendingCancelOrder.internalOrderId)"
+        @close="pendingCancelOrder = null"
+        @confirm="confirmCancelOrder"
+      />
+    </section>
   </div>
 </template>
 
 <style scoped>
 .account-page {
-  height: auto;
-  min-height: 100%;
-  align-content: start;
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  gap: 12px;
+  padding: 14px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 92% -20%, color-mix(in srgb, var(--tv-accent) 9%, transparent), transparent 36%),
+    var(--tv-bg-app);
+}
+
+.account-page__main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 9px;
+  background: var(--tv-bg-surface);
+  box-shadow: 0 8px 24px color-mix(in srgb, #000 8%, transparent);
+}
+
+.account-page__tabs-row {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  min-width: 0;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface-2);
+}
+
+.account-page__tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+  padding: 5px 7px 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.account-page__tabs button {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 8px 14px 9px;
+  border: 0;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--tv-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.account-page__tabs button span {
+  margin-left: 4px;
+  color: var(--tv-text-dim);
+  font-size: 9px;
+}
+
+.account-page__tabs button.is-active {
+  background: var(--tv-bg-surface);
+  color: var(--tv-text);
+  font-weight: 650;
+}
+
+.account-page__tabs button.is-active::after {
+  position: absolute;
+  right: 8px;
+  bottom: -1px;
+  left: 8px;
+  height: 2px;
+  background: var(--tv-accent);
+  content: "";
+}
+
+.account-page__content {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 1180px) {
+  .account-page {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .account-page__main {
+    flex: 1 0 auto;
+    min-height: 480px;
+  }
 }
 </style>

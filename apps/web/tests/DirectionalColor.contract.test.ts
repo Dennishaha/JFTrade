@@ -61,6 +61,9 @@ describe("directional color contract", () => {
 
     expect(matchingFiles(/\btv-(?:up|down)\b/)).toEqual([
       "components/SettingsAppearanceSection.vue",
+      "components/domain/account/AccountAssetStrip.vue",
+      "components/domain/account/AccountSummarySidebar.vue",
+      "components/domain/account/PositionsTable.vue",
       "components/workspace/InstrumentOverviewPanel.vue",
       "components/workspace/OrderBookPanel.vue",
       "components/workspace/PositionsPanel.vue",

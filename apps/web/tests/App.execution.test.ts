@@ -278,7 +278,23 @@ describe("Account page execution route redirect", () => {
     await flushRequests();
 
     expect(wrapper.text()).toContain("我的账户");
-    expect(wrapper.text()).toContain("在途订单");
+
+    // 在途订单在「订单」tab，事件与券商费用在「历史」tab 的详情侧栏。
+    const ordersTab = wrapper
+      .findAll('button[role="tab"]')
+      .find((candidate) => candidate.text().includes("订单"));
+    expect(ordersTab).toBeDefined();
+    await ordersTab!.trigger("click");
+    await flushRequests();
+    expect(wrapper.text()).toContain("order-internal-1");
+    expect(wrapper.text()).toContain("已提交");
+
+    const historyTab = wrapper
+      .findAll('button[role="tab"]')
+      .find((candidate) => candidate.text().includes("历史"));
+    expect(historyTab).toBeDefined();
+    await historyTab!.trigger("click");
+    await flushRequests();
     expect(wrapper.text()).toContain("下单已受理");
     expect(wrapper.text()).toContain("18.5");
 

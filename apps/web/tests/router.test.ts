@@ -13,7 +13,10 @@ describe("console router", () => {
 
     expect(router.resolve("/adk/agents").matched).toHaveLength(1);
     expect(router.resolve("/adk/workflows").matched).toHaveLength(1);
-    expect(router.resolve("/risk").matched).toHaveLength(1);
+    const resolvedRisk = router.resolve("/risk");
+    expect(resolvedRisk.matched).toHaveLength(1);
+    expect(resolvedRisk.meta.title).toBe("风控");
+    expect(resolvedRisk.matched[0]?.redirect).toBeUndefined();
     expect(router.resolve("/watchlist").matched).toHaveLength(1);
     expect(router.resolve("/adk").matched).toHaveLength(0);
     expect(router.resolve("/adk?view=chat").matched).toHaveLength(0);
@@ -27,5 +30,14 @@ describe("console router", () => {
     await router.isReady();
 
     expect(router.currentRoute.value.path).toBe("/workspace");
+  });
+
+  it("serves risk as a standalone page with a lazy loader", () => {
+    const router = createConsoleRouter(createMemoryHistory());
+
+    const record = router.resolve("/risk").matched.at(-1);
+    expect(record?.redirect).toBeUndefined();
+    expect(record?.meta.title).toBe("风控");
+    expect(typeof record?.components?.default).toBe("function");
   });
 });

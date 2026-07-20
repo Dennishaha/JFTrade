@@ -13,50 +13,138 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <v-card flat class="card-shell border-0">
-    <div class="flex items-center justify-between gap-3 px-4 pt-4">
-      <div>
-        <div class="text-xl font-semibold text-slate-900">紧急熔断</div>
-        <div class="mt-1 text-sm text-slate-500">用于立刻阻断实盘下单和改单。</div>
-      </div>
-      <v-chip
-        :color="killSwitch.killSwitchActive ? 'error' : undefined"
-        variant="outlined"
-        size="small"
+  <section class="emergency-panel" aria-label="紧急熔断">
+    <header class="emergency-panel__head">
+      <span class="emergency-panel__title">紧急熔断</span>
+      <span
+        class="emergency-panel__state"
+        :class="killSwitch.killSwitchActive ? 'tv-status--error' : 'tv-status--success'"
       >
+        <i class="tv-state-dot"></i>
         {{ killSwitch.killSwitchActive ? "正在阻断" : "未阻断" }}
-      </v-chip>
-    </div>
+      </span>
+    </header>
 
-    <v-card-text>
-      <div class="rounded-lg bg-slate-50 px-3 py-3">
-        <div class="font-medium text-slate-900">
-          {{ killSwitch.killSwitchActive ? "下单与改单已被阻断" : "下单与改单未被熔断阻断" }}
-        </div>
-        <div class="mt-1 text-xs text-slate-500">
-          撤单{{ killSwitch.allowsCancel ? "允许" : "阻断" }} / 阻断 {{ killSwitch.blockedOperations.join(" / ") }}
-        </div>
+    <div class="emergency-panel__body">
+      <div
+        class="emergency-panel__summary"
+        :class="killSwitch.killSwitchActive ? 'tv-status--error' : 'tv-status--success'"
+      >
+        <b>{{ killSwitch.killSwitchActive ? "下单与改单已被阻断" : "下单与改单未被熔断阻断" }}</b>
+        <span>
+          撤单{{ killSwitch.allowsCancel ? "允许" : "阻断" }} / 阻断
+          {{ killSwitch.blockedOperations.join(" / ") }}
+        </span>
       </div>
 
-      <div class="mt-3 flex flex-wrap gap-2">
-        <v-btn
-          color="error"
-          size="small"
-          variant="outlined"
-          :loading="loadingAction === 'kill-switch.activate'"
+      <div class="emergency-panel__actions">
+        <button
+          type="button"
+          class="tv-btn tv-btn-ghost emergency-panel__danger"
+          :disabled="loadingAction === 'kill-switch.activate'"
           @click="emit('activate')"
         >
-          激活熔断
-        </v-btn>
-        <v-btn
-          size="small"
-          variant="outlined"
-          :loading="loadingAction === 'kill-switch.release'"
+          {{ loadingAction === 'kill-switch.activate' ? "激活中..." : "激活熔断" }}
+        </button>
+        <button
+          type="button"
+          class="tv-btn tv-btn-ghost"
+          :disabled="loadingAction === 'kill-switch.release'"
           @click="emit('release')"
         >
-          解除熔断
-        </v-btn>
+          {{ loadingAction === 'kill-switch.release' ? "解除中..." : "解除熔断" }}
+        </button>
       </div>
-    </v-card-text>
-  </v-card>
+    </div>
+  </section>
 </template>
+
+<style scoped>
+.emergency-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: var(--tv-bg-surface);
+}
+
+.emergency-panel__head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface-2);
+}
+
+.emergency-panel__title {
+  color: var(--tv-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.emergency-panel__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tv-status-fg, var(--tv-text-muted));
+  font-size: 10px;
+}
+
+.emergency-panel__body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.emergency-panel__summary {
+  display: grid;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 1px solid var(--tv-status-border-color, var(--tv-border));
+  border-radius: 6px;
+  background: color-mix(
+    in srgb,
+    var(--tv-status-bg, var(--tv-bg-surface-2)) 45%,
+    var(--tv-bg-surface)
+  );
+}
+
+.emergency-panel__summary b {
+  color: var(--tv-status-fg, var(--tv-text));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.emergency-panel__summary span {
+  color: var(--tv-text-dim);
+  font-size: 10px;
+}
+
+.emergency-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.emergency-panel__actions .tv-btn {
+  height: 28px;
+  font-size: 12px;
+}
+
+.emergency-panel__danger:not(:disabled) {
+  border-color: var(--tv-status-error-border);
+  color: var(--tv-status-error-fg);
+}
+
+.emergency-panel__actions .tv-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+</style>

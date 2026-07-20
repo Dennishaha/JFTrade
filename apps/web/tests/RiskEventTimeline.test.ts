@@ -53,12 +53,56 @@ describe("risk event timeline", () => {
     expect(wrapper.text()).toContain("system");
     expect(wrapper.text()).toContain("人工熔断");
     expect(wrapper.text()).toContain("暂无原因");
-    expect(wrapper.find("[data-color='error']").exists()).toBe(true);
+    expect(wrapper.find(".tv-status--error").exists()).toBe(true);
   });
 
   it("keeps each empty stream distinct", () => {
     const wrapper = mountTimeline([], []);
     expect(wrapper.text()).toContain("暂无运行时风控事件。");
     expect(wrapper.text()).toContain("暂无熔断事件。");
+  });
+
+  it("filters the timeline by event source", async () => {
+    const wrapper = mountTimeline(
+      [{
+        id: "risk-1",
+        eventType: "rejected",
+        action: "拒绝下单",
+        createdAt: "2026-07-16T09:00:00Z",
+        operatorId: null,
+        reason: "超出限额",
+        errorCode: "",
+      }],
+      [{
+        id: "kill-1",
+        eventType: "activated",
+        action: "人工熔断",
+        createdAt: "2026-07-16T09:01:00Z",
+        operatorId: "risk-operator",
+        reason: "紧急处置",
+        errorCode: "",
+      }],
+    );
+
+    // 默认「全部」：两列都渲染。
+    expect(wrapper.text()).toContain("拒绝下单");
+    expect(wrapper.text()).toContain("人工熔断");
+
+    const filterButton = (label: string) =>
+      wrapper
+        .findAll(".risk-events__filter-btn")
+        .find((button) => button.text() === label)!;
+
+    await filterButton("熔断").trigger("click");
+    expect(wrapper.text()).not.toContain("拒绝下单");
+    expect(wrapper.text()).toContain("人工熔断");
+
+    await filterButton("配置与拒单").trigger("click");
+    expect(wrapper.text()).toContain("拒绝下单");
+    expect(wrapper.text()).not.toContain("人工熔断");
+
+    await filterButton("全部").trigger("click");
+    expect(wrapper.text()).toContain("拒绝下单");
+    expect(wrapper.text()).toContain("人工熔断");
   });
 });

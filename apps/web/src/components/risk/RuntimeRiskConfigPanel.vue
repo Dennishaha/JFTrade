@@ -115,141 +115,267 @@ function disable() {
 </script>
 
 <template>
-  <v-card flat class="card-shell border-0">
-    <div class="px-4 pt-4">
-      <div>
-        <div class="text-xl font-semibold text-slate-900">实盘总闸与单笔限额</div>
-        <div class="mt-1 text-sm text-slate-500">
-          这些值立即写入运行时配置，保存后不需要重启。
+  <section class="risk-panel" aria-label="实盘总闸与单笔限额">
+    <header class="risk-panel__head">
+      <span class="risk-panel__title">实盘总闸与单笔限额</span>
+      <span class="risk-panel__desc">保存后立即写入运行时配置，不需要重启。</span>
+    </header>
+
+    <div class="risk-panel__body">
+      <div class="risk-panel__field-row">
+        <label class="risk-panel__toggle">
+          <input
+            v-model="form.realTradingEnabled"
+            type="checkbox"
+            role="switch"
+            aria-label="允许实盘下单"
+          />
+          <span class="risk-panel__toggle-track" aria-hidden="true"></span>
+          <span>允许实盘下单</span>
+        </label>
+        <span
+          class="risk-panel__current"
+          data-status-for="real-trading-enabled"
+        >
+          当前：{{ riskState.realTradingEnabled ? "开启" : "关闭" }}
+          <em v-if="realTradingEnabledChanged" class="risk-panel__modified">已修改</em>
+        </span>
+      </div>
+
+      <div class="risk-panel__fields">
+        <div class="risk-panel__field-row">
+          <input
+            v-model="form.maxOrderQuantity"
+            class="tv-input"
+            inputmode="decimal"
+            placeholder="单笔最大数量"
+            aria-label="单笔最大数量"
+          />
+          <span
+            class="risk-panel__current"
+            data-status-for="max-order-quantity"
+          >
+            当前：{{ formatCurrentLimit(riskState.runtimeConfiguredMaxOrderQuantity) }}
+            <em v-if="maxOrderQuantityChanged" class="risk-panel__modified">已修改</em>
+          </span>
         </div>
+        <div class="risk-panel__field-row">
+          <input
+            v-model="form.maxOrderNotional"
+            class="tv-input"
+            inputmode="decimal"
+            placeholder="单笔最大金额"
+            aria-label="单笔最大金额"
+          />
+          <span
+            class="risk-panel__current"
+            data-status-for="max-order-notional"
+          >
+            当前：{{ formatCurrentLimit(riskState.runtimeConfiguredMaxOrderNotional) }}
+            <em v-if="maxOrderNotionalChanged" class="risk-panel__modified">已修改</em>
+          </span>
+        </div>
+      </div>
+
+      <div class="risk-panel__fields">
+        <input
+          v-model="form.operatorId"
+          class="tv-input"
+          placeholder="操作员"
+          aria-label="操作员"
+        />
+        <input
+          v-model="form.reason"
+          class="tv-input"
+          placeholder="原因"
+          aria-label="原因"
+        />
+      </div>
+
+      <div
+        v-if="formError"
+        class="risk-panel__error tv-status--warning tv-status-surface"
+        role="alert"
+      >
+        {{ formError }}
+      </div>
+
+      <div class="risk-panel__actions">
+        <button
+          type="button"
+          class="tv-btn risk-panel__primary"
+          :disabled="!canSave || loading"
+          @click="submit"
+        >
+          {{ loading ? "保存中..." : "保存运行时配置" }}
+        </button>
+        <button
+          type="button"
+          class="tv-btn tv-btn-ghost"
+          :disabled="loading"
+          @click="disable"
+        >
+          关闭实盘配置
+        </button>
       </div>
     </div>
-
-    <v-card-text>
-      <div class="grid gap-4">
-        <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-          <v-switch
-            v-model="form.realTradingEnabled"
-            color="teal"
-            hide-details
-            label="允许实盘下单"
-          />
-          <div
-            class="flex items-center gap-2 text-xs text-slate-500"
-            data-status-for="real-trading-enabled"
-          >
-            <span>当前：{{ riskState.realTradingEnabled ? "开启" : "关闭" }}</span>
-            <v-chip
-              v-if="realTradingEnabledChanged"
-              color="warning"
-              size="x-small"
-              variant="tonal"
-            >
-              已修改
-            </v-chip>
-          </div>
-        </div>
-
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-            <v-text-field
-              v-model="form.maxOrderQuantity"
-              density="compact"
-              hide-details
-              inputmode="decimal"
-              label="单笔最大数量"
-              variant="outlined"
-            />
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-              data-status-for="max-order-quantity"
-            >
-              <span>
-                当前：{{ formatCurrentLimit(riskState.runtimeConfiguredMaxOrderQuantity) }}
-              </span>
-              <v-chip
-                v-if="maxOrderQuantityChanged"
-                color="warning"
-                size="x-small"
-                variant="tonal"
-              >
-                已修改
-              </v-chip>
-            </div>
-          </div>
-          <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-            <v-text-field
-              v-model="form.maxOrderNotional"
-              density="compact"
-              hide-details
-              inputmode="decimal"
-              label="单笔最大金额"
-              variant="outlined"
-            />
-            <div
-              class="flex items-center gap-2 text-xs text-slate-500"
-              data-status-for="max-order-notional"
-            >
-              <span>
-                当前：{{ formatCurrentLimit(riskState.runtimeConfiguredMaxOrderNotional) }}
-              </span>
-              <v-chip
-                v-if="maxOrderNotionalChanged"
-                color="warning"
-                size="x-small"
-                variant="tonal"
-              >
-                已修改
-              </v-chip>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid gap-3 sm:grid-cols-2">
-          <v-text-field
-            v-model="form.operatorId"
-            density="compact"
-            hide-details
-            label="操作员"
-            variant="outlined"
-          />
-          <v-text-field
-            v-model="form.reason"
-            density="compact"
-            hide-details
-            label="原因"
-            variant="outlined"
-          />
-        </div>
-
-        <v-alert
-          v-if="formError"
-          type="warning"
-          variant="tonal"
-          density="compact"
-        >
-          {{ formError }}
-        </v-alert>
-
-        <div class="flex flex-wrap gap-2">
-          <v-btn
-            color="teal"
-            :disabled="!canSave"
-            :loading="loading"
-            variant="flat"
-            @click="submit"
-          >
-            保存运行时配置
-          </v-btn>
-          <v-btn
-            :loading="loading"
-            variant="outlined"
-            @click="disable"
-          >
-            关闭实盘配置
-          </v-btn>
-        </div>
-      </div>
-    </v-card-text>
-  </v-card>
+  </section>
 </template>
+
+<style scoped>
+.risk-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: var(--tv-bg-surface);
+}
+
+.risk-panel__head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface-2);
+}
+
+.risk-panel__title {
+  color: var(--tv-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.risk-panel__desc {
+  overflow: hidden;
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.risk-panel__body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.risk-panel__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.risk-panel__field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.risk-panel__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tv-text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.risk-panel__toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.risk-panel__toggle-track {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  flex: 0 0 auto;
+  border: 1px solid var(--tv-border-strong);
+  border-radius: 999px;
+  background: var(--tv-bg-elevated);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.risk-panel__toggle-track::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--tv-text-muted);
+  content: "";
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.risk-panel__toggle input:checked + .risk-panel__toggle-track {
+  border-color: var(--tv-accent);
+  background: color-mix(in srgb, var(--tv-accent) 24%, var(--tv-bg-elevated));
+}
+
+.risk-panel__toggle input:checked + .risk-panel__toggle-track::after {
+  background: var(--tv-accent);
+  transform: translateX(14px);
+}
+
+.risk-panel__toggle input:focus-visible + .risk-panel__toggle-track {
+  outline: 1px solid var(--tv-accent);
+  outline-offset: 2px;
+}
+
+.risk-panel__current {
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.risk-panel__modified {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--tv-status-warning-border);
+  border-radius: 999px;
+  background: var(--tv-status-warning-bg);
+  color: var(--tv-status-warning-fg);
+  font-size: 9px;
+  font-style: normal;
+}
+
+.risk-panel__error {
+  padding: 7px 10px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.risk-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.risk-panel__primary {
+  border-color: var(--tv-accent);
+  background: var(--tv-accent);
+  color: #fff;
+}
+
+.risk-panel__actions .tv-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (max-width: 780px) {
+  .risk-panel__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>
