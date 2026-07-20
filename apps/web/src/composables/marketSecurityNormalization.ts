@@ -227,6 +227,8 @@ function normalizeSecurityDetails(value: unknown): MarketSecurityDetails | null 
 
   return {
     ...security,
+    securityType:
+      typeof security.securityType === "string" ? security.securityType : "",
     extended: normalizeExtendedQuoteBlocks(security.extended),
     equity: normalizeFields(
       isRecord(security.equity) ? security.equity : null,

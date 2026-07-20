@@ -468,6 +468,19 @@ describe("OrderEntryPanel business coverage", () => {
       expect(read<string>(setup.tradeQuantityUnit)).toBe(quantityUnit);
     }
 
+    const detailsWithoutType = store.marketSecurityDetails.value!;
+    const securityWithoutType = {
+      ...detailsWithoutType.security,
+    } as Partial<MarketSecurityDetails>;
+    delete securityWithoutType.securityType;
+    store.marketSecurityDetails.value = {
+      ...detailsWithoutType,
+      security: securityWithoutType as MarketSecurityDetails,
+    };
+    await nextTick();
+    expect(read<string>(setup.productClass)).toBe("equity");
+    expect(read<string>(setup.tradeQuantityUnit)).toBe("单位");
+
     wrapper.unmount();
   });
 });

@@ -156,6 +156,7 @@ describe("normalizeMarketSecurityDetailsQueryResult", () => {
     } as never);
 
     expect(normalized.security).toMatchObject({
+      securityType: "",
       securityId: "not-a-number",
       lotSize: Number.POSITIVE_INFINITY,
       currentPrice: "",

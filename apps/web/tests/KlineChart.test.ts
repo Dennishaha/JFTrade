@@ -1087,6 +1087,95 @@ describe("KlineChart", () => {
     expect(chart?.remove).toHaveBeenCalledOnce();
   });
 
+  it("recovers from a transient zero-sized layout without reloading candle data", async () => {
+    vi.useFakeTimers();
+    class PassiveResizeObserver {
+      observe(): void {}
+      disconnect(): void {}
+    }
+    vi.stubGlobal("ResizeObserver", PassiveResizeObserver);
+
+    let width = 640;
+    let height = 320;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          x: 0,
+          y: 0,
+          width,
+          height,
+          top: 0,
+          right: width,
+          bottom: height,
+          left: 0,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+
+    let nextFrameId = 0;
+    const pendingFrames = new Map<number, FrameRequestCallback>();
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextFrameId += 1;
+      pendingFrames.set(nextFrameId, callback);
+      return nextFrameId;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (frameId: number) => {
+      pendingFrames.delete(frameId);
+    });
+    const flushAnimationFrames = () => {
+      const callbacks = [...pendingFrames.values()];
+      pendingFrames.clear();
+      for (const callback of callbacks) {
+        callback(performance.now());
+      }
+    };
+
+    const candles = ref([
+      {
+        at: "2026-05-17T01:30:00.000Z",
+        open: 320,
+        high: 320.8,
+        low: 319.9,
+        close: 320.5,
+        volume: 18000,
+      },
+    ]);
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles };
+      },
+      template: '<KlineChart :candles="candles" :min-height="320" />',
+    });
+
+    const wrapper = mount(Host);
+    await nextTick();
+    await nextTick();
+    flushAnimationFrames();
+    expect(chartMocks.resize).toHaveBeenLastCalledWith(640, 320, true);
+
+    chartMocks.resize.mockClear();
+    chartMocks.candlestickSetData.mockClear();
+    width = 0;
+    height = 0;
+    window.dispatchEvent(new Event("resize"));
+    flushAnimationFrames();
+
+    expect(chartMocks.resize).not.toHaveBeenCalled();
+    expect(chartMocks.candlestickSetData).not.toHaveBeenCalled();
+
+    width = 480;
+    height = 380;
+    vi.advanceTimersByTime(80);
+    flushAnimationFrames();
+
+    expect(chartMocks.resize).toHaveBeenLastCalledWith(480, 380, true);
+    expect(chartMocks.candlestickSetData).not.toHaveBeenCalled();
+
+    wrapper.unmount();
+  });
+
   it("shows initialization errors when ResizeObserver is missing or chart creation fails", async () => {
     vi.stubGlobal("ResizeObserver", undefined as unknown as typeof ResizeObserver);
 

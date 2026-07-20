@@ -13,7 +13,10 @@ import {
 } from "../../composables/consoleDataFormatting";
 import { useMarketProfiles } from "../../composables/marketProfiles";
 import { formatMarketSessionLabel } from "../../composables/marketSessionDisplay";
-import { formatInstrumentIdentityText } from "../../composables/instrumentPresentation";
+import {
+  formatInstrumentIdentityText,
+  normalizeInstrumentSecurityType,
+} from "../../composables/instrumentPresentation";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
 import { usePolling } from "../../composables/usePolling";
@@ -153,6 +156,9 @@ const isLimit = computed(
   () => orderType.value === "LIMIT" || orderType.value === "STOP_LIMIT",
 );
 const security = computed(() => marketSecurityDetails.value?.security ?? null);
+const normalizedSecurityType = computed(() =>
+  normalizeInstrumentSecurityType(security.value?.securityType),
+);
 const productClass = computed<ExecutionOrderPayload["productClass"]>(() => {
   if (
     prefs.value.marketSegment === "prediction" ||
@@ -165,7 +171,7 @@ const productClass = computed<ExecutionOrderPayload["productClass"]>(() => {
   if (prefs.value.productClass === "cbbc") return "cbbc";
   if (prefs.value.productClass === "warrant") return "warrant";
   if (prefs.value.productClass === "fund") return "fund";
-  const securityType = security.value?.securityType.trim().toUpperCase() ?? "";
+  const securityType = normalizedSecurityType.value;
   const symbol = prefs.value.symbol.trim().toUpperCase();
   if (securityType.includes("EVENT") || symbol.startsWith("EC.")) {
     return "event_contract";
@@ -215,7 +221,7 @@ const latestMarketPrice = computed(() => {
 const limitPriceStep = computed(() => resolveOrderPriceStep(price.value));
 const stopPriceStep = computed(() => resolveOrderPriceStep(stopPrice.value));
 const tradeQuantityUnit = computed(() => {
-  const securityType = security.value?.securityType.trim().toUpperCase() ?? "";
+  const securityType = normalizedSecurityType.value;
   if (isEventContract.value) return "金额";
   if (securityType.includes("FUTURE") || securityType.includes("OPTION")) {
     return "张";

@@ -203,51 +203,12 @@ onUnmounted(() => {
       </div>
     </template>
 
-    <div v-if="isCompactWorkspace" class="tv-workspace__compact-stack">
-      <section class="tv-workspace__compact-panel tv-workspace__compact-panel--chart">
-        <WorkspaceProductPane />
-      </section>
-      <section
-        v-if="isOptionWorkspace"
-        class="tv-workspace__compact-panel tv-workspace__compact-panel--option-dock"
-        :class="{ 'is-option-dock-collapsed': optionDockCollapsed }"
-        data-capability-surface="workspace.order"
-      >
-        <OptionTradingDock v-model:collapsed="optionDockCollapsed" />
-      </section>
-      <section
-        v-else
-        class="tv-workspace__compact-panel"
-        data-capability-surface="workspace.order"
-      >
-        <PositionsPanel />
-      </section>
-      <section v-if="!isOptionWorkspace" class="tv-workspace__compact-panel">
-        <OrderEntryPanel />
-      </section>
-      <section v-if="!isPrediction" class="tv-workspace__compact-panel">
-        <InstrumentOverviewPanel />
-      </section>
-      <section v-else class="tv-workspace__compact-panel">
-        <PredictionContractWorkspacePanel
-          :instrument-id="predictionInstrumentId"
-          view="contract"
-        />
-      </section>
-      <section v-if="!isPrediction" class="tv-workspace__compact-panel">
-        <OrderBookPanel />
-      </section>
-      <section v-else class="tv-workspace__compact-panel">
-        <PredictionContractWorkspacePanel
-          :instrument-id="predictionInstrumentId"
-          view="depth"
-        />
-      </section>
-    </div>
-
-    <div v-else class="tv-workspace__desktop-shell">
+    <div
+      class="tv-workspace__desktop-shell"
+      :class="{ 'is-compact': isCompactWorkspace }"
+    >
       <div
-        v-if="prefs.watchlistSidebarOpen"
+        v-if="!isCompactWorkspace && prefs.watchlistSidebarOpen"
         class="tv-workspace__watchlist-slot"
         :style="{ width: `${prefs.watchlistSidebarWidth}px` }"
       >
@@ -271,58 +232,74 @@ onUnmounted(() => {
       </div>
       <div class="tv-workspace__body">
         <SplitPane :pane-min-size="10" @resized="handlePaneResized('main', $event)">
-        <SplitPaneItem :size="prefs.paneSizes.main[0]">
-          <SplitPane
-            horizontal
-            class="tv-workspace__left-split"
-            :class="{
-              'is-option-dock-collapsed':
-                isOptionWorkspace && optionDockCollapsed,
-            }"
-            :pane-min-size="10"
-            @resized="handlePaneResized('leftColumn', $event)"
-          >
-            <SplitPaneItem :size="prefs.paneSizes.leftColumn[0]">
-              <WorkspaceProductPane />
-            </SplitPaneItem>
-            <SplitPaneItem :size="prefs.paneSizes.leftColumn[1]" :min-size="15">
-              <OptionTradingDock
-                v-if="isOptionWorkspace"
-                v-model:collapsed="optionDockCollapsed"
-              />
-              <SplitPane v-else :pane-min-size="10" @resized="handlePaneResized('bottom', $event)">
-                <SplitPaneItem :size="prefs.paneSizes.bottom[0]" :min-size="15">
-                  <PositionsPanel />
-                </SplitPaneItem>
-                <SplitPaneItem :size="prefs.paneSizes.bottom[1]" :min-size="18" data-capability-surface="workspace.order">
-                  <OrderEntryPanel />
-                </SplitPaneItem>
-              </SplitPane>
-            </SplitPaneItem>
-          </SplitPane>
-        </SplitPaneItem>
+          <SplitPaneItem :size="prefs.paneSizes.main[0]">
+            <SplitPane
+              horizontal
+              class="tv-workspace__left-split"
+              :class="{
+                'is-option-dock-collapsed':
+                  isOptionWorkspace && optionDockCollapsed,
+              }"
+              :pane-min-size="10"
+              @resized="handlePaneResized('leftColumn', $event)"
+            >
+              <SplitPaneItem :size="prefs.paneSizes.leftColumn[0]">
+                <section
+                  class="tv-workspace__responsive-panel tv-workspace__responsive-panel--chart"
+                >
+                  <WorkspaceProductPane />
+                </section>
+              </SplitPaneItem>
+              <SplitPaneItem :size="prefs.paneSizes.leftColumn[1]" :min-size="15">
+                <section
+                  v-if="isOptionWorkspace"
+                  class="tv-workspace__responsive-panel tv-workspace__responsive-panel--option-dock"
+                  :class="{ 'is-option-dock-collapsed': optionDockCollapsed }"
+                  data-capability-surface="workspace.order"
+                >
+                  <OptionTradingDock v-model:collapsed="optionDockCollapsed" />
+                </section>
+                <SplitPane v-else :pane-min-size="10" @resized="handlePaneResized('bottom', $event)">
+                  <SplitPaneItem :size="prefs.paneSizes.bottom[0]" :min-size="15">
+                    <section class="tv-workspace__responsive-panel">
+                      <PositionsPanel />
+                    </section>
+                  </SplitPaneItem>
+                  <SplitPaneItem :size="prefs.paneSizes.bottom[1]" :min-size="18" data-capability-surface="workspace.order">
+                    <section class="tv-workspace__responsive-panel">
+                      <OrderEntryPanel />
+                    </section>
+                  </SplitPaneItem>
+                </SplitPane>
+              </SplitPaneItem>
+            </SplitPane>
+          </SplitPaneItem>
 
-        <!-- Right column: instrument overview on top, orderbook below -->
-        <SplitPaneItem :size="prefs.paneSizes.main[1]" :min-size="15">
-          <SplitPane horizontal :pane-min-size="10" @resized="handlePaneResized('rightColumn', $event)">
-            <SplitPaneItem :size="prefs.paneSizes.rightColumn[0]" :min-size="12">
-              <InstrumentOverviewPanel v-if="!isPrediction" />
-              <PredictionContractWorkspacePanel
-                v-else
-                :instrument-id="predictionInstrumentId"
-                view="contract"
-              />
-            </SplitPaneItem>
-            <SplitPaneItem :size="prefs.paneSizes.rightColumn[1]" :min-size="15">
-              <OrderBookPanel v-if="!isPrediction" />
-              <PredictionContractWorkspacePanel
-                v-else
-                :instrument-id="predictionInstrumentId"
-                view="depth"
-              />
-            </SplitPaneItem>
-          </SplitPane>
-        </SplitPaneItem>
+          <!-- Right column: instrument overview on top, orderbook below -->
+          <SplitPaneItem :size="prefs.paneSizes.main[1]" :min-size="15">
+            <SplitPane horizontal :pane-min-size="10" @resized="handlePaneResized('rightColumn', $event)">
+              <SplitPaneItem :size="prefs.paneSizes.rightColumn[0]" :min-size="12">
+                <section class="tv-workspace__responsive-panel">
+                  <InstrumentOverviewPanel v-if="!isPrediction" />
+                  <PredictionContractWorkspacePanel
+                    v-else
+                    :instrument-id="predictionInstrumentId"
+                    view="contract"
+                  />
+                </section>
+              </SplitPaneItem>
+              <SplitPaneItem :size="prefs.paneSizes.rightColumn[1]" :min-size="15">
+                <section class="tv-workspace__responsive-panel">
+                  <OrderBookPanel v-if="!isPrediction" />
+                  <PredictionContractWorkspacePanel
+                    v-else
+                    :instrument-id="predictionInstrumentId"
+                    view="depth"
+                  />
+                </section>
+              </SplitPaneItem>
+            </SplitPane>
+          </SplitPaneItem>
         </SplitPane>
       </div>
     </div>
@@ -334,21 +311,19 @@ onUnmounted(() => {
   position: relative;
 }
 
-.tv-workspace__compact-stack {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  min-height: 100%;
-  padding: 6px;
-  overflow: auto;
-  scrollbar-gutter: stable both-edges;
-}
-
 .tv-workspace__desktop-shell {
   display: flex;
   min-width: 0;
   min-height: 0;
   flex: 1;
+  overflow: hidden;
+}
+
+.tv-workspace__responsive-panel {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -408,27 +383,6 @@ onUnmounted(() => {
   max-width: calc(100vw - 28px);
 }
 
-.tv-workspace__compact-panel {
-  min-width: 0;
-  min-height: 300px;
-  overflow: hidden;
-  border: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface);
-}
-
-.tv-workspace__compact-panel--chart {
-  min-height: 380px;
-}
-
-.tv-workspace__compact-panel--option-dock {
-  min-height: 420px;
-}
-
-.tv-workspace__compact-panel--option-dock.is-option-dock-collapsed {
-  height: 36px;
-  min-height: 36px;
-}
-
 .tv-workspace__left-split.is-option-dock-collapsed
   > :deep(.splitpanes__pane:first-child) {
   height: calc(100% - 36px) !important;
@@ -444,26 +398,85 @@ onUnmounted(() => {
   height: 36px !important;
 }
 
+.tv-workspace__desktop-shell.is-compact {
+  display: block;
+  padding: 6px;
+  overflow: auto;
+  scrollbar-gutter: stable both-edges;
+}
+
+.tv-workspace__desktop-shell.is-compact .tv-workspace__body {
+  display: grid;
+  height: auto;
+  gap: 8px;
+  overflow: visible;
+}
+
+.tv-workspace__desktop-shell.is-compact
+  .tv-workspace__body
+  :deep(.tv-splitpanes),
+.tv-workspace__desktop-shell.is-compact
+  .tv-workspace__body
+  :deep(.tv-pane) {
+  display: contents !important;
+}
+
+.tv-workspace__desktop-shell.is-compact
+  .tv-workspace__body
+  :deep(.splitpanes__splitter) {
+  display: none;
+}
+
+.tv-workspace__desktop-shell.is-compact .tv-workspace__responsive-panel {
+  height: auto;
+  min-height: 300px;
+  border: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface);
+}
+
+.tv-workspace__desktop-shell.is-compact
+  .tv-workspace__responsive-panel--chart {
+  height: clamp(380px, 58vh, 640px);
+  min-height: 380px;
+}
+
+.tv-workspace__desktop-shell.is-compact
+  .tv-workspace__responsive-panel--option-dock {
+  min-height: 420px;
+}
+
+.tv-workspace__desktop-shell.is-compact
+  .tv-workspace__responsive-panel--option-dock.is-option-dock-collapsed {
+  height: 36px;
+  min-height: 36px;
+}
+
 @media (max-width: 768px) {
   .tv-workspace.tv-workspace--scoped {
     scrollbar-gutter: auto;
   }
 
-  .tv-workspace__compact-stack {
-    gap: 6px;
+  .tv-workspace__desktop-shell.is-compact {
     padding: 2px;
     scrollbar-gutter: auto;
   }
 
-  .tv-workspace__compact-panel {
+  .tv-workspace__desktop-shell.is-compact .tv-workspace__body {
+    gap: 6px;
+  }
+
+  .tv-workspace__desktop-shell.is-compact .tv-workspace__responsive-panel {
     min-height: 280px;
   }
 
-  .tv-workspace__compact-panel--chart {
+  .tv-workspace__desktop-shell.is-compact
+    .tv-workspace__responsive-panel--chart {
+    height: clamp(340px, 58vh, 560px);
     min-height: 340px;
   }
 
-  .tv-workspace__compact-panel--option-dock.is-option-dock-collapsed {
+  .tv-workspace__desktop-shell.is-compact
+    .tv-workspace__responsive-panel--option-dock.is-option-dock-collapsed {
     height: 36px;
     min-height: 36px;
   }

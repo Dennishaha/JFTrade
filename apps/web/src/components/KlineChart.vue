@@ -70,7 +70,10 @@ const selectedIndicators = ref<KlineIndicatorKey[]>(
 let adapter: KlineChartAdapter | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let scheduledFrame: number | null = null;
+let resizeSettleTimer: number | null = null;
 let loadMoreScheduled = false;
+
+const RESIZE_SETTLE_DELAY_MS = 80;
 
 const directionalColors = computed(() =>
   uiColorPreferences?.resolved.value ?? resolveDirectionalColors(theme.value, false),
@@ -209,17 +212,43 @@ function refreshChartData(): void {
   scheduleChartSync();
 }
 
-function measureChartSize(): { width: number; height: number } {
+function firstPositiveDimension(
+  ...values: Array<number | null | undefined>
+): number | null {
+  const value = values.find(
+    (candidate) =>
+      typeof candidate === "number" &&
+      Number.isFinite(candidate) &&
+      candidate > 0,
+  );
+  return value == null ? null : Math.floor(value);
+}
+
+function measureChartSize(): { width: number; height: number } | null {
   const target = host.value ?? shell.value;
   const fallbackTarget = target === host.value ? shell.value : host.value;
   const rect = target?.getBoundingClientRect();
   const fallbackRect = fallbackTarget?.getBoundingClientRect();
-  const measuredWidth = rect?.width ?? target?.clientWidth ?? fallbackRect?.width ?? fallbackTarget?.clientWidth;
-  const measuredHeight = rect?.height ?? target?.clientHeight ?? fallbackRect?.height ?? fallbackTarget?.clientHeight;
+  const measuredWidth = firstPositiveDimension(
+    rect?.width,
+    target?.clientWidth,
+    fallbackRect?.width,
+    fallbackTarget?.clientWidth,
+  );
+  const measuredHeight = firstPositiveDimension(
+    rect?.height,
+    target?.clientHeight,
+    fallbackRect?.height,
+    fallbackTarget?.clientHeight,
+  );
+
+  if (measuredWidth == null || measuredHeight == null) {
+    return null;
+  }
 
   return {
-    width: Math.max(1, Math.floor(measuredWidth ?? 1)),
-    height: Math.max(1, Math.floor(measuredHeight ?? props.minHeight)),
+    width: measuredWidth,
+    height: measuredHeight,
   };
 }
 
@@ -229,6 +258,9 @@ function syncChartSize(): void {
   }
 
   const size = measureChartSize();
+  if (size == null) {
+    return;
+  }
   adapter.resize(size.width, size.height);
 }
 
@@ -247,6 +279,21 @@ function scheduleChartSync(): void {
   });
 }
 
+function scheduleChartLayoutSync(): void {
+  scheduleChartSync();
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (resizeSettleTimer != null) {
+    window.clearTimeout(resizeSettleTimer);
+  }
+  resizeSettleTimer = window.setTimeout(() => {
+    resizeSettleTimer = null;
+    scheduleChartSync();
+  }, RESIZE_SETTLE_DELAY_MS);
+}
+
 onMounted(async () => {
   if (host.value == null) {
     return;
@@ -254,6 +301,7 @@ onMounted(async () => {
 
   document.addEventListener("pointerdown", handleDocumentPointerDown);
   document.addEventListener("keydown", handleDocumentKeydown);
+  window.addEventListener("resize", scheduleChartLayoutSync);
 
   await nextTick();
 
@@ -296,7 +344,7 @@ onMounted(async () => {
   }
 
   resizeObserver = new ResizeObserver(() => {
-    scheduleChartSync();
+    scheduleChartLayoutSync();
   });
   if (shell.value != null) {
     resizeObserver.observe(shell.value);
@@ -309,9 +357,14 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   document.removeEventListener("pointerdown", handleDocumentPointerDown);
   document.removeEventListener("keydown", handleDocumentKeydown);
+  window.removeEventListener("resize", scheduleChartLayoutSync);
   if (scheduledFrame != null && typeof window !== "undefined") {
     window.cancelAnimationFrame(scheduledFrame);
     scheduledFrame = null;
+  }
+  if (resizeSettleTimer != null && typeof window !== "undefined") {
+    window.clearTimeout(resizeSettleTimer);
+    resizeSettleTimer = null;
   }
   resizeObserver?.disconnect();
   resizeObserver = null;

@@ -2,7 +2,7 @@
 
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { defineComponent, ref } from "vue";
+import { defineComponent, h, onMounted, onUnmounted, ref } from "vue";
 
 const workspaceMocks = vi.hoisted(() => ({
   store: null as null | {
@@ -179,7 +179,9 @@ describe("WorkspacePage", () => {
       handleWatchlistResizeMove: (event: PointerEvent) => void;
     }>(wrapper);
 
-    expect(wrapper.find(".tv-workspace__compact-stack").exists()).toBe(true);
+    expect(wrapper.get(".tv-workspace__desktop-shell").classes()).toContain(
+      "is-compact",
+    );
     expect(wrapper.find(".sidebar-stub").attributes("data-compact")).toBe("yes");
     state.startWatchlistResize(new PointerEvent("pointerdown"));
     state.handleWatchlistResizeMove(new PointerEvent("pointermove"));
@@ -196,8 +198,51 @@ describe("WorkspacePage", () => {
     for (const listener of controller.listeners) listener({ matches: false });
     await wrapper.vm.$nextTick();
     expect(wrapper.find(".tv-workspace__desktop-shell").exists()).toBe(true);
+    expect(wrapper.get(".tv-workspace__desktop-shell").classes()).not.toContain(
+      "is-compact",
+    );
     wrapper.unmount();
     expect(controller.listeners).toHaveLength(0);
+  });
+
+  it("preserves the product pane instance across compact layout changes", async () => {
+    const controller = installMatchMedia(false, true);
+    const mounted = vi.fn();
+    const unmounted = vi.fn();
+    const ProductPane = defineComponent({
+      setup() {
+        onMounted(mounted);
+        onUnmounted(unmounted);
+        return () => h("div", { class: "product-pane-lifecycle-stub" });
+      },
+    });
+    const wrapper = mount(WorkspacePage, {
+      global: {
+        stubs: {
+          ...stubs,
+          WorkspaceProductPane: ProductPane,
+        },
+      },
+    });
+    await wrapper.vm.$nextTick();
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(unmounted).not.toHaveBeenCalled();
+
+    for (const listener of controller.listeners) listener({ matches: true });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get(".tv-workspace__desktop-shell").classes()).toContain(
+      "is-compact",
+    );
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(unmounted).not.toHaveBeenCalled();
+
+    for (const listener of controller.listeners) listener({ matches: false });
+    await wrapper.vm.$nextTick();
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(unmounted).not.toHaveBeenCalled();
+
+    wrapper.unmount();
+    expect(unmounted).toHaveBeenCalledTimes(1);
   });
 
   it("renders prediction contract identity in place of stock overview and book", async () => {

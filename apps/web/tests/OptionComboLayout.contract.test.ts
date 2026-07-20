@@ -81,12 +81,22 @@ describe("option combo layout contract", () => {
   });
 
   it("collapses the workspace pane together with the option trading dock", () => {
-    expect(workspacePage.match(/v-model:collapsed/g)).toHaveLength(2);
+    expect(workspacePage.match(/v-model:collapsed/g)).toHaveLength(1);
     expect(workspacePage).toContain("tv-workspace__left-split");
+    expect(workspacePage).toContain("tv-workspace__responsive-panel--option-dock");
     expect(workspacePage).toContain(
       ".tv-workspace__left-split.is-option-dock-collapsed",
     );
     expect(workspacePage).toContain("height: calc(100% - 36px) !important");
     expect(workspacePage).toContain("height: 36px !important");
+  });
+
+  it("gives the compact chart a definite height across responsive reflow", () => {
+    expect(workspacePage).toMatch(
+      /\.tv-workspace__responsive-panel--chart\s*\{\s*height: clamp\(380px, 58vh, 640px\)/,
+    );
+    expect(workspacePage).toMatch(
+      /\.tv-workspace__responsive-panel--chart\s*\{\s*height: clamp\(340px, 58vh, 560px\)/,
+    );
   });
 });
