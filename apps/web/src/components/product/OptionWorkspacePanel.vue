@@ -10,7 +10,9 @@ import { productCompactMenuProps } from "../../composables/productControlDensity
 import {
   buildOptionChainRows,
   formatOptionMetric,
+  normalizeOptionExpirations,
   type OptionChainSideModel,
+  type OptionExpirationModel,
 } from "../../composables/optionChainModel";
 import {
   type OptionComboSide,
@@ -49,29 +51,32 @@ const props = withDefaults(
 const emit = defineEmits<{ openInstrument: [instrumentId: string] }>();
 
 const section = ref<OptionSection>("chain");
-const loading = ref(false);
+const expirationLoading = ref(false);
+const chainLoading = ref(false);
+const expirationError = ref("");
 const chainError = ref("");
 const snapshotError = ref("");
-const result = ref<ProductFeatureResult | null>(null);
+const expirationResult = ref<ProductFeatureResult | null>(null);
+const chainsByExpiry = ref<Record<string, Entry>>({});
 const snapshots = ref<Record<string, Entry>>({});
 const selectedExpiry = ref("");
+const showAllExpirations = ref(false);
 const strikeRange = ref<StrikeRange>("all");
 const chainPage = ref(1);
 const rowsPerPage = 20;
+const primaryExpiryLimit = 4;
+let expirationRequestToken = 0;
 let chainRequestToken = 0;
 let snapshotRequestToken = 0;
 let snapshotRequestInFlight = false;
 let snapshotRefreshPending = false;
 let disposed = false;
+const chainRequests = new Map<string, Promise<Entry | null>>();
 const snapshotPolling = usePolling(
   () => loadVisibleSnapshots(),
   { intervalMs: 3_000 },
 );
 
-const today = new Date();
-const endDate = new Date(today.getTime() + 30 * 86400_000);
-const beginTime = ref(today.toISOString().slice(0, 10));
-const endTime = ref(endDate.toISOString().slice(0, 10));
 const analysisOperation = ref("underlying_overview");
 const eventOperation = ref("unusual");
 const strategyType = ref("1");
@@ -102,20 +107,44 @@ const normalizedUnderlying = computed(() =>
 );
 const needsUnderlying = computed(() => true);
 const underlyingResolved = computed(() => normalizedUnderlying.value !== "");
-const expirations = computed(() => [
-  ...new Set(
-    (result.value?.entries ?? [])
-      .map((entry) => String(entry.strikeTime ?? "").trim())
-      .filter(Boolean),
-  ),
-]);
-const activeChain = computed<Entry | null>(
+const loading = computed(
   () =>
-    (result.value?.entries ?? []).find(
-      (entry) => String(entry.strikeTime ?? "") === selectedExpiry.value,
-    ) ??
-    result.value?.entries[0] ??
-    null,
+    section.value === "chain" &&
+    (expirationLoading.value || chainLoading.value),
+);
+const expirations = computed<OptionExpirationModel[]>(() =>
+  normalizeOptionExpirations(expirationResult.value?.entries ?? []),
+);
+const primaryExpirations = computed<OptionExpirationModel[]>(() => {
+  const primary = expirations.value.slice(0, primaryExpiryLimit);
+  const selected = expirations.value.find(
+    (expiry) => expiry.date === selectedExpiry.value,
+  );
+  if (
+    selected == null ||
+    primary.some((expiry) => expiry.date === selected.date)
+  ) {
+    return primary;
+  }
+  return [...primary.slice(0, primaryExpiryLimit - 1), selected];
+});
+const remainingExpirations = computed<OptionExpirationModel[]>(() => {
+  const primaryDates = new Set(
+    primaryExpirations.value.map((expiry) => expiry.date),
+  );
+  return expirations.value.filter((expiry) => !primaryDates.has(expiry.date));
+});
+const furthestExpiry = computed(
+  () => expirations.value[expirations.value.length - 1]?.date ?? "",
+);
+const nextExpiry = computed(() => {
+  const index = expirations.value.findIndex(
+    (expiry) => expiry.date === selectedExpiry.value,
+  );
+  return index >= 0 ? (expirations.value[index + 1]?.date ?? "") : "";
+});
+const activeChain = computed<Entry | null>(
+  () => chainsByExpiry.value[selectedExpiry.value] ?? null,
 );
 const optionRows = computed<Entry[]>(() => {
   const options = activeChain.value?.option;
@@ -161,16 +190,13 @@ const visibleOptionRows = computed(() => {
 const atmStrike = computed(
   () => chainRows.value.find((row) => row.isAtm)?.strike ?? null,
 );
-const selectedExpiryDays = computed(() => {
-  if (!selectedExpiry.value) return null;
-  const expiry = new Date(`${selectedExpiry.value}T00:00:00`);
-  if (Number.isNaN(expiry.getTime())) return null;
-  return Math.max(0, Math.ceil((expiry.getTime() - Date.now()) / 86_400_000));
-});
 const comboContracts = computed<OptionContractChoice[]>(() => {
   const choices: OptionContractChoice[] = [];
   const seen = new Set<string>();
-  for (const chain of result.value?.entries ?? []) {
+  const comboChains = [selectedExpiry.value, nextExpiry.value]
+    .map((expiry) => chainsByExpiry.value[expiry])
+    .filter((chain): chain is Entry => chain != null);
+  for (const chain of comboChains) {
     const expiry = String(chain.strikeTime ?? "").trim();
     const options = Array.isArray(chain.option) ? (chain.option as Entry[]) : [];
     const rows = buildOptionChainRows(
@@ -240,16 +266,18 @@ function snapshotForInstrument(value: string): Entry {
 
 function selectExpiry(value: string): void {
   selectedExpiry.value = value;
+  showAllExpirations.value = false;
   chainPage.value = 1;
 }
 
+function toggleAllExpirations(): void {
+  showAllExpirations.value = !showAllExpirations.value;
+}
+
 function formatExpiry(value: string): string {
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? value.replaceAll("-", "/")
+    : value;
 }
 
 function openContract(contract: OptionChainSideModel): void {
@@ -268,45 +296,133 @@ function selectComboLeg(
   if (choice != null) comboDraft.toggleLeg(choice, side);
 }
 
-async function loadChain(): Promise<void> {
+function nextExpiryAfter(expiry: string): string {
+  const index = expirations.value.findIndex((item) => item.date === expiry);
+  return index >= 0 ? (expirations.value[index + 1]?.date ?? "") : "";
+}
+
+function requestExpiryChain(
+  expiry: string,
+  expirationToken: number,
+): Promise<Entry | null> {
+  const cached = chainsByExpiry.value[expiry];
+  if (cached != null) return Promise.resolve(cached);
+  const inFlight = chainRequests.get(expiry);
+  if (inFlight != null) return inFlight;
+
+  const query = new URLSearchParams({
+    beginTime: expiry,
+    endTime: expiry,
+  });
+  let request!: Promise<Entry | null>;
+  request = fetchProductFeature(
+    withBrokerProvider(
+      `/api/v1/market-data/options/chains/${encodedInstrument.value}?${query}`,
+      selectedBrokerId.value,
+    ),
+  )
+    .then((response) => {
+      if (disposed || expirationToken !== expirationRequestToken) return null;
+      const chain =
+        response.entries.find(
+          (entry) => String(entry.strikeTime ?? "").trim() === expiry,
+        ) ?? { strikeTime: expiry, option: [] };
+      chainsByExpiry.value = {
+        ...chainsByExpiry.value,
+        [expiry]: chain,
+      };
+      return chain;
+    })
+    .finally(() => {
+      if (chainRequests.get(expiry) === request) chainRequests.delete(expiry);
+    });
+  chainRequests.set(expiry, request);
+  return request;
+}
+
+async function prefetchNextExpiry(
+  expiry: string,
+  expirationToken: number,
+): Promise<void> {
+  const followingExpiry = nextExpiryAfter(expiry);
+  if (
+    !followingExpiry ||
+    disposed ||
+    expirationToken !== expirationRequestToken
+  ) {
+    return;
+  }
+  try {
+    await requestExpiryChain(followingExpiry, expirationToken);
+  } catch {
+    // Prefetch failures stay silent; a foreground selection retries the request.
+  }
+}
+
+async function loadSelectedChain(): Promise<void> {
+  const expiry = selectedExpiry.value;
   const token = ++chainRequestToken;
-  if (section.value !== "chain") {
-    loading.value = false;
-    return;
-  }
-  if (!underlyingResolved.value) {
-    result.value = null;
-    snapshots.value = {};
+  if (!underlyingResolved.value || !expiry) {
+    chainLoading.value = false;
     chainError.value = "";
-    loading.value = false;
     return;
   }
-  loading.value = true;
+  const expirationToken = expirationRequestToken;
+  chainLoading.value = true;
   chainError.value = "";
   try {
-    const query = new URLSearchParams({
-      beginTime: beginTime.value,
-      endTime: endTime.value,
-      pageSize: "200",
-    });
+    await requestExpiryChain(expiry, expirationToken);
+    if (
+      token !== chainRequestToken ||
+      expirationToken !== expirationRequestToken ||
+      expiry !== selectedExpiry.value
+    ) {
+      return;
+    }
+    chainPage.value = 1;
+    void prefetchNextExpiry(expiry, expirationToken);
+  } catch (cause) {
+    if (token !== chainRequestToken || expiry !== selectedExpiry.value) return;
+    chainError.value = cause instanceof Error ? cause.message : String(cause);
+  } finally {
+    if (token === chainRequestToken) chainLoading.value = false;
+  }
+}
+
+async function loadExpirationCatalog(): Promise<void> {
+  const token = ++expirationRequestToken;
+  chainRequestToken += 1;
+  chainRequests.clear();
+  expirationResult.value = null;
+  chainsByExpiry.value = {};
+  selectedExpiry.value = "";
+  showAllExpirations.value = false;
+  expirationError.value = "";
+  chainError.value = "";
+  chainLoading.value = false;
+  if (!underlyingResolved.value) {
+    snapshots.value = {};
+    expirationLoading.value = false;
+    return;
+  }
+  expirationLoading.value = true;
+  try {
     const response = await fetchProductFeature(
       withBrokerProvider(
-        `/api/v1/market-data/options/chains/${encodedInstrument.value}?${query}`,
+        `/api/v1/market-data/options/expirations/${encodedInstrument.value}`,
         selectedBrokerId.value,
       ),
     );
-    if (token !== chainRequestToken) return;
-    result.value = response;
-    if (!expirations.value.includes(selectedExpiry.value)) {
-      selectedExpiry.value = expirations.value[0] ?? "";
-    }
-    chainPage.value = 1;
+    if (disposed || token !== expirationRequestToken) return;
+    expirationResult.value = response;
+    selectedExpiry.value =
+      normalizeOptionExpirations(response.entries)[0]?.date ?? "";
   } catch (cause) {
-    if (token !== chainRequestToken) return;
-    chainError.value = cause instanceof Error ? cause.message : String(cause);
-    result.value = null;
+    if (token !== expirationRequestToken) return;
+    expirationError.value =
+      cause instanceof Error ? cause.message : String(cause);
   } finally {
-    if (token === chainRequestToken) loading.value = false;
+    if (token === expirationRequestToken) expirationLoading.value = false;
   }
 }
 
@@ -399,10 +515,11 @@ async function loadVisibleSnapshots(): Promise<void> {
 }
 
 watch(
-  [normalizedUnderlying, beginTime, endTime, section, selectedBrokerId],
-  () => void loadChain(),
+  [normalizedUnderlying, selectedBrokerId],
+  () => void loadExpirationCatalog(),
   { immediate: true },
 );
+watch(selectedExpiry, () => void loadSelectedChain());
 watch(snapshotDependencyKey, () => void loadVisibleSnapshots());
 watch(
   [normalizedUnderlying, () => props.market],
@@ -443,18 +560,19 @@ onMounted(() => {
 onBeforeUnmount(() => {
   comboDraft.setWorkspaceActive(false);
   disposed = true;
+  expirationRequestToken += 1;
   chainRequestToken += 1;
   snapshotRequestToken += 1;
+  chainRequests.clear();
   snapshotRefreshPending = false;
-  loading.value = false;
+  expirationLoading.value = false;
+  chainLoading.value = false;
 });
 </script>
 
 <template>
   <section class="option-workspace">
-    <ProductPanelToolbar
-      title="期权工作台"
-    >
+    <ProductPanelToolbar title="期权工作台">
       <div class="option-workspace__stats">
         <span
           >标的价
@@ -540,7 +658,15 @@ onBeforeUnmount(() => {
       indeterminate
     />
     <v-alert
-      v-if="chainError"
+      v-if="section === 'chain' && expirationError"
+      type="warning"
+      variant="tonal"
+      density="compact"
+    >
+      {{ expirationError }}
+    </v-alert>
+    <v-alert
+      v-if="section === 'chain' && chainError"
       type="warning"
       variant="tonal"
       density="compact"
@@ -576,40 +702,56 @@ onBeforeUnmount(() => {
       class="option-workspace__chain tv-scrollbar"
     >
       <div class="option-workspace__expiry-bar">
-        <div class="option-workspace__expiry-list tv-scrollbar">
+        <div class="option-workspace__expiry-list">
           <button
-            v-for="expiry in expirations"
-            :key="expiry"
+            v-for="expiry in primaryExpirations"
+            :key="expiry.date"
             type="button"
-            :class="{ 'is-active': expiry === selectedExpiry }"
-            @click="selectExpiry(expiry)"
+            :class="{ 'is-active': expiry.date === selectedExpiry }"
+            @click="selectExpiry(expiry.date)"
           >
-            <strong>{{ formatExpiry(expiry) }}</strong>
-            <span
-              v-if="expiry === selectedExpiry && selectedExpiryDays != null"
-            >
-              {{ selectedExpiryDays }}天
-            </span>
+            <strong>{{ formatExpiry(expiry.date) }}</strong>
+            <span>{{ expiry.daysToExpiry }}天{{ expiry.cycleLabel ? ` · ${expiry.cycleLabel}` : "" }}</span>
           </button>
         </div>
-        <v-select
-          v-model="selectedExpiry"
-          class="option-workspace__expiry-select product-compact-control"
-          :items="expirations"
-          :menu-props="productCompactMenuProps"
-          density="compact"
-          variant="outlined"
-          hide-details
-          label="全部到期日"
-        />
+        <button
+          v-if="remainingExpirations.length > 0"
+          type="button"
+          class="option-workspace__expiry-expand"
+          :class="{ 'is-expanded': showAllExpirations }"
+          :aria-expanded="showAllExpirations"
+          :aria-label="
+            showAllExpirations ? '收起全部到期日' : '展开全部到期日'
+          "
+          @click="toggleAllExpirations"
+        >
+          <span class="fa-solid fa-chevron-down" aria-hidden="true" />
+        </button>
+      </div>
+      <div
+        v-if="showAllExpirations && remainingExpirations.length > 0"
+        class="option-workspace__expiry-more tv-scrollbar"
+        role="group"
+        aria-label="其余全部到期日"
+      >
+        <button
+          v-for="expiry in remainingExpirations"
+          :key="expiry.date"
+          type="button"
+          :class="{ 'is-active': expiry.date === selectedExpiry }"
+          @click="selectExpiry(expiry.date)"
+        >
+          <strong>{{ formatExpiry(expiry.date) }}</strong>
+          <span>{{ expiry.daysToExpiry }}天{{ expiry.cycleLabel ? ` · ${expiry.cycleLabel}` : "" }}</span>
+        </button>
       </div>
 
       <div class="option-workspace__filters">
-        <div class="option-workspace__date-range">
-          <span>到期范围</span>
-          <input v-model="beginTime" type="date" aria-label="期权开始到期日" />
-          <span>至</span>
-          <input v-model="endTime" type="date" aria-label="期权结束到期日" />
+        <div class="option-workspace__expiry-coverage">
+          <span>到期日范围：全部未到期</span>
+          <strong v-if="furthestExpiry"
+            >覆盖至 {{ formatExpiry(furthestExpiry) }}</strong
+          >
         </div>
         <div class="option-workspace__range-toggle">
           <button
@@ -647,10 +789,16 @@ onBeforeUnmount(() => {
         density="compact"
       />
       <div
-        v-if="optionRows.length === 0 && !loading"
+        v-if="expirations.length === 0 && !loading && !expirationError"
         class="option-workspace__empty"
       >
-        当前到期范围暂无期权合约，或账户没有相应行情权限。
+        当前标的暂无未到期期权合约。
+      </div>
+      <div
+        v-else-if="activeChain != null && optionRows.length === 0 && !loading && !chainError"
+        class="option-workspace__empty"
+      >
+        该到期日暂无期权合约。
       </div>
     </div>
 

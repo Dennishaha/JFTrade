@@ -78,6 +78,16 @@ describe("option combo layout contract", () => {
       'class="option-chain-table__scroll tv-scrollbar"',
     );
     expect(workspaceStyles.match(/scrollbar-gutter: auto/g)).toHaveLength(4);
+    expect(workspaceStyles).toMatch(
+      /\.option-workspace__expiry-list\s*\{[\s\S]*?overflow: hidden/,
+    );
+    expect(workspaceStyles).toMatch(
+      /\.option-workspace__expiry-more\s*\{[\s\S]*?overflow-x: hidden;[\s\S]*?overflow-y: auto/,
+    );
+    expect(workspace).toContain("fa-solid fa-chevron-down");
+    expect(workspaceStyles).toMatch(
+      /\.option-workspace__expiry-expand\s*\{[\s\S]*?border: 0;[\s\S]*?background: transparent/,
+    );
   });
 
   it("collapses the workspace pane together with the option trading dock", () => {

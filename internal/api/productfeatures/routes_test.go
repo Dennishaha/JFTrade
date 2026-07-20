@@ -36,6 +36,8 @@ func TestProductFeatureRoutesCoverReadWritePredictionAndSnapshots(t *testing.T) 
 		{http.MethodGet, "/api/v1/brokers/capabilities", ""},
 		{http.MethodPost, "/api/v1/market-data/snapshots?brokerId=api-test", `{"instrumentIds":["US.AAPL"]}`},
 		{http.MethodGet, "/api/v1/market-data/instruments/US.AAPL/profile?brokerId=api-test&pageSize=5&active=true&ratio=1.5&ids=1&ids=2", ""},
+		{http.MethodGet, "/api/v1/market-data/options/expirations/US.TME?brokerId=api-test", ""},
+		{http.MethodGet, "/api/v1/market-data/options/chains/US.TME?brokerId=api-test&beginTime=2026-08-21&endTime=2026-08-21", ""},
 		{http.MethodPost, "/api/v1/market-data/options/analysis/US.AAPL?brokerId=api-test", `{"operation":"strategy"}`},
 		{http.MethodGet, "/api/v1/market-data/options/analysis/US.BABA260724C80000?market=US&operation=volatility&brokerId=api-test", ""},
 		{http.MethodPost, "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test", `{"market":"US","underlyingInstrumentId":"US.BABA","expiryTimestamp":1784332800,"chain":{"productCode":"BABA","multiplier":100,"contractSize":100,"expirationType":2},"sort":"volume","optionType":"call"}`},
@@ -62,6 +64,16 @@ func TestProductFeatureRoutesCoverReadWritePredictionAndSnapshots(t *testing.T) 
 				adapter.lastQuery.InstrumentID != "US.BABA" {
 				t.Fatalf("0DTE query = %#v", adapter.lastQuery)
 			}
+		}
+		if strings.Contains(request.path, "/options/expirations/") &&
+			adapter.lastQuery.Params["operation"] != "expirations" {
+			t.Fatalf("expiration query = %#v", adapter.lastQuery)
+		}
+		if strings.Contains(request.path, "/options/chains/") &&
+			(adapter.lastQuery.Params["operation"] != "chain" ||
+				adapter.lastQuery.Params["beginTime"] != "2026-08-21" ||
+				adapter.lastQuery.Params["endTime"] != "2026-08-21") {
+			t.Fatalf("chain query = %#v", adapter.lastQuery)
 		}
 	}
 	if leaseID == "" {

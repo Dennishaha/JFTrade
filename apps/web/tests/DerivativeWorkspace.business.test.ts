@@ -38,9 +38,12 @@ vi.mock("../src/composables/useConsoleData", () => ({
 
 import OptionChainTable from "../src/components/product/OptionChainTable.vue";
 import OptionWorkspacePanel from "../src/components/product/OptionWorkspacePanel.vue";
+import { buildOptionComboTemplate } from "../src/composables/optionComboStrategies";
+import type { OptionContractChoice } from "../src/composables/optionComboDraft";
 import {
   buildOptionChainRows,
   formatOptionMetric,
+  normalizeOptionExpirations,
   optionCode,
   optionInstrumentId,
   optionStrike,
@@ -94,6 +97,14 @@ function feature(entries: Record<string, unknown>[], metadata = {}) {
   };
 }
 
+function expiration(
+  strikeTime: string,
+  optionExpiryDateDistance: number,
+  cycle = 2,
+) {
+  return { strikeTime, optionExpiryDateDistance, cycle };
+}
+
 beforeEach(() => {
   apiMocks.fetchWithInit.mockReset();
   apiMocks.fetchFeature.mockReset();
@@ -115,33 +126,42 @@ afterEach(() => {
 
 describe("option workspace", () => {
   it("does not turn a quote response into a recursive snapshot request loop", async () => {
-    apiMocks.fetchFeature.mockResolvedValue(
-      feature([
-        {
-          strikeTime: "2026-08-21",
-          option: [
-            {
-              call: {
-                basic: {
-                  name: "BABA Call 100",
-                  lotSize: 100,
-                  security: { code: "BABA-C100" },
+    apiMocks.fetchFeature.mockImplementation(async (path: string) => {
+      if (path.includes("/expirations/")) {
+        return feature([
+          expiration("2026-08-21", 33),
+          expiration("2026-09-18", 61),
+        ]);
+      }
+      if (path.includes("beginTime=2026-08-21")) {
+        return feature([
+          {
+            strikeTime: "2026-08-21",
+            option: [
+              {
+                call: {
+                  basic: {
+                    name: "BABA Call 100",
+                    lotSize: 100,
+                    security: { code: "BABA-C100" },
+                  },
+                  optionExData: { strikePrice: 100 },
                 },
-                optionExData: { strikePrice: 100 },
-              },
-              put: {
-                basic: {
-                  name: "BABA Put 100",
-                  lotSize: 100,
-                  security: { code: "BABA-P100" },
+                put: {
+                  basic: {
+                    name: "BABA Put 100",
+                    lotSize: 100,
+                    security: { code: "BABA-P100" },
+                  },
+                  optionExData: { strikePrice: 100 },
                 },
-                optionExData: { strikePrice: 100 },
               },
-            },
-          ],
-        },
-      ]),
-    );
+            ],
+          },
+        ]);
+      }
+      return feature([{ strikeTime: "2026-09-18", option: [] }]);
+    });
     apiMocks.fetchWithInit.mockImplementation(
       async (_path: string, init: RequestInit) => {
         const request = JSON.parse(String(init.body)) as {
@@ -186,10 +206,14 @@ describe("option workspace", () => {
       (value: ReturnType<typeof feature>) => void
     > = [];
     apiMocks.fetchFeature.mockImplementation(
-      () =>
-        new Promise((resolve) => {
+      (path: string) => {
+        if (path.includes("/expirations/")) {
+          return Promise.resolve(feature([expiration("2026-08-21", 33)]));
+        }
+        return new Promise((resolve) => {
           resolveChain = resolve;
-        }),
+        });
+      },
     );
     apiMocks.fetchWithInit.mockImplementation(
       () =>
@@ -208,6 +232,7 @@ describe("option workspace", () => {
       },
     });
     await nextTick();
+    await flushPromises();
     expect(wrapper.find(".option-workspace__chain-progress").exists()).toBe(
       true,
     );
@@ -254,10 +279,14 @@ describe("option workspace", () => {
   it("clears an in-flight chain indicator when leaving the chain view", async () => {
     let resolveChain!: (value: ReturnType<typeof feature>) => void;
     apiMocks.fetchFeature.mockImplementation(
-      () =>
-        new Promise((resolve) => {
+      (path: string) => {
+        if (path.includes("/expirations/")) {
+          return Promise.resolve(feature([expiration("2026-08-21", 33)]));
+        }
+        return new Promise((resolve) => {
           resolveChain = resolve;
-        }),
+        });
+      },
     );
     const wrapper = mount(OptionWorkspacePanel, {
       props: { instrumentId: "US.BABA", market: "US" },
@@ -270,6 +299,7 @@ describe("option workspace", () => {
       },
     });
     await nextTick();
+    await flushPromises();
     expect(wrapper.find(".option-workspace__chain-progress").exists()).toBe(
       true,
     );
@@ -284,6 +314,140 @@ describe("option workspace", () => {
     expect(wrapper.find(".option-workspace__chain-progress").exists()).toBe(
       false,
     );
+    wrapper.unmount();
+  });
+
+  it("keeps the selected chain when next-expiry prefetch fails and retries on selection", async () => {
+    let nextExpiryAttempts = 0;
+    apiMocks.fetchFeature.mockImplementation(async (path: string) => {
+      if (path.includes("/expirations/")) {
+        return feature([
+          expiration("2026-08-21", 33),
+          expiration("2026-09-18", 61),
+        ]);
+      }
+      if (path.includes("beginTime=2026-08-21")) {
+        return feature([
+          {
+            strikeTime: "2026-08-21",
+            option: [
+              {
+                call: {
+                  basic: { security: { code: "TME-C9" } },
+                  optionExData: { strikePrice: 9 },
+                },
+              },
+            ],
+          },
+        ]);
+      }
+      nextExpiryAttempts += 1;
+      if (nextExpiryAttempts === 1) throw new Error("预取失败");
+      return feature([
+        {
+          strikeTime: "2026-09-18",
+          option: [
+            {
+              call: {
+                basic: { security: { code: "TME-C10" } },
+                optionExData: { strikePrice: 10 },
+              },
+            },
+          ],
+        },
+      ]);
+    });
+    apiMocks.fetchWithInit.mockResolvedValue(feature([]));
+    const wrapper = mount(OptionWorkspacePanel, {
+      props: { instrumentId: "US.TME", market: "US" },
+      global: {
+        stubs: {
+          ...productGlobalStubs,
+          ProductFeaturePanel: { template: "<div />" },
+        },
+      },
+    });
+
+    await flushPromises();
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("预取失败");
+    expect(
+      setupState<{ optionRows: unknown[] }>(wrapper).optionRows,
+    ).toHaveLength(1);
+
+    await wrapper
+      .findAll(".option-workspace__expiry-list button")[1]!
+      .trigger("click");
+    await flushPromises();
+    await flushPromises();
+    const state = setupState<{
+      selectedExpiry: string;
+      optionRows: unknown[];
+    }>(wrapper);
+    expect(nextExpiryAttempts).toBe(2);
+    expect(state.selectedExpiry).toBe("2026-09-18");
+    expect(state.optionRows).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it("shows a distinct empty state when the catalog has no active expiry", async () => {
+    apiMocks.fetchFeature.mockResolvedValue(
+      feature([expiration("2026-07-17", -2)]),
+    );
+    const wrapper = mount(OptionWorkspacePanel, {
+      props: { instrumentId: "US.TME", market: "US" },
+      global: {
+        stubs: {
+          ...productGlobalStubs,
+          ProductFeaturePanel: { template: "<div />" },
+        },
+      },
+    });
+
+    await flushPromises();
+    expect(wrapper.text()).toContain("当前标的暂无未到期期权合约");
+    expect(
+      apiMocks.fetchFeature.mock.calls.some((call) =>
+        String(call[0]).includes("/options/chains/"),
+      ),
+    ).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("distinguishes an empty selected expiry from an empty catalog", async () => {
+    apiMocks.fetchFeature.mockImplementation(async (path: string) => {
+      if (path.includes("/expirations/")) {
+        return feature([expiration("2026-08-21", 33)]);
+      }
+      return feature([
+        {
+          strikeTime: "2026-09-18",
+          option: [
+            {
+              call: {
+                basic: { security: { code: "TME-C10" } },
+                optionExData: { strikePrice: 10 },
+              },
+            },
+          ],
+        },
+      ]);
+    });
+    apiMocks.fetchWithInit.mockResolvedValue(feature([]));
+    const wrapper = mount(OptionWorkspacePanel, {
+      props: { instrumentId: "US.TME", market: "US" },
+      global: {
+        stubs: {
+          ...productGlobalStubs,
+          ProductFeaturePanel: { template: "<div />" },
+        },
+      },
+    });
+
+    await flushPromises();
+    await flushPromises();
+    expect(wrapper.text()).toContain("该到期日暂无期权合约");
+    expect(wrapper.text()).not.toContain("当前标的暂无未到期期权合约");
     wrapper.unmount();
   });
 
@@ -314,9 +478,50 @@ describe("option workspace", () => {
       call: { basic: { name: "invalid", security: {} }, optionExData: {} },
       put: { basic: { name: "invalid", security: {} }, optionExData: {} },
     } as (typeof rows)[number]);
-    apiMocks.fetchFeature.mockResolvedValue(
-      feature([{ strikeTime: "2026-08-21", option: rows }]),
-    );
+    apiMocks.fetchFeature.mockImplementation(async (path: string) => {
+      if (path.includes("/expirations/")) {
+        return feature([
+          expiration("2026-07-17", -2),
+          expiration("2026-08-21", 33),
+          expiration("2026-08-21", 33),
+          expiration("2026-09-18", 61),
+          expiration("2028-01-21", 551),
+          expiration("2028-06-16", 698),
+          expiration("2029-01-19", 915),
+        ]);
+      }
+      if (path.includes("beginTime=2026-08-21")) {
+        return feature([{ strikeTime: "2026-08-21", option: rows }]);
+      }
+      if (path.includes("beginTime=2026-09-18")) {
+        return feature([
+          {
+            strikeTime: "2026-09-18",
+            option: [
+              {
+                call: {
+                  basic: {
+                    name: "Far Call 200",
+                    lotSize: 100,
+                    security: { code: "C200-FAR" },
+                  },
+                  optionExData: { strikePrice: 200 },
+                },
+                put: {
+                  basic: {
+                    name: "Far Put 200",
+                    lotSize: 100,
+                    security: { code: "P200-FAR" },
+                  },
+                  optionExData: { strikePrice: 200 },
+                },
+              },
+            ],
+          },
+        ]);
+      }
+      return feature([]);
+    });
     apiMocks.fetchWithInit.mockImplementation(
       async (_path: string, init: RequestInit) => {
         const request = JSON.parse(String(init.body)) as {
@@ -363,6 +568,7 @@ describe("option workspace", () => {
       visibleOptionRows: Record<string, unknown>[];
       chainRows: Array<{
         call: {
+          instrumentId: string;
           moneyness: string;
           bidPrice: number | null;
           delta: number | null;
@@ -374,8 +580,13 @@ describe("option workspace", () => {
       chainPageCount: number;
       atmStrike: number;
       rangedChainRows: unknown[];
+      expirations: Array<{
+        date: string;
+        daysToExpiry: number;
+        cycleLabel: string;
+      }>;
+      comboContracts: OptionContractChoice[];
       selectedExpiry: string;
-      selectedExpiryDays: number | null;
       strikeRange: string;
       section: string;
       analysisOperation: string;
@@ -384,8 +595,35 @@ describe("option workspace", () => {
       featurePath: string;
       selectedContract: { instrumentId: string } | null;
       formatExpiry: (value: string) => string;
+      loadSelectedChain: () => Promise<void>;
+      selectComboLeg: (
+        contract: { instrumentId: string },
+        side: "buy" | "sell",
+      ) => void;
     }>(wrapper);
 
+    expect(state.expirations.map((expiry) => expiry.date)).toEqual([
+      "2026-08-21",
+      "2026-09-18",
+      "2028-01-21",
+      "2028-06-16",
+      "2029-01-19",
+    ]);
+    expect(state.expirations[0]).toMatchObject({
+      daysToExpiry: 33,
+      cycleLabel: "月",
+    });
+    expect(state.comboContracts.map((contract) => contract.expiry)).toEqual(
+      expect.arrayContaining(["2026-08-21", "2026-09-18"]),
+    );
+    expect(
+      buildOptionComboTemplate(
+        "calendar",
+        state.comboContracts,
+        "2026-08-21",
+        200,
+      ).map((leg) => leg.expiry),
+    ).toEqual(["2026-08-21", "2026-09-18"]);
     expect(state.optionRows).toHaveLength(23);
     expect(state.visibleOptionRows).toHaveLength(20);
     expect(state.chainPageCount).toBe(2);
@@ -398,7 +636,6 @@ describe("option workspace", () => {
     expect(state.chainRows[0]!.call.gamma).toBe(0.03);
     expect(formatOptionMetric(null)).toBe("—");
     expect(wrapper.text()).toContain("ITM");
-    await wrapper.get('select[label="全部到期日"]').setValue("2026-08-21");
     await wrapper.get(".option-workspace__expiry-list button").trigger("click");
     const contractButtons = wrapper
       .getComponent(OptionChainTable)
@@ -448,12 +685,8 @@ describe("option workspace", () => {
     expect(state.rangedChainRows).toHaveLength(20);
     await rangeButtons[0]!.trigger("click");
     expect(state.rangedChainRows).toHaveLength(23);
-    state.selectedExpiry = "";
-    expect(state.selectedExpiryDays).toBeNull();
-    state.selectedExpiry = "invalid-date";
-    expect(state.selectedExpiryDays).toBeNull();
     expect(state.formatExpiry("invalid-date")).toBe("invalid-date");
-    state.selectedExpiry = "2026-08-21";
+    expect(state.formatExpiry("2026-08-21")).toBe("2026/08/21");
 
     await wrapper.get(".pagination-next").trigger("click");
     await flushPromises();
@@ -463,12 +696,44 @@ describe("option workspace", () => {
     );
     expect(body.instrumentIds).toHaveLength(5);
 
+    expect(wrapper.find(".option-workspace__date-range").exists()).toBe(false);
+    const chainPaths = apiMocks.fetchFeature.mock.calls
+      .map((call) => String(call[0]))
+      .filter((path) => path.includes("/options/chains/"));
+    expect(chainPaths).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          "beginTime=2026-08-21&endTime=2026-08-21",
+        ),
+        expect.stringContaining(
+          "beginTime=2026-09-18&endTime=2026-09-18",
+        ),
+      ]),
+    );
+    expect(
+      chainPaths.every((path) => {
+        const query = new URL(path, "http://localhost").searchParams;
+        return query.get("beginTime") === query.get("endTime");
+      }),
+    ).toBe(true);
+    state.selectComboLeg(state.chainRows[0]!.call, "buy");
+    await state.loadSelectedChain();
+    const expiryExpand = wrapper.get(
+      'button[aria-label="展开全部到期日"]',
+    );
+    await expiryExpand.trigger("click");
+    expect(wrapper.get('[aria-label="其余全部到期日"]').text()).toContain(
+      "2029/01/19",
+    );
     await wrapper
-      .get('input[aria-label="期权开始到期日"]')
-      .setValue("2026-07-20");
-    await wrapper
-      .get('input[aria-label="期权结束到期日"]')
-      .setValue("2026-08-20");
+      .get('[aria-label="其余全部到期日"] button:last-child')
+      .trigger("click");
+    await flushPromises();
+    expect(state.selectedExpiry).toBe("2029-01-19");
+    expect(wrapper.find('[aria-label="其余全部到期日"]').exists()).toBe(false);
+    expect(wrapper.get(".option-workspace__expiry-list").text()).toContain(
+      "2029/01/19",
+    );
     wrapper.getComponent({ name: "VBtnToggle" }).vm.$emit(
       "update:modelValue",
       "analysis",
@@ -504,7 +769,7 @@ describe("option workspace", () => {
 
   it("clears stale chains on errors and tolerates missing contract fields", async () => {
     apiMocks.fetchFeature
-      .mockRejectedValueOnce(new Error("链失败"))
+      .mockRejectedValueOnce(new Error("目录失败"))
       .mockRejectedValueOnce("字符串失败");
     const wrapper = mount(OptionWorkspacePanel, {
       props: { instrumentId: "HK.00700", market: "HK" },
@@ -517,20 +782,35 @@ describe("option workspace", () => {
       },
     });
     await flushPromises();
-    expect(wrapper.text()).toContain("链失败");
-    expect(wrapper.text()).toContain("当前到期范围暂无期权合约");
+    expect(wrapper.text()).toContain("目录失败");
+    expect(wrapper.text()).not.toContain("当前标的暂无未到期期权合约");
     const state = setupState<{
-      loadChain: () => Promise<void>;
+      loadExpirationCatalog: () => Promise<void>;
       loadVisibleSnapshots: () => Promise<void>;
       section: string;
-      chainError: string;
+      expirationError: string;
       snapshotError: string;
     }>(wrapper);
-    await state.loadChain();
+    await state.loadExpirationCatalog();
     expect(wrapper.text()).toContain("字符串失败");
     expect(optionCode({}, "call")).toBe("");
     expect(optionInstrumentId("US", "")).toBe("");
     expect(optionStrike({})).toBeNull();
+    expect(
+      normalizeOptionExpirations([
+        expiration("2026-07-17", -2),
+        expiration("2026-08-21", 33),
+        expiration("2026-08-21", 33, 0),
+        { strikeTime: "invalid", optionExpiryDateDistance: 1 },
+      ]),
+    ).toEqual([
+      {
+        date: "2026-08-21",
+        daysToExpiry: 33,
+        cycle: 2,
+        cycleLabel: "月",
+      },
+    ]);
     expect(buildOptionChainRows([{}], {}, "US", null)[0]).toMatchObject({
       strike: null,
       isAtm: false,
@@ -539,8 +819,11 @@ describe("option workspace", () => {
     state.section = "analysis";
     await state.loadVisibleSnapshots();
     state.section = "chain";
-    apiMocks.fetchFeature.mockResolvedValue(
-      feature([
+    apiMocks.fetchFeature.mockImplementation(async (path: string) => {
+      if (path.includes("/expirations/")) {
+        return feature([expiration("2026-08-21", 33)]);
+      }
+      return feature([
         {
           strikeTime: "2026-08-21",
           option: [
@@ -552,10 +835,12 @@ describe("option workspace", () => {
             },
           ],
         },
-      ]),
-    );
+      ]);
+    });
     apiMocks.fetchWithInit.mockRejectedValue(new Error("快照失败"));
-    await state.loadChain();
+    await state.loadExpirationCatalog();
+    await flushPromises();
+    await flushPromises();
     await state.loadVisibleSnapshots();
     await vi.waitFor(() => {
       expect(wrapper.text()).toContain(
@@ -579,10 +864,12 @@ describe("option workspace", () => {
       },
     });
     const emptyState = setupState<{
+      loadSelectedChain: () => Promise<void>;
       loadVisibleSnapshots: () => Promise<void>;
       section: string;
       featurePath: string;
     }>(empty);
+    await emptyState.loadSelectedChain();
     await emptyState.loadVisibleSnapshots();
     emptyState.section = "analysis";
     await nextTick();

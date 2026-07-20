@@ -26,6 +26,63 @@ export interface OptionChainRowModel {
   put: OptionChainSideModel;
 }
 
+export interface OptionExpirationModel {
+  date: string;
+  daysToExpiry: number;
+  cycle: number;
+  cycleLabel: string;
+}
+
+const optionExpirationCycleLabels: Record<number, string> = {
+  1: "周",
+  2: "月",
+  3: "月末",
+  4: "季",
+  11: "周一",
+  12: "周二",
+  13: "周三",
+  14: "周四",
+  15: "周五",
+};
+
+function optionExpirationCycleLabel(cycle: number): string {
+  return optionExpirationCycleLabels[cycle] ?? "";
+}
+
+export function normalizeOptionExpirations(
+  entries: Entry[],
+): OptionExpirationModel[] {
+  const byDate = new Map<string, OptionExpirationModel>();
+  for (const entry of entries) {
+    const date = String(entry.strikeTime ?? "").trim();
+    const rawDays = entry.optionExpiryDateDistance;
+    const daysToExpiry = rawDays == null ? Number.NaN : Number(rawDays);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !Number.isFinite(daysToExpiry) ||
+      daysToExpiry < 0
+    ) {
+      continue;
+    }
+    const rawCycle = entry.cycle;
+    const cycle = rawCycle == null ? 0 : Number(rawCycle);
+    const normalizedCycle = Number.isInteger(cycle) ? cycle : 0;
+    const candidate: OptionExpirationModel = {
+      date,
+      daysToExpiry,
+      cycle: normalizedCycle,
+      cycleLabel: optionExpirationCycleLabel(normalizedCycle),
+    };
+    const current = byDate.get(date);
+    if (current == null || (!current.cycleLabel && candidate.cycleLabel)) {
+      byDate.set(date, candidate);
+    }
+  }
+  return [...byDate.values()].sort((left, right) =>
+    left.date.localeCompare(right.date),
+  );
+}
+
 export function asOptionEntry(value: unknown): Entry {
   return value != null && typeof value === "object" && !Array.isArray(value)
     ? (value as Entry)
