@@ -90,23 +90,29 @@ func (s *Service) ReadMarketCandles(
 	limit int,
 	fromTime string,
 	toTime string,
+	beforeTime string,
 ) (map[string]any, error) {
 	market, symbol, instrumentID, err := normalizeWorkspaceInstrument(market, symbol)
 	if err != nil {
 		return nil, err
+	}
+	pageSize := limit
+	if pageSize < 1 {
+		pageSize = 500
 	}
 	result, err := s.Query(ctx, broker.FeatureQuery{
 		BrokerID:     brokerID,
 		Market:       market,
 		InstrumentID: instrumentID,
 		FeatureID:    broker.FeatureMarketCandles,
-		PageSize:     limit,
+		PageSize:     pageSize,
 		Params: map[string]any{
-			"operation": "historical",
-			"period":    period,
-			"limit":     limit,
-			"fromTime":  fromTime,
-			"toTime":    toTime,
+			"operation":  "historical",
+			"period":     period,
+			"limit":      pageSize,
+			"fromTime":   fromTime,
+			"toTime":     toTime,
+			"beforeTime": beforeTime,
 		},
 	})
 	if err != nil {
@@ -122,16 +128,28 @@ func (s *Service) ReadMarketCandles(
 		candles = append(candles, candle)
 	}
 	meta := workspaceProviderMeta(result, instrumentID, false)
-	meta["extendedHours"] = false
-	meta["session"] = "regular"
+	if result.Metadata != nil {
+		if extendedHours, ok := result.Metadata["extendedHours"].(bool); ok {
+			meta["extendedHours"] = extendedHours
+		}
+		if session, ok := result.Metadata["session"].(string); ok && session != "" {
+			meta["session"] = session
+		}
+	}
+	hasMore := result.HasMore != nil && *result.HasMore
+	pagination := map[string]any{"hasMore": hasMore}
+	if result.NextCursor != "" {
+		pagination["nextBefore"] = result.NextCursor
+	}
 	return map[string]any{
 		"request": map[string]any{
 			"instrument": workspaceInstrumentRequest(market, symbol, instrumentID),
 			"period":     period,
-			"limit":      limit,
+			"limit":      pageSize,
 		},
 		"candles":       candles,
 		"totalReturned": len(candles),
+		"pagination":    pagination,
 		"meta":          meta,
 	}, nil
 }

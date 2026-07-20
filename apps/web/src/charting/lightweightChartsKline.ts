@@ -317,7 +317,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       const barsInfo = this.candleSeries.barsInLogicalRange(range);
       const barsBefore = barsInfo?.barsBefore;
       if (
-        (typeof barsBefore === "number" ? barsBefore < 10 : range.from <= 5) &&
+        (typeof barsBefore === "number" ? barsBefore < 50 : range.from <= 50) &&
         this.lastLoadMoreLogicalFrom !== range.from
       ) {
         this.lastLoadMoreLogicalFrom = range.from;

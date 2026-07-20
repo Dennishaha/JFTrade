@@ -52,12 +52,15 @@ export interface KlineChartFactory {
 export const KLINE_PERIODS = [
   { value: "tick", label: "Tick" },
   { value: "1m", label: "1M" },
+  { value: "3m", label: "3M" },
   { value: "5m", label: "5M" },
+  { value: "10m", label: "10M" },
   { value: "15m", label: "15M" },
   { value: "30m", label: "30M" },
   { value: "1h", label: "1H" },
   { value: "1d", label: "1D" },
   { value: "1w", label: "1W" },
+  { value: "1mo", label: "1月" },
 ] as const;
 
 const MOVING_AVERAGE_PERIODS = [5, 10, 20, 30, 60, 120, 180, 250] as const;
@@ -154,6 +157,8 @@ const KLINE_PERIOD_ALIASES: Record<string, string> = {
   "1H": "1h",
   "1D": "1d",
   "1W": "1w",
+  "1MO": "1mo",
+  K_MONTH: "1mo",
 };
 
 export function normalizeKlinePeriod(period: string): string {
@@ -178,6 +183,7 @@ export function normalizeKlinePeriod(period: string): string {
     case "4h":
     case "1d":
     case "1w":
+    case "1mo":
       return lower;
     default:
       throw new Error(`不支持的 K 线周期：${period}`);
@@ -333,6 +339,10 @@ function truncateSnapshotTimeToPeriod(
         ),
       ).toISOString();
     }
+    case "1mo":
+      return new Date(
+        Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1),
+      ).toISOString();
     default:
       return null;
   }
@@ -364,7 +374,7 @@ function maxRealtimeOverlayGapMs(
   period: string,
   durationMs: number,
 ): number | null {
-  if (period === "1d" || period === "1w") {
+  if (period === "1d" || period === "1w" || period === "1mo") {
     return null;
   }
   return Math.max(durationMs * 3, 15 * 60_000);
@@ -446,6 +456,8 @@ export function resolveKlinePeriodDurationMs(period: string): number | null {
       return 24 * 60 * 60_000;
     case "1w":
       return 7 * 24 * 60 * 60_000;
+    case "1mo":
+      return 30 * 24 * 60 * 60_000;
     default:
       return null;
   }

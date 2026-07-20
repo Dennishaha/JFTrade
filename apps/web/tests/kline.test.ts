@@ -17,12 +17,15 @@ describe("kline realtime bucket resolution", () => {
     const expectedByPeriod = new Map([
       ["tick", at],
       ["1m", "2026-05-20T10:01:00.000Z"],
+      ["3m", "2026-05-20T10:03:00.000Z"],
       ["5m", "2026-05-20T10:05:00.000Z"],
+      ["10m", "2026-05-20T10:10:00.000Z"],
       ["15m", "2026-05-20T10:15:00.000Z"],
       ["30m", "2026-05-20T10:30:00.000Z"],
       ["1h", "2026-05-20T11:00:00.000Z"],
       ["1d", at],
       ["1w", at],
+      ["1mo", at],
     ]);
 
     for (const { value: period } of KLINE_PERIODS) {
@@ -133,6 +136,39 @@ describe("kline realtime bucket resolution", () => {
         volume: 1500,
       },
     ]);
+  });
+
+  it("creates the current monthly bucket from a realtime snapshot", () => {
+    const candles = [
+      {
+        period: "1mo",
+        at: "2026-05-01T00:00:00.000Z",
+        open: 100,
+        high: 105,
+        low: 98,
+        close: 102,
+        volume: 1200,
+      },
+    ];
+    const snapshot = {
+      price: 110,
+      volume: 1600,
+      at: "2026-06-20T12:30:00.000Z",
+      observedAt: "2026-06-20T12:30:00.000Z",
+    };
+
+    expect(resolveRealtimeBucketStart(candles, snapshot, "1mo")).toBe(
+      "2026-06-01T00:00:00.000Z",
+    );
+    expect(overlayRealtimeTickCandle(candles, snapshot, "1mo").at(-1)).toEqual({
+      period: "1mo",
+      at: "2026-06-01T00:00:00.000Z",
+      open: 102,
+      high: 110,
+      low: 102,
+      close: 110,
+      volume: 1600,
+    });
   });
 
   it("keeps weekly snapshots on the current week boundary", () => {
@@ -402,6 +438,7 @@ describe("kline realtime bucket resolution", () => {
     expect(normalizeKlinePeriod("1W")).toBe("1w");
     expect(formatKlinePeriodLabel("2h")).toBe("2H");
     expect(resolveKlinePeriodDurationMs("1w")).toBe(7 * 24 * 60 * 60_000);
+    expect(resolveKlinePeriodDurationMs("1mo")).toBe(30 * 24 * 60 * 60_000);
     expect(resolveKlinePeriodDurationMs("tick")).toBeNull();
     expect(resolveKlinePeriodDurationMs("unsupported")).toBeNull();
     expect(() => normalizeKlinePeriod("invalid")).toThrow(

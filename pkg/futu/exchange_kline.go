@@ -366,6 +366,8 @@ func futuKLineTypesFromInterval(interval types.Interval) (qotcommonpb.KLType, qo
 		return qotcommonpb.KLType_KLType_3Min, qotcommonpb.SubType_SubType_KL_3Min, nil
 	case types.Interval5m:
 		return qotcommonpb.KLType_KLType_5Min, qotcommonpb.SubType_SubType_KL_5Min, nil
+	case types.Interval10m:
+		return qotcommonpb.KLType_KLType_10Min, qotcommonpb.SubType_SubType_KL_10Min, nil
 	case types.Interval15m:
 		return qotcommonpb.KLType_KLType_15Min, qotcommonpb.SubType_SubType_KL_15Min, nil
 	case types.Interval30m:

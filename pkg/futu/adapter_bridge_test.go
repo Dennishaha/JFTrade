@@ -655,8 +655,8 @@ func TestBrokerAdapterQuoteKLinesSubscriptionsAndValidation(t *testing.T) {
 	if len(klines.KLines) != 1 {
 		t.Fatalf("expected one kline, got %#v", klines.KLines)
 	}
-	if got := klines.KLines[0].Time; got != "2026-05-20 08:00:00" {
-		t.Fatalf("KLine time = %q, want 2026-05-20 08:00:00", got)
+	if got := klines.KLines[0].Time; got != "2026-05-20T07:59:00Z" {
+		t.Fatalf("KLine time = %q, want 2026-05-20T07:59:00Z", got)
 	}
 	if klines.KLines[0].Volume == nil || *klines.KLines[0].Volume != 1000 {
 		t.Fatalf("KLine volume = %#v, want 1000", klines.KLines[0].Volume)

@@ -14,6 +14,7 @@ vi.mock("../src/composables/apiClient", () => ({
 import BrokerProviderTag from "../src/components/shared/BrokerProviderTag.vue";
 import {
   brokerProviderOptions,
+  brokerSupportedChartPeriods,
   configureBrokerProviderDefaults,
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
@@ -347,5 +348,52 @@ describe("broker provider tag", () => {
     await selection.loadBrokerProviders(true);
     expect(selection.loadError.value).toBe("权限失败");
     expect(selection.loading.value).toBe(false);
+  });
+
+  it("derives chart periods only from the selected provider and market", () => {
+    const descriptors = [
+      {
+        id: "alpha",
+        displayName: "Alpha",
+        capabilities: [
+          {
+            market: "US",
+            supportsQuote: true,
+            supportsTrade: false,
+            features: [
+              {
+                id: "market.candles",
+                state: "degraded" as const,
+                supportedPeriods: ["1m", "5m"],
+              },
+              { id: "market.ticks", state: "available" as const },
+            ],
+          },
+          {
+            market: "HK",
+            supportsQuote: true,
+            supportsTrade: false,
+            features: [
+              {
+                id: "market.candles",
+                state: "available" as const,
+                supportedPeriods: ["1d"],
+              },
+              { id: "market.ticks", state: "unavailable" as const },
+            ],
+          },
+        ],
+      },
+    ];
+
+    expect(brokerSupportedChartPeriods("alpha", "US", descriptors)).toEqual([
+      "1m",
+      "5m",
+      "tick",
+    ]);
+    expect(brokerSupportedChartPeriods("alpha", "HK", descriptors)).toEqual([
+      "1d",
+    ]);
+    expect(brokerSupportedChartPeriods("missing", "US", descriptors)).toBeNull();
   });
 });

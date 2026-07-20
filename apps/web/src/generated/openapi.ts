@@ -3352,6 +3352,7 @@ export interface paths {
         limit?: number;
         fromTime?: string;
         toTime?: string;
+        before?: string;
         brokerId?: string;
       };
       };

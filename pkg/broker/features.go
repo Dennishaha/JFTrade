@@ -101,6 +101,7 @@ const (
 type FeatureCapability struct {
 	ID                 FeatureID       `json:"id"`
 	Markets            []string        `json:"markets"`
+	SupportedPeriods   []string        `json:"supportedPeriods,omitempty"`
 	ProductClasses     []ProductClass  `json:"productClasses,omitempty"`
 	MarketSegments     []MarketSegment `json:"marketSegments,omitempty"`
 	Access             FeatureAccess   `json:"access"`

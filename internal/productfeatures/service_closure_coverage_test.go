@@ -222,7 +222,7 @@ func TestCoreCandleBridgeValidatesBoundariesAndProductSemantics(t *testing.T) {
 		BrokerID: "fallback", InstrumentID: " us.aapl ",
 		Params: map[string]any{"limit": -1, "fromTime": "from", "toTime": "to"},
 	})
-	if err != nil || query.BrokerID != "fallback" || query.Limit != 50 ||
+	if err != nil || query.BrokerID != "fallback" || query.Limit != 500 ||
 		query.Period != "1m" || query.FromTime != "from" || query.ToTime != "to" ||
 		operation != "historical" {
 		t.Fatalf("default candle query = %#v, %q, %v", query, operation, err)

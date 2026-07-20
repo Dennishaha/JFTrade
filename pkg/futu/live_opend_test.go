@@ -124,6 +124,80 @@ func TestLiveOpenDProto108Contract(t *testing.T) {
 	t.Logf("HK.00700 snapshotPrice=%v orderBookBids=%d asks=%d", snapshots[0].GetBasic().GetCurPrice(), len(book.BidList), len(book.AskList))
 }
 
+func TestLiveOpenDSZ000858DeclaredCandlePeriods(t *testing.T) {
+	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
+		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
+	defer cancel()
+	exchange := NewExchange(DefaultOpenDAddr)
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
+	reader := NewBrokerAdapter(exchange).MarketData()
+
+	for _, period := range futuCandlePeriods() {
+		t.Run(period, func(t *testing.T) {
+			latest, err := reader.QueryKLines(ctx, broker.KLineQuery{
+				Symbol: "SZ.000858",
+				Period: period,
+				Limit:  500,
+			})
+			if err != nil {
+				t.Fatalf("latest page: %v", err)
+			}
+			if len(latest.KLines) == 0 || len(latest.KLines) > 500 {
+				t.Fatalf("latest page candles=%d", len(latest.KLines))
+			}
+			assertLiveKLinePage(t, latest.KLines, "")
+			latestAt, parseErr := time.Parse(time.RFC3339Nano, latest.KLines[len(latest.KLines)-1].Time)
+			if parseErr != nil || time.Since(latestAt) > 90*24*time.Hour {
+				t.Fatalf("latest candle time = %q, parse=%v", latest.KLines[len(latest.KLines)-1].Time, parseErr)
+			}
+			if !latest.Pagination.HasMore {
+				t.Logf("latest=%s total=%d reached listing boundary", latestAt, len(latest.KLines))
+				return
+			}
+			if len(latest.KLines) != 500 || latest.Pagination.NextBefore == "" {
+				t.Fatalf("latest pagination = %#v, candles=%d", latest.Pagination, len(latest.KLines))
+			}
+
+			older, olderErr := reader.QueryKLines(ctx, broker.KLineQuery{
+				Symbol:     "SZ.000858",
+				Period:     period,
+				BeforeTime: latest.Pagination.NextBefore,
+				Limit:      500,
+			})
+			if olderErr != nil || len(older.KLines) == 0 {
+				t.Fatalf("older page candles=%d error=%v", len(older.KLines), olderErr)
+			}
+			assertLiveKLinePage(t, older.KLines, latest.Pagination.NextBefore)
+			t.Logf(
+				"latest=%s first=%s older=%d nextBefore=%s",
+				latest.KLines[len(latest.KLines)-1].Time,
+				latest.KLines[0].Time,
+				len(older.KLines),
+				older.Pagination.NextBefore,
+			)
+		})
+	}
+}
+
+func assertLiveKLinePage(t *testing.T, klines []broker.KLineItem, before string) {
+	t.Helper()
+	seen := make(map[string]struct{}, len(klines))
+	for index, kline := range klines {
+		if _, ok := seen[kline.Time]; ok {
+			t.Fatalf("duplicate candle time %q", kline.Time)
+		}
+		seen[kline.Time] = struct{}{}
+		if before != "" && kline.Time >= before {
+			t.Fatalf("candle %q is not strictly before %q", kline.Time, before)
+		}
+		if index > 0 && klines[index-1].Time >= kline.Time {
+			t.Fatalf("candles are not strictly ascending at %q -> %q", klines[index-1].Time, kline.Time)
+		}
+	}
+}
+
 func TestLiveOpenDOptionBABAReadClosure(t *testing.T) {
 	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
 		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")

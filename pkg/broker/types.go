@@ -365,18 +365,27 @@ type QuoteItem struct {
 
 type KLineQuery struct {
 	ReadQuery
-	Symbol   string `json:"symbol"`
-	Period   string `json:"period"` // 1m, 5m, 15m, 30m, 60m, 1d, 1w, 1M
-	FromTime string `json:"fromTime,omitempty"`
-	ToTime   string `json:"toTime,omitempty"`
-	Limit    int32  `json:"limit,omitempty"`
+	Symbol     string `json:"symbol"`
+	Period     string `json:"period"` // 1m, 3m, 5m, 10m, 15m, 30m, 1h, 1d, 1w, 1mo
+	FromTime   string `json:"fromTime,omitempty"`
+	ToTime     string `json:"toTime,omitempty"`
+	BeforeTime string `json:"beforeTime,omitempty"`
+	Limit      int32  `json:"limit,omitempty"`
 }
 
 type KLineSnapshot struct {
-	AccountID string      `json:"accountId"`
-	Symbol    string      `json:"symbol"`
-	Period    string      `json:"period"`
-	KLines    []KLineItem `json:"klines"`
+	AccountID     string          `json:"accountId"`
+	Symbol        string          `json:"symbol"`
+	Period        string          `json:"period"`
+	KLines        []KLineItem     `json:"klines"`
+	Pagination    KLinePagination `json:"pagination"`
+	ExtendedHours bool            `json:"extendedHours"`
+	Session       string          `json:"session,omitempty"`
+}
+
+type KLinePagination struct {
+	HasMore    bool   `json:"hasMore"`
+	NextBefore string `json:"nextBefore,omitempty"`
 }
 
 type KLineItem struct {
@@ -388,6 +397,7 @@ type KLineItem struct {
 	Volume     *float64 `json:"volume,omitempty"`
 	Turnover   *float64 `json:"turnover,omitempty"`
 	ChangeRate *float64 `json:"changeRate,omitempty"`
+	Session    string   `json:"session,omitempty"`
 }
 
 // --- Security Info ---

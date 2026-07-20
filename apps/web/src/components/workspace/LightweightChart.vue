@@ -9,13 +9,22 @@ import {
   overlayRealtimeTickCandle,
   type KlineCandle,
 } from "../../charting/kline";
-import { useBrokerProviderSelection } from "../../composables/brokerProviderSelection";
+import {
+  brokerSupportedChartPeriods,
+  useBrokerProviderSelection,
+} from "../../composables/brokerProviderSelection";
 import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 
 const { prefs, update } = useWorkspaceTradingPrefs();
-const { selectedBrokerId } = useBrokerProviderSelection();
+const {
+  brokerDescriptors,
+  selectedBrokerId,
+  loadBrokerProviders,
+  loading: isLoadingBrokerCapabilities,
+  loadError: brokerCapabilitiesError,
+} = useBrokerProviderSelection();
 const {
   currentMarketDataCandles: marketDataCandles,
   currentMarketDataSnapshot: marketDataSnapshot,
@@ -24,6 +33,10 @@ const {
   marketDataQueryPeriod,
   marketDataQueryError,
   isLoadingMarketDataQuery,
+  isLoadingOlderMarketData,
+  hasMoreMarketDataHistory,
+  marketDataNextBefore,
+  marketDataOlderError,
   loadMarketDataQuery,
   selectWorkspaceInstrument,
   acquireMarketDataSubscription,
@@ -48,9 +61,57 @@ let heartbeatTimer = 0;
 let reloadInFlight: { key: string; promise: Promise<void> } | null = null;
 let chartReloadSeq = 0;
 
-const periods = KLINE_PERIODS;
+const supportedPeriodValues = computed(() =>
+  brokerSupportedChartPeriods(
+    selectedBrokerId.value,
+    prefs.value.market,
+    brokerDescriptors.value,
+  ),
+);
+const periods = computed(() => {
+  const supported = new Set(supportedPeriodValues.value ?? []);
+  return KLINE_PERIODS.filter((period) => supported.has(period.value));
+});
+const hasResolvedPeriodCapabilities = computed(
+  () =>
+    !isLoadingBrokerCapabilities.value &&
+    supportedPeriodValues.value != null,
+);
+const hasSupportedChartPeriod = computed(() => periods.value.length > 0);
+
+function normalizedPreferencePeriod(): string {
+  try {
+    return normalizeKlinePeriod(prefs.value.period);
+  } catch {
+    return "";
+  }
+}
+
+function fallbackPeriod(values: readonly string[]): string {
+  for (const candidate of ["1m", "5m", "1d"]) {
+    if (values.includes(candidate)) return candidate;
+  }
+  return values.find((period) => period !== "tick") ?? "tick";
+}
+
+function reconcileSelectedPeriod(): void {
+  const renderable = new Set(KLINE_PERIODS.map((period) => period.value));
+  const supported = (supportedPeriodValues.value ?? []).filter((period) =>
+    renderable.has(period as (typeof KLINE_PERIODS)[number]["value"]),
+  );
+  const current = normalizedPreferencePeriod();
+  if (supported.length > 0 && !supported.includes(current)) {
+    update({ period: fallbackPeriod(supported) });
+  }
+}
+
 const chartTarget = computed(() => {
-  const period = normalizeKlinePeriod(prefs.value.period);
+  const preferredPeriod = normalizedPreferencePeriod();
+  const period = periods.value.some(
+    (candidate) => candidate.value === preferredPeriod,
+  )
+    ? preferredPeriod
+    : "";
   return {
     brokerId: selectedBrokerId.value,
     market: prefs.value.market.trim().toUpperCase(),
@@ -89,6 +150,21 @@ const chartSource = computed(() =>
 const chartFromCache = computed(() =>
   marketDataSnapshot.value?.meta.fromCache ?? marketDataCandles.value?.meta.fromCache ?? false,
 );
+const historyLoadStatus = computed(() => {
+  if (chartTarget.value.period === "tick" || chartTarget.value.period === "") {
+    return "";
+  }
+  if (isLoadingOlderMarketData.value) return "正在加载更早数据";
+  if (marketDataOlderError.value) return "加载失败，拖动或点击重试";
+  if (
+    marketDataCandles.value != null &&
+    !isLoadingMarketDataQuery.value &&
+    !hasMoreMarketDataHistory.value
+  ) {
+    return "已到最早数据";
+  }
+  return "";
+});
 
 function resolveChartSubscriptionTarget() {
   return chartTarget.value;
@@ -109,6 +185,10 @@ async function reload(options: { preserveExisting?: boolean } = {}): Promise<voi
 
   const requestSeq = ++chartReloadSeq;
   const promise = (async () => {
+    if (target.period === "") {
+      await syncChartSubscription(target, requestSeq);
+      return;
+    }
     selectWorkspaceInstrument({
       market: target.market,
       symbol: target.symbol,
@@ -213,7 +293,7 @@ async function syncChartSubscription(
     heldChartSubscription = null;
   }
 
-  if (next.market === "" || next.symbol === "") {
+  if (next.market === "" || next.symbol === "" || next.period === "") {
     return;
   }
 
@@ -266,10 +346,35 @@ function setPeriod(p: string): void {
   update({ period: normalizeKlinePeriod(p) });
 }
 
+async function handleLoadMore(): Promise<void> {
+  const target = chartTarget.value;
+  if (
+    target.period === "" ||
+    target.period === "tick" ||
+    isLoadingOlderMarketData.value ||
+    !hasMoreMarketDataHistory.value ||
+    marketDataNextBefore.value === ""
+  ) {
+    return;
+  }
+  await loadMarketDataQuery({
+    appendOlder: true,
+    before: marketDataNextBefore.value,
+  });
+}
+
+async function retryBrokerCapabilities(): Promise<void> {
+  await loadBrokerProviders(true);
+  reconcileSelectedPeriod();
+}
+
 onMounted(() => {
   document.addEventListener("visibilitychange", handleChartVisibilityChange);
   window.addEventListener("online", handleChartOnline);
-  void reload();
+  void loadBrokerProviders().then(() => {
+    reconcileSelectedPeriod();
+    void reload();
+  });
   heartbeatTimer = window.setInterval(() => {
     void heartbeatChartSubscription(selectedBrokerId.value);
   }, 15_000);
@@ -302,6 +407,16 @@ watch(
     void reload();
   },
 );
+watch(
+  () => [
+    selectedBrokerId.value,
+    prefs.value.market,
+    supportedPeriodValues.value?.join(",") ?? "",
+  ],
+  () => {
+    reconcileSelectedPeriod();
+  },
+);
 </script>
 
 <template>
@@ -311,12 +426,27 @@ watch(
         <button
           v-for="p in periods"
           :key="p.value"
-          :class="{ 'is-active': normalizeKlinePeriod(prefs.period) === p.value }"
+          :class="{ 'is-active': normalizedPreferencePeriod() === p.value }"
+          :disabled="isLoadingBrokerCapabilities"
           @click="setPeriod(p.value)"
         >
           {{ p.label }}
         </button>
       </div>
+      <span
+        v-if="isLoadingBrokerCapabilities"
+        class="lightweight-chart-head__capability-state"
+      >
+        正在读取周期能力
+      </span>
+      <button
+        v-else-if="brokerCapabilitiesError"
+        class="lightweight-chart-head__capability-retry"
+        type="button"
+        @click="retryBrokerCapabilities"
+      >
+        周期能力加载失败，点击重试
+      </button>
       <div style="flex: 1"></div>
       <MarketFeedStatus
         :connection-state="chartConnectionState"
@@ -338,7 +468,28 @@ watch(
           indicator-storage-key="jftrade.workspace-chart.indicators"
           :default-indicators="['volume']"
           empty-text="暂无 K 线数据；确认 OpenD 行情权限后点击刷新。"
+          @load-more="handleLoadMore"
         />
+        <button
+          v-if="historyLoadStatus"
+          class="tv-chart-history-status"
+          :class="{ 'is-error': marketDataOlderError }"
+          type="button"
+          :disabled="!marketDataOlderError"
+          @click="handleLoadMore"
+        >
+          {{ historyLoadStatus }}
+        </button>
+        <div
+          v-if="
+            hasResolvedPeriodCapabilities &&
+            !hasSupportedChartPeriod &&
+            !brokerCapabilitiesError
+          "
+          class="tv-chart-unavailable"
+        >
+          该提供者不支持当前市场的图表数据
+        </div>
       </div>
     </div>
   </section>
@@ -349,6 +500,18 @@ watch(
   flex: 0 0 auto;
 }
 
+.lightweight-chart-head__capability-state,
+.lightweight-chart-head__capability-retry {
+  color: var(--tv-text-muted);
+  font-size: 12px;
+}
+
+.lightweight-chart-head__capability-retry {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .tv-panel-body.is-flush {
   display: flex;
   flex-direction: column;
@@ -357,10 +520,40 @@ watch(
 }
 
 .tv-chart-host {
+  position: relative;
   flex: 1;
   height: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+.tv-chart-history-status {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  left: 10px;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--tv-bg-surface) 86%, transparent);
+  color: var(--tv-text-muted);
+  font-size: 12px;
+}
+
+.tv-chart-history-status.is-error {
+  color: var(--tv-status-error-fg);
+  cursor: pointer;
+}
+
+.tv-chart-unavailable {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text-muted);
+  font-size: 13px;
 }
 
 .tv-chart-host :deep(.kline-chart-shell) {

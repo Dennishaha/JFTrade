@@ -101,6 +101,10 @@ function createConsoleDataState() {
     marketDataQueryPeriod: ref("1m"),
     marketDataQueryLimit: ref(200),
     marketDataQueryError: ref(""),
+    isLoadingOlderMarketData: ref(false),
+    hasMoreMarketDataHistory: ref(true),
+    marketDataNextBefore: ref("2026-07-03T12:00:00.000Z"),
+    marketDataOlderError: ref(""),
     marketInstrumentSearchOptions: ref([
       { instrumentId: "US.AAPL", name: "Apple Inc." },
     ]),
@@ -132,14 +136,64 @@ function createWorkspaceState() {
 }
 
 function mountChart() {
+  const providerSelection = useBrokerProviderSelection();
+  if (providerSelection.brokerDescriptors.value.length === 0) {
+    const providerId = providerSelection.selectedBrokerId.value || "test";
+    providerSelection.brokerDescriptors.value = [
+      {
+        id: providerId,
+        displayName: "Test Provider",
+        capabilities: [
+          {
+            market: "US",
+            supportsQuote: true,
+            supportsTrade: true,
+            features: [
+              {
+                id: "market.candles",
+                state: "available",
+                supportedPeriods: [
+                  "1m",
+                  "3m",
+                  "5m",
+                  "10m",
+                  "15m",
+                  "30m",
+                  "1h",
+                  "1d",
+                  "1w",
+                  "1mo",
+                ],
+              },
+              { id: "market.ticks", state: "available" },
+            ],
+          },
+          {
+            market: "SH",
+            supportsQuote: true,
+            supportsTrade: true,
+            features: [
+              {
+                id: "market.candles",
+                state: "available",
+                supportedPeriods: ["1m", "5m", "1d"],
+              },
+              { id: "market.ticks", state: "available" },
+            ],
+          },
+        ],
+      },
+    ];
+  }
   const wrapper = mount(LightweightChart, {
     attachTo: document.body,
     global: {
       stubs: {
         KlineChart: {
           props: ["candles", "minHeight"],
+          emits: ["load-more"],
           template:
-            "<div class='kline-chart-stub'>{{ candles.length }} candles / {{ minHeight }}</div>",
+            "<button class='kline-chart-stub' @click=\"$emit('load-more')\">{{ candles.length }} candles / {{ minHeight }}</button>",
         },
       },
     },
@@ -164,6 +218,7 @@ function deferred<T>() {
 
 afterEach(() => {
   resetBrokerProviderSelectionForTests();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.restoreAllMocks();
   document.body.innerHTML = "";
@@ -412,6 +467,253 @@ describe("LightweightChart", () => {
       "alpha",
     );
 
+    wrapper.unmount();
+  });
+
+  it("shows only provider-supported periods, falls back before querying, and loads older candles alone", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+    const selection = useBrokerProviderSelection();
+    selection.selectBrokerProvider("alpha");
+    selection.brokerDescriptors.value = [
+      {
+        id: "alpha",
+        displayName: "Alpha",
+        capabilities: [
+          {
+            market: "US",
+            supportsQuote: true,
+            supportsTrade: false,
+            features: [
+              {
+                id: "market.candles",
+                state: "available",
+                supportedPeriods: ["5m", "1d"],
+              },
+              { id: "market.ticks", state: "unavailable" },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const wrapper = mountChart();
+    await flushUi();
+    await flushUi();
+
+    expect(stores.workspace.update).toHaveBeenCalledWith({ period: "5m" });
+    expect(
+      wrapper
+        .findAll(".lightweight-chart-head__periods button")
+        .map((button) => button.text()),
+    ).toEqual(["5M", "1D"]);
+    expect(stores.consoleData.selectWorkspaceInstrument).toHaveBeenLastCalledWith({
+      market: "US",
+      symbol: "AAPL",
+      period: "5m",
+    });
+
+    stores.consoleData.loadMarketDataQuery.mockClear();
+    await wrapper.get(".kline-chart-stub").trigger("click");
+    await flushUi();
+    expect(stores.consoleData.loadMarketDataQuery).toHaveBeenCalledWith({
+      appendOlder: true,
+      before: "2026-07-03T12:00:00.000Z",
+    });
+
+    stores.consoleData.isLoadingOlderMarketData.value = true;
+    await flushUi();
+    expect(wrapper.text()).toContain("正在加载更早数据");
+    stores.consoleData.isLoadingOlderMarketData.value = false;
+    stores.consoleData.marketDataOlderError.value = "timeout";
+    await flushUi();
+    expect(wrapper.text()).toContain("加载失败，拖动或点击重试");
+    stores.consoleData.marketDataOlderError.value = "";
+    stores.consoleData.hasMoreMarketDataHistory.value = false;
+    await flushUi();
+    expect(wrapper.text()).toContain("已到最早数据");
+    wrapper.unmount();
+  });
+
+  it("uses the provider declaration order for the final fallback and disables periods while capabilities load", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+    const selection = useBrokerProviderSelection();
+    selection.selectBrokerProvider("alpha");
+    selection.brokerDescriptors.value = [
+      {
+        id: "alpha",
+        displayName: "Alpha",
+        capabilities: [
+          {
+            market: "US",
+            supportsQuote: true,
+            supportsTrade: false,
+            features: [
+              { id: "market.ticks", state: "available" },
+              {
+                id: "market.candles",
+                state: "available",
+                supportedPeriods: ["1w", "30m"],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const wrapper = mountChart();
+    await flushUi();
+
+    expect(
+      wrapper
+        .findAll(".lightweight-chart-head__periods button")
+        .map((button) => button.text()),
+    ).toEqual(["Tick", "30M", "1W"]);
+    expect(stores.workspace.update).toHaveBeenCalledWith({ period: "1w" });
+
+    selection.loading.value = true;
+    await flushUi();
+    stores.workspace.update.mockClear();
+    expect(
+      wrapper
+        .findAll(".lightweight-chart-head__periods button")
+        .every((button) => button.attributes("disabled") !== undefined),
+    ).toBe(true);
+    await wrapper
+      .get(".lightweight-chart-head__periods button")
+      .trigger("click");
+    expect(stores.workspace.update).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("handles Tick-only, unavailable, and capability-error states without unsupported requests", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+    let selection = useBrokerProviderSelection();
+    selection.selectBrokerProvider("alpha");
+    selection.brokerDescriptors.value = [
+      {
+        id: "alpha",
+        displayName: "Alpha",
+        capabilities: [
+          {
+            market: "US",
+            supportsQuote: true,
+            supportsTrade: false,
+            features: [
+              { id: "market.candles", state: "unavailable" },
+              { id: "market.ticks", state: "degraded" },
+            ],
+          },
+        ],
+      },
+    ];
+
+    let wrapper = mountChart();
+    await flushUi();
+    await flushUi();
+    expect(
+      wrapper
+        .findAll(".lightweight-chart-head__periods button")
+        .map((button) => button.text()),
+    ).toEqual(["Tick"]);
+    expect(stores.workspace.update).toHaveBeenCalledWith({ period: "tick" });
+    stores.consoleData.loadMarketDataQuery.mockClear();
+    await wrapper.get(".kline-chart-stub").trigger("click");
+    expect(stores.consoleData.loadMarketDataQuery).not.toHaveBeenCalled();
+    expect(wrapper.find(".tv-chart-history-status").exists()).toBe(false);
+    wrapper.unmount();
+
+    resetBrokerProviderSelectionForTests();
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.workspace.prefs.value.period = "unsupported";
+    selection = useBrokerProviderSelection();
+    selection.selectBrokerProvider("alpha");
+    selection.brokerDescriptors.value = [
+      {
+        id: "alpha",
+        displayName: "Alpha",
+        capabilities: [
+          {
+            market: "US",
+            supportsQuote: false,
+            supportsTrade: false,
+            features: [
+              { id: "market.candles", state: "unavailable" },
+              { id: "market.ticks", state: "unavailable" },
+            ],
+          },
+        ],
+      },
+    ];
+    wrapper = mountChart();
+    await flushUi();
+    expect(wrapper.text()).toContain(
+      "该提供者不支持当前市场的图表数据",
+    );
+    expect(stores.consoleData.loadMarketDataQuery).not.toHaveBeenCalled();
+    expect(stores.consoleData.acquireMarketDataSubscription).not.toHaveBeenCalled();
+    wrapper.unmount();
+
+    resetBrokerProviderSelectionForTests();
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    selection = useBrokerProviderSelection();
+    selection.selectBrokerProvider("alpha");
+    selection.brokerDescriptors.value = [
+      { id: "other", displayName: "Other", capabilities: [] },
+    ];
+    selection.loadError.value = "capability request failed";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            ok: true,
+            data: {
+              brokers: [
+                {
+                  id: "alpha",
+                  displayName: "Alpha",
+                  capabilities: [
+                    {
+                      market: "US",
+                      supportsQuote: true,
+                      supportsTrade: false,
+                      features: [
+                        {
+                          id: "market.candles",
+                          state: "available",
+                          supportedPeriods: ["1d"],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            timestamp: "2026-07-20T00:00:00Z",
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    wrapper = mountChart();
+    await flushUi();
+    expect(wrapper.text()).toContain("周期能力加载失败，点击重试");
+    expect(wrapper.findAll(".lightweight-chart-head__periods button")).toHaveLength(
+      0,
+    );
+    expect(stores.consoleData.loadMarketDataQuery).not.toHaveBeenCalled();
+    await wrapper.get(".lightweight-chart-head__capability-retry").trigger("click");
+    await flushUi();
+    await flushUi();
+    expect(wrapper.text()).not.toContain("周期能力加载失败，点击重试");
+    expect(stores.workspace.update).toHaveBeenCalledWith({ period: "1d" });
     wrapper.unmount();
   });
 

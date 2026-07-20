@@ -113,6 +113,7 @@ func futuFeatureCapabilities(market string) []broker.FeatureCapability {
 		features = append(features, broker.FeatureCapability{
 			ID:                 definition.ID,
 			Markets:            []string{market},
+			SupportedPeriods:   futuFeatureSupportedPeriods(definition.ID),
 			ProductClasses:     futuFeatureProducts(definition.ID),
 			MarketSegments:     futuFeatureSegments(definition.ID),
 			Access:             definition.Access,
@@ -125,6 +126,13 @@ func futuFeatureCapabilities(market string) []broker.FeatureCapability {
 		})
 	}
 	return features
+}
+
+func futuFeatureSupportedPeriods(id broker.FeatureID) []string {
+	if id != broker.FeatureMarketCandles {
+		return nil
+	}
+	return futuCandlePeriods()
 }
 
 func futuFeatureSupportsMarket(id broker.FeatureID, market string) bool {

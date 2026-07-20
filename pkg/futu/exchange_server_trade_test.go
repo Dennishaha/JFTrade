@@ -480,6 +480,12 @@ func (s *quoteOpenDServer) historySessionCalls() []int32 {
 	return append([]int32(nil), s.historySessionCallLog...)
 }
 
+func (s *quoteOpenDServer) lastHistoryWindow() (string, string) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	return s.lastHistoryBeginTime, s.lastHistoryEndTime
+}
+
 func (s *quoteOpenDServer) historyOrderListCallCount() int {
 	return int(s.historyOrderListCalls.Load())
 }

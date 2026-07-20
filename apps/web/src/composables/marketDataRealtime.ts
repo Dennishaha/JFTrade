@@ -277,6 +277,10 @@ export interface MarketDataCandlesQueryResult {
     session?: MarketDataSession | string | null;
   }>;
   totalReturned: number;
+  pagination?: {
+    hasMore: boolean;
+    nextBefore?: string | null;
+  };
   meta: {
     instrumentId: string;
     source: string | null;

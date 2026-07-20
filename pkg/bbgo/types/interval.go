@@ -76,6 +76,8 @@ func (i Interval) Truncate(ts time.Time) (start time.Time) {
 		return shiftMinute(ts, 3)
 	case Interval5m:
 		return shiftMinute(ts, 5)
+	case Interval10m:
+		return shiftMinute(ts, 10)
 	case Interval15m:
 		return shiftMinute(ts, 15)
 	case Interval30m:
@@ -153,6 +155,7 @@ var Interval1s = Interval("1s")
 var Interval1m = Interval("1m")
 var Interval3m = Interval("3m")
 var Interval5m = Interval("5m")
+var Interval10m = Interval("10m")
 var Interval15m = Interval("15m")
 var Interval30m = Interval("30m")
 var Interval1h = Interval("1h")
@@ -211,6 +214,7 @@ var SupportedIntervals = IntervalMap{
 	Interval1m:  1 * 60,
 	Interval3m:  3 * 60,
 	Interval5m:  5 * 60,
+	Interval10m: 10 * 60,
 	Interval15m: 15 * 60,
 	Interval30m: 30 * 60,
 	Interval1h:  60 * 60,

@@ -18,6 +18,7 @@ import { withBrokerProvider } from "./brokerProviderSelection";
 
 export interface LoadMarketDataQueryOptions {
   appendOlder?: boolean;
+  before?: string;
   fromTime?: string;
   toTime?: string;
   /** When true, skip clearing existing data before loading (useful for visibility recovery). */
@@ -45,6 +46,10 @@ interface MarketDataQueryStateRefs {
   marketSecurityDetails: Ref<MarketSecurityDetailsQueryResult | null>;
   marketDataCandles: Ref<MarketDataCandlesQueryResult | null>;
   isLoadingMarketDataQuery: Ref<boolean>;
+  isLoadingOlderMarketData: Ref<boolean>;
+  hasMoreMarketDataHistory: Ref<boolean>;
+  marketDataNextBefore: Ref<string>;
+  marketDataOlderError: Ref<string>;
   marketDataQueryError: Ref<string>;
   lastDataRefreshedAt: Ref<number>;
 }
@@ -86,6 +91,10 @@ export function createMarketDataQueryController(
     marketDataQuerySymbol,
     marketDataSnapshot,
     isLoadingMarketDataQuery,
+    isLoadingOlderMarketData,
+    hasMoreMarketDataHistory,
+    marketDataNextBefore,
+    marketDataOlderError,
     lastDataRefreshedAt,
   } = options.state;
   const marketDataRealtime = createMarketDataRealtimeController();
@@ -96,6 +105,7 @@ export function createMarketDataQueryController(
     requestId: number;
   } | null = null;
   let marketDataQueryRequestId = 0;
+  let olderMarketDataRequestId = 0;
   let loadedBrokerId = "";
 
   function mergeMarketDataCandles(
@@ -142,11 +152,38 @@ export function createMarketDataQueryController(
   function clearCurrentMarketDataCandles(): void {
     marketDataCandles.value = null;
     resetMarketDataRealtimeState();
+    resetMarketDataPagination();
+  }
+
+  function resetMarketDataPagination(): void {
+    olderMarketDataRequestId += 1;
+    isLoadingOlderMarketData.value = false;
+    hasMoreMarketDataHistory.value = false;
+    marketDataNextBefore.value = "";
+    marketDataOlderError.value = "";
+  }
+
+  function updateMarketDataPagination(
+    result: MarketDataCandlesQueryResult,
+    fallbackLimit: number,
+  ): void {
+    const candles = result.candles;
+    const fallbackHasMore =
+      fallbackLimit > 0 && candles.length >= fallbackLimit;
+    hasMoreMarketDataHistory.value =
+      result.pagination?.hasMore ?? fallbackHasMore;
+    marketDataNextBefore.value =
+      result.pagination?.nextBefore?.trim() ??
+      (hasMoreMarketDataHistory.value ? candles[0]?.at ?? "" : "");
+    if (!hasMoreMarketDataHistory.value) {
+      marketDataNextBefore.value = "";
+    }
   }
 
   function invalidateProviderSelection(): void {
     marketDataQueryRequestId += 1;
     activeMarketDataQuery = null;
+    resetMarketDataPagination();
     isLoadingMarketDataQuery.value = false;
     isMarketDataSwitching.value = true;
     marketDataQueryError.value = "";
@@ -331,7 +368,9 @@ export function createMarketDataQueryController(
     const brokerId =
       options.resolveBrokerId?.().trim().toLowerCase() ?? "";
 
-    marketDataQueryError.value = "";
+    if (queryOptions.appendOlder !== true) {
+      marketDataQueryError.value = "";
+    }
 
     if (market === "" || symbol === "" || rawPeriod === "") {
       marketDataQueryError.value =
@@ -365,6 +404,58 @@ export function createMarketDataQueryController(
         ? new Date(Date.now() - DEFAULT_TICK_QUERY_LOOKBACK_MS).toISOString()
         : queryOptions.fromTime;
 
+    if (queryOptions.appendOlder === true) {
+      if (period === "tick" || isLoadingOlderMarketData.value) {
+        return;
+      }
+      const before =
+        queryOptions.before?.trim() || marketDataNextBefore.value.trim();
+      if (!hasMoreMarketDataHistory.value || before === "") {
+        return;
+      }
+      const requestInstrumentId = normalizeInstrumentId(market, symbol);
+      const requestID = ++olderMarketDataRequestId;
+      return (async () => {
+        isLoadingOlderMarketData.value = true;
+        marketDataOlderError.value = "";
+        try {
+          const candleParams = new URLSearchParams({
+            period,
+            limit: String(effectiveLimit),
+            before,
+          });
+          const result = await options.fetchEnvelope<MarketDataCandlesQueryResult>(
+            withBrokerProvider(
+              `/api/v1/market-data/candles/${encodeURIComponent(market)}/${encodeURIComponent(symbol)}?${candleParams.toString()}`,
+              brokerId,
+            ),
+          );
+          if (
+            requestID !== olderMarketDataRequestId ||
+            activeMarketDataInstrumentId.value !== requestInstrumentId ||
+            marketDataQueryPeriod.value !== period ||
+            (options.resolveBrokerId?.().trim().toLowerCase() ?? "") !== brokerId
+          ) {
+            return;
+          }
+          const normalized = normalizeMarketDataCandlesQueryResult(result);
+          marketDataCandles.value = mergeMarketDataCandles(
+            marketDataCandles.value,
+            normalized,
+          );
+          updateMarketDataPagination(normalized, effectiveLimit);
+        } catch (error) {
+          if (requestID !== olderMarketDataRequestId) return;
+          marketDataOlderError.value =
+            error instanceof Error ? error.message : "更早 K 线加载失败。";
+        } finally {
+          if (requestID === olderMarketDataRequestId) {
+            isLoadingOlderMarketData.value = false;
+          }
+        }
+      })();
+    }
+
     const queryKey = JSON.stringify({
       market,
       symbol,
@@ -372,7 +463,6 @@ export function createMarketDataQueryController(
       limit: effectiveLimit,
       fromTime: effectiveFromTime ?? null,
       toTime: queryOptions.toTime ?? null,
-      appendOlder: queryOptions.appendOlder === true,
       brokerId,
     });
     if (activeMarketDataQuery?.key === queryKey) {
@@ -381,6 +471,9 @@ export function createMarketDataQueryController(
 
     const requestId = marketDataQueryRequestId + 1;
     marketDataQueryRequestId = requestId;
+    olderMarketDataRequestId += 1;
+    isLoadingOlderMarketData.value = false;
+    marketDataOlderError.value = "";
     const requestInstrumentId = normalizeInstrumentId(market, symbol);
     const requestInstrumentChanged =
       activeMarketDataInstrumentId.value !== requestInstrumentId;
@@ -486,11 +579,16 @@ export function createMarketDataQueryController(
             if (!isCurrentRequest()) {
               return;
             }
-            if (queryOptions.appendOlder === true) {
-              return;
-            }
             const normalized = normalizeMarketDataCandlesQueryResult(result);
-            marketDataCandles.value = normalized;
+            const preserveHistory =
+              queryOptions.preserveExisting === true &&
+              marketDataCandles.value != null;
+            marketDataCandles.value = preserveHistory
+              ? mergeMarketDataCandles(marketDataCandles.value, normalized)
+              : normalized;
+            if (!preserveHistory) {
+              updateMarketDataPagination(normalized, effectiveLimit);
+            }
             marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
               marketDataSnapshot.value,
             );
@@ -511,32 +609,43 @@ export function createMarketDataQueryController(
         marketDataSnapshot.value =
           snapshotResult.status === "fulfilled"
             ? normalizeMarketDataSnapshotQueryResult(snapshotResult.value)
-            : queryOptions.appendOlder === true
+            : queryOptions.preserveExisting === true
               ? marketDataSnapshot.value
               : null;
         marketSecurityDetails.value =
           securityDetailsResult.status === "fulfilled"
             ? normalizeMarketSecurityDetailsQueryResult(securityDetailsResult.value)
-            : queryOptions.appendOlder === true
+            : queryOptions.preserveExisting === true
               ? marketSecurityDetails.value
               : null;
         marketDataCandles.value =
           candlesResult.status === "fulfilled"
-            ? queryOptions.appendOlder === true
+            ? queryOptions.preserveExisting === true &&
+              marketDataCandles.value != null
               ? mergeMarketDataCandles(
                   marketDataCandles.value,
                   normalizeMarketDataCandlesQueryResult(candlesResult.value),
                 )
               : normalizeMarketDataCandlesQueryResult(candlesResult.value)
-            : queryOptions.appendOlder === true
+            : queryOptions.preserveExisting === true
               ? marketDataCandles.value
               : null;
+
+        if (
+          candlesResult.status === "fulfilled" &&
+          queryOptions.preserveExisting !== true
+        ) {
+          updateMarketDataPagination(
+            normalizeMarketDataCandlesQueryResult(candlesResult.value),
+            effectiveLimit,
+          );
+        }
 
         marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
           marketDataSnapshot.value,
         );
 
-        if (queryOptions.appendOlder !== true) {
+        if (queryOptions.preserveExisting !== true) {
           resetMarketDataRealtimeState();
         }
 
@@ -558,7 +667,7 @@ export function createMarketDataQueryController(
           error instanceof Error
             ? error.message
             : "行情查询加载失败。";
-        if (queryOptions.appendOlder !== true) {
+        if (queryOptions.preserveExisting !== true) {
           marketDataSnapshot.value = null;
           marketSecurityDetails.value = null;
           marketDataCandles.value = null;

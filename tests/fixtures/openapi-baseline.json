@@ -8393,6 +8393,12 @@
             "type": "string"
           },
           {
+            "description": "严格早于该 RFC3339 时间的历史分页游标",
+            "in": "query",
+            "name": "before",
+            "type": "string"
+          },
+          {
             "description": "行情提供者；省略时使用服务端默认",
             "in": "query",
             "name": "brokerId",

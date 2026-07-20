@@ -26,7 +26,7 @@ type subscriptionRequest struct {
 type BrokerMarketDataReader interface {
 	ReadMarketSnapshot(context.Context, string, string, string, bool) (map[string]any, error)
 	ReadMarketSecurityDetails(context.Context, string, string, string) (map[string]any, error)
-	ReadMarketCandles(context.Context, string, string, string, string, int, string, string) (map[string]any, error)
+	ReadMarketCandles(context.Context, string, string, string, string, int, string, string, string) (map[string]any, error)
 	ReadMarketDepth(context.Context, string, string, string, int) (map[string]any, error)
 }
 
@@ -198,6 +198,7 @@ func handleSnapshot(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) g
 // @Param limit query int false "数量"
 // @Param fromTime query string false "起始时间"
 // @Param toTime query string false "结束时间"
+// @Param before query string false "严格早于该 RFC3339 时间的历史分页游标"
 // @Param brokerId query string false "行情提供者；省略时使用服务端默认"
 // @Success 200 {object} httpserver.Envelope
 // @Failure 409 {object} httpserver.Envelope
@@ -213,48 +214,44 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid instrument")
 			return
 		}
-		period := "1m"
-		if raw := c.Query("period"); raw != "" {
-			normalized, err := httpserver.NormalizeCandlePeriod(raw)
-			if err != nil {
-				httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid candle query")
-				return
-			}
-			period = normalized
-		}
-		limit := 0
-		if l := c.Query("limit"); l != "" {
-			parsed := httpserver.OptionalIntValue{}
-			jftradeErr2 := parsed.UnmarshalText([]byte(l))
-			besteffort.LogError(jftradeErr2)
-			if parsed.Valid {
-				limit = parsed.Int()
-			}
-		}
-		fromTime := normalizeOptionalQueryTime(c.Query("fromTime"))
-		if fromTime == "" {
-			fromTime = normalizeOptionalQueryTime(c.Query("from"))
-		}
-		toTime := normalizeOptionalQueryTime(c.Query("toTime"))
-		if toTime == "" {
-			toTime = normalizeOptionalQueryTime(c.Query("to"))
+		query, parseErr := parseCandleRouteQuery(c)
+		if parseErr != nil {
+			httpserver.WriteError(c, 400, "BAD_REQUEST", parseErr.Error())
+			return
 		}
 
 		var result map[string]any
 		var err error
-		if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
+		if query.period == "tick" {
+			result, err = svc.GetCandles(
+				c.Request.Context(), uri.Market, uri.Symbol,
+				query.period, query.limit, query.fromTime, query.toTime,
+			)
+			if err == nil {
+				result["pagination"] = map[string]any{"hasMore": false}
+			}
+		} else if brokerID := strings.TrimSpace(c.Query("brokerId")); brokerID != "" {
 			if brokerReader == nil {
 				err = productfeatures.ErrCapabilityUnavailable
 			} else {
 				result, err = brokerReader.ReadMarketCandles(
 					c.Request.Context(), brokerID, uri.Market, uri.Symbol,
-					period, limit, fromTime, toTime,
+					query.period, query.limit, query.fromTime, query.toTime, query.beforeTime,
 				)
 			}
 		} else {
+			defaultToTime := query.toTime
+			if query.beforeTime != "" {
+				beforeAt, _ := time.Parse(time.RFC3339Nano, query.beforeTime)
+				defaultToTime = beforeAt.Add(-time.Nanosecond).Format(time.RFC3339Nano)
+			}
 			result, err = svc.GetCandles(
-				c.Request.Context(), uri.Market, uri.Symbol, period, limit, fromTime, toTime,
+				c.Request.Context(), uri.Market, uri.Symbol,
+				query.period, query.limit, query.fromTime, defaultToTime,
 			)
+			if err == nil {
+				result["pagination"] = defaultCandlePagination(result, query.limit)
+			}
 		}
 		if err != nil {
 			writeBrokerMarketDataReadError(c, "OPEND_CANDLES_FAILED", err)
@@ -262,6 +259,66 @@ func handleCandles(svc *srv.Service, brokerReaders ...BrokerMarketDataReader) gi
 		}
 		httpserver.WriteOK(c, result)
 	}
+}
+
+type candleRouteQuery struct {
+	period     string
+	limit      int
+	fromTime   string
+	toTime     string
+	beforeTime string
+}
+
+func parseCandleRouteQuery(c *gin.Context) (candleRouteQuery, error) {
+	query := candleRouteQuery{period: "1m"}
+	if raw := c.Query("period"); raw != "" {
+		period, err := httpserver.NormalizeCandlePeriod(raw)
+		if err != nil {
+			return candleRouteQuery{}, errors.New("invalid candle query")
+		}
+		query.period = period
+	}
+	if rawLimit := c.Query("limit"); rawLimit != "" {
+		parsed := httpserver.OptionalIntValue{}
+		besteffort.LogError(parsed.UnmarshalText([]byte(rawLimit)))
+		if parsed.Valid {
+			query.limit = parsed.Int()
+		}
+	}
+	query.fromTime = normalizeOptionalQueryTime(c.Query("fromTime"))
+	if query.fromTime == "" {
+		query.fromTime = normalizeOptionalQueryTime(c.Query("from"))
+	}
+	query.toTime = normalizeOptionalQueryTime(c.Query("toTime"))
+	if query.toTime == "" {
+		query.toTime = normalizeOptionalQueryTime(c.Query("to"))
+	}
+	if rawBefore := strings.TrimSpace(c.Query("before")); rawBefore != "" {
+		beforeAt, err := time.Parse(time.RFC3339Nano, rawBefore)
+		if err != nil {
+			return candleRouteQuery{}, errors.New("before must be an RFC3339 timestamp")
+		}
+		query.beforeTime = beforeAt.UTC().Format(time.RFC3339Nano)
+	}
+	if query.beforeTime != "" && (query.fromTime != "" || query.toTime != "") {
+		return candleRouteQuery{}, errors.New("before cannot be combined with from or to")
+	}
+	if query.period == "tick" && query.beforeTime != "" {
+		return candleRouteQuery{}, errors.New("tick candles do not support historical pagination")
+	}
+	return query, nil
+}
+
+func defaultCandlePagination(result map[string]any, limit int) map[string]any {
+	candles, _ := result["candles"].([]map[string]any)
+	hasMore := limit > 0 && len(candles) >= limit
+	pagination := map[string]any{"hasMore": hasMore}
+	if hasMore && len(candles) > 0 {
+		if at, ok := candles[0]["at"].(string); ok && at != "" {
+			pagination["nextBefore"] = at
+		}
+	}
+	return pagination
 }
 
 func writeMarketDataReadError(c *gin.Context, fallbackCode string, err error) {

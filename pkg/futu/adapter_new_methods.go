@@ -5,10 +5,53 @@ import (
 	"fmt"
 	"strings"
 
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
+
+var futuCandleIntervalByPeriod = map[string]bbgotypes.Interval{
+	"1m":  bbgotypes.Interval1m,
+	"3m":  bbgotypes.Interval3m,
+	"5m":  bbgotypes.Interval5m,
+	"10m": bbgotypes.Interval10m,
+	"15m": bbgotypes.Interval15m,
+	"30m": bbgotypes.Interval30m,
+	"1h":  bbgotypes.Interval1h,
+	"1d":  bbgotypes.Interval1d,
+	"1w":  bbgotypes.Interval1w,
+	"1mo": bbgotypes.Interval1mo,
+}
+
+func futuCandlePeriods() []string {
+	periods := make([]string, 0, len(futuCandleIntervalByPeriod))
+	for _, period := range broker.SupportedHistoricalCandlePeriods() {
+		interval, ok := futuCandleIntervalByPeriod[period]
+		if !ok {
+			continue
+		}
+		if _, _, err := futuKLineTypesFromInterval(interval); err == nil {
+			periods = append(periods, period)
+		}
+	}
+	return periods
+}
+
+func futuIntervalFromPeriod(period string) (bbgotypes.Interval, error) {
+	normalized, err := broker.NormalizeCandlePeriod(period)
+	if err != nil || normalized == "tick" {
+		return "", fmt.Errorf("futu: unsupported kline period %q", period)
+	}
+	interval, ok := futuCandleIntervalByPeriod[normalized]
+	if !ok {
+		return "", fmt.Errorf("futu: unsupported kline period %q", period)
+	}
+	if _, _, err := futuKLineTypesFromInterval(interval); err != nil {
+		return "", fmt.Errorf("futu: unsupported kline period %q", period)
+	}
+	return interval, nil
+}
 
 // --- broker.QuoteSubscriber implementation ---
 

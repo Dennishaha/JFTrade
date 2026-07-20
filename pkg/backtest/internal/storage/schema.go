@@ -63,6 +63,8 @@ func intervalStorageValue(interval types.Interval) int64 {
 		return 180
 	case types.Interval5m:
 		return 300
+	case types.Interval10m:
+		return 600
 	case types.Interval15m:
 		return 900
 	case types.Interval30m:
@@ -105,6 +107,8 @@ func intervalFromStorageValue(value int64) (types.Interval, error) {
 		return types.Interval3m, nil
 	case 300:
 		return types.Interval5m, nil
+	case 600:
+		return types.Interval10m, nil
 	case 900:
 		return types.Interval15m, nil
 	case 1800:

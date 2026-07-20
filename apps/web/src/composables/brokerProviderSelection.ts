@@ -8,6 +8,7 @@ export type BrokerCapabilityState = "available" | "degraded" | "unavailable";
 export interface BrokerFeatureCapability {
   id: string;
   markets?: string[];
+  supportedPeriods?: string[];
   state: BrokerCapabilityState;
   reason?: string;
 }
@@ -218,6 +219,44 @@ export function brokerProviderOptions(
     securityFirm: descriptor.securityFirm?.trim() ?? "",
     ...featureState(descriptor, featureId, market),
   }));
+}
+
+export function brokerSupportedChartPeriods(
+  brokerId: string,
+  market: string,
+  descriptors = brokerDescriptors.value,
+): string[] | null {
+  const normalizedBroker = normalizedID(brokerId);
+  const descriptor = normalizedBroker
+    ? descriptors.find(
+        (candidate) => normalizedID(candidate.id) === normalizedBroker,
+      )
+    : descriptors.length === 1
+      ? descriptors[0]
+      : undefined;
+  if (descriptor == null) return null;
+
+  const normalizedMarket = market.trim().toUpperCase();
+  const marketCapability = (descriptor.capabilities ?? []).find(
+    (capability) =>
+      capability.market.trim().toUpperCase() === normalizedMarket,
+  );
+  if (marketCapability == null) return [];
+
+  const supported = new Set<string>();
+  for (const feature of marketCapability.features ?? []) {
+    if (feature.state !== "available" && feature.state !== "degraded") continue;
+    if (feature.id === "market.ticks") {
+      supported.add("tick");
+      continue;
+    }
+    if (feature.id !== "market.candles") continue;
+    for (const period of feature.supportedPeriods ?? []) {
+      const normalized = period.trim().toLowerCase();
+      if (normalized) supported.add(normalized);
+    }
+  }
+  return [...supported];
 }
 
 export function withBrokerProvider(path: string, brokerId: string): string {

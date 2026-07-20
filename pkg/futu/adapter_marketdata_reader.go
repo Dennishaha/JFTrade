@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
+	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -71,61 +73,240 @@ func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLi
 	if query.Symbol == "" {
 		return nil, fmt.Errorf("futu: QueryKLines requires a symbol")
 	}
-	var result *broker.KLineSnapshot
-	if err := r.exchange.withClient(ctx, func(client *opend.Client) error {
-		security, _, err := futuSecurityFromSymbol(query.Symbol)
-		if err != nil {
-			return err
-		}
-		klType, err := futuKLTypeFromIntervalString(query.Period)
-		if err != nil {
-			return err
-		}
-		fromTime := strings.TrimSpace(query.FromTime)
-		toTime := strings.TrimSpace(query.ToTime)
-		if fromTime == "" {
-			fromTime = "2020-01-01"
-		}
-		if toTime == "" {
-			toTime = "2099-12-31"
-		}
-		historyReq := opend.HistoryKLineRequest{
-			Security:  security,
-			RehabType: qotcommonpb.RehabType_RehabType_Forward,
-			KLType:    klType,
-			BeginTime: fromTime,
-			EndTime:   toTime,
-		}
-		if query.Limit > 0 {
-			historyReq.MaxAckKLNum = new(query.Limit)
-		}
-		historyResult, err := client.RequestHistoryKL(ctx, historyReq)
-		if err != nil {
-			return err
-		}
-		snapshot := &broker.KLineSnapshot{
-			AccountID: query.AccountID,
-			Symbol:    query.Symbol,
-			Period:    query.Period,
-		}
-		for _, kl := range historyResult.KLines {
-			snapshot.KLines = append(snapshot.KLines, broker.KLineItem{
-				Time:       kl.GetTime(),
-				Open:       cloneFloat64Ptr(kl.OpenPrice),
-				Close:      cloneFloat64Ptr(kl.ClosePrice),
-				High:       cloneFloat64Ptr(kl.HighPrice),
-				Low:        cloneFloat64Ptr(kl.LowPrice),
-				Volume:     int64AsFloat64Ptr(kl.Volume),
-				Turnover:   cloneFloat64Ptr(kl.Turnover),
-				ChangeRate: cloneFloat64Ptr(kl.ChangeRate),
-			})
-		}
-		result = snapshot
-		return nil
-	}); err != nil {
+	if strings.TrimSpace(query.BeforeTime) != "" &&
+		(strings.TrimSpace(query.FromTime) != "" || strings.TrimSpace(query.ToTime) != "") {
+		return nil, fmt.Errorf("futu: beforeTime cannot be combined with fromTime or toTime")
+	}
+
+	interval, err := futuIntervalFromPeriod(query.Period)
+	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	limit := int(query.Limit)
+	if limit < 1 {
+		limit = 500
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	location := time.UTC
+	if profile, ok := market.ProfileForSymbol(query.Symbol); ok && profile.Location != nil {
+		location = profile.Location
+	}
+	lowerBound := r.klineListingLowerBound(ctx, query.Symbol, location)
+	extendedHours := shouldRequestExtendedKLines(query.Symbol, interval)
+	session := "regular"
+	if extendedHours {
+		session = "all"
+	}
+
+	var klines []bbgotypes.KLine
+	hasMore := false
+	beforeTime := strings.TrimSpace(query.BeforeTime)
+	if beforeTime != "" {
+		beforeAt, parseErr := parseFutuKLineQueryTime(beforeTime, location)
+		if parseErr != nil {
+			return nil, fmt.Errorf("futu: invalid beforeTime: %w", parseErr)
+		}
+		klines, hasMore, err = r.queryAdaptiveKLinePage(
+			ctx, query.Symbol, interval, lowerBound, beforeAt, limit,
+		)
+	} else if strings.TrimSpace(query.FromTime) != "" || strings.TrimSpace(query.ToTime) != "" {
+		beginAt := lowerBound
+		endAt := time.Now().In(location)
+		if value := strings.TrimSpace(query.FromTime); value != "" {
+			beginAt, err = parseFutuKLineQueryTime(value, location)
+			if err != nil {
+				return nil, fmt.Errorf("futu: invalid fromTime: %w", err)
+			}
+		}
+		if value := strings.TrimSpace(query.ToTime); value != "" {
+			endAt, err = parseFutuKLineQueryTime(value, location)
+			if err != nil {
+				return nil, fmt.Errorf("futu: invalid toTime: %w", err)
+			}
+		}
+		if !beginAt.Before(endAt) {
+			return nil, fmt.Errorf("futu: fromTime must be before toTime")
+		}
+		klines, err = r.exchange.QueryAllKLines(
+			ctx, query.Symbol, interval, beginAt.In(location), endAt.In(location),
+			qotcommonpb.RehabType_RehabType_Forward,
+		)
+		klines = normalizeBrokerKLinePage(klines, beginAt, endAt, limit, false)
+	} else {
+		klines, hasMore, err = r.queryAdaptiveKLinePage(
+			ctx, query.Symbol, interval, lowerBound, time.Now().In(location), limit,
+		)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return r.buildBrokerKLineSnapshot(query, interval, klines, hasMore, extendedHours, session), nil
+}
+
+func (r *futuMarketDataReader) buildBrokerKLineSnapshot(
+	query broker.KLineQuery,
+	interval bbgotypes.Interval,
+	klines []bbgotypes.KLine,
+	hasMore bool,
+	extendedHours bool,
+	session string,
+) *broker.KLineSnapshot {
+	snapshot := &broker.KLineSnapshot{
+		AccountID:     query.AccountID,
+		Symbol:        strings.ToUpper(strings.TrimSpace(query.Symbol)),
+		Period:        string(interval),
+		ExtendedHours: extendedHours,
+		Session:       session,
+		Pagination: broker.KLinePagination{
+			HasMore: hasMore,
+		},
+		KLines: make([]broker.KLineItem, 0, len(klines)),
+	}
+	for _, kline := range klines {
+		open := kline.Open.Float64()
+		closePrice := kline.Close.Float64()
+		high := kline.High.Float64()
+		low := kline.Low.Float64()
+		volume := kline.Volume.Float64()
+		turnover := kline.QuoteVolume.Float64()
+		item := broker.KLineItem{
+			Time:     kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
+			Open:     &open,
+			Close:    &closePrice,
+			High:     &high,
+			Low:      &low,
+			Volume:   &volume,
+			Turnover: &turnover,
+		}
+		if resolvedSession, ok := r.exchange.ResolveKLineSession(kline); extendedHours && ok {
+			item.Session = string(resolvedSession)
+		}
+		snapshot.KLines = append(snapshot.KLines, item)
+	}
+	if hasMore && len(snapshot.KLines) > 0 {
+		snapshot.Pagination.NextBefore = snapshot.KLines[0].Time
+	}
+	return snapshot
+}
+
+func (r *futuMarketDataReader) queryAdaptiveKLinePage(
+	ctx context.Context,
+	symbol string,
+	interval bbgotypes.Interval,
+	lowerBound time.Time,
+	endExclusive time.Time,
+	limit int,
+) ([]bbgotypes.KLine, bool, error) {
+	location := endExclusive.Location()
+	lowerBound = lowerBound.In(location)
+	if !lowerBound.Before(endExclusive) {
+		return []bbgotypes.KLine{}, false, nil
+	}
+	lookback := interval.Duration() * time.Duration(limit+1) * 2
+	if lookback < 7*24*time.Hour {
+		lookback = 7 * 24 * time.Hour
+	}
+
+	for {
+		beginAt := endExclusive.Add(-lookback)
+		reachedLowerBound := !beginAt.After(lowerBound)
+		if reachedLowerBound {
+			beginAt = lowerBound
+		}
+		requestEnd := endExclusive.Add(-time.Nanosecond)
+		klines, err := r.exchange.QueryAllKLines(
+			ctx, symbol, interval, beginAt, requestEnd,
+			qotcommonpb.RehabType_RehabType_Forward,
+		)
+		if err != nil {
+			return nil, false, err
+		}
+		normalized := normalizeBrokerKLinePage(
+			klines, beginAt, endExclusive, limit+1, true,
+		)
+		if len(normalized) >= limit+1 {
+			return normalized[len(normalized)-limit:], true, nil
+		}
+		if reachedLowerBound {
+			return normalized, false, nil
+		}
+		if lookback > 100*365*24*time.Hour {
+			lookback = endExclusive.Sub(lowerBound)
+		} else {
+			lookback *= 2
+		}
+	}
+}
+
+func normalizeBrokerKLinePage(
+	klines []bbgotypes.KLine,
+	beginInclusive time.Time,
+	endExclusive time.Time,
+	limit int,
+	keepLatest bool,
+) []bbgotypes.KLine {
+	byStart := make(map[int64]bbgotypes.KLine, len(klines))
+	for _, kline := range klines {
+		at := kline.StartTime.Time().UTC()
+		if at.Before(beginInclusive.UTC()) || !at.Before(endExclusive.UTC()) {
+			continue
+		}
+		byStart[at.UnixNano()] = kline
+	}
+	result := make([]bbgotypes.KLine, 0, len(byStart))
+	for _, kline := range byStart {
+		result = append(result, kline)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].StartTime.Time().Before(result[j].StartTime.Time())
+	})
+	if limit > 0 && len(result) > limit {
+		if keepLatest {
+			return result[len(result)-limit:]
+		}
+		return result[:limit]
+	}
+	return result
+}
+
+func (r *futuMarketDataReader) klineListingLowerBound(
+	ctx context.Context,
+	symbol string,
+	location *time.Location,
+) time.Time {
+	fallback := time.Date(1900, time.January, 1, 0, 0, 0, 0, location)
+	info, err := r.exchange.queryStaticInfo(ctx, symbol)
+	if err != nil || info == nil || info.GetBasic() == nil {
+		return fallback
+	}
+	basic := info.GetBasic()
+	if timestamp := basic.GetListTimestamp(); timestamp > 0 {
+		return time.Unix(int64(timestamp), 0).In(location)
+	}
+	if listTime := strings.TrimSpace(basic.GetListTime()); listTime != "" {
+		if parsed, parseErr := parseFutuKLineQueryTime(listTime, location); parseErr == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func parseFutuKLineQueryTime(value string, location *time.Location) (time.Time, error) {
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	} {
+		parsed, err := time.ParseInLocation(layout, strings.TrimSpace(value), location)
+		if err == nil {
+			return parsed.In(location), nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported time value %q", value)
 }
 
 func (r *futuMarketDataReader) QuerySecurityInfo(ctx context.Context, query broker.SecurityInfoQuery) (*broker.SecurityInfoSnapshot, error) {

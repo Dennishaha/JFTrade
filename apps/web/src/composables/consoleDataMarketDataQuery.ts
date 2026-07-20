@@ -29,6 +29,10 @@ export function createConsoleDataMarketDataQuerySlice() {
   const marketSecurityDetails = ref<MarketSecurityDetailsQueryResult | null>(null);
   const marketDataCandles = ref<MarketDataCandlesQueryResult | null>(null);
   const isLoadingMarketDataQuery = ref(false);
+  const isLoadingOlderMarketData = ref(false);
+  const hasMoreMarketDataHistory = ref(false);
+  const marketDataNextBefore = ref("");
+  const marketDataOlderError = ref("");
   const marketDataQueryError = ref("");
   const lastDataRefreshedAt = ref(0);
 
@@ -49,6 +53,10 @@ export function createConsoleDataMarketDataQuerySlice() {
       marketSecurityDetails,
       marketDataCandles,
       isLoadingMarketDataQuery,
+      isLoadingOlderMarketData,
+      hasMoreMarketDataHistory,
+      marketDataNextBefore,
+      marketDataOlderError,
       marketDataQueryError,
       lastDataRefreshedAt,
     },
@@ -108,11 +116,15 @@ export function createConsoleDataMarketDataQuerySlice() {
     disposeMarketDataQuery: marketDataQueryController.dispose,
     isMarketDataStale,
     isLoadingMarketDataQuery,
+    isLoadingOlderMarketData,
+    hasMoreMarketDataHistory,
     isMarketDataSwitching,
     lastDataRefreshedAt,
     loadMarketDataQuery,
     marketDataCandles,
     marketDataQueryError,
+    marketDataNextBefore,
+    marketDataOlderError,
     marketDataQueryLimit,
     marketDataQueryMarket,
     marketDataQueryPeriod,

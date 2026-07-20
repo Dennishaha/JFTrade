@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -187,32 +189,7 @@ func ParseQueryTime(value string, fallback time.Time) time.Time {
 
 // NormalizeCandlePeriod 将 K 线周期别名规范化为标准形式。
 func NormalizeCandlePeriod(period string) (string, error) {
-	switch strings.ToLower(strings.TrimSpace(period)) {
-	case "tick", "ticker", "k_tick":
-		return "tick", nil
-	case "1m", "1min", "k_1m":
-		return "1m", nil
-	case "3m", "3min", "k_3m":
-		return "3m", nil
-	case "5m", "5min", "k_5m":
-		return "5m", nil
-	case "10m", "10min", "k_10m":
-		return "10m", nil
-	case "15m", "15min", "k_15m":
-		return "15m", nil
-	case "30m", "30min", "k_30m":
-		return "30m", nil
-	case "60m", "60min", "1h", "k_60m":
-		return "1h", nil
-	case "1d", "day", "d", "k_day":
-		return "1d", nil
-	case "1w", "week", "w", "k_week":
-		return "1w", nil
-	case "1mo", "month", "mth", "k_month":
-		return "1mo", nil
-	default:
-		return "", fmt.Errorf("unsupported period %q", period)
-	}
+	return broker.NormalizeCandlePeriod(period)
 }
 
 // ---- Internal helpers ----

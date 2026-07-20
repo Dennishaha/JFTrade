@@ -523,11 +523,26 @@ func normalizeCoreCandleQuery(
 	}
 	limit := int32Param(query.Params, "limit", int32(query.PageSize))
 	if limit < 1 {
-		limit = 50
+		limit = 500
 	}
 	if limit > 500 {
 		return broker.KLineQuery{}, "", fmt.Errorf(
 			"%w: limit must be between 1 and 500",
+			ErrInvalidQuery,
+		)
+	}
+	beforeTime := stringParam(query.Params, "beforeTime")
+	fromTime := firstNonEmpty(
+		stringParam(query.Params, "startTime"),
+		stringParam(query.Params, "fromTime"),
+	)
+	toTime := firstNonEmpty(
+		stringParam(query.Params, "endTime"),
+		stringParam(query.Params, "toTime"),
+	)
+	if beforeTime != "" && (fromTime != "" || toTime != "") {
+		return broker.KLineQuery{}, "", fmt.Errorf(
+			"%w: before cannot be combined with fromTime or toTime",
 			ErrInvalidQuery,
 		)
 	}
@@ -537,15 +552,7 @@ func normalizeCoreCandleQuery(
 			TradingEnvironment: query.TradingEnvironment, Market: market,
 		},
 		Symbol: instrumentID, Period: period,
-		FromTime: firstNonEmpty(
-			stringParam(query.Params, "startTime"),
-			stringParam(query.Params, "fromTime"),
-		),
-		ToTime: firstNonEmpty(
-			stringParam(query.Params, "endTime"),
-			stringParam(query.Params, "toTime"),
-		),
-		Limit: limit,
+		FromTime: fromTime, ToTime: toTime, BeforeTime: beforeTime, Limit: limit,
 	}, operation, nil
 }
 
@@ -582,14 +589,22 @@ func normalizedCoreCandleResult(
 	}
 	total := len(entries)
 	hasMore := false
+	nextCursor := ""
+	metadata := map[string]any{"operation": operation, "period": candleQuery.Period}
+	if snapshot != nil {
+		hasMore = snapshot.Pagination.HasMore
+		nextCursor = snapshot.Pagination.NextBefore
+		metadata["extendedHours"] = snapshot.ExtendedHours
+		metadata["session"] = snapshot.Session
+	}
 	return &broker.FeatureResult{
 		ResolvedInstrument: &broker.Instrument{
 			InstrumentID: candleQuery.Symbol, Code: code, ProductClass: productClass,
 			MarketSegment: segment, QuoteMarket: candleQuery.Market, TradeMarket: candleQuery.Market,
 			QuantityMode: quantityMode,
 		},
-		Entries: entries, Total: &total, HasMore: &hasMore,
-		Metadata: map[string]any{"operation": operation, "period": candleQuery.Period},
+		Entries: entries, Total: &total, HasMore: &hasMore, NextCursor: nextCursor,
+		Metadata: metadata,
 	}, nil
 }
 

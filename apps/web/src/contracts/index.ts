@@ -2405,6 +2405,10 @@ export interface MarketDataCandlesResponse {
   toTime: string | null;
   totalReturned: number;
   candles: MarketDataCandleDto[];
+  pagination?: {
+    hasMore: boolean;
+    nextBefore?: string | null;
+  };
   meta: MarketDataQueryMetaDto;
   error: string | null;
 }

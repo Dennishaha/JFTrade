@@ -47,6 +47,40 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
 
+    if (url.includes("/api/v1/brokers/capabilities")) {
+      return createResponse({
+        brokers: [
+          {
+            id: "futu",
+            displayName: "Futu OpenAPI via OpenD",
+            capabilities: ["HK", "US"].map((market) => ({
+              market,
+              supportsQuote: true,
+              supportsTrade: true,
+              features: [
+                {
+                  id: "market.candles",
+                  state: "available",
+                  supportedPeriods: [
+                    "1m",
+                    "3m",
+                    "5m",
+                    "10m",
+                    "15m",
+                    "30m",
+                    "1h",
+                    "1d",
+                    "1w",
+                    "1mo",
+                  ],
+                },
+                { id: "market.ticks", state: "available" },
+              ],
+            })),
+          },
+        ],
+      });
+    }
     if (url.includes("/api/v1/market-data/subscriptions")) {
       if (init?.method === "POST") {
         return createResponse(

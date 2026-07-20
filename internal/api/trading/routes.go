@@ -80,6 +80,7 @@ type kLinesReadQuery struct {
 	Period   string `form:"period"`
 	FromTime string `form:"fromTime"`
 	ToTime   string `form:"toTime"`
+	Before   string `form:"before"`
 	Limit    string `form:"limit"`
 }
 
@@ -483,7 +484,8 @@ func handleKLines(c *gin.Context, svc *srv.Service, brokerID string) {
 	}
 	result, err := svc.KLines(c.Request.Context(), broker.KLineQuery{
 		ReadQuery: readQuery(svc, brokerID, query.baseReadQuery), Symbol: symbol, Period: period,
-		FromTime: strings.TrimSpace(query.FromTime), ToTime: strings.TrimSpace(query.ToTime), Limit: limit,
+		FromTime: strings.TrimSpace(query.FromTime), ToTime: strings.TrimSpace(query.ToTime),
+		BeforeTime: strings.TrimSpace(query.Before), Limit: limit,
 	})
 	writeReadResult(c, result, err)
 }

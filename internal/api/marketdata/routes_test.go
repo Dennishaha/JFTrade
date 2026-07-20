@@ -319,6 +319,36 @@ func TestCandlesRouteRejectsUnsupportedPeriod(t *testing.T) {
 	}
 }
 
+func TestCandlesRouteForwardsExclusiveBeforeAndRejectsInvalidCombinations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	reader := &routeBrokerReader{}
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), srv.NewService(&routeTestProvider{}), reader)
+
+	valid := httptest.NewRecorder()
+	router.ServeHTTP(valid, httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/api/v1/market-data/candles/US/AAPL?brokerId=alpha&period=5m&limit=20&before=2026-07-18T13%3A40%3A00Z",
+		nil,
+	))
+	if valid.Code != http.StatusOK || reader.lastBefore != "2026-07-18T13:40:00Z" {
+		t.Fatalf("valid before status=%d before=%q body=%s", valid.Code, reader.lastBefore, valid.Body.String())
+	}
+
+	for _, path := range []string{
+		"/api/v1/market-data/candles/US/AAPL?brokerId=alpha&period=5m&before=bad",
+		"/api/v1/market-data/candles/US/AAPL?brokerId=alpha&period=5m&before=2026-07-18T13%3A40%3A00Z&from=2026-07-01",
+		"/api/v1/market-data/candles/US/AAPL?brokerId=alpha&period=tick&before=2026-07-18T13%3A40%3A00Z",
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
+		if response.Code != http.StatusBadRequest {
+			t.Errorf("GET %s status=%d body=%s", path, response.Code, response.Body.String())
+		}
+	}
+}
+
 func TestCandlesRouteDefaultsInvalidLimit(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	provider := &routeTestProvider{}
@@ -339,6 +369,45 @@ func TestCandlesRouteDefaultsInvalidLimit(t *testing.T) {
 	}
 	if provider.candlesLimit != 0 {
 		t.Fatalf("limit = %d, want 0", provider.candlesLimit)
+	}
+}
+
+func TestCandlesRouteTickAndLegacyBeforePagination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{}
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), srv.NewService(provider))
+
+	tick := httptest.NewRecorder()
+	router.ServeHTTP(tick, httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/api/v1/market-data/candles/US/AAPL?period=tick",
+		nil,
+	))
+	if tick.Code != http.StatusOK || !strings.Contains(tick.Body.String(), `"pagination":{"hasMore":false}`) {
+		t.Fatalf("tick response status=%d body=%s", tick.Code, tick.Body.String())
+	}
+
+	before := httptest.NewRecorder()
+	router.ServeHTTP(before, httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/api/v1/market-data/candles/US/AAPL?period=5m&limit=2&before=2026-07-18T13%3A40%3A00Z",
+		nil,
+	))
+	if before.Code != http.StatusOK {
+		t.Fatalf("legacy before response status=%d body=%s", before.Code, before.Body.String())
+	}
+	if provider.candlesToTime != "2026-07-18T13:39:59.999999999Z" {
+		t.Fatalf("exclusive legacy toTime = %q", provider.candlesToTime)
+	}
+
+	pagination := defaultCandlePagination(map[string]any{
+		"candles": []map[string]any{{"at": "2026-07-18T13:35:00Z"}},
+	}, 1)
+	if pagination["hasMore"] != true || pagination["nextBefore"] != "2026-07-18T13:35:00Z" {
+		t.Fatalf("default pagination = %#v", pagination)
 	}
 }
 
@@ -812,7 +881,8 @@ type routeTestProvider struct {
 }
 
 type routeBrokerReader struct {
-	calls []string
+	calls      []string
+	lastBefore string
 }
 
 func (r *routeBrokerReader) ReadMarketSnapshot(
@@ -845,7 +915,9 @@ func (r *routeBrokerReader) ReadMarketCandles(
 	limit int,
 	_ string,
 	_ string,
+	before string,
 ) (map[string]any, error) {
+	r.lastBefore = before
 	r.calls = append(r.calls, fmt.Sprintf("candles:%s:%s:%s:%s:%d", brokerID, market, symbol, period, limit))
 	return map[string]any{"meta": map[string]any{"brokerId": brokerID}}, nil
 }

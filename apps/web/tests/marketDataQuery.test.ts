@@ -161,6 +161,10 @@ function createController(resolveBrokerId: () => string = () => "") {
     marketSecurityDetails: ref<MarketSecurityDetailsQueryResult | null>(null),
     marketDataCandles: ref<MarketDataCandlesQueryResult | null>(null),
     isLoadingMarketDataQuery: ref(false),
+    isLoadingOlderMarketData: ref(false),
+    hasMoreMarketDataHistory: ref(false),
+    marketDataNextBefore: ref(""),
+    marketDataOlderError: ref(""),
     marketDataQueryError: ref(""),
     lastDataRefreshedAt: ref(0),
   };
@@ -371,18 +375,78 @@ describe("createMarketDataQueryController", () => {
     });
   });
 
-  it("preserves existing results when appending older history and updates matching tick events", async () => {
+  it("loads only older candles, preserves accumulated history, and updates matching tick events", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-03T12:30:00.000Z"));
     const { controller, state, fetchEnvelope } = createController();
 
     state.marketDataQueryMarket.value = "US";
     state.marketDataQuerySymbol.value = "AAPL";
-    state.marketDataQueryPeriod.value = "tick";
+    state.marketDataQueryPeriod.value = "1m";
     state.marketDataQueryLimit.value = 2;
     state.activeMarketDataInstrumentId.value = "US.AAPL";
     state.marketDataSnapshot.value = createSnapshotResult("US", "AAPL", 200);
     state.marketSecurityDetails.value = createSecurityDetailsResult("US", "AAPL");
+    state.hasMoreMarketDataHistory.value = true;
+    state.marketDataNextBefore.value = "2026-07-03T12:29:59.000Z";
+    state.marketDataCandles.value = createCandlesResult("US", "AAPL", "1m", [
+      {
+        period: "1m",
+        open: 200.5,
+        high: 200.5,
+        low: 200.5,
+        close: 200.5,
+        volume: 0,
+        at: "2026-07-03T12:29:59.000Z",
+      },
+    ]);
+
+    const olderPage = createCandlesResult("US", "AAPL", "1m", [
+      {
+        period: "1m",
+        open: 199.8,
+        high: 199.8,
+        low: 199.8,
+        close: 199.8,
+        volume: 0,
+        at: "2026-07-03T12:29:58.000Z",
+      },
+    ]);
+    olderPage.pagination = {
+      hasMore: true,
+      nextBefore: "2026-07-03T12:29:58.000Z",
+    };
+    fetchEnvelope.mockResolvedValueOnce(olderPage);
+
+    await controller.loadQuery({
+      appendOlder: true,
+      before: "2026-07-03T12:29:59.000Z",
+    });
+
+    expect(fetchEnvelope).toHaveBeenCalledTimes(1);
+    expect(fetchEnvelope.mock.calls[0]?.[0]).toContain(
+      "before=2026-07-03T12%3A29%3A59.000Z",
+    );
+    expect(state.marketDataSnapshot.value?.snapshot?.price).toBe(200);
+    expect(state.marketSecurityDetails.value?.request.instrumentId).toBe(
+      "US.AAPL",
+    );
+    expect(state.marketDataCandles.value?.candles.map((candle) => candle.at)).toEqual(
+      [
+        "2026-07-03T12:29:58.000Z",
+        "2026-07-03T12:29:59.000Z",
+      ],
+    );
+    expect(state.marketDataQueryError.value).toBe("");
+    expect(state.marketDataNextBefore.value).toBe(
+      "2026-07-03T12:29:58.000Z",
+    );
+
+    fetchEnvelope.mockRejectedValueOnce(new Error("older timeout"));
+    await controller.loadQuery({ appendOlder: true });
+    expect(state.marketDataOlderError.value).toBe("older timeout");
+
+    state.marketDataQueryPeriod.value = "tick";
     state.marketDataCandles.value = createCandlesResult("US", "AAPL", "tick", [
       {
         period: "tick",
@@ -394,45 +458,6 @@ describe("createMarketDataQueryController", () => {
         at: "2026-07-03T12:29:59.000Z",
       },
     ]);
-
-    fetchEnvelope
-      .mockRejectedValueOnce(new Error("snapshot timeout"))
-      .mockRejectedValueOnce(new Error("security timeout"))
-      .mockResolvedValueOnce(
-        createCandlesResult("US", "AAPL", "tick", [
-          {
-            period: "tick",
-            open: 199.8,
-            high: 199.8,
-            low: 199.8,
-            close: 199.8,
-            volume: 0,
-            at: "2026-07-03T12:29:58.000Z",
-          },
-        ]),
-      )
-      .mockResolvedValueOnce(createSnapshotResult("US", "AAPL", 202))
-      .mockResolvedValueOnce(createSecurityDetailsResult("US", "AAPL"));
-
-    await controller.loadQuery({
-      appendOlder: true,
-      fromTime: "2026-07-03T12:00:00.000Z",
-      toTime: "2026-07-03T12:10:00.000Z",
-    });
-
-    expect(state.marketDataSnapshot.value?.snapshot?.price).toBe(200);
-    expect(state.marketSecurityDetails.value?.request.instrumentId).toBe(
-      "US.AAPL",
-    );
-    expect(state.marketDataCandles.value?.candles.map((candle) => candle.at)).toEqual(
-      [
-        "2026-07-03T12:29:58.000Z",
-        "2026-07-03T12:29:59.000Z",
-      ],
-    );
-    expect(state.marketDataQueryError.value).toBe(
-      "snapshot timeout / security timeout",
-    );
 
     controller.applyTickEvent({
       type: "market-data.tick",
@@ -507,7 +532,58 @@ describe("createMarketDataQueryController", () => {
       session: "regular",
     });
     expect(state.lastDataRefreshedAt.value).toBe(1783081800000);
-    expect(mocks.scheduleMarketSnapshotBackgroundRefresh).toHaveBeenCalledTimes(3);
+    expect(mocks.scheduleMarketSnapshotBackgroundRefresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not page Tick history and discards an older page after the target changes", async () => {
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "tick";
+    state.marketDataQueryLimit.value = 2;
+    state.activeMarketDataInstrumentId.value = "US.AAPL";
+    state.hasMoreMarketDataHistory.value = true;
+    state.marketDataNextBefore.value = "2026-07-03T12:00:00.000Z";
+
+    await controller.loadQuery({ appendOlder: true });
+    expect(fetchEnvelope).not.toHaveBeenCalled();
+
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataCandles.value = createCandlesResult("US", "AAPL", "1m", []);
+    state.hasMoreMarketDataHistory.value = false;
+    await controller.loadQuery({ appendOlder: true });
+    expect(fetchEnvelope).not.toHaveBeenCalled();
+
+    state.hasMoreMarketDataHistory.value = true;
+    const older = createDeferred<MarketDataCandlesQueryResult>();
+    fetchEnvelope.mockReturnValueOnce(older.promise);
+    const pending = controller.loadQuery({ appendOlder: true });
+    await controller.loadQuery({ appendOlder: true });
+    expect(fetchEnvelope).toHaveBeenCalledTimes(1);
+
+    controller.selectInstrument({
+      market: "HK",
+      symbol: "00700",
+      period: "1m",
+    });
+    older.resolve(
+      createCandlesResult("US", "AAPL", "1m", [
+        {
+          period: "1m",
+          open: 200,
+          high: 201,
+          low: 199,
+          close: 200.5,
+          volume: 100,
+          at: "2026-07-03T11:59:00.000Z",
+        },
+      ]),
+    );
+    await pending;
+
+    expect(state.activeMarketDataInstrumentId.value).toBe("HK.00700");
+    expect(state.marketDataCandles.value).toBeNull();
+    expect(state.isLoadingOlderMarketData.value).toBe(false);
   });
 
   it("ignores invalid selections and prevents an old rejected request from overwriting a newer symbol", async () => {

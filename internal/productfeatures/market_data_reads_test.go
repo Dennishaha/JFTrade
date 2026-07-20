@@ -17,8 +17,14 @@ func TestWorkspaceMarketDataReadsPreserveExplicitProviderAndResponseShape(t *tes
 	volume := 1234.0
 	reader := &featureMarketDataReader{
 		snapshot: &broker.KLineSnapshot{
-			Symbol: "US.AAPL",
-			Period: "5m",
+			Symbol:        "US.AAPL",
+			Period:        "5m",
+			ExtendedHours: true,
+			Session:       "all",
+			Pagination: broker.KLinePagination{
+				HasMore:    true,
+				NextBefore: "2026-07-18T13:35:00Z",
+			},
 			KLines: []broker.KLineItem{{
 				Time:   "2026-07-18T13:35:00Z",
 				Open:   &open,
@@ -68,7 +74,7 @@ func TestWorkspaceMarketDataReadsPreserveExplicitProviderAndResponseShape(t *tes
 	assertWorkspaceProviderMeta(t, securityResult, "alpha", "US.AAPL")
 
 	candleResult, err := service.ReadMarketCandles(
-		t.Context(), "alpha", "US", "AAPL", "5m", 20, "", "",
+		t.Context(), "alpha", "US", "AAPL", "5m", 20, "", "", "2026-07-18T13:40:00Z",
 	)
 	if err != nil {
 		t.Fatalf("ReadMarketCandles: %v", err)
@@ -81,6 +87,17 @@ func TestWorkspaceMarketDataReadsPreserveExplicitProviderAndResponseShape(t *tes
 	}
 	if reader.query.BrokerID != "alpha" || reader.query.Symbol != "US.AAPL" {
 		t.Fatalf("broker candle query = %#v", reader.query)
+	}
+	if reader.query.BeforeTime != "2026-07-18T13:40:00Z" {
+		t.Fatalf("before cursor = %q", reader.query.BeforeTime)
+	}
+	pagination := candleResult["pagination"].(map[string]any)
+	if pagination["hasMore"] != true || pagination["nextBefore"] != "2026-07-18T13:35:00Z" {
+		t.Fatalf("pagination = %#v", pagination)
+	}
+	meta := candleResult["meta"].(map[string]any)
+	if meta["extendedHours"] != true || meta["session"] != "all" {
+		t.Fatalf("candle meta = %#v", meta)
 	}
 
 	depthResult, err := service.ReadMarketDepth(
@@ -106,7 +123,7 @@ func TestWorkspaceMarketDataReadsRejectInvalidInstrument(t *testing.T) {
 	if _, err := service.ReadMarketSecurityDetails(t.Context(), "alpha", "", ""); !errors.Is(err, ErrInvalidQuery) {
 		t.Fatalf("ReadMarketSecurityDetails error = %v, want ErrInvalidQuery", err)
 	}
-	if _, err := service.ReadMarketCandles(t.Context(), "alpha", "", "", "1m", 10, "", ""); !errors.Is(err, ErrInvalidQuery) {
+	if _, err := service.ReadMarketCandles(t.Context(), "alpha", "", "", "1m", 10, "", "", ""); !errors.Is(err, ErrInvalidQuery) {
 		t.Fatalf("ReadMarketCandles error = %v, want ErrInvalidQuery", err)
 	}
 	if _, err := service.ReadMarketDepth(t.Context(), "alpha", "", "", 10); !errors.Is(err, ErrInvalidQuery) {
@@ -142,7 +159,7 @@ func TestWorkspaceMarketDataReadsSurfaceProviderFailuresAndNormalizeFallbacks(t 
 	if _, err := service.ReadMarketSecurityDetails(t.Context(), adapter.id, "US", "AAPL"); !errors.Is(err, providerErr) {
 		t.Fatalf("ReadMarketSecurityDetails provider error = %v", err)
 	}
-	if _, err := service.ReadMarketCandles(t.Context(), adapter.id, "US", "AAPL", "1m", 10, "", ""); !errors.Is(err, providerErr) {
+	if _, err := service.ReadMarketCandles(t.Context(), adapter.id, "US", "AAPL", "1m", 10, "", "", ""); !errors.Is(err, providerErr) {
 		t.Fatalf("ReadMarketCandles provider error = %v", err)
 	}
 	if _, err := service.ReadMarketDepth(t.Context(), adapter.id, "US", "AAPL", 10); !errors.Is(err, providerErr) {

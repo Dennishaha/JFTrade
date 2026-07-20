@@ -108,6 +108,8 @@ type quoteOpenDServer struct {
 	historySessionErrors  map[int32]*historypb.Response
 	historySessionCallLog []int32
 	historyRouteCallCount map[int32]int
+	lastHistoryBeginTime  string
+	lastHistoryEndTime    string
 	currentKLines         []*qotcommonpb.KLine
 	currentKLError        *qotgetklpb.Response
 	basicQuotes           []*qotcommonpb.BasicQot
@@ -616,6 +618,8 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 	s.historyExtended.Store(request.GetC2S().GetExtendedTime())
 	s.historySession.Store(request.GetC2S().GetSession())
 	s.historyMu.Lock()
+	s.lastHistoryBeginTime = request.GetC2S().GetBeginTime()
+	s.lastHistoryEndTime = request.GetC2S().GetEndTime()
 	s.historySessionCallLog = append(s.historySessionCallLog, request.GetC2S().GetSession())
 	if response := s.historySessionErrors[request.GetC2S().GetSession()]; response != nil {
 		s.historyMu.Unlock()
