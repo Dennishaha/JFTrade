@@ -142,6 +142,11 @@ assert(
   "macOS DMG background is not generated from a Retina 2x vector source",
 );
 assert(
+  dmgPackager.includes("for attempt in 1 2 3 4 5") &&
+    dmgPackager.includes('hdiutil detach "$device" -force'),
+  "macOS DMG packaging does not recover from a temporarily busy mounted image",
+);
+assert(
   darwin.includes("build:dev") &&
     read("build/darwin/Info.dev.plist").includes("com.jftrade.desktop.dev"),
   "macOS development bundle is not isolated through Wails tasks",

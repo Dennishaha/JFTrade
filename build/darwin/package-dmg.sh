@@ -23,6 +23,24 @@ cleanup() {
 }
 trap cleanup EXIT
 
+detach_device() {
+  local attempt
+
+  for attempt in 1 2 3 4 5; do
+    if hdiutil detach "$device" >/dev/null; then
+      device=""
+      return 0
+    fi
+    if [[ "$attempt" -lt 5 ]]; then
+      sleep 1
+    fi
+  done
+
+  echo "disk image is still busy after 5 detach attempts; forcing detach of $device" >&2
+  hdiutil detach "$device" -force >/dev/null
+  device=""
+}
+
 if [[ ! -d "$app_path" ]]; then
   echo "application bundle is missing: $app_path" >&2
   exit 1
@@ -74,8 +92,7 @@ end tell
 APPLESCRIPT
 
 sync
-hdiutil detach "$device" >/dev/null
-device=""
+detach_device
 rm -f "$output_path"
 hdiutil convert "$readwrite_dmg" -format UDZO -imagekey zlib-level=9 \
   -o "$output_path" >/dev/null
