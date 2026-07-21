@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   fetchEnvelopeWithInit: vi.fn(),
   loadExecutionOrderDetails: vi.fn(),
   loadHistoricalExecutionOrders: vi.fn(),
+  loadSystemState: vi.fn(),
   pushNotification: vi.fn(),
   supportsBrokerReadFeature: vi.fn(),
   resolveBrokerReadFeatureQueryRequirements: vi.fn(),
@@ -130,6 +131,7 @@ function createConsoleDataState() {
     isLoadingOrderFees: ref(false),
     loadExecutionOrderDetails: mocks.loadExecutionOrderDetails,
     loadHistoricalExecutionOrders: mocks.loadHistoricalExecutionOrders,
+    loadSystemState: mocks.loadSystemState,
     orderFeesError: ref(""),
     portfolioCashBalances: ref({
       balances: [],
@@ -188,6 +190,7 @@ beforeEach(() => {
   notificationsState = { push: mocks.pushNotification };
   mocks.loadExecutionOrderDetails.mockResolvedValue(undefined);
   mocks.loadHistoricalExecutionOrders.mockResolvedValue(undefined);
+  mocks.loadSystemState.mockResolvedValue(undefined);
   mocks.fetchEnvelope.mockResolvedValue({ orders: [] });
   mocks.fetchEnvelopeWithInit.mockResolvedValue({ message: "accepted" });
   mocks.supportsBrokerReadFeature.mockReturnValue(false);
@@ -772,5 +775,77 @@ describe("AccountPage business flows", () => {
     mocks.loadHistoricalExecutionOrders.mockClear();
     call<void>("ensureHistoricalOrdersLoaded");
     expect(mocks.loadHistoricalExecutionOrders).not.toHaveBeenCalled();
+  });
+
+  it("refreshes account data from the manual refresh button", async () => {
+    const { wrapper } = mountAccountPage();
+    await nextTick();
+
+    const refreshButton = wrapper.find('button[aria-label="刷新账户数据"]');
+    expect(refreshButton.exists()).toBe(true);
+
+    await refreshButton.trigger("click");
+    expect(mocks.loadSystemState).toHaveBeenCalledWith({ bypassCooldown: true });
+    // 每次刷新覆盖全部信息，历史订单一并重拉。
+    expect(mocks.loadHistoricalExecutionOrders).toHaveBeenCalledWith({
+      brokerId: "futu",
+      brokerQuery:
+        "brokerId=futu&tradingEnvironment=REAL&accountId=REAL-001&market=US",
+    });
+
+    await activateTab(wrapper, "历史");
+    mocks.loadHistoricalExecutionOrders.mockClear();
+    mocks.loadSystemState.mockClear();
+
+    await refreshButton.trigger("click");
+    expect(mocks.loadSystemState).toHaveBeenCalledWith({ bypassCooldown: true });
+    expect(mocks.loadHistoricalExecutionOrders).toHaveBeenCalledWith({
+      brokerId: "futu",
+      brokerQuery:
+        "brokerId=futu&tradingEnvironment=REAL&accountId=REAL-001&market=US",
+    });
+  });
+
+  it("auto-refreshes in the background on an interval and stops after unmount", async () => {
+    vi.useFakeTimers();
+    try {
+      const { wrapper } = mountAccountPage();
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(mocks.loadSystemState).toHaveBeenCalledWith({ background: true });
+
+      mocks.loadSystemState.mockClear();
+      wrapper.unmount();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(mocks.loadSystemState).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("skips hidden pages and prevents overlapping account refreshes", async () => {
+    vi.useFakeTimers();
+    const visibilityState = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("hidden");
+    let releaseSystemState: (() => void) | undefined;
+    const pendingSystemState = new Promise<void>((resolve) => {
+      releaseSystemState = resolve;
+    });
+    mocks.loadSystemState.mockReturnValueOnce(pendingSystemState);
+    try {
+      mountAccountPage();
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(mocks.loadSystemState).not.toHaveBeenCalled();
+
+      visibilityState.mockReturnValue("visible");
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(mocks.loadSystemState).toHaveBeenCalledTimes(1);
+    } finally {
+      releaseSystemState?.();
+      visibilityState.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });

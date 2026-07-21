@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import type { ExecutionOrdersResponse } from "@/contracts";
@@ -41,6 +41,7 @@ const {
   isLoadingHistoricalOrders,
   loadExecutionOrderDetails,
   loadHistoricalExecutionOrders,
+  loadSystemState,
   portfolioPositions,
   selectedBrokerAccount,
   selectedExecutionOrderId,
@@ -51,11 +52,15 @@ const notifications = useNotifications();
 const route = useRoute();
 const router = useRouter();
 
+const ACCOUNT_AUTO_REFRESH_INTERVAL_MS = 5_000;
+
 const requestedExecutionOrderId = initialExecutionOrderIdFromLocation();
 const activeTab = ref<AccountTab>(initialAccountTabFromLocation(requestedExecutionOrderId));
 const cancellingOrderIds = ref<Set<string>>(new Set());
 const historicalOrdersDisplayLimit = ref(50);
 const hasLoadedHistoricalOrders = ref(false);
+const isRefreshingAccount = ref(false);
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const pendingCancelOrder = ref<AccountExecutionOrder | null>(null);
 const pendingCancelMessage = computed(() => {
@@ -434,9 +439,7 @@ async function refreshExecutionOrders(): Promise<void> {
   );
 }
 
-function ensureHistoricalOrdersLoaded(): void {
-  if (hasLoadedHistoricalOrders.value) return;
-  hasLoadedHistoricalOrders.value = true;
+async function reloadHistoricalOrders(): Promise<void> {
   const context = activeBrokerReadContext.value;
   if (context == null) return;
   const params = new URLSearchParams();
@@ -444,11 +447,52 @@ function ensureHistoricalOrdersLoaded(): void {
   params.set("tradingEnvironment", context.tradingEnvironment);
   if (context.accountId) params.set("accountId", context.accountId);
   if (context.market) params.set("market", context.market);
-  void loadHistoricalExecutionOrders({
+  await loadHistoricalExecutionOrders({
     brokerId: context.brokerId,
     brokerQuery: params.toString(),
   });
 }
+
+function ensureHistoricalOrdersLoaded(): void {
+  if (hasLoadedHistoricalOrders.value) return;
+  hasLoadedHistoricalOrders.value = true;
+  void reloadHistoricalOrders();
+}
+
+async function refreshAccountData(
+  options: { background?: boolean } = {},
+): Promise<void> {
+  if (isRefreshingAccount.value) return;
+  isRefreshingAccount.value = true;
+  try {
+    // 测试环境可能未提供 loadSystemState，需可缺省。
+    if (typeof loadSystemState === "function") {
+      await loadSystemState(
+        options.background === true ? { background: true } : { bypassCooldown: true },
+      );
+    }
+    // 每次刷新覆盖全部信息：除资金/持仓/订单外，历史订单也一并重拉。
+    await reloadHistoricalOrders();
+  } finally {
+    isRefreshingAccount.value = false;
+  }
+}
+
+onMounted(() => {
+  autoRefreshTimer = setInterval(() => {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      return;
+    }
+    void refreshAccountData({ background: true });
+  }, ACCOUNT_AUTO_REFRESH_INTERVAL_MS);
+});
+
+onBeforeUnmount(() => {
+  if (autoRefreshTimer != null) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+});
 
 function loadMoreHistoricalOrders(): void {
   historicalOrdersDisplayLimit.value += 50;
@@ -625,6 +669,21 @@ if (requestedExecutionOrderId !== "") {
             </span>
           </button>
         </div>
+        <button
+          type="button"
+          class="account-page__refresh"
+          :disabled="isRefreshingAccount"
+          aria-label="刷新账户数据"
+          title="刷新账户数据"
+          @click="refreshAccountData()"
+        >
+          <span
+            class="account-page__refresh-icon"
+            :class="{ 'is-refreshing': isRefreshingAccount }"
+            aria-hidden="true"
+          >&#x21BB;</span>
+          刷新
+        </button>
       </div>
 
       <div class="account-page__content">
@@ -749,6 +808,51 @@ if (requestedExecutionOrderId !== "") {
   height: 2px;
   background: var(--tv-accent);
   content: "";
+}
+
+.account-page__refresh {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 8px 4px 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.account-page__refresh:hover:not(:disabled) {
+  border-color: var(--tv-accent);
+  color: var(--tv-text);
+}
+
+.account-page__refresh:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.account-page__refresh-icon {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.account-page__refresh-icon.is-refreshing {
+  animation: account-page-refresh-spin 0.8s linear infinite;
+}
+
+@keyframes account-page-refresh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .account-page__content {
