@@ -27,7 +27,7 @@ func (e *Exchange) queryAccount(ctx context.Context) (*types.Account, error) {
 			return err
 		}
 		selected = resolved
-		funds, err = client.GetFunds(ctx, resolved.header())
+		funds, err = client.GetFunds(ctx, resolved.header(), fundsCurrencyForMarket(resolved.Market))
 		return err
 	}); err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (e *Exchange) QueryBrokerFunds(ctx context.Context, query BrokerReadQuery) 
 		if err != nil {
 			return err
 		}
-		funds, err := client.GetFunds(ctx, resolved.header())
+		funds, err := client.GetFunds(ctx, resolved.header(), fundsCurrencyForMarket(resolved.Market))
 		if err != nil {
 			return err
 		}

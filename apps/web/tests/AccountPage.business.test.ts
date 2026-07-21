@@ -137,9 +137,6 @@ function createConsoleDataState() {
     portfolioPositions: ref({
       positions: [],
     }),
-    portfolioReconciliation: ref({
-      positions: [],
-    }),
     resolveBrokerReadFeatureQueryRequirements:
       mocks.resolveBrokerReadFeatureQueryRequirements,
     selectedBrokerAccount: ref(null),
@@ -355,9 +352,9 @@ describe("AccountPage business flows", () => {
     expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("order-1");
     expect(wrapper.text()).toContain("REAL-001");
     expect(readSetupValue<Array<{ source: string }>>(setup.accountPositions)).toEqual([
-      expect.objectContaining({ source: "投影", symbol: "US.AAPL" }),
-      expect.objectContaining({ source: "投影", symbol: " US.AAPL " }),
-      expect.objectContaining({ source: "投影", symbol: " " }),
+      expect.objectContaining({ source: "券商", symbol: "US.AAPL" }),
+      expect.objectContaining({ source: "券商", symbol: " US.AAPL " }),
+      expect.objectContaining({ source: "券商", symbol: " " }),
     ]);
     expect(readSetupValue<{ brokerId: string; accountId: string; market: string }>(
       setup.activeBrokerReadContext,

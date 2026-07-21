@@ -504,24 +504,6 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 		t.Fatalf("portfolio position=%#v", position)
 	}
 
-	reconciliation, err := service.PortfolioReconciliation(t.Context(), query)
-	if err != nil {
-		t.Fatalf("PortfolioReconciliation: %v", err)
-	}
-	recPosition := reconciliation.Positions[0]
-	if recPosition.Status != "missing-in-projection" || recPosition.QuantityDelta != 3.0 {
-		t.Fatalf("reconciliation=%#v", recPosition)
-	}
-
-	cashReconciliation, err := service.PortfolioCashReconciliation(t.Context(), query)
-	if err != nil {
-		t.Fatalf("PortfolioCashReconciliation: %v", err)
-	}
-	recBalance := cashReconciliation.Balances
-	if len(recBalance) != 0 {
-		t.Fatalf("cash reconciliation=%#v", cashReconciliation)
-	}
-
 	noBrokerService := NewService()
 	fundsResp, err := noBrokerService.Funds(t.Context(), broker.ReadQuery{BrokerID: "futu"})
 	if err != nil {
@@ -529,36 +511,6 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 	}
 	if fundsResp.Connectivity != "degraded" || fundsResp.LastError == nil {
 		t.Fatalf("Funds fallback=%#v", fundsResp)
-	}
-
-	cashReconciliationReader := &stubMarketDataReader{
-		queryFunds: func(context.Context, broker.ReadQuery) (*broker.FundsSnapshot, error) {
-			return &broker.FundsSnapshot{
-				CurrencyBalances: []broker.CurrencyBalanceSnapshot{{
-					AccountID:               "acc-1",
-					TradingEnvironment:      "REAL",
-					Currency:                "USD",
-					Cash:                    new(float64(500)),
-					AvailableWithdrawalCash: new(float64(250)),
-					NetCashPower:            new(float64(400)),
-				}},
-			}, nil
-		},
-	}
-	cashReconciliationService := NewService(WithActiveBroker(func() broker.Broker {
-		return &stubBroker{id: "futu", data: cashReconciliationReader}
-	}))
-	cashReconciliationResp, err := cashReconciliationService.PortfolioCashReconciliation(t.Context(), query)
-	if err != nil {
-		t.Fatalf("PortfolioCashReconciliation: %v", err)
-	}
-	recBalances := cashReconciliationResp.Balances
-	if len(recBalances) != 1 {
-		t.Fatalf("cash reconciliation=%#v", cashReconciliationResp)
-	}
-	recBalanceEntry := recBalances[0]
-	if recBalanceEntry.Status != "missing-in-projection" || recBalanceEntry.CashDelta != 500.0 {
-		t.Fatalf("cash reconciliation entry=%#v", recBalanceEntry)
 	}
 
 	timeoutReader := &stubMarketDataReader{

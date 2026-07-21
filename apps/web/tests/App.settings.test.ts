@@ -12,9 +12,7 @@ import {
   emptyExecutionOrders,
   emptyOnboardingState,
   emptyPortfolioCashBalances,
-  emptyPortfolioCashReconciliation,
   emptyPortfolioPositions,
-  emptyPortfolioReconciliation,
   emptyRealTradeApprovals,
   emptyRealTradeHardStopEvents,
   emptyRealTradeHardStops,
@@ -337,12 +335,6 @@ describe("Settings page", () => {
       }
       if (url.includes("/api/v1/portfolio/futu/positions")) {
         return createResponse(emptyPortfolioPositions);
-      }
-      if (url.includes("/api/v1/portfolio/futu/cash-reconciliation")) {
-        return createResponse(emptyPortfolioCashReconciliation);
-      }
-      if (url.includes("/api/v1/portfolio/futu/reconciliation")) {
-        return createResponse(emptyPortfolioReconciliation);
       }
       if (url.includes("/api/v1/execution/orders")) {
         return createResponse(emptyExecutionOrders);
@@ -808,14 +800,6 @@ describe("Settings page", () => {
         }
         if (url.includes("/api/v1/portfolio/futu/positions")) {
           return Promise.resolve(createResponse(emptyPortfolioPositions));
-        }
-        if (url.includes("/api/v1/portfolio/futu/cash-reconciliation")) {
-          return Promise.resolve(
-            createResponse(emptyPortfolioCashReconciliation),
-          );
-        }
-        if (url.includes("/api/v1/portfolio/futu/reconciliation")) {
-          return Promise.resolve(createResponse(emptyPortfolioReconciliation));
         }
         if (url.includes("/api/v1/execution/orders")) {
           return Promise.resolve(createResponse(emptyExecutionOrders));

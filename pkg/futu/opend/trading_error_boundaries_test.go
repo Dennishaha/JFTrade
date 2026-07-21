@@ -68,7 +68,7 @@ func TestTradingReadMethodsPropagateOpenDBusinessErrors(t *testing.T) {
 		want string
 	}{
 		{"account list", func() error { _, err := client.GetAccountList(ctx); return err }, "Trd_GetAccList retType=-1 errCode=1101 retMsg=account unavailable"},
-		{"funds", func() error { _, err := client.GetFunds(ctx, header); return err }, "Trd_GetFunds retType=-1 errCode=1102 retMsg=funds unavailable"},
+		{"funds", func() error { _, err := client.GetFunds(ctx, header, trdcommonpb.Currency_Currency_HKD); return err }, "Trd_GetFunds retType=-1 errCode=1102 retMsg=funds unavailable"},
 		{"positions", func() error { _, err := client.GetPositionList(ctx, header, nil); return err }, "Trd_GetPositionList retType=-1 errCode=1103 retMsg=positions unavailable"},
 		{"orders", func() error { _, err := client.GetOrderList(ctx, header, nil); return err }, "Trd_GetOrderList retType=-1 errCode=1104 retMsg=orders unavailable"},
 		{"history orders", func() error {
@@ -108,7 +108,10 @@ func TestTradingReadMethodsRejectDisconnectedSession(t *testing.T) {
 		call func() error
 	}{
 		{"account list", func() error { _, err := client.GetAccountList(t.Context()); return err }},
-		{"funds", func() error { _, err := client.GetFunds(t.Context(), header); return err }},
+		{"funds", func() error {
+			_, err := client.GetFunds(t.Context(), header, trdcommonpb.Currency_Currency_HKD)
+			return err
+		}},
 		{"positions", func() error { _, err := client.GetPositionList(t.Context(), header, nil); return err }},
 		{"orders", func() error { _, err := client.GetOrderList(t.Context(), header, nil); return err }},
 		{"history orders", func() error { _, err := client.GetHistoryOrderList(t.Context(), header, nil, nil); return err }},

@@ -21,9 +21,7 @@ import {
 } from "@/contracts";
 import type {
   PortfolioCashBalancesResponse,
-  PortfolioCashReconciliationResponse,
   PortfolioPositionsResponse,
-  PortfolioReconciliationResponse,
 } from "@/contracts";
 
 import {
@@ -40,7 +38,7 @@ afterEach(() => {
 });
 
 describe("Account page portfolio route redirect", () => {
-  it("shows account cash balances and projected positions", async () => {
+  it("shows account cash balances and broker-sourced positions", async () => {
     const portfolioCashBalances: PortfolioCashBalancesResponse = {
       ...emptySystemStatus,
       balances: [
@@ -68,52 +66,6 @@ describe("Account page portfolio route redirect", () => {
           averagePrice: 319.5,
           marketValue: 15975,
           updatedAt: "2026-05-16T00:01:00.000Z",
-        },
-      ],
-    };
-
-    const portfolioCashReconciliation: PortfolioCashReconciliationResponse = {
-      ...emptySystemStatus,
-      connectivity: "connected",
-      balances: [
-        {
-          brokerId: "futu",
-          tradingEnvironment: "REAL",
-          accountId: "REAL-001",
-          currency: "HKD",
-          status: "different",
-          projectedCashBalance: 55981.5,
-          brokerCash: 88000,
-          cashDelta: -32018.5,
-          brokerAvailableWithdrawalCash: 87000,
-          brokerNetCashPower: 50000,
-          projectedUpdatedAt: "2026-05-16T00:01:00.000Z",
-        },
-      ],
-    };
-
-    const portfolioReconciliation: PortfolioReconciliationResponse = {
-      ...emptySystemStatus,
-      connectivity: "connected",
-      positions: [
-        {
-          brokerId: "futu",
-          tradingEnvironment: "REAL",
-          accountId: "REAL-001",
-          market: "HK",
-          symbol: "HK.00700",
-          symbolName: "Tencent",
-          status: "different",
-          projectedQuantity: 50,
-          brokerQuantity: 100,
-          quantityDelta: -50,
-          projectedAveragePrice: 319.5,
-          brokerAverageCostPrice: 300,
-          averagePriceDelta: 19.5,
-          projectedRealizedPnl: 480,
-          brokerRealizedPnl: 500,
-          realizedPnlDelta: -20,
-          projectedUpdatedAt: "2026-05-16T00:01:00.000Z",
         },
       ],
     };
@@ -164,10 +116,6 @@ describe("Account page portfolio route redirect", () => {
         return createResponse(portfolioCashBalances);
       if (url.includes("/api/v1/portfolio/futu/positions"))
         return createResponse(portfolioPositions);
-      if (url.includes("/api/v1/portfolio/futu/cash-reconciliation"))
-        return createResponse(portfolioCashReconciliation);
-      if (url.includes("/api/v1/portfolio/futu/reconciliation"))
-        return createResponse(portfolioReconciliation);
       if (url.includes("/api/v1/execution/orders"))
         return createResponse(emptyExecutionOrders);
 
@@ -183,9 +131,12 @@ describe("Account page portfolio route redirect", () => {
     const { wrapper } = await mountApp("/portfolio");
 
     expect(wrapper.text()).toContain("我的账户");
-    // 默认持仓 tab 展示投影持仓；多币种现金余额在「资金」tab。
-    expect(wrapper.text()).toContain("00700");
-    expect(wrapper.text()).toContain("投影");
+    // 默认持仓 tab 展示券商兼容持仓；多币种现金余额在「资金」tab。
+    const positionRow = wrapper
+      .findAll("tbody tr")
+      .find((candidate) => candidate.text().includes("00700"));
+    expect(positionRow?.text()).toContain("券商");
+    expect(wrapper.text()).not.toContain("投影");
 
     const fundsTab = wrapper
       .findAll('button[role="tab"]')

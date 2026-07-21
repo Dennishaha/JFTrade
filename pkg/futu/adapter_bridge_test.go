@@ -52,6 +52,9 @@ func TestBrokerAdapterDiscoverAccountsAndTradingBridge(t *testing.T) {
 	if simulate.SecurityFirm == nil || *simulate.SecurityFirm != "FUTUSECURITIES" {
 		t.Fatalf("SecurityFirm = %#v, want FUTUSECURITIES", simulate.SecurityFirm)
 	}
+	if got := simulate.OrderMarketAuthorities; len(got) != 1 || got[0] != "HK" {
+		t.Fatalf("OrderMarketAuthorities = %#v, want [HK]", got)
+	}
 	if _, ok := accountsByID["1002"]; !ok {
 		t.Fatalf("expected real account 1002, got %#v", accounts)
 	}

@@ -1,5 +1,4 @@
 import type {
-  PortfolioReconciliationStatus,
   RealTradeApprovalsResponse,
   RealTradeHardStopEventsResponse,
   RealTradeHardStopsResponse,
@@ -439,36 +438,6 @@ export function formatFutuProgramStatusLabel(
   const description = separatorIndex >= 0 ? status.slice(separatorIndex + 1).trim() : "";
   const label = resolveLabel(statusType, FUTU_PROGRAM_STATUS_LABELS, statusType);
   return description === "" ? label : `${label}：${description}`;
-}
-
-export function resolvePortfolioReconciliationStatusLabel(
-  status: PortfolioReconciliationStatus,
-): string {
-  switch (status) {
-    case "matched":
-      return "已匹配";
-    case "different":
-      return "存在差异";
-    case "missing-in-projection":
-      return "内部缺失";
-    case "missing-at-broker":
-      return "券商缺失";
-  }
-}
-
-export function resolvePortfolioReconciliationTagType(
-  status: PortfolioReconciliationStatus,
-): "success" | "warning" | "danger" | "info" {
-  switch (status) {
-    case "matched":
-      return "success";
-    case "different":
-      return "warning";
-    case "missing-in-projection":
-      return "danger";
-    case "missing-at-broker":
-      return "info";
-  }
 }
 
 function resolveRealTradeHardStopScope(entry: {

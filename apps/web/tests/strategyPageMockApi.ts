@@ -9,9 +9,7 @@ import {
   emptyExecutionOrders,
   emptyMarketDataSubscriptions,
   emptyPortfolioCashBalances,
-  emptyPortfolioCashReconciliation,
   emptyPortfolioPositions,
-  emptyPortfolioReconciliation,
   emptyRealTradeApprovals,
   emptyRealTradeHardStopEvents,
   emptyRealTradeHardStops,
@@ -648,10 +646,6 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
       return createResponse(emptyPortfolioCashBalances)
     if (url.includes("/api/v1/portfolio/futu/positions"))
       return createResponse(emptyPortfolioPositions)
-    if (url.includes("/api/v1/portfolio/futu/cash-reconciliation"))
-      return createResponse(emptyPortfolioCashReconciliation)
-    if (url.includes("/api/v1/portfolio/futu/reconciliation"))
-      return createResponse(emptyPortfolioReconciliation)
     if (url.includes("/api/v1/execution/orders"))
       return createResponse(emptyExecutionOrders)
     if (url.endsWith("/api/v1/strategy-definitions") && method === "POST") {

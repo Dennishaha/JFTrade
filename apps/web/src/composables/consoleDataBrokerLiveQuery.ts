@@ -433,59 +433,60 @@ export function createConsoleDataBrokerLiveQueryController(
     let positions: BrokerPositionsResponse = emptyBrokerPositions;
     options.isLoadingBrokerOrders.value = true;
 
-    try {
-      const liveBrokerDataPromise: Promise<
-        readonly [
-          BrokerFundsResponse,
-          BrokerPositionsResponse,
-          BrokerOrdersResponse,
-        ]
-      > = input.futuBrokerReadsPaused
-        ? Promise.resolve([
-            emptyBrokerFunds,
-            emptyBrokerPositions,
-            emptyBrokerOrders,
-          ] as const)
-        : Promise.all([
-            apiGetPath(
-              "/api/v1/brokers/{brokerId}/funds",
-              `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/funds?${input.brokerQuery}`,
-            ),
-            apiGetPath(
-              "/api/v1/brokers/{brokerId}/positions",
-              `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/positions?${input.brokerQuery}`,
-            ),
-            apiGetPath(
-              "/api/v1/brokers/{brokerId}/orders",
-              `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/orders?${input.brokerQuery}`,
-            ),
-          ]).then(([nextFunds, nextPositions, orders]) => [nextFunds, nextPositions, orders] as const);
+    const fundsPromise: Promise<BrokerFundsResponse> = input.futuBrokerReadsPaused
+      ? Promise.resolve(emptyBrokerFunds)
+      : apiGetPath(
+          "/api/v1/brokers/{brokerId}/funds",
+          `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/funds?${input.brokerQuery}`,
+        ).catch((error) => ({
+          ...emptyBrokerFunds,
+          connectivity: "degraded",
+          lastError:
+            error instanceof Error ? error.message : "券商资金加载失败。",
+        }));
+    const positionsPromise: Promise<BrokerPositionsResponse> = input.futuBrokerReadsPaused
+      ? Promise.resolve(emptyBrokerPositions)
+      : apiGetPath(
+          "/api/v1/brokers/{brokerId}/positions",
+          `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/positions?${input.brokerQuery}`,
+        ).catch((error) => ({
+          ...emptyBrokerPositions,
+          connectivity: "degraded",
+          lastError:
+            error instanceof Error ? error.message : "券商持仓加载失败。",
+        }));
+    const ordersPromise: Promise<BrokerOrdersResponse> = input.futuBrokerReadsPaused
+      ? Promise.resolve(emptyBrokerOrders)
+      : apiGetPath(
+          "/api/v1/brokers/{brokerId}/orders",
+          `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/orders?${input.brokerQuery}`,
+        ).catch((error) => ({
+          ...emptyBrokerOrders,
+          connectivity: "degraded",
+          lastError:
+            error instanceof Error ? error.message : "券商订单加载失败。",
+        }));
 
-      // Phase 1: Load active orders only (fast, no history sync)
-      const [[nextFunds, nextPositions, orders], , activeOrders] =
-        await Promise.all([
-        liveBrokerDataPromise,
-        options.loadPortfolioLiveData({
-          brokerId: input.brokerId,
-          brokerQuery: input.brokerQuery,
-        }),
-        fetchEnvelope<ExecutionOrdersResponse>(executionOrdersUrl({ ...input, scope: "active" })),
-      ]);
+    const [nextFunds, nextPositions, orders, , activeOrders] = await Promise.all([
+      fundsPromise,
+      positionsPromise,
+      ordersPromise,
+      options.loadPortfolioLiveData({
+        brokerId: input.brokerId,
+        brokerQuery: input.brokerQuery,
+      }),
+      fetchEnvelope<ExecutionOrdersResponse>(
+        executionOrdersUrl({ ...input, scope: "active" }),
+      ).catch(() => emptyExecutionOrders),
+    ]);
 
-      funds = nextFunds;
-      positions = nextPositions;
-      options.brokerFunds.value = funds;
-      options.brokerPositions.value = positions;
-      options.brokerOrders.value = orders;
-      options.activeExecutionOrders.value = activeOrders;
-      options.isLoadingBrokerOrders.value = false;
-
-      // Phase 2: Load historical orders in the background (slower)
-      // Historical orders are now lazy-loaded — only triggered when user visits history tab
-      // via loadHistoricalExecutionOrders(). We no longer auto-load here.
-    } catch {
-      options.isLoadingBrokerOrders.value = false;
-    }
+    funds = nextFunds;
+    positions = nextPositions;
+    options.brokerFunds.value = funds;
+    options.brokerPositions.value = positions;
+    options.brokerOrders.value = orders;
+    options.activeExecutionOrders.value = activeOrders;
+    options.isLoadingBrokerOrders.value = false;
 
     if (input.futuBrokerReadsPaused) {
       resetPeripheralReads();

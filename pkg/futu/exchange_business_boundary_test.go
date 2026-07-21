@@ -64,6 +64,15 @@ func TestBalanceMapFromBrokerFundsFallsBackToMarketCurrencyAndLockedCash(t *test
 	if got := balance.MaxWithdrawAmount.Float64(); got != maxWithdrawal {
 		t.Fatalf("max withdrawal = %v, want %v", got, maxWithdrawal)
 	}
+	for marketCode, currency := range map[string]string{"CN": "CNH", "MY": "MYR"} {
+		fallback := balanceMapFromBrokerFunds(&BrokerFundsSnapshot{
+			Market: marketCode,
+			Cash:   &cash,
+		})
+		if _, ok := fallback[currency]; !ok {
+			t.Fatalf("balances = %#v, want %s fallback for %s market", fallback, currency, marketCode)
+		}
+	}
 
 	negativeDifference := balanceMapFromBrokerFunds(&BrokerFundsSnapshot{
 		Cash:                    new(100.0),
@@ -225,16 +234,33 @@ func TestBrokerOrderMarketAndCurrencyBoundaries(t *testing.T) {
 
 	currencyCases := map[string]string{
 		"US": "USD",
-		"CN": "CNY",
+		"CN": "CNH",
 		"SG": "SGD",
 		"JP": "JPY",
+		"MY": "MYR",
 		"CA": "CAD",
 		"AU": "AUD",
 		"HK": "HKD",
 	}
 	for marketCode, want := range currencyCases {
-		if got := defaultCurrencyForMarket(marketCode); got != want {
-			t.Fatalf("defaultCurrencyForMarket(%q) = %q, want %q", marketCode, got, want)
+		if got := defaultFundsCurrencyForMarket(marketCode); got != want {
+			t.Fatalf("defaultFundsCurrencyForMarket(%q) = %q, want %q", marketCode, got, want)
+		}
+	}
+	fundsCurrencyCases := map[string]trdcommonpb.Currency{
+		"HK": trdcommonpb.Currency_Currency_HKD,
+		"US": trdcommonpb.Currency_Currency_USD,
+		"CN": trdcommonpb.Currency_Currency_CNH,
+		"SG": trdcommonpb.Currency_Currency_SGD,
+		"AU": trdcommonpb.Currency_Currency_AUD,
+		"JP": trdcommonpb.Currency_Currency_JPY,
+		"MY": trdcommonpb.Currency_Currency_MYR,
+		"CA": trdcommonpb.Currency_Currency_CAD,
+		"":   trdcommonpb.Currency_Currency_HKD,
+	}
+	for marketCode, want := range fundsCurrencyCases {
+		if got := fundsCurrencyForMarket(marketCode); got != want {
+			t.Fatalf("fundsCurrencyForMarket(%q) = %s, want %s", marketCode, got, want)
 		}
 	}
 
@@ -372,6 +398,25 @@ func TestTradeSecurityInfoAndRuntimeMarketAuthorityBoundaries(t *testing.T) {
 	})
 	if len(authorities) != 2 || authorities[0] != "US" || authorities[1] != "HK" {
 		t.Fatalf("runtimeMarketAuthorities = %#v, want unique US/HK and unknown skipped", authorities)
+	}
+	orderAuthorities := runtimeOrderMarketAuthorities([]int32{
+		int32(trdcommonpb.TrdMarket_TrdMarket_US_Fund),
+		int32(trdcommonpb.TrdMarket_TrdMarket_US),
+		int32(trdcommonpb.TrdMarket_TrdMarket_HK_Fund),
+		int32(trdcommonpb.TrdMarket_TrdMarket_HK),
+	})
+	if len(orderAuthorities) != 2 || orderAuthorities[0] != "US" || orderAuthorities[1] != "HK" {
+		t.Fatalf("runtimeOrderMarketAuthorities = %#v, want stock-capable US/HK", orderAuthorities)
+	}
+	fundOnlyAuthorities := runtimeOrderMarketAuthorities([]int32{
+		int32(trdcommonpb.TrdMarket_TrdMarket_HK_Fund),
+		int32(trdcommonpb.TrdMarket_TrdMarket_US_Fund),
+	})
+	if fundOnlyAuthorities == nil || len(fundOnlyAuthorities) != 0 {
+		t.Fatalf("fund-only order authorities = %#v, want explicit empty slice", fundOnlyAuthorities)
+	}
+	if unspecified := runtimeOrderMarketAuthorities(nil); unspecified != nil {
+		t.Fatalf("unspecified order authorities = %#v, want nil fallback", unspecified)
 	}
 
 	historicalErr := (&historicalKLineRequestError{retType: 1, errCode: 42, retMsg: "session unsupported"}).Error()

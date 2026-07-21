@@ -29,7 +29,7 @@ func balanceMapFromBrokerFunds(snapshot *BrokerFundsSnapshot) types.BalanceMap {
 		return balances
 	}
 
-	currency := defaultCurrencyForMarket(snapshot.Market)
+	currency := defaultFundsCurrencyForMarket(snapshot.Market)
 	if snapshot.Currency != nil && *snapshot.Currency != "" {
 		currency = *snapshot.Currency
 	}
@@ -286,21 +286,44 @@ func marketFromSymbol(symbol string, fallback string) string {
 	return "HK"
 }
 
-func defaultCurrencyForMarket(market string) string {
+func defaultFundsCurrencyForMarket(market string) string {
 	switch strings.ToUpper(strings.TrimSpace(market)) {
 	case "US":
 		return "USD"
 	case "CN":
-		return "CNY"
+		return "CNH"
 	case "SG":
 		return "SGD"
 	case "JP":
 		return "JPY"
+	case "MY":
+		return "MYR"
 	case "CA":
 		return "CAD"
 	case "AU":
 		return "AUD"
 	default:
 		return "HKD"
+	}
+}
+
+func fundsCurrencyForMarket(market string) trdcommonpb.Currency {
+	switch strings.ToUpper(strings.TrimSpace(market)) {
+	case "US":
+		return trdcommonpb.Currency_Currency_USD
+	case "CN":
+		return trdcommonpb.Currency_Currency_CNH
+	case "SG":
+		return trdcommonpb.Currency_Currency_SGD
+	case "AU":
+		return trdcommonpb.Currency_Currency_AUD
+	case "JP":
+		return trdcommonpb.Currency_Currency_JPY
+	case "MY":
+		return trdcommonpb.Currency_Currency_MYR
+	case "CA":
+		return trdcommonpb.Currency_Currency_CAD
+	default:
+		return trdcommonpb.Currency_Currency_HKD
 	}
 }

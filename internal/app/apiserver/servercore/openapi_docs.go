@@ -231,24 +231,6 @@ func documentPortfolioCashBalancesRoute() string { return "portfolio-cash-balanc
 // @Router /api/v1/portfolio/{brokerId}/positions [get]
 func documentPortfolioPositionsRoute() string { return "portfolio-positions" }
 
-// documentPortfolioCashReconciliationRoute godoc
-// @Summary 读取 portfolio 现金对账
-// @Tags portfolio
-// @Produce json
-// @Param brokerId path string true "券商 ID"
-// @Success 200 {object} envelope{data=trading.PortfolioCashReconciliationResponse}
-// @Router /api/v1/portfolio/{brokerId}/cash-reconciliation [get]
-func documentPortfolioCashReconciliationRoute() string { return "portfolio-cash-reconciliation" }
-
-// documentPortfolioReconciliationRoute godoc
-// @Summary 读取 portfolio 持仓对账
-// @Tags portfolio
-// @Produce json
-// @Param brokerId path string true "券商 ID"
-// @Success 200 {object} envelope{data=trading.PortfolioReconciliationResponse}
-// @Router /api/v1/portfolio/{brokerId}/reconciliation [get]
-func documentPortfolioReconciliationRoute() string { return "portfolio-reconciliation" }
-
 // documentBrokerFundsRoute godoc
 // @Summary 读取券商资金
 // @Tags broker

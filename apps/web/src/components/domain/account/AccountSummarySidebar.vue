@@ -67,21 +67,23 @@ const totalCash = computed(() => {
     return summary.value.cash;
   }
   const selected = selectedBrokerAccount.value;
-  if (selected == null) {
-    return portfolioCashBalances.value.balances
-      .filter((balance) =>
+  const balances = selected == null
+    ? portfolioCashBalances.value.balances.filter((balance) =>
         matchesActiveTradingEnvironment(balance.tradingEnvironment),
       )
-      .reduce((sum, balance) => sum + (balance.cashBalance ?? 0), 0);
+    : portfolioCashBalances.value.balances.filter(
+        (balance) =>
+          balance.brokerId === selected.brokerId &&
+          balance.accountId === selected.accountId &&
+          balance.tradingEnvironment === selected.tradingEnvironment,
+      );
+  if (balances.length === 0) {
+    return null;
   }
-  return portfolioCashBalances.value.balances
-    .filter(
-      (balance) =>
-        balance.brokerId === selected.brokerId &&
-        balance.accountId === selected.accountId &&
-        balance.tradingEnvironment === selected.tradingEnvironment,
-    )
-    .reduce((sum, balance) => sum + (balance.cashBalance ?? 0), 0);
+  return balances.reduce(
+    (sum, balance) => sum + (balance.cashBalance ?? 0),
+    0,
+  );
 });
 
 const overviewRows = computed(() => [
@@ -150,6 +152,11 @@ function formatPnl(value: number | null | undefined): string {
   const sign = value > 0 ? "+" : "";
   return `${sign}${formatMoney(value, currency.value, { maximumFractionDigits: 2 })}`;
 }
+
+function formatOverviewMoney(value: number | null | undefined): string {
+  if (value == null) return "--";
+  return formatMoney(value, currency.value, { maximumFractionDigits: 2 });
+}
 </script>
 
 <template>
@@ -190,7 +197,7 @@ function formatPnl(value: number | null | undefined): string {
     <div class="account-sidebar__rows">
       <div v-for="row in overviewRows" :key="row.label" class="account-sidebar__row">
         <span>{{ row.label }}</span>
-        <b class="tv-num">{{ formatMoney(row.value, currency, { maximumFractionDigits: 2 }) }}</b>
+        <b class="tv-num">{{ formatOverviewMoney(row.value) }}</b>
       </div>
     </div>
 

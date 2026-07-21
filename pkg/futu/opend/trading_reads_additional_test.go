@@ -36,6 +36,9 @@ func TestTradingReadWrappersDecodeBusinessPayloads(t *testing.T) {
 			if request.GetC2S().GetHeader().GetAccID() != header.GetAccID() {
 				t.Fatalf("GetFunds header = %#v", request.GetC2S().GetHeader())
 			}
+			if got := request.GetC2S().GetCurrency(); got != int32(trdcommonpb.Currency_Currency_USD) {
+				t.Fatalf("GetFunds currency = %d, want USD", got)
+			}
 			return &trdgetfundspb.Response{
 				RetType: new(int32(0)),
 				S2C: &trdgetfundspb.S2C{
@@ -210,7 +213,7 @@ func TestTradingReadWrappersDecodeBusinessPayloads(t *testing.T) {
 		},
 	})
 
-	funds, err := client.GetFunds(ctx, header)
+	funds, err := client.GetFunds(ctx, header, trdcommonpb.Currency_Currency_USD)
 	if err != nil || funds.GetPower() != 200000 {
 		t.Fatalf("GetFunds() = (%#v, %v)", funds, err)
 	}
@@ -297,7 +300,7 @@ func TestTradingReadWrappersReturnStableEmptyValues(t *testing.T) {
 		},
 	})
 
-	if funds, err := client.GetFunds(ctx, header); err != nil || funds == nil || funds.GetPower() != 0 {
+	if funds, err := client.GetFunds(ctx, header, trdcommonpb.Currency_Currency_HKD); err != nil || funds == nil || funds.GetPower() != 0 {
 		t.Fatalf("empty GetFunds() = (%#v, %v)", funds, err)
 	}
 	if positions, err := client.GetPositionList(ctx, header, nil); err != nil || len(positions) != 0 {

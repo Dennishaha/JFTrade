@@ -15,15 +15,34 @@ const { brokerFunds } = useConsoleData();
 
 const summary = computed(() => brokerFunds.value.summary);
 const currency = computed(() => summary.value?.currency ?? undefined);
+const fundsError = computed(() => brokerFunds.value.lastError?.trim() ?? "");
 
-const hasMarginRisk = computed(() => {
+const marginRiskState = computed<"warning" | "success" | "unknown">(() => {
   const value = summary.value?.marginCallMargin;
-  return value != null && value > 0;
+  if (value == null) return "unknown";
+  if (value > 0) return "warning";
+  return value === 0 ? "success" : "unknown";
 });
 
 const riskTone = computed<"warn" | "plain">(() =>
-  hasMarginRisk.value ? "warn" : "plain",
+  marginRiskState.value === "warning" ? "warn" : "plain",
 );
+
+const riskDotClass = computed(() => {
+  if (marginRiskState.value === "success") return "tv-status--success";
+  return "tv-status--warning";
+});
+
+const riskTitle = computed(() => {
+  switch (marginRiskState.value) {
+    case "warning":
+      return "存在追保保证金，请关注账户风险";
+    case "success":
+      return "追保保证金为零";
+    default:
+      return "风控数据不可用，无法判断账户风险";
+  }
+});
 
 function pnlTone(value: number | null | undefined): "up" | "down" | "plain" {
   if (value == null || value === 0) return "plain";
@@ -116,14 +135,17 @@ function toneClass(item: MetricItem): string {
 
 <template>
   <div class="asset-strip" aria-label="资产指标">
+    <div v-if="fundsError" class="asset-strip__error" role="status">
+      资金数据暂不可用：{{ fundsError }}
+    </div>
     <section v-for="section in sections" :key="section.title" class="asset-strip__section">
       <header class="asset-strip__title">
         {{ section.title }}
         <i
           v-if="section.title === '账户风控'"
           class="tv-state-dot"
-          :class="hasMarginRisk ? 'tv-status--warning' : 'tv-status--success'"
-          :title="hasMarginRisk ? '存在追保保证金，请关注账户风险' : '保证金指标正常'"
+          :class="riskDotClass"
+          :title="riskTitle"
         ></i>
       </header>
       <div class="asset-strip__grid">
@@ -151,6 +173,15 @@ function toneClass(item: MetricItem): string {
   min-width: 0;
   padding: 10px 14px 12px;
   border-left: 1px solid var(--tv-border);
+}
+
+.asset-strip__error {
+  grid-column: 1 / -1;
+  padding: 7px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tv-warn) 35%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-warn) 9%, var(--tv-bg-surface-2));
+  color: var(--tv-warn);
+  font-size: 11px;
 }
 
 .asset-strip__section:first-child {

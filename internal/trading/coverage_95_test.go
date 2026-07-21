@@ -156,8 +156,6 @@ func TestBrokerIdentityMismatchPropagatesAcrossReadAndWriteOperations(t *testing
 		}},
 		{"portfolio cash", func() error { _, err := service.PortfolioCashBalances(t.Context(), read); return err }},
 		{"portfolio positions", func() error { _, err := service.PortfolioPositions(t.Context(), read); return err }},
-		{"position reconciliation", func() error { _, err := service.PortfolioReconciliation(t.Context(), read); return err }},
-		{"cash reconciliation", func() error { _, err := service.PortfolioCashReconciliation(t.Context(), read); return err }},
 		{"place", func() error {
 			_, err := service.PlaceBrokerOrder(t.Context(), broker.PlaceOrderQuery{ReadQuery: read})
 			return err

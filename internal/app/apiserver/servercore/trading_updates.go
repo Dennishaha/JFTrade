@@ -29,6 +29,7 @@ func (s *tradingOrderUpdateSource) DiscoverAccounts(ctx context.Context) ([]trds
 	}
 	var result []trdsrv.Account
 	var discoveryErrors []error
+	excludedOrderAccounts := 0
 	for _, selected := range brokers {
 		accounts, err := selected.DiscoverAccounts(ctx)
 		if err != nil {
@@ -40,14 +41,25 @@ func (s *tradingOrderUpdateSource) DiscoverAccounts(ctx context.Context) ([]trds
 			if brokerID == "" {
 				brokerID = selected.ID()
 			}
+			marketAuthorities := account.MarketAuthorities
+			if account.OrderMarketAuthorities != nil {
+				if len(account.OrderMarketAuthorities) == 0 {
+					excludedOrderAccounts++
+					continue
+				}
+				marketAuthorities = account.OrderMarketAuthorities
+			}
 			result = append(result, trdsrv.Account{
 				ID: account.ID, BrokerID: brokerID, TradingEnvironment: account.TradingEnvironment,
-				MarketAuthorities: append([]string(nil), account.MarketAuthorities...),
+				MarketAuthorities: append([]string(nil), marketAuthorities...),
 			})
 		}
 	}
 	if len(result) == 0 && len(discoveryErrors) > 0 {
 		return nil, errors.Join(discoveryErrors...)
+	}
+	if len(result) == 0 && excludedOrderAccounts > 0 {
+		return nil, trdsrv.ErrOrderUpdateSourceInactive
 	}
 	return result, nil
 }

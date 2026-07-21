@@ -100,6 +100,52 @@ func TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees(t *testing.T)
 	}
 }
 
+func TestProductLifecycleOrderUpdateSourceSkipsFundOnlyAccounts(t *testing.T) {
+	server := newTradingAdapterCoverageServer(t)
+	server.brokers.Replace(&lifecycleBroker{
+		id: "futu",
+		accounts: []broker.Account{
+			{ID: "generic", MarketAuthorities: []string{"HK"}},
+			{
+				ID: "mixed", MarketAuthorities: []string{"US", "HK"},
+				OrderMarketAuthorities: []string{"US"},
+			},
+			{
+				ID: "fund-only", MarketAuthorities: []string{"US"},
+				OrderMarketAuthorities: []string{},
+			},
+		},
+	})
+
+	accounts, err := (&tradingOrderUpdateSource{server: server}).DiscoverAccounts(t.Context())
+	if err != nil {
+		t.Fatalf("DiscoverAccounts: %v", err)
+	}
+	if len(accounts) != 2 {
+		t.Fatalf("order accounts = %#v, want generic and mixed only", accounts)
+	}
+	if accounts[0].ID != "generic" || len(accounts[0].MarketAuthorities) != 1 || accounts[0].MarketAuthorities[0] != "HK" {
+		t.Fatalf("generic account = %#v", accounts[0])
+	}
+	if accounts[1].ID != "mixed" || len(accounts[1].MarketAuthorities) != 1 || accounts[1].MarketAuthorities[0] != "US" {
+		t.Fatalf("mixed account = %#v", accounts[1])
+	}
+
+	fundOnlyServer := newTradingAdapterCoverageServer(t)
+	fundOnlyServer.brokers.Replace(&lifecycleBroker{
+		id: "futu",
+		accounts: []broker.Account{{
+			ID: "fund-only", MarketAuthorities: []string{"US"},
+			OrderMarketAuthorities: []string{},
+		}},
+	})
+	if _, err := (&tradingOrderUpdateSource{server: fundOnlyServer}).DiscoverAccounts(
+		t.Context(),
+	); !errors.Is(err, trdsrv.ErrOrderUpdateSourceInactive) {
+		t.Fatalf("fund-only discovery error = %v, want inactive without fallback queries", err)
+	}
+}
+
 func TestProductLifecycleFeeUpdatesPersistOnlyOnLiveOrderLedger(t *testing.T) {
 	var nilUpdates *tradingExecutionOrderUpdates
 	nilUpdates.ApplyFees(t.Context(), "partial", []broker.OrderFeeSnapshot{{

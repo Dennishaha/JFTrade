@@ -146,8 +146,6 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 func RegisterPortfolioRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	api.GET("/portfolio/:brokerId/cash-balances", handlePortfolioRead(svc, "cash-balances"))
 	api.GET("/portfolio/:brokerId/positions", handlePortfolioRead(svc, "positions"))
-	api.GET("/portfolio/:brokerId/cash-reconciliation", handlePortfolioRead(svc, "cash-reconciliation"))
-	api.GET("/portfolio/:brokerId/reconciliation", handlePortfolioRead(svc, "reconciliation"))
 }
 
 func handlePortfolioRead(svc *srv.Service, resource string) gin.HandlerFunc {
@@ -174,12 +172,6 @@ func handlePortfolioRead(svc *srv.Service, resource string) gin.HandlerFunc {
 		case "positions":
 			result, err = svc.PortfolioPositions(c.Request.Context(), query)
 			code = "PORTFOLIO_POSITIONS_FAILED"
-		case "cash-reconciliation":
-			result, err = svc.PortfolioCashReconciliation(c.Request.Context(), query)
-			code = "PORTFOLIO_CASH_RECONCILIATION_FAILED"
-		case "reconciliation":
-			result, err = svc.PortfolioReconciliation(c.Request.Context(), query)
-			code = "PORTFOLIO_RECONCILIATION_FAILED"
 		default:
 			httpserver.WriteNotFound(c)
 			return

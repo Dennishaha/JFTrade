@@ -36,22 +36,12 @@ describe("console business formatting", () => {
     expect(formatting.formatMarketDataChannelLabel("ORDERBOOK")).toBe("盘口");
   });
 
-  it("formats OpenD, reconciliation and scoped real-trade controls", () => {
+  it("formats OpenD and scoped real-trade controls", () => {
     expect(formatting.formatFutuProgramStatusLabel(null)).toBe("暂无");
     expect(formatting.formatFutuProgramStatusLabel("PROGRAMSTATUSTYPE_READY")).toBe("已就绪");
     expect(formatting.formatFutuProgramStatusLabel("PROGRAMSTATUSTYPE_LOGINFAILED:bad password"))
       .toBe("登录失败：bad password");
     expect(formatting.formatFutuProgramStatusLabel("CUSTOM:detail")).toBe("CUSTOM：detail");
-
-    for (const [status, label, tag] of [
-      ["matched", "已匹配", "success"],
-      ["different", "存在差异", "warning"],
-      ["missing-in-projection", "内部缺失", "danger"],
-      ["missing-at-broker", "券商缺失", "info"],
-    ] as const) {
-      expect(formatting.resolvePortfolioReconciliationStatusLabel(status)).toBe(label);
-      expect(formatting.resolvePortfolioReconciliationTagType(status)).toBe(tag);
-    }
 
     const account = { market: null, symbol: null };
     const market = { market: "US", symbol: null };

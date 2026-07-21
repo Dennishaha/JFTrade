@@ -1909,18 +1909,6 @@ export type PortfolioPositionsResponse =
 export type PortfolioCashBalancesResponse =
   components["schemas"]["trading.PortfolioCashBalancesResponse"];
 
-export type PortfolioReconciliationStatus =
-  | "matched"
-  | "different"
-  | "missing-in-projection"
-  | "missing-at-broker";
-
-export type PortfolioReconciliationResponse =
-  components["schemas"]["trading.PortfolioReconciliationResponse"];
-
-export type PortfolioCashReconciliationResponse =
-  components["schemas"]["trading.PortfolioCashReconciliationResponse"];
-
 export interface BrokerPlaceOrderRequestPayload {
   tradingEnvironment: string;
   accountId: string;
@@ -3024,19 +3012,6 @@ export const emptyPortfolioPositions: PortfolioPositionsResponse = {
 export const emptyPortfolioCashBalances: PortfolioCashBalancesResponse = {
   balances: [],
 };
-
-export const emptyPortfolioReconciliation: PortfolioReconciliationResponse = {
-  checkedAt: new Date(0).toISOString(),
-  connectivity: "disconnected",
-  positions: [],
-};
-
-export const emptyPortfolioCashReconciliation: PortfolioCashReconciliationResponse =
-  {
-    checkedAt: new Date(0).toISOString(),
-    connectivity: "disconnected",
-    balances: [],
-  };
 
 export const emptyExecutionOrders: ExecutionOrdersResponse = {
   orders: [],

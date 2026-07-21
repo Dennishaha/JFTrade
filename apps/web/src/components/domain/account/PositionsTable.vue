@@ -1,16 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
-
-import type {
-  PortfolioReconciliationResponse,
-  PortfolioReconciliationStatus,
-} from "@/contracts";
-
 import InstrumentIdentity from "../market-data/InstrumentIdentity.vue";
-import {
-  resolvePortfolioReconciliationStatusLabel,
-  resolvePortfolioReconciliationTagType,
-} from "../../../composables/consoleDataFormatting";
 import { formatUserMarketLabel } from "../../../composables/instrumentPresentation";
 import { pricePrecisionForMarket } from "../../../composables/marketProfiles";
 import {
@@ -41,56 +30,12 @@ export interface AccountPositionRow {
 const props = withDefaults(
   defineProps<{
     positions: AccountPositionRow[];
-    reconciliation?: PortfolioReconciliationResponse["positions"];
     emptyText?: string;
   }>(),
   {
-    reconciliation: () => [],
     emptyText: "当前账户暂无持仓。",
   },
 );
-
-const showReconciliation = computed(() => props.reconciliation.length > 0);
-
-const reconciliationByPosition = computed(() => {
-  const map = new Map<
-    string,
-    PortfolioReconciliationResponse["positions"][number]
-  >();
-  for (const entry of props.reconciliation) {
-    map.set(`${entry.market}|${entry.symbol}`.toUpperCase(), entry);
-  }
-  return map;
-});
-
-function reconciliationFor(
-  position: AccountPositionRow,
-): PortfolioReconciliationResponse["positions"][number] | null {
-  return (
-    reconciliationByPosition.value.get(
-      `${position.market}|${position.symbol}`.toUpperCase(),
-    ) ?? null
-  );
-}
-
-function reconciliationLabel(
-  position: AccountPositionRow,
-): string {
-  const entry = reconciliationFor(position);
-  if (entry == null) return "未对账";
-  return resolvePortfolioReconciliationStatusLabel(
-    entry.status as PortfolioReconciliationStatus,
-  );
-}
-
-function reconciliationClass(position: AccountPositionRow): string {
-  const entry = reconciliationFor(position);
-  if (entry == null) return "tv-status--info";
-  const tag = resolvePortfolioReconciliationTagType(
-    entry.status as PortfolioReconciliationStatus,
-  );
-  return tag === "danger" ? "tv-status--error" : `tv-status--${tag}`;
-}
 
 function formatQuantity(value: number | null | undefined): string {
   return formatNumber(value, { maximumFractionDigits: 4 });
@@ -156,7 +101,6 @@ function formatPositionProduct(value: string | null | undefined): string {
           <th class="tv-num">盈亏比例</th>
           <th>产品·组合</th>
           <th>来源</th>
-          <th v-if="showReconciliation">对账</th>
         </tr>
       </thead>
       <tbody>
@@ -192,11 +136,6 @@ function formatPositionProduct(value: string | null | undefined): string {
             </span>
           </td>
           <td>{{ position.source }}</td>
-          <td v-if="showReconciliation">
-            <span class="positions-table__recon" :class="reconciliationClass(position)">
-              <i class="tv-state-dot"></i>{{ reconciliationLabel(position) }}
-            </span>
-          </td>
         </tr>
       </tbody>
     </table>
@@ -214,15 +153,6 @@ function formatPositionProduct(value: string | null | undefined): string {
 
 .positions-table__dim {
   color: var(--tv-text-dim);
-}
-
-.positions-table__recon {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--tv-status-fg, var(--tv-text-muted));
-  font-size: 11px;
-  white-space: nowrap;
 }
 
 .positions-table__empty {

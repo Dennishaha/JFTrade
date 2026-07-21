@@ -520,8 +520,6 @@ func TestProductToolRegistryHandlersAndSwaggerMarkersStayLinked(t *testing.T) {
 		documentPluginRoutes,
 		documentPortfolioCashBalancesRoute,
 		documentPortfolioPositionsRoute,
-		documentPortfolioCashReconciliationRoute,
-		documentPortfolioReconciliationRoute,
 		documentBrokerFundsRoute,
 		documentBrokerPositionsRoute,
 		documentBrokerOrdersRoute,

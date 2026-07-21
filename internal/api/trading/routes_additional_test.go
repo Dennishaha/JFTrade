@@ -188,14 +188,6 @@ func TestPortfolioRoutesUseBrokerSnapshotsAndMissingBrokerSemantics(t *testing.T
 			path:     "/api/v1/portfolio/futu/positions?accountId=acc-1&tradingEnvironment=REAL",
 			contains: []string{`"positions"`, `"symbol":"US.AAPL"`, `"averagePrice":98.7`},
 		},
-		{
-			path:     "/api/v1/portfolio/futu/cash-reconciliation?accountId=acc-1&tradingEnvironment=REAL",
-			contains: []string{`"balances"`, `"status":"missing-in-projection"`},
-		},
-		{
-			path:     "/api/v1/portfolio/futu/reconciliation?accountId=acc-1&tradingEnvironment=REAL",
-			contains: []string{`"positions"`, `"status":"missing-in-projection"`},
-		},
 	} {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.path, nil)

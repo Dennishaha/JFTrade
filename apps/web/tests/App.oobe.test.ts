@@ -10,9 +10,7 @@ import {
   emptyExecutionOrders,
   emptyOnboardingState,
   emptyPortfolioCashBalances,
-  emptyPortfolioCashReconciliation,
   emptyPortfolioPositions,
-  emptyPortfolioReconciliation,
   emptyRealTradeApprovals,
   emptyRealTradeHardStopEvents,
   emptyRealTradeHardStops,
@@ -361,12 +359,6 @@ describe("OOBE onboarding", () => {
         }
         if (url.includes("/api/v1/portfolio/futu/positions")) {
           return createResponse(emptyPortfolioPositions);
-        }
-        if (url.includes("/api/v1/portfolio/futu/cash-reconciliation")) {
-          return createResponse(emptyPortfolioCashReconciliation);
-        }
-        if (url.includes("/api/v1/portfolio/futu/reconciliation")) {
-          return createResponse(emptyPortfolioReconciliation);
         }
         if (url.includes("/api/v1/execution/orders")) {
           return createResponse(emptyExecutionOrders);

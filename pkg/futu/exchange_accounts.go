@@ -13,13 +13,14 @@ import (
 // RuntimeAccount is a normalized OpenD trading-account snapshot suitable for
 // bbgo-side consumers and compatibility routes.
 type RuntimeAccount struct {
-	AccountID            string   `json:"accountId"`
-	TradingEnvironment   string   `json:"tradingEnvironment"`
-	AccountType          string   `json:"accountType"`
-	AccountRole          *string  `json:"accountRole"`
-	SecurityFirm         *string  `json:"securityFirm"`
-	MarketAuthorities    []string `json:"marketAuthorities"`
-	SimulatedAccountType *string  `json:"simulatedAccountType"`
+	AccountID              string   `json:"accountId"`
+	TradingEnvironment     string   `json:"tradingEnvironment"`
+	AccountType            string   `json:"accountType"`
+	AccountRole            *string  `json:"accountRole"`
+	SecurityFirm           *string  `json:"securityFirm"`
+	MarketAuthorities      []string `json:"marketAuthorities"`
+	OrderMarketAuthorities []string `json:"-"`
+	SimulatedAccountType   *string  `json:"simulatedAccountType"`
 }
 
 // DiscoverAccounts returns the trading accounts currently exposed by OpenD.
@@ -76,13 +77,14 @@ func runtimeAccountFromProto(account *trdcommonpb.TrdAcc) RuntimeAccount {
 	}
 
 	return RuntimeAccount{
-		AccountID:            accountID,
-		TradingEnvironment:   runtimeTradingEnvironment(account.GetTrdEnv()),
-		AccountType:          requiredRuntimeEnum(account.GetAccType(), trdcommonpb.TrdAccType_name),
-		AccountRole:          optionalRuntimeEnum(account.GetAccRole(), trdcommonpb.TrdAccRole_name),
-		SecurityFirm:         optionalRuntimeEnum(account.GetSecurityFirm(), trdcommonpb.SecurityFirm_name),
-		MarketAuthorities:    runtimeMarketAuthorities(account.GetTrdMarketAuthList()),
-		SimulatedAccountType: optionalRuntimeEnum(account.GetSimAccType(), trdcommonpb.SimAccType_name),
+		AccountID:              accountID,
+		TradingEnvironment:     runtimeTradingEnvironment(account.GetTrdEnv()),
+		AccountType:            requiredRuntimeEnum(account.GetAccType(), trdcommonpb.TrdAccType_name),
+		AccountRole:            optionalRuntimeEnum(account.GetAccRole(), trdcommonpb.TrdAccRole_name),
+		SecurityFirm:           optionalRuntimeEnum(account.GetSecurityFirm(), trdcommonpb.SecurityFirm_name),
+		MarketAuthorities:      runtimeMarketAuthorities(account.GetTrdMarketAuthList()),
+		OrderMarketAuthorities: runtimeOrderMarketAuthorities(account.GetTrdMarketAuthList()),
+		SimulatedAccountType:   optionalRuntimeEnum(account.GetSimAccType(), trdcommonpb.SimAccType_name),
 	}
 }
 
@@ -138,6 +140,33 @@ func runtimeMarketAuthorities(values []int32) []string {
 		result = append(result, market)
 	}
 	return result
+}
+
+func runtimeOrderMarketAuthorities(values []int32) []string {
+	if values == nil {
+		return nil
+	}
+	filtered := make([]int32, 0, len(values))
+	for _, value := range values {
+		if isFundOnlyTradeMarket(value) {
+			continue
+		}
+		filtered = append(filtered, value)
+	}
+	return runtimeMarketAuthorities(filtered)
+}
+
+func isFundOnlyTradeMarket(value int32) bool {
+	switch trdcommonpb.TrdMarket(value) {
+	case trdcommonpb.TrdMarket_TrdMarket_HK_Fund,
+		trdcommonpb.TrdMarket_TrdMarket_US_Fund,
+		trdcommonpb.TrdMarket_TrdMarket_SG_Fund,
+		trdcommonpb.TrdMarket_TrdMarket_JP_Fund,
+		trdcommonpb.TrdMarket_TrdMarket_MY_Fund:
+		return true
+	default:
+		return false
+	}
 }
 
 func runtimeMarketAuthority(value int32) string {

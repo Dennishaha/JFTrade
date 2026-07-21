@@ -30,9 +30,7 @@ import {
   type OnboardingStateResponse,
   type PluginCatalogResponse,
   type PortfolioCashBalancesResponse,
-  type PortfolioCashReconciliationResponse,
   type PortfolioPositionsResponse,
-  type PortfolioReconciliationResponse,
   type StorageOverviewResponse,
   type SystemStatusResponse,
   type WorkerBrokerOrderUpdateErrorContext,
@@ -55,9 +53,7 @@ import {
   emptyOnboardingState,
   emptyPluginCatalog,
   emptyPortfolioCashBalances,
-  emptyPortfolioCashReconciliation,
   emptyPortfolioPositions,
-  emptyPortfolioReconciliation,
   emptyStorageOverview,
   emptySystemStatus,
   emptyWorkerBrokerOrderUpdates,
@@ -157,14 +153,8 @@ function createConsoleDataStore(
   const portfolioCashBalances = ref<PortfolioCashBalancesResponse>(
     emptyPortfolioCashBalances,
   );
-  const portfolioCashReconciliation = ref<PortfolioCashReconciliationResponse>(
-    emptyPortfolioCashReconciliation,
-  );
   const portfolioPositions = ref<PortfolioPositionsResponse>(
     emptyPortfolioPositions,
-  );
-  const portfolioReconciliation = ref<PortfolioReconciliationResponse>(
-    emptyPortfolioReconciliation,
   );
   const activeExecutionOrders = ref<ExecutionOrdersResponse>(emptyExecutionOrders);
   const historicalExecutionOrders = ref<ExecutionOrdersResponse>(emptyExecutionOrders);
@@ -398,9 +388,7 @@ function createConsoleDataStore(
   const portfolioLiveQueryController =
     createConsoleDataPortfolioLiveQueryController({
       portfolioCashBalances,
-      portfolioCashReconciliation,
       portfolioPositions,
-      portfolioReconciliation,
     });
   const { loadPortfolioLiveData } = portfolioLiveQueryController;
   const brokerLiveQueryController =
@@ -615,9 +603,7 @@ function createConsoleDataStore(
     onboardingState,
     orderFeesError,
     portfolioCashBalances,
-    portfolioCashReconciliation,
     portfolioPositions,
-    portfolioReconciliation,
     pluginCatalog,
     pluginError,
     requestFutuOpenDManualRetry,

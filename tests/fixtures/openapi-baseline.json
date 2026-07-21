@@ -3601,77 +3601,6 @@
       ],
       "type": "object"
     },
-    "trading.PortfolioCashReconciliationBalance": {
-      "properties": {
-        "accountId": {
-          "type": "string"
-        },
-        "brokerAvailableWithdrawalCash": {
-          "type": "number"
-        },
-        "brokerCash": {
-          "type": "number"
-        },
-        "brokerId": {
-          "type": "string"
-        },
-        "brokerNetCashPower": {
-          "type": "number"
-        },
-        "cashDelta": {
-          "type": "number"
-        },
-        "currency": {
-          "type": "string"
-        },
-        "projectedCashBalance": {
-          "type": "number"
-        },
-        "projectedUpdatedAt": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "tradingEnvironment": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "accountId",
-        "brokerId",
-        "cashDelta",
-        "currency",
-        "status",
-        "tradingEnvironment"
-      ],
-      "type": "object"
-    },
-    "trading.PortfolioCashReconciliationResponse": {
-      "properties": {
-        "balances": {
-          "items": {
-            "$ref": "#/definitions/trading.PortfolioCashReconciliationBalance"
-          },
-          "type": "array"
-        },
-        "checkedAt": {
-          "type": "string"
-        },
-        "connectivity": {
-          "type": "string"
-        },
-        "lastError": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "balances",
-        "checkedAt",
-        "connectivity"
-      ],
-      "type": "object"
-    },
     "trading.PortfolioPosition": {
       "properties": {
         "accountId": {
@@ -3729,97 +3658,6 @@
         }
       },
       "required": [
-        "positions"
-      ],
-      "type": "object"
-    },
-    "trading.PortfolioReconciliationPosition": {
-      "properties": {
-        "accountId": {
-          "type": "string"
-        },
-        "averagePriceDelta": {
-          "type": "number"
-        },
-        "brokerAverageCostPrice": {
-          "type": "number"
-        },
-        "brokerId": {
-          "type": "string"
-        },
-        "brokerQuantity": {
-          "type": "number"
-        },
-        "brokerRealizedPnl": {
-          "type": "number"
-        },
-        "market": {
-          "type": "string"
-        },
-        "projectedAveragePrice": {
-          "type": "number"
-        },
-        "projectedQuantity": {
-          "type": "number"
-        },
-        "projectedRealizedPnl": {
-          "type": "number"
-        },
-        "projectedUpdatedAt": {
-          "type": "string"
-        },
-        "quantityDelta": {
-          "type": "number"
-        },
-        "realizedPnlDelta": {
-          "type": "number"
-        },
-        "status": {
-          "type": "string"
-        },
-        "symbol": {
-          "type": "string"
-        },
-        "symbolName": {
-          "type": "string"
-        },
-        "tradingEnvironment": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "accountId",
-        "brokerId",
-        "brokerQuantity",
-        "market",
-        "quantityDelta",
-        "status",
-        "symbol",
-        "tradingEnvironment"
-      ],
-      "type": "object"
-    },
-    "trading.PortfolioReconciliationResponse": {
-      "properties": {
-        "checkedAt": {
-          "type": "string"
-        },
-        "connectivity": {
-          "type": "string"
-        },
-        "lastError": {
-          "type": "string"
-        },
-        "positions": {
-          "items": {
-            "$ref": "#/definitions/trading.PortfolioReconciliationPosition"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "checkedAt",
-        "connectivity",
         "positions"
       ],
       "type": "object"
@@ -10130,46 +9968,6 @@
         ]
       }
     },
-    "/api/v1/portfolio/{brokerId}/cash-reconciliation": {
-      "get": {
-        "parameters": [
-          {
-            "description": "券商 ID",
-            "in": "path",
-            "name": "brokerId",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/servercore.envelope"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/trading.PortfolioCashReconciliationResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          }
-        },
-        "summary": "读取 portfolio 现金对账",
-        "tags": [
-          "portfolio"
-        ]
-      }
-    },
     "/api/v1/portfolio/{brokerId}/positions": {
       "get": {
         "parameters": [
@@ -10205,46 +10003,6 @@
           }
         },
         "summary": "读取 portfolio 持仓",
-        "tags": [
-          "portfolio"
-        ]
-      }
-    },
-    "/api/v1/portfolio/{brokerId}/reconciliation": {
-      "get": {
-        "parameters": [
-          {
-            "description": "券商 ID",
-            "in": "path",
-            "name": "brokerId",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/servercore.envelope"
-                },
-                {
-                  "properties": {
-                    "data": {
-                      "$ref": "#/definitions/trading.PortfolioReconciliationResponse"
-                    }
-                  },
-                  "type": "object"
-                }
-              ]
-            }
-          }
-        },
-        "summary": "读取 portfolio 持仓对账",
         "tags": [
           "portfolio"
         ]

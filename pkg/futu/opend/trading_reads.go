@@ -19,9 +19,17 @@ import (
 )
 
 // GetFunds returns the latest cached account-funds snapshot for the specified
-// trading header.
-func (c *Client) GetFunds(ctx context.Context, header *trdcommonpb.TrdHeader) (*trdcommonpb.Funds, error) {
-	request := &trdgetfundspb.Request{C2S: &trdgetfundspb.C2S{Header: header}}
+// trading header and summary currency. OpenD requires currency for general
+// security accounts and ignores it for account types that do not need it.
+func (c *Client) GetFunds(
+	ctx context.Context,
+	header *trdcommonpb.TrdHeader,
+	currency trdcommonpb.Currency,
+) (*trdcommonpb.Funds, error) {
+	currencyValue := int32(currency)
+	request := &trdgetfundspb.Request{C2S: &trdgetfundspb.C2S{
+		Header: header, Currency: &currencyValue,
+	}}
 	var response trdgetfundspb.Response
 	if err := c.Call(ctx, ProtoTrdGetFunds, request, &response); err != nil {
 		return nil, err

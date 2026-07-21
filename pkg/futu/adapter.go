@@ -207,14 +207,15 @@ func (a *futuAdapter) DiscoverAccounts(ctx context.Context) ([]broker.Account, e
 	result := make([]broker.Account, len(accounts))
 	for i, acc := range accounts {
 		result[i] = broker.Account{
-			ID:                   acc.AccountID,
-			BrokerID:             string(Name),
-			TradingEnvironment:   acc.TradingEnvironment,
-			AccountType:          acc.AccountType,
-			AccountRole:          acc.AccountRole,
-			SecurityFirm:         acc.SecurityFirm,
-			MarketAuthorities:    acc.MarketAuthorities,
-			SimulatedAccountType: acc.SimulatedAccountType,
+			ID:                     acc.AccountID,
+			BrokerID:               string(Name),
+			TradingEnvironment:     acc.TradingEnvironment,
+			AccountType:            acc.AccountType,
+			AccountRole:            acc.AccountRole,
+			SecurityFirm:           acc.SecurityFirm,
+			MarketAuthorities:      acc.MarketAuthorities,
+			OrderMarketAuthorities: acc.OrderMarketAuthorities,
+			SimulatedAccountType:   acc.SimulatedAccountType,
 		}
 	}
 	return result, nil

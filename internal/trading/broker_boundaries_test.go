@@ -44,8 +44,6 @@ func TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable(t *t
 		}, "securities"},
 		{"portfolio cash", func() (any, error) { return service.PortfolioCashBalances(t.Context(), query) }, "balances"},
 		{"portfolio positions", func() (any, error) { return service.PortfolioPositions(t.Context(), query) }, "positions"},
-		{"portfolio reconciliation", func() (any, error) { return service.PortfolioReconciliation(t.Context(), query) }, "positions"},
-		{"portfolio cash reconciliation", func() (any, error) { return service.PortfolioCashReconciliation(t.Context(), query) }, "balances"},
 	}
 
 	for _, tc := range cases {

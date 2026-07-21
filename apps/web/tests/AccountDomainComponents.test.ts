@@ -46,56 +46,14 @@ function makePosition(overrides: Partial<AccountPositionRow> = {}): AccountPosit
   };
 }
 
-describe("PositionsTable reconciliation column", () => {
-  it("hides the reconciliation column when no reconciliation entries exist", () => {
+describe("PositionsTable", () => {
+  it("does not expose the removed reconciliation column", () => {
     const wrapper = mount(PositionsTable, {
       props: { positions: [makePosition()] },
     });
 
     expect(wrapper.text()).not.toContain("对账");
     expect(wrapper.find(".positions-table__recon").exists()).toBe(false);
-  });
-
-  it("renders reconciliation status per position when entries exist", () => {
-    const wrapper = mount(PositionsTable, {
-      props: {
-        positions: [
-          makePosition(),
-          makePosition({ symbol: "HK.00700", market: "HK" }),
-          makePosition({ symbol: "SH.600519", market: "SH" }),
-        ],
-        reconciliation: [
-          {
-            brokerId: "futu",
-            accountId: "REAL-001",
-            tradingEnvironment: "REAL",
-            market: "US",
-            symbol: "US.AAPL",
-            status: "matched",
-          },
-          {
-            brokerId: "futu",
-            accountId: "REAL-001",
-            tradingEnvironment: "REAL",
-            market: "HK",
-            symbol: "HK.00700",
-            status: "different",
-          },
-        ] as never,
-      },
-    });
-
-    expect(wrapper.text()).toContain("对账");
-
-    const statuses = wrapper.findAll(".positions-table__recon");
-    expect(statuses).toHaveLength(3);
-    expect(statuses[0]?.text()).toContain("已匹配");
-    expect(statuses[0]?.classes()).toContain("tv-status--success");
-    expect(statuses[0]?.find(".tv-state-dot").exists()).toBe(true);
-    expect(statuses[1]?.text()).toContain("存在差异");
-    expect(statuses[1]?.classes()).toContain("tv-status--warning");
-    expect(statuses[2]?.text()).toContain("未对账");
-    expect(statuses[2]?.classes()).toContain("tv-status--info");
   });
 
   it("renders product classes and pnl variants without losing semantic labels", () => {
@@ -190,7 +148,10 @@ describe("AccountAssetStrip", () => {
 
   it("falls back to placeholder when the funds summary is absent", () => {
     assetStripState.store = {
-      brokerFunds: ref({ summary: null }),
+      brokerFunds: ref({
+        summary: null,
+        lastError: "获取账户资金数据缺少必要参数币种",
+      }),
     };
 
     const wrapper = mount(AccountAssetStrip);
@@ -201,6 +162,57 @@ describe("AccountAssetStrip", () => {
     expect(realized?.get("b").text()).toBe("--");
     expect(realized?.get("b").classes()).not.toContain("tv-up");
     expect(realized?.get("b").classes()).not.toContain("tv-down");
+    expect(wrapper.text()).toContain("资金数据暂不可用");
+    expect(wrapper.text()).toContain("缺少必要参数币种");
+    const riskDot = wrapper.get('.asset-strip__title [title="风控数据不可用，无法判断账户风险"]');
+    expect(riskDot.classes()).toContain("tv-status--warning");
+  });
+
+  it("marks risk as normal only when margin call data explicitly equals zero", () => {
+    assetStripState.store = {
+      brokerFunds: ref({
+        summary: { currency: "USD", marginCallMargin: 0 },
+        lastError: null,
+      }),
+    };
+
+    const wrapper = mount(AccountAssetStrip);
+    const riskDot = wrapper.get('.asset-strip__title [title="追保保证金为零"]');
+    expect(riskDot.classes()).toContain("tv-status--success");
+  });
+
+  it("warns when the margin call amount is greater than zero", () => {
+    assetStripState.store = {
+      brokerFunds: ref({
+        summary: {
+          currency: "USD",
+          riskStatus: "MARGIN_CALL",
+          marginCallMargin: 50,
+        },
+        lastError: null,
+      }),
+    };
+
+    const wrapper = mount(AccountAssetStrip);
+    const riskDot = wrapper.get('.asset-strip__title [title="存在追保保证金，请关注账户风险"]');
+    expect(riskDot.classes()).toContain("tv-status--warning");
+    const marginCall = wrapper
+      .findAll(".asset-strip__item")
+      .find((item) => item.get("span").text() === "追保保证金");
+    expect(marginCall?.get("b").classes()).toContain("is-warn");
+  });
+
+  it("does not mark an invalid negative margin call value as normal", () => {
+    assetStripState.store = {
+      brokerFunds: ref({
+        summary: { currency: "USD", marginCallMargin: -1 },
+        lastError: null,
+      }),
+    };
+
+    const wrapper = mount(AccountAssetStrip);
+    const riskDot = wrapper.get('.asset-strip__title [title="风控数据不可用，无法判断账户风险"]');
+    expect(riskDot.classes()).toContain("tv-status--warning");
   });
 });
 
@@ -243,5 +255,52 @@ describe("AccountSummarySidebar", () => {
     expect(wrapper.find(".tv-down").exists()).toBe(true);
     expect(wrapper.find(".is-flat").exists()).toBe(true);
     expect(wrapper.find(".tv-status--warning").exists()).toBe(true);
+  });
+
+  it("distinguishes missing cash data from a real zero balance", () => {
+    const baseStore = {
+      brokerFunds: ref({ summary: null }),
+      brokerRuntime: ref({
+        accounts: [],
+        descriptor: { displayName: "Futu" },
+        session: { connectivity: "connected" },
+      }),
+      selectedBrokerAccount: ref({
+        brokerId: "futu",
+        accountId: "REAL-1",
+        tradingEnvironment: "REAL",
+        market: "US",
+        displayName: "REAL-1",
+      }),
+      systemStatus: ref({ defaultTradingEnvironment: "REAL" }),
+    };
+
+    assetStripState.store = {
+      ...baseStore,
+      portfolioCashBalances: ref({ balances: [] }),
+    };
+    const missing = mount(AccountSummarySidebar);
+    const missingCash = missing
+      .findAll(".account-sidebar__row")
+      .find((row) => row.get("span").text() === "现金");
+    expect(missingCash?.get("b").text()).toBe("--");
+
+    assetStripState.store = {
+      ...baseStore,
+      portfolioCashBalances: ref({
+        balances: [{
+          brokerId: "futu",
+          accountId: "REAL-1",
+          tradingEnvironment: "REAL",
+          currency: "USD",
+          cashBalance: 0,
+        }],
+      }),
+    };
+    const zero = mount(AccountSummarySidebar);
+    const zeroCash = zero
+      .findAll(".account-sidebar__row")
+      .find((row) => row.get("span").text() === "现金");
+    expect(zeroCash?.get("b").text()).toBe("0");
   });
 });

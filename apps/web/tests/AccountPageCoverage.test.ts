@@ -93,7 +93,6 @@ function createConsoleDataState() {
     orderFeesError: ref(""),
     portfolioCashBalances: ref({ balances: [] }),
     portfolioPositions: ref({ positions: [] }),
-    portfolioReconciliation: ref({ positions: [] }),
     resolveBrokerReadFeatureQueryRequirements: mocks.resolveBrokerReadFeatureQueryRequirements,
     selectedBrokerAccount: ref(null),
     selectedExecutionOrder: ref(null),

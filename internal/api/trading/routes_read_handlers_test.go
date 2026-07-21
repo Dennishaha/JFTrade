@@ -2,6 +2,7 @@ package trading
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -13,6 +14,59 @@ import (
 	srv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
+
+func TestBrokerReadHandlersSerializeEmptyCollectionsAsArrays(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	service := srv.NewService(srv.WithActiveBroker(func() broker.Broker {
+		return &routeTestBroker{id: "futu", data: &routeStubMarketDataReader{}}
+	}))
+	RegisterRoutes(router.Group("/api/v1"), service)
+
+	tests := []struct {
+		name  string
+		path  string
+		field string
+	}{
+		{
+			name:  "cash flows",
+			path:  "/api/v1/brokers/futu/cash-flows?clearingDate=2026-07-21",
+			field: "cashFlows",
+		},
+		{
+			name:  "order fees",
+			path:  "/api/v1/brokers/futu/order-fees?orderIdEx=order-1",
+			field: "fees",
+		},
+		{
+			name:  "margin ratios",
+			path:  "/api/v1/brokers/futu/margin-ratios?market=US&symbol=US.AAPL",
+			field: "marginRatios",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, test.path, nil)
+			router.ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+			}
+
+			var envelope struct {
+				Data map[string]json.RawMessage `json:"data"`
+			}
+			if err := json.Unmarshal(recorder.Body.Bytes(), &envelope); err != nil {
+				t.Fatalf("unmarshal response: %v", err)
+			}
+			if got := string(envelope.Data[test.field]); got != "[]" {
+				t.Fatalf("%s = %s, want []", test.field, got)
+			}
+		})
+	}
+}
 
 func TestTradingReadHandlersValidateAndNormalizeBusinessQueries(t *testing.T) {
 	gin.SetMode(gin.TestMode)

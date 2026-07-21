@@ -12,15 +12,19 @@ type ReadQuery struct {
 
 // Account represents a discovered trading account.
 type Account struct {
-	ID                   string   `json:"accountId"`
-	BrokerID             string   `json:"brokerId"`
-	TradingEnvironment   string   `json:"tradingEnvironment"`
-	Market               string   `json:"market,omitempty"`
-	AccountType          string   `json:"accountType,omitempty"`
-	AccountRole          *string  `json:"accountRole,omitempty"`
-	SecurityFirm         *string  `json:"securityFirm,omitempty"`
-	MarketAuthorities    []string `json:"marketAuthorities,omitempty"`
-	SimulatedAccountType *string  `json:"simulatedAccountType,omitempty"`
+	ID                 string   `json:"accountId"`
+	BrokerID           string   `json:"brokerId"`
+	TradingEnvironment string   `json:"tradingEnvironment"`
+	Market             string   `json:"market,omitempty"`
+	AccountType        string   `json:"accountType,omitempty"`
+	AccountRole        *string  `json:"accountRole,omitempty"`
+	SecurityFirm       *string  `json:"securityFirm,omitempty"`
+	MarketAuthorities  []string `json:"marketAuthorities,omitempty"`
+	// OrderMarketAuthorities narrows account discovery to markets that support
+	// order reads. Nil preserves the broker-neutral MarketAuthorities fallback;
+	// a non-nil empty slice explicitly disables order polling for this account.
+	OrderMarketAuthorities []string `json:"-"`
+	SimulatedAccountType   *string  `json:"simulatedAccountType,omitempty"`
 }
 
 // --- Funds ---

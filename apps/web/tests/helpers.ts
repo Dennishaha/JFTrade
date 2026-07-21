@@ -16,9 +16,7 @@ import {
   emptyOnboardingState,
   emptyPluginCatalog,
   emptyPortfolioCashBalances,
-  emptyPortfolioCashReconciliation,
   emptyPortfolioPositions,
-  emptyPortfolioReconciliation,
 } from "@/contracts";
 
 import App from "../src/App.vue";
@@ -439,12 +437,6 @@ export async function mountApp(path = "/system") {
         }
         if (/\/api\/v1\/portfolio\/[^/]+\/positions/.test(url)) {
           return createResponse(emptyPortfolioPositions);
-        }
-        if (/\/api\/v1\/portfolio\/[^/]+\/cash-reconciliation/.test(url)) {
-          return createResponse(emptyPortfolioCashReconciliation);
-        }
-        if (/\/api\/v1\/portfolio\/[^/]+\/reconciliation/.test(url)) {
-          return createResponse(emptyPortfolioReconciliation);
         }
         if (url.includes("/api/v1/execution/orders")) {
           return createResponse(emptyExecutionOrders);

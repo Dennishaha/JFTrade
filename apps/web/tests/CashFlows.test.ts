@@ -9,9 +9,7 @@ import type {
   BrokerRuntimeResponse,
   ExecutionOrdersResponse,
   PortfolioCashBalancesResponse,
-  PortfolioCashReconciliationResponse,
   PortfolioPositionsResponse,
-  PortfolioReconciliationResponse,
   StorageOverviewResponse,
   SystemStatusResponse,
 } from "@/contracts";
@@ -22,9 +20,7 @@ import {
   emptyBrokerRuntime,
   emptyExecutionOrders,
   emptyPortfolioCashBalances,
-  emptyPortfolioCashReconciliation,
   emptyPortfolioPositions,
-  emptyPortfolioReconciliation,
   emptyStorageOverview,
   emptySystemStatus,
 } from "@/contracts";
@@ -117,10 +113,6 @@ describe("Console Stream", () => {
       emptyPortfolioCashBalances;
     const portfolioPositions: PortfolioPositionsResponse =
       emptyPortfolioPositions;
-    const portfolioCashReconciliation: PortfolioCashReconciliationResponse =
-      emptyPortfolioCashReconciliation;
-    const portfolioReconciliation: PortfolioReconciliationResponse =
-      emptyPortfolioReconciliation;
     const executionOrders: ExecutionOrdersResponse = emptyExecutionOrders;
 
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
@@ -220,12 +212,6 @@ describe("Console Stream", () => {
       }
       if (url.includes("/api/v1/portfolio/futu/positions")) {
         return createResponse(portfolioPositions);
-      }
-      if (url.includes("/api/v1/portfolio/futu/cash-reconciliation")) {
-        return createResponse(portfolioCashReconciliation);
-      }
-      if (url.includes("/api/v1/portfolio/futu/reconciliation")) {
-        return createResponse(portfolioReconciliation);
       }
       if (url.includes("/api/v1/execution/orders")) {
         return createResponse(executionOrders);

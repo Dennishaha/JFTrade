@@ -60,12 +60,6 @@ func TestCoverage98BrokerReadFailuresRemainVisibleAcrossAccountDataViews(t *test
 		{name: "margin ratios", key: "marginRatios", call: func() (any, error) {
 			return service.MarginRatios(t.Context(), broker.MarginRatioQuery{ReadQuery: read, Symbols: []string{"US.AAPL"}})
 		}},
-		{name: "portfolio reconciliation", key: "positions", call: func() (any, error) {
-			return service.PortfolioReconciliation(t.Context(), read)
-		}},
-		{name: "cash reconciliation", key: "balances", call: func() (any, error) {
-			return service.PortfolioCashReconciliation(t.Context(), read)
-		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

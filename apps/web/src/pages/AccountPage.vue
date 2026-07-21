@@ -42,7 +42,6 @@ const {
   loadExecutionOrderDetails,
   loadHistoricalExecutionOrders,
   portfolioPositions,
-  portfolioReconciliation,
   selectedBrokerAccount,
   selectedExecutionOrderId,
   supportsBrokerReadFeature,
@@ -262,26 +261,9 @@ const accountPositions = computed<AccountPositionRow[]>(() => {
     strategyType: null,
     positionType: null,
     payoutIfWin: null,
-    source: "投影",
+    source: "券商",
     updatedAt: position.updatedAt,
   }));
-});
-
-const accountReconciliation = computed(() => {
-  const selected = selectedBrokerAccount.value;
-  const entries = portfolioReconciliation.value.positions;
-  if (selected == null) {
-    return entries.filter((entry) =>
-      orderMatchesTradingEnvironment(entry.tradingEnvironment),
-    );
-  }
-
-  return entries.filter(
-    (entry) =>
-      entry.accountId === selected.accountId &&
-      entry.tradingEnvironment === selected.tradingEnvironment &&
-      entry.market === selected.market,
-  );
 });
 
 const activeTradingEnvironment = computed(
@@ -646,11 +628,7 @@ if (requestedExecutionOrderId !== "") {
       </div>
 
       <div class="account-page__content">
-        <PositionsTable
-          v-if="activeTab === 'positions'"
-          :positions="accountPositions"
-          :reconciliation="accountReconciliation"
-        />
+        <PositionsTable v-if="activeTab === 'positions'" :positions="accountPositions" />
         <ActiveOrdersTable
           v-else-if="activeTab === 'orders'"
           :orders="pendingOrders"

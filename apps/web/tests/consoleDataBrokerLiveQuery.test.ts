@@ -656,6 +656,44 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
     ]);
   });
 
+  it("keeps successful broker reads when the funds request fails", async () => {
+    const { controller, state } = createController({
+      cashFlows: { supported: false },
+      fills: { supported: false },
+      marginRatios: { supported: false },
+    });
+
+    mocks.fetchEnvelope.mockImplementation(async (url: string) => {
+      if (url.includes("/api/v1/brokers/futu/funds")) {
+        throw new Error("funds unavailable");
+      }
+      if (url.includes("/api/v1/brokers/futu/positions")) {
+        return createPositions(["US.AAPL"]);
+      }
+      if (url.includes("/api/v1/brokers/futu/orders")) {
+        return createBrokerOrders();
+      }
+      if (url.includes("/api/v1/execution/orders")) {
+        return createExecutionOrders("exec-without-funds");
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    await controller.loadBrokerLiveData({
+      brokerId: "futu",
+      brokerQuery: "tradingEnvironment=REAL&accountId=ACC-1&market=US",
+      futuBrokerReadsPaused: false,
+    });
+
+    expect(state.brokerFunds.value.connectivity).toBe("degraded");
+    expect(state.brokerFunds.value.lastError).toBe("funds unavailable");
+    expect(state.brokerPositions.value.positions).toHaveLength(1);
+    expect(state.brokerOrders.value.orders).toHaveLength(1);
+    expect(state.activeExecutionOrders.value.orders[0]?.internalOrderId).toBe(
+      "exec-without-funds",
+    );
+  });
+
   it("resets peripheral reads when broker reads are paused and degrades downstream failures", async () => {
     const paused = createController();
     paused.state.brokerCashFlows.value = createCashFlows();
@@ -789,8 +827,10 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
     });
     expect(requestedUrls().some((url) => url.includes("/cash-flows"))).toBe(false);
     mocks.fetchEnvelope.mockImplementation(async (url: string) => {
-      if (url.includes("/funds")) throw new Error("broker offline");
-      return url.includes("/execution/orders") ? createExecutionOrders("offline") : undefined;
+      if (url.includes("/execution/orders")) {
+        return createExecutionOrders("offline");
+      }
+      throw new Error("broker offline");
     });
     await controller.loadBrokerLiveData({
       brokerId: "futu", brokerQuery: "market=US", futuBrokerReadsPaused: false,

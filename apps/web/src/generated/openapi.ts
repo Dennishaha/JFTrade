@@ -1032,25 +1032,6 @@ export interface components {
     "trading.PortfolioCashBalancesResponse": {
     balances: Array<components["schemas"]["trading.PortfolioCashBalance"]>;
   };
-    "trading.PortfolioCashReconciliationBalance": {
-    accountId: string;
-    brokerAvailableWithdrawalCash?: number;
-    brokerCash?: number;
-    brokerId: string;
-    brokerNetCashPower?: number;
-    cashDelta: number;
-    currency: string;
-    projectedCashBalance?: number;
-    projectedUpdatedAt?: string;
-    status: string;
-    tradingEnvironment: string;
-  };
-    "trading.PortfolioCashReconciliationResponse": {
-    balances: Array<components["schemas"]["trading.PortfolioCashReconciliationBalance"]>;
-    checkedAt: string;
-    connectivity: string;
-    lastError?: string;
-  };
     "trading.PortfolioPosition": {
     accountId: string;
     averagePrice: number;
@@ -1065,31 +1046,6 @@ export interface components {
   };
     "trading.PortfolioPositionsResponse": {
     positions: Array<components["schemas"]["trading.PortfolioPosition"]>;
-  };
-    "trading.PortfolioReconciliationPosition": {
-    accountId: string;
-    averagePriceDelta?: number;
-    brokerAverageCostPrice?: number;
-    brokerId: string;
-    brokerQuantity: number;
-    brokerRealizedPnl?: number;
-    market: string;
-    projectedAveragePrice?: number;
-    projectedQuantity?: number;
-    projectedRealizedPnl?: number;
-    projectedUpdatedAt?: string;
-    quantityDelta: number;
-    realizedPnlDelta?: number;
-    status: string;
-    symbol: string;
-    symbolName?: string;
-    tradingEnvironment: string;
-  };
-    "trading.PortfolioReconciliationResponse": {
-    checkedAt: string;
-    connectivity: string;
-    lastError?: string;
-    positions: Array<components["schemas"]["trading.PortfolioReconciliationPosition"]>;
   };
     "trading.RealTradeControlEvent": {
     accountId?: string;
@@ -4572,25 +4528,6 @@ export interface paths {
       };
     };
   };
-  "/api/v1/portfolio/{brokerId}/cash-reconciliation": {
-    get: {
-      parameters: {
-        path: {
-        brokerId: string;
-      };
-      };
-      responses: {
-        "200": {
-          description: "OK";
-          content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
-    data?: components["schemas"]["trading.PortfolioCashReconciliationResponse"];
-  };
-          };
-        };
-      };
-    };
-  };
   "/api/v1/portfolio/{brokerId}/positions": {
     get: {
       parameters: {
@@ -4604,25 +4541,6 @@ export interface paths {
           content: {
             "application/json": components["schemas"]["servercore.envelope"] & {
     data?: components["schemas"]["trading.PortfolioPositionsResponse"];
-  };
-          };
-        };
-      };
-    };
-  };
-  "/api/v1/portfolio/{brokerId}/reconciliation": {
-    get: {
-      parameters: {
-        path: {
-        brokerId: string;
-      };
-      };
-      responses: {
-        "200": {
-          description: "OK";
-          content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
-    data?: components["schemas"]["trading.PortfolioReconciliationResponse"];
   };
           };
         };

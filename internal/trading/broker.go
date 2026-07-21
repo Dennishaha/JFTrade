@@ -241,7 +241,8 @@ func (s *Service) CashFlows(ctx context.Context, query broker.CashFlowQuery) (*B
 	if readErr != nil {
 		return cashFlowsReadError(readErr), nil
 	}
-	entries := append([]broker.CashFlowSnapshot(nil), flows...)
+	entries := make([]broker.CashFlowSnapshot, len(flows))
+	copy(entries, flows)
 	return &BrokerCashFlowsResponse{BrokerReadStatus: connectedReadStatus(), CashFlows: entries}, nil
 }
 
@@ -257,7 +258,8 @@ func (s *Service) OrderFees(ctx context.Context, query broker.OrderFeeQuery) (*B
 	if readErr != nil {
 		return orderFeesReadError(readErr), nil
 	}
-	entries := append([]broker.OrderFeeSnapshot(nil), fees...)
+	entries := make([]broker.OrderFeeSnapshot, len(fees))
+	copy(entries, fees)
 	return &BrokerOrderFeesResponse{BrokerReadStatus: connectedReadStatus(), Fees: entries}, nil
 }
 
@@ -273,7 +275,8 @@ func (s *Service) MarginRatios(ctx context.Context, query broker.MarginRatioQuer
 	if readErr != nil {
 		return marginRatiosReadError(readErr), nil
 	}
-	entries := append([]broker.MarginRatioSnapshot(nil), ratios...)
+	entries := make([]broker.MarginRatioSnapshot, len(ratios))
+	copy(entries, ratios)
 	return &BrokerMarginRatiosResponse{BrokerReadStatus: connectedReadStatus(), MarginRatios: entries}, nil
 }
 
@@ -391,58 +394,6 @@ func (s *Service) PortfolioPositions(ctx context.Context, query broker.ReadQuery
 		})
 	}
 	return &PortfolioPositionsResponse{Positions: positions}, nil
-}
-
-func (s *Service) PortfolioReconciliation(ctx context.Context, query broker.ReadQuery) (*PortfolioReconciliationResponse, error) {
-	reader, err := s.marketDataReader(query.BrokerID)
-	if err != nil {
-		return nil, err
-	}
-	if reader == nil {
-		return portfolioReconciliationReadError(errors.New("broker market data unavailable")), nil
-	}
-	snapshots, readErr := reader.QueryPositions(ctx, query)
-	if readErr != nil {
-		return portfolioReconciliationReadError(readErr), nil
-	}
-	positions := make([]PortfolioReconciliationPosition, 0, len(snapshots))
-	for _, position := range snapshots {
-		positions = append(positions, PortfolioReconciliationPosition{
-			BrokerID: query.BrokerID, TradingEnvironment: position.TradingEnvironment,
-			AccountID: position.AccountID, Market: position.Market, Symbol: position.Symbol,
-			SymbolName: position.SymbolName, Status: "missing-in-projection",
-			ProjectedQuantity: nil, BrokerQuantity: position.Quantity, QuantityDelta: position.Quantity,
-			ProjectedAveragePrice: nil, BrokerAverageCostPrice: firstFloatPointer(position.AverageCostPrice, position.CostPrice),
-			AveragePriceDelta: nil, ProjectedRealizedPnl: nil, BrokerRealizedPnl: position.RealizedPnl,
-			RealizedPnlDelta: nil, ProjectedUpdatedAt: nil,
-		})
-	}
-	return &PortfolioReconciliationResponse{BrokerReadStatus: connectedReadStatus(), Positions: positions}, nil
-}
-
-func (s *Service) PortfolioCashReconciliation(ctx context.Context, query broker.ReadQuery) (*PortfolioCashReconciliationResponse, error) {
-	reader, err := s.marketDataReader(query.BrokerID)
-	if err != nil {
-		return nil, err
-	}
-	if reader == nil {
-		return portfolioCashReconciliationReadError(errors.New("broker market data unavailable")), nil
-	}
-	snapshot, readErr := reader.QueryFunds(ctx, query)
-	if readErr != nil {
-		return portfolioCashReconciliationReadError(readErr), nil
-	}
-	balances := make([]PortfolioCashReconciliationBalance, 0, len(snapshot.CurrencyBalances))
-	for _, balance := range snapshot.CurrencyBalances {
-		balances = append(balances, PortfolioCashReconciliationBalance{
-			BrokerID: query.BrokerID, TradingEnvironment: balance.TradingEnvironment,
-			AccountID: balance.AccountID, Currency: balance.Currency, Status: "missing-in-projection",
-			ProjectedCashBalance: nil, BrokerCash: balance.Cash, CashDelta: floatValue(balance.Cash),
-			BrokerAvailableWithdrawalCash: balance.AvailableWithdrawalCash,
-			BrokerNetCashPower:            balance.NetCashPower, ProjectedUpdatedAt: nil,
-		})
-	}
-	return &PortfolioCashReconciliationResponse{BrokerReadStatus: connectedReadStatus(), Balances: balances}, nil
 }
 
 func (s *Service) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*BrokerPlaceOrderResponse, error) {
