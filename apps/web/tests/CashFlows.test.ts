@@ -10,7 +10,6 @@ import type {
   ExecutionOrdersResponse,
   PortfolioCashBalancesResponse,
   PortfolioPositionsResponse,
-  StorageOverviewResponse,
   SystemStatusResponse,
 } from "@/contracts";
 import {
@@ -21,7 +20,7 @@ import {
   emptyExecutionOrders,
   emptyPortfolioCashBalances,
   emptyPortfolioPositions,
-  emptyStorageOverview,
+  emptyRealTradeApprovals,
   emptySystemStatus,
 } from "@/contracts";
 import { formatLocalDateTime } from "@/utils/dateTime";
@@ -57,7 +56,6 @@ describe("Console Stream", () => {
         ],
       },
     };
-    const storageOverview: StorageOverviewResponse = emptyStorageOverview;
     const brokerRuntime: BrokerRuntimeResponse = {
       ...emptyBrokerRuntime,
       accounts: [
@@ -121,11 +119,8 @@ describe("Console Stream", () => {
       if (url.includes("/api/v1/system/status")) {
         return createResponse(systemStatus);
       }
-      if (url.includes("/api/v1/system/storage/overview")) {
-        return createResponse(storageOverview);
-      }
       if (url.includes("/api/v1/system/real-trade-approvals")) {
-        return createResponse({ ...emptyStorageOverview, entries: [] });
+        return createResponse(emptyRealTradeApprovals);
       }
       if (url.includes("/api/v1/system/real-trade-hard-stops")) {
         return createResponse({
@@ -184,15 +179,6 @@ describe("Console Stream", () => {
           effectiveMaxOrderQuantity: null,
           effectiveMaxOrderNotional: null,
           entry: null,
-        });
-      }
-      if (url.includes("/api/v1/system/worker/broker-order-updates")) {
-        return createResponse({
-          ...emptyStorageOverview,
-          subscriptions: [],
-          recentInvalidations: [],
-          brokers: [],
-          runtime: { lastStoppedAt: null, stoppedSubscriptions: null },
         });
       }
       if (url.includes("/api/v1/brokers/futu/runtime")) {

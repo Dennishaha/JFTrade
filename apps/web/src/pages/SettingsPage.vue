@@ -6,6 +6,7 @@ import FutuIntegrationSection from "../components/FutuIntegrationSection.vue";
 import RuntimeDependenciesSection from "../components/RuntimeDependenciesSection.vue";
 import SettingsAccountDiscoverySection from "../components/SettingsAccountDiscoverySection.vue";
 import SettingsAppearanceSection from "../components/SettingsAppearanceSection.vue";
+import SettingsDeveloperToolsSection from "../components/SettingsDeveloperToolsSection.vue";
 import SettingsExchangeCalendarSection from "../components/SettingsExchangeCalendarSection.vue";
 import SettingsManagedAccountsSection from "../components/SettingsManagedAccountsSection.vue";
 import SettingsOpenSourceSection from "../components/SettingsOpenSourceSection.vue";
@@ -82,6 +83,11 @@ const allSettingsMenu = [
     index: "adk",
     label: "智能体",
     description: "配置 AI 模型 Provider、Agent 定义与 Skill 安装。",
+  },
+  {
+    index: "developer-tools",
+    label: "开发者工具",
+    description: "查看请求链路、慢请求与 OpenD 调用摘要。",
   },
   {
     index: "data-management",
@@ -253,6 +259,11 @@ const {
         <SettingsPineWorkerSection v-if="activeMenu === 'pine-worker'" />
 
         <SettingsADKSection v-show="activeMenu === 'adk'" />
+
+        <SettingsDeveloperToolsSection
+          v-if="activeMenu === 'developer-tools'"
+          :observability="systemStatus.observability.requests"
+        />
 
         <SettingsDataManagementSection v-if="activeMenu === 'data-management'" />
 

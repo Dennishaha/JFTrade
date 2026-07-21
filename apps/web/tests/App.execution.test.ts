@@ -20,9 +20,7 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-  emptyStorageOverview,
   emptySystemStatus,
-  emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 import type {
   BrokerOrderFeesResponse,
@@ -112,8 +110,6 @@ describe("Account page execution route redirect", () => {
           ...emptySystemStatus,
           defaultTradingEnvironment: "REAL",
         });
-      if (url.includes("/api/v1/system/storage/overview"))
-        return createResponse(emptyStorageOverview);
       if (url.includes("/api/v1/settings/brokers"))
         return createResponse({
           ...emptyBrokerSettings,
@@ -175,8 +171,6 @@ describe("Account page execution route redirect", () => {
         return createResponse(emptyRealTradeRiskEvents);
       if (url.includes("/api/v1/system/real-trade-risk-limits"))
         return createResponse(emptyRealTradeRiskState);
-      if (url.includes("/api/v1/system/worker/broker-order-updates"))
-        return createResponse(emptyWorkerBrokerOrderUpdates);
       if (url.includes("/api/v1/system/futu-opend"))
         return createResponse(emptyFutuOpenDHealth);
       if (url.includes("/api/v1/brokers/futu/runtime"))

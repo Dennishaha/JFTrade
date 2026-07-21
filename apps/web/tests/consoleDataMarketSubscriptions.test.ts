@@ -179,7 +179,7 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
     });
   });
 
-  it("loads subscriptions and merges instrument reference searches", async () => {
+  it("merges instrument reference searches", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/instruments?")) {
@@ -202,14 +202,13 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
       { instrumentId: "HK.00700", market: "HK", symbol: "00700", name: "Old name" },
     ] as MarketInstrumentReference[];
 
-    await harness.controller.loadMarketDataSubscriptions();
     const response = await harness.controller.loadMarketInstrumentReferences("  9988  ");
 
     expect(harness.isLoadingMarketData.value).toBe(false);
     expect(response.entries).toHaveLength(2);
     expect(harness.marketInstrumentReferences.value).toHaveLength(2);
     expect(harness.marketInstrumentReferences.value[0]?.name).toBe("Tencent");
-    expect(fetchMock.mock.calls[1]?.[0]).toContain(
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
       "/api/v1/market-data/instruments?limit=50&market=HK&query=9988",
     );
   });
@@ -313,7 +312,6 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
   it("unsubscribes all channels and surfaces server failures without leaving loading stuck", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(successResponse(emptySubscriptions()))
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -332,7 +330,6 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
 
     await harness.controller.unsubscribeAllMarketData();
     expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("DELETE");
-    await harness.controller.loadMarketDataSubscriptions();
 
     expect(harness.marketDataError.value).toBe("OpenD unavailable");
     expect(harness.isLoadingMarketData.value).toBe(false);
@@ -376,8 +373,6 @@ describe("createConsoleDataMarketSubscriptionsController", () => {
 		);
 		const harness = createControllerHarness(module);
 
-		await harness.controller.loadMarketDataSubscriptions();
-		expect(harness.marketDataError.value).toBe("行情订阅加载失败。");
 		expect(
 			await harness.controller.acquireMarketDataSubscription({
 				consumerId: "web:chart",

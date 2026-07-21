@@ -35,9 +35,7 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-  emptyStorageOverview,
   emptySystemStatus,
-  emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 
 import { provideConsoleDataStore } from "../src/composables/useConsoleData";
@@ -264,9 +262,6 @@ function createSystemFetchMock(
       };
       return createResponse(transformSystemStatus?.(status) ?? status);
     }
-    if (url.includes("/api/v1/system/storage/overview")) {
-      return createResponse(emptyStorageOverview);
-    }
     if (url.includes("/api/v1/settings/brokers")) {
       return createResponse({
         brokers: [
@@ -347,9 +342,6 @@ function createSystemFetchMock(
     }
     if (url.includes("/api/v1/system/real-trade-risk-limits")) {
       return createResponse(emptyRealTradeRiskState);
-    }
-    if (url.includes("/api/v1/system/worker/broker-order-updates")) {
-      return createResponse(emptyWorkerBrokerOrderUpdates);
     }
     if (url.includes("/api/v1/market-data/instruments")) {
       return createResponse({ query: "", totalReturned: 0, entries: [] });

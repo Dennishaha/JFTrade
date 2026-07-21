@@ -18,9 +18,7 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-  emptyStorageOverview,
   emptySystemStatus,
-  emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 
 import {
@@ -149,9 +147,6 @@ describe("OOBE onboarding", () => {
               },
             ],
           });
-        }
-        if (url.includes("/api/v1/system/storage/overview")) {
-          return createResponse(emptyStorageOverview);
         }
         if (url.includes("/api/v1/settings/pine-worker")) {
           return createResponse({
@@ -287,9 +282,6 @@ describe("OOBE onboarding", () => {
         }
         if (url.includes("/api/v1/system/real-trade-risk-limits")) {
           return createResponse(emptyRealTradeRiskState);
-        }
-        if (url.includes("/api/v1/system/worker/broker-order-updates")) {
-          return createResponse(emptyWorkerBrokerOrderUpdates);
         }
         if (url.includes("/api/v1/brokers/futu/runtime")) {
           runtimeRequests += 1;

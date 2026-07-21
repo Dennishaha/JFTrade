@@ -31,10 +31,7 @@ import {
   type PluginCatalogResponse,
   type PortfolioCashBalancesResponse,
   type PortfolioPositionsResponse,
-  type StorageOverviewResponse,
   type SystemStatusResponse,
-  type WorkerBrokerOrderUpdateErrorContext,
-  type WorkerBrokerOrderUpdatesResponse,
   emptyBrokerCashFlows,
   emptyBrokerFills,
   emptyBrokerFunds,
@@ -54,9 +51,7 @@ import {
   emptyPluginCatalog,
   emptyPortfolioCashBalances,
   emptyPortfolioPositions,
-  emptyStorageOverview,
   emptySystemStatus,
-  emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 
 import { fetchEnvelopeWithInit } from "./apiClient";
@@ -123,7 +118,6 @@ function createConsoleDataStore(
   const activeInstrumentOwnerId = liveHub.createOwnerId("active-market-instrument");
   const { prefs, update } = workspaceTradingPrefs;
   const systemStatus = ref<SystemStatusResponse>(emptySystemStatus);
-  const storageOverview = ref<StorageOverviewResponse>(emptyStorageOverview);
   const brokerSettings = ref<BrokerSettingsResponse>(emptyBrokerSettings);
   const onboardingState = ref<OnboardingStateResponse>(emptyOnboardingState);
   const pluginCatalog = ref<PluginCatalogResponse>(emptyPluginCatalog);
@@ -134,9 +128,6 @@ function createConsoleDataStore(
   const pluginError = ref("");
   const installingPluginIds = ref<string[]>([]);
   const uninstallingPluginIds = ref<string[]>([]);
-  const workerBrokerOrderUpdates = ref<WorkerBrokerOrderUpdatesResponse>(
-    emptyWorkerBrokerOrderUpdates,
-  );
   const brokerRuntime = ref<BrokerRuntimeResponse>(emptyBrokerRuntime);
   const brokerCashFlows = ref<BrokerCashFlowsResponse>(emptyBrokerCashFlows);
   const brokerFills = ref<BrokerFillsResponse>(emptyBrokerFills);
@@ -328,11 +319,7 @@ function createConsoleDataStore(
   const {
     acquireMarketDataSubscription,
     heartbeatMarketDataConsumer,
-    isLoadingMarketData,
-    loadMarketDataSubscriptions,
     loadMarketInstrumentReferences,
-    marketDataError,
-    marketDataSubscriptions,
     marketInstrumentReferences,
     marketInstrumentSearchOptions,
     releaseMarketDataSubscription,
@@ -423,7 +410,6 @@ function createConsoleDataStore(
     prefs,
     update,
     systemStatus,
-    storageOverview,
     brokerSettings,
     onboardingState,
     pluginCatalog,
@@ -436,7 +422,6 @@ function createConsoleDataStore(
     realTradeKillSwitchEvents,
     realTradeRiskState,
     realTradeRiskEvents,
-    workerBrokerOrderUpdates,
     brokerRuntime,
     activeExecutionOrders,
     executionOrderEvents,
@@ -562,7 +547,6 @@ function createConsoleDataStore(
     isLoadingBrokerMarginRatios,
     isLoadingBrokerMaxTradeQuantity,
     isLoadingExecutionEvents,
-    isLoadingMarketData,
     isLoadingMarketDataQuery,
     isLoadingOlderMarketData,
     hasMoreMarketDataHistory,
@@ -578,13 +562,11 @@ function createConsoleDataStore(
     loadHistoricalExecutionOrders,
     loadMarketDataQuery,
     loadMarketInstrumentReferences,
-    loadMarketDataSubscriptions,
     loadOnboardingState,
     loadPluginUninstallGuidance,
     loadPlugins,
     loadSystemState,
     marketDataCandles,
-    marketDataError,
     marketDataQueryError,
     marketDataNextBefore,
     marketDataOlderError,
@@ -599,7 +581,6 @@ function createConsoleDataStore(
     marketInstrumentReferences,
     marketInstrumentSearchOptions,
     marketDataSnapshot,
-    marketDataSubscriptions,
     onboardingState,
     orderFeesError,
     portfolioCashBalances,
@@ -625,7 +606,6 @@ function createConsoleDataStore(
     selectedExecutionOrderId,
     resolveBrokerReadFeatureCapability,
     resolveBrokerReadFeatureQueryRequirements,
-    storageOverview,
     supportsBrokerReadFeature,
     subscribeCurrentMarketData,
     systemStatus,
@@ -634,7 +614,6 @@ function createConsoleDataStore(
     uninstallPlugin,
     uninstallingPluginIds,
     updateManagedBrokerAccount,
-    workerBrokerOrderUpdates,
   };
 }
 

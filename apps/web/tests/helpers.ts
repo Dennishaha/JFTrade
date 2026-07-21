@@ -388,7 +388,7 @@ export async function flushRequests(): Promise<void> {
   }
 }
 
-export async function mountApp(path = "/system") {
+export async function mountApp(path = "/workspace") {
   queryClient.clear();
   resetSharedLiveSocketHubForTests();
   MockWebSocket.instances = [];

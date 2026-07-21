@@ -35,7 +35,7 @@
 - Slice 3 已落地后端原生 live event envelope、前端严格 envelope 解析、事件去重/乱序保护和 market/notification/backtest reducer；前端不再接受旧 top-level live payload。`payload` 内仍保留原业务字段，避免覆盖行情源、通知来源等字段如 `source`。
 - Slice 4 已落地 ADK timeline/tool trace bounded rendering、Mermaid lazy import、Backtest 大结果分页/裁剪和不可变结果 `markRaw`；这属于窗口化渲染，不是全量虚拟滚动框架。
 - Slice 5 已落地 Workspace 与 Strategy runtime 的第一批领域组件，组件通过 props 输入，不直接发请求。
-- Slice 6 已落地 request observability、统一字段、`importance` 分级、SystemPage 摘要和 OpenD/ADK/backtest/Pine worker 关键链路日志；OpenD subscribe 细粒度 span 与 ADK tool 级 span 可作为后续增量。
+- Slice 6 已落地 request observability、统一字段、`importance` 分级、设置页开发者工具摘要和 OpenD/ADK/backtest/Pine worker 关键链路日志；OpenD subscribe 细粒度 span 与 ADK tool 级 span 可作为后续增量。
 
 ## Slice 1: OpenAPI 类型生成与 typed API client
 
@@ -355,7 +355,7 @@ apps/web/src/components/
    - backtest run and sync task。
    - PineTS worker request。
    - ADK run/tool/approval。
-4. 系统状态页增加轻量观测摘要。
+4. 设置页“开发者工具”增加轻量观测摘要。
    - 最近错误。
    - 最近慢请求。
    - OpenD query/subscribe 健康摘要。
@@ -370,7 +370,7 @@ apps/web/src/components/
 - `pkg/backtest`
 - `pkg/strategy/pineworker`
 - `pkg/adk`
-- `apps/web/src/pages/SystemPage.vue`
+- `apps/web/src/components/SettingsDeveloperToolsSection.vue`
 
 ### 验收标准
 
@@ -378,7 +378,7 @@ apps/web/src/components/
 - OpenD 查询失败日志带 `request_id` 或业务关联字段。
 - ADK run 相关日志带 `session_id`、`run_id`、`provider_id`。
 - backtest 和 sync task 日志带 `run_id` 或 `task_id`。
-- 至少有一条端到端排障路径文档化：从 SystemPage 状态进入日志/任务/运行记录。
+- 至少有一条端到端排障路径文档化：从设置页开发者工具进入日志/任务/运行记录。
 
 ### 不做
 

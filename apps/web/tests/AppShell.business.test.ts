@@ -130,9 +130,9 @@ function createTestRouter(initialPath = "/workspace") {
         meta: { title: "初始化" },
       },
       {
-        path: "/system",
+        path: "/settings",
         component: WorkspaceRoute,
-        meta: { title: "系统" },
+        meta: { title: "设置" },
       },
     ],
   });
@@ -465,13 +465,13 @@ describe("AppShell business flows", () => {
 
     actions.find((action) => action.id === "nav.docs")!.run();
     actions.find((action) => action.id === "action.refresh")!.run();
-    actions.find((action) => action.id === "nav.system")!.run();
+    actions.find((action) => action.id === "nav.settings")!.run();
     await flushPromises();
 
     expect(testState.docsLink?.openDocs).toHaveBeenCalledOnce();
     expect(testState.consoleStore?.loadSystemState).toHaveBeenCalledOnce();
-    expect(router.currentRoute.value.path).toBe("/system");
-    expect(document.title).toBe("系统 - JFTrade Console");
+    expect(router.currentRoute.value.path).toBe("/settings");
+    expect(document.title).toBe("设置 - JFTrade Console");
 
     setup.syncCompactAppShell({ matches: true });
     setup.toggleCompactNav();

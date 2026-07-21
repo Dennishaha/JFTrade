@@ -156,53 +156,6 @@ body {
   );
 }
 
-.page-header {
-  border-radius: 32px;
-  border: 1px solid var(--tv-border);
-  background: linear-gradient(
-    180deg,
-    var(--tv-bg-surface-2) 0%,
-    var(--tv-bg-app) 100%
-  );
-  padding: 1.5rem;
-  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.3);
-  color: var(--tv-text);
-}
-
-.page-header-stat {
-  --page-header-stat-value: var(--tv-text);
-
-  border-radius: 24px;
-  border: 1px solid var(--tv-border);
-  background: color-mix(in srgb, var(--tv-text) 5%, transparent);
-  padding: 1rem;
-}
-
-.page-header-stat__value {
-  color: var(--page-header-stat-value);
-}
-
-.page-header-stat--good {
-  --page-header-stat-value: var(--card-teal-text);
-
-  border-color: var(--card-teal-border);
-  background: var(--card-teal-surface);
-}
-
-.page-header-stat--warn {
-  --page-header-stat-value: var(--card-amber-text);
-
-  border-color: var(--card-amber-border);
-  background: var(--card-amber-surface);
-}
-
-.page-header-stat--danger {
-  --page-header-stat-value: var(--card-red-text);
-
-  border-color: var(--card-red-border);
-  background: var(--card-red-surface);
-}
-
 .mini-chart-bar {
   width: 100%;
   max-width: 56px;

@@ -22,7 +22,7 @@ describe("App error handling", () => {
       MockWebSocket as unknown as typeof WebSocket,
     );
 
-    const { wrapper } = await mountApp("/system");
+    const { wrapper } = await mountApp("/workspace");
 
     expect(wrapper.text()).toContain("API offline");
 

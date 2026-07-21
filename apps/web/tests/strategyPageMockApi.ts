@@ -17,9 +17,7 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-  emptyStorageOverview,
   emptySystemStatus,
-  emptyWorkerBrokerOrderUpdates,
 } from "@/contracts"
 import type {
   BrokerRuntimeResponse,
@@ -616,8 +614,6 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
     }
     if (url.includes("/api/v1/system/status"))
       return createResponse(systemStatus)
-    if (url.includes("/api/v1/system/storage/overview"))
-      return createResponse(emptyStorageOverview)
     if (url.includes("/api/v1/system/real-trade-approvals"))
       return createResponse(emptyRealTradeApprovals)
     if (url.includes("/api/v1/system/real-trade-hard-stops"))
@@ -632,8 +628,6 @@ function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefini
       return createResponse(emptyRealTradeRiskEvents)
     if (url.includes("/api/v1/system/real-trade-risk-limits"))
       return createResponse(emptyRealTradeRiskState)
-    if (url.includes("/api/v1/system/worker/broker-order-updates"))
-      return createResponse(emptyWorkerBrokerOrderUpdates)
     if (url.includes("/api/v1/brokers/futu/runtime"))
       return createResponse(brokerRuntime)
     if (url.includes("/api/v1/brokers/futu/funds"))

@@ -122,10 +122,10 @@ describe("CommandPalette", () => {
           hint: "/docs",
         },
         {
-          id: "nav.system",
-          label: "打开系统",
+          id: "nav.settings",
+          label: "打开设置",
           group: "导航",
-          hint: "/system",
+          hint: "/settings",
         },
       ],
     });
@@ -137,7 +137,7 @@ describe("CommandPalette", () => {
     await rows[1]!.trigger("mouseenter");
     expect(rows[1]!.classes()).toContain("is-active");
     await rows[1]!.trigger("mousedown");
-    expect(runById.get("nav.system")).toHaveBeenCalledTimes(1);
+    expect(runById.get("nav.settings")).toHaveBeenCalledTimes(1);
     expect(wrapper.find(".tv-palette-backdrop").exists()).toBe(false);
 
     paletteStore.show();

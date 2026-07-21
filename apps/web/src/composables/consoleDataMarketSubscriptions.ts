@@ -89,25 +89,6 @@ export function createStableWebConsumerId(scope: string): string {
 export function createConsoleDataMarketSubscriptionsController(
   options: CreateConsoleDataMarketSubscriptionsControllerOptions,
 ) {
-  async function loadMarketDataSubscriptions(): Promise<void> {
-    options.marketDataError.value = "";
-    options.isLoadingMarketData.value = true;
-
-    try {
-      options.marketDataSubscriptions.value =
-        await fetchEnvelope<MarketDataSubscriptionsResponse>(
-          "/api/v1/market-data/subscriptions",
-        );
-    } catch (error) {
-      options.marketDataError.value =
-        error instanceof Error
-          ? error.message
-          : "行情订阅加载失败。";
-    } finally {
-      options.isLoadingMarketData.value = false;
-    }
-  }
-
   async function loadMarketInstrumentReferences(
     query = "",
   ): Promise<MarketInstrumentReferenceResponse> {
@@ -315,7 +296,6 @@ export function createConsoleDataMarketSubscriptionsController(
   return {
     acquireMarketDataSubscription,
     heartbeatMarketDataConsumer,
-    loadMarketDataSubscriptions,
     loadMarketInstrumentReferences,
     releaseMarketDataSubscription,
     subscribeCurrentMarketData,

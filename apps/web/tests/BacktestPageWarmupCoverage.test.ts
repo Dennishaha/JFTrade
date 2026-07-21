@@ -8,7 +8,6 @@ import {
   emptyMarketDataSubscriptions,
   emptyOnboardingState,
   emptyPluginCatalog,
-  emptyStorageOverview,
   emptySystemStatus,
 } from "@/contracts";
 import BacktestPage from "../src/pages/BacktestPage.vue";
@@ -51,7 +50,6 @@ function installBacktestFetch(): PendingWarmupRequest[] {
   const fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.includes("/api/v1/system/status")) return createResponse(emptySystemStatus);
-    if (url.includes("/api/v1/system/storage/overview")) return createResponse(emptyStorageOverview);
     if (url.includes("/api/v1/settings/onboarding")) return createResponse(emptyOnboardingState);
     if (url.includes("/api/v1/settings/brokers")) return createResponse(emptyBrokerSettings);
     if (url.includes("/api/v1/plugins")) return createResponse(emptyPluginCatalog);

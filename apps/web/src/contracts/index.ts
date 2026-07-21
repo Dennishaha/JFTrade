@@ -1150,42 +1150,6 @@ export interface RuntimeResourcesSummary {
   items: RuntimeResourceDescriptor[];
 }
 
-export interface StorageOverviewResponse {
-  pendingOutbox: Array<{
-    id: string;
-    topic: string;
-    status: string;
-    availableAt: string;
-    createdAt: string;
-  }>;
-  recentJobs: Array<{
-    id: string;
-    queue: string;
-    kind: string;
-    status: string;
-    scheduledAt: string;
-    updatedAt: string;
-  }>;
-  recentAuditLogs: Array<{
-    id: string;
-    action: string;
-    targetType: string;
-    targetId: string;
-    createdAt: string;
-  }>;
-  recentExecutionCommands: Array<{
-    id: string;
-    brokerId: string;
-    operation: string;
-    idempotencyKey: string;
-    actorType: string;
-    actorId: string;
-    internalOrderId: string | null;
-    completedAt: string | null;
-    createdAt: string;
-  }>;
-}
-
 export interface FutuBrokerIntegrationConfig {
   type: "futu";
   host: string;
@@ -1691,113 +1655,6 @@ export interface FutuOpenDHealthResponse {
     error: string | null;
   };
   recommendations: string[];
-}
-
-export type WorkerBrokerOrderUpdateSubscriptionStatus =
-  | "active"
-  | "retrying"
-  | "inactive";
-
-export interface WorkerBrokerOrderUpdateErrorContext {
-  summary: string;
-  rawMessage: string | null;
-  code: string | null;
-  reason: string | null;
-  category: "connection" | "broker" | "subscription" | "unknown";
-}
-
-export interface WorkerBrokerOrderUpdatesResponse {
-  subscriptions: Array<{
-    subscriptionKey: string;
-    brokerId: string;
-    tradingEnvironment: string | null;
-    accountId: string | null;
-    market: string | null;
-    status: WorkerBrokerOrderUpdateSubscriptionStatus;
-    lastAction: string;
-    lastActionAt: string;
-    lastError: string | null;
-    lastErrorContext: WorkerBrokerOrderUpdateErrorContext | null;
-    consecutiveFailures: number | null;
-    retryDelayMs: number | null;
-    backoffUntil: string | null;
-  }>;
-  recentInvalidations: Array<{
-    subscriptionKey: string;
-    brokerId: string;
-    tradingEnvironment: string | null;
-    accountId: string | null;
-    market: string | null;
-    kind: "DISCONNECTED" | "ERROR";
-    message: string | null;
-    errorContext: WorkerBrokerOrderUpdateErrorContext | null;
-    consecutiveFailures: number | null;
-    retryDelayMs: number | null;
-    backoffUntil: string | null;
-    createdAt: string;
-  }>;
-  brokers: Array<{
-    brokerId: string;
-    lastAction: string;
-    lastActionAt: string;
-    connectivity: string | null;
-    lastError: string | null;
-    accountsDiscovered: number | null;
-    activeSubscriptions: number;
-    retryingSubscriptions: number;
-    inactiveSubscriptions: number;
-    backoffSubscriptions: number;
-    disconnectedBackoffSubscriptions: number;
-    subscribeFailedBackoffSubscriptions: number;
-    errorBackoffSubscriptions: number;
-    dominantBackoffSource: "SUBSCRIBE_FAILED" | "DISCONNECTED" | "ERROR" | null;
-    dominantBackoffCount: number;
-    longestBackoffSource: "SUBSCRIBE_FAILED" | "DISCONNECTED" | "ERROR" | null;
-    longestBackoffRemainingMs: number | null;
-    longestBackoffSubscriptionKey: string | null;
-    longestBackoffMarket: string | null;
-    longestBackoffTradingEnvironment: string | null;
-    longestBackoffAccountId: string | null;
-    topBackoffHotspots: Array<{
-      subscriptionKey: string;
-      source: "SUBSCRIBE_FAILED" | "DISCONNECTED" | "ERROR";
-      remainingMs: number;
-      backoffUntil: string;
-      lastActionAt: string;
-      tradingEnvironment: string | null;
-      accountId: string | null;
-      market: string | null;
-      reason: string | null;
-      reasonContext: WorkerBrokerOrderUpdateErrorContext | null;
-    }>;
-    layeredBackoffSummaries: Array<{
-      tradingEnvironment: string | null;
-      accountId: string | null;
-      activeSubscriptions: number;
-      retryingSubscriptions: number;
-      inactiveSubscriptions: number;
-      backoffSubscriptions: number;
-      dominantBackoffSource:
-        | "SUBSCRIBE_FAILED"
-        | "DISCONNECTED"
-        | "ERROR"
-        | null;
-      dominantBackoffCount: number;
-      longestBackoffRemainingMs: number | null;
-      topBackoffMarket: string | null;
-    }>;
-    recentInvalidationCount: number;
-    lastInvalidationKind: "DISCONNECTED" | "ERROR" | null;
-    lastInvalidationAt: string | null;
-    backoffActive: boolean;
-    backoffSource: "SUBSCRIBE_FAILED" | "DISCONNECTED" | "ERROR" | null;
-    backoffUntil: string | null;
-    backoffRemainingMs: number | null;
-  }>;
-  runtime: {
-    lastStoppedAt: string | null;
-    stoppedSubscriptions: number | null;
-  };
 }
 
 export type RealTradeApprovalDecision = "approved" | "rejected";
@@ -2754,13 +2611,6 @@ export const emptySystemStatus: SystemStatusResponse = {
   message: "Waiting for API connection.",
 };
 
-export const emptyStorageOverview: StorageOverviewResponse = {
-  pendingOutbox: [],
-  recentJobs: [],
-  recentAuditLogs: [],
-  recentExecutionCommands: [],
-};
-
 export const emptyBrokerSettings: BrokerSettingsResponse = {
   brokers: [],
   accounts: [],
@@ -2852,16 +2702,6 @@ export const emptyFutuOpenDHealth: FutuOpenDHealthResponse = {
     error: null,
   },
   recommendations: [],
-};
-
-export const emptyWorkerBrokerOrderUpdates: WorkerBrokerOrderUpdatesResponse = {
-  subscriptions: [],
-  recentInvalidations: [],
-  brokers: [],
-  runtime: {
-    lastStoppedAt: null,
-    stoppedSubscriptions: null,
-  },
 };
 
 export const emptyRealTradeApprovals: RealTradeApprovalsResponse = {

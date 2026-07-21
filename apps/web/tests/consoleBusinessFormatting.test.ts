@@ -28,12 +28,7 @@ describe("console business formatting", () => {
     expect(formatting.formatBooleanLabel(true, "开", "关")).toBe("开");
     expect(formatting.formatBooleanLabel(false, "开", "关")).toBe("关");
     expect(formatting.formatGenericStatusLabel("RUNNING")).toBe("运行中");
-    expect(formatting.formatRealTradeOperationLabel("MODIFY_ORDER")).toBe("改单");
     expect(formatting.formatRealTradeEventTypeLabel("ACTIVATED")).toBe("已激活");
-    expect(formatting.formatWorkerBrokerSubscriptionStatusLabel("RETRYING")).toBe("重试中");
-    expect(formatting.formatWorkerBrokerActionLabel("SYNC-ORDERS")).toBe("同步订单");
-    expect(formatting.formatWorkerBrokerBackoffSourceLabel("DISCONNECTED")).toBe("连接中断");
-    expect(formatting.formatMarketDataChannelLabel("ORDERBOOK")).toBe("盘口");
   });
 
   it("formats OpenD and scoped real-trade controls", () => {
@@ -67,9 +62,6 @@ describe("console business formatting", () => {
     }
     expect(formatting.resolveRealTradeRiskEventTagType("updated")).toBe("warning");
     expect(formatting.resolveRealTradeRiskEventTagType("disabled")).toBe("success");
-    expect(formatting.resolveWorkerBrokerSubscriptionTagType("active")).toBe("success");
-    expect(formatting.resolveWorkerBrokerSubscriptionTagType("retrying")).toBe("warning");
-    expect(formatting.resolveWorkerBrokerSubscriptionTagType("inactive")).toBe("info");
   });
 
   it("formats timestamps, durations, error context and approval decisions", () => {
@@ -84,12 +76,5 @@ describe("console business formatting", () => {
     expect(formatting.formatDurationMs(2_000)).toBe("2秒");
     expect(formatting.formatDurationMs(120_000)).toBe("2分");
     expect(formatting.formatDurationMs(7_200_000)).toBe("2小时");
-    expect(formatting.formatWorkerBrokerErrorContext({ summary: "socket closed" } as never, null)).toBe("socket closed");
-    expect(formatting.formatWorkerBrokerErrorContext(null, "fallback")).toBe("fallback");
-    expect(formatting.formatWorkerBrokerErrorContext(null, null)).toBe("暂无错误上下文");
-    expect(formatting.resolveRealTradeApprovalDecisionTagType("approved")).toBe("success");
-    expect(formatting.resolveRealTradeApprovalDecisionTagType("rejected")).toBe("danger");
-    expect(formatting.formatApprovalDecisionLabel("approved")).toBe("已批准");
-    expect(formatting.formatApprovalDecisionLabel("rejected")).toBe("已拒绝");
   });
 });

@@ -19,9 +19,7 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-  emptyStorageOverview,
   emptySystemStatus,
-  emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 
 import {
@@ -460,8 +458,6 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
     }
     if (url.includes("/api/v1/system/status"))
       return createResponse(emptySystemStatus);
-    if (url.includes("/api/v1/system/storage/overview"))
-      return createResponse(emptyStorageOverview);
     if (url.includes("/api/v1/system/real-trade-approvals"))
       return createResponse(emptyRealTradeApprovals);
     if (url.includes("/api/v1/system/real-trade-hard-stops"))
@@ -476,8 +472,6 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
       return createResponse(emptyRealTradeRiskEvents);
     if (url.includes("/api/v1/system/real-trade-risk-limits"))
       return createResponse(emptyRealTradeRiskState);
-    if (url.includes("/api/v1/system/worker/broker-order-updates"))
-      return createResponse(emptyWorkerBrokerOrderUpdates);
     if (url.includes("/api/v1/brokers/futu/runtime"))
       return createResponse(emptyBrokerRuntime);
     if (url.includes("/api/v1/brokers/futu/funds"))
@@ -532,7 +526,7 @@ describe("Workspace market behavior", () => {
     expect(wrapper.find('.tv-iconrail-btn[title="行情"]').exists()).toBe(false);
     expect(wrapper.find('.tv-iconrail-btn[title="交易"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("策略");
-    expect(wrapper.text()).toContain("系统");
+    expect(wrapper.find('.tv-iconrail-btn[title="系统"]').exists()).toBe(false);
     expect(wrapper.text()).toContain("我的账户");
 
     wrapper.unmount();

@@ -1,13 +1,10 @@
 import type {
-  RealTradeApprovalsResponse,
   RealTradeHardStopEventsResponse,
   RealTradeHardStopsResponse,
   RealTradeKillSwitchEventsResponse,
   RealTradeKillSwitchStateResponse,
   RealTradeRiskEventsResponse,
   RealTradeRiskStateResponse,
-  WorkerBrokerOrderUpdateErrorContext,
-  WorkerBrokerOrderUpdatesResponse,
 } from "@/contracts";
 import { formatDateTime as formatSharedDateTime } from "../utils/dateTime";
 
@@ -180,54 +177,12 @@ const BOOLEAN_LABELS: Record<string, string> = {
   CONNECTED: "已连接",
 };
 
-const REAL_TRADE_OPERATION_LABELS: Record<string, string> = {
-  PLACE: "下单",
-  PLACE_ORDER: "下单",
-  ORDER_PLACE: "下单",
-  SUBMIT: "提交",
-  MODIFY: "改单",
-  MODIFY_ORDER: "改单",
-  ORDER_MODIFY: "改单",
-  CANCEL: "撤单",
-  CANCEL_ORDER: "撤单",
-  ORDER_CANCEL: "撤单",
-  BUY: "买入",
-  SELL: "卖出",
-};
-
 const REAL_TRADE_EVENT_TYPE_LABELS: Record<string, string> = {
   ACTIVATED: "已激活",
   RELEASED: "已解除",
   REJECTED: "已拒绝",
   UPDATED: "已更新",
   DISABLED: "已关闭",
-};
-
-const MARKET_DATA_CHANNEL_LABELS: Record<string, string> = {
-  TICKER: "逐笔报价",
-  QUOTE: "报价",
-  BASIC: "基础报价",
-  KLINE: "K线",
-  CANDLE: "K线",
-  ORDER_BOOK: "盘口",
-  ORDERBOOK: "盘口",
-};
-
-const WORKER_BROKER_ACTION_LABELS: Record<string, string> = {
-  IDLE: "空闲",
-  STOPPED: "已停止",
-  "DISCOVER-ACCOUNTS": "发现账号",
-  "BIND-PUSH": "绑定推送",
-  "SYNC-ORDERS": "同步订单",
-  "SUBSCRIBE-PUSH": "订阅推送",
-  "PUSH-ORDER": "订单推送",
-  "PUSH-FILL": "成交推送",
-};
-
-const WORKER_BROKER_BACKOFF_SOURCE_LABELS: Record<string, string> = {
-  SUBSCRIBE_FAILED: "订阅失败",
-  DISCONNECTED: "连接中断",
-  ERROR: "错误",
 };
 
 const FUTU_PROGRAM_STATUS_LABELS: Record<string, string> = {
@@ -390,40 +345,10 @@ export function formatGenericStatusLabel(
   return resolveLabel(value, BOOLEAN_LABELS, "未知");
 }
 
-export function formatRealTradeOperationLabel(
-  operation: string | null | undefined,
-): string {
-  return resolveLabel(operation, REAL_TRADE_OPERATION_LABELS, "未设置");
-}
-
 export function formatRealTradeEventTypeLabel(
   eventType: string | null | undefined,
 ): string {
   return resolveLabel(eventType, REAL_TRADE_EVENT_TYPE_LABELS, "未设置");
-}
-
-export function formatWorkerBrokerSubscriptionStatusLabel(
-  status: string | null | undefined,
-): string {
-  return formatGenericStatusLabel(status);
-}
-
-export function formatWorkerBrokerActionLabel(
-  action: string | null | undefined,
-): string {
-  return resolveLabel(action, WORKER_BROKER_ACTION_LABELS, "暂无");
-}
-
-export function formatWorkerBrokerBackoffSourceLabel(
-  source: string | null | undefined,
-): string {
-  return resolveLabel(source, WORKER_BROKER_BACKOFF_SOURCE_LABELS, "暂无");
-}
-
-export function formatMarketDataChannelLabel(
-  channel: string | null | undefined,
-): string {
-  return resolveLabel(channel, MARKET_DATA_CHANNEL_LABELS, "未设置");
 }
 
 export function formatFutuProgramStatusLabel(
@@ -538,19 +463,6 @@ export function resolveRealTradeRiskEventTagType(
   }
 }
 
-export function resolveWorkerBrokerSubscriptionTagType(
-  status: WorkerBrokerOrderUpdatesResponse["subscriptions"][number]["status"],
-): "success" | "warning" | "info" {
-  switch (status) {
-    case "active":
-      return "success";
-    case "retrying":
-      return "warning";
-    case "inactive":
-      return "info";
-  }
-}
-
 export function formatDateTime(value: string | null | undefined): string {
   return formatSharedDateTime(value, {
     fallback: "暂无",
@@ -576,26 +488,4 @@ export function formatDurationMs(value: number | null | undefined): string {
   }
 
   return `${Math.round(value / 3_600_000)}小时`;
-}
-
-export function formatWorkerBrokerErrorContext(
-  context: WorkerBrokerOrderUpdateErrorContext | null,
-  fallback: string | null,
-): string {
-  return context?.summary ?? fallback ?? "暂无错误上下文";
-}
-
-export function resolveRealTradeApprovalDecisionTagType(
-  decision: RealTradeApprovalsResponse["entries"][number]["decision"],
-): "success" | "danger" {
-  return decision === "approved" ? "success" : "danger";
-}
-
-export function formatApprovalDecisionLabel(
-  decision: RealTradeApprovalsResponse["entries"][number]["decision"] | null | undefined,
-): string {
-  return resolveLabel(decision, {
-    APPROVED: "已批准",
-    REJECTED: "已拒绝",
-  });
 }

@@ -16,9 +16,7 @@ import {
   type RealTradeKillSwitchStateResponse,
   type RealTradeRiskEventsResponse,
   type RealTradeRiskStateResponse,
-  type StorageOverviewResponse,
   type SystemStatusResponse,
-  type WorkerBrokerOrderUpdatesResponse,
   emptyBrokerOrderFees,
   emptyBrokerRuntime,
   emptyExecutionOrderEvents,
@@ -190,7 +188,6 @@ interface CreateConsoleDataSystemStateControllerOptions {
   prefs: Ref<WorkspaceTradingPreferences>;
   update: (patch: Partial<WorkspaceTradingPreferences>) => void;
   systemStatus: Ref<SystemStatusResponse>;
-  storageOverview: Ref<StorageOverviewResponse>;
   brokerSettings: Ref<BrokerSettingsResponse>;
   onboardingState: Ref<OnboardingStateResponse>;
   pluginCatalog: Ref<PluginCatalogResponse>;
@@ -203,7 +200,6 @@ interface CreateConsoleDataSystemStateControllerOptions {
   realTradeKillSwitchEvents: Ref<RealTradeKillSwitchEventsResponse>;
   realTradeRiskState: Ref<RealTradeRiskStateResponse>;
   realTradeRiskEvents: Ref<RealTradeRiskEventsResponse>;
-  workerBrokerOrderUpdates: Ref<WorkerBrokerOrderUpdatesResponse>;
   brokerRuntime: Ref<BrokerRuntimeResponse>;
   activeExecutionOrders: Ref<ExecutionOrdersResponse>;
   executionOrderEvents: Ref<ExecutionOrderEventsResponse>;
@@ -301,7 +297,6 @@ export function createConsoleDataSystemStateController(
       const [
         onboarding,
         statusPayload,
-        overview,
         settingsSnapshot,
         realTradeApprovalSummary,
         realTradeHardStopSummary,
@@ -310,7 +305,6 @@ export function createConsoleDataSystemStateController(
         realTradeKillSwitchSummary,
         realTradeRiskStateSummary,
         realTradeRiskSummary,
-        workerBrokerUpdates,
         plugins,
         opendInstallGuide,
         instrumentReferenceSnapshot,
@@ -319,9 +313,6 @@ export function createConsoleDataSystemStateController(
           "/api/v1/settings/onboarding",
         ).catch(() => emptyOnboardingState),
         fetchEnvelope<SystemStatusResponse>("/api/v1/system/status"),
-        fetchEnvelope<StorageOverviewResponse>(
-          "/api/v1/system/storage/overview",
-        ),
         fetchEnvelope<BrokerSettingsResponse>("/api/v1/settings/brokers"),
         fetchEnvelope<RealTradeApprovalsResponse>(
           "/api/v1/system/real-trade-approvals",
@@ -332,9 +323,6 @@ export function createConsoleDataSystemStateController(
         apiGet("/api/v1/system/real-trade-kill-switch-events"),
         apiGet("/api/v1/system/real-trade-risk-limits"),
         apiGet("/api/v1/system/real-trade-risk-events"),
-        fetchEnvelope<WorkerBrokerOrderUpdatesResponse>(
-          "/api/v1/system/worker/broker-order-updates",
-        ),
         options.fetchPluginCatalog(),
         fetchEnvelope<FutuOpenDInstallGuideResponse>(
           "/api/v1/system/futu-opend/install-guide",
@@ -371,7 +359,6 @@ export function createConsoleDataSystemStateController(
           : emptyBrokerRuntime;
 
       options.systemStatus.value = status;
-      options.storageOverview.value = overview;
       options.brokerSettings.value = settingsSnapshot;
       options.onboardingState.value = onboarding;
       options.pluginCatalog.value = plugins;
@@ -389,7 +376,6 @@ export function createConsoleDataSystemStateController(
       options.realTradeRiskState.value = realTradeRiskStateSummary;
       options.realTradeRiskEvents.value =
         normalizeRealTradeRiskEvents(realTradeRiskSummary);
-      options.workerBrokerOrderUpdates.value = workerBrokerUpdates;
       options.futuOpenDHealth.value = opendHealth;
       options.brokerRuntime.value = broker;
       options.marketInstrumentReferences.value =

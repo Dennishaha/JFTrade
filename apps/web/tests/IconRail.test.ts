@@ -49,7 +49,6 @@ describe("IconRail", () => {
       "/backtest",
       "/account",
       "/risk",
-      "/system",
       "/settings",
     ].map((path) => ({ path, component: { template: "<div />" } }));
     const router = createRouter({ history: createMemoryHistory(), routes });
@@ -68,6 +67,7 @@ describe("IconRail", () => {
     expect(push).toHaveBeenCalledWith("/workspace");
     await wrapper.get('button[title="风控"]').trigger("click");
     expect(push).toHaveBeenCalledWith("/risk");
-    expect(wrapper.findAll(".tv-iconrail-btn")).toHaveLength(12);
+    expect(wrapper.find('button[title="系统"]').exists()).toBe(false);
+    expect(wrapper.findAll(".tv-iconrail-btn")).toHaveLength(11);
   });
 });

@@ -18,9 +18,7 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-  emptyStorageOverview,
   emptySystemStatus,
-  emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 
 import {
@@ -57,8 +55,6 @@ describe("Top bar scope switcher", () => {
           defaultTradingEnvironment: "SIMULATE",
         });
       }
-      if (url.includes("/api/v1/system/storage/overview"))
-        return createResponse(emptyStorageOverview);
       if (url.includes("/api/v1/settings/brokers")) {
         return createResponse({
           brokers: [
@@ -145,8 +141,6 @@ describe("Top bar scope switcher", () => {
         return createResponse(emptyRealTradeRiskEvents);
       if (url.includes("/api/v1/system/real-trade-risk-limits"))
         return createResponse(emptyRealTradeRiskState);
-      if (url.includes("/api/v1/system/worker/broker-order-updates"))
-        return createResponse(emptyWorkerBrokerOrderUpdates);
       if (url.includes("/api/v1/brokers/futu/runtime")) {
         return createResponse({
           ...emptyBrokerRuntime,

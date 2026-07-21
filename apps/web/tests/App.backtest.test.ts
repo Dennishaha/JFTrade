@@ -8,7 +8,6 @@ import {
   emptyMarketDataSubscriptions,
   emptyOnboardingState,
   emptyPluginCatalog,
-  emptyStorageOverview,
   emptySystemStatus,
 } from "@/contracts";
 
@@ -540,9 +539,6 @@ function installBacktestPageFetch(options: { runs: unknown[]; definitions?: unkn
 
       if (url.includes("/api/v1/system/status")) {
         return createResponse(emptySystemStatus);
-      }
-      if (url.includes("/api/v1/system/storage/overview")) {
-        return createResponse(emptyStorageOverview);
       }
       if (url.includes("/api/v1/settings/onboarding")) {
         return createResponse(emptyOnboardingState);

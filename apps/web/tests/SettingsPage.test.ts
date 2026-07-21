@@ -12,6 +12,7 @@ const consoleState = vi.hoisted(() => ({
     value: { accounts: [], brokers: [] },
   },
   systemStatus: {
+    __v_isRef: true,
     value: {
       build: {
         version: "dev",
@@ -19,6 +20,15 @@ const consoleState = vi.hoisted(() => ({
         buildTime: "dev",
         goos: "",
         goarch: "",
+      },
+      observability: {
+        requests: {
+          recentErrors: [],
+          recentSlowRequests: [],
+          slowThresholdMs: 750,
+          minimumImportance: "low",
+          openD: { totalCalls: 0, failedCalls: 0 },
+        },
       },
     },
   },
@@ -85,6 +95,7 @@ function mountSettings(path: string) {
           SettingsSystemNotificationsSection: sectionStub("system-notifications"),
           SettingsPineWorkerSection: sectionStub("pine-worker"),
           SettingsADKSection: sectionStub("adk"),
+          SettingsDeveloperToolsSection: sectionStub("developer-tools"),
           SettingsDataManagementSection: sectionStub("data-management"),
           SettingsOpenSourceSection: sectionStub("open-source"),
         },
@@ -114,6 +125,16 @@ describe("SettingsPage", () => {
     await flushPromises();
     expect(router.currentRoute.value.path).toBe("/settings/pine-worker");
     expect(window.localStorage.getItem("jft.settings.section")).toBe("pine-worker");
+
+    const developerTools = wrapper.findAll("button").find((button) =>
+      button.text() === "开发者工具",
+    );
+    if (developerTools == null) throw new Error("missing developer tools menu item");
+    await developerTools.trigger("click");
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe("/settings/developer-tools");
+    expect(window.localStorage.getItem("jft.settings.section")).toBe("developer-tools");
+    expect(wrapper.get("[data-section='developer-tools']").exists()).toBe(true);
 
     const openSource = wrapper.findAll("button").find((button) =>
       button.text() === "开源许可",

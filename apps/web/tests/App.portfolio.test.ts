@@ -15,9 +15,7 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-  emptyStorageOverview,
   emptySystemStatus,
-  emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 import type {
   PortfolioCashBalancesResponse,
@@ -86,8 +84,6 @@ describe("Account page portfolio route redirect", () => {
             },
           ]),
         );
-      if (url.includes("/api/v1/system/storage/overview"))
-        return createResponse(emptyStorageOverview);
       if (url.includes("/api/v1/system/real-trade-approvals"))
         return createResponse(emptyRealTradeApprovals);
       if (url.includes("/api/v1/system/real-trade-hard-stops"))
@@ -102,8 +98,6 @@ describe("Account page portfolio route redirect", () => {
         return createResponse(emptyRealTradeRiskEvents);
       if (url.includes("/api/v1/system/real-trade-risk-limits"))
         return createResponse(emptyRealTradeRiskState);
-      if (url.includes("/api/v1/system/worker/broker-order-updates"))
-        return createResponse(emptyWorkerBrokerOrderUpdates);
       if (url.includes("/api/v1/brokers/futu/runtime"))
         return createResponse(emptyBrokerRuntime);
       if (url.includes("/api/v1/brokers/futu/funds"))

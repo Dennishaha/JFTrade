@@ -62,7 +62,6 @@ export function createConsoleDataMarketDataSlice(
   const {
     acquireMarketDataSubscription,
     heartbeatMarketDataConsumer,
-    loadMarketDataSubscriptions,
     loadMarketInstrumentReferences,
     releaseMarketDataSubscription,
     subscribeCurrentMarketData,
@@ -72,11 +71,7 @@ export function createConsoleDataMarketDataSlice(
   return {
     acquireMarketDataSubscription,
     heartbeatMarketDataConsumer,
-    isLoadingMarketData,
-    loadMarketDataSubscriptions,
     loadMarketInstrumentReferences,
-    marketDataError,
-    marketDataSubscriptions,
     marketInstrumentReferences,
     marketInstrumentSearchOptions,
     releaseMarketDataSubscription,

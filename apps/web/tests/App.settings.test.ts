@@ -20,9 +20,7 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-  emptyStorageOverview,
   emptySystemStatus,
-  emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 
 import {
@@ -86,9 +84,6 @@ describe("Settings page", () => {
 
       if (url.includes("/api/v1/system/status")) {
         return createResponse(emptySystemStatus);
-      }
-      if (url.includes("/api/v1/system/storage/overview")) {
-        return createResponse(emptyStorageOverview);
       }
       if (url.includes("/api/v1/settings/onboarding")) {
         return createResponse(emptyOnboardingState);
@@ -233,9 +228,6 @@ describe("Settings page", () => {
       if (url.includes("/api/v1/system/real-trade-risk-limits")) {
         return createResponse(emptyRealTradeRiskState);
       }
-      if (url.includes("/api/v1/system/worker/broker-order-updates")) {
-        return createResponse(emptyWorkerBrokerOrderUpdates);
-      }
       if (url.includes("/api/v1/system/futu-opend")) {
         return createResponse({
           checkedAt: "2026-05-18T08:49:53.168Z",
@@ -369,6 +361,7 @@ describe("Settings page", () => {
       "系统通知",
       "PineTS Worker",
       "智能体",
+      "开发者工具",
       "数据管理",
       "开源许可",
     ]);
@@ -410,9 +403,6 @@ describe("Settings page", () => {
 
       if (url.includes("/api/v1/system/status")) {
         return createResponse(emptySystemStatus);
-      }
-      if (url.includes("/api/v1/system/storage/overview")) {
-        return createResponse(emptyStorageOverview);
       }
       if (url.includes("/api/v1/settings/onboarding")) {
         return createResponse(emptyOnboardingState);
@@ -497,9 +487,6 @@ describe("Settings page", () => {
       if (url.includes("/api/v1/system/real-trade-risk-limits")) {
         return createResponse(emptyRealTradeRiskState);
       }
-      if (url.includes("/api/v1/system/worker/broker-order-updates")) {
-        return createResponse(emptyWorkerBrokerOrderUpdates);
-      }
       if (url.includes("/api/v1/execution/orders")) {
         return createResponse(emptyExecutionOrders);
       }
@@ -549,9 +536,6 @@ describe("Settings page", () => {
 
       if (url.includes("/api/v1/system/status")) {
         return createResponse(emptySystemStatus);
-      }
-      if (url.includes("/api/v1/system/storage/overview")) {
-        return createResponse(emptyStorageOverview);
       }
       if (url.includes("/api/v1/settings/onboarding")) {
         return createResponse(emptyOnboardingState);
@@ -652,9 +636,6 @@ describe("Settings page", () => {
       if (url.includes("/api/v1/system/real-trade-risk-limits")) {
         return createResponse(emptyRealTradeRiskState);
       }
-      if (url.includes("/api/v1/system/worker/broker-order-updates")) {
-        return createResponse(emptyWorkerBrokerOrderUpdates);
-      }
       if (url.includes("/api/v1/execution/orders")) {
         return createResponse(emptyExecutionOrders);
       }
@@ -713,9 +694,6 @@ describe("Settings page", () => {
         }
         if (url.includes("/api/v1/system/status")) {
           return Promise.resolve(createResponse(emptySystemStatus));
-        }
-        if (url.includes("/api/v1/system/storage/overview")) {
-          return Promise.resolve(createResponse(emptyStorageOverview));
         }
         if (url.includes("/api/v1/settings/brokers")) {
           return Promise.resolve(
@@ -776,9 +754,6 @@ describe("Settings page", () => {
         }
         if (url.includes("/api/v1/system/real-trade-risk-limits")) {
           return Promise.resolve(createResponse(emptyRealTradeRiskState));
-        }
-        if (url.includes("/api/v1/system/worker/broker-order-updates")) {
-          return Promise.resolve(createResponse(emptyWorkerBrokerOrderUpdates));
         }
         if (url.includes("/api/v1/brokers/futu/runtime")) {
           return Promise.resolve(createResponse(emptyBrokerRuntime));
@@ -900,9 +875,6 @@ describe("Settings page", () => {
         if (url.includes("/api/v1/system/status")) {
           return Promise.resolve(createResponse(emptySystemStatus));
         }
-        if (url.includes("/api/v1/system/storage/overview")) {
-          return Promise.resolve(createResponse(emptyStorageOverview));
-        }
         if (url.includes("/api/v1/settings/brokers")) {
           return Promise.resolve(createResponse({ brokers: [], accounts: [] }));
         }
@@ -1017,9 +989,6 @@ describe("Settings page", () => {
         if (url.includes("/api/v1/system/status")) {
           return Promise.resolve(createResponse(emptySystemStatus));
         }
-        if (url.includes("/api/v1/system/storage/overview")) {
-          return Promise.resolve(createResponse(emptyStorageOverview));
-        }
         if (url.includes("/api/v1/settings/brokers")) {
           return Promise.resolve(createResponse({ brokers: [], accounts: [] }));
         }
@@ -1049,9 +1018,6 @@ describe("Settings page", () => {
         }
         if (url.includes("/api/v1/system/real-trade-risk-limits")) {
           return Promise.resolve(createResponse(emptyRealTradeRiskState));
-        }
-        if (url.includes("/api/v1/system/worker/broker-order-updates")) {
-          return Promise.resolve(createResponse(emptyWorkerBrokerOrderUpdates));
         }
         if (url.includes("/api/v1/market-data/instruments")) {
           return Promise.resolve(createResponse({ query: "", totalReturned: 0, entries: [] }));

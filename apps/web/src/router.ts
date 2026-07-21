@@ -35,11 +35,6 @@ export function createConsoleRouter(
         meta: { title: "研究" },
       },
       {
-        path: "/system",
-        component: () => import("./pages/SystemPage.vue"),
-        meta: { title: "系统" },
-      },
-      {
         path: "/settings/:section?",
         component: () => import("./pages/SettingsPage.vue"),
         meta: { title: "设置" },

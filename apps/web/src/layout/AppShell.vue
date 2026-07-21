@@ -123,7 +123,6 @@ const navTargets = [
   { id: "nav.backtest", label: "打开回测", to: "/backtest" },
   { id: "nav.account", label: "打开我的账户", to: "/account" },
   { id: "nav.risk", label: "打开风控", to: "/risk" },
-  { id: "nav.system", label: "打开系统", to: "/system" },
   { id: "nav.settings", label: "打开设置", to: "/settings" },
   {
     id: "nav.open-source",
