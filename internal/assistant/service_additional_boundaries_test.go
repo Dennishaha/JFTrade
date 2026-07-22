@@ -128,6 +128,7 @@ func TestServiceRecoverTerminalChatResponseHandlesBlankRunIDAndMissingProjection
 	}
 	if response == nil {
 		t.Fatal("RecoverTerminalChatResponse(empty projection) = nil")
+		return
 	}
 	if response.Reply != "" || response.ReasoningContent != "" {
 		t.Fatalf("empty projection recovery should not invent reply: %+v", response)

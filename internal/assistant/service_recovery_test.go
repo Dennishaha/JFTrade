@@ -44,6 +44,7 @@ func TestServiceRecoverTerminalChatResponseFallsBackToLatestAssistant(t *testing
 	}
 	if response == nil {
 		t.Fatal("RecoverTerminalChatResponse = nil")
+		return
 	}
 	if response.Reply != "最新终态答复" || response.ReasoningContent != "最新推理" {
 		t.Fatalf("recovered reply=%q reasoning=%q, want latest assistant fallback", response.Reply, response.ReasoningContent)

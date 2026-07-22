@@ -214,6 +214,7 @@ func TestServiceRecoverTerminalChatResponseFromProjection(t *testing.T) {
 	}
 	if response == nil {
 		t.Fatal("RecoverTerminalChatResponse completed = nil")
+		return
 	}
 	if response.Reply != "最终答复" || response.ReasoningContent != "中间推理" {
 		t.Fatalf("recovered response = %+v, want final reply and reasoning", response)
