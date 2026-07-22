@@ -19,6 +19,7 @@ func TestLiveNotificationFromBBGONotifyFormatsStringArgs(t *testing.T) {
 	note := liveNotificationFromBBGONotify("strategy %s retry warning", "demo-grid")
 	if note == nil {
 		t.Fatal("expected note")
+		return
 	}
 	if note.Title != "BBGO 通知" {
 		t.Fatalf("title = %q", note.Title)
@@ -264,6 +265,7 @@ func TestLiveNotificationFromFutuResponseMapsAPIQuota(t *testing.T) {
 	})
 	if note == nil {
 		t.Fatal("expected note")
+		return
 	}
 	if note.Title != "Futu API 额度更新" {
 		t.Fatalf("title = %q", note.Title)

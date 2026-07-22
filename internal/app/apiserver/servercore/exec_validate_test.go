@@ -140,6 +140,7 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 	request := opendServer.lastPlaceOrderRequest()
 	if request == nil {
 		t.Fatal("expected place order request to be captured")
+		return
 	}
 	if got := request.GetSession(); got != int32(commonpb.Session_Session_ETH) {
 		t.Fatalf("session = %d, want ETH", got)
