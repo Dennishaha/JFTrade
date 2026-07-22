@@ -23,6 +23,7 @@ type fakeBackend struct {
 	notifications   []livecore.Event
 	lastTickIDs     []string
 	depthNum        int32
+	depthResolvedAt string
 	depthSubscriber func(string)
 	unsubscribed    bool
 	securityErr     error
@@ -75,14 +76,19 @@ func (b *fakeBackend) SecurityDetails(_ context.Context, market, symbol string) 
 func (b *fakeBackend) Depth(_ context.Context, market, symbol string, num int32) (map[string]any, error) {
 	b.mu.Lock()
 	b.depthNum = num
+	depthErr := b.depthErr
+	resolvedAt := b.depthResolvedAt
 	b.mu.Unlock()
-	if b.depthErr != nil {
-		return nil, b.depthErr
+	if depthErr != nil {
+		return nil, depthErr
+	}
+	if resolvedAt == "" {
+		resolvedAt = "2026-06-14T00:00:01Z"
 	}
 	return map[string]any{
 		"request": map[string]any{"market": market, "symbol": symbol, "instrumentId": market + "." + symbol, "num": num},
 		"depth":   map[string]any{"bids": []any{map[string]any{"price": "100"}}},
-		"meta":    map[string]any{"resolvedAt": "2026-06-14T00:00:01Z"},
+		"meta":    map[string]any{"resolvedAt": resolvedAt},
 	}, nil
 }
 
@@ -166,8 +172,10 @@ func TestHandlerHeartbeatSubscribeNormalizationAndPayloads(t *testing.T) {
 		t.Fatal("depth update subscriber was not registered")
 	}
 	depthSubscriber(" us.tme ")
-	depthPush := readEvent(t, conn)
-	if depthPush["type"] != "market.depth" || depthPush["source"] != "market-data" {
+	depthPush := readMatchingEvent(t, conn, "depth update", func(event map[string]any) bool {
+		return event["type"] == "market.depth"
+	})
+	if depthPush["type"] != "market.depth" || depthPush["source"] != "market-data" || depthPush["entityId"] != "US.TME|50" {
 		t.Fatalf("depth push event = %#v", depthPush)
 	}
 
@@ -189,6 +197,77 @@ func TestHandlerHeartbeatSubscribeNormalizationAndPayloads(t *testing.T) {
 	}
 	if gotDepthNum != 50 {
 		t.Fatalf("depth num = %d, want 50", gotDepthNum)
+	}
+}
+
+func TestHandlerDepthUpdatePublishesFreshPayload(t *testing.T) {
+	const initialResolvedAt = "2026-06-14T00:00:01Z"
+	const updatedResolvedAt = "2026-06-14T00:00:02Z"
+	quietInterval := time.Hour
+
+	backend := &fakeBackend{limit: 1}
+	handler := NewHandler(backend, Options{
+		HeartbeatInterval:       quietInterval,
+		DataInterval:            quietInterval,
+		ConsoleRefreshInterval:  quietInterval,
+		SecurityDetailsInterval: quietInterval,
+		DepthRefreshInterval:    quietInterval,
+	})
+	server := httptest.NewServer(handler)
+	t.Cleanup(func() {
+		jftradeCheckTestError(t, handler.Close())
+		server.Close()
+	})
+
+	conn := dial(t, server.URL)
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
+	if initial := readEvent(t, conn); initial["type"] != "heartbeat" {
+		t.Fatalf("initial event = %#v, want heartbeat", initial)
+	}
+	if err := conn.WriteJSON(map[string]any{
+		"type": "subscribe",
+		"subscriptions": map[string]any{
+			"depth": []map[string]any{{
+				"market": "us", "symbol": "tme", "instrumentId": "US.TME", "num": 50,
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("WriteJSON: %v", err)
+	}
+
+	initialDepth := readMatchingEvent(t, conn, "initial depth", func(event map[string]any) bool {
+		return event["type"] == "market.depth"
+	})
+	initialPayload := liveEnvelopePayload(t, initialDepth, "market.depth")
+	initialMeta := jftradeCheckedTypeAssertion[map[string]any](initialPayload["meta"])
+	if initialMeta["resolvedAt"] != initialResolvedAt {
+		t.Fatalf("initial depth payload = %#v", initialPayload)
+	}
+
+	backend.mu.Lock()
+	backend.depthResolvedAt = updatedResolvedAt
+	depthSubscriber := backend.depthSubscriber
+	backend.mu.Unlock()
+	if depthSubscriber == nil {
+		t.Fatal("depth update subscriber was not registered")
+	}
+	depthSubscriber("US.TME")
+
+	updatedDepth := readMatchingEvent(t, conn, "fresh depth update", func(event map[string]any) bool {
+		if event["type"] != "market.depth" {
+			return false
+		}
+		payload, ok := event["payload"].(map[string]any)
+		if !ok {
+			return false
+		}
+		meta, ok := payload["meta"].(map[string]any)
+		return ok && meta["resolvedAt"] == updatedResolvedAt
+	})
+	updatedPayload := liveEnvelopePayload(t, updatedDepth, "market.depth")
+	updatedRequest := jftradeCheckedTypeAssertion[map[string]any](updatedPayload["request"])
+	if updatedDepth["source"] != "market-data" || updatedDepth["entityId"] != "US.TME|50" || updatedRequest["instrumentId"] != "US.TME" || updatedRequest["num"] != float64(50) {
+		t.Fatalf("fresh depth event = %#v", updatedDepth)
 	}
 }
 
@@ -458,6 +537,32 @@ func readEvent(t *testing.T, conn *websocket.Conn) map[string]any {
 		t.Fatalf("ReadJSON: %v", err)
 	}
 	return event
+}
+
+func readMatchingEvent(
+	t *testing.T,
+	conn *websocket.Conn,
+	description string,
+	matches func(map[string]any) bool,
+) map[string]any {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	seenTypes := make([]string, 0, 4)
+	for {
+		if err := conn.SetReadDeadline(deadline); err != nil {
+			t.Fatalf("SetReadDeadline while waiting for %s: %v", description, err)
+		}
+		var event map[string]any
+		if err := conn.ReadJSON(&event); err != nil {
+			t.Fatalf("ReadJSON while waiting for %s after events %v: %v", description, seenTypes, err)
+		}
+		if eventType, ok := event["type"].(string); ok {
+			seenTypes = append(seenTypes, eventType)
+		}
+		if matches(event) {
+			return event
+		}
+	}
 }
 
 func responseStatus(response *http.Response) int {
