@@ -29,6 +29,7 @@ func TestInsertKLineReplacesExistingBarAndQueryDefaultsToLatest(t *testing.T) {
 	}
 	if got == nil {
 		t.Fatal("QueryKLine returned nil")
+		return
 	}
 	assertAggregatedBar(t, *got, types.Interval1m, "HK.00700", replacement.StartTime.Time(), replacement.EndTime.Time(), 101, 103, 100, 102.5, 25)
 }

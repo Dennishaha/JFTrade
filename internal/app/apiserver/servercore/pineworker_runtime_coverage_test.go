@@ -215,6 +215,7 @@ func TestEphemeralPineWorkerLiveSessionLifecycle(t *testing.T) {
 
 	runner := newRunner(t)
 	sessionCtx, cancelSession := context.WithCancel(t.Context())
+	defer cancelSession()
 	session, opened, err := runner.OpenLiveSession(sessionCtx, validServerPineWorkerRunScriptRequest("live-open"))
 	if err != nil || session == nil || opened.SessionID == "" || opened.SessionRevision != 1 {
 		t.Fatalf("OpenLiveSession = session %#v response %#v err=%v", session, opened, err)

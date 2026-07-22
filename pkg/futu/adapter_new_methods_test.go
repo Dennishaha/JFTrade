@@ -85,6 +85,7 @@ func TestConvertFundsSnapshotNilMarginFields(t *testing.T) {
 	result := convertFundsSnapshot(src)
 	if result == nil {
 		t.Fatal("expected non-nil result")
+		return
 	}
 
 	// All margin fields should be nil
@@ -237,6 +238,7 @@ func TestInt64AsFloat64Ptr(t *testing.T) {
 	result := int64AsFloat64Ptr(new(int64(12345)))
 	if result == nil {
 		t.Fatal("expected non-nil")
+		return
 	}
 	if *result != 12345.0 {
 		t.Fatalf("expected 12345.0, got %f", *result)
@@ -300,6 +302,7 @@ func TestBrokerFundsSnapshotFromProtoFullMargin(t *testing.T) {
 	result := brokerFundsSnapshotFromProto(account, protoFunds)
 	if result == nil {
 		t.Fatal("expected non-nil result")
+		return
 	}
 
 	// Verify all margin fields are mapped
@@ -560,6 +563,7 @@ func TestOrderBookSnapshotFromOpendResultEmptyResult(t *testing.T) {
 	snapshot := orderBookSnapshotFromOpendResult(res, query)
 	if snapshot == nil {
 		t.Fatal("expected non-nil snapshot")
+		return
 	}
 	if len(snapshot.Bids) != 0 || len(snapshot.Asks) != 0 {
 		t.Error("expected empty bids/asks for empty result")

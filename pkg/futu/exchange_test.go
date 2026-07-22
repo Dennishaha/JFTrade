@@ -859,6 +859,7 @@ func TestSubmitOrderPlacesViaOpenD(t *testing.T) {
 	}
 	if placed == nil {
 		t.Fatal("expected placed order")
+		return
 	}
 	if got := placed.OrderID; got != 9001 {
 		t.Fatalf("OrderID = %d, want 9001", got)

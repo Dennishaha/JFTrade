@@ -42,6 +42,7 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	stored = cache.Store(promoted)
 	if stored == nil {
 		t.Fatal("expected promoted sample")
+		return
 	}
 	if cache.Count(first.InstrumentID) != 1 {
 		t.Fatalf("dedupe count = %d", cache.Count(first.InstrumentID))
@@ -60,6 +61,7 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	stored = cache.Store(trade)
 	if stored == nil {
 		t.Fatal("expected trade sample")
+		return
 	}
 	if stored.Bid.String() != "100" || stored.Ask.String() != "100" || stored.Volume != 0 || stored.VolumeDelta != 25 {
 		t.Fatalf("trade book/volume contract = %#v", stored)
@@ -121,6 +123,7 @@ func TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays(t *testing.T) {
 	stored := cache.Store(incoming)
 	if stored == nil {
 		t.Fatal("expected stored sample")
+		return
 	}
 	if stored.Session != "unknown" || stored.ExtendedHours {
 		t.Fatalf("session inheritance should stop at holiday boundary: %#v", stored)

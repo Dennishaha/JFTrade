@@ -440,6 +440,7 @@ func TestFutuKLineStoreFiltersByRehabType(t *testing.T) {
 	}
 	if gotForward == nil {
 		t.Fatal("expected forward rehab kline")
+		return
 	}
 	if gotForward.Close.Compare(forward.Close) != 0 {
 		t.Fatalf("forward close = %s, want %s", gotForward.Close.String(), forward.Close.String())
@@ -462,6 +463,7 @@ func TestFutuKLineStoreFiltersByRehabType(t *testing.T) {
 	}
 	if gotNone == nil {
 		t.Fatal("expected none rehab kline")
+		return
 	}
 	if gotNone.Close.Compare(none.Close) != 0 {
 		t.Fatalf("none close = %s, want %s", gotNone.Close.String(), none.Close.String())

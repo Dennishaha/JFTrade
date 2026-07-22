@@ -233,6 +233,7 @@ func TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak(t *testing.T) {
 	}, lunchAt)
 	if tick == nil {
 		t.Fatal("tickFromTicker returned nil")
+		return
 	}
 	stored := cache.Store(*tick)
 	if stored == nil {
@@ -288,6 +289,7 @@ func TestTickFromTradeInheritsLatestQuoteFieldsThroughCache(t *testing.T) {
 	}, at)
 	if tick == nil {
 		t.Fatal("tickFromTrade returned nil")
+		return
 	}
 	stored := cache.Store(*tick)
 	if stored == nil {
