@@ -461,22 +461,43 @@ func TestRuntimeRunLeaseHeartbeatPreventsPrematureTakeover(t *testing.T) {
 	store := newExecutionClaimTestStore(t)
 	runtime := NewRuntime(store, NewToolRegistry())
 	defer runtime.backgroundCancel()
-	runtime.runLeaseTTL = 90 * time.Millisecond
-	runtime.runLeaseHeartbeat = 20 * time.Millisecond
+	runtime.runLeaseTTL = 3 * time.Second
+	runtime.runLeaseHeartbeat = 100 * time.Millisecond
 	leaseCtx, cancel, waitForLease, err := runtime.beginRunExecutionLease(t.Context(), "run-heartbeat")
 	if err != nil {
 		t.Fatalf("beginRunExecutionLease: %v", err)
 	}
-	_ = leaseCtx
-	time.Sleep(140 * time.Millisecond)
-	if _, err := store.ClaimRunLease(t.Context(), "run-heartbeat", "executor-other", time.Now().UTC(), time.Second); !errors.Is(err, ErrRunLeaseHeld) {
+	defer func() {
 		cancel()
 		waitForLease()
+	}()
+	initial, ok := runExecutionLeaseFromContext(leaseCtx)
+	if !ok {
+		t.Fatal("lease context did not retain its initial lease")
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	var renewed RunLease
+	for time.Now().Before(deadline) {
+		current, active := runtime.currentRunLease(initial.RunID)
+		if active && current.ExpiresAt.After(initial.ExpiresAt) {
+			renewed = current
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !renewed.ExpiresAt.After(initial.ExpiresAt) {
+		t.Fatalf("lease was not renewed before deadline: initial=%#v renewed=%#v", initial, renewed)
+	}
+	takeoverAt := initial.ExpiresAt.Add(time.Millisecond)
+	if !renewed.ExpiresAt.After(takeoverAt) {
+		t.Fatalf("renewed lease expires too early: renewed=%#v takeoverAt=%s", renewed, takeoverAt)
+	}
+	if _, err := store.ClaimRunLease(t.Context(), initial.RunID, "executor-other", takeoverAt, time.Second); !errors.Is(err, ErrRunLeaseHeld) {
 		t.Fatalf("takeover while heartbeat is active err = %v, want ErrRunLeaseHeld", err)
 	}
 	cancel()
 	waitForLease()
-	takenOver, err := store.ClaimRunLease(t.Context(), "run-heartbeat", "executor-other", time.Now().UTC(), time.Second)
+	takenOver, err := store.ClaimRunLease(t.Context(), initial.RunID, "executor-other", time.Now().UTC(), time.Second)
 	if err != nil {
 		t.Fatalf("takeover after release: %v", err)
 	}

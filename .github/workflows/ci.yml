@@ -218,7 +218,24 @@ jobs:
 
       - name: Full deterministic Go regression (main)
         if: ${{ github.event_name == 'push' }}
-        run: go test ./... -count=1 -timeout=300s
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This job intentionally runs without cgo. The Wails desktop command
+          # requires GTK/cgo on Linux and is covered by the dedicated desktop lanes.
+          package_list="$(mktemp)"
+          trap 'rm -f "$package_list"' EXIT
+          go list ./... >"$package_list"
+          packages=()
+          while IFS= read -r package; do
+            case "$package" in
+              */cmd/jftrade-desktop)
+                continue
+                ;;
+            esac
+            packages+=("$package")
+          done <"$package_list"
+          go test "${packages[@]}" -count=1 -timeout=300s
 
       - name: Summarize Go coverage
         if: ${{ always() }}

@@ -20,16 +20,23 @@ const testProviderID = "test-openai-compatible"
 
 func ensureTestProvider(t *testing.T, runtime *Runtime) {
 	t.Helper()
+	ensureTestProviderForStore(t, runtime.Store())
+}
+
+func ensureTestProviderForStore(t *testing.T, store *Store) {
+	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(testProviderChatHandler))
 	t.Cleanup(server.Close)
-	mustSaveProvider(t, runtime, ProviderWriteRequest{
+	if _, err := store.SaveProvider(context.Background(), ProviderWriteRequest{
 		ID:          testProviderID,
 		DisplayName: "Test OpenAI Compatible",
 		BaseURL:     server.URL,
 		Model:       "test-model",
 		APIKey:      "sk-test",
 		Enabled:     true,
-	})
+	}); err != nil {
+		t.Fatalf("SaveProvider test provider: %v", err)
+	}
 }
 
 func mustCreateSession(t *testing.T, runtime *Runtime, agentID string, title string) Session {

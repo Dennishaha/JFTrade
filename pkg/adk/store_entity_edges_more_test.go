@@ -112,7 +112,8 @@ func TestStoreEntityAndCoreAdditionalEdgeBranches(t *testing.T) {
 		if got := normalizeRecentUserWindow(1); got != 2 {
 			t.Fatalf("normalizeRecentUserWindow(1) = %d, want 2", got)
 		}
-		if err := (secretStore{path: string([]byte{0})}).write(map[string]string{"provider": "sk"}); err == nil {
+		invalidSecret := secretStore{path: string([]byte{0})}
+		if err := invalidSecret.write(map[string]string{"provider": "sk"}); err == nil {
 			t.Fatal("secretStore.write accepted invalid path")
 		}
 	})

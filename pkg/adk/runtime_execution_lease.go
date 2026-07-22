@@ -101,9 +101,19 @@ func (r *Runtime) beginRunExecutionLease(
 			select {
 			case <-leasedCtx.Done():
 				return
-			case now := <-ticker.C:
-				heartbeatCtx, heartbeatCancel := context.WithTimeout(context.Background(), min(heartbeat, 5*time.Second))
-				updated, heartbeatErr := r.store.HeartbeatRunLease(heartbeatCtx, lease, now.UTC(), ttl)
+			case <-ticker.C:
+				now := time.Now().UTC()
+				remaining := lease.ExpiresAt.Sub(now)
+				if remaining <= 0 {
+					cancel()
+					return
+				}
+				heartbeatTimeout := min(ttl/3, 5*time.Second)
+				if remaining < heartbeatTimeout {
+					heartbeatTimeout = remaining
+				}
+				heartbeatCtx, heartbeatCancel := context.WithTimeout(context.Background(), heartbeatTimeout)
+				updated, heartbeatErr := r.store.HeartbeatRunLease(heartbeatCtx, lease, now, ttl)
 				heartbeatCancel()
 				if heartbeatErr != nil {
 					cancel()

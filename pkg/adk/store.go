@@ -309,10 +309,17 @@ func (s *Store) saveJSON(ctx context.Context, table string, id string, createdAt
 }
 
 type secretStore struct {
+	mu   sync.RWMutex
 	path string
 }
 
-func (s secretStore) read() (map[string]string, error) {
+func (s *secretStore) read() (map[string]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.readUnlocked()
+}
+
+func (s *secretStore) readUnlocked() (map[string]string, error) {
 	data := map[string]string{}
 	raw, err := os.ReadFile(s.path)
 	if err != nil {
@@ -327,25 +334,51 @@ func (s secretStore) read() (map[string]string, error) {
 	return data, json.Unmarshal(raw, &data)
 }
 
-func (s secretStore) write(data map[string]string) error {
+func (s *secretStore) write(data map[string]string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.writeUnlocked(data)
+}
+
+func (s *secretStore) writeUnlocked(data map[string]string) error {
 	raw, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
+	dir := filepath.Dir(s.path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(s.path, raw, 0o600)
+	temporary, err := os.CreateTemp(dir, ".adk-secrets-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer func() { _ = os.Remove(temporaryPath) }()
+	if err := temporary.Chmod(0o600); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if _, err := temporary.Write(raw); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temporaryPath, s.path)
 }
 
-func (s secretStore) has(id string) bool {
+func (s *secretStore) has(id string) bool {
 	value, ok, jftradeErr4 := s.get(id)
 	besteffort.LogError(jftradeErr4)
 	return ok && strings.TrimSpace(value) != ""
 }
 
-func (s secretStore) get(id string) (string, bool, error) {
-	data, err := s.read()
+func (s *secretStore) get(id string) (string, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	data, err := s.readUnlocked()
 	if err != nil {
 		return "", false, err
 	}
@@ -353,22 +386,26 @@ func (s secretStore) get(id string) (string, bool, error) {
 	return value, ok, nil
 }
 
-func (s secretStore) set(id string, value string) error {
-	data, err := s.read()
+func (s *secretStore) set(id string, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data, err := s.readUnlocked()
 	if err != nil {
 		return err
 	}
 	data[strings.TrimSpace(id)] = value
-	return s.write(data)
+	return s.writeUnlocked(data)
 }
 
-func (s secretStore) delete(id string) error {
-	data, err := s.read()
+func (s *secretStore) delete(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data, err := s.readUnlocked()
 	if err != nil {
 		return err
 	}
 	delete(data, strings.TrimSpace(id))
-	return s.write(data)
+	return s.writeUnlocked(data)
 }
 
 func normalizeID(value string) string {

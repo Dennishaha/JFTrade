@@ -31,6 +31,7 @@ func newTestRuntime(t *testing.T) *Runtime {
 		jftradeCheckTestError(t, store.Close())
 		t.Fatalf("ValidateSQLiteSessionService: %v", err)
 	}
+	ensureTestProviderForStore(t, store)
 	runtime := NewRuntimeWithSessionService(store, NewToolRegistry(), sessionService)
 	artifactService := runtime.artifactService
 	t.Cleanup(func() {
@@ -39,7 +40,6 @@ func newTestRuntime(t *testing.T) *Runtime {
 		jftradeCheckTestError(t, store.Close())
 	})
 	t.Cleanup(func() { jftradeCheckTestError(t, runtime.Close()) })
-	ensureTestProvider(t, runtime)
 	return runtime
 }
 
@@ -345,6 +345,7 @@ func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) 
 		jftradeCheckTestError(t, CloseSessionService(sessionService))
 		t.Fatalf("ValidateSQLiteSessionService: %v", err)
 	}
+	ensureTestProviderForStore(t, store)
 	runtime := NewRuntimeWithSessionService(store, registry, sessionService)
 	artifactService := runtime.artifactService
 	t.Cleanup(func() {
@@ -352,7 +353,6 @@ func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) 
 		jftradeCheckTestError(t, CloseSessionService(sessionService))
 	})
 	t.Cleanup(func() { jftradeCheckTestError(t, runtime.Close()) })
-	ensureTestProvider(t, runtime)
 	return runtime
 }
 

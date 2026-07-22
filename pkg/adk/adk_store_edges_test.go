@@ -356,7 +356,8 @@ func TestStoreBuiltinAndLowLevelJSONErrorBranches(t *testing.T) {
 	if err := os.WriteFile(blocker, []byte("file"), 0o600); err != nil {
 		t.Fatalf("write secret write blocker: %v", err)
 	}
-	if err := (secretStore{path: filepath.Join(blocker, "adk.json")}).write(map[string]string{"provider": "sk"}); err == nil {
+	blockedSecret := secretStore{path: filepath.Join(blocker, "adk.json")}
+	if err := blockedSecret.write(map[string]string{"provider": "sk"}); err == nil {
 		t.Fatal("secretStore write mkdir err = nil, want error")
 	}
 }
