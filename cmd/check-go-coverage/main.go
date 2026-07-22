@@ -12,19 +12,24 @@ import (
 )
 
 const (
-	defaultBusinessThreshold = 98.0
-	defaultCriticalThreshold = 95.0
-	defaultModuleThreshold   = 95.0
-	defaultTestTimeout       = 300 * time.Second
+	defaultBusinessThreshold     = 90.0
+	defaultCriticalThreshold     = 95.0
+	defaultModuleThreshold       = 85.0
+	defaultDiffThreshold         = 90.0
+	defaultCriticalDiffThreshold = 95.0
+	defaultTestTimeout           = 300 * time.Second
 )
 
 type config struct {
-	businessThreshold float64
-	criticalThreshold float64
-	moduleThreshold   float64
-	testTimeout       time.Duration
-	packages          packageList
-	tempDir           string
+	businessThreshold     float64
+	criticalThreshold     float64
+	moduleThreshold       float64
+	diffBase              string
+	diffThreshold         float64
+	criticalDiffThreshold float64
+	testTimeout           time.Duration
+	packages              packageList
+	tempDir               string
 }
 
 type packageList []string
@@ -99,8 +104,11 @@ func parseConfig(args []string, stderr io.Writer) (config, error) {
 	flags := flag.NewFlagSet("check-go-coverage", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.Float64Var(&cfg.businessThreshold, "business-threshold", defaultBusinessThreshold, "minimum business coverage percentage")
-	flags.Float64Var(&cfg.criticalThreshold, "critical-threshold", defaultCriticalThreshold, "minimum critical package coverage percentage")
+	flags.Float64Var(&cfg.criticalThreshold, "critical-threshold", defaultCriticalThreshold, "minimum critical risk-domain coverage percentage")
 	flags.Float64Var(&cfg.moduleThreshold, "module-threshold", defaultModuleThreshold, "minimum ordinary package coverage percentage")
+	flags.StringVar(&cfg.diffBase, "diff-base", "", "Git ref to compare for changed-code coverage; empty disables the diff gate")
+	flags.Float64Var(&cfg.diffThreshold, "diff-threshold", defaultDiffThreshold, "minimum ordinary changed-code coverage percentage")
+	flags.Float64Var(&cfg.criticalDiffThreshold, "critical-diff-threshold", defaultCriticalDiffThreshold, "minimum critical changed-code coverage percentage")
 	flags.DurationVar(&cfg.testTimeout, "timeout", defaultTestTimeout, "timeout passed to go test")
 	flags.Var(&cfg.packages, "package", "Go package pattern to test; may be repeated")
 	if err := flags.Parse(args); err != nil {
@@ -112,6 +120,7 @@ func parseConfig(args []string, stderr io.Writer) (config, error) {
 	if len(cfg.packages) == 0 {
 		cfg.packages = packageList{"./..."}
 	}
+	cfg.diffBase = strings.TrimSpace(cfg.diffBase)
 	if err := validateConfig(cfg); err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return config{}, err
@@ -127,6 +136,8 @@ func validateConfig(cfg config) error {
 		{"business-threshold", cfg.businessThreshold},
 		{"critical-threshold", cfg.criticalThreshold},
 		{"module-threshold", cfg.moduleThreshold},
+		{"diff-threshold", cfg.diffThreshold},
+		{"critical-diff-threshold", cfg.criticalDiffThreshold},
 	}
 	for _, threshold := range thresholds {
 		if math.IsNaN(threshold.value) || math.IsInf(threshold.value, 0) || threshold.value < 0 || threshold.value > 100 {

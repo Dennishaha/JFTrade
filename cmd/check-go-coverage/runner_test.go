@@ -74,7 +74,7 @@ func TestExecuteCoverageCheckBuildsCommandAndCleansProfile(t *testing.T) {
 		"./internal/...", "./pkg/...",
 	}, runner.args)
 	assert.Contains(t, stdout.String(), "fake go test output")
-	assert.NotEmpty(t, violations, "missing critical packages must be reported")
+	assert.NotEmpty(t, violations, "required critical packages without profile data must be reported")
 	_, statErr := os.Stat(runner.profilePath)
 	assert.ErrorIs(t, statErr, os.ErrNotExist)
 }
@@ -137,6 +137,52 @@ func TestExecuteCoverageCheckReportsTemporaryProfileCreationFailure(t *testing.T
 	}, coverageTestRepoRoot(t), io.Discard, io.Discard, &fakeGoRunner{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "create coverage profile")
+}
+
+func TestExecuteCoverageCheckWithGitReportsAndEnforcesChangedCodeCoverage(t *testing.T) {
+	repoRoot := coverageTestRepoRoot(t)
+	goRunner := &fakeGoRunner{profile: `mode: set
+github.com/jftrade/jftrade-main/internal/example/example.go:1.1,2.1 1 1
+`}
+	gitRunner := &fakeGitRunner{output: `diff --git a/internal/example/example.go b/internal/example/example.go
+--- a/internal/example/example.go
++++ b/internal/example/example.go
+@@ -1 +1 @@
+changed
+`}
+	var stdout bytes.Buffer
+	violations, err := executeCoverageCheckWithGit(config{
+		businessThreshold:     0,
+		criticalThreshold:     0,
+		moduleThreshold:       0,
+		diffBase:              "base",
+		diffThreshold:         100,
+		criticalDiffThreshold: 100,
+		testTimeout:           time.Minute,
+		packages:              packageList{"./..."},
+		tempDir:               t.TempDir(),
+	}, repoRoot, &stdout, io.Discard, goRunner, gitRunner)
+	require.NoError(t, err)
+	assert.NotEmpty(t, violations, "required critical package coverage is still checked")
+	assert.Contains(t, stdout.String(), "Go diff coverage: ref=base ordinary=100.00%")
+	assert.Equal(t, repoRoot, gitRunner.directory)
+	assert.Equal(t, []string{
+		"diff", "--no-ext-diff", "--unified=0", "--find-renames=50%", "base", "--", ":(glob)**/*.go",
+	}, gitRunner.args)
+}
+
+func TestExecuteCoverageCheckWithGitReturnsDiffFailures(t *testing.T) {
+	repoRoot := coverageTestRepoRoot(t)
+	goRunner := &fakeGoRunner{}
+	gitRunner := &fakeGitRunner{err: errors.New("exit status 128"), stderr: "unknown revision"}
+	_, err := executeCoverageCheckWithGit(config{
+		diffBase:    "missing",
+		testTimeout: time.Minute,
+		packages:    packageList{"./..."},
+		tempDir:     t.TempDir(),
+	}, repoRoot, io.Discard, io.Discard, goRunner, gitRunner)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git diff against \"missing\"")
 }
 
 func TestFindRepoRootRejectsDirectoryWithoutGoMod(t *testing.T) {

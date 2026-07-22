@@ -20,9 +20,12 @@ jobs:
     timeout-minutes: 25
     env:
       GOFLAGS: "-tags=gtk3"
+      JFTRADE_DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -54,6 +57,11 @@ jobs:
 
       - name: Verify tracked contract artifacts are up to date
         run: git diff --exit-code -- apps/web/src/generated/openapi.ts tests/fixtures/openapi-baseline.json
+
+      - name: Test filename policy
+        run: |
+          pnpm run test:test-policy
+          pnpm run check:test-names
 
       - name: Lint
         uses: golangci/golangci-lint-action@v9
@@ -176,9 +184,12 @@ jobs:
     timeout-minutes: 15
     env:
       CGO_ENABLED: "0"
+      JFTRADE_DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -198,17 +209,51 @@ jobs:
         run: pnpm run generate:openapi
 
       - name: Go coverage gate
+        shell: bash
         run: |
-          pnpm run test:coverage:go -package ./cmd/jftrade-api -package ./internal/... -package ./pkg/... -package ./scripts
-          go test ./internal/marketdata ./internal/integration/futu -run Concurrent -count=20 -timeout=120s
+          set -euo pipefail
+          mkdir -p artifacts/coverage
+          pnpm run test:coverage:go -- -package ./cmd/jftrade-api -package ./internal/... -package ./pkg/... -package ./scripts 2>&1 | tee artifacts/coverage/go.txt
+          go test ./internal/marketdata ./internal/integration/futu -run Concurrent -count=20 -timeout=120s 2>&1 | tee artifacts/coverage/go-concurrency.txt
+
+      - name: Full deterministic Go regression (main)
+        if: ${{ github.event_name == 'push' }}
+        run: go test ./... -count=1 -timeout=300s
+
+      - name: Summarize Go coverage
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## Go coverage"
+            if [[ -f artifacts/coverage/go.txt ]]; then
+              grep -E '^Go (diff )?coverage:|^Critical ' artifacts/coverage/go.txt || true
+            else
+              echo "Coverage command did not produce a report."
+            fi
+            echo "Full output: ci-go-coverage-${{ github.run_id }}-${{ github.run_attempt }} artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Go coverage report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-go-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/coverage
+          if-no-files-found: warn
+          retention-days: 7
 
   web:
     name: Web
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      JFTRADE_DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -231,7 +276,36 @@ jobs:
         run: pnpm run check:oss-license
 
       - name: Frontend test and coverage gate
-        run: pnpm run test:coverage:web
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/coverage
+          pnpm run test:coverage:web 2>&1 | tee artifacts/coverage/web.txt
+
+      - name: Summarize Web coverage
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## Web coverage"
+            if [[ -f artifacts/coverage/web.txt ]]; then
+              grep -E 'All files|Web diff coverage:|Statements|Branches|Functions|Lines' artifacts/coverage/web.txt || true
+            else
+              echo "Coverage command did not produce a report."
+            fi
+            echo "Full output and JSON report: ci-web-coverage-${{ github.run_id }}-${{ github.run_attempt }} artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Web coverage report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-web-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/coverage/web.txt
+            apps/web/coverage
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Frontend typecheck
         run: pnpm run typecheck:web
@@ -284,7 +358,36 @@ jobs:
         run: pnpm --filter @jftrade/pineworker install --frozen-lockfile
 
       - name: PineTS worker test
-        run: pnpm run test:pineworker
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/coverage
+          pnpm run test:coverage:worker 2>&1 | tee artifacts/coverage/pineworker.txt
+
+      - name: Summarize PineTS worker coverage
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## PineTS worker coverage"
+            if [[ -f artifacts/coverage/pineworker.txt ]]; then
+              grep -E 'All files|Statements|Branches|Functions|Lines' artifacts/coverage/pineworker.txt || true
+            else
+              echo "Coverage command did not produce a report."
+            fi
+            echo "Full output and JSON report: ci-pineworker-coverage-${{ github.run_id }}-${{ github.run_attempt }} artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload PineTS worker coverage report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-pineworker-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/coverage/pineworker.txt
+            workers/pineworker/coverage
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: PineTS worker typecheck
         run: pnpm run typecheck:pineworker
@@ -324,6 +427,10 @@ jobs:
       - name: Verify embedded PineTS worker input
         run: go test -tags release_assets ./internal/pineworkerassets -count=1
 
+      - name: Real PineTS backtest smoke (main)
+        if: ${{ github.event_name == 'push' }}
+        run: pnpm run smoke:pinets-backtest
+
       - name: Upload PineTS worker build input
         uses: actions/upload-artifact@v7
         with:
@@ -332,8 +439,72 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  desktop-linux-smoke:
+    name: Desktop Linux Smoke (PR)
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: [web, pine]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      JFTRADE_DESKTOP_PREPARED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Download frontend build input
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
+          path: internal/frontendassets
+
+      - name: Download PineTS worker build input
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
+          path: internal/pineworkerassets/assets/bin
+
+      - name: Install Linux desktop dependencies
+        run: bash scripts/install-linux-desktop-dependencies.sh
+
+      - name: Generate OpenAPI build input
+        run: pnpm run generate:openapi
+
+      - name: Test desktop release profile
+        run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
+
+      - name: Build Linux desktop application
+        run: pnpm run desktop:build:linux
+
+      - name: Verify Linux desktop binary
+        run: |
+          artifact="dist/desktop/linux-amd64/jftrade-desktop-linux-amd64"
+          test -x "$artifact"
+          file "$artifact" | grep -q 'ELF 64-bit'
+          go version -m "$artifact" | tee /tmp/jftrade-linux-buildinfo.txt
+          grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-linux-buildinfo.txt
+          ldd "$artifact" | tee /tmp/jftrade-linux-ldd.txt
+          ! grep -q 'not found' /tmp/jftrade-linux-ldd.txt
+
+      - name: Upload Linux desktop smoke artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-desktop-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/desktop/linux-amd64/jftrade-desktop-linux-amd64
+          if-no-files-found: error
+          retention-days: 1
+
   desktop-build:
     name: Desktop Build (${{ matrix.label }})
+    if: ${{ github.event_name == 'push' }}
     needs: [web, pine]
     strategy:
       fail-fast: false
@@ -499,7 +670,7 @@ jobs:
   build-and-test:
     name: Build & Test
     if: ${{ always() }}
-    needs: [go-quality, proto-generation, go-coverage, web, pine, desktop-build]
+    needs: [go-quality, proto-generation, go-coverage, web, pine, desktop-linux-smoke, desktop-build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -510,14 +681,16 @@ jobs:
           GO_COVERAGE_RESULT: ${{ needs.go-coverage.result }}
           WEB_RESULT: ${{ needs.web.result }}
           PINE_RESULT: ${{ needs.pine.result }}
+          DESKTOP_LINUX_SMOKE_RESULT: ${{ needs.desktop-linux-smoke.result }}
           DESKTOP_BUILD_RESULT: ${{ needs.desktop-build.result }}
         run: |
-          if [[ "$GO_QUALITY_RESULT" != "success" || "$PROTO_GENERATION_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" || "$DESKTOP_BUILD_RESULT" != "success" ]]; then
+          if [[ "$GO_QUALITY_RESULT" != "success" || "$PROTO_GENERATION_RESULT" != "success" || "$GO_COVERAGE_RESULT" != "success" || "$WEB_RESULT" != "success" || "$PINE_RESULT" != "success" || ( "$DESKTOP_LINUX_SMOKE_RESULT" != "success" && "$DESKTOP_LINUX_SMOKE_RESULT" != "skipped" ) || ( "$DESKTOP_BUILD_RESULT" != "success" && "$DESKTOP_BUILD_RESULT" != "skipped" ) ]]; then
             echo "Go Quality & Contracts: $GO_QUALITY_RESULT"
             echo "Proto Generation: $PROTO_GENERATION_RESULT"
             echo "Go Coverage: $GO_COVERAGE_RESULT"
             echo "Web: $WEB_RESULT"
             echo "Pine & Workers: $PINE_RESULT"
+            echo "Desktop Linux Smoke: $DESKTOP_LINUX_SMOKE_RESULT"
             echo "Desktop Build Matrix: $DESKTOP_BUILD_RESULT"
             exit 1
           fi

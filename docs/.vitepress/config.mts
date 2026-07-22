@@ -69,6 +69,7 @@ export default defineConfig({
         items: [
           { text: "架构", link: "/architecture" },
           { text: "架构 Mermaid 图", link: "/architecture-mermaid" },
+          { text: "测试与质量门禁", link: "/testing-strategy" },
           { text: "PineTS 发布清单", link: "/troubleshooting/pinets-worker-release" },
           { text: "ADK", link: "/adk" },
           { text: "活动路线图", link: "/roadmap" },

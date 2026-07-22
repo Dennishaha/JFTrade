@@ -17,6 +17,7 @@ apps/web/vite-dev*.log
 
 # Frontend test coverage reports
 apps/web/coverage/
+workers/pineworker/coverage/
 
 # IDE / OS
 .DS_Store

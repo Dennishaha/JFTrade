@@ -1,6 +1,9 @@
 name: Backtest Performance Gate
 
 on:
+  schedule:
+    # Monday 03:00 Asia/Shanghai on the same self-hosted benchmark runner.
+    - cron: "0 19 * * 0"
   workflow_dispatch:
     inputs:
       compare_ref:
@@ -21,6 +24,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          # Scheduled runs compare the current default-branch revision with
+          # its immediate predecessor on this same runner.
+          fetch-depth: 2
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -47,12 +54,26 @@ jobs:
           mkdir -p /tmp/jftrade-pine-bench
           cp pkg/strategy/pine/public_benchmark_test.go /tmp/jftrade-pine-bench/
 
+      - name: Resolve comparison baseline
+        id: baseline
+        env:
+          MANUAL_COMPARE_REF: ${{ inputs.compare_ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            git fetch --no-tags origin "$MANUAL_COMPARE_REF"
+            baseline="$(git rev-parse FETCH_HEAD)"
+          else
+            baseline="$(git rev-parse HEAD^)"
+          fi
+          echo "sha=$baseline" >> "$GITHUB_OUTPUT"
+          echo "Comparing ${GITHUB_SHA} against $baseline"
+
       - name: Run base Pine parse benchmarks
         env:
-          COMPARE_REF: ${{ inputs.compare_ref }}
+          COMPARE_SHA: ${{ steps.baseline.outputs.sha }}
         run: |
-          git fetch --no-tags origin "${COMPARE_REF}"
-          git checkout --detach FETCH_HEAD
+          git checkout --detach "${COMPARE_SHA}"
           cp /tmp/jftrade-pine-bench/public_benchmark_test.go pkg/strategy/pine/
           go test ./pkg/strategy/pine -run '^$' \
             -bench '^BenchmarkPine(AnalyzeScript|PlanRequirements)$' \

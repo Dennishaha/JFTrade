@@ -47,6 +47,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [architecture.md](architecture.md)：当前系统架构、单一 API 入口、请求链路和职责边界。
 - [architecture-mermaid.md](architecture-mermaid.md)：项目架构、主要运行链路和开发/发布链路的 Mermaid 图。
 - [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层约束、依赖方向和常见禁区。
+- [testing-strategy.md](testing-strategy.md)：覆盖率分层、PR/main/nightly 门禁和真实外部依赖的运行边界。
 - [roadmap.md](roadmap.md)：唯一活动计划入口，只记录尚未完成的高价值事项与验收标准。
 
 ### 2. 再按问题类型进入专题

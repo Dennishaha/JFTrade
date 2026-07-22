@@ -31,6 +31,17 @@ func executeCoverageCheck(
 	stdout io.Writer,
 	stderr io.Writer,
 	runner goRunner,
+) ([]string, error) {
+	return executeCoverageCheckWithGit(cfg, workDir, stdout, stderr, runner, execGitRunner{})
+}
+
+func executeCoverageCheckWithGit(
+	cfg config,
+	workDir string,
+	stdout io.Writer,
+	stderr io.Writer,
+	runner goRunner,
+	git gitRunner,
 ) (violations []string, returnErr error) {
 	repoRoot, err := findRepoRoot(workDir)
 	if err != nil {
@@ -77,7 +88,18 @@ func executeCoverageCheck(
 	if err := printCoverageReport(stdout, analysis, cfg); err != nil {
 		return nil, err
 	}
-	return evaluateCoverage(analysis, cfg), nil
+	violations = evaluateCoverage(analysis, cfg)
+	if cfg.diffBase == "" {
+		return violations, nil
+	}
+	diffAnalysis, err := analyzeDiffCoverage(repoRoot, cfg.diffBase, profiles, git)
+	if err != nil {
+		return nil, err
+	}
+	if err := printDiffCoverageReport(stdout, diffAnalysis, cfg); err != nil {
+		return nil, err
+	}
+	return append(violations, evaluateDiffCoverage(diffAnalysis, cfg)...), nil
 }
 
 func findRepoRoot(start string) (string, error) {

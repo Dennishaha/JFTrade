@@ -21,6 +21,14 @@ func TestParseConfigDefaults(t *testing.T) {
 	assert.Equal(t, defaultBusinessThreshold, cfg.businessThreshold)
 	assert.Equal(t, defaultCriticalThreshold, cfg.criticalThreshold)
 	assert.Equal(t, defaultModuleThreshold, cfg.moduleThreshold)
+	assert.Equal(t, 90.0, cfg.businessThreshold)
+	assert.Equal(t, 95.0, cfg.criticalThreshold)
+	assert.Equal(t, 85.0, cfg.moduleThreshold)
+	assert.Empty(t, cfg.diffBase)
+	assert.Equal(t, defaultDiffThreshold, cfg.diffThreshold)
+	assert.Equal(t, defaultCriticalDiffThreshold, cfg.criticalDiffThreshold)
+	assert.Equal(t, 90.0, cfg.diffThreshold)
+	assert.Equal(t, 95.0, cfg.criticalDiffThreshold)
 	assert.Equal(t, defaultTestTimeout, cfg.testTimeout)
 	assert.Equal(t, packageList{"./..."}, cfg.packages)
 	assert.Empty(t, stderr.String())
@@ -32,6 +40,9 @@ func TestParseConfigExplicitValues(t *testing.T) {
 		"-business-threshold=91.5",
 		"-critical-threshold=96",
 		"-module-threshold=86.25",
+		"-diff-base= origin/main ",
+		"-diff-threshold=91.25",
+		"-critical-diff-threshold=96.5",
 		"-timeout=2m30s",
 		"-package=./internal/...",
 		"-package=./pkg/...",
@@ -40,6 +51,9 @@ func TestParseConfigExplicitValues(t *testing.T) {
 	assert.Equal(t, 91.5, cfg.businessThreshold)
 	assert.Equal(t, 96.0, cfg.criticalThreshold)
 	assert.Equal(t, 86.25, cfg.moduleThreshold)
+	assert.Equal(t, "origin/main", cfg.diffBase)
+	assert.Equal(t, 91.25, cfg.diffThreshold)
+	assert.Equal(t, 96.5, cfg.criticalDiffThreshold)
 	assert.Equal(t, 150*time.Second, cfg.testTimeout)
 	assert.Equal(t, packageList{"./internal/...", "./pkg/..."}, cfg.packages)
 }
@@ -53,6 +67,8 @@ func TestParseConfigRejectsInvalidValues(t *testing.T) {
 		{"negative threshold", []string{"-business-threshold=-1"}, "must be between 0 and 100"},
 		{"not a number threshold", []string{"-module-threshold=NaN"}, "must be between 0 and 100"},
 		{"large threshold", []string{"-critical-threshold=101"}, "must be between 0 and 100"},
+		{"negative diff threshold", []string{"-diff-threshold=-1"}, "must be between 0 and 100"},
+		{"large critical diff threshold", []string{"-critical-diff-threshold=101"}, "must be between 0 and 100"},
 		{"zero timeout", []string{"-timeout=0s"}, "must be greater than zero"},
 		{"empty package", []string{"-package="}, "package pattern must not be empty"},
 		{"blank package", []string{"-package=  "}, "package pattern must not be empty"},
@@ -73,6 +89,7 @@ func TestParseConfigHelp(t *testing.T) {
 	_, err := parseConfig([]string{"-help"}, &stderr)
 	assert.ErrorIs(t, err, flag.ErrHelp)
 	assert.True(t, strings.Contains(stderr.String(), "-package"))
+	assert.Contains(t, stderr.String(), "-diff-base")
 }
 
 func TestRunCLIUsesDefaultDependenciesForHelp(t *testing.T) {

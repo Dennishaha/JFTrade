@@ -3,6 +3,7 @@ import vue from "@vitejs/plugin-vue";
 import vueDevTools from "vite-plugin-vue-devtools";
 import { defineConfig } from "vitest/config";
 import type { Plugin } from "vite";
+import coveragePolicy from "./coverage-policy.json";
 
 type RuntimeProcess = {
   env?: Record<string, string | undefined>;
@@ -165,105 +166,16 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**/*.{ts,vue}"],
       thresholds: {
-        // The global gate covers all executable frontend source. The module
-        // gates below protect the independently owned business runtime areas;
-        // nested view folders remain part of their owning top-level module.
-        statements: 98,
-        lines: 98,
-        "src/{App.vue,main.ts,router.ts,runtimeConfig.ts}": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/charting/**": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/components/**": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/composables/**": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/features/**": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/layout/**": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/pages/**": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/utils/**": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/components/BacktestChart.vue": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/components/MonacoCodeEditor.vue": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/components/StrategyRuntimePanel.vue": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/components/adk-page/ADKWorkflowStudio.vue": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/composables/adkSettingsApi.ts": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/composables/adkChatStream.ts": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/composables/consoleDataBrokerSettings.ts": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/composables/consoleDataMarketSubscriptions.ts": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
-        "src/components/workspace/LightweightChart.vue": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
-        "src/components/FutuIntegrationSection.vue": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
-        "src/composables/settingsManagedAccounts.ts": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/composables/useADKPageChatState.ts": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/composables/useBacktestRuns.ts": {
-          statements: 95,
-          lines: 95,
-        },
-        "src/pages/BacktestPage.vue": {
-          statements: 95,
-          lines: 95,
-        },
+        // Global coverage protects all executable frontend source. Narrow
+        // gates keep the high-risk trading paths strict without requiring
+        // artificial line-coverage tests for unrelated presentation code.
+        ...coveragePolicy.globalThresholds,
+        ...Object.fromEntries(
+          coveragePolicy.viteCriticalGlobs.map((glob) => [
+            glob,
+            coveragePolicy.criticalThresholds,
+          ]),
+        ),
       },
     },
     environmentOptions: {

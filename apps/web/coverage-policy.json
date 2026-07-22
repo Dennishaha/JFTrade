@@ -1,0 +1,47 @@
+{
+  "globalThresholds": {
+    "statements": 90,
+    "branches": 85,
+    "functions": 85,
+    "lines": 90
+  },
+  "criticalThresholds": {
+    "statements": 95,
+    "branches": 90,
+    "functions": 95,
+    "lines": 95
+  },
+  "viteCriticalGlobs": [
+    "src/components/BacktestChart.vue",
+    "src/components/risk/**",
+    "src/components/{domain/account/{ActiveOrdersTable.vue,OrderHistoryPanel.vue,executionOrderFormat.ts},workspace/{OrderBookPanel.vue,OrderEntryPanel.vue,PositionsPanel.vue,RealTradeConfirmationDialog.vue}}",
+    "src/composables/{consoleDataExecutionOrders.ts,consoleDataRealTrade.ts,liveEvent*.ts,marketDataRealtime*.ts,sharedLiveSocket.ts,useLiveStream.ts,useSharedLiveStream.ts}",
+    "src/pages/RiskPage.vue"
+  ],
+  "criticalExactPaths": [
+    "apps/web/src/components/BacktestChart.vue",
+    "apps/web/src/components/domain/account/ActiveOrdersTable.vue",
+    "apps/web/src/components/domain/account/OrderHistoryPanel.vue",
+    "apps/web/src/components/domain/account/executionOrderFormat.ts",
+    "apps/web/src/components/workspace/OrderBookPanel.vue",
+    "apps/web/src/components/workspace/OrderEntryPanel.vue",
+    "apps/web/src/components/workspace/PositionsPanel.vue",
+    "apps/web/src/components/workspace/RealTradeConfirmationDialog.vue",
+    "apps/web/src/composables/consoleDataExecutionOrders.ts",
+    "apps/web/src/composables/consoleDataRealTrade.ts",
+    "apps/web/src/composables/liveEventBus.ts",
+    "apps/web/src/composables/liveEventReducers.ts",
+    "apps/web/src/composables/sharedLiveSocket.ts",
+    "apps/web/src/composables/useLiveStream.ts",
+    "apps/web/src/composables/useSharedLiveStream.ts",
+    "apps/web/src/pages/RiskPage.vue"
+  ],
+  "diffOnlyCriticalExactPaths": [
+    "apps/web/src/composables/useBacktestRuns.ts",
+    "apps/web/src/pages/BacktestPage.vue"
+  ],
+  "criticalPrefixes": [
+    "apps/web/src/components/risk/",
+    "apps/web/src/composables/marketDataRealtime"
+  ]
+}

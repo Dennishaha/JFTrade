@@ -11,26 +11,76 @@ import (
 	"golang.org/x/tools/cover"
 )
 
-var criticalScopes = []string{
-	"internal/api/backtest",
-	"internal/api/httpserver",
-	"internal/api/live",
-	"internal/api/middleware",
-	"internal/api/settings",
-	"internal/api/system",
-	"internal/app/apiserver/lifecycle",
-	"internal/store/sqliteschema",
-	"pkg/futu/opend",
-	"pkg/strategy/ir",
-	"pkg/strategy/pineworker",
+// criticalDomains group packages by the business risk they carry. Package
+// prefixes, rather than individual leaf packages, keep a newly added package
+// in a risky area from silently falling back to the ordinary threshold.
+var criticalDomains = []criticalDomain{
+	{
+		name:            "trading",
+		packagePrefixes: []string{"internal/trading", "internal/api/trading", "pkg/broker"},
+	},
+	{
+		name:            "live",
+		packagePrefixes: []string{"internal/live", "internal/api/live"},
+	},
+	{
+		name:            "marketdata",
+		packagePrefixes: []string{"internal/marketdata", "internal/api/marketdata", "pkg/market"},
+	},
+	{
+		name:            "futu",
+		packagePrefixes: []string{"internal/integration/futu", "pkg/futu"},
+	},
+	{
+		name:            "backtest",
+		packagePrefixes: []string{"internal/backtest", "internal/api/backtest", "pkg/backtest"},
+	},
+	{
+		name:            "strategy",
+		packagePrefixes: []string{"internal/strategy", "internal/api/strategy", "pkg/strategy"},
+	},
+	{
+		name:            "security",
+		packagePrefixes: []string{"internal/security", "internal/api/middleware"},
+	},
+	{
+		name:            "schema-migration",
+		packagePrefixes: []string{"internal/store/sqliteschema", "internal/app/apiserver/datamigration"},
+	},
 }
 
-var moduleThresholdOverrides = map[string]float64{
-	"internal/marketdata":               100.0,
-	"internal/integration/futu":         100.0,
-	"pkg/futu":                          100.0,
-	"internal/api/marketdata":           100.0,
-	"internal/app/apiserver/servercore": 95.0,
+type criticalDomain struct {
+	name            string
+	packagePrefixes []string
+}
+
+// requiredCriticalScopes makes coverage absence visible for the current
+// product-critical packages. Prefix matching above still classifies any new
+// nested package under these risk domains without requiring this list to be
+// updated first.
+var requiredCriticalScopes = []scopeCoverage{
+	{scope: "internal/api/backtest", domain: "backtest"},
+	{scope: "internal/api/live", domain: "live"},
+	{scope: "internal/api/marketdata", domain: "marketdata"},
+	{scope: "internal/api/middleware", domain: "security"},
+	{scope: "internal/api/strategy", domain: "strategy"},
+	{scope: "internal/api/trading", domain: "trading"},
+	{scope: "internal/app/apiserver/datamigration", domain: "schema-migration"},
+	{scope: "internal/backtest", domain: "backtest"},
+	{scope: "internal/integration/futu", domain: "futu"},
+	{scope: "internal/live", domain: "live"},
+	{scope: "internal/marketdata", domain: "marketdata"},
+	{scope: "internal/security/passwordhash", domain: "security"},
+	{scope: "internal/store/sqliteschema", domain: "schema-migration"},
+	{scope: "internal/strategy", domain: "strategy"},
+	{scope: "internal/trading", domain: "trading"},
+	{scope: "pkg/backtest", domain: "backtest"},
+	{scope: "pkg/broker", domain: "trading"},
+	{scope: "pkg/futu", domain: "futu"},
+	{scope: "pkg/futu/opend", domain: "futu"},
+	{scope: "pkg/market", domain: "marketdata"},
+	{scope: "pkg/strategy/ir", domain: "strategy"},
+	{scope: "pkg/strategy/pineworker", domain: "strategy"},
 }
 
 type exclusionCategory string
@@ -89,7 +139,8 @@ func (s *coverageStats) add(other coverageStats) {
 }
 
 type scopeCoverage struct {
-	scope string
+	scope  string
+	domain string
 	coverageStats
 }
 
@@ -111,18 +162,16 @@ func analyzeProfiles(profiles []*cover.Profile) (coverageAnalysis, error) {
 		return coverageAnalysis{}, errors.New("coverage profile contains no source files")
 	}
 
-	criticalIndex := make(map[string]int, len(criticalScopes))
-	critical := make([]scopeCoverage, len(criticalScopes))
-	for index, scope := range criticalScopes {
-		criticalIndex[scope] = index
-		critical[index].scope = scope
+	critical := make(map[string]scopeCoverage, len(requiredCriticalScopes))
+	for _, required := range requiredCriticalScopes {
+		critical[required.scope] = required
 	}
 	ordinary := make(map[string]coverageStats)
 	excluded := make([]excludedScopeCoverage, len(exclusionRules))
 	for index, rule := range exclusionRules {
 		excluded[index].rule = rule
 	}
-	analysis := coverageAnalysis{critical: critical, excluded: excluded}
+	analysis := coverageAnalysis{excluded: excluded}
 
 	for _, profile := range profiles {
 		stats := profileCoverage(profile)
@@ -138,8 +187,12 @@ func analyzeProfiles(profiles []*cover.Profile) (coverageAnalysis, error) {
 		if !ok {
 			continue
 		}
-		if index, found := criticalIndex[scope]; found {
-			analysis.critical[index].add(stats)
+		if domain, found := criticalDomainForScope(scope); found {
+			criticalStats := critical[scope]
+			criticalStats.scope = scope
+			criticalStats.domain = domain
+			criticalStats.add(stats)
+			critical[scope] = criticalStats
 			continue
 		}
 		moduleStats := ordinary[scope]
@@ -148,6 +201,15 @@ func analyzeProfiles(profiles []*cover.Profile) (coverageAnalysis, error) {
 	}
 	if analysis.business.total == 0 {
 		return coverageAnalysis{}, errors.New("coverage profile contains no business statements")
+	}
+
+	criticalScopes := make([]string, 0, len(critical))
+	for scope := range critical {
+		criticalScopes = append(criticalScopes, scope)
+	}
+	sort.Strings(criticalScopes)
+	for _, scope := range criticalScopes {
+		analysis.critical = append(analysis.critical, critical[scope])
 	}
 
 	scopes := make([]string, 0, len(ordinary))
@@ -202,6 +264,17 @@ func packageScope(fileName string) (string, bool) {
 	return "", false
 }
 
+func criticalDomainForScope(scope string) (string, bool) {
+	for _, domain := range criticalDomains {
+		for _, prefix := range domain.packagePrefixes {
+			if scope == prefix || strings.HasPrefix(scope, prefix+"/") {
+				return domain.name, true
+			}
+		}
+	}
+	return "", false
+}
+
 func evaluateCoverage(analysis coverageAnalysis, cfg config) []string {
 	var violations []string
 	if actual := analysis.business.percentage(); actual < cfg.businessThreshold {
@@ -222,14 +295,10 @@ func evaluateCoverage(analysis coverageAnalysis, cfg config) []string {
 		}
 	}
 	for _, scope := range analysis.ordinary {
-		threshold := cfg.moduleThreshold
-		if override, ok := moduleThresholdOverrides[scope.scope]; ok {
-			threshold = override
-		}
-		if actual := scope.percentage(); actual < threshold {
+		if actual := scope.percentage(); actual < cfg.moduleThreshold {
 			violations = append(violations, fmt.Sprintf(
 				"ordinary Go coverage for %s is %.2f%%, below %.2f%%",
-				scope.scope, actual, threshold,
+				scope.scope, actual, cfg.moduleThreshold,
 			))
 		}
 	}
@@ -260,14 +329,15 @@ func printCoverageReport(writer io.Writer, analysis coverageAnalysis, cfg config
 		}
 	}
 	for _, scope := range analysis.critical {
+		label := criticalScopeLabel(scope)
 		if scope.total == 0 {
-			if _, err := fmt.Fprintf(writer, "Critical Go coverage: %-42s n/a (0/0)\n", scope.scope); err != nil {
+			if _, err := fmt.Fprintf(writer, "Critical Go coverage: %-42s n/a (0/0)\n", label); err != nil {
 				return fmt.Errorf("write critical coverage: %w", err)
 			}
 			continue
 		}
 		if _, err := fmt.Fprintf(writer, "Critical Go coverage: %-42s %.2f%% (%d/%d)\n",
-			scope.scope, scope.percentage(), scope.covered, scope.total,
+			label, scope.percentage(), scope.covered, scope.total,
 		); err != nil {
 			return fmt.Errorf("write critical coverage: %w", err)
 		}
@@ -280,4 +350,11 @@ func printCoverageReport(writer io.Writer, analysis coverageAnalysis, cfg config
 		}
 	}
 	return nil
+}
+
+func criticalScopeLabel(scope scopeCoverage) string {
+	if scope.domain == "" {
+		return scope.scope
+	}
+	return fmt.Sprintf("%s [%s]", scope.scope, scope.domain)
 }

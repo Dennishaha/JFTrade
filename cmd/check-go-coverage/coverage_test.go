@@ -24,12 +24,18 @@ github.com/jftrade/jftrade-main/scripts/tool.go:1.1,2.1 3 0
 
 	assert.Equal(t, coverageStats{covered: 7, total: 21}, analysis.raw)
 	assert.Equal(t, coverageStats{covered: 7, total: 11}, analysis.business)
+	require.Len(t, analysis.critical, len(requiredCriticalScopes)+1)
 	assert.Equal(t, scopeCoverage{
 		scope:         "internal/api/backtest",
+		domain:        "backtest",
 		coverageStats: coverageStats{covered: 5, total: 5},
-	}, analysis.critical[0])
+	}, coverageForScope(t, analysis.critical, "internal/api/backtest"))
+	assert.Equal(t, scopeCoverage{
+		scope:         "internal/api/backtest/sub",
+		domain:        "backtest",
+		coverageStats: coverageStats{total: 4},
+	}, coverageForScope(t, analysis.critical, "internal/api/backtest/sub"))
 	assert.Equal(t, []scopeCoverage{
-		{scope: "internal/api/backtest/sub", coverageStats: coverageStats{total: 4}},
 		{scope: "internal/zeta", coverageStats: coverageStats{covered: 2, total: 2}},
 	}, analysis.ordinary)
 	require.Len(t, analysis.excluded, len(exclusionRules))
@@ -44,7 +50,9 @@ func TestAnalyzeProfilesNormalizesWindowsSeparators(t *testing.T) {
 	}}
 	analysis, err := analyzeProfiles(profiles)
 	require.NoError(t, err)
-	assert.Equal(t, 3, analysis.critical[0].covered)
+	backtest := coverageForScope(t, analysis.critical, "internal/api/backtest")
+	assert.Equal(t, 3, backtest.covered)
+	assert.Equal(t, "backtest", backtest.domain)
 	assert.Empty(t, analysis.ordinary)
 }
 
@@ -80,6 +88,23 @@ github.com/jftrade/jftrade-main/cmd/generate-futu-proto/main.go:1.1,2.1 1 1
 `)
 	_, err = analyzeProfiles(profiles)
 	assert.EqualError(t, err, "coverage profile contains no business statements")
+}
+
+func TestAnalyzeProfilesRetainsRequiredCriticalScopesWithoutProfileData(t *testing.T) {
+	profiles := parseTestProfile(t, `mode: set
+github.com/jftrade/jftrade-main/internal/ordinary/service.go:1.1,2.1 1 1
+`)
+	analysis, err := analyzeProfiles(profiles)
+	require.NoError(t, err)
+	require.Len(t, analysis.critical, len(requiredCriticalScopes))
+	assert.Zero(t, coverageForScope(t, analysis.critical, "pkg/futu/opend").total)
+
+	violations := evaluateCoverage(analysis, config{
+		businessThreshold: 0,
+		criticalThreshold: 95,
+		moduleThreshold:   0,
+	})
+	assert.Contains(t, strings.Join(violations, "\n"), "critical package pkg/futu/opend has no coverage data")
 }
 
 func TestExclusionRulesAreExplicitAndDoNotHideBackendEntrypoints(t *testing.T) {
@@ -159,43 +184,76 @@ func TestEvaluateCoverageAllowsExactThresholds(t *testing.T) {
 	}))
 }
 
-func TestEvaluateCoverageAppliesExactLifecyclePackageThresholdOverrides(t *testing.T) {
-	strict := []string{
-		"internal/marketdata",
-		"internal/integration/futu",
-		"pkg/futu",
-		"internal/api/marketdata",
-	}
-	ordinary := make([]scopeCoverage, 0, len(strict)+2)
-	for _, scope := range strict {
-		ordinary = append(ordinary, scopeCoverage{scope: scope, coverageStats: coverageStats{covered: 99, total: 100}})
-	}
-	ordinary = append(ordinary, scopeCoverage{scope: "internal/app/apiserver/servercore", coverageStats: coverageStats{covered: 94, total: 100}})
-	ordinary = append(ordinary, scopeCoverage{scope: "internal/ordinary", coverageStats: coverageStats{covered: 85, total: 100}})
+func TestEvaluateCoverageUsesSingleOrdinaryThreshold(t *testing.T) {
 	analysis := coverageAnalysis{
 		business: coverageStats{covered: 100, total: 100},
-		ordinary: ordinary,
+		ordinary: []scopeCoverage{
+			{scope: "internal/marketdata", coverageStats: coverageStats{covered: 85, total: 100}},
+			{scope: "internal/integration/futu", coverageStats: coverageStats{covered: 85, total: 100}},
+			{scope: "pkg/futu", coverageStats: coverageStats{covered: 85, total: 100}},
+			{scope: "internal/api/marketdata", coverageStats: coverageStats{covered: 84, total: 100}},
+		},
 	}
 	violations := evaluateCoverage(analysis, config{
 		businessThreshold: 90,
 		criticalThreshold: 95,
 		moduleThreshold:   85,
 	})
-	require.Len(t, violations, len(strict)+1)
-	for _, scope := range strict {
-		assert.Contains(t, strings.Join(violations, "\n"), "ordinary Go coverage for "+scope+" is 99.00%, below 100.00%")
-	}
-	assert.Contains(t, strings.Join(violations, "\n"), "ordinary Go coverage for internal/app/apiserver/servercore is 94.00%, below 95.00%")
+	require.Len(t, violations, 1)
+	assert.Contains(t, violations[0], "internal/api/marketdata is 84.00%, below 85.00%")
+}
 
-	for index := range strict {
-		analysis.ordinary[index].covered = 100
+func TestCriticalDomainForScopeUsesRiskPrefixesAndPackageBoundaries(t *testing.T) {
+	tests := []struct {
+		scope  string
+		domain string
+		found  bool
+	}{
+		{scope: "internal/trading", domain: "trading", found: true},
+		{scope: "internal/api/trading/order", domain: "trading", found: true},
+		{scope: "pkg/broker", domain: "trading", found: true},
+		{scope: "internal/live", domain: "live", found: true},
+		{scope: "internal/api/live/events", domain: "live", found: true},
+		{scope: "internal/marketdata", domain: "marketdata", found: true},
+		{scope: "pkg/market/us", domain: "marketdata", found: true},
+		{scope: "internal/integration/futu", domain: "futu", found: true},
+		{scope: "pkg/futu/opend", domain: "futu", found: true},
+		{scope: "internal/api/backtest", domain: "backtest", found: true},
+		{scope: "pkg/backtest/internal/storage", domain: "backtest", found: true},
+		{scope: "internal/strategy/runtimecontrol", domain: "strategy", found: true},
+		{scope: "pkg/strategy/pineworker", domain: "strategy", found: true},
+		{scope: "internal/security/passwordhash", domain: "security", found: true},
+		{scope: "internal/api/middleware", domain: "security", found: true},
+		{scope: "internal/store/sqliteschema", domain: "schema-migration", found: true},
+		{scope: "internal/app/apiserver/datamigration", domain: "schema-migration", found: true},
+		{scope: "internal/marketdatastore"},
+		{scope: "pkg/future"},
+		{scope: "internal/settings"},
 	}
-	analysis.ordinary[len(strict)].covered = 95
-	assert.Empty(t, evaluateCoverage(analysis, config{
+	for _, test := range tests {
+		t.Run(test.scope, func(t *testing.T) {
+			domain, found := criticalDomainForScope(test.scope)
+			assert.Equal(t, test.found, found)
+			assert.Equal(t, test.domain, domain)
+		})
+	}
+}
+
+func TestEvaluateCoverageGatesEachCriticalPackageSeparately(t *testing.T) {
+	analysis := coverageAnalysis{
+		business: coverageStats{covered: 100, total: 100},
+		critical: []scopeCoverage{
+			{scope: "pkg/futu", domain: "futu", coverageStats: coverageStats{covered: 100, total: 100}},
+			{scope: "pkg/futu/opend", domain: "futu", coverageStats: coverageStats{covered: 94, total: 100}},
+		},
+	}
+	violations := evaluateCoverage(analysis, config{
 		businessThreshold: 90,
 		criticalThreshold: 95,
 		moduleThreshold:   85,
-	}))
+	})
+	require.Len(t, violations, 1)
+	assert.Contains(t, violations[0], "pkg/futu/opend is 94.00%, below 95.00%")
 }
 
 func TestPrintCoverageReportIncludesMissingAndSortedScopes(t *testing.T) {
@@ -257,6 +315,17 @@ func parseTestProfile(t *testing.T, profile string) []*cover.Profile {
 	profiles, err := cover.ParseProfilesFromReader(strings.NewReader(profile))
 	require.NoError(t, err)
 	return profiles
+}
+
+func coverageForScope(t *testing.T, scopes []scopeCoverage, want string) scopeCoverage {
+	t.Helper()
+	for _, scope := range scopes {
+		if scope.scope == want {
+			return scope
+		}
+	}
+	t.Fatalf("coverage scope %q not found", want)
+	return scopeCoverage{}
 }
 
 type failAfterWrites struct {

@@ -38,6 +38,9 @@ func (e *googleADKExecution) descriptorForTool(tool adktool.Tool) (ToolDescripto
 }
 
 func (e *googleADKExecution) run(ctx context.Context, content *genai.Content) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	runBlocking := e.runBlocking
 	if runBlocking == nil {
 		runBlocking = e.runBlockingWithRunner

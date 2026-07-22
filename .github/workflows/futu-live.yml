@@ -1,0 +1,53 @@
+name: Futu OpenD Live Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type RUN_LIVE_OPEND to contact the OpenD account configured on the self-hosted runner
+        required: true
+        type: string
+      ref:
+        description: Git ref or SHA to verify
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: futu-live-${{ inputs.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-opend:
+    name: Real OpenD contract checks
+    runs-on: [self-hosted, futu, opend]
+    timeout-minutes: 20
+    steps:
+      - name: Require explicit confirmation
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        shell: bash
+        run: |
+          if [[ "$CONFIRMATION" != "RUN_LIVE_OPEND" ]]; then
+            echo "Refusing to contact OpenD without confirmation=RUN_LIVE_OPEND." >&2
+            exit 1
+          fi
+
+      - name: Checkout requested ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Run real OpenD contract checks
+        env:
+          JFTRADE_FUTU_LIVE_TEST: "1"
+        run: go test ./pkg/futu -run '^TestLiveOpenD' -count=1 -timeout=300s -v

@@ -11,9 +11,11 @@
     "start": "node ../../var/pineworker/worker.mjs",
     "build": "node ../../scripts/build-pineworker-assets.mjs",
     "test": "vitest run src",
+    "test:coverage": "vitest run src --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.10",
     "rolldown": "^1.1.5",
     "typescript": "^7.0.2",
     "vitest": "catalog:"
