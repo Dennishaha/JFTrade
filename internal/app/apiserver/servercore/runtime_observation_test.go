@@ -60,6 +60,7 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 	observation := strategiesEnvelope.Data[0].RuntimeObservation
 	if observation == nil {
 		t.Fatalf("expected runtime observation in strategies response, got %+v", strategiesEnvelope.Data[0])
+		return
 	}
 	if observation.ActualStatus != strategyStatusRunning {
 		t.Fatalf("actualStatus = %s, want %s", observation.ActualStatus, strategyStatusRunning)
@@ -154,6 +155,7 @@ func TestStrategyRuntimeObservationPersistsAcrossServerRestart(t *testing.T) {
 	observation := strategies[0].RuntimeObservation
 	if observation == nil {
 		t.Fatalf("expected persisted runtime observation after reload, got %+v", strategies[0])
+		return
 	}
 	if observation.ActualStatus != strategyStatusStopped {
 		t.Fatalf("persisted actual status = %s, want %s", observation.ActualStatus, strategyStatusStopped)

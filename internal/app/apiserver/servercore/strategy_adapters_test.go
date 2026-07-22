@@ -10,6 +10,7 @@ func TestStrategyAdapterDefinitionSyncSupportsLegacyParams(t *testing.T) {
 	})
 	if status == nil {
 		t.Fatal("expected definition sync status")
+		return
 	}
 	if status.DefinitionID != "legacy-definition" {
 		t.Fatalf("definitionId = %q", status.DefinitionID)

@@ -67,6 +67,7 @@ func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 	request := opendServer.lastPlaceOrderRequest()
 	if request == nil {
 		t.Fatal("expected place order request to be captured")
+		return
 	}
 	if diff := math.Abs(request.GetPrice() - 10.12); diff > 1e-9 {
 		t.Fatalf("price = %f, want 10.12", request.GetPrice())
@@ -207,6 +208,7 @@ func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 	request := opendServer.lastPlaceOrderRequest()
 	if request == nil {
 		t.Fatal("expected place order request to be captured")
+		return
 	}
 	if got := request.GetCode(); got != "TME" {
 		t.Fatalf("Code = %q, want TME", got)

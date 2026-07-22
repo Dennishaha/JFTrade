@@ -44,6 +44,7 @@ func TestNewStrategyRuntimeStoreRejectsLegacySchema(t *testing.T) {
 	_, err = NewStrategyRuntimeStore(dbPath)
 	if err == nil {
 		t.Fatal("expected legacy strategy runtime schema error")
+		return
 	}
 	if !strings.Contains(err.Error(), "schema metadata is missing") {
 		t.Fatalf("unexpected legacy schema error: %v", err)

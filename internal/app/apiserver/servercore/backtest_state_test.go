@@ -229,6 +229,7 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 	}
 	if reloadedCompletedFull == nil {
 		t.Fatal("expected completed full run after reload")
+		return
 	}
 	if !ok || reloadedCompletedFull.Result == nil || reloadedCompletedFull.Result.FinalBalance != 123456 {
 		t.Fatalf("completed run full result lost after reload: %+v", reloadedCompletedFull)

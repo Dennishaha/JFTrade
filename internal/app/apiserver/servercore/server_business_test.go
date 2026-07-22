@@ -446,6 +446,7 @@ func TestServerCloseAggregatesPineWorkerRunnerErrorsOnce(t *testing.T) {
 	err := server.Close()
 	if err == nil {
 		t.Fatal("Close should surface pine worker shutdown errors")
+		return
 	}
 	if !strings.Contains(err.Error(), "backtestPineWorkerRunner close") ||
 		!strings.Contains(err.Error(), "instancePineWorkerRunner close") {

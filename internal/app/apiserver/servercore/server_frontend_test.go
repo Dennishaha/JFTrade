@@ -136,6 +136,7 @@ func TestFrontendServerProxiesDesktopDevelopmentUI(t *testing.T) {
 	frontend := newFrontendServerWithOptions(nil, "", target.URL)
 	if frontend == nil {
 		t.Fatal("development frontend proxy was not created")
+		return
 	}
 
 	recorder := httptest.NewRecorder()
@@ -229,6 +230,7 @@ func TestFrontendServerBoundaryHelpers(t *testing.T) {
 	server := newFrontendServer(os.DirFS(frontendDir))
 	if server == nil {
 		t.Fatal("newFrontendServer() returned nil")
+		return
 	}
 	if server.hasFile("assets") {
 		t.Fatal("hasFile() should reject directories")

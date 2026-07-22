@@ -23,6 +23,7 @@ htfClose = request.security("NASDAQ:AAPL", "1D", close)`
 	err := validateADKStrategyDraftScript(script)
 	if err == nil {
 		t.Fatal("validateADKStrategyDraftScript() error = nil, want unsupported Pine rejection")
+		return
 	}
 	if !strings.Contains(err.Error(), "Pine Script v6") || !strings.Contains(err.Error(), "request.security") {
 		t.Fatalf("validateADKStrategyDraftScript() error = %q, want Pine unsupported-feature hint", err)
@@ -45,6 +46,7 @@ func TestValidateADKStrategyDraftScriptReturnsSharedHintForInvalidPine(t *testin
 fast =`)
 	if err == nil {
 		t.Fatal("validateADKStrategyDraftScript() error = nil, want invalid Pine error")
+		return
 	}
 	if !strings.Contains(err.Error(), "可以先查询 Pine v6 规范和示例，确认脚本格式正确。也可以从下面这个 JFTrade Pine v6 骨架开始") {
 		t.Fatalf("validateADKStrategyDraftScript() error = %q, want shared skeleton hint", err)

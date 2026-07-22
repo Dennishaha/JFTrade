@@ -429,6 +429,7 @@ func TestLiveNotificationFromExchangeCalendarAlertMapsSourceAndCategory(t *testi
 	})
 	if note == nil {
 		t.Fatal("expected note")
+		return
 	}
 	if note.Level != "error" {
 		t.Fatalf("level = %q", note.Level)

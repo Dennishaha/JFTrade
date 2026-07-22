@@ -104,6 +104,7 @@ func TestRecordLiveNotificationCallsSink(t *testing.T) {
 	event := server.recordLiveNotification(liveNotification{Level: "warn", Title: "Risk", Message: "blocked", Category: "execution.order"})
 	if event == nil {
 		t.Fatal("recordLiveNotification event = nil")
+		return
 	}
 	if got.Sequence != event.Sequence || got.Title != "Risk" || got.Category != "execution.order" {
 		t.Fatalf("sink event = %#v, want sequence %d title/category", got, event.Sequence)
