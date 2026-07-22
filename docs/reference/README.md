@@ -13,6 +13,7 @@
 - [summary/README.md](summary/README.md)：整理版索引，先看接口族，再回到原始文档
 - [opend-protocol.md](opend-protocol.md)：当前项目实际使用的 OpenD 协议入口、端口语义和实现落点
 - [trading-platform-reference-guide.md](trading-platform-reference-guide.md)：vn.py、QuantConnect LEAN、OpenBB 等开源项目的参考方向与 JFTrade 落点
+- [api-lifecycle.md](api-lifecycle.md)：HTTP 端点的 deprecated、tombstone、removed 与保留决策
 - [Futu-API-Doc-zh-Proto.md](Futu-API-Doc-zh-Proto.md)：Futu API 参考资料
 - [bbgo-doc/README.md](bbgo-doc/README.md)：上游 bbgo 参考资料，保持原样，不在本次重写范围内
 

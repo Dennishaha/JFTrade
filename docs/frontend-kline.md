@@ -14,7 +14,7 @@
 快照:         /api/v1/market-data/snapshots/*
 
 apps/web
-  -> AppShell / MarketPage
+  -> AppShell / WorkspacePage
   -> marketDataQuery / marketDataRealtime
   -> charting/kline.ts
 
@@ -54,7 +54,8 @@ apps/web
 - [../apps/web/src/charting/kline.ts](../apps/web/src/charting/kline.ts)
 - [../internal/api/marketdata/routes.go](../internal/api/marketdata/routes.go)
 - [../internal/marketdata/collector.go](../internal/marketdata/collector.go)
-- [../internal/app/apiserver/servercore/market_live_runtime_adapter.go](../internal/app/apiserver/servercore/market_live_runtime_adapter.go)
+- [../internal/app/apiserver/servercore/market_data_adapters.go](../internal/app/apiserver/servercore/market_data_adapters.go)
+- [../internal/integration/futu/marketdata_runtime.go](../internal/integration/futu/marketdata_runtime.go)
 
 - `apps/web/tests/kline.test.ts`
   - 覆盖分钟/小时 K 展示桶结束点、历史最后一根不被实时新桶吞掉、日线、周线、分钟线分桶，以及 stale history gap 抑制。
@@ -76,6 +77,6 @@ apps/web
 
 - `apps/web/src/charting/kline.ts`
 - `apps/web/src/composables/useConsoleData.ts`
-- `apps/web/src/pages/MarketPage.vue`
+- `apps/web/src/pages/WorkspacePage.vue`
 - `apps/web/src/components/workspace/LightweightChart.vue`
 - `pkg/futu/exchange.go`

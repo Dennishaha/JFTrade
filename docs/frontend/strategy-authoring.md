@@ -1,201 +1,83 @@
 # 前端策略设计专题
 
-本文只回答三件事：
+JFTrade 的策略设计面是 Pine v6 原生源码工作台。当前 UI 不再使用自由连线的 Logic Flow 画布；它以“结构指令 + Pine 代码”双向编辑同一份源码，并把可结构化部分保存为 `PineV6WorkflowDocument`。
 
-- Pine v6 策略定义和 Logic Flow `visualModel` 分别落在哪一层
-- Logic Flow、Monaco 和模板生成各自负责什么
-- 后续改模板、图块、同步行为时，应该先从哪个文件进入
+## 页面入口
 
-## 当前设计面
+- `/strategy` 重定向到 `/strategy/runtime`。
+- `/strategy/runtime` 展示实例、绑定、运行状态、日志与审计。
+- `/strategy/design` 编辑已有定义；`/strategy/design?mode=new` 创建新草稿。
 
-策略工作区分成两个横向 tab：
+运行页与设计页是独立路由。切换时通过 route query 传递入口模式、提示和 definition ID，不在一个页面内维护隐藏 tab 状态。
 
-- `/strategy` 默认先进入运行态；这里负责查看实例状态、日志、审计，并对已保存定义做实例化和启停。
-- 设计态在固定高度的画布式 SPA 内同时编辑 `visualModel` 和 Pine v6 script，页面本身不滚动。
-- 从运行态点击顶部“设计”会进入已有定义编辑；点击“新增策略”会直接进入设计态的模板选择模式。
-- 已保存定义列表、样板策略、基本信息、Block Inspector、代码编辑框和元信息都作为悬浮面板叠在画布上。
-- Logic Flow 是设计态底层画布，拖拽、连线和节点选择都发生在画布内部；外层 SPA 只负责固定高度和浮层编排。
-- 顶部工具栏承载标题、保存、创建运行实例、显示模式切换、面板开关，以及 Pine/流程图同步状态提示。
-- 设计态使用 `画布`、`双栏`、`代码` 三态显示切换；纯代码模式下仍可打开样板策略、基本信息、元信息和图块详情等悬浮工具卡。
-- 新增草稿和未保存修改离开设计态时会触发确认流程；页内切回运行态、路由离开和浏览器刷新都会走同一套保护。
+## 设计工作台
 
-设计态支持两种协作方式：
+设计页提供三种显示模式：
 
-- 图优先：通过 Logic Flow 拖拽图块、改 Inspector 参数，系统自动异步回写 Pine。
-- 码优先：直接在代码区修改 Pine，系统会在防抖和失焦时自动尝试反解回流程图。
-- 混合模式只保留可标准化的 Pine v6 语义块；无法反解成标准图块的代码不会写入流程图，用户继续在 Pine 工作台编辑。
+- `指令`：显示策略定义、声明、诊断、关联实例和源码结构块。
+- `双栏`：结构指令与 Pine 编辑器同时显示。
+- `代码`：以 Pine 源码编辑为主，仍保留必要的定义信息。
 
-当前约束必须明确：
+结构指令不是第二套执行模型。`pineSourceStructureIndex` 解析当前 Pine 源码并生成结构块；新增、移动、复制、删除或修改结构块时，操作直接重写对应源码范围。保存时再从源码构建兼容的 workflow snapshot。
 
-- 系统只持久化 Pine v6 源码和可选 `visualModel`。
-- 新建策略定义的 `id` 现在默认生成 GUID；设计页只展示该 ID，不允许手工修改。策略 `version` 仍由系统在每次有意义保存时自动递增。
-- 图块语义保持不变；`visualModel -> script` 由前端生成 Pine v6，后端只接收 `sourceFormat: "pine-v6"`。
-- 后端不会直接用 Go Pine runtime 执行文本脚本；PineTS worker 负责 Pine 执行并返回信号/订单意图，Go 负责调度、回测撮合、风控和下单。
-- 加载旧定义时会统一归一到 `sourceFormat: "pine-v6"` 和 `runtime: "pine-pinets"`。
-- 如果定义已经保存了 `visualModel`，页面优先保留已保存图结构，直到用户继续改图或改代码。
+当前结构块覆盖 strategy 声明、input、赋值、条件、循环、函数、collection、`request.security`、订单、风控、visual、alert、log 以及无法结构化的 raw 锚点。具体可编辑字段和默认渲染以代码注册表为准，不在文档复制完整清单。
 
-## 关键职责分层
+## 单一事实来源
 
-### 前端页面与组件
+- 可执行事实是保存的 Pine v6 `script`。
+- `sourceFormat` 固定为 `pine-v6`，runtime 主路径为 `pine-pinets`。
+- `visualModel` 是可选的结构化编辑投影，不能比源码声明更多执行能力。
+- PineTS worker 执行脚本并返回 signal、plot、alert、visual output 与 order intent。
+- Go 继续负责调度、回测撮合、风险检查、账户状态和券商下单。
 
-- [../../apps/web/src/pages/StrategyPage.vue](../../apps/web/src/pages/StrategyPage.vue)：策略工作区薄包装器，负责运行/设计 tab 切换，并在设计态挂载前传递“编辑已有定义 / 新建模板草稿”的入口模式。
-- [../../apps/web/src/components/StrategyDesignStage.vue](../../apps/web/src/components/StrategyDesignStage.vue)：设计态主体，负责 Logic Flow 画布、悬浮 definitions/code workbench、模板选择、图块详情、同步和保存流程。
-- [../../apps/web/src/components/StrategyRuntimePanel.vue](../../apps/web/src/components/StrategyRuntimePanel.vue)：运行态主体，负责实例列表、启停控制、日志和审计，并提供“进入设计”和“新增策略模板草稿”两个设计态入口。
-- [../../apps/web/src/components/StrategyLogicFlowDesigner.vue](../../apps/web/src/components/StrategyLogicFlowDesigner.vue)：Logic Flow 画布封装，负责图块渲染、选择、图结构更新、视口安全区、缩放 HUD、图块创建器和连线断开。
-- [../../apps/web/src/components/MonacoCodeEditor.vue](../../apps/web/src/components/MonacoCodeEditor.vue)：浏览器内 Monaco 包装；注册 `pine-v6` 语言、Pine token、缩进规则、completion 和 hover，测试环境回退 textarea。
-- [../../apps/web/src/features/strategyPineEditorIntelliSense.ts](../../apps/web/src/features/strategyPineEditorIntelliSense.ts)：Pine 编辑器的 completion、snippet 和 hover 元数据。
-- [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts)：图块目录、内置模板、visualModel 克隆/初始化，以及 Pine 和 graph 双向转换的统一导出入口。
-- [../../apps/web/src/features/strategyVisualBuilderPine.ts](../../apps/web/src/features/strategyVisualBuilderPine.ts)：`visualModel -> Pine` 生成器，负责把图块、连线、条件、下单、保护和指标节点渲染为 Pine。
-- [../../apps/web/src/features/strategyVisualBuilderPineParser.ts](../../apps/web/src/features/strategyVisualBuilderPineParser.ts)：`Pine -> visualModel` 解析器，负责恢复常见指标、条件、动作；遇到无法标准化的可执行/视觉语句时返回行号诊断。
-- [../../apps/web/src/composables/useDraggable.ts](../../apps/web/src/composables/useDraggable.ts)：设计态悬浮面板拖动能力，基于 transform 偏移，不破坏原有绝对定位基线。
+无法安全结构化的 Pine 代码必须保留为 raw/source 内容或给出诊断，不能为了让 UI 看起来完整而改写语义。当 Pine 源码无法标准化为可同步的结构模型时，转换必须返回 `ok:false` 和行号诊断，不能伪造可编辑结构块或静默成功。
 
-### sidecar 持久化与契约
+## 前端代码入口
 
-- [../../internal/api/strategy/routes.go](../../internal/api/strategy/routes.go)：`/api/v1/strategy-definitions/*` 路由、Pine 校验和实例化入口。
-- [../../internal/strategy/service.go](../../internal/strategy/service.go)：策略定义、实例、插件和 runtime 控制面的业务门面。
-- [../../internal/app/apiserver/servercore/strategy_design_store.go](../../internal/app/apiserver/servercore/strategy_design_store.go)：策略定义文件存储，包含 Pine runtime/sourceFormat 归一化、旧记录迁移、`visualModel` 归一化和落盘。
-- [../../internal/app/apiserver/servercore/strategy_catalog_store.go](../../internal/app/apiserver/servercore/strategy_catalog_store.go)：策略实例目录，实例化时编译 Pine、记录 compiled hooks 和 compiled requirements。
-- [../../internal/api/strategy/openapi_models.go](../../internal/api/strategy/openapi_models.go)：`StrategyDefinition`、`StrategyVisualModel` 等 OpenAPI 契约入口。
-- [../../apps/web/src/contracts/index.ts](../../apps/web/src/contracts/index.ts)：前端页面和测试共享的 DTO 与默认模型都在这里，`visualModel` 结构也以这里为准。
+- [StrategyDesignPage.vue](../../apps/web/src/pages/StrategyDesignPage.vue)：设计路由包装器，解析新建/已有入口并返回运行页。
+- [StrategyRuntimePage.vue](../../apps/web/src/pages/StrategyRuntimePage.vue)：运行路由包装器，装配实例面板并进入设计页。
+- [StrategyDesignStage.vue](../../apps/web/src/components/StrategyDesignStage.vue)：定义加载、结构指令、Pine 编辑、分析、保存和实例摘要的主工作台。
+- [StrategyRuntimePanel.vue](../../apps/web/src/components/StrategyRuntimePanel.vue)：实例列表、绑定、启停、日志和审计入口。
+- [PineSourceCodePane.vue](../../apps/web/src/components/PineSourceCodePane.vue)：Pine 源码编辑器与诊断 marker。
+- [PineSourceStructureBlockList.vue](../../apps/web/src/components/PineSourceStructureBlockList.vue)：结构指令列表及块操作。
+- [pineSourceStructureIndex.ts](../../apps/web/src/features/pineSourceStructureIndex.ts)：源码结构索引与 snapshot 构建入口。
+- [pineV6Workflow.ts](../../apps/web/src/features/pineV6Workflow.ts)：workflow block registry、默认策略、归一化和诊断。
+- [strategyPineEditorIntelliSense.ts](../../apps/web/src/features/strategyPineEditorIntelliSense.ts)：Monaco completion、snippet 与 hover 元数据。
+- [contracts/index.ts](../../apps/web/src/contracts/index.ts)：`PineV6WorkflowDocument`、策略定义和实例 DTO。
 
-### 运行时
+## 后端代码入口
 
-- [../../pkg/strategy/pine](../../pkg/strategy/pine)：Pine v6 前端，负责语法解析、诊断、warning 和 lowering 到策略 IR。
-- [../../pkg/strategy/ir](../../pkg/strategy/ir)：策略 IR 模型和需求规划，提取指标、账户能力、仓位和资金依赖。
-- [../../pkg/strategy/pineworker](../../pkg/strategy/pineworker)：PineTS worker 的 Go 侧契约、gRPC client、worker manager 和性能门禁；Pine 执行结果以 signals / plots / order intents 形式回到 Go。
-- [../../pkg/strategy/indicatorruntime](../../pkg/strategy/indicatorruntime)：指标预计算运行时，为 Pine lowering 后的 executor 提供 MA、RSI、MACD、KDJ、布林带、ATR、CCI、Williams %R 等序列值。
+- [routes.go](../../internal/api/strategy/routes.go)：策略定义、实例生命周期与 Pine analyze HTTP 路由。
+- [service.go](../../internal/strategy/service.go)：稳定业务门面和 DesignStore/CatalogStore/RuntimeManager 端口。
+- [design_store.go](../../internal/app/apiserver/servercore/design_store.go)：当前定义持久化实现。
+- [catalog_store.go](../../internal/app/apiserver/servercore/catalog_store.go)：当前实例目录持久化实现。
+- [strategy_adapters.go](../../internal/app/apiserver/servercore/strategy_adapters.go)：store/runtime 实现到 `internal/strategy` 端口的装配适配。
+- [pine](../../pkg/strategy/pine)：Pine 解析、语义诊断与 lowering。
+- [pineworker](../../pkg/strategy/pineworker)：PineTS gRPC client、worker manager 与执行契约。
+- [indicatorruntime](../../pkg/strategy/indicatorruntime)：Go 侧需求计算和指标序列能力。
 
-当前和策略 timeUnit 直接相关的运行时约束需要单独记住：
+## 编辑与保存约束
 
-- 对 `D`、`W`、`M` 这类 Pine timeframe，策略运行时不再把 US/HK/SH/SZ 一刀切成同一个日内分钟常量；`pkg/strategy/indicatorruntime` 现在会按真实交易日窗口计算 fixed-timeframe 指标与保护条件。regular-only 时仍只取 regular session；backtest 打开 extended-hours 后，US 的 `request.security(..., "D"/"W"/"M", ta.sma/ta.ema/ta.vwma(...))` 等 moving-average，以及退出保护的 day/week/month window，都会把 pre/after/overnight bar 一起纳入同一个 trading-period window。
-- 对 `2h`、`4h`、`6h`、`12h` 这类 intraday higher-period，backtest store 现在也会按 market session 起点切 bucket：US regular 从 `09:30` 起桶，HK/SH/SZ 会在午休前后分别重置，不再沿用 UTC floor 把不同时段硬拼进同一根 bar。
-- warmup 估算已经改成 symbol-aware：常规情况下 US/HK/SH/SZ 会按各自 regular session 分钟数推导预热 bars；backtest 打开 extended-hours 后，US 的 moving-average trading-period window 会按 extended trading day 分钟数放大 warmup。策略详情预览和实盘 seed 目前仍保持 regular 口径。
-- backtest store 的 `1d`、`1w`、`1mo` synthetic path 已改成 market-aware trading period bucket：当原生 higher-period K 线缺失时，会按 trading profile 从 sub-daily 或 daily label 合成真实交易日/周/月；regular-only 模式只取 regular session，HK/SH/SZ 会正确跨午休拼接同一交易日。
-- 回测页现在提供“是否包含扩展交易时段”的开关，并把它同时带到 sync 与 run 两条链路。对 US 回测，关闭时会同步/读取 regular-only 数据版本，`2h`/`4h`/`6h`/`12h` 的 synthetic intraday bar 与 `1d`/`1w`/`1mo` synthesis 都只统计 regular session；打开时会同步/读取 extended 数据版本，US 会按 pre/regular/after/overnight 的 session-aware bucket 从 `60m` 及以下 sub-daily 数据合成更高周期 bar，而且 backtest Pine indicatorruntime 的 moving-average 与 stop-loss `day/week/month` 窗口都会切到 extended trading-period 口径。SQLite 现在已用紧凑的表级 session tag 区分 `legacy` / `regular` / `extended` 三套版本，regular-only 与 regular+extended 可以并存。
+1. 修改结构块后必须保持源码可解析；结构视图和源码不能各自独立保存。
+2. Pine analyze 的 error 会阻止把定义当作可运行策略；warning 不能被 UI 隐藏。
+3. 定义 ID、版本和软删除语义由后端 store 归一，不由前端伪造历史版本。
+4. 实例绑定引用定义版本；更新定义不会绕过实例刷新与运行状态约束。
+5. 新增 Pine public surface 时，同步 parser/semantic、PineTS worker、生成支持快照、Monaco 元数据和回归测试。
+6. 不恢复已经移除的 Go 计划运行时、旧自定义 helper syntax 或自由连线 visual block 兼容路径。
 
-## 当前内置模板与经典块
+## 时间周期与回测边界
 
-当前内置模板包括：
+- 日/周/月及高周期聚合按 market session 处理，不用固定 UTC bucket 代替交易时段。
+- regular-only 与 extended-hours 数据版本可以并存；回测的 sync 与 run 必须使用同一时段选择。
+- warmup 由 symbol、timeframe、指标历史依赖和 session 范围共同决定。
+- PineTS 负责脚本执行，`conservative-bar-v1` 的订单成交仍由 Go 完成；详见 [回测执行模型](../backtest-execution-model.md)。
 
-- 逻辑流起步骨架
-- 双均线系统
-- RSI 反转观察
-- MACD 动能观察
-- KDJ 交叉交易
-- 布林带回归观察
-- ATR 波动率过滤
-- CCI 反转交易
-- Williams %R 反转交易
-- 突破告警
-- 均值回归告警
-
-当前可视化图块语义包括：
-
-- 生命周期块：`onInit`（界面显示为“策略启动”）、`onKLineClosed`
-- 均线块：快均线、慢均线、金叉、死叉
-- RSI 块：RSI 计算、超买、超卖
-- MACD 块：MACD 计算、diff 高于 signal、diff 低于 signal
-- KDJ 块：KDJ 计算、金叉、死叉、J 超买、J 超卖
-- ATR 块：ATR 计算、高于阈值、低于阈值
-- CCI 块：CCI 计算、高于阈值、低于阈值
-- Williams %R 块：Williams %R 计算、超买、超卖
-- 布林带块：布林带计算、收盘价突破上轨、收盘价跌破下轨
-- 交易块：下单；支持 Pine 可表达的固定股数 `shares`、固定金额 `amount`（生成 `qty=amount/close`）和账户权益百分比 `equityPercent`（生成 `qty=(strategy.equity*pct/100)/close`）
-- 动作块：日志、通知
-- 退出块：基础止损、止盈和追踪止损优先生成 `strategy.exit`；带交易时段窗口的复杂风控当前会明确标为 unsupported
-- 旧 `codeBlock`、旧合并式 `technicalIndicator` 和旧自定义片段图块不再支持；打开、保存或反解时应提示用户用 Pine v6 标准图块重建，或继续使用直接 Pine 工作台。
-
-这些语义都在 [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts) 里定义，并直接决定生成的 Pine 结构。
-
-## 同步与编辑器约束
-
-样式隔离还需要额外注意：
-
-- 策略运行/设计组件中的 scoped 样式，避免写 `:global(.tv-main) ...` 这一类“先全局父级再局部后代”的组合选择器。
-- 这类写法在当前构建链路下可能被错误降级成直接命中 `.tv-main`，从而把 border/outline 等视觉规则污染到整个 SPA 容器。
-- 组件内样式优先直接使用本地类名（例如 `.strategy-*`），确需跨组件时优先使用明确的页面级包装类，不要绑定到全局 shell 容器。
-
-当前同步策略是双向自动的，但能力并不对称：
-
-- `visualModel -> script`：支持，拖拽建块、连线变化和 Inspector 改参数后都会自动异步刷新代码区。
-- `script -> visualModel`：支持常见 Pine v6 子集、内置模板导出的条件分支、日志、通知、下单和指标语句；无法稳定归一化的行会返回 `ok:false`，错误包含行号和原始语句。
-- 无法反解的代码不会直接丢失；工具栏会提示无法同步为流程图，并保留当前 Pine 工作台内容和当前流程图。
-- 已保存且自带 `visualModel` 的定义不再执行旧模型迁移；旧 `codeBlock` 或旧合并式 `technicalIndicator` 会被拒绝。
-
-## v1.0 主路径与旧路径清理
-
-- Pine 编辑器是策略 authoring 主路径；保存、预览、回测、实例化和运行统一使用 `sourceFormat: "pine-v6"` + `runtime: "pine-pinets"`。
-- 显式非 Pine source/runtime 不再默认替换为 Pine；后端会返回明确错误。
-- 旧 `codeBlock` / 旧合并式 `technicalIndicator` 不再作为类型定义、读取兼容或迁移路径保留。
-- Pine 反解遇到旧流程图注解或无法标准化的普通 Pine 行会失败，不再生成片段兜底节点。
-- 直接 Pine 编辑、保存、预览、回测仍保留完整脚本入口；移除的是任意 Pine 行回写到流程图的兜底路径。
-
-代码编辑器当前采用两层实现：
-
-- 浏览器运行时使用 Monaco，语言 ID 为 `pine-v6`。
-- 单元测试和 jsdom 环境使用 textarea 回退，保持测试稳定和可操作性；失焦事件同样会触发 code -> flow 自动同步。
-- Completion 覆盖 `//@version=6`、`strategy(...)`、`if`、订单、日志、通知和常用 `ta.*` 指标函数。
-- Hover 覆盖 `close`、`open`、`high`、`low`、`ta.*` 和下单相关 Pine 语句。
-
-设计页当前还支持双向跳转：
-
-- 点选画布节点（已有 sourceRange）时，代码编辑器自动滚动并选中对应代码区间。
-- 在代码编辑器移动光标时，画布自动聚焦到光标所在节点（通过 sourceRange 反查）。
-- 工具栏同步状态旁显示映射质量「映射 M/N」，表示当前 visualModel 中多少节点有有效 sourceRange。
-
-设计页当前还支持两类空间管理：
-
-- 已保存定义列表可完全隐藏，恢复入口只保留在顶部工具栏。
-- 代码工作台支持拖动、外层面板 resize 和纯代码模式；设计态默认先收起该面板，高度/宽度 resize 只保留在外层容器，最大尺寸受动态视口约束，主要编辑区块也都可单独收起。
-- Logic Flow 画布会在重绘后自动重新对齐视口，减少模板节点落在可视区边缘的情况。
-
-因此如果改了编辑器实现，必须同时确认：
-
-- 浏览器里的 Monaco worker 仍然可初始化。
-- 测试里的 `strategy-script-editor` 仍然是可输入、可断言的 DOM 控件。
-- Pine parser、IR planner 和 Go executor 的窄测试仍然通过。
-
-## 回归检查
-
-当前前端策略页测试已拆成两份：
-
-- `App.strategy.runtime.test.ts` 负责运行态面板、实例绑定、日志审计、runtime observation 和定义刷新。
-- `App.strategy.test.ts` 负责设计态、Logic Flow、模板草稿和离开保护。
-
-前端策略设计相关改动，优先跑下面这条窄验证：
+## 最低验证
 
 ```bash
-pnpm run test:web --run tests/App.strategy.test.ts tests/App.strategy.runtime.test.ts
+go test ./internal/strategy ./internal/api/strategy ./pkg/strategy/... -count=1
+pnpm --filter @jftrade/web run test -- Strategy
+pnpm --filter @jftrade/web run typecheck
 ```
 
-如果改了 Pine 编辑器或图块转换，再补：
-
-```bash
-pnpm run typecheck:web
-```
-
-如果还涉及后端策略定义、解析、规划或执行器，再补：
-
-```bash
-go test ./internal/api/strategy ./internal/strategy ./internal/app/apiserver/servercore ./pkg/strategy/pineworker ./pkg/strategy/ir
-```
-
-如果改动会影响共享 Go 运行时，且希望确认“当前策略设计器里各图块”的成本有没有一起回升，再补：
-
-```bash
-go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkCasesSmoke$'
-
-go test ./pkg/backtest -run '^$' \
-	-bench '^BenchmarkRunExecutesStrategyBlockMatrix$' \
-	-benchtime 1x -benchmem
-
-JFTRADE_UPDATE_STRATEGY_BLOCK_BASELINE=1 \
-	go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1
-
-JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
-	go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1
-```
-
-这套矩阵覆盖当前可视化设计里主要的指标、价格判断、日志、通知、下单和风控图块；它不是替代真实链路 benchmark，而是用来快速判断共享执行路径优化是否真的对整组图块都生效。
-
-其中 `TestStrategyBlockBenchmarkBaseline` 会把基线写入或比对 `pkg/backtest/testdata/strategy_block_benchmark_baseline.json`，适合在做共享 replay/runtime 优化后，补一条半自动性能门槛。
+涉及 public Pine 支持范围时，还要运行生成参考并确认 [Pine v6 支持快照](../reference/generated/pine-v6-support.md) 与代码一致。

@@ -6,7 +6,7 @@
 
 ## 当前版本快照
 
-更新时间：2026-07-11。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
+更新时间：2026-07-22。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
 
 JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。它以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、Futu/OpenD 接入、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
@@ -47,8 +47,7 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [architecture.md](architecture.md)：当前系统架构、单一 API 入口、请求链路和职责边界。
 - [architecture-mermaid.md](architecture-mermaid.md)：项目架构、主要运行链路和开发/发布链路的 Mermaid 图。
 - [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层约束、依赖方向和常见禁区。
-- [architecture/high-roi-tech-stack-refactor-plan.md](architecture/high-roi-tech-stack-refactor-plan.md)：高收益技术栈重构计划，拆分 API 契约、状态层、实时事件、性能、领域组件和观测能力。
-- [architecture/high-value-optimization-implementation-plan.md](architecture/high-value-optimization-implementation-plan.md)：高价值优化实施路线，覆盖回测执行模型、券商适配、行情 provider 和开源工程化。
+- [roadmap.md](roadmap.md)：唯一活动计划入口，只记录尚未完成的高价值事项与验收标准。
 
 ### 2. 再按问题类型进入专题
 
@@ -56,21 +55,20 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - [adk.md](adk.md)：ADK Go v2 / Agent 控制面、权限模式、内置 tools 和运行时文件。
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口。
 - [watchlist.md](watchlist.md)：自选系统的使用方式、数据主权、Futu 导入、快照行情、API、ADK 和扩展边界。
-- [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：策略定义、Logic Flow、Pine 编辑与 visual model 同步。
-- [pinets-hardcut-migration.md](pinets-hardcut-migration.md)：PineTS 硬切替换 Go Pine runtime 的执行计划、进度、测试覆盖和性能门禁。
+- [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：策略定义、结构指令、Pine 编辑与 visual model 投影。
+- [backtest-execution-model.md](backtest-execution-model.md)：`conservative-bar-v1` 的成交规则、职责边界和实盘差异。
 - [pinets-contract-audit.md](pinets-contract-audit.md)：PineTS 切换后的 Go/API/worker/前端契约矩阵和 visual output 边界。
 - [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)：PineTS worker 发布、运行配置、embedded asset 和非 mock smoke 放行清单。
 - [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)：Wails v3 开发/产品通道隔离、系统数据目录、版本注入、ARM64-only macOS 无签名 DMG、Windows 无签名安装器与发布产物。
 - [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)：从设置页“开发者工具”的错误、慢请求和 OpenD 摘要进入结构化日志及 ADK/回测运行记录。
 - [reference/README.md](reference/README.md)：协议细节、OpenD 资料和上游参考。
+- [new-broker-integration-guide.md](new-broker-integration-guide.md)：当前 broker capability、注册和验收约束。
 
-### 3. 最后再看历史收口记录
+### 3. 计划与契约治理
 
-以下文档保留为历史背景，不是当前默认入口：
-
-- [review-boundaries-2026-06.md](review-boundaries-2026-06.md)
-- [release-closeout-2026-06.md](release-closeout-2026-06.md)
-- [release-pine-v08-closeout.md](release-pine-v08-closeout.md)
+- [roadmap.md](roadmap.md)：尚未完成的项目级工作；完成项应从路线图删除并写入专题事实文档。
+- [reference/api-lifecycle.md](reference/api-lifecycle.md)：deprecated、tombstone 与有意保留端点的治理记录。
+- 历史迁移、发布收口和 review 边界通过 Git 提交、tag 与 GitHub Release 查询，不在 `docs/` 重复保留过期快照。
 
 ## 快速路由
 
@@ -80,8 +78,9 @@ go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 - 改 ADK、agent、approval、provider、tools：先看 [adk.md](adk.md)
 - 改实时行情、K 线、SSE、WS：先看 [frontend-kline.md](frontend-kline.md) 和 [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md)
 - 改自选分组、星标、券商导入或自选快照：先看 [watchlist.md](watchlist.md)
-- 改 PineTS worker、worker pool、embedded asset、发布验收：先看 [pinets-contract-audit.md](pinets-contract-audit.md)、[pinets-hardcut-migration.md](pinets-hardcut-migration.md) 和 [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)
-- 改回测撮合、订单成交语义或 executionModel：先看 [architecture/high-value-optimization-implementation-plan.md](architecture/high-value-optimization-implementation-plan.md)
+- 改 PineTS worker、worker pool、embedded asset、发布验收：先看 [pinets-contract-audit.md](pinets-contract-audit.md) 和 [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)
+- 改回测撮合、订单成交语义或 executionModel：先看 [backtest-execution-model.md](backtest-execution-model.md)
+- 改 broker capability、默认选择或新增 adapter：先看 [new-broker-integration-guide.md](new-broker-integration-guide.md) 和 [roadmap.md](roadmap.md)
 - 改 Futu / OpenD 协议和映射：先看 [reference/README.md](reference/README.md)
 - 查 HTTP、OpenD、ADK、回测或 PineTS 跨链路问题：先看 [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)
 

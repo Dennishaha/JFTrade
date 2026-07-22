@@ -226,7 +226,7 @@ Futu OpenD protocol 1003 / bbgo.Notify(...)
 1. 改独立 API 启动方式、运行模式、环境变量：先看 [../cmd/jftrade-api/main.go](../cmd/jftrade-api/main.go) 和 [../internal/app/apiserver](../internal/app/apiserver)。
 2. 改桌面 profile、菜单、bindings、窗口状态或更新：先看 [../cmd/jftrade-desktop](../cmd/jftrade-desktop)、[../internal/desktop](../internal/desktop) 和 [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)。
 3. 改前端 API、系统状态、设置：先看 [../internal/api](../internal/api)、[../internal/system](../internal/system)、[../internal/settings](../internal/settings)。
-4. 改策略定义、模板、Pine/Logic Flow 同步：先看 [../internal/api/strategy](../internal/api/strategy)、[../internal/strategy](../internal/strategy)、[../apps/web/src/pages/StrategyPage.vue](../apps/web/src/pages/StrategyPage.vue) 和 [../apps/web/src/features/strategyVisualBuilder.ts](../apps/web/src/features/strategyVisualBuilder.ts)。
+4. 改策略定义、Pine/结构指令同步：先看 [../internal/api/strategy](../internal/api/strategy)、[../internal/strategy](../internal/strategy)、[../apps/web/src/pages/StrategyDesignPage.vue](../apps/web/src/pages/StrategyDesignPage.vue) 和 [../apps/web/src/features/pineSourceStructureIndex.ts](../apps/web/src/features/pineSourceStructureIndex.ts)。
 5. 改行情订阅、实时推送、通知：先看 [../internal/marketdata](../internal/marketdata)、[../internal/api/live](../internal/api/live) 和 [../internal/integration/futu](../internal/integration/futu)。
 6. 改 Futu 协议、映射、连接：先看 [../pkg/futu/exchange.go](../pkg/futu/exchange.go) 与 reference 层文档。
 7. 改实时 K 线：先看 [frontend-kline.md](frontend-kline.md)。
@@ -236,8 +236,8 @@ Futu OpenD protocol 1003 / bbgo.Notify(...)
 ## 相关文档
 
 - [README.md](README.md)：docs 阅读入口
-- [architecture/backend-layout-v1.md](architecture/backend-layout-v1.md)：后端目录拆包与迁移记录
 - [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层代码规范
+- [roadmap.md](roadmap.md)：当前仍需推进的 ownership 与扩展性工作
 - [troubleshooting.md](troubleshooting.md)：排障入口
 - [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：前端策略设计专题
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口

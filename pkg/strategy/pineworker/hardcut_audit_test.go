@@ -68,7 +68,6 @@ func assertNoLegacyRuntimeInCurrentMaintenanceDocs(t *testing.T, root string) {
 		"docs/architecture.md",
 		"docs/troubleshooting/backtest-performance.md",
 		"docs/troubleshooting/pinets-worker-release.md",
-		"docs/pine-completion-roadmap.md",
 		"docs/frontend/strategy-authoring.md",
 	} {
 		data, err := os.ReadFile(filepath.Join(root, rel))
@@ -143,8 +142,6 @@ func assertLegacyRuntimeIDOnlyInMigrationShims(t *testing.T, root string) {
 	allowed := []string{
 		"apps/web/src/components/strategy-runtime/strategyRuntimeIdentity.ts",
 		"docs/pinets-contract-audit.md",
-		"docs/pinets-hardcut-migration.md",
-		"docs/release-pine-v08-closeout.md",
 		"pkg/strategy/pineworker/hardcut_audit_test.go",
 		"pkg/strategy/pineworker/types.go",
 		"pkg/strategy/pineworker/types_test.go",
@@ -415,12 +412,6 @@ func assertPinetsDependencyIsExact(t *testing.T, root string) {
 func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 	t.Helper()
 	requiredByFile := map[string][]string{
-		"docs/pinets-hardcut-migration.md": {
-			"Node ESM bundle",
-			"RollDown",
-			"release_assets",
-			"trading-engine",
-		},
 		"docs/troubleshooting/pinets-worker-release.md": {
 			"Node ESM bundle",
 			"RollDown",

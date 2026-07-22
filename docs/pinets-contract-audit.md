@@ -1,6 +1,6 @@
 # PineTS contract audit
 
-Baseline: `fcf74cecfabab5a998c73345af3eefe78bde7021`.
+Scope: current mainline PineTS execution contract. The completed hard-cut process is retained in Git history rather than duplicated here.
 
 This audit tracks the hard cut from the former Go Pine runtime to the PineTS worker boundary. It separates trading contracts from visual Pine outputs so frontend authoring does not imply that every PineTS visual feature is also a tradeable JFTrade flow block.
 
@@ -15,7 +15,7 @@ This audit tracks the hard cut from the former Go Pine runtime to the PineTS wor
 | Pine worker proto | Additive compatible | Existing fields remain unchanged. Order intents add `parent_id`、`atomic_group_id`、`oco_group_id`、`reduce_only`; live requests add session operation and expected revision, responses add session revision. |
 | Backtest result model | Compatible | Go remains authoritative for fills, trades, equity, metrics, and result collection. PineTS worker supplies order intents, visual outputs, and upstream strategy metrics for inspection. |
 | Live order path | Compatible with new authority split | PineTS worker produces current-bar order intents; Go still performs risk checks, notifications, broker reads, and order placement. |
-| ADK/spec payload | Migration compatible | Public spec/runtime surfaces advertise `runtime=pine-pinets`; legacy runtime text is limited to migration/history notes. |
+| ADK/spec payload | Migration compatible | Public spec/runtime surfaces advertise `runtime=pine-pinets`; legacy runtime text is limited to explicit normalization surfaces. |
 
 ## Live incremental worker contract
 
@@ -49,7 +49,7 @@ An execution backend implementing that interface promises all-or-none acceptance
 
 - Current production backtest and live paths must not call `pkg/backtest.Run` for Pine execution.
 - `RunWithPineWorker`, `pineworker.Client`, and `pineworker.WorkerManager` are the supported execution boundaries.
-- `pine-go-plan` must not be presented as selectable runtime. It is only valid in normalization shims and historical docs.
+- `pine-go-plan` must not be presented as selectable runtime. It is only valid in normalization shims and this compatibility audit.
 - Generated support snapshots should not cite deleted Go runtime execution tests as current runtime proof unless the test still exists in the checkout.
 
 ## Frontend boundary

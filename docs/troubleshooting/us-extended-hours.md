@@ -49,18 +49,13 @@
 
 ## 回测侧的日历边界
 
-当前 backtest/store/indicator 的时段语义可以处理两类情况，但精度边界不同：
+当前 session 分类、warmup 和 higher-period aggregation 共用 `pkg/market/calendar` 的日历解析器：
 
-- 周末：可以处理。US session 分类在运行时会把周六直接判为 closed，周日只在 20:00 ET 之后进入 overnight；regular session window 也会直接跳过周六周日。所以本地 SQLite 如果周末没有 bar，replay 和 higher-period aggregation 会自然跨过去，不会因为周末缺口报错。
-- 不定休市、法定节假日、半日市：当前只能“容忍没有 bar”，还不能“识别这一天本来就不开市”。也就是说，如果上游同步结果里这一天没有任何 bar，回测会正常跳过；但当前代码没有交易所 holiday calendar，US session 判定仍主要是 weekday + clock time 规则，warmup 估算也仍按每周 5 个 trading day、每月 20 个 trading day 估算。
+- 内置规则覆盖周末、已知完整休市日和美股半日市等基础日历。
+- sidecar 的 `internal/exchangecalendar.Manager` 按“人工覆盖 -> 已启用远端快照 -> 内置规则兜底”的顺序解析，并在服务装配时注入 `pkg/market`。
+- `pkg/market/session.go` 的 session、regular window 和 trading-period 计算都使用同一解析器，回测与指标聚合不再各自维护工作日假设。
 
-这意味着当前实现的实际行为是：
-
-- 对完整休市日：只要 SQLite 中没有这天的 bar，replay 本身通常是安全的。
-- 对需要主动判断“今天是不是 holiday”的路径：当前并不严格准确，`ClassifyMarketSession` / trading-period label 不能单靠自身识别 weekday holiday。
-- 对半日市、临时停市：当前也没有单独的 session 窗口模型，默认仍按常规时段或 extended 时段固定边界处理。
-
-如果后面要把 holiday/half-day 也做成语义正确，而不只是 replay 容错，入口应放在 `pkg/futu/trading_profile.go` 和 `pkg/futu/quote_snapshot.go` 这一层，引入交易所 calendar，再把 warmup 和 aggregation 共用到同一套日历定义。
+排查日历问题时先看 `/api/v1/system/exchange-calendars/status` 返回的 `effectiveSource`、`effectiveMode` 和覆盖范围。远端数据不可用但允许 fallback 时会继续使用内置规则；超出人工、远端和内置规则覆盖范围的特殊休市，以及临时停牌，仍不能仅靠计划日历推断。
 
 ## 需要避免的旧表述
 
