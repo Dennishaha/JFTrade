@@ -71,7 +71,7 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	}
 	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := r.executeGoogleADK(runCtx, agent, session, run.ID, text, onDelta)
 	run = hydrateRunExecutionResult(run, toolContext, approvals, preToolContent, preToolReasoning)
-	return r.completeChatRun(ctx, session, run, text, toolContext, approvals, replyResult, adkErr)
+	return r.completeChatRun(runCtx, session, run, text, toolContext, approvals, replyResult, adkErr)
 }
 
 func resolveChatWorkflowOptions(req ChatRequest, agent Agent) (string, RunOptions, string, error) {

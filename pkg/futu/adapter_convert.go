@@ -244,10 +244,11 @@ func convertMaxTradeQuantitySnapshot(s *BrokerMaxTradeQuantitySnapshot) broker.M
 
 func bbgoSubmitOrderFromBrokerPlaceOrder(q broker.PlaceOrderQuery) bbgotypes.SubmitOrder {
 	submit := bbgotypes.SubmitOrder{
-		Symbol:   q.Symbol,
-		Side:     bbgotypes.SideType(q.Side),
-		Type:     bbgotypes.OrderType(q.OrderType),
-		Quantity: fixedpoint.NewFromFloat(q.Quantity),
+		Symbol:     q.Symbol,
+		Side:       bbgotypes.SideType(q.Side),
+		Type:       bbgotypes.OrderType(q.OrderType),
+		Quantity:   fixedpoint.NewFromFloat(q.Quantity),
+		ReduceOnly: q.ReduceOnly,
 	}
 	if q.Price != nil {
 		submit.Price = fixedpoint.NewFromFloat(*q.Price)

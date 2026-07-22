@@ -71,6 +71,90 @@ func TestWorkerManagerRunScriptRoundRobinsHealthyWorkers(t *testing.T) {
 	}
 }
 
+func TestWorkerManagerPinsLiveSessionAndClearsItOnClose(t *testing.T) {
+	launcher := &fakeWorkerLauncher{}
+	dialer := newFakeManagerDialer()
+	manager := newTestManager(t, ManagerConfig{Workers: 2}, launcher, dialer)
+	if err := manager.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	request := validClientRequest()
+	request.Mode = ModeLive
+	request.SessionID = "live-pinned"
+	request.SessionOperation = SessionOperationOpen
+	opened, err := manager.RunScript(t.Context(), request)
+	if err != nil || opened.SessionRevision != 1 {
+		t.Fatalf("open live session response=%#v err=%v", opened, err)
+	}
+	if _, err := manager.RunScript(t.Context(), validClientRequest()); err != nil {
+		t.Fatalf("ordinary round-robin request: %v", err)
+	}
+	request.SessionOperation = SessionOperationAppend
+	request.ExpectedRevision = opened.SessionRevision
+	appended, err := manager.RunScript(t.Context(), request)
+	if err != nil || appended.SessionRevision != 2 {
+		t.Fatalf("append live session response=%#v err=%v", appended, err)
+	}
+	first := dialer.transports["127.0.0.1:50051"]
+	second := dialer.transports["127.0.0.1:50052"]
+	if first.runs != 2 || second.runs != 1 {
+		t.Fatalf("session pin runs = %d/%d, want 2/1", first.runs, second.runs)
+	}
+	request.SessionOperation = SessionOperationClose
+	request.ExpectedRevision = appended.SessionRevision
+	request.Source = ""
+	request.Symbol = ""
+	request.Timeframe = ""
+	request.Candles = nil
+	if _, err := manager.RunScript(t.Context(), request); err != nil {
+		t.Fatalf("close live session: %v", err)
+	}
+	request.SessionOperation = SessionOperationAppend
+	request.ExpectedRevision++
+	if _, err := manager.RunScript(t.Context(), request); err == nil || !strings.Contains(err.Error(), "not pinned") {
+		t.Fatalf("append after close error = %v, want not pinned", err)
+	}
+}
+
+func TestWorkerManagerReservesLiveSessionBeforeOpenCompletes(t *testing.T) {
+	launcher := &fakeWorkerLauncher{}
+	dialer := newFakeManagerDialer()
+	manager := newTestManager(t, ManagerConfig{Workers: 2}, launcher, dialer)
+	if err := manager.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	firstTransport := dialer.transports["127.0.0.1:50051"]
+	firstTransport.runStarted = make(chan struct{}, 1)
+	firstTransport.releaseRun = make(chan struct{})
+	request := validClientRequest()
+	request.Mode = ModeLive
+	request.SessionID = "live-reserved"
+	request.SessionOperation = SessionOperationOpen
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := manager.RunScript(t.Context(), request)
+		firstDone <- err
+	}()
+	select {
+	case <-firstTransport.runStarted:
+	case <-time.After(time.Second):
+		t.Fatal("first live session open did not start")
+	}
+
+	duplicate := request
+	duplicate.JobID = "job-duplicate-open"
+	if _, err := manager.RunScript(t.Context(), duplicate); err == nil || !strings.Contains(err.Error(), "already open") {
+		t.Fatalf("duplicate live session open error = %v, want already open", err)
+	}
+	if secondTransport := dialer.transports["127.0.0.1:50052"]; secondTransport.runs != 0 {
+		t.Fatalf("duplicate open reached second worker %d times, want 0", secondTransport.runs)
+	}
+	close(firstTransport.releaseRun)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first live session open: %v", err)
+	}
+}
+
 func TestWorkerManagerRunScriptQueuesWhenAllWorkersBusy(t *testing.T) {
 	launcher := &fakeWorkerLauncher{}
 	dialer := newFakeManagerDialer()
@@ -410,7 +494,7 @@ func (transport *fakeManagedTransport) RunScript(ctx context.Context, request Ru
 			return RunScriptResponse{}, ctx.Err()
 		}
 	}
-	return RunScriptResponse{
+	response := RunScriptResponse{
 		JobID: request.JobID,
 		Metadata: WorkerMetadata{
 			WorkerID:      transport.address,
@@ -418,7 +502,19 @@ func (transport *fakeManagedTransport) RunScript(ctx context.Context, request Ru
 			RequestBytes:  100,
 			ResponseBytes: 100,
 		},
-	}, nil
+	}
+	switch normalizeSessionOperation(request.SessionOperation) {
+	case SessionOperationOpen:
+		response.SessionID = request.SessionID
+		response.SessionRevision = 1
+	case SessionOperationAppend:
+		response.SessionID = request.SessionID
+		response.SessionRevision = request.ExpectedRevision + 1
+	case SessionOperationClose:
+		response.SessionID = request.SessionID
+		response.SessionRevision = request.ExpectedRevision
+	}
+	return response, nil
 }
 
 func (transport *fakeManagedTransport) HealthCheck(context.Context) (HealthStatus, error) {

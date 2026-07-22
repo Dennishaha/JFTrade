@@ -16,15 +16,18 @@ const (
 
 func requestToProto(request RunScriptRequest) *pineworkerpb.RunScriptRequest {
 	return &pineworkerpb.RunScriptRequest{
-		JobId:        request.JobID,
-		ScriptId:     request.ScriptID,
-		Source:       request.Source,
-		Symbol:       request.Symbol,
-		Timeframe:    request.Timeframe,
-		Mode:         request.Mode,
-		Candles:      candlesToProto(request.Candles),
-		Params:       copyStringMap(request.Params),
-		IncludePlots: includePlotsForRequest(request),
+		JobId:            request.JobID,
+		ScriptId:         request.ScriptID,
+		Source:           request.Source,
+		Symbol:           request.Symbol,
+		Timeframe:        request.Timeframe,
+		Mode:             request.Mode,
+		Candles:          candlesToProto(request.Candles),
+		Params:           copyStringMap(request.Params),
+		IncludePlots:     includePlotsForRequest(request),
+		SessionId:        request.SessionID,
+		SessionOperation: request.SessionOperation,
+		ExpectedRevision: request.ExpectedRevision,
 	}
 }
 
@@ -46,6 +49,8 @@ func responseFromProto(response *pineworkerpb.RunScriptResponse) RunScriptRespon
 		Metadata:        metadataFromProto(response.GetMetadata()),
 		Error:           response.GetError(),
 		StrategyMetrics: strategyMetricsFromProto(response.GetStrategyMetrics()),
+		SessionID:       response.GetSessionId(),
+		SessionRevision: response.GetSessionRevision(),
 	}
 }
 
@@ -184,6 +189,10 @@ func orderIntentsFromProto(intents []*pineworkerpb.OrderIntent) []OrderIntent {
 			HasQuantityPct: intent.GetHasQuantityPct(),
 			HasLimitPrice:  intent.GetHasLimitPrice(),
 			HasStopPrice:   intent.GetHasStopPrice(),
+			ParentID:       intent.GetParentId(),
+			AtomicGroupID:  intent.GetAtomicGroupId(),
+			OCOGroupID:     intent.GetOcoGroupId(),
+			ReduceOnly:     intent.GetReduceOnly(),
 		})
 	}
 	return result

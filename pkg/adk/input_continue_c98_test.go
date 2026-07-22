@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/genai"
 )
@@ -45,7 +46,9 @@ func TestCoverage98AnsweredInputFailuresRemainObservable(t *testing.T) {
 				tc.setup(execution)
 				runtime.adkRuns[run.ID] = execution
 
-				runtime.continueResolvedInput(ctx, run.ID)
+				if err := runtime.continueResolvedInput(ctx, run.ID); err != nil {
+					t.Fatalf("continueResolvedInput: %v", err)
+				}
 				stored, ok, err := runtime.Store().Run(ctx, run.ID)
 				if err != nil || !ok || stored.Status != RunStatusFailed || stored.ResumeState != "input_resume_failed" || !strings.Contains(stored.FailureReason, tc.want) {
 					t.Fatalf("%s persisted run = %+v/%v/%v", tc.name, stored, ok, err)
@@ -132,6 +135,72 @@ func TestCoverage98InputResolutionExposesParentProjectionWriteFailure(t *testing
 	if childErr != nil || !ok || storedChild.InputRequest == nil || storedChild.InputRequest.Status != InputRequestStatusAnswered {
 		t.Fatalf("answered child must remain recoverable = %+v/%v/%v", storedChild, ok, childErr)
 	}
+}
+
+func TestAnsweredInputCrashRecoveryHonorsDurableRunLease(t *testing.T) {
+	resolveWithoutStartingContinuation := func(t *testing.T, runtime *Runtime, run Run, request InputRequest) {
+		t.Helper()
+		resolved, changed, err := runtime.Store().ResolveRunInput(t.Context(), run.ID, InputResponseRequest{
+			RequestID: request.ID,
+			Answers: []InputAnswer{
+				{QuestionID: "q1", OptionID: "q1-o1"},
+				{QuestionID: "q2", OptionID: "q2-o2"},
+			},
+		})
+		if err != nil || !changed || !runHasRecoverableAnsweredInputContext(resolved) {
+			t.Fatalf("persist crash-window answer = %+v, changed=%v err=%v", resolved, changed, err)
+		}
+	}
+
+	t.Run("restart resumes an answer persisted before continuation starts", func(t *testing.T) {
+		runtime := newTestRuntime(t)
+		agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+			ID: "input-crash-recovery-agent", Name: "Input Crash Recovery", ProviderID: testProviderID,
+			PermissionMode: PermissionModeAll, WorkMode: WorkModeChat, Status: AgentStatusEnabled,
+		})
+		response, err := runtime.Chat(t.Context(), ChatRequest{AgentID: agent.ID, Message: "@input.required recover"})
+		if err != nil || response.InputRequest == nil {
+			t.Fatalf("Chat response=%+v err=%v", response, err)
+		}
+		resolveWithoutStartingContinuation(t, runtime, response.Run, *response.InputRequest)
+
+		restarted := newRuntimeWithRegistry(t, runtime.Store(), NewToolRegistry())
+		completed := waitForRunStatus(t, restarted, response.Run.ID, RunStatusCompleted)
+		if completed.ResumeState != "input_resolved" || completed.InputRequest == nil || completed.InputRequest.Status != InputRequestStatusAnswered {
+			t.Fatalf("recovered input continuation = %+v", completed)
+		}
+	})
+
+	t.Run("restart does not steal a fresh foreign continuation lease", func(t *testing.T) {
+		runtime := newTestRuntime(t)
+		agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+			ID: "input-foreign-lease-agent", Name: "Input Foreign Lease", ProviderID: testProviderID,
+			PermissionMode: PermissionModeAll, WorkMode: WorkModeChat, Status: AgentStatusEnabled,
+		})
+		response, err := runtime.Chat(t.Context(), ChatRequest{AgentID: agent.ID, Message: "@input.required fenced"})
+		if err != nil || response.InputRequest == nil {
+			t.Fatalf("Chat response=%+v err=%v", response, err)
+		}
+		resolveWithoutStartingContinuation(t, runtime, response.Run, *response.InputRequest)
+		lease, err := runtime.Store().ClaimRunLease(t.Context(), response.Run.ID, "executor-other-process", time.Now().UTC(), time.Minute)
+		if err != nil {
+			t.Fatalf("ClaimRunLease foreign: %v", err)
+		}
+		defer func() { _ = runtime.Store().ReleaseRunLease(context.Background(), lease) }()
+
+		restarted := newRuntimeWithRegistry(t, runtime.Store(), NewToolRegistry())
+		time.Sleep(100 * time.Millisecond)
+		stored, ok, err := restarted.Store().Run(t.Context(), response.Run.ID)
+		if err != nil || !ok || !runHasRecoverableAnsweredInputContext(stored) {
+			t.Fatalf("foreign-owned answered run = %+v, ok=%v err=%v", stored, ok, err)
+		}
+		restarted.approvalMu.Lock()
+		queued := len(restarted.inputRuns)
+		restarted.approvalMu.Unlock()
+		if queued != 0 {
+			t.Fatalf("foreign-owned input continuation queued locally: %d", queued)
+		}
+	})
 }
 
 func newCoverage98AnsweredInputRun(t *testing.T, suffix string) (*Runtime, Agent, Session, Run) {

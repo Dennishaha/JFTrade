@@ -456,8 +456,17 @@ type OrderIntent struct {
 	HasQuantityPct bool                   `protobuf:"varint,15,opt,name=has_quantity_pct,json=hasQuantityPct,proto3" json:"has_quantity_pct,omitempty"`
 	HasLimitPrice  bool                   `protobuf:"varint,16,opt,name=has_limit_price,json=hasLimitPrice,proto3" json:"has_limit_price,omitempty"`
 	HasStopPrice   bool                   `protobuf:"varint,17,opt,name=has_stop_price,json=hasStopPrice,proto3" json:"has_stop_price,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// parent_id links a protective child to the logical Pine entry order.
+	ParentId string `protobuf:"bytes,18,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	// atomic_group_id requires every placement in the group to be accepted as
+	// one unit. Executors without that capability must reject the whole group.
+	AtomicGroupId string `protobuf:"bytes,19,opt,name=atomic_group_id,json=atomicGroupId,proto3" json:"atomic_group_id,omitempty"`
+	// oco_group_id identifies mutually exclusive protective legs.
+	OcoGroupId string `protobuf:"bytes,20,opt,name=oco_group_id,json=ocoGroupId,proto3" json:"oco_group_id,omitempty"`
+	// reduce_only prevents an exit from increasing or reversing exposure.
+	ReduceOnly    bool `protobuf:"varint,21,opt,name=reduce_only,json=reduceOnly,proto3" json:"reduce_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *OrderIntent) Reset() {
@@ -609,6 +618,34 @@ func (x *OrderIntent) GetHasStopPrice() bool {
 	return false
 }
 
+func (x *OrderIntent) GetParentId() string {
+	if x != nil {
+		return x.ParentId
+	}
+	return ""
+}
+
+func (x *OrderIntent) GetAtomicGroupId() string {
+	if x != nil {
+		return x.AtomicGroupId
+	}
+	return ""
+}
+
+func (x *OrderIntent) GetOcoGroupId() string {
+	if x != nil {
+		return x.OcoGroupId
+	}
+	return ""
+}
+
+func (x *OrderIntent) GetReduceOnly() bool {
+	if x != nil {
+		return x.ReduceOnly
+	}
+	return false
+}
+
 type WorkerMetadata struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkerId      string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
@@ -755,7 +792,7 @@ const file_proto_pineworker_common_proto_rawDesc = "" +
 	"\x17strategy_outperformance\x18\x03 \x01(\x01R\x16strategyOutperformance\x12.\n" +
 	"\x14has_buy_and_hold_pnl\x18\x04 \x01(\bR\x10hasBuyAndHoldPnl\x127\n" +
 	"\x19has_buy_and_hold_per_gain\x18\x05 \x01(\bR\x14hasBuyAndHoldPerGain\x12>\n" +
-	"\x1bhas_strategy_outperformance\x18\x06 \x01(\bR\x19hasStrategyOutperformance\"\x9d\x04\n" +
+	"\x1bhas_strategy_outperformance\x18\x06 \x01(\bR\x19hasStrategyOutperformance\"\xa5\x05\n" +
 	"\vOrderIntent\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1d\n" +
@@ -777,7 +814,13 @@ const file_proto_pineworker_common_proto_rawDesc = "" +
 	"\fhas_quantity\x18\x0e \x01(\bR\vhasQuantity\x12(\n" +
 	"\x10has_quantity_pct\x18\x0f \x01(\bR\x0ehasQuantityPct\x12&\n" +
 	"\x0fhas_limit_price\x18\x10 \x01(\bR\rhasLimitPrice\x12$\n" +
-	"\x0ehas_stop_price\x18\x11 \x01(\bR\fhasStopPrice\"\xbf\x02\n" +
+	"\x0ehas_stop_price\x18\x11 \x01(\bR\fhasStopPrice\x12\x1b\n" +
+	"\tparent_id\x18\x12 \x01(\tR\bparentId\x12&\n" +
+	"\x0fatomic_group_id\x18\x13 \x01(\tR\ratomicGroupId\x12 \n" +
+	"\foco_group_id\x18\x14 \x01(\tR\n" +
+	"ocoGroupId\x12\x1f\n" +
+	"\vreduce_only\x18\x15 \x01(\bR\n" +
+	"reduceOnly\"\xbf\x02\n" +
 	"\x0eWorkerMetadata\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12%\n" +

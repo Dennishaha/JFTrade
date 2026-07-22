@@ -13,7 +13,7 @@ import type {
   WorkerMetadata,
 } from "./types";
 import { preparationOf } from "./preparedRequest";
-import { validateRunScriptRequest, type WorkerLimits } from "./validation";
+import { normalizeSessionOperation, validateRunScriptRequest, type WorkerLimits } from "./validation";
 import { workerVersion } from "./types";
 
 export type RunAdapterOptions = {
@@ -32,7 +32,41 @@ export async function runScriptWithPineTS(
 
   try {
     validateRunScriptRequest(request, options.limits);
-    const result = await options.executor.run(request);
+    const operation = normalizeSessionOperation(request.sessionOperation);
+    let result: PineTSRunResult;
+    let revision = 0;
+    switch (operation) {
+      case "open":
+        if (options.executor.openLiveSession === undefined) {
+          throw new Error("PineTS executor does not support stateful live sessions");
+        }
+        result = await options.executor.openLiveSession(request.sessionId!, request);
+        revision = 1;
+        break;
+      case "append": {
+        if (options.executor.appendLiveSession === undefined) {
+          throw new Error("PineTS executor does not support stateful live sessions");
+        }
+        const appended = await options.executor.appendLiveSession(
+          request.sessionId!,
+          request.expectedRevision ?? 0,
+          request,
+        );
+        result = appended.result;
+        revision = appended.revision;
+        break;
+      }
+      case "close":
+        if (options.executor.closeLiveSession === undefined) {
+          throw new Error("PineTS executor does not support stateful live sessions");
+        }
+        revision = await options.executor.closeLiveSession(request.sessionId!, request.expectedRevision ?? 0);
+        result = {};
+        break;
+      default:
+        result = await options.executor.run(request);
+        break;
+    }
     const response = buildResponse(request, result, {
       workerId: options.workerId,
       version: workerVersion,
@@ -44,6 +78,10 @@ export async function runScriptWithPineTS(
       responseBytes: 0,
       peakRSSBytes: options.peakRSSBytes(),
     });
+    if (operation !== undefined) {
+      response.sessionId = request.sessionId!;
+      response.sessionRevision = revision;
+    }
     response.metadata.responseBytes = jsonBytes(response);
     return response;
   } catch (error) {
@@ -58,6 +96,10 @@ export async function runScriptWithPineTS(
       responseBytes: 0,
       peakRSSBytes: options.peakRSSBytes(),
     });
+    if (request.sessionId !== undefined) {
+      response.sessionId = request.sessionId;
+      response.sessionRevision = request.expectedRevision ?? 0;
+    }
     response.metadata.responseBytes = jsonBytes(response);
     return response;
   }
@@ -198,6 +240,10 @@ function normalizeOrderIntents(items: unknown[] | undefined, request: PreparedRu
     setNumber(intent, "stopPrice", raw.stopPrice);
     setString(intent, "comment", raw.comment);
     setString(intent, "alertMessage", raw.alertMessage);
+    setString(intent, "parentId", raw.parentId);
+    setString(intent, "atomicGroupId", raw.atomicGroupId);
+    setString(intent, "ocoGroupId", raw.ocoGroupId);
+    intent.reduceOnly = Boolean(raw.reduceOnly);
     return [intent];
   });
 }

@@ -43,9 +43,9 @@ type strategyRuntimeManager struct {
 	deps             strategyRuntimeManagerDeps
 
 	pineWorkerMu sync.RWMutex
-	mu       sync.RWMutex
-	runtimes map[string]*managedStrategyRuntime
-	starting map[string]struct{}
+	mu           sync.RWMutex
+	runtimes     map[string]*managedStrategyRuntime
+	starting     map[string]struct{}
 }
 
 func (m *strategyRuntimeManager) setPineWorkerRunner(runner strategyRuntimePineWorker) {
@@ -107,24 +107,24 @@ type managedStrategyRuntime struct {
 }
 
 type strategySymbolRuntime struct {
-	instanceID      string
-	name            string
-	symbol          string
-	interval        bbgotypes.Interval
-	exchange        bbgotypes.ExchangeName
-	ctx             context.Context
-	runtimeExchange strategyRuntimeExchange
-	brokerQuery     broker.ReadQuery
-	market          bbgotypes.Market
+	instanceID       string
+	name             string
+	symbol           string
+	interval         bbgotypes.Interval
+	exchange         bbgotypes.ExchangeName
+	ctx              context.Context
+	runtimeExchange  strategyRuntimeExchange
+	brokerQuery      broker.ReadQuery
+	market           bbgotypes.Market
 	accountRefreshMu sync.Mutex
 	accountMu        sync.RWMutex
-	cachedFunds     *broker.FundsSnapshot
-	cachedPositions []broker.PositionSnapshot
-	session         *bbgo.ExchangeSession
-	emitter         bbgotypes.StandardStreamEmitter
-	pineWorkerLive  *strategyRuntimePineWorkerLive
-	onClosedKLine   func(time.Time)
-	onError         func(string)
+	cachedFunds      *broker.FundsSnapshot
+	cachedPositions  []broker.PositionSnapshot
+	session          *bbgo.ExchangeSession
+	emitter          bbgotypes.StandardStreamEmitter
+	pineWorkerLive   *strategyRuntimePineWorkerLive
+	onClosedKLine    func(time.Time)
+	onError          func(string)
 
 	mu              sync.RWMutex
 	currentBucket   *bbgotypes.KLine
@@ -645,6 +645,9 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 	}
 	runner.pineWorkerLive = live
 	if err := m.seedSymbolRuntime(ctx, exchange, live, runner); err != nil {
+		return nil, err
+	}
+	if err := live.openSession(runtimeCtx); err != nil {
 		return nil, err
 	}
 	return runner, nil

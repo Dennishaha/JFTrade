@@ -306,6 +306,7 @@ type PlaceOrderQuery struct {
 	Remark         *string      `json:"remark,omitempty"`
 	Session        *string      `json:"session,omitempty"`
 	FillOutsideRTH *bool        `json:"fillOutsideRTH,omitempty"`
+	ReduceOnly     bool         `json:"reduceOnly,omitempty"`
 }
 
 type PlaceOrderResult struct {

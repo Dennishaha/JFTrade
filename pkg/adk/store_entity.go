@@ -534,6 +534,12 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 	if id == "" {
 		return os.ErrNotExist
 	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableToolInvocations+` WHERE run_id IN (SELECT id FROM `+tableRuns+` WHERE session_id = ?)`, id); err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableRunLeases+` WHERE run_id IN (SELECT id FROM `+tableRuns+` WHERE session_id = ?)`, id); err != nil {
+		return err
+	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableApprovals+` WHERE run_id IN (SELECT id FROM `+tableRuns+` WHERE session_id = ?)`, id); err != nil {
 		return err
 	}

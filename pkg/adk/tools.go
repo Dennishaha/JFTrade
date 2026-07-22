@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	adksession "google.golang.org/adk/v2/session"
@@ -22,13 +23,43 @@ const toolContextSessionIDKey toolContextKey = "adkToolSessionID"
 
 const toolContextSkillActivationKey toolContextKey = "adkToolSkillActivation"
 
+const toolContextIdempotencyKey toolContextKey = "adkToolIdempotencyKey"
+
 type toolInvocationSkillActivation struct {
 	agentName string
 	state     adksession.ReadonlyState
 }
 
+type toolInvocationIdempotency struct {
+	key      string
+	observed atomic.Bool
+}
+
 func contextWithToolAgent(ctx context.Context, agent Agent) context.Context {
 	return context.WithValue(ctx, toolContextAgentKey, agent)
+}
+
+func contextWithToolInvocationIdempotencyKey(
+	ctx context.Context,
+	key string,
+) (context.Context, *toolInvocationIdempotency) {
+	invocation := &toolInvocationIdempotency{key: strings.TrimSpace(key)}
+	return context.WithValue(ctx, toolContextIdempotencyKey, invocation), invocation
+}
+
+// ToolInvocationIdempotencyKey returns the stable key assigned to the current
+// durable tool invocation. Tools declaring keyed idempotency must pass this
+// value through to the external system or persist it with their side effect.
+func ToolInvocationIdempotencyKey(ctx context.Context) (string, bool) {
+	if ctx == nil {
+		return "", false
+	}
+	invocation, ok := ctx.Value(toolContextIdempotencyKey).(*toolInvocationIdempotency)
+	if !ok || invocation == nil || invocation.key == "" {
+		return "", false
+	}
+	invocation.observed.Store(true)
+	return invocation.key, true
 }
 
 func toolAgentFromContext(ctx context.Context) (Agent, bool) {
@@ -189,7 +220,8 @@ func NewToolRegistry() *ToolRegistry {
 			item := map[string]any{
 				"name": descriptor.Name, "displayName": descriptor.DisplayName, "category": descriptor.Category,
 				"permission": descriptor.Permission, "riskLevel": descriptor.RiskLevel, "description": descriptor.Description,
-				"inputSchema": descriptor.InputSchema, "outputSummary": descriptor.OutputSummary,
+				"idempotencyMode": descriptor.IdempotencyMode,
+				"inputSchema":     descriptor.InputSchema, "outputSummary": descriptor.OutputSummary,
 				"requiresApprovalIn": descriptor.RequiresApprovalIn,
 			}
 			if descriptor.RequiredSkill != "" {
@@ -220,6 +252,7 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 	}
 	descriptor.Name = strings.TrimSpace(descriptor.Name)
 	descriptor.Permission = strings.TrimSpace(descriptor.Permission)
+	descriptor.IdempotencyMode = normalizeToolIdempotencyMode(descriptor.IdempotencyMode, descriptor.Permission)
 	descriptor.RequiredSkill = strings.TrimSpace(descriptor.RequiredSkill)
 	descriptor.RequiredSkills = normalizeStringSlice(descriptor.RequiredSkills)
 	if len(descriptor.AllowedModes) == 0 {

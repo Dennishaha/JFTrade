@@ -394,7 +394,11 @@ func (e *WorkflowExecutor) finishWorkflowPendingInputs(ctx context.Context, req 
 		}
 		toolContext := result.execution.toolContextForRun(child.ID)
 		child = hydrateRunExecutionResult(child, toolContext, nil, child.PreToolContent, child.PreToolReasoning)
-		response, err := e.runtime.finishPendingInputRun(ctx, req.Session, child, request)
+		childCtx, err := e.runtime.activeRunExecutionContext(ctx, child.ID)
+		if err != nil {
+			return e.failedWorkflowResponse(ctx, req, parent, err)
+		}
+		response, err := e.runtime.finishPendingInputRun(childCtx, req.Session, child, request)
 		if err != nil {
 			return e.failedWorkflowResponse(ctx, req, parent, err)
 		}
@@ -535,7 +539,8 @@ func finalizeBlockedWorkflowParent(parent Run, child Run, approvals []Approval) 
 }
 
 func (e *WorkflowExecutor) failParent(ctx context.Context, parent Run, cause error) (Run, error) {
-	if tasks, taskErr := e.workflowTasks(context.Background(), parent, nil); taskErr == nil && len(tasks) > 0 {
+	persistCtx := context.WithoutCancel(ctx)
+	if tasks, taskErr := e.workflowTasks(persistCtx, parent, nil); taskErr == nil && len(tasks) > 0 {
 		parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
 	}
 	parent.Status = runStatusForContext(ctx, cause)
@@ -550,7 +555,7 @@ func (e *WorkflowExecutor) failParent(ctx context.Context, parent Run, cause err
 		parent.CancelledAt = parent.CompletedAt
 	}
 	finalizeRunUsage(&parent)
-	if err := e.runtime.store.SaveRunAndDenyPendingApprovals(context.Background(), parent); err != nil {
+	if err := e.runtime.store.SaveRunAndDenyPendingApprovals(persistCtx, parent); err != nil {
 		return parent, fmt.Errorf("persist failed workflow state: %w", err)
 	}
 	e.runtime.cancelUnfinishedWorkflowChildren(context.Background(), parent)

@@ -60,6 +60,7 @@ type googleADKExecution struct {
 	loadRun                  func(context.Context, string) (Run, bool, error)
 	persistRunSnapshot       func(Run) (Run, error)
 	processedConfirmationIDs map[string]struct{}
+	runtime                  *Runtime
 }
 
 func (r *Runtime) executeGoogleADK(
@@ -294,6 +295,7 @@ func (r *Runtime) newGoogleADKExecution(
 	}
 
 	execution := &googleADKExecution{
+		runtime:         r,
 		sessionID:       productSession.ID,
 		appName:         googleADKAppName(definition.ID),
 		artifactService: r.artifactService,
@@ -326,9 +328,7 @@ func (r *Runtime) newGoogleADKExecution(
 			}
 			return r.store.Run(ctx, runID)
 		},
-		persistRunSnapshot: func(snapshot Run) (Run, error) {
-			return r.persistRunActivitySnapshot(context.Background(), snapshot)
-		},
+		persistRunSnapshot: r.googleADKExecutionSnapshotPersister(ctx),
 	}
 	if r.store != nil {
 		if storedRun, ok, loadErr := r.store.Run(ctx, runID); loadErr == nil && ok {
@@ -354,7 +354,7 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 	onDelta func(ChatDelta) error,
 ) (*googleADKExecution, error) {
 	rootName := googleADKWorkflowRootName(parent.ID)
-	execution := r.newGoogleADKWorkflowExecutionState(definition, productSession, parent, rootName, onDelta)
+	execution := r.newGoogleADKWorkflowExecutionState(ctx, definition, productSession, parent, rootName, onDelta)
 	childNodes, err := r.newGoogleADKWorkflowChildNodes(ctx, definition, parent.ID, childRuns, steps, execution)
 	if err != nil {
 		return nil, err
@@ -379,6 +379,7 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 }
 
 func (r *Runtime) newGoogleADKWorkflowExecutionState(
+	ctx context.Context,
 	definition Agent,
 	productSession Session,
 	parent Run,
@@ -389,6 +390,7 @@ func (r *Runtime) newGoogleADKWorkflowExecutionState(
 		parent.WorkflowEngine = WorkflowEngineADK2Loop
 	}
 	execution := &googleADKExecution{
+		runtime:         r,
 		sessionID:       productSession.ID,
 		appName:         googleADKAppName(definition.ID),
 		artifactService: r.artifactService,
@@ -413,7 +415,7 @@ func (r *Runtime) newGoogleADKWorkflowExecutionState(
 		postToolTextSeqByRunID:   map[string]int{},
 		onDelta:                  onDelta,
 		loadRun:                  r.googleADKExecutionRunLoader(),
-		persistRunSnapshot:       r.googleADKExecutionSnapshotPersister(),
+		persistRunSnapshot:       r.googleADKExecutionSnapshotPersister(ctx),
 	}
 	return execution
 }
@@ -427,9 +429,14 @@ func (r *Runtime) googleADKExecutionRunLoader() func(context.Context, string) (R
 	}
 }
 
-func (r *Runtime) googleADKExecutionSnapshotPersister() func(Run) (Run, error) {
+func (r *Runtime) googleADKExecutionSnapshotPersister(ctx context.Context) func(Run) (Run, error) {
+	baseCtx := context.WithoutCancel(ctx)
 	return func(snapshot Run) (Run, error) {
-		return r.persistRunActivitySnapshot(context.Background(), snapshot)
+		snapshotCtx, err := r.activeRunExecutionContext(baseCtx, snapshot.ID)
+		if err != nil {
+			return Run{}, err
+		}
+		return r.persistRunActivitySnapshot(snapshotCtx, snapshot)
 	}
 }
 
@@ -612,7 +619,7 @@ func (r *Runtime) newGoogleADKLLMAgent(
 	llm adkmodel.LLM,
 	execution *googleADKExecution,
 ) (adkagent.Agent, error) {
-	toolsets, err := r.googleADKToolsets(ctx, definition)
+	toolsets, err := r.googleADKToolsets(ctx, definition, execution)
 	if err != nil {
 		return nil, err
 	}

@@ -437,6 +437,76 @@ func TestPineWorkerCommandExecutorCancelAll(t *testing.T) {
 	}
 }
 
+func TestPineWorkerCommandExecutorRejectsAtomicBracketBeforeAnySubmission(t *testing.T) {
+	orders := &fakeWorkerOrderExecutor{}
+	executor := validPineWorkerCommandExecutor(orders)
+	err := executor.ExecuteBarCommands(t.Context(), pineWorkerAtomicBracketCommands())
+	if err == nil || !strings.Contains(err.Error(), "atomic placement capability") {
+		t.Fatalf("ExecuteBarCommands error = %v, want atomic capability rejection", err)
+	}
+	if len(orders.submitted) != 0 {
+		t.Fatalf("ordinary submissions = %#v, want none", orders.submitted)
+	}
+}
+
+func TestPineWorkerCommandExecutorSubmitsParentOCOBracketAtomically(t *testing.T) {
+	orders := &fakeAtomicWorkerOrderExecutor{}
+	executor := &PineWorkerCommandExecutor{
+		Symbol: "US.AAPL", OrderExecutor: orders,
+		MarketResolver: fakeWorkerMarketResolver{"US.AAPL": testPineWorkerShortReplayMarket()},
+	}
+	if err := executor.ExecuteBarCommands(t.Context(), pineWorkerAtomicBracketCommands()); err != nil {
+		t.Fatalf("ExecuteBarCommands: %v", err)
+	}
+	if len(orders.atomicGroups) != 1 || orders.atomicGroups[0] != "bracket-1" || len(orders.atomicOrders) != 1 || len(orders.atomicOrders[0]) != 3 {
+		t.Fatalf("atomic calls groups=%#v orders=%#v", orders.atomicGroups, orders.atomicOrders)
+	}
+	if len(orders.submitted) != 0 {
+		t.Fatalf("ordinary submissions = %#v, want none", orders.submitted)
+	}
+	for index, leg := range orders.atomicOrders[0] {
+		if index == 0 {
+			if leg.ParentID != "" || leg.ReduceOnly {
+				t.Fatalf("entry leg = %#v", leg)
+			}
+			continue
+		}
+		if leg.ParentID != "long" || leg.OCOGroupID != "protect-oco" || !leg.ReduceOnly || !leg.Order.ReduceOnly || leg.Order.GroupID == 0 {
+			t.Fatalf("protective leg %d = %#v", index, leg)
+		}
+	}
+	if err := executor.Execute(t.Context(), WorkerOrderCommand{Kind: "cancel", ID: "protect"}); err != nil {
+		t.Fatalf("cancel logical OCO intent: %v", err)
+	}
+	if len(orders.cancelled) != 2 {
+		t.Fatalf("cancelled OCO legs = %#v, want 2", orders.cancelled)
+	}
+}
+
+func TestPineWorkerCommandExecutorRejectsMalformedAtomicBracket(t *testing.T) {
+	orders := &fakeAtomicWorkerOrderExecutor{}
+	executor := &PineWorkerCommandExecutor{
+		Symbol: "US.AAPL", OrderExecutor: orders,
+		MarketResolver: fakeWorkerMarketResolver{"US.AAPL": testPineWorkerShortReplayMarket()},
+	}
+	commands := pineWorkerAtomicBracketCommands()
+	commands[1].ParentID = "missing-entry"
+	if err := executor.ExecuteBarCommands(t.Context(), commands); err == nil || !strings.Contains(err.Error(), "no matching parent entry") {
+		t.Fatalf("malformed bracket error = %v", err)
+	}
+	if len(orders.atomicOrders) != 0 || len(orders.submitted) != 0 {
+		t.Fatalf("malformed bracket caused side effects: atomic=%#v submitted=%#v", orders.atomicOrders, orders.submitted)
+	}
+}
+
+func pineWorkerAtomicBracketCommands() []WorkerOrderCommand {
+	return []WorkerOrderCommand{
+		{Kind: "entry", ID: "long", IntentID: "long", Side: types.SideTypeBuy, Quantity: 1, AtomicGroupID: "bracket-1"},
+		{Kind: "exit", ID: "protect:limit", IntentID: "protect", ParentID: "long", Side: types.SideTypeSell, OrderType: types.OrderTypeLimit, Quantity: 1, LimitPrice: 110, AtomicGroupID: "bracket-1", OCOGroupID: "protect-oco", ReduceOnly: true},
+		{Kind: "exit", ID: "protect:stop", IntentID: "protect", ParentID: "long", Side: types.SideTypeSell, OrderType: types.OrderTypeStopMarket, Quantity: 1, StopPrice: 95, AtomicGroupID: "bracket-1", OCOGroupID: "protect-oco", ReduceOnly: true},
+	}
+}
+
 func TestPineWorkerCommandExecutorPropagatesExecutorErrors(t *testing.T) {
 	submitErr := errors.New("submit failed")
 	commandExecutor := validPineWorkerCommandExecutor(&fakeWorkerOrderExecutor{submitErr: submitErr})
@@ -593,6 +663,29 @@ type fakeWorkerOrderExecutor struct {
 	cancelled []types.Order
 	submitErr error
 	cancelErr error
+}
+
+type fakeAtomicWorkerOrderExecutor struct {
+	fakeWorkerOrderExecutor
+	atomicGroups []string
+	atomicOrders [][]PineWorkerAtomicOrder
+}
+
+func (executor *fakeAtomicWorkerOrderExecutor) SubmitAtomicPineOrders(
+	_ context.Context,
+	groupID string,
+	orders ...PineWorkerAtomicOrder,
+) (types.OrderSlice, error) {
+	if executor.submitErr != nil {
+		return nil, executor.submitErr
+	}
+	executor.atomicGroups = append(executor.atomicGroups, groupID)
+	executor.atomicOrders = append(executor.atomicOrders, append([]PineWorkerAtomicOrder(nil), orders...))
+	created := make(types.OrderSlice, 0, len(orders))
+	for _, order := range orders {
+		created = append(created, types.Order{SubmitOrder: order.Order, Status: types.OrderStatusNew})
+	}
+	return created, nil
 }
 
 func (executor *fakeWorkerOrderExecutor) SubmitOrders(_ context.Context, orders ...types.SubmitOrder) (types.OrderSlice, error) {

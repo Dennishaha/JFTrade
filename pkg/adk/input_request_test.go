@@ -363,7 +363,9 @@ func TestInputContinuationFailureIsPersisted(t *testing.T) {
 		InputRequest: &InputRequest{ID: "request", RunID: "input-missing-context", Status: InputRequestStatusAnswered},
 		CreatedAt:    nowString(), UpdatedAt: nowString(),
 	})
-	runtime.continueResolvedInput(t.Context(), recovering.ID)
+	if err := runtime.continueResolvedInput(t.Context(), recovering.ID); err != nil {
+		t.Fatalf("continueResolvedInput: %v", err)
+	}
 	failed, ok, err := runtime.Store().Run(t.Context(), recovering.ID)
 	if err != nil || !ok || failed.Status != RunStatusFailed || failed.ResumeState != "input_resume_failed" {
 		t.Fatalf("unrecoverable continuation run=%+v ok=%v err=%v", failed, ok, err)

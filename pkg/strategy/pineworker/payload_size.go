@@ -9,23 +9,29 @@ import (
 )
 
 var runScriptRequestJSONFields = struct {
-	JobID     int
-	ScriptID  int
-	Source    int
-	Symbol    int
-	Timeframe int
-	Mode      int
-	Candles   int
-	Params    int
+	JobID            int
+	ScriptID         int
+	Source           int
+	Symbol           int
+	Timeframe        int
+	Mode             int
+	Candles          int
+	Params           int
+	SessionID        int
+	SessionOperation int
+	ExpectedRevision int
 }{
-	JobID:     jsonFieldNameBytes("JobID"),
-	ScriptID:  jsonFieldNameBytes("ScriptID"),
-	Source:    jsonFieldNameBytes("Source"),
-	Symbol:    jsonFieldNameBytes("Symbol"),
-	Timeframe: jsonFieldNameBytes("Timeframe"),
-	Mode:      jsonFieldNameBytes("Mode"),
-	Candles:   jsonFieldNameBytes("Candles"),
-	Params:    jsonFieldNameBytes("Params"),
+	JobID:            jsonFieldNameBytes("JobID"),
+	ScriptID:         jsonFieldNameBytes("ScriptID"),
+	Source:           jsonFieldNameBytes("Source"),
+	Symbol:           jsonFieldNameBytes("Symbol"),
+	Timeframe:        jsonFieldNameBytes("Timeframe"),
+	Mode:             jsonFieldNameBytes("Mode"),
+	Candles:          jsonFieldNameBytes("Candles"),
+	Params:           jsonFieldNameBytes("Params"),
+	SessionID:        jsonFieldNameBytes("SessionID"),
+	SessionOperation: jsonFieldNameBytes("SessionOperation"),
+	ExpectedRevision: jsonFieldNameBytes("ExpectedRevision"),
 }
 
 var candleJSONFields = struct {
@@ -83,6 +89,9 @@ func estimateRunScriptRequestJSONSize(request RunScriptRequest) (int, error) {
 		{nameBytes: runScriptRequestJSONFields.Mode, valueBytes: jsonStringValueBytes(request.Mode)},
 		{nameBytes: runScriptRequestJSONFields.Candles, valueBytes: candlesBytes},
 		{nameBytes: runScriptRequestJSONFields.Params, valueBytes: paramsBytes},
+		{nameBytes: runScriptRequestJSONFields.SessionID, valueBytes: jsonStringValueBytes(request.SessionID)},
+		{nameBytes: runScriptRequestJSONFields.SessionOperation, valueBytes: jsonStringValueBytes(request.SessionOperation)},
+		{nameBytes: runScriptRequestJSONFields.ExpectedRevision, valueBytes: jsonUintValueBytes(request.ExpectedRevision)},
 	}), nil
 }
 
@@ -116,6 +125,9 @@ func validateAndMeasureRunScriptRequest(request RunScriptRequest, config WorkerC
 		{nameBytes: runScriptRequestJSONFields.Mode, valueBytes: jsonStringValueBytes(request.Mode)},
 		{nameBytes: runScriptRequestJSONFields.Candles, valueBytes: candlesBytes},
 		{nameBytes: runScriptRequestJSONFields.Params, valueBytes: paramsBytes},
+		{nameBytes: runScriptRequestJSONFields.SessionID, valueBytes: jsonStringValueBytes(request.SessionID)},
+		{nameBytes: runScriptRequestJSONFields.SessionOperation, valueBytes: jsonStringValueBytes(request.SessionOperation)},
+		{nameBytes: runScriptRequestJSONFields.ExpectedRevision, valueBytes: jsonUintValueBytes(request.ExpectedRevision)},
 	}), nil
 }
 
@@ -219,6 +231,11 @@ func jsonStringValueBytes(value string) int {
 func jsonIntValueBytes(value int64) int {
 	var buffer [24]byte
 	return len(strconv.AppendInt(buffer[:0], value, 10))
+}
+
+func jsonUintValueBytes(value uint64) int {
+	var buffer [24]byte
+	return len(strconv.AppendUint(buffer[:0], value, 10))
 }
 
 func jsonNumberValueBytes(value float64) (int, error) {

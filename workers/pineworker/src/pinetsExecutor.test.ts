@@ -116,6 +116,44 @@ describe("NativePineTSExecutor", () => {
     expect(JSON.stringify(candles)).toBe(before);
   });
 
+  test("appends only new closed bars while preserving Pine state and session revision", async () => {
+    const source = [
+      `//@version=6`,
+      `strategy("incremental", initial_capital=100000)`,
+      `var int seen = 0`,
+      `seen += 1`,
+      `plot(seen, "seen")`,
+      `if bar_index == 2`,
+      `    strategy.entry("Late", strategy.long, qty=1)`,
+    ].join("\n");
+    const candles = conditionalOrderCandles();
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const opened = await executor.openLiveSession("session-1", preparedRequest({
+      jobId: "open-session-1", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "session-1", sessionOperation: "open", expectedRevision: 0,
+      candles: candles.slice(0, 2),
+    }));
+
+    expect(opened.orderIntents).toEqual([]);
+    const appended = await executor.appendLiveSession("session-1", 1, preparedRequest({
+      jobId: "append-session-1", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "session-1", sessionOperation: "append", expectedRevision: 1,
+      candles: [candles[2]!],
+    }));
+
+    expect(appended.revision).toBe(2);
+    expect(plotValues(appended.result, "seen")).toEqual([3]);
+    expect(appended.result.orderIntents).toEqual([expect.objectContaining({
+      kind: "entry", id: "Late", barIndex: 2, time: candles[2]!.openTime,
+    })]);
+    await expect(executor.appendLiveSession("session-1", 1, preparedRequest({
+      jobId: "stale-append", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "session-1", sessionOperation: "append", expectedRevision: 1,
+      candles: [candles[3]!],
+    }))).rejects.toThrow("revision mismatch");
+    await expect(executor.closeLiveSession("session-1", 2)).resolves.toBe(2);
+  });
+
   test("captures a filled stop entry at placement without reconstructing it from the trade", async () => {
     const executor = await createNativePineTSExecutor("pinets-test");
     const candles = conditionalOrderCandles();
@@ -177,6 +215,8 @@ describe("NativePineTSExecutor", () => {
         id: "TakeProfit",
         direction: "long",
         fromEntry: "Long",
+        parentId: "Long",
+        reduceOnly: true,
         quantity: 1,
         limitPrice: 110,
         barIndex: 1,
@@ -218,6 +258,8 @@ describe("NativePineTSExecutor", () => {
         id: "ShortStop",
         direction: "short",
         fromEntry: "Short",
+        parentId: "Short",
+        reduceOnly: true,
         quantity: 2,
         stopPrice: 110,
         barIndex: 1,
@@ -255,6 +297,8 @@ describe("NativePineTSExecutor", () => {
       id: "ExitA",
       direction: "long",
       fromEntry: "A",
+      parentId: "A",
+      reduceOnly: true,
       quantity: 3,
       stopPrice: 95,
       barIndex: 2,
@@ -289,6 +333,8 @@ describe("NativePineTSExecutor", () => {
       id: "close_A",
       direction: "long",
       fromEntry: "A",
+      parentId: "A",
+      reduceOnly: true,
       quantity: 1.5,
       barIndex: 2,
       time: candles[2]!.openTime,
@@ -322,6 +368,7 @@ describe("NativePineTSExecutor", () => {
       id: "close_all",
       direction: "long",
       quantity: 7,
+      reduceOnly: true,
       barIndex: 2,
       time: candles[2]!.openTime,
     });
@@ -360,6 +407,8 @@ describe("NativePineTSExecutor", () => {
         id: "close_Long",
         direction: "long",
         fromEntry: "Long",
+        parentId: "Long",
+        reduceOnly: true,
         quantity: 1,
         barIndex: 1,
         time: candles[1]!.openTime,
@@ -394,6 +443,8 @@ describe("NativePineTSExecutor", () => {
         id: close.id,
         direction: "short",
         ...(close.fromEntry === undefined ? {} : { fromEntry: close.fromEntry }),
+        ...(close.fromEntry === undefined ? {} : { parentId: close.fromEntry }),
+        reduceOnly: true,
         quantity: 1,
         barIndex: 1,
         time: candles[1]!.openTime,
@@ -425,6 +476,8 @@ describe("NativePineTSExecutor", () => {
       id: "StopLoss",
       direction: "long",
       fromEntry: "Long",
+      parentId: "Long",
+      reduceOnly: true,
       quantity: 1,
       stopPrice: 95,
       barIndex: 1,
@@ -495,10 +548,10 @@ describe("NativePineTSExecutor", () => {
     }))).rejects.toThrow("without a matching open or pending trade");
   });
 
-  test("fails the whole run when a protective exit depends on an unfilled same-bar entry", async () => {
+  test("expresses a same-bar protective exit as one atomic parent-linked group", async () => {
     const executor = await createNativePineTSExecutor("pinets-test");
 
-    await expect(executor.run(preparedRequest({
+    const result = await executor.run(preparedRequest({
       jobId: "non-atomic-bracket",
       source: [
         `//@version=6`,
@@ -510,7 +563,17 @@ describe("NativePineTSExecutor", () => {
       symbol: "US.AAPL",
       timeframe: "1",
       candles: conditionalOrderCandles(),
-    }))).rejects.toThrow("cannot atomically express a parent-linked or reduce-only protective exit");
+    }));
+
+    expect(result.orderIntents).toEqual([
+      expect.objectContaining({
+        kind: "entry", id: "Long", atomicGroupId: "pine:US.AAPL:0:parent:Long",
+      }),
+      expect.objectContaining({
+        kind: "exit", id: "StopLoss", parentId: "Long", reduceOnly: true,
+        atomicGroupId: "pine:US.AAPL:0:parent:Long", stopPrice: 95,
+      }),
+    ]);
   });
 
   test("fails closed for tick-based exits that the order protocol cannot express", async () => {

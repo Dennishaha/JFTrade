@@ -13,6 +13,10 @@ const (
 	ModeBacktest = "backtest"
 	ModeLive     = "live"
 	ModeAnalyze  = "analyze"
+
+	SessionOperationOpen   = "open"
+	SessionOperationAppend = "append"
+	SessionOperationClose  = "close"
 )
 
 type WorkerConfig struct {
@@ -81,14 +85,17 @@ type Candle struct {
 }
 
 type RunScriptRequest struct {
-	JobID     string
-	ScriptID  string
-	Source    string
-	Symbol    string
-	Timeframe string
-	Mode      string
-	Candles   []Candle
-	Params    map[string]string
+	JobID            string
+	ScriptID         string
+	Source           string
+	Symbol           string
+	Timeframe        string
+	Mode             string
+	Candles          []Candle
+	Params           map[string]string
+	SessionID        string
+	SessionOperation string
+	ExpectedRevision uint64
 }
 
 type Diagnostic struct {
@@ -144,6 +151,10 @@ type OrderIntent struct {
 	HasQuantityPct bool
 	HasLimitPrice  bool
 	HasStopPrice   bool
+	ParentID       string
+	AtomicGroupID  string
+	OCOGroupID     string
+	ReduceOnly     bool
 }
 
 type WorkerMetadata struct {
@@ -180,6 +191,8 @@ type RunScriptResponse struct {
 	Error           string
 	Metadata        WorkerMetadata
 	StrategyMetrics *StrategyMetrics
+	SessionID       string
+	SessionRevision uint64
 }
 
 func ValidateRunScriptRequest(request RunScriptRequest, config WorkerConfig) error {
@@ -191,6 +204,29 @@ func validateRunScriptRequestBasics(request RunScriptRequest, config WorkerConfi
 	if strings.TrimSpace(request.JobID) == "" {
 		return fmt.Errorf("job id is required")
 	}
+	operation := normalizeSessionOperation(request.SessionOperation)
+	if strings.TrimSpace(request.SessionOperation) != "" && operation == "" {
+		return fmt.Errorf("unsupported pine worker session operation: %s", request.SessionOperation)
+	}
+	if operation != "" && strings.TrimSpace(request.SessionID) == "" {
+		return fmt.Errorf("session id is required for %s", operation)
+	}
+	mode := normalizeMode(request.Mode)
+	if mode == "" {
+		return fmt.Errorf("unsupported pine worker mode: %s", request.Mode)
+	}
+	if operation != "" && mode != ModeLive {
+		return fmt.Errorf("pine worker sessions require live mode")
+	}
+	if operation == SessionOperationOpen && request.ExpectedRevision != 0 {
+		return fmt.Errorf("pine worker session open requires expected revision 0")
+	}
+	if operation == SessionOperationAppend && request.ExpectedRevision == 0 {
+		return fmt.Errorf("pine worker session append requires a positive expected revision")
+	}
+	if operation == SessionOperationClose {
+		return nil
+	}
 	if strings.TrimSpace(request.Source) == "" {
 		return fmt.Errorf("source is required")
 	}
@@ -200,16 +236,28 @@ func validateRunScriptRequestBasics(request RunScriptRequest, config WorkerConfi
 	if strings.TrimSpace(request.Timeframe) == "" {
 		return fmt.Errorf("timeframe is required")
 	}
-	if mode := normalizeMode(request.Mode); mode == "" {
-		return fmt.Errorf("unsupported pine worker mode: %s", request.Mode)
-	}
-	if len(request.Candles) == 0 && normalizeMode(request.Mode) != ModeAnalyze {
+	if len(request.Candles) == 0 && mode != ModeAnalyze {
 		return fmt.Errorf("candles are required")
 	}
 	if config.MaxCandlesPerRequest > 0 && len(request.Candles) > config.MaxCandlesPerRequest {
 		return fmt.Errorf("too many candles: %d > %d", len(request.Candles), config.MaxCandlesPerRequest)
 	}
 	return nil
+}
+
+func normalizeSessionOperation(operation string) string {
+	switch strings.TrimSpace(strings.ToLower(operation)) {
+	case "":
+		return ""
+	case SessionOperationOpen:
+		return SessionOperationOpen
+	case SessionOperationAppend:
+		return SessionOperationAppend
+	case SessionOperationClose:
+		return SessionOperationClose
+	default:
+		return ""
+	}
 }
 
 func normalizeMode(mode string) string {

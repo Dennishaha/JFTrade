@@ -200,7 +200,7 @@ describe("runScriptWithPineTS", () => {
     }));
   });
 
-  test("returns no intents when a same-bar protective exit cannot be submitted atomically", async () => {
+  test("returns an atomic parent-linked reduce-only same-bar protective exit", async () => {
     const response = await runScriptWithPineTS(validRequest({
       source: [
         `//@version=6`,
@@ -215,8 +215,16 @@ describe("runScriptWithPineTS", () => {
       peakRSSBytes: () => 123,
     });
 
-    expect(response.error).toContain("cannot atomically express a parent-linked or reduce-only protective exit");
-    expect(response.orderIntents).toEqual([]);
+    expect(response.error).toBeUndefined();
+    expect(response.orderIntents).toEqual([
+      expect.objectContaining({
+        kind: "entry", id: "Long", atomicGroupId: "pine:US.AAPL:0:parent:Long",
+      }),
+      expect.objectContaining({
+        kind: "exit", id: "StopLoss", parentId: "Long", reduceOnly: true,
+        atomicGroupId: "pine:US.AAPL:0:parent:Long", stopPrice: 95,
+      }),
+    ]);
   });
 });
 

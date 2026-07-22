@@ -1,5 +1,5 @@
 import { PineTS } from "pinets";
-import type { PineTSExecutor, PineTSRunResult, PreparedRunScriptRequest } from "./types";
+import type { Candle, PineTSExecutor, PineTSPlot, PineTSRunResult, PreparedRunScriptRequest } from "./types";
 
 type PineTSModule = {
   PineTS: new (candles: unknown[], symbol?: string, timeframe?: string, periods?: number) => PineTSRuntime;
@@ -25,6 +25,8 @@ type PineTSRuntime = {
     startIdx: number,
     endIdx: number,
   ) => Promise<void>;
+  _appendCandle?: (candle: Candle) => void;
+  _transpiledCode?: PineTSIteration;
 };
 
 type PendingOrderRecord = Record<string, unknown>;
@@ -39,6 +41,17 @@ type OrderIntentCapture = {
   supported: boolean;
   intents: Record<string, unknown>[];
   previous: TrackedPendingOrder[];
+};
+
+type NativeLiveSession = {
+  runtime: PineTSRuntime;
+  context: PineTSExecutionContext & PineTSRunResult;
+  transpiled: PineTSIteration;
+  capture: OrderIntentCapture;
+  request: PreparedRunScriptRequest;
+  revision: number;
+  queue: Promise<void>;
+  failed: boolean;
 };
 
 type ResolvedPendingOrder = {
@@ -76,6 +89,8 @@ const pendingOrderSemanticFields = [
 ] as const;
 
 export class NativePineTSExecutor implements PineTSExecutor {
+  private readonly liveSessions = new Map<string, NativeLiveSession>();
+
   constructor(private readonly module: PineTSModule, private readonly pineTSVersion = "unknown") {}
 
   version(): string {
@@ -83,6 +98,124 @@ export class NativePineTSExecutor implements PineTSExecutor {
   }
 
   async run(request: PreparedRunScriptRequest): Promise<PineTSRunResult> {
+    const execution = await this.createExecution(request);
+    return compactPineTSResult(execution.context, request.includePlots !== false);
+  }
+
+  async openLiveSession(sessionId: string, request: PreparedRunScriptRequest): Promise<PineTSRunResult> {
+    if (this.liveSessions.has(sessionId)) {
+      throw new Error(`PineTS live session ${JSON.stringify(sessionId)} already exists`);
+    }
+    if ((request.expectedRevision ?? 0) !== 0) {
+      throw new Error("PineTS live session open requires expected revision 0");
+    }
+    const execution = await this.createExecution(request);
+    const transpiled = execution.runtime._transpiledCode;
+    if (typeof execution.runtime._appendCandle !== "function" || typeof transpiled !== "function") {
+      throw new Error("PineTS runtime does not expose the append/execute hooks required for stateful live sessions");
+    }
+    this.liveSessions.set(sessionId, {
+      ...execution,
+      transpiled,
+      revision: 1,
+      queue: Promise.resolve(),
+      failed: false,
+    });
+    // Warmup establishes state only. Historical intents must never escape as
+    // live orders when a session is opened.
+    const result = compactPineTSResult(execution.context, request.includePlots !== false);
+    result.orderIntents = [];
+    return result;
+  }
+
+  async appendLiveSession(
+    sessionId: string,
+    expectedRevision: number,
+    request: PreparedRunScriptRequest,
+  ): Promise<{ result: PineTSRunResult; revision: number }> {
+    const session = this.liveSessions.get(sessionId);
+    if (session === undefined || session.failed) {
+      throw new Error(`PineTS live session ${JSON.stringify(sessionId)} is not available`);
+    }
+    return this.withLiveSessionLock(session, async () => {
+      if (this.liveSessions.get(sessionId) !== session || session.failed) {
+        throw new Error(`PineTS live session ${JSON.stringify(sessionId)} is not available`);
+      }
+      if (session.revision !== expectedRevision) {
+        throw new Error(
+          `PineTS live session ${JSON.stringify(sessionId)} revision mismatch: expected ${expectedRevision}, current ${session.revision}`,
+        );
+      }
+      assertSameLiveSessionDefinition(session.request, request);
+      const lastOpenTime = session.request.candles[session.request.candles.length - 1]?.openTime ?? 0;
+      let previousOpenTime = lastOpenTime;
+      for (const candle of request.candles) {
+        if (candle.openTime <= previousOpenTime) {
+          throw new Error(
+            `PineTS live session ${JSON.stringify(sessionId)} requires strictly increasing closed candle open times`,
+          );
+        }
+        previousOpenTime = candle.openTime;
+      }
+
+      const marker = resultMarker(session.context, session.capture);
+      const startIndex = session.request.candles.length;
+      try {
+        for (const candle of request.candles) {
+          const requestLength = session.request.candles.length;
+          session.runtime._appendCandle!(candle);
+          // PineTS currently retains the input array as its data array. Keep
+          // this fallback for versions that copy input data instead.
+          if (session.request.candles.length === requestLength) {
+            session.request.candles.push(candle);
+          }
+        }
+        await session.runtime._executeIterations!(
+          session.context,
+          session.transpiled,
+          startIndex,
+          session.request.candles.length,
+        );
+      } catch (error) {
+        session.failed = true;
+        this.liveSessions.delete(sessionId);
+        throw new Error(
+          `PineTS live session ${JSON.stringify(sessionId)} was invalidated after an append failure: ${String(error instanceof Error ? error.message : error)}`,
+        );
+      }
+      session.revision++;
+      return {
+        result: incrementalResult(session.context, session.capture, marker, request.includePlots !== false),
+        revision: session.revision,
+      };
+    });
+  }
+
+  async closeLiveSession(sessionId: string, expectedRevision: number): Promise<number> {
+    const session = this.liveSessions.get(sessionId);
+    if (session === undefined) {
+      return expectedRevision;
+    }
+    return this.withLiveSessionLock(session, async () => {
+      if (this.liveSessions.get(sessionId) !== session) {
+        return expectedRevision;
+      }
+      if (expectedRevision !== 0 && session.revision !== expectedRevision) {
+        throw new Error(
+          `PineTS live session ${JSON.stringify(sessionId)} revision mismatch: expected ${expectedRevision}, current ${session.revision}`,
+        );
+      }
+      this.liveSessions.delete(sessionId);
+      return session.revision;
+    });
+  }
+
+  private async createExecution(request: PreparedRunScriptRequest): Promise<{
+    runtime: PineTSRuntime;
+    context: PineTSExecutionContext & PineTSRunResult;
+    capture: OrderIntentCapture;
+    request: PreparedRunScriptRequest;
+  }> {
     const periods = Math.max(1, request.candles.length);
     const pineTS = new this.module.PineTS(
       request.candles as Record<string, number>[],
@@ -101,8 +234,105 @@ export class NativePineTSExecutor implements PineTSExecutor {
         result.orderIntents = orderCapture.intents;
       }
     }
-    return compactPineTSResult(result, request.includePlots !== false);
+    return {
+      runtime: pineTS,
+      context: result as PineTSExecutionContext & PineTSRunResult,
+      capture: orderCapture,
+      request,
+    };
   }
+
+  private async withLiveSessionLock<T>(session: NativeLiveSession, operation: () => Promise<T>): Promise<T> {
+    const previous = session.queue;
+    let release!: () => void;
+    session.queue = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  }
+}
+
+type ResultMarker = {
+  intentCount: number;
+  plotLengths: Record<string, number>;
+  alertCount: number;
+  visualCount: number;
+  logCount: number;
+  warningCount: number;
+  diagnosticCount: number;
+};
+
+function resultMarker(result: PineTSRunResult, capture: OrderIntentCapture): ResultMarker {
+  return {
+    intentCount: capture.intents.length,
+    plotLengths: Object.fromEntries(Object.entries(result.plots ?? {}).map(([name, plot]) => [name, plotLength(plot)])),
+    alertCount: result.alerts?.length ?? 0,
+    visualCount: result.visualOutputs?.length ?? 0,
+    logCount: result.logs?.length ?? 0,
+    warningCount: result.warnings?.length ?? 0,
+    diagnosticCount: result.diagnostics?.length ?? 0,
+  };
+}
+
+function incrementalResult(
+  result: PineTSRunResult,
+  capture: OrderIntentCapture,
+  marker: ResultMarker,
+  includePlots: boolean,
+): PineTSRunResult {
+  const delta: PineTSRunResult = {
+    orderIntents: capture.intents.slice(marker.intentCount),
+  };
+  if (result.alerts !== undefined) delta.alerts = result.alerts.slice(marker.alertCount);
+  if (result.visualOutputs !== undefined) delta.visualOutputs = result.visualOutputs.slice(marker.visualCount);
+  if (result.logs !== undefined) delta.logs = result.logs.slice(marker.logCount);
+  if (result.warnings !== undefined) delta.warnings = result.warnings.slice(marker.warningCount);
+  if (result.diagnostics !== undefined) delta.diagnostics = result.diagnostics.slice(marker.diagnosticCount);
+  if (includePlots) {
+    delta.plots = Object.fromEntries(Object.entries(result.plots ?? {}).map(([name, plot]) => [
+      name,
+      slicePlot(plot, marker.plotLengths[name] ?? 0),
+    ]));
+  }
+  return compactPineTSResult(delta, includePlots);
+}
+
+function plotLength(plot: PineTSPlot | number[]): number {
+  if (Array.isArray(plot)) return plot.length;
+  return plot?.data?.length ?? 0;
+}
+
+function slicePlot(
+  plot: PineTSPlot | number[],
+  start: number,
+): PineTSPlot | number[] {
+  if (Array.isArray(plot)) return plot.slice(start);
+  return { ...plot, data: plot.data?.slice(start) ?? [] };
+}
+
+function assertSameLiveSessionDefinition(
+  opened: PreparedRunScriptRequest,
+  appended: PreparedRunScriptRequest,
+): void {
+  const equalParams = JSON.stringify(sortedEntries(opened.params)) === JSON.stringify(sortedEntries(appended.params));
+  if (
+    opened.source !== appended.source ||
+    opened.scriptId !== appended.scriptId ||
+    opened.symbol !== appended.symbol ||
+    opened.timeframe !== appended.timeframe ||
+    !equalParams
+  ) {
+    throw new Error("PineTS live session append cannot change script, symbol, timeframe, or params");
+  }
+}
+
+function sortedEntries(values: Record<string, string> | undefined): [string, string][] {
+  return Object.entries(values ?? {}).sort(([left], [right]) => left.localeCompare(right));
 }
 
 export async function createNativePineTSExecutor(version = "unknown"): Promise<NativePineTSExecutor> {
@@ -334,7 +564,50 @@ function orderIntentFromPendingOrder(
   if (typeof order.disable_alert === "boolean") {
     intent.disableAlert = order.disable_alert;
   }
+  annotateAtomicOrderSemantics(intent, order, category, context, request, barIndex);
   return intent;
+}
+
+function annotateAtomicOrderSemantics(
+  intent: Record<string, unknown>,
+  order: PendingOrderRecord,
+  category: string,
+  context: PineTSExecutionContext,
+  request: PreparedRunScriptRequest,
+  barIndex: number,
+): void {
+  const id = optionalString(order.id) ?? "";
+  if (category === "exit") {
+    intent.reduceOnly = true;
+    const fromEntry = optionalString(order.from_entry);
+    if (fromEntry !== undefined) {
+      intent.parentId = fromEntry;
+      if (pendingEntryOrders(context).some((entry) => optionalString(entry.id) === fromEntry)) {
+        intent.atomicGroupId = atomicGroupID(request, barIndex, fromEntry);
+      }
+    }
+    if (optionalPositiveNumber(order.limit) !== undefined && optionalPositiveNumber(order.stop) !== undefined) {
+      intent.ocoGroupId = ocoGroupID(request, barIndex, id);
+      if (intent.atomicGroupId === undefined) {
+        intent.atomicGroupId = intent.ocoGroupId;
+      }
+    }
+    return;
+  }
+
+  if (id !== "" && pendingOrders(context).some((candidate) =>
+    (optionalString(candidate.category) ?? "entry") === "exit" && optionalString(candidate.from_entry) === id
+  )) {
+    intent.atomicGroupId = atomicGroupID(request, barIndex, id);
+  }
+}
+
+function atomicGroupID(request: PreparedRunScriptRequest, barIndex: number, entryId: string): string {
+  return ["pine", request.symbol, String(barIndex), "parent", entryId].join(":");
+}
+
+function ocoGroupID(request: PreparedRunScriptRequest, barIndex: number, exitId: string): string {
+  return ["pine", request.symbol, String(barIndex), "oco", exitId].join(":");
 }
 
 function rejectUnsupportedConditionalExit(order: PendingOrderRecord, id: string): void {
@@ -432,7 +705,7 @@ function resolveExitTarget(order: PendingOrderRecord, context: PineTSExecutionCo
     const matchingPendingEntries = pendingEntryOrders(context)
       .filter((pending) => optionalString(pending.id) === fromEntry);
     if (matchingPendingEntries.length > 0) {
-      throwUnsupportedPendingEntryExit(order);
+      return exitTargetFromPendingEntries(matchingPendingEntries, order);
     }
     const signedQuantities = openTrades
       .filter((trade) => optionalString(trade.entry_id) === fromEntry)
@@ -456,6 +729,24 @@ function resolveExitTarget(order: PendingOrderRecord, context: PineTSExecutionCo
   throw new Error(
     `Pine strategy exit ${JSON.stringify(optionalString(order.id) ?? "")} has no provable long/short position direction`,
   );
+}
+
+function exitTargetFromPendingEntries(entries: PendingOrderRecord[], order: PendingOrderRecord): ExitTarget {
+  const signedQuantities = entries.map((entry) => {
+    const quantity = optionalPositiveNumber(entry.qty);
+    if (quantity === undefined) {
+      throw new Error(
+        `Pine strategy exit ${JSON.stringify(optionalString(order.id) ?? "")} references a pending entry without a positive quantity`,
+      );
+    }
+    const direction = entry.direction;
+    if (direction === 1 || direction === "long" || direction === "buy") return quantity;
+    if (direction === -1 || direction === "short" || direction === "sell") return -quantity;
+    throw new Error(
+      `Pine strategy exit ${JSON.stringify(optionalString(order.id) ?? "")} references a pending entry with an unsupported direction`,
+    );
+  });
+  return exitTargetFromSignedQuantities(signedQuantities, order);
 }
 
 function exitTargetFromSignedQuantities(values: unknown[], order: PendingOrderRecord): ExitTarget {
@@ -486,7 +777,7 @@ function pendingEntryOrders(context: PineTSExecutionContext): PendingOrderRecord
 function throwUnsupportedPendingEntryExit(order: PendingOrderRecord): never {
   throw new Error(
     `Pine strategy exit ${JSON.stringify(optionalString(order.id) ?? "")} depends on an unfilled entry; ` +
-    "the order protocol cannot atomically express a parent-linked or reduce-only protective exit",
+    "the worker cannot bind this exit to one unique parent entry for atomic placement",
   );
 }
 

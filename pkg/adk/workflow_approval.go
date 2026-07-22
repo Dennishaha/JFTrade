@@ -9,16 +9,33 @@ import (
 )
 
 func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*Run, error) {
-	if r == nil || r.store == nil || strings.TrimSpace(child.ParentRunID) == "" {
-		return nil, nil
-	}
-	parent, ok, err := r.store.Run(ctx, child.ParentRunID)
+	parent, ok, err := r.workflowParentForChild(ctx, child)
 	if err != nil || !ok {
 		return nil, err
 	}
-	if normalizeWorkMode(parent.WorkMode) == WorkModeChat || strings.TrimSpace(parent.WorkflowStatus) == "" {
-		return nil, nil
+	parentCtx, finishParent, err := r.beginOrReuseRunExecutionLease(ctx, parent.ID)
+	if err != nil {
+		return nil, err
 	}
+	defer finishParent()
+	return r.syncClaimedParentWorkflowFromChild(parentCtx, parent, child)
+}
+
+func (r *Runtime) workflowParentForChild(ctx context.Context, child Run) (Run, bool, error) {
+	if r == nil || r.store == nil || strings.TrimSpace(child.ParentRunID) == "" {
+		return Run{}, false, nil
+	}
+	parent, ok, err := r.store.Run(ctx, child.ParentRunID)
+	if err != nil || !ok {
+		return Run{}, false, err
+	}
+	if normalizeWorkMode(parent.WorkMode) == WorkModeChat || strings.TrimSpace(parent.WorkflowStatus) == "" {
+		return Run{}, false, nil
+	}
+	return parent, true, nil
+}
+
+func (r *Runtime) syncClaimedParentWorkflowFromChild(ctx context.Context, parent Run, child Run) (*Run, error) {
 	if strings.TrimSpace(parent.WorkflowEngine) == "" {
 		parent.WorkflowEngine = workflowEngineForMode(parent.WorkMode)
 	}
@@ -66,13 +83,25 @@ func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*
 }
 
 func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Run) (*Run, error) {
-	parent, err := r.syncParentWorkflowFromChild(ctx, child)
-	if err != nil || parent == nil {
-		return parent, err
+	parentRun, ok, err := r.workflowParentForChild(ctx, child)
+	if err != nil || !ok {
+		return nil, err
+	}
+	resumeCtx, finishParent, err := r.beginOrReuseRunExecutionLease(ctx, parentRun.ID)
+	if err != nil {
+		if isRunLeaseHeld(err) {
+			return &parentRun, nil
+		}
+		return nil, err
+	}
+	defer finishParent()
+	parent, err := r.syncClaimedParentWorkflowFromChild(resumeCtx, parentRun, child)
+	if err != nil {
+		return nil, err
 	}
 	if userPausedGoalParent(*parent) {
 		paused := markUserPausedGoalParent(*parent)
-		if _, saveErr := r.saveRunPreservingUserGoalPause(ctx, paused); saveErr != nil {
+		if _, saveErr := r.saveRunPreservingUserGoalPause(resumeCtx, paused); saveErr != nil {
 			return nil, saveErr
 		}
 		return &paused, nil
@@ -82,21 +111,21 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 	}
 	if userPauseRequestedGoalParent(*parent) {
 		paused := markUserPausedGoalParent(*parent)
-		if _, saveErr := r.saveRunPreservingUserGoalPause(ctx, paused); saveErr != nil {
+		if _, saveErr := r.saveRunPreservingUserGoalPause(resumeCtx, paused); saveErr != nil {
 			return nil, saveErr
 		}
 		return &paused, nil
 	}
 	if child.Status != RunStatusCompleted {
-		terminated, terminateErr := r.terminateParentWorkflowFromChild(ctx, *parent, child)
+		terminated, terminateErr := r.terminateParentWorkflowFromChild(resumeCtx, *parent, child)
 		if terminateErr != nil {
 			return nil, terminateErr
 		}
 		return &terminated, nil
 	}
-	session, _, err := r.workflowResumeContext(ctx, *parent)
+	session, _, err := r.workflowResumeContext(resumeCtx, *parent)
 	if err != nil {
-		failed, persistErr := (&WorkflowExecutor{runtime: r}).failParent(ctx, *parent, err)
+		failed, persistErr := (&WorkflowExecutor{runtime: r}).failParent(resumeCtx, *parent, err)
 		if persistErr != nil {
 			return nil, persistErr
 		}
@@ -106,12 +135,12 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 	var updated Run
 	switch normalizeWorkMode(parent.WorkMode) {
 	case WorkModeLoop:
-		updated, err = executor.resumeLoopWorkflow(ctx, session, *parent)
+		updated, err = executor.resumeLoopWorkflow(resumeCtx, session, *parent)
 	default:
 		updated = *parent
 	}
 	if err != nil {
-		failed, persistErr := executor.failParent(ctx, *parent, err)
+		failed, persistErr := executor.failParent(resumeCtx, *parent, err)
 		if persistErr != nil {
 			return nil, persistErr
 		}

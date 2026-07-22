@@ -87,9 +87,12 @@ func TestAdapterAndDecimalConversionBoundaries(t *testing.T) {
 		t.Fatalf("fixedpointFromDecimalPtr(7) = %s", got)
 	}
 	stopPrice := 12.5
-	converted := bbgoSubmitOrderFromBrokerPlaceOrder(broker.PlaceOrderQuery{StopPrice: &stopPrice})
+	converted := bbgoSubmitOrderFromBrokerPlaceOrder(broker.PlaceOrderQuery{StopPrice: &stopPrice, ReduceOnly: true})
 	if converted.StopPrice != fixedpoint.NewFromFloat(stopPrice) {
 		t.Fatalf("converted stop price = %s", converted.StopPrice)
+	}
+	if !converted.ReduceOnly {
+		t.Fatal("converted reduce-only flag = false")
 	}
 	if tickerFromBasicQot(nil) != nil {
 		t.Fatal("tickerFromBasicQot(nil) != nil")

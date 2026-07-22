@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkartifact "google.golang.org/adk/v2/artifact"
 	adkmemory "google.golang.org/adk/v2/memory"
@@ -31,6 +33,7 @@ type Runtime struct {
 	workflowChildMu    sync.Mutex
 	approvalMu         sync.Mutex
 	approvalRuns       map[string]struct{}
+	inputRuns          map[string]struct{}
 	approvalWG         sync.WaitGroup
 	closing            bool
 	backgroundCtx      context.Context
@@ -38,6 +41,11 @@ type Runtime struct {
 	compactionMu       sync.Mutex
 	compactionSessions map[string]struct{}
 	runSem             chan struct{} // Concurrency limiter for active runs
+	executorID         string
+	runLeaseTTL        time.Duration
+	runLeaseHeartbeat  time.Duration
+	runLeases          map[string]RunLease
+	runLeaseWG         sync.WaitGroup
 }
 
 func NewRuntime(store *Store, tools *ToolRegistry) *Runtime {
@@ -63,8 +71,10 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	}
 	r := &Runtime{
 		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, artifactService: artifactService, memoryService: newGoogleADKMemoryService(store), openai: newOpenAIClient(),
-		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{},
+		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, inputRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{},
 		backgroundCtx: backgroundCtx, backgroundCancel: backgroundCancel, runSem: make(chan struct{}, MaxConcurrentRuns),
+		executorID: "executor-" + uuid.NewString(), runLeaseTTL: defaultADKRunLeaseTTL,
+		runLeaseHeartbeat: defaultADKRunLeaseHeartbeat, runLeases: map[string]RunLease{},
 	}
 	if store != nil {
 		store.SetSessionService(sessionService)
@@ -274,6 +284,7 @@ func (r *Runtime) Close() error {
 	}
 	r.approvalMu.Unlock()
 	r.approvalWG.Wait()
+	r.runLeaseWG.Wait()
 	sessionErr := r.CloseSessionServices()
 	return errors.Join(sessionErr, r.store.Close())
 }

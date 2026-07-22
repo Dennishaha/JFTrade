@@ -302,18 +302,24 @@ func (x *AnalyzeScriptResponse) GetError() string {
 }
 
 type RunScriptRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
-	ScriptId      string                 `protobuf:"bytes,2,opt,name=script_id,json=scriptId,proto3" json:"script_id,omitempty"`
-	Source        string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
-	Symbol        string                 `protobuf:"bytes,4,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	Timeframe     string                 `protobuf:"bytes,5,opt,name=timeframe,proto3" json:"timeframe,omitempty"`
-	Mode          string                 `protobuf:"bytes,6,opt,name=mode,proto3" json:"mode,omitempty"`
-	Candles       *CandleBatch           `protobuf:"bytes,7,opt,name=candles,proto3" json:"candles,omitempty"`
-	Params        map[string]string      `protobuf:"bytes,8,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	IncludePlots  bool                   `protobuf:"varint,9,opt,name=include_plots,json=includePlots,proto3" json:"include_plots,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	JobId        string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	ScriptId     string                 `protobuf:"bytes,2,opt,name=script_id,json=scriptId,proto3" json:"script_id,omitempty"`
+	Source       string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	Symbol       string                 `protobuf:"bytes,4,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	Timeframe    string                 `protobuf:"bytes,5,opt,name=timeframe,proto3" json:"timeframe,omitempty"`
+	Mode         string                 `protobuf:"bytes,6,opt,name=mode,proto3" json:"mode,omitempty"`
+	Candles      *CandleBatch           `protobuf:"bytes,7,opt,name=candles,proto3" json:"candles,omitempty"`
+	Params       map[string]string      `protobuf:"bytes,8,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	IncludePlots bool                   `protobuf:"varint,9,opt,name=include_plots,json=includePlots,proto3" json:"include_plots,omitempty"`
+	// Live sessions retain PineTS state inside one worker. open carries the
+	// complete warmup history, append carries only newly closed candles, and
+	// close releases the state. Empty means a traditional stateless run.
+	SessionId        string `protobuf:"bytes,10,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionOperation string `protobuf:"bytes,11,opt,name=session_operation,json=sessionOperation,proto3" json:"session_operation,omitempty"`
+	ExpectedRevision uint64 `protobuf:"varint,12,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RunScriptRequest) Reset() {
@@ -409,6 +415,27 @@ func (x *RunScriptRequest) GetIncludePlots() bool {
 	return false
 }
 
+func (x *RunScriptRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *RunScriptRequest) GetSessionOperation() string {
+	if x != nil {
+		return x.SessionOperation
+	}
+	return ""
+}
+
+func (x *RunScriptRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
 type RunScriptResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	JobId           string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
@@ -422,6 +449,8 @@ type RunScriptResponse struct {
 	Alerts          []*AlertEvent          `protobuf:"bytes,9,rep,name=alerts,proto3" json:"alerts,omitempty"`
 	VisualOutputs   []*VisualOutput        `protobuf:"bytes,10,rep,name=visual_outputs,json=visualOutputs,proto3" json:"visual_outputs,omitempty"`
 	StrategyMetrics *StrategyMetrics       `protobuf:"bytes,11,opt,name=strategy_metrics,json=strategyMetrics,proto3" json:"strategy_metrics,omitempty"`
+	SessionId       string                 `protobuf:"bytes,12,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionRevision uint64                 `protobuf:"varint,13,opt,name=session_revision,json=sessionRevision,proto3" json:"session_revision,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -533,6 +562,20 @@ func (x *RunScriptResponse) GetStrategyMetrics() *StrategyMetrics {
 	return nil
 }
 
+func (x *RunScriptResponse) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *RunScriptResponse) GetSessionRevision() uint64 {
+	if x != nil {
+		return x.SessionRevision
+	}
+	return 0
+}
+
 var File_proto_pineworker_types_proto protoreflect.FileDescriptor
 
 const file_proto_pineworker_types_proto_rawDesc = "" +
@@ -564,7 +607,7 @@ const file_proto_pineworker_types_proto_rawDesc = "" +
 	"\x05error\x18\b \x01(\tR\x05error\x1aA\n" +
 	"\x13StrategyConfigEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa5\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9e\x04\n" +
 	"\x10RunScriptRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1b\n" +
 	"\tscript_id\x18\x02 \x01(\tR\bscriptId\x12\x16\n" +
@@ -574,10 +617,15 @@ const file_proto_pineworker_types_proto_rawDesc = "" +
 	"\x04mode\x18\x06 \x01(\tR\x04mode\x12E\n" +
 	"\acandles\x18\a \x01(\v2+.jftrade.strategy.pineworker.v1.CandleBatchR\acandles\x12T\n" +
 	"\x06params\x18\b \x03(\v2<.jftrade.strategy.pineworker.v1.RunScriptRequest.ParamsEntryR\x06params\x12#\n" +
-	"\rinclude_plots\x18\t \x01(\bR\fincludePlots\x1a9\n" +
+	"\rinclude_plots\x18\t \x01(\bR\fincludePlots\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\n" +
+	" \x01(\tR\tsessionId\x12+\n" +
+	"\x11session_operation\x18\v \x01(\tR\x10sessionOperation\x12+\n" +
+	"\x11expected_revision\x18\f \x01(\x04R\x10expectedRevision\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x93\x05\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdd\x05\n" +
 	"\x11RunScriptResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12@\n" +
 	"\x05plots\x18\x02 \x03(\v2*.jftrade.strategy.pineworker.v1.PlotOutputR\x05plots\x12P\n" +
@@ -590,7 +638,10 @@ const file_proto_pineworker_types_proto_rawDesc = "" +
 	"\x06alerts\x18\t \x03(\v2*.jftrade.strategy.pineworker.v1.AlertEventR\x06alerts\x12S\n" +
 	"\x0evisual_outputs\x18\n" +
 	" \x03(\v2,.jftrade.strategy.pineworker.v1.VisualOutputR\rvisualOutputs\x12Z\n" +
-	"\x10strategy_metrics\x18\v \x01(\v2/.jftrade.strategy.pineworker.v1.StrategyMetricsR\x0fstrategyMetricsBSZQgithub.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpbb\x06proto3"
+	"\x10strategy_metrics\x18\v \x01(\v2/.jftrade.strategy.pineworker.v1.StrategyMetricsR\x0fstrategyMetrics\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\f \x01(\tR\tsessionId\x12)\n" +
+	"\x10session_revision\x18\r \x01(\x04R\x0fsessionRevisionBSZQgithub.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpbb\x06proto3"
 
 var (
 	file_proto_pineworker_types_proto_rawDescOnce sync.Once

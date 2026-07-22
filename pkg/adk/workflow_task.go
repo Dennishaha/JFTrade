@@ -664,6 +664,7 @@ func (r *Runtime) newGoogleADKTaskExecution(
 	}
 	descriptors := toolDescriptorIndex(workflowTaskToolDescriptors())
 	execution := &googleADKExecution{
+		runtime:   r,
 		sessionID: productSession.ID,
 		appName:   googleADKAppName(definition.ID),
 		agent:     definition,

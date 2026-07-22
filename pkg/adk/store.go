@@ -43,6 +43,8 @@ const (
 	tableWorkflows          = "adk_workflows"
 	tableWorkflowTriggers   = "adk_workflow_triggers"
 	tableWorkflowTriggerLog = "adk_workflow_trigger_logs"
+	tableRunLeases          = "adk_run_leases"
+	tableToolInvocations    = "adk_tool_invocations"
 )
 
 type Store struct {
@@ -162,7 +164,10 @@ func (s *Store) initializeOrValidateSchema() error {
 	); err != nil {
 		return err
 	}
-	return s.ensureWorkflowSchema(context.Background())
+	if err := s.ensureWorkflowSchema(context.Background()); err != nil {
+		return err
+	}
+	return s.ensureExecutionClaimSchema(context.Background())
 }
 
 func (s *Store) ensureBuiltins(ctx context.Context) error {

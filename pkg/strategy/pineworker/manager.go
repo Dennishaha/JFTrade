@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -75,13 +76,14 @@ type WorkerSnapshot struct {
 }
 
 type WorkerManager struct {
-	mu       sync.Mutex
-	config   ManagerConfig
-	launcher WorkerLauncher
-	dialer   TransportDialer
-	workers  []*managedWorker
-	next     int
-	busy     chan struct{}
+	mu             sync.Mutex
+	config         ManagerConfig
+	launcher       WorkerLauncher
+	dialer         TransportDialer
+	workers        []*managedWorker
+	next           int
+	busy           chan struct{}
+	sessionWorkers map[string]*managedWorker
 }
 
 func NewWorkerManager(config ManagerConfig, launcher WorkerLauncher, dialer TransportDialer) (*WorkerManager, error) {
@@ -109,7 +111,10 @@ func NewWorkerManager(config ManagerConfig, launcher WorkerLauncher, dialer Tran
 	if dialer == nil {
 		return nil, fmt.Errorf("pine worker dialer is required")
 	}
-	return &WorkerManager{config: config, launcher: launcher, dialer: dialer, busy: make(chan struct{}, config.Workers)}, nil
+	return &WorkerManager{
+		config: config, launcher: launcher, dialer: dialer,
+		busy: make(chan struct{}, config.Workers), sessionWorkers: make(map[string]*managedWorker),
+	}, nil
 }
 
 func (manager *WorkerManager) Start(ctx context.Context) error {
@@ -152,18 +157,84 @@ func (manager *WorkerManager) RunScript(ctx context.Context, request RunScriptRe
 	}
 	defer manager.releaseRunSlot()
 
-	worker, err := manager.pickWorker()
+	worker, err := manager.workerForRequest(request)
 	if err != nil {
 		observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "pine worker selection failed", err, "mode", request.Mode)
 		return RunScriptResponse{}, err
 	}
 	response, err := worker.client.RunScript(ctx, request)
 	if err != nil {
+		manager.recordSessionFailure(request, worker)
 		observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "pine worker request failed", err, "mode", request.Mode, "latency_ms", time.Since(startedAt).Milliseconds())
 		return RunScriptResponse{}, err
 	}
+	if err := manager.recordSessionResult(request, worker); err != nil {
+		return response, err
+	}
 	observability.InfoWithImportance(ctx, observability.ImportanceLow, "pine worker request completed", "mode", request.Mode, "latency_ms", time.Since(startedAt).Milliseconds())
 	return response, nil
+}
+
+func (manager *WorkerManager) workerForRequest(request RunScriptRequest) (*managedWorker, error) {
+	operation := normalizeSessionOperation(request.SessionOperation)
+	if operation == SessionOperationAppend || operation == SessionOperationClose {
+		manager.mu.Lock()
+		worker := manager.sessionWorkers[strings.TrimSpace(request.SessionID)]
+		manager.mu.Unlock()
+		if worker == nil {
+			return nil, fmt.Errorf("pine worker live session %q is not pinned to an active worker", request.SessionID)
+		}
+		return worker, nil
+	}
+	if operation == SessionOperationOpen {
+		sessionID := strings.TrimSpace(request.SessionID)
+		manager.mu.Lock()
+		defer manager.mu.Unlock()
+		if _, exists := manager.sessionWorkers[sessionID]; exists {
+			return nil, fmt.Errorf("pine worker live session %q is already open", request.SessionID)
+		}
+		worker, err := manager.pickWorkerLocked()
+		if err != nil {
+			return nil, err
+		}
+		// Reserve before the RPC so concurrent opens cannot create duplicate
+		// state under the same logical session id on different workers.
+		manager.sessionWorkers[sessionID] = worker
+		return worker, nil
+	}
+	return manager.pickWorker()
+}
+
+func (manager *WorkerManager) recordSessionFailure(request RunScriptRequest, worker *managedWorker) {
+	if normalizeSessionOperation(request.SessionOperation) != SessionOperationOpen {
+		return
+	}
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	sessionID := strings.TrimSpace(request.SessionID)
+	if manager.sessionWorkers[sessionID] == worker {
+		delete(manager.sessionWorkers, sessionID)
+	}
+}
+
+func (manager *WorkerManager) recordSessionResult(request RunScriptRequest, worker *managedWorker) error {
+	operation := normalizeSessionOperation(request.SessionOperation)
+	if operation == "" {
+		return nil
+	}
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	sessionID := strings.TrimSpace(request.SessionID)
+	if operation == SessionOperationClose {
+		delete(manager.sessionWorkers, sessionID)
+		return nil
+	}
+	if operation == SessionOperationOpen {
+		if manager.sessionWorkers[sessionID] != worker {
+			return fmt.Errorf("pine worker live session %q lost its pinned worker while opening", request.SessionID)
+		}
+	}
+	return nil
 }
 
 func (manager *WorkerManager) ensureStarted() error {
@@ -334,9 +405,18 @@ func (manager *WorkerManager) dialWorkerUntilReady(ctx context.Context, address 
 
 func (manager *WorkerManager) restartWorkerLocked(ctx context.Context, index int, worker *managedWorker) (*managedWorker, error) {
 	restarts := worker.restarts + 1
+	manager.dropWorkerSessionsLocked(worker)
 	_ = worker.transport.Close()
 	_ = worker.process.Stop(ctx)
 	return manager.startWorkerLocked(ctx, index, restarts)
+}
+
+func (manager *WorkerManager) dropWorkerSessionsLocked(worker *managedWorker) {
+	for sessionID, candidate := range manager.sessionWorkers {
+		if candidate == worker {
+			delete(manager.sessionWorkers, sessionID)
+		}
+	}
 }
 
 func (manager *WorkerManager) stopLocked(ctx context.Context) error {
@@ -351,12 +431,17 @@ func (manager *WorkerManager) stopLocked(ctx context.Context) error {
 	}
 	manager.workers = nil
 	manager.next = 0
+	clear(manager.sessionWorkers)
 	return firstErr
 }
 
 func (manager *WorkerManager) pickWorker() (*managedWorker, error) {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
+	return manager.pickWorkerLocked()
+}
+
+func (manager *WorkerManager) pickWorkerLocked() (*managedWorker, error) {
 	if len(manager.workers) == 0 {
 		return nil, fmt.Errorf("pine worker manager is not started")
 	}

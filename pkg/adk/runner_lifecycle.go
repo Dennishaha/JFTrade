@@ -45,6 +45,15 @@ func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecu
 		return nil
 	}
 	run = latest
+	if isRecoverableReconcileStatus(run.Status) {
+		foreignLease, leaseErr := r.freshForeignRunLease(ctx, run.ID, time.Now().UTC())
+		if leaseErr != nil {
+			return leaseErr
+		}
+		if foreignLease {
+			return nil
+		}
+	}
 	if repaired, repairErr := r.repairWorkflowSelfReference(ctx, &run); repairErr != nil {
 		return repairErr
 	} else if repaired {
@@ -72,6 +81,11 @@ func (r *Runtime) reconcileStaleRun(ctx context.Context, executor *WorkflowExecu
 		return nil
 	}
 	if run.Status == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run) {
+		r.enqueueResolvedApprovalContinuation(run.ID)
+		return nil
+	}
+	if runHasRecoverableAnsweredInputContext(run) {
+		r.enqueueResolvedInputContinuation(run.ID)
 		return nil
 	}
 	if r.isDormantWorkflowChildRun(ctx, run) {
@@ -187,6 +201,14 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) error {
 			continue
 		}
 		if r.isDormantWorkflowChildRun(ctx, run) {
+			continue
+		}
+		foreignLease, leaseErr := r.freshForeignRunLease(ctx, run.ID, now)
+		if leaseErr != nil {
+			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("inspect run lease for %s: %w", run.ID, leaseErr))
+			continue
+		}
+		if foreignLease {
 			continue
 		}
 		r.activeMu.Lock()
@@ -309,7 +331,10 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
 		Usage: &RunUsage{},
 	}
-	runContext := adkRunObservabilityContext(ctx, run)
+	// The run does not own a lease until after its initial row is created. In a
+	// workflow this ctx may carry the parent's lease, which must not authorize a
+	// write to the new child run.
+	runContext := adkRunObservabilityContext(withoutRunExecutionLease(ctx), run)
 	if err := r.store.SaveRun(runContext, run); err != nil {
 		return Run{}, nil, nil, err
 	}
@@ -317,12 +342,25 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 		"runId": run.ID, "agentId": run.AgentID, "providerId": run.ProviderID, "status": run.Status, "maxDurationMs": run.MaxDurationMs,
 	})
 	observability.InfoWithImportance(runContext, observability.ImportanceNormal, "adk run started", "agent_id", run.AgentID, "status", run.Status)
-	runCtx, cancel := context.WithTimeout(runContext, timeout)
+	timeoutCtx, timeoutCancel := context.WithTimeout(runContext, timeout)
+	runCtx, cancel, waitForLease, err := r.beginRunExecutionLease(timeoutCtx, run.ID)
+	if err != nil {
+		timeoutCancel()
+		run.Status = RunStatusFailed
+		run.Message = "run execution lease could not be claimed"
+		run.FailureReason = err.Error()
+		run.ErrorCode = "RUN_LEASE_CLAIM_FAILED"
+		run.CompletedAt = new(nowString())
+		besteffort.LogError(r.store.SaveRun(runContext, run))
+		return Run{}, nil, nil, err
+	}
 	r.activeMu.Lock()
 	r.activeRuns[run.ID] = cancel
 	r.activeMu.Unlock()
 	finish := func() {
 		cancel()
+		waitForLease()
+		timeoutCancel()
 		r.activeMu.Lock()
 		delete(r.activeRuns, run.ID)
 		r.activeMu.Unlock()
@@ -686,35 +724,6 @@ func isCompletedRunningWorkflowParent(run Run) bool {
 	return isWorkflowParentRun(run) &&
 		strings.EqualFold(strings.TrimSpace(run.Status), RunStatusCompleted) &&
 		strings.EqualFold(strings.TrimSpace(run.WorkflowStatus), workflowStatusRunning)
-}
-
-func (r *Runtime) resumeUserPausedGoalRun(ctx context.Context, run Run) {
-	go func() {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), runTimeoutForRun(run))
-		defer cancel()
-		r.activeMu.Lock()
-		r.activeRuns[run.ID] = cancel
-		r.activeMu.Unlock()
-		defer func() {
-			r.activeMu.Lock()
-			delete(r.activeRuns, run.ID)
-			r.activeMu.Unlock()
-		}()
-		session, agent, err := r.workflowResumeContext(timeoutCtx, run)
-		executor := &WorkflowExecutor{runtime: r}
-		if err != nil {
-			_, persistErr := executor.failParent(timeoutCtx, run, err)
-			besteffort.LogError(persistErr)
-			return
-		}
-		updated, err := executor.resumeADKGoalWorkflow(timeoutCtx, session, agent, run)
-		if err != nil {
-			_, persistErr := executor.failParent(timeoutCtx, run, err)
-			besteffort.LogError(persistErr)
-			return
-		}
-		_ = updated
-	}()
 }
 
 func (r *Runtime) UpdateRunObjective(ctx context.Context, runID string, objective string) (Run, error) {

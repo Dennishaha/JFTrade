@@ -43,6 +43,11 @@ export function runScriptRequestFromProto(value: Record<string, unknown>): Prepa
   if (includePlots !== undefined) {
     request.includePlots = includePlots;
   }
+  const sessionId = optionalStringField(value, "session_id", "sessionId");
+  const sessionOperation = optionalStringField(value, "session_operation", "sessionOperation");
+  if (sessionId !== undefined) request.sessionId = sessionId;
+  if (sessionOperation !== undefined) request.sessionOperation = sessionOperation;
+  request.expectedRevision = numberField(value, "expected_revision", "expectedRevision");
   return prepareRunScriptRequest(request, batch);
 }
 
@@ -58,6 +63,8 @@ export function runScriptResponseToProto(response: RunScriptResponse): Record<st
     diagnostics: response.diagnostics.map(diagnosticToProto),
     metadata: metadataToProto(response.metadata),
     error: response.error ?? "",
+    session_id: response.sessionId ?? "",
+    session_revision: response.sessionRevision ?? 0,
   };
   if (response.strategyMetrics !== undefined) {
     proto.strategy_metrics = strategyMetricsToProto(response.strategyMetrics);
@@ -173,6 +180,10 @@ function orderIntentToProto(intent: OrderIntent): Record<string, unknown> {
     has_quantity_pct: intent.hasQuantityPct ?? intent.quantityPct !== undefined,
     has_limit_price: intent.hasLimitPrice ?? intent.limitPrice !== undefined,
     has_stop_price: intent.hasStopPrice ?? intent.stopPrice !== undefined,
+    parent_id: intent.parentId ?? "",
+    atomic_group_id: intent.atomicGroupId ?? "",
+    oco_group_id: intent.ocoGroupId ?? "",
+    reduce_only: intent.reduceOnly ?? false,
   };
 }
 
@@ -196,6 +207,11 @@ function field(value: Record<string, unknown>, snake: string, camel = snake): un
 
 function stringField(value: Record<string, unknown>, snake: string, camel = snake): string {
   return String(field(value, snake, camel) ?? "");
+}
+
+function numberField(value: Record<string, unknown>, snake: string, camel = snake): number {
+  const parsed = Number(field(value, snake, camel) ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function optionalStringField(value: Record<string, unknown>, snake: string, camel = snake): string | undefined {

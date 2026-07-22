@@ -172,6 +172,39 @@ func TestCommandFromOrderIntentRejectsUnsupportedExitBracket(t *testing.T) {
 	}
 }
 
+func TestCommandsFromOrderIntentsExpandsAtomicOCOExit(t *testing.T) {
+	commands, err := CommandsFromOrderIntents([]pineworker.OrderIntent{{
+		Kind: "exit", ID: "protect", FromEntry: "long", ParentID: "long", Direction: "long",
+		LimitPrice: 110, HasLimitPrice: true, StopPrice: 95, HasStopPrice: true,
+		Quantity: 1, HasQuantity: true, AtomicGroupID: "bracket-1", OCOGroupID: "protect-oco", ReduceOnly: true,
+	}})
+	if err != nil {
+		t.Fatalf("CommandsFromOrderIntents: %v", err)
+	}
+	if len(commands) != 2 {
+		t.Fatalf("commands = %#v, want two OCO legs", commands)
+	}
+	if commands[0].ID != "protect:limit" || commands[0].IntentID != "protect" || commands[0].OrderType != types.OrderTypeLimit || commands[0].StopPrice != 0 {
+		t.Fatalf("limit leg = %#v", commands[0])
+	}
+	if commands[1].ID != "protect:stop" || commands[1].IntentID != "protect" || commands[1].OrderType != types.OrderTypeStopMarket || commands[1].LimitPrice != 0 {
+		t.Fatalf("stop leg = %#v", commands[1])
+	}
+	for _, command := range commands {
+		if command.ParentID != "long" || command.AtomicGroupID != "bracket-1" || command.OCOGroupID != "protect-oco" || !command.ReduceOnly {
+			t.Fatalf("unsafe OCO leg = %#v", command)
+		}
+	}
+
+	_, err = CommandsFromOrderIntents([]pineworker.OrderIntent{{
+		Kind: "exit", ID: "unsafe", Direction: "long",
+		LimitPrice: 110, HasLimitPrice: true, StopPrice: 95, HasStopPrice: true,
+	}})
+	if err == nil || !strings.Contains(err.Error(), "requires oco and atomic group ids") {
+		t.Fatalf("unsafe bracket error = %v", err)
+	}
+}
+
 func TestCommandFromOrderIntentCanonicalizesSellEntryAsShort(t *testing.T) {
 	command, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{
 		Kind:        "entry",
@@ -229,6 +262,18 @@ func TestCommandFromOrderIntentRejectsUnsupportedIntent(t *testing.T) {
 	for _, intent := range invalidPrices {
 		if _, ok, priceErr := CommandFromOrderIntent(intent); priceErr == nil || ok {
 			t.Fatalf("CommandFromOrderIntent(%#v) = ok %v, error %v; want invalid-price rejection", intent, ok, priceErr)
+		}
+	}
+
+	invalidRelationships := []pineworker.OrderIntent{
+		{Kind: "entry", ID: "reduce-entry", Direction: "long", ReduceOnly: true},
+		{Kind: "entry", ID: "child-entry", Direction: "long", ParentID: "parent"},
+		{Kind: "exit", ID: "unscoped-oco", Direction: "long", OCOGroupID: "oco"},
+		{Kind: "cancel", ID: "grouped-cancel", AtomicGroupID: "atomic"},
+	}
+	for _, intent := range invalidRelationships {
+		if _, ok, relationshipErr := CommandFromOrderIntent(intent); relationshipErr == nil || ok {
+			t.Fatalf("CommandFromOrderIntent(%#v) = ok %v, error %v; want relationship rejection", intent, ok, relationshipErr)
 		}
 	}
 

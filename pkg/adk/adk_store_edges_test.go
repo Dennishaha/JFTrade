@@ -117,6 +117,8 @@ func TestNewStoreAndDeleteSessionBoundaryBranches(t *testing.T) {
 		name      string
 		dropTable string
 	}{
+		{name: "tool_invocations", dropTable: tableToolInvocations},
+		{name: "run_leases", dropTable: tableRunLeases},
 		{name: "approvals", dropTable: tableApprovals},
 		{name: "tasks", dropTable: tableTasks},
 		{name: "runs", dropTable: tableRuns},

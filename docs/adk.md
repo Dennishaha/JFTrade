@@ -42,6 +42,18 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 - `JFTRADE_ADK_SECRETS`
 - `JFTRADE_ADK_SKILLS_DIR`
 
+## 跨进程执行租约与工具幂等
+
+每个实际执行中的 Run 都必须先在 `adk_run_leases` 取得持久租约。租约记录 executor owner、心跳时间、过期时间和 fencing token；默认租期为 30 秒、每 10 秒续租。启动恢复、超时扫描、审批继续、用户输入继续和目标恢复遇到其他进程的有效租约时不会接管或把 Run 误判为孤儿。租约过期后的接管会提升 fencing token；携带执行租约的 Run 状态写入会在同一个 SQLite 写事务内校验 token，旧进程的心跳、Run 写入和工具结果提交均会失败。
+
+产品工具的每次实际调用以 Run 和 GO-ADK function-call ID 为稳定身份写入 `adk_tool_invocations`。完成结果会持久化并在同一调用恢复时直接重放；执行中的调用有独立心跳，并同时受 Run fencing token 约束。Tool descriptor 的 `idempotencyMode` 有三种值：
+
+- `replay_safe`：无副作用的读取；调用租约过期后允许安全接管。`read*` permission 默认使用此模式。
+- `keyed`：工具必须读取 `ToolInvocationIdempotencyKey(ctx)`，并把该 key 传给外部系统或与副作用一起持久化；运行时会校验工具确实读取过 key，否则把结果标记为未知。调用租约过期后允许使用同一 key 接管。
+- `fail_closed`：默认写入模式。执行进程在结果持久化前失联，或写工具返回无法证明无副作用的错误时，调用进入 `INDETERMINATE`，自动恢复会停止并报告结果未知，禁止盲目重放。
+
+因此，当前保证的是跨进程单执行者、旧执行者 fencing、已完成结果重放，以及不具备幂等能力的写操作失败关闭。严格的“崩溃后仍自动完成 exactly-once”只适用于明确声明 `keyed` 且下游真正按该 key 去重的工具；普通写工具发生结果未知时需要业务侧对账，系统不会把“可能重复执行”伪装成成功恢复。
+
 ## 权限模式
 
 - `approval`：默认模式。读内部/外部资源自动执行；安装 skill、保存策略、运行优化、工作流管理和工作流启动等写动作进入审批。

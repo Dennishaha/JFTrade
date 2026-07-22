@@ -12,10 +12,24 @@ This audit tracks the hard cut from the former Go Pine runtime to the PineTS wor
 | Backtest service/API | Compatible through dependency injection | API startup injects a configured `pineworker.WorkerManager`; service-level execution fails fast when no worker runner is configured instead of falling back to Go Pine. |
 | Strategy definition runtime | Migration compatible | `runtime=pine-pinets` is the current value. `pine-go-plan` is accepted only as a migration alias and normalized to `pine-pinets`. |
 | Strategy source format | Compatible | `sourceFormat=pine-v6` remains the only supported source format. |
-| Pine worker proto | Additive compatible | Existing response fields remain unchanged; `alerts`, `visual_outputs`, and optional `strategy_metrics` are appended after the original fields. |
+| Pine worker proto | Additive compatible | Existing fields remain unchanged. Order intents add `parent_id`、`atomic_group_id`、`oco_group_id`、`reduce_only`; live requests add session operation and expected revision, responses add session revision. |
 | Backtest result model | Compatible | Go remains authoritative for fills, trades, equity, metrics, and result collection. PineTS worker supplies order intents, visual outputs, and upstream strategy metrics for inspection. |
 | Live order path | Compatible with new authority split | PineTS worker produces current-bar order intents; Go still performs risk checks, notifications, broker reads, and order placement. |
 | ADK/spec payload | Migration compatible | Public spec/runtime surfaces advertise `runtime=pine-pinets`; legacy runtime text is limited to migration/history notes. |
+
+## Live incremental worker contract
+
+Production live Pine opens one stateful Worker session per strategy instance and symbol. `open` performs the complete historical warmup once and returns revision 1 without emitting historical orders. Each later closed bar is sent through `append` with the caller's expected revision; PineTS appends the candle to the existing runtime, executes only the new global bar indices, and returns delta plots/events/order intents plus the next revision. `close` retires the pinned Worker and releases its runtime slot.
+
+The session validates immutable source, symbol, timeframe and params, requires strictly increasing candle times, serializes appends, and invalidates itself after an execution failure. A stale revision cannot be replayed into the same state. Injected legacy runners that do not implement the session opener retain the full-history path for compatibility, but the bundled production Worker advertises `live-session-v1` and uses the stateful path.
+
+This protocol removes the repeated full-history calculation from the long-running production path without truncating history or changing `var`、series history、order state and global `bar_index` semantics. It intentionally uses PineTS's append/iteration hooks pinned to the tested PineTS version; upgrading PineTS must rerun the real incremental-state regression before changing the bundled Worker.
+
+## Atomic protective-order contract
+
+A same-bar entry and its protective exit are emitted with one atomic group. The exit references the parent entry, is reduce-only, and a limit-plus-stop bracket carries one OCO group. Go expands a dual-price exit into separate limit and stop legs, preflights the entire bar before any order side effect, and submits the complete group only through `PineWorkerAtomicOrderExecutor`.
+
+An execution backend implementing that interface promises all-or-none acceptance, child activation only after the parent fill, OCO sibling cancellation and reduce-only enforcement at match time. A backend that cannot make all four promises is not allowed to emulate the group with sequential `SubmitOrders`: the complete group is rejected before the entry is placed. The current Futu live adapter does not claim this atomic capability, so same-bar protective groups fail closed rather than opening an unprotected position. This protocol is narrower than general TradingView OCA/partial-fill parity, which remains outside the current broker-emulator score.
 
 ## PineTS capability alignment
 

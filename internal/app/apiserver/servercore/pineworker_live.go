@@ -32,6 +32,7 @@ type strategyRuntimePineWorkerLive struct {
 
 	mu      sync.Mutex
 	candles []pineworker.Candle
+	session pineWorkerLiveSession
 }
 
 func newStrategyRuntimePineWorkerLive(
@@ -99,18 +100,67 @@ func (live *strategyRuntimePineWorkerLive) recordWarmupClosed(closed bbgotypes.K
 func (live *strategyRuntimePineWorkerLive) onClosedKLine(ctx context.Context, closed bbgotypes.KLine) error {
 	live.mu.Lock()
 	defer live.mu.Unlock()
-	live.candles = append(live.candles, bt.CandleFromKLine(closed))
+	candle := bt.CandleFromKLine(closed)
+	live.candles = append(live.candles, candle)
 	live.sizer.onKLineClosed(closed)
+	currentBarIndex := len(live.candles) - 1
 	request := live.requestLocked()
-	response, err := live.runner.RunScript(ctx, request)
+	var response pineworker.RunScriptResponse
+	var err error
+	if live.session != nil {
+		request.Candles = []pineworker.Candle{candle}
+		response, err = live.session.Append(ctx, request)
+	} else {
+		response, err = live.runner.RunScript(ctx, request)
+	}
 	if err != nil {
 		return fmt.Errorf("run live pine worker for %s: %w", live.symbol, err)
 	}
-	commands, err := bt.CommandsFromOrderIntents(strategyRuntimeCurrentBarIntents(response.OrderIntents, len(request.Candles)-1, closed.StartTime.Time()))
+	commands, err := bt.CommandsFromOrderIntents(strategyRuntimeCurrentBarIntents(response.OrderIntents, currentBarIndex, closed.StartTime.Time()))
 	if err != nil {
 		return fmt.Errorf("map live pine worker intents for %s: %w", live.symbol, err)
 	}
 	return live.commandExecutor.ExecuteBarCommands(ctx, commands)
+}
+
+func (live *strategyRuntimePineWorkerLive) openSession(ctx context.Context) error {
+	opener, ok := live.runner.(pineWorkerLiveSessionOpener)
+	if !ok {
+		return nil
+	}
+	live.mu.Lock()
+	defer live.mu.Unlock()
+	if live.session != nil {
+		return nil
+	}
+	request := live.requestLocked()
+	request.SessionID = fmt.Sprintf("strategy:%s:%s", live.instance.ID, live.symbol)
+	session, response, err := opener.OpenLiveSession(ctx, request)
+	if err != nil {
+		return fmt.Errorf("open stateful live pine worker for %s: %w", live.symbol, err)
+	}
+	if session == nil || response.SessionRevision != 1 {
+		if session != nil {
+			_ = session.Close(context.Background())
+		}
+		return fmt.Errorf("open stateful live pine worker for %s returned an invalid session", live.symbol)
+	}
+	live.session = session
+	return nil
+}
+
+func (live *strategyRuntimePineWorkerLive) closeSession(ctx context.Context) error {
+	if live == nil {
+		return nil
+	}
+	live.mu.Lock()
+	session := live.session
+	live.session = nil
+	live.mu.Unlock()
+	if session == nil {
+		return nil
+	}
+	return session.Close(ctx)
 }
 
 func (live *strategyRuntimePineWorkerLive) requestLocked() pineworker.RunScriptRequest {

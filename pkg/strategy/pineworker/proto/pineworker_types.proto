@@ -44,6 +44,12 @@ message RunScriptRequest {
   CandleBatch candles = 7;
   map<string, string> params = 8;
   bool include_plots = 9;
+  // Live sessions retain PineTS state inside one worker. open carries the
+  // complete warmup history, append carries only newly closed candles, and
+  // close releases the state. Empty means a traditional stateless run.
+  string session_id = 10;
+  string session_operation = 11;
+  uint64 expected_revision = 12;
 }
 
 message RunScriptResponse {
@@ -58,4 +64,6 @@ message RunScriptResponse {
   repeated AlertEvent alerts = 9;
   repeated VisualOutput visual_outputs = 10;
   StrategyMetrics strategy_metrics = 11;
+  string session_id = 12;
+  uint64 session_revision = 13;
 }

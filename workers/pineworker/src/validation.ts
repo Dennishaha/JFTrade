@@ -25,9 +25,24 @@ export function validateRunScriptRequest(
   limits: WorkerLimits = defaultWorkerLimits,
 ): RunMode {
   requireText(request.jobId, "job id");
-  requireText(request.source, "source");
-
+  const operation = normalizeSessionOperation(request.sessionOperation);
+  if (operation !== undefined) {
+    requireText(request.sessionId, "session id");
+  }
   const mode = normalizeMode(request.mode);
+  if (operation !== undefined && mode !== "live") {
+    throw new Error("pine worker sessions require live mode");
+  }
+  if (operation === "open" && (request.expectedRevision ?? 0) !== 0) {
+    throw new Error("pine worker session open requires expected revision 0");
+  }
+  if (operation === "append" && (request.expectedRevision ?? 0) === 0) {
+    throw new Error("pine worker session append requires a positive expected revision");
+  }
+  if (operation === "close") {
+    return "live";
+  }
+  requireText(request.source, "source");
   if (mode !== "analyze") {
     requireText(request.symbol, "symbol");
     requireText(request.timeframe, "timeframe");
@@ -47,6 +62,15 @@ export function validateRunScriptRequest(
   }
   request.candles.forEach(validateCandle);
   return mode;
+}
+
+export function normalizeSessionOperation(
+  operation: RunScriptRequest["sessionOperation"],
+): "open" | "append" | "close" | undefined {
+  const normalized = String(operation ?? "").trim().toLowerCase();
+  if (normalized === "") return undefined;
+  if (normalized === "open" || normalized === "append" || normalized === "close") return normalized;
+  throw new Error(`unsupported pine worker session operation: ${operation}`);
 }
 
 function validateCandle(candle: Candle, index: number): void {

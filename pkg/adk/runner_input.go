@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"google.golang.org/genai"
 )
 
@@ -25,41 +26,120 @@ func (r *Runtime) ResolveInputAsync(ctx context.Context, runID string, payload I
 	} else if parent != nil {
 		resolution.ParentRun = parent
 	}
-	if !changed {
-		return resolution, nil
+	if changed {
+		r.audit(ctx, "input.resolved", run.InputRequest.ID, "Agent input request resolved.", map[string]any{
+			"runId": run.ID, "requestId": run.InputRequest.ID, "answers": len(run.InputRequest.Answers),
+		})
 	}
-	r.audit(ctx, "input.resolved", run.InputRequest.ID, "Agent input request resolved.", map[string]any{
-		"runId": run.ID, "requestId": run.InputRequest.ID, "answers": len(run.InputRequest.Answers),
-	})
-	go r.continueResolvedInput(context.Background(), run.ID)
+	if runHasRecoverableAnsweredInputContext(run) {
+		r.enqueueResolvedInputContinuation(run.ID)
+	}
 	return resolution, nil
 }
 
-func (r *Runtime) continueResolvedInput(ctx context.Context, runID string) {
+func (r *Runtime) claimInputContinuation(runID string) bool {
+	runID = strings.TrimSpace(runID)
+	if r == nil || runID == "" {
+		return false
+	}
+	r.approvalMu.Lock()
+	defer r.approvalMu.Unlock()
+	if r.inputRuns == nil {
+		r.inputRuns = make(map[string]struct{})
+	}
+	if _, exists := r.inputRuns[runID]; exists {
+		return false
+	}
+	r.inputRuns[runID] = struct{}{}
+	return true
+}
+
+func (r *Runtime) releaseInputContinuation(runID string) {
+	if r == nil {
+		return
+	}
+	r.approvalMu.Lock()
+	delete(r.inputRuns, strings.TrimSpace(runID))
+	r.approvalMu.Unlock()
+}
+
+func (r *Runtime) enqueueResolvedInputContinuation(runID string) {
+	runID = strings.TrimSpace(runID)
+	if r == nil || r.store == nil || runID == "" || !r.claimInputContinuation(runID) {
+		return
+	}
+	r.approvalMu.Lock()
+	if r.closing {
+		r.approvalMu.Unlock()
+		r.releaseInputContinuation(runID)
+		return
+	}
+	r.approvalWG.Add(1)
+	ctx := r.backgroundCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	r.approvalMu.Unlock()
+	go func() {
+		defer r.approvalWG.Done()
+		defer r.releaseInputContinuation(runID)
+		if err := r.continueResolvedInput(ctx, runID); err != nil && ctx.Err() == nil {
+			besteffort.LogError(err)
+		}
+	}()
+}
+
+func (r *Runtime) continueResolvedInput(ctx context.Context, runID string) error {
 	run, ok, err := r.store.Run(ctx, runID)
 	if err != nil || !ok || run.InputRequest == nil || run.InputRequest.Status != InputRequestStatusAnswered || run.Status != RunStatusRunning {
-		return
+		return err
 	}
-	execution, err := r.resumeAnsweredInput(ctx, run)
+	timeoutCtx, timeoutCancel := context.WithTimeout(ctx, runTimeoutForRun(run))
+	defer timeoutCancel()
+	leaseCtx, leaseCancel, waitForLease, leaseErr := r.beginRunExecutionLease(timeoutCtx, run.ID)
+	if leaseErr != nil {
+		if isRunLeaseHeld(leaseErr) {
+			return nil
+		}
+		return leaseErr
+	}
+	defer func() {
+		leaseCancel()
+		waitForLease()
+	}()
+	run, ok, err = r.store.Run(leaseCtx, run.ID)
+	if err != nil || !ok || run.InputRequest == nil || run.InputRequest.Status != InputRequestStatusAnswered || run.Status != RunStatusRunning {
+		return err
+	}
+	execution, err := r.resumeAnsweredInput(leaseCtx, run)
 	if err != nil {
-		r.failInputContinuation(ctx, run, err)
-		return
+		r.failInputContinuation(leaseCtx, run, err)
+		return nil
 	}
-	if paused, err := r.pauseForNextInput(ctx, run, execution); err != nil {
-		r.failInputContinuation(ctx, run, err)
-		return
+	if paused, err := r.pauseForNextInput(leaseCtx, run, execution); err != nil {
+		r.failInputContinuation(leaseCtx, run, err)
+		return nil
 	} else if paused {
-		return
+		return nil
 	}
-	if paused, err := r.pauseForApprovalAfterInput(ctx, run, execution); err != nil {
-		r.failInputContinuation(ctx, run, err)
-		return
+	if paused, err := r.pauseForApprovalAfterInput(leaseCtx, run, execution); err != nil {
+		r.failInputContinuation(leaseCtx, run, err)
+		return nil
 	} else if paused {
-		return
+		return nil
 	}
-	if err := r.completeInputContinuation(ctx, run, execution); err != nil {
-		r.failInputContinuation(ctx, run, err)
+	if err := r.completeInputContinuation(leaseCtx, run, execution); err != nil {
+		r.failInputContinuation(leaseCtx, run, err)
 	}
+	return nil
+}
+
+func runHasRecoverableAnsweredInputContext(run Run) bool {
+	return run.Status == RunStatusRunning &&
+		strings.TrimSpace(run.ResumeState) == "input_resuming" &&
+		run.InputRequest != nil &&
+		run.InputRequest.Status == InputRequestStatusAnswered &&
+		strings.TrimSpace(run.InputRequest.FunctionCallID) != ""
 }
 
 func (r *Runtime) resumeAnsweredInput(ctx context.Context, run Run) (*googleADKExecution, error) {

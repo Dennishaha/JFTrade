@@ -24,6 +24,9 @@ export type RunScriptRequest = {
   candles: Candle[];
   params?: Record<string, string>;
   includePlots?: boolean;
+  sessionId?: string;
+  sessionOperation?: "open" | "append" | "close" | string;
+  expectedRevision?: number;
 };
 
 export const preparedRunScriptRequest = Symbol("preparedRunScriptRequest");
@@ -88,6 +91,10 @@ export type OrderIntent = {
   hasQuantityPct?: boolean;
   hasLimitPrice?: boolean;
   hasStopPrice?: boolean;
+  parentId?: string;
+  atomicGroupId?: string;
+  ocoGroupId?: string;
+  reduceOnly?: boolean;
 };
 
 export type WorkerMetadata = {
@@ -124,6 +131,8 @@ export type RunScriptResponse = {
   metadata: WorkerMetadata;
   error?: string;
   strategyMetrics?: StrategyMetrics;
+  sessionId?: string;
+  sessionRevision?: number;
 };
 
 export type PineTSPlotDataPoint = {
@@ -150,6 +159,13 @@ export type PineTSRunResult = {
 export type PineTSExecutor = {
   run(request: PreparedRunScriptRequest): Promise<PineTSRunResult>;
   version(): string;
+  openLiveSession?(sessionId: string, request: PreparedRunScriptRequest): Promise<PineTSRunResult>;
+  appendLiveSession?(
+    sessionId: string,
+    expectedRevision: number,
+    request: PreparedRunScriptRequest,
+  ): Promise<{ result: PineTSRunResult; revision: number }>;
+  closeLiveSession?(sessionId: string, expectedRevision: number): Promise<number>;
 };
 
 export type HealthStatus = {

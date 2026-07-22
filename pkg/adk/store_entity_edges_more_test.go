@@ -72,7 +72,7 @@ func TestStoreEntityAndCoreAdditionalEdgeBranches(t *testing.T) {
 
 	t.Run("delete session surfaces each cascade table failure", func(t *testing.T) {
 		for _, table := range []string{
-			tableApprovals, tableTasks, tableRuns, tableSessionContexts, tableSessionContextLive,
+			tableToolInvocations, tableRunLeases, tableApprovals, tableTasks, tableRuns, tableSessionContexts, tableSessionContextLive,
 			tableHandoffSegments, tableSessionNotices, tableSessionComposer, tableSessions,
 		} {
 			store := newBusinessStore(t)

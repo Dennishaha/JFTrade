@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -82,6 +84,15 @@ type pineWorkerRuntimeConfig struct {
 
 type pineWorkerRunner interface {
 	RunScript(context.Context, pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error)
+}
+
+type pineWorkerLiveSession interface {
+	Append(context.Context, pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error)
+	Close(context.Context) error
+}
+
+type pineWorkerLiveSessionOpener interface {
+	OpenLiveSession(context.Context, pineworker.RunScriptRequest) (pineWorkerLiveSession, pineworker.RunScriptResponse, error)
 }
 
 type pineWorkerRunnerKind string
@@ -167,6 +178,9 @@ type ephemeralPineWorkerRunner struct {
 	busy           chan struct{}
 	rejectWhenBusy bool
 	nextID         atomic.Uint64
+	mu             sync.Mutex
+	sessions       map[*ephemeralPineWorkerSession]struct{}
+	closed         bool
 }
 
 func newEphemeralPineWorkerRunner(config pineWorkerRuntimeConfig, kind pineWorkerRunnerKind) (*ephemeralPineWorkerRunner, error) {
@@ -193,6 +207,7 @@ func newEphemeralPineWorkerRunner(config pineWorkerRuntimeConfig, kind pineWorke
 		dialer:         newPineWorkerDialer(config.MaxMessageBytes),
 		busy:           make(chan struct{}, workers),
 		rejectWhenBusy: kind == pineWorkerRunnerInstance,
+		sessions:       make(map[*ephemeralPineWorkerSession]struct{}),
 	}, nil
 }
 
@@ -221,8 +236,148 @@ func (runner *ephemeralPineWorkerRunner) RunScript(ctx context.Context, request 
 	return manager.RunScript(ctx, request)
 }
 
-func (runner *ephemeralPineWorkerRunner) Close(context.Context) error {
-	return nil
+func (runner *ephemeralPineWorkerRunner) OpenLiveSession(
+	ctx context.Context,
+	request pineworker.RunScriptRequest,
+) (pineWorkerLiveSession, pineworker.RunScriptResponse, error) {
+	if runner == nil {
+		return nil, pineworker.RunScriptResponse{}, fmt.Errorf("pine worker runner is nil")
+	}
+	runner.mu.Lock()
+	closed := runner.closed
+	runner.mu.Unlock()
+	if closed {
+		return nil, pineworker.RunScriptResponse{}, fmt.Errorf("pine worker runner is closed")
+	}
+	if err := runner.acquire(ctx); err != nil {
+		return nil, pineworker.RunScriptResponse{}, err
+	}
+	manager, err := runner.newManager(ctx)
+	if err != nil {
+		runner.release()
+		return nil, pineworker.RunScriptResponse{}, err
+	}
+	if err := manager.Start(ctx); err != nil {
+		runner.release()
+		return nil, pineworker.RunScriptResponse{}, err
+	}
+	request.Mode = pineworker.ModeLive
+	request.SessionOperation = pineworker.SessionOperationOpen
+	request.ExpectedRevision = 0
+	if strings.TrimSpace(request.SessionID) == "" {
+		request.SessionID = fmt.Sprintf("live-session-%d", runner.nextID.Add(1))
+	}
+	response, err := manager.RunScript(ctx, request)
+	if err != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), runner.stopTimeout())
+		defer cancel()
+		_ = manager.Stop(stopCtx)
+		runner.release()
+		return nil, response, err
+	}
+	session := &ephemeralPineWorkerSession{
+		runner: runner, manager: manager, sessionID: request.SessionID,
+		revision: response.SessionRevision,
+	}
+	runner.mu.Lock()
+	if runner.closed {
+		runner.mu.Unlock()
+		_ = session.Close(context.Background())
+		return nil, pineworker.RunScriptResponse{}, fmt.Errorf("pine worker runner is closed")
+	}
+	runner.sessions[session] = struct{}{}
+	runner.mu.Unlock()
+	go func() {
+		<-ctx.Done()
+		stopCtx, cancel := context.WithTimeout(context.Background(), runner.stopTimeout())
+		defer cancel()
+		_ = session.Close(stopCtx)
+	}()
+	return session, response, nil
+}
+
+func (runner *ephemeralPineWorkerRunner) Close(ctx context.Context) error {
+	if runner == nil {
+		return nil
+	}
+	runner.mu.Lock()
+	runner.closed = true
+	sessions := make([]*ephemeralPineWorkerSession, 0, len(runner.sessions))
+	for session := range runner.sessions {
+		sessions = append(sessions, session)
+	}
+	runner.mu.Unlock()
+	var closeErr error
+	for _, session := range sessions {
+		closeErr = errors.Join(closeErr, session.Close(ctx))
+	}
+	return closeErr
+}
+
+type ephemeralPineWorkerSession struct {
+	runner    *ephemeralPineWorkerRunner
+	manager   *pineworker.WorkerManager
+	sessionID string
+
+	mu       sync.Mutex
+	revision uint64
+	closed   bool
+}
+
+func (session *ephemeralPineWorkerSession) Append(
+	ctx context.Context,
+	request pineworker.RunScriptRequest,
+) (pineworker.RunScriptResponse, error) {
+	if session == nil || session.manager == nil {
+		return pineworker.RunScriptResponse{}, fmt.Errorf("pine worker live session is unavailable")
+	}
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	if session.closed {
+		return pineworker.RunScriptResponse{}, fmt.Errorf("pine worker live session %q is closed", session.sessionID)
+	}
+	request.Mode = pineworker.ModeLive
+	request.SessionID = session.sessionID
+	request.SessionOperation = pineworker.SessionOperationAppend
+	request.ExpectedRevision = session.revision
+	response, err := session.manager.RunScript(ctx, request)
+	if err != nil {
+		return response, err
+	}
+	session.revision = response.SessionRevision
+	return response, nil
+}
+
+func (session *ephemeralPineWorkerSession) Close(ctx context.Context) error {
+	if session == nil {
+		return nil
+	}
+	session.mu.Lock()
+	if session.closed {
+		session.mu.Unlock()
+		return nil
+	}
+	session.closed = true
+	revision := session.revision
+	session.mu.Unlock()
+	var closeErr error
+	if session.manager != nil {
+		_, closeErr = session.manager.RunScript(ctx, pineworker.RunScriptRequest{
+			JobID: fmt.Sprintf("close:%s:%d", session.sessionID, time.Now().UnixNano()),
+			Mode:  pineworker.ModeLive, SessionID: session.sessionID,
+			SessionOperation: pineworker.SessionOperationClose, ExpectedRevision: revision,
+		})
+		stopCtx, cancel := context.WithTimeout(context.Background(), session.runner.stopTimeout())
+		closeErr = errors.Join(closeErr, session.manager.Stop(stopCtx))
+		cancel()
+	}
+	if session.runner != nil {
+		session.runner.mu.Lock()
+		delete(session.runner.sessions, session)
+		session.runner.mu.Unlock()
+		session.runner.release()
+	}
+	return closeErr
 }
 
 func (runner *ephemeralPineWorkerRunner) acquire(ctx context.Context) error {

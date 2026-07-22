@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	adkagent "google.golang.org/adk/v2/agent"
 	adkartifact "google.golang.org/adk/v2/artifact"
@@ -25,6 +26,7 @@ type googleADKTool struct {
 	registered RegisteredTool
 	tool       googleADKRunnableTool
 	agent      Agent
+	execution  *googleADKExecution
 }
 
 type googleADKRunnableTool interface {
@@ -47,8 +49,8 @@ type googleADKArtifactToolset struct {
 	service adkartifact.Service
 }
 
-func (r *Runtime) googleADKToolsets(ctx context.Context, definition Agent) ([]adktool.Toolset, error) {
-	baseToolset, err := r.googleADKProductToolset(definition)
+func (r *Runtime) googleADKToolsets(ctx context.Context, definition Agent, executions ...*googleADKExecution) ([]adktool.Toolset, error) {
+	baseToolset, err := r.googleADKProductToolset(definition, executions...)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +239,11 @@ func (s *agentFilteredSkillSource) isAllowed(name string) bool {
 	return ok
 }
 
-func (r *Runtime) googleADKProductToolset(definition Agent) (adktool.Toolset, error) {
+func (r *Runtime) googleADKProductToolset(definition Agent, executions ...*googleADKExecution) (adktool.Toolset, error) {
+	var execution *googleADKExecution
+	if len(executions) > 0 {
+		execution = executions[0]
+	}
 	descriptors := ToolDescriptorsForAgent(definition, r.tools)
 	if len(descriptors) == 0 {
 		return nil, nil
@@ -253,7 +259,7 @@ func (r *Runtime) googleADKProductToolset(definition Agent) (adktool.Toolset, er
 			continue
 		}
 		registered, _ := r.tools.Get(descriptor.Name)
-		tool, err := newGoogleADKTool(descriptor, registered)
+		tool, err := newGoogleADKTool(descriptor, registered, execution)
 		if err != nil {
 			return nil, err
 		}
@@ -263,7 +269,7 @@ func (r *Runtime) googleADKProductToolset(definition Agent) (adktool.Toolset, er
 	return &googleADKProductToolset{name: "jftrade-tools", tools: tools}, nil
 }
 
-func newGoogleADKTool(descriptor ToolDescriptor, registered RegisteredTool) (*googleADKTool, error) {
+func newGoogleADKTool(descriptor ToolDescriptor, registered RegisteredTool, executions ...*googleADKExecution) (*googleADKTool, error) {
 	schema := descriptor.InputSchema
 	if schema == nil {
 		schema = map[string]any{"type": "object", "properties": map[string]any{}}
@@ -271,7 +277,11 @@ func newGoogleADKTool(descriptor ToolDescriptor, registered RegisteredTool) (*go
 	if _, err := googleADKJSONSchemaFromMap(sanitizeSchemaForOpenAI(schema)); err != nil {
 		return nil, fmt.Errorf("convert GO-ADK product tool schema %q: %w", descriptor.Name, err)
 	}
-	wrapper := &googleADKTool{descriptor: descriptor, registered: registered}
+	var execution *googleADKExecution
+	if len(executions) > 0 {
+		execution = executions[0]
+	}
+	wrapper := &googleADKTool{descriptor: descriptor, registered: registered, execution: execution}
 	inner, err := functiontool.New[map[string]any, map[string]any](functiontool.Config{
 		Name:        descriptor.Name,
 		Description: descriptor.Description,
@@ -434,6 +444,81 @@ func (t *googleADKTool) Run(ctx adkagent.Context, args any) (map[string]any, err
 func (t *googleADKTool) run(ctx adkagent.Context, input map[string]any) (map[string]any, error) {
 	toolCtx := contextWithToolInvocationMetadata(ctx)
 	toolCtx = contextWithToolAgent(toolCtx, t.agent)
+	if t.execution == nil || t.execution.runtime == nil || t.execution.runtime.store == nil {
+		mapped, execErr := t.executeAndMap(toolCtx, input)
+		if errors.Is(execErr, adktool.ErrConfirmationRequired) || errors.Is(execErr, adktool.ErrConfirmationRejected) {
+			return nil, execErr
+		}
+		return mapped, nil
+	}
+	runtime := t.execution.runtime
+	leaseRunID := strings.TrimSpace(t.execution.runID)
+	functionCallID := strings.TrimSpace(ctx.FunctionCallID())
+	if leaseRunID == "" || functionCallID == "" {
+		return nil, fmt.Errorf("durable ADK tool invocation requires run and function call ids")
+	}
+	lease, ok := runtime.currentRunLease(leaseRunID)
+	contextLease, contextOwnsRun := runExecutionLeaseFromContext(toolCtx)
+	if !ok || !contextOwnsRun || toolCtx.Err() != nil || contextLease.RunID != leaseRunID || contextLease.FencingToken != lease.FencingToken {
+		return nil, fmt.Errorf("%w: run %s has no active execution lease", ErrRunLeaseLost, leaseRunID)
+	}
+	logicalRunID := strings.TrimSpace(t.execution.runIDForAgentName(ctx.AgentName()))
+	if logicalRunID == "" {
+		logicalRunID = leaseRunID
+	}
+	invocationKey := functionCallID
+	if logicalRunID != leaseRunID {
+		invocationKey = logicalRunID + ":" + functionCallID
+	}
+	stableKey := leaseRunID + ":" + invocationKey
+	ticket, err := runtime.store.ClaimToolInvocation(toolCtx, ToolInvocationClaim{
+		RunID: leaseRunID, IdempotencyKey: invocationKey, ToolName: t.Name(),
+		OwnerID: lease.OwnerID, RunLeaseToken: lease.FencingToken,
+		Input: input, Mode: t.descriptor.IdempotencyMode, Now: time.Now().UTC(), TTL: defaultADKToolClaimTTL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if ticket.Replayed {
+		return ticket.Output, nil
+	}
+	claimedCtx, stopHeartbeat := runtime.beginToolInvocationHeartbeat(toolCtx, ticket)
+	claimedCtx, idempotency := contextWithToolInvocationIdempotencyKey(claimedCtx, stableKey)
+	mapped, execErr := t.executeAndMap(claimedCtx, input)
+	heartbeatErr := stopHeartbeat()
+	if errors.Is(execErr, adktool.ErrConfirmationRequired) || errors.Is(execErr, adktool.ErrConfirmationRejected) {
+		_ = runtime.store.AbandonToolInvocation(context.WithoutCancel(toolCtx), ticket)
+		return nil, execErr
+	}
+	if heartbeatErr != nil {
+		return nil, heartbeatErr
+	}
+	if errors.Is(execErr, context.Canceled) || errors.Is(execErr, context.DeadlineExceeded) {
+		return nil, execErr
+	}
+	mode := normalizeToolIdempotencyMode(t.descriptor.IdempotencyMode, t.descriptor.Permission)
+	if mode == ToolIdempotencyKeyed && !idempotency.observed.Load() {
+		markErr := runtime.store.MarkToolInvocationIndeterminate(context.WithoutCancel(toolCtx), ticket, time.Now().UTC())
+		contractErr := fmt.Errorf("%w: keyed tool %s did not consume ToolInvocationIdempotencyKey", ErrToolOutcomeUnknown, t.Name())
+		if markErr != nil {
+			return nil, errors.Join(contractErr, markErr)
+		}
+		return nil, contractErr
+	}
+	if execErr != nil && mode == ToolIdempotencyFailClosed {
+		markErr := runtime.store.MarkToolInvocationIndeterminate(context.WithoutCancel(toolCtx), ticket, time.Now().UTC())
+		if markErr != nil {
+			return nil, errors.Join(execErr, markErr)
+		}
+		return nil, fmt.Errorf("%w: tool %s returned an uncertain write failure: %v", ErrToolOutcomeUnknown, t.Name(), execErr)
+	}
+	if err := runtime.store.CompleteToolInvocation(context.WithoutCancel(toolCtx), ticket, mapped, time.Now().UTC()); err != nil {
+		return nil, err
+	}
+	return mapped, nil
+}
+
+func (t *googleADKTool) executeAndMap(toolCtx context.Context, input map[string]any) (map[string]any, error) {
 	output, execErr := executeRegisteredTool(toolCtx, t.registered, input)
 	if execErr != nil {
 		if errors.Is(execErr, adktool.ErrConfirmationRequired) || errors.Is(execErr, adktool.ErrConfirmationRejected) {
@@ -448,7 +533,7 @@ func (t *googleADKTool) run(ctx adkagent.Context, input map[string]any) (map[str
 		return map[string]any{
 			"success": false,
 			"message": fmt.Sprintf("工具 %s 执行失败: %s", t.Name(), execErr.Error()),
-		}, nil
+		}, execErr
 	}
 	if mapped, ok := output.(map[string]any); ok {
 		if structuredErr, ok := structuredToolError(mapped); ok {

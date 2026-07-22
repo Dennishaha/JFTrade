@@ -68,6 +68,7 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 		placeQuery.Side = strings.ToUpper(string(order.Side))
 		placeQuery.OrderType = strings.ToUpper(string(order.Type))
 		placeQuery.Quantity = order.Quantity.Float64()
+		placeQuery.ReduceOnly = order.ReduceOnly
 		if order.Price.Sign() > 0 {
 			placeQuery.Price = new(order.Price.Float64())
 		}

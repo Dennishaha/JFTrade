@@ -65,6 +65,15 @@ message OrderIntent {
   bool has_quantity_pct = 15;
   bool has_limit_price = 16;
   bool has_stop_price = 17;
+  // parent_id links a protective child to the logical Pine entry order.
+  string parent_id = 18;
+  // atomic_group_id requires every placement in the group to be accepted as
+  // one unit. Executors without that capability must reject the whole group.
+  string atomic_group_id = 19;
+  // oco_group_id identifies mutually exclusive protective legs.
+  string oco_group_id = 20;
+  // reduce_only prevents an exit from increasing or reversing exposure.
+  bool reduce_only = 21;
 }
 
 message WorkerMetadata {

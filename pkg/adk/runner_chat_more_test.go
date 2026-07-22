@@ -164,8 +164,16 @@ func TestGoogleADKExecuteAdditionalBranches(t *testing.T) {
 			Tools:      []string{"strategy.save_draft"},
 		})
 		session := mustCreateSession(t, runtime, agent.ID, "execute missing final reply")
+		leaseCtx, cancelLease, waitForLease, leaseErr := runtime.beginRunExecutionLease(ctx, "run-execute-missing-final-reply")
+		if leaseErr != nil {
+			t.Fatalf("beginRunExecutionLease: %v", leaseErr)
+		}
+		defer func() {
+			cancelLease()
+			waitForLease()
+		}()
 
-		toolContext, approvals, result, _, _, err := runtime.executeGoogleADK(ctx, agent, session, "run-execute-missing-final-reply", "保存策略草稿", nil)
+		toolContext, approvals, result, _, _, err := runtime.executeGoogleADK(leaseCtx, agent, session, "run-execute-missing-final-reply", "保存策略草稿", nil)
 		if err == nil || !strings.Contains(err.Error(), errADKMissingFinalReply().Error()) {
 			t.Fatalf("executeGoogleADK missing final reply err = %v, want %v", err, errADKMissingFinalReply())
 		}

@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -74,7 +75,11 @@ func (e *WorkflowExecutor) completeWorkflowChildrenFromADK(
 			continue
 		}
 		child = hydrateRunExecutionResult(child, toolContext, childApprovals, "", "")
-		response, err := e.runtime.completeChatRun(ctx, req.Session, child, child.UserMessage, toolContext, childApprovals, replyResult, nil)
+		childCtx, err := e.runtime.activeRunExecutionContext(ctx, child.ID)
+		if err != nil {
+			return nil, err
+		}
+		response, err := e.runtime.completeChatRun(childCtx, req.Session, child, child.UserMessage, toolContext, childApprovals, replyResult, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +146,11 @@ func (e *WorkflowExecutor) failWorkflowChildAfterMissingFinal(
 	toolContext := execution.toolContextForRun(child.ID)
 	child = hydrateRunExecutionResult(child, toolContext, nil, "", "")
 	child = markFailedChatRun(ctx, child, cause)
-	if err := e.runtime.persistRunTerminalState(context.Background(), child); err != nil {
+	childCtx, err := e.runtime.activeRunExecutionContext(ctx, child.ID)
+	if err != nil {
+		return errors.Join(cause, err)
+	}
+	if err := e.runtime.persistRunTerminalState(context.WithoutCancel(childCtx), child); err != nil {
 		return fmt.Errorf("persist failed workflow child state: %w", err)
 	}
 	return cause
@@ -227,7 +236,7 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 	}
 	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := e.runtime.executeGoogleADK(childCtx, childAgent, childSession, child.ID, step.Message, req.OnDelta)
 	child = hydrateRunExecutionResult(child, toolContext, approvals, preToolContent, preToolReasoning)
-	response, err := e.runtime.completeChatRun(ctx, childSession, child, step.Message, toolContext, approvals, replyResult, adkErr)
+	response, err := e.runtime.completeChatRun(childCtx, childSession, child, step.Message, toolContext, approvals, replyResult, adkErr)
 	e.runtime.workflowChildMu.Unlock()
 	if err != nil {
 		_, jftradeErr9 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED")})

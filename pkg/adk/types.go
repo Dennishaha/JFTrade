@@ -350,6 +350,7 @@ type ToolDescriptor struct {
 	Description        string         `json:"description"`
 	Category           string         `json:"category"`
 	Permission         string         `json:"permission"`
+	IdempotencyMode    string         `json:"idempotencyMode,omitempty"`
 	AllowedModes       []string       `json:"allowedModes"`
 	RequiresApprovalIn []string       `json:"requiresApprovalIn"`
 	InputSchema        map[string]any `json:"inputSchema,omitempty"`

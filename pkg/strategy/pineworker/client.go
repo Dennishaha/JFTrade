@@ -79,6 +79,18 @@ func (client *Client) RunScript(ctx context.Context, request RunScriptRequest) (
 	if response.JobID == "" {
 		response.JobID = request.JobID
 	}
+	if operation := normalizeSessionOperation(request.SessionOperation); operation != "" {
+		if response.SessionID != "" && response.SessionID != request.SessionID {
+			return response, fmt.Errorf("pine worker response session id %q does not match request %q", response.SessionID, request.SessionID)
+		}
+		response.SessionID = request.SessionID
+		if operation == SessionOperationOpen && response.SessionRevision != 1 {
+			return response, fmt.Errorf("pine worker opened session %q at invalid revision %d", request.SessionID, response.SessionRevision)
+		}
+		if operation == SessionOperationAppend && response.SessionRevision != request.ExpectedRevision+1 {
+			return response, fmt.Errorf("pine worker appended session %q at invalid revision %d", request.SessionID, response.SessionRevision)
+		}
+	}
 
 	duration := response.Metadata.Duration
 	if duration <= 0 {

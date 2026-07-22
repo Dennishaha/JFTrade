@@ -16,6 +16,9 @@ const jsonKeyBytes = {
   candles: jsonStringBytes("candles") + 1,
   params: jsonStringBytes("params") + 1,
   includePlots: jsonStringBytes("includePlots") + 1,
+  sessionId: jsonStringBytes("sessionId") + 1,
+  sessionOperation: jsonStringBytes("sessionOperation") + 1,
+  expectedRevision: jsonStringBytes("expectedRevision") + 1,
   openTime: jsonStringBytes("openTime") + 1,
   closeTime: jsonStringBytes("closeTime") + 1,
   open: jsonStringBytes("open") + 1,
@@ -118,6 +121,9 @@ function estimateRunScriptRequestBytes(request: RunScriptRequest, candlesBytes: 
     [jsonKeyBytes.candles, candlesBytes],
     [jsonKeyBytes.params, paramsJSONBytes(request.params)],
     [jsonKeyBytes.includePlots, request.includePlots === undefined ? undefined : (request.includePlots ? 4 : 5)],
+    [jsonKeyBytes.sessionId, request.sessionId === undefined ? undefined : jsonStringBytes(request.sessionId)],
+    [jsonKeyBytes.sessionOperation, request.sessionOperation === undefined ? undefined : jsonStringBytes(request.sessionOperation)],
+    [jsonKeyBytes.expectedRevision, request.expectedRevision === undefined ? undefined : numberJSONBytes(request.expectedRevision)],
   ]);
 }
 

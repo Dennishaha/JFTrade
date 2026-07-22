@@ -103,12 +103,20 @@ export function createServiceHandlers(options: RunAdapterOptions): Record<string
 }
 
 function healthStatus(options: RunAdapterOptions): HealthStatus {
+  const capabilities = ["health", "analyze", "run", "atomic-order-intent-v1"];
+  if (
+    options.executor.openLiveSession !== undefined &&
+    options.executor.appendLiveSession !== undefined &&
+    options.executor.closeLiveSession !== undefined
+  ) {
+    capabilities.push("live-session-v1");
+  }
   return {
     ok: true,
     workerId: options.workerId,
     version: workerVersion,
     pineTSVersion: options.executor.version(),
-    capabilities: ["health", "analyze", "run"],
+    capabilities,
   };
 }
 

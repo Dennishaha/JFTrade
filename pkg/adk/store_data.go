@@ -42,7 +42,21 @@ func (s *Store) prepareRunForSave(ctx context.Context, run Run) (Run, error) {
 }
 
 func (s *Store) savePreparedRun(ctx context.Context, run Run) error {
-	return savePreparedRunWithExecutor(ctx, s.db, run)
+	if _, leased := runExecutionLeaseFromContext(ctx); !leased {
+		return savePreparedRunWithExecutor(ctx, s.db, run)
+	}
+	tx, err := s.db.BeginWrite(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := lockRunExecutionLeaseFromContext(ctx, tx, run.ID); err != nil {
+		return err
+	}
+	if err := savePreparedRunWithExecutor(ctx, tx, run); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func savePreparedRunWithExecutor(ctx context.Context, executor sqlx.ExtContext, run Run) error {
@@ -78,6 +92,9 @@ func (s *Store) SaveRunAndDenyPendingApprovals(ctx context.Context, run Run) err
 			besteffort.LogError(jftradeErr)
 		}
 	}()
+	if err := lockRunExecutionLeaseFromContext(ctx, tx, run.ID); err != nil {
+		return err
+	}
 	rows := []struct {
 		PayloadJSON string `db:"payload_json"`
 	}{}

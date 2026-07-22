@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"context"
 	"errors"
 	"math"
 	"testing"
@@ -11,7 +12,54 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
+
+func TestPineWorkerLiveUsesStatefulSessionAfterWarmup(t *testing.T) {
+	runner := &fakeStatefulPineWorkerRunner{session: &fakeStatefulPineWorkerSession{}}
+	symbolRuntime := &strategySymbolRuntime{
+		symbol: "US.AAPL",
+		market: bbgotypes.Market{Symbol: "US.AAPL", StepSize: fixedpoint.One, MinQuantity: fixedpoint.One},
+	}
+	executor := &strategyNotifyOnlyOrderExecutor{runner: symbolRuntime}
+	live, err := newStrategyRuntimePineWorkerLive(
+		runner,
+		managedStrategyInstance{ID: "stateful-instance"},
+		"US.AAPL",
+		bbgotypes.Interval1m,
+		"//@version=6\nstrategy(\"Stateful\")",
+		executor,
+		symbolRuntime,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("newStrategyRuntimePineWorkerLive: %v", err)
+	}
+	live.recordWarmupClosed(strategyRuntimeHistoricalKLine("US.AAPL", "1m", 100, strategyRuntimeTestTime(9, 58, 0)))
+	live.recordWarmupClosed(strategyRuntimeHistoricalKLine("US.AAPL", "1m", 101, strategyRuntimeTestTime(9, 59, 0)))
+	if err := live.openSession(t.Context()); err != nil {
+		t.Fatalf("openSession: %v", err)
+	}
+	if len(runner.openRequest.Candles) != 2 || runner.openRequest.SessionID != "strategy:stateful-instance:US.AAPL" {
+		t.Fatalf("open request = %#v", runner.openRequest)
+	}
+	closed := strategyRuntimeHistoricalKLine("US.AAPL", "1m", 102, strategyRuntimeTestTime(10, 0, 0))
+	if err := live.onClosedKLine(t.Context(), closed); err != nil {
+		t.Fatalf("onClosedKLine: %v", err)
+	}
+	if runner.runCalls != 0 {
+		t.Fatalf("full-history RunScript calls = %d, want 0", runner.runCalls)
+	}
+	if len(runner.session.appendRequests) != 1 || len(runner.session.appendRequests[0].Candles) != 1 {
+		t.Fatalf("incremental append requests = %#v", runner.session.appendRequests)
+	}
+	if runner.session.appendRequests[0].Candles[0].OpenTime != bt.CandleFromKLine(closed).OpenTime {
+		t.Fatalf("incremental candle = %#v", runner.session.appendRequests[0].Candles)
+	}
+	if err := live.closeSession(t.Context()); err != nil || runner.session.closeCalls != 1 {
+		t.Fatalf("closeSession err=%v calls=%d", err, runner.session.closeCalls)
+	}
+}
 
 func TestPineWorkerLiveRemainingConstructorAndWarmupErrors(t *testing.T) {
 	worker := newFakeStrategyRuntimePineWorker()
@@ -145,4 +193,41 @@ func TestPineWorkerLiveRemainingEquityPriceAndParamBoundaries(t *testing.T) {
 	if params["duration"] != "1s" {
 		t.Fatalf("worker params = %#v", params)
 	}
+}
+
+type fakeStatefulPineWorkerRunner struct {
+	openRequest pineworker.RunScriptRequest
+	session     *fakeStatefulPineWorkerSession
+	runCalls    int
+}
+
+func (runner *fakeStatefulPineWorkerRunner) RunScript(context.Context, pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
+	runner.runCalls++
+	return pineworker.RunScriptResponse{}, nil
+}
+
+func (runner *fakeStatefulPineWorkerRunner) OpenLiveSession(
+	_ context.Context,
+	request pineworker.RunScriptRequest,
+) (pineWorkerLiveSession, pineworker.RunScriptResponse, error) {
+	runner.openRequest = request
+	return runner.session, pineworker.RunScriptResponse{SessionID: request.SessionID, SessionRevision: 1}, nil
+}
+
+type fakeStatefulPineWorkerSession struct {
+	appendRequests []pineworker.RunScriptRequest
+	closeCalls     int
+}
+
+func (session *fakeStatefulPineWorkerSession) Append(
+	_ context.Context,
+	request pineworker.RunScriptRequest,
+) (pineworker.RunScriptResponse, error) {
+	session.appendRequests = append(session.appendRequests, request)
+	return pineworker.RunScriptResponse{SessionRevision: uint64(len(session.appendRequests) + 1)}, nil
+}
+
+func (session *fakeStatefulPineWorkerSession) Close(context.Context) error {
+	session.closeCalls++
+	return nil
 }

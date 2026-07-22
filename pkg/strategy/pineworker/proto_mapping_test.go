@@ -13,12 +13,18 @@ import (
 
 func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 	request := validClientRequest()
+	request.SessionID = "live-1"
+	request.SessionOperation = SessionOperationAppend
+	request.ExpectedRevision = 7
 	protoRequest := requestToProto(request)
 	if protoRequest.GetJobId() != request.JobID || protoRequest.GetParams()["threshold"] != "10" {
 		t.Fatalf("unexpected proto request: %#v", protoRequest)
 	}
 	if protoRequest.GetIncludePlots() {
 		t.Fatalf("backtest request include_plots = true, want false")
+	}
+	if protoRequest.GetSessionId() != "live-1" || protoRequest.GetSessionOperation() != SessionOperationAppend || protoRequest.GetExpectedRevision() != 7 {
+		t.Fatalf("unexpected session request mapping: %#v", protoRequest)
 	}
 	batch := protoRequest.GetCandles()
 	if batch.GetEncodingVersion() != candleBatchEncodingVersion || len(batch.GetPayload()) != candleBatchRecordBytes {
@@ -63,6 +69,10 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 			HasQuantityPct: true,
 			HasLimitPrice:  true,
 			HasStopPrice:   true,
+			ParentId:       "parent-long",
+			AtomicGroupId:  "atomic-1",
+			OcoGroupId:     "oco-1",
+			ReduceOnly:     true,
 		}},
 		Alerts: []*pineworkerpb.AlertEvent{{
 			Type:      "alertcondition",
@@ -100,7 +110,9 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 			ResponseBytes: 9,
 			PeakRssBytes:  10,
 		},
-		Error: "worker error",
+		Error:           "worker error",
+		SessionId:       "live-1",
+		SessionRevision: 8,
 	})
 
 	if response.JobID != "job-1" || response.Outputs[0].Values[1] != 2 || response.Plots[0].Values[0] != 1 {
@@ -110,8 +122,11 @@ func TestProtoMappingRoundTripRequestAndResponse(t *testing.T) {
 		t.Fatalf("outputs were not rebuilt from plots: %#v", response.Outputs)
 	}
 	intent := response.OrderIntents[0]
-	if intent.ID != "long" || !intent.HasStopPrice || !intent.DisableAlert {
+	if intent.ID != "long" || !intent.HasStopPrice || !intent.DisableAlert || intent.ParentID != "parent-long" || intent.AtomicGroupID != "atomic-1" || intent.OCOGroupID != "oco-1" || !intent.ReduceOnly {
 		t.Fatalf("unexpected mapped order intent: %#v", intent)
+	}
+	if response.SessionID != "live-1" || response.SessionRevision != 8 {
+		t.Fatalf("unexpected mapped session response: %#v", response)
 	}
 	if response.Alerts[0].ID != "alert-1" || response.Alerts[0].Frequency != "all" {
 		t.Fatalf("unexpected mapped alerts: %#v", response.Alerts)

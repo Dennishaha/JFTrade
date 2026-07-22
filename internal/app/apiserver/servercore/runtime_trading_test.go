@@ -152,6 +152,7 @@ func TestStrategyRuntimeLiveOrderPassesStopPriceToExecutionGateway(t *testing.T)
 		Type:          bbgotypes.OrderTypeStopMarket,
 		Quantity:      fixedpoint.NewFromFloat(1),
 		StopPrice:     stopPrice,
+		ReduceOnly:    true,
 	})
 	if err != nil || len(orders) != 1 {
 		t.Fatalf("SubmitOrders = %#v, %v", orders, err)
@@ -164,6 +165,9 @@ func TestStrategyRuntimeLiveOrderPassesStopPriceToExecutionGateway(t *testing.T)
 	}
 	if captured.Query.Price != nil {
 		t.Fatalf("stop-market limit price = %#v, want nil", captured.Query.Price)
+	}
+	if !captured.Query.ReduceOnly {
+		t.Fatal("execution reduce-only flag = false, want true")
 	}
 }
 

@@ -16,21 +16,26 @@ type PineWorkerRunner interface {
 }
 
 type WorkerOrderCommand struct {
-	Kind         string
-	ID           string
-	FromEntry    string
-	Direction    string
-	Side         types.SideType
-	OrderType    types.OrderType
-	Quantity     float64
-	QuantityPct  float64
-	LimitPrice   float64
-	StopPrice    float64
-	Comment      string
-	AlertMessage string
-	DisableAlert bool
-	BarIndex     int
-	Time         int64
+	Kind          string
+	ID            string
+	IntentID      string
+	FromEntry     string
+	ParentID      string
+	AtomicGroupID string
+	OCOGroupID    string
+	ReduceOnly    bool
+	Direction     string
+	Side          types.SideType
+	OrderType     types.OrderType
+	Quantity      float64
+	QuantityPct   float64
+	LimitPrice    float64
+	StopPrice     float64
+	Comment       string
+	AlertMessage  string
+	DisableAlert  bool
+	BarIndex      int
+	Time          int64
 }
 
 type PineWorkerBacktestAdapter struct {
@@ -59,15 +64,56 @@ func (adapter PineWorkerBacktestAdapter) Run(ctx context.Context, request pinewo
 func CommandsFromOrderIntents(intents []pineworker.OrderIntent) ([]WorkerOrderCommand, error) {
 	commands := make([]WorkerOrderCommand, 0, len(intents))
 	for _, intent := range intents {
-		command, ok, err := CommandFromOrderIntent(intent)
+		expanded, err := commandsFromOrderIntent(intent)
 		if err != nil {
 			return nil, err
 		}
-		if ok {
-			commands = append(commands, command)
-		}
+		commands = append(commands, expanded...)
 	}
 	return commands, nil
+}
+
+func commandsFromOrderIntent(intent pineworker.OrderIntent) ([]WorkerOrderCommand, error) {
+	command, ok, err := CommandFromOrderIntent(intent)
+	if err == nil {
+		if !ok {
+			return nil, nil
+		}
+		return []WorkerOrderCommand{command}, nil
+	}
+	hasLimitPrice := intent.HasLimitPrice || intent.LimitPrice != 0
+	hasStopPrice := intent.HasStopPrice || intent.StopPrice != 0
+	if normalizeWorkerIntentKind(intent.Kind) != "exit" || !hasLimitPrice || !hasStopPrice {
+		return nil, err
+	}
+	if strings.TrimSpace(intent.OCOGroupID) == "" || strings.TrimSpace(intent.AtomicGroupID) == "" {
+		return nil, fmt.Errorf("pine worker OCO exit %q requires oco and atomic group ids", intent.ID)
+	}
+	limitIntent := intent
+	limitIntent.ID = intent.ID + ":limit"
+	limitIntent.StopPrice = 0
+	limitIntent.HasStopPrice = false
+	stopIntent := intent
+	stopIntent.ID = intent.ID + ":stop"
+	stopIntent.LimitPrice = 0
+	stopIntent.HasLimitPrice = false
+	limitCommand, limitOK, limitErr := CommandFromOrderIntent(limitIntent)
+	if limitErr != nil {
+		return nil, limitErr
+	}
+	if !limitOK {
+		return nil, fmt.Errorf("pine worker OCO exit %q did not produce a limit command", intent.ID)
+	}
+	stopCommand, stopOK, stopErr := CommandFromOrderIntent(stopIntent)
+	if stopErr != nil {
+		return nil, stopErr
+	}
+	if !stopOK {
+		return nil, fmt.Errorf("pine worker OCO exit %q did not produce a stop command", intent.ID)
+	}
+	limitCommand.IntentID = intent.ID
+	stopCommand.IntentID = intent.ID
+	return []WorkerOrderCommand{limitCommand, stopCommand}, nil
 }
 
 func CommandFromOrderIntent(intent pineworker.OrderIntent) (WorkerOrderCommand, bool, error) {
@@ -75,10 +121,14 @@ func CommandFromOrderIntent(intent pineworker.OrderIntent) (WorkerOrderCommand, 
 	if kind == "" {
 		return WorkerOrderCommand{}, false, fmt.Errorf("unsupported pine worker order intent kind: %s", intent.Kind)
 	}
+	if err := validateWorkerIntentOrderRelationships(kind, intent); err != nil {
+		return WorkerOrderCommand{}, false, err
+	}
 	if kind == "cancel" || kind == "cancel_all" {
 		return WorkerOrderCommand{
 			Kind:     kind,
 			ID:       intent.ID,
+			IntentID: intent.ID,
 			BarIndex: intent.BarIndex,
 			Time:     intent.Time,
 		}, true, nil
@@ -112,26 +162,51 @@ func CommandFromOrderIntent(intent pineworker.OrderIntent) (WorkerOrderCommand, 
 		orderType = types.OrderTypeLimit
 	}
 	command := WorkerOrderCommand{
-		Kind:         kind,
-		ID:           intent.ID,
-		FromEntry:    intent.FromEntry,
-		Direction:    direction,
-		Side:         side,
-		OrderType:    orderType,
-		Quantity:     intent.Quantity,
-		QuantityPct:  intent.QuantityPct,
-		LimitPrice:   intent.LimitPrice,
-		StopPrice:    intent.StopPrice,
-		Comment:      intent.Comment,
-		AlertMessage: intent.AlertMessage,
-		DisableAlert: intent.DisableAlert,
-		BarIndex:     intent.BarIndex,
-		Time:         intent.Time,
+		Kind:          kind,
+		ID:            intent.ID,
+		IntentID:      intent.ID,
+		FromEntry:     intent.FromEntry,
+		ParentID:      intent.ParentID,
+		AtomicGroupID: intent.AtomicGroupID,
+		OCOGroupID:    intent.OCOGroupID,
+		ReduceOnly:    intent.ReduceOnly || kind == "exit" || kind == "close" || kind == "close_all",
+		Direction:     direction,
+		Side:          side,
+		OrderType:     orderType,
+		Quantity:      intent.Quantity,
+		QuantityPct:   intent.QuantityPct,
+		LimitPrice:    intent.LimitPrice,
+		StopPrice:     intent.StopPrice,
+		Comment:       intent.Comment,
+		AlertMessage:  intent.AlertMessage,
+		DisableAlert:  intent.DisableAlert,
+		BarIndex:      intent.BarIndex,
+		Time:          intent.Time,
 	}
 	if !intent.HasQuantity && !intent.HasQuantityPct && (kind == "entry" || kind == "order") {
 		command.Quantity = 1
 	}
 	return command, true, nil
+}
+
+func validateWorkerIntentOrderRelationships(kind string, intent pineworker.OrderIntent) error {
+	parentID := strings.TrimSpace(intent.ParentID)
+	atomicGroupID := strings.TrimSpace(intent.AtomicGroupID)
+	ocoGroupID := strings.TrimSpace(intent.OCOGroupID)
+	if ocoGroupID != "" && atomicGroupID == "" {
+		return fmt.Errorf("pine worker OCO intent %q requires an atomic group id", intent.ID)
+	}
+	switch kind {
+	case "cancel", "cancel_all":
+		if parentID != "" || atomicGroupID != "" || ocoGroupID != "" || intent.ReduceOnly {
+			return fmt.Errorf("pine worker cancellation intent %q cannot carry placement relationships", intent.ID)
+		}
+	case "entry", "order":
+		if parentID != "" || ocoGroupID != "" || intent.ReduceOnly {
+			return fmt.Errorf("pine worker entry intent %q has invalid protective-order metadata", intent.ID)
+		}
+	}
+	return nil
 }
 
 func canonicalWorkerIntentDirection(kind string, direction string) string {

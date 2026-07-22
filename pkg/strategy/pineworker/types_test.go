@@ -102,6 +102,47 @@ func TestValidateRunScriptRequestAnalyzeModeAllowsNoCandles(t *testing.T) {
 	}
 }
 
+func TestValidateRunScriptRequestLiveSessionContract(t *testing.T) {
+	base := RunScriptRequest{
+		JobID: "live-1", Source: `//@version=6 strategy("x")`, Symbol: "US.AAPL", Timeframe: "1", Mode: ModeLive,
+		Candles:   []Candle{{OpenTime: 1, CloseTime: 2, Open: 1, High: 1, Low: 1, Close: 1}},
+		SessionID: "session-1", SessionOperation: SessionOperationOpen,
+	}
+	if err := ValidateRunScriptRequest(base, DefaultWorkerConfig(1)); err != nil {
+		t.Fatalf("open validation: %v", err)
+	}
+	appendRequest := base
+	appendRequest.SessionOperation = SessionOperationAppend
+	appendRequest.ExpectedRevision = 1
+	if err := ValidateRunScriptRequest(appendRequest, DefaultWorkerConfig(1)); err != nil {
+		t.Fatalf("append validation: %v", err)
+	}
+	closeRequest := RunScriptRequest{
+		JobID: "close-1", Mode: ModeLive, SessionID: "session-1", SessionOperation: SessionOperationClose, ExpectedRevision: 2,
+	}
+	if err := ValidateRunScriptRequest(closeRequest, DefaultWorkerConfig(1)); err != nil {
+		t.Fatalf("close validation: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		request RunScriptRequest
+		want    string
+	}{
+		{name: "session requires live mode", request: func() RunScriptRequest { next := base; next.Mode = ModeBacktest; return next }(), want: "require live mode"},
+		{name: "open starts at zero", request: func() RunScriptRequest { next := base; next.ExpectedRevision = 1; return next }(), want: "expected revision 0"},
+		{name: "append requires revision", request: func() RunScriptRequest { next := base; next.SessionOperation = SessionOperationAppend; return next }(), want: "positive expected revision"},
+		{name: "operation requires id", request: func() RunScriptRequest { next := base; next.SessionID = ""; return next }(), want: "session id is required"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := ValidateRunScriptRequest(test.request, DefaultWorkerConfig(1)); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validation error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
 func TestValidateRunScriptRequestRejectsTooManyCandles(t *testing.T) {
 	request := RunScriptRequest{
 		JobID:     "job-1",

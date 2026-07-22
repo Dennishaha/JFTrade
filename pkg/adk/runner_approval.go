@@ -35,7 +35,18 @@ func (r *Runtime) ResolveApproval(ctx context.Context, approvalID string, approv
 		return r.attachParentWorkflowResolution(ctx, staged)
 	}
 	defer r.releaseApprovalContinuation(approval.RunID)
-	resolution, err := r.continueResolvedApproval(ctx, approval, approved)
+	leaseCtx, cancel, waitForLease, leaseErr := r.beginRunExecutionLease(ctx, approval.RunID)
+	if leaseErr != nil {
+		if isRunLeaseHeld(leaseErr) {
+			return r.attachParentWorkflowResolution(ctx, staged)
+		}
+		return ApprovalResolution{}, leaseErr
+	}
+	defer func() {
+		cancel()
+		waitForLease()
+	}()
+	resolution, err := r.continueResolvedApproval(leaseCtx, approval, approved)
 	if err != nil {
 		return ApprovalResolution{}, err
 	}
@@ -165,12 +176,23 @@ func (r *Runtime) continueResolvedApprovalRun(ctx context.Context, runID string)
 	}
 	ctx, cancel := context.WithTimeout(ctx, runTimeoutForRun(run))
 	defer cancel()
-	resolution, err := r.continueResolvedApproval(ctx, approval, approval.Status == ApprovalStatusApproved)
+	leaseCtx, leaseCancel, waitForLease, leaseErr := r.beginRunExecutionLease(ctx, run.ID)
+	if leaseErr != nil {
+		if isRunLeaseHeld(leaseErr) {
+			return nil
+		}
+		return leaseErr
+	}
+	defer func() {
+		leaseCancel()
+		waitForLease()
+	}()
+	resolution, err := r.continueResolvedApproval(leaseCtx, approval, approval.Status == ApprovalStatusApproved)
 	if err != nil {
 		return err
 	}
 	if resolution.Run != nil {
-		_, err = r.continueParentWorkflowAfterChild(ctx, *resolution.Run)
+		_, err = r.continueParentWorkflowAfterChild(leaseCtx, *resolution.Run)
 	}
 	return err
 }
