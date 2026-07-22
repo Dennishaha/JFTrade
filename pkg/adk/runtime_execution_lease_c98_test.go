@@ -129,6 +129,34 @@ func TestRunExecutionLeaseHeartbeatFailureCancelsOwner(t *testing.T) {
 	wait()
 }
 
+func TestRefreshRunExecutionLeaseRejectsExpiredLeaseBeforeStoreWrite(t *testing.T) {
+	runtime := &Runtime{}
+	expired := RunLease{
+		RunID:     "run-expired-heartbeat",
+		ExpiresAt: time.Now().UTC().Add(-time.Millisecond),
+	}
+	if _, err := runtime.refreshRunExecutionLease(expired, time.Second); !errors.Is(err, ErrRunLeaseLost) {
+		t.Fatalf("expired lease heartbeat error = %v, want ErrRunLeaseLost", err)
+	}
+}
+
+func TestRefreshRunExecutionLeaseUsesRemainingTTLForNearExpiryLease(t *testing.T) {
+	store := newExecutionClaimTestStore(t)
+	runtime := &Runtime{store: store}
+	lease, err := store.ClaimRunLease(t.Context(), "run-near-expiry-heartbeat", "near-expiry-owner", time.Now().UTC(), 5*time.Second)
+	if err != nil {
+		t.Fatalf("claim lease: %v", err)
+	}
+	lease.ExpiresAt = time.Now().UTC().Add(100 * time.Millisecond)
+	refreshed, err := runtime.refreshRunExecutionLease(lease, time.Second)
+	if err != nil {
+		t.Fatalf("refresh near-expiry lease: %v", err)
+	}
+	if got := refreshed.ExpiresAt.Sub(refreshed.HeartbeatAt); got != time.Second {
+		t.Fatalf("refreshed lease TTL = %s, want %s", got, time.Second)
+	}
+}
+
 func TestRunExecutionLeaseUsesSafeDefaults(t *testing.T) {
 	store := newExecutionClaimTestStore(t)
 	runtime := &Runtime{store: store, executorID: "default-lease-owner"}
