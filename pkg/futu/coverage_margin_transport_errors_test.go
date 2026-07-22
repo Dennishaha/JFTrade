@@ -163,6 +163,47 @@ func TestTradeWriteMethodsPropagateAccountAndWriteDisconnects(t *testing.T) {
 	}
 }
 
+func TestTradeWritesAreNotReplayedWhenResponseIsLost(t *testing.T) {
+	order := types.SubmitOrder{
+		Symbol:   "HK.00700",
+		Side:     types.SideTypeBuy,
+		Type:     types.OrderTypeLimit,
+		Price:    fixedpoint.NewFromInt(300),
+		Quantity: fixedpoint.NewFromInt(100),
+	}
+
+	t.Run("place order", func(t *testing.T) {
+		server, exchange := coverageMarginExchange(t)
+		server.setAccounts([]*trdcommonpb.TrdAcc{testSimulateHKCashAccount()})
+		server.setStaticInfos([]*qotcommonpb.SecurityStaticInfo{testTencentStaticInfo()})
+		server.setDropResponseProto(opend.ProtoTrdPlaceOrder)
+
+		if _, err := exchange.PlaceBrokerOrder(t.Context(), BrokerPlaceOrderQuery{}, order); err == nil {
+			t.Fatal("PlaceBrokerOrder() error = nil after accepted request lost its response")
+		}
+		if got := server.placeOrderCallCount(); got != 1 {
+			t.Fatalf("place-order calls = %d, want exactly one without replay", got)
+		}
+	})
+
+	t.Run("cancel order", func(t *testing.T) {
+		server, exchange := coverageMarginExchange(t)
+		server.setAccounts([]*trdcommonpb.TrdAcc{testSimulateHKCashAccount()})
+		server.setDropResponseProto(opend.ProtoTrdModifyOrder)
+
+		err := exchange.CancelBrokerOrders(t.Context(), BrokerReadQuery{}, types.Order{
+			SubmitOrder: order,
+			OrderID:     9001,
+		})
+		if err == nil {
+			t.Fatal("CancelBrokerOrders() error = nil after accepted request lost its response")
+		}
+		if got := server.modifyOrderCallCount(); got != 1 {
+			t.Fatalf("modify-order calls = %d, want exactly one without replay", got)
+		}
+	})
+}
+
 func TestDirectSubscriptionCallsPropagateClosedClientErrors(t *testing.T) {
 	client := opend.New(opend.Config{})
 	if err := client.Close(); err != nil {

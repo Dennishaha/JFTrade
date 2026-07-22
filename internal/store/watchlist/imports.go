@@ -320,7 +320,13 @@ func prepareImportCommit(ctx context.Context, tx *sqliteconn.Tx, input domain.Co
 func resolveImportGroup(ctx context.Context, tx *sqliteconn.Tx, preview domain.ImportPreview) (string, bool, error) {
 	if preview.LocalGroupID != "" {
 		group, err := getGroup(ctx, tx, preview.LocalGroupID)
-		if err != nil || group.Revision != preview.LocalGroupRevision {
+		if errors.Is(err, domain.ErrNotFound) {
+			return "", false, domain.ErrStalePreview
+		}
+		if err != nil {
+			return "", false, err
+		}
+		if group.Revision != preview.LocalGroupRevision {
 			return "", false, domain.ErrStalePreview
 		}
 		return preview.LocalGroupID, false, nil
@@ -454,7 +460,14 @@ func markImportPreviewCommitted(ctx context.Context, tx *sqliteconn.Tx, previewI
 		return err
 	}
 	affected, err := result.RowsAffected()
-	if err != nil || affected != 1 {
+	return classifyImportPreviewCommitResult(affected, err)
+}
+
+func classifyImportPreviewCommitResult(affected int64, rowsErr error) error {
+	if rowsErr != nil {
+		return rowsErr
+	}
+	if affected != 1 {
 		return domain.ErrStalePreview
 	}
 	return nil

@@ -41,7 +41,9 @@ func roundPriceToStep(value float64, step float64) float64 {
 		return value
 	}
 	decimals := countStepDecimals(step)
-	return math.Round(value/step) * stepRoundedUnit(decimals)
+	rounded := math.Round(value/step) * step
+	unit := stepRoundedUnit(decimals)
+	return math.Round(rounded/unit) * unit
 }
 
 // stepRoundedUnit returns 1 / 10^decimals, clamped to ≥1.

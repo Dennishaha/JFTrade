@@ -107,6 +107,32 @@ func TestEveryAllowlistedAdvancedProtocolMapsToCatalogFeature(t *testing.T) {
 	}
 }
 
+func TestAdvancedProtocolReplaySafetyDefaultsToNoReplay(t *testing.T) {
+	for _, protocol := range []string{
+		"Qot_SetPriceReminder",
+		"Qot_SetOptionEventAlert",
+		"Qot_ModifyUserSecurity",
+		"Qot_GetEventContractComboRfq",
+		"Qot_UnknownMutation",
+	} {
+		if advancedProtocolReplaySafe(protocol) {
+			t.Errorf("advancedProtocolReplaySafe(%q) = true, want no automatic replay", protocol)
+		}
+	}
+
+	for _, protocol := range []string{
+		"Qot_GetOptionChain",
+		"Qot_RequestTradeDate",
+		"Qot_FilterCompetition",
+		"Qot_OptionScreen",
+		"Qot_SubEventContract",
+	} {
+		if !advancedProtocolReplaySafe(protocol) {
+			t.Errorf("advancedProtocolReplaySafe(%q) = false, want replay-safe", protocol)
+		}
+	}
+}
+
 func TestEveryDefaultFeatureOperationBuildsGeneratedRequest(t *testing.T) {
 	for featureID, operation := range defaultFeatureOperations {
 		protocol := featureProtocols[featureID][operation]

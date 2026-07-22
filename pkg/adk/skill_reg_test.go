@@ -79,6 +79,37 @@ Use the bundled guide before answering.`), 0o644); err != nil {
 	}
 }
 
+func TestBuiltinSkillMetadataRejectsInvalidBundles(t *testing.T) {
+	sentinel := errors.New("bundle failed")
+	tests := []struct {
+		name string
+		spec builtinSkillSpec
+	}{
+		{name: "build error", spec: builtinSkillSpec{Name: "broken", BuildBundle: func() (map[string]string, error) { return nil, sentinel }}},
+		{name: "missing document", spec: builtinSkillSpec{Name: "missing", BuildBundle: func() (map[string]string, error) { return map[string]string{}, nil }}},
+		{name: "invalid document", spec: builtinSkillSpec{Name: "invalid", BuildBundle: func() (map[string]string, error) { return map[string]string{"SKILL.md": "---\nname: [\n---"}, nil }}},
+		{name: "name mismatch", spec: builtinSkillSpec{Name: "expected", BuildBundle: func() (map[string]string, error) {
+			return map[string]string{"SKILL.md": "---\nname: actual\ndescription: test\n---\nBody"}, nil
+		}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := builtinSkillMetadata(test.spec); err == nil {
+				t.Fatal("builtinSkillMetadata() error = nil")
+			}
+		})
+	}
+	skill, err := builtinSkillMetadata(builtinSkillSpec{
+		Name: "fallback-display",
+		BuildBundle: func() (map[string]string, error) {
+			return map[string]string{"SKILL.md": "---\nname: fallback-display\ndescription: test\n---\nBody"}, nil
+		},
+	})
+	if err != nil || skill.DisplayName != "fallback-display" {
+		t.Fatalf("fallback display skill = %+v, err=%v", skill, err)
+	}
+}
+
 func TestSkillRegistryArchiveRejectsUnsafeOrAmbiguousBundles(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -261,11 +292,23 @@ func TestSkillRegistryInstallURLSupportsArchivesAndUninstallProtections(t *testi
 		"archive-skill/SKILL.md":                "---\nname: archive-skill\ndescription: Archive Skill\nallowed-tools: [http.fetch]\n---\nUse the bundled archive instructions.",
 		"archive-skill/references/checklist.md": "archive checklist",
 	})
+	largeArchive := zipStoredArchive(t, map[string]string{
+		"large-archive-skill/SKILL.md":     "---\nname: large-archive-skill\ndescription: Large Archive Skill\n---\nUse the bundled archive instructions.",
+		"large-archive-skill/references/a": strings.Repeat("a", 300<<10),
+		"large-archive-skill/references/b": strings.Repeat("b", 300<<10),
+	})
+	if len(largeArchive) <= maxSkillFileSize || len(largeArchive) > maxSkillArchiveSize {
+		t.Fatalf("large archive size = %d, want (%d, %d]", len(largeArchive), maxSkillFileSize, maxSkillArchiveSize)
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/archive.zip":
 			w.Header().Set("Content-Type", "application/zip")
 			_, jftradeErr1 := w.Write(archive)
+			jftradeCheckTestError(t, jftradeErr1)
+		case "/large-archive.zip":
+			w.Header().Set("Content-Type", "application/zip")
+			_, jftradeErr1 := w.Write(largeArchive)
 			jftradeCheckTestError(t, jftradeErr1)
 		case "/too-large.md":
 			w.Header().Set("Content-Type", "text/markdown")
@@ -287,6 +330,13 @@ func TestSkillRegistryInstallURLSupportsArchivesAndUninstallProtections(t *testi
 	raw, err := os.ReadFile(filepath.Join(runtime.Store().SkillsPath(), "archive-skill", "references", "checklist.md"))
 	if err != nil || string(raw) != "archive checklist" {
 		t.Fatalf("archive resource = %q err=%v", string(raw), err)
+	}
+	largeSkill, err := runtime.Skills().InstallURL(ctx, server.URL+"/large-archive.zip")
+	if err != nil {
+		t.Fatalf("InstallURL large archive: %v", err)
+	}
+	if largeSkill.ID != "large-archive-skill" {
+		t.Fatalf("large archive skill = %+v", largeSkill)
 	}
 
 	if _, err := runtime.Skills().InstallURL(ctx, server.URL+"/too-large.md"); err == nil || !strings.Contains(err.Error(), "skill file exceeds") {
@@ -365,6 +415,26 @@ func zipArchive(t *testing.T, entries map[string]string) []byte {
 	}
 	if err := writer.Close(); err != nil {
 		t.Fatalf("Close zip writer: %v", err)
+	}
+	return archive.Bytes()
+}
+
+func zipStoredArchive(t *testing.T, entries map[string]string) []byte {
+	t.Helper()
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	for name, content := range entries {
+		header := &zip.FileHeader{Name: name, Method: zip.Store}
+		file, err := writer.CreateHeader(header)
+		if err != nil {
+			t.Fatalf("Create stored zip entry %s: %v", name, err)
+		}
+		if _, err := file.Write([]byte(content)); err != nil {
+			t.Fatalf("Write stored zip entry %s: %v", name, err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close stored zip writer: %v", err)
 	}
 	return archive.Bytes()
 }

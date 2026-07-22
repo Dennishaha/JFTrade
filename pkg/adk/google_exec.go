@@ -74,16 +74,20 @@ func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
 	}
 	if event == nil || event.Content == nil {
 		if event != nil && !event.Partial {
+			e.mu.Lock()
 			e.sawPartialText = false
+			e.mu.Unlock()
 		}
 		return nil
 	}
 	emitText := true
+	e.mu.Lock()
 	if event.Partial {
 		e.sawPartialText = e.sawPartialText || contentHasText(event.Content)
 	} else if e.sawPartialText {
 		emitText = false
 	}
+	e.mu.Unlock()
 	for _, part := range event.Content.Parts {
 		if part.FunctionCall != nil {
 			if part.FunctionCall.Name == adkworkflow.WorkflowInputFunctionCallName {
@@ -106,7 +110,9 @@ func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
 		}
 	}
 	if !event.Partial {
+		e.mu.Lock()
 		e.sawPartialText = false
+		e.mu.Unlock()
 	}
 	if err := e.flushBufferedTextIfReady(); err != nil {
 		return err
@@ -177,7 +183,6 @@ func (e *googleADKExecution) agentNameForRunID(runID string) string {
 
 func (e *googleADKExecution) ensureCallForRun(functionCallID string, descriptor ToolDescriptor, input map[string]any, runID string) *ToolCall {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
 		runID = e.runID
@@ -190,7 +195,9 @@ func (e *googleADKExecution) ensureCallForRun(functionCallID string, descriptor 
 			if e.calls[index].Permission == "" {
 				e.calls[index].Permission = descriptor.Permission
 			}
-			return &e.calls[index]
+			call := &e.calls[index]
+			e.mu.Unlock()
+			return call
 		}
 	}
 	now := nowString()
@@ -206,8 +213,11 @@ func (e *googleADKExecution) ensureCallForRun(functionCallID string, descriptor 
 		e.preToolReasoning.WriteString(strings.TrimSpace(e.reasoning.String()))
 	}
 	e.calls = append(e.calls, call)
-	e.emitRunSnapshotLocked()
-	return &e.calls[len(e.calls)-1]
+	deltas := e.collectRunSnapshotDeltasLocked()
+	created := &e.calls[len(e.calls)-1]
+	e.mu.Unlock()
+	e.emitRunSnapshotDeltas(deltas)
+	return created
 }
 
 func (e *googleADKExecution) finishCall(callID string, output any, err error) {
@@ -234,8 +244,9 @@ func (e *googleADKExecution) finishCall(callID string, output any, err error) {
 		changed = true
 		break
 	}
-	e.emitRunSnapshotLocked()
+	deltas := e.collectRunSnapshotDeltasLocked()
 	e.mu.Unlock()
+	e.emitRunSnapshotDeltas(deltas)
 	if changed {
 		jftradeErr1 := e.flushBufferedTextIfReady()
 		besteffort.LogError(jftradeErr1)
@@ -282,8 +293,9 @@ func (e *googleADKExecution) consumeFunctionResponse(response *genai.FunctionRes
 		}
 		break
 	}
-	e.emitRunSnapshotLocked()
+	deltas := e.collectRunSnapshotDeltasLocked()
 	e.mu.Unlock()
+	e.emitRunSnapshotDeltas(deltas)
 	if changed {
 		jftradeErr2 := e.flushBufferedTextIfReady()
 		besteffort.LogError(jftradeErr2)
@@ -370,7 +382,6 @@ func (e *googleADKExecution) markConfirmationProcessed(id string) {
 
 func (e *googleADKExecution) markCallPending(functionCallID string) {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	for index := range e.calls {
 		if e.calls[index].IdempotencyKey == functionCallID {
 			e.calls[index].Status = "PENDING_APPROVAL"
@@ -378,12 +389,13 @@ func (e *googleADKExecution) markCallPending(functionCallID string) {
 			e.calls[index].UpdatedAt = nowString()
 		}
 	}
-	e.emitRunSnapshotLocked()
+	deltas := e.collectRunSnapshotDeltasLocked()
+	e.mu.Unlock()
+	e.emitRunSnapshotDeltas(deltas)
 }
 
 func (e *googleADKExecution) markCallWaitingForInput(functionCallID string) {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	for index := range e.calls {
 		if e.calls[index].IdempotencyKey == functionCallID {
 			e.calls[index].Status = RunStatusPendingInput
@@ -391,7 +403,9 @@ func (e *googleADKExecution) markCallWaitingForInput(functionCallID string) {
 			e.calls[index].UpdatedAt = nowString()
 		}
 	}
-	e.emitRunSnapshotLocked()
+	deltas := e.collectRunSnapshotDeltasLocked()
+	e.mu.Unlock()
+	e.emitRunSnapshotDeltas(deltas)
 }
 
 func (e *googleADKExecution) toolContext() toolExecutionContext {
@@ -432,14 +446,15 @@ func (e *googleADKExecution) setInputRequests(requests map[string]*InputRequest)
 		return
 	}
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	for runID, request := range requests {
 		base := e.runBaseLocked(runID)
 		base.InputRequest = normalizeInputRequest(request)
 		base.InputRequests = appendInputRequestIfMissing(base.InputRequests, *request)
 		e.runSnapshotBaseByID[runID] = base
 	}
-	e.emitRunSnapshotLocked()
+	deltas := e.collectRunSnapshotDeltasLocked()
+	e.mu.Unlock()
+	e.emitRunSnapshotDeltas(deltas)
 }
 
 func (e *googleADKExecution) result() openAIChatResult {
@@ -447,7 +462,9 @@ func (e *googleADKExecution) result() openAIChatResult {
 }
 
 func (e *googleADKExecution) resultForRun(runID string) openAIChatResult {
-	e.ensureTextMaps()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.ensureTextMapsLocked()
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
 		runID = e.runID
@@ -483,20 +500,21 @@ func (e *googleADKExecution) trackedRunIDForFunctionCall(functionCallID string) 
 }
 
 func (e *googleADKExecution) preToolState() (string, string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	return strings.TrimSpace(e.preToolContent.String()), strings.TrimSpace(e.preToolReasoning.String())
 }
 
 func (e *googleADKExecution) detachDeltaSink() {
+	e.deltaMu.Lock()
+	defer e.deltaMu.Unlock()
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.onDelta = nil
 }
 
 func (e *googleADKExecution) emitToolProgress(callID string, toolName string) {
-	if e.onDelta == nil {
-		return
-	}
-	jftradeErr4 := e.onDelta(ChatDelta{ToolProgress: projectedToolProgress(toolName)})
+	jftradeErr4 := e.emitDelta(ChatDelta{ToolProgress: projectedToolProgress(toolName)})
 	besteffort.LogError(jftradeErr4)
 }
 
@@ -504,19 +522,29 @@ func (e *googleADKExecution) appendVisibleTextForRun(runID string, reply string,
 	if reply == "" && reasoning == "" {
 		return nil
 	}
-	e.ensureTextMaps()
+	e.mu.Lock()
+	delta, emit := e.appendVisibleTextForRunLocked(runID, reply, reasoning)
+	e.mu.Unlock()
+	if !emit {
+		return nil
+	}
+	return e.emitDelta(delta)
+}
+
+func (e *googleADKExecution) appendVisibleTextForRunLocked(runID string, reply string, reasoning string) (ChatDelta, bool) {
+	e.ensureTextMapsLocked()
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
 		runID = e.runID
 	}
-	if e.activeToolCallCountForRun(runID) > 0 {
+	if e.activeToolCallCountForRunLocked(runID) > 0 {
 		e.builderForRun(e.bufferedReplyByRunID, runID).WriteString(reply)
 		e.builderForRun(e.bufferedReasoningByRunID, runID).WriteString(reasoning)
 		if runID == e.runID {
 			e.bufferedReply.WriteString(reply)
 			e.bufferedReasoning.WriteString(reasoning)
 		}
-		return nil
+		return ChatDelta{}, false
 	}
 	e.builderForRun(e.replyByRunID, runID).WriteString(reply)
 	e.builderForRun(e.reasoningByRunID, runID).WriteString(reasoning)
@@ -524,42 +552,69 @@ func (e *googleADKExecution) appendVisibleTextForRun(runID string, reply string,
 		e.reply.WriteString(reply)
 		e.reasoning.WriteString(reasoning)
 	}
-	if e.toolResponseSeenForRun(runID) {
-		e.markPostToolTextForRun(runID)
+	if e.toolResponseSeenForRunLocked(runID) {
+		e.markPostToolTextForRunLocked(runID)
 	}
-	if e.onDelta != nil && runID == e.runID {
-		if err := e.onDelta(ChatDelta{Reply: reply, ReasoningContent: reasoning}); err != nil {
+	if runID == e.runID {
+		return ChatDelta{Reply: reply, ReasoningContent: reasoning}, true
+	}
+	return ChatDelta{}, false
+}
+
+func (e *googleADKExecution) flushBufferedTextIfReady() error {
+	e.mu.Lock()
+	e.ensureTextMapsLocked()
+	runIDs := make([]string, 0, len(e.bufferedReplyByRunID)+1)
+	seen := make(map[string]struct{}, len(e.bufferedReplyByRunID)+1)
+	for runID := range e.bufferedReplyByRunID {
+		if _, ok := seen[runID]; !ok {
+			seen[runID] = struct{}{}
+			runIDs = append(runIDs, runID)
+		}
+	}
+	if _, ok := seen[e.runID]; !ok {
+		runIDs = append(runIDs, e.runID)
+	}
+	deltas := make([]ChatDelta, 0, len(runIDs))
+	for _, runID := range runIDs {
+		if delta, emit := e.flushBufferedTextForRunIfReadyLocked(runID); emit {
+			deltas = append(deltas, delta)
+		}
+	}
+	e.mu.Unlock()
+	for _, delta := range deltas {
+		if err := e.emitDelta(delta); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (e *googleADKExecution) flushBufferedTextIfReady() error {
-	e.ensureTextMaps()
-	for runID := range e.bufferedReplyByRunID {
-		if err := e.flushBufferedTextForRunIfReady(runID); err != nil {
-			return err
-		}
+func (e *googleADKExecution) flushBufferedTextForRunIfReady(runID string) error {
+	e.mu.Lock()
+	delta, emit := e.flushBufferedTextForRunIfReadyLocked(runID)
+	e.mu.Unlock()
+	if !emit {
+		return nil
 	}
-	return e.flushBufferedTextForRunIfReady(e.runID)
+	return e.emitDelta(delta)
 }
 
-func (e *googleADKExecution) flushBufferedTextForRunIfReady(runID string) error {
-	e.ensureTextMaps()
+func (e *googleADKExecution) flushBufferedTextForRunIfReadyLocked(runID string) (ChatDelta, bool) {
+	e.ensureTextMapsLocked()
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
 		runID = e.runID
 	}
-	if e.activeToolCallCountForRun(runID) > 0 {
-		return nil
+	if e.activeToolCallCountForRunLocked(runID) > 0 {
+		return ChatDelta{}, false
 	}
 	replyBuffer := e.builderForRun(e.bufferedReplyByRunID, runID)
 	reasoningBuffer := e.builderForRun(e.bufferedReasoningByRunID, runID)
 	reply := strings.TrimSpace(replyBuffer.String())
 	reasoning := strings.TrimSpace(reasoningBuffer.String())
 	if reply == "" && reasoning == "" {
-		return nil
+		return ChatDelta{}, false
 	}
 	replyBuffer.Reset()
 	reasoningBuffer.Reset()
@@ -571,18 +626,22 @@ func (e *googleADKExecution) flushBufferedTextForRunIfReady(runID string) error 
 		e.reply.WriteString(reply)
 		e.reasoning.WriteString(reasoning)
 	}
-	if e.toolResponseSeenForRun(runID) {
-		e.markPostToolTextForRun(runID)
+	if e.toolResponseSeenForRunLocked(runID) {
+		e.markPostToolTextForRunLocked(runID)
 	}
-	if e.onDelta != nil && runID == e.runID {
-		if err := e.onDelta(ChatDelta{Reply: reply, ReasoningContent: reasoning}); err != nil {
-			return err
-		}
+	if runID == e.runID {
+		return ChatDelta{Reply: reply, ReasoningContent: reasoning}, true
 	}
-	return nil
+	return ChatDelta{}, false
 }
 
 func (e *googleADKExecution) ensureTextMaps() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.ensureTextMapsLocked()
+}
+
+func (e *googleADKExecution) ensureTextMapsLocked() {
 	if e.replyByRunID == nil {
 		e.replyByRunID = map[string]*strings.Builder{}
 	}
@@ -624,6 +683,10 @@ func (e *googleADKExecution) builderForRun(store map[string]*strings.Builder, ru
 func (e *googleADKExecution) activeToolCallCountForRun(runID string) int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	return e.activeToolCallCountForRunLocked(runID)
+}
+
+func (e *googleADKExecution) activeToolCallCountForRunLocked(runID string) int {
 	runID = strings.TrimSpace(runID)
 	count := 0
 	for _, call := range e.calls {
@@ -636,4 +699,22 @@ func (e *googleADKExecution) activeToolCallCountForRun(runID string) int {
 		}
 	}
 	return count
+}
+
+func (e *googleADKExecution) emitDelta(delta ChatDelta) error {
+	e.deltaMu.Lock()
+	defer e.deltaMu.Unlock()
+	e.mu.Lock()
+	onDelta := e.onDelta
+	e.mu.Unlock()
+	if onDelta == nil {
+		return nil
+	}
+	return onDelta(delta)
+}
+
+func (e *googleADKExecution) emitRunSnapshotDeltas(deltas []ChatDelta) {
+	for _, delta := range deltas {
+		besteffort.LogError(e.emitDelta(delta))
+	}
 }

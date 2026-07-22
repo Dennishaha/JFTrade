@@ -15,7 +15,7 @@ import (
 
 func TestCalculateRSISeriesMatchesExpectedValues(t *testing.T) {
 	series := calculateRSISeries([]float64{10, 13, 12, 14, 15}, 3)
-	assertFloatSliceApproxEqual(t, series, []float64{83.33333333333333, 75})
+	assertFloatSliceApproxEqual(t, series, []float64{83.33333333333333, 86.66666666666667})
 	if value := calculateRSI([]float64{10, 13, 12, 14, 15}, 3); jftradeCheckedTypeAssertion[float64](value) != series[len(series)-1] {
 		t.Fatalf("calculateRSI() = %v, want %v", value, series[len(series)-1])
 	}
@@ -31,8 +31,8 @@ func TestRollingRSIStateMatchesBatchSeriesWithTrim(t *testing.T) {
 		}
 		state.push(closeValue, closes[index-1], true)
 	}
-	expectedCloses := closes[len(closes)-5:]
-	assertFloatSliceApproxEqual(t, state.seriesValues(), calculateRSISeries(expectedCloses, 3))
+	expected := calculateRSISeries(closes, 3)
+	assertFloatSliceApproxEqual(t, state.seriesValues(), expected[len(expected)-2:])
 }
 
 func TestRollingRSIStateMatchesBatchDivergenceWithTrim(t *testing.T) {
@@ -41,29 +41,31 @@ func TestRollingRSIStateMatchesBatchDivergenceWithTrim(t *testing.T) {
 	if state == nil {
 		t.Fatal("expected rolling RSI state")
 	}
+	history := make([]float64, 0, 12)
 	window := make([]float64, 0, 7)
 	for _, closeValue := range []float64{10, 13, 12, 14, 15, 14, 16, 15, 17, 18, 16, 19} {
-		hasPrevious := len(window) > 0
+		hasPrevious := len(history) > 0
 		previousClose := 0.0
 		if hasPrevious {
-			previousClose = window[len(window)-1]
+			previousClose = history[len(history)-1]
 		}
 		state.push(closeValue, previousClose, hasPrevious)
+		history = append(history, closeValue)
 		window = append(window, closeValue)
 		if len(window) > 7 {
 			window = window[len(window)-7:]
 		}
-		expectedSeries := calculateRSISeries(window, 3)
+		expectedSeries := calculateRSISeries(history, 3)
 		expectedTail := expectedSeries
 		if len(expectedTail) > lookback+1 {
 			expectedTail = expectedTail[len(expectedTail)-(lookback+1):]
 		}
 		assertFloatSliceApproxEqual(t, state.valueTail, expectedTail)
-		if actual := state.detectDivergence(window, "top", lookback); actual != detectRSIDivergence(window, expectedSeries, "top", lookback) {
-			t.Fatalf("top divergence mismatch after close %v: actual=%v expected=%v", closeValue, actual, detectRSIDivergence(window, expectedSeries, "top", lookback))
+		if actual := state.detectDivergence(window, "top", lookback); actual != detectRSIDivergence(history, expectedSeries, "top", lookback) {
+			t.Fatalf("top divergence mismatch after close %v: actual=%v expected=%v", closeValue, actual, detectRSIDivergence(history, expectedSeries, "top", lookback))
 		}
-		if actual := state.detectDivergence(window, "bottom", lookback); actual != detectRSIDivergence(window, expectedSeries, "bottom", lookback) {
-			t.Fatalf("bottom divergence mismatch after close %v: actual=%v expected=%v", closeValue, actual, detectRSIDivergence(window, expectedSeries, "bottom", lookback))
+		if actual := state.detectDivergence(window, "bottom", lookback); actual != detectRSIDivergence(history, expectedSeries, "bottom", lookback) {
+			t.Fatalf("bottom divergence mismatch after close %v: actual=%v expected=%v", closeValue, actual, detectRSIDivergence(history, expectedSeries, "bottom", lookback))
 		}
 	}
 }

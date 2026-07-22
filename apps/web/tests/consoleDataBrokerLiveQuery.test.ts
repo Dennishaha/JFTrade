@@ -525,6 +525,10 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
 
   it("loads historical execution orders with broker query fallbacks and ignores stale responses", async () => {
     const { controller, state } = createController();
+    state.activeExecutionOrders.value = createExecutionOrders(
+      "active-existing",
+      "US.MSFT",
+    );
     const first = deferred<ExecutionOrdersResponse>();
     const second = deferred<ExecutionOrdersResponse>();
     mocks.fetchEnvelope
@@ -551,13 +555,43 @@ describe("createConsoleDataBrokerLiveQueryController", () => {
     expect(urls[1]).toContain("tradingEnvironment=REAL");
     expect(urls[1]).toContain("accountId=ACC-2");
     expect(state.activeExecutionOrders.value.orders[0]?.internalOrderId).toBe(
-      "exec-2",
+      "active-existing",
     );
     expect(
       state.historicalExecutionOrders.value.orders[0]?.internalOrderId,
     ).toBe("exec-2");
     expect(state.historicalOrdersError.value).toBe("");
     expect(state.isLoadingHistoricalOrders.value).toBe(false);
+  });
+
+  it("queries cash flows using the broker market's local calendar date", async () => {
+    const { controller } = createController({
+      fills: { supported: false },
+      marginRatios: { supported: false },
+    });
+    mocks.fetchEnvelope.mockImplementation(async (url: string) => {
+      if (url.includes("/funds")) {
+        return createFunds({
+          checkedAt: "2026-07-01T16:30:00.000Z",
+          market: "HK",
+        });
+      }
+      if (url.includes("/positions")) return createPositions([]);
+      if (url.includes("/execution/orders")) return emptyExecutionOrders;
+      if (url.includes("/orders")) return createBrokerOrders();
+      if (url.includes("/cash-flows")) return createCashFlows();
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    await controller.loadBrokerLiveData({
+      brokerId: "futu",
+      brokerQuery: "tradingEnvironment=REAL&accountId=ACC-1&market=HK",
+      futuBrokerReadsPaused: false,
+    });
+
+    const cashFlowUrl =
+      requestedUrls().find((url) => url.includes("/cash-flows")) ?? "";
+    expect(searchParams(cashFlowUrl).get("clearingDate")).toBe("2026-07-02");
   });
 
   it("surfaces historical execution order failures", async () => {

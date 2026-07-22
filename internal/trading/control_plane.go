@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,10 +15,36 @@ import (
 const realTradeControlEventLimit = 200
 
 type RealTradeControlPlane struct {
+	placementMu    sync.RWMutex
 	mu             sync.Mutex
 	path           string
 	state          realTradeControlState
 	unavailableErr error
+}
+
+func (p *RealTradeControlPlane) executePlaceOrder(
+	ctx context.Context,
+	command ExecutionOrderCommand,
+	submit func() error,
+) error {
+	if !strings.EqualFold(strings.TrimSpace(command.Query.TradingEnvironment), "REAL") {
+		decision := p.EvaluatePlaceOrder(ctx, command)
+		if !decision.Allows() {
+			return RiskRejectedError{Decision: decision}
+		}
+		return submit()
+	}
+
+	// Risk mutations take the write side of this lock. Once an activation call
+	// returns, every placement evaluated under the preceding state has finished
+	// its broker submission.
+	p.placementMu.RLock()
+	defer p.placementMu.RUnlock()
+	decision := p.EvaluatePlaceOrder(ctx, command)
+	if !decision.Allows() {
+		return RiskRejectedError{Decision: decision}
+	}
+	return submit()
 }
 
 type realTradeControlState struct {
@@ -134,7 +161,16 @@ func (p *RealTradeControlPlane) EvaluatePlaceOrder(_ context.Context, command Ex
 		return decision
 	}
 	if decision.ReasonCode == "REAL_TRADE_HARD_STOP_ACTIVE" {
-		p.recordRejectedHardStop(command, decision)
+		if err := p.recordRejectedHardStop(command, decision); err != nil {
+			// The order is still rejected, but an audit write failure must be
+			// visible to the caller and must fail closed for subsequent REAL writes.
+			snapshot := p.Snapshot()
+			if decision.Snapshot != nil {
+				snapshot.MatchedHardStop = cloneHardStopEntry(decision.Snapshot.MatchedHardStop)
+			}
+			decision.Snapshot = &snapshot
+			decision.ReasonMessage = fmt.Sprintf("%s (hard-stop audit unavailable: %v)", decision.ReasonMessage, err)
+		}
 	}
 	return decision
 }
@@ -146,6 +182,8 @@ func (p *RealTradeControlPlane) Snapshot() RealTradeRiskSnapshot {
 }
 
 func (p *RealTradeControlPlane) ActivateKillSwitch(_ context.Context, command RealTradeKillSwitchCommand) (RealTradeRiskSnapshot, error) {
+	p.placementMu.Lock()
+	defer p.placementMu.Unlock()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
@@ -188,6 +226,8 @@ func (p *RealTradeControlPlane) ActivateKillSwitch(_ context.Context, command Re
 }
 
 func (p *RealTradeControlPlane) ReleaseKillSwitch(_ context.Context, command RealTradeKillSwitchCommand) (RealTradeRiskSnapshot, error) {
+	p.placementMu.Lock()
+	defer p.placementMu.Unlock()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
@@ -237,6 +277,8 @@ func (p *RealTradeControlPlane) UpdateRuntimeRiskConfig(_ context.Context, comma
 		return RealTradeRiskSnapshot{}, err
 	}
 
+	p.placementMu.Lock()
+	defer p.placementMu.Unlock()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
@@ -285,6 +327,8 @@ func (p *RealTradeControlPlane) UpdateRuntimeRiskConfig(_ context.Context, comma
 }
 
 func (p *RealTradeControlPlane) DisableRuntimeRiskConfig(_ context.Context, command RealTradeRuntimeRiskCommand) (RealTradeRiskSnapshot, error) {
+	p.placementMu.Lock()
+	defer p.placementMu.Unlock()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
@@ -324,6 +368,8 @@ func (p *RealTradeControlPlane) DisableRuntimeRiskConfig(_ context.Context, comm
 }
 
 func (p *RealTradeControlPlane) ActivateHardStop(_ context.Context, command RealTradeHardStopCommand) (RealTradeRiskSnapshot, error) {
+	p.placementMu.Lock()
+	defer p.placementMu.Unlock()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
@@ -370,6 +416,8 @@ func (p *RealTradeControlPlane) ActivateHardStop(_ context.Context, command Real
 }
 
 func (p *RealTradeControlPlane) ReleaseHardStop(_ context.Context, id string, command RealTradeHardStopCommand) (RealTradeRiskSnapshot, error) {
+	p.placementMu.Lock()
+	defer p.placementMu.Unlock()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.availabilityErrorLocked(); err != nil {
@@ -449,10 +497,11 @@ func (p *RealTradeControlPlane) configLocked() PreTradeRiskConfig {
 	return config
 }
 
-func (p *RealTradeControlPlane) recordRejectedHardStop(command ExecutionOrderCommand, decision PreTradeRiskDecision) {
+func (p *RealTradeControlPlane) recordRejectedHardStop(command ExecutionOrderCommand, decision PreTradeRiskDecision) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	previousState := cloneRealTradeControlState(p.state)
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	event := RealTradeControlEvent{
 		ID:                 nextRealTradeControlID("rths-event"),
@@ -478,7 +527,12 @@ func (p *RealTradeControlPlane) recordRejectedHardStop(command ExecutionOrderCom
 		}
 	}
 	p.appendEventLocked(event)
-	_ = p.persistLocked()
+	if err := p.persistLocked(); err != nil {
+		p.state = previousState
+		p.unavailableErr = fmt.Errorf("persist hard-stop rejection audit: %w", err)
+		return p.unavailableErr
+	}
+	return nil
 }
 
 func (p *RealTradeControlPlane) appendEventLocked(event RealTradeControlEvent) {
@@ -553,11 +607,14 @@ func cloneRuntimeRiskEntry(entry *RealTradeRuntimeRiskEntry) *RealTradeRuntimeRi
 }
 
 func hasPositiveLimit(value *float64) bool {
-	return value != nil && *value > 0
+	return value != nil && *value > 0 && !math.IsNaN(*value) && !math.IsInf(*value, 0)
 }
 
 func validateRuntimeRiskLimit(value *float64, name string) error {
-	if value == nil || *value > 0 {
+	if value == nil {
+		return nil
+	}
+	if *value > 0 && !math.IsNaN(*value) && !math.IsInf(*value, 0) {
 		return nil
 	}
 	return fmt.Errorf("%s must be positive when provided", name)
@@ -631,6 +688,16 @@ func cloneKillSwitchEntry(entry *RealTradeKillSwitchEntry) *RealTradeKillSwitchE
 		return nil
 	}
 	cloned := *entry
+	return &cloned
+}
+
+func cloneHardStopEntry(entry *RealTradeHardStopEntry) *RealTradeHardStopEntry {
+	if entry == nil {
+		return nil
+	}
+	cloned := *entry
+	cloned.Market = cloneString(entry.Market)
+	cloned.Symbol = cloneString(entry.Symbol)
 	return &cloned
 }
 

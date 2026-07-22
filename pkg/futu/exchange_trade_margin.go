@@ -34,7 +34,7 @@ func (e *Exchange) QueryBrokerMarginRatios(ctx context.Context, query BrokerMarg
 	if cached, ok := e.getMarginRatioCache(cacheKey, marginRatioCacheTTL); ok {
 		return cached, nil
 	}
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, resolveQuery)
 		if err != nil {
 			return err

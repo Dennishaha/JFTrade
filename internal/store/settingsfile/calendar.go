@@ -19,9 +19,10 @@ func (s *Store) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSe
 	normalized := NormalizeExchangeCalendarSettings(input)
 
 	s.mu.Lock()
-	s.data.Calendars = exchangeCalendarSettingsPointer(normalized)
-	err := s.persistLocked()
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		s.data.Calendars = exchangeCalendarSettingsPointer(normalized)
+	})
 	return normalized, err
 }
 

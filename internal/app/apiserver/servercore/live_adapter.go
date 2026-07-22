@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
@@ -47,22 +48,33 @@ func (s *Server) handlePushMarketdataTick(tick mdsrv.Tick) {
 	if s.strategyRuntimeManager == nil {
 		return
 	}
-	price, err := fixedpoint.NewFromString(tick.Price.String())
-	if err != nil {
+	trade, ok := marketTradeFromTick(tick)
+	if !ok {
 		return
 	}
-	quantity := fixedpoint.NewFromFloat(tick.Volume)
+	s.strategyRuntimeManager.handleMarketTrade(trade)
+}
+
+func marketTradeFromTick(tick mdsrv.Tick) (bbgotypes.Trade, bool) {
+	if tick.Kind != mdsrv.TickKindTrade || tick.VolumeDelta < 0 || math.IsNaN(tick.VolumeDelta) || math.IsInf(tick.VolumeDelta, 0) {
+		return bbgotypes.Trade{}, false
+	}
+	price, err := fixedpoint.NewFromString(tick.Price.String())
+	if err != nil {
+		return bbgotypes.Trade{}, false
+	}
+	quantity := fixedpoint.NewFromFloat(tick.VolumeDelta)
 	tradeAt := time.Now().UTC()
 	if parsed := httpTime(tick.QuoteAt); !parsed.IsZero() {
 		tradeAt = parsed
 	}
-	s.strategyRuntimeManager.handleMarketTrade(bbgotypes.Trade{
+	return bbgotypes.Trade{
 		Exchange: "futu",
 		Symbol:   tick.InstrumentID,
 		Price:    price,
 		Quantity: quantity,
 		Time:     bbgotypes.Time(tradeAt),
-	})
+	}, true
 }
 
 func httpTime(value string) time.Time {

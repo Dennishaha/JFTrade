@@ -372,17 +372,15 @@ func (r *SkillRegistry) InstallURL(ctx context.Context, rawURL string) (Skill, e
 	if err := skillInstallHostValidator(ctx, parsed.Hostname()); err != nil {
 		return Skill{}, err
 	}
-	client := &http.Client{
-		Timeout: 20 * time.Second,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if err := skillInstallHostValidator(req.Context(), req.URL.Hostname()); err != nil {
-				return fmt.Errorf("redirect to unsafe host %q blocked: %w", req.URL.Hostname(), err)
-			}
-			if len(via) >= 5 {
-				return fmt.Errorf("too many redirects (max 5)")
-			}
-			return nil
-		},
+	client := newSafeHTTPClient(20*time.Second, skillInstallHostValidator)
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := skillInstallHostValidator(req.Context(), req.URL.Hostname()); err != nil {
+			return fmt.Errorf("redirect to unsafe host %q blocked: %w", req.URL.Hostname(), err)
+		}
+		if len(via) >= 5 {
+			return fmt.Errorf("too many redirects (max 5)")
+		}
+		return nil
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
 	if err != nil {
@@ -396,7 +394,7 @@ func (r *SkillRegistry) InstallURL(ctx context.Context, rawURL string) (Skill, e
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return Skill{}, fmt.Errorf("skill URL returned %d", resp.StatusCode)
 	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxSkillFileSize+1))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxSkillArchiveSize+1))
 	if err != nil {
 		return Skill{}, err
 	}

@@ -106,7 +106,7 @@ function mountBacktestRuns(input: {
   }));
   wrappers.push(wrapper);
   if (state == null) throw new Error("backtest composable was not initialized");
-  return { state, form, normalizeInstrument };
+  return { state, form, normalizeInstrument, wrapper };
 }
 
 beforeEach(() => {
@@ -135,6 +135,8 @@ describe("useBacktestRuns", () => {
           endTime: "2026-06-30T00:00:00Z",
           finalBalance: 100010,
           pnl: 10,
+          tradeStatsVersion: 2,
+          totalFills: 2,
           totalTrades: 1,
           winRate: 1,
           trades: [{
@@ -147,6 +149,7 @@ describe("useBacktestRuns", () => {
             marketFee: 2,
             totalFee: 3,
             feeCurrency: "USD",
+            warmup: true,
           }],
           orderBook: [{
             orderId: "order-1",
@@ -165,6 +168,7 @@ describe("useBacktestRuns", () => {
             marketFee: 2,
             totalFee: 3,
             feeCurrency: "USD",
+            warmup: true,
           }, {
             orderId: "order-2",
             symbol: "US.AAPL",
@@ -193,18 +197,21 @@ describe("useBacktestRuns", () => {
 
     expect(state.runs.value).toHaveLength(1);
     const result = state.runs.value[0]?.result;
+    expect(result).toMatchObject({ tradeStatsVersion: 2, totalFills: 2, totalTrades: 1 });
     expect(result?.trades?.[0]).toMatchObject({
       price: 123.45,
       priceText: "123.4500",
       qty: 0,
       qtyText: "bad-decimal",
       totalFee: 3,
+      warmup: true,
     });
     expect(result?.orderBook?.[0]).toMatchObject({
       quantity: 10,
       quantityText: "10.000",
       filledPrice: undefined,
       filledPriceText: "not-a-number",
+      warmup: true,
     });
     expect(result?.orderBook?.[1]).toMatchObject({
       quantity: 5,
@@ -413,5 +420,19 @@ describe("useBacktestRuns", () => {
     await vi.advanceTimersByTimeAsync(6000);
     expect(polling.state.error.value).toContain("status unavailable");
     expect(fetchEnvelope).toHaveBeenCalledTimes(3);
+  });
+
+  it("clears a pending status poll when its component unmounts", async () => {
+    vi.useFakeTimers();
+    fetchEnvelopeWithInit.mockResolvedValueOnce({ id: "run-unmounted", status: "queued" });
+    apiGet.mockResolvedValue({ runs: [makeRun("run-unmounted", { status: "queued" })] });
+    fetchEnvelope.mockResolvedValue({ id: "run-unmounted", status: "running" });
+    const mounted = mountBacktestRuns();
+
+    await mounted.state.startBacktest();
+    mounted.wrapper.unmount();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(fetchEnvelope).not.toHaveBeenCalled();
   });
 });

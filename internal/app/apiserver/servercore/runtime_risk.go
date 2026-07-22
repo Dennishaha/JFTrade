@@ -88,7 +88,7 @@ func (r *strategySymbolRuntime) sellableQuantity(symbol string) float64 {
 	if r == nil {
 		return 0
 	}
-	return runtimecontrol.SellableQuantity(strategyRuntimePositionsToControl(cloneStrategyRuntimePositions(r.cachedPositions)), symbol)
+	return runtimecontrol.SellableQuantity(strategyRuntimePositionsToControl(r.brokerPositionsSnapshot()), symbol)
 }
 
 func (m *strategyRuntimeManager) todaySubmittedOrderCount(instanceID string, symbol string, now time.Time) int {

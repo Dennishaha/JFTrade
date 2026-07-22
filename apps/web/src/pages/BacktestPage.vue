@@ -1119,6 +1119,28 @@ function pnlPrefix(val: number) {
   return val >= 0 ? "+" : "";
 }
 
+function usesClosedTradeStats(result: {
+  tradeStatsVersion?: number | undefined;
+}): boolean {
+  return result.tradeStatsVersion === 2;
+}
+
+function backtestFillCount(result: {
+  totalFills?: number | undefined;
+  totalTrades: number;
+  trades?: readonly unknown[] | undefined;
+}): number {
+  if (Number.isFinite(result.totalFills) && (result.totalFills ?? 0) >= 0) {
+    return Math.trunc(result.totalFills ?? 0);
+  }
+  if (result.trades != null) {
+    return result.trades.length;
+  }
+  return Number.isFinite(result.totalTrades) && result.totalTrades > 0
+    ? Math.trunc(result.totalTrades)
+    : 0;
+}
+
 function drawdownColor(value: number | undefined) {
   if ((value ?? 0) > 0) {
     return "bt-metric-negative";
@@ -1649,13 +1671,20 @@ watch(
                     <div class="text-xs bt-text-muted">{{ resolveRunQuoteCurrency(focusedRun) }}</div>
                   </div>
                   <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">交易次数</div>
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                      {{ usesClosedTradeStats(focusedRun.result) ? "已平仓交易" : "历史成交数" }}
+                    </div>
                     <div class="mt-1 text-lg font-semibold bt-text">{{ focusedRun.result.totalTrades }}</div>
+                    <div v-if="usesClosedTradeStats(focusedRun.result)" class="text-xs bt-text-muted">
+                      成交 {{ backtestFillCount(focusedRun.result) }} 笔
+                    </div>
                   </div>
                   <div :class="[statCardClass, 'px-3 py-3']">
-                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">胜率</div>
+                    <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                      {{ usesClosedTradeStats(focusedRun.result) ? "已平仓胜率" : "历史胜率" }}
+                    </div>
                     <div class="mt-1 text-lg font-semibold bt-text">
-                      {{ (focusedRun.result.winRate * 100).toFixed(1) }}%
+                      {{ usesClosedTradeStats(focusedRun.result) ? `${(focusedRun.result.winRate * 100).toFixed(1)}%` : "--" }}
                     </div>
                   </div>
                   <div :class="[statCardClass, 'px-3 py-3']">
@@ -1692,7 +1721,7 @@ watch(
                 <div v-else :class="[emptyStateClass, 'p-6 text-center text-sm']">
                   当前回测尚未生成完整报告。
                 </div>
-                <div v-if="focusedRun.result && focusedRun.result.totalTrades === 0 && !focusedRun.result.error"
+                <div v-if="focusedRun.result && backtestFillCount(focusedRun.result) === 0 && !focusedRun.result.error"
                   class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                   未产生任何交易。可能原因：策略未调用 placeOrder()，或订阅的K线周期未同步。
                 </div>
@@ -1786,7 +1815,12 @@ watch(
                                   {{ formatBacktestFee(entry.marketFee, entry.feeCurrency) }}
                                 </div>
                               </td>
-                              <td class="px-4 py-3 align-top bt-text-strong">{{ formatBacktestOrderStatus(entry.status) }}</td>
+                              <td class="px-4 py-3 align-top bt-text-strong">
+                                {{ formatBacktestOrderStatus(entry.status) }}
+                                <span v-if="entry.warmup" class="bt-warmup-label ml-1 text-xs font-medium text-amber-600">
+                                  预热
+                                </span>
+                              </td>
                             </tr>
                           </tbody>
                         </table>

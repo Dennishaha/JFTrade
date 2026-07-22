@@ -298,7 +298,7 @@ func TestUpdateRunObjectiveAndRecentMessageBranches(t *testing.T) {
 	}
 	messages := []Message{
 		{Role: "assistant", Content: "  "},
-		{Role: "assistant", Content: "绛夊緟鐢ㄦ埛瀹℃壒"},
+		{Role: "assistant", Content: "等待用户审批"},
 		{Role: "user", Content: "first user"},
 		{Role: "assistant", Content: "assistant answer"},
 		{Role: "tool", Content: "tool says hello"},

@@ -175,7 +175,7 @@ strategy.entry("Long", strategy.long, qty=1)`,
 	if runEnvelope.Data.Result.Error != "" {
 		t.Fatalf("backtest result error = %q", runEnvelope.Data.Result.Error)
 	}
-	if runEnvelope.Data.Result.TotalTrades == 0 {
+	if len(runEnvelope.Data.Result.Trades) == 0 {
 		if request, ok := worker.lastRequest(); ok {
 			formalStart := klines[20].StartTime.Time().UnixMilli()
 			formalIndex := -1
@@ -185,9 +185,9 @@ strategy.entry("Long", strategy.long, qty=1)`,
 					break
 				}
 			}
-			t.Fatalf("TotalTrades = %d, want > 0 (worker candles=%d formalIndex=%d)", runEnvelope.Data.Result.TotalTrades, len(request.Candles), formalIndex)
+			t.Fatalf("Trades = 0, want a fill event (worker candles=%d formalIndex=%d)", len(request.Candles), formalIndex)
 		}
-		t.Fatalf("TotalTrades = %d, want > 0", runEnvelope.Data.Result.TotalTrades)
+		t.Fatal("Trades = 0, want a fill event")
 	}
 	if len(runEnvelope.Data.Result.DrawdownCurve) != len(runEnvelope.Data.Result.PnLCurve) {
 		t.Fatalf("DrawdownCurve len = %d, want %d", len(runEnvelope.Data.Result.DrawdownCurve), len(runEnvelope.Data.Result.PnLCurve))

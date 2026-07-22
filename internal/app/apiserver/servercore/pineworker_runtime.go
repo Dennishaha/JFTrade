@@ -131,19 +131,23 @@ func (s *Server) applyPineWorkerSettings(_ jftsettings.PineWorkerSettings) {
 	if s == nil {
 		return
 	}
-	retirePineWorkerRunner(s.backtestPineWorkerRunner)
-	retirePineWorkerRunner(s.instancePineWorkerRunner)
-	s.backtestPineWorkerRunner = nil
-	s.instancePineWorkerRunner = nil
 	backtestRunner, instanceRunner := s.startPineWorkerManagers()
+
+	s.pineWorkerMu.Lock()
+	previousBacktestRunner := s.backtestPineWorkerRunner
+	previousInstanceRunner := s.instancePineWorkerRunner
 	s.backtestPineWorkerRunner = backtestRunner
 	s.instancePineWorkerRunner = instanceRunner
 	if s.strategyRuntimeManager != nil {
-		s.strategyRuntimeManager.pineWorkerRunner = instanceRunner
+		s.strategyRuntimeManager.setPineWorkerRunner(instanceRunner)
 	}
 	if s.backtestSvc != nil {
 		s.backtestSvc.SetPineWorkerRunner(backtestRunner)
 	}
+	s.pineWorkerMu.Unlock()
+
+	retirePineWorkerRunner(previousBacktestRunner)
+	retirePineWorkerRunner(previousInstanceRunner)
 }
 
 func retirePineWorkerRunner(runner pineWorkerRunner) {

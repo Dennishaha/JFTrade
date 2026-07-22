@@ -73,10 +73,12 @@ func (m *Manager) cacheSnapshot(snapshot marketcalendar.CalendarSnapshot) {
 	if m == nil {
 		return
 	}
-	key := m.snapshotCacheKey(snapshot.SourceID, snapshot.MarketCode, snapshot.From)
+	keys := m.snapshotCacheKeys(snapshot)
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.snapshots[key] = snapshot
+	for _, key := range keys {
+		m.snapshots[key] = snapshot
+	}
 }
 
 func (m *Manager) cachedSnapshot(sourceID string, market string, day time.Time) (marketcalendar.CalendarSnapshot, bool) {
@@ -141,12 +143,36 @@ func (m *Manager) coverageSource(market string, day time.Time) (string, bool) {
 }
 
 func (m *Manager) snapshotCacheKey(sourceID string, market string, at time.Time) string {
+	return snapshotCacheKeyForYear(sourceID, market, m.snapshotLocalYear(market, at))
+}
+
+func (m *Manager) snapshotCacheKeys(snapshot marketcalendar.CalendarSnapshot) []string {
+	startYear := m.snapshotLocalYear(snapshot.MarketCode, snapshot.From)
+	endYear := startYear
+	if !snapshot.To.IsZero() {
+		endYear = m.snapshotLocalYear(snapshot.MarketCode, snapshot.To)
+	}
+	if endYear < startYear {
+		endYear = startYear
+	}
+	keys := make([]string, 0, endYear-startYear+1)
+	for year := startYear; year <= endYear; year++ {
+		keys = append(keys, snapshotCacheKeyForYear(snapshot.SourceID, snapshot.MarketCode, year))
+	}
+	return keys
+}
+
+func (m *Manager) snapshotLocalYear(market string, at time.Time) int {
 	year := at.UTC().Year()
 	if m != nil && m.builtin != nil {
 		if template, ok := m.builtin.Template(normalizeMarket(market)); ok {
 			year = at.In(marketcalendar.LoadLocation(template)).Year()
 		}
 	}
+	return year
+}
+
+func snapshotCacheKeyForYear(sourceID string, market string, year int) string {
 	return fmt.Sprintf("%s|%s|%04d", strings.TrimSpace(sourceID), normalizeMarket(market), year)
 }
 

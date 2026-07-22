@@ -15,23 +15,26 @@ func (r *Runtime) ResolveApproval(ctx context.Context, approvalID string, approv
 	if approved {
 		status = ApprovalStatusApproved
 	}
-	approval, changed, err := r.store.ResolvePendingApproval(ctx, approvalID, status)
+	approval, changed, run, shouldContinue, err := r.store.resolveAndStageApproval(ctx, approvalID, status)
 	if err != nil {
 		return ApprovalResolution{}, err
 	}
-	if !changed {
-		if approval.ID != "" && approval.Status == status {
-			resolution, err := r.continueResolvedApproval(ctx, approval, approved)
-			if err != nil {
-				return ApprovalResolution{}, err
-			}
-			return r.attachParentWorkflowResolution(ctx, resolution)
-		}
+	if !changed && (approval.ID == "" || approval.Status != status) {
 		return ApprovalResolution{Approval: approval}, nil
 	}
-	r.audit(ctx, "approval.resolved", approval.ID, "Agent approval resolved.", map[string]any{
-		"runId": approval.RunID, "toolName": approval.ToolName, "approved": approved,
-	})
+	if changed {
+		r.audit(ctx, "approval.resolved", approval.ID, "Agent approval resolved.", map[string]any{
+			"runId": approval.RunID, "toolName": approval.ToolName, "approved": approved,
+		})
+	}
+	staged := ApprovalResolution{Approval: approval, Run: run}
+	if !shouldContinue {
+		return r.attachParentWorkflowResolution(ctx, staged)
+	}
+	if !r.claimApprovalContinuation(approval.RunID) {
+		return r.attachParentWorkflowResolution(ctx, staged)
+	}
+	defer r.releaseApprovalContinuation(approval.RunID)
 	resolution, err := r.continueResolvedApproval(ctx, approval, approved)
 	if err != nil {
 		return ApprovalResolution{}, err
@@ -39,12 +42,39 @@ func (r *Runtime) ResolveApproval(ctx context.Context, approvalID string, approv
 	return r.attachParentWorkflowResolution(ctx, resolution)
 }
 
+func (r *Runtime) claimApprovalContinuation(runID string) bool {
+	runID = strings.TrimSpace(runID)
+	if r == nil || runID == "" {
+		return false
+	}
+	r.approvalMu.Lock()
+	defer r.approvalMu.Unlock()
+	if r.approvalRuns == nil {
+		r.approvalRuns = make(map[string]struct{})
+	}
+	if _, exists := r.approvalRuns[runID]; exists {
+		return false
+	}
+	r.approvalRuns[runID] = struct{}{}
+	return true
+}
+
+func (r *Runtime) releaseApprovalContinuation(runID string) {
+	if r == nil {
+		return
+	}
+	runID = strings.TrimSpace(runID)
+	r.approvalMu.Lock()
+	delete(r.approvalRuns, runID)
+	r.approvalMu.Unlock()
+}
+
 func (r *Runtime) ResolveApprovalAsync(ctx context.Context, approvalID string, approved bool) (ApprovalResolution, error) {
 	status := ApprovalStatusDenied
 	if approved {
 		status = ApprovalStatusApproved
 	}
-	approval, changed, err := r.store.ResolvePendingApproval(ctx, approvalID, status)
+	approval, changed, run, shouldContinue, err := r.store.resolveAndStageApproval(ctx, approvalID, status)
 	if err != nil {
 		return ApprovalResolution{}, err
 	}
@@ -57,10 +87,7 @@ func (r *Runtime) ResolveApprovalAsync(ctx context.Context, approvalID string, a
 			"runId": approval.RunID, "toolName": approval.ToolName, "approved": approved,
 		})
 	}
-	resolution, shouldContinue, err := r.stageResolvedApproval(ctx, approval, approved)
-	if err != nil {
-		return ApprovalResolution{}, err
-	}
+	resolution := ApprovalResolution{Approval: approval, Run: run}
 	resolution, err = r.attachParentWorkflowResolution(ctx, resolution)
 	if err != nil {
 		return ApprovalResolution{}, err
@@ -72,69 +99,18 @@ func (r *Runtime) ResolveApprovalAsync(ctx context.Context, approvalID string, a
 }
 
 func (r *Runtime) stageResolvedApproval(ctx context.Context, approval Approval, approved bool) (ApprovalResolution, bool, error) {
-	run, ok, err := r.store.Run(ctx, approval.RunID)
-	if err != nil || !ok {
-		return ApprovalResolution{Approval: approval}, false, err
-	}
-	if run.Status != RunStatusPending {
-		return ApprovalResolution{Approval: approval}, false, nil
-	}
-	replacedApproval := false
-	for index := range run.PendingApprovals {
-		if run.PendingApprovals[index].ID == approval.ID {
-			run.PendingApprovals[index] = approval
-			replacedApproval = true
-		}
-	}
-	if !replacedApproval {
-		return ApprovalResolution{Approval: approval, Run: &run}, false, nil
-	}
-	if !approved {
-		for index := range run.PendingApprovals {
-			item := &run.PendingApprovals[index]
-			if item.Status != ApprovalStatusPending {
-				continue
-			}
-			resolved, changed, resolveErr := r.store.ResolvePendingApproval(ctx, item.ID, ApprovalStatusDenied)
-			if resolveErr == nil && changed {
-				*item = resolved
-			}
-		}
-		for index := range run.ToolCalls {
-			call := &run.ToolCalls[index]
-			if call.Status == "PENDING_APPROVAL" {
-				call.Status = "DENIED"
-				call.RequiresUser = false
-				finishToolCall(call)
-			}
-		}
-	}
-	if runHasPendingApproval(run.PendingApprovals) {
-		if err := r.store.SaveRun(ctx, run); err != nil {
-			return ApprovalResolution{}, false, err
-		}
-		return ApprovalResolution{Approval: approval, Run: &run}, false, nil
-	}
-	run.ResumeState = "approval_resuming"
+	status := ApprovalStatusDenied
 	if approved {
-		run.Status = RunStatusRunning
-		for index := range run.ToolCalls {
-			call := &run.ToolCalls[index]
-			if call.Status != "PENDING_APPROVAL" {
-				continue
-			}
-			call.Status = "RUNNING"
-			call.RequiresUser = false
-			call.UpdatedAt = nowString()
-		}
-		run.Message = "审批已通过，正在后台继续执行。"
-	} else {
-		run.Message = "审批已拒绝，正在后台结束运行。"
+		status = ApprovalStatusApproved
 	}
-	if err := r.store.SaveRun(ctx, run); err != nil {
+	resolved, _, run, shouldContinue, err := r.store.resolveAndStageApproval(ctx, approval.ID, status)
+	if err != nil {
 		return ApprovalResolution{}, false, err
 	}
-	return ApprovalResolution{Approval: approval, Run: &run}, true, nil
+	if resolved.ID == "" {
+		resolved = approval
+	}
+	return ApprovalResolution{Approval: resolved, Run: run}, shouldContinue, nil
 }
 
 func (r *Runtime) enqueueResolvedApprovalContinuation(runID string) {
@@ -142,16 +118,15 @@ func (r *Runtime) enqueueResolvedApprovalContinuation(runID string) {
 	if r == nil || r.store == nil || runID == "" {
 		return
 	}
+	if !r.claimApprovalContinuation(runID) {
+		return
+	}
 	r.approvalMu.Lock()
 	if r.closing {
 		r.approvalMu.Unlock()
+		r.releaseApprovalContinuation(runID)
 		return
 	}
-	if _, ok := r.approvalRuns[runID]; ok {
-		r.approvalMu.Unlock()
-		return
-	}
-	r.approvalRuns[runID] = struct{}{}
 	r.approvalWG.Add(1)
 	ctx := r.backgroundCtx
 	if ctx == nil {
@@ -160,11 +135,7 @@ func (r *Runtime) enqueueResolvedApprovalContinuation(runID string) {
 	r.approvalMu.Unlock()
 	go func() {
 		defer r.approvalWG.Done()
-		defer func() {
-			r.approvalMu.Lock()
-			delete(r.approvalRuns, runID)
-			r.approvalMu.Unlock()
-		}()
+		defer r.releaseApprovalContinuation(runID)
 		if err := r.continueResolvedApprovalRun(ctx, runID); err != nil {
 			if ctx.Err() != nil {
 				return
@@ -181,9 +152,12 @@ func (r *Runtime) continueResolvedApprovalRun(ctx context.Context, runID string)
 	}
 	var approval Approval
 	for _, item := range run.PendingApprovals {
-		if item.Status != ApprovalStatusPending {
+		if item.Status == ApprovalStatusDenied {
 			approval = item
 			break
+		}
+		if approval.ID == "" && item.Status != ApprovalStatusPending {
+			approval = item
 		}
 	}
 	if approval.ID == "" {

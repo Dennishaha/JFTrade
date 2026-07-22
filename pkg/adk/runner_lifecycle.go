@@ -786,6 +786,6 @@ func recentOpenAIMessages(messages []Message, maxMessages int, maxChars int) []o
 }
 
 func isIntermediateApprovalMessage(content string) bool {
-	return strings.Contains(content, "绛夊緟鐢ㄦ埛瀹℃壒") ||
-		strings.Contains(content, "璇峰厛鍦?ADK 瀹℃壒闃熷垪")
+	return strings.Contains(content, "等待用户审批") ||
+		strings.Contains(content, "请先在 ADK 审批队列")
 }

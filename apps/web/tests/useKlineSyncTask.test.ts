@@ -1,3 +1,4 @@
+import { effectScope } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getLiveEventBus, resetLiveEventBusForTests } from "../src/composables/liveEventBus";
@@ -183,6 +184,143 @@ describe("useKlineSyncTask", () => {
     await expect(task.cancelSync()).resolves.toBeUndefined();
     expect(task.syncing.value).toBe(false);
     expect(task.syncTaskId.value).toBe("");
+  });
+
+  it("stops the completion poll and settles its promise when the owning scope is disposed", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(envelope({ taskId: "sync-disposed", message: "queued" }))
+      .mockResolvedValueOnce(envelope({ ...progress("running"), taskId: "sync-disposed" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const scope = effectScope();
+    const task = scope.run(() => useKlineSyncTask());
+    if (task == null) throw new Error("sync task was not initialized");
+
+    const result = task.startSync({
+      market: "US",
+      code: "AAPL",
+      symbol: "US.AAPL",
+      intervals: ["1m"],
+      startDate: "2026-06-01",
+      endDate: "2026-06-25",
+      rehabType: "forward",
+      sessionScope: "regular",
+    });
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    scope.stop();
+    await expect(result).resolves.toBeNull();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(task.syncing.value).toBe(false);
+  });
+
+  it("stops polling after repeated progress read failures", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(envelope({ taskId: "sync-offline", message: "queued" }))
+      .mockRejectedValue(new Error("offline"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const task = useKlineSyncTask();
+    const result = task.startSync({
+      market: "US",
+      code: "AAPL",
+      symbol: "US.AAPL",
+      intervals: ["1m"],
+      startDate: "2026-06-01",
+      endDate: "2026-06-25",
+      rehabType: "forward",
+      sessionScope: "regular",
+    });
+
+    await vi.runOnlyPendingTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
+    await expect(result).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(task.syncError.value).toContain("连续 3 次");
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("ignores an in-flight progress response that arrives after cancellation", async () => {
+    let resolveProgress!: (response: Response) => void;
+    const progressResponse = new Promise<Response>((resolve) => {
+      resolveProgress = resolve;
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(envelope({ taskId: "sync-cancel-race", message: "queued" }))
+      .mockReturnValueOnce(progressResponse)
+      .mockResolvedValueOnce(envelope({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const task = useKlineSyncTask();
+    const result = task.startSync({
+      market: "US",
+      code: "AAPL",
+      symbol: "US.AAPL",
+      intervals: ["1m"],
+      startDate: "2026-06-01",
+      endDate: "2026-06-25",
+      rehabType: "forward",
+      sessionScope: "regular",
+    });
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await task.cancelSync();
+    task.syncProgress.value = {
+      ...progress("cancelled"),
+      taskId: "sync-cancel-race",
+    };
+    resolveProgress(envelope({
+      ...progress("running"),
+      taskId: "sync-cancel-race",
+    }));
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+
+    await expect(result).resolves.toBeNull();
+    expect(task.syncProgress.value?.status).toBe("cancelled");
+    expect(task.syncing.value).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("ignores an in-flight progress response after its scope is disposed", async () => {
+    let resolveProgress!: (response: Response) => void;
+    const progressResponse = new Promise<Response>((resolve) => {
+      resolveProgress = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValueOnce(progressResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const scope = effectScope();
+    const task = scope.run(() => useKlineSyncTask());
+    if (task == null) throw new Error("sync task was not initialized");
+    task.syncTaskId.value = "sync-dispose-race";
+    task.syncing.value = true;
+
+    const refresh = task.refreshSyncProgress();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    scope.stop();
+    resolveProgress(envelope({
+      ...progress("running"),
+      taskId: "sync-dispose-race",
+    }));
+
+    await expect(refresh).resolves.toBeNull();
+    expect(task.syncProgress.value).toBeNull();
+    expect(task.syncing.value).toBe(false);
   });
 });
 

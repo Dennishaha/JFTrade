@@ -107,19 +107,29 @@ func (s *googleADKArtifactService) Save(ctx context.Context, req *adkartifact.Sa
 		return nil, fmt.Errorf("ADK artifact database is unavailable")
 	}
 	sessionID := googleADKArtifactSessionID(req.SessionID, req.FileName)
-	version := req.Version
-	if version <= 0 {
-		next, err := s.nextVersion(ctx, req.AppName, req.UserID, sessionID, req.FileName)
-		if err != nil {
-			return nil, err
-		}
-		version = next
-	}
 	partJSON, err := json.Marshal(req.Part)
 	if err != nil {
 		return nil, fmt.Errorf("marshal ADK artifact part: %w", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	version := req.Version
+	if version <= 0 {
+		err = s.db.WriteTx(ctx, nil, func(tx *sqliteconn.Tx) error {
+			return tx.QueryRowxContext(ctx, `INSERT INTO artifacts
+				(app_name, user_id, session_id, file_name, version, part_json, mime_type, custom_metadata_json, created_at, updated_at)
+				SELECT ?, ?, ?, ?, COALESCE(MAX(version), 0) + 1, ?, ?, ?, ?, ?
+				FROM artifacts
+				WHERE app_name = ? AND user_id = ? AND session_id = ? AND file_name = ?
+				RETURNING version`,
+				req.AppName, req.UserID, sessionID, req.FileName, string(partJSON), googleADKArtifactMimeType(req.Part), "null", now, now,
+				req.AppName, req.UserID, sessionID, req.FileName,
+			).Scan(&version)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("save ADK artifact: %w", err)
+		}
+		return &adkartifact.SaveResponse{Version: version}, nil
+	}
 	_, err = s.db.ExecContext(ctx, `INSERT OR REPLACE INTO artifacts
 		(app_name, user_id, session_id, file_name, version, part_json, mime_type, custom_metadata_json, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM artifacts WHERE app_name = ? AND user_id = ? AND session_id = ? AND file_name = ? AND version = ?), ?), ?)`,
@@ -254,21 +264,6 @@ func (s *googleADKArtifactService) Close() error {
 		return nil
 	}
 	return s.db.Close()
-}
-
-func (s *googleADKArtifactService) nextVersion(ctx context.Context, appName string, userID string, sessionID string, fileName string) (int64, error) {
-	var current sql.NullInt64
-	err := s.db.QueryRowxContext(ctx, `SELECT MAX(version) FROM artifacts
-		WHERE app_name = ? AND user_id = ? AND session_id = ? AND file_name = ?`,
-		appName, userID, sessionID, fileName,
-	).Scan(&current)
-	if err != nil {
-		return 0, err
-	}
-	if !current.Valid {
-		return 1, nil
-	}
-	return current.Int64 + 1, nil
 }
 
 func (s *googleADKArtifactService) loadRecord(ctx context.Context, appName string, userID string, sessionID string, fileName string, version int64) (googleADKArtifactRecord, error) {

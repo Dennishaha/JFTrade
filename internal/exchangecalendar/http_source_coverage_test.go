@@ -205,7 +205,7 @@ func TestCalendarParsersDiscardIncompleteOrOutOfRangeAuthorityRows(t *testing.T)
 		"notice before year",
 		"## 2026",
 		"plain text without a month",
-		"Reverse span December 31 - January 2",
+		"Reverse span December 31, 2026 - January 2, 2026",
 		"Trading hours",
 		"National Day October 1 - October 8",
 	}, "\n"))

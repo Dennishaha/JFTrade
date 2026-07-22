@@ -98,6 +98,23 @@ func TestStorePureHelpersCoverBoundaryInputs(t *testing.T) {
 	if err := mapWriteError(plain); !errors.Is(err, plain) {
 		t.Fatalf("plain error = %v", err)
 	}
+	rowsFailure := errors.New("rows affected unavailable")
+	if err := classifyImportPreviewCommitResult(0, rowsFailure); !errors.Is(err, rowsFailure) {
+		t.Fatalf("preview rows error = %v", err)
+	}
+	if err := classifyImportPreviewCommitResult(0, nil); !errors.Is(err, domain.ErrStalePreview) {
+		t.Fatalf("zero preview rows error = %v", err)
+	}
+	if err := classifyImportPreviewCommitResult(1, nil); err != nil {
+		t.Fatalf("one preview row error = %v", err)
+	}
+	lookupFailure := errors.New("group table unavailable")
+	if err := classifyGroupUpdateMiss(lookupFailure); !errors.Is(err, lookupFailure) {
+		t.Fatalf("group lookup error = %v", err)
+	}
+	if err := classifyGroupUpdateMiss(nil); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("group update conflict = %v", err)
+	}
 
 	if market, symbol := splitInstrumentID("AAPL"); market != "" || symbol != "AAPL" {
 		t.Fatalf("split invalid = %q/%q", market, symbol)

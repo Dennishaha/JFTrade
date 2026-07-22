@@ -93,6 +93,53 @@ func TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot(t *testing.T) {
 	}
 }
 
+func TestExecutionOrderStoreDoesNotDoubleCountSnapshotCoveredFill(t *testing.T) {
+	store := newExecutionOrderStore()
+	seeded := seedOutOfOrderPlacedOrder(store, "snapshot-covered-fill")
+	snapshotAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 5*time.Minute)
+	delayedFillAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 4*time.Minute)
+	newFillAt := executionTestTimestampAfter(t, seeded.UpdatedAt, 6*time.Minute)
+	snapshotFilled := 4.0
+	snapshotAverage := 100.0
+
+	snapshot, _, changed := store.upsertBrokerOrderWithSource("futu", broker.OrderSnapshot{
+		AccountID: "SIM-1", TradingEnvironment: "SIMULATE", Market: "US",
+		BrokerOrderID: "snapshot-covered-fill", Symbol: "US.AAPL", Side: "BUY", OrderType: "LIMIT",
+		Status: "FILLED_PART", Quantity: 10, FilledQuantity: &snapshotFilled,
+		FilledAveragePrice: &snapshotAverage, UpdatedAt: snapshotAt,
+	}, "BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
+	if !changed || snapshot.FilledQuantity == nil || *snapshot.FilledQuantity != 4 {
+		t.Fatalf("snapshot = %#v changed=%v", snapshot, changed)
+	}
+
+	delayedPrice := 100.0
+	delayed, delayedEvent, changed := store.recordBrokerOrderFill("futu", broker.OrderFillSnapshot{
+		AccountID: "SIM-1", TradingEnvironment: "SIMULATE", Market: "US",
+		BrokerOrderID: "snapshot-covered-fill", BrokerFillID: "covered-fill",
+		Symbol: "US.AAPL", Side: "BUY", FilledQuantity: 4, FillPrice: &delayedPrice, FilledAt: delayedFillAt,
+	})
+	if changed || delayedEvent == nil || delayed.FilledQuantity == nil || *delayed.FilledQuantity != 4 {
+		t.Fatalf("snapshot-covered fill = %#v event=%#v changed=%v", delayed, delayedEvent, changed)
+	}
+	if delayed.FilledAveragePrice == nil || *delayed.FilledAveragePrice != snapshotAverage {
+		t.Fatalf("snapshot-covered average = %#v, want %v", delayed.FilledAveragePrice, snapshotAverage)
+	}
+
+	newPrice := 102.0
+	updated, _, changed := store.recordBrokerOrderFill("futu", broker.OrderFillSnapshot{
+		AccountID: "SIM-1", TradingEnvironment: "SIMULATE", Market: "US",
+		BrokerOrderID: "snapshot-covered-fill", BrokerFillID: "new-fill",
+		Symbol: "US.AAPL", Side: "BUY", FilledQuantity: 2, FillPrice: &newPrice, FilledAt: newFillAt,
+	})
+	if !changed || updated.FilledQuantity == nil || *updated.FilledQuantity != 6 {
+		t.Fatalf("new fill = %#v changed=%v", updated, changed)
+	}
+	wantAverage := (snapshotAverage*4 + newPrice*2) / 6
+	if updated.FilledAveragePrice == nil || *updated.FilledAveragePrice != wantAverage {
+		t.Fatalf("new fill average = %#v, want %v", updated.FilledAveragePrice, wantAverage)
+	}
+}
+
 func TestExecutionOrderStoreRejectsStaleBrokerSnapshotRegression(t *testing.T) {
 	store := newExecutionOrderStore()
 	price := 100.0

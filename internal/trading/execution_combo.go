@@ -84,6 +84,8 @@ func (s *Service) PreviewExecutionCombo(ctx context.Context, request ExecutionCo
 			if err != nil {
 				return ExecutionComboPreview{}, err
 			}
+		} else if strings.EqualFold(intent.TradingEnvironment, "REAL") {
+			return ExecutionComboPreview{}, requestErrorf("prediction quote persistence is unavailable for REAL orders")
 		} else if intent.QuoteExpiresAt == nil || !time.Now().Before(*intent.QuoteExpiresAt) {
 			return ExecutionComboPreview{}, requestErrorf("Parlay quote expired; request a new RFQ")
 		}
@@ -160,9 +162,14 @@ func (s *Service) CreateExecutionCombo(ctx context.Context, request ExecutionCom
 			if err != nil {
 				return ExecutionCommandResponse{}, err
 			}
+		} else if strings.EqualFold(intent.TradingEnvironment, "REAL") {
+			return ExecutionCommandResponse{}, requestErrorf("prediction quote persistence is unavailable for REAL orders")
 		} else if intent.QuoteExpiresAt == nil || !time.Now().Before(*intent.QuoteExpiresAt) {
 			return ExecutionCommandResponse{}, requestErrorf("Parlay quote expired; request a new RFQ")
 		}
+	}
+	if err := s.evaluatePlaceExecutionOrderRisk(ctx, comboRiskCommand(intent)); err != nil {
+		return ExecutionCommandResponse{}, err
 	}
 	if s.previewStore != nil {
 		if err := s.previewStore.ConsumePreview(
@@ -182,34 +189,38 @@ func (s *Service) CreateExecutionCombo(ctx context.Context, request ExecutionCom
 			return ExecutionCommandResponse{}, requestErrorf("prediction RFQ is invalid: %v", err)
 		}
 	}
-	if s.preTradeRisk != nil {
-		quantity := comboRiskQuantity(intent)
-		command := ExecutionOrderCommand{
-			BrokerID:     intent.BrokerID,
-			OrderKind:    intent.OrderKind,
-			ProductClass: intent.ProductClass,
-			PreviewID:    intent.PreviewID,
-			Legs:         intent.Legs,
-			Query: broker.PlaceOrderQuery{
-				ReadQuery:     intent.ReadQuery,
-				ProductClass:  intent.ProductClass,
-				QuantityMode:  comboQuantityMode(intent.OrderKind),
-				Quantity:      quantity,
-				Amount:        intent.Amount,
-				Price:         intent.Price,
-				ClientOrderID: intent.ClientOrderID,
-			},
-		}
-		decision := s.preTradeRisk.EvaluatePlaceOrder(ctx, command)
-		if !decision.Allows() {
-			return ExecutionCommandResponse{}, RiskRejectedError{Decision: decision}
-		}
-	}
-	order, err := s.comboGateway.PlaceCombo(ctx, intent)
+	// Keep the final decision and broker submission in the same control-plane
+	// placement window. This also covers combo and event-parlay orders when a
+	// kill switch or hard stop is activated concurrently.
+	var order ExecutionOrder
+	err = s.executePlaceOrderWithRisk(ctx, comboRiskCommand(intent), func() error {
+		var submitErr error
+		order, submitErr = s.comboGateway.PlaceCombo(ctx, intent)
+		return submitErr
+	})
 	if err != nil {
 		return ExecutionCommandResponse{}, err
 	}
 	return executionCommandResponse("PLACE_COMBO", "combo order submitted to broker", order), nil
+}
+
+func comboRiskCommand(intent broker.ComboOrderIntent) ExecutionOrderCommand {
+	return ExecutionOrderCommand{
+		BrokerID:     intent.BrokerID,
+		OrderKind:    intent.OrderKind,
+		ProductClass: intent.ProductClass,
+		PreviewID:    intent.PreviewID,
+		Legs:         intent.Legs,
+		Query: broker.PlaceOrderQuery{
+			ReadQuery:     intent.ReadQuery,
+			ProductClass:  intent.ProductClass,
+			QuantityMode:  comboQuantityMode(intent.OrderKind),
+			Quantity:      comboRiskQuantity(intent),
+			Amount:        intent.Amount,
+			Price:         intent.Price,
+			ClientOrderID: intent.ClientOrderID,
+		},
+	}
 }
 
 func (s *Service) CancelExecutionCombo(ctx context.Context, internalOrderID string) (ExecutionCommandResponse, error) {
@@ -312,6 +323,9 @@ func validateOptionComboRequest(request ExecutionComboRequest) error {
 	if request.OrderKind != broker.OrderKindOptionCombo {
 		return nil
 	}
+	if request.Amount != nil {
+		return requestErrorf("amount is supported for event parlay orders only")
+	}
 	if strings.TrimSpace(request.UnderlyingID) == "" {
 		return requestErrorf("option combo requires underlyingInstrumentId")
 	}
@@ -343,8 +357,11 @@ func validateEventParlayRequest(request ExecutionComboRequest) error {
 		return requestErrorf("event parlay must use market US")
 	}
 	if strings.TrimSpace(request.RFQID) == "" ||
-		request.Amount == nil || *request.Amount <= 0 {
+		request.Amount == nil || !finitePositive(*request.Amount) {
 		return requestErrorf("event parlay requires rfqId and positive amount")
+	}
+	if request.Price != nil {
+		return requestErrorf("event parlay price is bound to the server-side RFQ and must not be provided")
 	}
 	for _, leg := range request.Legs {
 		if leg.PredictionSide != "YES" && leg.PredictionSide != "NO" {

@@ -76,13 +76,75 @@ strategy("worker smoke")`,
 		t.Fatalf("QuoteCurrency = %s, want USD", result.QuoteCurrency)
 	}
 	if result.TotalTrades == 0 {
-		t.Fatalf("TotalTrades = %d, want fills", result.TotalTrades)
+		t.Fatalf("TotalTrades = %d, want at least one closed trade", result.TotalTrades)
 	}
 	if len(result.OrderBook) == 0 {
 		t.Fatal("OrderBook is empty, want submitted worker orders")
 	}
 	if len(result.Candles) != len(klines)-1 {
 		t.Fatalf("Candles len = %d, want %d", len(result.Candles), len(klines)-1)
+	}
+}
+
+func TestRunWithPineWorkerReportsWarmupFillsThatAffectEquity(t *testing.T) {
+	isolateBacktestHome(t)
+
+	dbPath := filepath.Join(t.TempDir(), "pinets-worker-warmup-fills.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.June, 29, 13, 28, 0, 0, time.UTC)
+	klines := []types.KLine{
+		testPineWorkerRunnerKLine(baseStart, 100),
+		testPineWorkerRunnerKLine(baseStart.Add(time.Minute), 101),
+		testPineWorkerRunnerKLine(baseStart.Add(2*time.Minute), 110),
+		testPineWorkerRunnerKLine(baseStart.Add(3*time.Minute), 111),
+		testPineWorkerRunnerKLine(baseStart.Add(4*time.Minute), 112),
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		jftradeCheckTestError(t, store.Close())
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	runner := &fakePineWorkerBacktestRunner{response: pineworker.RunScriptResponse{
+		OrderIntents: []pineworker.OrderIntent{
+			{Kind: "entry", ID: "warmup-long", Direction: "long", Quantity: 1, HasQuantity: true, BarIndex: 0},
+			{Kind: "close", ID: "close-long", Direction: "long", Quantity: 1, HasQuantity: true, BarIndex: 2},
+		},
+		Metadata: pineworker.WorkerMetadata{WorkerID: "worker-1"},
+	}}
+	result := RunWithPineWorker(context.Background(), RunConfig{
+		DBPath:        dbPath,
+		Symbol:        "US.AAPL",
+		Interval:      string(types.Interval1m),
+		SourceFormat:  strategydefinition.SourceFormatPineV6,
+		StartTime:     klines[2].StartTime.Time(),
+		EndTime:       klines[len(klines)-1].EndTime.Time(),
+		WarmupCandles: 2,
+		StrategyScript: `//@version=6
+strategy("worker warmup fills")`,
+		InitialBalance: 10000,
+	}, runner)
+
+	if result == nil || result.Error != "" {
+		t.Fatalf("RunWithPineWorker result = %#v", result)
+	}
+	if len(runner.request.Candles) != len(klines) {
+		t.Fatalf("worker candles = %d, want warmup plus formal bars %d", len(runner.request.Candles), len(klines))
+	}
+	if result.TotalFills != 2 || result.TotalTrades != 1 || result.WinRate != 1 || result.PnL != 10 {
+		t.Fatalf("warmup-accounted stats fills=%d trades=%d winRate=%f pnl=%f", result.TotalFills, result.TotalTrades, result.WinRate, result.PnL)
+	}
+	if len(result.Trades) != 2 || !result.Trades[0].Warmup || result.Trades[1].Warmup {
+		t.Fatalf("reported trades = %#v, want visible marked warmup entry", result.Trades)
+	}
+	warmupOrder, ok := findOrderBookEntry(result.OrderBook, "warmup-long")
+	if !ok || !warmupOrder.Warmup {
+		t.Fatalf("warmup order = %#v, found=%v", warmupOrder, ok)
 	}
 }
 
@@ -137,8 +199,8 @@ strategy("worker qty pct")`,
 	if result.Error != "" {
 		t.Fatalf("RunWithPineWorker error = %s", result.Error)
 	}
-	if result.TotalTrades != 2 {
-		t.Fatalf("TotalTrades = %d, want 2", result.TotalTrades)
+	if result.TotalTrades != 1 {
+		t.Fatalf("TotalTrades = %d, want one closed trade", result.TotalTrades)
 	}
 	entry, ok := findOrderBookEntry(result.OrderBook, "half-equity")
 	if !ok {

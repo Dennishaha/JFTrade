@@ -95,10 +95,16 @@ func TestResultCollectorBuildsTradesAndFinalStats(t *testing.T) {
 	if result.PnL != 0 {
 		t.Fatalf("pnl = %f", result.PnL)
 	}
-	if result.TotalTrades != 2 {
+	if result.TradeStatsVersion != closedTradeStatsVersion {
+		t.Fatalf("tradeStatsVersion = %d", result.TradeStatsVersion)
+	}
+	if result.TotalFills != 2 {
+		t.Fatalf("totalFills = %d", result.TotalFills)
+	}
+	if result.TotalTrades != 1 {
 		t.Fatalf("totalTrades = %d", result.TotalTrades)
 	}
-	if result.WinRate != 0.5 {
+	if result.WinRate != 1 {
 		t.Fatalf("winRate = %f", result.WinRate)
 	}
 	if len(result.Trades) != 2 {
@@ -190,8 +196,9 @@ func TestResultCollectorTracksPartialFillIncrementally(t *testing.T) {
 	if result.Trades[0].Qty != "2" || result.Trades[0].Price != "99" {
 		t.Fatalf("first partial trade = %#v, want qty 2 price fallback 99", result.Trades[0])
 	}
-	if result.Trades[1].Qty != "3" || result.Trades[1].Price != "100" {
-		t.Fatalf("final incremental trade = %#v, want qty 3 price 100", result.Trades[1])
+	finalIncrementPrice, err := fixedpoint.NewFromString(result.Trades[1].Price)
+	if err != nil || result.Trades[1].Qty != "3" || math.Abs(finalIncrementPrice.Float64()-(302.0/3.0)) > 1e-7 {
+		t.Fatalf("final incremental trade = %#v, want qty 3 price %f", result.Trades[1], 302.0/3.0)
 	}
 	if len(collector.orderBook) != 2 {
 		t.Fatalf("order book len = %d, want 2", len(collector.orderBook))
@@ -325,9 +332,20 @@ func TestOrderBookIdentityHelpersPreferExchangeThenClientThenPending(t *testing.
 	if displayID := orderBookDisplayID(orderWithoutIDs); displayID != "pending" {
 		t.Fatalf("orderBookDisplayID(fallback) = %q", displayID)
 	}
+
+	createdAt := time.Date(2026, time.May, 25, 9, 4, 0, 0, time.UTC)
+	anonymousUpdate := types.Order{
+		SubmitOrder:  types.SubmitOrder{Symbol: "BTCUSDT", Side: types.SideTypeSell},
+		CreationTime: types.Time(createdAt),
+		UpdateTime:   types.Time(createdAt.Add(time.Minute)),
+	}
+	wantStableFallback := "fallback:BTCUSDT:SELL:2026-05-25T09:04:00Z"
+	if key := orderBookEntryKey(anonymousUpdate); key != wantStableFallback {
+		t.Fatalf("orderBookEntryKey(stable fallback) = %q, want %q", key, wantStableFallback)
+	}
 }
 
-func TestResultCollectorFinalizeValuesOpenPositionAndFiltersWarmupOrders(t *testing.T) {
+func TestResultCollectorFinalizeValuesOpenPositionAndMarksWarmupOrders(t *testing.T) {
 	t.Run("marks open position to market using latest close", func(t *testing.T) {
 		result := &RunResult{}
 		collector := newResultCollector("BTCUSDT", types.Interval("1m"), "USDT", time.Time{}, result)
@@ -349,7 +367,7 @@ func TestResultCollectorFinalizeValuesOpenPositionAndFiltersWarmupOrders(t *test
 		}
 	})
 
-	t.Run("warns when final position cannot be valued and skips warmup-only orders", func(t *testing.T) {
+	t.Run("warns when final position cannot be valued and marks warmup-only orders", func(t *testing.T) {
 		warmupUntil := time.Date(2026, time.May, 25, 9, 0, 0, 0, time.UTC)
 		result := &RunResult{}
 		collector := newResultCollector("BTCUSDT", types.Interval("1m"), "USDT", warmupUntil, result)
@@ -379,7 +397,7 @@ func TestResultCollectorFinalizeValuesOpenPositionAndFiltersWarmupOrders(t *test
 		if len(result.RuntimeErrors) != 1 {
 			t.Fatalf("RuntimeErrors len = %d", len(result.RuntimeErrors))
 		}
-		if len(result.OrderBook) != 1 || result.OrderBook[0].OrderID != "keep-me" {
+		if len(result.OrderBook) != 3 || !result.OrderBook[0].Warmup || !result.OrderBook[1].Warmup || result.OrderBook[2].Warmup || result.OrderBook[2].OrderID != "keep-me" {
 			t.Fatalf("OrderBook = %#v", result.OrderBook)
 		}
 	})

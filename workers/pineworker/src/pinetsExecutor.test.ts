@@ -116,6 +116,422 @@ describe("NativePineTSExecutor", () => {
     expect(JSON.stringify(candles)).toBe(before);
   });
 
+  test("captures a filled stop entry at placement without reconstructing it from the trade", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles();
+
+    const result = await executor.run(preparedRequest({
+      jobId: "stop-entry",
+      source: [
+        `//@version=6`,
+        `strategy("stop entry", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("StopLong", strategy.long, qty=2, stop=105)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }));
+
+    expect(result.orderIntents).toEqual([{
+      kind: "entry",
+      id: "StopLong",
+      direction: "long",
+      quantity: 2,
+      stopPrice: 105,
+      barIndex: 0,
+      time: candles[0]!.openTime,
+    }]);
+  });
+
+  test("captures a filled limit exit and keeps the preceding market entry", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles();
+
+    const result = await executor.run(preparedRequest({
+      jobId: "limit-exit",
+      source: [
+        `//@version=6`,
+        `strategy("limit exit", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `if bar_index == 1 and strategy.position_size > 0`,
+        `    strategy.exit("TakeProfit", from_entry="Long", limit=110)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }));
+
+    expect(result.orderIntents).toEqual([
+      {
+        kind: "entry",
+        id: "Long",
+        direction: "long",
+        quantity: 1,
+        barIndex: 0,
+        time: candles[0]!.openTime,
+      },
+      {
+        kind: "exit",
+        id: "TakeProfit",
+        direction: "long",
+        fromEntry: "Long",
+        quantity: 1,
+        limitPrice: 110,
+        barIndex: 1,
+        time: candles[1]!.openTime,
+      },
+    ]);
+  });
+
+  test("captures a filled short stop exit with the position direction needed to buy it back", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles();
+
+    const result = await executor.run(preparedRequest({
+      jobId: "short-stop-exit",
+      source: [
+        `//@version=6`,
+        `strategy("short stop exit", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Short", strategy.short, qty=2)`,
+        `if bar_index == 1 and strategy.position_size < 0`,
+        `    strategy.exit("ShortStop", from_entry="Short", stop=110)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }));
+
+    expect(result.orderIntents).toEqual([
+      {
+        kind: "entry",
+        id: "Short",
+        direction: "short",
+        quantity: 2,
+        barIndex: 0,
+        time: candles[0]!.openTime,
+      },
+      {
+        kind: "exit",
+        id: "ShortStop",
+        direction: "short",
+        fromEntry: "Short",
+        quantity: 2,
+        stopPrice: 110,
+        barIndex: 1,
+        time: candles[1]!.openTime,
+      },
+    ]);
+  });
+
+  test("scopes a default exit quantity to its from_entry across multiple entry IDs", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles().map((candle, index) =>
+      index === 3 ? { ...candle, low: 94 } : candle,
+    );
+
+    const result = await executor.run(preparedRequest({
+      jobId: "scoped-exit-quantity",
+      source: [
+        `//@version=6`,
+        `strategy("scoped exit", initial_capital=100000, pyramiding=10)`,
+        `if bar_index == 0`,
+        `    strategy.entry("A", strategy.long, qty=1)`,
+        `    strategy.entry("B", strategy.long, qty=4)`,
+        `if bar_index == 1 and strategy.position_size > 0`,
+        `    strategy.entry("A", strategy.long, qty=2)`,
+        `if bar_index == 2 and strategy.position_size > 0`,
+        `    strategy.exit("ExitA", from_entry="A", stop=95)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }));
+
+    expect(result.orderIntents?.find((intent) => (intent as Record<string, unknown>).id === "ExitA")).toEqual({
+      kind: "exit",
+      id: "ExitA",
+      direction: "long",
+      fromEntry: "A",
+      quantity: 3,
+      stopPrice: 95,
+      barIndex: 2,
+      time: candles[2]!.openTime,
+    });
+  });
+
+  test("converts close qty_percent against only the targeted entry ID", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles();
+
+    const result = await executor.run(preparedRequest({
+      jobId: "scoped-close-percent",
+      source: [
+        `//@version=6`,
+        `strategy("scoped close", initial_capital=100000, pyramiding=10)`,
+        `if bar_index == 0`,
+        `    strategy.entry("A", strategy.long, qty=1)`,
+        `    strategy.entry("B", strategy.long, qty=4)`,
+        `if bar_index == 1 and strategy.position_size > 0`,
+        `    strategy.entry("A", strategy.long, qty=2)`,
+        `if bar_index == 2 and strategy.position_size > 0`,
+        `    strategy.close("A", qty_percent=50)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }));
+
+    expect(result.orderIntents?.find((intent) => (intent as Record<string, unknown>).id === "close_A")).toEqual({
+      kind: "exit",
+      id: "close_A",
+      direction: "long",
+      fromEntry: "A",
+      quantity: 1.5,
+      barIndex: 2,
+      time: candles[2]!.openTime,
+    });
+  });
+
+  test("uses the full multi-entry position quantity for close_all", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles();
+
+    const result = await executor.run(preparedRequest({
+      jobId: "close-all-quantity",
+      source: [
+        `//@version=6`,
+        `strategy("close all", initial_capital=100000, pyramiding=10)`,
+        `if bar_index == 0`,
+        `    strategy.entry("A", strategy.long, qty=1)`,
+        `    strategy.entry("B", strategy.long, qty=4)`,
+        `if bar_index == 1 and strategy.position_size > 0`,
+        `    strategy.entry("A", strategy.long, qty=2)`,
+        `if bar_index == 2 and strategy.position_size > 0`,
+        `    strategy.close_all()`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }));
+
+    expect(result.orderIntents?.find((intent) => (intent as Record<string, unknown>).id === "close_all")).toEqual({
+      kind: "exit",
+      id: "close_all",
+      direction: "long",
+      quantity: 7,
+      barIndex: 2,
+      time: candles[2]!.openTime,
+    });
+  });
+
+  test("captures ordinary market entry and scoped close without conditional prices", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles();
+
+    const result = await executor.run(preparedRequest({
+      jobId: "market-entry-close",
+      source: [
+        `//@version=6`,
+        `strategy("market entry and close", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `if bar_index == 1 and strategy.position_size > 0`,
+        `    strategy.close("Long")`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }));
+
+    expect(result.orderIntents).toEqual([
+      {
+        kind: "entry",
+        id: "Long",
+        direction: "long",
+        quantity: 1,
+        barIndex: 0,
+        time: candles[0]!.openTime,
+      },
+      {
+        kind: "exit",
+        id: "close_Long",
+        direction: "long",
+        fromEntry: "Long",
+        quantity: 1,
+        barIndex: 1,
+        time: candles[1]!.openTime,
+      },
+    ]);
+  });
+
+  test("preserves short direction for market close and close_all", async () => {
+    const candles = conditionalOrderCandles();
+    for (const close of [
+      { call: `strategy.close("Short")`, id: "close_Short", fromEntry: "Short" },
+      { call: `strategy.close_all()`, id: "close_all", fromEntry: undefined },
+    ]) {
+      const executor = await createNativePineTSExecutor("pinets-test");
+      const result = await executor.run(preparedRequest({
+        jobId: close.id,
+        source: [
+          `//@version=6`,
+          `strategy("short market close", initial_capital=100000)`,
+          `if bar_index == 0`,
+          `    strategy.entry("Short", strategy.short, qty=1)`,
+          `if bar_index == 1 and strategy.position_size < 0`,
+          `    ${close.call}`,
+        ].join("\n"),
+        symbol: "US.AAPL",
+        timeframe: "1",
+        candles,
+      }));
+
+      expect(result.orderIntents?.[1]).toEqual({
+        kind: "exit",
+        id: close.id,
+        direction: "short",
+        ...(close.fromEntry === undefined ? {} : { fromEntry: close.fromEntry }),
+        quantity: 1,
+        barIndex: 1,
+        time: candles[1]!.openTime,
+      });
+    }
+  });
+
+  test("does not resend an unchanged persistent stop exit on every bar", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles().map((candle) => ({ ...candle, low: Math.max(candle.low, 98) }));
+
+    const result = await executor.run(preparedRequest({
+      jobId: "stable-stop-exit",
+      source: [
+        `//@version=6`,
+        `strategy("stable stop", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `if strategy.position_size > 0`,
+        `    strategy.exit("StopLoss", from_entry="Long", stop=95)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles,
+    }));
+
+    expect(result.orderIntents?.filter((intent) => (intent as Record<string, unknown>).id === "StopLoss")).toEqual([{
+      kind: "exit",
+      id: "StopLoss",
+      direction: "long",
+      fromEntry: "Long",
+      quantity: 1,
+      stopPrice: 95,
+      barIndex: 1,
+      time: candles[1]!.openTime,
+    }]);
+  });
+
+  test("emits cancel then replacement when a working stop price changes", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const candles = conditionalOrderCandles().map((candle) => ({ ...candle, low: Math.max(candle.low, 98) }));
+
+    const result = await executor.run(preparedRequest({
+      jobId: "moving-stop-exit",
+      source: [
+        `//@version=6`,
+        `strategy("moving stop", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `if strategy.position_size > 0`,
+        `    strategy.exit("StopLoss", from_entry="Long", stop=94 + bar_index)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: candles.slice(0, 3),
+    }));
+
+    expect(result.orderIntents?.filter((intent) => (intent as Record<string, unknown>).id === "StopLoss")).toEqual([
+      expect.objectContaining({ kind: "exit", stopPrice: 95, barIndex: 1 }),
+      expect.objectContaining({ kind: "cancel", barIndex: 2 }),
+      expect.objectContaining({ kind: "exit", stopPrice: 96, barIndex: 2 }),
+    ]);
+  });
+
+  test("fails closed when a strategy result cannot be captured per bar", async () => {
+    const executor = new NativePineTSExecutor({
+      PineTS: class {
+        async run() {
+          return { strategy: { closedtrades: [{ entry_id: "ambiguous" }] } };
+        }
+      },
+    });
+
+    await expect(executor.run(preparedRequest({
+      jobId: "missing-hook",
+      source: `//@version=6\nstrategy("x")`,
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: conditionalOrderCandles(),
+    }))).rejects.toThrow("per-bar execution hook");
+  });
+
+  test("fails closed instead of applying an unknown from_entry exit to another position", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+
+    await expect(executor.run(preparedRequest({
+      jobId: "unknown-from-entry",
+      source: [
+        `//@version=6`,
+        `strategy("unknown from entry", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `if bar_index == 1 and strategy.position_size > 0`,
+        `    strategy.exit("WrongExit", from_entry="Missing", stop=95)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: conditionalOrderCandles(),
+    }))).rejects.toThrow("without a matching open or pending trade");
+  });
+
+  test("fails the whole run when a protective exit depends on an unfilled same-bar entry", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+
+    await expect(executor.run(preparedRequest({
+      jobId: "non-atomic-bracket",
+      source: [
+        `//@version=6`,
+        `strategy("non atomic bracket", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `    strategy.exit("StopLoss", from_entry="Long", stop=95)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: conditionalOrderCandles(),
+    }))).rejects.toThrow("cannot atomically express a parent-linked or reduce-only protective exit");
+  });
+
+  test("fails closed for tick-based exits that the order protocol cannot express", async () => {
+    const executor = await createNativePineTSExecutor("pinets-test");
+
+    await expect(executor.run(preparedRequest({
+      jobId: "profit-exit",
+      source: [
+        `//@version=6`,
+        `strategy("profit exit", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `if strategy.position_size > 0`,
+        `    strategy.exit("ProfitTicks", from_entry="Long", profit=10)`,
+      ].join("\n"),
+      symbol: "US.AAPL",
+      timeframe: "1",
+      candles: conditionalOrderCandles(),
+    }))).rejects.toThrow("unsupported conditional fields: profit");
+  });
+
   test("keeps PineTS integer division semantics at the adapter boundary", async () => {
     const executor = await createNativePineTSExecutor("pinets-test");
 
@@ -225,6 +641,15 @@ function pineTSBoundaryCandles(): RunScriptRequest["candles"] {
     close: 10 + index,
     volume: 100 + index,
   }));
+}
+
+function conditionalOrderCandles(): RunScriptRequest["candles"] {
+  return [
+    { openTime: 1_700_000_000_000, closeTime: 1_700_000_059_999, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+    { openTime: 1_700_000_060_000, closeTime: 1_700_000_119_999, open: 100, high: 106, low: 99, close: 105, volume: 100 },
+    { openTime: 1_700_000_120_000, closeTime: 1_700_000_179_999, open: 105, high: 111, low: 99, close: 109, volume: 100 },
+    { openTime: 1_700_000_180_000, closeTime: 1_700_000_239_999, open: 109, high: 112, low: 100, close: 110, volume: 100 },
+  ];
 }
 
 function plotValues(result: PineTSRunResult, name: string): number[] {

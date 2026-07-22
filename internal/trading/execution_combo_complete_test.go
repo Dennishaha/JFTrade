@@ -80,6 +80,33 @@ func TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower(t *testing.T) {
 	}
 }
 
+func TestExecutionOrderRechecksRiskImmediatelyBeforeBrokerSubmission(t *testing.T) {
+	price := 100.0
+	store := &comboPreviewStore{}
+	risk := &capturingRiskGateway{decisions: []PreTradeRiskDecision{
+		{Decision: RiskDecisionAllow},
+		{Decision: RiskDecisionReject, ReasonCode: "KILL_SWITCH_CHANGED"},
+	}}
+	placed := false
+	service := NewService(
+		WithActiveBroker(func() broker.Broker { return &completeComboBroker{id: "risk-recheck"} }),
+		WithExecutionPreviewStore(store),
+		WithPreTradeRiskGateway(risk),
+		WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
+			placed = true
+			return ExecutionOrder{}, nil
+		}),
+	)
+
+	_, err := service.CreateExecutionOrder(t.Context(), ExecutionPlaceRequest{
+		BrokerID: "risk-recheck", Market: "US", Symbol: "AAPL", Side: "BUY",
+		Quantity: 1, Price: &price, PreviewID: "preview-risk-recheck", ClientOrderID: "client-risk-recheck",
+	})
+	if !IsRiskRejected(err) || risk.calls != 2 || store.consumed != 1 || placed {
+		t.Fatalf("risk recheck err=%v calls=%d consumed=%d placed=%v", err, risk.calls, store.consumed, placed)
+	}
+}
+
 func TestExecutionEventParlayCompletePreviewAndAmountRisk(t *testing.T) {
 	selected := &completeComboBroker{id: "event-complete"}
 	risk := &capturingRiskGateway{decision: PreTradeRiskDecision{Decision: RiskDecisionAllow}}
@@ -117,6 +144,61 @@ func TestExecutionEventParlayCompletePreviewAndAmountRisk(t *testing.T) {
 	if placedIntent.RFQID != "rfq-1" || risk.command.Query.Quantity != amount ||
 		risk.command.Query.QuantityMode != broker.QuantityModeAmount {
 		t.Fatalf("placed parlay=%#v risk=%#v", placedIntent, risk.command)
+	}
+}
+
+func TestEventParlayRejectsCallerControlledPrice(t *testing.T) {
+	amount := 25.0
+	callerPrice := 1_000_000.0
+	request := ExecutionComboRequest{
+		Market: "US", OrderKind: broker.OrderKindEventParlay,
+		RFQID: "rfq-1", Amount: &amount, Price: &callerPrice,
+		Legs: []broker.OrderLegIntent{
+			{InstrumentID: "US.EVENT.ONE", PredictionSide: "YES"},
+			{InstrumentID: "US.EVENT.TWO", PredictionSide: "NO"},
+		},
+	}
+	if err := validateEventParlayRequest(request); !IsRequestError(err) || !strings.Contains(err.Error(), "server-side RFQ") {
+		t.Fatalf("validateEventParlayRequest error = %v", err)
+	}
+	if err := validateOptionComboRequest(ExecutionComboRequest{
+		OrderKind: broker.OrderKindOptionCombo,
+		Amount:    &amount,
+	}); !IsRequestError(err) || !strings.Contains(err.Error(), "event parlay") {
+		t.Fatalf("option combo amount error = %v", err)
+	}
+}
+
+func TestOptionComboValidationRejectsIncompleteRiskShape(t *testing.T) {
+	base := ExecutionComboRequest{
+		OrderKind:    broker.OrderKindOptionCombo,
+		UnderlyingID: "US.AAPL", NearExpiry: "2026-09-18",
+	}
+	tests := []struct {
+		name    string
+		mutate  func(*ExecutionComboRequest)
+		message string
+	}{
+		{name: "missing underlying", mutate: func(request *ExecutionComboRequest) { request.UnderlyingID = "" }, message: "underlyingInstrumentId"},
+		{name: "missing near expiry", mutate: func(request *ExecutionComboRequest) { request.NearExpiry = "" }, message: "nearExpiry"},
+		{name: "vertical missing spread", mutate: func(request *ExecutionComboRequest) { request.OptionStrategy = "vertical" }, message: "positive spread"},
+		{name: "calendar missing far expiry", mutate: func(request *ExecutionComboRequest) { request.OptionStrategy = "calendar" }, message: "farExpiry"},
+		{name: "unsupported strategy", mutate: func(request *ExecutionComboRequest) { request.OptionStrategy = "iron-condor" }, message: "unsupported optionStrategy"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := base
+			test.mutate(&request)
+			err := validateOptionComboRequest(request)
+			if !IsRequestError(err) || !strings.Contains(err.Error(), test.message) {
+				t.Fatalf("validateOptionComboRequest error = %v, want %q", err, test.message)
+			}
+		})
+	}
+
+	base.OptionStrategy = "straddle"
+	if err := validateOptionComboRequest(base); err != nil {
+		t.Fatalf("valid straddle rejected: %v", err)
 	}
 }
 
@@ -311,8 +393,12 @@ func TestExecutionComboProviderStoreRiskAndGatewayFailures(t *testing.T) {
 		WithExecutionPreviewStore(store),
 		WithPreTradeRiskGateway(rejectingRisk),
 	)
+	consumedBeforeRiskRejection := store.consumed
 	if _, err := service.CreateExecutionCombo(t.Context(), request); !IsRiskRejected(err) {
 		t.Fatalf("risk rejection error = %v", err)
+	}
+	if store.consumed != consumedBeforeRiskRejection {
+		t.Fatalf("risk-rejected combo consumed preview: before=%d after=%d", consumedBeforeRiskRejection, store.consumed)
 	}
 	service = NewService(WithActiveBroker(func() broker.Broker { return selected }))
 	if _, err := service.CreateExecutionCombo(t.Context(), request); !errors.Is(err, ErrOrderGatewayUnavailable) {
@@ -425,6 +511,22 @@ func TestExecutionProductPreviewAndSubmissionFailureContractsComplete(t *testing
 	if _, err := service.CreateExecutionOrder(ctx, equityWithPreview); !IsRequestError(err) ||
 		!strings.Contains(err.Error(), "preview expired") {
 		t.Fatalf("single-order preview consumption error = %v", err)
+	}
+	store.consumeErr = nil
+	rejectingRisk := &capturingRiskGateway{decision: PreTradeRiskDecision{
+		Decision: RiskDecisionReject, ReasonCode: "DENY",
+	}}
+	service = NewService(
+		WithActiveBroker(func() broker.Broker { return selected }),
+		WithExecutionPreviewStore(store),
+		WithPreTradeRiskGateway(rejectingRisk),
+	)
+	consumedBeforeRiskRejection := store.consumed
+	if _, err := service.CreateExecutionOrder(ctx, equityWithPreview); !IsRiskRejected(err) {
+		t.Fatalf("single-order risk rejection error = %v", err)
+	}
+	if store.consumed != consumedBeforeRiskRejection {
+		t.Fatalf("risk-rejected order consumed preview: before=%d after=%d", consumedBeforeRiskRejection, store.consumed)
 	}
 
 	selected.accountErr = errors.New("accounts unavailable")
@@ -727,8 +829,10 @@ func (s *comboPreviewStore) ConsumePreview(_, _, _, _, _ string) error {
 }
 
 type capturingRiskGateway struct {
-	decision PreTradeRiskDecision
-	command  ExecutionOrderCommand
+	decision  PreTradeRiskDecision
+	decisions []PreTradeRiskDecision
+	command   ExecutionOrderCommand
+	calls     int
 }
 
 func (g *capturingRiskGateway) EvaluatePlaceOrder(
@@ -736,6 +840,10 @@ func (g *capturingRiskGateway) EvaluatePlaceOrder(
 	command ExecutionOrderCommand,
 ) PreTradeRiskDecision {
 	g.command = command
+	g.calls++
+	if g.calls <= len(g.decisions) {
+		return g.decisions[g.calls-1]
+	}
 	return g.decision
 }
 func (g *capturingRiskGateway) Snapshot() RealTradeRiskSnapshot { return RealTradeRiskSnapshot{} }

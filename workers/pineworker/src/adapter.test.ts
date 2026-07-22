@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, test } from "vitest";
 import { buildResponse, runScriptWithPineTS } from "./adapter";
 import { DeterministicPineTSExecutor } from "./mockExecutor";
+import { createNativePineTSExecutor } from "./pinetsExecutor";
 import { prepareCandleBatch, prepareRunScriptRequest } from "./preparedRequest";
 import type { PineTSExecutor, PreparedRunScriptRequest, RunScriptRequest } from "./types";
 
@@ -113,6 +114,110 @@ describe("runScriptWithPineTS", () => {
     expect(response.orderIntents).toHaveLength(1);
     expect(response.metadata.requestBytes).toBe(Buffer.byteLength(JSON.stringify(validRequest({ includePlots: false })), "utf8"));
   });
+
+  test("preserves a filled real PineTS stop-loss as a stop exit", async () => {
+    const candles: RunScriptRequest["candles"] = [
+      { openTime: 1_700_000_000_000, closeTime: 1_700_000_059_999, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+      { openTime: 1_700_000_060_000, closeTime: 1_700_000_119_999, open: 100, high: 104, low: 98, close: 101, volume: 100 },
+      { openTime: 1_700_000_120_000, closeTime: 1_700_000_179_999, open: 101, high: 102, low: 94, close: 96, volume: 100 },
+    ];
+    const response = await runScriptWithPineTS(validRequest({
+      source: [
+        `//@version=6`,
+        `strategy("filled stop loss", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `if bar_index == 1 and strategy.position_size > 0`,
+        `    strategy.exit("StopLoss", from_entry="Long", stop=95)`,
+      ].join("\n"),
+      candles,
+    }), {
+      workerId: "worker-1",
+      executor: await createNativePineTSExecutor("0.9.28"),
+      peakRSSBytes: () => 123,
+    });
+
+    expect(response.error).toBeUndefined();
+    expect(response.orderIntents).toEqual([
+      expect.objectContaining({
+        kind: "entry",
+        id: "Long",
+        direction: "long",
+        quantity: 1,
+        hasQuantity: true,
+        hasStopPrice: false,
+        barIndex: 0,
+      }),
+      expect.objectContaining({
+        kind: "exit",
+        id: "StopLoss",
+        fromEntry: "Long",
+        direction: "long",
+        quantity: 1,
+        hasQuantity: true,
+        stopPrice: 95,
+        hasStopPrice: true,
+        hasLimitPrice: false,
+        barIndex: 1,
+      }),
+    ]);
+  });
+
+  test("preserves a filled real PineTS short stop as a short-position exit", async () => {
+    const candles: RunScriptRequest["candles"] = [
+      { openTime: 1_700_000_000_000, closeTime: 1_700_000_059_999, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+      { openTime: 1_700_000_060_000, closeTime: 1_700_000_119_999, open: 100, high: 104, low: 96, close: 99, volume: 100 },
+      { openTime: 1_700_000_120_000, closeTime: 1_700_000_179_999, open: 99, high: 111, low: 98, close: 108, volume: 100 },
+    ];
+    const response = await runScriptWithPineTS(validRequest({
+      source: [
+        `//@version=6`,
+        `strategy("filled short stop", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Short", strategy.short, qty=2)`,
+        `if bar_index == 1 and strategy.position_size < 0`,
+        `    strategy.exit("ShortStop", from_entry="Short", stop=110)`,
+      ].join("\n"),
+      candles,
+    }), {
+      workerId: "worker-1",
+      executor: await createNativePineTSExecutor("0.9.28"),
+      peakRSSBytes: () => 123,
+    });
+
+    expect(response.error).toBeUndefined();
+    expect(response.orderIntents[1]).toEqual(expect.objectContaining({
+      kind: "exit",
+      id: "ShortStop",
+      fromEntry: "Short",
+      direction: "short",
+      quantity: 2,
+      hasQuantity: true,
+      stopPrice: 110,
+      hasStopPrice: true,
+      hasLimitPrice: false,
+      barIndex: 1,
+    }));
+  });
+
+  test("returns no intents when a same-bar protective exit cannot be submitted atomically", async () => {
+    const response = await runScriptWithPineTS(validRequest({
+      source: [
+        `//@version=6`,
+        `strategy("non atomic bracket", initial_capital=100000)`,
+        `if bar_index == 0`,
+        `    strategy.entry("Long", strategy.long, qty=1)`,
+        `    strategy.exit("StopLoss", from_entry="Long", stop=95)`,
+      ].join("\n"),
+    }), {
+      workerId: "worker-1",
+      executor: await createNativePineTSExecutor("0.9.28"),
+      peakRSSBytes: () => 123,
+    });
+
+    expect(response.error).toContain("cannot atomically express a parent-linked or reduce-only protective exit");
+    expect(response.orderIntents).toEqual([]);
+  });
 });
 
 describe("buildResponse", () => {
@@ -177,7 +282,7 @@ describe("buildResponse", () => {
     ]);
   });
 
-  test("derives order intents from PineTS strategy closed trades", () => {
+  test("does not infer market intents from ambiguous PineTS closed trades", () => {
     const response = buildResponse(validRequest(), {
       strategy: {
         closedtrades: [{
@@ -200,30 +305,10 @@ describe("buildResponse", () => {
       peakRSSBytes: 4,
     });
 
-    expect(response.orderIntents).toEqual([
-      expect.objectContaining({
-        kind: "entry",
-        id: "SmokeLong",
-        direction: "long",
-        quantity: 2,
-        hasQuantity: true,
-        barIndex: 0,
-        time: 1_700_000_000_000,
-      }),
-      expect.objectContaining({
-        kind: "close",
-        id: "close_SmokeLong",
-        fromEntry: "SmokeLong",
-        direction: "long",
-        quantity: 2,
-        hasQuantity: true,
-        barIndex: 1,
-        time: 1_700_000_060_000,
-      }),
-    ]);
+    expect(response.orderIntents).toEqual([]);
   });
 
-  test("derives order intents from PineTS short strategy trades", () => {
+  test("does not infer market intents from ambiguous PineTS open trades", () => {
     const response = buildResponse(validRequest(), {
       strategy: {
         closedtrades: [{
@@ -251,33 +336,7 @@ describe("buildResponse", () => {
       peakRSSBytes: 4,
     });
 
-    expect(response.orderIntents).toEqual([
-      expect.objectContaining({
-        kind: "entry",
-        id: "ES",
-        direction: "short",
-        quantity: 2,
-        hasQuantity: true,
-        barIndex: 0,
-      }),
-      expect.objectContaining({
-        kind: "close",
-        id: "XS",
-        fromEntry: "ES",
-        direction: "short",
-        quantity: 2,
-        hasQuantity: true,
-        barIndex: 1,
-      }),
-      expect.objectContaining({
-        kind: "entry",
-        id: "OpenShort",
-        direction: "short",
-        quantity: 1,
-        hasQuantity: true,
-        barIndex: 0,
-      }),
-    ]);
+    expect(response.orderIntents).toEqual([]);
   });
 
   test("normalizes PineTS strategy metrics from v0.9.28 state", () => {

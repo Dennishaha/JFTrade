@@ -3,12 +3,10 @@ package adk
 import (
 	"fmt"
 	"strings"
-
-	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
 func (e *googleADKExecution) markToolResponseSeenLocked(runID string) {
-	e.ensureTextMaps()
+	e.ensureTextMapsLocked()
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
 		runID = e.runID
@@ -23,10 +21,8 @@ func (e *googleADKExecution) markToolResponseSeenForRun(runID string) {
 	e.markToolResponseSeenLocked(runID)
 }
 
-func (e *googleADKExecution) toolResponseSeenForRun(runID string) bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.ensureTextMaps()
+func (e *googleADKExecution) toolResponseSeenForRunLocked(runID string) bool {
+	e.ensureTextMapsLocked()
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
 		runID = e.runID
@@ -37,7 +33,11 @@ func (e *googleADKExecution) toolResponseSeenForRun(runID string) bool {
 func (e *googleADKExecution) markPostToolTextForRun(runID string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.ensureTextMaps()
+	e.markPostToolTextForRunLocked(runID)
+}
+
+func (e *googleADKExecution) markPostToolTextForRunLocked(runID string) {
+	e.ensureTextMapsLocked()
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
 		runID = e.runID
@@ -46,7 +46,8 @@ func (e *googleADKExecution) markPostToolTextForRun(runID string) {
 	e.postToolTextSeqByRunID[runID] = e.toolResponseSeqByRunID[runID]
 }
 
-func (e *googleADKExecution) emitRunSnapshotLocked() {
+func (e *googleADKExecution) collectRunSnapshotDeltasLocked() []ChatDelta {
+	deltas := make([]ChatDelta, 0)
 	for _, runID := range e.snapshotRunIDsLocked() {
 		snapshot := e.runSnapshotLocked(runID, false)
 		if e.persistRunSnapshot != nil {
@@ -70,10 +71,17 @@ func (e *googleADKExecution) emitRunSnapshotLocked() {
 		}
 		if e.onDelta != nil {
 			snapshot = NormalizeRun(snapshot)
-			jftradeErr3 := e.onDelta(ChatDelta{Run: &snapshot})
-			besteffort.LogError(jftradeErr3)
+			deltas = append(deltas, ChatDelta{Run: &snapshot})
 		}
 	}
+	return deltas
+}
+
+func (e *googleADKExecution) emitRunSnapshot() {
+	e.mu.Lock()
+	deltas := e.collectRunSnapshotDeltasLocked()
+	e.mu.Unlock()
+	e.emitRunSnapshotDeltas(deltas)
 }
 
 func (e *googleADKExecution) derivedRunStatusForRunLocked(runID string) string {
@@ -128,7 +136,7 @@ func (e *googleADKExecution) persistedRunStatusForRunLocked(runID string) string
 }
 
 func (e *googleADKExecution) runHasPostToolTextLocked(runID string) bool {
-	e.ensureTextMaps()
+	e.ensureTextMapsLocked()
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
 		runID = e.runID

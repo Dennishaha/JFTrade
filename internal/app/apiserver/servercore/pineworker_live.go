@@ -179,7 +179,7 @@ func (sizer *strategyRuntimeLiveSizer) NetPosition() fixedpoint.Value {
 		return fixedpoint.Zero
 	}
 	quantity := 0.0
-	for _, position := range sizer.runner.cachedPositions {
+	for _, position := range sizer.runner.brokerPositionsSnapshot() {
 		if strategyRuntimePositionMatchesSymbol(position, sizer.runner.symbol) {
 			quantity += position.Quantity
 		}
@@ -215,7 +215,7 @@ func (sizer *strategyRuntimeLiveSizer) closeQuantity(command bt.WorkerOrderComma
 }
 
 func (sizer *strategyRuntimeLiveSizer) equity(market bbgotypes.Market) (fixedpoint.Value, error) {
-	account := sizer.runner.session.Account
+	account := sizer.runner.brokerAccountSnapshot()
 	if account == nil {
 		return fixedpoint.Zero, fmt.Errorf("pine worker quantity pct account is required")
 	}

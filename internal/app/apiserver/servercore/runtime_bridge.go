@@ -30,12 +30,11 @@ func (b *strategyRuntimeBrokerBridge) QueryBrokerPositions(ctx context.Context, 
 	return reader.QueryPositions(ctx, query)
 }
 
-func (b *strategyRuntimeBrokerBridge) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error) {
-	trading := b.broker.Trading()
-	if trading == nil {
-		return nil, fmt.Errorf("broker trading not available")
-	}
-	return trading.PlaceOrder(ctx, query)
+func (b *strategyRuntimeBrokerBridge) PlaceBrokerOrder(_ context.Context, _ broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error) {
+	// Strategy placements are intentionally routed through
+	// trading.Service.PlaceExecutionOrder. Keeping this compatibility method
+	// fail-closed prevents a future runtime caller from bypassing pre-trade risk.
+	return nil, fmt.Errorf("direct strategy runtime order placement is disabled; use the trading service pre-trade boundary")
 }
 
 func (b *strategyRuntimeBrokerBridge) CancelBrokerOrder(ctx context.Context, query broker.ReadQuery, order broker.CancelOrder) error {

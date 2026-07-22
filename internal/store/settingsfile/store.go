@@ -3,6 +3,7 @@ package settingsfile
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,14 +57,29 @@ type Store struct {
 	mu          sync.RWMutex
 	data        fileData
 	replaceFile func(source string, destination string) error
+	createTemp  func(directory string, pattern string) (settingsTemporaryFile, error)
 }
 
 func New(path string) (*Store, error) {
-	store := &Store{path: path, replaceFile: replaceFile}
+	store := &Store{
+		path:        path,
+		replaceFile: replaceFile,
+		createTemp: func(directory string, pattern string) (settingsTemporaryFile, error) {
+			return os.CreateTemp(directory, pattern)
+		},
+	}
 	if err := store.load(); err != nil {
 		return nil, err
 	}
 	return store, nil
+}
+
+type settingsTemporaryFile interface {
+	Name() string
+	Chmod(mode fs.FileMode) error
+	Write(data []byte) (int, error)
+	Sync() error
+	Close() error
 }
 
 func (s *Store) Path() string {
@@ -81,11 +97,11 @@ func (s *Store) EnsureBootstrapFile(defaults jfsettings.LaunchDefaults) error {
 		return err
 	}
 	s.mu.Lock()
-	s.data.Interfaces = interfaceSettingsPointer(NormalizeInterfaceSettings(InterfaceSettingsFromDefaults(defaults), defaults))
-	s.data.Appearance = uiAppearanceSettingsPointer(DefaultUIAppearanceSettings())
-	err := s.persistLocked()
-	s.mu.Unlock()
-	return err
+	defer s.mu.Unlock()
+	return s.mutateAndPersistLocked(func() {
+		s.data.Interfaces = interfaceSettingsPointer(NormalizeInterfaceSettings(InterfaceSettingsFromDefaults(defaults), defaults))
+		s.data.Appearance = uiAppearanceSettingsPointer(DefaultUIAppearanceSettings())
+	})
 }
 
 func (s *Store) load() error {
@@ -116,8 +132,30 @@ func (s *Store) load() error {
 		return err
 	}
 	if s.data.Security != nil && s.data.Security.AdminAuthRequired != nil {
-		s.data.Security.AdminAuthRequired = nil
-		return s.persistLocked()
+		migrated := *s.data.Security
+		migrated.AdminAuthRequired = nil
+		return s.mutateAndPersistLocked(func() {
+			s.data.Security = &migrated
+		})
+	}
+	return nil
+}
+
+// mutateAndPersistLocked applies an in-memory change atomically from the
+// caller's perspective. Settings fields are replaced by pointer, while account
+// CRUD can overwrite the shared slice backing array, so the account snapshot
+// must own its storage before the mutation runs.
+func (s *Store) mutateAndPersistLocked(mutate func()) error {
+	previous := s.data
+	if s.data.Accounts != nil {
+		previous.Accounts = make([]jfsettings.ManagedBrokerAccount, len(s.data.Accounts))
+		copy(previous.Accounts, s.data.Accounts)
+	}
+
+	mutate()
+	if err := s.persistLocked(); err != nil {
+		s.data = previous
+		return err
 	}
 	return nil
 }
@@ -136,7 +174,13 @@ func (s *Store) persistLocked() error {
 			return err
 		}
 	}
-	temporary, err := os.CreateTemp(directory, ".settings-*.tmp")
+	createTemp := s.createTemp
+	if createTemp == nil {
+		createTemp = func(directory string, pattern string) (settingsTemporaryFile, error) {
+			return os.CreateTemp(directory, pattern)
+		}
+	}
+	temporary, err := createTemp(directory, ".settings-*.tmp")
 	if err != nil {
 		return err
 	}

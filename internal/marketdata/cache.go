@@ -181,10 +181,9 @@ func inheritTickContext(incoming, latest *Tick) {
 		incoming.ExtendedHours = latest.ExtendedHours
 	}
 	if incoming.Kind == TickKindTrade {
-		incoming.Bid = latest.Bid
-		incoming.Ask = latest.Ask
-		if incoming.Volume == 0 {
-			incoming.Volume = latest.Volume
+		if sameTradingDay {
+			incoming.Bid = latest.Bid
+			incoming.Ask = latest.Ask
 		}
 	}
 }
@@ -203,9 +202,11 @@ func ticksEquivalent(left, right Tick) bool {
 		left.Bid.Equal(right.Bid) &&
 		left.Ask.Equal(right.Ask) &&
 		left.Volume == right.Volume &&
+		left.VolumeDelta == right.VolumeDelta &&
 		left.QuoteAt == right.QuoteAt &&
 		left.Session == right.Session &&
 		left.ExtendedHours == right.ExtendedHours &&
+		left.Kind == right.Kind &&
 		optionalDecimalEqual(left.OpenPrice, right.OpenPrice) &&
 		optionalDecimalEqual(left.HighPrice, right.HighPrice) &&
 		optionalDecimalEqual(left.LowPrice, right.LowPrice) &&

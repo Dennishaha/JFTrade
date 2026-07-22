@@ -252,8 +252,8 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 	if denyEnvelope.Data.Approval.Status != jfadk.ApprovalStatusDenied {
 		t.Fatalf("approval status = %q, want denied", denyEnvelope.Data.Approval.Status)
 	}
-	if denyEnvelope.Data.Run == nil || denyEnvelope.Data.Run.Status != jfadk.RunStatusPending || denyEnvelope.Data.Run.ResumeState != "approval_resuming" {
-		t.Fatalf("resolution run = %+v, want pending background continuation", denyEnvelope.Data.Run)
+	if denyEnvelope.Data.Run == nil || denyEnvelope.Data.Run.Status != jfadk.RunStatusRunning || denyEnvelope.Data.Run.ResumeState != "approval_resuming" {
+		t.Fatalf("resolution run = %+v, want running background continuation", denyEnvelope.Data.Run)
 	}
 	if denyEnvelope.Data.Message != nil {
 		t.Fatalf("resolution message = %+v, want no synchronous assistant summary", denyEnvelope.Data.Message)

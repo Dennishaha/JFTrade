@@ -118,17 +118,40 @@ func (launcher *NodeWorkerLauncher) materializeBundle(spec WorkerSpec) (string, 
 	if err := launcher.verifyChecksum(); err != nil {
 		return "", err
 	}
+	workerID := strings.TrimSpace(spec.WorkerID)
+	if workerID == "" {
+		workerID = "worker"
+	}
+	fileName := fmt.Sprintf("%s-%s", workerID, launcher.config.Bundle.Name)
 	dir := launcher.config.TempDir
 	if dir == "" {
-		var err error
-		dir, err = os.MkdirTemp("", "jftrade-pineworker-*")
+		fileName = filepath.Base(fileName)
+		extension := filepath.Ext(fileName)
+		pattern := strings.TrimSuffix(fileName, extension) + "-*" + extension
+		file, err := os.CreateTemp("", pattern)
 		if err != nil {
-			return "", fmt.Errorf("create pine worker temp dir: %w", err)
+			return "", fmt.Errorf("create pine worker temp bundle: %w", err)
 		}
+		path := file.Name()
+		if _, err := file.Write(launcher.config.Bundle.Data); err != nil {
+			_ = file.Close()
+			_ = os.Remove(path)
+			return "", fmt.Errorf("write pine worker bundle: %w", err)
+		}
+		if err := file.Chmod(0o644); err != nil {
+			_ = file.Close()
+			_ = os.Remove(path)
+			return "", fmt.Errorf("set pine worker bundle permissions: %w", err)
+		}
+		if err := file.Close(); err != nil {
+			_ = os.Remove(path)
+			return "", fmt.Errorf("close pine worker bundle: %w", err)
+		}
+		return path, nil
 	} else if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create pine worker temp dir: %w", err)
 	}
-	path := filepath.Join(dir, fmt.Sprintf("%s-%s", spec.WorkerID, launcher.config.Bundle.Name))
+	path := filepath.Join(dir, fileName)
 	if err := os.WriteFile(path, launcher.config.Bundle.Data, 0o644); err != nil {
 		return "", fmt.Errorf("write pine worker bundle: %w", err)
 	}

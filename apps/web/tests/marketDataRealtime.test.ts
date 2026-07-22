@@ -37,6 +37,7 @@ function buildTickEvent(
     type: "market-data.tick",
     at: "2026-07-03T12:00:31.000Z",
     brokerId: "futu",
+    cumulativeVolume: 1_500,
     instrument,
     snapshot,
     source: "live",
@@ -166,6 +167,13 @@ describe("marketDataRealtime", () => {
         snapshot: null,
       }),
     ).toBeNull();
+    expect(
+      normalizeMarketDataTickLiveEvent({
+        ...buildTickEvent(),
+        cumulativeVolume: " 1500 ",
+        volumeDelta: "12",
+      }),
+    ).toMatchObject({ cumulativeVolume: 1500, volumeDelta: 12 });
   });
 
   it("keeps candles unchanged when the realtime bucket cannot be resolved", () => {
@@ -244,6 +252,45 @@ describe("marketDataRealtime", () => {
     });
   });
 
+  it("reads only the tail candle on the normal realtime update path", () => {
+    const controller = createMarketDataRealtimeController();
+    let historicalAtReads = 0;
+    const candles = buildCandles("1m", [
+      {
+        period: "1m",
+        get at() {
+          historicalAtReads += 1;
+          return "2026-07-03T11:59:00.000Z";
+        },
+        open: 199,
+        high: 200,
+        low: 198.5,
+        close: 199.5,
+        volume: 900,
+      },
+      {
+        period: "1m",
+        at: "2026-07-03T12:00:00.000Z",
+        open: 200,
+        high: 201,
+        low: 199.5,
+        close: 200.5,
+        volume: 1_000,
+      },
+    ]);
+
+    const result = controller.applyTickEvent({
+      event: buildTickEvent(),
+      currentInstrumentId: "US.AAPL",
+      candles,
+      period: "1m",
+      limit: 50,
+    });
+
+    expect(result?.candles?.candles.at(-1)?.close).toBe(201.5);
+    expect(historicalAtReads).toBe(0);
+  });
+
   it("preserves comparison prices when an incremental tick omits snapshot context", () => {
     const controller = createMarketDataRealtimeController();
     const currentSnapshot = normalizeMarketDataSnapshotQueryResult({
@@ -298,5 +345,80 @@ describe("marketDataRealtime", () => {
       previousClosePrice: 72.76,
       lastClosePrice: 72.76,
     });
+  });
+
+  it("never treats the legacy snapshot volume as a bar-volume sample", () => {
+    const controller = createMarketDataRealtimeController();
+    const event = buildTickEvent({ cumulativeVolume: undefined });
+    event.snapshot.volume = 9_999_999;
+
+    const result = controller.applyTickEvent({
+      event,
+      currentInstrumentId: "US.AAPL",
+      candles: null,
+      period: "1m",
+      limit: 50,
+    });
+
+    expect(result?.snapshot.snapshot.barVolume).toBe(0);
+    expect(result?.candles?.candles.at(-1)?.volume).toBe(0);
+  });
+
+  it("carries an explicit cumulative sequence across buckets and ignores old events", () => {
+    const controller = createMarketDataRealtimeController();
+    const firstEvent = buildTickEvent({ cumulativeVolume: 1_500 });
+    const first = controller.applyTickEvent({
+      event: firstEvent,
+      currentInstrumentId: "US.AAPL",
+      candles: null,
+      period: "1m",
+      limit: 50,
+    });
+    const secondAt = "2026-07-03T12:01:05.000Z";
+    const secondEvent = buildTickEvent({
+      at: secondAt,
+      cumulativeVolume: 1_620,
+      snapshot: {
+        ...firstEvent.snapshot,
+        price: 202,
+        at: secondAt,
+        observedAt: secondAt,
+        volume: 1_620,
+      },
+    });
+    const second = controller.applyTickEvent({
+      event: secondEvent,
+      currentInstrumentId: "US.AAPL",
+      currentSnapshot: first?.snapshot,
+      candles: first?.candles ?? null,
+      period: "1m",
+      limit: 50,
+    });
+
+    expect(second?.candles?.candles.at(-1)).toMatchObject({
+      at: "2026-07-03T12:01:00.000Z",
+      volume: 120,
+    });
+
+    const oldAt = "2026-07-03T12:00:50.000Z";
+    expect(
+      controller.applyTickEvent({
+        event: buildTickEvent({
+          at: oldAt,
+          cumulativeVolume: 1_580,
+          snapshot: {
+            ...firstEvent.snapshot,
+            at: oldAt,
+            observedAt: oldAt,
+            volume: 1_580,
+          },
+        }),
+        currentInstrumentId: "US.AAPL",
+        currentSnapshot: second?.snapshot,
+        candles: second?.candles ?? null,
+        period: "1m",
+        limit: 50,
+      }),
+    ).toBeNull();
   });
 });

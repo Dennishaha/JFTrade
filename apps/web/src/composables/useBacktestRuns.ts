@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/vue-query";
-import { computed, markRaw, reactive, ref, type ComputedRef } from "vue";
+import { computed, markRaw, onScopeDispose, reactive, ref, type ComputedRef } from "vue";
 
 import type {
   BacktestFeeRulePayload,
@@ -52,6 +52,7 @@ interface BacktestOrderBookEntry {
   marketFee?: number | undefined;
   totalFee?: number | undefined;
   feeCurrency?: string | undefined;
+  warmup?: boolean | undefined;
 }
 
 interface BacktestTradeTransport {
@@ -64,6 +65,7 @@ interface BacktestTradeTransport {
   marketFee?: number;
   totalFee?: number;
   feeCurrency?: string;
+  warmup?: boolean;
 }
 
 interface BacktestCandleTransport {
@@ -92,6 +94,7 @@ interface BacktestOrderBookEntryTransport {
   marketFee?: number | undefined;
   totalFee?: number | undefined;
   feeCurrency?: string | undefined;
+  warmup?: boolean | undefined;
 }
 
 interface BacktestFeeBreakdownEntry {
@@ -119,6 +122,8 @@ interface BacktestRunResult {
   tradingCosts?: BacktestTradingCostsPayload | undefined;
   maxDrawdown?: number | undefined;
   currentDrawdown?: number | undefined;
+  tradeStatsVersion?: number | undefined;
+  totalFills?: number | undefined;
   totalTrades: number;
   winRate: number;
   trades?: BacktestTradeView[] | undefined;
@@ -154,6 +159,8 @@ interface BacktestRunResultTransport {
   tradingCosts?: BacktestTradingCostsPayload | undefined;
   maxDrawdown?: number | undefined;
   currentDrawdown?: number | undefined;
+  tradeStatsVersion?: number | undefined;
+  totalFills?: number | undefined;
   totalTrades: number;
   winRate: number;
   trades?: BacktestTradeTransport[] | undefined;
@@ -356,8 +363,10 @@ export function buildBacktestSyncRequestPayload(
 
 export function useBacktestRuns(options: UseBacktestRunsOptions) {
   const running = ref(false);
-  const polling = ref<ReturnType<typeof setInterval> | null>(null);
+  const polling = ref<ReturnType<typeof setTimeout> | null>(null);
   const error = ref("");
+  let pollingGeneration = 0;
+  let disposed = false;
   const {
     syncing,
     syncProgress,
@@ -377,6 +386,11 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   }, queryClient);
 
   const runs = computed(() => runsQuery.data.value ?? []);
+
+  onScopeDispose(() => {
+    disposed = true;
+    stopPolling();
+  }, true);
 
   const filteredRuns = computed(() =>
     [...runs.value].sort(
@@ -448,6 +462,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     if (trade.marketFee !== undefined) normalized.marketFee = trade.marketFee;
     if (trade.totalFee !== undefined) normalized.totalFee = trade.totalFee;
     if (trade.feeCurrency !== undefined) normalized.feeCurrency = trade.feeCurrency;
+    if (trade.warmup !== undefined) normalized.warmup = trade.warmup;
     if (price.text !== undefined) normalized.priceText = price.text;
     if (qty.text !== undefined) normalized.qtyText = qty.text;
     return normalized;
@@ -500,6 +515,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
       marketFee: entry.marketFee,
       totalFee: entry.totalFee,
       feeCurrency: entry.feeCurrency,
+      warmup: entry.warmup,
     };
   }
 
@@ -714,32 +730,57 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
 
   function startPolling(runId: string) {
     stopPolling();
+    if (disposed) {
+      return;
+    }
+
+    const generation = pollingGeneration;
     let consecutiveFailures = 0;
-    polling.value = setInterval(async () => {
+    const poll = async () => {
+      if (disposed || generation !== pollingGeneration) {
+        return;
+      }
       try {
         const data = await fetchEnvelope<{ id: string; status: string }>(
           `/api/v1/backtests/${runId}/status`,
         );
+        if (disposed || generation !== pollingGeneration) {
+          return;
+        }
         consecutiveFailures = 0;
         patchBacktestRunStatus(runId, data.status);
         if (isTerminalBacktestStatus(data.status)) {
           stopPolling();
           await queryClient.invalidateQueries({ queryKey: backtestRunsQueryKey });
+          if (disposed) {
+            return;
+          }
           await refreshRuns();
+          return;
         }
       } catch (cause) {
+        if (disposed || generation !== pollingGeneration) {
+          return;
+        }
         consecutiveFailures += 1;
         if (consecutiveFailures >= 3) {
           stopPolling();
           error.value = `回测状态轮询失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+          return;
         }
       }
-    }, 2000);
+
+      if (!disposed && generation === pollingGeneration) {
+        polling.value = setTimeout(() => void poll(), 2000);
+      }
+    };
+    polling.value = setTimeout(() => void poll(), 2000);
   }
 
   function stopPolling() {
-    if (polling.value) {
-      clearInterval(polling.value);
+    pollingGeneration += 1;
+    if (polling.value !== null) {
+      clearTimeout(polling.value);
       polling.value = null;
     }
   }

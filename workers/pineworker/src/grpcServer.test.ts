@@ -38,6 +38,14 @@ describe("createServiceHandlers", () => {
       id: "long",
       has_quantity: true,
     }));
+
+    const analysis = await unary(handlers.AnalyzeScript, {
+      job_id: "analyze-1",
+      source: `//@version=6\nindicator("x")`,
+    });
+    expect(analysis.job_id).toBe("analyze-1");
+    expect(analysis.ok).toBe(true);
+    expect(analysis.error).toBe("");
   });
 });
 

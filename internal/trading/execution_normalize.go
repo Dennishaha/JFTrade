@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -88,10 +89,7 @@ func normalizeExecutionProduct(
 	if orderKind != broker.OrderKindSingle && orderKind != broker.OrderKindEventSingle {
 		return "", "", "", requestErrorf("orderKind %q must use the combo execution endpoint", orderKind)
 	}
-	quantityMode := payload.QuantityMode
-	if quantityMode == "" {
-		quantityMode = broker.QuantityModeUnits
-	}
+	quantityMode := broker.QuantityModeUnits
 	if productClass == broker.ProductClassOption || productClass == broker.ProductClassFuture {
 		quantityMode = broker.QuantityModeContracts
 	}
@@ -99,11 +97,25 @@ func normalizeExecutionProduct(
 		orderKind = broker.OrderKindEventSingle
 		productClass = broker.ProductClassEventContract
 		quantityMode = broker.QuantityModeAmount
+		if payload.QuantityMode != "" && payload.QuantityMode != quantityMode {
+			return "", "", "", requestErrorf("event-contract quantityMode must be amount")
+		}
 		if err := normalizePredictionOrder(payload, instrument); err != nil {
 			return "", "", "", err
 		}
-	} else if payload.Quantity <= 0 {
-		return "", "", "", requestErrorf("quantity must be greater than 0")
+	} else {
+		if payload.QuantityMode != "" && payload.QuantityMode != quantityMode {
+			return "", "", "", requestErrorf("quantityMode %q is invalid for productClass %q", payload.QuantityMode, productClass)
+		}
+		if payload.Amount != nil {
+			return "", "", "", requestErrorf("amount is supported for event contracts only")
+		}
+		if strings.TrimSpace(payload.PredictionSide) != "" {
+			return "", "", "", requestErrorf("predictionSide is supported for event contracts only")
+		}
+		if !finitePositive(payload.Quantity) {
+			return "", "", "", requestErrorf("quantity must be greater than 0")
+		}
 	}
 	if quantityMode == broker.QuantityModeContracts && payload.Quantity != float64(int64(payload.Quantity)) {
 		return "", "", "", requestErrorf("option and future quantity must be an integer number of contracts")
@@ -115,14 +127,14 @@ func normalizePredictionOrder(payload *ExecutionPlaceRequest, instrument market.
 	if !strings.EqualFold(instrument.Market, "US") {
 		return requestErrorf("prediction contracts must use market US")
 	}
-	if payload.Amount == nil || *payload.Amount <= 0 {
+	if payload.Amount == nil || !finitePositive(*payload.Amount) {
 		return requestErrorf("event-contract amount must be greater than 0")
 	}
 	predictionSide := strings.ToUpper(strings.TrimSpace(payload.PredictionSide))
 	if predictionSide != "YES" && predictionSide != "NO" {
 		return requestErrorf("predictionSide must be YES or NO")
 	}
-	if payload.Price == nil || *payload.Price < 0.01 || *payload.Price > 0.99 {
+	if payload.Price == nil || math.IsNaN(*payload.Price) || math.IsInf(*payload.Price, 0) || *payload.Price < 0.01 || *payload.Price > 0.99 {
 		return requestErrorf("event-contract price must be between 0.01 and 0.99")
 	}
 	payload.PredictionSide = predictionSide
@@ -130,13 +142,23 @@ func normalizePredictionOrder(payload *ExecutionPlaceRequest, instrument market.
 }
 
 func validateExecutionPrices(payload ExecutionPlaceRequest, orderType string) error {
-	if requiresLimitPrice(orderType) && (payload.Price == nil || *payload.Price <= 0) {
+	if payload.Price != nil && !finitePositive(*payload.Price) {
+		return requestErrorf("price must be greater than 0 when provided")
+	}
+	if payload.StopPrice != nil && !finitePositive(*payload.StopPrice) {
+		return requestErrorf("stopPrice must be greater than 0 when provided")
+	}
+	if requiresLimitPrice(orderType) && payload.Price == nil {
 		return requestErrorf("order type %s requires price", orderType)
 	}
-	if requiresStopPrice(orderType) && (payload.StopPrice == nil || *payload.StopPrice <= 0) {
+	if requiresStopPrice(orderType) && payload.StopPrice == nil {
 		return requestErrorf("order type %s requires stopPrice", orderType)
 	}
 	return nil
+}
+
+func finitePositive(value float64) bool {
+	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func (s *Service) normalizeExecutionTerms(

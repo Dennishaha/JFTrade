@@ -95,10 +95,11 @@ type rollingRSIState struct {
 	period            int
 	maxLength         int
 	tailLen           int
-	gains             rollingFloatWindow
-	losses            rollingFloatWindow
-	gainSum           float64
-	lossSum           float64
+	initialChanges    int
+	initialGainSum    float64
+	initialLossSum    float64
+	averageGain       float64
+	averageLoss       float64
 	series            []float64
 	valueTail         []float64
 	closeTail         []float64

@@ -101,6 +101,19 @@ func TestTradingRouteHelpersWriteHTTPBoundaryErrors(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("write result preserves pre-trade risk rejection semantics", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/brokers/futu/orders", nil)
+
+		writeOperationResult(ctx, nil, srv.RiskRejectedError{Decision: srv.PreTradeRiskDecision{
+			Decision: srv.RiskDecisionReject, ReasonCode: "REAL_TRADE_HARD_STOP_ACTIVE",
+		}}, "PLACE_ORDER_FAILED")
+		if recorder.Code != http.StatusConflict || !strings.Contains(recorder.Body.String(), "PRE_TRADE_RISK_REJECTED") {
+			t.Fatalf("writeOperationResult status=%d body=%s", recorder.Code, recorder.Body.String())
+		}
+	})
 }
 
 func TestPortfolioReadUnknownResourceIsNotFound(t *testing.T) {

@@ -394,6 +394,9 @@ func (s *Service) Close() error {
 	}
 	s.lifecycleMu.Unlock()
 	s.lifecycleTasks.Wait()
+	s.dataSyncMu.Lock()
+	clear(s.dataSyncTasks)
+	s.dataSyncMu.Unlock()
 	return nil
 }
 

@@ -76,6 +76,17 @@ export interface MarketDataQueryController {
 const DEFAULT_TICK_QUERY_LIMIT = 20_000;
 const DEFAULT_TICK_QUERY_LOOKBACK_MS = 15 * 60 * 1000;
 
+function snapshotFreshnessTime(
+  result: MarketDataSnapshotQueryResult,
+): number {
+  const candidate =
+    result.snapshot?.observedAt ??
+    result.snapshot?.at ??
+    result.meta.resolvedAt;
+  const parsed = Date.parse(candidate);
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
 export function createMarketDataQueryController(
   options: MarketDataQueryControllerOptions,
 ): MarketDataQueryController {
@@ -126,6 +137,35 @@ export function createMarketDataQueryController(
       candles: marketDataCandles.value,
       period: marketDataQueryPeriod.value,
     });
+  }
+
+  function mergeFreshMarketDataSnapshot(
+    incoming: MarketDataSnapshotQueryResult,
+  ): MarketDataSnapshotQueryResult | null {
+    const current = marketDataSnapshot.value;
+    if (
+      current != null &&
+      current.request.instrumentId === incoming.request.instrumentId &&
+      snapshotFreshnessTime(current) > snapshotFreshnessTime(incoming)
+    ) {
+      return mergeRealtimeBarStateIntoSnapshot(current);
+    }
+    return mergeRealtimeBarStateIntoSnapshot(incoming);
+  }
+
+  function mergeLoadedMarketDataCandles(
+    incoming: MarketDataCandlesQueryResult,
+  ): MarketDataCandlesQueryResult {
+    const current = marketDataCandles.value;
+    if (
+      current == null ||
+      current.request.instrument.instrumentId !==
+        incoming.request.instrument.instrumentId ||
+      current.request.period !== incoming.request.period
+    ) {
+      return incoming;
+    }
+    return mergeMarketDataCandles(current, incoming);
   }
   const {
     scheduleMarketSnapshotBackgroundRefresh,
@@ -320,7 +360,7 @@ export function createMarketDataQueryController(
 
     let refreshed = false;
     if (snapshotResult.status === "fulfilled") {
-      marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
+      marketDataSnapshot.value = mergeFreshMarketDataSnapshot(
         normalizeMarketDataSnapshotQueryResult(snapshotResult.value),
       );
       refreshed = true;
@@ -560,7 +600,7 @@ export function createMarketDataQueryController(
             if (!isCurrentRequest()) {
               return;
             }
-            marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
+            marketDataSnapshot.value = mergeFreshMarketDataSnapshot(
               normalizeMarketDataSnapshotQueryResult(result),
             );
           })
@@ -580,19 +620,13 @@ export function createMarketDataQueryController(
               return;
             }
             const normalized = normalizeMarketDataCandlesQueryResult(result);
-            const preserveHistory =
-              queryOptions.preserveExisting === true &&
-              marketDataCandles.value != null;
-            marketDataCandles.value = preserveHistory
-              ? mergeMarketDataCandles(marketDataCandles.value, normalized)
-              : normalized;
-            if (!preserveHistory) {
+            marketDataCandles.value = mergeLoadedMarketDataCandles(normalized);
+            if (queryOptions.preserveExisting !== true) {
               updateMarketDataPagination(normalized, effectiveLimit);
             }
             marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
               marketDataSnapshot.value,
             );
-            resetMarketDataRealtimeState();
           })
           .catch(recordEarlyError);
 
@@ -608,10 +642,10 @@ export function createMarketDataQueryController(
 
         marketDataSnapshot.value =
           snapshotResult.status === "fulfilled"
-            ? normalizeMarketDataSnapshotQueryResult(snapshotResult.value)
-            : queryOptions.preserveExisting === true
-              ? marketDataSnapshot.value
-              : null;
+            ? mergeFreshMarketDataSnapshot(
+                normalizeMarketDataSnapshotQueryResult(snapshotResult.value),
+              )
+            : marketDataSnapshot.value;
         marketSecurityDetails.value =
           securityDetailsResult.status === "fulfilled"
             ? normalizeMarketSecurityDetailsQueryResult(securityDetailsResult.value)
@@ -620,16 +654,10 @@ export function createMarketDataQueryController(
               : null;
         marketDataCandles.value =
           candlesResult.status === "fulfilled"
-            ? queryOptions.preserveExisting === true &&
-              marketDataCandles.value != null
-              ? mergeMarketDataCandles(
-                  marketDataCandles.value,
-                  normalizeMarketDataCandlesQueryResult(candlesResult.value),
-                )
-              : normalizeMarketDataCandlesQueryResult(candlesResult.value)
-            : queryOptions.preserveExisting === true
-              ? marketDataCandles.value
-              : null;
+            ? mergeLoadedMarketDataCandles(
+                normalizeMarketDataCandlesQueryResult(candlesResult.value),
+              )
+            : marketDataCandles.value;
 
         if (
           candlesResult.status === "fulfilled" &&
@@ -644,10 +672,6 @@ export function createMarketDataQueryController(
         marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
           marketDataSnapshot.value,
         );
-
-        if (queryOptions.preserveExisting !== true) {
-          resetMarketDataRealtimeState();
-        }
 
         const partialErrors = [snapshotResult, securityDetailsResult, candlesResult]
           .filter((result) => result.status === "rejected")

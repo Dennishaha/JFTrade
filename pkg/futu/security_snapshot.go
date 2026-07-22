@@ -245,7 +245,7 @@ func (e *Exchange) querySecuritySnapshotListDirect(ctx context.Context, symbols 
 
 	request := &qotgetsecuritysnapshotpb.Request{C2S: &qotgetsecuritysnapshotpb.C2S{SecurityList: securityList}}
 	var response qotgetsecuritysnapshotpb.Response
-	if err := e.callProto(ctx, opend.ProtoGetSecuritySnapshot, request, &response); err != nil {
+	if err := e.callReadProto(ctx, opend.ProtoGetSecuritySnapshot, request, &response); err != nil {
 		return nil, err
 	}
 	if response.GetRetType() != 0 {
@@ -299,7 +299,7 @@ func (e *Exchange) queryStaticInfoList(ctx context.Context, symbols []string) (m
 
 	request := &qotgetstaticinfopb.Request{C2S: &qotgetstaticinfopb.C2S{SecurityList: securityList}}
 	var response qotgetstaticinfopb.Response
-	if err := e.callProto(ctx, opend.ProtoGetStaticInfo, request, &response); err != nil {
+	if err := e.callReadProto(ctx, opend.ProtoGetStaticInfo, request, &response); err != nil {
 		return nil, err
 	}
 	if response.GetRetType() != 0 {

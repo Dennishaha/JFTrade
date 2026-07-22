@@ -44,17 +44,23 @@ type Tick struct {
 	LowPrice           *decimal.Decimal
 	PreviousClosePrice *decimal.Decimal
 	LastClosePrice     *decimal.Decimal
-	Volume             float64
-	Turnover           decimal.Decimal
-	QuoteAt            string
-	ObservedAt         string
-	Source             string
-	Session            string
-	ExtendedHours      bool
-	PreMarket          *ExtendedQuote
-	AfterMarket        *ExtendedQuote
-	Overnight          *ExtendedQuote
-	Kind               TickKind
+	// Volume is the provider's cumulative volume counter for the active volume
+	// sequence (normally the current market session). It is never a per-event
+	// quantity.
+	Volume float64
+	// VolumeDelta is the non-negative volume represented by this event. Quote
+	// snapshots that do not carry an explicit delta leave it at zero.
+	VolumeDelta   float64
+	Turnover      decimal.Decimal
+	QuoteAt       string
+	ObservedAt    string
+	Source        string
+	Session       string
+	ExtendedHours bool
+	PreMarket     *ExtendedQuote
+	AfterMarket   *ExtendedQuote
+	Overnight     *ExtendedQuote
+	Kind          TickKind
 }
 
 func NormalizeInstrumentID(instrumentID string) (string, string, string, bool) {

@@ -30,7 +30,6 @@ export function resolveMarketDataRealtimeTickBucketAt(input: {
 }): string | null {
   return resolveMarketDataRealtimeBucketStart(input.period, input.candles, {
     price: input.snapshot.price,
-    volume: input.snapshot.volume,
     at: input.snapshot.at,
     observedAt: resolveMarketDataRealtimeTickObservedAt({
       eventAt: input.eventAt,

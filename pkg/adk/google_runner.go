@@ -27,6 +27,7 @@ var errADKInputUnsupported = errors.New("GO-ADK requested input is unsupported; 
 
 type googleADKExecution struct {
 	mu                       sync.Mutex
+	deltaMu                  sync.Mutex
 	runner                   *adkrunner.Runner
 	sessionService           adksession.Service
 	artifactService          adkartifact.Service
@@ -174,6 +175,8 @@ func seedResumedExecutionState(execution *googleADKExecution, run Run) {
 	if execution == nil || strings.TrimSpace(run.ID) == "" {
 		return
 	}
+	execution.mu.Lock()
+	defer execution.mu.Unlock()
 	if execution.runSnapshotBaseByID == nil {
 		execution.runSnapshotBaseByID = map[string]Run{}
 	}

@@ -19,9 +19,10 @@ func (s *Store) SaveOnboarding(input jfsettings.OnboardingSettings) (jfsettings.
 	normalized := NormalizeOnboardingSettings(input)
 
 	s.mu.Lock()
-	s.data.Onboarding = onboardingSettingsPointer(normalized)
-	err := s.persistLocked()
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		s.data.Onboarding = onboardingSettingsPointer(normalized)
+	})
 	return normalized, err
 }
 

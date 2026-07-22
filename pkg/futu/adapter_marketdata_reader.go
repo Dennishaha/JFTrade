@@ -314,7 +314,7 @@ func (r *futuMarketDataReader) QuerySecurityInfo(ctx context.Context, query brok
 		return nil, fmt.Errorf("futu: QuerySecurityInfo requires at least one symbol")
 	}
 	var result *broker.SecurityInfoSnapshot
-	if err := r.exchange.withClient(ctx, func(client *opend.Client) error {
+	if err := r.exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 		securities, err := securitiesFromSymbols(query.Symbols)
 		if err != nil {
 			return err
@@ -364,7 +364,7 @@ func (r *futuMarketDataReader) QuerySecuritySearch(ctx context.Context, query br
 	}
 
 	var result *broker.SecuritySearchSnapshot
-	if err := r.exchange.withClient(ctx, func(client *opend.Client) error {
+	if err := r.exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 		matches, err := client.GetSearchQuote(ctx, keyword, limit)
 		if err != nil {
 			return err
@@ -767,7 +767,7 @@ func (r *futuMarketDataReader) QueryOrderBook(ctx context.Context, query broker.
 		num = 10 // default depth levels
 	}
 	var result *broker.OrderBookSnapshot
-	if err := r.exchange.withClient(ctx, func(client *opend.Client) error {
+	if err := r.exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 		res, err := r.exchange.QueryOrderBook(ctx, query.Symbol, num)
 		if err != nil {
 			return err

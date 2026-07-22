@@ -39,8 +39,8 @@ func TestCoverage98StrategyRuntimeSymbolKeepsPollingAndLateTradeFailuresVisible(
 		t.Fatalf("zero-time trade did not create a current bucket: %#v / %v", runner.currentBucket, runner.currentPrice())
 	}
 
-	// Out-of-order trades are possible after a reconnect. They still enrich the
-	// existing bucket and must never roll the clock backwards or emit a closure.
+	// Out-of-order trades are possible after a reconnect. Historical refresh
+	// reconciles their closed bucket, so they must not corrupt the current one.
 	windowStart, windowEnd := strategyRuntimeBucketWindow(strategyRuntimeTestTime(10, 2, 10), bbgotypes.Interval1m)
 	runner.currentBucket = &bbgotypes.KLine{
 		Symbol: "US.AAPL", Interval: bbgotypes.Interval1m,
@@ -49,8 +49,8 @@ func TestCoverage98StrategyRuntimeSymbolKeepsPollingAndLateTradeFailuresVisible(
 		Low: fixedpoint.NewFromFloat(99), Close: fixedpoint.NewFromFloat(101), Closed: false,
 	}
 	runner.handleTrade(strategyRuntimeTestTrade("US.AAPL", 103, strategyRuntimeTestTime(10, 1, 40)))
-	if runner.currentBucket == nil || !runner.currentBucket.StartTime.Time().Equal(windowStart) || runner.currentPrice() != 103 {
-		t.Fatalf("late trade changed bucket identity or price: %#v", runner.currentBucket)
+	if runner.currentBucket == nil || !runner.currentBucket.StartTime.Time().Equal(windowStart) || runner.currentPrice() != 101 {
+		t.Fatalf("late trade changed current bucket: %#v", runner.currentBucket)
 	}
 }
 

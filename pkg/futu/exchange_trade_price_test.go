@@ -3,10 +3,19 @@ package futu
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
+
+func TestFutuRequestLocationUsesMainlandMarketFallback(t *testing.T) {
+	location := futuRequestLocation("", int32(trdcommonpb.TrdMarket_TrdMarket_CN))
+	if got := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).In(location).Hour(); got != 8 {
+		t.Fatalf("mainland request location UTC offset hour = %d, want 8", got)
+	}
+}
 
 func closeFloat64(got float64, want float64) bool {
 	return math.Abs(got-want) < 1e-9
@@ -42,6 +51,9 @@ func TestPriceStepHelpersCoverEdgeCases(t *testing.T) {
 	}
 	if got := roundPriceToStep(123.456, 0.01); !closeFloat64(got, 123.46) {
 		t.Fatalf("roundPriceToStep cents = %v, want 123.46", got)
+	}
+	if got := roundPriceToStep(10.03, 0.05); !closeFloat64(got, 10.05) {
+		t.Fatalf("roundPriceToStep non-decimal tick = %v, want 10.05", got)
 	}
 	if got := stepRoundedUnit(4); !closeFloat64(got, 0.0001) {
 		t.Fatalf("stepRoundedUnit(4) = %v, want 0.0001", got)

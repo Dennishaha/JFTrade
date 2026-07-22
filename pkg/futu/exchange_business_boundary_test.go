@@ -46,11 +46,13 @@ func TestBalanceMapFromBrokerFundsUsesCurrencyRowsBeforeAccountFallback(t *testi
 func TestBalanceMapFromBrokerFundsFallsBackToMarketCurrencyAndLockedCash(t *testing.T) {
 	cash := 1000.0
 	available := 750.0
+	availableFunds := 840.0
 	maxWithdrawal := 700.0
 	balances := balanceMapFromBrokerFunds(&BrokerFundsSnapshot{
 		Market:                  "US",
 		Cash:                    &cash,
 		AvailableWithdrawalCash: &available,
+		AvailableFunds:          &availableFunds,
 		MaxWithdrawal:           &maxWithdrawal,
 	})
 
@@ -58,8 +60,11 @@ func TestBalanceMapFromBrokerFundsFallsBackToMarketCurrencyAndLockedCash(t *test
 	if !ok {
 		t.Fatalf("balances = %#v, want USD default for US market", balances)
 	}
-	if got := balance.Locked.Float64(); got != 250 {
-		t.Fatalf("locked cash = %v, want cash - available = 250", got)
+	if got := balance.Available.Float64(); got != availableFunds {
+		t.Fatalf("available cash = %v, want broker available funds %v", got, availableFunds)
+	}
+	if got := balance.Locked.Float64(); got != 160 {
+		t.Fatalf("locked cash = %v, want cash - available funds = 160", got)
 	}
 	if got := balance.MaxWithdrawAmount.Float64(); got != maxWithdrawal {
 		t.Fatalf("max withdrawal = %v, want %v", got, maxWithdrawal)

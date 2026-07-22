@@ -47,10 +47,12 @@ func LiveTickJSON(sample *Tick, observedAt string) map[string]any {
 			Symbol:       cloned.Symbol,
 			InstrumentID: cloned.InstrumentID,
 		},
-		Snapshot:   SnapshotJSON(&cloned),
-		ObservedAt: cloned.ObservedAt,
-		BrokerID:   "futu",
-		Source:     cloned.Source,
+		Snapshot:         SnapshotJSON(&cloned),
+		ObservedAt:       cloned.ObservedAt,
+		BrokerID:         "futu",
+		Source:           cloned.Source,
+		CumulativeVolume: cloned.Volume,
+		VolumeDelta:      cloned.VolumeDelta,
 	}.JSON()
 }
 
@@ -61,16 +63,18 @@ func LatestTicksJSON(samples []*Tick) TicksResponse {
 			continue
 		}
 		ticks = append(ticks, map[string]any{
-			"instrumentId":  sample.InstrumentID,
-			"market":        sample.Market,
-			"symbol":        sample.Symbol,
-			"price":         sample.Price.String(),
-			"bid":           sample.Bid.String(),
-			"ask":           sample.Ask.String(),
-			"volume":        sample.Volume,
-			"observedAt":    sample.ObservedAt,
-			"session":       sample.Session,
-			"extendedHours": sample.ExtendedHours,
+			"instrumentId":     sample.InstrumentID,
+			"market":           sample.Market,
+			"symbol":           sample.Symbol,
+			"price":            sample.Price.String(),
+			"bid":              sample.Bid.String(),
+			"ask":              sample.Ask.String(),
+			"volume":           sample.Volume,
+			"cumulativeVolume": sample.Volume,
+			"volumeDelta":      sample.VolumeDelta,
+			"observedAt":       sample.ObservedAt,
+			"session":          sample.Session,
+			"extendedHours":    sample.ExtendedHours,
 		})
 	}
 	return TicksResponse{"ticks": ticks, "totalReturned": len(ticks)}

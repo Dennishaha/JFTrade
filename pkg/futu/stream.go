@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"sync"
+	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
+	"github.com/jftrade/jftrade-main/pkg/market"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
@@ -27,6 +31,13 @@ type Stream struct {
 	cancel         context.CancelFunc
 	callbackClient *opend.Client
 	closeOnce      sync.Once
+	tradeVolumes   map[string]streamTradeVolume
+}
+
+type streamTradeVolume struct {
+	tradingDay string
+	session    market.Session
+	cumulative float64
 }
 
 // NewStream constructs a Stream tied to the given Exchange.
@@ -200,9 +211,12 @@ func (s *Stream) emitBasicQot(basicQot *qotcommonpb.BasicQot) {
 	if err != nil {
 		return
 	}
-	if snapshot := quoteSnapshotFromBasicQot(basicQot, canonical); snapshot != nil {
-		s.exchange.RecordMarketSessionSample(canonical, snapshot.Session, snapshot.QuoteAt)
-	}
+	snapshot := quoteSnapshotFromBasicQot(basicQot, canonical)
+	s.emitBasicQotSnapshot(basicQot, canonical, snapshot)
+}
+
+func (s *Stream) emitBasicQotSnapshot(basicQot *qotcommonpb.BasicQot, canonical string, snapshot *QuoteSnapshot) {
+	s.exchange.RecordMarketSessionSample(canonical, snapshot.Session, snapshot.QuoteAt)
 	ticker := tickerFromBasicQot(basicQot)
 	if ticker == nil || ticker.Last.IsZero() {
 		return
@@ -213,15 +227,54 @@ func (s *Stream) emitBasicQot(basicQot *qotcommonpb.BasicQot) {
 		Buy:    ticker.Buy,
 		Sell:   ticker.Sell,
 	})
+	if !isFiniteNonNegativeVolume(snapshot.Volume) {
+		return
+	}
 
 	tradeTime := ticker.Time
+	quantity := s.nextTradeQuantity(canonical, snapshot.Session, tradeTime, snapshot.Volume)
+	cumulativeVolume := fixedpoint.NewFromFloat(snapshot.Volume)
 	s.EmitMarketTrade(types.Trade{
-		Exchange: Name,
-		Symbol:   canonical,
-		Price:    ticker.Last,
-		Quantity: ticker.Volume,
-		Time:     types.Time(tradeTime),
+		Exchange:         Name,
+		Symbol:           canonical,
+		Price:            ticker.Last,
+		Quantity:         fixedpoint.NewFromFloat(quantity),
+		CumulativeVolume: &cumulativeVolume,
+		Time:             types.Time(tradeTime),
 	})
+}
+
+func (s *Stream) nextTradeQuantity(symbol string, session market.Session, at time.Time, cumulative float64) float64 {
+	if !isFiniteNonNegativeVolume(cumulative) {
+		return 0
+	}
+	tradingDay := at.UTC().Format("2006-01-02")
+	if profile, ok := market.ProfileForSymbol(symbol); ok && profile.Location != nil {
+		tradingDay = at.In(profile.Location).Format("2006-01-02")
+	}
+	if key, ok := market.TradingDayKey(symbol, at, true); ok {
+		tradingDay = key
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.tradeVolumes == nil {
+		s.tradeVolumes = make(map[string]streamTradeVolume)
+	}
+	previous, exists := s.tradeVolumes[symbol]
+	s.tradeVolumes[symbol] = streamTradeVolume{tradingDay: tradingDay, session: session, cumulative: cumulative}
+	if !exists || previous.tradingDay != tradingDay || previous.session != session {
+		return 0
+	}
+	delta := cumulative - previous.cumulative
+	if delta < 0 {
+		return 0
+	}
+	return delta
+}
+
+func isFiniteNonNegativeVolume(value float64) bool {
+	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func (e *Exchange) ensureBasicQotPushSubscriptions(ctx context.Context, client *opend.Client, requests []basicQotRequest) error {

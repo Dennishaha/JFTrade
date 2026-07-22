@@ -189,10 +189,7 @@ func normalizeReplayCommands(candles []pineworker.Candle, commands []WorkerOrder
 		result = append(result, command)
 	}
 	sort.SliceStable(result, func(i, j int) bool {
-		if result[i].BarIndex != result[j].BarIndex {
-			return result[i].BarIndex < result[j].BarIndex
-		}
-		return result[i].Kind < result[j].Kind
+		return result[i].BarIndex < result[j].BarIndex
 	})
 	return result, nil
 }

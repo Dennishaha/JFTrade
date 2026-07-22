@@ -25,9 +25,10 @@ func (s *Store) SaveAppearance(input jfsettings.UIAppearanceSettings) (jfsetting
 	normalized := NormalizeUIAppearanceSettings(input)
 
 	s.mu.Lock()
-	s.data.Appearance = uiAppearanceSettingsPointer(normalized)
-	err := s.persistLocked()
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		s.data.Appearance = uiAppearanceSettingsPointer(normalized)
+	})
 	return normalized, err
 }
 

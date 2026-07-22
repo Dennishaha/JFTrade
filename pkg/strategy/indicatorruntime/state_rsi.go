@@ -97,24 +97,20 @@ func (s *rollingRSIState) push(currentClose, previousClose float64, hasPreviousC
 	} else {
 		loss = math.Abs(delta)
 	}
-	evictedGain, evictedGainOK := s.gains.push(gain, s.period)
-	evictedLoss, evictedLossOK := s.losses.push(loss, s.period)
-	s.gainSum += gain
-	s.lossSum += loss
-	if evictedGainOK {
-		s.gainSum -= evictedGain
+	if s.initialChanges < s.period {
+		s.initialChanges++
+		s.initialGainSum += gain
+		s.initialLossSum += loss
+		if s.initialChanges < s.period {
+			return
+		}
+		s.averageGain = s.initialGainSum / float64(s.period)
+		s.averageLoss = s.initialLossSum / float64(s.period)
+	} else {
+		s.averageGain = (s.averageGain*float64(s.period-1) + gain) / float64(s.period)
+		s.averageLoss = (s.averageLoss*float64(s.period-1) + loss) / float64(s.period)
 	}
-	if evictedLossOK {
-		s.lossSum -= evictedLoss
-	}
-	if s.gains.len() < s.period {
-		return
-	}
-	value := 100.0
-	if s.lossSum != 0 {
-		relativeStrength := s.gainSum / s.lossSum
-		value = 100 - 100/(1+relativeStrength)
-	}
+	value := rsiFromWilderAverages(s.averageGain, s.averageLoss)
 	s.pushDivergenceSample(currentClose, value)
 	s.series = append(s.series, value)
 	if s.maxLength <= 0 {

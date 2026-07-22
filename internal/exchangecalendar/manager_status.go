@@ -118,10 +118,21 @@ func (m *Manager) snapshotSummaries() []map[string]any {
 	}
 	m.mu.RLock()
 	snapshots := make([]marketcalendar.CalendarSnapshot, 0, len(m.snapshots))
+	seen := make(map[string]struct{}, len(m.snapshots))
 	for _, snapshot := range m.snapshots {
 		if strings.TrimSpace(snapshot.SourceID) == "" || snapshot.SourceID == BuiltinSourceID {
 			continue
 		}
+		identity := strings.Join([]string{
+			snapshotSortKey(snapshot),
+			snapshot.To.Format(time.RFC3339Nano),
+			snapshot.FetchedAt.Format(time.RFC3339Nano),
+			snapshot.Checksum,
+		}, "|")
+		if _, ok := seen[identity]; ok {
+			continue
+		}
+		seen[identity] = struct{}{}
 		snapshots = append(snapshots, snapshot)
 	}
 	m.mu.RUnlock()

@@ -79,14 +79,16 @@ func TestResolveFeeScheduleClonesAndNormalizesCustomRules(t *testing.T) {
 		Rules: []FeeRule{
 			{},
 			{
-				ID:        " broker-share ",
-				Label:     " ",
-				Category:  "unknown",
-				Side:      "SELL",
-				Basis:     "quantity",
-				Currency:  " usd ",
-				Rounding:  "CEIL_CENT",
-				AppliesTo: []string{"fund", "ETF", "stock"},
+				ID:            " broker-share ",
+				Label:         " ",
+				Category:      "unknown",
+				Side:          "SELL",
+				Basis:         "quantity",
+				Currency:      " usd ",
+				Rounding:      "CEIL_CENT",
+				EffectiveFrom: " 2026-01-02 ",
+				EffectiveTo:   " 2026-12-31 ",
+				AppliesTo:     []string{"fund", "ETF", "stock"},
 			},
 		},
 	}
@@ -98,7 +100,7 @@ func TestResolveFeeScheduleClonesAndNormalizesCustomRules(t *testing.T) {
 		t.Fatalf("normalized rules = %#v, want only valid id rule", resolved.Rules)
 	}
 	rule := resolved.Rules[0]
-	if rule.ID != "broker-share" || rule.Label != "broker-share" || rule.Category != feeCategoryBroker || rule.Side != feeSideSell || rule.Basis != feeBasisShare || rule.Currency != "USD" || rule.Rounding != "ceil_cent" {
+	if rule.ID != "broker-share" || rule.Label != "broker-share" || rule.Category != feeCategoryBroker || rule.Side != feeSideSell || rule.Basis != feeBasisShare || rule.Currency != "USD" || rule.Rounding != "ceil_cent" || rule.EffectiveFrom != "2026-01-02" || rule.EffectiveTo != "2026-12-31" {
 		t.Fatalf("normalized custom rule = %#v", rule)
 	}
 	if len(rule.AppliesTo) != 2 || rule.AppliesTo[0] != instrumentTypeETF || rule.AppliesTo[1] != instrumentTypeStock {
@@ -126,6 +128,68 @@ func TestResolveFeeScheduleClonesAndNormalizesCustomRules(t *testing.T) {
 	if cloned := cloneFeeRules(nil); cloned != nil {
 		t.Fatalf("cloneFeeRules(nil) = %#v, want nil", cloned)
 	}
+}
+
+func TestFeeRuleEffectiveRangeUsesInclusiveTradeDates(t *testing.T) {
+	rule := FeeRule{EffectiveFrom: "2026-06-30", EffectiveTo: "2026-07-31"}
+	tests := []struct {
+		name string
+		at   time.Time
+		want bool
+	}{
+		{name: "missing trade time fails closed", want: false},
+		{name: "before", at: time.Date(2026, time.June, 29, 23, 59, 0, 0, time.UTC), want: false},
+		{name: "first day", at: time.Date(2026, time.June, 30, 0, 0, 0, 0, time.UTC), want: true},
+		{name: "last day", at: time.Date(2026, time.July, 31, 23, 59, 0, 0, time.UTC), want: true},
+		{name: "after", at: time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC), want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := feeRuleAppliesAt(rule, test.at); got != test.want {
+				t.Fatalf("feeRuleAppliesAt(%s) = %v, want %v", test.at, got, test.want)
+			}
+		})
+	}
+	if feeRuleAppliesAt(FeeRule{EffectiveFrom: "not-a-date"}, time.Now()) {
+		t.Fatal("invalid effectiveFrom must not apply")
+	}
+	if feeRuleAppliesAt(FeeRule{EffectiveFrom: "2026-08-01", EffectiveTo: "2026-07-31"}, time.Date(2026, time.July, 31, 0, 0, 0, 0, time.UTC)) {
+		t.Fatal("inverted effective range must not apply")
+	}
+	if !feeRuleAppliesAt(FeeRule{}, time.Time{}) {
+		t.Fatal("unbounded rule should apply without a trade timestamp")
+	}
+
+	result := &RunResult{}
+	engine := newBacktestFeeEngine(nil, "USD", "stock", TradingCosts{BrokerFees: FeeSchedule{
+		Mode: tradingCostModeCustom,
+		Rules: []FeeRule{{
+			ID:            "dated-fee",
+			Category:      feeCategoryBroker,
+			Side:          feeSideBoth,
+			Basis:         feeBasisNotional,
+			Rate:          0.01,
+			EffectiveFrom: rule.EffectiveFrom,
+			EffectiveTo:   rule.EffectiveTo,
+		}},
+	}}, result, nil)
+	for index, at := range []time.Time{
+		time.Date(2026, time.June, 29, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.June, 30, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.August, 1, 12, 0, 0, 0, time.UTC),
+	} {
+		engine.onTradeUpdate(types.Trade{
+			ID:       uint64(index + 1),
+			OrderID:  uint64(index + 1),
+			Symbol:   "US.AAPL",
+			Side:     types.SideTypeBuy,
+			Price:    fixedpoint.NewFromFloat(100),
+			Quantity: fixedpoint.One,
+			Time:     types.Time(at),
+		})
+	}
+	engine.finalize()
+	assertFloatNear(t, result.TotalBrokerFees, 1)
 }
 
 func TestBacktestFeeEngineSeparatesBrokerMarketAndAppliesHKRounding(t *testing.T) {

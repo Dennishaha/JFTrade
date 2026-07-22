@@ -19,9 +19,10 @@ func (s *Store) SaveExecutionSettings(input jfsettings.ExecutionSettings) (jfset
 	normalized := NormalizeExecutionSettings(input)
 
 	s.mu.Lock()
-	s.data.Execution = executionSettingsPointer(normalized)
-	err := s.persistLocked()
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		s.data.Execution = executionSettingsPointer(normalized)
+	})
 	return normalized, err
 }
 
@@ -43,18 +44,15 @@ func (s *Store) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfsetti
 	normalized := NormalizeSecuritySettings(input)
 
 	s.mu.Lock()
-	previous := s.data.Security
-	s.data.Security = &storedSecuritySettings{
-		WebAccessEnabled:    normalized.WebAccessEnabled,
-		PublicAccessEnabled: normalized.PublicAccessEnabled,
-		WebPort:             normalized.WebPort,
-		PasswordHash:        normalized.PasswordHash,
-	}
-	err := s.persistLocked()
-	if err != nil {
-		s.data.Security = previous
-	}
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		s.data.Security = &storedSecuritySettings{
+			WebAccessEnabled:    normalized.WebAccessEnabled,
+			PublicAccessEnabled: normalized.PublicAccessEnabled,
+			WebPort:             normalized.WebPort,
+			PasswordHash:        normalized.PasswordHash,
+		}
+	})
 	return normalized, err
 }
 
@@ -71,9 +69,10 @@ func (s *Store) SaveSystemNotificationSettings(input jfsettings.SystemNotificati
 	normalized := NormalizeSystemNotificationSettings(input)
 
 	s.mu.Lock()
-	s.data.SystemNotifications = systemNotificationSettingsPointer(normalized)
-	err := s.persistLocked()
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		s.data.SystemNotifications = systemNotificationSettingsPointer(normalized)
+	})
 	return normalized, err
 }
 
@@ -90,13 +89,10 @@ func (s *Store) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings
 	normalized := NormalizeADKRuntimeSettings(input)
 
 	s.mu.Lock()
-	previous := s.data.ADK
-	s.data.ADK = adkRuntimeSettingsPointer(normalized)
-	err := s.persistLocked()
-	if err != nil {
-		s.data.ADK = previous
-	}
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		s.data.ADK = adkRuntimeSettingsPointer(normalized)
+	})
 	return normalized, err
 }
 
@@ -113,9 +109,10 @@ func (s *Store) SavePineWorkerSettings(input jfsettings.PineWorkerSettings) (jfs
 	normalized := NormalizePineWorkerSettings(input)
 
 	s.mu.Lock()
-	s.data.PineWorker = pineWorkerSettingsPointer(normalized)
-	err := s.persistLocked()
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		s.data.PineWorker = pineWorkerSettingsPointer(normalized)
+	})
 	return normalized, err
 }
 
@@ -284,18 +281,15 @@ func (s *Store) SaveMCPServerSettings(input jfsettings.MCPServerSettings) (jfset
 	normalized := NormalizeMCPServerSettings(input)
 
 	s.mu.Lock()
-	previous := s.data.MCPServer
-	s.data.MCPServer = &storedMCPServerSettings{
-		Enabled:   normalized.Enabled,
-		Port:      normalized.Port,
-		AuthMode:  normalized.AuthMode,
-		TokenHash: normalized.TokenHash,
-	}
-	err := s.persistLocked()
-	if err != nil {
-		s.data.MCPServer = previous
-	}
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		s.data.MCPServer = &storedMCPServerSettings{
+			Enabled:   normalized.Enabled,
+			Port:      normalized.Port,
+			AuthMode:  normalized.AuthMode,
+			TokenHash: normalized.TokenHash,
+		}
+	})
 	return normalized, err
 }
 

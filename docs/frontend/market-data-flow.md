@@ -60,6 +60,10 @@
 | --- | --- |
 | `snapshot.at` | 上游快照时间，不能直接当唯一分桶依据 |
 | `snapshot.observedAt` | 前端实时分桶统一时间参考 |
+| `snapshot.volume` | 行情快照累计成交量，仅用于快照展示，不进入量柱计算 |
+| live `cumulativeVolume` | 显式累计量序列，用于重复检测、增量校验和序列回退 |
+| live `volumeDelta` | 本次事件成交量；累计序列不可用时的明确增量来源 |
+| `snapshot.barVolume` | 已解析的当前桶成交量，图表唯一可用的实时量柱字段 |
 | `candle.at` | 业务分桶键 |
 | `candle.displayAt` | 图表展示时间 |
 

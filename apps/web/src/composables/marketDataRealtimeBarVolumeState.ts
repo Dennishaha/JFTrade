@@ -1,9 +1,14 @@
+import {
+  resolveMarketDataVolumeSequence,
+  type MarketDataRealtimeVolumeSequenceState,
+} from "./marketDataRealtimeVolumeSequence";
+
 export interface MarketDataRealtimeBarVolumeState {
   instrumentId: string;
   period: string;
   bucketAt: string;
-  baselineCumulativeVolume: number;
-  baseBarVolume: number;
+  currentBarVolume: number;
+  sequence: MarketDataRealtimeVolumeSequenceState;
 }
 
 export interface MarketDataRealtimeBarVolumeUpdateInput {
@@ -11,28 +16,32 @@ export interface MarketDataRealtimeBarVolumeUpdateInput {
   instrumentId: string;
   period: string;
   bucketAt: string | null;
-  cumulativeVolume: number;
+  observedAt: string;
+  cumulativeVolume?: number | null | undefined;
+  volumeDelta?: number | null | undefined;
   existingCandleVolume: number | null;
   existingCandleUnfinalized: boolean;
 }
 
 export interface MarketDataRealtimeBarVolumeResolution {
   currentBarVolume: number | null;
+  ignored: boolean;
   nextState: MarketDataRealtimeBarVolumeState | null;
+}
+
+function normalizedExistingVolume(value: number | null): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : 0;
 }
 
 export function resolveMarketDataBarVolumeValue(
   state: MarketDataRealtimeBarVolumeState,
-  cumulativeVolume: number,
   existingCandleVolume: number | null,
 ): number {
-  const incrementalVolume = Math.max(
-    0,
-    cumulativeVolume - state.baselineCumulativeVolume,
-  );
   return Math.max(
-    state.baseBarVolume + incrementalVolume,
-    existingCandleVolume ?? 0,
+    state.currentBarVolume,
+    normalizedExistingVolume(existingCandleVolume),
   );
 }
 
@@ -44,63 +53,67 @@ export function resolveMarketDataBarVolumeUpdate(
   if (input.bucketAt == null) {
     return {
       currentBarVolume: null,
+      ignored: false,
       nextState: null,
     };
   }
 
-  if (!Number.isFinite(input.cumulativeVolume) || input.cumulativeVolume < 0) {
+  const sameSeries =
+    previousState != null &&
+    previousState.instrumentId === input.instrumentId &&
+    previousState.period === input.period;
+  const sameBucket = sameSeries && previousState.bucketAt === input.bucketAt;
+  if (
+    sameSeries &&
+    Date.parse(input.bucketAt) < Date.parse(previousState.bucketAt)
+  ) {
     return {
-      currentBarVolume: input.existingCandleVolume,
+      currentBarVolume: null,
+      ignored: true,
       nextState: previousState,
     };
   }
 
-  const shouldResetState =
-    previousState == null ||
-    previousState.instrumentId !== input.instrumentId ||
-    previousState.period !== input.period ||
-    previousState.bucketAt !== input.bucketAt ||
-    input.cumulativeVolume < previousState.baselineCumulativeVolume;
+  const sequenceResolution = resolveMarketDataVolumeSequence({
+    previousState: sameSeries ? previousState.sequence : null,
+    observedAt: input.observedAt,
+    cumulativeVolume: input.cumulativeVolume,
+    volumeDelta: input.volumeDelta,
+  });
+  if (sequenceResolution.ignored || sequenceResolution.nextState == null) {
+    return {
+      currentBarVolume: null,
+      ignored: true,
+      nextState: previousState,
+    };
+  }
 
-  let nextState = previousState;
-  if (shouldResetState) {
-    nextState = {
+  const existingCandleVolume = normalizedExistingVolume(
+    input.existingCandleVolume,
+  );
+  const previousBarVolume = sameBucket
+    ? previousState.currentBarVolume
+    : 0;
+  const baseBarVolume = Math.max(previousBarVolume, existingCandleVolume);
+  const rebasedFromCandle =
+    input.existingCandleUnfinalized &&
+    input.existingCandleVolume != null &&
+    (!sameBucket || existingCandleVolume > previousBarVolume);
+  const incrementalVolume =
+    rebasedFromCandle && sequenceResolution.source === "cumulative"
+      ? 0
+      : sequenceResolution.deltaVolume;
+  const currentBarVolume = baseBarVolume + incrementalVolume;
+
+  return {
+    currentBarVolume,
+    ignored: false,
+    nextState: {
       instrumentId: input.instrumentId,
       period: input.period,
       bucketAt: input.bucketAt,
-      baselineCumulativeVolume: input.cumulativeVolume,
-      baseBarVolume: input.existingCandleVolume ?? 0,
-    };
-  } else if (
-    previousState != null &&
-    input.existingCandleUnfinalized &&
-    input.existingCandleVolume != null &&
-    input.existingCandleVolume > previousState.baseBarVolume
-  ) {
-    nextState = {
-      ...previousState,
-      baselineCumulativeVolume: input.cumulativeVolume,
-      baseBarVolume: input.existingCandleVolume,
-    };
-  }
-
-  if (nextState == null) {
-    return {
-      currentBarVolume: input.existingCandleVolume,
-      nextState,
-    };
-  }
-
-  const incrementalVolume = Math.max(
-    0,
-    input.cumulativeVolume - nextState.baselineCumulativeVolume,
-  );
-  return {
-    currentBarVolume: resolveMarketDataBarVolumeValue(
-      nextState,
-      input.cumulativeVolume,
-      input.existingCandleVolume,
-    ),
-    nextState,
+      currentBarVolume,
+      sequence: sequenceResolution.nextState,
+    },
   };
 }

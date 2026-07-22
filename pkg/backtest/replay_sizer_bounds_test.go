@@ -32,7 +32,7 @@ func TestPineWorkerReplaySizerRejectsInvalidQuantityPctInputs(t *testing.T) {
 	}
 }
 
-func TestPineWorkerReplaySizerMaintainsPositionFromFilledOrdersOnly(t *testing.T) {
+func TestPineWorkerReplaySizerMaintainsPositionFromIncrementalFills(t *testing.T) {
 	sizer := newPineWorkerReplaySizer("US.AAPL", "USD", types.NewAccount())
 	market := testPineWorkerShortReplayMarket()
 
@@ -66,6 +66,22 @@ func TestPineWorkerReplaySizerMaintainsPositionFromFilledOrdersOnly(t *testing.T
 	}
 	if qty.Float64() != 2 {
 		t.Fatalf("close quantity = %s, want clamped open position 2", qty)
+	}
+
+	partial := types.Order{
+		SubmitOrder:      types.SubmitOrder{Symbol: "US.AAPL", Side: types.SideTypeBuy, Quantity: fixedpoint.NewFromFloat(5)},
+		OrderID:          42,
+		Status:           types.OrderStatusPartiallyFilled,
+		ExecutedQuantity: fixedpoint.NewFromFloat(2),
+	}
+	sizer.onOrderUpdate(partial)
+	partial.ExecutedQuantity = fixedpoint.NewFromFloat(4)
+	sizer.onOrderUpdate(partial)
+	partial.Status = types.OrderStatusFilled
+	partial.ExecutedQuantity = fixedpoint.NewFromFloat(5)
+	sizer.onOrderUpdate(partial)
+	if got := sizer.NetPosition().Float64(); got != 7 {
+		t.Fatalf("net position after cumulative partial fills = %v, want 7", got)
 	}
 }
 

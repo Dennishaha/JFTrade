@@ -103,6 +103,8 @@ type StandardStream struct {
 
 	// CloseC is a signal channel for closing stream
 	CloseC chan struct{}
+	closeOnce sync.Once
+	closeErr  error
 
 	Subscriptions []Subscription
 
@@ -559,38 +561,30 @@ func (s *StandardStream) Dial(ctx context.Context, args ...string) (*websocket.C
 // - writes a websocket close frame
 // After Close returns, internal goroutines should be stopped shortly after.
 func (s *StandardStream) Close() error {
-	if s.PublicOnly {
-		log.Debugf("[websocket] closing public stream...")
-	} else {
-		log.Debugf("[websocket] closing user data stream...")
-	}
-
-	// close the close signal channel, so that reader and ping worker will stop
-	close(s.CloseC)
-
-	// get the connection object before call the context cancel function
-	s.ConnLock.Lock()
-	defer s.ConnLock.Unlock()
-
-	// cancel the context so that the ticker loop and listen key updater will be stopped.
-	if s.ConnCancel != nil {
-		s.ConnCancel()
-	}
-
-	// gracefully write the close message to the connection
-	if s.Conn != nil {
-		err := s.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		if err != nil {
-			return errors.Wrap(err, "websocket write close message error")
+	s.closeOnce.Do(func() {
+		if s.PublicOnly {
+			log.Debugf("[websocket] closing public stream...")
+		} else {
+			log.Debugf("[websocket] closing user data stream...")
 		}
-	}
 
-	log.Debugf("[websocket] stream closed")
+		close(s.CloseC)
 
-	// let the reader close the connection
-	// TODO: use signal channel instead
-	<-time.After(time.Second)
-	return nil
+		s.ConnLock.Lock()
+		defer s.ConnLock.Unlock()
+		if s.ConnCancel != nil {
+			s.ConnCancel()
+		}
+		if s.Conn != nil {
+			if err := s.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")); err != nil {
+				s.closeErr = errors.Wrap(err, "websocket write close message error")
+			}
+		}
+
+		log.Debugf("[websocket] stream closed")
+		<-time.After(time.Second)
+	})
+	return s.closeErr
 }
 
 // String returns a human-readable identifier for debugging purposes.

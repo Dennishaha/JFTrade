@@ -75,11 +75,13 @@ func (response CandlesResponseDTO) JSON() CandlesResponse {
 }
 
 type TickEventDTO struct {
-	Instrument InstrumentDTO
-	Snapshot   map[string]any
-	ObservedAt string
-	BrokerID   string
-	Source     string
+	Instrument       InstrumentDTO
+	Snapshot         map[string]any
+	ObservedAt       string
+	BrokerID         string
+	Source           string
+	CumulativeVolume float64
+	VolumeDelta      float64
 }
 
 func (event TickEventDTO) JSON() map[string]any {
@@ -90,5 +92,9 @@ func (event TickEventDTO) JSON() map[string]any {
 		"instrument": event.Instrument.JSON(),
 		"snapshot":   event.Snapshot,
 		"source":     event.Source,
+		// Keep snapshot.volume as the compatibility field while making both
+		// volume semantics explicit for live-event consumers.
+		"cumulativeVolume": event.CumulativeVolume,
+		"volumeDelta":      event.VolumeDelta,
 	}
 }

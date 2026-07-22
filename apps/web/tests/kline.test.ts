@@ -6,6 +6,7 @@ import {
   overlayRealtimeTickCandle,
   normalizeKlinePeriod,
   normalizeKlineIndicators,
+  resolveKlineBucketDisplayAt,
   resolveKlineCandleDisplayAt,
   resolveKlinePeriodDurationMs,
   resolveRealtimeBucketStart,
@@ -75,7 +76,7 @@ describe("kline realtime bucket resolution", () => {
     ];
     const snapshot = {
       price: 102,
-      volume: 1500,
+      barVolume: 1500,
       at: "2026-05-17T20:31:00.000Z",
       observedAt: "2026-05-17T20:31:00.000Z",
     };
@@ -109,7 +110,7 @@ describe("kline realtime bucket resolution", () => {
     ];
     const snapshot = {
       price: 102,
-      volume: 1500,
+      barVolume: 1500,
       at: "2026-05-17T09:31:00.000Z",
       observedAt: "2026-05-17T09:31:00.000Z",
     };
@@ -152,7 +153,7 @@ describe("kline realtime bucket resolution", () => {
     ];
     const snapshot = {
       price: 110,
-      volume: 1600,
+      barVolume: 1600,
       at: "2026-06-20T12:30:00.000Z",
       observedAt: "2026-06-20T12:30:00.000Z",
     };
@@ -184,7 +185,6 @@ describe("kline realtime bucket resolution", () => {
     ];
     const snapshot = {
       price: 104,
-      volume: 5800,
       at: "2026-05-18T09:31:00.000Z",
       observedAt: "2026-05-18T09:31:00.000Z",
     };
@@ -207,7 +207,6 @@ describe("kline realtime bucket resolution", () => {
     ];
     const snapshot = {
       price: 102,
-      volume: 1500,
       at: "2026-05-20T10:06:00.000Z",
       observedAt: "2026-05-20T10:06:00.000Z",
     };
@@ -229,7 +228,7 @@ describe("kline realtime bucket resolution", () => {
     ];
     const snapshot = {
       price: 102,
-      volume: 1500,
+      barVolume: 1500,
       at: "2026-05-20T10:06:00.000Z",
       observedAt: "2026-05-20T10:06:00.000Z",
     };
@@ -272,7 +271,7 @@ describe("kline realtime bucket resolution", () => {
     ];
     const snapshot = {
       price: 102,
-      volume: 1500,
+      barVolume: 1500,
       at: "2026-05-20T10:01:30.000Z",
       observedAt: "2026-05-20T10:01:30.000Z",
     };
@@ -318,7 +317,7 @@ describe("kline realtime bucket resolution", () => {
     ];
     const sessionSnapshot = {
       price: 102,
-      volume: 1500,
+      barVolume: 1500,
       at: "2026-05-20T10:06:00.000Z",
       observedAt: "2026-05-20T10:06:00.000Z",
       session: "after_hours",
@@ -344,6 +343,37 @@ describe("kline realtime bucket resolution", () => {
     ).toEqual(candles);
   });
 
+  it("sorts delayed tick overlays and finds a non-tail active bucket", () => {
+    const ticks = [
+      { period: "tick", at: "2026-05-20T10:00:02.000Z", open: 102, high: 102, low: 102, close: 102, volume: 1 },
+      { period: "tick", at: "2026-05-20T10:00:04.000Z", open: 104, high: 104, low: 104, close: 104, volume: 1 },
+    ];
+    const delayed = overlayRealtimeTickCandle(ticks, {
+      price: 101,
+      at: "2026-05-20T10:00:01.000Z",
+      observedAt: "2026-05-20T10:00:01.000Z",
+    }, "tick");
+    expect(delayed.map((candle) => candle.at)).toEqual([
+      "2026-05-20T10:00:01.000Z",
+      "2026-05-20T10:00:02.000Z",
+      "2026-05-20T10:00:04.000Z",
+    ]);
+
+    const bars = [
+      { period: "5m", at: "2026-05-20T10:00:00.000Z", open: 100, high: 101, low: 99, close: 100, volume: 10 },
+      { period: "5m", at: "2026-05-20T10:05:00.000Z", open: 100, high: 102, low: 99, close: 101, volume: 20 },
+      { period: "5m", at: "2026-05-20T10:10:00.000Z", open: 101, high: 103, low: 100, close: 102, volume: 30 },
+    ];
+    expect(overlayRealtimeTickCandle(bars, {
+      price: 102.5,
+      barVolume: 25,
+      at: "2026-05-20T10:06:00.000Z",
+      observedAt: "2026-05-20T10:06:00.000Z",
+    }, "5m")[1]).toMatchObject({ at: "2026-05-20T10:05:00.000Z", close: 102.5, volume: 25 });
+
+    expect(resolveKlineBucketDisplayAt("1m", "invalid")).toBeNull();
+  });
+
   it("ignores invalid realtime timestamps and stale earlier buckets", () => {
     const candles = [
       {
@@ -361,7 +391,6 @@ describe("kline realtime bucket resolution", () => {
         candles,
         {
           price: 102,
-          volume: 1500,
           at: "not-a-date",
           observedAt: "not-a-date",
         },
@@ -374,7 +403,6 @@ describe("kline realtime bucket resolution", () => {
         candles,
         {
           price: 102,
-          volume: 1500,
           at: "2026-05-20T10:04:00.000Z",
           observedAt: "2026-05-20T10:04:00.000Z",
         },
@@ -397,7 +425,7 @@ describe("kline realtime bucket resolution", () => {
     ];
     const snapshot = {
       price: 102,
-      volume: 1500,
+      barVolume: 1500,
       at: "2026-05-20T10:55:30.000Z",
       observedAt: "2026-05-20T10:55:30.000Z",
     };
@@ -437,6 +465,12 @@ describe("kline realtime bucket resolution", () => {
     expect(normalizeKlinePeriod("60min")).toBe("1h");
     expect(normalizeKlinePeriod("1W")).toBe("1w");
     expect(formatKlinePeriodLabel("2h")).toBe("2H");
+    expect(normalizeKlinePeriod("K_120M")).toBe("2h");
+    expect(normalizeKlinePeriod("180min")).toBe("3h");
+    expect(normalizeKlinePeriod("240M")).toBe("4h");
+    expect(resolveKlinePeriodDurationMs("2h")).toBe(2 * 60 * 60_000);
+    expect(resolveKlinePeriodDurationMs("3h")).toBe(3 * 60 * 60_000);
+    expect(resolveKlinePeriodDurationMs("4h")).toBe(4 * 60 * 60_000);
     expect(resolveKlinePeriodDurationMs("1w")).toBe(7 * 24 * 60 * 60_000);
     expect(resolveKlinePeriodDurationMs("1mo")).toBe(30 * 24 * 60 * 60_000);
     expect(resolveKlinePeriodDurationMs("tick")).toBeNull();
@@ -446,25 +480,23 @@ describe("kline realtime bucket resolution", () => {
     );
   });
 
-  it("returns null for empty candle times, unsupported bucket displays, and unsupported realtime periods", () => {
+  it("supports higher-hour realtime periods and rejects invalid candle times", () => {
     expect(
       resolveRealtimeBucketStart(
         [],
         {
           price: 101,
-          volume: 10,
           at: "2026-05-20T10:00:00.000Z",
         },
         "2h",
       ),
-    ).toBeNull();
+    ).toBe("2026-05-20T10:00:00.000Z");
 
     expect(
       resolveRealtimeBucketStart(
         [],
         {
           price: 101,
-          volume: 10,
           at: "",
         },
         "5m",
@@ -481,13 +513,33 @@ describe("kline realtime bucket resolution", () => {
         close: 100.5,
         volume: 1200,
       }),
-    ).toBe("2026-05-20T10:00:00.000Z");
+    ).toBe("2026-05-20T12:00:00.000Z");
+
+    expect(
+      resolveRealtimeBucketStart(
+        [
+          {
+            period: "2h",
+            at: "2026-05-20T13:30:00.000Z",
+            open: 100,
+            high: 101,
+            low: 99,
+            close: 100.5,
+            volume: 1200,
+          },
+        ],
+        {
+          price: 101,
+          at: "2026-05-20T14:15:00.000Z",
+        },
+        "2h",
+      ),
+    ).toBe("2026-05-20T13:30:00.000Z");
   });
 
   it("supports every intraday bucket truncation path without reusing invalid history bars", () => {
     const snapshot = {
       price: 102,
-      volume: 1500,
       at: "2026-05-20T10:31:45.000Z",
       observedAt: "2026-05-20T10:31:45.000Z",
     };
@@ -496,6 +548,9 @@ describe("kline realtime bucket resolution", () => {
     expect(resolveRealtimeBucketStart([], snapshot, "15m")).toBe("2026-05-20T10:30:00.000Z");
     expect(resolveRealtimeBucketStart([], snapshot, "30m")).toBe("2026-05-20T10:30:00.000Z");
     expect(resolveRealtimeBucketStart([], snapshot, "1h")).toBe("2026-05-20T10:00:00.000Z");
+    expect(resolveRealtimeBucketStart([], snapshot, "2h")).toBe("2026-05-20T10:00:00.000Z");
+    expect(resolveRealtimeBucketStart([], snapshot, "3h")).toBe("2026-05-20T09:00:00.000Z");
+    expect(resolveRealtimeBucketStart([], snapshot, "4h")).toBe("2026-05-20T08:00:00.000Z");
     expect(
       resolveRealtimeBucketStart(
         [
@@ -532,7 +587,6 @@ describe("kline realtime bucket resolution", () => {
         candles,
         {
           price: 101.2,
-          volume: 1000,
           barVolume: 12,
           at: "2026-05-20T10:00:01.000Z",
           observedAt: "2026-05-20T10:00:01.000Z",
@@ -559,12 +613,110 @@ describe("kline realtime bucket resolution", () => {
         candles,
         {
           price: 101.2,
-          volume: 1000,
           at: "not-a-time",
         },
         "tick",
       ),
     ).toEqual(candles);
     expect(overlayRealtimeTickCandle(candles, null, "1m")).toEqual(candles);
+  });
+
+  it("never treats legacy cumulative snapshot volume as per-bar volume", () => {
+    const legacyCumulativeVolume = 999_999;
+    const candles = [
+      {
+        period: "1m",
+        at: "2026-05-20T10:00:00.000Z",
+        displayAt: "2026-05-20T10:01:00.000Z",
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100.5,
+        volume: 37,
+      },
+    ];
+    const legacySnapshot = {
+      price: 102,
+      volume: legacyCumulativeVolume,
+      at: "2026-05-20T10:00:30.000Z",
+    };
+
+    const existingBucket = overlayRealtimeTickCandle(
+      candles,
+      legacySnapshot,
+      "1m",
+    ).at(-1);
+    expect(existingBucket?.volume).toBe(37);
+    expect(existingBucket?.volume).not.toBe(legacyCumulativeVolume);
+
+    const newBucket = overlayRealtimeTickCandle(
+      candles,
+      {
+        ...legacySnapshot,
+        at: "2026-05-20T10:01:30.000Z",
+      },
+      "1m",
+    ).at(-1);
+    expect(newBucket?.volume).toBe(0);
+    expect(newBucket?.volume).not.toBe(legacyCumulativeVolume);
+
+    const tick = overlayRealtimeTickCandle(
+      [],
+      {
+        ...legacySnapshot,
+        at: "2026-05-20T10:02:00.000Z",
+      },
+      "tick",
+    ).at(-1);
+    expect(tick?.volume).toBe(0);
+    expect(tick?.volume).not.toBe(legacyCumulativeVolume);
+  });
+
+  it("reuses an already updated tail candle without scanning or sorting history", () => {
+    let historicalAtReads = 0;
+    const candles = [
+      {
+        period: "1m",
+        get at() {
+          historicalAtReads += 1;
+          return "2026-07-03T11:59:00.000Z";
+        },
+        displayAt: "2026-07-03T12:00:00.000Z",
+        open: 199,
+        high: 200,
+        low: 198,
+        close: 199.5,
+        volume: 100,
+      },
+      {
+        period: "1m",
+        at: "2026-07-03T12:00:00.000Z",
+        displayAt: "2026-07-03T12:01:00.000Z",
+        open: 200,
+        high: 202,
+        low: 199,
+        close: 201.5,
+        volume: 250,
+        session: "regular",
+      },
+    ];
+
+    const overlaid = overlayRealtimeTickCandle(
+      candles,
+      {
+        price: 201.5,
+        barVolume: 250,
+        barOpen: 200,
+        barHigh: 202,
+        barLow: 199,
+        at: "2026-07-03T12:00:30.000Z",
+        observedAt: "2026-07-03T12:00:31.000Z",
+        session: "regular",
+      },
+      "1m",
+    );
+
+    expect(overlaid).toBe(candles);
+    expect(historicalAtReads).toBe(0);
   });
 });

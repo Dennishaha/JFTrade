@@ -3,10 +3,12 @@ package backtest
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
@@ -49,6 +51,124 @@ func TestCommandFromOrderIntentPreservesShortDirection(t *testing.T) {
 	}
 	if command.Direction != "short" || command.Side != types.SideTypeSell {
 		t.Fatalf("command = %#v, want short sell", command)
+	}
+}
+
+func TestCommandFromOrderIntentMapsShortExitToBuy(t *testing.T) {
+	command, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{
+		Kind:         "exit",
+		ID:           "short-stop",
+		FromEntry:    "short",
+		Direction:    "short",
+		StopPrice:    110,
+		HasStopPrice: true,
+	})
+	if err != nil || !ok {
+		t.Fatalf("CommandFromOrderIntent error = %v ok=%v", err, ok)
+	}
+	if command.Direction != "short" || command.Side != types.SideTypeBuy || command.OrderType != types.OrderTypeStopMarket {
+		t.Fatalf("command = %#v, want short stop-market buy", command)
+	}
+}
+
+func TestScopedExitQuantitySurvivesGoExecution(t *testing.T) {
+	command, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{
+		Kind:         "exit",
+		ID:           "close-a-half",
+		FromEntry:    "A",
+		Direction:    "long",
+		Quantity:     1.5,
+		HasQuantity:  true,
+		StopPrice:    95,
+		HasStopPrice: true,
+	})
+	if err != nil || !ok {
+		t.Fatalf("CommandFromOrderIntent error = %v ok=%v", err, ok)
+	}
+
+	sizer := newPineWorkerReplaySizer("US.AAPL", "USD", types.NewAccount())
+	sizer.onOrderUpdate(types.Order{
+		SubmitOrder: types.SubmitOrder{
+			Symbol: "US.AAPL", Side: types.SideTypeBuy, Quantity: fixedpoint.NewFromFloat(7),
+		},
+		Status: types.OrderStatusFilled, ExecutedQuantity: fixedpoint.NewFromFloat(7),
+	})
+	orders := &fakeWorkerOrderExecutor{}
+	executor := validPineWorkerCommandExecutor(orders)
+	executor.PositionSizer = sizer
+	if err := executor.Execute(context.Background(), command); err != nil {
+		t.Fatalf("Execute scoped exit: %v", err)
+	}
+	if len(orders.submitted) != 1 {
+		t.Fatalf("submitted = %#v, want one scoped exit", orders.submitted)
+	}
+	order := orders.submitted[0]
+	if order.Quantity.Float64() != 1.5 || order.Side != types.SideTypeSell || order.Type != types.OrderTypeStopMarket {
+		t.Fatalf("submitted order = %#v, want quantity 1.5 stop-market sell despite net position 7", order)
+	}
+}
+
+func TestCommandFromOrderIntentMapsConditionalOrderTypes(t *testing.T) {
+	tests := []struct {
+		name      string
+		intent    pineworker.OrderIntent
+		orderType types.OrderType
+	}{
+		{
+			name: "entry stop market",
+			intent: pineworker.OrderIntent{
+				Kind: "entry", Direction: "long", StopPrice: 101, HasStopPrice: true,
+			},
+			orderType: types.OrderTypeStopMarket,
+		},
+		{
+			name: "exit stop market",
+			intent: pineworker.OrderIntent{
+				Kind: "exit", Direction: "long", StopPrice: 95, HasStopPrice: true,
+			},
+			orderType: types.OrderTypeStopMarket,
+		},
+		{
+			name: "entry stop limit",
+			intent: pineworker.OrderIntent{
+				Kind: "entry", Direction: "long", LimitPrice: 102, HasLimitPrice: true,
+				StopPrice: 101, HasStopPrice: true,
+			},
+			orderType: types.OrderTypeStopLimit,
+		},
+		{
+			name: "order stop limit",
+			intent: pineworker.OrderIntent{
+				Kind: "order", Direction: "short", LimitPrice: 98, HasLimitPrice: true,
+				StopPrice: 99, HasStopPrice: true,
+			},
+			orderType: types.OrderTypeStopLimit,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			command, ok, err := CommandFromOrderIntent(test.intent)
+			if err != nil || !ok {
+				t.Fatalf("CommandFromOrderIntent error = %v ok=%v", err, ok)
+			}
+			if command.OrderType != test.orderType || command.LimitPrice != test.intent.LimitPrice || command.StopPrice != test.intent.StopPrice {
+				t.Fatalf("command = %#v, want type %s with unchanged prices", command, test.orderType)
+			}
+		})
+	}
+}
+
+func TestCommandFromOrderIntentRejectsUnsupportedExitBracket(t *testing.T) {
+	_, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{
+		Kind:          "exit",
+		Direction:     "long",
+		LimitPrice:    110,
+		HasLimitPrice: true,
+		StopPrice:     90,
+		HasStopPrice:  true,
+	})
+	if err == nil || ok || !strings.Contains(err.Error(), "OCO bracket") {
+		t.Fatalf("CommandFromOrderIntent error = %v ok=%v, want unsupported OCO bracket", err, ok)
 	}
 }
 
@@ -100,6 +220,28 @@ func TestCommandFromOrderIntentRejectsUnsupportedIntent(t *testing.T) {
 	_, _, err = CommandFromOrderIntent(pineworker.OrderIntent{Kind: "entry", Direction: ""})
 	if err == nil || !strings.Contains(err.Error(), "requires long/short") {
 		t.Fatalf("error = %v, want direction", err)
+	}
+
+	invalidPrices := []pineworker.OrderIntent{
+		{Kind: "entry", Direction: "long", LimitPrice: math.Inf(1), HasLimitPrice: true},
+		{Kind: "entry", Direction: "long", StopPrice: math.NaN(), HasStopPrice: true},
+	}
+	for _, intent := range invalidPrices {
+		if _, ok, priceErr := CommandFromOrderIntent(intent); priceErr == nil || ok {
+			t.Fatalf("CommandFromOrderIntent(%#v) = ok %v, error %v; want invalid-price rejection", intent, ok, priceErr)
+		}
+	}
+
+	_, ok, err := CommandFromOrderIntent(pineworker.OrderIntent{
+		Kind: "close", Direction: "long", LimitPrice: 101, HasLimitPrice: true,
+		StopPrice: 99, HasStopPrice: true,
+	})
+	if err == nil || ok || !strings.Contains(err.Error(), "cannot combine") {
+		t.Fatalf("close bracket error = %v ok=%v, want unsupported combination", err, ok)
+	}
+
+	if commands, commandsErr := CommandsFromOrderIntents([]pineworker.OrderIntent{{Kind: "unsupported"}}); commandsErr == nil || commands != nil {
+		t.Fatalf("CommandsFromOrderIntents = (%#v, %v), want propagated conversion error", commands, commandsErr)
 	}
 }
 

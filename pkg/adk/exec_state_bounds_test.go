@@ -208,7 +208,7 @@ func TestGoogleADKExecutionRunSnapshotPersistenceBoundary(t *testing.T) {
 		},
 	}
 
-	execution.emitRunSnapshotLocked()
+	execution.emitRunSnapshot()
 
 	if persisted.Status != RunStatusRunning {
 		t.Fatalf("persisted status = %q, want running activity snapshot", persisted.Status)

@@ -3,7 +3,10 @@ package trading
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
+
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 const (
@@ -15,6 +18,13 @@ const (
 type PreTradeRiskGateway interface {
 	EvaluatePlaceOrder(context.Context, ExecutionOrderCommand) PreTradeRiskDecision
 	Snapshot() RealTradeRiskSnapshot
+}
+
+// preTradeRiskExecutionGateway lets a mutable gateway serialize its final
+// decision with broker submission. This closes the evaluate-then-activate gap
+// without exposing callback execution as part of the public gateway contract.
+type preTradeRiskExecutionGateway interface {
+	executePlaceOrder(context.Context, ExecutionOrderCommand, func() error) error
 }
 
 type PreTradeRiskDecision struct {
@@ -86,16 +96,42 @@ func (g *StaticPreTradeRiskGateway) EvaluatePlaceOrder(_ context.Context, comman
 		snapshot.MatchedHardStop = matched
 		return riskRejected("REAL_TRADE_HARD_STOP_ACTIVE", "real-trade hard stop is active for this order scope; PLACE orders are blocked", snapshot)
 	}
-	if limit := snapshot.EffectiveMaxOrderQuantity; limit != nil && command.Query.Quantity > *limit {
-		return riskRejected("MAX_ORDER_QUANTITY_EXCEEDED", "order quantity exceeds the configured real-trade limit", snapshot)
+	if code, message := commandRiskShapeError(command); code != "" {
+		return riskRejected(code, message, snapshot)
 	}
-	riskPrice := commandRiskPrice(command)
-	if limit := snapshot.EffectiveMaxOrderNotional; limit != nil {
-		if riskPrice == nil {
-			return riskRejected("RISK_PRICE_UNAVAILABLE", "order price is required to enforce the configured real-trade notional limit", snapshot)
+	amountMode := commandUsesAmount(command)
+	if limit := snapshot.EffectiveMaxOrderQuantity; limit != nil {
+		if amountMode {
+			amount := commandRiskAmount(command)
+			if amount == nil {
+				return riskRejected("RISK_AMOUNT_UNAVAILABLE", "order amount is required to enforce the configured real-trade quantity limit", snapshot)
+			}
+			// Amount is the primary quantity for QuantityModeAmount. Never derive
+			// risk from a caller-controlled limit price or RFQ display price.
+			if *amount > *limit {
+				return riskRejected("MAX_ORDER_QUANTITY_EXCEEDED", "order amount exceeds the configured real-trade quantity-mode limit", snapshot)
+			}
+		} else if command.Query.Quantity > *limit {
+			return riskRejected("MAX_ORDER_QUANTITY_EXCEEDED", "order quantity exceeds the configured real-trade limit", snapshot)
 		}
-		if command.Query.Quantity*(*riskPrice) > *limit {
-			return riskRejected("MAX_ORDER_NOTIONAL_EXCEEDED", "order notional exceeds the configured real-trade limit", snapshot)
+	}
+	if limit := snapshot.EffectiveMaxOrderNotional; limit != nil {
+		if amountMode {
+			amount := commandRiskAmount(command)
+			if amount == nil {
+				return riskRejected("RISK_AMOUNT_UNAVAILABLE", "order amount is required to enforce the configured real-trade notional limit", snapshot)
+			}
+			if *amount > *limit {
+				return riskRejected("MAX_ORDER_NOTIONAL_EXCEEDED", "order notional exceeds the configured real-trade limit", snapshot)
+			}
+		} else {
+			riskPrice := commandRiskPrice(command)
+			if riskPrice == nil {
+				return riskRejected("RISK_PRICE_UNAVAILABLE", "order price is required to enforce the configured real-trade notional limit", snapshot)
+			}
+			if command.Query.Quantity*(*riskPrice) > *limit {
+				return riskRejected("MAX_ORDER_NOTIONAL_EXCEEDED", "order notional exceeds the configured real-trade limit", snapshot)
+			}
 		}
 	}
 	return PreTradeRiskDecision{Decision: RiskDecisionAllow, Snapshot: &snapshot}
@@ -180,10 +216,74 @@ func filterRealTradeRiskEvents(events []RealTradeControlEvent) []RealTradeContro
 }
 
 func commandRiskPrice(command ExecutionOrderCommand) *float64 {
-	if command.Query.Price != nil {
+	if command.Query.Price != nil && finiteRiskValue(*command.Query.Price) {
 		return command.Query.Price
 	}
-	return command.Query.StopPrice
+	if command.Query.StopPrice != nil && finiteRiskValue(*command.Query.StopPrice) {
+		return command.Query.StopPrice
+	}
+	return nil
+}
+
+func commandUsesAmount(command ExecutionOrderCommand) bool {
+	return effectiveRiskQuantityMode(command) == broker.QuantityModeAmount && commandIsEventContract(command)
+}
+
+func commandRiskAmount(command ExecutionOrderCommand) *float64 {
+	if command.Query.Amount == nil || !finiteRiskValue(*command.Query.Amount) {
+		return nil
+	}
+	return command.Query.Amount
+}
+
+func commandRiskShapeError(command ExecutionOrderCommand) (string, string) {
+	queryProduct := command.Query.ProductClass
+	if queryProduct != "" && command.ProductClass != "" && queryProduct != command.ProductClass {
+		return "INVALID_ORDER_RISK_SHAPE", "order product class is inconsistent across the execution command"
+	}
+	queryMode := command.Query.QuantityMode
+	if queryMode != "" && command.QuantityMode != "" && queryMode != command.QuantityMode {
+		return "INVALID_ORDER_RISK_SHAPE", "order quantity mode is inconsistent across the execution command"
+	}
+	eventContract := commandIsEventContract(command)
+	mode := effectiveRiskQuantityMode(command)
+	if eventContract {
+		if mode != broker.QuantityModeAmount {
+			return "INVALID_ORDER_RISK_SHAPE", "event-contract orders must use amount quantity mode"
+		}
+		if commandRiskAmount(command) == nil {
+			return "RISK_AMOUNT_UNAVAILABLE", "a positive finite order amount is required for event-contract risk evaluation"
+		}
+		return "", ""
+	}
+	if mode == broker.QuantityModeAmount || command.Query.Amount != nil {
+		return "INVALID_ORDER_RISK_SHAPE", "amount quantity mode is supported for event-contract orders only"
+	}
+	if strings.TrimSpace(command.Query.PredictionSide) != "" {
+		return "INVALID_ORDER_RISK_SHAPE", "predictionSide is supported for event-contract orders only"
+	}
+	if !finiteRiskValue(command.Query.Quantity) {
+		return "RISK_QUANTITY_UNAVAILABLE", "a positive finite order quantity is required for risk evaluation"
+	}
+	return "", ""
+}
+
+func commandIsEventContract(command ExecutionOrderCommand) bool {
+	return command.ProductClass == broker.ProductClassEventContract ||
+		command.Query.ProductClass == broker.ProductClassEventContract ||
+		command.OrderKind == broker.OrderKindEventSingle ||
+		command.OrderKind == broker.OrderKindEventParlay
+}
+
+func effectiveRiskQuantityMode(command ExecutionOrderCommand) broker.QuantityMode {
+	if command.Query.QuantityMode != "" {
+		return command.Query.QuantityMode
+	}
+	return command.QuantityMode
+}
+
+func finiteRiskValue(value float64) bool {
+	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func riskRejected(code, message string, snapshot RealTradeRiskSnapshot) PreTradeRiskDecision {

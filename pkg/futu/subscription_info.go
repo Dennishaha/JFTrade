@@ -17,7 +17,7 @@ type SubscriptionQuota struct {
 
 func (e *Exchange) QuerySubscriptionQuota(ctx context.Context) (SubscriptionQuota, error) {
 	var result SubscriptionQuota
-	err := e.withClient(ctx, func(client *opend.Client) error {
+	err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		info, err := client.GetSubInfo(ctx, true)
 		if err != nil {
 			return err

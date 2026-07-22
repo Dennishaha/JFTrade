@@ -7,7 +7,18 @@ import (
 	"sync"
 )
 
-var writeCoordinators sync.Map
+var writeCoordinators = writeCoordinatorRegistry{entries: make(map[string]*writeCoordinatorEntry)}
+
+type writeCoordinatorRegistry struct {
+	mu      sync.Mutex
+	entries map[string]*writeCoordinatorEntry
+}
+
+type writeCoordinatorEntry struct {
+	coordinator      *writeCoordinator
+	references       int
+	cleanupScheduled bool
+}
 
 type writeCoordinator struct {
 	mu   sync.Mutex
@@ -32,12 +43,70 @@ func newWriteCoordinator() *writeCoordinator {
 
 func coordinatorForPath(path string) *writeCoordinator {
 	key := coordinatorKey(path)
-	if existing, ok := writeCoordinators.Load(key); ok {
-		return existing.(*writeCoordinator)
+	writeCoordinators.mu.Lock()
+	defer writeCoordinators.mu.Unlock()
+	if existing := writeCoordinators.entries[key]; existing != nil {
+		existing.references++
+		return existing.coordinator
 	}
 	coordinator := newWriteCoordinator()
-	actual, _ := writeCoordinators.LoadOrStore(key, coordinator)
-	return actual.(*writeCoordinator)
+	writeCoordinators.entries[key] = &writeCoordinatorEntry{coordinator: coordinator, references: 1}
+	return coordinator
+}
+
+func releaseCoordinatorForPath(path string, coordinator *writeCoordinator) {
+	if coordinator == nil {
+		return
+	}
+	key := coordinatorKey(path)
+	writeCoordinators.mu.Lock()
+	entry := writeCoordinators.entries[key]
+	if entry == nil || entry.coordinator != coordinator {
+		writeCoordinators.mu.Unlock()
+		return
+	}
+	if entry.references > 0 {
+		entry.references--
+	}
+	if entry.references != 0 {
+		writeCoordinators.mu.Unlock()
+		return
+	}
+	if coordinator.idle() {
+		delete(writeCoordinators.entries, key)
+		writeCoordinators.mu.Unlock()
+		return
+	}
+	scheduleCleanup := !entry.cleanupScheduled
+	entry.cleanupScheduled = true
+	writeCoordinators.mu.Unlock()
+	if scheduleCleanup {
+		go removeCoordinatorWhenIdle(key, coordinator)
+	}
+}
+
+func removeCoordinatorWhenIdle(key string, coordinator *writeCoordinator) {
+	for {
+		<-coordinator.currentTail()
+
+		writeCoordinators.mu.Lock()
+		entry := writeCoordinators.entries[key]
+		if entry == nil || entry.coordinator != coordinator {
+			writeCoordinators.mu.Unlock()
+			return
+		}
+		if entry.references != 0 {
+			entry.cleanupScheduled = false
+			writeCoordinators.mu.Unlock()
+			return
+		}
+		if coordinator.idle() {
+			delete(writeCoordinators.entries, key)
+			writeCoordinators.mu.Unlock()
+			return
+		}
+		writeCoordinators.mu.Unlock()
+	}
 }
 
 func coordinatorKey(path string) string {
@@ -69,6 +138,22 @@ func (c *writeCoordinator) readBarrier() writeBarrier {
 	barrier := writeBarrier{done: c.tail}
 	c.mu.Unlock()
 	return barrier
+}
+
+func (c *writeCoordinator) currentTail() <-chan struct{} {
+	c.mu.Lock()
+	tail := c.tail
+	c.mu.Unlock()
+	return tail
+}
+
+func (c *writeCoordinator) idle() bool {
+	select {
+	case <-c.currentTail():
+		return true
+	default:
+		return false
+	}
 }
 
 func (b writeBarrier) wait(ctx context.Context) error {

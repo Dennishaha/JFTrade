@@ -7,13 +7,15 @@
 1. `candle.at` 只能表示桶起点，绝不能被 `observedAt` 当前秒数覆盖
 2. `candle.displayAt` 只用于展示，分钟/小时 K 的活动 candle 应显示桶结束点
 3. `snapshot.observedAt` 是价格和成交量分桶的统一时间来源
-4. `snapshot.volume` 是累计成交量，不是当前桶量柱
+4. `snapshot.volume` 是累计成交量，不是当前桶量柱；实时状态机只接受顶层 `cumulativeVolume` / `volumeDelta`
 5. 首屏若已返回当前桶 candle，必须用该 candle 的 OHLCV 初始化当前桶状态
 6. 同一桶内必须累计 high/low，不能每次仅覆盖最新 close
 7. Futu intraday 历史时间语义是收盘标签，后端需先归一化为桶起点
 8. 日线/周线的跨周期规则与分钟线不同，不能用同一套偷懒逻辑
 9. 历史数据过旧时，必须保留 stale gap 抑制，不能补伪造实时 candle
 10. 改动任一时间兜底逻辑时，要检查其他链路是否也在各自兜底，避免再次分叉
+
+图表边界的 `RealtimeKlineSnapshot` 故意不具名暴露 `volume`。缺少可信 `barVolume` 时，已有桶保留自身成交量，新桶使用 `0`；禁止恢复任何 `snapshot.volume` fallback。
 
 ## 6 个高频回归点
 
@@ -48,6 +50,7 @@
 3. `at` 与 `displayAt` 的职责是否仍然分离
 4. 首屏当前桶 seed 是否仍优先来自历史当前桶，而不是前端猜值
 5. 是否保留了 stale gap 抑制和跨日/跨周边界
+6. live event 是否仍同时区分 `cumulativeVolume` 与 `volumeDelta`，且没有把 `snapshot.volume` 接回量柱计算
 
 ## 相关实现
 

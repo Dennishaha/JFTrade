@@ -382,6 +382,9 @@ func TestStreamConnectEmitsBasicQotPushAsBBGOEvents(t *testing.T) {
 		if trade.Symbol != "HK.00700" || trade.Price.Float64() != 700 {
 			t.Fatalf("unexpected market trade: %+v", trade)
 		}
+		if trade.Quantity.Float64() != 0 || trade.CumulativeVolume == nil || trade.CumulativeVolume.Float64() != 1000 {
+			t.Fatalf("unexpected market trade volume contract: %+v", trade)
+		}
 	case <-ctx.Done():
 		t.Fatal("timed out waiting for market trade push")
 	}

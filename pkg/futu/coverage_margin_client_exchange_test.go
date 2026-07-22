@@ -15,15 +15,24 @@ import (
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
 
-func TestWithClientRetriesRecoverableErrorsAndReturnsLastError(t *testing.T) {
+func TestWithClientReplayPolicyForRecoverableErrors(t *testing.T) {
 	_, exchange := coverageMarginExchange(t)
 	calls := 0
 	err := exchange.withClient(t.Context(), func(*opend.Client) error {
 		calls++
 		return opend.ErrClosed
 	})
+	if !errors.Is(err, opend.ErrClosed) || calls != 1 {
+		t.Fatalf("single-attempt calls = %d, %v; want one call without replay", calls, err)
+	}
+
+	calls = 0
+	err = exchange.withRetryingClient(t.Context(), func(*opend.Client) error {
+		calls++
+		return opend.ErrClosed
+	})
 	if !errors.Is(err, opend.ErrClosed) || calls != 2 {
-		t.Fatalf("recoverable retries = %d, %v", calls, err)
+		t.Fatalf("replay-safe calls = %d, %v; want one retry", calls, err)
 	}
 	for _, err := range []error{
 		opend.ErrClosed,

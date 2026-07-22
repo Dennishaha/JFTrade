@@ -72,6 +72,30 @@ func TestCoverage98ControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents(t *
 	}
 }
 
+func TestControlPlaneExecutesSimulatedOrdersThroughRiskEvaluation(t *testing.T) {
+	plane, err := NewRealTradeControlPlane("")
+	if err != nil {
+		t.Fatalf("NewRealTradeControlPlane: %v", err)
+	}
+
+	called := false
+	err = plane.executePlaceOrder(t.Context(), ExecutionOrderCommand{
+		Query: broker.PlaceOrderQuery{
+			ReadQuery: broker.ReadQuery{TradingEnvironment: " simulate "},
+			Quantity:  1,
+		},
+	}, func() error {
+		called = true
+		return nil
+	})
+	if err != nil || !called {
+		t.Fatalf("executePlaceOrder = (called %v, %v), want successful simulated submission", called, err)
+	}
+	if cloneHardStopEntry(nil) != nil {
+		t.Fatal("cloneHardStopEntry(nil) must remain nil")
+	}
+}
+
 func TestCoverage98ControlPlaneTreatsEmptyStateAsFreshAndRejectsUnavailableMutations(t *testing.T) {
 	emptyStatePath := filepath.Join(t.TempDir(), "real-trade-control.json")
 	if err := os.WriteFile(emptyStatePath, []byte(" \n\t "), 0o600); err != nil {
@@ -220,5 +244,58 @@ func TestCoverage98ControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete(t *
 	remaining := plane.Snapshot().HardStopEntries
 	if len(remaining) != 1 || remaining[0].ID != entries[1].ID {
 		t.Fatalf("remaining hard stops after release = %#v", remaining)
+	}
+}
+
+func TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "real-trade-control.json")
+	plane, err := NewRealTradeControlPlane(path)
+	if err != nil {
+		t.Fatalf("NewRealTradeControlPlane: %v", err)
+	}
+	maxOrderQuantity := 100.0
+	if _, err := plane.UpdateRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{
+		RealTradingEnabled: true,
+		MaxOrderQuantity:   &maxOrderQuantity,
+	}); err != nil {
+		t.Fatalf("UpdateRuntimeRiskConfig: %v", err)
+	}
+	if _, err := plane.ActivateHardStop(t.Context(), RealTradeHardStopCommand{
+		BrokerID: "futu", TradingEnvironment: "REAL", AccountID: "ACC-1", Market: "US",
+	}); err != nil {
+		t.Fatalf("ActivateHardStop: %v", err)
+	}
+	beforeEvents := len(plane.state.Events)
+	blockedParent := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blockedParent, []byte("blocked"), 0o600); err != nil {
+		t.Fatalf("write blocked parent: %v", err)
+	}
+	plane.path = filepath.Join(blockedParent, "real-trade-control.json")
+
+	price := 10.0
+	decision := plane.EvaluatePlaceOrder(t.Context(), ExecutionOrderCommand{
+		BrokerID: "futu", Symbol: "AAPL",
+		Query: broker.PlaceOrderQuery{ReadQuery: broker.ReadQuery{
+			TradingEnvironment: "REAL", AccountID: "ACC-1", Market: "US",
+		}, Quantity: 1, Price: &price},
+	})
+	if decision.Allows() || decision.ReasonCode != "REAL_TRADE_HARD_STOP_ACTIVE" {
+		t.Fatalf("hard-stop decision = %#v", decision)
+	}
+	if decision.Snapshot == nil || decision.Snapshot.ControlPlaneAvailable || decision.Snapshot.ControlPlaneError == nil ||
+		!strings.Contains(*decision.Snapshot.ControlPlaneError, "persist hard-stop rejection audit") {
+		t.Fatalf("audit failure snapshot = %#v", decision.Snapshot)
+	}
+	if decision.Snapshot.MatchedHardStop == nil || decision.Snapshot.MatchedHardStop.AccountID != "ACC-1" {
+		t.Fatalf("matched hard stop was lost from degraded decision: %#v", decision.Snapshot)
+	}
+	if !strings.Contains(decision.ReasonMessage, "hard-stop audit unavailable") {
+		t.Fatalf("audit failure reason = %q", decision.ReasonMessage)
+	}
+	if len(plane.state.Events) != beforeEvents {
+		t.Fatalf("failed audit left a non-durable in-memory event: %#v", plane.state.Events)
+	}
+	if _, err := plane.ReleaseHardStop(t.Context(), plane.state.HardStops[0].ID, RealTradeHardStopCommand{}); err == nil || !strings.Contains(err.Error(), "unavailable") {
+		t.Fatalf("mutation after audit persistence failure = %v, want unavailable", err)
 	}
 }

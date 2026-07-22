@@ -563,7 +563,12 @@ func TestServiceBrokerWriteAndTimeoutBehaviors(t *testing.T) {
 			return nil
 		},
 	}
-	service := NewService(WithActiveBroker(func() broker.Broker { return activeBroker }))
+	service := NewService(
+		WithActiveBroker(func() broker.Broker { return activeBroker }),
+		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+			return PreTradeRiskConfig{RealTradingEnabled: true}
+		})),
+	)
 	query := broker.ReadQuery{BrokerID: "futu", AccountID: "acc-1", TradingEnvironment: "REAL", Market: "US"}
 
 	placeResp, err := service.PlaceBrokerOrder(t.Context(), broker.PlaceOrderQuery{
@@ -637,6 +642,93 @@ func TestServiceBrokerWriteAndTimeoutBehaviors(t *testing.T) {
 		return &stubBroker{id: "futu"}
 	})).Runtime(t.Context(), "ib"); !errors.Is(err, ErrBrokerNotFound) {
 		t.Fatalf("Runtime active mismatch err=%v", err)
+	}
+}
+
+func TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission(t *testing.T) {
+	brokerCalled := false
+	writer := &stubTradingService{
+		placeOrder: func(context.Context, broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error) {
+			brokerCalled = true
+			return &broker.PlaceOrderResult{BrokerOrderID: "unexpected"}, nil
+		},
+	}
+	service := NewService(
+		WithActiveBroker(func() broker.Broker {
+			return &stubBroker{id: "futu", trading: writer}
+		}),
+		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+			return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeKillSwitch: true}
+		})),
+	)
+
+	_, err := service.PlaceBrokerOrder(t.Context(), broker.PlaceOrderQuery{
+		ReadQuery: broker.ReadQuery{
+			BrokerID: "futu", TradingEnvironment: "REAL", AccountID: "acc-1", Market: "US",
+		},
+		Symbol: "US.AAPL", Side: "BUY", OrderType: "LIMIT", Quantity: 1, Price: new(100.0),
+	})
+	var riskErr RiskRejectedError
+	if !errors.As(err, &riskErr) || riskErr.Decision.ReasonCode != "REAL_TRADE_KILL_SWITCH_ACTIVE" {
+		t.Fatalf("PlaceBrokerOrder error = %v, want kill-switch risk rejection", err)
+	}
+	if brokerCalled {
+		t.Fatal("broker PlaceOrder was called after pre-trade risk rejection")
+	}
+}
+
+func TestPlaceBrokerOrderCannotBypassRiskWithImplicitRealEnvironment(t *testing.T) {
+	brokerCalled := false
+	writer := &stubTradingService{
+		placeOrder: func(context.Context, broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error) {
+			brokerCalled = true
+			return &broker.PlaceOrderResult{BrokerOrderID: "unexpected"}, nil
+		},
+	}
+	service := NewService(
+		WithActiveBroker(func() broker.Broker {
+			return &stubBroker{id: "futu", trading: writer}
+		}),
+		WithDefaultTradingEnvironment(func() string { return "REAL" }),
+		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+			return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeKillSwitch: true}
+		})),
+	)
+
+	_, err := service.PlaceBrokerOrder(t.Context(), broker.PlaceOrderQuery{
+		ReadQuery: broker.ReadQuery{BrokerID: "futu", AccountID: "acc-1", Market: "US"},
+		Symbol:    "US.AAPL", Side: "BUY", OrderType: "LIMIT", Quantity: 1, Price: new(100.0),
+	})
+	var riskErr RiskRejectedError
+	if !errors.As(err, &riskErr) || riskErr.Decision.ReasonCode != "REAL_TRADE_KILL_SWITCH_ACTIVE" {
+		t.Fatalf("PlaceBrokerOrder error = %v, want implicit REAL kill-switch rejection", err)
+	}
+	if brokerCalled {
+		t.Fatal("broker PlaceOrder was called after implicit REAL risk rejection")
+	}
+}
+
+func TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable(t *testing.T) {
+	brokerCalled := false
+	service := NewService(WithActiveBroker(func() broker.Broker {
+		return &stubBroker{id: "futu", trading: &stubTradingService{
+			placeOrder: func(context.Context, broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error) {
+				brokerCalled = true
+				return &broker.PlaceOrderResult{BrokerOrderID: "unexpected"}, nil
+			},
+		}}
+	}))
+
+	_, err := service.PlaceBrokerOrder(t.Context(), broker.PlaceOrderQuery{
+		ReadQuery: broker.ReadQuery{BrokerID: "futu", TradingEnvironment: "REAL", Market: "US"},
+		Symbol:    "US.AAPL", Side: "BUY", OrderType: "MARKET", Quantity: 1,
+	})
+	var riskErr RiskRejectedError
+	if !errors.As(err, &riskErr) || riskErr.Decision.ReasonCode != "PRE_TRADE_RISK_UNAVAILABLE" {
+		t.Fatalf("PlaceBrokerOrder error = %v, want fail-closed risk rejection", err)
+	}
+	if brokerCalled {
+		t.Fatal("broker PlaceOrder was called without a REAL pre-trade risk gateway")
 	}
 }
 

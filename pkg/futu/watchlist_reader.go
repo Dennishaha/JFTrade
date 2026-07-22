@@ -70,7 +70,7 @@ func newFutuWatchlistReader(exchange *Exchange) *futuWatchlistReader {
 	}
 	reader.loadGroups = func(ctx context.Context) ([]*qotgetusersecuritygrouppb.GroupData, error) {
 		var remoteGroups []*qotgetusersecuritygrouppb.GroupData
-		err := exchange.withClient(ctx, func(client *opend.Client) error {
+		err := exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 			var err error
 			remoteGroups, err = client.GetUserSecurityGroups(
 				ctx,
@@ -82,7 +82,7 @@ func newFutuWatchlistReader(exchange *Exchange) *futuWatchlistReader {
 	}
 	reader.loadMembers = func(ctx context.Context, groupName string) ([]*qotcommonpb.SecurityStaticInfo, error) {
 		var remoteSecurities []*qotcommonpb.SecurityStaticInfo
-		err := exchange.withClient(ctx, func(client *opend.Client) error {
+		err := exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 			var err error
 			remoteSecurities, err = client.GetUserSecurities(ctx, groupName)
 			return err

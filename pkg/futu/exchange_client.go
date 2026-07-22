@@ -21,13 +21,27 @@ import (
 
 // --- Client lifecycle management (connect / reconnect / keepalive / invalidate) ---
 
-func (e *Exchange) callProto(ctx context.Context, protoID uint32, req proto.Message, resp proto.Message) error {
-	return e.withClient(ctx, func(client *opend.Client) error {
+// callReadProto is restricted to replay-safe query protocols.
+func (e *Exchange) callReadProto(ctx context.Context, protoID uint32, req proto.Message, resp proto.Message) error {
+	return e.withRetryingClient(ctx, func(client *opend.Client) error {
 		return client.Call(ctx, protoID, req, resp)
 	})
 }
 
+// withClient executes fn at most once. Recoverable transport failures still
+// invalidate the session so the next operation reconnects, but fn is not
+// replayed because the caller may have issued a non-idempotent trading write.
 func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error) error {
+	return e.withClientAttempts(ctx, 1, fn)
+}
+
+// withRetryingClient may replay fn once after reconnecting. Callers must use it
+// only for reads or operations that are safe to repeat on a fresh OpenD session.
+func (e *Exchange) withRetryingClient(ctx context.Context, fn func(*opend.Client) error) error {
+	return e.withClientAttempts(ctx, 2, fn)
+}
+
+func (e *Exchange) withClientAttempts(ctx context.Context, attempts int, fn func(*opend.Client) error) error {
 	ctx = observability.WithFields(ctx, observability.Fields{BrokerID: "futu", Source: "opend"})
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 		var cancel context.CancelFunc
@@ -35,7 +49,7 @@ func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error)
 		defer cancel()
 	}
 	var lastErr error
-	for range 2 {
+	for attempt := 0; attempt < attempts; attempt++ {
 		client, err := e.ensureClient(ctx)
 		if err != nil {
 			observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "opend client unavailable", err)
@@ -44,12 +58,16 @@ func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error)
 		if err := fn(client); err != nil {
 			if !isRecoverableOpenDErr(err) {
 				if !errors.Is(err, ErrSubscriptionRequired) {
-					observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "opend query failed", err)
+					observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "opend call failed", err)
 				}
 				return err
 			}
 			lastErr = err
-			log.Printf("futu withClient: recoverable error, invalidating client and retrying: %v", err)
+			if attempt+1 < attempts {
+				log.Printf("futu withClient: recoverable error, invalidating client and retrying replay-safe call: %v", err)
+			} else {
+				log.Printf("futu withClient: recoverable error, invalidating client without replay: %v", err)
+			}
 			e.invalidateClient()
 			continue
 		}

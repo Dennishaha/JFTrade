@@ -299,6 +299,34 @@ func TestCustomCalendarSessionWindowsAndClosedDays(t *testing.T) {
 	}
 }
 
+func TestTradingDayBoundaryUsesCalendarOvernightCarryStart(t *testing.T) {
+	nyLoc := mustLocation(t, "America/New_York")
+	template := marketcalendar.MarketTemplate{
+		MarketCode:             "US",
+		Timezone:               "America/New_York",
+		SupportsExtendedHours:  true,
+		OvernightCarryStartMin: 19 * 60,
+	}
+	regular := []marketcalendar.SessionWindow{{Kind: marketcalendar.SessionRegular, StartMinute: 9*60 + 30, EndMinute: 16 * 60}}
+	original := SwapCalendarResolver(&testCalendarResolver{
+		template: template,
+		schedules: map[string]marketcalendar.TradingDaySchedule{
+			"2026-06-15": marketcalendar.ScheduleForDate(template, marketcalendar.TradingDayOpen, time.Date(2026, 6, 15, 0, 0, 0, 0, nyLoc), "unit", "", false, regular),
+			"2026-06-16": marketcalendar.ScheduleForDate(template, marketcalendar.TradingDayOpen, time.Date(2026, 6, 16, 0, 0, 0, 0, nyLoc), "unit", "", false, regular),
+		},
+	})
+	t.Cleanup(func() { SetCalendarResolver(original) })
+
+	at := time.Date(2026, 6, 15, 19, 30, 0, 0, nyLoc)
+	if key, ok := TradingDayKey("US.AAPL", at, true); !ok || key != "2026-06-16" {
+		t.Fatalf("overnight trading day = %q/%v, want 2026-06-16", key, ok)
+	}
+	want := time.Date(2026, 6, 15, 19, 0, 0, 0, nyLoc).UTC()
+	if start, ok := TradingDayBoundaryStart("US.AAPL", at, true); !ok || !start.Equal(want) {
+		t.Fatalf("overnight boundary = %s/%v, want %s", start, ok, want)
+	}
+}
+
 func TestSessionWindowBoundsRejectsMissingSessionWindows(t *testing.T) {
 	nyLoc := mustLocation(t, "America/New_York")
 	template := marketcalendar.MarketTemplate{

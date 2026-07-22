@@ -42,9 +42,28 @@ type strategyRuntimeManager struct {
 	pineWorkerRunner strategyRuntimePineWorker
 	deps             strategyRuntimeManagerDeps
 
+	pineWorkerMu sync.RWMutex
 	mu       sync.RWMutex
 	runtimes map[string]*managedStrategyRuntime
 	starting map[string]struct{}
+}
+
+func (m *strategyRuntimeManager) setPineWorkerRunner(runner strategyRuntimePineWorker) {
+	if m == nil {
+		return
+	}
+	m.pineWorkerMu.Lock()
+	m.pineWorkerRunner = runner
+	m.pineWorkerMu.Unlock()
+}
+
+func (m *strategyRuntimeManager) currentPineWorkerRunner() strategyRuntimePineWorker {
+	if m == nil {
+		return nil
+	}
+	m.pineWorkerMu.RLock()
+	defer m.pineWorkerMu.RUnlock()
+	return m.pineWorkerRunner
 }
 
 type strategyRuntimeManagerDeps struct {
@@ -97,6 +116,8 @@ type strategySymbolRuntime struct {
 	runtimeExchange strategyRuntimeExchange
 	brokerQuery     broker.ReadQuery
 	market          bbgotypes.Market
+	accountRefreshMu sync.Mutex
+	accountMu        sync.RWMutex
 	cachedFunds     *broker.FundsSnapshot
 	cachedPositions []broker.PositionSnapshot
 	session         *bbgo.ExchangeSession
@@ -618,7 +639,7 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 		)
 		besteffort.LogError(jftradeErr)
 	}
-	live, err := newStrategyRuntimePineWorkerLive(m.pineWorkerRunner, instance, symbol, interval, script, m.newOrderExecutor(instance, runner), runner, recordIgnoredOrder)
+	live, err := newStrategyRuntimePineWorkerLive(m.currentPineWorkerRunner(), instance, symbol, interval, script, m.newOrderExecutor(instance, runner), runner, recordIgnoredOrder)
 	if err != nil {
 		return nil, fmt.Errorf("start strategy runtime for %s: %w", symbol, err)
 	}

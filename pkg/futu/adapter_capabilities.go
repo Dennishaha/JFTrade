@@ -72,7 +72,7 @@ func (a *futuAdapter) EvaluateCapability(
 		return aggregateCapabilityEvaluation(evaluation), nil
 	}
 	if request.DeclaredCapability.RequiresConnection {
-		err := a.exchange.withClient(ctx, func(_ *opend.Client) error {
+		err := a.exchange.withRetryingClient(ctx, func(_ *opend.Client) error {
 			return nil
 		})
 		if err != nil {

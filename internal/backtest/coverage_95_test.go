@@ -186,11 +186,32 @@ func TestDataReadinessPropagatesCoverageFailuresAndExistingSyncTerminalStates(t 
 			tasks.Add(current.TaskID, current, nil)
 			candidate := &SyncStarted{TaskID: current.TaskID}
 			tc.advance(current)
-			ready, handled := service.readinessForExistingSync("key-"+tc.name, candidate, missingCoverage)
+			key := "key-" + tc.name
+			service.dataSyncTasks[key] = candidate
+			ready, handled := service.readinessForExistingSync(key, candidate, missingCoverage)
 			if !handled || ready == nil || ready.Status != tc.status {
 				t.Fatalf("readinessForExistingSync(%s)=%+v handled=%v", tc.name, ready, handled)
 			}
+			if tc.name != "queued" {
+				if _, ok := service.dataSyncTasks[key]; ok {
+					t.Fatalf("terminal sync task %s was not cleared", tc.name)
+				}
+			}
 		})
+	}
+	terminalProgress := bt.NewSyncProgress("sync-prune-terminal", "US.AAPL", start)
+	terminalProgress.MarkFailed(errors.New("done"), start)
+	tasks.Add(terminalProgress.TaskID, terminalProgress, nil)
+	activeProgress := bt.NewSyncProgress("sync-prune-active", "US.AAPL", start)
+	tasks.Add(activeProgress.TaskID, activeProgress, nil)
+	service.dataSyncTasks["terminal-to-prune"] = &SyncStarted{TaskID: terminalProgress.TaskID}
+	service.dataSyncTasks["active-to-keep"] = &SyncStarted{TaskID: activeProgress.TaskID}
+	service.pruneDataSyncTasksLocked("active-to-keep")
+	if _, ok := service.dataSyncTasks["terminal-to-prune"]; ok {
+		t.Fatal("terminal sync task was not pruned for a later request")
+	}
+	if _, ok := service.dataSyncTasks["active-to-keep"]; !ok {
+		t.Fatal("active sync task was pruned")
 	}
 	orphaned := &SyncStarted{TaskID: "sync-not-in-task-store"}
 	service.dataSyncTasks["orphaned-sync"] = orphaned
@@ -199,5 +220,12 @@ func TestDataReadinessPropagatesCoverageFailuresAndExistingSyncTerminalStates(t 
 	}
 	if _, ok := service.dataSyncTasks["orphaned-sync"]; ok {
 		t.Fatal("orphaned sync task was not cleared")
+	}
+	service.dataSyncTasks["close-cleanup"] = &SyncStarted{TaskID: "close-cleanup"}
+	if err := service.Close(); err != nil {
+		t.Fatalf("Close() cleanup error = %v", err)
+	}
+	if len(service.dataSyncTasks) != 0 {
+		t.Fatalf("data sync task map was not cleared on Close: %#v", service.dataSyncTasks)
 	}
 }

@@ -30,7 +30,7 @@ func TestNodeWorkerLauncherDefaultsAndMaterializationBoundaries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("materializeBundle(system temp) error = %v", err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(filepath.Dir(path)) })
+	t.Cleanup(func() { _ = os.Remove(path) })
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read materialized bundle: %v", err)

@@ -17,9 +17,17 @@ func balanceMapFromBrokerFunds(snapshot *BrokerFundsSnapshot) types.BalanceMap {
 		return balances
 	}
 	for _, balance := range snapshot.CurrencyBalances {
+		available := balance.AvailableWithdrawalCash
+		// Futu documents Funds.availableFunds as the futures purchasing
+		// balance. CashInfo.availableBalance is withdrawal cash, not orderable
+		// funds; prefer the top-level value when it is for this currency.
+		if snapshot.AvailableFunds != nil && snapshot.Currency != nil &&
+			strings.EqualFold(balance.Currency, *snapshot.Currency) {
+			available = snapshot.AvailableFunds
+		}
 		balances[balance.Currency] = types.Balance{
 			Currency:          balance.Currency,
-			Available:         fixedpointFromPtr(balance.AvailableWithdrawalCash, balance.Cash),
+			Available:         fixedpointFromPtr(available, balance.Cash),
 			Locked:            fixedpointFromPtr(nil, nil),
 			NetAsset:          fixedpointFromPtr(balance.Cash, nil),
 			MaxWithdrawAmount: fixedpointFromPtr(balance.AvailableWithdrawalCash, nil),
@@ -33,10 +41,14 @@ func balanceMapFromBrokerFunds(snapshot *BrokerFundsSnapshot) types.BalanceMap {
 	if snapshot.Currency != nil && *snapshot.Currency != "" {
 		currency = *snapshot.Currency
 	}
+	availableFunds := snapshot.AvailableFunds
+	if availableFunds == nil {
+		availableFunds = snapshot.AvailableWithdrawalCash
+	}
 	balances[currency] = types.Balance{
 		Currency:          currency,
-		Available:         fixedpointFromPtr(snapshot.AvailableWithdrawalCash, snapshot.Cash),
-		Locked:            fixedpointFromDifference(snapshot.Cash, snapshot.AvailableWithdrawalCash, snapshot.FrozenCash),
+		Available:         fixedpointFromPtr(availableFunds, snapshot.Cash),
+		Locked:            fixedpointFromDifference(snapshot.Cash, availableFunds, snapshot.FrozenCash),
 		NetAsset:          fixedpointFromPtr(snapshot.Cash, nil),
 		MaxWithdrawAmount: fixedpointFromPtr(snapshot.MaxWithdrawal, snapshot.AvailableWithdrawalCash),
 	}

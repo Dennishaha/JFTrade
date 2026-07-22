@@ -56,12 +56,13 @@ func (s *Store) SaveIntegration(input jfsettings.BrokerIntegration) (jfsettings.
 	}
 
 	s.mu.Lock()
-	if s.data.Interfaces == nil {
-		s.data.Interfaces = interfaceSettingsPointer(NormalizeInterfaceSettings(InterfaceSettingsFromDefaults(jfsettings.LaunchDefaults{}), jfsettings.LaunchDefaults{}))
-	}
-	s.data.Integration = &input
-	err := s.persistLocked()
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	err := s.mutateAndPersistLocked(func() {
+		if s.data.Interfaces == nil {
+			s.data.Interfaces = interfaceSettingsPointer(NormalizeInterfaceSettings(InterfaceSettingsFromDefaults(jfsettings.LaunchDefaults{}), jfsettings.LaunchDefaults{}))
+		}
+		s.data.Integration = &input
+	})
 	if err != nil {
 		return input, err
 	}
@@ -98,8 +99,9 @@ func (s *Store) CreateManagedAccount(input jfsettings.ManagedBrokerAccount) (jfs
 			if input.CreatedAt == "" {
 				input.CreatedAt = now
 			}
-			s.data.Accounts[index] = input
-			if err := s.persistLocked(); err != nil {
+			if err := s.mutateAndPersistLocked(func() {
+				s.data.Accounts[index] = input
+			}); err != nil {
 				return input, err
 			}
 			return input, nil
@@ -112,8 +114,9 @@ func (s *Store) CreateManagedAccount(input jfsettings.ManagedBrokerAccount) (jfs
 	if input.CreatedAt == "" {
 		input.CreatedAt = now
 	}
-	s.data.Accounts = append(s.data.Accounts, input)
-	if err := s.persistLocked(); err != nil {
+	if err := s.mutateAndPersistLocked(func() {
+		s.data.Accounts = append(s.data.Accounts, input)
+	}); err != nil {
 		return input, err
 	}
 	return input, nil
@@ -133,8 +136,9 @@ func (s *Store) UpdateManagedAccount(id string, input jfsettings.ManagedBrokerAc
 		input.ID = account.ID
 		input.CreatedAt = account.CreatedAt
 		input.UpdatedAt = now
-		s.data.Accounts[index] = input
-		if err := s.persistLocked(); err != nil {
+		if err := s.mutateAndPersistLocked(func() {
+			s.data.Accounts[index] = input
+		}); err != nil {
 			return input, err
 		}
 		return input, nil
@@ -150,8 +154,9 @@ func (s *Store) DeleteManagedAccount(id string) error {
 		if s.data.Accounts[index].ID != id {
 			continue
 		}
-		s.data.Accounts = append(s.data.Accounts[:index], s.data.Accounts[index+1:]...)
-		return s.persistLocked()
+		return s.mutateAndPersistLocked(func() {
+			s.data.Accounts = append(s.data.Accounts[:index], s.data.Accounts[index+1:]...)
+		})
 	}
 	return os.ErrNotExist
 }

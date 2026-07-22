@@ -256,13 +256,14 @@ func (s *Service) Close() error {
 	if s == nil {
 		return nil
 	}
+	var collectorErr error
+	if s.collector != nil {
+		collectorErr = s.collector.Close()
+	}
 	if err := s.reconcileDesired(context.Background(), nil); err != nil {
 		log.Printf("marketdata final subscription reconciliation failed: %v", err)
 	}
-	if s.collector == nil {
-		return nil
-	}
-	return s.collector.Close()
+	return collectorErr
 }
 
 // GetMarkets 返回可用市场列表。

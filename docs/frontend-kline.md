@@ -28,7 +28,7 @@ apps/web
 1. `candle.at` 是分桶键，只能表示桶起点，不能被当前秒数覆盖
 2. `candle.displayAt` 是展示时间，分钟/小时 K 应显示桶结束点，而不是 `observedAt` 当前秒数
 3. `snapshot.observedAt` 是实时分桶统一时间参考，价格和成交量必须共用它
-4. `snapshot.volume` 是累计量，不是当前桶量柱；当前桶量柱应来自 `barVolume` 或当前桶 candle.volume
+4. `snapshot.volume` 是累计量，不是当前桶量柱；实时事件只通过顶层 `cumulativeVolume` / `volumeDelta` 进入量柱状态机，最终量柱只能来自 `barVolume` 或当前桶 `candle.volume`
 5. 首屏若已拿到当前未收盘桶，前端必须沿用该桶的 open/high/low/volume 作为 seed
 6. 同一周期内高低点必须累计，不能每次只用最新价覆盖
 7. 历史数据过旧时，不能用实时快照强行补一根跨大时间洞的伪 candle
@@ -39,6 +39,7 @@ apps/web
 - 不要把活动 candle 的 `displayAt` 写成当前秒数
 - 不要用上一根 close 猜当前桶 open/high/low
 - 不要把 `snapshot.volume` 直接当作分钟量柱
+- 不要从字段大小或传输来源猜测成交量语义；累计量与事件增量必须使用各自具名字段
 
 ## 专题导航
 

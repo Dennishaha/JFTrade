@@ -77,6 +77,7 @@ type Server struct {
 	observability        *observability.Recorder
 	desktopAPIToken      string
 	webAccessReconfigure func(SecuritySettings) error
+	pineWorkerMu         sync.RWMutex
 	closeOnce            sync.Once
 	closeErr             error
 }

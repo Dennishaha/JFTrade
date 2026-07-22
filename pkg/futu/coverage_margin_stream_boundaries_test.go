@@ -2,6 +2,7 @@ package futu
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 	qotupdatebasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdatebasicqot"
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 func TestStreamConnectionAndSubscriptionBoundaries(t *testing.T) {
@@ -79,6 +81,78 @@ func TestStreamPushHandlersRejectInactiveMalformedAndEmptyQuotes(t *testing.T) {
 		t.Fatal("canceled stream unexpectedly active")
 	}
 	stream.watchClientLoop(ctx, opend.New(opend.Config{}))
+}
+
+func TestStreamConvertsCumulativeQuoteVolumeToIncrementalTradeQuantity(t *testing.T) {
+	stream := NewStream(NewExchange(""))
+	hk, err := time.LoadLocation("Asia/Hong_Kong")
+	if err != nil {
+		t.Fatalf("load Hong Kong timezone: %v", err)
+	}
+	first := time.Date(2026, time.July, 20, 10, 0, 0, 0, hk)
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first, 1_000); got != 0 {
+		t.Fatalf("first cumulative sample quantity = %v, want baseline 0", got)
+	}
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(time.Second), 1_015); got != 15 {
+		t.Fatalf("incremental quantity = %v, want 15", got)
+	}
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(2*time.Second), 1_010); got != 0 {
+		t.Fatalf("decreasing cumulative quantity = %v, want 0", got)
+	}
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(3*time.Second), math.NaN()); got != 0 {
+		t.Fatalf("NaN cumulative quantity = %v, want 0", got)
+	}
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(4*time.Second), math.Inf(1)); got != 0 {
+		t.Fatalf("infinite cumulative quantity = %v, want 0", got)
+	}
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, first.Add(5*time.Second), 1_020); got != 10 {
+		t.Fatalf("valid quantity after invalid samples = %v, want 10", got)
+	}
+	nextDay := first.AddDate(0, 0, 1)
+	if got := stream.nextTradeQuantity("HK.00700", market.SessionRegular, nextDay, 25); got != 0 {
+		t.Fatalf("new trading-day baseline quantity = %v, want 0", got)
+	}
+}
+
+func TestStreamMarketTradeCarriesDeltaAndCumulativeVolume(t *testing.T) {
+	stream := NewStream(NewExchange(""))
+	trades := make([]types.Trade, 0, 2)
+	stream.OnMarketTrade(func(trade types.Trade) {
+		trades = append(trades, trade)
+	})
+
+	security := testHKSecurity("00700")
+	first := basicQotListForSecurities([]*qotcommonpb.Security{security})[0]
+	stream.emitBasicQot(first)
+	second := proto.Clone(first).(*qotcommonpb.BasicQot)
+	second.Volume = new(int64(1_015))
+	stream.emitBasicQot(second)
+
+	if len(trades) != 2 {
+		t.Fatalf("market trades = %#v, want 2 events", trades)
+	}
+	if trades[0].Quantity.Float64() != 0 || trades[0].CumulativeVolume == nil || trades[0].CumulativeVolume.Float64() != 1_000 {
+		t.Fatalf("first market trade volume contract = %#v", trades[0])
+	}
+	if trades[1].Quantity.Float64() != 15 || trades[1].CumulativeVolume == nil || trades[1].CumulativeVolume.Float64() != 1_015 {
+		t.Fatalf("second market trade volume contract = %#v", trades[1])
+	}
+}
+
+func TestStreamRejectsNonFiniteSnapshotVolume(t *testing.T) {
+	stream := NewStream(NewExchange(""))
+	trades := 0
+	stream.OnMarketTrade(func(types.Trade) { trades++ })
+	basic := basicQotListForSecurities([]*qotcommonpb.Security{testHKSecurity("00700")})[0]
+	stream.emitBasicQotSnapshot(basic, "HK.00700", &QuoteSnapshot{
+		Symbol:  "HK.00700",
+		Volume:  math.NaN(),
+		QuoteAt: time.Now(),
+		Session: market.SessionRegular,
+	})
+	if trades != 0 {
+		t.Fatalf("market trades = %d, want none for non-finite cumulative volume", trades)
+	}
 }
 
 func TestBasicQuotePushSubscriptionErrorsAndIdempotency(t *testing.T) {

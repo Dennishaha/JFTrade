@@ -76,6 +76,37 @@ func TestHandleExecutionPlaceReturnsRiskRejectionEnvelope(t *testing.T) {
 	}
 }
 
+func TestHandleExecutionPlaceRejectsEquityAmountModeSpoof(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	maxQuantity := 10.0
+	brokerCalled := false
+	service := newExecutionRouteTestService(
+		srv.WithPreTradeRiskGateway(srv.NewStaticPreTradeRiskGateway(func() srv.PreTradeRiskConfig {
+			return srv.PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderQty: &maxQuantity}
+		})),
+		srv.WithPlaceOrder(func(context.Context, srv.ExecutionOrderCommand) (srv.ExecutionOrder, error) {
+			brokerCalled = true
+			return srv.ExecutionOrder{InternalOrderID: "unexpected"}, nil
+		}),
+	)
+	router := gin.New()
+	RegisterExecutionRoutes(router.Group("/api/v1"), service)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execution/orders", strings.NewReader(
+		`{"tradingEnvironment":"REAL","market":"US","symbol":"AAPL","side":"BUY","orderType":"LIMIT","quantity":1000000,"price":100,"amount":1,"predictionSide":"YES"}`,
+	))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "event contracts only") {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if brokerCalled {
+		t.Fatal("broker was called for an equity order with spoofed amount fields")
+	}
+}
+
 func TestHandleExecutionOrdersNormalizesScopeAndFilter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

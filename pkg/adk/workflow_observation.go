@@ -19,9 +19,9 @@ func (e *googleADKExecution) observeWorkflowEvent(event *adksession.Event) {
 		}
 	}
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	parent := e.runSnapshotBaseByID[e.runID]
 	if len(parent.WorkflowPlan) == 0 {
+		e.mu.Unlock()
 		return
 	}
 	changed := false
@@ -46,6 +46,7 @@ func (e *googleADKExecution) observeWorkflowEvent(event *adksession.Event) {
 		break
 	}
 	if !changed {
+		e.mu.Unlock()
 		return
 	}
 	e.runSnapshotBaseByID[e.runID] = parent
@@ -53,7 +54,9 @@ func (e *googleADKExecution) observeWorkflowEvent(event *adksession.Event) {
 		current.WorkflowPlan = parent.WorkflowPlan
 		e.runSnapshotBaseByID[runID] = current
 	}
-	e.emitRunSnapshotLocked()
+	deltas := e.collectRunSnapshotDeltasLocked()
+	e.mu.Unlock()
+	e.emitRunSnapshotDeltas(deltas)
 }
 
 func (e *googleADKExecution) workflowRunObserved(runID string) bool {

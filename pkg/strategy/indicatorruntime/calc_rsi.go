@@ -36,26 +36,19 @@ func calculateRSISeries(values []float64, period int) []float64 {
 		}
 		losses[index-1] = math.Abs(delta)
 	}
-	result := make([]float64, 0, len(values)-period)
-	rollingGains := 0.0
-	rollingLosses := 0.0
-	for index := range period {
-		rollingGains += gains[index]
-		rollingLosses += losses[index]
-	}
-	appendRSIValue := func(totalGains, totalLosses float64) {
-		if totalLosses == 0 {
-			result = append(result, 100.0)
-			return
-		}
-		relativeStrength := totalGains / totalLosses
-		result = append(result, 100-100/(1+relativeStrength))
-	}
-	appendRSIValue(rollingGains, rollingLosses)
-	for index := period; index < len(gains); index++ {
-		rollingGains += gains[index] - gains[index-period]
-		rollingLosses += losses[index] - losses[index-period]
-		appendRSIValue(rollingGains, rollingLosses)
+	averageGains := calculateRMASequence(gains, period)
+	averageLosses := calculateRMASequence(losses, period)
+	result := make([]float64, 0, len(averageGains))
+	for index, averageGain := range averageGains {
+		result = append(result, rsiFromWilderAverages(averageGain, averageLosses[index]))
 	}
 	return result
+}
+
+func rsiFromWilderAverages(averageGain, averageLoss float64) float64 {
+	if averageLoss == 0 {
+		return 100
+	}
+	relativeStrength := averageGain / averageLoss
+	return 100 - 100/(1+relativeStrength)
 }

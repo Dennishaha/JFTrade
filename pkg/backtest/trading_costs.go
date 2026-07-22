@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	bbgo2 "github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
@@ -141,6 +142,8 @@ func normalizeFeeRules(group string, rules []FeeRule) []FeeRule {
 		rule.Basis = normalizeFeeBasis(rule.Basis)
 		rule.Currency = strings.ToUpper(strings.TrimSpace(rule.Currency))
 		rule.Rounding = strings.ToLower(strings.TrimSpace(rule.Rounding))
+		rule.EffectiveFrom = strings.TrimSpace(rule.EffectiveFrom)
+		rule.EffectiveTo = strings.TrimSpace(rule.EffectiveTo)
 		rule.AppliesTo = normalizeAppliesTo(rule.AppliesTo)
 		normalized = append(normalized, rule)
 	}
@@ -437,7 +440,7 @@ func (engine *backtestFeeEngine) applyScheduleLocked(group string, schedule FeeS
 }
 
 func (engine *backtestFeeEngine) applyRuleLocked(group string, rule FeeRule, trade types.Trade) (float64, bool) {
-	if !feeRuleAppliesToSide(rule, trade) || !feeRuleAppliesToInstrument(rule, engine.instrumentType) {
+	if !feeRuleAppliesAt(rule, trade.Time.Time()) || !feeRuleAppliesToSide(rule, trade) || !feeRuleAppliesToInstrument(rule, engine.instrumentType) {
 		return 0, false
 	}
 	notional := trade.Price.Float64() * trade.Quantity.Float64()
@@ -487,6 +490,31 @@ func (engine *backtestFeeEngine) applyRuleLocked(group string, rule FeeRule, tra
 	}
 	accumulator.charged = target
 	return incremental, true
+}
+
+const feeRuleDateLayout = "2006-01-02"
+
+func feeRuleAppliesAt(rule FeeRule, at time.Time) bool {
+	fromText := strings.TrimSpace(rule.EffectiveFrom)
+	toText := strings.TrimSpace(rule.EffectiveTo)
+	if fromText == "" && toText == "" {
+		return true
+	}
+	if at.IsZero() {
+		return false
+	}
+	tradeDate := at.Format(feeRuleDateLayout)
+	if fromText != "" {
+		if _, err := time.Parse(feeRuleDateLayout, fromText); err != nil || tradeDate < fromText {
+			return false
+		}
+	}
+	if toText != "" {
+		if _, err := time.Parse(feeRuleDateLayout, toText); err != nil || tradeDate > toText {
+			return false
+		}
+	}
+	return fromText == "" || toText == "" || fromText <= toText
 }
 
 func feeRuleAppliesToSide(rule FeeRule, trade types.Trade) bool {

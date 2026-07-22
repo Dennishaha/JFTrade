@@ -347,7 +347,8 @@ func (c *Client) readLoop(conn net.Conn) {
 		}
 		bodyLen := int(uint32(head[12]) | uint32(head[13])<<8 | uint32(head[14])<<16 | uint32(head[15])<<24)
 		if bodyLen < 0 || bodyLen > codec.MaxFrameBodyLen {
-			continue
+			c.fanoutClose()
+			return
 		}
 		data := make([]byte, codec.HeaderLen+bodyLen)
 		copy(data, head)

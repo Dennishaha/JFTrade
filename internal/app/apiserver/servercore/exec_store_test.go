@@ -268,12 +268,12 @@ func TestExecutionOrderStorePersistenceWorkerQueueAndFallbackPaths(t *testing.T)
 		}
 	})
 
-	t.Run("nil queue skips and full queue falls back to direct write", func(t *testing.T) {
-		persistence, err := newExecutionOrderSQLiteStore(filepath.Join(t.TempDir(), "execution-orders.db"))
+	t.Run("nil queue skips and full queue preserves FIFO order with backpressure", func(t *testing.T) {
+		dbPath := filepath.Join(t.TempDir(), "execution-orders.db")
+		persistence, err := newExecutionOrderSQLiteStore(dbPath)
 		if err != nil {
 			t.Fatalf("newExecutionOrderSQLiteStore: %v", err)
 		}
-		defer func() { jftradeCheckTestError(t, persistence.Close()) }()
 
 		store := newExecutionOrderStore()
 		store.persistence = persistence
@@ -287,16 +287,41 @@ func TestExecutionOrderStorePersistenceWorkerQueueAndFallbackPaths(t *testing.T)
 			t.Fatalf("nil queue unexpectedly persisted sequences: %#v", sequences)
 		}
 
-		store.persistenceQueue = make(chan executionPersistenceItem)
-		store.enqueuePersistence(executionPersistenceItem{kind: "sequence", seqName: "events", seqValue: 11})
-		store.persistenceWG.Wait()
+		store.persistenceQueue = make(chan executionPersistenceItem, 1)
+		store.persistenceQueue <- executionPersistenceItem{kind: "sequence", seqName: "events", seqValue: 10}
+		enqueued := make(chan struct{})
+		go func() {
+			store.enqueuePersistence(executionPersistenceItem{kind: "sequence", seqName: "events", seqValue: 11})
+			close(enqueued)
+		}()
+		select {
+		case <-enqueued:
+			t.Fatal("full persistence queue bypassed FIFO backpressure")
+		case <-time.After(25 * time.Millisecond):
+		}
 
-		sequences, err = persistence.loadSequences()
+		store.persistenceWG.Add(1)
+		go store.runPersistenceWorker(store.persistenceQueue)
+		select {
+		case <-enqueued:
+		case <-time.After(2 * time.Second):
+			t.Fatal("enqueue did not resume after persistence worker drained the queue")
+		}
+		if err := store.Close(); err != nil {
+			t.Fatalf("store.Close(): %v", err)
+		}
+
+		reloaded, err := newExecutionOrderSQLiteStore(dbPath)
 		if err != nil {
-			t.Fatalf("loadSequences() after fallback write: %v", err)
+			t.Fatalf("reload persistence: %v", err)
+		}
+		defer func() { jftradeCheckTestError(t, reloaded.Close()) }()
+		sequences, err = reloaded.loadSequences()
+		if err != nil {
+			t.Fatalf("loadSequences() after backpressure writes: %v", err)
 		}
 		if sequences["events"] != 11 {
-			t.Fatalf("fallback persisted event sequence = %d, want 11", sequences["events"])
+			t.Fatalf("FIFO persisted event sequence = %d, want 11", sequences["events"])
 		}
 	})
 }

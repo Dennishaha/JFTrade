@@ -60,7 +60,7 @@ func (a *futuAdapter) SubscribeQuotes(ctx context.Context, req broker.QuoteSubsc
 	if err != nil {
 		return err
 	}
-	return a.exchange.withClient(ctx, func(client *opend.Client) error {
+	return a.exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 		return a.exchange.ensureBasicQotPushSubscriptions(ctx, client, requests)
 	})
 }

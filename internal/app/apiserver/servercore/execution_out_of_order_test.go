@@ -134,8 +134,8 @@ func TestExecutionOrderStoreAppliesFillProgressFromOlderSnapshot(t *testing.T) {
 	}
 }
 
-// 独立成交回报可能比当前订单快照更晚到，但事件本身的发生时间更早。
-// 成交数量仍需累加，订单的最后更新时间则必须保持单调。
+// 独立成交回报可能比累计订单快照更晚到，但事件本身的发生时间更早。
+// 该成交应留痕但不能重复累加，订单的最后更新时间也必须保持单调。
 func TestExecutionOrderStoreKeepsUpdatedAtMonotonicForOlderFill(t *testing.T) {
 	store := newExecutionOrderStore()
 	seeded := seedOutOfOrderPlacedOrder(store, "ooo-fill-time")
@@ -157,7 +157,7 @@ func TestExecutionOrderStoreKeepsUpdatedAtMonotonicForOlderFill(t *testing.T) {
 		Symbol: "US.AAPL", Side: "BUY", Status: &status,
 		FilledQuantity: 1, FillPrice: &fillPrice, FilledAt: olderFillAt,
 	})
-	if !changed || filled.FilledQuantity == nil || *filled.FilledQuantity != 3 {
+	if changed || filled.FilledQuantity == nil || *filled.FilledQuantity != 2 {
 		t.Fatalf("filled order = %#v changed=%v", filled, changed)
 	}
 	if filled.UpdatedAt != partial.UpdatedAt {

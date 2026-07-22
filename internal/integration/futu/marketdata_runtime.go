@@ -355,10 +355,15 @@ func tickFromTrade(trade bbgotypes.Trade, observedAt time.Time) *marketdata.Tick
 	if !trade.Time.Time().IsZero() {
 		quoteAt = trade.Time.Time().UTC()
 	}
+	cumulativeVolume := 0.0
+	if trade.CumulativeVolume != nil {
+		cumulativeVolume = trade.CumulativeVolume.Float64()
+	}
 	session := market.ClassifySession(instrumentID, observedAt)
 	return &marketdata.Tick{
 		InstrumentID: instrumentID, Market: resolvedMarket, Symbol: symbol,
-		Price: price, Bid: price, Ask: price, Volume: trade.Quantity.Float64(),
+		Price: price, Bid: price, Ask: price,
+		Volume: cumulativeVolume, VolumeDelta: trade.Quantity.Float64(),
 		QuoteAt: quoteAt.UTC().Format(time.RFC3339Nano), ObservedAt: observedAt.UTC().Format(time.RFC3339Nano),
 		Source: "bbgo:futu:stream", Session: string(session),
 		ExtendedHours: market.IsExtendedSession(session), Kind: marketdata.TickKindTrade,

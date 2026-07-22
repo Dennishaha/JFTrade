@@ -32,6 +32,22 @@ func TestCommitImportRejectsStaleAndBrokenStorageStates(t *testing.T) {
 		}
 	})
 
+	t.Run("local group lookup storage failure", func(t *testing.T) {
+		store := openImportCoverageStore(t)
+		preview := importCoveragePreview("broken-local-group-storage", "default", 1, "hash")
+		if err := store.SaveImportPreview(t.Context(), preview); err != nil {
+			t.Fatal(err)
+		}
+		mustStoreExec(t, store, `DROP TABLE watchlist_groups`)
+		_, err := store.CommitImport(t.Context(), domain.CommitImportStoreInput{Preview: preview})
+		if err == nil {
+			t.Fatal("CommitImport succeeded without local group storage")
+		}
+		if errors.Is(err, domain.ErrStalePreview) {
+			t.Fatalf("local group storage failure was misreported as stale preview: %v", err)
+		}
+	})
+
 	t.Run("membership lookup failure", func(t *testing.T) {
 		store, input, _ := importCommitFailureFixture(t)
 		mustStoreExec(t, store, `DROP TABLE watchlist_memberships`)

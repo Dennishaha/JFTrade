@@ -130,7 +130,7 @@ const candles: BacktestCandle[] = [
 ];
 
 const trades: BacktestTrade[] = [
-  { time: candles[0]!.time, side: "buy", price: 100, qty: 10 },
+  { time: "2026-06-01T01:29:00.000Z", side: "buy", price: 100, qty: 10, warmup: true },
   { time: candles[1]!.time, side: "SELL", price: 98, qty: 4 },
 ];
 
@@ -287,7 +287,7 @@ describe("BacktestChart", () => {
       { time: 1780277460, value: 0 },
     ]);
     expect(chartMocks.markerApi.setMarkers).toHaveBeenLastCalledWith([
-      expect.objectContaining({ position: "belowBar", shape: "arrowUp", text: "买入 10股 HKD 1,000.00" }),
+      expect.objectContaining({ time: 1780277400, position: "belowBar", shape: "arrowUp", text: "预热 · 买入 10股 HKD 1,000.00" }),
       expect.objectContaining({ position: "aboveBar", shape: "arrowDown", text: "卖出 4股 HKD 392.00" }),
     ]);
     expect(chartMocks.setVisibleLogicalRange).toHaveBeenCalledWith({ from: 0, to: 10 });

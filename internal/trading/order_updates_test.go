@@ -505,6 +505,29 @@ func TestOrderUpdatesWorkerMarksCurrentAndHistoryFailures(t *testing.T) {
 	})
 }
 
+func TestOrderUpdatesWorkerFeeSyncFiltersIdentifiersAndReportsFailure(t *testing.T) {
+	source := &fakeOrderUpdateSource{feeErr: errors.New("fees unavailable")}
+	execution := &fakeExecutionOrderUpdates{}
+	worker := NewOrderUpdatesWorker(source, execution, OrderUpdatesConfig{})
+	query := OrderQuery{BrokerID: "futu", TradingEnvironment: "SIMULATE", AccountID: "1001", Market: "US"}
+	empty := "   "
+	duplicate := "fee-order-1"
+	worker.syncOrderFees(context.Background(), query, []Order{
+		{Status: "SUBMITTED", BrokerOrderIDEx: &duplicate},
+		{Status: "FILLED_ALL"},
+		{Status: "FILLED_ALL", BrokerOrderIDEx: &empty},
+		{Status: "FILLED_ALL", BrokerOrderIDEx: &duplicate},
+		{Status: "CANCELLED_ALL", BrokerOrderIDEx: &duplicate},
+	})
+	if source.feeCalls != 1 || len(source.feeOrderIDs) != 1 || len(source.feeOrderIDs[0]) != 1 || source.feeOrderIDs[0][0] != duplicate {
+		t.Fatalf("fee requests = %#v, want one de-duplicated id", source.feeOrderIDs)
+	}
+	if len(execution.fees) != 0 {
+		t.Fatalf("fees applied after source failure: %#v", execution.fees)
+	}
+	worker.syncOrderFees(context.Background(), query, []Order{{Status: "SUBMITTED", BrokerOrderIDEx: &duplicate}})
+}
+
 func TestOrderUpdatesWorkerHelperBoundariesCoverNilAndReplacementPaths(t *testing.T) {
 	var nilWorker *OrderUpdatesWorker
 	nilWorker.HandleOrderUpdate(Order{})

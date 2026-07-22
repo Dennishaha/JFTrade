@@ -133,11 +133,13 @@ func TestMarketDataRuntimeNilAndClosedLifecycleBoundaries(t *testing.T) {
 
 func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 	at := time.Date(2026, time.June, 14, 1, 2, 3, 0, time.UTC)
+	cumulativeVolume := fixedpointValue(t, "1200")
 	tick := tickFromTrade(bbgotypes.Trade{
-		Symbol:   "hk.00700",
-		Price:    fixedpointValue(t, "321.5"),
-		Quantity: fixedpointValue(t, "200"),
-		Time:     bbgotypes.Time(at),
+		Symbol:           "hk.00700",
+		Price:            fixedpointValue(t, "321.5"),
+		Quantity:         fixedpointValue(t, "200"),
+		CumulativeVolume: &cumulativeVolume,
+		Time:             bbgotypes.Time(at),
 	}, at.Add(time.Second))
 	if tick == nil {
 		t.Fatal("tickFromTrade returned nil")
@@ -145,6 +147,19 @@ func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 	if tick.InstrumentID != "HK.00700" || tick.Kind != marketdata.TickKindTrade ||
 		tick.Source != "bbgo:futu:stream" || !tick.Price.Equal(decimal.RequireFromString("321.5")) {
 		t.Fatalf("tick = %#v", tick)
+	}
+	if tick.Volume != 1200 || tick.VolumeDelta != 200 {
+		t.Fatalf("tick volume contract = cumulative:%v delta:%v", tick.Volume, tick.VolumeDelta)
+	}
+
+	withoutCounter := tickFromTrade(bbgotypes.Trade{
+		Symbol:   "HK.00700",
+		Price:    fixedpointValue(t, "321.6"),
+		Quantity: fixedpointValue(t, "5"),
+		Time:     bbgotypes.Time(at),
+	}, at.Add(time.Second))
+	if withoutCounter == nil || withoutCounter.Volume != 0 || withoutCounter.VolumeDelta != 5 {
+		t.Fatalf("optional cumulative volume contract = %#v", withoutCounter)
 	}
 }
 
@@ -234,6 +249,7 @@ func TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak(t *testing.T) {
 
 func TestTickFromTradeInheritsLatestQuoteFieldsThroughCache(t *testing.T) {
 	cache := marketdata.NewCache()
+	at := time.Now().UTC().Truncate(time.Second)
 	openPrice := decimal.RequireFromString("698.0")
 	highPrice := decimal.RequireFromString("705.0")
 	lowPrice := decimal.RequireFromString("697.2")
@@ -253,19 +269,19 @@ func TestTickFromTradeInheritsLatestQuoteFieldsThroughCache(t *testing.T) {
 		LastClosePrice:     &lastClose,
 		Volume:             43210,
 		Turnover:           decimal.RequireFromString("1234567.8"),
-		QuoteAt:            time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano),
-		ObservedAt:         time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano),
+		QuoteAt:            at.Format(time.RFC3339Nano),
+		ObservedAt:         at.Format(time.RFC3339Nano),
 		Source:             "bbgo:futu",
 		Session:            "regular",
 	})
 
-	hkt := time.FixedZone("HKT", 8*60*60)
-	at := time.Date(2026, time.June, 12, 10, 1, 0, 0, hkt).UTC()
+	cumulativeVolume := fixedpointValue(t, "43210")
 	tick := tickFromTrade(bbgotypes.Trade{
-		Symbol:   "HK.00700",
-		Price:    fixedpointValue(t, "702.3"),
-		Quantity: fixedpointValue(t, "0"),
-		Time:     bbgotypes.Time(at),
+		Symbol:           "HK.00700",
+		Price:            fixedpointValue(t, "702.3"),
+		Quantity:         fixedpointValue(t, "0"),
+		CumulativeVolume: &cumulativeVolume,
+		Time:             bbgotypes.Time(at),
 	}, at)
 	if tick == nil {
 		t.Fatal("tickFromTrade returned nil")
@@ -292,8 +308,8 @@ func TestTickFromTradeInheritsLatestQuoteFieldsThroughCache(t *testing.T) {
 	if stored.LastClosePrice == nil || !stored.LastClosePrice.Equal(lastClose) {
 		t.Fatalf("LastClosePrice = %#v", stored.LastClosePrice)
 	}
-	if !stored.Turnover.Equal(decimal.RequireFromString("1234567.8")) || stored.Volume != 43210 {
-		t.Fatalf("turnover/volume = %s/%v", stored.Turnover, stored.Volume)
+	if !stored.Turnover.Equal(decimal.RequireFromString("1234567.8")) || stored.Volume != 43210 || stored.VolumeDelta != 0 {
+		t.Fatalf("turnover/volume/delta = %s/%v/%v", stored.Turnover, stored.Volume, stored.VolumeDelta)
 	}
 }
 
@@ -381,15 +397,17 @@ func TestMarketDataRuntimeExchangeResetAndStreamLifecycle(t *testing.T) {
 	}
 	futuStream = stream.(*pkgfutu.Stream)
 	tradeAt := time.Date(2026, time.June, 23, 9, 31, 0, 0, time.UTC)
+	cumulativeVolume := fixedpointValue(t, "50120")
 	futuStream.EmitMarketTrade(bbgotypes.Trade{
-		Symbol:   "HK.00700",
-		Price:    fixedpointValue(t, "323.5"),
-		Quantity: fixedpointValue(t, "120"),
-		Time:     bbgotypes.Time(tradeAt),
+		Symbol:           "HK.00700",
+		Price:            fixedpointValue(t, "323.5"),
+		Quantity:         fixedpointValue(t, "120"),
+		CumulativeVolume: &cumulativeVolume,
+		Time:             bbgotypes.Time(tradeAt),
 	})
 	select {
 	case tick := <-pushTicks:
-		if tick.InstrumentID != "HK.00700" || tick.Kind != marketdata.TickKindTrade || !tick.Price.Equal(decimal.RequireFromString("323.5")) {
+		if tick.InstrumentID != "HK.00700" || tick.Kind != marketdata.TickKindTrade || !tick.Price.Equal(decimal.RequireFromString("323.5")) || tick.Volume != 50120 || tick.VolumeDelta != 120 {
 			t.Fatalf("push tick = %#v", tick)
 		}
 	case <-time.After(time.Second):

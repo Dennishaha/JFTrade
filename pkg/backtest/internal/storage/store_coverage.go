@@ -331,9 +331,11 @@ func (s *FutuKLineStore) isBatchCovered(
 		timeToUnixMillis(cursor),
 		timeToUnixMillis(batchEnd),
 	).Scan(&endTimeMillis)
-	if err != nil {
-		// sql.ErrNoRows means no data in this batch → not covered
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read K-line batch coverage from %s: %w", tableName, err)
 	}
 
 	endTime := timeFromUnixMillis(endTimeMillis)

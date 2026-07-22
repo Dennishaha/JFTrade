@@ -121,6 +121,21 @@ func TestPineWorkerReplayPlannerRejectsInvalidCommandBarIndex(t *testing.T) {
 	}
 }
 
+func TestNormalizeReplayCommandsPreservesSameBarEmissionOrder(t *testing.T) {
+	candles := []pineworker.Candle{{OpenTime: 1000}, {OpenTime: 2000}}
+	commands, err := normalizeReplayCommands(candles, []WorkerOrderCommand{
+		{ID: "exit-first", Kind: "exit", BarIndex: 1},
+		{ID: "entry-second", Kind: "entry", BarIndex: 1},
+		{ID: "earlier-bar", Kind: "close", BarIndex: 0},
+	})
+	if err != nil {
+		t.Fatalf("normalizeReplayCommands: %v", err)
+	}
+	if got := commandIDs(commands); !reflect.DeepEqual(got, []string{"earlier-bar", "exit-first", "entry-second"}) {
+		t.Fatalf("command order = %#v, want bar order with stable same-bar emission", got)
+	}
+}
+
 func TestPineWorkerReplayPlannerPropagatesWorkerError(t *testing.T) {
 	start := time.Date(2026, time.June, 29, 9, 30, 0, 0, time.UTC)
 	planner := PineWorkerReplayPlanner{Adapter: PineWorkerBacktestAdapter{Runner: &fakePineWorkerBacktestRunner{

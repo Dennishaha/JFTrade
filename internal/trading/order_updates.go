@@ -224,11 +224,27 @@ func NewOrderUpdatesWorker(source OrderUpdateSource, execution ExecutionOrderUpd
 	}
 }
 
+func (w *OrderUpdatesWorker) configuredBrokerID() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.config.BrokerID
+}
+
+func (w *OrderUpdatesWorker) initializeBrokerID(brokerID string) string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.config.BrokerID == "" {
+		w.config.BrokerID = strings.TrimSpace(brokerID)
+	}
+	return w.config.BrokerID
+}
+
 func (w *OrderUpdatesWorker) Sync(ctx context.Context, force bool, activeOnly bool) {
 	if w == nil || w.source == nil || w.execution == nil || !w.shouldSync(force) {
 		return
 	}
 
+	brokerID := w.configuredBrokerID()
 	accounts, err := w.source.DiscoverAccounts(ctx)
 	if err != nil {
 		if errors.Is(err, ErrOrderUpdateSourceInactive) {
@@ -236,17 +252,17 @@ func (w *OrderUpdatesWorker) Sync(ctx context.Context, force bool, activeOnly bo
 			return
 		}
 		query := OrderQuery{
-			BrokerID:           w.config.BrokerID,
+			BrokerID:           brokerID,
 			TradingEnvironment: "SIMULATE",
 			Market:             strings.ToUpper(strings.TrimSpace(w.config.FallbackMarket)),
 		}
 		w.markSubscriptions([]OrderQuery{query}, "inactive", "discover-accounts", err)
 		return
 	}
-	if w.config.BrokerID == "" && len(accounts) > 0 {
-		w.config.BrokerID = strings.TrimSpace(accounts[0].BrokerID)
+	if len(accounts) > 0 {
+		brokerID = w.initializeBrokerID(accounts[0].BrokerID)
 	}
-	queries := BuildOrderUpdateQueries(accounts, w.config.BrokerID, w.config.FallbackMarket)
+	queries := BuildOrderUpdateQueries(accounts, brokerID, w.config.FallbackMarket)
 	w.markDiscoveredAccounts(len(accounts), "connected")
 	if err := w.ensureSubscribed(ctx, accounts, queries); err != nil {
 		w.markSubscriptions(queries, "inactive", "bind-push", err)
@@ -313,7 +329,7 @@ func (w *OrderUpdatesWorker) SyncExecutionOrderHistory(ctx context.Context, orde
 		return
 	}
 	query := OrderQuery{
-		BrokerID:           strings.TrimSpace(firstNonEmpty(order.BrokerID, w.config.BrokerID)),
+		BrokerID:           strings.TrimSpace(firstNonEmpty(order.BrokerID, w.configuredBrokerID())),
 		TradingEnvironment: strings.TrimSpace(order.TradingEnvironment),
 		AccountID:          strings.TrimSpace(order.AccountID),
 		Market:             strings.ToUpper(strings.TrimSpace(order.Market)),
@@ -347,7 +363,7 @@ func (w *OrderUpdatesWorker) HandleOrderUpdate(order Order) {
 	}
 	brokerID := strings.TrimSpace(order.BrokerID)
 	if brokerID == "" {
-		brokerID = w.config.BrokerID
+		brokerID = w.configuredBrokerID()
 	}
 	query := queryForOrder(brokerID, order.AccountID, order.TradingEnvironment, order.Market)
 	key := OrderUpdateSubscriptionKey(query)
@@ -410,7 +426,7 @@ func (w *OrderUpdatesWorker) HandleFillUpdate(fill Fill) {
 	}
 	brokerID := strings.TrimSpace(fill.BrokerID)
 	if brokerID == "" {
-		brokerID = w.config.BrokerID
+		brokerID = w.configuredBrokerID()
 	}
 	query := queryForOrder(brokerID, fill.AccountID, fill.TradingEnvironment, fill.Market)
 	w.markSubscriptions([]OrderQuery{query}, "active", "push-fill", nil)

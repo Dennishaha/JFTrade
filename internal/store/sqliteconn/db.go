@@ -17,11 +17,12 @@ var ErrWriteQueryRequiresTransaction = errors.New("sqlite write queries that ret
 // Reads wait only for writes that were submitted before the read, then run in
 // parallel with other reads and with later WAL writes.
 type DB struct {
-	reader      *sqlx.DB
-	writer      *sqlx.DB
-	coordinator *writeCoordinator
-	closeOnce   sync.Once
-	closeErr    error
+	reader          *sqlx.DB
+	writer          *sqlx.DB
+	coordinator     *writeCoordinator
+	coordinatorPath string
+	closeOnce       sync.Once
+	closeErr        error
 }
 
 // Tx is a write transaction that owns its position in the database write queue
@@ -46,6 +47,7 @@ func (db *DB) Close() error {
 	}
 	db.closeOnce.Do(func() {
 		db.closeErr = errors.Join(db.reader.Close(), db.writer.Close())
+		releaseCoordinatorForPath(db.coordinatorPath, db.coordinator)
 	})
 	return db.closeErr
 }

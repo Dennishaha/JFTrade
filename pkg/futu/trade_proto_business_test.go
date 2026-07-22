@@ -74,6 +74,32 @@ func TestBrokerFundsSnapshotFromProtoPreservesCurrencyAndMarketBreakdowns(t *tes
 	}
 }
 
+func TestBalanceMapUsesFuturesAvailableFundsOverWithdrawalCash(t *testing.T) {
+	availableFunds := 3210.0
+	cash := 5000.0
+	withdrawalCash := 111.0
+	funds := &trdcommonpb.Funds{
+		Currency:       futuTestPtr(int32(trdcommonpb.Currency_Currency_USD)),
+		AvailableFunds: &availableFunds,
+		CashInfoList: []*trdcommonpb.AccCashInfo{{
+			Currency:         futuTestPtr(int32(trdcommonpb.Currency_Currency_USD)),
+			Cash:             &cash,
+			AvailableBalance: &withdrawalCash,
+		}},
+	}
+	balances := balanceMapFromFunds(funds, "FUTURES")
+	usd, ok := balances["USD"]
+	if !ok {
+		t.Fatalf("balances = %#v, want USD", balances)
+	}
+	if usd.Available.Float64() != availableFunds {
+		t.Fatalf("available = %v, want futures availableFunds %v", usd.Available.Float64(), availableFunds)
+	}
+	if usd.MaxWithdrawAmount.Float64() != withdrawalCash {
+		t.Fatalf("max withdrawal = %v, want cashInfo availableBalance %v", usd.MaxWithdrawAmount.Float64(), withdrawalCash)
+	}
+}
+
 func TestBrokerReadProtoSnapshotsNormalizePositionMarginAndQuantityDetails(t *testing.T) {
 	account := resolvedTradeAccount{
 		AccountID:          "ACC-2002",

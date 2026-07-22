@@ -348,6 +348,33 @@ func TestSSETradingScheduleParserExpandsRangesAndSkipsMakeupDays(t *testing.T) {
 	}
 }
 
+func TestSSETradingScheduleParserInfersCrossYearRange(t *testing.T) {
+	body := []byte(strings.Join([]string{
+		"## 2026",
+		"New Year holiday December 31 - January 2",
+		"Trading hours",
+	}, "\n"))
+
+	schedules, err := sseTradingScheduleParser()(
+		"CN",
+		body,
+		time.Date(2026, time.December, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2027, time.January, 31, 23, 59, 59, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	got := make([]string, 0, len(schedules))
+	for _, schedule := range schedules {
+		got = append(got, schedule.Date.Format("2006-01-02"))
+	}
+	want := []string{"2026-12-31", "2027-01-01", "2027-01-02"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("cross-year schedules = %v, want %v", got, want)
+	}
+}
+
 func TestDefaultHolidayOverrideParserCNParsesChineseDateLine(t *testing.T) {
 	body := []byte(`<div>国庆节休市安排：2026年10月1日 休市</div>`)
 

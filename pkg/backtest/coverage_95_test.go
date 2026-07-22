@@ -302,7 +302,7 @@ func TestPineWorkerAdapterAndPumpFailureContracts(t *testing.T) {
 		[]pineworker.Candle{{OpenTime: 10}},
 		[]WorkerOrderCommand{{Kind: "order", BarIndex: 0}, {Kind: "cancel", BarIndex: 0}},
 	)
-	if err != nil || len(commands) != 2 || commands[0].Kind != "cancel" || commands[1].Time != 10 {
+	if err != nil || len(commands) != 2 || commands[0].Kind != "order" || commands[1].Kind != "cancel" || commands[1].Time != 10 {
 		t.Fatalf("normalized replay commands = %#v, %v", commands, err)
 	}
 }

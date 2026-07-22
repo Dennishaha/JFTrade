@@ -50,12 +50,13 @@ func savePreparedRunWithExecutor(ctx context.Context, executor sqlx.ExtContext, 
 	if err != nil {
 		return err
 	}
-	_, err = executor.ExecContext(ctx, `INSERT INTO `+tableRuns+` (id, session_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET session_id = excluded.session_id, agent_id = excluded.agent_id, status = excluded.status, payload_json = excluded.payload_json, updated_at = excluded.updated_at WHERE `+tableRuns+`.status NOT IN (?, ?, ?, ?, ?) OR (`+tableRuns+`.status = excluded.status AND `+tableRuns+`.status <> ?) OR (`+tableRuns+`.status = ? AND COALESCE(json_extract(`+tableRuns+`.payload_json, '$.finalMessageId'), '') = '' AND COALESCE(json_extract(excluded.payload_json, '$.finalMessageId'), '') <> '') OR (`+tableRuns+`.status = ? AND json_extract(`+tableRuns+`.payload_json, '$.workflowStatus') = ? AND excluded.status IN (?, ?, ?, ?, ?)) OR (`+tableRuns+`.status = ? AND excluded.status = ? AND json_array_length(json_extract(excluded.payload_json, '$.pendingApprovals')) > 0)`,
+	_, err = executor.ExecContext(ctx, `INSERT INTO `+tableRuns+` (id, session_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET session_id = excluded.session_id, agent_id = excluded.agent_id, status = excluded.status, payload_json = excluded.payload_json, updated_at = excluded.updated_at WHERE (`+tableRuns+`.status NOT IN (?, ?, ?, ?, ?) OR (`+tableRuns+`.status = excluded.status AND `+tableRuns+`.status <> ?) OR (`+tableRuns+`.status = ? AND COALESCE(json_extract(`+tableRuns+`.payload_json, '$.finalMessageId'), '') = '' AND COALESCE(json_extract(excluded.payload_json, '$.finalMessageId'), '') <> '') OR (`+tableRuns+`.status = ? AND json_extract(`+tableRuns+`.payload_json, '$.workflowStatus') = ? AND excluded.status IN (?, ?, ?, ?, ?)) OR (`+tableRuns+`.status = ? AND excluded.status = ? AND json_array_length(json_extract(excluded.payload_json, '$.pendingApprovals')) > 0)) AND NOT (`+tableRuns+`.status = ? AND COALESCE(json_extract(`+tableRuns+`.payload_json, '$.resumeState'), '') = ? AND excluded.status = ? AND NOT EXISTS (SELECT 1 FROM json_each(excluded.payload_json, '$.pendingApprovals') AS next_approval WHERE UPPER(TRIM(COALESCE(json_extract(next_approval.value, '$.status'), ''))) = ? AND TRIM(COALESCE(json_extract(next_approval.value, '$.id'), '')) <> '' AND EXISTS (SELECT 1 FROM `+tableApprovals+` AS durable_approval WHERE durable_approval.id = TRIM(json_extract(next_approval.value, '$.id')) AND durable_approval.run_id = `+tableRuns+`.id AND durable_approval.status = ?) AND (CASE WHEN TRIM(COALESCE(json_extract(next_approval.value, '$.id'), '')) <> '' THEN 'id:' || TRIM(json_extract(next_approval.value, '$.id')) WHEN TRIM(COALESCE(json_extract(next_approval.value, '$.confirmationCallId'), '')) <> '' THEN 'confirmation:' || TRIM(json_extract(next_approval.value, '$.confirmationCallId')) WHEN TRIM(COALESCE(json_extract(next_approval.value, '$.functionCallId'), '')) <> '' THEN 'function:' || TRIM(json_extract(next_approval.value, '$.functionCallId')) ELSE '' END) <> '' AND NOT EXISTS (SELECT 1 FROM json_each(`+tableRuns+`.payload_json, '$.pendingApprovals') AS current_approval WHERE (CASE WHEN TRIM(COALESCE(json_extract(current_approval.value, '$.id'), '')) <> '' THEN 'id:' || TRIM(json_extract(current_approval.value, '$.id')) WHEN TRIM(COALESCE(json_extract(current_approval.value, '$.confirmationCallId'), '')) <> '' THEN 'confirmation:' || TRIM(json_extract(current_approval.value, '$.confirmationCallId')) WHEN TRIM(COALESCE(json_extract(current_approval.value, '$.functionCallId'), '')) <> '' THEN 'function:' || TRIM(json_extract(current_approval.value, '$.functionCallId')) ELSE '' END) = (CASE WHEN TRIM(COALESCE(json_extract(next_approval.value, '$.id'), '')) <> '' THEN 'id:' || TRIM(json_extract(next_approval.value, '$.id')) WHEN TRIM(COALESCE(json_extract(next_approval.value, '$.confirmationCallId'), '')) <> '' THEN 'confirmation:' || TRIM(json_extract(next_approval.value, '$.confirmationCallId')) WHEN TRIM(COALESCE(json_extract(next_approval.value, '$.functionCallId'), '')) <> '' THEN 'function:' || TRIM(json_extract(next_approval.value, '$.functionCallId')) ELSE '' END))))`,
 		run.ID, run.SessionID, run.AgentID, run.Status, string(payload), run.CreatedAt, run.UpdatedAt,
 		RunStatusCompleted, RunStatusFailed, RunStatusDenied, RunStatusCancelled, RunStatusTimedOut,
 		RunStatusCancelled, RunStatusCancelled, RunStatusCompleted, workflowStatusRunning,
 		RunStatusCompleted, RunStatusFailed, RunStatusDenied, RunStatusCancelled, RunStatusTimedOut,
 		RunStatusCompleted, RunStatusPending,
+		RunStatusRunning, "approval_resuming", RunStatusPending, ApprovalStatusPending, ApprovalStatusPending,
 	)
 	return err
 }
@@ -253,6 +254,67 @@ func (s *Store) ResolvePendingApproval(ctx context.Context, id string, status st
 		return current, false, currentErrOrNotFound(currentErr, currentOK)
 	}
 	return approval, true, nil
+}
+
+// resolveAndStageApproval atomically resolves one approval, merges all
+// authoritative sibling states into the embedded run, and claims the sole
+// pending-to-resuming transition.
+func (s *Store) resolveAndStageApproval(ctx context.Context, approvalID, status string) (Approval, bool, *Run, bool, error) {
+	if s == nil || s.db == nil {
+		return Approval{}, false, nil, false, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	stage, err := s.beginApprovalStage(ctx)
+	if err != nil {
+		return Approval{}, false, nil, false, err
+	}
+	defer stage.rollback()
+
+	approval, changed, found, err := stage.resolveApproval(ctx, approvalID, status)
+	if err != nil {
+		return Approval{}, false, nil, false, err
+	}
+	if !found {
+		return Approval{}, false, nil, false, stage.commit()
+	}
+	if approval.Status != status {
+		return approval, false, nil, false, stage.commit()
+	}
+	if !changed {
+		if err := stage.lockPendingRun(ctx, approval.RunID); err != nil {
+			return Approval{}, false, nil, false, err
+		}
+	}
+
+	run, pending, err := stage.pendingRun(ctx, approval.RunID)
+	if err != nil {
+		return Approval{}, false, nil, false, err
+	}
+	if !pending {
+		return approval, changed, nil, false, stage.commit()
+	}
+
+	replaced, denied, err := stage.mergeApprovalStates(ctx, &run, approval)
+	if err != nil {
+		return Approval{}, false, nil, false, err
+	}
+	if !replaced {
+		return approval, changed, &run, false, stage.commit()
+	}
+
+	if denied {
+		if err := stage.denyPendingSiblings(ctx, &run); err != nil {
+			return Approval{}, false, nil, false, err
+		}
+	}
+
+	shouldContinue := prepareApprovalContinuation(&run, denied)
+	if err := stage.savePendingRun(ctx, &run); err != nil {
+		return Approval{}, false, nil, false, err
+	}
+	return approval, changed, &run, shouldContinue, stage.commit()
 }
 
 func (s *Store) Approval(ctx context.Context, id string) (Approval, bool, error) {

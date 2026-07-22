@@ -180,6 +180,9 @@ func TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands(t *testi
 
 	service := newExecutionTestService(
 		WithDefaultTradingEnvironment(func() string { return "real" }),
+		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+			return PreTradeRiskConfig{RealTradingEnabled: true}
+		})),
 		WithListOrders(func(_ context.Context, filter ExecutionOrderFilter) (ExecutionOrders, error) {
 			listedFilter = filter
 			return ExecutionOrders{Orders: []ExecutionOrder{{
@@ -420,6 +423,153 @@ func TestCreateExecutionOrderAllowsSimulateWhenRealTradingIsDisabled(t *testing.
 	}
 }
 
+func TestPlaceExecutionOrderResolvesImplicitRealEnvironmentBeforeRisk(t *testing.T) {
+	plane, err := NewRealTradeControlPlane("")
+	if err != nil {
+		t.Fatalf("NewRealTradeControlPlane: %v", err)
+	}
+	maxQty := 10.0
+	if _, err := plane.UpdateRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{
+		RealTradingEnabled: true,
+		MaxOrderQuantity:   &maxQty,
+	}); err != nil {
+		t.Fatalf("UpdateRuntimeRiskConfig: %v", err)
+	}
+	if _, err := plane.ActivateKillSwitch(t.Context(), RealTradeKillSwitchCommand{Reason: "incident"}); err != nil {
+		t.Fatalf("ActivateKillSwitch: %v", err)
+	}
+
+	brokerCalled := false
+	service := newExecutionTestService(
+		WithDefaultTradingEnvironment(func() string { return "real" }),
+		WithPreTradeRiskGateway(plane),
+		WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
+			brokerCalled = true
+			return ExecutionOrder{InternalOrderID: "unexpected"}, nil
+		}),
+	)
+	_, err = service.PlaceExecutionOrder(t.Context(), ExecutionOrderCommand{
+		BrokerID: "futu",
+		Symbol:   "US.AAPL",
+		Query: broker.PlaceOrderQuery{
+			ReadQuery: broker.ReadQuery{Market: "US"},
+			Side:      "BUY",
+			OrderType: "MARKET",
+			Quantity:  1,
+		},
+	})
+	var riskErr RiskRejectedError
+	if !errors.As(err, &riskErr) || riskErr.Decision.ReasonCode != "REAL_TRADE_KILL_SWITCH_ACTIVE" {
+		t.Fatalf("PlaceExecutionOrder error = %v, want implicit REAL kill-switch rejection", err)
+	}
+	if brokerCalled {
+		t.Fatal("order gateway was called after implicit REAL risk rejection")
+	}
+}
+
+func TestPlaceExecutionOrderFailsClosedWithoutRealRiskGateway(t *testing.T) {
+	brokerCalled := false
+	service := newExecutionTestService(
+		WithDefaultTradingEnvironment(func() string { return "REAL" }),
+		WithPlaceOrder(func(context.Context, ExecutionOrderCommand) (ExecutionOrder, error) {
+			brokerCalled = true
+			return ExecutionOrder{InternalOrderID: "unexpected"}, nil
+		}),
+	)
+	_, err := service.PlaceExecutionOrder(t.Context(), ExecutionOrderCommand{
+		Query: broker.PlaceOrderQuery{
+			ReadQuery: broker.ReadQuery{Market: "US"},
+			Side:      "BUY",
+			OrderType: "MARKET",
+			Quantity:  1,
+		},
+	})
+	var riskErr RiskRejectedError
+	if !errors.As(err, &riskErr) || riskErr.Decision.ReasonCode != "PRE_TRADE_RISK_UNAVAILABLE" {
+		t.Fatalf("PlaceExecutionOrder error = %v, want fail-closed risk rejection", err)
+	}
+	if brokerCalled {
+		t.Fatal("order gateway was called without a REAL pre-trade risk gateway")
+	}
+}
+
+func TestKillSwitchActivationWaitsForInFlightRealPlacement(t *testing.T) {
+	plane, err := NewRealTradeControlPlane("")
+	if err != nil {
+		t.Fatalf("NewRealTradeControlPlane: %v", err)
+	}
+	maxQty := 10.0
+	if _, err := plane.UpdateRuntimeRiskConfig(t.Context(), RealTradeRuntimeRiskCommand{
+		RealTradingEnabled: true,
+		MaxOrderQuantity:   &maxQty,
+	}); err != nil {
+		t.Fatalf("UpdateRuntimeRiskConfig: %v", err)
+	}
+
+	placementEntered := make(chan struct{})
+	releasePlacement := make(chan struct{})
+	service := newExecutionTestService(
+		WithPreTradeRiskGateway(plane),
+		WithPlaceOrder(func(ctx context.Context, command ExecutionOrderCommand) (ExecutionOrder, error) {
+			close(placementEntered)
+			select {
+			case <-releasePlacement:
+				return ExecutionOrder{InternalOrderID: "placed-before-kill"}, nil
+			case <-ctx.Done():
+				return ExecutionOrder{}, ctx.Err()
+			}
+		}),
+	)
+	command := ExecutionOrderCommand{
+		BrokerID: "futu",
+		Symbol:   "US.AAPL",
+		Query: broker.PlaceOrderQuery{
+			ReadQuery: broker.ReadQuery{TradingEnvironment: "REAL", Market: "US"},
+			Side:      "BUY",
+			OrderType: "MARKET",
+			Quantity:  1,
+		},
+	}
+
+	placementDone := make(chan error, 1)
+	go func() {
+		_, placeErr := service.PlaceExecutionOrder(t.Context(), command)
+		placementDone <- placeErr
+	}()
+	select {
+	case <-placementEntered:
+	case <-time.After(time.Second):
+		t.Fatal("REAL placement did not reach broker gateway")
+	}
+
+	activationStarted := make(chan struct{})
+	activationDone := make(chan error, 1)
+	go func() {
+		close(activationStarted)
+		_, activateErr := plane.ActivateKillSwitch(t.Context(), RealTradeKillSwitchCommand{Reason: "incident"})
+		activationDone <- activateErr
+	}()
+	<-activationStarted
+	select {
+	case activateErr := <-activationDone:
+		t.Fatalf("kill switch activated before in-flight placement completed: %v", activateErr)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(releasePlacement)
+	if err := <-placementDone; err != nil {
+		t.Fatalf("in-flight placement: %v", err)
+	}
+	if err := <-activationDone; err != nil {
+		t.Fatalf("ActivateKillSwitch: %v", err)
+	}
+	_, err = service.PlaceExecutionOrder(t.Context(), command)
+	var riskErr RiskRejectedError
+	if !errors.As(err, &riskErr) || riskErr.Decision.ReasonCode != "REAL_TRADE_KILL_SWITCH_ACTIVE" {
+		t.Fatalf("placement after activation error = %v, want kill-switch rejection", err)
+	}
+}
+
 func TestPreTradeRiskRejectsKillSwitchAndLimits(t *testing.T) {
 	price := 10.0
 	maxQty := 5.0
@@ -458,6 +608,80 @@ func TestPreTradeRiskRejectsKillSwitchAndLimits(t *testing.T) {
 		t.Fatalf("stop notional decision = %#v", decision)
 	}
 
+}
+
+func TestPreTradeRiskEnforcesAmountModeQuantityAndNotionalLimits(t *testing.T) {
+	price := 0.50
+	amount := 60.0
+	command := ExecutionOrderCommand{
+		OrderKind:    broker.OrderKindEventSingle,
+		ProductClass: broker.ProductClassEventContract,
+		QuantityMode: broker.QuantityModeAmount,
+		Query: broker.PlaceOrderQuery{
+			ReadQuery:    broker.ReadQuery{TradingEnvironment: "REAL"},
+			ProductClass: broker.ProductClassEventContract,
+			QuantityMode: broker.QuantityModeAmount,
+			Amount:       &amount,
+			Price:        &price,
+		},
+	}
+
+	maxQuantity := 50.0
+	quantityGateway := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderQty: &maxQuantity}
+	})
+	if decision := quantityGateway.EvaluatePlaceOrder(t.Context(), command); decision.Allows() || decision.ReasonCode != "MAX_ORDER_QUANTITY_EXCEEDED" {
+		t.Fatalf("amount-mode quantity decision = %#v", decision)
+	}
+
+	maxNotional := 50.0
+	notionalGateway := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderNotional: &maxNotional}
+	})
+	if decision := notionalGateway.EvaluatePlaceOrder(t.Context(), command); decision.Allows() || decision.ReasonCode != "MAX_ORDER_NOTIONAL_EXCEEDED" {
+		t.Fatalf("amount-mode notional decision = %#v", decision)
+	}
+
+	missingAmount := command
+	missingAmount.Query.Amount = nil
+	if decision := notionalGateway.EvaluatePlaceOrder(t.Context(), missingAmount); decision.Allows() || decision.ReasonCode != "RISK_AMOUNT_UNAVAILABLE" {
+		t.Fatalf("missing amount decision = %#v", decision)
+	}
+
+	withoutDisplayPrice := command
+	withoutDisplayPrice.Query.Price = nil
+	withinQuantity := 100.0
+	quantityOnlyGateway := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderQty: &withinQuantity}
+	})
+	if decision := quantityOnlyGateway.EvaluatePlaceOrder(t.Context(), withoutDisplayPrice); !decision.Allows() {
+		t.Fatalf("amount-mode decision should not depend on caller price: %#v", decision)
+	}
+
+	withinNotional := 100.0
+	notionalOnlyGateway := NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+		return PreTradeRiskConfig{RealTradingEnabled: true, RuntimeMaxOrderNotional: &withinNotional}
+	})
+	if decision := notionalOnlyGateway.EvaluatePlaceOrder(t.Context(), withoutDisplayPrice); !decision.Allows() {
+		t.Fatalf("amount-mode notional decision with no price = %#v, want allow", decision)
+	}
+
+	spoofedAmount := 1.0
+	spoofedEquity := ExecutionOrderCommand{
+		ProductClass: broker.ProductClassEquity,
+		QuantityMode: broker.QuantityModeUnits,
+		Query: broker.PlaceOrderQuery{
+			ReadQuery:    broker.ReadQuery{TradingEnvironment: "REAL"},
+			ProductClass: broker.ProductClassEquity,
+			QuantityMode: broker.QuantityModeUnits,
+			Quantity:     1_000_000,
+			Amount:       &spoofedAmount,
+			Price:        &price,
+		},
+	}
+	if decision := notionalOnlyGateway.EvaluatePlaceOrder(t.Context(), spoofedEquity); decision.Allows() || decision.ReasonCode != "INVALID_ORDER_RISK_SHAPE" {
+		t.Fatalf("non-event amount spoof decision = %#v", decision)
+	}
 }
 
 func TestPreTradeRiskSnapshotUsesNonNilEmptySlices(t *testing.T) {

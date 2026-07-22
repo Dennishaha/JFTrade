@@ -166,9 +166,8 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 
 	funds := &broker.FundsSnapshot{AccountID: "acct-1", Market: "US"}
 	positions := []broker.PositionSnapshot{{AccountID: "acct-1", Symbol: "US.AAPL", Quantity: 3}}
-	orderResult := &broker.PlaceOrderResult{BrokerOrderID: "order-1", Status: "SUBMITTED"}
 	reader := &servercoreFakeBrokerReader{funds: funds, positions: positions}
-	trading := &servercoreFakeBrokerTrading{result: orderResult}
+	trading := &servercoreFakeBrokerTrading{}
 	bridge := &strategyRuntimeBrokerBridge{broker: servercoreFakeBroker{reader: reader, trading: trading}}
 
 	query := broker.ReadQuery{AccountID: "acct-1", Market: "US"}
@@ -182,8 +181,8 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 	}
 	placeQuery := broker.PlaceOrderQuery{ReadQuery: query, Symbol: "US.AAPL", Quantity: 1}
 	gotOrder, err := bridge.PlaceBrokerOrder(ctx, placeQuery)
-	if err != nil || gotOrder != orderResult || trading.placeQuery.Symbol != "US.AAPL" {
-		t.Fatalf("PlaceBrokerOrder() = %#v err=%v trading=%#v", gotOrder, err, trading)
+	if err == nil || gotOrder != nil || !strings.Contains(err.Error(), "pre-trade boundary") || trading.placeQuery.Symbol != "" {
+		t.Fatalf("PlaceBrokerOrder() = %#v err=%v trading=%#v, want fail-closed bridge", gotOrder, err, trading)
 	}
 
 	missingReader := &strategyRuntimeBrokerBridge{broker: servercoreFakeBroker{}}
@@ -193,8 +192,8 @@ func TestMarketdataProviderAndBrokerBridgeDelegates(t *testing.T) {
 	if _, err := missingReader.QueryBrokerPositions(ctx, query); err == nil || !strings.Contains(err.Error(), "market data not available") {
 		t.Fatalf("missing positions reader error = %v", err)
 	}
-	if _, err := missingReader.PlaceBrokerOrder(ctx, placeQuery); err == nil || !strings.Contains(err.Error(), "trading not available") {
-		t.Fatalf("missing trading error = %v", err)
+	if _, err := missingReader.PlaceBrokerOrder(ctx, placeQuery); err == nil || !strings.Contains(err.Error(), "pre-trade boundary") {
+		t.Fatalf("direct placement guard error = %v", err)
 	}
 }
 

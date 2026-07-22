@@ -23,6 +23,36 @@ import {
 
 import { apiGetPath, fetchEnvelope } from "./apiClient";
 
+const marketTimeZones: Record<string, string> = {
+  AU: "Australia/Sydney",
+  CA: "America/Toronto",
+  CN: "Asia/Shanghai",
+  GB: "Europe/London",
+  HK: "Asia/Hong_Kong",
+  JP: "Asia/Tokyo",
+  MY: "Asia/Kuala_Lumpur",
+  SG: "Asia/Singapore",
+  US: "America/New_York",
+};
+
+function marketLocalDate(checkedAt: string, market: string): string {
+  const value = checkedAt.trim();
+  const parsed = new Date(value);
+  if (value === "" || Number.isNaN(parsed.getTime())) {
+    return value.slice(0, 10);
+  }
+  const timeZone = marketTimeZones[market.trim().toUpperCase()] ?? "UTC";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(parsed);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 interface CreateConsoleDataBrokerLiveQueryControllerOptions {
   systemStatus: Ref<SystemStatusResponse>;
   brokerCashFlows: Ref<BrokerCashFlowsResponse>;
@@ -401,15 +431,9 @@ export function createConsoleDataBrokerLiveQueryController(
         return;
       }
 
-      // Split results: active orders go to activeExecutionOrders, historical go to historicalExecutionOrders
-      options.historicalExecutionOrders.value = {
-        orders: allOrders.orders,
-      };
-
-      // Also update active orders from the full response (in case new active orders appeared)
-      options.activeExecutionOrders.value = {
-        orders: allOrders.orders,
-      };
+	  options.historicalExecutionOrders.value = {
+		orders: allOrders.orders,
+	  };
     } catch (error) {
       if (requestToken !== historicalRequestToken) {
         return;
@@ -501,7 +525,10 @@ export function createConsoleDataBrokerLiveQueryController(
           funds.summary?.tradingEnvironment ??
           options.systemStatus.value.defaultTradingEnvironment,
         market: funds.summary?.market ?? parseBrokerQueryContext(input.brokerQuery).market,
-        clearingDate: funds.checkedAt.slice(0, 10),
+		clearingDate: marketLocalDate(
+		  funds.checkedAt,
+		  funds.summary?.market ?? parseBrokerQueryContext(input.brokerQuery).market,
+		),
       }),
       loadBrokerPeripheralReads({
         brokerId: input.brokerId,

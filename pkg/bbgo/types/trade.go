@@ -69,14 +69,18 @@ type Trade struct {
 	GID int64 `json:"gid" db:"gid"`
 
 	// ID is the source trade ID
-	ID            uint64           `json:"id" db:"id"`
-	OrderID       uint64           `json:"orderID" db:"order_id"`
-	OrderUUID     string           `json:"orderUUID,omitempty" db:"order_uuid"`
-	Exchange      ExchangeName     `json:"exchange" db:"exchange"`
-	Price         fixedpoint.Value `json:"price" db:"price"`
-	Quantity      fixedpoint.Value `json:"quantity" db:"quantity"`
-	QuoteQuantity fixedpoint.Value `json:"quoteQuantity" db:"quote_quantity"`
-	Symbol        string           `json:"symbol" db:"symbol"`
+	ID        uint64           `json:"id" db:"id"`
+	OrderID   uint64           `json:"orderID" db:"order_id"`
+	OrderUUID string           `json:"orderUUID,omitempty" db:"order_uuid"`
+	Exchange  ExchangeName     `json:"exchange" db:"exchange"`
+	Price     fixedpoint.Value `json:"price" db:"price"`
+	// Quantity is the volume represented by this event only.
+	Quantity fixedpoint.Value `json:"quantity" db:"quantity"`
+	// CumulativeVolume is the optional provider volume counter observed with
+	// this event.
+	CumulativeVolume *fixedpoint.Value `json:"cumulativeVolume,omitempty" db:"-"`
+	QuoteQuantity    fixedpoint.Value  `json:"quoteQuantity" db:"quote_quantity"`
+	Symbol           string            `json:"symbol" db:"symbol"`
 
 	Side          SideType         `json:"side" db:"side"`
 	IsBuyer       bool             `json:"isBuyer" db:"is_buyer"`

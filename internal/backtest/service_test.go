@@ -351,6 +351,9 @@ func TestEnsureScriptDataBecomesReadyAfterCompletedSyncFillsCoverage(t *testing.
 	if !second.Ready || second.Status != DataStatusReady {
 		t.Fatalf("readiness = %#v, want ready after sync", second)
 	}
+	if len(svc.dataSyncTasks) != 0 {
+		t.Fatalf("completed data sync task was retained after coverage became ready: %#v", svc.dataSyncTasks)
+	}
 }
 
 func TestEnsureDefinitionsDataUsesMaximumCandidateWarmup(t *testing.T) {

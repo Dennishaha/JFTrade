@@ -113,14 +113,18 @@ func (r *Runtime) prepareResumedExecution(ctx context.Context, run Run, executio
 	// When the execution carries over from a previous approval round we
 	// keep accumulating text so the final assistant message contains the
 	// full conversation.
+	execution.mu.Lock()
 	if execution.reply.Len() == 0 && execution.reasoning.Len() == 0 {
 		execution.reply.Reset()
 		execution.reasoning.Reset()
 	}
+	execution.mu.Unlock()
 	return r.maybeAutoCompactSessionDuringWorkflow(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, execution.agent, run.UserMessage, nil)
 }
 
 func seedResumedConfirmationIDs(execution *googleADKExecution, approvals []Approval) {
+	execution.mu.Lock()
+	defer execution.mu.Unlock()
 	if execution.processedConfirmationIDs == nil {
 		execution.processedConfirmationIDs = make(map[string]struct{})
 	}

@@ -238,4 +238,7 @@ func TestStandardStream_Close(t *testing.T) {
 	if err := s.Close(); err != nil {
 		t.Fatalf("close error: %v", err)
 	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("second close error: %v", err)
+	}
 }

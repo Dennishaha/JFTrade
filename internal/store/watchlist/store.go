@@ -169,12 +169,17 @@ func (s *Store) UpdateGroup(ctx context.Context, groupID, name string, expectedR
 		return domain.Group{}, err
 	}
 	if affected == 0 {
-		if _, getErr := s.GetGroup(ctx, groupID); errors.Is(getErr, domain.ErrNotFound) {
-			return domain.Group{}, getErr
-		}
-		return domain.Group{}, domain.ErrConflict
+		_, getErr := s.GetGroup(ctx, groupID)
+		return domain.Group{}, classifyGroupUpdateMiss(getErr)
 	}
 	return s.GetGroup(ctx, groupID)
+}
+
+func classifyGroupUpdateMiss(lookupErr error) error {
+	if lookupErr != nil {
+		return lookupErr
+	}
+	return domain.ErrConflict
 }
 
 func (s *Store) DeleteGroup(ctx context.Context, groupID string) error {

@@ -449,3 +449,28 @@ func TestServiceMergesAdditionalDemandIntoExactReconciliation(t *testing.T) {
 		t.Fatalf("merged exact refs = %#v", refs)
 	}
 }
+
+func TestServiceCloseLeavesPhysicalSubscriptionsEmpty(t *testing.T) {
+	reconciler := &fakeSubscriptionReconciler{}
+	service := NewService(stubProvider{})
+	service.SetSubscriptionReconciler(reconciler)
+	service.StartCollector(nil, nil, nil, DemandSourceFunc(func() []string {
+		return []string{"US.AAPL"}
+	}))
+	service.WakeCollector()
+
+	if err := service.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	lengths := reconciler.snapshots()
+	if len(lengths) == 0 || lengths[len(lengths)-1] != 0 {
+		t.Fatalf("reconciliation sizes after close = %#v, want final empty subscription set", lengths)
+	}
+
+	service.WakeCollector()
+	time.Sleep(10 * time.Millisecond)
+	lengths = reconciler.snapshots()
+	if lengths[len(lengths)-1] != 0 {
+		t.Fatalf("closed collector reconciled subscriptions again: %#v", lengths)
+	}
+}

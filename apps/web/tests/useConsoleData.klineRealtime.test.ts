@@ -711,6 +711,7 @@ describe("console data realtime kline overlay", () => {
       type: "market-data.tick",
       at: "2026-05-21T13:29:58.400Z",
       brokerId: "futu",
+      cumulativeVolume: 1450200,
       instrument: {
         market: "US",
         symbol: "AAPL",
@@ -737,6 +738,7 @@ describe("console data realtime kline overlay", () => {
       type: "market-data.tick",
       at: "2026-05-21T13:29:58.800Z",
       brokerId: "futu",
+      cumulativeVolume: 1450400,
       instrument: {
         market: "US",
         symbol: "AAPL",
@@ -806,6 +808,7 @@ describe("console data realtime kline overlay", () => {
       type: "market-data.tick",
       at: "2026-05-17T01:30:05.000Z",
       brokerId: "futu",
+      cumulativeVolume: 1282000,
       instrument: {
         market: "HK",
         symbol: "00700",
@@ -899,6 +902,7 @@ describe("console data realtime kline overlay", () => {
       type: "market-data.tick",
       at: "2026-05-17T01:30:00.250Z",
       brokerId: "futu",
+      cumulativeVolume: 1282000,
       instrument: {
         market: "HK",
         symbol: "00700",
@@ -981,6 +985,7 @@ describe("console data realtime kline overlay", () => {
       type: "market-data.tick",
       at: "2026-05-17T01:30:05.000Z",
       brokerId: "futu",
+      cumulativeVolume: 1282000,
       instrument: {
         market: "HK",
         symbol: "00700",
@@ -1005,6 +1010,7 @@ describe("console data realtime kline overlay", () => {
       type: "market-data.tick",
       at: "2026-05-17T01:30:20.000Z",
       brokerId: "futu",
+      cumulativeVolume: 1282100,
       instrument: {
         market: "HK",
         symbol: "00700",
@@ -1029,6 +1035,7 @@ describe("console data realtime kline overlay", () => {
       type: "market-data.tick",
       at: "2026-05-17T01:30:45.000Z",
       brokerId: "futu",
+      cumulativeVolume: 1282200,
       instrument: {
         market: "HK",
         symbol: "00700",
@@ -1131,6 +1138,7 @@ describe("console data realtime kline overlay", () => {
       type: "market-data.tick",
       at: "2026-05-17T01:30:20.000Z",
       brokerId: "futu",
+      cumulativeVolume: 1282100,
       instrument: {
         market: "HK",
         symbol: "00700",
@@ -1324,6 +1332,7 @@ describe("console data realtime kline overlay", () => {
         type: "market-data.tick",
         at: tick.at,
         brokerId: "futu",
+        cumulativeVolume: tick.volume,
         instrument: {
           market: "HK",
           symbol: "00700",
@@ -1377,7 +1386,7 @@ describe("console data realtime kline overlay", () => {
         high: 322.4,
         low: 321.1,
         close: 322.4,
-        volume: 0,
+        volume: 400,
         at: "2026-05-17T01:31:00.000Z",
         displayAt: "2026-05-17T01:32:00.000Z",
       },
@@ -1429,6 +1438,7 @@ describe("console data realtime kline overlay", () => {
         type: "market-data.tick",
         at: tick.at,
         brokerId: "futu",
+        cumulativeVolume: tick.volume,
         instrument: {
           market: "HK",
           symbol: "00700",
@@ -1482,7 +1492,7 @@ describe("console data realtime kline overlay", () => {
         high: 322.4,
         low: 321.1,
         close: 322.4,
-        volume: 0,
+        volume: 400,
         at: "2026-05-17T01:35:00.000Z",
         displayAt: "2026-05-17T01:40:00.000Z",
       },

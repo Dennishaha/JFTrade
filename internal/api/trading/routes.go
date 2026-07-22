@@ -560,6 +560,8 @@ func writeOperationResult(c *gin.Context, result any, err error, failureCode str
 		httpserver.WriteError(c, http.StatusServiceUnavailable, "NO_TRADING", err.Error())
 	case errors.Is(err, srv.ErrUnlockUnsupported):
 		httpserver.WriteError(c, http.StatusServiceUnavailable, "NOT_SUPPORTED", err.Error())
+	case srv.IsRiskRejected(err):
+		httpserver.WriteError(c, http.StatusConflict, "PRE_TRADE_RISK_REJECTED", err.Error())
 	case err != nil:
 		httpserver.WriteError(c, http.StatusBadGateway, failureCode, err.Error())
 	default:

@@ -260,6 +260,7 @@ describe("Backtest page", () => {
     expect(wrapper.text()).toContain("101,250.50");
     expect(wrapper.get(".bt-order-table-scroll").exists()).toBe(true);
     expect(wrapper.get(".bt-order-table").exists()).toBe(true);
+    expect(wrapper.get(".bt-warmup-label").text()).toBe("预热");
     writeSetupValue(setup, "activeReportTab", "properties");
     await nextTick();
     expect(wrapper.text()).toContain("最终资金");
@@ -442,6 +443,10 @@ describe("Backtest page", () => {
     expect(call("pnlColor", -1)).toBe("tv-down");
     expect(call("pnlPrefix", 0)).toBe("+");
     expect(call("pnlPrefix", -1)).toBe("");
+    expect(call("usesClosedTradeStats", richRun.result)).toBe(true);
+    expect(call("usesClosedTradeStats", { totalTrades: 2 })).toBe(false);
+    expect(call("backtestFillCount", richRun.result)).toBe(40);
+    expect(call("backtestFillCount", { totalTrades: 2 })).toBe(2);
     expect(call("drawdownColor", 0.1)).toBe("bt-metric-negative");
     expect(call("drawdownColor", 0)).toBe("bt-text");
     expect(call("formatPercentMetric", 0.1234)).toBe("12.34%");
@@ -711,6 +716,8 @@ function buildDetailedBacktestRun(): any {
     pnlPct: 0.0125,
     maxDrawdown: 0.08,
     finalBalance: 101_250.5,
+    tradeStatsVersion: 2,
+    totalFills: 40,
     totalTrades: 20,
     winRate: 0.55,
     currentDrawdown: 0.02,
@@ -738,6 +745,7 @@ function buildDetailedBacktestRun(): any {
       orderType: "LIMIT",
       price: 100 + index,
       quantity: 10,
+      warmup: index === 0,
     })),
     candles: [
       { time: "2026-06-02T00:00:00.000Z", open: 101, high: 102, low: 100, close: 101, volume: 10 },

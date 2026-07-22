@@ -186,6 +186,33 @@ func TestCallFrameReturnsWriteAndCloseFailures(t *testing.T) {
 	})
 }
 
+func TestReadLoopClosesConnectionOnOversizedFrame(t *testing.T) {
+	clientConn, peerConn := net.Pipe()
+	defer func() { jftradeCheckTestError(t, peerConn.Close()) }()
+
+	client := New(Config{})
+	client.conn = clientConn
+	pendingResponse := &pending{ch: make(chan codec.Frame)}
+	client.pend[9] = pendingResponse
+	go client.readLoop(clientConn)
+
+	tooLargeHeader := make([]byte, codec.HeaderLen)
+	binary.LittleEndian.PutUint32(tooLargeHeader[12:16], codec.MaxFrameBodyLen+1)
+	writeOpenDTestBytes(t, peerConn, tooLargeHeader)
+
+	select {
+	case <-client.Done():
+	case <-time.After(time.Second):
+		t.Fatal("read loop did not close client after oversized frame header")
+	}
+	if _, ok := <-pendingResponse.ch; ok {
+		t.Fatal("oversized frame did not fail the pending request")
+	}
+	if _, err := peerConn.Write([]byte{0}); err == nil {
+		t.Fatal("peer remained writable after oversized frame closed the stream")
+	}
+}
+
 func TestReadLoopDiscardsInvalidFramesAndClosesOnTruncation(t *testing.T) {
 	clientConn, peerConn := net.Pipe()
 	defer func() { jftradeCheckTestError(t, peerConn.Close()) }()
@@ -193,10 +220,6 @@ func TestReadLoopDiscardsInvalidFramesAndClosesOnTruncation(t *testing.T) {
 	client := New(Config{})
 	client.conn = clientConn
 	go client.readLoop(clientConn)
-
-	tooLargeHeader := make([]byte, codec.HeaderLen)
-	binary.LittleEndian.PutUint32(tooLargeHeader[12:16], codec.MaxFrameBodyLen+1)
-	writeOpenDTestBytes(t, peerConn, tooLargeHeader)
 
 	badPacket := make([]byte, codec.HeaderLen)
 	writeOpenDTestBytes(t, peerConn, badPacket)

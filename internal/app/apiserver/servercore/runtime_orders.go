@@ -71,6 +71,9 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 		if order.Price.Sign() > 0 {
 			placeQuery.Price = new(order.Price.Float64())
 		}
+		if order.StopPrice.Sign() > 0 {
+			placeQuery.StopPrice = new(order.StopPrice.Float64())
+		}
 		timeInForce := strings.ToUpper(string(order.TimeInForce))
 		if timeInForce == "" {
 			timeInForce = "DAY"

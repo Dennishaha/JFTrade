@@ -375,6 +375,114 @@ describe("createMarketDataQueryController", () => {
     });
   });
 
+  it("keeps live candle volume when a slower historical response arrives", async () => {
+    const { controller, state, fetchEnvelope } = createController();
+    state.marketDataQueryMarket.value = "US";
+    state.marketDataQuerySymbol.value = "AAPL";
+    state.marketDataQueryPeriod.value = "1m";
+    state.marketDataQueryLimit.value = 2;
+
+    const snapshot = createDeferred<MarketDataSnapshotQueryResult>();
+    const security = createDeferred<MarketSecurityDetailsQueryResult>();
+    const candles = createDeferred<MarketDataCandlesQueryResult>();
+    fetchEnvelope
+      .mockReturnValueOnce(snapshot.promise)
+      .mockReturnValueOnce(security.promise)
+      .mockReturnValueOnce(candles.promise);
+
+    const pending = controller.loadQuery();
+    const initialSnapshot = createSnapshotResult("US", "AAPL", 200);
+    snapshot.resolve(initialSnapshot);
+    security.resolve(createSecurityDetailsResult("US", "AAPL"));
+    await Promise.resolve();
+
+    for (const [seconds, price, cumulativeVolume, volumeDelta] of [
+      [10, 201, 1_005, 5],
+      [20, 202, 1_012, 7],
+    ] as const) {
+      const at = `2026-07-03T12:00:${seconds}.000Z`;
+      controller.applyTickEvent({
+        type: "market-data.tick",
+        at,
+        brokerId: "futu",
+        instrument: {
+          market: "US",
+          symbol: "AAPL",
+          instrumentId: "US.AAPL",
+        },
+        cumulativeVolume,
+        volumeDelta,
+        snapshot: {
+          price,
+          bid: price - 0.1,
+          ask: price + 0.1,
+          volume: cumulativeVolume,
+          turnover: cumulativeVolume * price,
+          at,
+          observedAt: at,
+          session: "regular",
+        },
+        source: "websocket",
+      });
+    }
+
+    const staleHistory = createCandlesResult("US", "AAPL", "1m", [
+      {
+        period: "1m",
+        open: 200,
+        high: 201,
+        low: 199.5,
+        close: 200.5,
+        volume: 3,
+        at: "2026-07-03T12:00:00.000Z",
+      },
+    ]);
+    staleHistory.meta.resolvedAt = "2026-07-03T12:00:05.000Z";
+    candles.resolve(staleHistory);
+    await pending;
+
+    expect(state.marketDataCandles.value?.candles).toHaveLength(1);
+    expect(state.marketDataCandles.value?.candles[0]).toMatchObject({
+      at: "2026-07-03T12:00:00.000Z",
+      high: 202,
+      close: 202,
+      volume: 12,
+    });
+    expect(state.marketDataSnapshot.value?.snapshot).toMatchObject({
+      price: 202,
+      barVolume: 12,
+    });
+
+    controller.applyTickEvent({
+      type: "market-data.tick",
+      at: "2026-07-03T12:00:30.000Z",
+      brokerId: "futu",
+      instrument: {
+        market: "US",
+        symbol: "AAPL",
+        instrumentId: "US.AAPL",
+      },
+      cumulativeVolume: 1_016,
+      volumeDelta: 4,
+      snapshot: {
+        price: 203,
+        bid: 202.9,
+        ask: 203.1,
+        volume: 1_016,
+        turnover: 206_248,
+        at: "2026-07-03T12:00:30.000Z",
+        observedAt: "2026-07-03T12:00:30.000Z",
+        session: "regular",
+      },
+      source: "websocket",
+    });
+
+    expect(state.marketDataCandles.value?.candles[0]).toMatchObject({
+      close: 203,
+      volume: 16,
+    });
+  });
+
   it("loads only older candles, preserves accumulated history, and updates matching tick events", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-03T12:30:00.000Z"));
@@ -485,6 +593,7 @@ describe("createMarketDataQueryController", () => {
       type: "market-data.tick",
       at: "2026-07-03T12:30:02.000Z",
       brokerId: "futu",
+      cumulativeVolume: 1015,
       instrument: {
         market: "US",
         symbol: "AAPL",
@@ -506,6 +615,7 @@ describe("createMarketDataQueryController", () => {
       type: "market-data.tick",
       at: "2026-07-03T12:30:03.000Z",
       brokerId: "futu",
+      cumulativeVolume: 1030,
       instrument: {
         market: "US",
         symbol: "AAPL",

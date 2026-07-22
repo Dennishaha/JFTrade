@@ -74,11 +74,13 @@ func openDatabase(path string, readOnly bool, opts ...Option) (*DB, error) {
 	options := resolveOptions(opts...)
 	reader.SetMaxOpenConns(options.MaxOpenConns)
 	reader.SetMaxIdleConns(options.MaxIdleConns)
+	coordinator := coordinatorForPath(trimmedPath)
 
 	return &DB{
-		reader:      reader,
-		writer:      writer,
-		coordinator: coordinatorForPath(trimmedPath),
+		reader:          reader,
+		writer:          writer,
+		coordinator:     coordinator,
+		coordinatorPath: trimmedPath,
 	}, nil
 }
 

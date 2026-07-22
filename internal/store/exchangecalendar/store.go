@@ -14,11 +14,27 @@ import (
 )
 
 type Store struct {
-	root string
+	root        string
+	replaceFile func(source string, destination string) error
+	createTemp  func(directory string, pattern string) (snapshotTemporaryFile, error)
 }
 
 func New(root string) *Store {
-	return &Store{root: strings.TrimSpace(root)}
+	return &Store{
+		root:        strings.TrimSpace(root),
+		replaceFile: replaceSnapshotFile,
+		createTemp: func(directory string, pattern string) (snapshotTemporaryFile, error) {
+			return os.CreateTemp(directory, pattern)
+		},
+	}
+}
+
+type snapshotTemporaryFile interface {
+	Name() string
+	Chmod(mode fs.FileMode) error
+	Write(body []byte) (int, error)
+	Sync() error
+	Close() error
 }
 
 func (s *Store) Root() string {
@@ -50,7 +66,49 @@ func (s *Store) SaveSnapshot(snapshot marketcalendar.CalendarSnapshot) error {
 	if err != nil {
 		return fmt.Errorf("marshal exchange calendar snapshot: %w", err)
 	}
-	return os.WriteFile(path, append(body, '\n'), 0o644)
+	if err := s.writeSnapshot(path, append(body, '\n')); err != nil {
+		return fmt.Errorf("write exchange calendar snapshot: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) writeSnapshot(path string, body []byte) error {
+	directory := filepath.Dir(path)
+	createTemp := s.createTemp
+	if createTemp == nil {
+		createTemp = func(directory string, pattern string) (snapshotTemporaryFile, error) {
+			return os.CreateTemp(directory, pattern)
+		}
+	}
+	temporary, err := createTemp(directory, ".calendar-snapshot-*.tmp")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer func() { _ = os.Remove(temporaryPath) }()
+	if err := temporary.Chmod(0o644); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if _, err := temporary.Write(body); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	replace := s.replaceFile
+	if replace == nil {
+		replace = replaceSnapshotFile
+	}
+	if err := replace(temporaryPath, path); err != nil {
+		return err
+	}
+	return syncSnapshotDirectory(directory)
 }
 
 func (s *Store) LoadSnapshots() ([]marketcalendar.CalendarSnapshot, []error) {

@@ -1,6 +1,9 @@
 package marketdata
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 func TickCandles(samples []Tick, from, to time.Time, limit int) []map[string]any {
 	if to.IsZero() {
@@ -11,22 +14,14 @@ func TickCandles(samples []Tick, from, to time.Time, limit int) []map[string]any
 	}
 
 	candles := make([]map[string]any, 0, len(samples))
-	previousCumulativeVolume := 0.0
-	hasPreviousCumulativeVolume := false
 	for _, sample := range samples {
-		deltaVolume := 0.0
-		if hasPreviousCumulativeVolume {
-			deltaVolume = sample.Volume - previousCumulativeVolume
-			if deltaVolume < 0 {
-				deltaVolume = 0
-			}
-		}
-		previousCumulativeVolume = sample.Volume
-		hasPreviousCumulativeVolume = true
-
 		observedAt := parseTime(sample.ObservedAt)
 		if !observedAt.IsZero() && (observedAt.Before(from) || observedAt.After(to)) {
 			continue
+		}
+		deltaVolume := sample.VolumeDelta
+		if deltaVolume < 0 || math.IsNaN(deltaVolume) || math.IsInf(deltaVolume, 0) {
+			deltaVolume = 0
 		}
 		candles = append(candles, map[string]any{
 			"period":  "tick",

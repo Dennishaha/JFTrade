@@ -21,7 +21,7 @@ export type { MarketDataTickLiveEvent };
 const MAX_BUFFERED_EVENTS = 20;
 const INITIAL_RECONNECT_DELAY_MS = 500;
 const MAX_RECONNECT_DELAY_MS = 5000;
-const MAX_RECONNECT_ATTEMPTS = 10;
+const MAX_RECONNECT_BACKOFF_STEP = 4;
 
 export type LiveSocketConnectionState =
   | "idle"
@@ -167,7 +167,7 @@ class SharedLiveSocketHub {
 
   private socket: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private reconnectAttempts = 0;
+  private reconnectBackoffStep = 0;
   private shouldReconnect = false;
   private currentAttemptConnected = false;
   private activeUrl: string | null = null;
@@ -213,7 +213,7 @@ class SharedLiveSocketHub {
       }
       this.connectionState.value = "connected";
       this.currentAttemptConnected = true;
-      this.reconnectAttempts = 0;
+      this.reconnectBackoffStep = 0;
       this.sendSubscriptionSnapshot(true);
     });
 
@@ -282,7 +282,7 @@ class SharedLiveSocketHub {
   disconnect(): void {
     this.shouldReconnect = false;
     this.activeUrl = null;
-    this.reconnectAttempts = 0;
+    this.reconnectBackoffStep = 0;
     this.clearReconnectTimer();
     this.closeActiveSocket(true);
   }
@@ -503,16 +503,18 @@ class SharedLiveSocketHub {
       !this.shouldReconnect ||
       this.activeUrl == null ||
       this.socket != null ||
-      this.reconnectTimer != null ||
-      this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS
+      this.reconnectTimer != null
     ) {
       return;
     }
     const delay = Math.min(
-      INITIAL_RECONNECT_DELAY_MS * 2 ** this.reconnectAttempts,
+      INITIAL_RECONNECT_DELAY_MS * 2 ** this.reconnectBackoffStep,
       MAX_RECONNECT_DELAY_MS,
     );
-    this.reconnectAttempts += 1;
+    this.reconnectBackoffStep = Math.min(
+      this.reconnectBackoffStep + 1,
+      MAX_RECONNECT_BACKOFF_STEP,
+    );
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       if (this.shouldReconnect && this.activeUrl != null) {

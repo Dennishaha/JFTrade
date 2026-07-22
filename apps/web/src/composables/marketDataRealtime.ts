@@ -30,6 +30,7 @@ import {
   type MarketDataRealtimeBarPriceState,
 } from "./marketDataRealtimeBarPriceState";
 import {
+  findMarketDataCandleAt,
   mergeMarketDataCandles,
   upsertMarketDataRealtimeCandle,
   upsertMarketDataTickCandle,
@@ -296,6 +297,10 @@ export interface MarketDataTickLiveEvent {
   type: "market-data.tick";
   at: string;
   brokerId: string;
+  /** Explicit cumulative trade-volume sequence for realtime bar derivation. */
+  cumulativeVolume?: number | null;
+  /** Explicit volume represented by this event. */
+  volumeDelta?: number | null;
   instrument: {
     market: string;
     symbol: string;
@@ -345,8 +350,25 @@ export function normalizeMarketDataTickLiveEvent(
   if (snapshot == null) {
     return null;
   }
+  const eventRecord = event as unknown as Record<string, unknown>;
+  const cumulativeVolume = normalizeNumberish(eventRecord.cumulativeVolume);
+  const volumeDelta = normalizeNumberish(eventRecord.volumeDelta);
   return {
     ...event,
+    ...(Object.hasOwn(eventRecord, "cumulativeVolume")
+      ? {
+          cumulativeVolume:
+            cumulativeVolume != null && cumulativeVolume >= 0
+              ? cumulativeVolume
+              : null,
+        }
+      : {}),
+    ...(Object.hasOwn(eventRecord, "volumeDelta")
+      ? {
+          volumeDelta:
+            volumeDelta != null && volumeDelta >= 0 ? volumeDelta : null,
+        }
+      : {}),
     snapshot,
   } as MarketDataTickLiveEvent;
 }
@@ -406,14 +428,21 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
 
   function resolveMarketDataTickSampleVolume(
     event: MarketDataTickLiveEvent,
-  ): number {
-    const resolution = resolveMarketDataTickVolumeUpdate(
-      marketDataRealtimeTickVolumeState,
-      event.instrument.instrumentId,
-      event.snapshot.volume,
-    );
+    observedAt: string,
+  ): { currentBarVolume: number; ignored: boolean } {
+    const resolution = resolveMarketDataTickVolumeUpdate({
+      previousState: marketDataRealtimeTickVolumeState,
+      instrumentId: event.instrument.instrumentId,
+      bucketAt: observedAt,
+      observedAt,
+      cumulativeVolume: event.cumulativeVolume,
+      volumeDelta: event.volumeDelta,
+    });
     marketDataRealtimeTickVolumeState = resolution.nextState;
-    return resolution.deltaVolume;
+    return {
+      currentBarVolume: resolution.deltaVolume,
+      ignored: resolution.ignored,
+    };
   }
 
   function resolveMarketDataCurrentBarPriceState(
@@ -438,7 +467,10 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
     }
 
     let candles = context.candles;
-    const existingCandle = candles?.candles.find((candle) => candle.at === bucketAt);
+    const existingCandle =
+      candles == null
+        ? undefined
+        : findMarketDataCandleAt(candles.candles, bucketAt);
     const previousState = marketDataRealtimeBarPriceState;
     const resolution = resolveMarketDataBarPriceUpdate({
       previousState,
@@ -476,9 +508,10 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
   function resolveMarketDataCurrentBarVolume(
     event: MarketDataTickLiveEvent,
     context: MarketDataRealtimeContext,
-  ): number | null {
+    observedAt: string,
+  ): { currentBarVolume: number | null; ignored: boolean } {
     if (context.period === "tick") {
-      return resolveMarketDataTickSampleVolume(event);
+      return resolveMarketDataTickSampleVolume(event, observedAt);
     }
 
     const bucketAt = resolveMarketDataRealtimeTickBucketAt({
@@ -489,24 +522,30 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
     });
     if (bucketAt == null) {
       marketDataRealtimeBarVolumeState = null;
-      return null;
+      return { currentBarVolume: null, ignored: false };
     }
 
-    const existingCandle = context.candles?.candles.find(
-      (candle) => candle.at === bucketAt,
-    );
+    const existingCandle =
+      context.candles == null
+        ? undefined
+        : findMarketDataCandleAt(context.candles.candles, bucketAt);
     const resolution = resolveMarketDataBarVolumeUpdate({
       previousState: marketDataRealtimeBarVolumeState,
       instrumentId: event.instrument.instrumentId,
       period: context.period,
       bucketAt,
-      cumulativeVolume: event.snapshot.volume,
+      observedAt,
+      cumulativeVolume: event.cumulativeVolume,
+      volumeDelta: event.volumeDelta,
       existingCandleVolume: existingCandle?.volume ?? null,
       existingCandleUnfinalized:
         existingCandle != null && existingCandle.displayAt == null,
     });
     marketDataRealtimeBarVolumeState = resolution.nextState;
-    return resolution.currentBarVolume;
+    return {
+      currentBarVolume: resolution.currentBarVolume,
+      ignored: resolution.ignored,
+    };
   }
 
   function mergeSnapshot(
@@ -518,6 +557,7 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
       context,
       barPriceState: marketDataRealtimeBarPriceState,
       barVolumeState: marketDataRealtimeBarVolumeState,
+      tickVolumeState: marketDataRealtimeTickVolumeState,
     });
   }
 
@@ -537,6 +577,14 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
       eventAt: event.at,
       snapshot: event.snapshot,
     });
+    const volumeResolution = resolveMarketDataCurrentBarVolume(
+      event,
+      input,
+      observedAt,
+    );
+    if (volumeResolution.ignored) {
+      return null;
+    }
     const priceStateResult = resolveMarketDataCurrentBarPriceState(
       event,
       input,
@@ -545,10 +593,7 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
       ...input,
       candles: priceStateResult.candles,
     };
-    const currentBarVolume = resolveMarketDataCurrentBarVolume(
-      event,
-      nextInput,
-    );
+    const currentBarVolume = volumeResolution.currentBarVolume;
     const currentSnapshot =
       input.currentSnapshot?.request.instrumentId === event.instrument.instrumentId
         ? input.currentSnapshot.snapshot

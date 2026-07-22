@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -263,7 +263,7 @@ func (s *Server) futuOpenDHealth(ctx context.Context) map[string]any {
 		},
 		"localSocketDiagnostics": s.liveSocketDiagnostics(config),
 		"localInstallation": map[string]any{
-			"platform": os.Getenv("GOOS"), "installed": false, "version": nil, "installPath": nil, "guiDetected": false,
+			"platform": runtime.GOOS, "installed": false, "version": nil, "installPath": nil, "guiDetected": false,
 			"process": map[string]any{"running": false, "pid": nil, "executablePath": nil},
 		},
 		"latestVersion":   map[string]any{"value": nil, "sourceUrl": nil, "checkedAt": nil, "status": "unknown", "error": nil},
@@ -461,7 +461,7 @@ func (s *Server) emptyFutuOpenDHealth(config FutuIntegrationConfig) map[string]a
 		},
 		"localSocketDiagnostics": s.liveSocketDiagnostics(config),
 		"localInstallation": map[string]any{
-			"platform": os.Getenv("GOOS"), "installed": false, "version": nil, "installPath": nil, "guiDetected": false,
+			"platform": runtime.GOOS, "installed": false, "version": nil, "installPath": nil, "guiDetected": false,
 			"process": map[string]any{"running": false, "pid": nil, "executablePath": nil},
 		},
 		"latestVersion":   map[string]any{"value": nil, "sourceUrl": nil, "checkedAt": nil, "status": "unknown", "error": nil},

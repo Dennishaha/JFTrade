@@ -122,6 +122,51 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	}
 }
 
+func TestStrategyRuntimeLiveOrderPassesStopPriceToExecutionGateway(t *testing.T) {
+	var captured trdsrv.ExecutionOrderCommand
+	manager := &strategyRuntimeManager{
+		runtimes: map[string]*managedStrategyRuntime{},
+		deps: strategyRuntimeManagerDeps{
+			placeExecutionOrder: func(_ context.Context, command trdsrv.ExecutionOrderCommand) (trdsrv.ExecutionOrder, error) {
+				captured = command
+				return trdsrv.ExecutionOrder{InternalOrderID: "internal-stop"}, nil
+			},
+			appendRuntimeEvent: func(string, string, string, string) error { return nil },
+		},
+	}
+	executor := &strategyLiveOrderExecutor{
+		manager: manager,
+		instance: managedStrategyInstance{
+			ID: "stop-instance",
+			Binding: strategyInstanceBinding{
+				RuntimeRisk: strategyRuntimeRiskSettings{Mode: "off"},
+			},
+		},
+		runner: &strategySymbolRuntime{lastClosedPrice: 100},
+	}
+	stopPrice := fixedpoint.NewFromFloat(95.25)
+	orders, err := executor.SubmitOrders(t.Context(), bbgotypes.SubmitOrder{
+		ClientOrderID: "stop-order",
+		Symbol:        "US.AAPL",
+		Side:          bbgotypes.SideTypeSell,
+		Type:          bbgotypes.OrderTypeStopMarket,
+		Quantity:      fixedpoint.NewFromFloat(1),
+		StopPrice:     stopPrice,
+	})
+	if err != nil || len(orders) != 1 {
+		t.Fatalf("SubmitOrders = %#v, %v", orders, err)
+	}
+	if captured.OrderType != string(bbgotypes.OrderTypeStopMarket) || captured.Query.OrderType != string(bbgotypes.OrderTypeStopMarket) {
+		t.Fatalf("execution order types = %q/%q", captured.OrderType, captured.Query.OrderType)
+	}
+	if captured.Query.StopPrice == nil || *captured.Query.StopPrice != stopPrice.Float64() {
+		t.Fatalf("execution stop price = %#v, want %v", captured.Query.StopPrice, stopPrice.Float64())
+	}
+	if captured.Query.Price != nil {
+		t.Fatalf("stop-market limit price = %#v, want nil", captured.Query.Price)
+	}
+}
+
 func TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {

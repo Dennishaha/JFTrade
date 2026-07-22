@@ -21,6 +21,8 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 		PnL:                    5000,
 		MaxDrawdown:            0.08,
 		CurrentDrawdown:        0.01,
+		TradeStatsVersion:      2,
+		TotalFills:             24,
 		TotalTrades:            12,
 		WinRate:                0.58,
 		Trades:                 []TradeEvent{{Time: "2026-06-23T13:31:00Z", Side: "BUY", Price: "100", Qty: "10"}},
@@ -109,6 +111,9 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 	}
 	if snapshot.WarningTotal != 1 || snapshot.IgnoredOrders != 1 {
 		t.Fatalf("snapshot warning counters lost: warningTotal=%d ignoredOrders=%d", snapshot.WarningTotal, snapshot.IgnoredOrders)
+	}
+	if snapshot.TradeStatsVersion != 2 || snapshot.TotalFills != 24 {
+		t.Fatalf("snapshot trade-stat metadata lost: version=%d fills=%d", snapshot.TradeStatsVersion, snapshot.TotalFills)
 	}
 }
 

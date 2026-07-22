@@ -33,17 +33,15 @@ func httpFetchTool(ctx context.Context, input map[string]any) (any, error) {
 		return nil, err
 	}
 	timeout := 12 * time.Second
-	client := &http.Client{
-		Timeout: timeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if err := rejectUnsafeHost(req.Context(), req.URL.Hostname()); err != nil {
-				return fmt.Errorf("redirect to unsafe host %q blocked: %w", req.URL.Hostname(), err)
-			}
-			if len(via) >= 5 {
-				return fmt.Errorf("too many redirects (max 5)")
-			}
-			return nil
-		},
+	client := newSafeHTTPClient(timeout, rejectUnsafeHost)
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := rejectUnsafeHost(req.Context(), req.URL.Hostname()); err != nil {
+			return fmt.Errorf("redirect to unsafe host %q blocked: %w", req.URL.Hostname(), err)
+		}
+		if len(via) >= 5 {
+			return fmt.Errorf("too many redirects (max 5)")
+		}
+		return nil
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
 	if err != nil {

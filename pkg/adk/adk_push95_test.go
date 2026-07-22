@@ -779,7 +779,7 @@ func TestRunnerLifecycleHelperCoverage(t *testing.T) {
 	t.Run("recentOpenAIMessages trims content and skips approval placeholders", func(t *testing.T) {
 		messages := recentOpenAIMessages([]Message{
 			{Role: "user", Content: "   "},
-			{Role: "assistant", Content: "绛夊緟鐢ㄦ埛瀹℃壒"},
+			{Role: "assistant", Content: "等待用户审批"},
 			{Role: "assistant", Content: "assistant reply"},
 			{Role: "user", Content: "123456789"},
 		}, 10, 6)
@@ -900,11 +900,15 @@ func TestRunnerApprovalHelperCoverage(t *testing.T) {
 			UpdatedAt: nowString(),
 			Usage:     &RunUsage{},
 		})
-		resolution, shouldContinue, err := runtime.stageResolvedApproval(ctx, Approval{
+		approval := Approval{
 			ID:     "missing-approval",
 			RunID:  run.ID,
-			Status: ApprovalStatusApproved,
-		}, true)
+			Status: ApprovalStatusPending,
+		}
+		if err := runtime.Store().SaveApproval(ctx, approval); err != nil {
+			t.Fatalf("SaveApproval: %v", err)
+		}
+		resolution, shouldContinue, err := runtime.stageResolvedApproval(ctx, approval, true)
 		if err != nil || shouldContinue || resolution.Run == nil || resolution.Run.ID != run.ID {
 			t.Fatalf("stageResolvedApproval resolution=%+v shouldContinue=%v err=%v", resolution, shouldContinue, err)
 		}

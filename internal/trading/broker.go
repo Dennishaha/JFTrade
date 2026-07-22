@@ -397,6 +397,9 @@ func (s *Service) PortfolioPositions(ctx context.Context, query broker.ReadQuery
 }
 
 func (s *Service) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*BrokerPlaceOrderResponse, error) {
+	// Resolve the environment before risk evaluation. Leaving it empty lets a
+	// broker choose its only available account, which may be a REAL account.
+	query.TradingEnvironment = s.executionEnvironment(query.TradingEnvironment)
 	active, err := s.resolveBroker(query.BrokerID, true)
 	if err != nil {
 		return nil, err
@@ -405,7 +408,27 @@ func (s *Service) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQ
 	if trading == nil {
 		return nil, ErrTradingUnsupported
 	}
-	result, err := trading.PlaceOrder(ctx, query)
+	command := ExecutionOrderCommand{
+		BrokerID:     firstNonEmpty(active.ID(), strings.TrimSpace(query.BrokerID)),
+		Query:        query,
+		Symbol:       query.Symbol,
+		Side:         query.Side,
+		OrderType:    query.OrderType,
+		ProductClass: query.ProductClass,
+		QuantityMode: query.QuantityMode,
+	}
+	if query.Remark != nil {
+		command.Remark = *query.Remark
+	}
+	if query.Session != nil {
+		command.Session = *query.Session
+	}
+	var result *broker.PlaceOrderResult
+	err = s.executePlaceOrderWithRisk(ctx, command, func() error {
+		var submitErr error
+		result, submitErr = trading.PlaceOrder(ctx, query)
+		return submitErr
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -457,20 +480,14 @@ func (s *Service) PositionsWithTimeout(ctx context.Context, query broker.ReadQue
 func withTimeout[T any](ctx context.Context, timeout time.Duration, key string, fn func(context.Context) (T, error), onError func(error) T) T {
 	queryCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	done := make(chan T, 1)
-	go func() {
-		value, err := fn(queryCtx)
-		if err != nil {
-			value = onError(err)
-		}
-		done <- value
-	}()
-	select {
-	case <-queryCtx.Done():
+	value, err := fn(queryCtx)
+	if queryCtx.Err() != nil {
 		return onError(fmt.Errorf("%s query timed out after %s", key, timeout))
-	case value := <-done:
-		return value
 	}
+	if err != nil {
+		return onError(err)
+	}
+	return value
 }
 
 func (s *Service) marketDataReader(brokerID string) (broker.MarketDataReader, error) {

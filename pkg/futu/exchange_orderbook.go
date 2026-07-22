@@ -25,7 +25,7 @@ func (e *Exchange) QueryOrderBook(ctx context.Context, symbol string, num int32)
 	}
 
 	var result *opend.OrderBookResult
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		res, err := client.GetOrderBook(ctx, opend.OrderBookRequest{
 			Security: security,
 			Num:      num,
@@ -60,7 +60,7 @@ func (e *Exchange) SubscribeOrderBook(ctx context.Context, symbol string, push b
 		return err
 	}
 	request := orderBookRequest{canonical: canonical, security: security}
-	return e.withClient(ctx, func(client *opend.Client) error {
+	return e.withRetryingClient(ctx, func(client *opend.Client) error {
 		if push {
 			return e.ensureOrderBookPushSubscriptions(ctx, client, []orderBookRequest{request})
 		}
@@ -91,7 +91,7 @@ func (e *Exchange) UnsubscribeOrderBook(ctx context.Context, symbol string) erro
 	if security.GetMarket() == int32(qotcommonpb.QotMarket_QotMarket_HK_Security) {
 		request.IsSubOrderBookDetail = new(true)
 	}
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		return client.SubscribeQuotes(ctx, request)
 	}); err != nil {
 		return err

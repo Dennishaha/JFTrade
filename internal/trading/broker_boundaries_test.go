@@ -129,10 +129,21 @@ func TestServiceBrokerWriteOperationsPropagateUpstreamFailures(t *testing.T) {
 			return upstream
 		},
 	}
-	service := NewService(WithActiveBroker(func() broker.Broker { return activeBroker }))
+	service := NewService(
+		WithActiveBroker(func() broker.Broker { return activeBroker }),
+		WithPreTradeRiskGateway(NewStaticPreTradeRiskGateway(func() PreTradeRiskConfig {
+			return PreTradeRiskConfig{RealTradingEnabled: true}
+		})),
+	)
 	query := broker.ReadQuery{BrokerID: "futu", AccountID: "acc-1", TradingEnvironment: "REAL", Market: "US"}
 
-	if _, err := service.PlaceBrokerOrder(t.Context(), broker.PlaceOrderQuery{ReadQuery: query}); !errors.Is(err, upstream) {
+	if _, err := service.PlaceBrokerOrder(t.Context(), broker.PlaceOrderQuery{
+		ReadQuery: query,
+		Symbol:    "US.AAPL",
+		Side:      "BUY",
+		OrderType: "MARKET",
+		Quantity:  1,
+	}); !errors.Is(err, upstream) {
 		t.Fatalf("PlaceBrokerOrder error = %v, want upstream", err)
 	}
 	if _, err := service.CancelBrokerOrders(t.Context(), query, []broker.CancelOrder{{BrokerOrderID: "order-1"}}); !errors.Is(err, upstream) {

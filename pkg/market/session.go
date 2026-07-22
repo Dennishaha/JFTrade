@@ -175,8 +175,8 @@ func TradingDayLabelStart(symbol string, at time.Time, includeExtendedHours bool
 }
 
 // TradingDayBoundaryStart returns the actual UTC instant where the market
-// trading day containing at begins. US extended-hours trading rolls at 20:00
-// America/New_York on the previous calendar day.
+// trading day containing at begins. US extended-hours trading rolls at the
+// calendar template's overnight carry boundary on the previous local day.
 func TradingDayBoundaryStart(symbol string, at time.Time, includeExtendedHours bool) (time.Time, bool) {
 	profile, ok := ProfileForSymbol(symbol)
 	if !ok {
@@ -188,7 +188,8 @@ func TradingDayBoundaryStart(symbol string, at time.Time, includeExtendedHours b
 	}
 	if includeExtendedHours && IsUSSymbol(symbol) {
 		previousDay := localDay.AddDate(0, 0, -1)
-		return time.Date(previousDay.Year(), previousDay.Month(), previousDay.Day(), 20, 0, 0, 0, profile.Location).UTC(), true
+		carryStart := overnightCarryStartMinute(profile)
+		return time.Date(previousDay.Year(), previousDay.Month(), previousDay.Day(), carryStart/60, carryStart%60, 0, 0, profile.Location).UTC(), true
 	}
 	return time.Date(localDay.Year(), localDay.Month(), localDay.Day(), 0, 0, 0, 0, profile.Location).UTC(), true
 }
@@ -374,11 +375,18 @@ func tradingPeriodLocalDay(profile Profile, symbol string, at time.Time, include
 	case SessionClosed, SessionUnknown:
 		return time.Time{}, false
 	case SessionOvernight:
-		if local.Hour()*60+local.Minute() >= 20*60 {
+		if local.Hour()*60+local.Minute() >= overnightCarryStartMinute(profile) {
 			local = local.AddDate(0, 0, 1)
 		}
 	}
 	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, profile.Location), true
+}
+
+func overnightCarryStartMinute(profile Profile) int {
+	if template, ok := CurrentCalendarResolver().Template(profile.Market); ok {
+		return template.OvernightCarryStartMin
+	}
+	return 20 * 60
 }
 
 func tradingPeriodLabelStartFromLocalDay(localDay time.Time, unit string) (time.Time, bool) {

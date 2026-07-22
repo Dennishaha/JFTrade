@@ -76,8 +76,14 @@ describe("marketDataRealtimeSnapshot", () => {
       instrumentId: "HK.00700",
       period: "1m",
       bucketAt: "2026-05-17T01:30:00.000Z",
-      baselineCumulativeVolume: 1280000,
-      baseBarVolume: 18000,
+      currentBarVolume: 20000,
+      sequence: {
+        lastCumulativeVolume: 1282000,
+        lastObservedAt: "2026-05-17T01:30:05.000Z",
+        lastObservedAtMs: Date.parse("2026-05-17T01:30:05.000Z"),
+        lastSampleCumulativeVolume: 1282000,
+        lastSampleVolumeDelta: null,
+      },
     };
 
     expect(
@@ -86,6 +92,7 @@ describe("marketDataRealtimeSnapshot", () => {
         context,
         barPriceState,
         barVolumeState,
+        tickVolumeState: null,
       }),
     ).toEqual({
       ...current,
@@ -99,7 +106,7 @@ describe("marketDataRealtimeSnapshot", () => {
     });
   });
 
-  it("returns the original snapshot result unchanged for tick period", () => {
+  it("does not derive tick volume from the generic snapshot volume", () => {
     const current: MarketDataSnapshotQueryResult = {
       request: {
         market: "HK",
@@ -131,8 +138,12 @@ describe("marketDataRealtimeSnapshot", () => {
         },
         barPriceState: null,
         barVolumeState: null,
-      }),
-    ).toBe(current);
+        tickVolumeState: null,
+      })?.snapshot,
+    ).toEqual({
+      ...current.snapshot,
+      barVolume: null,
+    });
 
     const malformedTimestamp = {
       ...current,
@@ -144,6 +155,7 @@ describe("marketDataRealtimeSnapshot", () => {
         context: { candles: null, period: "1m" },
         barPriceState: null,
         barVolumeState: null,
+        tickVolumeState: null,
       }),
     ).toBe(malformedTimestamp);
   });

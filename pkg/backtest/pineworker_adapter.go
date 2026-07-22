@@ -3,6 +3,7 @@ package backtest
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/types"
@@ -87,8 +88,27 @@ func CommandFromOrderIntent(intent pineworker.OrderIntent) (WorkerOrderCommand, 
 	if err != nil {
 		return WorkerOrderCommand{}, false, err
 	}
+	hasLimitPrice := intent.HasLimitPrice || intent.LimitPrice != 0
+	hasStopPrice := intent.HasStopPrice || intent.StopPrice != 0
+	if hasLimitPrice && (intent.LimitPrice <= 0 || math.IsNaN(intent.LimitPrice) || math.IsInf(intent.LimitPrice, 0)) {
+		return WorkerOrderCommand{}, false, fmt.Errorf("pine worker %s intent limit price must be positive and finite", kind)
+	}
+	if hasStopPrice && (intent.StopPrice <= 0 || math.IsNaN(intent.StopPrice) || math.IsInf(intent.StopPrice, 0)) {
+		return WorkerOrderCommand{}, false, fmt.Errorf("pine worker %s intent stop price must be positive and finite", kind)
+	}
 	orderType := types.OrderTypeMarket
-	if intent.HasLimitPrice || intent.LimitPrice > 0 {
+	switch {
+	case hasLimitPrice && hasStopPrice:
+		if kind == "exit" {
+			return WorkerOrderCommand{}, false, fmt.Errorf("pine worker exit intent with both limit and stop prices is an OCO bracket that the order command protocol cannot safely express")
+		}
+		if kind != "entry" && kind != "order" {
+			return WorkerOrderCommand{}, false, fmt.Errorf("pine worker %s intent cannot combine limit and stop prices", kind)
+		}
+		orderType = types.OrderTypeStopLimit
+	case hasStopPrice:
+		orderType = types.OrderTypeStopMarket
+	case hasLimitPrice:
 		orderType = types.OrderTypeLimit
 	}
 	command := WorkerOrderCommand{

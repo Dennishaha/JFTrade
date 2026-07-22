@@ -18,6 +18,7 @@ type pineWorkerReplaySizer struct {
 	mu          sync.RWMutex
 	netPosition fixedpoint.Value
 	lastPrice   fixedpoint.Value
+	orderExecuted map[string]fixedpoint.Value
 }
 
 func newPineWorkerReplaySizer(symbol string, quoteCurrency string, account *types.Account) *pineWorkerReplaySizer {
@@ -25,6 +26,7 @@ func newPineWorkerReplaySizer(symbol string, quoteCurrency string, account *type
 		symbol:        strings.TrimSpace(symbol),
 		quoteCurrency: strings.TrimSpace(quoteCurrency),
 		account:       account,
+		orderExecuted: make(map[string]fixedpoint.Value),
 	}
 }
 
@@ -41,22 +43,31 @@ func (sizer *pineWorkerReplaySizer) onKLineClosed(kline types.KLine) {
 }
 
 func (sizer *pineWorkerReplaySizer) onOrderUpdate(order types.Order) {
-	if sizer == nil || order.Status != types.OrderStatusFilled {
+	if sizer == nil || (order.Status != types.OrderStatusFilled && order.Status != types.OrderStatusPartiallyFilled) {
 		return
 	}
 	if sizer.symbol != "" && order.Symbol != sizer.symbol {
 		return
 	}
-	quantity := order.ExecutedQuantity
-	if quantity.IsZero() {
-		quantity = order.Quantity
+	executed := order.ExecutedQuantity
+	if executed.IsZero() && order.Status == types.OrderStatusFilled {
+		executed = order.Quantity
 	}
-	if quantity.Sign() <= 0 {
+	if executed.Sign() <= 0 {
 		return
 	}
 
 	sizer.mu.Lock()
 	defer sizer.mu.Unlock()
+	if sizer.orderExecuted == nil {
+		sizer.orderExecuted = make(map[string]fixedpoint.Value)
+	}
+	key := orderBookEntryKey(order)
+	quantity := executed.Sub(sizer.orderExecuted[key])
+	if quantity.Sign() <= 0 {
+		return
+	}
+	sizer.orderExecuted[key] = executed
 	switch order.Side {
 	case types.SideTypeBuy:
 		sizer.netPosition = sizer.netPosition.Add(quantity)

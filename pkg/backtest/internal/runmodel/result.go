@@ -13,6 +13,7 @@ type TradeEvent struct {
 	Side        string  `json:"side"`
 	Price       string  `json:"price"`
 	Qty         string  `json:"qty"`
+	Warmup      bool    `json:"warmup,omitempty"`
 	PnL         float64 `json:"pnl,omitempty"`
 	BrokerFee   float64 `json:"brokerFee,omitempty"`
 	MarketFee   float64 `json:"marketFee,omitempty"`
@@ -35,6 +36,7 @@ type OrderBookEntry struct {
 	FilledQuantity string  `json:"filledQuantity,omitempty"`
 	FilledPrice    string  `json:"filledPrice,omitempty"`
 	FilledAt       string  `json:"filledAt,omitempty"`
+	Warmup         bool    `json:"warmup,omitempty"`
 	BrokerFee      float64 `json:"brokerFee,omitempty"`
 	MarketFee      float64 `json:"marketFee,omitempty"`
 	TotalFee       float64 `json:"totalFee,omitempty"`
@@ -95,6 +97,8 @@ type RunResult struct {
 	TradingCosts      TradingCosts        `json:"tradingCosts"`
 	MaxDrawdown       float64             `json:"maxDrawdown"`
 	CurrentDrawdown   float64             `json:"currentDrawdown"`
+	TradeStatsVersion int                 `json:"tradeStatsVersion,omitempty"`
+	TotalFills        int                 `json:"totalFills,omitempty"`
 	TotalTrades       int                 `json:"totalTrades"`
 	WinRate           float64             `json:"winRate"`
 	Trades            []TradeEvent        `json:"trades,omitempty"`
@@ -144,6 +148,8 @@ func (r *RunResult) Snapshot() *RunResult {
 		TradingCosts:           cloneTradingCosts(r.TradingCosts),
 		MaxDrawdown:            r.MaxDrawdown,
 		CurrentDrawdown:        r.CurrentDrawdown,
+		TradeStatsVersion:      r.TradeStatsVersion,
+		TotalFills:             r.TotalFills,
 		TotalTrades:            r.TotalTrades,
 		WinRate:                r.WinRate,
 		Trades:                 append([]TradeEvent(nil), r.Trades...),

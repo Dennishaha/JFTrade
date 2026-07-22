@@ -3,17 +3,20 @@ import * as protoLoader from "@grpc/proto-loader";
 import { startWorkerGrpcServer } from "./grpcServer";
 import { DeterministicPineTSExecutor } from "./mockExecutor";
 import { createNativePineTSExecutor } from "./pinetsExecutor";
+import { createPeakRSSReader, installFatalErrorHandlers } from "./processRuntime";
 
 declare const process: {
   argv?: string[];
+  platform?: string;
   on?: (event: string, handler: (error: unknown) => void) => unknown;
   once?: (event: string, handler: () => void) => unknown;
+  exit?: (code?: number) => never;
   resourceUsage?: () => { maxRSS: number };
 } | undefined;
 
 const args = parseArgs((process?.argv ?? []).slice(2));
-installFatalErrorLogging();
-const peakRSSBytes = createPeakRSSReader();
+installFatalErrorHandlers(process);
+const peakRSSBytes = createPeakRSSReader(process);
 const executor = args.mock ? new DeterministicPineTSExecutor() : await createNativePineTSExecutor(args.pinetsVersion);
 
 const server = await startWorkerGrpcServer({
@@ -66,28 +69,4 @@ function waitForShutdown(shutdown: () => void): Promise<void> {
     process.once("SIGINT", stop);
     process.once("SIGTERM", stop);
   });
-}
-
-function installFatalErrorLogging(): void {
-  process?.on?.("uncaughtException", (error) => {
-    console.error("pineworker uncaught exception", error);
-  });
-  process?.on?.("unhandledRejection", (error) => {
-    console.error("pineworker unhandled rejection", error);
-  });
-}
-
-function createPeakRSSReader(): () => number {
-  if (!process?.resourceUsage) {
-    throw new Error("process.resourceUsage is required for Pine worker RSS accounting");
-  }
-  const read = () => {
-    const maxRSSKiB = process.resourceUsage!().maxRSS;
-    if (!Number.isFinite(maxRSSKiB) || maxRSSKiB <= 0) {
-      throw new Error(`invalid Pine worker max RSS: ${maxRSSKiB}`);
-    }
-    return Math.round(maxRSSKiB * 1024);
-  };
-  read();
-  return read;
 }

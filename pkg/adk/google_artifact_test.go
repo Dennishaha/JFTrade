@@ -3,10 +3,13 @@ package adk
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	adkartifact "google.golang.org/adk/v2/artifact"
@@ -111,6 +114,72 @@ func TestGoogleADKArtifactServiceStoresVersionedArtifacts(t *testing.T) {
 		AppName: googleADKAppName("artifact-agent"), UserID: googleADKUserID, SessionID: "session-artifact", FileName: "report.txt",
 	}); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("Load deleted err = %v, want fs.ErrNotExist", err)
+	}
+}
+
+func TestGoogleADKArtifactServiceAllocatesAutoVersionsAtomically(t *testing.T) {
+	ctx := context.Background()
+	service, err := newGoogleADKArtifactService(filepath.Join(t.TempDir(), "adk-artifact.db"))
+	if err != nil {
+		t.Fatalf("newGoogleADKArtifactService: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := CloseArtifactService(service); err != nil {
+			t.Fatalf("CloseArtifactService: %v", err)
+		}
+	})
+
+	const saveCount = 32
+	start := make(chan struct{})
+	versions := make(chan int64, saveCount)
+	errorsBySave := make(chan error, saveCount)
+	var wg sync.WaitGroup
+	for i := 0; i < saveCount; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			<-start
+			response, saveErr := service.Save(ctx, &adkartifact.SaveRequest{
+				AppName: "concurrent-app", UserID: "user", SessionID: "session", FileName: "report.txt",
+				Part: genai.NewPartFromText(fmt.Sprintf("version-%d", index)),
+			})
+			if saveErr != nil {
+				errorsBySave <- saveErr
+				return
+			}
+			versions <- response.Version
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(errorsBySave)
+	close(versions)
+
+	for saveErr := range errorsBySave {
+		t.Errorf("concurrent Save: %v", saveErr)
+	}
+	got := make([]int64, 0, saveCount)
+	for version := range versions {
+		got = append(got, version)
+	}
+	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
+	if len(got) != saveCount {
+		t.Fatalf("saved versions = %v, want %d versions", got, saveCount)
+	}
+	for index, version := range got {
+		if want := int64(index + 1); version != want {
+			t.Fatalf("saved versions = %v, want contiguous 1..%d", got, saveCount)
+		}
+	}
+
+	listed, err := service.Versions(ctx, &adkartifact.VersionsRequest{
+		AppName: "concurrent-app", UserID: "user", SessionID: "session", FileName: "report.txt",
+	})
+	if err != nil {
+		t.Fatalf("Versions: %v", err)
+	}
+	if len(listed.Versions) != saveCount {
+		t.Fatalf("persisted versions = %v, want %d rows", listed.Versions, saveCount)
 	}
 }
 

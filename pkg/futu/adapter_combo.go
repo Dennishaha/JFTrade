@@ -89,7 +89,7 @@ func (a *futuAdapter) PreviewComboOrder(
 		return nil, fmt.Errorf("futu: option combo underlying: %w", err)
 	}
 	var result *broker.ProductRuleResult
-	if err := a.exchange.withClient(ctx, func(client *opend.Client) error {
+	if err := a.exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 		legality, legalityErr := a.validateOptionComboLegality(
 			ctx, client, intent, owner, optionStrategy, legs,
 		)
@@ -541,7 +541,7 @@ func (a *futuAdapter) validateActiveEventContracts(ctx context.Context, instrume
 		securityList = append(securityList, map[string]any{"market": 101, "code": code})
 	}
 	var payload map[string]any
-	if err := a.exchange.withClient(ctx, func(client *opend.Client) error {
+	if err := a.exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 		var callErr error
 		payload, callErr = client.CallAdvanced(ctx, "Qot_GetEventContractSnapshot", map[string]any{
 			"securityList": securityList,

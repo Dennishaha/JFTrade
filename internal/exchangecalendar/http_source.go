@@ -614,7 +614,8 @@ func extractSSEDateSpans(line string, year int, template marketcalendar.MarketTe
 		end := start
 		if strings.TrimSpace(match[4]) != "" && strings.TrimSpace(match[5]) != "" {
 			endYear := startYear
-			if strings.TrimSpace(match[6]) != "" {
+			explicitEndYear := strings.TrimSpace(match[6]) != ""
+			if explicitEndYear {
 				if parsedYear, err := strconv.Atoi(strings.TrimSpace(match[6])); err == nil {
 					endYear = parsedYear
 				}
@@ -622,6 +623,12 @@ func extractSSEDateSpans(line string, year int, template marketcalendar.MarketTe
 			parsedEnd, ok := parseMonthDayWithOptionalYear(match[4], match[5], endYear, template)
 			if !ok {
 				continue
+			}
+			if !explicitEndYear && parsedEnd.Month() < start.Month() {
+				parsedEnd, ok = parseMonthDayWithOptionalYear(match[4], match[5], endYear+1, template)
+				if !ok {
+					continue
+				}
 			}
 			end = parsedEnd
 		}

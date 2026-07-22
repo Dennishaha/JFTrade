@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -93,9 +94,101 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 	}
 
 	summary := s.orders[internalOrderID]
-	previousStatus, previousFilled, newFilled := applyBrokerOrderFill(&summary, fill, now)
+	alreadyCounted := s.brokerSnapshotCoveredFillQuantityLocked(internalOrderID, fill)
+	previousStatus, previousFilled, newFilled := applyBrokerOrderFillQuantity(&summary, fill, now, alreadyCounted)
 	order, event := s.persistBrokerOrderLocked(summary, stringPointerOrNil(previousStatus), "BROKER_FILL_RECEIVED", fill, summary.UpdatedAt)
 	return order, event, previousStatus != summary.Status || newFilled != previousFilled
+}
+
+type executionBrokerSnapshotFillPayload struct {
+	FilledQuantity *float64 `json:"filledQuantity"`
+	UpdatedAt      string   `json:"updatedAt"`
+}
+
+type executionBrokerFillPayload struct {
+	FilledQuantity float64 `json:"filledQuantity"`
+	FilledAt       string  `json:"filledAt"`
+}
+
+// brokerSnapshotCoveredFillQuantityLocked returns the part of a fill that is
+// already represented by the latest cumulative order snapshot.  Snapshot and
+// fill feeds do not share a universal event id, so the event log is used as a
+// durable reconciliation ledger: snapshot quantity minus known fill quantities
+// is the un-attributed quantity that a later duplicate fill may consume.
+func (s *executionOrderStore) brokerSnapshotCoveredFillQuantityLocked(internalOrderID string, fill broker.OrderFillSnapshot) float64 {
+	if s == nil || strings.TrimSpace(internalOrderID) == "" || fill.FilledQuantity <= 0 {
+		return 0
+	}
+	events := s.events[internalOrderID]
+	bestQuantity := 0.0
+	bestAt := ""
+	foundSnapshot := false
+	for _, event := range events {
+		if !isBrokerOrderSnapshotEvent(event.EventType) {
+			continue
+		}
+		var payload executionBrokerSnapshotFillPayload
+		if json.Unmarshal([]byte(event.PayloadJSON), &payload) != nil || payload.FilledQuantity == nil || *payload.FilledQuantity <= 0 {
+			continue
+		}
+		snapshotAt := firstNonEmptyString(payload.UpdatedAt, event.CreatedAt)
+		if !brokerEventCanCoverFill(snapshotAt, fill.FilledAt) {
+			continue
+		}
+		if !foundSnapshot || *payload.FilledQuantity > bestQuantity ||
+			(*payload.FilledQuantity == bestQuantity && executionTimestampAdvances(bestAt, snapshotAt)) {
+			bestQuantity = *payload.FilledQuantity
+			bestAt = snapshotAt
+			foundSnapshot = true
+		}
+	}
+	if !foundSnapshot {
+		return 0
+	}
+	knownFillQuantity := 0.0
+	for _, event := range events {
+		if event.EventType != "BROKER_FILL_RECEIVED" {
+			continue
+		}
+		var payload executionBrokerFillPayload
+		if json.Unmarshal([]byte(event.PayloadJSON), &payload) != nil || payload.FilledQuantity <= 0 {
+			continue
+		}
+		if brokerEventCanCoverFill(bestAt, payload.FilledAt) {
+			knownFillQuantity += payload.FilledQuantity
+		}
+	}
+	credit := bestQuantity - knownFillQuantity
+	if credit <= 0 {
+		return 0
+	}
+	if credit > fill.FilledQuantity {
+		return fill.FilledQuantity
+	}
+	return credit
+}
+
+func isBrokerOrderSnapshotEvent(eventType string) bool {
+	eventType = strings.TrimSpace(eventType)
+	if eventType == "" || eventType == "BROKER_FILL_RECEIVED" {
+		return false
+	}
+	return strings.HasPrefix(eventType, "BROKER_") &&
+		(strings.HasSuffix(eventType, "_DISCOVERED") || strings.HasSuffix(eventType, "_UPDATED") || eventType == "BROKER_PUSH_ORDER")
+}
+
+func brokerEventCanCoverFill(snapshotAt, fillAt string) bool {
+	snapshotAt = strings.TrimSpace(snapshotAt)
+	fillAt = strings.TrimSpace(fillAt)
+	if snapshotAt == "" || fillAt == "" {
+		return true
+	}
+	snapshotTime, snapshotErr := time.Parse(time.RFC3339Nano, snapshotAt)
+	fillTime, fillErr := time.Parse(time.RFC3339Nano, fillAt)
+	if snapshotErr != nil || fillErr != nil {
+		return true
+	}
+	return !fillTime.After(snapshotTime)
 }
 
 func (s *executionOrderStore) recordBrokerOrderFee(
@@ -416,13 +509,21 @@ func brokerOrderSummaryFromFill(internalOrderID string, brokerID string, fill br
 }
 
 func applyBrokerOrderFill(summary *executionOrderSummaryResponse, fill broker.OrderFillSnapshot, now string) (string, float64, float64) {
+	return applyBrokerOrderFillQuantity(summary, fill, now, 0)
+}
+
+func applyBrokerOrderFillQuantity(summary *executionOrderSummaryResponse, fill broker.OrderFillSnapshot, now string, alreadyCounted float64) (string, float64, float64) {
 	previousStatus := summary.Status
 	previousFilled := optionalFloat64(summary.FilledQuantity)
 	previousAverage := optionalFloat64(summary.FilledAveragePrice)
-	newFilled := previousFilled + fill.FilledQuantity
+	appliedQuantity := fill.FilledQuantity - max(alreadyCounted, 0)
+	if appliedQuantity < 0 {
+		appliedQuantity = 0
+	}
+	newFilled := previousFilled + appliedQuantity
 	filledAverage := previousAverage
-	if fill.FillPrice != nil && newFilled > 0 {
-		filledAverage = ((previousAverage * previousFilled) + (*fill.FillPrice * fill.FilledQuantity)) / newFilled
+	if fill.FillPrice != nil && appliedQuantity > 0 && newFilled > 0 {
+		filledAverage = ((previousAverage * previousFilled) + (*fill.FillPrice * appliedQuantity)) / newFilled
 	}
 	rawBrokerStatus := strings.TrimSpace(derefString(fill.Status))
 	status := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)

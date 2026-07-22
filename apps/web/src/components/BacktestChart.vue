@@ -37,6 +37,7 @@ export interface BacktestTrade {
   marketFee?: number;
   totalFee?: number;
   feeCurrency?: string;
+  warmup?: boolean;
 }
 
 export interface BacktestPnlPoint {
@@ -264,6 +265,7 @@ function setVisibleLogicalRange(range: LogicalRange) {
 
 function rebuildPaletteDependentData() {
   const p = palette.value;
+  const firstReferenceTime = referenceTimesCache[0];
 
   volumeDataCache = props.candles.map((candle, index) => {
     const prevClose = index > 0 ? props.candles[index - 1]!.close : candle.open;
@@ -277,12 +279,19 @@ function rebuildPaletteDependentData() {
   markerDataCache = props.trades.map((trade) => {
     const isBuy = trade.side.toUpperCase() === "BUY";
     const amount = trade.price * trade.qty;
+    const tradeTime = toTimestamp(trade.time);
+    const markerTime =
+      trade.warmup &&
+      firstReferenceTime != null &&
+      tradeTime < firstReferenceTime
+        ? firstReferenceTime
+        : tradeTime;
     return {
-      time: toTimestamp(trade.time),
+      time: markerTime,
       position: isBuy ? "belowBar" : "aboveBar",
       color: isBuy ? p.buyMarker : p.sellMarker,
       shape: isBuy ? "arrowUp" : "arrowDown",
-      text: `${isBuy ? "买入" : "卖出"} ${trade.qty}股 ${formatCurrencyValue(amount)}`,
+      text: `${trade.warmup ? "预热 · " : ""}${isBuy ? "买入" : "卖出"} ${trade.qty}股 ${formatCurrencyValue(amount)}`,
       size: 3,
     };
   });

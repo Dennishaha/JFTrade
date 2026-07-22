@@ -26,10 +26,12 @@ export function validateRunScriptRequest(
 ): RunMode {
   requireText(request.jobId, "job id");
   requireText(request.source, "source");
-  requireText(request.symbol, "symbol");
-  requireText(request.timeframe, "timeframe");
 
   const mode = normalizeMode(request.mode);
+  if (mode !== "analyze") {
+    requireText(request.symbol, "symbol");
+    requireText(request.timeframe, "timeframe");
+  }
   if (byteLength(request.source) > limits.maxSourceBytes) {
     throw new Error(`source bytes exceed limit: ${byteLength(request.source)} > ${limits.maxSourceBytes}`);
   }

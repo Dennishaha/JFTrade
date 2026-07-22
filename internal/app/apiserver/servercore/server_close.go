@@ -37,8 +37,12 @@ func (s *Server) closeCoreServices(errs *[]error) {
 	s.appendCloseError(errs, "marketdata close", s.closeMarketdataService)
 	s.appendCloseError(errs, "liveNotifications close", s.closeLiveNotifications)
 	s.appendCloseError(errs, "backtestSvc close", s.closeBacktestService)
-	s.closePineWorkerRunner(errs, "backtestPineWorkerRunner", s.backtestPineWorkerRunner)
-	s.closePineWorkerRunner(errs, "instancePineWorkerRunner", s.instancePineWorkerRunner)
+	s.pineWorkerMu.RLock()
+	backtestPineWorkerRunner := s.backtestPineWorkerRunner
+	instancePineWorkerRunner := s.instancePineWorkerRunner
+	s.pineWorkerMu.RUnlock()
+	s.closePineWorkerRunner(errs, "backtestPineWorkerRunner", backtestPineWorkerRunner)
+	s.closePineWorkerRunner(errs, "instancePineWorkerRunner", instancePineWorkerRunner)
 }
 
 func (s *Server) closeStrategyRuntimes() {

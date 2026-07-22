@@ -82,6 +82,49 @@ func TestPredictionSingleLegEligibilityUsesSecurityFirmAndUSAuthority(t *testing
 	}
 }
 
+func TestSingleNonEventOrderRejectsAmountAndPredictionFields(t *testing.T) {
+	service := newExecutionTestService()
+	price := 100.0
+	amount := 1.0
+	cases := []struct {
+		name    string
+		request ExecutionPlaceRequest
+		want    string
+	}{
+		{
+			name: "equity amount",
+			request: ExecutionPlaceRequest{
+				Market: "US", Symbol: "AAPL", Side: "BUY", Quantity: 1_000_000,
+				Price: &price, Amount: &amount,
+			},
+			want: "event contracts only",
+		},
+		{
+			name: "equity prediction side",
+			request: ExecutionPlaceRequest{
+				Market: "US", Symbol: "AAPL", Side: "BUY", Quantity: 1,
+				Price: &price, PredictionSide: "YES",
+			},
+			want: "event contracts only",
+		},
+		{
+			name: "equity amount quantity mode",
+			request: ExecutionPlaceRequest{
+				Market: "US", Symbol: "AAPL", Side: "BUY", Quantity: 1,
+				Price: &price, QuantityMode: broker.QuantityModeAmount,
+			},
+			want: "quantityMode",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := service.normalizeExecutionOrder(tc.request); !IsRequestError(err) || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("normalizeExecutionOrder error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestRealFuturesPreviewRequiresFuturesAuthority(t *testing.T) {
 	price := 5120.0
 	selected := &advancedTradingBroker{id: "futures-broker", accounts: []broker.Account{{

@@ -203,10 +203,9 @@ function normalizeOrderIntents(items: unknown[] | undefined, request: PreparedRu
 }
 
 function normalizeResultOrderIntents(result: PineTSRunResult, request: PreparedRunScriptRequest): OrderIntent[] {
-  if ((result.orderIntents ?? []).length > 0) {
-    return normalizeOrderIntents(result.orderIntents, request);
-  }
-  return orderIntentsFromStrategyTrades(result.strategy, request);
+  // Filled trades do not retain their originating market/limit/stop type.
+  // Only placement-time intents captured by the executor are safe to submit.
+  return normalizeOrderIntents(result.orderIntents ?? [], request);
 }
 
 function normalizeStrategyMetrics(strategy: unknown): StrategyMetrics | undefined {
@@ -231,75 +230,6 @@ function normalizeStrategyMetrics(strategy: unknown): StrategyMetrics | undefine
     hasBuyAndHoldPerGain,
     hasStrategyOutperformance,
   };
-}
-
-function orderIntentsFromStrategyTrades(strategy: unknown, request: PreparedRunScriptRequest): OrderIntent[] {
-  if (typeof strategy !== "object" || strategy === null) {
-    return [];
-  }
-  const raw = strategy as Record<string, unknown>;
-  const intents: OrderIntent[] = [];
-  for (const trade of arrayOfRecords(raw.closedtrades)) {
-    const entryID = toStringValue(trade.entry_id, "entry");
-    const size = Math.abs(optionalNumber(trade.size) ?? 1);
-    const direction = (optionalNumber(trade.size) ?? 1) < 0 ? "short" : "long";
-    const entryBarIndex = signalBarIndex(trade.entry_bar_index, request);
-    const exitBarIndex = signalBarIndex(trade.exit_bar_index, request);
-    intents.push({
-      kind: "entry",
-      id: entryID,
-      direction,
-      quantity: size,
-      hasQuantity: true,
-      barIndex: entryBarIndex,
-      time: candleTime(request, entryBarIndex),
-    });
-    intents.push({
-      kind: "close",
-      id: optionalString(trade.exit_id) ?? `close_${entryID}`,
-      fromEntry: entryID,
-      direction,
-      quantity: size,
-      hasQuantity: true,
-      barIndex: exitBarIndex,
-      time: candleTime(request, exitBarIndex),
-    });
-  }
-  for (const trade of arrayOfRecords(raw.opentrades)) {
-    const entryID = toStringValue(trade.entry_id, "entry");
-    const size = Math.abs(optionalNumber(trade.size) ?? 1);
-    const direction = (optionalNumber(trade.size) ?? 1) < 0 ? "short" : "long";
-    const entryBarIndex = signalBarIndex(trade.entry_bar_index, request);
-    intents.push({
-      kind: "entry",
-      id: entryID,
-      direction,
-      quantity: size,
-      hasQuantity: true,
-      barIndex: entryBarIndex,
-      time: candleTime(request, entryBarIndex),
-    });
-  }
-  return intents;
-}
-
-function arrayOfRecords(value: unknown): Record<string, unknown>[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
-    : [];
-}
-
-function signalBarIndex(value: unknown, request: PreparedRunScriptRequest): number {
-  const fillBarIndex = toInteger(value, request.candles.length - 1);
-  return clampInteger(fillBarIndex - 1, 0, Math.max(0, request.candles.length - 1));
-}
-
-function candleTime(request: PreparedRunScriptRequest, barIndex: number): number {
-  return request.candles[barIndex]?.openTime ?? 0;
-}
-
-function clampInteger(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
 
 function normalizeStringList(items: unknown[] | undefined): string[] {

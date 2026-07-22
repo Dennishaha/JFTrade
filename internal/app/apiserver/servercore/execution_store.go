@@ -608,12 +608,11 @@ func (s *executionOrderStore) enqueuePersistence(item executionPersistenceItem) 
 	case s.persistenceQueue <- item:
 		s.persistenceMu.Unlock()
 	default:
-		s.persistenceWG.Add(1)
+		// Keep every persistence item on the single FIFO worker.  Blocking here
+		// applies backpressure to the in-memory mutation while preserving the
+		// order in which snapshots, events, and sequence updates are committed.
+		s.persistenceQueue <- item
 		s.persistenceMu.Unlock()
-		go func() {
-			defer s.persistenceWG.Done()
-			s.writePersistenceItem(item)
-		}()
 	}
 }
 

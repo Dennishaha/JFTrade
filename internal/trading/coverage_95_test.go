@@ -3,6 +3,7 @@ package trading
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -207,5 +208,44 @@ func TestLowLevelTradingFallbackHelpers(t *testing.T) {
 	}, positionsReadError)
 	if response.Connectivity == "connected" {
 		t.Fatalf("failed timeout wrapper response = %#v", response)
+	}
+	completed := make(chan struct{})
+	timedOut := withTimeout(t.Context(), time.Millisecond, "result", func(ctx context.Context) (*BrokerPositionsResponse, error) {
+		defer close(completed)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}, positionsReadError)
+	if timedOut.LastError == nil || !strings.Contains(*timedOut.LastError, "timed out after") {
+		t.Fatalf("context-aware timeout response = %#v", timedOut)
+	}
+	select {
+	case <-completed:
+	default:
+		t.Fatal("timeout helper returned before the broker query exited")
+	}
+}
+
+func TestServiceBrokerResolutionAndPredictionStoreBoundaries(t *testing.T) {
+	service := &Service{}
+	if resolved, err := service.resolveBroker("", true); resolved != nil || !errors.Is(err, ErrNoBroker) {
+		t.Fatalf("required broker resolution = (%#v, %v), want ErrNoBroker", resolved, err)
+	}
+	if resolved, err := service.resolveBroker("", false); resolved != nil || err != nil {
+		t.Fatalf("optional broker resolution = (%#v, %v), want empty success", resolved, err)
+	}
+
+	active := &stubBroker{id: "futu"}
+	service.brokerRuntime = testBrokerRuntimePort{active: active}
+	if resolved, err := service.resolveBroker("", false); resolved != active || err != nil {
+		t.Fatalf("active broker resolution = (%#v, %v), want futu", resolved, err)
+	}
+	service.brokerRuntime = testBrokerRuntimePort{}
+	if resolved, err := service.resolveBroker("", false); resolved != nil || err != nil {
+		t.Fatalf("optional empty runtime resolution = (%#v, %v), want empty success", resolved, err)
+	}
+
+	WithPredictionQuoteStore(nil)(service)
+	if service.predictionQuotes != nil {
+		t.Fatal("nil prediction quote store option changed the injected value")
 	}
 }

@@ -75,6 +75,11 @@ func (s *Service) ensurePreparedData(ctx context.Context, prepared []preparedBac
 		return nil, coverageErr
 	}
 	if covered {
+		key := dataSyncKey(base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, syncSessionScope)
+		s.dataSyncMu.Lock()
+		delete(s.dataSyncTasks, key)
+		s.pruneDataSyncTasksLocked("")
+		s.dataSyncMu.Unlock()
 		return &DataReadiness{Status: DataStatusReady, Ready: true}, nil
 	}
 	return s.ensureMissingCoverage(ctx, base, queryStart, endTime, rehabType, syncSessionScope, coverageErr)
@@ -110,6 +115,7 @@ func (s *Service) ensureMissingCoverage(
 	key := dataSyncKey(base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, syncSessionScope)
 	s.dataSyncMu.Lock()
 	defer s.dataSyncMu.Unlock()
+	s.pruneDataSyncTasksLocked(key)
 	if existing := s.dataSyncTasks[key]; existing != nil {
 		ready, handled := s.readinessForExistingSync(key, existing, coverageErr)
 		if handled {
@@ -135,15 +141,33 @@ func (s *Service) readinessForExistingSync(key string, existing *SyncStarted, co
 		case "queued", "running":
 			return readinessForSyncProgress(progress, existing), true
 		case "failed":
+			delete(s.dataSyncTasks, key)
 			return &DataReadiness{Status: DataStatusSyncFailed, Sync: existing, Progress: progress, Error: progress.Error}, true
 		case "cancelled":
+			delete(s.dataSyncTasks, key)
 			return &DataReadiness{Status: DataStatusSyncCancelled, Sync: existing, Progress: progress, Error: progress.Error}, true
 		case "completed":
+			delete(s.dataSyncTasks, key)
 			return &DataReadiness{Status: DataStatusInsufficientAfterSync, Sync: existing, Progress: progress, Error: coverageErr.Error()}, true
 		}
 	}
 	delete(s.dataSyncTasks, key)
 	return nil, false
+}
+
+// Keep the current terminal result long enough for the caller to observe it,
+// while removing completed entries for other requests so this deduplication map
+// cannot grow with every distinct historical range.
+func (s *Service) pruneDataSyncTasksLocked(currentKey string) {
+	for key, started := range s.dataSyncTasks {
+		if key == currentKey {
+			continue
+		}
+		progress, ok := s.GetSyncProgress(started.TaskID)
+		if !ok || isTerminalSyncStatus(progress.Status) {
+			delete(s.dataSyncTasks, key)
+		}
+	}
 }
 
 func (s *Service) hasKLineCoverage(symbol, interval string, since, until time.Time, rehabType, sessionScope string) (bool, error) {

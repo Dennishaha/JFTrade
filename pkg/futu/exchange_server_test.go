@@ -46,6 +46,7 @@ type quoteOpenDServer struct {
 	serverVer             atomic.Int32
 	serverBuildNo         atomic.Int32
 	dropProto             atomic.Uint32
+	dropResponseProto     atomic.Uint32
 	accountListCalls      atomic.Int32
 	fundsCalls            atomic.Int32
 	positionListCalls     atomic.Int32
@@ -210,6 +211,10 @@ func (s *quoteOpenDServer) setNotifyAfterInit(response *notifypb.Response) {
 
 func (s *quoteOpenDServer) setDropProto(protoID uint32) {
 	s.dropProto.Store(protoID)
+}
+
+func (s *quoteOpenDServer) setDropResponseProto(protoID uint32) {
+	s.dropResponseProto.Store(protoID)
 }
 
 func (s *quoteOpenDServer) setAdvancedResponse(protoID uint32, response proto.Message) {
@@ -505,6 +510,9 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			if response == nil {
 				return
 			}
+		}
+		if s.dropResponseProto.Load() == frame.Header.ProtoID {
+			return
 		}
 
 		var body []byte

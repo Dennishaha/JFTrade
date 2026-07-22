@@ -129,7 +129,6 @@ export function isKlineOverlayIndicator(indicator: KlineIndicatorKey): boolean {
 
 export interface RealtimeKlineSnapshot {
   price: number;
-  volume: number;
   at: string;
   observedAt?: string | null;
   barVolume?: number | null;
@@ -137,6 +136,8 @@ export interface RealtimeKlineSnapshot {
   barHigh?: number | null;
   barLow?: number | null;
   session?: string | null;
+  // Transport-only fields stay opaque so charting cannot treat them as bar data.
+  readonly [metadata: string]: unknown;
 }
 
 const KLINE_PERIOD_ALIASES: Record<string, string> = {
@@ -147,6 +148,9 @@ const KLINE_PERIOD_ALIASES: Record<string, string> = {
   K_15M: "15m",
   K_30M: "30m",
   K_60M: "1h",
+  K_120M: "2h",
+  K_180M: "3h",
+  K_240M: "4h",
   K_TICK: "tick",
   TICK: "tick",
   TICKER: "tick",
@@ -155,6 +159,12 @@ const KLINE_PERIOD_ALIASES: Record<string, string> = {
   "60M": "1h",
   "60MIN": "1h",
   "1H": "1h",
+  "120M": "2h",
+  "120MIN": "2h",
+  "180M": "3h",
+  "180MIN": "3h",
+  "240M": "4h",
+  "240MIN": "4h",
   "1D": "1d",
   "1W": "1w",
   "1MO": "1mo",
@@ -219,6 +229,32 @@ function mergeDisplayCandles(
   current: readonly KlineCandle[],
   next: readonly KlineCandle[],
 ): KlineCandle[] {
+  const candidate = next.length === 1 ? next[0] : undefined;
+  const lastIndex = current.length - 1;
+  const last = current[lastIndex];
+  if (candidate != null && last != null) {
+    if (last.at === candidate.at) {
+      if (sameKlineCandle(last, candidate)) {
+        return current as KlineCandle[];
+      }
+      const merged = current.slice();
+      merged[lastIndex] = candidate;
+      return merged;
+    }
+
+    const lastTime = parseCandleTime(last.at);
+    const candidateTime = parseCandleTime(candidate.at);
+    if (
+      lastTime != null &&
+      candidateTime != null &&
+      candidateTime > lastTime
+    ) {
+      return [...current, candidate];
+    }
+  } else if (candidate != null) {
+    return [candidate];
+  }
+
   const byTime = new Map<string, KlineCandle>();
   for (const candle of [...current, ...next]) {
     byTime.set(candle.at, candle);
@@ -227,6 +263,38 @@ function mergeDisplayCandles(
   return [...byTime.values()].sort(
     (left, right) => new Date(left.at).getTime() - new Date(right.at).getTime(),
   );
+}
+
+function sameKlineCandle(left: KlineCandle, right: KlineCandle): boolean {
+  return (
+    left.period === right.period &&
+    left.at === right.at &&
+    left.displayAt === right.displayAt &&
+    left.open === right.open &&
+    left.high === right.high &&
+    left.low === right.low &&
+    left.close === right.close &&
+    left.volume === right.volume &&
+    left.session === right.session
+  );
+}
+
+function findDisplayCandleAt(
+  candles: readonly KlineCandle[],
+  at: string,
+): KlineCandle | undefined {
+  const lastIndex = candles.length - 1;
+  const last = candles[lastIndex];
+  if (last?.at === at) {
+    return last;
+  }
+  for (let index = 0; index < lastIndex; index += 1) {
+    const candle = candles[index];
+    if (candle?.at === at) {
+      return candle;
+    }
+  }
+  return undefined;
 }
 
 function parseCandleTime(at: string | null | undefined): number | null {
@@ -301,6 +369,21 @@ function shiftMinuteBucket(date: Date, shift: number): Date {
   );
 }
 
+function shiftHourBucket(date: Date, shift: number): Date {
+  const hour = date.getUTCHours() - (date.getUTCHours() % shift);
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      hour,
+      0,
+      0,
+      0,
+    ),
+  );
+}
+
 function truncateSnapshotTimeToPeriod(
   timestampMs: number,
   period: string,
@@ -324,6 +407,12 @@ function truncateSnapshotTimeToPeriod(
     case "1h":
       date.setUTCMinutes(0, 0, 0);
       return date.toISOString();
+    case "2h":
+      return shiftHourBucket(date, 2).toISOString();
+    case "3h":
+      return shiftHourBucket(date, 3).toISOString();
+    case "4h":
+      return shiftHourBucket(date, 4).toISOString();
     case "1d":
       return new Date(
         Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
@@ -402,6 +491,22 @@ export function resolveRealtimeBucketStart(
     return null;
   }
 
+  if (period === "2h" || period === "3h" || period === "4h") {
+    for (let index = candles.length - 1; index >= 0; index -= 1) {
+      const candle = candles[index];
+      const candleTime = parseCandleTime(candle?.at);
+      if (
+        candle != null &&
+        candleTime != null &&
+        (candle.period == null || candle.period === period) &&
+        snapshotTime >= candleTime &&
+        snapshotTime < candleTime + durationMs
+      ) {
+        return candle.at;
+      }
+    }
+  }
+
   const snapshotBucketStart = truncateSnapshotTimeToPeriod(snapshotTime, period);
   const snapshotBucketTime = parseCandleTime(snapshotBucketStart);
   if (snapshotBucketStart == null || snapshotBucketTime == null) {
@@ -452,6 +557,12 @@ export function resolveKlinePeriodDurationMs(period: string): number | null {
       return 30 * 60_000;
     case "1h":
       return 60 * 60_000;
+    case "2h":
+      return 2 * 60 * 60_000;
+    case "3h":
+      return 3 * 60 * 60_000;
+    case "4h":
+      return 4 * 60 * 60_000;
     case "1d":
       return 24 * 60 * 60_000;
     case "1w":
@@ -486,7 +597,7 @@ export function overlayRealtimeTickCandle(
       high: snapshot.price,
       low: snapshot.price,
       close: snapshot.price,
-      volume: snapshot.barVolume ?? snapshot.volume,
+      volume: snapshot.barVolume ?? 0,
     };
     if (snapshot.session !== undefined) {
       tickCandle.session = snapshot.session;
@@ -505,12 +616,11 @@ export function overlayRealtimeTickCandle(
   if (bucketStart == null) {
     return [...candles];
   }
-  const existing = candles.find((candle) => candle.at === bucketStart);
+  const existing = findDisplayCandleAt(candles, bucketStart);
   const displayAt = resolveRealtimeOverlayDisplayAt(period, bucketStart);
   const last = candles[candles.length - 1];
   const baseOpen =
     snapshot.barOpen ?? existing?.open ?? last?.close ?? snapshot.price;
-  const baseVolume = existing?.volume ?? 0;
   const overlayHigh = snapshot.barHigh ?? snapshot.price;
   const overlayLow = snapshot.barLow ?? snapshot.price;
 
@@ -522,7 +632,7 @@ export function overlayRealtimeTickCandle(
     high: Math.max(existing?.high ?? baseOpen, overlayHigh),
     low: Math.min(existing?.low ?? baseOpen, overlayLow),
     close: snapshot.price,
-    volume: snapshot.barVolume ?? Math.max(baseVolume, snapshot.volume),
+    volume: snapshot.barVolume ?? existing?.volume ?? 0,
   };
   if (displayAt != null) {
     mergedCandle.displayAt = displayAt;

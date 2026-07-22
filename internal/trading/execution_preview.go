@@ -71,6 +71,9 @@ func (s *Service) CreateExecutionOrder(ctx context.Context, req ExecutionPlaceRe
 	if strings.TrimSpace(command.PreviewID) != "" && strings.TrimSpace(command.Query.ClientOrderID) == "" {
 		return ExecutionCommandResponse{}, requestErrorf("clientOrderId is required when previewId is supplied")
 	}
+	if err := s.evaluatePlaceExecutionOrderRisk(ctx, command); err != nil {
+		return ExecutionCommandResponse{}, err
+	}
 	if s.previewStore != nil && strings.TrimSpace(command.PreviewID) != "" {
 		if err := s.previewStore.ConsumePreview(
 			command.PreviewID, command.BrokerID, command.Query.AccountID,
@@ -79,6 +82,8 @@ func (s *Service) CreateExecutionOrder(ctx context.Context, req ExecutionPlaceRe
 			return ExecutionCommandResponse{}, requestErrorf("execution preview is invalid: %v", err)
 		}
 	}
+	// Re-evaluate immediately before submission in case control-plane state
+	// changed while the preview credential was being consumed.
 	order, err := s.PlaceExecutionOrder(ctx, command)
 	if err != nil {
 		return ExecutionCommandResponse{}, err
@@ -208,17 +213,45 @@ func containsExecutionAuthority(values []string, target string) bool {
 // PlaceExecutionOrder is the shared command boundary for manual and strategy
 // orders. Every broker submission must pass through the pre-trade gateway.
 func (s *Service) PlaceExecutionOrder(ctx context.Context, command ExecutionOrderCommand) (ExecutionOrder, error) {
-	if s.preTradeRisk != nil {
-		decision := s.preTradeRisk.EvaluatePlaceOrder(ctx, command)
-		if !decision.Allows() {
-			return ExecutionOrder{}, RiskRejectedError{Decision: decision}
-		}
-	}
-	order, err := s.orderGateway.PlaceOrder(ctx, command)
+	command.Query.TradingEnvironment = s.executionEnvironment(command.Query.TradingEnvironment)
+	var order ExecutionOrder
+	err := s.executePlaceOrderWithRisk(ctx, command, func() error {
+		var submitErr error
+		order, submitErr = s.orderGateway.PlaceOrder(ctx, command)
+		return submitErr
+	})
 	if err != nil {
 		return ExecutionOrder{}, err
 	}
 	return order, nil
+}
+
+func (s *Service) executePlaceOrderWithRisk(ctx context.Context, command ExecutionOrderCommand, submit func() error) error {
+	if gateway, ok := s.preTradeRisk.(preTradeRiskExecutionGateway); ok {
+		return gateway.executePlaceOrder(ctx, command, submit)
+	}
+	if err := s.evaluatePlaceExecutionOrderRisk(ctx, command); err != nil {
+		return err
+	}
+	return submit()
+}
+
+func (s *Service) evaluatePlaceExecutionOrderRisk(ctx context.Context, command ExecutionOrderCommand) error {
+	if s.preTradeRisk == nil {
+		if strings.EqualFold(strings.TrimSpace(command.Query.TradingEnvironment), "REAL") {
+			return RiskRejectedError{Decision: PreTradeRiskDecision{
+				Decision:      RiskDecisionReject,
+				ReasonCode:    "PRE_TRADE_RISK_UNAVAILABLE",
+				ReasonMessage: "pre-trade risk gateway is unavailable; REAL orders are blocked",
+			}}
+		}
+		return nil
+	}
+	decision := s.preTradeRisk.EvaluatePlaceOrder(ctx, command)
+	if !decision.Allows() {
+		return RiskRejectedError{Decision: decision}
+	}
+	return nil
 }
 
 func (s *Service) CancelExecutionOrder(ctx context.Context, id string) (ExecutionCommandResponse, error) {

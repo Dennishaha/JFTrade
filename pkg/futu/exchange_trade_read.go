@@ -21,7 +21,7 @@ func (e *Exchange) queryAccount(ctx context.Context) (*types.Account, error) {
 		funds    *trdcommonpb.Funds
 	)
 
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, BrokerReadQuery{})
 		if err != nil {
 			return err
@@ -70,7 +70,7 @@ func (e *Exchange) queryOpenOrders(ctx context.Context, symbol string) ([]types.
 // trading account context.
 func (e *Exchange) QueryBrokerFunds(ctx context.Context, query BrokerReadQuery) (*BrokerFundsSnapshot, error) {
 	var snapshot *BrokerFundsSnapshot
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query)
 		if err != nil {
 			return err
@@ -91,7 +91,7 @@ func (e *Exchange) QueryBrokerFunds(ctx context.Context, query BrokerReadQuery) 
 // trading account context.
 func (e *Exchange) QueryBrokerPositions(ctx context.Context, query BrokerReadQuery) ([]BrokerPositionSnapshot, error) {
 	var snapshots []BrokerPositionSnapshot
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query)
 		if err != nil {
 			return err
@@ -112,7 +112,7 @@ func (e *Exchange) QueryBrokerPositions(ctx context.Context, query BrokerReadQue
 // trading account context.
 func (e *Exchange) QueryBrokerOrders(ctx context.Context, query BrokerReadQuery, symbol string) ([]BrokerOrderSnapshot, error) {
 	var snapshots []BrokerOrderSnapshot
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query)
 		if err != nil {
 			return err
@@ -141,7 +141,7 @@ func (e *Exchange) QueryBrokerOrders(ctx context.Context, query BrokerReadQuery,
 // selected trading account context.
 func (e *Exchange) QueryBrokerHistoryOrders(ctx context.Context, query BrokerOrderHistoryQuery) ([]BrokerOrderSnapshot, error) {
 	var snapshots []BrokerOrderSnapshot
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
 		if err != nil {
 			return err
@@ -165,7 +165,7 @@ func (e *Exchange) QueryBrokerHistoryOrders(ctx context.Context, query BrokerOrd
 // the selected trading account context.
 func (e *Exchange) QueryBrokerHistoryOrderFills(ctx context.Context, query BrokerOrderFillHistoryQuery) ([]BrokerOrderFillSnapshot, error) {
 	var snapshots []BrokerOrderFillSnapshot
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
 		if err != nil {
 			return err
@@ -189,7 +189,7 @@ func (e *Exchange) QueryBrokerHistoryOrderFills(ctx context.Context, query Broke
 // selected trading account context.
 func (e *Exchange) QueryBrokerOrderFills(ctx context.Context, query BrokerOrderFillQuery) ([]BrokerOrderFillSnapshot, error) {
 	var snapshots []BrokerOrderFillSnapshot
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
 		if err != nil {
 			return err
@@ -213,7 +213,7 @@ func (e *Exchange) QueryBrokerOrderFills(ctx context.Context, query BrokerOrderF
 // trading account context.
 func (e *Exchange) QueryBrokerOrderFees(ctx context.Context, query BrokerOrderFeeQuery) ([]BrokerOrderFeeSnapshot, error) {
 	var snapshots []BrokerOrderFeeSnapshot
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
 		if err != nil {
 			return err
@@ -235,7 +235,7 @@ func (e *Exchange) QueryBrokerOrderFees(ctx context.Context, query BrokerOrderFe
 // QueryBrokerCashFlows returns account cash-flow snapshots.
 func (e *Exchange) QueryBrokerCashFlows(ctx context.Context, query BrokerCashFlowQuery) ([]BrokerCashFlowSnapshot, error) {
 	var snapshots []BrokerCashFlowSnapshot
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
 		if err != nil {
 			return err
@@ -361,7 +361,7 @@ func (e *Exchange) QueryBrokerMaxTradeQuantity(ctx context.Context, query Broker
 	}
 
 	var snapshot *BrokerMaxTradeQuantitySnapshot
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		resolved, err := e.resolveTradeAccountWithClient(ctx, client, resolveQuery)
 		if err != nil {
 			return err

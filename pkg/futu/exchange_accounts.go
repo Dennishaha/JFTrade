@@ -28,7 +28,7 @@ type RuntimeAccount struct {
 // stay on the same connection lifecycle as quote/trade operations.
 func (e *Exchange) DiscoverAccounts(ctx context.Context) ([]RuntimeAccount, error) {
 	var protoAccounts []*trdcommonpb.TrdAcc
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		accounts, err := client.GetAccountList(ctx)
 		if err != nil {
 			return err

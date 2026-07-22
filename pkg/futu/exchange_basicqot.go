@@ -114,7 +114,7 @@ func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map
 	}
 	request := &qotgetbasicqotpb.Request{C2S: &qotgetbasicqotpb.C2S{SecurityList: securityList}}
 	var response qotgetbasicqotpb.Response
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		if err := e.requireBasicQotSubscriptions(requests); err != nil {
 			return err
 		}
@@ -206,7 +206,7 @@ func (e *Exchange) SubscribeBasicQuote(ctx context.Context, symbol string, push 
 		return err
 	}
 	request := basicQotRequest{canonical: canonical, security: security}
-	return e.withClient(ctx, func(client *opend.Client) error {
+	return e.withRetryingClient(ctx, func(client *opend.Client) error {
 		if push {
 			return e.ensureBasicQotPushSubscriptions(ctx, client, []basicQotRequest{request})
 		}
@@ -227,7 +227,7 @@ func (e *Exchange) UnsubscribeBasicQuote(ctx context.Context, symbol string) err
 	if !exists {
 		return nil
 	}
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		return setBasicQotSubscription(ctx, client, []*qotcommonpb.Security{security}, false, new(false))
 	}); err != nil {
 		return err

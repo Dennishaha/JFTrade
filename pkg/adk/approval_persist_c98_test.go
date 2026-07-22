@@ -9,7 +9,7 @@ import (
 func TestCoverage98ApprovalPersistenceFailuresRemainObservable(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("async approval surfaces save failure while sibling remains pending", func(t *testing.T) {
+	t.Run("async approval rolls back resolution when run staging fails", func(t *testing.T) {
 		runtime, run, approvals := newCoverage98PendingApprovalRun(t, "approval-stage-pending", 2)
 		installCoverage98RunUpdateRejectTrigger(t, runtime, "reject_stage_pending")
 
@@ -18,8 +18,8 @@ func TestCoverage98ApprovalPersistenceFailuresRemainObservable(t *testing.T) {
 			t.Fatalf("ResolveApprovalAsync stage save error = %v", err)
 		}
 		storedApproval, ok, approvalErr := runtime.Store().Approval(ctx, approvals[0].ID)
-		if approvalErr != nil || !ok || storedApproval.Status != ApprovalStatusApproved {
-			t.Fatalf("resolved approval after failed run save = %+v/%v/%v", storedApproval, ok, approvalErr)
+		if approvalErr != nil || !ok || storedApproval.Status != ApprovalStatusPending {
+			t.Fatalf("approval after failed atomic stage = %+v/%v/%v, want pending", storedApproval, ok, approvalErr)
 		}
 		storedRun, ok, runErr := runtime.Store().Run(ctx, run.ID)
 		if runErr != nil || !ok || storedRun.PendingApprovals[0].Status != ApprovalStatusPending || storedRun.PendingApprovals[1].Status != ApprovalStatusPending {

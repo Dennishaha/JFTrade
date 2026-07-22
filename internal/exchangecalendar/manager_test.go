@@ -887,6 +887,33 @@ func TestSnapshotCacheKeyUsesMarketLocalYear(t *testing.T) {
 	}
 }
 
+func TestSnapshotCacheIndexesEveryCoveredMarketYear(t *testing.T) {
+	manager := NewManager(nil, nil)
+	template, ok := manager.Template("US")
+	if !ok {
+		t.Fatal("US market template is unavailable")
+	}
+	location := marketcalendar.LoadLocation(template)
+	snapshot := marketcalendar.CalendarSnapshot{
+		MarketCode: "US",
+		SourceID:   "source",
+		From:       time.Date(2026, time.January, 1, 0, 0, 0, 0, location),
+		To:         time.Date(2027, time.December, 31, 23, 59, 59, 0, location),
+		FetchedAt:  time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
+		Checksum:   "cross-year",
+	}
+	manager.cacheSnapshot(snapshot)
+
+	dayInSecondYear := time.Date(2027, time.January, 2, 12, 0, 0, 0, location)
+	got, found := manager.cachedSnapshot("source", "US", dayInSecondYear)
+	if !found || got.Checksum != snapshot.Checksum {
+		t.Fatalf("cached snapshot for second year = %#v/%v", got, found)
+	}
+	if summaries := manager.snapshotSummaries(); len(summaries) != 1 {
+		t.Fatalf("snapshot summaries = %#v, want one logical snapshot", summaries)
+	}
+}
+
 func TestManagerCurrentTimeNormalizesInjectedClockToUTC(t *testing.T) {
 	local := time.FixedZone("injected", 8*60*60)
 	manager := NewManager(nil, nil, WithClock(func() time.Time {

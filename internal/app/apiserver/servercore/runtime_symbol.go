@@ -8,6 +8,7 @@ import (
 	"time"
 
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 func (r *strategySymbolRuntime) syncClosedKLinesLoop() {
@@ -90,7 +91,8 @@ func (r *strategySymbolRuntime) handleTrade(trade bbgotypes.Trade) {
 		r.lastClosedPrice = closedCopy.Close.Float64()
 		r.currentBucket = &tradeKLine
 	default:
-		current.Merge(&tradeKLine)
+		// Closed historical buckets are reconciled by syncClosedKLines. Folding a
+		// late trade into the current bucket corrupts its OHLC and signal input.
 	}
 	r.mu.Unlock()
 
@@ -156,12 +158,17 @@ func (r *strategySymbolRuntime) refreshBrokerAccount() error {
 	if r == nil || r.runtimeExchange == nil || r.session == nil {
 		return nil
 	}
+	r.accountRefreshMu.Lock()
+	defer r.accountRefreshMu.Unlock()
+
 	ctx := r.ctx
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	funds := r.cachedFunds
-	positions := r.cachedPositions
+	r.accountMu.RLock()
+	funds := cloneStrategyRuntimeFundsSnapshot(r.cachedFunds)
+	positions := cloneStrategyRuntimePositions(r.cachedPositions)
+	r.accountMu.RUnlock()
 	freshFunds, err := r.runtimeExchange.QueryBrokerFunds(ctx, r.brokerQuery)
 	if err != nil {
 		if connectivityFromBrokerReadError(err) != "disconnected" {
@@ -169,8 +176,7 @@ func (r *strategySymbolRuntime) refreshBrokerAccount() error {
 		}
 		log.Printf("JFTrade strategy runtime broker funds refresh disconnected for %s: %v", r.symbol, err)
 	} else {
-		r.cachedFunds = cloneStrategyRuntimeFundsSnapshot(freshFunds)
-		funds = r.cachedFunds
+		funds = cloneStrategyRuntimeFundsSnapshot(freshFunds)
 	}
 	freshPositions, err := r.runtimeExchange.QueryBrokerPositions(ctx, r.brokerQuery)
 	if err != nil {
@@ -179,11 +185,33 @@ func (r *strategySymbolRuntime) refreshBrokerAccount() error {
 		}
 		log.Printf("JFTrade strategy runtime broker positions refresh disconnected for %s: %v", r.symbol, err)
 	} else {
-		r.cachedPositions = cloneStrategyRuntimePositions(freshPositions)
-		positions = r.cachedPositions
+		positions = cloneStrategyRuntimePositions(freshPositions)
 	}
-	r.session.Account = buildStrategyRuntimeAccount(funds, positions, r.market, r.symbol)
+	account := buildStrategyRuntimeAccount(funds, positions, r.market, r.symbol)
+	r.accountMu.Lock()
+	r.cachedFunds = funds
+	r.cachedPositions = positions
+	r.session.Account = account
+	r.accountMu.Unlock()
 	return nil
+}
+
+func (r *strategySymbolRuntime) brokerPositionsSnapshot() []broker.PositionSnapshot {
+	if r == nil {
+		return nil
+	}
+	r.accountMu.RLock()
+	defer r.accountMu.RUnlock()
+	return cloneStrategyRuntimePositions(r.cachedPositions)
+}
+
+func (r *strategySymbolRuntime) brokerAccountSnapshot() *bbgotypes.Account {
+	if r == nil || r.session == nil {
+		return nil
+	}
+	r.accountMu.RLock()
+	defer r.accountMu.RUnlock()
+	return r.session.Account
 }
 
 func (r *strategySymbolRuntime) currentPrice() float64 {

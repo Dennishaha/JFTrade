@@ -299,7 +299,7 @@ func (a *futuAdapter) updatePredictionSubscription(
 	if err != nil {
 		return err
 	}
-	err = a.exchange.withClient(ctx, func(client *opend.Client) error {
+	err = a.exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 		if ensureErr := a.ensurePredictionPushHandlers(ctx, client); ensureErr != nil {
 			return ensureErr
 		}
@@ -437,7 +437,7 @@ func (a *futuAdapter) queryAdvancedFeatureWithProtocols(
 	}
 
 	var payload map[string]any
-	if err := a.exchange.withClient(ctx, func(client *opend.Client) error {
+	if err := a.withAdvancedClient(ctx, protocol, func(client *opend.Client) error {
 		if strings.Contains(protocol, "EventContract") {
 			if err := a.ensurePredictionPushHandlers(ctx, client); err != nil {
 				return err
@@ -450,6 +450,36 @@ func (a *futuAdapter) queryAdvancedFeatureWithProtocols(
 		return nil, err
 	}
 	return featureResultFromProtocolPayload(query, protocol, payload), nil
+}
+
+func (a *futuAdapter) withAdvancedClient(
+	ctx context.Context,
+	protocol string,
+	fn func(*opend.Client) error,
+) error {
+	if advancedProtocolReplaySafe(protocol) {
+		return a.exchange.withRetryingClient(ctx, fn)
+	}
+	return a.exchange.withClient(ctx, fn)
+}
+
+func advancedProtocolReplaySafe(protocol string) bool {
+	// Despite its Get prefix, an RFQ request creates a short-lived quote and is
+	// not safe to duplicate when the first response outcome is unknown.
+	if protocol == "Qot_GetEventContractComboRfq" {
+		return false
+	}
+	if strings.HasPrefix(protocol, "Qot_Get") ||
+		strings.HasPrefix(protocol, "Qot_Request") ||
+		strings.HasPrefix(protocol, "Qot_Filter") {
+		return true
+	}
+	switch protocol {
+	case "Qot_OptionScreen", "Qot_WarrantScreen", "Qot_StockFilter", "Qot_StockScreen", "Qot_SubEventContract":
+		return true
+	default:
+		return false
+	}
 }
 
 func injectAdvancedCursor(params map[string]any, protocol, cursor string) {
@@ -697,7 +727,7 @@ func (a *futuAdapter) resolvePredictionEventID(
 		return "", fmt.Errorf("futu: prediction contract code is required for milestones")
 	}
 	var payload map[string]any
-	err := a.exchange.withClient(ctx, func(client *opend.Client) error {
+	err := a.exchange.withRetryingClient(ctx, func(client *opend.Client) error {
 		var callErr error
 		payload, callErr = client.CallAdvanced(ctx, "Qot_GetEventContractSnapshot", map[string]any{
 			"securityList": []any{map[string]any{"market": 101, "code": code}},

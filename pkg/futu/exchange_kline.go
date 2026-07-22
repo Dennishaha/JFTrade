@@ -123,8 +123,8 @@ func (e *Exchange) queryHistoricalKLinesForPlan(ctx context.Context, security *q
 			RehabType: new(int32(rehabType)),
 			KlType:    new(int32(klType)),
 			Security:  security,
-			BeginTime: new(beginAt.Format("2006-01-02 15:04:05")),
-			EndTime:   new(endAt.Format("2006-01-02 15:04:05")),
+			BeginTime: new(formatFutuRequestTime(beginAt, canonicalSymbol)),
+			EndTime:   new(formatFutuRequestTime(endAt, canonicalSymbol)),
 		}}
 		if pageSize > 0 {
 			request.C2S.MaxAckKLNum = new(int32(pageSize))
@@ -140,7 +140,7 @@ func (e *Exchange) queryHistoricalKLinesForPlan(ctx context.Context, security *q
 		}
 
 		var response historypb.Response
-		if err := e.callProto(ctx, opend.ProtoRequestHistoryKL, request, &response); err != nil {
+		if err := e.callReadProto(ctx, opend.ProtoRequestHistoryKL, request, &response); err != nil {
 			return nil, err
 		}
 		if response.GetRetType() != 0 {
@@ -216,7 +216,7 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 	}}
 
 	var response qotgetklpb.Response
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		if err := e.requireKLineSubscription(subscription, interval); err != nil {
 			return err
 		}
@@ -261,7 +261,7 @@ func (e *Exchange) SubscribeKLine(ctx context.Context, symbol string, interval t
 	if err != nil {
 		return err
 	}
-	return e.withClient(ctx, func(client *opend.Client) error {
+	return e.withRetryingClient(ctx, func(client *opend.Client) error {
 		return e.ensureKLineSubscription(ctx, client, request)
 	})
 }
@@ -280,7 +280,7 @@ func (e *Exchange) UnsubscribeKLine(ctx context.Context, symbol string, interval
 	if !exists {
 		return nil
 	}
-	if err := e.withClient(ctx, func(client *opend.Client) error {
+	if err := e.withRetryingClient(ctx, func(client *opend.Client) error {
 		return setKLineSubscription(ctx, client, request, false)
 	}); err != nil {
 		return err

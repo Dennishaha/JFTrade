@@ -3,6 +3,7 @@ package marketdata
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -50,6 +51,7 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	trade := tickAt("US.AAPL", "101", 0, now.Add(time.Second))
 	trade.Kind = TickKindTrade
 	trade.Source = "bbgo:futu:stream"
+	trade.VolumeDelta = 25
 	trade.Bid = trade.Price
 	trade.Ask = trade.Price
 	trade.Session = "unknown"
@@ -57,8 +59,8 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	if stored == nil {
 		t.Fatal("expected trade sample")
 	}
-	if stored.Bid.String() != "100" || stored.Ask.String() != "100" || stored.Volume != 1000 {
-		t.Fatalf("trade book/volume inheritance = %#v", stored)
+	if stored.Bid.String() != "100" || stored.Ask.String() != "100" || stored.Volume != 0 || stored.VolumeDelta != 25 {
+		t.Fatalf("trade book/volume contract = %#v", stored)
 	}
 	if stored.PreviousClosePrice == nil || stored.PreviousClosePrice.String() != "99" || stored.PreMarket == nil {
 		t.Fatalf("context inheritance = %#v", stored)
@@ -112,6 +114,8 @@ func TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays(t *testing.T) {
 	incoming := tickAt("US.AAPL", "101", 0, holidayAt)
 	incoming.Kind = TickKindTrade
 	incoming.Session = "unknown"
+	incoming.Bid = decimal.Zero
+	incoming.Ask = decimal.Zero
 	stored := cache.Store(incoming)
 	if stored == nil {
 		t.Fatal("expected stored sample")
@@ -121,6 +125,9 @@ func TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays(t *testing.T) {
 	}
 	if stored.PreMarket != nil || stored.AfterMarket != nil || stored.Overnight != nil {
 		t.Fatalf("extended quote inheritance should stop at holiday boundary: %#v", stored)
+	}
+	if !stored.Bid.IsZero() || !stored.Ask.IsZero() || stored.Volume != 0 {
+		t.Fatalf("trade book and volume must not leak across trading days: %#v", stored)
 	}
 }
 
@@ -178,6 +185,10 @@ func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 		tickAt("HK.00700", "102.30", 120, now.Add(-time.Minute)),
 		tickAt("HK.00700", "103.40", 170, now),
 	}
+	samples[0].VolumeDelta = 100
+	samples[1].VolumeDelta = 50
+	samples[2].VolumeDelta = 0
+	samples[3].VolumeDelta = math.NaN()
 	unlimited := TickCandles(samples, time.Time{}, now, 0)
 	if len(unlimited) != 3 {
 		t.Fatalf("default 15 minute window returned %d candles", len(unlimited))
@@ -189,7 +200,7 @@ func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 	if candles[0]["open"] != "102.3" || candles[0]["volume"] != float64(0) {
 		t.Fatalf("negative delta candle = %#v", candles[0])
 	}
-	if candles[1]["open"] != "103.4" || candles[1]["volume"] != float64(50) {
+	if candles[1]["open"] != "103.4" || candles[1]["volume"] != float64(0) {
 		t.Fatalf("latest candle = %#v", candles[1])
 	}
 	if candles[0]["session"] != "regular" {
@@ -197,16 +208,37 @@ func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 	}
 }
 
+func TestTickCandlesUsesExplicitVolumeDeltaAcrossTradingDays(t *testing.T) {
+	hk, err := time.LoadLocation("Asia/Hong_Kong")
+	if err != nil {
+		t.Fatalf("load Hong Kong timezone: %v", err)
+	}
+	previousDay := time.Date(2026, time.July, 20, 16, 0, 0, 0, hk)
+	currentDay := time.Date(2026, time.July, 21, 9, 30, 0, 0, hk)
+	samples := []Tick{
+		tickAt("HK.00700", "100", 10_000, previousDay),
+		tickAt("HK.00700", "101", 250, currentDay),
+	}
+	samples[0].VolumeDelta = 12
+	samples[1].VolumeDelta = 7
+
+	candles := TickCandles(samples, previousDay.Add(-time.Second), currentDay.Add(time.Second), 0)
+	if len(candles) != 2 || candles[0]["volume"] != float64(12) || candles[1]["volume"] != float64(7) {
+		t.Fatalf("cross-day tick candles = %#v, want explicit deltas 12/7", candles)
+	}
+}
+
 func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	now := time.Date(2026, time.June, 14, 10, 0, 0, 0, time.UTC)
 	sample := tickAt("US.AAPL", "100.25", 12, now)
+	sample.VolumeDelta = 3
 	sample.AfterMarket = &ExtendedQuote{
 		Price:     new(decimal.RequireFromString("101.75")),
 		QuoteTime: now.Format(time.RFC3339Nano),
 	}
 
 	snapshot := SnapshotJSON(&sample)
-	if snapshot["price"] != "100.25" || snapshot["openPrice"] != nil {
+	if snapshot["price"] != "100.25" || snapshot["openPrice"] != nil || snapshot["volume"] != float64(12) {
 		t.Fatalf("snapshot prices = %#v", snapshot)
 	}
 	extended := jftradeCheckedTypeAssertion[map[string]any](snapshot["extended"])
@@ -223,6 +255,9 @@ func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	event := LiveTickJSON(&sample, now.Add(time.Second).Format(time.RFC3339Nano))
 	if event["at"] != jftradeCheckedTypeAssertion[map[string]any](event["snapshot"])["observedAt"] {
 		t.Fatalf("observedAt override = %#v", event)
+	}
+	if event["cumulativeVolume"] != float64(12) || event["volumeDelta"] != float64(3) {
+		t.Fatalf("live event volume contract = %#v", event)
 	}
 }
 

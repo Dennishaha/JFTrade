@@ -371,6 +371,28 @@ describe("SharedLiveSocketHub", () => {
     expect(hub.connectionState.value).toBe("disconnected");
   });
 
+  it("continues reconnecting with capped backoff after more than ten consecutive failures", async () => {
+    vi.useFakeTimers();
+    NeverOpeningWebSocket.instances = [];
+    vi.stubGlobal(
+      "WebSocket",
+      NeverOpeningWebSocket as unknown as typeof WebSocket,
+    );
+
+    const hub = getSharedLiveSocketHub();
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+
+    for (let failure = 0; failure < 12; failure += 1) {
+      const countBeforeClose = NeverOpeningWebSocket.instances.length;
+      NeverOpeningWebSocket.instances.at(-1)?.close();
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(NeverOpeningWebSocket.instances).toHaveLength(countBeforeClose + 1);
+    }
+
+    expect(NeverOpeningWebSocket.instances).toHaveLength(13);
+    expect(hub.connectionState.value).toBe("connecting");
+  });
+
   it("isolates stale socket failures, orders subscription targets, and reconnects a closed live channel", async () => {
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
 
@@ -427,3 +449,37 @@ describe("SharedLiveSocketHub", () => {
     expect(MockWebSocket.instances).toHaveLength(3);
   });
 });
+
+class NeverOpeningWebSocket {
+  static instances: NeverOpeningWebSocket[] = [];
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+
+  readyState = NeverOpeningWebSocket.CONNECTING;
+  private readonly listeners = new Map<string, Set<(event: Event) => void>>();
+
+  constructor(public readonly url: string) {
+    NeverOpeningWebSocket.instances.push(this);
+  }
+
+  addEventListener(type: string, listener: (event: Event) => void): void {
+    const listeners = this.listeners.get(type) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  send(): void {}
+
+  close(): void {
+    if (this.readyState === NeverOpeningWebSocket.CLOSED) {
+      return;
+    }
+    this.readyState = NeverOpeningWebSocket.CLOSED;
+    const event = new CloseEvent("close");
+    for (const listener of this.listeners.get("close") ?? []) {
+      listener(event);
+    }
+  }
+}
