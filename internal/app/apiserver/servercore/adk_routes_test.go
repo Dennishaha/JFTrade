@@ -296,6 +296,7 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 	}
 	if finalEvent == nil || finalEvent.Response == nil {
 		t.Fatalf("final event = %+v, want response", finalEvent)
+		return
 	}
 	if finalEvent.Response.Run.AgentID != agent.ID {
 		t.Fatalf("final run agent = %q, want %q", finalEvent.Response.Run.AgentID, agent.ID)

@@ -305,6 +305,7 @@ func TestWorkerManagerStartDialFailureIncludesProcessDiagnostics(t *testing.T) {
 	err := manager.Start(context.Background())
 	if err == nil {
 		t.Fatal("Start error = nil, want dial failure")
+		return
 	}
 	for _, want := range []string{
 		"dial pineworker-1 at 127.0.0.1:50051",

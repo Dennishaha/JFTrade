@@ -430,6 +430,7 @@ func TestIndicatorRuntimeSnapshotIncludesSAR(t *testing.T) {
 	`, types.Interval1m, "US.AAPL")
 	if runtime == nil {
 		t.Fatal("expected indicator runtime")
+		return
 	}
 	for _, bar := range []struct {
 		high  float64
@@ -453,6 +454,7 @@ func TestIndicatorRuntimeSnapshotIncludesSAR(t *testing.T) {
 	sar, ok := snapshot["sar:0.02:0.02:0.2"].(*indicatorSeriesSnapshot)
 	if !ok || sar == nil {
 		t.Fatalf("sar snapshot = %#v", snapshot["sar:0.02:0.02:0.2"])
+		return
 	}
 	if !sar.hasCurrent || math.Abs(sar.current-9.3528) > 0.0000001 {
 		t.Fatalf("sar.current = %v, want 9.3528", sar.current)
@@ -471,6 +473,7 @@ func TestIndicatorRuntimeSnapshotIncludesSecuritySource(t *testing.T) {
 	`, types.Interval1m, "US.AAPL")
 	if runtime == nil {
 		t.Fatal("expected indicator runtime")
+		return
 	}
 	bars := []struct {
 		at     time.Time
@@ -523,6 +526,7 @@ func TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes(t *testing.T
 	`, types.Interval1m, "US.AAPL")
 	if runtime == nil {
 		t.Fatal("expected indicator runtime")
+		return
 	}
 	base := time.Date(2026, time.June, 12, 14, 30, 0, 0, time.UTC)
 	for index := range 60 {
@@ -579,6 +583,7 @@ func TestIndicatorRuntimeSnapshotIncludesTimeBoundIndicators(t *testing.T) {
 	`, types.Interval5m, "BTCUSDT")
 	if runtime == nil {
 		t.Fatal("expected indicator runtime")
+		return
 	}
 
 	for _, closePrice := range []float64{100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 97} {
@@ -633,6 +638,7 @@ momentum = ta.rsi(close, 2)`)
 	}
 	if engine == nil {
 		t.Fatal("expected indicator engine")
+		return
 	}
 
 	pushClose := func(closeValue float64) {

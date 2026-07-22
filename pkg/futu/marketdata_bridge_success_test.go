@@ -28,6 +28,7 @@ func TestExchangeSecuritySnapshotMergesStaticInfo(t *testing.T) {
 	}
 	if details == nil {
 		t.Fatal("expected security details")
+		return
 	}
 	if details.InstrumentID != "HK.00700" || details.Market != "HK" || details.Symbol != "00700" {
 		t.Fatalf("unexpected instrument identity: %#v", details)
@@ -127,6 +128,7 @@ func TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge(t *testing.T) {
 	}
 	if info == nil || len(info.Securities) != 1 {
 		t.Fatalf("expected one security info item, got %#v", info)
+		return
 	}
 	if got := info.Securities[0].Symbol; got != "HK.00700" {
 		t.Fatalf("Symbol = %q, want HK.00700", got)
@@ -153,6 +155,7 @@ func TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge(t *testing.T) {
 	}
 	if snapshot == nil || len(snapshot.Snapshots) != 1 {
 		t.Fatalf("expected one security snapshot item, got %#v", snapshot)
+		return
 	}
 	if got := snapshot.Snapshots[0].Symbol; got != "HK.00700" {
 		t.Fatalf("Snapshot Symbol = %q, want HK.00700", got)
@@ -207,6 +210,7 @@ func TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge(t *testing.T) {
 	}
 	if orderBook == nil {
 		t.Fatal("expected order book snapshot")
+		return
 	}
 	if orderBook.Symbol != "HK.00700" {
 		t.Fatalf("Symbol = %q, want HK.00700", orderBook.Symbol)

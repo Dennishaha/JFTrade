@@ -19,6 +19,7 @@ func TestGoogleADKJSONSchemaFromMapPreservesObjectFields(t *testing.T) {
 	}
 	if schema == nil {
 		t.Fatalf("schema is nil")
+		return
 	}
 	if schema.Type != "object" {
 		t.Fatalf("schema type = %q, want object", schema.Type)

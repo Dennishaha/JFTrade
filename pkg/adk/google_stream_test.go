@@ -259,6 +259,7 @@ func TestOpenAICompatibleADKModelGenerateContentStreamMergesToolCallChunks(t *te
 	}
 	if final == nil || final.Content == nil {
 		t.Fatalf("final response = %#v, want content", final)
+		return
 	}
 	if got := final.Content.Parts[0].Text; got != "正在查询" {
 		t.Fatalf("final text = %q, want 正在查询", got)
@@ -502,6 +503,7 @@ func TestOpenAICompatibleADKModelGenerateContentStreamConsumesMessageChunksAndJS
 		}
 		if partials != 1 || final == nil || len(final.Content.Parts) != 2 {
 			t.Fatalf("partials=%d final=%#v, want one partial and final text+tool", partials, final)
+			return
 		}
 		if call := final.Content.Parts[1].FunctionCall; call == nil || call.Name != "risk.state" || call.Args["symbol"] != "US.AAPL" {
 			t.Fatalf("final function call = %#v", final.Content.Parts[1].FunctionCall)

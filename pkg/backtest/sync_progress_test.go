@@ -19,6 +19,7 @@ func TestSyncProgressSnapshotReturnsIndependentCopy(t *testing.T) {
 	snapshot := progress.Snapshot()
 	if snapshot == nil {
 		t.Fatal("expected snapshot")
+		return
 	}
 
 	snapshot.Status = "failed"
@@ -28,6 +29,7 @@ func TestSyncProgressSnapshotReturnsIndependentCopy(t *testing.T) {
 	fresh := progress.Snapshot()
 	if fresh == nil {
 		t.Fatal("expected fresh snapshot")
+		return
 	}
 	if fresh.Status != "running" {
 		t.Fatalf("progress status mutated through snapshot: %s", fresh.Status)

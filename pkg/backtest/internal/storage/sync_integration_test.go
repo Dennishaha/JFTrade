@@ -56,6 +56,7 @@ func TestSyncKLinesImmediateCancellation(t *testing.T) {
 	snapshot := progress.Snapshot()
 	if snapshot == nil {
 		t.Fatal("expected cancellation snapshot")
+		return
 	}
 	if snapshot.Status != "cancelled" {
 		t.Fatalf("cancelled sync status = %s", snapshot.Status)
@@ -145,6 +146,7 @@ func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 	snapshot := progress.Snapshot()
 	if snapshot == nil {
 		t.Fatal("expected mid-cancel snapshot")
+		return
 	}
 	if snapshot.Status != "cancelled" {
 		t.Fatalf("mid-cancel status = %s, want cancelled", snapshot.Status)
@@ -216,6 +218,7 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 	firstSnapshot := firstProgress.Snapshot()
 	if firstSnapshot == nil {
 		t.Fatal("expected first sync snapshot")
+		return
 	}
 	if firstSnapshot.Status != "completed" {
 		t.Fatalf("first sync status = %s", firstSnapshot.Status)
@@ -260,6 +263,7 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 	secondSnapshot := secondProgress.Snapshot()
 	if secondSnapshot == nil {
 		t.Fatal("expected second sync snapshot")
+		return
 	}
 	if secondSnapshot.Status != "completed" {
 		t.Fatalf("second sync status = %s", secondSnapshot.Status)
@@ -336,6 +340,7 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 	snapshot := progress.Snapshot()
 	if snapshot == nil {
 		t.Fatal("expected rate-limit snapshot")
+		return
 	}
 	if snapshot.Status != "failed" {
 		t.Fatalf("rate-limit status = %s, want failed", snapshot.Status)

@@ -17,6 +17,7 @@ func TestRunDirectGoPineRunnerIsDisabled(t *testing.T) {
 
 	if result == nil {
 		t.Fatal("Run returned nil")
+		return
 	}
 	if !strings.Contains(result.Error, "direct Go Pine backtest runner has been removed") {
 		t.Fatalf("Run error = %q", result.Error)

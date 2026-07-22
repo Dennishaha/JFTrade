@@ -39,6 +39,7 @@ func TestQueryAccountReturnsBBGOAccountSnapshot(t *testing.T) {
 	}
 	if account == nil {
 		t.Fatal("expected account snapshot")
+		return
 	}
 	if _, ok := account.RawAccount.(*trdcommonpb.Funds); !ok {
 		t.Fatalf("RawAccount type = %T, want *trdcommonpb.Funds", account.RawAccount)

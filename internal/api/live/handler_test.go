@@ -235,6 +235,7 @@ func TestHandlerConnectionLimitAndCloseLifecycle(t *testing.T) {
 	}
 	if err == nil || response == nil || response.StatusCode != 503 {
 		t.Fatalf("second dial err=%v status=%v", err, responseStatus(response))
+		return
 	}
 	defer func() { jftradeCheckTestError(t, response.Body.Close()) }()
 	var envelope map[string]any
@@ -289,6 +290,7 @@ func TestHandlerRejectsUntrustedWebSocketOrigin(t *testing.T) {
 			}
 			if err == nil || response == nil || response.StatusCode != http.StatusForbidden {
 				t.Fatalf("dial err=%v status=%v", err, responseStatus(response))
+				return
 			}
 			jftradeCheckTestError(t, response.Body.Close())
 		})

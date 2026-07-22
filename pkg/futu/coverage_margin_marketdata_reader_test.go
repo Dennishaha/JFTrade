@@ -118,6 +118,7 @@ func TestMarketRuleFallbacksExplainTheirSourceAndFailures(t *testing.T) {
 	rules, err := reader.QueryMarketRules(ctx, query)
 	if err != nil || rules == nil || len(rules.Rules) != 1 || len(rules.Warnings) != 1 {
 		t.Fatalf("snapshot fallback rules = %#v, %v", rules, err)
+		return
 	}
 	if !strings.Contains(rules.Warnings[0], "QuerySecuritySnapshot fallback") || !strings.Contains(rules.Warnings[0], "static metadata unavailable") {
 		t.Fatalf("fallback warning = %q", rules.Warnings[0])

@@ -412,6 +412,7 @@ func TestIndicatorRuntimeVWAPStatesUseMarketTradingPeriods(t *testing.T) {
 	`, types.Interval1m, "US.AAPL", RuntimeOptions{IncludeExtendedHours: true})
 	if runtime == nil {
 		t.Fatal("expected indicator runtime")
+		return
 	}
 	push := func(at time.Time, closeValue float64) {
 		runtime.push(types.KLine{

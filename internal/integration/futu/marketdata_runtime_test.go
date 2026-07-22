@@ -143,6 +143,7 @@ func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 	}, at.Add(time.Second))
 	if tick == nil {
 		t.Fatal("tickFromTrade returned nil")
+		return
 	}
 	if tick.InstrumentID != "HK.00700" || tick.Kind != marketdata.TickKindTrade ||
 		tick.Source != "bbgo:futu:stream" || !tick.Price.Equal(decimal.RequireFromString("321.5")) {
@@ -185,6 +186,7 @@ func TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks(t *testing.T) 
 	}, at)
 	if tick == nil {
 		t.Fatal("tickFromTicker should use bid/ask as fallback when last is missing")
+		return
 	}
 	if !tick.Price.Equal(decimal.RequireFromString("401.10")) ||
 		!tick.Bid.Equal(decimal.RequireFromString("401.10")) ||
@@ -235,6 +237,7 @@ func TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak(t *testing.T) {
 	stored := cache.Store(*tick)
 	if stored == nil {
 		t.Fatal("cache.Store returned nil")
+		return
 	}
 	if stored.PreviousClosePrice == nil || !stored.PreviousClosePrice.Equal(previousClose) {
 		t.Fatalf("PreviousClosePrice = %#v, want %s", stored.PreviousClosePrice, previousClose)
@@ -289,6 +292,7 @@ func TestTickFromTradeInheritsLatestQuoteFieldsThroughCache(t *testing.T) {
 	stored := cache.Store(*tick)
 	if stored == nil {
 		t.Fatal("cache.Store returned nil")
+		return
 	}
 	if !stored.Bid.Equal(decimal.RequireFromString("700.0")) || !stored.Ask.Equal(decimal.RequireFromString("700.2")) {
 		t.Fatalf("bid/ask = %s/%s", stored.Bid, stored.Ask)
@@ -323,6 +327,7 @@ func TestTickFromTickerReclassifiesUSRegularBoundary(t *testing.T) {
 	}, regularClock)
 	if tick == nil {
 		t.Fatal("tickFromTicker returned nil")
+		return
 	}
 	if tick.Session != "regular" {
 		t.Fatalf("session = %s", tick.Session)
@@ -530,6 +535,7 @@ func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {
 	tick := tickFromSnapshot("US.AAPL", snapshot, observedAt)
 	if tick == nil {
 		t.Fatal("tickFromSnapshot() = nil")
+		return
 	}
 	if tick.InstrumentID != "US.AAPL" || tick.Market != "US" || tick.Symbol != "AAPL" {
 		t.Fatalf("tick identity = %#v", tick)

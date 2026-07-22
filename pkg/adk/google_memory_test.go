@@ -38,6 +38,7 @@ func TestGoogleADKMemoryServiceSearchesJFTradeMemory(t *testing.T) {
 	}
 	if response == nil || len(response.Memories) != 1 {
 		t.Fatalf("SearchMemory memories = %+v, want one agent memory", response)
+		return
 	}
 	if response.Memories[0].ID == "" || response.Memories[0].Content == nil {
 		t.Fatalf("memory entry = %+v, want ID and content", response.Memories[0])

@@ -59,6 +59,7 @@ func TestIndicatorRuntimeSnapshotCoversBroadBusinessIndicatorDashboard(t *testin
 	`, types.Interval1m, "US.AAPL")
 	if runtime == nil {
 		t.Fatal("expected indicator runtime")
+		return
 	}
 
 	base := time.Date(2026, time.June, 15, 13, 30, 0, 0, time.UTC)

@@ -17,6 +17,7 @@ func TestServiceDefaultBacktestRequiresPineWorkerRunner(t *testing.T) {
 	})
 	if result == nil {
 		t.Fatal("runBacktest returned nil")
+		return
 	}
 	if !strings.Contains(result.Error, "pine worker runner is not configured") {
 		t.Fatalf("default runBacktest error = %q", result.Error)
@@ -32,6 +33,7 @@ func TestServiceDefaultBacktestUsesConfiguredPineWorkerRunner(t *testing.T) {
 	})
 	if result == nil {
 		t.Fatal("runBacktest returned nil")
+		return
 	}
 	if !strings.Contains(result.Error, "backtest database not found") {
 		t.Fatalf("runBacktest error = %q, want DB error from RunWithPineWorker", result.Error)

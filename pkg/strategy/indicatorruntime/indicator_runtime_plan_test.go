@@ -162,6 +162,7 @@ func TestNewIndicatorRuntimeFromPlan(t *testing.T) {
 	}
 	if runtime == nil {
 		t.Fatal("newIndicatorRuntimeFromPlan() = nil, want runtime")
+		return
 	}
 
 	for _, closePrice := range []float64{100, 101, 102, 103, 104, 105, 103, 99} {

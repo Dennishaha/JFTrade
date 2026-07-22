@@ -100,6 +100,7 @@ func TestRealPineTSBacktestSmoke(t *testing.T) {
 
 	if result == nil {
 		t.Fatal("RunWithPineWorker returned nil")
+		return
 	}
 	if result.Error != "" {
 		t.Fatalf("RunWithPineWorker error = %s", result.Error)

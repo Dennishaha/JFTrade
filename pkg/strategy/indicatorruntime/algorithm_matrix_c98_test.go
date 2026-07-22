@@ -195,6 +195,7 @@ func TestCoverage98AlgorithmBoundariesRemainSafeForRiskAndAdvancedIndicators(t *
 	state := newRollingKDJState(kdjConfig{period: 2, m1: 2, m2: 2}, 0, nil)
 	if state == nil || state.limit != minimumIndicatorSeriesLimit {
 		t.Fatalf("default KDJ state = %#v", state)
+		return
 	}
 	state.trimState(nil, nil, nil)
 	if len(state.kTail) != 0 || len(state.dTail) != 0 || len(state.jTail) != 0 {

@@ -761,12 +761,14 @@ func TestApprovalDenialRecordsResumedAndDeniedAuditEvents(t *testing.T) {
 	}
 	if resumedEvent == nil {
 		t.Fatalf("expected run.resumed audit event for run %s", resolution.Run.ID)
+		return
 	}
 	if resumedEvent.Metadata["resumeState"] != "approval_denied" {
 		t.Fatalf("run.resumed resumeState = %#v, want approval_denied", resumedEvent.Metadata["resumeState"])
 	}
 	if deniedEvent == nil {
 		t.Fatalf("expected run.denied audit event for run %s", resolution.Run.ID)
+		return
 	}
 	if deniedEvent.Metadata["resumeState"] != "approval_denied" {
 		t.Fatalf("run.denied resumeState = %#v, want approval_denied", deniedEvent.Metadata["resumeState"])

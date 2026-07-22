@@ -215,6 +215,7 @@ func TestQueryTickerReusesSingleOpenDConnection(t *testing.T) {
 	}
 	if firstTicker == nil || secondTicker == nil {
 		t.Fatal("expected non-nil tickers")
+		return
 	}
 	if got := server.acceptCount(); got != 1 {
 		t.Fatalf("expected one OpenD TCP session, got %d", got)
@@ -804,6 +805,7 @@ func TestQueryBrokerMaxTradeQuantityReturnsSnapshot(t *testing.T) {
 	}
 	if snapshot == nil {
 		t.Fatal("expected max trade quantity snapshot")
+		return
 	}
 	if snapshot.MaxCashBuy != 1000 {
 		t.Fatalf("MaxCashBuy = %v, want 1000", snapshot.MaxCashBuy)

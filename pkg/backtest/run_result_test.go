@@ -27,6 +27,7 @@ func TestRunResultSnapshotReturnsIndependentCopy(t *testing.T) {
 	snapshot := original.Snapshot()
 	if snapshot == nil {
 		t.Fatal("expected snapshot")
+		return
 	}
 
 	snapshot.FinalBalance = 42

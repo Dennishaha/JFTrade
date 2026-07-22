@@ -215,6 +215,7 @@ func TestDefaultExchangeCalendarSettingsUseNYSEAsOnlyDefaultUSRemoteSource(t *te
 	}
 	if usPolicy == nil {
 		t.Fatal("expected US source policy")
+		return
 	}
 	if !reflect.DeepEqual(usPolicy.PreferredSourceIDs, []string{"nyse_official"}) {
 		t.Fatalf("preferred source ids = %#v", usPolicy.PreferredSourceIDs)

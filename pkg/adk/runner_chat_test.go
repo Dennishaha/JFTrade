@@ -216,6 +216,7 @@ func TestPersistRunTerminalStateWritesRunAndAudit(t *testing.T) {
 	}
 	if found == nil {
 		t.Fatalf("audit events = %+v, want run.failed", events)
+		return
 	}
 	if found.Metadata["errorCode"] != "MODEL_CALL_FAILED" || found.Metadata["failureReason"] != "boom" {
 		t.Fatalf("audit metadata = %+v", found.Metadata)

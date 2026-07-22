@@ -412,6 +412,7 @@ func TestMaybeAutoCompactSessionEmitsContextNoticeDeltas(t *testing.T) {
 	}
 	if compacted == nil {
 		t.Fatalf("deltas = %+v, want context snapshot after compaction", deltas)
+		return
 	}
 	if compacted.CurrentInputTokens >= before.ProjectedNextTurnTokens {
 		t.Fatalf("context tokens after = %d, want less than projected before %d", compacted.CurrentInputTokens, before.ProjectedNextTurnTokens)

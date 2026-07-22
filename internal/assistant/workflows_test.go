@@ -339,6 +339,7 @@ func TestRunWorkflowCanvasCompilesAndStoresNodeOutputs(t *testing.T) {
 	report := workflowNodeRunByID(result.Log.NodeRuns, "report")
 	if research == nil || report == nil {
 		t.Fatalf("node runs = %+v, want research and report nodes", result.Log.NodeRuns)
+		return
 	}
 	if research.Inputs["agentId"] != child.ID || research.Inputs["message"] != "research US.MSFT" {
 		t.Fatalf("research inputs = %+v, want rendered child agent message", research.Inputs)

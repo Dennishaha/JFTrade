@@ -80,6 +80,7 @@ func TestBrokerAdapterDiscoverAccountsAndTradingBridge(t *testing.T) {
 	}
 	if placed == nil {
 		t.Fatal("expected place-order result")
+		return
 	}
 	if got := placed.BrokerOrderID; got != "9001" {
 		t.Fatalf("BrokerOrderID = %q, want 9001", got)
@@ -326,6 +327,7 @@ func TestBrokerAdapterMarketDataReaderTradingSnapshots(t *testing.T) {
 	}
 	if funds == nil {
 		t.Fatal("expected funds snapshot")
+		return
 	}
 	if funds.Currency == nil || *funds.Currency != "HKD" {
 		t.Fatalf("Currency = %#v, want HKD", funds.Currency)
@@ -589,6 +591,7 @@ func TestBrokerAdapterMarketDataReaderAccountAnalytics(t *testing.T) {
 	}
 	if maxQty == nil {
 		t.Fatal("expected max-trade-quantity snapshot")
+		return
 	}
 	if maxQty.MaxCashBuy != 1000 {
 		t.Fatalf("MaxCashBuy = %v, want 1000", maxQty.MaxCashBuy)
@@ -629,6 +632,7 @@ func TestBrokerAdapterQuoteKLinesSubscriptionsAndValidation(t *testing.T) {
 	}
 	if quote == nil {
 		t.Fatal("expected quote snapshot")
+		return
 	}
 	if got := quote.Symbol; got != "HK.00700" {
 		t.Fatalf("Symbol = %q, want HK.00700", got)
@@ -654,6 +658,7 @@ func TestBrokerAdapterQuoteKLinesSubscriptionsAndValidation(t *testing.T) {
 	}
 	if klines == nil {
 		t.Fatal("expected kline snapshot")
+		return
 	}
 	if len(klines.KLines) != 1 {
 		t.Fatalf("expected one kline, got %#v", klines.KLines)

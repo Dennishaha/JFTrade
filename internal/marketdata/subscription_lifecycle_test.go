@@ -175,6 +175,7 @@ func TestServiceReconcilesWebAndManagedSubscriptionLifecycles(t *testing.T) {
 	lease, err := service.AcquireManagedSubscription(ctx, "strategy-runtime:one", refs)
 	if err != nil || lease == nil {
 		t.Fatalf("AcquireManagedSubscription = %#v, %v", lease, err)
+		return
 	}
 	if err := service.ClearSubscriptions(ctx); err != nil {
 		t.Fatalf("ClearSubscriptions(web only): %v", err)

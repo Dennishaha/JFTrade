@@ -62,6 +62,7 @@ strategy("worker smoke")`,
 
 	if result == nil {
 		t.Fatal("RunWithPineWorker returned nil")
+		return
 	}
 	if result.Error != "" {
 		t.Fatalf("RunWithPineWorker error = %s", result.Error)
@@ -132,6 +133,7 @@ strategy("worker warmup fills")`,
 
 	if result == nil || result.Error != "" {
 		t.Fatalf("RunWithPineWorker result = %#v", result)
+		return
 	}
 	if len(runner.request.Candles) != len(klines) {
 		t.Fatalf("worker candles = %d, want warmup plus formal bars %d", len(runner.request.Candles), len(klines))
@@ -195,6 +197,7 @@ strategy("worker qty pct")`,
 
 	if result == nil {
 		t.Fatal("RunWithPineWorker returned nil")
+		return
 	}
 	if result.Error != "" {
 		t.Fatalf("RunWithPineWorker error = %s", result.Error)
@@ -261,6 +264,7 @@ strategy("worker initial close")`,
 
 	if result == nil {
 		t.Fatal("RunWithPineWorker returned nil")
+		return
 	}
 	if result.Error != "" {
 		t.Fatalf("RunWithPineWorker error = %s", result.Error)
@@ -322,6 +326,7 @@ strategy("worker hk lot fallback")`,
 
 	if result == nil {
 		t.Fatal("RunWithPineWorker returned nil")
+		return
 	}
 	if result.Error != "" {
 		t.Fatalf("RunWithPineWorker error = %s", result.Error)

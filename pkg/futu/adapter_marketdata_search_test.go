@@ -90,6 +90,7 @@ func TestBrokerAdapterSecuritySearchMapsCrossMarketOpenDResults(t *testing.T) {
 	}
 	if snapshot == nil || snapshot.AccountID != "1001" {
 		t.Fatalf("snapshot = %#v, want account 1001", snapshot)
+		return
 	}
 	if len(snapshot.Entries) != 2 {
 		t.Fatalf("entries = %#v, want two usable cross-market results", snapshot.Entries)

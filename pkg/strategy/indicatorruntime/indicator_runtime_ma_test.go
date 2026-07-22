@@ -144,6 +144,7 @@ func TestIndicatorRuntimeSnapshotIncludesV13MigrationIndicators(t *testing.T) {
 	`, types.Interval1m, "US.AAPL")
 	if runtime == nil {
 		t.Fatal("expected indicator runtime")
+		return
 	}
 	for _, closePrice := range []float64{1, 2, 4, 3, 5, 7} {
 		runtime.push(types.KLine{

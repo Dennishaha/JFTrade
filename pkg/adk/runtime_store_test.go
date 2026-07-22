@@ -413,6 +413,7 @@ func TestNewRuntimeDirectCtorAndNilSafeHelpers(t *testing.T) {
 	runtime := NewRuntime(store, nil)
 	if runtime == nil || runtime.Store() != store || runtime.Tools() == nil || runtime.Skills() == nil {
 		t.Fatalf("runtime = %+v, want direct constructor to initialize registries", runtime)
+		return
 	}
 	if runtime.sessionService == nil || runtime.rawSessionService == nil {
 		t.Fatalf("runtime session services = %#v/%#v, want initialized services", runtime.sessionService, runtime.rawSessionService)

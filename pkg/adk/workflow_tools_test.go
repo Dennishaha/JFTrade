@@ -71,6 +71,7 @@ func TestGoogleADKToolsetRunsRegisteredToolsAndNormalizesResponses(t *testing.T)
 	product, ok := toolset.(*googleADKProductToolset)
 	if !ok || product == nil || product.Name() != "jftrade-tools" {
 		t.Fatalf("product toolset = %#v", toolset)
+		return
 	}
 	tools, err := product.Tools(ctx)
 	if err != nil || len(tools) != 6 {

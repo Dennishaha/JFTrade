@@ -158,6 +158,7 @@ func TestCoverage98WorkflowApprovalStateTransitionsPersistTheObservableOutcome(t
 				updated, err := runtime.syncParentWorkflowFromChild(ctx, child)
 				if err != nil || updated == nil || updated.Status != status || updated.Message != child.Message {
 					t.Fatalf("sync %s parent=%+v err=%v", status, updated, err)
+					return
 				}
 				wantWorkflow := workflowStatusPaused
 				if status == RunStatusRunning {

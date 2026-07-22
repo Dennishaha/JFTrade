@@ -43,6 +43,7 @@ func TestExchangeQueryQuoteSnapshotUsesBasicQotPayload(t *testing.T) {
 	}
 	if snapshot == nil {
 		t.Fatal("expected quote snapshot")
+		return
 	}
 	if snapshot.Symbol != "HK.00700" {
 		t.Fatalf("Symbol = %q, want HK.00700", snapshot.Symbol)

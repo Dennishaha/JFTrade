@@ -47,6 +47,7 @@ func TestReplayPublisherNormalizesEventTimeToUTC(t *testing.T) {
 	})
 	if event == nil {
 		t.Fatal("expected event")
+		return
 	}
 	if event.At != "2026-06-20T01:30:00Z" {
 		t.Fatalf("event.At = %q, want UTC", event.At)

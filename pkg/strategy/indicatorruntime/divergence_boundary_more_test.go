@@ -14,6 +14,7 @@ func TestKDJBoundaryAndDivergenceFallbackEdges(t *testing.T) {
 	state := newRollingKDJState(kdjConfig{period: 3, m1: 3, m2: 3}, 2, nil)
 	if state == nil {
 		t.Fatal("newRollingKDJState() = nil")
+		return
 	}
 	if state.boundaryKAt(-1) != 0 || (*rollingKDJState)(nil).boundaryDByKAt(1) != 0 || (*rollingKDJState)(nil).boundaryDByDAt(1) != 0 {
 		t.Fatal("nil/negative KDJ boundary lookups should return 0")

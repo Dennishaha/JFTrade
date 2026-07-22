@@ -22,6 +22,7 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	stored := cache.Store(first)
 	if stored == nil {
 		t.Fatal("expected first sample")
+		return
 	}
 
 	duplicate := first
@@ -29,6 +30,7 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	stored = cache.Store(duplicate)
 	if stored == nil {
 		t.Fatal("expected duplicate sample")
+		return
 	}
 	if stored.ObservedAt != first.ObservedAt {
 		t.Fatalf("dedupe changed observedAt: %s", stored.ObservedAt)
@@ -149,6 +151,7 @@ func TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives(t *testing.T) {
 	stored := cache.Store(afterHoursTrade)
 	if stored == nil {
 		t.Fatal("expected after-hours trade to be stored")
+		return
 	}
 	if stored.PreviousClosePrice == nil || stored.PreviousClosePrice.String() != "111.14" {
 		t.Fatalf("previous close = %v, want Thursday regular close 111.14", stored.PreviousClosePrice)

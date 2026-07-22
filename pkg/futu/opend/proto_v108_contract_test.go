@@ -49,6 +49,7 @@ func assertProtoFieldNumber(t *testing.T, descriptor protoreflect.MessageDescrip
 	field := descriptor.Fields().ByName(protoreflect.Name(name))
 	if field == nil {
 		t.Fatalf("field %s not found", name)
+		return
 	}
 	if field.Number() != want {
 		t.Fatalf("field %s number = %d, want %d", name, field.Number(), want)

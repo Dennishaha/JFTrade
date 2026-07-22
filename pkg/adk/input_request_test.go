@@ -496,6 +496,7 @@ func TestRequestUserToolIsLongRunning(t *testing.T) {
 	declaration := tool.Declaration()
 	if declaration == nil || !strings.Contains(declaration.Description, "two or three options") {
 		t.Fatalf("input tool declaration = %#v, want three-option guidance", declaration)
+		return
 	}
 	declarationSchema, err := json.Marshal(declaration.ParametersJsonSchema)
 	if err != nil || !strings.Contains(string(declarationSchema), `"maxItems":3`) {

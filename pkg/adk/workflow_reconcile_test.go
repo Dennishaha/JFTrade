@@ -168,6 +168,7 @@ func TestPendingChildCanReopenCompletedRunningParentWorkflow(t *testing.T) {
 	}
 	if updated == nil || updated.Status != RunStatusPending || updated.WorkflowStatus != workflowStatusPaused {
 		t.Fatalf("updated parent = %+v, want pending paused parent", updated)
+		return
 	}
 	if len(updated.PendingApprovals) != 1 || updated.PendingApprovals[0].ID != approval.ID {
 		t.Fatalf("updated pending approvals = %+v, want child approval", updated.PendingApprovals)

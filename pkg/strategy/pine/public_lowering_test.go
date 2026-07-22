@@ -17,6 +17,7 @@ if close > open
 	}
 	if program == nil || program.Metadata.Name != "Public Parse" || len(program.Hooks) != 1 {
 		t.Fatalf("program = %#v", program)
+		return
 	}
 	ifStmt, ok := program.Hooks[0].Statements[0].(*strategyir.IfStmt)
 	if !ok {

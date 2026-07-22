@@ -135,6 +135,7 @@ strategy("invalid worker command")`,
 		result := RunWithPineWorker(context.Background(), cfg, runner)
 		if result == nil || !strings.Contains(result.Error, "pine worker replay command") || !strings.Contains(result.Error, "quantity must be positive") {
 			t.Fatalf("zero quantity replay result = %#v", result)
+			return
 		}
 		if len(result.OrderBook) != 0 {
 			t.Fatalf("invalid command created orders: %#v", result.OrderBook)

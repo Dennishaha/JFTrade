@@ -67,6 +67,7 @@ func TestLocalMCPHandlerExposesOnlyReviewedReadTools(t *testing.T) {
 	}
 	if statusTool == nil {
 		t.Fatal("system.status descriptor is unavailable")
+		return
 	}
 	inputSchema, ok := statusTool.InputSchema.(map[string]any)
 	if !ok || inputSchema["type"] != "object" {

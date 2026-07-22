@@ -368,6 +368,7 @@ func TestGoalWorkflowPauseRequestBlocksChildCompletionContinuation(t *testing.T)
 	}
 	if pausedParent == nil || pausedParent.Status != RunStatusPaused || pausedParent.WorkflowStatus != workflowStatusPaused || pausedParent.ResumeState != "user_paused" {
 		t.Fatalf("completed child parent = %+v, want user-paused parent", pausedParent)
+		return
 	}
 	if pausedParent.CompletedAt != nil {
 		t.Fatalf("parent completedAt = %v, want nil while user-paused", *pausedParent.CompletedAt)

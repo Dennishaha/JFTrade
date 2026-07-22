@@ -97,6 +97,7 @@ func TestSecurityDetailsFromSnapshotMapsDerivativeAndMarketExtensionData(t *test
 	details := securityDetailsFromSnapshot(snapshot, "HK.09988")
 	if details == nil {
 		t.Fatal("securityDetailsFromSnapshot() = nil")
+		return
 	}
 	if details.InstrumentID != "HK.09988" || details.Market != "HK" || details.Symbol != "09988" {
 		t.Fatalf("canonical fallback ref = %#v", details)
@@ -151,6 +152,7 @@ func TestSecurityDetailsFromSnapshotHandlesMissingBasicAndUnknownEnums(t *testin
 	}, "US.AAPL")
 	if details == nil {
 		t.Fatal("details with basic security = nil")
+		return
 	}
 	if details.SecurityType != "" || details.SessionStatus != "" {
 		t.Fatalf("unknown enum names = securityType %q status %q", details.SecurityType, details.SessionStatus)

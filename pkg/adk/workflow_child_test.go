@@ -58,6 +58,7 @@ func TestUserPausedGoalParentPreservesPauseWhileChildStateChanges(t *testing.T) 
 	}
 	if updated == nil || updated.Status != RunStatusPaused || updated.WorkflowStatus != workflowStatusPaused || updated.ResumeState != "user_paused" || updated.PausedReason != "user" {
 		t.Fatalf("updated parent = %+v, want user-paused parent preserved", updated)
+		return
 	}
 	if len(updated.PendingApprovals) != 1 || updated.PendingApprovals[0].ID != approval.ID {
 		t.Fatalf("updated approvals = %+v, want mirrored child approval", updated.PendingApprovals)
@@ -116,6 +117,7 @@ func TestCompletedChildReopensPendingParentWorkflowToRunning(t *testing.T) {
 	}
 	if updated == nil || updated.Status != RunStatusRunning || updated.WorkflowStatus != workflowStatusRunning || updated.Message != "workflow resumed" {
 		t.Fatalf("updated parent = %+v, want reopened running workflow", updated)
+		return
 	}
 	if len(updated.PendingApprovals) != 0 {
 		t.Fatalf("updated pending approvals = %+v, want cleared pending approvals", updated.PendingApprovals)

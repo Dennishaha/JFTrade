@@ -218,6 +218,7 @@ func TestEphemeralPineWorkerLiveSessionLifecycle(t *testing.T) {
 	session, opened, err := runner.OpenLiveSession(sessionCtx, validServerPineWorkerRunScriptRequest("live-open"))
 	if err != nil || session == nil || opened.SessionID == "" || opened.SessionRevision != 1 {
 		t.Fatalf("OpenLiveSession = session %#v response %#v err=%v", session, opened, err)
+		return
 	}
 	appended, err := session.Append(sessionCtx, validServerPineWorkerRunScriptRequest("live-append"))
 	if err != nil || appended.SessionID != opened.SessionID || appended.SessionRevision != 2 {

@@ -54,6 +54,7 @@ func TestConvertFundsSnapshotFullMarginFields(t *testing.T) {
 	result := convertFundsSnapshot(src)
 	if result == nil {
 		t.Fatal("expected non-nil result")
+		return
 	}
 
 	// Verify all margin fields passed through
@@ -508,6 +509,7 @@ func TestOrderBookSnapshotFromOpendResult(t *testing.T) {
 	snapshot := orderBookSnapshotFromOpendResult(res, query)
 	if snapshot == nil {
 		t.Fatal("expected non-nil snapshot")
+		return
 	}
 
 	if snapshot.AccountID != "test-account" {

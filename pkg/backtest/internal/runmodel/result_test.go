@@ -59,6 +59,7 @@ func TestRunResultSnapshotHandlesNilAndReturnsIndependentCopy(t *testing.T) {
 	snapshot := original.Snapshot()
 	if snapshot == nil {
 		t.Fatal("expected snapshot")
+		return
 	}
 
 	snapshot.Trades[0].Price = "999"
@@ -121,6 +122,7 @@ func TestRunResultSnapshotOmitsEmptyRuntimeErrorCounts(t *testing.T) {
 	snapshot := (&RunResult{Symbol: "US.AAPL"}).Snapshot()
 	if snapshot == nil {
 		t.Fatal("expected snapshot")
+		return
 	}
 	if snapshot.RuntimeErrorCounts != nil {
 		t.Fatalf("RuntimeErrorCounts = %#v, want nil for empty map", snapshot.RuntimeErrorCounts)

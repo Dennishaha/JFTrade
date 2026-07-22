@@ -70,6 +70,7 @@ func TestCoverage95RollingKDJStateRemainsCoherentAfterSeriesTrim(t *testing.T) {
 	state := newRollingKDJState(kdjConfig{period: 2, m1: 2, m2: 2}, 2, []int{3})
 	if state == nil || state.limit != 2 || state.tailLen < 4 {
 		t.Fatalf("KDJ state = %#v", state)
+		return
 	}
 	state.push(nil, nil, nil, 4, 1, 3, false)
 	state.push([]float64{4}, []float64{1}, []float64{3}, 5, 2, 4, false)

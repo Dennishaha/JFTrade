@@ -33,6 +33,7 @@ func TestRateLimitRetryExhaustsAndTracksRetries(t *testing.T) {
 	snapshot := progress.Snapshot()
 	if snapshot == nil {
 		t.Fatal("expected retry snapshot")
+		return
 	}
 	if snapshot.Retries != 3 {
 		t.Fatalf("retry count = %d, want 3", snapshot.Retries)
@@ -79,6 +80,7 @@ func TestRateLimitRetryReturnsImmediatelyForNonRetryableError(t *testing.T) {
 	snapshot := progress.Snapshot()
 	if snapshot == nil {
 		t.Fatal("expected non-retryable snapshot")
+		return
 	}
 	if snapshot.Retries != 0 {
 		t.Fatalf("non-retryable retries = %d, want 0", snapshot.Retries)

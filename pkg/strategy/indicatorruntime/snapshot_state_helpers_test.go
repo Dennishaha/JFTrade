@@ -273,6 +273,7 @@ func TestMovingAverageAndSnapshotAccessorsExposeExpectedFields(t *testing.T) {
 	vwmaState := maStates[vwmaConfig]
 	if smaState == nil || vwmaState == nil {
 		t.Fatalf("newRollingMovingAverageStates() = %#v", maStates)
+		return
 	}
 
 	smaState.push(1, 1)

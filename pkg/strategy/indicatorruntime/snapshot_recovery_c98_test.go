@@ -76,6 +76,7 @@ func TestCoverage98HistoricalDivergenceFallbackMatchesStoredSeries(t *testing.T)
 func TestCoverage98RollingStatesRecoverWithoutProducingInventedSignals(t *testing.T) {
 	if state := newRollingEMATailState(2, 0, 2); state == nil || state.limit != minimumIndicatorSeriesLimit {
 		t.Fatalf("EMA default retention = %#v", state)
+		return
 	}
 
 	recoveredEMA := newRollingEMATailState(2, 4, 2)

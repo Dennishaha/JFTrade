@@ -68,6 +68,7 @@ func TestCoverage98RollingIndicatorStatesDistinguishUnwarmedAndInvalidSeries(t *
 	macd := newRollingMACDState(macdConfig{fastPeriod: 1, slowPeriod: 1, signalPeriod: 1}, 1, nil)
 	if macd == nil {
 		t.Fatal("valid minimal MACD state was not allocated")
+		return
 	}
 	macd.push(10, false, 0, 0, false, false)
 	if _, ok := macd.previousSignal(); ok {

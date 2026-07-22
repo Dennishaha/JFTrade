@@ -72,6 +72,7 @@ func TestResumeLoopWorkflowHonorsUserPauseAndCompletedChild(t *testing.T) {
 		}
 		if updated == nil || updated.Status != RunStatusCompleted || updated.WorkflowStatus != workflowStatusComplete || updated.FinalMessageID == "" {
 			t.Fatalf("updated parent = %+v, want completed resumed loop workflow", updated)
+			return
 		}
 		if !strings.Contains(updated.Message, "workflow completed") {
 			t.Fatalf("updated message = %q, want workflow completed", updated.Message)
