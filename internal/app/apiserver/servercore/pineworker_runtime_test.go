@@ -714,8 +714,15 @@ func (transport *fakeServerPineWorkerTransport) RunScript(_ context.Context, req
 	transport.mu.Lock()
 	transport.runs++
 	transport.mu.Unlock()
+	revision := request.ExpectedRevision
+	switch request.SessionOperation {
+	case pineworker.SessionOperationOpen:
+		revision = 1
+	case pineworker.SessionOperationAppend:
+		revision++
+	}
 	return pineworker.RunScriptResponse{
-		JobID: request.JobID,
+		JobID: request.JobID, SessionID: request.SessionID, SessionRevision: revision,
 		Metadata: pineworker.WorkerMetadata{
 			Duration:      100 * time.Microsecond,
 			RequestBytes:  100,

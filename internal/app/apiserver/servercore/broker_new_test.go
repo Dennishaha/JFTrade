@@ -268,6 +268,7 @@ func TestBrokerUnlockDisconnectedOpenD(t *testing.T) {
 	}
 	if errInfo == nil {
 		t.Fatal("expected error payload")
+		return
 	}
 	if errInfo.Code != "UNLOCK_FAILED" {
 		t.Fatalf("error code = %q, want UNLOCK_FAILED", errInfo.Code)

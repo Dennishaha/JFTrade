@@ -83,9 +83,7 @@ func (r *Runtime) beginRunExecutionLease(
 	r.runLeases[runID] = lease
 	r.activeMu.Unlock()
 	done := make(chan struct{})
-	r.runLeaseWG.Add(1)
-	go func() {
-		defer r.runLeaseWG.Done()
+	r.runLeaseWG.Go(func() {
 		defer close(done)
 		defer func() {
 			releaseCtx, releaseCancel := context.WithTimeout(context.Background(), min(ttl, 5*time.Second))
@@ -119,7 +117,7 @@ func (r *Runtime) beginRunExecutionLease(
 				r.activeMu.Unlock()
 			}
 		}
-	}()
+	})
 	wait := func() {
 		cancel()
 		<-done

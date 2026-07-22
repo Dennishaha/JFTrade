@@ -83,3 +83,47 @@ func TestCoverage98ResolveInputAsyncDoesNotRestartAnInFlightContinuation(t *test
 		t.Fatalf("released continuation must settle truthfully: %+v", failed)
 	}
 }
+
+func TestAnsweredInputIsRequeuedAfterInFlightContinuationReleasesClaim(t *testing.T) {
+	ctx := t.Context()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "input-lost-wakeup-agent", Name: "Input Lost Wakeup", ProviderID: testProviderID,
+		PermissionMode: PermissionModeAll, WorkMode: WorkModeChat, Status: AgentStatusEnabled,
+	})
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@input.required recover"})
+	if err != nil || response.InputRequest == nil {
+		t.Fatalf("Chat response=%+v err=%v", response, err)
+	}
+	if !runtime.claimInputContinuation(response.Run.ID) {
+		t.Fatal("claim prior input continuation")
+	}
+
+	answers := make([]InputAnswer, 0, len(response.InputRequest.Questions))
+	for _, question := range response.InputRequest.Questions {
+		answers = append(answers, InputAnswer{QuestionID: question.ID, OptionID: question.Options[0].ID})
+	}
+	resolved, changed, err := runtime.Store().ResolveRunInput(ctx, response.Run.ID, InputResponseRequest{
+		RequestID: response.InputRequest.ID,
+		Answers:   answers,
+	})
+	if err != nil || !changed || !runHasRecoverableAnsweredInputContext(resolved) {
+		t.Fatalf("persist answer during prior continuation = %+v, changed=%v err=%v", resolved, changed, err)
+	}
+
+	// ResolveInputAsync reaches the same enqueue path here, but the prior
+	// continuation still owns the claim, so this wakeup cannot start yet.
+	runtime.enqueueResolvedInputContinuation(response.Run.ID)
+	runtime.approvalMu.Lock()
+	queued := len(runtime.inputRuns)
+	runtime.approvalMu.Unlock()
+	if queued != 1 {
+		t.Fatalf("in-flight continuation claims = %d, want 1", queued)
+	}
+
+	runtime.finishInputContinuation(ctx, response.Run.ID, nil)
+	completed := waitForRunStatus(t, runtime, response.Run.ID, RunStatusCompleted)
+	if completed.ResumeState != "input_resolved" || completed.InputRequest == nil || completed.InputRequest.Status != InputRequestStatusAnswered {
+		t.Fatalf("requeued input continuation = %+v", completed)
+	}
+}

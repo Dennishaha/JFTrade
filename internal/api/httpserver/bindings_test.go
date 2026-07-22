@@ -150,6 +150,7 @@ func TestOptionalQueryValueParsingSemantics(t *testing.T) {
 		ptr := value.PtrUTC()
 		if ptr == nil {
 			t.Fatal("OptionalTimeValue.PtrUTC() = nil")
+			return
 		}
 		want := time.Date(2026, time.June, 22, 1, 30, 0, 0, time.UTC)
 		if !ptr.Equal(want) {

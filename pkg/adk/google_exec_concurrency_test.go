@@ -38,15 +38,13 @@ func TestGoogleADKExecutionSerializesConcurrentToolCallbacks(t *testing.T) {
 
 	var appendWG sync.WaitGroup
 	appendErrs := make(chan error, fragmentCount)
-	for index := 0; index < fragmentCount; index++ {
+	for index := range fragmentCount {
 		fragment := fmt.Sprintf("fragment-%02d|", index)
-		appendWG.Add(1)
-		go func() {
-			defer appendWG.Done()
+		appendWG.Go(func() {
 			if err := execution.appendVisibleTextForRun(execution.runID, fragment, ""); err != nil {
 				appendErrs <- err
 			}
-		}()
+		})
 	}
 	appendWG.Wait()
 	close(appendErrs)
@@ -56,11 +54,9 @@ func TestGoogleADKExecutionSerializesConcurrentToolCallbacks(t *testing.T) {
 
 	var finishWG sync.WaitGroup
 	for _, callID := range []string{firstID, secondID} {
-		finishWG.Add(1)
-		go func() {
-			defer finishWG.Done()
+		finishWG.Go(func() {
 			execution.finishCall(callID, map[string]any{"ok": true}, nil)
-		}()
+		})
 	}
 	finishWG.Wait()
 
@@ -68,7 +64,7 @@ func TestGoogleADKExecutionSerializesConcurrentToolCallbacks(t *testing.T) {
 		t.Fatal("onDelta callbacks overlapped")
 	}
 	result := execution.result()
-	for index := 0; index < fragmentCount; index++ {
+	for index := range fragmentCount {
 		fragment := fmt.Sprintf("fragment-%02d|", index)
 		if count := strings.Count(result.Reply, fragment); count != 1 {
 			t.Fatalf("final reply contains %q %d times, want once", fragment, count)

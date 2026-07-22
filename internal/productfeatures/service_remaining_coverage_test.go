@@ -2,6 +2,7 @@ package productfeatures
 
 import (
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -233,9 +234,7 @@ func TestOptionFeatureValidationRejectsMalformedAdvancedFilters(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			query := base
 			query.Params = map[string]any{}
-			for key, value := range base.Params {
-				query.Params[key] = value
-			}
+			maps.Copy(query.Params, base.Params)
 			test.mutate(&query)
 			if err := validateOptionFeatureQuery(query); err == nil {
 				t.Fatal("malformed option query succeeded")

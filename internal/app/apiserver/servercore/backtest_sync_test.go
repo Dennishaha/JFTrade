@@ -54,6 +54,7 @@ func TestBacktestSyncTaskStoreCancelMarksProgressCancelled(t *testing.T) {
 	}
 	if snapshot == nil {
 		t.Fatal("expected cancelled snapshot")
+		return
 	}
 	if snapshot.Status != "cancelled" {
 		t.Fatalf("cancel snapshot status = %s", snapshot.Status)

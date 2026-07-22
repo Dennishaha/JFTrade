@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -134,7 +134,7 @@ func TestGoogleADKArtifactServiceAllocatesAutoVersionsAtomically(t *testing.T) {
 	versions := make(chan int64, saveCount)
 	errorsBySave := make(chan error, saveCount)
 	var wg sync.WaitGroup
-	for i := 0; i < saveCount; i++ {
+	for i := range saveCount {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
@@ -162,7 +162,7 @@ func TestGoogleADKArtifactServiceAllocatesAutoVersionsAtomically(t *testing.T) {
 	for version := range versions {
 		got = append(got, version)
 	}
-	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
+	slices.Sort(got)
 	if len(got) != saveCount {
 		t.Fatalf("saved versions = %v, want %d versions", got, saveCount)
 	}

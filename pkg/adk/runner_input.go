@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"google.golang.org/genai"
@@ -82,11 +83,32 @@ func (r *Runtime) enqueueResolvedInputContinuation(runID string) {
 	r.approvalMu.Unlock()
 	go func() {
 		defer r.approvalWG.Done()
-		defer r.releaseInputContinuation(runID)
-		if err := r.continueResolvedInput(ctx, runID); err != nil && ctx.Err() == nil {
+		err := r.continueResolvedInput(ctx, runID)
+		r.finishInputContinuation(ctx, runID, err)
+		if err != nil && ctx.Err() == nil {
 			besteffort.LogError(err)
 		}
 	}()
+}
+
+// finishInputContinuation closes the in-process claim before checking durable
+// state again. An answer for a newly requested question can be persisted while
+// the prior continuation still owns that claim; the post-release check prevents
+// that wakeup from being lost without bypassing a fresh foreign execution lease.
+func (r *Runtime) finishInputContinuation(ctx context.Context, runID string, continuationErr error) {
+	r.releaseInputContinuation(runID)
+	if continuationErr != nil || ctx == nil || ctx.Err() != nil || r == nil || r.store == nil {
+		return
+	}
+	run, ok, err := r.store.Run(ctx, runID)
+	if err != nil || !ok || !runHasRecoverableAnsweredInputContext(run) {
+		return
+	}
+	foreignLease, err := r.freshForeignRunLease(ctx, runID, time.Now().UTC())
+	if err != nil || foreignLease {
+		return
+	}
+	r.enqueueResolvedInputContinuation(runID)
 }
 
 func (r *Runtime) continueResolvedInput(ctx context.Context, runID string) error {

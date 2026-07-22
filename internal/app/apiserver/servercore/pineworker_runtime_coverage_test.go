@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,31 @@ func (s pineWorkerStopFailureLauncher) Start(context.Context, pineworker.WorkerS
 type pineWorkerStopFailureProcess struct{ err error }
 
 func (s pineWorkerStopFailureProcess) Stop(context.Context) error { return s.err }
+
+type pineWorkerLiveBoundaryDialer struct {
+	transport *pineWorkerLiveBoundaryTransport
+}
+
+func (dialer pineWorkerLiveBoundaryDialer) Dial(context.Context, string) (pineworker.ManagedTransport, error) {
+	return dialer.transport, nil
+}
+
+type pineWorkerLiveBoundaryTransport struct {
+	run func(pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error)
+}
+
+func (transport *pineWorkerLiveBoundaryTransport) RunScript(_ context.Context, request pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
+	if transport.run != nil {
+		return transport.run(request)
+	}
+	return pineworker.RunScriptResponse{JobID: request.JobID}, nil
+}
+
+func (*pineWorkerLiveBoundaryTransport) HealthCheck(context.Context) (pineworker.HealthStatus, error) {
+	return pineworker.HealthStatus{OK: true, WorkerID: "live-boundary"}, nil
+}
+
+func (*pineWorkerLiveBoundaryTransport) Close() error { return nil }
 
 func TestPineWorkerRuntimeApplyAndMinimumConcurrencyBoundaries(t *testing.T) {
 	var nilServer *Server
@@ -150,5 +176,137 @@ func TestPineWorkerRuntimeResolutionRemainingBoundaries(t *testing.T) {
 	}
 	if got := clampInt(11, 1, 10); got != 10 {
 		t.Fatalf("upper clamp = %d", got)
+	}
+}
+
+func TestEphemeralPineWorkerLiveSessionLifecycle(t *testing.T) {
+	var nilRunner *ephemeralPineWorkerRunner
+	if _, _, err := nilRunner.OpenLiveSession(t.Context(), pineworker.RunScriptRequest{}); err == nil {
+		t.Fatal("nil runner opened a live session")
+	}
+	if err := nilRunner.Close(t.Context()); err != nil {
+		t.Fatalf("nil runner close: %v", err)
+	}
+
+	closedRunner := &ephemeralPineWorkerRunner{busy: make(chan struct{}, 1), closed: true}
+	if _, _, err := closedRunner.OpenLiveSession(t.Context(), pineworker.RunScriptRequest{}); err == nil {
+		t.Fatal("closed runner opened a live session")
+	}
+	busyRunner := &ephemeralPineWorkerRunner{busy: make(chan struct{}, 1), rejectWhenBusy: true}
+	busyRunner.busy <- struct{}{}
+	if _, _, err := busyRunner.OpenLiveSession(t.Context(), pineworker.RunScriptRequest{}); !errors.Is(err, pineworker.ErrCapacityExceeded) {
+		t.Fatalf("busy live-session open error = %v", err)
+	}
+
+	launcher := &fakeServerPineWorkerLauncher{}
+	dialer := newFakeServerPineWorkerDialer()
+	restorePineWorkerFactories(t, launcher, dialer)
+	newRunner := func(t *testing.T) *ephemeralPineWorkerRunner {
+		t.Helper()
+		runner, err := newEphemeralPineWorkerRunner(pineWorkerRuntimeConfig{
+			bundleData: []byte("fake worker"), InstanceWorkers: 1, Host: "127.0.0.1",
+			RequestTimeout: time.Second, HealthTimeout: 100 * time.Millisecond,
+		}, pineWorkerRunnerInstance)
+		if err != nil {
+			t.Fatalf("new live runner: %v", err)
+		}
+		return runner
+	}
+
+	runner := newRunner(t)
+	sessionCtx, cancelSession := context.WithCancel(t.Context())
+	session, opened, err := runner.OpenLiveSession(sessionCtx, validServerPineWorkerRunScriptRequest("live-open"))
+	if err != nil || session == nil || opened.SessionID == "" || opened.SessionRevision != 1 {
+		t.Fatalf("OpenLiveSession = session %#v response %#v err=%v", session, opened, err)
+	}
+	appended, err := session.Append(sessionCtx, validServerPineWorkerRunScriptRequest("live-append"))
+	if err != nil || appended.SessionID != opened.SessionID || appended.SessionRevision != 2 {
+		t.Fatalf("Append = %#v err=%v", appended, err)
+	}
+	if err := session.Close(t.Context()); err != nil {
+		t.Fatalf("session Close: %v", err)
+	}
+	if err := session.Close(t.Context()); err != nil {
+		t.Fatalf("idempotent session Close: %v", err)
+	}
+	if _, err := session.Append(t.Context(), validServerPineWorkerRunScriptRequest("live-after-close")); err == nil {
+		t.Fatal("closed session accepted append")
+	}
+	cancelSession()
+	if err := runner.Close(t.Context()); err != nil {
+		t.Fatalf("runner Close after session: %v", err)
+	}
+
+	runner = newRunner(t)
+	closeCtx, cancelClose := context.WithCancel(t.Context())
+	if _, _, err := runner.OpenLiveSession(closeCtx, validServerPineWorkerRunScriptRequest("live-runner-close")); err != nil {
+		t.Fatalf("open before runner close: %v", err)
+	}
+	if err := runner.Close(t.Context()); err != nil {
+		t.Fatalf("runner closes active session: %v", err)
+	}
+	cancelClose()
+}
+
+func TestEphemeralPineWorkerLiveSessionFailureBoundaries(t *testing.T) {
+	request := validServerPineWorkerRunScriptRequest("live-failure")
+
+	badHost := &ephemeralPineWorkerRunner{
+		config: pineWorkerRuntimeConfig{Host: "256.256.256.256"}, busy: make(chan struct{}, 1),
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	if _, _, err := badHost.OpenLiveSession(ctx, request); err == nil {
+		t.Fatal("invalid host allocated a live worker")
+	}
+
+	startErr := errors.New("forced live worker start failure")
+	startRunner := &ephemeralPineWorkerRunner{
+		config:   pineWorkerRuntimeConfig{Host: "127.0.0.1", HealthTimeout: time.Millisecond, RequestTimeout: time.Second},
+		launcher: pineWorkerLauncherFailureStub{err: startErr}, dialer: newFakeServerPineWorkerDialer(), busy: make(chan struct{}, 1),
+	}
+	if _, _, err := startRunner.OpenLiveSession(t.Context(), request); !errors.Is(err, startErr) {
+		t.Fatalf("live worker start error = %v", err)
+	}
+
+	rpcErr := errors.New("forced live worker RPC failure")
+	transport := &pineWorkerLiveBoundaryTransport{run: func(pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
+		return pineworker.RunScriptResponse{}, rpcErr
+	}}
+	rpcRunner := &ephemeralPineWorkerRunner{
+		config:   pineWorkerRuntimeConfig{Host: "127.0.0.1", HealthTimeout: time.Second, RequestTimeout: time.Second},
+		launcher: &fakeServerPineWorkerLauncher{}, dialer: pineWorkerLiveBoundaryDialer{transport: transport}, busy: make(chan struct{}, 1),
+	}
+	if _, _, err := rpcRunner.OpenLiveSession(t.Context(), request); !errors.Is(err, rpcErr) {
+		t.Fatalf("live worker RPC error = %v", err)
+	}
+
+	var closingRunner *ephemeralPineWorkerRunner
+	transport = &pineWorkerLiveBoundaryTransport{}
+	transport.run = func(request pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
+		revision := request.ExpectedRevision
+		if request.SessionOperation == pineworker.SessionOperationOpen {
+			revision = 1
+			closingRunner.mu.Lock()
+			closingRunner.closed = true
+			closingRunner.mu.Unlock()
+		}
+		return pineworker.RunScriptResponse{JobID: request.JobID, SessionID: request.SessionID, SessionRevision: revision}, nil
+	}
+	closingRunner = &ephemeralPineWorkerRunner{
+		config:   pineWorkerRuntimeConfig{Host: "127.0.0.1", HealthTimeout: time.Second, RequestTimeout: time.Second},
+		launcher: &fakeServerPineWorkerLauncher{}, dialer: pineWorkerLiveBoundaryDialer{transport: transport}, busy: make(chan struct{}, 1),
+		sessions: make(map[*ephemeralPineWorkerSession]struct{}),
+	}
+	if _, _, err := closingRunner.OpenLiveSession(t.Context(), request); err == nil || !strings.Contains(err.Error(), "closed") {
+		t.Fatalf("close-during-open error = %v", err)
+	}
+
+	var nilSession *ephemeralPineWorkerSession
+	if _, err := nilSession.Append(t.Context(), request); err == nil {
+		t.Fatal("nil session accepted append")
+	}
+	if err := nilSession.Close(t.Context()); err != nil {
+		t.Fatalf("nil session close: %v", err)
 	}
 }

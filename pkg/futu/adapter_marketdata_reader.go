@@ -205,10 +205,7 @@ func (r *futuMarketDataReader) queryAdaptiveKLinePage(
 	if !lowerBound.Before(endExclusive) {
 		return []bbgotypes.KLine{}, false, nil
 	}
-	lookback := interval.Duration() * time.Duration(limit+1) * 2
-	if lookback < 7*24*time.Hour {
-		lookback = 7 * 24 * time.Hour
-	}
+	lookback := max(interval.Duration()*time.Duration(limit+1)*2, 7*24*time.Hour)
 
 	for {
 		beginAt := endExclusive.Add(-lookback)

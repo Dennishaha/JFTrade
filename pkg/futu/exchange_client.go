@@ -49,7 +49,7 @@ func (e *Exchange) withClientAttempts(ctx context.Context, attempts int, fn func
 		defer cancel()
 	}
 	var lastErr error
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		client, err := e.ensureClient(ctx)
 		if err != nil {
 			observability.ErrorWithImportance(ctx, observability.ImportanceHigh, "opend client unavailable", err)

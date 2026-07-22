@@ -129,6 +129,7 @@ func TestValidateRunScriptRequestLiveSessionContract(t *testing.T) {
 		request RunScriptRequest
 		want    string
 	}{
+		{name: "unsupported session operation", request: func() RunScriptRequest { next := base; next.SessionOperation = "replace"; return next }(), want: "unsupported pine worker session operation"},
 		{name: "session requires live mode", request: func() RunScriptRequest { next := base; next.Mode = ModeBacktest; return next }(), want: "require live mode"},
 		{name: "open starts at zero", request: func() RunScriptRequest { next := base; next.ExpectedRevision = 1; return next }(), want: "expected revision 0"},
 		{name: "append requires revision", request: func() RunScriptRequest { next := base; next.SessionOperation = SessionOperationAppend; return next }(), want: "positive expected revision"},
@@ -157,6 +158,13 @@ func TestValidateRunScriptRequestRejectsTooManyCandles(t *testing.T) {
 	err := ValidateRunScriptRequest(request, WorkerConfig{MaxCandlesPerRequest: 1})
 	if err == nil || !strings.Contains(err.Error(), "too many candles") {
 		t.Fatalf("error = %v, want too many candles", err)
+	}
+}
+
+func TestRunScriptPayloadSizeRejectsNonFiniteCandle(t *testing.T) {
+	_, err := jsonSize(RunScriptRequest{Candles: []Candle{{Open: math.NaN()}}})
+	if err == nil || !strings.Contains(err.Error(), "unsupported value") {
+		t.Fatalf("jsonSize error = %v, want unsupported value", err)
 	}
 }
 

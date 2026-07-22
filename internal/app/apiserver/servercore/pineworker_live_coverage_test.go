@@ -195,10 +195,82 @@ func TestPineWorkerLiveRemainingEquityPriceAndParamBoundaries(t *testing.T) {
 	}
 }
 
+func TestPineWorkerLiveSessionFailureBoundaries(t *testing.T) {
+	var nilLive *strategyRuntimePineWorkerLive
+	if err := nilLive.closeSession(t.Context()); err != nil {
+		t.Fatalf("nil live close: %v", err)
+	}
+
+	newLive := func(t *testing.T, runner pineWorkerRunner) *strategyRuntimePineWorkerLive {
+		t.Helper()
+		symbolRuntime := &strategySymbolRuntime{
+			symbol: "US.AAPL", market: bbgotypes.Market{Symbol: "US.AAPL", StepSize: fixedpoint.One, MinQuantity: fixedpoint.One},
+		}
+		live, err := newStrategyRuntimePineWorkerLive(
+			runner, managedStrategyInstance{ID: "failure-instance"}, "US.AAPL", bbgotypes.Interval1m,
+			"//@version=6\nstrategy(\"Failure\")", &strategyNotifyOnlyOrderExecutor{runner: symbolRuntime}, symbolRuntime, nil,
+		)
+		if err != nil {
+			t.Fatalf("new live runtime: %v", err)
+		}
+		return live
+	}
+
+	openErr := errors.New("stateful open failed")
+	runner := &fakeStatefulPineWorkerRunner{openErr: openErr}
+	if err := newLive(t, runner).openSession(t.Context()); !errors.Is(err, openErr) {
+		t.Fatalf("open error = %v", err)
+	}
+
+	runner = &fakeStatefulPineWorkerRunner{nilSession: true, openResponse: &pineworker.RunScriptResponse{SessionRevision: 1}}
+	if err := newLive(t, runner).openSession(t.Context()); err == nil {
+		t.Fatal("nil stateful session was accepted")
+	}
+
+	invalidSession := &fakeStatefulPineWorkerSession{}
+	runner = &fakeStatefulPineWorkerRunner{
+		session: invalidSession, openResponse: &pineworker.RunScriptResponse{SessionRevision: 2},
+	}
+	if err := newLive(t, runner).openSession(t.Context()); err == nil || invalidSession.closeCalls != 1 {
+		t.Fatalf("invalid revision error = %v, close calls=%d", err, invalidSession.closeCalls)
+	}
+
+	closeErr := errors.New("stateful close failed")
+	session := &fakeStatefulPineWorkerSession{closeErr: closeErr}
+	runner = &fakeStatefulPineWorkerRunner{session: session}
+	live := newLive(t, runner)
+	if err := live.openSession(t.Context()); err != nil {
+		t.Fatalf("open before close failure: %v", err)
+	}
+	if err := live.openSession(t.Context()); err != nil {
+		t.Fatalf("idempotent live open: %v", err)
+	}
+	if err := live.closeSession(t.Context()); !errors.Is(err, closeErr) {
+		t.Fatalf("close error = %v", err)
+	}
+	if err := live.closeSession(t.Context()); err != nil {
+		t.Fatalf("empty close: %v", err)
+	}
+
+	appendErr := errors.New("stateful append failed")
+	session = &fakeStatefulPineWorkerSession{appendErr: appendErr}
+	runner = &fakeStatefulPineWorkerRunner{session: session}
+	live = newLive(t, runner)
+	if err := live.openSession(t.Context()); err != nil {
+		t.Fatalf("open before append failure: %v", err)
+	}
+	if err := live.onClosedKLine(t.Context(), strategyRuntimeHistoricalKLine("US.AAPL", "1m", 100, strategyRuntimeTestTime(10, 0, 0))); !errors.Is(err, appendErr) {
+		t.Fatalf("append error = %v", err)
+	}
+}
+
 type fakeStatefulPineWorkerRunner struct {
-	openRequest pineworker.RunScriptRequest
-	session     *fakeStatefulPineWorkerSession
-	runCalls    int
+	openRequest  pineworker.RunScriptRequest
+	session      *fakeStatefulPineWorkerSession
+	openResponse *pineworker.RunScriptResponse
+	openErr      error
+	nilSession   bool
+	runCalls     int
 }
 
 func (runner *fakeStatefulPineWorkerRunner) RunScript(context.Context, pineworker.RunScriptRequest) (pineworker.RunScriptResponse, error) {
@@ -211,11 +283,22 @@ func (runner *fakeStatefulPineWorkerRunner) OpenLiveSession(
 	request pineworker.RunScriptRequest,
 ) (pineWorkerLiveSession, pineworker.RunScriptResponse, error) {
 	runner.openRequest = request
+	if runner.openErr != nil {
+		return nil, pineworker.RunScriptResponse{}, runner.openErr
+	}
+	if runner.openResponse != nil {
+		if runner.nilSession {
+			return nil, *runner.openResponse, nil
+		}
+		return runner.session, *runner.openResponse, nil
+	}
 	return runner.session, pineworker.RunScriptResponse{SessionID: request.SessionID, SessionRevision: 1}, nil
 }
 
 type fakeStatefulPineWorkerSession struct {
 	appendRequests []pineworker.RunScriptRequest
+	appendErr      error
+	closeErr       error
 	closeCalls     int
 }
 
@@ -224,10 +307,13 @@ func (session *fakeStatefulPineWorkerSession) Append(
 	request pineworker.RunScriptRequest,
 ) (pineworker.RunScriptResponse, error) {
 	session.appendRequests = append(session.appendRequests, request)
+	if session.appendErr != nil {
+		return pineworker.RunScriptResponse{}, session.appendErr
+	}
 	return pineworker.RunScriptResponse{SessionRevision: uint64(len(session.appendRequests) + 1)}, nil
 }
 
 func (session *fakeStatefulPineWorkerSession) Close(context.Context) error {
 	session.closeCalls++
-	return nil
+	return session.closeErr
 }

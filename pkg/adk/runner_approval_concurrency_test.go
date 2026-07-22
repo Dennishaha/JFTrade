@@ -94,7 +94,6 @@ func TestConcurrentSiblingApprovalsAreMergedBeforeContinuation(t *testing.T) {
 	start := make(chan struct{})
 	results := make(chan error, len(response.PendingApprovals))
 	for _, pending := range response.PendingApprovals {
-		pending := pending
 		go func() {
 			<-start
 			_, err := runtime.ResolveApproval(ctx, pending.ID, true)
@@ -122,7 +121,6 @@ func TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation(t *testing.T) {
 	start := make(chan struct{})
 	results := make(chan error, len(response.PendingApprovals))
 	for _, pending := range response.PendingApprovals {
-		pending := pending
 		go func() {
 			<-start
 			_, err := runtime.ResolveApprovalAsync(ctx, pending.ID, true)
