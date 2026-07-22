@@ -102,19 +102,7 @@ func (r *Runtime) beginRunExecutionLease(
 			case <-leasedCtx.Done():
 				return
 			case <-ticker.C:
-				now := time.Now().UTC()
-				remaining := lease.ExpiresAt.Sub(now)
-				if remaining <= 0 {
-					cancel()
-					return
-				}
-				heartbeatTimeout := min(ttl/3, 5*time.Second)
-				if remaining < heartbeatTimeout {
-					heartbeatTimeout = remaining
-				}
-				heartbeatCtx, heartbeatCancel := context.WithTimeout(context.Background(), heartbeatTimeout)
-				updated, heartbeatErr := r.store.HeartbeatRunLease(heartbeatCtx, lease, now, ttl)
-				heartbeatCancel()
+				updated, heartbeatErr := r.refreshRunExecutionLease(lease, ttl)
 				if heartbeatErr != nil {
 					cancel()
 					return
@@ -133,6 +121,21 @@ func (r *Runtime) beginRunExecutionLease(
 		<-done
 	}
 	return leasedCtx, cancel, wait, nil
+}
+
+func (r *Runtime) refreshRunExecutionLease(lease RunLease, ttl time.Duration) (RunLease, error) {
+	now := time.Now().UTC()
+	remaining := lease.ExpiresAt.Sub(now)
+	if remaining <= 0 {
+		return RunLease{}, ErrRunLeaseLost
+	}
+	heartbeatTimeout := min(ttl/3, 5*time.Second)
+	if remaining < heartbeatTimeout {
+		heartbeatTimeout = remaining
+	}
+	heartbeatCtx, heartbeatCancel := context.WithTimeout(context.Background(), heartbeatTimeout)
+	defer heartbeatCancel()
+	return r.store.HeartbeatRunLease(heartbeatCtx, lease, now, ttl)
 }
 
 func (r *Runtime) currentRunLease(runID string) (RunLease, bool) {
