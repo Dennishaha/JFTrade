@@ -157,6 +157,22 @@ func operationProperties(name string) map[string]any {
 	}
 	properties["instrumentId"] = stringSchema(3, 80)
 	properties["underlying"] = stringSchema(3, 80)
+	switch name {
+	case "research.rankings":
+		properties["direction"] = enumSchema("up", "down")
+		properties["plateType"] = enumSchema("industry", "concept", "theme")
+	case "research.calendar":
+		properties["beginDate"] = stringSchema(10, 10)
+		properties["endDate"] = stringSchema(10, 10)
+		properties["date"] = stringSchema(10, 10)
+	case "research.institutions":
+		properties["institutionId"] = map[string]any{"type": "integer", "minimum": 1}
+	case "research.industry":
+		properties["plateType"] = enumSchema("all", "industry", "concept", "region")
+		properties["plateSetType"] = enumSchema("all", "industry", "concept", "region")
+		properties["chainId"] = map[string]any{"type": "integer", "minimum": 1}
+		properties["plateId"] = map[string]any{"type": "integer", "minimum": 1}
+	}
 	return properties
 }
 
@@ -356,9 +372,9 @@ var productToolOperations = map[string][]string{
 	"research.screen":               {"stock_v1", "stock_v2"},
 	"research.calendar":             {"earnings", "dividends", "economic", "ipos", "trade_dates"},
 	"research.macro":                {"indicators", "indicator_history", "fed_target_rate", "fed_dot_plot"},
-	"research.rankings":             {"earnings_beat", "dividend", "pre_market", "after_hours", "overnight", "top_movers", "hot", "short_selling", "period_change", "high_dividend_state", "heatmap", "rise_fall_distribution", "market_state"},
+	"research.rankings":             {"earnings_beat", "dividend", "pre_market", "after_hours", "overnight", "top_movers", "hot", "short_selling", "period_change", "high_dividend_state", "heatmap", "rise_fall_distribution", "market_state", "fund_catalog"},
 	"research.institutions":         {"list", "profile", "distribution", "holding_changes", "holdings", "ark_fund_holdings", "ark_stock_activity", "ark_transactions"},
-	"research.industry":             {"chains", "chain_detail", "chains_by_plate", "plate", "plate_stocks", "owner_plates"},
+	"research.industry":             {"chains", "chain_detail", "chains_by_plate", "plate", "plate_stocks", "owner_plates", "plate_list", "plate_members"},
 	"research.technical_indicators": {"list", "calculate"},
 	"prediction.discover":           {"categories", "competitions", "series", "events", "contracts", "milestones"},
 	"prediction.history":            {"candles", "historical", "ticks"},

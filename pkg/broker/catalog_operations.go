@@ -330,6 +330,7 @@ var capabilityProtocolSpecs = map[FeatureID]map[string][]catalogProtocolSpec{
 		"heatmap":                {request("Qot_GetHeatMapData", 3432)},
 		"rise_fall_distribution": {request("Qot_GetRiseFallDistribution", 3433)},
 		"market_state":           {request("Qot_GetMarketState", 3223)},
+		"fund_catalog":           {request("Qot_GetStaticInfo", 3202)},
 	},
 	FeatureResearchInstitutions: {
 		"list":               {request("Qot_GetInstitutionList", 3418)},
@@ -348,6 +349,8 @@ var capabilityProtocolSpecs = map[FeatureID]map[string][]catalogProtocolSpec{
 		"plate":           {request("Qot_GetIndustrialPlateInfo", 3430)},
 		"plate_stocks":    {request("Qot_GetIndustrialPlateStock", 3431)},
 		"owner_plates":    {request("Qot_GetOwnerPlate", 3207)},
+		"plate_list":      {request("Qot_GetPlateSet", 3204)},
+		"plate_members":   {request("Qot_GetPlateSecurity", 3205)},
 	},
 	FeatureTechnicalIndicator: {
 		"list":      {request("Qot_GetIndicatorList", 3259)},

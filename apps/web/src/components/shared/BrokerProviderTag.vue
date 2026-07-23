@@ -19,6 +19,7 @@ const props = withDefaults(
   defineProps<{
     provider?: ProductFeatureProvider | null | undefined;
     featureId?: string | undefined;
+    featureIds?: string[] | undefined;
     market?: string | undefined;
     preferredBrokerId?: string | undefined;
     defaultBrokerId?: string | undefined;
@@ -29,6 +30,7 @@ const props = withDefaults(
   {
     provider: null,
     featureId: "",
+    featureIds: () => [],
     market: "",
     preferredBrokerId: "",
     defaultBrokerId: "",
@@ -47,11 +49,15 @@ const {
   selectedBrokerId,
 } = useBrokerProviderSelection();
 
-const activeFeatureId = computed(
-  () => props.featureId.trim() || props.provider?.featureId?.trim() || "",
-);
+const activeFeatureIds = computed(() => {
+  const explicit = props.featureIds.map((feature) => feature.trim()).filter(Boolean);
+  if (explicit.length > 0) return [...new Set(explicit)];
+  const fallback =
+    props.featureId.trim() || props.provider?.featureId?.trim() || "";
+  return fallback ? [fallback] : [];
+});
 const options = computed(() => {
-  const values = brokerProviderOptions(activeFeatureId.value, props.market);
+  const values = brokerProviderOptions(activeFeatureIds.value, props.market);
   const actualID = props.provider?.brokerId?.trim().toLowerCase() ?? "";
   if (actualID && !values.some((option) => option.id === actualID)) {
     values.push({
@@ -60,7 +66,9 @@ const options = computed(() => {
       shortLabel: actualID.toUpperCase().slice(0, 12),
       securityFirm: props.provider?.securityFirm?.trim() ?? "",
       state: props.provider?.capability ?? "unavailable",
-      reason: props.provider?.selectionReason ?? "",
+      // selectionReason describes why this provider was selected, not why a
+      // capability is restricted. Keep it out of the capability hint.
+      reason: "",
     });
   }
   return values;
@@ -75,14 +83,14 @@ const selectedOption = computed<BrokerProviderOption | null>(() => {
     null
   );
 });
-const capabilityState = computed<BrokerCapabilityState>(() => {
+const currentCapabilitySummary = computed(() => {
   const selected = selectedOption.value;
-  const actualID = props.provider?.brokerId?.trim().toLowerCase() ?? "";
-  if (selected?.id && selected.id === actualID && props.provider != null) {
-    return props.provider.capability;
-  }
-  return selected?.state ?? "unavailable";
+  return {
+    state: selected?.state ?? ("unavailable" as BrokerCapabilityState),
+    reason: selected?.reason?.trim() ?? "",
+  };
 });
+const capabilityState = computed(() => currentCapabilitySummary.value.state);
 const runtimeFeedQuality = computed(() => {
   if (props.connectionState == null) return null;
   return resolveMarketDataFeedQuality({
@@ -117,24 +125,41 @@ const currentLabel = computed(
   () =>
     selectedOption.value?.shortLabel || (loading.value ? "加载中" : "数据源"),
 );
+const currentReason = computed(() => currentCapabilitySummary.value.reason);
+const capabilityStateLabel = computed(() =>
+  capabilityState.value === "available"
+    ? "可用"
+    : capabilityState.value === "degraded"
+      ? "降级"
+      : "不可用",
+);
 const currentTitle = computed(() => {
   const selected = selectedOption.value;
+  const sourceLabel = selected?.label || "行情提供者";
+  const securityFirm = selected?.securityFirm?.trim();
   const values = [
-    selected?.label || "行情提供者",
-    selected?.securityFirm,
-    capabilityState.value === "available"
-      ? "能力可用"
-      : capabilityState.value === "degraded"
-        ? "能力降级"
-        : "能力不可用",
+    `数据源：${sourceLabel}${securityFirm ? `（${securityFirm}）` : ""}`,
+    `功能能力：${capabilityStateLabel.value}`,
     runtimeFeedQualityLabel.value
-      ? `数据源质量：${runtimeFeedQualityLabel.value}`
+      ? `行情传输：${runtimeFeedQualityLabel.value}`
       : "",
-    selected?.reason,
-    loadError.value,
+    currentReason.value ? `原因：${currentReason.value}` : "",
+    loadError.value ? `能力目录：${loadError.value}` : "",
   ];
-  return values.filter(Boolean).join(" · ");
+  return values.filter(Boolean).join("\n");
 });
+const currentAriaLabel = computed(() =>
+  [
+    "切换行情提供者",
+    `功能能力${capabilityStateLabel.value}`,
+    runtimeFeedQualityLabel.value
+      ? `行情传输${runtimeFeedQualityLabel.value}`
+      : "",
+    currentReason.value ? `原因${currentReason.value}` : "",
+  ]
+    .filter(Boolean)
+    .join("，"),
+);
 
 function select(option: BrokerProviderOption): void {
   if (option.state === "unavailable") return;
@@ -172,10 +197,10 @@ onMounted(() => {
         class="broker-provider-tag"
         :class="`is-${currentState}`"
         :data-quality="runtimeFeedQuality || undefined"
+        :data-capability-state="capabilityState"
+        :data-capability-reason="currentReason || undefined"
         :title="currentTitle"
-        :aria-label="runtimeFeedQualityLabel
-          ? `切换行情提供者，${runtimeFeedQualityLabel}`
-          : '切换行情提供者'"
+        :aria-label="currentAriaLabel"
       >
         <span class="broker-provider-tag__dot" />
         <span class="broker-provider-tag__label">{{ currentLabel }}</span>
@@ -207,9 +232,8 @@ onMounted(() => {
         <span class="broker-provider-tag__option-dot" />
         <span>
           <strong>{{ option.label }}</strong>
-          <small v-if="option.securityFirm || option.reason">
-            {{ option.securityFirm || option.reason }}
-          </small>
+          <small v-if="option.securityFirm">{{ option.securityFirm }}</small>
+          <small v-if="option.reason">{{ option.reason }}</small>
         </span>
         <span v-if="option.id === selectedOption?.id" aria-hidden="true"
           >✓</span

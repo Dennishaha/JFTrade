@@ -15,6 +15,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
+	getuserinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/getuserinfo"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -72,6 +73,7 @@ type quoteOpenDServer struct {
 	securitySnapshotCalls atomic.Int32
 	orderBookCalls        atomic.Int32
 	searchQuoteCalls      atomic.Int32
+	userInfoCalls         atomic.Int32
 	predictionSubCalls    atomic.Int32
 	userSecCalls          atomic.Int32
 	userGroupCalls        atomic.Int32
@@ -123,6 +125,8 @@ type quoteOpenDServer struct {
 	orderBookSnapshot     *qotgetorderbookpb.S2C
 	searchQuotes          []*qotgetsearchquotepb.SearchQuote
 	searchQuoteError      *qotgetsearchquotepb.Response
+	userInfoMu            sync.Mutex
+	userInfo              *getuserinfopb.Response
 	watchlistGroupError   *qotgetusersecuritygrouppb.Response
 	lastSearchKeyword     string
 	lastSearchMaxCount    int32
@@ -207,6 +211,12 @@ func (s *quoteOpenDServer) setNotifyAfterInit(response *notifypb.Response) {
 	s.notifyMu.Lock()
 	defer s.notifyMu.Unlock()
 	s.notifyAfterInit = response
+}
+
+func (s *quoteOpenDServer) setUserInfoResponse(response *getuserinfopb.Response) {
+	s.userInfoMu.Lock()
+	defer s.userInfoMu.Unlock()
+	s.userInfo = response
 }
 
 func (s *quoteOpenDServer) setDropProto(protoID uint32) {
@@ -420,6 +430,28 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			}
 			response = subInfoResponse
 			s.qotSubMu.Unlock()
+		case opend.ProtoGetUserInfo:
+			s.userInfoCalls.Add(1)
+			s.userInfoMu.Lock()
+			userInfoResponse := s.userInfo
+			if userInfoResponse == nil {
+				right := int32(qotcommonpb.QotRight_QotRight_Level1)
+				userInfoResponse = &getuserinfopb.Response{
+					RetType: new(int32(0)),
+					S2C: &getuserinfopb.S2C{
+						HkQotRight: &right, UsQotRight: &right,
+						HkOptionQotRight: &right, UsOptionQotRight: &right,
+						HkFutureQotRight: &right, UsFutureQotRight: &right,
+						UsIndexQotRight:     &right,
+						UsCMEFutureQotRight: &right, UsCBOTFutureQotRight: &right,
+						UsNYMEXFutureQotRight: &right, UsCOMEXFutureQotRight: &right,
+						UsCBOEFutureQotRight: &right, ShQotRight: &right,
+						SzQotRight: &right, EcQotRight: &right,
+					},
+				}
+			}
+			response = proto.Clone(userInfoResponse)
+			s.userInfoMu.Unlock()
 		case opend.ProtoTrdGetAccList:
 			s.accountListCalls.Add(1)
 			response = s.accountListResponse()

@@ -47,6 +47,7 @@ const result = {
       name: "Apple",
       customFirst: "custom",
       instrumentId: "US.AAPL",
+      productClass: "equity",
       lastPrice: 201.123456,
       active: true,
       nullable: null,
@@ -98,11 +99,18 @@ describe("product feature normalization and panel", () => {
     expect(wrapper.text()).toContain("还有下一页");
     const state = setupState<{
       formatCell: (value: unknown) => string;
+      actionInstrumentId: (entry: Record<string, unknown>) => string | null;
       load: (refresh?: boolean) => Promise<void>;
     }>(wrapper);
     expect(state.formatCell(["AI", "硬件"])).toBe("2 项");
     expect(state.formatCell({ sector: "Technology" })).toBe("查看详情");
     expect(state.formatCell("text")).toBe("text");
+    expect(
+      state.actionInstrumentId({
+        instrumentId: "US.MSFT",
+        securityType: " Equity ",
+      }),
+    ).toBe("US.MSFT");
 
     await wrapper.get("input").setValue("tencent-does-not-match");
     expect(wrapper.text()).not.toContain("Apple");
@@ -119,7 +127,28 @@ describe("product feature normalization and panel", () => {
       .findAll("button")
       .filter((button) => button.text() === "工作区");
     await workspaceButtons[0]!.trigger("click");
-    expect(wrapper.emitted("openInstrument")?.[0]).toEqual(["US.AAPL"]);
+    expect(wrapper.emitted("openInstrument")?.[0]).toEqual([
+      "US.AAPL",
+      expect.objectContaining({ instrumentId: "US.AAPL", name: "Apple" }),
+    ]);
+    await wrapper.setProps({
+      actionLabel: "打开行情",
+      instrumentActionClasses: ["equity"],
+    });
+    expect(
+      state.actionInstrumentId({
+        instrumentId: "US.ETF",
+        type: "fund",
+      }),
+    ).toBeNull();
+    expect(
+      state.actionInstrumentId({
+        instrumentId: "US.UNKNOWN",
+      }),
+    ).toBeNull();
+    expect(
+      wrapper.findAll("button").filter((button) => button.text() === "打开行情"),
+    ).toHaveLength(1);
 
     expect(instrumentIDFromFeatureEntry({ code: "US.MSFT" })).toBe("US.MSFT");
     expect(instrumentIDFromFeatureEntry({ securityCode: "HK.09988" })).toBe(
@@ -193,5 +222,32 @@ describe("product feature normalization and panel", () => {
       "/api/data?x=1&brokerId=alpha",
     );
     wrapper.unmount();
+  });
+
+  it("ignores stale failures and renders structure-only rows without optional envelopes", async () => {
+    let rejectStale!: (reason: unknown) => void;
+    featureMocks.fetch
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectStale = reject;
+          }),
+      )
+      .mockResolvedValueOnce({
+        provider: result.provider,
+        asOf: result.asOf,
+        entries: [{}],
+      });
+    const wrapper = mount(ProductFeaturePanel, {
+      props: { title: "边界", path: "/api/slow" },
+      global: { stubs: productGlobalStubs },
+    });
+    await wrapper.setProps({ path: "/api/fast" });
+    await flushPromises();
+    expect(wrapper.text()).toContain("结果 1");
+    expect(wrapper.text()).not.toContain("还有下一页");
+    rejectStale(new Error("过期失败"));
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("过期失败");
   });
 });

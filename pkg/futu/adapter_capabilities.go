@@ -2,6 +2,7 @@ package futu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,22 +11,45 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	getuserinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/getuserinfo"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
+
+const quoteRightsFailureRetryInterval = 3 * time.Second
 
 type futuConnectCapabilityStatus struct {
 	quoteLoggedIn bool
 	tradeLoggedIn bool
 	observedAt    time.Time
+	generation    uint64
 }
 
 type futuQuoteCapabilityRights struct {
 	value      *notifypb.QotRight
 	observedAt time.Time
+	generation uint64
+}
+
+type futuQuoteCapabilityFailure struct {
+	reason     string
+	observedAt time.Time
+	retryAt    time.Time
+	generation uint64
 }
 
 func (a *futuAdapter) captureCapabilityNotification(response *notifypb.Response) {
+	generation := uint64(0)
+	if a != nil && a.exchange != nil {
+		generation = a.exchange.activeConnectionGeneration()
+	}
+	a.captureCapabilityNotificationAt(response, generation)
+}
+
+func (a *futuAdapter) captureCapabilityNotificationAt(
+	response *notifypb.Response,
+	generation uint64,
+) {
 	if a == nil || response == nil || response.GetS2C() == nil {
 		return
 	}
@@ -37,18 +61,33 @@ func (a *futuAdapter) captureCapabilityNotification(response *notifypb.Response)
 	case notifypb.NotifyType_NotifyType_ConnStatus:
 		status := s2c.GetConnectStatus()
 		if status != nil {
+			if a.lastConnectStatus != nil &&
+				a.lastConnectStatus.generation > generation {
+				return
+			}
 			a.lastConnectStatus = &futuConnectCapabilityStatus{
 				quoteLoggedIn: status.GetQotLogined(),
 				tradeLoggedIn: status.GetTrdLogined(),
 				observedAt:    now,
+				generation:    generation,
 			}
 		}
 	case notifypb.NotifyType_NotifyType_QotRight:
 		rights := s2c.GetQotRight()
 		if rights != nil {
+			if a.lastQuoteRights != nil &&
+				a.lastQuoteRights.generation > generation {
+				return
+			}
 			a.lastQuoteRights = &futuQuoteCapabilityRights{
 				value: proto.Clone(rights).(*notifypb.QotRight), observedAt: now,
+				generation: generation,
 			}
+			if a.lastQuoteRightsFailure != nil &&
+				a.lastQuoteRightsFailure.generation == generation {
+				a.lastQuoteRightsFailure = nil
+			}
+			a.quoteRightsRevision++
 		}
 	}
 }
@@ -85,7 +124,8 @@ func (a *futuAdapter) EvaluateCapability(
 		a.capabilityMu.RLock()
 		connectStatus := a.lastConnectStatus
 		a.capabilityMu.RUnlock()
-		if connectStatus != nil {
+		if connectStatus != nil &&
+			connectStatus.generation == a.exchange.activeConnectionGeneration() {
 			loggedIn := connectStatus.quoteLoggedIn
 			if request.DeclaredCapability.Access != broker.FeatureAccessRead {
 				loggedIn = connectStatus.tradeLoggedIn
@@ -102,7 +142,15 @@ func (a *futuAdapter) EvaluateCapability(
 		evaluation.Account = a.evaluateAccountCapability(ctx, request, now)
 	}
 	if request.DeclaredCapability.RequiresQuoteRight {
-		evaluation.QuoteRight = a.evaluateQuoteCapability(request, now)
+		if err := a.ensureQuoteRights(ctx, now); err != nil {
+			evaluation.QuoteRight = capabilityDegraded(
+				now,
+				"QUOTE_RIGHT_QUERY_FAILED",
+				"OpenD quote entitlement verification failed: "+err.Error(),
+			)
+		} else {
+			evaluation.QuoteRight = a.evaluateQuoteCapability(request, now)
+		}
 	}
 	return aggregateCapabilityEvaluation(evaluation), nil
 }
@@ -184,10 +232,20 @@ func (a *futuAdapter) evaluateQuoteCapability(
 	request broker.CapabilityEvaluationRequest,
 	now time.Time,
 ) broker.CapabilityCheck {
+	expectedGeneration := uint64(0)
+	hasExchange := a != nil && a.exchange != nil
+	if hasExchange {
+		expectedGeneration = a.exchange.activeConnectionGeneration()
+	}
 	a.capabilityMu.RLock()
 	snapshot := a.lastQuoteRights
 	a.capabilityMu.RUnlock()
-	if snapshot == nil || snapshot.value == nil {
+	if snapshot == nil ||
+		snapshot.value == nil ||
+		(hasExchange && expectedGeneration == 0) ||
+		(expectedGeneration != 0 && snapshot.generation != expectedGeneration) ||
+		(expectedGeneration != 0 &&
+			a.exchange.activeConnectionGeneration() != expectedGeneration) {
 		return capabilityDegraded(
 			now, "QUOTE_RIGHT_UNVERIFIED",
 			"OpenD has not reported quote entitlements for this session yet.",
@@ -218,6 +276,281 @@ func (a *futuAdapter) evaluateQuoteCapability(
 	}
 }
 
+func (a *futuAdapter) ensureQuoteRights(ctx context.Context, now time.Time) error {
+	if a == nil || a.exchange == nil {
+		return errors.New("OpenD exchange is not configured")
+	}
+	for range 2 {
+		generation := a.exchange.activeConnectionGeneration()
+		if generation == 0 {
+			if err := a.exchange.withRetryingClient(ctx, func(*opend.Client) error {
+				return nil
+			}); err != nil {
+				return err
+			}
+			generation = a.exchange.activeConnectionGeneration()
+		}
+		if err := a.cachedQuoteRightsStatus(generation, now); err == nil {
+			return nil
+		} else if !errors.Is(err, errQuoteRightsRefreshRequired) {
+			return err
+		}
+
+		key := fmt.Sprintf("session-%d", generation)
+		resultChannel := a.quoteRightsFlight.DoChan(key, func() (any, error) {
+			return nil, a.refreshQuoteRights(ctx, generation)
+		})
+		var err error
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case result := <-resultChannel:
+			err = result.Err
+		}
+		if errors.Is(err, errQuoteRightsRefreshRequired) {
+			now = time.Now().UTC()
+			continue
+		}
+		return err
+	}
+	return errors.New("OpenD connection changed while verifying quote entitlements")
+}
+
+func (a *futuAdapter) refreshQuoteRights(ctx context.Context, generation uint64) error {
+	queryContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	if generation == 0 || a.exchange.activeConnectionGeneration() != generation {
+		return errQuoteRightsRefreshRequired
+	}
+	if err := a.cachedQuoteRightsStatus(generation, time.Now().UTC()); err == nil {
+		return nil
+	} else if !errors.Is(err, errQuoteRightsRefreshRequired) {
+		return err
+	}
+
+	a.capabilityMu.RLock()
+	startRevision := a.quoteRightsRevision
+	a.capabilityMu.RUnlock()
+
+	info, fetchedGeneration, fetchErr := a.exchange.queryQuoteRights(queryContext, generation)
+	observedAt := time.Now().UTC()
+	if errors.Is(fetchErr, context.Canceled) ||
+		errors.Is(fetchErr, context.DeadlineExceeded) {
+		return fetchErr
+	}
+	if fetchedGeneration == 0 &&
+		a.exchange.activeConnectionGeneration() == 0 &&
+		fetchErr != nil {
+		return fetchErr
+	}
+	if fetchedGeneration == 0 ||
+		fetchedGeneration != generation ||
+		a.exchange.activeConnectionGeneration() != generation {
+		return errQuoteRightsRefreshRequired
+	}
+	if fetchErr != nil {
+		return a.handleQuoteRightsFetchFailure(generation, observedAt, fetchErr)
+	}
+	rights := quoteRightsFromUserInfo(info)
+	if rights == nil {
+		return a.handleQuoteRightsFetchFailure(
+			generation,
+			observedAt,
+			errors.New("OpenD GetUserInfo returned no quote entitlement fields"),
+		)
+	}
+	return a.storeQuoteRights(generation, startRevision, observedAt, rights)
+}
+
+func (a *futuAdapter) handleQuoteRightsFetchFailure(
+	generation uint64,
+	observedAt time.Time,
+	err error,
+) error {
+	if a.resolveOrRememberQuoteRightsFailure(generation, observedAt, err) {
+		return nil
+	}
+	if a.exchange.activeConnectionGeneration() != generation {
+		return errQuoteRightsRefreshRequired
+	}
+	return err
+}
+
+func (a *futuAdapter) storeQuoteRights(
+	generation uint64,
+	startRevision uint64,
+	observedAt time.Time,
+	rights *notifypb.QotRight,
+) error {
+	a.capabilityMu.Lock()
+	defer a.capabilityMu.Unlock()
+	if a.quoteRightsRevision != startRevision &&
+		a.lastQuoteRights != nil &&
+		a.lastQuoteRights.value != nil &&
+		a.lastQuoteRights.generation == generation {
+		if a.lastQuoteRightsFailure != nil &&
+			a.lastQuoteRightsFailure.generation == generation {
+			a.lastQuoteRightsFailure = nil
+		}
+		return nil
+	}
+	if a.lastQuoteRights != nil &&
+		a.lastQuoteRights.generation > generation {
+		return errQuoteRightsRefreshRequired
+	}
+	a.lastQuoteRights = &futuQuoteCapabilityRights{
+		value: rights, observedAt: observedAt, generation: generation,
+	}
+	if a.lastQuoteRightsFailure != nil &&
+		a.lastQuoteRightsFailure.generation == generation {
+		a.lastQuoteRightsFailure = nil
+	}
+	return nil
+}
+
+var errQuoteRightsRefreshRequired = errors.New("quote rights refresh required")
+
+func (a *futuAdapter) cachedQuoteRightsStatus(
+	generation uint64,
+	now time.Time,
+) error {
+	a.capabilityMu.RLock()
+	defer a.capabilityMu.RUnlock()
+	if snapshot := a.lastQuoteRights; snapshot != nil &&
+		snapshot.value != nil &&
+		snapshot.generation == generation &&
+		generation != 0 {
+		return nil
+	}
+	if failure := a.lastQuoteRightsFailure; failure != nil &&
+		failure.generation == generation &&
+		now.Before(failure.retryAt) {
+		return errors.New(failure.reason)
+	}
+	return errQuoteRightsRefreshRequired
+}
+
+func (a *futuAdapter) resolveOrRememberQuoteRightsFailure(
+	generation uint64,
+	observedAt time.Time,
+	err error,
+) bool {
+	a.capabilityMu.Lock()
+	defer a.capabilityMu.Unlock()
+	if generation == 0 ||
+		a.exchange.activeConnectionGeneration() != generation {
+		return false
+	}
+	if a.lastQuoteRights != nil &&
+		a.lastQuoteRights.value != nil &&
+		a.lastQuoteRights.generation == generation {
+		if a.lastQuoteRightsFailure != nil &&
+			a.lastQuoteRightsFailure.generation == generation {
+			a.lastQuoteRightsFailure = nil
+		}
+		return true
+	}
+	if errors.Is(err, context.Canceled) ||
+		errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	if a.lastQuoteRightsFailure != nil &&
+		a.lastQuoteRightsFailure.generation > generation {
+		return false
+	}
+	a.lastQuoteRightsFailure = &futuQuoteCapabilityFailure{
+		reason: err.Error(), observedAt: observedAt,
+		retryAt:    observedAt.Add(quoteRightsFailureRetryInterval),
+		generation: generation,
+	}
+	return false
+}
+
+func quoteRightsFromUserInfo(info *getuserinfopb.S2C) *notifypb.QotRight {
+	if info == nil || !userInfoHasQuoteRights(info) {
+		return nil
+	}
+	shRight := cloneOptionalInt32(info.ShQotRight)
+	if shRight == nil {
+		shRight = cloneOptionalInt32(info.CnQotRight)
+	}
+	szRight := cloneOptionalInt32(info.SzQotRight)
+	if szRight == nil {
+		szRight = cloneOptionalInt32(info.CnQotRight)
+	}
+	usOptionRight := cloneOptionalInt32(info.UsOptionQotRight)
+	if usOptionRight == nil && info.GetHasUSOptionQotRight() {
+		usOptionRight = new(int32(qotcommonpb.QotRight_QotRight_Level1))
+	}
+	return &notifypb.QotRight{
+		HkQotRight:            cloneOptionalInt32(info.HkQotRight),
+		UsQotRight:            cloneOptionalInt32(info.UsQotRight),
+		CnQotRight:            cloneOptionalInt32(info.CnQotRight),
+		HkOptionQotRight:      cloneOptionalInt32(info.HkOptionQotRight),
+		HasUSOptionQotRight:   cloneOptionalBool(info.HasUSOptionQotRight),
+		HkFutureQotRight:      cloneOptionalInt32(info.HkFutureQotRight),
+		UsFutureQotRight:      cloneOptionalInt32(info.UsFutureQotRight),
+		UsOptionQotRight:      usOptionRight,
+		UsIndexQotRight:       cloneOptionalInt32(info.UsIndexQotRight),
+		UsOtcQotRight:         cloneOptionalInt32(info.UsOtcQotRight),
+		SgFutureQotRight:      cloneOptionalInt32(info.SgFutureQotRight),
+		JpFutureQotRight:      cloneOptionalInt32(info.JpFutureQotRight),
+		UsCMEFutureQotRight:   cloneOptionalInt32(info.UsCMEFutureQotRight),
+		UsCBOTFutureQotRight:  cloneOptionalInt32(info.UsCBOTFutureQotRight),
+		UsNYMEXFutureQotRight: cloneOptionalInt32(info.UsNYMEXFutureQotRight),
+		UsCOMEXFutureQotRight: cloneOptionalInt32(info.UsCOMEXFutureQotRight),
+		UsCBOEFutureQotRight:  cloneOptionalInt32(info.UsCBOEFutureQotRight),
+		ShQotRight:            shRight,
+		SzQotRight:            szRight,
+		CcQotRight:            cloneOptionalInt32(info.CcQotRight),
+		SgStockQotRight:       cloneOptionalInt32(info.SgStockQotRight),
+		MyStockQotRight:       cloneOptionalInt32(info.MyStockQotRight),
+		JpStockQotRight:       cloneOptionalInt32(info.JpStockQotRight),
+		EcQotRight:            cloneOptionalInt32(info.EcQotRight),
+	}
+}
+
+func userInfoHasQuoteRights(info *getuserinfopb.S2C) bool {
+	return info.HkQotRight != nil ||
+		info.UsQotRight != nil ||
+		info.CnQotRight != nil ||
+		info.ShQotRight != nil ||
+		info.SzQotRight != nil ||
+		info.HkOptionQotRight != nil ||
+		info.HasUSOptionQotRight != nil ||
+		info.UsOptionQotRight != nil ||
+		info.HkFutureQotRight != nil ||
+		info.UsFutureQotRight != nil ||
+		info.UsIndexQotRight != nil ||
+		info.UsOtcQotRight != nil ||
+		info.UsCMEFutureQotRight != nil ||
+		info.UsCBOTFutureQotRight != nil ||
+		info.UsNYMEXFutureQotRight != nil ||
+		info.UsCOMEXFutureQotRight != nil ||
+		info.UsCBOEFutureQotRight != nil ||
+		info.SgFutureQotRight != nil ||
+		info.JpFutureQotRight != nil ||
+		info.CcQotRight != nil ||
+		info.SgStockQotRight != nil ||
+		info.MyStockQotRight != nil ||
+		info.JpStockQotRight != nil ||
+		info.EcQotRight != nil
+}
+
+func cloneOptionalInt32(value *int32) *int32 {
+	if value == nil {
+		return nil
+	}
+	return new(*value)
+}
+
+func cloneOptionalBool(value *bool) *bool {
+	if value == nil {
+		return nil
+	}
+	return new(*value)
+}
+
 func quoteRightForCapability(
 	rights *notifypb.QotRight,
 	request broker.CapabilityEvaluationRequest,
@@ -244,6 +577,10 @@ func quoteRightForCapability(
 			rights.GetUsCBOTFutureQotRight(), rights.GetUsNYMEXFutureQotRight(),
 			rights.GetUsCOMEXFutureQotRight(), rights.GetUsCBOEFutureQotRight(),
 		)
+	}
+	if request.ProductClass == broker.ProductClassIndex &&
+		strings.EqualFold(request.Market, "US") {
+		return rights.GetUsIndexQotRight()
 	}
 	switch strings.ToUpper(strings.TrimSpace(request.Market)) {
 	case "HK":

@@ -246,6 +246,14 @@ function selectedBranches(entry, changedLines) {
   const selected = [];
   for (const [id, branch] of Object.entries(entry.branchMap ?? {})) {
     const locations = Array.isArray(branch.locations) ? branch.locations : [];
+    // Vue's generated render functions can be compiled more than once in a
+    // full V8 coverage run. When those reports are merged, some generated
+    // conditional expressions collapse both alternatives onto the exact same
+    // source span. Such entries cannot identify an uncovered source branch and
+    // otherwise create zero-hit phantom branches in the diff gate.
+    if (branch.type === "cond-expr" && locationsCollapseToOneSpan(locations)) {
+      continue;
+    }
     const touchesChange = locationTouchesChangedLine(branch.loc, changedLines) || locations.some((location) =>
       locationTouchesChangedLine(location, changedLines),
     );
@@ -255,6 +263,19 @@ function selectedBranches(entry, changedLines) {
     }
   }
   return selected;
+}
+
+function locationsCollapseToOneSpan(locations) {
+  if (locations.length < 2) return false;
+  const spans = locations.map((location) =>
+    [
+      location?.start?.line ?? null,
+      location?.start?.column ?? null,
+      location?.end?.line ?? null,
+      location?.end?.column ?? null,
+    ].join(":"),
+  );
+  return new Set(spans).size === 1;
 }
 
 function locationTouchesChangedLine(location, changedLines) {

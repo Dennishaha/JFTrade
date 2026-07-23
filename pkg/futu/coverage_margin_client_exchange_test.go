@@ -81,9 +81,13 @@ func TestExchangeReconnectsClosedReadyClientAndCoversHandlerBoundaries(t *testin
 	remove()
 	seenNotify := false
 	exchange.OnSystemNotify(func(*notifypb.Response) { seenNotify = true })
-	exchange.dispatchSystemNotify(&notifypb.Response{})
+	exchange.dispatchSystemNotifyFrom(client, &notifypb.Response{})
+	if seenNotify {
+		t.Fatal("stale-client system notification was dispatched")
+	}
+	exchange.dispatchSystemNotifyFrom(replacement, &notifypb.Response{})
 	if !seenNotify {
-		t.Fatal("system notification was not dispatched")
+		t.Fatal("current-client system notification was not dispatched")
 	}
 
 	empty := NewExchange("")

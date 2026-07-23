@@ -46,6 +46,7 @@ const isOobeRoute = computed(() => route.path === "/oobe");
 const onboardingGateReady = ref(false);
 const isCompactAppShell = ref(false);
 const compactNavOpen = ref(false);
+const activeViewRevision = ref(0);
 const appBodyRef = ref<HTMLElement | null>(null);
 const { docsHomeUrl, openDocs } = useDocsLink();
 const documentTitleSuffix = "JFTrade Console";
@@ -99,6 +100,22 @@ const documentTitle = computed(() =>
     ? workspaceDocumentTitle.value
     : routeDocumentTitle.value,
 );
+const safeResearchReturnTo = computed(() =>
+  resolveSafeResearchReturnTo(route.query.returnTo),
+);
+const canNavigateBack = computed(() => {
+  // The history state itself is not reactive. Reading fullPath makes this
+  // capability update after every completed router navigation.
+  void route.fullPath;
+  return (
+    hasHistoryLocation(router.options.history.state.back) ||
+    safeResearchReturnTo.value != null
+  );
+});
+const canNavigateForward = computed(() => {
+  void route.fullPath;
+  return hasHistoryLocation(router.options.history.state.forward);
+});
 
 watch(
   documentTitle,
@@ -225,6 +242,64 @@ function reconnectLiveStreamIfNeeded(): void {
     return;
   }
   live.reconnect();
+}
+
+function hasHistoryLocation(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function resolveSafeResearchReturnTo(value: unknown): string | null {
+  if (typeof value !== "string" || value.trim() === "") {
+    return null;
+  }
+
+  const rawCandidate = value.trim();
+  const candidates = [rawCandidate];
+  try {
+    const decoded = decodeURIComponent(rawCandidate);
+    if (decoded !== rawCandidate) {
+      candidates.push(decoded);
+    }
+  } catch {
+    // A valid research URL may contain a literal percent sign in its nested
+    // query. The URL parser below still validates its origin and pathname.
+  }
+
+  const base = new URL("https://jftrade.local/");
+  for (const candidate of candidates) {
+    try {
+      const resolved = new URL(candidate, base);
+      if (
+        resolved.origin === base.origin &&
+        resolved.pathname === "/research"
+      ) {
+        return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+      }
+    } catch {
+      // Try the decoded candidate before rejecting the fallback.
+    }
+  }
+  return null;
+}
+
+function navigateBack(): void {
+  if (hasHistoryLocation(router.options.history.state.back)) {
+    router.back();
+    return;
+  }
+  if (safeResearchReturnTo.value != null) {
+    void router.replace(safeResearchReturnTo.value);
+  }
+}
+
+function navigateForward(): void {
+  if (hasHistoryLocation(router.options.history.state.forward)) {
+    router.forward();
+  }
+}
+
+function refreshActiveView(): void {
+  activeViewRevision.value += 1;
 }
 
 function toggleCompactNav(): void {
@@ -433,7 +508,12 @@ onUnmounted(() => {
     <TopBar
       v-if="!isOobeRoute"
       :compact="isCompactAppShell"
+      :can-go-back="canNavigateBack"
+      :can-go-forward="canNavigateForward"
       @toggle-nav="toggleCompactNav"
+      @navigate-back="navigateBack"
+      @navigate-forward="navigateForward"
+      @refresh-view="refreshActiveView"
     />
     <DesktopUpdateBanner v-if="!isOobeRoute" />
     <div
@@ -449,7 +529,15 @@ onUnmounted(() => {
       <IconRail v-if="!isOobeRoute && !isCompactAppShell" />
       <main class="tv-main">
         <div class="tv-main-scroll">
-          <RouterView v-if="onboardingGateReady" />
+          <RouterView
+            v-if="onboardingGateReady"
+            v-slot="{ Component, route: activeRoute }"
+          >
+            <component
+              :is="Component"
+              :key="`${activeRoute.path}:${activeViewRevision}`"
+            />
+          </RouterView>
         </div>
       </main>
       <button

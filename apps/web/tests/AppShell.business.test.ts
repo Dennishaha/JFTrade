@@ -105,12 +105,23 @@ vi.mock("../src/composables/useUIColorPreferences", () => ({
 
 import AppShell from "../src/layout/AppShell.vue";
 
+let workspaceRouteMountCount = 0;
+
 const WorkspaceRoute = defineComponent({
-  template: "<div data-testid='workspace-route'>workspace</div>",
+  setup() {
+    const mountId = ++workspaceRouteMountCount;
+    return { mountId };
+  },
+  template:
+    "<div data-testid='workspace-route' :data-mount-id='mountId'>workspace</div>",
 });
 
 const OobeRoute = defineComponent({
   template: "<div data-testid='oobe-route'>oobe</div>",
+});
+
+const ResearchRoute = defineComponent({
+  template: "<div data-testid='research-route'>research</div>",
 });
 
 const wrappers: VueWrapper[] = [];
@@ -133,6 +144,11 @@ function createTestRouter(initialPath = "/workspace") {
         path: "/settings",
         component: WorkspaceRoute,
         meta: { title: "设置" },
+      },
+      {
+        path: "/research",
+        component: ResearchRoute,
+        meta: { title: "研究" },
       },
     ],
   });
@@ -198,10 +214,23 @@ async function mountAppShell(initialPath = "/workspace") {
               type: Boolean,
               default: false,
             },
+            canGoBack: {
+              type: Boolean,
+              default: false,
+            },
+            canGoForward: {
+              type: Boolean,
+              default: false,
+            },
           },
-          emits: ["toggle-nav"],
+          emits: [
+            "toggle-nav",
+            "navigate-back",
+            "navigate-forward",
+            "refresh-view",
+          ],
           template:
-            "<header data-testid='top-bar'>top<button v-if='compact' data-testid='stub-compact-nav-toggle' @click=\"$emit('toggle-nav')\">nav</button></header>",
+            "<header data-testid='top-bar'>top<button v-if='compact' data-testid='stub-compact-nav-toggle' @click=\"$emit('toggle-nav')\">nav</button><button data-testid='stub-navigation-back' :disabled='!canGoBack' @click=\"$emit('navigate-back')\">back</button><button data-testid='stub-navigation-forward' :disabled='!canGoForward' @click=\"$emit('navigate-forward')\">forward</button><button data-testid='stub-navigation-refresh' @click=\"$emit('refresh-view')\">refresh</button></header>",
         }),
         IconRail: { template: "<aside data-testid='icon-rail'>rail</aside>" },
         RightDock: { template: "<aside data-testid='right-dock'>dock</aside>" },
@@ -227,6 +256,7 @@ function setVisibilityState(state: "visible" | "hidden") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  workspaceRouteMountCount = 0;
   testState.notificationsStore = { push: vi.fn() };
   testState.workspaceLayoutStore = createWorkspaceLayoutStore();
   testState.consoleStore = createConsoleStore();
@@ -251,6 +281,92 @@ afterEach(() => {
 });
 
 describe("AppShell business flows", () => {
+  it("remounts only the active route view and preserves it across query updates", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    const { router, wrapper } = await mountAppShell();
+    const initialMountId = wrapper
+      .get("[data-testid='workspace-route']")
+      .attributes("data-mount-id");
+
+    await router.replace({
+      path: "/workspace",
+      query: { tab: "chart", returnTo: "/research?section=market" },
+    });
+    await nextTick();
+    expect(
+      wrapper
+        .get("[data-testid='workspace-route']")
+        .attributes("data-mount-id"),
+    ).toBe(initialMountId);
+
+    await wrapper.get("[data-testid='stub-navigation-refresh']").trigger("click");
+    await nextTick();
+    expect(
+      wrapper
+        .get("[data-testid='workspace-route']")
+        .attributes("data-mount-id"),
+    ).not.toBe(initialMountId);
+    expect(testState.liveStore?.connect).toHaveBeenCalledTimes(1);
+    expect(testState.consoleStore?.initialize).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses router history first and accepts only a safe research return target as fallback", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    const safe = await mountAppShell(
+      "/workspace?returnTo=%2Fresearch%3Fsection%3Dmarket%26quote%3DUS.AAPL",
+    );
+
+    await safe.wrapper
+      .get("[data-testid='stub-navigation-back']")
+      .trigger("click");
+    await flushPromises();
+    expect(safe.router.currentRoute.value.path).toBe("/research");
+    expect(safe.router.currentRoute.value.query).toEqual({
+      section: "market",
+      quote: "US.AAPL",
+    });
+
+    const unsafe = await mountAppShell(
+      "/workspace?returnTo=https%3A%2F%2Fevil.example%2Fresearch",
+    );
+    expect(
+      unsafe.wrapper
+        .get("[data-testid='stub-navigation-back']")
+        .attributes("disabled"),
+    ).toBeDefined();
+    unsafe.setup.navigateBack();
+    await flushPromises();
+    expect(unsafe.router.currentRoute.value.path).toBe("/workspace");
+
+    const backSpy = vi
+      .spyOn(unsafe.router, "back")
+      .mockImplementation(() => undefined);
+    unsafe.router.options.history.state.back = "/research";
+    unsafe.setup.navigateBack();
+    expect(backSpy).toHaveBeenCalledOnce();
+
+    const forwardSpy = vi
+      .spyOn(unsafe.router, "forward")
+      .mockImplementation(() => undefined);
+    unsafe.router.options.history.state.forward = "/workspace";
+    unsafe.setup.navigateForward();
+    expect(forwardSpy).toHaveBeenCalledOnce();
+  });
+
   it("handles modern media listeners, reconnects live streams, and dedupes OpenD issue notifications", async () => {
     const mediaQuery = {
       matches: false,

@@ -176,7 +176,7 @@ afterEach(() => {
 });
 
 describe("WatchlistPanel business flows", () => {
-  it("places the watchlist action in the realtime price card", () => {
+  it("places the watchlist action in the realtime price card", async () => {
     const wrapper = mountWatchlistPanel();
 
     const favorite = wrapper.get('[data-testid="instrument-overview-favorite"]');
@@ -186,9 +186,12 @@ describe("WatchlistPanel business flows", () => {
     expect(wrapper.find(".tv-panel-head .instrument-identity").exists()).toBe(
       false,
     );
-    expect(wrapper.get(".instrument-overview__identity-row").text()).toContain(
+    expect(wrapper.get(".quote-summary__identity-row").text()).toContain(
       "US.AAPL · Apple",
     );
+    await favorite.trigger("click");
+    await nextTick();
+    expect(readSetupValue<boolean>(wrapper, "membershipDialogOpen")).toBe(true);
   });
 
   it("prefers searched instrument names and keeps neutral snapshots free of up/down coloring", () => {
@@ -219,7 +222,12 @@ describe("WatchlistPanel business flows", () => {
     const wrapper = mountWatchlistPanel();
 
     expect(wrapper.text()).toContain("US.AAPL · Apple Inc.");
-    expect(readSetupValue(wrapper, "mainChangeClass")).toBe("");
+    expect(wrapper.get(".quote-summary__price").classes()).not.toEqual(
+      expect.arrayContaining(["tv-up", "tv-down"]),
+    );
+    expect(wrapper.get(".quote-summary__change").classes()).not.toEqual(
+      expect.arrayContaining(["tv-up", "tv-down"]),
+    );
     expect(callSetup<string>(wrapper, "formatSecurityStatus", createSecurityDetails({
       instrumentId: "US.HALT",
       market: "US",
@@ -239,8 +247,6 @@ describe("WatchlistPanel business flows", () => {
       exchangeType: "US_NASDAQ",
       sessionStatus: "",
     }))).toBe("正常");
-    expect(callSetup<string>(wrapper, "formatPercent", null)).toBe("—");
-    expect(callSetup<string>(wrapper, "formatPercent", 1.25)).toBe("+1.25%");
     expect(callSetup<string>(wrapper, "formatPlainNumber", null)).toBe("—");
     expect(callSetup<string>(wrapper, "formatCompactNumber", null)).toBe("—");
     expect(callSetup<string>(wrapper, "formatInteger", null)).toBe("—");

@@ -17,7 +17,10 @@ func featureResultFromProtocolPayload(
 		return optionZeroDteFeatureResult(query, normalized)
 	}
 	if !isPredictionProtocol(protocol) {
-		return featureResultFromNormalizedPayload(query, normalized)
+		return featureResultFromNormalizedPayload(
+			query,
+			normalizeResearchProtocolPayload(protocol, normalized),
+		)
 	}
 	return predictionFeatureResult(query, protocol, normalized)
 }
@@ -144,6 +147,12 @@ func objectSlice(value any) []map[string]any {
 func setPagination(result *broker.FeatureResult, payload map[string]any, count int) {
 	result.NextCursor = firstString(payload, "nextPage", "nextKey")
 	hasMore := result.NextCursor != ""
+	if explicit, ok := payload["hasMore"].(bool); ok {
+		hasMore = explicit
+	}
+	if !hasMore {
+		result.NextCursor = ""
+	}
 	result.HasMore = &hasMore
 	total := count
 	for _, key := range []string{"total", "totalCount", "allCount"} {

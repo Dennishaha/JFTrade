@@ -12,6 +12,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	getuserinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/getuserinfo"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
@@ -81,7 +82,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	defer e.mu.Unlock()
 
 	if e.client == nil {
-		e.client = e.newClient()
+		e.installClientLocked(e.newClient())
 	}
 	if e.ready {
 		select {
@@ -89,7 +90,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 			log.Printf("futu OpenD client done; reconnecting to %s", e.addr)
 			jftradeErr6 := e.invalidateClientLocked()
 			besteffort.LogError(jftradeErr6)
-			e.client = e.newClient()
+			e.installClientLocked(e.newClient())
 		default:
 			e.bindOrderBookNotifyLocked(e.client)
 			e.bindSystemNotifyLocked(e.client)
@@ -219,21 +220,48 @@ func (e *Exchange) dispatchOrderBookNotify(update *qotupdateorderbookpb.S2C) {
 
 func (e *Exchange) bindSystemNotifyLocked(client *opend.Client) {
 	e.handlerMu.RLock()
-	hasHandlers := len(e.systemNotifyHandlers) > 0
+	hasHandlers := len(e.systemNotifyHandlers) > 0 ||
+		len(e.systemNotifyGenHandlers) > 0
 	e.handlerMu.RUnlock()
 	if client == nil || !hasHandlers || e.systemNotifyClient == client {
 		return
 	}
-	client.SubscribeNotify(e.dispatchSystemNotify)
+	client.SubscribeNotify(func(response *notifypb.Response) {
+		e.dispatchSystemNotifyFrom(client, response)
+	})
 	e.systemNotifyClient = client
 }
 
-func (e *Exchange) dispatchSystemNotify(response *notifypb.Response) {
+func (e *Exchange) dispatchSystemNotifyFrom(
+	source *opend.Client,
+	response *notifypb.Response,
+) {
+	if source == nil || e.activeClient.Load() != source {
+		return
+	}
+	generation := e.activeGeneration.Load()
+	if generation == 0 || e.activeClient.Load() != source {
+		return
+	}
+	e.dispatchSystemNotifyAt(response, generation)
+}
+
+func (e *Exchange) dispatchSystemNotifyAt(
+	response *notifypb.Response,
+	generation uint64,
+) {
 	e.handlerMu.RLock()
 	handlers := append([]func(*notifypb.Response){}, e.systemNotifyHandlers...)
+	generationHandlers := append(
+		[]func(*notifypb.Response, uint64){},
+		e.systemNotifyGenHandlers...,
+	)
 	e.handlerMu.RUnlock()
 	for _, handler := range handlers {
 		handler(response)
+	}
+	for _, handler := range generationHandlers {
+		handler(response, generation)
 	}
 }
 
@@ -299,6 +327,68 @@ func (e *Exchange) newClient() *opend.Client {
 	})
 }
 
+func (e *Exchange) installClientLocked(client *opend.Client) {
+	e.client = client
+	if client == nil {
+		e.activeClient.Store(nil)
+		e.activeGeneration.Store(0)
+		return
+	}
+	e.activeClient.Store(client)
+	e.activeGeneration.Store(e.clientGenerationCounter.Add(1))
+}
+
+func (e *Exchange) activeConnectionGeneration() uint64 {
+	if e == nil {
+		return 0
+	}
+	return e.activeGeneration.Load()
+}
+
+func (e *Exchange) queryQuoteRights(
+	ctx context.Context,
+	expectedGeneration uint64,
+) (*getuserinfopb.S2C, uint64, error) {
+	var lastErr error
+	for range 2 {
+		var (
+			info           *getuserinfopb.S2C
+			usedClient     *opend.Client
+			usedGeneration uint64
+		)
+		err := e.withRetryingClient(ctx, func(client *opend.Client) error {
+			usedClient = client
+			usedGeneration = e.activeGeneration.Load()
+			if usedGeneration == 0 || e.activeClient.Load() != client {
+				return errors.New("OpenD connection changed before reading quote entitlements")
+			}
+			if usedGeneration != expectedGeneration {
+				return errors.New("OpenD connection generation changed before reading quote entitlements")
+			}
+			value, callErr := client.GetQuoteRights(ctx)
+			if callErr != nil {
+				return callErr
+			}
+			info = value
+			return nil
+		})
+		if usedClient == nil {
+			return nil, 0, err
+		}
+		isCurrent := e.activeClient.Load() == usedClient &&
+			e.activeGeneration.Load() == usedGeneration &&
+			usedGeneration != 0
+		if isCurrent {
+			return info, usedGeneration, err
+		}
+		lastErr = err
+	}
+	if lastErr == nil {
+		lastErr = errors.New("OpenD connection changed while reading quote entitlements")
+	}
+	return nil, 0, lastErr
+}
+
 func (e *Exchange) invalidateClient() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -313,6 +403,8 @@ func (e *Exchange) invalidateClientLocked() error {
 		e.connectionGeneration++
 	}
 	e.client = nil
+	e.activeClient.Store(nil)
+	e.activeGeneration.Store(0)
 	e.ready = false
 	e.subscriptions.reset()
 	e.orderBookNotifyClient = nil

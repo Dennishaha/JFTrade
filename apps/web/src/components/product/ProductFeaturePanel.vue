@@ -20,12 +20,22 @@ const props = withDefaults(
     description?: string;
     path: string;
     active?: boolean;
+    actionLabel?: string;
+    instrumentActionClasses?: string[] | null;
   }>(),
-  { description: "", active: true },
+  {
+    description: "",
+    active: true,
+    actionLabel: "工作区",
+    instrumentActionClasses: null,
+  },
 );
 
 const emit = defineEmits<{
-  openInstrument: [instrumentId: string];
+  openInstrument: [
+    instrumentId: string,
+    entry?: Record<string, unknown>,
+  ];
 }>();
 
 const loading = ref(false);
@@ -115,6 +125,18 @@ function formatCell(value: unknown): string {
   return Array.isArray(value) ? `${value.length} 项` : "查看详情";
 }
 
+function actionInstrumentId(entry: Record<string, unknown>): string | null {
+  if (props.instrumentActionClasses != null) {
+    const productClass = String(
+      entry.productClass ?? entry.securityType ?? entry.type ?? "",
+    )
+      .trim()
+      .toLowerCase();
+    if (!props.instrumentActionClasses.includes(productClass)) return null;
+  }
+  return instrumentIDFromFeatureEntry(entry);
+}
+
 const requestPath = computed(() =>
   withBrokerProvider(props.path, selectedBrokerId.value),
 );
@@ -191,7 +213,7 @@ watch(
     <v-alert v-if="error" type="warning" variant="tonal" density="compact">
       {{ error }}
     </v-alert>
-    <template v-else-if="result != null">
+    <template v-if="!error && result != null">
       <v-alert
         v-for="warning in result.warnings ?? []"
         :key="warning"
@@ -244,17 +266,18 @@ watch(
                 </td>
                 <td class="product-feature-panel__actions">
                   <v-btn
-                    v-if="instrumentIDFromFeatureEntry(entry)"
+                    v-if="actionInstrumentId(entry)"
                     size="x-small"
                     variant="text"
                     @click="
                       emit(
                         'openInstrument',
-                        instrumentIDFromFeatureEntry(entry)!,
+                        actionInstrumentId(entry)!,
+                        entry,
                       )
                     "
                   >
-                    工作区
+                    {{ actionLabel }}
                   </v-btn>
                   <details>
                     <summary>详情</summary>

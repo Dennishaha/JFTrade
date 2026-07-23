@@ -80,6 +80,26 @@ const newsStub = defineComponent({
   emits: ["openInstrument"],
   template: `<button class="news-panel" :data-path="path" :data-instrument="instrumentId" @click="$emit('openInstrument', 'US.MSFT')">news</button>`,
 });
+const marketViewStub = (name: string) =>
+  defineComponent({
+    name,
+    props: { market: String },
+    emits: ["select", "more"],
+    template: `<div class="market-view-stub" data-view="${name}" :data-market="market"></div>`,
+  });
+const marketViewStubs = {
+  MarketHomeView: marketViewStub("MarketHomeView"),
+  ConceptSectorView: marketViewStub("ConceptSectorView"),
+  EarningsCalendarView: marketViewStub("EarningsCalendarView"),
+  EconCalendarView: marketViewStub("EconCalendarView"),
+  IpoCenterView: marketViewStub("IpoCenterView"),
+  InstitutionGridView: marketViewStub("InstitutionGridView"),
+  QuoteDetailRail: defineComponent({
+    name: "QuoteDetailRail",
+    props: { entry: { type: Object, default: null }, market: String },
+    template: `<div class="quote-detail-rail-stub" :data-market="market"></div>`,
+  }),
+};
 
 function marketReference(
   instrumentId: string,
@@ -232,6 +252,7 @@ describe("product navigation surfaces", () => {
         plugins: [createPinia(), router],
         stubs: {
           ...productGlobalStubs,
+          ...marketViewStubs,
           ProductFeaturePanel: panelStub,
           PredictionResearchPanel: predictionStub,
           OptionResearchPanel: optionResearchStub,
@@ -243,7 +264,6 @@ describe("product navigation surfaces", () => {
       activeSection: string;
       activeOperation: string;
       activePath: string;
-      openInstrument: (value: string) => void;
     }>(page);
 
     expect(state.activeSection).toBe("macro");
@@ -254,7 +274,7 @@ describe("product navigation surfaces", () => {
     expect(page.get(".broker-provider-tag-stub").attributes("data-market")).toBe(
       "US",
     );
-    state.activeSection = "screens";
+    state.activeSection = "derivatives";
     await nextTick();
     state.activeOperation = "warrant";
     await nextTick();
@@ -271,23 +291,24 @@ describe("product navigation surfaces", () => {
       "institutions",
     );
     await nextTick();
-    await page.get("select").setValue("ark_transactions");
-    expect(state.activeOperation).toBe("ark_transactions");
+    await page.get("select").setValue("ark_stock_activity");
+    expect(state.activeOperation).toBe("ark_stock_activity");
     const sections = [
       "market",
       "screens",
-      "options",
+      "derivatives",
       "calendar",
       "macro",
       "institutions",
       "industries",
+      "instrument",
     ];
     for (const section of sections) {
       await router.replace({ path: "/research", query: { section } });
       await nextTick();
       expect(state.activePath).toContain("/api/v1/");
       expect(router.currentRoute.value.query.section).toBe(section);
-      if (section === "options") {
+      if (section === "derivatives") {
         expect(page.get(".option-research-panel").attributes("data-scope")).toBe(
           "market",
         );
@@ -307,7 +328,29 @@ describe("product navigation surfaces", () => {
     await router.push("/research?section=invalid");
     await nextTick();
     expect(state.activeSection).toBe("market");
-    state.openInstrument("INVALID");
+    // 市场 section 走新视图结构：默认首页，不再渲染 ProductFeaturePanel
+    expect(page.get(".market-view-stub").attributes("data-view")).toBe(
+      "MarketHomeView",
+    );
+    expect(page.find(".feature-panel").exists()).toBe(false);
+    expect(page.get(".quote-detail-rail-stub").exists()).toBe(true);
+    await router.replace({
+      path: "/research",
+      query: { section: "market", view: "sectors" },
+    });
+    await nextTick();
+    expect(page.get(".market-view-stub").attributes("data-view")).toBe(
+      "ConceptSectorView",
+    );
+    // 非法 view 回退 home
+    await router.replace({
+      path: "/research",
+      query: { section: "market", view: "bogus" },
+    });
+    await nextTick();
+    expect(page.get(".market-view-stub").attributes("data-view")).toBe(
+      "MarketHomeView",
+    );
   });
 
   it("keeps workspace product tabs broker-neutral and reuses trading preferences", async () => {

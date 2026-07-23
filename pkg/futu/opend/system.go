@@ -6,6 +6,7 @@ import (
 
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	getglobalstatepb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
+	getuserinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/getuserinfo"
 )
 
 // GlobalState holds the OpenD global-state snapshot returned by
@@ -90,6 +91,28 @@ func (c *Client) GetGlobalState(ctx context.Context) (*GlobalState, error) {
 	}
 
 	return gs, nil
+}
+
+// GetQuoteRights fetches only the current session's market-data entitlements
+// from OpenD (GetUserInfo, 1005). Keeping the field mask fixed avoids fetching
+// unrelated profile, disclaimer, or web-key data.
+func (c *Client) GetQuoteRights(ctx context.Context) (*getuserinfopb.S2C, error) {
+	flag := int32(getuserinfopb.UserInfoField_UserInfoField_QotRight)
+	request := &getuserinfopb.Request{C2S: &getuserinfopb.C2S{Flag: &flag}}
+	var response getuserinfopb.Response
+	if err := c.Call(ctx, ProtoGetUserInfo, request, &response); err != nil {
+		return nil, err
+	}
+	if response.GetRetType() != 0 {
+		return nil, fmt.Errorf(
+			"opend GetUserInfo retType=%d errCode=%d retMsg=%s",
+			response.GetRetType(), response.GetErrCode(), response.GetRetMsg(),
+		)
+	}
+	if response.GetS2C() == nil {
+		return &getuserinfopb.S2C{}, nil
+	}
+	return response.GetS2C(), nil
 }
 
 func programStatusLabel(status *commonpb.ProgramStatus) string {

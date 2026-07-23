@@ -16,7 +16,7 @@ try {
   const passing = checkWebDiffCoverage({ baseRef, repoRoot: tempRoot });
   assert.equal(passing.passed, true, formatWebDiffCoverageReport(passing));
   assert.equal(passing.reports.length, 2);
-  assert.equal(passing.reports.find((report) => report.kind === "critical")?.branches.percentage, 90);
+  assert.equal(passing.reports.find((report) => report.kind === "critical")?.branches.percentage, (20 / 22) * 100);
   assert.equal(isCriticalWebPath("apps/web/src/components/risk/HardStopControlPanel.vue"), true);
   assert.equal(isCriticalWebPath("apps/web/src/components/SettingsAppearanceSection.vue"), false);
 
@@ -88,11 +88,30 @@ function coverageEntry(statementHits, branchHits) {
     branchMap[index] = { type: "if", line: 2, loc: location(2), locations: [location(2)] };
     branches[index] = [index < branchHits ? 1 : 0];
   }
+  const collapsedLocation = location(2);
+  branchMap[20] = {
+    type: "cond-expr",
+    line: 2,
+    loc: collapsedLocation,
+    locations: [collapsedLocation, collapsedLocation],
+  };
+  branches[20] = [0, 0];
+  branchMap[21] = {
+    type: "cond-expr",
+    line: 2,
+    loc: locationSpan(2, 0, 2),
+    locations: [locationSpan(2, 0, 1), locationSpan(2, 1, 2)],
+  };
+  branches[21] = [1, 1];
   return { statementMap, s: statements, branchMap, b: branches, fnMap: {}, f: {} };
 }
 
 function location(line) {
   return { start: { line, column: 0 }, end: { line, column: 1 } };
+}
+
+function locationSpan(line, startColumn, endColumn) {
+  return { start: { line, column: startColumn }, end: { line, column: endColumn } };
 }
 
 function git(cwd, args) {

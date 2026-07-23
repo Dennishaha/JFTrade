@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
+
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -20,6 +22,9 @@ type futuAdapter struct {
 	capabilityMu                sync.RWMutex
 	lastConnectStatus           *futuConnectCapabilityStatus
 	lastQuoteRights             *futuQuoteCapabilityRights
+	lastQuoteRightsFailure      *futuQuoteCapabilityFailure
+	quoteRightsRevision         uint64
+	quoteRightsFlight           singleflight.Group
 	capabilityAccounts          []broker.Account
 	capabilityAccountsExpiresAt time.Time
 
@@ -40,7 +45,9 @@ func NewBrokerAdapter(exchange *Exchange) broker.Broker {
 		predictionSubscriptions:   make(map[string]broker.PredictionSubscription),
 	}
 	if exchange != nil {
-		exchange.OnSystemNotify(adapter.captureCapabilityNotification)
+		exchange.onSystemNotifyWithGeneration(
+			adapter.captureCapabilityNotificationAt,
+		)
 	}
 	return adapter
 }

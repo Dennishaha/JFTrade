@@ -136,6 +136,7 @@ var featureProtocols = map[broker.FeatureID]map[string]string{
 		"heatmap":                "Qot_GetHeatMapData",
 		"rise_fall_distribution": "Qot_GetRiseFallDistribution",
 		"market_state":           "Qot_GetMarketState",
+		"fund_catalog":           "Qot_GetStaticInfo",
 	},
 	broker.FeatureResearchInstitutions: {
 		"list":               "Qot_GetInstitutionList",
@@ -154,6 +155,8 @@ var featureProtocols = map[broker.FeatureID]map[string]string{
 		"plate":           "Qot_GetIndustrialPlateInfo",
 		"plate_stocks":    "Qot_GetIndustrialPlateStock",
 		"owner_plates":    "Qot_GetOwnerPlate",
+		"plate_list":      "Qot_GetPlateSet",
+		"plate_members":   "Qot_GetPlateSecurity",
 	},
 	broker.FeatureTechnicalIndicator: {
 		"list":      "Qot_GetIndicatorList",
@@ -239,6 +242,7 @@ var protocolInstrumentField = map[string]string{
 	"Qot_GetEventContractSnapshot":         "securityList",
 	"Qot_GetFutureInfo":                    "securityList",
 	"Qot_GetOptionQuote":                   "multi_legs",
+	"Qot_GetPlateSecurity":                 "plate",
 }
 
 func (a *futuAdapter) QueryMarketMicrostructure(ctx context.Context, query broker.FeatureQuery) (*broker.FeatureResult, error) {
@@ -449,7 +453,11 @@ func (a *futuAdapter) queryAdvancedFeatureWithProtocols(
 	}); err != nil {
 		return nil, err
 	}
-	return featureResultFromProtocolPayload(query, protocol, payload), nil
+	result := featureResultFromProtocolPayload(query, protocol, payload)
+	if err := applyResearchLocalPagination(result, query, protocol); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (a *futuAdapter) withAdvancedClient(
@@ -520,53 +528,6 @@ func injectAdvancedDefaults(params map[string]any, protocol string, query broker
 		params["pageFrom"] = 0
 	}
 	return injectAdvancedProtocolDefaults(params, protocol, query)
-}
-
-func injectAdvancedProtocolDefaults(params map[string]any, protocol string, query broker.FeatureQuery) error {
-	switch protocol {
-	case "Qot_GetOptionChain":
-		injectOptionChainDates(params)
-	case "Qot_OptionScreen":
-		if params["marketCategoryList"] == nil {
-			category := 0
-			if strings.EqualFold(query.Market, "HK") {
-				category = 3
-			}
-			params["marketCategoryList"] = []any{category}
-		}
-	case "Qot_GetOptionEvent", "Qot_GetOptionZeroDteScreener",
-		"Qot_GetOptionEarningsScreener", "Qot_GetOptionSellerScreener":
-		return injectOptionEventDefaults(params, protocol, query)
-	case "Qot_GetOptionZeroDteContract":
-		return injectZeroDteContractParams(params, query)
-	case "Qot_GetOptionMarketStatistic":
-		injectOptionMarketStatisticDefaults(params, query.Market)
-	case "Qot_GetOptionUnderlyingHisStatistic", "Qot_GetOptionUnderlyingHisVolatility":
-		injectHistoricalDateRange(params)
-	case "Qot_GetWarrant":
-		injectWarrantDefaults(params)
-	case "Qot_WarrantScreen":
-		if params["marketType"] == nil {
-			params["marketType"] = 1
-		}
-	case "Qot_GetMacroIndicatorList":
-		if params["region"] == nil {
-			params["region"] = macroRegion(query.Market)
-		}
-	case "Qot_GetSearchNews":
-		if strings.TrimSpace(stringValue(params["keyword"])) == "" {
-			keyword := strings.TrimPrefix(query.InstrumentID, query.Market+".")
-			if keyword == "" {
-				return fmt.Errorf("futu: news search requires keyword or instrumentId")
-			}
-			params["keyword"] = keyword
-		}
-	case "Qot_GetEventContractKline":
-		if params["klineSource"] == nil {
-			params["klineSource"] = 1
-		}
-	}
-	return nil
 }
 
 func injectOptionChainDates(params map[string]any) {

@@ -3,6 +3,7 @@ package futu
 import (
 	"maps"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -180,5 +181,23 @@ func TestEveryDefaultFeatureOperationBuildsGeneratedRequest(t *testing.T) {
 			t.Errorf("%s (%s/%s) request invalid: %v; params=%#v",
 				featureID, operation, protocol, err, params)
 		}
+	}
+}
+
+func TestHighDividendStateRejectsMisleadingMainlandScope(t *testing.T) {
+	err := injectAdvancedProtocolDefaults(
+		map[string]any{},
+		"Qot_GetHighDividendSOERank",
+		broker.FeatureQuery{Market: "SH"},
+	)
+	if err == nil || !strings.Contains(err.Error(), "available only for HK") {
+		t.Fatalf("high dividend SH error = %v, want explicit HK-only capability error", err)
+	}
+	if err := injectAdvancedProtocolDefaults(
+		map[string]any{},
+		"Qot_GetHighDividendSOERank",
+		broker.FeatureQuery{Market: "HK"},
+	); err != nil {
+		t.Fatalf("high dividend HK defaults: %v", err)
 	}
 }

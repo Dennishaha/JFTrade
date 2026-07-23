@@ -2,7 +2,9 @@ package productfeatures
 
 import (
 	"errors"
+	"fmt"
 	"maps"
+	"strings"
 	"testing"
 	"time"
 
@@ -281,6 +283,63 @@ func TestOptionFeatureValidationRejectsMalformedAdvancedFilters(t *testing.T) {
 		Market: "US", InstrumentID: "US.AAPL", Params: map[string]any{"operation": "quote"},
 	}); !errors.Is(err, ErrInvalidQuery) {
 		t.Fatalf("service option validation error = %v", err)
+	}
+}
+
+func TestResearchInstitutionDetailQueriesRequireInstitutionID(t *testing.T) {
+	for _, operation := range []string{
+		"profile",
+		"distribution",
+		"holding_changes",
+		"holdings",
+	} {
+		t.Run(operation+"/missing", func(t *testing.T) {
+			err := validateResearchInstitutionQuery(broker.FeatureQuery{
+				FeatureID: broker.FeatureResearchInstitutions,
+				Params:    map[string]any{"operation": operation},
+			})
+			if !errors.Is(err, ErrInvalidQuery) ||
+				!strings.Contains(err.Error(), "positive integer institutionId") {
+				t.Fatalf("error = %v, want ErrInvalidQuery for institutionId", err)
+			}
+		})
+	}
+
+	for _, institutionID := range []any{0, -1, 1.5, "not-an-id", int64(1 << 32)} {
+		t.Run(fmt.Sprint(institutionID), func(t *testing.T) {
+			err := validateResearchInstitutionQuery(broker.FeatureQuery{
+				FeatureID: broker.FeatureResearchInstitutions,
+				Params: map[string]any{
+					"operation":     "holding_changes",
+					"institutionId": institutionID,
+				},
+			})
+			if !errors.Is(err, ErrInvalidQuery) {
+				t.Fatalf("error = %v, want ErrInvalidQuery", err)
+			}
+		})
+	}
+
+	for _, query := range []broker.FeatureQuery{
+		{
+			FeatureID: broker.FeatureResearchInstitutions,
+			Params:    map[string]any{"operation": "list"},
+		},
+		{
+			FeatureID: broker.FeatureResearchInstitutions,
+			Params: map[string]any{
+				"operation":     "holding_changes",
+				"institutionId": int64(202),
+			},
+		},
+		{
+			FeatureID: broker.FeatureResearchCalendar,
+			Params:    map[string]any{"operation": "holding_changes"},
+		},
+	} {
+		if err := validateResearchInstitutionQuery(query); err != nil {
+			t.Fatalf("valid query rejected: query=%#v error=%v", query, err)
+		}
 	}
 }
 

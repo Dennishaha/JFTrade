@@ -124,6 +124,325 @@ func TestLiveOpenDProto108Contract(t *testing.T) {
 	t.Logf("HK.00700 snapshotPrice=%v orderBookBids=%d asks=%d", snapshots[0].GetBasic().GetCurPrice(), len(book.BidList), len(book.AskList))
 }
 
+func TestLiveOpenDQuoteRightDiscoveryDoesNotSubscribe(t *testing.T) {
+	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
+		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	exchange := NewExchange(DefaultOpenDAddr)
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
+	adapter := NewBrokerAdapter(exchange).(*futuAdapter)
+
+	if err := exchange.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	client := exchange.Client()
+	before, err := client.GetSubInfo(ctx, false)
+	if err != nil {
+		t.Fatalf("GetSubInfo before quote-right discovery: %v", err)
+	}
+
+	rights, err := client.GetQuoteRights(ctx)
+	if err != nil {
+		t.Fatalf("GetQuoteRights: %v", err)
+	}
+	if !userInfoHasQuoteRights(rights) {
+		t.Fatal("GetQuoteRights returned no entitlement fields")
+	}
+	t.Logf(
+		"quote rights HK=%s US=%s SH=%s SZ=%s US index=%s",
+		qotcommonpb.QotRight(rights.GetHkQotRight()),
+		qotcommonpb.QotRight(rights.GetUsQotRight()),
+		qotcommonpb.QotRight(rights.GetShQotRight()),
+		qotcommonpb.QotRight(rights.GetSzQotRight()),
+		qotcommonpb.QotRight(rights.GetUsIndexQotRight()),
+	)
+
+	for _, market := range []string{"HK", "US", "SH", "SZ"} {
+		evaluation, evaluationErr := adapter.EvaluateCapability(ctx, broker.CapabilityEvaluationRequest{
+			Market: market,
+			DeclaredCapability: broker.FeatureCapability{
+				Access:             broker.FeatureAccessRead,
+				RequiresConnection: true,
+				RequiresQuoteRight: true,
+			},
+		})
+		if evaluationErr != nil {
+			t.Fatalf("market=%s EvaluateCapability: %v", market, evaluationErr)
+		}
+		switch evaluation.QuoteRight.Code {
+		case "QUOTE_RIGHT_AVAILABLE", "QUOTE_RIGHT_POLLING_ONLY",
+			"QUOTE_RIGHT_DENIED", "QUOTE_RIGHT_UNKNOWN":
+		default:
+			t.Fatalf("market=%s unresolved quote right: %#v", market, evaluation.QuoteRight)
+		}
+		t.Logf(
+			"market=%s state=%s code=%s reason=%s",
+			market, evaluation.State, evaluation.QuoteRight.Code,
+			evaluation.QuoteRight.Reason,
+		)
+	}
+
+	after, err := client.GetSubInfo(ctx, false)
+	if err != nil {
+		t.Fatalf("GetSubInfo after quote-right discovery: %v", err)
+	}
+	if len(before.GetConnSubInfoList()) != len(after.GetConnSubInfoList()) {
+		t.Fatalf("quote-right discovery changed subscription count: before=%v after=%v",
+			before.GetConnSubInfoList(), after.GetConnSubInfoList())
+	}
+	for index := range before.GetConnSubInfoList() {
+		if !proto.Equal(before.GetConnSubInfoList()[index], after.GetConnSubInfoList()[index]) {
+			t.Fatalf("quote-right discovery changed subscription state: before=%v after=%v",
+				before.GetConnSubInfoList(), after.GetConnSubInfoList())
+		}
+	}
+	if before.GetTotalUsedQuota() != after.GetTotalUsedQuota() ||
+		before.GetRemainQuota() != after.GetRemainQuota() {
+		t.Fatalf("quote-right discovery changed subscription quota: before used=%d remain=%d; after used=%d remain=%d",
+			before.GetTotalUsedQuota(), before.GetRemainQuota(),
+			after.GetTotalUsedQuota(), after.GetRemainQuota())
+	}
+}
+
+func TestLiveOpenDResearchCatalogReadsDoNotSubscribe(t *testing.T) {
+	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
+		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 45*time.Second)
+	defer cancel()
+	exchange := NewExchange(DefaultOpenDAddr)
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
+	if err := exchange.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	client := exchange.Client()
+	before, err := client.GetSubInfo(ctx, false)
+	if err != nil {
+		t.Fatalf("GetSubInfo before research reads: %v", err)
+	}
+	adapter := NewBrokerAdapter(exchange).(*futuAdapter)
+	plates, err := adapter.QueryMarketResearch(ctx, broker.FeatureQuery{
+		Market: "HK", FeatureID: broker.FeatureResearchIndustry,
+		Params: map[string]any{"operation": "plate_list", "plateType": "concept"},
+	})
+	if err != nil || plates == nil || len(plates.Entries) == 0 {
+		t.Fatalf("concept plate list = %#v, %v", plates, err)
+	}
+	plateID := stringValue(plates.Entries[0]["instrumentId"])
+	if plateID == "" {
+		t.Fatalf("concept plate has no canonical instrumentId: %#v", plates.Entries[0])
+	}
+	members, err := adapter.QueryMarketResearch(ctx, broker.FeatureQuery{
+		Market: "HK", InstrumentID: plateID, FeatureID: broker.FeatureResearchIndustry,
+		Params: map[string]any{"operation": "plate_members"},
+	})
+	if err != nil || members == nil {
+		t.Fatalf("plate members %s = %#v, %v", plateID, members, err)
+	}
+	funds, err := adapter.QueryMarketResearch(ctx, broker.FeatureQuery{
+		Market: "HK", FeatureID: broker.FeatureResearchRankings,
+		Params: map[string]any{"operation": "fund_catalog"},
+	})
+	if err != nil || funds == nil || len(funds.Entries) == 0 {
+		t.Fatalf("fund catalog = %#v, %v", funds, err)
+	}
+	fundCounts := map[string]int{"HK": len(funds.Entries)}
+	for _, market := range []string{"US", "SH", "SZ"} {
+		catalog, catalogErr := adapter.QueryMarketResearch(ctx, broker.FeatureQuery{
+			Market: market, FeatureID: broker.FeatureResearchRankings,
+			Params: map[string]any{"operation": "fund_catalog"},
+		})
+		if catalogErr != nil || catalog == nil || len(catalog.Entries) == 0 {
+			t.Fatalf("market=%s fund_catalog = %#v, %v", market, catalog, catalogErr)
+		}
+		fundCounts[market] = len(catalog.Entries)
+	}
+	for market, instrumentID := range map[string]string{
+		"US": "US.AAPL", "HK": "HK.00700", "SH": "SH.600519", "SZ": "SZ.000858",
+	} {
+		snapshot, snapshotErr := adapter.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{
+			Symbols: []string{instrumentID},
+		})
+		if snapshotErr != nil || snapshot == nil || len(snapshot.Snapshots) == 0 {
+			t.Fatalf("market=%s snapshot %s unavailable: result=%#v err=%v",
+				market, instrumentID, snapshot, snapshotErr)
+		}
+		price := float64(0)
+		if snapshot.Snapshots[0].LastPrice != nil {
+			price = *snapshot.Snapshots[0].LastPrice
+		}
+		t.Logf("market=%s snapshot=%s price=%v", market, instrumentID, price)
+	}
+	_, usBenchmarkErr := adapter.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{
+		Symbols: []string{"US..DJI", "US..SPX", "US..IXIC"},
+	})
+	if usBenchmarkErr == nil || !strings.Contains(usBenchmarkErr.Error(), "暂不支持美股指数") {
+		t.Fatalf("US index snapshot capability error = %v", usBenchmarkErr)
+	}
+	for market, benchmarkIDs := range map[string][]string{
+		"HK": {"HK.800000", "HK.800100", "HK.800700"},
+		"CN": {"SH.000001", "SZ.399001", "SZ.399006"},
+	} {
+		benchmarks, benchmarkErr := adapter.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{
+			Symbols: benchmarkIDs,
+		})
+		if benchmarkErr != nil || benchmarks == nil || len(benchmarks.Snapshots) != len(benchmarkIDs) {
+			t.Fatalf("market=%s benchmark snapshots = %#v, %v", market, benchmarks, benchmarkErr)
+		}
+		t.Logf("market=%s benchmark snapshots=%d", market, len(benchmarks.Snapshots))
+	}
+	fundID := stringValue(funds.Entries[0]["instrumentId"])
+	fundSnapshot, fundSnapshotErr := adapter.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{
+		Symbols: []string{fundID},
+	})
+	if fundID == "" || fundSnapshotErr != nil || fundSnapshot == nil || len(fundSnapshot.Snapshots) != 1 {
+		t.Fatalf("fund snapshot %q = %#v, %v", fundID, fundSnapshot, fundSnapshotErr)
+	}
+	plateDetails, plateDetailsErr := exchange.QuerySecurityDetails(ctx, plateID)
+	if plateDetailsErr != nil || plateDetails == nil {
+		t.Fatalf("plate details %s = %#v, %v", plateID, plateDetails, plateDetailsErr)
+	}
+	plateSnapshot, plateSnapshotErr := adapter.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{
+		Symbols: []string{plateID},
+	})
+	if plateSnapshotErr != nil || plateSnapshot == nil || len(plateSnapshot.Snapshots) != 1 {
+		t.Fatalf("plate snapshot %s = %#v, %v", plateID, plateSnapshot, plateSnapshotErr)
+	}
+	today := time.Now().Format("2006-01-02")
+	for _, calendarQuery := range []broker.FeatureQuery{
+		{
+			Market: "US", FeatureID: broker.FeatureResearchCalendar,
+			Params: map[string]any{"operation": "earnings", "beginDate": today, "endDate": today},
+		},
+		{
+			Market: "US", FeatureID: broker.FeatureResearchCalendar,
+			Params: map[string]any{"operation": "economic", "beginDate": today, "endDate": today},
+		},
+	} {
+		calendar, calendarErr := adapter.QueryMarketResearch(ctx, calendarQuery)
+		if calendarErr != nil || calendar == nil || len(calendar.Entries) == 0 {
+			t.Fatalf("calendar operation=%s result=%#v error=%v",
+				calendarQuery.Params["operation"], calendar, calendarErr)
+		}
+		t.Logf("calendar operation=%s date=%s entries=%d",
+			calendarQuery.Params["operation"], today, len(calendar.Entries))
+	}
+	for _, market := range []string{"US", "HK"} {
+		institutions, listErr := adapter.QueryMarketResearch(ctx, broker.FeatureQuery{
+			Market: market, FeatureID: broker.FeatureResearchInstitutions,
+			Params: map[string]any{"operation": "list"}, PageSize: 1,
+		})
+		if listErr != nil || institutions == nil || len(institutions.Entries) == 0 {
+			t.Fatalf("market=%s institutions unavailable: result=%#v err=%v",
+				market, institutions, listErr)
+		}
+		institutionID, ok := researchNumber(institutions.Entries[0]["institutionId"])
+		if !ok || institutionID <= 0 {
+			t.Fatalf("market=%s institution has no canonical id: %#v", market, institutions.Entries[0])
+		}
+		for _, operation := range []string{"profile", "holdings", "distribution"} {
+			detail, detailErr := adapter.QueryMarketResearch(ctx, broker.FeatureQuery{
+				Market: market, FeatureID: broker.FeatureResearchInstitutions, PageSize: 5,
+				Params: map[string]any{"operation": operation, "institutionId": int64(institutionID)},
+			})
+			if detailErr != nil || detail == nil || len(detail.Entries) == 0 {
+				t.Fatalf("market=%s institution=%d operation=%s result=%#v error=%v",
+					market, int64(institutionID), operation, detail, detailErr)
+			}
+			t.Logf("market=%s institution=%d operation=%s entries=%d",
+				market, int64(institutionID), operation, len(detail.Entries))
+		}
+	}
+	for _, calendarQuery := range []broker.FeatureQuery{
+		{
+			Market: "US", FeatureID: broker.FeatureResearchCalendar,
+			Params: map[string]any{"operation": "dividends", "date": today},
+		},
+		{
+			Market: "US", FeatureID: broker.FeatureResearchCalendar,
+			Params: map[string]any{"operation": "ipos"},
+		},
+	} {
+		calendar, calendarErr := adapter.QueryMarketResearch(ctx, calendarQuery)
+		if calendarErr != nil || calendar == nil {
+			t.Fatalf("calendar operation=%s result=%#v error=%v",
+				calendarQuery.Params["operation"], calendar, calendarErr)
+		}
+		t.Logf("calendar operation=%s entries=%d", calendarQuery.Params["operation"], len(calendar.Entries))
+	}
+	for _, rankingQuery := range []broker.FeatureQuery{
+		{
+			Market: "US", FeatureID: broker.FeatureResearchRankings,
+			Params: map[string]any{"operation": "top_movers", "direction": "up"}, PageSize: 5,
+		},
+		{
+			Market: "US", FeatureID: broker.FeatureResearchRankings,
+			Params: map[string]any{"operation": "top_movers", "direction": "down"}, PageSize: 5,
+		},
+		{
+			Market: "US", FeatureID: broker.FeatureResearchRankings,
+			Params: map[string]any{"operation": "hot"}, PageSize: 5,
+		},
+		{
+			Market: "HK", FeatureID: broker.FeatureResearchRankings,
+			Params: map[string]any{"operation": "high_dividend_state"}, PageSize: 5,
+		},
+		{
+			Market: "HK", FeatureID: broker.FeatureResearchRankings,
+			Params: map[string]any{"operation": "heatmap", "plateType": "industry"}, PageSize: 5,
+		},
+	} {
+		ranking, rankingErr := adapter.QueryMarketResearch(ctx, rankingQuery)
+		if rankingErr != nil || ranking == nil || len(ranking.Entries) == 0 {
+			t.Fatalf("ranking operation=%s result=%#v error=%v",
+				rankingQuery.Params["operation"], ranking, rankingErr)
+		}
+		if rankingQuery.Params["operation"] == "high_dividend_state" {
+			for _, entry := range ranking.Entries {
+				if market := stringValue(entry["market"]); market != "HK" {
+					t.Fatalf("high_dividend_state returned non-HK instrument: %#v", entry)
+				}
+			}
+		}
+		t.Logf("ranking operation=%s entries=%d", rankingQuery.Params["operation"], len(ranking.Entries))
+	}
+	history, historyErr := adapter.MarketData().QueryKLines(ctx, broker.KLineQuery{
+		ReadQuery: broker.ReadQuery{BrokerID: "futu", Market: "US"},
+		Symbol:    "US.AAPL", Period: "1d",
+		BeforeTime: time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339Nano), Limit: 5,
+	})
+	if historyErr != nil || history == nil || len(history.KLines) == 0 {
+		t.Fatalf("completed historical K = %#v, %v", history, historyErr)
+	}
+	t.Logf("completed historical K symbol=US.AAPL entries=%d", len(history.KLines))
+	after, err := client.GetSubInfo(ctx, false)
+	if err != nil {
+		t.Fatalf("GetSubInfo after research reads: %v", err)
+	}
+	if len(before.GetConnSubInfoList()) != len(after.GetConnSubInfoList()) {
+		t.Fatalf("research reads changed connection subscriptions: before=%v after=%v",
+			before.GetConnSubInfoList(), after.GetConnSubInfoList())
+	}
+	for index := range before.GetConnSubInfoList() {
+		if !proto.Equal(before.GetConnSubInfoList()[index], after.GetConnSubInfoList()[index]) {
+			t.Fatalf("research reads changed subscription state: before=%v after=%v",
+				before.GetConnSubInfoList(), after.GetConnSubInfoList())
+		}
+	}
+	if before.GetTotalUsedQuota() != after.GetTotalUsedQuota() ||
+		before.GetRemainQuota() != after.GetRemainQuota() {
+		t.Fatalf("research reads changed subscription quota: before used=%d remain=%d; after used=%d remain=%d",
+			before.GetTotalUsedQuota(), before.GetRemainQuota(),
+			after.GetTotalUsedQuota(), after.GetRemainQuota())
+	}
+	t.Logf("plate=%s members=%d funds=%v usedQuota=%d remainQuota=%d",
+		plateID, len(members.Entries), fundCounts, after.GetTotalUsedQuota(), after.GetRemainQuota())
+}
+
 func TestLiveOpenDSZ000858DeclaredCandlePeriods(t *testing.T) {
 	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
 		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")

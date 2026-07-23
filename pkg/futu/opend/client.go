@@ -29,6 +29,7 @@ const (
 	ProtoGetGlobalState                   uint32 = 1002
 	ProtoNotify                           uint32 = 1003
 	ProtoKeepAlive                        uint32 = 1004
+	ProtoGetUserInfo                      uint32 = 1005
 	ProtoQotSub                           uint32 = 3001
 	ProtoGetSubInfo                       uint32 = 3003
 	ProtoGetBasicQot                      uint32 = 3004
@@ -40,6 +41,8 @@ const (
 	ProtoRequestHistoryKL                 uint32 = 3103
 	ProtoGetStaticInfo                    uint32 = 3202
 	ProtoGetSecuritySnapshot              uint32 = 3203
+	ProtoGetPlateSet                      uint32 = 3204
+	ProtoGetPlateSecurity                 uint32 = 3205
 	ProtoGetUserSecurity                  uint32 = 3213
 	ProtoGetUserSecurityGroup             uint32 = 3222
 	ProtoGetSearchQuote                   uint32 = 3262

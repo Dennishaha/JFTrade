@@ -151,8 +151,25 @@ func payloadEntries(payload map[string]any) ([]map[string]any, map[string]any) {
 		delete(metadata, key)
 		return entries, metadata
 	}
+	if payloadContainsOnlyPaginationMetadata(payload) {
+		return []map[string]any{}, metadata
+	}
 	if len(payload) == 0 {
 		return []map[string]any{}, nil
 	}
 	return []map[string]any{payload}, nil
+}
+
+func payloadContainsOnlyPaginationMetadata(payload map[string]any) bool {
+	if len(payload) == 0 {
+		return false
+	}
+	for key := range payload {
+		switch key {
+		case "nextPage", "nextKey", "hasMore", "total", "totalCount", "allCount", "currency":
+		default:
+			return false
+		}
+	}
+	return true
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -200,7 +201,33 @@ func prepareReadQuery(query *broker.FeatureQuery) (broker.CapabilityDefinition, 
 	if err := validateOptionFeatureQuery(*query); err != nil {
 		return broker.CapabilityDefinition{}, err
 	}
+	if err := validateResearchInstitutionQuery(*query); err != nil {
+		return broker.CapabilityDefinition{}, err
+	}
 	return definition, nil
+}
+
+func validateResearchInstitutionQuery(query broker.FeatureQuery) error {
+	if query.FeatureID != broker.FeatureResearchInstitutions {
+		return nil
+	}
+	operation := strings.ToLower(stringParam(query.Params, "operation"))
+	switch operation {
+	case "profile", "distribution", "holding_changes", "holdings":
+		institutionID, err := strconv.ParseInt(
+			stringParam(query.Params, "institutionId"),
+			10,
+			32,
+		)
+		if err != nil || institutionID <= 0 {
+			return fmt.Errorf(
+				"%w: operation %s requires a positive integer institutionId",
+				ErrInvalidQuery,
+				operation,
+			)
+		}
+	}
+	return nil
 }
 
 func validateOptionFeatureQuery(query broker.FeatureQuery) error {

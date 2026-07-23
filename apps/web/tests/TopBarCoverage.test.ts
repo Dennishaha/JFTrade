@@ -82,6 +82,46 @@ afterEach(() => {
 });
 
 describe("TopBar business coverage", () => {
+  it("exposes compact back, forward, and current-view refresh controls", async () => {
+    const wrapper = mountTopBar({
+      compact: true,
+      canGoBack: true,
+      canGoForward: true,
+    });
+
+    await wrapper.get('[data-testid="topbar-navigation-back"]').trigger("click");
+    await wrapper
+      .get('[data-testid="topbar-navigation-forward"]')
+      .trigger("click");
+    await wrapper
+      .get('[data-testid="topbar-navigation-refresh"]')
+      .trigger("click");
+
+    expect(wrapper.emitted("navigate-back")).toHaveLength(1);
+    expect(wrapper.emitted("navigate-forward")).toHaveLength(1);
+    expect(wrapper.emitted("refresh-view")).toHaveLength(1);
+    expect(wrapper.get(".app-navigation-controls").classes()).toContain(
+      "app-navigation-controls--compact",
+    );
+
+    const unavailable = mountTopBar();
+    expect(
+      unavailable
+        .get('[data-testid="topbar-navigation-back"]')
+        .attributes("disabled"),
+    ).toBeDefined();
+    expect(
+      unavailable
+        .get('[data-testid="topbar-navigation-forward"]')
+        .attributes("disabled"),
+    ).toBeDefined();
+    expect(
+      unavailable
+        .get('[data-testid="topbar-navigation-refresh"]')
+        .attributes("disabled"),
+    ).toBeUndefined();
+  });
+
   it("filters and selects the intended account while preserving a user-pinned trading environment", async () => {
     const wrapper = mountTopBar();
     expect(wrapper.get('[data-testid="topbar-broker-account-picker-open"]').text()).toContain(
@@ -143,7 +183,13 @@ describe("TopBar business coverage", () => {
   });
 });
 
-function mountTopBar(props: { compact?: boolean } = {}) {
+function mountTopBar(
+  props: {
+    compact?: boolean;
+    canGoBack?: boolean;
+    canGoForward?: boolean;
+  } = {},
+) {
   return mount(TopBar, {
     props,
     global: {

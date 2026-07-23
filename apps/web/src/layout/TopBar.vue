@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 
 import InstrumentSearchBox from "../components/domain/market-data/InstrumentSearchBox.vue";
+import AppNavigationControls from "./AppNavigationControls.vue";
 
 import { formatTradingEnvironment } from "../composables/consoleDataFormatting";
 import { formatUserMarketLabel } from "../composables/instrumentPresentation";
@@ -19,10 +20,15 @@ import {
 
 const props = defineProps<{
   compact?: boolean;
+  canGoBack?: boolean;
+  canGoForward?: boolean;
 }>();
 
 defineEmits<{
   "toggle-nav": [];
+  "navigate-back": [];
+  "navigate-forward": [];
+  "refresh-view": [];
 }>();
 
 const {
@@ -301,6 +307,16 @@ onMounted(() => {
     <div class="tv-topbar-brand font-bold tracking-wider">
       JFTRADE
     </div>
+
+    <AppNavigationControls
+      class="tv-topbar-navigation"
+      :can-go-back="canGoBack"
+      :can-go-forward="canGoForward"
+      :compact="compact"
+      @back="$emit('navigate-back')"
+      @forward="$emit('navigate-forward')"
+      @refresh="$emit('refresh-view')"
+    />
 
     <InstrumentSearchBox
       v-model="codeInput"
@@ -704,10 +720,10 @@ onMounted(() => {
   .tv-topbar--compact {
     box-sizing: border-box;
     display: grid;
-    grid-template-columns: auto auto minmax(76px, 1fr) auto;
+    grid-template-columns: auto auto auto minmax(76px, 1fr) auto;
     grid-template-areas:
-      "nav brand account actions"
-      "search search search search";
+      "nav brand navigation account actions"
+      "search search search search search";
     gap: 5px 6px;
     align-items: center;
     width: 100%;
@@ -729,6 +745,10 @@ onMounted(() => {
 
   .tv-topbar--compact .tv-topbar-brand {
     grid-area: brand;
+  }
+
+  .tv-topbar--compact .tv-topbar-navigation {
+    grid-area: navigation;
   }
 
   .tv-topbar--compact :global(.tv-topbar-symbol) {

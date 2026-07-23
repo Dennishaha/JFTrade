@@ -2,11 +2,14 @@ package futu
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	getuserinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/getuserinfo"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
@@ -31,7 +34,7 @@ func TestFutuCapabilityNotificationsAndRuntimeAggregation(t *testing.T) {
 	}})
 	rights := completeCapabilityRights(qotcommonpb.QotRight_QotRight_Level1)
 	adapter.captureCapabilityNotification(&notifypb.Response{S2C: &notifypb.S2C{
-		Type: new(int32(notifypb.NotifyType_NotifyType_QotRight)),
+		Type:     new(int32(notifypb.NotifyType_NotifyType_QotRight)),
 		QotRight: rights,
 	}})
 	rights.UsQotRight = new(int32(qotcommonpb.QotRight_QotRight_No))
@@ -88,9 +91,13 @@ func TestFutuCapabilityConnectionAccountAndEntitlementDecisions(t *testing.T) {
 	server.setAccounts([]*trdcommonpb.TrdAcc{account})
 	adapter := newTestBrokerAdapter(t, server).(*futuAdapter)
 	ctx := t.Context()
+	if err := adapter.exchange.EnsureSystemNotifications(ctx); err != nil {
+		t.Fatalf("EnsureSystemNotifications() error = %v", err)
+	}
 
 	adapter.lastConnectStatus = &futuConnectCapabilityStatus{
 		quoteLoggedIn: false, tradeLoggedIn: true, observedAt: time.Now().UTC(),
+		generation: adapter.exchange.activeConnectionGeneration(),
 	}
 	evaluation, err := adapter.EvaluateCapability(ctx, broker.CapabilityEvaluationRequest{
 		DeclaredCapability: broker.FeatureCapability{
@@ -120,8 +127,11 @@ func TestFutuCapabilityConnectionAccountAndEntitlementDecisions(t *testing.T) {
 	})
 	if err != nil || evaluation.State != broker.CapabilityDegraded ||
 		evaluation.Account.Code != "ACCOUNT_CONTEXT_REQUIRED" ||
-		evaluation.QuoteRight.Code != "QUOTE_RIGHT_UNVERIFIED" {
+		evaluation.QuoteRight.Code != "QUOTE_RIGHT_AVAILABLE" {
 		t.Fatalf("partial runtime evaluation = %#v, %v", evaluation, err)
+	}
+	if server.userInfoCalls.Load() != 1 {
+		t.Fatalf("GetUserInfo calls = %d, want 1", server.userInfoCalls.Load())
 	}
 
 	request := broker.CapabilityEvaluationRequest{
@@ -238,19 +248,210 @@ func TestFutuCapabilityQuoteRightProductsAndStates(t *testing.T) {
 		adapter.lastQuoteRights = &futuQuoteCapabilityRights{
 			value: value, observedAt: time.Now().UTC(),
 		}
-		if check := adapter.evaluateQuoteCapability(request, time.Now().UTC());
-			check.Code != test.code {
+		if check := adapter.evaluateQuoteCapability(request, time.Now().UTC()); check.Code != test.code {
 			t.Errorf("right %s = %#v", test.right, check)
 		}
 	}
 	adapter.lastQuoteRights = &futuQuoteCapabilityRights{}
-	if check := adapter.evaluateQuoteCapability(request, time.Now().UTC());
-	check.Code != "QUOTE_RIGHT_UNVERIFIED" {
+	if check := adapter.evaluateQuoteCapability(request, time.Now().UTC()); check.Code != "QUOTE_RIGHT_UNVERIFIED" {
 		t.Fatalf("nil rights = %#v", check)
 	}
 	if !containsFoldValue([]string{" hk ", "US"}, "HK") ||
 		containsFoldValue([]string{"HK"}, "US") {
 		t.Fatal("case-insensitive capability membership changed")
+	}
+}
+
+func TestFutuCapabilityLoadsQuoteRightsOncePerConnection(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+	level2 := int32(qotcommonpb.QotRight_QotRight_Level2)
+	server.setUserInfoResponse(&getuserinfopb.Response{
+		RetType: new(int32(0)),
+		S2C: &getuserinfopb.S2C{
+			HkQotRight: &level2, UsQotRight: &level2,
+			ShQotRight: &level2, SzQotRight: &level2,
+		},
+	})
+	adapter := newTestBrokerAdapter(t, server).(*futuAdapter)
+	request := broker.CapabilityEvaluationRequest{
+		Market: "HK",
+		DeclaredCapability: broker.FeatureCapability{
+			Access: broker.FeatureAccessRead, RequiresConnection: true,
+			RequiresQuoteRight: true,
+		},
+	}
+
+	const callers = 20
+	var wait sync.WaitGroup
+	wait.Add(callers)
+	errorsSeen := make(chan error, callers)
+	for range callers {
+		go func() {
+			defer wait.Done()
+			evaluation, err := adapter.EvaluateCapability(t.Context(), request)
+			if err != nil {
+				errorsSeen <- err
+				return
+			}
+			if evaluation.State != broker.CapabilityAvailable ||
+				evaluation.QuoteRight.Code != "QUOTE_RIGHT_AVAILABLE" {
+				errorsSeen <- errors.New("quote right was not available")
+			}
+		}()
+	}
+	wait.Wait()
+	close(errorsSeen)
+	for err := range errorsSeen {
+		t.Error(err)
+	}
+	if calls := server.userInfoCalls.Load(); calls != 1 {
+		t.Fatalf("GetUserInfo calls = %d, want 1", calls)
+	}
+}
+
+func TestFutuCapabilityCachesQuoteRightFailuresAndRefreshesAfterReconnect(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+	server.setUserInfoResponse(&getuserinfopb.Response{
+		RetType: new(int32(-1)),
+		RetMsg:  new("permission query failed"),
+	})
+	adapter := newTestBrokerAdapter(t, server).(*futuAdapter)
+	request := broker.CapabilityEvaluationRequest{
+		Market: "US",
+		DeclaredCapability: broker.FeatureCapability{
+			Access: broker.FeatureAccessRead, RequiresConnection: true,
+			RequiresQuoteRight: true,
+		},
+	}
+
+	for range 2 {
+		evaluation, err := adapter.EvaluateCapability(t.Context(), request)
+		if err != nil || evaluation.State != broker.CapabilityDegraded ||
+			evaluation.QuoteRight.Code != "QUOTE_RIGHT_QUERY_FAILED" {
+			t.Fatalf("failed entitlement query = %#v, %v", evaluation, err)
+		}
+	}
+	if calls := server.userInfoCalls.Load(); calls != 1 {
+		t.Fatalf("failed GetUserInfo calls = %d, want 1", calls)
+	}
+
+	level3 := int32(qotcommonpb.QotRight_QotRight_Level3)
+	server.setUserInfoResponse(&getuserinfopb.Response{
+		RetType: new(int32(0)),
+		S2C:     &getuserinfopb.S2C{UsQotRight: &level3},
+	})
+	client := adapter.exchange.Client()
+	if client == nil {
+		t.Fatal("OpenD client is nil")
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("client.Close() error = %v", err)
+	}
+
+	evaluation, err := adapter.EvaluateCapability(t.Context(), request)
+	if err != nil || evaluation.State != broker.CapabilityAvailable {
+		t.Fatalf("refreshed entitlement = %#v, %v", evaluation, err)
+	}
+	if calls := server.userInfoCalls.Load(); calls != 2 {
+		t.Fatalf("GetUserInfo calls after reconnect = %d, want 2", calls)
+	}
+	if adapter.lastQuoteRights.value.GetUsQotRight() != level3 ||
+		adapter.lastQuoteRights.generation != adapter.exchange.activeConnectionGeneration() {
+		t.Fatalf("refreshed quote rights = %#v", adapter.lastQuoteRights)
+	}
+}
+
+func TestQuoteRightsFromUserInfoPreservesProductRightsAndCNFallback(t *testing.T) {
+	cn := int32(qotcommonpb.QotRight_QotRight_Level1)
+	usIndex := int32(qotcommonpb.QotRight_QotRight_No)
+	hasUSOption := true
+	rights := quoteRightsFromUserInfo(&getuserinfopb.S2C{
+		CnQotRight: &cn, UsIndexQotRight: &usIndex,
+		HasUSOptionQotRight: &hasUSOption,
+	})
+	if rights == nil ||
+		rights.GetShQotRight() != cn ||
+		rights.GetSzQotRight() != cn ||
+		rights.GetUsOptionQotRight() != int32(qotcommonpb.QotRight_QotRight_Level1) {
+		t.Fatalf("converted quote rights = %#v", rights)
+	}
+	indexRequest := broker.CapabilityEvaluationRequest{
+		Market: "US", ProductClass: broker.ProductClassIndex,
+	}
+	if got := quoteRightForCapability(rights, indexRequest); got != usIndex {
+		t.Fatalf("US index quote right = %d, want %d", got, usIndex)
+	}
+	if quoteRightsFromUserInfo(&getuserinfopb.S2C{}) != nil {
+		t.Fatal("empty user info produced quote rights")
+	}
+}
+
+func TestFutuCapabilityRejectsStaleNotificationsAndFailureWrites(t *testing.T) {
+	exchange := NewExchange("")
+	exchange.activeGeneration.Store(2)
+	adapter := NewBrokerAdapter(exchange).(*futuAdapter)
+	level1 := completeCapabilityRights(qotcommonpb.QotRight_QotRight_Level1)
+	level3 := completeCapabilityRights(qotcommonpb.QotRight_QotRight_Level3)
+	notification := func(rights *notifypb.QotRight) *notifypb.Response {
+		return &notifypb.Response{S2C: &notifypb.S2C{
+			Type:     new(int32(notifypb.NotifyType_NotifyType_QotRight)),
+			QotRight: rights,
+		}}
+	}
+
+	adapter.captureCapabilityNotificationAt(notification(level3), 2)
+	adapter.lastQuoteRightsFailure = &futuQuoteCapabilityFailure{
+		generation: 2, retryAt: time.Now().Add(time.Minute),
+	}
+	adapter.captureCapabilityNotificationAt(notification(level1), 1)
+	if adapter.lastQuoteRights.generation != 2 ||
+		adapter.lastQuoteRights.value.GetUsQotRight() !=
+			int32(qotcommonpb.QotRight_QotRight_Level3) ||
+		adapter.lastQuoteRightsFailure == nil {
+		t.Fatalf("stale notification changed current rights: %#v", adapter.lastQuoteRights)
+	}
+
+	if !adapter.resolveOrRememberQuoteRightsFailure(
+		2, time.Now().UTC(), errors.New("stale query error"),
+	) {
+		t.Fatal("current quote-right notification did not resolve the query failure")
+	}
+	if adapter.lastQuoteRightsFailure != nil {
+		t.Fatal("current rights did not clear the same-generation failure")
+	}
+	if check := adapter.evaluateQuoteCapability(
+		broker.CapabilityEvaluationRequest{Market: "US"}, time.Now().UTC(),
+	); check.Code != "QUOTE_RIGHT_AVAILABLE" {
+		t.Fatalf("current generation evaluation = %#v", check)
+	}
+
+	exchange.activeGeneration.Store(3)
+	if check := adapter.evaluateQuoteCapability(
+		broker.CapabilityEvaluationRequest{Market: "US"}, time.Now().UTC(),
+	); check.Code != "QUOTE_RIGHT_UNVERIFIED" {
+		t.Fatalf("stale generation evaluation = %#v", check)
+	}
+	if adapter.resolveOrRememberQuoteRightsFailure(
+		2, time.Now().UTC(), errors.New("old connection error"),
+	) {
+		t.Fatal("stale generation error was resolved by unrelated rights")
+	}
+	if adapter.lastQuoteRightsFailure != nil {
+		t.Fatalf("stale generation failure was cached: %#v", adapter.lastQuoteRightsFailure)
+	}
+	exchange.activeGeneration.Store(0)
+	if check := adapter.evaluateQuoteCapability(
+		broker.CapabilityEvaluationRequest{Market: "US"}, time.Now().UTC(),
+	); check.Code != "QUOTE_RIGHT_UNVERIFIED" {
+		t.Fatalf("disconnected generation evaluation = %#v", check)
+	}
+	exchange.activeGeneration.Store(3)
+	if adapter.resolveOrRememberQuoteRightsFailure(
+		3, time.Now().UTC(), context.Canceled,
+	) || adapter.lastQuoteRightsFailure != nil {
+		t.Fatal("caller cancellation was cached as a quote-right failure")
 	}
 }
 
@@ -260,6 +461,7 @@ func completeCapabilityRights(value qotcommonpb.QotRight) *notifypb.QotRight {
 		HkQotRight: &right, UsQotRight: &right,
 		HkOptionQotRight: &right, UsOptionQotRight: &right,
 		HkFutureQotRight: &right, UsFutureQotRight: &right,
+		UsIndexQotRight:     &right,
 		UsCMEFutureQotRight: &right, UsCBOTFutureQotRight: &right,
 		UsNYMEXFutureQotRight: &right, UsCOMEXFutureQotRight: &right,
 		UsCBOEFutureQotRight: &right, ShQotRight: &right, SzQotRight: &right,

@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/exchange"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
@@ -61,11 +62,15 @@ type Exchange struct {
 	handlerMu                sync.RWMutex
 	sessionMu                sync.RWMutex
 	client                   *opend.Client
+	activeClient             atomic.Pointer[opend.Client]
+	activeGeneration         atomic.Uint64
+	clientGenerationCounter  atomic.Uint64
 	ready                    bool
 	connectionGeneration     uint64
 	subscriptions            subscriptionRegistry
 	systemNotifyClient       *opend.Client
 	systemNotifyHandlers     []func(*notifypb.Response)
+	systemNotifyGenHandlers  []func(*notifypb.Response, uint64)
 	orderBookNotifyClient    *opend.Client
 	orderBookNotifyHandlers  map[uint64]func(string)
 	nextOrderBookHandlerID   uint64
@@ -160,6 +165,21 @@ func (e *Exchange) OnSystemNotify(fn func(*notifypb.Response)) {
 	defer e.mu.Unlock()
 	e.handlerMu.Lock()
 	e.systemNotifyHandlers = append(e.systemNotifyHandlers, fn)
+	e.handlerMu.Unlock()
+	e.bindSystemNotifyLocked(e.client)
+}
+
+func (e *Exchange) onSystemNotifyWithGeneration(
+	fn func(*notifypb.Response, uint64),
+) {
+	if fn == nil {
+		return
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.handlerMu.Lock()
+	e.systemNotifyGenHandlers = append(e.systemNotifyGenHandlers, fn)
 	e.handlerMu.Unlock()
 	e.bindSystemNotifyLocked(e.client)
 }

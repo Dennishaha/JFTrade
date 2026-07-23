@@ -13,9 +13,11 @@ vi.mock("../src/composables/apiClient", () => ({
 
 import BrokerProviderTag from "../src/components/shared/BrokerProviderTag.vue";
 import {
+  brokerCapabilitySummary,
   brokerProviderOptions,
   brokerSupportedChartPeriods,
   configureBrokerProviderDefaults,
+  logicalCapabilityMarkets,
   resetBrokerProviderSelectionForTests,
   useBrokerProviderSelection,
   withBrokerProvider,
@@ -167,7 +169,12 @@ describe("broker provider tag", () => {
     const tag = wrapper.get(".broker-provider-tag");
     expect(tag.classes()).toContain("is-available");
     expect(tag.attributes("data-quality")).toBe("healthy");
-    expect(tag.attributes("title")).toContain("数据源质量：实时推送正常");
+    expect(tag.attributes("title")).toContain("行情传输：实时推送正常");
+    expect(tag.attributes("title")?.split("\n")).toEqual([
+      "数据源：Futu OpenAPI via OpenD（Moomoo US）",
+      "功能能力：可用",
+      "行情传输：实时推送正常",
+    ]);
 
     await wrapper.setProps({
       connectionState: "disconnected",
@@ -175,20 +182,90 @@ describe("broker provider tag", () => {
     });
     expect(tag.classes()).toContain("is-degraded");
     expect(tag.attributes("data-quality")).toBe("degraded");
-    expect(tag.attributes("title")).toContain("数据源质量：已降级到轮询");
+    expect(tag.attributes("title")).toContain("行情传输：已降级到轮询");
     expect(tag.attributes("aria-label")).toContain("已降级到轮询");
 
     await wrapper.setProps({
       connectionState: "disconnected",
       transportMode: "push-stream",
     });
-    expect(tag.attributes("title")).toContain("数据源质量：实时连接已中断");
+    expect(tag.attributes("title")).toContain("行情传输：实时连接已中断");
     expect(tag.attributes("aria-label")).toContain("实时连接已中断");
 
     await wrapper.setProps({ connectionState: "error", transportMode: null });
     expect(tag.classes()).toContain("is-unavailable");
     expect(tag.attributes("data-quality")).toBe("unavailable");
-    expect(tag.attributes("title")).toContain("数据源质量：数据源不可用");
+    expect(tag.attributes("title")).toContain("行情传输：数据源不可用");
+  });
+
+  it("keeps capability state and reason from the same runtime summary", async () => {
+    apiMocks.fetchEnvelope.mockResolvedValue({
+      brokers: [
+        {
+          id: "futu",
+          displayName: "Futu OpenAPI via OpenD",
+          securityFirm: "Futu/Moomoo via OpenD",
+          capabilities: [
+            {
+              market: "US",
+              supportsQuote: true,
+              supportsTrade: false,
+              features: [
+                { id: "research.news", state: "available" },
+              ],
+            },
+          ],
+        },
+      ],
+      runtime: [
+        {
+          brokerId: "futu",
+          market: "US",
+          featureId: "research.news",
+          capability: { id: "research.news", state: "available" },
+          evaluation: {
+            state: "degraded",
+            code: "QUOTE_RIGHT_UNVERIFIED",
+            reason:
+              "OpenD has not reported quote entitlements for this session yet.",
+          },
+        },
+      ],
+    });
+    useBrokerProviderSelection().selectBrokerProvider("futu");
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "research.news",
+        connectionState: "connected",
+        transportMode: "push-stream",
+        provider: {
+          brokerId: "futu",
+          securityFirm: "Futu/Moomoo via OpenD",
+          featureId: "research.news",
+          capability: "available",
+          selectionReason: "explicit",
+          resolvedAt: "2026-07-17T00:00:00Z",
+          asOf: "2026-07-17T00:00:00Z",
+        },
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    expect(tag.classes()).toContain("is-degraded");
+    expect(tag.attributes("data-capability-state")).toBe("degraded");
+    expect(tag.attributes("data-capability-reason")).toBe(
+      "尚未完成当前 OpenD 行情权限核验",
+    );
+    expect(tag.attributes("title")?.split("\n")).toEqual([
+      "数据源：Futu OpenAPI via OpenD（Futu/Moomoo via OpenD）",
+      "功能能力：降级",
+      "行情传输：实时推送正常",
+      "原因：尚未完成当前 OpenD 行情权限核验",
+    ]);
+    expect(tag.attributes("title")).not.toContain("explicit");
   });
 
   it("adds or replaces brokerId without disturbing the existing query or hash", () => {
@@ -321,6 +398,190 @@ describe("broker provider tag", () => {
     expect(selection.options.value).toHaveLength(5);
   });
 
+  it("prefers runtime evaluation, expands CN to SH and SZ, and aggregates features", async () => {
+    apiMocks.fetchEnvelope.mockResolvedValue({
+      brokers: [
+        {
+          id: "futu",
+          displayName: "Futu OpenAPI via OpenD",
+          capabilities: ["US", "SH", "SZ"].map((market) => ({
+            market,
+            supportsQuote: true,
+            supportsTrade: false,
+            features: [
+              { id: "research.news", state: "available" },
+              { id: "research.rankings", state: "available" },
+              { id: "research.industry", state: "available" },
+              { id: "research.calendar", state: "available" },
+            ],
+          })),
+        },
+      ],
+      runtime: [
+        {
+          brokerId: "futu",
+          market: "US",
+          featureId: "research.news",
+          capability: { id: "research.news", state: "available" },
+          evaluation: {
+            state: "degraded",
+            code: "QUOTE_RIGHT_UNVERIFIED",
+            reason: "OpenD 尚未报告美股行情权限",
+          },
+        },
+        {
+          brokerId: "futu",
+          market: "SH",
+          featureId: "research.rankings",
+          capability: { id: "research.rankings", state: "available" },
+          evaluation: { state: "available" },
+        },
+        {
+          brokerId: "futu",
+          market: "SZ",
+          featureId: "research.rankings",
+          capability: { id: "research.rankings", state: "available" },
+          evaluation: {
+            state: "unavailable",
+            code: "QUOTE_RIGHT_DENIED",
+            reason: "深市行情权限不可用",
+          },
+        },
+        ...["SH", "SZ"].map((market) => ({
+          brokerId: "futu",
+          market,
+          featureId: "research.industry",
+          capability: { id: "research.industry", state: "available" },
+          evaluation: { state: "available" },
+        })),
+      ],
+    });
+    const selection = useBrokerProviderSelection();
+    await selection.loadBrokerProviders();
+
+    expect(logicalCapabilityMarkets("CN")).toEqual(["SH", "SZ"]);
+    expect(selection.brokerRuntimeCapabilities.value).toHaveLength(5);
+    expect(
+      brokerCapabilitySummary("futu", "research.news", "US"),
+    ).toEqual({
+      state: "degraded",
+      reason: "OpenD 尚未报告美股行情权限",
+    });
+    expect(
+      brokerCapabilitySummary("futu", "research.rankings", "CN"),
+    ).toMatchObject({
+      state: "degraded",
+      reason: expect.stringContaining("SZ：深市行情权限不可用"),
+    });
+    expect(
+      brokerCapabilitySummary(
+        "futu",
+        ["research.rankings", "research.industry"],
+        "CN",
+      ),
+    ).toMatchObject({
+      state: "degraded",
+      reason: expect.stringContaining("research.rankings"),
+    });
+    expect(
+      brokerCapabilitySummary("futu", "research.calendar", "CN"),
+    ).toEqual({ state: "available", reason: "" });
+    expect(
+      brokerProviderOptions("research.rankings", "CN")[0],
+    ).toMatchObject({ state: "degraded" });
+
+    selection.brokerRuntimeCapabilities.value =
+      selection.brokerRuntimeCapabilities.value.map((status) =>
+        status.featureId === "research.rankings"
+          ? {
+              ...status,
+              evaluation: {
+                state: "unavailable" as const,
+                reason: `${status.market} 排行能力不可用`,
+              },
+            }
+          : status,
+      );
+    expect(
+      brokerCapabilitySummary("futu", "research.rankings", "CN"),
+    ).toMatchObject({ state: "unavailable" });
+  });
+
+  it("shows composite runtime reasons and keeps the single featureId API compatible", async () => {
+    apiMocks.fetchEnvelope.mockResolvedValue({
+      brokers: [
+        {
+          id: "futu",
+          displayName: "Futu OpenAPI via OpenD",
+          securityFirm: "Futu/Moomoo via OpenD",
+          capabilities: [
+            {
+              market: "US",
+              supportsQuote: true,
+              supportsTrade: false,
+              features: [
+                { id: "research.news", state: "available" },
+                { id: "research.macro", state: "available" },
+              ],
+            },
+          ],
+        },
+      ],
+      runtime: [
+        {
+          brokerId: "futu",
+          market: "US",
+          featureId: "research.news",
+          capability: { id: "research.news", state: "available" },
+          evaluation: {
+            state: "unavailable",
+            reason: "新闻权限关闭",
+          },
+        },
+        {
+          brokerId: "futu",
+          market: "US",
+          featureId: "research.macro",
+          capability: { id: "research.macro", state: "available" },
+          evaluation: { state: "available" },
+        },
+      ],
+    });
+    useBrokerProviderSelection().selectBrokerProvider("futu");
+    const wrapper = mount(BrokerProviderTag, {
+      props: {
+        market: "US",
+        featureId: "research.news",
+        featureIds: ["research.news", "research.macro"],
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    const tag = wrapper.get(".broker-provider-tag");
+    expect(tag.classes()).toContain("is-degraded");
+    expect(tag.attributes("data-capability-state")).toBe("degraded");
+    expect(tag.attributes("data-capability-reason")).toContain(
+      "research.news：新闻权限关闭",
+    );
+    expect(tag.attributes("title")).toContain("新闻权限关闭");
+    expect(tag.attributes("aria-label")).toContain("能力降级");
+
+    await wrapper.setProps({ featureIds: [] });
+    expect(tag.classes()).toContain("is-unavailable");
+    expect(tag.attributes("data-capability-state")).toBe("unavailable");
+    expect(tag.attributes("title")).toContain("新闻权限关闭");
+    expect(tag.attributes("aria-label")).toContain("能力不可用");
+    await tag.trigger("click");
+    expect(
+      wrapper.get('.broker-provider-tag__menu button[role="option"]')
+        .attributes("disabled"),
+    ).toBeDefined();
+    expect(wrapper.get(".broker-provider-tag__menu").text()).toContain(
+      "新闻权限关闭",
+    );
+  });
+
   it("deduplicates capability loads, caches success, and exposes both failure forms", async () => {
     let resolveCapabilities: ((value: typeof capabilities) => void) | undefined;
     apiMocks.fetchEnvelope.mockImplementationOnce(
@@ -395,5 +656,65 @@ describe("broker provider tag", () => {
       "1d",
     ]);
     expect(brokerSupportedChartPeriods("missing", "US", descriptors)).toBeNull();
+  });
+
+  it("covers capability fallbacks without a market or selected descriptor", () => {
+    const selection = useBrokerProviderSelection();
+    selection.brokerDescriptors.value = [
+      {
+        id: "edge",
+        displayName: "Edge / Provider",
+        capabilities: [
+          {
+            market: "US",
+            supportsQuote: false,
+            supportsTrade: false,
+            features: [
+              {
+                id: "research.edge",
+                state: "degraded",
+                reason: "",
+              },
+              {
+                id: "market.other",
+                state: "available",
+              },
+              {
+                id: "market.candles",
+                state: "available",
+                supportedPeriods: [" ", "1D"],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    selection.brokerRuntimeCapabilities.value = [
+      {
+        brokerId: "edge",
+        market: "US",
+        featureId: "research.edge",
+        capability: {
+          id: "research.edge",
+          state: "invalid" as never,
+        },
+        evaluation: { state: "invalid" as never },
+      },
+    ];
+
+    expect(brokerCapabilitySummary("edge", "research.edge")).toEqual({
+      state: "degraded",
+      reason: "此能力当前降级可用",
+    });
+    expect(brokerCapabilitySummary("missing")).toEqual({
+      state: "unavailable",
+      reason: "未找到券商 missing 的能力目录",
+    });
+    expect(brokerCapabilitySummary("")).toEqual({
+      state: "unavailable",
+      reason: "尚未选择行情提供者",
+    });
+    expect(brokerSupportedChartPeriods("", "US")).toEqual(["1d"]);
+    expect(brokerSupportedChartPeriods("", "HK")).toEqual([]);
   });
 });

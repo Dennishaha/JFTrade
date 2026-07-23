@@ -23,8 +23,8 @@ import {
   formatNumber,
   formatPercent as formatSharedPercent,
 } from "../../utils/numberFormat";
-import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
+import QuoteSummaryCard from "../domain/market-data/QuoteSummaryCard.vue";
 import DenseMetricStrip from "../domain/shared/DenseMetricStrip.vue";
 import WatchlistMembershipDialog from "../domain/watchlist/WatchlistMembershipDialog.vue";
 
@@ -72,45 +72,6 @@ const quoteTransportMode = computed(() => liveHub.lastHeartbeatEvent?.value?.tra
 const mainPriceLabel = computed(() => displayModel.value.mainPriceLabel);
 const mainDisplayPrice = computed(() => displayModel.value.mainDisplayPrice);
 const mainChangePercent = computed(() => displayModel.value.mainChangePercent);
-const mainChangeClass = computed(() => {
-  const percent = mainChangePercent.value;
-  if (percent == null || percent === 0) return "";
-  return percent > 0 ? "tv-up" : "tv-down";
-});
-const extendedCards = computed(() => {
-  if (!supportsExtendedHoursMarket.value) {
-    return [] as Array<{
-      key: string;
-      label: string;
-      price: number;
-      changeRate: number | null;
-      border: string;
-      surface: string;
-      accent: string;
-    }>;
-  }
-  return displayModel.value.extendedCards.map((card) => ({
-    ...card,
-    border:
-      card.key === "pre"
-        ? "var(--card-sky-border)"
-        : card.key === "overnight"
-          ? "var(--card-violet-border)"
-          : "var(--card-amber-border)",
-    surface:
-      card.key === "pre"
-        ? "var(--card-sky-surface)"
-        : card.key === "overnight"
-          ? "var(--card-violet-surface)"
-          : "var(--card-amber-surface)",
-    accent:
-      card.key === "pre"
-        ? "var(--card-sky-text)"
-        : card.key === "overnight"
-          ? "var(--card-violet-text)"
-          : "var(--card-amber-text)",
-  }));
-});
 
 // ---- 融资融券（Margin / Short Selling） ----
 const currentMarginRatio = ref<BrokerMarginRatiosResponse>(emptyBrokerMarginRatios);
@@ -372,9 +333,6 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
   return "正常";
 }
 
-function formatPercent(value: number | null | undefined): string {
-  return formatSharedPercent(value, { showPositiveSign: true });
-}
 </script>
 
 <template>
@@ -394,46 +352,29 @@ function formatPercent(value: number | null | undefined): string {
     </div>
     <div class="tv-panel-body">
       <div v-if="snapshot" style="display: flex; flex-direction: column; gap: 12px; min-height: 100%">
-        <div class="instrument-overview__quote-card">
-          <div class="instrument-overview__identity-row">
-            <InstrumentIdentity
-              :market="prefs.market"
-              :code="prefs.symbol"
-              :instrument-id="instrumentId"
-              :name="instrumentName"
-              compact
-            />
-            <button
-              type="button"
-              class="instrument-overview__favorite"
-              :class="{ 'is-active': isWatchlisted }"
-              :title="isWatchlisted ? '管理自选分组' : '加入自选'"
-              :aria-label="isWatchlisted ? '管理自选分组' : '加入自选'"
-              data-testid="instrument-overview-favorite"
-              @click="membershipDialogOpen = true"
-            >
-              {{ isWatchlisted ? "★" : "☆" }}
-            </button>
-          </div>
-          <div style="font-size: 11px; color: var(--tv-text-dim); text-transform: uppercase; letter-spacing: 0.08em">
-            {{ mainPriceLabel }}
-          </div>
-          <div style="display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 8px">
-            <div style="font-size: 38px; line-height: 1; font-weight: 650; color: var(--tv-text)">
-              {{ formatPrice(mainDisplayPrice) }}
-            </div>
-            <div v-if="mainChangePercent != null" :class="mainChangeClass"
-              style="font-size: 18px; line-height: 1.2; font-weight: 600">
-              {{ formatPercent(mainChangePercent) }}
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px">
-            <span v-if="supportsExtendedHoursMarket && displayModel.sessionLabel"
-              style="font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--tv-border); white-space: nowrap"
-              :style="displayModel.session === 'regular' ? 'color: var(--tv-accent); background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface-2))' : 'color: var(--tv-text); background: var(--tv-bg-surface-2)'">
-              {{ displayModel.sessionLabel }}
-            </span>
-            <!-- 融资融券标志 -->
+        <QuoteSummaryCard
+          class="instrument-overview__quote-card"
+          :market="prefs.market"
+          :code="prefs.symbol"
+          :instrument-id="instrumentId"
+          :name="instrumentName"
+          :price-label="mainPriceLabel"
+          :price="mainDisplayPrice"
+          :change-rate="mainChangePercent"
+          :session-label="
+            supportsExtendedHoursMarket ? displayModel.sessionLabel : ''
+          "
+          :session-active="displayModel.session === 'regular'"
+          :status-text="formatDateTime(snapshot.observedAt ?? snapshot.at)"
+          :favorite-visible="true"
+          :favorite-active="isWatchlisted"
+          favorite-test-id="instrument-overview-favorite"
+          :extended-cards="
+            supportsExtendedHoursMarket ? displayModel.extendedCards : []
+          "
+          @favorite="membershipDialogOpen = true"
+        >
+          <template #badges>
             <span v-if="showMarginBadges" ref="marginTriggerRef"
               style="display: inline-flex; align-items: center; gap: 4px" @mouseenter="marginHovered = true"
               @mouseleave="marginHovered = false">
@@ -506,32 +447,8 @@ function formatPercent(value: number | null | undefined): string {
                 </div>
               </Teleport>
             </span>
-            <span style="font-size: 11px; color: var(--tv-text-dim)">
-              {{ formatDateTime(snapshot.observedAt ?? snapshot.at) }}
-            </span>
-          </div>
-        </div>
-
-        <div v-if="extendedCards.length" style="display: grid; gap: 8px">
-          <div v-for="card in extendedCards" :key="card.key"
-            style="border-radius: 6px; padding: 10px 12px; border: 1px solid"
-            :style="`border-color: ${card.border}; background: ${card.surface};`">
-            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em"
-              :style="`color: ${card.accent};`">
-              {{ card.label }}
-            </div>
-            <div style="display: flex; align-items: flex-end; gap: 8px; margin-top: 8px; flex-wrap: wrap">
-              <div style="font-size: 24px; line-height: 1; font-weight: 600; color: var(--tv-text)">
-                {{ formatPrice(card.price) }}
-              </div>
-              <div v-if="card.changeRate != null"
-                :class="card.changeRate > 0 ? 'tv-up' : card.changeRate < 0 ? 'tv-down' : ''"
-                style="font-size: 13px; font-weight: 600">
-                {{ formatPercent(card.changeRate) }}
-              </div>
-            </div>
-          </div>
-        </div>
+          </template>
+        </QuoteSummaryCard>
 
         <div v-if="typedDetailSections.length" style="display: grid; gap: 10px">
           <div v-for="section in typedDetailSections" :key="section.title" style="display: grid; gap: 8px">
@@ -566,51 +483,3 @@ function formatPercent(value: number | null | undefined): string {
     />
   </section>
 </template>
-
-<style scoped>
-.instrument-overview__quote-card {
-  position: relative;
-  padding: 6px 4px 2px;
-}
-
-.instrument-overview__identity-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.instrument-overview__identity-row :deep(.instrument-identity) {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.instrument-overview__identity-row :deep(.instrument-identity__name) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.instrument-overview__favorite {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-  place-items: center;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--tv-text-dim);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.instrument-overview__favorite:hover,
-.instrument-overview__favorite.is-active {
-  background: color-mix(in srgb, #eab308 12%, transparent);
-  color: #eab308;
-}
-</style>
