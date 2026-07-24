@@ -82,4 +82,54 @@ describe("StockScreenParameterEditor", () => {
     await wrapper.get("select").setValue("");
     expect(wrapper.find('input[type="number"]').exists()).toBe(false);
   });
+
+  it("edits text, numeric and integer-array parameters and maps nested errors", async () => {
+    const reference: StockScreenFactorRef = {
+      factor: "option.composite",
+      params: {},
+    };
+    const parameters: StockScreenFactorParameter[] = [
+      { name: "optionParam", type: "union", editorType: "union", unit: "值", help: "比较值" },
+      { name: "periods", type: "integer_array", editorType: "multiNumber" },
+      { name: "reportDate", type: "string", editorType: "date" },
+      { name: "threshold", type: "number", editorType: "number" },
+      { name: "term", type: "integer", enum: "missing", required: false },
+    ];
+    const wrapper = mount(StockScreenParameterEditor, {
+      props: {
+        reference,
+        parameters,
+        enums: {},
+        compact: true,
+        labelPrefix: "比较 ",
+        errorPrefix: "conditions.0",
+        validationErrors: [
+          { path: "conditions.0.params.periods.0", message: "周期必须为整数" },
+        ],
+      },
+    });
+
+    expect(wrapper.classes()).toContain("stock-screen-parameter-editor--compact");
+    expect(wrapper.text()).toContain("周期必须为整数");
+    expect(wrapper.get('label[title="比较值"]').text()).toContain("值");
+
+    await wrapper.get('input[aria-label="比较 期权参数值"]').setValue("close");
+    expect(reference.params?.optionParamString).toBe("close");
+    await wrapper.get('input[aria-label="比较 期权参数值"]').setValue("");
+    expect(reference.params).not.toHaveProperty("optionParamString");
+
+    await wrapper.get('input[aria-label="比较 periods"]').setValue("5, bad, 13");
+    expect(reference.params?.periods).toEqual([5, 13]);
+    await wrapper.get('input[aria-label="比较 periods"]').setValue("");
+    expect(reference.params).not.toHaveProperty("periods");
+
+    await wrapper.get('input[aria-label="比较 reportDate"]').setValue("2026-07-24");
+    await wrapper.get('input[aria-label="比较 threshold"]').setValue("2.5");
+    await wrapper.get('input[aria-label="比较 财报周期"]').setValue("10");
+    expect(reference.params).toMatchObject({
+      reportDate: "2026-07-24",
+      threshold: 2.5,
+      term: 10,
+    });
+  });
 });

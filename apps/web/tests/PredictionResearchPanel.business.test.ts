@@ -632,4 +632,79 @@ describe("prediction research and Parlay lifecycle", () => {
     wrapper.unmount();
     await flushPromises();
   });
+
+  it("handles every discovery return level and sparse catalog labels", async () => {
+    predictionMocks.fetchFeature.mockResolvedValue(feature([]));
+    const wrapper = mount(PredictionResearchPanel, {
+      global: {
+        stubs: {
+          ...productGlobalStubs,
+          PredictionContractDataView: { template: "<div />" },
+        },
+      },
+    });
+    await flushPromises();
+    const state = setupState<{
+      stage: string;
+      category: string;
+      tag: string;
+      seriesCode: string;
+      eventCode: string;
+      contractCode: string;
+      contractView: string;
+      itemTitle: (entry: Record<string, unknown>, index: number) => string;
+      discoverStageFromContext: () => string;
+      backDiscover: () => void;
+      selectContractView: (view: string) => void;
+      subscriptionQuery: () => string;
+    }>(wrapper);
+
+    expect([
+      state.itemTitle({ categoryName: "分类名" }, 0),
+      state.itemTitle({ eventName: "事件名" }, 0),
+      state.itemTitle({ seriesName: "系列名" }, 0),
+      state.itemTitle({ title: "标题" }, 0),
+      state.itemTitle({ tag: "标签" }, 0),
+      state.itemTitle({ category: "分类码" }, 0),
+      state.itemTitle({}, 1),
+    ]).toEqual(["分类名", "事件名", "系列名", "标题", "标签", "分类码", "结果 2"]);
+
+    state.seriesCode = "SERIES.1";
+    expect(state.discoverStageFromContext()).toBe("events");
+    state.eventCode = "EVENT.1";
+    expect(state.discoverStageFromContext()).toBe("contracts");
+    state.contractCode = "EC.1";
+    expect(state.discoverStageFromContext()).toBe("contract");
+    state.contractCode = "";
+
+    state.stage = "competitions";
+    state.category = "SPORTS";
+    state.backDiscover();
+    await flushPromises();
+    expect(state.category).toBe("");
+
+    state.stage = "series";
+    state.tag = "NBA";
+    state.backDiscover();
+    await flushPromises();
+    expect(state.tag).toBe("");
+
+    state.stage = "events";
+    state.seriesCode = "SERIES.1";
+    state.backDiscover();
+    await flushPromises();
+    expect(state.seriesCode).toBe("");
+
+    state.stage = "contracts";
+    state.eventCode = "EVENT.1";
+    state.backDiscover();
+    await flushPromises();
+    expect(state.eventCode).toBe("");
+
+    state.contractView = "snapshot";
+    state.selectContractView("snapshot");
+    expect(wrapper.emitted("update:contractView")).toBeUndefined();
+    expect(state.subscriptionQuery()).toContain("brokerId=futu");
+    wrapper.unmount();
+  });
 });

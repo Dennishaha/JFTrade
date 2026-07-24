@@ -375,4 +375,58 @@ describe("option research panel", () => {
       .trigger("click");
     expect(state.drilldownResult).toBeNull();
   });
+
+  it("renders research 0DTE contract details and opens earnings equities", async () => {
+    const source = {
+      owner: { market: "US", code: "BABA" },
+      name: "Alibaba",
+      price: 180,
+      drilldownContext: {
+        underlyingInstrumentId: "US.BABA",
+        expiryTimestamp: 1784332800,
+        chain: { productCode: "BABA" },
+      },
+    };
+    apiMocks.fetchFeature.mockResolvedValueOnce(feature([source]));
+    apiMocks.fetchWithInit.mockResolvedValueOnce(
+      feature([
+        {
+          option: { market: "US", code: "BABA260724C180000" },
+          optionType: "call",
+          optionPrice: 2.4,
+          changeRate: 1.5,
+          volume: 1200,
+          openInterest: 900,
+          iv: 31,
+          delta: 0.51,
+        },
+      ]),
+    );
+    const wrapper = mount(OptionResearchPanel, {
+      props: {
+        market: "US",
+        operation: "zero_dte",
+        presentation: "research",
+      },
+      global: { stubs: productGlobalStubs },
+    });
+    await flushPromises();
+
+    await wrapper.get(".option-research-panel__row-action").trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("US.BABA260724C180000");
+    expect(wrapper.text()).toContain("1,200");
+    expect(wrapper.text()).toContain("0.51");
+
+    apiMocks.fetchFeature.mockResolvedValueOnce(
+      feature([{ owner: { market: "US", code: "BABA" }, earningsTime: "盘后" }]),
+    );
+    await wrapper.setProps({ operation: "earnings" });
+    await flushPromises();
+    await wrapper.get(".option-research-panel__row-action").trigger("click");
+    expect(wrapper.emitted("openInstrument")?.at(-1)).toEqual([
+      "US.BABA",
+      "equity",
+    ]);
+  });
 });

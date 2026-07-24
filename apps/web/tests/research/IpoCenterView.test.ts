@@ -81,6 +81,15 @@ describe("IpoCenterView", () => {
     expect(wrapper.emitted("select")?.[0]?.[0]).toMatchObject({ instrumentId: "US.IPO2" });
   });
 
+  it("keeps a listed row without a concrete instrument non-interactive", async () => {
+    const wrapper = await mountView([{ name: "仅有名称", status: "listed" }]);
+    const listedRow = wrapper.findAll(".ipo-center-view__panel")[1]!.get("tbody tr");
+
+    expect(listedRow.classes()).not.toContain("is-quoteable");
+    await listedRow.trigger("click");
+    expect(wrapper.emitted("select")).toBeUndefined();
+  });
+
   it("supports preserved date fields while canonical rollout is mixed", async () => {
     const wrapper = await mountView([
       { instrumentId: "US.OLD", symbol: "OLD", name: "兼容上市", status: "", eventDate: "2020-01-01" },

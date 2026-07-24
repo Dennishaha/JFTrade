@@ -23,7 +23,7 @@ try {
   writeCoverage(tempRoot, { ordinaryStatementHits: 8, criticalStatementHits: 19 });
   const ordinaryFailure = checkWebDiffCoverage({ baseRef, repoRoot: tempRoot });
   assert.equal(ordinaryFailure.passed, false);
-  assert.match(formatWebDiffCoverageReport(ordinaryFailure), /ordinary .*ordinary\.ts: statements 8\/10 \(80\.00%, required 90%\)/);
+  assert.match(formatWebDiffCoverageReport(ordinaryFailure), /ordinary .*ordinary\.vue: statements 8\/10 \(80\.00%, required 90%\)/);
 
   writeCoverage(tempRoot, { ordinaryStatementHits: 9, criticalStatementHits: 19, omitCritical: true });
   const missingCoverage = checkWebDiffCoverage({ baseRef, repoRoot: tempRoot });
@@ -49,7 +49,10 @@ try {
 
 function setupRepository(root) {
   mkdirSync(join(root, "apps/web/src/components/risk"), { recursive: true });
-  writeFileSync(join(root, "apps/web/src/ordinary.ts"), "export function ordinary(value: number) {\n  return value;\n}\n");
+  writeFileSync(
+    join(root, "apps/web/src/ordinary.vue"),
+    "<script setup lang=\"ts\">\nfunction ordinary(value: number) {\n  return value;\n}\n</script>\n<template>\n  <option :value=\"0\">Zero</option>\n</template>\n",
+  );
   writeFileSync(join(root, "apps/web/src/components/risk/guard.ts"), "export function guard(value: number) {\n  return value;\n}\n");
   git(root, ["init"]);
   git(root, ["config", "user.email", "coverage@example.test"]);
@@ -59,7 +62,10 @@ function setupRepository(root) {
 }
 
 function writeChangedWebSources(root) {
-  writeFileSync(join(root, "apps/web/src/ordinary.ts"), "export function ordinary(value: number) {\n  return value > 0 ? value : 0;\n}\n");
+  writeFileSync(
+    join(root, "apps/web/src/ordinary.vue"),
+    "<script setup lang=\"ts\">\nfunction ordinary(value: number) {\n  const next = value > 0 ? value : 0;\n  return next;\n}\n</script>\n<template>\n  <option :value=\"0\">Default</option>\n</template>\n",
+  );
   writeFileSync(join(root, "apps/web/src/components/risk/guard.ts"), "export function guard(value: number) {\n  return value > 0 ? value : 0;\n}\n");
 }
 
@@ -67,7 +73,7 @@ function writeCoverage(root, { ordinaryStatementHits, criticalStatementHits, omi
   const coverageDirectory = join(root, "apps/web/coverage");
   mkdirSync(coverageDirectory, { recursive: true });
   const coverage = {
-    [join(root, "apps/web/src/ordinary.ts")]: coverageEntry(ordinaryStatementHits, 17),
+    [join(root, "apps/web/src/ordinary.vue")]: coverageEntry(ordinaryStatementHits, 17, 3, 8),
   };
   if (!omitCritical) {
     coverage[join(root, "apps/web/src/components/risk/guard.ts")] = coverageEntry(criticalStatementHits, 18);
@@ -75,23 +81,23 @@ function writeCoverage(root, { ordinaryStatementHits, criticalStatementHits, omi
   writeFileSync(join(coverageDirectory, "coverage-final.json"), JSON.stringify(coverage));
 }
 
-function coverageEntry(statementHits, branchHits) {
+function coverageEntry(statementHits, branchHits, sourceLine = 2, generatedBindingLine) {
   const statementMap = {};
   const statements = {};
   for (let index = 0; index < 10; index++) {
-    statementMap[index] = location(2);
+    statementMap[index] = location(sourceLine);
     statements[index] = index < statementHits ? 1 : 0;
   }
   const branchMap = {};
   const branches = {};
   for (let index = 0; index < 20; index++) {
-    branchMap[index] = { type: "if", line: 2, loc: location(2), locations: [location(2)] };
+    branchMap[index] = { type: "if", line: sourceLine, loc: location(sourceLine), locations: [location(sourceLine)] };
     branches[index] = [index < branchHits ? 1 : 0];
   }
-  const collapsedLocation = location(2);
+  const collapsedLocation = location(sourceLine);
   branchMap[20] = {
     type: "cond-expr",
-    line: 2,
+    line: sourceLine,
     loc: collapsedLocation,
     locations: [collapsedLocation, collapsedLocation],
   };
@@ -99,10 +105,34 @@ function coverageEntry(statementHits, branchHits) {
   branchMap[21] = {
     type: "cond-expr",
     line: 2,
-    loc: locationSpan(2, 0, 2),
-    locations: [locationSpan(2, 0, 1), locationSpan(2, 1, 2)],
+    loc: locationSpan(sourceLine, 0, 2),
+    locations: [locationSpan(sourceLine, 0, 1), locationSpan(sourceLine, 1, 2)],
   };
   branches[21] = [1, 1];
+  const degradedLocation = { start: { line: sourceLine, column: 0 }, end: { line: sourceLine, column: null } };
+  branchMap[22] = {
+    type: "if",
+    line: sourceLine,
+    loc: degradedLocation,
+    locations: [degradedLocation],
+  };
+  branches[22] = [0];
+  if (generatedBindingLine !== undefined) {
+    const generatedLocation = {
+      start: { line: generatedBindingLine, column: 2 },
+      end: { line: generatedBindingLine, column: null },
+    };
+    branchMap[23] = {
+      type: "cond-expr",
+      line: generatedBindingLine,
+      loc: generatedLocation,
+      locations: [
+        { start: { line: generatedBindingLine, column: 9 }, end: { line: generatedBindingLine, column: null } },
+        generatedLocation,
+      ],
+    };
+    branches[23] = [0, 0];
+  }
   return { statementMap, s: statements, branchMap, b: branches, fnMap: {}, f: {} };
 }
 

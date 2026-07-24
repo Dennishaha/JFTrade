@@ -101,7 +101,8 @@ export function checkWebDiffCoverage({ baseRef, coveragePath, repoRoot = process
     }
 
     const statements = selectedStatements(coverageEntry, changedLines);
-    const branches = selectedBranches(coverageEntry, changedLines);
+    const sourceLines = readFileSync(resolve(gitRoot, path), "utf8").split("\n");
+    const branches = selectedBranches(coverageEntry, changedLines, sourceLines);
     const statementSummary = coverageSummary(statements, thresholds.statements);
     const branchSummary = coverageSummary(branches, thresholds.branches);
 
@@ -242,8 +243,14 @@ function selectedStatements(entry, changedLines) {
   return selected;
 }
 
-function selectedBranches(entry, changedLines) {
+function selectedBranches(entry, changedLines, sourceLines) {
   const selected = [];
+  const concreteHitLines = new Set(
+    Object.entries(entry.branchMap ?? {})
+      .filter(([id, branch]) => branchHasConcreteSpan(branch) && (entry.b?.[id] ?? []).some((hit) => Number(hit) > 0))
+      .map(([, branch]) => branchStartLine(branch))
+      .filter((line) => line !== undefined),
+  );
   for (const [id, branch] of Object.entries(entry.branchMap ?? {})) {
     const locations = Array.isArray(branch.locations) ? branch.locations : [];
     // Vue's generated render functions can be compiled more than once in a
@@ -254,15 +261,53 @@ function selectedBranches(entry, changedLines) {
     if (branch.type === "cond-expr" && locationsCollapseToOneSpan(locations)) {
       continue;
     }
+    // Merged V8 reports can also retain a second, zero-hit copy of a Vue
+    // branch after losing all source-map end columns. A concrete, hit-bearing
+    // branch on the same source line is the usable record; the degraded copy
+    // is not a separately identifiable branch.
+    const hits = entry.b?.[id] ?? [];
+    const sourceLine = sourceLines[Number(branchStartLine(branch) ?? 0) - 1] ?? "";
+    const isStaticVueBinding = /^\s*<[\w-]+\b[^>]*:[\w-]+(?:\.\w+)*\s*=\s*["'](?:-?\d+(?:\.\d+)?|true|false|null)["']/.test(
+      sourceLine,
+    );
+    // Vue can map static bound literals such as :value="0" to generated
+    // conditional expressions. With no concrete alternative spans, these are
+    // not source branches and cannot be made executable through a test.
+    if (
+      branch.type === "cond-expr"
+      && hits.length > 0
+      && hits.every((hit) => Number(hit) === 0)
+      && !branchHasConcreteSpan(branch)
+      && isStaticVueBinding
+    ) {
+      continue;
+    }
+    if (
+      hits.length > 0
+      && hits.every((hit) => Number(hit) === 0)
+      && !branchHasConcreteSpan(branch)
+      && concreteHitLines.has(branchStartLine(branch))
+    ) {
+      continue;
+    }
     const touchesChange = locationTouchesChangedLine(branch.loc, changedLines) || locations.some((location) =>
       locationTouchesChangedLine(location, changedLines),
     );
     if (!touchesChange) continue;
-    for (const hit of entry.b?.[id] ?? []) {
+    for (const hit of hits) {
       selected.push(Number(hit));
     }
   }
   return selected;
+}
+
+function branchStartLine(branch) {
+  return branch.loc?.start?.line ?? branch.locations?.[0]?.start?.line;
+}
+
+function branchHasConcreteSpan(branch) {
+  const locations = [branch.loc, ...(Array.isArray(branch.locations) ? branch.locations : [])].filter(Boolean);
+  return locations.some((location) => Number.isInteger(location?.end?.column));
 }
 
 function locationsCollapseToOneSpan(locations) {

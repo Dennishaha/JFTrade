@@ -83,4 +83,17 @@ describe("DividendCalendarView", () => {
       instrumentId: "HK.00700",
     });
   });
+
+  it("shows an upstream error and retries the same dividend request", async () => {
+    mocks.fetch.mockRejectedValueOnce(new Error("派息上游失败"));
+    const wrapper = mount(DividendCalendarView);
+    await flushPromises();
+
+    expect(wrapper.get(".dividend-calendar__status").text()).toContain("派息上游失败");
+
+    mocks.fetch.mockResolvedValueOnce(result([]));
+    await wrapper.findAll("button").at(-1)!.trigger("click");
+    await flushPromises();
+    expect(wrapper.find(".dividend-calendar__status").exists()).toBe(false);
+  });
 });

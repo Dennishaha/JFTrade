@@ -692,6 +692,7 @@ describe("ResearchPage information architecture and quote rail", () => {
     });
     expect(router.currentRoute.value.path).toBe("/research");
     state.selectResearchEntry(null);
+    state.openResearchEntry(null);
     state.selectResearchEntry({
       instrumentId: "US.MSFT",
       market: "US",
@@ -704,6 +705,9 @@ describe("ResearchPage information architecture and quote rail", () => {
     expect(page.get(".rail-stub").attributes("data-target-id")).toBe("US.MSFT");
 
     const pushSpy = vi.spyOn(router, "push");
+    for (const productClass of ["fund", "warrant", "cbbc", "index", "equity"]) {
+      state.openResearchEntry({ instrumentId: `US.${productClass}`, productClass });
+    }
     state.openResearchEntry(
       { instrumentId: "US.OPT", productClass: "option" },
       "option",
@@ -730,6 +734,240 @@ describe("ResearchPage information architecture and quote rail", () => {
         query: expect.objectContaining({ marketSegment: "derivatives" }),
       }),
     );
+  });
+
+  it("writes every child-view research context back to the URL", async () => {
+    const { page, router } = await mountResearchPage(
+      "section=macro&operation=indicators&mkt=US",
+    );
+    const state = page.vm.$.setupState as unknown as {
+      firstQueryValue: (value: unknown) => string;
+      selectIndicatorContext: (value: string) => void;
+      selectIndustryChain: (value: string) => void;
+      selectIndustryPlate: (value: string) => void;
+      selectResearchInstrument: (value: string) => void;
+      selectScreenPreset: (value: string) => void;
+      selectInstitutionContext: (value: string) => void;
+      selectPredictionSeries: (value: string) => void;
+      selectPredictionEvent: (value: string) => void;
+      selectPredictionContract: (value: string) => void;
+      selectPredictionContractView: (value: string) => void;
+      selectScreenContext: (value: { market: string; brokerId?: string }) => void;
+    };
+
+    expect(state.firstQueryValue([" first ", "second"])).toBe("first");
+    state.selectIndicatorContext("CPI");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.indicatorId).toBe("CPI");
+    });
+    state.selectIndicatorContext("");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.indicatorId).toBeUndefined();
+    });
+
+    state.selectIndustryChain("semiconductor");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.chainId).toBe("semiconductor");
+    });
+    state.selectIndustryPlate("chip-design");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.plateId).toBe("chip-design");
+    });
+    state.selectIndustryChain("");
+    await flushPromises();
+    state.selectIndustryPlate("");
+    await flushPromises();
+
+    const beforeInvalidInstrument = router.currentRoute.value.fullPath;
+    state.selectResearchInstrument("AAPL");
+    expect(router.currentRoute.value.fullPath).toBe(beforeInvalidInstrument);
+    state.selectResearchInstrument("us.aapl");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.instrumentId).toBe("US.AAPL");
+    });
+
+    state.selectScreenPreset("quality-growth");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.presetId).toBe("quality-growth");
+    });
+    state.selectScreenPreset("");
+    await flushPromises();
+    state.selectInstitutionContext("101");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.institutionId).toBe("101");
+    });
+    state.selectInstitutionContext("");
+    await flushPromises();
+
+    state.selectPredictionSeries("");
+    await flushPromises();
+    state.selectPredictionSeries("SERIES.9");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.seriesCode).toBe("SERIES.9");
+    });
+    state.selectPredictionEvent("EVENT.9");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.eventCode).toBe("EVENT.9");
+    });
+    state.selectPredictionEvent("");
+    await flushPromises();
+    state.selectPredictionEvent("EVENT.9");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.eventCode).toBe("EVENT.9");
+    });
+    state.selectPredictionContract("EC.9");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.contractCode).toBe("EC.9");
+    });
+    state.selectPredictionContractView("not-a-view");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query).toMatchObject({
+        seriesCode: "SERIES.9",
+        eventCode: "EVENT.9",
+        contractCode: "EC.9",
+        contractView: "snapshot",
+      });
+    });
+    state.selectPredictionContract("");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.contractCode).toBeUndefined();
+    });
+    state.selectPredictionContractView("depth");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.contractView).toBeUndefined();
+    });
+
+    state.selectScreenContext({ market: "invalid" });
+    state.selectScreenContext({ market: "sh", brokerId: "futu" });
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query).toMatchObject({
+        section: "screens",
+        operation: "stock_v2",
+        mkt: "CN",
+        screenMarket: "SH",
+      });
+    });
+  });
+
+  it.each([
+    ["section=calendar&operation=economic&mkt=US", "EconCalendarView", null],
+    ["section=calendar&operation=ipos&mkt=US", "IpoCenterView", null],
+    ["section=macro&operation=fed_dot_plot", "MacroResearchView", "fed_dot_plot"],
+    ["section=institutions&operation=ark_transactions&mkt=US", "ArkResearchView", "ark_transactions"],
+    ["section=industries&operation=chains&mkt=HK", "IndustryChainView", null],
+    ["section=derivatives&operation=option_screen", "DerivativeScreenView", "option_screen"],
+    ["section=derivatives&operation=warrant", "DerivativeScreenView", "warrant"],
+  ])("dispatches %s to %s", async (query, expectedView, expectedOperation) => {
+    const { page } = await mountResearchPage(query);
+    const view = page.get(".view-stub");
+    expect(view.attributes("data-view")).toBe(expectedView);
+    if (expectedOperation != null) {
+      expect(view.attributes("data-operation")).toBe(expectedOperation);
+    }
+  });
+
+  it("dispatches option event research to the native option panel", async () => {
+    const { page } = await mountResearchPage(
+      "section=derivatives&operation=unusual",
+    );
+    expect(page.find(".option-stub").exists()).toBe(true);
+    expect(page.find(".view-stub").exists()).toBe(false);
+  });
+
+  it("applies operation-specific URL context for every research domain", async () => {
+    const scenarios = [
+      ["section=macro&operation=fed_target_rate&indicatorId=CPI", "macro", "indicators"],
+      ["section=industries&operation=chains&chainId=chips&plateId=design", "industries", "chains"],
+      ["section=instrument&operation=profile&instrumentId=US.AAPL", "instrument", "news"],
+      ["section=screens&operation=stock_v2&presetId=quality", "screens", "stock_v2"],
+      ["section=institutions&operation=ark_transactions&institutionId=101", "institutions", "list"],
+      ["section=prediction&operation=categories&seriesCode=S1&eventCode=E1&contractCode=C1&contractView=depth", "prediction", "categories"],
+    ] as const;
+
+    for (const [query, section, operation] of scenarios) {
+      const { wrapper, page, router } = await mountResearchPage(query);
+      const state = page.vm.$.setupState as unknown as {
+        activeSection: string;
+        activeOperation: string;
+        selectOperation: (value: unknown) => void;
+      };
+      state.activeSection = section;
+      state.activeOperation = "__force_change__";
+      state.selectOperation(operation);
+      await vi.waitFor(() => {
+        expect(router.currentRoute.value.query.operation).toBe(operation);
+      });
+      wrapper.unmount();
+    }
+  });
+
+  it("maps screen market changes to logical and concrete market codes", async () => {
+    const { page, router } = await mountResearchPage(
+      "section=screens&operation=stock_v2&mkt=US&screenMarket=US",
+    );
+    const state = page.vm.$.setupState as unknown as {
+      selectMarket: (value: unknown) => void;
+      selectScreenContext: (value: { market: string; brokerId?: string }) => void;
+    };
+
+    state.selectMarket("CN");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query).toMatchObject({
+        mkt: "CN",
+        screenMarket: "SH",
+      });
+    });
+    state.selectScreenContext({ market: "HK" });
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query).toMatchObject({
+        mkt: "HK",
+        screenMarket: "HK",
+      });
+    });
+  });
+
+  it("keeps only the deep-link context owned by the selected research domain", async () => {
+    const scenarios = [
+      {
+        section: "institutions",
+        query: "section=market&mkt=CN&institutionId=101",
+        expected: { section: "institutions", operation: "list", mkt: "US", institutionId: "101" },
+      },
+      {
+        section: "screens",
+        query: "section=market&mkt=HK&presetId=quality-growth&screenMarket=HK",
+        expected: { section: "screens", operation: "stock_v2", presetId: "quality-growth", screenMarket: "HK" },
+      },
+      {
+        section: "instrument",
+        query: "section=market&mkt=HK&instrumentId=HK.00700",
+        expected: { section: "instrument", operation: "profile", instrumentId: "HK.00700" },
+      },
+      {
+        section: "prediction",
+        query: "section=market&mkt=US&seriesCode=SERIES.1&eventCode=EVENT.1&contractCode=EC.1&contractView=ticks",
+        expected: {
+          section: "prediction",
+          operation: "categories",
+          seriesCode: "SERIES.1",
+          eventCode: "EVENT.1",
+          contractCode: "EC.1",
+          contractView: "ticks",
+        },
+      },
+    ] as const;
+
+    for (const scenario of scenarios) {
+      const { wrapper, page, router } = await mountResearchPage(scenario.query);
+      const state = page.vm.$.setupState as unknown as {
+        selectSection: (value: unknown) => void;
+      };
+      state.selectSection(scenario.section);
+      await vi.waitFor(() => {
+        expect(router.currentRoute.value.query).toMatchObject(scenario.expected);
+      });
+      wrapper.unmount();
+    }
   });
 
   it("selects related rail targets, forces plate tabs to quote, and closes the rail", async () => {

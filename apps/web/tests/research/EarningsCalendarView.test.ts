@@ -211,12 +211,24 @@ describe("EarningsCalendarView", () => {
     await wrapper.get('button[aria-label="筛选"]').trigger("click");
     await wrapper.get('input[aria-label="市值下限，单位亿"]').setValue("10");
     await wrapper.get('input[aria-label="市值上限，单位亿"]').setValue("5");
+    await wrapper.get('input[aria-label="期权成交量下限，单位万"]').setValue("10");
+    await wrapper.get('input[aria-label="期权成交量上限，单位万"]').setValue("5");
+    await wrapper.get('input[aria-label="隐含波动率下限"]').setValue("90");
+    await wrapper.get('input[aria-label="隐含波动率上限"]').setValue("10");
+    await wrapper.get('input[aria-label="IV 等级下限"]').setValue("90");
+    await wrapper.get('input[aria-label="IV 等级上限"]').setValue("10");
+    await wrapper.get('input[aria-label="IV 百分位数下限"]').setValue("90");
+    await wrapper.get('input[aria-label="IV 百分位数上限"]').setValue("10");
     await wrapper
       .findAll("button")
       .find((button) => button.text().trim() === "应用")!
       .trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("市值上限不能小于下限");
+    expect(wrapper.text()).toContain("期权成交量上限不能小于下限");
+    expect(wrapper.text()).toContain("隐含波动率上限不能小于下限");
+    expect(wrapper.text()).toContain("IV 等级上限不能小于下限");
+    expect(wrapper.text()).toContain("IV 百分位数上限不能小于下限");
     expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
     expect(mocks.fetch).toHaveBeenCalledTimes(requestCount);
 
@@ -228,6 +240,80 @@ describe("EarningsCalendarView", () => {
       (wrapper.get('input[aria-label="市值下限，单位亿"]').element as HTMLInputElement)
         .value,
     ).toBe("");
+  });
+
+  it("supports keyboard view navigation, date picker fallback and non-quoteable day rows", async () => {
+    mocks.fetch.mockResolvedValue(
+      featureResult([
+        {
+          eventDate: "2026-07-23",
+          code: "RAW",
+          fiscalYear: "2026",
+        },
+      ]),
+    );
+    const wrapper = mount(EarningsCalendarView, { props: { market: "CN" } });
+    await flushPromises();
+
+    const monthTab = wrapper.findAll('[role="tab"]')[2]!;
+    await monthTab.trigger("keydown", { key: "ArrowRight" });
+    await flushPromises();
+    expect(wrapper.findAll('[role="tab"]')[0]!.attributes("aria-selected")).toBe("true");
+
+    await wrapper.findAll('[role="tab"]')[0]!.trigger("keydown", { key: "ArrowLeft" });
+    await flushPromises();
+    expect(wrapper.findAll('[role="tab"]')[2]!.attributes("aria-selected")).toBe("true");
+
+    await wrapper.findAll('[role="tab"]')[0]!.trigger("click");
+    await flushPromises();
+    expect(wrapper.get(".earnings-calendar-view__table-company").element.tagName).toBe("SPAN");
+    expect(wrapper.text()).toContain("RAW");
+    expect(wrapper.text()).toContain("--");
+
+    const dateInput = wrapper.get('input[aria-label="选择日期"]');
+    const nativeClick = vi.spyOn(dateInput.element as HTMLInputElement, "click");
+    Object.defineProperty(dateInput.element, "showPicker", {
+      configurable: true,
+      value: () => {
+        throw new Error("picker unavailable");
+      },
+    });
+    await wrapper.get('button[aria-label="打开日期选择器"]').trigger("click");
+    expect(nativeClick).toHaveBeenCalledOnce();
+
+    await dateInput.setValue("2026-07-24");
+    await dateInput.trigger("change");
+    await flushPromises();
+    expect(mocks.fetch.mock.calls.at(-1)?.[0]).toContain("beginDate=2026-07-24");
+
+    await wrapper.get(".earnings-calendar-view__sort-trigger").trigger("click");
+    document.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    await flushPromises();
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false);
+
+    await wrapper.get(".earnings-calendar-view__filter-button").trigger("click");
+    await wrapper.get('button[aria-label="关闭筛选"]').trigger("click");
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("renders day and week skeletons while a calendar request is pending", async () => {
+    let resolveRequest: ((value: unknown) => void) | undefined;
+    mocks.fetch.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+    const wrapper = mount(EarningsCalendarView);
+
+    await wrapper.findAll('[role="tab"]')[0]!.trigger("click");
+    expect(wrapper.find('[aria-label="正在加载日视图"]').exists()).toBe(true);
+    await wrapper.findAll('[role="tab"]')[1]!.trigger("click");
+    expect(wrapper.find('[aria-label="正在加载周视图"]').exists()).toBe(true);
+
+    resolveRequest?.(featureResult([]));
+    await flushPromises();
   });
 
   it("removes option sort and filters when switching to the mainland market", async () => {
