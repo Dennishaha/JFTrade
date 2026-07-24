@@ -138,15 +138,34 @@ describe("option research panel", () => {
   });
 
   it("keeps research market-wide and translates both seller strategies", async () => {
-    apiMocks.fetchFeature.mockResolvedValue(feature([]));
+    apiMocks.fetchFeature.mockResolvedValue(
+      feature([
+        {
+          owner: { instrumentId: "US.BABA" },
+          option: { instrumentId: "US.BABA260724C180000" },
+          premium: 240,
+        },
+      ]),
+    );
     const wrapper = mount(OptionResearchPanel, {
-      props: { market: "US", operation: "seller", scope: "market" },
+      props: {
+        market: "US",
+        operation: "seller",
+        scope: "market",
+        presentation: "research",
+      },
       global: { stubs: productGlobalStubs },
     });
     await flushPromises();
     const initialPath = String(apiMocks.fetchFeature.mock.calls.at(-1)?.[0]);
     expect(initialPath).toContain("sellerStrategy=covered_call");
     expect(initialPath).not.toContain("underlying=");
+    expect(
+      wrapper.find(".option-research-panel__native-table").exists(),
+    ).toBe(true);
+    expect(
+      wrapper.find(".option-research-panel__refresh-native").exists(),
+    ).toBe(true);
 
     await wrapper.get('select[aria-label="卖方策略"]').setValue(
       "cash_secured_put",

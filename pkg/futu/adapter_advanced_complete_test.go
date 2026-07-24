@@ -225,6 +225,14 @@ func TestFutuAdvancedAdapterProtocolValidationDefaultsAndPayloadHelpers(t *testi
 	if len(entries) != 0 || metadata != nil {
 		t.Fatalf("empty payload entries=%#v metadata=%#v", entries, metadata)
 	}
+	entries, metadata = payloadEntries(map[string]any{
+		"emptyFirst": []any{},
+		"rows":       []any{map[string]any{"id": 7}},
+	})
+	if len(entries) != 1 || entries[0]["id"] != 7 ||
+		metadata["emptyFirst"] == nil {
+		t.Fatalf("multi-list payload entries=%#v metadata=%#v", entries, metadata)
+	}
 	if defaultOperation(map[string]string{"b": "B", "a": "A"}) != "a" ||
 		defaultOperation(map[string]string{"only": "P"}) != "only" {
 		t.Fatal("default operation selection mismatch")

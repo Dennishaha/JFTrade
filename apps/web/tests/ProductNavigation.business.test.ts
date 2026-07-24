@@ -93,7 +93,14 @@ const marketViewStubs = {
   EarningsCalendarView: marketViewStub("EarningsCalendarView"),
   EconCalendarView: marketViewStub("EconCalendarView"),
   IpoCenterView: marketViewStub("IpoCenterView"),
+  DividendCalendarView: marketViewStub("DividendCalendarView"),
   InstitutionGridView: marketViewStub("InstitutionGridView"),
+  StockScreenerView: marketViewStub("StockScreenerView"),
+  MacroResearchView: marketViewStub("MacroResearchView"),
+  ArkResearchView: marketViewStub("ArkResearchView"),
+  IndustryChainView: marketViewStub("IndustryChainView"),
+  InstrumentResearchView: marketViewStub("InstrumentResearchView"),
+  DerivativeScreenView: marketViewStub("DerivativeScreenView"),
   QuoteDetailRail: defineComponent({
     name: "QuoteDetailRail",
     props: { entry: { type: Object, default: null }, market: String },
@@ -263,7 +270,6 @@ describe("product navigation surfaces", () => {
     const state = setupState<{
       activeSection: string;
       activeOperation: string;
-      activePath: string;
     }>(page);
 
     expect(state.activeSection).toBe("macro");
@@ -291,8 +297,12 @@ describe("product navigation surfaces", () => {
       "institutions",
     );
     await nextTick();
-    await page.get("select").setValue("ark_stock_activity");
-    expect(state.activeOperation).toBe("ark_stock_activity");
+    await page
+      .get(".research-page__section-operations")
+      .findAll("button")
+      .find((button) => button.text() === "ARK 动态")!
+      .trigger("click");
+    expect(state.activeOperation).toBe("ark_transactions");
     const sections = [
       "market",
       "screens",
@@ -306,8 +316,10 @@ describe("product navigation surfaces", () => {
     for (const section of sections) {
       await router.replace({ path: "/research", query: { section } });
       await nextTick();
-      expect(state.activePath).toContain("/api/v1/");
       expect(router.currentRoute.value.query.section).toBe(section);
+      expect(page.attributes("data-capability-surface")).toMatch(
+        /^(?:research|derivatives)\./,
+      );
       if (section === "derivatives") {
         expect(page.get(".option-research-panel").attributes("data-scope")).toBe(
           "market",
@@ -333,7 +345,7 @@ describe("product navigation surfaces", () => {
       "MarketHomeView",
     );
     expect(page.find(".feature-panel").exists()).toBe(false);
-    expect(page.get(".quote-detail-rail-stub").exists()).toBe(true);
+    expect(page.get(".research-page__rail-toggle").exists()).toBe(true);
     await router.replace({
       path: "/research",
       query: { section: "market", view: "sectors" },

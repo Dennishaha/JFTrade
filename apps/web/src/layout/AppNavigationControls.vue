@@ -52,8 +52,15 @@ defineEmits<{
       data-testid="topbar-navigation-refresh"
       @click="$emit('refresh')"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M19 8V4m0 0h-4m4 0-3.2 3.2a7 7 0 1 0 1.4 8" />
+      <svg
+        class="app-navigation-controls__refresh-icon"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M20 11a8 8 0 0 0-13.66-5.66L4 8" />
+        <path d="M4 4v4h4" />
+        <path d="M4 13a8 8 0 0 0 13.66 5.66L20 16" />
+        <path d="M20 20v-4h-4" />
       </svg>
     </button>
   </nav>

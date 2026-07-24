@@ -8,6 +8,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	"github.com/jftrade/jftrade-main/pkg/researchscreen"
 )
 
 func TestAdvancedFeatureDefaultsBuildStrictOpenDRequests(t *testing.T) {
@@ -73,6 +74,18 @@ func TestAdvancedFeatureDefaultsBuildStrictOpenDRequests(t *testing.T) {
 				t.Fatalf("strict request validation failed: %v; params=%#v", err, params)
 			}
 		})
+	}
+}
+
+func TestIndustrialChainListPageSizeRespectsOpenDLimit(t *testing.T) {
+	params := map[string]any{"market": int32(11)}
+	injectAdvancedPageSize(params, "Qot_GetIndustrialChainList", 100)
+
+	if got := params["count"]; got != 50 {
+		t.Fatalf("industrial chain count = %#v, want 50", got)
+	}
+	if err := opend.ValidateAdvancedC2S("Qot_GetIndustrialChainList", params); err != nil {
+		t.Fatalf("industrial chain request validation failed: %v", err)
 	}
 }
 
@@ -163,6 +176,18 @@ func TestEveryDefaultFeatureOperationBuildsGeneratedRequest(t *testing.T) {
 			FeatureID: featureID, Market: market, InstrumentID: instrumentID, PageSize: 20,
 		}
 		params := map[string]any{}
+		if featureID == broker.FeatureResearchScreen {
+			params[researchScreenDefinitionParam] = broker.ScreenDefinitionV2{
+				Market:             market,
+				CatalogVersion:     researchscreen.CatalogVersion,
+				QuerySchemaVersion: broker.ScreenQuerySchemaVersionV2,
+				Columns: []broker.ScreenColumn{{
+					ID: "price", Factor: broker.FactorRef{
+						InstanceID: "price", FactorKey: "simple.price",
+					},
+				}},
+			}
+		}
 		injectAdvancedPageSize(params, protocol, query.PageSize)
 		if err := injectFeatureInstrument(params, protocol, query.InstrumentID); err != nil {
 			t.Errorf("%s inject instrument: %v", featureID, err)

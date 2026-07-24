@@ -439,9 +439,17 @@ func (a *futuAdapter) queryAdvancedFeatureWithProtocols(
 	if err := injectAdvancedDefaults(params, protocol, query); err != nil {
 		return nil, err
 	}
+	if protocol == earningsCalendarProtocol {
+		return a.queryEarningsCalendarFeature(ctx, query, params)
+	}
 
 	var payload map[string]any
 	if err := a.withAdvancedClient(ctx, protocol, func(client *opend.Client) error {
+		if protocol == "Qot_StockScreen" {
+			if retryAfter := a.researchScreenRetryAfter(client); retryAfter > 0 {
+				return broker.NewResearchScreenRateLimitError(retryAfter)
+			}
+		}
 		if strings.Contains(protocol, "EventContract") {
 			if err := a.ensurePredictionPushHandlers(ctx, client); err != nil {
 				return err
@@ -449,6 +457,9 @@ func (a *futuAdapter) queryAdvancedFeatureWithProtocols(
 		}
 		var err error
 		payload, err = client.CallAdvanced(ctx, protocol, params)
+		if err == nil && protocol == "Qot_StockScreen" {
+			err = resolveStockScreenIdentities(ctx, client, query, payload)
+		}
 		return err
 	}); err != nil {
 		return nil, err
@@ -502,7 +513,7 @@ func injectAdvancedCursor(params map[string]any, protocol, cursor string) {
 }
 
 func injectAdvancedPageSize(params map[string]any, protocol string, pageSize int) {
-	pageSize = min(max(pageSize, 1), 100)
+	pageSize = min(max(pageSize, 1), advancedPageSizeLimit(protocol))
 	for _, field := range []string{"count", "pageCount", "num", "maxCount", "maxRetNum"} {
 		if opend.AdvancedC2SHasField(protocol, field) {
 			if _, exists := params[field]; !exists {
@@ -510,6 +521,17 @@ func injectAdvancedPageSize(params map[string]any, protocol string, pageSize int
 			}
 			return
 		}
+	}
+}
+
+func advancedPageSizeLimit(protocol string) int {
+	switch protocol {
+	case "Qot_GetIndustrialChainList":
+		// OpenD rejects count outside [1, 50]. Keep the protocol limit at the
+		// adapter boundary so every caller, not just the research UI, is safe.
+		return 50
+	default:
+		return 100
 	}
 }
 

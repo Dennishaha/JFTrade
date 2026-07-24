@@ -4,16 +4,21 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import OptionResearchPanel from "../components/product/OptionResearchPanel.vue";
 import PredictionResearchPanel from "../components/product/PredictionResearchPanel.vue";
-import ProductFeaturePanel from "../components/product/ProductFeaturePanel.vue";
-import ProductPanelToolbar from "../components/product/ProductPanelToolbar.vue";
+import ArkResearchView from "../components/research/ArkResearchView.vue";
 import ConceptSectorView from "../components/research/ConceptSectorView.vue";
+import DerivativeScreenView from "../components/research/DerivativeScreenView.vue";
+import DividendCalendarView from "../components/research/DividendCalendarView.vue";
 import EarningsCalendarView from "../components/research/EarningsCalendarView.vue";
 import EconCalendarView from "../components/research/EconCalendarView.vue";
+import IndustryChainView from "../components/research/IndustryChainView.vue";
+import InstrumentResearchView from "../components/research/InstrumentResearchView.vue";
 import InstitutionGridView from "../components/research/InstitutionGridView.vue";
 import IpoCenterView from "../components/research/IpoCenterView.vue";
+import MacroResearchView from "../components/research/MacroResearchView.vue";
 import MarketHomeView from "../components/research/MarketHomeView.vue";
 import MarketRankingsView from "../components/research/MarketRankingsView.vue";
 import QuoteDetailRail from "../components/research/QuoteDetailRail.vue";
+import StockScreenerView from "../components/research/StockScreenerView.vue";
 import {
   isQuoteWorkbenchPeriod,
   normalizeQuoteWorkbenchProductClass,
@@ -28,7 +33,6 @@ import {
   type MarketView,
   type ResearchSection,
   researchFeatureIds,
-  researchInstrumentActionClasses,
   validMarketCode,
   validMarketView,
   validResearchSection,
@@ -42,7 +46,6 @@ import BrokerProviderTag from "../components/shared/BrokerProviderTag.vue";
 import SplitPane from "../components/shared/SplitPane.vue";
 import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import { useBrokerProviderSelection } from "../composables/brokerProviderSelection";
-import { productCompactMenuProps } from "../composables/productControlDensity";
 import { useConsoleData } from "../composables/useConsoleData";
 import {
   clampResearchPaneSizesForWidth,
@@ -58,14 +61,20 @@ const route = useRoute();
 const router = useRouter();
 const { prefs: workspacePrefs, update } = useWorkspaceTradingPrefs();
 const { selectedBrokerAccount, systemStatus } = useConsoleData();
-const { selectedBrokerId } = useBrokerProviderSelection();
+const { selectedBrokerId, selectBrokerProvider } =
+  useBrokerProviderSelection();
 function configFor(section: ResearchSection) {
   return sections.find((item) => item.value === section)!;
 }
 
 function operationFor(section: ResearchSection, value: unknown): string {
   const config = configFor(section);
-  const candidate = String(value ?? "");
+  const rawCandidate = String(value ?? "");
+  const candidate =
+    section === "industries" &&
+      ["chain_detail", "chains_by_plate"].includes(rawCandidate)
+      ? "chains"
+      : rawCandidate;
   return config.operations.some((item) => item.value === candidate)
     ? candidate
     : config.operations[0]?.value ?? "";
@@ -79,6 +88,24 @@ function firstQueryValue(value: unknown): string {
 function quotePeriodFromQuery(value: unknown): QuoteWorkbenchPeriod {
   const candidate = firstQueryValue(value);
   return isQuoteWorkbenchPeriod(candidate) ? candidate : "day";
+}
+
+type PredictionContractView =
+  | "snapshot"
+  | "depth"
+  | "candles"
+  | "ticks"
+  | "milestones";
+
+function predictionContractViewFromQuery(
+  value: unknown,
+): PredictionContractView {
+  const candidate = firstQueryValue(value);
+  return ["snapshot", "depth", "candles", "ticks", "milestones"].includes(
+    candidate,
+  )
+    ? (candidate as PredictionContractView)
+    : "snapshot";
 }
 
 function quoteTargetFromQuery(): ResearchQuoteTarget | null {
@@ -115,6 +142,48 @@ const activeOperation = ref(operationFor(activeSection.value, route.query.operat
 
 const activeMarketView = ref<MarketView>(validMarketView(route.query.view));
 const activeMarketCode = ref(validMarketCode(route.query.mkt));
+const workspaceInstrumentId = computed(
+  () =>
+    `${workspacePrefs.value.market}.${workspacePrefs.value.symbol}`
+      .trim()
+      .toUpperCase(),
+);
+const activeInstrumentId = computed(() => {
+  const candidate = firstQueryValue(route.query.instrumentId).toUpperCase();
+  return candidate.includes(".") ? candidate : workspaceInstrumentId.value;
+});
+const activeIndicatorId = computed(() =>
+  firstQueryValue(route.query.indicatorId),
+);
+const activeChainId = computed(() => firstQueryValue(route.query.chainId));
+const activePlateId = computed(() => firstQueryValue(route.query.plateId));
+const activePresetId = computed(() => firstQueryValue(route.query.presetId));
+const activeInstitutionId = computed(() =>
+  firstQueryValue(route.query.institutionId),
+);
+const activePredictionSeriesCode = computed(() =>
+  firstQueryValue(route.query.seriesCode),
+);
+const activePredictionEventCode = computed(() =>
+  firstQueryValue(route.query.eventCode),
+);
+const activePredictionContractCode = computed(() =>
+  firstQueryValue(route.query.contractCode),
+);
+const activePredictionContractView = computed(() =>
+  predictionContractViewFromQuery(route.query.contractView),
+);
+const activeScreenMarket = computed<"US" | "HK" | "SH" | "SZ">(() => {
+  const candidate = firstQueryValue(route.query.screenMarket).toUpperCase();
+  if (candidate === "US" || candidate === "HK" || candidate === "SH" || candidate === "SZ") {
+    return candidate;
+  }
+  return activeMarketCode.value === "HK"
+    ? "HK"
+    : activeMarketCode.value === "CN"
+      ? "SH"
+      : "US";
+});
 const selectedQuoteTarget = ref<ResearchQuoteTarget | null>(initialQuoteTarget);
 const selectedQuoteEntry = ref<Record<string, unknown> | null>(null);
 const selectedQuotePeriod = ref<QuoteWorkbenchPeriod>(
@@ -243,6 +312,7 @@ function clearQuoteSelection(): void {
   selectedQuoteEntry.value = null;
   selectedQuotePeriod.value = "day";
   selectedQuoteTab.value = "quote";
+  marketRailCollapsed.value = true;
 }
 
 function persistResearchView(): void {
@@ -299,6 +369,35 @@ function selectSection(value: unknown): void {
       operation,
       view: section === "market" ? activeMarketView.value : undefined,
       mkt: market,
+      indicatorId: undefined,
+      chainId: undefined,
+      plateId: undefined,
+      instrumentId:
+        section === "instrument" ? activeInstrumentId.value : undefined,
+      institutionId:
+        section === "institutions" &&
+          ["list", "holding_changes"].includes(operation)
+          ? activeInstitutionId.value || undefined
+          : undefined,
+      presetId: section === "screens" ? activePresetId.value : undefined,
+      screenMarket:
+        section === "screens" ? activeScreenMarket.value : undefined,
+      seriesCode:
+        section === "prediction"
+          ? activePredictionSeriesCode.value || undefined
+          : undefined,
+      eventCode:
+        section === "prediction"
+          ? activePredictionEventCode.value || undefined
+          : undefined,
+      contractCode:
+        section === "prediction"
+          ? activePredictionContractCode.value || undefined
+          : undefined,
+      contractView:
+        section === "prediction" && activePredictionContractCode.value
+          ? activePredictionContractView.value
+          : undefined,
       ...emptyQuoteQuery,
     }),
   });
@@ -313,6 +412,42 @@ function selectOperation(value: unknown): void {
     query: queryWith({
       section: activeSection.value,
       operation,
+      indicatorId:
+        activeSection.value === "macro" && operation === "indicators"
+          ? activeIndicatorId.value
+          : undefined,
+      plateId: activeSection.value === "industries" ? activePlateId.value : undefined,
+      chainId: activeSection.value === "industries" ? activeChainId.value : undefined,
+      instrumentId:
+        activeSection.value === "instrument"
+          ? activeInstrumentId.value
+          : undefined,
+      institutionId:
+        activeSection.value === "institutions" &&
+          ["list", "holding_changes"].includes(operation)
+          ? activeInstitutionId.value || undefined
+          : undefined,
+      presetId:
+        activeSection.value === "screens"
+          ? activePresetId.value || undefined
+          : undefined,
+      seriesCode:
+        activeSection.value === "prediction"
+          ? activePredictionSeriesCode.value || undefined
+          : undefined,
+      eventCode:
+        activeSection.value === "prediction"
+          ? activePredictionEventCode.value || undefined
+          : undefined,
+      contractCode:
+        activeSection.value === "prediction"
+          ? activePredictionContractCode.value || undefined
+          : undefined,
+      contractView:
+        activeSection.value === "prediction" &&
+          activePredictionContractCode.value
+          ? activePredictionContractView.value
+          : undefined,
       ...emptyQuoteQuery,
     }),
   });
@@ -335,8 +470,142 @@ function selectMarket(value: unknown): void {
       section: activeSection.value,
       operation,
       mkt: market,
+      screenMarket:
+        activeSection.value === "screens"
+          ? market === "CN"
+            ? "SH"
+            : market
+          : undefined,
+      institutionId: undefined,
+      chainId: undefined,
+      plateId: undefined,
       ...emptyQuoteQuery,
     }),
+  });
+}
+
+function updateResearchContext(
+  patch: Record<string, string | undefined>,
+): void {
+  void router.replace({ query: queryWith(patch) });
+}
+
+function selectIndicatorContext(indicatorId: string): void {
+  updateResearchContext({
+    section: "macro",
+    operation: "indicators",
+    indicatorId: indicatorId || undefined,
+  });
+}
+
+function selectIndustryChain(chainId: string): void {
+  updateResearchContext({
+    section: "industries",
+    operation: "chains",
+    chainId: chainId || undefined,
+    plateId: undefined,
+  });
+}
+
+function selectIndustryPlate(plateId: string): void {
+  updateResearchContext({
+    section: "industries",
+    operation: "chains",
+    chainId: activeChainId.value || undefined,
+    plateId: plateId || undefined,
+  });
+}
+
+function selectResearchInstrument(instrumentId: string): void {
+  const normalized = instrumentId.trim().toUpperCase();
+  if (!normalized.includes(".")) return;
+  clearQuoteSelection();
+  updateResearchContext({
+    section: "instrument",
+    operation: activeOperation.value,
+    instrumentId: normalized,
+    ...emptyQuoteQuery,
+  });
+}
+
+function selectScreenPreset(presetId: string): void {
+  updateResearchContext({
+    section: "screens",
+    operation: "stock_v2",
+    presetId: presetId || undefined,
+  });
+}
+
+function selectInstitutionContext(institutionId: string): void {
+  updateResearchContext({
+    section: "institutions",
+    operation: activeOperation.value,
+    institutionId: institutionId || undefined,
+  });
+}
+
+function selectPredictionSeries(seriesCode: string): void {
+  updateResearchContext({
+    section: "prediction",
+    operation: "categories",
+    seriesCode: seriesCode || undefined,
+    eventCode: undefined,
+    contractCode: undefined,
+    contractView: undefined,
+  });
+}
+
+function selectPredictionEvent(eventCode: string): void {
+  updateResearchContext({
+    section: "prediction",
+    operation: "categories",
+    seriesCode: activePredictionSeriesCode.value || undefined,
+    eventCode: eventCode || undefined,
+    contractCode: undefined,
+    contractView: undefined,
+  });
+}
+
+function selectPredictionContract(contractCode: string): void {
+  updateResearchContext({
+    section: "prediction",
+    operation: "categories",
+    seriesCode: activePredictionSeriesCode.value || undefined,
+    eventCode: activePredictionEventCode.value || undefined,
+    contractCode: contractCode || undefined,
+    contractView: contractCode ? "snapshot" : undefined,
+  });
+}
+
+function selectPredictionContractView(contractView: string): void {
+  updateResearchContext({
+    section: "prediction",
+    operation: "categories",
+    contractCode: activePredictionContractCode.value || undefined,
+    contractView: activePredictionContractCode.value
+      ? predictionContractViewFromQuery(contractView)
+      : undefined,
+  });
+}
+
+function selectScreenContext(context: {
+  market: string;
+  brokerId?: string;
+}): void {
+  if (context.brokerId && context.brokerId !== selectedBrokerId.value) {
+    selectBrokerProvider(context.brokerId);
+  }
+  const concrete = context.market.trim().toUpperCase();
+  if (!["US", "HK", "SH", "SZ"].includes(concrete)) return;
+  const logical = concrete === "SH" || concrete === "SZ" ? "CN" : concrete;
+  activeMarketCode.value = logical;
+  clearQuoteSelection();
+  updateResearchContext({
+    section: "screens",
+    operation: "stock_v2",
+    mkt: logical,
+    screenMarket: concrete,
+    ...emptyQuoteQuery,
   });
 }
 
@@ -396,14 +665,20 @@ const queryMarket = computed(() => {
   if (activeSection.value === "market" || activeSection.value === "calendar") {
     return activeMarketCode.value;
   }
+  if (activeSection.value === "screens") {
+    return activeScreenMarket.value;
+  }
   if (activeSection.value === "derivatives") {
     return activeOperation.value === "warrant" ? "HK" : "US";
   }
   if (activeSection.value === "institutions") {
     return activeMarketCode.value === "HK" ? "HK" : "US";
   }
+  if (activeSection.value === "industries") {
+    return activeMarketCode.value;
+  }
   if (activeSection.value === "instrument") {
-    return workspacePrefs.value.market;
+    return activeInstrumentId.value.split(".", 1)[0] || workspacePrefs.value.market;
   }
   return "US";
 });
@@ -414,7 +689,9 @@ const sectionMarketOptions = computed(() =>
     : MARKET_CODE_OPTIONS,
 );
 const showSectionMarketSwitch = computed(() =>
-  ["calendar", "institutions"].includes(activeSection.value));
+  ["screens", "calendar", "institutions", "industries"].includes(
+    activeSection.value,
+  ));
 const visibleOperations = computed(() => {
   return activeConfig.value.operations.filter((operation) => {
     if (activeSection.value === "calendar" && activeMarketCode.value === "CN") {
@@ -461,34 +738,6 @@ function handleMarketPaneResized(payload: SplitpanesResizedPayload): void {
   persistResearchView();
 }
 
-function replacePathMarket(path: string, market: string): string {
-  if (!path || !path.includes("?")) return path;
-  const [pathname, query = ""] = path.split("?", 2);
-  const params = new URLSearchParams(query);
-  params.set("market", market);
-  return `${pathname}?${params}`;
-}
-
-const activePath = computed(() => {
-  const template =
-    activeConfig.value.operations.find(
-      (operation) => operation.value === activeOperation.value,
-    )?.path ?? activeConfig.value.operations[0]?.path ?? "";
-  const instrumentId = `${workspacePrefs.value.market}.${workspacePrefs.value.symbol}`
-    .trim()
-    .toUpperCase();
-  let path = replacePathMarket(
-    template.replace(":instrumentId", encodeURIComponent(instrumentId)),
-    queryMarket.value,
-  );
-  if (activeSection.value === "calendar" && activeOperation.value === "dividends") {
-    const today = new Date();
-    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    path += `${path.includes("?") ? "&" : "?"}date=${date}`;
-  }
-  return path;
-});
-
 const optionResearchOperation = computed(
   () =>
     (["unusual", "zero_dte", "earnings", "seller"].includes(
@@ -496,6 +745,54 @@ const optionResearchOperation = computed(
     )
       ? activeOperation.value
       : "unusual") as "unusual" | "zero_dte" | "earnings" | "seller",
+);
+const macroResearchOperation = computed(
+  () =>
+    (["indicators", "fed_target_rate", "fed_dot_plot"].includes(
+      activeOperation.value,
+    )
+      ? activeOperation.value
+      : "indicators") as
+    | "indicators"
+    | "fed_target_rate"
+    | "fed_dot_plot",
+);
+const arkResearchOperation = computed(
+  () =>
+    (activeOperation.value === "ark_fund_holdings"
+      ? "ark_fund_holdings"
+      : "ark_transactions") as
+    | "ark_fund_holdings"
+    | "ark_transactions",
+);
+const derivativeScreenOperation = computed(
+  () =>
+    (activeOperation.value === "warrant"
+      ? "warrant"
+      : "option_screen") as "option_screen" | "warrant",
+);
+const instrumentResearchOperation = computed(
+  () =>
+    ([
+      "profile",
+      "financials",
+      "valuation",
+      "analyst",
+      "ownership",
+      "corporate_actions",
+      "short_interest",
+      "news",
+    ].includes(activeOperation.value)
+      ? activeOperation.value
+      : "profile") as
+    | "profile"
+    | "financials"
+    | "valuation"
+    | "analyst"
+    | "ownership"
+    | "corporate_actions"
+    | "short_interest"
+    | "news",
 );
 const activeFeatureIDs = computed(() => researchFeatureIds(
   activeSection.value, activeOperation.value, activeMarketView.value));
@@ -609,51 +906,6 @@ function openQuoteTargetInWorkspace(target: ResearchQuoteTarget): void {
   openWorkspaceInstrument(target.instrumentId, "securities", productClass);
 }
 
-const quoteableProductClasses = new Set([
-  "equity",
-  "stock",
-  "fund",
-  "etf",
-  "trust",
-  "index",
-  "warrant",
-  "cbbc",
-  "plate",
-]);
-
-const featureActionClasses = computed(() =>
-  researchInstrumentActionClasses(activeSection.value, activeOperation.value));
-
-function inferredFeatureProductClass(
-  entry: Record<string, unknown> | undefined,
-): string {
-  const explicit = String(
-    entry?.productClass ?? entry?.securityType ?? entry?.type ?? "",
-  )
-    .trim()
-    .toLowerCase();
-  if (explicit) return explicit;
-  return "unknown";
-}
-
-function openFeatureInstrument(
-  instrumentID: string,
-  entry?: Record<string, unknown>,
-): void {
-  const productClass = inferredFeatureProductClass(entry);
-  if (!quoteableProductClasses.has(productClass)) {
-    if (productClass === "option") {
-      openWorkspaceInstrument(instrumentID, "derivatives", "option");
-    }
-    return;
-  }
-  handleMarketSelect({
-    ...(entry ?? {}),
-    instrumentId: instrumentID,
-    productClass,
-  });
-}
-
 function openOptionResearchInstrument(
   instrumentID: string,
   productClass: "option" | "equity",
@@ -664,243 +916,203 @@ function openOptionResearchInstrument(
   }
   openWorkspaceInstrument(instrumentID, "derivatives", productClass);
 }
+
+function researchEntry(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function selectResearchEntry(value: unknown): void {
+  const entry = researchEntry(value);
+  if (entry != null) handleMarketSelect(entry);
+}
+
+function openResearchEntry(
+  value: unknown,
+  productClassHint: "option" | "equity" | "unknown" = "unknown",
+): void {
+  const entry = researchEntry(value) ?? {};
+  const target = researchQuoteTargetFromEntry(entry, queryMarket.value);
+  const instrumentId =
+    target?.instrumentId ||
+    (activeSection.value === "instrument" ? activeInstrumentId.value : "");
+  if (!instrumentId) return;
+  const productClass =
+    productClassHint !== "unknown"
+      ? productClassHint
+      : "equity";
+  if (productClass === "option") {
+    openWorkspaceInstrument(instrumentId, "derivatives", "option");
+    return;
+  }
+  openWorkspaceInstrument(
+    instrumentId,
+    "securities",
+    target?.productClass === "fund" ||
+      target?.productClass === "warrant" ||
+      target?.productClass === "cbbc" ||
+      target?.productClass === "index"
+      ? target.productClass
+      : "equity",
+  );
+}
 </script>
 
 <template>
-  <div
-    ref="researchPageRef"
-    class="research-page"
-    :data-capability-surface="activeConfig.surfaceId"
-  >
-    <SplitPane
-      class="research-page__shell"
-      :class="{
-        'is-drawer': marketRailDrawer,
-        'is-rail-collapsed': marketRailCollapsed,
-      }"
-      :pane-min-size="8"
-      @resized="handleMarketPaneResized"
-    >
-      <SplitPaneItem
-        :size="marketRailCollapsed ? 100 : marketPaneSizes[0]"
+  <div ref="researchPageRef" class="research-page" :data-capability-surface="activeConfig.surfaceId">
+    <SplitPane class="research-page__shell" :class="{
+      'is-drawer': marketRailDrawer,
+      'is-rail-collapsed': marketRailCollapsed,
+    }" :pane-min-size="8" @resized="handleMarketPaneResized">
+      <SplitPaneItem :size="marketRailCollapsed ? 100 : marketPaneSizes[0]"
         :min-size="marketRailCollapsed ? 100 : researchPaneBounds.leftMinSize"
-        :max-size="marketRailCollapsed ? 100 : researchPaneBounds.leftMaxSize"
-      >
+        :max-size="marketRailCollapsed ? 100 : researchPaneBounds.leftMaxSize">
         <section class="research-page__center">
-          <ProductPanelToolbar
-            title="研究中心"
-            description="真实 OpenD 研究数据与统一行情侧栏"
-          >
-            <BrokerProviderTag
-              :feature-id="activeFeatureIDs[0]"
-              :feature-ids="activeFeatureIDs"
-              :market="queryMarket"
-              :preferred-broker-id="selectedBrokerAccount?.brokerId"
-              :default-broker-id="systemStatus.defaultBroker"
-            />
-          </ProductPanelToolbar>
-
           <div class="research-page__navigation">
-            <v-tabs
-              :model-value="activeSection"
-              density="compact"
-              show-arrows
-              @update:model-value="selectSection"
-            >
-              <v-tab
-                v-for="section in sections"
-                :key="section.value"
-                :value="section.value"
-                :data-capability-surface="section.surfaceId"
-              >
+            <v-tabs class="research-page__tabs" :model-value="activeSection" density="compact" show-arrows
+              @update:model-value="selectSection">
+              <v-tab v-for="section in sections" :key="section.value" :value="section.value"
+                :data-capability-surface="section.surfaceId">
                 {{ section.label }}
               </v-tab>
             </v-tabs>
+            <div class="research-page__navigation-actions">
+              <BrokerProviderTag :feature-id="activeFeatureIDs[0]" :feature-ids="activeFeatureIDs" :market="queryMarket"
+                :preferred-broker-id="selectedBrokerAccount?.brokerId"
+                :default-broker-id="systemStatus.defaultBroker" />
+              <button
+                type="button"
+                class="research-page__rail-toggle"
+                :title="marketRailCollapsed ? '展开行情详情' : '收起行情详情'"
+                :aria-label="marketRailCollapsed ? '展开行情详情' : '收起行情详情'"
+                @click="marketRailCollapsed = !marketRailCollapsed"
+              >
+                <svg
+                  class="research-page__rail-toggle-icon"
+                  viewBox="0 0 20 20"
+                  :data-direction="marketRailCollapsed ? 'left' : 'right'"
+                  aria-hidden="true"
+                >
+                  <path
+                    :d="
+                      marketRailCollapsed
+                        ? 'm12.5 4.5-5.5 5.5 5.5 5.5'
+                        : 'm7.5 4.5 5.5 5.5-5.5 5.5'
+                    "
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          <div
-            v-if="activeSection === 'market'"
-            class="research-page__market-nav"
-          >
+          <div v-if="activeSection === 'market'" class="research-page__market-nav">
             <span class="tv-seg research-page__market-views">
-              <button
-                v-for="view in MARKET_VIEWS"
-                :key="view.value"
-                type="button"
-                :class="{ 'is-active': activeMarketView === view.value }"
-                @click="activeMarketView = view.value"
-              >
+              <button v-for="view in MARKET_VIEWS" :key="view.value" type="button"
+                :class="{ 'is-active': activeMarketView === view.value }" @click="activeMarketView = view.value">
                 {{ view.label }}
               </button>
             </span>
             <span class="tv-seg research-page__market-codes">
-              <button
-                v-for="option in MARKET_CODE_OPTIONS"
-                :key="option.value"
-                type="button"
-                :class="{ 'is-active': activeMarketCode === option.value }"
-                @click="selectMarket(option.value)"
-              >
+              <button v-for="option in MARKET_CODE_OPTIONS" :key="option.value" type="button"
+                :class="{ 'is-active': activeMarketCode === option.value }" @click="selectMarket(option.value)">
                 {{ option.label }}
               </button>
             </span>
           </div>
-          <div v-else class="research-page__capabilities">
-            <div class="research-page__context">
-              <span>当前研究域</span>
-              <strong>{{ activeConfig.label }}</strong>
-              <small>{{ activeConfig.description }}</small>
-            </div>
-            <div class="research-page__chips">
-              <v-chip
-                v-for="capability in activeConfig.capabilities"
-                :key="capability"
-                size="small"
-                variant="tonal"
-              >
-                {{ capability }}
-              </v-chip>
-            </div>
-            <span
-              v-if="showSectionMarketSwitch"
-              class="tv-seg research-page__section-markets"
-            >
-              <button
-                v-for="option in sectionMarketOptions"
-                :key="option.value"
-                type="button"
-                :class="{ 'is-active': activeMarketCode === option.value }"
-                @click="selectMarket(option.value)"
-              >{{ option.label }}</button>
+          <div v-else class="research-page__section-nav">
+            <span class="tv-seg research-page__section-operations">
+              <button v-for="operation in visibleOperations" :key="operation.value" type="button"
+                :class="{ 'is-active': activeOperation === operation.value }" @click="selectOperation(operation.value)">
+                {{ operation.label }}
+              </button>
             </span>
-            <v-select
-              v-if="activeSection !== 'prediction'"
-              :model-value="activeOperation"
-              class="research-page__operation product-compact-control"
-              :items="visibleOperations"
-              :menu-props="productCompactMenuProps"
-              item-title="label"
-              item-value="value"
-              label="数据视图"
-              density="compact"
-              variant="outlined"
-              hide-details
-              @update:model-value="selectOperation"
-            />
+            <span class="research-page__section-spacer" />
+            <span v-if="showSectionMarketSwitch" class="tv-seg research-page__section-markets">
+              <button v-for="option in sectionMarketOptions" :key="option.value" type="button"
+                :class="{ 'is-active': activeMarketCode === option.value }" @click="selectMarket(option.value)">{{
+                option.label }}</button>
+            </span>
           </div>
 
           <main class="research-page__body">
             <div class="research-page__content">
-              <MarketHomeView
-                v-if="activeSection === 'market' && activeMarketView === 'home'"
-                :market="activeMarketCode"
-                :broker-id="selectedBrokerId"
-                @select="handleMarketSelect"
-                @more="handleMarketMore"
-              />
-              <MarketRankingsView
-                v-else-if="activeSection === 'market' && activeMarketView === 'rankings'"
-                :market="activeMarketCode"
-                :broker-id="selectedBrokerId"
-                :initial-operation="rankingInitialOperation"
-                @select="handleMarketSelect"
-              />
-              <ConceptSectorView
-                v-else-if="activeSection === 'market'"
-                :market="activeMarketCode"
-                :broker-id="selectedBrokerId"
-                @select="handleMarketSelect"
-              />
-              <EarningsCalendarView
-                v-else-if="activeSection === 'calendar' && activeOperation === 'earnings'"
-                :market="queryMarket"
-                :broker-id="selectedBrokerId"
-                @select="handleMarketSelect"
-              />
-              <EconCalendarView
-                v-else-if="activeSection === 'calendar' && activeOperation === 'economic'"
-                :market="queryMarket"
-                :broker-id="selectedBrokerId"
-              />
-              <IpoCenterView
-                v-else-if="activeSection === 'calendar' && activeOperation === 'ipos'"
-                :market="queryMarket"
-                :broker-id="selectedBrokerId"
-                @select="handleMarketSelect"
-              />
+              <MarketHomeView v-if="activeSection === 'market' && activeMarketView === 'home'"
+                :market="activeMarketCode" :broker-id="selectedBrokerId" @select="handleMarketSelect"
+                @more="handleMarketMore" />
+              <MarketRankingsView v-else-if="activeSection === 'market' && activeMarketView === 'rankings'"
+                :market="activeMarketCode" :broker-id="selectedBrokerId" :initial-operation="rankingInitialOperation"
+                @select="handleMarketSelect" />
+              <ConceptSectorView v-else-if="activeSection === 'market'" :market="activeMarketCode"
+                :broker-id="selectedBrokerId" @select="handleMarketSelect" />
+              <StockScreenerView v-else-if="activeSection === 'screens'" :market="activeScreenMarket"
+                :broker-id="selectedBrokerId" :initial-preset-id="activePresetId" @select="selectResearchEntry"
+                @open="openResearchEntry" @preset-change="selectScreenPreset" @context-change="selectScreenContext" />
+              <EarningsCalendarView v-else-if="activeSection === 'calendar' && activeOperation === 'earnings'"
+                :market="queryMarket" :broker-id="selectedBrokerId" @select="handleMarketSelect" />
+              <EconCalendarView v-else-if="activeSection === 'calendar' && activeOperation === 'economic'"
+                :market="queryMarket" :broker-id="selectedBrokerId" />
+              <IpoCenterView v-else-if="activeSection === 'calendar' && activeOperation === 'ipos'"
+                :market="queryMarket" :broker-id="selectedBrokerId" @select="handleMarketSelect" />
+              <DividendCalendarView v-else-if="activeSection === 'calendar' && activeOperation === 'dividends'"
+                :market="queryMarket" :broker-id="selectedBrokerId" @select="selectResearchEntry"
+                @open="openResearchEntry" />
+              <MacroResearchView v-else-if="activeSection === 'macro'" :broker-id="selectedBrokerId"
+                :operation="macroResearchOperation" :indicator-id="activeIndicatorId"
+                @update:indicator-id="selectIndicatorContext" />
               <InstitutionGridView
                 v-else-if="activeSection === 'institutions' && ['list', 'holding_changes'].includes(activeOperation)"
-                :market="queryMarket"
-                :broker-id="selectedBrokerId"
+                :market="queryMarket" :broker-id="selectedBrokerId"
                 :operation="activeOperation === 'holding_changes' ? 'holding_changes' : 'list'"
-                @select="handleMarketSelect"
-              />
-              <PredictionResearchPanel
-                v-else-if="activeSection === 'prediction'"
-                @open-instrument="openWorkspaceInstrument"
-              />
+                :institution-id="activeInstitutionId" @update:institution-id="selectInstitutionContext"
+                @select="handleMarketSelect" />
+              <ArkResearchView v-else-if="activeSection === 'institutions'" :market="queryMarket"
+                :broker-id="selectedBrokerId" :operation="arkResearchOperation" @select="selectResearchEntry"
+                @open="openResearchEntry" />
+              <IndustryChainView v-else-if="activeSection === 'industries'" :market="queryMarket"
+                :broker-id="selectedBrokerId" :chain-id="activeChainId" :plate-id="activePlateId"
+                @update:chain-id="selectIndustryChain" @update:plate-id="selectIndustryPlate"
+                @select="selectResearchEntry" @open="openResearchEntry" />
+              <InstrumentResearchView v-else-if="activeSection === 'instrument'" :instrument-id="activeInstrumentId"
+                :broker-id="selectedBrokerId" :operation="instrumentResearchOperation"
+                @update:instrument-id="selectResearchInstrument" @select="selectResearchEntry"
+                @open="openResearchEntry" />
+              <PredictionResearchPanel v-else-if="activeSection === 'prediction'" presentation="research"
+                :series-code="activePredictionSeriesCode" :event-code="activePredictionEventCode"
+                :contract-code="activePredictionContractCode" :contract-view="activePredictionContractView"
+                @update:series-code="selectPredictionSeries" @update:event-code="selectPredictionEvent"
+                @update:contract-code="selectPredictionContract" @update:contract-view="selectPredictionContractView"
+                @open-instrument="openWorkspaceInstrument" />
               <OptionResearchPanel
                 v-else-if="activeSection === 'derivatives' && !['option_screen', 'warrant'].includes(activeOperation)"
-                market="US"
-                :operation="optionResearchOperation"
-                scope="market"
-                @open-instrument="openOptionResearchInstrument"
-              />
-              <ProductFeaturePanel
-                v-else
-                :key="`${activeConfig.value}:${activeOperation}:${activePath}`"
-                :title="activeConfig.label"
-                :description="activeConfig.description"
-                :path="activePath"
-                :action-label="activeSection === 'derivatives' && activeOperation === 'option_screen' ? '工作区' : '打开行情'"
-                :instrument-action-classes="featureActionClasses"
-                @open-instrument="openFeatureInstrument"
-              />
+                market="US" :operation="optionResearchOperation" scope="market" presentation="research"
+                @open-instrument="openOptionResearchInstrument" />
+              <DerivativeScreenView v-else-if="activeSection === 'derivatives'" :operation="derivativeScreenOperation"
+                :broker-id="selectedBrokerId" @select="selectResearchEntry" @open="
+                  openResearchEntry(
+                    $event,
+                    derivativeScreenOperation === 'option_screen'
+                      ? 'option'
+                      : 'unknown',
+                  )
+                  " />
+              <div v-else class="research-page__empty">
+                当前研究视图尚不可用
+              </div>
             </div>
           </main>
         </section>
-        <button
-          v-if="marketRailDrawer && !marketRailCollapsed"
-          type="button"
-          class="research-page__rail-backdrop"
-          aria-label="关闭行情详情"
-          @click="marketRailCollapsed = true"
-        />
-        <button
-          v-if="marketRailCollapsed"
-          type="button"
-          class="research-page__rail-toggle is-collapsed-toggle"
-          title="展开行情详情"
-          @click="marketRailCollapsed = false"
-        >‹</button>
+        <button v-if="marketRailDrawer && !marketRailCollapsed" type="button" class="research-page__rail-backdrop"
+          aria-label="关闭行情详情" @click="marketRailCollapsed = true" />
       </SplitPaneItem>
-      <SplitPaneItem
-        v-if="!marketRailCollapsed"
-        :size="marketPaneSizes[1]"
-        :min-size="researchPaneBounds.railMinSize"
-        :max-size="researchPaneBounds.railMaxSize"
-      >
+      <SplitPaneItem v-if="!marketRailCollapsed" :size="marketPaneSizes[1]" :min-size="researchPaneBounds.railMinSize"
+        :max-size="researchPaneBounds.railMaxSize">
         <aside class="research-page__market-rail">
-          <button
-            type="button"
-            class="research-page__rail-toggle"
-            title="收起行情详情"
-            @click="marketRailCollapsed = true"
-          >›</button>
-          <QuoteDetailRail
-            :target="selectedQuoteTarget"
-            :entry="selectedQuoteEntry"
-            :broker-id="selectedBrokerId"
-            :visible="!marketRailCollapsed"
-            :drawer="marketRailDrawer"
-            :period="selectedQuotePeriod"
-            :tab="selectedQuoteTab"
-            @update:period="selectQuotePeriod"
-            @update:tab="selectQuoteTab"
-            @select="selectRailTarget"
-            @open-workspace="openQuoteTargetInWorkspace"
-            @close="marketRailCollapsed = true"
-          />
+          <QuoteDetailRail :target="selectedQuoteTarget" :entry="selectedQuoteEntry" :broker-id="selectedBrokerId"
+            :visible="!marketRailCollapsed" :drawer="marketRailDrawer" :period="selectedQuotePeriod"
+            :tab="selectedQuoteTab" @update:period="selectQuotePeriod" @update:tab="selectQuoteTab"
+            @select="selectRailTarget" @open-workspace="openQuoteTargetInWorkspace"
+            @close="marketRailCollapsed = true" />
         </aside>
       </SplitPaneItem>
     </SplitPane>
@@ -943,17 +1155,25 @@ function openOptionResearchInstrument(
 }
 
 .research-page__navigation {
+  display: flex;
+  min-width: 0;
   min-height: 43px;
   flex: 0 0 auto;
+  align-items: center;
   border-bottom: 1px solid var(--tv-border);
   background: var(--tv-bg-surface-2);
+}
+
+.research-page__tabs {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .research-page__navigation :deep(.v-tab) {
   min-width: 76px;
   height: 42px;
   color: var(--tv-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
   letter-spacing: 0;
   text-transform: none;
@@ -968,62 +1188,35 @@ function openOptionResearchInstrument(
   background: var(--tv-accent);
 }
 
-.research-page__capabilities {
+.research-page__navigation-actions {
   display: flex;
-  min-height: 58px;
+  min-width: max-content;
+  height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 0 6px;
+}
+
+.research-page__section-nav {
+  display: flex;
+  min-height: 44px;
   flex: 0 0 auto;
   align-items: center;
   gap: 12px;
-  padding: 7px 16px;
+  padding: 6px 16px;
   overflow-x: auto;
   border-bottom: 1px solid var(--tv-border);
   background: var(--tv-bg-surface);
 }
 
-.research-page__context {
-  display: grid;
-  min-width: 190px;
-  grid-template-columns: auto 1fr;
-  column-gap: 7px;
-}
-
-.research-page__context span {
-  align-self: center;
-  grid-row: span 2;
-  color: var(--tv-text-dim);
-  font-size: 8px;
-  writing-mode: vertical-rl;
-}
-
-.research-page__context strong {
-  font-size: 11px;
-}
-
-.research-page__context small {
-  color: var(--tv-text-muted);
-  font-size: 8px;
+.research-page__section-operations {
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
-.research-page__chips {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 5px;
-  overflow-x: auto;
-}
-
-.research-page__chips :deep(.v-chip) {
-  border: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
-  color: var(--tv-text-muted);
-  font-size: 8px;
-}
-
-.research-page__operation {
-  min-width: 158px;
-  max-width: 190px;
-  margin-left: auto;
+.research-page__section-spacer {
+  flex: 1;
 }
 
 .research-page__body {
@@ -1054,6 +1247,17 @@ function openOptionResearchInstrument(
   overflow-y: auto;
 }
 
+.research-page__empty {
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text-dim);
+  font-size: 12px;
+}
+
 .research-page__market-rail {
   position: relative;
   display: flex;
@@ -1068,35 +1272,44 @@ function openOptionResearchInstrument(
   max-width: none;
 }
 
-.research-page__rail-backdrop { display: none; }
+.research-page__rail-backdrop {
+  display: none;
+}
 
 .research-page__rail-toggle {
-  position: absolute;
-  z-index: 5;
-  top: 6px;
-  left: 0;
-  transform: translateX(-50%);
   display: grid;
-  width: 20px;
-  height: 44px;
+  width: 28px;
+  height: 32px;
+  flex: 0 0 auto;
   place-items: center;
-  border: 1px solid var(--tv-border);
-  border-radius: 4px 0 0 4px;
-  background: var(--tv-bg-surface-2);
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
   color: var(--tv-text-muted);
   cursor: pointer;
-  font-size: 12px;
   line-height: 1;
 }
 
-.research-page__rail-toggle.is-collapsed-toggle {
-  right: 0;
-  left: auto;
-  transform: none;
-  border-radius: 4px;
+.research-page__rail-toggle-icon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
-.research-page__rail-toggle:hover { color: var(--tv-text); }
+.research-page__rail-toggle:hover {
+  background: var(--tv-bg-hover);
+  color: var(--tv-text);
+}
+
+.research-page__rail-toggle:focus-visible {
+  outline: 2px solid var(--tv-accent);
+  outline-offset: -2px;
+}
 
 .research-page__shell.is-drawer {
   display: block !important;
@@ -1106,22 +1319,20 @@ function openOptionResearchInstrument(
   display: none;
 }
 
-.research-page__shell.is-drawer
-  > :deep(.splitpanes__pane:first-child) {
+.research-page__shell.is-drawer> :deep(.splitpanes__pane:first-child) {
   width: 100% !important;
 }
 
-.research-page__shell.is-drawer:not(.is-rail-collapsed)
-  > :deep(.splitpanes__pane:last-child) {
-    position: absolute;
-    z-index: 42;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(520px, calc(100% - 32px)) !important;
-    height: auto;
-    background: var(--tv-bg-app);
-    box-shadow: -12px 0 28px rgb(0 0 0 / 32%);
+.research-page__shell.is-drawer:not(.is-rail-collapsed)> :deep(.splitpanes__pane:last-child) {
+  position: absolute;
+  z-index: 42;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(520px, calc(100% - 32px)) !important;
+  height: auto;
+  background: var(--tv-bg-app);
+  box-shadow: -12px 0 28px rgb(0 0 0 / 32%);
 }
 
 .research-page__shell.is-drawer .research-page__rail-backdrop {

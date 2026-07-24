@@ -115,6 +115,8 @@ func TestProductFeatureRoutesMapValidationCapabilityEligibilityAndBrokerErrors(t
 		{http.MethodPost, "/api/v1/market-data/options/events/zero-dte-contracts", `{"market":"US","underlyingInstrumentId":"US.BABA","expiryTimestamp":1784332800,"chain":{"productCode":"BABA"},"sort":"gamma"}`, http.StatusBadRequest},
 		{http.MethodGet, "/api/v1/market-data/options/events?market=HK&operation=zero_dte", "", http.StatusUnprocessableEntity},
 		{http.MethodGet, "/api/v1/research/institutions?market=US&operation=holding_changes", "", http.StatusBadRequest},
+		{http.MethodGet, "/api/v1/research/calendars?market=US&operation=earnings&beginDate=2026-07-01&endDate=2026-08-12", "", http.StatusBadRequest},
+		{http.MethodGet, "/api/v1/research/calendars?market=SH&operation=earnings&sort=iv&ivMin=10", "", http.StatusBadRequest},
 		{http.MethodPost, "/api/v1/market-data/prediction/contracts/EVENT/subscriptions", `{`, http.StatusBadRequest},
 		{http.MethodPost, "/api/v1/market-data/prediction/combos/quotes", `{`, http.StatusBadRequest},
 		{http.MethodGet, "/api/v1/market-data/instruments/US.AAPL/profile?brokerId=missing", "", http.StatusConflict},

@@ -29,6 +29,7 @@ const (
 	defaultBacktestRunDBFilename     = "backtest-runs.db"
 	defaultExecutionOrderDBFilename  = "execution-orders.db"
 	defaultWatchlistDBFilename       = "watchlists.db"
+	defaultResearchDBFilename        = "research.db"
 	defaultDesktopLogDirName         = "logs"
 	defaultDesktopLogPrefix          = "desktop"
 )
@@ -124,6 +125,7 @@ func EnsureRuntimeLayout(settingsPath string, backtestDBPath string) error {
 		filepath.Dir(DeriveADKDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSessionDBPath(settingsPath)),
 		filepath.Dir(DeriveWatchlistDBPath(settingsPath)),
+		filepath.Dir(DeriveResearchDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSecretsPath(settingsPath)),
 		DeriveDesktopLogDir(settingsPath),
 		DeriveExchangeCalendarDir(settingsPath),
@@ -287,6 +289,20 @@ func DeriveWatchlistDBPath(settingsPath string) string {
 		return defaultWatchlistDBFilename
 	}
 	return filepath.Join(directory, defaultWatchlistDBFilename)
+}
+
+// DeriveResearchDBPath returns the canonical instance-owned research database.
+// Research screen presets live separately from settings and watchlists so they
+// can evolve and be rebuilt through the database-management lifecycle.
+func DeriveResearchDBPath(settingsPath string) string {
+	if envPath := strings.TrimSpace(os.Getenv("JFTRADE_RESEARCH_DB")); envPath != "" {
+		return envPath
+	}
+	directory := filepath.Dir(strings.TrimSpace(settingsPath))
+	if directory == "" || directory == "." {
+		return defaultResearchDBFilename
+	}
+	return filepath.Join(directory, defaultResearchDBFilename)
 }
 
 func DeriveExchangeCalendarDir(settingsPath string) string {

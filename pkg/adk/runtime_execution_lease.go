@@ -129,10 +129,7 @@ func (r *Runtime) refreshRunExecutionLease(lease RunLease, ttl time.Duration) (R
 	if remaining <= 0 {
 		return RunLease{}, ErrRunLeaseLost
 	}
-	heartbeatTimeout := min(ttl/3, 5*time.Second)
-	if remaining < heartbeatTimeout {
-		heartbeatTimeout = remaining
-	}
+	heartbeatTimeout := min(remaining, min(ttl/3, 5*time.Second))
 	heartbeatCtx, heartbeatCancel := context.WithTimeout(context.Background(), heartbeatTimeout)
 	defer heartbeatCancel()
 	return r.store.HeartbeatRunLease(heartbeatCtx, lease, now, ttl)

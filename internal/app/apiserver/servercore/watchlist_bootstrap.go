@@ -23,6 +23,7 @@ func (b *serverBootstrap) loadWatchlistStore() *watchliststore.Store {
 func (s *Server) initializeBootstrapState(store SidecarSettingsStore, bootstrap serverBootstrap, state serverPersistentState) {
 	s.initializeSecurityAndCalendars(store, bootstrap.settingsPath)
 	s.initializeWatchlistService()
+	s.initializeResearchService()
 	s.initializeADKRuntime(bootstrap)
 	s.initializeAssistantService()
 	s.strategyRuntimeManager = newStrategyRuntimeManager(s)

@@ -11,6 +11,11 @@ export function pickString(
   for (const key of keys) {
     const value = entry[key];
     if (typeof value === "string" && value.trim() !== "") return value;
+    // OpenD 的 uint64/int64 标识在通用 JSON 解码后是 number。研究视图中的
+    // indicatorId、chainId、plateId 等必须保留为 URL 可用的稳定字符串。
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
   }
   return "";
 }

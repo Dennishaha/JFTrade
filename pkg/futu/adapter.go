@@ -33,6 +33,9 @@ type futuAdapter struct {
 	predictionStreamListeners map[uint64]func(broker.PredictionMarketUpdate)
 	predictionSubscriptions   map[string]broker.PredictionSubscription
 	predictionStreamNextID    uint64
+
+	researchScreenLimiterMu sync.Mutex
+	researchScreenLimiters  map[*opend.Client]*researchScreenLimiter
 }
 
 // NewBrokerAdapter wraps a Futu Exchange as a broker.Broker.
@@ -43,6 +46,7 @@ func NewBrokerAdapter(exchange *Exchange) broker.Broker {
 		predictionStreamClients:   make(map[*opend.Client]struct{}),
 		predictionStreamListeners: make(map[uint64]func(broker.PredictionMarketUpdate)),
 		predictionSubscriptions:   make(map[string]broker.PredictionSubscription),
+		researchScreenLimiters:    make(map[*opend.Client]*researchScreenLimiter),
 	}
 	if exchange != nil {
 		exchange.onSystemNotifyWithGeneration(

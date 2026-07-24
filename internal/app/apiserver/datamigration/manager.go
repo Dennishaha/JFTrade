@@ -24,11 +24,13 @@ const (
 	DatabaseADK             = "adk"
 	DatabaseADKSession      = "adk-session"
 	DatabaseWatchlist       = "watchlist"
+	DatabaseResearch        = "research"
 	RebuildMarkerFilename   = "database-rebuild.json"
 	SchemaVersion           = 1
 	ExecutionSchemaVersion  = 5
 	ADKSessionSchemaVersion = 3
 	WatchlistSchemaVersion  = 1
+	ResearchSchemaVersion   = 1
 	BatchConfirmationText   = "REBUILD INCOMPATIBLE DATABASES"
 )
 
@@ -87,6 +89,7 @@ func NewManager(settingsPath string, backtestDBPath string) *Manager {
 			{ID: DatabaseADK, Name: "ADK 数据", Path: apiruntime.DeriveADKDBPath(settingsPath), Description: "模型、智能体、技能、会话运行、任务、审批和记忆。", Features: []string{"智能体配置", "ADK 工作流"}, Version: SchemaVersion},
 			{ID: DatabaseADKSession, Name: "ADK 会话", Path: apiruntime.DeriveADKSessionDBPath(settingsPath), Description: "ADK Go v2 原始会话事件和状态，可重建。", Features: []string{"对话上下文", "工具事件"}, Version: ADKSessionSchemaVersion},
 			{ID: DatabaseWatchlist, Name: "自选股", Path: apiruntime.DeriveWatchlistDBPath(settingsPath), Description: "本地自选分组、成员、券商导入绑定、快照与审计记录。", Features: []string{"自选分组", "券商导入", "来源对账"}, Version: WatchlistSchemaVersion},
+			{ID: DatabaseResearch, Name: "研究数据", Path: apiruntime.DeriveResearchDBPath(settingsPath), Description: "研究中心股票筛选预设与后续研究持久化数据。", Features: []string{"股票筛选预设"}, Version: ResearchSchemaVersion},
 		},
 	}
 	manager.initializeMaintenance()

@@ -46,9 +46,9 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     surfaceId: capabilitySurfaceID("research.screens"),
     label: "筛选器",
     description: "按财务、行情和技术指标筛选证券",
-    capabilities: ["股票筛选 V2"],
+    capabilities: ["完整因子目录", "筛选预设", "自选结果列"],
     operations: [
-      { value: "stock_v2", label: "股票筛选 V2", path: "/api/v1/research/screens?market=US&operation=stock_v2&pageSize=50" },
+      { value: "stock_v2", label: "股票筛选", path: "/api/v1/research/screens" },
     ],
   },
   {
@@ -101,7 +101,7 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
       { value: "list", label: "机构列表", path: "/api/v1/research/institutions?market=US&operation=list&pageSize=50" },
       { value: "holding_changes", label: "持仓变化", path: "/api/v1/research/institutions?market=US&operation=holding_changes&pageSize=50" },
       { value: "ark_fund_holdings", label: "ARK 持仓", path: "/api/v1/research/institutions?market=US&operation=ark_fund_holdings&pageSize=50" },
-      { value: "ark_stock_activity", label: "ARK 动态", path: "/api/v1/research/institutions?market=US&operation=ark_stock_activity&pageSize=50" },
+      { value: "ark_transactions", label: "ARK 动态", path: "/api/v1/research/institutions?market=US&operation=ark_transactions&pageSize=50" },
     ],
   },
   {
@@ -112,8 +112,6 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     capabilities: ["产业链", "链路详情", "关联股票"],
     operations: [
       { value: "chains", label: "产业链", path: "/api/v1/research/industries?market=US&operation=chains&pageSize=50" },
-      { value: "chain_detail", label: "产业链详情", path: "/api/v1/research/industries?market=US&operation=chain_detail&pageSize=50" },
-      { value: "chains_by_plate", label: "板块关联链", path: "/api/v1/research/industries?market=US&operation=chains_by_plate&pageSize=50" },
     ],
   },
   {
@@ -123,13 +121,13 @@ export const RESEARCH_SECTIONS: ResearchSectionConfig[] = [
     description: "当前工作区标的的财务、估值、分析师与股权资料",
     capabilities: ["公司资料", "财务", "估值", "分析师", "股权", "资讯"],
     operations: [
-      { value: "profile", label: "公司资料", path: "/api/v1/research/instruments/:instrumentId?pageSize=50" },
-      { value: "financials", label: "财务", path: "/api/v1/research/financials/:instrumentId?pageSize=50" },
-      { value: "valuation", label: "估值", path: "/api/v1/research/valuation/:instrumentId?pageSize=50" },
-      { value: "analyst", label: "分析师", path: "/api/v1/research/analyst/:instrumentId?pageSize=50" },
-      { value: "ownership", label: "股权", path: "/api/v1/research/ownership/:instrumentId?pageSize=50" },
-      { value: "corporate_actions", label: "公司行动", path: "/api/v1/research/corporate-actions/:instrumentId?pageSize=50" },
-      { value: "short_interest", label: "卖空数据", path: "/api/v1/research/short-interest/:instrumentId?pageSize=50" },
+      { value: "profile", label: "公司资料", path: "/api/v1/research/instruments/:instrumentId?operation=profile&pageSize=50" },
+      { value: "financials", label: "财务", path: "/api/v1/research/financials/:instrumentId?operation=statements&pageSize=50" },
+      { value: "valuation", label: "估值", path: "/api/v1/research/valuation/:instrumentId?operation=detail&pageSize=50" },
+      { value: "analyst", label: "分析师", path: "/api/v1/research/analyst/:instrumentId?operation=consensus&pageSize=50" },
+      { value: "ownership", label: "股权", path: "/api/v1/research/ownership/:instrumentId?operation=overview&pageSize=50" },
+      { value: "corporate_actions", label: "公司行动", path: "/api/v1/research/corporate-actions/:instrumentId?operation=dividends&pageSize=50" },
+      { value: "short_interest", label: "卖空数据", path: "/api/v1/research/short-interest/:instrumentId?operation=daily_volume&pageSize=50" },
       { value: "news", label: "资讯", path: "/api/v1/market-data/news?market=US&code=:instrumentId&operation=search&pageSize=30" },
     ],
   },
@@ -203,24 +201,6 @@ export function researchFeatureIds(
     return [INSTRUMENT_FEATURE_IDS[operation] ?? "research.instrument"];
   }
   return [featureBySection[section] ?? "market.snapshots"];
-}
-
-const SECURITY_ACTION_CLASSES = [
-  "equity", "stock", "fund", "etf", "trust", "index", "warrant", "cbbc",
-];
-
-/** Per-row actions require an explicit normalized product class. */
-export function researchInstrumentActionClasses(
-  section: ResearchSection,
-  operation: string,
-): string[] {
-  if (section === "derivatives") {
-    return operation === "warrant" ? ["warrant", "cbbc"] : ["option"];
-  }
-  if (["screens", "calendar", "institutions", "instrument"].includes(section)) {
-    return SECURITY_ACTION_CLASSES;
-  }
-  return section === "industries" ? ["equity", "stock", "plate"] : [];
 }
 
 const LEGACY_SECTIONS: Record<string, ResearchSection> = {

@@ -27,6 +27,7 @@ import (
 	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
 	"github.com/jftrade/jftrade-main/internal/settings"
 	exchangecalendarstore "github.com/jftrade/jftrade-main/internal/store/exchangecalendar"
+	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
 	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/system"
@@ -210,6 +211,7 @@ type serverPersistentState struct {
 	backtestRunStore    *backtestRunStore
 	executionOrderStore *executionOrderStore
 	watchlistStore      *watchliststore.Store
+	researchStore       *researchstore.Store
 	auth                *webAuth
 }
 
@@ -264,6 +266,7 @@ func (b serverBootstrap) loadPersistentState(store SidecarSettingsStore) serverP
 		backtestRunStore:    b.loadBacktestRunStore(),
 		executionOrderStore: b.loadExecutionOrderStore(store.ExecutionSettings()),
 		watchlistStore:      b.loadWatchlistStore(),
+		researchStore:       b.loadResearchStore(),
 		auth:                newWebAuth(store.SecuritySettings()),
 	}
 	if state.strategyStore != nil {
@@ -334,6 +337,7 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 			backtestSyncTasks:    newBacktestSyncTaskStore(),
 			executionOrders:      state.executionOrderStore,
 			watchlistStore:       state.watchlistStore,
+			researchStore:        state.researchStore,
 		},
 		serverRuntimes: serverRuntimes{
 			liveNotifications: live.NewReplayPublisher(),

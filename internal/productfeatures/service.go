@@ -204,6 +204,9 @@ func prepareReadQuery(query *broker.FeatureQuery) (broker.CapabilityDefinition, 
 	if err := validateResearchInstitutionQuery(*query); err != nil {
 		return broker.CapabilityDefinition{}, err
 	}
+	if err := validateResearchCalendarQuery(*query); err != nil {
+		return broker.CapabilityDefinition{}, err
+	}
 	return definition, nil
 }
 

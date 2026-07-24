@@ -97,18 +97,23 @@ export function researchFeaturePaths(
 }
 
 function entryKey(entry: Record<string, unknown>, index: number): string {
+  const eventDate =
+    typeof entry.eventDate === "string" && entry.eventDate.trim()
+      ? entry.eventDate.trim()
+      : "";
+  const eventSuffix = eventDate ? `:eventDate:${eventDate}` : "";
   for (const key of ["instrumentId", "plateId", "institutionId", "eventId"]) {
     const value = entry[key];
     if (typeof value === "string" && value.trim()) {
-      return `${key}:${value.trim().toUpperCase()}`;
+      return `${key}:${value.trim().toUpperCase()}${eventSuffix}`;
     }
     if (typeof value === "number" && Number.isFinite(value)) {
-      return `${key}:${value}`;
+      return `${key}:${value}${eventSuffix}`;
     }
   }
   const market = String(entry.market ?? "").trim().toUpperCase();
   const symbol = String(entry.symbol ?? entry.code ?? "").trim().toUpperCase();
-  if (market && symbol) return `instrument:${market}.${symbol}`;
+  if (market && symbol) return `instrument:${market}.${symbol}${eventSuffix}`;
   // Do not collapse unrelated calendar rows which legitimately lack identifiers.
   return `row:${index}:${JSON.stringify(entry)}`;
 }

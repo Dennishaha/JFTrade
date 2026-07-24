@@ -208,26 +208,34 @@ function importance(entry: Record<string, unknown>): number {
       暂无数据
     </div>
     <div v-else class="econ-calendar-view__list">
-      <section v-for="group in groups" :key="group.dayKey" class="econ-calendar-view__group">
+      <section
+        v-for="group in groups"
+        :key="group.dayKey"
+        class="econ-calendar-view__group"
+      >
         <header class="econ-calendar-view__group-head">{{ group.dayKey }}</header>
         <div
           v-for="(entry, index) in group.entries"
           :key="index"
           class="econ-calendar-view__item"
         >
-          <span class="econ-calendar-view__time tv-num">{{ timeLabel(entry) }}</span>
-          <span
-            v-if="importance(entry) > 0"
-            class="econ-calendar-view__stars"
-            :aria-label="`重要性 ${importance(entry)}`"
-          >{{ "★".repeat(importance(entry)) }}</span>
-          <span class="econ-calendar-view__title">
-            {{ pickString(entry, ["title"]) || "--" }}
+          <span class="econ-calendar-view__time tv-num">
+            {{ timeLabel(entry) }}
           </span>
-          <span
-            v-if="pickString(entry, ['region'])"
-            class="econ-calendar-view__region-tag"
-          >{{ pickString(entry, ["region"]) }}</span>
+          <span class="econ-calendar-view__headline">
+            <span
+              v-if="importance(entry) > 0"
+              class="econ-calendar-view__stars"
+              :aria-label="`重要性 ${importance(entry)}`"
+            >{{ "★".repeat(importance(entry)) }}</span>
+            <span class="econ-calendar-view__title">
+              {{ pickString(entry, ["title"]) || "--" }}
+            </span>
+            <span
+              v-if="pickString(entry, ['region'])"
+              class="econ-calendar-view__region-tag"
+            >{{ pickString(entry, ["region"]) }}</span>
+          </span>
           <span class="econ-calendar-view__values tv-num">
             前值 {{ pickString(entry, ["previousValue"]) || "--" }}
             · 预测 {{ pickString(entry, ["forecastValue"]) || "--" }}
@@ -306,7 +314,8 @@ function importance(entry: Record<string, unknown>): number {
 }
 
 .econ-calendar-view__item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(160px, 1fr) auto;
   min-height: 32px;
   align-items: center;
   gap: 10px;
@@ -319,27 +328,34 @@ function importance(entry: Record<string, unknown>): number {
 }
 
 .econ-calendar-view__time {
-  width: 44px;
-  flex: 0 0 auto;
   color: var(--tv-text-muted);
 }
 
+.econ-calendar-view__headline {
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  grid-template-areas: "stars title region";
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
 .econ-calendar-view__stars {
-  flex: 0 0 auto;
+  grid-area: stars;
   color: var(--tv-warn);
   font-size: 10px;
 }
 
 .econ-calendar-view__title {
+  grid-area: title;
   min-width: 0;
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .econ-calendar-view__region-tag {
-  flex: 0 0 auto;
+  grid-area: region;
   padding: 1px 6px;
   border: 1px solid var(--tv-border);
   border-radius: 999px;
@@ -348,8 +364,33 @@ function importance(entry: Record<string, unknown>): number {
 }
 
 .econ-calendar-view__values {
-  flex: 0 0 auto;
   color: var(--tv-text-muted);
   font-size: 11px;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .econ-calendar-view__item {
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .econ-calendar-view__headline {
+    grid-template-areas:
+      "title title"
+      "stars region";
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 4px;
+  }
+
+  .econ-calendar-view__title {
+    min-width: 96px;
+  }
+
+  .econ-calendar-view__values {
+    grid-column: 1 / -1;
+    padding-left: 54px;
+    white-space: normal;
+  }
 }
 </style>

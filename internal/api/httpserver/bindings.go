@@ -2,7 +2,9 @@ package httpserver
 
 import (
 	"encoding"
+	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -144,6 +146,28 @@ func BindURI(c *gin.Context, target any) error {
 		if hasInvalidPercentEscape(value.Value) {
 			return fmt.Errorf("invalid URL escape")
 		}
+	}
+	return nil
+}
+
+// BindStrictJSON decodes exactly one JSON value and rejects unknown object
+// fields. Use it for versioned contracts where silently ignoring an older or
+// misspelled field could change execution semantics.
+func BindStrictJSON(c *gin.Context, target any) error {
+	if c == nil || c.Request == nil || c.Request.Body == nil {
+		return io.EOF
+	}
+	decoder := json.NewDecoder(c.Request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("request body must contain exactly one JSON value")
+		}
+		return err
 	}
 	return nil
 }

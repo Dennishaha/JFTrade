@@ -41,11 +41,13 @@ const props = withDefaults(
     scope?: "underlying" | "market";
     underlyingInstrumentId?: string;
     underlyingProductClass?: string;
+    presentation?: "workspace" | "research";
   }>(),
   {
     scope: "market",
     underlyingInstrumentId: "",
     underlyingProductClass: "equity",
+    presentation: "workspace",
   },
 );
 const emit = defineEmits<{
@@ -295,7 +297,10 @@ watch(
 </script>
 
 <template>
-  <section class="option-research-panel">
+  <section
+    class="option-research-panel"
+    :class="`option-research-panel--${presentation}`"
+  >
     <div class="option-research-panel__toolbar">
       <button
         v-if="drilldownResult"
@@ -312,8 +317,21 @@ watch(
             : `${normalizedMarket} 全市场`
         }}
       </span>
+      <select
+        v-if="
+          operation === 'seller' &&
+          !drilldownResult &&
+          presentation === 'research'
+        "
+        v-model="sellerStrategy"
+        class="option-research-panel__seller-native"
+        aria-label="卖方策略"
+      >
+        <option value="covered_call">备兑看涨</option>
+        <option value="cash_secured_put">现金担保看跌</option>
+      </select>
       <v-select
-        v-if="operation === 'seller' && !drilldownResult"
+        v-else-if="operation === 'seller' && !drilldownResult"
         v-model="sellerStrategy"
         class="option-research-panel__seller product-compact-control"
         :items="[
@@ -329,14 +347,40 @@ watch(
       <span class="option-research-panel__count">
         {{ sourceEntries.length }} 条
       </span>
+      <button
+        v-if="presentation === 'research'"
+        type="button"
+        class="option-research-panel__refresh-native"
+        :disabled="loading"
+        aria-label="刷新"
+        @click="load(true)"
+      >
+        {{ loading ? "刷新中…" : "刷新" }}
+      </button>
       <ProductToolbarRefreshButton
+        v-else
         :loading="loading"
         @refresh="load(true)"
       />
     </div>
 
-    <v-progress-linear v-if="loading" indeterminate />
-    <v-alert v-if="error" type="warning" variant="tonal" density="compact">
+    <div
+      v-if="loading && presentation === 'research'"
+      class="option-research-panel__progress"
+    />
+    <v-progress-linear v-else-if="loading" indeterminate />
+    <div
+      v-if="error && presentation === 'research'"
+      class="option-research-panel__notice tv-status--warning"
+    >
+      {{ error }}
+    </div>
+    <v-alert
+      v-else-if="error"
+      type="warning"
+      variant="tonal"
+      density="compact"
+    >
       {{ error }}
     </v-alert>
     <div v-if="!active" class="option-research-panel__empty">
@@ -349,7 +393,84 @@ watch(
       当前范围没有符合条件的期权数据。
     </div>
     <div v-else class="option-research-panel__table">
-      <v-table density="compact" fixed-header>
+      <table
+        v-if="presentation === 'research'"
+        class="option-research-panel__native-table"
+      >
+        <thead>
+          <tr>
+            <template v-if="drilldownResult">
+              <th>合约</th>
+              <th>方向</th>
+              <th>最新价</th>
+              <th>涨跌幅</th>
+              <th>成交量</th>
+              <th>持仓量</th>
+              <th>IV</th>
+              <th>Delta</th>
+            </template>
+            <template v-else>
+              <th v-for="column in columns" :key="column.key">
+                {{ column.label }}
+              </th>
+            </template>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(entry, index) in sourceEntries" :key="index">
+            <template v-if="drilldownResult">
+              <td>{{ formatCell(entry.option) }}</td>
+              <td>{{ formatCell(entry.optionType) }}</td>
+              <td>{{ formatCell(entry.optionPrice) }}</td>
+              <td>{{ formatCell(entry.changeRate) }}</td>
+              <td>{{ formatCell(entry.volume) }}</td>
+              <td>{{ formatCell(entry.openInterest) }}</td>
+              <td>{{ formatCell(entry.iv) }}</td>
+              <td>{{ formatCell(entry.delta) }}</td>
+            </template>
+            <template v-else>
+              <td v-for="column in columns" :key="column.key">
+                {{ formatCell(entry[column.key]) }}
+              </td>
+            </template>
+            <td>
+              <button
+                v-if="!drilldownResult && operation === 'zero_dte'"
+                type="button"
+                class="option-research-panel__row-action"
+                :disabled="!entry.drilldownContext"
+                @click="openDrilldown(entry)"
+              >
+                查看合约
+              </button>
+              <button
+                v-else-if="
+                  entryInstrumentId(
+                    entry,
+                    operation === 'earnings' ? 'equity' : 'option',
+                  )
+                "
+                type="button"
+                class="option-research-panel__row-action"
+                @click="
+                  emit(
+                    'openInstrument',
+                    entryInstrumentId(
+                      entry,
+                      operation === 'earnings' ? 'equity' : 'option',
+                    ),
+                    operation === 'earnings' ? 'equity' : 'option',
+                  )
+                "
+              >
+                工作区
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <v-table v-else density="compact" fixed-header>
         <thead>
           <tr>
             <template v-if="drilldownResult">
@@ -426,7 +547,27 @@ watch(
     </div>
 
     <footer v-if="!drilldownResult && result" class="option-research-panel__pager">
+      <template v-if="presentation === 'research'">
+        <button
+          type="button"
+          class="option-research-panel__pager-action"
+          :disabled="cursorHistory.length === 0"
+          @click="previousPage"
+        >
+          上一页
+        </button>
+        <span>{{ result.total ?? result.entries.length }} 条结果</span>
+        <button
+          type="button"
+          class="option-research-panel__pager-action"
+          :disabled="!result.nextCursor"
+          @click="nextPage"
+        >
+          下一页
+        </button>
+      </template>
       <v-btn
+        v-else
         size="x-small"
         variant="text"
         :disabled="cursorHistory.length === 0"
@@ -434,8 +575,11 @@ watch(
       >
         上一页
       </v-btn>
-      <span>{{ result.total ?? result.entries.length }} 条结果</span>
+      <span v-if="presentation !== 'research'">
+        {{ result.total ?? result.entries.length }} 条结果
+      </span>
       <v-btn
+        v-if="presentation !== 'research'"
         size="x-small"
         variant="text"
         :disabled="!result.nextCursor"
@@ -479,6 +623,17 @@ watch(
   width: 146px;
 }
 
+.option-research-panel__seller-native {
+  width: 146px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--tv-border);
+  border-radius: 4px;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text);
+  font: inherit;
+}
+
 .option-research-panel__count {
   margin-left: auto;
   white-space: nowrap;
@@ -492,10 +647,71 @@ watch(
   font-size: 9px;
 }
 
+.option-research-panel__refresh-native,
+.option-research-panel__row-action,
+.option-research-panel__pager-action {
+  border: 0;
+  background: transparent;
+  color: var(--tv-accent);
+  cursor: pointer;
+  font: inherit;
+}
+
+.option-research-panel__refresh-native {
+  min-height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--tv-border);
+  border-radius: 4px;
+}
+
+.option-research-panel__refresh-native:hover:not(:disabled),
+.option-research-panel__pager-action:hover:not(:disabled) {
+  background: var(--tv-bg-elevated);
+}
+
+.option-research-panel__refresh-native:disabled,
+.option-research-panel__row-action:disabled,
+.option-research-panel__pager-action:disabled {
+  color: var(--tv-text-dim);
+  cursor: not-allowed;
+}
+
 .option-research-panel__table {
   min-height: 0;
   flex: 1;
   overflow: auto;
+}
+
+.option-research-panel__native-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.option-research-panel__native-table th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface-2);
+  text-align: left;
+}
+
+.option-research-panel__native-table td {
+  max-width: 280px;
+  padding: 0 8px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--tv-border);
+  text-overflow: ellipsis;
+}
+
+.option-research-panel__native-table tbody tr:hover {
+  background: var(--tv-bg-elevated);
+}
+
+.option-research-panel__row-action {
+  white-space: nowrap;
 }
 
 .option-research-panel :deep(table) {
@@ -538,5 +754,71 @@ watch(
 .option-research-panel :deep(.v-alert) {
   flex: 0 0 auto;
   font-size: 9px;
+}
+
+.option-research-panel__progress {
+  position: relative;
+  height: 2px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: var(--tv-bg-elevated);
+}
+
+.option-research-panel__progress::after {
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  animation: option-research-progress 1s linear infinite;
+  background: var(--tv-accent);
+  content: "";
+}
+
+.option-research-panel__notice {
+  flex: 0 0 auto;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--tv-border);
+  color: var(--tv-text-muted);
+  font-size: 11px;
+}
+
+.option-research-panel--research {
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  background: var(--tv-bg-surface);
+}
+
+.option-research-panel--research .option-research-panel__toolbar {
+  min-height: 32px;
+  padding: 2px 8px;
+}
+
+.option-research-panel--research .option-research-panel__summary,
+.option-research-panel--research .option-research-panel__count,
+.option-research-panel--research .option-research-panel__pager {
+  font-size: 11px;
+}
+
+.option-research-panel--research :deep(table) {
+  font-size: 12px;
+}
+
+.option-research-panel--research :deep(th) {
+  height: 32px;
+  font-size: 11px;
+}
+
+.option-research-panel--research :deep(td) {
+  height: 32px;
+  color: var(--tv-text);
+}
+
+@keyframes option-research-progress {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(390%);
+  }
 }
 </style>

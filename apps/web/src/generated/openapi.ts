@@ -29,6 +29,11 @@ export interface components {
     settlementSide?: string;
     status?: string;
   };
+    "broker.FactorRef": {
+    factorKey?: string;
+    instanceId?: string;
+    params?: components["schemas"]["broker.ResearchScreenFactorParams"];
+  };
     "broker.FeatureID": "market.search" | "market.instrument_profile" | "market.snapshot" | "market.snapshots" | "market.candles" | "market.intraday" | "market.ticks" | "market.depth" | "market.broker_queue" | "market.capital_flow" | "derivatives.option_chain" | "derivatives.option_screen" | "derivatives.option_analysis" | "derivatives.option_events" | "derivatives.warrants" | "derivatives.futures" | "research.instrument" | "research.financials" | "research.valuation" | "research.analyst" | "research.ownership" | "research.corporate_actions" | "research.short_interest" | "research.news" | "research.screen" | "research.calendar" | "research.macro" | "research.rankings" | "research.institutions" | "research.industry" | "research.technical_indicators" | "prediction.discover" | "prediction.snapshot" | "prediction.depth" | "prediction.history" | "prediction.combo_eligible" | "prediction.combo_quote" | "execution.order_preview" | "execution.order_place" | "execution.order_cancel" | "execution.combo_preview" | "execution.combo_place" | "execution.combo_cancel" | "execution.buying_power" | "alerts.price.list" | "alerts.price.set" | "alerts.option_event.list" | "alerts.option_event.set" | "watchlist.remote.list" | "watchlist.remote.modify";
     "broker.Instrument": {
     code?: string;
@@ -193,6 +198,77 @@ export interface components {
     turnover?: number;
     volume?: number;
   };
+    "broker.ResearchScreenFactorParams": {
+    brokerParam?: string;
+    days?: number;
+    duration?: number;
+    firstCustomParam?: number;
+    futureDuration?: number;
+    indicatorParams?: Array<number>;
+    optionHvPeriod?: number;
+    optionParamInteger?: number;
+    optionParamIntegers?: Array<number>;
+    optionParamString?: string;
+    optionParamType?: number;
+    period?: number;
+    periodAverage?: number;
+    rangePeriod?: number;
+    term?: number;
+    year?: number;
+  };
+    "broker.ResearchScreenPagination": {
+    limit?: number;
+    offset?: number;
+  };
+    "broker.ResearchScreenPlate": {
+    parentPlateId?: string;
+    plateIds?: Array<string>;
+  };
+    "broker.ResearchScreenPool": {
+    plates?: Array<components["schemas"]["broker.ResearchScreenPlate"]>;
+    watchlistStockIds?: Array<string>;
+  };
+    "broker.ScreenColumn": {
+    columnId?: string;
+    factor?: components["schemas"]["broker.FactorRef"];
+    label?: string;
+  };
+    "broker.ScreenCondition": {
+    factor?: components["schemas"]["broker.FactorRef"];
+    id?: string;
+    operator?: string;
+    secondFactor?: components["schemas"]["broker.FactorRef"];
+    value?: unknown;
+  };
+    "broker.ScreenDefinitionV2": {
+    brokerId?: string;
+    catalogVersion?: string;
+    columns?: Array<components["schemas"]["broker.ScreenColumn"]>;
+    conditions?: Array<components["schemas"]["broker.ScreenCondition"]>;
+    market?: string;
+    pool?: components["schemas"]["broker.ResearchScreenPool"];
+    querySchemaVersion?: number;
+    sorts?: Array<components["schemas"]["broker.ScreenSort"]>;
+  };
+    "broker.ScreenQueryV2": {
+    accountId?: string;
+    brokerId?: string;
+    catalogVersion?: string;
+    columns?: Array<components["schemas"]["broker.ScreenColumn"]>;
+    conditions?: Array<components["schemas"]["broker.ScreenCondition"]>;
+    market?: string;
+    page?: components["schemas"]["broker.ResearchScreenPagination"];
+    pool?: components["schemas"]["broker.ResearchScreenPool"];
+    querySchemaVersion?: number;
+    sorts?: Array<components["schemas"]["broker.ScreenSort"]>;
+    tradingEnvironment?: string;
+  };
+    "broker.ScreenSort": {
+    columnId?: string;
+    direction?: "asc" | "desc" | "abs_asc" | "abs_desc";
+    factor?: components["schemas"]["broker.FactorRef"];
+    sortId?: string;
+  };
     "datamanagement.BackupRequest": {
     confirmation?: string;
     databaseId?: string;
@@ -356,6 +432,30 @@ export interface components {
     tradingEnvironment?: string;
     underlyingInstrumentId: string;
     underlyingProductClass?: components["schemas"]["broker.ProductClass"];
+  };
+    "research.CreateScreenPresetInput": {
+    definition: components["schemas"]["broker.ScreenDefinitionV2"];
+    name: string;
+  };
+    "research.ResearchScreenPreset": {
+    createdAt?: string;
+    definition?: components["schemas"]["broker.ScreenDefinitionV2"];
+    name?: string;
+    presetId?: string;
+    querySchemaVersion?: number;
+    revision?: number;
+    updatedAt?: string;
+  };
+    "research.ResearchScreenPresetDeleteData": {
+    deleted?: boolean;
+  };
+    "research.ResearchScreenPresetsData": {
+    presets?: Array<components["schemas"]["research.ResearchScreenPreset"]>;
+  };
+    "research.UpdateScreenPresetInput": {
+    definition?: components["schemas"]["broker.ScreenDefinitionV2"];
+    expectedRevision: number;
+    name?: string;
   };
     "servercore.brokerOrderCommandResponse": {
     accepted?: boolean;
@@ -4804,6 +4904,236 @@ export interface paths {
         };
         "502": {
           description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["broker.ScreenQueryV2"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "429": {
+          description: "Too Many Requests";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "502": {
+          description: "Bad Gateway";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/screens/catalog": {
+    get: {
+      parameters: {
+        query: {
+        brokerId?: string;
+        market?: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/screens/presets": {
+    get: {
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["research.ResearchScreenPresetsData"];
+  };
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["research.CreateScreenPresetInput"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["research.ResearchScreenPreset"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+  };
+  "/api/v1/research/screens/presets/{presetId}": {
+    get: {
+      parameters: {
+        path: {
+        presetId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["research.ResearchScreenPreset"];
+  };
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    patch: {
+      parameters: {
+        path: {
+        presetId: string;
+      };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["research.UpdateScreenPresetInput"];
+        };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["research.ResearchScreenPreset"];
+  };
+          };
+        };
+        "400": {
+          description: "Bad Request";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "409": {
+          description: "Conflict";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        path: {
+        presetId: string;
+      };
+      };
+      responses: {
+        "200": {
+          description: "OK";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["research.ResearchScreenPresetDeleteData"];
+  };
+          };
+        };
+        "404": {
+          description: "Not Found";
+          content: {
+            "application/json": components["schemas"]["httpserver.Envelope"];
+          };
+        };
+        "503": {
+          description: "Service Unavailable";
           content: {
             "application/json": components["schemas"]["httpserver.Envelope"];
           };

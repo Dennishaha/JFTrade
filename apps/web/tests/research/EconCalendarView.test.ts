@@ -83,6 +83,14 @@ describe("EconCalendarView", () => {
     expect(wrapper.text()).toContain("前值 0.2% · 预测 0.3% · 公布 0.4%");
     expect(wrapper.text()).toContain("★★★");
     expect(wrapper.text()).toContain("美国");
+    const firstHeadline = wrapper.findAll(".econ-calendar-view__headline")[0]!;
+    expect(firstHeadline.get(".econ-calendar-view__title").text()).toBe(
+      "CPI 月率",
+    );
+    expect(firstHeadline.get(".econ-calendar-view__stars").text()).toBe("★★★");
+    expect(firstHeadline.get(".econ-calendar-view__region-tag").text()).toBe(
+      "美国",
+    );
     // 缺值字段显示 --
     expect(wrapper.text()).toContain("前值 -- · 预测 -- · 公布 --");
     // 地区下拉去重

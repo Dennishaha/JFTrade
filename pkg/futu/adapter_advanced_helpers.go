@@ -137,6 +137,7 @@ func payloadEntries(payload map[string]any) ([]map[string]any, map[string]any) {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
+	emptyListKey := ""
 	for _, key := range keys {
 		values, ok := payload[key].([]any)
 		if !ok {
@@ -148,8 +149,18 @@ func payloadEntries(payload map[string]any) ([]map[string]any, map[string]any) {
 				entries = append(entries, entry)
 			}
 		}
+		if len(entries) == 0 {
+			if emptyListKey == "" {
+				emptyListKey = key
+			}
+			continue
+		}
 		delete(metadata, key)
 		return entries, metadata
+	}
+	if emptyListKey != "" {
+		delete(metadata, emptyListKey)
+		return []map[string]any{}, metadata
 	}
 	if payloadContainsOnlyPaginationMetadata(payload) {
 		return []map[string]any{}, metadata

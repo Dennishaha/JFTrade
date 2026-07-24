@@ -52,6 +52,15 @@ describe("IpoCenterView", () => {
   it("renders canonical pending/listed IPO fields and snapshot quotes", async () => {
     const wrapper = await mountView();
     const panels = wrapper.findAll(".ipo-center-view__panel");
+    const scrollRegions = wrapper.findAll(".ipo-center-view__table-scroll");
+    expect(scrollRegions).toHaveLength(2);
+    expect(scrollRegions.map((region) => region.attributes("role"))).toEqual([
+      "region",
+      "region",
+    ]);
+    expect(
+      scrollRegions.map((region) => region.attributes("aria-label")),
+    ).toEqual(["待上市新股表格", "已上市新股表格"]);
     expect(panels[0]!.findAll("tbody tr")).toHaveLength(1);
     expect(panels[0]!.text()).toContain("NEW1");
     expect(panels[0]!.text()).toContain("12 ~ 14");

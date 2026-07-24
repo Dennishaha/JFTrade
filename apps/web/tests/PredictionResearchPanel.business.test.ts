@@ -88,6 +88,65 @@ afterEach(() => {
 });
 
 describe("prediction research and Parlay lifecycle", () => {
+  it("restores contract context from props and emits URL-facing updates", async () => {
+    predictionMocks.fetchFeature.mockResolvedValue(feature([]));
+    const wrapper = mount(PredictionResearchPanel, {
+      props: {
+        seriesCode: "SERIES.DEEP",
+        eventCode: "EVENT.DEEP",
+        contractCode: "EC.DEEP",
+        contractView: "snapshot",
+      },
+      global: {
+        stubs: {
+          ...productGlobalStubs,
+          PredictionContractDataView: {
+            props: ["path", "view"],
+            template: "<div class='contract-panel'>{{ path }} · {{ view }}</div>",
+          },
+        },
+      },
+    });
+    await flushPromises();
+    const state = setupState<{
+      stage: string;
+      seriesCode: string;
+      eventCode: string;
+      contractCode: string;
+      contractView: string;
+      contractPath: string;
+      backDiscover: () => void;
+    }>(wrapper);
+
+    expect(state.stage).toBe("contract");
+    expect(state.contractPath).toContain("/EC.DEEP/snapshot");
+    expect(wrapper.text()).toContain("SERIES.DEEP");
+    expect(wrapper.text()).toContain("EVENT.DEEP");
+    expect(predictionMocks.fetchFeature).not.toHaveBeenCalled();
+
+    await wrapper
+      .findAll('[aria-label="合约数据视图"] button')
+      .find((button) => button.text() === "里程碑")!
+      .trigger("click");
+    expect(wrapper.emitted("update:contractView")?.at(-1)).toEqual([
+      "milestones",
+    ]);
+
+    await wrapper.setProps({
+      contractCode: "EC.RESTORED",
+      contractView: "milestones",
+    });
+    await flushPromises();
+    expect(state.contractCode).toBe("EC.RESTORED");
+    expect(state.contractView).toBe("milestones");
+    expect(state.contractPath).toContain("/EC.RESTORED/milestones");
+
+    state.backDiscover();
+    await flushPromises();
+    expect(state.stage).toBe("contracts");
+    expect(wrapper.emitted("update:contractCode")?.at(-1)).toEqual([""]);
+  });
+
   it("walks discovery, leases only visible live views, RFQs, places, and cancels", async () => {
     vi.useFakeTimers();
     predictionMocks.fetchFeature.mockImplementation(async (path: string) => {
@@ -189,8 +248,8 @@ describe("prediction research and Parlay lifecycle", () => {
       global: {
         stubs: {
           ...productGlobalStubs,
-          ProductFeaturePanel: {
-            props: ["title", "description", "path"],
+          PredictionContractDataView: {
+            props: ["path", "view"],
             template: "<div class='contract-panel'>{{ path }}</div>",
           },
         },
@@ -255,10 +314,10 @@ describe("prediction research and Parlay lifecycle", () => {
     expect(state.contractCode).toBe("EC.HOME");
     expect(state.contractPath).toContain("/snapshot");
 
-    wrapper.findAllComponents({ name: "VBtnToggle" })[1]!.vm.$emit(
-      "update:modelValue",
-      "depth",
-    );
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((tab) => tab.text() === "YES/NO 盘口")!
+      .trigger("click");
     await flushPromises();
     expect(state.contractSubscriptionType).toBe("ORDER_BOOK");
     expect(state.activeSubscription?.dataType).toBe("ORDER_BOOK");
@@ -297,9 +356,9 @@ describe("prediction research and Parlay lifecycle", () => {
     state.toggleParlayContract("EC.A");
     state.toggleParlayContract("EC.B");
     expect(state.selectedLegCount).toBe(2);
-    wrapper
-      .findAllComponents({ name: "VCheckbox" })[0]!
-      .vm.$emit("update:modelValue", false);
+    await wrapper
+      .findAll('.prediction-research__leg input[type="checkbox"]')[0]!
+      .setValue(false);
     await nextTick();
     state.toggleParlayContract("EC.A");
     expect(state.parlaySide("EC.A")).toBe("YES");
@@ -329,10 +388,9 @@ describe("prediction research and Parlay lifecycle", () => {
     state.confirmed = true;
     state.amount = 25;
     await wrapper.get('input[type="number"]').setValue("25");
-    wrapper
-      .findAllComponents({ name: "VCheckbox" })
-      .at(-1)!
-      .vm.$emit("update:modelValue", true);
+    await wrapper
+      .get('.prediction-research__confirm input[type="checkbox"]')
+      .setValue(true);
     await nextTick();
     await state.previewParlay();
     await nextTick();
@@ -369,6 +427,7 @@ describe("prediction research and Parlay lifecycle", () => {
 
     state.mode = "discover";
     state.stage = "contract";
+    state.contractCode = "EC.HOME";
     state.contractView = "depth";
     await flushPromises();
     await wrapper
@@ -427,7 +486,7 @@ describe("prediction research and Parlay lifecycle", () => {
       global: {
         stubs: {
           ...productGlobalStubs,
-          ProductFeaturePanel: { template: "<div />" },
+          PredictionContractDataView: { template: "<div />" },
         },
       },
     });
@@ -538,7 +597,7 @@ describe("prediction research and Parlay lifecycle", () => {
       global: {
         stubs: {
           ...productGlobalStubs,
-          ProductFeaturePanel: { template: "<div />" },
+          PredictionContractDataView: { template: "<div />" },
         },
       },
     });

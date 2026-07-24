@@ -60,6 +60,8 @@ func RegisterRoutes(api *gin.RouterGroup, svc *service.Service) {
 	research.GET("/corporate-actions/:instrumentId", handleQuery(svc, queryRoute{feature: broker.FeatureResearchCorporateAction}))
 	research.GET("/short-interest/:instrumentId", handleQuery(svc, queryRoute{feature: broker.FeatureResearchShortInterest}))
 	research.GET("/screens", handleQuery(svc, queryRoute{feature: broker.FeatureResearchScreen}))
+	research.GET("/screens/catalog", handleResearchScreenCatalog())
+	research.POST("/screens", handleResearchScreenQuery(svc))
 	research.GET("/calendars", handleQuery(svc, queryRoute{feature: broker.FeatureResearchCalendar}))
 	research.GET("/macro", handleQuery(svc, queryRoute{feature: broker.FeatureResearchMacro}))
 	research.GET("/rankings", handleQuery(svc, queryRoute{feature: broker.FeatureResearchRankings}))
@@ -442,6 +444,14 @@ func marketFromInstrument(instrumentID string) string {
 
 func writeQueryError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, broker.ErrResearchScreenRateLimited):
+		retryAfter, ok := broker.ResearchScreenRetryAfter(err)
+		if !ok {
+			retryAfter = time.Second
+		}
+		seconds := max(int64((retryAfter+time.Second-1)/time.Second), 1)
+		c.Header("Retry-After", strconv.FormatInt(seconds, 10))
+		httpserver.WriteError(c, http.StatusTooManyRequests, "RESEARCH_SCREEN_RATE_LIMITED", err.Error())
 	case errors.Is(err, broker.ErrSnapshotRateLimited):
 		retryAfter, ok := broker.SnapshotRetryAfter(err)
 		if !ok {

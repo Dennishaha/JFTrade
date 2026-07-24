@@ -71,6 +71,20 @@
       },
       "type": "object"
     },
+    "broker.FactorRef": {
+      "properties": {
+        "factorKey": {
+          "type": "string"
+        },
+        "instanceId": {
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/broker.ResearchScreenFactorParams"
+        }
+      },
+      "type": "object"
+    },
     "broker.FeatureID": {
       "enum": [
         "market.search",
@@ -732,6 +746,250 @@
       },
       "type": "object"
     },
+    "broker.ResearchScreenFactorParams": {
+      "properties": {
+        "brokerParam": {
+          "type": "string"
+        },
+        "days": {
+          "type": "integer"
+        },
+        "duration": {
+          "type": "integer"
+        },
+        "firstCustomParam": {
+          "type": "integer"
+        },
+        "futureDuration": {
+          "type": "integer"
+        },
+        "indicatorParams": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "optionHvPeriod": {
+          "type": "integer"
+        },
+        "optionParamInteger": {
+          "type": "integer"
+        },
+        "optionParamIntegers": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "optionParamString": {
+          "type": "string"
+        },
+        "optionParamType": {
+          "type": "integer"
+        },
+        "period": {
+          "type": "integer"
+        },
+        "periodAverage": {
+          "type": "integer"
+        },
+        "rangePeriod": {
+          "type": "integer"
+        },
+        "term": {
+          "type": "integer"
+        },
+        "year": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "broker.ResearchScreenPagination": {
+      "properties": {
+        "limit": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "broker.ResearchScreenPlate": {
+      "properties": {
+        "parentPlateId": {
+          "type": "string"
+        },
+        "plateIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "broker.ResearchScreenPool": {
+      "properties": {
+        "plates": {
+          "items": {
+            "$ref": "#/definitions/broker.ResearchScreenPlate"
+          },
+          "type": "array"
+        },
+        "watchlistStockIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "broker.ScreenColumn": {
+      "properties": {
+        "columnId": {
+          "type": "string"
+        },
+        "factor": {
+          "$ref": "#/definitions/broker.FactorRef"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "broker.ScreenCondition": {
+      "properties": {
+        "factor": {
+          "$ref": "#/definitions/broker.FactorRef"
+        },
+        "id": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string"
+        },
+        "secondFactor": {
+          "$ref": "#/definitions/broker.FactorRef"
+        },
+        "value": {}
+      },
+      "type": "object"
+    },
+    "broker.ScreenDefinitionV2": {
+      "properties": {
+        "brokerId": {
+          "type": "string"
+        },
+        "catalogVersion": {
+          "type": "string"
+        },
+        "columns": {
+          "items": {
+            "$ref": "#/definitions/broker.ScreenColumn"
+          },
+          "type": "array"
+        },
+        "conditions": {
+          "items": {
+            "$ref": "#/definitions/broker.ScreenCondition"
+          },
+          "type": "array"
+        },
+        "market": {
+          "type": "string"
+        },
+        "pool": {
+          "$ref": "#/definitions/broker.ResearchScreenPool"
+        },
+        "querySchemaVersion": {
+          "type": "integer"
+        },
+        "sorts": {
+          "items": {
+            "$ref": "#/definitions/broker.ScreenSort"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "broker.ScreenQueryV2": {
+      "properties": {
+        "accountId": {
+          "type": "string"
+        },
+        "brokerId": {
+          "type": "string"
+        },
+        "catalogVersion": {
+          "type": "string"
+        },
+        "columns": {
+          "items": {
+            "$ref": "#/definitions/broker.ScreenColumn"
+          },
+          "type": "array"
+        },
+        "conditions": {
+          "items": {
+            "$ref": "#/definitions/broker.ScreenCondition"
+          },
+          "type": "array"
+        },
+        "market": {
+          "type": "string"
+        },
+        "page": {
+          "$ref": "#/definitions/broker.ResearchScreenPagination"
+        },
+        "pool": {
+          "$ref": "#/definitions/broker.ResearchScreenPool"
+        },
+        "querySchemaVersion": {
+          "type": "integer"
+        },
+        "sorts": {
+          "items": {
+            "$ref": "#/definitions/broker.ScreenSort"
+          },
+          "type": "array"
+        },
+        "tradingEnvironment": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "broker.ScreenSort": {
+      "properties": {
+        "columnId": {
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "asc",
+            "desc",
+            "abs_asc",
+            "abs_desc"
+          ],
+          "type": "string"
+        },
+        "factor": {
+          "$ref": "#/definitions/broker.FactorRef"
+        },
+        "sortId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "datamanagement.BackupRequest": {
       "properties": {
         "confirmation": {
@@ -1277,6 +1535,84 @@
         "expiryTimestamp",
         "market",
         "underlyingInstrumentId"
+      ],
+      "type": "object"
+    },
+    "research.CreateScreenPresetInput": {
+      "properties": {
+        "definition": {
+          "$ref": "#/definitions/broker.ScreenDefinitionV2"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "definition",
+        "name"
+      ],
+      "type": "object"
+    },
+    "research.ResearchScreenPreset": {
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "definition": {
+          "$ref": "#/definitions/broker.ScreenDefinitionV2"
+        },
+        "name": {
+          "type": "string"
+        },
+        "presetId": {
+          "type": "string"
+        },
+        "querySchemaVersion": {
+          "type": "integer"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "research.ResearchScreenPresetDeleteData": {
+      "properties": {
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "research.ResearchScreenPresetsData": {
+      "properties": {
+        "presets": {
+          "items": {
+            "$ref": "#/definitions/research.ResearchScreenPreset"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "research.UpdateScreenPresetInput": {
+      "properties": {
+        "definition": {
+          "$ref": "#/definitions/broker.ScreenDefinitionV2"
+        },
+        "expectedRevision": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "expectedRevision"
       ],
       "type": "object"
     },
@@ -10344,6 +10680,380 @@
           }
         },
         "summary": "查询公司、市场和宏观研究",
+        "tags": [
+          "research"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "股票筛选请求",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/broker.ScreenQueryV2"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "执行类型化股票筛选",
+        "tags": [
+          "research"
+        ]
+      }
+    },
+    "/api/v1/research/screens/catalog": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "query",
+            "name": "brokerId",
+            "type": "string"
+          },
+          {
+            "description": "市场",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取股票筛选因子目录",
+        "tags": [
+          "research"
+        ]
+      }
+    },
+    "/api/v1/research/screens/presets": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/research.ResearchScreenPresetsData"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "查询股票筛选预设",
+        "tags": [
+          "research"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "筛选预设",
+            "in": "body",
+            "name": "input",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/research.CreateScreenPresetInput"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/research.ResearchScreenPreset"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "创建股票筛选预设",
+        "tags": [
+          "research"
+        ]
+      }
+    },
+    "/api/v1/research/screens/presets/{presetId}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "预设 ID",
+            "in": "path",
+            "name": "presetId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/research.ResearchScreenPresetDeleteData"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "删除股票筛选预设",
+        "tags": [
+          "research"
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "description": "预设 ID",
+            "in": "path",
+            "name": "presetId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/research.ResearchScreenPreset"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "查询股票筛选预设详情",
+        "tags": [
+          "research"
+        ]
+      },
+      "patch": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "预设 ID",
+            "in": "path",
+            "name": "presetId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "筛选预设变更",
+            "in": "body",
+            "name": "input",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/research.UpdateScreenPresetInput"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/research.ResearchScreenPreset"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "修改股票筛选预设",
         "tags": [
           "research"
         ]

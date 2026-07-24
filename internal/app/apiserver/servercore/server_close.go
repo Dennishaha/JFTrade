@@ -53,6 +53,7 @@ func (s *Server) closeStrategyRuntimes() {
 
 func (s *Server) closePersistentStores(errs *[]error) {
 	s.appendCloseError(errs, "watchlist store close", s.closeWatchlistStore)
+	s.appendCloseError(errs, "research store close", s.closeResearchStore)
 	s.appendCloseError(errs, "backtestRuns close", s.closeBacktestRuns)
 	s.appendCloseError(errs, "executionOrders close", s.closeExecutionOrders)
 	s.appendCloseError(errs, "strategyStore close", s.closeStrategyStore)

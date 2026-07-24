@@ -10,7 +10,9 @@ import (
 	"github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	productsrv "github.com/jftrade/jftrade-main/internal/productfeatures"
+	"github.com/jftrade/jftrade-main/internal/research"
 	"github.com/jftrade/jftrade-main/internal/settings"
+	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
 	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/system"
@@ -34,6 +36,7 @@ type serverStores struct {
 	backtestSyncTasks    *backtestSyncTaskStore
 	executionOrders      *executionOrderStore
 	watchlistStore       *watchliststore.Store
+	researchStore        *researchstore.Store
 }
 
 // serverRuntimes groups the in-process runtimes and integrations owned by
@@ -71,5 +74,6 @@ type serverFacades struct {
 	marketdataSvc      *mdsrv.Service
 	productFeaturesSvc *productsrv.Service
 	watchlistSvc       *watchlist.Service
+	researchSvc        *research.Service
 	tradingSvc         *trdsrv.Service
 }

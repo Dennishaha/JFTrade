@@ -25,6 +25,13 @@ type ResourceDescriptor struct {
 func RuntimeResources(settingsPath string, backtestDBPath string) []ResourceDescriptor {
 	settingsPath = strings.TrimSpace(settingsPath)
 	backtestDBPath = strings.TrimSpace(backtestDBPath)
+	return append(
+		runtimeCriticalResources(settingsPath, backtestDBPath),
+		runtimeOptionalResources(settingsPath)...,
+	)
+}
+
+func runtimeCriticalResources(settingsPath string, backtestDBPath string) []ResourceDescriptor {
 	return []ResourceDescriptor{
 		{
 			ID: "settings-file", Owner: "settings", Kind: "json-file", Path: settingsPath,
@@ -67,10 +74,20 @@ func RuntimeResources(settingsPath string, backtestDBPath string) []ResourceDesc
 			HealthProvider: "data-migration/watchlist", EnvironmentOverride: "JFTRADE_WATCHLIST_DB", Critical: true,
 		},
 		{
+			ID: "research-db", Owner: "research", Kind: "sqlite", Path: DeriveResearchDBPath(settingsPath),
+			InitializedBy: "research module", SchemaOwner: "internal/store/research migrations", CloseOwner: "research module",
+			HealthProvider: "data-migration/research", EnvironmentOverride: "JFTRADE_RESEARCH_DB", Critical: true,
+		},
+		{
 			ID: "real-trade-control", Owner: "trading", Kind: "json-file", Path: deriveRealTradeControlPath(settingsPath),
 			InitializedBy: "trading risk module", SchemaOwner: "real-trade control plane", CloseOwner: "n/a",
 			HealthProvider: "system.real-trade-risk", EnvironmentOverride: "JFTRADE_REAL_TRADE_CONTROL_PATH", Critical: true,
 		},
+	}
+}
+
+func runtimeOptionalResources(settingsPath string) []ResourceDescriptor {
+	return []ResourceDescriptor{
 		{
 			ID: "adk-db", Owner: "assistant/runtime", Kind: "sqlite", Path: DeriveADKDBPath(settingsPath),
 			InitializedBy: "assistant runtime", SchemaOwner: "adk store", CloseOwner: "assistant runtime",

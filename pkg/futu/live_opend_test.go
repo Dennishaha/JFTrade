@@ -2,6 +2,7 @@ package futu
 
 import (
 	"context"
+	"maps"
 	"os"
 	"strings"
 	"testing"
@@ -122,6 +123,46 @@ func TestLiveOpenDProto108Contract(t *testing.T) {
 		t.Fatalf("QueryOrderBook returned no HK.00700 levels: %#v", book)
 	}
 	t.Logf("HK.00700 snapshotPrice=%v orderBookBids=%d asks=%d", snapshots[0].GetBasic().GetCurPrice(), len(book.BidList), len(book.AskList))
+}
+
+func TestLiveOpenDHKDualCounterCurrencyResolution(t *testing.T) {
+	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
+		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	exchange := NewExchange(DefaultOpenDAddr)
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
+	if err := exchange.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+
+	market := int32(qotcommonpb.QotMarket_QotMarket_HK_Security)
+	securities := make([]*qotcommonpb.Security, 0, 2)
+	for _, code := range []string{"00700", "80700"} {
+		securities = append(securities, &qotcommonpb.Security{
+			Market: &market,
+			Code:   &code,
+		})
+	}
+	staticInfo, err := exchange.Client().GetStaticInfo(ctx, securities)
+	if err != nil {
+		t.Fatalf("GetStaticInfo dual counters: %v", err)
+	}
+	resolved := make(map[string]string, len(staticInfo))
+	for _, info := range staticInfo {
+		if info == nil || info.GetBasic() == nil || info.GetBasic().GetSecurity() == nil {
+			continue
+		}
+		code := info.GetBasic().GetSecurity().GetCode()
+		name := info.GetBasic().GetName()
+		resolved[code] = researchScreenQuoteCurrency("HK", code, name)
+		t.Logf("HK.%s name=%q quoteCurrency=%s", code, name, resolved[code])
+	}
+	if resolved["00700"] != "HKD" || resolved["80700"] != "CNY" {
+		t.Fatalf("dual-counter quote currencies = %#v", resolved)
+	}
 }
 
 func TestLiveOpenDQuoteRightDiscoveryDoesNotSubscribe(t *testing.T) {
@@ -441,6 +482,83 @@ func TestLiveOpenDResearchCatalogReadsDoNotSubscribe(t *testing.T) {
 	}
 	t.Logf("plate=%s members=%d funds=%v usedQuota=%d remainQuota=%d",
 		plateID, len(members.Entries), fundCounts, after.GetTotalUsedQuota(), after.GetRemainQuota())
+}
+
+func TestLiveOpenDEarningsCalendarDayWeekMonthSortAndFilter(t *testing.T) {
+	if os.Getenv("JFTRADE_FUTU_LIVE_TEST") != "1" {
+		t.Skip("set JFTRADE_FUTU_LIVE_TEST=1 to run against local OpenD")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 45*time.Second)
+	defer cancel()
+	exchange := NewExchange(DefaultOpenDAddr)
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
+	if err := exchange.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	adapter := NewBrokerAdapter(exchange).(*futuAdapter)
+
+	today := time.Now()
+	dayKey := today.Format(time.DateOnly)
+	weekBegin := today.AddDate(0, 0, -int(today.Weekday()))
+	weekEnd := weekBegin.AddDate(0, 0, 6)
+	monthFirst := time.Date(today.Year(), today.Month(), 1, 12, 0, 0, 0, time.Local)
+	monthBegin := monthFirst.AddDate(0, 0, -int(monthFirst.Weekday()))
+	monthLast := time.Date(today.Year(), today.Month()+1, 0, 12, 0, 0, 0, time.Local)
+	monthEnd := monthLast.AddDate(0, 0, 6-int(monthLast.Weekday()))
+	if int(monthEnd.Sub(monthBegin).Hours()/24)+1 < 35 {
+		monthEnd = monthEnd.AddDate(0, 0, 7)
+	}
+
+	queries := []struct {
+		name       string
+		beginDate  string
+		endDate    string
+		params     map[string]any
+		wantChunks int
+	}{
+		{name: "day", beginDate: dayKey, endDate: dayKey, wantChunks: 1},
+		{
+			name: "week", beginDate: weekBegin.Format(time.DateOnly),
+			endDate: weekEnd.Format(time.DateOnly), wantChunks: 1,
+		},
+		{
+			name: "month", beginDate: monthBegin.Format(time.DateOnly),
+			endDate:    monthEnd.Format(time.DateOnly),
+			wantChunks: int(monthEnd.Sub(monthBegin).Hours()/24+1) / earningsCalendarChunkDays,
+		},
+		{
+			name: "sort_and_range_filter", beginDate: weekBegin.Format(time.DateOnly),
+			endDate: weekEnd.Format(time.DateOnly), wantChunks: 1,
+			params: map[string]any{"sort": "market_cap", "marketCapMin": 0},
+		},
+	}
+
+	totalEntries := 0
+	for _, test := range queries {
+		params := map[string]any{
+			"operation": "earnings",
+			"beginDate": test.beginDate,
+			"endDate":   test.endDate,
+		}
+		maps.Copy(params, test.params)
+		result, err := adapter.QueryMarketResearch(ctx, broker.FeatureQuery{
+			Market: "US", FeatureID: broker.FeatureResearchCalendar, Params: params,
+		})
+		if err != nil || result == nil {
+			t.Fatalf("%s earnings calendar = %#v, %v", test.name, result, err)
+		}
+		if result.Metadata["rangeChunks"] != test.wantChunks {
+			t.Fatalf("%s rangeChunks=%v want=%d metadata=%#v",
+				test.name, result.Metadata["rangeChunks"], test.wantChunks, result.Metadata)
+		}
+		totalEntries += len(result.Entries)
+		t.Logf("%s range=%s..%s chunks=%d entries=%d",
+			test.name, test.beginDate, test.endDate, test.wantChunks, len(result.Entries))
+	}
+	if totalEntries == 0 {
+		t.Fatal("live earnings calendar day/week/month/filter queries all returned no entries")
+	}
 }
 
 func TestLiveOpenDSZ000858DeclaredCandlePeriods(t *testing.T) {

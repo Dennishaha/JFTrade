@@ -13,6 +13,9 @@ func featureResultFromProtocolPayload(
 	payload map[string]any,
 ) *broker.FeatureResult {
 	normalized := normalizeOpenDMap(payload)
+	if protocol == "Qot_StockScreen" {
+		return stockScreenFeatureResult(query, normalized)
+	}
 	if protocol == "Qot_GetOptionZeroDteScreener" {
 		return optionZeroDteFeatureResult(query, normalized)
 	}

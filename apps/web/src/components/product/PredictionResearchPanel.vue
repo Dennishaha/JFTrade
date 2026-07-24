@@ -12,7 +12,7 @@ import {
 } from "../../composables/productFeatures";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { usePolling } from "../../composables/usePolling";
-import ProductFeaturePanel from "./ProductFeaturePanel.vue";
+import PredictionContractDataView from "../research/PredictionContractDataView.vue";
 
 type Entry = Record<string, unknown>;
 type DiscoverStage =
@@ -23,6 +23,12 @@ type DiscoverStage =
   | "contracts"
   | "contract";
 type Mode = "discover" | "parlay";
+type ContractView =
+  | "snapshot"
+  | "depth"
+  | "candles"
+  | "ticks"
+  | "milestones";
 
 interface ComboPreview {
   previewId: string;
@@ -43,28 +49,58 @@ interface PredictionSubscriptionLease {
   dataTypes: string[];
 }
 
+const props = withDefaults(
+  defineProps<{
+    presentation?: "workspace" | "research";
+    seriesCode?: string;
+    eventCode?: string;
+    contractCode?: string;
+    contractView?: ContractView;
+  }>(),
+  {
+    presentation: "workspace",
+    seriesCode: "",
+    eventCode: "",
+    contractCode: "",
+    contractView: "snapshot",
+  },
+);
+
 const emit = defineEmits<{
   openInstrument: [
     instrumentID: string,
     marketSegment: "prediction",
     productClass: "event_contract",
   ];
+  "update:seriesCode": [seriesCode: string];
+  "update:eventCode": [eventCode: string];
+  "update:contractCode": [contractCode: string];
+  "update:contractView": [contractView: ContractView];
 }>();
 const { selectedBrokerAccount, systemStatus } = useConsoleData();
 const { selectedBrokerId } = useBrokerProviderSelection();
 const mode = ref<Mode>("discover");
-const stage = ref<DiscoverStage>("categories");
+const initialSeriesCode = String(props.seriesCode ?? "").trim();
+const initialEventCode = String(props.eventCode ?? "").trim();
+const initialContractCode = String(props.contractCode ?? "").trim();
+const stage = ref<DiscoverStage>(
+  initialContractCode
+    ? "contract"
+    : initialEventCode
+      ? "contracts"
+      : initialSeriesCode
+        ? "events"
+        : "categories",
+);
 const loading = ref(false);
 const error = ref("");
 const result = ref<ProductFeatureResult | null>(null);
 const category = ref("");
 const tag = ref("");
-const seriesCode = ref("");
-const eventCode = ref("");
-const contractCode = ref("");
-const contractView = ref<
-  "snapshot" | "depth" | "candles" | "ticks" | "milestones"
->("snapshot");
+const seriesCode = ref(initialSeriesCode);
+const eventCode = ref(initialEventCode);
+const contractCode = ref(initialContractCode);
+const contractView = ref<ContractView>(props.contractView);
 
 const eligible = ref<ProductFeatureResult | null>(null);
 const selectedLegs = ref<Record<string, "YES" | "NO">>({});
@@ -153,6 +189,13 @@ function queryString(values: Record<string, string>): string {
   return params.toString();
 }
 
+function discoverStageFromContext(): DiscoverStage {
+  if (contractCode.value) return "contract";
+  if (eventCode.value) return "contracts";
+  if (seriesCode.value) return "events";
+  return "categories";
+}
+
 async function loadDiscover(
   nextStage: DiscoverStage = stage.value,
 ): Promise<void> {
@@ -194,16 +237,24 @@ function selectDiscoverEntry(entry: Entry): void {
       break;
     case "series":
       seriesCode.value = securityCode(entry.seriesSecurity);
+      eventCode.value = "";
+      contractCode.value = "";
+      contractView.value = "snapshot";
+      emit("update:seriesCode", seriesCode.value);
       void loadDiscover("events");
       break;
     case "events":
       eventCode.value = securityCode(entry.eventSecurity);
+      contractCode.value = "";
+      contractView.value = "snapshot";
+      emit("update:eventCode", eventCode.value);
       void loadDiscover("contracts");
       break;
     case "contracts":
       contractCode.value = securityCode(entry.contractSecurity);
       contractView.value = "snapshot";
       stage.value = "contract";
+      emit("update:contractCode", contractCode.value);
       break;
   }
 }
@@ -219,7 +270,41 @@ function backDiscover(): void {
   ];
   const index = order.indexOf(stage.value);
   if (index <= 0) return;
+  switch (stage.value) {
+    case "contract":
+      contractCode.value = "";
+      contractView.value = "snapshot";
+      emit("update:contractCode", "");
+      break;
+    case "contracts":
+      eventCode.value = "";
+      contractCode.value = "";
+      contractView.value = "snapshot";
+      emit("update:eventCode", "");
+      break;
+    case "events":
+      seriesCode.value = "";
+      eventCode.value = "";
+      contractCode.value = "";
+      contractView.value = "snapshot";
+      emit("update:seriesCode", "");
+      break;
+    case "series":
+      tag.value = "";
+      break;
+    case "competitions":
+      category.value = "";
+      break;
+    default:
+      break;
+  }
   void loadDiscover(order[index - 1]!);
+}
+
+function selectContractView(view: ContractView): void {
+  if (view === contractView.value) return;
+  contractView.value = view;
+  emit("update:contractView", view);
 }
 
 const contractPath = computed(() => {
@@ -370,6 +455,37 @@ watch(selectedBrokerId, () => {
   }
   if (stage.value !== "contract") void loadDiscover(stage.value);
 });
+
+watch(
+  () =>
+    [
+      props.seriesCode,
+      props.eventCode,
+      props.contractCode,
+      props.contractView,
+    ] as const,
+  ([nextSeries, nextEvent, nextContract, nextView]) => {
+    const normalizedSeries = String(nextSeries ?? "").trim();
+    const normalizedEvent = String(nextEvent ?? "").trim();
+    const normalizedContract = String(nextContract ?? "").trim();
+    const contextChanged =
+      normalizedSeries !== seriesCode.value ||
+      normalizedEvent !== eventCode.value ||
+      normalizedContract !== contractCode.value ||
+      nextView !== contractView.value;
+    if (!contextChanged) return;
+
+    seriesCode.value = normalizedSeries;
+    eventCode.value = normalizedEvent;
+    contractCode.value = normalizedContract;
+    contractView.value = nextView;
+    const nextStage = discoverStageFromContext();
+    stage.value = nextStage;
+    if (mode.value === "discover" && nextStage !== "contract") {
+      void loadDiscover(nextStage);
+    }
+  },
+);
 
 const parlayContracts = computed(() => {
   const entries: Array<{ code: string; eventName: string }> = [];
@@ -606,7 +722,11 @@ function switchMode(next: Mode): void {
 }
 
 onMounted(() => {
-  void loadDiscover("categories");
+  if (stage.value === "contract") {
+    void syncContractSubscription();
+  } else {
+    void loadDiscover(stage.value);
+  }
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", handleVisibilityChange);
   }
@@ -625,45 +745,65 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="prediction-research">
+  <section
+    :class="[
+      'prediction-research',
+      `prediction-research--${presentation}`,
+    ]"
+  >
     <header class="prediction-research__header">
-      <v-btn-toggle
-        :model-value="mode"
-        class="product-segmented-control"
-        mandatory
-        density="compact"
-        variant="outlined"
-      >
-        <v-btn value="discover" @click="switchMode('discover')"
-          >事件与合约</v-btn
+      <div class="prediction-research__segments" role="tablist" aria-label="预测市场研究模式">
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="mode === 'discover'"
+          :class="{ 'is-active': mode === 'discover' }"
+          @click="switchMode('discover')"
         >
-        <v-btn value="parlay" @click="switchMode('parlay')">Parlay 组合</v-btn>
-      </v-btn-toggle>
+          事件与合约
+        </button>
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="mode === 'parlay'"
+          :class="{ 'is-active': mode === 'parlay' }"
+          @click="switchMode('parlay')"
+        >
+          Parlay 组合
+        </button>
+      </div>
       <div class="prediction-research__eligibility">
         US · prediction · 运行时账户资格
       </div>
     </header>
-    <v-progress-linear v-if="loading || submitting" indeterminate />
-    <v-alert v-if="error" type="warning" variant="tonal" density="compact">
+
+    <div
+      v-if="loading || submitting"
+      class="prediction-research__progress"
+      role="progressbar"
+      aria-label="加载中"
+    />
+    <div v-if="error" class="prediction-research__notice is-warning" role="alert">
       {{ error }}
-    </v-alert>
+    </div>
 
     <template v-if="mode === 'discover'">
-      <nav class="prediction-research__breadcrumb">
-        <v-btn
-          size="x-small"
-          variant="text"
+      <nav class="prediction-research__breadcrumb" aria-label="预测市场层级">
+        <button
+          type="button"
+          class="prediction-research__button"
           :disabled="stage === 'categories'"
           @click="backDiscover"
         >
           返回
-        </v-btn>
+        </button>
         <strong>{{ stageLabels[stage] }}</strong>
         <span v-if="category">{{ category }}</span>
         <span v-if="tag">/ {{ tag }}</span>
         <span v-if="seriesCode">/ {{ seriesCode }}</span>
         <span v-if="eventCode">/ {{ eventCode }}</span>
       </nav>
+
       <div v-if="stage !== 'contract'" class="prediction-research__grid">
         <button
           v-for="(entry, index) in result?.entries ?? []"
@@ -674,51 +814,68 @@ onUnmounted(() => {
         >
           <strong>{{ itemTitle(entry, index) }}</strong>
           <span>{{ itemSubtitle(entry) }}</span>
-          <small v-if="Array.isArray(entry.tags)">{{
-            entry.tags.join(" · ")
-          }}</small>
+          <small v-if="Array.isArray(entry.tags)">
+            {{ entry.tags.join(" · ") }}
+          </small>
           <small v-if="Array.isArray(entry.competitionList)">
             {{ entry.competitionList.join(" · ") }}
           </small>
         </button>
       </div>
+
       <div v-else class="prediction-research__contract">
-        <v-btn-toggle
-          v-model="contractView"
-          class="product-segmented-control"
-          mandatory
-          density="compact"
+        <div
+          class="prediction-research__segments prediction-research__segments--contract"
+          role="tablist"
+          aria-label="合约数据视图"
         >
-          <v-btn value="snapshot">快照</v-btn>
-          <v-btn value="depth">YES/NO 盘口</v-btn>
-          <v-btn value="candles">K 线</v-btn>
-          <v-btn value="ticks">逐笔</v-btn>
-          <v-btn value="milestones">里程碑</v-btn>
-        </v-btn-toggle>
-        <ProductFeaturePanel
+          <button
+            v-for="item in [
+              ['snapshot', '快照'],
+              ['depth', 'YES/NO 盘口'],
+              ['candles', 'K 线'],
+              ['ticks', '逐笔'],
+              ['milestones', '里程碑'],
+            ] as const"
+            :key="item[0]"
+            type="button"
+            role="tab"
+            :aria-selected="contractView === item[0]"
+            :class="{ 'is-active': contractView === item[0] }"
+            @click="selectContractView(item[0])"
+          >
+            {{ item[1] }}
+          </button>
+        </div>
+
+        <PredictionContractDataView
           v-if="subscriptionReady"
           :key="contractPanelKey"
-          :title="contractCode"
-          description="关闭、待确认、确定、结算及取消状态由 OpenD 原样归一化展示"
           :path="contractPath"
+          :view="contractView"
         />
-        <v-progress-linear v-else indeterminate />
-        <v-btn
-          color="primary"
-          variant="outlined"
-          @click="
-            emit(
-              'openInstrument',
-              contractCode.toUpperCase().startsWith('US.')
-                ? contractCode
-                : `US.${contractCode}`,
-              'prediction',
-              'event_contract',
-            )
-          "
-        >
-          在交易工作区打开
-        </v-btn>
+        <div v-else class="prediction-research__subscription">
+          正在建立行情订阅…
+        </div>
+        <footer class="prediction-research__contract-footer">
+          <span>关闭、待确认、确定、结算及取消状态按 OpenD 原始语义展示</span>
+          <button
+            type="button"
+            class="prediction-research__button prediction-research__button--primary"
+            @click="
+              emit(
+                'openInstrument',
+                contractCode.toUpperCase().startsWith('US.')
+                  ? contractCode
+                  : `US.${contractCode}`,
+                'prediction',
+                'event_contract',
+              )
+            "
+          >
+            在交易工作区打开
+          </button>
+        </footer>
       </div>
     </template>
 
@@ -727,126 +884,132 @@ onUnmounted(() => {
         <section>
           <h3>1. 选择至少两个合格合约</h3>
           <div class="prediction-research__leg-list">
-            <div
+            <label
               v-for="contract in parlayContracts"
               :key="contract.code"
               class="prediction-research__leg"
             >
-              <v-checkbox
-                :model-value="selectedLegs[contract.code] != null"
-                density="compact"
-                hide-details
-                @update:model-value="toggleParlayContract(contract.code)"
+              <input
+                type="checkbox"
+                :checked="selectedLegs[contract.code] != null"
+                @change="toggleParlayContract(contract.code)"
               />
-              <div>
-                <strong>{{ contract.eventName }}</strong
-                ><small>{{ contract.code }}</small>
-              </div>
-              <v-btn-toggle
+              <span class="prediction-research__leg-label">
+                <strong>{{ contract.eventName }}</strong>
+                <small>{{ contract.code }}</small>
+              </span>
+              <span
                 v-if="selectedLegs[contract.code]"
-                :model-value="parlaySide(contract.code)"
-                class="product-segmented-control"
-                mandatory
-                density="compact"
+                class="prediction-research__segments"
               >
-                <v-btn value="YES" @click="setParlaySide(contract.code, 'YES')"
-                  >YES</v-btn
+                <button
+                  type="button"
+                  :class="{ 'is-active': parlaySide(contract.code) === 'YES' }"
+                  @click.prevent="setParlaySide(contract.code, 'YES')"
                 >
-                <v-btn value="NO" @click="setParlaySide(contract.code, 'NO')"
-                  >NO</v-btn
+                  YES
+                </button>
+                <button
+                  type="button"
+                  :class="{ 'is-active': parlaySide(contract.code) === 'NO' }"
+                  @click.prevent="setParlaySide(contract.code, 'NO')"
                 >
-              </v-btn-toggle>
-            </div>
+                  NO
+                </button>
+              </span>
+            </label>
           </div>
-          <v-btn
-            color="primary"
-            variant="outlined"
+          <button
+            type="button"
+            class="prediction-research__button prediction-research__button--primary"
             :disabled="selectedLegCount < 2 || !mvc"
             @click="requestRFQ"
           >
             获取 RFQ（{{ selectedLegCount }} 腿）
-          </v-btn>
+          </button>
         </section>
+
         <section>
           <h3>2. 报价与提交</h3>
           <div v-if="quote" class="prediction-research__quote">
             <div>
-              <span>Bid</span
-              ><strong>{{ quote.metadata?.bidPrice ?? "—" }}</strong>
+              <span>Bid</span>
+              <strong>{{ quote.metadata?.bidPrice ?? "—" }}</strong>
             </div>
             <div>
-              <span>Ask</span
-              ><strong>{{ quote.metadata?.askPrice ?? "—" }}</strong>
+              <span>Ask</span>
+              <strong>{{ quote.metadata?.askPrice ?? "—" }}</strong>
             </div>
             <div>
-              <span>Quote ID</span><strong>{{ quoteID }}</strong>
+              <span>Quote ID</span>
+              <strong>{{ quoteID }}</strong>
             </div>
             <div>
-              <span>有效期</span><strong>{{ quoteExpiresAt }}</strong>
+              <span>有效期</span>
+              <strong>{{ quoteExpiresAt }}</strong>
             </div>
           </div>
-          <v-alert
+          <div
             v-if="quote && quoteExpired"
-            type="warning"
-            density="compact"
+            class="prediction-research__notice is-warning"
           >
             RFQ 已失效，必须重新询价。
-          </v-alert>
-          <v-text-field
-            v-model.number="amount"
-            type="number"
-            min="1"
-            density="compact"
-            variant="outlined"
-            label="投入金额"
-          />
-          <v-checkbox
-            v-model="confirmed"
-            density="compact"
-            label="我确认腿、YES/NO 方向、投入金额和当前短时 RFQ"
-          />
+          </div>
+
+          <label class="prediction-research__field">
+            <span>投入金额</span>
+            <input v-model.number="amount" type="number" min="1" />
+          </label>
+          <label class="prediction-research__confirm">
+            <input v-model="confirmed" type="checkbox" />
+            <span>我确认腿、YES/NO 方向、投入金额和当前短时 RFQ</span>
+          </label>
+
           <div v-if="preview" class="prediction-research__preview">
             <strong>预检通过</strong>
             <span>有效至 {{ preview.expiresAt ?? "—" }}</span>
             <span>购买力影响 {{ preview.buyingPowerImpact ?? "—" }}</span>
-            <small v-for="warning in preview.warnings ?? []" :key="warning">{{ warning }}</small>
+            <small v-for="warning in preview.warnings ?? []" :key="warning">
+              {{ warning }}
+            </small>
           </div>
           <div class="prediction-research__actions">
-            <v-btn
-              color="primary"
-              :disabled="quoteExpired || !quoteID"
-              :loading="submitting"
+            <button
+              type="button"
+              class="prediction-research__button prediction-research__button--primary"
+              :disabled="submitting || quoteExpired || !quoteID"
               @click="previewParlay"
             >
               预检
-            </v-btn>
-            <v-btn
-              color="primary"
-              :disabled="!confirmed || quoteExpired || !preview?.previewId"
-              :loading="submitting"
+            </button>
+            <button
+              type="button"
+              class="prediction-research__button prediction-research__button--primary"
+              :disabled="
+                submitting || !confirmed || quoteExpired || !preview?.previewId
+              "
               @click="placeParlay"
             >
               提交 Parlay
-            </v-btn>
-            <v-btn
+            </button>
+            <button
               v-if="execution?.internalOrderId"
-              variant="outlined"
-              :loading="submitting"
+              type="button"
+              class="prediction-research__button"
+              :disabled="submitting"
               @click="cancelParlay"
             >
               撤单
-            </v-btn>
+            </button>
           </div>
-          <v-alert
+          <div
             v-if="execution"
-            type="success"
-            variant="tonal"
-            density="compact"
+            class="prediction-research__notice is-success"
           >
             {{ execution.orderStatus }} ·
             {{ execution.brokerOrderId ?? execution.internalOrderId }} ·
             {{ execution.message }}
-          </v-alert>
+          </div>
         </section>
       </div>
     </template>
@@ -862,120 +1025,311 @@ onUnmounted(() => {
   overflow: auto;
   background: var(--tv-bg-surface);
   color: var(--tv-text);
+  font-size: 12px;
 }
+
 .prediction-research__header,
 .prediction-research__breadcrumb {
   display: flex;
+  min-height: 36px;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 8px;
+  padding: 0 8px;
   border-bottom: 1px solid var(--tv-border);
 }
+
 .prediction-research__header {
   justify-content: space-between;
 }
+
 .prediction-research__eligibility,
-.prediction-research__breadcrumb span {
+.prediction-research__breadcrumb span,
+.prediction-research__contract-footer span {
   color: var(--tv-text-dim);
   font-size: 11px;
 }
+
+.prediction-research__segments {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 5px;
+  background: var(--tv-bg-surface-2);
+}
+
+.prediction-research__segments button {
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-right: 1px solid var(--tv-border);
+  background: transparent;
+  color: var(--tv-text-dim);
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.prediction-research__segments button:last-child {
+  border-right: 0;
+}
+
+.prediction-research__segments button.is-active {
+  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
+  color: var(--tv-accent);
+  font-weight: 600;
+}
+
+.prediction-research__progress {
+  position: relative;
+  height: 2px;
+  flex: 0 0 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--tv-accent) 18%, transparent);
+}
+
+.prediction-research__progress::after {
+  position: absolute;
+  width: 35%;
+  height: 100%;
+  animation: prediction-progress 1s linear infinite;
+  background: var(--tv-accent);
+  content: "";
+}
+
+@keyframes prediction-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(390%);
+  }
+}
+
+.prediction-research__notice {
+  margin: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--tv-border);
+  border-radius: 5px;
+  background: var(--tv-bg-surface-2);
+}
+
+.prediction-research__notice.is-warning {
+  border-color: color-mix(in srgb, var(--tv-warn, #f5a623) 45%, var(--tv-border));
+  color: var(--tv-warn, #f5a623);
+}
+
+.prediction-research__notice.is-success {
+  border-color: color-mix(
+    in srgb,
+    var(--tv-status-success-fg) 45%,
+    var(--tv-border)
+  );
+  color: var(--tv-status-success-fg);
+}
+
+.prediction-research__button {
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--tv-border);
+  border-radius: 4px;
+  background: var(--tv-bg-surface-2);
+  color: var(--tv-text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.prediction-research__button--primary {
+  border-color: color-mix(in srgb, var(--tv-accent) 55%, var(--tv-border));
+  color: var(--tv-accent);
+}
+
+.prediction-research__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .prediction-research__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 10px;
-  padding: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1px;
+  padding: 1px;
+  background: var(--tv-border);
 }
+
 .prediction-research__card {
   display: flex;
-  min-height: 92px;
+  min-height: 76px;
   flex-direction: column;
-  gap: 5px;
-  padding: 12px;
-  border: 1px solid var(--tv-border);
-  border-radius: 7px;
-  background: var(--tv-bg-surface-2);
+  gap: 4px;
+  padding: 9px;
+  border: 0;
+  background: var(--tv-bg-surface);
   color: var(--tv-text);
   text-align: left;
   cursor: pointer;
 }
+
 .prediction-research__card:hover {
-  border-color: var(--tv-accent);
+  background: var(--tv-bg-hover);
 }
+
 .prediction-research__card span,
 .prediction-research__card small,
 .prediction-research__leg small {
   color: var(--tv-text-dim);
 }
+
 .prediction-research__contract {
   display: flex;
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  padding: 10px;
+  gap: 8px;
+  padding: 8px;
 }
-.prediction-research__contract > :last-child {
-  min-height: 0;
+
+.prediction-research__segments--contract {
+  align-self: flex-start;
+}
+
+.prediction-research__subscription {
+  display: grid;
+  min-height: 120px;
   flex: 1;
+  place-items: center;
+  color: var(--tv-text-dim);
 }
+
+.prediction-research__contract-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .prediction-research__parlay {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
-  gap: 16px;
-  padding: 14px;
+  gap: 8px;
+  padding: 8px;
 }
+
 .prediction-research__parlay section {
-  padding: 14px;
+  padding: 10px;
   border: 1px solid var(--tv-border);
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--tv-bg-surface-2);
 }
+
 .prediction-research__parlay h3 {
-  margin: 0 0 12px;
-  font-size: 14px;
+  margin: 0 0 9px;
+  font-size: 12px;
 }
+
 .prediction-research__leg-list {
   max-height: 420px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   overflow: auto;
 }
+
 .prediction-research__leg {
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  min-height: 36px;
+  grid-template-columns: 20px 1fr auto;
   align-items: center;
-  gap: 8px;
-  padding: 7px 0;
+  gap: 7px;
   border-bottom: 1px solid var(--tv-border);
+  cursor: pointer;
 }
-.prediction-research__leg div {
+
+.prediction-research__leg-label {
   display: flex;
   min-width: 0;
   flex-direction: column;
 }
+
 .prediction-research__quote {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 1px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 1px solid var(--tv-border);
+  border-radius: 5px;
+  background: var(--tv-border);
 }
+
 .prediction-research__quote div {
   display: flex;
+  min-height: 52px;
   flex-direction: column;
-  padding: 8px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--tv-accent) 8%, transparent);
+  justify-content: center;
+  gap: 3px;
+  padding: 7px;
+  background: var(--tv-bg-surface);
 }
-.prediction-research__quote span {
+
+.prediction-research__quote span,
+.prediction-research__field > span {
   color: var(--tv-text-dim);
   font-size: 10px;
 }
+
+.prediction-research__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.prediction-research__field input {
+  height: 28px;
+  padding: 0 7px;
+  border: 1px solid var(--tv-border);
+  border-radius: 4px;
+  outline: 0;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text);
+  font: inherit;
+}
+
+.prediction-research__field input:focus {
+  border-color: var(--tv-accent);
+}
+
+.prediction-research__confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.prediction-research__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 8px 0;
+  padding: 7px;
+  border: 1px solid var(--tv-border);
+  border-radius: 5px;
+  background: var(--tv-bg-surface);
+}
+
 .prediction-research__actions {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
 }
+
 @media (max-width: 960px) {
   .prediction-research__parlay {
     grid-template-columns: 1fr;
+  }
+
+  .prediction-research__eligibility {
+    display: none;
   }
 }
 </style>

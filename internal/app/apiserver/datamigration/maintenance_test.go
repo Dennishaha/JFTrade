@@ -53,7 +53,7 @@ func TestOverviewSupportsSummaryOnlyAndSingleDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("summary overview: %v", err)
 	}
-	if len(summary.Databases) != 7 || summary.Totals.TotalBytes != 0 {
+	if len(summary.Databases) != 8 || summary.Totals.TotalBytes != 0 {
 		t.Fatalf("summary overview = %+v", summary)
 	}
 	for _, database := range summary.Databases {

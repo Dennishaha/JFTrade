@@ -96,10 +96,17 @@ describe("TopBar business coverage", () => {
     await wrapper
       .get('[data-testid="topbar-navigation-refresh"]')
       .trigger("click");
+    const refreshIcon = wrapper.get(
+      '[data-testid="topbar-navigation-refresh"] svg',
+    );
 
     expect(wrapper.emitted("navigate-back")).toHaveLength(1);
     expect(wrapper.emitted("navigate-forward")).toHaveLength(1);
     expect(wrapper.emitted("refresh-view")).toHaveLength(1);
+    expect(refreshIcon.classes()).toContain(
+      "app-navigation-controls__refresh-icon",
+    );
+    expect(refreshIcon.findAll("path")).toHaveLength(4);
     expect(wrapper.get(".app-navigation-controls").classes()).toContain(
       "app-navigation-controls--compact",
     );

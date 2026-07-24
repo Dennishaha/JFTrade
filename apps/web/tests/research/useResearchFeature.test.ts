@@ -224,6 +224,25 @@ describe("useResearchFeature", () => {
     });
   });
 
+  it("keeps separate calendar events for the same instrument on different dates", async () => {
+    mocks.fetch.mockResolvedValue(
+      featureResult([
+        { instrumentId: "US.AAPL", eventDate: "2026-07-23" },
+        { instrumentId: "US.AAPL", eventDate: "2026-07-24" },
+        { instrumentId: "US.AAPL", eventDate: "2026-07-24" },
+      ]),
+    );
+    const state = useResearchFeature(
+      ref("/api/research/calendars?market=US&operation=earnings"),
+    );
+    await flushPromises();
+
+    expect(state.entries.value).toEqual([
+      { instrumentId: "US.AAPL", eventDate: "2026-07-23" },
+      { instrumentId: "US.AAPL", eventDate: "2026-07-24" },
+    ]);
+  });
+
   it("keeps successful CN cursor pages when a sibling branch fails", async () => {
     mocks.fetch.mockImplementation((path: string) => {
       const params = new URLSearchParams(path.split("?")[1]);

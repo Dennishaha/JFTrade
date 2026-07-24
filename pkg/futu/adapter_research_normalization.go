@@ -2,6 +2,7 @@ package futu
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -410,9 +411,7 @@ func researchCalendarProjection(
 }
 
 func mergeResearchProjection(entry map[string]any, projection any) {
-	for key, value := range jsonSafeStructMap(projection) {
-		entry[key] = value
-	}
+	maps.Copy(entry, jsonSafeStructMap(projection))
 }
 
 func researchFloatPointer(value any) *float64 {

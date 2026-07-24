@@ -73,6 +73,10 @@ func injectAdvancedResearchDefaults(
 	query broker.FeatureQuery,
 ) error {
 	switch protocol {
+	case "Qot_StockScreen":
+		return translateResearchScreenParams(params, query)
+	case "Qot_GetEarningsCalendar":
+		return translateEarningsCalendarParams(params, query)
 	case "Qot_GetHeatMapData":
 		return translateHeatMapPlateType(params)
 	case "Qot_GetPlateSet":

@@ -104,7 +104,20 @@ export function researchQuoteTargetFromEntry(
   const basic = asRecord(entry.basic);
   const basicSecurity = asRecord(basic?.security);
   const security = asRecord(entry.security);
-  const records = [entry, plate, security, basicSecurity] as const;
+  const stock = asRecord(entry.stock);
+  const owner = asRecord(entry.owner ?? entry.ownerSecurity);
+  const option = asRecord(entry.option ?? entry.contractSecurity);
+  const milestone = asRecord(entry.milestoneSecurity);
+  const records = [
+    entry,
+    plate,
+    security,
+    stock,
+    option,
+    owner,
+    milestone,
+    basicSecurity,
+  ] as const;
   let instrumentId = firstString(records, [
     "instrumentId",
     "securityCode",

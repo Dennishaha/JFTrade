@@ -108,84 +108,118 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
         上市后行情补充失败：{{ listedSnapshots.error.value }}
       </div>
       <div class="ipo-center-view__panels">
-      <section class="ipo-center-view__panel">
-        <header class="ipo-center-view__head">
-          <span>待上市</span>
-          <button type="button" class="ipo-center-view__more" @click="emit('more', 'pending')">
-            更多 &gt;
-          </button>
-        </header>
-        <div v-if="pendingEntries.length === 0" class="ipo-center-view__status">暂无数据</div>
-        <table v-else class="ipo-center-view__table">
-          <thead>
-            <tr>
-              <th>代码</th>
-              <th>名称</th>
-              <th class="ipo-center-view__num">发行价</th>
-              <th class="ipo-center-view__num">预计发行量</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(entry, index) in pendingEntries"
-              :key="pickString(entry, ['instrumentId', 'name']) || index"
+        <section class="ipo-center-view__panel">
+          <header class="ipo-center-view__head">
+            <span>待上市</span>
+            <button
+              type="button"
+              class="ipo-center-view__more"
+              @click="emit('more', 'pending')"
             >
-              <td>{{ pickString(entry, ["symbol", "instrumentId"]) || "--" }}</td>
-              <td class="ipo-center-view__name">
-                {{ pickString(entry, ["name"]) || "--" }}
-              </td>
-              <td class="ipo-center-view__num tv-num">
-                {{ issuePriceLabel(entry) }}
-              </td>
-              <td class="ipo-center-view__num tv-num">{{ issueVolume(entry) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+              更多 &gt;
+            </button>
+          </header>
+          <div v-if="pendingEntries.length === 0" class="ipo-center-view__status">
+            暂无数据
+          </div>
+          <div
+            v-else
+            class="ipo-center-view__table-scroll"
+            role="region"
+            aria-label="待上市新股表格"
+            tabindex="0"
+          >
+            <table class="ipo-center-view__table">
+              <thead>
+                <tr>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th class="ipo-center-view__num">发行价</th>
+                  <th class="ipo-center-view__num">预计发行量</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(entry, index) in pendingEntries"
+                  :key="pickString(entry, ['instrumentId', 'name']) || index"
+                >
+                  <td>
+                    {{ pickString(entry, ["symbol", "instrumentId"]) || "--" }}
+                  </td>
+                  <td class="ipo-center-view__name">
+                    {{ pickString(entry, ["name"]) || "--" }}
+                  </td>
+                  <td class="ipo-center-view__num tv-num">
+                    {{ issuePriceLabel(entry) }}
+                  </td>
+                  <td class="ipo-center-view__num tv-num">
+                    {{ issueVolume(entry) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-      <section class="ipo-center-view__panel">
-        <header class="ipo-center-view__head">
-          <span>已上市</span>
-          <button type="button" class="ipo-center-view__more" @click="emit('more', 'listed')">
-            更多 &gt;
-          </button>
-        </header>
-        <div v-if="listedEntries.length === 0" class="ipo-center-view__status">暂无数据</div>
-        <table v-else class="ipo-center-view__table">
-          <thead>
-            <tr>
-              <th class="ipo-center-view__index">#</th>
-              <th>代码</th>
-              <th>名称</th>
-              <th class="ipo-center-view__num">最新价</th>
-              <th class="ipo-center-view__num">最新涨跌幅</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(entry, index) in listedEntries"
-              :key="pickString(entry, ['instrumentId', 'name']) || index"
-              :class="{ 'is-quoteable': listedIsQuoteable(entry) }"
-              @click="listedIsQuoteable(entry) && emit('select', entry)"
+        <section class="ipo-center-view__panel">
+          <header class="ipo-center-view__head">
+            <span>已上市</span>
+            <button
+              type="button"
+              class="ipo-center-view__more"
+              @click="emit('more', 'listed')"
             >
-              <td class="ipo-center-view__index">{{ index + 1 }}</td>
-              <td>{{ pickString(entry, ["symbol", "instrumentId"]) || "--" }}</td>
-              <td class="ipo-center-view__name">
-                {{ pickString(entry, ["name"]) || "--" }}
-              </td>
-              <td class="ipo-center-view__num tv-num">
-                {{ formatPrice(pickNumber(entry, ["price", "lastPrice"])) }}
-              </td>
-              <td
-                class="ipo-center-view__num tv-num"
-                :class="directionClass(pickNumber(entry, ['changeRate']))"
-              >
-                {{ formatSigned(pickNumber(entry, ["changeRate"]), "%") }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+              更多 &gt;
+            </button>
+          </header>
+          <div v-if="listedEntries.length === 0" class="ipo-center-view__status">
+            暂无数据
+          </div>
+          <div
+            v-else
+            class="ipo-center-view__table-scroll"
+            role="region"
+            aria-label="已上市新股表格"
+            tabindex="0"
+          >
+            <table class="ipo-center-view__table">
+              <thead>
+                <tr>
+                  <th class="ipo-center-view__index">#</th>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th class="ipo-center-view__num">最新价</th>
+                  <th class="ipo-center-view__num">最新涨跌幅</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(entry, index) in listedEntries"
+                  :key="pickString(entry, ['instrumentId', 'name']) || index"
+                  :class="{ 'is-quoteable': listedIsQuoteable(entry) }"
+                  @click="listedIsQuoteable(entry) && emit('select', entry)"
+                >
+                  <td class="ipo-center-view__index">{{ index + 1 }}</td>
+                  <td>
+                    {{ pickString(entry, ["symbol", "instrumentId"]) || "--" }}
+                  </td>
+                  <td class="ipo-center-view__name">
+                    {{ pickString(entry, ["name"]) || "--" }}
+                  </td>
+                  <td class="ipo-center-view__num tv-num">
+                    {{ formatPrice(pickNumber(entry, ["price", "lastPrice"])) }}
+                  </td>
+                  <td
+                    class="ipo-center-view__num tv-num"
+                    :class="directionClass(pickNumber(entry, ['changeRate']))"
+                  >
+                    {{ formatSigned(pickNumber(entry, ["changeRate"]), "%") }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
       <button
         v-if="feature.hasMore.value"
@@ -209,7 +243,8 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
 
 .ipo-center-view__panels {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 8px;
 }
 
@@ -263,8 +298,15 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
   color: var(--tv-warn);
 }
 
+.ipo-center-view__table-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
 .ipo-center-view__table {
   width: 100%;
+  min-width: 480px;
   border-collapse: collapse;
 }
 

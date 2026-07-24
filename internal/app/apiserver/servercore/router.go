@@ -14,6 +14,7 @@ import (
 	apimd "github.com/jftrade/jftrade-main/internal/api/marketdata"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	apiproducts "github.com/jftrade/jftrade-main/internal/api/productfeatures"
+	apiresearch "github.com/jftrade/jftrade-main/internal/api/research"
 	apiset "github.com/jftrade/jftrade-main/internal/api/settings"
 	apistrat "github.com/jftrade/jftrade-main/internal/api/strategy"
 	apiroutes "github.com/jftrade/jftrade-main/internal/api/system"
@@ -39,6 +40,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	s.registerAuthRoutes(api)
 	s.registerMarketRoutes(api)
 	s.registerProductFeatureRoutes(api)
+	s.registerResearchRoutes(api)
 	s.registerSettingsRoutes(api)
 	s.registerSystemRoutes(api)
 	s.registerADKRoutes(api)
@@ -73,6 +75,8 @@ func (s *Server) databaseAvailabilityMiddleware() gin.HandlerFunc {
 			required = []string{"adk", "adk-session"}
 		case strings.HasPrefix(path, "/api/v1/watchlist"):
 			required = []string{"watchlist"}
+		case strings.HasPrefix(path, "/api/v1/research/screens/presets"):
+			required = []string{"research"}
 		}
 		for _, id := range required {
 			if err := s.unavailableDatabases[id]; err != nil {
@@ -82,6 +86,10 @@ func (s *Server) databaseAvailabilityMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func (s *Server) registerResearchRoutes(api *gin.RouterGroup) {
+	apiresearch.RegisterRoutes(api, s.researchSvc)
 }
 
 func (s *Server) registerWatchlistRoutes(api *gin.RouterGroup) {

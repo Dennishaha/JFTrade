@@ -14,8 +14,27 @@ import { flushPromises, productGlobalStubs } from "../productTestUtils";
 const viewStub = (name: string) =>
   defineComponent({
     name,
-    props: { market: String, brokerId: String, operation: String },
-    emits: ["select", "more"],
+    props: {
+      market: String,
+      brokerId: String,
+      operation: String,
+      instrumentId: String,
+      institutionId: String,
+      seriesCode: String,
+      eventCode: String,
+      contractCode: String,
+      contractView: String,
+    },
+    emits: [
+      "select",
+      "open",
+      "more",
+      "update:institutionId",
+      "update:seriesCode",
+      "update:eventCode",
+      "update:contractCode",
+      "update:contractView",
+    ],
     template: `
       <div
         class="view-stub"
@@ -23,6 +42,11 @@ const viewStub = (name: string) =>
         :data-market="market"
         :data-broker-id="brokerId"
         :data-operation="operation"
+        :data-institution-id="institutionId"
+        :data-series-code="seriesCode"
+        :data-event-code="eventCode"
+        :data-contract-code="contractCode"
+        :data-contract-view="contractView"
       >
         <button
           class="emit-select"
@@ -36,6 +60,12 @@ const viewStub = (name: string) =>
           })"
         >select</button>
         <button class="emit-more" @click="$emit('more', 'hot')">more</button>
+        <button class="emit-institution" @click="$emit('update:institutionId', '202')">institution</button>
+        <button class="clear-institution" @click="$emit('update:institutionId', '')">clear institution</button>
+        <button class="emit-series" @click="$emit('update:seriesCode', 'SERIES.2')">series</button>
+        <button class="emit-event" @click="$emit('update:eventCode', 'EVENT.2')">event</button>
+        <button class="emit-contract" @click="$emit('update:contractCode', 'EC.2')">contract</button>
+        <button class="emit-contract-view" @click="$emit('update:contractView', 'depth')">contract view</button>
       </div>
     `,
   });
@@ -109,11 +139,18 @@ const researchStubs = {
   EarningsCalendarView: viewStub("EarningsCalendarView"),
   EconCalendarView: viewStub("EconCalendarView"),
   IpoCenterView: viewStub("IpoCenterView"),
+  DividendCalendarView: viewStub("DividendCalendarView"),
   InstitutionGridView: viewStub("InstitutionGridView"),
+  StockScreenerView: viewStub("StockScreenerView"),
+  MacroResearchView: viewStub("MacroResearchView"),
+  ArkResearchView: viewStub("ArkResearchView"),
+  IndustryChainView: viewStub("IndustryChainView"),
+  InstrumentResearchView: viewStub("InstrumentResearchView"),
+  DerivativeScreenView: viewStub("DerivativeScreenView"),
   QuoteDetailRail: quoteDetailRailStub,
   ProductFeaturePanel: featurePanelStub,
   OptionResearchPanel: defineComponent({ template: `<div class="option-stub" />` }),
-  PredictionResearchPanel: defineComponent({ template: `<div class="prediction-stub" />` }),
+  PredictionResearchPanel: viewStub("PredictionResearchPanel"),
 };
 
 async function mountResearchPage(initialQuery = "section=market") {
@@ -158,7 +195,7 @@ describe("ResearchPage information architecture and quote rail", () => {
       page.get(".research-page__market-views").findAll("button").map((item) => item.text()),
     ).toEqual(["总览", "榜单", "板块"]);
     expect(
-      page.get(".research-page__navigation").findAll("button").map((item) => item.text()),
+      page.get(".research-page__tabs").findAll("button").map((item) => item.text()),
     ).toEqual([
       "市场", "筛选器", "衍生品", "日历", "宏观", "机构", "产业链", "个股研究", "预测市场",
     ]);
@@ -176,8 +213,19 @@ describe("ResearchPage information architecture and quote rail", () => {
     expect(panes).toHaveLength(2);
     expect(center.element.parentElement).toBe(panes[0]!.element);
     expect(rail.element.parentElement).toBe(panes[1]!.element);
-    expect(center.find(".product-panel-toolbar").exists()).toBe(true);
-    expect(center.find(".research-page__navigation").exists()).toBe(true);
+    expect(center.find(".product-panel-toolbar").exists()).toBe(false);
+    const navigation = center.get(".research-page__navigation");
+    const navigationActions = navigation.get(
+      ".research-page__navigation-actions",
+    );
+    expect(navigation.find(".broker-provider-tag-stub").exists()).toBe(true);
+    expect(navigationActions.element.children).toHaveLength(2);
+    expect(navigationActions.element.children[0]?.classList).toContain(
+      "broker-provider-tag-stub",
+    );
+    expect(navigationActions.element.children[1]?.classList).toContain(
+      "research-page__rail-toggle",
+    );
     expect(center.find(".research-page__market-nav").exists()).toBe(true);
     expect(center.find(".research-page__body").exists()).toBe(true);
     expect(
@@ -210,7 +258,9 @@ describe("ResearchPage information architecture and quote rail", () => {
       expect(router.currentRoute.value.query.section).toBe("calendar");
       expect(router.currentRoute.value.query.operation).toBe("earnings");
     });
-    expect(page.get(".research-page__context strong").text()).toBe("日历");
+    expect(
+      page.get(".research-page__section-operations .is-active").text(),
+    ).toBe("财报日历");
     expect(page.get(".view-stub").attributes("data-view")).toBe(
       "EarningsCalendarView",
     );
@@ -318,25 +368,30 @@ describe("ResearchPage information architecture and quote rail", () => {
       .find((button) => button.text() === "榜单")!
       .trigger("click");
     await nextTick();
-    expect(page.get(".rail-stub").attributes("data-target-id")).toBe("");
+    expect(page.find(".rail-stub").exists()).toBe(false);
+    expect(page.get(".research-page__rail-toggle").attributes("title")).toBe(
+      "展开行情详情",
+    );
   });
 
-  it("opens quoteable ProductFeaturePanel securities in the shared rail", async () => {
+  it("opens quoteable stock-screen results in the shared rail", async () => {
     const { page, router } = await mountResearchPage("section=screens&operation=stock_v2");
     expect(page.find(".rail-stub").exists()).toBe(true);
-    await page.get(".feature-open").trigger("click");
+    expect(page.get(".view-stub").attributes("data-view")).toBe(
+      "StockScreenerView",
+    );
+    await page.get(".emit-select").trigger("click");
     await nextTick();
-    expect(page.get(".rail-stub").attributes("data-target-id")).toBe("US.MSFT");
-    expect(page.get(".rail-stub").attributes("data-entry-name")).toBe("Microsoft");
+    expect(page.get(".rail-stub").attributes("data-target-id")).toBe("US.AAPL");
+    expect(page.get(".rail-stub").attributes("data-entry-name")).toBe("测试证券");
     expect(router.currentRoute.value.path).toBe("/research");
   });
 
   it("keeps news inside the individual-instrument research domain", async () => {
     const { page } = await mountResearchPage("section=instrument&operation=news");
-    const path = page.get(".feature-panel-stub").attributes("data-path");
-    expect(path).toContain("/api/v1/market-data/news?");
-    expect(path).toContain("operation=search");
-    expect(path).toContain("code=");
+    const view = page.get(".view-stub");
+    expect(view.attributes("data-view")).toBe("InstrumentResearchView");
+    expect(view.attributes("data-operation")).toBe("news");
     expect(page.get(".broker-provider-tag-stub").attributes("data-feature-id")).toBe(
       "research.news",
     );
@@ -357,6 +412,140 @@ describe("ResearchPage information architecture and quote rail", () => {
     expect(view.attributes("data-view")).toBe("InstitutionGridView");
     expect(view.attributes("data-operation")).toBe("holding_changes");
     expect(page.find(".feature-panel-stub").exists()).toBe(false);
+  });
+
+  it("drives institution details from the URL and restores them through history", async () => {
+    const { page, router } = await mountResearchPage(
+      "section=institutions&operation=list&mkt=US&institutionId=101",
+    );
+    expect(page.get(".view-stub").attributes("data-institution-id")).toBe("101");
+
+    await page.get(".emit-institution").trigger("click");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.institutionId).toBe("202");
+    });
+
+    await router.push({
+      query: {
+        ...router.currentRoute.value.query,
+        institutionId: "303",
+      },
+    });
+    expect(page.get(".view-stub").attributes("data-institution-id")).toBe("303");
+    router.back();
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.institutionId).toBe("202");
+      expect(page.get(".view-stub").attributes("data-institution-id")).toBe(
+        "202",
+      );
+    });
+
+    await page.get(".clear-institution").trigger("click");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.institutionId).toBeUndefined();
+    });
+  });
+
+  it("drives prediction contract and view state from the URL", async () => {
+    const { page, router } = await mountResearchPage(
+      "section=prediction&operation=categories&seriesCode=SERIES.1&eventCode=EVENT.1&contractCode=EC.1&contractView=ticks",
+    );
+    const view = page.get(".view-stub");
+    expect(view.attributes("data-view")).toBe("PredictionResearchPanel");
+    expect(view.attributes("data-series-code")).toBe("SERIES.1");
+    expect(view.attributes("data-event-code")).toBe("EVENT.1");
+    expect(view.attributes("data-contract-code")).toBe("EC.1");
+    expect(view.attributes("data-contract-view")).toBe("ticks");
+
+    await page.get(".emit-contract-view").trigger("click");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.contractView).toBe("depth");
+    });
+    await page.get(".emit-contract").trigger("click");
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.contractCode).toBe("EC.2");
+      expect(router.currentRoute.value.query.contractView).toBe("snapshot");
+    });
+
+    await router.push({
+      query: {
+        ...router.currentRoute.value.query,
+        contractCode: "EC.3",
+        contractView: "milestones",
+      },
+    });
+    expect(page.get(".view-stub").attributes("data-contract-code")).toBe("EC.3");
+    router.back();
+    await vi.waitFor(() => {
+      expect(page.get(".view-stub").attributes("data-contract-code")).toBe(
+        "EC.2",
+      );
+      expect(page.get(".view-stub").attributes("data-contract-view")).toBe(
+        "snapshot",
+      );
+    });
+  });
+
+  it("cleans incompatible deep-link context on section and operation changes", async () => {
+    const prediction = await mountResearchPage(
+      "section=prediction&operation=categories&instrumentId=US.AAPL&institutionId=101&seriesCode=SERIES.1&eventCode=EVENT.1&contractCode=EC.1&contractView=depth",
+    );
+    prediction.page
+      .getComponent({ name: "VTabs" })
+      .vm.$emit("update:modelValue", "calendar");
+    await vi.waitFor(() => {
+      expect(prediction.router.currentRoute.value.query.section).toBe(
+        "calendar",
+      );
+    });
+    expect(prediction.router.currentRoute.value.query).not.toHaveProperty(
+      "instrumentId",
+    );
+    expect(prediction.router.currentRoute.value.query).not.toHaveProperty(
+      "institutionId",
+    );
+    expect(prediction.router.currentRoute.value.query).not.toHaveProperty(
+      "seriesCode",
+    );
+    expect(prediction.router.currentRoute.value.query).not.toHaveProperty(
+      "eventCode",
+    );
+    expect(prediction.router.currentRoute.value.query).not.toHaveProperty(
+      "contractCode",
+    );
+    expect(prediction.router.currentRoute.value.query).not.toHaveProperty(
+      "contractView",
+    );
+
+    const institution = await mountResearchPage(
+      "section=institutions&operation=list&mkt=US&institutionId=101",
+    );
+    await institution.page
+      .get(".research-page__section-operations")
+      .findAll("button")
+      .find((button) => button.text() === "持仓变化")!
+      .trigger("click");
+    await vi.waitFor(() => {
+      expect(institution.router.currentRoute.value.query.operation).toBe(
+        "holding_changes",
+      );
+      expect(institution.router.currentRoute.value.query.institutionId).toBe(
+        "101",
+      );
+    });
+    await institution.page
+      .get(".research-page__section-operations")
+      .findAll("button")
+      .find((button) => button.text() === "ARK 持仓")!
+      .trigger("click");
+    await vi.waitFor(() => {
+      expect(institution.router.currentRoute.value.query.operation).toBe(
+        "ark_fund_holdings",
+      );
+      expect(
+        institution.router.currentRoute.value.query.institutionId,
+      ).toBeUndefined();
+    });
   });
 
   it("normalizes unavailable institution and calendar market combinations", async () => {
@@ -383,14 +572,40 @@ describe("ResearchPage information architecture and quote rail", () => {
   it("collapses and restores the shared rail", async () => {
     const { page } = await mountResearchPage("section=macro");
     expect(page.find(".splitpanes__splitter").exists()).toBe(true);
-    await page.get(".research-page__rail-toggle").trigger("click");
+    expect(page.findAll(".research-page__rail-toggle")).toHaveLength(1);
+    let railToggle = page.get(".research-page__rail-toggle");
+    expect(railToggle.text()).toBe("");
+    expect(
+      railToggle.get(".research-page__rail-toggle-icon").attributes(
+        "data-direction",
+      ),
+    ).toBe("right");
+    expect(railToggle.attributes("title")).toBe("收起行情详情");
+    expect(railToggle.attributes("aria-label")).toBe("收起行情详情");
+    await railToggle.trigger("click");
     expect(page.find(".research-page__market-rail").exists()).toBe(false);
     expect(page.find(".rail-stub").exists()).toBe(false);
     expect(page.find(".splitpanes__splitter").exists()).toBe(false);
-    await page.get(".research-page__rail-toggle").trigger("click");
+    expect(page.findAll(".research-page__rail-toggle")).toHaveLength(1);
+    railToggle = page.get(".research-page__rail-toggle");
+    expect(railToggle.text()).toBe("");
+    expect(
+      railToggle.get(".research-page__rail-toggle-icon").attributes(
+        "data-direction",
+      ),
+    ).toBe("left");
+    expect(railToggle.attributes("title")).toBe("展开行情详情");
+    expect(railToggle.attributes("aria-label")).toBe("展开行情详情");
+    await railToggle.trigger("click");
     expect(page.find(".research-page__market-rail").exists()).toBe(true);
     expect(page.find(".rail-stub").exists()).toBe(true);
     expect(page.find(".splitpanes__splitter").exists()).toBe(true);
+    expect(page.findAll(".research-page__rail-toggle")).toHaveLength(1);
+    expect(
+      page
+        .get(".research-page__rail-toggle-icon")
+        .attributes("data-direction"),
+    ).toBe("right");
   });
 
   it("restores the persisted rail collapsed state on a later research mount", async () => {
@@ -405,6 +620,11 @@ describe("ResearchPage information architecture and quote rail", () => {
 
     const second = await mountResearchPage("section=market");
     expect(second.page.find(".research-page__market-rail").exists()).toBe(false);
+    expect(
+      second.page
+        .get(".research-page__rail-toggle-icon")
+        .attributes("data-direction"),
+    ).toBe("left");
     second.wrapper.unmount();
   });
 
@@ -418,7 +638,6 @@ describe("ResearchPage information architecture and quote rail", () => {
       selectOperation: (value: unknown) => void;
       selectMarket: (value: unknown) => void;
       handleMarketPaneResized: (payload: unknown) => void;
-      replacePathMarket: (path: string, market: string) => string;
       handleMarketMore: (operation: string) => void;
       rankingInitialOperation: string;
       selectQuotePeriod: (value: unknown) => void;
@@ -429,12 +648,10 @@ describe("ResearchPage information architecture and quote rail", () => {
         productClass?: string,
       ) => void;
       openQuoteTargetInWorkspace: (target: Record<string, unknown>) => void;
-      inferredFeatureProductClass: (
-        entry?: Record<string, unknown>,
-      ) => string;
-      openFeatureInstrument: (
-        instrumentId: string,
-        entry?: Record<string, unknown>,
+      selectResearchEntry: (entry: unknown) => void;
+      openResearchEntry: (
+        entry: unknown,
+        productClassHint?: "option" | "equity" | "unknown",
       ) => void;
       openOptionResearchInstrument: (
         instrumentId: string,
@@ -448,10 +665,6 @@ describe("ResearchPage information architecture and quote rail", () => {
     state.handleMarketPaneResized({});
     state.handleMarketPaneResized({ panes: [{ size: 0 }, { size: 100 }] });
     state.handleMarketPaneResized({ panes: [{ size: 70 }, { size: 30 }] });
-    expect(state.replacePathMarket("/api/plain", "HK")).toBe("/api/plain");
-    expect(state.replacePathMarket("/api/data?market=US", "HK")).toBe(
-      "/api/data?market=HK",
-    );
 
     state.handleMarketMore("top_movers");
     await flushPromises();
@@ -466,16 +679,23 @@ describe("ResearchPage information architecture and quote rail", () => {
       productClass: "plate",
     });
     expect(router.currentRoute.value.path).toBe("/research");
-    expect(state.inferredFeatureProductClass({ securityType: " Fund " })).toBe(
-      "fund",
-    );
-    expect(state.inferredFeatureProductClass({ type: "ETF" })).toBe("etf");
-    expect(state.inferredFeatureProductClass()).toBe("unknown");
+    state.selectResearchEntry(null);
+    state.selectResearchEntry({
+      instrumentId: "US.MSFT",
+      market: "US",
+      symbol: "MSFT",
+      productClass: "equity",
+    });
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.query.quote).toBe("US.MSFT");
+    });
+    expect(page.get(".rail-stub").attributes("data-target-id")).toBe("US.MSFT");
 
     const pushSpy = vi.spyOn(router, "push");
-    state.openFeatureInstrument("US.OPT", {
-      productClass: "option",
-    });
+    state.openResearchEntry(
+      { instrumentId: "US.OPT", productClass: "option" },
+      "option",
+    );
     expect(pushSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         path: "/workspace",
@@ -484,9 +704,7 @@ describe("ResearchPage information architecture and quote rail", () => {
     );
 
     await router.push("/research?section=market&mkt=US");
-    state.openFeatureInstrument("US.UNKNOWN", {
-      productClass: "future",
-    });
+    state.openResearchEntry({});
     await nextTick();
     expect(router.currentRoute.value.path).toBe("/research");
 
@@ -522,14 +740,13 @@ describe("ResearchPage information architecture and quote rail", () => {
     expect(page.find(".rail-stub").exists()).toBe(false);
   });
 
-  it("adds the current date to dividend calendar requests", async () => {
+  it("routes dividend research to the dedicated calendar view", async () => {
     const { page } = await mountResearchPage(
       "section=calendar&operation=dividends&mkt=HK",
     );
-    const path = page.get(".feature-panel-stub").attributes("data-path");
-    expect(path).toMatch(
-      /operation=dividends.*(?:&|%26)date=\d{4}-\d{2}-\d{2}/,
-    );
+    const view = page.get(".view-stub");
+    expect(view.attributes("data-view")).toBe("DividendCalendarView");
+    expect(view.attributes("data-market")).toBe("HK");
   });
 
   it("adapts the quote rail to narrow widths and cleans up observers", async () => {
@@ -570,6 +787,17 @@ describe("ResearchPage information architecture and quote rail", () => {
     const mounted = await mountResearchPage("section=market");
     await flushPromises();
     expect(mounted.page.find(".rail-stub").exists()).toBe(false);
+    expect(
+      mounted.page
+        .get(".research-page__navigation-actions")
+        .find(".broker-provider-tag-stub")
+        .exists(),
+    ).toBe(true);
+    expect(
+      mounted.page
+        .get(".research-page__rail-toggle-icon")
+        .attributes("data-direction"),
+    ).toBe("left");
 
     await mounted.page.get(".emit-select").trigger("click");
     await flushPromises();
@@ -579,6 +807,11 @@ describe("ResearchPage information architecture and quote rail", () => {
     expect(mounted.page.find(".research-page__rail-backdrop").exists()).toBe(
       true,
     );
+    expect(
+      mounted.page
+        .get(".research-page__rail-toggle-icon")
+        .attributes("data-direction"),
+    ).toBe("right");
     await mounted.page.get(".research-page__rail-backdrop").trigger("click");
     expect(mounted.page.find(".rail-stub").exists()).toBe(false);
 
