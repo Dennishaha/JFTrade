@@ -132,7 +132,9 @@ func seedRealPineTSBacktestSmokeKLines(t *testing.T, dbPath string) []types.KLin
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore: %v", err)
 	}
-	baseStart := time.Date(2026, time.June, 29, 9, 30, 0, 0, time.UTC)
+	// June is in US daylight-saving time, so 13:30 UTC is the 09:30 ET
+	// regular-session open expected by the default replay contract.
+	baseStart := time.Date(2026, time.June, 29, 13, 30, 0, 0, time.UTC)
 	klines := buildBenchmarkKLines(baseStart, 64)
 	if err := store.InsertKLines(klines, "forward"); err != nil {
 		jftradeCheckTestError(t, store.Close())

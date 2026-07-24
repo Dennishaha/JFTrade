@@ -14,7 +14,6 @@ vi.mock("../../src/composables/productFeatures", async (importOriginal) => {
 });
 
 import EconCalendarView from "../../src/components/research/EconCalendarView.vue";
-import { dayKeyOf } from "../../src/components/research/researchEntry";
 import { flushPromises } from "../productTestUtils";
 
 function featureResult(entries: Record<string, unknown>[]) {
@@ -33,9 +32,23 @@ function featureResult(entries: Record<string, unknown>[]) {
 }
 
 function dayKeyOffset(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return dayKeyOf(date);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  const date = new Date(
+    `${value("year")}-${value("month")}-${value("day")}T00:00:00Z`,
+  );
+  date.setUTCDate(date.getUTCDate() + days);
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 const entries = [
