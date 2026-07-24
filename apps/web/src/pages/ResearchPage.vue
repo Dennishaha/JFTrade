@@ -26,7 +26,6 @@ import {
   type QuoteWorkbenchTab,
 } from "../components/domain/market-data/quoteWorkbench";
 import {
-  LEGACY_MARKET_VIEW_REDIRECTS,
   MARKET_CODE_OPTIONS,
   MARKET_VIEWS,
   RESEARCH_SECTIONS,
@@ -328,24 +327,35 @@ watch(marketRailCollapsed, () => {
   }
 });
 
-function redirectLegacyRoute(): boolean {
-  const requestedSection = String(route.query.section ?? "");
-  if (requestedSection === "options") {
-    void router.replace({
-      query: queryWith({ section: "derivatives", ...emptyQuoteQuery }),
-    });
-    return true;
-  }
-  if (requestedSection !== "market") return false;
-  const legacy = LEGACY_MARKET_VIEW_REDIRECTS[String(route.query.view ?? "")];
-  if (legacy == null) return false;
+function normalizeInvalidResearchRoute(): boolean {
+  const requestedSection = firstQueryValue(route.query.section);
+  const requestedView = firstQueryValue(route.query.view);
+  const invalidSection =
+    requestedSection !== "" &&
+    !sections.some((section) => section.value === requestedSection);
+  const invalidView =
+    requestedView !== "" &&
+    !MARKET_VIEWS.some((view) => view.value === requestedView);
+  if (!invalidSection && !invalidView) return false;
+
+  const requestedMarket = firstQueryValue(route.query.mkt);
+  const market = MARKET_CODE_OPTIONS.some(
+    (option) => option.value === requestedMarket,
+  )
+    ? requestedMarket
+    : undefined;
+  activeSection.value = "market";
+  activeOperation.value = "top_movers";
+  activeMarketView.value = "home";
+  activeMarketCode.value = market ?? "US";
+  clearQuoteSelection();
   void router.replace({
-    query: queryWith({
-      section: legacy.section,
-      operation: legacy.operation,
-      view: undefined,
-      ...emptyQuoteQuery,
-    }),
+    query: {
+      section: "market",
+      operation: "top_movers",
+      view: "home",
+      ...(market ? { mkt: market } : {}),
+    },
   });
   return true;
 }
@@ -612,7 +622,7 @@ function selectScreenContext(context: {
 watch(
   () => [route.query.section, route.query.operation, route.query.view] as const,
   ([sectionValue, operationValue]) => {
-    if (redirectLegacyRoute()) return;
+    if (normalizeInvalidResearchRoute()) return;
     const section = validResearchSection(sectionValue);
     activeSection.value = section;
     activeOperation.value = operationFor(section, operationValue);

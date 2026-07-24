@@ -139,7 +139,7 @@ func TestTranslateResearchScreenParamsValidatesStableKeysAndMarket(t *testing.T)
 	}
 }
 
-func TestStockScreenFeatureResultNormalizesIdentityValuesAndOffset(t *testing.T) {
+func TestStockScreenFeatureResultNormalizesIdentityCellsAndOffset(t *testing.T) {
 	result := stockScreenFeatureResult(broker.FeatureQuery{
 		Market: "US", Cursor: "50", FeatureID: broker.FeatureResearchScreen,
 	}, map[string]any{
@@ -170,11 +170,14 @@ func TestStockScreenFeatureResultNormalizesIdentityValuesAndOffset(t *testing.T)
 	if row["instrumentId"] != "US.AAPL" || row["name"] != "Apple" || row["stockId"] != "123" {
 		t.Fatalf("row identity = %#v", row)
 	}
-	values := row["values"].(map[string]broker.ResearchScreenValue)
-	if value := values["simple.price"]; value.Type != "number" || value.Number == nil || *value.Number != 190.25 {
+	if _, exists := row["values"]; exists {
+		t.Fatal("legacy values map was included in a result row")
+	}
+	cells := row["cells"].(map[string]broker.ScreenResultCell)
+	if value := cells["simple.price"].Value; value.Type != "number" || value.Number == nil || *value.Number != 190.25 {
 		t.Fatalf("price value = %#v", value)
 	}
-	if value := values["financial.net_profit"]; value.Type != "missing" {
+	if value := cells["financial.net_profit"].Value; value.Type != "missing" {
 		t.Fatalf("missing value = %#v", value)
 	}
 	if _, leaked := result.Entries[0]["lastPage"]; leaked {
@@ -216,10 +219,9 @@ func TestNormalizeStockScreenRowPreservesParameterizedInstanceIdentity(t *testin
 	if len(cells) != 2 || cells["ma20-column"].InstanceID != "ma20" || cells["ma60-column"].InstanceID != "ma60" {
 		t.Fatalf("instance-aware cells = %#v", cells)
 	}
-	values := row["values"].(map[string]broker.ResearchScreenValue)
-	if values["ma20"].Number == nil || *values["ma20"].Number != 180 ||
-		values["ma60"].Number == nil || *values["ma60"].Number != 170 {
-		t.Fatalf("instance-aware values = %#v", values)
+	if cells["ma20-column"].Value.Number == nil || *cells["ma20-column"].Value.Number != 180 ||
+		cells["ma60-column"].Value.Number == nil || *cells["ma60-column"].Value.Number != 170 {
+		t.Fatalf("column-aware values = %#v", cells)
 	}
 }
 

@@ -203,15 +203,10 @@ export function researchFeatureIds(
   return [featureBySection[section] ?? "market.snapshots"];
 }
 
-const LEGACY_SECTIONS: Record<string, ResearchSection> = {
-  options: "derivatives",
-};
-
 export function validResearchSection(value: unknown): ResearchSection {
   const candidate = String(value ?? "");
-  const mapped = LEGACY_SECTIONS[candidate] ?? candidate;
-  return RESEARCH_SECTIONS.some((item) => item.value === mapped)
-    ? (mapped as ResearchSection)
+  return RESEARCH_SECTIONS.some((item) => item.value === candidate)
+    ? (candidate as ResearchSection)
     : "market";
 }
 
@@ -226,13 +221,3 @@ export function validMarketCode(value: unknown): string {
     ? String(value)
     : "US";
 }
-
-export const LEGACY_MARKET_VIEW_REDIRECTS: Record<
-  string,
-  { section: ResearchSection; operation: string }
-> = {
-  earnings: { section: "calendar", operation: "earnings" },
-  economy: { section: "calendar", operation: "economic" },
-  ipo: { section: "calendar", operation: "ipos" },
-  institutions: { section: "institutions", operation: "list" },
-};

@@ -36,7 +36,7 @@ func TestResearchCatalogOperationsBuildStrictOpenDRequests(t *testing.T) {
 			params: map[string]any{"secType": 3}, wantFields: map[string]any{"secType": 4},
 		},
 		{
-			name: "losers", protocol: "Qot_GetTopMoversRank",
+			name: "down movers", protocol: "Qot_GetTopMoversRank",
 			query:  broker.FeatureQuery{Market: "US"},
 			params: map[string]any{"direction": "down"}, wantFields: map[string]any{"sortDir": 1},
 		},

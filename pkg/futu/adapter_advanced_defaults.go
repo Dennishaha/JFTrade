@@ -144,9 +144,9 @@ func translateTopMoversDirection(params map[string]any) error {
 		return nil
 	}
 	switch value {
-	case "up", "gainers", "descending":
+	case "up":
 		params["sortDir"] = 0
-	case "down", "losers", "ascending":
+	case "down":
 		params["sortDir"] = 1
 	default:
 		return fmt.Errorf("futu: unsupported top movers direction %q", value)

@@ -363,7 +363,7 @@ func TestFutuCapabilityCachesQuoteRightFailuresAndRefreshesAfterReconnect(t *tes
 	}
 }
 
-func TestQuoteRightsFromUserInfoPreservesProductRightsAndCNFallback(t *testing.T) {
+func TestQuoteRightsFromUserInfoDoesNotInferDetailedRights(t *testing.T) {
 	cn := int32(qotcommonpb.QotRight_QotRight_Level1)
 	usIndex := int32(qotcommonpb.QotRight_QotRight_No)
 	hasUSOption := true
@@ -371,11 +371,25 @@ func TestQuoteRightsFromUserInfoPreservesProductRightsAndCNFallback(t *testing.T
 		CnQotRight: &cn, UsIndexQotRight: &usIndex,
 		HasUSOptionQotRight: &hasUSOption,
 	})
-	if rights == nil ||
-		rights.GetShQotRight() != cn ||
-		rights.GetSzQotRight() != cn ||
-		rights.GetUsOptionQotRight() != int32(qotcommonpb.QotRight_QotRight_Level1) {
+	if rights == nil || rights.GetCnQotRight() != cn || !rights.GetHasUSOptionQotRight() {
 		t.Fatalf("converted quote rights = %#v", rights)
+	}
+	if rights.ShQotRight != nil || rights.SzQotRight != nil || rights.UsOptionQotRight != nil {
+		t.Fatalf("legacy rights generated detailed entitlements: %#v", rights)
+	}
+	adapter := NewBrokerAdapter(nil).(*futuAdapter)
+	adapter.lastQuoteRights = &futuQuoteCapabilityRights{
+		value: rights, observedAt: time.Now().UTC(),
+	}
+	for _, request := range []broker.CapabilityEvaluationRequest{
+		{Market: "SH"},
+		{Market: "SZ"},
+		{Market: "US", ProductClass: broker.ProductClassOption},
+	} {
+		check := adapter.evaluateQuoteCapability(request, time.Now().UTC())
+		if check.State != broker.CapabilityDegraded || check.Code != "QUOTE_RIGHT_UNKNOWN" {
+			t.Fatalf("legacy-only quote right for %#v = %#v", request, check)
+		}
 	}
 	indexRequest := broker.CapabilityEvaluationRequest{
 		Market: "US", ProductClass: broker.ProductClassIndex,

@@ -266,22 +266,34 @@ describe("ResearchPage information architecture and quote rail", () => {
     );
   });
 
-  it("redirects legacy market calendar links to their canonical domain", async () => {
-    const { page, router } = await mountResearchPage("section=market&view=economy&mkt=HK");
+  it("normalizes an invalid market view to the market home", async () => {
+    const { page, router } = await mountResearchPage(
+      "section=market&operation=economic&view=economy&mkt=HK&instrumentId=HK.00700&quote=HK.00700",
+    );
     await vi.waitFor(() => {
-      expect(router.currentRoute.value.query.section).toBe("calendar");
-      expect(router.currentRoute.value.query.operation).toBe("economic");
+      expect(router.currentRoute.value.query).toEqual({
+        section: "market",
+        operation: "top_movers",
+        view: "home",
+        mkt: "HK",
+      });
     });
-    expect(router.currentRoute.value.query.view).toBeUndefined();
-    expect(page.get(".view-stub").attributes("data-view")).toBe("EconCalendarView");
+    expect(page.get(".view-stub").attributes("data-view")).toBe("MarketHomeView");
     expect(page.get(".view-stub").attributes("data-market")).toBe("HK");
-    expect(page.find(".rail-stub").exists()).toBe(true);
+    expect(page.find(".rail-stub").exists()).toBe(false);
   });
 
-  it("redirects the old options section to derivatives", async () => {
-    const { router } = await mountResearchPage("section=options&operation=warrant");
+  it("normalizes an invalid section without preserving old detail parameters", async () => {
+    const { router } = await mountResearchPage(
+      "section=options&operation=warrant&view=rankings&mkt=HK&quote=HK.00700&plateId=BK1001",
+    );
     await vi.waitFor(() => {
-      expect(router.currentRoute.value.query.section).toBe("derivatives");
+      expect(router.currentRoute.value.query).toEqual({
+        section: "market",
+        operation: "top_movers",
+        view: "home",
+        mkt: "HK",
+      });
     });
   });
 

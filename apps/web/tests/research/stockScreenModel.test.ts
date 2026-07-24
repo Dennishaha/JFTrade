@@ -102,14 +102,27 @@ describe("stockScreenModel", () => {
           symbol: "AAPL",
           name: "Apple, Inc.",
           productClass: "equity",
-          values: {
-            "simple.price": { type: "number", number: 200, unit: "美元" },
-            "basic.industry": { type: "string", string: "科技" },
+          cells: {
+            industry: {
+              columnId: "industry",
+              instanceId: "industry",
+              factorKey: "basic.industry",
+              value: { type: "string", string: "科技" },
+            },
+            price: {
+              columnId: "price",
+              instanceId: "price",
+              factorKey: "simple.price",
+              value: { type: "number", number: 200, unit: "美元" },
+            },
           },
         },
       ],
       factors,
-      [{ factor: "basic.industry" }, { factor: "simple.price" }],
+      [
+        { factor: "basic.industry", columnId: "industry" },
+        { factor: "simple.price", columnId: "price" },
+      ],
     );
     expect(csv).toBe(
       '\uFEFF市场,代码,名称,行业,最新价\r\nUS,AAPL,"Apple, Inc.",科技,200',
@@ -249,25 +262,31 @@ describe("stockScreenModel", () => {
     );
   });
 
-  it("resolves V2 result cells by configured-factor identity", () => {
+  it("resolves result cells only by column identity", () => {
     const entry = {
       stockId: "1",
       productClass: "equity",
-      values: { "indicator.ma": { type: "number", number: 20 } as const },
       cells: {
-        "ma-60": {
-          columnId: "ma-60",
+        "ma-60-column": {
+          columnId: "ma-60-column",
           instanceId: "ma-60",
           factorKey: "indicator.ma",
           value: { type: "number", number: 60 } as const,
         },
       },
     };
-    expect(stockScreenEntryValue(entry, { factor: "indicator.ma", instanceId: "ma-60" })?.number).toBe(60);
     expect(
       stockScreenEntryValue(entry, {
         factor: "indicator.ma",
-        instanceId: "ma-20",
+        instanceId: "ma-60",
+        columnId: "ma-60-column",
+      })?.number,
+    ).toBe(60);
+    expect(
+      stockScreenEntryValue(entry, {
+        factor: "indicator.ma",
+        instanceId: "ma-60",
+        columnId: "ma-20-column",
       }),
     ).toBeUndefined();
   });
@@ -312,7 +331,6 @@ describe("stockScreenModel", () => {
     const entry: StockScreenEntry = {
       stockId: "1",
       productClass: "equity",
-      values: { "indicator.ma": { type: "number", number: 60 } },
       cells: {
         "ma-20-column": {
           columnId: "ma-20-column",
@@ -380,7 +398,7 @@ describe("stockScreenModel", () => {
           name: "腾讯控股-R",
           quoteCurrency: "CNY",
           productClass: "equity",
-          values: {},
+          cells: {},
         },
       ),
     ).toBe("CNY 52.70");
@@ -395,7 +413,7 @@ describe("stockScreenModel", () => {
           name: "腾讯控股",
           quoteCurrency: "HKD",
           productClass: "equity",
-          values: {},
+          cells: {},
         },
       ),
     ).toBe("HKD 194.26亿");
@@ -407,7 +425,7 @@ describe("stockScreenModel", () => {
           stockId: "1",
           quoteCurrency: "USD",
           productClass: "equity",
-          values: {},
+          cells: {},
         },
       ),
     ).toBe("USD -12.35亿");

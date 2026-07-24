@@ -244,7 +244,6 @@ describe("StockScreenerView", () => {
             name: "Apple",
             quoteCurrency: "USD",
             productClass: "equity",
-            values: {},
             cells: {
               "column-simple.price-0": {
                 columnId: "column-simple.price-0",
@@ -275,7 +274,6 @@ describe("StockScreenerView", () => {
             name: "Microsoft",
             quoteCurrency: "USD",
             productClass: "equity",
-            values: {},
             cells: {
               "column-simple.price-0": {
                 columnId: "column-simple.price-0",
@@ -489,9 +487,19 @@ describe("StockScreenerView", () => {
           symbol: "AAPL",
           name: "Apple",
           productClass: "equity",
-          values: {
-            "simple.price": { type: "number", number: 200 },
-            "simple.market_cap": { type: "number", number: 3_000_000 },
+          cells: {
+            "column-simple.price-0": {
+              columnId: "column-simple.price-0",
+              instanceId: "default-simple.price",
+              factorKey: "simple.price",
+              value: { type: "number", number: 200 },
+            },
+            "column-simple.market_cap-1": {
+              columnId: "column-simple.market_cap-1",
+              instanceId: "default-simple.market_cap",
+              factorKey: "simple.market_cap",
+              value: { type: "number", number: 3_000_000 },
+            },
           },
         },
       ],
@@ -541,7 +549,6 @@ describe("StockScreenerView", () => {
           name: "腾讯控股",
           quoteCurrency: "HKD",
           productClass: "equity",
-          values: {},
           cells: {
             "column-simple.price-0": {
               columnId: "column-simple.price-0",
@@ -573,7 +580,6 @@ describe("StockScreenerView", () => {
           name: "腾讯控股-R",
           quoteCurrency: "CNY",
           productClass: "equity",
-          values: {},
           cells: {
             "column-simple.price-0": {
               columnId: "column-simple.price-0",
@@ -630,7 +636,14 @@ describe("StockScreenerView", () => {
           symbol: "AAPL",
           name: "Apple",
           productClass: "equity",
-          values: { "simple.price": { type: "number", number: 200 } },
+          cells: {
+            "column-simple.price-0": {
+              columnId: "column-simple.price-0",
+              instanceId: "default-simple.price",
+              factorKey: "simple.price",
+              value: { type: "number", number: 200 },
+            },
+          },
         },
       ],
       hasMore: false,
@@ -700,7 +713,6 @@ describe("StockScreenerView", () => {
           name: "Apple",
           quoteCurrency: "USD",
           productClass: "equity",
-          values: {},
           cells: {
             "column-simple.price-0": {
               columnId: "column-simple.price-0",

@@ -250,7 +250,6 @@ func TestTypedResearchScreenResultOmitsUnknownTotal(t *testing.T) {
 			"name":          "腾讯控股-R",
 			"quoteCurrency": "CNY",
 			"productClass":  broker.ProductClassEquity,
-			"values":        map[string]broker.ResearchScreenValue{},
 		}},
 	})
 	if err != nil {
@@ -258,5 +257,12 @@ func TestTypedResearchScreenResultOmitsUnknownTotal(t *testing.T) {
 	}
 	if len(typed.Entries) != 1 || typed.Entries[0].QuoteCurrency != "CNY" {
 		t.Fatalf("typed quote currency = %#v", typed.Entries)
+	}
+	content, err = json.Marshal(typed.Entries[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(content), `"values"`) || !strings.Contains(string(content), `"cells":{}`) {
+		t.Fatalf("typed row did not use the cells-only contract: %s", content)
 	}
 }

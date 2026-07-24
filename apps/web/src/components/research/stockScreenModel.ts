@@ -570,35 +570,13 @@ export function stockScreenCSV(
     .join("\r\n")}`;
 }
 
-/** Resolve a result cell by V2 column or configured-factor identity. */
+/** Resolve a result cell by its response column identity. */
 export function stockScreenEntryValue(
   entry: StockScreenEntry,
   column: Pick<StockScreenColumn, "factor" | "factorKey" | "instanceId" | "columnId">,
 ): StockScreenValue | undefined {
-  const exactKeys = [
-    column.columnId,
-    column.instanceId,
-  ].filter((key): key is string => Boolean(key));
-  const factorKey = factorRefKey(column);
-  for (const key of exactKeys) {
-    const value = stockScreenCellValue(entry.cells?.[key]) ?? entry.values?.[key];
-    if (value) return value;
-  }
-  if (exactKeys.length > 0) return undefined;
-  const keys = [factorKey, column.factor].filter(
-    (key, index, all) => Boolean(key) && all.indexOf(key) === index,
-  );
-  for (const key of keys) {
-    const cell = entry.cells?.[key];
-    const value = stockScreenCellValue(cell);
-    if (value) return value;
-  }
-  const matchingCells = Object.values(entry.cells ?? {}).filter(
-    (cell) => cell.factorKey === factorKey,
-  );
-  if (matchingCells.length === 1) return matchingCells[0]?.value;
-  for (const key of keys) if (entry.values?.[key]) return entry.values[key];
-  return undefined;
+  const columnId = column.columnId?.trim();
+  return columnId ? stockScreenCellValue(entry.cells[columnId]) : undefined;
 }
 
 function stockScreenCellValue(
@@ -615,23 +593,11 @@ export function resultColumnFor(
   const exactResultColumn = resultColumns?.find(
     (candidate) =>
       candidate.columnId === column.columnId ||
-      candidate.instanceId === column.instanceId,
+      (column.instanceId != null &&
+        candidate.instanceId === column.instanceId),
   );
-  const resultColumn =
-    exactResultColumn ??
-    (resultColumns?.filter(
-      (candidate) => candidate.factorKey === factorRefKey(column),
-    ).length === 1
-      ? resultColumns.find(
-          (candidate) => candidate.factorKey === factorRefKey(column),
-        )
-      : undefined);
-  if (resultColumn) {
-    return stockScreenCellValue(
-      entry.cells?.[resultColumn.columnId] ??
-        entry.cells?.[resultColumn.instanceId ?? ""],
-    );
-  }
+  if (exactResultColumn)
+    return stockScreenCellValue(entry.cells[exactResultColumn.columnId]);
   return stockScreenEntryValue(entry, column);
 }
 

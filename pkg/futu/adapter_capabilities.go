@@ -470,18 +470,6 @@ func quoteRightsFromUserInfo(info *getuserinfopb.S2C) *notifypb.QotRight {
 	if info == nil || !userInfoHasQuoteRights(info) {
 		return nil
 	}
-	shRight := cloneOptionalInt32(info.ShQotRight)
-	if shRight == nil {
-		shRight = cloneOptionalInt32(info.CnQotRight)
-	}
-	szRight := cloneOptionalInt32(info.SzQotRight)
-	if szRight == nil {
-		szRight = cloneOptionalInt32(info.CnQotRight)
-	}
-	usOptionRight := cloneOptionalInt32(info.UsOptionQotRight)
-	if usOptionRight == nil && info.GetHasUSOptionQotRight() {
-		usOptionRight = new(int32(qotcommonpb.QotRight_QotRight_Level1))
-	}
 	return &notifypb.QotRight{
 		HkQotRight:            cloneOptionalInt32(info.HkQotRight),
 		UsQotRight:            cloneOptionalInt32(info.UsQotRight),
@@ -490,7 +478,7 @@ func quoteRightsFromUserInfo(info *getuserinfopb.S2C) *notifypb.QotRight {
 		HasUSOptionQotRight:   cloneOptionalBool(info.HasUSOptionQotRight),
 		HkFutureQotRight:      cloneOptionalInt32(info.HkFutureQotRight),
 		UsFutureQotRight:      cloneOptionalInt32(info.UsFutureQotRight),
-		UsOptionQotRight:      usOptionRight,
+		UsOptionQotRight:      cloneOptionalInt32(info.UsOptionQotRight),
 		UsIndexQotRight:       cloneOptionalInt32(info.UsIndexQotRight),
 		UsOtcQotRight:         cloneOptionalInt32(info.UsOtcQotRight),
 		SgFutureQotRight:      cloneOptionalInt32(info.SgFutureQotRight),
@@ -500,8 +488,8 @@ func quoteRightsFromUserInfo(info *getuserinfopb.S2C) *notifypb.QotRight {
 		UsNYMEXFutureQotRight: cloneOptionalInt32(info.UsNYMEXFutureQotRight),
 		UsCOMEXFutureQotRight: cloneOptionalInt32(info.UsCOMEXFutureQotRight),
 		UsCBOEFutureQotRight:  cloneOptionalInt32(info.UsCBOEFutureQotRight),
-		ShQotRight:            shRight,
-		SzQotRight:            szRight,
+		ShQotRight:            cloneOptionalInt32(info.ShQotRight),
+		SzQotRight:            cloneOptionalInt32(info.SzQotRight),
 		CcQotRight:            cloneOptionalInt32(info.CcQotRight),
 		SgStockQotRight:       cloneOptionalInt32(info.SgStockQotRight),
 		MyStockQotRight:       cloneOptionalInt32(info.MyStockQotRight),

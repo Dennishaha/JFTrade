@@ -215,9 +215,8 @@ export interface StockScreenEntry {
   industry?: string;
   quoteCurrency?: string;
   productClass: string;
-  values?: Record<string, StockScreenValue>;
   /** V2 result cells keyed by column identity. */
-  cells?: Record<string, StockScreenResultCell>;
+  cells: Record<string, StockScreenResultCell>;
 }
 
 export interface StockScreenResultCell {
@@ -295,17 +294,6 @@ export interface StockScreenDefinitionV2 {
   sorts: StockScreenSortV2[];
   catalogVersion: string;
   querySchemaVersion: 2;
-}
-
-export interface StockScreenResultV2 {
-  columns: StockScreenResultColumn[];
-  entries: StockScreenEntry[];
-  asOf?: string;
-  total?: number;
-  hasMore: boolean;
-  nextOffset?: number;
-  warnings?: string[];
-  partialErrors?: StockScreenResult["partialErrors"];
 }
 
 export interface StockScreenPreset {

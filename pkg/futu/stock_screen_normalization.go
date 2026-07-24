@@ -69,7 +69,6 @@ func normalizeStockScreenRow(
 	raw map[string]any,
 ) map[string]any {
 	stockID := uint64String(raw["stockId"])
-	values := make(map[string]broker.ResearchScreenValue)
 	cells := make(map[string]broker.ScreenResultCell)
 	symbol := ""
 	name := ""
@@ -90,10 +89,6 @@ func normalizeStockScreenRow(
 				continue
 			}
 			normalized := normalizeStockScreenValue(factor, value)
-			// Legacy results retain the factor-key map. The cells map uses the
-			// instance identity when the request supplied one, so two parameterized
-			// instances can coexist without overwriting each other.
-			values[factor.Key] = normalized
 			instanceID := factor.Key
 			columnID := factor.Key
 			if ref, requestedColumnID, ok := stockScreenRequestedRef(query, factor, property); ok {
@@ -104,7 +99,6 @@ func normalizeStockScreenRow(
 					columnID = requestedColumnID
 				}
 			}
-			values[instanceID] = normalized
 			cells[columnID] = broker.ScreenResultCell{
 				ColumnID: columnID, InstanceID: instanceID, FactorKey: factor.Key, Value: normalized,
 			}
@@ -140,7 +134,6 @@ func normalizeStockScreenRow(
 		"market": market, "symbol": strings.ToUpper(symbol),
 		"name": name, "industry": industry,
 		"productClass": broker.ProductClassEquity,
-		"values":       values,
 		"cells":        cells,
 	}
 	if quoteCurrency := researchScreenQuoteCurrency(market, symbol, name); quoteCurrency != "" {
@@ -181,7 +174,7 @@ func stockScreenRequestedRef(
 			return candidate.ref, candidate.columnID, true
 		}
 	}
-	if len(candidates) > 0 {
+	if len(candidates) == 1 {
 		return candidates[0].ref, candidates[0].columnID, true
 	}
 	return broker.FactorRef{}, "", false

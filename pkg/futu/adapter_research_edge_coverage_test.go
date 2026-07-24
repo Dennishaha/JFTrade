@@ -99,8 +99,8 @@ func TestAdvancedResearchEnumTranslations(t *testing.T) {
 		want  any
 	}{
 		{"", nil},
-		{"gainers", 0},
-		{"ascending", 1},
+		{"up", 0},
+		{"down", 1},
 	}
 	for _, test := range topMoverCases {
 		params := map[string]any{"direction": test.value}
@@ -109,10 +109,12 @@ func TestAdvancedResearchEnumTranslations(t *testing.T) {
 			t.Errorf("top mover %q = %#v, %v", test.value, params, err)
 		}
 	}
-	if err := translateTopMoversDirection(
-		map[string]any{"direction": "sideways"},
-	); err == nil {
-		t.Fatal("unsupported top mover direction succeeded")
+	for _, direction := range []string{"gainers", "losers", "ascending", "descending", "sideways"} {
+		if err := translateTopMoversDirection(
+			map[string]any{"direction": direction},
+		); err == nil {
+			t.Fatalf("unsupported top mover direction %q succeeded", direction)
+		}
 	}
 
 	heatMapCases := []struct {

@@ -162,8 +162,8 @@ func typedResearchScreenResult(result *broker.FeatureResult) (broker.ResearchScr
 		if err := json.Unmarshal(content, &row); err != nil {
 			return typed, errors.New("broker returned an invalid stock-screen row")
 		}
-		if row.Values == nil {
-			row.Values = map[string]broker.ResearchScreenValue{}
+		if row.Cells == nil {
+			row.Cells = map[string]broker.ScreenResultCell{}
 		}
 		typed.Entries = append(typed.Entries, row)
 	}

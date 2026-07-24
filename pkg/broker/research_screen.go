@@ -88,31 +88,6 @@ type ScreenResultCell struct {
 	Value      ResearchScreenValue `json:"value"`
 }
 
-type ScreenResultEntryV2 struct {
-	StockID       string             `json:"stockId"`
-	InstrumentID  string             `json:"instrumentId,omitempty"`
-	Market        string             `json:"market,omitempty"`
-	Symbol        string             `json:"symbol,omitempty"`
-	Name          string             `json:"name,omitempty"`
-	Industry      string             `json:"industry,omitempty"`
-	QuoteCurrency string             `json:"quoteCurrency,omitempty"`
-	ProductClass  ProductClass       `json:"productClass"`
-	Cells         []ScreenResultCell `json:"cells"`
-}
-
-type ScreenResultV2 struct {
-	Provider       ProviderAttribution   `json:"provider"`
-	AsOf           time.Time             `json:"asOf"`
-	CatalogVersion string                `json:"catalogVersion,omitempty"`
-	Columns        []ScreenResultColumn  `json:"columns"`
-	Entries        []ScreenResultEntryV2 `json:"entries"`
-	NextOffset     *int                  `json:"nextOffset,omitempty"`
-	HasMore        bool                  `json:"hasMore"`
-	Total          *int                  `json:"total,omitempty"`
-	Warnings       []string              `json:"warnings,omitempty"`
-	PartialErrors  []FeaturePartialError `json:"partialErrors,omitempty"`
-}
-
 // NewFactorRef creates a stable instance identity when the caller does not
 // provide one. Hashing the normalized factor and params keeps preset reloads
 // deterministic while allowing same-key instances with different params.
@@ -196,16 +171,15 @@ type ResearchScreenValue struct {
 }
 
 type ResearchScreenRow struct {
-	StockID       string                         `json:"stockId"`
-	InstrumentID  string                         `json:"instrumentId,omitempty"`
-	Market        string                         `json:"market,omitempty"`
-	Symbol        string                         `json:"symbol,omitempty"`
-	Name          string                         `json:"name,omitempty"`
-	Industry      string                         `json:"industry,omitempty"`
-	QuoteCurrency string                         `json:"quoteCurrency,omitempty"`
-	ProductClass  ProductClass                   `json:"productClass"`
-	Values        map[string]ResearchScreenValue `json:"values"`
-	Cells         map[string]ScreenResultCell    `json:"cells,omitempty"`
+	StockID       string                      `json:"stockId"`
+	InstrumentID  string                      `json:"instrumentId,omitempty"`
+	Market        string                      `json:"market,omitempty"`
+	Symbol        string                      `json:"symbol,omitempty"`
+	Name          string                      `json:"name,omitempty"`
+	Industry      string                      `json:"industry,omitempty"`
+	QuoteCurrency string                      `json:"quoteCurrency,omitempty"`
+	ProductClass  ProductClass                `json:"productClass"`
+	Cells         map[string]ScreenResultCell `json:"cells"`
 }
 
 type ResearchScreenResult struct {
