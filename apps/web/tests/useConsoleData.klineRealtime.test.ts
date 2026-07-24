@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { createPinia } from "pinia";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 
@@ -23,11 +22,7 @@ function createConsoleStore() {
     },
   });
 
-  mount(Host, {
-    global: {
-      plugins: [createPinia()],
-    },
-  });
+  mount(Host);
 
   if (store == null) {
     throw new Error("Failed to create console data store.");

@@ -244,10 +244,6 @@ export function apiGet<TPath extends PathWithMethod<"get">>(
   path: TPath,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "get">>;
-export function apiGet<TResponse, TPath extends PathWithMethod<"get">>(
-  path: TPath,
-  init?: ApiRequestOptions,
-): Promise<TResponse>;
 export async function apiGet(
   path: string,
   init?: ApiRequestOptions,
@@ -260,11 +256,6 @@ export function apiPost<TPath extends PathWithMethod<"post">>(
   body: JsonRequestBody<TPath, "post">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "post">>;
-export function apiPost<TResponse, TPath extends PathWithMethod<"post">>(
-  path: TPath,
-  body: JsonRequestBody<TPath, "post">,
-  init?: ApiRequestOptions,
-): Promise<TResponse>;
 export async function apiPost(
   path: string,
   body: unknown,
@@ -278,11 +269,6 @@ export function apiPut<TPath extends PathWithMethod<"put">>(
   body: JsonRequestBody<TPath, "put">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "put">>;
-export function apiPut<TResponse, TPath extends PathWithMethod<"put">>(
-  path: TPath,
-  body: JsonRequestBody<TPath, "put">,
-  init?: ApiRequestOptions,
-): Promise<TResponse>;
 export async function apiPut(
   path: string,
   body: unknown,
@@ -295,10 +281,6 @@ export function apiDelete<TPath extends PathWithMethod<"delete">>(
   path: TPath,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "delete">>;
-export function apiDelete<TResponse, TPath extends PathWithMethod<"delete">>(
-  path: TPath,
-  init?: ApiRequestOptions,
-): Promise<TResponse>;
 export async function apiDelete(
   path: string,
   init?: ApiRequestOptions,
@@ -311,11 +293,6 @@ export function apiGetPath<TPath extends PathWithMethod<"get">>(
   path: string,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "get">>;
-export function apiGetPath<TResponse, TPath extends PathWithMethod<"get">>(
-  _template: TPath,
-  path: string,
-  init?: ApiRequestOptions,
-): Promise<TResponse>;
 export async function apiGetPath(
   _template: string,
   path: string,
@@ -330,12 +307,6 @@ export function apiPutPath<TPath extends PathWithMethod<"put">>(
   body: JsonRequestBody<TPath, "put">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "put">>;
-export function apiPutPath<TResponse, TPath extends PathWithMethod<"put">>(
-  _template: TPath,
-  path: string,
-  body: JsonRequestBody<TPath, "put">,
-  init?: ApiRequestOptions,
-): Promise<TResponse>;
 export async function apiPutPath(
   _template: string,
   path: string,
@@ -351,12 +322,6 @@ export function apiPostPath<TPath extends PathWithMethod<"post">>(
   body: JsonRequestBody<TPath, "post">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "post">>;
-export function apiPostPath<TResponse, TPath extends PathWithMethod<"post">>(
-  _template: TPath,
-  path: string,
-  body: JsonRequestBody<TPath, "post">,
-  init?: ApiRequestOptions,
-): Promise<TResponse>;
 export async function apiPostPath(
   _template: string,
   path: string,
@@ -372,12 +337,6 @@ export function apiPatchPath<TPath extends PathWithMethod<"patch">>(
   body: JsonRequestBody<TPath, "patch">,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "patch">>;
-export function apiPatchPath<TResponse, TPath extends PathWithMethod<"patch">>(
-  _template: TPath,
-  path: string,
-  body: JsonRequestBody<TPath, "patch">,
-  init?: ApiRequestOptions,
-): Promise<TResponse>;
 export async function apiPatchPath(
   _template: string,
   path: string,
@@ -392,14 +351,6 @@ export function apiDeletePath<TPath extends PathWithMethod<"delete">>(
   path: string,
   init?: ApiRequestOptions,
 ): Promise<ResponseDataFor<TPath, "delete">>;
-export function apiDeletePath<
-  TResponse,
-  TPath extends PathWithMethod<"delete">,
->(
-  _template: TPath,
-  path: string,
-  init?: ApiRequestOptions,
-): Promise<TResponse>;
 export async function apiDeletePath(
   _template: string,
   path: string,

@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"runtime"
 	"strings"
 	"testing"
@@ -23,7 +24,7 @@ func TestStrategyPluginCompatibilityDetectsHostBuildDrift(t *testing.T) {
 		t.Fatalf("drifted artifact = %#v", drifted)
 	}
 
-	if samePluginBuildTuple(host, strategyPluginBuildTuple{JFTradeVersion: host.JFTradeVersion}) {
+	if samePluginBuildTuple(host, stratsrv.PluginBuildTuple{JFTradeVersion: host.JFTradeVersion}) {
 		t.Fatal("partial build tuple should not match current host")
 	}
 	withTags := host

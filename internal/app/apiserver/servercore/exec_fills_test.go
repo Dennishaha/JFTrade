@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -145,7 +146,7 @@ func TestExecutionOrderStoreRejectsStaleBrokerSnapshotRegression(t *testing.T) {
 	price := 100.0
 	filledQuantity := 10.0
 	filledAverage := 99.5
-	order := store.recordPlacedOrder(executionPlacedOrderRecord{
+	order := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID: "futu", BrokerOrderID: "stale-1", TradingEnvironment: "SIMULATE",
 		AccountID: "SIM-1", Market: "US", Symbol: "US.AAPL", Side: "BUY",
 		OrderType: "LIMIT", Status: "SUBMITTED", RequestedQuantity: 10,

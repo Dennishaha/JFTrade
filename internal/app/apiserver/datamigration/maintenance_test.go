@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 )
 
 func TestOverviewCountsMainWALSHMAndKeepsDatabaseErrorsLocal(t *testing.T) {
@@ -39,7 +41,7 @@ func TestOverviewCountsMainWALSHMAndKeepsDatabaseErrorsLocal(t *testing.T) {
 	if found.Storage.MainBytes != 100 || found.Storage.WALBytes != 40 || found.Storage.SHMBytes < 20 || found.Storage.TotalBytes != found.Storage.MainBytes+found.Storage.WALBytes+found.Storage.SHMBytes {
 		t.Fatalf("storage = %+v", found.Storage)
 	}
-	if found.Status != "incompatible" || overview.Totals.TotalBytes != found.Storage.TotalBytes {
+	if found.Status != "unavailable" || overview.Totals.TotalBytes != found.Storage.TotalBytes {
 		t.Fatalf("overview = %+v", overview)
 	}
 }
@@ -53,7 +55,7 @@ func TestOverviewSupportsSummaryOnlyAndSingleDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("summary overview: %v", err)
 	}
-	if len(summary.Databases) != 8 || summary.Totals.TotalBytes != 0 {
+	if len(summary.Databases) != 9 || summary.Totals.TotalBytes != 0 {
 		t.Fatalf("summary overview = %+v", summary)
 	}
 	for _, database := range summary.Databases {
@@ -347,15 +349,12 @@ func TestCleanupAndCompactRejectInvalidOrUnavailableOperations(t *testing.T) {
 
 func createBacktestRunsForMaintenanceTest(t *testing.T, path string, now time.Time) {
 	t.Helper()
+	initializeDescriptor(t, Descriptor{ID: DatabaseBacktestRuns, Path: path, Version: sqliteschema.BacktestRunsVersion})
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE backtest_runs (id TEXT PRIMARY KEY, status TEXT, request_json TEXT, result_json TEXT, created_at TEXT, updated_at TEXT)`); err != nil {
-		t.Fatal(err)
-	}
-	createMaintenanceMetadata(t, db, DatabaseBacktestRuns)
 	for index := range 25 {
 		updated := now.Add(-time.Duration(40+index) * 24 * time.Hour).Format(time.RFC3339Nano)
 		if _, err := db.Exec(`INSERT INTO backtest_runs VALUES (?, 'completed', '{}', ?, ?, ?)`, index, string(make([]byte, index+1)), updated, updated); err != nil {
@@ -369,48 +368,32 @@ func createBacktestRunsForMaintenanceTest(t *testing.T, path string, now time.Ti
 
 func createDeletedStrategyForMaintenanceTest(t *testing.T, path string) {
 	t.Helper()
+	initializeDescriptor(t, Descriptor{ID: DatabaseStrategy, Path: path, Version: sqliteschema.StrategyVersion})
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE strategy_design_definitions (id TEXT PRIMARY KEY, script TEXT, visual_model_json TEXT, deleted_at TEXT)`); err != nil {
-		t.Fatal(err)
-	}
-	createMaintenanceMetadata(t, db, DatabaseStrategy)
-	if _, err := db.Exec(`INSERT INTO strategy_design_definitions VALUES ('deleted', 'script', '{}', '2026-01-01T00:00:00Z')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO strategy_design_definitions (id, script, visual_model_json, deleted_at) VALUES ('deleted', 'script', '{}', '2026-01-01T00:00:00Z')`); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func createDeletedADKForMaintenanceTest(t *testing.T, path string) {
 	t.Helper()
+	initializeDescriptor(t, Descriptor{ID: DatabaseADK, Path: path, Version: sqliteschema.ADKVersion})
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = db.Close() }()
 	for _, statement := range []string{
-		`CREATE TABLE adk_agents (id TEXT PRIMARY KEY, payload_json TEXT)`,
-		`CREATE TABLE adk_workflows (id TEXT PRIMARY KEY, payload_json TEXT)`,
-		`CREATE TABLE adk_workflow_triggers (id TEXT PRIMARY KEY, workflow_id TEXT, payload_json TEXT)`,
-		`INSERT INTO adk_agents VALUES ('agent-deleted', '{"deletedAt":"2026-01-01T00:00:00Z"}')`,
-		`INSERT INTO adk_workflows VALUES ('workflow-deleted', '{"deletedAt":"2026-01-01T00:00:00Z"}')`,
-		`INSERT INTO adk_workflow_triggers VALUES ('trigger-child', 'workflow-deleted', '{}')`,
+		`INSERT INTO adk_agents (id, payload_json, created_at, updated_at) VALUES ('agent-deleted', '{"deletedAt":"2026-01-01T00:00:00Z"}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+		`INSERT INTO adk_workflows (id, status, payload_json, created_at, updated_at) VALUES ('workflow-deleted', 'deleted', '{"deletedAt":"2026-01-01T00:00:00Z"}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+		`INSERT INTO adk_workflow_triggers (id, workflow_id, trigger_type, status, next_run_at, payload_json, created_at, updated_at) VALUES ('trigger-child', 'workflow-deleted', 'manual', 'deleted', '', '{}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
 	} {
 		if _, err := db.Exec(statement); err != nil {
 			t.Fatal(err)
 		}
-	}
-	createMaintenanceMetadata(t, db, DatabaseADK)
-}
-
-func createMaintenanceMetadata(t *testing.T, db *sql.DB, component string) {
-	t.Helper()
-	if _, err := db.Exec(`CREATE TABLE jftrade_schema_meta (component_id TEXT PRIMARY KEY, version INTEGER NOT NULL, created_at TEXT NOT NULL)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`INSERT INTO jftrade_schema_meta VALUES (?, 1, '2026-01-01T00:00:00Z')`, component); err != nil {
-		t.Fatal(err)
 	}
 }

@@ -6,7 +6,6 @@ import type {
   MarketSecurityDetailsQueryResult,
 } from "@/contracts";
 import { mount } from "@vue/test-utils";
-import { createPinia } from "pinia";
 import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, h } from "vue";
 
@@ -420,11 +419,7 @@ function mountWatchlistPanel(options: {
     },
   });
 
-  return mount(Host, {
-    global: {
-      plugins: [createPinia()],
-    },
-  });
+  return mount(Host);
 }
 
 const testMarketProfiles: MarketProfileDto[] = [

@@ -95,6 +95,7 @@ func TestRunWithPineWorkerReportsWarmupFillsThatAffectEquity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore() error = %v", err)
 	}
+	store.SetWriteSessionScope(KLineSessionScopeExtended)
 	baseStart := time.Date(2026, time.June, 29, 13, 28, 0, 0, time.UTC)
 	klines := []types.KLine{
 		testPineWorkerRunnerKLine(baseStart, 100),
@@ -119,13 +120,14 @@ func TestRunWithPineWorkerReportsWarmupFillsThatAffectEquity(t *testing.T) {
 		Metadata: pineworker.WorkerMetadata{WorkerID: "worker-1"},
 	}}
 	result := RunWithPineWorker(context.Background(), RunConfig{
-		DBPath:        dbPath,
-		Symbol:        "US.AAPL",
-		Interval:      string(types.Interval1m),
-		SourceFormat:  strategydefinition.SourceFormatPineV6,
-		StartTime:     klines[2].StartTime.Time(),
-		EndTime:       klines[len(klines)-1].EndTime.Time(),
-		WarmupCandles: 2,
+		DBPath:           dbPath,
+		Symbol:           "US.AAPL",
+		Interval:         string(types.Interval1m),
+		SourceFormat:     strategydefinition.SourceFormatPineV6,
+		StartTime:        klines[2].StartTime.Time(),
+		EndTime:          klines[len(klines)-1].EndTime.Time(),
+		WarmupCandles:    2,
+		UseExtendedHours: new(true),
 		StrategyScript: `//@version=6
 strategy("worker warmup fills")`,
 		InitialBalance: 10000,

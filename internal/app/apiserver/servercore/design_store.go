@@ -24,11 +24,6 @@ const (
 
 var errUnsupportedLegacyStrategyDefinition = errors.New("unsupported legacy strategy definition")
 
-type strategyVisualNode = stratsrv.VisualNode
-type strategyVisualEdge = stratsrv.VisualEdge
-type strategyVisualModel = stratsrv.VisualModel
-type strategyDesignDefinition = stratsrv.Definition
-
 type strategyDesignStore struct {
 	path   string
 	dbPath string
@@ -76,22 +71,22 @@ func (s *strategyDesignStore) load() error {
 	return nil
 }
 
-func (s *strategyDesignStore) listDefinitions() []strategyDesignDefinition {
+func (s *strategyDesignStore) listDefinitions() []stratsrv.Definition {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.listDefinitionsFromDBLocked()
 }
 
-func (s *strategyDesignStore) listDefinitionsFromDBLocked() []strategyDesignDefinition {
+func (s *strategyDesignStore) listDefinitionsFromDBLocked() []stratsrv.Definition {
 	rows := []strategyDesignDefinitionRow{}
 	if err := s.db.Select(&rows,
 		`SELECT id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at `+
 			`FROM `+strategyDesignDefinitionTable+` `+
 			`WHERE deleted_at IS NULL OR TRIM(deleted_at) = '' `+
 			`ORDER BY updated_at DESC, id ASC`); err != nil {
-		return []strategyDesignDefinition{}
+		return []stratsrv.Definition{}
 	}
-	items := make([]strategyDesignDefinition, 0, len(rows))
+	items := make([]stratsrv.Definition, 0, len(rows))
 	for _, row := range rows {
 		definition, err := strategyDesignDefinitionFromRow(row)
 		if err != nil {
@@ -102,25 +97,25 @@ func (s *strategyDesignStore) listDefinitionsFromDBLocked() []strategyDesignDefi
 	return items
 }
 
-func (s *strategyDesignStore) definition(id string) (strategyDesignDefinition, bool, error) {
+func (s *strategyDesignStore) definition(id string) (stratsrv.Definition, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	id = strings.TrimSpace(id)
 	row, ok, err := s.definitionRowLocked(id, false)
 	if err != nil || !ok {
-		return strategyDesignDefinition{}, false, err
+		return stratsrv.Definition{}, false, err
 	}
 	definition, defErr := strategyDesignDefinitionFromRow(row)
 	if defErr != nil {
-		return strategyDesignDefinition{}, false, defErr
+		return stratsrv.Definition{}, false, defErr
 	}
 	return definition, true, nil
 }
 
-func (s *strategyDesignStore) saveDefinition(input strategyDesignDefinition) (strategyDesignDefinition, error) {
+func (s *strategyDesignStore) saveDefinition(input stratsrv.Definition) (stratsrv.Definition, error) {
 	normalized, err := normalizeStrategyDesignDefinition(input)
 	if err != nil {
-		return strategyDesignDefinition{}, err
+		return stratsrv.Definition{}, err
 	}
 
 	s.mu.Lock()
@@ -128,15 +123,15 @@ func (s *strategyDesignStore) saveDefinition(input strategyDesignDefinition) (st
 	return s.saveDefinitionToDBLocked(normalized)
 }
 
-func (s *strategyDesignStore) saveDefinitionToDBLocked(normalized strategyDesignDefinition) (strategyDesignDefinition, error) {
+func (s *strategyDesignStore) saveDefinitionToDBLocked(normalized stratsrv.Definition) (stratsrv.Definition, error) {
 	row, found, err := s.definitionRowLocked(normalized.ID, true)
 	if err != nil {
-		return strategyDesignDefinition{}, err
+		return stratsrv.Definition{}, err
 	}
 	if found {
 		existing, err := strategyDesignDefinitionFromRow(row)
 		if err != nil {
-			return strategyDesignDefinition{}, err
+			return stratsrv.Definition{}, err
 		}
 		normalized.CreatedAt = existing.CreatedAt
 		normalized.Version = existing.Version
@@ -152,7 +147,7 @@ func (s *strategyDesignStore) saveDefinitionToDBLocked(normalized strategyDesign
 		}
 		normalized.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		if err := s.upsertDefinitionLocked(normalized, nil); err != nil {
-			return strategyDesignDefinition{}, err
+			return stratsrv.Definition{}, err
 		}
 		return normalized, nil
 	}
@@ -160,25 +155,25 @@ func (s *strategyDesignStore) saveDefinitionToDBLocked(normalized strategyDesign
 	normalized.Version = defaultStrategyVersion
 	normalized.Script = syncStrategyScriptVersion(normalized.Script, normalized.Version)
 	if err := s.upsertDefinitionLocked(normalized, nil); err != nil {
-		return strategyDesignDefinition{}, err
+		return stratsrv.Definition{}, err
 	}
 	return normalized, nil
 }
 
-func (s *strategyDesignStore) deleteDefinition(id string) (strategyDesignDefinition, error) {
+func (s *strategyDesignStore) deleteDefinition(id string) (stratsrv.Definition, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	id = strings.TrimSpace(id)
 	row, ok, err := s.definitionRowLocked(id, false)
 	if err != nil {
-		return strategyDesignDefinition{}, err
+		return stratsrv.Definition{}, err
 	}
 	if !ok {
-		return strategyDesignDefinition{}, os.ErrNotExist
+		return stratsrv.Definition{}, os.ErrNotExist
 	}
 	definition, err := strategyDesignDefinitionFromRow(row)
 	if err != nil {
-		return strategyDesignDefinition{}, err
+		return stratsrv.Definition{}, err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if _, err := s.db.ExecContext(context.Background(),
@@ -187,7 +182,7 @@ func (s *strategyDesignStore) deleteDefinition(id string) (strategyDesignDefinit
 		now,
 		id,
 	); err != nil {
-		return strategyDesignDefinition{}, err
+		return stratsrv.Definition{}, err
 	}
 	return definition, nil
 }
@@ -211,7 +206,7 @@ func (s *strategyDesignStore) definitionRowLocked(id string, includeDeleted bool
 	return row, true, nil
 }
 
-func (s *strategyDesignStore) upsertDefinitionLocked(definition strategyDesignDefinition, deletedAt *string) error {
+func (s *strategyDesignStore) upsertDefinitionLocked(definition stratsrv.Definition, deletedAt *string) error {
 	row, err := strategyDesignDefinitionRowFromDefinition(definition)
 	if err != nil {
 		return err

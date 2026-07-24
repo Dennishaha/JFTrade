@@ -2,6 +2,9 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import StrategyRuntimePage from "../src/pages/StrategyRuntimePage.vue"
+import { queryClient, queryKeys } from "../src/composables/serverState"
+
 import {
   MockWebSocket,
   buildFetchMock,
@@ -18,9 +21,7 @@ afterEach(() => {
 
 describe("Strategy page unified Pine v6 launch wizard", () => {
   it("opens on the original strategy execution page", async () => {
-    vi.stubGlobal(
-      "fetch",
-      buildFetchMock({
+	const fetchMock = buildFetchMock({
         strategies: [
           {
             id: "instance-1",
@@ -60,8 +61,8 @@ describe("Strategy page unified Pine v6 launch wizard", () => {
             },
           ],
         },
-      }),
-    )
+	})
+	vi.stubGlobal("fetch", fetchMock)
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket)
 
     const { router, wrapper } = await mountStrategyPage("/strategy")
@@ -75,6 +76,15 @@ describe("Strategy page unified Pine v6 launch wizard", () => {
     expect(wrapper.text()).toContain("tick QUOTE_SNAPSHOT HK.00700")
     expect(wrapper.text()).toContain("运行审计")
     expect(wrapper.find('[data-testid="strategy-design-stage"]').exists()).toBe(false)
+
+	queryClient.removeQueries({ queryKey: queryKeys.strategyDefinitions() })
+	const runtimePage = wrapper.getComponent(StrategyRuntimePage)
+	const setup = runtimePage.vm.$.setupState as Record<string, unknown>
+	await (setup.loadStrategyDefinitionsCount as () => Promise<void>)()
+	expect(fetchMock).toHaveBeenCalledWith(
+	  expect.stringContaining("/api/v1/strategy-definitions"),
+	  expect.anything(),
+	)
 
     wrapper.unmount()
   })

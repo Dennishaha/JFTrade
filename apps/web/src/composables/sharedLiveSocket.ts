@@ -1,5 +1,7 @@
 import { ref, watch, type Ref } from "vue";
 
+import type { MarketDataDepthResponse } from "@/contracts";
+
 import {
   buildRuntimeLiveSocketUrl,
   resolveDesktopApiToken,
@@ -79,24 +81,10 @@ export type MarketSecurityDetailsLiveStreamEvent =
     brokerId?: string;
   };
 
-export type MarketDepthLiveStreamEvent = {
+export type MarketDepthLiveStreamEvent = MarketDataDepthResponse & {
   type: "market.depth";
   at: string;
   brokerId?: string;
-  request: {
-    market: string;
-    symbol: string;
-    instrumentId: string;
-    num: number;
-  };
-  depth: unknown;
-  meta: {
-    instrumentId: string;
-    source: string | null;
-    brokerId?: string | null;
-    resolvedAt: string;
-    fromCache: boolean;
-  };
 };
 
 export type LiveStreamEvent =
@@ -112,7 +100,7 @@ export type LiveStreamEvent =
     };
 
 export interface LiveSocketSubscriptionSnapshot {
-  providerBrokerId?: string;
+  providerBrokerId: string;
   activeInstruments: string[];
   securityDetails: Array<{
     market: string;
@@ -416,7 +404,7 @@ class SharedLiveSocketHub {
     ).sort()[0];
 
     return {
-      ...(providerBrokerId ? { providerBrokerId } : {}),
+      providerBrokerId: providerBrokerId ?? "",
       activeInstruments,
       securityDetails,
       depth,
@@ -527,9 +515,13 @@ class SharedLiveSocketHub {
     if (this.socket == null || this.socket.readyState !== WebSocket.OPEN) {
       return;
     }
+    const subscriptions = this.snapshotSubscriptions();
+    if (subscriptions.providerBrokerId === "") {
+      return;
+    }
     const payload = JSON.stringify({
       type: "subscribe",
-      subscriptions: this.snapshotSubscriptions(),
+      subscriptions,
     });
     if (!force && payload === this.lastSentSubscriptionPayload) {
       return;

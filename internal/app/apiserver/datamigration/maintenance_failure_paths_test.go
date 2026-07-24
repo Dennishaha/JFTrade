@@ -119,7 +119,7 @@ func TestMaintenanceDatabaseInspectionAndBackupRetentionFailuresStayLocal(t *tes
 		t.Fatal("backup filename with a malformed timestamp was accepted")
 	}
 
-	storageDescriptor := Descriptor{ID: "storage-boundary", Path: filepath.Join(t.TempDir(), "storage.db"), Version: SchemaVersion}
+	storageDescriptor := Descriptor{ID: "storage-boundary", Path: filepath.Join(t.TempDir(), "storage.db"), Version: 1}
 	initializeDescriptor(t, storageDescriptor)
 	canceledCtx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -153,8 +153,11 @@ func TestMaintenanceCandidateQueriesFailSafelyWhenSchemaDoesNotMatch(t *testing.
 		t.Fatal("broken candidate query succeeded")
 	}
 
-	descriptor := Descriptor{ID: DatabaseStrategy, Path: path, Version: SchemaVersion}
+	descriptor := Descriptor{ID: DatabaseStrategy, Path: path, Version: sqliteschema.StrategyVersion}
 	initializeDescriptor(t, descriptor)
+	if _, err := db.Exec(`DROP TABLE strategy_design_definitions`); err != nil {
+		t.Fatal(err)
+	}
 	_, err = cleanupCandidates(t.Context(), descriptor, CleanupPreviewRequest{Kind: CleanupSoftDeleted, DatabaseID: DatabaseStrategy}, time.Now())
 	if err == nil {
 		t.Fatal("cleanup candidates succeeded without the strategy schema")
@@ -179,6 +182,7 @@ func TestMaintenancePreviewDefaultsAndConcurrentStateChangesFailClosed(t *testin
 	}
 	readyWithoutSchema := newTestManager(t)
 	initializeDescriptor(t, readyWithoutSchema.descriptorMap()[DatabaseStrategy])
+	dropMaintenanceTable(t, readyWithoutSchema.descriptorMap()[DatabaseStrategy].Path, "strategy_design_definitions")
 	if _, err := readyWithoutSchema.PreviewCleanup(t.Context(), CleanupPreviewRequest{Kind: CleanupSoftDeleted, DatabaseID: DatabaseStrategy}); err == nil {
 		t.Fatal("preview accepted a ready database without the cleanup table")
 	}
@@ -276,8 +280,9 @@ func TestMaintenanceStorageAndCandidateBoundaryErrorsAreContained(t *testing.T) 
 	}
 
 	path := filepath.Join(t.TempDir(), "candidates.db")
-	descriptor := Descriptor{ID: DatabaseBacktestRuns, Path: path, Version: SchemaVersion}
+	descriptor := Descriptor{ID: DatabaseBacktestRuns, Path: path, Version: sqliteschema.BacktestRunsVersion}
 	initializeDescriptor(t, descriptor)
+	dropMaintenanceTable(t, descriptor.Path, "backtest_runs")
 	if items := inspectCleanable(t.Context(), DatabaseStatus{Descriptor: Descriptor{ID: "other", Path: path}, Status: "ready"}); items != nil {
 		t.Fatalf("unsupported cleanable category = %#v", items)
 	}
@@ -303,13 +308,13 @@ func TestMaintenanceStorageAndCandidateBoundaryErrorsAreContained(t *testing.T) 
 		t.Fatal("history cleanup candidate with a NULL ID was accepted")
 	}
 
-	adkDescriptor := Descriptor{ID: DatabaseADK, Path: filepath.Join(t.TempDir(), "adk-candidates.db"), Version: SchemaVersion}
+	adkDescriptor := Descriptor{ID: DatabaseADK, Path: filepath.Join(t.TempDir(), "adk-candidates.db"), Version: sqliteschema.ADKVersion}
 	initializeDescriptor(t, adkDescriptor)
 	adkDB, err := sql.Open("sqlite", adkDescriptor.Path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := adkDB.Exec(`CREATE TABLE adk_agents (id TEXT, payload_json TEXT); CREATE TABLE adk_workflows (id TEXT, payload_json TEXT)`); err != nil {
+	if _, err := adkDB.Exec(`DROP TABLE adk_workflow_triggers`); err != nil {
 		_ = adkDB.Close()
 		t.Fatal(err)
 	}
@@ -318,6 +323,18 @@ func TestMaintenanceStorageAndCandidateBoundaryErrorsAreContained(t *testing.T) 
 	}
 	if _, err := cleanupCandidates(t.Context(), adkDescriptor, CleanupPreviewRequest{Kind: CleanupSoftDeleted, DatabaseID: DatabaseADK}, time.Now()); err == nil {
 		t.Fatal("ADK cleanup candidates ignored a missing trigger table")
+	}
+}
+
+func dropMaintenanceTable(t *testing.T, path, table string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	if _, err := db.Exec(`DROP TABLE ` + table); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -371,6 +388,114 @@ func TestBackupRetentionEvictsQuotaPressureAcrossDatabaseFiles(t *testing.T) {
 	}
 	if _, _, ok := manager.parseManagedBackupFilename(DatabaseWatchlist + "-20260716T090300.000000000Z-zzzzzzzz.db"); ok {
 		t.Fatal("non-hex backup token was accepted")
+	}
+}
+
+func TestBackupRetentionNeverEvictsRebuildMarkerSnapshots(t *testing.T) {
+	root := t.TempDir()
+	backupDir := filepath.Join(root, "backups")
+	if err := os.MkdirAll(backupDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager(filepath.Join(root, "settings.json"), filepath.Join(root, "backtest.db"))
+	writeBackup := func(databaseID, stamp, token string) string {
+		t.Helper()
+		path := filepath.Join(backupDir, databaseID+"-"+stamp+"-"+token+".db")
+		if err := os.WriteFile(path, make([]byte, 5), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+
+	protected := writeBackup(DatabaseADK, "20260716T090000.000000000Z", "abcdef12")
+	expendable := writeBackup(DatabaseResearch, "20260716T090100.000000000Z", "abcdef13")
+	if err := manager.writeMarker(marker{
+		DatabaseIDs: []string{DatabaseADK},
+		Backups:     []markerBackup{{DatabaseID: DatabaseADK, Path: protected}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.prepareBackupCapacity(backupDir, DatabaseWatchlist, 5, 10); err != nil {
+		t.Fatalf("prepare capacity: %v", err)
+	}
+	if _, err := os.Stat(protected); err != nil {
+		t.Fatalf("marker backup was evicted while preparing capacity: %v", err)
+	}
+	if _, err := os.Stat(expendable); !os.IsNotExist(err) {
+		t.Fatalf("unprotected backup was not evicted: %v", err)
+	}
+
+	current := writeBackup(DatabaseWatchlist, "20260716T090200.000000000Z", "abcdef14")
+	expendable = writeBackup(DatabaseResearch, "20260716T090300.000000000Z", "abcdef15")
+	if err := manager.enforceBackupRetention(backupDir, current, 10); err != nil {
+		t.Fatalf("enforce retention: %v", err)
+	}
+	for _, path := range []string{protected, current} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("protected backup %s was evicted: %v", filepath.Base(path), err)
+		}
+	}
+	if _, err := os.Stat(expendable); !os.IsNotExist(err) {
+		t.Fatalf("unprotected backup was not evicted under quota pressure: %v", err)
+	}
+
+	transient := writeBackup(DatabaseResearch, "20260716T090400.000000000Z", "abcdef16")
+	expendable = writeBackup(DatabaseExecution, "20260716T090500.000000000Z", "abcdef17")
+	if err := manager.prepareBackupCapacity(backupDir, DatabaseADKSession, 5, 15, transient); err != nil {
+		t.Fatalf("prepare capacity with transient protection: %v", err)
+	}
+	if _, err := os.Stat(transient); err != nil {
+		t.Fatalf("current rebuild batch backup was evicted: %v", err)
+	}
+	if _, err := os.Stat(expendable); !os.IsNotExist(err) {
+		t.Fatalf("unprotected backup survived transient quota pressure: %v", err)
+	}
+}
+
+func TestBackupSnapshotDoesNotMutateIncompatibleSource(t *testing.T) {
+	manager := newTestManager(t)
+	descriptor := manager.descriptorMap()[DatabaseWatchlist]
+	db, err := sql.Open("sqlite", descriptor.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE legacy (id INTEGER PRIMARY KEY, value TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO legacy (value) VALUES ('preserve me')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	before, err := fileSHA256(descriptor.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, suffix := range []string{"-wal", "-shm"} {
+		if _, err := os.Stat(descriptor.Path + suffix); !os.IsNotExist(err) {
+			t.Fatalf("unexpected source sidecar before backup %s: %v", suffix, err)
+		}
+	}
+
+	result, err := manager.createBackupSnapshot(t.Context(), descriptor, "incompatible", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("create incompatible backup: %v", err)
+	}
+	if _, err := os.Stat(result.BackupPath); err != nil {
+		t.Fatalf("backup does not exist: %v", err)
+	}
+	after, err := fileSHA256(descriptor.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Fatal("backup mutated the incompatible source database")
+	}
+	for _, suffix := range []string{"-wal", "-shm"} {
+		if _, err := os.Stat(descriptor.Path + suffix); !os.IsNotExist(err) {
+			t.Fatalf("backup created source sidecar %s: %v", suffix, err)
+		}
 	}
 }
 
@@ -432,7 +557,7 @@ func TestMaintenanceCleanupAndCompactionReportActualReclaimedStorage(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO strategy_design_definitions VALUES ('large-deleted', zeroblob(2097152), '{}', '2026-01-01T00:00:00Z')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO strategy_design_definitions (id, script, visual_model_json, deleted_at) VALUES ('large-deleted', zeroblob(2097152), '{}', '2026-01-01T00:00:00Z')`); err != nil {
 		_ = db.Close()
 		t.Fatal(err)
 	}
@@ -478,7 +603,7 @@ func TestMaintenanceCleanupAndCompactionReportActualReclaimedStorage(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`CREATE TABLE compact_payload (value BLOB); INSERT INTO compact_payload VALUES (zeroblob(2097152)); DELETE FROM compact_payload`); err != nil {
+	if _, err := db.Exec(`INSERT INTO watchlist_instruments (instrument_id, market, symbol, name, created_at, updated_at) VALUES ('US.TEST', 'US', 'TEST', zeroblob(2097152), '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'); DELETE FROM watchlist_instruments WHERE instrument_id = 'US.TEST'`); err != nil {
 		_ = db.Close()
 		t.Fatal(err)
 	}

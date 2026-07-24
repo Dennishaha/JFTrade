@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -18,7 +19,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	definition, err := server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           "dsl-versioned",
 		Name:         "Versioned Strategy",
 		Description:  "first save",
@@ -29,7 +30,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveDefinition(create): %v", err)
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
@@ -37,7 +38,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
 	}
-	definition, err = server.designStore.saveDefinition(strategyDesignDefinition{
+	definition, err = server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           definition.ID,
 		Name:         definition.Name,
 		Description:  "second save",
@@ -64,8 +65,8 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	var listEnvelope struct {
-		OK   bool               `json:"ok"`
-		Data []strategyListItem `json:"data"`
+		OK   bool                    `json:"ok"`
+		Data []stratsrv.InstanceView `json:"data"`
 	}
 	if err := json.NewDecoder(listResp.Body).Decode(&listEnvelope); err != nil {
 		t.Fatalf("decode strategies: %v", err)
@@ -95,8 +96,8 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 		t.Fatalf("POST refresh-definition status = %d", refreshResp.StatusCode)
 	}
 	var refreshEnvelope struct {
-		OK   bool             `json:"ok"`
-		Data strategyListItem `json:"data"`
+		OK   bool                  `json:"ok"`
+		Data stratsrv.InstanceView `json:"data"`
 	}
 	if err := json.NewDecoder(refreshResp.Body).Decode(&refreshEnvelope); err != nil {
 		t.Fatalf("decode refresh-definition: %v", err)

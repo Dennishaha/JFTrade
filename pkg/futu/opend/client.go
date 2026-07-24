@@ -81,9 +81,6 @@ type Config struct {
 	// API does not use it, but we keep the field so the same settings payload can
 	// feed both API and FTWebSocket diagnostics.
 	WebSocketKey string
-	// TLS is not used by the native OpenD TCP API. It is kept for backward
-	// compatibility with older call sites.
-	TLS bool
 	// HandshakeTimeout caps the TCP dial timeout (default 10s).
 	HandshakeTimeout time.Duration
 	// RequestTimeout caps a single RPC (default 15s).

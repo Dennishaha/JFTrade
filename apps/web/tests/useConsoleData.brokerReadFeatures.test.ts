@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { createPinia } from "pinia";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 
@@ -38,7 +37,7 @@ import {
   emptySystemStatus,
 } from "@/contracts";
 
-import { provideConsoleDataStore } from "../src/composables/useConsoleData";
+import { provideConsoleDataStore, useConsoleData } from "../src/composables/useConsoleData";
 import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
 import { createResponse } from "./helpers";
 
@@ -53,11 +52,7 @@ function createConsoleStore() {
     },
   });
 
-  mount(Host, {
-    global: {
-      plugins: [createPinia()],
-    },
-  });
+  mount(Host);
 
   if (store == null) {
     throw new Error("Failed to create console data store.");
@@ -65,6 +60,17 @@ function createConsoleStore() {
 
   return store;
 }
+
+it("fails closed when the console data provider is missing", () => {
+  const Consumer = defineComponent({
+    setup() {
+      useConsoleData();
+      return () => null;
+    },
+  });
+
+  expect(() => mount(Consumer)).toThrow("Console data store not provided.");
+});
 
 function createReadFeatures(
   overrides: Partial<

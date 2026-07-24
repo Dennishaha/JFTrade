@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
@@ -26,7 +28,7 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          strings.Split(opendServer.addr, ":")[0],
 		APIPort:       portFromAddr(t, opendServer.addr),
@@ -61,8 +63,8 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	}
 
 	var commandEnvelope struct {
-		OK   bool                       `json:"ok"`
-		Data brokerOrderCommandResponse `json:"data"`
+		OK   bool                            `json:"ok"`
+		Data trdsrv.ExecutionCommandResponse `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&commandEnvelope); err != nil {
 		t.Fatalf("decode execution command: %v", err)
@@ -90,8 +92,8 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	}
 
 	var ordersEnvelope struct {
-		OK   bool                    `json:"ok"`
-		Data executionOrdersResponse `json:"data"`
+		OK   bool                   `json:"ok"`
+		Data trdsrv.ExecutionOrders `json:"data"`
 	}
 	if err := json.NewDecoder(listResp.Body).Decode(&ordersEnvelope); err != nil {
 		t.Fatalf("decode execution orders: %v", err)
@@ -129,8 +131,8 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	}
 
 	var eventsEnvelope struct {
-		OK   bool                         `json:"ok"`
-		Data executionOrderEventsResponse `json:"data"`
+		OK   bool                        `json:"ok"`
+		Data trdsrv.ExecutionOrderEvents `json:"data"`
 	}
 	if err := json.NewDecoder(eventsResp.Body).Decode(&eventsEnvelope); err != nil {
 		t.Fatalf("decode execution order events: %v", err)
@@ -162,8 +164,8 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	}
 
 	var cancelEnvelope struct {
-		OK   bool                       `json:"ok"`
-		Data brokerOrderCommandResponse `json:"data"`
+		OK   bool                            `json:"ok"`
+		Data trdsrv.ExecutionCommandResponse `json:"data"`
 	}
 	if err := json.NewDecoder(cancelResp.Body).Decode(&cancelEnvelope); err != nil {
 		t.Fatalf("decode cancel response: %v", err)
@@ -185,8 +187,8 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	defer func() { jftradeCheckTestError(t, updatedEventsResp.Body.Close()) }()
 
 	var updatedEventsEnvelope struct {
-		OK   bool                         `json:"ok"`
-		Data executionOrderEventsResponse `json:"data"`
+		OK   bool                        `json:"ok"`
+		Data trdsrv.ExecutionOrderEvents `json:"data"`
 	}
 	if err := json.NewDecoder(updatedEventsResp.Body).Decode(&updatedEventsEnvelope); err != nil {
 		t.Fatalf("decode updated execution events: %v", err)

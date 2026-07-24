@@ -34,20 +34,13 @@ type TickEvent struct {
 
 type Backend interface {
 	ConnectionLimit() int
-	Heartbeat(time.Duration, ClientStats, []string) map[string]any
-	MarketTicks(context.Context, []string, string) ([]TickEvent, error)
+	Heartbeat(time.Duration, ClientStats, []string, string) map[string]any
+	MarketTicks(context.Context, string, []string, string) ([]TickEvent, error)
 	NotificationsAfter(uint64) []livecore.Event
 	EnsureNotificationBridge(context.Context)
-	SecurityDetails(context.Context, string, string) (map[string]any, error)
-	Depth(context.Context, string, string, int32) (map[string]any, error)
+	SecurityDetails(context.Context, string, string, string) (map[string]any, error)
+	Depth(context.Context, string, string, string, int32) (map[string]any, error)
 	SubscribeDepthUpdates(func(string)) func()
-}
-
-type ProviderAwareBackend interface {
-	HeartbeatForProvider(time.Duration, ClientStats, []string, string) map[string]any
-	MarketTicksForProvider(context.Context, string, []string, string) ([]TickEvent, error)
-	SecurityDetailsForProvider(context.Context, string, string, string) (map[string]any, error)
-	DepthForProvider(context.Context, string, string, string, int32) (map[string]any, error)
 }
 
 type Options struct {
@@ -255,7 +248,11 @@ func (h *Handler) subscribeDepthUpdates(client *livecore.Client) (<-chan struct{
 	updateCh := make(chan struct{}, 1)
 	unsubscribe := h.backend.SubscribeDepthUpdates(func(updatedSymbol string) {
 		instrumentID := strings.ToUpper(strings.TrimSpace(updatedSymbol))
-		for _, subscription := range client.Snapshot().Depth {
+		snapshot := client.Snapshot()
+		if snapshot.ProviderBrokerID != "futu" {
+			return
+		}
+		for _, subscription := range snapshot.Depth {
 			if subscription.InstrumentID != instrumentID {
 				continue
 			}
@@ -284,6 +281,9 @@ func readClientMessages(conn *websocket.Conn, client *livecore.Client) <-chan st
 			var message clientMessage
 			if err := json.Unmarshal(payload, &message); err != nil || message.Type != "subscribe" {
 				continue
+			}
+			if strings.TrimSpace(message.Subscriptions.ProviderBrokerID) == "" {
+				return
 			}
 			client.SetSubscriptions(message.Subscriptions)
 		}

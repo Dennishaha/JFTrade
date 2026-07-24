@@ -194,8 +194,6 @@ type TranscriptEntry struct {
 	CreatedAt        string `json:"createdAt"`
 }
 
-type Message = TranscriptEntry
-
 type TimelineEntry struct {
 	ID            string        `json:"id"`
 	SessionID     string        `json:"sessionId"`
@@ -356,7 +354,6 @@ type ToolDescriptor struct {
 	InputSchema        map[string]any `json:"inputSchema,omitempty"`
 	OutputSummary      string         `json:"outputSummary,omitempty"`
 	RiskLevel          string         `json:"riskLevel,omitempty"`
-	RequiredSkill      string         `json:"requiredSkill,omitempty"`
 	RequiredSkills     []string       `json:"requiredSkills,omitempty"`
 }
 

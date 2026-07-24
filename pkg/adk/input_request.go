@@ -67,10 +67,10 @@ type InputResponseRequest struct {
 }
 
 type InputResolution struct {
-	Request   InputRequest `json:"request"`
-	Run       *Run         `json:"run,omitempty"`
-	ParentRun *Run         `json:"parentRun,omitempty"`
-	Message   *Message     `json:"message,omitempty"`
+	Request   InputRequest     `json:"request"`
+	Run       *Run             `json:"run,omitempty"`
+	ParentRun *Run             `json:"parentRun,omitempty"`
+	Message   *TranscriptEntry `json:"message,omitempty"`
 }
 
 var (

@@ -229,6 +229,126 @@ describe("useBacktestRuns", () => {
     });
   });
 
+  it("normalizes optional OpenAPI transport fields and complete fee schedules", async () => {
+    const completeRule = {
+      id: "rule-complete",
+      label: "Complete",
+      category: "exchange",
+      side: "buy",
+      basis: "share",
+      rate: 0.001,
+      fixedAmount: 1,
+      minAmount: 2,
+      maxAmount: 3,
+      maxRate: 0.01,
+      rounding: "ceil",
+      currency: "USD",
+      appliesTo: "fills",
+      effectiveFrom: "2026-01-01",
+      effectiveTo: "2026-12-31",
+      sourceUrl: "https://example.test/fees",
+    };
+    const categoryRules = [
+      completeRule,
+      { category: "clearing", side: "sell", basis: "order" },
+      { category: "regulatory", side: "both", basis: "notional" },
+      { category: "tax", side: "invalid", basis: "invalid" },
+      {},
+    ];
+    apiGet.mockResolvedValue({
+      runs: [
+        {
+          request: {},
+          result: {
+            trades: [{ price: 0, qty: 0 }],
+            orderBook: [{ quantity: 0 }],
+            candles: [{ open: 0, high: 0, low: 0, close: 0, volume: 0 }],
+            pnlCurve: [{}],
+            drawdownCurve: [{}],
+            feeBreakdown: [{}],
+            tradingCosts: {
+              brokerFees: { mode: "script", rules: categoryRules },
+              marketFees: { mode: "none" },
+            },
+            executionModel: "conservative-bar-v1",
+          },
+        },
+        makeRun("run-fees", {
+          request: {
+            definitionId: "def-2",
+            definitionVersion: "2.0.0",
+            market: "HK",
+            code: "00700",
+            symbol: "HK.00700",
+            instrumentType: "stock",
+            interval: "1d",
+            startDate: "2026-01-01",
+            endDate: "2026-02-01",
+            startTime: "2026-01-01T00:00:00Z",
+            endTime: "2026-02-01T00:00:00Z",
+            marketTimezone: "Asia/Hong_Kong",
+            initialBalance: 1_000_000,
+            rehabType: "forward",
+            useExtendedHours: false,
+            tradingCosts: {
+              brokerFees: { mode: "market_preset", presetId: "futu-hk" },
+              marketFees: { mode: "custom", rules: categoryRules },
+            },
+            executionModel: "conservative-bar-v1",
+          },
+          result: {
+            symbol: "HK.00700",
+            interval: "1d",
+            startTime: "2026-01-01T00:00:00Z",
+            endTime: "2026-02-01T00:00:00Z",
+            finalBalance: 1_000_100,
+            pnl: 100,
+            totalTrades: 1,
+            winRate: 1,
+            feeBreakdown: [{
+              ruleId: "rule-complete",
+              label: "Complete",
+              group: "broker",
+              category: "exchange",
+              currency: "USD",
+              amount: 3,
+              count: 1,
+            }],
+            pnlCurve: [{ time: "2026-01-02T00:00:00Z", equity: 1_000_100 }],
+            drawdownCurve: [{ time: "2026-01-02T00:00:00Z", drawdown: 0 }],
+            tradingCosts: {
+              brokerFees: { mode: "invalid", rules: [] },
+            },
+          },
+        }),
+      ],
+    });
+    const { state } = mountBacktestRuns();
+
+    await state.loadRuns();
+
+    const empty = state.runs.value.find((run) => run.id === "");
+    expect(empty).toMatchObject({ id: "", status: "", createdAt: "", updatedAt: "" });
+    expect(empty?.result?.trades?.[0]).toMatchObject({ time: "", side: "" });
+    expect(empty?.result?.feeBreakdown?.[0]).toEqual({
+      ruleId: "", label: "", group: "", category: "", currency: "", amount: 0, count: 0,
+    });
+    expect(empty?.result?.tradingCosts?.brokerFees?.rules).toHaveLength(5);
+    expect(empty?.result?.executionModel).toBe("conservative-bar-v1");
+
+    const complete = state.runs.value.find((run) => run.id === "run-fees");
+    expect(complete?.request).toMatchObject({
+      definitionVersion: "2.0.0",
+      market: "HK",
+      code: "00700",
+      instrumentType: "stock",
+      marketTimezone: "Asia/Hong_Kong",
+      executionModel: "conservative-bar-v1",
+    });
+    expect(complete?.result?.feeBreakdown?.[0]).toMatchObject({ amount: 3, count: 1 });
+    expect(complete?.result?.tradingCosts?.brokerFees).toEqual({ rules: [] });
+  });
+
   it("keeps the preferred duplicate run and sorts newest first", async () => {
     apiGet.mockResolvedValue({
       runs: [

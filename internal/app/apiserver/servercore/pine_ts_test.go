@@ -3,6 +3,7 @@ package servercore
 import (
 	"testing"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
@@ -35,7 +36,7 @@ func TestStrategyRuntimeFromParamsMigratesLegacyRuntime(t *testing.T) {
 
 func TestStrategyCatalogNormalizeStrategyMigratesLegacyRuntime(t *testing.T) {
 	store := &strategyCatalogStore{}
-	normalized := store.normalizeStrategy(managedStrategyInstance{
+	normalized := store.normalizeStrategy(stratsrv.ManagedInstance{
 		Params: map[string]any{"runtime": pineworker.LegacyRuntimeID},
 	})
 	if got := normalized.Params["runtime"]; got != pineworker.RuntimeID {

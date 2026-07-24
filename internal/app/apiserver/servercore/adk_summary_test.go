@@ -1,6 +1,8 @@
 package servercore
 
 import (
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,15 +15,15 @@ func TestADKStrategyInstanceSummariesIncludeFallbackDefinitionAndRuntimeState(t 
 	}
 	server := newTestServer(t, store)
 
-	observedID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	observedID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL", "US.MSFT"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{
+		BrokerAccount: &stratsrv.BrokerAccountBinding{
 			BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US",
 		},
 	})
-	plainID := instantiateStrategyRuntimeTestInstanceWithDefinitionID(t, server, "runtime-test-plain", strategyInstanceBinding{
+	plainID := instantiateStrategyRuntimeTestInstanceWithDefinitionID(t, server, "runtime-test-plain", stratsrv.InstanceBinding{
 		Symbols:       []string{"HK.00700"},
 		Interval:      "15m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
@@ -47,7 +49,7 @@ func TestADKStrategyInstanceSummariesIncludeFallbackDefinitionAndRuntimeState(t 
 	}
 
 	now := strategyRuntimeTestTime(10, 5, 0)
-	if err := server.strategyRuntimeStore.UpsertObservation(t.Context(), strategyRuntimeObservationSnapshot{
+	if err := server.strategyRuntimeStore.UpsertObservation(t.Context(), runtimeactivity.ObservationSnapshot{
 		InstanceID:    observedID,
 		ActualStatus:  "running",
 		ActiveSymbols: []string{"US.AAPL", "US.MSFT"},

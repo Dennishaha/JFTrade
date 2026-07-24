@@ -10,6 +10,7 @@ import (
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
 	trdgetmarginratiopb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmarginratio"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestBrokerReadEndpointsReturnExchangeBackedData(t *testing.T) {
@@ -167,7 +168,7 @@ func TestBrokerReadEndpointsReturnExchangeBackedData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          strings.Split(opendServer.addr, ":")[0],
 		APIPort:       portFromAddr(t, opendServer.addr),

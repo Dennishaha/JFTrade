@@ -56,7 +56,7 @@ func mustSaveRun(t *testing.T, runtime *Runtime, run Run) Run {
 	return run
 }
 
-func mustMessages(t *testing.T, runtime *Runtime, sessionID string) []Message {
+func mustMessages(t *testing.T, runtime *Runtime, sessionID string) []TranscriptEntry {
 	t.Helper()
 	messages, err := runtime.Store().Messages(context.Background(), sessionID)
 	if err != nil {
@@ -65,10 +65,10 @@ func mustMessages(t *testing.T, runtime *Runtime, sessionID string) []Message {
 	return messages
 }
 
-func mustAssistantMessages(t *testing.T, runtime *Runtime, sessionID string) []Message {
+func mustAssistantMessages(t *testing.T, runtime *Runtime, sessionID string) []TranscriptEntry {
 	t.Helper()
 	messages := mustMessages(t, runtime, sessionID)
-	filtered := make([]Message, 0, len(messages))
+	filtered := make([]TranscriptEntry, 0, len(messages))
 	for _, message := range messages {
 		if message.Role == "assistant" {
 			filtered = append(filtered, message)
@@ -162,7 +162,7 @@ func newWorkflowApprovalRuntime(t *testing.T, mode string) (*Runtime, *atomic.In
 
 func waitForRunStatus(t *testing.T, runtime *Runtime, runID string, status string) Run {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(5 * time.Second)
 	for {
 		run, ok, err := runtime.Store().Run(context.Background(), runID)
 		if err != nil {

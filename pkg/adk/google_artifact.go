@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	adkartifact "google.golang.org/adk/v2/artifact"
 	"google.golang.org/genai"
@@ -21,7 +22,8 @@ import (
 const googleADKArtifactUserScopeSession = "user"
 
 type googleADKArtifactService struct {
-	db *sqliteconn.DB
+	db   *sqliteconn.DB
+	path string
 }
 
 type googleADKArtifactRecord struct {
@@ -43,11 +45,14 @@ func newGoogleADKArtifactService(path string) (adkartifact.Service, error) {
 	if path == "" {
 		return adkartifact.InMemoryService(), nil
 	}
+	if err := sqliteschema.ValidateCurrentFile(context.Background(), path, sqliteschema.DatabaseADKArtifact); err != nil {
+		return nil, fmt.Errorf("validate ADK artifact database: %w", err)
+	}
 	db, err := sqliteconn.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	service := &googleADKArtifactService{db: db}
+	service := &googleADKArtifactService{db: db, path: path}
 	if err := service.init(context.Background()); err != nil {
 		jftradeErr := db.Close()
 		besteffort.LogError(jftradeErr)
@@ -83,20 +88,7 @@ func (s *googleADKArtifactService) init(ctx context.Context) error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("ADK artifact database is unavailable")
 	}
-	_, err := s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS artifacts (
-		app_name TEXT NOT NULL,
-		user_id TEXT NOT NULL,
-		session_id TEXT NOT NULL,
-		file_name TEXT NOT NULL,
-		version INTEGER NOT NULL,
-		part_json TEXT NOT NULL,
-		mime_type TEXT NOT NULL,
-		custom_metadata_json TEXT,
-		created_at TEXT NOT NULL,
-		updated_at TEXT NOT NULL,
-		PRIMARY KEY (app_name, user_id, session_id, file_name, version)
-	)`)
-	return err
+	return sqliteschema.InitializeCurrent(ctx, s.db, s.path, sqliteschema.DatabaseADKArtifact)
 }
 
 func (s *googleADKArtifactService) Save(ctx context.Context, req *adkartifact.SaveRequest) (*adkartifact.SaveResponse, error) {

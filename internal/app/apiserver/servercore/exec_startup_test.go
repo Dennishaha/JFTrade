@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,7 @@ func TestExecutionOrderDatabasePathResolution(t *testing.T) {
 	}
 }
 
-func TestExecutionOrderPersistenceMigratesV1StatusWithoutDataLoss(t *testing.T) {
+func TestExecutionOrderPersistenceRejectsV1WithoutMutatingFile(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "execution-v1.db")
 	db, err := sqliteconn.OpenX(dbPath)
 	if err != nil {
@@ -52,17 +53,20 @@ func TestExecutionOrderPersistenceMigratesV1StatusWithoutDataLoss(t *testing.T) 
 		t.Fatalf("close v1 seed: %v", err)
 	}
 
-	store, err := newExecutionOrderStoreWithDB(dbPath)
+	before, err := os.ReadFile(dbPath)
 	if err != nil {
-		t.Fatalf("migrate v1 store: %v", err)
+		t.Fatalf("read v1 bytes: %v", err)
 	}
-	defer func() { jftradeCheckTestError(t, store.Close()) }()
-	order, ok := store.order("exec-v1")
-	if !ok || order.Status != "PARTIALLY_FILLED" {
-		t.Fatalf("migrated order = %#v", order)
+	store, err := newExecutionOrderStoreWithDB(dbPath)
+	if err == nil || store != nil || !sqliteschema.IsIncompatible(err) {
+		t.Fatalf("open v1 store = %#v/%v, want incompatible", store, err)
 	}
-	if order.RawBrokerStatus == nil || *order.RawBrokerStatus != "FILLED_PART" {
-		t.Fatalf("migrated raw broker status = %#v", order.RawBrokerStatus)
+	after, err := os.ReadFile(dbPath)
+	if err != nil {
+		t.Fatalf("read v1 bytes after rejection: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("v1 database bytes changed during rejection")
 	}
 }
 
@@ -75,7 +79,7 @@ func TestExecutionOrderPersistenceRejectsInvalidPaths(t *testing.T) {
 	if err := os.WriteFile(occupied, []byte("file"), 0o600); err != nil {
 		t.Fatalf("prepare occupied path: %v", err)
 	}
-	if _, err := newExecutionOrderSQLiteStore(filepath.Join(occupied, "execution.db")); err == nil || !strings.Contains(err.Error(), "create execution order db directory") {
+	if _, err := newExecutionOrderSQLiteStore(filepath.Join(occupied, "execution.db")); err == nil || !strings.Contains(err.Error(), "not a directory") {
 		t.Fatalf("occupied parent path err = %v", err)
 	}
 }
@@ -95,17 +99,6 @@ func TestExecutionOrderPersistenceRejectsPartialLegacySchema(t *testing.T) {
 
 	if _, err := newExecutionOrderSQLiteStore(dbPath); err == nil || !strings.Contains(err.Error(), "schema is incompatible") || !strings.Contains(err.Error(), "rebuild") {
 		t.Fatalf("partial legacy schema err = %v", err)
-	}
-	db, err = sqliteconn.OpenX(dbPath)
-	if err != nil {
-		t.Fatalf("reopen partial schema: %v", err)
-	}
-	persistence := &executionOrderSQLiteStore{db: db, path: dbPath}
-	if err := persistence.ensureExistingSchemaCanBeOpened(); err == nil || !strings.Contains(err.Error(), "schema is obsolete") {
-		t.Fatalf("partial table validation err = %v", err)
-	}
-	if err := db.Close(); err != nil {
-		t.Fatalf("close partial schema validation db: %v", err)
 	}
 }
 
@@ -132,20 +125,6 @@ func TestExecutionOrderPersistenceRejectsWrongColumnLayout(t *testing.T) {
 
 	if _, err := newExecutionOrderSQLiteStore(dbPath); err == nil || !strings.Contains(err.Error(), "schema is incompatible") {
 		t.Fatalf("wrong column schema err = %v", err)
-	}
-	db, err = sqliteconn.OpenX(dbPath)
-	if err != nil {
-		t.Fatalf("reopen wrong column schema: %v", err)
-	}
-	persistence := &executionOrderSQLiteStore{db: db, path: dbPath}
-	if err := persistence.ensureExistingSchemaCanBeOpened(); err == nil || !strings.Contains(err.Error(), "schema is obsolete") {
-		t.Fatalf("missing v3 tables should be rejected: %v", err)
-	}
-	if err := persistence.ensureSchema(executionOrderTable, expectedExecutionOrderColumns()); err == nil || !strings.Contains(err.Error(), "schema is obsolete") {
-		t.Fatalf("wrong column validation err = %v", err)
-	}
-	if err := db.Close(); err != nil {
-		t.Fatalf("close wrong column validation db: %v", err)
 	}
 }
 

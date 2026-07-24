@@ -127,6 +127,7 @@ type BackupResult struct {
 	DatabaseID string `json:"databaseId"`
 	BackupPath string `json:"backupPath"`
 	SizeBytes  int64  `json:"sizeBytes"`
+	SHA256     string `json:"sha256"`
 	CreatedAt  string `json:"createdAt"`
 }
 

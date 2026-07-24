@@ -502,7 +502,6 @@ func TestProductToolRegistryHandlersAndSwaggerMarkersStayLinked(t *testing.T) {
 	}
 
 	documentationMarkers := []func() string{
-		documentDataMigrationRoutes,
 		documentDataManagementOverview,
 		documentDataCleanupPreview,
 		documentDataCleanupExecute,
@@ -512,7 +511,6 @@ func TestProductToolRegistryHandlersAndSwaggerMarkersStayLinked(t *testing.T) {
 		documentAssistantTaskMemoryRoutes,
 		documentAssistantSessionRunRoutes,
 		documentAssistantChatApprovalSkillRoutes,
-		documentAssistantSkillUpdateRemovedRoute,
 		documentAssistantOptimizationRoutes,
 		documentAssistantWorkflowRoutes,
 		documentBacktestSyncTaskRoutes,
@@ -541,7 +539,6 @@ func TestProductToolRegistryHandlersAndSwaggerMarkersStayLinked(t *testing.T) {
 		documentExecutionCancelRoute,
 		documentExecutionEventsRoute,
 		documentSystemOperationalRoutes,
-		documentExecutionPreviewRoute,
 	}
 	seenMarkers := map[string]struct{}{}
 	for _, marker := range documentationMarkers {

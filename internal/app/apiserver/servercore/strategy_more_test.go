@@ -80,7 +80,7 @@ func TestStrategyRuntimeAdapterExposesObservationSummaryAndNoopStop(t *testing.T
 	manager := &strategyRuntimeManager{runtimes: map[string]*managedStrategyRuntime{
 		"instance-adapter": {
 			instanceID: "instance-adapter",
-			definition: strategyDefinitionSummary{Name: "Adapter Runtime"},
+			definition: stratsrv.DefinitionSummary{Name: "Adapter Runtime"},
 			symbols: map[string]*strategySymbolRuntime{
 				"US.AAPL": {symbol: "US.AAPL"},
 				"US.MSFT": {symbol: "US.MSFT"},

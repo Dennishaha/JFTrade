@@ -2,6 +2,7 @@ package servercore
 
 import (
 	apruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const (
@@ -13,16 +14,16 @@ const (
 	defaultBacktestDBFilename = apruntime.DefaultBacktestDBFilename
 )
 
-func resolveLaunchDefaults(embeddedFrontend bool) LaunchDefaults {
+func resolveLaunchDefaults(embeddedFrontend bool) jfsettings.LaunchDefaults {
 	return apruntime.ResolveLaunchDefaults(embeddedFrontend)
 }
 
 // ResolveLaunchDefaults returns startup defaults for embedded or development mode.
-func ResolveLaunchDefaults(embeddedFrontend bool) LaunchDefaults {
+func ResolveLaunchDefaults(embeddedFrontend bool) jfsettings.LaunchDefaults {
 	return resolveLaunchDefaults(embeddedFrontend)
 }
 
-func LaunchDefaultsForExecutableDir(embeddedFrontend bool, executableDir string) LaunchDefaults {
+func LaunchDefaultsForExecutableDir(embeddedFrontend bool, executableDir string) jfsettings.LaunchDefaults {
 	return apruntime.LaunchDefaultsForExecutableDir(embeddedFrontend, executableDir)
 }
 

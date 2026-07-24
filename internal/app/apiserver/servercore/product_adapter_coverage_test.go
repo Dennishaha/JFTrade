@@ -102,7 +102,7 @@ func TestADKProductAndExecutionDispatchFailureBoundaries(t *testing.T) {
 
 func TestApplyExecutionLegSnapshotsCompleteMergeAppendAndLifecycle(t *testing.T) {
 	now := "2026-07-17T12:00:00Z"
-	summary := &executionOrderSummaryResponse{
+	summary := &trdsrv.ExecutionOrder{
 		InternalOrderID: "order-1",
 		Legs: []trdsrv.ExecutionOrderLeg{{
 			ID: "order-1-leg-001", InternalOrderID: "order-1", Index: 0,

@@ -284,7 +284,7 @@ func isReadPragma(query string) bool {
 	}
 	name := strings.TrimSpace(remainder[:end])
 	switch name {
-	case "TABLE_INFO", "TABLE_XINFO", "INDEX_LIST", "INDEX_INFO", "INDEX_XINFO", "FOREIGN_KEY_LIST":
+	case "TABLE_INFO", "TABLE_XINFO", "INDEX_LIST", "INDEX_INFO", "INDEX_XINFO", "FOREIGN_KEY_LIST", "FOREIGN_KEY_CHECK", "QUICK_CHECK":
 		return true
 	case "DATABASE_LIST", "COMPILE_OPTIONS", "PRAGMA_LIST", "PAGE_SIZE", "FREELIST_COUNT", "JOURNAL_MODE", "BUSY_TIMEOUT", "FOREIGN_KEYS", "USER_VERSION":
 		return !strings.ContainsAny(remainder, "=(")

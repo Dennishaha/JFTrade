@@ -159,15 +159,15 @@ func registerWorkflowRunTools(store *jfadk.Store, registry *jfadk.ToolRegistry, 
 }
 
 func workflowReadToolDescriptor(name string, displayName string, description string, output string) jfadk.ToolDescriptor {
-	return jfadk.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "read_internal", RiskLevel: "low", OutputSummary: output, RequiredSkill: jfadk.WorkflowManagementSkillName}
+	return jfadk.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "read_internal", RiskLevel: "low", OutputSummary: output, RequiredSkills: []string{jfadk.WorkflowManagementSkillName}}
 }
 
 func workflowWriteToolDescriptor(name string, displayName string, description string, output string) jfadk.ToolDescriptor {
-	return jfadk.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "write_workflow", RiskLevel: "high", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: output, RequiredSkill: jfadk.WorkflowManagementSkillName}
+	return jfadk.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "write_workflow", RiskLevel: "high", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: output, RequiredSkills: []string{jfadk.WorkflowManagementSkillName}}
 }
 
 func workflowRunToolDescriptor(name string, displayName string, description string, output string) jfadk.ToolDescriptor {
-	return jfadk.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "execute_workflow", RiskLevel: "high", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: output, RequiredSkill: jfadk.WorkflowManagementSkillName}
+	return jfadk.ToolDescriptor{Name: name, DisplayName: displayName, Description: description, Category: "workflow", Permission: "execute_workflow", RiskLevel: "high", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: output, RequiredSkills: []string{jfadk.WorkflowManagementSkillName}}
 }
 
 func workflowToolManagerRequired(manager WorkflowToolManager) WorkflowToolManager {

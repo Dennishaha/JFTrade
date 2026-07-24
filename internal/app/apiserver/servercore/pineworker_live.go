@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
@@ -23,7 +24,7 @@ type strategyRuntimePineWorker interface {
 
 type strategyRuntimePineWorkerLive struct {
 	runner          strategyRuntimePineWorker
-	instance        managedStrategyInstance
+	instance        stratsrv.ManagedInstance
 	symbol          string
 	interval        bbgotypes.Interval
 	source          string
@@ -37,7 +38,7 @@ type strategyRuntimePineWorkerLive struct {
 
 func newStrategyRuntimePineWorkerLive(
 	runner strategyRuntimePineWorker,
-	instance managedStrategyInstance,
+	instance stratsrv.ManagedInstance,
 	symbol string,
 	interval bbgotypes.Interval,
 	source string,
@@ -328,7 +329,7 @@ func strategyRuntimeCurrentBarIntents(intents []pineworker.OrderIntent, barIndex
 	return filtered
 }
 
-func strategyRuntimePineWorkerParams(instance managedStrategyInstance) map[string]string {
+func strategyRuntimePineWorkerParams(instance stratsrv.ManagedInstance) map[string]string {
 	params := make(map[string]string, len(instance.Params))
 	for key, value := range instance.Params {
 		switch typed := value.(type) {

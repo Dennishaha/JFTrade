@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,14 +55,14 @@ func TestStrategyCatalogLoadDatabaseFailures(t *testing.T) {
 func TestStrategyCatalogOrderingAndNonMatchingUpdate(t *testing.T) {
 	store := newCatalogCoverageStore(t)
 	for _, id := range []string{"z-plugin", "a-plugin"} {
-		if err := store.savePlugin(managedStrategyPlugin{Descriptor: strategyPluginDescriptor{ID: id}}); err != nil {
+		if err := store.savePlugin(managedStrategyPlugin{Descriptor: stratsrv.PluginDescriptor{ID: id}}); err != nil {
 			t.Fatalf("save plugin %s: %v", id, err)
 		}
 	}
 	if got := store.pluginCatalog().Plugins; len(got) != 2 || got[0].Descriptor.ID != "a-plugin" {
 		t.Fatalf("sorted plugins = %#v", got)
 	}
-	updated := managedStrategyPlugin{Descriptor: strategyPluginDescriptor{ID: "a-plugin", DisplayName: "updated"}}
+	updated := managedStrategyPlugin{Descriptor: stratsrv.PluginDescriptor{ID: "a-plugin", DisplayName: "updated"}}
 	if err := store.savePlugin(updated); err != nil {
 		t.Fatalf("update later plugin: %v", err)
 	}
@@ -87,9 +88,9 @@ func TestStrategyCatalogPersistFailureBoundaries(t *testing.T) {
 		{name: "delete strategies", failAt: 3},
 		{name: "delete operations", failAt: 4},
 		{name: "insert metadata", failAt: 5},
-		{name: "insert plugin", failAt: 6, data: strategyCatalogFile{Plugins: []managedStrategyPlugin{{Descriptor: strategyPluginDescriptor{ID: "plugin"}}}}},
-		{name: "insert strategy", failAt: 6, data: strategyCatalogFile{Strategies: []managedStrategyInstance{{ID: "strategy"}}}},
-		{name: "insert operation", failAt: 6, data: strategyCatalogFile{Operations: []strategyPluginOperation{{OperationID: "operation"}}}},
+		{name: "insert plugin", failAt: 6, data: strategyCatalogFile{Plugins: []managedStrategyPlugin{{Descriptor: stratsrv.PluginDescriptor{ID: "plugin"}}}}},
+		{name: "insert strategy", failAt: 6, data: strategyCatalogFile{Strategies: []stratsrv.ManagedInstance{{ID: "strategy"}}}},
+		{name: "insert operation", failAt: 6, data: strategyCatalogFile{Operations: []stratsrv.PluginOperation{{OperationID: "operation"}}}},
 		{name: "commit", commitErr: errors.New("forced commit failure")},
 		{name: "success"},
 	} {
@@ -120,9 +121,9 @@ func TestStrategyCatalogPersistMarshalFailuresRollback(t *testing.T) {
 		name string
 		data strategyCatalogFile
 	}{
-		{name: "plugin", data: strategyCatalogFile{Plugins: []managedStrategyPlugin{{Descriptor: strategyPluginDescriptor{ID: "plugin"}}}}},
-		{name: "strategy", data: strategyCatalogFile{Strategies: []managedStrategyInstance{{ID: "strategy"}}}},
-		{name: "operation", data: strategyCatalogFile{Operations: []strategyPluginOperation{{OperationID: "operation"}}}},
+		{name: "plugin", data: strategyCatalogFile{Plugins: []managedStrategyPlugin{{Descriptor: stratsrv.PluginDescriptor{ID: "plugin"}}}}},
+		{name: "strategy", data: strategyCatalogFile{Strategies: []stratsrv.ManagedInstance{{ID: "strategy"}}}},
+		{name: "operation", data: strategyCatalogFile{Operations: []stratsrv.PluginOperation{{OperationID: "operation"}}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := newCatalogCoverageStore(t)

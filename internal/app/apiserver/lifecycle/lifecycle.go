@@ -49,8 +49,7 @@ type Dependencies struct {
 	CompleteDatabaseRebuild   func(settingsPath string, backtestDBPath string) error
 	NewSettingsStore          func(path string) (SettingsStore, error)
 	ResolveIntegrationRuntime func(jfsettings.BrokerIntegration) jfsettings.BrokerIntegration
-	ApplyIntegrationRuntime   func(jfsettings.BrokerIntegration)
-	NewHandler                func(store SettingsStore) (Handler, error)
+	NewHandler                func(store SettingsStore, integration jfsettings.BrokerIntegration) (Handler, error)
 	APIBaseURLForBind         func(bind string) string
 	PortFromBind              func(bind string, fallback int) int
 }
@@ -75,7 +74,7 @@ func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (fun
 	if err != nil {
 		return nil, err
 	}
-	applyLifecycleIntegrationRuntime(deps, store)
+	runtimeIntegration := resolveLifecycleIntegrationRuntime(deps, store)
 	interfaceSettings := store.InterfaceSettings(startup.defaults)
 	securitySettings := store.SecuritySettings()
 	configuredAPIBind := deps.EnvOrDefault("JFTRADE_API_BIND", interfaceSettings.APIBind)
@@ -83,7 +82,7 @@ func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (fun
 	if deps.SeparateWebListener {
 		apiBind = loopbackBind(configuredAPIBind)
 	}
-	apiHandler, err := newLifecycleHandler(deps, startup, store)
+	apiHandler, err := newLifecycleHandler(deps, startup, store, runtimeIntegration)
 	if err != nil {
 		return nil, err
 	}
@@ -132,19 +131,16 @@ func openLifecycleSettingsStore(deps Dependencies, startup lifecycleStartup) (Se
 	return store, nil
 }
 
-func applyLifecycleIntegrationRuntime(deps Dependencies, store SettingsStore) {
-	if deps.ApplyIntegrationRuntime == nil {
-		return
-	}
+func resolveLifecycleIntegrationRuntime(deps Dependencies, store SettingsStore) jfsettings.BrokerIntegration {
 	integration := store.Integration()
 	if store.SavedIntegration() == nil && deps.ResolveIntegrationRuntime != nil {
 		integration = deps.ResolveIntegrationRuntime(integration)
 	}
-	deps.ApplyIntegrationRuntime(integration)
+	return integration
 }
 
-func newLifecycleHandler(deps Dependencies, startup lifecycleStartup, store SettingsStore) (Handler, error) {
-	apiHandler, err := deps.NewHandler(store)
+func newLifecycleHandler(deps Dependencies, startup lifecycleStartup, store SettingsStore, integration jfsettings.BrokerIntegration) (Handler, error) {
+	apiHandler, err := deps.NewHandler(store, integration)
 	if err != nil {
 		return nil, err
 	}

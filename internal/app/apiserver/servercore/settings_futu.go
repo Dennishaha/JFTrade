@@ -3,18 +3,15 @@ package servercore
 import (
 	"strings"
 
-	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
-func defaultFutuConfig() FutuIntegrationConfig {
-	integration := apiruntime.IntegrationWithEnvDefaults(BrokerIntegration{
-		Config: settingsfile.DefaultFutuConfig(),
-	})
-	return integration.Config
+func defaultFutuConfig() jfsettings.FutuIntegrationConfig {
+	return settingsfile.DefaultFutuConfig()
 }
 
-func normalizeFutuConfig(config FutuIntegrationConfig) FutuIntegrationConfig {
+func normalizeFutuConfig(config jfsettings.FutuIntegrationConfig) jfsettings.FutuIntegrationConfig {
 	return settingsfile.NormalizeFutuConfig(config)
 }
 

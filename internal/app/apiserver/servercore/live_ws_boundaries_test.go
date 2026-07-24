@@ -51,13 +51,13 @@ func TestLiveWebSocketBackendProviderAndNilBoundaries(t *testing.T) {
 	if got := nilBackend.ConnectionLimit(); got != defaultMaxWebSocketClients {
 		t.Fatalf("nil backend connection limit = %d", got)
 	}
-	if _, err := nilBackend.MarketTicksForProvider(t.Context(), "ibkr", []string{"US.AAPL"}, ""); err == nil {
+	if _, err := nilBackend.MarketTicks(t.Context(), "ibkr", []string{"US.AAPL"}, ""); err == nil {
 		t.Fatal("nil backend polled broker ticks")
 	}
-	if _, err := nilBackend.SecurityDetailsForProvider(t.Context(), "ibkr", "US", "AAPL"); err == nil {
+	if _, err := nilBackend.SecurityDetails(t.Context(), "ibkr", "US", "AAPL"); err == nil {
 		t.Fatal("nil backend read broker security details")
 	}
-	if _, err := nilBackend.DepthForProvider(t.Context(), "ibkr", "US", "AAPL", 10); err == nil {
+	if _, err := nilBackend.Depth(t.Context(), "ibkr", "US", "AAPL", 10); err == nil {
 		t.Fatal("nil backend read broker depth")
 	}
 	if count, limit, atLimit := (*Server)(nil).liveStreamStats(); count != 0 || limit != defaultMaxWebSocketClients || atLimit {
@@ -73,23 +73,26 @@ func TestLiveWebSocketBackendProviderAndNilBoundaries(t *testing.T) {
 	if got := backend.ConnectionLimit(); got != defaultMaxWebSocketClients {
 		t.Fatalf("default connection limit = %d", got)
 	}
-	legacy := backend.Heartbeat(time.Second, apilive.ClientStats{}, nil)
-	if legacy["providerBrokerId"] != "futu" {
-		t.Fatalf("legacy heartbeat = %#v", legacy)
+	native := backend.Heartbeat(time.Second, apilive.ClientStats{}, nil, " FUTU ")
+	if native["providerBrokerId"] != "futu" {
+		t.Fatalf("native heartbeat = %#v", native)
 	}
-	broker := backend.HeartbeatForProvider(time.Second, apilive.ClientStats{}, nil, " IBKR ")
+	broker := backend.Heartbeat(time.Second, apilive.ClientStats{}, nil, " IBKR ")
 	transport, _ := broker["transport"].(map[string]any)
 	if broker["providerBrokerId"] != "ibkr" || transport["mode"] != "snapshot-poll-fallback" {
 		t.Fatalf("broker heartbeat = %#v", broker)
 	}
-	if ticks, err := backend.MarketTicks(t.Context(), nil, ""); err != nil || len(ticks) != 0 {
-		t.Fatalf("empty legacy ticks = %#v, err=%v", ticks, err)
+	if ticks, err := backend.MarketTicks(t.Context(), "futu", nil, ""); err != nil || len(ticks) != 0 {
+		t.Fatalf("empty native ticks = %#v, err=%v", ticks, err)
 	}
-	if _, err := backend.SecurityDetails(t.Context(), "US", "MISSING"); err == nil {
-		t.Fatal("missing legacy security details returned no error")
+	if _, err := backend.SecurityDetails(t.Context(), "futu", "US", "MISSING"); err == nil {
+		t.Fatal("missing native security details returned no error")
 	}
-	if _, err := backend.Depth(t.Context(), "US", "MISSING", 10); err == nil {
-		t.Fatal("missing legacy depth returned no error")
+	if _, err := backend.Depth(t.Context(), "futu", "US", "MISSING", 10); err == nil {
+		t.Fatal("missing native depth returned no error")
+	}
+	if _, err := backend.MarketTicks(t.Context(), "", nil, ""); err == nil {
+		t.Fatal("missing provider was accepted")
 	}
 	cancelled, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -99,11 +102,11 @@ func TestLiveWebSocketBackendProviderAndNilBoundaries(t *testing.T) {
 	unsubscribe()
 	server.liveStreamStats()
 
-	if normalizeLiveProviderBrokerID(" ") != "futu" || normalizeLiveProviderBrokerID(" IBKR ") != "ibkr" {
+	if normalizeProviderBrokerID(" ") != "" || normalizeProviderBrokerID(" IBKR ") != "ibkr" {
 		t.Fatal("provider normalization mismatch")
 	}
-	if !usesLegacyLiveProvider(" FUTU ") || usesLegacyLiveProvider("ibkr") {
-		t.Fatal("legacy provider classification mismatch")
+	if !usesNativeFutuLiveProvider(" FUTU ") || usesNativeFutuLiveProvider("ibkr") {
+		t.Fatal("native provider classification mismatch")
 	}
 	if got := stringMapValue(map[string]any{"value": " trimmed "}, "value"); got != "trimmed" {
 		t.Fatalf("string map value = %q", got)
@@ -133,7 +136,7 @@ func TestLiveWebSocketBackendPollsExplicitBrokerSnapshots(t *testing.T) {
 	}
 
 	reader.err = errors.New("snapshot provider failed")
-	if _, err := backend.MarketTicksForProvider(t.Context(), "ibkr", []string{"US.MSFT"}, ""); !errors.Is(err, reader.err) {
+	if _, err := backend.MarketTicks(t.Context(), "ibkr", []string{"US.MSFT"}, ""); !errors.Is(err, reader.err) {
 		t.Fatalf("broker snapshot error = %v", err)
 	}
 }

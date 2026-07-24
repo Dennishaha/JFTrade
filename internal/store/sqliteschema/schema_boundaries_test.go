@@ -132,7 +132,7 @@ func TestValidateMetadataClassifiesMissingAndUnreadableComponentRows(t *testing.
 		INSERT INTO ` + MetadataTable + ` VALUES ('test', 'not-an-integer', 'now')`); err != nil {
 		t.Fatalf("create unreadable metadata: %v", err)
 	}
-	if err := ValidateMetadata(t.Context(), unreadableDB, unreadablePath, "test", 1); err == nil || IsIncompatible(err) {
+	if err := ValidateMetadata(t.Context(), unreadableDB, unreadablePath, "test", 1); !IsIncompatible(err) || !strings.Contains(err.Error(), "schema metadata is unreadable") {
 		t.Fatalf("ValidateMetadata(unreadable version) error = %v", err)
 	}
 

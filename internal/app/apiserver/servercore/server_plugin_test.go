@@ -3,6 +3,7 @@ package servercore
 import (
 	"bytes"
 	"encoding/json"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -17,7 +18,7 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	if err := server.strategyStore.savePlugin(managedStrategyPlugin{
-		Descriptor: strategyPluginDescriptor{
+		Descriptor: stratsrv.PluginDescriptor{
 			ID:          "demo-plugin",
 			Type:        pluginTypeGoStrategy,
 			DisplayName: "Demo Plugin",
@@ -26,7 +27,7 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 			Keywords:    []string{"strategy", "go-plugin"},
 		},
 		Artifact: &strategyPluginArtifact{
-			Build: strategyPluginBuildTuple{
+			Build: stratsrv.PluginBuildTuple{
 				JFTradeVersion: "legacy-version",
 				GoVersion:      runtime.Version(),
 				GOOS:           runtime.GOOS,
@@ -49,8 +50,8 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 		t.Fatalf("GET plugins status = %d", resp.StatusCode)
 	}
 	var envelope struct {
-		OK   bool                          `json:"ok"`
-		Data strategyPluginCatalogResponse `json:"data"`
+		OK   bool                   `json:"ok"`
+		Data stratsrv.PluginCatalog `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode plugins: %v", err)
@@ -73,7 +74,7 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 	var installEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Operation strategyPluginOperation `json:"operation"`
+			Operation stratsrv.PluginOperation `json:"operation"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(installResp.Body).Decode(&installEnvelope); err != nil {
@@ -112,7 +113,7 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 	var uninstallEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Operation strategyPluginOperation `json:"operation"`
+			Operation stratsrv.PluginOperation `json:"operation"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(uninstallResp.Body).Decode(&uninstallEnvelope); err != nil {

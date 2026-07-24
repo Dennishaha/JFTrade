@@ -11,15 +11,15 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-func (s *executionOrderStore) listOrders() executionOrdersResponse {
-	return s.listOrdersFiltered(executionOrderListFilter{})
+func (s *executionOrderStore) listOrders() trdsrv.ExecutionOrders {
+	return s.listOrdersFiltered(trdsrv.ExecutionOrderFilter{})
 }
 
-func (s *executionOrderStore) listOrdersFiltered(filter executionOrderListFilter) executionOrdersResponse {
+func (s *executionOrderStore) listOrdersFiltered(filter trdsrv.ExecutionOrderFilter) trdsrv.ExecutionOrders {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	orders := make([]executionOrderSummaryResponse, 0, len(s.orders))
+	orders := make([]trdsrv.ExecutionOrder, 0, len(s.orders))
 	for _, order := range s.orders {
 		if !executionOrderMatchesListFilter(order, filter) {
 			continue
@@ -35,10 +35,10 @@ func (s *executionOrderStore) listOrdersFiltered(filter executionOrderListFilter
 		}
 		return orders[i].InternalOrderID > orders[j].InternalOrderID
 	})
-	return executionOrdersResponse{Orders: orders}
+	return trdsrv.ExecutionOrders{Orders: orders}
 }
 
-func executionOrderMatchesListFilter(order executionOrderSummaryResponse, filter executionOrderListFilter) bool {
+func executionOrderMatchesListFilter(order trdsrv.ExecutionOrder, filter trdsrv.ExecutionOrderFilter) bool {
 	if filter.BrokerID != "" && !strings.EqualFold(strings.TrimSpace(order.BrokerID), filter.BrokerID) {
 		return false
 	}
@@ -54,29 +54,29 @@ func executionOrderMatchesListFilter(order executionOrderSummaryResponse, filter
 	return true
 }
 
-func (s *executionOrderStore) orderEvents(internalOrderID string) executionOrderEventsResponse {
+func (s *executionOrderStore) orderEvents(internalOrderID string) trdsrv.ExecutionOrderEvents {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	events := s.events[internalOrderID]
-	cloned := make([]executionOrderEventResponse, 0, len(events))
+	cloned := make([]trdsrv.ExecutionOrderEvent, 0, len(events))
 	for _, event := range events {
 		cloned = append(cloned, cloneExecutionOrderEvent(event))
 	}
-	return executionOrderEventsResponse{InternalOrderID: internalOrderID, Events: cloned}
+	return trdsrv.ExecutionOrderEvents{InternalOrderID: internalOrderID, Events: cloned}
 }
 
-func (s *executionOrderStore) order(internalOrderID string) (executionOrderSummaryResponse, bool) {
+func (s *executionOrderStore) order(internalOrderID string) (trdsrv.ExecutionOrder, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	order, ok := s.orders[internalOrderID]
 	if !ok {
-		return executionOrderSummaryResponse{}, false
+		return trdsrv.ExecutionOrder{}, false
 	}
 	return cloneExecutionOrderSummary(order), true
 }
 
-func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord) executionOrderSummaryResponse {
+func (s *executionOrderStore) recordPlacedOrder(input trdsrv.ExecutionPlacedOrderRecord) trdsrv.ExecutionOrder {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	submittedAt := strings.TrimSpace(input.SubmittedAt)
 	if submittedAt == "" {
@@ -102,7 +102,7 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 	return cloneExecutionOrderSummary(summary)
 }
 
-func (s *executionOrderStore) findPlacedOrderLocked(input executionPlacedOrderRecord) string {
+func (s *executionOrderStore) findPlacedOrderLocked(input trdsrv.ExecutionPlacedOrderRecord) string {
 	if internalOrderID := strings.TrimSpace(input.InternalOrderID); internalOrderID != "" {
 		if _, ok := s.orders[internalOrderID]; ok {
 			return internalOrderID
@@ -125,16 +125,16 @@ func (s *executionOrderStore) findPlacedOrderLocked(input executionPlacedOrderRe
 
 func newPlacedOrderSummary(
 	internalOrderID string,
-	input executionPlacedOrderRecord,
+	input trdsrv.ExecutionPlacedOrderRecord,
 	submittedAt string,
 	now string,
-) executionOrderSummaryResponse {
+) trdsrv.ExecutionOrder {
 	rawBrokerStatus := strings.TrimSpace(input.Status)
 	status := canonicalPlacedRecordStatus(rawBrokerStatus)
 	if rawBrokerStatus == "" {
 		status = trdsrv.OrderStatusSubmitted
 	}
-	summary := executionOrderSummaryResponse{
+	summary := trdsrv.ExecutionOrder{
 		InternalOrderID:    internalOrderID,
 		BrokerID:           strings.TrimSpace(input.BrokerID),
 		BrokerOrderID:      stringPointerOrNil(input.BrokerOrderID),
@@ -182,7 +182,7 @@ func newPlacedOrderSummary(
 	return summary
 }
 
-func (s *executionOrderStore) prepareSubmission(input executionPlacedOrderRecord) (executionOrderSummaryResponse, bool, error) {
+func (s *executionOrderStore) prepareSubmission(input trdsrv.ExecutionPlacedOrderRecord) (trdsrv.ExecutionOrder, bool, error) {
 	s.submissionMu.Lock()
 	defer s.submissionMu.Unlock()
 
@@ -212,13 +212,13 @@ func (s *executionOrderStore) prepareSubmission(input executionPlacedOrderRecord
 	return prepared, true, nil
 }
 
-func (s *executionOrderStore) markSubmissionUnknown(internalOrderID string, submitErr error) executionOrderSummaryResponse {
+func (s *executionOrderStore) markSubmissionUnknown(internalOrderID string, submitErr error) trdsrv.ExecutionOrder {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
 	summary, ok := s.orders[internalOrderID]
 	if !ok {
 		s.mu.Unlock()
-		return executionOrderSummaryResponse{}
+		return trdsrv.ExecutionOrder{}
 	}
 	previousStatus := summary.Status
 	summary.Status = trdsrv.OrderStatusSubmissionUnknown
@@ -249,7 +249,7 @@ func (s *executionOrderStore) markSubmissionUnknown(internalOrderID string, subm
 	return cloned
 }
 
-func (s *executionOrderStore) mergePlacedOrderLocked(internalOrderID string, input executionPlacedOrderRecord, submittedAt string, createdAt string) executionOrderSummaryResponse {
+func (s *executionOrderStore) mergePlacedOrderLocked(internalOrderID string, input trdsrv.ExecutionPlacedOrderRecord, submittedAt string, createdAt string) trdsrv.ExecutionOrder {
 	summary := s.orders[internalOrderID]
 	previousStatus := summary.Status
 
@@ -263,7 +263,7 @@ func (s *executionOrderStore) mergePlacedOrderLocked(internalOrderID string, inp
 	return summary
 }
 
-func mergePlacedOrderIdentity(summary *executionOrderSummaryResponse, input executionPlacedOrderRecord) {
+func mergePlacedOrderIdentity(summary *trdsrv.ExecutionOrder, input trdsrv.ExecutionPlacedOrderRecord) {
 	if value := strings.TrimSpace(input.BrokerID); value != "" {
 		summary.BrokerID = value
 	}
@@ -294,9 +294,9 @@ func mergePlacedOrderIdentity(summary *executionOrderSummaryResponse, input exec
 }
 
 func mergePlacedOrderRequest(
-	summary *executionOrderSummaryResponse,
+	summary *trdsrv.ExecutionOrder,
 	internalOrderID string,
-	input executionPlacedOrderRecord,
+	input trdsrv.ExecutionPlacedOrderRecord,
 	createdAt string,
 ) {
 	if input.RequestedQuantity > 0 {
@@ -339,8 +339,8 @@ func mergePlacedOrderRequest(
 }
 
 func mergePlacedOrderStatus(
-	summary *executionOrderSummaryResponse,
-	input executionPlacedOrderRecord,
+	summary *trdsrv.ExecutionOrder,
+	input trdsrv.ExecutionPlacedOrderRecord,
 	submittedAt string,
 	createdAt string,
 ) {
@@ -370,14 +370,14 @@ func mergePlacedOrderStatus(
 	}
 }
 
-func (s *executionOrderStore) markCancelRequested(internalOrderID string, payload any) (executionOrderSummaryResponse, bool) {
+func (s *executionOrderStore) markCancelRequested(internalOrderID string, payload any) (trdsrv.ExecutionOrder, bool) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	summary, ok := s.orders[internalOrderID]
 	if !ok {
-		return executionOrderSummaryResponse{}, false
+		return trdsrv.ExecutionOrder{}, false
 	}
 	previousStatus := summary.Status
 	if reconciled, accepted := trdsrv.ReconcileCanonicalOrderStatus(summary.Status, trdsrv.OrderStatusCancelRequested); accepted {
@@ -399,10 +399,10 @@ func (s *executionOrderStore) markCancelRequested(internalOrderID string, payloa
 	return cloneExecutionOrderSummary(summary), true
 }
 
-func (s *executionOrderStore) appendEventLocked(internalOrderID string, previousStatus *string, nextStatus string, eventType string, payload any, createdAt string) executionOrderEventResponse {
+func (s *executionOrderStore) appendEventLocked(internalOrderID string, previousStatus *string, nextStatus string, eventType string, payload any, createdAt string) trdsrv.ExecutionOrderEvent {
 	s.nextEventSeq++
 	s.persistSequenceLocked("events", s.nextEventSeq)
-	event := executionOrderEventResponse{
+	event := trdsrv.ExecutionOrderEvent{
 		ID:              fmt.Sprintf("evt-%06d", s.nextEventSeq),
 		InternalOrderID: internalOrderID,
 		EventType:       strings.TrimSpace(eventType),
@@ -416,11 +416,11 @@ func (s *executionOrderStore) appendEventLocked(internalOrderID string, previous
 	return event
 }
 
-func (s *executionOrderStore) persistOrderLocked(order executionOrderSummaryResponse) {
+func (s *executionOrderStore) persistOrderLocked(order trdsrv.ExecutionOrder) {
 	s.enqueuePersistence(executionPersistenceItem{kind: "order", order: cloneExecutionOrderSummary(order)})
 }
 
-func (s *executionOrderStore) persistEventLocked(event executionOrderEventResponse) {
+func (s *executionOrderStore) persistEventLocked(event trdsrv.ExecutionOrderEvent) {
 	s.enqueuePersistence(executionPersistenceItem{kind: "event", event: cloneExecutionOrderEvent(event)})
 }
 
@@ -488,7 +488,7 @@ func executionOrderLegsFromIntents(internalOrderID string, intents []broker.Orde
 }
 
 func applyExecutionLegSnapshots(
-	summary *executionOrderSummaryResponse,
+	summary *trdsrv.ExecutionOrder,
 	snapshots []broker.OrderLegSnapshot,
 	now string,
 ) {
@@ -565,7 +565,7 @@ func applyExecutionLegSnapshots(
 	}
 }
 
-func (s *executionOrderStore) linkBrokerOrderLocked(order executionOrderSummaryResponse) {
+func (s *executionOrderStore) linkBrokerOrderLocked(order trdsrv.ExecutionOrder) {
 	if key := executionBrokerLookupKey(order.BrokerID, order.TradingEnvironment, order.AccountID, order.Market, derefString(order.BrokerOrderID)); key != "" {
 		s.brokerOrderIndex[key] = order.InternalOrderID
 	}

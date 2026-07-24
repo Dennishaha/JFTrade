@@ -70,7 +70,7 @@ func TestManagedAccountUpdateUsesPathIDAndSurfacesServerErrors(t *testing.T) {
 	})
 }
 
-func TestDataMigrationRebuildRejectsMalformedAndRejectedRequests(t *testing.T) {
+func TestDataManagementRebuildRejectsMalformedAndRejectedRequests(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 
 	service := srvsettings.NewService(&routeStore{})
@@ -84,7 +84,7 @@ func TestDataMigrationRebuildRejectsMalformedAndRejectedRequests(t *testing.T) {
 
 	t.Run("malformed json returns bad request", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/settings/data-migration/databases/rebuild", strings.NewReader(`{"mode":`))
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/settings/data-management/databases/rebuild", strings.NewReader(`{"mode":`))
 		request.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(recorder, request)
 
@@ -101,7 +101,7 @@ func TestDataMigrationRebuildRejectsMalformedAndRejectedRequests(t *testing.T) {
 		request := httptest.NewRequestWithContext(
 			t.Context(),
 			http.MethodPost,
-			"/api/v1/settings/data-migration/databases/rebuild",
+			"/api/v1/settings/data-management/databases/rebuild",
 			strings.NewReader(`{"mode":"single","databaseId":"adk","confirmation":"wrong"}`),
 		)
 		request.Header.Set("Content-Type", "application/json")

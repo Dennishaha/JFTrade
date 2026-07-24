@@ -15,6 +15,7 @@ import (
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const liveQuoteTransportMode = "bbgo-opend-tcp-api"
@@ -77,7 +78,7 @@ func (s *Server) onboardingState(ctx context.Context) map[string]any {
 	return s.onboardingStateFromSettings(ctx, s.store.Onboarding())
 }
 
-func (s *Server) onboardingStateFromSettings(ctx context.Context, onboarding OnboardingSettings) map[string]any {
+func (s *Server) onboardingStateFromSettings(ctx context.Context, onboarding jfsettings.OnboardingSettings) map[string]any {
 	integration := s.store.SavedIntegration()
 	accounts := s.store.ManagedAccounts()
 	reasons := make([]map[string]any, 0, 4)
@@ -271,7 +272,7 @@ func (s *Server) futuOpenDHealth(ctx context.Context) map[string]any {
 	}
 }
 
-func (s *Server) liveSocketDiagnostics(config FutuIntegrationConfig) map[string]any {
+func (s *Server) liveSocketDiagnostics(config jfsettings.FutuIntegrationConfig) map[string]any {
 	count, limit, atLimit := s.liveStreamStats()
 	state := s.marketdataSvc.RuntimeState()
 	quoteRetryAfter := state.QuoteRetryAt
@@ -341,7 +342,6 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 
 	client := opend.New(opend.Config{
 		Addr:             net.JoinHostPort(config.Host, strconv.Itoa(config.APIPort)),
-		TLS:              false,
 		WebSocketKey:     config.WebSocketKey,
 		HandshakeTimeout: 2 * time.Second,
 		RequestTimeout:   3 * time.Second,
@@ -417,7 +417,7 @@ func openDProbeFromGlobalState(checkedAt string, s2c *globalpb.S2C) opendProbe {
 	}
 }
 
-func (s *Server) emptyBrokerRuntime(config FutuIntegrationConfig) *trdsrv.BrokerRuntimeResponse {
+func (s *Server) emptyBrokerRuntime(config jfsettings.FutuIntegrationConfig) *trdsrv.BrokerRuntimeResponse {
 	count, limit, atLimit := s.liveStreamStats()
 	return &trdsrv.BrokerRuntimeResponse{
 		Descriptor: futuBrokerRuntimeDescriptor(),
@@ -434,7 +434,7 @@ func (s *Server) emptyBrokerRuntime(config FutuIntegrationConfig) *trdsrv.Broker
 	}
 }
 
-func (s *Server) emptyFutuOpenDHealth(config FutuIntegrationConfig) map[string]any {
+func (s *Server) emptyFutuOpenDHealth(config jfsettings.FutuIntegrationConfig) map[string]any {
 	return map[string]any{
 		"checkedAt": "",
 		"status":    "offline",

@@ -134,10 +134,9 @@ func (d *dispatcher) run() error {
 
 func (d *dispatcher) writeHeartbeat() error {
 	subscriptions := d.client.Snapshot()
-	payload := providerHeartbeat(
-		d.handler.backend, d.handler.options.HeartbeatInterval,
-		d.handler.Stats(), d.handler.ActiveInstrumentIDs(),
-		subscriptions.ProviderBrokerID,
+	payload := d.handler.backend.Heartbeat(
+		d.handler.options.HeartbeatInterval, d.handler.Stats(),
+		d.handler.ActiveInstrumentIDs(), subscriptions.ProviderBrokerID,
 	)
 	return d.writeEnvelope(
 		mapString(payload, "type", "heartbeat"),
@@ -155,14 +154,17 @@ func (d *dispatcher) writeLiveData() error {
 		initialObservedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	}
 	subscriptions := d.client.Snapshot()
-	ticks, err := providerMarketTicks(
-		d.handler.backend, d.requestCtx, subscriptions.ProviderBrokerID,
+	if subscriptions.ProviderBrokerID == "" {
+		return d.writeNotifications()
+	}
+	ticks, err := d.handler.backend.MarketTicks(
+		d.requestCtx, subscriptions.ProviderBrokerID,
 		subscriptions.ActiveInstruments, initialObservedAt,
 	)
 	if err != nil {
 		return err
 	}
-	providerBrokerID := liveProviderBrokerID(subscriptions.ProviderBrokerID)
+	providerBrokerID := subscriptions.ProviderBrokerID
 	for _, tick := range ticks {
 		deduplicationKey := providerBrokerID + "|" + tick.InstrumentID
 		if tick.InstrumentID == "" || d.lastSentByInstrument[deduplicationKey] == tick.ObservedAt {
@@ -230,23 +232,26 @@ func (d *dispatcher) writeConsoleRefresh() error {
 
 func (d *dispatcher) writeSecurityDetailsEvents(force bool) error {
 	subscriptions := d.client.Snapshot()
+	if subscriptions.ProviderBrokerID == "" {
+		return nil
+	}
 	for _, subscription := range subscriptions.SecurityDetails {
-		response, err := providerSecurityDetails(
-			d.handler.backend, d.requestCtx, subscriptions.ProviderBrokerID,
+		response, err := d.handler.backend.SecurityDetails(
+			d.requestCtx, subscriptions.ProviderBrokerID,
 			subscription.Market, subscription.Symbol,
 		)
 		if err != nil {
 			continue
 		}
 		resolvedAt := eventResolvedAt(response)
-		key := liveProviderBrokerID(subscriptions.ProviderBrokerID) + "|" + subscription.InstrumentID
+		key := subscriptions.ProviderBrokerID + "|" + subscription.InstrumentID
 		if !force && d.lastSecurityResolvedAt[key] == resolvedAt {
 			continue
 		}
 		event := cloneEventMap(response)
 		event["type"] = "market.security-details"
 		event["at"] = resolvedAt
-		event["brokerId"] = liveProviderBrokerID(subscriptions.ProviderBrokerID)
+		event["brokerId"] = subscriptions.ProviderBrokerID
 		if err := d.writeEnvelope(
 			"market.security-details",
 			"market-data",
@@ -264,9 +269,12 @@ func (d *dispatcher) writeSecurityDetailsEvents(force bool) error {
 
 func (d *dispatcher) writeDepthEvents(force bool) error {
 	subscriptions := d.client.Snapshot()
+	if subscriptions.ProviderBrokerID == "" {
+		return nil
+	}
 	for _, subscription := range subscriptions.Depth {
-		response, err := providerDepth(
-			d.handler.backend, d.requestCtx, subscriptions.ProviderBrokerID,
+		response, err := d.handler.backend.Depth(
+			d.requestCtx, subscriptions.ProviderBrokerID,
 			subscription.Market, subscription.Symbol, subscription.Num,
 		)
 		if err != nil {
@@ -274,14 +282,14 @@ func (d *dispatcher) writeDepthEvents(force bool) error {
 		}
 		resolvedAt := eventResolvedAt(response)
 		entityID := subscription.InstrumentID + "|" + strconv.Itoa(int(subscription.Num))
-		deduplicationKey := liveProviderBrokerID(subscriptions.ProviderBrokerID) + "|" + entityID
+		deduplicationKey := subscriptions.ProviderBrokerID + "|" + entityID
 		if !force && d.lastDepthResolvedAt[deduplicationKey] == resolvedAt {
 			continue
 		}
 		event := cloneEventMap(response)
 		event["type"] = "market.depth"
 		event["at"] = resolvedAt
-		event["brokerId"] = liveProviderBrokerID(subscriptions.ProviderBrokerID)
+		event["brokerId"] = subscriptions.ProviderBrokerID
 		if err := d.writeEnvelope(
 			"market.depth",
 			"market-data",
@@ -295,74 +303,6 @@ func (d *dispatcher) writeDepthEvents(force bool) error {
 		d.lastDepthResolvedAt[deduplicationKey] = resolvedAt
 	}
 	return nil
-}
-
-func liveProviderBrokerID(value string) string {
-	if value == "" {
-		return "futu"
-	}
-	return value
-}
-
-func providerHeartbeat(
-	backend Backend,
-	interval time.Duration,
-	stats ClientStats,
-	instrumentIDs []string,
-	providerBrokerID string,
-) map[string]any {
-	if aware, ok := backend.(ProviderAwareBackend); ok {
-		return aware.HeartbeatForProvider(
-			interval, stats, instrumentIDs, providerBrokerID,
-		)
-	}
-	return backend.Heartbeat(interval, stats, instrumentIDs)
-}
-
-func providerMarketTicks(
-	backend Backend,
-	ctx context.Context,
-	providerBrokerID string,
-	instrumentIDs []string,
-	initialObservedAt string,
-) ([]TickEvent, error) {
-	if aware, ok := backend.(ProviderAwareBackend); ok {
-		return aware.MarketTicksForProvider(
-			ctx, providerBrokerID, instrumentIDs, initialObservedAt,
-		)
-	}
-	return backend.MarketTicks(ctx, instrumentIDs, initialObservedAt)
-}
-
-func providerSecurityDetails(
-	backend Backend,
-	ctx context.Context,
-	providerBrokerID string,
-	market string,
-	symbol string,
-) (map[string]any, error) {
-	if aware, ok := backend.(ProviderAwareBackend); ok {
-		return aware.SecurityDetailsForProvider(
-			ctx, providerBrokerID, market, symbol,
-		)
-	}
-	return backend.SecurityDetails(ctx, market, symbol)
-}
-
-func providerDepth(
-	backend Backend,
-	ctx context.Context,
-	providerBrokerID string,
-	market string,
-	symbol string,
-	num int32,
-) (map[string]any, error) {
-	if aware, ok := backend.(ProviderAwareBackend); ok {
-		return aware.DepthForProvider(
-			ctx, providerBrokerID, market, symbol, num,
-		)
-	}
-	return backend.Depth(ctx, market, symbol, num)
 }
 
 func notificationEventMap(event livecore.Event) map[string]any {

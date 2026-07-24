@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { createPinia } from "pinia";
 import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, h, nextTick } from "vue";
 
@@ -122,10 +121,6 @@ function mountTradingScopeBar(market = "US", symbol = "AAPL") {
   });
 
   return {
-    wrapper: mount(Host, {
-      global: {
-        plugins: [createPinia()],
-      },
-    }),
+    wrapper: mount(Host),
   };
 }

@@ -70,7 +70,7 @@ const removeDepthListener = liveHub.addEventListener((event) => {
   if (Math.trunc(event.request.num) !== depthNum.value) {
     return;
   }
-  depthData.value = event as unknown as MarketDataDepthResponse;
+  depthData.value = event;
   depthError.value = "";
   isLoadingDepth.value = false;
   lastDepthDataRefreshedAt = Date.now();

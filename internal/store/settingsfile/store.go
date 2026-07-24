@@ -29,14 +29,11 @@ type fileData struct {
 
 // storedSecuritySettings deliberately differs from the public API model so a
 // password hash can be persisted without ever being returned by an endpoint.
-// AdminAuthRequired is accepted only to migrate old settings files to the new
-// safe default (Web access disabled).
 type storedSecuritySettings struct {
 	WebAccessEnabled    bool   `json:"webAccessEnabled"`
 	PublicAccessEnabled bool   `json:"publicAccessEnabled"`
 	WebPort             int    `json:"webPort,omitempty"`
 	PasswordHash        string `json:"passwordHash,omitempty"`
-	AdminAuthRequired   *bool  `json:"adminAuthRequired,omitempty"`
 }
 
 // storedMCPServerSettings deliberately keeps the bearer-token verifier out of
@@ -130,13 +127,6 @@ func (s *Store) load() error {
 	}
 	if err := json.Unmarshal(data, &s.data); err != nil {
 		return err
-	}
-	if s.data.Security != nil && s.data.Security.AdminAuthRequired != nil {
-		migrated := *s.data.Security
-		migrated.AdminAuthRequired = nil
-		return s.mutateAndPersistLocked(func() {
-			s.data.Security = &migrated
-		})
 	}
 	return nil
 }

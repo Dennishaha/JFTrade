@@ -1,9 +1,12 @@
 package servercore
 
-import "testing"
+import (
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
+	"testing"
+)
 
 func TestNormalizeManagedBrokerAccountAppliesDefaults(t *testing.T) {
-	account := normalizeManagedBrokerAccount(ManagedBrokerAccount{
+	account := normalizeManagedBrokerAccount(jfsettings.ManagedBrokerAccount{
 		BrokerID:           "  ",
 		AccountID:          "  12345678  ",
 		DisplayName:        "  ",
@@ -33,7 +36,7 @@ func TestNormalizeManagedBrokerAccountAppliesDefaults(t *testing.T) {
 }
 
 func TestNormalizeFutuConfigAppliesDefaults(t *testing.T) {
-	config := normalizeFutuConfig(FutuIntegrationConfig{UseEncryption: true})
+	config := normalizeFutuConfig(jfsettings.FutuIntegrationConfig{UseEncryption: true})
 
 	if config.Type != "futu" {
 		t.Fatalf("type = %q", config.Type)
@@ -62,7 +65,7 @@ func TestNormalizeFutuConfigAppliesDefaults(t *testing.T) {
 }
 
 func TestNormalizeExecutionSettingsAppliesDefaultsAndBounds(t *testing.T) {
-	settings := normalizeExecutionSettings(ExecutionSettings{
+	settings := normalizeExecutionSettings(jfsettings.ExecutionSettings{
 		DefaultTradingEnvironment:      " real ",
 		BrokerOrderHistoryLookbackDays: 500,
 		SeenFillRetentionDays:          0,
@@ -78,7 +81,7 @@ func TestNormalizeExecutionSettingsAppliesDefaultsAndBounds(t *testing.T) {
 		t.Fatalf("seenFillRetentionDays = %d", settings.SeenFillRetentionDays)
 	}
 
-	settings = normalizeExecutionSettings(ExecutionSettings{DefaultTradingEnvironment: "paper"})
+	settings = normalizeExecutionSettings(jfsettings.ExecutionSettings{DefaultTradingEnvironment: "paper"})
 	if settings.DefaultTradingEnvironment != "SIMULATE" {
 		t.Fatalf("invalid defaultTradingEnvironment = %q", settings.DefaultTradingEnvironment)
 	}

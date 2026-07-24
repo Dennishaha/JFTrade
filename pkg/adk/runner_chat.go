@@ -374,10 +374,10 @@ func (r *Runtime) ensureAssistantMessage(
 	session Session,
 	run Run,
 	replyResult openAIChatResult,
-) (Message, error) {
+) (TranscriptEntry, error) {
 	if r != nil && r.store != nil {
 		if projection, ok, err := r.store.SessionProjection(ctx, session.ID); err != nil {
-			return Message{}, err
+			return TranscriptEntry{}, err
 		} else if ok && projection.LatestAssistant != nil && projectedMessageMatchesReply(*projection.LatestAssistant, replyResult) {
 			return *projection.LatestAssistant, nil
 		}
@@ -390,9 +390,9 @@ func (r *Runtime) appendAssistantMessageEvent(
 	session Session,
 	run Run,
 	replyResult openAIChatResult,
-) (Message, error) {
+) (TranscriptEntry, error) {
 	if r == nil || r.rawSessionService == nil {
-		return Message{}, fmt.Errorf("adk session service is unavailable")
+		return TranscriptEntry{}, fmt.Errorf("adk session service is unavailable")
 	}
 	response, err := r.rawSessionService.Get(ctx, &adksession.GetRequest{
 		AppName:   googleADKAppName(defaultString(session.AgentID, run.AgentID)),
@@ -406,7 +406,7 @@ func (r *Runtime) appendAssistantMessageEvent(
 			SessionID: session.ID,
 		})
 		if createErr != nil {
-			return Message{}, createErr
+			return TranscriptEntry{}, createErr
 		}
 		response = &adksession.GetResponse{Session: created.Session}
 	}
@@ -417,7 +417,7 @@ func (r *Runtime) appendAssistantMessageEvent(
 		TurnComplete: true,
 	}
 	if err := appendADKEventWithStaleRetry(ctx, runtimeAppendLocks(r), r.rawSessionService, response.Session, event); err != nil {
-		return Message{}, err
+		return TranscriptEntry{}, err
 	}
 	message, _ := transcriptEntryFromADKEvent(event)
 	message.SessionID = session.ID
@@ -425,7 +425,7 @@ func (r *Runtime) appendAssistantMessageEvent(
 	return message, nil
 }
 
-func projectedMessageMatchesReply(message Message, replyResult openAIChatResult) bool {
+func projectedMessageMatchesReply(message TranscriptEntry, replyResult openAIChatResult) bool {
 	return strings.TrimSpace(message.Content) == strings.TrimSpace(replyResult.Reply) &&
 		strings.TrimSpace(message.ReasoningContent) == strings.TrimSpace(replyResult.ReasoningContent)
 }

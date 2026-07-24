@@ -271,14 +271,14 @@ func TestMembershipStorageFaultsAndMigrationGuards(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { _ = db.Close() })
-		if _, err := db.ExecContext(t.Context(), `CREATE TABLE watchlist_schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
+		if _, err := db.ExecContext(t.Context(), `CREATE TABLE jftrade_schema_meta (component_id TEXT PRIMARY KEY, version INTEGER NOT NULL, created_at TEXT NOT NULL)`); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := db.ExecContext(t.Context(), `INSERT INTO watchlist_schema_migrations (version, applied_at) VALUES (?, '2026-01-01T00:00:00Z')`, SchemaVersion+1); err != nil {
+		if _, err := db.ExecContext(t.Context(), `INSERT INTO jftrade_schema_meta (component_id, version, created_at) VALUES (?, ?, '2026-01-01T00:00:00Z')`, ComponentID, SchemaVersion+1); err != nil {
 			t.Fatal(err)
 		}
-		if err := migrate(t.Context(), db); err == nil {
-			t.Fatal("migrate accepted a newer schema version")
+		if err := initializeSchema(t.Context(), db, path); err == nil {
+			t.Fatal("initializer accepted a newer schema version")
 		}
 	})
 

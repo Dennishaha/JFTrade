@@ -53,10 +53,7 @@ func deriveStrategyWarmupCandles(script string, interval types.Interval, symbol 
 }
 
 func resolveBacktestReadSessionScope(useExtendedHours *bool) string {
-	if useExtendedHours == nil {
-		return "auto"
-	}
-	if *useExtendedHours {
+	if useExtendedHours != nil && *useExtendedHours {
 		return "extended"
 	}
 	return "regular"

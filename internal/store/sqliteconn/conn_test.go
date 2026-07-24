@@ -35,6 +35,13 @@ func TestOpenXConfiguresBusyTimeoutAndConcurrentReadsByDefault(t *testing.T) {
 	if timeout != 10000 {
 		t.Fatalf("busy_timeout = %d, want 10000", timeout)
 	}
+	var foreignKeys int
+	if err := db.Get(&foreignKeys, `PRAGMA foreign_keys`); err != nil {
+		t.Fatalf("PRAGMA foreign_keys: %v", err)
+	}
+	if foreignKeys != 1 {
+		t.Fatalf("foreign_keys = %d, want 1", foreignKeys)
+	}
 }
 
 func TestOpenXCanEnableConcurrentReadConnections(t *testing.T) {
@@ -59,7 +66,7 @@ func TestDSNAppendsPragmasToExistingQuery(t *testing.T) {
 	if !strings.Contains(dsn, "mode=ro&") {
 		t.Fatalf("DSN(%q) did not preserve existing query separator: %q", "file:test.db?mode=ro", dsn)
 	}
-	for _, want := range []string{"_pragma=journal_mode(WAL)", "_pragma=synchronous(NORMAL)", "_pragma=busy_timeout(10000)"} {
+	for _, want := range []string{"_pragma=journal_mode(WAL)", "_pragma=synchronous(NORMAL)", "_pragma=foreign_keys(ON)", "_pragma=busy_timeout(10000)"} {
 		if !strings.Contains(dsn, want) {
 			t.Fatalf("DSN missing %q: %q", want, dsn)
 		}
@@ -69,7 +76,7 @@ func TestDSNAppendsPragmasToExistingQuery(t *testing.T) {
 func TestReadDSNEnforcesQueryOnlyConnections(t *testing.T) {
 	for _, path := range []string{"store.db", "file:store.db?cache=shared"} {
 		dsn := ReadDSN(path)
-		for _, want := range []string{"_pragma=query_only(1)", "_pragma=busy_timeout(10000)"} {
+		for _, want := range []string{"_pragma=query_only(1)", "_pragma=foreign_keys(ON)", "_pragma=busy_timeout(10000)"} {
 			if !strings.Contains(dsn, want) {
 				t.Fatalf("ReadDSN(%q) missing %q: %q", path, want, dsn)
 			}
@@ -178,7 +185,7 @@ func TestResolveOptionsNormalizesConnectionPoolBoundaries(t *testing.T) {
 
 func TestReadOnlyDSNAddsModeWithoutWritePragmas(t *testing.T) {
 	dsn := ReadOnlyDSN("store.db")
-	for _, want := range []string{"file:store.db?mode=ro", "_pragma=busy_timeout(10000)"} {
+	for _, want := range []string{"file:store.db?mode=ro", "_pragma=foreign_keys(ON)", "_pragma=busy_timeout(10000)"} {
 		if !strings.Contains(dsn, want) {
 			t.Fatalf("ReadOnlyDSN missing %q: %q", want, dsn)
 		}
@@ -190,5 +197,54 @@ func TestReadOnlyDSNAddsModeWithoutWritePragmas(t *testing.T) {
 	existing := ReadOnlyDSN("file:store.db?mode=ro")
 	if strings.Count(existing, "mode=ro") != 1 || !strings.Contains(existing, "&_pragma=") {
 		t.Fatalf("ReadOnlyDSN(existing mode) = %q", existing)
+	}
+}
+
+func TestForeignKeysAndCascadesAreEnforcedAcrossDatabaseConnections(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "foreign-keys.db")
+	first, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open(first): %v", err)
+	}
+	t.Cleanup(func() {
+		if err := first.Close(); err != nil {
+			t.Fatalf("Close(first): %v", err)
+		}
+	})
+	second, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open(second): %v", err)
+	}
+	t.Cleanup(func() {
+		if err := second.Close(); err != nil {
+			t.Fatalf("Close(second): %v", err)
+		}
+	})
+
+	if _, err := first.Exec(`CREATE TABLE parents (id TEXT PRIMARY KEY);
+		CREATE TABLE children (
+			id TEXT PRIMARY KEY,
+			parent_id TEXT NOT NULL REFERENCES parents(id) ON DELETE CASCADE
+		)`); err != nil {
+		t.Fatalf("create constrained tables: %v", err)
+	}
+	if _, err := second.Exec(`INSERT INTO children (id, parent_id) VALUES ('orphan', 'missing')`); err == nil || !strings.Contains(strings.ToLower(err.Error()), "foreign key") {
+		t.Fatalf("orphan insert error = %v, want foreign key rejection", err)
+	}
+	if _, err := first.Exec(`INSERT INTO parents (id) VALUES ('parent')`); err != nil {
+		t.Fatalf("insert parent: %v", err)
+	}
+	if _, err := second.Exec(`INSERT INTO children (id, parent_id) VALUES ('child', 'parent')`); err != nil {
+		t.Fatalf("insert child through second connection: %v", err)
+	}
+	if _, err := first.Exec(`DELETE FROM parents WHERE id = 'parent'`); err != nil {
+		t.Fatalf("delete parent: %v", err)
+	}
+	var childCount int
+	if err := second.Get(&childCount, `SELECT COUNT(*) FROM children`); err != nil {
+		t.Fatalf("count children through second connection: %v", err)
+	}
+	if childCount != 0 {
+		t.Fatalf("child count after cascade = %d, want 0", childCount)
 	}
 }

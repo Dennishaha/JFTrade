@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"fmt"
+	livecore "github.com/jftrade/jftrade-main/internal/live"
 	"net/http/httptest"
 	"testing"
 )
@@ -74,8 +75,9 @@ func TestMarketSecurityDetailsWebSocketSendsInitialPayload(t *testing.T) {
 
 	if err := conn.WriteJSON(liveWebSocketClientMessage{
 		Type: "subscribe",
-		Subscriptions: liveWebSocketSubscriptions{
-			SecurityDetails: []liveWebSocketSecurityDetailsSubscription{{
+		Subscriptions: livecore.Subscriptions{
+			ProviderBrokerID: "futu",
+			SecurityDetails: []livecore.SecurityDetailsSubscription{{
 				Market:       "HK",
 				Symbol:       "00700",
 				InstrumentID: "HK.00700",

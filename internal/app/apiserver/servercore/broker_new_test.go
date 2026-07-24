@@ -3,6 +3,8 @@ package servercore
 import (
 	"bytes"
 	"encoding/json"
+	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -17,7 +19,7 @@ func testServer(t *testing.T) (*httptest.Server, *SettingsStore) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          "127.0.0.1",
 		APIPort:       1,
@@ -47,7 +49,7 @@ func getEnvelope(t *testing.T, url string) (int, map[string]any) {
 	return resp.StatusCode, envelope.Data
 }
 
-func getEnvelopeWithError(t *testing.T, url string) (int, map[string]any, *apiError) {
+func getEnvelopeWithError(t *testing.T, url string) (int, map[string]any, *httpserver.APIError) {
 	t.Helper()
 	resp, err := jftradeTestHTTPGet(t, url)
 	if err != nil {
@@ -55,9 +57,9 @@ func getEnvelopeWithError(t *testing.T, url string) (int, map[string]any, *apiEr
 	}
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var envelope struct {
-		OK    bool           `json:"ok"`
-		Data  map[string]any `json:"data"`
-		Error *apiError      `json:"error"`
+		OK    bool                 `json:"ok"`
+		Data  map[string]any       `json:"data"`
+		Error *httpserver.APIError `json:"error"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode: %v", err)
@@ -70,7 +72,7 @@ func postEnvelope(t *testing.T, url string, body any) (int, map[string]any) {
 	return status, data
 }
 
-func postEnvelopeWithError(t *testing.T, url string, body any) (int, map[string]any, *apiError) {
+func postEnvelopeWithError(t *testing.T, url string, body any) (int, map[string]any, *httpserver.APIError) {
 	t.Helper()
 	payload, jftradeErr1 := json.Marshal(body)
 	jftradeCheckTestError(t, jftradeErr1)
@@ -80,9 +82,9 @@ func postEnvelopeWithError(t *testing.T, url string, body any) (int, map[string]
 	}
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var envelope struct {
-		OK    bool           `json:"ok"`
-		Data  map[string]any `json:"data"`
-		Error *apiError      `json:"error"`
+		OK    bool                 `json:"ok"`
+		Data  map[string]any       `json:"data"`
+		Error *httpserver.APIError `json:"error"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode: %v", err)
@@ -364,8 +366,8 @@ func TestBrokerCancelOrdersInvalidPayload(t *testing.T) {
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	var envelope struct {
-		OK    bool      `json:"ok"`
-		Error *apiError `json:"error"`
+		OK    bool                 `json:"ok"`
+		Error *httpserver.APIError `json:"error"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode: %v", err)
@@ -484,7 +486,7 @@ func TestBrokerReadQueryDefaultMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          "127.0.0.1",
 		APIPort:       1,

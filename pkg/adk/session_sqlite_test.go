@@ -159,7 +159,7 @@ func TestSQLiteSessionServiceClosedAndBrokenMetadataBranches(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO `+sqliteschema.MetadataTable+` (component_id, created_at) VALUES (?, ?)`, sqliteSessionComponent, nowString()); err != nil {
 		t.Fatalf("insert broken metadata row: %v", err)
 	}
-	if _, err := validateSQLiteSessionMetadata(ctx, db, brokenPath); err == nil {
-		t.Fatal("validateSQLiteSessionMetadata accepted metadata table without version column")
+	if err := sqliteschema.ValidateMetadata(ctx, db, brokenPath, sqliteSessionComponent, sqliteSessionSchemaVersion); err == nil {
+		t.Fatal("ValidateMetadata accepted metadata table without version column")
 	}
 }

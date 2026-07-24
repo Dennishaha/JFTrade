@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -19,7 +21,7 @@ func TestInstantiateStoredDefinitionRejectsLegacySourceFormat(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	legacyDefinition := strategyDesignDefinition{
+	legacyDefinition := stratsrv.Definition{
 		ID:           "legacy-breakout",
 		Name:         "Legacy Breakout",
 		Version:      "0.1.0",
@@ -49,7 +51,7 @@ func TestInstantiateStoredDefinitionRejectsLegacySourceFormat(t *testing.T) {
 	if createResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("POST legacy source format instantiate status = %d, want %d", createResp.StatusCode, http.StatusBadRequest)
 	}
-	var createEnvelope envelope
+	var createEnvelope httpserver.Envelope
 	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
 		t.Fatalf("decode legacy instantiate: %v", err)
 	}
@@ -64,7 +66,7 @@ func TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours(t *testing
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           "dsl-preview-day-window",
 		Name:         "Pine Preview Window",
 		Version:      "0.1.0",

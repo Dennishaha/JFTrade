@@ -209,17 +209,6 @@ func NewProfitStats(market Market) *ProfitStats {
 	}
 }
 
-// Init
-// Deprecated: use NewProfitStats instead
-func (s *ProfitStats) Init(market Market) {
-	s.Symbol = market.Symbol
-	s.BaseCurrency = market.BaseCurrency
-	s.QuoteCurrency = market.QuoteCurrency
-	if s.AccumulatedSince == 0 {
-		s.AccumulatedSince = time.Now().Unix()
-	}
-}
-
 func (s *ProfitStats) AddProfit(profit Profit) {
 	if s.IsOver24Hours() {
 		s.ResetToday(profit.TradedAt)

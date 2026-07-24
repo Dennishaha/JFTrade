@@ -11,6 +11,7 @@ import (
 
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
@@ -28,7 +29,7 @@ func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          strings.Split(opendServer.addr, ":")[0],
 		APIPort:       portFromAddr(t, opendServer.addr),
@@ -101,7 +102,7 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          strings.Split(opendServer.addr, ":")[0],
 		APIPort:       portFromAddr(t, opendServer.addr),
@@ -169,7 +170,7 @@ func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          strings.Split(opendServer.addr, ":")[0],
 		APIPort:       portFromAddr(t, opendServer.addr),
@@ -229,7 +230,7 @@ func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          strings.Split(opendServer.addr, ":")[0],
 		APIPort:       portFromAddr(t, opendServer.addr),
@@ -255,7 +256,7 @@ func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal payload: %v", err)
 	}
-	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/execution/orders/preview", "application/json", bytes.NewReader(payload))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/execution/previews", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		t.Fatalf("POST execution preview: %v", err)
 	}

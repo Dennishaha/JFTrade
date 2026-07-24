@@ -6,14 +6,16 @@ import type {
   RuntimeDependenciesResponse,
   RuntimeDependencyItem,
 } from "@/contracts";
-import type { components } from "@/generated/openapi";
-
-import { apiGet, apiPut, fetchEnvelope } from "../composables/apiClient";
+import { fetchEnvelope } from "../composables/apiClient";
 import { useExternalLink } from "../composables/externalLink";
+import {
+  defaultPineWorkerSettings,
+  getPineWorkerSettings,
+  putPineWorkerSettings,
+  type PineWorkerSettings,
+} from "../composables/pineWorkerSettings";
 import { queryClient, queryKeys } from "../composables/serverState";
 import SectionHeader from "./SectionHeader.vue";
-
-type PineWorkerSettings = Required<components["schemas"]["jftsettings.PineWorkerSettings"]>;
 
 const props = withDefaults(
   defineProps<{
@@ -29,12 +31,6 @@ const emit = defineEmits<{
 }>();
 const { handleExternalLinkClick } = useExternalLink();
 
-const defaultPineWorkerSettings: PineWorkerSettings = {
-  backtestWorkerLimit: 2,
-  instanceWorkerLimit: 10,
-  nodeBinaryPath: "",
-};
-
 const runtimeDependencies = ref<RuntimeDependenciesResponse>({
   checkedAt: "",
   allRequiredSatisfied: false,
@@ -49,17 +45,11 @@ const noticeMessage = ref("");
 const pineWorkerSettingsQueryKey = queryKeys.settings("pine-worker");
 const pineWorkerSettingsQuery = useQuery({
   queryKey: pineWorkerSettingsQueryKey,
-  queryFn: () => apiGet<PineWorkerSettings, "/api/v1/settings/pine-worker">(
-    "/api/v1/settings/pine-worker",
-  ),
+  queryFn: getPineWorkerSettings,
   enabled: false,
 }, queryClient);
 const savePineWorkerSettingsMutation = useMutation({
-  mutationFn: (next: PineWorkerSettings) =>
-    apiPut<PineWorkerSettings, "/api/v1/settings/pine-worker">(
-      "/api/v1/settings/pine-worker",
-      next,
-    ),
+  mutationFn: putPineWorkerSettings,
   onSuccess: async (saved) => {
     queryClient.setQueryData(pineWorkerSettingsQueryKey, saved);
     await queryClient.invalidateQueries({ queryKey: pineWorkerSettingsQueryKey, refetchType: "none" });
@@ -122,9 +112,7 @@ async function loadRuntimeDependencyPanel(): Promise<void> {
     await Promise.all([
       queryClient.ensureQueryData({
         queryKey: pineWorkerSettingsQueryKey,
-        queryFn: () => apiGet<PineWorkerSettings, "/api/v1/settings/pine-worker">(
-          "/api/v1/settings/pine-worker",
-        ),
+        queryFn: getPineWorkerSettings,
       }),
       refreshDependencies(),
     ]);

@@ -6,15 +6,14 @@ import (
 	"strings"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
-type strategyRuntimeRiskDecision = runtimecontrol.RiskDecision
-
-func (e *strategyLiveOrderExecutor) evaluateRuntimeRisk(command trdsrv.ExecutionOrderCommand) strategyRuntimeRiskDecision {
+func (e *strategyLiveOrderExecutor) evaluateRuntimeRisk(command trdsrv.ExecutionOrderCommand) runtimecontrol.RiskDecision {
 	settings := e.currentRuntimeRiskSettings()
 	context := runtimecontrol.RiskContext{}
 	if e != nil && e.manager != nil {
@@ -40,7 +39,7 @@ func strategyRuntimeOrderIntentFromCommand(command trdsrv.ExecutionOrderCommand)
 	}
 }
 
-func strategyRuntimeRiskSettingsToControl(input strategyRuntimeRiskSettings) runtimecontrol.RiskSettings {
+func strategyRuntimeRiskSettingsToControl(input stratsrv.RuntimeRiskSettings) runtimecontrol.RiskSettings {
 	return runtimecontrol.RiskSettings{
 		Mode:             input.Mode,
 		CloseOnly:        input.CloseOnly,
@@ -51,9 +50,9 @@ func strategyRuntimeRiskSettingsToControl(input strategyRuntimeRiskSettings) run
 	}
 }
 
-func (e *strategyLiveOrderExecutor) currentRuntimeRiskSettings() strategyRuntimeRiskSettings {
+func (e *strategyLiveOrderExecutor) currentRuntimeRiskSettings() stratsrv.RuntimeRiskSettings {
 	if e == nil {
-		return normalizeStrategyRuntimeRiskSettings(strategyRuntimeRiskSettings{})
+		return normalizeStrategyRuntimeRiskSettings(stratsrv.RuntimeRiskSettings{})
 	}
 	if e.manager != nil {
 		if instance, ok := e.manager.currentInstance(e.instance.ID); ok {
@@ -63,7 +62,7 @@ func (e *strategyLiveOrderExecutor) currentRuntimeRiskSettings() strategyRuntime
 	return normalizeStrategyRuntimeRiskSettings(e.instance.Binding.RuntimeRisk)
 }
 
-func (e *strategyLiveOrderExecutor) recordRuntimeRiskDecision(decision strategyRuntimeRiskDecision, command trdsrv.ExecutionOrderCommand) {
+func (e *strategyLiveOrderExecutor) recordRuntimeRiskDecision(decision runtimecontrol.RiskDecision, command trdsrv.ExecutionOrderCommand) {
 	if !decision.Matched || e == nil || e.manager == nil {
 		return
 	}

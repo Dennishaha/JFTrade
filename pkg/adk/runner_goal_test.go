@@ -296,7 +296,7 @@ func TestUpdateRunObjectiveAndRecentMessageBranches(t *testing.T) {
 	if recent := recentOpenAIMessages(nil, 10, 100); recent != nil {
 		t.Fatalf("recent nil = %#v, want nil", recent)
 	}
-	messages := []Message{
+	messages := []TranscriptEntry{
 		{Role: "assistant", Content: "  "},
 		{Role: "assistant", Content: "等待用户审批"},
 		{Role: "user", Content: "first user"},

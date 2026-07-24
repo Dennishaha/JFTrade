@@ -5,10 +5,11 @@ package jftsettings
 import "encoding/json"
 
 const (
-	DefaultWebAccessPort = 6688
-	MinWebAccessPort     = 1024
-	MaxWebAccessPort     = 65535
-	DefaultMCPServerPort = 6697
+	DefaultWebAccessPort                = 6688
+	MinWebAccessPort                    = 1024
+	MaxWebAccessPort                    = 65535
+	DefaultMCPServerPort                = 6697
+	DefaultLiveWebSocketConnectionLimit = 20
 )
 
 // FutuIntegrationConfig holds Futu OpenD connection parameters.
@@ -49,9 +50,9 @@ type ManagedBrokerAccount struct {
 
 // InterfaceSettings holds the network bind / base URL configuration.
 type InterfaceSettings struct {
-	APIBind       string `json:"apiBind"`
-	GUIBind       string `json:"guiBind,omitempty"`
-	GUIAPIBaseURL string `json:"guiApiBaseUrl,omitempty"`
+	APIBind                      string `json:"apiBind"`
+	GUIBind                      string `json:"guiBind,omitempty"`
+	LiveWebSocketConnectionLimit int    `json:"liveWebSocketConnectionLimit"`
 }
 
 // UIAppearanceSettings holds chart / UI colour preferences.

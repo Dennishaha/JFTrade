@@ -8,7 +8,6 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,6 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const testWebPassword = "correct horse battery staple"
@@ -37,13 +37,13 @@ func newAuthenticatedSecurityServer(t *testing.T) (*Server, *httptest.Server) {
 	return server, srv
 }
 
-func webSecuritySettings(t *testing.T, public bool) SecuritySettings {
+func webSecuritySettings(t *testing.T, public bool) jfsettings.SecuritySettings {
 	t.Helper()
 	hash, err := passwordhash.Hash(testWebPassword)
 	if err != nil {
 		t.Fatalf("passwordhash.Hash: %v", err)
 	}
-	return SecuritySettings{
+	return jfsettings.SecuritySettings{
 		WebAccessEnabled:    true,
 		PublicAccessEnabled: public,
 		PasswordHash:        hash,
@@ -389,7 +389,7 @@ func TestForwardedClientUsesProxyAppendedAddress(t *testing.T) {
 }
 
 func TestWebAuthStateMapsStayBounded(t *testing.T) {
-	auth := newWebAuth(SecuritySettings{})
+	auth := newWebAuth(jfsettings.SecuritySettings{})
 	now := time.Now()
 	auth.now = func() time.Time { return now }
 	for index := range maxLoginAttempts + 20 {
@@ -499,7 +499,7 @@ func TestDesktopCapabilityStaysPasswordlessWhenWebAccessIsDisabled(t *testing.T)
 	server := newTestServer(t, store)
 	server.auth.enforceAccess = true
 	server.desktopAPIToken = "ephemeral-desktop-token"
-	server.ApplySecuritySettings(SecuritySettings{})
+	server.ApplySecuritySettings(jfsettings.SecuritySettings{})
 
 	desktopRequest := httptest.NewRequest(http.MethodGet, "/api/v1/system/status", nil)
 	desktopRequest.RemoteAddr = "192.0.2.20:12345"
@@ -550,27 +550,6 @@ func TestRemovedAuthTokenRouteReturnsNotFound(t *testing.T) {
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("removed token route status = %d, want 404", resp.StatusCode)
-	}
-}
-
-func TestLegacyApplicationAdminKeyIsRemovedWithoutFollowingEnvironmentPath(t *testing.T) {
-	runtimeDir := t.TempDir()
-	legacyPath := filepath.Join(runtimeDir, "secrets", "admin.key")
-	jftradeCheckTestError(t, os.MkdirAll(filepath.Dir(legacyPath), 0o700))
-	jftradeCheckTestError(t, os.WriteFile(legacyPath, []byte("obsolete"), 0o600))
-	externalPath := filepath.Join(t.TempDir(), "external-admin.key")
-	jftradeCheckTestError(t, os.WriteFile(externalPath, []byte("must remain"), 0o600))
-	t.Setenv("JFTRADE_ADMIN_KEY_FILE", externalPath)
-
-	store, err := NewSettingsStore(filepath.Join(runtimeDir, "settings.json"))
-	jftradeCheckTestError(t, err)
-	server := NewServer(store)
-	t.Cleanup(func() { jftradeCheckTestError(t, server.Close()) })
-	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
-		t.Fatalf("legacy application key still exists: %v", err)
-	}
-	if data, err := os.ReadFile(externalPath); err != nil || string(data) != "must remain" {
-		t.Fatalf("external environment path was changed: %q, %v", data, err)
 	}
 }
 
@@ -639,11 +618,11 @@ func readWebSession(t *testing.T, client *http.Client, baseURL string) webSessio
 	return envelope.Data
 }
 
-func webSecuritySettingsForPassword(t *testing.T, password string, public bool) SecuritySettings {
+func webSecuritySettingsForPassword(t *testing.T, password string, public bool) jfsettings.SecuritySettings {
 	t.Helper()
 	hash, err := passwordhash.Hash(password)
 	jftradeCheckTestError(t, err)
-	return SecuritySettings{WebAccessEnabled: true, PublicAccessEnabled: public, PasswordHash: hash}
+	return jfsettings.SecuritySettings{WebAccessEnabled: true, PublicAccessEnabled: public, PasswordHash: hash}
 }
 
 func assertErrorCode(t *testing.T, resp *http.Response, expected string) {

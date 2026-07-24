@@ -12,8 +12,10 @@ import (
 	"time"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 	"github.com/shopspring/decimal"
 )
@@ -236,7 +238,7 @@ func TestTimeStatusAndDefaultScriptBoundaries(t *testing.T) {
 }
 
 func TestStrategyBindingHelpersNormalizeLooseAPIParams(t *testing.T) {
-	binding := normalizeStrategyInstanceBinding(strategyInstanceBinding{}, map[string]any{
+	binding := normalizeStrategyInstanceBinding(stratsrv.InstanceBinding{}, map[string]any{
 		"instruments": []any{
 			map[string]any{"market": " hk ", "code": " 00700 "},
 			map[string]any{"market": "HK", "code": "00700"},
@@ -277,7 +279,7 @@ func TestStrategyBindingHelpersNormalizeLooseAPIParams(t *testing.T) {
 		t.Fatalf("runtime risk = %#v", binding.RuntimeRisk)
 	}
 
-	fallback := normalizeStrategyInstanceBinding(strategyInstanceBinding{}, map[string]any{
+	fallback := normalizeStrategyInstanceBinding(stratsrv.InstanceBinding{}, map[string]any{
 		"symbol":        "us:aapl",
 		"runtimeRisk":   map[string]any{"mode": "invalid", "maxOrderQuantity": -1, "dailyMaxOrders": 1.5},
 		"brokerAccount": map[string]any{},
@@ -289,7 +291,7 @@ func TestStrategyBindingHelpersNormalizeLooseAPIParams(t *testing.T) {
 		t.Fatalf("fallback risk/account = %#v/%#v", fallback.RuntimeRisk, fallback.BrokerAccount)
 	}
 
-	instance := &managedStrategyInstance{Params: map[string]any{
+	instance := &stratsrv.ManagedInstance{Params: map[string]any{
 		"symbols":       []string{"HK.00700"},
 		"executionMode": "live",
 	}}
@@ -411,7 +413,7 @@ func TestServerSidecarBoundaryMethodsAreNilSafe(t *testing.T) {
 	server.SetAPIPort(3001)
 	server.ConfigureAuthOrigins("http://127.0.0.1:3003")
 	server.SetFrontendFS(os.DirFS(t.TempDir()), "http://127.0.0.1:3000")
-	server.ApplySecuritySettings(SecuritySettings{WebAccessEnabled: true})
+	server.ApplySecuritySettings(jfsettings.SecuritySettings{WebAccessEnabled: true})
 	if err := server.Close(); err != nil {
 		t.Fatalf("nil Close = %v", err)
 	}
@@ -470,7 +472,7 @@ func TestServerSidecarFrontendRuntimeConfigFollowsSecuritySettings(t *testing.T)
 		t.Fatalf("WriteFile index.html: %v", err)
 	}
 
-	server := &Server{auth: newWebAuth(SecuritySettings{})}
+	server := &Server{auth: newWebAuth(jfsettings.SecuritySettings{})}
 	server.SetFrontendFS(os.DirFS(frontendDir), " http://127.0.0.1:3000/api/ ")
 	server.ApplySecuritySettings(webSecuritySettings(t, false))
 	if server.frontend == nil {
@@ -490,7 +492,7 @@ func TestServerSidecarFrontendRuntimeConfigFollowsSecuritySettings(t *testing.T)
 		t.Fatalf("runtime config body = %q", body)
 	}
 
-	server.ApplySecuritySettings(SecuritySettings{})
+	server.ApplySecuritySettings(jfsettings.SecuritySettings{})
 	if server.auth.enabled {
 		t.Fatalf("ApplySecuritySettings should disable Web access")
 	}

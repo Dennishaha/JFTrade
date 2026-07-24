@@ -2,22 +2,29 @@ package servercore
 
 import (
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestLiveStreamDiagnosticsUseConfiguredLimit(t *testing.T) {
-	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"interfaces":{"liveWebSocketConnectionLimit":2}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewSettingsStore(settingsPath)
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    "127.0.0.1",
 			APIPort:                 11110,

@@ -120,14 +120,14 @@ func TestCoverage98AggregateQueryAPIsPropagateCoverageAndSourceFailures(t *testi
 func TestCoverage98StoredReadersSkipEmptyScopedTables(t *testing.T) {
 	store := newTestKLineStore(t)
 	start := time.Date(2026, time.June, 15, 1, 30, 0, 0, time.UTC)
-	for _, scope := range []string{klineSessionScopeLegacy, klineSessionScopeRegular} {
+	for _, scope := range []string{klineSessionScopeRegular} {
 		store.SetWriteSessionScope(scope)
 		tableName := store.writeTableName("TEST.EMPTY", types.Interval1m, "forward")
 		if err := store.ensureKLineTable(tableName); err != nil {
 			t.Fatalf("ensure empty %s table: %v", scope, err)
 		}
 	}
-	store.SetReadSessionScope(klineReadSessionScopeAuto)
+	store.SetReadSessionScope(klineSessionScopeRegular)
 	if rows, err := store.queryStoredKLinesForward("TEST.EMPTY", types.Interval1m, "forward", start, 2); err != nil || len(rows) != 0 {
 		t.Fatalf("empty scoped forward = %#v/%v", rows, err)
 	}

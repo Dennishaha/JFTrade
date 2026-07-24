@@ -10,7 +10,6 @@ import {
 
 import { normalizeKlinePeriod } from "../charting/kline";
 
-const LEGACY_STORAGE_KEY = "jftrade.workspace.layout.v1";
 const VIEW_STORAGE_KEY = "jftrade.workspace.view.v1";
 const TRADING_STORAGE_KEY = "jftrade.workspace.trading.v1";
 
@@ -281,36 +280,6 @@ function writeStorage(
   }
 }
 
-function readLegacyState():
-  | {
-      view: WorkspaceViewState;
-      trading: WorkspaceTradingPreferences;
-    }
-  | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const raw =
-      readStorage(window.sessionStorage, LEGACY_STORAGE_KEY) ??
-      readStorage(window.localStorage, LEGACY_STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<
-      WorkspaceViewState & WorkspaceTradingPreferences
-    >;
-    return {
-      view: normalizeViewState(parsed),
-      trading: normalizeTradingPreferences(parsed),
-    };
-  } catch {
-    return null;
-  }
-}
-
 function readInitialViewState(): WorkspaceViewState {
   if (typeof window === "undefined") {
     return createDefaultViewState();
@@ -324,10 +293,10 @@ function readInitialViewState(): WorkspaceViewState {
       return normalizeViewState(JSON.parse(raw) as Partial<WorkspaceViewState>);
     }
   } catch {
-    // Fall back to legacy/default state below.
+    // Fall back to defaults below.
   }
 
-  return readLegacyState()?.view ?? createDefaultViewState();
+  return createDefaultViewState();
 }
 
 function readInitialTradingPreferences(): WorkspaceTradingPreferences {
@@ -345,10 +314,10 @@ function readInitialTradingPreferences(): WorkspaceTradingPreferences {
       );
     }
   } catch {
-    // Fall back to legacy/default state below.
+    // Fall back to defaults below.
   }
 
-  return readLegacyState()?.trading ?? createDefaultTradingPreferences();
+  return createDefaultTradingPreferences();
 }
 
 export interface WorkspaceViewStateStore {
@@ -460,18 +429,6 @@ export function provideWorkspaceLayoutStore(): WorkspaceLayoutStore {
     ...view.prefs.value,
     ...trading.prefs.value,
   }));
-
-  watch(
-    prefs,
-    (next) => {
-      if (typeof window === "undefined") {
-        return;
-      }
-      writeStorage(window.sessionStorage, LEGACY_STORAGE_KEY, next);
-      writeStorage(window.localStorage, LEGACY_STORAGE_KEY, next);
-    },
-    { deep: true, immediate: true },
-  );
 
   return {
     prefs,

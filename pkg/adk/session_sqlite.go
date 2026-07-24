@@ -5,9 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
-	"time"
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
@@ -24,22 +22,15 @@ type SQLiteSessionService struct {
 	path string
 }
 
-const sqliteSessionSchemaVersion = 3
+const sqliteSessionSchemaVersion = 4
 const sqliteSessionComponent = "adk-session"
 
 func NewSQLiteSessionService(path string) (*SQLiteSessionService, error) {
-	service, err := openSQLiteSessionService(path)
-	if err == nil {
-		return service, nil
-	}
-	if !sqliteschema.IsIncompatible(err) {
+	path = strings.TrimSpace(path)
+	if err := sqliteschema.ValidateCurrentFile(context.Background(), path, sqliteSessionComponent); err != nil {
 		return nil, err
 	}
-	rebuilt, rebuildErr := rebuildSQLiteSessionService(path)
-	if rebuildErr != nil {
-		return nil, errors.Join(err, rebuildErr)
-	}
-	return rebuilt, nil
+	return openSQLiteSessionService(path)
 }
 
 func openSQLiteSessionService(path string) (*SQLiteSessionService, error) {
@@ -67,132 +58,23 @@ func prepareSQLiteSessionSchema(ctx context.Context, db *sqliteconn.DB, service 
 	if db == nil {
 		return fmt.Errorf("ADK session database is unavailable")
 	}
-	metadataCurrent, err := validateSQLiteSessionMetadata(ctx, db, path)
-	if err != nil {
-		return err
-	}
-	ready, err := sqliteSessionSchemaReady(db)
-	if err != nil {
-		return err
-	}
-	if !metadataCurrent || !ready {
-		if err := adksessiondb.AutoMigrate(service); err != nil {
-			return &sqliteschema.IncompatibleError{
-				Component: sqliteSessionComponent,
-				Path:      path,
-				Reason:    fmt.Sprintf("auto migrate GO-ADK session schema: %v", err),
-			}
-		}
-	}
-	if err := ensureSQLiteSessionMetadata(ctx, db); err != nil {
-		return err
-	}
-	return validateSQLiteSessionTables(ctx, db, path)
-}
-
-func validateSQLiteSessionMetadata(ctx context.Context, db sqliteschema.Database, path string) (bool, error) {
-	var table string
-	err := db.QueryRowxContext(ctx,
-		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
-		sqliteschema.MetadataTable,
-	).Scan(&table)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	var storedVersion int
-	err = db.QueryRowxContext(ctx,
-		`SELECT version FROM `+sqliteschema.MetadataTable+` WHERE component_id = ? LIMIT 1`,
-		sqliteSessionComponent,
-	).Scan(&storedVersion)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	if storedVersion != sqliteSessionSchemaVersion {
-		return false, &sqliteschema.IncompatibleError{
-			Component: sqliteSessionComponent,
-			Path:      path,
-			Reason:    fmt.Sprintf("schema version %d does not match required version %d", storedVersion, sqliteSessionSchemaVersion),
-		}
-	}
-	return true, nil
-}
-
-func ensureSQLiteSessionMetadata(ctx context.Context, db *sqliteconn.DB) error {
-	if _, err := db.ExecContext(ctx,
-		`CREATE TABLE IF NOT EXISTS `+sqliteschema.MetadataTable+` (component_id TEXT PRIMARY KEY, version INTEGER NOT NULL, created_at TEXT NOT NULL)`,
-	); err != nil {
-		return fmt.Errorf("initialize ADK session schema metadata: %w", err)
-	}
-	if _, err := db.ExecContext(ctx,
-		`INSERT INTO `+sqliteschema.MetadataTable+` (component_id, version, created_at) VALUES (?, ?, ?)
-		 ON CONFLICT(component_id) DO UPDATE SET version = excluded.version`,
-		sqliteSessionComponent,
-		sqliteSessionSchemaVersion,
-		time.Now().UTC().Format(time.RFC3339Nano),
-	); err != nil {
-		return fmt.Errorf("record ADK session schema metadata: %w", err)
-	}
-	return nil
+	_ = service
+	return sqliteschema.InitializeCurrent(ctx, db, path, sqliteSessionComponent)
 }
 
 func validateSQLiteSessionTables(ctx context.Context, db *sqliteconn.DB, path string) error {
-	for _, tableName := range []string{"sessions", "events", "app_states", "user_states"} {
-		exists, err := sqliteTableExists(db, tableName)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return &sqliteschema.IncompatibleError{
-				Component: sqliteSessionComponent,
-				Path:      path,
-				Reason:    "required GO-ADK session table is missing: " + tableName,
-			}
-		}
+	schemas := []struct {
+		table   string
+		columns []string
+	}{
+		{"app_states", []string{"app_name:TEXT:1", "state:TEXT:0", "update_time:TIMESTAMP:0"}},
+		{"events", []string{"id:TEXT:1", "app_name:TEXT:2", "user_id:TEXT:3", "session_id:TEXT:4", "invocation_id:TEXT:0", "author:TEXT:0", "actions:BLOB:0", "long_running_tool_ids_json:TEXT:0", "routes_json:TEXT:0", "output_json:TEXT:0", "node_info_json:TEXT:0", "requested_input_json:TEXT:0", "branch:TEXT:0", "isolation_scope:TEXT:0", "timestamp:TIMESTAMP:0", "content:TEXT:0", "grounding_metadata:TEXT:0", "custom_metadata:TEXT:0", "usage_metadata:TEXT:0", "citation_metadata:TEXT:0", "partial:NUMERIC:0", "turn_complete:NUMERIC:0", "error_code:TEXT:0", "error_message:TEXT:0", "interrupted:NUMERIC:0"}},
+		{"sessions", []string{"app_name:TEXT:1", "user_id:TEXT:2", "id:TEXT:3", "state:TEXT:0", "create_time:TIMESTAMP:0", "update_time:TIMESTAMP:0"}},
+		{"user_states", []string{"app_name:TEXT:1", "user_id:TEXT:2", "state:TEXT:0", "update_time:TIMESTAMP:0"}},
 	}
-	for tableName, columns := range map[string][]string{
-		"sessions":    {"app_name", "user_id", "id"},
-		"events":      {"id", "app_name", "user_id", "session_id"},
-		"app_states":  {"app_name"},
-		"user_states": {"app_name", "user_id"},
-	} {
-		for _, column := range columns {
-			exists, err := sqliteTableColumnExists(ctx, db, tableName, column)
-			if err != nil {
-				return err
-			}
-			if !exists {
-				return &sqliteschema.IncompatibleError{
-					Component: sqliteSessionComponent,
-					Path:      path,
-					Reason:    fmt.Sprintf("required GO-ADK session column is missing: %s.%s", tableName, column),
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func rebuildSQLiteSessionService(path string) (*SQLiteSessionService, error) {
-	if err := removeSQLiteDatabaseFiles(path); err != nil {
-		return nil, err
-	}
-	return openSQLiteSessionService(path)
-}
-
-func removeSQLiteDatabaseFiles(path string) error {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return fmt.Errorf("ADK session database path is empty")
-	}
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		if err := os.Remove(path + suffix); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("remove ADK session database%s: %w", suffix, err)
+	for _, schema := range schemas {
+		if err := sqliteschema.ValidateTable(ctx, db, schema.table, schema.columns); err != nil {
+			return &sqliteschema.IncompatibleError{Component: sqliteSessionComponent, Path: path, Reason: err.Error()}
 		}
 	}
 	return nil

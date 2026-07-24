@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
@@ -432,7 +431,7 @@ func TestDefaultCallbacksReturnEmptyMaps(t *testing.T) {
 	}
 }
 
-func TestSaveIntegrationSideEffectAppliesRuntimeEnv(t *testing.T) {
+func TestSaveIntegrationPassesStructuredConfigWithoutChangingRuntimeEnv(t *testing.T) {
 	t.Setenv("FUTU_OPEND_ADDR", "before")
 	t.Setenv("JFTRADE_FUTU_WEBSOCKET_PORT", "before")
 
@@ -440,9 +439,10 @@ func TestSaveIntegrationSideEffectAppliesRuntimeEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("settingsfile.New: %v", err)
 	}
-	svc := NewService(store, WithSideEffects(SideEffects{
-		OnIntegrationChanged: apiruntime.ApplyIntegrationEnv,
-	}))
+	var applied jfsettings.BrokerIntegration
+	svc := NewService(store, WithSideEffects(SideEffects{OnIntegrationChanged: func(integration jfsettings.BrokerIntegration) {
+		applied = integration
+	}}))
 
 	_, err = svc.SaveIntegration(jfsettings.BrokerIntegration{
 		Config: jfsettings.FutuIntegrationConfig{
@@ -454,10 +454,13 @@ func TestSaveIntegrationSideEffectAppliesRuntimeEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveIntegration: %v", err)
 	}
-	if got := os.Getenv("FUTU_OPEND_ADDR"); got != "127.0.0.3:23333" {
+	if applied.Config.Host != "127.0.0.3" || applied.Config.APIPort != 23333 || applied.Config.WebSocketPort != 23334 {
+		t.Fatalf("structured integration = %#v", applied)
+	}
+	if got := os.Getenv("FUTU_OPEND_ADDR"); got != "before" {
 		t.Fatalf("FUTU_OPEND_ADDR = %q", got)
 	}
-	if got := os.Getenv("JFTRADE_FUTU_WEBSOCKET_PORT"); got != "23334" {
+	if got := os.Getenv("JFTRADE_FUTU_WEBSOCKET_PORT"); got != "before" {
 		t.Fatalf("JFTRADE_FUTU_WEBSOCKET_PORT = %q", got)
 	}
 }

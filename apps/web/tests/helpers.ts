@@ -1,5 +1,4 @@
 import { mount } from "@vue/test-utils";
-import { createPinia } from "pinia";
 import { vi } from "vitest";
 import { defineComponent, h, nextTick } from "vue";
 import { createMemoryHistory } from "vue-router";
@@ -453,7 +452,7 @@ export async function mountApp(path = "/workspace") {
 
   const wrapper = mount(App, {
     global: {
-      plugins: [createPinia(), router],
+      plugins: [router],
       stubs: {
         "v-card": passthroughStub,
         "v-card-item": passthroughStub,

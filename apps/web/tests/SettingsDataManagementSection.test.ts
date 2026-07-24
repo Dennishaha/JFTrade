@@ -4,14 +4,14 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 
-import SettingsDataMigrationSection from "../src/components/SettingsDataMigrationSection.vue";
+import SettingsDataManagementSection from "../src/components/SettingsDataManagementSection.vue";
 import { createResponse, flushRequests } from "./helpers";
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("SettingsDataMigrationSection", () => {
+describe("SettingsDataManagementSection", () => {
   it("renders seven databases and schedules a confirmed single rebuild", async () => {
     const statuses = buildStatuses();
     const fetchMock = buildDataManagementFetch(statuses, async (_input, init) => {
@@ -29,7 +29,7 @@ describe("SettingsDataMigrationSection", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const wrapper = mount(SettingsDataMigrationSection, {
+    const wrapper = mount(SettingsDataManagementSection, {
       attachTo: document.body,
       global: { stubs: expansionPanelStubs },
     });
@@ -90,7 +90,7 @@ describe("SettingsDataMigrationSection", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const wrapper = mount(SettingsDataMigrationSection, { global: { stubs: expansionPanelStubs } });
+    const wrapper = mount(SettingsDataManagementSection, { global: { stubs: expansionPanelStubs } });
     await flushRequests();
 
     expect(String(fetchMock.mock.calls[0][0])).toContain("summaryOnly=true");
@@ -112,7 +112,7 @@ describe("SettingsDataMigrationSection", () => {
     const statuses = buildStatuses();
     statuses[2].cleanable = [{ kind: "soft-deleted", label: "已删除策略", count: 1, estimatedBytes: 2048 }];
     vi.stubGlobal("fetch", buildDataManagementFetch(statuses));
-    const wrapper = mount(SettingsDataMigrationSection, {
+    const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
     await flushRequests();
@@ -149,7 +149,7 @@ describe("SettingsDataMigrationSection", () => {
       }
     });
     vi.stubGlobal("fetch", fetchMock);
-    const wrapper = mount(SettingsDataMigrationSection, {
+    const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
     await flushRequests();
@@ -191,7 +191,7 @@ describe("SettingsDataMigrationSection", () => {
       }
     });
     vi.stubGlobal("fetch", fetchMock);
-    const wrapper = mount(SettingsDataMigrationSection, { global: { stubs: expansionPanelStubs } });
+    const wrapper = mount(SettingsDataManagementSection, { global: { stubs: expansionPanelStubs } });
     await flushRequests();
     await flushRequests();
 
@@ -221,7 +221,7 @@ describe("SettingsDataMigrationSection", () => {
     vi.stubGlobal("fetch", fetchMock);
     const confirmMock = vi.fn(() => true);
     vi.stubGlobal("confirm", confirmMock);
-    const wrapper = mount(SettingsDataMigrationSection, {
+    const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
     await flushRequests();
@@ -250,7 +250,7 @@ describe("SettingsDataMigrationSection", () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw new Error("汇总数据库状态不可用");
     }));
-    const summaryFailure = mount(SettingsDataMigrationSection, {
+    const summaryFailure = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
     await flushRequests();
@@ -269,7 +269,7 @@ describe("SettingsDataMigrationSection", () => {
       const database = statuses.find((item) => item.id === databaseId);
       return createResponse({ databases: database == null ? [] : [database] });
     }));
-    const partialFailure = mount(SettingsDataMigrationSection, {
+    const partialFailure = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
     await flushRequests();
@@ -313,7 +313,7 @@ describe("SettingsDataMigrationSection", () => {
     vi.stubGlobal("fetch", fetchMock);
     const confirmMock = vi.fn(() => false);
     vi.stubGlobal("confirm", confirmMock);
-    const wrapper = mount(SettingsDataMigrationSection, {
+    const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
     await flushRequests();
@@ -373,7 +373,7 @@ describe("SettingsDataMigrationSection", () => {
       return createResponse({ databases: database == null ? [] : [database] });
     });
     vi.stubGlobal("fetch", fetchMock);
-    const wrapper = mount(SettingsDataMigrationSection, {
+    const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
     await flushRequests();
@@ -421,7 +421,7 @@ describe("SettingsDataMigrationSection", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("confirm", vi.fn(() => true));
-    const wrapper = mount(SettingsDataMigrationSection, {
+    const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
     await flushRequests();
@@ -462,7 +462,7 @@ describe("SettingsDataMigrationSection", () => {
     const statuses = buildStatuses();
     const fetchMock = buildDataManagementFetch(statuses);
     vi.stubGlobal("fetch", fetchMock);
-    const wrapper = mount(SettingsDataMigrationSection, {
+    const wrapper = mount(SettingsDataManagementSection, {
       global: { stubs: expansionPanelStubs },
     });
     await flushRequests();
@@ -518,7 +518,7 @@ describe("SettingsDataMigrationSection", () => {
     const statuses = buildStatuses();
     const fetchMock = buildDataManagementFetch(statuses);
     vi.stubGlobal("fetch", fetchMock);
-    const wrapper = mount(SettingsDataMigrationSection, {
+    const wrapper = mount(SettingsDataManagementSection, {
       attachTo: document.body,
       global: { stubs: expansionPanelStubs },
     });

@@ -53,14 +53,11 @@ func TestSettingsNormalizationCoverageForFallbackAndBoundaries(t *testing.T) {
 func TestSettingsInterfaceAndAccountNormalizationCoverage(t *testing.T) {
 	defaults := jfsettings.LaunchDefaults{APIBind: "0.0.0.0:3000", GUIBind: "127.0.0.1:3003"}
 	fromDefaults := InterfaceSettingsFromDefaults(defaults)
-	if fromDefaults.GUIAPIBaseURL != "http://127.0.0.1:3000" {
+	if fromDefaults.APIBind != defaults.APIBind || fromDefaults.GUIBind != defaults.GUIBind || fromDefaults.LiveWebSocketConnectionLimit != jfsettings.DefaultLiveWebSocketConnectionLimit {
 		t.Fatalf("InterfaceSettingsFromDefaults = %#v", fromDefaults)
 	}
-	if got := NormalizeInterfaceSettings(jfsettings.InterfaceSettings{APIBind: "invalid"}, jfsettings.LaunchDefaults{}); got.APIBind != "invalid" || got.GUIAPIBaseURL != "" {
+	if got := NormalizeInterfaceSettings(jfsettings.InterfaceSettings{APIBind: "invalid"}, jfsettings.LaunchDefaults{}); got.APIBind != "invalid" || got.LiveWebSocketConnectionLimit != jfsettings.DefaultLiveWebSocketConnectionLimit {
 		t.Fatalf("NormalizeInterfaceSettings invalid bind = %#v", got)
-	}
-	if got := normalizeBrowserHost("[::]"); got != "127.0.0.1" {
-		t.Fatalf("normalizeBrowserHost IPv6 wildcard = %q", got)
 	}
 
 	config := NormalizeFutuConfig(jfsettings.FutuIntegrationConfig{})
@@ -179,14 +176,8 @@ func TestSettingsStoreCoverageForPersistedValuesAndAccountLifecycle(t *testing.T
 }
 
 func TestSettingsFileCoverageForInterfaceAndLoadFailures(t *testing.T) {
-	if got := InterfaceSettingsFromDefaults(jfsettings.LaunchDefaults{APIBind: "127.0.0.1:3000"}); got.GUIBind != "" || got.GUIAPIBaseURL != "" {
+	if got := InterfaceSettingsFromDefaults(jfsettings.LaunchDefaults{APIBind: "127.0.0.1:3000"}); got.GUIBind != "" || got.LiveWebSocketConnectionLimit != jfsettings.DefaultLiveWebSocketConnectionLimit {
 		t.Fatalf("InterfaceSettingsFromDefaults without GUI = %#v", got)
-	}
-	if got := apiBaseURLForBind("not-a-bind"); got != "" {
-		t.Fatalf("apiBaseURLForBind invalid = %q", got)
-	}
-	if got := apiBaseURLForBind(":3000"); got != "http://127.0.0.1:3000" {
-		t.Fatalf("apiBaseURLForBind wildcard = %q", got)
 	}
 	if got := NormalizeMCPServerSettings(jfsettings.MCPServerSettings{Port: 80, AuthMode: "other"}); got.Port != jfsettings.DefaultMCPServerPort || got.AuthMode != "token" {
 		t.Fatalf("NormalizeMCPServerSettings invalid = %#v", got)

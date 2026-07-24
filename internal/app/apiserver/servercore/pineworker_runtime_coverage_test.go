@@ -11,6 +11,7 @@ import (
 
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
@@ -57,12 +58,12 @@ func (*pineWorkerLiveBoundaryTransport) Close() error { return nil }
 
 func TestPineWorkerRuntimeApplyAndMinimumConcurrencyBoundaries(t *testing.T) {
 	var nilServer *Server
-	nilServer.applyPineWorkerSettings(PineWorkerSettings{})
+	nilServer.applyPineWorkerSettings(jfsettings.PineWorkerSettings{})
 
 	t.Setenv(envPineWorkerDisabled, "true")
 	service := btsrv.NewService()
 	server := &Server{serverFacades: serverFacades{backtestSvc: service}}
-	server.applyPineWorkerSettings(PineWorkerSettings{})
+	server.applyPineWorkerSettings(jfsettings.PineWorkerSettings{})
 
 	launcher := &fakeServerPineWorkerLauncher{}
 	dialer := newFakeServerPineWorkerDialer()

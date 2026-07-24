@@ -54,7 +54,7 @@ func InitializeOrValidate(
 	if db == nil {
 		return fmt.Errorf("%s database is unavailable", component)
 	}
-	newDatabase, err := databaseIsNew(path)
+	newDatabase, err := DatabaseIsNew(path)
 	if err != nil {
 		return err
 	}
@@ -77,16 +77,8 @@ func InitializeOrValidate(
 				return fmt.Errorf("initialize %s database: %w", component, err)
 			}
 		}
-		if _, err := tx.ExecContext(ctx,
-			`CREATE TABLE `+MetadataTable+` (component_id TEXT PRIMARY KEY, version INTEGER NOT NULL, created_at TEXT NOT NULL)`,
-		); err != nil {
-			return fmt.Errorf("initialize %s schema metadata: %w", component, err)
-		}
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO `+MetadataTable+` (component_id, version, created_at) VALUES (?, ?, ?)`,
-			component, version, time.Now().UTC().Format(time.RFC3339Nano),
-		); err != nil {
-			return fmt.Errorf("record %s schema metadata: %w", component, err)
+		if err := initializeMetadata(ctx, tx, component, version); err != nil {
+			return err
 		}
 		if err := tx.Commit(); err != nil {
 			return err
@@ -128,7 +120,7 @@ func ValidateMetadata(ctx context.Context, db Database, path string, component s
 		return &IncompatibleError{Component: component, Path: path, Reason: "component metadata is missing"}
 	}
 	if err != nil {
-		return err
+		return &IncompatibleError{Component: component, Path: path, Reason: "schema metadata is unreadable: " + err.Error()}
 	}
 	if storedVersion != version {
 		return &IncompatibleError{
@@ -137,10 +129,21 @@ func ValidateMetadata(ctx context.Context, db Database, path string, component s
 			Reason:    fmt.Sprintf("schema version %d does not match required version %d", storedVersion, version),
 		}
 	}
+	var metadataRows int
+	if err := db.QueryRowxContext(ctx, `SELECT COUNT(*) FROM `+MetadataTable).Scan(&metadataRows); err != nil {
+		return &IncompatibleError{Component: component, Path: path, Reason: "schema metadata is unreadable: " + err.Error()}
+	}
+	if metadataRows != 1 {
+		return &IncompatibleError{
+			Component: component,
+			Path:      path,
+			Reason:    fmt.Sprintf("schema metadata contains %d component rows; exactly one is required", metadataRows),
+		}
+	}
 	return nil
 }
 
-func databaseIsNew(path string) (bool, error) {
+func DatabaseIsNew(path string) (bool, error) {
 	info, err := os.Stat(strings.TrimSpace(path))
 	if errors.Is(err, os.ErrNotExist) {
 		return true, nil
@@ -152,6 +155,36 @@ func databaseIsNew(path string) (bool, error) {
 		return false, fmt.Errorf("database path is not a regular file: %s", path)
 	}
 	return info.Size() == 0, nil
+}
+
+func databaseIsNew(path string) (bool, error) {
+	return DatabaseIsNew(path)
+}
+
+// InitializeMetadata records schema ownership for a new database whose tables
+// are initialized by an external schema engine.
+func InitializeMetadata(ctx context.Context, db *sqliteconn.DB, component string, version int) error {
+	if db == nil {
+		return fmt.Errorf("%s database is unavailable", component)
+	}
+	return db.WriteTx(ctx, nil, func(tx *sqliteconn.Tx) error {
+		return initializeMetadata(ctx, tx, component, version)
+	})
+}
+
+func initializeMetadata(ctx context.Context, tx writeTransaction, component string, version int) error {
+	if _, err := tx.ExecContext(ctx,
+		`CREATE TABLE `+MetadataTable+` (component_id TEXT PRIMARY KEY, version INTEGER NOT NULL, created_at TEXT NOT NULL)`,
+	); err != nil {
+		return fmt.Errorf("initialize %s schema metadata: %w", component, err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO `+MetadataTable+` (component_id, version, created_at) VALUES (?, ?, ?)`,
+		component, version, time.Now().UTC().Format(time.RFC3339Nano),
+	); err != nil {
+		return fmt.Errorf("record %s schema metadata: %w", component, err)
+	}
+	return nil
 }
 
 func ValidateTable(ctx context.Context, db Database, table string, expected []string) (resultErr error) {

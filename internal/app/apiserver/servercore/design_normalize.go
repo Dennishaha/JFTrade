@@ -10,11 +10,12 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/mod/semver"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
 
-func normalizeStrategyDesignDefinition(input strategyDesignDefinition) (strategyDesignDefinition, error) {
+func normalizeStrategyDesignDefinition(input stratsrv.Definition) (stratsrv.Definition, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	input.ID = strings.TrimSpace(input.ID)
 	if input.ID == "" {
@@ -28,11 +29,11 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) (strategy
 	input.Description = strings.TrimSpace(input.Description)
 	sourceFormat, err := normalizeStrategyDesignSourceFormat(input.SourceFormat)
 	if err != nil {
-		return strategyDesignDefinition{}, err
+		return stratsrv.Definition{}, err
 	}
 	runtime, err := normalizeStrategyRuntime(input.Runtime)
 	if err != nil {
-		return strategyDesignDefinition{}, err
+		return stratsrv.Definition{}, err
 	}
 	input.SourceFormat = sourceFormat
 	input.Runtime = runtime
@@ -40,7 +41,7 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) (strategy
 	input.Interval = strings.TrimSpace(input.Interval)
 	visualModel, err := normalizeStrategyVisualModel(input.VisualModel)
 	if err != nil {
-		return strategyDesignDefinition{}, err
+		return stratsrv.Definition{}, err
 	}
 	input.VisualModel = visualModel
 	if strings.TrimSpace(input.Script) == "" {
@@ -128,7 +129,7 @@ func syncStrategyScriptVersion(script string, version string) string {
 	return script
 }
 
-func strategyDesignDefinitionMeaningfullyChanged(left, right strategyDesignDefinition) bool {
+func strategyDesignDefinitionMeaningfullyChanged(left, right stratsrv.Definition) bool {
 	left.CreatedAt = ""
 	left.UpdatedAt = ""
 	left.Version = ""
@@ -156,7 +157,7 @@ func normalizeStrategyDesignSourceFormat(sourceFormat string) (string, error) {
 	return "", fmt.Errorf("%w: sourceFormat %q is no longer supported; use %s", errUnsupportedLegacyStrategyDefinition, sourceFormat, strategydefinition.SourceFormatPineV6)
 }
 
-func normalizeStrategyVisualModel(model *strategyVisualModel) (*strategyVisualModel, error) {
+func normalizeStrategyVisualModel(model *stratsrv.VisualModel) (*stratsrv.VisualModel, error) {
 	if model == nil {
 		return nil, nil
 	}
@@ -168,7 +169,7 @@ func normalizeStrategyVisualModel(model *strategyVisualModel) (*strategyVisualMo
 		normalized.Version = 1
 	}
 	if normalized.Nodes == nil {
-		normalized.Nodes = []strategyVisualNode{}
+		normalized.Nodes = []stratsrv.VisualNode{}
 	}
 	for index := range normalized.Nodes {
 		if normalized.Nodes[index].Properties == nil {
@@ -179,7 +180,7 @@ func normalizeStrategyVisualModel(model *strategyVisualModel) (*strategyVisualMo
 		}
 	}
 	if normalized.Edges == nil {
-		normalized.Edges = []strategyVisualEdge{}
+		normalized.Edges = []stratsrv.VisualEdge{}
 	}
 	for index := range normalized.Edges {
 		if normalized.Edges[index].Type == "" {
@@ -202,7 +203,7 @@ func validateStrategyVisualNodeProperties(properties map[string]any) error {
 	}
 }
 
-func strategyDesignDefinitionsEqual(left, right strategyDesignDefinition) bool {
+func strategyDesignDefinitionsEqual(left, right stratsrv.Definition) bool {
 	leftJSON, leftErr := json.Marshal(left)
 	rightJSON, rightErr := json.Marshal(right)
 	if leftErr != nil || rightErr != nil {

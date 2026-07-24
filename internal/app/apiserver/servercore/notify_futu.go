@@ -5,12 +5,13 @@ import (
 	"strings"
 	"time"
 
+	live "github.com/jftrade/jftrade-main/internal/live"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
 
-func liveNotificationFromFutuResponse(response *notifypb.Response) *liveNotification {
+func liveNotificationFromFutuResponse(response *notifypb.Response) *live.Notification {
 	if response == nil || response.GetRetType() != 0 || response.GetS2C() == nil {
 		return nil
 	}
@@ -38,8 +39,8 @@ func liveNotificationFromFutuResponse(response *notifypb.Response) *liveNotifica
 	}
 }
 
-func baseFutuNotification(category string) liveNotification {
-	return liveNotification{
+func baseFutuNotification(category string) live.Notification {
+	return live.Notification{
 		At:       time.Now().UTC().Format(time.RFC3339Nano),
 		Source:   "futu-opend",
 		BrokerID: "futu",
@@ -47,7 +48,7 @@ func baseFutuNotification(category string) liveNotification {
 	}
 }
 
-func connStatusNotification(status *notifypb.ConnectStatus) *liveNotification {
+func connStatusNotification(status *notifypb.ConnectStatus) *live.Notification {
 	if status == nil {
 		return nil
 	}
@@ -67,7 +68,7 @@ func connStatusNotification(status *notifypb.ConnectStatus) *liveNotification {
 	return &note
 }
 
-func programStatusNotification(status *commonpb.ProgramStatus) *liveNotification {
+func programStatusNotification(status *commonpb.ProgramStatus) *live.Notification {
 	if status == nil {
 		return nil
 	}
@@ -85,7 +86,7 @@ func programStatusNotification(status *commonpb.ProgramStatus) *liveNotification
 	return &note
 }
 
-func gtwEventNotification(event *notifypb.GtwEvent) *liveNotification {
+func gtwEventNotification(event *notifypb.GtwEvent) *live.Notification {
 	if event == nil {
 		return nil
 	}
@@ -103,7 +104,7 @@ func gtwEventNotification(event *notifypb.GtwEvent) *liveNotification {
 	return &note
 }
 
-func qotRightNotification(right *notifypb.QotRight) *liveNotification {
+func qotRightNotification(right *notifypb.QotRight) *live.Notification {
 	if right == nil {
 		return nil
 	}
@@ -118,7 +119,7 @@ func qotRightNotification(right *notifypb.QotRight) *liveNotification {
 	return &note
 }
 
-func apiQuotaNotification(quota *notifypb.APIQuota) *liveNotification {
+func apiQuotaNotification(quota *notifypb.APIQuota) *live.Notification {
 	if quota == nil {
 		return nil
 	}
@@ -129,7 +130,7 @@ func apiQuotaNotification(quota *notifypb.APIQuota) *liveNotification {
 	return &note
 }
 
-func usedQuotaNotification(quota *notifypb.UsedQuota) *liveNotification {
+func usedQuotaNotification(quota *notifypb.UsedQuota) *live.Notification {
 	if quota == nil {
 		return nil
 	}

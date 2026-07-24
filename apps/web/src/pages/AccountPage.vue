@@ -104,11 +104,6 @@ function normalizeAccountTab(raw: string | null | undefined): AccountTab | null 
     case "history":
     case "funds":
       return raw;
-    // 兼容旧版 URL：/account?tab=account|pending
-    case "account":
-      return "positions";
-    case "pending":
-      return "orders";
     default:
       return null;
   }
@@ -576,15 +571,9 @@ function setActiveTab(tab: AccountTab): void {
 }
 
 // Tab 与 URL 双向同步：入口带 ?tab= 跳转时切换视图。
-// 旧版 /account?tab=risk 链接重定向到独立风控页 /risk。
-// 测试环境可能未安装路由，route/router 需要可缺省。
 watch(
   () => route?.query.tab,
   (raw) => {
-    if (raw === "risk") {
-      void router?.replace("/risk");
-      return;
-    }
     const normalized = normalizeAccountTab(
       typeof raw === "string" ? raw : null,
     );

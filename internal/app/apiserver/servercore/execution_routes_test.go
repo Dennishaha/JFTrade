@@ -9,8 +9,10 @@ import (
 	"testing"
 	"time"
 
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope(t *testing.T) {
@@ -22,7 +24,7 @@ func TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope(t *testing.T
 	if err := server.unavailableDatabases["execution-orders"]; err != nil {
 		t.Fatalf("execution-orders database unavailable: %v", err)
 	}
-	server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
+	server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "1001",
 		TradingEnvironment: "SIMULATE",
@@ -35,7 +37,7 @@ func TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope(t *testing.T
 		RequestedQuantity:  100,
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
-	server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
+	server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "2001",
 		TradingEnvironment: "REAL",
@@ -78,11 +80,11 @@ func TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings(t *testing
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	if _, err := store.SaveExecutionSettings(ExecutionSettings{DefaultTradingEnvironment: "REAL"}); err != nil {
+	if _, err := store.SaveExecutionSettings(jfsettings.ExecutionSettings{DefaultTradingEnvironment: "REAL"}); err != nil {
 		t.Fatalf("saveExecutionSettings: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
+	server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "1001",
 		TradingEnvironment: "SIMULATE",
@@ -95,7 +97,7 @@ func TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings(t *testing
 		RequestedQuantity:  100,
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
-	server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
+	server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "2001",
 		TradingEnvironment: "REAL",
@@ -134,7 +136,7 @@ func TestExecutionOrderStorePromotesBrokerSourceToSystemOnPlacedMerge(t *testing
 		Quantity:           100,
 	}, "BROKER_SYNC_DISCOVERED", "BROKER_SYNC_UPDATED", "broker", "broker.current")
 
-	order := store.recordPlacedOrder(executionPlacedOrderRecord{
+	order := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "7001",
 		BrokerOrderIDEx:    brokerOrderIDEx,
@@ -162,7 +164,7 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newExecutionOrderStoreWithDB: %v", err)
 	}
-	order := store.recordPlacedOrder(executionPlacedOrderRecord{
+	order := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "7001",
 		BrokerOrderIDEx:    "EXT-7001",
@@ -239,7 +241,7 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 	}
 }
 
-func getExecutionOrdersForTest(t *testing.T, url string) executionOrdersResponse {
+func getExecutionOrdersForTest(t *testing.T, url string) trdsrv.ExecutionOrders {
 	t.Helper()
 	resp, err := jftradeTestHTTPGet(t, url)
 	if err != nil {
@@ -250,8 +252,8 @@ func getExecutionOrdersForTest(t *testing.T, url string) executionOrdersResponse
 		t.Fatalf("GET execution orders status = %d", resp.StatusCode)
 	}
 	var envelope struct {
-		OK   bool                    `json:"ok"`
-		Data executionOrdersResponse `json:"data"`
+		OK   bool                   `json:"ok"`
+		Data trdsrv.ExecutionOrders `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode execution orders: %v", err)
@@ -311,7 +313,7 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          strings.Split(opendServer.addr, ":")[0],
 		APIPort:       portFromAddr(t, opendServer.addr),
@@ -332,8 +334,8 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	var ordersEnvelope struct {
-		OK   bool                    `json:"ok"`
-		Data executionOrdersResponse `json:"data"`
+		OK   bool                   `json:"ok"`
+		Data trdsrv.ExecutionOrders `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&ordersEnvelope); err != nil {
 		t.Fatalf("decode execution orders: %v", err)
@@ -341,8 +343,8 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	if len(ordersEnvelope.Data.Orders) != 2 {
 		t.Fatalf("expected two synced execution orders, got %#v", ordersEnvelope.Data.Orders)
 	}
-	var order executionOrderSummaryResponse
-	var historyOrder executionOrderSummaryResponse
+	var order trdsrv.ExecutionOrder
+	var historyOrder trdsrv.ExecutionOrder
 	for _, candidate := range ordersEnvelope.Data.Orders {
 		if candidate.BrokerOrderID != nil && *candidate.BrokerOrderID == "3001" {
 			order = candidate
@@ -570,7 +572,7 @@ func TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication(t *testing.T) 
 func TestExecutionOrderStorePlacedMergeCancelFilteringAndRetention(t *testing.T) {
 	store := newExecutionOrderStore()
 	price := 88.5
-	first := store.recordPlacedOrder(executionPlacedOrderRecord{
+	first := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           " futu ",
 		BrokerOrderIDEx:    "EXT-MERGE",
 		TradingEnvironment: "SIMULATE",
@@ -588,7 +590,7 @@ func TestExecutionOrderStorePlacedMergeCancelFilteringAndRetention(t *testing.T)
 		t.Fatalf("initial placed order = %+v", first)
 	}
 
-	merged := store.recordPlacedOrder(executionPlacedOrderRecord{
+	merged := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "MERGED-ORDER",
 		BrokerOrderIDEx:    "EXT-MERGE",
@@ -624,13 +626,13 @@ func TestExecutionOrderStorePlacedMergeCancelFilteringAndRetention(t *testing.T)
 		t.Fatalf("events after cancel = %+v", events.Events)
 	}
 
-	filtered := store.listOrdersFiltered(executionOrderListFilter{
+	filtered := store.listOrdersFiltered(trdsrv.ExecutionOrderFilter{
 		BrokerID: "FUTU", TradingEnvironment: "simulate", AccountID: "SIM-001", Market: "hk",
 	})
 	if len(filtered.Orders) != 1 || filtered.Orders[0].InternalOrderID != first.InternalOrderID {
 		t.Fatalf("case-insensitive filtered orders = %+v", filtered.Orders)
 	}
-	if mismatch := store.listOrdersFiltered(executionOrderListFilter{AccountID: "REAL-001"}); len(mismatch.Orders) != 0 {
+	if mismatch := store.listOrdersFiltered(trdsrv.ExecutionOrderFilter{AccountID: "REAL-001"}); len(mismatch.Orders) != 0 {
 		t.Fatalf("mismatched account filter returned %+v", mismatch.Orders)
 	}
 

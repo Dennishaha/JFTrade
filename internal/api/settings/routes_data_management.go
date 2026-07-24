@@ -10,12 +10,11 @@ import (
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 )
 
-func handleDataMigrationDatabases(svc *dmsrv.Service, allowIncrementalQuery bool) gin.HandlerFunc {
+func handleDataMigrationDatabases(svc *dmsrv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		request := dmsrv.OverviewRequest{}
-		if allowIncrementalQuery {
-			request.SummaryOnly = strings.EqualFold(c.Query("summaryOnly"), "true")
-			request.DatabaseID = strings.TrimSpace(c.Query("databaseId"))
+		request := dmsrv.OverviewRequest{
+			SummaryOnly: strings.EqualFold(c.Query("summaryOnly"), "true"),
+			DatabaseID:  strings.TrimSpace(c.Query("databaseId")),
 		}
 		result, err := svc.Overview(c.Request.Context(), request)
 		if err != nil {

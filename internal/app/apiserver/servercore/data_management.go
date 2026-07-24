@@ -166,7 +166,7 @@ func (s *Server) databaseMaintenanceBusyReason(databaseID string) string {
 				}
 			}
 		}
-	case datamigration.DatabaseADK, datamigration.DatabaseADKSession:
+	case datamigration.DatabaseADK, datamigration.DatabaseADKSession, datamigration.DatabaseADKArtifact:
 		if s.adkRuntime != nil {
 			active, err := s.adkRuntime.HasDatabaseActivity(context.Background())
 			if err != nil {
@@ -263,8 +263,23 @@ func (s *Server) compactDatabase(ctx context.Context, databaseID string) error {
 			return fmt.Errorf("adk session database is unavailable")
 		}
 		return s.adkRuntime.CompactSessionDatabase(ctx)
+	case datamigration.DatabaseADKArtifact:
+		if s.adkRuntime == nil {
+			return fmt.Errorf("adk artifact database is unavailable")
+		}
+		return s.adkRuntime.CompactArtifactDatabase(ctx)
+	case datamigration.DatabaseWatchlist:
+		if s.watchlistStore == nil || s.watchlistStore.DB() == nil {
+			return fmt.Errorf("watchlist database is unavailable")
+		}
+		return compactSQLX(ctx, s.watchlistStore.DB())
+	case datamigration.DatabaseResearch:
+		if s.researchStore == nil || s.researchStore.DB() == nil {
+			return fmt.Errorf("research database is unavailable")
+		}
+		return compactSQLX(ctx, s.researchStore.DB())
 	default:
-		return fmt.Errorf("unknown database id %q", databaseID)
+		return fmt.Errorf("database compaction is unsupported for %q", databaseID)
 	}
 }
 

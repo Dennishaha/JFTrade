@@ -216,12 +216,19 @@ func TestExecutionPlacePreviewAndEventsRoutes(t *testing.T) {
 	router := gin.New()
 	RegisterExecutionRoutes(router.Group("/api/v1"), service)
 
-	previewReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execution/orders/preview", strings.NewReader(`{"market":"US","symbol":"AAPL","side":"BUY","orderType":"LIMIT","quantity":1,"price":100}`))
+	previewReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execution/previews", strings.NewReader(`{"market":"US","symbol":"AAPL","side":"BUY","orderType":"LIMIT","quantity":1,"price":100}`))
 	previewReq.Header.Set("Content-Type", "application/json")
 	previewRec := httptest.NewRecorder()
 	router.ServeHTTP(previewRec, previewReq)
 	if previewRec.Code != http.StatusOK {
 		t.Fatalf("preview status=%d body=%s", previewRec.Code, previewRec.Body.String())
+	}
+	removedPreview := httptest.NewRecorder()
+	removedPreviewRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execution/orders/preview", strings.NewReader(`{}`))
+	removedPreviewRequest.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(removedPreview, removedPreviewRequest)
+	if removedPreview.Code != http.StatusNotFound {
+		t.Fatalf("removed execution preview status=%d, want 404", removedPreview.Code)
 	}
 
 	placeReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execution/orders", strings.NewReader(`{"market":"US","symbol":"AAPL","side":"BUY","orderType":"LIMIT","quantity":1,"price":100}`))

@@ -9,26 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *Store) ensureWorkflowSchema(ctx context.Context) error {
-	statements := []string{
-		`CREATE TABLE IF NOT EXISTS ` + tableWorkflows + ` (id TEXT PRIMARY KEY, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS ` + tableWorkflowTriggers + ` (id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, trigger_type TEXT NOT NULL, status TEXT NOT NULL, next_run_at TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS ` + tableWorkflowTriggerLog + ` (id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, trigger_id TEXT NOT NULL, trigger_type TEXT NOT NULL, status TEXT NOT NULL, run_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE INDEX IF NOT EXISTS idx_adk_workflows_status ON ` + tableWorkflows + ` (status, updated_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_adk_workflow_triggers_workflow ON ` + tableWorkflowTriggers + ` (workflow_id, updated_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_adk_workflow_triggers_due ON ` + tableWorkflowTriggers + ` (trigger_type, status, next_run_at ASC)`,
-		`CREATE INDEX IF NOT EXISTS idx_adk_workflow_trigger_logs_workflow ON ` + tableWorkflowTriggerLog + ` (workflow_id, created_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_adk_workflow_trigger_logs_trigger ON ` + tableWorkflowTriggerLog + ` (trigger_id, created_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_adk_workflow_trigger_logs_status ON ` + tableWorkflowTriggerLog + ` (status, updated_at DESC)`,
-	}
-	for _, statement := range statements {
-		if _, err := s.db.ExecContext(ctx, statement); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *Store) SaveWorkflowDefinition(ctx context.Context, workflow WorkflowDefinition) (WorkflowDefinition, error) {
 	workflow = NormalizeWorkflowDefinition(workflow)
 	if workflow.ID == "" {

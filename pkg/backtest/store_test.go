@@ -180,7 +180,7 @@ func TestFutuKLineStoreSeparatesScopedSyncVersions(t *testing.T) {
 	}
 }
 
-func TestFutuKLineStoreRegularScopeFallsBackToLegacyWhenCoverageIsIncomplete(t *testing.T) {
+func TestFutuKLineStoreRegularScopeDoesNotReadExtendedRowsWhenCoverageIsIncomplete(t *testing.T) {
 	store := newTestFutuKLineStore(t)
 	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
@@ -189,7 +189,7 @@ func TestFutuKLineStoreRegularScopeFallsBackToLegacyWhenCoverageIsIncomplete(t *
 	secondStart := baseStart.Add(time.Minute)
 	secondEnd := secondStart.Add(time.Minute - time.Millisecond)
 
-	legacyRows := []types.KLine{
+	extendedRows := []types.KLine{
 		{
 			StartTime: types.Time(baseStart),
 			EndTime:   types.Time(firstEnd),
@@ -213,8 +213,9 @@ func TestFutuKLineStoreRegularScopeFallsBackToLegacyWhenCoverageIsIncomplete(t *
 			Volume:    fixedpoint.NewFromFloat(1001),
 		},
 	}
-	if err := store.InsertKLines(legacyRows, "forward"); err != nil {
-		t.Fatalf("InsertKLines(legacy): %v", err)
+	store.SetWriteSessionScope(KLineSessionScopeExtended)
+	if err := store.InsertKLines(extendedRows, "forward"); err != nil {
+		t.Fatalf("InsertKLines(extended): %v", err)
 	}
 
 	store.SetWriteSessionScope(KLineSessionScopeRegular)
@@ -238,11 +239,11 @@ func TestFutuKLineStoreRegularScopeFallsBackToLegacyWhenCoverageIsIncomplete(t *
 	if err != nil {
 		t.Fatalf("QueryKLinesForward: %v", err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("QueryKLinesForward row count = %d, want 2", len(got))
+	if len(got) != 1 {
+		t.Fatalf("QueryKLinesForward row count = %d, want 1", len(got))
 	}
-	if got[0].Close.Compare(legacyRows[0].Close) != 0 || got[1].Close.Compare(legacyRows[1].Close) != 0 {
-		t.Fatalf("expected fallback to legacy rows, got closes %s and %s", got[0].Close.String(), got[1].Close.String())
+	if got[0].Close.Compare(fixedpoint.NewFromFloat(80.5)) != 0 {
+		t.Fatalf("expected only regular rows, got close %s", got[0].Close.String())
 	}
 }
 
@@ -255,12 +256,13 @@ func TestFutuKLineStoreQueryKLinesChPrefersRegularScopedRangeWhenCoverageIsCompl
 	secondStart := baseStart.Add(time.Minute)
 	secondEnd := secondStart.Add(time.Minute - time.Millisecond)
 
-	legacyRows := []types.KLine{
+	extendedRows := []types.KLine{
 		{StartTime: types.Time(baseStart), EndTime: types.Time(firstEnd), Interval: types.Interval1m, Symbol: "US.AAPL", Open: fixedpoint.NewFromFloat(90), High: fixedpoint.NewFromFloat(91), Low: fixedpoint.NewFromFloat(89), Close: fixedpoint.NewFromFloat(90.5), Volume: fixedpoint.NewFromFloat(900)},
 		{StartTime: types.Time(secondStart), EndTime: types.Time(secondEnd), Interval: types.Interval1m, Symbol: "US.AAPL", Open: fixedpoint.NewFromFloat(91), High: fixedpoint.NewFromFloat(92), Low: fixedpoint.NewFromFloat(90), Close: fixedpoint.NewFromFloat(91.5), Volume: fixedpoint.NewFromFloat(901)},
 	}
-	if err := store.InsertKLines(legacyRows, "forward"); err != nil {
-		t.Fatalf("InsertKLines(legacy): %v", err)
+	store.SetWriteSessionScope(KLineSessionScopeExtended)
+	if err := store.InsertKLines(extendedRows, "forward"); err != nil {
+		t.Fatalf("InsertKLines(extended): %v", err)
 	}
 
 	store.SetWriteSessionScope(KLineSessionScopeRegular)
@@ -287,7 +289,7 @@ func TestFutuKLineStoreQueryKLinesChPrefersRegularScopedRangeWhenCoverageIsCompl
 	}
 }
 
-func TestFutuKLineStoreQueryKLinesChFallsBackToLegacyWhenRegularRangeIsIncomplete(t *testing.T) {
+func TestFutuKLineStoreQueryKLinesChDoesNotFallbackWhenRegularRangeIsIncomplete(t *testing.T) {
 	store := newTestFutuKLineStore(t)
 	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
@@ -296,12 +298,13 @@ func TestFutuKLineStoreQueryKLinesChFallsBackToLegacyWhenRegularRangeIsIncomplet
 	secondStart := baseStart.Add(time.Minute)
 	secondEnd := secondStart.Add(time.Minute - time.Millisecond)
 
-	legacyRows := []types.KLine{
+	extendedRows := []types.KLine{
 		{StartTime: types.Time(baseStart), EndTime: types.Time(firstEnd), Interval: types.Interval1m, Symbol: "US.AAPL", Open: fixedpoint.NewFromFloat(90), High: fixedpoint.NewFromFloat(91), Low: fixedpoint.NewFromFloat(89), Close: fixedpoint.NewFromFloat(90.5), Volume: fixedpoint.NewFromFloat(900)},
 		{StartTime: types.Time(secondStart), EndTime: types.Time(secondEnd), Interval: types.Interval1m, Symbol: "US.AAPL", Open: fixedpoint.NewFromFloat(91), High: fixedpoint.NewFromFloat(92), Low: fixedpoint.NewFromFloat(90), Close: fixedpoint.NewFromFloat(91.5), Volume: fixedpoint.NewFromFloat(901)},
 	}
-	if err := store.InsertKLines(legacyRows, "forward"); err != nil {
-		t.Fatalf("InsertKLines(legacy): %v", err)
+	store.SetWriteSessionScope(KLineSessionScopeExtended)
+	if err := store.InsertKLines(extendedRows, "forward"); err != nil {
+		t.Fatalf("InsertKLines(extended): %v", err)
 	}
 
 	store.SetWriteSessionScope(KLineSessionScopeRegular)
@@ -316,11 +319,11 @@ func TestFutuKLineStoreQueryKLinesChFallsBackToLegacyWhenRegularRangeIsIncomplet
 	if err != nil {
 		t.Fatalf("QueryKLinesCh error = %v", err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("QueryKLinesCh row count = %d, want 2", len(got))
+	if len(got) != 1 {
+		t.Fatalf("QueryKLinesCh row count = %d, want 1", len(got))
 	}
-	if got[0].Close.Compare(legacyRows[0].Close) != 0 || got[1].Close.Compare(legacyRows[1].Close) != 0 {
-		t.Fatalf("expected legacy fallback channel rows, got closes %s and %s", got[0].Close.String(), got[1].Close.String())
+	if got[0].Close.Compare(fixedpoint.NewFromFloat(100.5)) != 0 {
+		t.Fatalf("expected only regular channel rows, got close %s", got[0].Close.String())
 	}
 }
 

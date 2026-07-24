@@ -38,7 +38,9 @@ import {
 } from "../components/research/researchNavigation";
 import {
   normalizeResearchQuoteTarget,
+  researchQuoteSeedFromEntry,
   researchQuoteTargetFromEntry,
+  type QuoteSeed,
   type ResearchQuoteTarget,
 } from "../components/research/researchQuote";
 import BrokerProviderTag from "../components/shared/BrokerProviderTag.vue";
@@ -184,7 +186,7 @@ const activeScreenMarket = computed<"US" | "HK" | "SH" | "SZ">(() => {
       : "US";
 });
 const selectedQuoteTarget = ref<ResearchQuoteTarget | null>(initialQuoteTarget);
-const selectedQuoteEntry = ref<Record<string, unknown> | null>(null);
+const selectedQuoteSeed = ref<QuoteSeed | null>(null);
 const selectedQuotePeriod = ref<QuoteWorkbenchPeriod>(
   quotePeriodFromQuery(route.query.quotePeriod),
 );
@@ -308,7 +310,7 @@ function quoteQuery(
 
 function clearQuoteSelection(): void {
   selectedQuoteTarget.value = null;
-  selectedQuoteEntry.value = null;
+  selectedQuoteSeed.value = null;
   selectedQuotePeriod.value = "day";
   selectedQuoteTab.value = "quote";
   marketRailCollapsed.value = true;
@@ -664,7 +666,7 @@ watch(
   () => {
     const target = quoteTargetFromQuery();
     selectedQuoteTarget.value = target;
-    selectedQuoteEntry.value = null;
+    selectedQuoteSeed.value = null;
     selectedQuotePeriod.value = quotePeriodFromQuery(route.query.quotePeriod);
     selectedQuoteTab.value = quoteTabFromQuery(target);
   },
@@ -812,7 +814,7 @@ function handleMarketSelect(entry: Record<string, unknown>): void {
     activeMarketCode.value,
   );
   selectedQuoteTarget.value = target;
-  selectedQuoteEntry.value = target == null ? null : entry;
+  selectedQuoteSeed.value = target == null ? null : researchQuoteSeedFromEntry(entry);
   if (target != null) {
     selectedQuoteTab.value = "quote";
     marketRailCollapsed.value = false;
@@ -826,7 +828,7 @@ function handleMarketSelect(entry: Record<string, unknown>): void {
 
 function selectRailTarget(target: ResearchQuoteTarget): void {
   selectedQuoteTarget.value = target;
-  selectedQuoteEntry.value = null;
+  selectedQuoteSeed.value = null;
   selectedQuoteTab.value = "quote";
   marketRailCollapsed.value = false;
   void router.replace({
@@ -1118,7 +1120,7 @@ function openResearchEntry(
       <SplitPaneItem v-if="!marketRailCollapsed" :size="marketPaneSizes[1]" :min-size="researchPaneBounds.railMinSize"
         :max-size="researchPaneBounds.railMaxSize">
         <aside class="research-page__market-rail">
-          <QuoteDetailRail :target="selectedQuoteTarget" :entry="selectedQuoteEntry" :broker-id="selectedBrokerId"
+          <QuoteDetailRail :target="selectedQuoteTarget" :seed="selectedQuoteSeed" :broker-id="selectedBrokerId"
             :visible="!marketRailCollapsed" :drawer="marketRailDrawer" :period="selectedQuotePeriod"
             :tab="selectedQuoteTab" @update:period="selectQuotePeriod" @update:tab="selectQuoteTab"
             @select="selectRailTarget" @open-workspace="openQuoteTargetInWorkspace"

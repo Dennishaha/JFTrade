@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"strings"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
-func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt string) (map[string]any, error) {
+func buildStrategyInstanceParams(definition stratsrv.Definition, compiledAt string) (map[string]any, error) {
 	sourceFormat := strategydefinition.NormalizeSourceFormat(definition.SourceFormat)
 	if sourceFormat != strategydefinition.SourceFormatPineV6 {
 		return nil, fmt.Errorf("unsupported strategy source format: %s", sourceFormat)
@@ -71,7 +72,7 @@ func strategyDefinitionIDFromParams(params map[string]any) string {
 	return strings.TrimSpace(definitionID)
 }
 
-func strategyInstanceUsesDefinition(strategy managedStrategyInstance, definitionID string) bool {
+func strategyInstanceUsesDefinition(strategy stratsrv.ManagedInstance, definitionID string) bool {
 	definitionID = strings.TrimSpace(definitionID)
 	if definitionID == "" {
 		return false

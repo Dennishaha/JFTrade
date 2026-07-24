@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -16,11 +17,11 @@ func TestStrategyCatalogStoreReloadNormalizesLegacyRowsAndDropsRuntimeOnlyFields
 	}
 
 	pluginPayload := mustMarshalCatalogRecovery(t, managedStrategyPlugin{
-		Descriptor: strategyPluginDescriptor{ID: "  raw.plugin  "},
+		Descriptor: stratsrv.PluginDescriptor{ID: "  raw.plugin  "},
 	})
-	strategyPayload := mustMarshalCatalogRecovery(t, managedStrategyInstance{
+	strategyPayload := mustMarshalCatalogRecovery(t, stratsrv.ManagedInstance{
 		ID: "raw-instance",
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "raw-definition",
 			Name:       "Raw Definition",
 			Version:    "0.1.0",
@@ -35,14 +36,14 @@ func TestStrategyCatalogStoreReloadNormalizesLegacyRowsAndDropsRuntimeOnlyFields
 		},
 		CreatedAt: "2026-06-01T00:00:00Z",
 		Logs:      []string{"runtime-only log should not remain in catalog row"},
-		AuditEntries: []strategyAuditEntry{{
+		AuditEntries: []stratsrv.AuditEntry{{
 			InstanceID: "raw-instance",
 			Kind:       "runtime-only",
 			Detail:     "should not remain in catalog row",
 			At:         "2026-06-01T00:00:01Z",
 		}},
 	})
-	operationPayload := mustMarshalCatalogRecovery(t, strategyPluginOperation{
+	operationPayload := mustMarshalCatalogRecovery(t, stratsrv.PluginOperation{
 		OperationID: "op-2", PluginID: "raw.plugin", Status: "SUCCEEDED", UpdatedAt: "2026-06-01T00:00:02Z",
 	})
 	if _, err := store.db.Exec(

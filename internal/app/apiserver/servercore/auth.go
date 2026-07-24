@@ -22,6 +22,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
 	"github.com/jftrade/jftrade-main/internal/api/origin"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 const (
@@ -84,7 +85,7 @@ type webAuth struct {
 	cancelAccess        context.CancelFunc
 }
 
-func newWebAuth(settings SecuritySettings) *webAuth {
+func newWebAuth(settings jfsettings.SecuritySettings) *webAuth {
 	accessContext, cancelAccess := context.WithCancel(context.Background())
 	auth := &webAuth{
 		allowedOrigins: map[string]struct{}{},
@@ -100,7 +101,7 @@ func newWebAuth(settings SecuritySettings) *webAuth {
 	return auth
 }
 
-func (a *webAuth) configure(settings SecuritySettings) {
+func (a *webAuth) configure(settings jfsettings.SecuritySettings) {
 	if a == nil {
 		return
 	}
@@ -378,10 +379,10 @@ func constantTimeEqual(left string, right string) bool {
 // @Accept json
 // @Produce json
 // @Param request body webLoginRequest true "Web 访问密码"
-// @Success 200 {object} envelope
-// @Failure 400 {object} envelope
-// @Failure 401 {object} envelope
-// @Failure 429 {object} envelope
+// @Success 200 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 401 {object} httpserver.Envelope
+// @Failure 429 {object} httpserver.Envelope
 // @Router /api/v1/auth/login [post]
 func (a *webAuth) login(c *gin.Context) {
 	r := c.Request
@@ -515,7 +516,7 @@ func (a *webAuth) createSession(generation uint64, passwordHash string) (string,
 // @Summary 注销 JFTrade Web 会话
 // @Tags auth
 // @Produce json
-// @Success 200 {object} envelope
+// @Success 200 {object} httpserver.Envelope
 // @Router /api/v1/auth/logout [post]
 func (a *webAuth) logout(c *gin.Context) {
 	r := c.Request
@@ -541,7 +542,7 @@ func (a *webAuth) logout(c *gin.Context) {
 // @Summary 读取 JFTrade Web 会话
 // @Tags auth
 // @Produce json
-// @Success 200 {object} envelope
+// @Success 200 {object} httpserver.Envelope
 // @Router /api/v1/auth/session [get]
 func (a *webAuth) status(c *gin.Context) {
 	if !a.requestOriginAllowed(c.Request) {

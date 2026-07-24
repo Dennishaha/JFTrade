@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	domain "github.com/jftrade/jftrade-main/internal/watchlist"
 	"github.com/jmoiron/sqlx"
 )
@@ -31,12 +32,15 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("create watchlist database directory: %w", err)
 	}
+	if err := sqliteschema.ValidateCurrentFile(ctx, path, ComponentID); err != nil {
+		return nil, fmt.Errorf("validate watchlist database: %w", err)
+	}
 	db, err := sqliteconn.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open watchlist database: %w", err)
 	}
 	store := &Store{db: db, path: path}
-	if err := migrate(ctx, db); err != nil {
+	if err := initializeSchema(ctx, db, path); err != nil {
 		_ = db.Close()
 		return nil, err
 	}

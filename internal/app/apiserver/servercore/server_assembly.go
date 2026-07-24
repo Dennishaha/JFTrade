@@ -15,6 +15,7 @@ import (
 	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
 	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
@@ -30,7 +31,7 @@ import (
 type serverStores struct {
 	store                SidecarSettingsStore
 	strategyStore        *strategyCatalogStore
-	strategyRuntimeStore *strategyRuntimeStore
+	strategyRuntimeStore *runtimeactivity.Store
 	designStore          *strategyDesignStore
 	backtestRuns         *backtestRunStore
 	backtestSyncTasks    *backtestSyncTaskStore

@@ -94,18 +94,12 @@ export interface WatchlistItemsQuery {
 }
 
 export async function listWatchlistGroups(): Promise<WatchlistGroup[]> {
-  const response = await apiGet<
-    Schemas["watchlist.WatchlistGroupsData"],
-    "/api/v1/watchlist/groups"
-  >("/api/v1/watchlist/groups");
+  const response = await apiGet("/api/v1/watchlist/groups");
   return normalizeGroupsResponse(response);
 }
 
 export async function createWatchlistGroup(name: string): Promise<WatchlistGroup> {
-  const response = await apiPost<
-    RawGroup,
-    "/api/v1/watchlist/groups"
-  >(
+  const response = await apiPost(
     "/api/v1/watchlist/groups",
     { name },
   );
@@ -116,10 +110,7 @@ export async function updateWatchlistGroup(
   groupId: string,
   input: { name: string; expectedRevision: number },
 ): Promise<WatchlistGroup> {
-  const response = await apiPatchPath<
-    RawGroup,
-    "/api/v1/watchlist/groups/{groupId}"
-  >(
+  const response = await apiPatchPath(
     "/api/v1/watchlist/groups/{groupId}",
     `/api/v1/watchlist/groups/${encodePathPart(groupId)}`,
     input,
@@ -128,10 +119,7 @@ export async function updateWatchlistGroup(
 }
 
 export async function deleteWatchlistGroup(groupId: string): Promise<void> {
-  await apiDeletePath<
-    Schemas["watchlist.WatchlistDeleteData"],
-    "/api/v1/watchlist/groups/{groupId}"
-  >(
+  await apiDeletePath(
     "/api/v1/watchlist/groups/{groupId}",
     `/api/v1/watchlist/groups/${encodePathPart(groupId)}`,
   );
@@ -147,10 +135,7 @@ export async function listWatchlistItems(
   if (input.query?.trim()) params.set("query", input.query.trim());
   if (input.market?.trim()) params.set("market", input.market.trim().toUpperCase());
   const suffix = params.size === 0 ? "" : `?${params.toString()}`;
-  const response = await apiGetPath<
-    Schemas["watchlist.WatchlistItemsData"],
-    "/api/v1/watchlist/items"
-  >(
+  const response = await apiGetPath(
     "/api/v1/watchlist/items",
     `/api/v1/watchlist/items${suffix}`,
   );
@@ -161,10 +146,7 @@ export async function getWatchlistMembership(
   market: string,
   symbol: string,
 ): Promise<WatchlistMembership> {
-  const response = await apiGetPath<
-    RawMembership,
-    "/api/v1/watchlist/instruments/{market}/{symbol}/memberships"
-  >(
+  const response = await apiGetPath(
     "/api/v1/watchlist/instruments/{market}/{symbol}/memberships",
     `/api/v1/watchlist/instruments/${encodePathPart(market.toUpperCase())}/${encodePathPart(symbol.toUpperCase())}/memberships`,
   );
@@ -176,10 +158,7 @@ export async function replaceWatchlistMembership(
   symbol: string,
   input: WatchlistMembershipUpdate,
 ): Promise<WatchlistMembership> {
-  const response = await apiPutPath<
-    RawMembership,
-    "/api/v1/watchlist/instruments/{market}/{symbol}/memberships"
-  >(
+  const response = await apiPutPath(
     "/api/v1/watchlist/instruments/{market}/{symbol}/memberships",
     `/api/v1/watchlist/instruments/${encodePathPart(market.toUpperCase())}/${encodePathPart(symbol.toUpperCase())}/memberships`,
     input,
@@ -211,10 +190,7 @@ export async function getWatchlistQuotes(
   if (instrumentIds.length === 0) {
     return { quotes: [], errors: [], observedAt: new Date().toISOString() };
   }
-  const response = await apiPost<
-    Schemas["watchlist.WatchlistQuotesData"],
-    "/api/v1/watchlist/quotes/batch"
-  >(
+  const response = await apiPost(
     "/api/v1/watchlist/quotes/batch",
     { instrumentIds },
   );
@@ -262,10 +238,7 @@ export async function getWatchlistQuotes(
 }
 
 export async function listWatchlistSources(): Promise<WatchlistSource[]> {
-  const response = await apiGet<
-    Schemas["watchlist.WatchlistSourcesData"],
-    "/api/v1/watchlist/sources"
-  >("/api/v1/watchlist/sources");
+  const response = await apiGet("/api/v1/watchlist/sources");
   return (response.sources ?? []).map((source) => {
     const status = source.status?.trim().toLowerCase() ?? "";
     const message = source.error;
@@ -286,10 +259,7 @@ export async function listWatchlistSources(): Promise<WatchlistSource[]> {
 export async function listWatchlistSourceGroups(
   sourceId: string,
 ): Promise<WatchlistRemoteGroup[]> {
-  const response = await apiGetPath<
-    Schemas["watchlist.WatchlistRemoteGroupsData"],
-    "/api/v1/watchlist/sources/{sourceId}/groups"
-  >(
+  const response = await apiGetPath(
     "/api/v1/watchlist/sources/{sourceId}/groups",
     `/api/v1/watchlist/sources/${encodePathPart(sourceId)}/groups`,
   );
@@ -307,10 +277,7 @@ export async function listWatchlistSourceGroups(
 }
 
 export async function listWatchlistBindings(): Promise<WatchlistBinding[]> {
-  const response = await apiGet<
-    Schemas["watchlist.WatchlistBindingsData"],
-    "/api/v1/watchlist/bindings"
-  >("/api/v1/watchlist/bindings");
+  const response = await apiGet("/api/v1/watchlist/bindings");
   return (response.bindings ?? []).map((binding) => ({
     id: binding.bindingId ?? "",
     sourceId: binding.sourceId ?? "",
@@ -321,10 +288,7 @@ export async function listWatchlistBindings(): Promise<WatchlistBinding[]> {
 }
 
 export async function deleteWatchlistBinding(bindingId: string): Promise<void> {
-  await apiDeletePath<
-    Schemas["watchlist.WatchlistDeleteData"],
-    "/api/v1/watchlist/bindings"
-  >(
+  await apiDeletePath(
     "/api/v1/watchlist/bindings",
     `/api/v1/watchlist/bindings?bindingId=${encodePathPart(bindingId)}`,
   );
@@ -333,10 +297,7 @@ export async function deleteWatchlistBinding(bindingId: string): Promise<void> {
 export async function previewWatchlistImport(
   input: WatchlistImportPreviewRequest,
 ): Promise<WatchlistImportPreview> {
-  const response = await apiPost<
-    Schemas["watchlist.WatchlistImportPreview"],
-    "/api/v1/watchlist/imports/preview"
-  >(
+  const response = await apiPost(
     "/api/v1/watchlist/imports/preview",
     {
       sourceId: input.sourceId,
@@ -376,10 +337,7 @@ export async function commitWatchlistImport(
   previewId: string,
   input: WatchlistImportCommitRequest,
 ): Promise<WatchlistImportRun> {
-  const response = await apiPostPath<
-    Schemas["watchlist.WatchlistImportRun"],
-    "/api/v1/watchlist/imports/{previewId}/commit"
-  >(
+  const response = await apiPostPath(
     "/api/v1/watchlist/imports/{previewId}/commit",
     `/api/v1/watchlist/imports/${encodePathPart(previewId)}/commit`,
     {
@@ -390,10 +348,7 @@ export async function commitWatchlistImport(
 }
 
 export async function listWatchlistImportRuns(): Promise<WatchlistImportRun[]> {
-  const response = await apiGet<
-    Schemas["watchlist.WatchlistImportRunsData"],
-    "/api/v1/watchlist/import-runs"
-  >("/api/v1/watchlist/import-runs");
+  const response = await apiGet("/api/v1/watchlist/import-runs");
   return (response.items ?? []).map(normalizeImportRun);
 }
 

@@ -27,7 +27,7 @@ func TestServerCloseUnregistersOnlyItsBBGONotificationSink(t *testing.T) {
 	t.Cleanup(func() { jftradeErr1 := first.Close(); jftradeCheckTestError(t, jftradeErr1) })
 	t.Cleanup(func() { jftradeErr2 := second.Close(); jftradeCheckTestError(t, jftradeErr2) })
 
-	dispatchBBGONotification(liveNotification{Title: "before close"})
+	dispatchBBGONotification(live.Notification{Title: "before close"})
 	if got := len(first.liveNotificationsAfter(0)); got != 1 {
 		t.Fatalf("first notifications before close = %d", got)
 	}
@@ -41,7 +41,7 @@ func TestServerCloseUnregistersOnlyItsBBGONotificationSink(t *testing.T) {
 	if err := first.Close(); err != nil {
 		t.Fatalf("first second Close: %v", err)
 	}
-	dispatchBBGONotification(liveNotification{Title: "after close"})
+	dispatchBBGONotification(live.Notification{Title: "after close"})
 
 	if got := len(first.liveNotificationsAfter(0)); got != 1 {
 		t.Fatalf("closed server notifications = %d", got)
@@ -53,7 +53,7 @@ func TestServerCloseUnregistersOnlyItsBBGONotificationSink(t *testing.T) {
 }
 
 func TestLiveNotificationEventMapContract(t *testing.T) {
-	event := liveNotificationEvent{
+	event := live.Event{
 		Sequence: 7,
 		At:       "2026-06-14T08:09:10Z",
 		Level:    "warn",
@@ -95,13 +95,13 @@ func TestRecordLiveNotificationCallsSink(t *testing.T) {
 	server := NewServer(store)
 	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
 
-	var got liveNotificationEvent
-	server.liveNotificationSink = func(event liveNotificationEvent) live.NotificationDelivery {
+	var got live.Event
+	server.liveNotificationSink = func(event live.Event) live.NotificationDelivery {
 		got = event
 		return live.NotificationDelivered("sent")
 	}
 
-	event := server.recordLiveNotification(liveNotification{Level: "warn", Title: "Risk", Message: "blocked", Category: "execution.order"})
+	event := server.recordLiveNotification(live.Notification{Level: "warn", Title: "Risk", Message: "blocked", Category: "execution.order"})
 	if event == nil {
 		t.Fatal("recordLiveNotification event = nil")
 		return
@@ -120,7 +120,7 @@ func TestSystemNotificationTestRouteReturnsDeliveryStatus(t *testing.T) {
 	server := NewServer(store)
 	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
 	server.auth.enabled = false
-	server.liveNotificationSink = func(liveNotificationEvent) live.NotificationDelivery {
+	server.liveNotificationSink = func(live.Event) live.NotificationDelivery {
 		return live.NotificationDelivered("sent to operating system")
 	}
 
@@ -147,11 +147,11 @@ func TestRecordLiveNotificationSinkPanicDoesNotDropEvent(t *testing.T) {
 	server := NewServer(store)
 	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
 
-	server.liveNotificationSink = func(liveNotificationEvent) live.NotificationDelivery {
+	server.liveNotificationSink = func(live.Event) live.NotificationDelivery {
 		panic("desktop notification failed")
 	}
 
-	event := server.recordLiveNotification(liveNotification{Level: "error", Title: "OpenD"})
+	event := server.recordLiveNotification(live.Notification{Level: "error", Title: "OpenD"})
 	if event == nil {
 		t.Fatal("recordLiveNotification event = nil")
 	}

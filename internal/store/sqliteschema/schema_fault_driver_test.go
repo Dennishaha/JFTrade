@@ -125,8 +125,15 @@ func (c *schemaFaultConn) ExecContext(context.Context, string, []driver.NamedVal
 	return driver.RowsAffected(1), nil
 }
 
-func (c *schemaFaultConn) QueryContext(context.Context, string, []driver.NamedValue) (driver.Rows, error) {
-	return &schemaFaultRows{mode: c.mode}, nil
+func (c *schemaFaultConn) QueryContext(_ context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
+	if c.mode == "query-error" {
+		return nil, errors.New("schema query failed")
+	}
+	query = strings.ToLower(query)
+	if c.mode == "foreign-query-error" && strings.Contains(query, "foreign_key_check") {
+		return nil, errors.New("foreign key query failed")
+	}
+	return &schemaFaultRows{mode: c.mode, query: query}, nil
 }
 
 type schemaFaultTx struct{}
@@ -140,11 +147,26 @@ func (schemaFaultTx) Rollback() error {
 }
 
 type schemaFaultRows struct {
-	mode string
-	sent bool
+	mode  string
+	query string
+	sent  bool
 }
 
 func (r *schemaFaultRows) Columns() []string {
+	if r.mode == "index-xinfo-scan-error" {
+		if strings.Contains(r.query, "index_list") {
+			return []string{"seq", "name", "unique", "origin", "partial"}
+		}
+		if strings.Contains(r.query, "index_xinfo") {
+			return []string{"seqno", "cid", "name", "desc", "coll", "key"}
+		}
+	}
+	if strings.Contains(r.query, "quick_check") && r.usesIntegrityRows() {
+		return []string{"quick_check"}
+	}
+	if strings.Contains(r.query, "foreign_key_check") && r.usesIntegrityRows() {
+		return []string{"table", "rowid", "parent", "fkid"}
+	}
 	return []string{"cid", "name", "type", "notnull", "dflt_value", "pk"}
 }
 
@@ -156,6 +178,59 @@ func (r *schemaFaultRows) Close() error {
 }
 
 func (r *schemaFaultRows) Next(dest []driver.Value) error {
+	if r.mode == "index-xinfo-scan-error" {
+		if r.sent {
+			return io.EOF
+		}
+		r.sent = true
+		if strings.Contains(r.query, "index_list") {
+			dest[0] = int64(0)
+			dest[1] = "idx_records"
+			dest[2] = int64(0)
+			dest[3] = "c"
+			dest[4] = int64(0)
+			return nil
+		}
+		if strings.Contains(r.query, "index_xinfo") {
+			dest[0] = "not-an-integer"
+			dest[1] = int64(0)
+			dest[2] = "id"
+			dest[3] = int64(0)
+			dest[4] = "BINARY"
+			dest[5] = int64(1)
+			return nil
+		}
+	}
+	if strings.Contains(r.query, "quick_check") && r.usesIntegrityRows() {
+		if r.sent || r.mode == "quick-empty" {
+			return io.EOF
+		}
+		r.sent = true
+		if r.mode == "quick-bad" {
+			dest[0] = "corrupt"
+		} else {
+			dest[0] = "ok"
+		}
+		return nil
+	}
+	if strings.Contains(r.query, "foreign_key_check") && r.usesIntegrityRows() {
+		switch r.mode {
+		case "foreign-scan-error":
+			if r.sent {
+				return io.EOF
+			}
+			r.sent = true
+			dest[0] = "child"
+			dest[1] = "not-an-integer"
+			dest[2] = "parent"
+			dest[3] = int64(0)
+			return nil
+		case "foreign-rows-error":
+			return errors.New("foreign key rows failed")
+		default:
+			return io.EOF
+		}
+	}
 	switch r.mode {
 	case "scan-error":
 		if r.sent {
@@ -174,4 +249,8 @@ func (r *schemaFaultRows) Next(dest []driver.Value) error {
 	default:
 		return io.EOF
 	}
+}
+
+func (r *schemaFaultRows) usesIntegrityRows() bool {
+	return strings.HasPrefix(r.mode, "quick-") || strings.HasPrefix(r.mode, "foreign-")
 }

@@ -12,7 +12,7 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 )
 
-func TestSQLiteSessionServiceRejectsUnavailableAndRebuildsIncompatibleDatabases(t *testing.T) {
+func TestSQLiteSessionServiceRejectsUnavailableAndPreservesIncompatibleDatabases(t *testing.T) {
 	root := t.TempDir()
 	blockingFile := filepath.Join(root, "not-a-directory")
 	if err := os.WriteFile(blockingFile, []byte("blocked"), 0o600); err != nil {
@@ -33,20 +33,16 @@ func TestSQLiteSessionServiceRejectsUnavailableAndRebuildsIncompatibleDatabases(
 	if err := legacyDB.Close(); err != nil {
 		t.Fatalf("close legacy database: %v", err)
 	}
-	service, err := NewSQLiteSessionService(legacyPath)
+	if service, err := NewSQLiteSessionService(legacyPath); err == nil || service != nil || !sqliteschema.IsIncompatible(err) {
+		t.Fatalf("NewSQLiteSessionService legacy = %#v/%v, want incompatible", service, err)
+	}
+	legacyDB, err = sqliteconn.Open(legacyPath)
 	if err != nil {
-		t.Fatalf("NewSQLiteSessionService did not rebuild incompatible schema: %v", err)
+		t.Fatalf("reopen legacy database: %v", err)
 	}
-	defer func() {
-		if err := service.Close(); err != nil {
-			t.Fatalf("close rebuilt service: %v", err)
-		}
-	}()
-	if err := ValidateSQLiteSessionService(service); err != nil {
-		t.Fatalf("validate rebuilt service: %v", err)
-	}
-	if exists, err := sqliteTableColumnExists(context.Background(), service.db, "sessions", "payload"); err != nil || exists {
-		t.Fatalf("legacy sessions.payload exists = %v/%v, want false/nil", exists, err)
+	defer func() { _ = legacyDB.Close() }()
+	if exists, err := sqliteTableColumnExists(context.Background(), legacyDB, "sessions", "payload"); err != nil || !exists {
+		t.Fatalf("legacy sessions.payload exists = %v/%v, want true/nil", exists, err)
 	}
 }
 
@@ -83,7 +79,7 @@ func TestSQLiteSessionSchemaHealthReportsMissingAndClosedConnections(t *testing.
 	}
 }
 
-func TestSQLiteSessionServiceRebuildsV1SchemaWithoutPreservingEvents(t *testing.T) {
+func TestSQLiteSessionServiceRejectsV1SchemaWithoutMutatingEvents(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "adk-session-v1.db")
 	db, err := sqliteconn.Open(path)
 	if err != nil {
@@ -107,34 +103,24 @@ func TestSQLiteSessionServiceRebuildsV1SchemaWithoutPreservingEvents(t *testing.
 		t.Fatalf("close v1 database: %v", err)
 	}
 
-	service, err := NewSQLiteSessionService(path)
+	if service, err := NewSQLiteSessionService(path); err == nil || service != nil || !sqliteschema.IsIncompatible(err) {
+		t.Fatalf("open v1 database = %#v/%v, want incompatible", service, err)
+	}
+	db, err = sqliteconn.Open(path)
 	if err != nil {
-		t.Fatalf("rebuild v1 database: %v", err)
+		t.Fatalf("reopen v1 database: %v", err)
 	}
-	defer func() {
-		if err := service.Close(); err != nil {
-			t.Fatalf("close rebuilt service: %v", err)
-		}
-	}()
-	if err := ValidateSQLiteSessionService(service); err != nil {
-		t.Fatalf("validate rebuilt service: %v", err)
-	}
-	for _, column := range []string{"routes_json", "output_json", "node_info_json", "requested_input_json", "isolation_scope"} {
-		exists, err := sqliteTableColumnExists(context.Background(), service.db, "events", column)
-		if err != nil || !exists {
-			t.Fatalf("rebuilt events.%s exists = %v/%v", column, exists, err)
-		}
-	}
+	defer func() { _ = db.Close() }()
 	var version int
-	if err := service.db.QueryRowxContext(context.Background(),
+	if err := db.QueryRowxContext(context.Background(),
 		`SELECT version FROM `+sqliteschema.MetadataTable+` WHERE component_id = ?`,
 		"adk-session",
-	).Scan(&version); err != nil || version != sqliteSessionSchemaVersion {
-		t.Fatalf("rebuilt schema version = %d/%v, want %d", version, err, sqliteSessionSchemaVersion)
+	).Scan(&version); err != nil || version != 1 {
+		t.Fatalf("preserved schema version = %d/%v, want 1", version, err)
 	}
 	var eventCount int
-	if err := service.db.QueryRowxContext(context.Background(), `SELECT COUNT(*) FROM events`).Scan(&eventCount); err != nil || eventCount != 0 {
-		t.Fatalf("rebuilt event count = %d/%v, want 0", eventCount, err)
+	if err := db.QueryRowxContext(context.Background(), `SELECT COUNT(*) FROM events`).Scan(&eventCount); err != nil || eventCount != 1 {
+		t.Fatalf("preserved event count = %d/%v, want 1", eventCount, err)
 	}
 }
 

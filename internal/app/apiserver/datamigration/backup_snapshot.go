@@ -2,7 +2,9 @@ package datamigration
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -10,7 +12,13 @@ import (
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 )
 
-func (m *Manager) createBackupSnapshot(ctx context.Context, descriptor Descriptor, status string, now time.Time) (result BackupResult, err error) {
+func (m *Manager) createBackupSnapshot(
+	ctx context.Context,
+	descriptor Descriptor,
+	status string,
+	now time.Time,
+	protectedPaths ...string,
+) (result BackupResult, err error) {
 	backupDir := filepath.Join(filepath.Dir(m.settingsPath), "backups")
 	if err := os.MkdirAll(backupDir, 0o700); err != nil {
 		return BackupResult{}, fmt.Errorf("create database backup directory: %w", err)
@@ -20,7 +28,7 @@ func (m *Manager) createBackupSnapshot(ctx context.Context, descriptor Descripto
 	}
 	sourceBytes := max(inspectStorage(ctx, DatabaseStatus{Descriptor: descriptor, Status: status}).TotalBytes, 1)
 	quotaBytes := m.backupQuotaBytes(ctx)
-	if err := m.prepareBackupCapacity(backupDir, descriptor.ID, sourceBytes, quotaBytes); err != nil {
+	if err := m.prepareBackupCapacity(backupDir, descriptor.ID, sourceBytes, quotaBytes, protectedPaths...); err != nil {
 		return BackupResult{}, err
 	}
 	token, err := newPreviewID()
@@ -36,7 +44,7 @@ func (m *Manager) createBackupSnapshot(ctx context.Context, descriptor Descripto
 		}
 	}()
 
-	source, err := sqliteconn.Open(descriptor.Path)
+	source, err := sqliteconn.OpenReadOnly(descriptor.Path)
 	if err != nil {
 		return BackupResult{}, fmt.Errorf("open %s database for backup: %w", descriptor.ID, err)
 	}
@@ -54,18 +62,37 @@ func (m *Manager) createBackupSnapshot(ctx context.Context, descriptor Descripto
 	if err := verifySQLiteBackup(ctx, backupPath); err != nil {
 		return BackupResult{}, fmt.Errorf("verify %s database backup: %w", descriptor.ID, err)
 	}
-	if err := m.enforceBackupRetention(backupDir, backupPath, quotaBytes); err != nil {
+	protectedPaths = append(protectedPaths, backupPath)
+	if err := m.enforceBackupRetention(backupDir, backupPath, quotaBytes, protectedPaths...); err != nil {
 		return BackupResult{}, err
 	}
 	info, err := os.Stat(backupPath)
 	if err != nil {
 		return BackupResult{}, err
 	}
+	digest, err := fileSHA256(backupPath)
+	if err != nil {
+		return BackupResult{}, fmt.Errorf("digest %s database backup: %w", descriptor.ID, err)
+	}
 	complete = true
 	return BackupResult{
 		DatabaseID: descriptor.ID,
 		BackupPath: backupPath,
 		SizeBytes:  info.Size(),
+		SHA256:     digest,
 		CreatedAt:  now.Format(time.RFC3339Nano),
 	}, nil
+}
+
+func fileSHA256(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = file.Close() }()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }

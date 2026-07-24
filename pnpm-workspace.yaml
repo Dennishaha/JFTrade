@@ -8,7 +8,7 @@ catalog:
 
 overrides:
   "@vue/test-utils>js-beautify": 2.0.3
-  "monaco-editor@0.55.1>dompurify": 3.4.11
+  "monaco-editor@0.55.1>dompurify": 3.4.12
   vue: "catalog:"
 
 supportedArchitectures:
@@ -25,6 +25,7 @@ supportedArchitectures:
 
 minimumReleaseAge: 1440
 strictDepBuilds: true
+autoInstallPeers: false
 allowBuilds:
   fsevents: false
   "protobufjs@7.6.5": true

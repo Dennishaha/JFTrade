@@ -2,17 +2,16 @@
 import { useMutation, useQuery } from "@tanstack/vue-query";
 import { computed, ref, watch } from "vue";
 
-import type { components } from "@/generated/openapi";
-
-import { apiGet, apiPut } from "../composables/apiClient";
+import {
+  defaultPineWorkerSettings,
+  getPineWorkerSettings,
+  putPineWorkerSettings,
+} from "../composables/pineWorkerSettings";
 import { queryClient, queryKeys } from "../composables/serverState";
-
-type PineWorkerSettings = Required<components["schemas"]["jftsettings.PineWorkerSettings"]>;
 
 const MIN_WORKER_LIMIT = 1;
 const MAX_WORKER_LIMIT = 1000;
 
-const defaultSettings: PineWorkerSettings = { backtestWorkerLimit: 2, instanceWorkerLimit: 10, nodeBinaryPath: "" };
 const backtestWorkerLimitInput = ref(2);
 const instanceWorkerLimitInput = ref(10);
 const errorMessage = ref("");
@@ -21,21 +20,17 @@ const noticeMessage = ref("");
 const settingsQueryKey = queryKeys.settings("pine-worker");
 const settingsQuery = useQuery({
   queryKey: settingsQueryKey,
-  queryFn: () => apiGet<PineWorkerSettings, "/api/v1/settings/pine-worker">("/api/v1/settings/pine-worker"),
+  queryFn: getPineWorkerSettings,
 }, queryClient);
 const saveSettingsMutation = useMutation({
-  mutationFn: (next: PineWorkerSettings) =>
-    apiPut<PineWorkerSettings, "/api/v1/settings/pine-worker">(
-      "/api/v1/settings/pine-worker",
-      next,
-    ),
+  mutationFn: putPineWorkerSettings,
   onSuccess: async (saved) => {
     queryClient.setQueryData(settingsQueryKey, saved);
     await queryClient.invalidateQueries({ queryKey: settingsQueryKey, refetchType: "none" });
   },
 }, queryClient);
 
-const settings = computed(() => settingsQuery.data.value ?? defaultSettings);
+const settings = computed(() => settingsQuery.data.value ?? defaultPineWorkerSettings);
 const loading = computed(() => settingsQuery.isLoading.value);
 const saving = computed(() => saveSettingsMutation.isPending.value);
 const normalizedBacktestWorkerLimit = computed(() => clampWorkerLimit(backtestWorkerLimitInput.value));

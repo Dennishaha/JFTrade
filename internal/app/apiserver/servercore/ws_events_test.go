@@ -13,6 +13,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
+	livecore "github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
@@ -130,7 +131,7 @@ func TestLiveWebSocketHeartbeatReportsStaleMarketData(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("AcquireSubscription: %v", err)
 	}
-	server.marketdataSvc.Seed(marketTickSample{
+	server.marketdataSvc.Seed(mdsrv.Tick{
 		InstrumentID: "HK.00700",
 		Market:       "HK",
 		Symbol:       "00700",
@@ -166,7 +167,7 @@ func TestLiveWebSocketInitialMarketTickRefreshesObservedAt(t *testing.T) {
 	server := newTestServer(t, store)
 	quoteAt := time.Now().UTC().Add(-300 * time.Millisecond).Truncate(time.Millisecond)
 	observedAt := quoteAt.Add(-100 * time.Millisecond)
-	server.marketdataSvc.Seed(marketTickSample{
+	server.marketdataSvc.Seed(mdsrv.Tick{
 		InstrumentID: "HK.00700",
 		Market:       "HK",
 		Symbol:       "00700",
@@ -189,7 +190,8 @@ func TestLiveWebSocketInitialMarketTickRefreshesObservedAt(t *testing.T) {
 
 	if err := conn.WriteJSON(liveWebSocketClientMessage{
 		Type: "subscribe",
-		Subscriptions: liveWebSocketSubscriptions{
+		Subscriptions: livecore.Subscriptions{
+			ProviderBrokerID:  "futu",
 			ActiveInstruments: []string{"HK.00700"},
 		},
 	}); err != nil {
@@ -231,8 +233,9 @@ func TestLiveWebSocketSendsConsoleRefresh(t *testing.T) {
 
 	if err := conn.WriteJSON(liveWebSocketClientMessage{
 		Type: "subscribe",
-		Subscriptions: liveWebSocketSubscriptions{
-			ConsoleRefresh: true,
+		Subscriptions: livecore.Subscriptions{
+			ProviderBrokerID: "futu",
+			ConsoleRefresh:   true,
 		},
 	}); err != nil {
 		t.Fatalf("subscribe live websocket: %v", err)

@@ -59,7 +59,7 @@ func TestExecutionRoutesValidatePayloadsAndMapHandlerErrors(t *testing.T) {
 
 		for _, path := range []string{
 			"/api/v1/execution/orders",
-			"/api/v1/execution/orders/preview",
+			"/api/v1/execution/previews",
 		} {
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader(`{"market":`))
@@ -78,7 +78,7 @@ func TestExecutionRoutesValidatePayloadsAndMapHandlerErrors(t *testing.T) {
 		RegisterExecutionRoutes(router.Group("/api/v1"), service)
 
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execution/orders/preview", strings.NewReader(`{"brokerId":"ib","market":"US","symbol":"AAPL","side":"BUY","orderType":"LIMIT","quantity":1,"price":100}`))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execution/previews", strings.NewReader(`{"brokerId":"ib","market":"US","symbol":"AAPL","side":"BUY","orderType":"LIMIT","quantity":1,"price":100}`))
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(rec, req)
 

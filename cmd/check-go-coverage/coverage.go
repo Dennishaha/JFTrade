@@ -252,16 +252,31 @@ func containsScope(fileName, scope string) bool {
 }
 
 func packageScope(fileName string) (string, bool) {
+	relativeFileName, ok := repositoryCodePath(fileName)
+	if !ok {
+		return "", false
+	}
+	return path.Dir(relativeFileName), true
+}
+
+// repositoryCodePath strips a coverage profile's module prefix. The first
+// code root must win because Go packages may contain a nested internal
+// directory, for example pkg/backtest/internal/storage.
+func repositoryCodePath(fileName string) (string, bool) {
+	fileName = normalizeProfilePath(fileName)
+	bestIndex := -1
 	for _, root := range []string{"cmd", "internal", "pkg"} {
-		marker := "/" + root + "/"
 		if strings.HasPrefix(fileName, root+"/") {
-			return path.Dir(fileName), true
+			return fileName, true
 		}
-		if index := strings.Index(fileName, marker); index >= 0 {
-			return path.Dir(fileName[index+1:]), true
+		if index := strings.Index(fileName, "/"+root+"/"); index >= 0 && (bestIndex < 0 || index < bestIndex) {
+			bestIndex = index
 		}
 	}
-	return "", false
+	if bestIndex < 0 {
+		return "", false
+	}
+	return fileName[bestIndex+1:], true
 }
 
 func criticalDomainForScope(scope string) (string, bool) {

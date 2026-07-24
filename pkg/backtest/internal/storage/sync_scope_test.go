@@ -73,7 +73,7 @@ func TestSyncWriteSessionScope(t *testing.T) {
 		requestedScope string
 		want           string
 	}{
-		{name: "legacy passthrough", symbol: "US.AAPL", interval: bbgotypes.Interval1m, requestedScope: klineSessionScopeLegacy, want: klineSessionScopeLegacy},
+		{name: "unknown becomes regular", symbol: "US.AAPL", interval: bbgotypes.Interval1m, requestedScope: "unsupported", want: klineSessionScopeRegular},
 		{name: "regular passthrough", symbol: "US.AAPL", interval: bbgotypes.Interval1m, requestedScope: klineSessionScopeRegular, want: klineSessionScopeRegular},
 		{name: "us one hour keeps extended", symbol: "US.AAPL", interval: bbgotypes.Interval1h, requestedScope: klineSessionScopeExtended, want: klineSessionScopeExtended},
 		{name: "us daily falls back to regular", symbol: "US.AAPL", interval: bbgotypes.Interval1d, requestedScope: klineSessionScopeExtended, want: klineSessionScopeRegular},

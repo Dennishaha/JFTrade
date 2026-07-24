@@ -11,6 +11,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/watchlist"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type futuWatchlistCoverageBroker struct {
@@ -79,7 +80,7 @@ func TestFutuWatchlistBrokerRemainingAvailabilityAndCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := settings.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{Type: "futu", Host: "127.0.0.1", APIPort: 11110})}); err != nil {
+	if _, err := settings.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{Type: "futu", Host: "127.0.0.1", APIPort: 11110})}); err != nil {
 		t.Fatal(err)
 	}
 	server := newTestServer(t, settings)

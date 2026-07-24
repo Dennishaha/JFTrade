@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
@@ -31,7 +32,7 @@ func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
 		strategyRuntimeClosedKLineSyncInterval = originalInterval
 	}()
 
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		ID:           "runtime-poll-kline-test",
 		Name:         "Runtime Poll KLine Test",
 		Version:      "0.1.0",
@@ -39,11 +40,11 @@ func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Poll KLine Test\", overlay=true)\nstrategy.close(\"Long\")",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)

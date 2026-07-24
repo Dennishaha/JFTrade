@@ -8,10 +8,8 @@ import (
 
 const (
 	KLineTable                = internalstorage.KLineTable
-	KLineSessionScopeLegacy   = internalstorage.KLineSessionScopeLegacy
 	KLineSessionScopeRegular  = internalstorage.KLineSessionScopeRegular
 	KLineSessionScopeExtended = internalstorage.KLineSessionScopeExtended
-	KLineReadSessionScopeAuto = internalstorage.KLineReadSessionScopeAuto
 	rehabTypeForwardCode      = internalstorage.RehabTypeForwardCode
 )
 

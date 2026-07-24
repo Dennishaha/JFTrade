@@ -182,40 +182,6 @@ func TestBindHelpersRejectMalformedAndIPv6Binds(t *testing.T) {
 	}
 }
 
-func TestApplyIntegrationEnv(t *testing.T) {
-	for _, key := range []string{
-		futuOpenDAddrEnv,
-		futuOpenDWebSocketKeyEnv,
-		jftradeFutuWebSocketKeyEnv,
-		jftradeFutuAPIPortEnv,
-		jftradeFutuWebSocketPortEnv,
-	} {
-		t.Setenv(key, "")
-	}
-
-	ApplyIntegrationEnv(jfsettings.BrokerIntegration{
-		Config: jfsettings.FutuIntegrationConfig{
-			Host:          "127.0.0.2",
-			APIPort:       22222,
-			WebSocketPort: 22223,
-			WebSocketKey:  "secret",
-		},
-	})
-
-	want := map[string]string{
-		futuOpenDAddrEnv:            "127.0.0.2:22222",
-		futuOpenDWebSocketKeyEnv:    "secret",
-		jftradeFutuWebSocketKeyEnv:  "secret",
-		jftradeFutuAPIPortEnv:       "22222",
-		jftradeFutuWebSocketPortEnv: "22223",
-	}
-	for key, expected := range want {
-		if got := os.Getenv(key); got != expected {
-			t.Fatalf("%s = %q, want %q", key, got, expected)
-		}
-	}
-}
-
 func TestIntegrationWithEnvDefaults(t *testing.T) {
 	t.Setenv(futuOpenDAddrEnv, "127.0.0.6:26666")
 	t.Setenv(jftradeFutuWebSocketPortEnv, "26667")

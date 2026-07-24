@@ -9,6 +9,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/lifecycle"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 // StartForRunArgs boots the JFTrade API sidecar as HTTP servers (API + optional GUI).
@@ -32,7 +33,6 @@ func startupDependencies() lifecycle.Dependencies {
 		},
 		NewSettingsStore:          newLifecycleSettingsStore,
 		ResolveIntegrationRuntime: apiruntime.IntegrationWithEnvDefaults,
-		ApplyIntegrationRuntime:   apiruntime.ApplyIntegrationEnv,
 		NewHandler:                newLifecycleHandler,
 		APIBaseURLForBind:         apiBaseURLForBind,
 		PortFromBind:              portFromBind,
@@ -43,12 +43,12 @@ func newLifecycleSettingsStore(path string) (lifecycle.SettingsStore, error) {
 	return NewSettingsStore(path)
 }
 
-func newLifecycleHandler(store lifecycle.SettingsStore) (lifecycle.Handler, error) {
+func newLifecycleHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration) (lifecycle.Handler, error) {
 	settingsStore, ok := store.(*SettingsStore)
 	if !ok {
 		return nil, fmt.Errorf("unexpected settings store type %T", store)
 	}
-	return NewSidecarHandler(settingsStore, nil, ""), nil
+	return NewSidecarHandlerWithOptions(settingsStore, SidecarOptions{StartupIntegration: &integration}), nil
 }
 
 func shouldStartForArgs(args []string) bool {

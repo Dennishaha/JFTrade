@@ -692,9 +692,7 @@ async function loadStrategyDefinitions(): Promise<void> {
     try {
         strategyDefinitions.value = await queryClient.ensureQueryData({
             queryKey: queryKeys.strategyDefinitions(),
-            queryFn: () => apiGet<StrategyDefinitionDocument[], "/api/v1/strategy-definitions">(
-                "/api/v1/strategy-definitions",
-            ),
+            queryFn: () => apiGet("/api/v1/strategy-definitions"),
         });
     } catch (error) {
         strategyDefinitions.value = [];

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -54,7 +55,7 @@ func (s *strategyCatalogStore) normalizePlugin(input managedStrategyPlugin) mana
 	return input
 }
 
-func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) managedStrategyInstance {
+func (s *strategyCatalogStore) normalizeStrategy(input stratsrv.ManagedInstance) stratsrv.ManagedInstance {
 	input = cloneManagedStrategyInstance(input)
 	if input.ID == "" {
 		input.ID = "strategy-" + time.Now().UTC().Format("20060102150405.000000000")

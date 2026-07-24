@@ -21,7 +21,7 @@ type DepthSubscription struct {
 }
 
 type Subscriptions struct {
-	ProviderBrokerID  string                        `json:"providerBrokerId,omitempty"`
+	ProviderBrokerID  string                        `json:"providerBrokerId"`
 	ActiveInstruments []string                      `json:"activeInstruments,omitempty"`
 	SecurityDetails   []SecurityDetailsSubscription `json:"securityDetails,omitempty"`
 	Depth             []DepthSubscription           `json:"depth,omitempty"`

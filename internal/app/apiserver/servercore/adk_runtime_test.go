@@ -307,7 +307,7 @@ log.info("created")`,
 	if got := createPayload["operation"]; got != "created" {
 		t.Fatalf("operation = %#v, want created", got)
 	}
-	created, ok := createPayload["definition"].(strategyDesignDefinition)
+	created, ok := createPayload["definition"].(stratsrv.Definition)
 	if !ok {
 		t.Fatalf("definition payload = %T, want strategyDesignDefinition", createPayload["definition"])
 	}
@@ -340,7 +340,7 @@ alert("updated")`,
 	if got := updatePayload["operation"]; got != "updated" {
 		t.Fatalf("operation = %#v, want updated", got)
 	}
-	updated, ok := updatePayload["definition"].(strategyDesignDefinition)
+	updated, ok := updatePayload["definition"].(stratsrv.Definition)
 	if !ok {
 		t.Fatalf("updated definition payload = %T, want strategyDesignDefinition", updatePayload["definition"])
 	}
@@ -367,7 +367,7 @@ func TestADKStrategyUpdateInstanceModeToolUpdatesStoppedInstance(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	definition, err := server.designStore.saveDefinition(stratsrv.Definition{
 		Name:         "Mode Test",
 		Description:  "mode update test",
 		Runtime:      strategyRuntimePinePlan,
@@ -381,7 +381,7 @@ log.info("ready")`,
 	if err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.TME"},
 		Interval:      "5m",
 		ExecutionMode: strategyExecutionModeLive,
@@ -405,7 +405,7 @@ log.info("ready")`,
 	if !ok {
 		t.Fatalf("output type = %T, want map", output)
 	}
-	updated, ok := payload["instance"].(strategyListItem)
+	updated, ok := payload["instance"].(stratsrv.InstanceView)
 	if !ok {
 		t.Fatalf("instance payload = %T, want strategyListItem", payload["instance"])
 	}
@@ -440,7 +440,7 @@ func TestADKStrategyDefinitionsToolReturnsCompactSummaries(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	definition, err := server.designStore.saveDefinition(stratsrv.Definition{
 		Name:         "TME Demo",
 		Version:      "0.1.1",
 		Description:  "ADK summary test definition",
@@ -451,15 +451,15 @@ func TestADKStrategyDefinitionsToolReturnsCompactSummaries(t *testing.T) {
 		Script: `//@version=6
 strategy("TME Demo", overlay=true)
 log.info("demo")`,
-		VisualModel: &strategyVisualModel{
-			Nodes: []strategyVisualNode{{ID: "n1"}, {ID: "n2"}},
-			Edges: []strategyVisualEdge{{ID: "e1", SourceNodeID: "n1", TargetNodeID: "n2"}},
+		VisualModel: &stratsrv.VisualModel{
+			Nodes: []stratsrv.VisualNode{{ID: "n1"}, {ID: "n2"}},
+			Edges: []stratsrv.VisualEdge{{ID: "e1", SourceNodeID: "n1", TargetNodeID: "n2"}},
 		},
 	})
 	if err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
-	_, err = server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	_, err = server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.TME"},
 		Interval:      "1d",
 		ExecutionMode: strategyExecutionModeNotifyOnly,

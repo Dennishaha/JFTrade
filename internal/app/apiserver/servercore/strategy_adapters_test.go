@@ -1,11 +1,14 @@
 package servercore
 
-import "testing"
+import (
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"testing"
+)
 
 func TestStrategyAdapterDefinitionSyncSupportsLegacyParams(t *testing.T) {
 	adapter := &strategyCatalogStoreAdapter{}
-	status := adapter.buildDefinitionSyncStatus(strategyListItem{
-		Definition: strategyDefinitionSummary{Version: "0.1.0"},
+	status := adapter.buildDefinitionSyncStatus(stratsrv.InstanceView{
+		Definition: stratsrv.DefinitionSummary{Version: "0.1.0"},
 		Params:     map[string]any{"definitionId": "legacy-definition"},
 	})
 	if status == nil {

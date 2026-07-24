@@ -1,5 +1,7 @@
 package servercore
 
+import stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+
 func copyMap(input map[string]any) map[string]any {
 	if input == nil {
 		return map[string]any{}
@@ -52,10 +54,10 @@ func cloneManagedStrategyPlugin(input managedStrategyPlugin) managedStrategyPlug
 	return input
 }
 
-func cloneManagedStrategyInstance(input managedStrategyInstance) managedStrategyInstance {
+func cloneManagedStrategyInstance(input stratsrv.ManagedInstance) stratsrv.ManagedInstance {
 	input.Params = copyMap(input.Params)
 	input.Binding.Symbols = append([]string(nil), input.Binding.Symbols...)
-	input.Binding.Instruments = append([]strategyBindingInstrument(nil), input.Binding.Instruments...)
+	input.Binding.Instruments = append([]stratsrv.BindingInstrument(nil), input.Binding.Instruments...)
 	if input.Binding.BrokerAccount != nil {
 		input.Binding.BrokerAccount = new(*input.Binding.BrokerAccount)
 	}

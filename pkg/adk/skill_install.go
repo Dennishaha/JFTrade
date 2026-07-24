@@ -159,9 +159,6 @@ func (r *SkillRegistry) Uninstall(ctx context.Context, id string) error {
 }
 
 func (r *SkillRegistry) ensureBuiltins() error {
-	if err := r.removeLegacyBuiltinSkills(); err != nil {
-		return err
-	}
 	for _, spec := range builtinSkillSpecs {
 		bundle, err := spec.BuildBundle()
 		if err != nil {
@@ -219,38 +216,6 @@ func buildStrategyPublishBuiltinSkillBundle() (map[string]string, error) {
 	}
 	maps.Copy(bundle, strategypinespec.PublishSkillResourceFiles())
 	return bundle, nil
-}
-
-func (r *SkillRegistry) removeLegacyBuiltinSkills() error {
-	for _, name := range []string{strategypinespec.LegacyBuiltinSkillName} {
-		if err := r.removeLegacyBuiltinSkill(name); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *SkillRegistry) removeLegacyBuiltinSkill(name string) error {
-	if r == nil || r.skillsPath == "" {
-		return nil
-	}
-	installDir := filepath.Join(r.skillsPath, strings.TrimSpace(name))
-	skillDocPath := filepath.Join(installDir, "SKILL.md")
-	raw, err := os.ReadFile(skillDocPath)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	fm, _, err := adkskill.ParseBytes(raw)
-	if err != nil {
-		return nil
-	}
-	if fm.Metadata != nil && strings.EqualFold(strings.TrimSpace(fm.Metadata["source"]), "builtin") {
-		return os.RemoveAll(installDir)
-	}
-	return nil
 }
 
 func (r *SkillRegistry) syncBuiltinSkill(name string, bundle map[string]string) error {

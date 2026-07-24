@@ -35,6 +35,7 @@ import {
   isResearchQuoteTarget,
   normalizeResearchQuoteTarget,
   parseResearchInstrumentId,
+  researchQuoteSeedFromEntry,
   researchQuoteTargetFromEntry,
 } from "../../src/components/research/researchQuote";
 import {
@@ -133,6 +134,28 @@ describe("research utility edge coverage", () => {
     expect(
       isResearchQuoteEntry({ instrumentId: "US.AAPL", productClass: "bond" }),
     ).toBe(false);
+  });
+
+  it("reduces broker rows to the five-field quote seed contract", () => {
+    expect(
+      researchQuoteSeedFromEntry({
+        name: "Apple",
+        currentPrice: "215.25",
+        lastClosePrice: 212,
+        changeVal: "3.25",
+        changeRate: "1.533",
+        instrumentId: "US.AAPL",
+        productClass: "equity",
+        brokerInternalState: { source: "snapshot" },
+      }),
+    ).toEqual({
+      name: "Apple",
+      lastPrice: 215.25,
+      previousClosePrice: 212,
+      changeAmount: 3.25,
+      changeRate: 1.533,
+    });
+    expect(researchQuoteSeedFromEntry(null)).toBeNull();
   });
 
   it("covers empty, single, and multi-batch snapshot responses", async () => {

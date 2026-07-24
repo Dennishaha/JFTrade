@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
@@ -85,7 +84,7 @@ func TestSettingsStoreReadsPersistedConfigurationBranches(t *testing.T) {
 	}
 }
 
-func TestLegacyAdminAuthSettingMigratesToDisabledWebAccess(t *testing.T) {
+func TestUnknownSecurityFieldsAreIgnoredWithoutRewritingSettings(t *testing.T) {
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
 	if err := os.WriteFile(settingsPath, []byte(`{"security":{"adminAuthRequired":true}}`), 0o644); err != nil {
 		t.Fatalf("write legacy settings: %v", err)
@@ -95,14 +94,14 @@ func TestLegacyAdminAuthSettingMigratesToDisabledWebAccess(t *testing.T) {
 		t.Fatalf("New legacy settings: %v", err)
 	}
 	if got := store.SecuritySettings(); got.WebAccessEnabled || got.PublicAccessEnabled || got.PasswordConfigured {
-		t.Fatalf("legacy setting enabled Web access: %#v", got)
+		t.Fatalf("unknown setting changed Web access: %#v", got)
 	}
 	persisted, err := os.ReadFile(settingsPath)
 	if err != nil {
 		t.Fatalf("read migrated settings: %v", err)
 	}
-	if strings.Contains(string(persisted), "adminAuthRequired") {
-		t.Fatalf("legacy admin auth field was not removed: %s", persisted)
+	if string(persisted) != `{"security":{"adminAuthRequired":true}}` {
+		t.Fatalf("settings were rewritten while loading unknown fields: %s", persisted)
 	}
 	if mode := fileMode(t, settingsPath); runtime.GOOS != "windows" && mode != 0o600 {
 		t.Fatalf("settings mode = %#o, want 0600", mode)

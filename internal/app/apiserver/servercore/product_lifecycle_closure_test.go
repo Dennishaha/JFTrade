@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
@@ -337,7 +338,7 @@ func TestPredictionAndPreviewPersistenceRejectsStaleOrChangedBindings(t *testing
 }
 
 func TestProductLifecycleSnapshotIdentityAndRuntimeHelpers(t *testing.T) {
-	summary := executionOrderSummaryResponse{
+	summary := trdsrv.ExecutionOrder{
 		ProductClass: broker.ProductClassUnknown,
 		QuantityMode: broker.QuantityModeUnits,
 	}
@@ -368,16 +369,10 @@ func TestProductLifecycleSnapshotIdentityAndRuntimeHelpers(t *testing.T) {
 		t.Fatalf("normalized broker quantities = %#v", summary)
 	}
 
-	if got := strategyRuntimeBrokerPlaceOrderQuery(
-		strategyInstanceBinding{},
-		"US.AAPL",
-	); got.Market != "US" {
+	if got := strategyRuntimeBrokerPlaceOrderQuery(stratsrv.InstanceBinding{}, "US.AAPL"); got.Market != "US" {
 		t.Fatalf("fallback order market = %#v", got)
 	}
-	if got := strategyRuntimeDisplayName(
-		managedStrategyInstance{ID: "instance-only"},
-		nil,
-	); got != "instance-only" {
+	if got := strategyRuntimeDisplayName(stratsrv.ManagedInstance{ID: "instance-only"}, nil); got != "instance-only" {
 		t.Fatalf("instance display name = %q", got)
 	}
 	trade := bbgotypes.Trade{
@@ -439,9 +434,9 @@ func TestProductLifecycleRuntimeRejectsBeforeAnyBrokerSubmission(t *testing.T) {
 	}
 	executor := &strategyLiveOrderExecutor{
 		manager: manager,
-		instance: managedStrategyInstance{
+		instance: stratsrv.ManagedInstance{
 			ID: "risk-instance",
-			Binding: strategyInstanceBinding{RuntimeRisk: strategyRuntimeRiskSettings{
+			Binding: stratsrv.InstanceBinding{RuntimeRisk: stratsrv.RuntimeRiskSettings{
 				Mode: "enforce", CloseOnly: true,
 			}},
 		},
@@ -489,9 +484,9 @@ func TestProductLifecycleRuntimePropagatesGatewayFailureAndSortsObservations(t *
 	}
 	executor := &strategyLiveOrderExecutor{
 		manager: manager,
-		instance: managedStrategyInstance{
+		instance: stratsrv.ManagedInstance{
 			ID:      "gateway-instance",
-			Binding: strategyInstanceBinding{RuntimeRisk: strategyRuntimeRiskSettings{Mode: "off"}},
+			Binding: stratsrv.InstanceBinding{RuntimeRisk: stratsrv.RuntimeRiskSettings{Mode: "off"}},
 		},
 		runner: &strategySymbolRuntime{lastClosedPrice: 10},
 	}

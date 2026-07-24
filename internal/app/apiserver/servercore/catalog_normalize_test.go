@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"path/filepath"
 	"testing"
 	"time"
@@ -12,7 +13,7 @@ func TestStrategyCatalogNormalizePluginAppliesDefaults(t *testing.T) {
 	}
 
 	plugin := managedStrategyPlugin{
-		Descriptor: strategyPluginDescriptor{ID: "  demo.plugin  "},
+		Descriptor: stratsrv.PluginDescriptor{ID: "  demo.plugin  "},
 	}
 
 	normalized := store.normalizePlugin(plugin)
@@ -38,7 +39,7 @@ func TestStrategyCatalogNormalizePluginAppliesDefaults(t *testing.T) {
 func TestStrategyCatalogNormalizeStrategyAppliesDefaults(t *testing.T) {
 	store := &strategyCatalogStore{}
 
-	normalized := store.normalizeStrategy(managedStrategyInstance{})
+	normalized := store.normalizeStrategy(stratsrv.ManagedInstance{})
 
 	if normalized.PluginID != IDPinePlanPlugin() {
 		t.Fatalf("expected plugin id %q, got %q", IDPinePlanPlugin(), normalized.PluginID)

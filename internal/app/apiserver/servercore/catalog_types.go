@@ -8,6 +8,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 )
 
 const (
@@ -28,68 +29,22 @@ const (
 
 var errStrategyInstanceBusy = errors.New("strategy instance must be stopped before modification")
 
-type strategyPluginBuildTuple = stratsrv.PluginBuildTuple
-
 type strategyPluginArtifact struct {
-	Path  string                   `json:"path"`
-	Build strategyPluginBuildTuple `json:"build"`
+	Path  string                    `json:"path"`
+	Build stratsrv.PluginBuildTuple `json:"build"`
 }
-
-type strategyPluginCompatibility = stratsrv.PluginCompatibility
-
-type strategyPluginDescriptor = stratsrv.PluginDescriptor
-
-type strategyPluginOperation = stratsrv.PluginOperation
-
-type strategyPluginUninstallGuidance = stratsrv.PluginUninstallGuidance
-
-type strategyPluginInstallation = stratsrv.PluginInstallation
-
-type strategyPluginCatalogItem = stratsrv.PluginCatalogItem
-
-type strategyPluginCatalogResponse = stratsrv.PluginCatalog
-
-type strategyDefinitionSummary = stratsrv.DefinitionSummary
-
-type strategyAuditEntry = stratsrv.AuditEntry
-
-type strategyBrokerAccountBinding = stratsrv.BrokerAccountBinding
-
-type strategyBindingInstrument = stratsrv.BindingInstrument
-
-type strategyInstanceBinding = stratsrv.InstanceBinding
-
-type strategyRuntimeRiskSettings = stratsrv.RuntimeRiskSettings
-
-type strategyRuntimeObservation = stratsrv.RuntimeObservation
-
-type strategyRuntimeActiveInstanceSummary = stratsrv.RuntimeActiveInstanceSummary
-
-type strategyDefinitionSyncStatus = stratsrv.DefinitionSyncStatus
-
-type strategyApplyLinkedInstancesResponse = stratsrv.ApplyLinkedInstancesResult
-
-type strategyListItem = stratsrv.InstanceView
-
-type strategyLogsResponse = stratsrv.LogsResult
-
-type strategyAuditResponse = stratsrv.AuditResult
-
-type strategyActivityPage = stratsrv.ActivityPage
 
 type managedStrategyPlugin struct {
-	Descriptor   strategyPluginDescriptor   `json:"descriptor"`
-	Artifact     *strategyPluginArtifact    `json:"artifact,omitempty"`
-	Installation strategyPluginInstallation `json:"installation"`
+	Descriptor   stratsrv.PluginDescriptor   `json:"descriptor"`
+	Artifact     *strategyPluginArtifact     `json:"artifact,omitempty"`
+	Installation stratsrv.PluginInstallation `json:"installation"`
 }
 
-type managedStrategyInstance = stratsrv.ManagedInstance
-
 type strategyCatalogFile struct {
-	TargetDir  string                    `json:"targetDir,omitempty"`
-	Plugins    []managedStrategyPlugin   `json:"plugins,omitempty"`
-	Strategies []managedStrategyInstance `json:"strategies,omitempty"`
-	Operations []strategyPluginOperation `json:"operations,omitempty"`
+	TargetDir  string                     `json:"targetDir,omitempty"`
+	Plugins    []managedStrategyPlugin    `json:"plugins,omitempty"`
+	Strategies []stratsrv.ManagedInstance `json:"strategies,omitempty"`
+	Operations []stratsrv.PluginOperation `json:"operations,omitempty"`
 }
 
 type strategyCatalogStore struct {
@@ -97,7 +52,7 @@ type strategyCatalogStore struct {
 	dbPath       string
 	db           *sqliteconn.DB
 	targetDir    string
-	runtimeStore *strategyRuntimeStore
+	runtimeStore *runtimeactivity.Store
 	beginPersist func(context.Context, *sql.TxOptions) (executionMigrationTx, error)
 	marshalJSON  func(any) ([]byte, error)
 	mu           sync.RWMutex

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
@@ -64,7 +65,7 @@ func (s *strategyCatalogStore) Close() error {
 func (s *strategyCatalogStore) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.data = strategyCatalogFile{TargetDir: s.targetDir, Plugins: []managedStrategyPlugin{}, Strategies: []managedStrategyInstance{}, Operations: []strategyPluginOperation{}}
+	s.data = strategyCatalogFile{TargetDir: s.targetDir, Plugins: []managedStrategyPlugin{}, Strategies: []stratsrv.ManagedInstance{}, Operations: []stratsrv.PluginOperation{}}
 	targetDir, err := s.loadCatalogMetaLocked("target_dir")
 	if err != nil {
 		return err
@@ -109,7 +110,7 @@ func (s *strategyCatalogStore) load() error {
 		s.data.Plugins = append(s.data.Plugins, normalized)
 	}
 	for _, row := range strategyRows {
-		var strategy managedStrategyInstance
+		var strategy stratsrv.ManagedInstance
 		if err := json.Unmarshal([]byte(row.PayloadJSON), &strategy); err != nil {
 			return err
 		}
@@ -122,7 +123,7 @@ func (s *strategyCatalogStore) load() error {
 		s.data.Strategies = append(s.data.Strategies, normalized)
 	}
 	for _, row := range operationRows {
-		var operation strategyPluginOperation
+		var operation stratsrv.PluginOperation
 		if err := json.Unmarshal([]byte(row.PayloadJSON), &operation); err != nil {
 			return err
 		}
@@ -165,7 +166,7 @@ func (s *strategyCatalogStore) savePlugin(input managedStrategyPlugin) error {
 	return s.persistLocked()
 }
 
-func (s *strategyCatalogStore) saveStrategy(input managedStrategyInstance) error {
+func (s *strategyCatalogStore) saveStrategy(input stratsrv.ManagedInstance) error {
 	input = s.normalizeStrategy(input)
 
 	s.mu.Lock()
@@ -181,14 +182,14 @@ func (s *strategyCatalogStore) saveStrategy(input managedStrategyInstance) error
 	return s.persistLocked()
 }
 
-func (s *strategyCatalogStore) pluginCatalog() strategyPluginCatalogResponse {
+func (s *strategyCatalogStore) pluginCatalog() stratsrv.PluginCatalog {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	plugins := make([]strategyPluginCatalogItem, 0, len(s.data.Plugins))
+	plugins := make([]stratsrv.PluginCatalogItem, 0, len(s.data.Plugins))
 	for _, plugin := range s.data.Plugins {
 		normalized := s.normalizePlugin(plugin)
-		plugins = append(plugins, strategyPluginCatalogItem{
+		plugins = append(plugins, stratsrv.PluginCatalogItem{
 			Descriptor:    normalized.Descriptor,
 			Installation:  normalized.Installation,
 			Compatibility: buildPluginCompatibility(normalized.Artifact),
@@ -198,14 +199,14 @@ func (s *strategyCatalogStore) pluginCatalog() strategyPluginCatalogResponse {
 		return plugins[i].Descriptor.ID < plugins[j].Descriptor.ID
 	})
 
-	return strategyPluginCatalogResponse{
+	return stratsrv.PluginCatalog{
 		TargetDir: s.effectiveTargetDirLocked(),
 		Plugins:   plugins,
 	}
 
 }
 
-func (s *strategyCatalogStore) installPlugin(pluginID string) (strategyPluginOperation, error) {
+func (s *strategyCatalogStore) installPlugin(pluginID string) (stratsrv.PluginOperation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -215,7 +216,7 @@ func (s *strategyCatalogStore) installPlugin(pluginID string) (strategyPluginOpe
 			continue
 		}
 		now := time.Now().UTC().Format(time.RFC3339Nano)
-		operation := strategyPluginOperation{
+		operation := stratsrv.PluginOperation{
 			OperationID: buildPluginOperationID(pluginID),
 			PluginID:    pluginID,
 			Status:      "SUCCEEDED",
@@ -238,10 +239,10 @@ func (s *strategyCatalogStore) installPlugin(pluginID string) (strategyPluginOpe
 		return operation, s.persistLocked()
 	}
 
-	return strategyPluginOperation{}, os.ErrNotExist
+	return stratsrv.PluginOperation{}, os.ErrNotExist
 }
 
-func (s *strategyCatalogStore) uninstallPlugin(pluginID string) (strategyPluginOperation, error) {
+func (s *strategyCatalogStore) uninstallPlugin(pluginID string) (stratsrv.PluginOperation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -251,7 +252,7 @@ func (s *strategyCatalogStore) uninstallPlugin(pluginID string) (strategyPluginO
 			continue
 		}
 		now := time.Now().UTC().Format(time.RFC3339Nano)
-		operation := strategyPluginOperation{
+		operation := stratsrv.PluginOperation{
 			OperationID: buildPluginOperationID(pluginID),
 			PluginID:    pluginID,
 			Status:      "SUCCEEDED",
@@ -274,10 +275,10 @@ func (s *strategyCatalogStore) uninstallPlugin(pluginID string) (strategyPluginO
 		return operation, s.persistLocked()
 	}
 
-	return strategyPluginOperation{}, os.ErrNotExist
+	return stratsrv.PluginOperation{}, os.ErrNotExist
 }
 
-func (s *strategyCatalogStore) pluginOperation(operationID string) (strategyPluginOperation, bool) {
+func (s *strategyCatalogStore) pluginOperation(operationID string) (stratsrv.PluginOperation, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, operation := range s.data.Operations {
@@ -285,10 +286,10 @@ func (s *strategyCatalogStore) pluginOperation(operationID string) (strategyPlug
 			return operation, true
 		}
 	}
-	return strategyPluginOperation{}, false
+	return stratsrv.PluginOperation{}, false
 }
 
-func (s *strategyCatalogStore) pluginUninstallGuidance(pluginID string) (strategyPluginUninstallGuidance, bool) {
+func (s *strategyCatalogStore) pluginUninstallGuidance(pluginID string) (stratsrv.PluginUninstallGuidance, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, plugin := range s.data.Plugins {
@@ -297,14 +298,14 @@ func (s *strategyCatalogStore) pluginUninstallGuidance(pluginID string) (strateg
 			return buildPluginUninstallGuidance(pluginID, normalized.Installation.InstallPath), true
 		}
 	}
-	return strategyPluginUninstallGuidance{}, false
+	return stratsrv.PluginUninstallGuidance{}, false
 }
 
-func (s *strategyCatalogStore) strategies() []strategyListItem {
+func (s *strategyCatalogStore) strategies() []stratsrv.InstanceView {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	items := make([]strategyListItem, 0, len(s.data.Strategies))
+	items := make([]stratsrv.InstanceView, 0, len(s.data.Strategies))
 	for _, strategy := range s.data.Strategies {
 		normalized := s.normalizeStrategy(strategy)
 		items = append(items, strategyToListItem(normalized))
@@ -335,7 +336,7 @@ func (s *strategyCatalogStore) linkedStrategyInstanceIDs(definitionID string) []
 	return linked
 }
 
-func (s *strategyCatalogStore) strategy(instanceID string) (managedStrategyInstance, bool) {
+func (s *strategyCatalogStore) strategy(instanceID string) (stratsrv.ManagedInstance, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, strategy := range s.data.Strategies {
@@ -344,7 +345,7 @@ func (s *strategyCatalogStore) strategy(instanceID string) (managedStrategyInsta
 			return normalized, true
 		}
 	}
-	return managedStrategyInstance{}, false
+	return stratsrv.ManagedInstance{}, false
 }
 
 func (s *strategyCatalogStore) persistLocked() error {

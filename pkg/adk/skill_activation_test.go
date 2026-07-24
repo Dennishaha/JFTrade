@@ -19,7 +19,7 @@ import (
 func TestSkillGatedToolIsExposedOnlyAfterLoadInCurrentInvocation(t *testing.T) {
 	registered := RegisteredTool{
 		Descriptor: ToolDescriptor{
-			Name: "workflows.get", Description: "read workflow", RequiredSkill: WorkflowManagementSkillName,
+			Name: "workflows.get", Description: "read workflow", RequiredSkills: []string{WorkflowManagementSkillName},
 		},
 		Handler: func(_ context.Context, _ map[string]any) (any, error) {
 			return map[string]any{"ok": true}, nil
@@ -77,7 +77,7 @@ func TestSkillGatedToolIsExposedOnlyAfterLoadInCurrentInvocation(t *testing.T) {
 func TestSkillGatedToolAllowsConfirmedResumeWithoutTempActivation(t *testing.T) {
 	called := false
 	registered := RegisteredTool{
-		Descriptor: ToolDescriptor{Name: "workflows.delete", Description: "delete", RequiredSkill: WorkflowManagementSkillName},
+		Descriptor: ToolDescriptor{Name: "workflows.delete", Description: "delete", RequiredSkills: []string{WorkflowManagementSkillName}},
 		Handler: func(_ context.Context, _ map[string]any) (any, error) {
 			called = true
 			return map[string]any{"deleted": true}, nil
@@ -208,7 +208,7 @@ func TestMultiSkillGatedToolRunsAfterEitherSkillActivation(t *testing.T) {
 
 func TestSkillGatedToolsetPreservesUngatedToolsAndRejectsNonRunnableGatedTools(t *testing.T) {
 	registered := RegisteredTool{
-		Descriptor: ToolDescriptor{Name: "workflows.get", RequiredSkill: WorkflowManagementSkillName},
+		Descriptor: ToolDescriptor{Name: "workflows.get", RequiredSkills: []string{WorkflowManagementSkillName}},
 		Handler:    func(context.Context, map[string]any) (any, error) { return nil, nil },
 	}
 	productTool, err := newGoogleADKTool(registered.Descriptor, registered)
@@ -265,23 +265,19 @@ func TestSkillActivationAndRequiredSkillMetadataBoundaries(t *testing.T) {
 		t.Fatal("nil state/context should not report an active skill")
 	}
 
-	descriptor := ToolDescriptor{
-		RequiredSkill:  " legacy-skill ",
-		RequiredSkills: []string{"", "new-skill", " legacy-skill ", "new-skill"},
-	}
+	descriptor := ToolDescriptor{RequiredSkills: []string{"", "new-skill", " legacy-skill ", "new-skill"}}
 	if got := ToolRequiredSkillNames(descriptor); !sameStringSet(got, []string{"legacy-skill", "new-skill"}) {
 		t.Fatalf("ToolRequiredSkillNames = %v", got)
 	}
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "test.multi-skill", RequiredSkill: " legacy-skill ",
-		RequiredSkills: []string{" new-skill ", "legacy-skill", ""},
+		Name: "test.multi-skill", RequiredSkills: []string{" new-skill ", "legacy-skill", ""},
 	}, func(context.Context, map[string]any) (any, error) { return nil, nil })
 	registered, ok := registry.Get("test.multi-skill")
 	if !ok {
 		t.Fatal("normalized multi-skill tool was not registered")
 	}
-	if registered.Descriptor.RequiredSkill != "legacy-skill" || !sameStringSet(registered.Descriptor.RequiredSkills, []string{"legacy-skill", "new-skill"}) {
+	if !sameStringSet(registered.Descriptor.RequiredSkills, []string{"legacy-skill", "new-skill"}) {
 		t.Fatalf("registered required skills = %+v", registered.Descriptor)
 	}
 }
@@ -302,7 +298,7 @@ func TestLoadSkillCallbackActivatesToolsSearchInSameInvocation(t *testing.T) {
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
 		Name: "workflows.get", DisplayName: "读取工作流", Description: "读取工作流",
-		Category: "workflow", Permission: "read_internal", RequiredSkill: WorkflowManagementSkillName,
+		Category: "workflow", Permission: "read_internal", RequiredSkills: []string{WorkflowManagementSkillName},
 	}, func(_ context.Context, _ map[string]any) (any, error) { return nil, nil })
 	search, _ := registry.Get("tools.search")
 	output, err := executeRegisteredTool(ctx, search, map[string]any{"query": "workflows.get"})
@@ -310,8 +306,11 @@ func TestLoadSkillCallbackActivatesToolsSearchInSameInvocation(t *testing.T) {
 		t.Fatalf("tools.search: %v", err)
 	}
 	items := output.(map[string]any)["tools"].([]map[string]any)
-	if len(items) != 1 || items[0]["name"] != "workflows.get" || items[0]["requiredSkill"] != WorkflowManagementSkillName {
+	if len(items) != 1 || items[0]["name"] != "workflows.get" {
 		t.Fatalf("tools.search output = %#v", output)
+	}
+	if required, ok := items[0]["requiredSkills"].([]string); !ok || !sameStringSet(required, []string{WorkflowManagementSkillName}) {
+		t.Fatalf("tools.search required skills = %#v", items[0]["requiredSkills"])
 	}
 
 	inactive := newSkillGateTestContext(newSkillActivationTestState(), "agent-a")

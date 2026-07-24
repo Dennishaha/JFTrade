@@ -243,7 +243,7 @@ func runHasPendingApproval(approvals []Approval) bool {
 
 func (r *Runtime) continueResolvedApproval(ctx context.Context, approval Approval, approved bool) (ApprovalResolution, error) {
 	var updatedRun *Run
-	var createdMessage *Message
+	var createdMessage *TranscriptEntry
 	run, ok, err := r.store.Run(ctx, approval.RunID)
 	if err == nil && ok {
 		if !runCanContinueResolvedApproval(run) {
@@ -311,7 +311,7 @@ func (r *Runtime) continueResolvedApproval(ctx context.Context, approval Approva
 	return ApprovalResolution{Approval: approval, Run: updatedRun, Message: createdMessage}, nil
 }
 
-func (r *Runtime) resumeGoogleADKWithBusyRetry(ctx context.Context, run Run) (Run, *Message, bool, error) {
+func (r *Runtime) resumeGoogleADKWithBusyRetry(ctx context.Context, run Run) (Run, *TranscriptEntry, bool, error) {
 	delays := []time.Duration{120 * time.Millisecond, 250 * time.Millisecond, 500 * time.Millisecond, time.Second}
 	var lastErr error
 	for attempt := 0; ; attempt++ {

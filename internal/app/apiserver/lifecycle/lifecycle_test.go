@@ -125,7 +125,7 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 		},
 	}
 	handler := &lifecycleTestHandler{}
-	var appliedIntegration jfsettings.BrokerIntegration
+	var runtimeIntegration jfsettings.BrokerIntegration
 
 	shutdown, err := StartForRunArgs(ctx, []string{"api"}, Dependencies{
 		ShouldStartForArgs: func([]string) bool { return true },
@@ -140,9 +140,11 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 			input.Config.Host = "runtime-host"
 			return input
 		},
-		ApplyIntegrationRuntime: func(input jfsettings.BrokerIntegration) { appliedIntegration = input },
-		NewHandler:              func(SettingsStore) (Handler, error) { return handler, nil },
-		APIBaseURLForBind:       func(bind string) string { return "http://" + bind },
+		NewHandler: func(_ SettingsStore, integration jfsettings.BrokerIntegration) (Handler, error) {
+			runtimeIntegration = integration
+			return handler, nil
+		},
+		APIBaseURLForBind: func(bind string) string { return "http://" + bind },
 		PortFromBind: func(bind string, fallback int) int {
 			if bind == "127.0.0.1:0" {
 				return fallback
@@ -177,8 +179,8 @@ func TestStartForRunArgsConfiguresRuntimeAndFrontend(t *testing.T) {
 	if len(gotOrigins) != 1 || gotOrigins[0] != "http://127.0.0.1:0" {
 		t.Fatalf("auth origins = %#v", gotOrigins)
 	}
-	if appliedIntegration.Config.Host != "runtime-host" {
-		t.Fatalf("integration runtime = %#v", appliedIntegration)
+	if runtimeIntegration.Config.Host != "runtime-host" {
+		t.Fatalf("integration runtime = %#v", runtimeIntegration)
 	}
 	if store.bootstrapCalls != 1 {
 		t.Fatalf("bootstrap calls = %d, want 1", store.bootstrapCalls)
@@ -471,7 +473,7 @@ func TestStartForRunArgsClosesHandlerWhenDatabaseRebuildFinalizeFails(t *testing
 		EnvOrDefault:            func(_ string, value string) string { return value },
 		EnsureRuntimeLayout:     func(string, string) error { return nil },
 		NewSettingsStore:        func(string) (SettingsStore, error) { return store, nil },
-		NewHandler:              func(SettingsStore) (Handler, error) { return handler, nil },
+		NewHandler:              func(SettingsStore, jfsettings.BrokerIntegration) (Handler, error) { return handler, nil },
 		CompleteDatabaseRebuild: func(string, string) error { return wantErr },
 		APIBaseURLForBind:       func(bind string) string { return "http://" + bind },
 		PortFromBind:            func(string, int) int { return 3000 },
@@ -617,7 +619,7 @@ func TestStartForRunArgsStopsAtFailingStartupStage(t *testing.T) {
 				return Dependencies{
 					EnsureRuntimeLayout: func(string, string) error { return nil },
 					NewSettingsStore:    func(string) (SettingsStore, error) { return store, nil },
-					NewHandler:          func(SettingsStore) (Handler, error) { return nil, wantErr },
+					NewHandler:          func(SettingsStore, jfsettings.BrokerIntegration) (Handler, error) { return nil, wantErr },
 				}
 			},
 		},
@@ -693,7 +695,7 @@ func lifecycleDependencies(store SettingsStore, handler Handler, frontendFS fs.F
 		EnvOrDefault:        func(_ string, value string) string { return value },
 		EnsureRuntimeLayout: func(string, string) error { return nil },
 		NewSettingsStore:    func(string) (SettingsStore, error) { return store, nil },
-		NewHandler:          func(SettingsStore) (Handler, error) { return handler, nil },
+		NewHandler:          func(SettingsStore, jfsettings.BrokerIntegration) (Handler, error) { return handler, nil },
 		APIBaseURLForBind:   func(bind string) string { return "http://" + bind },
 		PortFromBind:        func(string, int) int { return 3000 },
 	}

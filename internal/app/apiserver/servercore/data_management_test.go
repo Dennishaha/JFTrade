@@ -106,7 +106,17 @@ func TestDataManagementServerCleanupAndCompactionPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, databaseID := range []string{datamigration.DatabaseBacktest, datamigration.DatabaseExecution, datamigration.DatabaseADKSession} {
+	for _, databaseID := range []string{
+		datamigration.DatabaseBacktest,
+		datamigration.DatabaseBacktestRuns,
+		datamigration.DatabaseStrategy,
+		datamigration.DatabaseExecution,
+		datamigration.DatabaseADK,
+		datamigration.DatabaseADKSession,
+		datamigration.DatabaseADKArtifact,
+		datamigration.DatabaseWatchlist,
+		datamigration.DatabaseResearch,
+	} {
 		if _, err := server.dataManagementSvc.Compact(t.Context(), databaseID, dmsrv.CompactRequest{Confirmation: "COMPACT " + databaseID}); err != nil {
 			t.Fatalf("compact %s: %v", databaseID, err)
 		}

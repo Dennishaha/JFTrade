@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -40,8 +41,8 @@ func TestCoverage98StrategyDesignPersistencePathAndSerializationContracts(t *tes
 	if _, err := strategyDesignDefinitionFromRow(strategyDesignDefinitionRow{VisualModelJSON: "{"}); err == nil {
 		t.Fatal("strategyDesignDefinitionFromRow accepted malformed visual model JSON")
 	}
-	_, err := strategyDesignDefinitionRowFromDefinition(strategyDesignDefinition{
-		VisualModel: &strategyVisualModel{Nodes: []strategyVisualNode{{
+	_, err := strategyDesignDefinitionRowFromDefinition(stratsrv.Definition{
+		VisualModel: &stratsrv.VisualModel{Nodes: []stratsrv.VisualNode{{
 			ID: "node", Type: "indicator", Properties: map[string]any{"unsupported": func() {}},
 		}}},
 	})

@@ -13,14 +13,7 @@ const (
 	maxStrategyRuntimePageSize     = runtimeactivity.MaxPageSize
 )
 
-type strategyRuntimeStore = runtimeactivity.Store
-type strategyRuntimeLogEvent = runtimeactivity.LogEvent
-type strategyRuntimeLogQuery = runtimeactivity.LogQuery
-type strategyRuntimeAuditEvent = runtimeactivity.AuditEvent
-type strategyRuntimeAuditQuery = runtimeactivity.AuditQuery
-type strategyRuntimeObservationSnapshot = runtimeactivity.ObservationSnapshot
-
-func NewStrategyRuntimeStore(dbPath string) (*strategyRuntimeStore, error) {
+func NewStrategyRuntimeStore(dbPath string) (*runtimeactivity.Store, error) {
 	return runtimeactivity.NewStore(dbPath)
 }
 

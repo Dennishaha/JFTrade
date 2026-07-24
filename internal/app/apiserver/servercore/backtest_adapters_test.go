@@ -6,6 +6,7 @@ import (
 	"time"
 
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 )
 
@@ -145,7 +146,7 @@ func TestBacktestSyncTaskStoreAndStrategyProviderAdapters(t *testing.T) {
 			t.Fatalf("defStore.Close: %v", closeErr)
 		}
 	})
-	definition, err := defStore.saveDefinition(strategyDesignDefinition{
+	definition, err := defStore.saveDefinition(stratsrv.Definition{
 		Name:         "Adapter Strategy",
 		Runtime:      strategyRuntimePinePlan,
 		SourceFormat: SourceFormatPineV6(),
@@ -242,7 +243,7 @@ log.info("ok")`)
 	if err != nil {
 		t.Fatalf("adkSaveStrategyDraft(default name): %v", err)
 	}
-	draft := draftAny.(strategyDesignDefinition)
+	draft := draftAny.(stratsrv.Definition)
 	if draft.Name != "ADK 策略草稿" || draft.SourceFormat != SourceFormatPineV6() || draft.Runtime != strategyRuntimePinePlan {
 		t.Fatalf("draft = %#v, want default draft naming plus Pine runtime defaults", draft)
 	}

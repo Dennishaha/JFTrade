@@ -36,22 +36,8 @@ func TestSkillRegistrySourceAndFrontmatterFailureBoundaries(t *testing.T) {
 	}
 }
 
-func TestSkillRegistryBuiltinSyncAndLegacyCleanupBoundaries(t *testing.T) {
+func TestSkillRegistryBuiltinSyncBoundaries(t *testing.T) {
 	registry := &SkillRegistry{skillsPath: t.TempDir()}
-
-	legacyDir := filepath.Join(registry.skillsPath, "legacy")
-	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll legacy: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(legacyDir, "SKILL.md"), []byte("---\nname: legacy\ndescription: Legacy builtin\nmetadata:\n  source: builtin\n---\nOld builtin."), 0o644); err != nil {
-		t.Fatalf("WriteFile legacy builtin: %v", err)
-	}
-	if err := registry.removeLegacyBuiltinSkill("legacy"); err != nil {
-		t.Fatalf("removeLegacyBuiltinSkill builtin: %v", err)
-	}
-	if _, err := os.Stat(legacyDir); !os.IsNotExist(err) {
-		t.Fatalf("builtin legacy dir still exists: %v", err)
-	}
 
 	externalDir := filepath.Join(registry.skillsPath, "external")
 	if err := os.MkdirAll(externalDir, 0o755); err != nil {
@@ -60,12 +46,6 @@ func TestSkillRegistryBuiltinSyncAndLegacyCleanupBoundaries(t *testing.T) {
 	externalDoc := []byte("---\nname: external\ndescription: External skill\nmetadata:\n  source: https://example.com/SKILL.md\n---\nExternal.")
 	if err := os.WriteFile(filepath.Join(externalDir, "SKILL.md"), externalDoc, 0o644); err != nil {
 		t.Fatalf("WriteFile external: %v", err)
-	}
-	if err := registry.removeLegacyBuiltinSkill("external"); err != nil {
-		t.Fatalf("removeLegacyBuiltinSkill external: %v", err)
-	}
-	if raw, err := os.ReadFile(filepath.Join(externalDir, "SKILL.md")); err != nil || string(raw) != string(externalDoc) {
-		t.Fatalf("external legacy skill was modified: %q err=%v", string(raw), err)
 	}
 	if err := registry.syncBuiltinSkill("external", map[string]string{"SKILL.md": "---\nname: external\ndescription: Builtin skill\nmetadata:\n  source: builtin\n---\nBuiltin."}); err != nil {
 		t.Fatalf("syncBuiltinSkill external: %v", err)

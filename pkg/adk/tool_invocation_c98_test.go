@@ -39,7 +39,7 @@ func TestCoverage98ToolInvocationMetadataPreservesSessionAndSkillAccess(t *testi
 func TestCoverage98ToolsSearchUsesSkillActivationAndReturnsCompanionTools(t *testing.T) {
 	registry := NewToolRegistry()
 	for _, descriptor := range []ToolDescriptor{
-		{Name: "coverage.gated-report", DisplayName: "Coverage Gated Report", Description: "Visible only after market analysis skill activation.", Category: "analysis", Permission: "read_internal", RequiredSkill: "market-analysis", RequiredSkills: []string{"market-analysis", "alternate-analysis"}},
+		{Name: "coverage.gated-report", DisplayName: "Coverage Gated Report", Description: "Visible only after market analysis skill activation.", Category: "analysis", Permission: "read_internal", RequiredSkills: []string{"market-analysis", "alternate-analysis"}},
 		{Name: "strategy.optimize", DisplayName: "Optimize", Category: "strategy", Permission: "optimize_strategy"},
 		{Name: "backtest.kline_sync_status", DisplayName: "Kline sync", Category: "backtest", Permission: "read_internal"},
 	} {
@@ -69,7 +69,7 @@ func TestCoverage98ToolsSearchUsesSkillActivationAndReturnsCompanionTools(t *tes
 	}
 	result := output.(map[string]any)
 	tools, ok := result["tools"].([]map[string]any)
-	if !ok || len(tools) != 1 || tools[0]["name"] != "coverage.gated-report" || tools[0]["requiredSkill"] != "market-analysis" {
+	if !ok || len(tools) != 1 || tools[0]["name"] != "coverage.gated-report" {
 		t.Fatalf("gated search result = %#v", output)
 	}
 	if required, ok := tools[0]["requiredSkills"].([]string); !ok || len(required) != 2 {

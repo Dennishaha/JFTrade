@@ -12,8 +12,6 @@ import (
 	"testing"
 
 	adkskill "google.golang.org/adk/v2/tool/skilltoolset/skill"
-
-	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 func TestSkillRegistryListSortsBySourceAndDefaultsFilesystemMetadata(t *testing.T) {
@@ -177,14 +175,6 @@ func TestSkillRegistryAdditionalBoundaryBranches(t *testing.T) {
 	}
 	if _, err := registry.skillFromFrontmatter(&adkskill.Frontmatter{Name: "dir-skill"}); err == nil {
 		t.Fatal("skillFromFrontmatter directory read err = nil, want error")
-	}
-
-	legacyDir := filepath.Join(root, strategypinespec.LegacyBuiltinSkillName)
-	if err := os.MkdirAll(filepath.Join(legacyDir, "SKILL.md"), 0o755); err != nil {
-		t.Fatalf("MkdirAll legacy SKILL.md: %v", err)
-	}
-	if err := registry.removeLegacyBuiltinSkill(strategypinespec.LegacyBuiltinSkillName); err == nil {
-		t.Fatal("removeLegacyBuiltinSkill directory read err = nil, want error")
 	}
 
 	originalBuiltinSpecs := builtinSkillSpecs

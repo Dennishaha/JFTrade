@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type alwaysErrorReader struct{ err error }
@@ -31,7 +32,7 @@ func authTestContext(method string, body []byte) (*gin.Context, *httptest.Respon
 }
 
 func enabledTestWebAuth() *webAuth {
-	auth := newWebAuth(SecuritySettings{})
+	auth := newWebAuth(jfsettings.SecuritySettings{})
 	auth.enabled = true
 	auth.passwordHash = "test-hash"
 	auth.verifyPassword = func(_, _ string) (bool, error) { return true, nil }
@@ -40,7 +41,7 @@ func enabledTestWebAuth() *webAuth {
 
 func TestWebAuthRemainingNilAndRequestHelpers(t *testing.T) {
 	var nilAuth *webAuth
-	nilAuth.configure(SecuritySettings{})
+	nilAuth.configure(jfsettings.SecuritySettings{})
 	if nilAuth.currentAccessContext() == nil {
 		t.Fatal("nil current access context")
 	}
@@ -53,8 +54,8 @@ func TestWebAuthRemainingNilAndRequestHelpers(t *testing.T) {
 		t.Fatal("nil auth unexpectedly authenticated request")
 	}
 
-	auth := newWebAuth(SecuritySettings{})
-	auth.configure(SecuritySettings{WebAccessEnabled: true, PasswordHash: "invalid"})
+	auth := newWebAuth(jfsettings.SecuritySettings{})
+	auth.configure(jfsettings.SecuritySettings{WebAccessEnabled: true, PasswordHash: "invalid"})
 	if !auth.unavailable {
 		t.Fatal("invalid enabled password hash was not marked unavailable")
 	}
@@ -97,7 +98,7 @@ func TestWebAuthRemainingNilAndRequestHelpers(t *testing.T) {
 }
 
 func TestWebAuthRemainingAuthenticationStates(t *testing.T) {
-	disabled := newWebAuth(SecuritySettings{})
+	disabled := newWebAuth(jfsettings.SecuritySettings{})
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	if _, ok, trusted := disabled.authenticate(request); !ok || !trusted {
 		t.Fatal("unenforced disabled auth did not preserve test bypass")
@@ -142,10 +143,10 @@ func TestWebAuthRemainingLoginResponses(t *testing.T) {
 		setup  func(*gin.Context)
 	}{
 		{name: "nil", body: []byte(`{}`), status: http.StatusForbidden},
-		{name: "disabled", auth: newWebAuth(SecuritySettings{}), body: []byte(`{}`), status: http.StatusForbidden},
+		{name: "disabled", auth: newWebAuth(jfsettings.SecuritySettings{}), body: []byte(`{}`), status: http.StatusForbidden},
 		{name: "unavailable", auth: func() *webAuth { a := enabledTestWebAuth(); a.unavailable = true; return a }(), body: []byte(`{}`), status: http.StatusServiceUnavailable},
 		{name: "bad json", auth: enabledTestWebAuth(), body: []byte(`{`), status: http.StatusBadRequest},
-		{name: "desktop", auth: newWebAuth(SecuritySettings{}), body: []byte(`{}`), status: http.StatusOK, setup: func(c *gin.Context) { c.Request = middleware.MarkRequestTrustedHost(c.Request) }},
+		{name: "desktop", auth: newWebAuth(jfsettings.SecuritySettings{}), body: []byte(`{}`), status: http.StatusOK, setup: func(c *gin.Context) { c.Request = middleware.MarkRequestTrustedHost(c.Request) }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

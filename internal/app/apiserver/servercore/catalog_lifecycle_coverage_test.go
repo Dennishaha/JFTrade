@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
-func catalogCoverageDefinition(id, version string) strategyDesignDefinition {
-	return strategyDesignDefinition{
+func catalogCoverageDefinition(id, version string) stratsrv.Definition {
+	return stratsrv.Definition{
 		ID: id, Name: "Coverage", Version: version,
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Symbol:       "US.AAPL", Interval: "1m", Script: "//@version=6\nstrategy(\"Coverage\")",
@@ -19,22 +20,22 @@ func catalogCoverageDefinition(id, version string) strategyDesignDefinition {
 }
 
 func TestCatalogLifecycleRemainingValidationAndMissingBoundaries(t *testing.T) {
-	store := &strategyCatalogStore{data: strategyCatalogFile{Strategies: []managedStrategyInstance{
+	store := &strategyCatalogStore{data: strategyCatalogFile{Strategies: []stratsrv.ManagedInstance{
 		{ID: "busy", Status: strategyStatusRunning},
-		{ID: "stopped", Status: strategyStatusStopped, Definition: strategyDefinitionSummary{StrategyID: "definition", Version: "1"}},
+		{ID: "stopped", Status: strategyStatusStopped, Definition: stratsrv.DefinitionSummary{StrategyID: "definition", Version: "1"}},
 	}}}
 	invalid := catalogCoverageDefinition("invalid", "1")
 	invalid.SourceFormat = "visual"
-	if _, err := store.instantiateStrategy(invalid, strategyInstanceBinding{}); err == nil {
+	if _, err := store.instantiateStrategy(invalid, stratsrv.InstanceBinding{}); err == nil {
 		t.Fatal("invalid instantiate error = nil")
 	}
-	if _, err := store.updateStrategyBinding("busy", strategyInstanceBinding{}); !errors.Is(err, errStrategyInstanceBusy) {
+	if _, err := store.updateStrategyBinding("busy", stratsrv.InstanceBinding{}); !errors.Is(err, errStrategyInstanceBusy) {
 		t.Fatalf("busy binding error = %v", err)
 	}
-	if _, err := store.updateStrategyBinding("missing", strategyInstanceBinding{}); !errors.Is(err, os.ErrNotExist) {
+	if _, err := store.updateStrategyBinding("missing", stratsrv.InstanceBinding{}); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("missing binding error = %v", err)
 	}
-	if _, err := store.updateStrategyRuntimeRisk("missing", strategyRuntimeRiskSettings{}); !errors.Is(err, os.ErrNotExist) {
+	if _, err := store.updateStrategyRuntimeRisk("missing", stratsrv.RuntimeRiskSettings{}); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("missing risk error = %v", err)
 	}
 	if _, err := store.refreshStrategyDefinition("missing", catalogCoverageDefinition("definition", "2")); !errors.Is(err, os.ErrNotExist) {
@@ -64,7 +65,7 @@ func TestCatalogLifecycleRemainingValidationAndMissingBoundaries(t *testing.T) {
 	if err := store.reconcileStrategyRuntimeFailure("missing", ""); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("missing reconcile error = %v", err)
 	}
-	unchangedStore := &strategyCatalogStore{data: strategyCatalogFile{Strategies: []managedStrategyInstance{{ID: "stopped", Status: strategyStatusStopped}}}}
+	unchangedStore := &strategyCatalogStore{data: strategyCatalogFile{Strategies: []stratsrv.ManagedInstance{{ID: "stopped", Status: strategyStatusStopped}}}}
 	if changed, err := unchangedStore.reconcileRuntimeStatesOnStartup(); err != nil || changed != 0 {
 		t.Fatalf("unchanged startup reconcile = %d, %v", changed, err)
 	}
@@ -72,11 +73,11 @@ func TestCatalogLifecycleRemainingValidationAndMissingBoundaries(t *testing.T) {
 	if changed, err := store.refreshStrategyDefinitionLocked(nil, catalogCoverageDefinition("definition", "2"), nil, time.Now()); err != nil || changed {
 		t.Fatalf("nil locked refresh = %v, %v", changed, err)
 	}
-	busy := managedStrategyInstance{Status: strategyStatusRunning}
+	busy := stratsrv.ManagedInstance{Status: strategyStatusRunning}
 	if _, err := store.refreshStrategyDefinitionLocked(&busy, catalogCoverageDefinition("definition", "2"), nil, time.Now()); !errors.Is(err, errStrategyInstanceBusy) {
 		t.Fatalf("busy locked refresh error = %v", err)
 	}
-	latest := managedStrategyInstance{Status: strategyStatusStopped, Definition: strategyDefinitionSummary{Version: "2"}}
+	latest := stratsrv.ManagedInstance{Status: strategyStatusStopped, Definition: stratsrv.DefinitionSummary{Version: "2"}}
 	if changed, err := store.refreshStrategyDefinitionLocked(&latest, catalogCoverageDefinition("definition", "2"), nil, time.Now()); err != nil || changed {
 		t.Fatalf("latest locked refresh = %v, %v", changed, err)
 	}
@@ -88,11 +89,11 @@ func TestCatalogLifecycleRemainingPersistenceFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	definition := catalogCoverageDefinition("definition", "2")
-	store.data.Strategies = []managedStrategyInstance{
+	store.data.Strategies = []stratsrv.ManagedInstance{
 		{ID: "binding", Status: strategyStatusStopped, Params: map[string]any{}},
 		{ID: "risk", Status: strategyStatusStopped, Params: map[string]any{}},
-		{ID: "refresh", Status: strategyStatusStopped, Definition: strategyDefinitionSummary{StrategyID: "definition", Version: "1"}, Params: map[string]any{"definitionId": "definition"}},
-		{ID: "apply", Status: strategyStatusStopped, Definition: strategyDefinitionSummary{StrategyID: "definition", Version: "1"}, Params: map[string]any{"definitionId": "definition"}},
+		{ID: "refresh", Status: strategyStatusStopped, Definition: stratsrv.DefinitionSummary{StrategyID: "definition", Version: "1"}, Params: map[string]any{"definitionId": "definition"}},
+		{ID: "apply", Status: strategyStatusStopped, Definition: stratsrv.DefinitionSummary{StrategyID: "definition", Version: "1"}, Params: map[string]any{"definitionId": "definition"}},
 		{ID: "delete", Status: strategyStatusStopped},
 		{ID: "transition", Status: strategyStatusStopped},
 		{ID: "event", Status: strategyStatusStopped},
@@ -102,13 +103,13 @@ func TestCatalogLifecycleRemainingPersistenceFailures(t *testing.T) {
 	if err := store.db.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.instantiateStrategy(catalogCoverageDefinition("new", "1"), strategyInstanceBinding{}); err == nil {
+	if _, err := store.instantiateStrategy(catalogCoverageDefinition("new", "1"), stratsrv.InstanceBinding{}); err == nil {
 		t.Fatal("closed instantiate error = nil")
 	}
-	if _, err := store.updateStrategyBinding("binding", strategyInstanceBinding{}); err == nil {
+	if _, err := store.updateStrategyBinding("binding", stratsrv.InstanceBinding{}); err == nil {
 		t.Fatal("closed binding update error = nil")
 	}
-	if _, err := store.updateStrategyRuntimeRisk("risk", strategyRuntimeRiskSettings{}); err == nil {
+	if _, err := store.updateStrategyRuntimeRisk("risk", stratsrv.RuntimeRiskSettings{}); err == nil {
 		t.Fatal("closed risk update error = nil")
 	}
 	if _, err := store.refreshStrategyDefinition("refresh", definition); err == nil {

@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"encoding/json"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,7 +15,7 @@ func TestEnsureBootstrapFilePersistsInterfaceDefaults(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 
-	defaults := LaunchDefaults{
+	defaults := jfsettings.LaunchDefaults{
 		APIBind: defaultReleaseAPIBind,
 		GUIBind: defaultReleaseGUIBind,
 	}
@@ -27,9 +28,9 @@ func TestEnsureBootstrapFilePersistsInterfaceDefaults(t *testing.T) {
 		t.Fatalf("ReadFile settings: %v", err)
 	}
 	var decoded struct {
-		Interfaces  InterfaceSettings    `json:"interfaces"`
-		Appearance  UIAppearanceSettings `json:"appearance"`
-		Integration *BrokerIntegration   `json:"integration"`
+		Interfaces  jfsettings.InterfaceSettings    `json:"interfaces"`
+		Appearance  jfsettings.UIAppearanceSettings `json:"appearance"`
+		Integration *jfsettings.BrokerIntegration   `json:"integration"`
 	}
 	if err := json.Unmarshal(rawSettings, &decoded); err != nil {
 		t.Fatalf("Unmarshal settings: %v", err)
@@ -40,8 +41,8 @@ func TestEnsureBootstrapFilePersistsInterfaceDefaults(t *testing.T) {
 	if decoded.Interfaces.GUIBind != defaultReleaseGUIBind {
 		t.Fatalf("guiBind = %q", decoded.Interfaces.GUIBind)
 	}
-	if decoded.Interfaces.GUIAPIBaseURL != apiBaseURLForBind(defaultReleaseAPIBind) {
-		t.Fatalf("guiApiBaseUrl = %q", decoded.Interfaces.GUIAPIBaseURL)
+	if decoded.Interfaces.LiveWebSocketConnectionLimit != 20 {
+		t.Fatalf("liveWebSocketConnectionLimit = %d", decoded.Interfaces.LiveWebSocketConnectionLimit)
 	}
 	if decoded.Appearance.UpColor != "#16c784" || decoded.Appearance.DownColor != "#ea3943" {
 		t.Fatalf("appearance settings = %+v", decoded.Appearance)
@@ -57,7 +58,7 @@ func TestInterfaceSettingsUsesStoredOverride(t *testing.T) {
   "interfaces": {
     "apiBind": "127.0.0.1:18080",
     "guiBind": "127.0.0.1:18081",
-    "guiApiBaseUrl": "http://127.0.0.1:18080"
+    "liveWebSocketConnectionLimit": 12
   }
 }`
 	if err := os.WriteFile(settingsPath, []byte(settings), 0o600); err != nil {
@@ -69,14 +70,14 @@ func TestInterfaceSettingsUsesStoredOverride(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 
-	resolved := store.InterfaceSettings(LaunchDefaults{APIBind: defaultReleaseAPIBind, GUIBind: defaultReleaseGUIBind})
+	resolved := store.InterfaceSettings(jfsettings.LaunchDefaults{APIBind: defaultReleaseAPIBind, GUIBind: defaultReleaseGUIBind})
 	if resolved.APIBind != "127.0.0.1:18080" {
 		t.Fatalf("apiBind = %q", resolved.APIBind)
 	}
 	if resolved.GUIBind != "127.0.0.1:18081" {
 		t.Fatalf("guiBind = %q", resolved.GUIBind)
 	}
-	if resolved.GUIAPIBaseURL != "http://127.0.0.1:18080" {
-		t.Fatalf("guiApiBaseUrl = %q", resolved.GUIAPIBaseURL)
+	if resolved.LiveWebSocketConnectionLimit != 12 {
+		t.Fatalf("liveWebSocketConnectionLimit = %d", resolved.LiveWebSocketConnectionLimit)
 	}
 }

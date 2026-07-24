@@ -15,7 +15,7 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	price := 320.5
-	placed := server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
+	placed := server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "9001",
 		BrokerOrderIDEx:    "EXT-9001",
@@ -69,7 +69,7 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 		t.Fatalf("expected broker fill notification, got %#v", server.liveNotificationsAfter(0))
 	}
 
-	placedCancel := server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
+	placedCancel := server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "9002",
 		TradingEnvironment: "SIMULATE",
@@ -157,7 +157,7 @@ func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
 		t.Fatalf("expected one discovered order, got %#v", ordersBefore.Orders)
 	}
 	discovered := ordersBefore.Orders[0]
-	placed := server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
+	placed := server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "9001",
 		BrokerOrderIDEx:    "EXT-9001",

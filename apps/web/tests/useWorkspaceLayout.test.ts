@@ -11,7 +11,6 @@ import {
   type WorkspaceLayoutStore,
 } from "../src/composables/useWorkspaceLayout";
 
-const STORAGE_KEY = "jftrade.workspace.layout.v1";
 const VIEW_STORAGE_KEY = "jftrade.workspace.view.v1";
 const TRADING_STORAGE_KEY = "jftrade.workspace.trading.v1";
 
@@ -40,11 +39,11 @@ function mountLayoutStore() {
 describe("useWorkspaceLayout", () => {
   it("prefers session storage over local storage", () => {
     window.localStorage.setItem(
-      STORAGE_KEY,
+      TRADING_STORAGE_KEY,
       JSON.stringify({ market: "US", symbol: "AAPL" }),
     );
     window.sessionStorage.setItem(
-      STORAGE_KEY,
+      TRADING_STORAGE_KEY,
       JSON.stringify({ market: "HK", symbol: "00700" }),
     );
 
@@ -58,10 +57,15 @@ describe("useWorkspaceLayout", () => {
 
   it("falls back to local storage when session storage is empty", () => {
     window.localStorage.setItem(
-      STORAGE_KEY,
+      TRADING_STORAGE_KEY,
       JSON.stringify({
         market: "US",
         symbol: "AAPL",
+      }),
+    );
+    window.localStorage.setItem(
+      VIEW_STORAGE_KEY,
+      JSON.stringify({
         paneSizes: {
           main: [70, 30],
           leftColumn: [65, 35],
@@ -91,11 +95,11 @@ describe("useWorkspaceLayout", () => {
     await nextTick();
 
     expect(
-      JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? "{}").paneSizes
+      JSON.parse(window.sessionStorage.getItem(VIEW_STORAGE_KEY) ?? "{}").paneSizes
         .bottom,
     ).toEqual([55, 45]);
     expect(
-      JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}").paneSizes
+      JSON.parse(window.localStorage.getItem(VIEW_STORAGE_KEY) ?? "{}").paneSizes
         .bottom,
     ).toEqual([55, 45]);
 
@@ -104,7 +108,7 @@ describe("useWorkspaceLayout", () => {
 
   it("falls back to default pane sizes for invalid stored values", () => {
     window.sessionStorage.setItem(
-      STORAGE_KEY,
+      VIEW_STORAGE_KEY,
       JSON.stringify({
         paneSizes: {
           main: [101, -1],
@@ -245,29 +249,16 @@ describe("useWorkspaceLayout", () => {
     wrapper.unmount();
   });
 
-  it("falls back through malformed current records to a valid legacy layout", () => {
+  it("falls back from malformed current records to current defaults", () => {
     window.sessionStorage.setItem(VIEW_STORAGE_KEY, "{");
     window.sessionStorage.setItem(TRADING_STORAGE_KEY, "{");
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        market: "US",
-        symbol: "MSFT",
-        period: "15m",
-        rightDockTab: "unexpected",
-        rightDockSize: 10,
-        watchlistSidebarWidth: 500,
-        watchlistGroupId: "  ",
-      }),
-    );
-
     const { store, wrapper } = mountLayoutStore();
-    expect(store.prefs.value.market).toBe("US");
-    expect(store.prefs.value.symbol).toBe("MSFT");
-    expect(store.prefs.value.period).toBe("15m");
+    expect(store.prefs.value.market).toBe("HK");
+    expect(store.prefs.value.symbol).toBe("00700");
+    expect(store.prefs.value.period).toBe("1m");
     expect(store.prefs.value.rightDockTab).toBe("notifications");
-    expect(store.prefs.value.rightDockSize).toBe(18);
-    expect(store.prefs.value.watchlistSidebarWidth).toBe(420);
+    expect(store.prefs.value.rightDockSize).toBe(28);
+    expect(store.prefs.value.watchlistSidebarWidth).toBe(280);
     expect(store.prefs.value.watchlistGroupId).toBeNull();
     wrapper.unmount();
   });

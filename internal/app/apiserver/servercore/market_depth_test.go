@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	livecore "github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func acquireTestDepthSubscription(t *testing.T, server *Server, market, symbol string) {
@@ -120,10 +122,10 @@ func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
 	}
 	now := fmt.Sprintf("%d", 0) // placeholder — actual value irrelevant for mock
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    host,
 			APIPort:                 port,
@@ -258,10 +260,10 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 	}
 	now := fmt.Sprintf("%d", 0)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    host,
 			APIPort:                 port,
@@ -285,8 +287,9 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 
 	if err := conn.WriteJSON(liveWebSocketClientMessage{
 		Type: "subscribe",
-		Subscriptions: liveWebSocketSubscriptions{
-			Depth: []liveWebSocketDepthSubscription{{
+		Subscriptions: livecore.Subscriptions{
+			ProviderBrokerID: "futu",
+			Depth: []livecore.DepthSubscription{{
 				Market:       "US",
 				Symbol:       "TME",
 				InstrumentID: "US.TME",
@@ -339,10 +342,10 @@ func TestMarketDepthNumClamping(t *testing.T) {
 	}
 	now := fmt.Sprintf("%d", 0)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    host,
 			APIPort:                 port,
@@ -435,10 +438,10 @@ func TestMarketDepthSymbolCasing(t *testing.T) {
 	}
 	now := fmt.Sprintf("%d", 0)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    host,
 			APIPort:                 port,
@@ -518,10 +521,10 @@ func TestMarketDepthHKMarket(t *testing.T) {
 	}
 	now := fmt.Sprintf("%d", 0)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    host,
 			APIPort:                 port,
@@ -606,10 +609,10 @@ func TestMarketDepthEmptyOrderBook(t *testing.T) {
 	}
 	now := fmt.Sprintf("%d", 0)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    host,
 			APIPort:                 port,
@@ -679,10 +682,10 @@ func TestMarketDepthOpenDError(t *testing.T) {
 	}
 	now := fmt.Sprintf("%d", 0)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    host,
 			APIPort:                 port,

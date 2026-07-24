@@ -107,12 +107,12 @@ func TestManagerPendingLifecycleHandlesMissingCorruptAndUnknownMarkers(t *testin
 
 func TestInspectDatabaseClassifiesFilesystemAndSchemaStates(t *testing.T) {
 	root := t.TempDir()
-	missing := Descriptor{ID: "missing", Path: filepath.Join(root, "missing.db"), Version: SchemaVersion}
+	missing := Descriptor{ID: "missing", Path: filepath.Join(root, "missing.db"), Version: 1}
 	if status := inspectDatabase(t.Context(), missing); status.Status != "missing" || status.CurrentVersion != nil {
 		t.Fatalf("missing status = %#v", status)
 	}
 
-	directory := Descriptor{ID: "directory", Path: filepath.Join(root, "directory.db"), Version: SchemaVersion}
+	directory := Descriptor{ID: "directory", Path: filepath.Join(root, "directory.db"), Version: 1}
 	if err := os.Mkdir(directory.Path, 0o755); err != nil {
 		t.Fatalf("mkdir database path: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestInspectDatabaseClassifiesFilesystemAndSchemaStates(t *testing.T) {
 		t.Fatalf("directory status = %#v", status)
 	}
 
-	legacy := Descriptor{ID: "legacy", Path: filepath.Join(root, "legacy.db"), Version: SchemaVersion}
+	legacy := Descriptor{ID: DatabaseStrategy, Path: filepath.Join(root, "legacy.db"), Version: sqliteschema.StrategyVersion}
 	legacyDB, err := sqlx.Open("sqlite", legacy.Path)
 	if err != nil {
 		t.Fatalf("open legacy database: %v", err)
@@ -131,31 +131,56 @@ func TestInspectDatabaseClassifiesFilesystemAndSchemaStates(t *testing.T) {
 	if err := legacyDB.Close(); err != nil {
 		t.Fatalf("close legacy database: %v", err)
 	}
-	if status := inspectDatabase(t.Context(), legacy); status.Status != "incompatible" || status.Error != "schema metadata is missing or unreadable" {
+	if status := inspectDatabase(t.Context(), legacy); status.Status != "incompatible" || !strings.Contains(status.Error, "schema metadata is missing") {
 		t.Fatalf("legacy status = %#v", status)
 	}
 
-	versioned := Descriptor{ID: "versioned", Path: filepath.Join(root, "versioned.db"), Version: SchemaVersion}
+	versioned := Descriptor{ID: DatabaseStrategy, Path: filepath.Join(root, "versioned.db"), Version: sqliteschema.StrategyVersion}
 	initializeDescriptor(t, versioned)
 	versionDB, err := sqlx.Open("sqlite", versioned.Path)
 	if err != nil {
 		t.Fatalf("open versioned database: %v", err)
 	}
-	if _, err := versionDB.Exec(`UPDATE `+sqliteschema.MetadataTable+` SET version = 2 WHERE component_id = ?`, versioned.ID); err != nil {
+	if _, err := versionDB.Exec(`UPDATE `+sqliteschema.MetadataTable+` SET version = ? WHERE component_id = ?`, sqliteschema.StrategyVersion+1, versioned.ID); err != nil {
 		t.Fatalf("update schema version: %v", err)
 	}
 	if err := versionDB.Close(); err != nil {
 		t.Fatalf("close versioned database: %v", err)
 	}
 	status := inspectDatabase(t.Context(), versioned)
-	if status.Status != "incompatible" || status.CurrentVersion == nil || *status.CurrentVersion != 2 || !strings.Contains(status.Error, "does not match required version") {
+	if status.Status != "incompatible" || status.CurrentVersion == nil || *status.CurrentVersion != sqliteschema.StrategyVersion+1 || !strings.Contains(status.Error, "does not match required version") {
 		t.Fatalf("versioned status = %#v", status)
 	}
 
-	initializeDescriptor(t, Descriptor{ID: "ready", Path: filepath.Join(root, "ready.db"), Version: SchemaVersion})
-	ready := inspectDatabase(t.Context(), Descriptor{ID: "ready", Path: filepath.Join(root, "ready.db"), Version: SchemaVersion})
-	if ready.Status != "ready" || ready.CurrentVersion == nil || *ready.CurrentVersion != SchemaVersion || ready.Error != "" {
+	readyDescriptor := Descriptor{ID: DatabaseStrategy, Path: filepath.Join(root, "ready.db"), Version: sqliteschema.StrategyVersion}
+	initializeDescriptor(t, readyDescriptor)
+	ready := inspectDatabase(t.Context(), readyDescriptor)
+	if ready.Status != "ready" || ready.CurrentVersion == nil || *ready.CurrentVersion != sqliteschema.StrategyVersion || ready.Error != "" {
 		t.Fatalf("ready status = %#v", ready)
+	}
+}
+
+func TestInspectDatabaseRejectsManifestDrift(t *testing.T) {
+	descriptor := Descriptor{
+		ID:      DatabaseStrategy,
+		Path:    filepath.Join(t.TempDir(), "strategy.db"),
+		Version: sqliteschema.StrategyVersion,
+	}
+	initializeDescriptor(t, descriptor)
+	db, err := sqlx.Open("sqlite", descriptor.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE unknown_application_table (id TEXT PRIMARY KEY)`); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	status := inspectDatabase(t.Context(), descriptor)
+	if status.Status != "incompatible" || status.CurrentVersion == nil || !strings.Contains(status.Error, "unknown application table") {
+		t.Fatalf("manifest drift status = %#v", status)
 	}
 }
 
@@ -193,11 +218,18 @@ func TestManagerMarkerPersistenceNormalizesAndSurfacesFilesystemErrors(t *testin
 	}
 
 	tempBlocked := newTestManager(t)
-	if err := os.Mkdir(tempBlocked.markerPath()+".tmp", 0o755); err != nil {
-		t.Fatalf("mkdir marker temp path: %v", err)
+	tempTarget := filepath.Join(t.TempDir(), "must-not-change")
+	if err := os.WriteFile(tempTarget, []byte("unchanged"), 0o600); err != nil {
+		t.Fatalf("write marker symlink target: %v", err)
+	}
+	if err := os.Symlink(tempTarget, tempBlocked.markerPath()+".tmp"); err != nil {
+		t.Fatalf("create marker temp symlink: %v", err)
 	}
 	if err := tempBlocked.writeMarker(marker{DatabaseIDs: []string{DatabaseADK}}); err == nil {
 		t.Fatal("writeMarker(blocked temp) error = nil")
+	}
+	if raw, err := os.ReadFile(tempTarget); err != nil || string(raw) != "unchanged" {
+		t.Fatalf("marker temp symlink target changed: %q, %v", raw, err)
 	}
 
 	renameBlocked := newTestManager(t)
@@ -207,6 +239,42 @@ func TestManagerMarkerPersistenceNormalizesAndSurfacesFilesystemErrors(t *testin
 	if err := renameBlocked.writeMarker(marker{DatabaseIDs: []string{DatabaseADK}}); err == nil {
 		t.Fatal("writeMarker(blocked rename) error = nil")
 	}
+
+	for _, test := range []struct {
+		name     string
+		writeErr error
+		closeErr error
+	}{
+		{name: "write", writeErr: errors.New("marker write failed")},
+		{name: "close", closeErr: errors.New("marker close failed")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			faultManager := newTestManager(t)
+			faultManager.openMarkerTemp = func(string) (markerTemporaryFile, error) {
+				return &markerFaultFile{writeErr: test.writeErr, closeErr: test.closeErr}, nil
+			}
+			err := faultManager.writeMarker(marker{DatabaseIDs: []string{DatabaseADK}})
+			if err == nil || !strings.Contains(err.Error(), "marker "+test.name+" failed") {
+				t.Fatalf("writeMarker(%s failure) error = %v", test.name, err)
+			}
+		})
+	}
+}
+
+type markerFaultFile struct {
+	writeErr error
+	closeErr error
+}
+
+func (f *markerFaultFile) Write(data []byte) (int, error) {
+	if f.writeErr != nil {
+		return 0, f.writeErr
+	}
+	return len(data), nil
+}
+
+func (f *markerFaultFile) Close() error {
+	return f.closeErr
 }
 
 func TestManagerPropagatesUnreadableMarkerAndDatabaseStatErrors(t *testing.T) {
@@ -229,7 +297,7 @@ func TestManagerPropagatesUnreadableMarkerAndDatabaseStatErrors(t *testing.T) {
 	// invalid path keeps this boundary deterministic without requiring the
 	// symbolic-link privilege that is disabled on a default Windows install.
 	invalidPath := filepath.Join(t.TempDir(), "invalid\x00.db")
-	status := inspectDatabase(t.Context(), Descriptor{ID: "invalid", Path: invalidPath, Version: SchemaVersion})
+	status := inspectDatabase(t.Context(), Descriptor{ID: "invalid", Path: invalidPath, Version: 1})
 	if status.Status != "unavailable" || status.Error == "" {
 		t.Fatalf("invalid-path status = %#v", status)
 	}

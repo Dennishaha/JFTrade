@@ -3,6 +3,7 @@ package servercore
 import (
 	"context"
 	"encoding/json"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -155,10 +156,10 @@ func TestServerCloseStopsMarketdataAndPreventsExchangeRevival(t *testing.T) {
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type: "futu", Host: "127.0.0.1", APIPort: 1,
 			WebSocketPort: 11111, MaxWebSocketConnections: 20,
 			TradeMarket: "HK", SecurityFirm: "FUTUSECURITIES",

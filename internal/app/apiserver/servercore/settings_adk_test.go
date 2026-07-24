@@ -3,6 +3,7 @@ package servercore
 import (
 	"bytes"
 	"encoding/json"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -28,8 +29,8 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var getEnvelope struct {
-		OK   bool               `json:"ok"`
-		Data ADKRuntimeSettings `json:"data"`
+		OK   bool                          `json:"ok"`
+		Data jfsettings.ADKRuntimeSettings `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&getEnvelope); err != nil {
 		t.Fatalf("decode GET adk settings: %v", err)
@@ -41,7 +42,7 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 		t.Fatalf("default ADK settings = %+v", getEnvelope.Data)
 	}
 
-	body, jftradeErr1 := json.Marshal(ADKRuntimeSettings{
+	body, jftradeErr1 := json.Marshal(jfsettings.ADKRuntimeSettings{
 		RunTimeoutMs:        10_000,
 		StreamIdleTimeoutMs: 2_000_000,
 	})
@@ -57,8 +58,8 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, saveResp.Body.Close()) }()
 	var saveEnvelope struct {
-		OK   bool               `json:"ok"`
-		Data ADKRuntimeSettings `json:"data"`
+		OK   bool                          `json:"ok"`
+		Data jfsettings.ADKRuntimeSettings `json:"data"`
 	}
 	if err := json.NewDecoder(saveResp.Body).Decode(&saveEnvelope); err != nil {
 		t.Fatalf("decode PUT adk settings: %v", err)
@@ -70,7 +71,7 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 		t.Fatalf("normalized ADK settings = %+v", saveEnvelope.Data)
 	}
 
-	body, jftradeErr1 = json.Marshal(ADKRuntimeSettings{
+	body, jftradeErr1 = json.Marshal(jfsettings.ADKRuntimeSettings{
 		RunTimeoutMs:        99_999_999,
 		StreamIdleTimeoutMs: 300_000,
 	})
@@ -86,8 +87,8 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, maxResp.Body.Close()) }()
 	var maxEnvelope struct {
-		OK   bool               `json:"ok"`
-		Data ADKRuntimeSettings `json:"data"`
+		OK   bool                          `json:"ok"`
+		Data jfsettings.ADKRuntimeSettings `json:"data"`
 	}
 	if err := json.NewDecoder(maxResp.Body).Decode(&maxEnvelope); err != nil {
 		t.Fatalf("decode max PUT adk settings: %v", err)

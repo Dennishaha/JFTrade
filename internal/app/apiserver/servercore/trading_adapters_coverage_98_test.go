@@ -79,7 +79,7 @@ func newTradingAdapterCoverageServer(t *testing.T) *Server {
 }
 
 func recordCancelableExecutionOrder(server *Server, brokerOrderID string, symbol string, status string) trdsrv.ExecutionOrder {
-	return server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
+	return server.executionOrders.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      brokerOrderID,
 		TradingEnvironment: "SIMULATE",

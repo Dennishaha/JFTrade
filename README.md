@@ -106,6 +106,7 @@ pnpm run build:docs
 文档和接口说明生成：
 
 ```bash
+pnpm run generate:contracts
 pnpm run generate:openapi
 pnpm run generate:reference
 pnpm run generate:docs
@@ -114,10 +115,11 @@ pnpm run generate:docs
 其中：
 
 - `generate:openapi` 从 `cmd/jftrade-api` 扫描 Swagger 注释，生成 `docs/swagger/*`
+- `generate:contracts` 统一生成 OpenAPI、Web API 类型和契约基线
 - `generate:reference` 生成 `docs/reference/generated/*`
-- `generate:docs` 顺序执行上面两步
+- `generate:docs` 在契约生成后刷新参考文档
 
-`docs/swagger/*` 和 `docs/reference/generated/*` 是生成产物，不要手工改。
+`docs/swagger/*`、`apps/web/src/generated/openapi.ts`、`tests/fixtures/openapi-baseline.json` 和 `docs/reference/generated/*` 是生成产物，不要手工改。
 
 Protobuf Go 代码生成使用跨平台 Go 命令，并要求本机安装 `protoc 34.1`：
 

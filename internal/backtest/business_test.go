@@ -103,10 +103,10 @@ func TestServiceCoverageAndNormalizationBoundaries(t *testing.T) {
 	}
 	useExtended := true
 	useRegular := false
-	if backtestReadSessionScope(nil) != "auto" || backtestReadSessionScope(&useExtended) != "extended" || backtestReadSessionScope(&useRegular) != "regular" {
+	if backtestReadSessionScope(nil) != "regular" || backtestReadSessionScope(&useExtended) != "extended" || backtestReadSessionScope(&useRegular) != "regular" {
 		t.Fatalf("backtestReadSessionScope returned unexpected values")
 	}
-	if backtestSyncSessionScope(nil) != "legacy" || backtestSyncSessionScope(&useExtended) != "extended" {
+	if backtestSyncSessionScope(nil) != "regular" || backtestSyncSessionScope(&useExtended) != "extended" {
 		t.Fatalf("backtestSyncSessionScope returned unexpected values")
 	}
 	if got := dataSyncKey("US.AAPL", "1m", since, until, "forward", "regular"); !strings.Contains(got, "US.AAPL|1m|") || !strings.HasSuffix(got, "|forward|regular") {

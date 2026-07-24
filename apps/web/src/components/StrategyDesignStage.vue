@@ -6,8 +6,6 @@ import type {
   StrategyDefinitionDocument,
   StrategyInstanceItem,
 } from "@/contracts";
-import type { components } from "@/generated/openapi";
-
 import { apiGet, apiPost, apiPutPath, fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import { usePolling } from "../composables/usePolling";
 import { queryClient, queryKeys } from "../composables/serverState";
@@ -75,14 +73,11 @@ interface StrategyPineAnalyzeResponse {
   features?: string[];
 }
 
-type StrategyDefinitionRequest = components["schemas"]["strategy.StrategyDesignDefinition"];
 type StrategyMobileSection = "definition" | "instruction" | "code";
 const strategyDefinitionsQueryKey = queryKeys.strategyDefinitions();
 
 function fetchStrategyDefinitions(): Promise<StrategyDefinitionDocument[]> {
-  return apiGet<StrategyDefinitionDocument[], "/api/v1/strategy-definitions">(
-    "/api/v1/strategy-definitions",
-  );
+  return apiGet("/api/v1/strategy-definitions");
 }
 
 const strategyDefinitions = ref<StrategyDefinitionDocument[]>([]);
@@ -365,10 +360,10 @@ async function loadStrategies(): Promise<void> {
 }
 
 function applyDefinition(definition: StrategyDefinitionDocument): void {
-  selectedDefinitionId.value = definition.id;
-  definitionName.value = definition.name;
-  definitionVersion.value = definition.version;
-  definitionDescription.value = definition.description;
+  selectedDefinitionId.value = definition.id ?? "";
+  definitionName.value = definition.name ?? "";
+  definitionVersion.value = definition.version ?? "";
+  definitionDescription.value = definition.description ?? "";
   workflow.value = normalizePineV6Workflow(definition.visualModel);
   sourceOverride.value = definition.script || generatedScript.value;
   useSourceOverride.value = false;
@@ -480,28 +475,29 @@ async function saveDefinition(options: { requireAnalysis?: boolean } = {}): Prom
       visualModel: compatibleWorkflowSnapshot(),
       createdAt: selectedDefinition.value?.createdAt ?? "",
       updatedAt: selectedDefinition.value?.updatedAt ?? "",
-    }) as StrategyDefinitionRequest;
+    });
     const existing = strategyDefinitions.value.some((definition) => definition.id === selectedDefinitionId.value);
     const saved = existing
-      ? await apiPutPath<StrategyDefinitionDocument, "/api/v1/strategy-definitions/{definitionId}">(
+      ? await apiPutPath(
         "/api/v1/strategy-definitions/{definitionId}",
         `/api/v1/strategy-definitions/${encodeURIComponent(selectedDefinitionId.value)}`,
         payload,
       )
-      : await apiPost<StrategyDefinitionDocument, "/api/v1/strategy-definitions">(
+      : await apiPost(
         "/api/v1/strategy-definitions",
         payload,
       );
-    selectedDefinitionId.value = saved.id;
+    const savedDefinitionId = saved.id ?? "";
+    selectedDefinitionId.value = savedDefinitionId;
     queryClient.setQueryData<StrategyDefinitionDocument[]>(
       strategyDefinitionsQueryKey,
       (current) => {
-        const next = current?.filter((definition) => definition.id !== saved.id) ?? [];
+        const next = current?.filter((definition) => definition.id !== savedDefinitionId) ?? [];
         return [...next, saved];
       },
     );
     await queryClient.invalidateQueries({ queryKey: strategyDefinitionsQueryKey, refetchType: "none" });
-    await loadStrategyDefinitions(saved.id);
+    await loadStrategyDefinitions(savedDefinitionId);
     showActionFeedback("save");
     return saved;
   } catch (cause) {

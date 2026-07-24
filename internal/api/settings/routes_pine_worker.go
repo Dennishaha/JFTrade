@@ -15,7 +15,7 @@ import (
 // @Summary 读取 PineTS worker 设置
 // @Tags settings
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.PineWorkerSettings}
 // @Router /api/v1/settings/pine-worker [get]
 func handlePineWorkerSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -29,7 +29,7 @@ func handlePineWorkerSettings(svc *srv.Service) gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param request body jfsettings.PineWorkerSettings true "PineTS worker 设置"
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=jfsettings.PineWorkerSettings}
 // @Failure 400 {object} httpserver.Envelope
 // @Router /api/v1/settings/pine-worker [put]
 func handleSavePineWorkerSettings(svc *srv.Service) gin.HandlerFunc {

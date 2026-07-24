@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
 )
@@ -20,11 +21,11 @@ func TestStrategyRuntimeNotifyOnlyEmitsSignalNotification(t *testing.T) {
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -86,11 +87,11 @@ func TestStrategyRuntimeStartEnsuresMissingMarketMetadata(t *testing.T) {
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.TME"},
 		Interval:      "5m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -126,11 +127,11 @@ func TestStrategyRuntimeStartRejectsWhenInstanceWorkerLimitReached(t *testing.T)
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return newStrategyRuntimeStubExchange() }
 	useFakeStrategyRuntimePineWorker(server, newFakeStrategyRuntimePineWorker())
 
-	firstID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	firstID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	firstRecord, ok := server.strategyStore.strategy(firstID)
 	if !ok {
@@ -141,11 +142,11 @@ func TestStrategyRuntimeStartRejectsWhenInstanceWorkerLimitReached(t *testing.T)
 	}
 	defer server.strategyRuntimeManager.stopStrategy(firstID)
 
-	secondID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	secondID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.MSFT"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	secondRecord, ok := server.strategyStore.strategy(secondID)
 	if !ok {
@@ -172,11 +173,11 @@ func TestStrategyRuntimeLiveWorkerRequestIncludesModeCandlesAndParams(t *testing
 	worker := newFakeStrategyRuntimePineWorker()
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -219,11 +220,11 @@ func TestStrategyRuntimeLiveWorkerErrorRecordsRuntimeError(t *testing.T) {
 	worker.err = errors.New("worker crashed")
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {

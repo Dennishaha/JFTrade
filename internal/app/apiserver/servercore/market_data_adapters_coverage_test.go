@@ -8,6 +8,7 @@ import (
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type marketDataCoverageBroker struct{ reader broker.MarketDataReader }
@@ -44,7 +45,7 @@ func newMarketDataAdapterCoverageServer(t *testing.T, reader broker.MarketDataRe
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	if _, err := settings.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{Type: "futu", Host: "127.0.0.1", APIPort: 1})}); err != nil {
+	if _, err := settings.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{Type: "futu", Host: "127.0.0.1", APIPort: 1})}); err != nil {
 		t.Fatalf("SaveIntegration: %v", err)
 	}
 	registry := broker.NewRegistry()

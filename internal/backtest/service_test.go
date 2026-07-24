@@ -177,7 +177,7 @@ func TestEnsureScriptDataReturnsReadyAndIncludesDerivedWarmup(t *testing.T) {
 		WithDBPathFn(func() string { return "/tmp/coverage.db" }),
 		WithKLineCoverageCheckFn(func(_ string, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error {
 			checkedSince = since
-			if symbol != "US.AAPL" || interval != "1m" || rehabType != "forward" || sessionScope != "auto" {
+			if symbol != "US.AAPL" || interval != "1m" || rehabType != "forward" || sessionScope != "regular" {
 				t.Fatalf("coverage args = %s %s %s %s", symbol, interval, rehabType, sessionScope)
 			}
 			return nil

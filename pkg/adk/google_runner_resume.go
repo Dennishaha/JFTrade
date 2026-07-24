@@ -12,7 +12,7 @@ import (
 	"google.golang.org/genai"
 )
 
-func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, bool, error) {
+func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *TranscriptEntry, bool, error) {
 	execution, handled, err := r.loadResumedExecution(ctx, run)
 	if err != nil || !handled {
 		return run, nil, handled, err
@@ -43,7 +43,7 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 	return r.completeResumedExecution(ctx, run, execution)
 }
 
-func (r *Runtime) resumeGoogleADKDirect(ctx context.Context, run Run) (Run, *Message, bool, error) {
+func (r *Runtime) resumeGoogleADKDirect(ctx context.Context, run Run) (Run, *TranscriptEntry, bool, error) {
 	execution, err := r.rehydrateGoogleADKExecution(ctx, run)
 	if err != nil {
 		return run, nil, true, err
@@ -171,7 +171,7 @@ func persistResumedApprovalMessage(ctx context.Context, r *Runtime, run Run, exe
 	return run
 }
 
-func (r *Runtime) completeResumedExecution(ctx context.Context, run Run, execution *googleADKExecution) (Run, *Message, bool, error) {
+func (r *Runtime) completeResumedExecution(ctx context.Context, run Run, execution *googleADKExecution) (Run, *TranscriptEntry, bool, error) {
 	initialDenied := runHasDeniedApproval(run.PendingApprovals)
 	if !initialDenied {
 		if err := r.ensureGoogleADKFinalReply(ctx, execution.agent, Session{ID: run.SessionID, AgentID: run.AgentID}, execution, run.ID, run.UserMessage); err != nil {
@@ -191,7 +191,7 @@ func (r *Runtime) completeResumedExecution(ctx context.Context, run Run, executi
 	return run, message, true, nil
 }
 
-func (r *Runtime) completeDirectResumedExecution(ctx context.Context, run Run, execution *googleADKExecution) (Run, *Message, bool, error) {
+func (r *Runtime) completeDirectResumedExecution(ctx context.Context, run Run, execution *googleADKExecution) (Run, *TranscriptEntry, bool, error) {
 	run, denied := hydrateResumedRun(run, execution)
 	result := finalizeResumedResult(run, execution.resultForRun(run.ID), denied)
 	run.CompletedAt = new(nowString())
@@ -205,7 +205,7 @@ func (r *Runtime) completeDirectResumedExecution(ctx context.Context, run Run, e
 	return run, message, true, nil
 }
 
-func (r *Runtime) failResumedExecution(ctx context.Context, run Run, execution *googleADKExecution, cause error) (Run, *Message, bool, error) {
+func (r *Runtime) failResumedExecution(ctx context.Context, run Run, execution *googleADKExecution, cause error) (Run, *TranscriptEntry, bool, error) {
 	run, _ = hydrateResumedRun(run, execution)
 	run = markFailedChatRun(ctx, run, cause)
 	if err := r.persistRunTerminalState(ctx, run); err != nil {
@@ -315,7 +315,7 @@ func markFailedResumedRunIfNeeded(run Run) Run {
 	return run
 }
 
-func (r *Runtime) persistResumedRunResult(ctx context.Context, run Run, result openAIChatResult) (*Message, error) {
+func (r *Runtime) persistResumedRunResult(ctx context.Context, run Run, result openAIChatResult) (*TranscriptEntry, error) {
 	message, err := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
 	if err != nil {
 		return nil, err

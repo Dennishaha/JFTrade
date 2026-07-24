@@ -445,9 +445,9 @@ func TestStreamReconnectAndSkillContracts(t *testing.T) {
 	if skillList.Code != http.StatusOK || !strings.Contains(skillList.Body.String(), "jftrade-market") {
 		t.Fatalf("skill list status=%d body=%s", skillList.Code, skillList.Body.String())
 	}
-	skillRemoved := performAssistantRequest(router, http.MethodPut, "/api/v1/adk/skills/jftrade-market", nil)
-	if skillRemoved.Code != http.StatusGone || !strings.Contains(skillRemoved.Body.String(), "ADK_SKILL_UPDATE_REMOVED") {
-		t.Fatalf("skill removed status=%d body=%s", skillRemoved.Code, skillRemoved.Body.String())
+	skillUpdate := performAssistantRequest(router, http.MethodPut, "/api/v1/adk/skills/jftrade-market", nil)
+	if skillUpdate.Code != http.StatusNotFound {
+		t.Fatalf("removed skill update status=%d body=%s, want 404", skillUpdate.Code, skillUpdate.Body.String())
 	}
 	skillInstallInvalid := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/skills", []byte(`{"url":"ftp://invalid-skill"}`))
 	if skillInstallInvalid.Code != http.StatusBadRequest || !strings.Contains(skillInstallInvalid.Body.String(), "valid http/https skill URL is required") {

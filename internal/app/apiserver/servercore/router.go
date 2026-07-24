@@ -20,6 +20,7 @@ import (
 	apiroutes "github.com/jftrade/jftrade-main/internal/api/system"
 	apitrading "github.com/jftrade/jftrade-main/internal/api/trading"
 	apiwatchlist "github.com/jftrade/jftrade-main/internal/api/watchlist"
+	live "github.com/jftrade/jftrade-main/internal/live"
 )
 
 func (s *Server) buildRouter() *gin.Engine {
@@ -144,7 +145,7 @@ func (s *Server) registerSettingsRoutes(api *gin.RouterGroup) {
 // @Failure 500 {object} httpserver.Envelope
 // @Router /api/v1/settings/system-notifications/test [post]
 func (s *Server) handleSystemNotificationTest(c *gin.Context) {
-	event, delivery := s.recordLiveNotificationWithDelivery(liveNotification{
+	event, delivery := s.recordLiveNotificationWithDelivery(live.Notification{
 		Level:    "warn",
 		Title:    "JFTrade 系统通知测试",
 		Message:  "系统通知通道已连接。",

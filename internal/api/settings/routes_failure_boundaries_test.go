@@ -144,7 +144,7 @@ func TestOnboardingCanBeResetWithoutLosingLastBroker(t *testing.T) {
 	}
 }
 
-func TestDataMigrationStatusMapsCallbackFailure(t *testing.T) {
+func TestDataManagementStatusMapsCallbackFailure(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	service := srvsettings.NewService(&routeStore{})
 	dataManagementSvc := dmsrv.NewService(routeDataManagementBackend{
@@ -155,7 +155,7 @@ func TestDataMigrationStatusMapsCallbackFailure(t *testing.T) {
 	router := gin.New()
 	apisettings.RegisterRoutes(router.Group("/api/v1"), service, dataManagementSvc)
 
-	response := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/data-migration/databases", "")
+	response := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/data-management/databases", "")
 	if response.Code != http.StatusInternalServerError || !strings.Contains(response.Body.String(), `"code":"DATABASE_STATUS_FAILED"`) {
 		t.Fatalf("response = %d %s", response.Code, response.Body.String())
 	}

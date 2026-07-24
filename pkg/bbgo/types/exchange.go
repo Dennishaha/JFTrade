@@ -110,9 +110,6 @@ type ExchangePublic interface {
 	ExchangeMarketDataService
 }
 
-// ExchangeBasic is the new type for replacing the original Exchange interface
-type ExchangeBasic = Exchange
-
 // ExchangeOrderQueryService provides an interface for querying the order status via order ID or client order ID
 //
 //go:generate mockgen -destination=mocks/mock_order_query.go -package=mocks . ExchangeOrderQueryService

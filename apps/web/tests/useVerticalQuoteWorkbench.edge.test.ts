@@ -56,7 +56,7 @@ function mountHarness(input: Record<string, unknown>) {
 }
 
 describe("useVerticalQuoteWorkbench edge behavior", () => {
-  it("falls back to legacy entry fields, scalar strings, and default errors", async () => {
+  it("uses the explicit target and minimal quote seed while preserving default errors", async () => {
     mocks.fetchEnvelope.mockImplementation((path: string) => {
       if (path.includes("/snapshots/")) return Promise.reject(new Error(" "));
       if (path.includes("/securities/")) return Promise.reject("offline");
@@ -99,20 +99,17 @@ describe("useVerticalQuoteWorkbench edge behavior", () => {
     });
     mocks.getWatchlistMembership.mockRejectedValue(new Error("watchlist down"));
     const wrapper = mountHarness({
-      entry: {
+      target: {
+        kind: "instrument",
         instrumentId: "US.EDGE",
-        title: "Edge Corp",
+        name: "Edge Corp",
         productClass: "equity",
-        curPrice: "12.5",
+      },
+      seed: {
+        name: "Edge Corp",
+        lastPrice: 12.5,
         previousClosePrice: 0,
-        changeRate: "-3.5",
-        high: "13",
-        low: "bad",
-        open: "11.5",
-        volume: 123,
-        turnover: 12_345,
-        status: "HALTED",
-        quoteTime: "not-a-time",
+        changeRate: -3.5,
       },
       brokerId: " FUTU ",
       visible: false,
@@ -122,10 +119,10 @@ describe("useVerticalQuoteWorkbench edge behavior", () => {
     expect(wrapper.get(".price").text()).toBe("12.5");
     expect(wrapper.get(".amount").text()).toBe("12.5");
     expect(wrapper.get(".rate").text()).toBe("-3.5");
-    expect(wrapper.get(".status").text()).toContain("HALTED");
-    expect(wrapper.text()).toContain("最高=13");
+    expect(wrapper.get(".status").text()).toBe("");
+    expect(wrapper.text()).toContain("最高=--");
     expect(wrapper.text()).toContain("最低=--");
-    expect(wrapper.text()).toContain("成交额=1.23万");
+    expect(wrapper.text()).toContain("成交额=--");
 
     const state = wrapper.vm.$.setupState as unknown as {
       snapshotError: string;
@@ -155,8 +152,8 @@ describe("useVerticalQuoteWorkbench edge behavior", () => {
 
   it("returns early for an unresolved target and computes UTC cursors", async () => {
     const wrapper = mountHarness({
-      entry: { code: "600519", name: "贵州茅台" },
-      market: "CN",
+      target: null,
+      seed: { name: "贵州茅台" },
       brokerId: "futu",
       visible: false,
     });

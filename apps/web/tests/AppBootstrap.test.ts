@@ -8,7 +8,6 @@ const bootstrap = vi.hoisted(() => {
   return {
     app,
     createApp: vi.fn(() => app),
-    createPinia: vi.fn(() => ({ kind: "pinia" })),
     createRouter: vi.fn(() => ({ kind: "router" })),
     createVuetify: vi.fn(() => ({ kind: "vuetify" })),
   };
@@ -18,7 +17,6 @@ vi.mock("vue", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue")>()),
   createApp: bootstrap.createApp,
 }));
-vi.mock("pinia", () => ({ createPinia: bootstrap.createPinia }));
 vi.mock("vuetify", () => ({ createVuetify: bootstrap.createVuetify }));
 vi.mock("vuetify/components", () => ({}));
 vi.mock("vuetify/directives", () => ({}));
@@ -35,16 +33,14 @@ describe("application bootstrap", () => {
     bootstrap.app.use.mockReset().mockReturnValue(bootstrap.app);
     bootstrap.app.mount.mockReset();
     bootstrap.createApp.mockClear();
-    bootstrap.createPinia.mockClear();
     bootstrap.createRouter.mockClear();
     bootstrap.createVuetify.mockClear();
   });
 
-  it("creates one dark-console application with state, query, router, and Vuetify plugins", async () => {
+  it("creates one dark-console application with query, router, and Vuetify plugins", async () => {
     await import("../src/main");
 
     expect(bootstrap.createApp).toHaveBeenCalledWith({ name: "JFTradeConsole" });
-    expect(bootstrap.createPinia).toHaveBeenCalledOnce();
     expect(bootstrap.createRouter).toHaveBeenCalledOnce();
     expect(bootstrap.createVuetify).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -58,14 +54,13 @@ describe("application bootstrap", () => {
         }),
       }),
     );
-    expect(bootstrap.app.use).toHaveBeenNthCalledWith(1, { kind: "pinia" });
     expect(bootstrap.app.use).toHaveBeenNthCalledWith(
-      2,
+      1,
       { kind: "query-plugin" },
       { queryClient: { kind: "query-client" } },
     );
-    expect(bootstrap.app.use).toHaveBeenNthCalledWith(3, { kind: "router" });
-    expect(bootstrap.app.use).toHaveBeenNthCalledWith(4, { kind: "vuetify" });
+    expect(bootstrap.app.use).toHaveBeenNthCalledWith(2, { kind: "router" });
+    expect(bootstrap.app.use).toHaveBeenNthCalledWith(3, { kind: "vuetify" });
     expect(bootstrap.app.mount).toHaveBeenCalledWith("#app");
   });
 });

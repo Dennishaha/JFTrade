@@ -329,7 +329,7 @@ export interface MarketDataTickLiveEvent {
 
 function isMarketDataTickLiveEvent(
   event: unknown,
-): event is MarketDataTickLiveEvent {
+): event is MarketDataTickLiveEvent & Record<string, unknown> {
   return (
     typeof event === "object" &&
     event !== null &&
@@ -350,7 +350,7 @@ export function normalizeMarketDataTickLiveEvent(
   if (snapshot == null) {
     return null;
   }
-  const eventRecord = event as unknown as Record<string, unknown>;
+  const eventRecord = event;
   const cumulativeVolume = normalizeNumberish(eventRecord.cumulativeVolume);
   const volumeDelta = normalizeNumberish(eventRecord.volumeDelta);
   return {

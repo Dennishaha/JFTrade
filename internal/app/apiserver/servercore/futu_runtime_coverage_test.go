@@ -10,6 +10,7 @@ import (
 
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func enabledFutuRuntimeCoverageServer(t *testing.T) *Server {
@@ -26,7 +27,7 @@ func enabledFutuRuntimeCoverageServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := settings.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	if _, err := settings.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type: "futu", Host: "127.0.0.1", APIPort: port,
 	})}); err != nil {
 		t.Fatal(err)

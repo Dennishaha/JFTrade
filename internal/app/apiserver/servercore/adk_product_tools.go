@@ -90,8 +90,8 @@ func registerJFTradeProductTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 			Name: item.name, DisplayName: item.displayName,
 			Description: "通过券商抽象和统一产品服务读取数据；支持 brokerId、分页和权限归因。",
 			Category:    item.category, Permission: "read_internal", RiskLevel: "low",
-			OutputSummary: "返回实际券商、能力状态、数据时间、分页、warnings 和 partial errors。",
-			RequiredSkill: item.skill, InputSchema: productToolInputSchema(item.name),
+			OutputSummary:  "返回实际券商、能力状态、数据时间、分页、warnings 和 partial errors。",
+			RequiredSkills: []string{item.skill}, InputSchema: productToolInputSchema(item.name),
 		}, func(ctx context.Context, input map[string]any) (any, error) {
 			if deps.ProductTool == nil {
 				return nil, fmt.Errorf("product feature service is unavailable")
@@ -106,8 +106,8 @@ func registerJFTradeProductTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 			Description: "执行统一单腿、期权组合或预测市场订单操作；每次调用均要求审批。",
 			Category:    "execution", Permission: "live_trading", RiskLevel: "critical",
 			AllowedModes: approvalModes(), RequiresApprovalIn: approvalModes(),
-			OutputSummary: "返回预检、内部订单、券商订单和生命周期状态。",
-			RequiredSkill: "jftrade-trading", InputSchema: productToolInputSchema(item.name),
+			OutputSummary:  "返回预检、内部订单、券商订单和生命周期状态。",
+			RequiredSkills: []string{"jftrade-trading"}, InputSchema: productToolInputSchema(item.name),
 		}, func(ctx context.Context, input map[string]any) (any, error) {
 			if deps.ExecutionTool == nil {
 				return nil, fmt.Errorf("execution service is unavailable")
@@ -122,8 +122,8 @@ func registerJFTradeProductTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 			Description: "修改券商侧提醒或自选数据；每次调用均要求审批。",
 			Category:    "customization", Permission: "write_external", RiskLevel: "high",
 			AllowedModes: approvalModes(), RequiresApprovalIn: approvalModes(),
-			OutputSummary: "返回实际券商、变更结果和数据时间。",
-			RequiredSkill: item.skill, InputSchema: productToolInputSchema(item.name),
+			OutputSummary:  "返回实际券商、变更结果和数据时间。",
+			RequiredSkills: []string{item.skill}, InputSchema: productToolInputSchema(item.name),
 		}, func(ctx context.Context, input map[string]any) (any, error) {
 			if deps.ProductTool == nil {
 				return nil, fmt.Errorf("product feature service is unavailable")

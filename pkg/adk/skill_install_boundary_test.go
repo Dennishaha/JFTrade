@@ -9,8 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 func TestSkillInstallAdditionalBoundaryBranches(t *testing.T) {
@@ -109,19 +107,7 @@ func TestSkillInstallAdditionalBoundaryBranches(t *testing.T) {
 		}
 	})
 
-	t.Run("builtin cleanup and copy helpers surface additional filesystem failures", func(t *testing.T) {
-		registry := &SkillRegistry{skillsPath: t.TempDir()}
-		legacyDir := filepath.Join(registry.skillsPath, strategypinespec.LegacyBuiltinSkillName)
-		if err := os.MkdirAll(filepath.Join(legacyDir, "SKILL.md"), 0o755); err != nil {
-			t.Fatalf("MkdirAll legacy SKILL.md directory: %v", err)
-		}
-		if err := registry.removeLegacyBuiltinSkills(); err == nil {
-			t.Fatal("removeLegacyBuiltinSkills accepted unreadable legacy SKILL.md")
-		}
-		if err := registry.ensureBuiltins(); err == nil {
-			t.Fatal("ensureBuiltins accepted unreadable legacy SKILL.md")
-		}
-
+	t.Run("copy helpers surface additional filesystem failures", func(t *testing.T) {
 		root := t.TempDir()
 		source := filepath.Join(root, "source")
 		if err := os.MkdirAll(source, 0o755); err != nil {

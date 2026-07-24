@@ -10,6 +10,7 @@ import (
 	"time"
 
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -24,7 +25,7 @@ func TestBacktestRouteAcceptsExplicitMarketAndCode(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           "dsl-market-code-route",
 		Name:         "Pine Market Code Route",
 		Version:      "0.1.0",
@@ -98,7 +99,7 @@ func TestEnqueueBacktestUsesPineInitialCapitalWhenRequestOmitsBalance(t *testing
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           "pine-initial-capital",
 		Name:         "Pine Initial Capital",
 		Version:      "0.1.0",

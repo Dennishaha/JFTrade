@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"encoding/json"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -15,10 +16,10 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
+	if err := server.strategyStore.saveStrategy(stratsrv.ManagedInstance{
 		ID:       "instance-running",
 		PluginID: "demo-plugin",
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "demo-plugin",
 			Name:       "Demo Plugin",
 			Version:    "1.0.0",
@@ -137,10 +138,10 @@ func TestNewServerReconcilesPersistedActiveStrategyStates(t *testing.T) {
 		t.Fatalf("NewSettingsStore initial: %v", err)
 	}
 	initialServer := newTestServer(t, initialStore)
-	if err := initialServer.strategyStore.saveStrategy(managedStrategyInstance{
+	if err := initialServer.strategyStore.saveStrategy(stratsrv.ManagedInstance{
 		ID:       "instance-running",
 		PluginID: "demo-plugin",
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "demo-plugin",
 			Name:       "Demo Plugin",
 			Version:    "1.0.0",

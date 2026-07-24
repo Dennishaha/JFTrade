@@ -51,7 +51,6 @@ function findLiveEventStream(): MockWebSocket | undefined {
 
 describe("TopBar trading environment switch", () => {
   it("keeps compact topbar to primary controls plus search and moves environment switching into the account picker", async () => {
-    window.sessionStorage.removeItem("jftrade.workspace.layout.v1");
 
     vi.stubGlobal(
       "matchMedia",
@@ -203,7 +202,6 @@ describe("TopBar trading environment switch", () => {
     await flushRequests();
 
     wrapper.unmount();
-    window.sessionStorage.removeItem("jftrade.workspace.layout.v1");
   });
 
   it("filters account list in picker by environment and auto-selects the first available account", async () => {
@@ -764,7 +762,6 @@ describe("TopBar trading environment switch", () => {
   });
 
   it("resolves an A-share category input and persists the actual exchange", async () => {
-    window.sessionStorage.removeItem("jftrade.workspace.layout.v1");
 
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
@@ -955,7 +952,7 @@ describe("TopBar trading environment switch", () => {
     await flushRequests();
 
     const storedPrefs = JSON.parse(
-      window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+      window.sessionStorage.getItem("jftrade.workspace.trading.v1") ?? "{}",
     ) as { market?: string; symbol?: string };
 
     expect(storedPrefs.market).toBe("SH");
@@ -966,7 +963,7 @@ describe("TopBar trading environment switch", () => {
     await flushRequests();
 
     const usPrefs = JSON.parse(
-      window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+      window.sessionStorage.getItem("jftrade.workspace.trading.v1") ?? "{}",
     ) as { market?: string; symbol?: string };
     expect(usPrefs).toMatchObject({ market: "US", symbol: "AAPL" });
     expect(
@@ -992,7 +989,7 @@ describe("TopBar trading environment switch", () => {
     await flushRequests();
     expect(
       JSON.parse(
-        window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+        window.sessionStorage.getItem("jftrade.workspace.trading.v1") ?? "{}",
       ),
     ).toMatchObject({ market: "US", symbol: "MSFT" });
 

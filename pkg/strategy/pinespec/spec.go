@@ -16,7 +16,6 @@ const (
 	SourceFormat             = strategydefinition.SourceFormatPineV6
 	Runtime                  = pineworker.RuntimeID
 	ToolName                 = "strategy.pine_spec"
-	LegacyBuiltinSkillName   = "jftrade-strategy"
 	ResearchBuiltinSkillName = "jftrade-strategy-research"
 	PublishBuiltinSkillName  = "jftrade-strategy-publish"
 	BuiltinSkillVersion      = "10"

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -17,6 +19,7 @@ const testADKProviderID = "test-provider"
 // SQLite database connections are released even when tests fail.
 func newTestServer(t *testing.T, store *SettingsStore) *Server {
 	t.Helper()
+	isolateTestBacktestDatabase(t, store)
 	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
 	if server.marketdataSvc != nil {
@@ -43,6 +46,7 @@ func newTestServer(t *testing.T, store *SettingsStore) *Server {
 // connections are released.
 func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 	t.Helper()
+	isolateTestBacktestDatabase(t, store)
 	disableTestExchangeCalendarAutoRefresh(t, store)
 	server := NewServer(store)
 	if server.marketdataSvc != nil {
@@ -59,6 +63,14 @@ func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+func isolateTestBacktestDatabase(t *testing.T, store *SettingsStore) {
+	t.Helper()
+	if strings.TrimSpace(os.Getenv("JFTRADE_BACKTEST_DB")) != "" || store == nil {
+		return
+	}
+	t.Setenv("JFTRADE_BACKTEST_DB", filepath.Join(filepath.Dir(store.Path()), "backtest.db"))
 }
 
 func disableTestExchangeCalendarAutoRefresh(t *testing.T, store *SettingsStore) {

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
@@ -27,7 +28,7 @@ func TestStrategyRuntimeAdapterAllowsBrokerExecutedLiveSemantics(t *testing.T) {
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		ID:           "runtime-live-semantics-test",
 		Name:         "Runtime Live Semantics Test",
 		Version:      "0.1.0",
@@ -38,11 +39,11 @@ strategy("Live", default_qty_type=strategy.percent_of_equity)
 strategy.entry("Long", strategy.long, qty_percent=10)
 strategy.cancel_all()`,
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
@@ -98,36 +99,36 @@ func TestStrategyRuntimeManagerStartValidationAndReservationBoundaries(t *testin
 		t.Fatalf("activeInstrumentIDs = %s", got)
 	}
 
-	err := manager.startStrategy(context.Background(), managedStrategyInstance{
+	err := manager.startStrategy(context.Background(), stratsrv.ManagedInstance{
 		ID:      "bad-interval",
-		Binding: strategyInstanceBinding{Interval: "bad", Symbols: []string{"US.AAPL"}},
+		Binding: stratsrv.InstanceBinding{Interval: "bad", Symbols: []string{"US.AAPL"}},
 		Params:  map[string]any{"script": "strategy.entry(\"Long\", strategy.long)"},
 	})
 	if err == nil || !strings.Contains(err.Error(), "invalid") {
 		t.Fatalf("invalid interval startStrategy error = %v", err)
 	}
 
-	err = manager.startStrategy(context.Background(), managedStrategyInstance{
+	err = manager.startStrategy(context.Background(), stratsrv.ManagedInstance{
 		ID:      "no-symbols",
-		Binding: strategyInstanceBinding{Interval: "1m"},
+		Binding: stratsrv.InstanceBinding{Interval: "1m"},
 		Params:  map[string]any{"script": "strategy.entry(\"Long\", strategy.long)"},
 	})
 	if err == nil || !strings.Contains(err.Error(), "at least one symbol") {
 		t.Fatalf("empty symbols startStrategy error = %v", err)
 	}
 
-	err = manager.startStrategy(context.Background(), managedStrategyInstance{
+	err = manager.startStrategy(context.Background(), stratsrv.ManagedInstance{
 		ID:      "missing-script",
-		Binding: strategyInstanceBinding{Interval: "1m", Symbols: []string{"US.AAPL"}},
+		Binding: stratsrv.InstanceBinding{Interval: "1m", Symbols: []string{"US.AAPL"}},
 		Params:  map[string]any{"script": "  "},
 	})
 	if err == nil || !strings.Contains(err.Error(), "missing script") {
 		t.Fatalf("missing script startStrategy error = %v", err)
 	}
 
-	err = manager.startStrategy(context.Background(), managedStrategyInstance{
+	err = manager.startStrategy(context.Background(), stratsrv.ManagedInstance{
 		ID:      "running",
-		Binding: strategyInstanceBinding{Interval: "1m", Symbols: []string{"US.AAPL"}},
+		Binding: stratsrv.InstanceBinding{Interval: "1m", Symbols: []string{"US.AAPL"}},
 		Params:  map[string]any{"script": "strategy.entry(\"Long\", strategy.long)"},
 	})
 	if err == nil || !strings.Contains(err.Error(), "already running") {
@@ -195,7 +196,7 @@ func TestStrategySymbolRuntimeTradeBucketsAndOrderSignals(t *testing.T) {
 	}
 
 	notifyExecutor := &strategyNotifyOnlyOrderExecutor{
-		instance: managedStrategyInstance{Definition: strategyDefinitionSummary{Name: "  Runtime Strategy  "}},
+		instance: stratsrv.ManagedInstance{Definition: stratsrv.DefinitionSummary{Name: "  Runtime Strategy  "}},
 		runner:   runner,
 	}
 	message := notifyExecutor.describeOrderSignal(bbgotypes.SubmitOrder{
@@ -218,19 +219,19 @@ func TestStrategySymbolRuntimeTradeBucketsAndOrderSignals(t *testing.T) {
 }
 
 func TestStrategyRuntimeAccountAndFormattingBoundaries(t *testing.T) {
-	if got := strategyRuntimeBrokerID(strategyInstanceBinding{}); got != "futu" {
+	if got := strategyRuntimeBrokerID(stratsrv.InstanceBinding{}); got != "futu" {
 		t.Fatalf("default broker id = %q, want futu", got)
 	}
-	if got := strategyRuntimeBrokerID(strategyInstanceBinding{BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "  Futu-Sim  "}}); got != "futu-sim" {
+	if got := strategyRuntimeBrokerID(stratsrv.InstanceBinding{BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "  Futu-Sim  "}}); got != "futu-sim" {
 		t.Fatalf("normalized broker id = %q", got)
 	}
-	if got := strategyRuntimeDisplayName(managedStrategyInstance{
+	if got := strategyRuntimeDisplayName(stratsrv.ManagedInstance{
 		ID:         "inst-id",
-		Definition: strategyDefinitionSummary{StrategyID: "definition-id"},
+		Definition: stratsrv.DefinitionSummary{StrategyID: "definition-id"},
 	}, nil); got != "definition-id" {
 		t.Fatalf("display name = %q, want definition-id", got)
 	}
-	if got := strategyRuntimeDisplayName(managedStrategyInstance{ID: "inst-id"}, &strategySymbolRuntime{name: " runner-name "}); got != "runner-name" {
+	if got := strategyRuntimeDisplayName(stratsrv.ManagedInstance{ID: "inst-id"}, &strategySymbolRuntime{name: " runner-name "}); got != "runner-name" {
 		t.Fatalf("runner display name = %q, want runner-name", got)
 	}
 	if got := strategyRuntimeSideLabel(bbgotypes.SideTypeSell); got != "卖出" {

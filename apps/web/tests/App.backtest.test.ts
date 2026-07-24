@@ -197,6 +197,7 @@ describe("Backtest page", () => {
           derivedWarmupBars: 120,
           derivedWarmupInterval: "15m",
         },
+		{},
       ],
     });
 

@@ -17,13 +17,10 @@ import (
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
-func TestStoreBuiltinSkillsSplitStrategySkillAndRemoveLegacyRecord(t *testing.T) {
+func TestStoreBuiltinSkillsSplitStrategySkill(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 	store := runtime.Store()
-	if _, ok, err := store.Skill(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || ok {
-		t.Fatalf("legacy store skill ok=%v err=%v, want absent", ok, err)
-	}
 	for _, skillName := range []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName} {
 		skill, ok, err := store.Skill(ctx, skillName)
 		if err != nil || !ok {
@@ -32,26 +29,6 @@ func TestStoreBuiltinSkillsSplitStrategySkillAndRemoveLegacyRecord(t *testing.T)
 		if !skill.Builtin || !strings.EqualFold(skill.Source, "builtin") {
 			t.Fatalf("store skill %s metadata = %+v, want builtin", skillName, skill)
 		}
-	}
-
-	if _, err := store.SaveSkill(ctx, Skill{ID: strategypinespec.LegacyBuiltinSkillName, DisplayName: "Legacy Strategy", Source: "builtin", Builtin: true}); err != nil {
-		t.Fatalf("SaveSkill legacy builtin: %v", err)
-	}
-	if err := store.ensureBuiltins(ctx); err != nil {
-		t.Fatalf("ensureBuiltins after legacy builtin: %v", err)
-	}
-	if _, ok, err := store.Skill(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || ok {
-		t.Fatalf("legacy builtin store skill ok=%v err=%v, want deleted", ok, err)
-	}
-
-	if _, err := store.SaveSkill(ctx, Skill{ID: strategypinespec.LegacyBuiltinSkillName, DisplayName: "External Strategy", Source: "filesystem", Builtin: false}); err != nil {
-		t.Fatalf("SaveSkill legacy external: %v", err)
-	}
-	if err := store.ensureBuiltins(ctx); err != nil {
-		t.Fatalf("ensureBuiltins after legacy external: %v", err)
-	}
-	if skill, ok, err := store.Skill(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || !ok || skill.Source != "filesystem" {
-		t.Fatalf("legacy external store skill = %+v ok=%v err=%v, want preserved", skill, ok, err)
 	}
 }
 
@@ -127,23 +104,6 @@ Old research instructions.
 	if err := os.Remove(filepath.Join(skillDir, "references", "pine-v6-spec.md")); err != nil {
 		t.Fatalf("Remove spec resource: %v", err)
 	}
-	legacyDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.LegacyBuiltinSkillName)
-	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll legacyDir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(legacyDir, "SKILL.md"), []byte(`---
-name: jftrade-strategy
-description: legacy builtin
-allowed-tools: [strategy.validate_pine]
-metadata:
-  source: builtin
-  version: 7
----
-Legacy strategy instructions.
-`), 0o644); err != nil {
-		t.Fatalf("WriteFile legacy strategy skill: %v", err)
-	}
-
 	if err := runtime.Skills().ensureBuiltins(); err != nil {
 		t.Fatalf("ensureBuiltins: %v", err)
 	}
@@ -161,12 +121,6 @@ Legacy strategy instructions.
 	}
 	if !strings.Contains(string(raw), "# JFTrade Pine Script v6 规范") {
 		t.Fatalf("restored spec content = %q, want DSL heading", string(raw))
-	}
-	if _, err := os.Stat(legacyDir); !os.IsNotExist(err) {
-		t.Fatalf("legacy builtin skill dir stat err = %v, want not exist", err)
-	}
-	if _, ok, err := runtime.Skills().Get(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || ok {
-		t.Fatalf("legacy strategy skill ok=%v err=%v, want absent", ok, err)
 	}
 }
 
@@ -191,7 +145,7 @@ func TestBuiltinAgentTemplatesOnlyExposeDefaultAgent(t *testing.T) {
 
 func TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill(t *testing.T) {
 	runtime := newTestRuntime(t)
-	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.LegacyBuiltinSkillName)
+	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.ResearchBuiltinSkillName)
 	if err := os.RemoveAll(skillDir); err != nil {
 		t.Fatalf("RemoveAll skillDir: %v", err)
 	}
@@ -200,11 +154,11 @@ func TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill(t *testing.T) {
 	}
 	skillPath := filepath.Join(skillDir, "SKILL.md")
 	externalSkill := `---
-name: jftrade-strategy
+name: jftrade-strategy-research
 description: custom external strategy skill
 allowed-tools: [strategy.definitions]
 metadata:
-  source: https://example.com/jftrade-strategy/SKILL.md
+  source: https://example.com/jftrade-strategy-research/SKILL.md
   version: custom
 ---
 Use the custom external strategy instructions.

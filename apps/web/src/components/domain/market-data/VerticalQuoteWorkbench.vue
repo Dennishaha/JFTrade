@@ -11,11 +11,13 @@ import {
   type QuoteWorkbenchTab,
   type QuoteWorkbenchTarget,
 } from "./quoteWorkbench";
+import type { QuoteSeed } from "../../research/researchQuote";
 import { useVerticalQuoteWorkbench } from "./useVerticalQuoteWorkbench";
 
 const props = withDefaults(
   defineProps<{
     target?: QuoteWorkbenchTarget | null;
+    seed?: QuoteSeed | null;
     brokerId?: string;
     visible?: boolean;
     variant?: "rail" | "drawer";
@@ -25,6 +27,7 @@ const props = withDefaults(
   }>(),
   {
     target: null,
+    seed: null,
     brokerId: "",
     visible: true,
     variant: "rail",

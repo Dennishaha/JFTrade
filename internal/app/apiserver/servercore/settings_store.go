@@ -3,42 +3,21 @@ package servercore
 import (
 	"sync"
 
-	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
 	"github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
-// The following type aliases keep backward-compatibility while allowing
-// internal/settings and internal/api/settings to import from the cycle-free
-// jftsettings package.
-type (
-	FutuIntegrationConfig    = jftsettings.FutuIntegrationConfig
-	BrokerIntegration        = jftsettings.BrokerIntegration
-	ManagedBrokerAccount     = jftsettings.ManagedBrokerAccount
-	InterfaceSettings        = jftsettings.InterfaceSettings
-	UIAppearanceSettings     = jftsettings.UIAppearanceSettings
-	OnboardingSettings       = jftsettings.OnboardingSettings
-	ExecutionSettings        = jftsettings.ExecutionSettings
-	SecuritySettings         = jftsettings.SecuritySettings
-	ADKRuntimeSettings       = jftsettings.ADKRuntimeSettings
-	MCPServerSettings        = jftsettings.MCPServerSettings
-	MCPServerStatus          = jftsettings.MCPServerStatus
-	PineWorkerSettings       = jftsettings.PineWorkerSettings
-	ExchangeCalendarSettings = jftsettings.ExchangeCalendarSettings
-	LaunchDefaults           = jftsettings.LaunchDefaults
-)
-
 type settingsFile struct {
-	Interfaces  *InterfaceSettings        `json:"interfaces,omitempty"`
-	Integration *BrokerIntegration        `json:"integration,omitempty"`
-	Accounts    []ManagedBrokerAccount    `json:"accounts,omitempty"`
-	Appearance  *UIAppearanceSettings     `json:"appearance,omitempty"`
-	Onboarding  *OnboardingSettings       `json:"onboarding,omitempty"`
-	Execution   *ExecutionSettings        `json:"execution,omitempty"`
-	Security    *SecuritySettings         `json:"security,omitempty"`
-	ADK         *ADKRuntimeSettings       `json:"adk,omitempty"`
-	PineWorker  *PineWorkerSettings       `json:"pineWorker,omitempty"`
-	Calendars   *ExchangeCalendarSettings `json:"exchangeCalendars,omitempty"`
+	Interfaces  *jftsettings.InterfaceSettings        `json:"interfaces,omitempty"`
+	Integration *jftsettings.BrokerIntegration        `json:"integration,omitempty"`
+	Accounts    []jftsettings.ManagedBrokerAccount    `json:"accounts,omitempty"`
+	Appearance  *jftsettings.UIAppearanceSettings     `json:"appearance,omitempty"`
+	Onboarding  *jftsettings.OnboardingSettings       `json:"onboarding,omitempty"`
+	Execution   *jftsettings.ExecutionSettings        `json:"execution,omitempty"`
+	Security    *jftsettings.SecuritySettings         `json:"security,omitempty"`
+	ADK         *jftsettings.ADKRuntimeSettings       `json:"adk,omitempty"`
+	PineWorker  *jftsettings.PineWorkerSettings       `json:"pineWorker,omitempty"`
+	Calendars   *jftsettings.ExchangeCalendarSettings `json:"exchangeCalendars,omitempty"`
 }
 
 type SettingsStore struct {
@@ -56,7 +35,7 @@ func NewSettingsStore(path string) (*SettingsStore, error) {
 	return &SettingsStore{Store: store, path: store.Path()}, nil
 }
 
-func (s *SettingsStore) Integration() BrokerIntegration {
+func (s *SettingsStore) Integration() jftsettings.BrokerIntegration {
 	s.mu.RLock()
 	if s.data.Integration != nil {
 		integration := *s.data.Integration
@@ -64,14 +43,10 @@ func (s *SettingsStore) Integration() BrokerIntegration {
 		return integration
 	}
 	s.mu.RUnlock()
-	integration := s.Store.Integration()
-	if s.Store.SavedIntegration() == nil {
-		return apiruntime.IntegrationWithEnvDefaults(integration)
-	}
-	return integration
+	return s.Store.Integration()
 }
 
-func (s *SettingsStore) SavedIntegration() *BrokerIntegration {
+func (s *SettingsStore) SavedIntegration() *jftsettings.BrokerIntegration {
 	s.mu.RLock()
 	if s.data.Integration != nil {
 		s.mu.RUnlock()
@@ -81,7 +56,7 @@ func (s *SettingsStore) SavedIntegration() *BrokerIntegration {
 	return s.Store.SavedIntegration()
 }
 
-func (s *SettingsStore) SaveIntegration(input BrokerIntegration) (BrokerIntegration, error) {
+func (s *SettingsStore) SaveIntegration(input jftsettings.BrokerIntegration) (jftsettings.BrokerIntegration, error) {
 	integration, err := s.Store.SaveIntegration(input)
 	if err != nil {
 		return integration, err
@@ -89,14 +64,13 @@ func (s *SettingsStore) SaveIntegration(input BrokerIntegration) (BrokerIntegrat
 	s.mu.Lock()
 	s.data.Integration = &integration
 	s.mu.Unlock()
-	apiruntime.ApplyIntegrationEnv(integration)
 	return integration, nil
 }
 
-func normalizeExecutionSettings(input ExecutionSettings) ExecutionSettings {
+func normalizeExecutionSettings(input jftsettings.ExecutionSettings) jftsettings.ExecutionSettings {
 	return settingsfile.NormalizeExecutionSettings(input)
 }
 
-func normalizeSecuritySettings(input SecuritySettings) SecuritySettings {
+func normalizeSecuritySettings(input jftsettings.SecuritySettings) jftsettings.SecuritySettings {
 	return settingsfile.NormalizeSecuritySettings(input)
 }

@@ -19,7 +19,7 @@ func TestMarketSnapshotResponseUsesFreshCache(t *testing.T) {
 
 	instrumentID := "HK.00700"
 	now := time.Now().UTC().Truncate(time.Second)
-	seedCachedTickSample(server, marketTickSample{
+	seedCachedTickSample(server, mdsrv.Tick{
 		InstrumentID:       instrumentID,
 		Market:             "HK",
 		Symbol:             "00700",
@@ -90,7 +90,7 @@ func TestMarketSnapshotResponseForceRefreshBypassesCache(t *testing.T) {
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
 	acquireMarketDataTestSubscription(t, server, mdsrv.InstrumentRef{Channel: "SNAPSHOT", Market: "HK", Symbol: "00700"})
-	seedCachedTickSample(server, marketTickSample{
+	seedCachedTickSample(server, mdsrv.Tick{
 		InstrumentID: "HK.00700",
 		Market:       "HK",
 		Symbol:       "00700",
@@ -131,7 +131,7 @@ func TestMarketCandlesTickResponseUsesFreshCache(t *testing.T) {
 
 	instrumentID := "HK.00700"
 	now := time.Now().UTC().Truncate(time.Second)
-	seedCachedTickSample(server, marketTickSample{
+	seedCachedTickSample(server, mdsrv.Tick{
 		InstrumentID: instrumentID,
 		Market:       "HK",
 		Symbol:       "00700",
@@ -203,7 +203,7 @@ func TestMarketCandlesTickResponseFallsBackToCachedCandlesOnTickerError(t *testi
 
 	instrumentID := "HK.00700"
 	observedAt := time.Now().UTC().Add(-1 * time.Minute).Truncate(time.Second)
-	seedCachedTickSample(server, marketTickSample{
+	seedCachedTickSample(server, mdsrv.Tick{
 		InstrumentID: instrumentID,
 		Market:       "HK",
 		Symbol:       "00700",

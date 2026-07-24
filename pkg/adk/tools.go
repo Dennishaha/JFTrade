@@ -142,10 +142,9 @@ func ToolInvocationAnySkillActive(ctx context.Context, skillNames []string) bool
 }
 
 // ToolRequiredSkillNames returns the normalized set of skills that can unlock
-// a tool. RequiredSkill remains the backwards-compatible single-skill field;
-// RequiredSkills is used when any one of multiple skills can unlock a tool.
+// a tool. Any one of the listed skills is sufficient.
 func ToolRequiredSkillNames(descriptor ToolDescriptor) []string {
-	return normalizeStringSlice(append([]string{descriptor.RequiredSkill}, descriptor.RequiredSkills...))
+	return normalizeStringSlice(descriptor.RequiredSkills)
 }
 
 type RegisteredTool struct {
@@ -224,9 +223,6 @@ func NewToolRegistry() *ToolRegistry {
 				"inputSchema":     descriptor.InputSchema, "outputSummary": descriptor.OutputSummary,
 				"requiresApprovalIn": descriptor.RequiresApprovalIn,
 			}
-			if descriptor.RequiredSkill != "" {
-				item["requiredSkill"] = descriptor.RequiredSkill
-			}
 			if len(requiredSkills) > 0 {
 				item["requiredSkills"] = requiredSkills
 			}
@@ -253,7 +249,6 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 	descriptor.Name = strings.TrimSpace(descriptor.Name)
 	descriptor.Permission = strings.TrimSpace(descriptor.Permission)
 	descriptor.IdempotencyMode = normalizeToolIdempotencyMode(descriptor.IdempotencyMode, descriptor.Permission)
-	descriptor.RequiredSkill = strings.TrimSpace(descriptor.RequiredSkill)
 	descriptor.RequiredSkills = normalizeStringSlice(descriptor.RequiredSkills)
 	if len(descriptor.AllowedModes) == 0 {
 		if descriptor.Permission == "live_trading" {

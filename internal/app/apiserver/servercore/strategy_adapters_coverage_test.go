@@ -75,10 +75,10 @@ func TestStrategyCatalogAdapterRefreshInstanceDefinitionBoundaries(t *testing.T)
 
 	store := newCatalogCoverageStore(t)
 	adapter := &strategyCatalogStoreAdapter{store: store, designStore: designStore}
-	store.data.Strategies = []managedStrategyInstance{{
+	store.data.Strategies = []stratsrv.ManagedInstance{{
 		ID:         "missing-definition",
 		Status:     strategyStatusStopped,
-		Definition: strategyDefinitionSummary{StrategyID: "missing"},
+		Definition: stratsrv.DefinitionSummary{StrategyID: "missing"},
 	}}
 	if _, err := adapter.RefreshInstanceDefinition("missing-definition"); !errors.Is(err, stratsrv.ErrNotFound) {
 		t.Fatalf("missing definition refresh error = %v", err)
@@ -88,10 +88,10 @@ func TestStrategyCatalogAdapterRefreshInstanceDefinitionBoundaries(t *testing.T)
 	if err != nil {
 		t.Fatalf("save linked definition: %v", err)
 	}
-	store.data.Strategies = []managedStrategyInstance{{
+	store.data.Strategies = []stratsrv.ManagedInstance{{
 		ID:         "busy",
 		Status:     strategyStatusRunning,
-		Definition: strategyDefinitionSummary{StrategyID: definition.ID, Version: "0.0.1"},
+		Definition: stratsrv.DefinitionSummary{StrategyID: definition.ID, Version: "0.0.1"},
 		Params:     map[string]any{"definitionId": definition.ID},
 	}}
 	if _, err := adapter.RefreshInstanceDefinition("busy"); !errors.Is(err, stratsrv.ErrBusy) {
@@ -101,10 +101,10 @@ func TestStrategyCatalogAdapterRefreshInstanceDefinitionBoundaries(t *testing.T)
 	if err := designStore.Close(); err != nil {
 		t.Fatalf("close design store: %v", err)
 	}
-	store.data.Strategies = []managedStrategyInstance{{
+	store.data.Strategies = []stratsrv.ManagedInstance{{
 		ID:         "definition-error",
 		Status:     strategyStatusStopped,
-		Definition: strategyDefinitionSummary{StrategyID: "linked"},
+		Definition: stratsrv.DefinitionSummary{StrategyID: "linked"},
 	}}
 	if _, err := adapter.RefreshInstanceDefinition("definition-error"); err == nil || errors.Is(err, stratsrv.ErrNotFound) {
 		t.Fatalf("definition query error = %v", err)
@@ -117,7 +117,7 @@ func TestStrategyCatalogAdapterEnrichmentPersistenceFailures(t *testing.T) {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
 	adapter := &strategyCatalogStoreAdapter{designStore: designStore}
-	item := strategyListItem{ID: "item", Status: strategyStatusStopped, Definition: strategyDefinitionSummary{StrategyID: "missing", Version: "1.0.0"}}
+	item := stratsrv.InstanceView{ID: "item", Status: strategyStatusStopped, Definition: stratsrv.DefinitionSummary{StrategyID: "missing", Version: "1.0.0"}}
 	status := adapter.buildDefinitionSyncStatus(item)
 	if status == nil || !status.IsLatest {
 		t.Fatalf("missing definition sync = %#v", status)
@@ -134,7 +134,7 @@ func TestStrategyCatalogAdapterEnrichmentPersistenceFailures(t *testing.T) {
 		t.Fatalf("close runtime store: %v", err)
 	}
 	adapter = &strategyCatalogStoreAdapter{store: store}
-	enriched := adapter.enrichItem(strategyListItem{ID: "persisted-error"})
+	enriched := adapter.enrichItem(stratsrv.InstanceView{ID: "persisted-error"})
 	if enriched.ID != "persisted-error" {
 		t.Fatalf("enriched item = %#v", enriched)
 	}

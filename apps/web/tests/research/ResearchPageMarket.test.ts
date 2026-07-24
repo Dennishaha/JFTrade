@@ -2,7 +2,6 @@
 
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createPinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { defineComponent, h, nextTick } from "vue";
 
@@ -74,7 +73,7 @@ const quoteDetailRailStub = defineComponent({
   name: "QuoteDetailRail",
   props: {
     target: { type: Object, default: null },
-    entry: { type: Object, default: null },
+    seed: { type: Object, default: null },
     brokerId: String,
     drawer: Boolean,
     period: { type: String, default: "day" },
@@ -91,7 +90,7 @@ const quoteDetailRailStub = defineComponent({
     <div
       class="rail-stub"
       :data-target-id="target?.instrumentId ?? ''"
-      :data-entry-name="entry?.name ?? ''"
+      :data-entry-name="seed?.name ?? ''"
       :data-broker-id="brokerId ?? ''"
       :data-drawer="String(drawer)"
       :data-period="period"
@@ -172,7 +171,7 @@ async function mountResearchPage(initialQuery = "section=market") {
   });
   const wrapper = mount(Host, {
     global: {
-      plugins: [createPinia(), router],
+      plugins: [router],
       stubs: { ...productGlobalStubs, ...researchStubs },
     },
   });
@@ -201,6 +200,10 @@ describe("ResearchPage information architecture and quote rail", () => {
     ]);
     expect(page.find(".research-page__capabilities").exists()).toBe(false);
     expect(page.get(".rail-stub").attributes("data-target-id")).toBe("");
+	const setup = page.vm.$.setupState as Record<string, unknown>;
+	(setup.handleMarketSelect as (entry: Record<string, unknown>) => void)({});
+	await nextTick();
+	expect(page.get(".rail-stub").attributes("data-entry-name")).toBe("");
   });
 
   it("places the complete research center and quote rail in sibling panes", async () => {

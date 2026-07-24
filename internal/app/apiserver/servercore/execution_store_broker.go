@@ -10,7 +10,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snapshot broker.OrderSnapshot, discoveredEventType string, updatedEventType string, source string, sourceDetail string) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
+func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snapshot broker.OrderSnapshot, discoveredEventType string, updatedEventType string, source string, sourceDetail string) (trdsrv.ExecutionOrder, *trdsrv.ExecutionOrderEvent, bool) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -24,12 +24,12 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 
 	summary := s.orders[internalOrderID]
 	if brokerOrderSnapshotStale(summary, snapshot) {
-		return executionOrderSummaryResponse{}, nil, false
+		return trdsrv.ExecutionOrder{}, nil, false
 	}
 	previousStatus := summary.Status
 	changed := applyBrokerOrderSnapshot(&summary, snapshot)
 	if !changed {
-		return executionOrderSummaryResponse{}, nil, false
+		return trdsrv.ExecutionOrder{}, nil, false
 	}
 	normalizeBrokerOrderSummary(&summary, snapshot, now, source, sourceDetail)
 	order, event := s.persistBrokerOrderLocked(summary, stringPointerOrNil(previousStatus), updatedEventType, snapshot, summary.UpdatedAt)
@@ -53,7 +53,7 @@ func executionTimestampAdvances(current, incoming string) bool {
 	return incomingTime.After(currentTime)
 }
 
-func brokerOrderSnapshotStale(current executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+func brokerOrderSnapshotStale(current trdsrv.ExecutionOrder, snapshot broker.OrderSnapshot) bool {
 	currentTimeText := strings.TrimSpace(current.UpdatedAt)
 	incomingTimeText := strings.TrimSpace(snapshot.UpdatedAt)
 	if currentTimeText == "" || incomingTimeText == "" || currentTimeText == incomingTimeText {
@@ -76,14 +76,14 @@ func brokerOrderSnapshotStale(current executionOrderSummaryResponse, snapshot br
 	return true
 }
 
-func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker.OrderFillSnapshot) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
+func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker.OrderFillSnapshot) (trdsrv.ExecutionOrder, *trdsrv.ExecutionOrderEvent, bool) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	fillKey := executionFillLookupKey(brokerID, fill.AccountID, fill.TradingEnvironment, fill.Market, fill.BrokerFillID, fill.BrokerFillIDEx)
 	if s.registerFillKeyLocked(fillKey, now) {
-		return executionOrderSummaryResponse{}, nil, false
+		return trdsrv.ExecutionOrder{}, nil, false
 	}
 
 	internalOrderID := s.findInternalOrderIDLocked(brokerID, fill.AccountID, fill.TradingEnvironment, fill.Market, fill.BrokerOrderID, fill.BrokerOrderIDEx)
@@ -194,10 +194,10 @@ func brokerEventCanCoverFill(snapshotAt, fillAt string) bool {
 func (s *executionOrderStore) recordBrokerOrderFee(
 	brokerID string,
 	fee broker.OrderFeeSnapshot,
-) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
+) (trdsrv.ExecutionOrder, *trdsrv.ExecutionOrderEvent, bool) {
 	feeAmount := brokerOrderFeeAmount(fee)
 	if feeAmount == nil || strings.TrimSpace(fee.BrokerOrderIDEx) == "" {
-		return executionOrderSummaryResponse{}, nil, false
+		return trdsrv.ExecutionOrder{}, nil, false
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
@@ -212,7 +212,7 @@ func (s *executionOrderStore) recordBrokerOrderFee(
 		&brokerOrderIDEx,
 	)
 	if internalOrderID == "" {
-		return executionOrderSummaryResponse{}, nil, false
+		return trdsrv.ExecutionOrder{}, nil, false
 	}
 	summary := s.orders[internalOrderID]
 	if !float64PointersDiffer(summary.Fees, feeAmount) {
@@ -250,7 +250,7 @@ func (s *executionOrderStore) allocateInternalOrderIDLocked() string {
 	return fmt.Sprintf("exec-%06d", s.nextOrderSeq)
 }
 
-func (s *executionOrderStore) persistBrokerOrderLocked(summary executionOrderSummaryResponse, previousStatus *string, eventType string, payload any, createdAt string) (executionOrderSummaryResponse, *executionOrderEventResponse) {
+func (s *executionOrderStore) persistBrokerOrderLocked(summary trdsrv.ExecutionOrder, previousStatus *string, eventType string, payload any, createdAt string) (trdsrv.ExecutionOrder, *trdsrv.ExecutionOrderEvent) {
 	s.orders[summary.InternalOrderID] = summary
 	s.linkBrokerOrderLocked(summary)
 	s.persistOrderLocked(summary)
@@ -270,13 +270,13 @@ func (s *executionOrderStore) registerFillKeyLocked(fillKey string, now string) 
 	return false
 }
 
-func (s *executionOrderStore) brokerOrderSummaryFromSnapshot(internalOrderID string, brokerID string, snapshot broker.OrderSnapshot, now string, source string, sourceDetail string) executionOrderSummaryResponse {
+func (s *executionOrderStore) brokerOrderSummaryFromSnapshot(internalOrderID string, brokerID string, snapshot broker.OrderSnapshot, now string, source string, sourceDetail string) trdsrv.ExecutionOrder {
 	filledQuantity := cloneFloat64Pointer(snapshot.FilledQuantity)
 	if filledQuantity == nil {
 		filledQuantity = new(0.0)
 	}
 	rawBrokerStatus := strings.TrimSpace(snapshot.Status)
-	summary := executionOrderSummaryResponse{
+	summary := trdsrv.ExecutionOrder{
 		InternalOrderID:    internalOrderID,
 		BrokerID:           strings.TrimSpace(brokerID),
 		BrokerOrderID:      stringPointerOrNil(snapshot.BrokerOrderID),
@@ -320,7 +320,7 @@ func (s *executionOrderStore) brokerOrderSummaryFromSnapshot(internalOrderID str
 	return summary
 }
 
-func applyBrokerOrderSnapshot(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+func applyBrokerOrderSnapshot(summary *trdsrv.ExecutionOrder, snapshot broker.OrderSnapshot) bool {
 	changed := false
 	changed = applyBrokerOrderSnapshotStatus(summary, snapshot) || changed
 	changed = applyBrokerOrderSnapshotIdentity(summary, snapshot) || changed
@@ -341,7 +341,7 @@ func applyBrokerOrderSnapshot(summary *executionOrderSummaryResponse, snapshot b
 	return changed
 }
 
-func applyBrokerOrderSnapshotStatus(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+func applyBrokerOrderSnapshotStatus(summary *trdsrv.ExecutionOrder, snapshot broker.OrderSnapshot) bool {
 	changed := false
 	if rawBrokerStatus := strings.TrimSpace(snapshot.Status); rawBrokerStatus != "" {
 		incomingStatus := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
@@ -368,7 +368,7 @@ func applyBrokerOrderSnapshotStatus(summary *executionOrderSummaryResponse, snap
 	return changed
 }
 
-func applyBrokerOrderSnapshotIdentity(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+func applyBrokerOrderSnapshotIdentity(summary *trdsrv.ExecutionOrder, snapshot broker.OrderSnapshot) bool {
 	changed := false
 	if snapshot.OrderKind != "" && summary.OrderKind != snapshot.OrderKind {
 		summary.OrderKind = snapshot.OrderKind
@@ -425,7 +425,7 @@ func applyBrokerOrderSnapshotIdentity(summary *executionOrderSummaryResponse, sn
 	return changed
 }
 
-func applyBrokerOrderSnapshotQuantities(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot) bool {
+func applyBrokerOrderSnapshotQuantities(summary *trdsrv.ExecutionOrder, snapshot broker.OrderSnapshot) bool {
 	changed := false
 	if snapshot.Quantity > 0 && float64PointersDiffer(summary.RequestedQuantity, &snapshot.Quantity) {
 		summary.RequestedQuantity = new(snapshot.Quantity)
@@ -450,7 +450,7 @@ func applyBrokerOrderSnapshotQuantities(summary *executionOrderSummaryResponse, 
 	return changed
 }
 
-func normalizeBrokerOrderSummary(summary *executionOrderSummaryResponse, snapshot broker.OrderSnapshot, now string, source string, sourceDetail string) {
+func normalizeBrokerOrderSummary(summary *trdsrv.ExecutionOrder, snapshot broker.OrderSnapshot, now string, source string, sourceDetail string) {
 	if summary.UpdatedAt == "" {
 		summary.UpdatedAt = now
 	}
@@ -468,7 +468,7 @@ func normalizeBrokerOrderSummary(summary *executionOrderSummaryResponse, snapsho
 	}
 }
 
-func brokerOrderSummaryFromFill(internalOrderID string, brokerID string, fill broker.OrderFillSnapshot, now string) executionOrderSummaryResponse {
+func brokerOrderSummaryFromFill(internalOrderID string, brokerID string, fill broker.OrderFillSnapshot, now string) trdsrv.ExecutionOrder {
 	rawBrokerStatus := strings.TrimSpace(derefString(fill.Status))
 	status := trdsrv.CanonicalBrokerOrderStatus(rawBrokerStatus)
 	if fill.Payout != nil {
@@ -477,7 +477,7 @@ func brokerOrderSummaryFromFill(internalOrderID string, brokerID string, fill br
 	if status == trdsrv.OrderStatusUnknown {
 		status = trdsrv.OrderStatusPartiallyFilled
 	}
-	summary := executionOrderSummaryResponse{
+	summary := trdsrv.ExecutionOrder{
 		InternalOrderID:    internalOrderID,
 		BrokerID:           strings.TrimSpace(brokerID),
 		BrokerOrderID:      stringPointerOrNil(fill.BrokerOrderID),
@@ -508,11 +508,11 @@ func brokerOrderSummaryFromFill(internalOrderID string, brokerID string, fill br
 	return summary
 }
 
-func applyBrokerOrderFill(summary *executionOrderSummaryResponse, fill broker.OrderFillSnapshot, now string) (string, float64, float64) {
+func applyBrokerOrderFill(summary *trdsrv.ExecutionOrder, fill broker.OrderFillSnapshot, now string) (string, float64, float64) {
 	return applyBrokerOrderFillQuantity(summary, fill, now, 0)
 }
 
-func applyBrokerOrderFillQuantity(summary *executionOrderSummaryResponse, fill broker.OrderFillSnapshot, now string, alreadyCounted float64) (string, float64, float64) {
+func applyBrokerOrderFillQuantity(summary *trdsrv.ExecutionOrder, fill broker.OrderFillSnapshot, now string, alreadyCounted float64) (string, float64, float64) {
 	previousStatus := summary.Status
 	previousFilled := optionalFloat64(summary.FilledQuantity)
 	previousAverage := optionalFloat64(summary.FilledAveragePrice)

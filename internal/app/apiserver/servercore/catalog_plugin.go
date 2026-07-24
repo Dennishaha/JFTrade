@@ -1,15 +1,16 @@
 package servercore
 
 import (
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"runtime"
 	"runtime/debug"
 	"strings"
 	"time"
 )
 
-func buildPluginCompatibility(artifact *strategyPluginArtifact) strategyPluginCompatibility {
+func buildPluginCompatibility(artifact *strategyPluginArtifact) stratsrv.PluginCompatibility {
 	host := currentPluginBuildTuple()
-	compatibility := strategyPluginCompatibility{
+	compatibility := stratsrv.PluginCompatibility{
 		Mode:      pluginBuildMode,
 		Supported: runtime.GOOS != "windows",
 		Host:      host,
@@ -29,8 +30,8 @@ func buildPluginCompatibility(artifact *strategyPluginArtifact) strategyPluginCo
 	return compatibility
 }
 
-func currentPluginBuildTuple() strategyPluginBuildTuple {
-	return strategyPluginBuildTuple{
+func currentPluginBuildTuple() stratsrv.PluginBuildTuple {
+	return stratsrv.PluginBuildTuple{
 		JFTradeVersion: currentJFTradeVersion(),
 		GoVersion:      runtime.Version(),
 		GOOS:           runtime.GOOS,
@@ -49,7 +50,7 @@ func currentJFTradeVersion() string {
 	return "devel"
 }
 
-func samePluginBuildTuple(left strategyPluginBuildTuple, right strategyPluginBuildTuple) bool {
+func samePluginBuildTuple(left stratsrv.PluginBuildTuple, right stratsrv.PluginBuildTuple) bool {
 	if left.JFTradeVersion != right.JFTradeVersion || left.GoVersion != right.GoVersion || left.GOOS != right.GOOS || left.GOARCH != right.GOARCH || left.BuildMode != right.BuildMode {
 		return false
 	}
@@ -68,8 +69,8 @@ func buildPluginOperationID(pluginID string) string {
 	return strings.ToLower(strings.ReplaceAll(pluginID, " ", "-")) + "-" + time.Now().UTC().Format("20060102150405.000000000")
 }
 
-func buildPluginUninstallGuidance(pluginID string, installPath string) strategyPluginUninstallGuidance {
-	guidance := strategyPluginUninstallGuidance{
+func buildPluginUninstallGuidance(pluginID string, installPath string) stratsrv.PluginUninstallGuidance {
+	guidance := stratsrv.PluginUninstallGuidance{
 		PluginID: pluginID,
 		Path:     installPath,
 		Exists:   false,

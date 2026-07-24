@@ -31,7 +31,7 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 // @Summary 读取回测列表
 // @Tags backtest
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=BacktestRunsData}
 // @Router /api/v1/backtests [get]
 func handleList(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {

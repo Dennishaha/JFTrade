@@ -8,11 +8,12 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-func strategyRuntimeBrokerReadQuery(binding strategyInstanceBinding) broker.ReadQuery {
+func strategyRuntimeBrokerReadQuery(binding stratsrv.InstanceBinding) broker.ReadQuery {
 	query := broker.ReadQuery{}
 	if binding.BrokerAccount == nil {
 		return query
@@ -23,7 +24,7 @@ func strategyRuntimeBrokerReadQuery(binding strategyInstanceBinding) broker.Read
 	return query
 }
 
-func strategyRuntimeBrokerPlaceOrderQuery(binding strategyInstanceBinding, symbol string) broker.PlaceOrderQuery {
+func strategyRuntimeBrokerPlaceOrderQuery(binding stratsrv.InstanceBinding, symbol string) broker.PlaceOrderQuery {
 	readQuery := strategyRuntimeBrokerReadQuery(binding)
 	if strings.TrimSpace(readQuery.Market) == "" {
 		readQuery.Market = strategyRuntimeMarketFromSymbol(symbol, "")
@@ -34,19 +35,19 @@ func strategyRuntimeBrokerPlaceOrderQuery(binding strategyInstanceBinding, symbo
 	}
 }
 
-func strategyRuntimeBrokerID(binding strategyInstanceBinding) string {
+func strategyRuntimeBrokerID(binding stratsrv.InstanceBinding) string {
 	if binding.BrokerAccount == nil || strings.TrimSpace(binding.BrokerAccount.BrokerID) == "" {
 		return "futu"
 	}
 	return strings.ToLower(strings.TrimSpace(binding.BrokerAccount.BrokerID))
 }
 
-func strategyRuntimeDefinitionID(instance managedStrategyInstance) string {
+func strategyRuntimeDefinitionID(instance stratsrv.ManagedInstance) string {
 	definitionID := jftradeOptionalTypeAssertion[string](instance.Params["definitionId"])
 	return strings.TrimSpace(definitionID)
 }
 
-func strategyRuntimeDisplayName(instance managedStrategyInstance, runner *strategySymbolRuntime) string {
+func strategyRuntimeDisplayName(instance stratsrv.ManagedInstance, runner *strategySymbolRuntime) string {
 	name := strings.TrimSpace(instance.Definition.Name)
 	if name == "" && runner != nil {
 		name = strings.TrimSpace(runner.name)

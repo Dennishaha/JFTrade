@@ -158,6 +158,21 @@ func (r *Runtime) CompactSessionDatabase(ctx context.Context) error {
 	return CompactSQLiteSessionService(ctx, r.rawSessionService)
 }
 
+func (r *Runtime) CompactArtifactDatabase(ctx context.Context) error {
+	if r == nil {
+		return fmt.Errorf("adk runtime is unavailable")
+	}
+	service, ok := r.artifactService.(*googleADKArtifactService)
+	if !ok || service == nil || service.db == nil {
+		return fmt.Errorf("ADK artifact database is unavailable")
+	}
+	if _, err := service.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+		return err
+	}
+	_, err := service.db.ExecContext(ctx, `VACUUM`)
+	return err
+}
+
 func (r *Runtime) SessionContext(ctx context.Context, sessionID string) (SessionContextSnapshot, error) {
 	if r == nil || r.store == nil || r.contextManager == nil {
 		return SessionContextSnapshot{}, fmt.Errorf("adk runtime is unavailable")

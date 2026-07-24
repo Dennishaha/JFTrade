@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -165,5 +166,16 @@ func TestNewFutuKLineStoreRejectsBlankAndLegacyDatabase(t *testing.T) {
 	store, err := NewFutuKLineStore(path)
 	if err == nil || store != nil || !strings.Contains(err.Error(), "validate sqlite backtest store") {
 		t.Fatalf("NewFutuKLineStore(legacy) = (%#v, %v)", store, err)
+	}
+}
+
+func TestNewFutuKLineStoreClosesConnectionWhenCurrentSchemaInitializationFails(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "read-only.db")
+	if err := os.WriteFile(path, nil, 0o400); err != nil {
+		t.Fatalf("write read-only database: %v", err)
+	}
+	store, err := NewFutuKLineStore(path)
+	if err == nil || store != nil || !strings.Contains(err.Error(), "validate sqlite backtest store") {
+		t.Fatalf("NewFutuKLineStore(read-only) = (%#v, %v)", store, err)
 	}
 }

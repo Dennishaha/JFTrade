@@ -28,6 +28,9 @@ type FutuKLineStore struct {
 // NewFutuKLineStore opens or creates a SQLite database at the given path and
 // lazily creates per-series tables as data is inserted.
 func NewFutuKLineStore(dbPath string) (*FutuKLineStore, error) {
+	if err := sqliteschema.ValidateCurrentFile(context.Background(), dbPath, sqliteschema.DatabaseBacktest); err != nil {
+		return nil, fmt.Errorf("validate sqlite backtest store: %w", err)
+	}
 	db, err := sqliteconn.OpenX(dbPath, sqliteconn.WithMaxOpenConns(8))
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite backtest store: %w", err)
@@ -37,9 +40,9 @@ func NewFutuKLineStore(dbPath string) (*FutuKLineStore, error) {
 		dbPath: dbPath,
 	}
 	store.rehabType.Store(normalizeRehabTypeName("forward"))
-	store.readSessionScope.Store(klineReadSessionScopeAuto)
-	store.writeSessionScope.Store(klineSessionScopeLegacy)
-	if err := sqliteschema.InitializeOrValidate(context.Background(), db, dbPath, "backtest", 1, nil, nil); err != nil {
+	store.readSessionScope.Store(klineSessionScopeRegular)
+	store.writeSessionScope.Store(klineSessionScopeRegular)
+	if err := sqliteschema.InitializeCurrent(context.Background(), db, dbPath, sqliteschema.DatabaseBacktest); err != nil {
 		jftradeErr1 := db.Close()
 		besteffort.LogError(jftradeErr1)
 		return nil, fmt.Errorf("validate sqlite backtest store: %w", err)

@@ -192,10 +192,9 @@ func TestReadTableNamesHonorExplicitSessionScopePriority(t *testing.T) {
 		count int
 		first string
 	}{
-		{klineSessionScopeLegacy, 1, "__forward__"},
-		{klineSessionScopeRegular, 3, "__forward__r__"},
-		{klineSessionScopeExtended, 3, "__forward__x__"},
-		{klineReadSessionScopeAuto, 3, "__forward__"},
+		{klineSessionScopeRegular, 1, "__forward__r__"},
+		{klineSessionScopeExtended, 1, "__forward__x__"},
+		{"unknown", 1, "__forward__r__"},
 	} {
 		store.SetReadSessionScope(tc.scope)
 		names, count := store.readTableNames("US.AAPL", types.Interval1m, "forward")

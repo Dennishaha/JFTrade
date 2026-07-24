@@ -7,6 +7,14 @@ import {
 export type ResearchQuoteKind = QuoteWorkbenchKind;
 export type ResearchQuoteTarget = QuoteWorkbenchTarget;
 
+export interface QuoteSeed {
+  name?: string;
+  lastPrice?: number | null;
+  previousClosePrice?: number | null;
+  changeAmount?: number | null;
+  changeRate?: number | null;
+}
+
 export interface ResearchQuoteTargetInput {
   kind?: unknown;
   instrumentId?: unknown;
@@ -34,6 +42,43 @@ function asRecord(value: unknown): ResearchEntry | null {
 
 function nonEmptyString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function finiteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value.replace(/,/g, ""));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function firstNumber(record: ResearchEntry, keys: readonly string[]): number | null {
+  for (const key of keys) {
+    const value = finiteNumber(record[key]);
+    if (value != null) return value;
+  }
+  return null;
+}
+
+export function researchQuoteSeedFromEntry(
+  entry: ResearchEntry | null | undefined,
+): QuoteSeed | null {
+  if (entry == null) return null;
+  const name = firstString([entry], ["name", "title"]);
+  const seed: QuoteSeed = {
+    ...(name ? { name } : {}),
+    lastPrice: firstNumber(entry, ["currentPrice", "curPrice", "lastPrice", "price"]),
+    previousClosePrice: firstNumber(entry, [
+      "lastClosePrice",
+      "previousClosePrice",
+      "prevClose",
+      "prevClosePrice",
+    ]),
+    changeAmount: firstNumber(entry, ["changeVal", "changeAmount", "change"]),
+    changeRate: firstNumber(entry, ["changeRate", "changeRatio", "changePercent"]),
+  };
+  return seed;
 }
 
 function firstString(

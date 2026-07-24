@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	server := &Server{
 		desktopAPIToken: "desktop-token",
-		auth:            newWebAuth(SecuritySettings{}),
+		auth:            newWebAuth(jfsettings.SecuritySettings{}),
 	}
 	server.auth.enforceAccess = true
 	router := gin.New()
@@ -44,7 +45,7 @@ func TestDesktopSidecarDoesNotDoubleAsBrowserListener(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	server := &Server{
 		desktopMode: true,
-		auth: newWebAuth(SecuritySettings{
+		auth: newWebAuth(jfsettings.SecuritySettings{
 			WebAccessEnabled:    true,
 			PublicAccessEnabled: true,
 			PasswordConfigured:  true,
@@ -75,7 +76,7 @@ func TestDesktopDevelopmentWithoutInjectedTokenRemainsTrusted(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	server := &Server{
 		desktopMode: true,
-		auth:        newWebAuth(SecuritySettings{}),
+		auth:        newWebAuth(jfsettings.SecuritySettings{}),
 	}
 	server.auth.enforceAccess = false
 	router := gin.New()
@@ -99,7 +100,7 @@ func TestDesktopDevelopmentWebListenerStillRequiresPasswordSession(t *testing.T)
 	gin.SetMode(gin.TestMode)
 	server := &Server{
 		desktopMode: true,
-		auth: newWebAuth(SecuritySettings{
+		auth: newWebAuth(jfsettings.SecuritySettings{
 			WebAccessEnabled:    true,
 			PublicAccessEnabled: true,
 			PasswordConfigured:  true,
@@ -123,7 +124,7 @@ func TestDesktopDevelopmentWebListenerStillRequiresPasswordSession(t *testing.T)
 
 func TestStandaloneServerWithoutDesktopTokenIsNotTrusted(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	server := &Server{auth: newWebAuth(SecuritySettings{})}
+	server := &Server{auth: newWebAuth(jfsettings.SecuritySettings{})}
 	server.auth.enforceAccess = true
 	router := gin.New()
 	router.Use(server.desktopTokenMiddleware())

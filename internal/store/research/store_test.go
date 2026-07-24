@@ -87,8 +87,8 @@ func TestStoreRejectsNewerSchemaAndUnavailableReceiver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	if _, err := store.db.ExecContext(t.Context(), `INSERT INTO research_schema_migrations(version, applied_at) VALUES (?, ?)`, SchemaVersion+1, nowText()); err != nil {
-		t.Fatalf("insert newer migration: %v", err)
+	if _, err := store.db.ExecContext(t.Context(), `UPDATE jftrade_schema_meta SET version = ? WHERE component_id = ?`, SchemaVersion+1, ComponentID); err != nil {
+		t.Fatalf("set newer schema version: %v", err)
 	}
 	if err := store.Close(); err != nil {
 		t.Fatalf("Close: %v", err)

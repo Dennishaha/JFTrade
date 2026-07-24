@@ -211,19 +211,13 @@ func normalizeBacktestInstrumentType(value string) string {
 }
 
 func backtestReadSessionScope(useExtendedHours *bool) string {
-	if useExtendedHours == nil {
-		return "auto"
-	}
-	if *useExtendedHours {
+	if useExtendedHours != nil && *useExtendedHours {
 		return "extended"
 	}
 	return "regular"
 }
 
 func backtestSyncSessionScope(useExtendedHours *bool) string {
-	if useExtendedHours == nil {
-		return "legacy"
-	}
 	return backtestReadSessionScope(useExtendedHours)
 }
 

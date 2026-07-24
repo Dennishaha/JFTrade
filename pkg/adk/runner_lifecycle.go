@@ -760,7 +760,7 @@ func (r *Runtime) UpdateRunObjective(ctx context.Context, runID string, objectiv
 	return run, nil
 }
 
-func recentOpenAIMessages(messages []Message, maxMessages int, maxChars int) []openAIChatMessage {
+func recentOpenAIMessages(messages []TranscriptEntry, maxMessages int, maxChars int) []openAIChatMessage {
 	if maxMessages <= 0 || maxChars <= 0 || len(messages) == 0 {
 		return nil
 	}

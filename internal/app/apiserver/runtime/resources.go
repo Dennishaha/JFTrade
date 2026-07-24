@@ -41,42 +41,42 @@ func runtimeCriticalResources(settingsPath string, backtestDBPath string) []Reso
 		{
 			ID: "backtest-kline-db", Owner: "backtest", Kind: "sqlite", Path: backtestDBPath,
 			InitializedBy: "backtest module", SchemaOwner: "pkg/backtest storage", CloseOwner: "backtest module",
-			HealthProvider: "data-migration/backtest", EnvironmentOverride: "JFTRADE_BACKTEST_DB", Critical: true,
+			HealthProvider: "data-management/backtest", EnvironmentOverride: "JFTRADE_BACKTEST_DB", Critical: true,
 		},
 		{
 			ID: "backtest-run-db", Owner: "backtest", Kind: "sqlite", Path: DeriveBacktestRunDBPath(settingsPath),
 			InitializedBy: "backtest module", SchemaOwner: "backtest run store", CloseOwner: "backtest module",
-			HealthProvider: "data-migration/backtest-runs", EnvironmentOverride: "JFTRADE_BACKTEST_RUN_DB", Critical: true,
+			HealthProvider: "data-management/backtest-runs", EnvironmentOverride: "JFTRADE_BACKTEST_RUN_DB", Critical: true,
 		},
 		{
 			ID: "strategy-catalog", Owner: "strategy", Kind: "sqlite", Path: DeriveStrategyRuntimeDBPath(settingsPath),
 			InitializedBy: "strategy module", SchemaOwner: "strategy catalog tables", CloseOwner: "strategy module",
-			HealthProvider: "data-migration/strategy", EnvironmentOverride: "JFTRADE_STRATEGY_RUNTIME_DB", Critical: true,
+			HealthProvider: "data-management/strategy", EnvironmentOverride: "JFTRADE_STRATEGY_RUNTIME_DB", Critical: true,
 		},
 		{
 			ID: "strategy-designs", Owner: "strategy", Kind: "sqlite", Path: DeriveStrategyRuntimeDBPath(settingsPath),
 			InitializedBy: "strategy module", SchemaOwner: "strategy design tables", CloseOwner: "strategy module",
-			HealthProvider: "data-migration/strategy", EnvironmentOverride: "JFTRADE_STRATEGY_RUNTIME_DB", Critical: true,
+			HealthProvider: "data-management/strategy", EnvironmentOverride: "JFTRADE_STRATEGY_RUNTIME_DB", Critical: true,
 		},
 		{
 			ID: "strategy-runtime-db", Owner: "strategy", Kind: "sqlite", Path: DeriveStrategyRuntimeDBPath(settingsPath),
 			InitializedBy: "strategy module", SchemaOwner: "strategy runtime store", CloseOwner: "strategy module",
-			HealthProvider: "data-migration/strategy", EnvironmentOverride: "JFTRADE_STRATEGY_RUNTIME_DB", Critical: true,
+			HealthProvider: "data-management/strategy", EnvironmentOverride: "JFTRADE_STRATEGY_RUNTIME_DB", Critical: true,
 		},
 		{
 			ID: "execution-orders-db", Owner: "trading", Kind: "sqlite", Path: DeriveExecutionOrderDBPath(settingsPath),
 			InitializedBy: "trading module", SchemaOwner: "execution order store", CloseOwner: "trading module",
-			HealthProvider: "data-migration/execution", EnvironmentOverride: "JFTRADE_EXECUTION_ORDER_DB", Critical: true,
+			HealthProvider: "data-management/execution", EnvironmentOverride: "JFTRADE_EXECUTION_ORDER_DB", Critical: true,
 		},
 		{
 			ID: "watchlist-db", Owner: "watchlist", Kind: "sqlite", Path: DeriveWatchlistDBPath(settingsPath),
 			InitializedBy: "watchlist module", SchemaOwner: "internal/store/watchlist migrations", CloseOwner: "watchlist module",
-			HealthProvider: "data-migration/watchlist", EnvironmentOverride: "JFTRADE_WATCHLIST_DB", Critical: true,
+			HealthProvider: "data-management/watchlist", EnvironmentOverride: "JFTRADE_WATCHLIST_DB", Critical: true,
 		},
 		{
 			ID: "research-db", Owner: "research", Kind: "sqlite", Path: DeriveResearchDBPath(settingsPath),
 			InitializedBy: "research module", SchemaOwner: "internal/store/research migrations", CloseOwner: "research module",
-			HealthProvider: "data-migration/research", EnvironmentOverride: "JFTRADE_RESEARCH_DB", Critical: true,
+			HealthProvider: "data-management/research", EnvironmentOverride: "JFTRADE_RESEARCH_DB", Critical: true,
 		},
 		{
 			ID: "real-trade-control", Owner: "trading", Kind: "json-file", Path: deriveRealTradeControlPath(settingsPath),

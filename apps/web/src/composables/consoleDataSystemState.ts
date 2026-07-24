@@ -352,7 +352,7 @@ export function createConsoleDataSystemStateController(
         : emptyFutuOpenDHealth;
       const broker =
         shouldProbeFutu && activeBrokerId === "futu"
-          ? await apiGetPath<BrokerRuntimeResponse, "/api/v1/brokers/{brokerId}/runtime">(
+          ? await apiGetPath(
               "/api/v1/brokers/{brokerId}/runtime",
               `/api/v1/brokers/${encodeURIComponent(activeBrokerId)}/runtime`,
             )

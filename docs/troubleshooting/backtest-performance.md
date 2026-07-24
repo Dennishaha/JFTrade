@@ -91,13 +91,13 @@ go test ./pkg/strategy/pineworker \
 
 现在的设计变成了：
 
-- SQLite 同一 symbol/interval/rehabType 下区分 `legacy` / `regular` / `extended` 三套 session scope。
+- SQLite 同一 symbol/interval/rehabType 下只区分 `regular` / `extended` 两套 session scope；历史未分 scope 表必须在运行新代码前离线归一为 `regular`，运行时不再读取 `legacy` scope。
 - `useExtendedHours` 不只影响 replay 数据版本，也会影响 `1d/1w/1mo` 与 `2h/4h/6h/12h` 的聚合边界。
 - indicatorruntime 的 `day/week/month` window 改为按 `TradingPeriodLabelStart` 和 trading profile 来算，US extended 口径下一个 trading day 当前就是 24 小时连续交易日。
 
 性能下降主要来自三层叠加：
 
-- store 侧多了一层 session-scope 选表和 boundary probe，避免 regular/extended 数据串读。
+- store 侧按 session scope 精确选表，避免 regular/extended 数据串读；不存在跨 scope probe 或读取 fallback。
 - higher-period 查询多了 session-aware / trading-period aggregation，不能再把 `2h`、`1d`、`1w` 简化成“读现成表”或“固定 bar 数凑够”。
 - indicatorruntime 的 `day/week/month` snapshot 不再是固定长度 rolling window；extended warmup 也会同步放大。例如 US `5m` 上 `20 day`，旧 regular 口径只要约 `1560` 根 bar，当前 extended 口径会扩大到约 `5760` 根 bar。
 

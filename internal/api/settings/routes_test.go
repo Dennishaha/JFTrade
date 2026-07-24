@@ -715,7 +715,7 @@ func TestExchangeCalendarSettingsRouteUsesInjectedService(t *testing.T) {
 	}
 }
 
-func TestDataMigrationRoutesUseInjectedCallbacks(t *testing.T) {
+func TestDataManagementRoutesUseInjectedCallbacks(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	store := &routeStore{}
 	var rebuildPayload dmsrv.RebuildRequest
@@ -733,13 +733,13 @@ func TestDataMigrationRoutesUseInjectedCallbacks(t *testing.T) {
 	apisettings.RegisterRoutes(router.Group("/api/v1"), service, dataManagementSvc)
 
 	statusRecorder := httptest.NewRecorder()
-	router.ServeHTTP(statusRecorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/data-migration/databases", nil))
+	router.ServeHTTP(statusRecorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/data-management/databases", nil))
 	if statusRecorder.Code != http.StatusOK || !strings.Contains(statusRecorder.Body.String(), `"id":"adk"`) {
 		t.Fatalf("status response = %d %s", statusRecorder.Code, statusRecorder.Body.String())
 	}
 
 	rebuildRecorder := httptest.NewRecorder()
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/settings/data-migration/databases/rebuild", strings.NewReader(`{"mode":"single","databaseId":"adk","confirmation":"REBUILD adk"}`))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/settings/data-management/databases/rebuild", strings.NewReader(`{"mode":"single","databaseId":"adk","confirmation":"REBUILD adk"}`))
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rebuildRecorder, request)
 	if rebuildRecorder.Code != http.StatusOK || !strings.Contains(rebuildRecorder.Body.String(), `"restartRequired":true`) {
@@ -747,6 +747,19 @@ func TestDataMigrationRoutesUseInjectedCallbacks(t *testing.T) {
 	}
 	if rebuildPayload.DatabaseID != "adk" {
 		t.Fatalf("rebuild payload = %#v", rebuildPayload)
+	}
+	for _, removed := range []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodGet, path: "/api/v1/settings/data-migration/databases"},
+		{method: http.MethodPost, path: "/api/v1/settings/data-migration/databases/rebuild"},
+	} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), removed.method, removed.path, nil))
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("removed route %s %s status = %d, want 404", removed.method, removed.path, recorder.Code)
+		}
 	}
 }
 

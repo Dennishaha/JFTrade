@@ -20,10 +20,7 @@ type sessionFilteredBacktestStore struct {
 }
 
 func newBacktestReplayStore(base service.BackTestable, useExtendedHours *bool) service.BackTestable {
-	if useExtendedHours == nil {
-		return base
-	}
-	return &sessionFilteredBacktestStore{base: base, includeExtendedHours: *useExtendedHours}
+	return &sessionFilteredBacktestStore{base: base, includeExtendedHours: useExtendedHours != nil && *useExtendedHours}
 }
 
 type tradingPeriodKLineRangeQuerier interface {

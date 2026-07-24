@@ -5,6 +5,76 @@
 
 export interface components {
   schemas: {
+    "backtest.BacktestRunsData": {
+    runs?: Array<components["schemas"]["backtest.RunState"]>;
+  };
+    "backtest.RunResult": {
+    candles?: Array<components["schemas"]["runmodel.Candle"]>;
+    currentDrawdown?: number;
+    drawdownCurve?: Array<components["schemas"]["runmodel.DrawdownPoint"]>;
+    endTime?: string;
+    error?: string;
+    executionModel?: string;
+    feeBreakdown?: Array<components["schemas"]["runmodel.FeeBreakdownEntry"]>;
+    finalBalance?: number;
+    ignoredOrders?: number;
+    interval?: string;
+    logs?: Array<string>;
+    maxDrawdown?: number;
+    orderBook?: Array<components["schemas"]["runmodel.OrderBookEntry"]>;
+    pnl?: number;
+    pnlCurve?: Array<components["schemas"]["runmodel.PnLPoint"]>;
+    quoteCurrency?: string;
+    runtimeErrorCounts?: Record<string, number>;
+    runtimeErrorTotal?: number;
+    runtimeErrors?: Array<string>;
+    runtimeErrorsTruncated?: boolean;
+    startTime?: string;
+    symbol?: string;
+    totalBrokerFees?: number;
+    totalFees?: number;
+    totalFills?: number;
+    totalMarketFees?: number;
+    totalTrades?: number;
+    tradeStatsVersion?: number;
+    trades?: Array<components["schemas"]["runmodel.TradeEvent"]>;
+    tradingCosts?: components["schemas"]["runmodel.TradingCosts"];
+    warningTotal?: number;
+    warnings?: Array<string>;
+    warningsTruncated?: boolean;
+    winRate?: number;
+  };
+    "backtest.RunState": {
+    createdAt?: string;
+    id?: string;
+    request?: components["schemas"]["backtest.StartRequest"];
+    result?: components["schemas"]["backtest.RunResult"];
+    status?: string;
+    updatedAt?: string;
+  };
+    "backtest.StartRequest": {
+    code?: string;
+    definitionId?: string;
+    definitionVersion?: string;
+    endDate?: string;
+    endTime?: string;
+    executionModel?: string;
+    initialBalance?: number;
+    instrumentType?: string;
+    interval?: string;
+    market?: string;
+    marketTimezone?: string;
+    rehabType?: string;
+    startDate?: string;
+    startTime?: string;
+    symbol?: string;
+    tradingCosts?: components["schemas"]["backtest.TradingCosts"];
+    useExtendedHours?: boolean;
+  };
+    "backtest.TradingCosts": {
+    brokerFees?: components["schemas"]["runmodel.FeeSchedule"];
+    marketFees?: components["schemas"]["runmodel.FeeSchedule"];
+  };
     "broker.CashFlowSnapshot": {
     accountId?: string;
     cashFlowAmount?: number;
@@ -279,6 +349,25 @@ export interface components {
     databaseId?: string;
     sizeBytes?: number;
   };
+    "datamanagement.CleanupExecuteRequest": {
+    confirmation?: string;
+    previewId?: string;
+  };
+    "datamanagement.CleanupPreviewRequest": {
+    databaseId?: string;
+    keepLatest?: number;
+    kind?: string;
+    olderThanDays?: number;
+  };
+    "datamanagement.CompactRequest": {
+    confirmation?: string;
+  };
+    "datamanagement.RebuildRequest": {
+    confirmation?: string;
+    databaseId?: string;
+    databaseIds?: Array<string>;
+    mode?: string;
+  };
     "httpserver.APIError": {
     code?: string;
     message?: string;
@@ -457,80 +546,88 @@ export interface components {
     expectedRevision: number;
     name?: string;
   };
-    "servercore.brokerOrderCommandResponse": {
-    accepted?: boolean;
-    brokerErrorCode?: string;
-    brokerOrderId?: string;
-    brokerOrderIdEx?: string;
-    checkedAt?: string;
-    internalOrderId?: string;
-    message?: string;
-    operation?: string;
-    orderStatus?: string;
+    "runmodel.Candle": {
+    close?: string;
+    high?: string;
+    low?: string;
+    open?: string;
+    time?: string;
+    volume?: string;
   };
-    "servercore.databaseCompactRequest": {
-    confirmation?: string;
+    "runmodel.DrawdownPoint": {
+    drawdown?: number;
+    time?: string;
   };
-    "servercore.databaseRebuildRequest": {
-    confirmation?: string;
-    databaseId?: string;
-    databaseIds?: Array<string>;
-    mode?: string;
-  };
-    "servercore.dataCleanupExecuteRequest": {
-    confirmation?: string;
-    previewId?: string;
-  };
-    "servercore.dataCleanupPreviewRequest": {
-    databaseId?: string;
-    keepLatest?: number;
-    kind?: string;
-    olderThanDays?: number;
-  };
-    "servercore.envelope": {
-    data?: unknown;
-    error?: components["schemas"]["httpserver.APIError"];
-    ok?: boolean;
-    timestamp?: string;
-  };
-    "servercore.executionOrderDetailsResponse": {
-    checkedAt?: string;
-    order?: components["schemas"]["trading.ExecutionOrder"];
-    recentEvents?: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
-  };
-    "servercore.executionOrderEventsResponse": {
-    events?: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
-    internalOrderId?: string;
-  };
-    "servercore.executionOrdersResponse": {
-    orders?: Array<components["schemas"]["trading.ExecutionOrder"]>;
-  };
-    "servercore.executionPlaceOrderRequest": {
-    accountId?: string;
+    "runmodel.FeeBreakdownEntry": {
     amount?: number;
-    brokerId?: string;
-    clientOrderId?: string;
-    code?: string;
-    env?: string;
-    legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
-    market?: string;
-    orderKind?: components["schemas"]["broker.OrderKind"];
-    orderType?: string;
-    predictionSide?: string;
-    previewId?: string;
-    price?: number;
-    productClass?: components["schemas"]["broker.ProductClass"];
-    quantity?: number;
-    quantityMode?: components["schemas"]["broker.QuantityMode"];
-    quoteExpiresAt?: string;
-    remark?: string;
-    rfqId?: string;
-    session?: string;
+    category?: string;
+    count?: number;
+    currency?: string;
+    group?: string;
+    label?: string;
+    ruleId?: string;
+  };
+    "runmodel.FeeRule": {
+    appliesTo?: Array<string>;
+    basis?: string;
+    category?: string;
+    currency?: string;
+    effectiveFrom?: string;
+    effectiveTo?: string;
+    fixedAmount?: number;
+    id?: string;
+    label?: string;
+    maxAmount?: number;
+    maxRate?: number;
+    minAmount?: number;
+    rate?: number;
+    rounding?: string;
     side?: string;
-    stopPrice?: number;
+    sourceUrl?: string;
+  };
+    "runmodel.FeeSchedule": {
+    mode?: string;
+    presetId?: string;
+    rules?: Array<components["schemas"]["runmodel.FeeRule"]>;
+  };
+    "runmodel.OrderBookEntry": {
+    brokerFee?: number;
+    clientOrderId?: string;
+    feeCurrency?: string;
+    filledAt?: string;
+    filledPrice?: string;
+    filledQuantity?: string;
+    marketFee?: number;
+    orderId?: string;
+    orderPrice?: string;
+    orderType?: string;
+    quantity?: string;
+    side?: string;
+    status?: string;
+    submittedAt?: string;
     symbol?: string;
-    timeInForce?: string;
-    tradingEnvironment?: string;
+    totalFee?: number;
+    warmup?: boolean;
+  };
+    "runmodel.PnLPoint": {
+    equity?: number;
+    time?: string;
+  };
+    "runmodel.TradeEvent": {
+    brokerFee?: number;
+    feeCurrency?: string;
+    marketFee?: number;
+    pnl?: number;
+    price?: string;
+    qty?: string;
+    side?: string;
+    time?: string;
+    totalFee?: number;
+    warmup?: boolean;
+  };
+    "runmodel.TradingCosts": {
+    brokerFees?: components["schemas"]["runmodel.FeeSchedule"];
+    marketFees?: components["schemas"]["runmodel.FeeSchedule"];
   };
     "servercore.webLoginRequest": {
     password?: string;
@@ -573,6 +670,36 @@ export interface components {
     brokerId?: string;
     market?: string;
     tradingEnvironment?: string;
+  };
+    "strategy.Definition": {
+    createdAt?: string;
+    description?: string;
+    id?: string;
+    interval?: string;
+    name?: string;
+    runtime?: string;
+    script?: string;
+    sourceFormat?: string;
+    symbol?: string;
+    updatedAt?: string;
+    version?: string;
+    visualModel?: components["schemas"]["strategy.VisualModel"];
+  };
+    "strategy.DefinitionView": {
+    createdAt?: string;
+    derivedWarmupBars?: number;
+    derivedWarmupInterval?: string;
+    description?: string;
+    id?: string;
+    interval?: string;
+    name?: string;
+    runtime?: string;
+    script?: string;
+    sourceFormat?: string;
+    symbol?: string;
+    updatedAt?: string;
+    version?: string;
+    visualModel?: components["schemas"]["strategy.VisualModel"];
   };
     "strategy.RuntimeRiskSettings": {
     closeOnly?: boolean;
@@ -619,6 +746,28 @@ export interface components {
     version?: number;
   };
     "strategy.StrategyVisualNode": {
+    id?: string;
+    properties?: Record<string, unknown>;
+    text?: string;
+    type?: string;
+    x?: number;
+    y?: number;
+  };
+    "strategy.VisualEdge": {
+    id?: string;
+    properties?: Record<string, unknown>;
+    sourceNodeId?: string;
+    targetNodeId?: string;
+    text?: string;
+    type?: string;
+  };
+    "strategy.VisualModel": {
+    edges?: Array<components["schemas"]["strategy.VisualEdge"]>;
+    engine?: string;
+    nodes?: Array<components["schemas"]["strategy.VisualNode"]>;
+    version?: number;
+  };
+    "strategy.VisualNode": {
     id?: string;
     properties?: Record<string, unknown>;
     text?: string;
@@ -1076,6 +1225,11 @@ export interface components {
     tradingEnvironment?: string;
     updatedAt?: string;
   };
+    "trading.ExecutionOrderDetails": {
+    checkedAt?: string;
+    order?: components["schemas"]["trading.ExecutionOrder"];
+    recentEvents?: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
+  };
     "trading.ExecutionOrderEvent": {
     createdAt?: string;
     eventType?: string;
@@ -1084,6 +1238,10 @@ export interface components {
     nextStatus?: string;
     payloadJson?: string;
     previousStatus?: string;
+  };
+    "trading.ExecutionOrderEvents": {
+    events?: Array<components["schemas"]["trading.ExecutionOrderEvent"]>;
+    internalOrderId?: string;
   };
     "trading.ExecutionOrderLeg": {
     averagePrice?: number;
@@ -1106,6 +1264,36 @@ export interface components {
     side?: string;
     status?: string;
     updatedAt?: string;
+  };
+    "trading.ExecutionOrders": {
+    orders?: Array<components["schemas"]["trading.ExecutionOrder"]>;
+  };
+    "trading.ExecutionPlaceRequest": {
+    accountId?: string;
+    amount?: number;
+    brokerId?: string;
+    clientOrderId?: string;
+    code?: string;
+    env?: string;
+    legs?: Array<components["schemas"]["broker.OrderLegIntent"]>;
+    market?: string;
+    orderKind?: components["schemas"]["broker.OrderKind"];
+    orderType?: string;
+    predictionSide?: string;
+    previewId?: string;
+    price?: number;
+    productClass?: components["schemas"]["broker.ProductClass"];
+    quantity?: number;
+    quantityMode?: components["schemas"]["broker.QuantityMode"];
+    quoteExpiresAt?: string;
+    remark?: string;
+    rfqId?: string;
+    session?: string;
+    side?: string;
+    stopPrice?: number;
+    symbol?: string;
+    timeInForce?: string;
+    tradingEnvironment?: string;
   };
     "trading.PlaceOrderRequest": {
     clientOrderId?: string;
@@ -1437,7 +1625,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1476,7 +1664,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1488,7 +1676,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1498,7 +1686,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1510,7 +1698,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1522,7 +1710,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1534,7 +1722,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1546,7 +1734,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1558,7 +1746,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1570,7 +1758,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1582,7 +1770,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1592,7 +1780,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1604,7 +1792,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1616,7 +1804,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1628,7 +1816,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1640,7 +1828,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1652,7 +1840,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1680,7 +1868,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1692,7 +1880,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1702,7 +1890,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1714,7 +1902,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1726,7 +1914,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1771,7 +1959,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1783,7 +1971,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1795,7 +1983,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1807,7 +1995,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1819,7 +2007,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1831,7 +2019,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1843,7 +2031,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1885,7 +2073,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1897,7 +2085,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1907,7 +2095,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1917,7 +2105,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1929,7 +2117,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1941,7 +2129,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1953,7 +2141,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1965,7 +2153,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -1975,29 +2163,19 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
     };
   };
   "/api/v1/adk/skills/{skillId}": {
-    put: {
-      responses: {
-        "410": {
-          description: "Gone";
-          content: {
-            "application/json": components["schemas"]["servercore.envelope"];
-          };
-        };
-      };
-    };
     delete: {
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2009,7 +2187,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2021,7 +2199,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2031,7 +2209,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2043,7 +2221,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2053,7 +2231,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2063,7 +2241,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2075,7 +2253,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2087,7 +2265,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2099,7 +2277,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2111,7 +2289,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2123,7 +2301,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2133,7 +2311,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2145,7 +2323,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2155,7 +2333,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2165,7 +2343,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2177,7 +2355,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2189,7 +2367,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2199,7 +2377,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2211,7 +2389,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2221,7 +2399,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2330,25 +2508,25 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "401": {
           description: "Unauthorized";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "429": {
           description: "Too Many Requests";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2360,7 +2538,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2372,7 +2550,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2384,7 +2562,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["backtest.BacktestRunsData"];
+  };
           };
         };
       };
@@ -2521,7 +2701,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2531,7 +2711,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2555,7 +2735,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerCashFlowsResponse"];
   };
           };
@@ -2563,7 +2743,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2589,7 +2769,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerFillsResponse"];
   };
           };
@@ -2597,7 +2777,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2619,7 +2799,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerFundsResponse"];
   };
           };
@@ -2627,7 +2807,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2654,7 +2834,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerKLinesResponse"];
   };
           };
@@ -2662,7 +2842,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2686,7 +2866,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerMarginRatiosResponse"];
   };
           };
@@ -2694,7 +2874,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2723,7 +2903,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerMaxTradeQuantityResponse"];
   };
           };
@@ -2731,7 +2911,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2755,7 +2935,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerOrderFeesResponse"];
   };
           };
@@ -2763,7 +2943,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2791,7 +2971,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerOrdersResponse"];
   };
           };
@@ -2799,7 +2979,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2824,7 +3004,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerPlaceOrderResponse"];
   };
           };
@@ -2832,7 +3012,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2857,7 +3037,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerCancelOrdersResponse"];
   };
           };
@@ -2865,7 +3045,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2887,7 +3067,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerPositionsResponse"];
   };
           };
@@ -2895,7 +3075,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2919,7 +3099,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerQuoteResponse"];
   };
           };
@@ -2927,7 +3107,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2944,7 +3124,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerRuntimeResponse"];
   };
           };
@@ -2952,7 +3132,7 @@ export interface paths {
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -2976,7 +3156,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerSecuritiesResponse"];
   };
           };
@@ -2984,7 +3164,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -3011,7 +3191,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.BrokerUnlockTradeResponse"];
   };
           };
@@ -3019,7 +3199,7 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -3200,15 +3380,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
-    data?: components["schemas"]["servercore.executionOrdersResponse"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["trading.ExecutionOrders"];
   };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -3216,34 +3396,34 @@ export interface paths {
     post: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["servercore.executionPlaceOrderRequest"];
+          "application/json": components["schemas"]["trading.ExecutionPlaceRequest"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
-    data?: components["schemas"]["servercore.brokerOrderCommandResponse"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["trading.ExecutionCommandResponse"];
   };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "500": {
           description: "Internal Server Error";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -3260,15 +3440,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
-    data?: components["schemas"]["servercore.executionOrderDetailsResponse"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["trading.ExecutionOrderDetails"];
   };
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -3285,21 +3465,21 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
-    data?: components["schemas"]["servercore.brokerOrderCommandResponse"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["trading.ExecutionCommandResponse"];
   };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "404": {
           description: "Not Found";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -3316,27 +3496,15 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
-    data?: components["schemas"]["servercore.executionOrderEventsResponse"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["trading.ExecutionOrderEvents"];
   };
           };
         };
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
-          };
-        };
-      };
-    };
-  };
-  "/api/v1/execution/orders/preview": {
-    post: {
-      responses: {
-        "200": {
-          description: "OK";
-          content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -3579,7 +3747,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -3615,7 +3783,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -4407,7 +4575,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -4555,7 +4723,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -4567,7 +4735,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -4579,7 +4747,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -4591,7 +4759,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -4603,7 +4771,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -4620,7 +4788,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.PortfolioCashBalancesResponse"];
   };
           };
@@ -4639,7 +4807,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.PortfolioPositionsResponse"];
   };
           };
@@ -5419,14 +5587,14 @@ export interface paths {
     post: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["servercore.dataCleanupExecuteRequest"];
+          "application/json": components["schemas"]["datamanagement.CleanupExecuteRequest"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -5436,14 +5604,14 @@ export interface paths {
     post: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["servercore.dataCleanupPreviewRequest"];
+          "application/json": components["schemas"]["datamanagement.CleanupPreviewRequest"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -5461,7 +5629,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -5512,14 +5680,14 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": components["schemas"]["servercore.databaseCompactRequest"];
+          "application/json": components["schemas"]["datamanagement.CompactRequest"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -5529,38 +5697,14 @@ export interface paths {
     post: {
       requestBody: {
         content: {
-          "application/json": components["schemas"]["servercore.databaseRebuildRequest"];
+          "application/json": components["schemas"]["datamanagement.RebuildRequest"];
         };
       };
       responses: {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
-          };
-        };
-      };
-    };
-  };
-  "/api/v1/settings/data-migration/databases": {
-    get: {
-      responses: {
-        "200": {
-          description: "OK";
-          content: {
-            "application/json": components["schemas"]["servercore.envelope"];
-          };
-        };
-      };
-    };
-  };
-  "/api/v1/settings/data-migration/databases/rebuild": {
-    post: {
-      responses: {
-        "200": {
-          description: "OK";
-          content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -5671,7 +5815,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.PineWorkerSettings"];
+  };
           };
         };
       };
@@ -5686,7 +5832,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["jftsettings.PineWorkerSettings"];
+  };
           };
         };
         "400": {
@@ -6126,7 +6274,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: Array<components["schemas"]["strategy.Definition"]>;
+  };
           };
         };
       };
@@ -6141,7 +6291,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.Definition"];
+  };
           };
         };
         "400": {
@@ -6169,7 +6321,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.DefinitionView"];
+  };
           };
         };
         "400": {
@@ -6201,7 +6355,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.Definition"];
+  };
           };
         };
         "400": {
@@ -6228,7 +6384,9 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["httpserver.Envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
+    data?: components["schemas"]["strategy.Definition"];
+  };
           };
         };
         "400": {
@@ -6456,7 +6614,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["system.RealTradeApprovalsResponse"];
   };
           };
@@ -6470,7 +6628,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["system.RealTradeHardStopEventsResponse"];
   };
           };
@@ -6484,7 +6642,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["system.RealTradeHardStopsResponse"];
   };
           };
@@ -6501,7 +6659,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
   };
           };
@@ -6509,13 +6667,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -6537,7 +6695,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
   };
           };
@@ -6545,13 +6703,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -6563,7 +6721,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["system.RealTradeKillSwitchStateResponse"];
   };
           };
@@ -6577,7 +6735,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["system.RealTradeKillSwitchEventsResponse"];
   };
           };
@@ -6596,7 +6754,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
   };
           };
@@ -6604,13 +6762,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -6627,7 +6785,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
   };
           };
@@ -6635,13 +6793,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -6653,7 +6811,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["system.RealTradeRiskEventsResponse"];
   };
           };
@@ -6667,7 +6825,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["system.RealTradeRiskLimitsResponse"];
   };
           };
@@ -6684,7 +6842,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
   };
           };
@@ -6692,13 +6850,13 @@ export interface paths {
         "400": {
           description: "Bad Request";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -6713,7 +6871,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"] & {
+            "application/json": components["schemas"]["httpserver.Envelope"] & {
     data?: components["schemas"]["trading.RealTradeRiskSnapshot"];
   };
           };
@@ -6721,7 +6879,7 @@ export interface paths {
         "409": {
           description: "Conflict";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -6757,7 +6915,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };
@@ -6769,7 +6927,7 @@ export interface paths {
         "200": {
           description: "OK";
           content: {
-            "application/json": components["schemas"]["servercore.envelope"];
+            "application/json": components["schemas"]["httpserver.Envelope"];
           };
         };
       };

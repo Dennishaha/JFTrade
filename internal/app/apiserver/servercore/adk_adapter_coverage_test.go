@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -236,7 +237,7 @@ func TestCoverage98ADKAdaptersExecuteValidDownstreamContracts(t *testing.T) {
 		t.Fatalf("adkWatchlistList missing group error = %v", err)
 	}
 
-	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	definition, err := server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           "coverage98-adk-adapter-backtest",
 		Name:         "Coverage Adapter Backtest",
 		Version:      "0.1.0",

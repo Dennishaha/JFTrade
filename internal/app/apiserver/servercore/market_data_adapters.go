@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
@@ -37,7 +38,7 @@ func newMarketdataProvider(s *Server) mdsrv.Provider {
 		getDepth: func(ctx context.Context, market, symbol string, num int) (mdsrv.DepthResponse, error) {
 			// Always set Num so that Server.numOrDefault handles clamping (<=0→1, >50→50).
 			query := marketDepthQuery{}
-			query.Num = optionalIntValue{Value: num, Set: true, Valid: true}
+			query.Num = httpserver.OptionalIntValue{Value: num, Set: true, Valid: true}
 			return s.marketDepthResponseForInstrument(ctx, market, symbol, query)
 		},
 
@@ -301,24 +302,24 @@ func (s *Server) marketdataProviderHistoricalCandles(ctx context.Context, market
 func marketdataProviderCandlesQuery(period string, limit int, fromTime string, toTime string) marketCandlesQuery {
 	query := marketCandlesQuery{}
 	if period != "" {
-		query.Period = candlePeriodValue(period)
+		query.Period = httpserver.CandlePeriodValue(period)
 	}
 	if limit > 0 {
-		query.Limit = optionalIntValue{Value: limit, Set: true, Valid: true}
+		query.Limit = httpserver.OptionalIntValue{Value: limit, Set: true, Valid: true}
 	}
 	query.FromTime = marketdataProviderOptionalTime(fromTime)
 	query.ToTime = marketdataProviderOptionalTime(toTime)
 	return query
 }
 
-func marketdataProviderOptionalTime(value string) optionalTimeValue {
+func marketdataProviderOptionalTime(value string) httpserver.OptionalTimeValue {
 	if value == "" {
-		return optionalTimeValue{}
+		return httpserver.OptionalTimeValue{}
 	}
 	if t, err := time.Parse(time.RFC3339Nano, value); err == nil {
-		return optionalTimeValue{Time: t}
+		return httpserver.OptionalTimeValue{Time: t}
 	}
-	return optionalTimeValue{}
+	return httpserver.OptionalTimeValue{}
 }
 
 // marketdataProvider 闭包式 Provider 实现——每个方法通过闭包委托到 Server。

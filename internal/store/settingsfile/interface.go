@@ -1,7 +1,6 @@
 package settingsfile
 
 import (
-	"net"
 	"strings"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
@@ -19,10 +18,12 @@ func (s *Store) InterfaceSettings(defaults jfsettings.LaunchDefaults) jfsettings
 }
 
 func InterfaceSettingsFromDefaults(defaults jfsettings.LaunchDefaults) jfsettings.InterfaceSettings {
-	settings := jfsettings.InterfaceSettings{APIBind: defaults.APIBind}
+	settings := jfsettings.InterfaceSettings{
+		APIBind:                      defaults.APIBind,
+		LiveWebSocketConnectionLimit: jfsettings.DefaultLiveWebSocketConnectionLimit,
+	}
 	if strings.TrimSpace(defaults.GUIBind) != "" {
 		settings.GUIBind = defaults.GUIBind
-		settings.GUIAPIBaseURL = apiBaseURLForBind(defaults.APIBind)
 	}
 	return settings
 }
@@ -31,7 +32,6 @@ func NormalizeInterfaceSettings(input jfsettings.InterfaceSettings, defaults jfs
 	settings := input
 	settings.APIBind = strings.TrimSpace(settings.APIBind)
 	settings.GUIBind = strings.TrimSpace(settings.GUIBind)
-	settings.GUIAPIBaseURL = strings.TrimRight(strings.TrimSpace(settings.GUIAPIBaseURL), "/")
 
 	if settings.APIBind == "" {
 		settings.APIBind = defaults.APIBind
@@ -42,31 +42,10 @@ func NormalizeInterfaceSettings(input jfsettings.InterfaceSettings, defaults jfs
 	if settings.GUIBind == "" {
 		settings.GUIBind = defaults.GUIBind
 	}
-	if settings.GUIAPIBaseURL == "" && settings.GUIBind != "" {
-		settings.GUIAPIBaseURL = apiBaseURLForBind(settings.APIBind)
+	if settings.LiveWebSocketConnectionLimit <= 0 {
+		settings.LiveWebSocketConnectionLimit = jfsettings.DefaultLiveWebSocketConnectionLimit
 	}
 	return settings
-}
-
-func apiBaseURLForBind(bind string) string {
-	host, port, err := net.SplitHostPort(strings.TrimSpace(bind))
-	if err != nil {
-		return ""
-	}
-	host = normalizeBrowserHost(host)
-	if host == "" || port == "" {
-		return ""
-	}
-	return "http://" + net.JoinHostPort(host, port)
-}
-
-func normalizeBrowserHost(host string) string {
-	switch strings.TrimSpace(host) {
-	case "", "0.0.0.0", "::", "[::]":
-		return "127.0.0.1"
-	default:
-		return strings.TrimSpace(host)
-	}
 }
 
 func interfaceSettingsPointer(value jfsettings.InterfaceSettings) *jfsettings.InterfaceSettings {

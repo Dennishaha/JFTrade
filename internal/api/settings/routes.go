@@ -3,7 +3,6 @@ package settings
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	dmsrv "github.com/jftrade/jftrade-main/internal/datamanagement"
 	srv "github.com/jftrade/jftrade-main/internal/settings"
 )
@@ -47,9 +46,7 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service, dataManagementServic
 	settings.GET("/pine-worker", handlePineWorkerSettings(svc))
 	settings.PUT("/pine-worker", handleSavePineWorkerSettings(svc))
 
-	settings.GET("/data-migration/databases", httpserver.Deprecated("/api/v1/settings/data-management/databases", handleDataMigrationDatabases(dataManagementSvc, false)))
-	settings.POST("/data-migration/databases/rebuild", httpserver.Deprecated("/api/v1/settings/data-management/databases/rebuild", handleDataMigrationRebuild(dataManagementSvc)))
-	settings.GET("/data-management/databases", handleDataMigrationDatabases(dataManagementSvc, true))
+	settings.GET("/data-management/databases", handleDataMigrationDatabases(dataManagementSvc))
 	settings.POST("/data-management/cleanup/preview", handleDataCleanupPreview(dataManagementSvc))
 	settings.POST("/data-management/cleanup/execute", handleDataCleanupExecute(dataManagementSvc))
 	settings.POST("/data-management/databases/:databaseId/compact", handleDatabaseCompact(dataManagementSvc))

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
@@ -427,7 +428,7 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveProvider: %v", err)
 	}
-	if _, err := server.store.SaveADKSettings(ADKRuntimeSettings{RunTimeoutMs: 660_000, StreamIdleTimeoutMs: 420_000}); err != nil {
+	if _, err := server.store.SaveADKSettings(jfsettings.ADKRuntimeSettings{RunTimeoutMs: 660_000, StreamIdleTimeoutMs: 420_000}); err != nil {
 		t.Fatalf("saveADKSettings: %v", err)
 	}
 	if _, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
@@ -448,11 +449,11 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	var snapshotEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Providers       []jfadk.Provider       `json:"providers"`
-			Agents          []jfadk.Agent          `json:"agents"`
-			Skills          []jfadk.Skill          `json:"skills"`
-			Tools           []jfadk.ToolDescriptor `json:"tools"`
-			RuntimeSettings ADKRuntimeSettings     `json:"runtimeSettings"`
+			Providers       []jfadk.Provider              `json:"providers"`
+			Agents          []jfadk.Agent                 `json:"agents"`
+			Skills          []jfadk.Skill                 `json:"skills"`
+			Tools           []jfadk.ToolDescriptor        `json:"tools"`
+			RuntimeSettings jfsettings.ADKRuntimeSettings `json:"runtimeSettings"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(snapshotResp.Body).Decode(&snapshotEnvelope); err != nil {

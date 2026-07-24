@@ -12,10 +12,10 @@ import (
 func TestCoverage98SkillGatedToolsPreservePlannerMetadata(t *testing.T) {
 	registered := RegisteredTool{
 		Descriptor: ToolDescriptor{
-			Name:          "workflow.publish",
-			DisplayName:   "Publish workflow",
-			Description:   "Persist a reviewed workflow",
-			RequiredSkill: WorkflowManagementSkillName,
+			Name:           "workflow.publish",
+			DisplayName:    "Publish workflow",
+			Description:    "Persist a reviewed workflow",
+			RequiredSkills: []string{WorkflowManagementSkillName},
 		},
 		Handler: func(context.Context, map[string]any) (any, error) { return map[string]any{"published": true}, nil },
 	}

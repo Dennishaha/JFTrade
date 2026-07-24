@@ -27,9 +27,9 @@ func TestSchemaHelpersExposeStableStorageContracts(t *testing.T) {
 		t.Fatalf("IntervalFromStorageValue(12345) error = %v", err)
 	}
 
-	legacy := KLineTableName("US:AAPL", types.Interval1m, "forward")
-	if !strings.HasPrefix(legacy, KLineTable+"__us_aapl__1m__forward__") || strings.Contains(legacy, "__r__") || strings.Contains(legacy, "__x__") {
-		t.Fatalf("legacy KLineTableName = %q", legacy)
+	regularDefault := KLineTableName("US:AAPL", types.Interval1m, "forward")
+	if !strings.HasPrefix(regularDefault, KLineTable+"__us_aapl__1m__forward__r__") {
+		t.Fatalf("regular KLineTableName = %q", regularDefault)
 	}
 
 	regular := KLineTableNameForSessionScope("US:AAPL", types.Interval1m, "backward", KLineSessionScopeRegular)
@@ -44,7 +44,7 @@ func TestSchemaHelpersExposeStableStorageContracts(t *testing.T) {
 	if got := NormalizeKLineSessionScopeName(" regular "); got != KLineSessionScopeRegular {
 		t.Fatalf("NormalizeKLineSessionScopeName(regular) = %q", got)
 	}
-	if got := NormalizeKLineSessionScopeName("unknown"); got != KLineSessionScopeLegacy {
+	if got := NormalizeKLineSessionScopeName("unknown"); got != KLineSessionScopeRegular {
 		t.Fatalf("NormalizeKLineSessionScopeName(unknown) = %q", got)
 	}
 }

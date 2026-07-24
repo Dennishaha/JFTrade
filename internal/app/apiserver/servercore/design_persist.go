@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 )
 
 func deriveStrategyDesignPath(settingsPath string) string {
@@ -53,16 +54,16 @@ func (s *strategyDesignStore) openDB() error {
 	return nil
 }
 
-func strategyDesignDefinitionFromRow(row strategyDesignDefinitionRow) (strategyDesignDefinition, error) {
-	var visualModel *strategyVisualModel
+func strategyDesignDefinitionFromRow(row strategyDesignDefinitionRow) (stratsrv.Definition, error) {
+	var visualModel *stratsrv.VisualModel
 	if strings.TrimSpace(row.VisualModelJSON) != "" {
-		var parsed strategyVisualModel
+		var parsed stratsrv.VisualModel
 		if err := json.Unmarshal([]byte(row.VisualModelJSON), &parsed); err != nil {
-			return strategyDesignDefinition{}, err
+			return stratsrv.Definition{}, err
 		}
 		visualModel = &parsed
 	}
-	return normalizeStrategyDesignDefinition(strategyDesignDefinition{
+	return normalizeStrategyDesignDefinition(stratsrv.Definition{
 		ID:           row.ID,
 		Name:         row.Name,
 		Version:      row.Version,
@@ -78,7 +79,7 @@ func strategyDesignDefinitionFromRow(row strategyDesignDefinitionRow) (strategyD
 	})
 }
 
-func strategyDesignDefinitionRowFromDefinition(definition strategyDesignDefinition) (strategyDesignDefinitionRow, error) {
+func strategyDesignDefinitionRowFromDefinition(definition stratsrv.Definition) (strategyDesignDefinitionRow, error) {
 	visualModelJSON := ""
 	if definition.VisualModel != nil {
 		data, err := json.Marshal(definition.VisualModel)

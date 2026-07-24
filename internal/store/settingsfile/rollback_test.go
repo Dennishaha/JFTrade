@@ -227,32 +227,6 @@ func TestFailedBootstrapAndMigrationRollbackRuntimeState(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy security migration", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), "settings.json")
-		legacy := []byte(`{"security":{"adminAuthRequired":true}}`)
-		if err := os.WriteFile(path, legacy, 0o600); err != nil {
-			t.Fatalf("WriteFile legacy settings: %v", err)
-		}
-		replaceErr := errors.New("forced migration replacement failure")
-		store := &Store{
-			path:        path,
-			replaceFile: func(string, string) error { return replaceErr },
-		}
-
-		if err := store.load(); !errors.Is(err, replaceErr) {
-			t.Fatalf("load migration error = %v, want %v", err, replaceErr)
-		}
-		if store.data.Security == nil || store.data.Security.AdminAuthRequired == nil || !*store.data.Security.AdminAuthRequired {
-			t.Fatalf("failed migration did not restore legacy runtime state: %#v", store.data.Security)
-		}
-		gotDisk, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("ReadFile legacy settings: %v", err)
-		}
-		if !reflect.DeepEqual(gotDisk, legacy) {
-			t.Fatalf("legacy settings changed after failed migration: got %q want %q", gotDisk, legacy)
-		}
-	})
 }
 
 func TestFailedManagedAccountCRUDRollsBackBackingArray(t *testing.T) {

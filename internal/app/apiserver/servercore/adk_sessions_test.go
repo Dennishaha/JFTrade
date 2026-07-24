@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
@@ -17,7 +18,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.store.SaveADKSettings(ADKRuntimeSettings{RunTimeoutMs: 720_000, StreamIdleTimeoutMs: 420_000}); err != nil {
+	if _, err := server.store.SaveADKSettings(jfsettings.ADKRuntimeSettings{RunTimeoutMs: 720_000, StreamIdleTimeoutMs: 420_000}); err != nil {
 		t.Fatalf("saveADKSettings: %v", err)
 	}
 	srv := httptest.NewServer(server)

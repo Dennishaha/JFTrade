@@ -37,7 +37,11 @@ vi.mock("../../src/composables/watchlistApi", async (importOriginal) => {
 });
 
 import QuoteDetailRail from "../../src/components/research/QuoteDetailRail.vue";
-import type { ResearchQuoteTarget } from "../../src/components/research/researchQuote";
+import {
+  researchQuoteSeedFromEntry,
+  researchQuoteTargetFromEntry,
+  type ResearchQuoteTarget,
+} from "../../src/components/research/researchQuote";
 import { flushPromises } from "../productTestUtils";
 
 const KlineChartStub = defineComponent({
@@ -220,8 +224,24 @@ function installDefaultResponses(): void {
 }
 
 function mountRail(props: Record<string, unknown> = {}): VueWrapper {
+  const entry = "entry" in props ? props.entry : appleEntry;
+  const market = typeof props.market === "string" ? props.market : "";
+  const target =
+    "target" in props
+      ? props.target
+      : researchQuoteTargetFromEntry(
+          entry as Record<string, unknown> | null | undefined,
+          market,
+        );
+  const seed =
+    "seed" in props
+      ? props.seed
+      : researchQuoteSeedFromEntry(
+          entry as Record<string, unknown> | null | undefined,
+        );
+  const { entry: _entry, market: _market, ...componentProps } = props;
   return mount(QuoteDetailRail, {
-    props: { entry: appleEntry, brokerId: "futu", ...props },
+    props: { target, seed, brokerId: "futu", ...componentProps },
     global: {
       stubs: {
         KlineChart: KlineChartStub,
@@ -663,11 +683,13 @@ describe("QuoteDetailRail", () => {
     await flushPromises();
 
     await wrapper.setProps({
-      entry: {
+      target: {
+        kind: "instrument",
         instrumentId: "US.MSFT",
         name: "Microsoft",
         productClass: "equity",
       },
+      seed: { name: "Microsoft" },
     });
     await flushPromises();
     resolveMicrosoft?.(snapshotResponse("US.MSFT", 510));
@@ -738,7 +760,7 @@ describe("QuoteDetailRail", () => {
     wrapper.unmount();
   });
 
-  it("normalizes legacy product classes and emits workspace navigation", async () => {
+  it("normalizes broker product classes at the research boundary and emits workspace navigation", async () => {
     const wrapper = mountRail({
       entry: {
         instrumentId: "US.AAPL",

@@ -123,7 +123,6 @@ func (h *Handler) registerApprovalRoutes(adk *gin.RouterGroup) {
 func (h *Handler) registerSkillRoutes(adk *gin.RouterGroup) {
 	adk.GET("/skills", h.handleADKSkills)
 	adk.POST("/skills", h.handleADKInstallSkill)
-	adk.PUT("/skills/:skillId", httpserver.Deprecated("", h.handleADKSkillUpdateRemoved))
 	adk.DELETE("/skills/:skillId", h.handleADKDeleteSkill)
 }
 
@@ -155,8 +154,4 @@ func bindADKQuery(c *gin.Context, target any) error {
 		}
 	}
 	return c.ShouldBindQuery(target)
-}
-
-func (h *Handler) handleADKSkillUpdateRemoved(c *gin.Context) {
-	h.writeError(c, http.StatusGone, "ADK_SKILL_UPDATE_REMOVED", "skill enable/disable has been removed; bind skills directly on the agent")
 }

@@ -12,8 +12,10 @@ import (
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 
+	live "github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -69,7 +71,7 @@ func (m *strategyRuntimeManager) currentPineWorkerRunner() strategyRuntimePineWo
 type strategyRuntimeManagerDeps struct {
 	pineWorkerLimit         func() int
 	wakeMarketDataCollector func()
-	currentInstance         func(instanceID string) (managedStrategyInstance, bool)
+	currentInstance         func(instanceID string) (stratsrv.ManagedInstance, bool)
 	appendRuntimeEvent      func(instanceID string, logMessage string, kind string, detail string) error
 	transitionInstance      func(instanceID string, nextStatus string, kind string, detail string) error
 	reconcileRuntimeFailure func(instanceID string, detail string) error
@@ -93,7 +95,7 @@ type strategyRuntimeNotification struct {
 
 type managedStrategyRuntime struct {
 	instanceID        string
-	definition        strategyDefinitionSummary
+	definition        stratsrv.DefinitionSummary
 	cancel            context.CancelFunc
 	symbols           map[string]*strategySymbolRuntime
 	mu                sync.RWMutex
@@ -134,13 +136,13 @@ type strategySymbolRuntime struct {
 
 type strategyNotifyOnlyOrderExecutor struct {
 	manager  *strategyRuntimeManager
-	instance managedStrategyInstance
+	instance stratsrv.ManagedInstance
 	runner   *strategySymbolRuntime
 }
 
 type strategyLiveOrderExecutor struct {
 	manager  *strategyRuntimeManager
-	instance managedStrategyInstance
+	instance stratsrv.ManagedInstance
 	runner   *strategySymbolRuntime
 
 	mu                      sync.Mutex
@@ -169,7 +171,7 @@ func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 }
 
 func (s *Server) recordStrategyRuntimeNotification(note strategyRuntimeNotification) {
-	s.recordLiveNotification(liveNotification{
+	s.recordLiveNotification(live.Notification{
 		At:       note.At,
 		Level:    note.Level,
 		Title:    note.Title,
@@ -190,9 +192,9 @@ func newStrategyRuntimeManagerDeps(server *Server) strategyRuntimeManagerDeps {
 				server.marketdataSvc.WakeCollector()
 			}
 		},
-		currentInstance: func(instanceID string) (managedStrategyInstance, bool) {
+		currentInstance: func(instanceID string) (stratsrv.ManagedInstance, bool) {
 			if server.strategyStore == nil {
-				return managedStrategyInstance{}, false
+				return stratsrv.ManagedInstance{}, false
 			}
 			return server.strategyStore.strategy(instanceID)
 		},
@@ -272,9 +274,9 @@ func (m *strategyRuntimeManager) wakeMarketDataCollector() {
 	}
 }
 
-func (m *strategyRuntimeManager) currentInstance(instanceID string) (managedStrategyInstance, bool) {
+func (m *strategyRuntimeManager) currentInstance(instanceID string) (stratsrv.ManagedInstance, bool) {
 	if m == nil || m.deps.currentInstance == nil {
-		return managedStrategyInstance{}, false
+		return stratsrv.ManagedInstance{}, false
 	}
 	return m.deps.currentInstance(instanceID)
 }
@@ -339,7 +341,7 @@ func (m *strategyRuntimeManager) activeInstrumentIDs() []string {
 	return result
 }
 
-func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance managedStrategyInstance) error {
+func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance stratsrv.ManagedInstance) error {
 	interval, script, err := validateStrategyRuntimeInstance(instance)
 	if err != nil {
 		return err
@@ -363,7 +365,7 @@ func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance man
 	return m.activateStrategyRuntime(instance.ID, managed)
 }
 
-func validateStrategyRuntimeInstance(instance managedStrategyInstance) (bbgotypes.Interval, string, error) {
+func validateStrategyRuntimeInstance(instance stratsrv.ManagedInstance) (bbgotypes.Interval, string, error) {
 	interval := bbgotypes.Interval(strings.TrimSpace(instance.Binding.Interval))
 	if duration, ok := strategyRuntimeIntervalDuration(interval); !ok || duration <= 0 {
 		return "", "", fmt.Errorf("strategy interval %q is invalid", instance.Binding.Interval)
@@ -387,7 +389,7 @@ func (m *strategyRuntimeManager) ensureStrategyStopped(instanceID string) error 
 	return nil
 }
 
-func (m *strategyRuntimeManager) loadStrategyRuntimeInputs(ctx context.Context, instance managedStrategyInstance) (strategyRuntimeExchange, map[string]bbgotypes.Market, *broker.FundsSnapshot, []broker.PositionSnapshot, error) {
+func (m *strategyRuntimeManager) loadStrategyRuntimeInputs(ctx context.Context, instance stratsrv.ManagedInstance) (strategyRuntimeExchange, map[string]bbgotypes.Market, *broker.FundsSnapshot, []broker.PositionSnapshot, error) {
 	exchange := m.exchangeProvider()
 	if exchange == nil {
 		return nil, nil, nil, nil, fmt.Errorf("strategy runtime exchange is unavailable")
@@ -413,7 +415,7 @@ func (m *strategyRuntimeManager) loadStrategyRuntimeInputs(ctx context.Context, 
 	return exchange, markets, funds, positions, nil
 }
 
-func (m *strategyRuntimeManager) buildManagedStrategyRuntime(ctx context.Context, exchange strategyRuntimeExchange, markets map[string]bbgotypes.Market, funds *broker.FundsSnapshot, positions []broker.PositionSnapshot, instance managedStrategyInstance, script string, interval bbgotypes.Interval) (*managedStrategyRuntime, error) {
+func (m *strategyRuntimeManager) buildManagedStrategyRuntime(ctx context.Context, exchange strategyRuntimeExchange, markets map[string]bbgotypes.Market, funds *broker.FundsSnapshot, positions []broker.PositionSnapshot, instance stratsrv.ManagedInstance, script string, interval bbgotypes.Interval) (*managedStrategyRuntime, error) {
 	runtimeCtx, cancel := context.WithCancel(context.Background())
 	managed := &managedStrategyRuntime{
 		instanceID: instance.ID,
@@ -578,7 +580,7 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 	markets bbgotypes.MarketMap,
 	funds *broker.FundsSnapshot,
 	positions []broker.PositionSnapshot,
-	instance managedStrategyInstance,
+	instance stratsrv.ManagedInstance,
 	script string,
 	symbol string,
 	interval bbgotypes.Interval,
@@ -674,7 +676,7 @@ func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange
 	return nil
 }
 
-func (m *strategyRuntimeManager) newOrderExecutor(instance managedStrategyInstance, runner *strategySymbolRuntime) bbgo.OrderExecutor {
+func (m *strategyRuntimeManager) newOrderExecutor(instance stratsrv.ManagedInstance, runner *strategySymbolRuntime) bbgo.OrderExecutor {
 	if instance.Binding.ExecutionMode == strategyExecutionModeNotifyOnly {
 		return &strategyNotifyOnlyOrderExecutor{manager: m, instance: instance, runner: runner}
 	}

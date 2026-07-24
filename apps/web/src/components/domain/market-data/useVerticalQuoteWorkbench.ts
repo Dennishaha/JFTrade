@@ -26,6 +26,7 @@ import {
   normalizeResearchQuoteTarget,
   parseResearchInstrumentId,
   researchQuoteTargetFromEntry,
+  type QuoteSeed,
   type ResearchQuoteTarget,
 } from "../../research/researchQuote";
 import { fetchResearchSnapshots } from "../../research/researchSnapshots";
@@ -59,8 +60,7 @@ const PLATE_MEMBER_DISPLAY_LIMIT = 50;
 
 export interface VerticalQuoteWorkbenchInput {
   target?: ResearchQuoteTarget | null;
-  entry?: Record<string, unknown> | null;
-  market?: string;
+  seed?: QuoteSeed | null;
   brokerId?: string;
   visible?: boolean;
 }
@@ -207,8 +207,7 @@ export function useVerticalQuoteWorkbench(
   let snapshotPollTimer: number | null = null;
 
   const resolvedTarget = computed(() =>
-    normalizeResearchQuoteTarget(props.target) ??
-    researchQuoteTargetFromEntry(props.entry, props.market),
+    normalizeResearchQuoteTarget(props.target),
   );
   const instrumentParts = computed(() =>
     parseResearchInstrumentId(resolvedTarget.value?.instrumentId),
@@ -255,37 +254,18 @@ export function useVerticalQuoteWorkbench(
     return null;
   }
 
-  function entryNumber(keys: readonly string[]): number | null {
-    if (props.entry == null) return null;
-    for (const key of keys) {
-      const value = finiteNumber(props.entry[key]);
-      if (value != null) return value;
-    }
-    return null;
-  }
-
-  function entryString(keys: readonly string[]): string {
-    if (props.entry == null) return "";
-    for (const key of keys) {
-      const value = props.entry[key];
-      if (typeof value === "string" && value.trim() !== "") {
-        return value.trim();
-      }
-    }
-    return "";
-  }
-
   const name = computed(
     () =>
       security.value?.name ||
       resolvedTarget.value?.name ||
-      entryString(["name", "title"]),
+      props.seed?.name ||
+      "",
   );
   const lastPrice = computed(() =>
     firstNumber(
       snapshot.value?.price,
       security.value?.currentPrice,
-      entryNumber(["currentPrice", "curPrice", "lastPrice", "price"]),
+      props.seed?.lastPrice,
     ),
   );
   const previousClose = computed(() =>
@@ -293,19 +273,14 @@ export function useVerticalQuoteWorkbench(
       snapshot.value?.previousClosePrice,
       snapshot.value?.lastClosePrice,
       security.value?.lastClosePrice,
-      entryNumber([
-        "lastClosePrice",
-        "previousClosePrice",
-        "prevClose",
-        "prevClosePrice",
-      ]),
+      props.seed?.previousClosePrice,
     ),
   );
   const changeAmount = computed(() => {
     if (lastPrice.value != null && previousClose.value != null) {
       return lastPrice.value - previousClose.value;
     }
-    return entryNumber(["changeVal", "changeAmount", "change"]);
+    return finiteNumber(props.seed?.changeAmount);
   });
   const changeRate = computed(() => {
     if (
@@ -315,7 +290,7 @@ export function useVerticalQuoteWorkbench(
     ) {
       return ((lastPrice.value - previousClose.value) / previousClose.value) * 100;
     }
-    return entryNumber(["changeRate", "changeRatio", "changePercent"]);
+    return finiteNumber(props.seed?.changeRate);
   });
 
   function directionClass(value: number | null): string {
@@ -368,12 +343,12 @@ export function useVerticalQuoteWorkbench(
     const session =
       snapshot.value?.session ||
       security.value?.sessionStatus ||
-      entryString(["status", "tradeStatus"]);
+      "";
     const time =
       snapshot.value?.at ||
       snapshot.value?.observedAt ||
       security.value?.updateTime ||
-      entryString(["updateTime", "tradeTime", "quoteTime", "time"]);
+      "";
     const labels: Record<string, string> = {
       regular: "交易中",
       pre: "盘前",
@@ -392,12 +367,12 @@ export function useVerticalQuoteWorkbench(
     const details = security.value;
     const quote = snapshot.value;
     const base = [
-      metric("最高", formatPrice(firstNumber(quote?.highPrice, details?.highPrice, entryNumber(["highPrice", "high"])))),
-      metric("最低", formatPrice(firstNumber(quote?.lowPrice, details?.lowPrice, entryNumber(["lowPrice", "low"])))),
-      metric("今开", formatPrice(firstNumber(quote?.openPrice, details?.openPrice, entryNumber(["openPrice", "open"])))),
+      metric("最高", formatPrice(firstNumber(quote?.highPrice, details?.highPrice))),
+      metric("最低", formatPrice(firstNumber(quote?.lowPrice, details?.lowPrice))),
+      metric("今开", formatPrice(firstNumber(quote?.openPrice, details?.openPrice))),
       metric("昨收", formatPrice(previousClose.value)),
-      metric("成交量", formatVolume(firstNumber(quote?.volume, details?.volume, entryNumber(["volume"])))),
-      metric("成交额", formatVolume(firstNumber(quote?.turnover, details?.turnover, entryNumber(["turnover"])))),
+      metric("成交量", formatVolume(firstNumber(quote?.volume, details?.volume))),
+      metric("成交额", formatVolume(firstNumber(quote?.turnover, details?.turnover))),
       metric("买一", formatPrice(firstNumber(quote?.bid, details?.bidPrice))),
       metric("卖一", formatPrice(firstNumber(quote?.ask, details?.askPrice))),
     ];

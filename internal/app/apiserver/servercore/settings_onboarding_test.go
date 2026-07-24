@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -26,7 +27,7 @@ func TestOnboardingDefaultsAndSave(t *testing.T) {
 		t.Fatalf("default lastBrokerId = %q", initial.LastBrokerID)
 	}
 
-	saved, err := store.SaveOnboarding(OnboardingSettings{
+	saved, err := store.SaveOnboarding(jfsettings.OnboardingSettings{
 		Completed:    true,
 		CompletedAt:  "2026-06-03T00:00:00Z",
 		DismissedAt:  "2026-06-03T00:00:01Z",
@@ -44,7 +45,7 @@ func TestOnboardingDefaultsAndSave(t *testing.T) {
 		t.Fatalf("ReadFile settings: %v", err)
 	}
 	var decoded struct {
-		Onboarding OnboardingSettings `json:"onboarding"`
+		Onboarding jfsettings.OnboardingSettings `json:"onboarding"`
 	}
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		t.Fatalf("Unmarshal settings: %v", err)
@@ -79,8 +80,8 @@ func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
 	var getEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			State          OnboardingSettings `json:"state"`
-			ShouldShowOobe bool               `json:"shouldShowOobe"`
+			State          jfsettings.OnboardingSettings `json:"state"`
+			ShouldShowOobe bool                          `json:"shouldShowOobe"`
 			Reasons        []struct {
 				Code string `json:"code"`
 			} `json:"reasons"`
@@ -124,8 +125,8 @@ func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
 	var putEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			State          OnboardingSettings `json:"state"`
-			ShouldShowOobe bool               `json:"shouldShowOobe"`
+			State          jfsettings.OnboardingSettings `json:"state"`
+			ShouldShowOobe bool                          `json:"shouldShowOobe"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&putEnvelope); err != nil {
@@ -148,7 +149,7 @@ func TestOnboardingReopensWhenRuntimeDependencyFailsAfterCompletion(t *testing.T
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	if _, err := store.SaveOnboarding(OnboardingSettings{Completed: true, LastBrokerID: "futu"}); err != nil {
+	if _, err := store.SaveOnboarding(jfsettings.OnboardingSettings{Completed: true, LastBrokerID: "futu"}); err != nil {
 		t.Fatalf("SaveOnboarding: %v", err)
 	}
 	api := newTestServer(t, store)

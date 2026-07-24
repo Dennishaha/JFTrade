@@ -258,6 +258,9 @@ func parseGitDiffPath(value string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if value == "" {
+		return "", nil
+	}
 	value = strings.TrimPrefix(strings.TrimPrefix(value, "a/"), "b/")
 	return cleanGitRepoPath(value)
 }
@@ -440,17 +443,10 @@ func changedLineRangesOverlap(startLine, endLine int, changedLines []lineRange) 
 }
 
 func repoRelativeProfilePath(fileName string) string {
-	fileName = normalizeProfilePath(fileName)
-	for _, root := range []string{"cmd", "internal", "pkg"} {
-		marker := "/" + root + "/"
-		if strings.HasPrefix(fileName, root+"/") {
-			return fileName
-		}
-		if index := strings.Index(fileName, marker); index >= 0 {
-			return fileName[index+1:]
-		}
+	if relativeFileName, ok := repositoryCodePath(fileName); ok {
+		return relativeFileName
 	}
-	return fileName
+	return normalizeProfilePath(fileName)
 }
 
 func evaluateDiffCoverage(analysis diffCoverageAnalysis, cfg config) []string {

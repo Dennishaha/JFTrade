@@ -13,6 +13,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestServerRuntimeRiskControlsDelegateToControlPlane(t *testing.T) {
@@ -121,7 +122,7 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 	backtestRunner := &closeTrackingPineWorkerRunner{}
 	instanceRunner := &closeTrackingPineWorkerRunner{}
 	server := &Server{
-		auth:     newWebAuth(SecuritySettings{}),
+		auth:     newWebAuth(jfsettings.SecuritySettings{}),
 		frontend: newFrontendServerWithRuntimeConfig(os.DirFS(frontendDir), "http://127.0.0.1:3000"),
 		serverStores: serverStores{
 			executionOrders: newExecutionOrderStore(),
@@ -134,9 +135,9 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 	}
 
 	sideEffects := server.settingsSideEffects()
-	integration := BrokerIntegration{
+	integration := jfsettings.BrokerIntegration{
 		Enabled: true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:          "futu",
 			Host:          "127.0.0.9",
 			APIPort:       22222,
@@ -148,14 +149,8 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 		}),
 	}
 	sideEffects.OnIntegrationChanged(integration)
-	if got := os.Getenv("JFTRADE_FUTU_API_PORT"); got != "22222" {
-		t.Fatalf("JFTRADE_FUTU_API_PORT = %q, want 22222", got)
-	}
-	if got := os.Getenv("FUTU_OPEND_WEBSOCKET_KEY"); got != "secret-key" {
-		t.Fatalf("FUTU_OPEND_WEBSOCKET_KEY = %q, want secret-key", got)
-	}
 
-	sideEffects.OnExecutionChanged(ExecutionSettings{SeenFillRetentionDays: 12})
+	sideEffects.OnExecutionChanged(jfsettings.ExecutionSettings{SeenFillRetentionDays: 12})
 	if got := server.executionOrders.seenFillRetentionDays; got != 12 {
 		t.Fatalf("seenFillRetentionDays = %d, want 12", got)
 	}
@@ -172,14 +167,14 @@ func TestServerSettingsSideEffectsPropagateRuntimeChanges(t *testing.T) {
 		t.Fatalf("runtime config body = %q, want authRequired true", body)
 	}
 
-	if err := sideEffects.OnSecurityChanged(SecuritySettings{}); err != nil {
+	if err := sideEffects.OnSecurityChanged(jfsettings.SecuritySettings{}); err != nil {
 		t.Fatalf("OnSecurityChanged disable: %v", err)
 	}
 	if server.auth.enabled {
 		t.Fatal("OnSecurityChanged should disable Web access")
 	}
 
-	sideEffects.OnPineWorkerChanged(PineWorkerSettings{})
+	sideEffects.OnPineWorkerChanged(jfsettings.PineWorkerSettings{})
 	if backtestRunner.closed != 1 || instanceRunner.closed != 1 {
 		t.Fatalf("runner close counts = %d/%d, want 1/1", backtestRunner.closed, instanceRunner.closed)
 	}

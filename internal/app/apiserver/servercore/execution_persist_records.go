@@ -67,14 +67,14 @@ func (s *executionOrderStore) loadFromDB() error {
 	return nil
 }
 
-func (s *executionOrderSQLiteStore) loadOrders() ([]executionOrderSummaryResponse, error) {
+func (s *executionOrderSQLiteStore) loadOrders() ([]trdsrv.ExecutionOrder, error) {
 	rows := []executionOrderSummaryRow{}
 	if err := s.db.Select(&rows,
 		`SELECT internal_order_id, broker_id, broker_order_id, broker_order_id_ex, source, source_detail, trading_environment, account_id, market, symbol, side, order_type, status, raw_broker_status, requested_quantity, requested_price, filled_quantity, filled_average_price, remark, last_error, last_error_code, last_error_source, submitted_at, updated_at, created_at, order_kind, product_class, quantity_mode, client_order_id, preview_id, normalized_request, requested_amount, payout, fees FROM `+
 			executionOrderTable); err != nil {
 		return nil, err
 	}
-	orders := make([]executionOrderSummaryResponse, 0, len(rows))
+	orders := make([]trdsrv.ExecutionOrder, 0, len(rows))
 	for _, row := range rows {
 		orders = append(orders, executionOrderSummaryFromRow(row))
 	}
@@ -96,14 +96,14 @@ func (s *executionOrderSQLiteStore) loadOrderLegs() (map[string][]trdsrv.Executi
 	return result, nil
 }
 
-func (s *executionOrderSQLiteStore) loadEvents() ([]executionOrderEventResponse, error) {
+func (s *executionOrderSQLiteStore) loadEvents() ([]trdsrv.ExecutionOrderEvent, error) {
 	rows := []executionOrderEventRow{}
 	if err := s.db.Select(&rows,
 		`SELECT id, internal_order_id, event_type, previous_status, next_status, payload_json, created_at FROM `+
 			executionOrderEventTable+` ORDER BY created_at ASC, id ASC`); err != nil {
 		return nil, err
 	}
-	events := make([]executionOrderEventResponse, 0, len(rows))
+	events := make([]trdsrv.ExecutionOrderEvent, 0, len(rows))
 	for _, row := range rows {
 		events = append(events, executionOrderEventFromRow(row))
 	}
@@ -130,7 +130,7 @@ func (s *executionOrderSQLiteStore) loadSequences() (map[string]uint64, error) {
 	return result, nil
 }
 
-func (s *executionOrderSQLiteStore) persistOrder(order executionOrderSummaryResponse) error {
+func (s *executionOrderSQLiteStore) persistOrder(order trdsrv.ExecutionOrder) error {
 	row := executionOrderSummaryToRow(order)
 	_, err := s.db.NamedExec(
 		`INSERT INTO `+executionOrderTable+` (internal_order_id, broker_id, broker_order_id, broker_order_id_ex, source, source_detail, trading_environment, account_id, market, symbol, side, order_type, status, raw_broker_status, requested_quantity, requested_price, filled_quantity, filled_average_price, remark, last_error, last_error_code, last_error_source, submitted_at, updated_at, created_at, order_kind, product_class, quantity_mode, client_order_id, preview_id, normalized_request, requested_amount, payout, fees) `+
@@ -161,7 +161,7 @@ func (s *executionOrderSQLiteStore) persistOrderLegs(internalOrderID string, leg
 	return nil
 }
 
-func (s *executionOrderSQLiteStore) persistEvent(event executionOrderEventResponse) error {
+func (s *executionOrderSQLiteStore) persistEvent(event trdsrv.ExecutionOrderEvent) error {
 	row := executionOrderEventToRow(event)
 	_, err := s.db.NamedExec(
 		`INSERT INTO `+executionOrderEventTable+` (id, internal_order_id, event_type, previous_status, next_status, payload_json, created_at) `+
@@ -378,8 +378,8 @@ func (s *executionOrderSQLiteStore) deleteSeenFillKeysBefore(cutoff time.Time) e
 	return err
 }
 
-func executionOrderSummaryFromRow(row executionOrderSummaryRow) executionOrderSummaryResponse {
-	return executionOrderSummaryResponse{
+func executionOrderSummaryFromRow(row executionOrderSummaryRow) trdsrv.ExecutionOrder {
+	return trdsrv.ExecutionOrder{
 		InternalOrderID:    row.InternalOrderID,
 		BrokerID:           row.BrokerID,
 		BrokerOrderID:      nullStringPointer(row.BrokerOrderID),
@@ -417,7 +417,7 @@ func executionOrderSummaryFromRow(row executionOrderSummaryRow) executionOrderSu
 	}
 }
 
-func executionOrderSummaryToRow(order executionOrderSummaryResponse) executionOrderSummaryRow {
+func executionOrderSummaryToRow(order trdsrv.ExecutionOrder) executionOrderSummaryRow {
 	return executionOrderSummaryRow{
 		InternalOrderID:    order.InternalOrderID,
 		BrokerID:           order.BrokerID,
@@ -484,8 +484,8 @@ func executionOrderLegToRow(leg trdsrv.ExecutionOrderLeg) executionOrderLegRow {
 	}
 }
 
-func executionOrderEventFromRow(row executionOrderEventRow) executionOrderEventResponse {
-	return executionOrderEventResponse{
+func executionOrderEventFromRow(row executionOrderEventRow) trdsrv.ExecutionOrderEvent {
+	return trdsrv.ExecutionOrderEvent{
 		ID:              row.ID,
 		InternalOrderID: row.InternalOrderID,
 		EventType:       row.EventType,
@@ -511,7 +511,7 @@ func canonicalPersistedEventStatusPointer(eventType string, status *string) *str
 	return &canonical
 }
 
-func executionOrderEventToRow(event executionOrderEventResponse) executionOrderEventRow {
+func executionOrderEventToRow(event trdsrv.ExecutionOrderEvent) executionOrderEventRow {
 	return executionOrderEventRow{
 		ID:              event.ID,
 		InternalOrderID: event.InternalOrderID,

@@ -5,11 +5,12 @@ import (
 	"strings"
 	"time"
 
+	live "github.com/jftrade/jftrade-main/internal/live"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 )
 
-func (s *Server) notifyExecutionOrderPlaced(order executionOrderSummaryResponse) {
+func (s *Server) notifyExecutionOrderPlaced(order trdsrv.ExecutionOrder) {
 	note := baseExecutionNotification(order, "broker.order.place")
 	note.Level = "success"
 	note.Title = executionBrokerLabel(order) + " 订单已提交"
@@ -17,7 +18,7 @@ func (s *Server) notifyExecutionOrderPlaced(order executionOrderSummaryResponse)
 	s.emitExecutionNotification(note)
 }
 
-func (s *Server) notifyExecutionOrderLifecycle(order executionOrderSummaryResponse, event *executionOrderEventResponse) {
+func (s *Server) notifyExecutionOrderLifecycle(order trdsrv.ExecutionOrder, event *trdsrv.ExecutionOrderEvent) {
 	if event == nil {
 		return
 	}
@@ -28,17 +29,17 @@ func (s *Server) notifyExecutionOrderLifecycle(order executionOrderSummaryRespon
 	s.emitExecutionNotification(note)
 }
 
-func (s *Server) emitExecutionNotification(note liveNotification) {
+func (s *Server) emitExecutionNotification(note live.Notification) {
 	s.recordLiveNotification(note)
 	bbgo.Notify(forwardedBBGONotification{note: note})
 }
 
-func executionNotificationForStatus(order executionOrderSummaryResponse, event *executionOrderEventResponse) (liveNotification, bool) {
+func executionNotificationForStatus(order trdsrv.ExecutionOrder, event *trdsrv.ExecutionOrderEvent) (live.Notification, bool) {
 	status := strings.ToUpper(strings.TrimSpace(order.Status))
 	switch status {
 	case trdsrv.OrderStatusSubmitted, trdsrv.OrderStatusBrokerAccepted:
 		if event.EventType != "BROKER_SYNC_DISCOVERED" && event.EventType != "BROKER_PUSH_DISCOVERED" {
-			return liveNotification{}, false
+			return live.Notification{}, false
 		}
 		note := baseExecutionNotification(order, "broker.order.place")
 		note.Level = "success"
@@ -64,16 +65,16 @@ func executionNotificationForStatus(order executionOrderSummaryResponse, event *
 		note.Message = executionOrderNotificationMessage(order)
 		return note, true
 	default:
-		return liveNotification{}, false
+		return live.Notification{}, false
 	}
 }
 
-func baseExecutionNotification(order executionOrderSummaryResponse, category string) liveNotification {
+func baseExecutionNotification(order trdsrv.ExecutionOrder, category string) live.Notification {
 	brokerID := order.BrokerID
 	if strings.TrimSpace(brokerID) == "" {
 		brokerID = "unknown"
 	}
-	return liveNotification{
+	return live.Notification{
 		At:       time.Now().UTC().Format(time.RFC3339Nano),
 		Source:   "execution-orders",
 		BrokerID: brokerID,
@@ -81,7 +82,7 @@ func baseExecutionNotification(order executionOrderSummaryResponse, category str
 	}
 }
 
-func executionBrokerLabel(order executionOrderSummaryResponse) string {
+func executionBrokerLabel(order trdsrv.ExecutionOrder) string {
 	brokerID := strings.TrimSpace(order.BrokerID)
 	if brokerID == "" {
 		return "券商"
@@ -89,7 +90,7 @@ func executionBrokerLabel(order executionOrderSummaryResponse) string {
 	return strings.ToUpper(brokerID)
 }
 
-func executionOrderNotificationMessage(order executionOrderSummaryResponse) string {
+func executionOrderNotificationMessage(order trdsrv.ExecutionOrder) string {
 	parts := []string{}
 	if order.TradingEnvironment != "" {
 		parts = append(parts, order.TradingEnvironment)

@@ -2,7 +2,9 @@
 
 import { flushPromises, mount } from "@vue/test-utils";
 import { createMemoryHistory, createRouter } from "vue-router";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { createResponse } from "./helpers";
 
 const consoleState = vi.hoisted(() => ({
   brokerRuntime: {
@@ -74,37 +76,44 @@ const accountDiscoveryStub = {
   template: "<section data-section='account-discovery'>{{ unavailableMessage }}</section>",
 };
 
-function mountSettings(path: string) {
+function mountSettings(path: string, options: { realDataManagement?: boolean } = {}) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: "/settings/:section?", component: SettingsPage }],
   });
   return router.push(path).then(async () => {
     await router.isReady();
+    const stubs: Record<string, unknown> = {
+      RuntimeDependenciesSection: sectionStub("runtime-dependencies"),
+      FutuIntegrationSection: sectionStub("futu-integration"),
+      SettingsManagedAccountsSection: sectionStub("managed-accounts"),
+      SettingsAccountDiscoverySection: accountDiscoveryStub,
+      SettingsAppearanceSection: sectionStub("appearance"),
+      SettingsExchangeCalendarSection: sectionStub("exchange-calendars"),
+      SettingsSecuritySection: sectionStub("security"),
+      SettingsSystemNotificationsSection: sectionStub("system-notifications"),
+      SettingsPineWorkerSection: sectionStub("pine-worker"),
+      SettingsADKSection: sectionStub("adk"),
+      SettingsDeveloperToolsSection: sectionStub("developer-tools"),
+      SettingsOpenSourceSection: sectionStub("open-source"),
+    };
+    if (!options.realDataManagement) {
+      stubs.SettingsDataManagementSection = sectionStub("data-management");
+    }
     const wrapper = mount(SettingsPage, {
       global: {
         plugins: [router],
-        stubs: {
-          RuntimeDependenciesSection: sectionStub("runtime-dependencies"),
-          FutuIntegrationSection: sectionStub("futu-integration"),
-          SettingsManagedAccountsSection: sectionStub("managed-accounts"),
-          SettingsAccountDiscoverySection: accountDiscoveryStub,
-          SettingsAppearanceSection: sectionStub("appearance"),
-          SettingsExchangeCalendarSection: sectionStub("exchange-calendars"),
-          SettingsSecuritySection: sectionStub("security"),
-          SettingsSystemNotificationsSection: sectionStub("system-notifications"),
-          SettingsPineWorkerSection: sectionStub("pine-worker"),
-          SettingsADKSection: sectionStub("adk"),
-          SettingsDeveloperToolsSection: sectionStub("developer-tools"),
-          SettingsDataManagementSection: sectionStub("data-management"),
-          SettingsOpenSourceSection: sectionStub("open-source"),
-        },
+        stubs,
       },
     });
     await flushPromises();
     return { router, wrapper };
   });
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("SettingsPage", () => {
   it("keeps settings routes, navigation, and the persisted last section in sync", async () => {
@@ -146,11 +155,11 @@ describe("SettingsPage", () => {
     expect(wrapper.get("[data-section='open-source']").exists()).toBe(true);
   });
 
-  it("normalizes legacy, missing, and unknown sections before rendering settings", async () => {
+  it("normalizes missing and unknown sections without legacy aliases", async () => {
     window.localStorage.setItem("jft.settings.section", "security");
     const legacy = await mountSettings("/settings/data-migration");
-    expect(legacy.router.currentRoute.value.path).toBe("/settings/data-management");
-    expect(window.localStorage.getItem("jft.settings.section")).toBe("data-management");
+    expect(legacy.router.currentRoute.value.path).toBe("/settings/runtime-dependencies");
+    expect(window.localStorage.getItem("jft.settings.section")).toBe("runtime-dependencies");
 
     window.localStorage.setItem("jft.settings.section", "security");
     const missing = await mountSettings("/settings");
@@ -179,5 +188,16 @@ describe("SettingsPage", () => {
     };
     const disconnected = await mountSettings("/settings/account-discovery");
     expect(disconnected.wrapper.text()).toContain("OpenD 尚未连接成功");
+  });
+
+  it("loads the current data management section", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(createResponse({ databases: [] })));
+
+    const { wrapper } = await mountSettings("/settings/data-management", {
+      realDataManagement: true,
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("数据管理");
   });
 });

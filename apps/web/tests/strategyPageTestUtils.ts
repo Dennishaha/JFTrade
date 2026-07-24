@@ -1,5 +1,4 @@
 import { mount } from "@vue/test-utils"
-import { createPinia } from "pinia"
 import { defineComponent, h, nextTick } from "vue"
 import { createMemoryHistory, createRouter, RouterView } from "vue-router"
 
@@ -66,7 +65,7 @@ export async function mountStrategyPage(path = "/strategy") {
 
   const wrapper = mount(StrategyPageTestRoot, {
     global: {
-      plugins: [createPinia(), router],
+      plugins: [router],
       stubs: {
         "v-button": buttonStub,
         "v-dialog": dialogStub,

@@ -8,8 +8,8 @@ const srcDir = join(rootDir, "apps/web/dist");
 const dstDir = join(rootDir, "internal/frontendassets/dist");
 const zipPath = join(rootDir, "internal/frontendassets/dist.zip");
 
-run("pnpm", ["run", "build:web"]);
-run("pnpm", ["--filter", "@jftrade/web", "run", "docs:build"]);
+run("pnpm", ["run", "build:web:generated"]);
+run("pnpm", ["run", "build:docs:generated"]);
 run("pnpm", ["run", "stage:docs"]);
 rmSync(dstDir, { recursive: true, force: true });
 cpSync(srcDir, dstDir, { recursive: true });

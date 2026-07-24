@@ -28,7 +28,7 @@ slow = request.security(syminfo.tickerid, "D", ta.sma(close, 1))`
 	})
 
 	t.Run("resolveBacktestReadSessionScope normalizes nil and explicit toggles", func(t *testing.T) {
-		if got := resolveBacktestReadSessionScope(nil); got != "auto" {
+		if got := resolveBacktestReadSessionScope(nil); got != "regular" {
 			t.Fatalf("resolveBacktestReadSessionScope(nil) = %q", got)
 		}
 		includeExtendedHours := true

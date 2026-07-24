@@ -1,6 +1,8 @@
 package servercore
 
 import (
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"net"
 	"path/filepath"
 	"strconv"
@@ -30,10 +32,10 @@ func newMarketDataTestServerWithQuoteRuntime(t *testing.T, addr string) *Server 
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    host,
 			APIPort:                 port,
@@ -49,7 +51,7 @@ func newMarketDataTestServerWithQuoteRuntime(t *testing.T, addr string) *Server 
 	return newTestServer(t, store)
 }
 
-func seedCachedTickSample(server *Server, sample marketTickSample) {
+func seedCachedTickSample(server *Server, sample mdsrv.Tick) {
 	server.marketdataSvc.Seed(sample)
 }
 

@@ -9,6 +9,7 @@ import {
   isLegacyGoPineRuntime,
   isSupportedPineRuntime,
 } from "../src/components/strategy-runtime/strategyRuntimeIdentity";
+import { buildPineStrategyDefinitionPayload } from "../src/components/strategy-runtime/strategyDefinitionPayload";
 import type { StrategyInstanceItem } from "../src/contracts";
 
 describe("strategy runtime identity", () => {
@@ -29,5 +30,20 @@ describe("strategy runtime identity", () => {
     } as StrategyInstanceItem;
 
     expect(formatStrategyEligibility(strategy)).toBe("受限");
+  });
+
+  it("omits a missing visual model from generated definition payloads", () => {
+    const payload = buildPineStrategyDefinitionPayload({
+      id: "strategy-1",
+      name: "Strategy",
+      version: "1.0.0",
+      description: "",
+      script: "//@version=6",
+      visualModel: null,
+      createdAt: "",
+      updatedAt: "",
+    });
+
+    expect(payload).not.toHaveProperty("visualModel");
   });
 });

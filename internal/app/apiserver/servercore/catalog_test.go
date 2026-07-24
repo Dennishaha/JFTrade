@@ -14,10 +14,10 @@ import (
 
 func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 	store := &strategyCatalogStore{}
-	input := managedStrategyInstance{
+	input := stratsrv.ManagedInstance{
 		ID:       "instance-1",
 		PluginID: IDPinePlanPlugin(),
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "mean-revert",
 			Name:       "Mean Revert",
 			Version:    "0.1.0",
@@ -88,8 +88,8 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 }
 
 func TestNormalizeStrategyInstanceBindingPrefersExplicitInstruments(t *testing.T) {
-	got := normalizeStrategyInstanceBinding(strategyInstanceBinding{
-		Instruments: []strategyBindingInstrument{
+	got := normalizeStrategyInstanceBinding(stratsrv.InstanceBinding{
+		Instruments: []stratsrv.BindingInstrument{
 			{Market: "us", Code: "aapl"},
 			{Market: "hk", Code: "00700"},
 		},
@@ -148,10 +148,10 @@ func TestStrategyCatalogStoreIgnoresLegacyJSONFile(t *testing.T) {
 
 func TestNormalizeStrategyKeepsExplicitLegacyRuntimeInstanceUnsupported(t *testing.T) {
 	store := &strategyCatalogStore{}
-	input := managedStrategyInstance{
+	input := stratsrv.ManagedInstance{
 		ID:       "legacy-instance-1",
 		PluginID: "removed-script-runtime",
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "removed-runtime-strategy",
 			Name:       "Removed Runtime Strategy",
 			Version:    "0.1.0",
@@ -190,14 +190,14 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		t.Fatalf("NewStrategyCatalogStore: %v", err)
 	}
 	t.Cleanup(func() { jftradeErr2 := store.Close(); jftradeCheckTestError(t, jftradeErr2) })
-	if err := store.saveStrategy(managedStrategyInstance{
+	if err := store.saveStrategy(stratsrv.ManagedInstance{
 		ID: "instance-1",
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "dsl-mean-revert",
 			Name:       "Mean Revert",
 			Version:    "0.1.0",
 		},
-		Binding: strategyInstanceBinding{
+		Binding: stratsrv.InstanceBinding{
 			Symbols:       []string{"US.AAPL"},
 			Interval:      "1m",
 			ExecutionMode: strategyExecutionModeNotifyOnly,
@@ -217,7 +217,7 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		t.Fatalf("saveStrategy: %v", err)
 	}
 
-	item, err := store.refreshStrategyDefinition("instance-1", strategyDesignDefinition{
+	item, err := store.refreshStrategyDefinition("instance-1", stratsrv.Definition{
 		ID:           "dsl-mean-revert",
 		Name:         "Mean Revert v2",
 		Version:      "0.1.1",
@@ -250,7 +250,7 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		t.Fatalf("expected refresh log entry, got %+v", logs)
 	}
 
-	if _, err := store.refreshStrategyDefinition("instance-1", strategyDesignDefinition{
+	if _, err := store.refreshStrategyDefinition("instance-1", stratsrv.Definition{
 		ID:           "dsl-mean-revert",
 		Name:         "Mean Revert v3",
 		Version:      "0.1.2",
@@ -261,9 +261,9 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		t.Fatalf("second refreshStrategyDefinition: %v", err)
 	}
 
-	if err := store.saveStrategy(managedStrategyInstance{
+	if err := store.saveStrategy(stratsrv.ManagedInstance{
 		ID:         "instance-busy",
-		Definition: strategyDefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert", Version: "0.1.0"},
+		Definition: stratsrv.DefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert", Version: "0.1.0"},
 		Params: map[string]any{
 			"definitionId": "dsl-mean-revert",
 			"runtime":      strategyRuntimePinePlan,
@@ -275,7 +275,7 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 	}); err != nil {
 		t.Fatalf("saveStrategy busy: %v", err)
 	}
-	if _, err := store.refreshStrategyDefinition("instance-busy", strategyDesignDefinition{
+	if _, err := store.refreshStrategyDefinition("instance-busy", stratsrv.Definition{
 		ID:           "dsl-mean-revert",
 		Name:         "Mean Revert v4",
 		Version:      "0.1.3",
@@ -297,15 +297,15 @@ func TestApplyDefinitionToLinkedStrategiesRefreshesStoppedInstancesOnly(t *testi
 
 	oldScript := "//@version=6\nstrategy(\"Mean Revert\", overlay=true)\nlog.info(\"old\")"
 	newScript := "//@version=6\nstrategy(\"Mean Revert\", overlay=true)\nfast = ta.sma(close, 10)\nstrategy.entry(\"Long\", strategy.long, qty=1)"
-	linkedBinding := strategyInstanceBinding{
+	linkedBinding := stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
 	}
-	for _, input := range []managedStrategyInstance{
+	for _, input := range []stratsrv.ManagedInstance{
 		{
 			ID:         "linked-stale-stopped",
-			Definition: strategyDefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert", Version: "0.1.0"},
+			Definition: stratsrv.DefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert", Version: "0.1.0"},
 			Binding:    linkedBinding,
 			Params: map[string]any{
 				"definitionId": "dsl-mean-revert",
@@ -318,7 +318,7 @@ func TestApplyDefinitionToLinkedStrategiesRefreshesStoppedInstancesOnly(t *testi
 		},
 		{
 			ID:         "linked-already-latest",
-			Definition: strategyDefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert v2", Version: "0.2.0"},
+			Definition: stratsrv.DefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert v2", Version: "0.2.0"},
 			Binding:    linkedBinding,
 			Params: map[string]any{
 				"definitionId": "dsl-mean-revert",
@@ -331,7 +331,7 @@ func TestApplyDefinitionToLinkedStrategiesRefreshesStoppedInstancesOnly(t *testi
 		},
 		{
 			ID:         "linked-running",
-			Definition: strategyDefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert", Version: "0.1.0"},
+			Definition: stratsrv.DefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert", Version: "0.1.0"},
 			Binding:    linkedBinding,
 			Params: map[string]any{
 				"definitionId": "dsl-mean-revert",
@@ -344,7 +344,7 @@ func TestApplyDefinitionToLinkedStrategiesRefreshesStoppedInstancesOnly(t *testi
 		},
 		{
 			ID:         "unrelated-stale-stopped",
-			Definition: strategyDefinitionSummary{StrategyID: "other-definition", Name: "Other", Version: "0.1.0"},
+			Definition: stratsrv.DefinitionSummary{StrategyID: "other-definition", Name: "Other", Version: "0.1.0"},
 			Binding:    linkedBinding,
 			Params: map[string]any{
 				"definitionId": "other-definition",
@@ -361,7 +361,7 @@ func TestApplyDefinitionToLinkedStrategiesRefreshesStoppedInstancesOnly(t *testi
 		}
 	}
 
-	result, err := store.applyDefinitionToLinkedStrategies(strategyDesignDefinition{
+	result, err := store.applyDefinitionToLinkedStrategies(stratsrv.Definition{
 		ID:           "dsl-mean-revert",
 		Name:         "Mean Revert v2",
 		Version:      "0.2.0",

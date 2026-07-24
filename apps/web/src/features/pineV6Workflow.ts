@@ -698,10 +698,27 @@ function normalizeRuntimeBindingDraft(
     executionMode: (executionMode === "notify_only" ? "notify_only" : "live") as StrategyExecutionMode,
     useExtendedHours: record.useExtendedHours === true,
     ...(readString(record.brokerAccountKey) === "" ? {} : { brokerAccountKey: readString(record.brokerAccountKey) }),
-    ...(isRecord(record.runtimeRisk)
-      ? { runtimeRisk: record.runtimeRisk as unknown as StrategyRuntimeRiskSettings }
+    ...(isStrategyRuntimeRiskSettings(record.runtimeRisk)
+      ? { runtimeRisk: record.runtimeRisk }
       : fallback.runtimeRisk === undefined ? {} : { runtimeRisk: fallback.runtimeRisk }),
   };
+}
+
+function isStrategyRuntimeRiskSettings(
+  value: unknown,
+): value is StrategyRuntimeRiskSettings {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (value.mode !== "off" && value.mode !== "monitor" && value.mode !== "enforce") {
+    return false;
+  }
+  if (typeof value.closeOnly !== "boolean" || typeof value.pauseOnReject !== "boolean") {
+    return false;
+  }
+  return [value.maxOrderQuantity, value.maxOrderNotional, value.dailyMaxOrders].every(
+    (limit) => limit == null || (typeof limit === "number" && Number.isFinite(limit) && limit > 0),
+  );
 }
 
 function normalizeBlockKind(value: string): PineV6WorkflowBlockKind {

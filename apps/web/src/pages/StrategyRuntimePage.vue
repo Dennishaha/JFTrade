@@ -31,9 +31,7 @@ async function loadStrategyDefinitionsCount(): Promise<void> {
   try {
     const items = await queryClient.ensureQueryData({
       queryKey: queryKeys.strategyDefinitions(),
-      queryFn: () => apiGet<Array<{ id: string }>, "/api/v1/strategy-definitions">(
-        "/api/v1/strategy-definitions",
-      ),
+      queryFn: () => apiGet("/api/v1/strategy-definitions"),
     });
     strategyDefinitionsCount.value = items.length;
   } catch {

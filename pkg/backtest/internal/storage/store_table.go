@@ -91,30 +91,8 @@ func (s *FutuKLineStore) writeTableName(symbol string, interval types.Interval, 
 
 func (s *FutuKLineStore) readTableNames(symbol string, interval types.Interval, rehabType string) ([3]string, int) {
 	var tableNames [3]string
-	add := func(index int, scope string) {
-		tableNames[index] = klineTableNameForSessionScope(symbol, interval, rehabType, scope)
-	}
-
-	switch normalizeReadSessionScopeName(s.readSessionScopeName()) {
-	case klineSessionScopeRegular:
-		add(0, klineSessionScopeRegular)
-		add(1, klineSessionScopeLegacy)
-		add(2, klineSessionScopeExtended)
-		return tableNames, 3
-	case klineSessionScopeExtended:
-		add(0, klineSessionScopeExtended)
-		add(1, klineSessionScopeLegacy)
-		add(2, klineSessionScopeRegular)
-		return tableNames, 3
-	case klineSessionScopeLegacy:
-		add(0, klineSessionScopeLegacy)
-		return tableNames, 1
-	default:
-		add(0, klineSessionScopeLegacy)
-		add(1, klineSessionScopeExtended)
-		add(2, klineSessionScopeRegular)
-		return tableNames, 3
-	}
+	tableNames[0] = klineTableNameForSessionScope(symbol, interval, rehabType, normalizeReadSessionScopeName(s.readSessionScopeName()))
+	return tableNames, 1
 }
 
 func jftradeCheckedTypeAssertion[T any](value any) T {

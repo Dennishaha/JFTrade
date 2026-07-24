@@ -69,6 +69,7 @@ func TestCoverageStatsPercentageAndPackageScopeBoundaries(t *testing.T) {
 		{name: "direct command", fileName: "cmd/jftrade-api/main.go", want: "cmd/jftrade-api", ok: true},
 		{name: "direct package", fileName: "pkg/example/service.go", want: "pkg/example", ok: true},
 		{name: "embedded internal path", fileName: "github.com/jftrade/jftrade-main/internal/example/service.go", want: "internal/example", ok: true},
+		{name: "nested internal package", fileName: "github.com/jftrade/jftrade-main/pkg/backtest/internal/storage/store.go", want: "pkg/backtest/internal/storage", ok: true},
 		{name: "unsupported root", fileName: "docs/example.go"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

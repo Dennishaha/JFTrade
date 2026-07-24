@@ -37,8 +37,16 @@ func (m *Manager) backupQuotaBytes(ctx context.Context) int64 {
 	return max(backupQuotaFloorBytes, sourceBytes*2)
 }
 
-func (m *Manager) prepareBackupCapacity(backupDir, databaseID string, reserveBytes, quotaBytes int64) error {
+func (m *Manager) prepareBackupCapacity(
+	backupDir, databaseID string,
+	reserveBytes, quotaBytes int64,
+	protectedPaths ...string,
+) error {
 	files, err := m.listManagedBackupFiles(backupDir)
+	if err != nil {
+		return err
+	}
+	protected, err := m.protectedBackupPaths(protectedPaths...)
 	if err != nil {
 		return err
 	}
@@ -50,7 +58,7 @@ func (m *Manager) prepareBackupCapacity(backupDir, databaseID string, reserveByt
 	}
 	removed := make(map[string]bool)
 	for _, file := range files {
-		if file.databaseID != databaseID || remainingForDatabase < backupRetentionPerDB {
+		if file.databaseID != databaseID || remainingForDatabase < backupRetentionPerDB || isProtectedBackup(protected, file.path) {
 			continue
 		}
 		if err := removeManagedBackup(file); err != nil {
@@ -72,7 +80,7 @@ func (m *Manager) prepareBackupCapacity(backupDir, databaseID string, reserveByt
 		if totalBytes <= quotaBytes-reserveBytes {
 			break
 		}
-		if removed[file.path] {
+		if removed[file.path] || isProtectedBackup(protected, file.path) {
 			continue
 		}
 		if err := removeManagedBackup(file); err != nil {
@@ -87,12 +95,21 @@ func (m *Manager) prepareBackupCapacity(backupDir, databaseID string, reserveByt
 	return nil
 }
 
-func (m *Manager) enforceBackupRetention(backupDir, currentPath string, quotaBytes int64) error {
+func (m *Manager) enforceBackupRetention(
+	backupDir, currentPath string,
+	quotaBytes int64,
+	protectedPaths ...string,
+) error {
 	files, err := m.listManagedBackupFiles(backupDir)
 	if err != nil {
 		return err
 	}
 	currentPath = filepath.Clean(currentPath)
+	protectedPaths = append(protectedPaths, currentPath)
+	protected, err := m.protectedBackupPaths(protectedPaths...)
+	if err != nil {
+		return err
+	}
 	currentDatabaseID := ""
 	counts := make(map[string]int)
 	for _, file := range files {
@@ -106,7 +123,7 @@ func (m *Manager) enforceBackupRetention(backupDir, currentPath string, quotaByt
 	}
 	removed := make(map[string]bool)
 	for _, file := range files {
-		if file.databaseID != currentDatabaseID || counts[file.databaseID] <= backupRetentionPerDB || filepath.Clean(file.path) == currentPath {
+		if file.databaseID != currentDatabaseID || counts[file.databaseID] <= backupRetentionPerDB || isProtectedBackup(protected, file.path) {
 			continue
 		}
 		if err := removeManagedBackup(file); err != nil {
@@ -125,7 +142,7 @@ func (m *Manager) enforceBackupRetention(backupDir, currentPath string, quotaByt
 		if totalBytes <= quotaBytes {
 			break
 		}
-		if removed[file.path] || filepath.Clean(file.path) == currentPath {
+		if removed[file.path] || isProtectedBackup(protected, file.path) {
 			continue
 		}
 		if err := removeManagedBackup(file); err != nil {
@@ -138,6 +155,30 @@ func (m *Manager) enforceBackupRetention(backupDir, currentPath string, quotaByt
 		return fmt.Errorf("%w: backup directory uses %d bytes", ErrBackupQuotaExceeded, totalBytes)
 	}
 	return nil
+}
+
+func (m *Manager) protectedBackupPaths(extraPaths ...string) (map[string]struct{}, error) {
+	pending, err := m.readMarker()
+	if err != nil {
+		return nil, err
+	}
+	protected := make(map[string]struct{}, len(pending.Backups)+len(extraPaths))
+	for _, backup := range pending.Backups {
+		if strings.TrimSpace(backup.Path) != "" {
+			protected[filepath.Clean(backup.Path)] = struct{}{}
+		}
+	}
+	for _, path := range extraPaths {
+		if strings.TrimSpace(path) != "" {
+			protected[filepath.Clean(path)] = struct{}{}
+		}
+	}
+	return protected, nil
+}
+
+func isProtectedBackup(protected map[string]struct{}, path string) bool {
+	_, ok := protected[filepath.Clean(path)]
+	return ok
 }
 
 func (m *Manager) listManagedBackupFiles(backupDir string) ([]managedBackupFile, error) {

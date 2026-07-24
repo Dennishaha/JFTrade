@@ -86,27 +86,6 @@ type executionClaimTx interface {
 	Commit() error
 }
 
-func (s *Store) ensureExecutionClaimSchema(ctx context.Context) error {
-	statements := []string{
-		`CREATE TABLE IF NOT EXISTS ` + tableRunLeases + ` (` +
-			`run_id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, fencing_token INTEGER NOT NULL, ` +
-			`heartbeat_at_unix_ms INTEGER NOT NULL, expires_at_unix_ms INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE INDEX IF NOT EXISTS idx_adk_run_leases_expires ON ` + tableRunLeases + ` (expires_at_unix_ms ASC)`,
-		`CREATE TABLE IF NOT EXISTS ` + tableToolInvocations + ` (` +
-			`run_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, tool_name TEXT NOT NULL, status TEXT NOT NULL, ` +
-			`owner_id TEXT NOT NULL, fencing_token INTEGER NOT NULL, run_lease_token INTEGER NOT NULL, ` +
-			`input_json TEXT NOT NULL, output_json TEXT NOT NULL, lease_expires_at_unix_ms INTEGER NOT NULL, ` +
-			`created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY (run_id, idempotency_key))`,
-		`CREATE INDEX IF NOT EXISTS idx_adk_tool_invocations_status ON ` + tableToolInvocations + ` (status, lease_expires_at_unix_ms ASC)`,
-	}
-	for _, statement := range statements {
-		if _, err := s.db.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("initialize ADK execution claims: %w", err)
-		}
-	}
-	return nil
-}
-
 func (s *Store) ClaimRunLease(
 	ctx context.Context,
 	runID string,

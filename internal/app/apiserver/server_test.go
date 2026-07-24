@@ -10,8 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/security/passwordhash"
 	"github.com/jftrade/jftrade-main/internal/store/settingsfile"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -63,7 +65,7 @@ func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {
 	if _, err := os.Stat(filepath.Dir(backtestDBPath)); err != nil {
 		t.Fatalf("backtest db dir not initialized: %v", err)
 	}
-	if got := os.Getenv("FUTU_OPEND_ADDR"); got != "127.0.0.4:24444" {
+	if got := os.Getenv("FUTU_OPEND_ADDR"); got != "before-startup" {
 		t.Fatalf("startup FUTU_OPEND_ADDR = %q", got)
 	}
 }
@@ -455,17 +457,29 @@ func TestDependenciesApplyScheduledDatabaseRebuildBeforeStartup(t *testing.T) {
 	root := t.TempDir()
 	settingsPath := filepath.Join(root, "settings.json")
 	backtestPath := filepath.Join(root, "backtest.db")
-	for _, path := range []string{backtestPath, backtestPath + "-wal", backtestPath + "-shm"} {
+	db, err := sqliteconn.Open(backtestPath)
+	if err != nil {
+		t.Fatalf("open legacy database: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE legacy_rows (id INTEGER PRIMARY KEY)`); err != nil {
+		_ = db.Close()
+		t.Fatalf("create legacy database: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close legacy database: %v", err)
+	}
+	manager := datamigration.NewManager(settingsPath, backtestPath)
+	if _, err := manager.ScheduleRebuild(t.Context(), datamigration.RebuildRequest{
+		Mode:         "single",
+		DatabaseIDs:  []string{datamigration.DatabaseBacktest},
+		Confirmation: "REBUILD " + datamigration.DatabaseBacktest,
+	}); err != nil {
+		t.Fatalf("schedule verified rebuild: %v", err)
+	}
+	for _, path := range []string{backtestPath + "-wal", backtestPath + "-shm"} {
 		if err := os.WriteFile(path, []byte("legacy"), 0o600); err != nil {
 			t.Fatalf("write legacy database file: %v", err)
 		}
-	}
-	if err := os.WriteFile(
-		filepath.Join(root, "database-rebuild.json"),
-		[]byte(`{"databaseIds":["backtest"],"createdAt":"2026-06-21T00:00:00Z"}`),
-		0o600,
-	); err != nil {
-		t.Fatalf("write rebuild marker: %v", err)
 	}
 
 	deps := dependencies()

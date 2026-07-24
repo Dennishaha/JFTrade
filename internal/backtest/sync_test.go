@@ -355,15 +355,21 @@ func TestPlanSyncIntervals(t *testing.T) {
 	}
 }
 
-func TestNormalizeSessionScope(t *testing.T) {
+func TestParseSessionScope(t *testing.T) {
 	for input, want := range map[string]string{
-		"regular":    "regular",
-		" extended ": "extended",
-		"":           "legacy",
-		"unknown":    "legacy",
+		"":         "regular",
+		"regular":  "regular",
+		"extended": "extended",
 	} {
-		if got := normalizeSessionScope(input); got != want {
-			t.Fatalf("normalizeSessionScope(%q) = %q, want %q", input, got, want)
+		got, err := parseSessionScope(input)
+		if err != nil || got != want {
+			t.Fatalf("parseSessionScope(%q) = %q, %v; want %q", input, got, err, want)
+		}
+	}
+
+	for _, input := range []string{"legacy", "unknown", " regular ", "EXTENDED"} {
+		if got, err := parseSessionScope(input); err == nil || got != "" || !IsRequestError(err) {
+			t.Fatalf("parseSessionScope(%q) = %q, %v; want request error", input, got, err)
 		}
 	}
 }

@@ -1,9 +1,7 @@
-import { defineStore } from "pinia";
 import {
   type InjectionKey,
   computed,
   inject,
-  markRaw,
   provide,
   ref,
   watch,
@@ -93,7 +91,6 @@ import {
 import { getSharedLiveSocketHub } from "./sharedLiveSocket";
 import { normalizeKlinePeriod } from "../charting/kline";
 import {
-  useWorkspaceTradingPrefs,
   type WorkspaceTradingPreferencesStore,
 } from "./useWorkspaceLayout";
 
@@ -620,31 +617,19 @@ function createConsoleDataStore(
 type ConsoleDataStore = ReturnType<typeof createConsoleDataStore>;
 
 const consoleDataKey: InjectionKey<ConsoleDataStore> = Symbol("console-data");
-let providedWorkspaceTradingPrefs: WorkspaceTradingPreferencesStore | null = null;
-
-export const useConsoleDataStore = defineStore("console-data", () => {
-  const workspaceTradingPrefs =
-    providedWorkspaceTradingPrefs ?? useWorkspaceTradingPrefs();
-  const legacy = markRaw(
-    createConsoleDataStore(workspaceTradingPrefs),
-  ) as ConsoleDataStore;
-  return {
-    legacy,
-  };
-});
 
 export function provideConsoleDataStore(
   workspaceTradingPrefs: WorkspaceTradingPreferencesStore,
 ): ConsoleDataStore {
-  providedWorkspaceTradingPrefs = workspaceTradingPrefs;
-  const store = useConsoleDataStore().legacy as unknown as ConsoleDataStore;
+  const store = createConsoleDataStore(workspaceTradingPrefs);
   provide(consoleDataKey, store);
   return store;
 }
 
 export function useConsoleData(): ConsoleDataStore {
-  return (
-    inject(consoleDataKey, null) ??
-    (useConsoleDataStore().legacy as unknown as ConsoleDataStore)
-  );
+  const store = inject(consoleDataKey, null);
+  if (store == null) {
+    throw new Error("Console data store not provided.");
+  }
+  return store;
 }

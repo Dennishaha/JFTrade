@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
@@ -67,9 +68,9 @@ func TestStrategyRuntimeRemainingDependencyBoundaries(t *testing.T) {
 }
 
 func TestStrategyRuntimeRemainingInputLoadErrors(t *testing.T) {
-	instance := managedStrategyInstance{Binding: strategyInstanceBinding{
+	instance := stratsrv.ManagedInstance{Binding: stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", TradingEnvironment: "SIMULATE", AccountID: "1", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", TradingEnvironment: "SIMULATE", AccountID: "1", Market: "US"},
 	}}
 	manager := &strategyRuntimeManager{exchangeProvider: func() strategyRuntimeExchange { return nil }}
 	if _, _, _, _, err := manager.loadStrategyRuntimeInputs(t.Context(), instance); err == nil || !strings.Contains(err.Error(), "exchange") {
@@ -121,7 +122,7 @@ func TestStrategyRuntimeRemainingActivationReservationAndTradeBoundaries(t *test
 func TestStrategyRuntimeRemainingBuildSymbolErrors(t *testing.T) {
 	manager := &strategyRuntimeManager{}
 	stub := newStrategyRuntimeStubExchange()
-	instance := managedStrategyInstance{ID: "instance", Definition: strategyDefinitionSummary{Name: "Coverage"}, Binding: strategyInstanceBinding{Symbols: []string{"US.AAPL"}, Interval: "1m"}}
+	instance := stratsrv.ManagedInstance{ID: "instance", Definition: stratsrv.DefinitionSummary{Name: "Coverage"}, Binding: stratsrv.InstanceBinding{Symbols: []string{"US.AAPL"}, Interval: "1m"}}
 	if _, err := manager.buildSymbolRuntime(t.Context(), context.Background(), stub, bbgotypes.MarketMap{}, stub.funds, nil, instance, "strategy.entry(\"Long\", strategy.long)", "US.AAPL", bbgotypes.Interval1m); err == nil {
 		t.Fatal("missing market metadata error = nil")
 	}

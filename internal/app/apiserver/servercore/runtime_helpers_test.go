@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 
@@ -318,13 +319,13 @@ func (e *strategyRuntimeStubExchange) lastPlacedOrder() (bbgotypes.SubmitOrder, 
 	return e.placedOrders[len(e.placedOrders)-1], true
 }
 
-func instantiateStrategyRuntimeTestInstance(t *testing.T, server *Server, binding strategyInstanceBinding) string {
+func instantiateStrategyRuntimeTestInstance(t *testing.T, server *Server, binding stratsrv.InstanceBinding) string {
 	return instantiateStrategyRuntimeTestInstanceWithDefinitionID(t, server, "runtime-test", binding)
 }
 
-func instantiateStrategyRuntimeTestInstanceWithDefinitionID(t *testing.T, server *Server, definitionID string, binding strategyInstanceBinding) string {
+func instantiateStrategyRuntimeTestInstanceWithDefinitionID(t *testing.T, server *Server, definitionID string, binding stratsrv.InstanceBinding) string {
 	t.Helper()
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		ID:           definitionID,
 		Name:         "Runtime Test",
 		Version:      "0.1.0",

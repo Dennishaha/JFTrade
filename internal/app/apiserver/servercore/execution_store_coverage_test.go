@@ -11,7 +11,7 @@ import (
 
 func TestExecutionStoreRemainingMergeTimestampAndFillKeyBoundaries(t *testing.T) {
 	store := newExecutionOrderStore()
-	existing := executionOrderSummaryResponse{
+	existing := trdsrv.ExecutionOrder{
 		InternalOrderID:    "exec-existing",
 		BrokerID:           "futu",
 		BrokerOrderID:      stringPointerOrNil("broker-1"),
@@ -22,7 +22,7 @@ func TestExecutionStoreRemainingMergeTimestampAndFillKeyBoundaries(t *testing.T)
 	}
 	store.orders[existing.InternalOrderID] = existing
 	store.linkBrokerOrderLocked(existing)
-	merged := store.mergePlacedOrderLocked(existing.InternalOrderID, executionPlacedOrderRecord{}, "now", "created")
+	merged := store.mergePlacedOrderLocked(existing.InternalOrderID, trdsrv.ExecutionPlacedOrderRecord{}, "now", "created")
 	if merged.Status != trdsrv.OrderStatusSubmitted {
 		t.Fatalf("blank merge status = %q", merged.Status)
 	}
@@ -39,7 +39,7 @@ func TestExecutionStoreRemainingMergeTimestampAndFillKeyBoundaries(t *testing.T)
 }
 
 func TestExecutionStoreRemainingSnapshotIdentityAndFillDefaults(t *testing.T) {
-	summary := executionOrderSummaryResponse{}
+	summary := trdsrv.ExecutionOrder{}
 	changed := applyBrokerOrderSnapshotIdentity(&summary, broker.OrderSnapshot{
 		Market:             "US",
 		AccountID:          "account",
@@ -63,7 +63,7 @@ func TestExecutionStoreRemainingSnapshotIdentityAndFillDefaults(t *testing.T) {
 		FillPrice:       &price,
 		FilledAt:        now,
 	}
-	fillTarget := executionOrderSummaryResponse{Status: trdsrv.OrderStatusSubmitted}
+	fillTarget := trdsrv.ExecutionOrder{Status: trdsrv.OrderStatusSubmitted}
 	applyBrokerOrderFill(&fillTarget, fill, now)
 	if fillTarget.BrokerOrderIDEx == nil || *fillTarget.BrokerOrderIDEx != ex || fillTarget.SubmittedAt == nil || fillTarget.Source != "broker" || fillTarget.SourceDetail != "broker.fill" {
 		t.Fatalf("applied fill defaults = %#v", fillTarget)
@@ -72,7 +72,7 @@ func TestExecutionStoreRemainingSnapshotIdentityAndFillDefaults(t *testing.T) {
 
 func TestExecutionStorePersistsParentBrokerFeesWithoutInventingLegAllocation(t *testing.T) {
 	store := newExecutionOrderStore()
-	order := store.recordPlacedOrder(executionPlacedOrderRecord{
+	order := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID: "coverage", BrokerOrderID: "101", BrokerOrderIDEx: "ORDER-EX-101",
 		TradingEnvironment: "SIMULATE", AccountID: "account", Market: "US",
 		Status: "FILLED_ALL", OrderKind: broker.OrderKindOptionCombo,
@@ -108,7 +108,7 @@ func TestExecutionStorePersistsParentBrokerFeesWithoutInventingLegAllocation(t *
 }
 
 func TestBrokerSnapshotDoesNotDowngradePreviewLockedProduct(t *testing.T) {
-	summary := executionOrderSummaryResponse{
+	summary := trdsrv.ExecutionOrder{
 		OrderKind:    broker.OrderKindSingle,
 		ProductClass: broker.ProductClassOption,
 		QuantityMode: broker.QuantityModeContracts,
@@ -131,7 +131,7 @@ func TestBrokerSnapshotDoesNotDowngradePreviewLockedProduct(t *testing.T) {
 func TestExecutionStoreRemainingPersistenceLifecycleBoundaries(t *testing.T) {
 	var nilStore *executionOrderStore
 	nilStore.startPersistenceWorker()
-	nilStore.writePersistenceItem(executionPersistenceItem{kind: "order", order: executionOrderSummaryResponse{InternalOrderID: "exec-nil"}})
+	nilStore.writePersistenceItem(executionPersistenceItem{kind: "order", order: trdsrv.ExecutionOrder{InternalOrderID: "exec-nil"}})
 	nilStore.configureSeenFillRetention(1)
 	if err := nilStore.Close(); err != nil {
 		t.Fatalf("nil store Close: %v", err)
@@ -142,7 +142,7 @@ func TestExecutionStoreRemainingPersistenceLifecycleBoundaries(t *testing.T) {
 	if store.persistenceQueue != nil {
 		t.Fatal("startPersistenceWorker without persistence should not create a queue")
 	}
-	store.writePersistenceItem(executionPersistenceItem{kind: "order", order: executionOrderSummaryResponse{InternalOrderID: "exec-no-persistence"}})
+	store.writePersistenceItem(executionPersistenceItem{kind: "order", order: trdsrv.ExecutionOrder{InternalOrderID: "exec-no-persistence"}})
 	if len(store.orders) != 0 {
 		t.Fatalf("writePersistenceItem without persistence mutated orders = %#v", store.orders)
 	}
@@ -166,7 +166,7 @@ func TestExecutionStoreRemainingPersistenceLifecycleBoundaries(t *testing.T) {
 	}
 	closedStore := newExecutionOrderStore()
 	closedStore.persistence = persistence
-	closedStore.writePersistenceItem(executionPersistenceItem{kind: "order", order: executionOrderSummaryResponse{InternalOrderID: "exec-fail"}})
+	closedStore.writePersistenceItem(executionPersistenceItem{kind: "order", order: trdsrv.ExecutionOrder{InternalOrderID: "exec-fail"}})
 
 	reloaded, err := newExecutionOrderStoreWithDB(dbPath)
 	if err != nil {

@@ -1,7 +1,7 @@
 import type {
   PineV6WorkflowDocument,
-  StrategyDefinitionDocument,
 } from "@/contracts";
+import type { components } from "@/generated/openapi";
 
 import { PINE_WORKER_RUNTIME, PINE_V6_SOURCE_FORMAT } from "./strategyRuntimeIdentity";
 
@@ -18,7 +18,7 @@ export interface BuildPineStrategyDefinitionPayloadInput {
 
 export function buildPineStrategyDefinitionPayload(
   input: BuildPineStrategyDefinitionPayloadInput,
-): StrategyDefinitionDocument {
+): components["schemas"]["strategy.StrategyDesignDefinition"] {
   return {
     id: input.id,
     name: input.name,
@@ -27,7 +27,7 @@ export function buildPineStrategyDefinitionPayload(
     runtime: PINE_WORKER_RUNTIME,
     sourceFormat: PINE_V6_SOURCE_FORMAT,
     script: input.script,
-    visualModel: input.visualModel,
+    ...(input.visualModel == null ? {} : { visualModel: input.visualModel }),
     createdAt: input.createdAt,
     updatedAt: input.updatedAt,
   };

@@ -7,6 +7,7 @@ import (
 
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 )
 
 func TestResearchDatabaseParticipatesInStatusBackupAndRebuild(t *testing.T) {
@@ -33,7 +34,7 @@ func TestResearchDatabaseParticipatesInStatusBackupAndRebuild(t *testing.T) {
 			break
 		}
 	}
-	if found == nil || found.Status != "ready" || found.CurrentVersion == nil || *found.CurrentVersion != ResearchSchemaVersion {
+	if found == nil || found.Status != "ready" || found.CurrentVersion == nil || *found.CurrentVersion != sqliteschema.ResearchVersion {
 		t.Fatalf("research status = %#v", found)
 	}
 	backup, err := manager.Backup(t.Context(), DatabaseResearch, BackupConfirmationText(DatabaseResearch))

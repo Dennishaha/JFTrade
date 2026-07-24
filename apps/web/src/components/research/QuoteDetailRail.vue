@@ -8,7 +8,7 @@ import type {
 } from "../domain/market-data/quoteWorkbench";
 import {
   normalizeResearchQuoteTarget,
-  researchQuoteTargetFromEntry,
+  type QuoteSeed,
   type ResearchQuoteTarget,
 } from "./researchQuote";
 
@@ -16,9 +16,7 @@ const props = withDefaults(
   defineProps<{
     /** Preferred, normalized selection contract. */
     target?: ResearchQuoteTarget | null;
-    /** Backward-compatible input while research lists migrate to target. */
-    entry?: Record<string, unknown> | null;
-    market?: string;
+    seed?: QuoteSeed | null;
     brokerId?: string;
     visible?: boolean;
     drawer?: boolean;
@@ -27,8 +25,7 @@ const props = withDefaults(
   }>(),
   {
     target: null,
-    entry: null,
-    market: "",
+    seed: null,
     brokerId: "",
     visible: true,
     drawer: false,
@@ -46,12 +43,10 @@ const emit = defineEmits<{
 }>();
 
 const resolvedTarget = computed(
-  () =>
-    normalizeResearchQuoteTarget(props.target) ??
-    researchQuoteTargetFromEntry(props.entry, props.market),
+  () => normalizeResearchQuoteTarget(props.target),
 );
 const emptyText = computed(() =>
-  props.entry == null && props.target == null
+  props.target == null && props.seed == null
     ? "点击左侧榜单查看行情详情"
     : "该条目缺少精确的 OpenD 标的代码",
 );
@@ -60,6 +55,7 @@ const emptyText = computed(() =>
 <template>
   <VerticalQuoteWorkbench
     :target="resolvedTarget"
+    :seed="seed"
     :broker-id="brokerId"
     :visible="visible"
     :variant="drawer ? 'drawer' : 'rail'"

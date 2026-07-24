@@ -58,7 +58,7 @@ export function resolveStrategyIndicatorGetterLabel(
 ): string {
   const properties = normalizeGetTechnicalIndicatorProperties(node.properties ?? {});
   const variableName = properties.variableName;
-  const summary = nextGetTechnicalIndicatorNodeText(properties as unknown as Record<string, unknown>);
+  const summary = nextGetTechnicalIndicatorNodeText(node.properties ?? {});
   return variableName === undefined ? summary : `${variableName} · ${summary}`;
 }
 

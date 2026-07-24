@@ -7,8 +7,10 @@ import (
 	"strings"
 	"time"
 
+	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/internal/watchlist"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
@@ -175,7 +177,7 @@ func (s *Server) baseADKToolDeps() ToolDeps {
 			return s.marketSnapshotResponseForInstrument(ctx, market, symbol, marketSnapshotQuery{Refresh: newOptionalBoolValue(false)})
 		},
 		MarketCandles: func(ctx context.Context, market string, symbol string, period string, limit int) (any, error) {
-			return s.marketCandlesResponseForInstrument(ctx, market, symbol, marketCandlesQuery{Period: candlePeriodValue(period), Limit: newOptionalIntValue(limit)})
+			return s.marketCandlesResponseForInstrument(ctx, market, symbol, marketCandlesQuery{Period: httpserver.CandlePeriodValue(period), Limit: newOptionalIntValue(limit)})
 		},
 		WatchlistList:      s.adkWatchlistList,
 		ManagedAccounts:    func() any { return s.store.ManagedAccounts() },
@@ -591,7 +593,7 @@ func (s *Server) adkSaveStrategyDraft(input StrategyDraftInput) (any, error) {
 	if s == nil || s.strategySvc == nil {
 		return nil, fmt.Errorf("策略定义存储不可用")
 	}
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		Name:         stringOrDefault(input.Name, "ADK 策略草稿"),
 		Description:  "由 ADK agent 生成的策略草稿。",
 		SourceFormat: strategydefinition.SourceFormatPineV6,
@@ -620,7 +622,7 @@ func (s *Server) adkSaveStrategyDefinition(input StrategyDefinitionInput) (any, 
 	if err != nil {
 		return nil, err
 	}
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		ID:           definitionID,
 		Name:         strings.TrimSpace(input.Name),
 		Description:  strings.TrimSpace(input.Description),
@@ -673,7 +675,7 @@ func backtestRunSummaryFromSrvRun(run *btsrv.RunState) BacktestRunSummary {
 	}
 }
 
-func strategyVisualModelFromInput(value any) (*strategyVisualModel, error) {
+func strategyVisualModelFromInput(value any) (*stratsrv.VisualModel, error) {
 	if value == nil {
 		return nil, nil
 	}
@@ -681,7 +683,7 @@ func strategyVisualModelFromInput(value any) (*strategyVisualModel, error) {
 	if err != nil {
 		return nil, fmt.Errorf("visualModel must be a valid object: %w", err)
 	}
-	var model strategyVisualModel
+	var model stratsrv.VisualModel
 	if err := json.Unmarshal(data, &model); err != nil {
 		return nil, fmt.Errorf("visualModel must be a valid object: %w", err)
 	}
@@ -692,14 +694,14 @@ func validateADKStrategyDraftScript(script string) error {
 	return ValidateADKStrategyDraftScript(script)
 }
 
-func brokerBindingMarket(binding *strategyBrokerAccountBinding) string {
+func brokerBindingMarket(binding *stratsrv.BrokerAccountBinding) string {
 	if binding == nil {
 		return ""
 	}
 	return binding.Market
 }
 
-func brokerBindingAccountID(binding *strategyBrokerAccountBinding) string {
+func brokerBindingAccountID(binding *stratsrv.BrokerAccountBinding) string {
 	if binding == nil {
 		return ""
 	}

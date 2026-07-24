@@ -109,6 +109,6 @@ Web 关闭时，Wails 桌面产品不会创建浏览器监听器。开启后默�
 
 正式产品从内嵌前端资源提供 Web UI；`JFTrade Dev` 没有内嵌资源，因此可选 Web 监听器会代理同一开发命令启动的本机 Vite 服务（默认 `127.0.0.1:3003`）。`/runtime-config.js` 仍由 Gin 生成浏览器配置，不会把浏览器引向 Wails sidecar。开发代理只接受 loopback 目标。
 
-Web 访问的启停、端口、改密和网络范围只能从可信桌面应用修改；浏览器设置页仅展示状态。旧版 `adminAuthRequired` 和 `secrets/admin.key` 不会迁移成 Web 密码，升级后 Web 保持关闭，应用会清理自己运行目录中的旧密钥文件。
+Web 访问的启停、端口、改密和网络范围只能从可信桌面应用修改；浏览器设置页仅展示状态。旧版 `adminAuthRequired` 和 `secrets/admin.key` 不会迁移成 Web 密码，应用也不会读取、迁移或删除这些遗留内容；升级后 Web 保持关闭。
 
 如果需要定位认证或设置保存问题，继续看 [troubleshooting.md](./troubleshooting.md)。

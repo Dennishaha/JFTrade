@@ -111,6 +111,9 @@ func TestDataManagementRemainingPurgeAndCompactBoundaries(t *testing.T) {
 		datamigration.DatabaseExecution,
 		datamigration.DatabaseADK,
 		datamigration.DatabaseADKSession,
+		datamigration.DatabaseADKArtifact,
+		datamigration.DatabaseWatchlist,
+		datamigration.DatabaseResearch,
 		"unknown",
 	} {
 		if err := bare.compactDatabase(ctx, databaseID); err == nil {

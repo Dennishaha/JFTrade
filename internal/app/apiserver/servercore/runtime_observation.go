@@ -14,10 +14,10 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
 )
 
-func (m *strategyRuntimeManager) runtimeObservation(instanceID string) (strategyRuntimeObservation, bool) {
+func (m *strategyRuntimeManager) runtimeObservation(instanceID string) (stratsrv.RuntimeObservation, bool) {
 	runtime := m.runtime(instanceID)
 	if runtime == nil {
-		return strategyRuntimeObservation{}, false
+		return stratsrv.RuntimeObservation{}, false
 	}
 	return runtime.observation(), true
 }
@@ -40,10 +40,10 @@ func (m *strategyRuntimeManager) typedRuntimeSummary() stratsrv.RuntimeSummary {
 	}
 	m.mu.RUnlock()
 
-	activeInstances := make([]strategyRuntimeActiveInstanceSummary, 0, len(runtimes))
+	activeInstances := make([]stratsrv.RuntimeActiveInstanceSummary, 0, len(runtimes))
 	for _, runtime := range runtimes {
 		observation := runtime.observation()
-		activeInstances = append(activeInstances, strategyRuntimeActiveInstanceSummary{
+		activeInstances = append(activeInstances, stratsrv.RuntimeActiveInstanceSummary{
 			InstanceID:        runtime.instanceID,
 			DefinitionName:    strings.TrimSpace(runtime.definition.Name),
 			ActualStatus:      observation.ActualStatus,
@@ -123,7 +123,7 @@ func (m *strategyRuntimeManager) handleRuntimePanic(instanceID string, symbol st
 	m.wakeMarketDataCollector()
 }
 
-func (runtime *managedStrategyRuntime) observation() strategyRuntimeObservation {
+func (runtime *managedStrategyRuntime) observation() stratsrv.RuntimeObservation {
 	snapshot := runtime.snapshot(strategyStatusRunning)
 	return strategyRuntimeObservationFromSnapshot(snapshot, strategyStatusRunning)
 }
@@ -190,9 +190,9 @@ func (m *strategyRuntimeManager) persistObservationSnapshot(snapshot runtimeacti
 	}
 }
 
-func strategyRuntimeObservationFromSnapshot(snapshot runtimeactivity.ObservationSnapshot, actualStatus string) strategyRuntimeObservation {
+func strategyRuntimeObservationFromSnapshot(snapshot runtimeactivity.ObservationSnapshot, actualStatus string) stratsrv.RuntimeObservation {
 	observation := runtimecontrol.ObservationFromSnapshot(snapshot, actualStatus, strategyStatusStopped)
-	return strategyRuntimeObservation{
+	return stratsrv.RuntimeObservation{
 		ActualStatus:      observation.ActualStatus,
 		ActiveSymbols:     observation.ActiveSymbols,
 		LastClosedKLineAt: observation.LastClosedKLineAt,

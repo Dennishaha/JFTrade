@@ -214,7 +214,6 @@ go test ./internal/watchlist ./internal/store/watchlist ./internal/api/watchlist
 pnpm --filter @jftrade/web run typecheck
 pnpm --filter @jftrade/web run test:ci
 pnpm run generate:docs
-pnpm run generate:api-types
 bash scripts/check-arch-deps.sh
 ```
 

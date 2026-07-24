@@ -635,7 +635,7 @@ func TestListOptimizationTasksSortsByUpdatedAtDesc(t *testing.T) {
 }
 
 func TestRecentOpenAIMessagesKeepsLatestConversation(t *testing.T) {
-	messages := []Message{
+	messages := []TranscriptEntry{
 		{Role: "user", Content: "first"},
 		{Role: "assistant", Content: "second"},
 		{Role: "user", Content: "third"},
@@ -867,9 +867,6 @@ func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 	}
 	if containsString(publish.Tools, "strategy.research_backtest") {
 		t.Fatalf("publish skill unexpectedly exposes research_backtest: %+v", publish.Tools)
-	}
-	if _, ok, err := runtime.Skills().Get(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || ok {
-		t.Fatalf("legacy strategy skill ok=%v err=%v, want absent", ok, err)
 	}
 	for _, item := range []struct {
 		skillName string

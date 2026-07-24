@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 func TestSkillRegistryArchiveAndFilesystemBoundaryBranches(t *testing.T) {
@@ -115,16 +113,6 @@ func TestSkillRegistryArchiveAndFilesystemBoundaryBranches(t *testing.T) {
 	}
 	if _, existed, err := registry.installSkillDocument("doc-skill", []byte(rawBundle["SKILL.md"])); err == nil || !existed {
 		t.Fatalf("duplicate installSkillDocument existed=%v err=%v, want existed error", existed, err)
-	}
-	invalidLegacyDir := filepath.Join(dir, strategypinespec.LegacyBuiltinSkillName)
-	if err := os.MkdirAll(invalidLegacyDir, 0o755); err != nil {
-		t.Fatalf("mkdir legacy: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(invalidLegacyDir, "SKILL.md"), []byte("not frontmatter"), 0o644); err != nil {
-		t.Fatalf("write legacy: %v", err)
-	}
-	if err := registry.removeLegacyBuiltinSkill(strategypinespec.LegacyBuiltinSkillName); err != nil {
-		t.Fatalf("invalid legacy removal should be ignored: %v", err)
 	}
 	if err := registry.syncBuiltinSkill("custom-preserved", map[string]string{"SKILL.md": rawBundle["SKILL.md"]}); err != nil {
 		t.Fatalf("syncBuiltinSkill missing: %v", err)

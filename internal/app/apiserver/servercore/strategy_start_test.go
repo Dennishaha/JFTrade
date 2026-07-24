@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"encoding/json"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -14,10 +15,10 @@ func TestStartStrategyRouteRejectsNotStartableInstance(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
+	if err := server.strategyStore.saveStrategy(stratsrv.ManagedInstance{
 		ID:       "legacy-instance",
 		PluginID: "legacy-runtime",
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "legacy-definition",
 			Name:       "Legacy Definition",
 			Version:    "0.1.0",

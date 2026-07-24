@@ -3,6 +3,7 @@ package servercore
 import (
 	"context"
 	"encoding/json"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -18,11 +19,11 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 	stub := newStrategyRuntimeStubExchange()
 	installStrategyRuntimeTestExchange(server, stub)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -48,8 +49,8 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 	}
 	defer func() { jftradeCheckTestError(t, strategiesResp.Body.Close()) }()
 	var strategiesEnvelope struct {
-		OK   bool               `json:"ok"`
-		Data []strategyListItem `json:"data"`
+		OK   bool                    `json:"ok"`
+		Data []stratsrv.InstanceView `json:"data"`
 	}
 	if err := json.NewDecoder(strategiesResp.Body).Decode(&strategiesEnvelope); err != nil {
 		t.Fatalf("decode strategies response: %v", err)
@@ -120,11 +121,11 @@ func TestStrategyRuntimeObservationPersistsAcrossServerRestart(t *testing.T) {
 	stub := newStrategyRuntimeStubExchange()
 	installStrategyRuntimeTestExchange(server, stub)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -182,11 +183,11 @@ func TestStrategyRuntimePanicAutoReconcilesToStopped(t *testing.T) {
 	stub.panicOnPlaceOrder = true
 	installStrategyRuntimeTestExchange(server, stub)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {

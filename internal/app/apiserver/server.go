@@ -127,17 +127,18 @@ func StartDesktopWithConfig(ctx context.Context, runtimeConfig DesktopRuntimeCon
 			return defaultEnvOrDefault(key, fallback)
 		}
 	}
-	deps.NewHandler = func(store lifecycle.SettingsStore) (lifecycle.Handler, error) {
+	deps.NewHandler = func(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration) (lifecycle.Handler, error) {
 		settingsStore, ok := store.(servercore.SidecarSettingsStore)
 		if !ok {
 			return nil, fmt.Errorf("unexpected settings store type %T", store)
 		}
 		handler := servercore.NewSidecarHandlerWithOptions(settingsStore, servercore.SidecarOptions{
-			FrontendFS:       loadFrontendFS(),
-			FrontendDevURL:   desktopFrontendDevURL(),
-			NotificationSink: sink,
-			DesktopMode:      true,
-			DesktopAPIToken:  runtimeConfig.APIToken,
+			FrontendFS:         loadFrontendFS(),
+			FrontendDevURL:     desktopFrontendDevURL(),
+			NotificationSink:   sink,
+			DesktopMode:        true,
+			DesktopAPIToken:    runtimeConfig.APIToken,
+			StartupIntegration: &integration,
 		})
 		handler.ConfigureAuthOrigins(desktopTrustedOrigins()...)
 		return handler, nil
@@ -277,7 +278,6 @@ func dependencies() lifecycle.Dependencies {
 		},
 		NewSettingsStore:          newSettingsStore,
 		ResolveIntegrationRuntime: apiruntime.IntegrationWithEnvDefaults,
-		ApplyIntegrationRuntime:   apiruntime.ApplyIntegrationEnv,
 		NewHandler:                newHandler,
 		APIBaseURLForBind:         apiruntime.APIBaseURLForBind,
 		PortFromBind:              apiruntime.PortFromBind,
@@ -288,12 +288,12 @@ func newSettingsStore(path string) (lifecycle.SettingsStore, error) {
 	return settingsfile.New(path)
 }
 
-func newHandler(store lifecycle.SettingsStore) (lifecycle.Handler, error) {
+func newHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerIntegration) (lifecycle.Handler, error) {
 	settingsStore, ok := store.(servercore.SidecarSettingsStore)
 	if !ok {
 		return nil, fmt.Errorf("unexpected settings store type %T", store)
 	}
-	return servercore.NewSidecarHandlerWithStore(settingsStore, nil, ""), nil
+	return servercore.NewSidecarHandlerWithOptions(settingsStore, servercore.SidecarOptions{StartupIntegration: &integration}), nil
 }
 
 func loadFrontendFS() fs.FS {

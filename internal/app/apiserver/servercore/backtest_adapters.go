@@ -5,6 +5,7 @@ import (
 	"time"
 
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 )
 
@@ -79,7 +80,7 @@ func toBacktestRunState(r *btsrv.RunState) *backtestRunState {
 	}
 }
 
-func toSrvStrategyDef(d strategyDesignDefinition) btsrv.StrategyDef {
+func toSrvStrategyDef(d stratsrv.Definition) btsrv.StrategyDef {
 	return btsrv.StrategyDef{
 		ID:           d.ID,
 		Version:      d.Version,

@@ -75,6 +75,26 @@ func TestBacktestSyncRouteReturnsTaskForValidRequest(t *testing.T) {
 	}
 }
 
+func TestBacktestSyncRouteRejectsObsoleteSessionScope(t *testing.T) {
+	service := srv.NewService(
+		srv.WithSyncTaskStore(newBoundarySyncTaskStore()),
+		srv.WithNewKLineSyncerFn(func(string) (srv.KLineSyncer, error) {
+			t.Fatal("sync adapter must not open for an invalid session scope")
+			return boundarySyncer{}, nil
+		}),
+	)
+	router := backtestBoundaryRouter(service)
+	response := backtestBoundaryRequest(router, http.MethodPost, "/api/v1/backtests/sync", `{
+		"market":"US",
+		"code":"AAPL",
+		"intervals":["1m"],
+		"since":"2024-01-02T00:00:00Z",
+		"until":"2024-01-03T00:00:00Z",
+		"sessionScope":"legacy"
+	}`)
+	backtestBoundaryAssertError(t, response, http.StatusBadRequest, "BAD_REQUEST")
+}
+
 func TestBacktestHandlersRejectMissingAndBlankURIParameters(t *testing.T) {
 	service := srv.NewService()
 	tests := []struct {

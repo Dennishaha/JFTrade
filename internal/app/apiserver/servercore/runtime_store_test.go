@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	_ "modernc.org/sqlite"
 )
 
@@ -62,7 +63,7 @@ func TestStrategyRuntimeStoreRoundTripsLogsAuditAndObservation(t *testing.T) {
 		if index == 1 {
 			level = "error"
 		}
-		if err := store.AppendLog(ctx, strategyRuntimeLogEvent{
+		if err := store.AppendLog(ctx, runtimeactivity.LogEvent{
 			InstanceID: "instance-1",
 			At:         eventAt,
 			Raw:        eventAt.Format(time.RFC3339Nano) + " runtime event",
@@ -71,7 +72,7 @@ func TestStrategyRuntimeStoreRoundTripsLogsAuditAndObservation(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("AppendLog(%d): %v", index, err)
 		}
-		if err := store.AppendAudit(ctx, strategyRuntimeAuditEvent{
+		if err := store.AppendAudit(ctx, runtimeactivity.AuditEvent{
 			InstanceID: "instance-1",
 			Kind:       []string{"started", "runtime_error", "stopped"}[index],
 			Detail:     "detail",
@@ -83,7 +84,7 @@ func TestStrategyRuntimeStoreRoundTripsLogsAuditAndObservation(t *testing.T) {
 
 	lastSignalAt := baseTime.Add(3 * time.Minute)
 	updatedAt := baseTime.Add(4 * time.Minute)
-	if err := store.UpsertObservation(ctx, strategyRuntimeObservationSnapshot{
+	if err := store.UpsertObservation(ctx, runtimeactivity.ObservationSnapshot{
 		InstanceID:    "instance-1",
 		ActualStatus:  strategyStatusStopped,
 		ActiveSymbols: []string{"US.AAPL", "US.TSLA"},
@@ -94,7 +95,7 @@ func TestStrategyRuntimeStoreRoundTripsLogsAuditAndObservation(t *testing.T) {
 		t.Fatalf("UpsertObservation: %v", err)
 	}
 
-	logs, err := store.ListLogs(ctx, strategyRuntimeLogQuery{InstanceID: "instance-1", Limit: 10})
+	logs, err := store.ListLogs(ctx, runtimeactivity.LogQuery{InstanceID: "instance-1", Limit: 10})
 	if err != nil {
 		t.Fatalf("ListLogs: %v", err)
 	}
@@ -105,7 +106,7 @@ func TestStrategyRuntimeStoreRoundTripsLogsAuditAndObservation(t *testing.T) {
 		t.Fatalf("expected logs to be sorted desc by time, got %+v", logs)
 	}
 
-	errorLogs, err := store.ListLogs(ctx, strategyRuntimeLogQuery{InstanceID: "instance-1", Limit: 10, Level: "error"})
+	errorLogs, err := store.ListLogs(ctx, runtimeactivity.LogQuery{InstanceID: "instance-1", Limit: 10, Level: "error"})
 	if err != nil {
 		t.Fatalf("ListLogs level filter: %v", err)
 	}
@@ -113,7 +114,7 @@ func TestStrategyRuntimeStoreRoundTripsLogsAuditAndObservation(t *testing.T) {
 		t.Fatalf("unexpected level-filtered logs: %+v", errorLogs)
 	}
 
-	auditEntries, err := store.ListAudit(ctx, strategyRuntimeAuditQuery{InstanceID: "instance-1", Limit: 2, Offset: 1})
+	auditEntries, err := store.ListAudit(ctx, runtimeactivity.AuditQuery{InstanceID: "instance-1", Limit: 2, Offset: 1})
 	if err != nil {
 		t.Fatalf("ListAudit: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestStrategyRuntimeStoreRoundTripsLogsAuditAndObservation(t *testing.T) {
 	}
 }
 
-func newStrategyRuntimeStoreForTest(t *testing.T) *strategyRuntimeStore {
+func newStrategyRuntimeStoreForTest(t *testing.T) *runtimeactivity.Store {
 	t.Helper()
 	store, err := NewStrategyRuntimeStore(filepath.Join(t.TempDir(), "strategy-runtime-test.db"))
 	if err != nil {

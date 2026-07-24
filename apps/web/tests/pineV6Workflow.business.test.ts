@@ -78,8 +78,8 @@ describe("pineV6Workflow business boundaries", () => {
       executionMode: "notify_only",
       brokerAccountKey: "acct-1",
       useExtendedHours: true,
-      runtimeRisk: { dailyLoss: 1000 },
     });
+    expect(normalized.runtimeBindingDraft.runtimeRisk).toBeUndefined();
   });
 
   it("restores default inputs when a persisted workflow has a malformed input list", () => {
@@ -92,6 +92,33 @@ describe("pineV6Workflow business boundaries", () => {
         expect.objectContaining({ name: "slowLen", defaultValue: "26" }),
       ]),
     );
+  });
+
+  it("accepts only complete finite runtime risk settings", () => {
+    const fallback = createDefaultPineV6Workflow("Risk fallback");
+    const normalizeRisk = (runtimeRisk: unknown) => normalizePineV6Workflow({
+      ...fallback,
+      runtimeBindingDraft: { ...fallback.runtimeBindingDraft, runtimeRisk },
+    }).runtimeBindingDraft.runtimeRisk;
+
+    expect(normalizeRisk({
+      mode: "monitor",
+      closeOnly: true,
+      pauseOnReject: false,
+      maxOrderQuantity: null,
+      maxOrderNotional: 10_000,
+      dailyMaxOrders: 5,
+    })).toMatchObject({ mode: "monitor", maxOrderNotional: 10_000 });
+    expect(normalizeRisk({ mode: "off", closeOnly: "yes", pauseOnReject: false })).toBeUndefined();
+    expect(normalizeRisk({
+      mode: "enforce", closeOnly: true, pauseOnReject: true, maxOrderQuantity: "10",
+    })).toBeUndefined();
+    expect(normalizeRisk({
+      mode: "enforce", closeOnly: true, pauseOnReject: true, maxOrderQuantity: Number.NaN,
+    })).toBeUndefined();
+    expect(normalizeRisk({
+      mode: "enforce", closeOnly: true, pauseOnReject: true, maxOrderQuantity: 0,
+    })).toBeUndefined();
   });
 
   it("renders every supported workflow block family with runtime-safe defaults", () => {

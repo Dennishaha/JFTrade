@@ -22,8 +22,6 @@ const (
 	defaultSSEClientRetry        = 5 * time.Second
 )
 
-type marketTickSample = mdsrv.Tick
-
 func (s *Server) ensureLiveMarketStream(context.Context, []string) {
 	if s != nil && s.marketdataSvc != nil {
 		s.marketdataSvc.WakeCollector()

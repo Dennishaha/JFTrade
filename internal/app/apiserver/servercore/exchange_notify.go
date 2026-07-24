@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
+	live "github.com/jftrade/jftrade-main/internal/live"
 )
 
 func (s *Server) recordExchangeCalendarAlert(alert exchangecalendar.SourceAlert) {
@@ -22,11 +23,11 @@ func (s *Server) recordExchangeCalendarAlert(alert exchangecalendar.SourceAlert)
 	s.recordLiveNotification(*note)
 }
 
-func liveNotificationFromExchangeCalendarAlert(alert exchangecalendar.SourceAlert) *liveNotification {
+func liveNotificationFromExchangeCalendarAlert(alert exchangecalendar.SourceAlert) *live.Notification {
 	if strings.TrimSpace(alert.Title) == "" {
 		return nil
 	}
-	note := &liveNotification{
+	note := &live.Notification{
 		At:       time.Now().UTC().Format(time.RFC3339Nano),
 		Level:    normalizeExchangeCalendarNotificationLevel(alert.Level),
 		Title:    strings.TrimSpace(alert.Title),

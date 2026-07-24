@@ -14,6 +14,7 @@ import (
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"github.com/shopspring/decimal"
 )
 
@@ -97,7 +98,7 @@ func TestADKToolDepsCoreClosuresCoverDisconnectedAndCachedFlows(t *testing.T) {
 		t.Fatalf("MarketCandles totalReturned = %#v, want at least one cached candle", candles["totalReturned"])
 	}
 
-	if got := deps.ManagedAccounts().([]ManagedBrokerAccount); len(got) != 0 {
+	if got := deps.ManagedAccounts().([]jfsettings.ManagedBrokerAccount); len(got) != 0 {
 		t.Fatalf("ManagedAccounts = %#v, want empty default managed accounts", got)
 	}
 	if deps.BrokerEnabled() {
@@ -208,7 +209,7 @@ log.info("ready")`)
 	if err != nil {
 		t.Fatalf("SaveStrategyDraft: %v", err)
 	}
-	draft := draftAny.(strategyDesignDefinition)
+	draft := draftAny.(stratsrv.Definition)
 	if draft.ID == "" || draft.Name != "ADK Closure Draft" {
 		t.Fatalf("draft = %#v, want persisted draft definition", draft)
 	}
@@ -221,7 +222,7 @@ log.info("ready")`)
 	if err != nil {
 		t.Fatalf("SaveStrategyDefinition(create): %v", err)
 	}
-	definition := definitionAny.(strategyDesignDefinition)
+	definition := definitionAny.(stratsrv.Definition)
 	if definition.ID == "" || definition.Name != "ADK Closure Definition" {
 		t.Fatalf("definition = %#v, want persisted definition", definition)
 	}
@@ -233,11 +234,11 @@ log.info("ready")`)
 		t.Fatalf("SaveStrategyDefinition(missing) error = %v, want not found", err)
 	}
 
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.TME"},
 		Interval:      "5m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{
+		BrokerAccount: &stratsrv.BrokerAccountBinding{
 			BrokerID:           "futu",
 			AccountID:          "acct-1",
 			TradingEnvironment: "SIMULATE",
@@ -264,7 +265,7 @@ log.info("ready")`)
 	if err != nil {
 		t.Fatalf("UpdateStrategyInstanceMode(valid): %v", err)
 	}
-	updated := updatedAny.(strategyListItem)
+	updated := updatedAny.(stratsrv.InstanceView)
 	if updated.Binding.ExecutionMode != strategyExecutionModeNotifyOnly {
 		t.Fatalf("updated.Binding.ExecutionMode = %q, want %q", updated.Binding.ExecutionMode, strategyExecutionModeNotifyOnly)
 	}
@@ -353,7 +354,7 @@ func TestADKAdapterHelpersAndOptimizationRuns(t *testing.T) {
 	if got := brokerBindingAccountID(nil); got != "" {
 		t.Fatalf("brokerBindingAccountID(nil) = %q, want empty string", got)
 	}
-	binding := &strategyBrokerAccountBinding{Market: "US", AccountID: "acct-1"}
+	binding := &stratsrv.BrokerAccountBinding{Market: "US", AccountID: "acct-1"}
 	if got := brokerBindingMarket(binding); got != "US" {
 		t.Fatalf("brokerBindingMarket(binding) = %q, want US", got)
 	}

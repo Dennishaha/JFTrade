@@ -25,8 +25,8 @@ func TestWorkflowManagementToolCatalogAndApprovalMatrix(t *testing.T) {
 		if tool.Descriptor.Category != "workflow" || tool.Descriptor.InputSchema == nil {
 			t.Fatalf("descriptor %q = %+v", name, tool.Descriptor)
 		}
-		if tool.Descriptor.RequiredSkill != jfadk.WorkflowManagementSkillName {
-			t.Fatalf("descriptor %q required skill = %q", name, tool.Descriptor.RequiredSkill)
+		if required := jfadk.ToolRequiredSkillNames(tool.Descriptor); len(required) != 1 || required[0] != jfadk.WorkflowManagementSkillName {
+			t.Fatalf("descriptor %q required skills = %v", name, required)
 		}
 		isMutation := strings.Contains(name, ".create") || strings.Contains(name, ".update") || strings.Contains(name, ".delete") || strings.HasSuffix(name, ".run")
 		for _, mode := range []string{jfadk.PermissionModeApproval, jfadk.PermissionModeLessApproval, jfadk.PermissionModeAll} {

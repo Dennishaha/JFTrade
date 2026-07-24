@@ -1,6 +1,245 @@
 {
   "basePath": "/",
   "definitions": {
+    "backtest.BacktestRunsData": {
+      "properties": {
+        "runs": {
+          "items": {
+            "$ref": "#/definitions/backtest.RunState"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "backtest.RunResult": {
+      "properties": {
+        "candles": {
+          "items": {
+            "$ref": "#/definitions/runmodel.Candle"
+          },
+          "type": "array"
+        },
+        "currentDrawdown": {
+          "type": "number"
+        },
+        "drawdownCurve": {
+          "items": {
+            "$ref": "#/definitions/runmodel.DrawdownPoint"
+          },
+          "type": "array"
+        },
+        "endTime": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "executionModel": {
+          "type": "string"
+        },
+        "feeBreakdown": {
+          "items": {
+            "$ref": "#/definitions/runmodel.FeeBreakdownEntry"
+          },
+          "type": "array"
+        },
+        "finalBalance": {
+          "type": "number"
+        },
+        "ignoredOrders": {
+          "type": "integer"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "logs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "maxDrawdown": {
+          "type": "number"
+        },
+        "orderBook": {
+          "items": {
+            "$ref": "#/definitions/runmodel.OrderBookEntry"
+          },
+          "type": "array"
+        },
+        "pnl": {
+          "type": "number"
+        },
+        "pnlCurve": {
+          "items": {
+            "$ref": "#/definitions/runmodel.PnLPoint"
+          },
+          "type": "array"
+        },
+        "quoteCurrency": {
+          "type": "string"
+        },
+        "runtimeErrorCounts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "runtimeErrorTotal": {
+          "type": "integer"
+        },
+        "runtimeErrors": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "runtimeErrorsTruncated": {
+          "type": "boolean"
+        },
+        "startTime": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "totalBrokerFees": {
+          "type": "number"
+        },
+        "totalFees": {
+          "type": "number"
+        },
+        "totalFills": {
+          "type": "integer"
+        },
+        "totalMarketFees": {
+          "type": "number"
+        },
+        "totalTrades": {
+          "type": "integer"
+        },
+        "tradeStatsVersion": {
+          "type": "integer"
+        },
+        "trades": {
+          "items": {
+            "$ref": "#/definitions/runmodel.TradeEvent"
+          },
+          "type": "array"
+        },
+        "tradingCosts": {
+          "$ref": "#/definitions/runmodel.TradingCosts"
+        },
+        "warningTotal": {
+          "type": "integer"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "warningsTruncated": {
+          "type": "boolean"
+        },
+        "winRate": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "backtest.RunState": {
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "request": {
+          "$ref": "#/definitions/backtest.StartRequest"
+        },
+        "result": {
+          "$ref": "#/definitions/backtest.RunResult"
+        },
+        "status": {
+          "description": "\"queued\" | \"running\" | \"completed\" | \"failed\" | \"cancelled\"",
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "backtest.StartRequest": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "definitionId": {
+          "type": "string"
+        },
+        "definitionVersion": {
+          "type": "string"
+        },
+        "endDate": {
+          "type": "string"
+        },
+        "endTime": {
+          "type": "string"
+        },
+        "executionModel": {
+          "type": "string"
+        },
+        "initialBalance": {
+          "type": "number"
+        },
+        "instrumentType": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "market": {
+          "type": "string"
+        },
+        "marketTimezone": {
+          "type": "string"
+        },
+        "rehabType": {
+          "type": "string"
+        },
+        "startDate": {
+          "type": "string"
+        },
+        "startTime": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "tradingCosts": {
+          "$ref": "#/definitions/backtest.TradingCosts"
+        },
+        "useExtendedHours": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "backtest.TradingCosts": {
+      "properties": {
+        "brokerFees": {
+          "$ref": "#/definitions/runmodel.FeeSchedule"
+        },
+        "marketFees": {
+          "$ref": "#/definitions/runmodel.FeeSchedule"
+        }
+      },
+      "type": "object"
+    },
     "broker.CashFlowSnapshot": {
       "properties": {
         "accountId": {
@@ -1018,6 +1257,62 @@
       },
       "type": "object"
     },
+    "datamanagement.CleanupExecuteRequest": {
+      "properties": {
+        "confirmation": {
+          "type": "string"
+        },
+        "previewId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "datamanagement.CleanupPreviewRequest": {
+      "properties": {
+        "databaseId": {
+          "type": "string"
+        },
+        "keepLatest": {
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "olderThanDays": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "datamanagement.CompactRequest": {
+      "properties": {
+        "confirmation": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "datamanagement.RebuildRequest": {
+      "properties": {
+        "confirmation": {
+          "type": "string"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "databaseIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "mode": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "httpserver.APIError": {
       "properties": {
         "code": {
@@ -1616,230 +1911,248 @@
       ],
       "type": "object"
     },
-    "servercore.brokerOrderCommandResponse": {
+    "runmodel.Candle": {
       "properties": {
-        "accepted": {
-          "type": "boolean"
-        },
-        "brokerErrorCode": {
+        "close": {
           "type": "string"
         },
-        "brokerOrderId": {
+        "high": {
           "type": "string"
         },
-        "brokerOrderIdEx": {
+        "low": {
           "type": "string"
         },
-        "checkedAt": {
+        "open": {
           "type": "string"
         },
-        "internalOrderId": {
+        "time": {
           "type": "string"
         },
-        "message": {
-          "type": "string"
-        },
-        "operation": {
-          "type": "string"
-        },
-        "orderStatus": {
+        "volume": {
           "type": "string"
         }
       },
       "type": "object"
     },
-    "servercore.dataCleanupExecuteRequest": {
+    "runmodel.DrawdownPoint": {
       "properties": {
-        "confirmation": {
-          "type": "string"
+        "drawdown": {
+          "type": "number"
         },
-        "previewId": {
+        "time": {
           "type": "string"
         }
       },
       "type": "object"
     },
-    "servercore.dataCleanupPreviewRequest": {
+    "runmodel.FeeBreakdownEntry": {
       "properties": {
-        "databaseId": {
+        "amount": {
+          "type": "number"
+        },
+        "category": {
           "type": "string"
         },
-        "keepLatest": {
+        "count": {
           "type": "integer"
         },
-        "kind": {
+        "currency": {
           "type": "string"
         },
-        "olderThanDays": {
-          "type": "integer"
+        "group": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "ruleId": {
+          "type": "string"
         }
       },
       "type": "object"
     },
-    "servercore.databaseCompactRequest": {
+    "runmodel.FeeRule": {
       "properties": {
-        "confirmation": {
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "servercore.databaseRebuildRequest": {
-      "properties": {
-        "confirmation": {
-          "type": "string"
-        },
-        "databaseId": {
-          "type": "string"
-        },
-        "databaseIds": {
+        "appliesTo": {
           "items": {
             "type": "string"
           },
           "type": "array"
         },
-        "mode": {
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "servercore.envelope": {
-      "properties": {
-        "data": {},
-        "error": {
-          "$ref": "#/definitions/httpserver.APIError"
-        },
-        "ok": {
-          "type": "boolean"
-        },
-        "timestamp": {
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "servercore.executionOrderDetailsResponse": {
-      "properties": {
-        "checkedAt": {
+        "basis": {
           "type": "string"
         },
-        "order": {
-          "$ref": "#/definitions/trading.ExecutionOrder"
-        },
-        "recentEvents": {
-          "items": {
-            "$ref": "#/definitions/trading.ExecutionOrderEvent"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "servercore.executionOrderEventsResponse": {
-      "properties": {
-        "events": {
-          "items": {
-            "$ref": "#/definitions/trading.ExecutionOrderEvent"
-          },
-          "type": "array"
-        },
-        "internalOrderId": {
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "servercore.executionOrdersResponse": {
-      "properties": {
-        "orders": {
-          "items": {
-            "$ref": "#/definitions/trading.ExecutionOrder"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
-    "servercore.executionPlaceOrderRequest": {
-      "properties": {
-        "accountId": {
+        "category": {
           "type": "string"
         },
-        "amount": {
+        "currency": {
+          "type": "string"
+        },
+        "effectiveFrom": {
+          "type": "string"
+        },
+        "effectiveTo": {
+          "type": "string"
+        },
+        "fixedAmount": {
           "type": "number"
         },
-        "brokerId": {
+        "id": {
           "type": "string"
         },
-        "clientOrderId": {
+        "label": {
           "type": "string"
         },
-        "code": {
-          "type": "string"
-        },
-        "env": {
-          "type": "string"
-        },
-        "legs": {
-          "items": {
-            "$ref": "#/definitions/broker.OrderLegIntent"
-          },
-          "type": "array"
-        },
-        "market": {
-          "type": "string"
-        },
-        "orderKind": {
-          "$ref": "#/definitions/broker.OrderKind"
-        },
-        "orderType": {
-          "type": "string"
-        },
-        "predictionSide": {
-          "type": "string"
-        },
-        "previewId": {
-          "type": "string"
-        },
-        "price": {
+        "maxAmount": {
           "type": "number"
         },
-        "productClass": {
-          "$ref": "#/definitions/broker.ProductClass"
-        },
-        "quantity": {
+        "maxRate": {
           "type": "number"
         },
-        "quantityMode": {
-          "$ref": "#/definitions/broker.QuantityMode"
+        "minAmount": {
+          "type": "number"
         },
-        "quoteExpiresAt": {
-          "type": "string"
+        "rate": {
+          "type": "number"
         },
-        "remark": {
-          "type": "string"
-        },
-        "rfqId": {
-          "type": "string"
-        },
-        "session": {
+        "rounding": {
           "type": "string"
         },
         "side": {
           "type": "string"
         },
-        "stopPrice": {
+        "sourceUrl": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "runmodel.FeeSchedule": {
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "presetId": {
+          "type": "string"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/definitions/runmodel.FeeRule"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "runmodel.OrderBookEntry": {
+      "properties": {
+        "brokerFee": {
           "type": "number"
+        },
+        "clientOrderId": {
+          "type": "string"
+        },
+        "feeCurrency": {
+          "type": "string"
+        },
+        "filledAt": {
+          "type": "string"
+        },
+        "filledPrice": {
+          "type": "string"
+        },
+        "filledQuantity": {
+          "type": "string"
+        },
+        "marketFee": {
+          "type": "number"
+        },
+        "orderId": {
+          "type": "string"
+        },
+        "orderPrice": {
+          "type": "string"
+        },
+        "orderType": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "submittedAt": {
+          "type": "string"
         },
         "symbol": {
           "type": "string"
         },
-        "timeInForce": {
+        "totalFee": {
+          "type": "number"
+        },
+        "warmup": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "runmodel.PnLPoint": {
+      "properties": {
+        "equity": {
+          "type": "number"
+        },
+        "time": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "runmodel.TradeEvent": {
+      "properties": {
+        "brokerFee": {
+          "type": "number"
+        },
+        "feeCurrency": {
           "type": "string"
         },
-        "tradingEnvironment": {
+        "marketFee": {
+          "type": "number"
+        },
+        "pnl": {
+          "type": "number"
+        },
+        "price": {
           "type": "string"
+        },
+        "qty": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string"
+        },
+        "time": {
+          "type": "string"
+        },
+        "totalFee": {
+          "type": "number"
+        },
+        "warmup": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "runmodel.TradingCosts": {
+      "properties": {
+        "brokerFees": {
+          "$ref": "#/definitions/runmodel.FeeSchedule"
+        },
+        "marketFees": {
+          "$ref": "#/definitions/runmodel.FeeSchedule"
         }
       },
       "type": "object"
@@ -1957,6 +2270,94 @@
         },
         "tradingEnvironment": {
           "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.Definition": {
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "script": {
+          "type": "string"
+        },
+        "sourceFormat": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "visualModel": {
+          "$ref": "#/definitions/strategy.VisualModel"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.DefinitionView": {
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "derivedWarmupBars": {
+          "type": "integer"
+        },
+        "derivedWarmupInterval": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "script": {
+          "type": "string"
+        },
+        "sourceFormat": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "visualModel": {
+          "$ref": "#/definitions/strategy.VisualModel"
         }
       },
       "type": "object"
@@ -2102,6 +2503,77 @@
       "type": "object"
     },
     "strategy.StrategyVisualNode": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.VisualEdge": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "sourceNodeId": {
+          "type": "string"
+        },
+        "targetNodeId": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.VisualModel": {
+      "properties": {
+        "edges": {
+          "items": {
+            "$ref": "#/definitions/strategy.VisualEdge"
+          },
+          "type": "array"
+        },
+        "engine": {
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/definitions/strategy.VisualNode"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.VisualNode": {
       "properties": {
         "id": {
           "type": "string"
@@ -3759,6 +4231,23 @@
       },
       "type": "object"
     },
+    "trading.ExecutionOrderDetails": {
+      "properties": {
+        "checkedAt": {
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/trading.ExecutionOrder"
+        },
+        "recentEvents": {
+          "items": {
+            "$ref": "#/definitions/trading.ExecutionOrderEvent"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "trading.ExecutionOrderEvent": {
       "properties": {
         "createdAt": {
@@ -3780,6 +4269,20 @@
           "type": "string"
         },
         "previousStatus": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "trading.ExecutionOrderEvents": {
+      "properties": {
+        "events": {
+          "items": {
+            "$ref": "#/definitions/trading.ExecutionOrderEvent"
+          },
+          "type": "array"
+        },
+        "internalOrderId": {
           "type": "string"
         }
       },
@@ -3845,6 +4348,100 @@
           "type": "string"
         },
         "updatedAt": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "trading.ExecutionOrders": {
+      "properties": {
+        "orders": {
+          "items": {
+            "$ref": "#/definitions/trading.ExecutionOrder"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "trading.ExecutionPlaceRequest": {
+      "properties": {
+        "accountId": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "brokerId": {
+          "type": "string"
+        },
+        "clientOrderId": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "env": {
+          "type": "string"
+        },
+        "legs": {
+          "items": {
+            "$ref": "#/definitions/broker.OrderLegIntent"
+          },
+          "type": "array"
+        },
+        "market": {
+          "type": "string"
+        },
+        "orderKind": {
+          "$ref": "#/definitions/broker.OrderKind"
+        },
+        "orderType": {
+          "type": "string"
+        },
+        "predictionSide": {
+          "type": "string"
+        },
+        "previewId": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "productClass": {
+          "$ref": "#/definitions/broker.ProductClass"
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "quantityMode": {
+          "$ref": "#/definitions/broker.QuantityMode"
+        },
+        "quoteExpiresAt": {
+          "type": "string"
+        },
+        "remark": {
+          "type": "string"
+        },
+        "rfqId": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string"
+        },
+        "stopPrice": {
+          "type": "number"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "timeInForce": {
+          "type": "string"
+        },
+        "tradingEnvironment": {
           "type": "string"
         }
       },
@@ -4932,7 +5529,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -4988,7 +5585,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5007,7 +5604,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5024,7 +5621,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5043,7 +5640,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5062,7 +5659,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5081,7 +5678,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5100,7 +5697,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5119,7 +5716,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5138,7 +5735,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5158,7 +5755,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5176,7 +5773,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5196,7 +5793,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5215,7 +5812,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5234,7 +5831,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5253,7 +5850,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5272,7 +5869,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5314,7 +5911,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5333,7 +5930,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5350,7 +5947,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5369,7 +5966,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5388,7 +5985,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5470,7 +6067,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5489,7 +6086,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5508,7 +6105,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5527,7 +6124,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5546,7 +6143,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5565,7 +6162,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5584,7 +6181,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5658,7 +6255,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5677,7 +6274,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5694,7 +6291,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5711,7 +6308,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5730,7 +6327,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5749,7 +6346,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5768,7 +6365,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5787,7 +6384,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5804,7 +6401,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5823,30 +6420,11 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
         "summary": "ADK chat, approval, and skill routes",
-        "tags": [
-          "adk"
-        ]
-      },
-      "put": {
-        "deprecated": true,
-        "description": "该端点是兼容 tombstone，恒返 410 Gone；请改为在 agent 上直接绑定技能。",
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "410": {
-            "description": "Gone",
-            "schema": {
-              "$ref": "#/definitions/servercore.envelope"
-            }
-          }
-        },
-        "summary": "更新 ADK 技能（已废弃）",
         "tags": [
           "adk"
         ]
@@ -5861,7 +6439,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5881,7 +6459,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5899,7 +6477,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5919,7 +6497,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5937,7 +6515,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5955,7 +6533,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5974,7 +6552,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -5993,7 +6571,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6012,7 +6590,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6031,7 +6609,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6050,7 +6628,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6067,7 +6645,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6086,7 +6664,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6103,7 +6681,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6120,7 +6698,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6139,7 +6717,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6158,7 +6736,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6175,7 +6753,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6194,7 +6772,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6211,7 +6789,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6377,25 +6955,25 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "401": {
             "description": "Unauthorized",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "429": {
             "description": "Too Many Requests",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6414,7 +6992,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6433,7 +7011,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6452,7 +7030,19 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/httpserver.Envelope"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/backtest.BacktestRunsData"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
             }
           }
         },
@@ -6531,7 +7121,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6548,7 +7138,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6746,7 +7336,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -6762,7 +7352,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6834,7 +7424,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -6850,7 +7440,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6898,7 +7488,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -6914,7 +7504,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -6993,7 +7583,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7009,7 +7599,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7078,7 +7668,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7094,7 +7684,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7187,7 +7777,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7203,7 +7793,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7272,7 +7862,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7288,7 +7878,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7348,7 +7938,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7364,7 +7954,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7454,7 +8044,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7470,7 +8060,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7528,7 +8118,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7544,7 +8134,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7592,7 +8182,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7608,7 +8198,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7677,7 +8267,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7693,7 +8283,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7723,7 +8313,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7739,7 +8329,7 @@
           "404": {
             "description": "Not Found",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7808,7 +8398,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7824,7 +8414,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -7884,7 +8474,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -7900,7 +8490,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -8202,12 +8792,12 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/servercore.executionOrdersResponse"
+                      "$ref": "#/definitions/trading.ExecutionOrders"
                     }
                   },
                   "type": "object"
@@ -8218,7 +8808,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -8238,7 +8828,7 @@
             "name": "request",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/servercore.executionPlaceOrderRequest"
+              "$ref": "#/definitions/trading.ExecutionPlaceRequest"
             }
           }
         ],
@@ -8251,12 +8841,12 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/servercore.brokerOrderCommandResponse"
+                      "$ref": "#/definitions/trading.ExecutionCommandResponse"
                     }
                   },
                   "type": "object"
@@ -8267,44 +8857,23 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "409": {
             "description": "Conflict",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "500": {
             "description": "Internal Server Error",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
         "summary": "提交执行订单",
-        "tags": [
-          "execution"
-        ]
-      }
-    },
-    "/api/v1/execution/orders/preview": {
-      "post": {
-        "deprecated": true,
-        "description": "规范化并校验订单请求，返回预览结果，不会向券商提交订单。已废弃，请改用 POST /api/v1/execution/previews。",
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/servercore.envelope"
-            }
-          }
-        },
-        "summary": "预览执行订单但不提交（已废弃别名）",
         "tags": [
           "execution"
         ]
@@ -8330,12 +8899,12 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/servercore.executionOrderDetailsResponse"
+                      "$ref": "#/definitions/trading.ExecutionOrderDetails"
                     }
                   },
                   "type": "object"
@@ -8346,7 +8915,7 @@
           "404": {
             "description": "Not Found",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -8376,12 +8945,12 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/servercore.brokerOrderCommandResponse"
+                      "$ref": "#/definitions/trading.ExecutionCommandResponse"
                     }
                   },
                   "type": "object"
@@ -8392,13 +8961,13 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "404": {
             "description": "Not Found",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -8428,12 +8997,12 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
                     "data": {
-                      "$ref": "#/definitions/servercore.executionOrderEventsResponse"
+                      "$ref": "#/definitions/trading.ExecutionOrderEvents"
                     }
                   },
                   "type": "object"
@@ -8444,7 +9013,7 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -8802,7 +9371,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -8883,7 +9452,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -9982,7 +10551,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -10178,7 +10747,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -10197,7 +10766,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -10216,7 +10785,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -10235,7 +10804,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -10254,7 +10823,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -10284,7 +10853,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -10324,7 +10893,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -11489,7 +12058,7 @@
             "name": "request",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/servercore.dataCleanupExecuteRequest"
+              "$ref": "#/definitions/datamanagement.CleanupExecuteRequest"
             }
           }
         ],
@@ -11500,7 +12069,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -11522,7 +12091,7 @@
             "name": "request",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/servercore.dataCleanupPreviewRequest"
+              "$ref": "#/definitions/datamanagement.CleanupPreviewRequest"
             }
           }
         ],
@@ -11533,7 +12102,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -11566,7 +12135,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -11588,7 +12157,7 @@
             "name": "request",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/servercore.databaseRebuildRequest"
+              "$ref": "#/definitions/datamanagement.RebuildRequest"
             }
           }
         ],
@@ -11599,7 +12168,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -11692,7 +12261,7 @@
             "name": "request",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/servercore.databaseCompactRequest"
+              "$ref": "#/definitions/datamanagement.CompactRequest"
             }
           }
         ],
@@ -11703,53 +12272,11 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
         "summary": "Checkpoint and compact one database",
-        "tags": [
-          "settings"
-        ]
-      }
-    },
-    "/api/v1/settings/data-migration/databases": {
-      "get": {
-        "deprecated": true,
-        "description": "已废弃的旧名别名，请改用 /api/v1/settings/data-management 下的对应端点。",
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/servercore.envelope"
-            }
-          }
-        },
-        "summary": "Database compatibility status and rebuild scheduling",
-        "tags": [
-          "settings"
-        ]
-      }
-    },
-    "/api/v1/settings/data-migration/databases/rebuild": {
-      "post": {
-        "deprecated": true,
-        "description": "已废弃的旧名别名，请改用 /api/v1/settings/data-management 下的对应端点。",
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/servercore.envelope"
-            }
-          }
-        },
-        "summary": "Database compatibility status and rebuild scheduling",
         "tags": [
           "settings"
         ]
@@ -11932,7 +12459,19 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/httpserver.Envelope"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/jftsettings.PineWorkerSettings"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
             }
           }
         },
@@ -11963,7 +12502,19 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/httpserver.Envelope"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/jftsettings.PineWorkerSettings"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
             }
           },
           "400": {
@@ -12672,7 +13223,22 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/httpserver.Envelope"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/definitions/strategy.Definition"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
             }
           }
         },
@@ -12703,7 +13269,19 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/httpserver.Envelope"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/strategy.Definition"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
             }
           },
           "400": {
@@ -12737,7 +13315,19 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/httpserver.Envelope"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/strategy.Definition"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
             }
           },
           "400": {
@@ -12793,7 +13383,19 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/httpserver.Envelope"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/strategy.DefinitionView"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
             }
           },
           "400": {
@@ -12843,7 +13445,19 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/httpserver.Envelope"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/httpserver.Envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/strategy.Definition"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
             }
           },
           "400": {
@@ -13195,7 +13809,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13226,7 +13840,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13257,7 +13871,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13300,7 +13914,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13316,13 +13930,13 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "409": {
             "description": "Conflict",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -13363,7 +13977,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13379,13 +13993,13 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "409": {
             "description": "Conflict",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -13406,7 +14020,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13437,7 +14051,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13482,7 +14096,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13498,13 +14112,13 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "409": {
             "description": "Conflict",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -13538,7 +14152,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13554,13 +14168,13 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "409": {
             "description": "Conflict",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -13581,7 +14195,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13625,7 +14239,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13641,7 +14255,7 @@
           "409": {
             "description": "Conflict",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -13660,7 +14274,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13703,7 +14317,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/servercore.envelope"
+                  "$ref": "#/definitions/httpserver.Envelope"
                 },
                 {
                   "properties": {
@@ -13719,13 +14333,13 @@
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           },
           "409": {
             "description": "Conflict",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -13783,7 +14397,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },
@@ -13802,7 +14416,7 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/servercore.envelope"
+              "$ref": "#/definitions/httpserver.Envelope"
             }
           }
         },

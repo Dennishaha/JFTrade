@@ -23,10 +23,8 @@ const (
 )
 
 const (
-	klineSessionScopeLegacy   = "legacy"
 	klineSessionScopeRegular  = "regular"
 	klineSessionScopeExtended = "extended"
-	klineReadSessionScopeAuto = "auto"
 )
 
 func normalizeRehabTypeName(rehabType string) string {
@@ -147,7 +145,7 @@ func timeFromUnixMillis(value int64) time.Time {
 }
 
 func klineTableName(symbol string, interval types.Interval, rehabType string) string {
-	return klineTableNameForSessionScope(symbol, interval, rehabType, klineSessionScopeLegacy)
+	return klineTableNameForSessionScope(symbol, interval, rehabType, klineSessionScopeRegular)
 }
 
 func klineTableNameForSessionScope(symbol string, interval types.Interval, rehabType string, sessionScope string) string {
@@ -160,17 +158,6 @@ func klineTableNameForSessionScope(symbol string, interval types.Interval, rehab
 	_, _ = hasher.Write([]byte(normalizedSymbol))
 	// Keep the suffix deterministic (not random): it avoids table-name collisions
 	// when different symbols normalize to the same sanitized identifier.
-	if normalizedSessionScope == klineSessionScopeLegacy {
-		return fmt.Sprintf(
-			"%s__%s__%s__%s__%08x",
-			KLineTable,
-			sanitizeIdentifierComponent(normalizedSymbol),
-			sanitizeIdentifierComponent(normalizedInterval),
-			normalizedRehabType,
-			hasher.Sum32(),
-		)
-	}
-
 	return fmt.Sprintf(
 		"%s__%s__%s__%s__%s__%08x",
 		KLineTable,
@@ -189,32 +176,26 @@ func normalizeKLineSessionScopeName(scope string) string {
 	case klineSessionScopeExtended:
 		return klineSessionScopeExtended
 	default:
-		return klineSessionScopeLegacy
+		return klineSessionScopeRegular
 	}
 }
 
 func normalizeReadSessionScopeName(scope string) string {
 	switch strings.ToLower(strings.TrimSpace(scope)) {
-	case klineSessionScopeLegacy:
-		return klineSessionScopeLegacy
 	case klineSessionScopeRegular:
 		return klineSessionScopeRegular
 	case klineSessionScopeExtended:
 		return klineSessionScopeExtended
 	default:
-		return klineReadSessionScopeAuto
+		return klineSessionScopeRegular
 	}
 }
 
 func klineSessionScopeStorageTag(scope string) string {
-	switch normalizeKLineSessionScopeName(scope) {
-	case klineSessionScopeRegular:
-		return "r"
-	case klineSessionScopeExtended:
+	if normalizeKLineSessionScopeName(scope) == klineSessionScopeExtended {
 		return "x"
-	default:
-		return "l"
 	}
+	return "r"
 }
 
 func sanitizeIdentifierComponent(value string) string {
@@ -359,8 +340,6 @@ func NormalizeKLineSessionScopeName(scope string) string {
 }
 
 const (
-	KLineSessionScopeLegacy   = klineSessionScopeLegacy
 	KLineSessionScopeRegular  = klineSessionScopeRegular
 	KLineSessionScopeExtended = klineSessionScopeExtended
-	KLineReadSessionScopeAuto = klineReadSessionScopeAuto
 )

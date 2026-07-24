@@ -22,6 +22,7 @@ type fakeBackend struct {
 	ticksErr        error
 	notifications   []livecore.Event
 	lastTickIDs     []string
+	lastProviderID  string
 	depthNum        int32
 	depthResolvedAt string
 	depthSubscriber func(string)
@@ -33,15 +34,17 @@ type fakeBackend struct {
 
 func (b *fakeBackend) ConnectionLimit() int { return b.limit }
 
-func (b *fakeBackend) Heartbeat(interval time.Duration, stats ClientStats, _ []string) map[string]any {
+func (b *fakeBackend) Heartbeat(interval time.Duration, stats ClientStats, _ []string, providerBrokerID string) map[string]any {
 	return map[string]any{
 		"type": "heartbeat", "at": time.Now().UTC().Format(time.RFC3339Nano), "intervalMs": interval.Milliseconds(),
-		"liveClients": map[string]any{"connected": stats.Connected, "limit": stats.Limit, "atLimit": stats.AtLimit},
+		"providerBrokerId": providerBrokerID,
+		"liveClients":      map[string]any{"connected": stats.Connected, "limit": stats.Limit, "atLimit": stats.AtLimit},
 	}
 }
 
-func (b *fakeBackend) MarketTicks(_ context.Context, instrumentIDs []string, _ string) ([]TickEvent, error) {
+func (b *fakeBackend) MarketTicks(_ context.Context, providerBrokerID string, instrumentIDs []string, _ string) ([]TickEvent, error) {
 	b.mu.Lock()
+	b.lastProviderID = providerBrokerID
 	b.lastTickIDs = append([]string(nil), instrumentIDs...)
 	ticks := append([]TickEvent(nil), b.ticks...)
 	b.mu.Unlock()
@@ -62,7 +65,7 @@ func (b *fakeBackend) NotificationsAfter(sequence uint64) []livecore.Event {
 
 func (b *fakeBackend) EnsureNotificationBridge(context.Context) {}
 
-func (b *fakeBackend) SecurityDetails(_ context.Context, market, symbol string) (map[string]any, error) {
+func (b *fakeBackend) SecurityDetails(_ context.Context, _ string, market, symbol string) (map[string]any, error) {
 	if b.securityErr != nil {
 		return nil, b.securityErr
 	}
@@ -73,7 +76,7 @@ func (b *fakeBackend) SecurityDetails(_ context.Context, market, symbol string) 
 	}, nil
 }
 
-func (b *fakeBackend) Depth(_ context.Context, market, symbol string, num int32) (map[string]any, error) {
+func (b *fakeBackend) Depth(_ context.Context, _ string, market, symbol string, num int32) (map[string]any, error) {
 	b.mu.Lock()
 	b.depthNum = num
 	depthErr := b.depthErr
@@ -122,6 +125,7 @@ func TestHandlerHeartbeatSubscribeNormalizationAndPayloads(t *testing.T) {
 	if err := conn.WriteJSON(map[string]any{
 		"type": "subscribe",
 		"subscriptions": map[string]any{
+			"providerBrokerId":  "futu",
 			"activeInstruments": []string{" us.aapl ", "US.AAPL"},
 			"securityDetails": []map[string]any{{
 				"market": " hk ", "symbol": " 00700 ", "instrumentId": " hk.00700 ",
@@ -200,6 +204,43 @@ func TestHandlerHeartbeatSubscribeNormalizationAndPayloads(t *testing.T) {
 	}
 }
 
+func TestHandlerRejectsSubscriptionWithoutProvider(t *testing.T) {
+	quietInterval := time.Hour
+	backend := &fakeBackend{limit: 1}
+	handler := NewHandler(backend, Options{
+		HeartbeatInterval:       quietInterval,
+		DataInterval:            quietInterval,
+		ConsoleRefreshInterval:  quietInterval,
+		SecurityDetailsInterval: quietInterval,
+		DepthRefreshInterval:    quietInterval,
+	})
+	server := httptest.NewServer(handler)
+	t.Cleanup(func() {
+		jftradeCheckTestError(t, handler.Close())
+		server.Close()
+	})
+
+	conn := dial(t, server.URL)
+	defer func() { _ = conn.Close() }()
+	if initial := readEvent(t, conn); initial["type"] != "heartbeat" {
+		t.Fatalf("initial event = %#v, want heartbeat", initial)
+	}
+	if err := conn.WriteJSON(map[string]any{
+		"type": "subscribe",
+		"subscriptions": map[string]any{
+			"activeInstruments": []string{"US.AAPL"},
+		},
+	}); err != nil {
+		t.Fatalf("WriteJSON: %v", err)
+	}
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+	if _, _, err := conn.ReadMessage(); err == nil {
+		t.Fatal("subscription without providerBrokerId kept the connection open")
+	}
+}
+
 func TestHandlerDepthUpdatePublishesFreshPayload(t *testing.T) {
 	const initialResolvedAt = "2026-06-14T00:00:01Z"
 	const updatedResolvedAt = "2026-06-14T00:00:02Z"
@@ -227,6 +268,7 @@ func TestHandlerDepthUpdatePublishesFreshPayload(t *testing.T) {
 	if err := conn.WriteJSON(map[string]any{
 		"type": "subscribe",
 		"subscriptions": map[string]any{
+			"providerBrokerId": "futu",
 			"depth": []map[string]any{{
 				"market": "us", "symbol": "tme", "instrumentId": "US.TME", "num": 50,
 			}},
@@ -407,7 +449,7 @@ func TestDispatcherDeduplicatesTickObservedAt(t *testing.T) {
 	}
 	handler := NewHandler(backend, Options{})
 	client := (&livecore.ClientRegistry{}).Register()
-	client.SetSubscriptions(livecore.Subscriptions{ActiveInstruments: []string{"US.AAPL"}})
+	client.SetSubscriptions(livecore.Subscriptions{ProviderBrokerID: "futu", ActiveInstruments: []string{"US.AAPL"}})
 	writer := &recordingWriter{}
 	d := &dispatcher{
 		handler: handler, requestCtx: t.Context(), writer: writer, client: client,
@@ -431,7 +473,7 @@ func TestDispatcherDeduplicatesTickObservedAt(t *testing.T) {
 		t.Fatalf("source fields were not preserved: envelope=%#v payload=%#v", writer.events[0], payload)
 	}
 	if payload["brokerId"] != "futu" {
-		t.Fatalf("default tick provider = %#v, want futu", payload["brokerId"])
+		t.Fatalf("tick provider = %#v, want futu", payload["brokerId"])
 	}
 }
 

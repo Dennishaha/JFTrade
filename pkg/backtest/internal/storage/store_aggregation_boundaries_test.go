@@ -70,11 +70,11 @@ func TestIntervalFromStorageValueCoversAllPersistedIntervals(t *testing.T) {
 
 func TestReadSessionScopeNormalizationAndStorageTags(t *testing.T) {
 	scopeCases := map[string]string{
-		" legacy ":   klineSessionScopeLegacy,
-		"REGULAR":    klineSessionScopeRegular,
-		" extended ": klineSessionScopeExtended,
-		"":           klineReadSessionScopeAuto,
-		"overnight":  klineReadSessionScopeAuto,
+		" unsupported ": klineSessionScopeRegular,
+		"REGULAR":       klineSessionScopeRegular,
+		" extended ":    klineSessionScopeExtended,
+		"":              klineSessionScopeRegular,
+		"overnight":     klineSessionScopeRegular,
 	}
 	for raw, want := range scopeCases {
 		if got := normalizeReadSessionScopeName(raw); got != want {
@@ -85,8 +85,8 @@ func TestReadSessionScopeNormalizationAndStorageTags(t *testing.T) {
 	tagCases := map[string]string{
 		klineSessionScopeRegular:  "r",
 		klineSessionScopeExtended: "x",
-		klineSessionScopeLegacy:   "l",
-		"unknown":                 "l",
+		"unsupported":             "r",
+		"unknown":                 "r",
 	}
 	for raw, want := range tagCases {
 		if got := klineSessionScopeStorageTag(raw); got != want {

@@ -29,12 +29,7 @@
 
 ## 当前 deprecated / tombstone 端点
 
-| 端点 | 状态 | 废弃日期 | 替代端点 | 删除条件 |
-|---|---|---|---|---|
-| `POST /api/v1/execution/orders/preview` | deprecated | 2026-07-19 | `POST /api/v1/execution/previews` | 兼容窗口后无观测调用 |
-| `GET /api/v1/settings/data-migration/databases` | deprecated | 2026-07-19 | `GET /api/v1/settings/data-management/databases` | 同上 |
-| `POST /api/v1/settings/data-migration/databases/rebuild` | deprecated | 2026-07-19 | `POST /api/v1/settings/data-management/databases/rebuild` | 同上 |
-| `PUT /api/v1/adk/skills/{skillId}` | tombstone (410) | 2026-07-19 | 在 agent 上直接绑定技能 | 兼容窗口后删除路由与注解 |
+当前没有 deprecated 或 tombstone 端点。2026-07-24 的严格契约清理已删除旧 execution preview、`data-migration` 别名和 ADK skill PUT 路由；这些 URL 统一返回 404。
 
 ## 无前端调用但保留的端点
 

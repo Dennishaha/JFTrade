@@ -1,11 +1,14 @@
-// Package servercore implements the JFTrade API sidecar server.
+// Package servercore is the JFTrade API composition root.
 //
-// This package serves as the HTTP/SSE API layer between the Vue3 frontend
-// and the broker abstraction layer (pkg/broker). It is organized by file prefix:
+// It wires transport handlers, domain services, broker integrations, persistent
+// stores, background workers, and live publishers. Business policy belongs in
+// internal domain packages; HTTP parsing and response contracts belong in
+// internal/api packages. servercore owns the adapters between those boundaries
+// and the lifecycle of the assembled process.
 //
 // # Server & Infrastructure
 //
-//   - server.go: Server struct, startup, routing dispatch
+//   - server.go: Server assembly and runtime service initialization
 //   - server_frontend.go: static frontend asset serving
 //   - api_only.go: API-only run mode
 //   - runtime_defaults.go: development defaults
@@ -13,8 +16,7 @@
 //
 // # Settings (broker configuration & accounts)
 //
-//   - settings_store.go: SettingsStore persistence (JSON file)
-//   - settings_store.go: settings persistence compatibility wrapper
+//   - settings_store.go: server-facing settings adapter
 //   - settings_futu_config.go: Futu-specific config normalization
 //   - settings_account_normalization.go: account ID normalization
 //
@@ -32,7 +34,7 @@
 // # Market Data (quote & kline serving)
 //
 //   - market_data.go: kline/snapshot/ticker query handlers
-//   - market_live_runtime_adapter.go: compatibility bridge to internal/marketdata
+//   - market_live_runtime_adapter.go: runtime adapter for internal/marketdata
 //   - internal/marketdata: subscriptions, cache, collector, health, lifecycle
 //   - internal/integration/futu: exchange runtime and tick protocol conversion
 //   - market_security_serialization.go: security snapshot serialization

@@ -2,22 +2,23 @@ package servercore
 
 import (
 	"fmt"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"os"
 	"strings"
 	"time"
 )
 
-func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefinition, binding strategyInstanceBinding) (strategyListItem, error) {
+func (s *strategyCatalogStore) instantiateStrategy(definition stratsrv.Definition, binding stratsrv.InstanceBinding) (stratsrv.InstanceView, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	params, err := buildStrategyInstanceParams(definition, now)
 	if err != nil {
-		return strategyListItem{}, err
+		return stratsrv.InstanceView{}, err
 	}
 	binding = normalizeStrategyInstanceBinding(binding, params)
-	instance := managedStrategyInstance{
+	instance := stratsrv.ManagedInstance{
 		ID:       buildStrategyInstanceID(definition.ID),
 		PluginID: strategyPluginIDForDefinition(definition),
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: definition.ID,
 			Name:       definition.Name,
 			Version:    definition.Version,
@@ -29,12 +30,12 @@ func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefi
 	}
 	s.recordStrategyEventsLocked(&instance, time.Now().UTC(), fmt.Sprintf("instantiated strategy from definition %s", definition.ID), "info", "control", "instantiated", strategyBindingAuditDetail(definition.ID, binding))
 	if err := s.saveStrategy(instance); err != nil {
-		return strategyListItem{}, err
+		return stratsrv.InstanceView{}, err
 	}
 	return strategyToListItem(s.normalizeStrategy(instance)), nil
 }
 
-func (s *strategyCatalogStore) updateStrategyBinding(instanceID string, binding strategyInstanceBinding) (strategyListItem, error) {
+func (s *strategyCatalogStore) updateStrategyBinding(instanceID string, binding stratsrv.InstanceBinding) (stratsrv.InstanceView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for index := range s.data.Strategies {
@@ -43,22 +44,22 @@ func (s *strategyCatalogStore) updateStrategyBinding(instanceID string, binding 
 			continue
 		}
 		if strategy.Status != strategyStatusStopped {
-			return strategyListItem{}, errStrategyInstanceBusy
+			return stratsrv.InstanceView{}, errStrategyInstanceBusy
 		}
 		strategy.Binding = normalizeStrategyInstanceBinding(binding, strategy.Params)
 		applyStrategyBindingParams(&strategy)
 		s.recordStrategyEventsLocked(&strategy, time.Now().UTC(), "updated strategy binding", "info", "control", "binding.updated", strategyBindingAuditDetail(strategy.Definition.StrategyID, strategy.Binding))
 		s.data.Strategies[index] = strategy
 		if err := s.persistLocked(); err != nil {
-			return strategyListItem{}, err
+			return stratsrv.InstanceView{}, err
 		}
 		return strategyToListItem(strategy), nil
 	}
 
-	return strategyListItem{}, os.ErrNotExist
+	return stratsrv.InstanceView{}, os.ErrNotExist
 }
 
-func (s *strategyCatalogStore) updateStrategyRuntimeRisk(instanceID string, risk strategyRuntimeRiskSettings) (strategyListItem, error) {
+func (s *strategyCatalogStore) updateStrategyRuntimeRisk(instanceID string, risk stratsrv.RuntimeRiskSettings) (stratsrv.InstanceView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for index := range s.data.Strategies {
@@ -71,19 +72,19 @@ func (s *strategyCatalogStore) updateStrategyRuntimeRisk(instanceID string, risk
 		s.recordStrategyEventsLocked(&strategy, time.Now().UTC(), "updated strategy runtime risk", "info", "control", "runtime_risk.updated", strategyRuntimeRiskAuditDetail(strategy.Binding.RuntimeRisk))
 		s.data.Strategies[index] = strategy
 		if err := s.persistLocked(); err != nil {
-			return strategyListItem{}, err
+			return stratsrv.InstanceView{}, err
 		}
 		return strategyToListItem(strategy), nil
 	}
 
-	return strategyListItem{}, os.ErrNotExist
+	return stratsrv.InstanceView{}, os.ErrNotExist
 }
 
-func (s *strategyCatalogStore) refreshStrategyDefinition(instanceID string, definition strategyDesignDefinition) (strategyListItem, error) {
+func (s *strategyCatalogStore) refreshStrategyDefinition(instanceID string, definition stratsrv.Definition) (stratsrv.InstanceView, error) {
 	now := time.Now().UTC()
 	params, err := buildStrategyInstanceParams(definition, now.Format(time.RFC3339Nano))
 	if err != nil {
-		return strategyListItem{}, err
+		return stratsrv.InstanceView{}, err
 	}
 
 	s.mu.Lock()
@@ -95,28 +96,28 @@ func (s *strategyCatalogStore) refreshStrategyDefinition(instanceID string, defi
 		}
 		changed, refreshErr := s.refreshStrategyDefinitionLocked(&strategy, definition, params, now)
 		if refreshErr != nil {
-			return strategyListItem{}, refreshErr
+			return stratsrv.InstanceView{}, refreshErr
 		}
 		if changed {
 			s.data.Strategies[index] = strategy
 			if err := s.persistLocked(); err != nil {
-				return strategyListItem{}, err
+				return stratsrv.InstanceView{}, err
 			}
 		}
 		return strategyToListItem(strategy), nil
 	}
 
-	return strategyListItem{}, os.ErrNotExist
+	return stratsrv.InstanceView{}, os.ErrNotExist
 }
 
-func (s *strategyCatalogStore) applyDefinitionToLinkedStrategies(definition strategyDesignDefinition) (strategyApplyLinkedInstancesResponse, error) {
+func (s *strategyCatalogStore) applyDefinitionToLinkedStrategies(definition stratsrv.Definition) (stratsrv.ApplyLinkedInstancesResult, error) {
 	now := time.Now().UTC()
 	params, err := buildStrategyInstanceParams(definition, now.Format(time.RFC3339Nano))
 	if err != nil {
-		return strategyApplyLinkedInstancesResponse{}, err
+		return stratsrv.ApplyLinkedInstancesResult{}, err
 	}
 
-	result := strategyApplyLinkedInstancesResponse{
+	result := stratsrv.ApplyLinkedInstancesResult{
 		DefinitionID:  strings.TrimSpace(definition.ID),
 		LatestVersion: strings.TrimSpace(definition.Version),
 		Applied:       []string{},
@@ -148,13 +149,13 @@ func (s *strategyCatalogStore) applyDefinitionToLinkedStrategies(definition stra
 	}
 	if persistChanged {
 		if err := s.persistLocked(); err != nil {
-			return strategyApplyLinkedInstancesResponse{}, err
+			return stratsrv.ApplyLinkedInstancesResult{}, err
 		}
 	}
 	return result, nil
 }
 
-func (s *strategyCatalogStore) deleteStrategy(instanceID string) (strategyListItem, error) {
+func (s *strategyCatalogStore) deleteStrategy(instanceID string) (stratsrv.InstanceView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for index := range s.data.Strategies {
@@ -163,20 +164,20 @@ func (s *strategyCatalogStore) deleteStrategy(instanceID string) (strategyListIt
 			continue
 		}
 		if strategy.Status != strategyStatusStopped {
-			return strategyListItem{}, errStrategyInstanceBusy
+			return stratsrv.InstanceView{}, errStrategyInstanceBusy
 		}
 		removed := strategyToListItem(strategy)
 		s.data.Strategies = append(s.data.Strategies[:index], s.data.Strategies[index+1:]...)
 		if err := s.persistLocked(); err != nil {
-			return strategyListItem{}, err
+			return stratsrv.InstanceView{}, err
 		}
 		return removed, nil
 	}
 
-	return strategyListItem{}, os.ErrNotExist
+	return stratsrv.InstanceView{}, os.ErrNotExist
 }
 
-func (s *strategyCatalogStore) transitionStrategy(instanceID string, nextStatus string, kind string, detail string) (strategyListItem, error) {
+func (s *strategyCatalogStore) transitionStrategy(instanceID string, nextStatus string, kind string, detail string) (stratsrv.InstanceView, error) {
 	now := time.Now().UTC()
 
 	s.mu.Lock()
@@ -190,12 +191,12 @@ func (s *strategyCatalogStore) transitionStrategy(instanceID string, nextStatus 
 		s.recordStrategyEventsLocked(&strategy, now, fmt.Sprintf("%s strategy %s", strings.ToLower(kind), strategy.Definition.StrategyID), strategyLogLevelForKind(kind, detail), "control", kind, detail)
 		s.data.Strategies[index] = strategy
 		if err := s.persistLocked(); err != nil {
-			return strategyListItem{}, err
+			return stratsrv.InstanceView{}, err
 		}
 		return strategyToListItem(strategy), nil
 	}
 
-	return strategyListItem{}, os.ErrNotExist
+	return stratsrv.InstanceView{}, os.ErrNotExist
 }
 
 func (s *strategyCatalogStore) appendStrategyRuntimeEvent(instanceID string, logMessage string, kind string, detail string) error {
@@ -266,7 +267,7 @@ func (s *strategyCatalogStore) reconcileRuntimeStatesOnStartup() (int, error) {
 	return changed, nil
 }
 
-func (s *strategyCatalogStore) refreshStrategyDefinitionLocked(strategy *managedStrategyInstance, definition strategyDesignDefinition, params map[string]any, at time.Time) (bool, error) {
+func (s *strategyCatalogStore) refreshStrategyDefinitionLocked(strategy *stratsrv.ManagedInstance, definition stratsrv.Definition, params map[string]any, at time.Time) (bool, error) {
 	if strategy == nil {
 		return false, nil
 	}
@@ -278,7 +279,7 @@ func (s *strategyCatalogStore) refreshStrategyDefinitionLocked(strategy *managed
 	}
 	previousVersion := strings.TrimSpace(strategy.Definition.Version)
 	strategy.PluginID = strategyPluginIDForDefinition(definition)
-	strategy.Definition = strategyDefinitionSummary{
+	strategy.Definition = stratsrv.DefinitionSummary{
 		StrategyID: strings.TrimSpace(definition.ID),
 		Name:       strings.TrimSpace(definition.Name),
 		Version:    strings.TrimSpace(definition.Version),

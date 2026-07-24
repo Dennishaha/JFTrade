@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 // seedOutOfOrderPlacedOrder 登记一笔已进入 SUBMITTED 状态的实盘订单，作为乱序回报的基线。
-func seedOutOfOrderPlacedOrder(store *executionOrderStore, brokerOrderID string) executionOrderSummaryResponse {
+func seedOutOfOrderPlacedOrder(store *executionOrderStore, brokerOrderID string) trdsrv.ExecutionOrder {
 	price := 100.0
-	return store.recordPlacedOrder(executionPlacedOrderRecord{
+	return store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID: "futu", BrokerOrderID: brokerOrderID, TradingEnvironment: "SIMULATE",
 		AccountID: "SIM-1", Market: "US", Symbol: "US.AAPL", Side: "BUY",
 		OrderType: "LIMIT", Status: "SUBMITTED", RequestedQuantity: 10,

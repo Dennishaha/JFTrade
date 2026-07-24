@@ -136,8 +136,8 @@ var _ service.BackTestable = (*stubBacktestStore)(nil)
 
 func TestSessionFilteredStoreDelegatesVerifyAndSync(t *testing.T) {
 	base := &stubBacktestStore{}
-	if replay := newBacktestReplayStore(base, nil); replay != base {
-		t.Fatalf("newBacktestReplayStore(nil) = %T, want base", replay)
+	if replay, ok := newBacktestReplayStore(base, nil).(*sessionFilteredBacktestStore); !ok || replay.includeExtendedHours {
+		t.Fatalf("newBacktestReplayStore(nil) = %#v, want regular-hours wrapper", replay)
 	}
 
 	includeExtendedHours := false
@@ -776,7 +776,7 @@ func TestSessionFilteredStoreHelperFunctions(t *testing.T) {
 		if len(expectedKLineSchemaColumns()) == 0 {
 			t.Fatalf("expected schema columns empty")
 		}
-		if table := KLineTableNameForSessionScope("US:AAPL", types.Interval1m, "forward", KLineSessionScopeRegular); table == "" || table == KLineTableName("US:AAPL", types.Interval1m, "forward") {
+		if table := KLineTableNameForSessionScope("US:AAPL", types.Interval1m, "forward", KLineSessionScopeRegular); table == "" || table != KLineTableName("US:AAPL", types.Interval1m, "forward") {
 			t.Fatalf("session-scoped table name = %q", table)
 		}
 	})

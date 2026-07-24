@@ -19,7 +19,6 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 
 	"github.com/jftrade/jftrade-main/pkg/besteffort"
-	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 var ErrBuiltinAgentProtected = errors.New("builtin agent is protected")
@@ -70,6 +69,9 @@ func NewStore(dbPath string, secretsPath string, skillsPath string) (*Store, err
 	if err := os.MkdirAll(skillsPath, 0o755); err != nil {
 		return nil, fmt.Errorf("create adk skills directory: %w", err)
 	}
+	if err := sqliteschema.ValidateCurrentFile(context.Background(), dbPath, sqliteschema.DatabaseADK); err != nil {
+		return nil, fmt.Errorf("validate ADK sqlite store: %w", err)
+	}
 	db, err := sqliteconn.OpenX(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open adk sqlite store: %w", err)
@@ -112,68 +114,10 @@ func (s *Store) SetSessionService(service adksession.Service) {
 }
 
 func (s *Store) initializeOrValidateSchema() error {
-	statements := []string{
-		`CREATE TABLE ` + tableProviders + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableAgents + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableSessions + ` (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableRuns + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableApprovals + ` (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableSkills + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableAudit + ` (id TEXT PRIMARY KEY, kind TEXT NOT NULL, subject_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableOptimizations + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableTasks + ` (id TEXT PRIMARY KEY, status TEXT NOT NULL, agent_id TEXT NOT NULL, run_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableMemory + ` (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, scope TEXT NOT NULL, memory_key TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableSessionContexts + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableHandoffSegments + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, active INTEGER NOT NULL, sequence_no INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload_json TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableSessionContextLive + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableSessionNotices + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, run_id TEXT NOT NULL, kind TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE ` + tableSessionComposer + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE INDEX idx_adk_sessions_agent ON ` + tableSessions + ` (agent_id, updated_at DESC)`,
-		`CREATE INDEX idx_adk_runs_session ON ` + tableRuns + ` (session_id, created_at DESC)`,
-		`CREATE INDEX idx_adk_approvals_status ON ` + tableApprovals + ` (status, updated_at DESC)`,
-		`CREATE UNIQUE INDEX idx_adk_approvals_confirmation_call ON ` + tableApprovals + ` (json_extract(payload_json, '$.confirmationCallId')) WHERE COALESCE(json_extract(payload_json, '$.confirmationCallId'), '') <> ''`,
-		`CREATE INDEX idx_adk_audit_kind ON ` + tableAudit + ` (kind, created_at DESC)`,
-		`CREATE INDEX idx_adk_tasks_status ON ` + tableTasks + ` (status, updated_at DESC)`,
-		`CREATE INDEX idx_adk_tasks_agent ON ` + tableTasks + ` (agent_id, updated_at DESC)`,
-		`CREATE UNIQUE INDEX idx_adk_memory_agent_scope_key ON ` + tableMemory + ` (agent_id, scope, memory_key)`,
-		`CREATE INDEX idx_adk_session_contexts_updated ON ` + tableSessionContexts + ` (updated_at DESC)`,
-		`CREATE INDEX idx_adk_handoff_segments_session ON ` + tableHandoffSegments + ` (session_id, sequence_no ASC)`,
-		`CREATE INDEX idx_adk_session_context_state_updated ON ` + tableSessionContextLive + ` (updated_at DESC)`,
-		`CREATE INDEX idx_adk_session_notices_session ON ` + tableSessionNotices + ` (session_id, created_at ASC)`,
-	}
-	if err := sqliteschema.InitializeOrValidate(
-		context.Background(), s.db, s.dbPath, "adk", 1, statements,
-		func(ctx context.Context, db sqliteschema.Database) error {
-			for _, schema := range []struct {
-				table   string
-				columns []string
-			}{
-				{tableProviders, []string{"id:TEXT:1", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
-				{tableAgents, []string{"id:TEXT:1", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
-				{tableSessions, []string{"id:TEXT:1", "agent_id:TEXT:0", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
-				{tableRuns, []string{"id:TEXT:1", "session_id:TEXT:0", "agent_id:TEXT:0", "status:TEXT:0", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
-				{tableApprovals, []string{"id:TEXT:1", "run_id:TEXT:0", "agent_id:TEXT:0", "status:TEXT:0", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
-				{tableTasks, []string{"id:TEXT:1", "status:TEXT:0", "agent_id:TEXT:0", "run_id:TEXT:0", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
-			} {
-				if err := sqliteschema.ValidateTable(ctx, db, schema.table, schema.columns); err != nil {
-					return err
-				}
-			}
-			return nil
-		},
-	); err != nil {
-		return err
-	}
-	if err := s.ensureWorkflowSchema(context.Background()); err != nil {
-		return err
-	}
-	return s.ensureExecutionClaimSchema(context.Background())
+	return sqliteschema.InitializeCurrent(context.Background(), s.db, s.dbPath, sqliteschema.DatabaseADK)
 }
 
 func (s *Store) ensureBuiltins(ctx context.Context) error {
-	if err := s.deleteLegacyBuiltinSkills(ctx); err != nil {
-		return err
-	}
 	builtins, err := builtinSkillMetadataCatalog()
 	if err != nil {
 		return err
@@ -194,25 +138,6 @@ func (s *Store) ensureBuiltins(ctx context.Context) error {
 	}
 	for _, template := range BuiltinAgentTemplates() {
 		if _, err := s.EnsureAgent(ctx, template); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *Store) deleteLegacyBuiltinSkills(ctx context.Context) error {
-	for _, id := range []string{strategypinespec.LegacyBuiltinSkillName} {
-		skill, ok, err := s.Skill(ctx, id)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			continue
-		}
-		if !skill.Builtin && !strings.EqualFold(strings.TrimSpace(skill.Source), "builtin") {
-			continue
-		}
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableSkills+` WHERE id = ?`, id); err != nil {
 			return err
 		}
 	}

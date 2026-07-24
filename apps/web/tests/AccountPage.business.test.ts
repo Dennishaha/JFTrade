@@ -251,7 +251,7 @@ describe("AccountPage business flows", () => {
     expect(wrapper.text()).not.toContain("SH.600519");
   });
 
-  it("redirects the legacy ?tab=risk URL to the standalone risk page", async () => {
+  it("does not remap unsupported account tab query values", async () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
@@ -267,7 +267,7 @@ describe("AccountPage business flows", () => {
     wrappers.push(wrapper);
     await nextTick();
 
-    expect(replace).toHaveBeenCalledWith("/risk");
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("falls back to runtime-scoped projected data and dedupes visible orders", async () => {

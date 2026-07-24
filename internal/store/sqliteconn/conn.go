@@ -91,7 +91,7 @@ func DSN(path string) string {
 	}
 	return strings.TrimSpace(path) +
 		separator +
-		"_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)"
+		"_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)"
 }
 
 func ReadDSN(path string) string {
@@ -99,7 +99,7 @@ func ReadDSN(path string) string {
 	if strings.Contains(path, "?") {
 		separator = "&"
 	}
-	return strings.TrimSpace(path) + separator + "_pragma=query_only(1)&_pragma=busy_timeout(10000)"
+	return strings.TrimSpace(path) + separator + "_pragma=query_only(1)&_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)"
 }
 
 func ReadOnlyDSN(path string) string {
@@ -115,7 +115,7 @@ func ReadOnlyDSN(path string) string {
 		trimmedPath += separator + "mode=ro"
 		separator = "&"
 	}
-	return trimmedPath + separator + "_pragma=busy_timeout(10000)"
+	return trimmedPath + separator + "_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)"
 }
 
 func resolveOptions(opts ...Option) Options {

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	httpserver "github.com/jftrade/jftrade-main/internal/api/httpserver"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -59,8 +61,8 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 		t.Fatalf("POST strategy definition status = %d", createResp.StatusCode)
 	}
 	var createEnvelope struct {
-		OK   bool                     `json:"ok"`
-		Data strategyDesignDefinition `json:"data"`
+		OK   bool                `json:"ok"`
+		Data stratsrv.Definition `json:"data"`
 	}
 	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
 		t.Fatalf("decode created strategy definition: %v", err)
@@ -88,8 +90,8 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 		t.Fatalf("GET strategy definitions status = %d", listResp.StatusCode)
 	}
 	var listEnvelope struct {
-		OK   bool                       `json:"ok"`
-		Data []strategyDesignDefinition `json:"data"`
+		OK   bool                  `json:"ok"`
+		Data []stratsrv.Definition `json:"data"`
 	}
 	if err := json.NewDecoder(listResp.Body).Decode(&listEnvelope); err != nil {
 		t.Fatalf("decode strategy definitions: %v", err)
@@ -174,8 +176,8 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 		t.Fatalf("PUT strategy definition status = %d", updateResp.StatusCode)
 	}
 	var updateEnvelope struct {
-		OK   bool                     `json:"ok"`
-		Data strategyDesignDefinition `json:"data"`
+		OK   bool                `json:"ok"`
+		Data stratsrv.Definition `json:"data"`
 	}
 	if err := json.NewDecoder(updateResp.Body).Decode(&updateEnvelope); err != nil {
 		t.Fatalf("decode updated strategy definition: %v", err)
@@ -220,8 +222,8 @@ func TestStrategyDefinitionCreateGeneratesUUIDWhenIDMissing(t *testing.T) {
 	}
 
 	var createEnvelope struct {
-		OK   bool                     `json:"ok"`
-		Data strategyDesignDefinition `json:"data"`
+		OK   bool                `json:"ok"`
+		Data stratsrv.Definition `json:"data"`
 	}
 	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
 		t.Fatalf("decode created strategy definition without id: %v", err)
@@ -284,7 +286,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	definition, err := server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           "pine-delete-guard",
 		Name:         "Delete Guard",
 		Description:  "delete guard",
@@ -295,7 +297,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "5m",
 		ExecutionMode: strategyExecutionModeNotifyOnly,
@@ -319,7 +321,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if deleteResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("delete definition with linked instance status = %d, want %d", deleteResp.StatusCode, http.StatusBadRequest)
 	}
-	var blockedEnvelope envelope
+	var blockedEnvelope httpserver.Envelope
 	if err := json.NewDecoder(deleteResp.Body).Decode(&blockedEnvelope); err != nil {
 		t.Fatalf("decode blocked delete response: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -161,7 +162,7 @@ func (a *strategyCatalogStoreAdapter) GetLinkedInstanceIDs(definitionID string) 
 // ── 活动日志/审计 ──
 
 func (a *strategyCatalogStoreAdapter) GetLogs(id string, query stratsrv.LogQuery) (stratsrv.LogsResult, bool) {
-	return a.store.strategyLogsPage(id, strategyRuntimeLogQuery{
+	return a.store.strategyLogsPage(id, runtimeactivity.LogQuery{
 		InstanceID: id,
 		Limit:      query.Limit,
 		Offset:     query.Offset,
@@ -172,7 +173,7 @@ func (a *strategyCatalogStoreAdapter) GetLogs(id string, query stratsrv.LogQuery
 }
 
 func (a *strategyCatalogStoreAdapter) GetAudit(id string, query stratsrv.AuditQuery) (stratsrv.AuditResult, bool) {
-	return a.store.strategyAuditPage(id, strategyRuntimeAuditQuery{
+	return a.store.strategyAuditPage(id, runtimeactivity.AuditQuery{
 		InstanceID: id,
 		Limit:      query.Limit,
 		Offset:     query.Offset,
@@ -293,18 +294,18 @@ func statusToDetail(status string) string {
 // Strategy instance enrichment.
 // ──────────────────────────────────────────────────────────────────────────────
 
-func (a *strategyCatalogStoreAdapter) enrichItems(items []strategyListItem) []strategyListItem {
+func (a *strategyCatalogStoreAdapter) enrichItems(items []stratsrv.InstanceView) []stratsrv.InstanceView {
 	if len(items) == 0 {
 		return items
 	}
-	enriched := make([]strategyListItem, len(items))
+	enriched := make([]stratsrv.InstanceView, len(items))
 	for i := range items {
 		enriched[i] = a.enrichItem(items[i])
 	}
 	return enriched
 }
 
-func (a *strategyCatalogStoreAdapter) enrichItem(item strategyListItem) strategyListItem {
+func (a *strategyCatalogStoreAdapter) enrichItem(item stratsrv.InstanceView) stratsrv.InstanceView {
 	// DefinitionSync
 	if sync := a.buildDefinitionSyncStatus(item); sync != nil {
 		item.DefinitionSync = sync
@@ -340,7 +341,7 @@ func (a *strategyCatalogStoreAdapter) enrichItem(item strategyListItem) strategy
 	return item
 }
 
-func (a *strategyCatalogStoreAdapter) buildDefinitionSyncStatus(item strategyListItem) *strategyDefinitionSyncStatus {
+func (a *strategyCatalogStoreAdapter) buildDefinitionSyncStatus(item stratsrv.InstanceView) *stratsrv.DefinitionSyncStatus {
 	definitionID := strings.TrimSpace(item.Definition.StrategyID)
 	if definitionID == "" {
 		definitionID = strategyDefinitionIDFromParams(item.Params)
@@ -349,7 +350,7 @@ func (a *strategyCatalogStoreAdapter) buildDefinitionSyncStatus(item strategyLis
 		return nil
 	}
 	appliedVersion := strings.TrimSpace(item.Definition.Version)
-	status := &strategyDefinitionSyncStatus{
+	status := &stratsrv.DefinitionSyncStatus{
 		DefinitionID:   definitionID,
 		AppliedVersion: appliedVersion,
 		LatestVersion:  appliedVersion,

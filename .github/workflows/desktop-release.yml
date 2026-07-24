@@ -116,7 +116,6 @@ jobs:
 
       - name: Generate release inputs
         run: |
-          pnpm run generate:docs
           pnpm run build:frontend-assets
           pnpm run build:pineworker
           git diff --exit-code -- docs/reference/generated/pine-v6-support.md

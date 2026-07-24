@@ -28,6 +28,7 @@ const (
 	defaultStrategyRuntimeDBFilename = "strategy-runtime.db"
 	defaultBacktestRunDBFilename     = "backtest-runs.db"
 	defaultExecutionOrderDBFilename  = "execution-orders.db"
+	defaultADKArtifactDBFilename     = "adk-artifact.db"
 	defaultWatchlistDBFilename       = "watchlists.db"
 	defaultResearchDBFilename        = "research.db"
 	defaultDesktopLogDirName         = "logs"
@@ -124,6 +125,7 @@ func EnsureRuntimeLayout(settingsPath string, backtestDBPath string) error {
 		filepath.Dir(DeriveBacktestRunDBPath(settingsPath)),
 		filepath.Dir(DeriveADKDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSessionDBPath(settingsPath)),
+		filepath.Dir(DeriveADKArtifactDBPath(settingsPath)),
 		filepath.Dir(DeriveWatchlistDBPath(settingsPath)),
 		filepath.Dir(DeriveResearchDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSecretsPath(settingsPath)),
@@ -275,6 +277,17 @@ func DeriveADKSessionDBPath(settingsPath string) string {
 		return "adk-session.db"
 	}
 	return filepath.Join(directory, "adk-session.db")
+}
+
+// DeriveADKArtifactDBPath returns the artifact database used by the ADK
+// runtime. It follows the session database directory because the ADK runtime
+// owns both stores as one lifecycle unit.
+func DeriveADKArtifactDBPath(settingsPath string) string {
+	directory := filepath.Dir(DeriveADKSessionDBPath(settingsPath))
+	if directory == "" || directory == "." {
+		return defaultADKArtifactDBFilename
+	}
+	return filepath.Join(directory, defaultADKArtifactDBFilename)
 }
 
 // DeriveWatchlistDBPath returns the canonical local watchlist database. The

@@ -7,30 +7,33 @@ import (
 	"strings"
 	"testing"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestExecutionNotificationRemainingBoundaries(t *testing.T) {
 	server := &Server{}
-	server.notifyExecutionOrderLifecycle(executionOrderSummaryResponse{}, nil)
-	server.notifyExecutionOrderLifecycle(executionOrderSummaryResponse{Status: "UNKNOWN"}, &executionOrderEventResponse{})
+	server.notifyExecutionOrderLifecycle(trdsrv.ExecutionOrder{}, nil)
+	server.notifyExecutionOrderLifecycle(trdsrv.ExecutionOrder{Status: "UNKNOWN"}, &trdsrv.ExecutionOrderEvent{})
 
-	if _, ok := executionNotificationForStatus(executionOrderSummaryResponse{Status: trdsrv.OrderStatusSubmitted}, &executionOrderEventResponse{EventType: "OTHER"}); ok {
+	if _, ok := executionNotificationForStatus(trdsrv.ExecutionOrder{Status: trdsrv.OrderStatusSubmitted}, &trdsrv.ExecutionOrderEvent{EventType: "OTHER"}); ok {
 		t.Fatal("unrelated submitted event produced notification")
 	}
-	partial, ok := executionNotificationForStatus(executionOrderSummaryResponse{Status: trdsrv.OrderStatusPartiallyFilled}, &executionOrderEventResponse{})
+	partial, ok := executionNotificationForStatus(trdsrv.ExecutionOrder{Status: trdsrv.OrderStatusPartiallyFilled}, &trdsrv.ExecutionOrderEvent{})
 	if !ok || partial.Level != "info" || partial.Category != "broker.order.fill" {
 		t.Fatalf("partial fill notification = %#v, %v", partial, ok)
 	}
-	if note := baseExecutionNotification(executionOrderSummaryResponse{}, "category"); note.BrokerID != "unknown" {
+	if note := baseExecutionNotification(trdsrv.ExecutionOrder{}, "category"); note.BrokerID != "unknown" {
 		t.Fatalf("default notification broker = %#v", note)
 	}
-	if got := executionOrderNotificationMessage(executionOrderSummaryResponse{InternalOrderID: "exec-empty"}); got != "exec-empty" {
+	if got := executionOrderNotificationMessage(trdsrv.ExecutionOrder{InternalOrderID: "exec-empty"}); got != "exec-empty" {
 		t.Fatalf("empty order message = %q", got)
 	}
 	symbol, side, brokerID := "AAPL", "BUY", "broker-1"
 	quantity, filled := 2.0, 1.0
-	message := executionOrderNotificationMessage(executionOrderSummaryResponse{
+	message := executionOrderNotificationMessage(trdsrv.ExecutionOrder{
 		TradingEnvironment: "SIMULATE",
 		Symbol:             &symbol,
 		Side:               &side,
@@ -47,23 +50,23 @@ func TestExecutionNotificationRemainingBoundaries(t *testing.T) {
 
 func TestCatalogActivityRemainingDegradedBoundaries(t *testing.T) {
 	store := newCatalogCoverageStore(t)
-	store.data.Strategies = []managedStrategyInstance{{ID: "activity"}}
+	store.data.Strategies = []stratsrv.ManagedInstance{{ID: "activity"}}
 	runtimeStore := store.runtimeStore
 	store.runtimeStore = nil
-	if result, ok := store.strategyLogsPage("activity", strategyRuntimeLogQuery{Limit: -1, Offset: -1}); !ok || len(result.Logs) != 0 {
+	if result, ok := store.strategyLogsPage("activity", runtimeactivity.LogQuery{Limit: -1, Offset: -1}); !ok || len(result.Logs) != 0 {
 		t.Fatalf("nil runtime log page = %#v, %v", result, ok)
 	}
-	if result, ok := store.strategyAuditPage("activity", strategyRuntimeAuditQuery{Limit: -1, Offset: -1}); !ok || len(result.Entries) != 0 {
+	if result, ok := store.strategyAuditPage("activity", runtimeactivity.AuditQuery{Limit: -1, Offset: -1}); !ok || len(result.Entries) != 0 {
 		t.Fatalf("nil runtime audit page = %#v, %v", result, ok)
 	}
 	store.runtimeStore = runtimeStore
 	if err := runtimeStore.Close(); err != nil {
 		t.Fatalf("close runtime store: %v", err)
 	}
-	if result, ok := store.strategyLogsPage("activity", strategyRuntimeLogQuery{}); !ok || result.Page.Total != 0 {
+	if result, ok := store.strategyLogsPage("activity", runtimeactivity.LogQuery{}); !ok || result.Page.Total != 0 {
 		t.Fatalf("degraded log page = %#v, %v", result, ok)
 	}
-	if result, ok := store.strategyAuditPage("activity", strategyRuntimeAuditQuery{}); !ok || result.Page.Total != 0 {
+	if result, ok := store.strategyAuditPage("activity", runtimeactivity.AuditQuery{}); !ok || result.Page.Total != 0 {
 		t.Fatalf("degraded audit page = %#v, %v", result, ok)
 	}
 }
@@ -91,7 +94,7 @@ strategy("Corrupt")', '{', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL)
 	}
 
 	bad := strategyAdapterCoverageDefinition("marshal-error")
-	bad.VisualModel = &strategyVisualModel{Nodes: []strategyVisualNode{{Properties: map[string]any{"bad": make(chan int)}}}}
+	bad.VisualModel = &stratsrv.VisualModel{Nodes: []stratsrv.VisualNode{{Properties: map[string]any{"bad": make(chan int)}}}}
 	if err := store.upsertDefinitionLocked(bad, nil); err == nil {
 		t.Fatal("expected visual model marshal error")
 	}
@@ -122,7 +125,7 @@ func TestRuntimeDependencyRemainingPureBoundaries(t *testing.T) {
 		func(context.Context, string, ...string) ([]byte, error) { return []byte("v22.0.0"), nil },
 	)
 	//nolint:staticcheck // Exercise the helper's explicit nil-context fallback.
-	if got := checkNodeRuntimeDependency(nil, PineWorkerSettings{}); got["status"] != runtimeDependencyStatusOK {
+	if got := checkNodeRuntimeDependency(nil, jfsettings.PineWorkerSettings{}); got["status"] != runtimeDependencyStatusOK {
 		t.Fatalf("nil-context dependency = %#v", got)
 	}
 	configuredMissing := nodeMissingMessage("/missing/node", []string{"ignored"}, errors.New("missing"))

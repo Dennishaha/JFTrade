@@ -16,9 +16,10 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
-func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
+func TestBrokerIntegrationSavePersistsWithoutMutatingRuntimeEnv(t *testing.T) {
 	t.Setenv(futu.EnvOpenDAddr, "")
 	t.Setenv("FUTU_OPEND_WEBSOCKET_KEY", "")
 	t.Setenv("JFTRADE_FUTU_WEBSOCKET_KEY", "")
@@ -61,10 +62,10 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 		t.Fatalf("PUT status = %d", resp.StatusCode)
 	}
 
-	if got := os.Getenv(futu.EnvOpenDAddr); got != "127.0.0.1:11110" {
+	if got := os.Getenv(futu.EnvOpenDAddr); got != "" {
 		t.Fatalf("%s = %q", futu.EnvOpenDAddr, got)
 	}
-	if got := os.Getenv("JFTRADE_FUTU_WEBSOCKET_KEY"); got != "123456" {
+	if got := os.Getenv("JFTRADE_FUTU_WEBSOCKET_KEY"); got != "" {
 		t.Fatalf("JFTRADE_FUTU_WEBSOCKET_KEY = %q", got)
 	}
 
@@ -78,7 +79,7 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 		OK   bool `json:"ok"`
 		Data struct {
 			Brokers []struct {
-				Integration BrokerIntegration `json:"integration"`
+				Integration jfsettings.BrokerIntegration `json:"integration"`
 			} `json:"brokers"`
 		} `json:"data"`
 	}
@@ -97,7 +98,7 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 	}
 }
 
-func TestSettingsStoreDirectSaveMaintainsRuntimeEnvCompatibility(t *testing.T) {
+func TestSettingsStoreDirectSaveDoesNotMutateRuntimeEnv(t *testing.T) {
 	t.Setenv(futu.EnvOpenDAddr, "before")
 	t.Setenv("JFTRADE_FUTU_API_PORT", "before")
 
@@ -105,8 +106,8 @@ func TestSettingsStoreDirectSaveMaintainsRuntimeEnvCompatibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{
-		Config: FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{
+		Config: jfsettings.FutuIntegrationConfig{
 			Host:    "127.0.0.5",
 			APIPort: 25555,
 		},
@@ -114,10 +115,10 @@ func TestSettingsStoreDirectSaveMaintainsRuntimeEnvCompatibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveIntegration: %v", err)
 	}
-	if got := os.Getenv(futu.EnvOpenDAddr); got != "127.0.0.5:25555" {
+	if got := os.Getenv(futu.EnvOpenDAddr); got != "before" {
 		t.Fatalf("%s = %q", futu.EnvOpenDAddr, got)
 	}
-	if got := os.Getenv("JFTRADE_FUTU_API_PORT"); got != "25555" {
+	if got := os.Getenv("JFTRADE_FUTU_API_PORT"); got != "before" {
 		t.Fatalf("JFTRADE_FUTU_API_PORT = %q", got)
 	}
 }
@@ -144,8 +145,8 @@ func TestBrokerSettingsExposeNullIntegrationUntilFirstSave(t *testing.T) {
 		OK   bool `json:"ok"`
 		Data struct {
 			Brokers []struct {
-				Integration *BrokerIntegration    `json:"integration"`
-				Defaults    FutuIntegrationConfig `json:"defaults"`
+				Integration *jfsettings.BrokerIntegration    `json:"integration"`
+				Defaults    jfsettings.FutuIntegrationConfig `json:"defaults"`
 			} `json:"brokers"`
 		} `json:"data"`
 	}
@@ -255,10 +256,10 @@ func TestFutuRuntimeAndHealthStayNeutralWithoutSavedEnabledIntegration(t *testin
 		t.Fatal("expected manualRetryRequired=false without a saved enabled integration")
 	}
 
-	saved, err := store.SaveIntegration(BrokerIntegration{
+	saved, err := store.SaveIntegration(jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  false,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:          "futu",
 			Host:          "127.0.0.1",
 			APIPort:       11110,
@@ -292,9 +293,9 @@ func TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{
 		Enabled: true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Host:                    "127.0.0.1",
 			APIPort:                 1,
 			WebSocketPort:           2,
@@ -354,9 +355,9 @@ func TestFutuOpenDHealthRejectsOldBuildAndGuidesUpgrade(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	if _, err := store.SaveIntegration(BrokerIntegration{
+	if _, err := store.SaveIntegration(jfsettings.BrokerIntegration{
 		Enabled: true,
-		Config:  normalizeFutuConfig(FutuIntegrationConfig{Host: host, APIPort: port}),
+		Config:  normalizeFutuConfig(jfsettings.FutuIntegrationConfig{Host: host, APIPort: port}),
 	}); err != nil {
 		t.Fatalf("SaveIntegration: %v", err)
 	}
@@ -410,8 +411,8 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 	}
 
 	var createEnvelope struct {
-		OK   bool                 `json:"ok"`
-		Data ManagedBrokerAccount `json:"data"`
+		OK   bool                            `json:"ok"`
+		Data jfsettings.ManagedBrokerAccount `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&createEnvelope); err != nil {
 		t.Fatalf("decode create: %v", err)
@@ -428,7 +429,7 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 	var settingsEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Accounts []ManagedBrokerAccount `json:"accounts"`
+			Accounts []jfsettings.ManagedBrokerAccount `json:"accounts"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&settingsEnvelope); err != nil {
@@ -541,7 +542,7 @@ func TestUIAppearanceSavePersistsToSettings(t *testing.T) {
 		t.Fatalf("ReadFile settings: %v", err)
 	}
 	var decoded struct {
-		Appearance UIAppearanceSettings `json:"appearance"`
+		Appearance jfsettings.UIAppearanceSettings `json:"appearance"`
 	}
 	if err := json.Unmarshal(rawSettings, &decoded); err != nil {
 		t.Fatalf("Unmarshal settings: %v", err)

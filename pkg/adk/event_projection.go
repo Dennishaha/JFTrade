@@ -56,7 +56,7 @@ func (s *Store) TranscriptEntries(ctx context.Context, sessionID string) ([]Tran
 	return []TranscriptEntry{}, nil
 }
 
-func (s *Store) Messages(ctx context.Context, sessionID string) ([]Message, error) {
+func (s *Store) Messages(ctx context.Context, sessionID string) ([]TranscriptEntry, error) {
 	return s.TranscriptEntries(ctx, sessionID)
 }
 

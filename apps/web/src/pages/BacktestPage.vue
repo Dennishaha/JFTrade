@@ -969,13 +969,16 @@ async function loadDefinitions() {
   try {
     const items = await queryClient.ensureQueryData({
       queryKey: queryKeys.strategyDefinitions(),
-      queryFn: () => apiGet<StrategyDefinition[], "/api/v1/strategy-definitions">(
-        "/api/v1/strategy-definitions",
-      ),
+      queryFn: () => apiGet("/api/v1/strategy-definitions"),
     });
-    definitions.value = items;
-    if (items.length > 0 && !selectedDefinitionId.value) {
-      selectedDefinitionId.value = items[0]!.id;
+    definitions.value = items.map((item) => ({
+      id: item.id ?? "",
+      name: item.name ?? "",
+      version: item.version ?? "",
+      ...(item.symbol == null ? {} : { symbol: item.symbol }),
+    }));
+    if (definitions.value.length > 0 && !selectedDefinitionId.value) {
+      selectedDefinitionId.value = definitions.value[0]!.id;
     }
   } catch {
     // definitions not critical for sync

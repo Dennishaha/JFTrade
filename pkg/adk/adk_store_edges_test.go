@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 func TestStoreSessionContextAndNoticeBoundaryBranches(t *testing.T) {
@@ -296,19 +294,6 @@ func TestStoreBuiltinAndLowLevelJSONErrorBranches(t *testing.T) {
 	}
 	if err := agentErrorStore.ensureBuiltins(ctx); err == nil {
 		t.Fatal("ensureBuiltins missing agents table err = nil, want error")
-	}
-
-	legacyStore := newBusinessStore(t)
-	if _, err := legacyStore.SaveSkill(ctx, Skill{
-		ID: strategypinespec.LegacyBuiltinSkillName, DisplayName: "Legacy", Source: "builtin", Builtin: true, Enabled: true,
-	}); err != nil {
-		t.Fatalf("SaveSkill legacy: %v", err)
-	}
-	if _, err := legacyStore.db.ExecContext(ctx, `CREATE TRIGGER fail_legacy_skill_delete BEFORE DELETE ON `+tableSkills+` BEGIN SELECT RAISE(FAIL, 'legacy delete failed'); END`); err != nil {
-		t.Fatalf("create legacy delete trigger: %v", err)
-	}
-	if err := legacyStore.deleteLegacyBuiltinSkills(ctx); err == nil || !strings.Contains(err.Error(), "legacy delete failed") {
-		t.Fatalf("deleteLegacyBuiltinSkills delete err = %v, want trigger error", err)
 	}
 
 	jsonStore := newBusinessStore(t)

@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"errors"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,7 +24,7 @@ func TestStrategyCatalogStorePluginUpdateAndMissingOperations(t *testing.T) {
 		t.Fatalf("default target dir = %q", store.pluginCatalog().TargetDir)
 	}
 
-	plugin := managedStrategyPlugin{Descriptor: strategyPluginDescriptor{ID: "plugin.alpha", DisplayName: "Alpha", Version: "1.0.0"}}
+	plugin := managedStrategyPlugin{Descriptor: stratsrv.PluginDescriptor{ID: "plugin.alpha", DisplayName: "Alpha", Version: "1.0.0"}}
 	if err := store.savePlugin(plugin); err != nil {
 		t.Fatalf("save initial plugin: %v", err)
 	}
@@ -58,10 +59,10 @@ func TestStrategyCatalogStoreFindsStrategiesLinkedToDefinition(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	strategies := []managedStrategyInstance{
+	strategies := []stratsrv.ManagedInstance{
 		{ID: "linked-by-param", Params: map[string]any{"definitionId": "definition-a"}},
-		{ID: "linked-by-summary", Definition: strategyDefinitionSummary{StrategyID: "definition-a"}},
-		{ID: "unrelated", Definition: strategyDefinitionSummary{StrategyID: "definition-b"}},
+		{ID: "linked-by-summary", Definition: stratsrv.DefinitionSummary{StrategyID: "definition-a"}},
+		{ID: "unrelated", Definition: stratsrv.DefinitionSummary{StrategyID: "definition-b"}},
 	}
 	for _, strategy := range strategies {
 		if err := store.saveStrategy(strategy); err != nil {

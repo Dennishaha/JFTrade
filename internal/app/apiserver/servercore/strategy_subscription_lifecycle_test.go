@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 )
 
@@ -18,9 +19,9 @@ func TestStrategyRuntimeHoldsExactKLineLeasesUntilStopAndClose(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return newStrategyRuntimeStubExchange() }
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols: []string{"US.AAPL", "HK.00700"}, Interval: "5m", ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instance, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -65,9 +66,9 @@ func TestStrategyRuntimeLeaseFailureAndWarmupFailureRollBack(t *testing.T) {
 	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols: []string{"US.AAPL"}, Interval: "1m", ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instance, _ := server.strategyStore.strategy(instanceID)
 	wantErr := errors.New("subscription quota exhausted")
@@ -103,9 +104,9 @@ func TestStrategyRuntimePanicReleasesSubscriptionLease(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return newStrategyRuntimeStubExchange() }
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols: []string{"US.AAPL"}, Interval: "1m", ExecutionMode: strategyExecutionModeNotifyOnly,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instance, _ := server.strategyStore.strategy(instanceID)
 	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instance); err != nil {

@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -18,6 +19,12 @@ func TestRuntimeResourcesDeclareOwnersAndDerivedPaths(t *testing.T) {
 	for _, resource := range resources {
 		if resource.ID == "" || resource.Owner == "" || resource.Kind == "" || resource.Path == "" {
 			t.Fatalf("resource missing required metadata: %+v", resource)
+		}
+		if strings.HasPrefix(resource.HealthProvider, "data-migration/") {
+			t.Fatalf("resource retains obsolete health provider: %+v", resource)
+		}
+		if resource.Kind == "sqlite" && resource.Critical && !strings.HasPrefix(resource.HealthProvider, "data-management/") {
+			t.Fatalf("critical sqlite resource has unexpected health provider: %+v", resource)
 		}
 		byID[resource.ID] = resource
 	}

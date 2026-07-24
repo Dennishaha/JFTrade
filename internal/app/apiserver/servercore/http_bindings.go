@@ -6,41 +6,33 @@ import (
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 )
 
-// Type aliases to httpserver — these keep all existing jftradeapi code
-// compatible while the backing types live in the HTTP infrastructure layer.
-type optionalIntValue = httpserver.OptionalIntValue
-type optionalBoolValue = httpserver.OptionalBoolValue
-type optionalTimeValue = httpserver.OptionalTimeValue
-type candlePeriodValue = httpserver.CandlePeriodValue
-
-// Thin constructors — kept for internal jftradeapi convenience.
-func newOptionalIntValue(value int) optionalIntValue {
-	return optionalIntValue{Value: value, Set: true, Valid: true}
+func newOptionalIntValue(value int) httpserver.OptionalIntValue {
+	return httpserver.OptionalIntValue{Value: value, Set: true, Valid: true}
 }
 
-func newOptionalBoolValue(value bool) optionalBoolValue {
-	return optionalBoolValue{Value: value, Set: true}
+func newOptionalBoolValue(value bool) httpserver.OptionalBoolValue {
+	return httpserver.OptionalBoolValue{Value: value, Set: true}
 }
 
-func newOptionalTimeValue(value time.Time) optionalTimeValue {
-	return optionalTimeValue{Time: value}
+func newOptionalTimeValue(value time.Time) httpserver.OptionalTimeValue {
+	return httpserver.OptionalTimeValue{Time: value}
 }
 
 type marketSnapshotQuery struct {
-	Refresh optionalBoolValue `form:"refresh,parser=encoding.TextUnmarshaler"`
+	Refresh httpserver.OptionalBoolValue `form:"refresh,parser=encoding.TextUnmarshaler"`
 }
 
 type marketCandlesQuery struct {
-	Period   candlePeriodValue `form:"period,parser=encoding.TextUnmarshaler"`
-	Limit    optionalIntValue  `form:"limit,parser=encoding.TextUnmarshaler"`
-	FromTime optionalTimeValue `form:"fromTime,parser=encoding.TextUnmarshaler"`
-	ToTime   optionalTimeValue `form:"toTime,parser=encoding.TextUnmarshaler"`
-	From     optionalTimeValue `form:"from,parser=encoding.TextUnmarshaler"`
-	To       optionalTimeValue `form:"to,parser=encoding.TextUnmarshaler"`
+	Period   httpserver.CandlePeriodValue `form:"period,parser=encoding.TextUnmarshaler"`
+	Limit    httpserver.OptionalIntValue  `form:"limit,parser=encoding.TextUnmarshaler"`
+	FromTime httpserver.OptionalTimeValue `form:"fromTime,parser=encoding.TextUnmarshaler"`
+	ToTime   httpserver.OptionalTimeValue `form:"toTime,parser=encoding.TextUnmarshaler"`
+	From     httpserver.OptionalTimeValue `form:"from,parser=encoding.TextUnmarshaler"`
+	To       httpserver.OptionalTimeValue `form:"to,parser=encoding.TextUnmarshaler"`
 }
 
 type marketDepthQuery struct {
-	Num optionalIntValue `form:"num,parser=encoding.TextUnmarshaler"`
+	Num httpserver.OptionalIntValue `form:"num,parser=encoding.TextUnmarshaler"`
 }
 
 func (q marketSnapshotQuery) forceRefresh() bool {

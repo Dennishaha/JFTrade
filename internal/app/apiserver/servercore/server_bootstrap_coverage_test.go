@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestServerBootstrapRemainingFailureAndFallbackPaths(t *testing.T) {
@@ -41,7 +42,7 @@ func TestServerBootstrapRemainingFailureAndFallbackPaths(t *testing.T) {
 	if got := bootstrap.loadBacktestRunStore(); got == nil || got.db != nil {
 		t.Fatalf("invalid backtest run fallback = %#v", got)
 	}
-	if got := bootstrap.loadExecutionOrderStore(ExecutionSettings{SeenFillRetentionDays: 7}); got == nil || got.persistence != nil || got.seenFillRetentionDays != 7 {
+	if got := bootstrap.loadExecutionOrderStore(jfsettings.ExecutionSettings{SeenFillRetentionDays: 7}); got == nil || got.persistence != nil || got.seenFillRetentionDays != 7 {
 		t.Fatalf("invalid execution fallback = %#v", got)
 	}
 
@@ -68,18 +69,18 @@ func TestServerRemainingPublicSettersAndRuntimeBoundaries(t *testing.T) {
 	nilServer.SetAPIPort(1)
 	nilServer.ConfigureAuthOrigins("http://example.test")
 	nilServer.SetFrontendFS(nil, "")
-	nilServer.ApplySecuritySettings(SecuritySettings{})
+	nilServer.ApplySecuritySettings(jfsettings.SecuritySettings{})
 
 	server := &Server{}
 	called := false
-	server.SetWebAccessReconfigure(func(SecuritySettings) error {
+	server.SetWebAccessReconfigure(func(jfsettings.SecuritySettings) error {
 		called = true
 		return errors.New("reconfigure failed")
 	})
 	if server.webAccessReconfigure == nil {
 		t.Fatal("web access reconfigure callback was not installed")
 	}
-	if err := server.settingsSideEffects().OnSecurityChanged(SecuritySettings{}); err == nil || !called {
+	if err := server.settingsSideEffects().OnSecurityChanged(jfsettings.SecuritySettings{}); err == nil || !called {
 		t.Fatalf("security side effect = %v, called=%v", err, called)
 	}
 
@@ -95,10 +96,10 @@ func TestServerRemainingPublicSettersAndRuntimeBoundaries(t *testing.T) {
 	if len(options) == 0 {
 		t.Fatal("settings service options are empty")
 	}
-	if err := server.settingsSideEffects().OnMCPServerChanged(MCPServerSettings{}); err == nil {
+	if err := server.settingsSideEffects().OnMCPServerChanged(jfsettings.MCPServerSettings{}); err == nil {
 		t.Fatal("nil MCP manager change error = nil")
 	}
-	server.settingsSideEffects().OnExchangeCalendarsChanged(ExchangeCalendarSettings{})
+	server.settingsSideEffects().OnExchangeCalendarsChanged(jfsettings.ExchangeCalendarSettings{})
 
 	if persistenceOnlySettingsStore(nil) != nil {
 		t.Fatal("nil persistence settings store became non-nil")

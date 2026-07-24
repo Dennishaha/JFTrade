@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"encoding/json"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	"net/http"
 	"path/filepath"
 	"testing"
@@ -12,7 +13,7 @@ func TestBrokerFundsEndpointReturnsDisconnectedSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.SaveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          "127.0.0.1",
 		APIPort:       1,

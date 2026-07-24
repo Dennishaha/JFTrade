@@ -54,7 +54,10 @@ func prepareSyncRequest(req SyncRequest) (preparedSync, error) {
 		return preparedSync{}, requestErrorf("until must be after since")
 	}
 
-	req.SessionScope = normalizeSessionScope(req.SessionScope)
+	req.SessionScope, err = parseSessionScope(req.SessionScope)
+	if err != nil {
+		return preparedSync{}, err
+	}
 	intervals := planSyncIntervals(req.Symbol, parseSyncIntervals(req.Intervals), req.SessionScope)
 	return preparedSync{
 		request:   req,
@@ -218,15 +221,18 @@ func isTerminalSyncStatus(status string) bool {
 	}
 }
 
-// normalizeSessionScope 规范化会话范围。
-func normalizeSessionScope(scope string) string {
-	switch strings.ToLower(strings.TrimSpace(scope)) {
+// parseSessionScope accepts only the current public contract. An omitted scope
+// selects regular-hours data; obsolete or misspelled values fail closed.
+func parseSessionScope(scope string) (string, error) {
+	switch scope {
+	case "":
+		return "regular", nil
 	case "regular":
-		return "regular"
+		return "regular", nil
 	case "extended":
-		return "extended"
+		return "extended", nil
 	default:
-		return "legacy"
+		return "", requestErrorf(`sessionScope must be "regular" or "extended"`)
 	}
 }
 
@@ -254,7 +260,7 @@ func planSyncInterval(symbol string, interval bbgotypes.Interval, sessionScope s
 	if duration > time.Hour && duration < 24*time.Hour {
 		return bbgotypes.Interval1h
 	}
-	if normalizeSessionScope(sessionScope) == "extended" &&
+	if sessionScope == "extended" &&
 		strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") &&
 		duration >= 24*time.Hour {
 		return bbgotypes.Interval1h

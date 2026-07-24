@@ -14,7 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
@@ -30,12 +29,14 @@ import (
 	researchstore "github.com/jftrade/jftrade-main/internal/store/research"
 	watchliststore "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 	"github.com/jftrade/jftrade-main/pkg/observability"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
@@ -52,9 +53,6 @@ const (
 	exchangeCalendarOperationTimeout = 75 * time.Second
 	observabilityMinImportanceEnv    = "JFTRADE_OBSERVABILITY_MIN_IMPORTANCE"
 )
-
-type envelope = httpserver.Envelope
-type apiError = httpserver.APIError
 
 var errFutuIntegrationNotEnabled = errors.New("futu integration is not enabled")
 
@@ -77,7 +75,7 @@ type Server struct {
 	unavailableDatabases map[string]error
 	observability        *observability.Recorder
 	desktopAPIToken      string
-	webAccessReconfigure func(SecuritySettings) error
+	webAccessReconfigure func(jfsettings.SecuritySettings) error
 	pineWorkerMu         sync.RWMutex
 	closeOnce            sync.Once
 	closeErr             error
@@ -91,18 +89,19 @@ type SidecarHandler interface {
 	SetAPIPort(int)
 	ConfigureAuthOrigins(...string)
 	SetFrontendFS(fs.FS, string)
-	ApplySecuritySettings(SecuritySettings)
-	SetWebAccessReconfigure(func(SecuritySettings) error)
+	ApplySecuritySettings(jfsettings.SecuritySettings)
+	SetWebAccessReconfigure(func(jfsettings.SecuritySettings) error)
 }
 
 // SidecarOptions customizes API sidecar assembly for embedded hosts.
 type SidecarOptions struct {
-	FrontendFS        fs.FS
-	FrontendDevURL    string
-	RuntimeAPIBaseURL string
-	NotificationSink  func(live.Event) live.NotificationDelivery
-	DesktopMode       bool
-	DesktopAPIToken   string
+	FrontendFS         fs.FS
+	FrontendDevURL     string
+	RuntimeAPIBaseURL  string
+	StartupIntegration *jfsettings.BrokerIntegration
+	NotificationSink   func(live.Event) live.NotificationDelivery
+	DesktopMode        bool
+	DesktopAPIToken    string
 }
 
 // SidecarSettingsStore is the settings surface required by the legacy HTTP server.
@@ -146,6 +145,9 @@ func NewSidecarHandlerWithStore(store SidecarSettingsStore, frontendFS fs.FS, ru
 
 // NewSidecarHandlerWithOptions creates the HTTP handler from an abstract settings store.
 func NewSidecarHandlerWithOptions(store SidecarSettingsStore, options SidecarOptions) SidecarHandler {
+	if options.StartupIntegration != nil {
+		store = startupIntegrationSettingsStore{SidecarSettingsStore: store, startupIntegration: *options.StartupIntegration}
+	}
 	server := newServerWithFrontend(store, newFrontendServerWithOptions(options.FrontendFS, options.RuntimeAPIBaseURL, options.FrontendDevURL))
 	server.liveNotificationSink = options.NotificationSink
 	server.desktopMode = options.DesktopMode
@@ -155,6 +157,18 @@ func NewSidecarHandlerWithOptions(store SidecarSettingsStore, options SidecarOpt
 	}
 	server.applySecuritySettings(store.SecuritySettings())
 	return server
+}
+
+type startupIntegrationSettingsStore struct {
+	SidecarSettingsStore
+	startupIntegration jfsettings.BrokerIntegration
+}
+
+func (s startupIntegrationSettingsStore) Integration() jfsettings.BrokerIntegration {
+	if saved := s.SavedIntegration(); saved != nil {
+		return *saved
+	}
+	return s.startupIntegration
 }
 
 // SetAPIPort updates the API port exposed by system status responses.
@@ -182,7 +196,7 @@ func (s *Server) SetFrontendFS(frontendFS fs.FS, runtimeAPIBaseURL string) {
 }
 
 // ApplySecuritySettings applies optional Web access settings to API and frontend.
-func (s *Server) ApplySecuritySettings(settings SecuritySettings) {
+func (s *Server) ApplySecuritySettings(settings jfsettings.SecuritySettings) {
 	if s != nil {
 		s.applySecuritySettings(settings)
 	}
@@ -191,7 +205,7 @@ func (s *Server) ApplySecuritySettings(settings SecuritySettings) {
 // SetWebAccessReconfigure installs the desktop lifecycle callback that owns
 // the optional browser listener. Non-desktop servers keep applying settings
 // directly without a separate listener.
-func (s *Server) SetWebAccessReconfigure(reconfigure func(SecuritySettings) error) {
+func (s *Server) SetWebAccessReconfigure(reconfigure func(jfsettings.SecuritySettings) error) {
 	if s != nil {
 		s.webAccessReconfigure = reconfigure
 	}
@@ -206,7 +220,7 @@ type serverBootstrap struct {
 
 type serverPersistentState struct {
 	strategyStore       *strategyCatalogStore
-	runtimeStore        *strategyRuntimeStore
+	runtimeStore        *runtimeactivity.Store
 	designStore         *strategyDesignStore
 	backtestRunStore    *backtestRunStore
 	executionOrderStore *executionOrderStore
@@ -230,7 +244,6 @@ func newServerBootstrap(store SidecarSettingsStore) serverBootstrap {
 		backtestDBPath:       deriveBacktestDBPath(),
 		unavailableDatabases: make(map[string]error),
 	}
-	removeLegacyAdminKey(bootstrap.settingsPath)
 	bootstrap.dataMigration = datamigration.NewManager(bootstrap.settingsPath, bootstrap.backtestDBPath)
 	if err := ensureRuntimeLayout(bootstrap.settingsPath, bootstrap.backtestDBPath); err != nil {
 		log.Printf("JFTrade runtime layout unavailable: %v", err)
@@ -314,7 +327,7 @@ func (b *serverBootstrap) loadBacktestRunStore() *backtestRunStore {
 	return store
 }
 
-func (b *serverBootstrap) loadExecutionOrderStore(settings ExecutionSettings) *executionOrderStore {
+func (b *serverBootstrap) loadExecutionOrderStore(settings jfsettings.ExecutionSettings) *executionOrderStore {
 	store, err := newExecutionOrderStoreWithDB(deriveExecutionOrderDBPath(b.settingsPath))
 	if err != nil {
 		b.recordUnavailable(datamigration.DatabaseExecution, err)
@@ -329,15 +342,13 @@ func newBootstrapServer(store SidecarSettingsStore, frontend *frontendServer, bo
 	observability.SetMinimumImportance(minimumImportance)
 	server := &Server{
 		serverStores: serverStores{
-			store:                store,
-			strategyStore:        state.strategyStore,
-			strategyRuntimeStore: state.runtimeStore,
-			designStore:          state.designStore,
-			backtestRuns:         state.backtestRunStore,
-			backtestSyncTasks:    newBacktestSyncTaskStore(),
-			executionOrders:      state.executionOrderStore,
-			watchlistStore:       state.watchlistStore,
-			researchStore:        state.researchStore,
+			store:         store,
+			strategyStore: state.strategyStore, strategyRuntimeStore: state.runtimeStore, designStore: state.designStore,
+			backtestRuns:      state.backtestRunStore,
+			backtestSyncTasks: newBacktestSyncTaskStore(),
+			executionOrders:   state.executionOrderStore,
+			watchlistStore:    state.watchlistStore,
+			researchStore:     state.researchStore,
 		},
 		serverRuntimes: serverRuntimes{
 			liveNotifications: live.NewReplayPublisher(),
@@ -372,7 +383,7 @@ func (s *Server) initializeSecurityAndCalendars(store SidecarSettingsStore, sett
 	s.applySecuritySettings(store.SecuritySettings())
 	s.exchangeCalendars = exchangecalendar.NewManager(
 		exchangecalendarstore.New(apiruntime.DeriveExchangeCalendarDir(settingsPath)),
-		func() ExchangeCalendarSettings {
+		func() jfsettings.ExchangeCalendarSettings {
 			return persistenceOnlySettingsStore(store).ExchangeCalendarSettings()
 		},
 		exchangecalendar.WithAlertSink(func(alert exchangecalendar.SourceAlert) {
@@ -671,9 +682,9 @@ func (s *Server) settingsServiceOptions() []settings.Option {
 		settings.WithBrokerSettings(func() map[string]any { return s.brokerSettings() }),
 		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return s.onboardingState(ctx) }),
 		settings.WithDefaultTradingEnvironment(s.defaultTradingEnvironment()),
-		settings.WithMCPServerStatus(func() MCPServerStatus {
+		settings.WithMCPServerStatus(func() jfsettings.MCPServerStatus {
 			if s.mcpServer == nil {
-				return MCPServerStatus{}
+				return jfsettings.MCPServerStatus{}
 			}
 			return s.mcpServer.Status()
 		}),
@@ -682,31 +693,30 @@ func (s *Server) settingsServiceOptions() []settings.Option {
 
 func (s *Server) settingsSideEffects() settings.SideEffects {
 	return settings.SideEffects{
-		OnIntegrationChanged: func(integration BrokerIntegration) {
-			apiruntime.ApplyIntegrationEnv(integration)
+		OnIntegrationChanged: func(_ jfsettings.BrokerIntegration) {
 			s.resetFutuRuntime()
 		},
-		OnExecutionChanged: func(exec ExecutionSettings) {
+		OnExecutionChanged: func(exec jfsettings.ExecutionSettings) {
 			if s.executionOrders != nil {
 				s.executionOrders.configureSeenFillRetention(exec.SeenFillRetentionDays)
 			}
 		},
-		OnSecurityChanged: func(sec SecuritySettings) error {
+		OnSecurityChanged: func(sec jfsettings.SecuritySettings) error {
 			if s.webAccessReconfigure != nil {
 				return s.webAccessReconfigure(sec)
 			}
 			s.applySecuritySettings(sec)
 			return nil
 		},
-		OnExchangeCalendarsChanged: func(settings ExchangeCalendarSettings) {
+		OnExchangeCalendarsChanged: func(settings jfsettings.ExchangeCalendarSettings) {
 			if s.exchangeCalendars != nil {
 				s.exchangeCalendars.NotifySettingsChanged()
 			}
 		},
-		OnPineWorkerChanged: func(settings PineWorkerSettings) {
+		OnPineWorkerChanged: func(settings jfsettings.PineWorkerSettings) {
 			s.applyPineWorkerSettings(settings)
 		},
-		OnMCPServerChanged: func(settings MCPServerSettings) error {
+		OnMCPServerChanged: func(settings jfsettings.MCPServerSettings) error {
 			if s.mcpServer == nil {
 				return errors.New("MCP server manager is unavailable")
 			}

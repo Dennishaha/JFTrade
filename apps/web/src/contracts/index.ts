@@ -1541,22 +1541,18 @@ export interface StrategyInstanceItem {
   runtimeObservation?: StrategyRuntimeObservation | null;
 }
 
-export interface StrategyDefinitionDocument {
-  id: string;
-  name: string;
-  version: string;
-  description: string;
-  runtime: string;
-  sourceFormat?: StrategySourceFormat;
-  symbol?: string;
-  interval?: string;
-  script: string;
-  visualModel?: PineV6WorkflowDocument | StrategyVisualModelDocument | null;
-  createdAt: string;
-  updatedAt: string;
+export type StrategyDefinitionDocument = Omit<
+  components["schemas"]["strategy.Definition"],
+  "visualModel"
+> & {
+  visualModel?:
+    | components["schemas"]["strategy.VisualModel"]
+    | PineV6WorkflowDocument
+    | StrategyVisualModelDocument
+    | null;
   derivedWarmupBars?: number;
   derivedWarmupInterval?: string;
-}
+};
 
 export interface PluginInstallResponse {
   operation: PluginOperationDto;
@@ -1830,6 +1826,8 @@ export interface BacktestTradingCostsPayload {
   marketFees?: BacktestFeeSchedulePayload;
 }
 
+export type BacktestSessionScope = "regular" | "extended";
+
 export interface BacktestSyncRequestPayload {
   market?: string;
   code?: string;
@@ -1840,7 +1838,7 @@ export interface BacktestSyncRequestPayload {
   since?: string;
   until?: string;
   rehabType?: string;
-  sessionScope?: "legacy" | "regular" | "extended";
+  sessionScope?: BacktestSessionScope;
 }
 
 export interface BrokerCancelOrderRequestPayload {

@@ -112,7 +112,7 @@ func handleAnalyzePine(svc *srv.Service) gin.HandlerFunc {
 // @Summary 读取策略定义列表
 // @Tags strategy
 // @Produce json
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=[]srv.Definition}
 // @Router /api/v1/strategy-definitions [get]
 func handleListDefinitions(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -128,7 +128,7 @@ func handleListDefinitions(svc *srv.Service) gin.HandlerFunc {
 // @Param interval query string false "预览周期"
 // @Param symbol query string false "预览标的"
 // @Param useExtendedHours query bool false "是否包含盘前盘后"
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.DefinitionView}
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 404 {object} httpserver.Envelope
 // @Router /api/v1/strategy-definitions/{definitionId} [get]
@@ -219,7 +219,7 @@ func fallbackIfEmpty(value string, fallback string) string {
 // @Accept json
 // @Produce json
 // @Param request body StrategyDesignDefinition true "策略定义"
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.Definition}
 // @Failure 400 {object} httpserver.Envelope
 // @Router /api/v1/strategy-definitions [post]
 func handleCreateDefinition(svc *srv.Service) gin.HandlerFunc {
@@ -247,7 +247,7 @@ func handleCreateDefinition(svc *srv.Service) gin.HandlerFunc {
 // @Produce json
 // @Param definitionId path string true "策略定义 ID"
 // @Param request body StrategyDesignDefinition true "策略定义"
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.Definition}
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 404 {object} httpserver.Envelope
 // @Router /api/v1/strategy-definitions/{definitionId} [put]
@@ -280,7 +280,7 @@ func handleUpdateDefinition(svc *srv.Service) gin.HandlerFunc {
 // @Tags strategy
 // @Produce json
 // @Param definitionId path string true "策略定义 ID"
-// @Success 200 {object} httpserver.Envelope
+// @Success 200 {object} httpserver.Envelope{data=srv.Definition}
 // @Failure 400 {object} httpserver.Envelope
 // @Failure 404 {object} httpserver.Envelope
 // @Router /api/v1/strategy-definitions/{definitionId} [delete]

@@ -63,7 +63,7 @@ func TestSelectReadTableNameUsesFirstExistingTableForUnboundedReads(t *testing.T
 	if err := store.InsertKLine(bar, "forward"); err != nil {
 		t.Fatalf("InsertKLine: %v", err)
 	}
-	store.SetReadSessionScope(klineSessionScopeLegacy)
+	store.SetReadSessionScope(klineSessionScopeRegular)
 	tableName := store.writeTableName(bar.Symbol, bar.Interval, "forward")
 	if missing, err := store.findSelectionMissingRangesInPhysicalTable(tableName, bar.Interval, bar.StartTime.Time(), bar.EndTime.Time()); err != nil || len(missing) != 0 {
 		t.Fatalf("covered table selection missing = %#v, %v", missing, err)
@@ -176,9 +176,9 @@ func TestAggregateForwardBackwardQueriesNormalizeLimitsAndUseSynthesizedBars(t *
 	}
 }
 
-func TestScopedReadFallbackKeepsTheFirstAvailablePartialSeries(t *testing.T) {
+func TestScopedReadUsesOnlyTheRequestedSeries(t *testing.T) {
 	store := newTestKLineStore(t)
-	store.SetReadSessionScope(klineReadSessionScopeAuto)
+	store.SetReadSessionScope(klineSessionScopeRegular)
 	start := time.Date(2026, time.June, 15, 1, 30, 0, 0, time.UTC)
 
 	store.SetWriteSessionScope(klineSessionScopeExtended)
@@ -193,11 +193,11 @@ func TestScopedReadFallbackKeepsTheFirstAvailablePartialSeries(t *testing.T) {
 	}
 
 	forward, err := store.queryStoredKLinesForward("HK.00700", types.Interval1m, "forward", start, 2)
-	if err != nil || len(forward) != 1 || !forward[0].EndTime.Time().Equal(extended.EndTime.Time()) {
+	if err != nil || len(forward) != 1 || !forward[0].EndTime.Time().Equal(regular.EndTime.Time()) {
 		t.Fatalf("partial scoped forward = %#v, %v", forward, err)
 	}
 	backward, err := store.queryStoredKLinesBackward("HK.00700", types.Interval1m, "forward", regular.EndTime.Time(), 2)
-	if err != nil || len(backward) != 1 || !backward[0].EndTime.Time().Equal(extended.EndTime.Time()) {
+	if err != nil || len(backward) != 1 || !backward[0].EndTime.Time().Equal(regular.EndTime.Time()) {
 		t.Fatalf("partial scoped backward = %#v, %v", backward, err)
 	}
 	if rows, err := store.queryStoredKLinesInRange("HK.00005", types.Interval1m, "forward", start, regular.EndTime.Time()); err != nil || rows != nil {

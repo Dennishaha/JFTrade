@@ -61,6 +61,13 @@ index 1111111..2222222 100644
 	assert.Equal(t, []lineRange{{start: 1, end: 1}}, changed.lines["pkg/futu/opend/client.go"])
 }
 
+func TestRepoRelativeProfilePathKeepsNestedInternalUnderPackageRoot(t *testing.T) {
+	assert.Equal(t,
+		"pkg/backtest/internal/storage/store.go",
+		repoRelativeProfilePath("github.com/jftrade/jftrade-main/pkg/backtest/internal/storage/store.go"),
+	)
+}
+
 func TestParseChangedGoLinesReportsPureRenameWithoutInventingChangedStatements(t *testing.T) {
 	changed, err := parseChangedGoLines(`diff --git a/internal/old.go b/internal/new.go
 similarity index 100%
@@ -69,6 +76,20 @@ rename to internal/new.go
 `)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]struct{}{"internal/new.go": {}}, changed.files)
+	assert.Empty(t, changed.lines)
+}
+
+func TestParseChangedGoLinesIgnoresDeletedFiles(t *testing.T) {
+	changed, err := parseChangedGoLines(`diff --git a/internal/removed.go b/internal/removed.go
+deleted file mode 100644
+index 1111111..0000000
+--- a/internal/removed.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package internal
+`)
+	require.NoError(t, err)
+	assert.Empty(t, changed.files)
 	assert.Empty(t, changed.lines)
 }
 

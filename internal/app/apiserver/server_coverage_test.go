@@ -65,7 +65,7 @@ func TestAPIServerHelperBoundaryCoverage(t *testing.T) {
 		t.Fatalf("frontend dev URL outside desktop mode = %q", got)
 	}
 
-	if _, err := newHandler(incompatibleLifecycleSettingsStore{}); err == nil || !strings.Contains(err.Error(), "unexpected settings store") {
+	if _, err := newHandler(incompatibleLifecycleSettingsStore{}, jfsettings.BrokerIntegration{}); err == nil || !strings.Contains(err.Error(), "unexpected settings store") {
 		t.Fatalf("incompatible settings store error = %v", err)
 	}
 

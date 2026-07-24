@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
@@ -57,11 +59,11 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	stub := newStrategyRuntimeStubExchange()
 	installStrategyRuntimeTestExchange(server, stub)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -136,10 +138,10 @@ func TestStrategyRuntimeLiveOrderPassesStopPriceToExecutionGateway(t *testing.T)
 	}
 	executor := &strategyLiveOrderExecutor{
 		manager: manager,
-		instance: managedStrategyInstance{
+		instance: stratsrv.ManagedInstance{
 			ID: "stop-instance",
-			Binding: strategyInstanceBinding{
-				RuntimeRisk: strategyRuntimeRiskSettings{Mode: "off"},
+			Binding: stratsrv.InstanceBinding{
+				RuntimeRisk: stratsrv.RuntimeRiskSettings{Mode: "off"},
 			},
 		},
 		runner: &strategySymbolRuntime{lastClosedPrice: 100},
@@ -180,11 +182,11 @@ func TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder(t *testing.T) {
 	stub := newStrategyRuntimeStubExchange()
 	installStrategyRuntimeTestExchange(server, stub)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -197,7 +199,7 @@ func TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder(t *testing.T) {
 		t.Fatalf("transitionStrategy start: %v", err)
 	}
 	defer server.strategyRuntimeManager.stopStrategy(instanceID)
-	if _, err := server.strategyStore.updateStrategyRuntimeRisk(instanceID, strategyRuntimeRiskSettings{
+	if _, err := server.strategyStore.updateStrategyRuntimeRisk(instanceID, stratsrv.RuntimeRiskSettings{
 		Mode:      "enforce",
 		CloseOnly: true,
 	}); err != nil {
@@ -231,9 +233,9 @@ func TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder(t *testing.T) {
 
 func TestStrategyRuntimeRiskEvaluatesOrderLimits(t *testing.T) {
 	executor := &strategyLiveOrderExecutor{
-		instance: managedStrategyInstance{
-			Binding: strategyInstanceBinding{
-				RuntimeRisk: strategyRuntimeRiskSettings{
+		instance: stratsrv.ManagedInstance{
+			Binding: stratsrv.InstanceBinding{
+				RuntimeRisk: stratsrv.RuntimeRiskSettings{
 					Mode:             "enforce",
 					CloseOnly:        true,
 					MaxOrderQuantity: new(5.0),
@@ -314,7 +316,7 @@ func TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity(t *testing.T) {
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		ID:           "runtime-default-qty-test",
 		Name:         "Runtime Default Qty Test",
 		Version:      "0.1.0",
@@ -322,11 +324,11 @@ func TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity(t *testing.T) {
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Default Qty Test\", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)\nstrategy.entry(\"Long\", strategy.long)",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
@@ -372,11 +374,11 @@ func TestStrategyRuntimeLiveUsesExplicitQuantityBeforeQuantityPct(t *testing.T) 
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -419,11 +421,11 @@ func TestStrategyRuntimeLiveSizesCloseQuantityPctFromPosition(t *testing.T) {
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -467,11 +469,11 @@ func TestStrategyRuntimeLiveDefaultsCloseToFullPosition(t *testing.T) {
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -519,11 +521,11 @@ func TestStrategyRuntimeLiveIgnoredOrderRecordsRuntimeEvidence(t *testing.T) {
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -578,11 +580,11 @@ func TestStrategyRuntimeLiveCancelsTrackedOrderFromWorkerCommand(t *testing.T) {
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	instanceRecord, ok := server.strategyStore.strategy(instanceID)
 	if !ok {
@@ -636,7 +638,7 @@ func TestStrategyRuntimeLiveCancelAllCancelsOnlyTrackedOrders(t *testing.T) {
 	}
 	executor := &strategyLiveOrderExecutor{
 		manager:  manager,
-		instance: managedStrategyInstance{ID: "instance-a"},
+		instance: stratsrv.ManagedInstance{ID: "instance-a"},
 	}
 	executor.trackOrder("owned-1", "internal-1")
 	executor.trackOrder("owned-2", "internal-2")
@@ -673,7 +675,7 @@ func TestStrategyRuntimeLiveCancelFailureKeepsTrackedOrder(t *testing.T) {
 	}
 	executor := &strategyLiveOrderExecutor{
 		manager:  manager,
-		instance: managedStrategyInstance{ID: "instance-a"},
+		instance: stratsrv.ManagedInstance{ID: "instance-a"},
 	}
 	executor.trackOrder("owned", "internal-1")
 
@@ -699,7 +701,7 @@ func TestStrategyRuntimeLiveCancelMissingOrderIsNoop(t *testing.T) {
 	}
 	executor := &strategyLiveOrderExecutor{
 		manager:  manager,
-		instance: managedStrategyInstance{ID: "instance-a"},
+		instance: stratsrv.ManagedInstance{ID: "instance-a"},
 	}
 	if err := executor.CancelOrders(context.Background(), bbgoOrderForCancel("missing")); err != nil {
 		t.Fatalf("CancelOrders missing: %v", err)
@@ -737,7 +739,7 @@ func TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent(t *testing.T) {
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		ID:           "runtime-pyramiding-test",
 		Name:         "Runtime Pyramiding Test",
 		Version:      "0.1.0",
@@ -745,11 +747,11 @@ func TestStrategyRuntimeExecutesOnlyCurrentBarWorkerIntent(t *testing.T) {
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Pyramiding Test\", overlay=true, pyramiding=2)\nstrategy.entry(\"Long\", strategy.long, qty=1)",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
@@ -805,7 +807,7 @@ func TestStrategyRuntimeSkipsWhenWorkerReturnsNoCurrentBarIntent(t *testing.T) {
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		ID:           "runtime-default-pyramiding-test",
 		Name:         "Runtime Default Pyramiding Test",
 		Version:      "0.1.0",
@@ -813,11 +815,11 @@ func TestStrategyRuntimeSkipsWhenWorkerReturnsNoCurrentBarIntent(t *testing.T) {
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Default Pyramiding Test\", overlay=true)\nstrategy.entry(\"Long\", strategy.long, qty=1)",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
@@ -859,7 +861,7 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 	}
 	useFakeStrategyRuntimePineWorker(server, worker)
 
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		ID:           "runtime-sell-test",
 		Name:         "Runtime Sell Test",
 		Version:      "0.1.0",
@@ -867,11 +869,11 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Sell Test\", overlay=true)\nstrategy.close(\"Long\")",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
@@ -944,7 +946,7 @@ func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) 
 	}}
 	installStrategyRuntimeTestExchange(server, stub)
 
-	definition := strategyDesignDefinition{
+	definition := stratsrv.Definition{
 		ID:           "runtime-disconnected-refresh-test",
 		Name:         "Runtime Disconnected Refresh Test",
 		Version:      "0.1.0",
@@ -952,11 +954,11 @@ func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) 
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Runtime Disconnected Refresh Test\", overlay=true)\nstrategy.close(\"Long\")",
 	}
-	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+	instance, err := server.strategyStore.instantiateStrategy(definition, stratsrv.InstanceBinding{
 		Symbols:       []string{"US.AAPL"},
 		Interval:      "1m",
 		ExecutionMode: strategyExecutionModeLive,
-		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+		BrokerAccount: &stratsrv.BrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
 	})
 	if err != nil {
 		t.Fatalf("instantiateStrategy: %v", err)
@@ -1033,7 +1035,7 @@ func TestTodaySubmittedOrderCountKeepsInstanceScopeWithinOrderMarketDay(t *testi
 		time.Date(2025, time.December, 31, 6, 0, 0, 0, time.UTC),
 		time.Date(2025, time.December, 31, 17, 0, 0, 0, time.UTC),
 	} {
-		if err := runtimeStore.AppendAudit(t.Context(), strategyRuntimeAuditEvent{
+		if err := runtimeStore.AppendAudit(t.Context(), runtimeactivity.AuditEvent{
 			InstanceID: instanceID,
 			Kind:       "order_submitted",
 			At:         at,

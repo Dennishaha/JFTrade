@@ -37,6 +37,48 @@ function stringValue(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function normalizeKlineSyncProgress(value: unknown): KlineSyncProgress | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const taskId = stringValue(value.taskId);
+  const status = stringValue(value.status);
+  const symbol = stringValue(value.symbol);
+  const currentInterval = stringValue(value.currentInterval);
+  const startedAt = stringValue(value.startedAt);
+  const updatedAt = stringValue(value.updatedAt);
+  const totalIntervals = finiteNumber(value.totalIntervals);
+  const completedIntervals = finiteNumber(value.completedIntervals);
+  const totalBatches = finiteNumber(value.totalBatches);
+  const completedBatches = finiteNumber(value.completedBatches);
+  const retries = finiteNumber(value.retries);
+  if (
+    taskId === "" || status === "" || symbol === "" || startedAt === "" || updatedAt === "" ||
+    totalIntervals == null || completedIntervals == null || totalBatches == null ||
+    completedBatches == null || retries == null
+  ) {
+    return null;
+  }
+  return {
+    taskId,
+    status,
+    symbol,
+    currentInterval,
+    totalIntervals,
+    completedIntervals,
+    totalBatches,
+    completedBatches,
+    retries,
+    ...(typeof value.error === "string" ? { error: value.error } : {}),
+    startedAt,
+    updatedAt,
+  };
+}
+
 function notificationLevel(value: unknown): NotificationLevel {
   switch (value) {
     case "success":
@@ -139,11 +181,11 @@ export function createBacktestLiveReducer(options: BacktestReducerOptions) {
       return false;
     }
 
-    const taskId = stringValue(event.payload.taskId);
-    if (taskId === "" || taskId !== options.activeTaskId()) {
+    const progress = normalizeKlineSyncProgress(event.payload);
+    if (progress == null || progress.taskId !== options.activeTaskId()) {
       return false;
     }
-    options.applyProgress(event.payload as unknown as KlineSyncProgress);
+    options.applyProgress(progress);
     return true;
   }
 

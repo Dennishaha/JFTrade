@@ -22,14 +22,11 @@ var (
 	bbgoNotifierBridgeOnce  sync.Once
 	bbgoNotifierBridgeMu    sync.RWMutex
 	bbgoNotifierBridgeSeq   uint64
-	bbgoNotifierBridgeSinks = map[uint64]func(liveNotification) *liveNotificationEvent{}
+	bbgoNotifierBridgeSinks = map[uint64]func(live.Notification) *live.Event{}
 )
 
-type liveNotification = live.Notification
-type liveNotificationEvent = live.Event
-
 type forwardedBBGONotification struct {
-	note liveNotification
+	note live.Notification
 }
 
 func (notification forwardedBBGONotification) String() string {
@@ -74,7 +71,7 @@ func (liveSocketBBGONotifier) Upload(file *bbgotypes.UploadFile) {
 	if file == nil {
 		return
 	}
-	note := liveNotification{
+	note := live.Notification{
 		At:       time.Now().UTC().Format(time.RFC3339Nano),
 		Level:    "info",
 		Title:    "BBGO 文件通知",
@@ -89,9 +86,9 @@ func (liveSocketBBGONotifier) Upload(file *bbgotypes.UploadFile) {
 	dispatchBBGONotification(note)
 }
 
-func dispatchBBGONotification(note liveNotification) {
+func dispatchBBGONotification(note live.Notification) {
 	bbgoNotifierBridgeMu.RLock()
-	sinks := make([]func(liveNotification) *liveNotificationEvent, 0, len(bbgoNotifierBridgeSinks))
+	sinks := make([]func(live.Notification) *live.Event, 0, len(bbgoNotifierBridgeSinks))
 	for _, sink := range bbgoNotifierBridgeSinks {
 		sinks = append(sinks, sink)
 	}
@@ -125,12 +122,12 @@ func (s *Server) handleFutuSystemNotify(response *notifypb.Response) {
 	}
 }
 
-func (s *Server) recordLiveNotification(note liveNotification) *liveNotificationEvent {
+func (s *Server) recordLiveNotification(note live.Notification) *live.Event {
 	event, _ := s.recordLiveNotificationWithDelivery(note)
 	return event
 }
 
-func (s *Server) recordLiveNotificationWithDelivery(note liveNotification) (*liveNotificationEvent, live.NotificationDelivery) {
+func (s *Server) recordLiveNotificationWithDelivery(note live.Notification) (*live.Event, live.NotificationDelivery) {
 	event := s.liveNotifications.Publish(note)
 	delivery := live.NotificationNotDelivered(live.NotificationDeliveryUnavailable, "desktop system notifications are not configured")
 	if event != nil {
@@ -157,7 +154,7 @@ func (s *Server) recordLiveNotificationWithDelivery(note liveNotification) (*liv
 	return event, delivery
 }
 
-func (s *Server) emitLiveNotificationSink(event liveNotificationEvent) (delivery live.NotificationDelivery) {
+func (s *Server) emitLiveNotificationSink(event live.Event) (delivery live.NotificationDelivery) {
 	delivery = live.NotificationNotDelivered(live.NotificationDeliveryUnavailable, "desktop system notifications are not configured")
 	if s == nil || s.liveNotificationSink == nil {
 		return delivery
@@ -171,18 +168,18 @@ func (s *Server) emitLiveNotificationSink(event liveNotificationEvent) (delivery
 	return s.liveNotificationSink(event)
 }
 
-func (s *Server) liveNotificationsAfter(sequence uint64) []liveNotificationEvent {
+func (s *Server) liveNotificationsAfter(sequence uint64) []live.Event {
 	return s.liveNotifications.After(sequence)
 }
 
-func liveNotificationText(note liveNotification) string {
+func liveNotificationText(note live.Notification) string {
 	if note.Message == "" {
 		return note.Title
 	}
 	return note.Title + " - " + note.Message
 }
 
-func liveNotificationEventMap(event liveNotificationEvent) map[string]any {
+func liveNotificationEventMap(event live.Event) map[string]any {
 	payload := map[string]any{
 		"type":     "system.notification",
 		"id":       fmt.Sprintf("system-notification-%d", event.Sequence),
@@ -199,6 +196,6 @@ func liveNotificationEventMap(event liveNotificationEvent) map[string]any {
 	return payload
 }
 
-func shouldForwardNotificationToBBGO(note liveNotification) bool {
+func shouldForwardNotificationToBBGO(note live.Notification) bool {
 	return note.Level == "warn" || note.Level == "error" || (note.Category == "broker.connection" && note.Level == "success")
 }

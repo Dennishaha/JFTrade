@@ -32,7 +32,7 @@ func TestSyncKLinesImmediateCancellation(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
-	queuedAt := time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC)
+	queuedAt := time.Date(2026, time.May, 20, 1, 30, 0, 0, time.UTC)
 	progress := NewSyncProgress("sync-cancelled", "HK.00700", queuedAt)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -46,7 +46,7 @@ func TestSyncKLinesImmediateCancellation(t *testing.T) {
 		queuedAt,
 		queuedAt.Add(3*time.Minute),
 		qotcommonpb.RehabType_RehabType_Forward,
-		klineSessionScopeLegacy,
+		klineSessionScopeRegular,
 		progress,
 	)
 	if !errors.Is(err, context.Canceled) {
@@ -91,7 +91,7 @@ func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 	})
 
 	server := startSyncHistoryOpenDServer(t, [][]*qotcommonpb.KLine{{
-		testSyncHistoryKLine(time.Date(2026, time.May, 20, 9, 31, 0, 0, time.UTC), 100),
+		testSyncHistoryKLine(time.Date(2026, time.May, 20, 1, 31, 0, 0, time.UTC), 100),
 	}})
 	defer server.stop()
 
@@ -104,7 +104,7 @@ func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 	exchange := futu.NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
 
-	since := time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC)
+	since := time.Date(2026, time.May, 20, 1, 30, 0, 0, time.UTC)
 	until := since.Add(5 * time.Minute)
 	progress := NewSyncProgress("sync-mid-cancel", "HK.00700", since)
 
@@ -119,7 +119,7 @@ func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 			since,
 			until,
 			qotcommonpb.RehabType_RehabType_Forward,
-			klineSessionScopeLegacy,
+			klineSessionScopeRegular,
 			progress,
 		)
 	}()
@@ -181,9 +181,9 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 	})
 
 	server := startSyncHistoryOpenDServer(t, [][]*qotcommonpb.KLine{{
-		testSyncHistoryKLine(time.Date(2026, time.May, 20, 9, 31, 0, 0, time.UTC), 100),
-		testSyncHistoryKLine(time.Date(2026, time.May, 20, 9, 32, 0, 0, time.UTC), 101),
-		testSyncHistoryKLine(time.Date(2026, time.May, 20, 9, 33, 0, 0, time.UTC), 102),
+		testSyncHistoryKLine(time.Date(2026, time.May, 20, 1, 31, 0, 0, time.UTC), 100),
+		testSyncHistoryKLine(time.Date(2026, time.May, 20, 1, 32, 0, 0, time.UTC), 101),
+		testSyncHistoryKLine(time.Date(2026, time.May, 20, 1, 33, 0, 0, time.UTC), 102),
 	}})
 	defer server.stop()
 
@@ -196,8 +196,8 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 	exchange := futu.NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
 
-	since := time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC)
-	until := time.Date(2026, time.May, 20, 9, 33, 0, 0, time.UTC)
+	since := time.Date(2026, time.May, 20, 1, 30, 0, 0, time.UTC)
+	until := time.Date(2026, time.May, 20, 1, 33, 0, 0, time.UTC)
 
 	firstProgress := NewSyncProgress("sync-1", "HK.00700", since)
 	err = store.SyncKLines(
@@ -208,7 +208,7 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 		since,
 		until,
 		qotcommonpb.RehabType_RehabType_Forward,
-		klineSessionScopeLegacy,
+		klineSessionScopeRegular,
 		firstProgress,
 	)
 	if err != nil {
@@ -253,7 +253,7 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 		since,
 		until,
 		qotcommonpb.RehabType_RehabType_Forward,
-		klineSessionScopeLegacy,
+		klineSessionScopeRegular,
 		secondProgress,
 	)
 	if err != nil {
@@ -314,7 +314,7 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 	exchange := futu.NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
 
-	queuedAt := time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC)
+	queuedAt := time.Date(2026, time.May, 20, 1, 30, 0, 0, time.UTC)
 	progress := NewSyncProgress("sync-rate-limit", "HK.00700", queuedAt)
 	err = store.SyncKLines(
 		context.Background(),
@@ -324,7 +324,7 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 		queuedAt,
 		queuedAt.Add(3*time.Minute),
 		qotcommonpb.RehabType_RehabType_Forward,
-		klineSessionScopeLegacy,
+		klineSessionScopeRegular,
 		progress,
 	)
 	if err == nil {

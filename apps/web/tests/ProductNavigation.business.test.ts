@@ -2,7 +2,6 @@
 
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createPinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { defineComponent, h, nextTick } from "vue";
 
@@ -103,8 +102,8 @@ const marketViewStubs = {
   DerivativeScreenView: marketViewStub("DerivativeScreenView"),
   QuoteDetailRail: defineComponent({
     name: "QuoteDetailRail",
-    props: { entry: { type: Object, default: null }, market: String },
-    template: `<div class="quote-detail-rail-stub" :data-market="market"></div>`,
+    props: { target: { type: Object, default: null }, seed: { type: Object, default: null } },
+    template: `<div class="quote-detail-rail-stub" :data-target="target?.instrumentId ?? ''"></div>`,
   }),
 };
 
@@ -256,7 +255,7 @@ describe("product navigation surfaces", () => {
     });
     const wrapper = mount(Host, {
       global: {
-        plugins: [createPinia(), router],
+        plugins: [router],
         stubs: {
           ...productGlobalStubs,
           ...marketViewStubs,
@@ -390,7 +389,7 @@ describe("product navigation surfaces", () => {
     });
     const wrapper = mount(Host, {
       global: {
-        plugins: [createPinia(), router],
+        plugins: [router],
         stubs: {
           ...productGlobalStubs,
           ProductFeaturePanel: panelStub,
@@ -622,7 +621,7 @@ describe("product navigation surfaces", () => {
     });
     const wrapper = mount(Host, {
       global: {
-        plugins: [createPinia(), router],
+        plugins: [router],
         stubs: {
           ...productGlobalStubs,
           ProductFeaturePanel: panelStub,

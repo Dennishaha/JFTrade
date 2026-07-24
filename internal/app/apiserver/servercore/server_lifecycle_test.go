@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -18,7 +19,7 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return newStrategyRuntimeStubExchange() }
-	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           "pine-breakout",
 		Name:         "Pine Breakout",
 		Version:      "0.1.0",
@@ -41,8 +42,8 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 
 	var envelope struct {
-		OK   bool             `json:"ok"`
-		Data strategyListItem `json:"data"`
+		OK   bool                  `json:"ok"`
+		Data stratsrv.InstanceView `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode Pine instantiate response: %v", err)
@@ -119,8 +120,8 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 		t.Fatalf("PUT strategy binding status = %d, want %d", updateResp.StatusCode, http.StatusOK)
 	}
 	var updateEnvelope struct {
-		OK   bool             `json:"ok"`
-		Data strategyListItem `json:"data"`
+		OK   bool                  `json:"ok"`
+		Data stratsrv.InstanceView `json:"data"`
 	}
 	if err := json.NewDecoder(updateResp.Body).Decode(&updateEnvelope); err != nil {
 		t.Fatalf("decode updated strategy binding: %v", err)
@@ -148,8 +149,8 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 			t.Fatalf("POST Pine %s status = %d, want %d", action, transitionResp.StatusCode, http.StatusOK)
 		}
 		var transitionEnvelope struct {
-			OK   bool             `json:"ok"`
-			Data strategyListItem `json:"data"`
+			OK   bool                  `json:"ok"`
+			Data stratsrv.InstanceView `json:"data"`
 		}
 		if err := json.NewDecoder(transitionResp.Body).Decode(&transitionEnvelope); err != nil {
 			t.Fatalf("decode Pine %s response: %v", action, err)
@@ -191,8 +192,8 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 		t.Fatalf("DELETE strategy status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
 	}
 	var deleteEnvelope struct {
-		OK   bool             `json:"ok"`
-		Data strategyListItem `json:"data"`
+		OK   bool                  `json:"ok"`
+		Data stratsrv.InstanceView `json:"data"`
 	}
 	if err := json.NewDecoder(deleteResp.Body).Decode(&deleteEnvelope); err != nil {
 		t.Fatalf("decode deleted strategy response: %v", err)
@@ -206,8 +207,8 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	var listEnvelope struct {
-		OK   bool               `json:"ok"`
-		Data []strategyListItem `json:"data"`
+		OK   bool                    `json:"ok"`
+		Data []stratsrv.InstanceView `json:"data"`
 	}
 	if err := json.NewDecoder(listResp.Body).Decode(&listEnvelope); err != nil {
 		t.Fatalf("decode strategies after delete: %v", err)
@@ -223,7 +224,7 @@ func TestInstantiateStrategyDefinitionRejectsMalformedJSON(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           "pine-malformed-binding",
 		Name:         "Malformed Binding",
 		Version:      "0.1.0",

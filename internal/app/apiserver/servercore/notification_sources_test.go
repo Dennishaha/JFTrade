@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
+	live "github.com/jftrade/jftrade-main/internal/live"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
@@ -45,7 +46,7 @@ func TestLiveNotificationFromBBGONotifyHandlesErrorsStringersAndForwardedNotes(t
 	if note := liveNotificationFromBBGONotify(nil); note != nil {
 		t.Fatalf("nil bbgo notify = %#v, want nil", note)
 	}
-	forwarded := liveNotification{Title: "OpenD 连接状态变化", Message: "行情未登录，交易已登录。"}
+	forwarded := live.Notification{Title: "OpenD 连接状态变化", Message: "行情未登录，交易已登录。"}
 	if note := liveNotificationFromBBGONotify(forwardedBBGONotification{note: forwarded}); note != nil {
 		t.Fatalf("forwarded notification = %#v, want nil to avoid loops", note)
 	}
@@ -59,22 +60,22 @@ func TestLiveNotificationFromBBGONotifyHandlesErrorsStringersAndForwardedNotes(t
 		t.Fatalf("error note = %+v", errorObjNote)
 	}
 
-	if text := liveNotificationText(liveNotification{Title: "标题"}); text != "标题" {
+	if text := liveNotificationText(live.Notification{Title: "标题"}); text != "标题" {
 		t.Fatalf("title-only text = %q", text)
 	}
-	if text := liveNotificationText(liveNotification{Title: "标题", Message: "内容"}); text != "标题 - 内容" {
+	if text := liveNotificationText(live.Notification{Title: "标题", Message: "内容"}); text != "标题 - 内容" {
 		t.Fatalf("title/message text = %q", text)
 	}
-	if !shouldForwardNotificationToBBGO(liveNotification{Level: "warn"}) ||
-		!shouldForwardNotificationToBBGO(liveNotification{Level: "error"}) ||
-		!shouldForwardNotificationToBBGO(liveNotification{Level: "success", Category: "broker.connection"}) ||
-		shouldForwardNotificationToBBGO(liveNotification{Level: "info", Category: "broker.quota"}) {
+	if !shouldForwardNotificationToBBGO(live.Notification{Level: "warn"}) ||
+		!shouldForwardNotificationToBBGO(live.Notification{Level: "error"}) ||
+		!shouldForwardNotificationToBBGO(live.Notification{Level: "success", Category: "broker.connection"}) ||
+		shouldForwardNotificationToBBGO(live.Notification{Level: "info", Category: "broker.quota"}) {
 		t.Fatal("shouldForwardNotificationToBBGO did not match broker alert policy")
 	}
 }
 
 func TestBBGONotificationBridgeStartStopStringAndUpload(t *testing.T) {
-	forwarded := forwardedBBGONotification{note: liveNotification{Title: "OpenD", Message: "connected"}}
+	forwarded := forwardedBBGONotification{note: live.Notification{Title: "OpenD", Message: "connected"}}
 	if got := forwarded.String(); got != "OpenD - connected" {
 		t.Fatalf("forwarded String() = %q", got)
 	}
@@ -85,15 +86,15 @@ func TestBBGONotificationBridgeStartStopStringAndUpload(t *testing.T) {
 		t.Fatalf("Start nil sink = %v/%v, want nil nil", stop, err)
 	}
 
-	notifications := make(chan liveNotification, 4)
-	stop, err = source.Start(func(note liveNotification) *liveNotificationEvent {
+	notifications := make(chan live.Notification, 4)
+	stop, err = source.Start(func(note live.Notification) *live.Event {
 		notifications <- note
-		return &liveNotificationEvent{Sequence: 1, At: note.At, Level: note.Level, Title: note.Title, Message: note.Message, Source: note.Source, Category: note.Category}
+		return &live.Event{Sequence: 1, At: note.At, Level: note.Level, Title: note.Title, Message: note.Message, Source: note.Source, Category: note.Category}
 	})
 	if err != nil || stop == nil {
 		t.Fatalf("Start sink = %v/%v", stop, err)
 	}
-	dispatchBBGONotification(liveNotification{Title: "bridge", Message: "online"})
+	dispatchBBGONotification(live.Notification{Title: "bridge", Message: "online"})
 	select {
 	case note := <-notifications:
 		if note.Title != "bridge" || note.Message != "online" {
@@ -129,7 +130,7 @@ func TestBBGONotificationBridgeStartStopStringAndUpload(t *testing.T) {
 	if err := stop(); err != nil {
 		t.Fatalf("second stop: %v", err)
 	}
-	dispatchBBGONotification(liveNotification{Title: "after stop"})
+	dispatchBBGONotification(live.Notification{Title: "after stop"})
 	select {
 	case note := <-notifications:
 		t.Fatalf("received notification after stop: %+v", note)

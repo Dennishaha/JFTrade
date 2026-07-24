@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"encoding/json"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -15,10 +16,10 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
+	if err := server.strategyStore.saveStrategy(stratsrv.ManagedInstance{
 		ID:       "instance-1",
 		PluginID: "mean-revert",
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "mean-revert",
 			Name:       "Mean Revert",
 			Version:    "1.0.0",
@@ -66,8 +67,8 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		t.Fatalf("GET logs status = %d", logsResp.StatusCode)
 	}
 	var logsEnvelope struct {
-		OK   bool                 `json:"ok"`
-		Data strategyLogsResponse `json:"data"`
+		OK   bool                `json:"ok"`
+		Data stratsrv.LogsResult `json:"data"`
 	}
 	if err := json.NewDecoder(logsResp.Body).Decode(&logsEnvelope); err != nil {
 		t.Fatalf("decode logs: %v", err)
@@ -85,8 +86,8 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		t.Fatalf("GET audit status = %d", auditResp.StatusCode)
 	}
 	var auditEnvelope struct {
-		OK   bool                  `json:"ok"`
-		Data strategyAuditResponse `json:"data"`
+		OK   bool                 `json:"ok"`
+		Data stratsrv.AuditResult `json:"data"`
 	}
 	if err := json.NewDecoder(auditResp.Body).Decode(&auditEnvelope); err != nil {
 		t.Fatalf("decode audit: %v", err)
@@ -102,9 +103,9 @@ func TestStrategiesEndpointIncludesPersistedRuntimeLogTail(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
+	if err := server.strategyStore.saveStrategy(stratsrv.ManagedInstance{
 		ID: "instance-tail",
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "mean-revert",
 			Name:       "Mean Revert",
 			Version:    "1.0.0",
@@ -128,8 +129,8 @@ func TestStrategiesEndpointIncludesPersistedRuntimeLogTail(t *testing.T) {
 	}
 	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var envelope struct {
-		OK   bool               `json:"ok"`
-		Data []strategyListItem `json:"data"`
+		OK   bool                    `json:"ok"`
+		Data []stratsrv.InstanceView `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode strategies: %v", err)
@@ -148,9 +149,9 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
+	if err := server.strategyStore.saveStrategy(stratsrv.ManagedInstance{
 		ID: "instance-logs",
-		Definition: strategyDefinitionSummary{
+		Definition: stratsrv.DefinitionSummary{
 			StrategyID: "mean-revert",
 			Name:       "Mean Revert",
 			Version:    "1.0.0",
@@ -184,8 +185,8 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 	}
 	defer func() { jftradeCheckTestError(t, logsResp.Body.Close()) }()
 	var logsEnvelope struct {
-		OK   bool                 `json:"ok"`
-		Data strategyLogsResponse `json:"data"`
+		OK   bool                `json:"ok"`
+		Data stratsrv.LogsResult `json:"data"`
 	}
 	if err := json.NewDecoder(logsResp.Body).Decode(&logsEnvelope); err != nil {
 		t.Fatalf("decode paged logs: %v", err)
@@ -221,8 +222,8 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 	}
 	defer func() { jftradeCheckTestError(t, auditResp.Body.Close()) }()
 	var auditEnvelope struct {
-		OK   bool                  `json:"ok"`
-		Data strategyAuditResponse `json:"data"`
+		OK   bool                 `json:"ok"`
+		Data stratsrv.AuditResult `json:"data"`
 	}
 	if err := json.NewDecoder(auditResp.Body).Decode(&auditEnvelope); err != nil {
 		t.Fatalf("decode filtered audit: %v", err)

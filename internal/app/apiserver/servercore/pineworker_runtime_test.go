@@ -12,9 +12,11 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
 	bbgotypes "github.com/jftrade/jftrade-main/pkg/bbgo/types"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
 	"github.com/jftrade/jftrade-main/internal/pineworkerassets"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineworker"
@@ -100,7 +102,7 @@ func TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker(t *testing.T) 
 
 func TestResolvePineWorkerRuntimeUsesConfiguredNodeBinary(t *testing.T) {
 	t.Setenv("JFTRADE_NODE_BINARY", filepath.Join(t.TempDir(), "node.exe"))
-	if got := resolvePineWorkerRuntime(PineWorkerSettings{}); got != os.Getenv("JFTRADE_NODE_BINARY") {
+	if got := resolvePineWorkerRuntime(jfsettings.PineWorkerSettings{}); got != os.Getenv("JFTRADE_NODE_BINARY") {
 		t.Fatalf("resolvePineWorkerRuntime bundle = %q, want configured Node", got)
 	}
 }
@@ -109,7 +111,7 @@ func TestResolvePineWorkerRuntimeUsesSettingsBeforeEnv(t *testing.T) {
 	settingsNode := `C:\Program Files\nodejs\node.exe`
 	t.Setenv(envPineWorkerRuntime, "env-node")
 	t.Setenv("JFTRADE_NODE_BINARY", "legacy-node")
-	if got := resolvePineWorkerRuntime(PineWorkerSettings{NodeBinaryPath: `  "` + settingsNode + `"  `}); got != settingsNode {
+	if got := resolvePineWorkerRuntime(jfsettings.PineWorkerSettings{NodeBinaryPath: `  "` + settingsNode + `"  `}); got != settingsNode {
 		t.Fatalf("resolvePineWorkerRuntime() = %q, want settings node %q", got, settingsNode)
 	}
 }
@@ -157,8 +159,8 @@ func TestResolvePineWorkerRuntimeConfigUsesSettingsWorkerLimits(t *testing.T) {
 	binaryPath := filepath.Join(t.TempDir(), "worker")
 	t.Setenv(envPineWorkerBundle, binaryPath)
 
-	config, enabled, err := resolvePineWorkerRuntimeConfig(func() PineWorkerSettings {
-		return PineWorkerSettings{BacktestWorkerLimit: 4, InstanceWorkerLimit: 9}
+	config, enabled, err := resolvePineWorkerRuntimeConfig(func() jfsettings.PineWorkerSettings {
+		return jfsettings.PineWorkerSettings{BacktestWorkerLimit: 4, InstanceWorkerLimit: 9}
 	})
 	if err != nil {
 		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
@@ -174,8 +176,8 @@ func TestResolvePineWorkerRuntimeConfigEnvOverridesSettingsWorkerLimits(t *testi
 	t.Setenv(envPineWorkerBacktestWorkers, "5")
 	t.Setenv(envPineWorkerInstanceWorkers, "11")
 
-	config, enabled, err := resolvePineWorkerRuntimeConfig(func() PineWorkerSettings {
-		return PineWorkerSettings{BacktestWorkerLimit: 2, InstanceWorkerLimit: 3}
+	config, enabled, err := resolvePineWorkerRuntimeConfig(func() jfsettings.PineWorkerSettings {
+		return jfsettings.PineWorkerSettings{BacktestWorkerLimit: 2, InstanceWorkerLimit: 3}
 	})
 	if err != nil {
 		t.Fatalf("resolvePineWorkerRuntimeConfig error = %v", err)
@@ -249,7 +251,7 @@ func TestApplyPineWorkerSettingsRetiresExistingRunnersWhenDisabled(t *testing.T)
 		},
 	}
 
-	server.applyPineWorkerSettings(PineWorkerSettings{})
+	server.applyPineWorkerSettings(jfsettings.PineWorkerSettings{})
 	if backtestRunner.closed != 1 || instanceRunner.closed != 1 {
 		t.Fatalf("closed counts = backtest %d instance %d, want 1/1", backtestRunner.closed, instanceRunner.closed)
 	}
@@ -403,7 +405,7 @@ func TestServerBacktestDoesNotFallbackToGoRuntimeWithoutPineWorker(t *testing.T)
 	if server.backtestPineWorkerRunner != nil || server.instancePineWorkerRunner != nil {
 		t.Fatalf("pine worker runners = backtest %#v instance %#v without worker binary", server.backtestPineWorkerRunner, server.instancePineWorkerRunner)
 	}
-	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+	if _, err := server.designStore.saveDefinition(stratsrv.Definition{
 		ID:           "pinets-required",
 		Name:         "PineTS Required",
 		Version:      "0.1.0",

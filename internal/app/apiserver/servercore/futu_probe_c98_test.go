@@ -18,6 +18,7 @@ import (
 	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestCoverage98FutuRuntimeReturnsLiveDiscoveredAccounts(t *testing.T) {
@@ -78,7 +79,7 @@ func TestCoverage98FutuOnboardingDoesNotReportMissingEnabledManagedAccount(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := settings.CreateManagedAccount(ManagedBrokerAccount{
+	if _, err := settings.CreateManagedAccount(jfsettings.ManagedBrokerAccount{
 		BrokerID: "futu", AccountID: "sim-1001", TradingEnvironment: "SIMULATE", Market: "HK", Enabled: true,
 	}); err != nil {
 		t.Fatalf("CreateManagedAccount: %v", err)
@@ -86,7 +87,7 @@ func TestCoverage98FutuOnboardingDoesNotReportMissingEnabledManagedAccount(t *te
 	server := newTestServer(t, settings)
 	stubCoverage98HealthyNodeRuntime(t)
 
-	state := server.onboardingStateFromSettings(t.Context(), OnboardingSettings{})
+	state := server.onboardingStateFromSettings(t.Context(), jfsettings.OnboardingSettings{})
 	reasons, ok := state["reasons"].([]map[string]any)
 	if !ok {
 		t.Fatalf("onboarding reasons = %#v", state["reasons"])

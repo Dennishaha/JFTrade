@@ -438,6 +438,14 @@ describe("StrategyDesignStage business flows", () => {
     );
 
     const before = read<string>(setup.activeScript);
+	call<void>("applyDefinition", {
+		visualModel: null,
+		script: "",
+	});
+	expect(read<string>(setup.selectedDefinitionId)).toBe("");
+	expect(read<string>(setup.definitionName)).toBe("");
+	expect(read<string>(setup.definitionVersion)).toBe("");
+	expect(read<string>(setup.definitionDescription)).toBe("");
     call<void>("addSourceBlock", "not-a-pine-block");
     call<void>("changeSourceBlockKind", { id: "missing" }, "not-a-pine-block");
     call<void>("applySourceEdit", { source: before, changed: false });

@@ -503,6 +503,8 @@ func assertNodeBundlePackagingIsDocumented(t *testing.T, root string) {
 			"backtestWorkerLimit",
 			"instanceWorkerLimit",
 			"MAX_WORKER_LIMIT = 1000",
+		},
+		"apps/web/src/composables/pineWorkerSettings.ts": {
 			"/api/v1/settings/pine-worker",
 		},
 	}

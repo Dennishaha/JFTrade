@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
-func (s *Server) applySecuritySettings(settings SecuritySettings) {
+func (s *Server) applySecuritySettings(settings jfsettings.SecuritySettings) {
 	normalized := normalizeSecuritySettings(settings)
 	if s.auth != nil {
 		s.auth.configure(normalized)

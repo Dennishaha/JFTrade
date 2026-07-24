@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jftrade/jftrade-main/pkg/besteffort"
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
@@ -22,8 +21,8 @@ const (
 	jftradeFutuSecurityFirmEnv  = "JFTRADE_FUTU_SECURITY_FIRM"
 )
 
-// IntegrationWithEnvDefaults preserves legacy environment-based defaults when
-// no broker integration has been persisted.
+// IntegrationWithEnvDefaults resolves process-level broker defaults at the
+// application startup boundary.
 func IntegrationWithEnvDefaults(integration jfsettings.BrokerIntegration) jfsettings.BrokerIntegration {
 	config := integration.Config
 	host := config.Host
@@ -46,21 +45,6 @@ func IntegrationWithEnvDefaults(integration jfsettings.BrokerIntegration) jfsett
 	config.SecurityFirm = envOrDefault(jftradeFutuSecurityFirmEnv, config.SecurityFirm)
 	integration.Config = config
 	return integration
-}
-
-// ApplyIntegrationEnv exposes persisted broker settings to legacy runtime consumers.
-func ApplyIntegrationEnv(integration jfsettings.BrokerIntegration) {
-	config := integration.Config
-	jftradeErr5 := os.Setenv(futuOpenDAddrEnv, net.JoinHostPort(config.Host, strconv.Itoa(config.APIPort)))
-	besteffort.LogError(jftradeErr5)
-	jftradeErr1 := os.Setenv(futuOpenDWebSocketKeyEnv, config.WebSocketKey)
-	besteffort.LogError(jftradeErr1)
-	jftradeErr2 := os.Setenv(jftradeFutuWebSocketKeyEnv, config.WebSocketKey)
-	besteffort.LogError(jftradeErr2)
-	jftradeErr3 := os.Setenv(jftradeFutuAPIPortEnv, strconv.Itoa(config.APIPort))
-	besteffort.LogError(jftradeErr3)
-	jftradeErr4 := os.Setenv(jftradeFutuWebSocketPortEnv, strconv.Itoa(config.WebSocketPort))
-	besteffort.LogError(jftradeErr4)
 }
 
 func positiveIntEnv(key string, fallback int) int {

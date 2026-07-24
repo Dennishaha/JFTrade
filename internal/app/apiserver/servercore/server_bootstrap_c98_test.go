@@ -8,6 +8,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	settingssvc "github.com/jftrade/jftrade-main/internal/settings"
 	"github.com/jftrade/jftrade-main/internal/system"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestCoverage98ServerBootstrapPersistsUnavailableDatabaseReasons(t *testing.T) {
@@ -72,7 +73,7 @@ func TestCoverage98ServerBuildsBrokerBridgeForEnabledIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := settings.SaveIntegration(BrokerIntegration{Enabled: true}); err != nil {
+	if _, err := settings.SaveIntegration(jfsettings.BrokerIntegration{Enabled: true}); err != nil {
 		t.Fatal(err)
 	}
 	server := newTestServer(t, settings)
@@ -87,5 +88,5 @@ func TestCoverage98ServerBuildsBrokerBridgeForEnabledIntegration(t *testing.T) {
 	if _, err := server.futuBrokerOrError(); err != nil {
 		t.Fatalf("enabled Futu broker: %v", err)
 	}
-	server.settingsSideEffects().OnExchangeCalendarsChanged(ExchangeCalendarSettings{})
+	server.settingsSideEffects().OnExchangeCalendarsChanged(jfsettings.ExchangeCalendarSettings{})
 }

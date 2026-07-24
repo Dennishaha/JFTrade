@@ -12,6 +12,7 @@ import (
 	"time"
 
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
@@ -34,10 +35,10 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	store.mu.Lock()
-	store.data.Integration = &BrokerIntegration{
+	store.data.Integration = &jfsettings.BrokerIntegration{
 		BrokerID: "futu",
 		Enabled:  true,
-		Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Config: normalizeFutuConfig(jfsettings.FutuIntegrationConfig{
 			Type:                    "futu",
 			Host:                    host,
 			APIPort:                 port,

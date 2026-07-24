@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"sort"
 	"strings"
 	"time"
@@ -59,7 +60,7 @@ func (s *Server) strategyRuntimeSummary() map[string]any {
 			"status":                 "idle",
 			"activeStrategies":       0,
 			"supportsBacktestParity": true,
-			"activeInstances":        []strategyRuntimeActiveInstanceSummary{},
+			"activeInstances":        []stratsrv.RuntimeActiveInstanceSummary{},
 		}
 	}
 	return s.strategyRuntimeManager.runtimeSummary()

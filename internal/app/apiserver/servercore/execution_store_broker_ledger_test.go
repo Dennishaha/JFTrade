@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -22,7 +23,7 @@ func TestBrokerSnapshotCoveredFillQuantityLedgerBoundaries(t *testing.T) {
 		t.Fatalf("empty fill credit = %v, want 0", got)
 	}
 
-	store.events["order"] = []executionOrderEventResponse{
+	store.events["order"] = []trdsrv.ExecutionOrderEvent{
 		{EventType: "COMMAND_PLACE_ACCEPTED", PayloadJSON: `{}`, CreatedAt: "2026-07-22T01:00:00Z"},
 		{EventType: "BROKER_PUSH_ORDER", PayloadJSON: `{`, CreatedAt: "2026-07-22T01:00:00Z"},
 		{EventType: "BROKER_PUSH_ORDER", PayloadJSON: `{"filledQuantity":0}`, CreatedAt: "2026-07-22T01:00:00Z"},
@@ -40,7 +41,7 @@ func TestBrokerSnapshotCoveredFillQuantityLedgerBoundaries(t *testing.T) {
 	if got := store.brokerSnapshotCoveredFillQuantityLocked("order", fill); got != 6 {
 		t.Fatalf("partial snapshot credit = %v, want 6", got)
 	}
-	store.events["order"] = append(store.events["order"], executionOrderEventResponse{
+	store.events["order"] = append(store.events["order"], trdsrv.ExecutionOrderEvent{
 		EventType: "BROKER_FILL_RECEIVED", PayloadJSON: `{"filledQuantity":6,"filledAt":"2026-07-22T03:00:00Z"}`,
 	})
 	if got := store.brokerSnapshotCoveredFillQuantityLocked("order", fill); got != 0 {

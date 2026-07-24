@@ -777,7 +777,7 @@ func TestRunnerLifecycleHelperCoverage(t *testing.T) {
 	})
 
 	t.Run("recentOpenAIMessages trims content and skips approval placeholders", func(t *testing.T) {
-		messages := recentOpenAIMessages([]Message{
+		messages := recentOpenAIMessages([]TranscriptEntry{
 			{Role: "user", Content: "   "},
 			{Role: "assistant", Content: "等待用户审批"},
 			{Role: "assistant", Content: "assistant reply"},

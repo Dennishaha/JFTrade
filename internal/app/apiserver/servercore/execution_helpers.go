@@ -49,12 +49,12 @@ func marshalExecutionPayload(payload any) string {
 	return string(encoded)
 }
 
-func cloneExecutionOrderSummary(in executionOrderSummaryResponse) executionOrderSummaryResponse {
+func cloneExecutionOrderSummary(in trading.ExecutionOrder) trading.ExecutionOrder {
 	legs := make([]trading.ExecutionOrderLeg, len(in.Legs))
 	for index, leg := range in.Legs {
 		legs[index] = cloneExecutionOrderLeg(leg)
 	}
-	return executionOrderSummaryResponse{
+	return trading.ExecutionOrder{
 		InternalOrderID:    in.InternalOrderID,
 		BrokerID:           in.BrokerID,
 		BrokerOrderID:      cloneStringPointer(in.BrokerOrderID),
@@ -106,8 +106,8 @@ func cloneExecutionOrderLeg(in trading.ExecutionOrderLeg) trading.ExecutionOrder
 	return in
 }
 
-func cloneExecutionOrderEvent(in executionOrderEventResponse) executionOrderEventResponse {
-	return executionOrderEventResponse{
+func cloneExecutionOrderEvent(in trading.ExecutionOrderEvent) trading.ExecutionOrderEvent {
+	return trading.ExecutionOrderEvent{
 		ID:              in.ID,
 		InternalOrderID: in.InternalOrderID,
 		EventType:       in.EventType,

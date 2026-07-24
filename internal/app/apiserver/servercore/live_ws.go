@@ -8,6 +8,7 @@ import (
 
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	livecore "github.com/jftrade/jftrade-main/internal/live"
+	"github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 type liveWebSocketBackend struct {
@@ -18,7 +19,7 @@ func (b liveWebSocketBackend) ConnectionLimit() int {
 	if b.server == nil {
 		return defaultMaxWebSocketClients
 	}
-	limit := b.server.store.Integration().Config.MaxWebSocketConnections
+	limit := b.server.store.InterfaceSettings(jftsettings.LaunchDefaults{}).LiveWebSocketConnectionLimit
 	if limit <= 0 {
 		return defaultMaxWebSocketClients
 	}
@@ -29,20 +30,12 @@ func (b liveWebSocketBackend) Heartbeat(
 	interval time.Duration,
 	stats apilive.ClientStats,
 	webSocketInstrumentIDs []string,
-) map[string]any {
-	return b.HeartbeatForProvider(interval, stats, webSocketInstrumentIDs, "")
-}
-
-func (b liveWebSocketBackend) HeartbeatForProvider(
-	interval time.Duration,
-	stats apilive.ClientStats,
-	webSocketInstrumentIDs []string,
 	providerBrokerID string,
 ) map[string]any {
 	payload := b.server.liveHeartbeatEvent(interval, stats, webSocketInstrumentIDs)
-	providerBrokerID = normalizeLiveProviderBrokerID(providerBrokerID)
+	providerBrokerID = normalizeProviderBrokerID(providerBrokerID)
 	payload["providerBrokerId"] = providerBrokerID
-	if !usesLegacyLiveProvider(providerBrokerID) {
+	if providerBrokerID != "" && !usesNativeFutuLiveProvider(providerBrokerID) {
 		transport, _ := payload["transport"].(map[string]any)
 		if transport == nil {
 			transport = map[string]any{}
@@ -55,20 +48,15 @@ func (b liveWebSocketBackend) HeartbeatForProvider(
 
 func (b liveWebSocketBackend) MarketTicks(
 	ctx context.Context,
-	instrumentIDs []string,
-	initialObservedAt string,
-) ([]apilive.TickEvent, error) {
-	return b.MarketTicksForProvider(ctx, "", instrumentIDs, initialObservedAt)
-}
-
-func (b liveWebSocketBackend) MarketTicksForProvider(
-	ctx context.Context,
 	providerBrokerID string,
 	instrumentIDs []string,
 	initialObservedAt string,
 ) ([]apilive.TickEvent, error) {
-	providerBrokerID = normalizeLiveProviderBrokerID(providerBrokerID)
-	if !usesLegacyLiveProvider(providerBrokerID) {
+	providerBrokerID, err := requireProviderBrokerID(providerBrokerID)
+	if err != nil {
+		return nil, err
+	}
+	if !usesNativeFutuLiveProvider(providerBrokerID) {
 		return b.pollBrokerMarketTicks(ctx, providerBrokerID, instrumentIDs)
 	}
 	b.server.marketdataSvc.WakeCollector()
@@ -100,20 +88,15 @@ func (b liveWebSocketBackend) EnsureNotificationBridge(ctx context.Context) {
 
 func (b liveWebSocketBackend) SecurityDetails(
 	ctx context.Context,
-	market string,
-	symbol string,
-) (map[string]any, error) {
-	return b.SecurityDetailsForProvider(ctx, "", market, symbol)
-}
-
-func (b liveWebSocketBackend) SecurityDetailsForProvider(
-	ctx context.Context,
 	providerBrokerID string,
 	market string,
 	symbol string,
 ) (map[string]any, error) {
-	providerBrokerID = normalizeLiveProviderBrokerID(providerBrokerID)
-	if !usesLegacyLiveProvider(providerBrokerID) {
+	providerBrokerID, err := requireProviderBrokerID(providerBrokerID)
+	if err != nil {
+		return nil, err
+	}
+	if !usesNativeFutuLiveProvider(providerBrokerID) {
 		if b.server == nil || b.server.productFeaturesSvc == nil {
 			return nil, fmt.Errorf("broker market-data reader is unavailable")
 		}
@@ -126,22 +109,16 @@ func (b liveWebSocketBackend) SecurityDetailsForProvider(
 
 func (b liveWebSocketBackend) Depth(
 	ctx context.Context,
-	market string,
-	symbol string,
-	num int32,
-) (map[string]any, error) {
-	return b.DepthForProvider(ctx, "", market, symbol, num)
-}
-
-func (b liveWebSocketBackend) DepthForProvider(
-	ctx context.Context,
 	providerBrokerID string,
 	market string,
 	symbol string,
 	num int32,
 ) (map[string]any, error) {
-	providerBrokerID = normalizeLiveProviderBrokerID(providerBrokerID)
-	if !usesLegacyLiveProvider(providerBrokerID) {
+	providerBrokerID, err := requireProviderBrokerID(providerBrokerID)
+	if err != nil {
+		return nil, err
+	}
+	if !usesNativeFutuLiveProvider(providerBrokerID) {
 		if b.server == nil || b.server.productFeaturesSvc == nil {
 			return nil, fmt.Errorf("broker market-data reader is unavailable")
 		}
@@ -197,15 +174,19 @@ func (b liveWebSocketBackend) pollBrokerMarketTicks(
 	return result, nil
 }
 
-func normalizeLiveProviderBrokerID(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	if value == "" {
-		return "futu"
-	}
-	return value
+func normalizeProviderBrokerID(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
-func usesLegacyLiveProvider(value string) bool {
+func requireProviderBrokerID(value string) (string, error) {
+	value = normalizeProviderBrokerID(value)
+	if value == "" {
+		return "", fmt.Errorf("provider broker id is required")
+	}
+	return value, nil
+}
+
+func usesNativeFutuLiveProvider(value string) bool {
 	return strings.EqualFold(strings.TrimSpace(value), "futu")
 }
 

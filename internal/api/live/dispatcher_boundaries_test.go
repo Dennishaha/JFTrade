@@ -1,7 +1,6 @@
 package live
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"net/http"
@@ -180,6 +179,9 @@ func TestDispatcherRunPropagatesTriggerAndTickerFailures(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			handler := NewHandler(test.backend, test.options)
 			client := (&livecore.ClientRegistry{}).Register()
+			if test.subscriptions.ProviderBrokerID == "" {
+				test.subscriptions.ProviderBrokerID = "futu"
+			}
 			client.SetSubscriptions(test.subscriptions)
 			if !test.keepUpdate {
 				<-client.Updated()
@@ -214,23 +216,23 @@ func TestDispatcherEnvelopeDefaultsAndMapFallback(t *testing.T) {
 	}
 }
 
-func TestProviderAwareBackendHelpersRetainExplicitBrokerSelection(t *testing.T) {
-	backend := &providerAwareFakeBackend{fakeBackend: &fakeBackend{}}
+func TestBackendReceivesExplicitBrokerSelection(t *testing.T) {
+	backend := &fakeBackend{}
 	stats := ClientStats{Connected: 1, Limit: 2}
-	if heartbeat := providerHeartbeat(backend, time.Second, stats, []string{"US.AAPL"}, "alpha"); heartbeat["brokerId"] != "alpha" {
+	if heartbeat := backend.Heartbeat(time.Second, stats, []string{"US.AAPL"}, "alpha"); heartbeat["providerBrokerId"] != "alpha" {
 		t.Fatalf("provider heartbeat = %#v", heartbeat)
 	}
-	if _, err := providerMarketTicks(backend, t.Context(), "alpha", []string{"US.AAPL"}, ""); err != nil {
+	if _, err := backend.MarketTicks(t.Context(), "alpha", []string{"US.AAPL"}, ""); err != nil {
 		t.Fatalf("provider market ticks: %v", err)
 	}
-	if _, err := providerSecurityDetails(backend, t.Context(), "alpha", "US", "AAPL"); err != nil {
+	if _, err := backend.SecurityDetails(t.Context(), "alpha", "US", "AAPL"); err != nil {
 		t.Fatalf("provider security details: %v", err)
 	}
-	if _, err := providerDepth(backend, t.Context(), "alpha", "US", "AAPL", 10); err != nil {
+	if _, err := backend.Depth(t.Context(), "alpha", "US", "AAPL", 10); err != nil {
 		t.Fatalf("provider depth: %v", err)
 	}
-	if backend.providerCalls != 4 {
-		t.Fatalf("provider-aware calls = %d, want 4", backend.providerCalls)
+	if backend.lastProviderID != "alpha" {
+		t.Fatalf("provider ID = %q, want alpha", backend.lastProviderID)
 	}
 	if checkWebSocketOrigin(nil) {
 		t.Fatal("nil websocket request origin was accepted")
@@ -250,52 +252,6 @@ func TestProviderAwareBackendHelpersRetainExplicitBrokerSelection(t *testing.T) 
 		}()
 		_ = jftradeCheckedTypeAssertion[int]("not an integer")
 	})
-}
-
-type providerAwareFakeBackend struct {
-	*fakeBackend
-	providerCalls int
-}
-
-func (b *providerAwareFakeBackend) HeartbeatForProvider(
-	time.Duration,
-	ClientStats,
-	[]string,
-	string,
-) map[string]any {
-	b.providerCalls++
-	return map[string]any{"brokerId": "alpha"}
-}
-
-func (b *providerAwareFakeBackend) MarketTicksForProvider(
-	context.Context,
-	string,
-	[]string,
-	string,
-) ([]TickEvent, error) {
-	b.providerCalls++
-	return nil, nil
-}
-
-func (b *providerAwareFakeBackend) SecurityDetailsForProvider(
-	context.Context,
-	string,
-	string,
-	string,
-) (map[string]any, error) {
-	b.providerCalls++
-	return map[string]any{}, nil
-}
-
-func (b *providerAwareFakeBackend) DepthForProvider(
-	context.Context,
-	string,
-	string,
-	string,
-	int32,
-) (map[string]any, error) {
-	b.providerCalls++
-	return map[string]any{}, nil
 }
 
 func TestHandlerNilAndClosedLifecycleBoundaries(t *testing.T) {
@@ -340,7 +296,7 @@ func TestDepthUpdateSubscriptionFiltersAndCoalesces(t *testing.T) {
 	backend := &fakeBackend{nilUnsubscribe: true}
 	handler := NewHandler(backend, Options{})
 	client := (&livecore.ClientRegistry{}).Register()
-	client.SetSubscriptions(livecore.Subscriptions{Depth: []livecore.DepthSubscription{{
+	client.SetSubscriptions(livecore.Subscriptions{ProviderBrokerID: "futu", Depth: []livecore.DepthSubscription{{
 		Market: "US", Symbol: "AAPL", InstrumentID: "US.AAPL", Num: 10,
 	}}})
 	updates, unsubscribe := handler.subscribeDepthUpdates(client)
@@ -368,6 +324,9 @@ func newTestDispatcher(t *testing.T, backend *fakeBackend, subscriptions livecor
 	t.Helper()
 	handler := NewHandler(backend, Options{})
 	client := (&livecore.ClientRegistry{}).Register()
+	if subscriptions.ProviderBrokerID == "" {
+		subscriptions.ProviderBrokerID = "futu"
+	}
 	client.SetSubscriptions(subscriptions)
 	return &dispatcher{
 		handler: handler, requestCtx: t.Context(), writer: writer, client: client,

@@ -8,18 +8,21 @@ import (
 	"testing"
 	"time"
 
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	runtimeactivity "github.com/jftrade/jftrade-main/internal/strategy/runtimeactivity"
+	runtimecontrol "github.com/jftrade/jftrade-main/internal/strategy/runtimecontrol"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/shopspring/decimal"
 )
 
 func TestCoverage98StrategyDesignNormalizationKeepsRunnableDefaultsAndRejectsUnpersistableModels(t *testing.T) {
-	definition, err := normalizeStrategyDesignDefinition(strategyDesignDefinition{
+	definition, err := normalizeStrategyDesignDefinition(stratsrv.Definition{
 		ID:      " strategy-defaults ",
 		Name:    " ",
 		Runtime: strategyRuntimePinePlan,
-		VisualModel: &strategyVisualModel{
+		VisualModel: &stratsrv.VisualModel{
 			Nodes: nil,
 			Edges: nil,
 		},
@@ -43,20 +46,20 @@ func TestCoverage98StrategyDesignNormalizationKeepsRunnableDefaultsAndRejectsUnp
 		t.Fatalf("blank script version sync changed its input to %q", got)
 	}
 
-	unpersistable := strategyDesignDefinition{
+	unpersistable := stratsrv.Definition{
 		ID: "invalid-json",
-		VisualModel: &strategyVisualModel{Nodes: []strategyVisualNode{{
+		VisualModel: &stratsrv.VisualModel{Nodes: []stratsrv.VisualNode{{
 			Properties: map[string]any{"runtimeOnly": make(chan struct{})},
 		}}},
 	}
-	if strategyDesignDefinitionsEqual(unpersistable, strategyDesignDefinition{ID: "invalid-json"}) {
+	if strategyDesignDefinitionsEqual(unpersistable, stratsrv.Definition{ID: "invalid-json"}) {
 		t.Fatal("a non-serializable visual model must not compare equal for persistence")
 	}
 }
 
 func TestCoverage98RuntimeRiskRejectionRecordsBothAuditAndPauseTransition(t *testing.T) {
 	var nilExecutor *strategyLiveOrderExecutor
-	if got := nilExecutor.currentRuntimeRiskSettings(); got != normalizeStrategyRuntimeRiskSettings(strategyRuntimeRiskSettings{}) {
+	if got := nilExecutor.currentRuntimeRiskSettings(); got != normalizeStrategyRuntimeRiskSettings(stratsrv.RuntimeRiskSettings{}) {
 		t.Fatalf("nil executor risk settings = %#v", got)
 	}
 	if got := ((*strategySymbolRuntime)(nil)).sellableQuantity("US.AAPL"); got != 0 {
@@ -68,8 +71,8 @@ func TestCoverage98RuntimeRiskRejectionRecordsBothAuditAndPauseTransition(t *tes
 	manager := &strategyRuntimeManager{
 		runtimes: map[string]*managedStrategyRuntime{},
 		deps: strategyRuntimeManagerDeps{
-			currentInstance: func(string) (managedStrategyInstance, bool) {
-				return managedStrategyInstance{Binding: strategyInstanceBinding{RuntimeRisk: strategyRuntimeRiskSettings{Mode: "monitor"}}}, true
+			currentInstance: func(string) (stratsrv.ManagedInstance, bool) {
+				return stratsrv.ManagedInstance{Binding: stratsrv.InstanceBinding{RuntimeRisk: stratsrv.RuntimeRiskSettings{Mode: "monitor"}}}, true
 			},
 			appendRuntimeEvent: func(_ string, _ string, kind string, _ string) error {
 				eventKinds = append(eventKinds, kind)
@@ -86,9 +89,9 @@ func TestCoverage98RuntimeRiskRejectionRecordsBothAuditAndPauseTransition(t *tes
 	}
 	executor := &strategyLiveOrderExecutor{
 		manager: manager,
-		instance: managedStrategyInstance{
+		instance: stratsrv.ManagedInstance{
 			ID:      "runtime-risk-instance",
-			Binding: strategyInstanceBinding{RuntimeRisk: strategyRuntimeRiskSettings{Mode: "enforce"}},
+			Binding: stratsrv.InstanceBinding{RuntimeRisk: stratsrv.RuntimeRiskSettings{Mode: "enforce"}},
 		},
 	}
 	if got := executor.currentRuntimeRiskSettings().Mode; got != "monitor" {
@@ -103,10 +106,10 @@ func TestCoverage98RuntimeRiskRejectionRecordsBothAuditAndPauseTransition(t *tes
 		Side:   "BUY",
 		Query:  broker.PlaceOrderQuery{Symbol: "US.AAPL", Side: "BUY", Quantity: 2},
 	}
-	executor.recordRuntimeRiskDecision(strategyRuntimeRiskDecision{
+	executor.recordRuntimeRiskDecision(runtimecontrol.RiskDecision{
 		Matched: true, Rejected: true, PauseOnReject: true, Reason: "close_only", Detail: "rule=close_only",
 	}, command)
-	executor.recordRuntimeRiskDecision(strategyRuntimeRiskDecision{
+	executor.recordRuntimeRiskDecision(runtimecontrol.RiskDecision{
 		Matched: true, Reason: "daily_max_orders", Detail: "rule=daily_max_orders",
 	}, command)
 	if strings.Join(eventKinds, ",") != "risk_rejected,risk_monitor" {
@@ -124,7 +127,7 @@ func TestCoverage98WorkflowSnapshotAndLiveTradeReplayReachBusinessConsumers(t *t
 	}
 	server := newTestServer(t, store)
 	now := time.Now().UTC().Truncate(time.Second)
-	seedCachedTickSample(server, marketTickSample{
+	seedCachedTickSample(server, mdsrv.Tick{
 		InstrumentID: "HK.00700",
 		Market:       "HK",
 		Symbol:       "00700",
@@ -148,7 +151,7 @@ func TestCoverage98WorkflowSnapshotAndLiveTradeReplayReachBusinessConsumers(t *t
 	// converted to the canonical strategy-runtime event without panicking.
 	server.assistantSvc = nil
 	server.strategyRuntimeManager = &strategyRuntimeManager{runtimes: map[string]*managedStrategyRuntime{}}
-	server.handlePushMarketdataTick(marketTickSample{
+	server.handlePushMarketdataTick(mdsrv.Tick{
 		Kind:         "trade",
 		InstrumentID: "HK.00700",
 		Price:        decimal.RequireFromString("321.4"),
@@ -165,7 +168,7 @@ func TestCoverage98WorkflowSnapshotReturnsProviderFailureAfterStaleCache(t *test
 	}
 	server := newTestServer(t, store)
 	stale := time.Now().UTC().Add(-time.Minute).Truncate(time.Second)
-	seedCachedTickSample(server, marketTickSample{
+	seedCachedTickSample(server, mdsrv.Tick{
 		InstrumentID: "HK.00700",
 		Market:       "HK",
 		Symbol:       "00700",

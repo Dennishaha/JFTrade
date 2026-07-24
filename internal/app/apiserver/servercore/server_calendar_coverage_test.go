@@ -6,6 +6,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	"github.com/jftrade/jftrade-main/internal/system"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestServerCalendarOptionsAndOperationsRemainingBoundaries(t *testing.T) {
@@ -31,7 +32,7 @@ func TestServerCalendarOptionsAndOperationsRemainingBoundaries(t *testing.T) {
 		t.Fatalf("empty calendar probe = %#v", got)
 	}
 
-	manager := exchangecalendar.NewManager(nil, func() ExchangeCalendarSettings { return ExchangeCalendarSettings{} }, exchangecalendar.WithRegistry(exchangecalendar.NewSourceRegistry()))
+	manager := exchangecalendar.NewManager(nil, func() jfsettings.ExchangeCalendarSettings { return jfsettings.ExchangeCalendarSettings{} }, exchangecalendar.WithRegistry(exchangecalendar.NewSourceRegistry()))
 	server := &Server{serverRuntimes: serverRuntimes{exchangeCalendars: manager}}
 	service := system.NewService(server.systemCalendarOptions()...)
 	if got := service.ExchangeCalendarStatus(); got == nil {

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/bbgo"
 	"github.com/jftrade/jftrade-main/pkg/bbgo/fixedpoint"
@@ -23,9 +24,7 @@ func TestPineWorkerLiveUsesStatefulSessionAfterWarmup(t *testing.T) {
 	}
 	executor := &strategyNotifyOnlyOrderExecutor{runner: symbolRuntime}
 	live, err := newStrategyRuntimePineWorkerLive(
-		runner,
-		managedStrategyInstance{ID: "stateful-instance"},
-		"US.AAPL",
+		runner, stratsrv.ManagedInstance{ID: "stateful-instance"}, "US.AAPL",
 		bbgotypes.Interval1m,
 		"//@version=6\nstrategy(\"Stateful\")",
 		executor,
@@ -65,13 +64,13 @@ func TestPineWorkerLiveRemainingConstructorAndWarmupErrors(t *testing.T) {
 	worker := newFakeStrategyRuntimePineWorker()
 	runtime := &strategySymbolRuntime{symbol: "US.AAPL", market: bbgotypes.Market{Symbol: "US.AAPL"}}
 	executor := &strategyNotifyOnlyOrderExecutor{runner: runtime}
-	if _, err := newStrategyRuntimePineWorkerLive(worker, managedStrategyInstance{}, "US.AAPL", bbgotypes.Interval1m, " ", executor, runtime, nil); err == nil {
+	if _, err := newStrategyRuntimePineWorkerLive(worker, stratsrv.ManagedInstance{}, "US.AAPL", bbgotypes.Interval1m, " ", executor, runtime, nil); err == nil {
 		t.Fatal("blank live source error = nil")
 	}
-	if _, err := newStrategyRuntimePineWorkerLive(worker, managedStrategyInstance{}, "US.AAPL", bbgotypes.Interval1m, "strategy(\"x\")", nil, runtime, nil); err == nil {
+	if _, err := newStrategyRuntimePineWorkerLive(worker, stratsrv.ManagedInstance{}, "US.AAPL", bbgotypes.Interval1m, "strategy(\"x\")", nil, runtime, nil); err == nil {
 		t.Fatal("nil live executor error = nil")
 	}
-	if _, err := newStrategyRuntimePineWorkerLive(worker, managedStrategyInstance{}, "US.AAPL", bbgotypes.Interval1m, "strategy(\"x\")", executor, nil, nil); err == nil {
+	if _, err := newStrategyRuntimePineWorkerLive(worker, stratsrv.ManagedInstance{}, "US.AAPL", bbgotypes.Interval1m, "strategy(\"x\")", executor, nil, nil); err == nil {
 		t.Fatal("nil symbol runtime error = nil")
 	}
 
@@ -87,7 +86,7 @@ func TestPineWorkerLiveRemainingConstructorAndWarmupErrors(t *testing.T) {
 	}
 
 	worker.err = errors.New("worker failed")
-	live, err := newStrategyRuntimePineWorkerLive(worker, managedStrategyInstance{ID: "instance"}, "US.AAPL", bbgotypes.Interval1m, "//@version=6\nstrategy(\"Coverage\")", executor, runtime, nil)
+	live, err := newStrategyRuntimePineWorkerLive(worker, stratsrv.ManagedInstance{ID: "instance"}, "US.AAPL", bbgotypes.Interval1m, "//@version=6\nstrategy(\"Coverage\")", executor, runtime, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +186,7 @@ func TestPineWorkerLiveRemainingEquityPriceAndParamBoundaries(t *testing.T) {
 		t.Fatalf("truncated current price = %v", price)
 	}
 
-	params := strategyRuntimePineWorkerParams(managedStrategyInstance{Params: map[string]any{
+	params := strategyRuntimePineWorkerParams(stratsrv.ManagedInstance{Params: map[string]any{
 		"duration": time.Second, "unsupported": []string{"x"},
 	}})
 	if params["duration"] != "1s" {
@@ -207,7 +206,7 @@ func TestPineWorkerLiveSessionFailureBoundaries(t *testing.T) {
 			symbol: "US.AAPL", market: bbgotypes.Market{Symbol: "US.AAPL", StepSize: fixedpoint.One, MinQuantity: fixedpoint.One},
 		}
 		live, err := newStrategyRuntimePineWorkerLive(
-			runner, managedStrategyInstance{ID: "failure-instance"}, "US.AAPL", bbgotypes.Interval1m,
+			runner, stratsrv.ManagedInstance{ID: "failure-instance"}, "US.AAPL", bbgotypes.Interval1m,
 			"//@version=6\nstrategy(\"Failure\")", &strategyNotifyOnlyOrderExecutor{runner: symbolRuntime}, symbolRuntime, nil,
 		)
 		if err != nil {

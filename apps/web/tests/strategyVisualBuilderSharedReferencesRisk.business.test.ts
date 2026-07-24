@@ -198,6 +198,11 @@ describe("strategy visual builder shared/reference/risk boundaries", () => {
     expect(suggestStrategyIndicatorVariableName({ indicatorType: "bollinger", period: 20, multiplier: 2 })).toBe("BOLL20x2");
     expect(suggestStrategyIndicatorVariableName({ indicatorType: "atr", period: 14 })).toBe("ATR14");
     expect(resolveStrategyIndicatorGetterLabel(rsi)).toContain("rsi_14");
+    expect(resolveStrategyIndicatorGetterLabel({
+      id: "empty-indicator",
+      type: "getTechnicalIndicator",
+      text: { value: "" },
+    } as StrategyVisualNodeDocument)).toBeTruthy();
     expect(listStrategyIndicatorGetterOptions(model).map((option) => option.value)).toEqual([
       "fast-ma",
       "slow-ma",

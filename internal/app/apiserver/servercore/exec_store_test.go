@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 func TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries(t *testing.T) {
 	store := newExecutionOrderStore()
-	store.orders["exec-000001"] = executionOrderSummaryResponse{
+	store.orders["exec-000001"] = trdsrv.ExecutionOrder{
 		InternalOrderID:    "exec-000001",
 		BrokerID:           "futu",
 		TradingEnvironment: "SIMULATE",
@@ -20,7 +21,7 @@ func TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries(t *testing
 		UpdatedAt:          "2026-07-03T08:00:00Z",
 		CreatedAt:          "2026-07-03T07:00:00Z",
 	}
-	store.orders["exec-000002"] = executionOrderSummaryResponse{
+	store.orders["exec-000002"] = trdsrv.ExecutionOrder{
 		InternalOrderID:    "exec-000002",
 		BrokerID:           "futu",
 		TradingEnvironment: "SIMULATE",
@@ -30,7 +31,7 @@ func TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries(t *testing
 		UpdatedAt:          "2026-07-03T08:00:00Z",
 		CreatedAt:          "2026-07-03T07:30:00Z",
 	}
-	store.orders["exec-000003"] = executionOrderSummaryResponse{
+	store.orders["exec-000003"] = trdsrv.ExecutionOrder{
 		InternalOrderID:    "exec-000003",
 		BrokerID:           "futu",
 		TradingEnvironment: "SIMULATE",
@@ -41,7 +42,7 @@ func TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries(t *testing
 		CreatedAt:          "2026-07-03T07:30:00Z",
 	}
 
-	filtered := store.listOrdersFiltered(executionOrderListFilter{BrokerID: "FUTU"})
+	filtered := store.listOrdersFiltered(trdsrv.ExecutionOrderFilter{BrokerID: "FUTU"})
 	if len(filtered.Orders) != 3 {
 		t.Fatalf("filtered orders len = %d, want 3", len(filtered.Orders))
 	}
@@ -49,10 +50,10 @@ func TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries(t *testing
 		t.Fatalf("sorted orders = %#v, want createdAt/internalOrderID descending tie-breaks", filtered.Orders)
 	}
 
-	if executionOrderMatchesListFilter(store.orders["exec-000001"], executionOrderListFilter{BrokerID: "ib"}) {
+	if executionOrderMatchesListFilter(store.orders["exec-000001"], trdsrv.ExecutionOrderFilter{BrokerID: "ib"}) {
 		t.Fatal("broker mismatch unexpectedly matched")
 	}
-	if executionOrderMatchesListFilter(store.orders["exec-000001"], executionOrderListFilter{Market: "US"}) {
+	if executionOrderMatchesListFilter(store.orders["exec-000001"], trdsrv.ExecutionOrderFilter{Market: "US"}) {
 		t.Fatal("market mismatch unexpectedly matched")
 	}
 
@@ -64,7 +65,7 @@ func TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries(t *testing
 func TestExecutionOrderStorePlacedOrderPreservesMissingBrokerAndRepairsSparseSummary(t *testing.T) {
 	store := newExecutionOrderStore()
 
-	defaulted := store.recordPlacedOrder(executionPlacedOrderRecord{
+	defaulted := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           " \t ",
 		BrokerOrderID:      "NEW-DEFAULT",
 		TradingEnvironment: "SIMULATE",
@@ -83,7 +84,7 @@ func TestExecutionOrderStorePlacedOrderPreservesMissingBrokerAndRepairsSparseSum
 	legacyRequestedQuantity := 100.0
 	legacyRequestedPrice := 88.5
 	legacyFilledQuantity := 0.0
-	store.orders["exec-legacy"] = executionOrderSummaryResponse{
+	store.orders["exec-legacy"] = trdsrv.ExecutionOrder{
 		InternalOrderID:    "exec-legacy",
 		BrokerID:           "futu",
 		BrokerOrderID:      stringPointerOrNil("LEGACY-100"),
@@ -106,7 +107,7 @@ func TestExecutionOrderStorePlacedOrderPreservesMissingBrokerAndRepairsSparseSum
 	store.linkBrokerOrderLocked(store.orders["exec-legacy"])
 
 	updatedPrice := 90.25
-	merged := store.recordPlacedOrder(executionPlacedOrderRecord{
+	merged := store.recordPlacedOrder(trdsrv.ExecutionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "LEGACY-100",
 		BrokerOrderIDEx:    "LEGACY-100-EX",
@@ -170,7 +171,7 @@ func TestExecutionOrderStoreBrokerSyncPreservesMissingBrokerAndRepairsIncomplete
 	legacyRequestedQuantity := 1.0
 	legacyRequestedPrice := 50.0
 	legacyLastErrorCode := "LEGACY-ERROR"
-	store.orders["exec-repair"] = executionOrderSummaryResponse{
+	store.orders["exec-repair"] = trdsrv.ExecutionOrder{
 		InternalOrderID:    "exec-repair",
 		BrokerID:           "futu",
 		BrokerOrderID:      stringPointerOrNil("SYNC-REPAIR"),

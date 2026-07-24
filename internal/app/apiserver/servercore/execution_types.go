@@ -8,20 +8,6 @@ import (
 
 const defaultExecutionPersistenceQueueSize = 1024
 
-type brokerOrderCommandResponse = trdsrv.ExecutionCommandResponse
-
-//nolint:unused // Referenced by Swagger annotations during go generate.
-type executionPlaceOrderRequest = trdsrv.ExecutionPlaceRequest
-type executionOrderSummaryResponse = trdsrv.ExecutionOrder
-type executionOrderEventResponse = trdsrv.ExecutionOrderEvent
-type executionOrdersResponse = trdsrv.ExecutionOrders
-type executionOrderListFilter = trdsrv.ExecutionOrderFilter
-type executionOrderEventsResponse = trdsrv.ExecutionOrderEvents
-
-//nolint:unused // Referenced by Swagger annotations during go generate.
-type executionOrderDetailsResponse = trdsrv.ExecutionOrderDetails
-type executionPlacedOrderRecord = trdsrv.ExecutionPlacedOrderRecord
-
 type executionOrderStore struct {
 	mu                    sync.RWMutex
 	submissionMu          sync.Mutex
@@ -33,8 +19,8 @@ type executionOrderStore struct {
 	seenFillRetentionDays int
 	nextOrderSeq          uint64
 	nextEventSeq          uint64
-	orders                map[string]executionOrderSummaryResponse
-	events                map[string][]executionOrderEventResponse
+	orders                map[string]trdsrv.ExecutionOrder
+	events                map[string][]trdsrv.ExecutionOrderEvent
 	brokerOrderIndex      map[string]string
 	brokerOrderExIndex    map[string]string
 	seenFillKeys          map[string]string
@@ -42,8 +28,8 @@ type executionOrderStore struct {
 
 type executionPersistenceItem struct {
 	kind      string
-	order     executionOrderSummaryResponse
-	event     executionOrderEventResponse
+	order     trdsrv.ExecutionOrder
+	event     trdsrv.ExecutionOrderEvent
 	fillKey   string
 	createdAt string
 	seqName   string
@@ -53,8 +39,8 @@ type executionPersistenceItem struct {
 
 func newExecutionOrderStore() *executionOrderStore {
 	return &executionOrderStore{
-		orders:                make(map[string]executionOrderSummaryResponse),
-		events:                make(map[string][]executionOrderEventResponse),
+		orders:                make(map[string]trdsrv.ExecutionOrder),
+		events:                make(map[string][]trdsrv.ExecutionOrderEvent),
 		brokerOrderIndex:      make(map[string]string),
 		brokerOrderExIndex:    make(map[string]string),
 		seenFillKeys:          make(map[string]string),

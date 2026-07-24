@@ -2,11 +2,12 @@ package servercore
 
 import (
 	"fmt"
+	live "github.com/jftrade/jftrade-main/internal/live"
 	"strings"
 	"time"
 )
 
-func liveNotificationFromBBGONotify(obj any, args ...any) *liveNotification {
+func liveNotificationFromBBGONotify(obj any, args ...any) *live.Notification {
 	if obj == nil {
 		return nil
 	}
@@ -14,7 +15,7 @@ func liveNotificationFromBBGONotify(obj any, args ...any) *liveNotification {
 		return nil
 	}
 
-	note := liveNotification{
+	note := live.Notification{
 		At:       time.Now().UTC().Format(time.RFC3339Nano),
 		Level:    "info",
 		Title:    "BBGO 通知",
