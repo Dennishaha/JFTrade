@@ -16,13 +16,13 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",
-    "rolldown": "^1.1.5",
+    "rolldown": "^1.2.0",
     "typescript": "^7.0.2",
     "vitest": "catalog:"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.14.4",
     "@grpc/proto-loader": "0.8.1",
-    "pinets": "0.9.28"
+    "pinets": "0.9.29"
   }
 }

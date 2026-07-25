@@ -711,10 +711,10 @@ async function initializeMonaco(): Promise<void> {
 
   try {
     const editorWorkerModule = await import(
-      "monaco-editor/esm/vs/editor/editor.worker?worker"
+      "monaco-editor/editor/editor.worker?worker"
     );
     const typescriptWorkerModule = await import(
-      "monaco-editor/esm/vs/language/typescript/ts.worker?worker"
+      "monaco-editor/language/typescript/ts.worker?worker"
     );
     const monacoModule = await import("monaco-editor");
 

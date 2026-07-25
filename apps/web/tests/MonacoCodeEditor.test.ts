@@ -138,11 +138,11 @@ const monacoMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("monaco-editor/esm/vs/editor/editor.worker?worker", () => ({
+vi.mock("monaco-editor/editor/editor.worker?worker", () => ({
   default: class EditorWorker {},
 }));
 
-vi.mock("monaco-editor/esm/vs/language/typescript/ts.worker?worker", () => ({
+vi.mock("monaco-editor/language/typescript/ts.worker?worker", () => ({
   default: class TypeScriptWorker {},
 }));
 

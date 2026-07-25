@@ -3,12 +3,12 @@ packages:
   - workers/pineworker
 
 catalog:
-  vue: 3.5.39
+  vue: 3.5.40
   vitest: ^4.1.10
 
 overrides:
   "@vue/test-utils>js-beautify": 2.0.3
-  "monaco-editor@0.55.1>dompurify": 3.4.12
+  "monaco-editor>dompurify": 3.4.12
   vue: "catalog:"
 
 supportedArchitectures:
