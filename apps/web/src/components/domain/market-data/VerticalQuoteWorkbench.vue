@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref } from "vue";
 
-import KlineChart from "../../KlineChart.vue";
+import LightweightChart from "../../workspace/LightweightChart.vue";
 import DenseMetricStrip from "../shared/DenseMetricStrip.vue";
 import WatchlistMembershipDialog from "../watchlist/WatchlistMembershipDialog.vue";
 import CompactInstrumentNews from "./CompactInstrumentNews.vue";
@@ -31,7 +31,7 @@ const props = withDefaults(
     brokerId: "",
     visible: true,
     variant: "rail",
-    period: "day",
+    period: "1d",
     tab: "quote",
     emptyText: "选择标的后查看行情详情",
   },
@@ -46,8 +46,6 @@ const emit = defineEmits<{
 }>();
 
 const {
-  PERIOD_OPTIONS,
-  selectedPeriod,
   resolvedTarget,
   instrumentParts,
   name,
@@ -59,15 +57,12 @@ const {
   metrics,
   security,
   extendedCards,
-  candles,
   plateMembers,
   snapshotLoading,
   securityLoading,
-  candlesLoading,
   plateMembersLoading,
   snapshotError,
   securityError,
-  candlesError,
   plateMembersError,
   watchlistDialogOpen,
   favorite,
@@ -98,7 +93,6 @@ const newsPending = computed(
 );
 
 function selectPeriod(period: QuoteWorkbenchPeriod): void {
-  if (selectedPeriod.value !== period) selectedPeriod.value = period;
   emit("update:period", period);
 }
 
@@ -121,13 +115,6 @@ async function handleRefresh(): Promise<void> {
   }
 }
 
-watch(
-  () => props.period,
-  (period) => {
-    if (selectedPeriod.value !== period) selectedPeriod.value = period;
-  },
-  { immediate: true },
-);
 </script>
 
 <template>
@@ -239,50 +226,13 @@ watch(
         v-if="activeTab === 'quote' && !isPlate"
         class="quote-detail-rail__chart-section"
       >
-        <div
-          class="quote-detail-rail__chart-toolbar"
-          role="tablist"
-          aria-label="K 线周期"
-        >
-          <button
-            v-for="option in PERIOD_OPTIONS"
-            :key="option.value"
-            type="button"
-            role="tab"
-            :aria-selected="selectedPeriod === option.value"
-            :class="{ 'is-active': selectedPeriod === option.value }"
-            @click="selectPeriod(option.value)"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-        <div class="quote-detail-rail__chart">
-          <div
-            v-if="candlesError && candles.length === 0"
-            class="quote-detail-rail__chart-placeholder"
-          >
-            {{ candlesError }}
-          </div>
-          <div
-            v-else-if="candlesLoading && candles.length === 0"
-            class="quote-detail-rail__chart-placeholder"
-          >
-            K 线加载中…
-          </div>
-          <template v-else>
-            <div
-              v-if="candlesError"
-              class="quote-detail-rail__chart-warning tv-status--warning"
-            >
-              K 线刷新失败：{{ candlesError }}
-            </div>
-            <KlineChart
-              :candles="candles"
-              :min-height="320"
-              empty-text="暂无历史 K 线"
-            />
-          </template>
-        </div>
+        <LightweightChart
+          :target="instrumentParts"
+          :period="period"
+          variant="embedded"
+          :min-height="320"
+          @update:period="selectPeriod"
+        />
       </section>
 
       <CompactInstrumentNews
@@ -382,7 +332,6 @@ watch(
 }
 
 .vertical-quote-workbench__toolbar button,
-.quote-detail-rail__chart-toolbar button,
 .vertical-quote-workbench__tabs button {
   border: 0;
   background: transparent;
@@ -436,7 +385,6 @@ watch(
 }
 
 .quote-detail-rail__placeholder,
-.quote-detail-rail__chart-placeholder,
 .quote-detail-rail__members-state {
   display: grid;
   min-height: 120px;
@@ -454,7 +402,6 @@ watch(
   border-bottom: 1px solid var(--tv-border);
 }
 
-.quote-detail-rail__chart-toolbar,
 .quote-detail-rail__members header,
 .quote-detail-rail__member {
   display: flex;
@@ -515,33 +462,6 @@ watch(
   border-bottom: 1px solid var(--tv-border);
 }
 
-.quote-detail-rail__chart-toolbar { gap: 4px; padding: 10px 14px 4px; }
-
-.quote-detail-rail__chart-toolbar button {
-  min-width: 42px;
-  padding: 5px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-}
-
-.quote-detail-rail__chart-toolbar button:hover,
-.quote-detail-rail__chart-toolbar button.is-active {
-  background: var(--tv-bg-surface-2);
-  color: var(--tv-text);
-}
-
-.quote-detail-rail__chart-toolbar button.is-active {
-  box-shadow: inset 0 -2px var(--tv-accent);
-}
-
-.quote-detail-rail__chart { position: relative; min-height: 320px; padding: 4px 8px 10px; }
-.quote-detail-rail__chart-placeholder { min-height: 320px; }
-
-.quote-detail-rail__chart-warning {
-  margin: 4px 6px;
-  padding: 5px 7px;
-  font-size: 10px;
-}
 .quote-detail-rail__members { flex: 0 0 auto; padding: 12px 18px 18px; }
 .quote-detail-rail__members header { height: 30px; color: var(--tv-text); }
 

@@ -9,13 +9,13 @@ import {
 } from "vue";
 
 import {
-  KLINE_INDICATORS,
   isKlinePaneIndicator,
   normalizeKlineIndicators,
   type KlineCandle,
   type KlineChartAdapter,
   type KlineIndicatorKey,
 } from "../charting/kline";
+import KlineIndicatorSelector from "./KlineIndicatorSelector.vue";
 import { lightweightChartsKlineFactory } from "../charting/lightweightChartsKline";
 import {
   hexToRgba,
@@ -32,6 +32,7 @@ const props = withDefaults(
     showIndicatorSelector?: boolean;
     indicatorStorageKey?: string;
     defaultIndicators?: readonly KlineIndicatorKey[];
+    indicators?: readonly KlineIndicatorKey[];
   }>(),
   {
     minHeight: 220,
@@ -42,29 +43,19 @@ const props = withDefaults(
 );
 const emit = defineEmits<{
   "load-more": [];
+  "update:indicators": [indicators: KlineIndicatorKey[]];
 }>();
 
 const shell = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const chartError = ref("");
-const isIndicatorPanelOpen = ref(false);
-const triggerRef = ref<HTMLElement | null>(null);
-const panelRef = ref<HTMLElement | null>(null);
-const panelTop = ref(0);
-const panelRight = ref(0);
 const { theme } = useTheme();
 const uiColorPreferences = tryUseUIColorPreferences();
-const paneIndicators = KLINE_INDICATORS.filter(
-  (indicator) => indicator.kind === "pane",
-);
-const maIndicators = KLINE_INDICATORS.filter(
-  (indicator) => indicator.family === "ma",
-);
-const emaIndicators = KLINE_INDICATORS.filter(
-  (indicator) => indicator.family === "ema",
-);
 const selectedIndicators = ref<KlineIndicatorKey[]>(
   normalizeKlineIndicators(props.defaultIndicators),
+);
+const activeIndicators = computed(() =>
+  normalizeKlineIndicators(props.indicators ?? selectedIndicators.value),
 );
 
 let adapter: KlineChartAdapter | null = null;
@@ -117,94 +108,19 @@ const palette = computed(() =>
 // INDICATOR_PANE_HEIGHT in lightweightChartsKline.ts.
 const INDICATOR_PANE_HEIGHT = 120;
 const paneIndicatorCount = computed(() =>
-  selectedIndicators.value.filter(isKlinePaneIndicator).length,
+  activeIndicators.value.filter(isKlinePaneIndicator).length,
 );
 const chartShellHeight = computed(() => {
   return props.minHeight + paneIndicatorCount.value * INDICATOR_PANE_HEIGHT;
 });
 
-function readStoredIndicators(): KlineIndicatorKey[] | null {
-  if (
-    props.indicatorStorageKey == null ||
-    props.indicatorStorageKey.trim() === "" ||
-    typeof window === "undefined" ||
-    window.localStorage == null
-  ) {
-    return null;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(props.indicatorStorageKey);
-    if (raw == null || raw.trim() === "") {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return null;
-    }
-
-    return normalizeKlineIndicators(parsed);
-  } catch {
-    return null;
-  }
-}
-
-function persistIndicators(next: readonly KlineIndicatorKey[]): void {
-  if (
-    props.indicatorStorageKey == null ||
-    props.indicatorStorageKey.trim() === "" ||
-    typeof window === "undefined" ||
-    window.localStorage == null
-  ) {
+function setSelectedIndicators(indicators: readonly KlineIndicatorKey[]): void {
+  const normalized = normalizeKlineIndicators(indicators);
+  if (props.indicators != null) {
+    emit("update:indicators", normalized);
     return;
   }
-
-  window.localStorage.setItem(
-    props.indicatorStorageKey,
-    JSON.stringify(next),
-  );
-}
-
-function toggleIndicator(indicator: KlineIndicatorKey): void {
-  const exists = selectedIndicators.value.includes(indicator);
-  selectedIndicators.value = normalizeKlineIndicators(
-    exists
-      ? selectedIndicators.value.filter((value) => value !== indicator)
-      : [...selectedIndicators.value, indicator],
-  );
-}
-
-function toggleIndicatorPanel(): void {
-  isIndicatorPanelOpen.value = !isIndicatorPanelOpen.value;
-  if (isIndicatorPanelOpen.value && triggerRef.value != null && typeof window !== "undefined") {
-    const rect = triggerRef.value.getBoundingClientRect();
-    panelTop.value = rect.bottom + 8;
-    panelRight.value = window.innerWidth - rect.right;
-  }
-}
-
-function closeIndicatorPanel(): void {
-  isIndicatorPanelOpen.value = false;
-}
-
-function handleDocumentPointerDown(event: PointerEvent): void {
-  const shellElement = shell.value;
-  const panelElement = panelRef.value;
-  const target = event.target;
-  if (shellElement == null || !(target instanceof Node)) {
-    return;
-  }
-
-  if (!shellElement.contains(target) && !(panelElement?.contains(target) ?? false)) {
-    closeIndicatorPanel();
-  }
-}
-
-function handleDocumentKeydown(event: KeyboardEvent): void {
-  if (event.key === "Escape") {
-    closeIndicatorPanel();
-  }
+  selectedIndicators.value = normalized;
 }
 
 function refreshChartData(): void {
@@ -299,17 +215,9 @@ onMounted(async () => {
     return;
   }
 
-  document.addEventListener("pointerdown", handleDocumentPointerDown);
-  document.addEventListener("keydown", handleDocumentKeydown);
   window.addEventListener("resize", scheduleChartLayoutSync);
 
   await nextTick();
-
-  const storedIndicators = readStoredIndicators();
-  if (storedIndicators != null) {
-    selectedIndicators.value = storedIndicators;
-    await nextTick();
-  }
 
   if (typeof ResizeObserver === "undefined") {
     chartError.value = "K-line chart requires browser ResizeObserver support.";
@@ -319,7 +227,7 @@ onMounted(async () => {
   try {
     adapter = lightweightChartsKlineFactory.create(host.value, {
       palette: palette.value,
-      indicators: selectedIndicators.value,
+      indicators: activeIndicators.value,
     });
     adapter.setLoadMoreHandler(() => {
       if (loadMoreScheduled) {
@@ -355,8 +263,6 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  document.removeEventListener("pointerdown", handleDocumentPointerDown);
-  document.removeEventListener("keydown", handleDocumentKeydown);
   window.removeEventListener("resize", scheduleChartLayoutSync);
   if (scheduledFrame != null && typeof window !== "undefined") {
     window.cancelAnimationFrame(scheduledFrame);
@@ -374,10 +280,9 @@ onBeforeUnmount(() => {
 
 watch(() => props.candles, refreshChartData, { deep: true });
 watch(
-  selectedIndicators,
-  (next) => {
-    persistIndicators(next);
-    adapter?.setIndicators(next);
+  activeIndicators,
+  (indicators) => {
+    adapter?.setIndicators(indicators);
     scheduleChartSync();
   },
   { deep: true },
@@ -395,95 +300,12 @@ watch(palette, (next) => {
     :style="{ '--kline-min-h': `${chartShellHeight}px` }"
   >
     <div v-if="showIndicatorSelector" class="kline-chart-toolbar">
-      <button
-        ref="triggerRef"
-        class="kline-chart-trigger"
-        type="button"
-        :class="{ 'is-open': isIndicatorPanelOpen }"
-        @click="toggleIndicatorPanel"
-      >
-        <span>指标</span>
-        <span class="kline-chart-trigger-count">{{ selectedIndicators.length }}</span>
-      </button>
-      <Teleport to="body">
-        <div
-          v-if="isIndicatorPanelOpen"
-          ref="panelRef"
-          class="kline-chart-panel"
-          :style="{ top: `${panelTop}px`, right: `${panelRight}px` }"
-        >
-          <div class="kline-chart-panel-header">
-            <div>
-              <div class="kline-chart-panel-title">主图 / 副图</div>
-              <div class="kline-chart-panel-subtitle">勾选后立即叠加到当前 K 线图</div>
-            </div>
-            <button
-              class="kline-chart-panel-close"
-              type="button"
-              @click="closeIndicatorPanel"
-            >
-              关闭
-            </button>
-          </div>
-
-          <div class="kline-chart-panel-group">
-            <div class="kline-chart-panel-group-title">主图 MA</div>
-            <div class="kline-chart-panel-grid">
-              <label
-                v-for="indicator in maIndicators"
-                :key="indicator.value"
-                class="kline-chart-option"
-              >
-                <input
-                  :checked="selectedIndicators.includes(indicator.value)"
-                  :value="indicator.value"
-                  type="checkbox"
-                  @change="toggleIndicator(indicator.value)"
-                />
-                <span>{{ indicator.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="kline-chart-panel-group">
-            <div class="kline-chart-panel-group-title">主图 EMA</div>
-            <div class="kline-chart-panel-grid">
-              <label
-                v-for="indicator in emaIndicators"
-                :key="indicator.value"
-                class="kline-chart-option"
-              >
-                <input
-                  :checked="selectedIndicators.includes(indicator.value)"
-                  :value="indicator.value"
-                  type="checkbox"
-                  @change="toggleIndicator(indicator.value)"
-                />
-                <span>{{ indicator.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="kline-chart-panel-group">
-            <div class="kline-chart-panel-group-title">副图</div>
-            <div class="kline-chart-panel-grid">
-              <label
-                v-for="indicator in paneIndicators"
-                :key="indicator.value"
-                class="kline-chart-option"
-              >
-                <input
-                  :checked="selectedIndicators.includes(indicator.value)"
-                  :value="indicator.value"
-                  type="checkbox"
-                  @change="toggleIndicator(indicator.value)"
-                />
-                <span>{{ indicator.label }}</span>
-              </label>
-            </div>
-          </div>
-        </div>
-      </Teleport>
+      <KlineIndicatorSelector
+        :model-value="activeIndicators"
+        :storage-key="indicatorStorageKey"
+        :default-indicators="defaultIndicators"
+        @update:model-value="setSelectedIndicators"
+      />
     </div>
     <div ref="host" class="kline-chart-host"></div>
     <div v-if="chartError" class="kline-chart-overlay is-error">
@@ -514,135 +336,6 @@ watch(palette, (next) => {
   right: 12px;
   z-index: 100;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-}
-
-.kline-chart-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
-  color: var(--tv-text);
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    transform 160ms ease;
-}
-
-.kline-chart-trigger:hover,
-.kline-chart-trigger.is-open {
-  border-color: var(--tv-accent-strong);
-  background: var(--tv-bg-elevated);
-  transform: translateY(-1px);
-}
-
-.kline-chart-trigger-count {
-  min-width: 1.5rem;
-  height: 1.5rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--tv-text) 16%, transparent);
-  color: var(--tv-text);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.kline-chart-panel {
-  position: fixed;
-  z-index: 9999;
-  width: min(420px, calc(100vw - 24px));
-  max-height: min(72vh, 520px);
-  overflow: auto;
-  border: 1px solid var(--tv-border-strong);
-  border-radius: 18px;
-  padding: 14px;
-  background: var(--tv-bg-surface);
-  box-shadow: 0 24px 64px rgba(2, 6, 23, 0.42);
-  backdrop-filter: blur(18px);
-}
-
-.kline-chart-panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.kline-chart-panel-title {
-  color: var(--tv-text);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.kline-chart-panel-subtitle {
-  margin-top: 4px;
-  color: var(--tv-text-muted);
-  font-size: 11px;
-}
-
-.kline-chart-panel-close {
-  border: 1px solid var(--tv-border);
-  background: color-mix(in srgb, var(--tv-text) 8%, transparent);
-  color: var(--tv-text);
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.kline-chart-panel-group + .kline-chart-panel-group {
-  margin-top: 14px;
-}
-
-.kline-chart-panel-group-title {
-  margin-bottom: 8px;
-  color: var(--tv-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.kline-chart-panel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
-  gap: 8px;
-}
-
-.kline-chart-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--tv-border);
-  border-radius: 999px;
-  padding: 8px 10px;
-  color: var(--tv-text-muted);
-  background: var(--tv-bg-elevated);
-  font-size: 11px;
-  line-height: 1;
-  cursor: pointer;
-  user-select: none;
-}
-
-.kline-chart-option input {
-  margin: 0;
-}
-
-.kline-chart-option:has(input:checked) {
-  border-color: var(--card-teal-border);
-  background: var(--card-teal-surface);
-  color: var(--tv-text);
 }
 
 .kline-chart-overlay {

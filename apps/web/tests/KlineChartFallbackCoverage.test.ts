@@ -47,29 +47,42 @@ describe("KlineChart browser fallbacks", () => {
     await nextTick();
 
     expect(wrapper.text()).toContain("K-line chart requires browser ResizeObserver support.");
-    const trigger = wrapper.get(".kline-chart-trigger");
+    const trigger = wrapper.get(".kline-indicator-selector__trigger");
     Object.defineProperty(trigger.element, "getBoundingClientRect", {
       configurable: true,
-      value: () => ({ bottom: 32, right: 64 }),
+      value: () => ({
+        x: 0,
+        y: 0,
+        width: 64,
+        height: 32,
+        top: 0,
+        right: 64,
+        bottom: 32,
+        left: 0,
+        toJSON: () => ({}),
+      }),
     });
     await trigger.trigger("click");
-    expect(document.body.querySelector(".kline-chart-panel")).not.toBeNull();
+    expect(
+      document.body.querySelector(".kline-indicator-selector__panel"),
+    ).not.toBeNull();
 
-    expect(document.body.querySelector('input[value="volume"]')).not.toBeNull();
-    const chart = wrapper.getComponent(KlineChart);
-    const state = (chart.vm as unknown as {
-      $: { setupState: { toggleIndicator: (indicator: "volume") => void } };
-    }).$.setupState;
-    state.toggleIndicator("volume");
+    const volume = document.body.querySelector(
+      'input[value="volume"]',
+    ) as HTMLInputElement | null;
+    expect(volume).not.toBeNull();
+    volume?.dispatchEvent(new Event("change", { bubbles: true }));
     await nextTick();
     expect(window.localStorage.getItem("invalid-indicators")).toBe('["volume"]');
-    state.toggleIndicator("volume");
+    volume?.dispatchEvent(new Event("change", { bubbles: true }));
     await nextTick();
     expect(window.localStorage.getItem("invalid-indicators")).toBe('["volume"]');
 
     document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     await nextTick();
-    expect(document.body.querySelector(".kline-chart-panel")).toBeNull();
+    expect(
+      document.body.querySelector(".kline-indicator-selector__panel"),
+    ).toBeNull();
   });
 
   it("ignores legacy non-array indicator preferences instead of treating arbitrary JSON as a chart configuration", async () => {
@@ -88,10 +101,20 @@ describe("KlineChart browser fallbacks", () => {
     await nextTick();
 
     expect(wrapper.text()).toContain("K-line chart requires browser ResizeObserver support.");
-    const trigger = wrapper.get(".kline-chart-trigger");
+    const trigger = wrapper.get(".kline-indicator-selector__trigger");
     Object.defineProperty(trigger.element, "getBoundingClientRect", {
       configurable: true,
-      value: () => ({ bottom: 32, right: 64 }),
+      value: () => ({
+        x: 0,
+        y: 0,
+        width: 64,
+        height: 32,
+        top: 0,
+        right: 64,
+        bottom: 32,
+        left: 0,
+        toJSON: () => ({}),
+      }),
     });
     await trigger.trigger("click");
     expect(document.body.querySelector('input[value="volume"]')).not.toBeNull();

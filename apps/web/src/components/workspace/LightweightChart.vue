@@ -2,12 +2,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import KlineChart from "../KlineChart.vue";
+import KlineIndicatorSelector from "../KlineIndicatorSelector.vue";
 import MarketFeedStatus from "../domain/market-data/MarketFeedStatus.vue";
 import {
   KLINE_PERIODS,
   normalizeKlinePeriod,
   overlayRealtimeTickCandle,
   type KlineCandle,
+  type KlineIndicatorKey,
 } from "../../charting/kline";
 import {
   brokerSupportedChartPeriods,
@@ -16,6 +18,26 @@ import {
 import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
+
+type RenderableKlinePeriod = (typeof KLINE_PERIODS)[number]["value"];
+
+const props = withDefaults(
+  defineProps<{
+    target?: { market: string; symbol: string } | null;
+    period?: string;
+    variant?: "workspace" | "embedded";
+    minHeight?: number;
+  }>(),
+  {
+    period: "1d",
+    variant: "workspace",
+    minHeight: 320,
+  },
+);
+
+const emit = defineEmits<{
+  "update:period": [period: RenderableKlinePeriod];
+}>();
 
 const { prefs, update } = useWorkspaceTradingPrefs();
 const {
@@ -38,6 +60,7 @@ const {
   marketDataNextBefore,
   marketDataOlderError,
   loadMarketDataQuery,
+  selectMarketDataInstrument,
   selectWorkspaceInstrument,
   acquireMarketDataSubscription,
   createStableWebConsumerId,
@@ -48,7 +71,24 @@ const {
   isLiveStreamConnected,
 } = useConsoleData();
 
-const chartConsumerId = createStableWebConsumerId("workspace-chart");
+const controlled = computed(() => props.target !== undefined);
+const selectedIndicators = ref<KlineIndicatorKey[]>(["volume"]);
+const targetMarket = computed(() =>
+  (controlled.value ? props.target?.market : prefs.value.market)
+    ?.trim()
+    .toUpperCase() ?? "",
+);
+const targetSymbol = computed(() =>
+  (controlled.value ? props.target?.symbol : prefs.value.symbol)
+    ?.trim()
+    .toUpperCase() ?? "",
+);
+const renderablePeriods = new Set<string>(
+  KLINE_PERIODS.map((period) => period.value),
+);
+const chartConsumerId = createStableWebConsumerId(
+  controlled.value ? "embedded-chart" : "workspace-chart",
+);
 const liveHub = getSharedLiveSocketHub();
 let heldChartSubscription: {
   brokerId: string;
@@ -64,7 +104,7 @@ let chartReloadSeq = 0;
 const supportedPeriodValues = computed(() =>
   brokerSupportedChartPeriods(
     selectedBrokerId.value,
-    prefs.value.market,
+    targetMarket.value,
     brokerDescriptors.value,
   ),
 );
@@ -79,34 +119,52 @@ const hasResolvedPeriodCapabilities = computed(
 );
 const hasSupportedChartPeriod = computed(() => periods.value.length > 0);
 
-function normalizedPreferencePeriod(): string {
+function normalizedRenderablePeriod(value: string): RenderableKlinePeriod | "" {
   try {
-    return normalizeKlinePeriod(prefs.value.period);
+    const normalized = normalizeKlinePeriod(value);
+    return renderablePeriods.has(normalized)
+      ? (normalized as RenderableKlinePeriod)
+      : "";
   } catch {
     return "";
   }
 }
 
-function fallbackPeriod(values: readonly string[]): string {
+function normalizedSelectedPeriod(): RenderableKlinePeriod | "" {
+  return normalizedRenderablePeriod(
+    controlled.value ? props.period : prefs.value.period,
+  );
+}
+
+function fallbackPeriod(values: readonly string[]): RenderableKlinePeriod {
   for (const candidate of ["1m", "5m", "1d"]) {
-    if (values.includes(candidate)) return candidate;
+    if (values.includes(candidate)) return candidate as RenderableKlinePeriod;
   }
-  return values.find((period) => period !== "tick") ?? "tick";
+  return (
+    values.find((period) => period !== "tick") ?? "tick"
+  ) as RenderableKlinePeriod;
+}
+
+function commitPeriod(period: RenderableKlinePeriod): void {
+  if (controlled.value) {
+    emit("update:period", period);
+    return;
+  }
+  update({ period });
 }
 
 function reconcileSelectedPeriod(): void {
-  const renderable = new Set(KLINE_PERIODS.map((period) => period.value));
   const supported = (supportedPeriodValues.value ?? []).filter((period) =>
-    renderable.has(period as (typeof KLINE_PERIODS)[number]["value"]),
+    renderablePeriods.has(period),
   );
-  const current = normalizedPreferencePeriod();
+  const current = normalizedSelectedPeriod();
   if (supported.length > 0 && !supported.includes(current)) {
-    update({ period: fallbackPeriod(supported) });
+    commitPeriod(fallbackPeriod(supported));
   }
 }
 
 const chartTarget = computed(() => {
-  const preferredPeriod = normalizedPreferencePeriod();
+  const preferredPeriod = normalizedSelectedPeriod();
   const period = periods.value.some(
     (candidate) => candidate.value === preferredPeriod,
   )
@@ -114,13 +172,13 @@ const chartTarget = computed(() => {
     : "";
   return {
     brokerId: selectedBrokerId.value,
-    market: prefs.value.market.trim().toUpperCase(),
-    symbol: prefs.value.symbol.trim().toUpperCase(),
+    market: targetMarket.value,
+    symbol: targetSymbol.value,
     period,
     instrumentId:
-      prefs.value.market.trim() === "" || prefs.value.symbol.trim() === ""
+      targetMarket.value === "" || targetSymbol.value === ""
         ? ""
-        : `${prefs.value.market.trim().toUpperCase()}.${prefs.value.symbol.trim().toUpperCase()}`,
+        : `${targetMarket.value}.${targetSymbol.value}`,
     channel: (period === "tick" ? "TICK" : "KLINE") as "TICK" | "KLINE",
     interval: period,
   };
@@ -189,7 +247,10 @@ async function reload(options: { preserveExisting?: boolean } = {}): Promise<voi
       await syncChartSubscription(target, requestSeq);
       return;
     }
-    selectWorkspaceInstrument({
+    const selectInstrument = controlled.value
+      ? selectMarketDataInstrument
+      : selectWorkspaceInstrument;
+    selectInstrument({
       market: target.market,
       symbol: target.symbol,
       period: target.period,
@@ -342,8 +403,14 @@ function heartbeatChartSubscription(brokerId: string): Promise<void> {
     : heartbeatMarketDataConsumer(chartConsumerId);
 }
 
-function setPeriod(p: string): void {
-  update({ period: normalizeKlinePeriod(p) });
+function setPeriod(period: RenderableKlinePeriod): void {
+  commitPeriod(period);
+}
+
+function handleCompactPeriodChange(event: Event): void {
+  const value = (event.currentTarget as HTMLSelectElement).value;
+  const period = normalizedRenderablePeriod(value);
+  if (period !== "") setPeriod(period);
 }
 
 async function handleLoadMore(): Promise<void> {
@@ -381,6 +448,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  chartReloadSeq += 1;
   document.removeEventListener("visibilitychange", handleChartVisibilityChange);
   window.removeEventListener("online", handleChartOnline);
   window.clearInterval(heartbeatTimer);
@@ -398,6 +466,21 @@ onBeforeUnmount(() => {
         : {}),
       keepalive: true,
     });
+    heldChartSubscription = null;
+  }
+  if (controlled.value) {
+    const workspacePeriod = normalizedRenderablePeriod(prefs.value.period);
+    if (
+      prefs.value.market.trim() !== "" &&
+      prefs.value.symbol.trim() !== "" &&
+      workspacePeriod !== ""
+    ) {
+      selectMarketDataInstrument({
+        market: prefs.value.market,
+        symbol: prefs.value.symbol,
+        period: workspacePeriod,
+      });
+    }
   }
 });
 
@@ -410,7 +493,7 @@ watch(
 watch(
   () => [
     selectedBrokerId.value,
-    prefs.value.market,
+    targetMarket.value,
     supportedPeriodValues.value?.join(",") ?? "",
   ],
   () => {
@@ -420,18 +503,47 @@ watch(
 </script>
 
 <template>
-  <section class="tv-panel">
+  <section
+    class="tv-panel lightweight-chart"
+    :class="`lightweight-chart--${variant}`"
+    :style="{ '--lightweight-chart-min-height': `${minHeight}px` }"
+  >
     <div class="tv-panel-head lightweight-chart-head">
-      <div class="tv-seg lightweight-chart-head__periods">
-        <button
-          v-for="p in periods"
-          :key="p.value"
-          :class="{ 'is-active': normalizedPreferencePeriod() === p.value }"
-          :disabled="isLoadingBrokerCapabilities"
-          @click="setPeriod(p.value)"
-        >
-          {{ p.label }}
-        </button>
+      <div class="lightweight-chart-head__primary-controls">
+        <div class="tv-seg lightweight-chart-head__periods">
+          <button
+            v-for="p in periods"
+            :key="p.value"
+            type="button"
+            :class="{ 'is-active': normalizedSelectedPeriod() === p.value }"
+            :disabled="isLoadingBrokerCapabilities"
+            @click="setPeriod(p.value)"
+          >
+            {{ p.label }}
+          </button>
+        </div>
+        <label class="lightweight-chart-head__period-select">
+          <select
+            aria-label="K 线周期"
+            :value="normalizedSelectedPeriod()"
+            :disabled="isLoadingBrokerCapabilities || periods.length === 0"
+            @change="handleCompactPeriodChange"
+          >
+            <option v-if="periods.length === 0" value="">--</option>
+            <option v-for="p in periods" :key="p.value" :value="p.value">
+              {{ p.label }}
+            </option>
+          </select>
+          <span
+            class="fa-solid fa-chevron-down lightweight-chart-head__period-chevron"
+            aria-hidden="true"
+          />
+        </label>
+        <KlineIndicatorSelector
+          v-model="selectedIndicators"
+          storage-key="jftrade.workspace-chart.indicators"
+          :default-indicators="['volume']"
+        />
       </div>
       <span
         v-if="isLoadingBrokerCapabilities"
@@ -443,12 +555,14 @@ watch(
         v-else-if="brokerCapabilitiesError"
         class="lightweight-chart-head__capability-retry"
         type="button"
+        title="周期能力加载失败，点击重试"
         @click="retryBrokerCapabilities"
       >
         周期能力加载失败，点击重试
       </button>
-      <div style="flex: 1"></div>
+      <div class="lightweight-chart-head__spacer"></div>
       <MarketFeedStatus
+        class="lightweight-chart-head__feed-status"
         :connection-state="chartConnectionState"
         :observed-at="chartObservedAt"
         :transport-mode="chartTransportMode"
@@ -457,16 +571,21 @@ watch(
         :loading="isLoadingMarketDataQuery"
         :error="marketDataQueryError"
       />
-      <button class="tv-icon-btn" title="刷新" @click="() => reload()">↻</button>
+      <button
+        class="tv-icon-btn lightweight-chart-head__refresh"
+        type="button"
+        title="刷新"
+        @click="() => reload()"
+      >
+        ↻
+      </button>
     </div>
     <div class="tv-panel-body is-flush">
       <div class="tv-chart-host">
         <KlineChart
           :candles="chartCandles"
-          :min-height="320"
-          show-indicator-selector
-          indicator-storage-key="jftrade.workspace-chart.indicators"
-          :default-indicators="['volume']"
+          :min-height="minHeight"
+          :indicators="selectedIndicators"
           empty-text="暂无 K 线数据；确认 OpenD 行情权限后点击刷新。"
           @load-more="handleLoadMore"
         />
@@ -496,20 +615,103 @@ watch(
 </template>
 
 <style scoped>
+.lightweight-chart {
+  container: lightweight-chart / inline-size;
+}
+
+.lightweight-chart-head {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lightweight-chart--workspace .lightweight-chart-head {
+  padding-left: var(--workspace-chart-head-left-reserve, 10px);
+}
+
+.lightweight-chart-head__primary-controls {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
 .lightweight-chart-head__periods {
   flex: 0 0 auto;
 }
 
+.lightweight-chart-head__period-select {
+  position: relative;
+  display: none;
+  height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.lightweight-chart-head__period-select select {
+  height: 26px;
+  min-width: 58px;
+  padding: 0 24px 0 8px;
+  appearance: none;
+  border: 1px solid var(--tv-border);
+  border-radius: 4px;
+  outline: none;
+  background: transparent;
+  color: var(--tv-text);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.lightweight-chart-head__period-select select:hover,
+.lightweight-chart-head__period-select select:focus-visible {
+  border-color: var(--tv-border-strong);
+  background: var(--tv-bg-elevated);
+}
+
+.lightweight-chart-head__period-select select:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.lightweight-chart-head__period-chevron {
+  position: absolute;
+  right: 8px;
+  color: var(--tv-text-muted);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.lightweight-chart-head__spacer {
+  min-width: 0;
+  flex: 1;
+}
+
 .lightweight-chart-head__capability-state,
 .lightweight-chart-head__capability-retry {
+  min-width: 0;
+  max-width: 180px;
+  flex: 0 1 auto;
+  overflow: hidden;
   color: var(--tv-text-muted);
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lightweight-chart-head__capability-retry {
   border: 0;
   background: transparent;
   cursor: pointer;
+}
+
+.lightweight-chart-head__feed-status {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.lightweight-chart-head__refresh {
+  flex: 0 0 32px;
 }
 
 .tv-panel-body.is-flush {
@@ -561,23 +763,35 @@ watch(
   min-height: 0;
 }
 
-@media (max-width: 768px) {
+.lightweight-chart--embedded {
+  height: auto;
+  flex: 0 0 auto;
+}
+
+.lightweight-chart--embedded .tv-panel-body.is-flush,
+.lightweight-chart--embedded .tv-chart-host {
+  height: var(--lightweight-chart-min-height, 320px);
+  min-height: var(--lightweight-chart-min-height, 320px);
+  flex: 0 0 var(--lightweight-chart-min-height, 320px);
+}
+
+.lightweight-chart--embedded .tv-chart-host :deep(.kline-chart-shell) {
+  min-height: var(--lightweight-chart-min-height, 320px);
+}
+
+@container lightweight-chart (max-width: 720px) {
   .lightweight-chart-head {
-    height: auto;
-    min-height: 36px;
-    flex-wrap: wrap;
-    align-items: center;
     gap: 6px;
-    padding-inline: 6px;
+    padding-right: 6px;
+    padding-left: var(--workspace-chart-head-left-reserve, 6px);
   }
 
   .lightweight-chart-head__periods {
-    order: 10;
-    flex: 1 1 100%;
-    margin-left: 0;
-    max-width: 100%;
-    overflow-x: auto;
+    display: none;
   }
 
+  .lightweight-chart-head__period-select {
+    display: inline-flex;
+  }
 }
 </style>

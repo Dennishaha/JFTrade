@@ -27,6 +27,8 @@ describe("RankListPanel", () => {
     expect(wrapper.text()).toContain("最新价");
     expect(wrapper.findAll("tbody tr")).toHaveLength(3);
     expect(wrapper.text()).toContain("00700");
+    expect(wrapper.get("thead .rank-list-panel__name").text()).toBe("名称");
+    expect(wrapper.get("tbody .rank-list-panel__name").text()).toBe("腾讯");
   });
 
   it("sorts by value field descending by default and toggles on header click", async () => {

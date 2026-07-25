@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
 
 import KlineChart from "../src/components/KlineChart.vue";
+import type { KlineIndicatorKey } from "../src/charting/kline";
 import { lightweightChartsKlineFactory } from "../src/charting/lightweightChartsKline";
 import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences";
 import { provideThemeStore } from "../src/composables/useTheme";
@@ -249,7 +250,7 @@ describe("KlineChart", () => {
         macdPositive: "#22c55e",
         macdNegative: "#ef4444",
       },
-      indicators: ["ma5"],
+      indicators: ["volume", "ma5"],
     });
 
     const options = chartMocks.createChart.mock.calls.at(-1)?.[1] as {
@@ -261,7 +262,27 @@ describe("KlineChart", () => {
         tickMarkFormatter?: (time: number | string | { year: number; month: number; day: number }, type: number) => string;
       };
     };
-    expect(options.localization?.priceFormatter?.(23.649999999999999)).toBe("23.65");
+    expect(options.localization?.priceFormatter).toBeUndefined();
+    const candleOptions = chartMocks.getLastCandlestickSeriesOptions() as {
+      priceFormat?: { formatter?: (price: number) => string };
+    };
+    expect(candleOptions.priceFormat?.formatter?.(23.649999999999999)).toBe(
+      "23.65",
+    );
+    expect(candleOptions.priceFormat?.formatter?.(110.11111111)).toBe(
+      "110.111",
+    );
+    const chart = chartMocks.createChart.mock.results.at(-1)?.value;
+    const volumeSeriesCall = chart?.addSeries.mock.calls.find(
+      ([definition]) => definition.type === "Histogram",
+    );
+    const volumePriceFormat = volumeSeriesCall?.[1]?.priceFormat as {
+      formatter?: (volume: number) => string;
+    };
+    expect(volumePriceFormat.formatter?.(999)).toBe("999");
+    expect(volumePriceFormat.formatter?.(1_200)).toBe("1.2K");
+    expect(volumePriceFormat.formatter?.(60_000_000)).toBe("60M");
+    expect(volumePriceFormat.formatter?.(1_250_000_000)).toBe("1.25B");
     expect(options.localization?.timeFormatter?.(1_718_000_000)).toContain("2024");
     expect(options.localization?.timeFormatter?.("2026-05-17T01:31:00.000Z")).toContain("2026");
     expect(options.localization?.timeFormatter?.("not-a-time")).toBe("");
@@ -275,6 +296,30 @@ describe("KlineChart", () => {
     expect(options.timeScale?.tickMarkFormatter?.("2026-05-17T01:31:00.000Z", 3)).toMatch(/\d{2}:\d{2}/);
     expect(options.timeScale?.tickMarkFormatter?.("not-a-time", 3)).toBe("");
 
+    adapter.setCandles([
+      {
+        at: "2026-05-17T01:31:00.000Z",
+        open: 0.12345671,
+        high: 0.12345679,
+        low: 0.1234567,
+        close: 0.12345678,
+        volume: 1_200,
+      },
+    ]);
+    const preciseOptions = chartMocks.candlestickApplyOptions.mock.calls.at(-1)?.[0] as {
+      priceFormat?: {
+        formatter?: (price: number) => string;
+        minMove?: number;
+      };
+    };
+    expect(preciseOptions.priceFormat?.formatter?.(0.12345678)).toBe(
+      "0.123",
+    );
+    expect(preciseOptions.priceFormat?.formatter?.(0.00012345678)).toBe(
+      "1.23e-4",
+    );
+    expect(preciseOptions.priceFormat?.minMove).toBe(0.00000001);
+
     const loadMore = vi.fn();
     adapter.setLoadMoreHandler(loadMore);
     chartMocks.triggerVisibleLogicalRange(null);
@@ -284,7 +329,6 @@ describe("KlineChart", () => {
     expect(chartMocks.fitContent).toHaveBeenCalledOnce();
 
     adapter.remove();
-    const chart = chartMocks.createChart.mock.results.at(-1)?.value;
     expect(chart?.remove).toHaveBeenCalledOnce();
   });
 
@@ -733,7 +777,7 @@ describe("KlineChart", () => {
     await nextTick();
 
     // Open the selector and enable MACD / KDJ from the popup.
-    await wrapper.get("button.kline-chart-trigger").trigger("click");
+    await wrapper.get("button.kline-indicator-selector__trigger").trigger("click");
     const macdInput = document.body.querySelector(
       "input[value='macd']",
     ) as HTMLInputElement | null;
@@ -846,7 +890,7 @@ describe("KlineChart", () => {
     const shell = wrapper.get(".kline-chart-shell").element as HTMLElement;
     expect(shell.getAttribute("style") ?? "").toContain("--kline-min-h: 440px");
 
-    await wrapper.get("button.kline-chart-trigger").trigger("click");
+    await wrapper.get("button.kline-indicator-selector__trigger").trigger("click");
     const ma5Input = document.body.querySelector(
       "input[value='ma5']",
     ) as HTMLInputElement | null;
@@ -862,6 +906,69 @@ describe("KlineChart", () => {
     expect(chartMocks.overlayLineSetDataByTitle.MA5).toHaveBeenCalled();
     expect(chartMocks.overlayLineSetDataByTitle.EMA5).toHaveBeenCalled();
     expect(shell.getAttribute("style") ?? "").toContain("--kline-min-h: 440px");
+  });
+
+  it("renders controlled indicators and updates pane height from the prop", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    const candles = ref([
+      {
+        at: "2026-05-17T01:30:00.000Z",
+        open: 320,
+        high: 320.8,
+        low: 319.9,
+        close: 320.5,
+        volume: 18_000,
+      },
+    ]);
+    const indicators = ref<KlineIndicatorKey[]>(["macd"]);
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles, indicators };
+      },
+      template:
+        '<KlineChart :candles="candles" :min-height="320" :indicators="indicators" show-indicator-selector />',
+    });
+
+    const wrapper = mount(Host, { attachTo: document.body });
+    await nextTick();
+    await nextTick();
+    const shell = wrapper.get(".kline-chart-shell");
+    expect(shell.attributes("style") ?? "").toContain("--kline-min-h: 440px");
+
+    await wrapper.get(".kline-indicator-selector__trigger").trigger("click");
+    document.body
+      .querySelector<HTMLInputElement>('input[value="ma5"]')
+      ?.dispatchEvent(new Event("change", { bubbles: true }));
+    await nextTick();
+    expect(
+      wrapper.getComponent(KlineChart).emitted("update:indicators")?.at(-1),
+    ).toEqual([["macd", "ma5"]]);
+
+    indicators.value = ["ma5"];
+    await nextTick();
+    await nextTick();
+
+    expect(shell.attributes("style") ?? "").toContain("--kline-min-h: 320px");
+    expect(chartMocks.overlayLineSetDataByTitle.MA5).toHaveBeenCalled();
   });
 
   it("recenters the chart on the latest bars when the candle period changes", async () => {
@@ -1007,7 +1114,7 @@ describe("KlineChart", () => {
 
     expect(chartMocks.overlayLineSetDataByTitle.MA5).toHaveBeenCalled();
 
-    await wrapper.get("button.kline-chart-trigger").trigger("click");
+    await wrapper.get("button.kline-indicator-selector__trigger").trigger("click");
     const ema5Input = document.body.querySelector(
       "input[value='ema5']",
     ) as HTMLInputElement | null;
@@ -1302,12 +1409,12 @@ describe("KlineChart", () => {
     await nextTick();
     await nextTick();
 
-    await wrapper.get("button.kline-chart-trigger").trigger("click");
-    expect(wrapper.find(".kline-chart-panel").exists()).toBe(true);
+    await wrapper.get("button.kline-indicator-selector__trigger").trigger("click");
+    expect(wrapper.find(".kline-indicator-selector__panel").exists()).toBe(true);
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     await nextTick();
-    expect(wrapper.find(".kline-chart-panel").exists()).toBe(false);
+    expect(wrapper.find(".kline-indicator-selector__panel").exists()).toBe(false);
 
     chartMocks.barsInLogicalRange.mockReturnValue({ barsBefore: 0 });
     chartMocks.triggerVisibleLogicalRange({ from: 0, to: 2 });

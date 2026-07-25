@@ -110,9 +110,10 @@ function createConsoleDataState() {
     ]),
     isLoadingMarketDataQuery: ref(false),
     loadMarketDataQuery: vi.fn().mockResolvedValue(undefined),
+    selectMarketDataInstrument: vi.fn(),
     selectWorkspaceInstrument: vi.fn(),
     acquireMarketDataSubscription: vi.fn().mockResolvedValue(true),
-    createStableWebConsumerId: vi.fn(() => "workspace-chart:1"),
+    createStableWebConsumerId: vi.fn((scope: string) => `${scope}:1`),
     heartbeatMarketDataConsumer: vi.fn().mockResolvedValue(undefined),
     releaseMarketDataSubscription: vi.fn().mockResolvedValue(undefined),
     activeMarketDataInstrumentId: ref("US.AAPL"),
@@ -135,7 +136,7 @@ function createWorkspaceState() {
   };
 }
 
-function mountChart() {
+function mountChart(props: Record<string, unknown> = {}) {
   const providerSelection = useBrokerProviderSelection();
   if (providerSelection.brokerDescriptors.value.length === 0) {
     const providerId = providerSelection.selectedBrokerId.value || "test";
@@ -187,13 +188,14 @@ function mountChart() {
   }
   const wrapper = mount(LightweightChart, {
     attachTo: document.body,
+    props,
     global: {
       stubs: {
         KlineChart: {
-          props: ["candles", "minHeight"],
+          props: ["candles", "minHeight", "indicators"],
           emits: ["load-more"],
           template:
-            "<button class='kline-chart-stub' @click=\"$emit('load-more')\">{{ candles.length }} candles / {{ minHeight }}</button>",
+            "<button class='kline-chart-stub' :data-indicators='indicators.join(`,`)' @click=\"$emit('load-more')\">{{ candles.length }} candles / {{ minHeight }}</button>",
         },
       },
     },
@@ -221,6 +223,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  window.localStorage.clear();
   document.body.innerHTML = "";
 });
 
@@ -248,8 +251,74 @@ describe("LightweightChart", () => {
     expect(header.text()).not.toContain("根");
     expect(header.text()).not.toContain("上限");
     expect(header.findAll(".lightweight-chart-head__periods button").length).toBeGreaterThan(0);
+    const primaryControls = header.get(
+      ".lightweight-chart-head__primary-controls",
+    );
+    expect(
+      Array.from(primaryControls.element.children).map(
+        (element) => element.className,
+      ),
+    ).toEqual([
+      "tv-seg lightweight-chart-head__periods",
+      "lightweight-chart-head__period-select",
+      "kline-indicator-selector",
+    ]);
+    const compactPeriod = header.get<HTMLSelectElement>(
+      ".lightweight-chart-head__period-select select",
+    );
+    expect(compactPeriod.element.value).toBe("1m");
+    expect(compactPeriod.findAll("option")).toHaveLength(
+      header.findAll(".lightweight-chart-head__periods button").length,
+    );
+    expect(
+      header
+        .get(".lightweight-chart-head__period-chevron")
+        .classes(),
+    ).toContain("fa-chevron-down");
+    expect(header.text()).not.toContain("⌄");
+    expect(header.text()).not.toContain(" V");
     expect(header.get('button[title="刷新"]').exists()).toBe(true);
     expect(header.find(".instrument-identity").exists()).toBe(false);
+    expect(wrapper.get(".kline-chart-stub").attributes("data-indicators")).toBe(
+      "volume",
+    );
+    wrapper.unmount();
+  });
+
+  it("uses the compact period selector without changing period semantics", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const wrapper = mountChart();
+    await flushUi();
+    await wrapper
+      .get(".lightweight-chart-head__period-select select")
+      .setValue("1d");
+    await flushUi();
+
+    expect(stores.workspace.update).toHaveBeenCalledWith({ period: "1d" });
+    wrapper.unmount();
+  });
+
+  it("restores shared indicator preferences into the topbar control and chart", async () => {
+    window.localStorage.setItem(
+      "jftrade.workspace-chart.indicators",
+      JSON.stringify(["ma5", "macd"]),
+    );
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const wrapper = mountChart();
+    await flushUi();
+
+    expect(
+      wrapper.get(".kline-indicator-selector__trigger").text(),
+    ).toContain("2");
+    expect(wrapper.get(".kline-chart-stub").attributes("data-indicators")).toBe(
+      "macd,ma5",
+    );
     wrapper.unmount();
   });
 
@@ -319,6 +388,87 @@ describe("LightweightChart", () => {
       market: "US",
       symbol: "AAPL",
       channel: "TICK",
+      keepalive: true,
+    });
+  });
+
+  it("uses a controlled target without changing workspace preferences and restores the workspace query on unmount", async () => {
+    stores.consoleData = createConsoleDataState();
+    stores.workspace = createWorkspaceState();
+    stores.liveHub = { waitForConnection: vi.fn().mockResolvedValue(true) };
+
+    const wrapper = mountChart({
+      target: { market: "US", symbol: "MSFT" },
+      period: "1d",
+      variant: "embedded",
+      minHeight: 320,
+    });
+    await flushUi();
+
+    expect(wrapper.classes()).toContain("lightweight-chart--embedded");
+    expect(stores.consoleData.selectMarketDataInstrument).toHaveBeenCalledWith({
+      market: "US",
+      symbol: "MSFT",
+      period: "1d",
+    });
+    expect(stores.consoleData.selectWorkspaceInstrument).not.toHaveBeenCalled();
+    expect(stores.workspace.update).not.toHaveBeenCalled();
+    expect(stores.consoleData.acquireMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "embedded-chart:1",
+      market: "US",
+      symbol: "MSFT",
+      channel: "KLINE",
+      interval: "1d",
+    });
+
+    await wrapper.get(".lightweight-chart-head__periods button").trigger("click");
+    expect(wrapper.emitted("update:period")?.[0]).toEqual(["tick"]);
+    expect(stores.workspace.update).not.toHaveBeenCalled();
+
+    await wrapper
+      .get(".lightweight-chart-head__period-select select")
+      .setValue("1w");
+    expect(wrapper.emitted("update:period")?.[1]).toEqual(["1w"]);
+    expect(stores.workspace.update).not.toHaveBeenCalled();
+
+    stores.consoleData.releaseMarketDataSubscription.mockClear();
+    stores.consoleData.acquireMarketDataSubscription.mockClear();
+    await wrapper.setProps({
+      target: { market: "US", symbol: "NVDA" },
+      period: "5m",
+    });
+    await flushUi();
+
+    expect(stores.consoleData.releaseMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "embedded-chart:1",
+      market: "US",
+      symbol: "MSFT",
+      channel: "KLINE",
+      interval: "1d",
+    });
+    expect(stores.consoleData.acquireMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "embedded-chart:1",
+      market: "US",
+      symbol: "NVDA",
+      channel: "KLINE",
+      interval: "5m",
+    });
+
+    stores.consoleData.selectMarketDataInstrument.mockClear();
+    stores.consoleData.releaseMarketDataSubscription.mockClear();
+    wrapper.unmount();
+
+    expect(stores.consoleData.selectMarketDataInstrument).toHaveBeenCalledWith({
+      market: "us",
+      symbol: "aapl",
+      period: "1m",
+    });
+    expect(stores.consoleData.releaseMarketDataSubscription).toHaveBeenCalledWith({
+      consumerId: "embedded-chart:1",
+      market: "US",
+      symbol: "NVDA",
+      channel: "KLINE",
+      interval: "5m",
       keepalive: true,
     });
   });

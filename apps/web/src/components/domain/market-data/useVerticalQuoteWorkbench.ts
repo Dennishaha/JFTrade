@@ -6,13 +6,10 @@ import {
   watch,
 } from "vue";
 
-import type { KlineCandle } from "../../../charting/kline";
 import { fetchEnvelope } from "../../../composables/apiClient";
 import { withBrokerProvider } from "../../../composables/brokerProviderSelection";
 import {
-  normalizeMarketDataCandlesQueryResult,
   normalizeMarketDataSnapshotQueryResult,
-  type MarketDataCandlesQueryResult,
   type MarketDataSnapshotQueryResult,
 } from "../../../composables/marketDataRealtime";
 import { normalizeMarketSecurityDetailsQueryResult } from "../../../composables/marketSecurityNormalization";
@@ -30,16 +27,6 @@ import {
   type ResearchQuoteTarget,
 } from "../../research/researchQuote";
 import { fetchResearchSnapshots } from "../../research/researchSnapshots";
-import type { QuoteWorkbenchPeriod } from "./quoteWorkbench";
-
-export type RailPeriod = QuoteWorkbenchPeriod;
-
-interface PeriodOption {
-  value: RailPeriod;
-  label: string;
-  period: "1d" | "1w" | "1mo";
-  limit: number;
-}
 
 interface FeatureResult {
   entries?: Record<string, unknown>[];
@@ -67,132 +54,22 @@ export interface VerticalQuoteWorkbenchInput {
 
 export type ResearchQuoteRailInput = VerticalQuoteWorkbenchInput;
 
-export const RESEARCH_RAIL_PERIODS: readonly PeriodOption[] = [
-  { value: "five-day", label: "5日", period: "1d", limit: 5 },
-  { value: "day", label: "日K", period: "1d", limit: 120 },
-  { value: "week", label: "周K", period: "1w", limit: 120 },
-  { value: "month", label: "月K", period: "1mo", limit: 120 },
-];
-
 const numberFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 4,
 });
 
-const marketTimeZones: Readonly<Record<string, string>> = {
-  US: "America/New_York",
-  HK: "Asia/Hong_Kong",
-  SH: "Asia/Shanghai",
-  SZ: "Asia/Shanghai",
-};
-
-interface ZonedDateTimeParts {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-  second: number;
-}
-
-function zonedDateTimeParts(at: Date, timeZone: string): ZonedDateTimeParts {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(at);
-  const value = (type: Intl.DateTimeFormatPartTypes): number =>
-    Number(parts.find((part) => part.type === type)?.value ?? 0);
-  return {
-    year: value("year"),
-    month: value("month"),
-    day: value("day"),
-    hour: value("hour"),
-    minute: value("minute"),
-    second: value("second"),
-  };
-}
-
-function timeZoneOffsetMilliseconds(at: Date, timeZone: string): number {
-  const parts = zonedDateTimeParts(at, timeZone);
-  const representedAsUtc = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute,
-    parts.second,
-  );
-  return representedAsUtc - Math.trunc(at.getTime() / 1_000) * 1_000;
-}
-
-function zonedMidnightUtc(
-  year: number,
-  month: number,
-  day: number,
-  timeZone: string,
-): Date {
-  const nominalUtc = Date.UTC(year, month - 1, day);
-  let resolved = nominalUtc;
-  // A second pass handles an offset transition between the nominal UTC instant
-  // and local midnight (for example, a DST boundary).
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    resolved = nominalUtc - timeZoneOffsetMilliseconds(new Date(resolved), timeZone);
-  }
-  return new Date(resolved);
-}
-
-/**
- * Strict upper cursor for completed historical bars. The active market-local
- * day/week/month is excluded, so the route cannot fall through to GetKL for an
- * unfinished bucket. This intentionally favors a closed bar over a live bar.
- */
-export function researchHistoryBeforeTime(
-  market: string,
-  period: "1d" | "1w" | "1mo",
-  now = new Date(),
-): string {
-  const timeZone = marketTimeZones[market.trim().toUpperCase()] ?? "UTC";
-  const local = zonedDateTimeParts(now, timeZone);
-  const normalizedLocalDate = new Date(
-    Date.UTC(local.year, local.month - 1, local.day),
-  );
-  if (period === "1w") {
-    const daysSinceMonday = (normalizedLocalDate.getUTCDay() + 6) % 7;
-    normalizedLocalDate.setUTCDate(
-      normalizedLocalDate.getUTCDate() - daysSinceMonday,
-    );
-  } else if (period === "1mo") {
-    normalizedLocalDate.setUTCDate(1);
-  }
-  return zonedMidnightUtc(
-    normalizedLocalDate.getUTCFullYear(),
-    normalizedLocalDate.getUTCMonth() + 1,
-    normalizedLocalDate.getUTCDate(),
-    timeZone,
-  ).toISOString();
-}
-
 export function useVerticalQuoteWorkbench(
   props: Readonly<VerticalQuoteWorkbenchInput>,
 ) {
-  const selectedPeriod = ref<RailPeriod>("day");
   const snapshotResult = ref<MarketDataSnapshotQueryResult | null>(null);
   const securityResult = ref<MarketSecurityDetailsQueryResult | null>(null);
-  const candles = ref<KlineCandle[]>([]);
   const plateMembers = ref<ResearchQuoteTarget[]>([]);
   const plateMemberStats = ref<PlateMemberStats | null>(null);
   const snapshotLoading = ref(false);
   const securityLoading = ref(false);
-  const candlesLoading = ref(false);
   const plateMembersLoading = ref(false);
   const snapshotError = ref("");
   const securityError = ref("");
-  const candlesError = ref("");
   const plateMembersError = ref("");
   const watchlistDialogOpen = ref(false);
   const favorite = ref(false);
@@ -202,7 +79,6 @@ export function useVerticalQuoteWorkbench(
 
   let requestToken = 0;
   let snapshotToken = 0;
-  let candlesToken = 0;
   let mounted = false;
   let snapshotPollTimer: number | null = null;
 
@@ -215,12 +91,6 @@ export function useVerticalQuoteWorkbench(
   const normalizedBrokerId = computed(() =>
     (props.brokerId ?? "").trim().toLowerCase(),
   );
-  const currentPeriod = computed(
-    () =>
-      RESEARCH_RAIL_PERIODS.find(
-        (option) => option.value === selectedPeriod.value,
-      ) ?? RESEARCH_RAIL_PERIODS[1]!,
-  );
   const security = computed(() => securityResult.value?.security ?? null);
   const snapshot = computed(() => snapshotResult.value?.snapshot ?? null);
   const targetKey = computed(() => {
@@ -229,9 +99,6 @@ export function useVerticalQuoteWorkbench(
       ? ""
       : `${target.kind}:${target.instrumentId}:${target.productClass}`;
   });
-  const supportsCandles = computed(
-    () => resolvedTarget.value?.kind !== "plate",
-  );
   const extendedCards = computed(() => {
     if (instrumentParts.value?.market !== "US") return [];
     return resolveMarketSnapshotDisplay(snapshot.value, true).extendedCards;
@@ -465,7 +332,7 @@ export function useVerticalQuoteWorkbench(
   }
 
   function marketDataPath(
-    resource: "snapshots" | "securities" | "candles",
+    resource: "snapshots" | "securities",
     suffix = "",
   ): string {
     const parts = instrumentParts.value;
@@ -508,70 +375,6 @@ export function useVerticalQuoteWorkbench(
       }
     } finally {
       if (token === requestToken) securityLoading.value = false;
-    }
-  }
-
-  function toKlineCandle(
-    dto: MarketDataCandlesQueryResult["candles"][number],
-  ): KlineCandle {
-    return {
-      period: dto.period,
-      at: dto.at,
-      ...(dto.displayAt == null ? {} : { displayAt: dto.displayAt }),
-      open: dto.open,
-      high: dto.high,
-      low: dto.low,
-      close: dto.close,
-      volume: dto.volume,
-      ...(dto.session == null ? {} : { session: dto.session }),
-    };
-  }
-
-  async function loadCandles(token: number): Promise<void> {
-    const localToken = ++candlesToken;
-    if (!supportsCandles.value) {
-      candles.value = [];
-      candlesError.value = "板块暂不提供历史 K 线";
-      candlesLoading.value = false;
-      return;
-    }
-    if (normalizedBrokerId.value === "") {
-      candles.value = [];
-      candlesError.value = "请选择支持历史行情的数据源";
-      candlesLoading.value = false;
-      return;
-    }
-    const period = currentPeriod.value;
-    const parts = instrumentParts.value;
-    if (parts == null) return;
-    const beforeTime = researchHistoryBeforeTime(parts.market, period.period);
-    const beforeTimestamp = Date.parse(beforeTime);
-    const params = new URLSearchParams({
-      period: period.period,
-      limit: String(period.limit),
-      before: beforeTime,
-    });
-    const path = marketDataPath("candles", `?${params.toString()}`);
-    if (path === "") return;
-    candlesLoading.value = true;
-    candlesError.value = "";
-    try {
-      const response = await fetchEnvelope<MarketDataCandlesQueryResult>(path);
-      if (token !== requestToken || localToken !== candlesToken) return;
-      const normalized = normalizeMarketDataCandlesQueryResult(response);
-      candles.value = normalized.candles
-        .filter((candle) => {
-          const at = Date.parse(candle.at);
-          return Number.isFinite(at) && at < beforeTimestamp;
-        })
-        .map(toKlineCandle);
-    } catch (cause) {
-      if (token !== requestToken || localToken !== candlesToken) return;
-      candlesError.value = errorMessage(cause, "K 线数据加载失败");
-    } finally {
-      if (token === requestToken && localToken === candlesToken) {
-        candlesLoading.value = false;
-      }
     }
   }
 
@@ -650,16 +453,13 @@ export function useVerticalQuoteWorkbench(
   function resetTargetState(): void {
     snapshotResult.value = null;
     securityResult.value = null;
-    candles.value = [];
     plateMembers.value = [];
     plateMemberStats.value = null;
     snapshotError.value = "";
     securityError.value = "";
-    candlesError.value = "";
     plateMembersError.value = "";
     snapshotLoading.value = false;
     securityLoading.value = false;
-    candlesLoading.value = false;
     plateMembersLoading.value = false;
     favorite.value = false;
     watchlistDialogOpen.value = false;
@@ -668,13 +468,11 @@ export function useVerticalQuoteWorkbench(
   async function loadTarget(): Promise<void> {
     const token = ++requestToken;
     snapshotToken++;
-    candlesToken++;
     resetTargetState();
     if (resolvedTarget.value == null || instrumentParts.value == null) return;
     await Promise.allSettled([
       loadSnapshot(token),
       loadSecurity(token),
-      loadCandles(token),
       loadPlateMembers(token),
       loadFavorite(token),
     ]);
@@ -686,7 +484,6 @@ export function useVerticalQuoteWorkbench(
     await Promise.allSettled([
       loadSnapshot(token),
       loadSecurity(token),
-      loadCandles(token),
       loadPlateMembers(token),
       loadFavorite(token),
     ]);
@@ -740,11 +537,6 @@ export function useVerticalQuoteWorkbench(
     },
     { immediate: true },
   );
-  watch(selectedPeriod, () => {
-    if (resolvedTarget.value != null && instrumentParts.value != null) {
-      void loadCandles(requestToken);
-    }
-  });
   watch(
     () => props.visible,
     () => restartSnapshotPolling(),
@@ -761,7 +553,6 @@ export function useVerticalQuoteWorkbench(
   onBeforeUnmount(() => {
     requestToken++;
     snapshotToken++;
-    candlesToken++;
     mounted = false;
     clearSnapshotPolling();
     if (typeof document !== "undefined") {
@@ -770,8 +561,6 @@ export function useVerticalQuoteWorkbench(
   });
 
   return {
-    PERIOD_OPTIONS: RESEARCH_RAIL_PERIODS,
-    selectedPeriod,
     resolvedTarget,
     instrumentParts,
     name,
@@ -784,15 +573,12 @@ export function useVerticalQuoteWorkbench(
     security,
     snapshot,
     extendedCards,
-    candles,
     plateMembers,
     snapshotLoading,
     securityLoading,
-    candlesLoading,
     plateMembersLoading,
     snapshotError,
     securityError,
-    candlesError,
     plateMembersError,
     watchlistDialogOpen,
     favorite,

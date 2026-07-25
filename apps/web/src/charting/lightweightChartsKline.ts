@@ -38,6 +38,11 @@ import {
   computeSimpleMovingAverage,
   computeWilliamsR,
 } from "./lightweightChartsIndicators";
+import {
+  createKlinePriceFormat,
+  KLINE_VOLUME_PRICE_FORMAT,
+  resolveKlinePricePrecision,
+} from "./lightweightChartsFormatting";
 
 const INITIAL_VISIBLE_BARS = 120;
 const INITIAL_RIGHT_OFFSET_BARS = 8;
@@ -64,6 +69,8 @@ type OverlayIndicatorDefinition = KlineIndicatorDefinition & {
   family: "ma" | "ema";
   period: number;
 };
+
+const DEFAULT_PRICE_FORMAT = createKlinePriceFormat();
 
 function toTimestamp(at: string): UTCTimestamp {
   return Math.floor(new Date(at).getTime() / 1000) as UTCTimestamp;
@@ -189,13 +196,17 @@ function getOverlayIndicatorDefinition(
   return getKlineIndicatorDefinition(indicator)! as OverlayIndicatorDefinition;
 }
 
-function buildOverlaySeriesOptions(indicator: KlineIndicatorKey) {
+function buildOverlaySeriesOptions(
+  indicator: KlineIndicatorKey,
+  priceFormat = DEFAULT_PRICE_FORMAT,
+) {
   const definition = getOverlayIndicatorDefinition(indicator);
 
   const lineWidth: LineWidth = definition.family === "ma" ? 2 : 1;
 
   return {
     title: definition.label,
+    priceFormat,
     color: getOverlaySeriesColor(definition.period),
     lineWidth,
     lineStyle:
@@ -248,6 +259,8 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
   private palette: KlineChartPalette;
   private selectedIndicators: KlineIndicatorKey[];
   private currentCandles: KlineCandle[] = [];
+  private currentPricePrecision = resolveKlinePricePrecision([]);
+  private currentPriceFormat = createKlinePriceFormat();
   private loadMoreHandler: (() => void) | null = null;
   private hasFitInitialData = false;
   private firstTimestamp: number | null = null;
@@ -289,15 +302,13 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       },
       localization: {
         timeFormatter: formatLocalChartTime,
-        // Strip IEEE-754 float64 noise (e.g. 23.649999999999999 → "23.65").
-        // parseFloat removes trailing zeros so "23.6500" becomes "23.65".
-        priceFormatter: (price: number) => String(parseFloat(price.toFixed(8))),
       },
       crosshair: { mode: CrosshairMode.Normal },
     });
 
     // Main candlestick series always lives in pane 0.
     this.candleSeries = this.chart.addSeries(CandlestickSeries, {
+      priceFormat: this.currentPriceFormat,
       upColor: palette.up,
       downColor: palette.down,
       borderUpColor: palette.up,
@@ -364,7 +375,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         this.volumeSeries = this.chart.addSeries(
           HistogramSeries,
           {
-            priceFormat: { type: "volume" },
+            priceFormat: KLINE_VOLUME_PRICE_FORMAT,
             priceLineVisible: false,
             lastValueVisible: false,
           },
@@ -374,12 +385,17 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         // All three MACD series share the same pane index.
         this.macdHistogramSeries = this.chart.addSeries(
           HistogramSeries,
-          { priceLineVisible: false, lastValueVisible: false },
+          {
+            priceFormat: this.currentPriceFormat,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          },
           paneIdx,
         );
         this.macdDiffSeries = this.chart.addSeries(
           LineSeries,
           {
+            priceFormat: this.currentPriceFormat,
             lineWidth: 2,
             color: this.palette.indicatorA,
             priceLineVisible: false,
@@ -391,6 +407,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         this.macdDeaSeries = this.chart.addSeries(
           LineSeries,
           {
+            priceFormat: this.currentPriceFormat,
             lineWidth: 2,
             color: this.palette.indicatorB,
             priceLineVisible: false,
@@ -403,6 +420,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         this.kdjKSeries = this.chart.addSeries(
           LineSeries,
           {
+            priceFormat: this.currentPriceFormat,
             lineWidth: 2,
             color: this.palette.indicatorA,
             priceLineVisible: false,
@@ -414,6 +432,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         this.kdjDSeries = this.chart.addSeries(
           LineSeries,
           {
+            priceFormat: this.currentPriceFormat,
             lineWidth: 2,
             color: this.palette.indicatorB,
             priceLineVisible: false,
@@ -425,6 +444,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         this.kdjJSeries = this.chart.addSeries(
           LineSeries,
           {
+            priceFormat: this.currentPriceFormat,
             lineWidth: 2,
             color: this.palette.indicatorC,
             priceLineVisible: false,
@@ -437,6 +457,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         this.atrSeries = this.chart.addSeries(
           LineSeries,
           {
+            priceFormat: this.currentPriceFormat,
             lineWidth: 2,
             color: this.palette.indicatorA,
             priceLineVisible: false,
@@ -449,6 +470,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         this.cciSeries = this.chart.addSeries(
           LineSeries,
           {
+            priceFormat: this.currentPriceFormat,
             lineWidth: 2,
             color: this.palette.indicatorB,
             priceLineVisible: false,
@@ -461,6 +483,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         this.williamsRSeries = this.chart.addSeries(
           LineSeries,
           {
+            priceFormat: this.currentPriceFormat,
             lineWidth: 2,
             color: this.palette.indicatorC,
             priceLineVisible: false,
@@ -485,8 +508,35 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
 
       this.overlaySeries.set(
         indicator,
-        this.chart.addSeries(LineSeries, buildOverlaySeriesOptions(indicator), 0),
+        this.chart.addSeries(
+          LineSeries,
+          buildOverlaySeriesOptions(indicator, this.currentPriceFormat),
+          0,
+        ),
       );
+    }
+  }
+
+  private syncPriceFormat(candles: readonly KlineCandle[]): void {
+    const precision = resolveKlinePricePrecision(candles);
+    if (precision === this.currentPricePrecision) return;
+
+    this.currentPricePrecision = precision;
+    this.currentPriceFormat = createKlinePriceFormat(precision);
+    const options = { priceFormat: this.currentPriceFormat };
+
+    this.candleSeries.applyOptions(options);
+    this.macdHistogramSeries?.applyOptions(options);
+    this.macdDiffSeries?.applyOptions(options);
+    this.macdDeaSeries?.applyOptions(options);
+    this.kdjKSeries?.applyOptions(options);
+    this.kdjDSeries?.applyOptions(options);
+    this.kdjJSeries?.applyOptions(options);
+    this.atrSeries?.applyOptions(options);
+    this.cciSeries?.applyOptions(options);
+    this.williamsRSeries?.applyOptions(options);
+    for (const series of this.overlaySeries.values()) {
+      series.applyOptions(options);
     }
   }
 
@@ -559,6 +609,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
     }
 
     this.currentCandles = sorted;
+    this.syncPriceFormat(sorted);
     const nextFirstTimestamp =
       sorted.length === 0 ? null : new Date(sorted[0]?.at ?? "").getTime();
     const nextLastTimestamp =

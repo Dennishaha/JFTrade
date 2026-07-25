@@ -1,3 +1,8 @@
+import {
+  KLINE_PERIODS,
+  normalizeKlinePeriod,
+} from "../../../charting/kline";
+
 export type QuoteWorkbenchKind = "instrument" | "plate";
 
 export type QuoteWorkbenchProductClass =
@@ -9,7 +14,7 @@ export type QuoteWorkbenchProductClass =
   | "plate"
   | "unknown";
 
-export type QuoteWorkbenchPeriod = "five-day" | "day" | "week" | "month";
+export type QuoteWorkbenchPeriod = (typeof KLINE_PERIODS)[number]["value"];
 
 export type QuoteWorkbenchTab = "quote" | "news";
 
@@ -32,6 +37,17 @@ const productClassAliases: Readonly<Record<string, QuoteWorkbenchProductClass>> 
   plate: "plate",
 };
 
+const quoteWorkbenchPeriods = new Set<string>(
+  KLINE_PERIODS.map((period) => period.value),
+);
+
+const legacyQuoteWorkbenchPeriods: Readonly<Record<string, QuoteWorkbenchPeriod>> = {
+  "five-day": "1d",
+  day: "1d",
+  week: "1w",
+  month: "1mo",
+};
+
 export function normalizeQuoteWorkbenchProductClass(
   value: unknown,
 ): QuoteWorkbenchProductClass {
@@ -43,7 +59,23 @@ export function normalizeQuoteWorkbenchProductClass(
 export function isQuoteWorkbenchPeriod(
   value: unknown,
 ): value is QuoteWorkbenchPeriod {
-  return ["five-day", "day", "week", "month"].includes(String(value));
+  return quoteWorkbenchPeriods.has(String(value));
+}
+
+export function normalizeQuoteWorkbenchPeriod(
+  value: unknown,
+  fallback: QuoteWorkbenchPeriod = "1d",
+): QuoteWorkbenchPeriod {
+  const candidate = String(value ?? "").trim();
+  const legacy = legacyQuoteWorkbenchPeriods[candidate.toLowerCase()];
+  if (legacy != null) return legacy;
+
+  try {
+    const normalized = normalizeKlinePeriod(candidate);
+    return isQuoteWorkbenchPeriod(normalized) ? normalized : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function isQuoteWorkbenchTab(

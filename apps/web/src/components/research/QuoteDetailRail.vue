@@ -29,7 +29,7 @@ const props = withDefaults(
     brokerId: "",
     visible: true,
     drawer: false,
-    period: "day",
+    period: "1d",
     tab: "quote",
   },
 );

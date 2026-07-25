@@ -163,8 +163,14 @@ describe("WorkspacePage", () => {
 
     await wrapper.find(".sidebar-close").trigger("click");
     expect(store.prefs.value.watchlistSidebarOpen).toBe(false);
+    expect(wrapper.get(".tv-workspace").classes()).toContain(
+      "has-collapsed-watchlist",
+    );
     await wrapper.get("button[aria-label='显示自选栏']").trigger("click");
     expect(store.prefs.value.watchlistSidebarOpen).toBe(true);
+    expect(wrapper.get(".tv-workspace").classes()).not.toContain(
+      "has-collapsed-watchlist",
+    );
     await wrapper.find(".sidebar-selected").trigger("click");
     expect(store.prefs.value.watchlistSidebarOpen).toBe(true);
   });

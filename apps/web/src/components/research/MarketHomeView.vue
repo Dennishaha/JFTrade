@@ -277,6 +277,9 @@ const anyError = computed(
 <style scoped>
 .market-home-view {
   display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   flex-direction: column;
   gap: 8px;
@@ -364,14 +367,21 @@ const anyError = computed(
 
 .market-home-view__body {
   display: flex;
+  width: 100%;
+  min-width: 0;
   flex-wrap: wrap;
   gap: 8px;
 }
 
 .market-home-view__ranks {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   flex: 2 1 480px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(320px, 100%), 1fr)
+  );
   gap: 8px;
   align-content: start;
 }
@@ -429,9 +439,4 @@ const anyError = computed(
   font-weight: 600;
 }
 
-@media (max-width: 720px) {
-  .market-home-view__ranks {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 </style>

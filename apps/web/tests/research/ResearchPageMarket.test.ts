@@ -76,7 +76,7 @@ const quoteDetailRailStub = defineComponent({
     seed: { type: Object, default: null },
     brokerId: String,
     drawer: Boolean,
-    period: { type: String, default: "day" },
+    period: { type: String, default: "1d" },
     tab: { type: String, default: "quote" },
   },
   emits: [
@@ -96,7 +96,7 @@ const quoteDetailRailStub = defineComponent({
       :data-period="period"
       :data-tab="tab"
     >
-      <button class="rail-period-week" @click="$emit('update:period', 'week')">week</button>
+      <button class="rail-period-week" @click="$emit('update:period', '1w')">week</button>
       <button class="rail-tab-news" @click="$emit('update:tab', 'news')">news</button>
       <button
         class="rail-select-related"
@@ -338,7 +338,7 @@ describe("ResearchPage information architecture and quote rail", () => {
 
     const rail = page.get(".rail-stub");
     expect(rail.attributes("data-target-id")).toBe("SH.600519");
-    expect(rail.attributes("data-period")).toBe("week");
+    expect(rail.attributes("data-period")).toBe("1w");
     expect(rail.attributes("data-tab")).toBe("news");
   });
 
@@ -352,7 +352,7 @@ describe("ResearchPage information architecture and quote rail", () => {
     await page.get(".rail-period-week").trigger("click");
     await page.get(".rail-tab-news").trigger("click");
     await vi.waitFor(() => {
-      expect(router.currentRoute.value.query.quotePeriod).toBe("week");
+      expect(router.currentRoute.value.query.quotePeriod).toBe("1w");
       expect(router.currentRoute.value.query.quoteTab).toBe("news");
     });
 
@@ -369,7 +369,7 @@ describe("ResearchPage information architecture and quote rail", () => {
       "quote=US.AAPL",
     );
     expect(String(router.currentRoute.value.query.returnTo)).toContain(
-      "quotePeriod=week",
+      "quotePeriod=1w",
     );
   });
 

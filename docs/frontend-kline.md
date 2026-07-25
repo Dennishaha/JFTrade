@@ -14,7 +14,8 @@
 快照:         /api/v1/market-data/snapshots/*
 
 apps/web
-  -> AppShell / WorkspacePage
+  -> AppShell / WorkspacePage / ResearchPage
+  -> shared LightweightChart
   -> marketDataQuery / marketDataRealtime
   -> charting/kline.ts
 
@@ -22,6 +23,10 @@ apps/web
 ```
 
 前端只负责在“后端已给出正确当前桶 seed”的前提下继续做实时累计，不负责猜测当前桶的真实 open/high/low。
+
+工作台与研究页右侧行情栏共用 `LightweightChart.vue`。工作台模式从工作台偏好读取标的和周期；研究栏使用受控标的与周期，只切换当前行情查询，不写回工作台偏好。两种模式共用周期能力、实时订阅、指标设置和历史增量加载，研究栏不再维护独立 candles 请求。
+
+价格轴常规值最多显示 3 位小数，绝对值小于 `0.001` 的非零价格使用科学计数法；成交量轴使用 `K`、`M`、`B` 缩写。显示格式不改变底层 candle 和指标计算精度。
 
 ## 必须牢记的不变量
 
@@ -79,4 +84,5 @@ apps/web
 - `apps/web/src/composables/useConsoleData.ts`
 - `apps/web/src/pages/WorkspacePage.vue`
 - `apps/web/src/components/workspace/LightweightChart.vue`
+- `apps/web/src/components/domain/market-data/VerticalQuoteWorkbench.vue`
 - `pkg/futu/exchange.go`

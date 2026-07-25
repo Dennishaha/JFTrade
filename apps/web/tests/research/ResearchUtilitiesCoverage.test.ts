@@ -21,6 +21,7 @@ import WatchlistFavoriteButton from "../../src/components/domain/watchlist/Watch
 import {
   isQuoteWorkbenchPeriod,
   isQuoteWorkbenchTab,
+  normalizeQuoteWorkbenchPeriod,
   normalizeQuoteWorkbenchProductClass,
 } from "../../src/components/domain/market-data/quoteWorkbench";
 import {
@@ -53,8 +54,15 @@ describe("research utility edge coverage", () => {
   it("normalizes workbench enums and rejects unsupported values", () => {
     expect(normalizeQuoteWorkbenchProductClass(null)).toBe("unknown");
     expect(normalizeQuoteWorkbenchProductClass(" ETF ")).toBe("fund");
-    expect(isQuoteWorkbenchPeriod("five-day")).toBe(true);
+    expect(isQuoteWorkbenchPeriod("1m")).toBe(true);
+    expect(isQuoteWorkbenchPeriod("five-day")).toBe(false);
     expect(isQuoteWorkbenchPeriod("year")).toBe(false);
+    expect(normalizeQuoteWorkbenchPeriod("five-day")).toBe("1d");
+    expect(normalizeQuoteWorkbenchPeriod("week")).toBe("1w");
+    expect(normalizeQuoteWorkbenchPeriod("K_MONTH")).toBe("1mo");
+    expect(normalizeQuoteWorkbenchPeriod("year")).toBe("1d");
+    expect(normalizeQuoteWorkbenchPeriod("2h", "1w")).toBe("1w");
+    expect(normalizeQuoteWorkbenchPeriod("year", "1mo")).toBe("1mo");
     expect(isQuoteWorkbenchTab("quote")).toBe(true);
     expect(isQuoteWorkbenchTab("news")).toBe(true);
     expect(isQuoteWorkbenchTab("chart")).toBe(false);

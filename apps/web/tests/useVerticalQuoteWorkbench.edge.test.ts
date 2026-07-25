@@ -24,10 +24,7 @@ vi.mock("../src/composables/watchlistApi", async (importOriginal) => {
   };
 });
 
-import {
-  researchHistoryBeforeTime,
-  useVerticalQuoteWorkbench,
-} from "../src/components/domain/market-data/useVerticalQuoteWorkbench";
+import { useVerticalQuoteWorkbench } from "../src/components/domain/market-data/useVerticalQuoteWorkbench";
 import { flushPromises } from "./productTestUtils";
 
 afterEach(() => {
@@ -60,41 +57,6 @@ describe("useVerticalQuoteWorkbench edge behavior", () => {
     mocks.fetchEnvelope.mockImplementation((path: string) => {
       if (path.includes("/snapshots/")) return Promise.reject(new Error(" "));
       if (path.includes("/securities/")) return Promise.reject("offline");
-      if (path.includes("/candles/")) {
-        return Promise.resolve({
-          request: {
-            instrument: {
-              instrumentId: "US.EDGE",
-              market: "US",
-              symbol: "EDGE",
-            },
-            period: "1d",
-            limit: 120,
-          },
-          candles: [
-            {
-              period: "1d",
-              at: "not-a-date",
-              displayAt: "invalid",
-              open: 1,
-              high: 2,
-              low: 0,
-              close: 1,
-              volume: 10,
-              session: "regular",
-            },
-          ],
-          totalReturned: 1,
-          pagination: { hasMore: false, nextBefore: null },
-          meta: {
-            instrumentId: "US.EDGE",
-            source: "test",
-            brokerId: "futu",
-            resolvedAt: "2026-07-23T00:00:00Z",
-            fromCache: false,
-          },
-        });
-      }
       return Promise.reject(new Error(`unexpected ${path}`));
     });
     mocks.getWatchlistMembership.mockRejectedValue(new Error("watchlist down"));
@@ -150,7 +112,7 @@ describe("useVerticalQuoteWorkbench edge behavior", () => {
     wrapper.unmount();
   });
 
-  it("returns early for an unresolved target and computes UTC cursors", async () => {
+  it("returns early for an unresolved target", async () => {
     const wrapper = mountHarness({
       target: null,
       seed: { name: "贵州茅台" },
@@ -163,13 +125,6 @@ describe("useVerticalQuoteWorkbench edge behavior", () => {
     };
     await state.refresh();
     expect(mocks.fetchEnvelope).not.toHaveBeenCalled();
-    expect(
-      researchHistoryBeforeTime(
-        "UNKNOWN",
-        "1mo",
-        new Date("2026-07-23T12:00:00Z"),
-      ),
-    ).toBe("2026-07-01T00:00:00.000Z");
     wrapper.unmount();
   });
 });

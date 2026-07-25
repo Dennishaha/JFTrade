@@ -130,7 +130,7 @@ function valueClass(value: number | null): string {
       <thead>
         <tr>
           <th class="rank-list-panel__code">代码</th>
-          <th>名称</th>
+          <th class="rank-list-panel__name">名称</th>
           <th
             class="rank-list-panel__value rank-list-panel__sortable"
             :aria-sort="sortOrder === 'desc' ? 'descending' : 'ascending'"
@@ -166,7 +166,11 @@ function valueClass(value: number | null): string {
 
 <style scoped>
 .rank-list-panel {
+  container: rank-list-panel / inline-size;
   display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   height: 100%;
   flex-direction: column;
@@ -203,6 +207,8 @@ function valueClass(value: number | null): string {
 
 .rank-list-panel__table {
   width: 100%;
+  min-width: 0;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -211,7 +217,9 @@ function valueClass(value: number | null): string {
   height: 32px;
   padding: 0 10px;
   border-bottom: 1px solid var(--tv-border);
+  overflow: hidden;
   text-align: left;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -245,18 +253,27 @@ function valueClass(value: number | null): string {
 }
 
 .rank-list-panel__code {
+  width: 23%;
   font-variant-numeric: tabular-nums;
   color: var(--tv-text-muted);
 }
 
 .rank-list-panel__name {
-  max-width: 140px;
+  width: 29%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .rank-list-panel__value,
 .rank-list-panel__price {
+  width: 24%;
   text-align: right;
+}
+
+@container rank-list-panel (max-width: 360px) {
+  .rank-list-panel__table th,
+  .rank-list-panel__table td {
+    padding-inline: 6px;
+  }
 }
 </style>

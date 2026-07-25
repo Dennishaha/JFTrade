@@ -171,7 +171,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="tv-workspace tv-workspace--scoped" data-capability-surface="workspace.root">
+  <div
+    class="tv-workspace tv-workspace--scoped"
+    :class="{ 'has-collapsed-watchlist': !prefs.watchlistSidebarOpen }"
+    data-capability-surface="workspace.root"
+  >
     <button
       v-if="!prefs.watchlistSidebarOpen"
       type="button"
@@ -345,25 +349,29 @@ onUnmounted(() => {
 
 .tv-workspace__watchlist-open {
   position: absolute;
-  top: 44px;
+  top: 47px;
   left: 8px;
   z-index: 12;
   display: inline-flex;
-  height: 31px;
+  height: 26px;
   align-items: center;
   gap: 6px;
-  padding: 0 9px;
+  padding: 0 7px;
   border: 1px solid var(--tv-border);
-  border-radius: 6px;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--tv-bg-elevated) 92%, transparent);
   color: var(--tv-text-muted);
   box-shadow: 0 5px 18px rgba(2, 6, 23, .14);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .tv-workspace__watchlist-open:hover {
   border-color: var(--tv-accent);
   color: var(--tv-accent);
+}
+
+.tv-workspace.has-collapsed-watchlist {
+  --workspace-chart-head-left-reserve: 84px;
 }
 
 .tv-workspace__watchlist-backdrop {

@@ -44,20 +44,26 @@ import {
 } from "../../src/components/research/researchQuote";
 import { flushPromises } from "../productTestUtils";
 
-const KlineChartStub = defineComponent({
-  name: "KlineChart",
+const LightweightChartStub = defineComponent({
+  name: "LightweightChart",
   props: {
-    candles: { type: Array, default: () => [] },
+    target: { type: Object, default: null },
+    period: { type: String, default: "1d" },
+    variant: { type: String, default: "workspace" },
     minHeight: { type: Number, default: 0 },
-    emptyText: { type: String, default: "" },
   },
+  emits: ["update:period"],
   template: `
     <div
-      class="kline-chart-stub"
-      :data-count="candles.length"
-      :data-first-at="candles[0]?.at ?? ''"
-      :data-first-open="candles[0]?.open ?? ''"
-    />
+      class="lightweight-chart-stub"
+      :data-market="target?.market ?? ''"
+      :data-symbol="target?.symbol ?? ''"
+      :data-period="period"
+      :data-variant="variant"
+      :data-min-height="minHeight"
+    >
+      <button class="chart-period-1w" @click="$emit('update:period', '1w')">1W</button>
+    </div>
   `,
 });
 
@@ -150,31 +156,8 @@ function securityResponse(
   };
 }
 
-function candlesResponse(instrumentId: string, count = 3) {
-  const parts = instrumentParts(instrumentId);
-  return {
-    request: {
-      instrument: parts,
-      period: "1d",
-      limit: 120,
-    },
-    candles: Array.from({ length: count }, (_, index) => ({
-      period: "1d",
-      at: `2026-07-${String(10 + index).padStart(2, "0")}T00:00:00Z`,
-      open: 190 + index,
-      high: 195 + index,
-      low: 189 + index,
-      close: 193 + index,
-      volume: 1_000 + index,
-    })),
-    totalReturned: count,
-    pagination: { hasMore: false, nextBefore: null },
-    meta: queryMeta(instrumentId),
-  };
-}
-
 function idFromPath(path: string): string {
-  const match = path.match(/market-data\/(?:snapshots|securities|candles)\/([^/?]+)\/([^?]+)/);
+  const match = path.match(/market-data\/(?:snapshots|securities)\/([^/?]+)\/([^?]+)/);
   return match == null
     ? "US.AAPL"
     : `${decodeURIComponent(match[1]!)}.${decodeURIComponent(match[2]!)}`;
@@ -188,9 +171,6 @@ function installDefaultResponses(): void {
     }
     if (path.includes("/securities/")) {
       return Promise.resolve(securityResponse(instrumentId));
-    }
-    if (path.includes("/candles/")) {
-      return Promise.resolve(candlesResponse(instrumentId));
     }
     if (path.includes("operation=plate_members")) {
       return Promise.resolve({
@@ -244,7 +224,7 @@ function mountRail(props: Record<string, unknown> = {}): VueWrapper {
     props: { target, seed, brokerId: "futu", ...componentProps },
     global: {
       stubs: {
-        KlineChart: KlineChartStub,
+        LightweightChart: LightweightChartStub,
         WatchlistMembershipDialog: WatchlistDialogStub,
       },
     },
@@ -279,7 +259,7 @@ describe("QuoteDetailRail", () => {
     wrapper.unmount();
   });
 
-  it("loads snapshot, security details, and real candle fields in parallel", async () => {
+  it("loads quote details and mounts the shared controlled K-line component", async () => {
     const wrapper = mountRail();
     await flushPromises();
 
@@ -288,9 +268,9 @@ describe("QuoteDetailRail", () => {
       expect.arrayContaining([
         expect.stringMatching(/\/snapshots\/US\/AAPL\?.*brokerId=futu/),
         expect.stringMatching(/\/securities\/US\/AAPL\?.*brokerId=futu/),
-        expect.stringMatching(/\/candles\/US\/AAPL\?.*period=1d.*brokerId=futu/),
       ]),
     );
+    expect(paths.some((path) => path.includes("/candles/"))).toBe(false);
     expect(wrapper.text()).toContain("US.AAPL");
     expect(wrapper.text()).toContain("Apple Inc.");
     expect(wrapper.get(".quote-summary__price").text()).toBe("201.50");
@@ -301,10 +281,12 @@ describe("QuoteDetailRail", () => {
     expect(wrapper.text()).toContain("+0.75%");
     expect(wrapper.text()).toContain("已收盘");
 
-    const chart = wrapper.get(".kline-chart-stub");
-    expect(chart.attributes("data-count")).toBe("3");
-    expect(chart.attributes("data-first-at")).toBe("2026-07-10T00:00:00Z");
-    expect(chart.attributes("data-first-open")).toBe("190");
+    const chart = wrapper.get(".lightweight-chart-stub");
+    expect(chart.attributes("data-market")).toBe("US");
+    expect(chart.attributes("data-symbol")).toBe("AAPL");
+    expect(chart.attributes("data-period")).toBe("1d");
+    expect(chart.attributes("data-variant")).toBe("embedded");
+    expect(chart.attributes("data-min-height")).toBe("320");
 
     expect(
       wrapper.get('[data-testid="quote-detail-rail-favorite"]').classes(),
@@ -338,98 +320,21 @@ describe("QuoteDetailRail", () => {
     wrapper.unmount();
   });
 
-  it("switches among five-day, day, week, and month historical periods", async () => {
+  it("forwards canonical period changes from the shared K-line component", async () => {
     const wrapper = mountRail();
     await flushPromises();
 
-    const buttons = wrapper.findAll(".quote-detail-rail__chart-toolbar button");
-    expect(buttons.map((button) => button.text())).toEqual([
-      "5日",
-      "日K",
-      "周K",
-      "月K",
-    ]);
-
-    await buttons[0]!.trigger("click");
-    await flushPromises();
-    expect(String(mocks.fetchEnvelope.mock.calls.at(-1)?.[0])).toMatch(
-      /period=1d&limit=5.*brokerId=futu/,
-    );
-
-    await buttons[2]!.trigger("click");
-    await flushPromises();
-    expect(String(mocks.fetchEnvelope.mock.calls.at(-1)?.[0])).toMatch(
-      /period=1w&limit=120.*brokerId=futu/,
-    );
-
-    await buttons[3]!.trigger("click");
-    await flushPromises();
-    expect(String(mocks.fetchEnvelope.mock.calls.at(-1)?.[0])).toMatch(
-      /period=1mo&limit=120.*brokerId=futu/,
-    );
-    wrapper.unmount();
-  });
-
-  it("requests a strict completed-history cursor and filters any open bucket", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-23T14:00:00Z"));
-    mocks.fetchEnvelope.mockImplementation((path: string) => {
-      const instrumentId = idFromPath(path);
-      if (path.includes("/snapshots/")) {
-        return Promise.resolve(snapshotResponse(instrumentId));
-      }
-      if (path.includes("/securities/")) {
-        return Promise.resolve(securityResponse(instrumentId));
-      }
-      if (path.includes("/candles/")) {
-        return Promise.resolve({
-          ...candlesResponse(instrumentId),
-          candles: [
-            {
-              period: "1d",
-              at: "2026-07-22T04:00:00Z",
-              open: 190,
-              high: 195,
-              low: 189,
-              close: 193,
-              volume: 1_000,
-            },
-            {
-              period: "1d",
-              // Current New York trading-day bucket: not completed yet.
-              at: "2026-07-23T04:00:00Z",
-              open: 194,
-              high: 198,
-              low: 192,
-              close: 197,
-              volume: 900,
-            },
-          ],
-        });
-      }
-      return Promise.reject(new Error(`unexpected: ${path}`));
-    });
-    const wrapper = mountRail();
-    await flushPromises();
-
-    const candlePath = String(
-      mocks.fetchEnvelope.mock.calls.find(([path]) =>
+    await wrapper.get(".chart-period-1w").trigger("click");
+    expect(wrapper.emitted("update:period")?.[0]).toEqual(["1w"]);
+    expect(
+      mocks.fetchEnvelope.mock.calls.some(([path]) =>
         String(path).includes("/candles/"),
-      )?.[0],
-    );
-    const candleUrl = new URL(candlePath, "http://localhost");
-    expect(candleUrl.searchParams.get("before")).toBe(
-      "2026-07-23T04:00:00.000Z",
-    );
-    expect(candleUrl.searchParams.get("brokerId")).toBe("futu");
-    expect(wrapper.get(".kline-chart-stub").attributes("data-count")).toBe("1");
-    expect(wrapper.get(".kline-chart-stub").attributes("data-first-at")).toBe(
-      "2026-07-22T04:00:00Z",
-    );
+      ),
+    ).toBe(false);
     wrapper.unmount();
   });
 
-  it("does not use the unqualified candle route when brokerId is absent", async () => {
+  it("leaves candle loading to the shared chart when brokerId is absent", async () => {
     const wrapper = mountRail({ brokerId: "" });
     await flushPromises();
 
@@ -438,14 +343,13 @@ describe("QuoteDetailRail", () => {
         String(path).includes("/candles/"),
       ),
     ).toBe(false);
-    expect(wrapper.text()).toContain("请选择支持历史行情的数据源");
+    expect(wrapper.find(".lightweight-chart-stub").exists()).toBe(true);
     wrapper.unmount();
   });
 
-  it("keeps snapshot and details visible when candles fail", async () => {
+  it("keeps snapshot and details independent from the shared chart data path", async () => {
     mocks.fetchEnvelope.mockImplementation((path: string) => {
       const instrumentId = idFromPath(path);
-      if (path.includes("/candles/")) return Promise.reject(new Error("K线无权限"));
       if (path.includes("/snapshots/")) {
         return Promise.resolve(snapshotResponse(instrumentId));
       }
@@ -458,8 +362,7 @@ describe("QuoteDetailRail", () => {
     await flushPromises();
 
     expect(wrapper.get(".quote-summary__price").text()).toBe("201.50");
-    expect(wrapper.text()).toContain("K线无权限");
-    expect(wrapper.find(".kline-chart-stub").exists()).toBe(false);
+    expect(wrapper.find(".lightweight-chart-stub").exists()).toBe(true);
     wrapper.unmount();
   });
 
@@ -674,9 +577,6 @@ describe("QuoteDetailRail", () => {
       if (path.includes("/securities/")) {
         return Promise.resolve(securityResponse(instrumentId));
       }
-      if (path.includes("/candles/")) {
-        return Promise.resolve(candlesResponse(instrumentId));
-      }
       return Promise.reject(new Error("unexpected"));
     });
     const wrapper = mountRail();
@@ -818,14 +718,11 @@ describe("QuoteDetailRail", () => {
     expect(wrapper.text()).toContain("关键词搜索");
     expect(wrapper.text()).toContain("Apple 发布新产品");
 
-    await wrapper.setProps({ tab: "quote", period: "week" });
+    await wrapper.setProps({ tab: "quote", period: "1w" });
     await flushPromises();
-    expect(
-      wrapper
-        .findAll(".quote-detail-rail__chart-toolbar button")
-        .find((button) => button.text() === "周K")
-        ?.attributes("aria-selected"),
-    ).toBe("true");
+    expect(wrapper.get(".lightweight-chart-stub").attributes("data-period")).toBe(
+      "1w",
+    );
     wrapper.unmount();
   });
 
@@ -854,9 +751,6 @@ describe("QuoteDetailRail", () => {
             },
           }),
         );
-      }
-      if (path.includes("/candles/")) {
-        return Promise.resolve(candlesResponse(instrumentId));
       }
       if (path.includes("/market-data/news?")) {
         return Promise.resolve({ entries: [] });
@@ -890,7 +784,7 @@ describe("QuoteDetailRail", () => {
     wrapper.unmount();
   });
 
-  it("preserves rendered quote and candles when local refresh fails", async () => {
+  it("preserves rendered quote and shared chart target when local refresh fails", async () => {
     let refreshing = false;
     mocks.fetchEnvelope.mockImplementation((path: string) => {
       const instrumentId = idFromPath(path);
@@ -901,22 +795,23 @@ describe("QuoteDetailRail", () => {
       if (path.includes("/securities/")) {
         return Promise.resolve(securityResponse(instrumentId));
       }
-      if (path.includes("/candles/")) {
-        return Promise.resolve(candlesResponse(instrumentId));
-      }
       return Promise.reject(new Error(`unexpected: ${path}`));
     });
     const wrapper = mountRail();
     await flushPromises();
     expect(wrapper.get(".quote-summary__price").text()).toBe("201.50");
-    expect(wrapper.get(".kline-chart-stub").attributes("data-count")).toBe("3");
+    expect(wrapper.get(".lightweight-chart-stub").attributes("data-symbol")).toBe(
+      "AAPL",
+    );
 
     refreshing = true;
     await wrapper.get('[aria-label="刷新当前标的"]').trigger("click");
     await flushPromises();
 
     expect(wrapper.get(".quote-summary__price").text()).toBe("201.50");
-    expect(wrapper.get(".kline-chart-stub").attributes("data-count")).toBe("3");
+    expect(wrapper.get(".lightweight-chart-stub").attributes("data-symbol")).toBe(
+      "AAPL",
+    );
     expect(wrapper.text()).toContain("刷新暂时失败");
     wrapper.unmount();
   });
@@ -970,9 +865,6 @@ describe("QuoteDetailRail", () => {
       const instrumentId = idFromPath(path);
       if (path.includes("/snapshots/")) {
         return Promise.resolve(snapshotResponse(instrumentId));
-      }
-      if (path.includes("/candles/")) {
-        return Promise.resolve(candlesResponse(instrumentId));
       }
       if (path.includes("/securities/")) {
         if (instrumentId === "HK.800000") {

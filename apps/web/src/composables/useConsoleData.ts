@@ -596,6 +596,7 @@ function createConsoleDataStore(
     createStableWebConsumerId,
     saveBrokerIntegration,
     saveOnboardingState,
+    selectMarketDataInstrument,
     selectWorkspaceInstrument,
     selectBrokerAccount,
     selectedBrokerAccount,

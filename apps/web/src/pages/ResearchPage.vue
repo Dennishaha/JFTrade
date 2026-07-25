@@ -20,7 +20,7 @@ import MarketRankingsView from "../components/research/MarketRankingsView.vue";
 import QuoteDetailRail from "../components/research/QuoteDetailRail.vue";
 import StockScreenerView from "../components/research/StockScreenerView.vue";
 import {
-  isQuoteWorkbenchPeriod,
+  normalizeQuoteWorkbenchPeriod,
   normalizeQuoteWorkbenchProductClass,
   type QuoteWorkbenchPeriod,
   type QuoteWorkbenchTab,
@@ -87,8 +87,7 @@ function firstQueryValue(value: unknown): string {
 }
 
 function quotePeriodFromQuery(value: unknown): QuoteWorkbenchPeriod {
-  const candidate = firstQueryValue(value);
-  return isQuoteWorkbenchPeriod(candidate) ? candidate : "day";
+  return normalizeQuoteWorkbenchPeriod(firstQueryValue(value));
 }
 
 type PredictionContractView =
@@ -311,7 +310,7 @@ function quoteQuery(
 function clearQuoteSelection(): void {
   selectedQuoteTarget.value = null;
   selectedQuoteSeed.value = null;
-  selectedQuotePeriod.value = "day";
+  selectedQuotePeriod.value = "1d";
   selectedQuoteTab.value = "quote";
   marketRailCollapsed.value = true;
 }
